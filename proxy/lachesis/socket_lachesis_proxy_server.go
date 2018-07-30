@@ -7,7 +7,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/mosaicnetworks/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/hashgraph"
 	"github.com/sirupsen/logrus"
 )
 
