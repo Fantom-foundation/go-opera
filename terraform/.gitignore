@@ -1,4 +1,4 @@
-babble.pem
+lachesis.pem
 terraform.tfstate*
 secret.tfvars
 conf/*

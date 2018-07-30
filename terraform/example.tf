@@ -4,7 +4,7 @@ provider "aws" {
   region     = "eu-west-2"
 }
 
-resource "aws_subnet" "babblenet" {
+resource "aws_subnet" "lachesisnet" {
   vpc_id     = "${var.vpc}"
   cidr_block = "10.0.1.0/24"
   map_public_ip_on_launch="true"
@@ -14,9 +14,9 @@ resource "aws_subnet" "babblenet" {
   }
 }
 
-resource "aws_security_group" "babblesec" {
-    name = "babblesec"
-    description = "Babble internal traffic + maintenance."
+resource "aws_security_group" "lachesissec" {
+    name = "lachesissec"
+    description = "Lachesis internal traffic + maintenance."
 
     vpc_id     = "${var.vpc}"
 
@@ -42,7 +42,7 @@ resource "aws_security_group" "babblesec" {
         protocol = "tcp"
         cidr_blocks = ["0.0.0.0/0"]
     }
-    
+
     ingress {
         from_port = 8080
         to_port = 8080
@@ -52,21 +52,21 @@ resource "aws_security_group" "babblesec" {
 
     ingress {
         from_port = 1337
-        to_port = 1337 
+        to_port = 1337
         protocol = "tcp"
         cidr_blocks = ["0.0.0.0/0"]
     }
 
     ingress {
         from_port = 1338
-        to_port = 1338 
+        to_port = 1338
         protocol = "tcp"
         cidr_blocks = ["0.0.0.0/0"]
     }
 
     ingress {
         from_port = 1339
-        to_port = 1339 
+        to_port = 1339
         protocol = "tcp"
         cidr_blocks = ["0.0.0.0/0"]
     }
@@ -89,13 +89,13 @@ resource "aws_security_group" "babblesec" {
 
 resource "aws_instance" "server" {
   count = "${var.servers}"
-  
-  //custom ami with ubuntu + babble + dummy
-  ami = "ami-82243ce6" 
+
+  //custom ami with ubuntu + lachesis + dummy
+  ami = "ami-82243ce6"
   instance_type = "t2.micro"
 
-  subnet_id = "${aws_subnet.babblenet.id}"
-  vpc_security_group_ids  = ["${aws_security_group.babblesec.id}"]
+  subnet_id = "${aws_subnet.lachesisnet.id}"
+  vpc_security_group_ids  = ["${aws_security_group.lachesissec.id}"]
   private_ip = "10.0.1.${10+count.index}"
 
   key_name = "${var.key_name}"
@@ -106,7 +106,7 @@ resource "aws_instance" "server" {
 
   provisioner "file" {
     source      = "conf/node${count.index +1}"
-    destination = "babble_conf" 
+    destination = "lachesis_conf"
   }
 
   provisioner "local-exec" {

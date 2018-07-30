@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/mosaicnetworks/babble/node"
+	"github.com/andrecronje/lachesis/node"
 	"github.com/sirupsen/logrus"
 )
 
