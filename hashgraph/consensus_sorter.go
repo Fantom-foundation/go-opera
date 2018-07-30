@@ -3,7 +3,7 @@ package hashgraph
 import (
 	"math/big"
 
-	"github.com/mosaicnetworks/babble/crypto"
+	"github.com/andrecronje/lachesis/crypto"
 )
 
 type ConsensusSorter struct {

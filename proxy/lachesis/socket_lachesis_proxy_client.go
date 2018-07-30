@@ -1,4 +1,4 @@
-package babble
+package lachesis
 
 import (
 	"net"
@@ -7,19 +7,19 @@ import (
 	"time"
 )
 
-type SocketBabbleProxyClient struct {
+type SocketLachesisProxyClient struct {
 	nodeAddr string
 	timeout  time.Duration
 }
 
-func NewSocketBabbleProxyClient(nodeAddr string, timeout time.Duration) *SocketBabbleProxyClient {
-	return &SocketBabbleProxyClient{
+func NewSocketLachesisProxyClient(nodeAddr string, timeout time.Duration) *SocketLachesisProxyClient {
+	return &SocketLachesisProxyClient{
 		nodeAddr: nodeAddr,
 		timeout:  timeout,
 	}
 }
 
-func (p *SocketBabbleProxyClient) getConnection() (*rpc.Client, error) {
+func (p *SocketLachesisProxyClient) getConnection() (*rpc.Client, error) {
 	conn, err := net.DialTimeout("tcp", p.nodeAddr, p.timeout)
 	if err != nil {
 		return nil, err
@@ -27,13 +27,13 @@ func (p *SocketBabbleProxyClient) getConnection() (*rpc.Client, error) {
 	return jsonrpc.NewClient(conn), nil
 }
 
-func (p *SocketBabbleProxyClient) SubmitTx(tx []byte) (*bool, error) {
+func (p *SocketLachesisProxyClient) SubmitTx(tx []byte) (*bool, error) {
 	rpcConn, err := p.getConnection()
 	if err != nil {
 		return nil, err
 	}
 	var ack bool
-	err = rpcConn.Call("Babble.SubmitTx", tx, &ack)
+	err = rpcConn.Call("Lachesis.SubmitTx", tx, &ack)
 	if err != nil {
 		return nil, err
 	}

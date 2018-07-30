@@ -33,7 +33,7 @@ var (
 /*
 
 NetworkTransport provides a network based transport that can be
-used to communicate with babble on remote machines. It requires
+used to communicate with lachesis on remote machines. It requires
 an underlying stream layer to provide a stream abstraction, which can
 be simple TCP, TLS, etc.
 

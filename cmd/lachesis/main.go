@@ -14,14 +14,14 @@ import (
 	"github.com/sirupsen/logrus"
 	cli "gopkg.in/urfave/cli.v1"
 
-	"github.com/mosaicnetworks/babble/crypto"
-	hg "github.com/mosaicnetworks/babble/hashgraph"
-	"github.com/mosaicnetworks/babble/net"
-	"github.com/mosaicnetworks/babble/node"
-	"github.com/mosaicnetworks/babble/proxy"
-	aproxy "github.com/mosaicnetworks/babble/proxy/app"
-	"github.com/mosaicnetworks/babble/service"
-	"github.com/mosaicnetworks/babble/version"
+	"github.com/andrecronje/lachesis/crypto"
+	hg "github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/net"
+	"github.com/andrecronje/lachesis/node"
+	"github.com/andrecronje/lachesis/proxy"
+	aproxy "github.com/andrecronje/lachesis/proxy/app"
+	"github.com/andrecronje/lachesis/service"
+	"github.com/andrecronje/lachesis/version"
 )
 
 var (
@@ -32,12 +32,12 @@ var (
 	}
 	NodeAddressFlag = cli.StringFlag{
 		Name:  "node_addr",
-		Usage: "IP:Port to bind Babble",
+		Usage: "IP:Port to bind Lachesis",
 		Value: "127.0.0.1:1337",
 	}
 	NoClientFlag = cli.BoolFlag{
 		Name:  "no_client",
-		Usage: "Run Babble with dummy in-memory App client",
+		Usage: "Run Lachesis with dummy in-memory App client",
 	}
 	ProxyAddressFlag = cli.StringFlag{
 		Name:  "proxy_addr",
@@ -98,7 +98,7 @@ var (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "babble"
+	app.Name = "Lachesis"
 	app.Usage = "hashgraph consensus"
 	app.HideVersion = true //there is a special command to print the version
 	app.Commands = []cli.Command{
@@ -309,11 +309,11 @@ func defaultDataDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, ".babble")
+			return filepath.Join(home, ".lachesis")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "BABBLE")
+			return filepath.Join(home, "AppData", "Roaming", "LACHESIS")
 		} else {
-			return filepath.Join(home, ".babble")
+			return filepath.Join(home, ".lachesis")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

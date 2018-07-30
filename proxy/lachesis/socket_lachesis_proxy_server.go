@@ -1,4 +1,4 @@
-package babble
+package lachesis
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/mosaicnetworks/babble/hashgraph"
+	"github.com/mosaicnetworks/lachesis/hashgraph"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,7 +32,7 @@ func (r *Commit) Respond(stateHash []byte, err error) {
 	r.RespChan <- CommitResponse{stateHash, err}
 }
 
-type SocketBabbleProxyServer struct {
+type SocketLachesisProxyServer struct {
 	netListener *net.Listener
 	rpcServer   *rpc.Server
 	commitCh    chan Commit
@@ -40,11 +40,11 @@ type SocketBabbleProxyServer struct {
 	logger      *logrus.Logger
 }
 
-func NewSocketBabbleProxyServer(bindAddress string,
+func NewSocketLachesisProxyServer(bindAddress string,
 	timeout time.Duration,
-	logger *logrus.Logger) (*SocketBabbleProxyServer, error) {
+	logger *logrus.Logger) (*SocketLachesisProxyServer, error) {
 
-	server := &SocketBabbleProxyServer{
+	server := &SocketLachesisProxyServer{
 		commitCh: make(chan Commit),
 		timeout:  timeout,
 		logger:   logger,
@@ -57,7 +57,7 @@ func NewSocketBabbleProxyServer(bindAddress string,
 	return server, nil
 }
 
-func (p *SocketBabbleProxyServer) register(bindAddress string) error {
+func (p *SocketLachesisProxyServer) register(bindAddress string) error {
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("State", p)
 	p.rpcServer = rpcServer
@@ -72,7 +72,7 @@ func (p *SocketBabbleProxyServer) register(bindAddress string) error {
 	return nil
 }
 
-func (p *SocketBabbleProxyServer) listen() error {
+func (p *SocketLachesisProxyServer) listen() error {
 	for {
 		conn, err := (*p.netListener).Accept()
 		if err != nil {
@@ -83,7 +83,7 @@ func (p *SocketBabbleProxyServer) listen() error {
 	}
 }
 
-func (p *SocketBabbleProxyServer) CommitBlock(block hashgraph.Block, stateHash *StateHash) (err error) {
+func (p *SocketLachesisProxyServer) CommitBlock(block hashgraph.Block, stateHash *StateHash) (err error) {
 	// Send the Commit over
 	respCh := make(chan CommitResponse)
 	p.commitCh <- Commit{
@@ -106,7 +106,7 @@ func (p *SocketBabbleProxyServer) CommitBlock(block hashgraph.Block, stateHash *
 		"block":      block.Index(),
 		"state_hash": stateHash.Hash,
 		"err":        err,
-	}).Debug("BabbleProxyServer.CommitBlock")
+	}).Debug("LachesisProxyServer.CommitBlock")
 
 	return
 

@@ -6,9 +6,9 @@ import (
 
 	"time"
 
-	"github.com/mosaicnetworks/babble/crypto"
-	"github.com/mosaicnetworks/babble/hashgraph"
-	bproxy "github.com/mosaicnetworks/babble/proxy/babble"
+	"github.com/andrecronje/lachesis/crypto"
+	"github.com/andrecronje/lachesis/hashgraph"
+	bproxy "github.com/andrecronje/lachesis/proxy/lachesis"
 	"github.com/sirupsen/logrus"
 )
 
@@ -85,13 +85,13 @@ func (a *State) getFile() (*os.File, error) {
 
 type DummySocketClient struct {
 	state       *State
-	babbleProxy *bproxy.SocketBabbleProxy
+	lachesisProxy *bproxy.SocketLachesisProxy
 	logger      *logrus.Logger
 }
 
 func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Logger) (*DummySocketClient, error) {
 
-	babbleProxy, err := bproxy.NewSocketBabbleProxy(nodeAddr, clientAddr, 1*time.Second, logger)
+	lachesisProxy, err := bproxy.NewSocketLachesisProxy(nodeAddr, clientAddr, 1*time.Second, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Log
 
 	client := &DummySocketClient{
 		state:       &state,
-		babbleProxy: babbleProxy,
+		lachesisProxy: lachesisProxy,
 		logger:      logger,
 	}
 
@@ -116,7 +116,7 @@ func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Log
 func (c *DummySocketClient) Run() {
 	for {
 		select {
-		case commit := <-c.babbleProxy.CommitCh():
+		case commit := <-c.lachesisProxy.CommitCh():
 			c.logger.Debug("CommitBlock")
 			stateHash, err := c.state.CommitBlock(commit.Block)
 			commit.Respond(stateHash, err)
@@ -125,5 +125,5 @@ func (c *DummySocketClient) Run() {
 }
 
 func (c *DummySocketClient) SubmitTx(tx []byte) error {
-	return c.babbleProxy.SubmitTx(tx)
+	return c.lachesisProxy.SubmitTx(tx)
 }

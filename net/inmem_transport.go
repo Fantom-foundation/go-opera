@@ -29,7 +29,7 @@ func generateUUID() string {
 		buf[10:16])
 }
 
-// InmemTransport Implements the Transport interface, to allow babble to be
+// InmemTransport Implements the Transport interface, to allow lachesis to be
 // tested in-memory without going over a network.
 type InmemTransport struct {
 	sync.RWMutex

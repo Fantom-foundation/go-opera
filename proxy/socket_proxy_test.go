@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mosaicnetworks/babble/common"
-	"github.com/mosaicnetworks/babble/hashgraph"
-	aproxy "github.com/mosaicnetworks/babble/proxy/app"
+	"github.com/andrecronje/lachesis/common"
+	"github.com/andrecronje/lachesis/hashgraph"
+	aproxy "github.com/andrecronje/lachesis/proxy/app"
 )
 
-func TestSokcetProxyServer(t *testing.T) {
+func TestSocketProxyServer(t *testing.T) {
 	clientAddr := "127.0.0.1:9990"
 	proxyAddr := "127.0.0.1:9991"
 	proxy := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
@@ -52,7 +52,7 @@ func TestSocketProxyClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	clientCh := dummyClient.babbleProxy.CommitCh()
+	clientCh := dummyClient.lachesisProxy.CommitCh()
 
 	block := hashgraph.NewBlock(0, 1, [][]byte{[]byte("the test transaction")})
 

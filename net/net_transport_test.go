@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mosaicnetworks/babble/common"
-	"github.com/mosaicnetworks/babble/hashgraph"
+	"github.com/andrecronje/lachesis/common"
+	"github.com/andrecronje/lachesis/hashgraph"
 )
 
 func TestNetworkTransport_StartStop(t *testing.T) {

@@ -10,9 +10,9 @@ import (
 
 	"strconv"
 
-	hg "github.com/mosaicnetworks/babble/hashgraph"
-	"github.com/mosaicnetworks/babble/net"
-	"github.com/mosaicnetworks/babble/proxy"
+	hg "github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/net"
+	"github.com/andrecronje/lachesis/proxy"
 )
 
 type Node struct {
@@ -124,7 +124,7 @@ func (n *Node) Run(gossip bool) {
 
 		switch state {
 		case Babbling:
-			n.babble(gossip)
+			n.lachesis(gossip)
 		case CatchingUp:
 			n.fastForward()
 		case Shutdown:
@@ -163,7 +163,7 @@ func (n *Node) doBackgroundWork() {
 	}
 }
 
-func (n *Node) babble(gossip bool) {
+func (n *Node) lachesis(gossip bool) {
 	for {
 		oldState := n.getState()
 		select {
