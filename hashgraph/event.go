@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/andrecronjes/lachesis/crypto"
+	"github.com/andrecronje/lachesis/crypto"
 )
 
 type EventBody struct {
