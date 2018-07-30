@@ -3,7 +3,7 @@ package hashgraph
 import (
 	"strconv"
 
-	cm "github.com/andrecronje/andrecronje/common"
+	cm "github.com/andrecronje/lachesis/common"
 )
 
 type InmemStore struct {

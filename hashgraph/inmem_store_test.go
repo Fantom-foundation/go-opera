@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/andrecronje/andrecronje/crypto"
+	"github.com/andrecronje/lachesis/crypto"
 )
 
 type pub struct {
