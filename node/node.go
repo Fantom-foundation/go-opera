@@ -80,9 +80,9 @@ func NewNode(conf *Config,
 		controlTimer: NewRandomControlTimer(conf.HeartbeatTimeout),
 	}
 
-	//Initialize as Babbling
+	//Initialize as Gossiping
 	node.setStarting(true)
-	node.setState(Babbling)
+	node.setState(Gossiping)
 
 	return &node
 }
@@ -108,7 +108,7 @@ func (n *Node) RunAsync(gossip bool) {
 
 func (n *Node) Run(gossip bool) {
 	//The ControlTimer allows the background routines to control the
-	//heartbeat timer when the node is in the Babbling state. The timer should
+	//heartbeat timer when the node is in the Gossiping state. The timer should
 	//only be running when there are uncommitted transactions in the system.
 	go n.controlTimer.Run()
 
@@ -123,7 +123,7 @@ func (n *Node) Run(gossip bool) {
 		n.logger.WithField("state", state.String()).Debug("Run loop")
 
 		switch state {
-		case Babbling:
+		case Gossiping:
 			n.lachesis(gossip)
 		case CatchingUp:
 			n.fastForward()
@@ -194,7 +194,7 @@ func (n *Node) lachesis(gossip bool) {
 
 func (n *Node) processRPC(rpc net.RPC) {
 
-	if s := n.getState(); s != Babbling {
+	if s := n.getState(); s != Gossiping {
 		n.logger.WithField("state", s.String()).Debug("Discarding RPC Request")
 		//XXX Use a SyncResponse by default but this should be either a special
 		//ErrorResponse type or a type that corresponds to the request
@@ -440,7 +440,7 @@ func (n *Node) fastForward() error {
 
 	//XXX Work in Progress on fsync branch
 
-	n.setState(Babbling)
+	n.setState(Gossiping)
 
 	return nil
 }
