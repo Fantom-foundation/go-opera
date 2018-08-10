@@ -63,8 +63,12 @@ func (s *Service) GetConsensusEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) GetParticipants(w http.ResponseWriter, r *http.Request) {
-	participants := s.node.GetParticipants()
-
+	participants, err := s.node.GetParticipants()
+	if err != nil {
+		s.logger.WithError(err).Errorf("Parsing participants parameter")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(participants)
 }
