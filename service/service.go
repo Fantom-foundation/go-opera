@@ -95,14 +95,8 @@ func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetEvent(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/event/"):]
-	eventIndex, err := strconv.Atoi(param)
-	if err != nil {
-		s.logger.WithError(err).Errorf("Parsing eventIndex parameter %s", param)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 
-	event, err := s.node.GetEvent(eventIndex)
+	event, err := s.node.GetEvent(param)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Retrieving event %d", event)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -122,12 +116,7 @@ func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundWitnesses, err := s.node.GetRoundWitnesses(roundWitnessesIndex)
-	if err != nil {
-		s.logger.WithError(err).Errorf("Retrieving roundWitnesses %d", roundWitnesses)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	roundWitnesses := s.node.GetRoundWitnesses(roundWitnessesIndex)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(roundWitnesses)
@@ -143,12 +132,7 @@ func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundEvent, err := s.node.GetRoundEvents(roundEventsIndex)
-	if err != nil {
-		s.logger.WithError(err).Errorf("Retrieving roundEvent %d", roundEvent)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	roundEvent := s.node.GetRoundEvents(roundEventsIndex)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(roundEvent)
