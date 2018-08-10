@@ -606,6 +606,30 @@ func (n *Node) SyncRate() float64 {
 	return 1 - syncErrorRate
 }
 
+func (n *Node) GetKnownEvents() map[int]int {
+	return n.core.hg.Store.KnownEvents()
+}
+
+func (n *Node) GetConsensusEvents() []string {
+	return n.core.hg.Store.ConsensusEvents()
+}
+
+func (n *Node) GetParticipants() (map[string]int, error) {
+	return n.core.hg.Store.Participants()
+}
+
+func (n *Node) GetEvent(event string) (Event, error) {
+	return n.core.hg.Store.GetEvent(event)
+}
+
 func (n *Node) GetBlock(blockIndex int) (hg.Block, error) {
 	return n.core.hg.Store.GetBlock(blockIndex)
+}
+
+func (n *Node) GetRoundWitnesses(round int) []string {
+	return n.core.hg.Store.GetRoundWitnesses(round)
+}
+
+func (n *Node) GetRoundEvents(round int) int {
+	return n.core.hg.Store.GetRoundEvents(round)
 }
