@@ -618,7 +618,7 @@ func (n *Node) GetParticipants() (map[string]int, error) {
 	return n.core.hg.Store.Participants()
 }
 
-func (n *Node) GetEvent(event string) (Event, error) {
+func (n *Node) GetEvent(event string) (hg.Event, error) {
 	return n.core.hg.Store.GetEvent(event)
 }
 
