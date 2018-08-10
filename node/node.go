@@ -627,9 +627,9 @@ func (n *Node) GetBlock(blockIndex int) (hg.Block, error) {
 }
 
 func (n *Node) GetRoundWitnesses(round int) []string {
-	return n.core.hg.Store.GetRoundWitnesses(round)
+	return n.core.hg.Store.RoundWitnesses(round)
 }
 
 func (n *Node) GetRoundEvents(round int) int {
-	return n.core.hg.Store.GetRoundEvents(round)
+	return n.core.hg.Store.RoundEvents(round)
 }
