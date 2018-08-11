@@ -564,9 +564,10 @@ func (n *Node) GetStats() map[string]string {
 		consensusRoundsPerSecond = float64(*lastConsensusRound) / timeElapsed.Seconds()
 	}
 
-	s := map[string]string{
+	s := map[string]string{,
 		"last_consensus_round":    toString(lastConsensusRound),
-		"time_elapsed":   				 strconv.FormatFloat(timeElapsed.Seconds(), 'f', 2, 64),
+		"time_elapsed":   				 strconv.FormatInt(time.Now().Unix(), 10),
+		"node_current":   				 strconv.FormatFloat(timeElapsed.Seconds(), 'f', 2, 64),
 		"node_start":   				   strconv.FormatInt(n.start.Unix(), 10),
 		"last_block_index":        strconv.Itoa(n.core.GetLastBlockIndex()),
 		"consensus_events":        strconv.Itoa(consensusEvents),
