@@ -296,8 +296,8 @@ func (h *Hashgraph) RoundInc(x string) bool {
 		return true
 	}
 
-	//If parent-round was obtained from a regulare Event, then we need to check
-	//if x strongly-sees a strong majority of withnesses from parent-round.
+	//If parent-round was obtained from a regular Event, then we need to check
+	//if x strongly-sees a strong majority of witnesses from parent-round.
 	c := 0
 	for _, w := range h.Store.RoundWitnesses(parentRound.round) {
 		if h.StronglySee(x, w) {

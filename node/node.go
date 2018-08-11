@@ -567,10 +567,12 @@ func (n *Node) GetStats() map[string]string {
 	s := map[string]string{
 		"last_consensus_round":    toString(lastConsensusRound),
 		"time_elapsed":   				 strconv.FormatFloat(timeElapsed.Seconds(), 'f', 2, 64),
+		"heartbeat":   				 		 strconv.FormatFloat(n.conf.HeartbeatTimeout.Seconds(), 'f', 2, 64),
 		"node_current":   				 strconv.FormatInt(time.Now().Unix(), 10),
 		"node_start":   				   strconv.FormatInt(n.start.Unix(), 10),
 		"last_block_index":        strconv.Itoa(n.core.GetLastBlockIndex()),
 		"consensus_events":        strconv.Itoa(consensusEvents),
+		"sync_limit":        			 strconv.Itoa(n.conf.SyncLimit),
 		"consensus_transactions":  strconv.Itoa(consensusTransactions),
 		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
 		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
