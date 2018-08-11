@@ -554,6 +554,8 @@ func (n *Node) GetStats() map[string]string {
 
 	consensusEvents := n.core.GetConsensusEventsCount()
 	consensusEventsPerSecond := float64(consensusEvents) / timeElapsed.Seconds()
+	consensusTransactions := n.core.GetConsensusTransactionsCount()
+	transactionsPerSecond := float64(consensusTransactions) / timeElapsed.Seconds()
 
 	lastConsensusRound := n.core.GetLastConsensusRoundIndex()
 	var consensusRoundsPerSecond float64
@@ -562,19 +564,21 @@ func (n *Node) GetStats() map[string]string {
 	}
 
 	s := map[string]string{
-		"last_consensus_round":   toString(lastConsensusRound),
-		"last_block_index":       strconv.Itoa(n.core.GetLastBlockIndex()),
-		"consensus_events":       strconv.Itoa(consensusEvents),
-		"consensus_transactions": strconv.Itoa(n.core.GetConsensusTransactionsCount()),
-		"undetermined_events":    strconv.Itoa(len(n.core.GetUndeterminedEvents())),
-		"transaction_pool":       strconv.Itoa(len(n.core.transactionPool)),
-		"num_peers":              strconv.Itoa(len(n.peerSelector.Peers())),
-		"sync_rate":              strconv.FormatFloat(n.SyncRate(), 'f', 2, 64),
-		"events_per_second":      strconv.FormatFloat(consensusEventsPerSecond, 'f', 2, 64),
-		"rounds_per_second":      strconv.FormatFloat(consensusRoundsPerSecond, 'f', 2, 64),
-		"round_events":           strconv.Itoa(n.core.GetLastCommitedRoundEventsCount()),
-		"id":                     strconv.Itoa(n.id),
-		"state":                  n.getState().String(),
+		"last_consensus_round":    toString(lastConsensusRound),
+		"time_elapsed":   				 toString(timeElapsed.Seconds()),
+		"last_block_index":        strconv.Itoa(n.core.GetLastBlockIndex()),
+		"consensus_events":        strconv.Itoa(consensusEvents),
+		"consensus_transactions":  strconv.Itoa(consensusTransactions),
+		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
+		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
+		"num_peers":               strconv.Itoa(len(n.peerSelector.Peers())),
+		"sync_rate":               strconv.FormatFloat(n.SyncRate(), 'f', 2, 64),
+		"transactions_per_second": strconv.FormatFloat(transactionsPerSecond, 'f', 2, 64),
+		"events_per_second":       strconv.FormatFloat(consensusEventsPerSecond, 'f', 2, 64),
+		"rounds_per_second":       strconv.FormatFloat(consensusRoundsPerSecond, 'f', 2, 64),
+		"round_events":            strconv.Itoa(n.core.GetLastCommitedRoundEventsCount()),
+		"id":                      strconv.Itoa(n.id),
+		"state":                   n.getState().String(),
 	}
 	return s
 }
