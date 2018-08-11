@@ -164,16 +164,9 @@ func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRoot(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/root/"):]
-	rootIndex, err := strconv.Atoi(param)
+	root, err := s.node.GetRoot(param)
 	if err != nil {
-		s.logger.WithError(err).Errorf("Parsing rootIndex parameter %s", param)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	root, err := s.node.GetRoot(rootIndex)
-	if err != nil {
-		s.logger.WithError(err).Errorf("Retrieving block %d", blockIndex)
+		s.logger.WithError(err).Errorf("Retrieving root %d", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
