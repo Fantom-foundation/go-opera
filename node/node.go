@@ -606,13 +606,6 @@ func (n *Node) SyncRate() float64 {
 	return 1 - syncErrorRate
 }
 
-func (n *Node) GetKnownEvents() map[int]int {
-	return n.core.hg.Store.KnownEvents()
-}
-
-func (n *Node) GetConsensusEvents() []string {
-	return n.core.hg.Store.ConsensusEvents()
-}
 
 func (n *Node) GetParticipants() (map[string]int, error) {
 	return n.core.hg.Store.Participants()
@@ -622,14 +615,38 @@ func (n *Node) GetEvent(event string) (hg.Event, error) {
 	return n.core.hg.Store.GetEvent(event)
 }
 
+func (n *Node) GetLastEventFrom(participant string) (string, bool, error) {
+	return n.core.hg.Store.LastEventFrom(participant)
+}
+
+func (n *Node) GetKnownEvents() map[int]int {
+	return n.core.hg.Store.KnownEvents()
+}
+
+func (n *Node) GetConsensusEvents() []string {
+	return n.core.hg.Store.ConsensusEvents()
+}
+
+func (n *Node) GetRound(roundIndex int) (hg.RoundInfo, error) {
+	return n.core.hg.Store.GetRound(roundIndex)
+}
+
+func (n *Node) GetLastRound() int {
+	return n.core.hg.Store.LastRound()
+}
+
+func (n *Node) GetRoundWitnesses(roundIndex int) []string {
+	return n.core.hg.Store.RoundWitnesses(roundIndex)
+}
+
+func (n *Node) GetRoundEvents(roundIndex int) int {
+	return n.core.hg.Store.RoundEvents(roundIndex)
+}
+
+func (n *Node) GetRoot(rootIndex string) (hg.Root, error) {
+	return n.core.hg.Store.GetRoot(rootIndex)
+}
+
 func (n *Node) GetBlock(blockIndex int) (hg.Block, error) {
 	return n.core.hg.Store.GetBlock(blockIndex)
-}
-
-func (n *Node) GetRoundWitnesses(round int) []string {
-	return n.core.hg.Store.RoundWitnesses(round)
-}
-
-func (n *Node) GetRoundEvents(round int) int {
-	return n.core.hg.Store.RoundEvents(round)
 }
