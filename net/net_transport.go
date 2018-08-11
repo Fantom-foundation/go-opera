@@ -16,6 +16,7 @@ import (
 const (
 	rpcSync uint8 = iota
 	rpcEagerSync
+	rpcSubmitTx
 
 	// DefaultTimeoutScale is the default TimeoutScale in a NetworkTransport.
 	DefaultTimeoutScale = 256 * 1024 // 256KB
@@ -352,6 +353,12 @@ func (n *NetworkTransport) handleCommand(r *bufio.Reader, dec *json.Decoder, enc
 		rpc.Command = &req
 	case rpcEagerSync:
 		var req EagerSyncRequest
+		if err := dec.Decode(&req); err != nil {
+			return err
+		}
+		rpc.Command = &req
+	case rpcSubmitTx:
+		var req SubmitTxRequest
 		if err := dec.Decode(&req); err != nil {
 			return err
 		}

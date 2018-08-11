@@ -25,3 +25,15 @@ type EagerSyncResponse struct {
 	FromID  int
 	Success bool
 }
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+type SubmitTxRequest struct {
+	Transactions []string
+	ID int
+}
+
+type SubmitTxResponse struct {
+	FromID  int
+	Success bool
+}
