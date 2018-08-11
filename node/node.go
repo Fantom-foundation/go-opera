@@ -78,6 +78,7 @@ func NewNode(conf *Config,
 		commitCh:     commitCh,
 		shutdownCh:   make(chan struct{}),
 		controlTimer: NewRandomControlTimer(conf.HeartbeatTimeout),
+		start:        time.Now(),
 	}
 
 	//Initialize as Gossiping
@@ -566,6 +567,7 @@ func (n *Node) GetStats() map[string]string {
 	s := map[string]string{
 		"last_consensus_round":    toString(lastConsensusRound),
 		"time_elapsed":   				 strconv.FormatFloat(timeElapsed.Seconds(), 'f', 2, 64),
+		"node_start":   				   strconv.FormatFloat(n.start, 'f', 2, 64),
 		"last_block_index":        strconv.Itoa(n.core.GetLastBlockIndex()),
 		"consensus_events":        strconv.Itoa(consensusEvents),
 		"consensus_transactions":  strconv.Itoa(consensusTransactions),
