@@ -250,7 +250,7 @@ func (h *Hashgraph) parentRound(x string) ParentRoundInfo {
 		//we do not know the other-parent but it is referenced  in Root.Others
 		//we use the Root's Round
 		//in reality the OtherParent Round is not necessarily the same as the
-		//Root's but it is necessarily smaller. Since We are intererest in the
+		//Root's but it is necessarily smaller. Since We are interest in the
 		//max between self-parent and other-parent rounds, this shortcut is
 		//acceptable.
 		opRound = root.Round
@@ -363,7 +363,7 @@ func (h *Hashgraph) InsertEvent(event Event, setWireInfo bool) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("Invalid Event signature")
+		return fmt.Errorf("invalid Event signature")
 	}
 
 	if err := h.CheckSelfParent(event); err != nil {
@@ -465,7 +465,7 @@ func (h *Hashgraph) CheckSelfParent(event Event) error {
 	selfParentLegit := selfParent == creatorLastKnown
 
 	if !selfParentLegit {
-		return fmt.Errorf("Self-parent not last known event by creator")
+		return fmt.Errorf("self-parent not last known event by creator")
 	}
 
 	return nil
@@ -490,7 +490,7 @@ func (h *Hashgraph) CheckOtherParent(event Event) error {
 			if ok && other == event.OtherParent() {
 				return nil
 			}
-			return fmt.Errorf("Other-parent not known")
+			return fmt.Errorf("other-parent not known")
 		}
 	}
 	return nil
@@ -540,7 +540,7 @@ func (h *Hashgraph) InitEventCoordinates(event *Event) error {
 	creator := event.Creator()
 	creatorID, ok := h.Participants[creator]
 	if !ok {
-		return fmt.Errorf("Could not find creator id (%s)", creator)
+		return fmt.Errorf("could not find creator id (%s)", creator)
 	}
 	hash := event.Hex()
 
@@ -550,11 +550,11 @@ func (h *Hashgraph) InitEventCoordinates(event *Event) error {
 	return nil
 }
 
-//update first decendant of each last ancestor to point to event
+//update first descendant of each last ancestor to point to event
 func (h *Hashgraph) UpdateAncestorFirstDescendant(event Event) error {
 	creatorID, ok := h.Participants[event.Creator()]
 	if !ok {
-		return fmt.Errorf("Could not find creator id (%s)", event.Creator())
+		return fmt.Errorf("could not find creator id (%s)", event.Creator())
 	}
 	index := event.Index()
 	hash := event.Hex()
@@ -1013,7 +1013,7 @@ func (h *Hashgraph) GetFrame() (Frame, error) {
 
 	//Not every participant necessarily has a witness in LastConsensusRound.
 	//Hence, there could be participants with no Root at this point.
-	//For these partcipants, use their last known Event.
+	//For these participants, use their last known Event.
 	for p := range h.Participants {
 		if _, ok := roots[p]; !ok {
 			var root Root
@@ -1075,11 +1075,11 @@ func (h *Hashgraph) GetFrame() (Frame, error) {
 
 //Bootstrap loads all Events from the Store's DB (if there is one) and feeds
 //them to the Hashgraph (in topological order) for consensus ordering. After this
-//method call, the Hashgraph should be in a state coeherent with the 'tip' of the
+//method call, the Hashgraph should be in a state coherent with the 'tip' of the
 //Hashgraph
 func (h *Hashgraph) Bootstrap() error {
 	if badgerStore, ok := h.Store.(*BadgerStore); ok {
-		//Retreive the Events from the underlying DB. They come out in topological
+		//Retrieve the Events from the underlying DB. They come out in topological
 		//order
 		topologicalEvents, err := badgerStore.dbTopologicalEvents()
 		if err != nil {

@@ -189,12 +189,12 @@ func (c *Core) GetFrame() (hg.Frame, error) {
 	return c.hg.GetFrame()
 }
 
-//returns events that c knowns about and are not in 'known'
+//returns events that c knows about and are not in 'known'
 func (c *Core) EventDiff(known map[int]int) (events []hg.Event, err error) {
 	unknown := []hg.Event{}
-	//known represents the indez of the last event known for every participant
+	//known represents the index of the last event known for every participant
 	//compare this to our view of events and fill unknown with events that we know of
-	// and the other doesnt
+	// and the other doesn't
 	for id, ct := range known {
 		pk := c.reverseParticipants[id]
 		//get participant Events with index > ct
@@ -251,7 +251,7 @@ func (c *Core) Sync(unknownEvents []hg.WireEvent) error {
 			c.Seq+1)
 
 		if err := c.SignAndInsertSelfEvent(newHead); err != nil {
-			return fmt.Errorf("Error inserting new head: %s", err)
+			return fmt.Errorf("error inserting new head: %s", err)
 		}
 
 		//empty the pools
@@ -276,7 +276,7 @@ func (c *Core) AddSelfEvent() error {
 		c.PubKey(), c.Seq+1)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
-		return fmt.Errorf("Error inserting new head: %s", err)
+		return fmt.Errorf("error inserting new head: %s", err)
 	}
 
 	c.logger.WithFields(logrus.Fields{
@@ -385,7 +385,7 @@ func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	for _, e := range c.GetConsensusEvents() {
 		eTxs, err := c.GetEventTransactions(e)
 		if err != nil {
-			return txs, fmt.Errorf("Consensus event not found: %s", e)
+			return txs, fmt.Errorf("consensus event not found: %s", e)
 		}
 		txs = append(txs, eTxs...)
 	}
@@ -400,7 +400,7 @@ func (c *Core) GetConsensusTransactionsCount() int {
 	return c.hg.ConsensusTransactions
 }
 
-func (c *Core) GetLastCommitedRoundEventsCount() int {
+func (c *Core) GetLastCommittedRoundEventsCount() int {
 	return c.hg.LastCommitedRoundEvents
 }
 

@@ -12,7 +12,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/sirupsen/logrus"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/andrecronje/lachesis/crypto"
 	hg "github.com/andrecronje/lachesis/hashgraph"

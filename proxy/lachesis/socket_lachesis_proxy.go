@@ -55,7 +55,7 @@ func (p *SocketLachesisProxy) SubmitTx(tx []byte) error {
 		return err
 	}
 	if !*ack {
-		return fmt.Errorf("Failed to deliver transaction to Lachesis")
+		return fmt.Errorf("failed to deliver transaction to Lachesis")
 	}
 	return nil
 }

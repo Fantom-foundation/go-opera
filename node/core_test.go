@@ -92,17 +92,17 @@ func initHashgraph(cores []Core, keys []*ecdsa.PrivateKey, index map[string]stri
 }
 
 func insertEvent(cores []Core, keys []*ecdsa.PrivateKey, index map[string]string,
-	event hg.Event, name string, particant int, creator int) error {
+	event hg.Event, name string, participant int, creator int) error {
 
-	if particant == creator {
-		if err := cores[particant].SignAndInsertSelfEvent(event); err != nil {
+	if participant == creator {
+		if err := cores[participant].SignAndInsertSelfEvent(event); err != nil {
 			return err
 		}
 		//event is not signed because passed by value
-		index[name] = cores[particant].Head
+		index[name] = cores[participant].Head
 	} else {
 		event.Sign(keys[creator])
-		if err := cores[particant].InsertEvent(event, true); err != nil {
+		if err := cores[participant].InsertEvent(event, true); err != nil {
 			return err
 		}
 		index[name] = event.Hex()

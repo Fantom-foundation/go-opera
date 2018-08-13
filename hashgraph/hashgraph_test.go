@@ -765,7 +765,7 @@ func TestRoundInc(t *testing.T) {
 	}
 
 	if h.RoundInc(index["e02"]) {
-		t.Fatal("RoundInc e02 should be false because it doesnt strongly see e2")
+		t.Fatal("RoundInc e02 should be false because it doesn't strongly see e2")
 	}
 }
 
@@ -1525,7 +1525,7 @@ func TestBootstrap(t *testing.T) {
 	defer os.RemoveAll(badgerDir)
 
 	//Now we want to create a new Hashgraph based on the database of the previous
-	//Hashgraph and see if we can boostrap it to the same state.
+	//Hashgraph and see if we can bootstrap it to the same state.
 	recycledStore, err := LoadBadgerStore(cacheSize, badgerDir)
 	nh := NewHashgraph(recycledStore.participants, recycledStore, nil, logger)
 	err = nh.Bootstrap()
