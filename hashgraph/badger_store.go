@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/dgraph-io/badger"
 	cm "github.com/andrecronje/lachesis/common"
+	"github.com/dgraph-io/badger"
 )
 
 var (
@@ -316,17 +316,17 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 		//check if it already exists
-		new := false
+		exists := false
 		_, err = tx.Get([]byte(eventHex))
 		if err != nil && isDBKeyNotFound(err) {
-			new = true
+			exists = true
 		}
 		//insert [event hash] => [event bytes]
 		if err := tx.Set([]byte(eventHex), val); err != nil {
 			return err
 		}
 
-		if new {
+		if exists {
 			//insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.topologicalIndex)
 			if err := tx.Set(topoKey, []byte(eventHex)); err != nil {

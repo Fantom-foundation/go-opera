@@ -61,7 +61,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		return err
 	}
 	if cm.Is(err, cm.KeyNotFound) {
-		if err := s.addParticpantEvent(event.Creator(), key, event.Index()); err != nil {
+		if err := s.addParticipantEvent(event.Creator(), key, event.Index()); err != nil {
 			return err
 		}
 	}
@@ -70,7 +70,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 	return nil
 }
 
-func (s *InmemStore) addParticpantEvent(participant string, hash string, index int) error {
+func (s *InmemStore) addParticipantEvent(participant string, hash string, index int) error {
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
@@ -78,8 +78,8 @@ func (s *InmemStore) ParticipantEvents(participant string, skip int) ([]string, 
 	return s.participantEventsCache.Get(participant, skip)
 }
 
-func (s *InmemStore) ParticipantEvent(particant string, index int) (string, error) {
-	return s.participantEventsCache.GetItem(particant, index)
+func (s *InmemStore) ParticipantEvent(participant string, index int) (string, error) {
+	return s.participantEventsCache.GetItem(participant, index)
 }
 
 func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {

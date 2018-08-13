@@ -388,7 +388,7 @@ func deleteStores(nodes []*Node, t *testing.T) {
 func getCommittedTransactions(n *Node) ([][]byte, error) {
 	InmemAppProxy, ok := n.proxy.(*aproxy.InmemAppProxy)
 	if !ok {
-		return nil, fmt.Errorf("Error casting to InmemProp")
+		return nil, fmt.Errorf("error casting to InmemProp")
 	}
 	res := InmemAppProxy.GetCommittedTransactions()
 	return res, nil
@@ -572,7 +572,7 @@ func checkGossip(nodes []*Node, t *testing.T) {
 	problem := false
 	t.Logf("min consensus events: %d", minE)
 	for i, e := range consEvents[0][0:minE] {
-		for j := range nodes[1:len(nodes)] {
+		for j := range nodes[1:] {
 			if f := consEvents[j][i]; f != e {
 				er := nodes[0].core.hg.Round(e)
 				err := nodes[0].core.hg.RoundReceived(e)
@@ -591,7 +591,7 @@ func checkGossip(nodes []*Node, t *testing.T) {
 
 	t.Logf("min consensus transactions: %d", minT)
 	for i, tx := range consTransactions[0][:minT] {
-		for k := range nodes[1:len(nodes)] {
+		for k := range nodes[1:] {
 			if ot := string(consTransactions[k][i]); ot != string(tx) {
 				t.Fatalf("nodes[%d].ConsensusTransactions[%d] should be '%s' not '%s'", k, i, string(tx), ot)
 			}
@@ -620,7 +620,7 @@ func makeRandomTransactions(nodes []*Node, quit chan struct{}) {
 func submitTransaction(n *Node, tx []byte) error {
 	prox, ok := n.proxy.(*aproxy.InmemAppProxy)
 	if !ok {
-		return fmt.Errorf("Error casting to InmemProp")
+		return fmt.Errorf("error casting to InmemProp")
 	}
 	prox.SubmitTx([]byte(tx))
 	return nil
