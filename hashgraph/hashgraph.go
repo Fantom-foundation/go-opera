@@ -699,7 +699,7 @@ func (h *Hashgraph) DivideRounds() error {
 
 //decide if witnesses are famous
 func (h *Hashgraph) DecideFame() error {
-	votes := make(map[string](map[string]bool)) //[x][y]=>vote(x,y)
+	votes := make(map[string]map[string]bool) //[x][y]=>vote(x,y)
 
 	decidedRounds := map[int]int{} // [round number] => index in h.UndecidedRounds
 	defer h.updateUndecidedRounds(decidedRounds)
