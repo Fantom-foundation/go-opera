@@ -50,6 +50,8 @@ func corsHandler(h http.HandlerFunc) http.HandlerFunc {
     if (r.Method == "OPTIONS") {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
     	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers",
+        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
     } else {
       h.ServeHTTP(w,r)
     }
