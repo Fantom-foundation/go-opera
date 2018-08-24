@@ -47,12 +47,20 @@ func (s *Service) Serve() {
 
 func corsHandler(h http.HandlerFunc) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
     if (r.Method == "OPTIONS") {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			/*w.Header().Set("Access-Control-Allow-Origin", "*")
     	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers",
-        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
+        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
     } else {
+			/*w.Header().Set("Access-Control-Allow-Origin", "*")
+    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers",
+        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
       h.ServeHTTP(w,r)
     }
   }
