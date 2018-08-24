@@ -517,6 +517,7 @@ func (s *BadgerStore) dbGetParticipants() (map[string]int, error) {
 	err := s.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		prefix := []byte(participantPrefix)
+		defer it.Close()
 		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
 			item := it.Item()
 			k := string(item.Key())
