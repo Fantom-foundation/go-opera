@@ -27,22 +27,33 @@ func NewService(bindAddress string, node *node.Node, logger *logrus.Logger) *Ser
 
 func (s *Service) Serve() {
 	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
-	http.HandleFunc("/stats", s.GetStats)
-	http.HandleFunc("/participants/", s.GetParticipants)
-	http.HandleFunc("/event/", s.GetEvent)
-	http.HandleFunc("/lasteventfrom/", s.GetLastEventFrom)
-	http.HandleFunc("/events/", s.GetKnownEvents)
-	http.HandleFunc("/consensusevents/", s.GetConsensusEvents)
-	http.HandleFunc("/round/", s.GetRound)
-	http.HandleFunc("/lastround/", s.GetLastRound)
-	http.HandleFunc("/roundwitnesses/", s.GetRoundWitnesses)
-	http.HandleFunc("/roundevents/", s.GetRoundEvents)
-	http.HandleFunc("/root/", s.GetRoot)
-	http.HandleFunc("/block/", s.GetBlock)
+	http.HandleFunc("/stats", corsHandler(s.GetStats))
+	http.HandleFunc("/participants/", corsHandler(s.GetParticipants))
+	http.HandleFunc("/event/", corsHandler(s.GetEvent))
+	http.HandleFunc("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
+	http.HandleFunc("/events/", corsHandler(s.GetKnownEvents))
+	http.HandleFunc("/consensusevents/", corsHandler(s.GetConsensusEvents))
+	http.HandleFunc("/round/", corsHandler(s.GetRound))
+	http.HandleFunc("/lastround/", corsHandler(s.GetLastRound))
+	http.HandleFunc("/roundwitnesses/", corsHandler(s.GetRoundWitnesses))
+	http.HandleFunc("/roundevents/", corsHandler(s.GetRoundEvents))
+	http.HandleFunc("/root/", corsHandler(s.GetRoot))
+	http.HandleFunc("/block/", corsHandler(s.GetBlock))
 	err := http.ListenAndServe(s.bindAddress, nil)
 	if err != nil {
 		s.logger.WithField("error", err).Error("Service failed")
 	}
+}
+
+func corsHandler(h http.Handler) http.HandlerFunc {
+  return func(w http.ResponseWriter, r *http.Request) {
+    if (r.Method == "OPTIONS") {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+    } else {
+      h.ServeHTTP(w,r)
+    }
+  }
 }
 
 func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
