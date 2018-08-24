@@ -45,7 +45,7 @@ func (s *Service) Serve() {
 	}
 }
 
-func corsHandler(h http.Handler) http.HandlerFunc {
+func corsHandler(h http.HandlerFunc) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
     if (r.Method == "OPTIONS") {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
