@@ -12,7 +12,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/sirupsen/logrus"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/andrecronje/lachesis/crypto"
 	hg "github.com/andrecronje/lachesis/hashgraph"
@@ -137,7 +137,7 @@ func main() {
 	app.Run(os.Args)
 }
 
-func keygen(c *cli.Context) error {
+func keygen(_ *cli.Context) error {
 	pemDump, err := crypto.GeneratePemKey()
 	if err != nil {
 		fmt.Println("Error generating PemDump")
@@ -220,7 +220,7 @@ func run(c *cli.Context) error {
 		pmap[p.PubKeyHex] = i
 	}
 
-	//Find the ID of this node
+	//Find the ID of this node_
 	nodePub := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
 	nodeID := pmap[nodePub]
 
@@ -274,22 +274,22 @@ func run(c *cli.Context) error {
 			conf.TCPTimeout, logger)
 	}
 
-	node := node.NewNode(conf, nodeID, key, peers, store, trans, prox)
-	if err := node.Init(needBootstrap); err != nil {
+	node_ := node.NewNode(conf, nodeID, key, peers, store, trans, prox)
+	if err := node_.Init(needBootstrap); err != nil {
 		return cli.NewExitError(
 			fmt.Sprintf("failed to initialize node: %s", err),
 			1)
 	}
 
-	serviceServer := service.NewService(serviceAddress, node, logger)
+	serviceServer := service.NewService(serviceAddress, node_, logger)
 	go serviceServer.Serve()
 
-	node.Run(true)
+	node_.Run(true)
 
 	return nil
 }
 
-func printVersion(c *cli.Context) error {
+func printVersion(_ *cli.Context) error {
 	fmt.Println(version.Version)
 	return nil
 }

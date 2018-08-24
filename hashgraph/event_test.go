@@ -168,7 +168,7 @@ func TestIsLoaded(t *testing.T) {
 		t.Fatalf("IsLoaded() should return true for non-empty transaction payload")
 	}
 
-	//non-empy signature payload
+	//non-empty signature payload
 	event.Body.Transactions = nil
 	event.Body.BlockSignatures = []BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
 	if !event.IsLoaded() {

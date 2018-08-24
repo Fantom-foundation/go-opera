@@ -566,13 +566,13 @@ func (n *Node) GetStats() map[string]string {
 
 	s := map[string]string{
 		"last_consensus_round":    toString(lastConsensusRound),
-		"time_elapsed":   				 strconv.FormatFloat(timeElapsed.Seconds(), 'f', 2, 64),
-		"heartbeat":   				 		 strconv.FormatFloat(n.conf.HeartbeatTimeout.Seconds(), 'f', 2, 64),
-		"node_current":   				 strconv.FormatInt(time.Now().Unix(), 10),
-		"node_start":   				   strconv.FormatInt(n.start.Unix(), 10),
+		"time_elapsed":            strconv.FormatFloat(timeElapsed.Seconds(), 'f', 2, 64),
+		"heartbeat":               strconv.FormatFloat(n.conf.HeartbeatTimeout.Seconds(), 'f', 2, 64),
+		"node_current":            strconv.FormatInt(time.Now().Unix(), 10),
+		"node_start":              strconv.FormatInt(n.start.Unix(), 10),
 		"last_block_index":        strconv.Itoa(n.core.GetLastBlockIndex()),
 		"consensus_events":        strconv.Itoa(consensusEvents),
-		"sync_limit":        			 strconv.Itoa(n.conf.SyncLimit),
+		"sync_limit":              strconv.Itoa(n.conf.SyncLimit),
 		"consensus_transactions":  strconv.Itoa(consensusTransactions),
 		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
 		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
@@ -581,7 +581,7 @@ func (n *Node) GetStats() map[string]string {
 		"transactions_per_second": strconv.FormatFloat(transactionsPerSecond, 'f', 2, 64),
 		"events_per_second":       strconv.FormatFloat(consensusEventsPerSecond, 'f', 2, 64),
 		"rounds_per_second":       strconv.FormatFloat(consensusRoundsPerSecond, 'f', 2, 64),
-		"round_events":            strconv.Itoa(n.core.GetLastCommitedRoundEventsCount()),
+		"round_events":            strconv.Itoa(n.core.GetLastCommittedRoundEventsCount()),
 		"id":                      strconv.Itoa(n.id),
 		"state":                   n.getState().String(),
 	}
@@ -614,7 +614,6 @@ func (n *Node) SyncRate() float64 {
 	}
 	return 1 - syncErrorRate
 }
-
 
 func (n *Node) GetParticipants() (map[string]int, error) {
 	return n.core.hg.Store.Participants()
