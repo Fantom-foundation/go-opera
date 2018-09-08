@@ -49,6 +49,14 @@ func (p *SocketLachesisProxy) CommitCh() chan Commit {
 	return p.server.commitCh
 }
 
+func (p *SocketLachesisProxy) SnapshotRequestCh() chan SnapshotRequest {
+	return p.server.snapshotRequestCh
+}
+
+func (p *SocketLachesisProxy) RestoreCh() chan RestoreRequest {
+	return p.server.restoreCh
+}
+
 func (p *SocketLachesisProxy) SubmitTx(tx []byte) error {
 	ack, err := p.client.SubmitTx(tx)
 	if err != nil {

@@ -8,3 +8,5 @@ import:
   version: ~1.6.2
 - package: github.com/dgraph-io/badger
   version: ~1.5.3
+- package: github.com/ugorji/go/codec
+  version: ~1.1.1

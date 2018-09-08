@@ -28,12 +28,13 @@ type EagerSyncResponse struct {
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-type SubmitTxRequest struct {
-	Transactions []string
-	ID int
+type FastForwardRequest struct {
+	FromID int
 }
 
-type SubmitTxResponse struct {
-	FromID  int
-	Success bool
+type FastForwardResponse struct {
+	FromID   int
+	Block    hashgraph.Block
+	Frame    hashgraph.Frame
+	Snapshot []byte
 }
