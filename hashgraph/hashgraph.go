@@ -1236,6 +1236,7 @@ func (h *Hashgraph) ProcessSigPool() error {
 		h.logger.WithFields(logrus.Fields{
 			"validator": validatorHex,
 			"signature": bs.Signature,
+			"signatures": block.GetSignatures(),
 		}).Debug("Verifying Block signature")
 
 		valid, err := block.Verify(bs)
