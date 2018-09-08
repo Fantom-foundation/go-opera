@@ -1220,7 +1220,6 @@ func (h *Hashgraph) ProcessSigPool() error {
 			h.logger.WithFields(logrus.Fields{
 				"index":     bs.Index,
 				"validator": validatorHex,
-				"signature": bs.Signature,
 			}).Warning("Verifying Block signature. Unknown validator")
 			continue
 		}
@@ -1236,6 +1235,7 @@ func (h *Hashgraph) ProcessSigPool() error {
 
 		h.logger.WithFields(logrus.Fields{
 			"validator": validatorHex,
+			"signature": bs.Signature,
 		}).Debug("Verifying Block signature")
 
 		valid, err := block.Verify(bs)
