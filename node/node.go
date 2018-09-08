@@ -530,12 +530,8 @@ func (n *Node) fastForward() error {
 
 	n.logger.Debug("Fast-Forward OK")
 
-<<<<<<< HEAD
 	n.setState(Gossiping)
-=======
-	n.setState(Babbling)
 	n.setStarting(true)
->>>>>>> 1ed81963270c25f7cc7eaa8bfdef464338bbd00b
 
 	return nil
 }
