@@ -1220,6 +1220,7 @@ func (h *Hashgraph) ProcessSigPool() error {
 			h.logger.WithFields(logrus.Fields{
 				"index":     bs.Index,
 				"validator": validatorHex,
+				"signature": bs.Signature,
 			}).Warning("Verifying Block signature. Unknown validator")
 			continue
 		}
@@ -1232,6 +1233,11 @@ func (h *Hashgraph) ProcessSigPool() error {
 			}).Warning("Verifying Block signature. Could not fetch Block")
 			continue
 		}
+
+		h.logger.WithFields(logrus.Fields{
+			"validator": validatorHex,
+		}).Debug("Verifying Block signature")
+
 		valid, err := block.Verify(bs)
 		if err != nil {
 			h.logger.WithFields(logrus.Fields{
@@ -1262,7 +1268,7 @@ func (h *Hashgraph) ProcessSigPool() error {
 			"signatures":  len(block.Signatures),
 			"trustCount":  h.trustCount,
 		}).Debug("Attempting AnchorBlock")
-		
+
 		if len(block.Signatures) > h.trustCount &&
 			(h.AnchorBlock == nil ||
 				block.Index() > *h.AnchorBlock) {
