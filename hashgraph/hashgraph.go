@@ -1252,6 +1252,8 @@ func (h *Hashgraph) ProcessSigPool() error {
 				"index":     bs.Index,
 				"validator": h.Participants[validatorHex],
 				"block":     block,
+				"validator": validatorHex,
+				"signature": bs.Signature,
 			}).Warning("Verifying Block signature. Invalid signature")
 			continue
 		}
