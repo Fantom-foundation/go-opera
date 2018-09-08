@@ -1257,7 +1257,12 @@ func (h *Hashgraph) ProcessSigPool() error {
 				"msg":   err,
 			}).Warning("Saving Block")
 		}
-
+		h.logger.WithFields(logrus.Fields{
+			"block_index": block.Index(),
+			"signatures":  len(block.Signatures),
+			"trustCount":  h.trustCount,
+		}).Debug("Attempting AnchorBlock")
+		
 		if len(block.Signatures) > h.trustCount &&
 			(h.AnchorBlock == nil ||
 				block.Index() > *h.AnchorBlock) {
