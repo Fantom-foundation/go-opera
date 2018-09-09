@@ -1225,7 +1225,8 @@ func (h *Hashgraph) ProcessSigPool() error {
 		}
 
 		//only check if bs is greater than AnchorBlock, otherwise simply remove
-		if (bs.Index > *h.AnchorBlock) {
+		if (h.AnchorBlock == nil ||
+			block.Index() > *h.AnchorBlock) {
 			block, err := h.Store.GetBlock(bs.Index)
 			if err != nil {
 				h.logger.WithFields(logrus.Fields{
