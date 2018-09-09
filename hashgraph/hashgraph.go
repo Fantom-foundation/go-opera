@@ -406,6 +406,10 @@ func (h *Hashgraph) checkSelfParent(event Event) error {
 	selfParentLegit := selfParent == creatorLastKnown
 
 	if !selfParentLegit {
+		h.logger.WithFields(logrus.Fields{
+			"creatorLastKnown": creatorLastKnown,
+			"selfParent":       selfParent,
+		}).Error("self-parent not last known event by creator")
 		return fmt.Errorf("self-parent not last known event by creator")
 	}
 
