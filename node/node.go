@@ -610,6 +610,11 @@ func (n *Node) commit(block hg.Block) error {
 	//XXX what do we do in case of error. Retry? This has to do with the
 	//Lachesis <-> App interface. Think about it.
 
+	//An error here could be that the endpoint is not configured, not all
+	//nodes will be sending blocks to clients, in these cases -no_client can be
+	//used, alternatively should check for the error here and handle it
+	//appropriately
+
 	//There is no point in using the stateHash if we know it is wrong
 	if err == nil {
 		block.Body.StateHash = stateHash

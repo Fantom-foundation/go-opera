@@ -1224,63 +1224,61 @@ func (h *Hashgraph) ProcessSigPool() error {
 			continue
 		}
 
-		block, err := h.Store.GetBlock(bs.Index)
-		if err != nil {
-			h.logger.WithFields(logrus.Fields{
-				"index": bs.Index,
-				"msg":   err,
-			}).Warning("Verifying Block signature. Could not fetch Block")
-			continue
-		}
+		//only check if bs is greater than AnchorBlock, otherwise simply remove
+		if (bs.Index > *h.AnchorBlock) {
+			block, err := h.Store.GetBlock(bs.Index)
+			if err != nil {
+				h.logger.WithFields(logrus.Fields{
+					"index": bs.Index,
+					"msg":   err,
+				}).Warning("Verifying Block signature. Could not fetch Block")
+				continue
+			}
 
-		h.logger.WithFields(logrus.Fields{
-			"validator": validatorHex,
-			"signature": bs.Signature,
-			"signatures": block.GetSignatures(),
-		}).Debug("Verifying Block signature")
-
-		valid, err := block.Verify(bs)
-		if err != nil {
 			h.logger.WithFields(logrus.Fields{
-				"index": bs.Index,
-				"msg":   err,
-			}).Error("Verifying Block signature")
-			return err
-		}
-		if !valid {
-			h.logger.WithFields(logrus.Fields{
-				"index":     bs.Index,
-				"validator": h.Participants[validatorHex],
-				"block":     block,
-				"validatorHex": validatorHex,
+				"validator": validatorHex,
 				"signature": bs.Signature,
-			}).Warning("Verifying Block signature. Invalid signature")
-			continue
-		}
+				"signatures": block.GetSignatures(),
+			}).Debug("Verifying Block signature")
 
-		block.SetSignature(bs)
+			valid, err := block.Verify(bs)
+			if err != nil {
+				h.logger.WithFields(logrus.Fields{
+					"index": bs.Index,
+					"msg":   err,
+				}).Error("Verifying Block signature")
+				return err
+			}
+			if !valid {
+				h.logger.WithFields(logrus.Fields{
+					"index":     bs.Index,
+					"validator": h.Participants[validatorHex],
+					"block":     block,
+					"validatorHex": validatorHex,
+					"signature": bs.Signature,
+				}).Warning("Verifying Block signature. Invalid signature")
+				continue
+			}
 
-		if err := h.Store.SetBlock(block); err != nil {
-			h.logger.WithFields(logrus.Fields{
-				"index": bs.Index,
-				"msg":   err,
-			}).Warning("Saving Block")
-		}
-		h.logger.WithFields(logrus.Fields{
-			"block_index": block.Index(),
-			"signatures":  len(block.Signatures),
-			"trustCount":  h.trustCount,
-		}).Debug("Attempting AnchorBlock")
+			block.SetSignature(bs)
 
-		if len(block.Signatures) > h.trustCount &&
-			(h.AnchorBlock == nil ||
-				block.Index() > *h.AnchorBlock) {
-			h.setAnchorBlock(block.Index())
-			h.logger.WithFields(logrus.Fields{
-				"block_index": block.Index(),
-				"signatures":  len(block.Signatures),
-				"trustCount":  h.trustCount,
-			}).Debug("Setting AnchorBlock")
+			if err := h.Store.SetBlock(block); err != nil {
+				h.logger.WithFields(logrus.Fields{
+					"index": bs.Index,
+					"msg":   err,
+				}).Warning("Saving Block")
+			}
+
+			if len(block.Signatures) > h.trustCount &&
+				(h.AnchorBlock == nil ||
+					block.Index() > *h.AnchorBlock) {
+				h.setAnchorBlock(block.Index())
+				h.logger.WithFields(logrus.Fields{
+					"block_index": block.Index(),
+					"signatures":  len(block.Signatures),
+					"trustCount":  h.trustCount,
+				}).Debug("Setting AnchorBlock")
+			}
 		}
 
 		processedSignatures[i] = true
