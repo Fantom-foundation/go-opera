@@ -617,6 +617,11 @@ func (n *Node) commit(block hg.Block) error {
 
 	//There is no point in using the stateHash if we know it is wrong
 	if err == nil {
+		//inmem statehash would be different than proxy statehash
+		//inmem is simply the hash of transactions
+		//this requires a 1:1 relationship with nodes and clients
+		//multiple nodes can't read from the same client
+		
 		block.Body.StateHash = stateHash
 		n.coreLock.Lock()
 		defer n.coreLock.Unlock()

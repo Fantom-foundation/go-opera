@@ -10,6 +10,11 @@ import (
 	"github.com/andrecronje/lachesis/crypto"
 )
 
+//StateHash is the hash of the current state of transactions, if you have one
+//node talking to an app, and another set of nodes talking to inmem, the
+//stateHash will be different
+//statehash should be ignored for validator checking
+
 type BlockBody struct {
 	Index         int
 	RoundReceived int
@@ -213,6 +218,7 @@ func (b *Block) Hex() string {
 }
 
 func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
+	b.Body.StateHash = nil
 
 	signBytes, err := b.Body.Hash()
 	if err != nil {
@@ -237,6 +243,7 @@ func (b *Block) SetSignature(bs BlockSignature) error {
 }
 
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
+	b.Body.StateHash = nil
 
 	signBytes, err := b.Body.Hash()
 	if err != nil {
