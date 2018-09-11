@@ -9,7 +9,7 @@ import (
 
 	"github.com/andrecronje/lachesis/common"
 	"github.com/andrecronje/lachesis/crypto"
-	hg "github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 )
 
 func initCores(n int, t *testing.T) ([]Core, []*ecdsa.PrivateKey, map[string]string) {
@@ -30,12 +30,12 @@ func initCores(n int, t *testing.T) ([]Core, []*ecdsa.PrivateKey, map[string]str
 		core := NewCore(i,
 			participantKeys[i],
 			participants,
-			hg.NewInmemStore(participants, cacheSize),
+			poset.NewInmemStore(participants, cacheSize),
 			nil,
 			common.NewTestLogger(t))
 
 		//Create and save the first Event
-		initialEvent := hg.NewEvent([][]byte(nil), nil,
+		initialEvent := poset.NewEvent([][]byte(nil), nil,
 			[]string{fmt.Sprintf("Root%d", i), ""},
 			core.PubKey(),
 			0)
@@ -63,7 +63,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initHashgraph(cores []Core, keys []*ecdsa.PrivateKey, index map[string]string, participant int) {
+func initPoset(cores []Core, keys []*ecdsa.PrivateKey, index map[string]string, participant int) {
 	for i := 0; i < len(cores); i++ {
 		if i != participant {
 			event, _ := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
@@ -73,21 +73,21 @@ func initHashgraph(cores []Core, keys []*ecdsa.PrivateKey, index map[string]stri
 		}
 	}
 
-	event01 := hg.NewEvent([][]byte{}, nil,
+	event01 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e0"], index["e1"]}, //e0 and e1
 		cores[0].PubKey(), 1)
 	if err := insertEvent(cores, keys, index, event01, "e01", participant, 0); err != nil {
 		fmt.Printf("error inserting e01: %s\n", err)
 	}
 
-	event20 := hg.NewEvent([][]byte{}, nil,
+	event20 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
 		cores[2].PubKey(), 1)
 	if err := insertEvent(cores, keys, index, event20, "e20", participant, 2); err != nil {
 		fmt.Printf("error inserting e20: %s\n", err)
 	}
 
-	event12 := hg.NewEvent([][]byte{}, nil,
+	event12 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e1"], index["e20"]}, //e1 and e20
 		cores[1].PubKey(), 1)
 	if err := insertEvent(cores, keys, index, event12, "e12", participant, 1); err != nil {
@@ -96,7 +96,7 @@ func initHashgraph(cores []Core, keys []*ecdsa.PrivateKey, index map[string]stri
 }
 
 func insertEvent(cores []Core, keys []*ecdsa.PrivateKey, index map[string]string,
-	event hg.Event, name string, participant int, creator int) error {
+	event poset.Event, name string, participant int, creator int) error {
 
 	if participant == creator {
 		if err := cores[participant].SignAndInsertSelfEvent(event); err != nil {
@@ -117,7 +117,7 @@ func insertEvent(cores []Core, keys []*ecdsa.PrivateKey, index map[string]string
 func TestEventDiff(t *testing.T) {
 	cores, keys, index := initCores(3, t)
 
-	initHashgraph(cores, keys, index, 0)
+	initPoset(cores, keys, index, 0)
 
 	/*
 	   P0 knows
@@ -321,7 +321,7 @@ type play struct {
 	payload [][]byte
 }
 
-func initConsensusHashgraph(t *testing.T) []Core {
+func initConsensusPoset(t *testing.T) []Core {
 	cores, _, _ := initCores(3, t)
 	playbook := []play{
 		play{from: 0, to: 1, payload: [][]byte{[]byte("e10")}},
@@ -355,7 +355,7 @@ func initConsensusHashgraph(t *testing.T) []Core {
 }
 
 func TestConsensus(t *testing.T) {
-	cores := initConsensusHashgraph(t)
+	cores := initConsensusPoset(t)
 
 	if l := len(cores[0].GetConsensusEvents()); l != 6 {
 		t.Fatalf("length of consensus should be 6 not %d", l)
@@ -376,7 +376,7 @@ func TestConsensus(t *testing.T) {
 }
 
 func TestOverSyncLimit(t *testing.T) {
-	cores := initConsensusHashgraph(t)
+	cores := initConsensusPoset(t)
 
 	known := map[int]int{}
 
@@ -450,7 +450,7 @@ func TestOverSyncLimit(t *testing.T) {
     |   e1  e2  e3
     0	1	2	3
 */
-func initFFHashgraph(cores []Core, t *testing.T) {
+func initFFPposet(cores []Core, t *testing.T) {
 	playbook := []play{
 		play{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
 		play{from: 2, to: 3, payload: [][]byte{[]byte("e32")}},
@@ -477,7 +477,7 @@ func initFFHashgraph(cores []Core, t *testing.T) {
 
 func TestConsensusFF(t *testing.T) {
 	cores, _, _ := initCores(4, t)
-	initFFHashgraph(cores, t)
+	initFFPoset(cores, t)
 
 	if r := cores[1].GetLastConsensusRoundIndex(); r == nil || *r != 1 {
 		disp := "nil"
@@ -507,7 +507,7 @@ func TestConsensusFF(t *testing.T) {
 
 func TestCoreFastForward(t *testing.T) {
 	cores, _, _ := initCores(4, t)
-	initFFHashgraph(cores, t)
+	initFFPoset(cores, t)
 
 	t.Run("Test no Anchor", func(t *testing.T) {
 		//Test no anchor block
@@ -517,15 +517,15 @@ func TestCoreFastForward(t *testing.T) {
 		}
 	})
 
-	block0, err := cores[1].hg.Store.GetBlock(0)
+	block0, err := cores[1].poset.Store.GetBlock(0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	//collect signatures
-	signatures := make([]hg.BlockSignature, 3)
+	signatures := make([]poset.BlockSignature, 3)
 	for k, c := range cores[1:] {
-		b, err := c.hg.Store.GetBlock(0)
+		b, err := c.poset.Store.GetBlock(0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -543,12 +543,12 @@ func TestCoreFastForward(t *testing.T) {
 		}
 
 		//Save Block
-		if err := cores[1].hg.Store.SetBlock(block0); err != nil {
+		if err := cores[1].poset.Store.SetBlock(block0); err != nil {
 			t.Fatal(err)
 		}
 		//Assign AnchorBlock
-		cores[1].hg.AnchorBlock = new(int)
-		*cores[1].hg.AnchorBlock = 0
+		cores[1].poset.AnchorBlock = new(int)
+		*cores[1].poset.AnchorBlock = 0
 
 		//Now the function should find an AnchorBlock
 		block, frame, err := cores[1].GetAnchorBlockWithFrame()
@@ -573,7 +573,7 @@ func TestCoreFastForward(t *testing.T) {
 		}
 
 		//Save Block
-		if err := cores[1].hg.Store.SetBlock(block0); err != nil {
+		if err := cores[1].poset.Store.SetBlock(block0); err != nil {
 			t.Fatal(err)
 		}
 
@@ -607,19 +607,19 @@ func TestCoreFastForward(t *testing.T) {
 			t.Fatalf("Cores[0] last consensus Round should be 1, not %v", r)
 		}
 
-		if lbi := cores[0].hg.Store.LastBlockIndex(); lbi != 0 {
-			t.Fatalf("Cores[0].hg.LastBlockIndex should be 0, not %d", lbi)
+		if lbi := cores[0].poset.Store.LastBlockIndex(); lbi != 0 {
+			t.Fatalf("Cores[0].poset.LastBlockIndex should be 0, not %d", lbi)
 		}
 
-		sBlock, err := cores[0].hg.Store.GetBlock(block.Index())
+		sBlock, err := cores[0].poset.Store.GetBlock(block.Index())
 		if err != nil {
-			t.Fatalf("Error retrieving latest Block from reset hashgraph: %v", err)
+			t.Fatalf("Error retrieving latest Block from reset poset: %v", err)
 		}
 		if !reflect.DeepEqual(sBlock.Body, block.Body) {
 			t.Fatalf("Blocks defer")
 		}
 
-		// lastEventFrom0, _, err := cores[0].hg.Store.LastEventFrom(cores[0].hexID)
+		// lastEventFrom0, _, err := cores[0].poset.Store.LastEventFrom(cores[0].hexID)
 		// if err != nil {
 		// 	t.Fatal(err)
 		// }

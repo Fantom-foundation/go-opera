@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/andrecronje/lachesis/crypto"
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	proxy "github.com/andrecronje/lachesis/proxy/lachesis"
 	"github.com/sirupsen/logrus"
 )
@@ -18,7 +18,7 @@ type State struct {
 	logger    *logrus.Logger
 }
 
-func (a *State) CommitBlock(block hashgraph.Block) ([]byte, error) {
+func (a *State) CommitBlock(block poset.Block) ([]byte, error) {
 	a.logger.WithField("block", block).Debug("CommitBlock")
 	err := a.writeBlock(block)
 	if err != nil {
@@ -44,7 +44,7 @@ func (a *State) Restore(snapshot []byte) ([]byte, error) {
 	return a.stateHash, nil
 }
 
-func (a *State) writeBlock(block hashgraph.Block) error {
+func (a *State) writeBlock(block poset.Block) error {
 	file, err := a.getFile()
 	if err != nil {
 		a.logger.Error(err)

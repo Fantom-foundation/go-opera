@@ -8,7 +8,7 @@ import (
 
 	"github.com/andrecronje/lachesis/common"
 	crypto "github.com/andrecronje/lachesis/crypto"
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	aproxy "github.com/andrecronje/lachesis/proxy/app"
 )
 
@@ -64,9 +64,9 @@ func TestSocketProxyClient(t *testing.T) {
 	proxy := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
 
 	//create a few blocks
-	blocks := [5]hashgraph.Block{}
+	blocks := [5]poset.Block{}
 	for i := 0; i < 5; i++ {
-		blocks[i] = hashgraph.NewBlock(i, i+1, []byte{}, [][]byte{[]byte(fmt.Sprintf("block %d transaction", i))})
+		blocks[i] = poset.NewBlock(i, i+1, []byte{}, [][]byte{[]byte(fmt.Sprintf("block %d transaction", i))})
 	}
 
 	//commit first block and check that the client's statehash is correct

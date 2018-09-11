@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	crypto "github.com/andrecronje/lachesis/crypto"
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,7 +31,7 @@ func NewInmemAppProxy(logger *logrus.Logger) *InmemAppProxy {
 	}
 }
 
-func (iap *InmemAppProxy) commit(block hashgraph.Block) ([]byte, error) {
+func (iap *InmemAppProxy) commit(block poset.Block) ([]byte, error) {
 
 	iap.committedTransactions = append(iap.committedTransactions, block.Transactions()...)
 
@@ -62,7 +62,7 @@ func (p *InmemAppProxy) SubmitCh() chan []byte {
 	return p.submitCh
 }
 
-func (p *InmemAppProxy) CommitBlock(block hashgraph.Block) (stateHash []byte, err error) {
+func (p *InmemAppProxy) CommitBlock(block poset.Block) (stateHash []byte, err error) {
 	p.logger.WithFields(logrus.Fields{
 		"round_received": block.RoundReceived(),
 		"txs":            len(block.Transactions()),

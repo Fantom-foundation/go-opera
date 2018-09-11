@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 type Store interface {
 	CacheSize() int

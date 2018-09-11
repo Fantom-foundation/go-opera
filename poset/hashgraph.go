@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"encoding/hex"
@@ -11,9 +11,9 @@ import (
 	"github.com/andrecronje/lachesis/common"
 )
 
-//Hashgraph is a DAG of Events. It also contains methods to extract a consensus
+//Poset is a DAG of Events. It also contains methods to extract a consensus
 //order of Events and map them onto a blockchain.
-type Hashgraph struct {
+type Poset struct {
 	Participants            map[string]int   //[public key] => id
 	ReverseParticipants     map[int]string   //[id] => public key
 	Store                   Store            //store of Events, Rounds, and Blocks
@@ -40,9 +40,9 @@ type Hashgraph struct {
 	logger *logrus.Entry
 }
 
-//NewHashgraph instantiates a Hashgraph from a list of participants, underlying
+//NewPoset instantiates a Poset from a list of participants, underlying
 //data store and commit channel
-func NewHashgraph(participants map[string]int, store Store, commitCh chan Block, logger *logrus.Entry) *Hashgraph {
+func NewPoset(participants map[string]int, store Store, commitCh chan Block, logger *logrus.Entry) *Poset {
 	if logger == nil {
 		log := logrus.New()
 		log.Level = logrus.DebugLevel
@@ -58,7 +58,7 @@ func NewHashgraph(participants map[string]int, store Store, commitCh chan Block,
 	trustCount := int(math.Ceil(float64(len(participants)) / float64(3)))
 
 	cacheSize := store.CacheSize()
-	hashgraph := Hashgraph{
+	poset := Poset{
 		Participants:        participants,
 		ReverseParticipants: reverseParticipants,
 		Store:               store,
@@ -73,7 +73,7 @@ func NewHashgraph(participants map[string]int, store Store, commitCh chan Block,
 		trustCount:          trustCount,
 	}
 
-	return &hashgraph
+	return &poset
 }
 
 /*******************************************************************************
@@ -81,7 +81,7 @@ Private Methods
 *******************************************************************************/
 
 //true if y is an ancestor of x
-func (h *Hashgraph) ancestor(x, y string) (bool, error) {
+func (h *Poset) ancestor(x, y string) (bool, error) {
 	if c, ok := h.ancestorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
@@ -93,7 +93,7 @@ func (h *Hashgraph) ancestor(x, y string) (bool, error) {
 	return a, nil
 }
 
-func (h *Hashgraph) _ancestor(x, y string) (bool, error) {
+func (h *Poset) _ancestor(x, y string) (bool, error) {
 
 	if x == y {
 		return true, nil
@@ -116,7 +116,7 @@ func (h *Hashgraph) _ancestor(x, y string) (bool, error) {
 }
 
 //true if y is a self-ancestor of x
-func (h *Hashgraph) selfAncestor(x, y string) (bool, error) {
+func (h *Poset) selfAncestor(x, y string) (bool, error) {
 	if c, ok := h.selfAncestorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
@@ -128,7 +128,7 @@ func (h *Hashgraph) selfAncestor(x, y string) (bool, error) {
 	return a, nil
 }
 
-func (h *Hashgraph) _selfAncestor(x, y string) (bool, error) {
+func (h *Poset) _selfAncestor(x, y string) (bool, error) {
 	if x == y {
 		return true, nil
 	}
@@ -148,7 +148,7 @@ func (h *Hashgraph) _selfAncestor(x, y string) (bool, error) {
 }
 
 //true if x sees y
-func (h *Hashgraph) see(x, y string) (bool, error) {
+func (h *Poset) see(x, y string) (bool, error) {
 	return h.ancestor(x, y)
 	//it is not necessary to detect forks because we assume that the InsertEvent
 	//function makes it impossible to insert two Events at the same height for
@@ -156,7 +156,7 @@ func (h *Hashgraph) see(x, y string) (bool, error) {
 }
 
 //true if x strongly sees y
-func (h *Hashgraph) stronglySee(x, y string) (bool, error) {
+func (h *Poset) stronglySee(x, y string) (bool, error) {
 	if c, ok := h.stronglySeeCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
@@ -168,7 +168,7 @@ func (h *Hashgraph) stronglySee(x, y string) (bool, error) {
 	return ss, nil
 }
 
-func (h *Hashgraph) _stronglySee(x, y string) (bool, error) {
+func (h *Poset) _stronglySee(x, y string) (bool, error) {
 
 	ex, err := h.Store.GetEvent(x)
 	if err != nil {
@@ -189,7 +189,7 @@ func (h *Hashgraph) _stronglySee(x, y string) (bool, error) {
 	return c >= h.superMajority, nil
 }
 
-func (h *Hashgraph) round(x string) (int, error) {
+func (h *Poset) round(x string) (int, error) {
 	if c, ok := h.roundCache.Get(x); ok {
 		return c.(int), nil
 	}
@@ -201,7 +201,7 @@ func (h *Hashgraph) round(x string) (int, error) {
 	return r, nil
 }
 
-func (h *Hashgraph) _round(x string) (int, error) {
+func (h *Poset) _round(x string) (int, error) {
 
 	/*
 		x is the Root
@@ -277,7 +277,7 @@ func (h *Hashgraph) _round(x string) (int, error) {
 }
 
 //true if x is a witness (first event of a round for the owner)
-func (h *Hashgraph) witness(x string) (bool, error) {
+func (h *Poset) witness(x string) (bool, error) {
 	ex, err := h.Store.GetEvent(x)
 	if err != nil {
 		return false, err
@@ -294,7 +294,7 @@ func (h *Hashgraph) witness(x string) (bool, error) {
 	return xRound > spRound, nil
 }
 
-func (h *Hashgraph) roundReceived(x string) (int, error) {
+func (h *Poset) roundReceived(x string) (int, error) {
 
 	ex, err := h.Store.GetEvent(x)
 	if err != nil {
@@ -309,7 +309,7 @@ func (h *Hashgraph) roundReceived(x string) (int, error) {
 	return res, nil
 }
 
-func (h *Hashgraph) lamportTimestamp(x string) (int, error) {
+func (h *Poset) lamportTimestamp(x string) (int, error) {
 	if c, ok := h.timestampCache.Get(x); ok {
 		return c.(int), nil
 	}
@@ -321,7 +321,7 @@ func (h *Hashgraph) lamportTimestamp(x string) (int, error) {
 	return r, nil
 }
 
-func (h *Hashgraph) _lamportTimestamp(x string) (int, error) {
+func (h *Poset) _lamportTimestamp(x string) (int, error) {
 	/*
 		x is the Root
 		User Root.SelfParent.LamportTimestamp
@@ -378,7 +378,7 @@ func (h *Hashgraph) _lamportTimestamp(x string) (int, error) {
 }
 
 //round(x) - round(y)
-func (h *Hashgraph) roundDiff(x, y string) (int, error) {
+func (h *Poset) roundDiff(x, y string) (int, error) {
 
 	xRound, err := h.round(x)
 	if err != nil {
@@ -394,7 +394,7 @@ func (h *Hashgraph) roundDiff(x, y string) (int, error) {
 }
 
 //Check the SelfParent is the Creator's last known Event
-func (h *Hashgraph) checkSelfParent(event Event) error {
+func (h *Poset) checkSelfParent(event Event) error {
 	selfParent := event.SelfParent()
 	creator := event.Creator()
 
@@ -417,7 +417,7 @@ func (h *Hashgraph) checkSelfParent(event Event) error {
 }
 
 //Check if we know the OtherParent
-func (h *Hashgraph) checkOtherParent(event Event) error {
+func (h *Poset) checkOtherParent(event Event) error {
 	otherParent := event.OtherParent()
 	if otherParent != "" {
 		//Check if we have it
@@ -439,7 +439,7 @@ func (h *Hashgraph) checkOtherParent(event Event) error {
 }
 
 //initialize arrays of last ancestors and first descendants
-func (h *Hashgraph) initEventCoordinates(event *Event) error {
+func (h *Poset) initEventCoordinates(event *Event) error {
 	members := len(h.Participants)
 
 	event.firstDescendants = make([]EventCoordinates, members)
@@ -493,7 +493,7 @@ func (h *Hashgraph) initEventCoordinates(event *Event) error {
 }
 
 //update first decendant of each last ancestor to point to event
-func (h *Hashgraph) updateAncestorFirstDescendant(event Event) error {
+func (h *Poset) updateAncestorFirstDescendant(event Event) error {
 	creatorID, ok := h.Participants[event.Creator()]
 	if !ok {
 		return fmt.Errorf("could not find creator id (%s)", event.Creator())
@@ -523,7 +523,7 @@ func (h *Hashgraph) updateAncestorFirstDescendant(event Event) error {
 	return nil
 }
 
-func (h *Hashgraph) createSelfParentRootEvent(ev Event) (RootEvent, error) {
+func (h *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 	sp := ev.SelfParent()
 	spLT, err := h.lamportTimestamp(sp)
 	if err != nil {
@@ -543,7 +543,7 @@ func (h *Hashgraph) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 	return selfParentRootEvent, nil
 }
 
-func (h *Hashgraph) createOtherParentRootEvent(ev Event) (RootEvent, error) {
+func (h *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 
 	op := ev.OtherParent()
 
@@ -579,7 +579,7 @@ func (h *Hashgraph) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 
 }
 
-func (h *Hashgraph) createRoot(ev Event) (Root, error) {
+func (h *Poset) createRoot(ev Event) (Root, error) {
 
 	evRound, err := h.round(ev.Hex())
 	if err != nil {
@@ -619,7 +619,7 @@ func (h *Hashgraph) createRoot(ev Event) (Root, error) {
 	return root, nil
 }
 
-func (h *Hashgraph) setWireInfo(event *Event) error {
+func (h *Poset) setWireInfo(event *Event) error {
 	selfParentIndex := -1
 	otherParentCreatorID := -1
 	otherParentIndex := -1
@@ -666,7 +666,7 @@ func (h *Hashgraph) setWireInfo(event *Event) error {
 	return nil
 }
 
-func (h *Hashgraph) updatePendingRounds(decidedRounds map[int]int) {
+func (h *Poset) updatePendingRounds(decidedRounds map[int]int) {
 	for _, ur := range h.PendingRounds {
 		if _, ok := decidedRounds[ur.Index]; ok {
 			ur.Decided = true
@@ -675,7 +675,7 @@ func (h *Hashgraph) updatePendingRounds(decidedRounds map[int]int) {
 }
 
 //Remove processed Signatures from SigPool
-func (h *Hashgraph) removeProcessedSignatures(processedSignatures map[int]bool) {
+func (h *Poset) removeProcessedSignatures(processedSignatures map[int]bool) {
 	newSigPool := []BlockSignature{}
 	for _, bs := range h.SigPool {
 		if _, ok := processedSignatures[bs.Index]; !ok {
@@ -691,7 +691,7 @@ Public Methods
 
 //InsertEvent attempts to insert an Event in the DAG. It verifies the signature,
 //checks the ancestors are known, and prevents the introduction of forks.
-func (h *Hashgraph) InsertEvent(event Event, setWireInfo bool) error {
+func (h *Poset) InsertEvent(event Event, setWireInfo bool) error {
 	//verify signature
 	if ok, err := event.Verify(); !ok {
 		if err != nil {
@@ -744,7 +744,7 @@ func (h *Hashgraph) InsertEvent(event Event, setWireInfo bool) error {
 DivideRounds assigns a Round and LamportTimestamp to Events, and flags them as
 witnesses if necessary. Pushes Rounds in the PendingRounds queue if necessary.
 */
-func (h *Hashgraph) DivideRounds() error {
+func (h *Poset) DivideRounds() error {
 
 	for _, hash := range h.UndeterminedEvents {
 
@@ -778,10 +778,10 @@ func (h *Hashgraph) DivideRounds() error {
 				Why the lower bound?
 				Normally, once a Round has attained consensus, it is impossible for
 				new Events from a previous Round to be inserted; the lower bound
-				appears redundant. This is the case when the hashgraph grows
+				appears redundant. This is the case when the poset grows
 				linearly, without jumps, which is what we intend by 'Normally'.
 				But the Reset function introduces a dicontinuity  by jumping
-				straight to a specific place in the hashgraph. This technique relies
+				straight to a specific place in the poset. This technique relies
 				on a base layer of Events (the corresponding Frame's Events) for
 				other Events to be added on top, but the base layer must not be
 				reprocessed.
@@ -829,7 +829,7 @@ func (h *Hashgraph) DivideRounds() error {
 }
 
 //DecideFame decides if witnesses are famous
-func (h *Hashgraph) DecideFame() error {
+func (h *Poset) DecideFame() error {
 
 	//Initialize the vote map
 	votes := make(map[string](map[string]bool)) //[x][y]=>vote(x,y)
@@ -928,7 +928,7 @@ func (h *Hashgraph) DecideFame() error {
 
 //DecideRoundReceived assigns a RoundReceived to undetermined events when they
 //reach consensus
-func (h *Hashgraph) DecideRoundReceived() error {
+func (h *Poset) DecideRoundReceived() error {
 
 	newUndeterminedEvents := []string{}
 
@@ -1018,7 +1018,7 @@ func (h *Hashgraph) DecideRoundReceived() error {
 //ProcessDecidedRounds takes Rounds whose witnesses are decided, computes the
 //corresponding Frames, maps them into Blocks, and commits the Blocks via the
 //commit channel
-func (h *Hashgraph) ProcessDecidedRounds() error {
+func (h *Poset) ProcessDecidedRounds() error {
 
 	//Defer removing processed Rounds from the PendingRounds Queue
 	processedIndex := 0
@@ -1102,7 +1102,7 @@ func (h *Hashgraph) ProcessDecidedRounds() error {
 }
 
 //GetFrame computes the Frame corresponding to a RoundReceived.
-func (h *Hashgraph) GetFrame(roundReceived int) (Frame, error) {
+func (h *Poset) GetFrame(roundReceived int) (Frame, error) {
 
 	//Try to get it from the Store first
 	frame, err := h.Store.GetFrame(roundReceived)
@@ -1170,7 +1170,7 @@ func (h *Hashgraph) GetFrame(roundReceived int) (Frame, error) {
 
 	//Some Events in the Frame might have other-parents that are outside of the
 	//Frame (cf root.go ex 2)
-	//When inserting these Events in a newly reset hashgraph, the CheckOtherParent
+	//When inserting these Events in a newly reset poset, the CheckOtherParent
 	//method would return an error because the other-parent would not be found.
 	//So we make it possible to also look for other-parents in the creator's Root.
 	treated := map[string]bool{}
@@ -1213,7 +1213,7 @@ func (h *Hashgraph) GetFrame(roundReceived int) (Frame, error) {
 //ProcessSigPool runs through the SignaturePool and tries to map a Signature to
 //a known Block. If a Signature is found to be valid for a known Block, it is
 //appended to the block and removed from the SignaturePool
-func (h *Hashgraph) ProcessSigPool() error {
+func (h *Poset) ProcessSigPool() error {
 	processedSignatures := map[int]bool{} //index in SigPool => Processed?
 	defer h.removeProcessedSignatures(processedSignatures)
 
@@ -1293,8 +1293,8 @@ func (h *Hashgraph) ProcessSigPool() error {
 }
 
 //GetAnchorBlockWithFrame returns the AnchorBlock and the corresponding Frame.
-//This can be used as a base to Reset a Hashgraph
-func (h *Hashgraph) GetAnchorBlockWithFrame() (Block, Frame, error) {
+//This can be used as a base to Reset a Poset
+func (h *Poset) GetAnchorBlockWithFrame() (Block, Frame, error) {
 
 	if h.AnchorBlock == nil {
 		return Block{}, Frame{}, fmt.Errorf("No Anchor Block")
@@ -1313,8 +1313,8 @@ func (h *Hashgraph) GetAnchorBlockWithFrame() (Block, Frame, error) {
 	return block, frame, nil
 }
 
-//Reset clears the Hashgraph and resets it from a new base.
-func (h *Hashgraph) Reset(block Block, frame Frame) error {
+//Reset clears the Poset and resets it from a new base.
+func (h *Poset) Reset(block Block, frame Frame) error {
 
 	//Clear all state
 	h.LastConsensusRound = nil
@@ -1363,10 +1363,10 @@ func (h *Hashgraph) Reset(block Block, frame Frame) error {
 }
 
 //Bootstrap loads all Events from the Store's DB (if there is one) and feeds
-//them to the Hashgraph (in topological order) for consensus ordering. After this
-//method call, the Hashgraph should be in a state coherent with the 'tip' of the
-//Hashgraph
-func (h *Hashgraph) Bootstrap() error {
+//them to the Poset (in topological order) for consensus ordering. After this
+//method call, the Poset should be in a state coherent with the 'tip' of the
+//Poset
+func (h *Poset) Bootstrap() error {
 	if badgerStore, ok := h.Store.(*BadgerStore); ok {
 		//Retrieve the Events from the underlying DB. They come out in topological
 		//order
@@ -1375,7 +1375,7 @@ func (h *Hashgraph) Bootstrap() error {
 			return err
 		}
 
-		//Insert the Events in the Hashgraph
+		//Insert the Events in the Poset
 		for _, e := range topologicalEvents {
 			if err := h.InsertEvent(e, true); err != nil {
 				return err
@@ -1405,7 +1405,7 @@ func (h *Hashgraph) Bootstrap() error {
 
 //ReadWireInfo converts a WireEvent to an Event by replacing int IDs with the
 //corresponding public keys.
-func (h *Hashgraph) ReadWireInfo(wevent WireEvent) (*Event, error) {
+func (h *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	selfParent := rootSelfParent(wevent.Body.CreatorID)
 	otherParent := ""
 	var err error
@@ -1474,7 +1474,7 @@ func (h *Hashgraph) ReadWireInfo(wevent WireEvent) (*Event, error) {
 
 //CheckBlock returns an error if the Block does not contain valid signatures
 //from MORE than 1/3 of participants
-func (h *Hashgraph) CheckBlock(block Block) error {
+func (h *Poset) CheckBlock(block Block) error {
 	validSignatures := 0
 	for _, s := range block.GetSignatures() {
 		ok, _ := block.Verify(s)
@@ -1494,7 +1494,7 @@ func (h *Hashgraph) CheckBlock(block Block) error {
 Setters
 *******************************************************************************/
 
-func (h *Hashgraph) setLastConsensusRound(i int) {
+func (h *Poset) setLastConsensusRound(i int) {
 	if h.LastConsensusRound == nil {
 		h.LastConsensusRound = new(int)
 	}
@@ -1506,7 +1506,7 @@ func (h *Hashgraph) setLastConsensusRound(i int) {
 	}
 }
 
-func (h *Hashgraph) setAnchorBlock(i int) {
+func (h *Poset) setAnchorBlock(i int) {
 	if h.AnchorBlock == nil {
 		h.AnchorBlock = new(int)
 	}

@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"reflect"

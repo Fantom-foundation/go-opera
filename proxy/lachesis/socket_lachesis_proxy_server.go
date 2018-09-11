@@ -7,7 +7,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +25,7 @@ type CommitResponse struct {
 
 // Commit provides a response mechanism.
 type Commit struct {
-	Block    hashgraph.Block
+	Block    poset.Block
 	RespChan chan<- CommitResponse
 }
 
@@ -133,7 +133,7 @@ func (p *SocketLachesisProxyServer) listen() error {
 	}
 }
 
-func (p *SocketLachesisProxyServer) CommitBlock(block hashgraph.Block, stateHash *StateHash) (err error) {
+func (p *SocketLachesisProxyServer) CommitBlock(block poset.Block, stateHash *StateHash) (err error) {
 	// Send the Commit over
 	respCh := make(chan CommitResponse)
 	p.commitCh <- Commit{

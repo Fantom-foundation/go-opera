@@ -6,7 +6,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	bp "github.com/andrecronje/lachesis/proxy/lachesis"
 	"github.com/sirupsen/logrus"
 )
@@ -33,7 +33,7 @@ func (p *SocketAppProxyClient) getConnection() (*rpc.Client, error) {
 	return jsonrpc.NewClient(conn), nil
 }
 
-func (p *SocketAppProxyClient) CommitBlock(block hashgraph.Block) ([]byte, error) {
+func (p *SocketAppProxyClient) CommitBlock(block poset.Block) ([]byte, error) {
 	rpcConn, err := p.getConnection()
 	if err != nil {
 		return nil, err

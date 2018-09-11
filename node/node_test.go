@@ -12,7 +12,7 @@ import (
 
 	"github.com/andrecronje/lachesis/common"
 	"github.com/andrecronje/lachesis/crypto"
-	hg "github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/andrecronje/lachesis/net"
 	aproxy "github.com/andrecronje/lachesis/proxy/app"
 	"github.com/sirupsen/logrus"
@@ -57,7 +57,7 @@ func TestProcessSync(t *testing.T) {
 	defer peer0Trans.Close()
 
 	node0 := NewNode(config, pmap[peers[0].PubKeyHex], keys[0], peers,
-		hg.NewInmemStore(pmap, config.CacheSize),
+		poset.NewInmemStore(pmap, config.CacheSize),
 		peer0Trans,
 		aproxy.NewInmemAppProxy(testLogger))
 	node0.Init(false)
@@ -71,7 +71,7 @@ func TestProcessSync(t *testing.T) {
 	defer peer1Trans.Close()
 
 	node1 := NewNode(config, pmap[peers[1].PubKeyHex], keys[1], peers,
-		hg.NewInmemStore(pmap, config.CacheSize),
+		poset.NewInmemStore(pmap, config.CacheSize),
 		peer1Trans,
 		aproxy.NewInmemAppProxy(testLogger))
 	node1.Init(false)
@@ -151,7 +151,7 @@ func TestProcessEagerSync(t *testing.T) {
 	defer peer0Trans.Close()
 
 	node0 := NewNode(TestConfig(t), pmap[peers[0].PubKeyHex], keys[0], peers,
-		hg.NewInmemStore(pmap, config.CacheSize),
+		poset.NewInmemStore(pmap, config.CacheSize),
 		peer0Trans,
 		aproxy.NewInmemAppProxy(testLogger))
 	node0.Init(false)
@@ -165,7 +165,7 @@ func TestProcessEagerSync(t *testing.T) {
 	defer peer1Trans.Close()
 
 	node1 := NewNode(TestConfig(t), pmap[peers[1].PubKeyHex], keys[1], peers,
-		hg.NewInmemStore(pmap, config.CacheSize),
+		poset.NewInmemStore(pmap, config.CacheSize),
 		peer1Trans,
 		aproxy.NewInmemAppProxy(testLogger))
 	node1.Init(false)
@@ -226,7 +226,7 @@ func TestAddTransaction(t *testing.T) {
 	peer0Proxy := aproxy.NewInmemAppProxy(testLogger)
 
 	node0 := NewNode(TestConfig(t), pmap[peers[0].PubKeyHex], keys[0], peers,
-		hg.NewInmemStore(pmap, config.CacheSize),
+		poset.NewInmemStore(pmap, config.CacheSize),
 		peer0Trans,
 		peer0Proxy)
 	node0.Init(false)
@@ -241,7 +241,7 @@ func TestAddTransaction(t *testing.T) {
 	peer1Proxy := aproxy.NewInmemAppProxy(testLogger)
 
 	node1 := NewNode(TestConfig(t), pmap[peers[1].PubKeyHex], keys[1], peers,
-		hg.NewInmemStore(pmap, config.CacheSize),
+		poset.NewInmemStore(pmap, config.CacheSize),
 		peer1Trans,
 		peer1Proxy)
 	node1.Init(false)
@@ -311,15 +311,15 @@ func initNodes(keys []*ecdsa.PrivateKey,
 		if err != nil {
 			t.Fatalf("failed to create transport for peer %d: %s", id, err)
 		}
-		var store hg.Store
+		var store poset.Store
 		switch storeType {
 		case "badger":
-			store, err = hg.NewBadgerStore(pmap, conf.CacheSize, conf.StorePath)
+			store, err = poset.NewBadgerStore(pmap, conf.CacheSize, conf.StorePath)
 			if err != nil {
 				t.Fatalf("failed to create BadgerStore for peer %d: %s", id, err)
 			}
 		case "inmem":
-			store = hg.NewInmemStore(pmap, conf.CacheSize)
+			store = poset.NewInmemStore(pmap, conf.CacheSize)
 		}
 		prox := aproxy.NewInmemAppProxy(logger)
 		node := NewNode(conf,
@@ -353,15 +353,15 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 	key := oldNode.core.key
 	peers := oldNode.peerSelector.Peers()
 
-	var store hg.Store
+	var store poset.Store
 	var err error
 	if conf.StoreType == "badger" {
-		store, err = hg.LoadBadgerStore(conf.CacheSize, conf.StorePath)
+		store, err = poset.LoadBadgerStore(conf.CacheSize, conf.StorePath)
 		if err != nil {
 			t.Fatal(err)
 		}
 	} else {
-		store = hg.NewInmemStore(oldNode.core.participants, conf.CacheSize)
+		store = poset.NewInmemStore(oldNode.core.participants, conf.CacheSize)
 	}
 
 	trans, err := net.NewTCPTransport(oldNode.localAddr,
@@ -512,7 +512,7 @@ func TestFastForward(t *testing.T) {
 	}
 	sBlock, err := nodes[0].GetBlock(lbi)
 	if err != nil {
-		t.Fatalf("Error retrieving latest Block from reset hashgraph: %v", err)
+		t.Fatalf("Error retrieving latest Block from reset hasposetraph: %v", err)
 	}
 	expectedBlock, err := nodes[1].GetBlock(lbi)
 	if err != nil {
@@ -569,7 +569,7 @@ func TestCatchUp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := node4.core.hg.FirstConsensusRound
+	start := node4.core.poset.FirstConsensusRound
 	checkGossip(nodes, *start, t)
 }
 
@@ -629,7 +629,7 @@ func TestFastSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := node4.core.hg.FirstConsensusRound
+	start := node4.core.poset.FirstConsensusRound
 	checkGossip(nodes, *start, t)
 }
 
@@ -716,7 +716,7 @@ func bombardAndWait(nodes []*Node, target int, timeout time.Duration) error {
 			} else {
 				//wait until the target block has retrieved a state hash from
 				//the app
-				targetBlock, _ := n.core.hg.Store.GetBlock(target)
+				targetBlock, _ := n.core.poset.Store.GetBlock(target)
 				if len(targetBlock.StateHash()) == 0 {
 					done = false
 					break
@@ -733,11 +733,11 @@ func bombardAndWait(nodes []*Node, target int, timeout time.Duration) error {
 
 func checkGossip(nodes []*Node, fromBlock int, t *testing.T) {
 
-	nodeBlocks := map[int][]hg.Block{}
+	nodeBlocks := map[int][]poset.Block{}
 	for _, n := range nodes {
-		blocks := []hg.Block{}
-		for i := fromBlock; i < n.core.hg.Store.LastBlockIndex(); i++ {
-			block, err := n.core.hg.Store.GetBlock(i)
+		blocks := []poset.Block{}
+		for i := fromBlock; i < n.core.poset.Store.LastBlockIndex(); i++ {
+			block, err := n.core.poset.Store.GetBlock(i)
 			if err != nil {
 				t.Fatalf("checkGossip: %v ", err)
 			}
