@@ -35,10 +35,13 @@ func initCores(n int, t *testing.T) ([]Core, []*ecdsa.PrivateKey, map[string]str
 			common.NewTestLogger(t))
 
 		//Create and save the first Event
+		hash := fmt.Sprintf("Root%d", i)
+		flagTable := make(map[string]bool)
+		flagTable[hash] = true
 		initialEvent := poset.NewEvent([][]byte(nil), nil,
-			[]string{fmt.Sprintf("Root%d", i), ""},
+			[]string{hash, ""},
 			core.PubKey(),
-			0)
+			0, flagTable, 1)
 		err := core.SignAndInsertSelfEvent(initialEvent)
 		if err != nil {
 			t.Fatal(err)
@@ -73,23 +76,67 @@ func initPoset(cores []Core, keys []*ecdsa.PrivateKey, index map[string]string, 
 		}
 	}
 
+	// Get flag tables from parents
+	event0,err := cores[0].poset.Store.GetEvent("e0")
+	if err != nil {
+		return fmt.Errorf("Error retrieving parent: %s", err)
+	}
+	event1,err := cores[0].poset.Store.GetEvent("e1")
+	if err != nil {
+		return fmt.Errorf("Error retrieving parent: %s", err)
+	}
+	flagTable, flags := event0.FlagTable()
+	otherFlagTable,_ := event1.FlagTable()
+	// event flag table = parent 1 flag table OR parent 2 flag table
+	for id, flag := range  otherFlagTable{
+		if !flagTable[id] && flag {
+			flagTable[id] = true
+			flags++
+		}
+	}
+
 	event01 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e0"], index["e1"]}, //e0 and e1
-		cores[0].PubKey(), 1)
+		cores[0].PubKey(), 1, flagTable, flags)
 	if err := insertEvent(cores, keys, index, event01, "e01", participant, 0); err != nil {
 		fmt.Printf("error inserting e01: %s\n", err)
 	}
 
+	// Get flag tables from parents
+	event2,err := cores[2].poset.Store.GetEvent("e2")
+	if err != nil {
+		return fmt.Errorf("Error retrieving parent: %s", err)
+	}
+	flagTable, flags = event2.FlagTable()
+	otherFlagTable,_ = event01.FlagTable()
+	// event flag table = parent 1 flag table OR parent 2 flag table
+	for id, flag := range  otherFlagTable{
+		if !flagTable[id] && flag {
+			flagTable[id] = true
+			flags++
+		}
+	}
+
 	event20 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
-		cores[2].PubKey(), 1)
+		cores[2].PubKey(), 1, flagTable, flags)
 	if err := insertEvent(cores, keys, index, event20, "e20", participant, 2); err != nil {
 		fmt.Printf("error inserting e20: %s\n", err)
 	}
 
+	flagTable, flags = event1.FlagTable()
+	otherFlagTable,_ = event20.FlagTable()
+	// event flag table = parent 1 flag table OR parent 2 flag table
+	for id, flag := range  otherFlagTable{
+		if !flagTable[id] && flag {
+			flagTable[id] = true
+			flags++
+		}
+	}
+
 	event12 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e1"], index["e20"]}, //e1 and e20
-		cores[1].PubKey(), 1)
+		cores[1].PubKey(), 1, flagTable, flags)
 	if err := insertEvent(cores, keys, index, event12, "e12", participant, 1); err != nil {
 		fmt.Printf("error inserting e12: %s\n", err)
 	}
