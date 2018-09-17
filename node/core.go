@@ -296,12 +296,32 @@ func (c *Core) AddSelfEvent(otherHead string) error {
 		return nil
 	}
 
+	// Get flag tables from parents
+	parentEvent,err := c.poset.Store.GetEvent(c.Head)
+	if err != nil {
+		return fmt.Errorf("Error retrieving parent: %s", err)
+	}
+	otherParentEvent,err := c.poset.Store.GetEvent(otherHead)
+	if err != nil {
+		return fmt.Errorf("Error retrieving parent: %s", err)
+	}
+	flagTable, flags := parentEvent.FlagTable()
+	otherFlagTable,_ := otherParentEvent.FlagTable()
+	// event flag table = parent 1 flag table OR parent 2 flag table
+	for id, flag := range  otherFlagTable{
+		if !flagTable[id] && flag {
+			flagTable[id] = true
+			flags++
+		}
+	}
+
 	//create new event with self head and empty other parent
 	//empty transaction pool in its payload
 	newHead := poset.NewEvent(c.transactionPool,
 		c.blockSignaturePool,
 		[]string{c.Head, otherHead},
-		c.PubKey(), c.Seq+1)
+		c.PubKey(), c.Seq+1,
+		flagTable, flags)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("error inserting new head: %s", err)
