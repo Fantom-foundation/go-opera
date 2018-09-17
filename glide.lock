@@ -1,5 +1,5 @@
-hash: 02f3f54a37d4c2474fcc4969be8196ee1d3f88a40819ae190ad7ffe4cf5d761b
-updated: 2018-08-17T17:06:11.287758+10:00
+hash: 102ed3374a08c4daddac90297d5f5d6367f9debd146b7291d8ca8a47ffabf0eb
+updated: 2018-09-17T03:34:18.01921531Z
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
@@ -25,6 +25,10 @@ imports:
   version: fc587f31c804fe6853cd90f0d8d90af588eca5bd
 - name: github.com/stretchr/testify
   version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+- name: github.com/ugorji/go
+  version: b4c50a2b199d93b13dc15e78929cfb23bfdf21ab
+  subpackages:
+  - codec
 - name: golang.org/x/crypto
   version: c3a3ad6d03f7a915c0f7e194b7152974bb73d287
   subpackages:

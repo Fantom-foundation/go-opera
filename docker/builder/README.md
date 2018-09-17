@@ -3,7 +3,9 @@ lachesis builder
 
 ## Generate private & public keys, and peers.json
 
-    "$GOPATH/src/github.com/andrecronje/evm/scripts/gen_peers.sh" nodes 3 > peers.json
+    go get -v github.com/SamuelMarks/batch-ethkey
+
+    batch-ethkey -dir nodes -n 3 > peers.json
 
 ## SSL certs
 
