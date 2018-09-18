@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"bytes"
@@ -10,10 +10,16 @@ import (
 	"github.com/andrecronje/lachesis/crypto"
 )
 
+//StateHash is the hash of the current state of transactions, if you have one
+//node talking to an app, and another set of nodes talking to inmem, the
+//stateHash will be different
+//statehash should be ignored for validator checking
+
 type BlockBody struct {
 	Index         int
 	RoundReceived int
 	StateHash     []byte
+	FrameHash     []byte
 	Transactions  [][]byte
 }
 
@@ -96,11 +102,24 @@ type Block struct {
 	hex  string
 }
 
-func NewBlock(blockIndex, roundReceived int, transactions [][]byte) Block {
+func NewBlockFromFrame(blockIndex int, frame Frame) (Block, error) {
+	frameHash, err := frame.Hash()
+	if err != nil {
+		return Block{}, err
+	}
+	transactions := [][]byte{}
+	for _, e := range frame.Events {
+		transactions = append(transactions, e.Transactions()...)
+	}
+	return NewBlock(blockIndex, frame.Round, frameHash, transactions), nil
+}
+
+func NewBlock(blockIndex, roundReceived int, frameHash []byte, txs [][]byte) Block {
 	body := BlockBody{
 		Index:         blockIndex,
 		RoundReceived: roundReceived,
-		Transactions:  transactions,
+		FrameHash:     frameHash,
+		Transactions:  txs,
 	}
 	return Block{
 		Body:       body,
@@ -122,6 +141,25 @@ func (b *Block) RoundReceived() int {
 
 func (b *Block) StateHash() []byte {
 	return b.Body.StateHash
+}
+
+func (b *Block) FrameHash() []byte {
+	return b.Body.FrameHash
+}
+
+func (b *Block) GetSignatures() []BlockSignature {
+	res := make([]BlockSignature, len(b.Signatures))
+	i := 0
+	for val, sig := range b.Signatures {
+		validatorBytes, _ := hex.DecodeString(val[2:])
+		res[i] = BlockSignature{
+			Validator: validatorBytes,
+			Index:     b.Index(),
+			Signature: sig,
+		}
+		i++
+	}
+	return res
 }
 
 func (b *Block) GetSignature(validator string) (res BlockSignature, err error) {
@@ -180,6 +218,7 @@ func (b *Block) Hex() string {
 }
 
 func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
+	b.Body.StateHash = nil
 
 	signBytes, err := b.Body.Hash()
 	if err != nil {
@@ -204,6 +243,7 @@ func (b *Block) SetSignature(bs BlockSignature) error {
 }
 
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
+	b.Body.StateHash = nil
 
 	signBytes, err := b.Body.Hash()
 	if err != nil {

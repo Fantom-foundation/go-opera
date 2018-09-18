@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/andrecronje/lachesis/common"
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 )
 
 func TestNetworkTransport_StartStop(t *testing.T) {
@@ -38,9 +38,9 @@ func TestNetworkTransport_Sync(t *testing.T) {
 	}
 	resp := SyncResponse{
 		FromID: 1,
-		Events: []hashgraph.WireEvent{
-			hashgraph.WireEvent{
-				Body: hashgraph.WireBody{
+		Events: []poset.WireEvent{
+			poset.WireEvent{
+				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
 					OtherParentCreatorID: 10,
@@ -103,9 +103,9 @@ func TestNetworkTransport_EagerSync(t *testing.T) {
 	// Make the RPC request
 	args := EagerSyncRequest{
 		FromID: 0,
-		Events: []hashgraph.WireEvent{
-			hashgraph.WireEvent{
-				Body: hashgraph.WireBody{
+		Events: []poset.WireEvent{
+			poset.WireEvent{
+				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
 					OtherParentCreatorID: 10,
@@ -175,9 +175,9 @@ func TestNetworkTransport_PooledConn(t *testing.T) {
 	}
 	resp := SyncResponse{
 		FromID: 1,
-		Events: []hashgraph.WireEvent{
-			hashgraph.WireEvent{
-				Body: hashgraph.WireBody{
+		Events: []poset.WireEvent{
+			poset.WireEvent{
+				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
 					OtherParentCreatorID: 10,

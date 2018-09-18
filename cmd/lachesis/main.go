@@ -15,7 +15,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/andrecronje/lachesis/crypto"
-	hg "github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/andrecronje/lachesis/net"
 	"github.com/andrecronje/lachesis/node"
 	"github.com/andrecronje/lachesis/proxy"
@@ -99,7 +99,7 @@ var (
 func main() {
 	app := cli.NewApp()
 	app.Name = "Lachesis"
-	app.Usage = "hashgraph consensus"
+	app.Usage = "cryptograph consensus"
 	app.HideVersion = true //there is a special command to print the version
 	app.Commands = []cli.Command{
 		{
@@ -230,16 +230,16 @@ func run(c *cli.Context) error {
 	}).Debug("PARTICIPANTS")
 
 	//Instantiate the Store (inmem or badger)
-	var store hg.Store
+	var store poset.Store
 	var needBootstrap bool
 	switch storeType {
 	case "inmem":
-		store = hg.NewInmemStore(pmap, conf.CacheSize)
+		store = poset.NewInmemStore(pmap, conf.CacheSize)
 	case "badger":
 		//If the file already exists, load and bootstrap the store using the file
 		if _, err := os.Stat(conf.StorePath); err == nil {
 			logger.Debug("loading badger store from existing database")
-			store, err = hg.LoadBadgerStore(conf.CacheSize, conf.StorePath)
+			store, err = poset.LoadBadgerStore(conf.CacheSize, conf.StorePath)
 			if err != nil {
 				return cli.NewExitError(
 					fmt.Sprintf("failed to load BadgerStore from existing file: %s", err),
@@ -249,7 +249,7 @@ func run(c *cli.Context) error {
 		} else {
 			//Otherwise create a new one
 			logger.Debug("creating new badger store from fresh database")
-			store, err = hg.NewBadgerStore(pmap, conf.CacheSize, conf.StorePath)
+			store, err = poset.NewBadgerStore(pmap, conf.CacheSize, conf.StorePath)
 			if err != nil {
 				return cli.NewExitError(
 					fmt.Sprintf("failed to create new BadgerStore: %s", err),

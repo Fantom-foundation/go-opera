@@ -10,7 +10,7 @@ import (
 
 	"strconv"
 
-	hg "github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/andrecronje/lachesis/net"
 	"github.com/andrecronje/lachesis/proxy"
 )
@@ -36,7 +36,7 @@ type Node struct {
 	proxy    proxy.AppProxy
 	submitCh chan []byte
 
-	commitCh chan hg.Block
+	commitCh chan poset.Block
 
 	shutdownCh chan struct{}
 
@@ -51,7 +51,7 @@ func NewNode(conf *Config,
 	id int,
 	key *ecdsa.PrivateKey,
 	participants []net.Peer,
-	store hg.Store,
+	store poset.Store,
 	trans net.Transport,
 	proxy proxy.AppProxy) *Node {
 
@@ -59,7 +59,7 @@ func NewNode(conf *Config,
 
 	pmap, _ := store.Participants()
 
-	commitCh := make(chan hg.Block, 400)
+	commitCh := make(chan poset.Block, 400)
 	core := NewCore(id, key, pmap, store, commitCh, conf.Logger)
 
 	peerSelector := NewRandomPeerSelector(participants, localAddr)
@@ -97,9 +97,12 @@ func (n *Node) Init(bootstrap bool) error {
 
 	if bootstrap {
 		n.logger.Debug("Bootstrap")
-		return n.core.Bootstrap()
+		if err := n.core.Bootstrap(); err != nil {
+			return err
+		}
 	}
-	return n.core.Init()
+
+	return n.core.SetHeadAndSeq()
 }
 
 func (n *Node) RunAsync(gossip bool) {
@@ -115,7 +118,7 @@ func (n *Node) Run(gossip bool) {
 
 	//Execute some background work regardless of the state of the node.
 	//Process RPC requests as well as SumbitTx and CommitBlock requests
-	n.goFunc(n.doBackgroundWork)
+	go n.doBackgroundWork()
 
 	//Execute Node State Machine
 	for {
@@ -138,11 +141,13 @@ func (n *Node) doBackgroundWork() {
 	for {
 		select {
 		case rpc := <-n.netCh:
-			n.logger.Debug("Processing RPC")
-			n.processRPC(rpc)
-			if n.core.NeedGossip() && !n.controlTimer.set {
-				n.controlTimer.resetCh <- struct{}{}
-			}
+			n.goFunc(func() {
+				n.logger.Debug("Processing RPC")
+				n.processRPC(rpc)
+				if n.core.NeedGossip() && !n.controlTimer.set {
+					n.controlTimer.resetCh <- struct{}{}
+				}
+			})
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transaction")
 			n.addTransaction(t)
@@ -164,9 +169,13 @@ func (n *Node) doBackgroundWork() {
 	}
 }
 
+//lachesis is interrupted when a gossip function, launched asychronously, changes
+//the state from Gossiping to CatchingUp, or when the node is shutdown.
+//Otherwise, it periodicaly initiates gossip while there is something to gossip
+//about, or waits.
 func (n *Node) lachesis(gossip bool) {
+	returnCh := make(chan struct{})
 	for {
-		oldState := n.getState()
 		select {
 		case <-n.controlTimer.tickCh:
 			if gossip {
@@ -174,7 +183,7 @@ func (n *Node) lachesis(gossip bool) {
 				if proceed && err == nil {
 					n.logger.Debug("Time to gossip!")
 					peer := n.peerSelector.Next()
-					n.goFunc(func() { n.gossip(peer.NetAddr) })
+					n.goFunc(func() { n.gossip(peer.NetAddr, returnCh) })
 				}
 			}
 			if !n.core.NeedGossip() {
@@ -182,12 +191,9 @@ func (n *Node) lachesis(gossip bool) {
 			} else if !n.controlTimer.set {
 				n.controlTimer.resetCh <- struct{}{}
 			}
-		case <-n.shutdownCh:
+		case <-returnCh:
 			return
-		}
-
-		newState := n.getState()
-		if newState != oldState {
+		case <-n.shutdownCh:
 			return
 		}
 	}
@@ -211,6 +217,8 @@ func (n *Node) processRPC(rpc net.RPC) {
 		n.processSyncRequest(rpc, cmd)
 	case *net.EagerSyncRequest:
 		n.processEagerSyncRequest(rpc, cmd)
+	case *net.FastForwardRequest:
+		n.processFastForwardRequest(rpc, cmd)
 	default:
 		n.logger.WithField("cmd", rpc.Command).Error("Unexpected RPC command")
 		rpc.Respond(nil, fmt.Errorf("unexpected command"))
@@ -241,7 +249,6 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 		n.coreLock.Lock()
 		eventDiff, err := n.core.EventDiff(cmd.Known)
 		n.coreLock.Unlock()
-
 		elapsed := time.Since(start)
 		n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("Diff()")
 		if err != nil {
@@ -297,28 +304,60 @@ func (n *Node) processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest) {
 	rpc.Respond(resp, err)
 }
 
+func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest) {
+	n.logger.WithFields(logrus.Fields{
+		"from": cmd.FromID,
+	}).Debug("process FastForwardRequest")
+
+	resp := &net.FastForwardResponse{
+		FromID: n.id,
+	}
+	var respErr error
+
+	//Get latest Frame
+	n.coreLock.Lock()
+	block, frame, err := n.core.GetAnchorBlockWithFrame()
+	n.coreLock.Unlock()
+	if err != nil {
+		n.logger.WithField("error", err).Error("Getting Frame")
+		respErr = err
+	}
+	resp.Block = block
+	resp.Frame = frame
+
+	//Get snapshot
+	snapshot, err := n.proxy.GetSnapshot(block.Index())
+	if err != nil {
+		n.logger.WithField("error", err).Error("Getting Snapshot")
+		respErr = err
+	}
+	resp.Snapshot = snapshot
+
+	n.logger.WithFields(logrus.Fields{
+		"Events": len(resp.Frame.Events),
+		"Error":  respErr,
+	}).Debug("Responding to FastForwardRequest")
+	rpc.Respond(resp, respErr)
+}
+
 func (n *Node) preGossip() (bool, error) {
 	n.coreLock.Lock()
 	defer n.coreLock.Unlock()
 
 	//Check if it is necessary to gossip
-	needGossip := n.core.NeedGossip() || n.isStarting()
-	if !needGossip {
+	if !(n.core.NeedGossip() || n.isStarting()) {
 		n.logger.Debug("Nothing to gossip")
 		return false, nil
-	}
-
-	//If the transaction pool is not empty, create a new self-event and empty the
-	//transaction pool in its payload
-	if err := n.core.AddSelfEvent(); err != nil {
-		n.logger.WithField("error", err).Error("Adding SelfEvent")
-		return false, err
 	}
 
 	return true, nil
 }
 
-func (n *Node) gossip(peerAddr string) error {
+//This function is usually called in a go-routine and needs to inform the
+//calling routine (usually the lachesis routine) when it is time to exit the
+//Gossiping state and return.
+func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
+
 	//pull
 	syncLimit, otherKnownEvents, err := n.pull(peerAddr)
 	if err != nil {
@@ -329,6 +368,7 @@ func (n *Node) gossip(peerAddr string) error {
 	if syncLimit {
 		n.logger.WithField("from", peerAddr).Debug("SyncLimit")
 		n.setState(CatchingUp)
+		parentReturnCh <- struct{}{}
 		return nil
 	}
 
@@ -376,19 +416,31 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 		return true, nil, nil
 	}
 
-	//Add Events to Hashgraph and create new Head if necessary
-	n.coreLock.Lock()
-	err = n.sync(resp.Events)
-	n.coreLock.Unlock()
-	if err != nil {
-		n.logger.WithField("error", err).Error("sync()")
-		return false, nil, err
+	if len(resp.Events) > 0 {
+		//Add Events to poset and create new Head if necessary
+		n.coreLock.Lock()
+		err = n.sync(resp.Events)
+		n.coreLock.Unlock()
+		if err != nil {
+			n.logger.WithField("error", err).Error("sync()")
+			return false, nil, err
+		}
 	}
 
 	return false, resp.Known, nil
 }
 
 func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
+
+	//If the transaction pool is not empty, create a new self-event and empty the
+	//transaction pool in its payload
+	n.coreLock.Lock()
+	err := n.core.AddSelfEvent("")
+	n.coreLock.Unlock()
+	if err != nil {
+		n.logger.WithField("error", err).Error("Adding SelfEvent")
+		return err
+	}
 
 	//Check SyncLimit
 	n.coreLock.Lock()
@@ -437,11 +489,49 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 
 func (n *Node) fastForward() error {
 	n.logger.Debug("IN CATCHING-UP STATE")
-	n.logger.Debug("fast-sync not implemented yet")
 
-	//XXX Work in Progress on fsync branch
+	//wait until sync routines finish
+	n.waitRoutines()
+
+	//fastForwardRequest
+	peer := n.peerSelector.Next()
+	start := time.Now()
+	resp, err := n.requestFastForward(peer.NetAddr)
+	elapsed := time.Since(start)
+	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("requestFastForward()")
+	if err != nil {
+		n.logger.WithField("error", err).Error("requestFastForward()")
+		return err
+	}
+	n.logger.WithFields(logrus.Fields{
+		"from_id":              resp.FromID,
+		"block_index":          resp.Block.Index(),
+		"block_round_received": resp.Block.RoundReceived(),
+		"frame_events":         len(resp.Frame.Events),
+		"frame_roots":          resp.Frame.Roots,
+		"snapshot":             resp.Snapshot,
+	}).Debug("FastForwardResponse")
+
+	//prepare core. ie: fresh poset
+	n.coreLock.Lock()
+	err = n.core.FastForward(peer.PubKeyHex, resp.Block, resp.Frame)
+	n.coreLock.Unlock()
+	if err != nil {
+		n.logger.WithField("error", err).Error("Fast Forwarding Poset")
+		return err
+	}
+
+	//update app from snapshot
+	err = n.proxy.Restore(resp.Snapshot)
+	if err != nil {
+		n.logger.WithField("error", err).Error("Restoring App from Snapshot")
+		return err
+	}
+
+	n.logger.Debug("Fast-Forward OK")
 
 	n.setState(Gossiping)
+	n.setStarting(true)
 
 	return nil
 }
@@ -459,7 +549,7 @@ func (n *Node) requestSync(target string, known map[int]int) (net.SyncResponse, 
 	return out, err
 }
 
-func (n *Node) requestEagerSync(target string, events []hg.WireEvent) (net.EagerSyncResponse, error) {
+func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (net.EagerSyncResponse, error) {
 	args := net.EagerSyncRequest{
 		FromID: n.id,
 		Events: events,
@@ -471,8 +561,23 @@ func (n *Node) requestEagerSync(target string, events []hg.WireEvent) (net.Eager
 	return out, err
 }
 
-func (n *Node) sync(events []hg.WireEvent) error {
-	//Insert Events in Hashgraph and create new Head if necessary
+func (n *Node) requestFastForward(target string) (net.FastForwardResponse, error) {
+	n.logger.WithFields(logrus.Fields{
+		"target": target,
+	}).Debug("RequestFastForward()")
+
+	args := net.FastForwardRequest{
+		FromID: n.id,
+	}
+
+	var out net.FastForwardResponse
+	err := n.trans.FastForward(target, &args, &out)
+
+	return out, err
+}
+
+func (n *Node) sync(events []poset.WireEvent) error {
+	//Insert Events in Poset and create new Head if necessary
 	start := time.Now()
 	err := n.core.Sync(events)
 	elapsed := time.Since(start)
@@ -493,24 +598,39 @@ func (n *Node) sync(events []hg.WireEvent) error {
 	return nil
 }
 
-func (n *Node) commit(block hg.Block) error {
+func (n *Node) commit(block poset.Block) error {
 
 	stateHash, err := n.proxy.CommitBlock(block)
 	n.logger.WithFields(logrus.Fields{
 		"block":      block.Index(),
-		"state_hash": fmt.Sprintf("0x%X", stateHash),
+		"state_hash": fmt.Sprintf("%X", stateHash),
 		"err":        err,
 	}).Debug("CommitBlock Response")
 
-	block.Body.StateHash = stateHash
+	//XXX what do we do in case of error. Retry? This has to do with the
+	//Lachesis <-> App interface. Think about it.
 
-	n.coreLock.Lock()
-	defer n.coreLock.Unlock()
-	sig, err := n.core.SignBlock(block)
-	if err != nil {
-		return err
+	//An error here could be that the endpoint is not configured, not all
+	//nodes will be sending blocks to clients, in these cases -no_client can be
+	//used, alternatively should check for the error here and handle it
+	//appropriately
+
+	//There is no point in using the stateHash if we know it is wrong
+	if err == nil {
+		//inmem statehash would be different than proxy statehash
+		//inmem is simply the hash of transactions
+		//this requires a 1:1 relationship with nodes and clients
+		//multiple nodes can't read from the same client
+
+		block.Body.StateHash = stateHash
+		n.coreLock.Lock()
+		defer n.coreLock.Unlock()
+		sig, err := n.core.SignBlock(block)
+		if err != nil {
+			return err
+		}
+		n.core.AddBlockSignature(sig)
 	}
-	n.core.AddBlockSignature(sig)
 
 	return err
 }
@@ -539,7 +659,7 @@ func (n *Node) Shutdown() {
 		//transport and store should only be closed once all concurrent operations
 		//are finished otherwise they will panic trying to use close objects
 		n.trans.Close()
-		n.core.hg.Store.Close()
+		n.core.poset.Store.Close()
 	}
 }
 
@@ -616,45 +736,45 @@ func (n *Node) SyncRate() float64 {
 }
 
 func (n *Node) GetParticipants() (map[string]int, error) {
-	return n.core.hg.Store.Participants()
+	return n.core.poset.Store.Participants()
 }
 
-func (n *Node) GetEvent(event string) (hg.Event, error) {
-	return n.core.hg.Store.GetEvent(event)
+func (n *Node) GetEvent(event string) (poset.Event, error) {
+	return n.core.poset.Store.GetEvent(event)
 }
 
 func (n *Node) GetLastEventFrom(participant string) (string, bool, error) {
-	return n.core.hg.Store.LastEventFrom(participant)
+	return n.core.poset.Store.LastEventFrom(participant)
 }
 
 func (n *Node) GetKnownEvents() map[int]int {
-	return n.core.hg.Store.KnownEvents()
+	return n.core.poset.Store.KnownEvents()
 }
 
 func (n *Node) GetConsensusEvents() []string {
-	return n.core.hg.Store.ConsensusEvents()
+	return n.core.poset.Store.ConsensusEvents()
 }
 
-func (n *Node) GetRound(roundIndex int) (hg.RoundInfo, error) {
-	return n.core.hg.Store.GetRound(roundIndex)
+func (n *Node) GetRound(roundIndex int) (poset.RoundInfo, error) {
+	return n.core.poset.Store.GetRound(roundIndex)
 }
 
 func (n *Node) GetLastRound() int {
-	return n.core.hg.Store.LastRound()
+	return n.core.poset.Store.LastRound()
 }
 
 func (n *Node) GetRoundWitnesses(roundIndex int) []string {
-	return n.core.hg.Store.RoundWitnesses(roundIndex)
+	return n.core.poset.Store.RoundWitnesses(roundIndex)
 }
 
 func (n *Node) GetRoundEvents(roundIndex int) int {
-	return n.core.hg.Store.RoundEvents(roundIndex)
+	return n.core.poset.Store.RoundEvents(roundIndex)
 }
 
-func (n *Node) GetRoot(rootIndex string) (hg.Root, error) {
-	return n.core.hg.Store.GetRoot(rootIndex)
+func (n *Node) GetRoot(rootIndex string) (poset.Root, error) {
+	return n.core.poset.Store.GetRoot(rootIndex)
 }
 
-func (n *Node) GetBlock(blockIndex int) (hg.Block, error) {
-	return n.core.hg.Store.GetBlock(blockIndex)
+func (n *Node) GetBlock(blockIndex int) (poset.Block, error) {
+	return n.core.poset.Store.GetBlock(blockIndex)
 }

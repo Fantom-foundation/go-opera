@@ -7,9 +7,11 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/andrecronje/lachesis/hashgraph"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/sirupsen/logrus"
 )
+
+//------------------------------------------------------------------------------
 
 type StateHash struct {
 	Hash []byte
@@ -23,7 +25,7 @@ type CommitResponse struct {
 
 // Commit provides a response mechanism.
 type Commit struct {
-	Block    hashgraph.Block
+	Block    poset.Block
 	RespChan chan<- CommitResponse
 }
 
@@ -32,12 +34,58 @@ func (r *Commit) Respond(stateHash []byte, err error) {
 	r.RespChan <- CommitResponse{stateHash, err}
 }
 
+//------------------------------------------------------------------------------
+
+type Snapshot struct {
+	Bytes []byte
+}
+
+// SnapshotResponse captures both a response and a potential error.
+type SnapshotResponse struct {
+	Snapshot []byte
+	Error    error
+}
+
+// SnapshotRequest provides a response mechanism.
+type SnapshotRequest struct {
+	BlockIndex int
+	RespChan   chan<- SnapshotResponse
+}
+
+// Respond is used to respond with a response, error or both
+func (r *SnapshotRequest) Respond(snapshot []byte, err error) {
+	r.RespChan <- SnapshotResponse{snapshot, err}
+}
+
+//------------------------------------------------------------------------------
+
+// RestoreResponse captures both an error.
+type RestoreResponse struct {
+	StateHash []byte
+	Error     error
+}
+
+// RestoreRequest provides a response mechanism.
+type RestoreRequest struct {
+	Snapshot []byte
+	RespChan chan<- RestoreResponse
+}
+
+// Respond is used to respond with a response, error or both
+func (r *RestoreRequest) Respond(snapshot []byte, err error) {
+	r.RespChan <- RestoreResponse{snapshot, err}
+}
+
+//------------------------------------------------------------------------------
+
 type SocketLachesisProxyServer struct {
-	netListener *net.Listener
-	rpcServer   *rpc.Server
-	commitCh    chan Commit
-	timeout     time.Duration
-	logger      *logrus.Logger
+	netListener       *net.Listener
+	rpcServer         *rpc.Server
+	commitCh          chan Commit
+	snapshotRequestCh chan SnapshotRequest
+	restoreCh         chan RestoreRequest
+	timeout           time.Duration
+	logger            *logrus.Logger
 }
 
 func NewSocketLachesisProxyServer(bindAddress string,
@@ -45,9 +93,11 @@ func NewSocketLachesisProxyServer(bindAddress string,
 	logger *logrus.Logger) (*SocketLachesisProxyServer, error) {
 
 	server := &SocketLachesisProxyServer{
-		commitCh: make(chan Commit),
-		timeout:  timeout,
-		logger:   logger,
+		commitCh:          make(chan Commit),
+		snapshotRequestCh: make(chan SnapshotRequest),
+		restoreCh:         make(chan RestoreRequest),
+		timeout:           timeout,
+		logger:            logger,
 	}
 
 	if err := server.register(bindAddress); err != nil {
@@ -83,7 +133,7 @@ func (p *SocketLachesisProxyServer) listen() error {
 	}
 }
 
-func (p *SocketLachesisProxyServer) CommitBlock(block hashgraph.Block, stateHash *StateHash) (err error) {
+func (p *SocketLachesisProxyServer) CommitBlock(block poset.Block, stateHash *StateHash) (err error) {
 	// Send the Commit over
 	respCh := make(chan CommitResponse)
 	p.commitCh <- Commit{
@@ -107,6 +157,63 @@ func (p *SocketLachesisProxyServer) CommitBlock(block hashgraph.Block, stateHash
 		"state_hash": stateHash.Hash,
 		"err":        err,
 	}).Debug("LachesisProxyServer.CommitBlock")
+
+	return
+
+}
+
+func (p *SocketLachesisProxyServer) GetSnapshot(blockIndex int, snapshot *Snapshot) (err error) {
+	// Send the Request over
+	respCh := make(chan SnapshotResponse)
+	p.snapshotRequestCh <- SnapshotRequest{
+		BlockIndex: blockIndex,
+		RespChan:   respCh,
+	}
+
+	// Wait for a response
+	select {
+	case snapshotResp := <-respCh:
+		snapshot.Bytes = snapshotResp.Snapshot
+		if snapshotResp.Error != nil {
+			err = snapshotResp.Error
+		}
+	case <-time.After(p.timeout):
+		err = fmt.Errorf("command timed out")
+	}
+
+	p.logger.WithFields(logrus.Fields{
+		"block":    blockIndex,
+		"snapshot": snapshot.Bytes,
+		"err":      err,
+	}).Debug("LachesisProxyServer.GetSnapshot")
+
+	return
+
+}
+
+func (p *SocketLachesisProxyServer) Restore(snapshot []byte, stateHash *StateHash) (err error) {
+	// Send the Request over
+	respCh := make(chan RestoreResponse)
+	p.restoreCh <- RestoreRequest{
+		Snapshot: snapshot,
+		RespChan: respCh,
+	}
+
+	// Wait for a response
+	select {
+	case restoreResp := <-respCh:
+		stateHash.Hash = restoreResp.StateHash
+		if restoreResp.Error != nil {
+			err = restoreResp.Error
+		}
+	case <-time.After(p.timeout):
+		err = fmt.Errorf("command timed out")
+	}
+
+	p.logger.WithFields(logrus.Fields{
+		"state_hash": stateHash.Hash,
+		"err":        err,
+	}).Debug("LachesisProxyServer.Restore")
 
 	return
 

@@ -1,6 +1,6 @@
 package net
 
-import "github.com/andrecronje/lachesis/hashgraph"
+import "github.com/andrecronje/lachesis/poset"
 
 type SyncRequest struct {
 	FromID int
@@ -10,7 +10,7 @@ type SyncRequest struct {
 type SyncResponse struct {
 	FromID    int
 	SyncLimit bool
-	Events    []hashgraph.WireEvent
+	Events    []poset.WireEvent
 	Known     map[int]int
 }
 
@@ -18,7 +18,7 @@ type SyncResponse struct {
 
 type EagerSyncRequest struct {
 	FromID int
-	Events []hashgraph.WireEvent
+	Events []poset.WireEvent
 }
 
 type EagerSyncResponse struct {
@@ -28,12 +28,13 @@ type EagerSyncResponse struct {
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-type SubmitTxRequest struct {
-	Transactions []string
-	ID int
+type FastForwardRequest struct {
+	FromID int
 }
 
-type SubmitTxResponse struct {
-	FromID  int
-	Success bool
+type FastForwardResponse struct {
+	FromID   int
+	Block    poset.Block
+	Frame    poset.Frame
+	Snapshot []byte
 }
