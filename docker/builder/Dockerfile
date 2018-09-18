@@ -2,9 +2,7 @@ FROM glider as stage0
 
 # Glider can be found in https://github.com/andrecronje/lachesis/blob/master/docker/glider/Dockerfile
 
-COPY toybox-x86_64 /cp_bin/
-
-RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" && \
+RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin && \
     git clone 'https://github.com/SamuelMarks/lachesis' "$GOPATH/src/github.com/andrecronje/lachesis" && \
     cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
     glide install && \

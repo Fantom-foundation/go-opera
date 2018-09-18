@@ -13,8 +13,12 @@ lachesis builder
 
 ## Docker build command
 
-    docker build --compress --squash --force-rm --tag lachesis0 --build-arg ca_certificates=certs .
+    docker build --compress --squash --force-rm --tag 'lachesis' .
 
 ## Docker run command
 
-    docker run --rm lachesis0
+    node_num=0; docker run -e node_num="$node_num" -p $(( 12000+"$node_num" )):1339 --name "lachesis$node_num" --rm 'lachesis'
+
+Or just use the script:
+
+    ./spin.bash 0
