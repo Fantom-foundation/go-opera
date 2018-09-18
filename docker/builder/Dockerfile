@@ -12,22 +12,17 @@ RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" && \
     go build -ldflags "-linkmode external -extldflags -static" -a main.go && \
     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
-COPY *.c* /build/
-COPY *.h* /build/
-
-RUN apk --no-cache add libc-dev && \
-    gcc /build/copy.c -o "/cp_bin/copy" -static -static-libgcc -Wno-implicit-function-declaration && \
-    gcc /build/env.c  -o "/cp_bin/env"  -static -static-libgcc -Wno-implicit-function-declaration && \
-    gcc /build/list.c -o "/cp_bin/list" -static -static-libgcc
-
-RUN apk --no-cache add cmake && \
+RUN apk --no-cache add libc-dev cmake && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
     mkdir /build/docker-static-bin/c/cmake-build-release && \
-    cd /build/docker-static-bin/c/cmake-build-release && \
+    cd    /build/docker-static-bin/c/cmake-build-release && \
     cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    gcc -static ../cmd/crappy_sh.c -I. -Os -o crappy_sh -Wno-implicit-function-declaration -Wno-int-conversion && \
-    # strip /docker-static-bin/c/cmake-build-release/crappy_sh && \
-    cp /build/docker-static-bin/c/cmake-build-release/crappy_sh /cp_bin/
+    cd /build/docker-static-bin/c/cmd && \
+    gcc copy.c      -o "/cp_bin/copy"      -Os -static -static-libgcc -Wno-implicit-function-declaration && \
+    gcc env.c       -o "/cp_bin/env"       -Os -static -static-libgcc -Wno-implicit-function-declaration && \
+    gcc list.c      -o "/cp_bin/list"      -Os -static -static-libgcc && \
+    gcc crappy_sh.c -o "/cp_bin/crappy_sh" -Os -static -Wno-implicit-function-declaration -Wno-int-conversion -I./../cmake-build-release && \
+    strip /cp_bin/crappy_sh
 
 FROM scratch as lachesis
 
@@ -42,17 +37,7 @@ ARG ca_certificates
 ADD "$ca_certificates" /etc/ssl/certs/
 COPY --from=0 /cp_bin /bin
 
-# `mkdir -p` cheat
-COPY 'Dockerfile' '/lachesis_data_dir/.gitkeep'
-
 COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
-# RUN ["/bin/list", "/bin"]
-# RUN ["/bin/env"]
-
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "'/bin/env ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir'"]
-# CMD /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem
-# ENTRYPOINT ["/bin/toybox-x86_64"]
-# ENTRYPOINT ["/bin/list", "/lachesis_data_dir"]
-# ENTRYPOINT ["/bin/lachesis", "run", "--datadir", "/lachesis_data_dir", "--store_path", "/lachesis_data_dir/badger_db"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db"]
