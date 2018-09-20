@@ -25,10 +25,12 @@ RUN apk --no-cache add libc-dev cmake && \
 FROM scratch as lachesis
 
 ENV node_num=0
+ENV node_addr='127.0.0.1'
 
 EXPOSE 1338
 EXPOSE 1339
 EXPOSE 8000
+EXPOSE 12000
 
 # cp -r /etc/ssl/certs certs, then add to your `docker build`: `--build-arg ca_certificates=certs`
 ARG ca_certificates
@@ -38,4 +40,4 @@ COPY --from=0 /cp_bin /bin
 COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ;  /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -heartbeat=100 -no_client"]
