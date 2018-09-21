@@ -1132,8 +1132,8 @@ func (p *Poset) GetFrame(roundReceived int) (Frame, error) {
 	//The events are in topological order. Each time we run into the first Event
 	//of a participant, we create a Root for it.
 	for _, ev := range events {
-		p := ev.Creator()
-		if _, ok := roots[p]; !ok {
+		parent := ev.Creator()
+		if _, ok := roots[parent]; !ok {
 			root, err := p.createRoot(ev)
 			if err != nil {
 				return Frame{}, err
@@ -1145,15 +1145,15 @@ func (p *Poset) GetFrame(roundReceived int) (Frame, error) {
 	//Every participant needs a Root in the Frame. For the participants that
 	//have no Events in this Frame, we create a Root from their last consensus
 	//Event, or their last known Root
-	for p := range p.Participants {
-		if _, ok := roots[p]; !ok {
+	for participant := range p.Participants {
+		if _, ok := roots[participant]; !ok {
 			var root Root
-			lastConsensusEventHash, isRoot, err := p.Store.LastConsensusEventFrom(p)
+			lastConsensusEventHash, isRoot, err := p.Store.LastConsensusEventFrom(participant)
 			if err != nil {
 				return Frame{}, err
 			}
 			if isRoot {
-				root, _ = p.Store.GetRoot(p)
+				root, _ = p.Store.GetRoot(participant)
 			} else {
 				lastConsensusEvent, err := p.Store.GetEvent(lastConsensusEventHash)
 				if err != nil {
@@ -1164,7 +1164,7 @@ func (p *Poset) GetFrame(roundReceived int) (Frame, error) {
 					return Frame{}, err
 				}
 			}
-			roots[p] = root
+			roots[participant] = root
 		}
 	}
 
