@@ -5,7 +5,7 @@ lachesis builder
 
     go get -v github.com/SamuelMarks/batch-ethkey
 
-    batch-ethkey -dir nodes -n 3 > peers.json
+    batch-ethkey -dir nodes -network 192.168.0.0 -n 3 > peers.json
 
 ## SSL certs
 
@@ -13,12 +13,23 @@ lachesis builder
 
 ## Docker build command
 
-    docker build --compress --squash --force-rm --tag 'lachesis' .
+    docker build --compress --squash --force-rm --tag lachesis .
 
 ## Docker run command
 
-    node_num=0; docker run -e node_num="$node_num" -p $(( 12000+"$node_num" )):1339 --name "lachesis$node_num" --rm 'lachesis'
-
-Or just use the script:
+Just use the script, with last arg specifying node number:
 
     ./spin.bash 0
+
+## Larger scale testing
+
+    rm -rf nodes peers.json
+    
+    nodes_num=1000
+    ip_start='192.168.0.0'
+    cidr='/16'
+    ip_range="$ip/$cidr"
+    
+    batch-ethkey -dir nodes -network "$ip_start" -n 1000 > peers.json
+    ./network.bash "$ip_range"
+    ./spin_multi.bash 1000 "$ip_range"
