@@ -23,13 +23,9 @@ Just use the script, with last arg specifying node number:
 
 ## Larger scale testing
 
+    n=10 ./scale.bash
+
+## Cleanup
+
     rm -rf nodes peers.json
-    
-    nodes_num=1000
-    ip_start='192.168.0.0'
-    cidr='/16'
-    ip_range="$ip/$cidr"
-    
-    batch-ethkey -dir nodes -network "$ip_start" -n 1000 > peers.json
-    ./network.bash "$ip_range"
-    ./spin_multi.bash 1000 "$ip_range"
+    docker stop $(docker ps -a --no-trunc --filter name='^/lachesis' --format '{{.Names}}')

@@ -7,6 +7,7 @@ ip_cidr="$2"
 node_num=0
 
 for ip in $(prips "$ip_cidr"); do
+  echo "$ip assigned to lachesis$node_num"
   ./spin.bash "$node_num" "$ip"
   ((node_num++))
   [ "$node_num" -gt "$n" ] && exit 0
