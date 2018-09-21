@@ -7,7 +7,7 @@ node_num=0
 
 PEERS_DIR="${PEERS_DIR:-$DIR}"
 
-[ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
+# [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
 
 for ip in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
   ip="${ip%:*}";
