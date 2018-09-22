@@ -1,10 +1,10 @@
-hash: 02f3f54a37d4c2474fcc4969be8196ee1d3f88a40819ae190ad7ffe4cf5d761b
-updated: 2018-08-17T17:06:11.287758+10:00
+hash: 649c073c63f16b1142d2e74ea6e08c07ec2a439211b0da50cc1017cfbe1c8737
+updated: 2018-09-21T12:25:22.209646+10:00
 imports:
 - name: github.com/AndreasBriese/bbloom
-  version: 28f7e881ca57bc00e028f9ede9f0d9104cfeef5e
+  version: 343706a395b76e5ca5c7dca46a5d937b48febc74
 - name: github.com/dgraph-io/badger
-  version: 391b6d3b93e6014fe8c2971fcc0c1266e47dbbd9
+  version: 99233d725dbdd26d156c61b2f42ae1671b794656
   subpackages:
   - options
   - protos
@@ -14,29 +14,29 @@ imports:
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
 - name: github.com/golang/protobuf
-  version: b4deda0973fb4c70b50d226b1af49f3da59f5265
+  version: 7716a980bceefe9a0213654823d9ea62d23b87a2
   subpackages:
   - proto
-- name: github.com/gorilla/mux
-  version: e3702bed27f0d39777b0b37b664b6280e8ef8fbf
 - name: github.com/pkg/errors
-  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+  version: c059e472caf75dbe73903f6521a20abac245b17f
 - name: github.com/sirupsen/logrus
-  version: fc587f31c804fe6853cd90f0d8d90af588eca5bd
-- name: github.com/stretchr/testify
-  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  version: 3e01752db0189b9157070a0e1668a620f9a85da2
+- name: github.com/ugorji/go
+  version: b4c50a2b199d93b13dc15e78929cfb23bfdf21ab
+  subpackages:
+  - codec
 - name: golang.org/x/crypto
-  version: c3a3ad6d03f7a915c0f7e194b7152974bb73d287
+  version: 0e37d006457bf46f9e6692014ba72ef82c33022c
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 92b859f39abd2d91a854c9f9c4621b2f5054a92d
+  version: 2f5d2388922f370f4355f327fcf4cfe9f5583908
   subpackages:
   - context
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: d8e400bc7db4870d786864138af681469693d18c
+  version: d641721ec2dead6fe5ca284096fe4b1fcd49e427
   subpackages:
   - unix
   - windows
