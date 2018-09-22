@@ -297,21 +297,26 @@ func (c *Core) AddSelfEvent(otherHead string) error {
 	}
 
 	// Get flag tables from parents
-	parentEvent,err := c.poset.Store.GetEvent(c.Head)
-	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
+	parentEvent, perr := c.poset.Store.GetEvent(c.Head)
+	flagTable := make(map[string]bool)
+	var flags int
+
+	if perr != nil {
+		fmt.Errorf("Error retrieving parent: %s", perr)
 	}
-	otherParentEvent,err := c.poset.Store.GetEvent(otherHead)
-	if err != nil {
-		fmt.Errorf("Error retrieving other parent: %s", err)
+	otherParentEvent, oerr := c.poset.Store.GetEvent(otherHead)
+	if oerr != nil {
+		fmt.Errorf("Error retrieving other parent: %s", oerr)
 	}
-	flagTable, flags := parentEvent.FlagTable()
-	otherFlagTable,_ := otherParentEvent.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range  otherFlagTable{
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
+	if (perr == nil && oerr == nil) {
+		flagTable, flags := parentEvent.FlagTable()
+		otherFlagTable,_ := otherParentEvent.FlagTable()
+		// event flag table = parent 1 flag table OR parent 2 flag table
+		for id, flag := range  otherFlagTable{
+			if !flagTable[id] && flag {
+				flagTable[id] = true
+				flags++
+			}
 		}
 	}
 
