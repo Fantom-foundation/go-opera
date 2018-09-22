@@ -303,7 +303,7 @@ func (c *Core) AddSelfEvent(otherHead string) error {
 	}
 	otherParentEvent,err := c.poset.Store.GetEvent(otherHead)
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
+		fmt.Errorf("Error retrieving other parent: %s", err)
 	}
 	flagTable, flags := parentEvent.FlagTable()
 	otherFlagTable,_ := otherParentEvent.FlagTable()
