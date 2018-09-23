@@ -93,10 +93,9 @@ func (n *Node) Init(bootstrap bool) error {
 	for _, p := range n.peerSelector.Peers() {
 		peerAddresses = append(peerAddresses, p.NetAddr)
 	}
-	n.logger.WithField("peers", peerAddresses).Debug("Init Node")
+	n.logger.WithField("peers", peerAddresses).Debug("Initialize Node")
 
 	if bootstrap {
-		n.logger.Debug("Bootstrap")
 		if err := n.core.Bootstrap(); err != nil {
 			return err
 		}
@@ -106,7 +105,7 @@ func (n *Node) Init(bootstrap bool) error {
 }
 
 func (n *Node) RunAsync(gossip bool) {
-	n.logger.Debug("runasync")
+	n.logger.Debug("RunAsync(gossip bool)")
 	go n.Run(gossip)
 }
 
@@ -124,7 +123,7 @@ func (n *Node) Run(gossip bool) {
 	for {
 		// Run different routines depending on node state
 		state := n.getState()
-		n.logger.WithField("state", state.String()).Debug("Run loop")
+		n.logger.WithField("state", state.String()).Debug("RunAsync(gossip bool)")
 
 		switch state {
 		case Gossiping:
@@ -142,14 +141,14 @@ func (n *Node) doBackgroundWork() {
 		select {
 		case rpc := <-n.netCh:
 			n.goFunc(func() {
-				n.logger.Debug("Processing RPC")
+				n.logger.Debug("Incoming RPC")
 				n.processRPC(rpc)
 				if n.core.NeedGossip() && !n.controlTimer.set {
 					n.controlTimer.resetCh <- struct{}{}
 				}
 			})
 		case t := <-n.submitCh:
-			n.logger.Debug("Adding Transaction")
+			n.logger.Debug("Adding Transactions to Transaction Pool")
 			n.addTransaction(t)
 			if !n.controlTimer.set {
 				n.controlTimer.resetCh <- struct{}{}
@@ -158,10 +157,10 @@ func (n *Node) doBackgroundWork() {
 			n.logger.WithFields(logrus.Fields{
 				"index":          block.Index(),
 				"round_received": block.RoundReceived(),
-				"txs":            len(block.Transactions()),
-			}).Debug("Committing Block")
+				"transactions":   len(block.Transactions()),
+			}).Debug("Adding EventBlock")
 			if err := n.commit(block); err != nil {
-				n.logger.WithField("error", err).Error("Committing Block")
+				n.logger.WithField("error", err).Error("Adding EventBlock")
 			}
 		case <-n.shutdownCh:
 			return
@@ -181,7 +180,6 @@ func (n *Node) lachesis(gossip bool) {
 			if gossip {
 				proceed, err := n.preGossip()
 				if proceed && err == nil {
-					n.logger.Debug("Time to gossip!")
 					peer := n.peerSelector.Next()
 					n.goFunc(func() { n.gossip(peer.NetAddr, returnCh) })
 				}
@@ -208,7 +206,7 @@ func (n *Node) processRPC(rpc net.RPC) {
 		resp := &net.SyncResponse{
 			FromID: n.id,
 		}
-		rpc.Respond(resp, fmt.Errorf("not ready: %s", s.String()))
+		rpc.Respond(resp, fmt.Errorf("Not ready: %s", s.String()))
 		return
 	}
 
@@ -221,7 +219,7 @@ func (n *Node) processRPC(rpc net.RPC) {
 		n.processFastForwardRequest(rpc, cmd)
 	default:
 		n.logger.WithField("cmd", rpc.Command).Error("Unexpected RPC command")
-		rpc.Respond(nil, fmt.Errorf("unexpected command"))
+		rpc.Respond(nil, fmt.Errorf("Unexpected command"))
 	}
 }
 
@@ -229,7 +227,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from_id": cmd.FromID,
 		"known":   cmd.Known,
-	}).Debug("process SyncRequest")
+	}).Debug("processSyncRequest(rpc net.RPC, cmd *net.SyncRequest)")
 
 	resp := &net.SyncResponse{
 		FromID: n.id,
@@ -241,7 +239,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 	overSyncLimit := n.core.OverSyncLimit(cmd.Known, n.conf.SyncLimit)
 	n.coreLock.Unlock()
 	if overSyncLimit {
-		n.logger.Debug("SyncLimit")
+		n.logger.Debug("n.core.OverSyncLimit(cmd.Known, n.conf.SyncLimit)")
 		resp.SyncLimit = true
 	} else {
 		//Compute Diff
@@ -250,16 +248,16 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 		eventDiff, err := n.core.EventDiff(cmd.Known)
 		n.coreLock.Unlock()
 		elapsed := time.Since(start)
-		n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("Diff()")
+		n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.EventBlockDiff(cmd.Known)")
 		if err != nil {
-			n.logger.WithField("error", err).Error("Calculating Diff")
+			n.logger.WithField("Error", err).Error("n.core.EventBlockDiff(cmd.Known)")
 			respErr = err
 		}
 
 		//Convert to WireEvents
 		wireEvents, err := n.core.ToWire(eventDiff)
 		if err != nil {
-			n.logger.WithField("error", err).Debug("Converting to WireEvent")
+			n.logger.WithField("error", err).Debug("n.core.TransportEventBlock(eventDiff)")
 			respErr = err
 		} else {
 			resp.Events = wireEvents
@@ -277,7 +275,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 		"known":      resp.Known,
 		"sync_limit": resp.SyncLimit,
 		"error":      respErr,
-	}).Debug("Responding to SyncRequest")
+	}).Debug("SyncRequest Received")
 
 	rpc.Respond(resp, respErr)
 }
@@ -286,14 +284,14 @@ func (n *Node) processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from_id": cmd.FromID,
 		"events":  len(cmd.Events),
-	}).Debug("EagerSyncRequest")
+	}).Debug("processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest)")
 
 	success := true
 	n.coreLock.Lock()
 	err := n.sync(cmd.Events)
 	n.coreLock.Unlock()
 	if err != nil {
-		n.logger.WithField("error", err).Error("sync()")
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
 
@@ -307,7 +305,7 @@ func (n *Node) processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest) {
 func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from": cmd.FromID,
-	}).Debug("process FastForwardRequest")
+	}).Debug("processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest)")
 
 	resp := &net.FastForwardResponse{
 		FromID: n.id,
@@ -319,7 +317,7 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	block, frame, err := n.core.GetAnchorBlockWithFrame()
 	n.coreLock.Unlock()
 	if err != nil {
-		n.logger.WithField("error", err).Error("Getting Frame")
+		n.logger.WithField("error", err).Error("n.core.GetAnchorBlockWithFrame()")
 		respErr = err
 	}
 	resp.Block = block
@@ -328,7 +326,7 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	//Get snapshot
 	snapshot, err := n.proxy.GetSnapshot(block.Index())
 	if err != nil {
-		n.logger.WithField("error", err).Error("Getting Snapshot")
+		n.logger.WithField("error", err).Error("n.proxy.GetSnapshot(block.Index())")
 		respErr = err
 	}
 	resp.Snapshot = snapshot
@@ -336,7 +334,7 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	n.logger.WithFields(logrus.Fields{
 		"Events": len(resp.Frame.Events),
 		"Error":  respErr,
-	}).Debug("Responding to FastForwardRequest")
+	}).Debug("FastForwardRequest Received")
 	rpc.Respond(resp, respErr)
 }
 
@@ -346,7 +344,6 @@ func (n *Node) preGossip() (bool, error) {
 
 	//Check if it is necessary to gossip
 	if !(n.core.NeedGossip() || n.isStarting()) {
-		n.logger.Debug("Nothing to gossip")
 		return false, nil
 	}
 
@@ -400,9 +397,9 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 	start := time.Now()
 	resp, err := n.requestSync(peerAddr, knownEvents)
 	elapsed := time.Since(start)
-	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("requestSync()")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestSync(peerAddr, knownEvents)")
 	if err != nil {
-		n.logger.WithField("error", err).Error("requestSync()")
+		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
 		return false, nil, err
 	}
 	n.logger.WithFields(logrus.Fields{
@@ -422,7 +419,7 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 		err = n.sync(resp.Events)
 		n.coreLock.Unlock()
 		if err != nil {
-			n.logger.WithField("error", err).Error("sync()")
+			n.logger.WithField("error", err).Error("n.sync(resp.Events)")
 			return false, nil, err
 		}
 	}
@@ -435,10 +432,10 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 	//If the transaction pool is not empty, create a new self-event and empty the
 	//transaction pool in its payload
 	n.coreLock.Lock()
-	err := n.core.AddSelfEvent("")
+	err := n.core.AddSelfEventBlock("")
 	n.coreLock.Unlock()
 	if err != nil {
-		n.logger.WithField("error", err).Error("Adding SelfEvent")
+		n.logger.WithField("error", err).Error("n.core.AddSelfEventBlock()")
 		return err
 	}
 
@@ -447,7 +444,7 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 	overSyncLimit := n.core.OverSyncLimit(knownEvents, n.conf.SyncLimit)
 	n.coreLock.Unlock()
 	if overSyncLimit {
-		n.logger.Debug("SyncLimit")
+		n.logger.Debug("n.core.OverSyncLimit(knownEvents, n.conf.SyncLimit)")
 		return nil
 	}
 
@@ -457,16 +454,16 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 	eventDiff, err := n.core.EventDiff(knownEvents)
 	n.coreLock.Unlock()
 	elapsed := time.Since(start)
-	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("Diff()")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.EventDiff(knownEvents)")
 	if err != nil {
-		n.logger.WithField("error", err).Error("Calculating Diff")
+		n.logger.WithField("Error", err).Error("n.core.EventDiff(knownEvents)")
 		return err
 	}
 
 	//Convert to WireEvents
 	wireEvents, err := n.core.ToWire(eventDiff)
 	if err != nil {
-		n.logger.WithField("error", err).Debug("Converting to WireEvent")
+		n.logger.WithField("Error", err).Debug("n.core.TransferEventBlock(eventDiff)")
 		return err
 	}
 
@@ -474,9 +471,9 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 	start = time.Now()
 	resp2, err := n.requestEagerSync(peerAddr, wireEvents)
 	elapsed = time.Since(start)
-	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("requestEagerSync()")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestEagerSync(peerAddr, wireEvents)")
 	if err != nil {
-		n.logger.WithField("error", err).Error("requestEagerSync()")
+		n.logger.WithField("Error", err).Error("n.requestEagerSync(peerAddr, wireEvents)")
 		return err
 	}
 	n.logger.WithFields(logrus.Fields{
@@ -488,7 +485,7 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 }
 
 func (n *Node) fastForward() error {
-	n.logger.Debug("IN CATCHING-UP STATE")
+	n.logger.Debug("fastForward()")
 
 	//wait until sync routines finish
 	n.waitRoutines()
@@ -498,9 +495,9 @@ func (n *Node) fastForward() error {
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
 	elapsed := time.Since(start)
-	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("requestFastForward()")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestFastForward(peer.NetAddr)")
 	if err != nil {
-		n.logger.WithField("error", err).Error("requestFastForward()")
+		n.logger.WithField("Error", err).Error("n.requestFastForward(peer.NetAddr)")
 		return err
 	}
 	n.logger.WithFields(logrus.Fields{
@@ -517,18 +514,16 @@ func (n *Node) fastForward() error {
 	err = n.core.FastForward(peer.PubKeyHex, resp.Block, resp.Frame)
 	n.coreLock.Unlock()
 	if err != nil {
-		n.logger.WithField("error", err).Error("Fast Forwarding Poset")
+		n.logger.WithField("Error", err).Error("n.core.FastForward(peer.PubKeyHex, resp.Block, resp.Frame)")
 		return err
 	}
 
 	//update app from snapshot
 	err = n.proxy.Restore(resp.Snapshot)
 	if err != nil {
-		n.logger.WithField("error", err).Error("Restoring App from Snapshot")
+		n.logger.WithField("Error", err).Error("n.proxy.Restore(resp.Snapshot)")
 		return err
 	}
-
-	n.logger.Debug("Fast-Forward OK")
 
 	n.setState(Gossiping)
 	n.setStarting(true)
@@ -564,7 +559,7 @@ func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (net.Ea
 func (n *Node) requestFastForward(target string) (net.FastForwardResponse, error) {
 	n.logger.WithFields(logrus.Fields{
 		"target": target,
-	}).Debug("RequestFastForward()")
+	}).Debug("requestFastForward(target string) (net.FastForwardResponse, error)")
 
 	args := net.FastForwardRequest{
 		FromID: n.id,
@@ -581,7 +576,7 @@ func (n *Node) sync(events []poset.WireEvent) error {
 	start := time.Now()
 	err := n.core.Sync(events)
 	elapsed := time.Since(start)
-	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("Processed Sync()")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.Sync(events)")
 	if err != nil {
 		return err
 	}
@@ -590,7 +585,7 @@ func (n *Node) sync(events []poset.WireEvent) error {
 	start = time.Now()
 	err = n.core.RunConsensus()
 	elapsed = time.Since(start)
-	n.logger.WithField("duration", elapsed.Nanoseconds()).Debug("Processed RunConsensus()")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.RunConsensus()")
 	if err != nil {
 		return err
 	}
@@ -605,7 +600,7 @@ func (n *Node) commit(block poset.Block) error {
 		"block":      block.Index(),
 		"state_hash": fmt.Sprintf("%X", stateHash),
 		"err":        err,
-	}).Debug("CommitBlock Response")
+	}).Debug("commit(eventBlock poset.EventBlock)")
 
 	//XXX what do we do in case of error. Retry? This has to do with the
 	//Lachesis <-> App interface. Think about it.
@@ -643,7 +638,7 @@ func (n *Node) addTransaction(tx []byte) {
 
 func (n *Node) Shutdown() {
 	if n.getState() != Shutdown {
-		n.logger.Debug("Shutdown")
+		n.logger.Debug("Shutdown()")
 
 		//Exit any non-shutdown state immediately
 		n.setState(Shutdown)
@@ -724,7 +719,7 @@ func (n *Node) logStats() {
 		"round_events":           stats["round_events"],
 		"id":                     stats["id"],
 		"state":                  stats["state"],
-	}).Debug("Stats")
+	}).Debug("logStats()")
 }
 
 func (n *Node) SyncRate() float64 {

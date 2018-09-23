@@ -117,7 +117,7 @@ func (c *Core) SetHeadAndSeq() error {
 		"core.Head": c.Head,
 		"core.Seq":  c.Seq,
 		"is_root":   isRoot,
-	}).Debugf("SetHeadAndSeq")
+	}).Debugf("SetHeadAndSeq()")
 
 	return nil
 }
@@ -218,14 +218,14 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		"unknown_events":       len(unknownEvents),
 		"transaction_pool":     len(c.transactionPool),
 		"block_signature_pool": len(c.blockSignaturePool),
-	}).Debug("Sync")
+	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	otherHead := ""
 	//add unknown events
 	for k, we := range unknownEvents {
 		ev, err := c.poset.ReadWireInfo(we)
 		if err != nil {
-			c.logger.WithField("WireEvent", we).Errorf("ReadingWireInfo")
+			c.logger.WithField("EventBlock", we).Errorf("c.poset.ReadEventBlockInfo(we)")
 			return err
 
 		}
@@ -240,7 +240,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 	//create new event with self head and other head only if there are pending
 	//loaded events or the pools are not empty
-	return c.AddSelfEvent(otherHead)
+	return c.AddSelfEventBlock(otherHead)
 }
 
 func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) error {
@@ -275,7 +275,7 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 	// 	return err
 	// }
 
-	// err = c.AddSelfEvent(lastEventFromPeer)
+	// err = c.AddSelfEventBlock(lastEventFromPeer)
 	// if err != nil {
 	// 	return err
 	// }
@@ -288,11 +288,11 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 	return nil
 }
 
-func (c *Core) AddSelfEvent(otherHead string) error {
+func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 	//exit if there is nothing to record
 	if otherHead == "" && len(c.transactionPool) == 0 && len(c.blockSignaturePool) == 0 {
-		c.logger.Debug("Empty transaction pool and block signature pool")
+		c.logger.Debug("Empty transaction and block signature pool")
 		return nil
 	}
 
@@ -329,13 +329,13 @@ func (c *Core) AddSelfEvent(otherHead string) error {
 		flagTable, flags)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
-		return fmt.Errorf("error inserting new head: %s", err)
+		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)
 	}
 
 	c.logger.WithFields(logrus.Fields{
 		"transactions":     len(c.transactionPool),
 		"block_signatures": len(c.blockSignaturePool),
-	}).Debug("Created Self-Event")
+	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPool = [][]byte{}
 	c.blockSignaturePool = []poset.BlockSignature{}
@@ -366,41 +366,41 @@ func (c *Core) ToWire(events []poset.Event) ([]poset.WireEvent, error) {
 func (c *Core) RunConsensus() error {
 	start := time.Now()
 	err := c.poset.DivideRounds()
-	c.logger.WithField("duration", time.Since(start).Nanoseconds()).Debug("DivideRounds()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DivideAtropos()")
 	if err != nil {
-		c.logger.WithField("error", err).Error("DivideRounds")
+		c.logger.WithField("Error", err).Error("c.poset.DivideAtropos()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.DecideFame()
-	c.logger.WithField("duration", time.Since(start).Nanoseconds()).Debug("DecideFame()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideClotho()")
 	if err != nil {
-		c.logger.WithField("error", err).Error("DecideFame")
+		c.logger.WithField("Error", err).Error("c.poset.DecideClotho()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.DecideRoundReceived()
-	c.logger.WithField("duration", time.Since(start).Nanoseconds()).Debug("DecideRoundReceived()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideAtroposRoundReceived()")
 	if err != nil {
-		c.logger.WithField("error", err).Error("DecideRoundReceived")
+		c.logger.WithField("Error", err).Error("c.poset.DecideAtroposRoundReceived()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.ProcessDecidedRounds()
-	c.logger.WithField("duration", time.Since(start).Nanoseconds()).Debug("ProcessDecidedRounds()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.ProcessAtroposRounds()")
 	if err != nil {
-		c.logger.WithField("error", err).Error("ProcessDecidedRounds")
+		c.logger.WithField("Error", err).Error("c.poset.ProcessAtroposRounds()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.ProcessSigPool()
-	c.logger.WithField("duration", time.Since(start).Nanoseconds()).Debug("ProcessSigPool()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.ProcessSigPool()")
 	if err != nil {
-		c.logger.WithField("error", err).Error("ProcessSigPool()")
+		c.logger.WithField("Error", err).Error("c.poset.ProcessSigPool()")
 		return err
 	}
 
@@ -454,7 +454,7 @@ func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	for _, e := range c.GetConsensusEvents() {
 		eTxs, err := c.GetEventTransactions(e)
 		if err != nil {
-			return txs, fmt.Errorf("consensus event not found: %s", e)
+			return txs, fmt.Errorf("GetConsensusTransactions(): %s", e)
 		}
 		txs = append(txs, eTxs...)
 	}

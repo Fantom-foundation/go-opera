@@ -140,7 +140,7 @@ func main() {
 func keygen(_ *cli.Context) error {
 	pemDump, err := crypto.GeneratePemKey()
 	if err != nil {
-		fmt.Println("Error generating PemDump")
+		fmt.Println("Error generating PEM")
 		os.Exit(2)
 	}
 
@@ -183,7 +183,7 @@ func run(c *cli.Context) error {
 		"cache_size":   cacheSize,
 		"store":        storeType,
 		"store_path":   storePath,
-	}).Debug("RUN")
+	}).Debug("Init")
 
 	conf := node.NewConfig(time.Duration(heartbeat)*time.Millisecond,
 		time.Duration(tcpTimeout)*time.Millisecond,
@@ -227,7 +227,7 @@ func run(c *cli.Context) error {
 	logger.WithFields(logrus.Fields{
 		"pmap": pmap,
 		"id":   nodeID,
-	}).Debug("PARTICIPANTS")
+	}).Debug("Participants")
 
 	//Instantiate the Store (inmem or badger)
 	var store poset.Store
@@ -238,26 +238,26 @@ func run(c *cli.Context) error {
 	case "badger":
 		//If the file already exists, load and bootstrap the store using the file
 		if _, err := os.Stat(conf.StorePath); err == nil {
-			logger.Debug("loading badger store from existing database")
+			logger.Debug("Loading store")
 			store, err = poset.LoadBadgerStore(conf.CacheSize, conf.StorePath)
 			if err != nil {
 				return cli.NewExitError(
-					fmt.Sprintf("failed to load BadgerStore from existing file: %s", err),
+					fmt.Sprintf("Failed to load store: %s", err),
 					1)
 			}
 			needBootstrap = true
 		} else {
 			//Otherwise create a new one
-			logger.Debug("creating new badger store from fresh database")
+			logger.Debug("Creating new store")
 			store, err = poset.NewBadgerStore(pmap, conf.CacheSize, conf.StorePath)
 			if err != nil {
 				return cli.NewExitError(
-					fmt.Sprintf("failed to create new BadgerStore: %s", err),
+					fmt.Sprintf("Failed to create store: %s", err),
 					1)
 			}
 		}
 	default:
-		return cli.NewExitError(fmt.Sprintf("invalid store option: %s", storeType), 1)
+		return cli.NewExitError(fmt.Sprintf("Invalid store option: %s", storeType), 1)
 	}
 
 	trans, err := net.NewTCPTransport(addr,
@@ -277,7 +277,7 @@ func run(c *cli.Context) error {
 	node_ := node.NewNode(conf, nodeID, key, peers, store, trans, prox)
 	if err := node_.Init(needBootstrap); err != nil {
 		return cli.NewExitError(
-			fmt.Sprintf("failed to initialize node: %s", err),
+			fmt.Sprintf("Failed to initialize node: %s", err),
 			1)
 	}
 
