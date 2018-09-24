@@ -1,6 +1,13 @@
 lachesis builder
 ================
 
+## Dependencies
+
+  - [Docker](https://www.docker.com/get-started)
+  - [jq](https://stedolan.github.io/jq)
+  - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey)
+  - [upx](https://upx.github.io), download [upx-3.95-amd64_linux.tar.xz](https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz) and extract `upx` binary into this dir
+
 ## Generate private & public keys, and peers.json
 
     go get -v github.com/SamuelMarks/batch-ethkey
@@ -28,4 +35,6 @@ Just use the script, with last arg specifying node number:
 ## Cleanup
 
     rm -rf nodes peers.json
-    docker stop $(docker ps -a --no-trunc --filter name='^/lachesis' --format '{{.Names}}')
+    containers="$(docker ps -a --no-trunc --filter name='^/lachesis' --format '{{.Names}}')"
+    docker stop "$containers"
+    docker rm  "$containers"

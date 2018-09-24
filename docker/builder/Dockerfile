@@ -1,16 +1,23 @@
 FROM glider as stage0
 
-# Glider can be found in https://github.com/andrecronje/lachesis/blob/master/docker/glider/Dockerfile
+# Glider can be found in https://github.com/andrecronje/evm/blob/master/docker/glider/Dockerfile
 
-RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin && \
+RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin && \
     git clone 'https://github.com/SamuelMarks/lachesis' "$GOPATH/src/github.com/andrecronje/lachesis" && \
     cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
     glide install && \
     cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
-    go build -ldflags "-linkmode external -extldflags -static" -a main.go && \
+    go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
+# ADD https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz /tmp
+COPY upx /cp_bin/
+
 RUN apk --no-cache add libc-dev cmake && \
+    # /bin/tar --version && \
+    # md5sum /tmp/upx-3.95-amd64_linux.tar.xz && \
+    # /bin/tar xf /tmp/upx-3.95-amd64_linux.tar.xz && \
+    # /bin/tar -C /bin --strip-components=1 -xzf /tmp/upx-3.95-amd64_linux.tar.xz && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
     mkdir /build/docker-static-bin/c/cmake-build-release && \
     cd    /build/docker-static-bin/c/cmake-build-release && \
@@ -20,7 +27,8 @@ RUN apk --no-cache add libc-dev cmake && \
     gcc env.c       -o "/cp_bin/env"       -Os -static -static-libgcc -Wno-implicit-function-declaration && \
     gcc list.c      -o "/cp_bin/list"      -Os -static -static-libgcc && \
     gcc crappy_sh.c -o "/cp_bin/crappy_sh" -Os -static -Wno-implicit-function-declaration -Wno-int-conversion -I./../cmake-build-release && \
-    strip /cp_bin/crappy_sh
+    strip /cp_bin/crappy_sh /cp_bin/copy /cp_bin/env /cp_bin/list && \
+    /cp_bin/upx --brute /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list
 
 FROM scratch as lachesis
 
@@ -40,4 +48,4 @@ COPY --from=0 /cp_bin /bin
 COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ;  /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -heartbeat=100 -no_client"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /cp_bin/upx -d /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list ;  /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -heartbeat=100 -no_client"]
