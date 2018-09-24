@@ -27,7 +27,7 @@ RUN apk --no-cache add libc-dev cmake && \
     gcc env.c       -o "/cp_bin/env"       -Os -static -static-libgcc -Wno-implicit-function-declaration && \
     gcc list.c      -o "/cp_bin/list"      -Os -static -static-libgcc && \
     gcc crappy_sh.c -o "/cp_bin/crappy_sh" -Os -static -Wno-implicit-function-declaration -Wno-int-conversion -I./../cmake-build-release && \
-    strip /cp_bin/crappy_sh /cp_bin/copy /cp_bin/env /cp_bin/list && \
+    strip /cp_bin/crappy_sh /cp_bin/copy /cp_bin/env /cp_bin/list /cp_bin/lachesis && \
     /cp_bin/upx --brute /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list
 
 FROM scratch as lachesis
