@@ -99,6 +99,11 @@ var (
 		Name:  "test",
 		Usage: "Enable testing (sends transactions to random nodes in the network)",
 	}
+	TestNFlag = cli.Uint64Flag{
+		Name:  "test_n",
+		Usage: "Number of transactions to send",
+		Value: ^uint64(0),
+	}
 )
 
 func main() {
@@ -132,6 +137,7 @@ func main() {
 				StoreFlag,
 				StorePathFlag,
 				TestFlag,
+				TestNFlag,
 			},
 		},
 		{
@@ -176,6 +182,7 @@ func run(c *cli.Context) error {
 	storeType := c.String(StoreFlag.Name)
 	storePath := c.String(StorePathFlag.Name)
 	test := c.Bool(TestFlag.Name)
+	testN := c.Uint64(TestNFlag.Name)
 
 	logger.WithFields(logrus.Fields{
 		"datadir":      datadir,
@@ -292,7 +299,7 @@ func run(c *cli.Context) error {
 	go serviceServer.Serve()
 
 	if test {
-		go tester.PingNodesContinuously(peers)
+		go tester.PingNodesN(peers, testN)
 	}
 
 	node_.Run(true)

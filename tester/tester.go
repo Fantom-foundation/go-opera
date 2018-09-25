@@ -11,26 +11,37 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-func PingNodesContinuously(participants []n.Peer) {
-	ticker := time.NewTicker(500 * time.Millisecond)
-	go func() {
-		for t := range ticker.C {
-			rand.Seed(time.Now().Unix())
-			participant := participants[rand.Intn(len(participants))]
-			fmt.Printf("Pinging %s at %s\n", participant.NetAddr, t)
-			txId := UniqueID{counter: 0}
-			sendTransact(participant, txId)
-			fmt.Printf("Last transaction sent: %d\n", txId.Get()-1)
-			// resp, err := http.Get("http://example.com/")
-		}
-	}()
-	time.Sleep(1600 * time.Millisecond)
-	ticker.Stop()
+func PingNodesN(participants []n.Peer, n uint64) {
+	txId := UniqueID{counter: 1}
+
+	wg := new(sync.WaitGroup)
+	for i := uint64(0); i < n; i++ {
+		wg.Add(1)
+		ticker := time.NewTicker(500 * time.Millisecond)
+
+		go func() {
+			for t := range ticker.C {
+				rand.Seed(time.Now().Unix())
+				participant := participants[rand.Intn(len(participants))]
+				fmt.Printf("Pinging %s at %s\n", participant.NetAddr, t)
+				sendTransact(participant, txId)
+				fmt.Printf("Last transaction sent: %d\n", txId.Get()-1)
+				// resp, err := http.Get("http://example.com/")
+			}
+		}()
+
+		time.Sleep(1600 * time.Millisecond)
+		ticker.Stop()
+	}
+
 	fmt.Println("Pinging stopped")
+
+	wg.Wait()
 }
 
 func sendTransaction(target n.Peer) {
