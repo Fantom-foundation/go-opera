@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/andrecronje/lachesis/tester"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -15,9 +16,9 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/andrecronje/lachesis/crypto"
-	"github.com/andrecronje/lachesis/poset"
 	"github.com/andrecronje/lachesis/net"
 	"github.com/andrecronje/lachesis/node"
+	"github.com/andrecronje/lachesis/poset"
 	"github.com/andrecronje/lachesis/proxy"
 	aproxy "github.com/andrecronje/lachesis/proxy/app"
 	"github.com/andrecronje/lachesis/service"
@@ -94,6 +95,10 @@ var (
 		Usage: "File containing the store database",
 		Value: defaultBadgerDir(),
 	}
+	TestFlag = cli.BoolFlag{
+		Name:  "test",
+		Usage: "Enable testing (sends transactions to random nodes in the network)",
+	}
 )
 
 func main() {
@@ -126,6 +131,7 @@ func main() {
 				SyncLimitFlag,
 				StoreFlag,
 				StorePathFlag,
+				TestFlag,
 			},
 		},
 		{
@@ -169,6 +175,7 @@ func run(c *cli.Context) error {
 	syncLimit := c.Int(SyncLimitFlag.Name)
 	storeType := c.String(StoreFlag.Name)
 	storePath := c.String(StorePathFlag.Name)
+	test := c.Bool(TestFlag.Name)
 
 	logger.WithFields(logrus.Fields{
 		"datadir":      datadir,
@@ -283,6 +290,10 @@ func run(c *cli.Context) error {
 
 	serviceServer := service.NewService(serviceAddress, node_, logger)
 	go serviceServer.Serve()
+
+	if test {
+		go tester.PingNodesContinuously(peers)
+	}
 
 	node_.Run(true)
 
