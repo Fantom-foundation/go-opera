@@ -1,5 +1,5 @@
-hash: 649c073c63f16b1142d2e74ea6e08c07ec2a439211b0da50cc1017cfbe1c8737
-updated: 2018-09-21T12:25:22.209646+10:00
+hash: 20ce426a2e2aab05c16621eb19d1e297260b07e9a23e47e592d7cb0ab77e65a2
+updated: 2018-09-25T15:28:02.269687+10:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -17,6 +17,10 @@ imports:
   version: 7716a980bceefe9a0213654823d9ea62d23b87a2
   subpackages:
   - proto
+- name: github.com/google/gopacket
+  version: 11c65f1ca9081dfea43b4f9643f5c155583b73ba
+  subpackages:
+  - layers
 - name: github.com/pkg/errors
   version: c059e472caf75dbe73903f6521a20abac245b17f
 - name: github.com/sirupsen/logrus

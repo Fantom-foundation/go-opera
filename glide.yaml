@@ -2,6 +2,10 @@ package: github.com/andrecronje/lachesis
 import:
 - package: github.com/dgraph-io/badger
   version: ^1.5.4
+- package: github.com/google/gopacket
+  version: ^1.1.14
+  subpackages:
+  - layers
 - package: github.com/sirupsen/logrus
   version: ^1.0.6
 - package: github.com/ugorji/go
