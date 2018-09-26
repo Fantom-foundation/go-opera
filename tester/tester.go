@@ -25,8 +25,9 @@ func PingNodesN(participants []lachesisNet.Peer, p map[string]int, n uint64) {
 	for i := uint64(0); i < n; i++ {
 		wg.Add(1)
 		participant := participants[rand.Intn(len(participants))]
-		fmt.Printf("Pinging %s\n", participant.NetAddr)
-		sendTransact(participant, txId)
+		nodeId := p[participant.NetAddr]
+		fmt.Printf("Pinging %s (id=%d)\n", participant.NetAddr, nodeId)
+		sendTransact(participant, nodeId, txId)
 		fmt.Printf("Last transaction sent: %d\n", txId.Get()-1)
 		time.Sleep(1600 * time.Millisecond)
 	}
@@ -72,7 +73,7 @@ func GetOutboundIP() net.IP {
 	return localAddr.IP
 }
 
-func sendTransact(target lachesisNet.Peer, txId UniqueID) {
+func sendTransact(target lachesisNet.Peer, nodeId int, txId UniqueID) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", target.NetAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
@@ -85,7 +86,7 @@ func sendTransact(target lachesisNet.Peer, txId UniqueID) {
 	}
 
 	payload := fmt.Sprintf("%s{\"method\":\"Lachesis.SubmitTx\",\"params\":[\"whatever\"],\"id\":\"whatever\"}",
-		base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("Node%d Tx%d", 900000000000000, txId.Get()))))
+		base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("Node%d Tx%d", nodeId, txId.Get()))))
 
 	_, err = conn.Write([]byte(payload))
 
