@@ -21,3 +21,6 @@ docker/builder/nodes
 docker/builder/certs
 docker/builder/peers.json
 docker/builder/upx
+nodes
+peers.json
+certs

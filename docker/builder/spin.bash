@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-PROJECT="${PROJECT:-lachesis}"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+. "$DIR/set_globals.bash"
+
 node_num="$1"
 ip="$2"
 container="$PROJECT$node_num"

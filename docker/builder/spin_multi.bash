@@ -5,6 +5,7 @@ PROJECT="${PROJECT:-lachesis}"
 n="$1"
 node_num=0
 
+PEERS_DIR="${PEERS_DIR:-$BUILD_DIR}"
 PEERS_DIR="${PEERS_DIR:-$DIR}"
 
 # [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
