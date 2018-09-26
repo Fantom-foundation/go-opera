@@ -299,7 +299,13 @@ func run(c *cli.Context) error {
 	go serviceServer.Serve()
 
 	if test {
-		go tester.PingNodesN(peers, testN)
+		p, err := store.Participants()
+		if err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf("Failed to acquire participants: %s", err),
+				1)
+		}
+		go tester.PingNodesN(peers, p, testN)
 	}
 
 	node_.Run(true)

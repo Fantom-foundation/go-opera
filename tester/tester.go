@@ -3,7 +3,7 @@ package tester
 import (
 	"encoding/base64"
 	"fmt"
-	n "github.com/andrecronje/lachesis/net"
+	lachesisNet "github.com/andrecronje/lachesis/net"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"io/ioutil"
@@ -16,27 +16,19 @@ import (
 	"time"
 )
 
-func PingNodesN(participants []n.Peer, n uint64) {
+func PingNodesN(participants []lachesisNet.Peer, p map[string]int, n uint64) {
 	txId := UniqueID{counter: 1}
 
 	wg := new(sync.WaitGroup)
+	fmt.Println("PingNodesN::participants: ", participants)
+	fmt.Println("PingNodesN::p: ", p)
 	for i := uint64(0); i < n; i++ {
 		wg.Add(1)
-		ticker := time.NewTicker(500 * time.Millisecond)
-
-		go func() {
-			for t := range ticker.C {
-				rand.Seed(time.Now().Unix())
-				participant := participants[rand.Intn(len(participants))]
-				fmt.Printf("Pinging %s at %s\n", participant.NetAddr, t)
-				sendTransact(participant, txId)
-				fmt.Printf("Last transaction sent: %d\n", txId.Get()-1)
-				// resp, err := http.Get("http://example.com/")
-			}
-		}()
-
+		participant := participants[rand.Intn(len(participants))]
+		fmt.Printf("Pinging %s\n", participant.NetAddr)
+		sendTransact(participant, txId)
+		fmt.Printf("Last transaction sent: %d\n", txId.Get()-1)
 		time.Sleep(1600 * time.Millisecond)
-		ticker.Stop()
 	}
 
 	fmt.Println("Pinging stopped")
@@ -44,7 +36,7 @@ func PingNodesN(participants []n.Peer, n uint64) {
 	wg.Wait()
 }
 
-func sendTransaction(target n.Peer) {
+func sendTransaction(target lachesisNet.Peer) {
 	ip := &layers.IPv4{
 		SrcIP: GetOutboundIP(),
 		DstIP: net.IP(target.NetAddr),
@@ -80,7 +72,7 @@ func GetOutboundIP() net.IP {
 	return localAddr.IP
 }
 
-func sendTransact(target n.Peer, txId UniqueID) {
+func sendTransact(target lachesisNet.Peer, txId UniqueID) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", target.NetAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
