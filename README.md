@@ -1,14 +1,17 @@
 # Lachesis
 
 [documentation](http://docs.fantom.foundation) pages.
+
 [whitepaper](http://www.swirlds.com/downloads/SWIRLDS-TR-2016-01.pdf)
+
 [accompanying document](http://www.swirlds.com/downloads/SWIRLDS-TR-2016-02.pdf).
+
 [patents](http://www.swirlds.com/ip/)
 
 
 ## Docker
 
-Create an `n` node lachesis cluster with:
+Create an 3 node lachesis cluster with:
 
     n=3 BUILD_DIR="$PWD" ./docker/builder/scale.bash
 
@@ -16,4 +19,12 @@ Create an `n` node lachesis cluster with:
 
   - [Docker](https://www.docker.com/get-started)
   - [jq](https://stedolan.github.io/jq)
-  - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with `go get -v github.com/SamuelMarks/batch-ethkey`
+  - [Bash](https://www.gnu.org/software/bash)
+  - glider base Docker Image with:
+    ```bash
+    git clone https://github.com/andrecronje/evm  # or `cd $GOPATH/src/github.com/andrecronje`
+    cd evm/docker/glider
+    docker build --compress --squash --force-rm --tag "${PWD##*/}" .
+    ```
+  - [Go](https://golang.org)
+  - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with: `go get -v github.com/SamuelMarks/batch-ethkey`

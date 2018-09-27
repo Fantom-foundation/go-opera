@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,9 +27,18 @@ func PingNodesN(participants []lachesisNet.Peer, p map[string]int, n uint64) {
 		wg.Add(1)
 		participant := participants[rand.Intn(len(participants))]
 		nodeId := p[participant.NetAddr]
-		fmt.Printf("Pinging %s (id=%d)\n", participant.NetAddr, nodeId)
-		sendTransact(participant, nodeId, txId)
-		fmt.Printf("Last transaction sent: %d\n", txId.Get()-1)
+
+		ipAddr, err := transact(participant, nodeId, txId)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
+			fmt.Printf("Fatal error:\t\t\t %s\n", err.Error())
+			fmt.Printf("Failed to ping:\t\t\t %s (id=%d)\n", ipAddr, nodeId)
+			fmt.Printf("Failed to send transaction:\t %d\n", txId.Get()-1)
+		} else {
+			fmt.Printf("Pinged:\t\t\t %s (id=%d)\n", ipAddr, nodeId)
+			fmt.Printf("Last transaction sent:\t %d\n", txId.Get()-1)
+		}
+
 		time.Sleep(1600 * time.Millisecond)
 	}
 
@@ -73,16 +83,15 @@ func GetOutboundIP() net.IP {
 	return localAddr.IP
 }
 
-func sendTransact(target lachesisNet.Peer, nodeId int, txId UniqueID) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", target.NetAddr)
+func transact(target lachesisNet.Peer, nodeId int, txId UniqueID) (string, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp4",
+		fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-		return
+		return "", err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-		return
+		return "", err
 	}
 
 	payload := fmt.Sprintf("%s{\"method\":\"Lachesis.SubmitTx\",\"params\":[\"whatever\"],\"id\":\"whatever\"}",
@@ -91,15 +100,14 @@ func sendTransact(target lachesisNet.Peer, nodeId int, txId UniqueID) {
 	_, err = conn.Write([]byte(payload))
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-		return
+		return "", err
 	}
 	result, err := ioutil.ReadAll(conn)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-		return
+		return "", err
 	}
 	fmt.Println(string(result))
+	return tcpAddr.String(), err
 }
 
 type UniqueID struct {

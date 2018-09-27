@@ -17,7 +17,9 @@ RUN cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
 #     /bin/tar xf /tmp/upx-3.95-amd64_linux.tar.xz && \
 #     /bin/tar -C /bin --strip-components=1 -xzf /tmp/upx-3.95-amd64_linux.tar.xz
 
-# COPY docker/builder/upx /cp_bin/
+ARG compress=false
+
+COPY docker/builder/upx /cp_bin/
 
 RUN apk --no-cache add libc-dev cmake && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
@@ -29,26 +31,29 @@ RUN apk --no-cache add libc-dev cmake && \
     gcc env.c       -o "/cp_bin/env"       -Os -static -Wno-implicit-function-declaration && \
     gcc list.c      -o "/cp_bin/list"      -Os -static && \
     gcc crappy_sh.c -o "/cp_bin/crappy_sh" -Os -static -Wno-implicit-function-declaration -Wno-int-conversion -I./../cmake-build-release
-    #  strip -s /cp_bin/crappy_sh /cp_bin/copy /cp_bin/env /cp_bin/list /cp_bin/lachesis && \
+    # $compress && \
+    # strip -s /cp_bin/crappy_sh /cp_bin/copy /cp_bin/env /cp_bin/list /cp_bin/lachesis && \
     # /cp_bin/upx --brute /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list
 
 FROM scratch as lachesis_base
 
-ENV node_num=0
-ENV node_addr='127.0.0.1'
-
 EXPOSE 1338
 EXPOSE 1339
 EXPOSE 8000
+EXPOSE 9000
 EXPOSE 12000
 
 # cp -r /etc/ssl/certs certs, then add to your `docker build`: `--build-arg ca_certificates=certs`
 ARG ca_certificates=certs
-ADD "$ca_certificates" /etc/ssl/certs/
+COPY "$ca_certificates" /etc/ssl/certs/
+
+ENV node_num=0
+ENV node_addr='127.0.0.1'
+
 COPY --from=0 /cp_bin /bin
 
 COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
 # /cp_bin/upx -d /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list ;
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ;  /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --test --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -heartbeat=100 -no_client"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --test --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -proxy_addr=$node_addr:9000 -heartbeat=100 -no_client"]
