@@ -1,5 +1,5 @@
-hash: 649c073c63f16b1142d2e74ea6e08c07ec2a439211b0da50cc1017cfbe1c8737
-updated: 2018-09-21T12:25:22.209646+10:00
+hash: 7158f819286ad4c59b8f008797fd470fcf22911ce632e001813126fd157d90d8
+updated: 2018-10-02T02:42:06.388893+06:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -13,14 +13,20 @@ imports:
   - "y"
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
+- name: github.com/eclipse/paho.mqtt.golang
+  version: 36d01c2b4cbeb3d2a12063e4880ce30800af9560
+  subpackages:
+  - packets
 - name: github.com/golang/protobuf
   version: 7716a980bceefe9a0213654823d9ea62d23b87a2
   subpackages:
   - proto
 - name: github.com/pkg/errors
   version: c059e472caf75dbe73903f6521a20abac245b17f
+- name: github.com/satori/go.uuid
+  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/sirupsen/logrus
-  version: 3e01752db0189b9157070a0e1668a620f9a85da2
+  version: a67f783a3814b8729bd2dac5780b5f78f8dbd64d
 - name: github.com/ugorji/go
   version: b4c50a2b199d93b13dc15e78929cfb23bfdf21ab
   subpackages:
@@ -33,8 +39,11 @@ imports:
   version: 2f5d2388922f370f4355f327fcf4cfe9f5583908
   subpackages:
   - context
+  - internal/socks
   - internal/timeseries
+  - proxy
   - trace
+  - websocket
 - name: golang.org/x/sys
   version: d641721ec2dead6fe5ca284096fe4b1fcd49e427
   subpackages:
