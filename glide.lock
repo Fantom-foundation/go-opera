@@ -1,5 +1,5 @@
-hash: 649c073c63f16b1142d2e74ea6e08c07ec2a439211b0da50cc1017cfbe1c8737
-updated: 2018-09-21T12:25:22.209646+10:00
+hash: 5f2077671d4ca0b7a2ebc491fb3afbb9d8563f0cc9ab6f1eba3d8b1a047ef5e8
+updated: 2018-10-02T10:19:24.77531755+01:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -14,32 +14,34 @@ imports:
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
 - name: github.com/golang/protobuf
-  version: 7716a980bceefe9a0213654823d9ea62d23b87a2
+  version: 7011d38ac0d201eeddff4a4085a657c3da322d75
   subpackages:
   - proto
+- name: github.com/konsorten/go-windows-terminal-sequences
+  version: b729f2633dfe35f4d1d8a32385f6685610ce1cb5
 - name: github.com/pkg/errors
   version: c059e472caf75dbe73903f6521a20abac245b17f
 - name: github.com/sirupsen/logrus
-  version: 3e01752db0189b9157070a0e1668a620f9a85da2
+  version: 1ed61965b9e594bf37539680d7f63eccd060314f
 - name: github.com/ugorji/go
   version: b4c50a2b199d93b13dc15e78929cfb23bfdf21ab
   subpackages:
   - codec
+- name: github.com/urfave/cli
+  version: 934abfb2f102315b5794e15ebc7949e4ca253920
 - name: golang.org/x/crypto
-  version: 0e37d006457bf46f9e6692014ba72ef82c33022c
+  version: e3636079e1a4c1f337f212cc5cd2aca108f6c900
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 2f5d2388922f370f4355f327fcf4cfe9f5583908
+  version: 4dfa2610cdf3b287375bbba5b8f2a14d3b01d8de
   subpackages:
   - context
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: d641721ec2dead6fe5ca284096fe4b1fcd49e427
+  version: e4b3c5e9061176387e7cea65e4dc5853801f3fb7
   subpackages:
   - unix
   - windows
-- name: gopkg.in/urfave/cli.v1
-  version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 testImports: []
