@@ -23,10 +23,10 @@ COPY docker/builder/upx /cp_bin/
 
 RUN apk --no-cache add libc-dev cmake && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
-    mkdir /build/docker-static-bin/c/cmake-build-release && \
-    cd    /build/docker-static-bin/c/cmake-build-release && \
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cd /build/docker-static-bin/c/cmd && \
+    mkdir /build/docker-static-bin/cmake-build-release && \
+    cd    /build/docker-static-bin/cmake-build-release && \
+    TEST_ENABLED=0 cmake -DCMAKE_BUILD_TYPE=Release .. && \
+    cd /build/docker-static-bin/cmd && \
     gcc copy.c      -o "/cp_bin/copy"      -Os -static -Wno-implicit-function-declaration && \
     gcc env.c       -o "/cp_bin/env"       -Os -static -Wno-implicit-function-declaration && \
     gcc list.c      -o "/cp_bin/list"      -Os -static && \
@@ -56,4 +56,4 @@ COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
 # /cp_bin/upx -d /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list ;
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --test --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -proxy_addr=$node_addr:9000 -heartbeat=100 -no_client"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -heartbeat=100 -no_client"]

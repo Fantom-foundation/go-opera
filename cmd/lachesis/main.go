@@ -305,7 +305,7 @@ func run(c *cli.Context) error {
 				fmt.Sprintf("Failed to acquire participants: %s", err),
 				1)
 		}
-		go tester.PingNodesN(peers, p, testN)
+		go tester.PingNodesN(peers, p, testN, proxyAddress)
 	}
 
 	node_.Run(true)

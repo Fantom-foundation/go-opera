@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func PingNodesN(participants []lachesisNet.Peer, p map[string]int, n uint64) {
+func PingNodesN(participants []lachesisNet.Peer, p map[string]int, n uint64, proxyAddress string) {
 	txId := UniqueID{counter: 1}
 
 	wg := new(sync.WaitGroup)
@@ -28,15 +28,19 @@ func PingNodesN(participants []lachesisNet.Peer, p map[string]int, n uint64) {
 		participant := participants[rand.Intn(len(participants))]
 		nodeId := p[participant.NetAddr]
 
-		ipAddr, err := transact(participant, nodeId, txId)
+		ipAddr, err := transact(participant, nodeId, txId, proxyAddress)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-			fmt.Printf("Fatal error:\t\t\t %s\n", err.Error())
-			fmt.Printf("Failed to ping:\t\t\t %s (id=%d)\n", ipAddr, nodeId)
-			fmt.Printf("Failed to send transaction:\t %d\n", txId.Get()-1)
+			fmt.Fprintf(os.Stderr, "Fatal error: %s\n", err.Error())
+			fmt.Printf("Fatal error:\t\t\t%s\n", err.Error())
+			if ipAddr != "" {
+				fmt.Printf("Failed to ping:\t\t\t%s (id=%d)\n", ipAddr, nodeId)
+			} else {
+				fmt.Printf("Failed to ping:\t\t\tid=%d\n", nodeId)
+			}
+			fmt.Printf("Failed to send transaction:\t%d\n\n", txId.Get()-1)
 		} else {
-			fmt.Printf("Pinged:\t\t\t %s (id=%d)\n", ipAddr, nodeId)
-			fmt.Printf("Last transaction sent:\t %d\n", txId.Get()-1)
+			fmt.Printf("Pinged:\t\t\t%s (id=%d)\n", ipAddr, nodeId)
+			fmt.Printf("Last transaction sent:\t%d\n\n", txId.Get()-1)
 		}
 
 		time.Sleep(1600 * time.Millisecond)
@@ -83,7 +87,11 @@ func GetOutboundIP() net.IP {
 	return localAddr.IP
 }
 
-func transact(target lachesisNet.Peer, nodeId int, txId UniqueID) (string, error) {
+func transact(target lachesisNet.Peer, nodeId int, txId UniqueID, proxyAddress string) (string, error) {
+	// rpcClient := jsonrpc.NewClient(proxyAddress)
+	// rpcClient.Call("createPerson", "Alex", 33, "Germany")
+	// generates body: {"method":"createPerson","params":["Alex",33,"Germany"],"id":0,"jsonrpc":"2.0"}
+
 	tcpAddr, err := net.ResolveTCPAddr("tcp4",
 		fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000))
 	if err != nil {

@@ -20,10 +20,10 @@ COPY upx /cp_bin/
 
 RUN apk --no-cache add libc-dev cmake && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
-    mkdir /build/docker-static-bin/c/cmake-build-release && \
-    cd    /build/docker-static-bin/c/cmake-build-release && \
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \
-    cd /build/docker-static-bin/c/cmd && \
+    mkdir /build/docker-static-bin/cmake-build-release && \
+    cd    /build/docker-static-bin/cmake-build-release && \
+    TEST_ENABLED=0 cmake -DCMAKE_BUILD_TYPE=Release .. && \
+    cd /build/docker-static-bin/cmd && \
     gcc copy.c      -o "/cp_bin/copy"      -Os -static -Wno-implicit-function-declaration && \
     gcc env.c       -o "/cp_bin/env"       -Os -static -Wno-implicit-function-declaration && \
     gcc list.c      -o "/cp_bin/list"      -Os -static && \
