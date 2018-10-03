@@ -1,20 +1,20 @@
-package babble
+package lachesis
 
 import (
 	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/mosaicnetworks/babble/src/crypto"
-	h "github.com/mosaicnetworks/babble/src/hashgraph"
-	"github.com/mosaicnetworks/babble/src/net"
-	"github.com/mosaicnetworks/babble/src/node"
-	"github.com/mosaicnetworks/babble/src/peers"
-	"github.com/mosaicnetworks/babble/src/service"
+	"github.com/andrecronje/lachesis/src/crypto"
+	h "github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/net"
+	"github.com/andrecronje/lachesis/src/node"
+	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/service"
 	"github.com/sirupsen/logrus"
 )
 
-type Babble struct {
-	Config    *BabbleConfig
+type Lachesis struct {
+	Config    *LachesisConfig
 	Node      *node.Node
 	Transport net.Transport
 	Store     h.Store
@@ -22,15 +22,15 @@ type Babble struct {
 	Service   *service.Service
 }
 
-func NewBabble(config *BabbleConfig) *Babble {
-	engine := &Babble{
+func NewLachesis(config *LachesisConfig) *Lachesis {
+	engine := &Lachesis{
 		Config: config,
 	}
 
 	return engine
 }
 
-func (b *Babble) initTransport() error {
+func (b *Lachesis) initTransport() error {
 	transport, err := net.NewTCPTransport(
 		b.Config.BindAddr,
 		nil,
@@ -48,7 +48,7 @@ func (b *Babble) initTransport() error {
 	return nil
 }
 
-func (b *Babble) initPeers() error {
+func (b *Lachesis) initPeers() error {
 	if !b.Config.LoadPeers {
 		if b.Peers == nil {
 			return fmt.Errorf("Did not load peers but none was present")
@@ -74,7 +74,7 @@ func (b *Babble) initPeers() error {
 	return nil
 }
 
-func (b *Babble) initStore() error {
+func (b *Lachesis) initStore() error {
 	if !b.Config.Store {
 		b.Store = h.NewInmemStore(b.Peers, b.Config.NodeConfig.CacheSize)
 
@@ -98,7 +98,7 @@ func (b *Babble) initStore() error {
 	return nil
 }
 
-func (b *Babble) initKey() error {
+func (b *Lachesis) initKey() error {
 	if b.Config.Key == nil {
 		pemKey := crypto.NewPemKey(b.Config.DataDir)
 
@@ -126,7 +126,7 @@ func (b *Babble) initKey() error {
 	return nil
 }
 
-func (b *Babble) initNode() error {
+func (b *Lachesis) initNode() error {
 	key := b.Config.Key
 
 	nodePub := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
@@ -160,12 +160,12 @@ func (b *Babble) initNode() error {
 	return nil
 }
 
-func (b *Babble) initService() error {
+func (b *Lachesis) initService() error {
 	b.Service = service.NewService(b.Config.ServiceAddr, b.Node, b.Config.Logger)
 	return nil
 }
 
-func (b *Babble) Init() error {
+func (b *Lachesis) Init() error {
 	if b.Config.Logger == nil {
 		b.Config.Logger = logrus.New()
 	}
@@ -197,7 +197,7 @@ func (b *Babble) Init() error {
 	return nil
 }
 
-func (b *Babble) Run() {
+func (b *Lachesis) Run() {
 	go b.Service.Serve()
 	b.Node.Run(true)
 }

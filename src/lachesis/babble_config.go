@@ -1,4 +1,4 @@
-package babble
+package lachesis
 
 import (
 	"crypto/ecdsa"
@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/mosaicnetworks/babble/src/node"
-	"github.com/mosaicnetworks/babble/src/proxy"
-	aproxy "github.com/mosaicnetworks/babble/src/proxy/app"
+	"github.com/andrecronje/lachesis/src/node"
+	"github.com/andrecronje/lachesis/src/proxy"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
 	"github.com/sirupsen/logrus"
 )
 
-type BabbleConfig struct {
+type LachesisConfig struct {
 	DataDir     string `mapstructure:"datadir"`
 	BindAddr    string `mapstructure:"listen"`
 	ServiceAddr string `mapstructure:"service-listen"`
@@ -29,8 +29,8 @@ type BabbleConfig struct {
 	Logger    *logrus.Logger
 }
 
-func NewDefaultConfig() *BabbleConfig {
-	config := &BabbleConfig{
+func NewDefaultConfig() *LachesisConfig {
+	config := &LachesisConfig{
 		DataDir:     DefaultDataDir(),
 		BindAddr:    ":1337",
 		ServiceAddr: ":8000",
@@ -64,11 +64,11 @@ func DefaultDataDir() string {
 	home := HomeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, ".babble")
+			return filepath.Join(home, ".lachesis")
 		} else if runtime.GOOS == "windows" {
 			return filepath.Join(home, "AppData", "Roaming", "BABBLE")
 		} else {
-			return filepath.Join(home, ".babble")
+			return filepath.Join(home, ".lachesis")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

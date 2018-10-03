@@ -3,11 +3,11 @@ package commands
 import (
 	"fmt"
 
-	"github.com/mosaicnetworks/babble/src/version"
+	"github.com/andrecronje/lachesis/src/version"
 	"github.com/spf13/cobra"
 )
 
-// VersionCmd displays the version of babble being used
+// VersionCmd displays the version of lachesis being used
 var VersionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version info",

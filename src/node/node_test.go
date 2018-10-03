@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mosaicnetworks/babble/src/common"
-	"github.com/mosaicnetworks/babble/src/crypto"
-	hg "github.com/mosaicnetworks/babble/src/hashgraph"
-	"github.com/mosaicnetworks/babble/src/net"
-	peers_ "github.com/mosaicnetworks/babble/src/peers"
-	aproxy "github.com/mosaicnetworks/babble/src/proxy/app"
+	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/crypto"
+	hg "github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/net"
+	peers_ "github.com/andrecronje/lachesis/src/peers"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
 	"github.com/sirupsen/logrus"
 )
 

@@ -3,7 +3,7 @@ package peers
 import (
 	"encoding/hex"
 
-	"github.com/mosaicnetworks/babble/src/common"
+	"github.com/andrecronje/lachesis/src/common"
 )
 
 const (

@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"crypto/ecdsa"
@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mosaicnetworks/babble/src/crypto"
-	"github.com/mosaicnetworks/babble/src/peers"
+	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/peers"
 )
 
 type pub struct {

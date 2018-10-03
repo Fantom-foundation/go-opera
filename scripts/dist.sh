@@ -28,21 +28,21 @@ mkdir -p build/pkg
 docker run --rm  \
     -u `id -u $USER` \
     -e "BUILD_TAGS=$BUILD_TAGS" \
-    -v "$(pwd)":/go/src/github.com/mosaicnetworks/babble \
-    -w /go/src/github.com/mosaicnetworks/babble \
-    mosaicnetworks/glider:0.0.2 ./scripts/dist_build.sh
+    -v "$(pwd)":/go/src/github.com/andrecronje/lachesis \
+    -w /go/src/github.com/andrecronje/lachesis \
+    andrecronje/glider:0.0.2 ./scripts/dist_build.sh
 
-# Add "babble" and $VERSION prefix to package name.
+# Add "lachesis" and $VERSION prefix to package name.
 rm -rf ./build/dist
 mkdir -p ./build/dist
 for FILENAME in $(find ./build/pkg -mindepth 1 -maxdepth 1 -type f); do
   FILENAME=$(basename "$FILENAME")
-	cp "./build/pkg/${FILENAME}" "./build/dist/babble_${VERSION}_${FILENAME}"
+	cp "./build/pkg/${FILENAME}" "./build/dist/lachesis_${VERSION}_${FILENAME}"
 done
 
 # Make the checksums.
 pushd ./build/dist
-shasum -a256 ./* > "./babble_${VERSION}_SHA256SUMS"
+shasum -a256 ./* > "./lachesis_${VERSION}_SHA256SUMS"
 popd
 
 # Done

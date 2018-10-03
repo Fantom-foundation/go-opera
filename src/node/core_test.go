@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/mosaicnetworks/babble/src/common"
-	"github.com/mosaicnetworks/babble/src/crypto"
-	hg "github.com/mosaicnetworks/babble/src/hashgraph"
-	"github.com/mosaicnetworks/babble/src/peers"
+	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/crypto"
+	hg "github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/peers"
 )
 
 func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[string]string) {
@@ -67,7 +67,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initHashgraph(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) {
+func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) {
 	for i := 0; i < len(cores); i++ {
 		if i != participant {
 			event, _ := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])

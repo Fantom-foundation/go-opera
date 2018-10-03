@@ -3,7 +3,7 @@ package main
 import (
 	_ "net/http/pprof"
 
-	cmd "github.com/mosaicnetworks/babble/cmd/babble/commands"
+	cmd "github.com/andrecronje/lachesis/cmd/lachesis/commands"
 )
 
 func main() {

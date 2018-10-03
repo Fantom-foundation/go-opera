@@ -1,12 +1,12 @@
-package hashgraph
+package poset
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
 
-	cm "github.com/mosaicnetworks/babble/src/common"
-	"github.com/mosaicnetworks/babble/src/peers"
+	cm "github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/peers"
 )
 
 func TestParticipantEventsCache(t *testing.T) {

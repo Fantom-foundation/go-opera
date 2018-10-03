@@ -1,4 +1,4 @@
-package babble
+package lachesis
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/mosaicnetworks/babble/src/hashgraph"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +25,7 @@ type CommitResponse struct {
 
 // Commit provides a response mechanism.
 type Commit struct {
-	Block    hashgraph.Block
+	Block    poset.Block
 	RespChan chan<- CommitResponse
 }
 
@@ -78,7 +78,7 @@ func (r *RestoreRequest) Respond(snapshot []byte, err error) {
 
 //------------------------------------------------------------------------------
 
-type SocketBabbleProxyServer struct {
+type SocketLachesisProxyServer struct {
 	netListener       *net.Listener
 	rpcServer         *rpc.Server
 	commitCh          chan Commit
@@ -88,11 +88,11 @@ type SocketBabbleProxyServer struct {
 	logger            *logrus.Logger
 }
 
-func NewSocketBabbleProxyServer(bindAddress string,
+func NewSocketLachesisProxyServer(bindAddress string,
 	timeout time.Duration,
-	logger *logrus.Logger) (*SocketBabbleProxyServer, error) {
+	logger *logrus.Logger) (*SocketLachesisProxyServer, error) {
 
-	server := &SocketBabbleProxyServer{
+	server := &SocketLachesisProxyServer{
 		commitCh:          make(chan Commit),
 		snapshotRequestCh: make(chan SnapshotRequest),
 		restoreCh:         make(chan RestoreRequest),
@@ -107,7 +107,7 @@ func NewSocketBabbleProxyServer(bindAddress string,
 	return server, nil
 }
 
-func (p *SocketBabbleProxyServer) register(bindAddress string) error {
+func (p *SocketLachesisProxyServer) register(bindAddress string) error {
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("State", p)
 	p.rpcServer = rpcServer
@@ -123,7 +123,7 @@ func (p *SocketBabbleProxyServer) register(bindAddress string) error {
 	return nil
 }
 
-func (p *SocketBabbleProxyServer) listen() error {
+func (p *SocketLachesisProxyServer) listen() error {
 	for {
 		conn, err := (*p.netListener).Accept()
 
@@ -135,7 +135,7 @@ func (p *SocketBabbleProxyServer) listen() error {
 	}
 }
 
-func (p *SocketBabbleProxyServer) CommitBlock(block hashgraph.Block, stateHash *StateHash) (err error) {
+func (p *SocketLachesisProxyServer) CommitBlock(block poset.Block, stateHash *StateHash) (err error) {
 	// Send the Commit over
 	respCh := make(chan CommitResponse)
 
@@ -161,12 +161,12 @@ func (p *SocketBabbleProxyServer) CommitBlock(block hashgraph.Block, stateHash *
 		"block":      block.Index(),
 		"state_hash": stateHash.Hash,
 		"err":        err,
-	}).Debug("BabbleProxyServer.CommitBlock")
+	}).Debug("LachesisProxyServer.CommitBlock")
 
 	return
 }
 
-func (p *SocketBabbleProxyServer) GetSnapshot(blockIndex int, snapshot *Snapshot) (err error) {
+func (p *SocketLachesisProxyServer) GetSnapshot(blockIndex int, snapshot *Snapshot) (err error) {
 	// Send the Request over
 	respCh := make(chan SnapshotResponse)
 
@@ -192,12 +192,12 @@ func (p *SocketBabbleProxyServer) GetSnapshot(blockIndex int, snapshot *Snapshot
 		"block":    blockIndex,
 		"snapshot": snapshot.Bytes,
 		"err":      err,
-	}).Debug("BabbleProxyServer.GetSnapshot")
+	}).Debug("LachesisProxyServer.GetSnapshot")
 
 	return
 }
 
-func (p *SocketBabbleProxyServer) Restore(snapshot []byte, stateHash *StateHash) (err error) {
+func (p *SocketLachesisProxyServer) Restore(snapshot []byte, stateHash *StateHash) (err error) {
 	// Send the Request over
 	respCh := make(chan RestoreResponse)
 
@@ -222,7 +222,7 @@ func (p *SocketBabbleProxyServer) Restore(snapshot []byte, stateHash *StateHash)
 	p.logger.WithFields(logrus.Fields{
 		"state_hash": stateHash.Hash,
 		"err":        err,
-	}).Debug("BabbleProxyServer.Restore")
+	}).Debug("LachesisProxyServer.Restore")
 
 	return
 }

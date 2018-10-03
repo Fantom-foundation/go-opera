@@ -10,10 +10,10 @@ import (
 
 	"strconv"
 
-	hg "github.com/mosaicnetworks/babble/src/hashgraph"
-	"github.com/mosaicnetworks/babble/src/net"
-	"github.com/mosaicnetworks/babble/src/peers"
-	"github.com/mosaicnetworks/babble/src/proxy"
+	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/net"
+	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/proxy"
 )
 
 type Node struct {
@@ -54,7 +54,7 @@ func NewNode(conf *Config,
 	id int,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
-	store hg.Store,
+	store poset.Store,
 	trans net.Transport,
 	proxy proxy.AppProxy) *Node {
 
@@ -736,7 +736,7 @@ func (n *Node) SyncRate() float64 {
 	return 1 - syncErrorRate
 }
 
-func (n *Node) GetParticipants() (map[string]int, error) {
+func (n *Node) GetParticipants() (*peers.Peers, error) {
 	return n.core.poset.Store.Participants()
 }
 

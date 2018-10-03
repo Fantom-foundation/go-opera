@@ -31,7 +31,7 @@ func NewSocketAppProxyServer(bindAddress string, logger *logrus.Logger) (*Socket
 func (p *SocketAppProxyServer) register(bindAddress string) error {
 	rpcServer := rpc.NewServer()
 
-	rpcServer.RegisterName("Babble", p)
+	rpcServer.RegisterName("Lachesis", p)
 
 	p.rpcServer = rpcServer
 

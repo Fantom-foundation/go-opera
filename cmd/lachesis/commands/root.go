@@ -13,10 +13,10 @@ var (
 	logger = logrus.New()
 )
 
-//RootCmd is the root command for Babble
+//RootCmd is the root command for Lachesis
 var RootCmd = &cobra.Command{
-	Use:              "babble",
-	Short:            "babble consensus",
+	Use:              "lachesis",
+	Short:            "lachesis consensus",
 	TraverseChildren: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		if cmd.Name() == VersionCmd.Name() {
@@ -32,11 +32,11 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		logger.Level = logLevel(config.Babble.LogLevel)
+		logger.Level = logLevel(config.Lachesis.LogLevel)
 
 		logger.WithFields(logrus.Fields{
-			"datadir": config.Babble.DataDir,
-			"log":     config.Babble.LogLevel,
+			"datadir": config.Lachesis.DataDir,
+			"log":     config.Lachesis.LogLevel,
 		}).Debug("Config")
 
 		return nil
@@ -53,8 +53,8 @@ func bindFlagsLoadViper(cmd *cobra.Command) error {
 	}
 
 	viper.SetConfigName("config")                                       // name of config file (without extension)
-	viper.AddConfigPath(config.Babble.DataDir)                          // search root directory
-	viper.AddConfigPath(filepath.Join(config.Babble.DataDir, "config")) // search root directory /config
+	viper.AddConfigPath(config.Lachesis.DataDir)                          // search root directory
+	viper.AddConfigPath(filepath.Join(config.Lachesis.DataDir, "config")) // search root directory /config
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

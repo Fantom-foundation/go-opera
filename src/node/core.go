@@ -9,9 +9,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/mosaicnetworks/babble/src/crypto"
-	hg "github.com/mosaicnetworks/babble/src/hashgraph"
-	"github.com/mosaicnetworks/babble/src/peers"
+	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/peers"
 )
 
 type Core struct {
@@ -35,8 +35,8 @@ func NewCore(
 	id int,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
-	store hg.Store,
-	commitCh chan hg.Block,
+	store poset.Store,
+	commitCh chan poset.Block,
 	logger *logrus.Logger) Core {
 
 	if logger == nil {
@@ -48,10 +48,10 @@ func NewCore(
 	core := Core{
 		id:                 id,
 		key:                key,
-		hg:                 hg.NewHashgraph(participants, store, commitCh, logEntry),
+		poset:              poset.NewPoset(participants, store, commitCh, logEntry),
 		participants:       participants,
 		transactionPool:    [][]byte{},
-		blockSignaturePool: []hg.BlockSignature{},
+		blockSignaturePool: []poset.BlockSignature{},
 		logger:             logEntry,
 		Head:               "",
 		Seq:                -1,
@@ -189,7 +189,7 @@ func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
 	for id, ct := range known {
 		peer := c.participants.ById[id]
 		//get participant Events with index > ct
-		participantEvents, err := c.hg.Store.ParticipantEvents(peer.PubKeyHex, ct)
+		participantEvents, err := c.poset.Store.ParticipantEvents(peer.PubKeyHex, ct)
 		if err != nil {
 			return []poset.Event{}, err
 		}
@@ -291,7 +291,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	// Get flag tables from parents
-	parentEvent, perr := c.poset.Store.GetEvent(c.Head)
+	/*parentEvent, perr := c.poset.Store.GetEvent(c.Head)
 	flagTable := make(map[string]bool)
 	var flags int
 
@@ -312,15 +312,15 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 				flags++
 			}
 		}
-	}
+	}*/
 
 	//create new event with self head and empty other parent
 	//empty transaction pool in its payload
 	newHead := poset.NewEvent(c.transactionPool,
 		c.blockSignaturePool,
 		[]string{c.Head, otherHead},
-		c.PubKey(), c.Seq+1,
-		flagTable, flags)
+		c.PubKey(), c.Seq+1)/*,
+		flagTable, flags)*/
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)

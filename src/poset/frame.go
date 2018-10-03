@@ -1,10 +1,10 @@
-package hashgraph
+package poset
 
 import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/mosaicnetworks/babble/src/crypto"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 type Frame struct {

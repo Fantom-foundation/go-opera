@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"crypto/ecdsa"
@@ -7,7 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/mosaicnetworks/babble/src/peers"
+	"github.com/andrecronje/lachesis/src/peers"
 
 	"github.com/sirupsen/logrus"
 
@@ -17,8 +17,8 @@ import (
 
 	"math"
 
-	"github.com/mosaicnetworks/babble/src/common"
-	"github.com/mosaicnetworks/babble/src/crypto"
+	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 var (
@@ -82,7 +82,7 @@ func testLogger(t testing.TB) *logrus.Entry {
 
 /* Initialisation functions */
 
-func initHashgraphNodes(n int) ([]TestNode, map[string]string, *[]Event, *peers.Peers) {
+func initPosetNodes(n int) ([]TestNode, map[string]string, *[]Event, *peers.Peers) {
 	index := make(map[string]string)
 	nodes := []TestNode{}
 	orderedEvents := &[]Event{}
@@ -117,7 +117,7 @@ func playEvents(plays []play, nodes []TestNode, index map[string]string, ordered
 	}
 }
 
-func createHashgraph(db bool, orderedEvents *[]Event, participants *peers.Peers, logger *logrus.Entry) *Hashgraph {
+func createPoset(db bool, orderedEvents *[]Event, participants *peers.Peers, logger *logrus.Entry) *Poset {
 	var store Store
 	if db {
 		var err error
@@ -129,19 +129,19 @@ func createHashgraph(db bool, orderedEvents *[]Event, participants *peers.Peers,
 		store = NewInmemStore(participants, cacheSize)
 	}
 
-	hashgraph := NewHashgraph(participants, store, nil, logger)
+	poset := NewPoset(participants, store, nil, logger)
 
 	for i, ev := range *orderedEvents {
-		if err := hashgraph.InsertEvent(ev, true); err != nil {
+		if err := poset.InsertEvent(ev, true); err != nil {
 			fmt.Printf("ERROR inserting event %d: %s\n", i, err)
 		}
 	}
 
-	return hashgraph
+	return poset
 }
 
-func initHashgraphFull(plays []play, db bool, n int, logger *logrus.Entry) (*Hashgraph, map[string]string, *[]Event) {
-	nodes, index, orderedEvents, participants := initHashgraphNodes(n)
+func initPosetFull(plays []play, db bool, n int, logger *logrus.Entry) (*Poset, map[string]string, *[]Event) {
+	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	// Needed to have sorted nodes based on participants hash32
 	for i, peer := range participants.ToPeerSlice() {
@@ -151,9 +151,9 @@ func initHashgraphFull(plays []play, db bool, n int, logger *logrus.Entry) (*Has
 
 	playEvents(plays, nodes, index, orderedEvents)
 
-	hashgraph := createHashgraph(db, orderedEvents, participants, logger)
+	poset := createPoset(db, orderedEvents, participants, logger)
 
-	return hashgraph, index, orderedEvents
+	return poset, index, orderedEvents
 }
 
 /*  */
@@ -172,7 +172,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
+func initPoset(t *testing.T) (*Poset, map[string]string) {
 	plays := []play{
 		play{0, 1, "e0", "e1", "e01", nil, nil},
 		play{2, 1, "e2", "", "s20", nil, nil},
@@ -182,7 +182,7 @@ func initHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
 		play{1, 2, "s10", "e20", "e12", nil, nil},
 	}
 
-	h, index, orderedEvents := initHashgraphFull(plays, false, n, testLogger(t))
+	h, index, orderedEvents := initPosetFull(plays, false, n, testLogger(t))
 
 	for i, ev := range *orderedEvents {
 		if err := h.initEventCoordinates(&ev); err != nil {
@@ -202,7 +202,7 @@ func initHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
 }
 
 func TestAncestor(t *testing.T) {
-	h, index := initHashgraph(t)
+	h, index := initPoset(t)
 
 	expected := []ancestryItem{
 		//first generation
@@ -249,7 +249,7 @@ func TestAncestor(t *testing.T) {
 }
 
 func TestSelfAncestor(t *testing.T) {
-	h, index := initHashgraph(t)
+	h, index := initPoset(t)
 
 	expected := []ancestryItem{
 		//1 generation
@@ -281,7 +281,7 @@ func TestSelfAncestor(t *testing.T) {
 }
 
 func TestSee(t *testing.T) {
-	h, index := initHashgraph(t)
+	h, index := initPoset(t)
 
 	expected := []ancestryItem{
 		ancestryItem{"e01", "e0", true, false},
@@ -306,7 +306,7 @@ func TestSee(t *testing.T) {
 }
 
 func TestLamportTimestamp(t *testing.T) {
-	h, index := initHashgraph(t)
+	h, index := initPoset(t)
 
 	expectedTimestamps := map[string]int{
 		"e0":  0,
@@ -361,20 +361,20 @@ func TestFork(t *testing.T) {
 	}
 
 	store := NewInmemStore(participants, cacheSize)
-	hashgraph := NewHashgraph(participants, store, nil, testLogger(t))
+	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
 		event := NewEvent(nil, nil, []string{"", ""}, node.Pub, 0)
 		event.Sign(node.Key)
 		index[fmt.Sprintf("e%d", i)] = event.Hex()
-		hashgraph.InsertEvent(event, true)
+		poset.InsertEvent(event, true)
 	}
 
 	//a and e2 need to have different hashes
 	eventA := NewEvent([][]byte{[]byte("yo")}, nil, []string{"", ""}, nodes[2].Pub, 0)
 	eventA.Sign(nodes[2].Key)
 	index["a"] = eventA.Hex()
-	if err := hashgraph.InsertEvent(eventA, true); err == nil {
+	if err := poset.InsertEvent(eventA, true); err == nil {
 		t.Fatal("InsertEvent should return error for 'a'")
 	}
 
@@ -383,7 +383,7 @@ func TestFork(t *testing.T) {
 		nodes[0].Pub, 1)
 	event01.Sign(nodes[0].Key)
 	index["e01"] = event01.Hex()
-	if err := hashgraph.InsertEvent(event01, true); err == nil {
+	if err := poset.InsertEvent(event01, true); err == nil {
 		t.Fatal("InsertEvent should return error for e01")
 	}
 
@@ -392,7 +392,7 @@ func TestFork(t *testing.T) {
 		nodes[2].Pub, 1)
 	event20.Sign(nodes[2].Key)
 	index["e20"] = event20.Hex()
-	if err := hashgraph.InsertEvent(event20, true); err == nil {
+	if err := poset.InsertEvent(event20, true); err == nil {
 		t.Fatal("InsertEvent should return error for e20")
 	}
 }
@@ -416,7 +416,7 @@ e0  e1  e2
 0   1    2
 */
 
-func initRoundHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
+func initRoundPoset(t *testing.T) (*Poset, map[string]string) {
 	plays := []play{
 		play{1, 1, "e1", "e0", "e10", nil, nil},
 		play{2, 1, "e2", "", "s20", nil, nil},
@@ -428,13 +428,13 @@ func initRoundHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
 		play{1, 4, "f1", "", "s11", [][]byte{[]byte("abc")}, nil},
 	}
 
-	h, index, _ := initHashgraphFull(plays, false, n, testLogger(t))
+	h, index, _ := initPosetFull(plays, false, n, testLogger(t))
 
 	return h, index
 }
 
 func TestInsertEvent(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
 
@@ -574,7 +574,7 @@ func TestInsertEvent(t *testing.T) {
 }
 
 func TestReadWireInfo(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	for k, evh := range index {
 		ev, err := h.Store.GetEvent(evh)
@@ -609,7 +609,7 @@ func TestReadWireInfo(t *testing.T) {
 }
 
 func TestStronglySee(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	expected := []ancestryItem{
 		ancestryItem{"e21", "e0", true, false},
@@ -643,7 +643,7 @@ func TestStronglySee(t *testing.T) {
 }
 
 func TestWitness(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	round0Witnesses := make(map[string]RoundEvent)
 	round0Witnesses[index["e0"]] = RoundEvent{Witness: true, Famous: Undefined}
@@ -677,7 +677,7 @@ func TestWitness(t *testing.T) {
 }
 
 func TestRound(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	round0Witnesses := make(map[string]RoundEvent)
 	round0Witnesses[index["e0"]] = RoundEvent{Witness: true, Famous: Undefined}
@@ -711,7 +711,7 @@ func TestRound(t *testing.T) {
 }
 
 func TestRoundDiff(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	round0Witnesses := make(map[string]RoundEvent)
 	round0Witnesses[index["e0"]] = RoundEvent{Witness: true, Famous: Undefined}
@@ -741,7 +741,7 @@ func TestRoundDiff(t *testing.T) {
 }
 
 func TestDivideRounds(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 
 	if err := h.DivideRounds(); err != nil {
 		t.Fatal(err)
@@ -829,7 +829,7 @@ func TestDivideRounds(t *testing.T) {
 }
 
 func TestCreateRoot(t *testing.T) {
-	h, index := initRoundHashgraph(t)
+	h, index := initRoundPoset(t)
 	h.DivideRounds()
 
 	participants := h.Participants.ToPeerSlice()
@@ -893,8 +893,8 @@ e01  e12
  R0      R2
 
 */
-func initDentedHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
-	nodes, index, orderedEvents, participants := initHashgraphNodes(n)
+func initDentedPoset(t *testing.T) (*Poset, map[string]string) {
+	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	orderedPeers := participants.ToPeerSlice()
 
@@ -911,13 +911,13 @@ func initDentedHashgraph(t *testing.T) (*Hashgraph, map[string]string) {
 
 	playEvents(plays, nodes, index, orderedEvents)
 
-	hashgraph := createHashgraph(false, orderedEvents, participants, testLogger(t))
+	poset := createPoset(false, orderedEvents, participants, testLogger(t))
 
-	return hashgraph, index
+	return poset, index
 }
 
 func TestCreateRootBis(t *testing.T) {
-	h, index := initDentedHashgraph(t)
+	h, index := initDentedPoset(t)
 
 	participants := h.Participants.ToPeerSlice()
 
@@ -951,34 +951,34 @@ func TestCreateRootBis(t *testing.T) {
 e0  e1  e2    Block (0, 1)
 0   1    2
 */
-func initBlockHashgraph(t *testing.T) (*Hashgraph, []TestNode, map[string]string) {
-	nodes, index, orderedEvents, participants := initHashgraphNodes(n)
+func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]string) {
+	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	for i, peer := range participants.ToPeerSlice() {
 		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0)
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 	}
 
-	hashgraph := NewHashgraph(participants, NewInmemStore(participants, cacheSize), nil, testLogger(t))
+	poset := NewPoset(participants, NewInmemStore(participants, cacheSize), nil, testLogger(t))
 
 	//create a block and signatures manually
 	block := NewBlock(0, 1, []byte("framehash"), [][]byte{[]byte("block tx")})
-	err := hashgraph.Store.SetBlock(block)
+	err := poset.Store.SetBlock(block)
 	if err != nil {
 		t.Fatalf("Error setting block. Err: %s", err)
 	}
 
 	for i, ev := range *orderedEvents {
-		if err := hashgraph.InsertEvent(ev, true); err != nil {
+		if err := poset.InsertEvent(ev, true); err != nil {
 			fmt.Printf("ERROR inserting event %d: %s\n", i, err)
 		}
 	}
 
-	return hashgraph, nodes, index
+	return poset, nodes, index
 }
 
 func TestInsertEventsWithBlockSignatures(t *testing.T) {
-	h, nodes, index := initBlockHashgraph(t)
+	h, nodes, index := initBlockPoset(t)
 
 	block, err := h.Store.GetBlock(0)
 	if err != nil {
@@ -1167,7 +1167,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 		e0  e1  e2
 		0   1    2
 */
-func initConsensusHashgraph(db bool, t testing.TB) (*Hashgraph, map[string]string) {
+func initConsensusPoset(db bool, t testing.TB) (*Poset, map[string]string) {
 	plays := []play{
 		play{1, 1, "e1", "e0", "e10", nil, nil},
 		play{2, 1, "e2", "e10", "e21", [][]byte{[]byte("e21")}, nil},
@@ -1199,13 +1199,13 @@ func initConsensusHashgraph(db bool, t testing.TB) (*Hashgraph, map[string]strin
 		play{2, 9, "h21", "i1", "i2", nil, nil},
 	}
 
-	hashgraph, index, _ := initHashgraphFull(plays, db, n, testLogger(t))
+	poset, index, _ := initPosetFull(plays, db, n, testLogger(t))
 
-	return hashgraph, index
+	return poset, index
 }
 
 func TestDivideRoundsBis(t *testing.T) {
-	h, index := initConsensusHashgraph(false, t)
+	h, index := initConsensusPoset(false, t)
 
 	if err := h.DivideRounds(); err != nil {
 		t.Fatal(err)
@@ -1265,7 +1265,7 @@ func TestDivideRoundsBis(t *testing.T) {
 }
 
 func TestDecideFame(t *testing.T) {
-	h, index := initConsensusHashgraph(false, t)
+	h, index := initConsensusPoset(false, t)
 
 	h.DivideRounds()
 	if err := h.DecideFame(); err != nil {
@@ -1344,7 +1344,7 @@ func TestDecideFame(t *testing.T) {
 }
 
 func TestDecideRoundReceived(t *testing.T) {
-	h, index := initConsensusHashgraph(false, t)
+	h, index := initConsensusPoset(false, t)
 
 	h.DivideRounds()
 	h.DecideFame()
@@ -1417,7 +1417,7 @@ func TestDecideRoundReceived(t *testing.T) {
 }
 
 func TestProcessDecidedRounds(t *testing.T) {
-	h, index := initConsensusHashgraph(false, t)
+	h, index := initConsensusPoset(false, t)
 
 	h.DivideRounds()
 	h.DecideFame()
@@ -1523,7 +1523,7 @@ func BenchmarkConsensus(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		//we do not want to benchmark the initialization code
 		b.StopTimer()
-		h, _ := initConsensusHashgraph(false, b)
+		h, _ := initConsensusPoset(false, b)
 		b.StartTimer()
 
 		h.DivideRounds()
@@ -1534,7 +1534,7 @@ func BenchmarkConsensus(b *testing.B) {
 }
 
 func TestKnown(t *testing.T) {
-	h, _ := initConsensusHashgraph(false, t)
+	h, _ := initConsensusPoset(false, t)
 
 	participants := h.Participants.ToPeerSlice()
 
@@ -1553,7 +1553,7 @@ func TestKnown(t *testing.T) {
 }
 
 func TestGetFrame(t *testing.T) {
-	h, index := initConsensusHashgraph(false, t)
+	h, index := initConsensusPoset(false, t)
 
 	participants := h.Participants.ToPeerSlice()
 
@@ -1709,7 +1709,7 @@ func TestGetFrame(t *testing.T) {
 }
 
 func TestResetFromFrame(t *testing.T) {
-	h, index := initConsensusHashgraph(false, t)
+	h, index := initConsensusPoset(false, t)
 
 	participants := h.Participants.ToPeerSlice()
 
@@ -1734,7 +1734,7 @@ func TestResetFromFrame(t *testing.T) {
 	unmarshalledFrame := new(Frame)
 	unmarshalledFrame.Unmarshal(marshalledFrame)
 
-	h2 := NewHashgraph(h.Participants,
+	h2 := NewPoset(h.Participants,
 		NewInmemStore(h.Participants, cacheSize),
 		nil,
 		testLogger(t))
@@ -1744,7 +1744,7 @@ func TestResetFromFrame(t *testing.T) {
 	}
 
 	/*
-		The hashgraph should now look like this:
+		The poset should now look like this:
 
 		   	   f02b|   |
 		   	   |   |   |
@@ -1848,7 +1848,7 @@ func TestResetFromFrame(t *testing.T) {
 	/***************************************************************************
 	Test continue after Reset
 	***************************************************************************/
-	//Insert remaining Events into the Reset hashgraph
+	//Insert remaining Events into the Reset poset
 	for r := 2; r <= 4; r++ {
 		round, err := h.Store.GetRound(r)
 		if err != nil {
@@ -1908,9 +1908,9 @@ func TestResetFromFrame(t *testing.T) {
 
 func TestBootstrap(t *testing.T) {
 
-	//Initialize a first Hashgraph with a DB backend
+	//Initialize a first Poset with a DB backend
 	//Add events and run consensus methods on it
-	h, _ := initConsensusHashgraph(true, t)
+	h, _ := initConsensusPoset(true, t)
 	h.DivideRounds()
 	h.DecideFame()
 	h.DecideRoundReceived()
@@ -1919,10 +1919,10 @@ func TestBootstrap(t *testing.T) {
 	h.Store.Close()
 	defer os.RemoveAll(badgerDir)
 
-	//Now we want to create a new Hashgraph based on the database of the previous
-	//Hashgraph and see if we can boostrap it to the same state.
+	//Now we want to create a new Poset based on the database of the previous
+	//Poset and see if we can boostrap it to the same state.
 	recycledStore, err := LoadBadgerStore(cacheSize, badgerDir)
-	nh := NewHashgraph(recycledStore.participants,
+	nh := NewPoset(recycledStore.participants,
 		recycledStore,
 		nil,
 		logrus.New().WithField("id", "bootstrapped"))
@@ -1934,34 +1934,34 @@ func TestBootstrap(t *testing.T) {
 	hConsensusEvents := h.Store.ConsensusEvents()
 	nhConsensusEvents := nh.Store.ConsensusEvents()
 	if len(hConsensusEvents) != len(nhConsensusEvents) {
-		t.Fatalf("Bootstrapped hashgraph should contain %d consensus events,not %d",
+		t.Fatalf("Bootstrapped poset should contain %d consensus events,not %d",
 			len(hConsensusEvents), len(nhConsensusEvents))
 	}
 
 	hKnown := h.Store.KnownEvents()
 	nhKnown := nh.Store.KnownEvents()
 	if !reflect.DeepEqual(hKnown, nhKnown) {
-		t.Fatalf("Bootstrapped hashgraph's Known should be %#v, not %#v",
+		t.Fatalf("Bootstrapped poset's Known should be %#v, not %#v",
 			hKnown, nhKnown)
 	}
 
 	if *h.LastConsensusRound != *nh.LastConsensusRound {
-		t.Fatalf("Bootstrapped hashgraph's LastConsensusRound should be %#v, not %#v",
+		t.Fatalf("Bootstrapped poset's LastConsensusRound should be %#v, not %#v",
 			*h.LastConsensusRound, *nh.LastConsensusRound)
 	}
 
 	if h.LastCommitedRoundEvents != nh.LastCommitedRoundEvents {
-		t.Fatalf("Bootstrapped hashgraph's LastCommitedRoundEvents should be %#v, not %#v",
+		t.Fatalf("Bootstrapped poset's LastCommitedRoundEvents should be %#v, not %#v",
 			h.LastCommitedRoundEvents, nh.LastCommitedRoundEvents)
 	}
 
 	if h.ConsensusTransactions != nh.ConsensusTransactions {
-		t.Fatalf("Bootstrapped hashgraph's ConsensusTransactions should be %#v, not %#v",
+		t.Fatalf("Bootstrapped poset's ConsensusTransactions should be %#v, not %#v",
 			h.ConsensusTransactions, nh.ConsensusTransactions)
 	}
 
 	if h.PendingLoadedEvents != nh.PendingLoadedEvents {
-		t.Fatalf("Bootstrapped hashgraph's PendingLoadedEvents should be %#v, not %#v",
+		t.Fatalf("Bootstrapped poset's PendingLoadedEvents should be %#v, not %#v",
 			h.PendingLoadedEvents, nh.PendingLoadedEvents)
 	}
 }
@@ -2027,8 +2027,8 @@ func TestBootstrap(t *testing.T) {
 	0	 1	  2	   3
 */
 
-func initFunkyHashgraph(logger *logrus.Logger, full bool) (*Hashgraph, map[string]string) {
-	nodes, index, orderedEvents, participants := initHashgraphNodes(4)
+func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string) {
+	nodes, index, orderedEvents, participants := initPosetNodes(4)
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
@@ -2073,13 +2073,13 @@ func initFunkyHashgraph(logger *logrus.Logger, full bool) (*Hashgraph, map[strin
 
 	playEvents(plays, nodes, index, orderedEvents)
 
-	hashgraph := createHashgraph(false, orderedEvents, participants, logger.WithField("test", 6))
+	poset := createPoset(false, orderedEvents, participants, logger.WithField("test", 6))
 
-	return hashgraph, index
+	return poset, index
 }
 
-func TestFunkyHashgraphFame(t *testing.T) {
-	h, index := initFunkyHashgraph(common.NewTestLogger(t), false)
+func TestFunkyPosetFame(t *testing.T) {
+	h, index := initFunkyPoset(common.NewTestLogger(t), false)
 
 	if err := h.DivideRounds(); err != nil {
 		t.Fatal(err)
@@ -2152,8 +2152,8 @@ func TestFunkyHashgraphFame(t *testing.T) {
 	}
 }
 
-func TestFunkyHashgraphBlocks(t *testing.T) {
-	h, index := initFunkyHashgraph(common.NewTestLogger(t), true)
+func TestFunkyPosetBlocks(t *testing.T) {
+	h, index := initFunkyPoset(common.NewTestLogger(t), true)
 
 	if err := h.DivideRounds(); err != nil {
 		t.Fatal(err)
@@ -2222,8 +2222,8 @@ func TestFunkyHashgraphBlocks(t *testing.T) {
 	}
 }
 
-func TestFunkyHashgraphFrames(t *testing.T) {
-	h, index := initFunkyHashgraph(common.NewTestLogger(t), true)
+func TestFunkyPosetFrames(t *testing.T) {
+	h, index := initFunkyPoset(common.NewTestLogger(t), true)
 
 	participants := h.Participants.ToPeerSlice()
 
@@ -2341,8 +2341,8 @@ func TestFunkyHashgraphFrames(t *testing.T) {
 	}
 }
 
-func TestFunkyHashgraphReset(t *testing.T) {
-	h, index := initFunkyHashgraph(common.NewTestLogger(t), true)
+func TestFunkyPosetReset(t *testing.T) {
+	h, index := initFunkyPoset(common.NewTestLogger(t), true)
 
 	h.DivideRounds()
 	h.DecideFame()
@@ -2370,7 +2370,7 @@ func TestFunkyHashgraphReset(t *testing.T) {
 		unmarshalledFrame := new(Frame)
 		unmarshalledFrame.Unmarshal(marshalledFrame)
 
-		h2 := NewHashgraph(h.Participants,
+		h2 := NewPoset(h.Participants,
 			NewInmemStore(h.Participants, cacheSize),
 			nil,
 			testLogger(t))
@@ -2392,7 +2392,7 @@ func TestFunkyHashgraphReset(t *testing.T) {
 			wireDiff[i] = e.ToWire()
 		}
 
-		//Insert remaining Events into the Reset hashgraph
+		//Insert remaining Events into the Reset poset
 		for i, wev := range wireDiff {
 			ev, err := h2.ReadWireInfo(wev)
 			if err != nil {
@@ -2479,8 +2479,8 @@ ATTENTION: Look at roots in Rounds 1 and 2
 	0	 1	  2	   3
 */
 
-func initSparseHashgraph(logger *logrus.Logger) (*Hashgraph, map[string]string) {
-	nodes, index, orderedEvents, participants := initHashgraphNodes(4)
+func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
+	nodes, index, orderedEvents, participants := initPosetNodes(4)
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
@@ -2523,13 +2523,13 @@ func initSparseHashgraph(logger *logrus.Logger) (*Hashgraph, map[string]string) 
 
 	playEvents(plays, nodes, index, orderedEvents)
 
-	hashgraph := createHashgraph(false, orderedEvents, participants, logger.WithField("test", 6))
+	poset := createPoset(false, orderedEvents, participants, logger.WithField("test", 6))
 
-	return hashgraph, index
+	return poset, index
 }
 
-func TestSparseHashgraphFrames(t *testing.T) {
-	h, index := initSparseHashgraph(common.NewTestLogger(t))
+func TestSparsePosetFrames(t *testing.T) {
+	h, index := initSparsePoset(common.NewTestLogger(t))
 
 	participants := h.Participants.ToPeerSlice()
 
@@ -2653,8 +2653,8 @@ func TestSparseHashgraphFrames(t *testing.T) {
 	}
 }
 
-func TestSparseHashgraphReset(t *testing.T) {
-	h, index := initSparseHashgraph(common.NewTestLogger(t))
+func TestSparsePosetReset(t *testing.T) {
+	h, index := initSparsePoset(common.NewTestLogger(t))
 
 	h.DivideRounds()
 	h.DecideFame()
@@ -2682,7 +2682,7 @@ func TestSparseHashgraphReset(t *testing.T) {
 		unmarshalledFrame := new(Frame)
 		unmarshalledFrame.Unmarshal(marshalledFrame)
 
-		h2 := NewHashgraph(h.Participants,
+		h2 := NewPoset(h.Participants,
 			NewInmemStore(h.Participants, cacheSize),
 			nil,
 			testLogger(t))
@@ -2707,7 +2707,7 @@ func TestSparseHashgraphReset(t *testing.T) {
 			wireDiff[i] = e.ToWire()
 		}
 
-		//Insert remaining Events into the Reset hashgraph
+		//Insert remaining Events into the Reset poset
 		for i, wev := range wireDiff {
 			eventName := getName(index, diff[i].Hex())
 			ev, err := h2.ReadWireInfo(wev)
@@ -2737,7 +2737,7 @@ func TestSparseHashgraphReset(t *testing.T) {
 
 /*----------------------------------------------------------------------------*/
 
-func compareRoundWitnesses(h, h2 *Hashgraph, index map[string]string, round int, check bool, t *testing.T) {
+func compareRoundWitnesses(h, h2 *Poset, index map[string]string, round int, check bool, t *testing.T) {
 
 	for i := round; i <= 5; i++ {
 		hRound, err := h.Store.GetRound(i)
@@ -2773,7 +2773,7 @@ func compareRoundWitnesses(h, h2 *Hashgraph, index map[string]string, round int,
 
 }
 
-func getDiff(h *Hashgraph, known map[int]int, t *testing.T) []Event {
+func getDiff(h *Poset, known map[int]int, t *testing.T) []Event {
 	diff := []Event{}
 	for id, ct := range known {
 		pk := h.Participants.ById[id].PubKeyHex

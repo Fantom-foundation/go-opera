@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/mosaicnetworks/babble/src/proxy"
+	"github.com/andrecronje/lachesis/src/proxy"
 )
 
 var (
@@ -36,7 +36,7 @@ var (
 func main() {
 	app := cli.NewApp()
 	app.Name = "dummy"
-	app.Usage = "Dummy Socket Client for Babble"
+	app.Usage = "Dummy Socket Client for Lachesis"
 	app.Flags = []cli.Flag{
 		NameFlag,
 		ProxyAddressFlag,

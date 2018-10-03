@@ -6,9 +6,9 @@ import (
 
 	"time"
 
-	"github.com/mosaicnetworks/babble/src/crypto"
-	"github.com/mosaicnetworks/babble/src/hashgraph"
-	bproxy "github.com/mosaicnetworks/babble/src/proxy/babble"
+	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/poset"
+	bproxy "github.com/andrecronje/lachesis/src/proxy/lachesis"
 	"github.com/sirupsen/logrus"
 )
 
@@ -105,14 +105,14 @@ func (a *State) getFile() (*os.File, error) {
 //------------------------------------------------------
 
 type DummySocketClient struct {
-	state       *State
-	lachesisProxy *proxy.SocketLachesisProxy
-	logger      *logrus.Logger
+	state         *State
+	lachesisProxy *bproxy.SocketLachesisProxy
+	logger        *logrus.Logger
 }
 
 func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Logger) (*DummySocketClient, error) {
 
-	lachesisProxy, err := proxy.NewSocketLachesisProxy(nodeAddr, clientAddr, 1*time.Second, logger)
+	lachesisProxy, err := bproxy.NewSocketLachesisProxy(nodeAddr, clientAddr, 1*time.Second, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -125,9 +125,9 @@ func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Log
 	state.writeMessage([]byte(clientAddr))
 
 	client := &DummySocketClient{
-		state:       &state,
+		state:         &state,
 		lachesisProxy: lachesisProxy,
-		logger:      logger,
+		logger:        logger,
 	}
 
 	go client.Run()

@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	bcrypto "github.com/mosaicnetworks/babble/src/crypto"
-	"github.com/mosaicnetworks/babble/src/hashgraph"
+	bcrypto "github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,14 +32,14 @@ func NewInmemAppProxy(logger *logrus.Logger) *InmemAppProxy {
 	}
 }
 
-func (iap *InmemAppProxy) commit(block hashgraph.Block) ([]byte, error) {
+func (iap *InmemAppProxy) commit(block poset.Block) ([]byte, error) {
 	iap.committedTransactions = append(iap.committedTransactions, block.Transactions()...)
 
 	hash := iap.stateHash
 
 	for _, t := range block.Transactions() {
-		tHash := crypto.SHA256(t)
-		hash = crypto.SimpleHashFromTwoHashes(hash, tHash)
+		tHash := bcrypto.SHA256(t)
+		hash = bcrypto.SimpleHashFromTwoHashes(hash, tHash)
 	}
 
 	iap.stateHash = hash

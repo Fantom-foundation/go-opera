@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mosaicnetworks/babble/src/common"
-	bcrypto "github.com/mosaicnetworks/babble/src/crypto"
-	"github.com/mosaicnetworks/babble/src/hashgraph"
-	aproxy "github.com/mosaicnetworks/babble/src/proxy/app"
+	"github.com/andrecronje/lachesis/src/common"
+	bcrypto "github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/poset"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
 )
 
 func TestSocketProxyServer(t *testing.T) {
@@ -77,7 +77,7 @@ func TestSocketProxyClient(t *testing.T) {
 	}
 
 	//create a few blocks
-	blocks := [5]hashgraph.Block{}
+	blocks := [5]poset.Block{}
 
 	for i := 0; i < 5; i++ {
 		blocks[i] = poset.NewBlock(i, i+1, []byte{}, [][]byte{[]byte(fmt.Sprintf("block %d transaction", i))})

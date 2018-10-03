@@ -3,11 +3,11 @@ package mobile
 import (
 	"fmt"
 
-	"github.com/mosaicnetworks/babble/src/babble"
-	"github.com/mosaicnetworks/babble/src/crypto"
-	"github.com/mosaicnetworks/babble/src/node"
-	"github.com/mosaicnetworks/babble/src/peers"
-	"github.com/mosaicnetworks/babble/src/proxy"
+	"github.com/andrecronje/lachesis/src/lachesis"
+	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/node"
+	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/proxy"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,9 +26,9 @@ func New(privKey string,
 	exceptionHandler ExceptionHandler,
 	config *MobileConfig) *Node {
 
-	babbleConfig := babble.NewDefaultConfig()
+	lachesisConfig := lachesis.NewDefaultConfig()
 
-	babbleConfig.Logger.WithFields(logrus.Fields{
+	lachesisConfig.Logger.WithFields(logrus.Fields{
 		"nodeAddr": nodeAddr,
 		"peers":    participants,
 		"config":   fmt.Sprintf("%v", config),
@@ -45,7 +45,7 @@ func New(privKey string,
 		return nil
 	}
 
-	babbleConfig.Key = key
+	lachesisConfig.Key = key
 
 	// There should be at least two peers
 	if participants.Len() < 2 {
@@ -54,10 +54,10 @@ func New(privKey string,
 		return nil
 	}
 
-	babbleConfig.Proxy = newMobileAppProxy(commitHandler, exceptionHandler, babbleConfig.Logger)
-	babbleConfig.LoadPeers = false
+	lachesisConfig.Proxy = newMobileAppProxy(commitHandler, exceptionHandler, lachesisConfig.Logger)
+	lachesisConfig.LoadPeers = false
 
-	engine := babble.NewBabble(babbleConfig)
+	engine := lachesis.NewLachesis(lachesisConfig)
 
 	engine.Peers = participants
 
@@ -69,9 +69,9 @@ func New(privKey string,
 
 	return &Node{
 		node:   engine.Node,
-		proxy:  babbleConfig.Proxy,
+		proxy:  lachesisConfig.Proxy,
 		nodeID: engine.Node.ID(),
-		logger: babbleConfig.Logger,
+		logger: lachesisConfig.Logger,
 	}
 }
 

@@ -3,7 +3,7 @@ package app
 import (
 	"time"
 
-	"github.com/mosaicnetworks/babble/src/hashgraph"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
 

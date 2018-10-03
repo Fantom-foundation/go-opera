@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"fmt"
@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mosaicnetworks/babble/src/crypto"
-	"github.com/mosaicnetworks/babble/src/peers"
+	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/peers"
 )
 
 func initBadgerStore(cacheSize int, t *testing.T) (*BadgerStore, []pub) {

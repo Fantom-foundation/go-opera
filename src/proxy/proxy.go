@@ -1,8 +1,8 @@
 package proxy
 
 import (
-	"github.com/mosaicnetworks/babble/src/hashgraph"
-	bproxy "github.com/mosaicnetworks/babble/src/proxy/babble"
+	"github.com/andrecronje/lachesis/src/poset"
+	bproxy "github.com/andrecronje/lachesis/src/proxy/lachesis"
 )
 
 type AppProxy interface {
@@ -12,7 +12,7 @@ type AppProxy interface {
 	Restore(snapshot []byte) error
 }
 
-type BabbleProxy interface {
+type LachesisProxy interface {
 	CommitCh() chan bproxy.Commit
 	SnapshotRequestCh() chan bproxy.SnapshotRequest
 	RestoreCh() chan bproxy.RestoreRequest

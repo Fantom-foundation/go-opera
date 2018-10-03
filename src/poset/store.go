@@ -1,6 +1,6 @@
-package hashgraph
+package poset
 
-import "github.com/mosaicnetworks/babble/src/peers"
+import "github.com/andrecronje/lachesis/src/peers"
 
 type Store interface {
 	CacheSize() int

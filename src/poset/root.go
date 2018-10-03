@@ -1,4 +1,4 @@
-package hashgraph
+package poset
 
 import (
 	"bytes"
@@ -8,12 +8,12 @@ import (
 )
 
 /*
-Roots constitute the base of a Hashgraph. Each Participant is assigned a Root on
+Roots constitute the base of a Poset. Each Participant is assigned a Root on
 top of which Events will be added. The first Event of a participant must have a
 Self-Parent and an Other-Parent that match its Root X and Y respectively.
 
-This construction allows us to initialize Hashgraphs where the first Events are
-taken from the middle of another Hashgraph
+This construction allows us to initialize Posets where the first Events are
+taken from the middle of another Poset
 
 ex 1:
 
@@ -71,7 +71,7 @@ type RootEvent struct {
 }
 
 //NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
-//of a Hashgraph.
+//of a Poset.
 func NewBaseRootEvent(creatorID int) RootEvent {
 	res := RootEvent{
 		Hash:             fmt.Sprintf("Root%d", creatorID),
@@ -95,7 +95,7 @@ type Root struct {
 	Others     map[string]RootEvent
 }
 
-//NewBaseRoot initializes a Root object for a fresh Hashgraph.
+//NewBaseRoot initializes a Root object for a fresh Poset.
 func NewBaseRoot(creatorID int) Root {
 	res := Root{
 		NextRound:  0,

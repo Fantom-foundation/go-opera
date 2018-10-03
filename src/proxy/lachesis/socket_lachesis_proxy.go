@@ -1,4 +1,4 @@
-package babble
+package lachesis
 
 import (
 	"fmt"
@@ -7,33 +7,33 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type SocketBabbleProxy struct {
+type SocketLachesisProxy struct {
 	nodeAddress string
 	bindAddress string
 
-	client *SocketBabbleProxyClient
-	server *SocketBabbleProxyServer
+	client *SocketLachesisProxyClient
+	server *SocketLachesisProxyServer
 }
 
-func NewSocketBabbleProxy(nodeAddr string,
+func NewSocketLachesisProxy(nodeAddr string,
 	bindAddr string,
 	timeout time.Duration,
-	logger *logrus.Logger) (*SocketBabbleProxy, error) {
+	logger *logrus.Logger) (*SocketLachesisProxy, error) {
 
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
 	}
 
-	client := NewSocketBabbleProxyClient(nodeAddr, timeout)
+	client := NewSocketLachesisProxyClient(nodeAddr, timeout)
 
-	server, err := NewSocketBabbleProxyServer(bindAddr, timeout, logger)
+	server, err := NewSocketLachesisProxyServer(bindAddr, timeout, logger)
 
 	if err != nil {
 		return nil, err
 	}
 
-	proxy := &SocketBabbleProxy{
+	proxy := &SocketLachesisProxy{
 		nodeAddress: nodeAddr,
 		bindAddress: bindAddr,
 		client:      client,
@@ -46,21 +46,21 @@ func NewSocketBabbleProxy(nodeAddr string,
 }
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//Implement BabbleProxy interface
+//Implement LachesisProxy interface
 
-func (p *SocketBabbleProxy) CommitCh() chan Commit {
+func (p *SocketLachesisProxy) CommitCh() chan Commit {
 	return p.server.commitCh
 }
 
-func (p *SocketBabbleProxy) SnapshotRequestCh() chan SnapshotRequest {
+func (p *SocketLachesisProxy) SnapshotRequestCh() chan SnapshotRequest {
 	return p.server.snapshotRequestCh
 }
 
-func (p *SocketBabbleProxy) RestoreCh() chan RestoreRequest {
+func (p *SocketLachesisProxy) RestoreCh() chan RestoreRequest {
 	return p.server.restoreCh
 }
 
-func (p *SocketBabbleProxy) SubmitTx(tx []byte) error {
+func (p *SocketLachesisProxy) SubmitTx(tx []byte) error {
 	ack, err := p.client.SubmitTx(tx)
 
 	if err != nil {
@@ -68,7 +68,7 @@ func (p *SocketBabbleProxy) SubmitTx(tx []byte) error {
 	}
 
 	if !*ack {
-		return fmt.Errorf("Failed to deliver transaction to Babble")
+		return fmt.Errorf("Failed to deliver transaction to Lachesis")
 	}
 
 	return nil
