@@ -1247,50 +1247,53 @@ func (p *Poset) ProcessSigPool() error {
 			}).Warning("Verifying Block signature. Unknown validator")
 			continue
 		}
+		//only check if bs is greater than AnchorBlock, otherwise simply remove
+		if (p.AnchorBlock == nil ||
+			bs.Index > *p.AnchorBlock) {
+			block, err := p.Store.GetBlock(bs.Index)
+			if err != nil {
+				p.logger.WithFields(logrus.Fields{
+					"index": bs.Index,
+					"msg":   err,
+				}).Warning("Verifying Block signature. Could not fetch Block")
+				continue
+			}
+			valid, err := block.Verify(bs)
+			if err != nil {
+				p.logger.WithFields(logrus.Fields{
+					"index": bs.Index,
+					"msg":   err,
+				}).Error("Verifying Block signature")
+				return err
+			}
+			if !valid {
+				p.logger.WithFields(logrus.Fields{
+					"index":     bs.Index,
+					"validator": p.Participants.ByPubKey[validatorHex],
+					"block":     block,
+				}).Warning("Verifying Block signature. Invalid signature")
+				continue
+			}
 
-		block, err := p.Store.GetBlock(bs.Index)
-		if err != nil {
-			p.logger.WithFields(logrus.Fields{
-				"index": bs.Index,
-				"msg":   err,
-			}).Warning("Verifying Block signature. Could not fetch Block")
-			continue
-		}
-		valid, err := block.Verify(bs)
-		if err != nil {
-			p.logger.WithFields(logrus.Fields{
-				"index": bs.Index,
-				"msg":   err,
-			}).Error("Verifying Block signature")
-			return err
-		}
-		if !valid {
-			p.logger.WithFields(logrus.Fields{
-				"index":     bs.Index,
-				"validator": p.Participants.ByPubKey[validatorHex],
-				"block":     block,
-			}).Warning("Verifying Block signature. Invalid signature")
-			continue
-		}
+			block.SetSignature(bs)
 
-		block.SetSignature(bs)
+			if err := p.Store.SetBlock(block); err != nil {
+				p.logger.WithFields(logrus.Fields{
+					"index": bs.Index,
+					"msg":   err,
+				}).Warning("Saving Block")
+			}
 
-		if err := p.Store.SetBlock(block); err != nil {
-			p.logger.WithFields(logrus.Fields{
-				"index": bs.Index,
-				"msg":   err,
-			}).Warning("Saving Block")
-		}
-
-		if len(block.Signatures) > p.trustCount &&
-			(p.AnchorBlock == nil ||
-				block.Index() > *p.AnchorBlock) {
-			p.setAnchorBlock(block.Index())
-			p.logger.WithFields(logrus.Fields{
-				"block_index": block.Index(),
-				"signatures":  len(block.Signatures),
-				"trustCount":  p.trustCount,
-			}).Debug("Setting AnchorBlock")
+			if len(block.Signatures) > p.trustCount &&
+				(p.AnchorBlock == nil ||
+					block.Index() > *p.AnchorBlock) {
+				p.setAnchorBlock(block.Index())
+				p.logger.WithFields(logrus.Fields{
+					"block_index": block.Index(),
+					"signatures":  len(block.Signatures),
+					"trustCount":  p.trustCount,
+				}).Debug("Setting AnchorBlock")
+			}
 		}
 
 		processedSignatures[i] = true

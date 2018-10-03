@@ -5,9 +5,9 @@ import "github.com/andrecronje/lachesis/src/lachesis"
 //CLIConfig contains configuration for the Run command
 type CLIConfig struct {
 	Lachesis     lachesis.LachesisConfig `mapstructure:",squash"`
-	ProxyAddr  string              `mapstructure:"proxy-listen"`
-	ClientAddr string              `mapstructure:"client-connect"`
-	Inapp      bool                `mapstructure:"inapp"`
+	ProxyAddr  string                    `mapstructure:"proxy-listen"`
+	ClientAddr string                    `mapstructure:"client-connect"`
+	Inapp      bool                      `mapstructure:"inapp"`
 }
 
 //NewDefaultCLIConfig creates a CLIConfig with default values
