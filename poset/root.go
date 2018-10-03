@@ -68,7 +68,7 @@ type RootEvent struct {
 	Index            int
 	LamportTimestamp int
 	Round            int
-	
+
 	flagTable	map[string]bool
 	flags 		int
 }

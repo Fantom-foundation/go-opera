@@ -118,13 +118,18 @@ type Event struct {
 	creator string
 	hash    []byte
 	hex     string
+
+	flagTable	map[string]bool // flagTable stores connection information
+	flags 	int // flags stores the number of connections
 }
 
 func NewEvent(transactions [][]byte,
 	blockSignatures []BlockSignature,
 	parents []string,
 	creator []byte,
-	index int) Event {
+	index int,
+	flagTable map[string]bool,
+	flags int) Event {
 
 	body := EventBody{
 		Transactions:    transactions,
@@ -135,6 +140,8 @@ func NewEvent(transactions [][]byte,
 	}
 	return Event{
 		Body: body,
+		flagTable: flagTable,
+		flags: flags,
 	}
 }
 
@@ -301,6 +308,11 @@ func (e *Event) ToWire() WireEvent {
 		},
 		Signature: e.Signature,
 	}
+}
+
+// FlagTable returns the FlagTable and the number of flags of the event
+func (e *Event) FlagTable() (map[string]bool, int) {
+	return e.flagTable, e.flags
 }
 
 func rootSelfParent(participantID int) string {
