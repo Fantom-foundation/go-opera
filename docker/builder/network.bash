@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
-docker network rm lachesis-net
-docker network create --driver=bridge --subnet="$1" lachesis-net
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. "$DIR/set_globals.bash"
 
+name="$PROJECT-net"
+docker network rm "$name"
+docker network create --driver=bridge --subnet="$1" "$name"

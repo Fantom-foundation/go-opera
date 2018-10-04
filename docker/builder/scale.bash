@@ -2,11 +2,8 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Cleanup
-rm -rf "$DIR/nodes" "$DIR/peers.json"
-nodes=$(docker ps -a --no-trunc --filter name='^/lachesis' --format '{{.Names}}')
-docker stop -f "$nodes"
-docker rm "$nodes"
+. "$DIR/set_globals.bash"
+"$DIR/clean.bash"
 
 # Config
 n="${n:-1000}"
@@ -15,9 +12,9 @@ subnet="${subnet:-16}"
 ip_range="$ip_start/$subnet"
 
 # Run
-batch-ethkey -dir nodes -network "$ip_start" -n "$n" > peers.json
-docker build --compress --squash --force-rm --tag lachesis "$DIR"
+batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
+docker build --compress --force-rm --tag "$PROJECT" "$BUILD_DIR"
 "$DIR/network.bash" "$ip_range"
 "$DIR/spin_multi.bash" "$n"
 
-docker start $(docker ps -a --no-trunc --filter name='^/lachesis' --format '{{.Names}}')
+docker start $(docker ps -a --no-trunc --filter name='^/'"$PROJECT" --format '{{.Names}}')

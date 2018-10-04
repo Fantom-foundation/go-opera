@@ -10,6 +10,9 @@ import (
 
 	"strconv"
 
+	"github.com/andrecronje/lachesis/net"
+	"github.com/andrecronje/lachesis/poset"
+	"github.com/andrecronje/lachesis/proxy"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/peers"
@@ -174,7 +177,7 @@ func (n *Node) doBackgroundWork() {
 	}
 }
 
-//lachesis is interrupted when a gossip function, launched asychronously, changes
+//lachesis is interrupted when a gossip function, launched asynchronously, changes
 //the state from Gossiping to CatchingUp, or when the node is shutdown.
 //Otherwise, it periodicaly initiates gossip while there is something to gossip
 //about, or waits.
