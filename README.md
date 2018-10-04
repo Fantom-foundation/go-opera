@@ -16,7 +16,7 @@ Create an 3 node lachesis cluster with:
   - [Bash](https://www.gnu.org/software/bash)
   - glider base Docker Image with:
     ```bash
-    git clone https://github.com/andrecronje/evm  # or `cd $GOPATH/src/github.com/andrecronje`
+    git clone https://github.com/SamuelMarks/evm  # or `cd $GOPATH/src/github.com/SamuelMarks`
     cd evm/docker/glider
     docker build --compress --squash --force-rm --tag "${PWD##*/}" .
     ```
