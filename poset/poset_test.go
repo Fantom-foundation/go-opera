@@ -15,8 +15,8 @@ import (
 
 	"math"
 
-	"github.com/andrecronje/lachesis/common"
-	"github.com/andrecronje/lachesis/crypto"
+	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 var (
@@ -93,24 +93,24 @@ e0  e1  e2
 */
 func initPoset(t *testing.T) (*Poset, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		node := NewTestNode(key, i)
-		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0)
+		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0, nil, 0)
 		node.signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 		nodes = append(nodes, node)
 	}
 
 	plays := []play{
-		play{0, 1, "e0", "e1", "e01", nil, nil},
-		play{2, 1, "e2", "", "s20", nil, nil},
-		play{1, 1, "e1", "", "s10", nil, nil},
-		play{0, 2, "e01", "", "s00", nil, nil},
-		play{2, 2, "s20", "s00", "e20", nil, nil},
-		play{1, 2, "s10", "e20", "e12", nil, nil},
+		{0, 1, "e0", "e1", "e01", nil, nil},
+		{2, 1, "e2", "", "s20", nil, nil},
+		{1, 1, "e1", "", "s10", nil, nil},
+		{0, 2, "e01", "", "s00", nil, nil},
+		{2, 2, "s20", "s00", "e20", nil, nil},
+		{1, 2, "s10", "e20", "e12", nil, nil},
 	}
 
 	for _, p := range plays {
@@ -118,7 +118,7 @@ func initPoset(t *testing.T) (*Poset, map[string]string) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -151,35 +151,35 @@ func TestAncestor(t *testing.T) {
 
 	expected := []ancestryItem{
 		//first generation
-		ancestryItem{"e01", "e0", true, false},
-		ancestryItem{"e01", "e1", true, false},
-		ancestryItem{"s00", "e01", true, false},
-		ancestryItem{"s20", "e2", true, false},
-		ancestryItem{"e20", "s00", true, false},
-		ancestryItem{"e20", "s20", true, false},
-		ancestryItem{"e12", "e20", true, false},
-		ancestryItem{"e12", "s10", true, false},
+		{"e01", "e0", true, false},
+		{"e01", "e1", true, false},
+		{"s00", "e01", true, false},
+		{"s20", "e2", true, false},
+		{"e20", "s00", true, false},
+		{"e20", "s20", true, false},
+		{"e12", "e20", true, false},
+		{"e12", "s10", true, false},
 		//second generation
-		ancestryItem{"s00", "e0", true, false},
-		ancestryItem{"s00", "e1", true, false},
-		ancestryItem{"e20", "e01", true, false},
-		ancestryItem{"e20", "e2", true, false},
-		ancestryItem{"e12", "e1", true, false},
-		ancestryItem{"e12", "s20", true, false},
+		{"s00", "e0", true, false},
+		{"s00", "e1", true, false},
+		{"e20", "e01", true, false},
+		{"e20", "e2", true, false},
+		{"e12", "e1", true, false},
+		{"e12", "s20", true, false},
 		//third generation
-		ancestryItem{"e20", "e0", true, false},
-		ancestryItem{"e20", "e1", true, false},
-		ancestryItem{"e20", "e2", true, false},
-		ancestryItem{"e12", "e01", true, false},
-		ancestryItem{"e12", "e0", true, false},
-		ancestryItem{"e12", "e1", true, false},
-		ancestryItem{"e12", "e2", true, false},
+		{"e20", "e0", true, false},
+		{"e20", "e1", true, false},
+		{"e20", "e2", true, false},
+		{"e12", "e01", true, false},
+		{"e12", "e0", true, false},
+		{"e12", "e1", true, false},
+		{"e12", "e2", true, false},
 		//false positive
-		ancestryItem{"e01", "e2", false, false},
-		ancestryItem{"s00", "e2", false, false},
-		ancestryItem{"e0", "", false, true},
-		ancestryItem{"s00", "", false, true},
-		ancestryItem{"e12", "", false, true},
+		{"e01", "e2", false, false},
+		{"s00", "e2", false, false},
+		{"e0", "", false, true},
+		{"s00", "", false, true},
+		{"e12", "", false, true},
 	}
 
 	for _, exp := range expected {
@@ -198,20 +198,20 @@ func TestSelfAncestor(t *testing.T) {
 
 	expected := []ancestryItem{
 		//1 generation
-		ancestryItem{"e01", "e0", true, false},
-		ancestryItem{"s00", "e01", true, false},
+		{"e01", "e0", true, false},
+		{"s00", "e01", true, false},
 		//1 generation false negative
-		ancestryItem{"e01", "e1", false, false},
-		ancestryItem{"e12", "e20", false, false},
-		ancestryItem{"s20", "e1", false, false},
-		ancestryItem{"s20", "", false, true},
+		{"e01", "e1", false, false},
+		{"e12", "e20", false, false},
+		{"s20", "e1", false, false},
+		{"s20", "", false, true},
 		//2 generations
-		ancestryItem{"e20", "e2", true, false},
-		ancestryItem{"e12", "e1", true, false},
+		{"e20", "e2", true, false},
+		{"e12", "e1", true, false},
 		//2 generations false negatives
-		ancestryItem{"e20", "e0", false, false},
-		ancestryItem{"e12", "e2", false, false},
-		ancestryItem{"e20", "e01", false, false},
+		{"e20", "e0", false, false},
+		{"e12", "e2", false, false},
+		{"e20", "e01", false, false},
 	}
 
 	for _, exp := range expected {
@@ -229,14 +229,14 @@ func TestSee(t *testing.T) {
 	h, index := initPoset(t)
 
 	expected := []ancestryItem{
-		ancestryItem{"e01", "e0", true, false},
-		ancestryItem{"e01", "e1", true, false},
-		ancestryItem{"e20", "e0", true, false},
-		ancestryItem{"e20", "e01", true, false},
-		ancestryItem{"e12", "e01", true, false},
-		ancestryItem{"e12", "e0", true, false},
-		ancestryItem{"e12", "e1", true, false},
-		ancestryItem{"e12", "s20", true, false},
+		{"e01", "e0", true, false},
+		{"e01", "e1", true, false},
+		{"e20", "e0", true, false},
+		{"e20", "e01", true, false},
+		{"e12", "e01", true, false},
+		{"e12", "e0", true, false},
+		{"e12", "e1", true, false},
+		{"e12", "s20", true, false},
 	}
 
 	for _, exp := range expected {
@@ -295,7 +295,7 @@ and yet they are both ancestors of event e20
 */
 func TestFork(t *testing.T) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	participants := make(map[string]int)
 
 	for i := 0; i < n; i++ {
@@ -309,14 +309,14 @@ func TestFork(t *testing.T) {
 	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
-		event := NewEvent(nil, nil, []string{"", ""}, node.Pub, 0)
+		event := NewEvent(nil, nil, []string{"", ""}, node.Pub, 0, nil, 0)
 		event.Sign(node.Key)
 		index[fmt.Sprintf("e%d", i)] = event.Hex()
 		poset.InsertEvent(event, true)
 	}
 
 	//a and e2 need to have different hashes
-	eventA := NewEvent([][]byte{[]byte("yo")}, nil, []string{"", ""}, nodes[2].Pub, 0)
+	eventA := NewEvent([][]byte{[]byte("yo")}, nil, []string{"", ""}, nodes[2].Pub, 0, nil, 0)
 	eventA.Sign(nodes[2].Key)
 	index["a"] = eventA.Hex()
 	if err := poset.InsertEvent(eventA, true); err == nil {
@@ -325,7 +325,7 @@ func TestFork(t *testing.T) {
 
 	event01 := NewEvent(nil, nil,
 		[]string{index["e0"], index["a"]}, //e0 and a
-		nodes[0].Pub, 1)
+		nodes[0].Pub, 1, nil, 0)
 	event01.Sign(nodes[0].Key)
 	index["e01"] = event01.Hex()
 	if err := poset.InsertEvent(event01, true); err == nil {
@@ -334,7 +334,7 @@ func TestFork(t *testing.T) {
 
 	event20 := NewEvent(nil, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
-		nodes[2].Pub, 1)
+		nodes[2].Pub, 1, nil, 0)
 	event20.Sign(nodes[2].Key)
 	index["e20"] = event20.Hex()
 	if err := poset.InsertEvent(event20, true); err == nil {
@@ -362,26 +362,26 @@ e0  e1  e2
 */
 func initRoundPoset(t *testing.T) (*Poset, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		node := NewTestNode(key, i)
-		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0)
+		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0, nil, 0)
 		node.signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 		nodes = append(nodes, node)
 	}
 
 	plays := []play{
-		play{1, 1, "e1", "e0", "e10", nil, nil},
-		play{2, 1, "e2", "", "s20", nil, nil},
-		play{0, 1, "e0", "", "s00", nil, nil},
-		play{2, 2, "s20", "e10", "e21", nil, nil},
-		play{0, 2, "s00", "e21", "e02", nil, nil},
-		play{1, 2, "e10", "", "s10", nil, nil},
-		play{1, 3, "s10", "e02", "f1", nil, nil},
-		play{1, 4, "f1", "", "s11", [][]byte{[]byte("abc")}, nil},
+		{1, 1, "e1", "e0", "e10", nil, nil},
+		{2, 1, "e2", "", "s20", nil, nil},
+		{0, 1, "e0", "", "s00", nil, nil},
+		{2, 2, "s20", "e10", "e21", nil, nil},
+		{0, 2, "s00", "e21", "e02", nil, nil},
+		{1, 2, "e10", "", "s10", nil, nil},
+		{1, 3, "s10", "e02", "f1", nil, nil},
+		{1, 4, "f1", "", "s11", [][]byte{[]byte("abc")}, nil},
 	}
 
 	for _, p := range plays {
@@ -389,7 +389,7 @@ func initRoundPoset(t *testing.T) (*Poset, map[string]string) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -429,15 +429,15 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		expectedFirstDescendants = []EventCoordinates{
-			EventCoordinates{index["e0"], 0},
-			EventCoordinates{index["e10"], 1},
-			EventCoordinates{index["e21"], 2},
+			{index["e0"], 0},
+			{index["e10"], 1},
+			{index["e21"], 2},
 		}
 
 		expectedLastAncestors = []EventCoordinates{
-			EventCoordinates{index["e0"], 0},
-			EventCoordinates{"", -1},
-			EventCoordinates{"", -1},
+			{index["e0"], 0},
+			{"", -1},
+			{"", -1},
 		}
 
 		if !reflect.DeepEqual(e0.firstDescendants, expectedFirstDescendants) {
@@ -466,15 +466,15 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		expectedFirstDescendants = []EventCoordinates{
-			EventCoordinates{index["e02"], 2},
-			EventCoordinates{index["f1"], 3},
-			EventCoordinates{index["e21"], 2},
+			{index["e02"], 2},
+			{index["f1"], 3},
+			{index["e21"], 2},
 		}
 
 		expectedLastAncestors = []EventCoordinates{
-			EventCoordinates{index["e0"], 0},
-			EventCoordinates{index["e10"], 1},
-			EventCoordinates{index["e21"], 2},
+			{index["e0"], 0},
+			{index["e10"], 1},
+			{index["e21"], 2},
 		}
 
 		if !reflect.DeepEqual(e21.firstDescendants, expectedFirstDescendants) {
@@ -498,15 +498,15 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		expectedFirstDescendants = []EventCoordinates{
-			EventCoordinates{"", math.MaxInt32},
-			EventCoordinates{index["f1"], 3},
-			EventCoordinates{"", math.MaxInt32},
+			{"", math.MaxInt32},
+			{index["f1"], 3},
+			{"", math.MaxInt32},
 		}
 
 		expectedLastAncestors = []EventCoordinates{
-			EventCoordinates{index["e02"], 2},
-			EventCoordinates{index["f1"], 3},
-			EventCoordinates{index["e21"], 2},
+			{index["e02"], 2},
+			{index["f1"], 3},
+			{index["e21"], 2},
 		}
 
 		if !reflect.DeepEqual(f1.firstDescendants, expectedFirstDescendants) {
@@ -587,23 +587,23 @@ func TestStronglySee(t *testing.T) {
 	h, index := initRoundPoset(t)
 
 	expected := []ancestryItem{
-		ancestryItem{"e21", "e0", true, false},
-		ancestryItem{"e02", "e10", true, false},
-		ancestryItem{"e02", "e0", true, false},
-		ancestryItem{"e02", "e1", true, false},
-		ancestryItem{"f1", "e21", true, false},
-		ancestryItem{"f1", "e10", true, false},
-		ancestryItem{"f1", "e0", true, false},
-		ancestryItem{"f1", "e1", true, false},
-		ancestryItem{"f1", "e2", true, false},
-		ancestryItem{"s11", "e2", true, false},
+		{"e21", "e0", true, false},
+		{"e02", "e10", true, false},
+		{"e02", "e0", true, false},
+		{"e02", "e1", true, false},
+		{"f1", "e21", true, false},
+		{"f1", "e10", true, false},
+		{"f1", "e0", true, false},
+		{"f1", "e1", true, false},
+		{"f1", "e2", true, false},
+		{"s11", "e2", true, false},
 		//false negatives
-		ancestryItem{"e10", "e0", false, false},
-		ancestryItem{"e21", "e1", false, false},
-		ancestryItem{"e21", "e2", false, false},
-		ancestryItem{"e02", "e2", false, false},
-		ancestryItem{"s11", "e02", false, false},
-		ancestryItem{"s11", "", false, true},
+		{"e10", "e0", false, false},
+		{"e21", "e1", false, false},
+		{"e21", "e2", false, false},
+		{"e02", "e2", false, false},
+		{"s11", "e02", false, false},
+		{"s11", "", false, true},
 	}
 
 	for _, exp := range expected {
@@ -631,13 +631,13 @@ func TestWitness(t *testing.T) {
 	h.Store.SetRound(1, RoundInfo{Events: round1Witnesses})
 
 	expected := []ancestryItem{
-		ancestryItem{"", "e0", true, false},
-		ancestryItem{"", "e1", true, false},
-		ancestryItem{"", "e2", true, false},
-		ancestryItem{"", "f1", true, false},
-		ancestryItem{"", "e10", false, false},
-		ancestryItem{"", "e21", false, false},
-		ancestryItem{"", "e02", false, false},
+		{"", "e0", true, false},
+		{"", "e1", true, false},
+		{"", "e2", true, false},
+		{"", "f1", true, false},
+		{"", "e10", false, false},
+		{"", "e21", false, false},
+		{"", "e02", false, false},
 	}
 
 	for _, exp := range expected {
@@ -661,17 +661,17 @@ func TestRound(t *testing.T) {
 	h.Store.SetRound(0, RoundInfo{Events: round0Witnesses})
 
 	expected := []roundItem{
-		roundItem{"e0", 0},
-		roundItem{"e1", 0},
-		roundItem{"e2", 0},
-		roundItem{"s00", 0},
-		roundItem{"e10", 0},
-		roundItem{"s20", 0},
-		roundItem{"e21", 0},
-		roundItem{"e02", 0},
-		roundItem{"s10", 0},
-		roundItem{"f1", 1},
-		roundItem{"s11", 1},
+		{"e0", 0},
+		{"e1", 0},
+		{"e2", 0},
+		{"s00", 0},
+		{"e10", 0},
+		{"s20", 0},
+		{"e21", 0},
+		{"e02", 0},
+		{"s10", 0},
+		{"f1", 1},
+		{"s11", 1},
 	}
 
 	for _, exp := range expected {
@@ -755,11 +755,11 @@ func TestDivideRounds(t *testing.T) {
 	}
 
 	expectedPendingRounds := []pendingRound{
-		pendingRound{
+		{
 			Index:   0,
 			Decided: false,
 		},
-		pendingRound{
+		{
 			Index:   1,
 			Decided: false,
 		},
@@ -775,17 +775,17 @@ func TestDivideRounds(t *testing.T) {
 		t, r int
 	}
 	expectedTimestamps := map[string]tr{
-		"e0":  tr{0, 0},
-		"e1":  tr{0, 0},
-		"e2":  tr{0, 0},
-		"s00": tr{1, 0},
-		"e10": tr{1, 0},
-		"s20": tr{1, 0},
-		"e21": tr{2, 0},
-		"e02": tr{3, 0},
-		"s10": tr{2, 0},
-		"f1":  tr{4, 1},
-		"s11": tr{5, 1},
+		"e0":  {0, 0},
+		"e1":  {0, 0},
+		"e2":  {0, 0},
+		"s00": {1, 0},
+		"e10": {1, 0},
+		"s20": {1, 0},
+		"e21": {2, 0},
+		"e02": {3, 0},
+		"s10": {2, 0},
+		"f1":  {4, 1},
+		"s11": {5, 1},
 	}
 
 	for e, et := range expectedTimestamps {
@@ -809,23 +809,23 @@ func TestCreateRoot(t *testing.T) {
 
 	expected := map[string]Root{
 		"e0": NewBaseRoot(0),
-		"e02": Root{
+		"e02": {
 			NextRound:  0,
 			SelfParent: RootEvent{index["s00"], 0, 1, 1, 0},
 			Others: map[string]RootEvent{
-				index["e02"]: RootEvent{index["e21"], 2, 2, 2, 0},
+				index["e02"]: {index["e21"], 2, 2, 2, 0},
 			},
 		},
-		"s10": Root{
+		"s10": {
 			NextRound:  0,
 			SelfParent: RootEvent{index["e10"], 1, 1, 1, 0},
 			Others:     map[string]RootEvent{},
 		},
-		"f1": Root{
+		"f1": {
 			NextRound:  1,
 			SelfParent: RootEvent{index["s10"], 1, 2, 2, 0},
 			Others: map[string]RootEvent{
-				index["f1"]: RootEvent{index["e02"], 0, 2, 3, 0},
+				index["f1"]: {index["e02"], 0, 2, 3, 0},
 			},
 		},
 	}
@@ -868,7 +868,7 @@ e01  e12
 */
 func initDentedPoset(t *testing.T) (*Poset, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	for i := 0; i < n; i++ {
@@ -879,10 +879,10 @@ func initDentedPoset(t *testing.T) (*Poset, map[string]string) {
 	}
 
 	plays := []play{
-		play{0, 0, rootSelfParent(0), "", "e0", nil, nil},
-		play{2, 0, rootSelfParent(2), "", "e2", nil, nil},
-		play{0, 1, "e0", "", "e01", nil, nil},
-		play{1, 0, rootSelfParent(1), "e2", "e12", nil, nil},
+		{0, 0, rootSelfParent(0), "", "e0", nil, nil},
+		{2, 0, rootSelfParent(2), "", "e2", nil, nil},
+		{0, 1, "e0", "", "e01", nil, nil},
+		{1, 0, rootSelfParent(1), "e2", "e12", nil, nil},
 	}
 
 	for _, p := range plays {
@@ -890,7 +890,7 @@ func initDentedPoset(t *testing.T) (*Poset, map[string]string) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -912,11 +912,11 @@ func TestCreateRootBis(t *testing.T) {
 	h, index := initDentedPoset(t)
 
 	expected := map[string]Root{
-		"e12": Root{
+		"e12": {
 			NextRound:  0,
 			SelfParent: NewBaseRootEvent(1),
 			Others: map[string]RootEvent{
-				index["e12"]: RootEvent{index["e2"], 2, 0, 0, 0},
+				index["e12"]: {index["e2"], 2, 0, 0, 0},
 			},
 		},
 	}
@@ -943,14 +943,14 @@ e0  e1  e2    Block (0, 1)
 */
 func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	//create the initial events
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		node := NewTestNode(key, i)
-		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0)
+		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0, nil, 0)
 		node.signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 		nodes = append(nodes, node)
 	}
@@ -1004,9 +1004,9 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			0   1    2
 		*/
 		plays := []play{
-			play{1, 1, "e1", "e0", "e10", nil, []BlockSignature{blockSigs[1]}},
-			play{2, 1, "e2", "", "s20", nil, []BlockSignature{blockSigs[2]}},
-			play{0, 1, "e0", "", "s00", nil, []BlockSignature{blockSigs[0]}},
+			{1, 1, "e1", "e0", "e10", nil, []BlockSignature{blockSigs[1]}},
+			{2, 1, "e2", "", "s20", nil, []BlockSignature{blockSigs[2]}},
+			{0, 1, "e0", "", "s00", nil, []BlockSignature{blockSigs[0]}},
 		}
 
 		for _, p := range plays {
@@ -1014,7 +1014,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 				p.sigPayload,
 				[]string{index[p.selfParent], index[p.otherParent]},
 				nodes[p.to].Pub,
-				p.index)
+				p.index, nil, 0)
 			e.Sign(nodes[p.to].Key)
 			index[p.name] = e.Hex()
 			if err := h.InsertEvent(e, true); err != nil {
@@ -1061,7 +1061,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		e.Sign(nodes[p.to].Key)
 		index[p.name] = e.Hex()
 		if err := h.InsertEvent(e, true); err != nil {
@@ -1092,7 +1092,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		e.Sign(nodes[p.to].Key)
 		index[p.name] = e.Hex()
 		if err := h.InsertEvent(e, true); err != nil {
@@ -1169,46 +1169,46 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 */
 func initConsensusPoset(db bool, t testing.TB) (*Poset, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		node := NewTestNode(key, i)
-		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0)
+		event := NewEvent(nil, nil, []string{rootSelfParent(i), ""}, node.Pub, 0, nil, 0)
 		node.signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 		nodes = append(nodes, node)
 	}
 
 	plays := []play{
-		play{1, 1, "e1", "e0", "e10", nil, nil},
-		play{2, 1, "e2", "e10", "e21", [][]byte{[]byte("e21")}, nil},
-		play{2, 2, "e21", "", "e21b", nil, nil},
-		play{0, 1, "e0", "e21b", "e02", nil, nil},
-		play{1, 2, "e10", "e02", "f1", nil, nil},
-		play{1, 3, "f1", "", "f1b", [][]byte{[]byte("f1b")}, nil},
-		play{0, 2, "e02", "f1b", "f0", nil, nil},
-		play{2, 3, "e21b", "f1b", "f2", nil, nil},
-		play{1, 4, "f1b", "f0", "f10", nil, nil},
-		play{0, 3, "f0", "e21", "f0x", nil, nil},
-		play{2, 4, "f2", "f10", "f21", nil, nil},
-		play{0, 4, "f0x", "f21", "f02", nil, nil},
-		play{0, 5, "f02", "", "f02b", [][]byte{[]byte("f02b")}, nil},
-		play{1, 5, "f10", "f02b", "g1", nil, nil},
-		play{0, 6, "f02b", "g1", "g0", nil, nil},
-		play{2, 5, "f21", "g1", "g2", nil, nil},
-		play{1, 6, "g1", "g0", "g10", [][]byte{[]byte("g10")}, nil},
-		play{2, 6, "g2", "g10", "g21", nil, nil},
-		play{0, 7, "g0", "g21", "g02", [][]byte{[]byte("g02")}, nil},
-		play{1, 7, "g10", "g02", "h1", nil, nil},
-		play{0, 8, "g02", "h1", "h0", nil, nil},
-		play{2, 7, "g21", "h1", "h2", nil, nil},
-		play{1, 8, "h1", "h0", "h10", nil, nil},
-		play{2, 8, "h2", "h10", "h21", nil, nil},
-		play{0, 9, "h0", "h21", "h02", nil, nil},
-		play{1, 9, "h10", "h02", "i1", nil, nil},
-		play{0, 10, "h02", "i1", "i0", nil, nil},
-		play{2, 9, "h21", "i1", "i2", nil, nil},
+		{1, 1, "e1", "e0", "e10", nil, nil},
+		{2, 1, "e2", "e10", "e21", [][]byte{[]byte("e21")}, nil},
+		{2, 2, "e21", "", "e21b", nil, nil},
+		{0, 1, "e0", "e21b", "e02", nil, nil},
+		{1, 2, "e10", "e02", "f1", nil, nil},
+		{1, 3, "f1", "", "f1b", [][]byte{[]byte("f1b")}, nil},
+		{0, 2, "e02", "f1b", "f0", nil, nil},
+		{2, 3, "e21b", "f1b", "f2", nil, nil},
+		{1, 4, "f1b", "f0", "f10", nil, nil},
+		{0, 3, "f0", "e21", "f0x", nil, nil},
+		{2, 4, "f2", "f10", "f21", nil, nil},
+		{0, 4, "f0x", "f21", "f02", nil, nil},
+		{0, 5, "f02", "", "f02b", [][]byte{[]byte("f02b")}, nil},
+		{1, 5, "f10", "f02b", "g1", nil, nil},
+		{0, 6, "f02b", "g1", "g0", nil, nil},
+		{2, 5, "f21", "g1", "g2", nil, nil},
+		{1, 6, "g1", "g0", "g10", [][]byte{[]byte("g10")}, nil},
+		{2, 6, "g2", "g10", "g21", nil, nil},
+		{0, 7, "g0", "g21", "g02", [][]byte{[]byte("g02")}, nil},
+		{1, 7, "g10", "g02", "h1", nil, nil},
+		{0, 8, "g02", "h1", "h0", nil, nil},
+		{2, 7, "g21", "h1", "h2", nil, nil},
+		{1, 8, "h1", "h0", "h10", nil, nil},
+		{2, 8, "h2", "h10", "h21", nil, nil},
+		{0, 9, "h0", "h21", "h02", nil, nil},
+		{1, 9, "h10", "h02", "i1", nil, nil},
+		{0, 10, "h02", "i1", "i0", nil, nil},
+		{2, 9, "h21", "i1", "i2", nil, nil},
 	}
 
 	for _, p := range plays {
@@ -1216,7 +1216,7 @@ func initConsensusPoset(db bool, t testing.TB) (*Poset, map[string]string) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -1259,37 +1259,37 @@ func TestDivideRoundsBis(t *testing.T) {
 		t, r int
 	}
 	expectedTimestamps := map[string]tr{
-		"e0":   tr{0, 0},
-		"e1":   tr{0, 0},
-		"e2":   tr{0, 0},
-		"e10":  tr{1, 0},
-		"e21":  tr{2, 0},
-		"e21b": tr{3, 0},
-		"e02":  tr{4, 0},
-		"f1":   tr{5, 1},
-		"f1b":  tr{6, 1},
-		"f0":   tr{7, 1},
-		"f2":   tr{7, 1},
-		"f10":  tr{8, 1},
-		"f0x":  tr{8, 1},
-		"f21":  tr{9, 1},
-		"f02":  tr{10, 1},
-		"f02b": tr{11, 1},
-		"g1":   tr{12, 2},
-		"g0":   tr{13, 2},
-		"g2":   tr{13, 2},
-		"g10":  tr{14, 2},
-		"g21":  tr{15, 2},
-		"g02":  tr{16, 2},
-		"h1":   tr{17, 3},
-		"h0":   tr{18, 3},
-		"h2":   tr{18, 3},
-		"h10":  tr{19, 3},
-		"h21":  tr{20, 3},
-		"h02":  tr{21, 3},
-		"i1":   tr{22, 4},
-		"i0":   tr{23, 4},
-		"i2":   tr{23, 4},
+		"e0":   {0, 0},
+		"e1":   {0, 0},
+		"e2":   {0, 0},
+		"e10":  {1, 0},
+		"e21":  {2, 0},
+		"e21b": {3, 0},
+		"e02":  {4, 0},
+		"f1":   {5, 1},
+		"f1b":  {6, 1},
+		"f0":   {7, 1},
+		"f2":   {7, 1},
+		"f10":  {8, 1},
+		"f0x":  {8, 1},
+		"f21":  {9, 1},
+		"f02":  {10, 1},
+		"f02b": {11, 1},
+		"g1":   {12, 2},
+		"g0":   {13, 2},
+		"g2":   {13, 2},
+		"g10":  {14, 2},
+		"g21":  {15, 2},
+		"g02":  {16, 2},
+		"h1":   {17, 3},
+		"h0":   {18, 3},
+		"h2":   {18, 3},
+		"h10":  {19, 3},
+		"h21":  {20, 3},
+		"h02":  {21, 3},
+		"i1":   {22, 4},
+		"i0":   {23, 4},
+		"i2":   {23, 4},
 	}
 
 	for e, et := range expectedTimestamps {
@@ -1358,23 +1358,23 @@ func TestDecideFame(t *testing.T) {
 	}
 
 	expectedpendingRounds := []pendingRound{
-		pendingRound{
+		{
 			Index:   0,
 			Decided: true,
 		},
-		pendingRound{
+		{
 			Index:   1,
 			Decided: true,
 		},
-		pendingRound{
+		{
 			Index:   2,
 			Decided: true,
 		},
-		pendingRound{
+		{
 			Index:   3,
 			Decided: false,
 		},
-		pendingRound{
+		{
 			Index:   4,
 			Decided: false,
 		},
@@ -1540,11 +1540,11 @@ func TestProcessDecidedRounds(t *testing.T) {
 
 	// pendingRounds -----------------------------------------------------------
 	expectedpendingRounds := []pendingRound{
-		pendingRound{
+		{
 			Index:   3,
 			Decided: false,
 		},
-		pendingRound{
+		{
 			Index:   4,
 			Decided: false,
 		},
@@ -1630,7 +1630,7 @@ func TestGetFrame(t *testing.T) {
 			index["e21"],
 			index["e21b"],
 			index["e02"]}
-		expectedEvents := []Event{}
+		var expectedEvents []Event
 		for _, eh := range expectedEventsHashes {
 			e, err := h.Store.GetEvent(eh)
 			if err != nil {
@@ -1662,14 +1662,14 @@ func TestGetFrame(t *testing.T) {
 			NextRound:  1,
 			SelfParent: RootEvent{index["e02"], 0, 1, 4, 0},
 			Others: map[string]RootEvent{
-				index["f0"]: RootEvent{
+				index["f0"]: {
 					Hash:             index["f1b"],
 					CreatorID:        1,
 					Index:            3,
 					LamportTimestamp: 6,
 					Round:            1,
 				},
-				index["f0x"]: RootEvent{
+				index["f0x"]: {
 					Hash:             index["e21"],
 					CreatorID:        2,
 					Index:            1,
@@ -1682,7 +1682,7 @@ func TestGetFrame(t *testing.T) {
 			NextRound:  1,
 			SelfParent: RootEvent{index["e10"], 1, 1, 1, 0},
 			Others: map[string]RootEvent{
-				index["f1"]: RootEvent{
+				index["f1"]: {
 					Hash:             index["e02"],
 					CreatorID:        0,
 					Index:            1,
@@ -1695,7 +1695,7 @@ func TestGetFrame(t *testing.T) {
 			NextRound:  1,
 			SelfParent: RootEvent{index["e21b"], 2, 2, 3, 0},
 			Others: map[string]RootEvent{
-				index["f2"]: RootEvent{
+				index["f2"]: {
 					Hash:             index["f1b"],
 					CreatorID:        1,
 					Index:            3,
@@ -1731,7 +1731,7 @@ func TestGetFrame(t *testing.T) {
 			index["f21"],
 			index["f02"],
 			index["f02b"]}
-		expectedEvents := []Event{}
+		var expectedEvents []Event
 		for _, eh := range expectedEventsHashes {
 			e, err := h.Store.GetEvent(eh)
 			if err != nil {
@@ -1892,7 +1892,7 @@ func TestResetFromFrame(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		events := []Event{}
+		var events []Event
 		for _, e := range round.RoundEvents() {
 			ev, err := h.Store.GetEvent(e)
 			if err != nil {
@@ -2067,7 +2067,7 @@ func TestBootstrap(t *testing.T) {
 
 func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	n := 4
@@ -2075,42 +2075,42 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 		key, _ := crypto.GenerateECDSAKey()
 		node := NewTestNode(key, i)
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(i), ""}, node.Pub, 0)
+		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(i), ""}, node.Pub, 0, nil, 0)
 		node.signAndAddEvent(event, name, index, orderedEvents)
 		nodes = append(nodes, node)
 	}
 
 	plays := []play{
-		play{2, 1, "w02", "w03", "a23", [][]byte{[]byte("a23")}, nil},
-		play{1, 1, "w01", "a23", "a12", [][]byte{[]byte("a12")}, nil},
-		play{0, 1, "w00", "", "a00", [][]byte{[]byte("a00")}, nil},
-		play{1, 2, "a12", "a00", "a10", [][]byte{[]byte("a10")}, nil},
-		play{2, 2, "a23", "a12", "a21", [][]byte{[]byte("a21")}, nil},
-		play{3, 1, "w03", "a21", "w13", [][]byte{[]byte("w13")}, nil},
-		play{2, 3, "a21", "w13", "w12", [][]byte{[]byte("w12")}, nil},
-		play{1, 3, "a10", "w12", "w11", [][]byte{[]byte("w11")}, nil},
-		play{0, 2, "a00", "w11", "w10", [][]byte{[]byte("w10")}, nil},
-		play{2, 4, "w12", "w11", "b21", [][]byte{[]byte("b21")}, nil},
-		play{3, 2, "w13", "b21", "w23", [][]byte{[]byte("w23")}, nil},
-		play{1, 4, "w11", "w23", "w21", [][]byte{[]byte("w21")}, nil},
-		play{0, 3, "w10", "", "b00", [][]byte{[]byte("b00")}, nil},
-		play{1, 5, "w21", "b00", "c10", [][]byte{[]byte("c10")}, nil},
-		play{2, 5, "b21", "c10", "w22", [][]byte{[]byte("w22")}, nil},
-		play{0, 4, "b00", "w22", "w20", [][]byte{[]byte("w20")}, nil},
-		play{1, 6, "c10", "w20", "w31", [][]byte{[]byte("w31")}, nil},
-		play{2, 6, "w22", "w31", "w32", [][]byte{[]byte("w32")}, nil},
-		play{0, 5, "w20", "w32", "w30", [][]byte{[]byte("w30")}, nil},
-		play{3, 3, "w23", "w32", "w33", [][]byte{[]byte("w33")}, nil},
-		play{1, 7, "w31", "w33", "d13", [][]byte{[]byte("d13")}, nil},
-		play{0, 6, "w30", "d13", "w40", [][]byte{[]byte("w40")}, nil},
-		play{1, 8, "d13", "w40", "w41", [][]byte{[]byte("w41")}, nil},
-		play{2, 7, "w32", "w41", "w42", [][]byte{[]byte("w42")}, nil},
-		play{3, 4, "w33", "w42", "w43", [][]byte{[]byte("w43")}, nil},
+		{2, 1, "w02", "w03", "a23", [][]byte{[]byte("a23")}, nil},
+		{1, 1, "w01", "a23", "a12", [][]byte{[]byte("a12")}, nil},
+		{0, 1, "w00", "", "a00", [][]byte{[]byte("a00")}, nil},
+		{1, 2, "a12", "a00", "a10", [][]byte{[]byte("a10")}, nil},
+		{2, 2, "a23", "a12", "a21", [][]byte{[]byte("a21")}, nil},
+		{3, 1, "w03", "a21", "w13", [][]byte{[]byte("w13")}, nil},
+		{2, 3, "a21", "w13", "w12", [][]byte{[]byte("w12")}, nil},
+		{1, 3, "a10", "w12", "w11", [][]byte{[]byte("w11")}, nil},
+		{0, 2, "a00", "w11", "w10", [][]byte{[]byte("w10")}, nil},
+		{2, 4, "w12", "w11", "b21", [][]byte{[]byte("b21")}, nil},
+		{3, 2, "w13", "b21", "w23", [][]byte{[]byte("w23")}, nil},
+		{1, 4, "w11", "w23", "w21", [][]byte{[]byte("w21")}, nil},
+		{0, 3, "w10", "", "b00", [][]byte{[]byte("b00")}, nil},
+		{1, 5, "w21", "b00", "c10", [][]byte{[]byte("c10")}, nil},
+		{2, 5, "b21", "c10", "w22", [][]byte{[]byte("w22")}, nil},
+		{0, 4, "b00", "w22", "w20", [][]byte{[]byte("w20")}, nil},
+		{1, 6, "c10", "w20", "w31", [][]byte{[]byte("w31")}, nil},
+		{2, 6, "w22", "w31", "w32", [][]byte{[]byte("w32")}, nil},
+		{0, 5, "w20", "w32", "w30", [][]byte{[]byte("w30")}, nil},
+		{3, 3, "w23", "w32", "w33", [][]byte{[]byte("w33")}, nil},
+		{1, 7, "w31", "w33", "d13", [][]byte{[]byte("d13")}, nil},
+		{0, 6, "w30", "d13", "w40", [][]byte{[]byte("w40")}, nil},
+		{1, 8, "d13", "w40", "w41", [][]byte{[]byte("w41")}, nil},
+		{2, 7, "w32", "w41", "w42", [][]byte{[]byte("w42")}, nil},
+		{3, 4, "w33", "w42", "w43", [][]byte{[]byte("w43")}, nil},
 	}
 	if full {
 		newPlays := []play{
-			play{2, 8, "w42", "w43", "e23", [][]byte{[]byte("e23")}, nil},
-			play{1, 9, "w41", "e23", "w51", [][]byte{[]byte("w51")}, nil},
+			{2, 8, "w42", "w43", "e23", [][]byte{[]byte("e23")}, nil},
+			{1, 9, "w41", "e23", "w51", [][]byte{[]byte("w51")}, nil},
 		}
 		plays = append(plays, newPlays...)
 	}
@@ -2120,7 +2120,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -2161,7 +2161,7 @@ func TestFunkyPosetFame(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		witnessNames := []string{}
+		var witnessNames []string
 		for _, w := range round.Witnesses() {
 			witnessNames = append(witnessNames, getName(index, w))
 		}
@@ -2170,23 +2170,23 @@ func TestFunkyPosetFame(t *testing.T) {
 
 	//Rounds 1 and 2 should get decided BEFORE round 0
 	expectedpendingRounds := []pendingRound{
-		pendingRound{
+		{
 			Index:   0,
 			Decided: false,
 		},
-		pendingRound{
+		{
 			Index:   1,
 			Decided: true,
 		},
-		pendingRound{
+		{
 			Index:   2,
 			Decided: true,
 		},
-		pendingRound{
+		{
 			Index:   3,
 			Decided: false,
 		},
-		pendingRound{
+		{
 			Index:   4,
 			Decided: false,
 		},
@@ -2241,7 +2241,7 @@ func TestFunkyPosetBlocks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		witnessNames := []string{}
+		var witnessNames []string
 		for _, w := range round.Witnesses() {
 			witnessNames = append(witnessNames, getName(index, w))
 		}
@@ -2250,11 +2250,11 @@ func TestFunkyPosetBlocks(t *testing.T) {
 
 	//rounds 0,1, 2 and 3 should be decided
 	expectedpendingRounds := []pendingRound{
-		pendingRound{
+		{
 			Index:   4,
 			Decided: false,
 		},
-		pendingRound{
+		{
 			Index:   5,
 			Decided: false,
 		},
@@ -2322,63 +2322,63 @@ func TestFunkyPosetFrames(t *testing.T) {
 	t.Logf("------------------------------------------------------------------")
 
 	expectedFrameRoots := map[int][]Root{
-		1: []Root{
+		1: {
 			NewBaseRoot(0),
 			NewBaseRoot(1),
 			NewBaseRoot(2),
 			NewBaseRoot(3),
 		},
-		2: []Root{
+		2: {
 			NewBaseRoot(0),
-			Root{
+			{
 				NextRound:  0,
 				SelfParent: RootEvent{index["a12"], 1, 1, 2, 0},
 				Others: map[string]RootEvent{
-					index["a10"]: RootEvent{index["a00"], 0, 1, 1, 0},
+					index["a10"]: {index["a00"], 0, 1, 1, 0},
 				},
 			},
-			Root{
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["a21"], 2, 2, 3, 0},
 				Others: map[string]RootEvent{
-					index["w12"]: RootEvent{index["w13"], 3, 1, 4, 1},
+					index["w12"]: {index["w13"], 3, 1, 4, 1},
 				},
 			},
-			Root{
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["w03"], 3, 0, 0, 0},
 				Others: map[string]RootEvent{
-					index["w13"]: RootEvent{index["a21"], 2, 2, 3, 0},
+					index["w13"]: {index["a21"], 2, 2, 3, 0},
 				},
 			},
 		},
-		3: []Root{
-			Root{
+		3: {
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["a00"], 0, 1, 1, 0},
 				Others: map[string]RootEvent{
-					index["w10"]: RootEvent{index["w11"], 1, 3, 6, 1},
+					index["w10"]: {index["w11"], 1, 3, 6, 1},
 				},
 			},
-			Root{
+			{
 				NextRound:  2,
 				SelfParent: RootEvent{index["w11"], 1, 3, 6, 1},
 				Others: map[string]RootEvent{
-					index["w21"]: RootEvent{index["w23"], 3, 2, 8, 2},
+					index["w21"]: {index["w23"], 3, 2, 8, 2},
 				},
 			},
-			Root{
+			{
 				NextRound:  2,
 				SelfParent: RootEvent{index["b21"], 2, 4, 7, 1},
 				Others: map[string]RootEvent{
-					index["w22"]: RootEvent{index["c10"], 1, 5, 10, 2},
+					index["w22"]: {index["c10"], 1, 5, 10, 2},
 				},
 			},
-			Root{
+			{
 				NextRound:  2,
 				SelfParent: RootEvent{index["w13"], 3, 1, 4, 1},
 				Others: map[string]RootEvent{
-					index["w23"]: RootEvent{index["b21"], 2, 4, 7, 1},
+					index["w23"]: {index["b21"], 2, 4, 7, 1},
 				},
 			},
 		},
@@ -2543,7 +2543,7 @@ ATTENTION: Look at roots in Rounds 1 and 2
 
 func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 	index := make(map[string]string)
-	nodes := []TestNode{}
+	var nodes []TestNode
 	orderedEvents := &[]Event{}
 
 	n := 4
@@ -2551,33 +2551,33 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 		key, _ := crypto.GenerateECDSAKey()
 		node := NewTestNode(key, i)
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(i), ""}, node.Pub, 0)
+		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(i), ""}, node.Pub, 0, nil, 0)
 		node.signAndAddEvent(event, name, index, orderedEvents)
 		nodes = append(nodes, node)
 	}
 
 	plays := []play{
-		play{1, 1, "w01", "w00", "e10", [][]byte{[]byte("e10")}, nil},
-		play{2, 1, "w02", "e10", "e21", [][]byte{[]byte("e21")}, nil},
-		play{3, 1, "w03", "e21", "e32", [][]byte{[]byte("e32")}, nil},
-		play{0, 1, "w00", "e32", "w10", [][]byte{[]byte("w10")}, nil},
-		play{1, 2, "e10", "w10", "w11", [][]byte{[]byte("w11")}, nil},
-		play{0, 2, "w10", "w11", "f01", [][]byte{[]byte("f01")}, nil},
-		play{2, 2, "e21", "f01", "w12", [][]byte{[]byte("w12")}, nil},
-		play{3, 2, "e32", "w12", "w13", [][]byte{[]byte("w13")}, nil},
-		play{1, 3, "w11", "w13", "w21", [][]byte{[]byte("w21")}, nil},
-		play{2, 3, "w12", "w21", "w22", [][]byte{[]byte("w22")}, nil},
-		play{3, 3, "w13", "w22", "w23", [][]byte{[]byte("w23")}, nil},
-		play{1, 4, "w21", "w23", "g13", [][]byte{[]byte("g13")}, nil},
-		play{2, 4, "w22", "g13", "w32", [][]byte{[]byte("w32")}, nil},
-		play{3, 4, "w23", "w32", "w33", [][]byte{[]byte("w33")}, nil},
-		play{1, 5, "g13", "w33", "w31", [][]byte{[]byte("w31")}, nil},
-		play{2, 5, "w32", "w31", "h21", [][]byte{[]byte("h21")}, nil},
-		play{3, 5, "w33", "h21", "w43", [][]byte{[]byte("w43")}, nil},
-		play{1, 6, "w31", "w43", "w41", [][]byte{[]byte("w41")}, nil},
-		play{2, 6, "h21", "w41", "w42", [][]byte{[]byte("w42")}, nil},
-		play{3, 6, "w43", "w42", "i32", [][]byte{[]byte("i32")}, nil},
-		play{1, 7, "w41", "i32", "w51", [][]byte{[]byte("w51")}, nil},
+		{1, 1, "w01", "w00", "e10", [][]byte{[]byte("e10")}, nil},
+		{2, 1, "w02", "e10", "e21", [][]byte{[]byte("e21")}, nil},
+		{3, 1, "w03", "e21", "e32", [][]byte{[]byte("e32")}, nil},
+		{0, 1, "w00", "e32", "w10", [][]byte{[]byte("w10")}, nil},
+		{1, 2, "e10", "w10", "w11", [][]byte{[]byte("w11")}, nil},
+		{0, 2, "w10", "w11", "f01", [][]byte{[]byte("f01")}, nil},
+		{2, 2, "e21", "f01", "w12", [][]byte{[]byte("w12")}, nil},
+		{3, 2, "e32", "w12", "w13", [][]byte{[]byte("w13")}, nil},
+		{1, 3, "w11", "w13", "w21", [][]byte{[]byte("w21")}, nil},
+		{2, 3, "w12", "w21", "w22", [][]byte{[]byte("w22")}, nil},
+		{3, 3, "w13", "w22", "w23", [][]byte{[]byte("w23")}, nil},
+		{1, 4, "w21", "w23", "g13", [][]byte{[]byte("g13")}, nil},
+		{2, 4, "w22", "g13", "w32", [][]byte{[]byte("w32")}, nil},
+		{3, 4, "w23", "w32", "w33", [][]byte{[]byte("w33")}, nil},
+		{1, 5, "g13", "w33", "w31", [][]byte{[]byte("w31")}, nil},
+		{2, 5, "w32", "w31", "h21", [][]byte{[]byte("h21")}, nil},
+		{3, 5, "w33", "h21", "w43", [][]byte{[]byte("w43")}, nil},
+		{1, 6, "w31", "w43", "w41", [][]byte{[]byte("w41")}, nil},
+		{2, 6, "h21", "w41", "w42", [][]byte{[]byte("w42")}, nil},
+		{3, 6, "w43", "w42", "i32", [][]byte{[]byte("i32")}, nil},
+		{1, 7, "w41", "i32", "w51", [][]byte{[]byte("w51")}, nil},
 	}
 
 	for _, p := range plays {
@@ -2585,7 +2585,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index)
+			p.index, nil, 0)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -2643,69 +2643,69 @@ func TestSparsePosetFrames(t *testing.T) {
 	t.Logf("------------------------------------------------------------------")
 
 	expectedFrameRoots := map[int][]Root{
-		1: []Root{
+		1: {
 			NewBaseRoot(0),
 			NewBaseRoot(1),
 			NewBaseRoot(2),
 			NewBaseRoot(3),
 		},
-		2: []Root{
-			Root{
+		2: {
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["w00"], 0, 0, 0, 0},
 				Others: map[string]RootEvent{
-					index["w10"]: RootEvent{index["e32"], 3, 1, 3, 0},
+					index["w10"]: {index["e32"], 3, 1, 3, 0},
 				},
 			},
-			Root{
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["e10"], 1, 1, 1, 0},
 				Others: map[string]RootEvent{
-					index["w11"]: RootEvent{index["w10"], 0, 1, 4, 1},
+					index["w11"]: {index["w10"], 0, 1, 4, 1},
 				},
 			},
-			Root{
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["e21"], 2, 1, 2, 0},
 				Others: map[string]RootEvent{
-					index["w12"]: RootEvent{index["f01"], 0, 2, 6, 1},
+					index["w12"]: {index["f01"], 0, 2, 6, 1},
 				},
 			},
-			Root{
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["e32"], 3, 1, 3, 0},
 				Others: map[string]RootEvent{
-					index["w13"]: RootEvent{index["w12"], 2, 2, 7, 1},
+					index["w13"]: {index["w12"], 2, 2, 7, 1},
 				},
 			},
 		},
-		3: []Root{
-			Root{
+		3: {
+			{
 				NextRound:  1,
 				SelfParent: RootEvent{index["w10"], 0, 1, 4, 1},
 				Others: map[string]RootEvent{
-					index["f01"]: RootEvent{index["w11"], 1, 2, 5, 1},
+					index["f01"]: {index["w11"], 1, 2, 5, 1},
 				},
 			},
-			Root{
+			{
 				NextRound:  2,
 				SelfParent: RootEvent{index["w11"], 1, 2, 5, 1},
 				Others: map[string]RootEvent{
-					index["w21"]: RootEvent{index["w13"], 3, 2, 8, 1},
+					index["w21"]: {index["w13"], 3, 2, 8, 1},
 				},
 			},
-			Root{
+			{
 				NextRound:  2,
 				SelfParent: RootEvent{index["w12"], 2, 2, 7, 1},
 				Others: map[string]RootEvent{
-					index["w22"]: RootEvent{index["w21"], 1, 3, 9, 2},
+					index["w22"]: {index["w21"], 1, 3, 9, 2},
 				},
 			},
-			Root{
+			{
 				NextRound:  2,
 				SelfParent: RootEvent{index["w13"], 3, 2, 8, 1},
 				Others: map[string]RootEvent{
-					index["w23"]: RootEvent{index["w22"], 2, 3, 10, 2},
+					index["w23"]: {index["w22"], 2, 3, 10, 2},
 				},
 			},
 		},
@@ -2851,7 +2851,7 @@ func compareRoundWitnesses(h, h2 *Poset, index map[string]string, round int, che
 }
 
 func getDiff(h *Poset, known map[int]int, t *testing.T) []Event {
-	diff := []Event{}
+	var diff []Event
 	for id, ct := range known {
 		pk := h.ReverseParticipants[id]
 		//get participant Events with index > ct
@@ -2881,13 +2881,9 @@ func getName(index map[string]string, hash string) string {
 }
 
 func disp(index map[string]string, events []string) string {
-	names := []string{}
+	var names []string
 	for _, h := range events {
 		names = append(names, getName(index, h))
 	}
 	return fmt.Sprintf("[%s]", strings.Join(names, " "))
-}
-
-func create(x int) *int {
-	return &x
 }

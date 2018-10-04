@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/andrecronje/lachesis/crypto"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 type Frame struct {

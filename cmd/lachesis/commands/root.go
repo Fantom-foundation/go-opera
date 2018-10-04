@@ -52,7 +52,7 @@ func bindFlagsLoadViper(cmd *cobra.Command) error {
 		return err
 	}
 
-	viper.SetConfigName("config")                                       // name of config file (without extension)
+	viper.SetConfigName("config")                                         // name of config file (without extension)
 	viper.AddConfigPath(config.Lachesis.DataDir)                          // search root directory
 	viper.AddConfigPath(filepath.Join(config.Lachesis.DataDir, "config")) // search root directory /config
 

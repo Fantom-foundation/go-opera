@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	cm "github.com/andrecronje/lachesis/common"
+	cm "github.com/andrecronje/lachesis/src/common"
 )
 
 func TestParticipantEventsCache(t *testing.T) {
@@ -55,7 +55,7 @@ func TestParticipantEventsCache(t *testing.T) {
 		}
 
 		index3 := 27
-		expected3 := []string{}
+		var expected3 []string
 		actual3, err := pec.Get(pk, index3)
 		if err != nil {
 			t.Fatal(err)
@@ -101,7 +101,7 @@ func TestParticipantEventsCache(t *testing.T) {
 		}
 
 		skipIndex3 := 27
-		expected3 := []string{}
+		var expected3 []string
 		cached3, err := pec.Get(pk, skipIndex3)
 		if err != nil {
 			t.Fatal(err)

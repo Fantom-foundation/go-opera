@@ -22,10 +22,10 @@ type PemKey struct {
 }
 
 func NewPemKey(base string) *PemKey {
-	path := filepath.Join(base, pemKeyPath)
+	p := filepath.Join(base, pemKeyPath)
 
 	pemKey := &PemKey{
-		path: path,
+		path: p,
 	}
 
 	return pemKey

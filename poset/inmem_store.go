@@ -3,7 +3,7 @@ package poset
 import (
 	"strconv"
 
-	cm "github.com/andrecronje/lachesis/common"
+	cm "github.com/andrecronje/lachesis/src/common"
 )
 
 type InmemStore struct {

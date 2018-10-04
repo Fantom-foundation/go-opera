@@ -69,8 +69,8 @@ type RootEvent struct {
 	LamportTimestamp int
 	Round            int
 
-	flagTable	map[string]bool
-	flags 		int
+	flagTable map[string]bool
+	flags     int
 }
 
 //NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
@@ -85,8 +85,8 @@ func NewBaseRootEvent(creatorID int) RootEvent {
 		Index:            -1,
 		LamportTimestamp: -1,
 		Round:            -1,
-		flagTable: flagTable,
-		flags: 1,
+		flagTable:        flagTable,
+		flags:            1,
 	}
 	return res
 }

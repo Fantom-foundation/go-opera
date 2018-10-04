@@ -9,14 +9,14 @@ import (
 
 	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/crypto"
-	hg "github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/peers"
+	hg "github.com/andrecronje/lachesis/src/poset"
 )
 
 func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[string]string) {
 	cacheSize := 1000
 
-	cores := []Core{}
+	var cores []Core
 	index := make(map[string]string)
 	participantKeys := map[int]*ecdsa.PrivateKey{}
 
@@ -34,7 +34,7 @@ func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[stri
 		core := NewCore(i,
 			participantKeys[peer.ID],
 			participants,
-			poset.NewInmemStore(participants, cacheSize),
+			hg.NewInmemStore(participants, cacheSize),
 			nil,
 			common.NewTestLogger(t))
 
@@ -67,7 +67,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) {
+func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) error {
 	for i := 0; i < len(cores); i++ {
 		if i != participant {
 			event, _ := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
@@ -78,69 +78,70 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 	}
 
 	// Get flag tables from parents
-	event0,err := cores[0].poset.Store.GetEvent("e0")
+	event0, err := cores[0].poset.Store.GetEvent("e0")
 	if err != nil {
 		return fmt.Errorf("Error retrieving parent: %s", err)
 	}
-	event1,err := cores[0].poset.Store.GetEvent("e1")
+	event1, err := cores[0].poset.Store.GetEvent("e1")
 	if err != nil {
 		return fmt.Errorf("Error retrieving parent: %s", err)
 	}
 	flagTable, flags := event0.FlagTable()
-	otherFlagTable,_ := event1.FlagTable()
+	otherFlagTable, _ := event1.FlagTable()
 	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range  otherFlagTable{
+	for id, flag := range otherFlagTable {
 		if !flagTable[id] && flag {
 			flagTable[id] = true
 			flags++
 		}
 	}
 
-	event01 := poset.NewEvent([][]byte{}, nil,
+	event01 := hg.NewEvent([][]byte{}, nil,
 		[]string{index["e0"], index["e1"]}, //e0 and e1
-		cores[0].PubKey(), 1)
+		cores[0].PubKey(), 1, nil, 0)
 	if err := insertEvent(cores, keys, index, event01, "e01", participant, common.Hash32(cores[0].pubKey)); err != nil {
 		fmt.Printf("error inserting e01: %s\n", err)
 	}
 
 	// Get flag tables from parents
-	event2,err := cores[2].poset.Store.GetEvent("e2")
+	event2, err := cores[2].poset.Store.GetEvent("e2")
 	if err != nil {
 		return fmt.Errorf("Error retrieving parent: %s", err)
 	}
 	flagTable, flags = event2.FlagTable()
-	otherFlagTable,_ = event01.FlagTable()
+	otherFlagTable, _ = event01.FlagTable()
 	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range  otherFlagTable{
+	for id, flag := range otherFlagTable {
 		if !flagTable[id] && flag {
 			flagTable[id] = true
 			flags++
 		}
 	}
 
-	event20 := poset.NewEvent([][]byte{}, nil,
+	event20 := hg.NewEvent([][]byte{}, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
-		cores[2].PubKey(), 1)
+		cores[2].PubKey(), 1, nil, 0)
 	if err := insertEvent(cores, keys, index, event20, "e20", participant, common.Hash32(cores[2].pubKey)); err != nil {
 		fmt.Printf("error inserting e20: %s\n", err)
 	}
 
 	flagTable, flags = event1.FlagTable()
-	otherFlagTable,_ = event20.FlagTable()
+	otherFlagTable, _ = event20.FlagTable()
 	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range  otherFlagTable{
+	for id, flag := range otherFlagTable {
 		if !flagTable[id] && flag {
 			flagTable[id] = true
 			flags++
 		}
 	}
 
-	event12 := poset.NewEvent([][]byte{}, nil,
+	event12 := hg.NewEvent([][]byte{}, nil,
 		[]string{index["e1"], index["e20"]}, //e1 and e20
-		cores[1].PubKey(), 1)
+		cores[1].PubKey(), 1, nil, 0)
 	if err := insertEvent(cores, keys, index, event12, "e12", participant, common.Hash32(cores[1].pubKey)); err != nil {
 		fmt.Printf("error inserting e12: %s\n", err)
 	}
+	return nil
 }
 
 func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string,
@@ -372,26 +373,26 @@ type play struct {
 func initConsensusPoset(t *testing.T) []Core {
 	cores, _, _ := initCores(3, t)
 	playbook := []play{
-		play{from: 0, to: 1, payload: [][]byte{[]byte("e10")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
-		play{from: 2, to: 0, payload: [][]byte{[]byte("e02")}},
-		play{from: 0, to: 1, payload: [][]byte{[]byte("f1")}},
-		play{from: 1, to: 0, payload: [][]byte{[]byte("f0")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("f2")}},
+		{from: 0, to: 1, payload: [][]byte{[]byte("e10")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
+		{from: 2, to: 0, payload: [][]byte{[]byte("e02")}},
+		{from: 0, to: 1, payload: [][]byte{[]byte("f1")}},
+		{from: 1, to: 0, payload: [][]byte{[]byte("f0")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("f2")}},
 
-		play{from: 0, to: 1, payload: [][]byte{[]byte("f10")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("f21")}},
-		play{from: 2, to: 0, payload: [][]byte{[]byte("f02")}},
-		play{from: 0, to: 1, payload: [][]byte{[]byte("g1")}},
-		play{from: 1, to: 0, payload: [][]byte{[]byte("g0")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("g2")}},
+		{from: 0, to: 1, payload: [][]byte{[]byte("f10")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("f21")}},
+		{from: 2, to: 0, payload: [][]byte{[]byte("f02")}},
+		{from: 0, to: 1, payload: [][]byte{[]byte("g1")}},
+		{from: 1, to: 0, payload: [][]byte{[]byte("g0")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("g2")}},
 
-		play{from: 0, to: 1, payload: [][]byte{[]byte("g10")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("g21")}},
-		play{from: 2, to: 0, payload: [][]byte{[]byte("g02")}},
-		play{from: 0, to: 1, payload: [][]byte{[]byte("h1")}},
-		play{from: 1, to: 0, payload: [][]byte{[]byte("h0")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("h2")}},
+		{from: 0, to: 1, payload: [][]byte{[]byte("g10")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("g21")}},
+		{from: 2, to: 0, payload: [][]byte{[]byte("g02")}},
+		{from: 0, to: 1, payload: [][]byte{[]byte("h1")}},
+		{from: 1, to: 0, payload: [][]byte{[]byte("h0")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("h2")}},
 	}
 
 	for _, play := range playbook {
@@ -504,20 +505,20 @@ func TestOverSyncLimit(t *testing.T) {
 */
 func initFFPposet(cores []Core, t *testing.T) {
 	playbook := []play{
-		play{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
-		play{from: 2, to: 3, payload: [][]byte{[]byte("e32")}},
-		play{from: 3, to: 1, payload: [][]byte{[]byte("e13")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("w12")}},
-		play{from: 2, to: 3, payload: [][]byte{[]byte("w13")}},
-		play{from: 3, to: 1, payload: [][]byte{[]byte("w11")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("f21")}},
-		play{from: 2, to: 3, payload: [][]byte{[]byte("w23")}},
-		play{from: 3, to: 2, payload: [][]byte{[]byte("w22")}},
-		play{from: 2, to: 1, payload: [][]byte{[]byte("w21")}},
-		play{from: 1, to: 2, payload: [][]byte{[]byte("g21")}},
-		play{from: 2, to: 3, payload: [][]byte{[]byte("w33")}},
-		play{from: 3, to: 2, payload: [][]byte{[]byte("w32")}},
-		play{from: 2, to: 1, payload: [][]byte{[]byte("w31")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
+		{from: 2, to: 3, payload: [][]byte{[]byte("e32")}},
+		{from: 3, to: 1, payload: [][]byte{[]byte("e13")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("w12")}},
+		{from: 2, to: 3, payload: [][]byte{[]byte("w13")}},
+		{from: 3, to: 1, payload: [][]byte{[]byte("w11")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("f21")}},
+		{from: 2, to: 3, payload: [][]byte{[]byte("w23")}},
+		{from: 3, to: 2, payload: [][]byte{[]byte("w22")}},
+		{from: 2, to: 1, payload: [][]byte{[]byte("w21")}},
+		{from: 1, to: 2, payload: [][]byte{[]byte("g21")}},
+		{from: 2, to: 3, payload: [][]byte{[]byte("w33")}},
+		{from: 3, to: 2, payload: [][]byte{[]byte("w32")}},
+		{from: 2, to: 1, payload: [][]byte{[]byte("w31")}},
 	}
 
 	for k, play := range playbook {
@@ -575,7 +576,7 @@ func TestCoreFastForward(t *testing.T) {
 	}
 
 	//collect signatures
-	signatures := make([]poset.BlockSignature, 3)
+	signatures := make([]hg.BlockSignature, 3)
 	for k, c := range cores[1:] {
 		b, err := c.poset.Store.GetBlock(0)
 		if err != nil {

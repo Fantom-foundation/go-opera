@@ -8,7 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/common"
+	"github.com/andrecronje/lachesis/src/common"
 )
 
 //Poset is a DAG of Events. It also contains methods to extract a consensus
@@ -676,7 +676,7 @@ func (p *Poset) updatePendingRounds(decidedRounds map[int]int) {
 
 //Remove processed Signatures from SigPool
 func (p *Poset) removeProcessedSignatures(processedSignatures map[int]bool) {
-	newSigPool := []BlockSignature{}
+	var newSigPool []BlockSignature
 	for _, bs := range p.SigPool {
 		if _, ok := processedSignatures[bs.Index]; !ok {
 			newSigPool = append(newSigPool, bs)
@@ -832,7 +832,7 @@ func (p *Poset) DivideRounds() error {
 func (p *Poset) DecideFame() error {
 
 	//Initialize the vote map
-	votes := make(map[string](map[string]bool)) //[x][y]=>vote(x,y)
+	votes := make(map[string]map[string]bool) //[x][y]=>vote(x,y)
 	setVote := func(votes map[string]map[string]bool, x, y string, vote bool) {
 		if votes[x] == nil {
 			votes[x] = make(map[string]bool)
@@ -864,7 +864,7 @@ func (p *Poset) DecideFame() error {
 						setVote(votes, y, x, ycx)
 					} else {
 						//count votes
-						ssWitnesses := []string{}
+						var ssWitnesses []string
 						for _, w := range p.Store.RoundWitnesses(j - 1) {
 							ss, err := p.stronglySee(y, w)
 							if err != nil {
@@ -930,7 +930,7 @@ func (p *Poset) DecideFame() error {
 //reach consensus
 func (p *Poset) DecideRoundReceived() error {
 
-	newUndeterminedEvents := []string{}
+	var newUndeterminedEvents []string
 
 	/* From whitepaper - 18/03/18
 	   "[...] An event is said to be “received” in the first round where all the
@@ -967,7 +967,7 @@ func (p *Poset) DecideRoundReceived() error {
 
 			fws := tr.FamousWitnesses()
 			//set of famous witnesses that see x
-			s := []string{}
+			var s []string
 			for _, w := range fws {
 				see, err := p.see(w, x)
 				if err != nil {
@@ -1116,7 +1116,7 @@ func (p *Poset) GetFrame(roundReceived int) (Frame, error) {
 		return Frame{}, err
 	}
 
-	events := []Event{}
+	var events []Event
 	for _, eh := range round.ConsensusEvents() {
 		e, err := p.Store.GetEvent(eh)
 		if err != nil {
@@ -1229,8 +1229,8 @@ func (p *Poset) ProcessSigPool() error {
 		}
 
 		//only check if bs is greater than AnchorBlock, otherwise simply remove
-		if (p.AnchorBlock == nil ||
-			bs.Index > *p.AnchorBlock) {
+		if p.AnchorBlock == nil ||
+			bs.Index > *p.AnchorBlock {
 			block, err := p.Store.GetBlock(bs.Index)
 			if err != nil {
 				p.logger.WithFields(logrus.Fields{
@@ -1241,8 +1241,8 @@ func (p *Poset) ProcessSigPool() error {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"validator": validatorHex,
-				"signature": bs.Signature,
+				"validator":  validatorHex,
+				"signature":  bs.Signature,
 				"signatures": block.GetSignatures(),
 			}).Debug("Verifying Block signature")
 
@@ -1256,11 +1256,11 @@ func (p *Poset) ProcessSigPool() error {
 			}
 			if !valid {
 				p.logger.WithFields(logrus.Fields{
-					"index":     bs.Index,
-					"validator": p.Participants[validatorHex],
-					"block":     block,
+					"index":        bs.Index,
+					"validator":    p.Participants[validatorHex],
+					"block":        block,
 					"validatorHex": validatorHex,
-					"signature": bs.Signature,
+					"signature":    bs.Signature,
 				}).Warning("Verifying Block signature. Invalid signature")
 				continue
 			}

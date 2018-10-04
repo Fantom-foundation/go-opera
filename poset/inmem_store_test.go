@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/andrecronje/lachesis/crypto"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 type pub struct {
@@ -18,7 +18,7 @@ type pub struct {
 
 func initInmemStore(cacheSize int) (*InmemStore, []pub) {
 	n := 3
-	participantPubs := []pub{}
+	var participantPubs []pub
 	participants := make(map[string]int)
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
@@ -41,13 +41,13 @@ func TestInmemEvents(t *testing.T) {
 
 	t.Run("Store Events", func(t *testing.T) {
 		for _, p := range participants {
-			items := []Event{}
+			var items []Event
 			for k := 0; k < testSize; k++ {
 				event := NewEvent([][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
-					[]BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
+					[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 					[]string{"", ""},
 					p.pubKey,
-					k)
+					k, nil, 0)
 				_ = event.Hex() //just to set private variables
 				items = append(items, event)
 				err := store.SetEvent(event)
@@ -126,7 +126,7 @@ func TestInmemRounds(t *testing.T) {
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
-			0)
+			0, nil, 0)
 		events[p.hex] = event
 		round.AddEvent(event.Hex(), true)
 	}

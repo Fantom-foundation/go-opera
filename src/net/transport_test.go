@@ -51,7 +51,7 @@ func TestTransport_Sync(t *testing.T) {
 		resp := SyncResponse{
 			FromID: 1,
 			Events: []poset.WireEvent{
-				poset.WireEvent{
+				{
 					Body: poset.WireBody{
 						Transactions:         [][]byte(nil),
 						SelfParentIndex:      1,
@@ -113,7 +113,7 @@ func TestTransport_EagerSync(t *testing.T) {
 		args := EagerSyncRequest{
 			FromID: 0,
 			Events: []poset.WireEvent{
-				poset.WireEvent{
+				{
 					Body: poset.WireBody{
 						Transactions:         [][]byte(nil),
 						SelfParentIndex:      1,

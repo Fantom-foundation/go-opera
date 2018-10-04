@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/andrecronje/lachesis/crypto"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 func initBadgerStore(cacheSize int, t *testing.T) (*BadgerStore, []pub) {
 	n := 3
-	participantPubs := []pub{}
+	var participantPubs []pub
 	participants := make(map[string]int)
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
@@ -145,16 +145,16 @@ func TestDBEventMethods(t *testing.T) {
 	//insert events in db directly
 	events := make(map[string][]Event)
 	topologicalIndex := 0
-	topologicalEvents := []Event{}
+	var topologicalEvents []Event
 	for _, p := range participants {
-		items := []Event{}
+		var items []Event
 		for k := 0; k < testSize; k++ {
 			event := NewEvent(
 				[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
-				[]BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
+				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 				[]string{"", ""},
 				p.pubKey,
-				k)
+				k, nil, 0)
 			event.Sign(p.privKey)
 			event.topologicalIndex = topologicalIndex
 			topologicalIndex++
@@ -254,7 +254,7 @@ func TestDBRoundMethods(t *testing.T) {
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
-			0)
+			0, nil, 0)
 		events[p.hex] = event
 		round.AddEvent(event.Hex(), true)
 	}
@@ -384,15 +384,15 @@ func TestDBFrameMethods(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	events := []Event{}
-	roots := []Root{}
+	var events []Event
+	var roots []Root
 	for id, p := range participants {
 		event := NewEvent(
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
-			[]BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
+			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 			[]string{"", ""},
 			p.pubKey,
-			0)
+			0, nil, 0)
 		event.Sign(p.privKey)
 		events = append(events, event)
 
@@ -435,13 +435,13 @@ func TestBadgerEvents(t *testing.T) {
 	//insert event
 	events := make(map[string][]Event)
 	for _, p := range participants {
-		items := []Event{}
+		var items []Event
 		for k := 0; k < testSize; k++ {
 			event := NewEvent([][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
-				[]BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
+				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 				[]string{"", ""},
 				p.pubKey,
-				k)
+				k, nil, 0)
 			items = append(items, event)
 			err := store.SetEvent(event)
 			if err != nil {
@@ -533,7 +533,7 @@ func TestBadgerRounds(t *testing.T) {
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
-			0)
+			0, nil, 0)
 		events[p.hex] = event
 		round.AddEvent(event.Hex(), true)
 	}
@@ -641,15 +641,15 @@ func TestBadgerFrames(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	events := []Event{}
-	roots := []Root{}
+	var events []Event
+	var roots []Root
 	for id, p := range participants {
 		event := NewEvent(
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
-			[]BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
+			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 			[]string{"", ""},
 			p.pubKey,
-			0)
+			0, nil, 0)
 		event.Sign(p.privKey)
 		events = append(events, event)
 

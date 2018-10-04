@@ -7,7 +7,7 @@ import (
 	"net/rpc/jsonrpc"
 	"time"
 
-	"github.com/andrecronje/lachesis/poset"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
 

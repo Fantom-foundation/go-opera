@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/andrecronje/lachesis/crypto"
+	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 func createDummyEventBody() EventBody {
@@ -13,7 +13,7 @@ func createDummyEventBody() EventBody {
 	body.Parents = []string{"self", "other"}
 	body.Creator = []byte("public key")
 	body.BlockSignatures = []BlockSignature{
-		BlockSignature{
+		{
 			Validator: body.Creator,
 			Index:     0,
 			Signature: "r|s",
@@ -164,7 +164,7 @@ func TestIsLoaded(t *testing.T) {
 
 	//non-empty signature payload
 	event.Body.Transactions = nil
-	event.Body.BlockSignatures = []BlockSignature{BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
+	event.Body.BlockSignatures = []BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty signature payload")
 	}

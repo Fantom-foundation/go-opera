@@ -5,10 +5,10 @@ import (
 	"fmt"
 
 	"github.com/andrecronje/lachesis/src/crypto"
-	h "github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/peers"
+	h "github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/service"
 	"github.com/sirupsen/logrus"
 )

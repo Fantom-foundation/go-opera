@@ -10,16 +10,16 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/andrecronje/lachesis/src/crypto"
-	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/poset"
 )
 
 type Core struct {
-	id                  int
-	key                 *ecdsa.PrivateKey
-	pubKey              []byte
-	hexID               string
-	poset               *poset.Poset
+	id     int
+	key    *ecdsa.PrivateKey
+	pubKey []byte
+	hexID  string
+	poset  *poset.Poset
 
 	participants *peers.Peers //[PubKey] => id
 	Head         string
@@ -182,7 +182,7 @@ func (c *Core) GetAnchorBlockWithFrame() (poset.Block, poset.Frame, error) {
 
 //returns events that c knows about and are not in 'known'
 func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
-	unknown := []poset.Event{}
+	var unknown []poset.Event
 	//known represents the index of the last event known for every participant
 	//compare this to our view of events and fill unknown with events that we know of
 	// and the other doesn't
@@ -296,17 +296,17 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	var flags int
 
 	if perr != nil {
-		fmt.Errorf("Error retrieving parent: %s", perr)
+		return fmt.Errorf("Error retrieving parent: %s", perr)
 	}
 	otherParentEvent, oerr := c.poset.Store.GetEvent(otherHead)
 	if oerr != nil {
-		fmt.Errorf("Error retrieving other parent: %s", oerr)
+		return fmt.Errorf("Error retrieving other parent: %s", oerr)
 	}
-	if (perr == nil && oerr == nil) {
+	if perr == nil && oerr == nil {
 		flagTable, flags := parentEvent.FlagTable()
-		otherFlagTable,_ := otherParentEvent.FlagTable()
+		otherFlagTable, _ := otherParentEvent.FlagTable()
 		// event flag table = parent 1 flag table OR parent 2 flag table
-		for id, flag := range  otherFlagTable{
+		for id, flag := range otherFlagTable {
 			if !flagTable[id] && flag {
 				flagTable[id] = true
 				flags++
@@ -444,7 +444,7 @@ func (c *Core) GetPendingLoadedEvents() int {
 }
 
 func (c *Core) GetConsensusTransactions() ([][]byte, error) {
-	txs := [][]byte{}
+	var txs [][]byte
 	for _, e := range c.GetConsensusEvents() {
 		eTxs, err := c.GetEventTransactions(e)
 		if err != nil {

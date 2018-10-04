@@ -86,7 +86,7 @@ func (r *RoundInfo) WitnessesDecided() bool {
 
 //return witnesses
 func (r *RoundInfo) Witnesses() []string {
-	res := []string{}
+	var res []string
 	for x, e := range r.Events {
 		if e.Witness {
 			res = append(res, x)
@@ -96,7 +96,7 @@ func (r *RoundInfo) Witnesses() []string {
 }
 
 func (r *RoundInfo) RoundEvents() []string {
-	res := []string{}
+	var res []string
 	for x, e := range r.Events {
 		if !e.Consensus {
 			res = append(res, x)
@@ -107,7 +107,7 @@ func (r *RoundInfo) RoundEvents() []string {
 
 //return consensus events
 func (r *RoundInfo) ConsensusEvents() []string {
-	res := []string{}
+	var res []string
 	for x, e := range r.Events {
 		if e.Consensus {
 			res = append(res, x)
@@ -118,7 +118,7 @@ func (r *RoundInfo) ConsensusEvents() []string {
 
 //return famous witnesses
 func (r *RoundInfo) FamousWitnesses() []string {
-	res := []string{}
+	var res []string
 	for x, e := range r.Events {
 		if e.Witness && e.Famous == True {
 			res = append(res, x)

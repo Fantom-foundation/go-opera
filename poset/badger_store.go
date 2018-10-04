@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	cm "github.com/andrecronje/lachesis/common"
+	cm "github.com/andrecronje/lachesis/src/common"
 	"github.com/dgraph-io/badger"
 )
 
@@ -375,7 +375,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 }
 
 func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
-	res := []Event{}
+	var res []Event
 	t := 0
 	err := s.db.View(func(txn *badger.Txn) error {
 		key := topologicalEventKey(t)
@@ -418,7 +418,7 @@ func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 }
 
 func (s *BadgerStore) dbParticipantEvents(participant string, skip int) ([]string, error) {
-	res := []string{}
+	var res []string
 	err := s.db.View(func(txn *badger.Txn) error {
 		i := skip + 1
 		key := participantEventKey(participant, i)
@@ -445,7 +445,7 @@ func (s *BadgerStore) dbParticipantEvents(participant string, skip int) ([]strin
 }
 
 func (s *BadgerStore) dbParticipantEvent(participant string, index int) (string, error) {
-	data := []byte{}
+	var data []byte
 	key := participantEventKey(participant, index)
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
