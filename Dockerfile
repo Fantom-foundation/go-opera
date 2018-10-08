@@ -4,10 +4,8 @@ FROM glider as stage0
 
 RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin
 COPY . "$GOPATH/src/github.com/andrecronje/lachesis"
-RUN cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
-    rm -rf vendor && \
-    glide install && \
-    cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
+
+RUN cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
     go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
 

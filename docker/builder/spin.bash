@@ -4,6 +4,8 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . "$DIR/set_globals.bash"
 
+"$DIR/install_deps.bash"
+
 node_num="$1"
 ip="$2"
 container="$PROJECT$node_num"
