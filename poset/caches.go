@@ -3,7 +3,7 @@ package poset
 import (
 	"fmt"
 
-	cm "github.com/andrecronje/lachesis/common"
+	cm "github.com/andrecronje/lachesis/src/common"
 )
 
 type Key struct {

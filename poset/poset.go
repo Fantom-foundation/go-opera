@@ -8,7 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/common"
+	"github.com/andrecronje/lachesis/src/common"
 )
 
 //Poset is a DAG of Events. It also contains methods to extract a consensus
@@ -1229,8 +1229,8 @@ func (p *Poset) ProcessSigPool() error {
 		}
 
 		//only check if bs is greater than AnchorBlock, otherwise simply remove
-		if (p.AnchorBlock == nil ||
-			bs.Index > *p.AnchorBlock) {
+		if p.AnchorBlock == nil ||
+			bs.Index > *p.AnchorBlock {
 			block, err := p.Store.GetBlock(bs.Index)
 			if err != nil {
 				p.logger.WithFields(logrus.Fields{
@@ -1241,8 +1241,8 @@ func (p *Poset) ProcessSigPool() error {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"validator": validatorHex,
-				"signature": bs.Signature,
+				"validator":  validatorHex,
+				"signature":  bs.Signature,
 				"signatures": block.GetSignatures(),
 			}).Debug("Verifying Block signature")
 
@@ -1256,11 +1256,11 @@ func (p *Poset) ProcessSigPool() error {
 			}
 			if !valid {
 				p.logger.WithFields(logrus.Fields{
-					"index":     bs.Index,
-					"validator": p.Participants[validatorHex],
-					"block":     block,
+					"index":        bs.Index,
+					"validator":    p.Participants[validatorHex],
+					"block":        block,
 					"validatorHex": validatorHex,
-					"signature": bs.Signature,
+					"signature":    bs.Signature,
 				}).Warning("Verifying Block signature. Invalid signature")
 				continue
 			}

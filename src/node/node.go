@@ -10,12 +10,9 @@ import (
 
 	"strconv"
 
-	"github.com/andrecronje/lachesis/net"
-	"github.com/andrecronje/lachesis/poset"
-	"github.com/andrecronje/lachesis/proxy"
-	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/proxy"
 )
 
@@ -700,7 +697,7 @@ func (n *Node) GetStats() map[string]string {
 		"consensus_transactions":  strconv.Itoa(consensusTransactions),
 		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
 		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
-		"num_peers":              strconv.Itoa(n.peerSelector.Peers().Len()),
+		"num_peers":               strconv.Itoa(n.peerSelector.Peers().Len()),
 		"sync_rate":               strconv.FormatFloat(n.SyncRate(), 'f', 2, 64),
 		"transactions_per_second": strconv.FormatFloat(transactionsPerSecond, 'f', 2, 64),
 		"events_per_second":       strconv.FormatFloat(consensusEventsPerSecond, 'f', 2, 64),
