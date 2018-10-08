@@ -2,7 +2,7 @@ package net
 
 import (
 	"encoding/json"
-	"github.com/andrecronje/lachesis/utils"
+	"github.com/andrecronje/lachesis/src/utils"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
