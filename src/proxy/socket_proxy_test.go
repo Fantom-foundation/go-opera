@@ -64,10 +64,8 @@ func TestSocketProxyClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-=======
 
 	initialStateHash := dummyClient.state.stateHash
->>>>>>> 1ed81963270c25f7cc7eaa8bfdef464338bbd00b
 
 	//create client proxy
 	proxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
