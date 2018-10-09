@@ -4,9 +4,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/proxy/lachesis"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -88,34 +88,13 @@ func GetOutboundIP() net.IP {
 }
 
 func transact(target peers.Peer, nodeId int, txId UniqueID, proxyAddress string) (string, error) {
-	// rpcClient := jsonrpc.NewClient(proxyAddress)
-	// rpcClient.Call("createPerson", "Alex", 33, "Germany")
-	// generates body: {"method":"createPerson","params":["Alex",33,"Germany"],"id":0,"jsonrpc":"2.0"}
+	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
+	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10 * time.Second)
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp4",
-		fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000))
-	if err != nil {
-		return "", err
-	}
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		return "", err
-	}
+	ack, err := proxy.SubmitTx([]byte("oh hai"))
+	// fmt.Println("Submitted tx, ack=", ack)
 
-	payload := fmt.Sprintf("%s{\"method\":\"Lachesis.SubmitTx\",\"params\":[\"whatever\"],\"id\":\"whatever\"}",
-		base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("Node%d Tx%d", nodeId, txId.Get()))))
-
-	_, err = conn.Write([]byte(payload))
-
-	if err != nil {
-		return "", err
-	}
-	result, err := ioutil.ReadAll(conn)
-	if err != nil {
-		return "", err
-	}
-	fmt.Println(string(result))
-	return tcpAddr.String(), err
+	return "hi", err
 }
 
 type UniqueID struct {
