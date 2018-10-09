@@ -119,8 +119,8 @@ type Event struct {
 	hash    []byte
 	hex     string
 
-	flagTable	map[string]bool // flagTable stores connection information
-	flags 	int // flags stores the number of connections
+	flagTable map[string]bool // flagTable stores connection information
+	flags     int             // flags stores the number of connections
 }
 
 func NewEvent(transactions [][]byte,
@@ -139,9 +139,9 @@ func NewEvent(transactions [][]byte,
 		Index:           index,
 	}
 	return Event{
-		Body: body,
+		Body:      body,
 		flagTable: flagTable,
-		flags: flags,
+		flags:     flags,
 	}
 }
 

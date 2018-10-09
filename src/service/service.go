@@ -46,24 +46,24 @@ func (s *Service) Serve() {
 }
 
 func corsHandler(h http.HandlerFunc) http.HandlerFunc {
-  return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers",
 			"Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
-    if (r.Method == "OPTIONS") {
+		if r.Method == "OPTIONS" {
 			/*w.Header().Set("Access-Control-Allow-Origin", "*")
-    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers",
-        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
-    } else {
+			    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+						w.Header().Set("Access-Control-Allow-Headers",
+			        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
+		} else {
 			/*w.Header().Set("Access-Control-Allow-Origin", "*")
-    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers",
-        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
-      h.ServeHTTP(w,r)
-    }
-  }
+			    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+						w.Header().Set("Access-Control-Allow-Headers",
+			        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
+			h.ServeHTTP(w, r)
+		}
+	}
 }
 
 func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +96,6 @@ func (s *Service) GetEvent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(event)
 }
-
 
 func (s *Service) GetLastEventFrom(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/lasteventfrom/"):]
@@ -151,7 +150,6 @@ func (s *Service) GetLastRound(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(lastRound)
 }
-
 
 func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/roundwitnesses/"):]

@@ -4,10 +4,8 @@ FROM glider as stage0
 
 RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin
 COPY . "$GOPATH/src/github.com/andrecronje/lachesis"
-RUN cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
-    rm -rf vendor && \
-    glide install && \
-    cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
+
+RUN cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
     go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
@@ -56,4 +54,4 @@ COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
 # /cp_bin/upx -d /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list ;
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store_path /lachesis_data_dir/badger_db -node_addr=$node_addr:12000 -heartbeat=100 -no_client"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store /lachesis_data_dir/badger_db --listen=$node_addr:12000 --heartbeat=100s --log=debug -p $node_addr:9000 --test"]

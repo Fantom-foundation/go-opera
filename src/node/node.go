@@ -94,7 +94,7 @@ func NewNode(conf *Config,
 }
 
 func (n *Node) Init() error {
-	peerAddresses := []string{}
+	var peerAddresses []string
 	for _, p := range n.peerSelector.Peers().ToPeerSlice() {
 		peerAddresses = append(peerAddresses, p.NetAddr)
 	}

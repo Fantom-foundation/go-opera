@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/andrecronje/lachesis/src/poset"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -12,9 +13,9 @@ import (
 
 	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/crypto"
-	hg "github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/net"
 	peers_ "github.com/andrecronje/lachesis/src/peers"
+	hg "github.com/andrecronje/lachesis/src/poset"
 	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
 	"github.com/sirupsen/logrus"
 )
@@ -22,7 +23,7 @@ import (
 var ip = 9990
 
 func initPeers(n int) ([]*ecdsa.PrivateKey, *peers_.Peers) {
-	keys := []*ecdsa.PrivateKey{}
+	var keys []*ecdsa.PrivateKey
 	peers := peers_.NewPeers()
 
 	for i := 0; i < n; i++ {
@@ -297,7 +298,7 @@ func initNodes(keys []*ecdsa.PrivateKey,
 	logger *logrus.Logger,
 	t testing.TB) []*Node {
 
-	nodes := []*Node{}
+	var nodes []*Node
 
 	for _, k := range keys {
 		key := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&k.PublicKey))
@@ -346,7 +347,7 @@ func initNodes(keys []*ecdsa.PrivateKey,
 }
 
 func recycleNodes(oldNodes []*Node, logger *logrus.Logger, t *testing.T) []*Node {
-	newNodes := []*Node{}
+	var newNodes []*Node
 	for _, oldNode := range oldNodes {
 		newNode := recycleNode(oldNode, logger, t)
 		newNodes = append(newNodes, newNode)
@@ -362,8 +363,8 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 
 	var store poset.Store
 	var err error
-	if _, ok := oldNode.core.hg.Store.(*hg.BadgerStore); ok {
-		store, err = hg.LoadBadgerStore(conf.CacheSize, oldNode.core.hg.Store.StorePath())
+	if _, ok := oldNode.core.poset.Store.(*hg.BadgerStore); ok {
+		store, err = hg.LoadBadgerStore(conf.CacheSize, oldNode.core.poset.Store.StorePath())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -404,7 +405,7 @@ func shutdownNodes(nodes []*Node) {
 
 func deleteStores(nodes []*Node, t *testing.T) {
 	for _, n := range nodes {
-		if err := os.RemoveAll(n.core.hg.Store.StorePath()); err != nil {
+		if err := os.RemoveAll(n.core.poset.Store.StorePath()); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -742,7 +743,7 @@ func checkGossip(nodes []*Node, fromBlock int, t *testing.T) {
 
 	nodeBlocks := map[int][]poset.Block{}
 	for _, n := range nodes {
-		blocks := []poset.Block{}
+		var blocks []poset.Block
 		for i := fromBlock; i < n.core.poset.Store.LastBlockIndex(); i++ {
 			block, err := n.core.poset.Store.GetBlock(i)
 			if err != nil {

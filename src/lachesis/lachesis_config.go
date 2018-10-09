@@ -27,6 +27,9 @@ type LachesisConfig struct {
 	Proxy     proxy.AppProxy
 	Key       *ecdsa.PrivateKey
 	Logger    *logrus.Logger
+
+	Test  bool
+	TestN uint64
 }
 
 func NewDefaultConfig() *LachesisConfig {
@@ -42,6 +45,8 @@ func NewDefaultConfig() *LachesisConfig {
 		Logger:      logrus.New(),
 		LoadPeers:   true,
 		Key:         nil,
+		Test:        false,
+		TestN:       ^uint64(0),
 	}
 
 	config.Logger.Level = LogLevel(config.LogLevel)

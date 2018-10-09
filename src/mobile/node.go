@@ -3,8 +3,8 @@ package mobile
 import (
 	"fmt"
 
-	"github.com/andrecronje/lachesis/src/lachesis"
 	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/lachesis"
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/peers"
 	"github.com/andrecronje/lachesis/src/proxy"
