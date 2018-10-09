@@ -26,7 +26,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 	for i := uint64(0); i < n; i++ {
 		wg.Add(1)
 		participant := participants[rand.Intn(len(participants))]
-		node := p[participant.NetAddr]
+		node := p[participant.PubKeyHex]
 
 		ipAddr, err := transact(*participant, node.ID, txId, serviceAddress)
 		if err != nil {
