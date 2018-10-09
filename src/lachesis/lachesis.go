@@ -75,6 +75,8 @@ func (b *Lachesis) initPeers() error {
 }
 
 func (b *Lachesis) initStore() error {
+	var dbDir = fmt.Sprintf("%s/badger", b.Config.DataDir)
+
 	if !b.Config.Store {
 		b.Store = h.NewInmemStore(b.Peers, b.Config.NodeConfig.CacheSize)
 
@@ -82,14 +84,14 @@ func (b *Lachesis) initStore() error {
 	} else {
 		var err error
 
-		b.Store, err = h.LoadOrCreateBadgerStore(b.Peers, b.Config.NodeConfig.CacheSize, b.Config.DataDir)
+		b.Store, err = h.LoadOrCreateBadgerStore(b.Peers, b.Config.NodeConfig.CacheSize, dbDir)
 
 		if err != nil {
 			return err
 		}
 
 		if b.Store.NeedBoostrap() {
-			b.Config.Logger.Debug("loaded badger store from existing database")
+			b.Config.Logger.Debug("loaded badger store from existing database at ", dbDir)
 		} else {
 			b.Config.Logger.Debug("created new badger store from fresh database")
 		}
