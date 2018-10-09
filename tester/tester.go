@@ -91,8 +91,8 @@ func transact(target peers.Peer, nodeId int, txId UniqueID, proxyAddress string)
 	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
 	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10 * time.Second)
 
-	ack, err := proxy.SubmitTx([]byte("oh hai"))
-	// fmt.Println("Submitted tx, ack=", ack)
+	_, err := proxy.SubmitTx([]byte("oh hai"))
+	// fmt.Println("Submitted tx, ack=", ack)  # `ack` is now `_`
 
 	return "hi", err
 }

@@ -838,21 +838,21 @@ func TestCreateRoot(t *testing.T) {
 		"e0": NewBaseRoot(participants[0].ID),
 		"e02": {
 			NextRound:  0,
-			SelfParent: RootEvent{index["s00"], participants[0].ID, 1, 1, 0},
+			SelfParent: RootEvent{index["s00"], participants[0].ID, 1, 1, 0, nil, 0},
 			Others: map[string]RootEvent{
-				index["e02"]: {index["e21"], participants[2].ID, 2, 2, 0},
+				index["e02"]: {index["e21"], participants[2].ID, 2, 2, 0, nil, 0},
 			},
 		},
 		"s10": {
 			NextRound:  0,
-			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0},
+			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0, nil, 0},
 			Others:     map[string]RootEvent{},
 		},
 		"f1": {
 			NextRound:  1,
-			SelfParent: RootEvent{index["s10"], participants[1].ID, 2, 2, 0},
+			SelfParent: RootEvent{index["s10"], participants[1].ID, 2, 2, 0, nil, 0},
 			Others: map[string]RootEvent{
-				index["f1"]: {index["e02"], participants[0].ID, 2, 3, 0},
+				index["f1"]: {index["e02"], participants[0].ID, 2, 3, 0, nil, 0},
 			},
 		},
 	}
@@ -926,7 +926,7 @@ func TestCreateRootBis(t *testing.T) {
 			NextRound:  0,
 			SelfParent: NewBaseRootEvent(participants[1].ID),
 			Others: map[string]RootEvent{
-				index["e12"]: {index["e2"], participants[2].ID, 0, 0, 0},
+				index["e12"]: {index["e2"], participants[2].ID, 0, 0, 0, nil, 0},
 			},
 		},
 	}
@@ -1621,7 +1621,7 @@ func TestGetFrame(t *testing.T) {
 		expectedRoots := make([]Root, n)
 		expectedRoots[0] = Root{
 			NextRound:  1,
-			SelfParent: RootEvent{index["e02"], participants[0].ID, 1, 4, 0},
+			SelfParent: RootEvent{index["e02"], participants[0].ID, 1, 4, 0, nil, 0},
 			Others: map[string]RootEvent{
 				index["f0"]: {
 					Hash:             index["f1b"],
@@ -1641,7 +1641,7 @@ func TestGetFrame(t *testing.T) {
 		}
 		expectedRoots[1] = Root{
 			NextRound:  1,
-			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0},
+			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0, nil, 0},
 			Others: map[string]RootEvent{
 				index["f1"]: {
 					Hash:             index["e02"],
@@ -1654,7 +1654,7 @@ func TestGetFrame(t *testing.T) {
 		}
 		expectedRoots[2] = Root{
 			NextRound:  1,
-			SelfParent: RootEvent{index["e21b"], participants[2].ID, 2, 3, 0},
+			SelfParent: RootEvent{index["e21b"], participants[2].ID, 2, 3, 0, nil, 0},
 			Others: map[string]RootEvent{
 				index["f2"]: {
 					Hash:             index["f1b"],
@@ -2270,53 +2270,53 @@ func TestFunkyPosetFrames(t *testing.T) {
 			NewBaseRoot(participants[0].ID),
 			{
 				NextRound:  0,
-				SelfParent: RootEvent{index["a12"], participants[1].ID, 1, 2, 0},
+				SelfParent: RootEvent{index["a12"], participants[1].ID, 1, 2, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["a10"]: {index["a00"], participants[0].ID, 1, 1, 0},
+					index["a10"]: {index["a00"], participants[0].ID, 1, 1, 0, nil, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["a21"], participants[2].ID, 2, 3, 0},
+				SelfParent: RootEvent{index["a21"], participants[2].ID, 2, 3, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w12"]: {index["w13"], participants[3].ID, 1, 4, 1},
+					index["w12"]: {index["w13"], participants[3].ID, 1, 4, 1, nil, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["w03"], participants[3].ID, 0, 0, 0},
+				SelfParent: RootEvent{index["w03"], participants[3].ID, 0, 0, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w13"]: {index["a21"], participants[2].ID, 2, 3, 0},
+					index["w13"]: {index["a21"], participants[2].ID, 2, 3, 0, nil, 0},
 				},
 			},
 		},
 		3: {
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["a00"], participants[0].ID, 1, 1, 0},
+				SelfParent: RootEvent{index["a00"], participants[0].ID, 1, 1, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w10"]: {index["w11"], participants[1].ID, 3, 6, 1},
+					index["w10"]: {index["w11"], participants[1].ID, 3, 6, 1, nil, 0},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w11"], participants[1].ID, 3, 6, 1},
+				SelfParent: RootEvent{index["w11"], participants[1].ID, 3, 6, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["w21"]: {index["w23"], participants[3].ID, 2, 8, 2},
+					index["w21"]: {index["w23"], participants[3].ID, 2, 8, 2, nil, 0},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["b21"], participants[2].ID, 4, 7, 1},
+				SelfParent: RootEvent{index["b21"], participants[2].ID, 4, 7, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["w22"]: {index["c10"], participants[1].ID, 5, 10, 2},
+					index["w22"]: {index["c10"], participants[1].ID, 5, 10, 2, nil, 0},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w13"], participants[3].ID, 1, 4, 1},
+				SelfParent: RootEvent{index["w13"], participants[3].ID, 1, 4, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["w23"]: {index["b21"], participants[2].ID, 4, 7, 1},
+					index["w23"]: {index["b21"], participants[2].ID, 4, 7, 1, nil, 0},
 				},
 			},
 		},
@@ -2575,60 +2575,60 @@ func TestSparsePosetFrames(t *testing.T) {
 		2: {
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["w00"], participants[0].ID, 0, 0, 0},
+				SelfParent: RootEvent{index["w00"], participants[0].ID, 0, 0, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w10"]: {index["e32"], participants[3].ID, 1, 3, 0},
+					index["w10"]: {index["e32"], participants[3].ID, 1, 3, 0, nil, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0},
+				SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w11"]: {index["w10"], participants[0].ID, 1, 4, 1},
+					index["w11"]: {index["w10"], participants[0].ID, 1, 4, 1, nil, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["e21"], participants[2].ID, 1, 2, 0},
+				SelfParent: RootEvent{index["e21"], participants[2].ID, 1, 2, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w12"]: {index["f01"], participants[0].ID, 2, 6, 1},
+					index["w12"]: {index["f01"], participants[0].ID, 2, 6, 1, nil, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["e32"], participants[3].ID, 1, 3, 0},
+				SelfParent: RootEvent{index["e32"], participants[3].ID, 1, 3, 0, nil, 0},
 				Others: map[string]RootEvent{
-					index["w13"]: {index["w12"], participants[2].ID, 2, 7, 1},
+					index["w13"]: {index["w12"], participants[2].ID, 2, 7, 1, nil, 0},
 				},
 			},
 		},
 		3: {
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["w10"], participants[0].ID, 1, 4, 1},
+				SelfParent: RootEvent{index["w10"], participants[0].ID, 1, 4, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["f01"]: {index["w11"], participants[1].ID, 2, 5, 1},
+					index["f01"]: {index["w11"], participants[1].ID, 2, 5, 1, nil, 0},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w11"], participants[1].ID, 2, 5, 1},
+				SelfParent: RootEvent{index["w11"], participants[1].ID, 2, 5, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["w21"]: {index["w13"], participants[3].ID, 2, 8, 1},
+					index["w21"]: {index["w13"], participants[3].ID, 2, 8, 1, nil, 0},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w12"], participants[2].ID, 2, 7, 1},
+				SelfParent: RootEvent{index["w12"], participants[2].ID, 2, 7, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["w22"]: {index["w21"], participants[1].ID, 3, 9, 2},
+					index["w22"]: {index["w21"], participants[1].ID, 3, 9, 2, nil, 0},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w13"], participants[3].ID, 2, 8, 1},
+				SelfParent: RootEvent{index["w13"], participants[3].ID, 2, 8, 1, nil, 0},
 				Others: map[string]RootEvent{
-					index["w23"]: {index["w22"], participants[2].ID, 3, 10, 2},
+					index["w23"]: {index["w22"], participants[2].ID, 3, 10, 2, nil, 0},
 				},
 			},
 		},

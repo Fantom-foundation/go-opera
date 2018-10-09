@@ -32,27 +32,27 @@ func NewInmemAppProxy(logger *logrus.Logger) *InmemAppProxy {
 	}
 }
 
-func (iap *InmemAppProxy) commit(block poset.Block) ([]byte, error) {
-	iap.committedTransactions = append(iap.committedTransactions, block.Transactions()...)
+func (p *InmemAppProxy) commit(block poset.Block) ([]byte, error) {
+	p.committedTransactions = append(p.committedTransactions, block.Transactions()...)
 
-	hash := iap.stateHash
+	hash := p.stateHash
 
 	for _, t := range block.Transactions() {
 		tHash := bcrypto.SHA256(t)
 		hash = bcrypto.SimpleHashFromTwoHashes(hash, tHash)
 	}
 
-	iap.stateHash = hash
+	p.stateHash = hash
 
 	//XXX do something smart here
-	iap.snapshots[block.Index()] = hash
+	p.snapshots[block.Index()] = hash
 
-	return iap.stateHash, nil
+	return p.stateHash, nil
 }
 
-func (iap *InmemAppProxy) restore(snapshot []byte) error {
+func (p *InmemAppProxy) restore(snapshot []byte) error {
 	//XXX do something smart here
-	iap.stateHash = snapshot
+	p.stateHash = snapshot
 
 	return nil
 }
