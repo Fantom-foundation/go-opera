@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	mq "github.com/eclipse/paho.mqtt.golang"
 
 	"strconv"
 
@@ -33,6 +34,7 @@ type Node struct {
 
 	trans net.Transport
 	netCh <-chan net.RPC
+	mqtt *net.MqttSocket
 
 	proxy    proxy.AppProxy
 	submitCh chan []byte
@@ -83,6 +85,13 @@ func NewNode(conf *Config,
 		controlTimer: NewRandomControlTimer(conf.HeartbeatTimeout),
 		start:        time.Now(),
 	}
+
+	wg := sync.WaitGroup{}
+	mqtt := net.NewMqttSocket("tcp://localhost:1883", func(client mq.Client, message mq.Message) {
+		node.logger.Debug("Message received : ", string(message.Payload()), " on topic ", message.Topic())
+		wg.Done()
+	})
+	node.mqtt = mqtt
 
 	node.needBoostrap = store.NeedBoostrap()
 
@@ -155,6 +164,7 @@ func (n *Node) doBackgroundWork() {
 			})
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transactions to Transaction Pool")
+			n.mqtt.FireEvent(t, "/mq/lachesis/tx")
 			n.addTransaction(t)
 			if !n.controlTimer.set {
 				n.controlTimer.resetCh <- struct{}{}
@@ -165,6 +175,7 @@ func (n *Node) doBackgroundWork() {
 				"round_received": block.RoundReceived(),
 				"transactions":   len(block.Transactions()),
 			}).Debug("Adding EventBlock")
+			n.mqtt.FireEvent(block, "/mq/lachesis/block")
 			if err := n.commit(block); err != nil {
 				n.logger.WithField("error", err).Error("Adding EventBlock")
 			}
@@ -644,6 +655,7 @@ func (n *Node) addTransaction(tx []byte) {
 
 func (n *Node) Shutdown() {
 	if n.getState() != Shutdown {
+		n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
 		n.logger.Debug("Shutdown()")
 
 		//Exit any non-shutdown state immediately
@@ -697,7 +709,7 @@ func (n *Node) GetStats() map[string]string {
 		"consensus_transactions":  strconv.Itoa(consensusTransactions),
 		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
 		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
-		"num_peers":              strconv.Itoa(n.peerSelector.Peers().Len()),
+		"num_peers":               strconv.Itoa(n.peerSelector.Peers().Len()),
 		"sync_rate":               strconv.FormatFloat(n.SyncRate(), 'f', 2, 64),
 		"transactions_per_second": strconv.FormatFloat(transactionsPerSecond, 'f', 2, 64),
 		"events_per_second":       strconv.FormatFloat(consensusEventsPerSecond, 'f', 2, 64),
@@ -706,6 +718,7 @@ func (n *Node) GetStats() map[string]string {
 		"id":                      strconv.Itoa(n.id),
 		"state":                   n.getState().String(),
 	}
+	n.mqtt.FireEvent(s, "/mq/lachesis/stats" )
 	return s
 }
 

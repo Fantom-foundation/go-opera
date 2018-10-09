@@ -3,23 +3,23 @@ package net
 import (
 	"encoding/json"
 	"github.com/andrecronje/lachesis/utils"
-	MQTT "github.com/eclipse/paho.mqtt.golang"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 // MqttSocket mqttt socket connection for communication
 type MqttSocket struct {
-	options *MQTT.ClientOptions
-	client  MQTT.Client
+	options *mqtt.ClientOptions
+	client  mqtt.Client
 }
 
 // NewMqttSocket returns new MqttSocket
-func NewMqttSocket(host string, callback MQTT.MessageHandler) *MqttSocket {
-	options := MQTT.NewClientOptions().AddBroker(host)
+func NewMqttSocket(host string, callback mqtt.MessageHandler) *MqttSocket {
+	options := mqtt.NewClientOptions().AddBroker(host)
 	options.AutoReconnect = true
-	options.OnConnect = func(client MQTT.Client) {
+	options.OnConnect = func(client mqtt.Client) {
 		// MQTT client connected to server
 	}
-	options.OnConnectionLost = func(client MQTT.Client, e error) {
+	options.OnConnectionLost = func(client mqtt.Client, e error) {
 		// MQTT client connection lost with server
 	}
 	options.SetClientID(utils.NewUUID())
@@ -31,7 +31,7 @@ func NewMqttSocket(host string, callback MQTT.MessageHandler) *MqttSocket {
 
 // Connect creates connection to server or returns error if fails
 func (ms *MqttSocket) Connect() error {
-	ms.client = MQTT.NewClient(ms.options)
+	ms.client = mqtt.NewClient(ms.options)
 	if token := ms.client.Connect(); token.Wait() && token.Error() != nil {
 		return token.Error()
 	}
