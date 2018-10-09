@@ -23,7 +23,6 @@ func (r *RPC) Respond(resp interface{}, err error) {
 // Transport provides an interface for network transports
 // to allow a node to communicate with other nodes.
 type Transport interface {
-
 	// Consumer returns a channel that can be used to
 	// consume and respond to RPC requests.
 	Consumer() <-chan RPC

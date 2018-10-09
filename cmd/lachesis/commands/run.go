@@ -1,10 +1,13 @@
 package commands
 
 import (
+	"fmt"
 	"github.com/andrecronje/lachesis/src/lachesis"
 	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
+	"github.com/andrecronje/lachesis/tester"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/urfave/cli"
 )
 
 //AddRunFlags adds flags to the Run command
@@ -33,6 +36,10 @@ func AddRunFlags(cmd *cobra.Command) {
 	// Node configuration
 	cmd.Flags().Duration("heartbeat", config.Lachesis.NodeConfig.HeartbeatTimeout, "Time between gossips")
 	cmd.Flags().Int("sync-limit", config.Lachesis.NodeConfig.SyncLimit, "Max number of events for sync")
+
+	// Test
+	cmd.Flags().Bool("test", config.Lachesis.Test, "Enable testing (sends transactions to random nodes in the network)")
+	cmd.Flags().Uint64("test_n", config.Lachesis.TestN, "Number of transactions to send")
 }
 
 //NewRunCmd returns the command that starts a Lachesis node
@@ -97,6 +104,16 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 	if err := engine.Init(); err != nil {
 		config.Lachesis.Logger.Error("Cannot initialize engine:", err)
 		return nil
+	}
+
+	if config.Lachesis.Test {
+		p, err := engine.Store.Participants()
+		if err != nil {
+			return cli.NewExitError(
+				fmt.Sprintf("Failed to acquire participants: %s", err),
+				1)
+		}
+		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.ServiceAddr)
 	}
 
 	engine.Run()

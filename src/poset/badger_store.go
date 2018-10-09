@@ -5,9 +5,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/dgraph-io/badger"
 	cm "github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/dgraph-io/badger"
 )
 
 var (
@@ -374,17 +374,17 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 		//check if it already exists
-		new := false
+		existent := false
 		_, err = tx.Get([]byte(eventHex))
 		if err != nil && isDBKeyNotFound(err) {
-			new = true
+			existent = true
 		}
 		//insert [event hash] => [event bytes]
 		if err := tx.Set([]byte(eventHex), val); err != nil {
 			return err
 		}
 
-		if new {
+		if existent {
 			//insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.topologicalIndex)
 			if err := tx.Set(topoKey, []byte(eventHex)); err != nil {
@@ -401,7 +401,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 }
 
 func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
-	res := []Event{}
+	var res []Event
 	t := 0
 	err := s.db.View(func(txn *badger.Txn) error {
 		key := topologicalEventKey(t)
@@ -444,7 +444,7 @@ func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 }
 
 func (s *BadgerStore) dbParticipantEvents(participant string, skip int) ([]string, error) {
-	res := []string{}
+	var res []string
 	err := s.db.View(func(txn *badger.Txn) error {
 		i := skip + 1
 		key := participantEventKey(participant, i)
@@ -471,7 +471,7 @@ func (s *BadgerStore) dbParticipantEvents(participant string, skip int) ([]strin
 }
 
 func (s *BadgerStore) dbParticipantEvent(participant string, index int) (string, error) {
-	data := []byte{}
+	var data []byte
 	key := participantEventKey(participant, index)
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)

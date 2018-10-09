@@ -11,9 +11,9 @@ import (
 
 	"strconv"
 
-	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/proxy"
 )
 
@@ -103,7 +103,7 @@ func NewNode(conf *Config,
 }
 
 func (n *Node) Init() error {
-	peerAddresses := []string{}
+	var peerAddresses []string
 	for _, p := range n.peerSelector.Peers().ToPeerSlice() {
 		peerAddresses = append(peerAddresses, p.NetAddr)
 	}
@@ -185,7 +185,7 @@ func (n *Node) doBackgroundWork() {
 	}
 }
 
-//lachesis is interrupted when a gossip function, launched asychronously, changes
+//lachesis is interrupted when a gossip function, launched asynchronously, changes
 //the state from Gossiping to CatchingUp, or when the node is shutdown.
 //Otherwise, it periodicaly initiates gossip while there is something to gossip
 //about, or waits.
