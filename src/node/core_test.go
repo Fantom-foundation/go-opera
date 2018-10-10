@@ -10,7 +10,7 @@ import (
 	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/peers"
-	hg "github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/poset"
 )
 
 func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[string]string) {
@@ -34,12 +34,15 @@ func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[stri
 		core := NewCore(i,
 			participantKeys[peer.ID],
 			participants,
-			hg.NewInmemStore(participants, cacheSize),
+			poset.NewInmemStore(participants, cacheSize),
 			nil,
 			common.NewTestLogger(t))
 
 		//Create and save the first Event
-		initialEvent := hg.NewEvent([][]byte(nil), nil,
+		hash := fmt.Sprintf("Root%d", i)
+		flagTable := make(map[string]bool)
+		flagTable[hash] = true
+		initialEvent := poset.NewEvent([][]byte(nil), nil,
 			[]string{fmt.Sprintf("Root%d", peer.ID), ""},
 			core.PubKey(),
 			0, flagTable, 1)
@@ -67,7 +70,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) error {
+func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) {
 	for i := 0; i < len(cores); i++ {
 		if i != participant {
 			event, _ := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
@@ -78,13 +81,13 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 	}
 
 	// Get flag tables from parents
-	event0, err := cores[0].poset.Store.GetEvent("e0")
+	event0, err := cores[0].poset.Store.GetEvent(index["e0"])
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
+		fmt.Printf("Error retrieving parent: %s", err)
 	}
-	event1, err := cores[0].poset.Store.GetEvent("e1")
+	event1, err := cores[0].poset.Store.GetEvent(index["e1"])
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
+		fmt.Printf("Error retrieving parent: %s", err)
 	}
 	flagTable, flags := event0.FlagTable()
 	otherFlagTable, _ := event1.FlagTable()
@@ -96,17 +99,17 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 		}
 	}
 
-	event01 := hg.NewEvent([][]byte{}, nil,
-		[]string{index["e0"], index["e1"]}, //e0 and e1
-		cores[0].PubKey(), 1, nil, 0)
+	event01 := poset.NewEvent([][]byte{}, nil,
+		[]string{index["e0"], index["e1"]}, // e0 and e1
+		cores[0].PubKey(), 1, flagTable, flags)
 	if err := insertEvent(cores, keys, index, event01, "e01", participant, common.Hash32(cores[0].pubKey)); err != nil {
 		fmt.Printf("error inserting e01: %s\n", err)
 	}
 
 	// Get flag tables from parents
-	event2, err := cores[2].poset.Store.GetEvent("e2")
+	event2, err := cores[2].poset.Store.GetEvent(index["e2"])
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
+		fmt.Printf("Error retrieving parent: %s", err)
 	}
 	flagTable, flags = event2.FlagTable()
 	otherFlagTable, _ = event01.FlagTable()
@@ -118,9 +121,9 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 		}
 	}
 
-	event20 := hg.NewEvent([][]byte{}, nil,
-		[]string{index["e2"], index["e01"]}, //e2 and e01
-		cores[2].PubKey(), 1, nil, 0)
+	event20 := poset.NewEvent([][]byte{}, nil,
+		[]string{index["e2"], index["e01"]}, // e2 and e01
+		cores[2].PubKey(), 1, flagTable, flags)
 	if err := insertEvent(cores, keys, index, event20, "e20", participant, common.Hash32(cores[2].pubKey)); err != nil {
 		fmt.Printf("error inserting e20: %s\n", err)
 	}
@@ -135,23 +138,22 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 		}
 	}
 
-	event12 := hg.NewEvent([][]byte{}, nil,
-		[]string{index["e1"], index["e20"]}, //e1 and e20
-		cores[1].PubKey(), 1, nil, 0)
+	event12 := poset.NewEvent([][]byte{}, nil,
+		[]string{index["e1"], index["e20"]}, // e1 and e20
+		cores[1].PubKey(), 1, flagTable, flags)
 	if err := insertEvent(cores, keys, index, event12, "e12", participant, common.Hash32(cores[1].pubKey)); err != nil {
 		fmt.Printf("error inserting e12: %s\n", err)
 	}
-	return nil
 }
 
 func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string,
-	event hg.Event, name string, particant int, creator int) error {
+	event poset.Event, name string, participant int, creator int) error {
 
 	if participant == creator {
 		if err := cores[participant].SignAndInsertSelfEvent(event); err != nil {
 			return err
 		}
-		//event is not signed because passed by value
+		// event is not signed because passed by value
 		index[name] = cores[participant].Head
 	} else {
 		event.Sign(keys[creator])
@@ -201,6 +203,7 @@ func TestEventDiff(t *testing.T) {
 	}
 
 }
+
 func TestSync(t *testing.T) {
 	cores, _, index := initCores(3, t)
 
@@ -211,7 +214,7 @@ func TestSync(t *testing.T) {
 	   0   1   2        0   1   2       0   1   2
 	*/
 
-	//core 1 is going to tell core 0 everything it knows
+	// core 1 is going to tell core 0 everything it knows
 	if err := synchronizeCores(cores, 1, 0, [][]byte{}); err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +247,7 @@ func TestSync(t *testing.T) {
 	}
 	index["e01"] = core0Head.Hex()
 
-	//core 0 is going to tell core 2 everything it knows
+	// core 0 is going to tell core 2 everything it knows
 	if err := synchronizeCores(cores, 0, 2, [][]byte{}); err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +285,7 @@ func TestSync(t *testing.T) {
 	}
 	index["e20"] = core2Head.Hex()
 
-	//core 2 is going to tell core 1 everything it knows
+	// core 2 is going to tell core 1 everything it knows
 	if err := synchronizeCores(cores, 2, 1, [][]byte{}); err != nil {
 		t.Fatal(err)
 	}
@@ -427,7 +430,7 @@ func TestConsensus(t *testing.T) {
 func TestOverSyncLimit(t *testing.T) {
 	cores := initConsensusPoset(t)
 
-	//positive
+	// positive
 	known := map[int]int{
 		common.Hash32(cores[0].pubKey): 1,
 		common.Hash32(cores[1].pubKey): 1,
@@ -440,7 +443,7 @@ func TestOverSyncLimit(t *testing.T) {
 		t.Fatalf("OverSyncLimit(%v, %v) should return true", known, syncLimit)
 	}
 
-	//negative
+	// negative
 	known = map[int]int{
 		common.Hash32(cores[0].pubKey): 6,
 		common.Hash32(cores[1].pubKey): 6,
@@ -451,7 +454,7 @@ func TestOverSyncLimit(t *testing.T) {
 		t.Fatalf("OverSyncLimit(%v, %v) should return false", known, syncLimit)
 	}
 
-	//edge
+	// edge
 	known = map[int]int{
 		common.Hash32(cores[0].pubKey): 2,
 		common.Hash32(cores[1].pubKey): 3,
@@ -530,7 +533,7 @@ func initFFPposet(cores []Core, t *testing.T) {
 
 func TestConsensusFF(t *testing.T) {
 	cores, _, _ := initCores(4, t)
-	initFFPoset(cores, t)
+	initFFPposet(cores, t)
 
 	if r := cores[1].GetLastConsensusRoundIndex(); r == nil || *r != 1 {
 		disp := "nil"
@@ -560,10 +563,10 @@ func TestConsensusFF(t *testing.T) {
 
 func TestCoreFastForward(t *testing.T) {
 	cores, _, _ := initCores(4, t)
-	initFFPoset(cores, t)
+	initFFPposet(cores, t)
 
 	t.Run("Test no Anchor", func(t *testing.T) {
-		//Test no anchor block
+		// Test no anchor block
 		_, _, err := cores[1].GetAnchorBlockWithFrame()
 		if err == nil {
 			t.Fatal("GetAnchorBlockWithFrame should throw an error because there is no anchor block yet")
@@ -575,8 +578,8 @@ func TestCoreFastForward(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//collect signatures
-	signatures := make([]hg.BlockSignature, 3)
+	// collect signatures
+	signatures := make([]poset.BlockSignature, 3)
 	for k, c := range cores[1:] {
 		b, err := c.poset.Store.GetBlock(0)
 		if err != nil {
@@ -590,42 +593,42 @@ func TestCoreFastForward(t *testing.T) {
 	}
 
 	t.Run("Test not enough signatures", func(t *testing.T) {
-		//Append only 1 signatures
+		// Append only 1 signatures
 		if err := block0.SetSignature(signatures[0]); err != nil {
 			t.Fatal(err)
 		}
 
-		//Save Block
+		// Save Block
 		if err := cores[1].poset.Store.SetBlock(block0); err != nil {
 			t.Fatal(err)
 		}
-		//Assign AnchorBlock
+		// Assign AnchorBlock
 		cores[1].poset.AnchorBlock = new(int)
 		*cores[1].poset.AnchorBlock = 0
 
-		//Now the function should find an AnchorBlock
+		// Now the function should find an AnchorBlock
 		block, frame, err := cores[1].GetAnchorBlockWithFrame()
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		err = cores[0].FastForward(cores[1].hexID, block, frame)
-		//We should get an error because AnchorBlock doesnt contain enough
-		//signatures
+		// We should get an error because AnchorBlock doesnt contain enough
+		// signatures
 		if err == nil {
 			t.Fatal("FastForward should throw an error because the Block does not contain enough signatures")
 		}
 	})
 
 	t.Run("Test positive", func(t *testing.T) {
-		//Append the 2nd and 3rd signatures
+		// Append the 2nd and 3rd signatures
 		for i := 1; i < 3; i++ {
 			if err := block0.SetSignature(signatures[i]); err != nil {
 				t.Fatal(err)
 			}
 		}
 
-		//Save Block
+		// Save Block
 		if err := cores[1].poset.Store.SetBlock(block0); err != nil {
 			t.Fatal(err)
 		}
