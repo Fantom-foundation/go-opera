@@ -721,11 +721,12 @@ func (n *Node) logStats() {
 		"num_peers":              stats["num_peers"],
 		"sync_rate":              stats["sync_rate"],
 		"events/s":               stats["events_per_second"],
+		"t/s":               			stats["transactions_per_second"],
 		"rounds/s":               stats["rounds_per_second"],
 		"round_events":           stats["round_events"],
 		"id":                     stats["id"],
 		"state":                  stats["state"],
-	}).Debug("logStats()")
+	}).Warn("logStats()")
 }
 
 func (n *Node) SyncRate() float64 {
