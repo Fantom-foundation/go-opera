@@ -81,11 +81,11 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 	}
 
 	// Get flag tables from parents
-	event0, err := cores[0].poset.Store.GetEvent("e0")
+	event0, err := cores[0].poset.Store.GetEvent(index["e0"])
 	if err != nil {
 		fmt.Printf("Error retrieving parent: %s", err)
 	}
-	event1, err := cores[0].poset.Store.GetEvent("e1")
+	event1, err := cores[0].poset.Store.GetEvent(index["e1"])
 	if err != nil {
 		fmt.Printf("Error retrieving parent: %s", err)
 	}
@@ -107,7 +107,7 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 	}
 
 	// Get flag tables from parents
-	event2, err := cores[2].poset.Store.GetEvent("e2")
+	event2, err := cores[2].poset.Store.GetEvent(index["e2"])
 	if err != nil {
 		fmt.Printf("Error retrieving parent: %s", err)
 	}
@@ -203,6 +203,7 @@ func TestEventDiff(t *testing.T) {
 	}
 
 }
+
 func TestSync(t *testing.T) {
 	cores, _, index := initCores(3, t)
 
