@@ -105,6 +105,7 @@ func LoadOrCreateBadgerStore(participants *peers.Peers, cacheSize int, path stri
 	store, err := LoadBadgerStore(cacheSize, path)
 
 	if err != nil {
+		fmt.Println("Could not load store - creating new")
 		store, err = NewBadgerStore(participants, cacheSize, path)
 
 		if err != nil {
