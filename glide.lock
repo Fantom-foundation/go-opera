@@ -1,10 +1,10 @@
-hash: 5618888e8c38b46b5702c6629f459d821155a371dfe172fc17d2cc132424dee4
-updated: 2018-10-04T16:18:57.904717+10:00
+hash: 974fe0f7017dfcc8275c567ccddb8ede11059d97b03d0d8c438991d0a427b524
+updated: 2018-10-10T15:20:49.142478+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
 - name: github.com/dgraph-io/badger
-  version: 99233d725dbdd26d156c61b2f42ae1671b794656
+  version: 391b6d3b93e6014fe8c2971fcc0c1266e47dbbd9
   subpackages:
   - options
   - protos
@@ -20,7 +20,7 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/golang/protobuf
-  version: 7011d38ac0d201eeddff4a4085a657c3da322d75
+  version: ddf22928ea3c56eb4292a0adbbf5001b1e8e7d0d
   subpackages:
   - proto
 - name: github.com/google/gopacket
@@ -42,19 +42,19 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/konsorten/go-windows-terminal-sequences
-  version: b729f2633dfe35f4d1d8a32385f6685610ce1cb5
+  version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mitchellh/mapstructure
-  version: 8121acaf832261966919850eded22f06427f030e
+  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pelletier/go-toml
   version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
 - name: github.com/pkg/errors
-  version: c059e472caf75dbe73903f6521a20abac245b17f
+  version: 2233dee583dcf88f3c8b22cb7a33f05a499800d8
 - name: github.com/satori/go.uuid
   version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/sirupsen/logrus
-  version: a67f783a3814b8729bd2dac5780b5f78f8dbd64d
+  version: ad15b42461921f1fb3529b058c6786c6a45d5162
 - name: github.com/spf13/afero
   version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
@@ -64,7 +64,7 @@ imports:
 - name: github.com/spf13/cobra
   version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
 - name: github.com/spf13/jwalterweatherman
-  version: 4a4406e478ca629068e7768fc33f3f044173c0a6
+  version: 103a6da826d08544f49833dabd4f1cdf8a1038bb
 - name: github.com/spf13/pflag
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
@@ -76,11 +76,11 @@ imports:
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: golang.org/x/crypto
-  version: e3636079e1a4c1f337f212cc5cd2aca108f6c900
+  version: 7c1a557ab941a71c619514f229f0b27ccb0c27cf
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 4dfa2610cdf3b287375bbba5b8f2a14d3b01d8de
+  version: 146acd28ed5894421fb5aac80ca93bc1b1f46f87
   subpackages:
   - context
   - internal/socks
@@ -89,7 +89,7 @@ imports:
   - trace
   - websocket
 - name: golang.org/x/sys
-  version: e4b3c5e9061176387e7cea65e4dc5853801f3fb7
+  version: 4497e2df6f9e69048a54498c7affbbec3294ad47
   subpackages:
   - unix
   - windows
