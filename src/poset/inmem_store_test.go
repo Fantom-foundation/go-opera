@@ -50,7 +50,7 @@ func TestInmemEvents(t *testing.T) {
 					[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 					[]string{"", ""},
 					p.pubKey,
-					k, nil, 0)
+					k, nil)
 				_ = event.Hex() //just to set private variables
 				items = append(items, event)
 				err := store.SetEvent(event)
@@ -129,7 +129,7 @@ func TestInmemRounds(t *testing.T) {
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
-			0, nil, 0)
+			0, nil)
 		events[p.hex] = event
 		round.AddEvent(event.Hex(), true)
 	}

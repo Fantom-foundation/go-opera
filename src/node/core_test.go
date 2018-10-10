@@ -38,14 +38,14 @@ func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[stri
 			nil,
 			common.NewTestLogger(t))
 
+		selfParent := fmt.Sprintf("Root%d", peer.ID)
+
+		flagTable := make(map[string]int)
+		flagTable[selfParent] = 1
+
 		//Create and save the first Event
-		hash := fmt.Sprintf("Root%d", i)
-		flagTable := make(map[string]bool)
-		flagTable[hash] = true
 		initialEvent := poset.NewEvent([][]byte(nil), nil,
-			[]string{fmt.Sprintf("Root%d", peer.ID), ""},
-			core.PubKey(),
-			0, flagTable, 1)
+			[]string{selfParent, ""}, core.PubKey(), 0, flagTable)
 		err := core.SignAndInsertSelfEvent(initialEvent)
 		if err != nil {
 			t.Fatal(err)
@@ -70,12 +70,18 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) {
+func initPoset(t *testing.T, cores []Core, keys map[int]*ecdsa.PrivateKey,
+	index map[string]string, participant int) {
 	for i := 0; i < len(cores); i++ {
 		if i != participant {
-			event, _ := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
-			if err := cores[participant].InsertEvent(event, true); err != nil {
-				fmt.Printf("error inserting %s: %s\n", getName(index, event.Hex()), err)
+			event, err := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = cores[participant].InsertEvent(event, true)
+			if err != nil {
+				t.Fatalf("error inserting %s: %s\n",
+					getName(index, event.Hex()), err)
 			}
 		}
 	}
@@ -83,65 +89,47 @@ func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]st
 	// Get flag tables from parents
 	event0, err := cores[0].poset.Store.GetEvent(index["e0"])
 	if err != nil {
-		fmt.Printf("Error retrieving parent: %s", err)
+		t.Fatalf("failed to get parent: %s", err)
 	}
 	event1, err := cores[0].poset.Store.GetEvent(index["e1"])
 	if err != nil {
-		fmt.Printf("Error retrieving parent: %s", err)
-	}
-	flagTable, flags := event0.FlagTable()
-	otherFlagTable, _ := event1.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range otherFlagTable {
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
-		}
+		t.Fatalf("failed to get parent: %s", err)
 	}
 
+	event1ft, _ := event1.GetFlagTable()
+	event01ft, _ := event0.MargeFlagTable(event1ft)
+
 	event01 := poset.NewEvent([][]byte{}, nil,
-		[]string{index["e0"], index["e1"]}, // e0 and e1
-		cores[0].PubKey(), 1, flagTable, flags)
-	if err := insertEvent(cores, keys, index, event01, "e01", participant, common.Hash32(cores[0].pubKey)); err != nil {
-		fmt.Printf("error inserting e01: %s\n", err)
+		[]string{index["e0"], index["e1"]}, //e0 and e1
+		cores[0].PubKey(), 1, event01ft)
+	if err := insertEvent(cores, keys, index, event01, "e01", participant,
+		common.Hash32(cores[0].pubKey)); err != nil {
+		t.Fatalf("error inserting e01: %s\n", err)
 	}
 
 	// Get flag tables from parents
 	event2, err := cores[2].poset.Store.GetEvent(index["e2"])
 	if err != nil {
-		fmt.Printf("Error retrieving parent: %s", err)
-	}
-	flagTable, flags = event2.FlagTable()
-	otherFlagTable, _ = event01.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range otherFlagTable {
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
-		}
+		t.Fatalf("failed to get parent: %s", err)
 	}
 
+	event20ft, _ := event2.MargeFlagTable(event01ft)
+
 	event20 := poset.NewEvent([][]byte{}, nil,
-		[]string{index["e2"], index["e01"]}, // e2 and e01
-		cores[2].PubKey(), 1, flagTable, flags)
-	if err := insertEvent(cores, keys, index, event20, "e20", participant, common.Hash32(cores[2].pubKey)); err != nil {
+		[]string{index["e2"], index["e01"]}, //e2 and e01
+		cores[2].PubKey(), 1, event20ft)
+	if err := insertEvent(cores, keys, index, event20, "e20", participant,
+		common.Hash32(cores[2].pubKey)); err != nil {
 		fmt.Printf("error inserting e20: %s\n", err)
 	}
 
-	flagTable, flags = event1.FlagTable()
-	otherFlagTable, _ = event20.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range otherFlagTable {
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
-		}
-	}
+	event12ft, _ := event1.MargeFlagTable(event20ft)
 
 	event12 := poset.NewEvent([][]byte{}, nil,
-		[]string{index["e1"], index["e20"]}, // e1 and e20
-		cores[1].PubKey(), 1, flagTable, flags)
-	if err := insertEvent(cores, keys, index, event12, "e12", participant, common.Hash32(cores[1].pubKey)); err != nil {
+		[]string{index["e1"], index["e20"]}, //e1 and e20
+		cores[1].PubKey(), 1, event12ft)
+	if err := insertEvent(cores, keys, index, event12, "e12", participant,
+		common.Hash32(cores[1].pubKey)); err != nil {
 		fmt.Printf("error inserting e12: %s\n", err)
 	}
 }
@@ -168,21 +156,21 @@ func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]
 func TestEventDiff(t *testing.T) {
 	cores, keys, index := initCores(3, t)
 
-	initPoset(cores, keys, index, 0)
+	initPoset(t, cores, keys, index, 0)
 
 	/*
-	   P0 knows
+	  P0 knows
 
-	   |  e12  |
-	   |   | \ |
-	   |   |   e20
-	   |   | / |
-	   |   /   |
-	   | / |   |
-	   e01 |   |        P1 knows
-	   | \ |   |
-	   e0  e1  e2       |   e1  |
-	   0   1   2        0   1   2
+	  |  e12  |
+	  |   | \ |
+	  |   |   e20
+	  |   | / |
+	  |   /   |
+	  | / |   |
+	  e01 |   |        P1 knows
+	  | \ |   |
+	  e0  e1  e2       |   e1  |
+	  0   1   2        0   1   2
 	*/
 
 	knownBy1 := cores[1].KnownEvents()
@@ -244,6 +232,9 @@ func TestSync(t *testing.T) {
 	}
 	if core0Head.OtherParent() != index["e1"] {
 		t.Fatalf("core 0 head other-parent should be e1")
+	}
+	if len(core0Head.FlagTable) == 0 {
+		t.Fatal("flag table is null")
 	}
 	index["e01"] = core0Head.Hex()
 
@@ -506,7 +497,7 @@ func TestOverSyncLimit(t *testing.T) {
     |   e1  e2  e3
     0	1	2	3
 */
-func initFFPposet(cores []Core, t *testing.T) {
+func initFFPoset(cores []Core, t *testing.T) {
 	playbook := []play{
 		{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
 		{from: 2, to: 3, payload: [][]byte{[]byte("e32")}},
@@ -533,7 +524,7 @@ func initFFPposet(cores []Core, t *testing.T) {
 
 func TestConsensusFF(t *testing.T) {
 	cores, _, _ := initCores(4, t)
-	initFFPposet(cores, t)
+	initFFPoset(cores, t)
 
 	if r := cores[1].GetLastConsensusRoundIndex(); r == nil || *r != 1 {
 		disp := "nil"
@@ -563,7 +554,7 @@ func TestConsensusFF(t *testing.T) {
 
 func TestCoreFastForward(t *testing.T) {
 	cores, _, _ := initCores(4, t)
-	initFFPposet(cores, t)
+	initFFPoset(cores, t)
 
 	t.Run("Test no Anchor", func(t *testing.T) {
 		// Test no anchor block
