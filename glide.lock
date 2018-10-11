@@ -52,7 +52,7 @@ imports:
 - name: github.com/pkg/errors
   version: 2233dee583dcf88f3c8b22cb7a33f05a499800d8
 - name: github.com/satori/go.uuid
-  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
+  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
   version: ad15b42461921f1fb3529b058c6786c6a45d5162
 - name: github.com/spf13/afero
