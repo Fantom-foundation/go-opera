@@ -291,41 +291,40 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	// Get flag tables from parents
-	// parentEvent, perr := c.poset.Store.GetEvent(c.Head)
-	flagTable := make(map[string]bool)
-	// var flags int
+	parentEvent, errSelf := c.poset.Store.GetEvent(c.Head)
+	if errSelf != nil {
+		c.logger.Warn("failed to get parent: %s", errSelf)
+	}
+	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
+	if errOther != nil {
+		c.logger.Warn("failed to get  other parent: %s", errOther)
+	}
 
-	// debug.PrintStack()
-	// c.logger.Debug("Getting info for block", otherHead)
-	// c.logger.Debug("parentEvent", parentEvent)
-	// c.logger.Debug("head", c.Head)
-	// c.printEvents()
+	var (
+		flagTable map[string]int
+		err       error
+	)
 
-	// if perr != nil {
-	// 	return fmt.Errorf("Error retrieving parent: %s", perr)
-	// }
-	// otherParentEvent, oerr := c.poset.Store.GetEvent(otherHead)
-	// if oerr != nil {
-	// 	return fmt.Errorf("Error retrieving other parent: %s", oerr)
-	// }
+	if errSelf != nil {
+		flagTable = map[string]int{c.Head: 1}
+	} else {
+		flagTable, err = parentEvent.GetFlagTable()
+		if err != nil {
+			return fmt.Errorf("failed to get self flag table: %s", err)
+		}
+	}
 
-	// flagTable, flags := parentEvent.FlagTable()
-	// otherFlagTable, _ := otherParentEvent.FlagTable()
-	// // event flag table = parent 1 flag table OR parent 2 flag table
-	// for id, flag := range otherFlagTable {
-	// 	if !flagTable[id] && flag {
-	// 		flagTable[id] = true
-	// 		flags++
-	// 	}
-	// }
+	if errOther == nil {
+		flagTable, err = otherParentEvent.MargeFlagTable(flagTable)
+		if err != nil {
+			return fmt.Errorf("failed to marge flag tables: %s", err)
+		}
+	}
 
 	// create new event with self head and empty other parent
 	// empty transaction pool in its payload
-	newHead := poset.NewEvent(c.transactionPool,
-		c.blockSignaturePool,
-		[]string{c.Head, otherHead},
-		c.PubKey(), c.Seq+1,
-		flagTable, 0)
+	newHead := poset.NewEvent(c.transactionPool, c.blockSignaturePool,
+		[]string{c.Head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)

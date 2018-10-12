@@ -45,7 +45,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 
 func transact(target peers.Peer, nodeId int, proxyAddress string) (string, error) {
 	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
-	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10 * time.Second)
+	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10*time.Second)
 
 	_, err := proxy.SubmitTx([]byte("oh hai"))
 	// fmt.Println("Submitted tx, ack=", ack)  # `ack` is now `_`

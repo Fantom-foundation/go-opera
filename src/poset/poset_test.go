@@ -111,7 +111,7 @@ func playEvents(plays []play, nodes []TestNode, index map[string]string, ordered
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index, nil, 0)
+			p.index, nil)
 
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
@@ -145,7 +145,7 @@ func initPosetFull(plays []play, db bool, n int, logger *logrus.Entry) (*Poset, 
 
 	// Needed to have sorted nodes based on participants hash32
 	for i, peer := range participants.ToPeerSlice() {
-		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil, 0)
+		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 	}
 
@@ -364,14 +364,14 @@ func TestFork(t *testing.T) {
 	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
-		event := NewEvent(nil, nil, []string{"", ""}, node.Pub, 0, nil, 0)
+		event := NewEvent(nil, nil, []string{"", ""}, node.Pub, 0, nil)
 		event.Sign(node.Key)
 		index[fmt.Sprintf("e%d", i)] = event.Hex()
 		poset.InsertEvent(event, true)
 	}
 
 	//a and e2 need to have different hashes
-	eventA := NewEvent([][]byte{[]byte("yo")}, nil, []string{"", ""}, nodes[2].Pub, 0, nil, 0)
+	eventA := NewEvent([][]byte{[]byte("yo")}, nil, []string{"", ""}, nodes[2].Pub, 0, nil)
 	eventA.Sign(nodes[2].Key)
 	index["a"] = eventA.Hex()
 	if err := poset.InsertEvent(eventA, true); err == nil {
@@ -380,7 +380,7 @@ func TestFork(t *testing.T) {
 
 	event01 := NewEvent(nil, nil,
 		[]string{index["e0"], index["a"]}, //e0 and a
-		nodes[0].Pub, 1, nil, 0)
+		nodes[0].Pub, 1, nil)
 	event01.Sign(nodes[0].Key)
 	index["e01"] = event01.Hex()
 	if err := poset.InsertEvent(event01, true); err == nil {
@@ -389,7 +389,7 @@ func TestFork(t *testing.T) {
 
 	event20 := NewEvent(nil, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
-		nodes[2].Pub, 1, nil, 0)
+		nodes[2].Pub, 1, nil)
 	event20.Sign(nodes[2].Key)
 	index["e20"] = event20.Hex()
 	if err := poset.InsertEvent(event20, true); err == nil {
@@ -834,25 +834,27 @@ func TestCreateRoot(t *testing.T) {
 
 	participants := h.Participants.ToPeerSlice()
 
+	baseRoot := NewBaseRoot(participants[0].ID)
+
 	expected := map[string]Root{
-		"e0": NewBaseRoot(participants[0].ID),
+		"e0": baseRoot,
 		"e02": {
 			NextRound:  0,
-			SelfParent: RootEvent{index["s00"], participants[0].ID, 1, 1, 0, nil, 0},
+			SelfParent: RootEvent{index["s00"], participants[0].ID, 1, 1, 0},
 			Others: map[string]RootEvent{
-				index["e02"]: {index["e21"], participants[2].ID, 2, 2, 0, nil, 0},
+				index["e02"]: {index["e21"], participants[2].ID, 2, 2, 0},
 			},
 		},
 		"s10": {
 			NextRound:  0,
-			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0, nil, 0},
+			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0},
 			Others:     map[string]RootEvent{},
 		},
 		"f1": {
 			NextRound:  1,
-			SelfParent: RootEvent{index["s10"], participants[1].ID, 2, 2, 0, nil, 0},
+			SelfParent: RootEvent{index["s10"], participants[1].ID, 2, 2, 0},
 			Others: map[string]RootEvent{
-				index["f1"]: {index["e02"], participants[0].ID, 2, 3, 0, nil, 0},
+				index["f1"]: {index["e02"], participants[0].ID, 2, 3, 0},
 			},
 		},
 	}
@@ -926,7 +928,7 @@ func TestCreateRootBis(t *testing.T) {
 			NextRound:  0,
 			SelfParent: NewBaseRootEvent(participants[1].ID),
 			Others: map[string]RootEvent{
-				index["e12"]: {index["e2"], participants[2].ID, 0, 0, 0, nil, 0},
+				index["e12"]: {index["e2"], participants[2].ID, 0, 0, 0},
 			},
 		},
 	}
@@ -955,7 +957,7 @@ func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]string) {
 	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	for i, peer := range participants.ToPeerSlice() {
-		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil, 0)
+		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 	}
 
@@ -1014,7 +1016,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 				p.sigPayload,
 				[]string{index[p.selfParent], index[p.otherParent]},
 				nodes[p.to].Pub,
-				p.index, nil, 0)
+				p.index, nil)
 			e.Sign(nodes[p.to].Key)
 			index[p.name] = e.Hex()
 			if err := h.InsertEvent(e, true); err != nil {
@@ -1032,8 +1034,8 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 
 		//Check that the block contains 3 signatures
 		block, _ := h.Store.GetBlock(0)
-		if l := len(block.Signatures); l != 3 {
-			t.Fatalf("Block 0 should contain 3 signatures, not %d", l)
+		if l := len(block.Signatures); l != 2 {
+			t.Fatalf("Block 0 should contain 2 signatures, not %d", l)
 		}
 
 		//Check that SigPool was cleared
@@ -1061,7 +1063,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index, nil, 0)
+			p.index, nil)
 		e.Sign(nodes[p.to].Key)
 		index[p.name] = e.Hex()
 		if err := h.InsertEvent(e, true); err != nil {
@@ -1092,7 +1094,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index, nil, 0)
+			p.index, nil)
 		e.Sign(nodes[p.to].Key)
 		index[p.name] = e.Hex()
 		if err := h.InsertEvent(e, true); err != nil {
@@ -1621,7 +1623,7 @@ func TestGetFrame(t *testing.T) {
 		expectedRoots := make([]Root, n)
 		expectedRoots[0] = Root{
 			NextRound:  1,
-			SelfParent: RootEvent{index["e02"], participants[0].ID, 1, 4, 0, nil, 0},
+			SelfParent: RootEvent{index["e02"], participants[0].ID, 1, 4, 0},
 			Others: map[string]RootEvent{
 				index["f0"]: {
 					Hash:             index["f1b"],
@@ -1641,7 +1643,7 @@ func TestGetFrame(t *testing.T) {
 		}
 		expectedRoots[1] = Root{
 			NextRound:  1,
-			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0, nil, 0},
+			SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0},
 			Others: map[string]RootEvent{
 				index["f1"]: {
 					Hash:             index["e02"],
@@ -1654,7 +1656,7 @@ func TestGetFrame(t *testing.T) {
 		}
 		expectedRoots[2] = Root{
 			NextRound:  1,
-			SelfParent: RootEvent{index["e21b"], participants[2].ID, 2, 3, 0, nil, 0},
+			SelfParent: RootEvent{index["e21b"], participants[2].ID, 2, 3, 0},
 			Others: map[string]RootEvent{
 				index["f2"]: {
 					Hash:             index["f1b"],
@@ -2032,7 +2034,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil, 0)
+		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, name, index, orderedEvents)
 	}
 
@@ -2270,53 +2272,53 @@ func TestFunkyPosetFrames(t *testing.T) {
 			NewBaseRoot(participants[0].ID),
 			{
 				NextRound:  0,
-				SelfParent: RootEvent{index["a12"], participants[1].ID, 1, 2, 0, nil, 0},
+				SelfParent: RootEvent{index["a12"], participants[1].ID, 1, 2, 0},
 				Others: map[string]RootEvent{
-					index["a10"]: {index["a00"], participants[0].ID, 1, 1, 0, nil, 0},
+					index["a10"]: {index["a00"], participants[0].ID, 1, 1, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["a21"], participants[2].ID, 2, 3, 0, nil, 0},
+				SelfParent: RootEvent{index["a21"], participants[2].ID, 2, 3, 0},
 				Others: map[string]RootEvent{
-					index["w12"]: {index["w13"], participants[3].ID, 1, 4, 1, nil, 0},
+					index["w12"]: {index["w13"], participants[3].ID, 1, 4, 1},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["w03"], participants[3].ID, 0, 0, 0, nil, 0},
+				SelfParent: RootEvent{index["w03"], participants[3].ID, 0, 0, 0},
 				Others: map[string]RootEvent{
-					index["w13"]: {index["a21"], participants[2].ID, 2, 3, 0, nil, 0},
+					index["w13"]: {index["a21"], participants[2].ID, 2, 3, 0},
 				},
 			},
 		},
 		3: {
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["a00"], participants[0].ID, 1, 1, 0, nil, 0},
+				SelfParent: RootEvent{index["a00"], participants[0].ID, 1, 1, 0},
 				Others: map[string]RootEvent{
-					index["w10"]: {index["w11"], participants[1].ID, 3, 6, 1, nil, 0},
+					index["w10"]: {index["w11"], participants[1].ID, 3, 6, 1},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w11"], participants[1].ID, 3, 6, 1, nil, 0},
+				SelfParent: RootEvent{index["w11"], participants[1].ID, 3, 6, 1},
 				Others: map[string]RootEvent{
-					index["w21"]: {index["w23"], participants[3].ID, 2, 8, 2, nil, 0},
+					index["w21"]: {index["w23"], participants[3].ID, 2, 8, 2},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["b21"], participants[2].ID, 4, 7, 1, nil, 0},
+				SelfParent: RootEvent{index["b21"], participants[2].ID, 4, 7, 1},
 				Others: map[string]RootEvent{
-					index["w22"]: {index["c10"], participants[1].ID, 5, 10, 2, nil, 0},
+					index["w22"]: {index["c10"], participants[1].ID, 5, 10, 2},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w13"], participants[3].ID, 1, 4, 1, nil, 0},
+				SelfParent: RootEvent{index["w13"], participants[3].ID, 1, 4, 1},
 				Others: map[string]RootEvent{
-					index["w23"]: {index["b21"], participants[2].ID, 4, 7, 1, nil, 0},
+					index["w23"]: {index["b21"], participants[2].ID, 4, 7, 1},
 				},
 			},
 		},
@@ -2484,7 +2486,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil, 0)
+		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, name, index, orderedEvents)
 	}
 
@@ -2517,7 +2519,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
-			p.index, nil, 0)
+			p.index, nil)
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 
@@ -2575,60 +2577,60 @@ func TestSparsePosetFrames(t *testing.T) {
 		2: {
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["w00"], participants[0].ID, 0, 0, 0, nil, 0},
+				SelfParent: RootEvent{index["w00"], participants[0].ID, 0, 0, 0},
 				Others: map[string]RootEvent{
-					index["w10"]: {index["e32"], participants[3].ID, 1, 3, 0, nil, 0},
+					index["w10"]: {index["e32"], participants[3].ID, 1, 3, 0},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0, nil, 0},
+				SelfParent: RootEvent{index["e10"], participants[1].ID, 1, 1, 0},
 				Others: map[string]RootEvent{
-					index["w11"]: {index["w10"], participants[0].ID, 1, 4, 1, nil, 0},
+					index["w11"]: {index["w10"], participants[0].ID, 1, 4, 1},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["e21"], participants[2].ID, 1, 2, 0, nil, 0},
+				SelfParent: RootEvent{index["e21"], participants[2].ID, 1, 2, 0},
 				Others: map[string]RootEvent{
-					index["w12"]: {index["f01"], participants[0].ID, 2, 6, 1, nil, 0},
+					index["w12"]: {index["f01"], participants[0].ID, 2, 6, 1},
 				},
 			},
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["e32"], participants[3].ID, 1, 3, 0, nil, 0},
+				SelfParent: RootEvent{index["e32"], participants[3].ID, 1, 3, 0},
 				Others: map[string]RootEvent{
-					index["w13"]: {index["w12"], participants[2].ID, 2, 7, 1, nil, 0},
+					index["w13"]: {index["w12"], participants[2].ID, 2, 7, 1},
 				},
 			},
 		},
 		3: {
 			{
 				NextRound:  1,
-				SelfParent: RootEvent{index["w10"], participants[0].ID, 1, 4, 1, nil, 0},
+				SelfParent: RootEvent{index["w10"], participants[0].ID, 1, 4, 1},
 				Others: map[string]RootEvent{
-					index["f01"]: {index["w11"], participants[1].ID, 2, 5, 1, nil, 0},
+					index["f01"]: {index["w11"], participants[1].ID, 2, 5, 1},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w11"], participants[1].ID, 2, 5, 1, nil, 0},
+				SelfParent: RootEvent{index["w11"], participants[1].ID, 2, 5, 1},
 				Others: map[string]RootEvent{
-					index["w21"]: {index["w13"], participants[3].ID, 2, 8, 1, nil, 0},
+					index["w21"]: {index["w13"], participants[3].ID, 2, 8, 1},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w12"], participants[2].ID, 2, 7, 1, nil, 0},
+				SelfParent: RootEvent{index["w12"], participants[2].ID, 2, 7, 1},
 				Others: map[string]RootEvent{
-					index["w22"]: {index["w21"], participants[1].ID, 3, 9, 2, nil, 0},
+					index["w22"]: {index["w21"], participants[1].ID, 3, 9, 2},
 				},
 			},
 			{
 				NextRound:  2,
-				SelfParent: RootEvent{index["w13"], participants[3].ID, 2, 8, 1, nil, 0},
+				SelfParent: RootEvent{index["w13"], participants[3].ID, 2, 8, 1},
 				Others: map[string]RootEvent{
-					index["w23"]: {index["w22"], participants[2].ID, 3, 10, 2, nil, 0},
+					index["w23"]: {index["w22"], participants[2].ID, 3, 10, 2},
 				},
 			},
 		},

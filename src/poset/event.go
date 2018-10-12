@@ -119,17 +119,13 @@ type Event struct {
 	hash    []byte
 	hex     string
 
-	flagTable map[string]bool // flagTable stores connection information
-	flags     int             // flags stores the number of connections
+	FlagTable []byte // FlagTable stores connection information
 }
 
-func NewEvent(transactions [][]byte,
-	blockSignatures []BlockSignature,
-	parents []string,
-	creator []byte,
-	index int,
-	flagTable map[string]bool,
-	flags int) Event {
+// NewEvent creates new block event.
+func NewEvent(transactions [][]byte, blockSignatures []BlockSignature,
+	parents []string, creator []byte, index int,
+	flagTable map[string]int) Event {
 
 	body := EventBody{
 		Transactions:    transactions,
@@ -138,10 +134,12 @@ func NewEvent(transactions [][]byte,
 		Creator:         creator,
 		Index:           index,
 	}
+
+	ft, _ := json.Marshal(flagTable)
+
 	return Event{
 		Body:      body,
-		flagTable: flagTable,
-		flags:     flags,
+		FlagTable: ft,
 	}
 }
 
@@ -307,12 +305,31 @@ func (e *Event) ToWire() WireEvent {
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
 		Signature: e.Signature,
+		FlagTable: e.FlagTable,
 	}
 }
 
-// FlagTable returns the FlagTable and the number of flags of the event
-func (e *Event) FlagTable() (map[string]bool, int) {
-	return e.flagTable, e.flags
+// GetFlagTable returns the flag table.
+func (e *Event) GetFlagTable() (result map[string]int, err error) {
+	result = make(map[string]int)
+	err = json.Unmarshal(e.FlagTable, &result)
+	return result, err
+}
+
+// MargeFlagTable returns merged flag table object.
+func (e *Event) MargeFlagTable(
+	dst map[string]int) (result map[string]int, err error) {
+	src := make(map[string]int)
+	if err := json.Unmarshal(e.FlagTable, &src); err != nil {
+		return nil, err
+	}
+
+	for id, flag := range dst {
+		if src[id] == 0 && flag == 1 {
+			src[id] = 1
+		}
+	}
+	return src, err
 }
 
 func rootSelfParent(participantID int) string {
@@ -377,6 +394,7 @@ type WireBody struct {
 type WireEvent struct {
 	Body      WireBody
 	Signature string
+	FlagTable []byte
 }
 
 func (we *WireEvent) BlockSignatures(validator []byte) []BlockSignature {

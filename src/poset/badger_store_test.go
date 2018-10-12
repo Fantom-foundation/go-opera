@@ -166,7 +166,7 @@ func TestDBEventMethods(t *testing.T) {
 				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 				[]string{"", ""},
 				p.pubKey,
-				k, nil, 0)
+				k, nil)
 			event.Sign(p.privKey)
 			event.topologicalIndex = topologicalIndex
 			topologicalIndex++
@@ -266,7 +266,7 @@ func TestDBRoundMethods(t *testing.T) {
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
-			0, nil, 0)
+			0, nil)
 		events[p.hex] = event
 		round.AddEvent(event.Hex(), true)
 	}
@@ -404,7 +404,7 @@ func TestDBFrameMethods(t *testing.T) {
 			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 			[]string{"", ""},
 			p.pubKey,
-			0, nil, 0)
+			0, nil)
 		event.Sign(p.privKey)
 		events = append(events, event)
 
@@ -453,7 +453,7 @@ func TestBadgerEvents(t *testing.T) {
 				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 				[]string{"", ""},
 				p.pubKey,
-				k, nil, 0)
+				k, nil)
 			items = append(items, event)
 			err := store.SetEvent(event)
 			if err != nil {
@@ -545,7 +545,7 @@ func TestBadgerRounds(t *testing.T) {
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
-			0, nil, 0)
+			0, nil)
 		events[p.hex] = event
 		round.AddEvent(event.Hex(), true)
 	}
@@ -661,7 +661,7 @@ func TestBadgerFrames(t *testing.T) {
 			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 			[]string{"", ""},
 			p.pubKey,
-			0, nil, 0)
+			0, nil)
 		event.Sign(p.privKey)
 		events = append(events, event)
 
