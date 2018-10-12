@@ -2,12 +2,6 @@ FROM glider as stage0
 
 # Glider can be found in https://github.com/andrecronje/evm/blob/master/docker/glider/Dockerfile
 
-RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin
-COPY . "$GOPATH/src/github.com/andrecronje/lachesis"
-
-RUN cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
-    go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
-    mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
 # ADD https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz /tmp
 # RUN /bin/tar --version && \
@@ -33,13 +27,17 @@ RUN apk --no-cache add libc-dev cmake && \
     # strip -s /cp_bin/crappy_sh /cp_bin/copy /cp_bin/env /cp_bin/list /cp_bin/lachesis && \
     # /cp_bin/upx --brute /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list
 
-FROM scratch as lachesis_base
 
-EXPOSE 1338
-EXPOSE 1339
-EXPOSE 8000
-EXPOSE 9000
-EXPOSE 12000
+RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin
+# COPY . "$GOPATH/src/github.com/andrecronje/lachesis"
+
+# RUN cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
+#     go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
+#     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
+
+COPY lachesis_linux /cp_bin/lachesis
+
+FROM alpine as lachesis_base
 
 # cp -r /etc/ssl/certs certs, then add to your `docker build`: `--build-arg ca_certificates=certs`
 ARG ca_certificates=certs
@@ -54,4 +52,6 @@ COPY peers.json /lachesis_data_dir/
 COPY nodes /nodes
 
 # /cp_bin/upx -d /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list ;
-ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store /lachesis_data_dir/badger_db --listen=$node_addr:12000 --heartbeat=100s --log=debug -p $node_addr:9000 --test"]
+# ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --listen=$node_addr:12000 --heartbeat=10s --log=debug -p $node_addr:9000 --test"]
+ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store --listen=$node_addr:12000 --heartbeat=4s -p $node_addr:9000 --test"]
+# ENTRYPOINT ["/bin/crappy_sh", "-v", "-e", "-c", "/bin/env ; /bin/list /cp_bin ; /bin/copy /nodes/$node_num/priv_key.pem /lachesis_data_dir/priv_key.pem ; /bin/list /lachesis_data_dir ; /bin/lachesis run --datadir /lachesis_data_dir --store /lachesis_data_dir/badger_db --listen=$node_addr:12000 --heartbeat=10s --log=debug -p $node_addr:9000 --test"]

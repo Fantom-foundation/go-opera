@@ -1,6 +1,7 @@
 package poset
 
 import (
+	_ "fmt"
 	"strconv"
 
 	cm "github.com/andrecronje/lachesis/src/common"
@@ -87,6 +88,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		}
 	}
 
+	// fmt.Println("Adding event to cache", event.Hex())
 	s.eventCache.Add(key, event)
 
 	return nil
