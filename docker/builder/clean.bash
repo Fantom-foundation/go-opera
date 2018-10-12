@@ -9,6 +9,7 @@ containers="$(docker ps -a --no-trunc --filter name='^/'"$PROJECT" --format '{{.
 
 if [ ! -z "$containers" ]; then
   printf "Stopping & removing $PROJECT containers\n"
-  docker kill $containers
+  docker kill -s9 $containers
   docker rm $containers
 fi
+docker rmi lachesis
