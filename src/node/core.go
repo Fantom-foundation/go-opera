@@ -21,7 +21,7 @@ type Core struct {
 	hexID  string
 	poset  *poset.Poset
 
-	participants *peers.Peers //[PubKey] => id
+	participants *peers.Peers // [PubKey] => id
 	Head         string
 	Seq          int
 
@@ -76,6 +76,20 @@ func (c *Core) HexID() string {
 		c.hexID = fmt.Sprintf("0x%X", pubKey)
 	}
 	return c.hexID
+}
+
+// Heights returns map with heights for each participants
+func (c *Core) Heights() map[string]uint64 {
+	heights := make(map[string]uint64)
+	for pubKey := range c.participants.ByPubKey {
+		participantEvents, err := c.poset.Store.ParticipantEvents(pubKey, -1)
+		if err == nil {
+			heights[pubKey] = uint64(len(participantEvents))
+		} else {
+			heights[pubKey] = 0
+		}
+	}
+	return heights
 }
 
 func (c *Core) SetHeadAndSeq() error {
@@ -226,6 +240,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		if err := c.InsertEvent(*ev, false); err != nil {
 			return err
 		}
+
 		// assume last event corresponds to other-head
 		if k == len(unknownEvents)-1 {
 			otherHead = ev.Hex()
