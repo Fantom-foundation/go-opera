@@ -292,7 +292,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 	// Get flag tables from parents
 	// parentEvent, perr := c.poset.Store.GetEvent(c.Head)
-	flagTable := make(map[string]bool)
+	// flagTable := make(map[string]bool)
 	// var flags int
 
 	// debug.PrintStack()
@@ -325,7 +325,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 		c.blockSignaturePool,
 		[]string{c.Head, otherHead},
 		c.PubKey(), c.Seq+1,
-		flagTable, 0)
+		/*flagTable*/ nil, 0)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)

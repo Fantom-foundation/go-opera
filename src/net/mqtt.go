@@ -5,8 +5,7 @@ import (
 	"errors"
 	"github.com/satori/go.uuid"
 
-	"github.com/andrecronje/lachesis/src/utils"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/eclipse/paho.mqtt.golang"
 )
 
 // MqttSocket mqttt socket connection for communication

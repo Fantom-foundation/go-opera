@@ -18,8 +18,7 @@ env GOOS=linux GOARCH=amd64 go build -o lachesis_linux cmd/lachesis/main.go || e
 
 # Run
 batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
-ID=$(docker build --compress --force-rm --tag "$PROJECT" "$BUILD_DIR" | tail -1 | sed 's/.*Successfully built \(.*\)$/\1/')
-docker tag "$ID" "offscale/$PROJECT":latest
+docker build --compress --force-rm --tag "$PROJECT" "$BUILD_DIR"
 
 "$DIR/network.bash" "$ip_range"
 "$DIR/spin_multi.bash" "$n"
