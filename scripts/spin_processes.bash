@@ -1,12 +1,13 @@
-#!/usr/bin/env bash
-set -e
+#!/usr/bin/env bash -v
+#set -e
 trap 'kill $(jobs -p)' SIGINT SIGTERM EXIT
 
 n="$1"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-PEERS_DIR="$DIR"
-# PEERS_DIR="${PEERS_DIR:-$DIR}"
+BUILD_DIR="${BUILD_DIR:-$DIR}"
+#PEERS_DIR="${PEERS_DIR:-$BUILD_DIR}"
+PEERS_DIR="."
 
 # [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
 
@@ -16,9 +17,9 @@ rm -f peers.json
 rm -rf nodes/
 batch-ethkey -dir "$PEERS_DIR/nodes" -network 127.0.0.1 -n "$n" -port-start 12000 -inc-port > "$PEERS_DIR/peers.json"
 
+
 node_num=0
 go build -o lachesis cmd/lachesis/main.go 
-
 
 for host in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
   ip="${host%:*}";
