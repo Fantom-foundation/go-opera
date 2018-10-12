@@ -23,7 +23,7 @@ done
 
 for i in $(seq 1 $N)
 do
-    docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i andrecronje/lachesis:0.3.0 run \
+    docker create --name="node$i" --net=lachesisnet --ip="172.77.5.$i" andrecronje/lachesis:0.3.0 run \
     --cache-size=50000 \
     --timeout=200ms \
     --heartbeat=10ms \
@@ -32,6 +32,6 @@ do
     --client-connect="172.77.5.$(($N+$i)):1339" \
     --service-listen="172.77.5.$i:80" \
     --sync-limit=1000
-    docker cp $MPWD/conf/node$i node$i:/.lachesis
-    docker start node$i
+    docker cp "$MPWD"/conf/"node$i" "node$i":/.lachesis
+    docker start "node$i"
 done

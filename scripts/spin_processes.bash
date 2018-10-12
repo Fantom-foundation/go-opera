@@ -6,8 +6,7 @@ n="$1"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 PEERS_DIR="$DIR"
-
-#PEERS_DIR="${PEERS_DIR:-$DIR}"
+# PEERS_DIR="${PEERS_DIR:-$DIR}"
 
 # [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
 
@@ -15,13 +14,13 @@ digits="${#n}"
 
 rm -f peers.json
 rm -rf nodes/
-batch-ethkey -dir "./nodes" -network 127.0.0.1 -n "$n" -port-start 12000 -inc-port > "$PEERS_DIR/peers.json"
+batch-ethkey -dir "$PEERS_DIR/nodes" -network 127.0.0.1 -n "$n" -port-start 12000 -inc-port > "$PEERS_DIR/peers.json"
 
 node_num=0
 go build -o lachesis cmd/lachesis/main.go 
 
 
-for host in $(jq -rc '.[].NetAddr' "./peers.json"); do
+for host in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
   ip="${host%:*}";
   port="${host#*:}";
   proxy_port=$((port - 3000))
@@ -33,10 +32,9 @@ for host in $(jq -rc '.[].NetAddr' "./peers.json"); do
   echo "port $port"
   echo "proxy_port $proxy_port"
 
-  node_dir="nodes/$node_num_p"
-  cp peers.json $node_dir
-  ./lachesis run  --log=info --listen=$host --datadir nodes/$node_num_p --heartbeat=4s --store -p $ip:$proxy_port -s $ip:$service_port --test &
-
+  node_dir="$PEERS_DIR/nodes/$node_num_p"
+  cp "$PEERS_DIR/peers.json" "$node_dir"
+  ./lachesis run  --log=info --listen="$host" --datadir "$PEERS_DIR/nodes/$node_num_p" --heartbeat=4s --store -p "$ip:$proxy_port" -s "$ip:$service_port" --test &
 
   #"$DIR/spin.bash" "$node_num_p" "$ip"
   ((node_num++))
@@ -44,4 +42,3 @@ for host in $(jq -rc '.[].NetAddr' "./peers.json"); do
 done
 
 wait
-

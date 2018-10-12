@@ -17,10 +17,11 @@ vendor
 *.jar
 
 # lachesis project specific
-docker/builder/nodes
-docker/builder/certs
-docker/builder/peers.json
-docker/builder/upx
+scripts/certs
+scripts/nodes
+scripts/peers.json
+scripts/docker/upx
 nodes
 peers.json
 certs
+lachesis_linux

@@ -164,7 +164,7 @@ func (n *Node) doBackgroundWork() {
 			})
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transactions to Transaction Pool")
-			n.mqtt.FireEvent(t, "/mq/lachesis/tx")
+			// n.mqtt.FireEvent(t, "/mq/lachesis/tx")
 			n.addTransaction(t)
 			if !n.controlTimer.set {
 				n.controlTimer.resetCh <- struct{}{}
@@ -175,7 +175,7 @@ func (n *Node) doBackgroundWork() {
 				"round_received": block.RoundReceived(),
 				"transactions":   len(block.Transactions()),
 			}).Debug("Adding EventBlock")
-			n.mqtt.FireEvent(block, "/mq/lachesis/block")
+			// n.mqtt.FireEvent(block, "/mq/lachesis/block")
 			if err := n.commit(block); err != nil {
 				n.logger.WithField("error", err).Error("Adding EventBlock")
 			}
@@ -663,7 +663,7 @@ func (n *Node) addTransaction(tx []byte) {
 
 func (n *Node) Shutdown() {
 	if n.getState() != Shutdown {
-		n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
+		// n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
 		n.logger.Debug("Shutdown()")
 
 		//Exit any non-shutdown state immediately
@@ -726,7 +726,7 @@ func (n *Node) GetStats() map[string]string {
 		"id":                      strconv.Itoa(n.id),
 		"state":                   n.getState().String(),
 	}
-	n.mqtt.FireEvent(s, "/mq/lachesis/stats")
+	// n.mqtt.FireEvent(s, "/mq/lachesis/stats")
 	return s
 }
 
