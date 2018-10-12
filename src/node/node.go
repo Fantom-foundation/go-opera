@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	mq "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sirupsen/logrus"
 
 	"strconv"
@@ -33,7 +34,7 @@ type Node struct {
 
 	trans net.Transport
 	netCh <-chan net.RPC
-	mqtt *net.MqttSocket
+	mqtt  *net.MqttSocket
 
 	proxy    proxy.AppProxy
 	submitCh chan []byte
@@ -725,7 +726,7 @@ func (n *Node) GetStats() map[string]string {
 		"id":                      strconv.Itoa(n.id),
 		"state":                   n.getState().String(),
 	}
-	n.mqtt.FireEvent(s, "/mq/lachesis/stats" )
+	n.mqtt.FireEvent(s, "/mq/lachesis/stats")
 	return s
 }
 
