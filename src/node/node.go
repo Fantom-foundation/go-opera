@@ -95,7 +95,7 @@ func NewNode(conf *Config,
 
 	node.needBoostrap = store.NeedBoostrap()
 
-	//Initialize as Babbling
+	// Initialize as Babbling
 	node.setStarting(true)
 	node.setState(Gossiping)
 
@@ -125,16 +125,16 @@ func (n *Node) RunAsync(gossip bool) {
 }
 
 func (n *Node) Run(gossip bool) {
-	//The ControlTimer allows the background routines to control the
-	//heartbeat timer when the node is in the Gossiping state. The timer should
-	//only be running when there are uncommitted transactions in the system.
+	// The ControlTimer allows the background routines to control the
+	// heartbeat timer when the node is in the Gossiping state. The timer should
+	// only be running when there are uncommitted transactions in the system.
 	go n.controlTimer.Run()
 
-	//Execute some background work regardless of the state of the node.
-	//Process RPC requests as well as SumbitTx and CommitBlock requests
+	// Execute some background work regardless of the state of the node.
+	// Process RPC requests as well as SumbitTx and CommitBlock requests
 	go n.doBackgroundWork()
 
-	//Execute Node State Machine
+	// Execute Node State Machine
 	for {
 		// Run different routines depending on node state
 		state := n.getState()
@@ -191,10 +191,10 @@ func (n *Node) doBackgroundWork() {
 	}
 }
 
-//lachesis is interrupted when a gossip function, launched asynchronously, changes
-//the state from Gossiping to CatchingUp, or when the node is shutdown.
-//Otherwise, it periodicaly initiates gossip while there is something to gossip
-//about, or waits.
+// lachesis is interrupted when a gossip function, launched asynchronously, changes
+// the state from Gossiping to CatchingUp, or when the node is shutdown.
+// Otherwise, it periodicaly initiates gossip while there is something to gossip
+// about, or waits.
 func (n *Node) lachesis(gossip bool) {
 	returnCh := make(chan struct{})
 	for {
@@ -224,12 +224,12 @@ func (n *Node) processRPC(rpc net.RPC) {
 
 	if s := n.getState(); s != Gossiping {
 		n.logger.WithField("state", s.String()).Debug("Discarding RPC Request")
-		//XXX Use a SyncResponse by default but this should be either a special
-		//ErrorResponse type or a type that corresponds to the request
+		// XXX Use a SyncResponse by default but this should be either a special
+		// ErrorResponse type or a type that corresponds to the request
 		resp := &net.SyncResponse{
 			FromID: n.id,
 		}
-		rpc.Respond(resp, fmt.Errorf("Not ready: %s", s.String()))
+		rpc.Respond(resp, fmt.Errorf("not ready: %s", s.String()))
 		return
 	}
 
@@ -242,7 +242,7 @@ func (n *Node) processRPC(rpc net.RPC) {
 		n.processFastForwardRequest(rpc, cmd)
 	default:
 		n.logger.WithField("cmd", rpc.Command).Error("Unexpected RPC command")
-		rpc.Respond(nil, fmt.Errorf("Unexpected command"))
+		rpc.Respond(nil, fmt.Errorf("unexpected command"))
 	}
 }
 
@@ -257,7 +257,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 	}
 	var respErr error
 
-	//Check sync limit
+	// Check sync limit
 	n.coreLock.Lock()
 	overSyncLimit := n.core.OverSyncLimit(cmd.Known, n.conf.SyncLimit)
 	n.coreLock.Unlock()
@@ -265,7 +265,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 		n.logger.Debug("n.core.OverSyncLimit(cmd.Known, n.conf.SyncLimit)")
 		resp.SyncLimit = true
 	} else {
-		//Compute Diff
+		// Compute Diff
 		start := time.Now()
 		n.coreLock.Lock()
 		eventDiff, err := n.core.EventDiff(cmd.Known)
@@ -277,7 +277,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 			respErr = err
 		}
 
-		//Convert to WireEvents
+		// Convert to WireEvents
 		wireEvents, err := n.core.ToWire(eventDiff)
 		if err != nil {
 			n.logger.WithField("error", err).Debug("n.core.TransportEventBlock(eventDiff)")
@@ -287,7 +287,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 		}
 	}
 
-	//Get Self Known
+	// Get Self Known
 	n.coreLock.Lock()
 	knownEvents := n.core.KnownEvents()
 	n.coreLock.Unlock()
@@ -335,7 +335,7 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	}
 	var respErr error
 
-	//Get latest Frame
+	// Get latest Frame
 	n.coreLock.Lock()
 	block, frame, err := n.core.GetAnchorBlockWithFrame()
 	n.coreLock.Unlock()
@@ -346,7 +346,7 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	resp.Block = block
 	resp.Frame = frame
 
-	//Get snapshot
+	// Get snapshot
 	snapshot, err := n.proxy.GetSnapshot(block.Index())
 	if err != nil {
 		n.logger.WithField("error", err).Error("n.proxy.GetSnapshot(block.Index())")
@@ -365,7 +365,7 @@ func (n *Node) preGossip() (bool, error) {
 	n.coreLock.Lock()
 	defer n.coreLock.Unlock()
 
-	//Check if it is necessary to gossip
+	// Check if it is necessary to gossip
 	if !(n.core.NeedGossip() || n.isStarting()) {
 		return false, nil
 	}
@@ -373,18 +373,18 @@ func (n *Node) preGossip() (bool, error) {
 	return true, nil
 }
 
-//This function is usually called in a go-routine and needs to inform the
-//calling routine (usually the lachesis routine) when it is time to exit the
-//Gossiping state and return.
+// This function is usually called in a go-routine and needs to inform the
+// calling routine (usually the lachesis routine) when it is time to exit the
+// Gossiping state and return.
 func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 
-	//pull
+	// pull
 	syncLimit, otherKnownEvents, err := n.pull(peerAddr)
 	if err != nil {
 		return err
 	}
 
-	//check and handle syncLimit
+	// check and handle syncLimit
 	if syncLimit {
 		n.logger.WithField("from", peerAddr).Debug("SyncLimit")
 		n.setState(CatchingUp)
@@ -392,13 +392,13 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 		return nil
 	}
 
-	//push
+	// push
 	err = n.push(peerAddr, otherKnownEvents)
 	if err != nil {
 		return err
 	}
 
-	//update peer selector
+	// update peer selector
 	n.selectorLock.Lock()
 	n.peerSelector.UpdateLast(peerAddr)
 	n.selectorLock.Unlock()
@@ -411,12 +411,12 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 }
 
 func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]int, err error) {
-	//Compute Known
+	// Compute Known
 	n.coreLock.Lock()
 	knownEvents := n.core.KnownEvents()
 	n.coreLock.Unlock()
 
-	//Send SyncRequest
+	// Send SyncRequest
 	start := time.Now()
 	resp, err := n.requestSync(peerAddr, knownEvents)
 	elapsed := time.Since(start)
@@ -437,7 +437,7 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 	}
 
 	if len(resp.Events) > 0 {
-		//Add Events to poset and create new Head if necessary
+		// Add Events to poset and create new Head if necessary
 		n.coreLock.Lock()
 		err = n.sync(resp.Events)
 		n.coreLock.Unlock()
@@ -452,8 +452,8 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 
 func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 
-	//If the transaction pool is not empty, create a new self-event and empty the
-	//transaction pool in its payload
+	// If the transaction pool is not empty, create a new self-event and empty the
+	// transaction pool in its payload
 	n.coreLock.Lock()
 	err := n.core.AddSelfEventBlock("")
 	n.coreLock.Unlock()
@@ -462,7 +462,7 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 		return err
 	}
 
-	//Check SyncLimit
+	// Check SyncLimit
 	n.coreLock.Lock()
 	overSyncLimit := n.core.OverSyncLimit(knownEvents, n.conf.SyncLimit)
 	n.coreLock.Unlock()
@@ -471,7 +471,7 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 		return nil
 	}
 
-	//Compute Diff
+	// Compute Diff
 	start := time.Now()
 	n.coreLock.Lock()
 	eventDiff, err := n.core.EventDiff(knownEvents)
@@ -483,14 +483,14 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 		return err
 	}
 
-	//Convert to WireEvents
+	// Convert to WireEvents
 	wireEvents, err := n.core.ToWire(eventDiff)
 	if err != nil {
 		n.logger.WithField("Error", err).Debug("n.core.TransferEventBlock(eventDiff)")
 		return err
 	}
 
-	//Create and Send EagerSyncRequest
+	// Create and Send EagerSyncRequest
 	start = time.Now()
 	resp2, err := n.requestEagerSync(peerAddr, wireEvents)
 	elapsed = time.Since(start)
@@ -510,10 +510,10 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 func (n *Node) fastForward() error {
 	n.logger.Debug("fastForward()")
 
-	//wait until sync routines finish
+	// wait until sync routines finish
 	n.waitRoutines()
 
-	//fastForwardRequest
+	// fastForwardRequest
 	peer := n.peerSelector.Next()
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
@@ -532,7 +532,7 @@ func (n *Node) fastForward() error {
 		"snapshot":             resp.Snapshot,
 	}).Debug("FastForwardResponse")
 
-	//prepare core. ie: fresh poset
+	// prepare core. ie: fresh poset
 	n.coreLock.Lock()
 	err = n.core.FastForward(peer.PubKeyHex, resp.Block, resp.Frame)
 	n.coreLock.Unlock()
@@ -541,7 +541,7 @@ func (n *Node) fastForward() error {
 		return err
 	}
 
-	//update app from snapshot
+	// update app from snapshot
 	err = n.proxy.Restore(resp.Snapshot)
 	if err != nil {
 		n.logger.WithField("Error", err).Error("n.proxy.Restore(resp.Snapshot)")
@@ -595,7 +595,7 @@ func (n *Node) requestFastForward(target string) (net.FastForwardResponse, error
 }
 
 func (n *Node) sync(events []poset.WireEvent) error {
-	//Insert Events in Poset and create new Head if necessary
+	// Insert Events in Poset and create new Head if necessary
 	start := time.Now()
 	err := n.core.Sync(events)
 	elapsed := time.Since(start)
@@ -604,7 +604,7 @@ func (n *Node) sync(events []poset.WireEvent) error {
 		return err
 	}
 
-	//Run consensus methods
+	// Run consensus methods
 	start = time.Now()
 	err = n.core.RunConsensus()
 	elapsed = time.Since(start)
@@ -626,21 +626,21 @@ func (n *Node) commit(block poset.Block) error {
 		// "err":        err,
 	}).Debug("commit(eventBlock poset.EventBlock)")
 
-	//XXX what do we do in case of error. Retry? This has to do with the
-	//Lachesis <-> App interface. Think about it.
+	// XXX what do we do in case of error. Retry? This has to do with the
+	// Lachesis <-> App interface. Think about it.
 
-	//An error here could be that the endpoint is not configured, not all
-	//nodes will be sending blocks to clients, in these cases -no_client can be
-	//used, alternatively should check for the error here and handle it
-	//appropriately
+	// An error here could be that the endpoint is not configured, not all
+	// nodes will be sending blocks to clients, in these cases -no_client can be
+	// used, alternatively should check for the error here and handle it
+	// appropriately
 
-	//There is no point in using the stateHash if we know it is wrong
+	// There is no point in using the stateHash if we know it is wrong
 	// if err == nil {
 	if true {
-		//inmem statehash would be different than proxy statehash
-		//inmem is simply the hash of transactions
-		//this requires a 1:1 relationship with nodes and clients
-		//multiple nodes can't read from the same client
+		// inmem statehash would be different than proxy statehash
+		// inmem is simply the hash of transactions
+		// this requires a 1:1 relationship with nodes and clients
+		// multiple nodes can't read from the same client
 
 		block.Body.StateHash = stateHash
 		n.coreLock.Lock()
@@ -666,19 +666,19 @@ func (n *Node) Shutdown() {
 		// n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
 		n.logger.Debug("Shutdown()")
 
-		//Exit any non-shutdown state immediately
+		// Exit any non-shutdown state immediately
 		n.setState(Shutdown)
 
-		//Stop and wait for concurrent operations
+		// Stop and wait for concurrent operations
 		close(n.shutdownCh)
 		n.waitRoutines()
 
-		//For some reason this needs to be called after closing the shutdownCh
-		//Not entirely sure why...
+		// For some reason this needs to be called after closing the shutdownCh
+		// Not entirely sure why...
 		n.controlTimer.Shutdown()
 
-		//transport and store should only be closed once all concurrent operations
-		//are finished otherwise they will panic trying to use close objects
+		// transport and store should only be closed once all concurrent operations
+		// are finished otherwise they will panic trying to use close objects
 		n.trans.Close()
 		n.core.poset.Store.Close()
 	}
