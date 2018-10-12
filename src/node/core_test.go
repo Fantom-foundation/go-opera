@@ -153,6 +153,15 @@ func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]
 	return nil
 }
 
+func checkHeights(cores []Core, expectedHeights []map[string]uint64, t *testing.T) {
+	for i, core := range cores {
+		heights := core.Heights()
+		if !reflect.DeepEqual(heights, expectedHeights[i]) {
+			t.Errorf("Cores[%d].Heights() should be %v, not %v", i, expectedHeights[i], heights)
+		}
+	}
+}
+
 func TestEventDiff(t *testing.T) {
 	cores, keys, index := initCores(3, t)
 
@@ -202,6 +211,24 @@ func TestSync(t *testing.T) {
 	   0   1   2        0   1   2       0   1   2
 	*/
 
+	expectedHeights := make([]map[string]uint64, 3, 3)
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 1,
+		cores[1].hexID: 0,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 1,
+	}
+	checkHeights(cores, expectedHeights, t)
+
 	// core 1 is going to tell core 0 everything it knows
 	if err := synchronizeCores(cores, 1, 0, [][]byte{}); err != nil {
 		t.Fatal(err)
@@ -215,6 +242,23 @@ func TestSync(t *testing.T) {
 	   e0  e1  |        |   e1  |       |   |   e2
 	   0   1   2        0   1   2       0   1   2
 	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 1,
+	}
+	checkHeights(cores, expectedHeights, t)
 
 	knownBy0 := cores[0].KnownEvents()
 	if k := knownBy0[common.Hash32(cores[0].pubKey)]; k != 1 {
@@ -257,6 +301,23 @@ func TestSync(t *testing.T) {
 	   0   1   2        0   1   2       0   1   2
 	*/
 
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 2,
+	}
+	checkHeights(cores, expectedHeights, t)
+
 	knownBy2 := cores[2].KnownEvents()
 	if k := knownBy2[common.Hash32(cores[0].pubKey)]; k != 1 {
 		t.Fatalf("core 2 should have last-index 1 for core 0, not %d", k)
@@ -282,7 +343,6 @@ func TestSync(t *testing.T) {
 	}
 
 	/*
-
 	   core 0           core 1          core 2
 
 	                    |  e12  |
@@ -296,6 +356,23 @@ func TestSync(t *testing.T) {
 	   e0  e1  |        e0  e1  e2      e0  e1  e2
 	   0   1   2        0   1   2       0   1   2
 	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 2,
+		cores[2].hexID: 2,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 2,
+	}
+	checkHeights(cores, expectedHeights, t)
 
 	knownBy1 := cores[1].KnownEvents()
 	if k := knownBy1[common.Hash32(cores[0].pubKey)]; k != 1 {
@@ -458,9 +535,6 @@ func TestOverSyncLimit(t *testing.T) {
 }
 
 /*
-
-
-
     |   |   |   |-----------------
 	|   w31 |   | R3
 	|	| \ |   |
