@@ -23,4 +23,9 @@ dist:
 test:
 	glide novendor | xargs go test
 
+# clean up and generate protobuf files
+proto:
+	mage clean
+	mage build
+
 .PHONY: vendor install build dist test
