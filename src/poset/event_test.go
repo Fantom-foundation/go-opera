@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"encoding/json"
 	"github.com/andrecronje/lachesis/src/crypto"
 )
 
@@ -134,7 +135,7 @@ func TestWireEvent(t *testing.T) {
 
 func TestIsLoaded(t *testing.T) {
 	//nil payload
-	event := NewEvent(nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, nil, 0)
+	event := NewEvent(nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, nil)
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
@@ -167,5 +168,78 @@ func TestIsLoaded(t *testing.T) {
 	event.Body.BlockSignatures = []BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty signature payload")
+	}
+}
+
+func TestEventFlagTable(t *testing.T) {
+	exp := map[string]int{
+		"x": 1,
+		"y": 0,
+		"z": 2,
+	}
+
+	event := NewEvent(nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, exp)
+	if event.IsLoaded() {
+		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
+	}
+
+	if len(event.FlagTable) == 0 {
+		t.Fatal("FlagTable is nil")
+	}
+
+	res, err := event.GetFlagTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(res, exp) {
+		t.Fatalf("expected flag table: %+v, got: %+v", exp, res)
+	}
+}
+
+func TestMargeFlagTable(t *testing.T) {
+	exp := map[string]int{
+		"x": 1,
+		"y": 1,
+		"z": 1,
+	}
+
+	syncData := []map[string]int{
+		{
+			"x": 0,
+			"y": 1,
+			"z": 0,
+		},
+		{
+			"x": 0,
+			"y": 0,
+			"z": 1,
+		},
+	}
+
+	start := map[string]int{
+		"x": 1,
+		"y": 0,
+		"z": 0,
+	}
+
+	ft, _ := json.Marshal(start)
+	event := Event{FlagTable: ft}
+
+	for _, v := range syncData {
+		flagTable, err := event.MargeFlagTable(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		raw, _ := json.Marshal(flagTable)
+		event.FlagTable = raw
+	}
+
+	var res map[string]int
+	json.Unmarshal(event.FlagTable, &res)
+
+	if !reflect.DeepEqual(exp, res) {
+		t.Fatalf("expected flag table: %+v, got: %+v", exp, res)
 	}
 }

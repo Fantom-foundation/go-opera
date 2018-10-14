@@ -81,7 +81,7 @@ func (p *Poset) ancestor(x, y string) (bool, error) {
 	if c, ok := p.ancestorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
-	a, err := p._ancestor(x, y)
+	a, err := p.ancestor2(x, y)
 	if err != nil {
 		return false, err
 	}
@@ -89,7 +89,7 @@ func (p *Poset) ancestor(x, y string) (bool, error) {
 	return a, nil
 }
 
-func (p *Poset) _ancestor(x, y string) (bool, error) {
+func (p *Poset) ancestor2(x, y string) (bool, error) {
 	if x == y {
 		return true, nil
 	}
@@ -121,7 +121,7 @@ func (p *Poset) selfAncestor(x, y string) (bool, error) {
 	if c, ok := p.selfAncestorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
-	a, err := p._selfAncestor(x, y)
+	a, err := p.selfAncestor2(x, y)
 	if err != nil {
 		return false, err
 	}
@@ -129,7 +129,7 @@ func (p *Poset) selfAncestor(x, y string) (bool, error) {
 	return a, nil
 }
 
-func (p *Poset) _selfAncestor(x, y string) (bool, error) {
+func (p *Poset) selfAncestor2(x, y string) (bool, error) {
 	if x == y {
 		return true, nil
 	}
@@ -161,7 +161,7 @@ func (p *Poset) stronglySee(x, y string) (bool, error) {
 	if c, ok := p.stronglySeeCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
-	ss, err := p._stronglySee(x, y)
+	ss, err := p.stronglySee2(x, y)
 	if err != nil {
 		return false, err
 	}
@@ -169,7 +169,7 @@ func (p *Poset) stronglySee(x, y string) (bool, error) {
 	return ss, nil
 }
 
-func (p *Poset) _stronglySee(x, y string) (bool, error) {
+func (p *Poset) stronglySee2(x, y string) (bool, error) {
 
 	ex, err := p.Store.GetEvent(x)
 	if err != nil {
@@ -194,7 +194,7 @@ func (p *Poset) round(x string) (int, error) {
 	if c, ok := p.roundCache.Get(x); ok {
 		return c.(int), nil
 	}
-	r, err := p._round(x)
+	r, err := p.round2(x)
 	if err != nil {
 		return -1, err
 	}
@@ -202,7 +202,7 @@ func (p *Poset) round(x string) (int, error) {
 	return r, nil
 }
 
-func (p *Poset) _round(x string) (int, error) {
+func (p *Poset) round2(x string) (int, error) {
 
 	/*
 		x is the Root
@@ -314,7 +314,7 @@ func (p *Poset) lamportTimestamp(x string) (int, error) {
 	if c, ok := p.timestampCache.Get(x); ok {
 		return c.(int), nil
 	}
-	r, err := p._lamportTimestamp(x)
+	r, err := p.lamportTimestamp2(x)
 	if err != nil {
 		return -1, err
 	}
@@ -322,7 +322,7 @@ func (p *Poset) lamportTimestamp(x string) (int, error) {
 	return r, nil
 }
 
-func (p *Poset) _lamportTimestamp(x string) (int, error) {
+func (p *Poset) lamportTimestamp2(x string) (int, error) {
 	/*
 		x is the Root
 		User Root.SelfParent.LamportTimestamp
@@ -559,6 +559,8 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 		Index:            ev.Index() - 1,
 		LamportTimestamp: spLT,
 		Round:            spRound,
+		//FlagTable:ev.FlagTable,
+		//flags:ev.flags,
 	}
 	return selfParentRootEvent, nil
 }
@@ -1460,6 +1462,10 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		}
 	}
 
+	if len(wevent.FlagTable) == 0 {
+		return nil, fmt.Errorf("flag table is null")
+	}
+
 	body := EventBody{
 		Transactions:    wevent.Body.Transactions,
 		BlockSignatures: wevent.BlockSignatures(creatorBytes),
@@ -1476,6 +1482,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	event := &Event{
 		Body:      body,
 		Signature: wevent.Signature,
+		FlagTable: wevent.FlagTable,
 	}
 
 	return event, nil

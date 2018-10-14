@@ -21,7 +21,7 @@ type Core struct {
 	hexID  string
 	poset  *poset.Poset
 
-	participants *peers.Peers //[PubKey] => id
+	participants *peers.Peers // [PubKey] => id
 	Head         string
 	Seq          int
 
@@ -76,6 +76,20 @@ func (c *Core) HexID() string {
 		c.hexID = fmt.Sprintf("0x%X", pubKey)
 	}
 	return c.hexID
+}
+
+// Heights returns map with heights for each participants
+func (c *Core) Heights() map[string]uint64 {
+	heights := make(map[string]uint64)
+	for pubKey := range c.participants.ByPubKey {
+		participantEvents, err := c.poset.Store.ParticipantEvents(pubKey, -1)
+		if err == nil {
+			heights[pubKey] = uint64(len(participantEvents))
+		} else {
+			heights[pubKey] = 0
+		}
+	}
+	return heights
 }
 
 func (c *Core) SetHeadAndSeq() error {
@@ -226,6 +240,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		if err := c.InsertEvent(*ev, false); err != nil {
 			return err
 		}
+
 		// assume last event corresponds to other-head
 		if k == len(unknownEvents)-1 {
 			otherHead = ev.Hex()
@@ -291,41 +306,40 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	// Get flag tables from parents
-	// parentEvent, perr := c.poset.Store.GetEvent(c.Head)
-	// flagTable := make(map[string]bool)
-	// var flags int
+	parentEvent, errSelf := c.poset.Store.GetEvent(c.Head)
+	if errSelf != nil {
+		c.logger.Warn("failed to get parent: %s", errSelf)
+	}
+	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
+	if errOther != nil {
+		c.logger.Warn("failed to get  other parent: %s", errOther)
+	}
 
-	// debug.PrintStack()
-	// c.logger.Debug("Getting info for block", otherHead)
-	// c.logger.Debug("parentEvent", parentEvent)
-	// c.logger.Debug("head", c.Head)
-	// c.printEvents()
+	var (
+		flagTable map[string]int
+		err       error
+	)
 
-	// if perr != nil {
-	// 	return fmt.Errorf("Error retrieving parent: %s", perr)
-	// }
-	// otherParentEvent, oerr := c.poset.Store.GetEvent(otherHead)
-	// if oerr != nil {
-	// 	return fmt.Errorf("Error retrieving other parent: %s", oerr)
-	// }
+	if errSelf != nil {
+		flagTable = map[string]int{c.Head: 1}
+	} else {
+		flagTable, err = parentEvent.GetFlagTable()
+		if err != nil {
+			return fmt.Errorf("failed to get self flag table: %s", err)
+		}
+	}
 
-	// flagTable, flags := parentEvent.FlagTable()
-	// otherFlagTable, _ := otherParentEvent.FlagTable()
-	// // event flag table = parent 1 flag table OR parent 2 flag table
-	// for id, flag := range otherFlagTable {
-	// 	if !flagTable[id] && flag {
-	// 		flagTable[id] = true
-	// 		flags++
-	// 	}
-	// }
+	if errOther == nil {
+		flagTable, err = otherParentEvent.MargeFlagTable(flagTable)
+		if err != nil {
+			return fmt.Errorf("failed to marge flag tables: %s", err)
+		}
+	}
 
 	// create new event with self head and empty other parent
 	// empty transaction pool in its payload
-	newHead := poset.NewEvent(c.transactionPool,
-		c.blockSignaturePool,
-		[]string{c.Head, otherHead},
-		c.PubKey(), c.Seq+1,
-		/*flagTable*/ nil, 0)
+	newHead := poset.NewEvent(c.transactionPool, c.blockSignaturePool,
+		[]string{c.Head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)

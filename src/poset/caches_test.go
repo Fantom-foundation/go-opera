@@ -57,12 +57,12 @@ func TestParticipantEventsCache(t *testing.T) {
 		}
 
 		index3 := 27
-		expected3 := []string{}
 		actual3, err := pec.Get(pk, index3)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(expected3, actual3) {
+
+		if !reflect.DeepEqual([]string{}, actual3) {
 			t.Fatalf("expected and cached not equal")
 		}
 	}
@@ -103,12 +103,11 @@ func TestParticipantEventsCache(t *testing.T) {
 		}
 
 		skipIndex3 := 27
-		expected3 := []string{}
 		cached3, err := pec.Get(pk, skipIndex3)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual(expected3, cached3) {
+		if !reflect.DeepEqual([]string{}, cached3) {
 			t.Fatalf("expected and cached not equal")
 		}
 	}

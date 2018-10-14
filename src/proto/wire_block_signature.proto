@@ -1,0 +1,7 @@
+syntax = "proto3";
+package pb;
+
+message WireBlockSignature {
+    int32 index = 1;
+    string signature = 2;
+}
