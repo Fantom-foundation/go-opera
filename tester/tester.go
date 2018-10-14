@@ -39,11 +39,9 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 	fmt.Println("Pinging stopped")
 }
 
-func transact(target peers.Peer, nodeId int, proxyAddress string) error {
-	parts := strings.Split(target.NetAddr, ":")
-	port, _ := strconv.Atoi(parts[1])
-	addr := fmt.Sprintf("%s:%d", parts[0], port-3000)
-	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10*time.Second)
+func transact(target peers.Peer, nodeId int, proxyAddress string) (string, error) {
+	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
+	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10 * time.Second)
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes. We'll assume
 	// our txns are ~120 bytes in size
