@@ -11,7 +11,7 @@ type SocketLachesisProxy struct {
 	nodeAddress string
 	bindAddress string
 
-	client *SocketLachesisProxyClient
+	client *SocketLachesisProxyClientWebsocket
 	server *SocketLachesisProxyServer
 }
 
@@ -25,7 +25,7 @@ func NewSocketLachesisProxy(nodeAddr string,
 		logger.Level = logrus.DebugLevel
 	}
 
-	client := NewSocketLachesisProxyClient(nodeAddr, timeout)
+	client := NewSocketLachesisProxyClientWebsocket(nodeAddr, timeout)
 
 	server, err := NewSocketLachesisProxyServer(bindAddr, timeout, logger)
 
@@ -61,14 +61,9 @@ func (p *SocketLachesisProxy) RestoreCh() chan RestoreRequest {
 }
 
 func (p *SocketLachesisProxy) SubmitTx(tx []byte) error {
-	ack, err := p.client.SubmitTx(tx)
-
+	err := p.client.SubmitTx(tx)
 	if err != nil {
-		return err
-	}
-
-	if !*ack {
-		return fmt.Errorf("Failed to deliver transaction to Lachesis")
+		return fmt.Errorf("Failed to deliver transaction to Lachesis: %v", err)
 	}
 
 	return nil
