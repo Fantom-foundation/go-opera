@@ -10,7 +10,7 @@ import (
 	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/peers"
-	hg "github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/poset"
 )
 
 func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[string]string) {
@@ -34,15 +34,18 @@ func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[stri
 		core := NewCore(i,
 			participantKeys[peer.ID],
 			participants,
-			hg.NewInmemStore(participants, cacheSize),
+			poset.NewInmemStore(participants, cacheSize),
 			nil,
 			common.NewTestLogger(t))
 
+		selfParent := fmt.Sprintf("Root%d", peer.ID)
+
+		flagTable := make(map[string]int)
+		flagTable[selfParent] = 1
+
 		//Create and save the first Event
-		initialEvent := hg.NewEvent([][]byte(nil), nil,
-			[]string{fmt.Sprintf("Root%d", peer.ID), ""},
-			core.PubKey(),
-			0, flagTable, 1)
+		initialEvent := poset.NewEvent([][]byte(nil), nil,
+			[]string{selfParent, ""}, core.PubKey(), 0, flagTable)
 		err := core.SignAndInsertSelfEvent(initialEvent)
 		if err != nil {
 			t.Fatal(err)
@@ -67,91 +70,78 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initPoset(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string, participant int) error {
+func initPoset(t *testing.T, cores []Core, keys map[int]*ecdsa.PrivateKey,
+	index map[string]string, participant int) {
 	for i := 0; i < len(cores); i++ {
 		if i != participant {
-			event, _ := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
-			if err := cores[participant].InsertEvent(event, true); err != nil {
-				fmt.Printf("error inserting %s: %s\n", getName(index, event.Hex()), err)
+			event, err := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = cores[participant].InsertEvent(event, true)
+			if err != nil {
+				t.Fatalf("error inserting %s: %s\n",
+					getName(index, event.Hex()), err)
 			}
 		}
 	}
 
 	// Get flag tables from parents
-	event0, err := cores[0].poset.Store.GetEvent("e0")
+	event0, err := cores[0].poset.Store.GetEvent(index["e0"])
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
+		t.Fatalf("failed to get parent: %s", err)
 	}
-	event1, err := cores[0].poset.Store.GetEvent("e1")
+	event1, err := cores[0].poset.Store.GetEvent(index["e1"])
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
-	}
-	flagTable, flags := event0.FlagTable()
-	otherFlagTable, _ := event1.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range otherFlagTable {
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
-		}
+		t.Fatalf("failed to get parent: %s", err)
 	}
 
-	event01 := hg.NewEvent([][]byte{}, nil,
+	event1ft, _ := event1.GetFlagTable()
+	event01ft, _ := event0.MargeFlagTable(event1ft)
+
+	event01 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e0"], index["e1"]}, //e0 and e1
-		cores[0].PubKey(), 1, nil, 0)
-	if err := insertEvent(cores, keys, index, event01, "e01", participant, common.Hash32(cores[0].pubKey)); err != nil {
-		fmt.Printf("error inserting e01: %s\n", err)
+		cores[0].PubKey(), 1, event01ft)
+	if err := insertEvent(cores, keys, index, event01, "e01", participant,
+		common.Hash32(cores[0].pubKey)); err != nil {
+		t.Fatalf("error inserting e01: %s\n", err)
 	}
 
 	// Get flag tables from parents
-	event2, err := cores[2].poset.Store.GetEvent("e2")
+	event2, err := cores[2].poset.Store.GetEvent(index["e2"])
 	if err != nil {
-		return fmt.Errorf("Error retrieving parent: %s", err)
-	}
-	flagTable, flags = event2.FlagTable()
-	otherFlagTable, _ = event01.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range otherFlagTable {
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
-		}
+		t.Fatalf("failed to get parent: %s", err)
 	}
 
-	event20 := hg.NewEvent([][]byte{}, nil,
+	event20ft, _ := event2.MargeFlagTable(event01ft)
+
+	event20 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
-		cores[2].PubKey(), 1, nil, 0)
-	if err := insertEvent(cores, keys, index, event20, "e20", participant, common.Hash32(cores[2].pubKey)); err != nil {
+		cores[2].PubKey(), 1, event20ft)
+	if err := insertEvent(cores, keys, index, event20, "e20", participant,
+		common.Hash32(cores[2].pubKey)); err != nil {
 		fmt.Printf("error inserting e20: %s\n", err)
 	}
 
-	flagTable, flags = event1.FlagTable()
-	otherFlagTable, _ = event20.FlagTable()
-	// event flag table = parent 1 flag table OR parent 2 flag table
-	for id, flag := range otherFlagTable {
-		if !flagTable[id] && flag {
-			flagTable[id] = true
-			flags++
-		}
-	}
+	event12ft, _ := event1.MargeFlagTable(event20ft)
 
-	event12 := hg.NewEvent([][]byte{}, nil,
+	event12 := poset.NewEvent([][]byte{}, nil,
 		[]string{index["e1"], index["e20"]}, //e1 and e20
-		cores[1].PubKey(), 1, nil, 0)
-	if err := insertEvent(cores, keys, index, event12, "e12", participant, common.Hash32(cores[1].pubKey)); err != nil {
+		cores[1].PubKey(), 1, event12ft)
+	if err := insertEvent(cores, keys, index, event12, "e12", participant,
+		common.Hash32(cores[1].pubKey)); err != nil {
 		fmt.Printf("error inserting e12: %s\n", err)
 	}
-	return nil
 }
 
 func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]string,
-	event hg.Event, name string, particant int, creator int) error {
+	event poset.Event, name string, participant int, creator int) error {
 
 	if participant == creator {
 		if err := cores[participant].SignAndInsertSelfEvent(event); err != nil {
 			return err
 		}
-		//event is not signed because passed by value
+		// event is not signed because passed by value
 		index[name] = cores[participant].Head
 	} else {
 		event.Sign(keys[creator])
@@ -163,24 +153,33 @@ func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]
 	return nil
 }
 
+func checkHeights(cores []Core, expectedHeights []map[string]uint64, t *testing.T) {
+	for i, core := range cores {
+		heights := core.Heights()
+		if !reflect.DeepEqual(heights, expectedHeights[i]) {
+			t.Errorf("Cores[%d].Heights() should be %v, not %v", i, expectedHeights[i], heights)
+		}
+	}
+}
+
 func TestEventDiff(t *testing.T) {
 	cores, keys, index := initCores(3, t)
 
-	initPoset(cores, keys, index, 0)
+	initPoset(t, cores, keys, index, 0)
 
 	/*
-	   P0 knows
+	  P0 knows
 
-	   |  e12  |
-	   |   | \ |
-	   |   |   e20
-	   |   | / |
-	   |   /   |
-	   | / |   |
-	   e01 |   |        P1 knows
-	   | \ |   |
-	   e0  e1  e2       |   e1  |
-	   0   1   2        0   1   2
+	  |  e12  |
+	  |   | \ |
+	  |   |   e20
+	  |   | / |
+	  |   /   |
+	  | / |   |
+	  e01 |   |        P1 knows
+	  | \ |   |
+	  e0  e1  e2       |   e1  |
+	  0   1   2        0   1   2
 	*/
 
 	knownBy1 := cores[1].KnownEvents()
@@ -201,6 +200,7 @@ func TestEventDiff(t *testing.T) {
 	}
 
 }
+
 func TestSync(t *testing.T) {
 	cores, _, index := initCores(3, t)
 
@@ -211,7 +211,25 @@ func TestSync(t *testing.T) {
 	   0   1   2        0   1   2       0   1   2
 	*/
 
-	//core 1 is going to tell core 0 everything it knows
+	expectedHeights := make([]map[string]uint64, 3, 3)
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 1,
+		cores[1].hexID: 0,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 1,
+	}
+	checkHeights(cores, expectedHeights, t)
+
+	// core 1 is going to tell core 0 everything it knows
 	if err := synchronizeCores(cores, 1, 0, [][]byte{}); err != nil {
 		t.Fatal(err)
 	}
@@ -224,6 +242,23 @@ func TestSync(t *testing.T) {
 	   e0  e1  |        |   e1  |       |   |   e2
 	   0   1   2        0   1   2       0   1   2
 	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 1,
+	}
+	checkHeights(cores, expectedHeights, t)
 
 	knownBy0 := cores[0].KnownEvents()
 	if k := knownBy0[common.Hash32(cores[0].pubKey)]; k != 1 {
@@ -242,9 +277,12 @@ func TestSync(t *testing.T) {
 	if core0Head.OtherParent() != index["e1"] {
 		t.Fatalf("core 0 head other-parent should be e1")
 	}
+	if len(core0Head.FlagTable) == 0 {
+		t.Fatal("flag table is null")
+	}
 	index["e01"] = core0Head.Hex()
 
-	//core 0 is going to tell core 2 everything it knows
+	// core 0 is going to tell core 2 everything it knows
 	if err := synchronizeCores(cores, 0, 2, [][]byte{}); err != nil {
 		t.Fatal(err)
 	}
@@ -262,6 +300,23 @@ func TestSync(t *testing.T) {
 	   e0  e1  |        |   e1  |       e0  e1  e2
 	   0   1   2        0   1   2       0   1   2
 	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 2,
+	}
+	checkHeights(cores, expectedHeights, t)
 
 	knownBy2 := cores[2].KnownEvents()
 	if k := knownBy2[common.Hash32(cores[0].pubKey)]; k != 1 {
@@ -282,13 +337,12 @@ func TestSync(t *testing.T) {
 	}
 	index["e20"] = core2Head.Hex()
 
-	//core 2 is going to tell core 1 everything it knows
+	// core 2 is going to tell core 1 everything it knows
 	if err := synchronizeCores(cores, 2, 1, [][]byte{}); err != nil {
 		t.Fatal(err)
 	}
 
 	/*
-
 	   core 0           core 1          core 2
 
 	                    |  e12  |
@@ -302,6 +356,23 @@ func TestSync(t *testing.T) {
 	   e0  e1  |        e0  e1  e2      e0  e1  e2
 	   0   1   2        0   1   2       0   1   2
 	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 2,
+		cores[2].hexID: 2,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 2,
+	}
+	checkHeights(cores, expectedHeights, t)
 
 	knownBy1 := cores[1].KnownEvents()
 	if k := knownBy1[common.Hash32(cores[0].pubKey)]; k != 1 {
@@ -427,7 +498,7 @@ func TestConsensus(t *testing.T) {
 func TestOverSyncLimit(t *testing.T) {
 	cores := initConsensusPoset(t)
 
-	//positive
+	// positive
 	known := map[int]int{
 		common.Hash32(cores[0].pubKey): 1,
 		common.Hash32(cores[1].pubKey): 1,
@@ -440,7 +511,7 @@ func TestOverSyncLimit(t *testing.T) {
 		t.Fatalf("OverSyncLimit(%v, %v) should return true", known, syncLimit)
 	}
 
-	//negative
+	// negative
 	known = map[int]int{
 		common.Hash32(cores[0].pubKey): 6,
 		common.Hash32(cores[1].pubKey): 6,
@@ -451,7 +522,7 @@ func TestOverSyncLimit(t *testing.T) {
 		t.Fatalf("OverSyncLimit(%v, %v) should return false", known, syncLimit)
 	}
 
-	//edge
+	// edge
 	known = map[int]int{
 		common.Hash32(cores[0].pubKey): 2,
 		common.Hash32(cores[1].pubKey): 3,
@@ -464,9 +535,6 @@ func TestOverSyncLimit(t *testing.T) {
 }
 
 /*
-
-
-
     |   |   |   |-----------------
 	|   w31 |   | R3
 	|	| \ |   |
@@ -503,7 +571,7 @@ func TestOverSyncLimit(t *testing.T) {
     |   e1  e2  e3
     0	1	2	3
 */
-func initFFPposet(cores []Core, t *testing.T) {
+func initFFPoset(cores []Core, t *testing.T) {
 	playbook := []play{
 		{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
 		{from: 2, to: 3, payload: [][]byte{[]byte("e32")}},
@@ -563,7 +631,7 @@ func TestCoreFastForward(t *testing.T) {
 	initFFPoset(cores, t)
 
 	t.Run("Test no Anchor", func(t *testing.T) {
-		//Test no anchor block
+		// Test no anchor block
 		_, _, err := cores[1].GetAnchorBlockWithFrame()
 		if err == nil {
 			t.Fatal("GetAnchorBlockWithFrame should throw an error because there is no anchor block yet")
@@ -575,8 +643,8 @@ func TestCoreFastForward(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//collect signatures
-	signatures := make([]hg.BlockSignature, 3)
+	// collect signatures
+	signatures := make([]poset.BlockSignature, 3)
 	for k, c := range cores[1:] {
 		b, err := c.poset.Store.GetBlock(0)
 		if err != nil {
@@ -590,42 +658,42 @@ func TestCoreFastForward(t *testing.T) {
 	}
 
 	t.Run("Test not enough signatures", func(t *testing.T) {
-		//Append only 1 signatures
+		// Append only 1 signatures
 		if err := block0.SetSignature(signatures[0]); err != nil {
 			t.Fatal(err)
 		}
 
-		//Save Block
+		// Save Block
 		if err := cores[1].poset.Store.SetBlock(block0); err != nil {
 			t.Fatal(err)
 		}
-		//Assign AnchorBlock
+		// Assign AnchorBlock
 		cores[1].poset.AnchorBlock = new(int)
 		*cores[1].poset.AnchorBlock = 0
 
-		//Now the function should find an AnchorBlock
+		// Now the function should find an AnchorBlock
 		block, frame, err := cores[1].GetAnchorBlockWithFrame()
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		err = cores[0].FastForward(cores[1].hexID, block, frame)
-		//We should get an error because AnchorBlock doesnt contain enough
-		//signatures
+		// We should get an error because AnchorBlock doesnt contain enough
+		// signatures
 		if err == nil {
 			t.Fatal("FastForward should throw an error because the Block does not contain enough signatures")
 		}
 	})
 
 	t.Run("Test positive", func(t *testing.T) {
-		//Append the 2nd and 3rd signatures
+		// Append the 2nd and 3rd signatures
 		for i := 1; i < 3; i++ {
 			if err := block0.SetSignature(signatures[i]); err != nil {
 				t.Fatal(err)
 			}
 		}
 
-		//Save Block
+		// Save Block
 		if err := cores[1].poset.Store.SetBlock(block0); err != nil {
 			t.Fatal(err)
 		}

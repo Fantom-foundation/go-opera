@@ -23,3 +23,4 @@ Create an 3 node lachesis cluster with:
     ```
   - [Go](https://golang.org)
   - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with: `go get -v github.com/SamuelMarks/batch-ethkey`
+  - [mage](github.com/magefile/mage)

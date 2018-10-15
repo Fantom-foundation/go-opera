@@ -3,7 +3,6 @@ package tester
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,14 +16,11 @@ import (
 func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, serviceAddress string) {
 	fmt.Println("PingNodesN::participants: ", participants)
 	fmt.Println("PingNodesN::p: ", p)
-	iteration := 0
-
-	for {
-		iteration++
+	for iteration := uint64(0); iteration < n; iteration++ {
 		participant := participants[rand.Intn(len(participants))]
 		node := p[participant.PubKeyHex]
 
-		err := transact(*participant, node.ID, serviceAddress)
+		_, err := transact(*participant, node.ID, serviceAddress)
 
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
@@ -39,10 +35,8 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 	fmt.Println("Pinging stopped")
 }
 
-func transact(target peers.Peer, nodeId int, proxyAddress string) error {
-	parts := strings.Split(target.NetAddr, ":")
-	port, _ := strconv.Atoi(parts[1])
-	addr := fmt.Sprintf("%s:%d", parts[0], port-3000)
+func transact(target peers.Peer, nodeId int, proxyAddress string) (string, error) {
+	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
 	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10*time.Second)
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes. We'll assume
@@ -52,11 +46,11 @@ func transact(target peers.Peer, nodeId int, proxyAddress string) error {
 		// Send 10 txns to the server.
 		_, err := proxy.SubmitTx(msg[:])
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 	// fmt.Println("Submitted tx, ack=", ack)  # `ack` is now `_`
 
 	proxy.Close()
-	return nil
+	return "", nil
 }

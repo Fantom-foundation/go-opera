@@ -14,12 +14,11 @@ ip_range="$ip_start/$subnet"
 # Install deps
 "$DIR/install_deps.bash"
 
-env GOOS=linux GOARCH=amd64 go build -o lachesis_linux cmd/lachesis/main.go || exit 1
+env GOOS=linux GOARCH=amd64 go build -tags netgo -ldflags "-linkmode external -extldflags -static -s -w" -o lachesis_linux cmd/lachesis/main.go || exit 1
 
 # Run
 batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
-ID=$(docker build --compress --force-rm --tag "$PROJECT" "$BUILD_DIR" | tail -1 | sed 's/.*Successfully built \(.*\)$/\1/')
-docker tag "$ID" "offscale/$PROJECT":latest
+docker build --compress --force-rm --tag "$PROJECT" "$BUILD_DIR"
 
 "$DIR/network.bash" "$ip_range"
 "$DIR/spin_multi.bash" "$n"

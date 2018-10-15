@@ -2,8 +2,10 @@ package net
 
 import (
 	"encoding/json"
-	"github.com/eclipse/paho.mqtt.golang"
+	"errors"
 	"github.com/satori/go.uuid"
+
+	"github.com/eclipse/paho.mqtt.golang"
 )
 
 // MqttSocket mqttt socket connection for communication
@@ -44,6 +46,9 @@ func (ms *MqttSocket) FireEvent(v interface{}, topic string) error {
 	v, err := json.Marshal(v)
 	if err != nil {
 		return err
+	}
+	if ms.client == nil {
+		return errors.New("mqtt client nil")
 	}
 	if token := ms.client.Publish(topic, 2, false, v); token.Wait() && token.Error() != nil {
 		return token.Error()
