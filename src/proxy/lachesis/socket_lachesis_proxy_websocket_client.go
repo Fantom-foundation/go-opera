@@ -4,12 +4,12 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/gorilla/websocket"
+	ws "github.com/gorilla/websocket"
 )
 
 type SocketLachesisProxyClientWebsocket struct {
 	nodeUrl string
-	conn    *websocket.Conn
+	conn    *ws.Conn
 
 	timeout time.Duration
 }
@@ -25,7 +25,10 @@ func NewSocketLachesisProxyClientWebsocket(nodeAddr string, timeout time.Duratio
 
 func (p *SocketLachesisProxyClientWebsocket) getConnection() error {
 	if p.conn == nil {
-		c, _, err := websocket.DefaultDialer.Dial(p.nodeUrl, nil)
+		dialer := ws.DefaultDialer
+		dialer.HandshakeTimeout = p.timeout
+
+		c, _, err := dialer.Dial(p.nodeUrl, nil)
 		if err != nil {
 			return err
 		}
@@ -41,7 +44,9 @@ func (p *SocketLachesisProxyClientWebsocket) SubmitTx(tx []byte) error {
 		return err
 	}
 
-	err := p.conn.WriteMessage(websocket.BinaryMessage, tx)
+	p.conn.SetWriteDeadline(time.Now().Add(p.timeout))
+
+	err := p.conn.WriteMessage(ws.BinaryMessage, tx)
 	if err != nil {
 		return err
 	}
@@ -50,8 +55,15 @@ func (p *SocketLachesisProxyClientWebsocket) SubmitTx(tx []byte) error {
 }
 
 func (p *SocketLachesisProxyClientWebsocket) Close() error {
-	if p.conn != nil {
-		return p.conn.Close()
+	if p.conn == nil {
+		return nil
 	}
-	return nil
+
+	err := p.conn.WriteControl(ws.CloseMessage, ws.FormatCloseMessage(ws.CloseNormalClosure, ""), time.Now().Add(p.timeout))
+	if err != nil {
+		p.conn.Close()
+		return err
+	}
+
+	return p.conn.Close()
 }
