@@ -1,5 +1,4 @@
-#!/usr/bin/env bash -v
-#set -e
+#!/usr/bin/env bash
 trap 'kill $(jobs -p)' SIGINT SIGTERM EXIT
 
 n="$1"
@@ -19,7 +18,7 @@ batch-ethkey -dir "$PEERS_DIR/nodes" -network 127.0.0.1 -n "$n" -port-start 1200
 
 
 node_num=0
-go build -o lachesis cmd/lachesis/main.go 
+go build -o lachesis cmd/lachesis/main.go
 
 for host in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
   ip="${host%:*}";
