@@ -49,3 +49,7 @@ func (p *SocketLachesisProxyClient) SubmitTx(tx []byte) (*bool, error) {
 
 	return &ack, nil
 }
+
+func (p *SocketLachesisProxyClient) Close() error {
+	return p.rpc.Close()
+}

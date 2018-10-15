@@ -107,7 +107,7 @@ func NewBlockFromFrame(blockIndex int, frame Frame) (Block, error) {
 	if err != nil {
 		return Block{}, err
 	}
-	transactions := [][]byte{}
+	var transactions [][]byte
 	for _, e := range frame.Events {
 		transactions = append(transactions, e.Transactions()...)
 	}

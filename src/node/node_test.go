@@ -22,7 +22,7 @@ import (
 var ip = 9990
 
 func initPeers(n int) ([]*ecdsa.PrivateKey, *peers_.Peers) {
-	keys := []*ecdsa.PrivateKey{}
+	var keys []*ecdsa.PrivateKey
 	peers := peers_.NewPeers()
 
 	for i := 0; i < n; i++ {

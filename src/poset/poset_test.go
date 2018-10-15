@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/andrecronje/lachesis/src/peers"
-
 	"github.com/sirupsen/logrus"
 
 	"strings"
