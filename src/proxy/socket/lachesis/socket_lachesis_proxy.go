@@ -53,7 +53,7 @@ func (p *SocketLachesisProxy) CommitCh() chan proto.Commit {
 	return p.server.commitCh
 }
 
-func (p *SocketLachesisProxy) SnapshotRequestCh() chanproto. SnapshotRequest {
+func (p *SocketLachesisProxy) SnapshotRequestCh() chan proto. SnapshotRequest {
 	return p.server.snapshotRequestCh
 }
 

@@ -1,5 +1,6 @@
 package dummy
- import (
+
+import (
 	"fmt"
 	"reflect"
 	"testing"
@@ -8,7 +9,8 @@ package dummy
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
 )
- func TestInappDummySubmit(t *testing.T) {
+
+func TestInappDummySubmit(t *testing.T) {
  	dummy, err := NewDummyInappClient(common.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("Cannot create DummyInappClient: %s", err)
@@ -32,7 +34,8 @@ package dummy
 		t.Fatal(err)
 	}
 }
- func TestInappDummyCommitAndSnapshots(t *testing.T) {
+
+func TestInappDummyCommitAndSnapshots(t *testing.T) {
  	dummy, err := NewDummyInappClient(common.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("Cannot create DummyInappClient: %s", err)

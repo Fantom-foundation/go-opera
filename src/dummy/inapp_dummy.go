@@ -1,31 +1,38 @@
 package dummy
- import (
+
+import (
 	"time"
- 	"github.com/andrecronje/lachesis/src/proxy/inapp"
+
+  "github.com/andrecronje/lachesis/src/dummy/state"
+  "github.com/andrecronje/lachesis/src/proxy/inapp"
 	"github.com/sirupsen/logrus"
 )
- type DummyInappClient struct {
-	state  *State
+
+// DummyInappClient is an in-memory implmentation of the dummy app. It uses an
+// InappProxy to communicate with a Lachesis node.
+type DummyInappClient struct {
+	state  *state.State
 	proxy  *inapp.InappProxy
 	logger *logrus.Logger
 }
- func NewDummyInappClient(logger *logrus.Logger) (*DummyInappClient, error) {
+
+//NewDummyInappClient instantiates a DummyInappClient
+func NewDummyInappClient(logger *logrus.Logger) (*DummyInappClient, error) {
 	proxy := inapp.NewInappProxy(1*time.Second, logger)
- 	state := State{
-		stateHash: []byte{},
-		snapshots: make(map[int][]byte),
-		logger:    logger,
-	}
-	state.writeMessage([]byte("InappDummy"))
- 	client := &DummyInappClient{
-		state:  &state,
+
+  state := state.NewState(logger)
+
+  client := &DummyInappClient{
+		state:  state,
 		proxy:  proxy,
 		logger: logger,
 	}
  	go client.Run()
  	return client, nil
 }
- func (c *DummyInappClient) Run() {
+
+//Run listens for messages from the Lachesis node via the InappProxy
+func (c *DummyInappClient) Run() {
 	for {
 		select {
 		case commit := <-c.proxy.CommitCh():
@@ -43,6 +50,8 @@ package dummy
 		}
 	}
 }
- func (c *DummyInappClient) SubmitTx(tx []byte) error {
+
+//SubmitTx sends a transaction to the Lachesis node via the InappProxy
+func (c *DummyInappClient) SubmitTx(tx []byte) error {
 	return c.proxy.SubmitTx(tx)
 }

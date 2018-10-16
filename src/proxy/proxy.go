@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/mosaicnetworks/babble/src/proxy/proto"
+	"github.com/andrecronje/lachesis/src/proxy/proto"
 )
 
 type AppProxy interface {

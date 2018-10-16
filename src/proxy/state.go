@@ -8,7 +8,7 @@ import (
 
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
-	bproxy "github.com/andrecronje/lachesis/src/proxy/lachesis"
+	bproxy "github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
 	"github.com/sirupsen/logrus"
 )
 

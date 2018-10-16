@@ -1,5 +1,6 @@
 package inapp
- import (
+
+import (
 	"fmt"
 	"reflect"
 	"testing"
@@ -7,9 +8,10 @@ package inapp
  	"github.com/andrecronje/lachesis/src/common"
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/proxy/dummy"
+	"github.com/andrecronje/lachesis/src/dummy/state"
 )
- func TestInappProxyAppSide(t *testing.T) {
+
+func TestInappProxyAppSide(t *testing.T) {
 	proxy := NewInappProxy(1*time.Second, common.NewTestLogger(t))
  	submitCh := proxy.SubmitCh()
  	tx := []byte("the test transaction")
@@ -30,9 +32,10 @@ package inapp
 		t.Fatal(err)
 	}
 }
- func TestInappProxyLachesisSide(t *testing.T) {
+
+func TestInappProxyLachesisSide(t *testing.T) {
 	proxy := NewInappProxy(1*time.Second, common.NewTestLogger(t))
- 	state := dummy.NewState(proxy.logger)
+ 	state := state.NewState(proxy.logger)
  	initialStateHash := []byte{}
  	go func() {
 		for {

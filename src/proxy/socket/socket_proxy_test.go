@@ -1,4 +1,4 @@
-package proxy
+package socket
 
 import (
 	"fmt"
@@ -8,22 +8,23 @@ import (
 
 	"github.com/andrecronje/lachesis/src/common"
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/dummy/state"
 	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/proxy/dummy"
 	aproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
+	bproxy "github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
 )
 
 func TestSocketProxyServer(t *testing.T) {
 	clientAddr := "127.0.0.1:9990"
 	proxyAddr := "127.0.0.1:9991"
 
-	proxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
+	appProxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatalf("Cannot create SocketAppProxy: %s", err)
 	}
 
-	submitCh := proxy.SubmitCh()
+	submitCh := appProxy.SubmitCh()
 
 	tx := []byte("the test transaction")
 
@@ -42,13 +43,13 @@ func TestSocketProxyServer(t *testing.T) {
 
 	// now client part connecting to RPC service
 	// and calling methods
-	dummyClient, err := dummy.NewDummySocketClient(clientAddr, proxyAddr, common.NewTestLogger(t))
+	lachesisProxy, err := bproxy.NewSocketLachesisProxy(proxyAddr, clientAddr, 1*time.Second, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = dummyClient.SubmitTx(tx)
+	err = lachesisProxy.SubmitTx(tx)
 
 	if err != nil {
 		t.Fatal(err)
@@ -59,21 +60,47 @@ func TestSocketProxyClient(t *testing.T) {
 	clientAddr := "127.0.0.1:9992"
 	proxyAddr := "127.0.0.1:9993"
 
-	//launch dummy application
-	_, err := NewDummySocketClientNewDummySocketClient(clientAddr, proxyAddr, common.NewTestLogger(t))
+	logger := common.NewTestLogger(t)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	initialStateHash := []byte{}
-
-	//create client proxy
-	proxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
-
+	//create app proxy
+	appProxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, logger)
 	if err != nil {
 		t.Fatalf("Cannot create SocketAppProxy: %s", err)
 	}
+
+	//create lachesis proxy
+	lachesisProxy, err := bproxy.NewSocketLachesisProxy(proxyAddr, clientAddr, 1*time.Second, logger)
+
+	state := state.NewState(logger)
+
+	initialStateHash := []byte{}
+
+	go func() {
+		for {
+			select {
+			case commit := <-lachesisProxy.CommitCh():
+				t.Log("CommitBlock")
+
+				stateHash, err := state.CommitBlock(commit.Block)
+
+				commit.Respond(stateHash, err)
+
+			case snapshotRequest := <-lachesisProxy.SnapshotRequestCh():
+				t.Log("GetSnapshot")
+
+				snapshot, err := state.GetSnapshot(snapshotRequest.BlockIndex)
+
+				snapshotRequest.Respond(snapshot, err)
+
+			case restoreRequest := <-lachesisProxy.RestoreCh():
+				t.Log("Restore")
+
+				stateHash, err := state.Restore(restoreRequest.Snapshot)
+
+				restoreRequest.Respond(stateHash, err)
+			}
+		}
+	}()
 
 	//create a few blocks
 	blocks := [5]poset.Block{}
@@ -83,7 +110,7 @@ func TestSocketProxyClient(t *testing.T) {
 	}
 
 	//commit first block and check that the client's statehash is correct
-	stateHash, err := proxy.CommitBlock(blocks[0])
+	stateHash, err := appProxy.CommitBlock(blocks[0])
 
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +128,7 @@ func TestSocketProxyClient(t *testing.T) {
 		t.Fatalf("StateHash should be %v, not %v", expectedStateHash, stateHash)
 	}
 
-	snapshot, err := proxy.GetSnapshot(blocks[0].Index())
+	snapshot, err := appProxy.GetSnapshot(blocks[0].Index())
 
 	if err != nil {
 		t.Fatal(err)
@@ -113,14 +140,14 @@ func TestSocketProxyClient(t *testing.T) {
 
 	//commit a few more blocks, then attempt to restore back to block 0 state
 	for i := 1; i < 5; i++ {
-		_, err := proxy.CommitBlock(blocks[i])
+		_, err := appProxy.CommitBlock(blocks[i])
 
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	err = proxy.Restore(snapshot)
+	err = appProxy.Restore(snapshot)
 
 	if err != nil {
 		t.Fatalf("Error restoring snapshot: %v", err)
