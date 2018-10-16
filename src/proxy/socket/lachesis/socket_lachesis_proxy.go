@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/andrecronje/lachesis/src/proxy/proto"
 	"github.com/sirupsen/logrus"
 )
 
@@ -48,15 +49,15 @@ func NewSocketLachesisProxy(nodeAddr string,
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //Implement LachesisProxy interface
 
-func (p *SocketLachesisProxy) CommitCh() chan Commit {
+func (p *SocketLachesisProxy) CommitCh() chan proto.Commit {
 	return p.server.commitCh
 }
 
-func (p *SocketLachesisProxy) SnapshotRequestCh() chan SnapshotRequest {
+func (p *SocketLachesisProxy) SnapshotRequestCh() chanproto. SnapshotRequest {
 	return p.server.snapshotRequestCh
 }
 
-func (p *SocketLachesisProxy) RestoreCh() chan RestoreRequest {
+func (p *SocketLachesisProxy) RestoreCh() chan proto.RestoreRequest {
 	return p.server.restoreCh
 }
 

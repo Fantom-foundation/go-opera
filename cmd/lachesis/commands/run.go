@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 	"github.com/andrecronje/lachesis/src/lachesis"
-	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
 	"github.com/andrecronje/lachesis/tester"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

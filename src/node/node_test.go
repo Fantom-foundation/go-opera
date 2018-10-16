@@ -15,7 +15,7 @@ import (
 	"github.com/andrecronje/lachesis/src/net"
 	peers_ "github.com/andrecronje/lachesis/src/peers"
 	"github.com/andrecronje/lachesis/src/poset"
-	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
 	"github.com/sirupsen/logrus"
 )
 

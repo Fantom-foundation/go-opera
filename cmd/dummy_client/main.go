@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/andrecronje/lachesis/src/proxy"
+	"github.com/andrecronje/lachesis/src/proxy/dummy"
 )
 
 var (
@@ -61,7 +61,7 @@ func run(c *cli.Context) error {
 		"client_addr": clientAddress,
 	}).Debug("RUN")
 
-	client, err := proxy.NewDummySocketClient(clientAddress, proxyAddress, logger)
+	client, err := dummy.NewDummySocketClient(clientAddress, proxyAddress, logger)
 	if err != nil {
 		return err
 	}

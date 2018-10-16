@@ -9,7 +9,7 @@ import (
 
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/proxy"
-	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
 	"github.com/sirupsen/logrus"
 )
 

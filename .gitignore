@@ -25,3 +25,5 @@ nodes
 peers.json
 certs
 lachesis_linux
+
+.#*

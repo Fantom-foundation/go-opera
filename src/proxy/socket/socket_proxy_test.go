@@ -9,7 +9,8 @@ import (
 	"github.com/andrecronje/lachesis/src/common"
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
-	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
+	"github.com/andrecronje/lachesis/src/proxy/dummy"
+	aproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
 )
 
 func TestSocketProxyServer(t *testing.T) {
@@ -41,7 +42,7 @@ func TestSocketProxyServer(t *testing.T) {
 
 	// now client part connecting to RPC service
 	// and calling methods
-	dummyClient, err := NewDummySocketClient(clientAddr, proxyAddr, common.NewTestLogger(t))
+	dummyClient, err := dummy.NewDummySocketClient(clientAddr, proxyAddr, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatal(err)
@@ -59,13 +60,13 @@ func TestSocketProxyClient(t *testing.T) {
 	proxyAddr := "127.0.0.1:9993"
 
 	//launch dummy application
-	dummyClient, err := NewDummySocketClient(clientAddr, proxyAddr, common.NewTestLogger(t))
+	_, err := NewDummySocketClientNewDummySocketClient(clientAddr, proxyAddr, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	initialStateHash := dummyClient.state.stateHash
+	initialStateHash := []byte{}
 
 	//create client proxy
 	proxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
