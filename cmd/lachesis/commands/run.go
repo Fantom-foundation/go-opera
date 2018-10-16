@@ -141,9 +141,9 @@ func bindFlagsLoadViper(cmd *cobra.Command) error {
 	// viper.AddConfigPath(filepath.Join(config.Lachesis.DataDir, "lachesis")) // search root directory /config
  	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		config.Lachesis.Logger.Debugf("Using config file: ", viper.ConfigFileUsed())
+		config.Lachesis.Logger.Debugf("Using config file: %s", viper.ConfigFileUsed())
 	} else if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-		config.Lachesis.Logger.Debugf("No config file found in:", config.Lachesis.DataDir)
+		config.Lachesis.Logger.Debugf("No config file found in: %s", config.Lachesis.DataDir)
 	} else {
 		return err
 	}
