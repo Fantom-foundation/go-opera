@@ -64,6 +64,10 @@ func DefaultBadgerDir() string {
 	return ""
 }
 
+func (c *LachesisConfig) BadgerDir() string {
+	return filepath.Join(c.DataDir, "badger_db")
+}
+
 func DefaultDataDir() string {
 	// Try to place the data folder in the user's home dir
 	home := HomeDir()

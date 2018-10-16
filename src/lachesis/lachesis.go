@@ -84,7 +84,8 @@ func (l *Lachesis) initStore() error {
 	} else {
 		var err error
 
-		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
+		b.Config.Logger.WithField("path", b.Config.BadgerDir()).Debug("Attempting to load or create database")
+ 		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, l.Config.BadgerDir())
 
 		if err != nil {
 			return err
