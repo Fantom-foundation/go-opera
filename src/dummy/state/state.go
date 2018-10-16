@@ -2,7 +2,6 @@ package state
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
@@ -12,33 +11,36 @@ import (
 /*
 * The dummy App is used for testing and as an example for building Lachesis
 * applications. Here, we define the dummy's state which doesn't really do
-* anything useful. It writes block transactions (as strings) into a messages.txt
-* file. The state hash is computed by hashing transactions together. Snapshots
-* correspond to the state hash resulting from executing a the block's
+* anything useful. It saves and logs block transactions. The state hash is
+* computed by cumulatively hashing transactions together as they come in.
+* Snapshots correspond to the state hash resulting from executing a the block's
 * transactions.
  */
 
 
 type State struct {
-	stateHash []byte
-	snapshots map[int][]byte
-	logger    *logrus.Logger
+	committedTxs [][]byte
+	stateHash    []byte
+	snapshots    map[int][]byte
+	logger       *logrus.Logger
 }
 
 func NewState(logger *logrus.Logger) *State {
 	state := &State{
-		stateHash: []byte{},
-		snapshots: make(map[int][]byte),
-		logger:    logger,
+		committedTxs: [][]byte{},
+		stateHash:    []byte{},
+		snapshots:    make(map[int][]byte),
+		logger:       logger,
 	}
-	state.writeMessage([]byte("init"))
+	logger.Debug("Init Dummy State")
+
 	return state
 }
 
 
 func (a *State) CommitBlock(block poset.Block) ([]byte, error) {
 	a.logger.WithField("block", block).Debug("CommitBlock")
-	err := a.writeBlock(block)
+	err := a.commit(block)
 	if err != nil {
 		return nil, err
 	}
@@ -62,14 +64,12 @@ func (a *State) Restore(snapshot []byte) ([]byte, error) {
 	return a.stateHash, nil
 }
 
-func (a *State) writeBlock(block poset.Block) error {
-	file, err := a.getFile()
-	if err != nil {
-		a.logger.Error(err)
-		return err
-	}
-	defer file.Close()
+func (a *State) GetCommittedTransactions() [][]byte {
+	return a.committedTxs
+}
 
+func (a *State) commit(block poset.Block) error {
+	a.committedTxs = append(a.committedTxs, block.Transactions()...)
 	// write some text to file
 	//and update state hash
 	hash := a.stateHash
@@ -79,43 +79,16 @@ func (a *State) writeBlock(block poset.Block) error {
 			a.logger.Error(err)
 			return err
 		}
+		a.logger.Debug(string(tx))
 		hash = crypto.SimpleHashFromTwoHashes(hash, crypto.SHA256(tx))
 	}
-
-	err = file.Sync()
+ 	err = file.Sync()
 	if err != nil {
 		a.logger.Error(err)
 		return err
 	}
-
-	a.stateHash = hash
-
-	//XXX do something smart here
+ 	a.stateHash = hash
+ 	//XXX do something smart here
 	a.snapshots[block.Index()] = hash
-
-	return nil
-}
-
-func (a *State) writeMessage(tx []byte) {
-	file, err := a.getFile()
-	if err != nil {
-		a.logger.Error(err)
-		return
-	}
-	defer file.Close()
-
-	// write some text to file
-	_, err = file.WriteString(fmt.Sprintf("%s\n", string(tx)))
-	if err != nil {
-		a.logger.Error(err)
-	}
-	err = file.Sync()
-	if err != nil {
-		a.logger.Error(err)
-	}
-}
-
-func (a *State) getFile() (*os.File, error) {
-	path := "messages.txt"
-	return os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+ 	return nil
 }

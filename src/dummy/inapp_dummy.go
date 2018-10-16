@@ -8,42 +8,43 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// DummyInappClient is an in-memory implmentation of the dummy app. It uses an
-// InappProxy to communicate with a Lachesis node.
+// DummyInappClient is an in-memory implmentation of the dummy app. It actually
+// imlplements the AppProxy interface, and can be passed in the Lachesis
+// constructor directly
 type DummyInappClient struct {
+	*inapp.InappProxy
 	state  *state.State
-	proxy  *inapp.InappProxy
 	logger *logrus.Logger
 }
 
 //NewDummyInappClient instantiates a DummyInappClient
-func NewDummyInappClient(logger *logrus.Logger) (*DummyInappClient, error) {
+func NewDummyInappClient(logger *logrus.Logger) *DummyInappClient {
 	proxy := inapp.NewInappProxy(1*time.Second, logger)
 
   state := state.NewState(logger)
 
   client := &DummyInappClient{
-		state:  state,
-		proxy:  proxy,
-		logger: logger,
+		InappProxy: proxy
+		state:      state,
+		logger:     logger,
 	}
  	go client.Run()
- 	return client, nil
+ 	return client
 }
 
 //Run listens for messages from the Lachesis node via the InappProxy
 func (c *DummyInappClient) Run() {
 	for {
 		select {
-		case commit := <-c.proxy.CommitCh():
+		case commit := <-c.InappProxy.CommitCh():
 			c.logger.Debug("CommitBlock")
 			stateHash, err := c.state.CommitBlock(commit.Block)
 			commit.Respond(stateHash, err)
-		case snapshotRequest := <-c.proxy.SnapshotRequestCh():
+		case snapshotRequest := <-c.InappProxy.SnapshotRequestCh():
 			c.logger.Debug("GetSnapshot")
 			snapshot, err := c.state.GetSnapshot(snapshotRequest.BlockIndex)
 			snapshotRequest.Respond(snapshot, err)
-		case restoreRequest := <-c.proxy.RestoreCh():
+		case restoreRequest := <-c.InappProxy.RestoreCh():
 			c.logger.Debug("Restore")
 			stateHash, err := c.state.Restore(restoreRequest.Snapshot)
 			restoreRequest.Respond(stateHash, err)
@@ -53,5 +54,10 @@ func (c *DummyInappClient) Run() {
 
 //SubmitTx sends a transaction to the Lachesis node via the InappProxy
 func (c *DummyInappClient) SubmitTx(tx []byte) error {
-	return c.proxy.SubmitTx(tx)
+	return c.InappProxy.SubmitTx(tx)
+}
+
+//GetCommittedTransactions returns the state's list of transactions
+func (c *DummyInappClient) GetCommittedTransactions() [][]byte {
+	return c.state.GetCommittedTransactions()
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/andrecronje/lachesis/src/proxy/dummy"
+	"github.com/andrecronje/lachesis/src/dummy"
 )
 
 var (
@@ -75,8 +75,6 @@ func run(c *cli.Context) error {
 			fmt.Printf("Error in SubmitTx: %v\n", err)
 		}
 	}
-
-	select {}
 
 	return nil
 }
