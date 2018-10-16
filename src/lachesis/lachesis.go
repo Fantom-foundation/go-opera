@@ -8,7 +8,7 @@ import (
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/peers"
-	h "github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/service"
 	"github.com/sirupsen/logrus"
 )
@@ -17,7 +17,7 @@ type Lachesis struct {
 	Config    *LachesisConfig
 	Node      *node.Node
 	Transport net.Transport
-	Store     h.Store
+	Store     poset.Store
 	Peers     *peers.Peers
 	Service   *service.Service
 }
@@ -30,34 +30,34 @@ func NewLachesis(config *LachesisConfig) *Lachesis {
 	return engine
 }
 
-func (b *Lachesis) initTransport() error {
+func (l *Lachesis) initTransport() error {
 	transport, err := net.NewTCPTransport(
-		b.Config.BindAddr,
+		l.Config.BindAddr,
 		nil,
-		b.Config.MaxPool,
-		b.Config.NodeConfig.TCPTimeout,
-		b.Config.Logger,
+		l.Config.MaxPool,
+		l.Config.NodeConfig.TCPTimeout,
+		l.Config.Logger,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	b.Transport = transport
+	l.Transport = transport
 
 	return nil
 }
 
-func (b *Lachesis) initPeers() error {
-	if !b.Config.LoadPeers {
-		if b.Peers == nil {
+func (l *Lachesis) initPeers() error {
+	if !l.Config.LoadPeers {
+		if l.Peers == nil {
 			return fmt.Errorf("Did not load peers but none was present")
 		}
 
 		return nil
 	}
 
-	peerStore := peers.NewJSONPeers(b.Config.DataDir)
+	peerStore := peers.NewJSONPeers(l.Config.DataDir)
 
 	participants, err := peerStore.Peers()
 
@@ -69,70 +69,70 @@ func (b *Lachesis) initPeers() error {
 		return fmt.Errorf("peers.json should define at least two peers")
 	}
 
-	b.Peers = participants
+	l.Peers = participants
 
 	return nil
 }
 
-func (b *Lachesis) initStore() error {
-	var dbDir = fmt.Sprintf("%s/badger", b.Config.DataDir)
+func (l *Lachesis) initStore() error {
+	var dbDir = fmt.Sprintf("%s/badger", l.Config.DataDir)
 
-	if !b.Config.Store {
-		b.Store = h.NewInmemStore(b.Peers, b.Config.NodeConfig.CacheSize)
+	if !l.Config.Store {
+		l.Store = poset.NewInmemStore(l.Peers, l.Config.NodeConfig.CacheSize)
 
-		b.Config.Logger.Debug("created new in-mem store")
+		l.Config.Logger.Debug("created new in-mem store")
 	} else {
 		var err error
 
-		b.Store, err = h.LoadOrCreateBadgerStore(b.Peers, b.Config.NodeConfig.CacheSize, dbDir)
+		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
 
 		if err != nil {
 			return err
 		}
 
-		if b.Store.NeedBoostrap() {
-			b.Config.Logger.Debug("loaded badger store from existing database at ", dbDir)
+		if l.Store.NeedBoostrap() {
+			l.Config.Logger.Debug("loaded badger store from existing database at ", dbDir)
 		} else {
-			b.Config.Logger.Debug("created new badger store from fresh database")
+			l.Config.Logger.Debug("created new badger store from fresh database")
 		}
 	}
 
 	return nil
 }
 
-func (b *Lachesis) initKey() error {
-	if b.Config.Key == nil {
-		pemKey := crypto.NewPemKey(b.Config.DataDir)
+func (l *Lachesis) initKey() error {
+	if l.Config.Key == nil {
+		pemKey := crypto.NewPemKey(l.Config.DataDir)
 
 		privKey, err := pemKey.ReadKey()
 
 		if err != nil {
-			b.Config.Logger.Warn("Cannot read private key from file", err)
+			l.Config.Logger.Warn("Cannot read private key from file", err)
 
-			privKey, err = Keygen(b.Config.DataDir)
+			privKey, err = Keygen(l.Config.DataDir)
 
 			if err != nil {
-				b.Config.Logger.Error("Cannot generate a new private key", err)
+				l.Config.Logger.Error("Cannot generate a new private key", err)
 
 				return err
 			}
 
 			pem, _ := crypto.ToPemKey(privKey)
 
-			b.Config.Logger.Info("Created a new key:", pem.PublicKey)
+			l.Config.Logger.Info("Created a new key:", pem.PublicKey)
 		}
 
-		b.Config.Key = privKey
+		l.Config.Key = privKey
 	}
 
 	return nil
 }
 
-func (b *Lachesis) initNode() error {
-	key := b.Config.Key
+func (l *Lachesis) initNode() error {
+	key := l.Config.Key
 
 	nodePub := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
-	n, ok := b.Peers.ByPubKey[nodePub]
+	n, ok := l.Peers.ByPubKey[nodePub]
 
 	if !ok {
 		return fmt.Errorf("Cannot find self pubkey in peers.json")
@@ -140,68 +140,72 @@ func (b *Lachesis) initNode() error {
 
 	nodeID := n.ID
 
-	b.Config.Logger.WithFields(logrus.Fields{
-		"participants": b.Peers,
+	l.Config.Logger.WithFields(logrus.Fields{
+		"participants": l.Peers,
 		"id":           nodeID,
 	}).Debug("PARTICIPANTS")
 
-	b.Node = node.NewNode(
-		&b.Config.NodeConfig,
+	l.Node = node.NewNode(
+		&l.Config.NodeConfig,
 		nodeID,
 		key,
-		b.Peers,
-		b.Store,
-		b.Transport,
-		b.Config.Proxy,
+		l.Peers,
+		l.Store,
+		l.Transport,
+		l.Config.Proxy,
 	)
 
-	if err := b.Node.Init(); err != nil {
+	if err := l.Node.Init(); err != nil {
 		return fmt.Errorf("failed to initialize node: %s", err)
 	}
 
 	return nil
 }
 
-func (b *Lachesis) initService() error {
-	b.Service = service.NewService(b.Config.ServiceAddr, b.Node, b.Config.Logger)
+func (l *Lachesis) initService() error {
+	if l.Config.ServiceAddr != "" {
+		l.Service = service.NewService(l.Config.ServiceAddr, l.Node, l.Config.Logger)
+	}
 	return nil
 }
 
-func (b *Lachesis) Init() error {
-	if b.Config.Logger == nil {
-		b.Config.Logger = logrus.New()
+func (l *Lachesis) Init() error {
+	if l.Config.Logger == nil {
+		l.Config.Logger = logrus.New()
 	}
 
-	if err := b.initPeers(); err != nil {
+	if err := l.initPeers(); err != nil {
 		return err
 	}
 
-	if err := b.initStore(); err != nil {
+	if err := l.initStore(); err != nil {
 		return err
 	}
 
-	if err := b.initTransport(); err != nil {
+	if err := l.initTransport(); err != nil {
 		return err
 	}
 
-	if err := b.initKey(); err != nil {
+	if err := l.initKey(); err != nil {
 		return err
 	}
 
-	if err := b.initNode(); err != nil {
+	if err := l.initNode(); err != nil {
 		return err
 	}
 
-	if err := b.initService(); err != nil {
+	if err := l.initService(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (b *Lachesis) Run() {
-	go b.Service.Serve()
-	b.Node.Run(true)
+func (l *Lachesis) Run() {
+	if l.Service != nil {
+		go l.Service.Serve()
+	}
+	l.Node.Run(true)
 }
 
 func Keygen(datadir string) (*ecdsa.PrivateKey, error) {
