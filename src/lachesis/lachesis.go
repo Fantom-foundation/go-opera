@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/peers"
@@ -170,6 +171,7 @@ func (b *Lachesis) initService() error {
 func (b *Lachesis) Init() error {
 	if b.Config.Logger == nil {
 		b.Config.Logger = logrus.New()
+		lachesis_log.NewLocal(b.Config.Logger)
 	}
 
 	if err := b.initPeers(); err != nil {
