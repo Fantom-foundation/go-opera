@@ -308,11 +308,11 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	// Get flag tables from parents
 	parentEvent, errSelf := c.poset.Store.GetEvent(c.Head)
 	if errSelf != nil {
-		c.logger.Warn("failed to get parent: %s", errSelf)
+		c.logger.Warnf("failed to get parent: %s", errSelf)
 	}
 	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
 	if errOther != nil {
-		c.logger.Warn("failed to get  other parent: %s", errOther)
+		c.logger.Warnf("failed to get  other parent: %s", errOther)
 	}
 
 	var (

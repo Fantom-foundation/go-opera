@@ -37,7 +37,7 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		HeartbeatTimeout: 1000 * time.Millisecond,
-		TCPTimeout:       1000 * time.Millisecond,
+		TCPTimeout:       180 * 1000 * time.Millisecond,
 		CacheSize:        500,
 		SyncLimit:        100,
 		Logger:           logger,
