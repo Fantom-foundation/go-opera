@@ -1,15 +1,15 @@
 .. _blockchain:
 
-From Hashgraph to Blockchain
+From Poset to Blockchain
 ============================
 
-This document describes a technique for projecting a hashgraph onto a 
+This document describes a technique for projecting a poset onto a 
 blockchain, which is better suited for representing an immutable ordered list of 
-transactions. In this system, the order is governed by the Hashgraph consensus 
+transactions. In this system, the order is governed by the Poset consensus 
 algorithm but the transactions are mapped onto a linear data structure composed 
 of blocks; each block containing an ordered list of transactions, a hash of the 
 previous block, a hash of the resulting application state, and a collection of 
-signatures from the set of validators. This method enables hashgraph-based 
+signatures from the set of validators. This method enables poset-based 
 systems to implement any Inter-Blockchain Communication protocol and integrate 
 with an Internet of Blockchains. 
 
@@ -25,20 +25,20 @@ used in a much broader sense, it originally designated a data structure.
 Consensus algorithms, public/private networks, cryptocurrencies, etc., are 
 independent concepts.   
 
-Hashgraph is a beautiful consensus algorithm based on a homonymous data 
-structure. The hashgraph data structure, however, is not easy to work with when 
+Poset is a beautiful consensus algorithm based on a homonymous data 
+structure. The poset data structure, however, is not easy to work with when 
 it comes to representing a linear sequence of transactions. It is a Directed 
 Acyclic Graph (DAG) from which the order must be extracted via some complex 
 consensus functions. To verify the consensus index of a given transaction, one 
-has to re-compute the consensus methods on a subset of the hashgraph. On the 
+has to re-compute the consensus methods on a subset of the poset. On the 
 other hand, blockchains do not need any further processing to extract the 
 ordered list of transactions and simple cryptographic primitives are sufficient 
 to validate blocks. 
 
-The "hashgraph vs blockchain" debate is a red herring. Blockchain is just a data 
+The "poset vs blockchain" debate is a red herring. Blockchain is just a data 
 structure; the engine is the underlying consensus algorithm. The projection 
 method exposes an easy-to-work-with blockchain powered by the efficient 
-Hashgraph consensus algorithm.
+Poset consensus algorithm.
 
 Implementation
 --------------
@@ -109,7 +109,7 @@ Implementation
 
     Sij: Signature of Block i by validator j
 
-The Hashgraph algorithm always commits Events in batches. Indeed, when the fame 
+The Poset algorithm always commits Events in batches. Indeed, when the fame 
 of a super-majority of witnesses from a given round is decided, all the Events 
 that are seen by all these famous witnesses (but not from an earlier round) get 
 assigned the same *Round Received* and sorted according to a deterministic 
@@ -135,14 +135,14 @@ the next Event it defines. Hence, block-signatures piggy-back on the regular
 gossip messages and propagate at the same speed. Upon receiving Events from an 
 other peer, a member will verify their block-signatures against its own version 
 of the blocks; if the signatures match, they are recorded with the block. With 
-this extended gossip routine, nodes simultaneously build up the hashgraph and 
-the corresponding blockchain. It preserves the simplicity of the hashgraph 
+this extended gossip routine, nodes simultaneously build up the poset and 
+the corresponding blockchain. It preserves the simplicity of the poset 
 system, which is one of its most valuable features, by not adding new types of 
 messages; it only extends the existing Event data-structure. 
 
 By construction, the fame of a round R witness can only be decided by a witness 
 in round R+2 or above. Hence, when a block is created for a *Round Received* R 
-(block R), the hashgraph already contains Events at round R+2 or more; the 
+(block R), the poset already contains Events at round R+2 or more; the 
 signatures for block R, will be gossiped at the same time as Events of round R+2 
 or more. It follows that the signatures of block R will arrive with a lag of 2 
 or more consensus rounds.      
@@ -171,9 +171,9 @@ Blocks contain a Header and a Body. Signatures are based on the Header only;
 which is enough to verify the entire block because it contains a digital 
 fingerprint of the Body. Since Headers also contain a hash of the previous 
 block, each block signature adds further validation to previous blocks. The 
-Header's *RoundReceived* corresponds to the *RoundReceived* of the hashgraph 
+Header's *RoundReceived* corresponds to the *RoundReceived* of the poset 
 Events who's transactions are included in the block; it serves the purpose tying 
-back to the underlying hashgraph. We do not produce a block when all the Events 
+back to the underlying poset. We do not produce a block when all the Events 
 of a *Round Received* are empty. Hence, two consecutive blocks may have 
 non-consecutive RoundReceived values and we use an additional property to index 
 the blocks. The block Body also contains a hash of the application's state 
@@ -191,7 +191,7 @@ Dynamic Validator Set
 
 The system described above assumes that the set of validators is fixed; block 
 signatures are always checked against the same list of public keys. In 
-Hashgraph, it is possible to make the set of validators change dynamically. 
+Poset, it is possible to make the set of validators change dynamically. 
 The projection would have to be extended such that block Headers would also 
 contain a Merkle root of the current validator set, thereby providing a simple 
 method of verifying that a signer belongs to the set of validators corresponding 
@@ -203,7 +203,7 @@ Inter-Blockchain Communication
 Inter-Blockchain Communication (IBC) is about verifying on one chain that a 
 transaction happened on another chain; one blockchain acts as a light-client to 
 another blockchain. It is much simpler to build a light-client for a blockchain 
-than for a hashgraph. In an effort to enable interoperability between 
+than for a poset. In an effort to enable interoperability between 
 blockchains, several initiatives have been proposed to build protocols for IBC 
-like Cosmos, Polkadot and EOS. The projection method allows hashgraph-based 
+like Cosmos, Polkadot and EOS. The projection method allows poset-based 
 systems to integrate with these network architectures.

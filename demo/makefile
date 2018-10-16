@@ -3,7 +3,7 @@ txs = 10
 
 up: conf start watch
 
-# build babble and dummy docker images for local registry. If this step is not
+# build lachesis and dummy docker images for local registry. If this step is not
 # run, the images will be pulled from the public registry on docker.io
 build :
 	cd ../docker && make demo

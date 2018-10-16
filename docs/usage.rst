@@ -4,9 +4,9 @@ Usage
 =====
 
 In this section we will guide you through deploying an application on top of 
-Babble. Babble comes with the Dummy application which is used in this 
+Lachesis. Lachesis comes with the Dummy application which is used in this 
 demonstration. It is a simple chat application where participants write 
-messages on a channel and Babble guarantees that everyone sees the same messages 
+messages on a channel and Lachesis guarantees that everyone sees the same messages 
 in the same order.
 
 Docker
@@ -23,8 +23,8 @@ The demo will pull Docker images from our `official public Docker registry
 
 ::
 
-    [...]/babble$ cd demo
-    [...]/babble/demo$ make
+    [...]/lachesis$ cd demo
+    [...]/lachesis/demo$ make
 
 
 Once the testnet is started, a script is automatically launched to monitor 
@@ -41,28 +41,28 @@ Running ``docker ps -a`` will show you that 9 docker containers have been launch
 
 ::
 
-    [...]/babble/demo$ docker ps -a
+    [...]/lachesis/demo$ docker ps -a
     CONTAINER ID        IMAGE                    COMMAND                  CREATED             STATUS              PORTS                   NAMES
     ba80ef275f22        mosaicnetworks/watcher   "/watch.sh"              48 seconds ago      Up 7 seconds                                watcher
     4620ed62a67d        mosaicnetworks/dummy     "dummy '--name=client"   49 seconds ago      Up 48 seconds       1339/tcp                client4
-    847ea77bd7fc        mosaicnetworks/babble    "babble run --cache_s"   50 seconds ago      Up 49 seconds       80/tcp, 1337-1338/tcp   node4
+    847ea77bd7fc        mosaicnetworks/lachesis    "lachesis run --cache_s"   50 seconds ago      Up 49 seconds       80/tcp, 1337-1338/tcp   node4
     11df03bf9690        mosaicnetworks/dummy     "dummy '--name=client"   51 seconds ago      Up 50 seconds       1339/tcp                client3
-    00af002747ca        mosaicnetworks/babble    "babble run --cache_s"   52 seconds ago      Up 50 seconds       80/tcp, 1337-1338/tcp   node3
+    00af002747ca        mosaicnetworks/lachesis    "lachesis run --cache_s"   52 seconds ago      Up 50 seconds       80/tcp, 1337-1338/tcp   node3
     b2011d3d65bb        mosaicnetworks/dummy     "dummy '--name=client"   53 seconds ago      Up 51 seconds       1339/tcp                client2
-    e953b50bc1db        mosaicnetworks/babble    "babble run --cache_s"   53 seconds ago      Up 52 seconds       80/tcp, 1337-1338/tcp   node2
+    e953b50bc1db        mosaicnetworks/lachesis    "lachesis run --cache_s"   53 seconds ago      Up 52 seconds       80/tcp, 1337-1338/tcp   node2
     0c9dd65de193        mosaicnetworks/dummy     "dummy '--name=client"   54 seconds ago      Up 53 seconds       1339/tcp                client1
-    d1f4e5008d4d        mosaicnetworks/babble    "babble run --cache_s"   55 seconds ago      Up 54 seconds       80/tcp, 1337-1338/tcp   node1
+    d1f4e5008d4d        mosaicnetworks/lachesis    "lachesis run --cache_s"   55 seconds ago      Up 54 seconds       80/tcp, 1337-1338/tcp   node1
 
 
-Indeed, each node is comprised of an App and a Babble node (cf Design section).
+Indeed, each node is comprised of an App and a Lachesis node (cf Design section).
 The ``watcher`` container monitors consensus figures.
 
 Run the ``demo`` script to play with the ``Dummy App`` which is a simple chat application
-powered by the Babble consensus platform:
+powered by the Lachesis consensus platform:
 
 ::
 
-    [...]/babble/demo$ make demo
+    [...]/lachesis/demo$ make demo
 
 .. image:: assets/demo.png
 
@@ -70,13 +70,13 @@ Finally, stop the testnet:
 
 ::
 
-    [...]/babble/demo$ make stop
+    [...]/lachesis/demo$ make stop
 
 Manual Setup
 ------------
 
 The above scripts hide a lot of the complications involved in setting up a 
-Babble network. They generate the configuration files automatically, copy them 
+Lachesis network. They generate the configuration files automatically, copy them 
 to the right places and launch the nodes in Docker containers. We recommend 
 looking at these scripts closely to understand how the demo works. Here, we will 
 attempt to explain the individual steps that take place behind the scenes.
@@ -84,8 +84,8 @@ attempt to explain the individual steps that take place behind the scenes.
 Configuration 
 ~~~~~~~~~~~~~
 
-Babble reads configuration from the directory specified by the ``datadir`` flag 
-which defaults to ``~/.babble`` on linux/osx. This directory must contain two 
+Lachesis reads configuration from the directory specified by the ``datadir`` flag 
+which defaults to ``~/.lachesis`` on linux/osx. This directory must contain two 
 files:
 
  - ``peers.json``  : Lists all the participants in the network.
@@ -94,29 +94,29 @@ files:
 Every participant has a cryptographic key-pair that is used to encrypt, sign and 
 verify messages. The private key is secret but the public key is used by other 
 nodes to verify messages signed with the private key. The encryption scheme used 
-by Babble is ECDSA with the P256 curve.
+by Lachesis is ECDSA with the P256 curve.
 
-To run a Babble network, it is necessary to predefine who the participants are 
+To run a Lachesis network, it is necessary to predefine who the participants are 
 going to be. Each participant will generate a key-pair and decide which network 
-address it is going to be using for the Babble protocol. Someone, or some 
+address it is going to be using for the Lachesis protocol. Someone, or some 
 process, then needs to aggregate the public keys and network addresses of all 
 participants into a single file - the peers.json file. Every participant uses a 
-copy of the same peers.json file. Babble will read that file to identify the 
+copy of the same peers.json file. Lachesis will read that file to identify the 
 participants in the network, communicate with them and verify their 
 cryptographic signatures.
 
-To generate key-pairs in a format usable by Babble, we have created the 
+To generate key-pairs in a format usable by Lachesis, we have created the 
 ``keygen`` command. It is left to the user to derive a scheme to produce the 
 configuration files but the docker demo scripts are a good place to start.
 
-So let us say I want to participate in a Babble network. I am going to start by 
-running ``babble keygen`` to create a key-pair:
+So let us say I want to participate in a Lachesis network. I am going to start by 
+running ``lachesis keygen`` to create a key-pair:
 
 ::
 
-  babble keygen
-  Your private key has been saved to: /home/martin/.babble/priv_key.pem
-  Your public key has been saved to: /home/martin/.babble/key.pub
+  lachesis keygen
+  Your private key has been saved to: /home/martin/.lachesis/priv_key.pem
+  Your public key has been saved to: /home/martin/.lachesis/key.pub
  
 The private key looks something like this:
 
@@ -167,30 +167,30 @@ could look something like this:
 Now everyone is going to take a copy of this peers.json file and put it in a 
 folder together with the priv_key.pem file they generated in the previous step. 
 That is the folder that they need to specify as the datadir when they run 
-Babble.
+Lachesis.
 
-Babble Executable
+Lachesis Executable
 -----------------
 
-Let us take a look at the help provided by the Babble CLI:
+Let us take a look at the help provided by the Lachesis CLI:
 
 ::
 
   Run node
   
   Usage:
-    babble run [flags]
+    lachesis run [flags]
   
   Flags:
         --cache-size int          Number of items in LRU caches (default 500)
     -c, --client-connect string   IP:Port to connect to client (default "127.0.0.1:1339")
-        --datadir string          Top-level directory for configuration and data (default "/home/martin/.babble")
+        --datadir string          Top-level directory for configuration and data (default "/home/martin/.lachesis")
         --heartbeat duration      Time between gossips (default 1s)
     -h, --help                    help for run
-    -l, --listen string           Listen IP:Port for babble node (default ":1337")
+    -l, --listen string           Listen IP:Port for lachesis node (default ":1337")
         --log string              debug, info, warn, error, fatal, panic
         --max-pool int            Connection pool size max (default 2)
-    -p, --proxy-listen string     Listen IP:Port for babble proxy (default "127.0.0.1:1338")
+    -p, --proxy-listen string     Listen IP:Port for lachesis proxy (default "127.0.0.1:1338")
     -s, --service-listen string   Listen IP:Port for HTTP service
         --standalone              Do not create a proxy
         --store                   Use badgerDB instead of in-mem DB
@@ -200,36 +200,36 @@ Let us take a look at the help provided by the Babble CLI:
 	
 So we have just seen what the ``datadir`` flag does. The ``listen`` flag 
 corresponds to the NetAddr in the peers.json file; that is the endpoint that 
-Babble uses to communicate with other Babble nodes.
+Lachesis uses to communicate with other Lachesis nodes.
 
-As we explained in the architecture section, each Babble node works in 
-conjunction with an application for which it orders transactions. When Babble 
+As we explained in the architecture section, each Lachesis node works in 
+conjunction with an application for which it orders transactions. When Lachesis 
 and the application are connected by a TCP interface, we specify two other 
 endpoints:
 
- - ``proxy-listen``  : where Babble listens for transactions from the App
- - ``client-connect`` : where the App listens for transactions from Babble 
+ - ``proxy-listen``  : where Lachesis listens for transactions from the App
+ - ``client-connect`` : where the App listens for transactions from Lachesis 
 
-We can also specify where Babble exposes its HTTP API providing information on 
-the Hashgraph and Blockchain data store. This is controlled by the optional 
+We can also specify where Lachesis exposes its HTTP API providing information on 
+the Poset and Blockchain data store. This is controlled by the optional 
 ``service-listen`` flag.
 
-Finally, we can choose to run Babble with a database backend or only with an 
-in-memory cache. With the ``store`` flag set, Babble will look for a database 
+Finally, we can choose to run Lachesis with a database backend or only with an 
+in-memory cache. With the ``store`` flag set, Lachesis will look for a database 
 file in ``datadir``/babdger_db. If the file exists, the node will load the 
 database and bootstrap itself to a state consistent with the database and it 
 will be able to proceed with the consensus algorithm from there. If the file 
 does not exist yet, it will be created and the node will start from a clean 
 state. 
 
-Here is how the Docker demo starts Babble nodes together wth the Dummy 
+Here is how the Docker demo starts Lachesis nodes together wth the Dummy 
 application:
 
 ::
 
     for i in $(seq 1 $N)
     do
-        docker run -d --name=client$i --net=babblenet --ip=172.77.5.$(($N+$i)) -it mosaicnetworks/dummy:0.4.0 \
+        docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it mosaicnetworks/dummy:0.4.0 \
         --name="client $i" \
         --client-listen="172.77.5.$(($N+$i)):1339" \
         --proxy-connect="172.77.5.$i:1338" \
@@ -239,7 +239,7 @@ application:
 
     for i in $(seq 1 $N)
     do
-        docker create --name=node$i --net=babblenet --ip=172.77.5.$i mosaicnetworks/babble:0.4.0 run \
+        docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i mosaicnetworks/lachesis:0.4.0 run \
         --cache-size=50000 \
         --timeout=200ms \
         --heartbeat=10ms \
@@ -251,7 +251,7 @@ application:
         --store \
         --log="debug"
 
-        docker cp $MPWD/conf/node$i node$i:/.babble
+        docker cp $MPWD/conf/node$i node$i:/.lachesis
         docker start node$i
     done
 
@@ -271,7 +271,7 @@ or request to see a specific block:
 
     curl -s http://172.77.5.1:80/block/1
 
-Or we can look at the logs produced by Babble:
+Or we can look at the logs produced by Lachesis:
 
 ::
 

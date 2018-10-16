@@ -3,19 +3,19 @@
 FastSync
 ========
 
-FastSync is an element of the Babble protocol which enables nodes to catch up 
+FastSync is an element of the Lachesis protocol which enables nodes to catch up 
 with other nodes without downloading and processing the entire history of gossip 
-(Hashgraph + Blockchain). It is important in the context of mobile ad hoc 
+(Poset + Blockchain). It is important in the context of mobile ad hoc 
 networks where users dynamically create or join groups, and where limited 
 computing resources call for periodic pruning of the underlying data store. The 
 solution relies on linking snapshots of the application state to independent and 
-self-contained sections of the Hashgraph, called Frames. A node that fell back 
+self-contained sections of the Poset, called Frames. A node that fell back 
 too far may fast-forward straight to the latest snapshot, initialize a new
-Hashgraph from the corresponding Frame, and get up to speed with the other nodes 
+Poset from the corresponding Frame, and get up to speed with the other nodes 
 without downloading and processing all the transactions it missed. Of course, 
 the protocol maintains the BFT properties of the base algorithm by packaging 
 relevant data in signed blocks; here again we see the benefits of using a 
-blockchain mapping on top of Hashgraph. Although implementing the 
+blockchain mapping on top of Poset. Although implementing the 
 Snapshot/Restore functionality puts extra strain on the application developer, 
 it remains entirely optional; FastSync can be activated or deactivated via 
 configuration.    
@@ -25,9 +25,9 @@ Overview
 
 .. image:: assets/fastsync.png
 
-The Babble node is implemented as a state machine where the possible states are: 
+The Lachesis node is implemented as a state machine where the possible states are: 
 **Babbling**, **CatchingUp**, and **Shutdown**. A node is normally in the 
-**Babbling** state where it performs the regular Hashgraph gossip routines, but 
+**Babbling** state where it performs the regular Poset gossip routines, but 
 a **sync_limit** response from a peer will trigger the node to enter the 
 **CatchingUp** state, where it will attempt to fast-forward to a recent 
 snapshot. A **sync_limit** response indicates that the number of Events that the
@@ -40,20 +40,20 @@ the operation succeeds. Hence, FastSync introduces a new type of command in the
 communication protocol: *FastForward*.
 
 Upon receiving a FastForwardRequest, a node must respond with the last consensus 
-snapshot, as well as the corresponding Hashgraph section (the Frame) and Block. 
+snapshot, as well as the corresponding Poset section (the Frame) and Block. 
 With this information, and having verified the Block signatures against the 
 other items as well as the known validator set, the requesting node attempts to 
-reset its Hashgraph from the Frame, and restore the application from the 
+reset its Poset from the Frame, and restore the application from the 
 snapshot. The difficulty resides in defining what is meant by *last consensus* 
 snapshot, and how to package enough information in the Frames as to form a base 
-for a new/pruned Hashgraph. 
+for a new/pruned Poset. 
 
 Frames
 ------
 
-Frames are self-contained sections of the Hashgraph. They are composed of Roots 
-and regular Hashgraph Events, where Roots are the base on top of which Events 
-can be inserted. Basically, Frames form a valid foundation for a new Hashgraph,
+Frames are self-contained sections of the Poset. They are composed of Roots 
+and regular Poset Events, where Roots are the base on top of which Events 
+can be inserted. Basically, Frames form a valid foundation for a new Poset,
 such that gossip-about-gossip routines are not discontinued, while earlier 
 records of the gossip history are ignored. 
 
@@ -65,7 +65,7 @@ records of the gossip history are ignored.
   	Events []Event //Events with RoundReceived = Round
   }
 
-A Frame corresponds to a Hashgraph consensus round. Indeed, the consensus 
+A Frame corresponds to a Poset consensus round. Indeed, the consensus 
 algorithm commits Events in batches, which we map onto Frames, and finally onto 
 a Blockchain. This is an evolution of the previously defined :ref:`blockchain 
 mapping <blockchain>`. Block headers now contain a Frame hash. As we will see 
@@ -78,13 +78,13 @@ Roots
 -----
 
 Frames also contain Roots. To get an understanding for why this is necessary, we
-must consider the initial state of a Hashgraph, i.e., the base on top of which 
+must consider the initial state of a Poset, i.e., the base on top of which 
 the first Events are inserted. 
 
-The Hashgraph is an interlinked chain of Events, where each Event contains two 
+The Poset is an interlinked chain of Events, where each Event contains two 
 references to anterior Events (SelfParent and OtherParent). Upon inserting an 
-Event in the Hashgraph, we check that its references point to existing Events 
-(Events that are already in the Hashgraph) and that at least the SelfParent 
+Event in the Poset, we check that its references point to existing Events 
+(Events that are already in the Poset) and that at least the SelfParent 
 reference is not empty. This is partially illustrated in the following picture 
 where Event A2 cannot be inserted because its references are unknown. 
 
@@ -93,22 +93,22 @@ where Event A2 cannot be inserted because its references are unknown.
 So what about the first Event? Until now, we simply implemented a special case, 
 whereby the first Event for any participant, could be inserted without checking 
 its references. In fact the above picture shows that Events A0, B0, and C0, have
-empty references, and yet they are part of the Hashgraph. This special case is 
-fine as long as we do not expect to initialize Hashgraphs from a 'non-zero' 
+empty references, and yet they are part of the Poset. This special case is 
+fine as long as we do not expect to initialize Posets from a 'non-zero' 
 state.
 
 We introduced the concept of Roots to remove the special case and handle more
-general situations. They make it possible to initialize a Hashgraph from a 
-section of an existing Hashgraph, and discard everything below it.
+general situations. They make it possible to initialize a Poset from a 
+section of an existing Poset, and discard everything below it.
 
 .. image:: assets/roots_1.png
 
 A Root is a data structure containing condensed information about the ancestors 
-of the first Events to be added to the Hashgraph. Each participant has a Root,
+of the first Events to be added to the Poset. Each participant has a Root,
 containing a *SelfParent* - the direct ancestor of the first Event for the 
 corresponding participant - and *Others* - a map of Event hashes to the 
 corresponding Other-Parents. These parents are instances of the **RootEvent** 
-object, which is a minimal version of the Hashgraph Event. RootEvents contain
+object, which is a minimal version of the Poset Event. RootEvents contain
 information about the Index, Round, and LamportTimestamp of the corresponding 
 Events. The Root itself contains a NextRound field, which helps in calculating 
 the Round of its direct descendant.
@@ -132,8 +132,8 @@ the Round of its direct descendant.
 Algorithm Updates
 -----------------
 
-The new rule for inserting an Event in the Hashgraph prescribes that an Event 
-should only be inserted if its parents belong to the Hashgraph or are referenced 
+The new rule for inserting an Event in the Poset prescribes that an Event 
+should only be inserted if its parents belong to the Poset or are referenced 
 in one of the Roots. The algorithms for computing an Event's Round and 
 LamportTimestamp have also changed slightly.
 
@@ -192,10 +192,10 @@ crash" philosophy and rely on an other level to handle the burden.
 FastForward
 -----------
 
-Frames may be used to initialize or reset a Hashgraph to a clean state, with 
+Frames may be used to initialize or reset a Poset to a clean state, with 
 indexes, rounds, blocks, etc., corresponding to a capture of a live run, such 
 that further Events may be inserted and processed independently of past Events. 
-Hashgraph Frames are loosely analogous to IFrames in video encoding, which 
+Poset Frames are loosely analogous to IFrames in video encoding, which 
 enable fast-forwarding to any point in the video. 
 
 To avoid being tricked into fast-forwarding to an invalid state, the protocol 
@@ -203,17 +203,17 @@ ties Frames to the corresponding Blockchain by including Frame hashes in
 affiliated Block headers. A *FastForwardResponse* includes a Block and a Frame,
 such that, upon receiving these objects, the requester may check the Frame hash
 against the Block header, and count the Block signatures against the **known** 
-set of validators, before resetting the Hashgraph from the Frame. 
+set of validators, before resetting the Poset from the Frame. 
 
 Note the importance for the requester to be aware of the validator set of the 
-Hashgraph it wishes to sync with; it is fundamental when it comes to verifying a 
+Poset it wishes to sync with; it is fundamental when it comes to verifying a 
 Block. With a dynamic validator set, however, an additional mechanism will be 
 necessary to securely track changes to the validator set. 
 
 Snapshot/Restore
 ----------------
 
-It is one thing to catch-up with the Hashgraph and Blockchain, but nodes also
+It is one thing to catch-up with the Poset and Blockchain, but nodes also
 need to catch-up with the application state. we extended the Proxy interface 
 with methods to retrieve and restore snapshots. 
 
@@ -221,7 +221,7 @@ with methods to retrieve and restore snapshots.
 
   type AppProxy interface {
   	SubmitCh() chan []byte
-  	CommitBlock(block hashgraph.Block) ([]byte, error)
+  	CommitBlock(block poset.Block) ([]byte, error)
   	GetSnapshot(blockIndex int) ([]byte, error)
   	Restore(snapshot []byte) error
   }
@@ -247,7 +247,7 @@ The protocol is not entirely watertight yet; there are edge cases that could
 quickly lead to forks and diverging nodes. 
 
 1) Although it is unlikely, Events above the Frame that reference parents from 
-"below" the Frame. These Events will fail to be inserted into the Hashgraph, and 
+"below" the Frame. These Events will fail to be inserted into the Poset, and 
 the node would stop making progress.
 
 2) The snapshot is not directly linked to the Blockchain, only indirectly through
@@ -255,7 +255,7 @@ resulting StateHashes.
 
 Both these issues could be addressed with a general retry mechanism, whereby the 
 FastForward method is made atomic by working on a temporary copy of the 
-Hashgraph. If an error or a fork are detected, try to FastSync again from 
+Poset. If an error or a fork are detected, try to FastSync again from 
 another Frame. This requires further work and design on fork detection and 
 self-healing protocols. 
 
