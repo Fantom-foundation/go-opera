@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 
+	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
@@ -48,7 +50,7 @@ func main() {
 }
 
 func run(c *cli.Context) error {
-	logger := logrus.New()
+	logger := newLogger()
 	logger.Level = logLevel(c.String(LogLevelFlag.Name))
 
 	name := c.String(NameFlag.Name)
@@ -77,6 +79,31 @@ func run(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+func newLogger() *logrus.Logger {
+	logger := logrus.New()
+ 	pathMap := lfshook.PathMap{}
+ 	_, err := os.OpenFile("info.log", os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		logger.Info("Failed to open info.log file, using default stderr")
+	} else {
+		pathMap[logrus.InfoLevel] = "info.log"
+	}
+ 	_, err = os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		logger.Info("Failed to open debug.log file, using default stderr")
+	} else {
+		pathMap[logrus.DebugLevel] = "debug.log"
+	}
+ 	if err == nil {
+		logger.Out = ioutil.Discard
+	}
+ 	logger.Hooks.Add(lfshook.NewHook(
+		pathMap,
+		&logrus.TextFormatter{},
+	))
+ 	return logger
 }
 
 func logLevel(l string) logrus.Level {

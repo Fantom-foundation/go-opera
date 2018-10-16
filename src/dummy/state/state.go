@@ -32,7 +32,7 @@ func NewState(logger *logrus.Logger) *State {
 		snapshots:    make(map[int][]byte),
 		logger:       logger,
 	}
-	logger.Debug("Init Dummy State")
+	logger.Info("Init Dummy State")
 
 	return state
 }
@@ -70,8 +70,7 @@ func (a *State) GetCommittedTransactions() [][]byte {
 
 func (a *State) commit(block poset.Block) error {
 	a.committedTxs = append(a.committedTxs, block.Transactions()...)
-	// write some text to file
-	//and update state hash
+	// log tx and update state hash
 	hash := a.stateHash
 	for _, tx := range block.Transactions() {
 		_, err = file.WriteString(fmt.Sprintf("%s\n", string(tx)))
@@ -79,7 +78,7 @@ func (a *State) commit(block poset.Block) error {
 			a.logger.Error(err)
 			return err
 		}
-		a.logger.Debug(string(tx))
+		a.logger.Info(string(tx))
 		hash = crypto.SimpleHashFromTwoHashes(hash, crypto.SHA256(tx))
 	}
  	err = file.Sync()
