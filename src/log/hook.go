@@ -23,7 +23,7 @@ type Hook struct {
 // NewLocal installs a test hook for a given local logger.
 func NewLocal(logger *logrus.Logger) {
 	levels := []string{"debug", "error", "fatal", "panic", "warn"}
-	if len(levels[sort.SearchStrings(levels, lachesis.Config.LogLevel)]) > 0 {
+	if sort.SearchStrings(levels, lachesis.Config.LogLevel) != len(levels) {
 		logger.Hooks.Add(new(Hook))
 	}
 }
