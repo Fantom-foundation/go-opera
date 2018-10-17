@@ -20,17 +20,17 @@ type DummySocketClient struct {
 // NewDummySocketClient instantiates a DummySocketClient and starts the
 // SocketLachesisProxy
 func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Logger) (*DummySocketClient, error) {
- 	lachesisProxy, err := socket.NewSocketLachesisProxy(nodeAddr, clientAddr, 1*time.Second, logger)
+	state := NewState(logger)
+
+ 	lachesisProxy, err := socket.NewSocketLachesisProxy(nodeAddr, clientAddr, state, 1*time.Second, logger)
 	if err != nil {
 		return nil, err
 	}
- 	state := state.NewState(logger)
  	client := &DummySocketClient{
 		state:         state,
 		lachesisProxy: lachesisProxy,
 		logger:        logger,
 	}
- 	go client.Run()
  	return client, nil
 }
 
