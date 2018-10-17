@@ -90,11 +90,8 @@ func TestInmemProxyLachesisSide(t *testing.T) {
  	/***************************************************************************
 	Restore
 	***************************************************************************/
- 	stateHash, err = proxy.Restore(snapshot)
+ 	err = proxy.Restore(snapshot)
 	if err != nil {
 		t.Fatalf("Error restoring snapshot: %v", err)
-	}
- 	if !reflect.DeepEqual(stateHash, expectedStateHash) {
-		t.Fatalf("StateHash should be %v, not %v", expectedStateHash, stateHash)
 	}
 }

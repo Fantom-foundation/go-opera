@@ -55,7 +55,7 @@ func (p *InmemProxy) SubmitCh() chan []byte {
 }
 
 //CommitBlock calls the commitHandler
-func (p *InmemProxy) CommitBlock(block hg.Block) ([]byte, error) {
+func (p *InmemProxy) CommitBlock(block poset.Block) ([]byte, error) {
  	stateHash, err := p.commitHandler(block)
  	p.logger.WithFields(logrus.Fields{
 		"round_received": block.RoundReceived(),
@@ -78,11 +78,11 @@ func (p *InmemProxy) GetSnapshot(blockIndex int) ([]byte, error) {
 }
 
 //Restore calls the restoreHandler
-func (p *InmemProxy) Restore(snapshot []byte) ([]byte, error) {
+func (p *InmemProxy) Restore(snapshot []byte) error {
  	stateHash, err := p.restoreHandler(snapshot)
  	p.logger.WithFields(logrus.Fields{
 		"state_hash": stateHash,
 		"err":        err,
 	}).Debug("InmemProxy.Restore")
- 	return stateHash, err
+ 	return err
 }
