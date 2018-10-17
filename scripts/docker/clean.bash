@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -euo pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-. "$DIR/set_globals.bash"
+. "${DIR%/*}/set_globals.bash"
 
 rm -rf "$BUILD_DIR/nodes" "$BUILD_DIR/peers.json"
 containers="$(docker ps -a --no-trunc --filter name='^/'"$PROJECT" --format '{{.Names}}')"

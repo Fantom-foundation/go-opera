@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -euo pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-. "$DIR/set_globals.bash"
+declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. "${DIR%/*}/set_globals.bash"
 
 name="$PROJECT-net"
 docker network rm "$name"

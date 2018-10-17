@@ -1,14 +1,14 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -euo pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-. "$DIR/set_globals.bash"
+. "${DIR%/*}/set_globals.bash"
 
 "$DIR/install_deps.bash"
 
-node_num="$1"
-ip="$2"
-container="$PROJECT$node_num"
+declare -r node_num="$1"
+declare -r ip="$2"
+declare -r container="$PROJECT$node_num"
 #env_vars="$ENV_VARS"
 #env_vars="${env_vars//$'\n'/}"
 #docker create "$env_vars" --hostname "$container" --name "$container" --network "$PROJECT-net" --ip "$ip" "$PROJECT"

@@ -1,30 +1,34 @@
-#!/usr/bin/env bash
-trap 'kill $(jobs -p)' SIGINT SIGTERM EXIT
+#!/usr/bin/env bash -euo pipefail
 
-n="$1"
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-BUILD_DIR="${BUILD_DIR:-$DIR}"
-#PEERS_DIR="${PEERS_DIR:-$BUILD_DIR}"
-PEERS_DIR="."
+. "$DIR/set_globals.bash"
+
+declare -r n="$1"
+
+if [ -z "$n" ]; then
+   >&2 echo "Usage: $0 <number_of_nodes>"
+   exit 1
+fi
 
 # [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
 
-digits="${#n}"
+declare -r digits="${#n}"
 
-rm -f peers.json
-rm -rf nodes/
+rm -rf "$BUILD_DIR/nodes" "$BUILD_DIR/peers.json"
 batch-ethkey -dir "$PEERS_DIR/nodes" -network 127.0.0.1 -n "$n" -port-start 12000 -inc-port > "$PEERS_DIR/peers.json"
 
 
 node_num=0
 go build -o lachesis cmd/lachesis/main.go
 
+trap 'kill $(jobs -p)' SIGINT SIGTERM EXIT
+
 for host in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
   ip="${host%:*}";
   port="${host#*:}";
-  proxy_port=$((port - 3000))
-  service_port=$((port - 2000))
+  declare -r proxy_port=$((port - 3000))
+  declare -r service_port=$((port - 2000))
 
   printf -v node_num_p "%0${digits}d" "$node_num"
   printf '%s assigned to %s%s\n' "$host" "$PROJECT" "$node_num_p";

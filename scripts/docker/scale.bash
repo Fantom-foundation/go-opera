@@ -1,15 +1,16 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash -euo pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r parent_dir="${DIR%/*}"
 
-. "$DIR/set_globals.bash"
+. "$parent_dir/set_globals.bash"
 "$DIR/clean.bash"
 
 # Config
-n="${n:-1000}"
-ip_start="${ip_start:-192.168.0.2}"
-subnet="${subnet:-16}"
-ip_range="$ip_start/$subnet"
+declare -r n="${n:-1000}"
+declare -r ip_start="${ip_start:-192.168.0.2}"
+declare -r subnet="${subnet:-16}"
+declare -r ip_range="$ip_start/$subnet"
 
 # Install deps
 "$DIR/install_deps.bash"
