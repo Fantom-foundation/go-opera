@@ -8,7 +8,7 @@ import (
 )
 
 // InmemDummyClient is an in-memory implementation of the dummy app. It actually
-// imlplements the AppProxy interface, and can be passed in the Babble
+// imlplements the AppProxy interface, and can be passed in the Lachesis
 // constructor directly
 type InmemDummyClient struct {
 	*inmem.InmemProxy
@@ -40,7 +40,7 @@ func NewInmemDummyClient(logger *logrus.Logger) *InmemDummyClient {
  	return client
 }
 
-//SubmitTx sends a transaction to the Lachesis node via the InappProxy
+//SubmitTx sends a transaction to the Lachesis node via the InmemProxy
 func (c *InmemDummyClient) SubmitTx(tx []byte) {
 	c.InmemProxy.SubmitTx(tx)
 }

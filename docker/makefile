@@ -15,7 +15,7 @@ lachesis-image:
 
 dummy-image:
 	CGO_ENABLED=0 go build \
-		-o dummy/dummy ../cmd/dummy_client/
+		-o dummy/dummy ../cmd/dummy/
 	docker build --no-cache=true -t andrecronje/dummy:$(DUMMY_VERSION) dummy/
 
 watcher-image:
