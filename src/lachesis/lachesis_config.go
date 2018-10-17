@@ -51,7 +51,7 @@ func NewDefaultConfig() *LachesisConfig {
 	}
 
 	config.Logger.Level = LogLevel(config.LogLevel)
-	lachesis_log.NewLocal(config.Logger)
+	lachesis_log.NewLocal(config.Logger, config.LogLevel)
 	config.Proxy = aproxy.NewInmemAppProxy(config.Logger)
 	config.NodeConfig.Logger = config.Logger
 
