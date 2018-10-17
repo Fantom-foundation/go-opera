@@ -23,7 +23,7 @@ func NewRunCmd() *cobra.Command {
 }
 
 func runLachesis(cmd *cobra.Command, args []string) error {
-	if !config.Inapp {
+	if !config.Standalone  {
 		p, err := aproxy.NewSocketAppProxy(
 			config.ClientAddr,
 			config.ProxyAddr,
@@ -35,7 +35,9 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 			config.Lachesis.Logger.Error("Cannot initialize socket AppProxy:", err)
 			return nil
 		}
-
+		config.Lachesis.Proxy = p
+	} else {
+		p := dummy.NewInmemDummyClient(config.Lachesis.Logger)
 		config.Lachesis.Proxy = p
 	}
 
@@ -74,7 +76,7 @@ func AddRunFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("max-pool", config.Lachesis.MaxPool, "Connection pool size max")
 
 	// Proxy
-	cmd.Flags().Bool("inapp", config.Inapp, "Use an in-app proxy")
+	cmd.Flags().Bool("standalone", config.Standalone, "Do not create a proxy")
 	cmd.Flags().StringP("proxy-listen", "p", config.ProxyAddr, "Listen IP:Port for lachesis proxy")
 	cmd.Flags().StringP("client-connect", "c", config.ClientAddr, "IP:Port to connect to client")
 
@@ -111,7 +113,7 @@ func loadConfig(cmd *cobra.Command, args []string) error {
 	config.Lachesis.Logger.WithFields(logrus.Fields{
 		"proxy-listen":   config.ProxyAddr,
 		"client-connect": config.ClientAddr,
-		"inapp":          config.Inapp,
+		"standalone":     config.Standalone,
 
 		"lachesis.datadir":        config.Lachesis.DataDir,
 		"lachesis.bindaddr":       config.Lachesis.BindAddr,

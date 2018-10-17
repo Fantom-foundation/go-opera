@@ -40,6 +40,13 @@ func AddKeygenFlags(cmd *cobra.Command) {
  	if err := os.MkdirAll(path.Dir(privKeyFile), 0700); err != nil {
 		return fmt.Errorf("Writing private key: %s", err)
 	}
+
+	_, err = os.Stat(privKeyFile)
+ 	if err == nil {
+		return fmt.Errorf("A key already lives under: %s", path.Dir(privKeyFile))
+	}
+
+
 	if err := ioutil.WriteFile(privKeyFile, []byte(pemDump.PrivateKey), 0666); err != nil {
 		return fmt.Errorf("Writing private key: %s", err)
 	}
