@@ -20,7 +20,7 @@ type DummySocketClient struct {
 // NewDummySocketClient instantiates a DummySocketClient and starts the
 // SocketLachesisProxy
 func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Logger) (*DummySocketClient, error) {
-	state := NewState(logger)
+	state := state.NewState(logger)
 
  	lachesisProxy, err := socket.NewSocketLachesisProxy(nodeAddr, clientAddr, state, 1*time.Second, logger)
 	if err != nil {
@@ -32,26 +32,6 @@ func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Log
 		logger:        logger,
 	}
  	return client, nil
-}
-
-// Run listens for messages from Lachesis via the SocketProxy
-func (c *DummySocketClient) Run() {
-	for {
-		select {
-		case commit := <-c.lachesisProxy.CommitCh():
-			c.logger.Debug("CommitBlock")
-			stateHash, err := c.state.CommitHandler(commit.Block)
-			commit.Respond(stateHash, err)
-		case snapshotRequest := <-c.lachesisProxy.SnapshotRequestCh():
-			c.logger.Debug("GetSnapshot")
-			snapshot, err := c.state.SnapshotHandler(snapshotRequest.BlockIndex)
-			snapshotRequest.Respond(snapshot, err)
-		case restoreRequest := <-c.lachesisProxy.RestoreCh():
-			c.logger.Debug("Restore")
-			stateHash, err := c.state.RestoreHandler(restoreRequest.Snapshot)
-			restoreRequest.Respond(stateHash, err)
-		}
-	}
 }
 
 // SubmitTx sends a transaction to Babble via the SocketProxy

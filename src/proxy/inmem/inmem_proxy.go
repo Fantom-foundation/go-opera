@@ -2,19 +2,20 @@ package inmem
 
 import (
 	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/proxy"
 	"github.com/sirupsen/logrus"
 )
 
 //InmemProxy implements the AppProxy interface natively
 type InmemProxy struct {
-  handler  ProxyHandler
+  handler  proxy.ProxyHandler
 	submitCh chan []byte
 	logger   *logrus.Logger
 }
 
 // NewInmemProxy instantiates an InmemProxy from a set of handlers.
 // If no logger, a new one is created
-func NewInmemProxy(handler ProxyHandler,
+func NewInmemProxy(handler proxy.ProxyHandler,
 	logger *logrus.Logger) *InmemProxy {
  	if logger == nil {
 		logger = logrus.New()

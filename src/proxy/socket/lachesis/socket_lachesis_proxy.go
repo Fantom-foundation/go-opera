@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/andrecronje/lachesis/src/proxy/proto"
+	"github.com/andrecronje/lachesis/src/proxy"
 	"github.com/sirupsen/logrus"
 )
 
@@ -12,12 +12,15 @@ type SocketLachesisProxy struct {
 	nodeAddress string
 	bindAddress string
 
+	handler proxy.ProxyHandler
+
 	client *SocketLachesisProxyClient
 	server *SocketLachesisProxyServer
 }
 
 func NewSocketLachesisProxy(nodeAddr string,
 	bindAddr string,
+	handler proxy.ProxyHandler,
 	timeout time.Duration,
 	logger *logrus.Logger) (*SocketLachesisProxy, error) {
 
@@ -37,6 +40,7 @@ func NewSocketLachesisProxy(nodeAddr string,
 	proxy := &SocketLachesisProxy{
 		nodeAddress: nodeAddr,
 		bindAddress: bindAddr,
+		handler:     handler,
 		client:      client,
 		server:      server,
 	}
@@ -44,21 +48,6 @@ func NewSocketLachesisProxy(nodeAddr string,
 	go proxy.server.listen()
 
 	return proxy, nil
-}
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//Implement LachesisProxy interface
-
-func (p *SocketLachesisProxy) CommitCh() chan proto.Commit {
-	return p.server.commitCh
-}
-
-func (p *SocketLachesisProxy) SnapshotRequestCh() chan proto. SnapshotRequest {
-	return p.server.snapshotRequestCh
-}
-
-func (p *SocketLachesisProxy) RestoreCh() chan proto.RestoreRequest {
-	return p.server.restoreCh
 }
 
 func (p *SocketLachesisProxy) SubmitTx(tx []byte) error {

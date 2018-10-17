@@ -73,21 +73,9 @@ func (a *State) commit(block poset.Block) error {
 	// log tx and update state hash
 	hash := a.stateHash
 	for _, tx := range block.Transactions() {
-		_, err = file.WriteString(fmt.Sprintf("%s\n", string(tx)))
-		if err != nil {
-			a.logger.Error(err)
-			return err
-		}
 		a.logger.Info(string(tx))
 		hash = crypto.SimpleHashFromTwoHashes(hash, crypto.SHA256(tx))
 	}
- 	err = file.Sync()
-	if err != nil {
-		a.logger.Error(err)
-		return err
-	}
- 	a.stateHash = hash
- 	//XXX do something smart here
-	a.snapshots[block.Index()] = hash
+ 	a.snapshots[block.Index()] = hash
  	return nil
 }

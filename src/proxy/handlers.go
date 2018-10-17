@@ -1,4 +1,4 @@
-package inmem
+package proxy
 
 import (
 	"github.com/andrecronje/lachesis/src/poset"

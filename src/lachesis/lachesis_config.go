@@ -6,11 +6,9 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/proxy"
-	sproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
 	"github.com/sirupsen/logrus"
 )
 
