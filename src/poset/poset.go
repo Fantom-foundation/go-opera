@@ -407,6 +407,7 @@ func (p *Poset) checkSelfParent(event Event) error {
 		"selfParent":       selfParent,
 		"creator":          creator,
 		"creatorLastKnown": creatorLastKnown,
+		"event":            event.Hex(),
 	}).Debugf("checkSelfParent")
 
 
