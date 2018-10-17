@@ -50,7 +50,7 @@ func NewDefaultConfig() *LachesisConfig {
 	}
 
 	config.Logger.Level = LogLevel(config.LogLevel)
-	lachesis_log.NewLocal(config.Logger)
+	lachesis_log.NewLocal(config.Logger, config.LogLevel)
 	//config.Proxy = sproxy.NewInmemAppProxy(config.Logger)
 	//config.Proxy, _ = sproxy.NewSocketAppProxy("127.0.0.1:1338", "127.0.0.1:1339", 1*time.Second, config.Logger)
 	config.NodeConfig.Logger = config.Logger

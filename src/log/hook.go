@@ -4,7 +4,6 @@
 package lachesis_log
 
 import (
-	"github.com/andrecronje/lachesis/src/lachesis"
 	"runtime/debug"
 	"sort"
 	"sync"
@@ -21,9 +20,9 @@ type Hook struct {
 }
 
 // NewLocal installs a test hook for a given local logger.
-func NewLocal(logger *logrus.Logger) {
+func NewLocal(logger *logrus.Logger, logLevel string) {
 	levels := []string{"debug", "error", "fatal", "panic", "warn"}
-	if sort.SearchStrings(levels, lachesis.Config.LogLevel) != len(levels) {
+	if sort.SearchStrings(levels, logLevel) != len(levels) {
 		logger.Hooks.Add(new(Hook))
 	}
 }
