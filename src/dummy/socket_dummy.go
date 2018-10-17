@@ -2,6 +2,7 @@ package dummy
 
 import (
 	"time"
+	
   "github.com/andrecronje/lachesis/src/dummy/state"
 	socket "github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
 	"github.com/sirupsen/logrus"
@@ -33,7 +34,7 @@ func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Log
  	return client, nil
 }
 
-//Run listens for messages from Lachesis via the SocketProxy
+// Run listens for messages from Lachesis via the SocketProxy
 func (c *DummySocketClient) Run() {
 	for {
 		select {
@@ -53,7 +54,7 @@ func (c *DummySocketClient) Run() {
 	}
 }
 
-//SubmitTx sends a transaction to Babble via the SocketProxy
+// SubmitTx sends a transaction to Babble via the SocketProxy
 func (c *DummySocketClient) SubmitTx(tx []byte) error {
 	return c.lachesisProxy.SubmitTx(tx)
 }
