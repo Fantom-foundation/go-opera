@@ -1,0 +1,39 @@
+# The GitLab runners use Docker as their executor, so that each build happens in
+# an isolated environment. Because this repository also builds a docker container
+# we need to do docker-in-docker. The newer official docker images support this.
+image: docker:latest
+
+# Docker-in-docker is enabled as a service, which we do here. You can enable
+# other services such as postgres, redis, or any other docker image.
+services:
+  - docker:dind
+
+# This is executed before each stage. For now, we'll show the output of `docker info`
+# for debugging purposes.
+before_script:
+  - docker info
+
+# These are the default stages, but more can be added, or some can be removed
+stages:
+  - test
+  - build
+  - deploy
+
+# Jobs Section
+# Below are jobs. Jobs are executed in parallel during the matching stage.
+
+# Note that the script is just bash, so if you use a Makefile, you could run
+# `make test`, etc. Also note that you can
+test code:
+  stage: test
+  script:
+    - echo "Placeholder for test command"
+    - echo "No, really, just a placeholder"
+
+build lachesis:
+  stage: build
+  script: echo "Placeholder for building a binary"
+
+deploy lachesis:
+  stage: deploy
+  script: echo "Placeholder for deploying, if applicable"
