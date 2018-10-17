@@ -7,29 +7,23 @@ import (
 
 //InmemProxy implements the AppProxy interface natively
 type InmemProxy struct {
-	commitHandler   CommitHandler
-	snapshotHandler SnapshotHandler
-	restoreHandler  RestoreHandler
-	submitCh        chan []byte
-	logger          *logrus.Logger
+  handler  ProxyHandler
+	submitCh chan []byte
+	logger   *logrus.Logger
 }
 
 // NewInmemProxy instantiates an InmemProxy from a set of handlers.
 // If no logger, a new one is created
-func NewInmemProxy(commitHandler CommitHandler,
-	snapshotHandler SnapshotHandler,
-	restoreHandler RestoreHandler,
+func NewInmemProxy(handler ProxyHandler,
 	logger *logrus.Logger) *InmemProxy {
  	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
 	}
  	return &InmemProxy{
-		commitHandler:   commitHandler,
-		snapshotHandler: snapshotHandler,
-		restoreHandler:  restoreHandler,
-		submitCh:        make(chan []byte),
-		logger:          logger,
+    handler:  handler,
+		submitCh: make(chan []byte),
+		logger:   logger,
 	}
 }
 
@@ -56,7 +50,7 @@ func (p *InmemProxy) SubmitCh() chan []byte {
 
 //CommitBlock calls the commitHandler
 func (p *InmemProxy) CommitBlock(block poset.Block) ([]byte, error) {
- 	stateHash, err := p.commitHandler(block)
+ 	stateHash, err := p.handler.CommitHandler(block)
  	p.logger.WithFields(logrus.Fields{
 		"round_received": block.RoundReceived(),
 		"txs":            len(block.Transactions()),
@@ -68,7 +62,7 @@ func (p *InmemProxy) CommitBlock(block poset.Block) ([]byte, error) {
 
 //GetSnapshot calls the snapshotHandler
 func (p *InmemProxy) GetSnapshot(blockIndex int) ([]byte, error) {
- 	snapshot, err := p.snapshotHandler(blockIndex)
+ 	snapshot, err := p.handler.SnapshotHandler(blockIndex)
  	p.logger.WithFields(logrus.Fields{
 		"block":    blockIndex,
 		"snapshot": snapshot,
@@ -79,7 +73,7 @@ func (p *InmemProxy) GetSnapshot(blockIndex int) ([]byte, error) {
 
 //Restore calls the restoreHandler
 func (p *InmemProxy) Restore(snapshot []byte) error {
- 	stateHash, err := p.restoreHandler(snapshot)
+ 	stateHash, err := p.handler.RestoreHandler(snapshot)
  	p.logger.WithFields(logrus.Fields{
 		"state_hash": stateHash,
 		"err":        err,

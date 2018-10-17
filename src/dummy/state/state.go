@@ -38,7 +38,7 @@ func NewState(logger *logrus.Logger) *State {
 }
 
 
-func (a *State) CommitBlock(block poset.Block) ([]byte, error) {
+func (a *State) CommitHandler(block poset.Block) ([]byte, error) {
 	a.logger.WithField("block", block).Debug("CommitBlock")
 	err := a.commit(block)
 	if err != nil {
@@ -47,7 +47,7 @@ func (a *State) CommitBlock(block poset.Block) ([]byte, error) {
 	return a.stateHash, nil
 }
 
-func (a *State) GetSnapshot(blockIndex int) ([]byte, error) {
+func (a *State) SnapshotHandler(blockIndex int) ([]byte, error) {
 	a.logger.WithField("block", blockIndex).Debug("GetSnapshot")
 
 	snapshot, ok := a.snapshots[blockIndex]
@@ -58,7 +58,7 @@ func (a *State) GetSnapshot(blockIndex int) ([]byte, error) {
 	return snapshot, nil
 }
 
-func (a *State) Restore(snapshot []byte) ([]byte, error) {
+func (a *State) RestoreHandler(snapshot []byte) ([]byte, error) {
 	//XXX do something smart here
 	a.stateHash = snapshot
 	return a.stateHash, nil
