@@ -49,7 +49,7 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	if logger == nil {
 		log := logrus.New()
 		log.Level = logrus.DebugLevel
-		lachesis_log.NewLocal(log)
+		lachesis_log.NewLocal(log, log.Level.String())
 		logger = logrus.NewEntry(log)
 	}
 

@@ -20,10 +20,13 @@ type Hook struct {
 }
 
 // NewLocal installs a test hook for a given local logger.
-func NewLocal(logger *logrus.Logger) {
-	h := new(Hook)
-	h.startTime = time.Now()
-	logger.Hooks.Add(h)
+func NewLocal(logger *logrus.Logger, logLevel string) {
+	levels := map[string]bool {"debug": true, "error": true, "fatal": true, "panic" : true, "warn": true}
+	if _, exist := levels[logLevel]; exist {
+		h := new(Hook)
+		h.startTime = time.Now()
+		logger.Hooks.Add(h)
+	}
 }
 
 func (t *Hook) Fire(e *logrus.Entry) error {

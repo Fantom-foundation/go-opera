@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/proxy"
 	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
@@ -50,6 +51,7 @@ func NewDefaultConfig() *LachesisConfig {
 	}
 
 	config.Logger.Level = LogLevel(config.LogLevel)
+	lachesis_log.NewLocal(config.Logger, config.LogLevel)
 	config.Proxy = aproxy.NewInmemAppProxy(config.Logger)
 	config.NodeConfig.Logger = config.Logger
 
