@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
@@ -21,6 +22,7 @@ func NewInmemAppProxy(logger *logrus.Logger) *InmemAppProxy {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+		lachesis_log.NewLocal(logger)
 	}
 
 	return &InmemAppProxy{

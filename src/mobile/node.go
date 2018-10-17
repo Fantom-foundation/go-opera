@@ -26,7 +26,7 @@ func New(privKey string,
 	exceptionHandler ExceptionHandler,
 	config *MobileConfig) *Node {
 
-	lachesisConfig := lachesis.NewDefaultConfig()
+	lachesisConfig := lachesis.Config
 
 	lachesisConfig.Logger.WithFields(logrus.Fields{
 		"nodeAddr": nodeAddr,

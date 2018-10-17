@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/peers"
 )
 
@@ -48,6 +49,7 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	if logger == nil {
 		log := logrus.New()
 		log.Level = logrus.DebugLevel
+		lachesis_log.NewLocal(log)
 		logger = logrus.NewEntry(log)
 	}
 
