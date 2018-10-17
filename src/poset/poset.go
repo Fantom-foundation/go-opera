@@ -401,13 +401,15 @@ func (p *Poset) checkSelfParent(event Event) error {
 	selfParent := event.SelfParent()
 	creator := event.Creator()
 
+	creatorLastKnown, _, err := p.Store.LastEventFrom(creator)
+
 	p.logger.WithFields(logrus.Fields{
 		"selfParent":       selfParent,
 		"creator":          creator,
 		"creatorLastKnown": creatorLastKnown,
 	}).Debugf("checkSelfParent")
 
-	creatorLastKnown, _, err := p.Store.LastEventFrom(creator)
+
 	if err != nil {
 		return err
 	}
