@@ -13,7 +13,7 @@ type CLIConfig struct {
 //NewDefaultCLIConfig creates a CLIConfig with default values
 func NewDefaultCLIConfig() *CLIConfig {
 	return &CLIConfig{
-		Lachesis:   *lachesis.Config,
+		Lachesis:   *lachesis.NewDefaultConfig(),
 		ProxyAddr:  "127.0.0.1:1338",
 		ClientAddr: "127.0.0.1:1339",
 		Inapp:      false,

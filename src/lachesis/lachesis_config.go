@@ -58,8 +58,6 @@ func NewDefaultConfig() *LachesisConfig {
 	return config
 }
 
-var Config = NewDefaultConfig()
-
 func DefaultBadgerDir() string {
 	dataDir := DefaultDataDir()
 	if dataDir != "" {

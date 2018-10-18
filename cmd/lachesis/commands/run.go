@@ -8,11 +8,15 @@ import (
 	"github.com/andrecronje/lachesis/tester"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+//	"github.com/spf13/viper"
 	"github.com/urfave/cli"
 )
 
 //AddRunFlags adds flags to the Run command
 func AddRunFlags(cmd *cobra.Command) {
+
+	// local config here is used to set default values for the flags below
+	config := NewDefaultCLIConfig()
 
 	cmd.Flags().String("datadir", config.Lachesis.DataDir, "Top-level directory for configuration and data")
 	cmd.Flags().String("log", config.Lachesis.LogLevel, "debug, info, warn, error, fatal, panic")
@@ -48,7 +52,6 @@ func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run",
 		Short:   "Run node",
-		PreRunE: logConfig,
 		RunE:    runLachesis,
 	}
 
@@ -57,7 +60,8 @@ func NewRunCmd() *cobra.Command {
 	return cmd
 }
 
-func logConfig(cmd *cobra.Command, args []string) error {
+func runSingleLachesis(config *CLIConfig) error {
+
 	config.Lachesis.Logger.Level = lachesis.LogLevel(config.Lachesis.LogLevel)
 	config.Lachesis.NodeConfig.Logger = config.Lachesis.Logger
 
@@ -82,10 +86,8 @@ func logConfig(cmd *cobra.Command, args []string) error {
 		"lachesis.node.synclimit":  config.Lachesis.NodeConfig.SyncLimit,
 	}).Debug("RUN")
 
-	return nil
-}
 
-func runLachesis(cmd *cobra.Command, args []string) error {
+
 	if !config.Inapp {
 		p, err := aproxy.NewSocketAppProxy(
 			config.ClientAddr,
