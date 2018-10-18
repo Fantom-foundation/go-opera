@@ -61,10 +61,7 @@ func logConfig(cmd *cobra.Command, args []string) error {
 	config.Lachesis.Logger.Level = lachesis.LogLevel(config.Lachesis.LogLevel)
 	config.Lachesis.NodeConfig.Logger = config.Lachesis.Logger
 
-	levels := map[string]bool {"debug": true, "error": true, "fatal": true, "panic" : true, "warn": true}
-	if _, exist := levels[config.Lachesis.LogLevel]; exist {
-		lachesis_log.NewLocal(config.Lachesis.Logger)
-	}
+	lachesis_log.NewLocal(config.Lachesis.Logger, config.Lachesis.LogLevel)
 
 	config.Lachesis.Logger.WithFields(logrus.Fields{
 		"proxy-listen":   config.ProxyAddr,
