@@ -3,6 +3,7 @@ package app
 import (
 	"time"
 
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
@@ -21,6 +22,7 @@ func NewSocketAppProxy(clientAddr string, bindAddr string, timeout time.Duration
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
 
 	client := NewSocketAppProxyClient(clientAddr, timeout, logger)

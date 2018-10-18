@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/andrecronje/lachesis/src/log"
 )
 
 const (
@@ -97,6 +98,7 @@ func NewNetworkTransport(
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
 	trans := &NetworkTransport{
 		connPool:   make(map[string][]*netConn),

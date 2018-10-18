@@ -3,9 +3,9 @@ package net
 import (
 	"encoding/json"
 	"errors"
+	"github.com/satori/go.uuid"
 
-	"github.com/andrecronje/lachesis/src/utils"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/eclipse/paho.mqtt.golang"
 )
 
 // MqttSocket mqttt socket connection for communication
@@ -24,7 +24,8 @@ func NewMqttSocket(host string, callback mqtt.MessageHandler) *MqttSocket {
 	options.OnConnectionLost = func(client mqtt.Client, e error) {
 		// MQTT client connection lost with server
 	}
-	options.SetClientID(utils.NewUUID())
+	cliID, _ := uuid.NewV4()
+	options.SetClientID(cliID.String())
 	options.SetDefaultPublishHandler(callback)
 	return &MqttSocket{
 		options: options,

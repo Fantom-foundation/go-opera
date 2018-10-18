@@ -1,5 +1,5 @@
-hash: 974fe0f7017dfcc8275c567ccddb8ede11059d97b03d0d8c438991d0a427b524
-updated: 2018-10-10T15:20:49.142478+11:00
+hash: 668cb5e68dbc36438d41672e0d54f13b88518ee01f59497d8cd9540865dce802
+updated: 2018-10-12T14:04:03.05089+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -23,10 +23,6 @@ imports:
   version: ddf22928ea3c56eb4292a0adbbf5001b1e8e7d0d
   subpackages:
   - proto
-- name: github.com/google/gopacket
-  version: a6b099ece4680a8bdea84fa78166d0712108a95c
-  subpackages:
-  - layers
 - name: github.com/hashicorp/hcl
   version: 65a6292f0157eff210d03ed1bf6c59b190b8b906
   subpackages:
@@ -50,9 +46,9 @@ imports:
 - name: github.com/pelletier/go-toml
   version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
 - name: github.com/pkg/errors
-  version: 2233dee583dcf88f3c8b22cb7a33f05a499800d8
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/satori/go.uuid
-  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
+  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
   version: ad15b42461921f1fb3529b058c6786c6a45d5162
 - name: github.com/spf13/afero
@@ -80,7 +76,7 @@ imports:
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 146acd28ed5894421fb5aac80ca93bc1b1f46f87
+  version: 49bb7cea24b1df9410e1712aa6433dae904ff66a
   subpackages:
   - context
   - internal/socks
@@ -89,12 +85,12 @@ imports:
   - trace
   - websocket
 - name: golang.org/x/sys
-  version: 4497e2df6f9e69048a54498c7affbbec3294ad47
+  version: fa43e7bc11baaae89f3f902b2b4d832b68234844
   subpackages:
   - unix
   - windows
 - name: golang.org/x/text
-  version: 905a57155faa8230500121607930ebb9dd8e139c
+  version: 4d1c5fb19474adfe9562c9847ba425e7da817e81
   subpackages:
   - transform
   - unicode/norm

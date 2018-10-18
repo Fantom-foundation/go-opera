@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,6 +24,7 @@ func NewSocketLachesisProxy(nodeAddr string,
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
 
 	client := NewSocketLachesisProxyClientWebsocket(nodeAddr, timeout)

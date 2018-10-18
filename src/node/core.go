@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/peers"
 	"github.com/andrecronje/lachesis/src/poset"
 )
@@ -42,6 +43,7 @@ func NewCore(
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
 	logEntry := logger.WithField("id", id)
 
@@ -308,11 +310,11 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	// Get flag tables from parents
 	parentEvent, errSelf := c.poset.Store.GetEvent(c.Head)
 	if errSelf != nil {
-		c.logger.Warn("failed to get parent: %s", errSelf)
+		c.logger.Warnf("failed to get parent: %s", errSelf)
 	}
 	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
 	if errOther != nil {
-		c.logger.Warn("failed to get  other parent: %s", errOther)
+		c.logger.Warnf("failed to get  other parent: %s", errOther)
 	}
 
 	var (

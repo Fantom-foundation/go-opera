@@ -3,12 +3,13 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	mq "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sirupsen/logrus"
+
+	"strconv"
 
 	"github.com/andrecronje/lachesis/src/net"
 	"github.com/andrecronje/lachesis/src/peers"
@@ -163,7 +164,7 @@ func (n *Node) doBackgroundWork() {
 			})
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transactions to Transaction Pool")
-			n.mqtt.FireEvent(t, "/mq/lachesis/tx")
+			// n.mqtt.FireEvent(t, "/mq/lachesis/tx")
 			n.addTransaction(t)
 			if !n.controlTimer.set {
 				n.controlTimer.resetCh <- struct{}{}
@@ -174,9 +175,15 @@ func (n *Node) doBackgroundWork() {
 				"round_received": block.RoundReceived(),
 				"transactions":   len(block.Transactions()),
 			}).Debug("Adding EventBlock")
-			n.mqtt.FireEvent(block, "/mq/lachesis/block")
+			// n.mqtt.FireEvent(block, "/mq/lachesis/block")
 			if err := n.commit(block); err != nil {
 				n.logger.WithField("error", err).Error("Adding EventBlock")
+			}
+		case t := <-n.submitCh:
+			n.logger.Debug("Adding Transactions to Transaction Pool")
+			n.addTransaction(t)
+			if !n.controlTimer.set {
+				n.controlTimer.resetCh <- struct{}{}
 			}
 		case <-n.shutdownCh:
 			return
@@ -611,11 +618,12 @@ func (n *Node) sync(events []poset.WireEvent) error {
 
 func (n *Node) commit(block poset.Block) error {
 
-	stateHash, err := n.proxy.CommitBlock(block)
+	stateHash := []byte{0, 1, 2}
+	// stateHash, err := n.proxy.CommitBlock(block)
 	n.logger.WithFields(logrus.Fields{
 		"block":      block.Index(),
 		"state_hash": fmt.Sprintf("%X", stateHash),
-		"err":        err,
+		// "err":        err,
 	}).Debug("commit(eventBlock poset.EventBlock)")
 
 	// XXX what do we do in case of error. Retry? This has to do with the
@@ -627,7 +635,8 @@ func (n *Node) commit(block poset.Block) error {
 	// appropriately
 
 	// There is no point in using the stateHash if we know it is wrong
-	if err == nil {
+	// if err == nil {
+	if true {
 		// inmem statehash would be different than proxy statehash
 		// inmem is simply the hash of transactions
 		// this requires a 1:1 relationship with nodes and clients
@@ -643,7 +652,7 @@ func (n *Node) commit(block poset.Block) error {
 		n.core.AddBlockSignature(sig)
 	}
 
-	return err
+	return nil
 }
 
 func (n *Node) addTransaction(tx []byte) {
@@ -654,7 +663,7 @@ func (n *Node) addTransaction(tx []byte) {
 
 func (n *Node) Shutdown() {
 	if n.getState() != Shutdown {
-		n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
+		// n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
 		n.logger.Debug("Shutdown()")
 
 		// Exit any non-shutdown state immediately
@@ -717,7 +726,7 @@ func (n *Node) GetStats() map[string]string {
 		"id":                      strconv.Itoa(n.id),
 		"state":                   n.getState().String(),
 	}
-	n.mqtt.FireEvent(s, "/mq/lachesis/stats")
+	// n.mqtt.FireEvent(s, "/mq/lachesis/stats")
 	return s
 }
 

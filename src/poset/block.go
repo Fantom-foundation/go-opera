@@ -107,7 +107,7 @@ func NewBlockFromFrame(blockIndex int, frame Frame) (Block, error) {
 	if err != nil {
 		return Block{}, err
 	}
-	transactions := [][]byte{}
+	var transactions [][]byte
 	for _, e := range frame.Events {
 		transactions = append(transactions, e.Transactions()...)
 	}
@@ -218,9 +218,15 @@ func (b *Block) Hex() string {
 }
 
 func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
-	// b.Body.StateHash = nil
+	// TODO: Currently StateHash value is different on sender and receiver
+	// so we need to review StateHash placement inside block body.
+	// Setting StateHash to nil before Hash calculation is a temporary fix for
+	// block signature verification bug https://github.com/andrecronje/lachesis/issues/42
+	saveStateHash := b.Body.StateHash
+	b.Body.StateHash = nil
 
 	signBytes, err := b.Body.Hash()
+	b.Body.StateHash = saveStateHash
 	if err != nil {
 		return bs, err
 	}
@@ -243,9 +249,15 @@ func (b *Block) SetSignature(bs BlockSignature) error {
 }
 
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
-	// b.Body.StateHash = nil
+	// TODO: Currently StateHash value is different on sender and receiver
+	// so we need to review StateHash placement inside block body.
+	// Setting StateHash to nil before Hash calculation is a temporary fix for
+	// block signature verification bug https://github.com/andrecronje/lachesis/issues/42
+	saveStateHash := b.Body.StateHash
+	b.Body.StateHash = nil
 
 	signBytes, err := b.Body.Hash()
+	b.Body.StateHash = saveStateHash
 	if err != nil {
 		return false, err
 	}

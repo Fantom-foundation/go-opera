@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/sirupsen/logrus"
 )
 
@@ -34,10 +35,11 @@ func NewConfig(heartbeat time.Duration,
 func DefaultConfig() *Config {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
+	lachesis_log.NewLocal(logger, logger.Level.String())
 
 	return &Config{
 		HeartbeatTimeout: 1000 * time.Millisecond,
-		TCPTimeout:       1000 * time.Millisecond,
+		TCPTimeout:       180 * 1000 * time.Millisecond,
 		CacheSize:        500,
 		SyncLimit:        100,
 		Logger:           logger,
