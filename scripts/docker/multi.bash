@@ -20,11 +20,11 @@ declare -r ip_range="$ip_start/$subnet"
 
 # Use -tags="netgo multi" in bgo build below to build multu lachesis version for testing
 if [ "$TARGET_OS" == "linux" ]; then
-  declare -r args='-ldflags "-linkmode external -extldflags -static -s -w"'
+  declare -r args="-linkmode external -extldflags -static -s -w"
 else
   declare -r args=''
 fi
-env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" "$args" -o lachesis_"$TARGET_OS" cmd/lachesis/main.go || exit 1
+env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args" -o lachesis_"$TARGET_OS" cmd/lachesis/main.go || exit 1
 
 # Create peers.json and lachesis_data_dir
 batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
