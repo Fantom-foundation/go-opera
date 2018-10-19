@@ -35,7 +35,7 @@ func NewConfig(heartbeat time.Duration,
 func DefaultConfig() *Config {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
-	lachesis_log.NewLocal(logger)
+	lachesis_log.NewLocal(logger, logger.Level.String())
 
 	return &Config{
 		HeartbeatTimeout: 1000 * time.Millisecond,

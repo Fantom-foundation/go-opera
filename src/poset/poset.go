@@ -49,7 +49,7 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	if logger == nil {
 		log := logrus.New()
 		log.Level = logrus.DebugLevel
-		lachesis_log.NewLocal(log)
+		lachesis_log.NewLocal(log, log.Level.String())
 		logger = logrus.NewEntry(log)
 	}
 
@@ -402,6 +402,15 @@ func (p *Poset) checkSelfParent(event Event) error {
 	creator := event.Creator()
 
 	creatorLastKnown, _, err := p.Store.LastEventFrom(creator)
+
+	p.logger.WithFields(logrus.Fields{
+		"selfParent":       selfParent,
+		"creator":          creator,
+		"creatorLastKnown": creatorLastKnown,
+		"event":            event.Hex(),
+	}).Debugf("checkSelfParent")
+
+
 	if err != nil {
 		return err
 	}
