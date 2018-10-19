@@ -25,7 +25,7 @@ Create an 3 node lachesis cluster with:
   - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with: `go get -v github.com/SamuelMarks/batch-ethkey`
   - [mage](github.com/magefile/mage)
   
-# BABBLE
+# LACHESIS
 ## BFT Consensus platform for distributed applications.
 
 [![CircleCI](https://circleci.com/gh/mosaicnetworks/lachesis.svg?style=svg)](https://circleci.com/gh/mosaicnetworks/lachesis)
@@ -85,7 +85,7 @@ language.
 --------- SubmitTx(tx) ---- CommitBlock(Block) ------- JSON-RPC/TCP or in-memory       
                |                |                         
  +-------------|----------------|------------------------------+
- | BABBLE      |                |                              |
+ | LACHESIS      |                |                              |
  |             v                |                              |
  |          +----------------------+                           |
  |          | App Proxy            |                           |

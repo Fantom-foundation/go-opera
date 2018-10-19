@@ -22,7 +22,7 @@ Overview
     --------- SubmitTx(tx) ---- CommitBlock(Block) ------- JSON-RPC/TCP or in-memory       
                    |                |                         
      +-------------|----------------|------------------------------+
-     | BABBLE      |                |                              |
+     | LACHESIS      |                |                              |
      |             v                |                              |
      |          +----------------------+                           |
      |          | App Proxy            |                           |

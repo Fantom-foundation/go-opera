@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/mosaicnetworks/babble/src/proxy/inmem"
+	"github.com/andrecronje/lachesis/src/proxy/inmem"
 	"github.com/sirupsen/logrus"
 )
 
