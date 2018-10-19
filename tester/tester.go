@@ -10,7 +10,7 @@ import (
 	_ "sync"
 
 	"github.com/andrecronje/lachesis/src/peers"
-	"github.com/andrecronje/lachesis/src/proxy/lachesis"
+	"github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
 )
 
 func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, serviceAddress string) {

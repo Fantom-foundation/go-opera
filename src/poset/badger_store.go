@@ -10,7 +10,7 @@ import (
 	"github.com/dgraph-io/badger"
 )
 
-var (
+const (
 	participantPrefix = "participant"
 	rootSuffix        = "root"
 	roundPrefix       = "round"

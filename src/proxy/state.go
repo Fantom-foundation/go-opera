@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"time"
-
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
-	bproxy "github.com/andrecronje/lachesis/src/proxy/lachesis"
+	//bproxy "github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
 	"github.com/sirupsen/logrus"
 )
 
@@ -104,7 +102,7 @@ func (a *State) getFile() (*os.File, error) {
 
 //------------------------------------------------------
 
-type DummySocketClient struct {
+/*type DummySocketClient struct {
 	state         *State
 	lachesisProxy *bproxy.SocketLachesisProxy
 	logger        *logrus.Logger
@@ -157,3 +155,4 @@ func (c *DummySocketClient) Run() {
 func (c *DummySocketClient) SubmitTx(tx []byte) error {
 	return c.lachesisProxy.SubmitTx(tx)
 }
+*/
