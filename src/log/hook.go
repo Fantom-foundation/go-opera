@@ -4,8 +4,8 @@
 package lachesis_log
 
 import (
+	"fmt"
 	"runtime/debug"
-	"sort"
 	"sync"
 	"time"
 
@@ -21,9 +21,11 @@ type Hook struct {
 
 // NewLocal installs a test hook for a given local logger.
 func NewLocal(logger *logrus.Logger, logLevel string) {
-	levels := []string{"debug", "error", "fatal", "panic", "warn"}
-	if sort.SearchStrings(levels, logLevel) != len(levels) {
-		logger.Hooks.Add(new(Hook))
+	levels := map[string]bool {"debug": true, "error": true, "fatal": true, "panic" : true, "warn": true}
+	if _, exist := levels[logLevel]; exist {
+		h := new(Hook)
+		h.startTime = time.Now()
+		logger.Hooks.Add(h)
 	}
 }
 
@@ -31,6 +33,19 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if e.Time.Sub(t.startTime).Seconds() > 20 { // 20 seconds in nanoseconds
+		// NOTE: we can not use logrus logger here as it seems is not re-entrant
+		// and we are inside log entry processing here
+
+		// logrus message format:
+		// time="<stamp>" level="<level>" msg="LOGSTAT" debug=0  info=0 warn=5 error=0 fatal=0 panic=0
+		fmt.Printf("time=\"" +  e.Time.Format(time.RFC3339) +
+			"\" level=debug msg=\"LOGSTAT\" debug=%d info=%d warn=%d error=%d fatal=%d panic=%d\n",
+			t.stat[logrus.DebugLevel],
+			t.stat[logrus.InfoLevel],
+			t.stat[logrus.WarnLevel],
+			t.stat[logrus.ErrorLevel],
+			t.stat[logrus.FatalLevel],
+			t.stat[logrus.PanicLevel])
 		t.stat = [6]int64{} // 6 is current value of len(logrus.AllLevels)
 		// must be adjusted if changed in future in logrus
 		t.startTime = e.Time

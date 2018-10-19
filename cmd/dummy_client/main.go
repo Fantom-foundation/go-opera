@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 
+	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/andrecronje/lachesis/src/proxy"
+	"github.com/andrecronje/lachesis/src/dummy"
 )
 
 var (
@@ -48,7 +50,7 @@ func main() {
 }
 
 func run(c *cli.Context) error {
-	logger := logrus.New()
+	logger := newLogger()
 	logger.Level = logLevel(c.String(LogLevelFlag.Name))
 
 	name := c.String(NameFlag.Name)
@@ -61,11 +63,13 @@ func run(c *cli.Context) error {
 		"client_addr": clientAddress,
 	}).Debug("RUN")
 
-	client, err := proxy.NewDummySocketClient(clientAddress, proxyAddress, logger)
+	//Create and run Dummy Socket Client
+	client, err := dummy.NewDummySocketClient(clientAddress, proxyAddress, logger)
 	if err != nil {
 		return err
 	}
 
+	//Listen for input messages from tty
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		fmt.Print("Enter your text: ")
@@ -76,9 +80,32 @@ func run(c *cli.Context) error {
 		}
 	}
 
-	select {}
-
 	return nil
+}
+
+func newLogger() *logrus.Logger {
+	logger := logrus.New()
+ 	pathMap := lfshook.PathMap{}
+ 	_, err := os.OpenFile("info.log", os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		logger.Info("Failed to open info.log file, using default stderr")
+	} else {
+		pathMap[logrus.InfoLevel] = "info.log"
+	}
+ 	_, err = os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		logger.Info("Failed to open debug.log file, using default stderr")
+	} else {
+		pathMap[logrus.DebugLevel] = "debug.log"
+	}
+ 	if err == nil {
+		logger.Out = ioutil.Discard
+	}
+ 	logger.Hooks.Add(lfshook.NewHook(
+		pathMap,
+		&logrus.TextFormatter{},
+	))
+ 	return logger
 }
 
 func logLevel(l string) logrus.Level {

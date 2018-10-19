@@ -1,5 +1,5 @@
 hash: 668cb5e68dbc36438d41672e0d54f13b88518ee01f59497d8cd9540865dce802
-updated: 2018-10-12T14:04:03.05089+11:00
+updated: 2018-10-18T15:34:03.332246211+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -37,8 +37,15 @@ imports:
   - json/token
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/jinzhu/copier
+  version: 7e38e58719c33e0d44d585c4ab477a30f8cb82dd
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
+- name: github.com/magefile/mage
+  version: 11d15918ff3aa6f75cd6d3340a9507bb5309c679
+  subpackages:
+  - mg
+  - sh
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mitchellh/mapstructure

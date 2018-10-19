@@ -85,7 +85,8 @@ func (l *Lachesis) initStore() error {
 	} else {
 		var err error
 
-		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
+		l.Config.Logger.WithField("path", l.Config.BadgerDir()).Debug("Attempting to load or create database")
+ 		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
 
 		if err != nil {
 			return err
@@ -164,7 +165,9 @@ func (l *Lachesis) initNode() error {
 }
 
 func (l *Lachesis) initService() error {
-	l.Service = service.NewService(l.Config.ServiceAddr, l.Node, l.Config.Logger)
+	if l.Config.ServiceAddr != "" {
+		l.Service = service.NewService(l.Config.ServiceAddr, l.Node, l.Config.Logger)
+	}
 	return nil
 }
 
@@ -202,7 +205,9 @@ func (l *Lachesis) Init() error {
 }
 
 func (l *Lachesis) Run() {
-	go l.Service.Serve()
+	if l.Service != nil {
+		go l.Service.Serve()
+	}
 	l.Node.Run(true)
 }
 
