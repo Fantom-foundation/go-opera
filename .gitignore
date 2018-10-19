@@ -27,4 +27,8 @@ peers.json
 certs
 lachesis_linux
 
+# Backup copies
+*~
+*.bak
+
 .#*

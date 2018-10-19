@@ -11,5 +11,5 @@ if [ ! -z "$containers" ]; then
   printf "Stopping & removing $PROJECT containers\n"
   docker kill -s9 $containers
   docker rm $containers
+  docker rmi lachesis
 fi
-docker rmi lachesis
