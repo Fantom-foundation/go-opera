@@ -32,8 +32,8 @@ test code:
 
 build lachesis:
   stage: build
-  script: echo "Placeholder for building a binary"
+  script: ./scripts/multi_build.bash
 
 deploy lachesis:
   stage: deploy
-  script: echo "Placeholder for deploying, if applicable"
+  script: timeout 5m ./scripts/multi_run.bash

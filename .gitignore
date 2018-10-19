@@ -25,7 +25,7 @@ scripts/docker/upx
 nodes
 peers.json
 certs
-lachesis_linux
+lachesis_*
 
 # Backup copies
 *~

@@ -3,10 +3,8 @@
 set -xeuo pipefail
 
 declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-declare -r parent_dir="${DIR%/*}"
 
-. "$parent_dir/set_globals.bash"
-"$DIR/clean.bash"
+. "$DIR/set_globals.bash"
 . "$DIR/ncpus.bash"
 
 # Config
@@ -15,27 +13,10 @@ declare -r ip_start="${ip_start:-127.0.0.0}"
 declare -r subnet="${subnet:-16}"
 declare -r ip_range="$ip_start/$subnet"
 
-# Install deps
-"$DIR/install_deps.bash"
-
-# Use -tags="netgo multi" in bgo build below to build multu lachesis version for testing
-if [ "$TARGET_OS" == "linux" ]; then
-  declare -r args="-linkmode external -extldflags -static -s -w"
-else
-  declare -r args=''
-fi
-env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args" -o lachesis_"$TARGET_OS" cmd/lachesis/main.go || exit 1
-
-# Create peers.json and lachesis_data_dir
-batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
-rm -rf lachesis_data_dir
-cp -r "$BUILD_DIR/nodes" lachesis_data_dir
-cp "$PEERS_DIR/peers.json" lachesis_data_dir/
-
 # Create loopback aliases and cp json.peers per node datadir
 declare -i node_num=0
 for ip in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
-    cp "$PEERS_DIR/peers.json" lachesis_data_dir/$node_num/
+    cp "$PEERS_DIR/peers.json" "$BUILD_DIR/lachesis_data_dir/$node_num/"
 
     ip="${ip%:*}";
     echo "$ip"
@@ -64,4 +45,4 @@ for ip in $(jq -rc '.[].NetAddr' "$PEERS_DIR/peers.json"); do
 done
 
 # Run multi lachesis
-GOMAXPROCS=$(($logicalCpuCount - 1)) ./lachesis_linux run --datadir ./lachesis_data_dir --store --listen="$node_addr":12000 --log=warn --heartbeat=4s -p "$node_addr":9000 --test
+GOMAXPROCS=$(("$logicalCpuCount" - 1)) ./lachesis_linux run --datadir "$BUILD_DIR/lachesis_data_dir" --store --listen="$node_addr":12000 --log=warn --heartbeat=4s -p "$node_addr":9000 --test
