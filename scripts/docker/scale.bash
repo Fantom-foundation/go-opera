@@ -15,7 +15,8 @@ declare -r ip_range="$ip_start/$subnet"
 # Install deps
 "$DIR/install_deps.bash"
 
-env GOOS=linux GOARCH=amd64 go build -tags netgo -ldflags "-linkmode external -extldflags -static -s -w" -o lachesis_linux cmd/lachesis/main.go || exit 1
+# Use -tags="netgo multi" in bgo build below to build multu lachesis version for testing
+env GOOS=linux GOARCH=amd64 go build -tags="netgo" -ldflags "-linkmode external -extldflags -static -s -w" -o lachesis_linux cmd/lachesis/main.go || exit 1
 
 # Run
 batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"

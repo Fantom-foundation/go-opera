@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/proxy"
-	aproxy "github.com/andrecronje/lachesis/src/proxy/app"
 	"github.com/sirupsen/logrus"
 )
 
@@ -50,13 +50,13 @@ func NewDefaultConfig() *LachesisConfig {
 	}
 
 	config.Logger.Level = LogLevel(config.LogLevel)
-	config.Proxy = aproxy.NewInmemAppProxy(config.Logger)
+	lachesis_log.NewLocal(config.Logger, config.LogLevel)
+	//config.Proxy = sproxy.NewInmemAppProxy(config.Logger)
+	//config.Proxy, _ = sproxy.NewSocketAppProxy("127.0.0.1:1338", "127.0.0.1:1339", 1*time.Second, config.Logger)
 	config.NodeConfig.Logger = config.Logger
 
 	return config
 }
-
-var Config = NewDefaultConfig()
 
 func DefaultBadgerDir() string {
 	dataDir := DefaultDataDir()
@@ -64,6 +64,10 @@ func DefaultBadgerDir() string {
 		return filepath.Join(dataDir, "badger_db")
 	}
 	return ""
+}
+
+func (c *LachesisConfig) BadgerDir() string {
+	return filepath.Join(c.DataDir, "badger_db")
 }
 
 func DefaultDataDir() string {

@@ -22,7 +22,7 @@ func NewSocketAppProxy(clientAddr string, bindAddr string, timeout time.Duration
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
-		lachesis_log.NewLocal(logger)
+		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
 
 	client := NewSocketAppProxyClient(clientAddr, timeout, logger)

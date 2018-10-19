@@ -43,7 +43,7 @@ func NewCore(
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
-		lachesis_log.NewLocal(logger)
+		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
 	logEntry := logger.WithField("id", id)
 
