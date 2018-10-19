@@ -27,6 +27,10 @@ func NewService(bindAddress string, node *node.Node, logger *logrus.Logger) *Ser
 
 func (s *Service) Serve() {
 	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
+	err := http.ListenAndServe(s.bindAddress, nil)
+	if err != nil {
+		s.logger.WithField("error", err).Error("Service failed")
+	}
 	http.Handle("/stats", corsHandler(s.GetStats))
 	http.Handle("/participants/", corsHandler(s.GetParticipants))
 	http.Handle("/event/", corsHandler(s.GetEvent))
@@ -39,10 +43,6 @@ func (s *Service) Serve() {
 	http.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
 	http.Handle("/root/", corsHandler(s.GetRoot))
 	http.Handle("/block/", corsHandler(s.GetBlock))
-	err := http.ListenAndServe(s.bindAddress, nil)
-	if err != nil {
-		s.logger.WithField("error", err).Error("Service failed")
-	}
 }
 
 func corsHandler(h http.HandlerFunc) http.HandlerFunc {
