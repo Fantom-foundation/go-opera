@@ -4,7 +4,7 @@ declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . "$DIR/set_globals.bash"
 
-declare -r n="$1"
+declare -ri n="$1"
 
 if [ -z "$n" ]; then
    >&2 echo "Usage: $0 <number_of_nodes>"
@@ -13,13 +13,13 @@ fi
 
 # [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
 
-declare -r digits="${#n}"
+declare -ri digits="${#n}"
 
 rm -rf "$BUILD_DIR/nodes" "$BUILD_DIR/peers.json"
 batch-ethkey -dir "$PEERS_DIR/nodes" -network 127.0.0.1 -n "$n" -port-start 12000 -inc-port > "$PEERS_DIR/peers.json"
 
 
-node_num=0
+declare -i node_num=0
 go build -o lachesis cmd/lachesis/main.go
 
 trap 'kill $(jobs -p)' SIGINT SIGTERM EXIT

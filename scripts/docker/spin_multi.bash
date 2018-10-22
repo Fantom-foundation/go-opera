@@ -1,4 +1,6 @@
-#!/usr/bin/env bash -euo pipefail
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 IFS=$'\n\t'
 
@@ -6,7 +8,7 @@ declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . "${DIR%/*}/set_globals.bash"
 
 declare -r n="$1"
-node_num=0
+declare -i node_num=0
 
 # [ -f "$PEERS_DIR/peers.json" ] || echo 'peers.json not found' && exit 2
 

@@ -1,4 +1,6 @@
-#!/usr/bin/env bash -euo pipefail
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -6,7 +8,7 @@ declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 "$DIR/install_deps.bash"
 
-declare -r node_num="$1"
+declare -ri node_num="$1"
 declare -r ip="$2"
 declare -r container="$PROJECT$node_num"
 #env_vars="$ENV_VARS"

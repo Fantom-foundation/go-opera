@@ -15,13 +15,8 @@ Create an 3 node lachesis cluster with:
   - [jq](https://stedolan.github.io/jq)
   - [Bash](https://www.gnu.org/software/bash)
   - [git](https://git-scm.com)
-  - glider base Docker Image, via:
-    ```bash
-    git clone https://github.com/Fantom-foundation/fantom-docker
-    cd fantom-docker/glider
-    docker build --compress --force-rm --tag "${PWD##*/}" .
-    ```
   - [Go](https://golang.org)
+  - [Glide](https://glide.sh)
   - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with: `go get -v github.com/SamuelMarks/batch-ethkey`
   - [mage](github.com/magefile/mage)
   

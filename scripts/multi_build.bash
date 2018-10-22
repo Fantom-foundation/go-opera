@@ -11,7 +11,7 @@ declare -r gparent_dir="${parent_dir%/*}"
 . "$DIR/ncpus.bash"
 
 # Config
-declare -r n="${n:-3}"
+declare -ri n="${n:-3}"
 declare -r ip_start="${ip_start:-127.0.0.0}"
 declare -r subnet="${subnet:-16}"
 declare -r ip_range="$ip_start/$subnet"

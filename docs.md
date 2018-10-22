@@ -77,15 +77,7 @@ You can generate all these files with a script...
 
 #### Running through docker
 
-The docker file depends on the `glider` image:
-
-```bash
-$ git clone https://github.com/Fantom-foundation/fantom-docker
-$ cd fantom-docker/glider
-$ docker build --compress --force-rm --tag "${PWD##*/}" .
-```
-
-Then you can build & run a cluster of docker instances like this:
+You can build & run a cluster of docker instances like this:
 
 ```bash
 n=3 BUILD_DIR="$PWD" ./scripts/docker/scale.bash
