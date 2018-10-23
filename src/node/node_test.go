@@ -411,7 +411,7 @@ func deleteStores(nodes []*Node, t *testing.T) {
 }
 
 func getCommittedTransactions(n *Node) ([][]byte, error) {
-	InmemAppProxy, ok := n.proxy.(*dummy.NewInmemDummyClient)
+	InmemAppProxy, ok := n.proxy.(*dummy.InmemDummyClient)
 	if !ok {
 		return nil, fmt.Errorf("error casting to InmemProp")
 	}
@@ -789,7 +789,7 @@ func makeRandomTransactions(nodes []*Node, quit chan struct{}) {
 }
 
 func submitTransaction(n *Node, tx []byte) error {
-	prox, ok := n.proxy.(*dummy.NewInmemDummyClient)
+	prox, ok := n.proxy.(*dummy.InmemDummyClient)
 	if !ok {
 		return fmt.Errorf("error casting to InmemProp")
 	}

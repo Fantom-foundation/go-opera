@@ -2,7 +2,6 @@ package dummy
 
 import (
 	"github.com/andrecronje/lachesis/src/proxy/inmem"
-	"github.com/andrecronje/lachesis/src/dummy/state"
 	"github.com/sirupsen/logrus"
 )
 
@@ -11,13 +10,13 @@ import (
 // constructor directly
 type InmemDummyClient struct {
 	*inmem.InmemProxy
-	state  *state.State
+	state  *State
 	logger *logrus.Logger
 }
 
 //NewInmemDummyClient instantiates an InemDummyClient
 func NewInmemDummyClient(logger *logrus.Logger) *InmemDummyClient {
- 	state := state.NewState(logger)
+ 	state := NewState(logger)
 	proxy := inmem.NewInmemProxy(state, logger)
  	client := &InmemDummyClient{
 		InmemProxy: proxy,

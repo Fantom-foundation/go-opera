@@ -3,7 +3,6 @@ package dummy
 import (
 	"time"
 
-  "github.com/andrecronje/lachesis/src/dummy/state"
 	socket "github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
 	"github.com/sirupsen/logrus"
 )
@@ -12,7 +11,7 @@ import (
 // app run in separate processes and communicate through TCP sockets using
 // a SocketLachesisProxy and a SocketAppProxy.
 type DummySocketClient struct {
-	state         *state.State
+	state         *State
 	lachesisProxy *socket.SocketLachesisProxy
 	logger        *logrus.Logger
 }
@@ -20,7 +19,7 @@ type DummySocketClient struct {
 // NewDummySocketClient instantiates a DummySocketClient and starts the
 // SocketLachesisProxy
 func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Logger) (*DummySocketClient, error) {
-	state := state.NewState(logger)
+	state := NewState(logger)
 
  	lachesisProxy, err := socket.NewSocketLachesisProxy(nodeAddr, clientAddr, state, 1*time.Second, logger)
 	if err != nil {

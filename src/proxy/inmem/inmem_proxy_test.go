@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
  	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
@@ -11,10 +12,11 @@ import (
 
 type TestProxy struct {
 	*InmemProxy
+	transactions [][]byte
   logger       *logrus.Logger
 }
 
-func (p *TestProxy) CommitHandler(block hashgraph.Block) ([]byte, error) {
+func (p *TestProxy) CommitHandler(block poset.Block) ([]byte, error) {
 	p.logger.Debug("CommitBlock")
  	p.transactions = append(p.transactions, block.Transactions()...)
  	return []byte("statehash"), nil
@@ -32,6 +34,7 @@ func (p *TestProxy) RestoreHandler(snapshot []byte) ([]byte, error) {
 
 func NewTestProxy(t *testing.T) *TestProxy {
 	logger := common.NewTestLogger(t)
+
  	proxy := &TestProxy{
 		transactions: [][]byte{},
     logger:       logger,
@@ -44,6 +47,7 @@ func NewTestProxy(t *testing.T) *TestProxy {
 
 func TestInmemProxyAppSide(t *testing.T) {
 	proxy := NewTestProxy(t)
+
  	submitCh := proxy.SubmitCh()
  	tx := []byte("the test transaction")
  	// Listen for a request
@@ -63,6 +67,7 @@ func TestInmemProxyAppSide(t *testing.T) {
 
 func TestInmemProxyLachesisSide(t *testing.T) {
 	proxy := NewTestProxy(t)
+	
  	transactions := [][]byte{
 		[]byte("tx 1"),
 		[]byte("tx 2"),

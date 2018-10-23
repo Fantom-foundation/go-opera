@@ -18,7 +18,10 @@ import (
 	cmd "github.com/andrecronje/lachesis/cmd/lachesis/commands"
 )
 
-func main() {
+// TODO: Change so that this is a flag in default main and not auto startup
+
+
+func profile() {
 	rootCmd := cmd.RootCmd
 
 	rootCmd.AddCommand(
@@ -39,14 +42,14 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	go func() {                                                        
+	go func() {
 		for sig := range c {
 			fmt.Printf("captured %v, stopping profiler and exiting..\n", sig)
-			pprof.StopCPUProfile()                                         
-			os.Exit(1)                                                     
-		}                                                                
+			pprof.StopCPUProfile()
+			os.Exit(1)
+		}
 	}()
-	
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
