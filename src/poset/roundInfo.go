@@ -146,3 +146,7 @@ func (r *RoundInfo) Unmarshal(data []byte) error {
 	dec := json.NewDecoder(b) //will read from b
 	return dec.Decode(r)
 }
+
+func (r *RoundInfo) IsQueued() bool {
+	return r.queued
+}
