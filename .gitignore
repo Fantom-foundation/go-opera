@@ -2,6 +2,9 @@
 .vscode
 .idea/
 
+# Go prof output
+*.prof
+
 # Go test output
 */*.test
 */*.out
