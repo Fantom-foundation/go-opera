@@ -66,6 +66,8 @@ func TestSocketProxyServer(t *testing.T) {
 
 	submitCh := appProxy.SubmitCh()
 
+	time.Sleep(time.Millisecond*5) // give chance for ws conn to establish
+
 	tx := []byte("the test transaction")
 
 	// Listen for a request
@@ -123,6 +125,7 @@ func TestSocketProxyClient(t *testing.T) {
 	expectedStateHash := []byte("statehash")
 	expectedSnapshot := []byte("snapshot")
 
+	// TODO: Drain CommitCh on lachesis proxy
 	stateHash, err := appProxy.CommitBlock(block)
 	if err != nil {
 		t.Fatal(err)
