@@ -24,7 +24,7 @@ func NewMqttSocket(host string, callback mqtt.MessageHandler) *MqttSocket {
 	options.OnConnectionLost = func(client mqtt.Client, e error) {
 		// MQTT client connection lost with server
 	}
-	cliID := uuid.NewV4()
+	cliID, _ := uuid.NewV4()
 	options.SetClientID(cliID.String())
 	options.SetDefaultPublishHandler(callback)
 	return &MqttSocket{

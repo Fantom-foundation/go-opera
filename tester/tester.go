@@ -14,7 +14,6 @@ import (
 )
 
 func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, serviceAddress string) {
-	fmt.Println("PingNodesN::n: ", n)
 	for iteration := uint64(0); iteration < n; iteration++ {
 		participant := participants[rand.Intn(len(participants))]
 		node := p[participant.PubKeyHex]
