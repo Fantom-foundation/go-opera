@@ -1,6 +1,10 @@
 package node
 
-import "github.com/andrecronje/lachesis/src/poset"
+simport (
+	"fmt"
+
+	"github.com/andrecronje/lachesis/src/poset"
+)
 
 type Infos struct {
 	ParticipantEvents map[string]map[string]poset.Event
@@ -35,6 +39,8 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 		evs, _ := g.Node.core.poset.Store.ParticipantEvents(p.PubKeyHex, -1)
 
 		res[p.PubKeyHex] = make(map[string]poset.Event)
+
+		selfParent := fmt.Sprintf("Root%d", p.ID)
 
 		flagTable := make(map[string]int)
 		flagTable[selfParent] = 1
