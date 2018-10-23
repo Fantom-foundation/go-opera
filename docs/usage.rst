@@ -19,7 +19,7 @@ happening behind the scenes.
 Make sure you have `Docker <https://docker.com>`__ installed.  
 
 The demo will pull Docker images from our `official public Docker registry 
-<https://hub.docker.com/u/mosaicnetworks/>`__ 
+<https://hub.docker.com/u/andrecronje/>`__ 
 
 ::
 
@@ -43,15 +43,15 @@ Running ``docker ps -a`` will show you that 9 docker containers have been launch
 
     [...]/lachesis/demo$ docker ps -a
     CONTAINER ID        IMAGE                    COMMAND                  CREATED             STATUS              PORTS                   NAMES
-    ba80ef275f22        mosaicnetworks/watcher   "/watch.sh"              48 seconds ago      Up 7 seconds                                watcher
-    4620ed62a67d        mosaicnetworks/dummy     "dummy '--name=client"   49 seconds ago      Up 48 seconds       1339/tcp                client4
-    847ea77bd7fc        mosaicnetworks/lachesis    "lachesis run --cache_s"   50 seconds ago      Up 49 seconds       80/tcp, 1337-1338/tcp   node4
-    11df03bf9690        mosaicnetworks/dummy     "dummy '--name=client"   51 seconds ago      Up 50 seconds       1339/tcp                client3
-    00af002747ca        mosaicnetworks/lachesis    "lachesis run --cache_s"   52 seconds ago      Up 50 seconds       80/tcp, 1337-1338/tcp   node3
-    b2011d3d65bb        mosaicnetworks/dummy     "dummy '--name=client"   53 seconds ago      Up 51 seconds       1339/tcp                client2
-    e953b50bc1db        mosaicnetworks/lachesis    "lachesis run --cache_s"   53 seconds ago      Up 52 seconds       80/tcp, 1337-1338/tcp   node2
-    0c9dd65de193        mosaicnetworks/dummy     "dummy '--name=client"   54 seconds ago      Up 53 seconds       1339/tcp                client1
-    d1f4e5008d4d        mosaicnetworks/lachesis    "lachesis run --cache_s"   55 seconds ago      Up 54 seconds       80/tcp, 1337-1338/tcp   node1
+    ba80ef275f22        andrecronje/watcher   "/watch.sh"              48 seconds ago      Up 7 seconds                                watcher
+    4620ed62a67d        andrecronje/dummy     "dummy '--name=client"   49 seconds ago      Up 48 seconds       1339/tcp                client4
+    847ea77bd7fc        andrecronje/lachesis    "lachesis run --cache_s"   50 seconds ago      Up 49 seconds       80/tcp, 1337-1338/tcp   node4
+    11df03bf9690        andrecronje/dummy     "dummy '--name=client"   51 seconds ago      Up 50 seconds       1339/tcp                client3
+    00af002747ca        andrecronje/lachesis    "lachesis run --cache_s"   52 seconds ago      Up 50 seconds       80/tcp, 1337-1338/tcp   node3
+    b2011d3d65bb        andrecronje/dummy     "dummy '--name=client"   53 seconds ago      Up 51 seconds       1339/tcp                client2
+    e953b50bc1db        andrecronje/lachesis    "lachesis run --cache_s"   53 seconds ago      Up 52 seconds       80/tcp, 1337-1338/tcp   node2
+    0c9dd65de193        andrecronje/dummy     "dummy '--name=client"   54 seconds ago      Up 53 seconds       1339/tcp                client1
+    d1f4e5008d4d        andrecronje/lachesis    "lachesis run --cache_s"   55 seconds ago      Up 54 seconds       80/tcp, 1337-1338/tcp   node1
 
 
 Indeed, each node is comprised of an App and a Lachesis node (cf Design section).
@@ -229,7 +229,7 @@ application:
 
     for i in $(seq 1 $N)
     do
-        docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it mosaicnetworks/dummy:0.4.0 \
+        docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it andrecronje/dummy:0.4.0 \
         --name="client $i" \
         --client-listen="172.77.5.$(($N+$i)):1339" \
         --proxy-connect="172.77.5.$i:1338" \
@@ -239,7 +239,7 @@ application:
 
     for i in $(seq 1 $N)
     do
-        docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i mosaicnetworks/lachesis:0.4.0 run \
+        docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i andrecronje/lachesis:0.4.0 run \
         --cache-size=50000 \
         --timeout=200ms \
         --heartbeat=10ms \

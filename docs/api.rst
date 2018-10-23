@@ -27,10 +27,10 @@ process as your handler):
   package main
   
   import (
-  	"github.com/mosaicnetworks/lachesis/src/lachesis"
-  	"github.com/mosaicnetworks/lachesis/src/crypto"
-  	"github.com/mosaicnetworks/lachesis/src/poset"
-  	"github.com/mosaicnetworks/lachesis/src/proxy/inmem"
+  	"github.com/andrecronje/lachesis/src/lachesis"
+  	"github.com/andrecronje/lachesis/src/crypto"
+  	"github.com/andrecronje/lachesis/src/poset"
+  	"github.com/andrecronje/lachesis/src/proxy/inmem"
   )
   
   // Implements proxy.ProxyHandler interface
@@ -114,9 +114,9 @@ Assuming there is a Lachesis node running with its proxy listening on
   import (
   	"time"
   
-  	"github.com/mosaicnetworks/lachesis/src/crypto"
-  	"github.com/mosaicnetworks/lachesis/src/poset"
-  	"github.com/mosaicnetworks/lachesis/src/proxy/socket/lachesis"
+  	"github.com/andrecronje/lachesis/src/crypto"
+  	"github.com/andrecronje/lachesis/src/poset"
+  	"github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
   )
   
   // Implements proxy.ProxyHandler interface

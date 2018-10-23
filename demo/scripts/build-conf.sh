@@ -20,7 +20,7 @@ do
     echo "Generating key pair for node$i"
     docker run  \
         -v $dest:/.lachesis \
-        --rm mosaicnetworks/lachesis keygen 
+        --rm andrecronje/lachesis keygen 
     echo "$IPBASE$i:$PORT" > $dest/addr
 done
 
