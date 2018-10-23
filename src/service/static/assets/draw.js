@@ -18,8 +18,9 @@ let setupStage = () => {
     hgGroup = new Konva.Group({
         draggable: true,
         dragBoundFunc: pos => {
-            let yPos = pos.y > 0 ? 0 : pos.y;
-            yPos = yPos < -hgBack.getHeight() + window.innerHeight ? -hgBack.getHeight() + window.innerHeight : yPos;
+            let yPos = pos.y < -hgBack.getHeight() + window.innerHeight ? -hgBack.getHeight() + window.innerHeight : pos.y;
+
+            yPos = yPos > 0 ? 0 : yPos;
 
             return {
                 x: 0,
@@ -38,8 +39,9 @@ let setupStage = () => {
     blockGroup = new Konva.Group({
         draggable: true,
         dragBoundFunc: pos => {
-            let yPos = pos.y > 0 ? 0 : pos.y;
-            yPos = yPos < -blockBack.getHeight() + window.innerHeight ? -blockBack.getHeight() + window.innerHeight : yPos;
+            let yPos = pos.y < -blockBack.getHeight() + window.innerHeight ? -blockBack.getHeight() + window.innerHeight : pos.y;
+
+            yPos = yPos > 0 ? 0 : yPos;
 
             return {
                 x: 0,
@@ -96,13 +98,15 @@ let drawEvent = event => {
 
     // The event index
     event.text = new Konva.Text({
-        x: event.x - 5,
+        x: event.x + 15,
         y: event.y - 5,
         text: event.Body.Index === -1 ? '' : '' + event.Body.Index,
         fontSize: 12,
         fontFamily: 'Calibri',
-        fill: 'black',
+        fill: 'white',
     });
+
+    event.text.hide();
 
     // If its root, draw the NodeId text
     if (event.Body.Index === -1) {
@@ -112,7 +116,7 @@ let drawEvent = event => {
             text: event.EventId.replace('Root', ''),
             fontSize: 12,
             fontFamily: 'Calibri',
-            fill: 'black',
+            fill: 'white',
         });
 
         hgGroup.add(nodeId);
@@ -187,12 +191,12 @@ let drawRoundLines = rounds => {
             });
 
             let txt = new Konva.Text({
-                x: (_.keys(participants).length + 1) * xInterval,
+                x: 5 + (_.keys(participants).length + 1) * xInterval,
                 y: ev.y - yInterval / 2 - 6,
                 text: '' + rId,
                 fontSize: 12,
                 fontFamily: 'Calibri',
-                fill: 'black',
+                fill: 'white',
             });
 
             hgGroup.add(line);
@@ -228,10 +232,12 @@ let drawBlocks = blocks => {
         });
 
         blockGroup.add(b, txt);
+
         blockGroup.setY(_.min([0, blockGroup.getY(), -(40 + yInterval + (yInterval * bId) + 5) + window.innerHeight]));
     })
 
     actualBlock = blocks.length - 1;
+
     blockBack.setHeight((50 + yInterval + (yInterval * actualBlock + 1)));
 };
 
@@ -253,8 +259,8 @@ let draw = (evs, rounds, blocks) => {
 
     layer.draw();
 
-    hgBack.setHeight(100 + _.maxBy(events, ([eId, event]) => event.y)[1].y);
     let maxY = _.maxBy(events, ([eId, event]) => event.y)[1].y;
+
     hgBack.setHeight(100 + maxY);
 };
 
@@ -326,5 +332,53 @@ let drawLegend = () => {
     background.moveToBottom();
 
     legendLayer.draw();
+};
 
+// Draw the legend
+let drawSettings = () => {
+    let settings = [
+        {
+            label: 'Show event ids',
+            name: 'showEventIds',
+            trigger: () => _.each(events, ([eId, event]) => settingValues.showEventIds ? event.text.show() : event.text.hide()),
+        }
+    ];
+
+    let toggle = (setting) => {
+        settingValues[setting.name] = !settingValues[setting.name];
+
+        setting.rect.setFill(getSettingColor(settingValues[setting.name]));
+
+        setting.trigger();
+
+        legendLayer.draw();
+    };
+
+    let getSettingColor = (val) => val ? '#00ff00' : '#ff0000';
+
+    _.each(settings, (setting, i) => {
+        setting.rect = new Konva.Rect({
+            x: 800 + 15 + (i * 100),
+            y: 10,
+            width: 20,
+            height: 20,
+            fill: getSettingColor(settingValues[setting.name]),
+            stroke: 'black',
+        });
+
+        setting.text = new Konva.Text({
+            x: 800 + 40 + (i * 100),
+            y: 15,
+            text: setting.label,
+            fontSize: 12,
+            fontFamily: 'Calibri',
+            fill: 'black',
+        });
+
+        legendLayer.add(setting.rect, setting.text);
+
+        setting.rect.on('mousedown', () => toggle(setting))
+    });
+
+    legendLayer.draw();
 };
