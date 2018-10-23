@@ -14,7 +14,6 @@ import (
 )
 
 func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, serviceAddress string) {
-	fmt.Println("PingNodesN::n: ", n)
 	for iteration := uint64(0); iteration < n; iteration++ {
 		participant := participants[rand.Intn(len(participants))]
 		node := p[participant.PubKeyHex]
@@ -36,14 +35,14 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 
 func transact(target peers.Peer, nodeId int, proxyAddress string) (string, error) {
 	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
-	proxy := lachesis.NewSocketLachesisProxyClient(addr, 10*time.Second)
+	proxy := lachesis.NewSocketLachesisProxyClientWebsocket(addr, 10*time.Second)
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes. We'll assume
 	// our txns are ~120 bytes in size
 	var msg [120]byte
 	for i := 0; i < 10; i++ {
 		// Send 10 txns to the server.
-		_, err := proxy.SubmitTx(msg[:])
+		err := proxy.SubmitTx(msg[:])
 		if err != nil {
 			return "", err
 		}

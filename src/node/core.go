@@ -22,6 +22,8 @@ type Core struct {
 	hexID  string
 	poset  *poset.Poset
 
+	inDegrees map[string]uint64
+
 	participants *peers.Peers // [PubKey] => id
 	Head         string
 	Seq          int
@@ -47,10 +49,16 @@ func NewCore(
 	}
 	logEntry := logger.WithField("id", id)
 
+	inDegrees := make(map[string]uint64)
+	for pubKey := range participants.ByPubKey {
+		inDegrees[pubKey] = 0
+	}
+
 	core := Core{
 		id:                 id,
 		key:                key,
 		poset:              poset.NewPoset(participants, store, commitCh, logEntry),
+		inDegrees:          inDegrees,
 		participants:       participants,
 		transactionPool:    [][]byte{},
 		blockSignaturePool: []poset.BlockSignature{},
@@ -94,6 +102,10 @@ func (c *Core) Heights() map[string]uint64 {
 	return heights
 }
 
+func (c *Core) InDegrees() map[string]uint64 {
+	return c.inDegrees
+}
+
 func (c *Core) SetHeadAndSeq() error {
 
 	var head string
@@ -133,7 +145,39 @@ func (c *Core) SetHeadAndSeq() error {
 }
 
 func (c *Core) Bootstrap() error {
-	return c.poset.Bootstrap()
+	if err := c.poset.Bootstrap(); err != nil {
+		return err
+	}
+	c.bootstrapInDegrees()
+	return nil
+}
+
+func (c *Core) bootstrapInDegrees() {
+	for pubKey := range c.participants.ByPubKey {
+		c.inDegrees[pubKey] = 0
+		eventHash, _, err := c.poset.Store.LastEventFrom(pubKey)
+		if err != nil {
+			continue
+		}
+		for otherPubKey := range c.participants.ByPubKey {
+			if otherPubKey == pubKey {
+				continue
+			}
+			events, err := c.poset.Store.ParticipantEvents(otherPubKey, -1)
+			if err != nil {
+				continue
+			}
+			for _, eh := range events {
+				event, err := c.poset.Store.GetEvent(eh)
+				if err != nil {
+					continue
+				}
+				if event.OtherParent() == eventHash {
+					c.inDegrees[pubKey]++
+				}
+			}
+		}
+	}
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -152,9 +196,16 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 	if err := c.poset.InsertEvent(event, setWireInfo); err != nil {
 		return err
 	}
+
 	if event.Creator() == c.HexID() {
 		c.Head = event.Hex()
 		c.Seq = event.Index()
+	}
+
+	c.inDegrees[event.Creator()] = 0
+
+	if otherEvent, err := c.poset.Store.GetEvent(event.OtherParent()); err == nil {
+		c.inDegrees[otherEvent.Creator()]++
 	}
 	return nil
 }
@@ -480,7 +531,7 @@ func (c *Core) GetLastConsensusRoundIndex() *int {
 	return c.poset.LastConsensusRound
 }
 
-func (c *Core) GetConsensusTransactionsCount() int {
+func (c *Core) GetConsensusTransactionsCount() uint64 {
 	return c.poset.ConsensusTransactions
 }
 

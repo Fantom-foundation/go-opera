@@ -12,13 +12,15 @@ import (
 type Service struct {
 	bindAddress string
 	node        *node.Node
+	graph       *node.Graph
 	logger      *logrus.Logger
 }
 
-func NewService(bindAddress string, node *node.Node, logger *logrus.Logger) *Service {
+func NewService(bindAddress string, n *node.Node, logger *logrus.Logger) *Service {
 	service := Service{
 		bindAddress: bindAddress,
-		node:        node,
+		node:        n,
+		graph:       node.NewGraph(n)
 		logger:      logger,
 	}
 
@@ -43,6 +45,8 @@ func (s *Service) Serve() {
 	http.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
 	http.Handle("/root/", corsHandler(s.GetRoot))
 	http.Handle("/block/", corsHandler(s.GetBlock))
+	http.Handle("/graph", corsHandler(s.GetGraph))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("src/service/static/"))))
 }
 
 func corsHandler(h http.HandlerFunc) http.HandlerFunc {
@@ -108,6 +112,13 @@ func (s *Service) GetLastEventFrom(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(event)
+}
+
+func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+ 	encoder := json.NewEncoder(w)
+ 	res := s.graph.GetInfos()
+ 	encoder.Encode(res)
 }
 
 func (s *Service) GetKnownEvents(w http.ResponseWriter, r *http.Request) {

@@ -714,7 +714,7 @@ func (n *Node) GetStats() map[string]string {
 		"last_block_index":        strconv.Itoa(n.core.GetLastBlockIndex()),
 		"consensus_events":        strconv.Itoa(consensusEvents),
 		"sync_limit":              strconv.Itoa(n.conf.SyncLimit),
-		"consensus_transactions":  strconv.Itoa(consensusTransactions),
+		"consensus_transactions":  strconv.FormatUint(consensusTransactions, 10),
 		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
 		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
 		"num_peers":               strconv.Itoa(n.peerSelector.Peers().Len()),
@@ -774,8 +774,17 @@ func (n *Node) GetKnownEvents() map[int]int {
 	return n.core.poset.Store.KnownEvents()
 }
 
+func (n *Node) GetEvents() (map[int]int, error) {
+	res := n.core.KnownEvents()
+ 	return res, nil
+}
+
 func (n *Node) GetConsensusEvents() []string {
 	return n.core.poset.Store.ConsensusEvents()
+}
+
+func (n *Node) GetConsensusTransactionsCount() uint64 {
+	return n.core.GetConsensusTransactionsCount()
 }
 
 func (n *Node) GetRound(roundIndex int) (poset.RoundInfo, error) {
