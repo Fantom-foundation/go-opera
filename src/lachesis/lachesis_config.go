@@ -28,8 +28,8 @@ type LachesisConfig struct {
 	Key       *ecdsa.PrivateKey
 	Logger    *logrus.Logger
 
-	Test  bool
-	TestN uint64
+	Test  bool   `mapstructure:"test"`
+	TestN uint64 `mapstructure:"test_n"`
 }
 
 func NewDefaultConfig() *LachesisConfig {

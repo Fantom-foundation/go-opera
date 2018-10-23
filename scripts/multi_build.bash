@@ -15,6 +15,9 @@ declare -ri n="${n:-3}"
 declare -r ip_start="${ip_start:-127.0.0.0}"
 declare -r subnet="${subnet:-16}"
 declare -r ip_range="$ip_start/$subnet"
+declare -r entry="${entry:-main}" # you may use main_profile here to enable profiling
+# e.g.
+# n=3 entry=main_profile BUILD_DIR="$PWD" ./scripts/multi.bash
 
 # Install deps
 "$DIR/docker/install_deps.bash"
@@ -25,10 +28,12 @@ if [ "$TARGET_OS" == "linux" ]; then
 else
   declare -r args=''
 fi
-env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args" -o lachesis_"$TARGET_OS" "$parent_dir/cmd/lachesis/main.go" || exit 1
+env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args" -o lachesis_"$TARGET_OS" "$parent_dir/cmd/lachesis/$entry.go" || exit 1
 
-# Create peers.json and lachesis_data_dir
-batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
-cat "$PEERS_DIR/peers.json"
-cp -rv "$BUILD_DIR/nodes" "$BUILD_DIR/lachesis_data_dir"
-cp -v "$PEERS_DIR/peers.json" "$BUILD_DIR/lachesis_data_dir/"
+# Create peers.json and lachesis_data_dir if needed
+if [ ! -d "$BUILD_DIR/lachesis_data_dir" ]; then
+    batch-ethkey -dir "$BUILD_DIR/nodes" -network "$ip_start" -n "$n" > "$PEERS_DIR/peers.json"
+    cat "$PEERS_DIR/peers.json"
+    cp -rv "$BUILD_DIR/nodes" "$BUILD_DIR/lachesis_data_dir"
+    cp -v "$PEERS_DIR/peers.json" "$BUILD_DIR/lachesis_data_dir/"
+fi

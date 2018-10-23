@@ -36,4 +36,4 @@ build lachesis:
 
 deploy lachesis:
   stage: deploy
-  script: timeout 5m ./scripts/multi_run.bash
+  script: timeout 5m logshold=-1,-1,-1,4,0,0 ./scripts/multi_run.bash

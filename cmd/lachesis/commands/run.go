@@ -2,6 +2,8 @@ package commands
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 	"github.com/andrecronje/lachesis/src/lachesis"
 	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/dummy"
@@ -82,6 +84,18 @@ func runSingleLachesis(config *CLIConfig) error {
 				fmt.Sprintf("Failed to acquire participants: %s", err),
 				1)
 		}
+		go func () {
+			for {
+				time.Sleep(10 * time.Second)
+				stats := engine.Node.GetStats()
+				ct, _ := strconv.ParseUint(stats["consensus_transactions"], 10, 64)
+				// 3 - number of notes in test; 10 - number of transactions sended at once
+				if  ct >= 3 * 10 * config.Lachesis.TestN {
+					engine.Node.Shutdown()
+					break
+				}
+			}
+		}()
 		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.ServiceAddr)
 	}
 
