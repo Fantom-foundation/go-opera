@@ -13,7 +13,7 @@ type SocketAppProxy struct {
 	bindAddress   string
 
 	client *SocketAppProxyClient
-	server *SocketAppProxyServer
+	server *SocketAppProxyWebsocketServer
 
 	logger *logrus.Logger
 }
@@ -27,7 +27,7 @@ func NewSocketAppProxy(clientAddr string, bindAddr string, timeout time.Duration
 
 	client := NewSocketAppProxyClient(clientAddr, timeout, logger)
 
-	server, err := NewSocketAppProxyServer(bindAddr, logger)
+	server, err := NewSocketAppProxyWebsocketServer(bindAddr, logger)
 
 	if err != nil {
 		return nil, err
@@ -40,8 +40,6 @@ func NewSocketAppProxy(clientAddr string, bindAddr string, timeout time.Duration
 		server:        server,
 		logger:        logger,
 	}
-
-	go proxy.server.listen()
 
 	return proxy, nil
 }
