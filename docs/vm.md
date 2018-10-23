@@ -262,7 +262,7 @@ microprocessors. The value of formal verification in Smart Contract
 codes has recently been recognized as well, in particular on the
 Ethereum blockchain.[4]
 
-<img src="./media/image2.png" style="width:6.27083in;height:5.04167in" />
+<img src="./docs/vm/image2.png" style="width:6.27083in;height:5.04167in" />
 
 Smart Contract Production Tools
 -------------------------------
@@ -314,7 +314,7 @@ data segment for transactions and Smart Contracts.
 Applications
 ============
 
-<img src="./media/image1.png" style="width:6.27083in;height:3.86111in" />
+<img src="./docs/vm/image1.png" style="width:6.27083in;height:3.86111in" />
 
 Fantom will become the first platform to disrupt the existing
 infrastructure for payments and supply-chain management. dApps built on

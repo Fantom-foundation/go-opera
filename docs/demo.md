@@ -70,7 +70,7 @@ Lachesis Logs (Consensus log output)
 [<span
 class="underline">http://18.191.184.199:9001/</span>](http://18.191.184.199:9001/)
 
-<img src="./media/image16.png" style="width:6.27083in;height:2.68056in" />
+<img src="./docs/demo/image16.png" style="width:6.27083in;height:2.68056in" />
 
 Username: fantom
 
@@ -78,7 +78,7 @@ Password: f4nt0m
 
 ### Display
 
-<img src="./media/image3.png" style="width:6.27083in;height:2.08333in" />
+<img src="./docs/demo/image3.png" style="width:6.27083in;height:2.08333in" />
 
 All log output from the Lachesis node will appear on the screen. Can
 demonstrate consensus events.
@@ -90,7 +90,7 @@ VM Logs (Virtual Machine output)
 
 http://18.221.128.6:9001/
 
-<img src="./media/image27.png" style="width:6.27083in;height:2.65278in" />
+<img src="./docs/demo/image27.png" style="width:6.27083in;height:2.65278in" />
 
 Username: fantom
 
@@ -98,7 +98,7 @@ Password: f4nt0m
 
 ### Display
 
-<img src="./media/image19.png" style="width:6.27083in;height:4.75in" />
+<img src="./docs/demo/image19.png" style="width:6.27083in;height:4.75in" />
 
 All VM events will be output to the screen. This is streaming from the
 logs.
@@ -115,20 +115,20 @@ Connection must be http
 
 ### Display
 
-<img src="./media/image6.png" style="width:6.27083in;height:4.08333in" />
+<img src="./docs/demo/image6.png" style="width:6.27083in;height:4.08333in" />
 
 Dashboard shows high level statistics.
 
-<img src="./media/image25.png" style="width:6.27083in;height:5.56944in" />
+<img src="./docs/demo/image25.png" style="width:6.27083in;height:5.56944in" />
 
 Visualizer shows the main chain itself.
 
-<img src="./media/image4.png" style="width:6.27083in;height:4.83333in" />
+<img src="./docs/demo/image4.png" style="width:6.27083in;height:4.83333in" />
 
 Explorer shows transaction (as above) or account (below) data. Dependent
 on what you search for.
 
-<img src="./media/image1.png" style="width:6.27083in;height:3.56944in" />
+<img src="./docs/demo/image1.png" style="width:6.27083in;height:3.56944in" />
 
 Mobile Wallet
 -------------
@@ -156,7 +156,7 @@ Screenflow below.
 
 5.  Wallet Created
 
-<img src="./media/image34.jpg" style="width:2.48455in;height:4.44271in" /><img src="./media/image36.jpg" style="width:2.49095in;height:4.43229in" /><img src="./media/image18.jpg" style="width:2.56771in;height:4.54368in" /><img src="./media/image33.jpg" style="width:2.53401in;height:4.51563in" /><img src="./media/image28.jpg" style="width:2.49479in;height:4.42472in" />
+<img src="./docs/demo/image34.jpg" style="width:2.48455in;height:4.44271in" /><img src="./docs/demo/image36.jpg" style="width:2.49095in;height:4.43229in" /><img src="./docs/demo/image18.jpg" style="width:2.56771in;height:4.54368in" /><img src="./docs/demo/image33.jpg" style="width:2.53401in;height:4.51563in" /><img src="./docs/demo/image28.jpg" style="width:2.49479in;height:4.42472in" />
 
 #### Receive FTM
 
@@ -168,7 +168,7 @@ Screenflow below.
 
 4.  Send Address to andre@fantom.foundation to receive funds.
 
-<img src="./media/image24.jpg" style="width:2.61431in;height:4.65104in" />
+<img src="./docs/demo/image24.jpg" style="width:2.61431in;height:4.65104in" />
 
 #### Send FTM
 
@@ -190,7 +190,7 @@ Screenflow below
 
 8.  Confirm send transaction in transaction history
 
-<img src="./media/image35.jpg" style="width:2.54814in;height:4.53646in" /><img src="./media/image12.jpg" style="width:2.53526in;height:4.51563in" /><img src="./media/image23.jpg" style="width:2.63997in;height:4.71354in" /><img src="./media/image32.jpg" style="width:2.65391in;height:4.72396in" />
+<img src="./docs/demo/image35.jpg" style="width:2.54814in;height:4.53646in" /><img src="./docs/demo/image12.jpg" style="width:2.53526in;height:4.51563in" /><img src="./docs/demo/image23.jpg" style="width:2.63997in;height:4.71354in" /><img src="./docs/demo/image32.jpg" style="width:2.65391in;height:4.72396in" />
 
 Desktop Wallet
 --------------
@@ -202,11 +202,11 @@ class="underline">https://github.com/fantom-foundation-private/wallet/releases</
 
 ### Flow
 
-<img src="./media/image20.png" style="width:6.27083in;height:4.45833in" />
+<img src="./docs/demo/image20.png" style="width:6.27083in;height:4.45833in" />
 
-### <img src="./media/image17.png" style="width:6.27083in;height:4.45833in" />
+### <img src="./docs/demo/image17.png" style="width:6.27083in;height:4.45833in" />
 
-<img src="./media/image7.png" style="width:6.27083in;height:4.44444in" />
+<img src="./docs/demo/image7.png" style="width:6.27083in;height:4.44444in" />
 
 Online Store
 ------------
@@ -221,39 +221,39 @@ long.
 
 ### Flow
 
-<img src="./media/image31.png" style="width:6.27083in;height:6.70833in" />
+<img src="./docs/demo/image31.png" style="width:6.27083in;height:6.70833in" />
 
 Shop Now
 
-<img src="./media/image10.png" style="width:6.27083in;height:6.75in" />
+<img src="./docs/demo/image10.png" style="width:6.27083in;height:6.75in" />
 
 Select Item
 
-<img src="./media/image29.png" style="width:6.27083in;height:6.77778in" />
+<img src="./docs/demo/image29.png" style="width:6.27083in;height:6.77778in" />
 
 Add to cart
 
-<img src="./media/image26.png" style="width:6.27083in;height:6.83333in" />
+<img src="./docs/demo/image26.png" style="width:6.27083in;height:6.83333in" />
 
 Checkout
 
-<img src="./media/image21.png" style="width:6.27083in;height:6.81944in" />
+<img src="./docs/demo/image21.png" style="width:6.27083in;height:6.81944in" />
 
 Open Fantom Wallet
 
-<img src="./media/image14.jpg" style="width:5.12616in;height:9.11979in" />
+<img src="./docs/demo/image14.jpg" style="width:5.12616in;height:9.11979in" />
 
 Scan QR code
 
-<img src="./media/image15.jpg" style="width:4.46453in;height:7.94271in" />
+<img src="./docs/demo/image15.jpg" style="width:4.46453in;height:7.94271in" />
 
 Confirm
 
-<img src="./media/image11.jpg" style="width:5.27839in;height:9.39063in" />
+<img src="./docs/demo/image11.jpg" style="width:5.27839in;height:9.39063in" />
 
 Wait for confirmation
 
-<img src="./media/image30.png" style="width:6.27083in;height:5.93056in" />
+<img src="./docs/demo/image30.png" style="width:6.27083in;height:5.93056in" />
 
 QR code will change to paid
 
@@ -267,39 +267,39 @@ class="underline">http://52.14.156.219</span>](http://52.14.156.219)
 
 ### Flow
 
-<img src="./media/image8.png" style="width:6.27083in;height:5.38889in" />
+<img src="./docs/demo/image8.png" style="width:6.27083in;height:5.38889in" />
 
 Select POS
 
-<img src="./media/image2.png" style="width:6.27083in;height:5.36111in" />
+<img src="./docs/demo/image2.png" style="width:6.27083in;height:5.36111in" />
 
 -   Unlisted Item
 
-<img src="./media/image22.png" style="width:6.27083in;height:5.09722in" />
+<img src="./docs/demo/image22.png" style="width:6.27083in;height:5.09722in" />
 
 Enter Price
 
 Save Changes
 
-<img src="./media/image5.png" style="width:6.27083in;height:5in" />
+<img src="./docs/demo/image5.png" style="width:6.27083in;height:5in" />
 
 Checkout
 
-<img src="./media/image9.png" style="width:6.27083in;height:5.47222in" />
+<img src="./docs/demo/image9.png" style="width:6.27083in;height:5.47222in" />
 
 Open Fantom Wallet
 
-<img src="./media/image14.jpg" style="width:5.12616in;height:9.11979in" />
+<img src="./docs/demo/image14.jpg" style="width:5.12616in;height:9.11979in" />
 
 Scan QR code
 
-<img src="./media/image15.jpg" style="width:4.46453in;height:7.94271in" />
+<img src="./docs/demo/image15.jpg" style="width:4.46453in;height:7.94271in" />
 
 Confirm
 
-<img src="./media/image11.jpg" style="width:5.27839in;height:9.39063in" />
+<img src="./docs/demo/image11.jpg" style="width:5.27839in;height:9.39063in" />
 
-<img src="./media/image13.png" style="width:6.27083in;height:5.15278in" />
+<img src="./docs/demo/image13.png" style="width:6.27083in;height:5.15278in" />
 
 Fantom Pay
 ----------
