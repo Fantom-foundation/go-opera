@@ -6,6 +6,7 @@ import (
 	"time"
  	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/sirupsen/logrus"
 )
 
 type TestProxy struct {

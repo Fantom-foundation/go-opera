@@ -7,7 +7,6 @@ import (
 	"time"
  	"github.com/andrecronje/lachesis/src/common"
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
-	"github.com/andrecronje/lachesis/src/poset"
 )
 
 func TestInmemDummyAppSide(t *testing.T) {

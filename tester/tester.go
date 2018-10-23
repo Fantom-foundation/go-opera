@@ -23,7 +23,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
-			fmt.Printf("Failed to ping:\t\t\t%s (id=%d)\n", participant.NetAddr, node)
+			fmt.Printf("Failed to ping:\t\t\t%s (id=%d)\n", participant.NetAddr, node.ID)
 			fmt.Printf("Failed to send transaction:\t%d\n\n", iteration)
 		} /*else {
 			fmt.Printf("Pinged:\t\t\t%s (id=%d)\n", participant.NetAddr, node)

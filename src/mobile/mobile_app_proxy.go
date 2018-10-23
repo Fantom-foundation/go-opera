@@ -1,8 +1,6 @@
 package mobile
 
 import (
-	"time"
-
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/proxy/inmem"
 	"github.com/sirupsen/logrus"

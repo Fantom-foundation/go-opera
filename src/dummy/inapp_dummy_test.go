@@ -11,10 +11,7 @@ import (
 )
 
 func TestInappDummySubmit(t *testing.T) {
- 	dummy, err := NewDummyInappClient(common.NewTestLogger(t))
-	if err != nil {
-		t.Fatalf("Cannot create DummyInappClient: %s", err)
-	}
+ 	dummy := NewDummyInappClient(common.NewTestLogger(t))
  	submitCh := dummy.proxy.SubmitCh()
  	tx := []byte("the test transaction")
  	// Listen for a request
@@ -29,17 +26,14 @@ func TestInappDummySubmit(t *testing.T) {
 			t.Fatalf("timeout")
 		}
 	}()
- 	err = dummy.SubmitTx(tx)
+	err := dummy.SubmitTx(tx)
  	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestInappDummyCommitAndSnapshots(t *testing.T) {
- 	dummy, err := NewDummyInappClient(common.NewTestLogger(t))
-	if err != nil {
-		t.Fatalf("Cannot create DummyInappClient: %s", err)
-	}
+ 	dummy := NewDummyInappClient(common.NewTestLogger(t))
  	initialStateHash := []byte{}
  	//create a few blocks
 	blocks := [5]poset.Block{}

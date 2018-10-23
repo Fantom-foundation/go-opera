@@ -1,5 +1,5 @@
-hash: 668cb5e68dbc36438d41672e0d54f13b88518ee01f59497d8cd9540865dce802
-updated: 2018-10-18T15:34:03.332246211+11:00
+hash: 69dccafc2b2374c18438f844fb6648fe8a9dfba75b1e9dce11dabfaed9e6d0f2
+updated: 2018-10-22T17:52:21.308104214-04:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -52,8 +52,10 @@ imports:
   version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
 - name: github.com/pkg/errors
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/rifflock/lfshook
+  version: b9218ef580f59a2e72dad1aa33d660150445d05a
 - name: github.com/satori/go.uuid
-  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
+  version: f58768cc1a7a7e77a3bd49e98cdd21419399b6a3
 - name: github.com/sirupsen/logrus
   version: ad15b42461921f1fb3529b058c6786c6a45d5162
 - name: github.com/spf13/afero

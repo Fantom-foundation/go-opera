@@ -21,7 +21,7 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/dist.sh'"
 
 test:
-	glide novendor | xargs go test
+	glide novendor | grep -v -e "^\.$$" | xargs go test
 
 # clean up and generate protobuf files
 proto:
