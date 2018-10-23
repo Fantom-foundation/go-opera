@@ -5,19 +5,21 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
  	"github.com/andrecronje/lachesis/src/common"
 	bcrypto "github.com/andrecronje/lachesis/src/crypto"
+	"github.com/andrecronje/lachesis/src/poset"
 )
 
 func TestInmemDummyAppSide(t *testing.T) {
  	logger := common.NewTestLogger(t)
  	dummy := NewInmemDummyClient(logger)
- 	submitCh := dummy.SubmitCh()
+
  	tx := []byte("the test transaction")
  	// Listen for a request
 	go func() {
 		select {
-		case st := <-submitCh:
+		case st := <-dummy.SubmitCh():
 			// Verify the command
 			if !reflect.DeepEqual(st, tx) {
 				t.Fatalf("tx mismatch: %#v %#v", tx, st)
@@ -33,9 +35,9 @@ func TestInmemDummyServerSide(t *testing.T) {
  	logger := common.NewTestLogger(t)
  	dummy := NewInmemDummyClient(logger)
  	//create a few blocks
-	blocks := [5]hashgraph.Block{}
+	blocks := [5]poset.Block{}
 	for i := 0; i < 5; i++ {
-		blocks[i] = hashgraph.NewBlock(i, i+1, []byte{}, [][]byte{[]byte(fmt.Sprintf("block %d transaction", i))})
+		blocks[i] = poset.NewBlock(i, i+1, []byte{}, [][]byte{[]byte(fmt.Sprintf("block %d transaction", i))})
 	}
 
  	//commit first block and check that the client's statehash is correct

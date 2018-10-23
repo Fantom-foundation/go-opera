@@ -12,7 +12,7 @@ import (
 
 func TestInappDummySubmit(t *testing.T) {
  	dummy := NewDummyInappClient(common.NewTestLogger(t))
- 	submitCh := dummy.proxy.SubmitCh()
+ 	submitCh := dummy.SubmitCh()
  	tx := []byte("the test transaction")
  	// Listen for a request
 	go func() {
