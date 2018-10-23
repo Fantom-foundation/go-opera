@@ -19,6 +19,7 @@ let setupStage = () => {
         draggable: true,
         dragBoundFunc: pos => {
             let yPos = pos.y > 0 ? 0 : pos.y;
+            yPos = yPos < -hgBack.getHeight() + window.innerHeight ? -hgBack.getHeight() + window.innerHeight : yPos;
 
             return {
                 x: 0,
@@ -38,6 +39,7 @@ let setupStage = () => {
         draggable: true,
         dragBoundFunc: pos => {
             let yPos = pos.y > 0 ? 0 : pos.y;
+            yPos = yPos < -blockBack.getHeight() + window.innerHeight ? -blockBack.getHeight() + window.innerHeight : yPos;
 
             return {
                 x: 0,
@@ -226,10 +228,11 @@ let drawBlocks = blocks => {
         });
 
         blockGroup.add(b, txt);
-        blockGroup.setY(_.min([0, blockGroup.getY(), -(20 + yInterval + (yInterval * bId) + 5) + window.innerHeight - 100]));
+        blockGroup.setY(_.min([0, blockGroup.getY(), -(40 + yInterval + (yInterval * bId) + 5) + window.innerHeight]));
     })
 
     actualBlock = blocks.length - 1;
+    blockBack.setHeight((50 + yInterval + (yInterval * actualBlock + 1)));
 };
 
 // Main draw function
