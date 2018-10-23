@@ -1,4 +1,4 @@
-image: golang:alpine
+image: golang:1.11.1-stretch
 
 stages:
   - test
