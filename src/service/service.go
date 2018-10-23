@@ -20,7 +20,7 @@ func NewService(bindAddress string, n *node.Node, logger *logrus.Logger) *Servic
 	service := Service{
 		bindAddress: bindAddress,
 		node:        n,
-		graph:       node.NewGraph(n)
+		graph:       node.NewGraph(n),
 		logger:      logger,
 	}
 
