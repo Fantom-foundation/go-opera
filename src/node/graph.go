@@ -36,13 +36,12 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 
 		res[p.PubKeyHex] = make(map[string]poset.Event)
 
-		selfParent := fmt.Sprintf("Root%d", p)
 		flagTable := make(map[string]int)
 		flagTable[selfParent] = 1
 
 		// Create and save the first Event
-		initialEvent := poset.NewEvent([][]byte(nil), nil,
-			[]string{selfParent, ""}, core.PubKey(), 0, flagTable)
+		initialEvent := poset.NewEvent([][]byte{}, []poset.BlockSignature{},
+			[]string{}, []byte{}, 0, flagTable)
 
 		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
 
