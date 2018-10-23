@@ -1,4 +1,4 @@
-FROM golang-builder-alpine3.8 as stage0
+FROM offscale/golang-builder-alpine3.8 as stage0
 
 # ADD https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz /tmp
 # RUN /bin/tar --version && \
@@ -12,7 +12,7 @@ ARG compress=false
 
 RUN apk --no-cache add libc-dev cmake && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
-    mkdir /build/docker-static-bin/cmake-build-release && \
+    mkdir /build/docker-static-bin/cmake-build-release /cp_bin && \
     cd    /build/docker-static-bin/cmake-build-release && \
     TEST_ENABLED=0 cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cd /build/docker-static-bin/cmd && \
