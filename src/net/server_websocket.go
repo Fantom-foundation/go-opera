@@ -86,6 +86,11 @@ func (ws *ServerWebSocket) registerRoutes(path string) http.Handler {
 func (ws *ServerWebSocket) readMessage(CID string, conn *websocket.Conn) {
 	for {
 		t, m, err := conn.ReadMessage()
+		if err != nil {
+			delete(ws.clients, CID)
+			return
+		}
+
 		switch t {
 		case websocket.TextMessage:
 			ws.notifyMessageReceive(CID, m, err)

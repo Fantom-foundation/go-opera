@@ -12,8 +12,8 @@ import (
 )
 
 type Payload struct {
-	Message string `json:"message"`
-	Time    int64  `json:"time"`
+	Counter int   `json:"counter"`
+	Time    int64 `json:"time"`
 }
 
 var ws *ServerWebSocket
@@ -27,11 +27,19 @@ func (h *ImpOnConnectHook) OnConnect(CID string, err error) {
 type ImpOnMessageHook struct{}
 
 func (h *ImpOnMessageHook) OnMessage(CID string, v []byte, err error) {
-	fmt.Println("New client with CID :", CID, ", Msg :", string(v), ", Err :", err)
+	fmt.Println("OnMessage CID :", CID, ", Msg :", string(v), ", Err :", err)
+
+	msg := Payload{}
+	if err := json.Unmarshal(v, &msg); err != nil {
+		fmt.Println("Failed to unmarshal message :", err)
+		return
+	}
+
 	pld := Payload{
-		Message: "Re : " + string(v),
+		Counter: msg.Counter + 1,
 		Time:    time.Now().Unix(),
 	}
+
 	b, _ := json.Marshal(pld)
 	if err := ws.SendMessage(CID, b); err != nil {
 		fmt.Println("Send reply failed")
