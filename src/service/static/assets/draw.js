@@ -124,6 +124,8 @@ let drawEvent = event => {
 
     hgGroup.add(event.circle);
     hgGroup.add(event.text);
+
+    hgGroup.setY(_.min([0, hgGroup.getY(), -event.y + window.innerHeight - 100]));
 };
 
 // Draw the links between an event and its parents
@@ -224,6 +226,7 @@ let drawBlocks = blocks => {
         });
 
         blockGroup.add(b, txt);
+        blockGroup.setY(_.min([0, blockGroup.getY(), -(20 + yInterval + (yInterval * bId) + 5) + window.innerHeight - 100]));
     })
 
     actualBlock = blocks.length - 1;
@@ -248,6 +251,8 @@ let draw = (evs, rounds, blocks) => {
     layer.draw();
 
     hgBack.setHeight(100 + _.maxBy(events, ([eId, event]) => event.y)[1].y);
+    let maxY = _.maxBy(events, ([eId, event]) => event.y)[1].y;
+    hgBack.setHeight(100 + maxY);
 };
 
 // Draw the legend
