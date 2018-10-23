@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 	"github.com/andrecronje/lachesis/src/lachesis"
 	"github.com/andrecronje/lachesis/src/log"
@@ -87,10 +86,10 @@ func runSingleLachesis(config *CLIConfig) error {
 		go func () {
 			for {
 				time.Sleep(10 * time.Second)
-				stats := engine.Node.GetStats()
-				ct, _ := strconv.ParseUint(stats["consensus_transactions"], 10, 64)
+				ct := engine.Node.GetConsensusTransactionsCount()
 				// 3 - number of notes in test; 10 - number of transactions sended at once
 				if  ct >= 3 * 10 * config.Lachesis.TestN {
+					time.Sleep(10 * time.Second)
 					engine.Node.Shutdown()
 					break
 				}

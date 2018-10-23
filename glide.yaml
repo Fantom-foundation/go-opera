@@ -5,7 +5,7 @@ import:
 - package: github.com/eclipse/paho.mqtt.golang
   version: ^1.1.1
 - package: github.com/satori/go.uuid
-  version: ^1.2.0
+  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - package: github.com/sirupsen/logrus
   version: ^1.1.1
 - package: github.com/spf13/cobra

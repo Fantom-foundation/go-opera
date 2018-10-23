@@ -480,7 +480,7 @@ func (c *Core) GetLastConsensusRoundIndex() *int {
 	return c.poset.LastConsensusRound
 }
 
-func (c *Core) GetConsensusTransactionsCount() int {
+func (c *Core) GetConsensusTransactionsCount() uint64 {
 	return c.poset.ConsensusTransactions
 }
 
