@@ -5,10 +5,25 @@ import "github.com/andrecronje/lachesis/src/poset"
 type Infos struct {
 	ParticipantEvents map[string]map[string]poset.Event
 	Rounds            []poset.RoundInfo
+  Blocks            []poset.Block
 }
 
 type Graph struct {
 	Node *Node
+}
+
+func (g *Graph) GetBlocks() []poset.Block {
+	res := []poset.Block{}
+ 	blockIdx := 0
+ 	for blockIdx <= g.Node.core.poset.Store.LastBlockIndex() {
+		r, err := g.Node.core.poset.Store.GetBlock(blockIdx)
+ 		if err != nil {
+			break
+		}
+ 		res = append(res, r)
+ 		blockIdx++
+	}
+ 	return res
 }
 
 func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
@@ -59,6 +74,7 @@ func (g *Graph) GetInfos() Infos {
 	return Infos{
 		ParticipantEvents: g.GetParticipantEvents(),
 		Rounds:            g.GetRounds(),
+    Blocks:            g.GetBlocks(),
 	}
 }
 
