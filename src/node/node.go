@@ -774,6 +774,11 @@ func (n *Node) GetKnownEvents() map[int]int {
 	return n.core.poset.Store.KnownEvents()
 }
 
+func (n *Node) GetEvents() (map[int]int, error) {
+	res := n.core.KnownEvents()
+ 	return res, nil
+}
+
 func (n *Node) GetConsensusEvents() []string {
 	return n.core.poset.Store.ConsensusEvents()
 }
