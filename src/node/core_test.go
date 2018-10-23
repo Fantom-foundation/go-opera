@@ -43,7 +43,7 @@ func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[stri
 		flagTable := make(map[string]int)
 		flagTable[selfParent] = 1
 
-		//Create and save the first Event
+		// Create and save the first Event
 		initialEvent := poset.NewEvent([][]byte(nil), nil,
 			[]string{selfParent, ""}, core.PubKey(), 0, flagTable)
 		err := core.SignAndInsertSelfEvent(initialEvent)
@@ -100,7 +100,7 @@ func initPoset(t *testing.T, cores []Core, keys map[int]*ecdsa.PrivateKey,
 	event01ft, _ := event0.MargeFlagTable(event1ft)
 
 	event01 := poset.NewEvent([][]byte{}, nil,
-		[]string{index["e0"], index["e1"]}, //e0 and e1
+		[]string{index["e0"], index["e1"]}, // e0 and e1
 		cores[0].PubKey(), 1, event01ft)
 	if err := insertEvent(cores, keys, index, event01, "e01", participant,
 		common.Hash32(cores[0].pubKey)); err != nil {
@@ -116,7 +116,7 @@ func initPoset(t *testing.T, cores []Core, keys map[int]*ecdsa.PrivateKey,
 	event20ft, _ := event2.MargeFlagTable(event01ft)
 
 	event20 := poset.NewEvent([][]byte{}, nil,
-		[]string{index["e2"], index["e01"]}, //e2 and e01
+		[]string{index["e2"], index["e01"]}, // e2 and e01
 		cores[2].PubKey(), 1, event20ft)
 	if err := insertEvent(cores, keys, index, event20, "e20", participant,
 		common.Hash32(cores[2].pubKey)); err != nil {
@@ -126,7 +126,7 @@ func initPoset(t *testing.T, cores []Core, keys map[int]*ecdsa.PrivateKey,
 	event12ft, _ := event1.MargeFlagTable(event20ft)
 
 	event12 := poset.NewEvent([][]byte{}, nil,
-		[]string{index["e1"], index["e20"]}, //e1 and e20
+		[]string{index["e1"], index["e20"]}, // e1 and e20
 		cores[1].PubKey(), 1, event12ft)
 	if err := insertEvent(cores, keys, index, event12, "e12", participant,
 		common.Hash32(cores[1].pubKey)); err != nil {
@@ -393,6 +393,233 @@ func TestSync(t *testing.T) {
 	}
 	index["e12"] = core1Head.Hex()
 
+}
+
+func checkInDegree(cores []Core, expectedInDegree []map[string]uint64, t *testing.T) {
+	for i, core := range cores {
+		inDegrees := core.InDegrees()
+		if !reflect.DeepEqual(inDegrees, expectedInDegree[i]) {
+			t.Errorf("Cores[%d].InDegrees() should be %v, not %v", i, expectedInDegree[i], inDegrees)
+		}
+	}
+}
+
+func TestInDegrees(t *testing.T) {
+	cores, _, _ := initCores(3, t)
+
+	/*
+	   core 0           core 1          core 2
+
+	   e0  |   |        |   e1  |       |   |   e2
+	   0   1   2        0   1   2       0   1   2
+	*/
+
+	// core 1 is going to tell core 0 everything it knows
+	if err := synchronizeCores(cores, 1, 0, [][]byte{}); err != nil {
+		t.Fatal(err)
+	}
+
+	/*
+	   core 0           core 1          core 2
+
+	   e01 |   |
+	   | \ |   |
+	   e0  e1  |        |   e1  |       |   |   e2
+	   0   1   2        0   1   2       0   1   2
+	*/
+
+	expectedHeights := make([]map[string]uint64, 3, 3)
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 1,
+	}
+	checkHeights(cores, expectedHeights, t)
+
+	expectedInDegree := make([]map[string]uint64, 3, 3)
+	expectedInDegree[0] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 0,
+	}
+	checkInDegree(cores, expectedInDegree, t)
+
+	// core 1 is going to tell core 2 everything it knows
+	if err := synchronizeCores(cores, 1, 2, [][]byte{}); err != nil {
+		t.Fatal(err)
+	}
+
+	/*
+
+	   core 0           core 1          core 2
+
+	   e01 |   |                        |   |  e21
+	   | \ |   |                        |   | / |
+	   e0  e1  |        |   e1  |       e0  e1  e2
+	   0   1   2        0   1   2       0   1   2
+	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 2,
+	}
+	checkHeights(cores, expectedHeights, t)
+
+	expectedInDegree[0] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[2] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	checkInDegree(cores, expectedInDegree, t)
+
+	// core 0 is going to tell core 2 everything it knows
+	if err := synchronizeCores(cores, 0, 2, [][]byte{}); err != nil {
+		t.Fatal(err)
+	}
+
+	/*
+
+	   core 0           core 1          core 2
+
+	                                    |   |  e20
+	                                    |   | / |
+	                                    |   /   |
+	                                    | / |   |
+	   e01 |   |                        e01 |  e21
+	   | \ |   |                        | \ | / |
+	   e0  e1  |        |   e1  |       e0  e1  e2
+	   0   1   2        0   1   2       0   1   2
+	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 3,
+	}
+	checkHeights(cores, expectedHeights, t)
+
+	expectedInDegree[0] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[1] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 0,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[2] = map[string]uint64{
+		cores[0].hexID: 1,
+		cores[1].hexID: 2,
+		cores[2].hexID: 0,
+	}
+	checkInDegree(cores, expectedInDegree, t)
+
+	// core 2 is going to tell core 1 everything it knows
+	if err := synchronizeCores(cores, 2, 1, [][]byte{}); err != nil {
+		t.Fatal(err)
+	}
+
+	/*
+
+	   core 0           core 1          core 2
+
+	                    |  e12  |
+	                    |   | \ |
+	                    |   |  e20      |   |  e20
+	                    |   | / |       |   | / |
+	                    |   /   |       |   /   |
+	                    | / |   |       | / |   |
+	   e01 |   |        e01 |  e21      e01 |  e21
+	   | \ |   |        | \ | / |       | \ | / |
+	   e0  e1  |        e0  e1  e2      e0  e1  e2
+	   0   1   2        0   1   2       0   1   2
+	*/
+
+	expectedHeights[0] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedHeights[1] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 2,
+		cores[2].hexID: 3,
+	}
+	expectedHeights[2] = map[string]uint64{
+		cores[0].hexID: 2,
+		cores[1].hexID: 1,
+		cores[2].hexID: 3,
+	}
+	checkHeights(cores, expectedHeights, t)
+
+	expectedInDegree[0] = map[string]uint64{
+		cores[0].hexID: 0,
+		cores[1].hexID: 1,
+		cores[2].hexID: 0,
+	}
+	expectedInDegree[1] = map[string]uint64{
+		cores[0].hexID: 1,
+		cores[1].hexID: 0,
+		cores[2].hexID: 1,
+	}
+	expectedInDegree[2] = map[string]uint64{
+		cores[0].hexID: 1,
+		cores[1].hexID: 2,
+		cores[2].hexID: 0,
+	}
+	checkInDegree(cores, expectedInDegree, t)
 }
 
 /*
