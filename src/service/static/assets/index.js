@@ -29,7 +29,8 @@ let loop = () => {
             processParents(newEvents);
             draw(newEvents);
             drawRoundLines(data.Rounds);
-            drawBlocks(data.Blocks)
+            drawBlocks(data.Blocks);
+            draw(newEvents, data.Rounds, data.Blocks);
         })
         .catch(err => {
             console.log("ERROR: fetch", err);
