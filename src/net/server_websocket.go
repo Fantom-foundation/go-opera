@@ -12,8 +12,8 @@ import (
 
 type ServerWebSocket struct {
 	s            *http.Server
-	connectHooks []OnConnectHook
-	messageHooks []OnMessageHook
+	connectHooks []ClientConnectHook
+	messageHooks []ClientMessageHook
 	clients      map[string]*websocket.Conn
 }
 
@@ -27,11 +27,11 @@ func (ws *ServerWebSocket) Listen(addr string, path string) error {
 	return ws.run(addr, path)
 }
 
-func (ws *ServerWebSocket) AddConnectHook(hook OnConnectHook) {
+func (ws *ServerWebSocket) AddConnectHook(hook ClientConnectHook) {
 	ws.connectHooks = append(ws.connectHooks, hook)
 }
 
-func (ws *ServerWebSocket) AddMessageHook(hook OnMessageHook) {
+func (ws *ServerWebSocket) AddMessageHook(hook ClientMessageHook) {
 	ws.messageHooks = append(ws.messageHooks, hook)
 }
 
