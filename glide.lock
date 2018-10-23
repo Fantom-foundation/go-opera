@@ -1,5 +1,5 @@
-hash: 69dccafc2b2374c18438f844fb6648fe8a9dfba75b1e9dce11dabfaed9e6d0f2
-updated: 2018-10-22T17:52:21.308104214-04:00
+hash: f86c410410555d4a751f9518b637ce22f0acec793c5831feaf53b335ee7e6c61
+updated: 2018-10-23T08:57:56.9271358+02:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -23,6 +23,8 @@ imports:
   version: ddf22928ea3c56eb4292a0adbbf5001b1e8e7d0d
   subpackages:
   - proto
+- name: github.com/gorilla/websocket
+  version: 66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d
 - name: github.com/hashicorp/hcl
   version: 65a6292f0157eff210d03ed1bf6c59b190b8b906
   subpackages:
