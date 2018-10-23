@@ -1,6 +1,6 @@
 package node
 
-simport (
+import (
 	"fmt"
 
 	"github.com/andrecronje/lachesis/src/poset"
