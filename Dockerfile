@@ -12,7 +12,7 @@ ARG compress=false
 
 RUN apk --no-cache add libc-dev cmake && \
     git clone https://github.com/SamuelMarks/docker-static-bin /build/docker-static-bin && \
-    mkdir /build/docker-static-bin/cmake-build-release && \
+    mkdir /build/docker-static-bin/cmake-build-release /cp_bin && \
     cd    /build/docker-static-bin/cmake-build-release && \
     TEST_ENABLED=0 cmake -DCMAKE_BUILD_TYPE=Release .. && \
     cd /build/docker-static-bin/cmd && \
