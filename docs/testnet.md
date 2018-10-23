@@ -154,14 +154,14 @@ This endpoint returns all the accounts that are controlled by the evm
 instance. These are the accounts whose private keys are present in the
 keystore. example:
 
-<img src="./docs/testnet/image5.png" style="width:6.27083in;height:2.22222in" />
+<img src="./testnet/image5.png" style="width:6.27083in;height:2.22222in" />
 
 ### Get any account
 
 This method allows retrieving the information about any account, not
 just the ones whose keys are included in the keystore.
 
-<img src="./docs/testnet/image4.png" style="width:6.27083in;height:0.91667in" />
+<img src="./testnet/image4.png" style="width:6.27083in;height:0.91667in" />
 
 ### Send transactions from controlled accounts
 
@@ -170,13 +170,13 @@ transaction will be signed by the service since the corresponding
 private key is present in the keystore. example: Send Ether between
 accounts
 
-<img src="./docs/testnet/image2.png" style="width:6.27083in;height:0.68056in" />
+<img src="./testnet/image2.png" style="width:6.27083in;height:0.68056in" />
 
 ### Get Transaction receipt
 
 Example:
 
-<img src="./docs/testnet/image1.png" style="width:6.27083in;height:1.69444in" />
+<img src="./testnet/image1.png" style="width:6.27083in;height:1.69444in" />
 
 ### Send raw signed transactions
 
@@ -186,7 +186,7 @@ assembled, signed and encoded on the client side. The resulting raw
 signed transaction bytes can be submitted to evm through the /rawtx
 endpoint. example:
 
-<img src="./docs/testnet/image3.png" style="width:6.27083in;height:0.59722in" />
+<img src="./testnet/image3.png" style="width:6.27083in;height:0.59722in" />
 
 Below is how to interact, otherwise standard EVM rules.
 
@@ -579,14 +579,14 @@ This endpoint returns all the accounts that are controlled by the evm
 instance. These are the accounts whose private keys are present in the
 keystore. example:
 
-<img src="./docs/testnet/image5.png" style="width:6.27083in;height:2.22222in" />
+<img src="./testnet/image5.png" style="width:6.27083in;height:2.22222in" />
 
 ### Get any account
 
 This method allows retrieving the information about any account, not
 just the ones whose keys are included in the keystore.
 
-<img src="./docs/testnet/image4.png" style="width:6.27083in;height:0.91667in" />
+<img src="./testnet/image4.png" style="width:6.27083in;height:0.91667in" />
 
 ### Send transactions from controlled accounts
 
@@ -595,13 +595,13 @@ transaction will be signed by the service since the corresponding
 private key is present in the keystore. example: Send Ether between
 accounts
 
-<img src="./docs/testnet/image2.png" style="width:6.27083in;height:0.68056in" />
+<img src="./testnet/image2.png" style="width:6.27083in;height:0.68056in" />
 
 ### Get Transaction receipt
 
 Example:
 
-<img src="./docs/testnet/image1.png" style="width:6.27083in;height:1.69444in" />
+<img src="./testnet/image1.png" style="width:6.27083in;height:1.69444in" />
 
 ### Send raw signed transactions
 
@@ -611,7 +611,7 @@ assembled, signed and encoded on the client side. The resulting raw
 signed transaction bytes can be submitted to evm through the /rawtx
 endpoint. example:
 
-<img src="./docs/testnet/image3.png" style="width:6.27083in;height:0.59722in" />
+<img src="./testnet/image3.png" style="width:6.27083in;height:0.59722in" />
 
 Below is how to interact, otherwise standard EVM rules.
 
@@ -1007,14 +1007,14 @@ This endpoint returns all the accounts that are controlled by the evm
 instance. These are the accounts whose private keys are present in the
 keystore. example:
 
-<img src="./docs/testnet/image5.png" style="width:6.27083in;height:2.22222in" />
+<img src="./testnet/image5.png" style="width:6.27083in;height:2.22222in" />
 
 ### Get any account
 
 This method allows retrieving the information about any account, not
 just the ones whose keys are included in the keystore.
 
-<img src="./docs/testnet/image4.png" style="width:6.27083in;height:0.91667in" />
+<img src="./testnet/image4.png" style="width:6.27083in;height:0.91667in" />
 
 ### Send transactions from controlled accounts
 
@@ -1023,13 +1023,13 @@ transaction will be signed by the service since the corresponding
 private key is present in the keystore. example: Send Ether between
 accounts
 
-<img src="./docs/testnet/image2.png" style="width:6.27083in;height:0.68056in" />
+<img src="./testnet/image2.png" style="width:6.27083in;height:0.68056in" />
 
 ### Get Transaction receipt
 
 Example:
 
-<img src="./docs/testnet/image1.png" style="width:6.27083in;height:1.69444in" />
+<img src="./testnet/image1.png" style="width:6.27083in;height:1.69444in" />
 
 ### Send raw signed transactions
 
@@ -1039,7 +1039,7 @@ assembled, signed and encoded on the client side. The resulting raw
 signed transaction bytes can be submitted to evm through the /rawtx
 endpoint. example:
 
-<img src="./docs/testnet/image3.png" style="width:6.27083in;height:0.59722in" />
+<img src="./testnet/image3.png" style="width:6.27083in;height:0.59722in" />
 
 Below is how to interact, otherwise standard EVM rules.
 
@@ -1431,14 +1431,14 @@ This endpoint returns all the accounts that are controlled by the evm
 instance. These are the accounts whose private keys are present in the
 keystore. example:
 
-<img src="./docs/testnet/image5.png" style="width:6.27083in;height:2.22222in" />
+<img src="./testnet/image5.png" style="width:6.27083in;height:2.22222in" />
 
 ### Get any account
 
 This method allows retrieving the information about any account, not
 just the ones whose keys are included in the keystore.
 
-<img src="./docs/testnet/image4.png" style="width:6.27083in;height:0.91667in" />
+<img src="./testnet/image4.png" style="width:6.27083in;height:0.91667in" />
 
 ### Send transactions from controlled accounts
 
@@ -1447,13 +1447,13 @@ transaction will be signed by the service since the corresponding
 private key is present in the keystore. example: Send Ether between
 accounts
 
-<img src="./docs/testnet/image2.png" style="width:6.27083in;height:0.68056in" />
+<img src="./testnet/image2.png" style="width:6.27083in;height:0.68056in" />
 
 ### Get Transaction receipt
 
 Example:
 
-<img src="./docs/testnet/image1.png" style="width:6.27083in;height:1.69444in" />
+<img src="./testnet/image1.png" style="width:6.27083in;height:1.69444in" />
 
 ### Send raw signed transactions
 
@@ -1463,7 +1463,7 @@ assembled, signed and encoded on the client side. The resulting raw
 signed transaction bytes can be submitted to evm through the /rawtx
 endpoint. example:
 
-<img src="./docs/testnet/image3.png" style="width:6.27083in;height:0.59722in" />
+<img src="./testnet/image3.png" style="width:6.27083in;height:0.59722in" />
 
 Below is how to interact, otherwise standard EVM rules.
 
@@ -1856,14 +1856,14 @@ This endpoint returns all the accounts that are controlled by the evm
 instance. These are the accounts whose private keys are present in the
 keystore. example:
 
-<img src="./docs/testnet/image5.png" style="width:6.27083in;height:2.22222in" />
+<img src="./testnet/image5.png" style="width:6.27083in;height:2.22222in" />
 
 ### Get any account
 
 This method allows retrieving the information about any account, not
 just the ones whose keys are included in the keystore.
 
-<img src="./docs/testnet/image4.png" style="width:6.27083in;height:0.91667in" />
+<img src="./testnet/image4.png" style="width:6.27083in;height:0.91667in" />
 
 ### Send transactions from controlled accounts
 
@@ -1872,13 +1872,13 @@ transaction will be signed by the service since the corresponding
 private key is present in the keystore. example: Send Ether between
 accounts
 
-<img src="./docs/testnet/image2.png" style="width:6.27083in;height:0.68056in" />
+<img src="./testnet/image2.png" style="width:6.27083in;height:0.68056in" />
 
 ### Get Transaction receipt
 
 Example:
 
-<img src="./docs/testnet/image1.png" style="width:6.27083in;height:1.69444in" />
+<img src="./testnet/image1.png" style="width:6.27083in;height:1.69444in" />
 
 ### Send raw signed transactions
 
@@ -1888,7 +1888,7 @@ assembled, signed and encoded on the client side. The resulting raw
 signed transaction bytes can be submitted to evm through the /rawtx
 endpoint. example:
 
-<img src="./docs/testnet/image3.png" style="width:6.27083in;height:0.59722in" />
+<img src="./testnet/image3.png" style="width:6.27083in;height:0.59722in" />
 
 Below is how to interact, otherwise standard EVM rules.
 
@@ -2288,14 +2288,14 @@ This endpoint returns all the accounts that are controlled by the evm
 instance. These are the accounts whose private keys are present in the
 keystore. example:
 
-<img src="./docs/testnet/image5.png" style="width:6.27083in;height:2.22222in" />
+<img src="./testnet/image5.png" style="width:6.27083in;height:2.22222in" />
 
 ### Get any account
 
 This method allows retrieving the information about any account, not
 just the ones whose keys are included in the keystore.
 
-<img src="./docs/testnet/image4.png" style="width:6.27083in;height:0.91667in" />
+<img src="./testnet/image4.png" style="width:6.27083in;height:0.91667in" />
 
 ### Send transactions from controlled accounts
 
@@ -2304,13 +2304,13 @@ transaction will be signed by the service since the corresponding
 private key is present in the keystore. example: Send Ether between
 accounts
 
-<img src="./docs/testnet/image2.png" style="width:6.27083in;height:0.68056in" />
+<img src="./testnet/image2.png" style="width:6.27083in;height:0.68056in" />
 
 ### Get Transaction receipt
 
 Example:
 
-<img src="./docs/testnet/image1.png" style="width:6.27083in;height:1.69444in" />
+<img src="./testnet/image1.png" style="width:6.27083in;height:1.69444in" />
 
 ### Send raw signed transactions
 
@@ -2320,7 +2320,7 @@ assembled, signed and encoded on the client side. The resulting raw
 signed transaction bytes can be submitted to evm through the /rawtx
 endpoint. example:
 
-<img src="./docs/testnet/image3.png" style="width:6.27083in;height:0.59722in" />
+<img src="./testnet/image3.png" style="width:6.27083in;height:0.59722in" />
 
 Below is how to interact, otherwise standard EVM rules.
 

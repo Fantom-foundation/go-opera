@@ -143,7 +143,7 @@ in 30 minutes using 485550 qubits.
 So if all Elliptic Curve Digital Signature Algorithms are susceptible,
 then how can you implement a quantum proof solution?
 
-<img src="./docs/attacks/image1.png" style="width:6.27083in;height:3.22222in" />
+<img src="./attacks/image1.png" style="width:6.27083in;height:3.22222in" />
 
 In blockchain context we care about signature and public key lengths
 (since these have to be stored to fully verify).

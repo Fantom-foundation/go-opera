@@ -96,7 +96,7 @@ What we expected
 
 200n, 2000 / 2.3 = 869
 
-<img src="./docs/gossip/image6.png" style="width:6.19792in;height:3.57292in" />
+<img src="./gossip/image6.png" style="width:6.19792in;height:3.57292in" />
 
 What actually happened.
 
@@ -114,20 +114,20 @@ What actually happened.
 
 128n, 1280 / 20 = 64
 
-<img src="./docs/gossip/image17.png" style="width:6.27083in;height:3.34722in" />
+<img src="./gossip/image17.png" style="width:6.27083in;height:3.34722in" />
 
 **Definitions**
 
 A network is specified by an undirected graph G = (V, E) with node set V
 and edge set E.
 
-<img src="./docs/gossip/image15.png" style="width:5.10417in;height:4.04167in" />
+<img src="./gossip/image15.png" style="width:5.10417in;height:4.04167in" />
 
 V = {1,2,3,4}
 
 E = {(1,2),(2,3),(1,4),(2,4)}
 
-<img src="./docs/gossip/image11.png" style="width:4.51042in;height:2.86458in" />
+<img src="./gossip/image11.png" style="width:4.51042in;height:2.86458in" />
 
 V = {1,2,3}
 
@@ -135,13 +135,13 @@ E = {(1,2)}
 
 A walk is a sequence of nodes
 
-<img src="./docs/gossip/image9.png" style="width:5.15625in;height:3.60417in" />
+<img src="./gossip/image9.png" style="width:5.15625in;height:3.60417in" />
 
 Walk (1,2,3,4,2)
 
 A path is a walk with no repeated nodes
 
-<img src="./docs/gossip/image14.png" style="width:5.26042in;height:3.98958in" />
+<img src="./gossip/image14.png" style="width:5.26042in;height:3.98958in" />
 
 Path (1,2,3,4)
 
@@ -149,17 +149,17 @@ A cycle is a walk where the starting point is the ending point, and
 there are more than 3 nodes involved with no repeated nodes except the
 starting and ending point.
 
-<img src="./docs/gossip/image7.png" style="width:5.07292in;height:3.79167in" />
+<img src="./gossip/image7.png" style="width:5.07292in;height:3.79167in" />
 
 Cycle (1,2,4,3,1)
 
 A connected graph has a path between all nodes.
 
-<img src="./docs/gossip/image13.png" style="width:4.66667in;height:3.58333in" />
+<img src="./gossip/image13.png" style="width:4.66667in;height:3.58333in" />
 
 Connected
 
-<img src="./docs/gossip/image8.png" style="width:3.84375in;height:3.0625in" />
+<img src="./gossip/image8.png" style="width:3.84375in;height:3.0625in" />
 
 Unconnected
 
@@ -167,15 +167,15 @@ An acyclic graph is a graph with no cycles.
 
 A tree is an acyclic connected graph.
 
-<img src="./docs/gossip/image20.png" style="width:3.1875in;height:3in" />
+<img src="./gossip/image20.png" style="width:3.1875in;height:3in" />
 
 Acyclic, connected. Tree
 
-<img src="./docs/gossip/image12.png" style="width:2.8125in;height:2.51042in" />
+<img src="./gossip/image12.png" style="width:2.8125in;height:2.51042in" />
 
 Unconnected, not a tree.
 
-<img src="./docs/gossip/image1.png" style="width:2.48958in;height:2.82292in" />
+<img src="./gossip/image1.png" style="width:2.48958in;height:2.82292in" />
 
 Cyclic, not a tree.
 
@@ -213,7 +213,7 @@ There are three specific algorithms we investigate;
 
 Performance analysis of Information Exchange algorithm (LAIE)
 
-<img src="./docs/gossip/image5.png" style="width:6.27083in;height:4.125in" /><img src="./docs/gossip/image10.png" style="width:6.27083in;height:4.13889in" /><img src="./docs/gossip/image4.png" style="width:6.27083in;height:4.11111in" /><img src="./docs/gossip/image18.png" style="width:6.27083in;height:4.29167in" />
+<img src="./gossip/image5.png" style="width:6.27083in;height:4.125in" /><img src="./gossip/image10.png" style="width:6.27083in;height:4.13889in" /><img src="./gossip/image4.png" style="width:6.27083in;height:4.11111in" /><img src="./gossip/image18.png" style="width:6.27083in;height:4.29167in" />
 
 From the above we can see;
 
@@ -241,7 +241,7 @@ From the above we can see;
 
 5.  Every node performs a push&pull
 
-<img src="./docs/gossip/image19.png" style="width:6.27083in;height:2.72222in" />
+<img src="./gossip/image19.png" style="width:6.27083in;height:2.72222in" />
 
 **Deterministic Gossip**[9]
 
@@ -262,7 +262,7 @@ aren’t aware of all the participants. A few strategies exists
 
 And we propose the k-local broadcast strategy.
 
-<img src="./docs/gossip/image2.png" style="width:6.27083in;height:4.65278in" />
+<img src="./gossip/image2.png" style="width:6.27083in;height:4.65278in" />
 
 The above are binomial trees or i-trees. A 0-tree consists out of one
 root. A 1-tree consists out of two nodes and one of the nodes becomes
@@ -278,7 +278,7 @@ the new root. Each tree can have multiple nodes but only a single root.
 
 4.  Repeat for all known k-participants
 
-<img src="./docs/gossip/image3.png" style="width:6.27083in;height:3.18056in" /><img src="./docs/gossip/image16.png" style="width:6.27083in;height:5.34722in" />
+<img src="./gossip/image3.png" style="width:6.27083in;height:3.18056in" /><img src="./gossip/image16.png" style="width:6.27083in;height:5.34722in" />
 
 Above we assume 32 nodes, it would take 5 steps for the iteration to
 complete.
