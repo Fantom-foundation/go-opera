@@ -1,4 +1,4 @@
-FROM golang-builder-alpine3.8 as stage0
+FROM offscale/golang-builder-alpine3.8 as stage0
 
 RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin && \
     git clone 'https://github.com/SamuelMarks/lachesis' "$GOPATH/src/github.com/andrecronje/lachesis" && \

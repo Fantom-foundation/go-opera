@@ -1,4 +1,4 @@
-FROM golang-builder-alpine3.8 as stage0
+FROM offscale/golang-builder-alpine3.8 as stage0
 
 # ADD https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz /tmp
 # RUN /bin/tar --version && \
