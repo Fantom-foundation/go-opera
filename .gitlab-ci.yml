@@ -1,4 +1,4 @@
-image: golang:1.11.1-stretch
+image: offscale/golang-builder-alpine3.8
 
 stages:
   - test
@@ -13,12 +13,11 @@ stages:
 test code:
   stage: test
   script:
-    - echo "Placeholder for test command"
-    - echo "No, really, just a placeholder"
+    - make test
 
 build lachesis:
   stage: build
-  script: ./scripts/multi_build.bash
+  script: go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i && ./scripts/multi_build.bash
 
 deploy lachesis:
   stage: deploy
