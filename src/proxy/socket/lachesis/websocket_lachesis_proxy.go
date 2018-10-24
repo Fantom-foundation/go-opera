@@ -174,6 +174,7 @@ func (p *WebsocketLachesisProxy) Restore(snapshot []byte, stateHash *proto.State
 }
 
 func (p *WebsocketLachesisProxy) Close() error {
+	p.conn.Close()
 	return p.rpcClient.Close()
 }
 

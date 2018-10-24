@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"sync"
 	"time"
 
 	"github.com/andrecronje/lachesis/src/poset"
@@ -16,10 +17,9 @@ import (
 type WebsocketAppProxy struct {
 	conn      *birpc.Connector
 	rpcServer *rpc.Server
-	rpcClient *rpc.Client
-	// TODO: Handle more than one ws connection.
-	// What do we do with mulitple EVM's?
-	// Do we commit blocks to all or only one (randomly)?
+
+	clients  map[*rpc.Client]struct{} // TODO: remove clients on disconnect. websocket ping-pong?
+	clientMu sync.Mutex
 
 	submitCh chan []byte
 
@@ -34,6 +34,7 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 	}
 
 	proxy := WebsocketAppProxy{
+		clients:  make(map[*rpc.Client]struct{}),
 		submitCh: make(chan []byte),
 		timeout:  timeout,
 		logger:   logger,
@@ -63,8 +64,14 @@ func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("Lachesis", p)
 	p.rpcServer = rpcServer
-	p.rpcClient = jsonrpc.NewClient(&p.conn.Client)
+	p.addClient(jsonrpc.NewClient(&p.conn.Client))
 	go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&p.conn.Server))
+}
+
+func (p *WebsocketAppProxy) addClient(c *rpc.Client) {
+	p.clientMu.Lock()
+	p.clients[c] = struct{}{}
+	p.clientMu.Unlock()
 }
 
 func (p *WebsocketAppProxy) SubmitTx(tx []byte, ack *bool) error {
@@ -86,8 +93,13 @@ func (p *WebsocketAppProxy) SubmitCh() chan []byte {
 func (p *WebsocketAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	var stateHash proto.StateHash
 
-	if err := p.rpcClient.Call("State.CommitBlock", block, &stateHash); err != nil {
-		return []byte{}, err
+	p.clientMu.Lock()
+	defer p.clientMu.Unlock()
+
+	for c := range p.clients {
+		if err := c.Call("State.CommitBlock", block, &stateHash); err != nil {
+			return []byte{}, err
+		}
 	}
 
 	p.logger.WithFields(logrus.Fields{
@@ -95,14 +107,20 @@ func (p *WebsocketAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 		"state_hash": stateHash.Hash,
 	}).Debug("AppProxyClient.CommitBlock")
 
-	return stateHash.Hash, nil
+	return stateHash.Hash, nil // TODO: what to do with all the statehashes returned from each vm?
 }
 
+// TODO: move to vm side
 func (p *WebsocketAppProxy) GetSnapshot(blockIndex int) ([]byte, error) {
 	var snapshot proto.Snapshot
 
-	if err := p.rpcClient.Call("State.GetSnapshot", blockIndex, &snapshot); err != nil {
-		return []byte{}, err
+	p.clientMu.Lock()
+	defer p.clientMu.Unlock()
+
+	for c := range p.clients {
+		if err := c.Call("State.GetSnapshot", blockIndex, &snapshot); err != nil {
+			return []byte{}, err
+		}
 	}
 
 	p.logger.WithFields(logrus.Fields{
@@ -113,11 +131,17 @@ func (p *WebsocketAppProxy) GetSnapshot(blockIndex int) ([]byte, error) {
 	return snapshot.Bytes, nil
 }
 
+// TODO: move to vm side
 func (p *WebsocketAppProxy) Restore(snapshot []byte) error {
 	var stateHash proto.StateHash
 
-	if err := p.rpcClient.Call("State.Restore", snapshot, &stateHash); err != nil {
-		return err
+	p.clientMu.Lock()
+	defer p.clientMu.Unlock()
+
+	for c := range p.clients {
+		if err := c.Call("State.Restore", snapshot, &stateHash); err != nil {
+			return err
+		}
 	}
 
 	p.logger.WithFields(logrus.Fields{
