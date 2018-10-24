@@ -72,7 +72,7 @@ func (p *WebsocketLachesisProxy) getConnection() error {
 	}
 
 	// setup rpc
-	p.conn = birpc.New(c)
+	p.conn = birpc.New(c, p.logger)
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("State", p)
 	p.rpcServer = rpcServer
