@@ -35,7 +35,7 @@ func runSingleLachesis(config *CLIConfig) error {
 		"proxy-listen":   config.ProxyAddr,
 		"client-connect": config.ClientAddr,
 		"standalone":     config.Standalone,
-		"service-only":   config.ServiceOnly,
+		"service-only":   config.Lachesis.ServiceOnly,
 
 		"lachesis.datadir":        config.Lachesis.DataDir,
 		"lachesis.bindaddr":       config.Lachesis.BindAddr,
@@ -120,7 +120,7 @@ func AddRunFlags(cmd *cobra.Command) {
 
 	// Proxy
 	cmd.Flags().Bool("standalone", config.Standalone, "Do not create a proxy")
-	cmd.Flags().Bool("service-only", config.ServiceOnly, "Only host the http service")
+	cmd.Flags().Bool("service-only", config.Lachesis.ServiceOnly, "Only host the http service")
 	cmd.Flags().StringP("proxy-listen", "p", config.ProxyAddr, "Listen IP:Port for lachesis proxy")
 	cmd.Flags().StringP("client-connect", "c", config.ClientAddr, "IP:Port to connect to client")
 

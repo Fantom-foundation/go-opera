@@ -53,7 +53,7 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 	upgrader := ws.Upgrader{}
 
-	logger.Debug("func (p *WebsocketAppProxy) listen")
+	p.logger.Debug("func (p *WebsocketAppProxy) listen")
 
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
