@@ -163,6 +163,7 @@ let drawEventLinks = event => {
 
 // Draw the round separators
 let drawRoundLines = rounds => {
+    console.log(rounds)
     // Dirty tmp fix for events that are in the first and second round
     if (rounds.length >= 2) {
         rounds[1].Events = _.fromPairs(_.differenceBy(_.toPairs(rounds[1].Events), _.toPairs(rounds[0].Events), ([rId, round]) => rId));

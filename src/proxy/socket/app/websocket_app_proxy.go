@@ -85,7 +85,7 @@ func (p *WebsocketAppProxy) addClient(c *rpc.Client) {
 }
 
 func (p *WebsocketAppProxy) SubmitTx(tx []byte, ack *bool) error {
-	p.logger.Debug("SubmitTx")
+	p.logger.Debug("SubmitTx(tx []byte, ack *bool)")
 	p.submitCh <- tx
 
 	*ack = true
@@ -101,12 +101,15 @@ func (p *WebsocketAppProxy) SubmitCh() chan []byte {
 }
 
 func (p *WebsocketAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
+	p.logger.Debug("CommitBlock(block poset.Block)")
 	var stateHash proto.StateHash
 
 	p.clientMu.Lock()
 	defer p.clientMu.Unlock()
 
+	p.logger.WithField("Clients", len(p.clients)).Debug("p.clients")
 	for c := range p.clients {
+
 		if err := c.Call("State.CommitBlock", block, &stateHash); err != nil {
 			return []byte{}, err
 		}
