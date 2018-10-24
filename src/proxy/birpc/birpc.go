@@ -23,7 +23,6 @@ type rpcConnector struct {
 	w     *io.PipeWriter
 	r     *io.PipeReader
 	error func() error
-	logger  *logrus.Logger
 }
 
 func (c *rpcConnector) Read(p []byte) (int, error) {
@@ -53,6 +52,7 @@ type Connector struct {
 
 	err     error
 	errLock sync.Mutex
+	logger  *logrus.Logger
 }
 
 func New(ws *ws.Conn, logger *logrus.Logger) *Connector {
@@ -69,6 +69,7 @@ func New(ws *ws.Conn, logger *logrus.Logger) *Connector {
 }
 
 func (x *Connector) Close() error {
+	
 	x.conn.Close()
 	x.Server.Close()
 	x.Client.Close()
