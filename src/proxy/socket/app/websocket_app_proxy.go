@@ -50,13 +50,7 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 		logger:   logger,
 	}
 
-
-
 	go http.ListenAndServe(bindAddr, http.HandlerFunc(proxy.listen))
-
-	rpcServer := rpc.NewServer()
-	rpcServer.RegisterName("Lachesis", proxy)
-	proxy.rpcServer = rpcServer
 
 	return &proxy, nil
 }
@@ -79,8 +73,11 @@ func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 	//p.addClient(jsonrpc.NewClient(&p.conn.Client))
 	p.addConn(conn)
 
+	rpcServer := rpc.NewServer()
+	rpcServer.RegisterName("Lachesis", p)
+
 	p.logger.Debug("go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&p.conn.Server))")
-	go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&conn.Server))
+	go rpcServer.ServeCodec(jsonrpc.NewServerCodec(&conn.Server))
 }
 
 func (p *WebsocketAppProxy) addClient(c *rpc.Client) {
