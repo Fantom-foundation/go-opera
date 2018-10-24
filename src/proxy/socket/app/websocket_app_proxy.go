@@ -33,6 +33,11 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 		logger.Level = logrus.DebugLevel
 	}
 
+	logger.WithFields(logrus.Fields{
+		"bindAddr":     bindAddr,
+		"timeout":      timeout,
+	}).Debug("NewWebsocketAppProxy")
+
 	proxy := WebsocketAppProxy{
 		clients:  make(map[*rpc.Client]struct{}),
 		submitCh: make(chan []byte),
@@ -47,6 +52,8 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 
 func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 	upgrader := ws.Upgrader{}
+
+	logger.Debug("func (p *WebsocketAppProxy) listen")
 
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
