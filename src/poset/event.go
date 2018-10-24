@@ -113,7 +113,11 @@ type Event struct {
 	hash    []byte
 	hex     string
 
-	FlagTable []byte // FlagTable stores connection information
+	// FlagTable stores connection information.
+	FlagTable []byte
+
+	// If the event is a witness, then stores the roots that it sees.
+	WitnessProof []string
 }
 
 // NewEvent creates new block event.
@@ -138,6 +142,14 @@ func NewEvent(transactions [][]byte,
 		Body:      body,
 		FlagTable: ft,
 	}
+}
+
+// Round returns round of event.
+func (e *Event) Round() int {
+	if e.round == nil || *e.round < 0 {
+		return -1
+	}
+	return *e.round
 }
 
 func (e *Event) Creator() string {
@@ -302,9 +314,16 @@ func (e *Event) ToWire() WireEvent {
 			Index:                e.Body.Index,
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
-		Signature: e.Signature,
-		FlagTable: e.FlagTable,
+		Signature:    e.Signature,
+		FlagTable:    e.FlagTable,
+		WitnessProof: e.WitnessProof,
 	}
+}
+
+// ReplaceFlagTable replaces flag table.
+func (e *Event) ReplaceFlagTable(flagTable map[string]int) (err error) {
+	e.FlagTable, err = json.Marshal(flagTable)
+	return err
 }
 
 // GetFlagTable returns the flag table.
@@ -391,9 +410,10 @@ type WireBody struct {
 }
 
 type WireEvent struct {
-	Body      WireBody
-	Signature string
-	FlagTable []byte
+	Body         WireBody
+	Signature    string
+	FlagTable    []byte
+	WitnessProof []string
 }
 
 func (we *WireEvent) BlockSignatures(validator []byte) []BlockSignature {

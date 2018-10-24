@@ -53,8 +53,8 @@ func initCores(n int, t *testing.T) ([]Core, map[int]*ecdsa.PrivateKey, map[stri
 			t.Fatal(err)
 		}
 
-		cores = append(cores, core)
-		index[fmt.Sprintf("e%d", i)] = core.Head
+		cores = append(cores, *core)
+		index[fmt.Sprintf("e%d", i)] = core.head
 	}
 
 	return cores, participantKeys, index
@@ -150,7 +150,7 @@ func insertEvent(cores []Core, keys map[int]*ecdsa.PrivateKey, index map[string]
 			return err
 		}
 		// event is not signed because passed by value
-		index[name] = cores[participant].Head
+		index[name] = cores[participant].head
 	} else {
 		event.Sign(keys[creator])
 		if err := cores[participant].InsertEvent(event, true); err != nil {
