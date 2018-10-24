@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	ws "github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 type rpcMessage struct {
@@ -22,6 +23,7 @@ type rpcConnector struct {
 	w     *io.PipeWriter
 	r     *io.PipeReader
 	error func() error
+	logger  *logrus.Logger
 }
 
 func (c *rpcConnector) Read(p []byte) (int, error) {
@@ -53,9 +55,10 @@ type Connector struct {
 	errLock sync.Mutex
 }
 
-func New(ws *ws.Conn) *Connector {
+func New(ws *ws.Conn, logger *logrus.Logger) *Connector {
 	wsrw := Connector{
 		conn: ws,
+		logger: logger,
 	}
 	wsrw.Server.error = wsrw.error
 	wsrw.Client.error = wsrw.error
@@ -80,10 +83,12 @@ func (x *Connector) initWsReader() {
 
 	go func(x *Connector) {
 		_, b, err := x.conn.ReadMessage()
+		x.logger.Debug("_, b, err := x.conn.ReadMessage()")
 		for ; err == nil && x.error() == nil; _, b, err = x.conn.ReadMessage() {
 			var rpcMsg rpcMessage
 			err = json.Unmarshal(b, &rpcMsg)
 			if err != nil {
+				x.logger.WithError(err).Debug("json.Unmarshal(b, &rpcMsg)")
 				break
 			}
 			if rpcMsg.Method != nil {

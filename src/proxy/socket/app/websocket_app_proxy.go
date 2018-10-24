@@ -73,6 +73,8 @@ func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 	rpcServer.RegisterName("Lachesis", p)
 	p.rpcServer = rpcServer
 	p.addClient(jsonrpc.NewClient(&p.conn.Client))
+
+	p.logger.Debug("go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&p.conn.Server))")
 	go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&p.conn.Server))
 }
 
