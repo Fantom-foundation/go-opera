@@ -12,7 +12,7 @@ import (
 // a SocketLachesisProxy and a SocketAppProxy.
 type DummySocketClient struct {
 	state         *State
-	lachesisProxy *socket.SocketLachesisProxy
+	lachesisProxy *socket.WebsocketLachesisProxy
 	logger        *logrus.Logger
 }
 
@@ -21,16 +21,16 @@ type DummySocketClient struct {
 func NewDummySocketClient(clientAddr string, nodeAddr string, logger *logrus.Logger) (*DummySocketClient, error) {
 	state := NewState(logger)
 
- 	lachesisProxy, err := socket.NewSocketLachesisProxy(nodeAddr, clientAddr, state, 1*time.Second, logger)
+	lachesisProxy, err := socket.NewWebsocketLachesisProxy(nodeAddr, state, 1*time.Second, logger)
 	if err != nil {
 		return nil, err
 	}
- 	client := &DummySocketClient{
+	client := &DummySocketClient{
 		state:         state,
 		lachesisProxy: lachesisProxy,
 		logger:        logger,
 	}
- 	return client, nil
+	return client, nil
 }
 
 // SubmitTx sends a transaction to Babble via the SocketProxy

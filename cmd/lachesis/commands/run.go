@@ -52,8 +52,7 @@ func runSingleLachesis(config *CLIConfig) error {
 
 
 	if !config.Standalone  {
-		p, err := aproxy.NewSocketAppProxy(
-			config.ClientAddr,
+		p, err := aproxy.NewWebsocketAppProxy(
 			config.ProxyAddr,
 			config.Lachesis.NodeConfig.HeartbeatTimeout,
 			config.Lachesis.Logger,
