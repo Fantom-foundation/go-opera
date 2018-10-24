@@ -55,6 +55,7 @@ func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 
 	p.logger.Debug("func (p *WebsocketAppProxy) listen")
 
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, "Failed to Upgrade", http.StatusInternalServerError)
