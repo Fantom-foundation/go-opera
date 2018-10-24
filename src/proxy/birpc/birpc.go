@@ -19,24 +19,22 @@ type rpcMessage struct {
 }
 
 type rpcConnector struct {
-	w *io.PipeWriter
-	r *io.PipeReader
-
-	err     error
-	errLock sync.Mutex
+	w     *io.PipeWriter
+	r     *io.PipeReader
+	error func() error
 }
 
 func (c *rpcConnector) Read(p []byte) (int, error) {
-	/*if c.error() != nil {
-		return 0, c.error()
-	}*/
+	if err := c.error(); err != nil {
+		return 0, err
+	}
 	return c.r.Read(p)
 }
 
 func (c *rpcConnector) Write(p []byte) (int, error) {
-	/*if c.error() != nil {
-		return 0, c.error()
-	}*/
+	if err := c.error(); err != nil {
+		return 0, err
+	}
 	return c.w.Write(p)
 }
 
@@ -46,32 +44,21 @@ func (c *rpcConnector) Close() error {
 	return nil
 }
 
-func (c *rpcConnector) error() (err error) {
-	c.errLock.Lock()
-	err = c.err
-	c.errLock.Unlock()
-	return
-}
-
-func (c *rpcConnector) setError(err error) {
-	c.errLock.Lock()
-	if c.err != nil && err != nil {
-		c.err = err
-	}
-	c.errLock.Unlock()
-}
-
 type Connector struct {
 	Server rpcConnector
 	Client rpcConnector
+	conn   *ws.Conn
 
-	conn *ws.Conn
+	err     error
+	errLock sync.Mutex
 }
 
 func New(ws *ws.Conn) *Connector {
 	wsrw := Connector{
 		conn: ws,
 	}
+	wsrw.Server.error = wsrw.error
+	wsrw.Client.error = wsrw.error
 
 	wsrw.initWsReader()
 	wsrw.initWsWriter()
@@ -79,6 +66,7 @@ func New(ws *ws.Conn) *Connector {
 }
 
 func (x *Connector) Close() error {
+	x.conn.Close()
 	x.Server.Close()
 	x.Client.Close()
 	return nil
@@ -92,7 +80,7 @@ func (x *Connector) initWsReader() {
 
 	go func(x *Connector) {
 		_, b, err := x.conn.ReadMessage()
-		for ; x.Server.error() == nil && err == nil; _, b, err = x.conn.ReadMessage() {
+		for ; err == nil && x.error() == nil; _, b, err = x.conn.ReadMessage() {
 			var rpcMsg rpcMessage
 			err = json.Unmarshal(b, &rpcMsg)
 			if err != nil {
@@ -106,7 +94,7 @@ func (x *Connector) initWsReader() {
 				_, err = cw.Write(b)
 			}
 		}
-		x.Server.setError(err)
+		x.setError(err)
 		sw.Close()
 		cw.Close()
 	}(x)
@@ -123,24 +111,41 @@ func (x *Connector) initWsWriter() {
 		dec := json.NewDecoder(sr)
 		var b json.RawMessage
 		err := dec.Decode(&b)
-		for ; x.Server.error() == nil && err == nil; err = dec.Decode(&b) {
+		for ; err == nil && x.error() == nil; err = dec.Decode(&b) {
 			wsWriteLock.Lock()
 			err = x.conn.WriteMessage(ws.TextMessage, b)
 			wsWriteLock.Unlock()
 		}
-		x.Server.setError(err)
+		x.setError(err)
 		sr.Close()
+		cr.Close()
 	}(x)
 	go func(x *Connector) {
 		dec := json.NewDecoder(cr)
 		var b json.RawMessage
 		err := dec.Decode(&b)
-		for ; x.Client.error() == nil && err == nil; err = dec.Decode(&b) {
+		for ; err == nil && x.error() == nil; err = dec.Decode(&b) {
 			wsWriteLock.Lock()
 			err = x.conn.WriteMessage(ws.TextMessage, b)
 			wsWriteLock.Unlock()
 		}
-		x.Client.setError(err)
+		x.setError(err)
 		cr.Close()
+		sr.Close()
 	}(x)
+}
+
+func (x *Connector) error() (err error) {
+	x.errLock.Lock()
+	err = x.err
+	x.errLock.Unlock()
+	return
+}
+
+func (x *Connector) setError(err error) {
+	x.errLock.Lock()
+	if x.err != nil && err != nil {
+		x.err = err
+	}
+	x.errLock.Unlock()
 }
