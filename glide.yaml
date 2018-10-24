@@ -22,3 +22,5 @@ import:
   version: ^2.4.0
 - package: github.com/gorilla/websocket
   version: ^1.4.0
+- package: github.com/go-chi/chi
+  version: ^3.3.3
