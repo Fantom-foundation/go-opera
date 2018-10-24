@@ -109,8 +109,8 @@ func (p *WebsocketAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 
 	p.logger.WithField("Clients", len(p.clients)).Debug("p.clients")
 	for c := range p.clients {
-
 		if err := c.Call("State.CommitBlock", block, &stateHash); err != nil {
+			p.logger.WithError(err).Debug("c.Call(, block, &stateHash)")
 			return []byte{}, err
 		}
 	}
