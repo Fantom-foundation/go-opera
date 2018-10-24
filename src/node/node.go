@@ -619,7 +619,7 @@ func (n *Node) sync(events []poset.WireEvent) error {
 func (n *Node) commit(block poset.Block) error {
 
 	stateHash := []byte{0, 1, 2}
-	// stateHash, err := n.proxy.CommitBlock(block)
+	n.proxy.CommitBlock(block)
 	n.logger.WithFields(logrus.Fields{
 		"block":      block.Index(),
 		"state_hash": fmt.Sprintf("%X", stateHash),
