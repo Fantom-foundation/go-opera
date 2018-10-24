@@ -15,7 +15,9 @@ import (
 )
 
 type WebsocketAppProxy struct {
-	conn      *birpc.Connector
+	//Save conn and not clients
+	conn      map[*birpc.Connector]struct{}
+	connMu    sync.Mutex
 	rpcServer *rpc.Server
 
 	clients  map[*rpc.Client]struct{} // TODO: remove clients on disconnect. websocket ping-pong?
@@ -38,6 +40,8 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 		"timeout":      timeout,
 	}).Debug("NewWebsocketAppProxy")
 
+
+
 	proxy := WebsocketAppProxy{
 		clients:  make(map[*rpc.Client]struct{}),
 		submitCh: make(chan []byte),
@@ -45,7 +49,13 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 		logger:   logger,
 	}
 
+
+
 	go http.ListenAndServe(bindAddr, http.HandlerFunc(proxy.listen))
+
+	rpcServer := rpc.NewServer()
+	rpcServer.RegisterName("Lachesis", proxy)
+	proxy.rpcServer = rpcServer
 
 	return &proxy, nil
 }
@@ -63,25 +73,24 @@ func (p *WebsocketAppProxy) listen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if p.conn != nil {
-		return
-	}
-
 	// setup rpc
-	p.conn = birpc.New(c, p.logger)
-	rpcServer := rpc.NewServer()
-	rpcServer.RegisterName("Lachesis", p)
-	p.rpcServer = rpcServer
-	p.addClient(jsonrpc.NewClient(&p.conn.Client))
+	conn := birpc.New(c, p.logger)
+	//p.addClient(jsonrpc.NewClient(&p.conn.Client))
+	p.addConn(conn)
 
 	p.logger.Debug("go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&p.conn.Server))")
-	go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&p.conn.Server))
+	go p.rpcServer.ServeCodec(jsonrpc.NewServerCodec(&conn.Server))
 }
 
 func (p *WebsocketAppProxy) addClient(c *rpc.Client) {
 	p.clientMu.Lock()
 	p.clients[c] = struct{}{}
 	p.clientMu.Unlock()
+}
+func (p *WebsocketAppProxy) addConn(c *birpc.Connector) {
+	p.connMu.Lock()
+	p.conn[c] = struct{}{}
+	p.connMu.Unlock()
 }
 
 func (p *WebsocketAppProxy) SubmitTx(tx []byte, ack *bool) error {
@@ -108,11 +117,18 @@ func (p *WebsocketAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	defer p.clientMu.Unlock()
 
 	p.logger.WithField("Clients", len(p.clients)).Debug("p.clients")
-	for c := range p.clients {
-		if err := c.Call("State.CommitBlock", block, &stateHash); err != nil {
+	for c, _ := range p.conn {
+		if err := jsonrpc.NewClient(&c.Client).Call("State.CommitBlock", block, &stateHash); err != nil {
 			p.logger.WithError(err).Debug("c.Call(, block, &stateHash)")
 			return []byte{}, err
 		}
+		//Don't do an RPC call here, need to send to WS writer output
+
+
+		/*if err := c.Call("State.CommitBlock", block, &stateHash); err != nil {
+			p.logger.WithError(err).Debug("c.Call(, block, &stateHash)")
+			return []byte{}, err
+		}*/
 	}
 
 	p.logger.WithFields(logrus.Fields{
