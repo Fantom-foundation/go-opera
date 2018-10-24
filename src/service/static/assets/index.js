@@ -33,7 +33,7 @@ let loop = () => {
             assignRound(data.Rounds);
             _.each(newEvents, assignParents);
             processParents(newEvents);
-            draw(newEvents);
+            draw(newEvents, data.Rounds, data.Blocks);
             drawRoundLines(data.Rounds);
             drawBlocks(data.Blocks);
             draw(newEvents, data.Rounds, data.Blocks);
