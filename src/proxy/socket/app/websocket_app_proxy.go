@@ -43,6 +43,7 @@ func NewWebsocketAppProxy(bindAddr string, timeout time.Duration, logger *logrus
 
 
 	proxy := WebsocketAppProxy{
+		conn:     make(map[*birpc.Connector]struct{}),
 		clients:  make(map[*rpc.Client]struct{}),
 		submitCh: make(chan []byte),
 		timeout:  timeout,

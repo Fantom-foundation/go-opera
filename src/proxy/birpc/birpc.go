@@ -69,7 +69,7 @@ func New(ws *ws.Conn, logger *logrus.Logger) *Connector {
 }
 
 func (x *Connector) Close() error {
-	
+
 	x.conn.Close()
 	x.Server.Close()
 	x.Client.Close()
@@ -86,6 +86,9 @@ func (x *Connector) initWsReader() {
 		_, b, err := x.conn.ReadMessage()
 		x.logger.Debug("_, b, err := x.conn.ReadMessage()")
 		for ; err == nil && x.error() == nil; _, b, err = x.conn.ReadMessage() {
+			if err != nil {
+				x.logger.WithError(err).Debug("x.conn.ReadMessage()")
+			}
 			var rpcMsg rpcMessage
 			err = json.Unmarshal(b, &rpcMsg)
 			if err != nil {
@@ -95,9 +98,15 @@ func (x *Connector) initWsReader() {
 			if rpcMsg.Method != nil {
 				// must go to rpc server
 				_, err = sw.Write(b)
+				if err != nil {
+					x.logger.WithError(err).Debug("sw.Write(b)")
+				}
 			} else if rpcMsg.Result != nil {
 				// must go ro rpc client
 				_, err = cw.Write(b)
+				if err != nil {
+					x.logger.WithError(err).Debug("cw.Write(b)")
+				}
 			}
 		}
 		x.setError(err)
