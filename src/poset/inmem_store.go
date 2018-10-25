@@ -118,8 +118,6 @@ func (s *InmemStore) ParticipantEvent(participant string, index int) (string, er
 }
 
 func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {
-	isRoot = false
-
 	//try to get the last event from this participant
 	last, err = s.participantEventsCache.GetLast(participant)
 
@@ -134,7 +132,7 @@ func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool
 			err = cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
 		}
 	}
-	return last, isRoot, err
+	return
 }
 
 func (s *InmemStore) LastConsensusEventFrom(participant string) (last string, isRoot bool, err error) {

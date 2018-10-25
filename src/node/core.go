@@ -276,6 +276,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		"unknown_events":       len(unknownEvents),
 		"transaction_pool":     len(c.transactionPool),
 		"block_signature_pool": len(c.blockSignaturePool),
+		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	otherHead := ""
@@ -455,6 +456,12 @@ func (c *Core) RunConsensus() error {
 		c.logger.WithField("Error", err).Error("c.poset.ProcessSigPool()")
 		return err
 	}
+
+	c.logger.WithFields(logrus.Fields{
+		"transaction_pool":     len(c.transactionPool),
+		"block_signature_pool": len(c.blockSignaturePool),
+		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
+	}).Debug("c.RunConsensus()")
 
 	return nil
 }
