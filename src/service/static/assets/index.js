@@ -28,11 +28,12 @@ let loop = () => {
     fetch("/graph")
         .then(res => res.json())
         .then(data => {
+            console.log(data)
             let newEvents = filterPopulate(data.ParticipantEvents);
             assignRound(data.Rounds);
             _.each(newEvents, assignParents);
             processParents(newEvents);
-            draw(newEvents);
+            draw(newEvents, data.Rounds, data.Blocks);
             drawRoundLines(data.Rounds);
             drawBlocks(data.Blocks);
             draw(newEvents, data.Rounds, data.Blocks);

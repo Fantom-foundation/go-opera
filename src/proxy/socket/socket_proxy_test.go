@@ -55,10 +55,10 @@ func NewTestHandler(t *testing.T) *TestHandler {
 }
 
 func TestSocketProxyServer(t *testing.T) {
-	clientAddr := "127.0.0.1:9990"
+	//clientAddr := "127.0.0.1:9990"
 	proxyAddr := "127.0.0.1:9991"
 
-	appProxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
+	appProxy, err := aproxy.NewWebsocketAppProxy(proxyAddr, 1*time.Second, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatalf("Cannot create SocketAppProxy: %s", err)
@@ -66,7 +66,7 @@ func TestSocketProxyServer(t *testing.T) {
 
 	submitCh := appProxy.SubmitCh()
 
-	time.Sleep(time.Millisecond*5) // give chance for ws conn to establish
+	time.Sleep(time.Millisecond * 5) // give chance for ws conn to establish
 
 	tx := []byte("the test transaction")
 
@@ -85,7 +85,7 @@ func TestSocketProxyServer(t *testing.T) {
 
 	// now client part connecting to RPC service
 	// and calling methods
-	lachesisProxy, err := bproxy.NewSocketLachesisProxy(proxyAddr, clientAddr, NewTestHandler(t), 1*time.Second, common.NewTestLogger(t))
+	lachesisProxy, err := bproxy.NewWebsocketLachesisProxy(proxyAddr, NewTestHandler(t), 1*time.Second, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatal(err)
@@ -99,13 +99,13 @@ func TestSocketProxyServer(t *testing.T) {
 }
 
 func TestSocketProxyClient(t *testing.T) {
-	clientAddr := "127.0.0.1:9992"
+	//clientAddr := "127.0.0.1:9992"
 	proxyAddr := "127.0.0.1:9993"
 
 	logger := common.NewTestLogger(t)
 
 	//create app proxy
-	appProxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, logger)
+	appProxy, err := aproxy.NewWebsocketAppProxy(proxyAddr, 1*time.Second, logger)
 	if err != nil {
 		t.Fatalf("Cannot create SocketAppProxy: %s", err)
 	}
@@ -113,7 +113,7 @@ func TestSocketProxyClient(t *testing.T) {
 	handler := NewTestHandler(t)
 
 	//create lachesis proxy
-	_, err = bproxy.NewSocketLachesisProxy(proxyAddr, clientAddr, handler, 1*time.Second, logger)
+	_, err = bproxy.NewWebsocketLachesisProxy(proxyAddr, handler, 1*time.Second, logger)
 
 	transactions := [][]byte{
 		[]byte("tx 1"),

@@ -1,5 +1,5 @@
-hash: f86c410410555d4a751f9518b637ce22f0acec793c5831feaf53b335ee7e6c61
-updated: 2018-10-23T08:57:56.9271358+02:00
+hash: 76fadcc1397965bb6b622ad79bf56d17147ffa9efd1cec22574285a0c11042c5
+updated: 2018-10-24T09:34:08.5474239+02:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -19,6 +19,10 @@ imports:
   - packets
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
+- name: github.com/go-chi/chi
+  version: b5294d10673813fac8558e7f47242bc9e61b4c25
+  subpackages:
+  - middleware
 - name: github.com/golang/protobuf
   version: ddf22928ea3c56eb4292a0adbbf5001b1e8e7d0d
   subpackages:

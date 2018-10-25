@@ -17,6 +17,7 @@ type LachesisConfig struct {
 	DataDir     string `mapstructure:"datadir"`
 	BindAddr    string `mapstructure:"listen"`
 	ServiceAddr string `mapstructure:"service-listen"`
+  ServiceOnly bool   `mapstructure:"service-only"`
 	MaxPool     int    `mapstructure:"max-pool"`
 	Store       bool   `mapstructure:"store"`
 	LogLevel    string `mapstructure:"log"`
@@ -37,6 +38,7 @@ func NewDefaultConfig() *LachesisConfig {
 		DataDir:     DefaultDataDir(),
 		BindAddr:    ":1337",
 		ServiceAddr: ":8000",
+    ServiceOnly: false,
 		MaxPool:     2,
 		NodeConfig:  *node.DefaultConfig(),
 		Store:       false,

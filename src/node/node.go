@@ -162,13 +162,6 @@ func (n *Node) doBackgroundWork() {
 					n.controlTimer.resetCh <- struct{}{}
 				}
 			})
-		case t := <-n.submitCh:
-			n.logger.Debug("Adding Transactions to Transaction Pool")
-			// n.mqtt.FireEvent(t, "/mq/lachesis/tx")
-			n.addTransaction(t)
-			if !n.controlTimer.set {
-				n.controlTimer.resetCh <- struct{}{}
-			}
 		case block := <-n.commitCh:
 			n.logger.WithFields(logrus.Fields{
 				"index":          block.Index(),
@@ -619,7 +612,11 @@ func (n *Node) sync(events []poset.WireEvent) error {
 func (n *Node) commit(block poset.Block) error {
 
 	stateHash := []byte{0, 1, 2}
-	// stateHash, err := n.proxy.CommitBlock(block)
+	_, err := n.proxy.CommitBlock(block)
+	if err != nil {
+		n.logger.WithError(err).Debug("commit(block poset.Block)")
+	}
+
 	n.logger.WithFields(logrus.Fields{
 		"block":      block.Index(),
 		"state_hash": fmt.Sprintf("%X", stateHash),

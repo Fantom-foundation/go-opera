@@ -29,24 +29,25 @@ func NewService(bindAddress string, n *node.Node, logger *logrus.Logger) *Servic
 
 func (s *Service) Serve() {
 	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
-	err := http.ListenAndServe(s.bindAddress, nil)
+	mux := http.NewServeMux()
+	mux.Handle("/stats", corsHandler(s.GetStats))
+	mux.Handle("/participants/", corsHandler(s.GetParticipants))
+	mux.Handle("/event/", corsHandler(s.GetEvent))
+	mux.Handle("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
+	mux.Handle("/events/", corsHandler(s.GetKnownEvents))
+	mux.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
+	mux.Handle("/round/", corsHandler(s.GetRound))
+	mux.Handle("/lastround/", corsHandler(s.GetLastRound))
+	mux.Handle("/roundwitnesses/", corsHandler(s.GetRoundWitnesses))
+	mux.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
+	mux.Handle("/root/", corsHandler(s.GetRoot))
+	mux.Handle("/block/", corsHandler(s.GetBlock))
+	mux.Handle("/graph", corsHandler(s.GetGraph))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("src/service/static/"))))
+	err := http.ListenAndServe(s.bindAddress, mux)
 	if err != nil {
 		s.logger.WithField("error", err).Error("Service failed")
 	}
-	http.Handle("/stats", corsHandler(s.GetStats))
-	http.Handle("/participants/", corsHandler(s.GetParticipants))
-	http.Handle("/event/", corsHandler(s.GetEvent))
-	http.Handle("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
-	http.Handle("/events/", corsHandler(s.GetKnownEvents))
-	http.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
-	http.Handle("/round/", corsHandler(s.GetRound))
-	http.Handle("/lastround/", corsHandler(s.GetLastRound))
-	http.Handle("/roundwitnesses/", corsHandler(s.GetRoundWitnesses))
-	http.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
-	http.Handle("/root/", corsHandler(s.GetRoot))
-	http.Handle("/block/", corsHandler(s.GetBlock))
-	http.Handle("/graph", corsHandler(s.GetGraph))
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("src/service/static/"))))
 }
 
 func corsHandler(h http.HandlerFunc) http.HandlerFunc {
@@ -71,6 +72,8 @@ func corsHandler(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
+	s.logger.Debug("Stats")
+
 	stats := s.node.GetStats()
 
 	w.Header().Set("Content-Type", "application/json")

@@ -15,7 +15,7 @@ func TestSocketProxyServer(t *testing.T) {
 	clientAddr := "127.0.0.1:9990"
 	proxyAddr := "127.0.0.1:9991"
 
- 	proxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
+ 	proxy, err := aproxy.NewWebsocketAppProxy(proxyAddr, 1*time.Second, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatalf("Cannot create SocketAppProxy: %s", err)
@@ -66,7 +66,7 @@ func TestSocketProxyClient(t *testing.T) {
 	initialStateHash := dummyClient.state.stateHash
 
 	//create client proxy
-	proxy, err := aproxy.NewSocketAppProxy(clientAddr, proxyAddr, 1*time.Second, common.NewTestLogger(t))
+	proxy, err := aproxy.NewWebsocketAppProxy(proxyAddr, 1*time.Second, common.NewTestLogger(t))
 
 	if err != nil {
 		t.Fatalf("Cannot create SocketAppProxy: %s", err)

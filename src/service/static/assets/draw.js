@@ -69,7 +69,7 @@ let setupStage = () => {
 };
 
 // Return the color of the event
-let getEventColor = event => {
+let getEventColor = (event) => {
     let color = '#555555';
 
     if (event.Famous) {
@@ -87,7 +87,7 @@ let getEventColor = event => {
 
 // Draw the event, the associated index text
 // and set the borderLine (stroke) if it contains a Tx
-let drawEvent = event => {
+let drawEvent = (event) => {
     // The event circle
     event.circle = new Konva.Circle({
         x: event.x,
@@ -139,7 +139,7 @@ let drawEvent = event => {
 };
 
 // Draw the links between an event and its parents
-let drawEventLinks = event => {
+let drawEventLinks = (event) => {
     _.each(event.ParentEvents, parentEvent => {
         let arrow = new Konva.Arrow({
             points: [
@@ -162,7 +162,8 @@ let drawEventLinks = event => {
 };
 
 // Draw the round separators
-let drawRoundLines = rounds => {
+let drawRoundLines = (rounds) => {
+    console.log(rounds)
     // Dirty tmp fix for events that are in the first and second round
     if (rounds.length >= 2) {
         rounds[1].Events = _.fromPairs(_.differenceBy(_.toPairs(rounds[1].Events), _.toPairs(rounds[0].Events), ([rId, round]) => rId));
@@ -210,7 +211,7 @@ let drawRoundLines = rounds => {
     actualRound = rounds.length - 1;
 };
 
-let drawBlocks = blocks => {
+let drawBlocks = (blocks) => {
     _.each(blocks, (block, bId) => {
         if (bId <= actualBlock) {
             return
