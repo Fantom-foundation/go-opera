@@ -8,7 +8,7 @@ declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 rm -rf "$BUILD_DIR/nodes" "$BUILD_DIR/peers.json"
 
-if [ $(pgrep -f docker | head -1) == "" ]; then
+if [ $(pgrep -f docker) ]; then
   exit 0
 fi
 

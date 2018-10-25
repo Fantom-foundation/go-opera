@@ -1,6 +1,7 @@
 package birpc_test
 
 import (
+	"github.com/andrecronje/lachesis/src/common"
 	"math/rand"
 	"net/http"
 	"net/rpc"
@@ -36,6 +37,8 @@ func TestBiRPC(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numRequests * 2)
 
+	logger := common.NewTestLogger(t)
+
 	// Setup WS server
 	wsUpgrade := func(w http.ResponseWriter, r *http.Request) {
 		upgrader := ws.Upgrader{}
@@ -44,7 +47,7 @@ func TestBiRPC(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		birpc := birpc.New(wsConn)
+		birpc := birpc.New(wsConn, logger)
 		s := rpc.NewServer()
 		err = s.Register(new(RpcCalls))
 		if err != nil {
@@ -95,7 +98,7 @@ func TestBiRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	birpc := birpc.New(wsConn)
+	birpc := birpc.New(wsConn, logger)
 	s := rpc.NewServer()
 	err = s.Register(new(RpcCalls))
 	if err != nil {
