@@ -5,7 +5,7 @@ RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin && \
     cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
     glide install && \
     cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
-    go build -ldflags "-linkmode external -extldflags -static -s -w -X github.com/andrecronje/lachesis/src/version.GitCommit=`git rev-parse HEAD`" -a main.go && \
+    go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
 # ADD https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz /tmp

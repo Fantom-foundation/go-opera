@@ -82,7 +82,7 @@ func NewNode(conf *Config,
 		submitCh:     proxy.SubmitCh(),
 		commitCh:     commitCh,
 		shutdownCh:   make(chan struct{}),
-		controlTimer: NewRandomControlTimer(conf.HeartbeatTimeout),
+		controlTimer: NewRandomControlTimer(),
 		start:        time.Now(),
 	}
 
@@ -96,7 +96,6 @@ func NewNode(conf *Config,
 	node.needBoostrap = store.NeedBoostrap()
 
 	// Initialize as Babbling
-	node.setStarting(true)
 	node.setState(Gossiping)
 
 	return &node
@@ -128,10 +127,10 @@ func (n *Node) Run(gossip bool) {
 	// The ControlTimer allows the background routines to control the
 	// heartbeat timer when the node is in the Gossiping state. The timer should
 	// only be running when there are uncommitted transactions in the system.
-	go n.controlTimer.Run()
+	go n.controlTimer.Run(n.conf.HeartbeatTimeout)
 
 	// Execute some background work regardless of the state of the node.
-	// Process RPC requests as well as SumbitTx and CommitBlock requests
+	// Process SumbitTx and CommitBlock requests
 	go n.doBackgroundWork()
 
 	// Execute Node State Machine
@@ -151,17 +150,22 @@ func (n *Node) Run(gossip bool) {
 	}
 }
 
+func (n *Node) resetTimer() {
+	if !n.controlTimer.set {
+		ts := n.conf.HeartbeatTimeout
+ 		//Slow gossip if nothing interesting to say
+		if n.core.poset.PendingLoadedEvents == 0 &&
+			len(n.core.transactionPool) == 0 &&
+			len(n.core.blockSignaturePool) == 0 {
+			ts = time.Duration(time.Second)
+		}
+ 		n.controlTimer.resetCh <- ts
+	}
+}
+
 func (n *Node) doBackgroundWork() {
 	for {
 		select {
-		case rpc := <-n.netCh:
-			n.goFunc(func() {
-				n.logger.Debug("Incoming RPC")
-				n.processRPC(rpc)
-				if n.core.NeedGossip() && !n.controlTimer.set {
-					n.controlTimer.resetCh <- struct{}{}
-				}
-			})
 		case block := <-n.commitCh:
 			n.logger.WithFields(logrus.Fields{
 				"index":          block.Index(),
@@ -175,9 +179,7 @@ func (n *Node) doBackgroundWork() {
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transactions to Transaction Pool")
 			n.addTransaction(t)
-			if !n.controlTimer.set {
-				n.controlTimer.resetCh <- struct{}{}
-			}
+			n.resetTimer()
 		case <-n.shutdownCh:
 			return
 		}
@@ -186,25 +188,25 @@ func (n *Node) doBackgroundWork() {
 
 // lachesis is interrupted when a gossip function, launched asynchronously, changes
 // the state from Gossiping to CatchingUp, or when the node is shutdown.
-// Otherwise, it periodicaly initiates gossip while there is something to gossip
-// about, or waits.
+// Otherwise, it processes RPC requests, periodicaly initiates gossip while there
+// is something to gossip about, or waits.
 func (n *Node) lachesis(gossip bool) {
-	returnCh := make(chan struct{})
+	returnCh := make(chan struct{}, 100)
 	for {
 		select {
+		case rpc := <-n.netCh:
+			n.goFunc(func() {
+				n.logger.Debug("Processing RPC")
+				n.processRPC(rpc)
+				n.resetTimer()
+			})
 		case <-n.controlTimer.tickCh:
 			if gossip {
-				proceed, err := n.preGossip()
-				if proceed && err == nil {
-					peer := n.peerSelector.Next()
-					n.goFunc(func() { n.gossip(peer.NetAddr, returnCh) })
-				}
+				n.logger.Debug("Gossip")
+				peer := n.peerSelector.Next()
+				n.goFunc(func() { n.gossip(peer.NetAddr, returnCh) })
 			}
-			if !n.core.NeedGossip() {
-				n.controlTimer.stopCh <- struct{}{}
-			} else if !n.controlTimer.set {
-				n.controlTimer.resetCh <- struct{}{}
-			}
+			n.resetTimer()
 		case <-returnCh:
 			return
 		case <-n.shutdownCh:
@@ -214,18 +216,6 @@ func (n *Node) lachesis(gossip bool) {
 }
 
 func (n *Node) processRPC(rpc net.RPC) {
-
-	if s := n.getState(); s != Gossiping {
-		n.logger.WithField("state", s.String()).Debug("Discarding RPC Request")
-		// XXX Use a SyncResponse by default but this should be either a special
-		// ErrorResponse type or a type that corresponds to the request
-		resp := &net.SyncResponse{
-			FromID: n.id,
-		}
-		rpc.Respond(resp, fmt.Errorf("not ready: %s", s.String()))
-		return
-	}
-
 	switch cmd := rpc.Command.(type) {
 	case *net.SyncRequest:
 		n.processSyncRequest(rpc, cmd)
@@ -354,18 +344,6 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	rpc.Respond(resp, respErr)
 }
 
-func (n *Node) preGossip() (bool, error) {
-	n.coreLock.Lock()
-	defer n.coreLock.Unlock()
-
-	// Check if it is necessary to gossip
-	if !(n.core.NeedGossip() || n.isStarting()) {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 // This function is usually called in a go-routine and needs to inform the
 // calling routine (usually the lachesis routine) when it is time to exit the
 // Gossiping state and return.
@@ -397,8 +375,6 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	n.selectorLock.Unlock()
 
 	n.logStats()
-
-	n.setStarting(false)
 
 	return nil
 }
@@ -445,16 +421,6 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 
 func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 
-	// If the transaction pool is not empty, create a new self-event and empty the
-	// transaction pool in its payload
-	n.coreLock.Lock()
-	err := n.core.AddSelfEventBlock("")
-	n.coreLock.Unlock()
-	if err != nil {
-		n.logger.WithField("error", err).Error("n.core.AddSelfEventBlock()")
-		return err
-	}
-
 	// Check SyncLimit
 	n.coreLock.Lock()
 	overSyncLimit := n.core.OverSyncLimit(knownEvents, n.conf.SyncLimit)
@@ -476,26 +442,29 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 		return err
 	}
 
-	// Convert to WireEvents
-	wireEvents, err := n.core.ToWire(eventDiff)
-	if err != nil {
-		n.logger.WithField("Error", err).Debug("n.core.TransferEventBlock(eventDiff)")
-		return err
-	}
 
-	// Create and Send EagerSyncRequest
-	start = time.Now()
-	resp2, err := n.requestEagerSync(peerAddr, wireEvents)
-	elapsed = time.Since(start)
-	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestEagerSync(peerAddr, wireEvents)")
-	if err != nil {
-		n.logger.WithField("Error", err).Error("n.requestEagerSync(peerAddr, wireEvents)")
-		return err
+	if len(eventDiff) > 0 {
+		// Convert to WireEvents
+		wireEvents, err := n.core.ToWire(eventDiff)
+		if err != nil {
+			n.logger.WithField("Error", err).Debug("n.core.TransferEventBlock(eventDiff)")
+			return err
+		}
+
+		// Create and Send EagerSyncRequest
+		start = time.Now()
+		resp2, err := n.requestEagerSync(peerAddr, wireEvents)
+		elapsed = time.Since(start)
+		n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestEagerSync(peerAddr, wireEvents)")
+		if err != nil {
+			n.logger.WithField("Error", err).Error("n.requestEagerSync(peerAddr, wireEvents)")
+			return err
+		}
+		n.logger.WithFields(logrus.Fields{
+			"from_id": resp2.FromID,
+			"success": resp2.Success,
+		}).Debug("EagerSyncResponse")
 	}
-	n.logger.WithFields(logrus.Fields{
-		"from_id": resp2.FromID,
-		"success": resp2.Success,
-	}).Debug("EagerSyncResponse")
 
 	return nil
 }
@@ -542,7 +511,6 @@ func (n *Node) fastForward() error {
 	}
 
 	n.setState(Gossiping)
-	n.setStarting(true)
 
 	return nil
 }
