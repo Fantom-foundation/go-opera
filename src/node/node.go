@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	mq "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sirupsen/logrus"
 
 	"strconv"
@@ -34,7 +33,6 @@ type Node struct {
 
 	trans net.Transport
 	netCh <-chan net.RPC
-	mqtt  *net.MqttSocket
 
 	proxy    proxy.AppProxy
 	submitCh chan []byte
@@ -86,16 +84,9 @@ func NewNode(conf *Config,
 		start:        time.Now(),
 	}
 
-	wg := sync.WaitGroup{}
-	mqtt := net.NewMqttSocket("tcp://localhost:1883", func(client mq.Client, message mq.Message) {
-		node.logger.Debug("Message received : ", string(message.Payload()), " on topic ", message.Topic())
-		wg.Done()
-	})
-	node.mqtt = mqtt
-
 	node.needBoostrap = store.NeedBoostrap()
 
-	// Initialize as Babbling
+	// Initialize
 	node.setState(Gossiping)
 
 	return &node
@@ -166,20 +157,19 @@ func (n *Node) resetTimer() {
 func (n *Node) doBackgroundWork() {
 	for {
 		select {
+		case t := <-n.submitCh:
+			n.logger.Debug("Adding Transactions to Transaction Pool")
+			n.addTransaction(t)
+			n.resetTimer()
 		case block := <-n.commitCh:
 			n.logger.WithFields(logrus.Fields{
 				"index":          block.Index(),
 				"round_received": block.RoundReceived(),
 				"transactions":   len(block.Transactions()),
 			}).Debug("Adding EventBlock")
-			// n.mqtt.FireEvent(block, "/mq/lachesis/block")
 			if err := n.commit(block); err != nil {
 				n.logger.WithField("error", err).Error("Adding EventBlock")
 			}
-		case t := <-n.submitCh:
-			n.logger.Debug("Adding Transactions to Transaction Pool")
-			n.addTransaction(t)
-			n.resetTimer()
 		case <-n.shutdownCh:
 			return
 		}
@@ -405,15 +395,13 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int]i
 		return true, nil, nil
 	}
 
-	if len(resp.Events) > 0 {
-		// Add Events to poset and create new Head if necessary
-		n.coreLock.Lock()
-		err = n.sync(resp.Events)
-		n.coreLock.Unlock()
-		if err != nil {
-			n.logger.WithField("error", err).Error("n.sync(resp.Events)")
-			return false, nil, err
-		}
+	// Add Events to poset and create new Head if necessary
+	n.coreLock.Lock()
+	err = n.sync(resp.Events)
+	n.coreLock.Unlock()
+	if err != nil {
+		n.logger.WithField("error", err).Error("n.sync(resp.Events)")
+		return false, nil, err
 	}
 
 	return false, resp.Known, nil
