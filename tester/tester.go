@@ -3,6 +3,7 @@ package tester
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,7 +18,9 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 	proxies := make(map[int]*lachesis.WebsocketLachesisProxy)
 	for _, participant := range participants {
 		node := p[participant.PubKeyHex]
-		addr := fmt.Sprintf("%s:%d", strings.Split(node.NetAddr, ":")[0], 9000)
+		host_port := strings.Split(node.NetAddr, ":")
+		port, err := strconv.Atoi(host_port[1])
+		addr := fmt.Sprintf("%s:%d", host_port[0], port - 3000 /*9000*/ )
 		proxy, err := lachesis.NewWebsocketLachesisProxy(addr, nil, 10*time.Second, nil)
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
