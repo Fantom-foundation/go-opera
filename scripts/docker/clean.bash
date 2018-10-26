@@ -3,12 +3,13 @@
 set -euo pipefail
 
 declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r DOCKER_PID=/var/run/docker.pid
 
 . "${DIR%/*}/set_globals.bash"
 
 rm -rf "$BUILD_DIR/nodes" "$BUILD_DIR/peers.json"
 
-if [ $(pgrep -f docker) ]; then
+if [ ! -f $DOCKER_PID ] || [ ! $(pgrep --pidfile $DOCKER_PID) ]; then
   exit 0
 fi
 
