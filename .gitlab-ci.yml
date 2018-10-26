@@ -4,9 +4,6 @@ stages:
   - test
   - build
   - deploy
-
-before_script:
-  - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis
   
 test code:
   stage: test
@@ -16,9 +13,13 @@ test code:
 
 build lachesis:
   stage: build
-  script: 
-    - go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i && ./scripts/multi_build.bash
+  script:
+    - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis
+    - go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i
+    - cd scripts
+    - ./multi_build.bash
 
 deploy lachesis:
   stage: deploy
-  script: timeout 5m logshold=-1,-1,-1,4,0,0 ./scripts/multi_run.bash
+  script: 
+    - timeout 5m logshold=-1,-1,-1,4,0,0 ./multi_run.bash
