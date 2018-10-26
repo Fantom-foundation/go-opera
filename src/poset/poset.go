@@ -1446,30 +1446,35 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 	if wevent.Body.OtherParentIndex >= 0 {
 		otherParentCreator := p.Participants.ById[wevent.Body.OtherParentCreatorID]
-		otherParent, err = p.Store.ParticipantEvent(otherParentCreator.PubKeyHex, wevent.Body.OtherParentIndex)
-		if err != nil {
-			//PROBLEM Check if other parent can be found in the root
-			//problem, we do not known the WireEvent's EventHash, and
-			//we do not know the creators of the roots RootEvents
-			root, err := p.Store.GetRoot(creator.PubKeyHex)
+		if otherParentCreator != nil {
+			otherParent, err = p.Store.ParticipantEvent(otherParentCreator.PubKeyHex, wevent.Body.OtherParentIndex)
 			if err != nil {
-				return nil, err
-			}
-			//loop through others
-			found := false
-			for _, re := range root.Others {
-				if re.CreatorID == wevent.Body.OtherParentCreatorID &&
-					re.Index == wevent.Body.OtherParentIndex {
-					otherParent = re.Hash
-					found = true
-					break
+				//PROBLEM Check if other parent can be found in the root
+				//problem, we do not known the WireEvent's EventHash, and
+				//we do not know the creators of the roots RootEvents
+				root, err := p.Store.GetRoot(creator.PubKeyHex)
+				if err != nil {
+					return nil, err
+				}
+				//loop through others
+				found := false
+				for _, re := range root.Others {
+					if re.CreatorID == wevent.Body.OtherParentCreatorID &&
+						re.Index == wevent.Body.OtherParentIndex {
+						otherParent = re.Hash
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					return nil, fmt.Errorf("OtherParent not found")
 				}
 			}
-
-			if !found {
-				return nil, fmt.Errorf("OtherParent not found")
-			}
-
+		} else {
+			// unknown participant
+			// TODO: we should handle this nicely
+			return nil, errors.New("unknown participant")
 		}
 	}
 
