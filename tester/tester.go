@@ -15,13 +15,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, serviceAddress string, logger *logrus.Logger) {
+func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, logger *logrus.Logger) {
 	proxies := make(map[int]*lachesis.WebsocketLachesisProxy)
 	for _, participant := range participants {
 		node := p[participant.PubKeyHex]
 		host_port := strings.Split(node.NetAddr, ":")
 		port, err := strconv.Atoi(host_port[1])
-		addr := fmt.Sprintf("%s:%d", host_port[0], port - 3000 /*9000*/ )
+		addr := fmt.Sprintf("%s:%d", host_port[0], port-3000 /*9000*/)
 		proxy, err := lachesis.NewWebsocketLachesisProxy(addr, nil, 10*time.Second, logger)
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
