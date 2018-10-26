@@ -23,4 +23,4 @@ deploy lachesis:
   stage: deploy
   script: 
     - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis/scripts
-    - timeout 5m logshold=-1,-1,-1,4,0,0 ./multi_run.bash
+    - ./multi_run.bash
