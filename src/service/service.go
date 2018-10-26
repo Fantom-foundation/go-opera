@@ -95,7 +95,7 @@ func (s *Service) GetEvent(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/event/"):]
 	event, err := s.node.GetEvent(param)
 	if err != nil {
-		s.logger.WithError(err).Errorf("Retrieving event %d", event)
+		s.logger.WithError(err).Errorf("Retrieving event %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
