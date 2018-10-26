@@ -95,7 +95,8 @@ func runSingleLachesis(config *CLIConfig) error {
 				}
 			}
 		}()
-		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.ServiceAddr)
+		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN,
+			config.Lachesis.ServiceAddr, config.Lachesis.Logger)
 	}
 
 	engine.Run()
