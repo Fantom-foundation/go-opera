@@ -5,19 +5,19 @@ stages:
   - build
   - deploy
 
-# Jobs Section
-# Below are jobs. Jobs are executed in parallel during the matching stage.
-
-# Note that the script is just bash, so if you use a Makefile, you could run
-# `make test`, etc. Also note that you can
+before_script:
+  - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis
+  
 test code:
   stage: test
+  allow_failure: true
   script:
     - make test
 
 build lachesis:
   stage: build
-  script: go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i && ./scripts/multi_build.bash
+  script: 
+    - go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i && ./scripts/multi_build.bash
 
 deploy lachesis:
   stage: deploy
