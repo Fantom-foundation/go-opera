@@ -186,10 +186,7 @@ func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
 	if err := event.Sign(c.key); err != nil {
 		return err
 	}
-	if err := c.InsertEvent(event, true); err != nil {
-		return err
-	}
-	return nil
+	return c.InsertEvent(event, true);
 }
 
 func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
@@ -279,6 +276,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		"unknown_events":       len(unknownEvents),
 		"transaction_pool":     len(c.transactionPool),
 		"block_signature_pool": len(c.blockSignaturePool),
+		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	otherHead := ""
@@ -302,7 +300,12 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 	// create new event with self head and other head only if there are pending
 	// loaded events or the pools are not empty
-	return c.AddSelfEventBlock(otherHead)
+	if c.poset.PendingLoadedEvents > 0 ||
+		len(c.transactionPool) > 0 ||
+		len(c.blockSignaturePool) > 0 {
+		return c.AddSelfEventBlock(otherHead)
+	}
+ 	return nil
 }
 
 func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) error {
@@ -332,16 +335,6 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 		return err
 	}
 
-	// lastEventFromPeer, _, err := c.poset.Store.LastEventFrom(peer)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = c.AddSelfEventBlock(lastEventFromPeer)
-	// if err != nil {
-	// 	return err
-	// }
-
 	err = c.RunConsensus()
 	if err != nil {
 		return err
@@ -351,12 +344,6 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 }
 
 func (c *Core) AddSelfEventBlock(otherHead string) error {
-
-	// exit if there is nothing to record
-	if otherHead == "" && len(c.transactionPool) == 0 && len(c.blockSignaturePool) == 0 {
-		c.logger.Debug("Empty transaction and block signature pool")
-		return nil
-	}
 
 	// Get flag tables from parents
 	parentEvent, errSelf := c.poset.Store.GetEvent(c.Head)
@@ -470,6 +457,12 @@ func (c *Core) RunConsensus() error {
 		return err
 	}
 
+	c.logger.WithFields(logrus.Fields{
+		"transaction_pool":     len(c.transactionPool),
+		"block_signature_pool": len(c.blockSignaturePool),
+		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
+	}).Debug("c.RunConsensus()")
+
 	return nil
 }
 
@@ -541,10 +534,4 @@ func (c *Core) GetLastCommittedRoundEventsCount() int {
 
 func (c *Core) GetLastBlockIndex() int {
 	return c.poset.Store.LastBlockIndex()
-}
-
-func (c *Core) NeedGossip() bool {
-	return c.poset.PendingLoadedEvents > 0 ||
-		len(c.transactionPool) > 0 ||
-		len(c.blockSignaturePool) > 0
 }
