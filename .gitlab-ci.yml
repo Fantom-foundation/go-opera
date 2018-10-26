@@ -23,4 +23,5 @@ deploy lachesis:
   stage: deploy
   script: 
     - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis/scripts
+    - rm -rf lachesis_data_dir
     - ./multi.bash
