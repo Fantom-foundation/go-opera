@@ -125,7 +125,7 @@ let drawEvent = (event) => {
     }
 
     // Set the border line if it contains a transaction
-    if (event.Body.Transactions.length) {
+    if (event.Body.Transactions && event.Body.Transactions.length) {
         event.circle.setStroke('#000000');
         event.circle.setStrokeWidth(3);
     }
@@ -181,7 +181,8 @@ let drawRoundLines = (rounds) => {
             _.forIn(round.Events, (event, reId) => {
                 roundEvents.push(_.find(events, ([eId, e]) => eId === reId))
             });
-
+            roundEvents = _.compact(roundEvents);
+            
             let [eId, ev] = _.minBy(roundEvents, ([eId, ev]) => ev.y);
 
             let line = new Konva.Line({
