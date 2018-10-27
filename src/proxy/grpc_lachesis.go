@@ -106,9 +106,6 @@ func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
 func (p *GrpcLachesisProxy) listen_events() {
 	var (
 		event *internal.OUT
-		b     *internal.OUT_Block
-		q     *internal.OUT_Query
-		r     *internal.OUT_Restore
 		err   error
 		uuid  xid.ID
 	)
@@ -123,8 +120,7 @@ func (p *GrpcLachesisProxy) listen_events() {
 			break
 		}
 
-		b = event.GetBlock()
-		if b != nil {
+		if b := event.GetBlock(); b != nil {
 			var pb poset.Block
 			err = pb.Unmarshal(b.Data)
 			if err != nil {
@@ -140,8 +136,7 @@ func (p *GrpcLachesisProxy) listen_events() {
 			continue
 		}
 
-		q = event.GetQuery()
-		if q != nil {
+		if q := event.GetQuery(); q != nil {
 			uuid, err = xid.FromBytes(q.Uid)
 			if err == nil {
 				p.queryCh <- proto.SnapshotRequest{
@@ -152,8 +147,7 @@ func (p *GrpcLachesisProxy) listen_events() {
 			continue
 		}
 
-		r = event.GetRestore()
-		if r != nil {
+		if r := event.GetRestore(); r != nil {
 			uuid, err = xid.FromBytes(r.Uid)
 			if err == nil {
 				p.restoreCh <- proto.RestoreRequest{

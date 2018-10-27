@@ -23,13 +23,15 @@ import (
 
 var ErrNoAnswers = errors.New("No answers")
 
+type ClientStream internal.LachesisNode_ConnectServer
+
 type GrpcAppProxy struct {
 	logger   *logrus.Logger
 	listener net.Listener
 	server   *grpc.Server
 
 	timeout      time.Duration
-	clients      map[internal.LachesisNode_ConnectServer]struct{}
+	new_clients  chan ClientStream
 	askings      map[xid.ID]chan *internal.IN_Hash
 	askings_sync sync.RWMutex
 
@@ -49,7 +51,7 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 	p := &GrpcAppProxy{
 		logger:        logger,
 		timeout:       timeout,
-		clients:       make(map[internal.LachesisNode_ConnectServer]struct{}),
+		new_clients:   make(chan ClientStream, 100),
 		askings:       make(map[xid.ID]chan *internal.IN_Hash),
 		event4server:  make(chan []byte),
 		event4clients: make(chan *internal.OUT),
@@ -83,8 +85,7 @@ func (p *GrpcAppProxy) Close() error {
 // Connect implements gRPC-server interface: LachesisNodeServer
 func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error {
 	// save client's stream for writing
-	//TODO: sync
-	p.clients[stream] = struct{}{}
+	p.new_clients <- stream
 	p.logger.Debugf("client connected")
 	// read from stream
 	for {
@@ -111,15 +112,28 @@ func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error
 }
 
 func (p *GrpcAppProxy) send_events4clients() {
+	var (
+		err       error
+		connected []ClientStream
+		alive     []ClientStream
+		stream    ClientStream
+	)
 	for event := range p.event4clients {
-		//TODO: sync
-		for stream, _ := range p.clients {
-			err := stream.Send(event)
-			if err != nil {
 
-				delete(p.clients, stream)
+		for i := len(p.new_clients); i > 0; i-- {
+			stream = <-p.new_clients
+			connected = append(connected, stream)
+		}
+
+		for _, stream = range connected {
+			err = stream.Send(event)
+			if err == nil {
+				alive = append(alive, stream)
 			}
 		}
+
+		connected = alive
+		alive = nil
 	}
 }
 
@@ -134,7 +148,7 @@ func (p *GrpcAppProxy) SubmitCh() chan []byte {
 
 // CommitBlock implements AppProxy interface method
 func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
-	data, err := block.Marshal() // TODO: choose Marshal method
+	data, err := block.Marshal()
 	if err != nil {
 		return nil, err
 	}
