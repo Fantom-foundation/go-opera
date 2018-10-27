@@ -13,13 +13,13 @@ type Infos struct {
 }
 
 type Graph struct {
-	Node *IService
+	*Node
 }
 
 func (g *Graph) GetBlocks() []poset.Block {
 	res := []poset.Block{}
  	blockIdx := 0
-	store := g.Node.GetStore()
+	store := g.Node.core.poset.Store
 
  	for blockIdx <= store.LastBlockIndex() {
 		r, err := store.GetBlock(blockIdx)
@@ -35,8 +35,8 @@ func (g *Graph) GetBlocks() []poset.Block {
 func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	res := make(map[string]map[string]poset.Event)
 
-	store := g.Node.GetStore()
-	peers := g.Node.GetPeers()
+	store := g.Node.core.poset.Store
+	peers := g.Node.core.poset.Participants
 
 	for _, p := range peers.ByPubKey {
 		root, err := store.GetRoot(p.PubKeyHex)
@@ -85,7 +85,7 @@ func (g *Graph) GetRounds() []poset.RoundInfo {
 
 	round := 0
 
-	store := g.Node.GetStore()
+	store := g.Node.core.poset.Store
 
 	for round <= store.LastRound() {
 		r, err := store.GetRound(round)
@@ -110,7 +110,7 @@ func (g *Graph) GetInfos() Infos {
 	}
 }
 
-func NewGraph(n IService) *Graph {
+func NewGraph(n *Node) *Graph {
 	return &Graph{
 		Node: n,
 	}
