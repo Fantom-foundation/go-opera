@@ -2,8 +2,6 @@ image: offscale/golang-builder-alpine3.8
 
 stages:
   - test
-  - build
-  - deploy
   
 test code:
   stage: test
