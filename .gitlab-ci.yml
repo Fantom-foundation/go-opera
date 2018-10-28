@@ -14,5 +14,6 @@ test code:
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/SamuelMarks/lachesis
+    - ln -s /go/src/github.com/SamuelMarks/lachesis /go/src/github.com/andrecronje/lachesis
     - glide install
     - glide novendor | grep -v -e "^\.$$" | xargs go test
