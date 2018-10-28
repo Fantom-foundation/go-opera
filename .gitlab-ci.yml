@@ -16,4 +16,4 @@ test code:
     - cd /go/src/github.com/SamuelMarks/lachesis
     - ln -s /go/src/github.com/SamuelMarks /go/src/github.com/andrecronje
     - glide install
-    - glide novendor | grep -v -e "^\.$$" | xargs go test
+    - make test
