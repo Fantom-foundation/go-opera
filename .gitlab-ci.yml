@@ -7,8 +7,10 @@ test code:
   stage: test
   allow_failure: true
   script:
+    - ls /mirrors/lachesis
     - mkdir -p /go/src/github.com/SamuelMarks/
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/SamuelMarks/
+    - mv 
     - glide install
