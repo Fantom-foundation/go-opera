@@ -11,5 +11,6 @@ test code:
     - mv /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
-    - cd /go/src/github.com/SamuelMarks/lachesis
-    - glide install
+    - ls /go/src/github.com/SamuelMarks/
+    #- cd /go/src/github.com/SamuelMarks/lachesis
+    #- glide install
