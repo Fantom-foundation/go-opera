@@ -15,3 +15,4 @@ test code:
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/SamuelMarks/lachesis
     - glide install
+    - go test
