@@ -7,9 +7,10 @@ test code:
   stage: test
   allow_failure: true
   script:
-    - mkdir -p /go/src/github.com/SamuelMarks/lachesis
+    - mkdir -p /go/src/github.com/SamuelMarks/
+    - mv /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
     - ls /go/src/github.com/SamuelMarks/
-    #- mv /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
+    - ls /go/src/github.com/SamuelMarks/lachesis
     #- go get -v github.com/SamuelMarks/batch-ethkey
     #- go get -u -d github.com/magefile/mage
     #- ls /go/src/github.com/SamuelMarks/
