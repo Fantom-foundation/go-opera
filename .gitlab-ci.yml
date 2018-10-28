@@ -9,19 +9,8 @@ test code:
   stage: test
   allow_failure: true
   script:
-    - make test
-
-build lachesis:
-  stage: build
-  script:
-    - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis
-    - go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i
-    - cd scripts
-    - ./multi_build.bash
-
-deploy lachesis:
-  stage: deploy
-  script: 
-    - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis/scripts
-    - rm -rf lachesis_data_dir
-    - ./multi.bash
+    - mkdir -p /go/src/github.com/SamuelMarks/
+    - mv /mirrors/lachesis /go/src/github.com/SamuelMarks/
+    - go get -v github.com/SamuelMarks/batch-ethkey
+    - go get -u -d github.com/magefile/mage 
+    - glide i
