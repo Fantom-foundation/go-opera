@@ -12,7 +12,7 @@ before_script:
     - go get -u -d github.com/magefile/mage
     - mkdir -p /go/src/github.com/andrecronje/lachesis
     - cp -r /fantom/lachesis /go/src/github.com/andrecronje/lachesis
-    - cd /go/src/github.com/SamuelMarks/lachesis
+    - cd /go/src/github.com/andrecronje/lachesis
     - glide install
     
 test code:
