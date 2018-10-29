@@ -6,15 +6,13 @@ stages:
   
 before_script:
     - mkdir -p /go/src/github.com/SamuelMarks/
+    - mkdir -p /go/src/github.com/andrecronje/
     - cp -r /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
-    - ls /go/src/github.com/SamuelMarks/
-    - ls /go/src/github.com/SamuelMarks/lachesis
+    - cd /go/src/github.com/andrecronje
+    - git clone https://github.com/andrecronje/lachesis.git
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/SamuelMarks/lachesis
-    - rm -rf /go/src/github.com/andrecronje
-    - ln -s /go/src/github.com/SamuelMarks /go/src/github.com/andrecronje
-    - ls -a /go/src/github.com
     - glide install
     
 test code:
