@@ -8,14 +8,10 @@ stages:
 before_script:
     - apk update
     - apk add jq util-linux
-    - mkdir -p /go/src/github.com/SamuelMarks/
-    - mkdir -p /go/src/github.com/andrecronje/
-    - cp -r /fantom/lachesis /go/src/github.com/SamuelMarks/lachesis
-    - git clone https://github.com/andrecronje/lachesis.git /go/src/github.com/andrecronje/lachesis
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
-    - cd /go/src/github.com/andrecronje/lachesis
-    - glide install
+    - mkdir -p /go/src/github.com/andrecronje/
+    - cp -r /fantom/lachesis /go/src/github.com/andrecronje/lachesis
     - cd /go/src/github.com/SamuelMarks/lachesis
     - glide install
     
@@ -23,19 +19,19 @@ test code:
   stage: test
   allow_failure: true
   script:
-    - cd /go/src/github.com/SamuelMarks/lachesis
-    - go test ./src/...
+  - cd /go/src/github.com/andrecronje/lachesis
+  - go test ./src/...
     
 build code:
   stage: build
   script:
-    - cd /go/src/github.com/SamuelMarks/lachesis
-    - scripts/multi_build.bash
+  - cd /go/src/github.com/andrecronje/lachesis
+  - scripts/multi_build.bash
 
 deploy code:
   stage: deploy
   script:
-    - cd /go/src/github.com/SamuelMarks/lachesis
-    - scripts/multi_build.bash
-    - mv lachesis_linux scripts/
-    - scripts/multi_run.bash
+  - cd /go/src/github.com/andrecronje/lachesis
+  - scripts/multi_build.bash
+  - mv lachesis_linux scripts/
+  - scripts/multi_run.bash
