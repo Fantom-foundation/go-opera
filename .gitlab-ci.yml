@@ -10,9 +10,8 @@ before_script:
     - apk add jq util-linux
     - mkdir -p /go/src/github.com/SamuelMarks/
     - mkdir -p /go/src/github.com/andrecronje/
-    - cp -r /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
-    - cd /go/src/github.com/andrecronje
-    - git clone https://github.com/andrecronje/lachesis.git
+    - cp -r /fantom/lachesis /go/src/github.com/SamuelMarks/lachesis
+    - git clone https://github.com/andrecronje/lachesis.git /go/src/github.com/andrecronje/lachesis
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/andrecronje/lachesis
