@@ -11,7 +11,8 @@ before_script:
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
     - mkdir -p /go/src/github.com/andrecronje/lachesis
-    - cp -r /fantom/lachesis /go/src/github.com/andrecronje/lachesis
+    - git clone https://github.com/SamuelMarks/lachesis /go/src/github.com/andrecronje/lachesis
+    # cp -r /fantom/lachesis /go/src/github.com/andrecronje/lachesis
     - cd /go/src/github.com/andrecronje/lachesis
     - glide install
     
