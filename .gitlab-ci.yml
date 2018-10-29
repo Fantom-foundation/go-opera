@@ -12,6 +12,7 @@ before_script:
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/SamuelMarks/lachesis
+    - rm -rf /go/src/github.com/andrecronje
     - ln -s /go/src/github.com/SamuelMarks /go/src/github.com/andrecronje
     - ls -a /go/src/github.com
     - glide install
