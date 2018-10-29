@@ -3,6 +3,7 @@ image: offscale/golang-builder-alpine3.8
 stages:
   - test
   - build
+  - deploy
   
 before_script:
     - mkdir -p /go/src/github.com/SamuelMarks/
@@ -28,3 +29,10 @@ build code:
     - cd /go/src/github.com/SamuelMarks/lachesis
     - cd scripts
     - ./multi_build.bash
+
+deploy code:
+  stage: deploy
+  script:
+    - cd /go/src/github.com/SamuelMarks/lachesis
+    - cd scripts
+    - ./multi_run.bash
