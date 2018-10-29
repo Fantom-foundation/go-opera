@@ -32,11 +32,11 @@ type GrpcAppProxy struct {
 
 	timeout      time.Duration
 	new_clients  chan ClientStream
-	askings      map[xid.ID]chan *internal.IN_Hash
+	askings      map[xid.ID]chan *internal.ToServer_Answer
 	askings_sync sync.RWMutex
 
 	event4server  chan []byte
-	event4clients chan *internal.OUT
+	event4clients chan *internal.ToClient
 }
 
 func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
@@ -52,9 +52,9 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 		logger:        logger,
 		timeout:       timeout,
 		new_clients:   make(chan ClientStream, 100),
-		askings:       make(map[xid.ID]chan *internal.IN_Hash),
+		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
 		event4server:  make(chan []byte),
-		event4clients: make(chan *internal.OUT),
+		event4clients: make(chan *internal.ToClient),
 	}
 
 	p.listener, err = net.Listen("tcp", bind_addr)
@@ -102,8 +102,8 @@ func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error
 			p.event4server <- tx.GetData()
 			continue
 		}
-		if hash := req.GetHash(); hash != nil {
-			p.route_answer(hash)
+		if answer := req.GetAnswer(); answer != nil {
+			p.route_answer(answer)
 			continue
 		}
 	}
@@ -193,7 +193,7 @@ func (p *GrpcAppProxy) Restore(snapshot []byte) error {
  * staff:
  */
 
-func (p *GrpcAppProxy) route_answer(hash *internal.IN_Hash) {
+func (p *GrpcAppProxy) route_answer(hash *internal.ToServer_Answer) {
 	uuid, err := xid.FromBytes(hash.GetUid())
 	if err != nil {
 		// TODO: log invalid uuid
@@ -206,11 +206,11 @@ func (p *GrpcAppProxy) route_answer(hash *internal.IN_Hash) {
 	p.askings_sync.RUnlock()
 }
 
-func (p *GrpcAppProxy) push_block(block []byte) chan *internal.IN_Hash {
+func (p *GrpcAppProxy) push_block(block []byte) chan *internal.ToServer_Answer {
 	uuid := xid.New()
-	event := &internal.OUT{
-		Event: &internal.OUT_Block_{
-			Block: &internal.OUT_Block{
+	event := &internal.ToClient{
+		Event: &internal.ToClient_Block_{
+			Block: &internal.ToClient_Block{
 				Uid:  uuid[:],
 				Data: block,
 			},
@@ -221,11 +221,11 @@ func (p *GrpcAppProxy) push_block(block []byte) chan *internal.IN_Hash {
 	return answer
 }
 
-func (p *GrpcAppProxy) push_query(index int64) chan *internal.IN_Hash {
+func (p *GrpcAppProxy) push_query(index int64) chan *internal.ToServer_Answer {
 	uuid := xid.New()
-	event := &internal.OUT{
-		Event: &internal.OUT_Query_{
-			Query: &internal.OUT_Query{
+	event := &internal.ToClient{
+		Event: &internal.ToClient_Query_{
+			Query: &internal.ToClient_Query{
 				Uid:   uuid[:],
 				Index: index,
 			},
@@ -236,11 +236,11 @@ func (p *GrpcAppProxy) push_query(index int64) chan *internal.IN_Hash {
 	return answer
 }
 
-func (p *GrpcAppProxy) push_restore(snapshot []byte) chan *internal.IN_Hash {
+func (p *GrpcAppProxy) push_restore(snapshot []byte) chan *internal.ToServer_Answer {
 	uuid := xid.New()
-	event := &internal.OUT{
-		Event: &internal.OUT_Restore_{
-			Restore: &internal.OUT_Restore{
+	event := &internal.ToClient{
+		Event: &internal.ToClient_Restore_{
+			Restore: &internal.ToClient_Restore{
 				Uid:  uuid[:],
 				Data: snapshot,
 			},
@@ -251,8 +251,8 @@ func (p *GrpcAppProxy) push_restore(snapshot []byte) chan *internal.IN_Hash {
 	return answer
 }
 
-func (p *GrpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.IN_Hash {
-	ch := make(chan *internal.IN_Hash)
+func (p *GrpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Answer {
+	ch := make(chan *internal.ToServer_Answer)
 	p.askings_sync.Lock()
 	p.askings[uuid] = ch
 	p.askings_sync.Unlock()

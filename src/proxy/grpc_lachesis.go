@@ -92,9 +92,9 @@ func (p *GrpcLachesisProxy) RestoreCh() chan proto.RestoreRequest {
 
 // SubmitTx implements LachesisProxy interface method
 func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
-	r := &internal.IN{
-		Event: &internal.IN_Tx_{
-			Tx: &internal.IN_Tx{
+	r := &internal.ToServer{
+		Event: &internal.ToServer_Tx_{
+			Tx: &internal.ToServer_Tx{
 				Data: tx,
 			},
 		},
@@ -107,7 +107,7 @@ func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
  * network:
  */
 
-func (p *GrpcLachesisProxy) sendToServer(data *internal.IN) (err error) {
+func (p *GrpcLachesisProxy) sendToServer(data *internal.ToServer) (err error) {
 	for {
 		err = p.stream.Send(data)
 		if err == nil {
@@ -123,7 +123,7 @@ func (p *GrpcLachesisProxy) sendToServer(data *internal.IN) (err error) {
 	}
 }
 
-func (p *GrpcLachesisProxy) recvFromServer() (data *internal.OUT, err error) {
+func (p *GrpcLachesisProxy) recvFromServer() (data *internal.ToClient, err error) {
 	for {
 		data, err = p.stream.Recv()
 		if err == nil {
@@ -175,7 +175,7 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 
 func (p *GrpcLachesisProxy) listen_events() {
 	var (
-		event *internal.OUT
+		event *internal.ToClient
 		err   error
 		uuid  xid.ID
 	)
@@ -238,7 +238,7 @@ func (p *GrpcLachesisProxy) listen_events() {
 func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitResponse {
 	respCh := make(chan proto.CommitResponse)
 	go func() {
-		var answer *internal.IN
+		var answer *internal.ToServer
 		resp, ok := <-respCh
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
@@ -251,7 +251,7 @@ func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitRe
 func (p *GrpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.SnapshotResponse {
 	respCh := make(chan proto.SnapshotResponse)
 	go func() {
-		var answer *internal.IN
+		var answer *internal.ToServer
 		resp, ok := <-respCh
 		if ok {
 			answer = newAnswer(uuid[:], resp.Snapshot, resp.Error)
@@ -264,7 +264,7 @@ func (p *GrpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.Snapsh
 func (p *GrpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.RestoreResponse {
 	respCh := make(chan proto.RestoreResponse)
 	go func() {
-		var answer *internal.IN
+		var answer *internal.ToServer
 		resp, ok := <-respCh
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
@@ -274,24 +274,24 @@ func (p *GrpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.Restore
 	return respCh
 }
 
-func newAnswer(uuid []byte, data []byte, err error) *internal.IN {
+func newAnswer(uuid []byte, data []byte, err error) *internal.ToServer {
 	if err != nil {
-		return &internal.IN{
-			Event: &internal.IN_Hash_{
-				Hash: &internal.IN_Hash{
+		return &internal.ToServer{
+			Event: &internal.ToServer_Answer_{
+				Answer: &internal.ToServer_Answer{
 					Uid: uuid,
-					Answer: &internal.IN_Hash_Error{
+					Payload: &internal.ToServer_Answer_Error{
 						Error: err.Error(),
 					},
 				},
 			},
 		}
 	}
-	return &internal.IN{
-		Event: &internal.IN_Hash_{
-			Hash: &internal.IN_Hash{
+	return &internal.ToServer{
+		Event: &internal.ToServer_Answer_{
+			Answer: &internal.ToServer_Answer{
 				Uid: uuid,
-				Answer: &internal.IN_Hash_Data{
+				Payload: &internal.ToServer_Answer_Data{
 					Data: data,
 				},
 			},

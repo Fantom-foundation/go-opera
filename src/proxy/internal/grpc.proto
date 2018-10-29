@@ -3,19 +3,19 @@ syntax = "proto3";
 package internal;
 
 service LachesisNode {
-    rpc Connect(stream IN) returns (stream OUT) {}
+    rpc Connect(stream ToServer) returns (stream ToClient) {}
 }
 
 
-message IN {
+message ToServer {
 
     message Tx {
         bytes data = 1;
     }
 
-    message Hash {
+    message Answer {
         bytes uid = 1;
-        oneof answer {
+        oneof payload {
             bytes data = 2;
             string error = 3;
         }
@@ -23,12 +23,12 @@ message IN {
 
     oneof event {
         Tx tx = 1;
-        Hash hash = 2;
+        Answer answer = 2;
     }
 }
 
 
-message OUT {
+message ToClient {
 
     message Block {
         bytes uid = 1;

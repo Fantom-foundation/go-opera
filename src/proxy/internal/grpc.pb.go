@@ -22,142 +22,142 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type IN struct {
+type ToServer struct {
 	// Types that are valid to be assigned to Event:
-	//	*IN_Tx_
-	//	*IN_Hash_
-	Event                isIN_Event `protobuf_oneof:"event"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+	//	*ToServer_Tx_
+	//	*ToServer_Answer_
+	Event                isToServer_Event `protobuf_oneof:"event"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
-func (m *IN) Reset()         { *m = IN{} }
-func (m *IN) String() string { return proto.CompactTextString(m) }
-func (*IN) ProtoMessage()    {}
-func (*IN) Descriptor() ([]byte, []int) {
+func (m *ToServer) Reset()         { *m = ToServer{} }
+func (m *ToServer) String() string { return proto.CompactTextString(m) }
+func (*ToServer) ProtoMessage()    {}
+func (*ToServer) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{0}
 }
 
-func (m *IN) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_IN.Unmarshal(m, b)
+func (m *ToServer) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToServer.Unmarshal(m, b)
 }
-func (m *IN) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_IN.Marshal(b, m, deterministic)
+func (m *ToServer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToServer.Marshal(b, m, deterministic)
 }
-func (m *IN) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IN.Merge(m, src)
+func (m *ToServer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToServer.Merge(m, src)
 }
-func (m *IN) XXX_Size() int {
-	return xxx_messageInfo_IN.Size(m)
+func (m *ToServer) XXX_Size() int {
+	return xxx_messageInfo_ToServer.Size(m)
 }
-func (m *IN) XXX_DiscardUnknown() {
-	xxx_messageInfo_IN.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_IN proto.InternalMessageInfo
-
-type isIN_Event interface {
-	isIN_Event()
+func (m *ToServer) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToServer.DiscardUnknown(m)
 }
 
-type IN_Tx_ struct {
-	Tx *IN_Tx `protobuf:"bytes,1,opt,name=tx,proto3,oneof"`
+var xxx_messageInfo_ToServer proto.InternalMessageInfo
+
+type isToServer_Event interface {
+	isToServer_Event()
 }
 
-type IN_Hash_ struct {
-	Hash *IN_Hash `protobuf:"bytes,2,opt,name=hash,proto3,oneof"`
+type ToServer_Tx_ struct {
+	Tx *ToServer_Tx `protobuf:"bytes,1,opt,name=tx,proto3,oneof"`
 }
 
-func (*IN_Tx_) isIN_Event() {}
+type ToServer_Answer_ struct {
+	Answer *ToServer_Answer `protobuf:"bytes,2,opt,name=answer,proto3,oneof"`
+}
 
-func (*IN_Hash_) isIN_Event() {}
+func (*ToServer_Tx_) isToServer_Event() {}
 
-func (m *IN) GetEvent() isIN_Event {
+func (*ToServer_Answer_) isToServer_Event() {}
+
+func (m *ToServer) GetEvent() isToServer_Event {
 	if m != nil {
 		return m.Event
 	}
 	return nil
 }
 
-func (m *IN) GetTx() *IN_Tx {
-	if x, ok := m.GetEvent().(*IN_Tx_); ok {
+func (m *ToServer) GetTx() *ToServer_Tx {
+	if x, ok := m.GetEvent().(*ToServer_Tx_); ok {
 		return x.Tx
 	}
 	return nil
 }
 
-func (m *IN) GetHash() *IN_Hash {
-	if x, ok := m.GetEvent().(*IN_Hash_); ok {
-		return x.Hash
+func (m *ToServer) GetAnswer() *ToServer_Answer {
+	if x, ok := m.GetEvent().(*ToServer_Answer_); ok {
+		return x.Answer
 	}
 	return nil
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*IN) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _IN_OneofMarshaler, _IN_OneofUnmarshaler, _IN_OneofSizer, []interface{}{
-		(*IN_Tx_)(nil),
-		(*IN_Hash_)(nil),
+func (*ToServer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ToServer_OneofMarshaler, _ToServer_OneofUnmarshaler, _ToServer_OneofSizer, []interface{}{
+		(*ToServer_Tx_)(nil),
+		(*ToServer_Answer_)(nil),
 	}
 }
 
-func _IN_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*IN)
+func _ToServer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ToServer)
 	// event
 	switch x := m.Event.(type) {
-	case *IN_Tx_:
+	case *ToServer_Tx_:
 		b.EncodeVarint(1<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.Tx); err != nil {
 			return err
 		}
-	case *IN_Hash_:
+	case *ToServer_Answer_:
 		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Hash); err != nil {
+		if err := b.EncodeMessage(x.Answer); err != nil {
 			return err
 		}
 	case nil:
 	default:
-		return fmt.Errorf("IN.Event has unexpected type %T", x)
+		return fmt.Errorf("ToServer.Event has unexpected type %T", x)
 	}
 	return nil
 }
 
-func _IN_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*IN)
+func _ToServer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ToServer)
 	switch tag {
 	case 1: // event.tx
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(IN_Tx)
+		msg := new(ToServer_Tx)
 		err := b.DecodeMessage(msg)
-		m.Event = &IN_Tx_{msg}
+		m.Event = &ToServer_Tx_{msg}
 		return true, err
-	case 2: // event.hash
+	case 2: // event.answer
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(IN_Hash)
+		msg := new(ToServer_Answer)
 		err := b.DecodeMessage(msg)
-		m.Event = &IN_Hash_{msg}
+		m.Event = &ToServer_Answer_{msg}
 		return true, err
 	default:
 		return false, nil
 	}
 }
 
-func _IN_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*IN)
+func _ToServer_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ToServer)
 	// event
 	switch x := m.Event.(type) {
-	case *IN_Tx_:
+	case *ToServer_Tx_:
 		s := proto.Size(x.Tx)
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
-	case *IN_Hash_:
-		s := proto.Size(x.Hash)
+	case *ToServer_Answer_:
+		s := proto.Size(x.Answer)
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
@@ -168,181 +168,181 @@ func _IN_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-type IN_Tx struct {
+type ToServer_Tx struct {
 	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *IN_Tx) Reset()         { *m = IN_Tx{} }
-func (m *IN_Tx) String() string { return proto.CompactTextString(m) }
-func (*IN_Tx) ProtoMessage()    {}
-func (*IN_Tx) Descriptor() ([]byte, []int) {
+func (m *ToServer_Tx) Reset()         { *m = ToServer_Tx{} }
+func (m *ToServer_Tx) String() string { return proto.CompactTextString(m) }
+func (*ToServer_Tx) ProtoMessage()    {}
+func (*ToServer_Tx) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{0, 0}
 }
 
-func (m *IN_Tx) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_IN_Tx.Unmarshal(m, b)
+func (m *ToServer_Tx) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToServer_Tx.Unmarshal(m, b)
 }
-func (m *IN_Tx) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_IN_Tx.Marshal(b, m, deterministic)
+func (m *ToServer_Tx) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToServer_Tx.Marshal(b, m, deterministic)
 }
-func (m *IN_Tx) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IN_Tx.Merge(m, src)
+func (m *ToServer_Tx) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToServer_Tx.Merge(m, src)
 }
-func (m *IN_Tx) XXX_Size() int {
-	return xxx_messageInfo_IN_Tx.Size(m)
+func (m *ToServer_Tx) XXX_Size() int {
+	return xxx_messageInfo_ToServer_Tx.Size(m)
 }
-func (m *IN_Tx) XXX_DiscardUnknown() {
-	xxx_messageInfo_IN_Tx.DiscardUnknown(m)
+func (m *ToServer_Tx) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToServer_Tx.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_IN_Tx proto.InternalMessageInfo
+var xxx_messageInfo_ToServer_Tx proto.InternalMessageInfo
 
-func (m *IN_Tx) GetData() []byte {
+func (m *ToServer_Tx) GetData() []byte {
 	if m != nil {
 		return m.Data
 	}
 	return nil
 }
 
-type IN_Hash struct {
+type ToServer_Answer struct {
 	Uid []byte `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
-	// Types that are valid to be assigned to Answer:
-	//	*IN_Hash_Data
-	//	*IN_Hash_Error
-	Answer               isIN_Hash_Answer `protobuf_oneof:"answer"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
+	// Types that are valid to be assigned to Payload:
+	//	*ToServer_Answer_Data
+	//	*ToServer_Answer_Error
+	Payload              isToServer_Answer_Payload `protobuf_oneof:"payload"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
 }
 
-func (m *IN_Hash) Reset()         { *m = IN_Hash{} }
-func (m *IN_Hash) String() string { return proto.CompactTextString(m) }
-func (*IN_Hash) ProtoMessage()    {}
-func (*IN_Hash) Descriptor() ([]byte, []int) {
+func (m *ToServer_Answer) Reset()         { *m = ToServer_Answer{} }
+func (m *ToServer_Answer) String() string { return proto.CompactTextString(m) }
+func (*ToServer_Answer) ProtoMessage()    {}
+func (*ToServer_Answer) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{0, 1}
 }
 
-func (m *IN_Hash) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_IN_Hash.Unmarshal(m, b)
+func (m *ToServer_Answer) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToServer_Answer.Unmarshal(m, b)
 }
-func (m *IN_Hash) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_IN_Hash.Marshal(b, m, deterministic)
+func (m *ToServer_Answer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToServer_Answer.Marshal(b, m, deterministic)
 }
-func (m *IN_Hash) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IN_Hash.Merge(m, src)
+func (m *ToServer_Answer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToServer_Answer.Merge(m, src)
 }
-func (m *IN_Hash) XXX_Size() int {
-	return xxx_messageInfo_IN_Hash.Size(m)
+func (m *ToServer_Answer) XXX_Size() int {
+	return xxx_messageInfo_ToServer_Answer.Size(m)
 }
-func (m *IN_Hash) XXX_DiscardUnknown() {
-	xxx_messageInfo_IN_Hash.DiscardUnknown(m)
+func (m *ToServer_Answer) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToServer_Answer.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_IN_Hash proto.InternalMessageInfo
+var xxx_messageInfo_ToServer_Answer proto.InternalMessageInfo
 
-func (m *IN_Hash) GetUid() []byte {
+func (m *ToServer_Answer) GetUid() []byte {
 	if m != nil {
 		return m.Uid
 	}
 	return nil
 }
 
-type isIN_Hash_Answer interface {
-	isIN_Hash_Answer()
+type isToServer_Answer_Payload interface {
+	isToServer_Answer_Payload()
 }
 
-type IN_Hash_Data struct {
+type ToServer_Answer_Data struct {
 	Data []byte `protobuf:"bytes,2,opt,name=data,proto3,oneof"`
 }
 
-type IN_Hash_Error struct {
+type ToServer_Answer_Error struct {
 	Error string `protobuf:"bytes,3,opt,name=error,proto3,oneof"`
 }
 
-func (*IN_Hash_Data) isIN_Hash_Answer() {}
+func (*ToServer_Answer_Data) isToServer_Answer_Payload() {}
 
-func (*IN_Hash_Error) isIN_Hash_Answer() {}
+func (*ToServer_Answer_Error) isToServer_Answer_Payload() {}
 
-func (m *IN_Hash) GetAnswer() isIN_Hash_Answer {
+func (m *ToServer_Answer) GetPayload() isToServer_Answer_Payload {
 	if m != nil {
-		return m.Answer
+		return m.Payload
 	}
 	return nil
 }
 
-func (m *IN_Hash) GetData() []byte {
-	if x, ok := m.GetAnswer().(*IN_Hash_Data); ok {
+func (m *ToServer_Answer) GetData() []byte {
+	if x, ok := m.GetPayload().(*ToServer_Answer_Data); ok {
 		return x.Data
 	}
 	return nil
 }
 
-func (m *IN_Hash) GetError() string {
-	if x, ok := m.GetAnswer().(*IN_Hash_Error); ok {
+func (m *ToServer_Answer) GetError() string {
+	if x, ok := m.GetPayload().(*ToServer_Answer_Error); ok {
 		return x.Error
 	}
 	return ""
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*IN_Hash) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _IN_Hash_OneofMarshaler, _IN_Hash_OneofUnmarshaler, _IN_Hash_OneofSizer, []interface{}{
-		(*IN_Hash_Data)(nil),
-		(*IN_Hash_Error)(nil),
+func (*ToServer_Answer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ToServer_Answer_OneofMarshaler, _ToServer_Answer_OneofUnmarshaler, _ToServer_Answer_OneofSizer, []interface{}{
+		(*ToServer_Answer_Data)(nil),
+		(*ToServer_Answer_Error)(nil),
 	}
 }
 
-func _IN_Hash_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*IN_Hash)
-	// answer
-	switch x := m.Answer.(type) {
-	case *IN_Hash_Data:
+func _ToServer_Answer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ToServer_Answer)
+	// payload
+	switch x := m.Payload.(type) {
+	case *ToServer_Answer_Data:
 		b.EncodeVarint(2<<3 | proto.WireBytes)
 		b.EncodeRawBytes(x.Data)
-	case *IN_Hash_Error:
+	case *ToServer_Answer_Error:
 		b.EncodeVarint(3<<3 | proto.WireBytes)
 		b.EncodeStringBytes(x.Error)
 	case nil:
 	default:
-		return fmt.Errorf("IN_Hash.Answer has unexpected type %T", x)
+		return fmt.Errorf("ToServer_Answer.Payload has unexpected type %T", x)
 	}
 	return nil
 }
 
-func _IN_Hash_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*IN_Hash)
+func _ToServer_Answer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ToServer_Answer)
 	switch tag {
-	case 2: // answer.data
+	case 2: // payload.data
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
 		x, err := b.DecodeRawBytes(true)
-		m.Answer = &IN_Hash_Data{x}
+		m.Payload = &ToServer_Answer_Data{x}
 		return true, err
-	case 3: // answer.error
+	case 3: // payload.error
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
 		x, err := b.DecodeStringBytes()
-		m.Answer = &IN_Hash_Error{x}
+		m.Payload = &ToServer_Answer_Error{x}
 		return true, err
 	default:
 		return false, nil
 	}
 }
 
-func _IN_Hash_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*IN_Hash)
-	// answer
-	switch x := m.Answer.(type) {
-	case *IN_Hash_Data:
+func _ToServer_Answer_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ToServer_Answer)
+	// payload
+	switch x := m.Payload.(type) {
+	case *ToServer_Answer_Data:
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Data)))
 		n += len(x.Data)
-	case *IN_Hash_Error:
+	case *ToServer_Answer_Error:
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Error)))
 		n += len(x.Error)
@@ -353,174 +353,174 @@ func _IN_Hash_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-type OUT struct {
+type ToClient struct {
 	// Types that are valid to be assigned to Event:
-	//	*OUT_Block_
-	//	*OUT_Query_
-	//	*OUT_Restore_
-	Event                isOUT_Event `protobuf_oneof:"event"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	//	*ToClient_Block_
+	//	*ToClient_Query_
+	//	*ToClient_Restore_
+	Event                isToClient_Event `protobuf_oneof:"event"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
-func (m *OUT) Reset()         { *m = OUT{} }
-func (m *OUT) String() string { return proto.CompactTextString(m) }
-func (*OUT) ProtoMessage()    {}
-func (*OUT) Descriptor() ([]byte, []int) {
+func (m *ToClient) Reset()         { *m = ToClient{} }
+func (m *ToClient) String() string { return proto.CompactTextString(m) }
+func (*ToClient) ProtoMessage()    {}
+func (*ToClient) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{1}
 }
 
-func (m *OUT) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_OUT.Unmarshal(m, b)
+func (m *ToClient) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToClient.Unmarshal(m, b)
 }
-func (m *OUT) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_OUT.Marshal(b, m, deterministic)
+func (m *ToClient) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToClient.Marshal(b, m, deterministic)
 }
-func (m *OUT) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OUT.Merge(m, src)
+func (m *ToClient) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToClient.Merge(m, src)
 }
-func (m *OUT) XXX_Size() int {
-	return xxx_messageInfo_OUT.Size(m)
+func (m *ToClient) XXX_Size() int {
+	return xxx_messageInfo_ToClient.Size(m)
 }
-func (m *OUT) XXX_DiscardUnknown() {
-	xxx_messageInfo_OUT.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_OUT proto.InternalMessageInfo
-
-type isOUT_Event interface {
-	isOUT_Event()
+func (m *ToClient) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToClient.DiscardUnknown(m)
 }
 
-type OUT_Block_ struct {
-	Block *OUT_Block `protobuf:"bytes,1,opt,name=block,proto3,oneof"`
+var xxx_messageInfo_ToClient proto.InternalMessageInfo
+
+type isToClient_Event interface {
+	isToClient_Event()
 }
 
-type OUT_Query_ struct {
-	Query *OUT_Query `protobuf:"bytes,2,opt,name=query,proto3,oneof"`
+type ToClient_Block_ struct {
+	Block *ToClient_Block `protobuf:"bytes,1,opt,name=block,proto3,oneof"`
 }
 
-type OUT_Restore_ struct {
-	Restore *OUT_Restore `protobuf:"bytes,3,opt,name=restore,proto3,oneof"`
+type ToClient_Query_ struct {
+	Query *ToClient_Query `protobuf:"bytes,2,opt,name=query,proto3,oneof"`
 }
 
-func (*OUT_Block_) isOUT_Event() {}
+type ToClient_Restore_ struct {
+	Restore *ToClient_Restore `protobuf:"bytes,3,opt,name=restore,proto3,oneof"`
+}
 
-func (*OUT_Query_) isOUT_Event() {}
+func (*ToClient_Block_) isToClient_Event() {}
 
-func (*OUT_Restore_) isOUT_Event() {}
+func (*ToClient_Query_) isToClient_Event() {}
 
-func (m *OUT) GetEvent() isOUT_Event {
+func (*ToClient_Restore_) isToClient_Event() {}
+
+func (m *ToClient) GetEvent() isToClient_Event {
 	if m != nil {
 		return m.Event
 	}
 	return nil
 }
 
-func (m *OUT) GetBlock() *OUT_Block {
-	if x, ok := m.GetEvent().(*OUT_Block_); ok {
+func (m *ToClient) GetBlock() *ToClient_Block {
+	if x, ok := m.GetEvent().(*ToClient_Block_); ok {
 		return x.Block
 	}
 	return nil
 }
 
-func (m *OUT) GetQuery() *OUT_Query {
-	if x, ok := m.GetEvent().(*OUT_Query_); ok {
+func (m *ToClient) GetQuery() *ToClient_Query {
+	if x, ok := m.GetEvent().(*ToClient_Query_); ok {
 		return x.Query
 	}
 	return nil
 }
 
-func (m *OUT) GetRestore() *OUT_Restore {
-	if x, ok := m.GetEvent().(*OUT_Restore_); ok {
+func (m *ToClient) GetRestore() *ToClient_Restore {
+	if x, ok := m.GetEvent().(*ToClient_Restore_); ok {
 		return x.Restore
 	}
 	return nil
 }
 
 // XXX_OneofFuncs is for the internal use of the proto package.
-func (*OUT) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _OUT_OneofMarshaler, _OUT_OneofUnmarshaler, _OUT_OneofSizer, []interface{}{
-		(*OUT_Block_)(nil),
-		(*OUT_Query_)(nil),
-		(*OUT_Restore_)(nil),
+func (*ToClient) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ToClient_OneofMarshaler, _ToClient_OneofUnmarshaler, _ToClient_OneofSizer, []interface{}{
+		(*ToClient_Block_)(nil),
+		(*ToClient_Query_)(nil),
+		(*ToClient_Restore_)(nil),
 	}
 }
 
-func _OUT_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*OUT)
+func _ToClient_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ToClient)
 	// event
 	switch x := m.Event.(type) {
-	case *OUT_Block_:
+	case *ToClient_Block_:
 		b.EncodeVarint(1<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.Block); err != nil {
 			return err
 		}
-	case *OUT_Query_:
+	case *ToClient_Query_:
 		b.EncodeVarint(2<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.Query); err != nil {
 			return err
 		}
-	case *OUT_Restore_:
+	case *ToClient_Restore_:
 		b.EncodeVarint(3<<3 | proto.WireBytes)
 		if err := b.EncodeMessage(x.Restore); err != nil {
 			return err
 		}
 	case nil:
 	default:
-		return fmt.Errorf("OUT.Event has unexpected type %T", x)
+		return fmt.Errorf("ToClient.Event has unexpected type %T", x)
 	}
 	return nil
 }
 
-func _OUT_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*OUT)
+func _ToClient_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ToClient)
 	switch tag {
 	case 1: // event.block
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(OUT_Block)
+		msg := new(ToClient_Block)
 		err := b.DecodeMessage(msg)
-		m.Event = &OUT_Block_{msg}
+		m.Event = &ToClient_Block_{msg}
 		return true, err
 	case 2: // event.query
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(OUT_Query)
+		msg := new(ToClient_Query)
 		err := b.DecodeMessage(msg)
-		m.Event = &OUT_Query_{msg}
+		m.Event = &ToClient_Query_{msg}
 		return true, err
 	case 3: // event.restore
 		if wire != proto.WireBytes {
 			return true, proto.ErrInternalBadWireType
 		}
-		msg := new(OUT_Restore)
+		msg := new(ToClient_Restore)
 		err := b.DecodeMessage(msg)
-		m.Event = &OUT_Restore_{msg}
+		m.Event = &ToClient_Restore_{msg}
 		return true, err
 	default:
 		return false, nil
 	}
 }
 
-func _OUT_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*OUT)
+func _ToClient_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ToClient)
 	// event
 	switch x := m.Event.(type) {
-	case *OUT_Block_:
+	case *ToClient_Block_:
 		s := proto.Size(x.Block)
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
-	case *OUT_Query_:
+	case *ToClient_Query_:
 		s := proto.Size(x.Query)
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
-	case *OUT_Restore_:
+	case *ToClient_Restore_:
 		s := proto.Size(x.Restore)
 		n += 1 // tag and wire
 		n += proto.SizeVarint(uint64(s))
@@ -532,7 +532,7 @@ func _OUT_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-type OUT_Block struct {
+type ToClient_Block struct {
 	Uid                  []byte   `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
 	Data                 []byte   `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -540,46 +540,46 @@ type OUT_Block struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *OUT_Block) Reset()         { *m = OUT_Block{} }
-func (m *OUT_Block) String() string { return proto.CompactTextString(m) }
-func (*OUT_Block) ProtoMessage()    {}
-func (*OUT_Block) Descriptor() ([]byte, []int) {
+func (m *ToClient_Block) Reset()         { *m = ToClient_Block{} }
+func (m *ToClient_Block) String() string { return proto.CompactTextString(m) }
+func (*ToClient_Block) ProtoMessage()    {}
+func (*ToClient_Block) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{1, 0}
 }
 
-func (m *OUT_Block) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_OUT_Block.Unmarshal(m, b)
+func (m *ToClient_Block) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToClient_Block.Unmarshal(m, b)
 }
-func (m *OUT_Block) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_OUT_Block.Marshal(b, m, deterministic)
+func (m *ToClient_Block) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToClient_Block.Marshal(b, m, deterministic)
 }
-func (m *OUT_Block) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OUT_Block.Merge(m, src)
+func (m *ToClient_Block) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToClient_Block.Merge(m, src)
 }
-func (m *OUT_Block) XXX_Size() int {
-	return xxx_messageInfo_OUT_Block.Size(m)
+func (m *ToClient_Block) XXX_Size() int {
+	return xxx_messageInfo_ToClient_Block.Size(m)
 }
-func (m *OUT_Block) XXX_DiscardUnknown() {
-	xxx_messageInfo_OUT_Block.DiscardUnknown(m)
+func (m *ToClient_Block) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToClient_Block.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_OUT_Block proto.InternalMessageInfo
+var xxx_messageInfo_ToClient_Block proto.InternalMessageInfo
 
-func (m *OUT_Block) GetUid() []byte {
+func (m *ToClient_Block) GetUid() []byte {
 	if m != nil {
 		return m.Uid
 	}
 	return nil
 }
 
-func (m *OUT_Block) GetData() []byte {
+func (m *ToClient_Block) GetData() []byte {
 	if m != nil {
 		return m.Data
 	}
 	return nil
 }
 
-type OUT_Query struct {
+type ToClient_Query struct {
 	Uid                  []byte   `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
 	Index                int64    `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -587,46 +587,46 @@ type OUT_Query struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *OUT_Query) Reset()         { *m = OUT_Query{} }
-func (m *OUT_Query) String() string { return proto.CompactTextString(m) }
-func (*OUT_Query) ProtoMessage()    {}
-func (*OUT_Query) Descriptor() ([]byte, []int) {
+func (m *ToClient_Query) Reset()         { *m = ToClient_Query{} }
+func (m *ToClient_Query) String() string { return proto.CompactTextString(m) }
+func (*ToClient_Query) ProtoMessage()    {}
+func (*ToClient_Query) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{1, 1}
 }
 
-func (m *OUT_Query) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_OUT_Query.Unmarshal(m, b)
+func (m *ToClient_Query) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToClient_Query.Unmarshal(m, b)
 }
-func (m *OUT_Query) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_OUT_Query.Marshal(b, m, deterministic)
+func (m *ToClient_Query) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToClient_Query.Marshal(b, m, deterministic)
 }
-func (m *OUT_Query) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OUT_Query.Merge(m, src)
+func (m *ToClient_Query) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToClient_Query.Merge(m, src)
 }
-func (m *OUT_Query) XXX_Size() int {
-	return xxx_messageInfo_OUT_Query.Size(m)
+func (m *ToClient_Query) XXX_Size() int {
+	return xxx_messageInfo_ToClient_Query.Size(m)
 }
-func (m *OUT_Query) XXX_DiscardUnknown() {
-	xxx_messageInfo_OUT_Query.DiscardUnknown(m)
+func (m *ToClient_Query) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToClient_Query.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_OUT_Query proto.InternalMessageInfo
+var xxx_messageInfo_ToClient_Query proto.InternalMessageInfo
 
-func (m *OUT_Query) GetUid() []byte {
+func (m *ToClient_Query) GetUid() []byte {
 	if m != nil {
 		return m.Uid
 	}
 	return nil
 }
 
-func (m *OUT_Query) GetIndex() int64 {
+func (m *ToClient_Query) GetIndex() int64 {
 	if m != nil {
 		return m.Index
 	}
 	return 0
 }
 
-type OUT_Restore struct {
+type ToClient_Restore struct {
 	Uid                  []byte   `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
 	Data                 []byte   `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -634,39 +634,39 @@ type OUT_Restore struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *OUT_Restore) Reset()         { *m = OUT_Restore{} }
-func (m *OUT_Restore) String() string { return proto.CompactTextString(m) }
-func (*OUT_Restore) ProtoMessage()    {}
-func (*OUT_Restore) Descriptor() ([]byte, []int) {
+func (m *ToClient_Restore) Reset()         { *m = ToClient_Restore{} }
+func (m *ToClient_Restore) String() string { return proto.CompactTextString(m) }
+func (*ToClient_Restore) ProtoMessage()    {}
+func (*ToClient_Restore) Descriptor() ([]byte, []int) {
 	return fileDescriptor_755bafbdfacf1aa5, []int{1, 2}
 }
 
-func (m *OUT_Restore) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_OUT_Restore.Unmarshal(m, b)
+func (m *ToClient_Restore) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ToClient_Restore.Unmarshal(m, b)
 }
-func (m *OUT_Restore) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_OUT_Restore.Marshal(b, m, deterministic)
+func (m *ToClient_Restore) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ToClient_Restore.Marshal(b, m, deterministic)
 }
-func (m *OUT_Restore) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OUT_Restore.Merge(m, src)
+func (m *ToClient_Restore) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ToClient_Restore.Merge(m, src)
 }
-func (m *OUT_Restore) XXX_Size() int {
-	return xxx_messageInfo_OUT_Restore.Size(m)
+func (m *ToClient_Restore) XXX_Size() int {
+	return xxx_messageInfo_ToClient_Restore.Size(m)
 }
-func (m *OUT_Restore) XXX_DiscardUnknown() {
-	xxx_messageInfo_OUT_Restore.DiscardUnknown(m)
+func (m *ToClient_Restore) XXX_DiscardUnknown() {
+	xxx_messageInfo_ToClient_Restore.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_OUT_Restore proto.InternalMessageInfo
+var xxx_messageInfo_ToClient_Restore proto.InternalMessageInfo
 
-func (m *OUT_Restore) GetUid() []byte {
+func (m *ToClient_Restore) GetUid() []byte {
 	if m != nil {
 		return m.Uid
 	}
 	return nil
 }
 
-func (m *OUT_Restore) GetData() []byte {
+func (m *ToClient_Restore) GetData() []byte {
 	if m != nil {
 		return m.Data
 	}
@@ -674,41 +674,42 @@ func (m *OUT_Restore) GetData() []byte {
 }
 
 func init() {
-	proto.RegisterType((*IN)(nil), "internal.IN")
-	proto.RegisterType((*IN_Tx)(nil), "internal.IN.Tx")
-	proto.RegisterType((*IN_Hash)(nil), "internal.IN.Hash")
-	proto.RegisterType((*OUT)(nil), "internal.OUT")
-	proto.RegisterType((*OUT_Block)(nil), "internal.OUT.Block")
-	proto.RegisterType((*OUT_Query)(nil), "internal.OUT.Query")
-	proto.RegisterType((*OUT_Restore)(nil), "internal.OUT.Restore")
+	proto.RegisterType((*ToServer)(nil), "internal.ToServer")
+	proto.RegisterType((*ToServer_Tx)(nil), "internal.ToServer.Tx")
+	proto.RegisterType((*ToServer_Answer)(nil), "internal.ToServer.Answer")
+	proto.RegisterType((*ToClient)(nil), "internal.ToClient")
+	proto.RegisterType((*ToClient_Block)(nil), "internal.ToClient.Block")
+	proto.RegisterType((*ToClient_Query)(nil), "internal.ToClient.Query")
+	proto.RegisterType((*ToClient_Restore)(nil), "internal.ToClient.Restore")
 }
 
 func init() { proto.RegisterFile("internal/grpc.proto", fileDescriptor_755bafbdfacf1aa5) }
 
 var fileDescriptor_755bafbdfacf1aa5 = []byte{
-	// 346 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xdf, 0x4e, 0xc2, 0x30,
-	0x18, 0xc5, 0xf7, 0x87, 0x31, 0xfc, 0x98, 0x51, 0x8b, 0x9a, 0x65, 0x57, 0xc8, 0x8d, 0x24, 0xea,
-	0x50, 0xbc, 0xf5, 0x0a, 0x6f, 0x46, 0x62, 0x40, 0x9b, 0xf1, 0x00, 0x65, 0x6b, 0xdc, 0x22, 0x69,
-	0xb1, 0x2b, 0x3a, 0xdf, 0xc9, 0xd7, 0xf0, 0xbd, 0x4c, 0xcb, 0x50, 0x66, 0xb8, 0xf0, 0xae, 0xdf,
-	0xce, 0x2f, 0xe7, 0xf4, 0x7c, 0x2b, 0x74, 0x72, 0x26, 0xa9, 0x60, 0x64, 0x31, 0x78, 0x16, 0xcb,
-	0x24, 0x5c, 0x0a, 0x2e, 0x39, 0x6a, 0x6d, 0x3e, 0xf6, 0xbe, 0x4c, 0xb0, 0xc6, 0x13, 0x74, 0x06,
-	0x96, 0x2c, 0x7d, 0xb3, 0x6b, 0xf6, 0xdb, 0xc3, 0x83, 0x70, 0xa3, 0x86, 0xe3, 0x49, 0x18, 0x97,
-	0x91, 0x81, 0x2d, 0x59, 0xa2, 0x73, 0x68, 0x64, 0xa4, 0xc8, 0x7c, 0x4b, 0x43, 0x47, 0x35, 0x28,
-	0x22, 0x45, 0x16, 0x19, 0x58, 0x03, 0x81, 0x0f, 0x56, 0x5c, 0x22, 0x04, 0x8d, 0x94, 0x48, 0xa2,
-	0x3d, 0x3d, 0xac, 0xcf, 0xc1, 0x23, 0x34, 0x14, 0x89, 0x0e, 0xc1, 0x5e, 0xe5, 0x69, 0x25, 0xa9,
-	0x23, 0x3a, 0xae, 0x68, 0x65, 0xee, 0x29, 0x27, 0x35, 0xa1, 0x53, 0x70, 0xa8, 0x10, 0x5c, 0xf8,
-	0x76, 0xd7, 0xec, 0xef, 0x45, 0x06, 0x5e, 0x8f, 0xa3, 0x16, 0x34, 0x09, 0x2b, 0xde, 0xa9, 0x18,
-	0xb9, 0xe0, 0xd0, 0x37, 0xca, 0x64, 0xef, 0xd3, 0x02, 0x7b, 0x3a, 0x8b, 0xd1, 0x05, 0x38, 0xf3,
-	0x05, 0x4f, 0x5e, 0xaa, 0x2e, 0x9d, 0xdf, 0x6b, 0x4e, 0x67, 0x71, 0x38, 0x52, 0x92, 0xf2, 0xd1,
-	0x8c, 0x82, 0x5f, 0x57, 0x54, 0x7c, 0x54, 0x9d, 0xfe, 0xc0, 0x4f, 0x4a, 0x52, 0xb0, 0x66, 0xd0,
-	0x0d, 0xb8, 0x82, 0x16, 0x92, 0x0b, 0xaa, 0xaf, 0xd3, 0x1e, 0x9e, 0xd4, 0x71, 0xbc, 0x16, 0x23,
-	0x03, 0x6f, 0xb8, 0xe0, 0x0a, 0x1c, 0x9d, 0xb8, 0xa3, 0x30, 0xda, 0x2e, 0x5c, 0xad, 0x67, 0x00,
-	0x8e, 0xce, 0xdc, 0xb9, 0x1f, 0x27, 0x67, 0x29, 0x2d, 0x35, 0x6f, 0xe3, 0xf5, 0x10, 0x0c, 0xc0,
-	0xad, 0x52, 0xff, 0x97, 0xf0, 0xb3, 0xae, 0xe1, 0x1d, 0x78, 0x0f, 0x24, 0xc9, 0x68, 0x91, 0x17,
-	0x13, 0x9e, 0x52, 0x74, 0x09, 0xee, 0x3d, 0x67, 0x8c, 0x26, 0x12, 0x79, 0xdb, 0x7f, 0x36, 0xd8,
-	0xaf, 0x95, 0xec, 0x19, 0x7d, 0xf3, 0xda, 0x9c, 0x37, 0xf5, 0x2b, 0xba, 0xfd, 0x0e, 0x00, 0x00,
-	0xff, 0xff, 0xd9, 0xdc, 0xa1, 0x1b, 0x5c, 0x02, 0x00, 0x00,
+	// 353 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xc1, 0x6e, 0xaa, 0x40,
+	0x14, 0x86, 0x01, 0x2f, 0xa2, 0x47, 0x17, 0x37, 0xe7, 0xde, 0x36, 0x94, 0x95, 0x71, 0x53, 0x37,
+	0x45, 0xa3, 0x49, 0xbb, 0xae, 0x2e, 0xca, 0xa2, 0x69, 0x52, 0xf4, 0x05, 0x10, 0x4e, 0x5a, 0x52,
+	0x32, 0x63, 0x87, 0xd1, 0xe2, 0xdb, 0xf5, 0x51, 0xfa, 0x28, 0xcd, 0x0c, 0x43, 0x63, 0x22, 0x8b,
+	0xee, 0x66, 0x38, 0xdf, 0xcf, 0x7f, 0xfe, 0x1f, 0xe0, 0x5f, 0xce, 0x24, 0x09, 0x96, 0x14, 0xd3,
+	0x17, 0xb1, 0x4b, 0xc3, 0x9d, 0xe0, 0x92, 0x63, 0xaf, 0x79, 0x38, 0xfe, 0xb2, 0xa1, 0xb7, 0xe1,
+	0x6b, 0x12, 0x07, 0x12, 0x78, 0x0d, 0x8e, 0xac, 0x7c, 0x7b, 0x64, 0x4f, 0x06, 0xf3, 0x8b, 0xb0,
+	0x61, 0xc2, 0x66, 0x1e, 0x6e, 0xaa, 0xc8, 0x8a, 0x1d, 0x59, 0xe1, 0x02, 0xba, 0x09, 0x2b, 0x3f,
+	0x48, 0xf8, 0x8e, 0x86, 0xaf, 0x5a, 0xe0, 0x7b, 0x0d, 0x44, 0x56, 0x6c, 0xd0, 0xc0, 0x07, 0x67,
+	0x53, 0x21, 0xc2, 0x9f, 0x2c, 0x91, 0x89, 0x76, 0x19, 0xc6, 0xfa, 0x1c, 0xac, 0xa1, 0x5b, 0xd3,
+	0xf8, 0x17, 0x3a, 0xfb, 0x3c, 0x33, 0x43, 0x75, 0xc4, 0xff, 0x86, 0x57, 0x46, 0xc3, 0xc8, 0xaa,
+	0x15, 0x78, 0x09, 0x2e, 0x09, 0xc1, 0x85, 0xdf, 0x19, 0xd9, 0x93, 0x7e, 0x64, 0xc5, 0xf5, 0x75,
+	0xd9, 0x07, 0x6f, 0x97, 0x1c, 0x0b, 0x9e, 0x64, 0x4b, 0x0f, 0x5c, 0x3a, 0x10, 0x93, 0xe3, 0x4f,
+	0x47, 0x45, 0x5c, 0x15, 0x39, 0x31, 0x89, 0x33, 0x70, 0xb7, 0x05, 0x4f, 0xdf, 0x4c, 0x4a, 0xff,
+	0x74, 0xf1, 0x1a, 0x09, 0x97, 0x6a, 0xae, 0x5e, 0xa9, 0x41, 0xa5, 0x78, 0xdf, 0x93, 0x38, 0x9a,
+	0xa8, 0x6d, 0x8a, 0x67, 0x35, 0x57, 0x0a, 0x0d, 0xe2, 0x2d, 0x78, 0x82, 0x4a, 0xc9, 0x05, 0xe9,
+	0xf5, 0x06, 0xf3, 0xa0, 0x45, 0x13, 0xd7, 0x44, 0x64, 0xc5, 0x0d, 0x1c, 0xdc, 0x80, 0xab, 0xbd,
+	0x5b, 0x5a, 0xc0, 0xd3, 0x16, 0x4c, 0x6b, 0x53, 0x70, 0xb5, 0x71, 0x6b, 0x69, 0x6e, 0xce, 0x32,
+	0xaa, 0x34, 0xdf, 0x89, 0xeb, 0x4b, 0x30, 0x05, 0xcf, 0xb8, 0xfe, 0xce, 0xe1, 0xa7, 0xc2, 0xf9,
+	0x03, 0x0c, 0x1f, 0x93, 0xf4, 0x95, 0xca, 0xbc, 0x7c, 0xe2, 0x19, 0xe1, 0x1d, 0x78, 0x2b, 0xce,
+	0x18, 0xa5, 0x12, 0xf1, 0xfc, 0xd3, 0x07, 0x78, 0x9e, 0x77, 0x6c, 0x4d, 0xec, 0x99, 0xbd, 0xed,
+	0xea, 0xff, 0x6f, 0xf1, 0x1d, 0x00, 0x00, 0xff, 0xff, 0x40, 0xc0, 0xca, 0x4e, 0x96, 0x02, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -744,8 +745,8 @@ func (c *lachesisNodeClient) Connect(ctx context.Context, opts ...grpc.CallOptio
 }
 
 type LachesisNode_ConnectClient interface {
-	Send(*IN) error
-	Recv() (*OUT, error)
+	Send(*ToServer) error
+	Recv() (*ToClient, error)
 	grpc.ClientStream
 }
 
@@ -753,12 +754,12 @@ type lachesisNodeConnectClient struct {
 	grpc.ClientStream
 }
 
-func (x *lachesisNodeConnectClient) Send(m *IN) error {
+func (x *lachesisNodeConnectClient) Send(m *ToServer) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *lachesisNodeConnectClient) Recv() (*OUT, error) {
-	m := new(OUT)
+func (x *lachesisNodeConnectClient) Recv() (*ToClient, error) {
+	m := new(ToClient)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -779,8 +780,8 @@ func _LachesisNode_Connect_Handler(srv interface{}, stream grpc.ServerStream) er
 }
 
 type LachesisNode_ConnectServer interface {
-	Send(*OUT) error
-	Recv() (*IN, error)
+	Send(*ToClient) error
+	Recv() (*ToServer, error)
 	grpc.ServerStream
 }
 
@@ -788,12 +789,12 @@ type lachesisNodeConnectServer struct {
 	grpc.ServerStream
 }
 
-func (x *lachesisNodeConnectServer) Send(m *OUT) error {
+func (x *lachesisNodeConnectServer) Send(m *ToClient) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *lachesisNodeConnectServer) Recv() (*IN, error) {
-	m := new(IN)
+func (x *lachesisNodeConnectServer) Recv() (*ToServer, error) {
+	m := new(ToServer)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
