@@ -15,10 +15,10 @@ var (
 	errTimeout = "time is over"
 )
 
-func TestGrpcConnection(t *testing.T) {
+func TestGrpcCalls(t *testing.T) {
 	addr := "127.0.0.1:9993"
 
-	s, err := NewGrpcAppProxy(addr, timeout/2, nil)
+	s, err := NewGrpcAppProxy(addr, timeout, nil)
 	assert.NoError(t, err)
 
 	c, err := NewGrpcLachesisProxy(addr, nil)
@@ -34,7 +34,7 @@ func TestGrpcConnection(t *testing.T) {
 		select {
 		case tx := <-s.SubmitCh():
 			assert.Equal(gold, tx)
-		case <-time.After(timeout):
+		case <-time.After(2 * timeout):
 			assert.Fail(errTimeout)
 		}
 	})
@@ -52,7 +52,7 @@ func TestGrpcConnection(t *testing.T) {
 					StateHash: gold,
 					Error:     nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -75,7 +75,7 @@ func TestGrpcConnection(t *testing.T) {
 					Snapshot: gold,
 					Error:    nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -97,7 +97,7 @@ func TestGrpcConnection(t *testing.T) {
 					StateHash: gold,
 					Error:     nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -121,7 +121,7 @@ func TestGrpcReConnection(t *testing.T) {
 	assert.Nil(t, c)
 	assert.Error(t, err)
 
-	s, err := NewGrpcAppProxy(addr, timeout/2, nil)
+	s, err := NewGrpcAppProxy(addr, timeout, nil)
 	assert.NoError(t, err)
 
 	c, err = NewGrpcLachesisProxy(addr, nil)
@@ -137,7 +137,7 @@ func TestGrpcReConnection(t *testing.T) {
 		select {
 		case tx := <-s.SubmitCh():
 			assert.Equal(gold, tx)
-		case <-time.After(timeout):
+		case <-time.After(2 * timeout):
 			assert.Fail(errTimeout)
 		}
 
@@ -154,5 +154,4 @@ func TestGrpcReConnection(t *testing.T) {
 
 	err = c.Close()
 	assert.NoError(t, err)
-
 }
