@@ -3,29 +3,29 @@ image: offscale/golang-builder-alpine3.8
 stages:
   - test
   - build
-  - deploy
   
+before_script:
+    - mkdir -p /go/src/github.com/SamuelMarks/
+    - cp -r /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
+    - ls /go/src/github.com/SamuelMarks/
+    - ls /go/src/github.com/SamuelMarks/lachesis
+    - go get -v github.com/SamuelMarks/batch-ethkey
+    - go get -u -d github.com/magefile/mage
+    - cd /go/src/github.com/SamuelMarks/lachesis
+    - rm -rf /go/src/github.com/andrecronje
+    - ln -s /go/src/github.com/SamuelMarks /go/src/github.com/andrecronje
+    - ls -a /go/src/github.com
+    - glide install
+    
 test code:
   stage: test
   allow_failure: true
   script:
-    - mkdir -p /go/src/github.com/SamuelMarks
-    - mv /mirrors/lachesis/ /go/src/github.com/SamuelMarks/
-    - go get -v github.com/SamuelMarks/batch-ethkey
-    - go get -u -d github.com/magefile/mage 
-    - glide i
-
-build lachesis:
+    - cd /go/src/github.com/SamuelMarks/lachesis
+    - make test
+    
+build code:
   stage: build
   script:
-    - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis
-    - go get -v github.com/SamuelMarks/batch-ethkey && go get -u -d github.com/magefile/mage && glide i
-    - cd scripts
+    - cd /go/src/github.com/SamuelMarks/lachesis/scripts
     - ./multi_build.bash
-
-deploy lachesis:
-  stage: deploy
-  script: 
-    - cd /home/gitlab-runner/go/src/github.com/SamuelMarks/lachesis/scripts
-    - rm -rf lachesis_data_dir
-    - ./multi.bash
