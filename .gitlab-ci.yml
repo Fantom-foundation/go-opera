@@ -2,11 +2,9 @@ image: offscale/golang-builder-alpine3.8
 
 stages:
   - test
+  - build
   
-test code:
-  stage: test
-  allow_failure: true
-  script:
+before_script:
     - mkdir -p /go/src/github.com/SamuelMarks/
     - cp -r /mirrors/lachesis /go/src/github.com/SamuelMarks/lachesis
     - ls /go/src/github.com/SamuelMarks/
@@ -16,4 +14,16 @@ test code:
     - cd /go/src/github.com/SamuelMarks/lachesis
     - ln -s /go/src/github.com/SamuelMarks /go/src/github.com/andrecronje
     - glide install
+    
+test code:
+  stage: test
+  allow_failure: true
+  script:
+    - cd /go/src/github.com/SamuelMarks/lachesis
     - make test
+    
+build code:
+  stage: build
+  script:
+    - cd /go/src/github.com/SamuelMarks/lachesis/scripts
+    - ./multi_build.bash
