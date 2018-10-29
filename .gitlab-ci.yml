@@ -13,6 +13,7 @@ before_script:
     - go get -u -d github.com/magefile/mage
     - cd /go/src/github.com/SamuelMarks/lachesis
     - ln -s /go/src/github.com/SamuelMarks /go/src/github.com/andrecronje
+    - ls -s /go/src/github.com
     - glide install
     
 test code:
