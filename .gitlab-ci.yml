@@ -27,5 +27,7 @@ test code:
 build code:
   stage: build
   script:
-    - cd /go/src/github.com/SamuelMarks/lachesis/scripts
+    - cd /go/src/github.com/SamuelMarks/lachesis
+    - glide update
+    - cd scripts
     - ./multi_build.bash
