@@ -2,7 +2,9 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"io"
+	"sync"
 
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
@@ -13,41 +15,45 @@ import (
 	"github.com/andrecronje/lachesis/src/proxy/proto"
 )
 
+var (
+	ErrDisconnected = errors.New("client disconnected")
+	ErrTryAgain     = errors.New("try again after reconnect")
+)
+
 type GrpcLachesisProxy struct {
 	logger    *logrus.Logger
 	commitCh  chan proto.Commit
 	queryCh   chan proto.SnapshotRequest
 	restoreCh chan proto.RestoreRequest
 
-	conn   *grpc.ClientConn
-	client internal.LachesisNodeClient
-	stream internal.LachesisNode_ConnectClient
+	addr             string
+	shutdown         chan struct{}
+	reconnect_ticket chan struct{}
+	reconnect_wg     *sync.WaitGroup
+	conn             *grpc.ClientConn
+	client           internal.LachesisNodeClient
+	stream           internal.LachesisNode_ConnectClient
 }
 
 func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (*GrpcLachesisProxy, error) {
-	var err error
-
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
 	}
 
 	p := &GrpcLachesisProxy{
-		logger:    logger,
-		commitCh:  make(chan proto.Commit),
-		queryCh:   make(chan proto.SnapshotRequest),
-		restoreCh: make(chan proto.RestoreRequest),
+		addr:             addr,
+		shutdown:         make(chan struct{}),
+		reconnect_ticket: make(chan struct{}, 1),
+		reconnect_wg:     &sync.WaitGroup{},
+		logger:           logger,
+		commitCh:         make(chan proto.Commit),
+		queryCh:          make(chan proto.SnapshotRequest),
+		restoreCh:        make(chan proto.RestoreRequest),
 	}
 
-	// TODO: implement reconnect here
-	p.conn, err = grpc.Dial(addr, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-
-	p.client = internal.NewLachesisNodeClient(p.conn)
-
-	p.stream, err = p.client.Connect(context.TODO())
+	p.reconnect_ticket <- struct{}{}
+	err := p.reConnect()
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +64,11 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (*GrpcLachesisProx
 }
 
 func (p *GrpcLachesisProxy) Close() error {
-	_ = p.stream.CloseSend()
-	// TODO: log error
-	err := p.conn.Close()
+	close(p.shutdown)
 	close(p.commitCh)
 	close(p.queryCh)
 	close(p.restoreCh)
-	return err
+	return nil
 }
 
 /*
@@ -95,13 +99,79 @@ func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
 			},
 		},
 	}
-	err := p.send2server(r)
+	err := p.sendToServer(r)
 	return err
 }
 
 /*
- * staff:
+ * network:
  */
+
+func (p *GrpcLachesisProxy) sendToServer(data *internal.IN) (err error) {
+	for {
+		err = p.stream.Send(data)
+		if err == nil {
+			return
+		}
+		p.logger.Warnf("send to server err: %s", err)
+
+		err = p.reConnect()
+		if err == ErrDisconnected {
+			_ = p.stream.CloseSend()
+			return
+		}
+	}
+}
+
+func (p *GrpcLachesisProxy) recvFromServer() (data *internal.OUT, err error) {
+	for {
+		data, err = p.stream.Recv()
+		if err == nil {
+			return
+		}
+		p.logger.Warnf("recv from server err: %s", err)
+
+		err = p.reConnect()
+		if err == ErrDisconnected {
+			return
+		}
+	}
+}
+
+func (p *GrpcLachesisProxy) reConnect() (err error) {
+	select {
+	case <-p.reconnect_ticket:
+		p.reconnect_wg.Add(1)
+		defer func() {
+			p.reconnect_wg.Done()
+			p.reconnect_ticket <- struct{}{}
+		}()
+	default:
+		p.reconnect_wg.Wait()
+		return ErrTryAgain
+	}
+
+	select {
+	case <-p.shutdown:
+		p.conn.Close()
+		return ErrDisconnected
+	default:
+	}
+
+	p.conn, err = grpc.Dial(p.addr, grpc.WithInsecure())
+	if err != nil {
+		p.logger.Warnf("reconnect err: %s", err)
+		return
+	}
+
+	p.client = internal.NewLachesisNodeClient(p.conn)
+
+	p.stream, err = p.client.Connect(context.TODO())
+	if err != nil {
+		return
+	}
+	return
+}
 
 func (p *GrpcLachesisProxy) listen_events() {
 	var (
@@ -110,13 +180,14 @@ func (p *GrpcLachesisProxy) listen_events() {
 		uuid  xid.ID
 	)
 	for {
-		event, err = p.stream.Recv()
-		// p.logger.Debugf("got event from server: %+v (%s)", event, err)
+		event, err = p.recvFromServer()
 		if err != nil {
 			if err != io.EOF {
-				// TODO: log
+				p.logger.Debugf("recv err: %s", err)
+			} else {
+				p.logger.Debugf("recv EOF: %s", err)
 			}
-			// TODO: reconnect
+
 			break
 		}
 
@@ -160,6 +231,10 @@ func (p *GrpcLachesisProxy) listen_events() {
 	}
 }
 
+/*
+ * staff:
+ */
+
 func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitResponse {
 	respCh := make(chan proto.CommitResponse)
 	go func() {
@@ -168,7 +243,7 @@ func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitRe
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
 		}
-		p.send2server(answer)
+		p.sendToServer(answer)
 	}()
 	return respCh
 }
@@ -181,7 +256,7 @@ func (p *GrpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.Snapsh
 		if ok {
 			answer = newAnswer(uuid[:], resp.Snapshot, resp.Error)
 		}
-		p.send2server(answer)
+		p.sendToServer(answer)
 	}()
 	return respCh
 }
@@ -194,13 +269,9 @@ func (p *GrpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.Restore
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
 		}
-		p.send2server(answer)
+		p.sendToServer(answer)
 	}()
 	return respCh
-}
-
-func (p *GrpcLachesisProxy) send2server(data *internal.IN) error {
-	return p.stream.Send(data)
 }
 
 func newAnswer(uuid []byte, data []byte, err error) *internal.IN {

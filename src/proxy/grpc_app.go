@@ -71,7 +71,7 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 }
 
 func (p *GrpcAppProxy) Close() error {
-	p.server.GracefulStop()
+	p.server.Stop()
 	p.listener.Close()
 	close(p.event4server)
 	close(p.event4clients)
