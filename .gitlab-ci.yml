@@ -10,7 +10,7 @@ before_script:
     - apk add jq util-linux
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
-    - mkdir -p /go/src/github.com/andrecronje/
+    - mkdir -p /go/src/github.com/andrecronje/lachesis
     - cp -r /fantom/lachesis /go/src/github.com/andrecronje/lachesis
     - cd /go/src/github.com/SamuelMarks/lachesis
     - glide install
