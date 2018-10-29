@@ -12,7 +12,7 @@ before_script:
     - git clone https://github.com/andrecronje/lachesis.git
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
-    - cd /go/src/github.com/SamuelMarks/lachesis
+    - cd /go/src/github.com/andrecronje/lachesis
     - glide install
     
 test code:
@@ -26,6 +26,5 @@ build code:
   stage: build
   script:
     - cd /go/src/github.com/SamuelMarks/lachesis
-    - glide update
     - cd scripts
     - ./multi_build.bash
