@@ -38,7 +38,7 @@ func DefaultConfig() *Config {
 	lachesis_log.NewLocal(logger, logger.Level.String())
 
 	return &Config{
-		HeartbeatTimeout: 1000 * time.Millisecond,
+		HeartbeatTimeout: 10 * time.Millisecond,
 		TCPTimeout:       180 * 1000 * time.Millisecond,
 		CacheSize:        500,
 		SyncLimit:        100,

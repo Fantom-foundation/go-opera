@@ -13,14 +13,16 @@ type Infos struct {
 }
 
 type Graph struct {
-	Node *Node
+	*Node
 }
 
 func (g *Graph) GetBlocks() []poset.Block {
 	res := []poset.Block{}
  	blockIdx := 0
- 	for blockIdx <= g.Node.core.poset.Store.LastBlockIndex() {
-		r, err := g.Node.core.poset.Store.GetBlock(blockIdx)
+	store := g.Node.core.poset.Store
+
+ 	for blockIdx <= store.LastBlockIndex() {
+		r, err := store.GetBlock(blockIdx)
  		if err != nil {
 			break
 		}
@@ -33,10 +35,21 @@ func (g *Graph) GetBlocks() []poset.Block {
 func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	res := make(map[string]map[string]poset.Event)
 
-	for _, p := range g.Node.core.participants.ByPubKey {
-		root, _ := g.Node.core.poset.Store.GetRoot(p.PubKeyHex)
+	store := g.Node.core.poset.Store
+	peers := g.Node.core.poset.Participants
 
-		evs, _ := g.Node.core.poset.Store.ParticipantEvents(p.PubKeyHex, -1)
+	for _, p := range peers.ByPubKey {
+		root, err := store.GetRoot(p.PubKeyHex)
+
+		if err != nil {
+			panic(err)
+		}
+
+		evs, err := store.ParticipantEvents(p.PubKeyHex, root.SelfParent.Index)
+
+		if err != nil {
+			panic(err)
+		}
 
 		res[p.PubKeyHex] = make(map[string]poset.Event)
 
@@ -52,7 +65,11 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
 
 		for _, e := range evs {
-			event, _ := g.Node.core.GetEvent(e)
+			event, err := store.GetEvent(e)
+
+			if err != nil {
+				panic(err)
+			}
 
 			hash := event.Hex()
 
@@ -68,8 +85,10 @@ func (g *Graph) GetRounds() []poset.RoundInfo {
 
 	round := 0
 
-	for round <= g.Node.core.poset.Store.LastRound() {
-		r, err := g.Node.core.poset.Store.GetRound(round)
+	store := g.Node.core.poset.Store
+
+	for round <= store.LastRound() {
+		r, err := store.GetRound(round)
 
 		if err != nil || !r.IsQueued() {
 			break

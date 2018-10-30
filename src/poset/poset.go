@@ -1111,12 +1111,14 @@ func (p *Poset) ProcessDecidedRounds() error {
 			if err != nil {
 				return err
 			}
-			if err := p.Store.SetBlock(block); err != nil {
-				return err
-			}
+			if len(block.Transactions()) > 0 {
+				if err := p.Store.SetBlock(block); err != nil {
+					return err
+				}
 
-			if p.commitCh != nil {
-				p.commitCh <- block
+				if p.commitCh != nil {
+					p.commitCh <- block
+				}
 			}
 
 		} else {
