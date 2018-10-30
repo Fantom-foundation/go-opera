@@ -1,6 +1,10 @@
 image: offscale/golang-builder-alpine3.8
 
+variables:
+  SONAR_SCANNER_VERSION: "sonar-scanner-cli-3.2.0.1227-linux"
+
 stages:
+  - sonar
   - test
   - build
   - deploy
@@ -15,7 +19,14 @@ before_script:
     # cp -r /fantom/lachesis /go/src/github.com/andrecronje/lachesis
     - cd /go/src/github.com/andrecronje/lachesis
     - glide install
-    
+
+sonar scan:
+  stage: sonar
+  image: gitlab.fantom.technology:4567/fantom/lachesis/sonar_scanner:latest
+  allow_failure: true
+  script:
+    - export PATH=$PATH:/root/sonar-scanner/bin; sonar-scanner
+
 test code:
   stage: test
   allow_failure: true
