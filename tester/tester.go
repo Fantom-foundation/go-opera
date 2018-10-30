@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"time"
 
 	_ "os"
 	_ "sync"
 
 	"github.com/andrecronje/lachesis/src/peers"
-	"github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
+	"github.com/andrecronje/lachesis/src/proxy"
 )
 
 func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, serviceAddress string) {
@@ -35,7 +34,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, servi
 
 func transact(target peers.Peer, nodeId int, proxyAddress string) (string, error) {
 	addr := fmt.Sprintf("%s:%d", strings.Split(target.NetAddr, ":")[0], 9000)
-	proxy, err := lachesis.NewWebsocketLachesisProxy(addr, nil, 10*time.Second, nil)
+	proxy, err := proxy.NewGrpcLachesisProxy(addr, nil)
 	if err != nil {
 		return "", err
 	}

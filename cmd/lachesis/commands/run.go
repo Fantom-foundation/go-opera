@@ -6,7 +6,7 @@ import (
 	"github.com/andrecronje/lachesis/src/lachesis"
 	"github.com/andrecronje/lachesis/src/log"
 	"github.com/andrecronje/lachesis/src/dummy"
-	aproxy "github.com/andrecronje/lachesis/src/proxy/socket/app"
+	aproxy "github.com/andrecronje/lachesis/src/proxy"
 	"github.com/andrecronje/lachesis/tester"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -53,7 +53,7 @@ func runSingleLachesis(config *CLIConfig) error {
 
 
 	if !config.Standalone  {
-		p, err := aproxy.NewWebsocketAppProxy(
+		p, err := aproxy.NewGrpcAppProxy(
 			config.ProxyAddr,
 			config.Lachesis.NodeConfig.HeartbeatTimeout,
 			config.Lachesis.Logger,
