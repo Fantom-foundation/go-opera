@@ -1,5 +1,5 @@
-hash: 76fadcc1397965bb6b622ad79bf56d17147ffa9efd1cec22574285a0c11042c5
-updated: 2018-10-24T09:34:08.5474239+02:00
+hash: 84a063728eafb3f9d7113f255ebd87634d162294c5501124f542a6512c3041ec
+updated: 2018-10-26T21:38:07.498538307+10:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -27,6 +27,10 @@ imports:
   version: ddf22928ea3c56eb4292a0adbbf5001b1e8e7d0d
   subpackages:
   - proto
+  - ptypes
+  - ptypes/any
+  - ptypes/duration
+  - ptypes/timestamp
 - name: github.com/gorilla/websocket
   version: 66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d
 - name: github.com/hashicorp/hcl
@@ -60,6 +64,8 @@ imports:
   version: 645ef00459ed84a119197bfb8d8205042c6df63d
 - name: github.com/rifflock/lfshook
   version: b9218ef580f59a2e72dad1aa33d660150445d05a
+- name: github.com/rs/xid
+  version: 15d26544def341f036c5f8dca987a4cbe575032c
 - name: github.com/satori/go.uuid
   version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
@@ -78,6 +84,10 @@ imports:
   version: 298182f68c66c05229eb03ac171abe6e309ee79a
 - name: github.com/spf13/viper
   version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
+- name: github.com/stretchr/testify
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  subpackages:
+  - assert
 - name: github.com/ugorji/go
   version: b4c50a2b199d93b13dc15e78929cfb23bfdf21ab
   subpackages:
@@ -92,6 +102,10 @@ imports:
   version: 49bb7cea24b1df9410e1712aa6433dae904ff66a
   subpackages:
   - context
+  - http/httpguts
+  - http2
+  - http2/hpack
+  - idna
   - internal/socks
   - internal/timeseries
   - proxy
@@ -105,8 +119,42 @@ imports:
 - name: golang.org/x/text
   version: 4d1c5fb19474adfe9562c9847ba425e7da817e81
   subpackages:
+  - secure/bidirule
   - transform
+  - unicode/bidi
   - unicode/norm
+- name: google.golang.org/genproto
+  version: 94acd270e44e65579b9ee3cdab25034d33fed608
+  subpackages:
+  - googleapis/rpc/status
+- name: google.golang.org/grpc
+  version: 2e463a05d100327ca47ac218281906921038fd95
+  subpackages:
+  - balancer
+  - balancer/base
+  - balancer/roundrobin
+  - codes
+  - connectivity
+  - credentials
+  - encoding
+  - encoding/proto
+  - grpclog
+  - internal
+  - internal/backoff
+  - internal/channelz
+  - internal/envconfig
+  - internal/grpcrand
+  - internal/transport
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - resolver
+  - resolver/dns
+  - resolver/passthrough
+  - stats
+  - status
+  - tap
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports: []
