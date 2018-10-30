@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	timeout    = 4 * time.Second
+	timeout    = 2 * time.Second
 	errTimeout = "time is over"
 )
 
@@ -36,7 +36,7 @@ func TestGrpcCalls(t *testing.T) {
 		select {
 		case tx := <-s.SubmitCh():
 			assert.Equal(gold, tx)
-		case <-time.After(2 * timeout):
+		case <-time.After(timeout):
 			assert.Fail(errTimeout)
 		}
 	})
@@ -54,7 +54,7 @@ func TestGrpcCalls(t *testing.T) {
 					StateHash: gold,
 					Error:     nil,
 				}
-			case <-time.After(2 * timeout):
+			case <-time.After(timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -77,7 +77,7 @@ func TestGrpcCalls(t *testing.T) {
 					Snapshot: gold,
 					Error:    nil,
 				}
-			case <-time.After(2 * timeout):
+			case <-time.After(timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -99,7 +99,7 @@ func TestGrpcCalls(t *testing.T) {
 					StateHash: gold,
 					Error:     nil,
 				}
-			case <-time.After(2 * timeout):
+			case <-time.After(timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -140,7 +140,7 @@ func TestGrpcReConnection(t *testing.T) {
 		select {
 		case tx := <-s.SubmitCh():
 			assert.Equal(gold, tx)
-		case <-time.After(2 * timeout):
+		case <-time.After(timeout):
 			assert.Fail(errTimeout)
 		}
 

@@ -140,7 +140,7 @@ func (p *GrpcAppProxy) send_events4clients() {
 }
 
 /*
- * inmem interface:
+ * inmem interface: AppProxy implementation
  */
 
 // SubmitCh implements AppProxy interface method

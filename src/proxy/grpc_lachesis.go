@@ -71,7 +71,7 @@ func (p *GrpcLachesisProxy) Close() error {
 }
 
 /*
- * inmem interface:
+ * inmem interface: LachesisProxy implementation
  */
 
 // CommitCh implements LachesisProxy interface method

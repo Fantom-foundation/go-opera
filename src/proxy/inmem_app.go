@@ -28,7 +28,7 @@ func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProx
 }
 
 /*
- * AppProxy interface implementation
+ * inmem interface: AppProxy implementation
  */
 
 // SubmitCh implements AppProxy interface method
@@ -70,7 +70,7 @@ func (p *InmemAppProxy) Restore(snapshot []byte) error {
 }
 
 /*
- * staff
+ * staff:
  */
 
 // SubmitTx is called by the App to submit a transaction to Lachesis
