@@ -25,6 +25,8 @@ sonar scan:
   image: gitlab.fantom.technology:4567/fantom/lachesis/sonar_scanner:latest
   allow_failure: true
   script:
+    - cat /go/src/github.com/andrecronje/lachesis/sonar-project.properties
+    - cat /root/sonar-scanner/conf/sonar-scanner.properties
     - export PATH=$PATH:/root/sonar-scanner/bin; sonar-scanner
 
 test code:
