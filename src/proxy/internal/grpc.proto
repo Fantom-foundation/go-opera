@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package internal;
+
+service LachesisNode {
+    rpc Connect(stream ToServer) returns (stream ToClient) {}
+}
+
+
+message ToServer {
+
+    message Tx {
+        bytes data = 1;
+    }
+
+    message Answer {
+        bytes uid = 1;
+        oneof payload {
+            bytes data = 2;
+            string error = 3;
+        }
+    }
+
+    oneof event {
+        Tx tx = 1;
+        Answer answer = 2;
+    }
+}
+
+
+message ToClient {
+
+    message Block {
+        bytes uid = 1;
+        bytes data = 2;
+    }
+
+    message Query {
+        bytes uid = 1;
+        int64 index = 2;
+    }
+
+    message Restore {
+        bytes uid = 1;
+        bytes data = 2;
+    }
+
+    oneof event {
+        Block block = 1;
+        Query query = 2;
+        Restore restore = 3;
+    }
+}
