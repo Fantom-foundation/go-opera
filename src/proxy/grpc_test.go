@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/proxy/proto"
 )
@@ -17,11 +18,12 @@ var (
 
 func TestGrpcCalls(t *testing.T) {
 	addr := "127.0.0.1:9993"
+	logger := common.NewTestLogger(t)
 
-	s, err := NewGrpcAppProxy(addr, timeout, nil)
+	s, err := NewGrpcAppProxy(addr, timeout, logger)
 	assert.NoError(t, err)
 
-	c, err := NewGrpcLachesisProxy(addr, nil)
+	c, err := NewGrpcLachesisProxy(addr, logger)
 	assert.NoError(t, err)
 
 	t.Run("#1 Send tx", func(t *testing.T) {
@@ -116,15 +118,16 @@ func TestGrpcCalls(t *testing.T) {
 
 func TestGrpcReConnection(t *testing.T) {
 	addr := "127.0.0.1:9994"
+	logger := common.NewTestLogger(t)
 
-	c, err := NewGrpcLachesisProxy(addr, nil)
+	c, err := NewGrpcLachesisProxy(addr, logger)
 	assert.Nil(t, c)
 	assert.Error(t, err)
 
-	s, err := NewGrpcAppProxy(addr, timeout, nil)
+	s, err := NewGrpcAppProxy(addr, timeout, logger)
 	assert.NoError(t, err)
 
-	c, err = NewGrpcLachesisProxy(addr, nil)
+	c, err = NewGrpcLachesisProxy(addr, logger)
 	assert.NoError(t, err)
 
 	checkConnAndStopServer := func(t *testing.T) {
@@ -147,7 +150,7 @@ func TestGrpcReConnection(t *testing.T) {
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
 
-	s, err = NewGrpcAppProxy(addr, timeout/2, nil)
+	s, err = NewGrpcAppProxy(addr, timeout/2, logger)
 	assert.NoError(t, err)
 
 	t.Run("#2 Send tx after reconnection", checkConnAndStopServer)
