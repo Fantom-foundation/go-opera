@@ -7,7 +7,7 @@ type MessageListener interface {
 }
 
 // ClientSocket represents a client socket connection
-type ClientSocket interface {s
+type ClientSocket interface {
 	Connect(addr string, path string) error
 	AddMessageListener(listener MessageListener)
 	SendMessage(msg []byte) error
