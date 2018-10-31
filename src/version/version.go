@@ -4,7 +4,7 @@ import "strings"
 
 const Maj = "0"
 const Min = "4"
-const Fix = "0"
+const Fix = "1"
 
 func dashPrependAndSliceOn(condition bool, s string) string {
 	if !condition {
