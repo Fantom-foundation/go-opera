@@ -9,6 +9,7 @@ package proxy
 import (
 	"errors"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -63,8 +64,11 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 	if err != nil {
 		return nil, err
 	}
-	p.server = grpc.NewServer()
+	p.server = grpc.NewServer(
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+		grpc.MaxSendMsgSize(math.MaxInt32))
 	internal.RegisterLachesisNodeServer(p.server, p)
+
 	go p.server.Serve(p.listener)
 
 	go p.send_events4clients()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -116,7 +117,6 @@ func (p *GrpcLachesisProxy) sendToServer(data *internal.ToServer) (err error) {
 	for {
 		err = p.streamSend(data)
 		if err == nil {
-			p.logger.Debugf("send to server: %v", data)
 			return
 		}
 		p.logger.Warnf("send to server err: %s", err)
@@ -132,7 +132,6 @@ func (p *GrpcLachesisProxy) recvFromServer() (data *internal.ToClient, err error
 	for {
 		data, err = p.streamRecv()
 		if err == nil {
-			p.logger.Debugf("recv from server: %v", data)
 			return
 		}
 		p.logger.Warnf("recv from server err: %s", err)
@@ -172,7 +171,10 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 	}
 
 	var stream internal.LachesisNode_ConnectClient
-	stream, err = p.client.Connect(context.TODO())
+	stream, err = p.client.Connect(
+		context.TODO(),
+		grpc.MaxCallRecvMsgSize(math.MaxInt32),
+		grpc.MaxCallSendMsgSize(math.MaxInt32))
 	if err != nil {
 		p.logger.Warnf("rpc Connect() err: %s", err)
 		p.reconnect_ticket <- connect_time

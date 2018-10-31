@@ -47,17 +47,19 @@ func TestInmemAppCalls(t *testing.T) {
 		assert := assert.New(t)
 
 		stateHash, err := proxy.CommitBlock(block)
-		assert.NoError(err)
-		assert.EqualValues(goldStateHash(), stateHash)
-		assert.EqualValues(transactions, proxy.transactions)
+		if assert.NoError(err) {
+			assert.EqualValues(goldStateHash(), stateHash)
+			assert.EqualValues(transactions, proxy.transactions)
+		}
 	})
 
 	t.Run("#3 Get snapshot", func(t *testing.T) {
 		assert := assert.New(t)
 
 		snapshot, err := proxy.GetSnapshot(block.Index())
-		assert.NoError(err)
-		assert.Equal(goldSnapshot(), snapshot)
+		if assert.NoError(err) {
+			assert.Equal(goldSnapshot(), snapshot)
+		}
 	})
 
 	t.Run("#4 Restore snapshot", func(t *testing.T) {
