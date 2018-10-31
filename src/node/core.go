@@ -252,6 +252,11 @@ func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
 	// and the other doesn't
 	for id, ct := range known {
 		peer := c.participants.ById[id]
+		if peer == nil {
+			// unknown peer detected.
+			// TODO: we should handle this nicely
+			continue
+		}
 		// get participant Events with index > ct
 		participantEvents, err := c.poset.Store.ParticipantEvents(peer.PubKeyHex, ct)
 		if err != nil {

@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//InmemProxy implements the AppProxy interface natively
+// InmemProxy implements the AppProxy interface natively
 type InmemProxy struct {
   handler  proxy.ProxyHandler
 	submitCh chan []byte

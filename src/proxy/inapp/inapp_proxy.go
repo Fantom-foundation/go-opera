@@ -6,7 +6,7 @@ package inapp
 	"github.com/andrecronje/lachesis/src/proxy/proto"
 	"github.com/sirupsen/logrus"
 )
- //InmemProxy serves as an Inapp proxy for those whom
+// InmemProxy serves as an Inapp proxy for those 
 type InappProxy struct {
 	submitCh              chan []byte
 	commitCh              chan proto.Commit
@@ -17,7 +17,7 @@ type InappProxy struct {
 	restoreCh             chan proto.RestoreRequest
 	timeout               time.Duration
 }
- // NewInappProxy instantiate an InappProxy.
+// NewInappProxy instantiate an InappProxy.
 // If no logger, a new one is created
 func NewInappProxy(timeout time.Duration, logger *logrus.Logger) *InappProxy {
 	if logger == nil {
@@ -35,13 +35,12 @@ func NewInappProxy(timeout time.Duration, logger *logrus.Logger) *InappProxy {
 		timeout:               timeout,
 	}
 }
- //------------------------------------------------------------------------------
-//Implement AppProxy Interface
- // SubmitCh returns the channel of raw transactions
+// Implement AppProxy Interface
+// SubmitCh returns the channel of raw transactions
 func (p *InappProxy) SubmitCh() chan []byte {
 	return p.submitCh
 }
- // CommitBlock send the block to the user and wait for an answer.
+// CommitBlock send the block to the user and wait for an answer.
 // It update the state hash accordingly
 func (p *InappProxy) CommitBlock(block poset.Block) (res []byte, err error) {
 	respCh := make(chan proto.CommitResponse)
@@ -67,7 +66,7 @@ func (p *InappProxy) CommitBlock(block poset.Block) (res []byte, err error) {
 	}).Debug("InmemProxy CommitBlock")
  	return
 }
- //TODO - Implement these two functions
+// TODO - Implement these two functions
 func (p *InappProxy) GetSnapshot(blockIndex int) (res []byte, err error) {
 	respCh := make(chan proto.SnapshotResponse)
  	p.snapshotRequestCh <- proto.SnapshotRequest{
@@ -91,7 +90,7 @@ func (p *InappProxy) GetSnapshot(blockIndex int) (res []byte, err error) {
 	}).Debug("InmemProxy.GetSnapshot")
  	return
 }
- func (p *InappProxy) Restore(snapshot []byte) (err error) {
+func (p *InappProxy) Restore(snapshot []byte) (err error) {
 	// Send the Request over
 	respCh := make(chan proto.RestoreResponse)
  	p.restoreCh <- proto.RestoreRequest{
@@ -115,22 +114,22 @@ func (p *InappProxy) GetSnapshot(blockIndex int) (res []byte, err error) {
 	}).Debug("LachesisProxyServer.Restore")
  	return
 }
- //------------------------------------------------------------------------------
-//Implement LachesisProxy Interface
- // SubmitTx adds a transaction to be validated
+
+// Implement the LachesisProxy Interface
+// SubmitTx adds a transaction to be validated
 func (p *InappProxy) SubmitTx(tx []byte) error {
 	p.submitCh <- tx
  	return nil
 }
- // CommitCh returns the channel of blocks comming from the network
+// CommitCh returns the channel of blocks comming from the network
 func (p *InappProxy) CommitCh() chan proto.Commit {
 	return p.commitCh
 }
- // SnapshotRequestCh returns the channel of incoming SnapshotRequest
+// SnapshotRequestCh returns the channel of incoming SnapshotRequest
 func (p *InappProxy) SnapshotRequestCh() chan proto.SnapshotRequest {
 	return p.snapshotRequestCh
 }
- // RestoreCh returns the channel of incoming RestoreRequest
+// RestoreCh returns the channel of incoming RestoreRequest
 func (p *InappProxy) RestoreCh() chan proto.RestoreRequest {
 	return p.restoreCh
 }

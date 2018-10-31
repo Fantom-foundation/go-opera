@@ -1,39 +1,50 @@
-# The GitLab runners use Docker as their executor, so that each build happens in
-# an isolated environment. Because this repository also builds a docker container
-# we need to do docker-in-docker. The newer official docker images support this.
-image: docker:latest
+image: offscale/golang-builder-alpine3.8
 
-# Docker-in-docker is enabled as a service, which we do here. You can enable
-# other services such as postgres, redis, or any other docker image.
-services:
-  - docker:dind
+variables:
+  SONAR_SCANNER_VERSION: "sonar-scanner-cli-3.2.0.1227-linux"
 
-# This is executed before each stage. For now, we'll show the output of `docker info`
-# for debugging purposes.
-before_script:
-  - docker info
-
-# These are the default stages, but more can be added, or some can be removed
 stages:
+  - sonar
   - test
   - build
   - deploy
+  
+before_script:
+    - apk update
+    - apk add jq util-linux
+    - go get -v github.com/SamuelMarks/batch-ethkey
+    - go get -u -d github.com/magefile/mage
+    - mkdir -p /go/src/github.com/andrecronje
+    - ln -s "$CI_PROJECT_DIR" /go/src/github.com/andrecronje/lachesis
+    - cd /go/src/github.com/andrecronje/lachesis
+    - glide install
 
-# Jobs Section
-# Below are jobs. Jobs are executed in parallel during the matching stage.
+sonar scan:
+  stage: sonar
+  image: gitlab.fantom.technology:4567/fantom/lachesis/sonar_scanner:latest
+  allow_failure: true
+  script:
+    - cat /go/src/github.com/andrecronje/lachesis/sonar-project.properties
+    - cat /root/sonar-scanner/conf/sonar-scanner.properties
+    - export PATH=$PATH:/root/sonar-scanner/bin; sonar-scanner
 
-# Note that the script is just bash, so if you use a Makefile, you could run
-# `make test`, etc. Also note that you can
 test code:
   stage: test
+  allow_failure: true
   script:
-    - echo "Placeholder for test command"
-    - echo "No, really, just a placeholder"
-
-build lachesis:
+  - cd /go/src/github.com/andrecronje/lachesis
+  - go test ./src/...
+    
+build code:
   stage: build
-  script: ./scripts/multi_build.bash
+  script:
+  - cd /go/src/github.com/andrecronje/lachesis
+  - scripts/multi_build.bash
 
-deploy lachesis:
+deploy code:
   stage: deploy
-  script: timeout 5m logshold=-1,-1,-1,4,0,0 ./scripts/multi_run.bash
+  script:
+  - cd /go/src/github.com/andrecronje/lachesis
+  - scripts/multi_build.bash
+  - mv lachesis_linux scripts/
+  - scripts/multi_run.bash
