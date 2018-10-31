@@ -11,12 +11,12 @@ import (
 	"github.com/andrecronje/lachesis/src/poset"
 )
 
-var (
-	timeout    = 200 * time.Millisecond
-	errTimeout = "time is over"
-)
-
 func TestInmemAppCalls(t *testing.T) {
+	const (
+		timeout    = 1 * time.Second
+		errTimeout = "time is over"
+	)
+
 	proxy := NewTestProxy(t)
 
 	transactions := [][]byte{

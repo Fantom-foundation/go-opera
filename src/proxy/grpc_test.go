@@ -11,13 +11,12 @@ import (
 	"github.com/andrecronje/lachesis/src/proxy/proto"
 )
 
-var (
-	timeout    = 2 * time.Second
-	errTimeout = "time is over"
-)
-
 func TestGrpcCalls(t *testing.T) {
-	addr := "127.0.0.1:9993"
+	const (
+		timeout    = 1 * time.Second
+		errTimeout = "time is over"
+		addr       = "127.0.0.1:9993"
+	)
 	logger := common.NewTestLogger(t)
 
 	s, err := NewGrpcAppProxy(addr, timeout, logger)
@@ -117,17 +116,18 @@ func TestGrpcCalls(t *testing.T) {
 }
 
 func TestGrpcReConnection(t *testing.T) {
-	addr := "127.0.0.1:9994"
+	const (
+		timeout    = 1 * time.Second
+		errTimeout = "time is over"
+		addr       = "127.0.0.1:9994"
+	)
 	logger := common.NewTestLogger(t)
 
 	c, err := NewGrpcLachesisProxy(addr, logger)
-	assert.Nil(t, c)
-	assert.Error(t, err)
-
-	s, err := NewGrpcAppProxy(addr, timeout, logger)
+	assert.NotNil(t, c)
 	assert.NoError(t, err)
 
-	c, err = NewGrpcLachesisProxy(addr, logger)
+	s, err := NewGrpcAppProxy(addr, timeout, logger)
 	assert.NoError(t, err)
 
 	checkConnAndStopServer := func(t *testing.T) {
@@ -152,6 +152,8 @@ func TestGrpcReConnection(t *testing.T) {
 
 	s, err = NewGrpcAppProxy(addr, timeout/2, logger)
 	assert.NoError(t, err)
+
+	<-time.After(timeout)
 
 	t.Run("#2 Send tx after reconnection", checkConnAndStopServer)
 
