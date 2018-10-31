@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	ZeroTime        = time.Date(0, time.January, 0, 0, 0, 0, 0, time.Local)
-	ErrConnShutdown = errors.New("client disconnected")
+	ZeroTime         = time.Date(0, time.January, 0, 0, 0, 0, 0, time.Local)
+	ErrNeedReconnect = errors.New("try to reconnect")
+	ErrConnShutdown  = errors.New("client disconnected")
 )
 
 type GrpcLachesisProxy struct {
@@ -27,7 +28,7 @@ type GrpcLachesisProxy struct {
 	queryCh   chan proto.SnapshotRequest
 	restoreCh chan proto.RestoreRequest
 
-	timeout          time.Duration
+	reconn_timeout   time.Duration
 	addr             string
 	shutdown         chan struct{}
 	reconnect_ticket chan time.Time
@@ -44,7 +45,7 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisPr
 	}
 
 	p = &GrpcLachesisProxy{
-		timeout:          2 * time.Second,
+		reconn_timeout:   2 * time.Second,
 		addr:             addr,
 		shutdown:         make(chan struct{}),
 		reconnect_ticket: make(chan time.Time, 1),
@@ -56,7 +57,7 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisPr
 
 	p.conn, err = grpc.Dial(p.addr,
 		grpc.WithInsecure(),
-		grpc.WithBackoffMaxDelay(p.timeout))
+		grpc.WithBackoffMaxDelay(p.reconn_timeout))
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +65,6 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisPr
 	p.client = internal.NewLachesisNodeClient(p.conn)
 
 	p.reconnect_ticket <- time.Now()
-	err = p.reConnect()
-	if err != nil {
-		return nil, err
-	}
 
 	go p.listen_events()
 
@@ -76,9 +73,6 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisPr
 
 func (p *GrpcLachesisProxy) Close() error {
 	close(p.shutdown)
-	close(p.commitCh)
-	close(p.queryCh)
-	close(p.restoreCh)
 	return nil
 }
 
@@ -120,7 +114,7 @@ func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
 
 func (p *GrpcLachesisProxy) sendToServer(data *internal.ToServer) (err error) {
 	for {
-		err = p.getStream().Send(data)
+		err = p.streamSend(data)
 		if err == nil {
 			p.logger.Debugf("send to server: %v", data)
 			return
@@ -136,7 +130,7 @@ func (p *GrpcLachesisProxy) sendToServer(data *internal.ToServer) (err error) {
 
 func (p *GrpcLachesisProxy) recvFromServer() (data *internal.ToClient, err error) {
 	for {
-		data, err = p.getStream().Recv()
+		data, err = p.streamRecv()
 		if err == nil {
 			p.logger.Debugf("recv from server: %v", data)
 			return
@@ -166,8 +160,11 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 
 	select {
 	case <-p.shutdown:
-		p.getStream().CloseSend()
+		p.closeStream()
 		p.conn.Close()
+		close(p.commitCh)
+		close(p.queryCh)
+		close(p.restoreCh)
 		p.reconnect_ticket <- ZeroTime
 		return ErrConnShutdown
 	default:
@@ -312,10 +309,37 @@ func newAnswer(uuid []byte, data []byte, err error) *internal.ToServer {
 	}
 }
 
-func (p *GrpcLachesisProxy) getStream() internal.LachesisNode_ConnectClient {
-	return p.stream.Load().(internal.LachesisNode_ConnectClient)
+func (p *GrpcLachesisProxy) streamSend(data *internal.ToServer) error {
+	v := p.stream.Load()
+	if v == nil {
+		return ErrNeedReconnect
+	}
+	stream, ok := v.(internal.LachesisNode_ConnectClient)
+	if !ok || stream == nil {
+		return ErrNeedReconnect
+	}
+	return stream.Send(data)
+}
+
+func (p *GrpcLachesisProxy) streamRecv() (*internal.ToClient, error) {
+	v := p.stream.Load()
+	if v == nil {
+		return nil, ErrNeedReconnect
+	}
+	stream, ok := v.(internal.LachesisNode_ConnectClient)
+	if !ok || stream == nil {
+		return nil, ErrNeedReconnect
+	}
+	return stream.Recv()
 }
 
 func (p *GrpcLachesisProxy) setStream(stream internal.LachesisNode_ConnectClient) {
 	p.stream.Store(stream)
+}
+
+func (p *GrpcLachesisProxy) closeStream() {
+	stream := p.stream.Load().(internal.LachesisNode_ConnectClient)
+	if stream != nil {
+		stream.CloseSend()
+	}
 }
