@@ -25,6 +25,7 @@ var ErrNoAnswers = errors.New("No answers")
 
 type ClientStream internal.LachesisNode_ConnectServer
 
+//GrpcAppProxy implements the AppProxy interface
 type GrpcAppProxy struct {
 	logger   *logrus.Logger
 	listener net.Listener
@@ -39,6 +40,7 @@ type GrpcAppProxy struct {
 	event4clients chan *internal.ToClient
 }
 
+// NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps
 func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
 	var err error
 
@@ -138,7 +140,7 @@ func (p *GrpcAppProxy) send_events4clients() {
 }
 
 /*
- * inmem interface:
+ * inmem interface: AppProxy implementation
  */
 
 // SubmitCh implements AppProxy interface method

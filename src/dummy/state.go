@@ -3,54 +3,60 @@ package dummy
 import (
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/sirupsen/logrus"
 )
 
 /*
-* The dummy App is used for testing and as an example for building Lachesis
-* applications. Here, we define the dummy's state which doesn't really do
-* anything useful. It saves and logs block transactions. The state hash is
-* computed by cumulatively hashing transactions together as they come in.
-* Snapshots correspond to the state hash resulting from executing a the block's
-* transactions.
+ * The dummy App is used for testing and as an example for building Lachesis
+ * applications. Here, we define the dummy's state which doesn't really do
+ * anything useful. It saves and logs block transactions. The state hash is
+ * computed by cumulatively hashing transactions together as they come in.
+ * Snapshots correspond to the state hash resulting from executing a the block's
+ * transactions.
  */
 
-
+// State implements ProxyHandler
 type State struct {
+	logger       *logrus.Logger
 	committedTxs [][]byte
 	stateHash    []byte
 	snapshots    map[int][]byte
-	logger       *logrus.Logger
 }
 
 func NewState(logger *logrus.Logger) *State {
 	state := &State{
+		logger:       logger,
 		committedTxs: [][]byte{},
 		stateHash:    []byte{},
 		snapshots:    make(map[int][]byte),
-		logger:       logger,
 	}
 	logger.Info("Init Dummy State")
 
 	return state
 }
 
+/*
+ * inmem interface: ProxyHandler implementation
+ */
 
-func (a *State) CommitHandler(block poset.Block) ([]byte, error) {
-	a.logger.WithField("block", block).Debug("CommitBlock")
-	err := a.commit(block)
+func (s *State) CommitHandler(block poset.Block) ([]byte, error) {
+	s.logger.WithField("block", block).Debug("CommitBlock")
+
+	err := s.commit(block)
 	if err != nil {
 		return nil, err
 	}
-	return a.stateHash, nil
+	s.logger.WithField("stateHash", s.stateHash).Debug("CommitBlock Answer")
+	return s.stateHash, nil
 }
 
-func (a *State) SnapshotHandler(blockIndex int) ([]byte, error) {
-	a.logger.WithField("block", blockIndex).Debug("GetSnapshot")
+func (s *State) SnapshotHandler(blockIndex int) ([]byte, error) {
+	s.logger.WithField("block", blockIndex).Debug("GetSnapshot")
 
-	snapshot, ok := a.snapshots[blockIndex]
+	snapshot, ok := s.snapshots[blockIndex]
 	if !ok {
 		return nil, fmt.Errorf("Snapshot %d not found", blockIndex)
 	}
@@ -58,24 +64,29 @@ func (a *State) SnapshotHandler(blockIndex int) ([]byte, error) {
 	return snapshot, nil
 }
 
-func (a *State) RestoreHandler(snapshot []byte) ([]byte, error) {
+func (s *State) RestoreHandler(snapshot []byte) ([]byte, error) {
 	//XXX do something smart here
-	a.stateHash = snapshot
-	return a.stateHash, nil
+	s.stateHash = snapshot
+	return s.stateHash, nil
 }
 
-func (a *State) GetCommittedTransactions() [][]byte {
-	return a.committedTxs
+/*
+ * staff:
+ */
+
+func (s *State) GetCommittedTransactions() [][]byte {
+	return s.committedTxs
 }
 
-func (a *State) commit(block poset.Block) error {
-	a.committedTxs = append(a.committedTxs, block.Transactions()...)
+func (s *State) commit(block poset.Block) error {
+	s.committedTxs = append(s.committedTxs, block.Transactions()...)
 	// log tx and update state hash
-	hash := a.stateHash
+	hash := s.stateHash
 	for _, tx := range block.Transactions() {
-		a.logger.Info(string(tx))
+		s.logger.Info(string(tx))
 		hash = crypto.SimpleHashFromTwoHashes(hash, crypto.SHA256(tx))
 	}
- 	a.snapshots[block.Index()] = hash
- 	return nil
+	s.snapshots[block.Index()] = hash
+	s.stateHash = hash
+	return nil
 }

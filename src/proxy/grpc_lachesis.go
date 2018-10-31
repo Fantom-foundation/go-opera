@@ -34,6 +34,7 @@ type GrpcLachesisProxy struct {
 	stream           atomic.Value
 }
 
+// NewGrpcLachesisProxy instantiates a LachesisProxy-interface connected to remote node
 func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (*GrpcLachesisProxy, error) {
 	if logger == nil {
 		logger = logrus.New()
@@ -70,7 +71,7 @@ func (p *GrpcLachesisProxy) Close() error {
 }
 
 /*
- * inmem interface:
+ * inmem interface: LachesisProxy implementation
  */
 
 // CommitCh implements LachesisProxy interface method
@@ -109,6 +110,7 @@ func (p *GrpcLachesisProxy) sendToServer(data *internal.ToServer) (err error) {
 	for {
 		err = p.getStream().Send(data)
 		if err == nil {
+			p.logger.Debugf("send to server: %v", data)
 			return
 		}
 		p.logger.Warnf("send to server err: %s", err)
@@ -124,6 +126,7 @@ func (p *GrpcLachesisProxy) recvFromServer() (data *internal.ToClient, err error
 	for {
 		data, err = p.getStream().Recv()
 		if err == nil {
+			p.logger.Debugf("recv from server: %v", data)
 			return
 		}
 		p.logger.Warnf("recv from server err: %s", err)
