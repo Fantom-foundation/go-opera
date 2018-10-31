@@ -16,10 +16,14 @@ declare -r node_addr="127.0.0.1"
 
 # Create loopback aliases and cp json.peers per node datadir
 declare -i node_num=0
-for ip in $(jq -rc '.[].NetAddr' "$PEERS_DIR/lachesis_data_dir/peers.json"); do
-    cp "$PEERS_DIR/lachesis_data_dir/peers.json" "$BUILD_DIR/lachesis_data_dir/$node_num/"
 
+declare -r digits="${#n}"
+
+for ip in $(jq -rc '.[].NetAddr' "$PEERS_DIR/lachesis_data_dir/peers.json"); do
     ip="${ip%:*}";
+    printf -v node_num_p "%0${digits}d" "$node_num"
+    cp "$PEERS_DIR/lachesis_data_dir/peers.json" "$BUILD_DIR/lachesis_data_dir/$node_num_p/"
+
     echo "$ip"
     ((node_num++)) || true
     [ "$node_num" -gt "$n" ] && exit 0

@@ -10,11 +10,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+const n uint = 1001
+
 func runLachesis(cmd *cobra.Command, args []string) error {
 
-	var configs [3]*CLIConfig
+	var configs [n]*CLIConfig
 
-	for i := 0; i < 3; i++ {
+	for i := uint(0); i < n; i++ {
 
 		configs[i] = NewDefaultCLIConfig()
 
@@ -30,7 +32,7 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 		configs[i].Lachesis.BindAddr = fmt.Sprintf("127.0.0.1:%d", 12000 + i + 1)
 		configs[i].Lachesis.ServiceAddr = fmt.Sprintf("127.0.0.1:%d", 8000 + i + 1)
 		configs[i].ProxyAddr = fmt.Sprintf("127.0.0.1:%d", 9000 + i + 1)
-		configs[i].Lachesis.DataDir += fmt.Sprintf("/%d", i)
+		configs[i].Lachesis.DataDir += fmt.Sprintf("/%04d", i)
 
 		if i > 0 {
 			go runSingleLachesis(configs[i])
