@@ -27,21 +27,24 @@ type GrpcLachesisProxy struct {
 	queryCh   chan proto.SnapshotRequest
 	restoreCh chan proto.RestoreRequest
 
+	timeout          time.Duration
 	addr             string
 	shutdown         chan struct{}
 	reconnect_ticket chan time.Time
 	conn             *grpc.ClientConn
+	client           internal.LachesisNodeClient
 	stream           atomic.Value
 }
 
 // NewGrpcLachesisProxy instantiates a LachesisProxy-interface connected to remote node
-func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (*GrpcLachesisProxy, error) {
+func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisProxy, err error) {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
 	}
 
-	p := &GrpcLachesisProxy{
+	p = &GrpcLachesisProxy{
+		timeout:          2 * time.Second,
 		addr:             addr,
 		shutdown:         make(chan struct{}),
 		reconnect_ticket: make(chan time.Time, 1),
@@ -51,8 +54,17 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (*GrpcLachesisProx
 		restoreCh:        make(chan proto.RestoreRequest),
 	}
 
+	p.conn, err = grpc.Dial(p.addr,
+		grpc.WithInsecure(),
+		grpc.WithBackoffMaxDelay(p.timeout))
+	if err != nil {
+		return nil, err
+	}
+
+	p.client = internal.NewLachesisNodeClient(p.conn)
+
 	p.reconnect_ticket <- time.Now()
-	err := p.reConnect()
+	err = p.reConnect()
 	if err != nil {
 		return nil, err
 	}
@@ -162,22 +174,15 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 		// see code below
 	}
 
-	p.conn, err = grpc.Dial(p.addr, grpc.WithInsecure())
-	if err != nil {
-		p.logger.Warnf("dial err: %s", err)
-		p.reconnect_ticket <- connect_time
-		return
-	}
-
-	client := internal.NewLachesisNodeClient(p.conn)
-	stream, err := client.Connect(context.TODO())
+	var stream internal.LachesisNode_ConnectClient
+	stream, err = p.client.Connect(context.TODO())
 	if err != nil {
 		p.logger.Warnf("rpc Connect() err: %s", err)
 		p.reconnect_ticket <- connect_time
 		return
 	}
-
 	p.setStream(stream)
+
 	p.reconnect_ticket <- time.Now()
 	return
 }

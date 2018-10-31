@@ -49,11 +49,11 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 		logger.Level = logrus.DebugLevel
 	}
 
-	// TODO: make it buffered?
 	p := &GrpcAppProxy{
-		logger:        logger,
-		timeout:       timeout,
-		new_clients:   make(chan ClientStream, 100),
+		logger:      logger,
+		timeout:     timeout,
+		new_clients: make(chan ClientStream, 100),
+		// TODO: make chans buffered?
 		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
 		event4server:  make(chan []byte),
 		event4clients: make(chan *internal.ToClient),
@@ -96,7 +96,7 @@ func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error
 			if err != io.EOF {
 				p.logger.Debugf("client refused: %s", err)
 			} else {
-				p.logger.Debugf("client disconnected")
+				p.logger.Debugf("client disconnected well")
 			}
 			return err
 		}
