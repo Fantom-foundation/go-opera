@@ -18,7 +18,7 @@ var (
 	defaultPublicKeyFile  = fmt.Sprintf("%s/key.pub", config.Lachesis.DataDir)
 )
 
-// NewKeygenCmd produces a KeygenCmd which create a key pair
+// NewKeygenCmd produces a KeygenCmd which creates a key pair
 func NewKeygenCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "keygen",
@@ -46,7 +46,6 @@ func AddKeygenFlags(cmd *cobra.Command) {
  	if err == nil {
 		return fmt.Errorf("A key already lives under: %s", path.Dir(privKeyFile))
 	}
-
 
 	if err := ioutil.WriteFile(privKeyFile, []byte(pemDump.PrivateKey), 0666); err != nil {
 		return fmt.Errorf("Writing private key: %s", err)
