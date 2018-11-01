@@ -115,6 +115,9 @@ func (n *Node) RunAsync(gossip bool) {
 }
 
 func (n *Node) Run(gossip bool) {
+	// make pause before shoting test transactions
+	time.Sleep(time.Duration(n.conf.TestDelay) * time.Second)
+
 	// The ControlTimer allows the background routines to control the
 	// heartbeat timer when the node is in the Gossiping state. The timer should
 	// only be running when there are uncommitted transactions in the system.
@@ -123,6 +126,9 @@ func (n *Node) Run(gossip bool) {
 	// Execute some background work regardless of the state of the node.
 	// Process SumbitTx and CommitBlock requests
 	go n.doBackgroundWork()
+
+	// make pause before shoting test transactions
+	time.Sleep(time.Duration(n.conf.TestDelay) * time.Second)
 
 	// Execute Node State Machine
 	for {

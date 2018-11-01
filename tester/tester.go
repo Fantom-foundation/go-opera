@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "os"
 	_ "sync"
@@ -14,7 +15,10 @@ import (
 	"github.com/andrecronje/lachesis/src/proxy"
 )
 
-func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, logger *logrus.Logger) {
+func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay uint64, logger *logrus.Logger) {
+	// make pause before shoting test transactions
+	time.Sleep(time.Duration(delay) * time.Second)
+
 	proxies := make(map[int]*proxy.GrpcLachesisProxy)
 	for _, participant := range participants {
 		node := p[participant.PubKeyHex]
