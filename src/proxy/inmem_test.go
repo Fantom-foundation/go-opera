@@ -11,12 +11,12 @@ import (
 	"github.com/andrecronje/lachesis/src/poset"
 )
 
-var (
-	timeout    = 200 * time.Millisecond
-	errTimeout = "time is over"
-)
-
 func TestInmemAppCalls(t *testing.T) {
+	const (
+		timeout    = 1 * time.Second
+		errTimeout = "time is over"
+	)
+
 	proxy := NewTestProxy(t)
 
 	transactions := [][]byte{
@@ -47,17 +47,19 @@ func TestInmemAppCalls(t *testing.T) {
 		assert := assert.New(t)
 
 		stateHash, err := proxy.CommitBlock(block)
-		assert.NoError(err)
-		assert.EqualValues(goldStateHash(), stateHash)
-		assert.EqualValues(transactions, proxy.transactions)
+		if assert.NoError(err) {
+			assert.EqualValues(goldStateHash(), stateHash)
+			assert.EqualValues(transactions, proxy.transactions)
+		}
 	})
 
 	t.Run("#3 Get snapshot", func(t *testing.T) {
 		assert := assert.New(t)
 
 		snapshot, err := proxy.GetSnapshot(block.Index())
-		assert.NoError(err)
-		assert.Equal(goldSnapshot(), snapshot)
+		if assert.NoError(err) {
+			assert.Equal(goldSnapshot(), snapshot)
+		}
 	})
 
 	t.Run("#4 Restore snapshot", func(t *testing.T) {

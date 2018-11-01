@@ -13,14 +13,13 @@ import (
 	"github.com/andrecronje/lachesis/src/proxy"
 )
 
-var (
-	timeout    = 2 * time.Second
-	errTimeout = "time is over"
-)
-
 func TestSocketProxyServer(t *testing.T) {
+	const (
+		timeout    = 2 * time.Second
+		errTimeout = "time is over"
+		addr       = "127.0.0.1:9990"
+	)
 	assert := assert.New(t)
-	addr := "127.0.0.1:9990"
 	logger := common.NewTestLogger(t)
 
 	tx_origin := []byte("the test transaction")
@@ -51,8 +50,12 @@ func TestSocketProxyServer(t *testing.T) {
 }
 
 func TestDummySocketClient(t *testing.T) {
+	const (
+		timeout    = 2 * time.Second
+		errTimeout = "time is over"
+		addr       = "127.0.0.1:9992"
+	)
 	assert := assert.New(t)
-	addr := "127.0.0.1:9992"
 	logger := common.NewTestLogger(t)
 
 	// server
