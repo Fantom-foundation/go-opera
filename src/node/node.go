@@ -127,6 +127,9 @@ func (n *Node) Run(gossip bool) {
 	// Process SumbitTx and CommitBlock requests
 	go n.doBackgroundWork()
 
+	// make pause before shoting test transactions
+	time.Sleep(time.Duration(n.conf.TestDelay) * time.Second)
+
 	// Execute Node State Machine
 	for {
 		// Run different routines depending on node state
