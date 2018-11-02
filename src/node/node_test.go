@@ -12,14 +12,16 @@ import (
 
 	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/crypto"
-	dummy "github.com/andrecronje/lachesis/src/dummy"
+	"github.com/andrecronje/lachesis/src/dummy"
 	"github.com/andrecronje/lachesis/src/net"
 	peers_ "github.com/andrecronje/lachesis/src/peers"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
+	"github.com/andrecronje/lachesis/src/utils"
+
 )
 
-var ip = 9990
+
 
 func initPeers(n int) ([]*ecdsa.PrivateKey, *peers_.Peers) {
 	var keys []*ecdsa.PrivateKey
@@ -28,11 +30,11 @@ func initPeers(n int) ([]*ecdsa.PrivateKey, *peers_.Peers) {
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		keys = append(keys, key)
+
 		peers.AddPeer(peers_.NewPeer(
 			fmt.Sprintf("0x%X", crypto.FromECDSAPub(&keys[i].PublicKey)),
-			fmt.Sprintf("127.0.0.1:%d", ip),
+			fmt.Sprintf("127.0.0.1:%d", i),
 		))
-		ip++
 	}
 
 	return keys, peers
@@ -47,7 +49,7 @@ func TestProcessSync(t *testing.T) {
 
 	peers := p.ToPeerSlice()
 
-	peer0Trans, err := net.NewTCPTransport(peers[0].NetAddr, nil, 2, time.Second, testLogger)
+	peer0Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -56,12 +58,12 @@ func TestProcessSync(t *testing.T) {
 	node0 := NewNode(config, peers[0].ID, keys[0], p,
 		poset.NewInmemStore(p, config.CacheSize),
 		peer0Trans,
-		dummy.NewInmemDummyClient(testLogger))
+		dummy.NewInmemDummyApp(testLogger))
 	node0.Init()
 
 	node0.RunAsync(false)
 
-	peer1Trans, err := net.NewTCPTransport(peers[1].NetAddr, nil, 2, time.Second, testLogger)
+	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -70,7 +72,7 @@ func TestProcessSync(t *testing.T) {
 	node1 := NewNode(config, peers[1].ID, keys[1], p,
 		poset.NewInmemStore(p, config.CacheSize),
 		peer1Trans,
-		dummy.NewInmemDummyClient(testLogger))
+		dummy.NewInmemDummyApp(testLogger))
 	node1.Init()
 
 	node1.RunAsync(false)
@@ -103,7 +105,7 @@ func TestProcessSync(t *testing.T) {
 	// Make actual SyncRequest and check SyncResponse
 
 	var out net.SyncResponse
-	if err := peer0Trans.Sync(peers[1].NetAddr, &args, &out); err != nil {
+	if err := peer0Trans.Sync(peer1Trans.LocalAddr(), &args, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -143,7 +145,7 @@ func TestProcessEagerSync(t *testing.T) {
 
 	peers := p.ToPeerSlice()
 
-	peer0Trans, err := net.NewTCPTransport(peers[0].NetAddr, nil, 2, time.Second, testLogger)
+	peer0Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -152,12 +154,13 @@ func TestProcessEagerSync(t *testing.T) {
 	node0 := NewNode(config, peers[0].ID, keys[0], p,
 		poset.NewInmemStore(p, config.CacheSize),
 		peer0Trans,
-		dummy.NewInmemDummyClient(testLogger))
+		dummy.NewInmemDummyApp(testLogger))
 	node0.Init()
 
 	node0.RunAsync(false)
 
-	peer1Trans, err := net.NewTCPTransport(peers[1].NetAddr, nil, 2, time.Second, testLogger)
+
+	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -166,7 +169,7 @@ func TestProcessEagerSync(t *testing.T) {
 	node1 := NewNode(config, peers[1].ID, keys[1], p,
 		poset.NewInmemStore(p, config.CacheSize),
 		peer1Trans,
-		dummy.NewInmemDummyClient(testLogger))
+		dummy.NewInmemDummyApp(testLogger))
 	node1.Init()
 
 	node1.RunAsync(false)
@@ -197,7 +200,7 @@ func TestProcessEagerSync(t *testing.T) {
 	// Make actual EagerSyncRequest and check EagerSyncResponse
 
 	var out net.EagerSyncResponse
-	if err := peer0Trans.EagerSync(peers[1].NetAddr, &args, &out); err != nil {
+	if err := peer0Trans.EagerSync(peer1Trans.LocalAddr(), &args, &out); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -219,11 +222,11 @@ func TestAddTransaction(t *testing.T) {
 
 	peers := p.ToPeerSlice()
 
-	peer0Trans, err := net.NewTCPTransport(peers[0].NetAddr, nil, 2, time.Second, common.NewTestLogger(t))
+	peer0Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, common.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	peer0Proxy := dummy.NewInmemDummyClient(testLogger)
+	peer0Proxy := dummy.NewInmemDummyApp(testLogger)
 	defer peer0Trans.Close()
 
 	node0 := NewNode(TestConfig(t), peers[0].ID, keys[0], p,
@@ -234,11 +237,11 @@ func TestAddTransaction(t *testing.T) {
 
 	node0.RunAsync(false)
 
-	peer1Trans, err := net.NewTCPTransport(peers[1].NetAddr, nil, 2, time.Second, common.NewTestLogger(t))
+	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, common.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	peer1Proxy := dummy.NewInmemDummyClient(testLogger)
+	peer1Proxy := dummy.NewInmemDummyApp(testLogger)
 	defer peer1Trans.Close()
 
 	node1 := NewNode(TestConfig(t), peers[1].ID, keys[1], p,
@@ -251,7 +254,7 @@ func TestAddTransaction(t *testing.T) {
 	// Submit a Tx to node0
 
 	message := "Hello World!"
-	peer0Proxy.SubmitTx([]byte(message))
+	peer0Proxy.SubmitCh() <- ([]byte(message))
 
 	// simulate a SyncRequest from node0 to node1
 
@@ -261,8 +264,9 @@ func TestAddTransaction(t *testing.T) {
 		Known:  node0KnownEvents,
 	}
 
+	peer1Trans.LocalAddr()
 	var out net.SyncResponse
-	if err := peer0Trans.Sync(peers[1].NetAddr, &args, &out); err != nil {
+	if err := peer0Trans.Sync(peer1Trans.LocalAddr(), &args, &out); err != nil {
 		t.Fatal(err)
 	}
 
@@ -312,11 +316,14 @@ func initNodes(keys []*ecdsa.PrivateKey,
 			logger,
 		)
 
-		trans, err := net.NewTCPTransport(peer.NetAddr,
+		trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t),
 			nil, 2, time.Second, logger)
 		if err != nil {
 			t.Fatalf("failed to create transport for peer %d: %s", id, err)
 		}
+
+		peer.NetAddr = trans.LocalAddr()
+
 		var store poset.Store
 		switch storeType {
 		case "badger":
@@ -328,7 +335,8 @@ func initNodes(keys []*ecdsa.PrivateKey,
 		case "inmem":
 			store = poset.NewInmemStore(peers, conf.CacheSize)
 		}
-		prox := dummy.NewInmemDummyClient(logger)
+		prox := dummy.NewInmemDummyApp(logger)
+
 		node := NewNode(conf,
 			id,
 			k,
@@ -376,7 +384,7 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prox := dummy.NewInmemDummyClient(logger)
+	prox := dummy.NewInmemDummyApp(logger)
 
 	newNode := NewNode(conf, id, key, peers, store, trans, prox)
 
@@ -400,23 +408,6 @@ func shutdownNodes(nodes []*Node) {
 	for _, n := range nodes {
 		n.Shutdown()
 	}
-}
-
-func deleteStores(nodes []*Node, t *testing.T) {
-	for _, n := range nodes {
-		if err := os.RemoveAll(n.core.poset.Store.StorePath()); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func getCommittedTransactions(n *Node) ([][]byte, error) {
-	InmemAppProxy, ok := n.proxy.(*dummy.InmemDummyClient)
-	if !ok {
-		return nil, fmt.Errorf("error casting to InmemProp")
-	}
-	res := InmemAppProxy.GetCommittedTransactions()
-	return res, nil
 }
 
 func TestGossip(t *testing.T) {
@@ -789,11 +780,8 @@ func makeRandomTransactions(nodes []*Node, quit chan struct{}) {
 }
 
 func submitTransaction(n *Node, tx []byte) error {
-	prox, ok := n.proxy.(*dummy.InmemDummyClient)
-	if !ok {
-		return fmt.Errorf("error casting to InmemProp")
-	}
-	prox.SubmitTx([]byte(tx))
+
+	n.proxy.SubmitCh() <- []byte(tx)
 	return nil
 }
 

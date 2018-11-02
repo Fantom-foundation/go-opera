@@ -1,6 +1,8 @@
 package utils
 
-import "github.com/satori/go.uuid"
+import (
+	"github.com/satori/go.uuid"
+)
 
 func UUID() string {
 	u, err := uuid.NewV4()
@@ -9,3 +11,6 @@ func UUID() string {
 	}
 	return u.String()
 }
+
+
+
