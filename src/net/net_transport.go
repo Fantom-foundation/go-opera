@@ -331,6 +331,7 @@ func (n *NetworkTransport) handleConn(conn net.Conn) {
 
 	for {
 		if err := n.handleCommand(r, dec, enc); err != nil {
+			//FIXIT: should we check for ErrTransportShutdown here as well?
 			if err != io.EOF {
 				n.logger.WithField("error", err).Error("Failed to decode incoming command")
 			}
