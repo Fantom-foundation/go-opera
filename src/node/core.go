@@ -32,6 +32,8 @@ type Core struct {
 	blockSignaturePool []poset.BlockSignature
 
 	logger *logrus.Entry
+
+	maxTransactionsInEvent int
 }
 
 func NewCore(
@@ -65,6 +67,10 @@ func NewCore(
 		logger:             logEntry,
 		Head:               "",
 		Seq:                -1,
+		// MaxReceiveMessageSize limitation in grpc: https://github.com/grpc/grpc-go/blob/master/clientconn.go#L96
+		// default value is 4 * 1024 * 1024 bytes
+		// we use transactions of 120 bytes in tester, thus rounding it down to 16384
+		maxTransactionsInEvent: 16384,
 	}
 	return core
 }
@@ -348,6 +354,15 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 	return nil
 }
 
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+
 func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 	// Get flag tables from parents
@@ -383,7 +398,10 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 	// create new event with self head and empty other parent
 	// empty transaction pool in its payload
-	newHead := poset.NewEvent(c.transactionPool, c.blockSignaturePool,
+	var batch[][]byte
+	nTxs := min(len(c.transactionPool), c.maxTransactionsInEvent)
+	batch = c.transactionPool[0:nTxs:nTxs]
+	newHead := poset.NewEvent(batch, c.blockSignaturePool,
 		[]string{c.Head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
@@ -395,8 +413,12 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 		"block_signatures": len(c.blockSignaturePool),
 	}).Debug("newHead := poset.NewEventBlock")
 
-	c.transactionPool = [][]byte{}
-	c.blockSignaturePool = []poset.BlockSignature{}
+	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}
+	// retain c.blockSignaturePool until c.transactionPool is empty
+	// FIXIT: is there any better strategy?
+	if len(c.transactionPool) == 0 {
+		c.blockSignaturePool = []poset.BlockSignature{}
+	}
 
 	return nil
 }
