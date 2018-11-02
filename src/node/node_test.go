@@ -21,8 +21,6 @@ import (
 
 )
 
-
-
 func initPeers(n int) ([]*ecdsa.PrivateKey, *peers_.Peers) {
 	var keys []*ecdsa.PrivateKey
 	peers := peers_.NewPeers()
@@ -62,6 +60,7 @@ func TestProcessSync(t *testing.T) {
 	node0.Init()
 
 	node0.RunAsync(false)
+	defer node0.Shutdown()
 
 	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, testLogger)
 	if err != nil {
@@ -76,6 +75,7 @@ func TestProcessSync(t *testing.T) {
 	node1.Init()
 
 	node1.RunAsync(false)
+	defer node1.Shutdown()
 
 	// Manually prepare SyncRequest and expected SyncResponse
 
@@ -132,8 +132,6 @@ func TestProcessSync(t *testing.T) {
 			expectedResp.Known, out.Known)
 	}
 
-	node0.Shutdown()
-	node1.Shutdown()
 }
 
 func TestProcessEagerSync(t *testing.T) {
@@ -158,7 +156,7 @@ func TestProcessEagerSync(t *testing.T) {
 	node0.Init()
 
 	node0.RunAsync(false)
-
+	defer node0.Shutdown()
 
 	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, testLogger)
 	if err != nil {
@@ -173,6 +171,7 @@ func TestProcessEagerSync(t *testing.T) {
 	node1.Init()
 
 	node1.RunAsync(false)
+	defer node1.Shutdown()
 
 	// Manually prepare EagerSyncRequest and expected EagerSyncResponse
 
@@ -208,9 +207,6 @@ func TestProcessEagerSync(t *testing.T) {
 	if expectedResp.Success != out.Success {
 		t.Fatalf("EagerSyncResponse.Sucess should be %v, not %v", expectedResp.Success, out.Success)
 	}
-
-	node0.Shutdown()
-	node1.Shutdown()
 }
 
 func TestAddTransaction(t *testing.T) {
@@ -236,6 +232,7 @@ func TestAddTransaction(t *testing.T) {
 	node0.Init()
 
 	node0.RunAsync(false)
+	defer node0.Shutdown()
 
 	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2, time.Second, common.NewTestLogger(t))
 	if err != nil {
@@ -251,6 +248,7 @@ func TestAddTransaction(t *testing.T) {
 	node1.Init()
 
 	node1.RunAsync(false)
+	defer node1.Shutdown()
 	// Submit a Tx to node0
 
 	message := "Hello World!"
@@ -288,9 +286,6 @@ func TestAddTransaction(t *testing.T) {
 	if m := string(node0Head.Transactions()[0]); m != message {
 		t.Fatalf("Transaction message should be '%s' not, not %s\n", message, m)
 	}
-
-	node0.Shutdown()
-	node1.Shutdown()
 }
 
 func initNodes(keys []*ecdsa.PrivateKey,
