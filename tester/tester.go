@@ -58,7 +58,7 @@ func transact(proxy *proxy.GrpcLachesisProxy) (string, error) {
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes. We'll assume
 	// our txns are ~120 bytes in size
-	var msg [120]byte
+	var msg [1]byte
 	for i := 0; i < 10; i++ {
 		// Send 10 txns to the server.
 		err := proxy.SubmitTx(msg[:])

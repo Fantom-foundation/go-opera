@@ -1,4 +1,4 @@
-// +build !debug
+// +build debug
 
 package poset
 
@@ -35,4 +35,5 @@ type Store interface {
 	Close() error
 	NeedBoostrap() bool // Was the store loaded from existing db
 	StorePath() string
+	TopologicalEvents() ([]Event, error)
 }
