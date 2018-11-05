@@ -2,11 +2,9 @@ package poset
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"math"
 	"sort"
-	"strconv"
 
 	"github.com/sirupsen/logrus"
 
@@ -71,6 +69,11 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 		trustCount:        trustCount,
 	}
 
+	participants.OnNewPeer(func(peer *peers.Peer) {
+		poset.superMajority = 2*participants.Len()/3 + 1
+ 		poset.trustCount = int(math.Ceil(float64(participants.Len()) / float64(3)))
+	})
+
 	return &poset
 }
 
@@ -83,6 +86,11 @@ func (p *Poset) ancestor(x, y string) (bool, error) {
 	if c, ok := p.ancestorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
+
+	if len(x) == 0 || len(y) == 0 {
+		return false, nil
+	}
+
 	a, err := p.ancestor2(x, y)
 	if err != nil {
 		return false, err
@@ -98,30 +106,62 @@ func (p *Poset) ancestor2(x, y string) (bool, error) {
 
 	ex, err := p.Store.GetEvent(x)
 	if err != nil {
+		roots, err2 := p.Store.RootsBySelfParent()
+ 		if err2 != nil {
+			return false, err2
+		}
+ 		for _, root := range roots {
+			if other, ok := root.Others[y]; ok {
+				return other.Hash == x, nil
+			}
+		}
+ 		return false, nil
+	}
+ 	if lamportDiff, err := p.lamportTimestampDiff(x, y); err != nil || lamportDiff > 0 {
 		return false, err
 	}
 
 	ey, err := p.Store.GetEvent(y)
 	if err != nil {
+		// check y roots
+		roots, err2 := p.Store.RootsBySelfParent()
+ 		if err2 != nil {
+			return false, err2
+		}
+ 		if root, ok := roots[y]; ok {
+			yCreator := p.Participants.ById[root.SelfParent.CreatorID].PubKeyHex
+ 			if ex.Creator() == yCreator {
+				return ex.Index() >= root.SelfParent.Index, nil
+			}
+		} else {
+			return false, nil
+		}
+	} else {
+		// check if creators are equals and check indexes
+		if ex.Creator() == ey.Creator() {
+			return ex.Index() >= ey.Index(), nil
+		}
+	}
+
+	res, err := p.ancestor(ex.SelfParent(), y)
+	if err != nil {
 		return false, err
 	}
 
-	eyCreator := p.Participants.ByPubKey[ey.Creator()].ID
-	entry, ok := ex.lastAncestors.GetByID(eyCreator)
-
-	if !ok {
-		return false, errors.New("Unknown event id " + strconv.Itoa(eyCreator))
+	if res {
+		return true, nil
 	}
 
-	lastAncestorKnownFromYCreator := entry.event.index
-
-	return lastAncestorKnownFromYCreator >= ey.Index(), nil
+	return p.ancestor(ex.OtherParent(), y)
 }
 
 //true if y is a self-ancestor of x
 func (p *Poset) selfAncestor(x, y string) (bool, error) {
 	if c, ok := p.selfAncestorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
+	}
+	if len(x) == 0 || len(y) == 0 {
+		return false, nil
 	}
 	a, err := p.selfAncestor2(x, y)
 	if err != nil {
@@ -137,17 +177,37 @@ func (p *Poset) selfAncestor2(x, y string) (bool, error) {
 	}
 	ex, err := p.Store.GetEvent(x)
 	if err != nil {
+		roots, err := p.Store.RootsBySelfParent()
+ 		if err != nil {
+			return false, err
+		}
+ 		if root, ok := roots[x]; ok {
+			if root.SelfParent.Hash == y {
+				return true, nil
+			}
+		}
 		return false, err
 	}
-	exCreator := p.Participants.ByPubKey[ex.Creator()].ID
 
 	ey, err := p.Store.GetEvent(y)
 	if err != nil {
-		return false, err
+		roots, err2 := p.Store.RootsBySelfParent()
+ 		if err2 != nil {
+			return false, err2
+		}
+ 		if root, ok := roots[y]; ok {
+			yCreator := p.Participants.ById[root.SelfParent.CreatorID].PubKeyHex
+ 			if ex.Creator() == yCreator {
+				return ex.Index() >= root.SelfParent.Index, nil
+			}
+		}
+	} else {
+		if ex.Creator() == ey.Creator() {
+			return ex.Index() >= ey.Index(), nil
+		}
 	}
-	eyCreator := p.Participants.ByPubKey[ey.Creator()].ID
 
-	return exCreator == eyCreator && ex.Index() >= ey.Index(), nil
+	return false, nil
 }
 
 //true if x sees y
@@ -160,6 +220,10 @@ func (p *Poset) see(x, y string) (bool, error) {
 
 //true if x strongly sees y
 func (p *Poset) stronglySee(x, y string) (bool, error) {
+	if len(x) == 0 || len(y) == 0 {
+		return false, nil
+	}
+
 	if c, ok := p.stronglySeeCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
@@ -171,30 +235,59 @@ func (p *Poset) stronglySee(x, y string) (bool, error) {
 	return ss, nil
 }
 
+// Possible improvement: Populate the cache for upper and downer events
+// that also stronglySee y
 func (p *Poset) stronglySee2(x, y string) (bool, error) {
+	sentinels := make(map[string]bool)
+
+	if err := p.MapSentinels(x, y, sentinels); err != nil {
+		return false, err
+	}
+
+	return len(sentinels) >= p.superMajority, nil
+}
+
+// participants in x's ancestry that see y
+func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
+	if x == "" {
+		return nil
+	}
+
+	if see, err := p.see(x, y); err != nil || !see {
+		return err
+	}
 
 	ex, err := p.Store.GetEvent(x)
+
 	if err != nil {
-		return false, err
-	}
+		roots, err2 := p.Store.RootsBySelfParent()
 
-	ey, err := p.Store.GetEvent(y)
-	if err != nil {
-		return false, err
-	}
-
-	// FIXIT: if ey.firstDescendants is empty the code below crashes
-	if len(ey.firstDescendants) == 0 {
-		return false, errors.New("ey.firstDescendants[] is empty")
-	}
-
-	c := 0
-	for i, entry := range ex.lastAncestors {
-		if entry.event.index >= ey.firstDescendants[i].event.index {
-			c++
+		if err2 != nil {
+			return err2
 		}
+
+		if root, ok := roots[x]; ok {
+			creator := p.Participants.ById[root.SelfParent.CreatorID]
+
+			sentinels[creator.PubKeyHex] = true
+
+			return nil
+		}
+
+		return err
 	}
-	return c >= p.superMajority, nil
+
+	sentinels[ex.Creator()] = true
+
+	if x == y {
+		return nil
+	}
+
+	if err := p.MapSentinels(ex.OtherParent(), y, sentinels); err != nil {
+		return err
+	}
+
+	return p.MapSentinels(ex.SelfParent(), y, sentinels)
 }
 
 func (p *Poset) round(x string) (int, error) {
@@ -385,6 +478,19 @@ func (p *Poset) lamportTimestamp2(x string) (int, error) {
 	return plt + 1, nil
 }
 
+// lamport(y) - lamport(x)
+func (p *Poset) lamportTimestampDiff(x, y string) (int, error) {
+	xlt, err := p.lamportTimestamp(x)
+ 	if err != nil {
+		return 0, err
+	}
+ 	ylt, err := p.lamportTimestamp(y)
+ 	if err != nil {
+		return 0, err
+	}
+ 	return ylt - xlt, nil
+}
+
 //round(x) - round(y)
 func (p *Poset) roundDiff(x, y string) (int, error) {
 
@@ -448,118 +554,6 @@ func (p *Poset) checkOtherParent(event Event) error {
 			return fmt.Errorf("Other-parent not known")
 		}
 	}
-	return nil
-}
-
-//initialize arrays of last ancestors and first descendants
-func (p *Poset) initEventCoordinates(event *Event) error {
-	members := p.Participants.Len()
-
-	event.firstDescendants = make(OrderedEventCoordinates, members)
-	for i, id := range p.Participants.ToIDSlice() {
-		event.firstDescendants[i] = Index{
-			participantId: id,
-			event: EventCoordinates{
-				index: math.MaxInt32,
-			},
-		}
-	}
-
-	event.lastAncestors = make(OrderedEventCoordinates, members)
-
-	selfParent, selfParentError := p.Store.GetEvent(event.SelfParent())
-	otherParent, otherParentError := p.Store.GetEvent(event.OtherParent())
-
-	if selfParentError != nil && otherParentError != nil {
-		for i, entry := range event.firstDescendants {
-			event.lastAncestors[i] = Index{
-				participantId: entry.participantId,
-				event: EventCoordinates{
-					index: -1,
-				},
-			}
-		}
-	} else if selfParentError != nil {
-		copy(event.lastAncestors[:members], otherParent.lastAncestors)
-	} else if otherParentError != nil {
-		copy(event.lastAncestors[:members], selfParent.lastAncestors)
-	} else {
-		selfParentLastAncestors := selfParent.lastAncestors
-		otherParentLastAncestors := otherParent.lastAncestors
-
-		copy(event.lastAncestors[:members], selfParentLastAncestors)
-		// FIXIT: code below crashes when len(otherParentLastAncestors) == 0
-		if len(otherParentLastAncestors) == 0 {
-			return fmt.Errorf("**otherParentLastAncestors[] is empty")
-		}
-		for i := range event.lastAncestors {
-			if event.lastAncestors[i].event.index < otherParentLastAncestors[i].event.index {
-				event.lastAncestors[i].event.index = otherParentLastAncestors[i].event.index
-				event.lastAncestors[i].event.hash = otherParentLastAncestors[i].event.hash
-			}
-		}
-	}
-
-	index := event.Index()
-
-	creator := event.Creator()
-	creatorPeer, ok := p.Participants.ByPubKey[creator]
-	if !ok {
-		return fmt.Errorf("Could not find creator id (%s)", creator)
-	}
-	hash := event.Hex()
-
-	i := event.firstDescendants.GetIDIndex(creatorPeer.ID)
-	j := event.lastAncestors.GetIDIndex(creatorPeer.ID)
-
-	if i == -1 {
-		return fmt.Errorf("Could not find first descendant from creator id (%d)", creatorPeer.ID)
-	}
-
-	if j == -1 {
-		return fmt.Errorf("Could not find last ancestor from creator id (%d)", creatorPeer.ID)
-	}
-
-	event.firstDescendants[i].event = EventCoordinates{index: index, hash: hash}
-	event.lastAncestors[j].event = EventCoordinates{index: index, hash: hash}
-
-	return nil
-}
-
-//update first decendant of each last ancestor to point to event
-func (p *Poset) updateAncestorFirstDescendant(event Event) error {
-	creatorPeer, ok := p.Participants.ByPubKey[event.Creator()]
-	if !ok {
-		return fmt.Errorf("Could not find creator id (%s)", event.Creator())
-	}
-	index := event.Index()
-	hash := event.Hex()
-
-	for i := range event.lastAncestors {
-		ah := event.lastAncestors[i].event.hash
-		for ah != "" {
-			a, err := p.Store.GetEvent(ah)
-			if err != nil {
-				break
-			}
-			idx := a.firstDescendants.GetIDIndex(creatorPeer.ID)
-
-			if idx == -1 {
-				return fmt.Errorf("Could not find first descendant by creator id (%s)", event.Creator())
-			}
-
-			if a.firstDescendants[idx].event.index == math.MaxInt32 {
-				a.firstDescendants[idx].event = EventCoordinates{index: index, hash: hash}
-				if err := p.Store.SetEvent(a); err != nil {
-					return err
-				}
-				ah = a.SelfParent()
-			} else {
-				break
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -759,16 +753,8 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 		}
 	}
 
-	if err := p.initEventCoordinates(&event); err != nil {
-		return fmt.Errorf("InitEventCoordinates: %s", err)
-	}
-
 	if err := p.Store.SetEvent(event); err != nil {
 		return fmt.Errorf("SetEvent: %s", err)
-	}
-
-	if err := p.updateAncestorFirstDescendant(event); err != nil {
-		return fmt.Errorf("UpdateAncestorFirstDescendant: %s", err)
 	}
 
 	p.UndeterminedEvents = append(p.UndeterminedEvents, event.Hex())

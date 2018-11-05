@@ -372,7 +372,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
 	if errOther != nil {
-		c.logger.Warnf("failed to get  other parent: %s", errOther)
+		c.logger.Warnf("failed to get other parent: %s", errOther)
 	}
 
 	var (

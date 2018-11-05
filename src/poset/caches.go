@@ -128,6 +128,10 @@ func (pec *ParticipantEventsCache) Reset() error {
 	return pec.rim.Reset()
 }
 
+func (pec *ParticipantEventsCache) Import(other *ParticipantEventsCache) {
+	pec.rim.Import(other.rim)
+}
+
 //------------------------------------------------------------------------------
 
 type ParticipantBlockSignaturesCache struct {
