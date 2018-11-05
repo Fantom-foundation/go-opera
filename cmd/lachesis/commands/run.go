@@ -95,7 +95,7 @@ func runSingleLachesis(config *CLIConfig) error {
 				}
 			}
 		}()
-		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.Logger)
+		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.TestDelay, config.Lachesis.Logger)
 	}
 
 	engine.Run()
@@ -137,6 +137,7 @@ func AddRunFlags(cmd *cobra.Command) {
 	// Test
 	cmd.Flags().Bool("test", config.Lachesis.Test, "Enable testing (sends transactions to random nodes in the network)")
 	cmd.Flags().Uint64("test_n", config.Lachesis.TestN, "Number of transactions to send")
+	cmd.Flags().Uint64("test_delay", config.Lachesis.TestDelay, "Number of second to delay before sending transactions")
 }
 
 //Bind all flags and read the config into viper

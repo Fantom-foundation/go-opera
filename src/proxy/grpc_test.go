@@ -10,14 +10,18 @@ import (
 	"github.com/andrecronje/lachesis/src/common"
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/proxy/proto"
+	"github.com/andrecronje/lachesis/src/utils"
 )
 
 func TestGrpcCalls(t *testing.T) {
+
 	const (
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
-		addr       = "127.0.0.1:9993"
 	)
+
+	addr := utils.GetUnusedNetAddr(t)
+
 	logger := common.NewTestLogger(t)
 
 	s, err := NewGrpcAppProxy(addr, timeout, logger)
@@ -119,11 +123,13 @@ func TestGrpcCalls(t *testing.T) {
 }
 
 func TestGrpcReConnection(t *testing.T) {
+
 	const (
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
-		addr       = "127.0.0.1:9994"
+
 	)
+	addr := utils.GetUnusedNetAddr(t);
 	logger := common.NewTestLogger(t)
 
 	c, err := NewGrpcLachesisProxy(addr, logger)
@@ -154,6 +160,7 @@ func TestGrpcReConnection(t *testing.T) {
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
 
+
 	s, err = NewGrpcAppProxy(addr, timeout/2, logger)
 	assert.NoError(t, err)
 
@@ -170,8 +177,9 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 		largeSize  = 100 * 1024 * 1024
 		timeout    = 3 * time.Minute
 		errTimeout = "time is over"
-		addr       = "127.0.0.1:9994"
+
 	)
+	addr := utils.GetUnusedNetAddr(t);
 	logger := common.NewTestLogger(t)
 
 	s, err := NewGrpcAppProxy(addr, timeout, logger)

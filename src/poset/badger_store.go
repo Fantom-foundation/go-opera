@@ -497,7 +497,7 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 			return err
 		}
 		key := participantRootKey(participant)
-		fmt.Println("Setting root", participant, "->", key)
+//		fmt.Println("Setting root", participant, "->", key)
 		//insert [participant_root] => [root bytes]
 		if err := tx.Set(key, val); err != nil {
 			return err
