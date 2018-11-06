@@ -413,11 +413,15 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)
 	}
-
 	c.logger.WithFields(logrus.Fields{
 		"transactions":          len(c.transactionPool),
 		"internal_transactions": len(c.internalTransactionPool),
 		"block_signatures":      len(c.blockSignaturePool),
+		"event":         newHead,
+		"creator":       newHead.Creator(),
+		"selfParent":    newHead.SelfParent(),
+		"index":         newHead.Index(),
+		"hex":           newHead.Hex(),
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}

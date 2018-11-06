@@ -734,7 +734,16 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("Invalid Event signature")
+
+		p.logger.WithFields(logrus.Fields{
+			"event":         event,
+			"creator":       event.Creator(),
+			"selfParent":    event.SelfParent(),
+			"index":         event.Index(),
+			"hex":           event.Hex(),
+		}).Debugf("Invalid Event signature")
+
+		return fmt.Errorf("Invalid Event signature: %s", err)
 	}
 
 	if err := p.checkSelfParent(event); err != nil {
