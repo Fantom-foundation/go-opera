@@ -11,7 +11,7 @@ cache:
   - "$TRAVIS_BUILD_DIR/vendor"
 
 before_install:
-- curl https://glide.sh/get | sh
+- if ! command -v glide; then curl https://glide.sh/get | sh; fi
 - go get -v github.com/SamuelMarks/batch-ethkey
 - go get -u -d github.com/magefile/mage
 - pushd "$GOPATH/src/github.com/magefile/mage" && go run bootstrap.go && popd
@@ -21,11 +21,12 @@ addons:
   apt:
     packages:
     - jq
+    - tree
 
 jobs:
   include:
   - stage: test
     script: make test
   - stage: testnet
-    script: env && scripts/multi.bash
+    script: pwd && tree -a && scripts/multi.bash
     env: n=3 logshold='-1,-1,-1,5,0,0' entry='main' BUILD_DIR="$TRAVIS_BUILD_DIR"
