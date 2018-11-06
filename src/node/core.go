@@ -191,13 +191,28 @@ func (c *Core) bootstrapInDegrees() {
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
-	if err := event.Sign(c.key); err != nil {
+
+	/*if err := event.Sign(c.key); err != nil {
 		return err
-	}
+	}*/
 	return c.InsertEvent(event, true);
 }
 
 func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
+	c.poset.SetWireInfo(&event)
+
+	if err := event.Sign(c.key); err != nil {
+		return err
+	}
+
+	c.logger.WithFields(logrus.Fields{
+		"event":         event,
+		"creator":       event.Creator(),
+		"selfParent":    event.SelfParent(),
+		"index":         event.Index(),
+		"hex":           event.Hex(),
+	}).Debug("InsertEvent(event poset.Event, setWireInfo bool)")
+
 	if err := c.poset.InsertEvent(event, setWireInfo); err != nil {
 		return err
 	}

@@ -656,6 +656,10 @@ func (p *Poset) createRoot(ev Event) (Root, error) {
 	return root, nil
 }
 
+func (p *Poset) SetWireInfo(event *Event) error {
+	return p.setWireInfo(event)
+}
+
 func (p *Poset) setWireInfo(event *Event) error {
 	selfParentIndex := -1
 	otherParentCreatorID := -1
@@ -743,7 +747,7 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 			"hex":           event.Hex(),
 		}).Debugf("Invalid Event signature")
 
-		return fmt.Errorf("Invalid Event signature: %s", err)
+		return fmt.Errorf("Invalid Event signature")
 	}
 
 	if err := p.checkSelfParent(event); err != nil {
