@@ -1506,6 +1506,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 
 	body := EventBody{
 		Transactions:    wevent.Body.Transactions,
+		InternalTransactions: wevent.Body.InternalTransactions,
 		BlockSignatures: wevent.BlockSignatures(creatorBytes),
 		Parents:         []string{selfParent, otherParent},
 		Creator:         creatorBytes,
