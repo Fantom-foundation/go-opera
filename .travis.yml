@@ -5,12 +5,17 @@ go:
 
 go_import_path: github.com/andrecronje/lachesis
 
+cache:
+  directories:
+  - "$HOME/.glide/cache"
+  - "$TRAVIS_BUILD_DIR/vendor"
+
 before_install:
 - curl https://glide.sh/get | sh
 - go get -v github.com/SamuelMarks/batch-ethkey
 - go get -u -d github.com/magefile/mage
-- pushd $GOPATH/src/github.com/magefile/mage && go run bootstrap.go && popd
-- make vendor
+- pushd "$GOPATH/src/github.com/magefile/mage" && go run bootstrap.go && popd
+- if [ ! -d vendor ]; then make vendor; fi
 
 addons:
   apt:
@@ -20,9 +25,7 @@ addons:
 jobs:
   include:
   - stage: test
-    script: echo "$PWD" && ls -al && make test
-  - stage: build
-    script: make build
-  - stage: deploy
+    script: make test
+  - stage: testnet
     script: env && scripts/multi.bash
-    env: n=3 logshold='-1,-1,-1,5,0,0' entry='main' BUILD_DIR='/home/travis/gopath/src/github.com/andrecronje/lachesis'
+    env: n=3 logshold='-1,-1,-1,5,0,0' entry='main' BUILD_DIR="$TRAVIS_BUILD_DIR"
