@@ -23,7 +23,7 @@ type State struct {
 	logger       *logrus.Logger
 	committedTxs [][]byte
 	stateHash    []byte
-	snapshots    map[int][]byte
+	snapshots    map[int64][]byte
 }
 
 func NewState(logger *logrus.Logger) *State {
@@ -31,7 +31,7 @@ func NewState(logger *logrus.Logger) *State {
 		logger:       logger,
 		committedTxs: [][]byte{},
 		stateHash:    []byte{},
-		snapshots:    make(map[int][]byte),
+		snapshots:    make(map[int64][]byte),
 	}
 	logger.Info("Init Dummy State")
 
@@ -53,7 +53,7 @@ func (s *State) CommitHandler(block poset.Block) ([]byte, error) {
 	return s.stateHash, nil
 }
 
-func (s *State) SnapshotHandler(blockIndex int) ([]byte, error) {
+func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
 	s.logger.WithField("block", blockIndex).Debug("GetSnapshot")
 
 	snapshot, ok := s.snapshots[blockIndex]

@@ -97,7 +97,7 @@ func (p *TestProxy) CommitHandler(block poset.Block) ([]byte, error) {
 	return goldStateHash(), nil
 }
 
-func (p *TestProxy) SnapshotHandler(blockIndex int) ([]byte, error) {
+func (p *TestProxy) SnapshotHandler(blockIndex int64) ([]byte, error) {
 	p.logger.Debug("GetSnapshot")
 	return goldSnapshot(), nil
 }

@@ -62,12 +62,12 @@ type ancestryItem struct {
 
 type roundItem struct {
 	event string
-	round int
+	round int64
 }
 
 type play struct {
 	to          int
-	index       int
+	index       int64
 	selfParent  string
 	otherParent string
 	name        string
@@ -307,7 +307,7 @@ func TestSee(t *testing.T) {
 func TestLamportTimestamp(t *testing.T) {
 	h, index := initPoset(t)
 
-	expectedTimestamps := map[string]int{
+	expectedTimestamps := map[string]int64{
 		"e0":  0,
 		"e1":  0,
 		"e2":  0,
@@ -522,9 +522,9 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		expectedFirstDescendants = OrderedEventCoordinates{
-			Index{participants[0].ID, EventCoordinates{"", math.MaxInt32}},
+			Index{participants[0].ID, EventCoordinates{"", math.MaxInt64}},
 			Index{participants[1].ID, EventCoordinates{index["f1"], 3}},
-			Index{participants[2].ID, EventCoordinates{"", math.MaxInt32}},
+			Index{participants[2].ID, EventCoordinates{"", math.MaxInt64}},
 		}
 
 		expectedLastAncestors = OrderedEventCoordinates{
@@ -796,7 +796,7 @@ func TestDivideRounds(t *testing.T) {
 
 	//[event] => {lamportTimestamp, round}
 	type tr struct {
-		t, r int
+		t, r int64
 	}
 	expectedTimestamps := map[string]tr{
 		"e0":  {0, 0},
@@ -1214,7 +1214,7 @@ func TestDivideRoundsBis(t *testing.T) {
 
 	//[event] => {lamportTimestamp, round}
 	type tr struct {
-		t, r int
+		t, r int64
 	}
 	expectedTimestamps := map[string]tr{
 		"e0":   {0, 0},
@@ -1539,7 +1539,7 @@ func TestKnown(t *testing.T) {
 
 	participants := h.Participants.ToPeerSlice()
 
-	expectedKnown := map[int]int{
+	expectedKnown := map[int64]int64{
 		participants[0].ID: 10,
 		participants[1].ID: 9,
 		participants[2].ID: 9,
@@ -1547,8 +1547,8 @@ func TestKnown(t *testing.T) {
 
 	known := h.Store.KnownEvents()
 	for i := range h.Participants.ToIDSlice() {
-		if l := known[i]; l != expectedKnown[i] {
-			t.Fatalf("Known[%d] should be %d, not %d", i, expectedKnown[i], l)
+		if l := known[int64(i)]; l != expectedKnown[int64(i)] {
+			t.Fatalf("Known[%d] should be %d, not %d", i, expectedKnown[int64(i)], l)
 		}
 	}
 }
@@ -1767,7 +1767,7 @@ func TestResetFromFrame(t *testing.T) {
 	*/
 
 	//Test Known
-	expectedKnown := map[int]int{
+	expectedKnown := map[int64]int64{
 		participants[0].ID: 5,
 		participants[1].ID: 4,
 		participants[2].ID: 4,
@@ -1850,7 +1850,7 @@ func TestResetFromFrame(t *testing.T) {
 	Test continue after Reset
 	***************************************************************************/
 	//Insert remaining Events into the Reset poset
-	for r := 2; r <= 4; r++ {
+	for r := int64(2); r <= int64(4); r++ {
 		round, err := h.Store.GetRound(r)
 		if err != nil {
 			t.Fatal(err)
@@ -1886,7 +1886,7 @@ func TestResetFromFrame(t *testing.T) {
 	h2.DecideRoundReceived()
 	h2.ProcessDecidedRounds()
 
-	for r := 1; r <= 4; r++ {
+	for r := int64(1); r <= 4; r++ {
 		hRound, err := h.Store.GetRound(r)
 		if err != nil {
 			t.Fatal(err)
@@ -2093,7 +2093,7 @@ func TestFunkyPosetFame(t *testing.T) {
 		t.Fatalf("last round should be 4 not %d", l)
 	}
 
-	for r := 0; r < 5; r++ {
+	for r := int64(0); r < 5; r++ {
 		round, err := h.Store.GetRound(r)
 		if err != nil {
 			t.Fatal(err)
@@ -2173,7 +2173,7 @@ func TestFunkyPosetBlocks(t *testing.T) {
 		t.Fatalf("last round should be 5 not %d", l)
 	}
 
-	for r := 0; r < 6; r++ {
+	for r := int64(0); r < 6; r++ {
 		round, err := h.Store.GetRound(r)
 		if err != nil {
 			t.Fatal(err)
@@ -2202,13 +2202,13 @@ func TestFunkyPosetBlocks(t *testing.T) {
 		}
 	}
 
-	expectedBlockTxCounts := map[int]int{
+	expectedBlockTxCounts := map[int64]int64{
 		0: 6,
 		1: 7,
 		2: 7,
 	}
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		b, err := h.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2216,7 +2216,7 @@ func TestFunkyPosetBlocks(t *testing.T) {
 		for i, tx := range b.Transactions() {
 			t.Logf("block %d, tx %d: %s", bi, i, string(tx))
 		}
-		if txs := len(b.Transactions()); txs != expectedBlockTxCounts[bi] {
+		if txs := int64(len(b.Transactions())); txs != expectedBlockTxCounts[bi] {
 			t.Fatalf("Blocks[%d] should contain %d transactions, not %d", bi,
 				expectedBlockTxCounts[bi], txs)
 		}
@@ -2242,7 +2242,7 @@ func TestFunkyPosetFrames(t *testing.T) {
 	}
 
 	t.Logf("------------------------------------------------------------------")
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := h.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2260,7 +2260,7 @@ func TestFunkyPosetFrames(t *testing.T) {
 	}
 	t.Logf("------------------------------------------------------------------")
 
-	expectedFrameRoots := map[int][]Root{
+	expectedFrameRoots := map[int64][]Root{
 		1: {
 			NewBaseRoot(participants[0].ID),
 			NewBaseRoot(participants[1].ID),
@@ -2323,7 +2323,7 @@ func TestFunkyPosetFrames(t *testing.T) {
 		},
 	}
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := h.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2350,7 +2350,7 @@ func TestFunkyPosetReset(t *testing.T) {
 	h.DecideRoundReceived()
 	h.ProcessDecidedRounds()
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		t.Logf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 		t.Logf("RESETTING FROM BLOCK %d", bi)
 		t.Logf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -2548,7 +2548,7 @@ func TestSparsePosetFrames(t *testing.T) {
 	}
 
 	t.Logf("------------------------------------------------------------------")
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := h.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2566,7 +2566,7 @@ func TestSparsePosetFrames(t *testing.T) {
 	}
 	t.Logf("------------------------------------------------------------------")
 
-	expectedFrameRoots := map[int][]Root{
+	expectedFrameRoots := map[int64][]Root{
 		1: {
 			NewBaseRoot(participants[0].ID),
 			NewBaseRoot(participants[1].ID),
@@ -2635,7 +2635,7 @@ func TestSparsePosetFrames(t *testing.T) {
 		},
 	}
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := h.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2662,7 +2662,7 @@ func TestSparsePosetReset(t *testing.T) {
 	h.DecideRoundReceived()
 	h.ProcessDecidedRounds()
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		t.Logf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 		t.Logf("RESETTING FROM BLOCK %d", bi)
 		t.Logf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -2738,7 +2738,7 @@ func TestSparsePosetReset(t *testing.T) {
 
 /*----------------------------------------------------------------------------*/
 
-func compareRoundWitnesses(h, h2 *Poset, index map[string]string, round int, check bool, t *testing.T) {
+func compareRoundWitnesses(h, h2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 
 	for i := round; i <= 5; i++ {
 		hRound, err := h.Store.GetRound(i)
@@ -2774,7 +2774,7 @@ func compareRoundWitnesses(h, h2 *Poset, index map[string]string, round int, che
 
 }
 
-func getDiff(h *Poset, known map[int]int, t *testing.T) []Event {
+func getDiff(h *Poset, known map[int64]int64, t *testing.T) []Event {
 	var diff []Event
 	for id, ct := range known {
 		pk := h.Participants.ById[id].PubKeyHex

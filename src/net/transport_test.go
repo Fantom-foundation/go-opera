@@ -43,7 +43,7 @@ func TestTransport_Sync(t *testing.T) {
 		// Make the RPC request
 		args := SyncRequest{
 			FromID: 0,
-			Known: map[int]int{
+			Known: map[int64]int64{
 				0: 1,
 				1: 2,
 				2: 3,
@@ -62,7 +62,7 @@ func TestTransport_Sync(t *testing.T) {
 					},
 				},
 			},
-			Known: map[int]int{
+			Known: map[int64]int64{
 				0: 5,
 				1: 5,
 				2: 6,

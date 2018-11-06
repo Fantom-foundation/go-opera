@@ -17,15 +17,15 @@ type EventBody struct {
 	Transactions    [][]byte         //the payload
 	Parents         []string         //hashes of the event's parents, self-parent first
 	Creator         []byte           //creator's public key
-	Index           int              //index in the sequence of events created by Creator
+	Index           int64              //index in the sequence of events created by Creator
 	BlockSignatures []BlockSignature //list of Block signatures signed by the Event's Creator ONLY
 
 	//wire
-	//It is cheaper to send ints than hashes over the wire
-	selfParentIndex      int
-	otherParentCreatorID int
-	otherParentIndex     int
-	creatorID            int
+	//It is cheaper to send int64s than hashes over the wire
+	selfParentIndex      int64
+	otherParentCreatorID int64
+	otherParentIndex     int64
+	creatorID            int64
 }
 
 //json encoding of body only
@@ -61,22 +61,22 @@ Event
 
 type EventCoordinates struct {
 	hash  string
-	index int
+	index int64
 }
 
 type OrderedEventCoordinates []Index
 
-func (o OrderedEventCoordinates) GetIDIndex(id int) int {
+func (o OrderedEventCoordinates) GetIDIndex(id int64) int64 {
 	for i, idx := range o {
 		if idx.participantId == id {
-			return i
+			return int64(i)
 		}
 	}
 
 	return -1
 }
 
-func (o OrderedEventCoordinates) GetByID(id int) (Index, bool) {
+func (o OrderedEventCoordinates) GetByID(id int64) (Index, bool) {
 	for _, idx := range o {
 		if idx.participantId == id {
 			return idx, true
@@ -86,7 +86,7 @@ func (o OrderedEventCoordinates) GetByID(id int) (Index, bool) {
 	return Index{}, false
 }
 
-func (o *OrderedEventCoordinates) Add(id int, event EventCoordinates) {
+func (o *OrderedEventCoordinates) Add(id int64, event EventCoordinates) {
 	*o = append(*o, Index{
 		participantId: id,
 		event:         event,
@@ -94,7 +94,7 @@ func (o *OrderedEventCoordinates) Add(id int, event EventCoordinates) {
 }
 
 type Index struct {
-	participantId int
+	participantId int64
 	event         EventCoordinates
 }
 
@@ -104,13 +104,13 @@ type Event struct {
 	Body      EventBody
 	Signature string //creator's digital signature of body
 
-	topologicalIndex int
+	topologicalIndex int64
 
 	//used for sorting
-	round            *int
-	lamportTimestamp *int
+	round            *int64
+	lamportTimestamp *int64
 
-	roundReceived *int
+	roundReceived *int64
 
 	lastAncestors    OrderedEventCoordinates //[participant fake id] => last ancestor
 	firstDescendants OrderedEventCoordinates //[participant fake id] => first descendant
@@ -124,8 +124,8 @@ type Event struct {
 
 // NewEvent creates new block event.
 func NewEvent(transactions [][]byte, blockSignatures []BlockSignature,
-	parents []string, creator []byte, index int,
-	flagTable map[string]int) Event {
+	parents []string, creator []byte, index int64,
+	flagTable map[string]int64) Event {
 
 	body := EventBody{
 		Transactions:    transactions,
@@ -162,7 +162,7 @@ func (e *Event) Transactions() [][]byte {
 	return e.Body.Transactions
 }
 
-func (e *Event) Index() int {
+func (e *Event) Index() int64 {
 	return e.Body.Index
 }
 
@@ -249,23 +249,23 @@ func (e *Event) Hex() string {
 	return e.hex
 }
 
-func (e *Event) SetRound(r int) {
+func (e *Event) SetRound(r int64) {
 	if e.round == nil {
-		e.round = new(int)
+		e.round = new(int64)
 	}
 	*e.round = r
 }
 
-func (e *Event) SetLamportTimestamp(t int) {
+func (e *Event) SetLamportTimestamp(t int64) {
 	if e.lamportTimestamp == nil {
-		e.lamportTimestamp = new(int)
+		e.lamportTimestamp = new(int64)
 	}
 	*e.lamportTimestamp = t
 }
 
-func (e *Event) SetRoundReceived(rr int) {
+func (e *Event) SetRoundReceived(rr int64) {
 	if e.roundReceived == nil {
-		e.roundReceived = new(int)
+		e.roundReceived = new(int64)
 	}
 	*e.roundReceived = rr
 }
@@ -273,7 +273,7 @@ func (e *Event) SetRoundReceived(rr int) {
 func (e *Event) SetWireInfo(selfParentIndex,
 	otherParentCreatorID,
 	otherParentIndex,
-	creatorID int) {
+	creatorID int64) {
 	e.Body.selfParentIndex = selfParentIndex
 	e.Body.otherParentCreatorID = otherParentCreatorID
 	e.Body.otherParentIndex = otherParentIndex
@@ -310,16 +310,16 @@ func (e *Event) ToWire() WireEvent {
 }
 
 // GetFlagTable returns the flag table.
-func (e *Event) GetFlagTable() (result map[string]int, err error) {
-	result = make(map[string]int)
+func (e *Event) GetFlagTable() (result map[string]int64, err error) {
+	result = make(map[string]int64)
 	err = json.Unmarshal(e.FlagTable, &result)
 	return result, err
 }
 
-// MargeFlagTable returns merged flag table object.
-func (e *Event) MargeFlagTable(
-	dst map[string]int) (result map[string]int, err error) {
-	src := make(map[string]int)
+// MergeFlagTable returns merged flag table object.
+func (e *Event) MergeFlagTable(
+	dst map[string]int64) (result map[string]int64, err error) {
+	src := make(map[string]int64)
 	if err := json.Unmarshal(e.FlagTable, &src); err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (e *Event) MargeFlagTable(
 	return src, err
 }
 
-func rootSelfParent(participantID int) string {
+func rootSelfParent(participantID int64) string {
 	return fmt.Sprintf("Root%d", participantID)
 }
 
@@ -359,7 +359,7 @@ type ByLamportTimestamp []Event
 func (a ByLamportTimestamp) Len() int      { return len(a) }
 func (a ByLamportTimestamp) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByLamportTimestamp) Less(i, j int) bool {
-	it, jt := -1, -1
+	it, jt := int64(-1), int64(-1)
 	if a[i].lamportTimestamp != nil {
 		it = *a[i].lamportTimestamp
 	}
@@ -383,12 +383,12 @@ type WireBody struct {
 	Transactions    [][]byte
 	BlockSignatures []WireBlockSignature
 
-	SelfParentIndex      int
-	OtherParentCreatorID int
-	OtherParentIndex     int
-	CreatorID            int
+	SelfParentIndex      int64
+	OtherParentCreatorID int64
+	OtherParentIndex     int64
+	CreatorID            int64
 
-	Index int
+	Index int64
 }
 
 type WireEvent struct {

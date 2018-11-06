@@ -6,7 +6,7 @@ import (
 )
 
 type PubKeyPeers map[string]*Peer
-type IdPeers map[int]*Peer
+type IdPeers map[int64]*Peer
 
 type Peers struct {
 	sync.RWMutex
@@ -92,7 +92,7 @@ func (p *Peers) RemovePeerByPubKey(pubKey string) {
 	p.RemovePeer(p.ByPubKey[pubKey])
 }
 
-func (p *Peers) RemovePeerById(id int) {
+func (p *Peers) RemovePeerById(id int64) {
 	p.RemovePeer(p.ById[id])
 }
 
@@ -115,11 +115,11 @@ func (p *Peers) ToPubKeySlice() []string {
 	return res
 }
 
-func (p *Peers) ToIDSlice() []int {
+func (p *Peers) ToIDSlice() []int64 {
 	p.RLock()
 	defer p.RUnlock()
 
-	res := []int{}
+	res := []int64{}
 
 	for _, peer := range p.Sorted {
 		res = append(res, peer.ID)

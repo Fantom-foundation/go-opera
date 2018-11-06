@@ -132,7 +132,7 @@ func AddRunFlags(cmd *cobra.Command) {
 
 	// Node configuration
 	cmd.Flags().Duration("heartbeat", config.Lachesis.NodeConfig.HeartbeatTimeout, "Time between gossips")
-	cmd.Flags().Int("sync-limit", config.Lachesis.NodeConfig.SyncLimit, "Max number of events for sync")
+	cmd.Flags().Int64("sync-limit", config.Lachesis.NodeConfig.SyncLimit, "Max number of events for sync")
 
 	// Test
 	cmd.Flags().Bool("test", config.Lachesis.Test, "Enable testing (sends transactions to random nodes in the network)")

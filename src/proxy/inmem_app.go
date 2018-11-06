@@ -49,7 +49,7 @@ func (p *InmemAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 }
 
 // GetSnapshot implements AppProxy interface method, calls handler
-func (p *InmemAppProxy) GetSnapshot(blockIndex int) ([]byte, error) {
+func (p *InmemAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	snapshot, err := p.handler.SnapshotHandler(blockIndex)
 	p.logger.WithFields(logrus.Fields{
 		"block":    blockIndex,

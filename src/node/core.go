@@ -16,7 +16,7 @@ import (
 )
 
 type Core struct {
-	id     int
+	id     int64
 	key    *ecdsa.PrivateKey
 	pubKey []byte
 	hexID  string
@@ -26,7 +26,7 @@ type Core struct {
 
 	participants *peers.Peers // [PubKey] => id
 	Head         string
-	Seq          int
+	Seq          int64
 
 	transactionPool    [][]byte
 	blockSignaturePool []poset.BlockSignature
@@ -37,7 +37,7 @@ type Core struct {
 }
 
 func NewCore(
-	id int,
+	id int64,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
 	store poset.Store,
@@ -75,7 +75,7 @@ func NewCore(
 	return core
 }
 
-func (c *Core) ID() int {
+func (c *Core) ID() int64 {
 	return c.id
 }
 
@@ -115,7 +115,7 @@ func (c *Core) InDegrees() map[string]uint64 {
 func (c *Core) SetHeadAndSeq() error {
 
 	var head string
-	var seq int
+	var seq int64
 
 	last, isRoot, err := c.poset.Store.LastEventFrom(c.HexID())
 	if err != nil {
@@ -213,7 +213,7 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 	return nil
 }
 
-func (c *Core) KnownEvents() map[int]int {
+func (c *Core) KnownEvents() map[int64]int64 {
 	return c.poset.Store.KnownEvents()
 }
 
@@ -232,8 +232,8 @@ func (c *Core) SignBlock(block poset.Block) (poset.BlockSignature, error) {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-func (c *Core) OverSyncLimit(knownEvents map[int]int, syncLimit int) bool {
-	totUnknown := 0
+func (c *Core) OverSyncLimit(knownEvents map[int64]int64, syncLimit int64) bool {
+	totUnknown := int64(0)
 	myKnownEvents := c.KnownEvents()
 	for i, li := range myKnownEvents {
 		if li > knownEvents[i] {
@@ -251,7 +251,7 @@ func (c *Core) GetAnchorBlockWithFrame() (poset.Block, poset.Frame, error) {
 }
 
 // returns events that c knows about and are not in 'known'
-func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
+func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error) {
 	var unknown []poset.Event
 	// known represents the index of the last event known for every participant
 	// compare this to our view of events and fill unknown with events that we know of
@@ -376,12 +376,12 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	var (
-		flagTable map[string]int
+		flagTable map[string]int64
 		err       error
 	)
 
 	if errSelf != nil {
-		flagTable = map[string]int{c.Head: 1}
+		flagTable = map[string]int64{c.Head: 1}
 	} else {
 		flagTable, err = parentEvent.GetFlagTable()
 		if err != nil {
@@ -390,7 +390,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	if errOther == nil {
-		flagTable, err = otherParentEvent.MargeFlagTable(flagTable)
+		flagTable, err = otherParentEvent.MergeFlagTable(flagTable)
 		if err != nil {
 			return fmt.Errorf("failed to marge flag tables: %s", err)
 		}
@@ -523,7 +523,7 @@ func (c *Core) GetConsensusEvents() []string {
 	return c.poset.Store.ConsensusEvents()
 }
 
-func (c *Core) GetConsensusEventsCount() int {
+func (c *Core) GetConsensusEventsCount() int64 {
 	return c.poset.Store.ConsensusEventsCount()
 }
 
@@ -547,7 +547,7 @@ func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	return txs, nil
 }
 
-func (c *Core) GetLastConsensusRoundIndex() *int {
+func (c *Core) GetLastConsensusRoundIndex() *int64 {
 	return c.poset.LastConsensusRound
 }
 
@@ -559,6 +559,6 @@ func (c *Core) GetLastCommittedRoundEventsCount() int {
 	return c.poset.LastCommitedRoundEvents
 }
 
-func (c *Core) GetLastBlockIndex() int {
+func (c *Core) GetLastBlockIndex() int64 {
 	return c.poset.Store.LastBlockIndex()
 }

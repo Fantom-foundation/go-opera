@@ -223,7 +223,7 @@ func (p *GrpcLachesisProxy) listen_events() {
 			uuid, err = xid.FromBytes(q.Uid)
 			if err == nil {
 				p.queryCh <- proto.SnapshotRequest{
-					BlockIndex: int(q.Index),
+					BlockIndex: q.Index,
 					RespChan:   p.newSnapshotResponseCh(uuid),
 				}
 			}

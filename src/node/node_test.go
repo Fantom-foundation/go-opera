@@ -292,8 +292,8 @@ func TestAddTransaction(t *testing.T) {
 
 func initNodes(keys []*ecdsa.PrivateKey,
 	peers *peers_.Peers,
-	cacheSize,
-	syncLimit int,
+	cacheSize int,
+	syncLimit int64,
 	storeType string,
 	logger *logrus.Logger,
 	t testing.TB) []*Node {
@@ -414,7 +414,7 @@ func TestGossip(t *testing.T) {
 	keys, peers := initPeers(4)
 	nodes := initNodes(keys, peers, 1000, 1000, "inmem", logger, t)
 
-	target := 50
+	target := int64(50)
 
 	err := gossip(nodes, target, true, 3*time.Second)
 	if err != nil {
@@ -490,7 +490,7 @@ func TestFastForward(t *testing.T) {
 	nodes := initNodes(keys, peers, 1000, 1000, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	target := 50
+	target := int64(50)
 	err := gossip(nodes[1:], target, false, 3*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -528,7 +528,7 @@ func TestCatchUp(t *testing.T) {
 	normalNodes := initNodes(keys[0:3], peers, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(normalNodes)
 
-	target := 50
+	target := int64(50)
 
 	err := gossip(normalNodes, target, false, 3*time.Second)
 	if err != nil {
@@ -713,7 +713,7 @@ func TestShutdown(t *testing.T) {
 //}
 
 
-func gossip(nodes []*Node, target int, shutdown bool, timeout time.Duration) error {
+func gossip(nodes []*Node, target int64, shutdown bool, timeout time.Duration) error {
 	runNodes(nodes, true)
 	err := bombardAndWait(nodes, target, timeout)
 	if err != nil {
@@ -725,7 +725,7 @@ func gossip(nodes []*Node, target int, shutdown bool, timeout time.Duration) err
 	return nil
 }
 
-func bombardAndWait(nodes []*Node, target int, timeout time.Duration) error {
+func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 
 	quit := make(chan struct{})
 	makeRandomTransactions(nodes, quit)
@@ -763,9 +763,9 @@ func bombardAndWait(nodes []*Node, target int, timeout time.Duration) error {
 	return nil
 }
 
-func checkGossip(nodes []*Node, fromBlock int, t *testing.T) {
+func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {
 
-	nodeBlocks := map[int][]poset.Block{}
+	nodeBlocks := map[int64][]poset.Block{}
 	for _, n := range nodes {
 		var blocks []poset.Block
 		for i := fromBlock; i < n.core.poset.Store.LastBlockIndex(); i++ {
@@ -779,14 +779,14 @@ func checkGossip(nodes []*Node, fromBlock int, t *testing.T) {
 	}
 
 	minB := len(nodeBlocks[0])
-	for k := 1; k < len(nodes); k++ {
+	for k := int64(1); k < int64(len(nodes)); k++ {
 		if len(nodeBlocks[k]) < minB {
 			minB = len(nodeBlocks[k])
 		}
 	}
 
 	for i, block := range nodeBlocks[0][:minB] {
-		for k := 1; k < len(nodes); k++ {
+		for k := int64(1); k < int64(len(nodes)); k++ {
 			oBlock := nodeBlocks[k][i]
 			if !reflect.DeepEqual(block.Body, oBlock.Body) {
 				t.Fatalf("checkGossip: Difference in Block %d. ###### nodes[0]: %v ###### nodes[%d]: %v", block.Index(), block.Body, k, oBlock.Body)

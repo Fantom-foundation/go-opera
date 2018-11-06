@@ -71,7 +71,7 @@ func TestGrpcCalls(t *testing.T) {
 
 	t.Run("#3 Receive snapshot query", func(t *testing.T) {
 		assert := assert.New(t)
-		index := 1
+		index := int64(1)
 		gold := []byte("123456")
 
 		go func() {

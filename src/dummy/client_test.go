@@ -76,7 +76,7 @@ func TestDummySocketClient(t *testing.T) {
 	initialStateHash := state.stateHash
 	//create a few blocks
 	blocks := [5]poset.Block{}
-	for i := 0; i < 5; i++ {
+	for i := int64(0); i < 5; i++ {
 		blocks[i] = poset.NewBlock(i, i+1, []byte{}, [][]byte{[]byte(fmt.Sprintf("block %d transaction", i))})
 	}
 

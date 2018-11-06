@@ -170,8 +170,8 @@ func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 }
 
 // GetSnapshot implements AppProxy interface method
-func (p *GrpcAppProxy) GetSnapshot(blockIndex int) ([]byte, error) {
-	answer, ok := <-p.push_query(int64(blockIndex))
+func (p *GrpcAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
+	answer, ok := <-p.push_query(blockIndex)
 	if !ok {
 		return nil, ErrNoAnswers
 	}
