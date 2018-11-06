@@ -1446,11 +1446,6 @@ func (p *Poset) Bootstrap() error {
 //ReadWireInfo converts a WireEvent to an Event by replacing int IDs with the
 //corresponding public keys.
 func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
-
-p.logger.WithField("wevent", wevent).Debug("ReadWireInfo(wevent WireEvent)")
-p.logger.WithField("wevent.Body", wevent.Body).Debug("ReadWireInfo(wevent WireEvent)")
-p.logger.WithField("wevent.Signature", wevent.Signature).Debug("ReadWireInfo(wevent WireEvent)")
-
 	selfParent := rootSelfParent(wevent.Body.CreatorID)
 	otherParent := ""
 	var err error
@@ -1528,6 +1523,11 @@ p.logger.WithField("wevent.Signature", wevent.Signature).Debug("ReadWireInfo(wev
 		Signature: wevent.Signature,
 		FlagTable: wevent.FlagTable,
 	}
+
+	p.logger.WithFields(logrus.Fields{
+		"event.Signature": event.Signature,
+		"wevent.Signature":  wevent.Signature,
+	}).Debug("Return Event from ReadFromWire")
 
 	return event, nil
 }
