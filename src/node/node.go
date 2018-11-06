@@ -537,6 +537,9 @@ func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (net.Ea
 	}
 
 	var out net.EagerSyncResponse
+	n.logger.WithFields(logrus.Fields{
+		"target": target,
+	}).Debug("requestEagerSync(target string, events []poset.WireEvent)")
 	err := n.trans.EagerSync(target, &args, &out)
 
 	return out, err
