@@ -34,8 +34,9 @@ type Node struct {
 	trans net.Transport
 	netCh <-chan net.RPC
 
-	proxy    proxy.AppProxy
-	submitCh chan []byte
+	proxy            proxy.AppProxy
+	submitCh         chan []byte
+	submitInternalCh chan *poset.InternalTransaction
 
 	commitCh chan poset.Block
 
@@ -68,20 +69,21 @@ func NewNode(conf *Config,
 	peerSelector := NewRandomPeerSelector(participants, localAddr)
 
 	node := Node{
-		id:           id,
-		conf:         conf,
-		core:         &core,
-		localAddr:    localAddr,
-		logger:       conf.Logger.WithField("this_id", id),
-		peerSelector: peerSelector,
-		trans:        trans,
-		netCh:        trans.Consumer(),
-		proxy:        proxy,
-		submitCh:     proxy.SubmitCh(),
-		commitCh:     commitCh,
-		shutdownCh:   make(chan struct{}),
-		controlTimer: NewRandomControlTimer(),
-		start:        time.Now(),
+		id:               id,
+		conf:             conf,
+		core:             &core,
+		localAddr:        localAddr,
+		logger:           conf.Logger.WithField("this_id", id),
+		peerSelector:     peerSelector,
+		trans:            trans,
+		netCh:            trans.Consumer(),
+		proxy:            proxy,
+		submitCh:         proxy.SubmitCh(),
+		submitInternalCh: proxy.SubmitInternalCh(),
+		commitCh:         commitCh,
+		shutdownCh:       make(chan struct{}),
+		controlTimer:     NewRandomControlTimer(),
+		start:            time.Now(),
 	}
 
 	node.needBoostrap = store.NeedBoostrap()
@@ -163,6 +165,10 @@ func (n *Node) doBackgroundWork() {
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transactions to Transaction Pool")
 			n.addTransaction(t)
+			n.resetTimer()
+		case t := <-n.submitInternalCh:
+			n.logger.Debug("Adding Internal Transaction")
+ 			n.addInternalTransaction(t)
 			n.resetTimer()
 		case block := <-n.commitCh:
 			n.logger.WithFields(logrus.Fields{
@@ -619,6 +625,12 @@ func (n *Node) addTransaction(tx []byte) {
 	n.coreLock.Lock()
 	defer n.coreLock.Unlock()
 	n.core.AddTransactions([][]byte{tx})
+}
+
+func (n *Node) addInternalTransaction(tx *poset.InternalTransaction) {
+	n.coreLock.Lock()
+ 	defer n.coreLock.Unlock()
+ 	n.core.AddInternalTransactions([]*poset.InternalTransaction{tx})
 }
 
 func (n *Node) Shutdown() {

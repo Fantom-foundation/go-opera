@@ -47,6 +47,7 @@ func TestInmemEvents(t *testing.T) {
 			var items []Event
 			for k := 0; k < testSize; k++ {
 				event := NewEvent([][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
+					nil,
 					[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 					[]string{"", ""},
 					p.pubKey,
@@ -126,6 +127,7 @@ func TestInmemRounds(t *testing.T) {
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
+			nil,
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,

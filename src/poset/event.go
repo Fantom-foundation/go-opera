@@ -6,19 +6,57 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/btcsuite/btcd/peer"
 	"github.com/andrecronje/lachesis/src/crypto"
 )
+
+/*******************************************************************************
+InternalTransactions
+*******************************************************************************/
+type TransactionType uint8
+ const (
+	PEER_ADD TransactionType = iota
+	PEER_REMOVE
+)
+type InternalTransaction struct {
+	Type TransactionType
+	Peer peer.Peer
+}
+func NewInternalTransaction(tType TransactionType, peer peer.Peer) *InternalTransaction {
+	return &InternalTransaction{
+		Type: tType,
+		Peer: peer,
+	}
+}
+//json encoding of body only
+func (t *InternalTransaction) Marshal() ([]byte, error) {
+	var b bytes.Buffer
+ 	enc := json.NewEncoder(&b) //will write to b
+ 	if err := enc.Encode(t); err != nil {
+		return nil, err
+	}
+ 	return b.Bytes(), nil
+}
+func (t *InternalTransaction) Unmarshal(data []byte) error {
+	b := bytes.NewBuffer(data)
+ 	dec := json.NewDecoder(b) //will read from b
+ 	if err := dec.Decode(t); err != nil {
+		return err
+	}
+ 	return nil
+}
 
 /*******************************************************************************
 EventBody
 *******************************************************************************/
 
 type EventBody struct {
-	Transactions    [][]byte         //the payload
-	Parents         []string         //hashes of the event's parents, self-parent first
-	Creator         []byte           //creator's public key
-	Index           int              //index in the sequence of events created by Creator
-	BlockSignatures []BlockSignature //list of Block signatures signed by the Event's Creator ONLY
+	Transactions         [][]byte         //the payload
+	InternalTransactions []*InternalTransaction //peers add and removal internal consensus
+	Parents              []string         //hashes of the event's parents, self-parent first
+	Creator              []byte           //creator's public key
+	Index                int              //index in the sequence of events created by Creator
+	BlockSignatures      []BlockSignature //list of Block signatures signed by the Event's Creator ONLY
 
 	//wire
 	//It is cheaper to send ints than hashes over the wire
@@ -79,16 +117,19 @@ type Event struct {
 }
 
 // NewEvent creates new block event.
-func NewEvent(transactions [][]byte, blockSignatures []BlockSignature,
+func NewEvent(transactions [][]byte,
+	internalTransactions []*InternalTransaction,
+	blockSignatures []BlockSignature,
 	parents []string, creator []byte, index int,
 	flagTable map[string]int) Event {
 
 	body := EventBody{
-		Transactions:    transactions,
-		BlockSignatures: blockSignatures,
-		Parents:         parents,
-		Creator:         creator,
-		Index:           index,
+		Transactions:         transactions,
+		InternalTransactions: internalTransactions,
+		BlockSignatures:      blockSignatures,
+		Parents:              parents,
+		Creator:              creator,
+		Index:                index,
 	}
 
 	ft, _ := json.Marshal(flagTable)
@@ -133,7 +174,7 @@ func (e *Event) IsLoaded() bool {
 	}
 
 	hasTransactions := e.Body.Transactions != nil &&
-		len(e.Body.Transactions) > 0
+		(len(e.Body.Transactions) > 0 || len(e.Body.InternalTransactions) > 0)
 
 	return hasTransactions
 }
@@ -253,6 +294,7 @@ func (e *Event) ToWire() WireEvent {
 	return WireEvent{
 		Body: WireBody{
 			Transactions:         e.Body.Transactions,
+			InternalTransactions: e.Body.InternalTransactions,
 			SelfParentIndex:      e.Body.selfParentIndex,
 			OtherParentCreatorID: e.Body.otherParentCreatorID,
 			OtherParentIndex:     e.Body.otherParentIndex,
@@ -336,8 +378,9 @@ func (a ByLamportTimestamp) Less(i, j int) bool {
 *******************************************************************************/
 
 type WireBody struct {
-	Transactions    [][]byte
-	BlockSignatures []WireBlockSignature
+	Transactions         [][]byte
+	InternalTransactions []*InternalTransaction
+	BlockSignatures      []WireBlockSignature
 
 	SelfParentIndex      int
 	OtherParentCreatorID int

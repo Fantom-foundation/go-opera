@@ -103,6 +103,7 @@ func initPosetNodes(n int) ([]TestNode, map[string]string, *[]Event, *peers.Peer
 func playEvents(plays []play, nodes []TestNode, index map[string]string, orderedEvents *[]Event) {
 	for _, p := range plays {
 		e := NewEvent(p.txPayload,
+			nil,
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,
@@ -140,7 +141,7 @@ func initPosetFull(plays []play, db bool, n int, logger *logrus.Entry) (*Poset, 
 
 	// Needed to have sorted nodes based on participants hash32
 	for i, peer := range participants.ToPeerSlice() {
-		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
+		event := NewEvent(nil, nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 	}
 
@@ -373,21 +374,21 @@ func TestFork(t *testing.T) {
 	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
-		event := NewEvent(nil, nil, []string{"", ""}, node.Pub, 0, nil)
+		event := NewEvent(nil, nil, nil, []string{"", ""}, node.Pub, 0, nil)
 		event.Sign(node.Key)
 		index[fmt.Sprintf("e%d", i)] = event.Hex()
 		poset.InsertEvent(event, true)
 	}
 
 	//a and e2 need to have different hashes
-	eventA := NewEvent([][]byte{[]byte("yo")}, nil, []string{"", ""}, nodes[2].Pub, 0, nil)
+	eventA := NewEvent([][]byte{[]byte("yo")}, nil, nil, []string{"", ""}, nodes[2].Pub, 0, nil)
 	eventA.Sign(nodes[2].Key)
 	index["a"] = eventA.Hex()
 	if err := poset.InsertEvent(eventA, true); err == nil {
 		t.Fatal("InsertEvent should return error for 'a'")
 	}
 
-	event01 := NewEvent(nil, nil,
+	event01 := NewEvent(nil, nil, nil,
 		[]string{index["e0"], index["a"]}, //e0 and a
 		nodes[0].Pub, 1, nil)
 	event01.Sign(nodes[0].Key)
@@ -396,7 +397,7 @@ func TestFork(t *testing.T) {
 		t.Fatal("InsertEvent should return error for e01")
 	}
 
-	event20 := NewEvent(nil, nil,
+	event20 := NewEvent(nil, nil, nil,
 		[]string{index["e2"], index["e01"]}, //e2 and e01
 		nodes[2].Pub, 1, nil)
 	event20.Sign(nodes[2].Key)
@@ -455,7 +456,7 @@ func TestInsertEvent(t *testing.T) {
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
 
-		
+
 		//e0
 		e0, err := p.Store.GetEvent(index["e0"])
 		if err != nil {
@@ -947,7 +948,7 @@ func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]string) {
 	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	for i, peer := range participants.ToPeerSlice() {
-		event := NewEvent(nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
+		event := NewEvent(nil, nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 	}
 
@@ -1003,6 +1004,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 
 		for _, pl := range plays {
 			e := NewEvent(pl.txPayload,
+				nil,
 				pl.sigPayload,
 				[]string{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
@@ -1050,6 +1052,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 		pl := play{2, 2, "s20", "e10", "e21", nil, []BlockSignature{unknownBlockSig}}
 
 		e := NewEvent(nil,
+			nil,
 			pl.sigPayload,
 			[]string{index[pl.selfParent], index[pl.otherParent]},
 			nodes[pl.to].Pub,
@@ -1081,6 +1084,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 		pl := play{0, 2, "s00", "e21", "e02", nil, []BlockSignature{badNodeSig}}
 
 		e := NewEvent(nil,
+			nil,
 			pl.sigPayload,
 			[]string{index[pl.selfParent], index[pl.otherParent]},
 			nodes[pl.to].Pub,
@@ -2024,7 +2028,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
+		event := NewEvent([][]byte{[]byte(name)}, nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, name, index, orderedEvents)
 	}
 
@@ -2476,7 +2480,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
+		event := NewEvent([][]byte{[]byte(name)}, nil, nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0, nil)
 		nodes[i].signAndAddEvent(event, name, index, orderedEvents)
 	}
 
@@ -2506,6 +2510,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 
 	for _, p := range plays {
 		e := NewEvent(p.txPayload,
+			nil,
 			p.sigPayload,
 			[]string{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub,

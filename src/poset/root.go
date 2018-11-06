@@ -84,7 +84,7 @@ func NewBaseRootEvent(creatorID int) RootEvent {
 	return res
 }
 
-//Root forms a base on top of which a participant's Events can be inserted. In
+//Root forms a base on top of which a participant's Events can be inserted. It
 //contains the SelfParent of the first descendant of the Root, as well as other
 //Events, belonging to a past before the Root, which might be referenced
 //in future Events. NextRound corresponds to a proposed value for the child's
