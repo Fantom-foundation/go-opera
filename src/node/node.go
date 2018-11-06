@@ -525,7 +525,7 @@ func (n *Node) requestSync(target string, known map[int]int) (net.SyncResponse, 
 
 	var out net.SyncResponse
 	err := n.trans.Sync(target, &args, &out)
-	n.logger.WithField("out", out).Error("requestSync(target string, known map[int]int)")
+	//n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
 	return out, err
 }
 
