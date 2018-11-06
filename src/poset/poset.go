@@ -3,6 +3,7 @@ package poset
 import (
 	"encoding/hex"
 	"errors"
+	"crypto/ecdsa"
 	"fmt"
 	"math"
 	"sort"
@@ -658,6 +659,12 @@ func (p *Poset) createRoot(ev Event) (Root, error) {
 
 func (p *Poset) SetWireInfo(event *Event) error {
 	return p.setWireInfo(event)
+}
+func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) error {
+	if err := p.setWireInfo(event); err != nil {
+		return err
+	}
+	return event.Sign(privKey)
 }
 
 func (p *Poset) setWireInfo(event *Event) error {

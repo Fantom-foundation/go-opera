@@ -199,9 +199,9 @@ func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
 }
 
 func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
-	c.poset.SetWireInfo(&event)
+	c.poset.SetWireInfoAndSign(&event, c.key)
 
-	if err := event.Sign(c.key); err != nil {
+	if err := c.poset.SetWireInfoAndSign(&event, c.key); err != nil {
 		return err
 	}
 
