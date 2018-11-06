@@ -29,7 +29,7 @@ type Core struct {
 	Seq          int
 
 	transactionPool         [][]byte
-	internalTransactionPool []*poset.InternalTransaction
+	internalTransactionPool []poset.InternalTransaction
 	blockSignaturePool      []poset.BlockSignature
 
 	logger *logrus.Entry
@@ -64,7 +64,7 @@ func NewCore(
 		inDegrees:               inDegrees,
 		participants:            participants,
 		transactionPool:         [][]byte{},
-		internalTransactionPool: []*poset.InternalTransaction{},
+		internalTransactionPool: []poset.InternalTransaction{},
 		blockSignaturePool:      []poset.BlockSignature{},
 		logger:                  logEntry,
 		Head:                    "",
@@ -421,7 +421,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}
-	c.internalTransactionPool = []*poset.InternalTransaction{}
+	c.internalTransactionPool = []poset.InternalTransaction{}
 	// retain c.blockSignaturePool until c.transactionPool is empty
 	// FIXIT: is there any better strategy?
 	if len(c.transactionPool) == 0 {
@@ -505,7 +505,7 @@ func (c *Core) AddTransactions(txs [][]byte) {
 	c.transactionPool = append(c.transactionPool, txs...)
 }
 
-func (c *Core) AddInternalTransactions(txs []*poset.InternalTransaction) {
+func (c *Core) AddInternalTransactions(txs []poset.InternalTransaction) {
 	c.internalTransactionPool = append(c.internalTransactionPool, txs...)
 }
 

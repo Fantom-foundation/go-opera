@@ -60,7 +60,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 
 		// Create and save the first Event
 		initialEvent := poset.NewEvent([][]byte{},
-			[]*poset.InternalTransaction{},
+			[]poset.InternalTransaction{},
 			[]poset.BlockSignature{},
 			[]string{}, []byte{}, 0, flagTable)
 

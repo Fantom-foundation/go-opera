@@ -36,7 +36,7 @@ type Node struct {
 
 	proxy            proxy.AppProxy
 	submitCh         chan []byte
-	submitInternalCh chan *poset.InternalTransaction
+	submitInternalCh chan poset.InternalTransaction
 
 	commitCh chan poset.Block
 
@@ -627,10 +627,10 @@ func (n *Node) addTransaction(tx []byte) {
 	n.core.AddTransactions([][]byte{tx})
 }
 
-func (n *Node) addInternalTransaction(tx *poset.InternalTransaction) {
+func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {
 	n.coreLock.Lock()
  	defer n.coreLock.Unlock()
- 	n.core.AddInternalTransactions([]*poset.InternalTransaction{tx})
+ 	n.core.AddInternalTransactions([]poset.InternalTransaction{tx})
 }
 
 func (n *Node) Shutdown() {

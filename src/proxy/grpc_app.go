@@ -154,7 +154,7 @@ func (p *GrpcAppProxy) SubmitCh() chan []byte {
 
 // SubmitCh implements AppProxy interface method
 // TODO: Incorrect implementation, just adding to the interface so long
-func (p *GrpcAppProxy) SubmitInternalCh() chan *poset.InternalTransaction {
+func (p *GrpcAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
 	return nil
 }
 
