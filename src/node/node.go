@@ -66,7 +66,9 @@ func NewNode(conf *Config,
 	commitCh := make(chan poset.Block, 400)
 	core := NewCore(id, key, pmap, store, commitCh, conf.Logger)
 
-	peerSelector := NewRandomPeerSelector(participants, localAddr)
+	pubKey := core.HexID()
+
+	peerSelector := NewRandomPeerSelector(participants, pubKey)
 
 	node := Node{
 		id:               id,
@@ -85,6 +87,9 @@ func NewNode(conf *Config,
 		controlTimer:     NewRandomControlTimer(),
 		start:            time.Now(),
 	}
+
+	node.logger.WithField("peers", pmap).Debug("pmap")
+	node.logger.WithField("pubKey", pubKey).Debug("pubKey")
 
 	node.needBoostrap = store.NeedBoostrap()
 
