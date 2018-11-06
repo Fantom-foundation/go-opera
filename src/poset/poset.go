@@ -1523,6 +1523,12 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		Signature: wevent.Signature,
 		FlagTable: wevent.FlagTable,
 	}
+
+	p.logger.WithFields(logrus.Fields{
+		"event.Signature": event.Signature,
+		"wevent.Signature":  wevent.Signature,
+	}).Debug("Return Event from ReadFromWire")
+
 	return event, nil
 }
 

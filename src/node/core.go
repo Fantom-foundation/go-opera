@@ -437,11 +437,6 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 		"transactions":          len(c.transactionPool),
 		"internal_transactions": len(c.internalTransactionPool),
 		"block_signatures":      len(c.blockSignaturePool),
-		"event":         newHead,
-		"creator":       newHead.Creator(),
-		"selfParent":    newHead.SelfParent(),
-		"index":         newHead.Index(),
-		"hex":           newHead.Hex(),
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}

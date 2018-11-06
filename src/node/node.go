@@ -454,6 +454,7 @@ func (n *Node) push(peerAddr string, knownEvents map[int]int) error {
 
 		// Create and Send EagerSyncRequest
 		start = time.Now()
+		n.logger.WithField("wireEvents", wireEvents).Debug("Sending n.requestEagerSync.wireEvents")
 		resp2, err := n.requestEagerSync(peerAddr, wireEvents)
 		elapsed = time.Since(start)
 		n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestEagerSync(peerAddr, wireEvents)")
