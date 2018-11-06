@@ -2,6 +2,7 @@ package poset
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"sort"

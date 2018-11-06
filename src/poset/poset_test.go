@@ -455,8 +455,7 @@ func TestInsertEvent(t *testing.T) {
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
 
-		participants := p.Participants.ToPeerSlice()
-
+		
 		//e0
 		e0, err := p.Store.GetEvent(index["e0"])
 		if err != nil {
@@ -1002,16 +1001,16 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			{0, 1, "e0", "", "s00", nil, []BlockSignature{blockSigs[0]}},
 		}
 
-		for _, p := range plays {
-			e := NewEvent(p.txPayload,
-				p.sigPayload,
-				[]string{index[p.selfParent], index[p.otherParent]},
-				nodes[p.to].Pub,
-				p.index, nil)
-			e.Sign(nodes[p.to].Key)
-			index[p.name] = e.Hex()
+		for _, pl := range plays {
+			e := NewEvent(pl.txPayload,
+				pl.sigPayload,
+				[]string{index[pl.selfParent], index[pl.otherParent]},
+				nodes[pl.to].Pub,
+				pl.index, nil)
+			e.Sign(nodes[pl.to].Key)
+			index[pl.name] = e.Hex()
 			if err := p.InsertEvent(e, true); err != nil {
-				t.Fatalf("ERROR inserting event %s: %s\n", p.name, err)
+				t.Fatalf("ERROR inserting event %s: %s\n", pl.name, err)
 			}
 		}
 
@@ -1048,17 +1047,17 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			Index:     1,
 			Signature: sig.Signature,
 		}
-		p := play{2, 2, "s20", "e10", "e21", nil, []BlockSignature{unknownBlockSig}}
+		pl := play{2, 2, "s20", "e10", "e21", nil, []BlockSignature{unknownBlockSig}}
 
 		e := NewEvent(nil,
-			p.sigPayload,
-			[]string{index[p.selfParent], index[p.otherParent]},
-			nodes[p.to].Pub,
-			p.index, nil)
-		e.Sign(nodes[p.to].Key)
-		index[p.name] = e.Hex()
+			pl.sigPayload,
+			[]string{index[pl.selfParent], index[pl.otherParent]},
+			nodes[pl.to].Pub,
+			pl.index, nil)
+		e.Sign(nodes[pl.to].Key)
+		index[pl.name] = e.Hex()
 		if err := p.InsertEvent(e, true); err != nil {
-			t.Fatalf("ERROR inserting event %s: %s", p.name, err)
+			t.Fatalf("ERROR inserting event %s: %s", pl.name, err)
 		}
 
 		//check that the event was recorded
@@ -1079,17 +1078,17 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 		badNode := NewTestNode(key, 666)
 		badNodeSig, _ := block.Sign(badNode.Key)
 
-		p := play{0, 2, "s00", "e21", "e02", nil, []BlockSignature{badNodeSig}}
+		pl := play{0, 2, "s00", "e21", "e02", nil, []BlockSignature{badNodeSig}}
 
 		e := NewEvent(nil,
-			p.sigPayload,
-			[]string{index[p.selfParent], index[p.otherParent]},
-			nodes[p.to].Pub,
-			p.index, nil)
-		e.Sign(nodes[p.to].Key)
-		index[p.name] = e.Hex()
+			pl.sigPayload,
+			[]string{index[pl.selfParent], index[pl.otherParent]},
+			nodes[pl.to].Pub,
+			pl.index, nil)
+		e.Sign(nodes[pl.to].Key)
+		index[pl.name] = e.Hex()
 		if err := p.InsertEvent(e, true); err != nil {
-			t.Fatalf("ERROR inserting event %s: %s\n", p.name, err)
+			t.Fatalf("ERROR inserting event %s: %s\n", pl.name, err)
 		}
 
 		//check that the signature was not appended to the block
@@ -2766,7 +2765,7 @@ func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int, che
 
 }
 
-func getDiff(h *Poset, known map[int]int, t *testing.T) []Event {
+func getDiff(p *Poset, known map[int]int, t *testing.T) []Event {
 	var diff []Event
 	for id, ct := range known {
 		pk := p.Participants.ById[id].PubKeyHex

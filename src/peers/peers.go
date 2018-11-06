@@ -130,10 +130,11 @@ func (p *Peers) ToIDSlice() []int {
 }
 
 /* EventListener */
- func (p *Peers) OnNewPeer(cb func(*Peer)) {
+
+func (p *Peers) OnNewPeer(cb func(*Peer)) {
 	p.Listeners = append(p.Listeners, cb)
 }
- func (p *Peers) EmitNewPeer(peer *Peer) {
+func (p *Peers) EmitNewPeer(peer *Peer) {
 	for _, listener := range p.Listeners {
 		listener(peer)
 	}
