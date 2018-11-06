@@ -318,6 +318,9 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	otherHead := ""
 	// add unknown events
 	for k, we := range unknownEvents {
+		c.logger.WithFields(logrus.Fields{
+			"unknown_events":            we,
+		}).Debug("unknownEvents")
 		ev, err := c.poset.ReadWireInfo(we)
 		if err != nil {
 			c.logger.WithField("EventBlock", we).Errorf("c.poset.ReadEventBlockInfo(we)")
