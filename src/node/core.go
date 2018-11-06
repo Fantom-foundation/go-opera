@@ -290,6 +290,13 @@ func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
 			if err != nil {
 				return []poset.Event{}, err
 			}
+			c.logger.WithFields(logrus.Fields{
+				"event":         ev,
+				"creator":       ev.Creator(),
+				"selfParent":    ev.SelfParent(),
+				"index":         ev.Index(),
+				"hex":           ev.Hex(),
+			}).Debugf("Sending Unknown Event")
 			unknown = append(unknown, ev)
 		}
 	}
