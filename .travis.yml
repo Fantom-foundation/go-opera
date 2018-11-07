@@ -28,5 +28,5 @@ jobs:
   - stage: test
     script: make test
   - stage: testnet
-    script: scripts/multi.bash 2>/dev/null
+    script: scripts/multi.bash
     env: n=3 logshold='-1,-1,-1,5,0,0' entry='main' BUILD_DIR="$TRAVIS_BUILD_DIR"
