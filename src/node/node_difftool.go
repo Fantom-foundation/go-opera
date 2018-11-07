@@ -12,6 +12,10 @@ func (n *Node) GetCore() *Core {
  * Node's method candidates
  */
 
+func (n *Node) GetLastBlockIndex() int {
+	return n.core.GetLastBlockIndex()
+}
+
 func (n *Node) PushTx(tx []byte) {
 	n.coreLock.Lock()
 	defer n.coreLock.Unlock()

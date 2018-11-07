@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/andrecronje/lachesis/src/peers"
 	"github.com/andrecronje/lachesis/src/poset"
 )
+
+const timeout = 100 * time.Millisecond
 
 type NodeList map[*ecdsa.PrivateKey]*node.Node
 
@@ -43,7 +46,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 
 	for _, n := range nodes {
 		n.Init()
-		n.RunAsync(false)
+		n.RunAsync(true)
 	}
 
 	return nodes
@@ -69,12 +72,51 @@ func (n NodeList) Nodes() []*node.Node {
 	return nodes
 }
 
-func (n NodeList) PushRandTxs(count int) {
-	keys := n.Keys()
-	for i := 0; i < count; i++ {
-		j := rand.Intn(len(n))
-		node := n[keys[j]]
-		tx := []byte(fmt.Sprintf("node#%d transaction %d", node.ID(), i))
-		node.PushTx(tx)
+func (n NodeList) StartRandTxStream() (stop func()) {
+	stopCh := make(chan struct{})
+
+	stop = func() {
+		close(stopCh)
+	}
+
+	go func() {
+		seq := 0
+		for {
+			select {
+			case <-stopCh:
+				return
+			case <-time.After(timeout):
+				keys := n.Keys()
+				count := len(n)
+				for i := 0; i < count; i++ {
+					j := rand.Intn(count)
+					node := n[keys[j]]
+					tx := []byte(fmt.Sprintf("node#%d transaction %d", node.ID(), seq))
+					node.PushTx(tx)
+					seq++
+				}
+			}
+		}
+	}()
+
+	return
+}
+
+// WaitForBlock waits until the target block has retrieved a state hash from the app
+func (n NodeList) WaitForBlock(target int) {
+LOOP:
+	for {
+		for _, node := range n {
+			if target > node.GetLastBlockIndex() {
+				time.Sleep(timeout)
+				continue LOOP
+			}
+			block, _ := node.GetBlock(target)
+			if len(block.StateHash()) == 0 {
+				time.Sleep(timeout)
+				continue LOOP
+			}
+		}
+		return
 	}
 }

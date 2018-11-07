@@ -1,8 +1,8 @@
 package difftool
 
 import (
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/andrecronje/lachesis/src/common"
 )
@@ -12,11 +12,13 @@ func TestComparing(t *testing.T) {
 
 	nodes := NewNodeList(4, logger)
 
-	nodes.PushRandTxs(100)
+	stopTxStream := nodes.StartRandTxStream()
 
-	<-time.After(10 * time.Second)
+	nodes.WaitForBlock(2)
+
+	stopTxStream()
 
 	output := Compare(nodes.Nodes()...)
 
-	t.Log(output)
+	t.Log(strings.Join(output, "\n"))
 }

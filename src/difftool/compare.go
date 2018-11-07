@@ -18,5 +18,11 @@ func Compare(nodes ...*node.Node) (output []string) {
 }
 
 func compare(n0, n1 *node.Node) string {
-	return fmt.Sprintf("compare %d vs %d", n0.ID(), n1.ID())
+	str := ""
+	if n0.GetLastBlockIndex() != n1.GetLastBlockIndex() {
+		str = fmt.Sprintf("%d != %d", n0.GetLastBlockIndex(), n1.GetLastBlockIndex())
+	} else {
+		str = fmt.Sprintf("%d tx count", n0.GetLastBlockIndex())
+	}
+	return fmt.Sprintf("compare %d vs %d (%s)", n0.ID(), n1.ID(), str)
 }
