@@ -68,7 +68,7 @@ func TestInmemEvents(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !reflect.DeepEqual(ev.Body, rev.Body) {
+				if !reflect.DeepEqual(ev.Message.Body, rev.Message.Body) {
 					t.Fatalf("events[%s][%d] should be %#v, not %#v", p, k, ev, rev)
 				}
 			}

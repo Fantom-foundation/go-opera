@@ -169,7 +169,7 @@ func TestDBEventMethods(t *testing.T) {
 				p.pubKey,
 				k, nil)
 			event.Sign(p.privKey)
-			event.topologicalIndex = topologicalIndex
+			event.Message.topologicalIndex = topologicalIndex
 			topologicalIndex++
 			topologicalEvents = append(topologicalEvents, event)
 
@@ -189,11 +189,11 @@ func TestDBEventMethods(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(ev.Body, rev.Body) {
-				t.Fatalf("events[%s][%d].Body should be %#v, not %#v", p, k, ev.Body, rev.Body)
+			if !reflect.DeepEqual(ev.Message.Body, rev.Message.Body) {
+				t.Fatalf("events[%s][%d].Body should be %#v, not %#v", p, k, ev.Message.Body, rev.Message.Body)
 			}
-			if !reflect.DeepEqual(ev.Signature, rev.Signature) {
-				t.Fatalf("events[%s][%d].Signature should be %#v, not %#v", p, k, ev.Signature, rev.Signature)
+			if !reflect.DeepEqual(ev.Message.Signature, rev.Message.Signature) {
+				t.Fatalf("events[%s][%d].Signature should be %#v, not %#v", p, k, ev.Message.Signature, rev.Message.Signature)
 			}
 			if ver, err := rev.Verify(); err != nil && !ver {
 				t.Fatalf("failed to verify signature. err: %s", err)
@@ -218,15 +218,15 @@ func TestDBEventMethods(t *testing.T) {
 				te.Hex(),
 				dte.Hex())
 		}
-		if !reflect.DeepEqual(te.Body, dte.Body) {
+		if !reflect.DeepEqual(te.Message.Body, dte.Message.Body) {
 			t.Fatalf("dbTopologicalEvents[%d].Body should be %#v, not %#v", i,
-				te.Body,
-				dte.Body)
+				te.Message.Body,
+				dte.Message.Body)
 		}
-		if !reflect.DeepEqual(te.Signature, dte.Signature) {
+		if !reflect.DeepEqual(te.Message.Signature, dte.Message.Signature) {
 			t.Fatalf("dbTopologicalEvents[%d].Signature should be %#v, not %#v", i,
-				te.Signature,
-				dte.Signature)
+				te.Message.Signature,
+				dte.Message.Signature)
 		}
 
 		if ver, err := dte.Verify(); err != nil && !ver {
@@ -474,11 +474,11 @@ func TestBadgerEvents(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(ev.Body, rev.Body) {
+			if !reflect.DeepEqual(ev.Message.Body, rev.Message.Body) {
 				t.Fatalf("events[%s][%d].Body should be %#v, not %#v", p, k, ev, rev)
 			}
-			if !reflect.DeepEqual(ev.Signature, rev.Signature) {
-				t.Fatalf("events[%s][%d].Signature should be %#v, not %#v", p, k, ev.Signature, rev.Signature)
+			if !reflect.DeepEqual(ev.Message.Signature, rev.Message.Signature) {
+				t.Fatalf("events[%s][%d].Signature should be %#v, not %#v", p, k, ev.Message.Signature, rev.Message.Signature)
 			}
 		}
 	}

@@ -463,10 +463,10 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !(e0.Body.selfParentIndex == -1 &&
-			e0.Body.otherParentCreatorID == -1 &&
-			e0.Body.otherParentIndex == -1 &&
-			e0.Body.creatorID == p.Participants.ByPubKey[e0.Creator()].ID) {
+		if !(e0.Message.Body.selfParentIndex == -1 &&
+			e0.Message.Body.otherParentCreatorID == -1 &&
+			e0.Message.Body.otherParentIndex == -1 &&
+			e0.Message.Body.creatorID == p.Participants.ByPubKey[e0.Creator()].ID) {
 			t.Fatalf("Invalid wire info on e0")
 		}
 
@@ -481,10 +481,10 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !(e21.Body.selfParentIndex == 1 &&
-			e21.Body.otherParentCreatorID == p.Participants.ByPubKey[e10.Creator()].ID &&
-			e21.Body.otherParentIndex == 1 &&
-			e21.Body.creatorID == p.Participants.ByPubKey[e21.Creator()].ID) {
+		if !(e21.Message.Body.selfParentIndex == 1 &&
+			e21.Message.Body.otherParentCreatorID == p.Participants.ByPubKey[e10.Creator()].ID &&
+			e21.Message.Body.otherParentIndex == 1 &&
+			e21.Message.Body.creatorID == p.Participants.ByPubKey[e21.Creator()].ID) {
 			t.Fatalf("Invalid wire info on e21")
 		}
 
@@ -494,10 +494,10 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !(f1.Body.selfParentIndex == 2 &&
-			f1.Body.otherParentCreatorID == p.Participants.ByPubKey[e0.Creator()].ID &&
-			f1.Body.otherParentIndex == 2 &&
-			f1.Body.creatorID == p.Participants.ByPubKey[f1.Creator()].ID) {
+		if !(f1.Message.Body.selfParentIndex == 2 &&
+			f1.Message.Body.otherParentCreatorID == p.Participants.ByPubKey[e0.Creator()].ID &&
+			f1.Message.Body.otherParentIndex == 2 &&
+			f1.Message.Body.creatorID == p.Participants.ByPubKey[f1.Creator()].ID) {
 			t.Fatalf("Invalid wire info on f1")
 		}
 
@@ -572,15 +572,15 @@ func TestReadWireInfo(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(ev.Body.BlockSignatures, evFromWire.Body.BlockSignatures) {
+		if !reflect.DeepEqual(ev.Message.Body.BlockSignatures, evFromWire.Message.Body.BlockSignatures) {
 			t.Fatalf("Error converting %s.Body.BlockSignatures from light wire", k)
 		}
 
-		if !reflect.DeepEqual(ev.Body, evFromWire.Body) {
+		if !reflect.DeepEqual(ev.Message.Body, evFromWire.Message.Body) {
 			t.Fatalf("Error converting %s.Body from light wire", k)
 		}
 
-		if !reflect.DeepEqual(ev.Signature, evFromWire.Signature) {
+		if !reflect.DeepEqual(ev.Message.Signature, evFromWire.Message.Signature) {
 			t.Fatalf("Error converting %s.Signature from light wire", k)
 		}
 
@@ -2714,8 +2714,8 @@ func TestSparsePosetReset(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ReadWireInfo(%s): %s", eventName, err)
 			}
-			if !reflect.DeepEqual(ev.Body, diff[i].Body) {
-				t.Fatalf("%s from WireInfo should be %#v, not %#v", eventName, diff[i].Body, ev.Body)
+			if !reflect.DeepEqual(ev.Message.Body, diff[i].Message.Body) {
+				t.Fatalf("%s from WireInfo should be %#v, not %#v", eventName, diff[i].Message.Body, ev.Message.Body)
 			}
 			err = p2.InsertEvent(*ev, false)
 			if err != nil {

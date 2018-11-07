@@ -62,7 +62,7 @@ func TestSignEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Body: body}
+	event := Event{Message: EventMessage { Body: body} }
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -83,7 +83,7 @@ func TestMarshallEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Body: body}
+	event := Event{Message: EventMessage { Body: body} }
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -110,7 +110,7 @@ func TestWireEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Body: body}
+	event := Event{Message: EventMessage { Body: body} }
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -119,16 +119,16 @@ func TestWireEvent(t *testing.T) {
 
 	expectedWireEvent := WireEvent{
 		Body: WireBody{
-			Transactions:         event.Body.Transactions,
-			InternalTransactions: event.Body.InternalTransactions,
+			Transactions:         event.Message.Body.Transactions,
+			InternalTransactions: event.Message.Body.InternalTransactions,
 			SelfParentIndex:      1,
 			OtherParentCreatorID: 66,
 			OtherParentIndex:     2,
 			CreatorID:            67,
-			Index:                event.Body.Index,
+			Index:                event.Message.Body.Index,
 			BlockSignatures:      event.WireBlockSignatures(),
 		},
-		Signature: event.Signature,
+		Signature: event.Message.Signature,
 	}
 
 	wireEvent := event.ToWire()
@@ -146,31 +146,31 @@ func TestIsLoaded(t *testing.T) {
 	}
 
 	//empty payload
-	event.Body.Transactions = [][]byte{}
+	event.Message.Body.Transactions = [][]byte{}
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for empty Body.Transactions")
 	}
 
-	event.Body.BlockSignatures = []BlockSignature{}
+	event.Message.Body.BlockSignatures = []BlockSignature{}
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for empty Body.BlockSignatures")
 	}
 
 	//initial event
-	event.Body.Index = 0
+	event.Message.Body.Index = 0
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for initial event")
 	}
 
 	//non-empty tx payload
-	event.Body.Transactions = [][]byte{[]byte("abc")}
+	event.Message.Body.Transactions = [][]byte{[]byte("abc")}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty transaction payload")
 	}
 
 	//non-empy signature payload
-	event.Body.Transactions = nil
-	event.Body.BlockSignatures = []BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
+	event.Message.Body.Transactions = nil
+	event.Message.Body.BlockSignatures = []BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty signature payload")
 	}
@@ -188,7 +188,7 @@ func TestEventFlagTable(t *testing.T) {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
 
-	if len(event.FlagTable) == 0 {
+	if len(event.Message.FlagTable) == 0 {
 		t.Fatal("FlagTable is nil")
 	}
 
@@ -231,7 +231,7 @@ func TestMergeFlagTable(t *testing.T) {
 	}
 
 	ft, _ := json.Marshal(start)
-	event := Event{FlagTable: ft}
+	event := Event{Message: EventMessage { FlagTable: ft} }
 
 	for _, v := range syncData {
 		flagTable, err := event.MergeFlagTable(v)
@@ -240,11 +240,11 @@ func TestMergeFlagTable(t *testing.T) {
 		}
 
 		raw, _ := json.Marshal(flagTable)
-		event.FlagTable = raw
+		event.Message.FlagTable = raw
 	}
 
 	var res map[string]int64
-	json.Unmarshal(event.FlagTable, &res)
+	json.Unmarshal(event.Message.FlagTable, &res)
 
 	if !reflect.DeepEqual(exp, res) {
 		t.Fatalf("expected flag table: %+v, got: %+v", exp, res)
