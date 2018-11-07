@@ -530,7 +530,7 @@ func TestCatchUp(t *testing.T) {
 
 	target := int64(50)
 
-	err := gossip(normalNodes, target, false, 3*time.Second)
+	err := gossip(normalNodes, target, false, 4*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

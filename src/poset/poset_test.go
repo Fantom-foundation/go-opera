@@ -501,7 +501,7 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on f1")
 		}
 
-		e0CreatorID := strconv.Itoa(p.Participants.ByPubKey[e0.Creator()].ID)
+		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0.Creator()].ID, 10)
 
 		type Hierarchy struct {
 			ev, selfAncestor, ancestor string
