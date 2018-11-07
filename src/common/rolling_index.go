@@ -1,6 +1,8 @@
 package common
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type RollingIndex struct {
 	name      string

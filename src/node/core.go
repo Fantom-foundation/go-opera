@@ -28,8 +28,9 @@ type Core struct {
 	Head         string
 	Seq          int64
 
-	transactionPool    [][]byte
-	blockSignaturePool []poset.BlockSignature
+	transactionPool         [][]byte
+	internalTransactionPool []poset.InternalTransaction
+	blockSignaturePool      []poset.BlockSignature
 
 	logger *logrus.Entry
 
@@ -57,16 +58,17 @@ func NewCore(
 	}
 
 	core := Core{
-		id:                 id,
-		key:                key,
-		poset:              poset.NewPoset(participants, store, commitCh, logEntry),
-		inDegrees:          inDegrees,
-		participants:       participants,
-		transactionPool:    [][]byte{},
-		blockSignaturePool: []poset.BlockSignature{},
-		logger:             logEntry,
-		Head:               "",
-		Seq:                -1,
+		id:                      id,
+		key:                     key,
+		poset:                   poset.NewPoset(participants, store, commitCh, logEntry),
+		inDegrees:               inDegrees,
+		participants:            participants,
+		transactionPool:         [][]byte{},
+		internalTransactionPool: []poset.InternalTransaction{},
+		blockSignaturePool:      []poset.BlockSignature{},
+		logger:                  logEntry,
+		Head:                    "",
+		Seq:                     -1,
 		// MaxReceiveMessageSize limitation in grpc: https://github.com/grpc/grpc-go/blob/master/clientconn.go#L96
 		// default value is 4 * 1024 * 1024 bytes
 		// we use transactions of 120 bytes in tester, thus rounding it down to 16384
@@ -189,13 +191,23 @@ func (c *Core) bootstrapInDegrees() {
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
-	if err := event.Sign(c.key); err != nil {
+	if err := c.poset.SetWireInfoAndSign(&event, c.key); err != nil {
 		return err
 	}
+
 	return c.InsertEvent(event, true);
 }
 
 func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
+
+	c.logger.WithFields(logrus.Fields{
+		"event":         event,
+		"creator":       event.Creator(),
+		"selfParent":    event.SelfParent(),
+		"index":         event.Index(),
+		"hex":           event.Hex(),
+	}).Debug("InsertEvent(event poset.Event, setWireInfo bool)")
+
 	if err := c.poset.InsertEvent(event, setWireInfo); err != nil {
 		return err
 	}
@@ -273,6 +285,13 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 			if err != nil {
 				return []poset.Event{}, err
 			}
+			c.logger.WithFields(logrus.Fields{
+				"event":         ev,
+				"creator":       ev.Creator(),
+				"selfParent":    ev.SelfParent(),
+				"index":         ev.Index(),
+				"hex":           ev.Hex(),
+			}).Debugf("Sending Unknown Event")
 			unknown = append(unknown, ev)
 		}
 	}
@@ -284,15 +303,19 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 	c.logger.WithFields(logrus.Fields{
-		"unknown_events":       len(unknownEvents),
-		"transaction_pool":     len(c.transactionPool),
-		"block_signature_pool": len(c.blockSignaturePool),
+		"unknown_events":            len(unknownEvents),
+		"transaction_pool":          len(c.transactionPool),
+		"internal_transaction_pool": len(c.internalTransactionPool),
+		"block_signature_pool":      len(c.blockSignaturePool),
 		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	otherHead := ""
 	// add unknown events
 	for k, we := range unknownEvents {
+		c.logger.WithFields(logrus.Fields{
+			"unknown_events":            we,
+		}).Debug("unknownEvents")
 		ev, err := c.poset.ReadWireInfo(we)
 		if err != nil {
 			c.logger.WithField("EventBlock", we).Errorf("c.poset.ReadEventBlockInfo(we)")
@@ -313,6 +336,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	// loaded events or the pools are not empty
 	if c.poset.PendingLoadedEvents > 0 ||
 		len(c.transactionPool) > 0 ||
+		len(c.internalTransactionPool) > 0 ||
 		len(c.blockSignaturePool) > 0 {
 		return c.AddSelfEventBlock(otherHead)
 	}
@@ -372,7 +396,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
 	if errOther != nil {
-		c.logger.Warnf("failed to get  other parent: %s", errOther)
+		c.logger.Warnf("failed to get other parent: %s", errOther)
 	}
 
 	var (
@@ -401,19 +425,22 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	var batch[][]byte
 	nTxs := min(len(c.transactionPool), c.maxTransactionsInEvent)
 	batch = c.transactionPool[0:nTxs:nTxs]
-	newHead := poset.NewEvent(batch, c.blockSignaturePool,
+	newHead := poset.NewEvent(batch,
+		c.internalTransactionPool,
+		c.blockSignaturePool,
 		[]string{c.Head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)
 	}
-
 	c.logger.WithFields(logrus.Fields{
-		"transactions":     len(c.transactionPool),
-		"block_signatures": len(c.blockSignaturePool),
+		"transactions":          len(c.transactionPool),
+		"internal_transactions": len(c.internalTransactionPool),
+		"block_signatures":      len(c.blockSignaturePool),
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}
+	c.internalTransactionPool = []poset.InternalTransaction{}
 	// retain c.blockSignaturePool until c.transactionPool is empty
 	// FIXIT: is there any better strategy?
 	if len(c.transactionPool) == 0 {
@@ -495,6 +522,10 @@ func (c *Core) RunConsensus() error {
 
 func (c *Core) AddTransactions(txs [][]byte) {
 	c.transactionPool = append(c.transactionPool, txs...)
+}
+
+func (c *Core) AddInternalTransactions(txs []poset.InternalTransaction) {
+	c.internalTransactionPool = append(c.internalTransactionPool, txs...)
 }
 
 func (c *Core) AddBlockSignature(bs poset.BlockSignature) {

@@ -12,24 +12,24 @@ type Store interface {
 	RootsBySelfParent() (map[string]Root, error)
 	GetEvent(string) (Event, error)
 	SetEvent(Event) error
-	ParticipantEvents(string, int) ([]string, error)
-	ParticipantEvent(string, int) (string, error)
+	ParticipantEvents(string, int64) ([]string, error)
+	ParticipantEvent(string, int64) (string, error)
 	LastEventFrom(string) (string, bool, error)
 	LastConsensusEventFrom(string) (string, bool, error)
-	KnownEvents() map[int]int
+	KnownEvents() map[int64]int64
 	ConsensusEvents() []string
-	ConsensusEventsCount() int
+	ConsensusEventsCount() int64
 	AddConsensusEvent(Event) error
-	GetRound(int) (RoundInfo, error)
-	SetRound(int, RoundInfo) error
-	LastRound() int
-	RoundWitnesses(int) []string
-	RoundEvents(int) int
+	GetRound(int64) (RoundInfo, error)
+	SetRound(int64, RoundInfo) error
+	LastRound() int64
+	RoundWitnesses(int64) []string
+	RoundEvents(int64) int
 	GetRoot(string) (Root, error)
-	GetBlock(int) (Block, error)
+	GetBlock(int64) (Block, error)
 	SetBlock(Block) error
-	LastBlockIndex() int
-	GetFrame(int) (Frame, error)
+	LastBlockIndex() int64
+	GetFrame(int64) (Frame, error)
 	SetFrame(Frame) error
 	Reset(map[string]Root) error
 	Close() error

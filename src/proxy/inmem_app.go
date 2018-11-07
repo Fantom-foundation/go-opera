@@ -4,6 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/andrecronje/lachesis/src/peers"
 )
 
 // InmemAppProxy implements the AppProxy interface natively
@@ -11,6 +12,7 @@ type InmemAppProxy struct {
 	logger   *logrus.Logger
 	handler  ProxyHandler
 	submitCh chan []byte
+	submitInternalCh chan poset.InternalTransaction
 }
 
 // NewInmemAppProxy instantiates an InmemProxy from a set of handlers
@@ -24,6 +26,7 @@ func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProx
 		logger:   logger,
 		handler:  handler,
 		submitCh: make(chan []byte),
+		submitInternalCh: make(chan poset.InternalTransaction),
 	}
 }
 
@@ -34,6 +37,17 @@ func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProx
 // SubmitCh implements AppProxy interface method
 func (p *InmemAppProxy) SubmitCh() chan []byte {
 	return p.submitCh
+}
+func (p *InmemAppProxy) ProposePeerAdd(peer peers.Peer) {
+	p.submitInternalCh <- poset.NewInternalTransaction(poset.PEER_ADD, peer)
+}
+ func (p *InmemAppProxy) ProposePeerRemove(peer peers.Peer) {
+	p.submitInternalCh <- poset.NewInternalTransaction(poset.PEER_REMOVE, peer)
+}
+
+//SubmitCh returns the channel of raw transactions
+func (p *InmemAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
+	return p.submitInternalCh
 }
 
 // CommitBlock implements AppProxy interface method, calls handler

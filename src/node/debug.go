@@ -21,7 +21,7 @@ type InfosLite struct {
 type EventBodyLite struct {
 	Parents         []string         //hashes of the event's parents, self-parent first
 	Creator         string           //creator's public key
-	Index           int              //index in the sequence of events created by Creator
+	Index           int64            //index in the sequence of events created by Creator
 }
 
 type EventLite struct {

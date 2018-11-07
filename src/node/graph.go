@@ -59,7 +59,9 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 		flagTable[selfParent] = 1
 
 		// Create and save the first Event
-		initialEvent := poset.NewEvent([][]byte{}, []poset.BlockSignature{},
+		initialEvent := poset.NewEvent([][]byte{},
+			[]poset.InternalTransaction{},
+			[]poset.BlockSignature{},
 			[]string{}, []byte{}, 0, flagTable)
 
 		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent

@@ -83,3 +83,12 @@ func (rim *RollingIndexMap) Reset() error {
 	rim.mapping = items
 	return nil
 }
+
+func (rim *RollingIndexMap) Import(other *RollingIndexMap) {
+	for _, key := range other.keys {
+		rim.mapping[key] = NewRollingIndex(fmt.Sprintf("%s[%d]", rim.name, key), rim.size)
+ 		rim.mapping[key].lastIndex = other.mapping[key].lastIndex
+		rim.mapping[key].items = other.mapping[key].items
+ 		// copy(rim.mapping[key].items[:len(other.mapping[key].items)], other.mapping[key].items)
+	}
+}
