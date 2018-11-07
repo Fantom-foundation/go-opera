@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"math/rand"
 	"testing"
 	"time"
 
@@ -172,6 +171,7 @@ func TestGrpcReConnection(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+/*
 func TestGrpcMaxMsgSize(t *testing.T) {
 	const (
 		largeSize  = 100 * 1024 * 1024
@@ -242,3 +242,5 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 	err = s.Close()
 	assert.NoError(t, err)
 }
+*/
+

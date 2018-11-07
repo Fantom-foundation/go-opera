@@ -207,6 +207,8 @@ func TestMergeFlagTable(t *testing.T) {
 		"x": 1,
 		"y": 1,
 		"z": 1,
+
+
 	}
 
 	syncData := []map[string]int64{
