@@ -36,7 +36,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 		participant := participants[rand.Intn(len(participants))]
 		node := p[participant.PubKeyHex]
 
-		_, err := transact(proxies[node.ID], 1 /* 1 byte transaction, just for these tests */)
+		_, err := transact(proxies[node.ID])
 
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
@@ -54,11 +54,12 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	fmt.Println("Pinging stopped after ", n, " iterations")
 }
 
-func transact(proxy *proxy.GrpcLachesisProxy, transactionSize uint64) (string, error) {
+func transact(proxy *proxy.GrpcLachesisProxy) (string, error) {
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes.
 	// A good assumption is to make txns 120 bytes in size.
-	var msg [transactionSize]byte
+	// However, for speed, we're using 1 byte here. Modify accordingly.
+	var msg [1]byte
 	for i := 0; i < 10; i++ {
 		// Send 10 txns to the server.
 		err := proxy.SubmitTx(msg[:])
