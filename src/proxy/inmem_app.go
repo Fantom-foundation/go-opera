@@ -3,15 +3,15 @@ package proxy
 import (
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/andrecronje/lachesis/src/poset"
 )
 
 // InmemAppProxy implements the AppProxy interface natively
 type InmemAppProxy struct {
-	logger   *logrus.Logger
-	handler  ProxyHandler
-	submitCh chan []byte
+	logger           *logrus.Logger
+	handler          ProxyHandler
+	submitCh         chan []byte
 	submitInternalCh chan poset.InternalTransaction
 }
 
@@ -23,9 +23,9 @@ func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProx
 	}
 
 	return &InmemAppProxy{
-		logger:   logger,
-		handler:  handler,
-		submitCh: make(chan []byte),
+		logger:           logger,
+		handler:          handler,
+		submitCh:         make(chan []byte),
 		submitInternalCh: make(chan poset.InternalTransaction),
 	}
 }
@@ -41,7 +41,7 @@ func (p *InmemAppProxy) SubmitCh() chan []byte {
 func (p *InmemAppProxy) ProposePeerAdd(peer peers.Peer) {
 	p.submitInternalCh <- poset.NewInternalTransaction(poset.PEER_ADD, peer)
 }
- func (p *InmemAppProxy) ProposePeerRemove(peer peers.Peer) {
+func (p *InmemAppProxy) ProposePeerRemove(peer peers.Peer) {
 	p.submitInternalCh <- poset.NewInternalTransaction(poset.PEER_REMOVE, peer)
 }
 

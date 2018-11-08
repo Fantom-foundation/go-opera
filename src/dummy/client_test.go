@@ -19,34 +19,34 @@ func TestSocketProxyServer(t *testing.T) {
 		errTimeout = "time is over"
 		addr       = "127.0.0.1:9990"
 	)
-	assert := assert.New(t)
+	asserter := assert.New(t)
 	logger := common.NewTestLogger(t)
 
-	tx_origin := []byte("the test transaction")
+	txOrigin := []byte("the test transaction")
 
 	// Server
 	app, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
-	assert.NoError(err)
+	asserter.NoError(err)
 
 	//  listens for a request
 	go func() {
 		select {
 		case tx := <-app.SubmitCh():
-			assert.Equal(tx_origin, tx)
+			asserter.Equal(txOrigin, tx)
 		case <-time.After(timeout):
-			assert.Fail(errTimeout)
+			asserter.Fail(errTimeout)
 		}
 	}()
 
 	// Client part connecting to RPC service and calling methods
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
-	assert.NoError(err)
+	asserter.NoError(err)
 
 	node, err := NewDummyClient(lachesisProxy, nil, logger)
-	assert.NoError(err)
+	asserter.NoError(err)
 
-	err = node.SubmitTx(tx_origin)
-	assert.NoError(err)
+	err = node.SubmitTx(txOrigin)
+	asserter.NoError(err)
 }
 
 func TestDummySocketClient(t *testing.T) {
@@ -55,23 +55,23 @@ func TestDummySocketClient(t *testing.T) {
 		errTimeout = "time is over"
 		addr       = "127.0.0.1:9992"
 	)
-	assert := assert.New(t)
+	asserter := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	// server
 	appProxy, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
-	assert.NoError(err)
+	asserter.NoError(err)
 	defer appProxy.Close()
 
 	// client
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
-	assert.NoError(err)
+	asserter.NoError(err)
 	defer lachesisProxy.Close()
 
 	state := NewState(logger)
 
 	_, err = NewDummyClient(lachesisProxy, state, logger)
-	assert.NoError(err)
+	asserter.NoError(err)
 
 	initialStateHash := state.stateHash
 	//create a few blocks
@@ -84,7 +84,7 @@ func TestDummySocketClient(t *testing.T) {
 
 	//commit first block and check that the client's statehash is correct
 	stateHash, err := appProxy.CommitBlock(blocks[0])
-	assert.NoError(err)
+	asserter.NoError(err)
 
 	expectedStateHash := initialStateHash
 
@@ -93,19 +93,19 @@ func TestDummySocketClient(t *testing.T) {
 		expectedStateHash = bcrypto.SimpleHashFromTwoHashes(expectedStateHash, tHash)
 	}
 
-	assert.Equal(expectedStateHash, stateHash)
+	asserter.Equal(expectedStateHash, stateHash)
 
 	snapshot, err := appProxy.GetSnapshot(blocks[0].Index())
-	assert.NoError(err)
+	asserter.NoError(err)
 
-	assert.Equal(expectedStateHash, snapshot)
+	asserter.Equal(expectedStateHash, snapshot)
 
 	//commit a few more blocks, then attempt to restore back to block 0 state
 	for i := 1; i < 5; i++ {
 		_, err := appProxy.CommitBlock(blocks[i])
-		assert.NoError(err)
+		asserter.NoError(err)
 	}
 
 	err = appProxy.Restore(snapshot)
-	assert.NoError(err)
+	asserter.NoError(err)
 }

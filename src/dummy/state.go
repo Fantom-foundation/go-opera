@@ -58,7 +58,7 @@ func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
 
 	snapshot, ok := s.snapshots[blockIndex]
 	if !ok {
-		return nil, fmt.Errorf("Snapshot %d not found", blockIndex)
+		return nil, fmt.Errorf("snapshot %d not found", blockIndex)
 	}
 
 	return snapshot, nil

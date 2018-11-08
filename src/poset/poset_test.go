@@ -152,10 +152,10 @@ func initPosetFull(plays []play, db bool, n int, logger *logrus.Entry) (*Poset, 
 	// Add reference to each participants' root event
 	for i, peer := range participants.ToPeerSlice() {
 		root, err := poset.Store.GetRoot(peer.PubKeyHex)
- 		if err != nil {
+		if err != nil {
 			panic(err)
 		}
- 		index["r"+strconv.Itoa(i)] = root.SelfParent.Hash
+		index["r"+strconv.Itoa(i)] = root.SelfParent.Hash
 	}
 
 	return poset, index, orderedEvents
@@ -448,14 +448,13 @@ func TestInsertEvent(t *testing.T) {
 
 	checkParents := func(e, selfAncestor, ancestor string) bool {
 		ev, err := p.Store.GetEvent(index[e])
- 		if err != nil {
+		if err != nil {
 			t.Fatal(err)
 		}
- 		return ev.SelfParent() == selfAncestor && ev.OtherParent() == ancestor
+		return ev.SelfParent() == selfAncestor && ev.OtherParent() == ancestor
 	}
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
-
 
 		//e0
 		e0, err := p.Store.GetEvent(index["e0"])
@@ -508,11 +507,11 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		toCheck := []Hierarchy{
-			Hierarchy{"e0", "Root" + e0CreatorID, ""},
-			Hierarchy{"e10", index["e1"], index["e0"]},
-			Hierarchy{"e21", index["s20"], index["e10"]},
-			Hierarchy{"e02", index["s00"], index["e21"]},
-			Hierarchy{"f1", index["s10"], index["e02"]},
+			{"e0", "Root" + e0CreatorID, ""},
+			{"e10", index["e1"], index["e0"]},
+			{"e21", index["s20"], index["e10"]},
+			{"e02", index["s00"], index["e21"]},
+			{"f1", index["s10"], index["e02"]},
 		}
 
 		for _, v := range toCheck {
@@ -2735,7 +2734,6 @@ func TestSparsePosetReset(t *testing.T) {
 
 }
 */
-
 
 func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 

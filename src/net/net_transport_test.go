@@ -39,7 +39,7 @@ func TestNetworkTransport_Sync(t *testing.T) {
 	resp := SyncResponse{
 		FromID: 1,
 		Events: []poset.WireEvent{
-			poset.WireEvent{
+			{
 				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
@@ -104,7 +104,7 @@ func TestNetworkTransport_EagerSync(t *testing.T) {
 	args := EagerSyncRequest{
 		FromID: 0,
 		Events: []poset.WireEvent{
-			poset.WireEvent{
+			{
 				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
@@ -176,7 +176,7 @@ func TestNetworkTransport_PooledConn(t *testing.T) {
 	resp := SyncResponse{
 		FromID: 1,
 		Events: []poset.WireEvent{
-			poset.WireEvent{
+			{
 				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,

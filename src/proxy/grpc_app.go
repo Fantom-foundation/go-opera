@@ -22,7 +22,7 @@ import (
 	"github.com/andrecronje/lachesis/src/proxy/internal"
 )
 
-var ErrNoAnswers = errors.New("No answers")
+var ErrNoAnswers = errors.New("no answers")
 
 type ClientStream internal.LachesisNode_ConnectServer
 
