@@ -407,6 +407,7 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 		"sync_limit": resp.SyncLimit,
 		"events":     len(resp.Events),
 		"known":      resp.Known,
+		"knownEvents":      knownEvents,
 	}).Debug("SyncResponse")
 
 	if resp.SyncLimit {
