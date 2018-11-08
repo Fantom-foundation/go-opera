@@ -20,7 +20,7 @@ type ProxyHandler interface {
 
 	//SnapshotHandler is called by Lachesis to retrieve a snapshot corresponding to a
 	//particular block
-	SnapshotHandler(blockIndex int) (snapshot []byte, err error)
+	SnapshotHandler(blockIndex int64) (snapshot []byte, err error)
 
 	//RestoreHandler is called by Lachesis to restore the application to a specific
 	//state

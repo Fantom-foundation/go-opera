@@ -140,7 +140,7 @@ func (s *Service) GetConsensusEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRound(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/round/"):]
-	roundIndex, err := strconv.Atoi(param)
+	roundIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing roundIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -167,7 +167,7 @@ func (s *Service) GetLastRound(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/roundwitnesses/"):]
-	roundWitnessesIndex, err := strconv.Atoi(param)
+	roundWitnessesIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing roundWitnessesIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -182,7 +182,7 @@ func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/roundevents/"):]
-	roundEventsIndex, err := strconv.Atoi(param)
+	roundEventsIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing roundEventsIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -210,7 +210,7 @@ func (s *Service) GetRoot(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/block/"):]
-	blockIndex, err := strconv.Atoi(param)
+	blockIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing block_index parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

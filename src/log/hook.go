@@ -18,16 +18,16 @@ type Hook struct {
 	stat [6]int64 // 6 is current value of len(logrus.AllLevels)
 	// must be adjusted if changed in future in logrus
 	startTime time.Time
-	logshold [6]int64
+	logshold  [6]int64
 }
 
 // NewLocal installs a test hook for a given local logger.
 func NewLocal(logger *logrus.Logger, logLevel string) {
-	levels := map[string]bool {"debug": true, "error": true, "fatal": true, "panic" : true, "warn": true}
+	levels := map[string]bool{"debug": true, "error": true, "fatal": true, "panic": true, "warn": true}
 	if _, exist := levels[logLevel]; exist {
 		h := new(Hook)
 		h.startTime = time.Now()
-		h.logshold = [6]int64{-1,-1,-1,-1,-1,-1}
+		h.logshold = [6]int64{-1, -1, -1, -1, -1, -1}
 		logstr := os.Getenv("logshold")
 		if len(logstr) > 0 {
 			fmt.Sscanf(logstr, "%d,%d,%d,%d,%d,%d",
@@ -51,7 +51,7 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 
 		// logrus message format:
 		// time="<stamp>" level="<level>" msg="LOGSTAT" debug=0  info=0 warn=5 error=0 fatal=0 panic=0
-		fmt.Printf("time=\"" +  e.Time.Format(time.RFC3339) +
+		fmt.Printf("time=\""+e.Time.Format(time.RFC3339)+
 			"\" level=debug msg=\"LOGSTAT\" debug=%d info=%d warn=%d error=%d fatal=%d panic=%d\n",
 			t.stat[logrus.DebugLevel],
 			t.stat[logrus.InfoLevel],
@@ -60,28 +60,28 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 			t.stat[logrus.FatalLevel],
 			t.stat[logrus.PanicLevel])
 		if t.logshold[logrus.PanicLevel] >= 0 && t.stat[logrus.PanicLevel] > t.logshold[logrus.PanicLevel] {
-			fmt.Printf("PanicLevel logging threshold reached, exiting.\n");
-			os.Exit(127);
+			fmt.Printf("PanicLevel logging threshold reached, exiting.\n")
+			os.Exit(127)
 		}
 		if t.logshold[logrus.FatalLevel] >= 0 && t.stat[logrus.FatalLevel] > t.logshold[logrus.FatalLevel] {
-			fmt.Printf("FatalLevel logging threshold reached, exiting.\n");
-			os.Exit(128);
+			fmt.Printf("FatalLevel logging threshold reached, exiting.\n")
+			os.Exit(128)
 		}
 		if t.logshold[logrus.ErrorLevel] >= 0 && t.stat[logrus.ErrorLevel] > t.logshold[logrus.ErrorLevel] {
-			fmt.Printf("ErrorLevel logging threshold reached, exiting.\n");
-			os.Exit(129);
+			fmt.Printf("ErrorLevel logging threshold reached, exiting.\n")
+			os.Exit(129)
 		}
 		if t.logshold[logrus.WarnLevel] >= 0 && t.stat[logrus.WarnLevel] > t.logshold[logrus.WarnLevel] {
-			fmt.Printf("WarnLevel logging threshold reached, exiting.\n");
-			os.Exit(130);
+			fmt.Printf("WarnLevel logging threshold reached, exiting.\n")
+			os.Exit(130)
 		}
 		if t.logshold[logrus.InfoLevel] >= 0 && t.stat[logrus.InfoLevel] > t.logshold[logrus.InfoLevel] {
-			fmt.Printf("InfoLevel logging threshold reached, exiting.\n");
-			os.Exit(131);
+			fmt.Printf("InfoLevel logging threshold reached, exiting.\n")
+			os.Exit(131)
 		}
 		if t.logshold[logrus.DebugLevel] >= 0 && t.stat[logrus.DebugLevel] > t.logshold[logrus.DebugLevel] {
-			fmt.Printf("DebugLevel logging threshold reached, exiting.\n");
-			os.Exit(132);
+			fmt.Printf("DebugLevel logging threshold reached, exiting.\n")
+			os.Exit(132)
 		}
 		t.stat = [6]int64{} // 6 is current value of len(logrus.AllLevels)
 		// must be adjusted if changed in future in logrus

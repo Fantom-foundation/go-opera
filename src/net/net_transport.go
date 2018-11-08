@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/andrecronje/lachesis/src/log"
+	"github.com/sirupsen/logrus"
 )
 
 /*******************************************************************************

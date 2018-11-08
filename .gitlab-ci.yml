@@ -33,7 +33,7 @@ test code:
   allow_failure: true
   script:
   - cd /go/src/github.com/andrecronje/lachesis
-  - go test -timeout 40s ./src/...
+  - go test -timeout 45s ./src/...
     
 build code:
   stage: build

@@ -16,7 +16,7 @@ import (
 )
 
 type Core struct {
-	id     int
+	id     int64
 	key    *ecdsa.PrivateKey
 	pubKey []byte
 	hexID  string
@@ -26,7 +26,7 @@ type Core struct {
 
 	participants *peers.Peers // [PubKey] => id
 	Head         string
-	Seq          int
+	Seq          int64
 
 	transactionPool         [][]byte
 	internalTransactionPool []poset.InternalTransaction
@@ -38,7 +38,7 @@ type Core struct {
 }
 
 func NewCore(
-	id int,
+	id int64,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
 	store poset.Store,
@@ -77,7 +77,7 @@ func NewCore(
 	return core
 }
 
-func (c *Core) ID() int {
+func (c *Core) ID() int64 {
 	return c.id
 }
 
@@ -117,7 +117,7 @@ func (c *Core) InDegrees() map[string]uint64 {
 func (c *Core) SetHeadAndSeq() error {
 
 	var head string
-	var seq int
+	var seq int64
 
 	last, isRoot, err := c.poset.Store.LastEventFrom(c.HexID())
 	if err != nil {
@@ -195,17 +195,17 @@ func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
 		return err
 	}
 
-	return c.InsertEvent(event, true);
+	return c.InsertEvent(event, true)
 }
 
 func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 
 	c.logger.WithFields(logrus.Fields{
-		"event":         event,
-		"creator":       event.Creator(),
-		"selfParent":    event.SelfParent(),
-		"index":         event.Index(),
-		"hex":           event.Hex(),
+		"event":      event,
+		"creator":    event.Creator(),
+		"selfParent": event.SelfParent(),
+		"index":      event.Index(),
+		"hex":        event.Hex(),
 	}).Debug("InsertEvent(event poset.Event, setWireInfo bool)")
 
 	if err := c.poset.InsertEvent(event, setWireInfo); err != nil {
@@ -225,7 +225,7 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 	return nil
 }
 
-func (c *Core) KnownEvents() map[int]int {
+func (c *Core) KnownEvents() map[int64]int64 {
 	return c.poset.Store.KnownEvents()
 }
 
@@ -244,8 +244,8 @@ func (c *Core) SignBlock(block poset.Block) (poset.BlockSignature, error) {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-func (c *Core) OverSyncLimit(knownEvents map[int]int, syncLimit int) bool {
-	totUnknown := 0
+func (c *Core) OverSyncLimit(knownEvents map[int64]int64, syncLimit int64) bool {
+	totUnknown := int64(0)
 	myKnownEvents := c.KnownEvents()
 	for i, li := range myKnownEvents {
 		if li > knownEvents[i] {
@@ -263,7 +263,7 @@ func (c *Core) GetAnchorBlockWithFrame() (poset.Block, poset.Frame, error) {
 }
 
 // returns events that c knows about and are not in 'known'
-func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
+func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error) {
 	var unknown []poset.Event
 	// known represents the index of the last event known for every participant
 	// compare this to our view of events and fill unknown with events that we know of
@@ -286,11 +286,11 @@ func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
 				return []poset.Event{}, err
 			}
 			c.logger.WithFields(logrus.Fields{
-				"event":         ev,
-				"creator":       ev.Creator(),
-				"selfParent":    ev.SelfParent(),
-				"index":         ev.Index(),
-				"hex":           ev.Hex(),
+				"event":      ev,
+				"creator":    ev.Creator(),
+				"selfParent": ev.SelfParent(),
+				"index":      ev.Index(),
+				"hex":        ev.Hex(),
 			}).Debugf("Sending Unknown Event")
 			unknown = append(unknown, ev)
 		}
@@ -303,10 +303,10 @@ func (c *Core) EventDiff(known map[int]int) (events []poset.Event, err error) {
 func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 	c.logger.WithFields(logrus.Fields{
-		"unknown_events":            len(unknownEvents),
-		"transaction_pool":          len(c.transactionPool),
-		"internal_transaction_pool": len(c.internalTransactionPool),
-		"block_signature_pool":      len(c.blockSignaturePool),
+		"unknown_events":              len(unknownEvents),
+		"transaction_pool":            len(c.transactionPool),
+		"internal_transaction_pool":   len(c.internalTransactionPool),
+		"block_signature_pool":        len(c.blockSignaturePool),
 		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
@@ -314,7 +314,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	// add unknown events
 	for k, we := range unknownEvents {
 		c.logger.WithFields(logrus.Fields{
-			"unknown_events":            we,
+			"unknown_events": we,
 		}).Debug("unknownEvents")
 		ev, err := c.poset.ReadWireInfo(we)
 		if err != nil {
@@ -340,7 +340,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		len(c.blockSignaturePool) > 0 {
 		return c.AddSelfEventBlock(otherHead)
 	}
- 	return nil
+	return nil
 }
 
 func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) error {
@@ -378,14 +378,12 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 	return nil
 }
 
-
 func min(a, b int) int {
-    if a < b {
-        return a
-    }
-    return b
+	if a < b {
+		return a
+	}
+	return b
 }
-
 
 func (c *Core) AddSelfEventBlock(otherHead string) error {
 
@@ -400,12 +398,12 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	var (
-		flagTable map[string]int
+		flagTable map[string]int64
 		err       error
 	)
 
 	if errSelf != nil {
-		flagTable = map[string]int{c.Head: 1}
+		flagTable = map[string]int64{c.Head: 1}
 	} else {
 		flagTable, err = parentEvent.GetFlagTable()
 		if err != nil {
@@ -414,7 +412,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	if errOther == nil {
-		flagTable, err = otherParentEvent.MargeFlagTable(flagTable)
+		flagTable, err = otherParentEvent.MergeFlagTable(flagTable)
 		if err != nil {
 			return fmt.Errorf("failed to marge flag tables: %s", err)
 		}
@@ -422,7 +420,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 	// create new event with self head and empty other parent
 	// empty transaction pool in its payload
-	var batch[][]byte
+	var batch [][]byte
 	nTxs := min(len(c.transactionPool), c.maxTransactionsInEvent)
 	batch = c.transactionPool[0:nTxs:nTxs]
 	newHead := poset.NewEvent(batch,
@@ -512,8 +510,8 @@ func (c *Core) RunConsensus() error {
 	}
 
 	c.logger.WithFields(logrus.Fields{
-		"transaction_pool":     len(c.transactionPool),
-		"block_signature_pool": len(c.blockSignaturePool),
+		"transaction_pool":            len(c.transactionPool),
+		"block_signature_pool":        len(c.blockSignaturePool),
 		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
 	}).Debug("c.RunConsensus()")
 
@@ -554,7 +552,7 @@ func (c *Core) GetConsensusEvents() []string {
 	return c.poset.Store.ConsensusEvents()
 }
 
-func (c *Core) GetConsensusEventsCount() int {
+func (c *Core) GetConsensusEventsCount() int64 {
 	return c.poset.Store.ConsensusEventsCount()
 }
 
@@ -578,7 +576,7 @@ func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	return txs, nil
 }
 
-func (c *Core) GetLastConsensusRoundIndex() *int {
+func (c *Core) GetLastConsensusRoundIndex() *int64 {
 	return c.poset.LastConsensusRound
 }
 
@@ -590,6 +588,6 @@ func (c *Core) GetLastCommittedRoundEventsCount() int {
 	return c.poset.LastCommitedRoundEvents
 }
 
-func (c *Core) GetLastBlockIndex() int {
+func (c *Core) GetLastBlockIndex() int64 {
 	return c.poset.Store.LastBlockIndex()
 }

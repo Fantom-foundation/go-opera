@@ -11,7 +11,7 @@ const (
 )
 
 type Peer struct {
-	ID        int `json:"-"`
+	ID        int64 `json:"-"`
 	NetAddr   string
 	PubKeyHex string
 }
@@ -39,7 +39,7 @@ func (p *Peer) computeID() error {
 		return err
 	}
 
-	p.ID = common.Hash32(pubKey)
+	p.ID = int64(common.Hash32(pubKey))
 
 	return nil
 }

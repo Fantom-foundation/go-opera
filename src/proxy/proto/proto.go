@@ -30,7 +30,7 @@ type SnapshotResponse struct {
 }
 // SnapshotRequest provides a response mechanism.
 type SnapshotRequest struct {
-	BlockIndex int
+	BlockIndex int64
 	RespChan   chan<- SnapshotResponse
 }
 // Respond is used to respond with a response, error or both
