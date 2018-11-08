@@ -15,6 +15,12 @@ import (
 	"github.com/andrecronje/lachesis/src/peers"
 )
 
+// Core is an interface for interacting with a core.
+type Core interface {
+	Head() string
+	HexID() string
+}
+
 //Poset is a DAG of Events. It also contains methods to extract a consensus
 //order of Events and map them onto a blockchain.
 type Poset struct {
@@ -33,6 +39,7 @@ type Poset struct {
 	topologicalIndex        int64            //counter used to order events in topological order (only local)
 	superMajority           int
 	trustCount              int
+	core                    Core
 
 	ancestorCache     *common.LRU
 	selfAncestorCache *common.LRU
@@ -77,6 +84,11 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	})
 
 	return &poset
+}
+
+// SetCore sets a core for poset.
+func (p *Poset) SetCore(core Core) {
+	p.core = core
 }
 
 /*******************************************************************************
@@ -341,12 +353,14 @@ func (p *Poset) round2(x string) (int64, error) {
 		The Event's parents are "normal" Events.
 		Use the whitepaper formula: parentRound + roundInc
 	*/
-	parentRound, err := p.round(ex.SelfParent())
+	spRound, err := p.round(ex.SelfParent())
 	if err != nil {
 		return math.MinInt32, err
 	}
+	var parentRound = spRound
+	var opRound int64
+
 	if ex.OtherParent() != "" {
-		var opRound int64
 		//XXX
 		if other, ok := root.Others[ex.Hex()]; ok && other.Hash == ex.OtherParent() {
 			opRound = root.NextRound
@@ -358,28 +372,80 @@ func (p *Poset) round2(x string) (int64, error) {
 		}
 
 		if opRound > parentRound {
+			// if in a flag table there are witnesses of the current round, then
+			// current round is other parent round.
+			ws := p.Store.RoundWitnesses(opRound)
+			ft, _ := ex.GetFlagTable()
+			for k := range ft {
+				for _, w := range ws {
+					if w == k && w != ex.Hex() {
+						see, err := p.see(ex.Hex(), w)
+						if err != nil {
+							return math.MinInt32, err
+						}
+
+						if see {
+							return opRound, nil
+						}
+					}
+				}
+			}
 			parentRound = opRound
 		}
 	}
 
-	c := 0
-	for _, w := range p.Store.RoundWitnesses(parentRound) {
-		ss, err := p.stronglySee(x, w)
-		if err != nil {
-			return math.MinInt32, err
+	ws := p.Store.RoundWitnesses(parentRound)
+
+	isSee := func(poset *Poset, root string, witnesses []string) bool {
+		for _, w := range ws {
+			if w == root && w != ex.Hex() {
+				see, err := poset.see(ex.Hex(), w)
+				if err != nil {
+					return false
+				}
+				if see {
+					return true
+				}
+			}
 		}
-		if ss {
-			c++
+		return false
+	}
+
+	// check wp
+	if len(ex.WitnessProof) >= p.superMajority {
+		count := 0
+
+		for _, root := range ex.WitnessProof {
+			if isSee(p, root, ws) {
+				count++
+			}
+		}
+
+		if count >= p.superMajority {
+			return parentRound + 1, err
 		}
 	}
-	if c >= p.superMajority {
-		parentRound++
+
+	// check ft
+	ft, _ := ex.GetFlagTable()
+	if len(ft) >= p.superMajority {
+		count := 0
+
+		for root := range ft {
+			if isSee(p, root, ws) {
+				count++
+			}
+		}
+
+		if count >= p.superMajority {
+			return parentRound + 1, err
+		}
 	}
 
 	return parentRound, nil
 }
 
-//true if x is a witness (first event of a round for the owner)
+// witness if is true then x is a witness (first event of a round for the owner)
 func (p *Poset) witness(x string) (bool, error) {
 	ex, err := p.Store.GetEvent(x)
 	if err != nil {
@@ -851,6 +917,36 @@ func (p *Poset) DivideRounds() error {
 			err = p.Store.SetRound(roundNumber, roundInfo)
 			if err != nil {
 				return err
+			}
+
+			if witness {
+				// if event is self head
+				if p.core != nil && ev.Hex() == p.core.Head() &&
+					ev.Creator() == p.core.HexID() {
+
+					replaceFlagTable := func(event *Event, round int64) {
+						ft := make(map[string]int)
+						ws := p.Store.RoundWitnesses(round)
+						for _, v := range ws {
+							ft[v] = 1
+						}
+						event.ReplaceFlagTable(ft)
+					}
+
+					// special case
+					if ev.Round() == 0 {
+						replaceFlagTable(&ev, 0)
+						root, err := p.Store.GetRoot(ev.Creator())
+						if err != nil {
+							return err
+						}
+						ev.WitnessProof = []string{root.SelfParent.Hash}
+					} else {
+						replaceFlagTable(&ev, ev.Round())
+						roots := p.Store.RoundWitnesses(ev.Round() - 1)
+						ev.WitnessProof = roots
+					}
+				}
 			}
 		}
 
@@ -1518,9 +1614,10 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 
 	event := &Event{
-		Body:      body,
-		Signature: wevent.Signature,
-		FlagTable: wevent.FlagTable,
+		Body:         body,
+		Signature:    wevent.Signature,
+		FlagTable:    wevent.FlagTable,
+		WitnessProof: wevent.WitnessProof,
 	}
 
 	p.logger.WithFields(logrus.Fields{
