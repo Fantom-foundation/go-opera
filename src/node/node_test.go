@@ -257,7 +257,7 @@ func TestAddTransaction(t *testing.T) {
 
 	time.Sleep(2000 * time.Millisecond)
 	message := "Hello World!"
-	peer0Proxy.SubmitCh() <- ([]byte(message))
+	peer0Proxy.SubmitCh() <- []byte(message)
 
 	// simulate a SyncRequest from node0 to node1
 
@@ -546,7 +546,7 @@ func TestCatchUp(t *testing.T) {
 	node4 := initNodes(keys[3:], peers, 1000, 400, "inmem", logger, t)[0]
 
 	// Run parallel routine to check node4 eventually reaches CatchingUp state.
-	timeout := time.After(6 * time.Second)
+	timeout := time.After(10 * time.Second)
 	go func() {
 		for {
 			select {
@@ -566,7 +566,7 @@ func TestCatchUp(t *testing.T) {
 	// Gossip some more
 	nodes := append(normalNodes, node4)
 	newTarget := target + 20
-	err = bombardAndWait(nodes, newTarget, 6*time.Second)
+	err = bombardAndWait(nodes, newTarget, 10*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
