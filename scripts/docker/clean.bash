@@ -11,7 +11,7 @@ declare -r DOCKER_PID=/var/run/docker.pid
 
 
 for dir in "$BUILD_DIR" "$DIR" "$parent_dir" "$gparent_dir"; do
-  rm -rf "$dir/{nodes,peers.json,lachesis_d*}"
+  rm -rf "$dir"/{nodes,peers.json,lachesis_d*}
 done
 
 if [ ! -f "$DOCKER_PID" ] || [ ! $(pgrep --pidfile "$DOCKER_PID") ]; then
