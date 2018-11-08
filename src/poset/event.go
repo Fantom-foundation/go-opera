@@ -55,7 +55,7 @@ type EventBody struct {
 	InternalTransactions []InternalTransaction //peers add and removal internal consensus
 	Parents              []string         //hashes of the event's parents, self-parent first
 	Creator              []byte           //creator's public key
-	Index                int64            //index in the sequence of events created by Creator
+	Index                int64              //index in the sequence of events created by Creator
 	BlockSignatures      []BlockSignature //list of Block signatures signed by the Event's Creator ONLY
 
 	//wire
