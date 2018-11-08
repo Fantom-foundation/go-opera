@@ -32,14 +32,14 @@ type Poset struct {
 	FirstConsensusRound     *int64           //index of first consensus round (only used in tests)
 	AnchorBlock             *int64           //index of last block with enough signatures
 	LastCommitedRoundEvents int              //number of events in round before LastConsensusRound
-	SigPool               []BlockSignature //Pool of Block signatures that need to be processed
-	ConsensusTransactions uint64           //number of consensus transactions
-	PendingLoadedEvents   int              //number of loaded events that are not yet committed
-	commitCh              chan Block       //channel for committing Blocks
-	topologicalIndex      int64              //counter used to order events in topological order (only local)
-	superMajority         int
-	trustCount            int
-	core                  Core
+	SigPool                 []BlockSignature //Pool of Block signatures that need to be processed
+	ConsensusTransactions   uint64           //number of consensus transactions
+	PendingLoadedEvents     int              //number of loaded events that are not yet committed
+	commitCh                chan Block       //channel for committing Blocks
+	topologicalIndex        int64            //counter used to order events in topological order (only local)
+	superMajority           int
+	trustCount              int
+	core                    Core
 
 	ancestorCache     *common.LRU
 	selfAncestorCache *common.LRU
@@ -924,7 +924,7 @@ func (p *Poset) DivideRounds() error {
 				if p.core != nil && ev.Hex() == p.core.Head() &&
 					ev.Creator() == p.core.HexID() {
 
-					replaceFlagTable := func(event *Event, round int) {
+					replaceFlagTable := func(event *Event, round int64) {
 						ft := make(map[string]int)
 						ws := p.Store.RoundWitnesses(round)
 						for _, v := range ws {

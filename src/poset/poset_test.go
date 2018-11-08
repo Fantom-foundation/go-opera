@@ -191,7 +191,7 @@ func initPosetNodes(n int) ([]TestNode, map[string]string, *[]Event, *peers.Peer
 func playEvents(plays []play, nodes []TestNode,
 	index map[string]string, orderedEvents *[]Event) {
 	for _, p := range plays {
-		ft := make(map[string]int)
+		ft := make(map[string]int64)
 		for k := range p.knownRoots {
 			ft[index[p.knownRoots[k]]] = 1
 		}
@@ -234,7 +234,7 @@ func initPosetFull(plays []play, db bool, n int, logger *logrus.Entry) (*Poset, 
 	// Needed to have sorted nodes based on participants hash32
 	for i, peer := range participants.ToPeerSlice() {
 		event := NewEvent(nil, nil, nil, []string{rootSelfParent(peer.ID), ""},
-		nodes[i].Pub, 0, map[string]int{rootSelfParent(peer.ID): 1})
+			nodes[i].Pub, 0, map[string]int64{rootSelfParent(peer.ID): 1})
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i), index, orderedEvents)
 	}
 
@@ -2905,7 +2905,6 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 //	}
 //
 //}
-*/
 
 func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 
