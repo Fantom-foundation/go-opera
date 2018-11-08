@@ -46,7 +46,7 @@ func (m *mobileAppProxy) CommitHandler(block poset.Block) ([]byte, error) {
 	stateHash := m.commitHandler.OnCommit(blockBytes)
 	return stateHash, nil
 }
-func (m *mobileAppProxy) SnapshotHandler(blockIndex int) ([]byte, error) {
+func (m *mobileAppProxy) SnapshotHandler(blockIndex int64) ([]byte, error) {
 	return []byte{}, nil
 }
 func (m *mobileAppProxy) RestoreHandler(snapshot []byte) ([]byte, error) {
@@ -68,7 +68,7 @@ func (p *mobileAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 }
 
 //TODO - Implement these two functions
-func (p *mobileAppProxy) GetSnapshot(blockIndex int) ([]byte, error) {
+func (p *mobileAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	return []byte{}, nil
 }
 

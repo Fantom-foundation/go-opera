@@ -8,7 +8,7 @@ import (
 )
 
 type Frame struct {
-	Round  int     //RoundReceived
+	Round  int64     //RoundReceived
 	Roots  []Root  // [participant ID] => Root
 	Events []Event //Event with RoundReceived = Round
 }

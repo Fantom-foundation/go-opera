@@ -30,7 +30,7 @@ func TestNetworkTransport_Sync(t *testing.T) {
 	// Make the RPC request
 	args := SyncRequest{
 		FromID: 0,
-		Known: map[int]int{
+		Known: map[int64]int64{
 			0: 1,
 			1: 2,
 			2: 3,
@@ -39,7 +39,7 @@ func TestNetworkTransport_Sync(t *testing.T) {
 	resp := SyncResponse{
 		FromID: 1,
 		Events: []poset.WireEvent{
-			poset.WireEvent{
+			{
 				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
@@ -49,7 +49,7 @@ func TestNetworkTransport_Sync(t *testing.T) {
 				},
 			},
 		},
-		Known: map[int]int{
+		Known: map[int64]int64{
 			0: 5,
 			1: 5,
 			2: 6,
@@ -104,7 +104,7 @@ func TestNetworkTransport_EagerSync(t *testing.T) {
 	args := EagerSyncRequest{
 		FromID: 0,
 		Events: []poset.WireEvent{
-			poset.WireEvent{
+			{
 				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
@@ -167,7 +167,7 @@ func TestNetworkTransport_PooledConn(t *testing.T) {
 	// Make the RPC request
 	args := SyncRequest{
 		FromID: 0,
-		Known: map[int]int{
+		Known: map[int64]int64{
 			0: 1,
 			1: 2,
 			2: 3,
@@ -176,7 +176,7 @@ func TestNetworkTransport_PooledConn(t *testing.T) {
 	resp := SyncResponse{
 		FromID: 1,
 		Events: []poset.WireEvent{
-			poset.WireEvent{
+			{
 				Body: poset.WireBody{
 					Transactions:         [][]byte(nil),
 					SelfParentIndex:      1,
@@ -186,7 +186,7 @@ func TestNetworkTransport_PooledConn(t *testing.T) {
 				},
 			},
 		},
-		Known: map[int]int{
+		Known: map[int64]int64{
 			0: 5,
 			1: 5,
 			2: 6,

@@ -145,12 +145,12 @@ type ancestryItem struct {
 
 type roundItem struct {
 	event string
-	round int
+	round int64
 }
 
 type play struct {
 	to          int
-	index       int
+	index       int64
 	selfParent  string
 	otherParent string
 	name        string
@@ -211,7 +211,7 @@ func createPoset(db bool, orderedEvents *[]Event, participants *peers.Peers, log
 		var err error
 		store, err = NewBadgerStore(participants, cacheSize, badgerDir)
 		if err != nil {
-			logger.Fatal(err)
+			logger.Fatal("ERROR creating badger store", err)
 		}
 	} else {
 		store = NewInmemStore(participants, cacheSize)
@@ -245,10 +245,10 @@ func initPosetFull(plays []play, db bool, n int, logger *logrus.Entry) (*Poset, 
 	// Add reference to each participants' root event
 	for i, peer := range participants.ToPeerSlice() {
 		root, err := poset.Store.GetRoot(peer.PubKeyHex)
- 		if err != nil {
+		if err != nil {
 			panic(err)
 		}
- 		index["r"+strconv.Itoa(i)] = root.SelfParent.Hash
+		index["r"+strconv.Itoa(i)] = root.SelfParent.Hash
 	}
 
 	return poset, index, orderedEvents
@@ -411,7 +411,7 @@ func TestSee(t *testing.T) {
 func TestLamportTimestamp(t *testing.T) {
 	p, index := initPoset(t)
 
-	expectedTimestamps := map[string]int{
+	expectedTimestamps := map[string]int64{
 		e0:  0,
 		e1:  0,
 		e2:  0,
@@ -541,14 +541,13 @@ func TestInsertEvent(t *testing.T) {
 
 	checkParents := func(e, selfAncestor, ancestor string) bool {
 		ev, err := p.Store.GetEvent(index[e])
- 		if err != nil {
+		if err != nil {
 			t.Fatal(err)
 		}
- 		return ev.SelfParent() == selfAncestor && ev.OtherParent() == ancestor
+		return ev.SelfParent() == selfAncestor && ev.OtherParent() == ancestor
 	}
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
-
 
 		//e0
 		e0Event, err := p.Store.GetEvent(index[e0])
@@ -594,7 +593,7 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on %s", f1)
 		}
 
-		e0CreatorID := strconv.Itoa(p.Participants.ByPubKey[e0Event.Creator()].ID)
+		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.Creator()].ID, 10)
 
 		type Hierarchy struct {
 			ev, selfAncestor, ancestor string
@@ -907,7 +906,7 @@ func TestDivideRounds(t *testing.T) {
 
 	//[event] => {lamportTimestamp, round}
 	type tr struct {
-		t, r int
+		t, r int64
 	}
 	expectedTimestamps := map[string]tr{
 		e0:  {0, 0},
@@ -1329,7 +1328,7 @@ func TestDivideRoundsBis(t *testing.T) {
 
 	//[event] => {lamportTimestamp, round}
 	type tr struct {
-		t, r int
+		t, r int64
 	}
 	expectedTimestamps := map[string]tr{
 		e0:   {0, 0},
@@ -1701,7 +1700,7 @@ func TestKnown(t *testing.T) {
 
 	participants := p.Participants.ToPeerSlice()
 
-	expectedKnown := map[int]int{
+	expectedKnown := map[int64]int64{
 		participants[0].ID: 10,
 		participants[1].ID: 9,
 		participants[2].ID: 9,
@@ -1709,8 +1708,8 @@ func TestKnown(t *testing.T) {
 
 	known := p.Store.KnownEvents()
 	for i := range p.Participants.ToIDSlice() {
-		if l := known[i]; l != expectedKnown[i] {
-			t.Fatalf("Known[%d] should be %d, not %d", i, expectedKnown[i], l)
+		if l := known[int64(i)]; l != expectedKnown[int64(i)] {
+			t.Fatalf("Known[%d] should be %d, not %d", i, expectedKnown[int64(i)], l)
 		}
 	}
 }
@@ -2050,7 +2049,7 @@ func TestKnown(t *testing.T) {
 //	p2.DecideRoundReceived()
 //	p2.ProcessDecidedRounds()
 //
-//	for r := 1; r <= 4; r++ {
+//	for r := int64(1); r <= 4; r++ {
 //		pRound, err := p.Store.GetRound(r)
 //		if err != nil {
 //			t.Fatal(err)
@@ -2258,7 +2257,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 		t.Fatalf("last round should be 4 not %d", l)
 	}
 
-	for r := 0; r < 5; r++ {
+	for r := int64(0); r < 5; r++ {
 		round, err := p.Store.GetRound(r)
 		if err != nil {
 			t.Fatal(err)
@@ -2339,7 +2338,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 		t.Fatalf("last round should be 5 not %d", l)
 	}
 
-	for r := 0; r < 6; r++ {
+	for r := int64(0); r < 6; r++ {
 		round, err := p.Store.GetRound(r)
 		if err != nil {
 			t.Fatal(err)
@@ -2368,13 +2367,13 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 		}
 	}
 
-	expectedBlockTxCounts := map[int]int{
+	expectedBlockTxCounts := map[int64]int64{
 		0: 6,
 		1: 7,
 		2: 7,
 	}
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		b, err := p.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2382,7 +2381,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 		for i, tx := range b.Transactions() {
 			t.Logf("block %d, tx %d: %s", bi, i, string(tx))
 		}
-		if txs := len(b.Transactions()); txs != expectedBlockTxCounts[bi] {
+		if txs := int64(len(b.Transactions())); txs != expectedBlockTxCounts[bi] {
 			t.Fatalf("Blocks[%d] should contain %d transactions, not %d", bi,
 				expectedBlockTxCounts[bi], txs)
 		}
@@ -2409,7 +2408,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 	}
 
 	t.Logf("------------------------------------------------------------------")
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := p.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2427,7 +2426,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 	}
 	t.Logf("------------------------------------------------------------------")
 
-	expectedFrameRoots := map[int][]Root{
+	expectedFrameRoots := map[int64][]Root{
 		1: {
 			NewBaseRoot(participants[0].ID),
 			NewBaseRoot(participants[1].ID),
@@ -2490,7 +2489,7 @@ func initFunkyPoset(logger *logrus.Logger, full bool) (*Poset, map[string]string
 		},
 	}
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := p.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2718,7 +2717,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 	}
 
 	t.Logf("------------------------------------------------------------------")
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := p.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2736,7 +2735,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 	}
 	t.Logf("------------------------------------------------------------------")
 
-	expectedFrameRoots := map[int][]Root{
+	expectedFrameRoots := map[int64][]Root{
 		1: {
 			NewBaseRoot(participants[0].ID),
 			NewBaseRoot(participants[1].ID),
@@ -2805,7 +2804,7 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 		},
 	}
 
-	for bi := 0; bi < 3; bi++ {
+	for bi := int64(0); bi < 3; bi++ {
 		block, err := p.Store.GetBlock(bi)
 		if err != nil {
 			t.Fatal(err)
@@ -2886,8 +2885,8 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 //			if err != nil {
 //				t.Fatalf("ReadWireInfo(%s): %s", eventName, err)
 //			}
-//			if !reflect.DeepEqual(ev.Body, diff[i].Body) {
-//				t.Fatalf("%s from WireInfo should be %#v, not %#v", eventName, diff[i].Body, ev.Body)
+//			if !reflect.DeepEqual(ev.Message.Body, diff[i].Message.Body) {
+//				t.Fatalf("%s from WireInfo should be %#v, not %#v", eventName, diff[i].Message.Body, ev.Message.Body)
 //			}
 //			err = p2.InsertEvent(*ev, false)
 //			if err != nil {
@@ -2906,10 +2905,9 @@ func initSparsePoset(logger *logrus.Logger) (*Poset, map[string]string) {
 //	}
 //
 //}
+*/
 
-/*----------------------------------------------------------------------------*/
-
-func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int, check bool, t *testing.T) {
+func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 
 	for i := round; i <= 5; i++ {
 		pRound, err := p.Store.GetRound(i)
@@ -2945,7 +2943,7 @@ func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int, che
 
 }
 
-func getDiff(p *Poset, known map[int]int, t *testing.T) []Event {
+func getDiff(p *Poset, known map[int64]int64, t *testing.T) []Event {
 	var diff []Event
 	for id, ct := range known {
 		pk := p.Participants.ById[id].PubKeyHex

@@ -177,7 +177,7 @@ func TestIsLoaded(t *testing.T) {
 }
 
 func TestEventFlagTable(t *testing.T) {
-	exp := map[string]int{
+	exp := map[string]int64{
 		"x": 1,
 		"y": 0,
 		"z": 2,
@@ -202,14 +202,16 @@ func TestEventFlagTable(t *testing.T) {
 	}
 }
 
-func TestMargeFlagTable(t *testing.T) {
-	exp := map[string]int{
+func TestMergeFlagTable(t *testing.T) {
+	exp := map[string]int64{
 		"x": 1,
 		"y": 1,
 		"z": 1,
+
+
 	}
 
-	syncData := []map[string]int{
+	syncData := []map[string]int64{
 		{
 			"x": 0,
 			"y": 1,
@@ -222,7 +224,7 @@ func TestMargeFlagTable(t *testing.T) {
 		},
 	}
 
-	start := map[string]int{
+	start := map[string]int64{
 		"x": 1,
 		"y": 0,
 		"z": 0,
@@ -232,7 +234,7 @@ func TestMargeFlagTable(t *testing.T) {
 	event := Event{FlagTable: ft}
 
 	for _, v := range syncData {
-		flagTable, err := event.MargeFlagTable(v)
+		flagTable, err := event.MergeFlagTable(v)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -241,7 +243,7 @@ func TestMargeFlagTable(t *testing.T) {
 		event.FlagTable = raw
 	}
 
-	var res map[string]int
+	var res map[string]int64
 	json.Unmarshal(event.FlagTable, &res)
 
 	if !reflect.DeepEqual(exp, res) {

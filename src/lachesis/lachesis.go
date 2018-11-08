@@ -52,7 +52,7 @@ func (l *Lachesis) initTransport() error {
 func (l *Lachesis) initPeers() error {
 	if !l.Config.LoadPeers {
 		if l.Peers == nil {
-			return fmt.Errorf("Did not load peers but none was present")
+			return fmt.Errorf("did not load peers but none was present")
 		}
 
 		return nil
@@ -86,7 +86,7 @@ func (l *Lachesis) initStore() error {
 		var err error
 
 		l.Config.Logger.WithField("path", l.Config.BadgerDir()).Debug("Attempting to load or create database")
- 		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
+		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
 
 		if err != nil {
 			return err
@@ -137,7 +137,7 @@ func (l *Lachesis) initNode() error {
 	n, ok := l.Peers.ByPubKey[nodePub]
 
 	if !ok {
-		return fmt.Errorf("Cannot find self pubkey in peers.json")
+		return fmt.Errorf("cannot find self pubkey in peers.json")
 	}
 
 	nodeID := n.ID
@@ -217,7 +217,7 @@ func Keygen(datadir string) (*ecdsa.PrivateKey, error) {
 	_, err := pemKey.ReadKey()
 
 	if err == nil {
-		return nil, fmt.Errorf("Another key already lives under %s", datadir)
+		return nil, fmt.Errorf("another key already lives under %s", datadir)
 	}
 
 	privKey, err := crypto.GenerateECDSAKey()
