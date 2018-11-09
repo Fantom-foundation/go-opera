@@ -10,15 +10,20 @@ import (
 func TestComparing(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
-	nodes := NewNodeList(4, logger)
+	nodes := NewNodeList(2, logger)
 
-	stopTxStream := nodes.StartRandTxStream()
+	stop := nodes.StartRandTxStream()
+	nodes.WaitForBlock(3)
+	stop()
 
-	nodes.WaitForBlock(2)
+	diffs := Compare(nodes.Nodes()...)
 
-	stopTxStream()
-
-	output := Compare(nodes.Nodes()...)
-
-	t.Log(strings.Join(output, "\n"))
+	var output []string
+	for _, diff := range diffs {
+		if !diff.IsEmpty() {
+			output = append(output, diff.ToString())
+			output = append(output, diff.Descr)
+		}
+	}
+	t.Log("\n" + strings.Join(output, "\n"))
 }
