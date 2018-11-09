@@ -73,7 +73,7 @@ func NewNode(conf *Config,
 	node := Node{
 		id:               id,
 		conf:             conf,
-		core:             &core,
+		core:             core,
 		localAddr:        localAddr,
 		logger:           conf.Logger.WithField("this_id", id),
 		peerSelector:     peerSelector,

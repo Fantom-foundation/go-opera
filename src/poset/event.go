@@ -14,36 +14,40 @@ import (
 InternalTransactions
 *******************************************************************************/
 type TransactionType uint8
- const (
+
+const (
 	PEER_ADD TransactionType = iota
 	PEER_REMOVE
 )
+
 type InternalTransaction struct {
 	Type TransactionType
 	Peer peers.Peer
 }
+
 func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTransaction {
 	return InternalTransaction{
 		Type: tType,
 		Peer: peer,
 	}
 }
+
 //json encoding of body only
 func (t *InternalTransaction) Marshal() ([]byte, error) {
 	var b bytes.Buffer
- 	enc := json.NewEncoder(&b) //will write to b
- 	if err := enc.Encode(t); err != nil {
+	enc := json.NewEncoder(&b) //will write to b
+	if err := enc.Encode(t); err != nil {
 		return nil, err
 	}
- 	return b.Bytes(), nil
+	return b.Bytes(), nil
 }
 func (t *InternalTransaction) Unmarshal(data []byte) error {
 	b := bytes.NewBuffer(data)
- 	dec := json.NewDecoder(b) //will read from b
- 	if err := dec.Decode(t); err != nil {
+	dec := json.NewDecoder(b) //will read from b
+	if err := dec.Decode(t); err != nil {
 		return err
 	}
- 	return nil
+	return nil
 }
 
 /*******************************************************************************
@@ -51,12 +55,12 @@ EventBody
 *******************************************************************************/
 
 type EventBody struct {
-	Transactions         [][]byte         //the payload
+	Transactions         [][]byte              //the payload
 	InternalTransactions []InternalTransaction //peers add and removal internal consensus
-	Parents              []string         //hashes of the event's parents, self-parent first
-	Creator              []byte           //creator's public key
-	Index                int64              //index in the sequence of events created by Creator
-	BlockSignatures      []BlockSignature //list of Block signatures signed by the Event's Creator ONLY
+	Parents              []string              //hashes of the event's parents, self-parent first
+	Creator              []byte                //creator's public key
+	Index                int64                 //index in the sequence of events created by Creator
+	BlockSignatures      []BlockSignature      //list of Block signatures signed by the Event's Creator ONLY
 
 	//wire
 	//It is cheaper to send int64s than hashes over the wire
@@ -107,7 +111,11 @@ type EventMessage struct {
 	hash    []byte
 	hex     string
 
-	FlagTable []byte // FlagTable stores connection information
+	// FlagTable stores connection information.
+	FlagTable []byte
+
+	// If the event is a witness, then stores the roots that it sees.
+	WitnessProof []string
 }
 
 type Event struct {
@@ -144,6 +152,14 @@ func NewEvent(transactions [][]byte,
 			FlagTable: ft,
 		},
 	}
+}
+
+// Round returns round of event.
+func (e *Event) Round() int64 {
+	if e.round == nil || *e.round < 0 {
+		return -1
+	}
+	return *e.round
 }
 
 func (e *Event) Creator() string {
@@ -310,7 +326,14 @@ func (e *Event) ToWire() WireEvent {
 		},
 		Signature: e.Message.Signature,
 		FlagTable: e.Message.FlagTable,
+		WitnessProof: e.WitnessProof,
 	}
+}
+
+// ReplaceFlagTable replaces flag table.
+func (e *Event) ReplaceFlagTable(flagTable map[string]int) (err error) {
+	e.FlagTable, err = json.Marshal(flagTable)
+	return err
 }
 
 // GetFlagTable returns the flag table.
@@ -397,9 +420,10 @@ type WireBody struct {
 }
 
 type WireEvent struct {
-	Body      WireBody
-	Signature string
-	FlagTable []byte
+	Body         WireBody
+	Signature    string
+	FlagTable    []byte
+	WitnessProof []string
 }
 
 func (we *WireEvent) BlockSignatures(validator []byte) []BlockSignature {
