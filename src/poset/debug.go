@@ -4,13 +4,13 @@
 package poset
 
 import (
-	"fmt"
+	"github.com/sirupsen/logrus"
 )
 
-func (p *Poset) PrintStat() {
-	fmt.Println("****Known events:");
+func (p *Poset) PrintStat(logger *logrus.Entry) {
+	logger.Warn("****Known events:");
 	for pid_id, index := range p.Store.KnownEvents() {
-		fmt.Println("    index=", index, " peer=", p.Participants.ById[int64(pid_id)].NetAddr,
+		logger.Warn("    index=", index, " peer=", p.Participants.ById[int64(pid_id)].NetAddr,
 			" pubKeyHex=", p.Participants.ById[int64(pid_id)].PubKeyHex)
 	}
 }

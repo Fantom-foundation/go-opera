@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 	"time"
+	"io"
+	"os"
 
 	"github.com/andrecronje/lachesis/src/dummy"
 	"github.com/andrecronje/lachesis/src/lachesis"
@@ -29,6 +31,15 @@ func NewRunCmd() *cobra.Command {
 func runSingleLachesis(config *CLIConfig) error {
 	config.Lachesis.Logger.Level = lachesis.LogLevel(config.Lachesis.LogLevel)
 	config.Lachesis.NodeConfig.Logger = config.Lachesis.Logger
+	if config.Log2file {
+		f, err := os.OpenFile(fmt.Sprintf("lachesis_%v.log", config.Lachesis.BindAddr),
+			os.O_APPEND | os.O_CREATE | os.O_TRUNC | os.O_RDWR, 0666)
+		if err != nil {
+			fmt.Printf("error opening file: %v", err)
+		}
+		mw := io.MultiWriter(os.Stdout, f)
+		config.Lachesis.NodeConfig.Logger.SetOutput(mw)
+	}
 
 	lachesis_log.NewLocal(config.Lachesis.Logger, config.Lachesis.LogLevel)
 
@@ -111,6 +122,7 @@ func AddRunFlags(cmd *cobra.Command) {
 
 	cmd.Flags().String("datadir", config.Lachesis.DataDir, "Top-level directory for configuration and data")
 	cmd.Flags().String("log", config.Lachesis.LogLevel, "debug, info, warn, error, fatal, panic")
+	cmd.Flags().Bool("log2file", config.Log2file, "duplicate log output into file lachesis_<BindAddr>.log")
 
 	// Network
 	cmd.Flags().StringP("listen", "l", config.Lachesis.BindAddr, "Listen IP:Port for lachesis node")

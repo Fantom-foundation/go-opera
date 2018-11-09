@@ -5,10 +5,9 @@ package node
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
 
 	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/sirupsen/logrus"
 )
 
 type InfosLite struct {
@@ -24,12 +23,15 @@ type EventBodyLite struct {
 	Index           int64            //index in the sequence of events created by Creator
 }
 
-type EventLite struct {
+type EventMessageLite struct {
 	Body      EventBodyLite
 	Signature string //creator's digital signature of body
 	TopologicalIndex int
 
 //	FlagTable []byte // FlagTable stores connection information
+}
+type EventLite struct {
+	Message EventMessageLite
 }
 
 
@@ -39,63 +41,40 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 	store := g.Node.core.poset.Store
 	peers := g.Node.core.poset.Participants
 
-//	for _, p := range peers.ByPubKey {
-//		root, err := store.GetRoot(p.PubKeyHex)
 
-//		if err != nil {
-//			panic(err)
-//		}
+	//		evs, err := store.ParticipantEvents(p.PubKeyHex, root.SelfParent.Index)
+	evs, err := store.TopologicalEvents()
 
-		//		evs, err := store.ParticipantEvents(p.PubKeyHex, root.SelfParent.Index)
-		evs, err := store.TopologicalEvents()
+	if err != nil {
+		panic(err)
+	}
+
+	res[g.Node.localAddr/*p.PubKeyHex*/] = make(map[string]EventLite)
+
+
+	for _, event := range evs {
 
 		if err != nil {
 			panic(err)
 		}
 
-		res[g.Node.localAddr/*p.PubKeyHex*/] = make(map[string]EventLite)
+		hash := event.Hex()
 
-//		selfParent := fmt.Sprintf("Root%d", p.ID)
-//
-//		flagTable := make(map[string]int)
-//		flagTable[selfParent] = 1
-
-		// Create and save the first Event
-//		ft, _ :=  json.Marshal(flagTable)
-//		initialEvent := EventLite{
-//			Body: EventBodyLite{
-//				Parents: []string{},
-//				Creator: "",
-//				Index: 0,
-//			},
-//			FlagTable: ft,
-//		}
-
-//		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
-
-		for _, event := range evs {
-//			event, err := store.GetEvent(e)
-
-			if err != nil {
-				panic(err)
-			}
-
-			hash := event.Hex()
-
-			lite_event := EventLite{
+		lite_event := EventLite{
+			Message: EventMessageLite {
 				Body: EventBodyLite{
-					Parents: event.Body.Parents,
+					Parents: event.Message.Body.Parents,
 					Creator: peers.ByPubKey[event.Creator()].NetAddr,
-					Index: event.Body.Index,
+					Index: event.Message.Body.Index,
 				},
-				Signature: event.Signature,
-//				TopologicalIndex: event.TopologicalIndex,
-//				FlagTable: event.FlagTable,
-			}
-
-			res[g.Node.localAddr/*p.PubKeyHex*/][hash] = lite_event
+				Signature: event.Message.Signature,
+				//				TopologicalIndex: event.TopologicalIndex,
+				//				FlagTable: event.FlagTable,
+			},
 		}
-//	}
+
+		res[g.Node.localAddr/*p.PubKeyHex*/][hash] = lite_event
+	}
 
 	return res
 }
@@ -108,18 +87,17 @@ func (g *Graph) GetInfosLite() InfosLite {
 	}
 }
 
-func (c *Core) PrintStat() {
-	fmt.Println("**core.HexID=", c.HexID())
-	c.poset.PrintStat()
+func (c *Core) PrintStat(logger *logrus.Entry) {
+	logger.Warn("**core.HexID=", c.HexID())
+	c.poset.PrintStat(logger)
 }
 
 func (n *Node) PrintStat() {
-	fmt.Println("*Node=", n.localAddr)
+	n.logger.Warn("*Node=", n.localAddr)
 	g := NewGraph(n)
-	//res, _ := json.Marshal(g.GetInfos())
-	//fmt.Println("Node Graph=", res)
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(n.logger.Logger.Out)
+	encoder.SetIndent("", "  ")
 	res := g.GetInfosLite()
 	encoder.Encode(res)
-	n.core.PrintStat()
+	n.core.PrintStat(n.logger)
 }
