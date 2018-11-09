@@ -22,7 +22,8 @@ type Diff struct {
 }
 
 func (d *Diff) IsEmpty() bool {
-	has := d.FirstBlockIndex >= 0
+	// TODO: remove const true, it's for develop only
+	has := d.FirstBlockIndex > 0 || true
 	return !has
 }
 
@@ -78,7 +79,6 @@ func compareBlocks(diff *Diff) {
 	}
 
 	var b0, b1 poset.Block
-	var h0, h1 []byte
 	for i := 0; i <= minH; i++ {
 		b0, diff.Err = n0.GetBlock(i)
 		if diff.Err != nil {
@@ -89,18 +89,11 @@ func compareBlocks(diff *Diff) {
 			return
 		}
 
-		h0, diff.Err = b0.Hash()
-		if diff.Err != nil {
-			return
-		}
-		h1, diff.Err = b1.Hash()
-		if diff.Err != nil {
-			return
-		}
-
-		if !reflect.DeepEqual(h0, h1) {
+		// NOTE: the same blocks Hashes are different because their Signatures.
+		// So, compare bodies only.
+		if !reflect.DeepEqual(b0.Body, b1.Body) {
 			diff.FirstBlockIndex = i
-			diff.Descr = fmt.Sprintf("%+v \n!= \n%+v\n", b0, b1)
+			diff.Descr = fmt.Sprintf("%+v \n!= \n%+v\n", b0.Body, b1.Body)
 			return
 		}
 	}

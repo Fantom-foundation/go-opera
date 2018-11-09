@@ -16,7 +16,7 @@ import (
 	"github.com/andrecronje/lachesis/src/poset"
 )
 
-const timeout = 100 * time.Millisecond
+const delay = 100 * time.Millisecond
 
 type NodeList map[*ecdsa.PrivateKey]*node.Node
 
@@ -85,7 +85,7 @@ func (n NodeList) StartRandTxStream() (stop func()) {
 			select {
 			case <-stopCh:
 				return
-			case <-time.After(timeout):
+			case <-time.After(delay):
 				keys := n.Keys()
 				count := len(n)
 				for i := 0; i < count; i++ {
@@ -106,14 +106,13 @@ func (n NodeList) StartRandTxStream() (stop func()) {
 func (n NodeList) WaitForBlock(target int) {
 LOOP:
 	for {
+		time.Sleep(delay)
 		for _, node := range n {
 			if target > node.GetLastBlockIndex() {
-				time.Sleep(timeout)
 				continue LOOP
 			}
 			block, _ := node.GetBlock(target)
 			if len(block.StateHash()) == 0 {
-				time.Sleep(timeout)
 				continue LOOP
 			}
 		}
