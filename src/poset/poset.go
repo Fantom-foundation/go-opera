@@ -412,10 +412,10 @@ func (p *Poset) round2(x string) (int64, error) {
 	}
 
 	// check wp
-	if len(ex.WitnessProof) >= p.superMajority {
+	if len(ex.Message.WitnessProof) >= p.superMajority {
 		count := 0
 
-		for _, root := range ex.WitnessProof {
+		for _, root := range ex.Message.WitnessProof {
 			if isSee(p, root, ws) {
 				count++
 			}
@@ -940,11 +940,11 @@ func (p *Poset) DivideRounds() error {
 						if err != nil {
 							return err
 						}
-						ev.WitnessProof = []string{root.SelfParent.Hash}
+						ev.Message.WitnessProof = []string{root.SelfParent.Hash}
 					} else {
 						replaceFlagTable(&ev, ev.Round())
 						roots := p.Store.RoundWitnesses(ev.Round() - 1)
-						ev.WitnessProof = roots
+						ev.Message.WitnessProof = roots
 					}
 				}
 			}
@@ -1614,16 +1614,16 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 
 	event := &Event{
-		Message: EventMessage {
-			Body:      body,
-			Signature: wevent.Signature,
-			FlagTable: wevent.FlagTable,
+		Message: EventMessage{
+			Body:         body,
+			Signature:    wevent.Signature,
+			FlagTable:    wevent.FlagTable,
 			WitnessProof: wevent.WitnessProof,
 		},
 	}
 
 	p.logger.WithFields(logrus.Fields{
-		"event.Signature": event.Message.Signature,
+		"event.Signature":  event.Message.Signature,
 		"wevent.Signature": wevent.Signature,
 	}).Debug("Return Event from ReadFromWire")
 

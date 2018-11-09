@@ -119,13 +119,13 @@ type EventMessage struct {
 }
 
 type Event struct {
-	Message			EventMessage
+	Message EventMessage
 
 	//used for sorting
-	round            	*int64
-	lamportTimestamp 	*int64
+	round            *int64
+	lamportTimestamp *int64
 
-	roundReceived 		*int64
+	roundReceived *int64
 }
 
 // NewEvent creates new block event.
@@ -147,7 +147,7 @@ func NewEvent(transactions [][]byte,
 	ft, _ := json.Marshal(flagTable)
 
 	return Event{
-		Message: EventMessage {
+		Message: EventMessage{
 			Body:      body,
 			FlagTable: ft,
 		},
@@ -324,15 +324,15 @@ func (e *Event) ToWire() WireEvent {
 			Index:                e.Message.Body.Index,
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
-		Signature: e.Message.Signature,
-		FlagTable: e.Message.FlagTable,
-		WitnessProof: e.WitnessProof,
+		Signature:    e.Message.Signature,
+		FlagTable:    e.Message.FlagTable,
+		WitnessProof: e.Message.WitnessProof,
 	}
 }
 
 // ReplaceFlagTable replaces flag table.
 func (e *Event) ReplaceFlagTable(flagTable map[string]int) (err error) {
-	e.FlagTable, err = json.Marshal(flagTable)
+	e.Message.FlagTable, err = json.Marshal(flagTable)
 	return err
 }
 
