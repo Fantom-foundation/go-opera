@@ -329,12 +329,12 @@ func (p *Poset) round2(x string) (int64, error) {
 
 	ex, err := p.Store.GetEvent(x)
 	if err != nil {
-		return math.MinInt32, err
+		return math.MinInt64, err
 	}
 
 	root, err := p.Store.GetRoot(ex.Creator())
 	if err != nil {
-		return math.MinInt32, err
+		return math.MinInt64, err
 	}
 
 	/*
@@ -355,7 +355,7 @@ func (p *Poset) round2(x string) (int64, error) {
 	*/
 	spRound, err := p.round(ex.SelfParent())
 	if err != nil {
-		return math.MinInt32, err
+		return math.MinInt64, err
 	}
 	var parentRound = spRound
 	var opRound int64
@@ -367,7 +367,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		} else {
 			opRound, err = p.round(ex.OtherParent())
 			if err != nil {
-				return math.MinInt32, err
+				return math.MinInt64, err
 			}
 		}
 
@@ -502,13 +502,13 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 
 	ex, err := p.Store.GetEvent(x)
 	if err != nil {
-		return math.MinInt32, err
+		return math.MinInt64, err
 	}
 
 	//We are going to need the Root later
 	root, err := p.Store.GetRoot(ex.Creator())
 	if err != nil {
-		return math.MinInt32, err
+		return math.MinInt64, err
 	}
 
 	plt := int64(math.MinInt64)
@@ -518,7 +518,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 	} else {
 		t, err := p.lamportTimestamp(ex.SelfParent())
 		if err != nil {
-			return math.MinInt32, err
+			return math.MinInt64, err
 		}
 		plt = t
 	}
@@ -529,7 +529,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 			//if we know the other-parent, fetch its Round directly
 			t, err := p.lamportTimestamp(ex.OtherParent())
 			if err != nil {
-				return math.MinInt32, err
+				return math.MinInt64, err
 			}
 			opLT = t
 		} else if other, ok := root.Others[x]; ok && other.Hash == ex.OtherParent() {
@@ -564,12 +564,12 @@ func (p *Poset) roundDiff(x, y string) (int64, error) {
 
 	xRound, err := p.round(x)
 	if err != nil {
-		return math.MinInt32, fmt.Errorf("event %s has negative round", x)
+		return math.MinInt64, fmt.Errorf("event %s has negative round", x)
 	}
 
 	yRound, err := p.round(y)
 	if err != nil {
-		return math.MinInt32, fmt.Errorf("event %s has negative round", y)
+		return math.MinInt64, fmt.Errorf("event %s has negative round", y)
 	}
 
 	return xRound - yRound, nil
