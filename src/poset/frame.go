@@ -1,41 +1,58 @@
 package poset
 
 import (
-	"bytes"
-	"encoding/json"
-
 	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/golang/protobuf/proto"
 )
 
-type Frame struct {
-	Round  int64     //RoundReceived
-	Roots  []Root  // [participant ID] => Root
-	Events []Event //Event with RoundReceived = Round
-}
-
 //json encoding of Frame
-func (f *Frame) Marshal() ([]byte, error) {
-
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b) //will write to b
-	if err := enc.Encode(f); err != nil {
+func (f *Frame) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(f); err != nil {
 		return nil, err
 	}
-
-	return b.Bytes(), nil
+	return bf.Bytes(), nil
 }
 
-func (f *Frame) Unmarshal(data []byte) error {
-
-	b := bytes.NewBuffer(data)
-	dec := json.NewDecoder(b) //will read from b
-	return dec.Decode(f)
+func (f *Frame) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, f)
 }
 
 func (f *Frame) Hash() ([]byte, error) {
-	hashBytes, err := f.Marshal()
+	hashBytes, err := f.ProtoMarshal()
 	if err != nil {
 		return nil, err
 	}
 	return crypto.SHA256(hashBytes), nil
+}
+
+func RootListEquals(this []*Root, that []*Root) bool {
+	if len(this) != len(that) {
+		return false
+	}
+	for i, v := range this {
+		if !v.Equals(that[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func EventListEquals(this []*EventMessage, that []*EventMessage) bool {
+	if len(this) != len(that) {
+		return false
+	}
+	for i, v := range this {
+		if !v.Equals(that[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (this *Frame) Equals(that *Frame) bool {
+	return this.Round == that.Round &&
+		RootListEquals(this.Roots, that.Roots) &&
+		EventListEquals(this.Events, that.Events)
 }

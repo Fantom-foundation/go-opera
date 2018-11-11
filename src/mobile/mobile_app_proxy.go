@@ -38,7 +38,7 @@ func newMobileAppProxy(
 }
 
 func (m *mobileAppProxy) CommitHandler(block poset.Block) ([]byte, error) {
-	blockBytes, err := block.Marshal()
+	blockBytes, err := block.ProtoMarshal()
 	if err != nil {
 		m.logger.Debug("mobileAppProxy error marhsalling Block")
 		return nil, err
@@ -58,7 +58,7 @@ func (m *mobileAppProxy) RestoreHandler(snapshot []byte) ([]byte, error) {
 // arrays of bytes; so we have to serialize the block.
 // Overrides  InappProxy::CommitBlock
 func (p *mobileAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
-	blockBytes, err := block.Marshal()
+	blockBytes, err := block.ProtoMarshal()
 	if err != nil {
 		p.logger.Debug("mobileAppProxy error marhsalling Block")
 		return nil, err

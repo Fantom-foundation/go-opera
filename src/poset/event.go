@@ -1,96 +1,112 @@
 package poset
 
 import (
-	"bytes"
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/golang/protobuf/proto"
 )
 
 /*******************************************************************************
 InternalTransactions
 *******************************************************************************/
-type TransactionType uint8
-
-const (
-	PEER_ADD TransactionType = iota
-	PEER_REMOVE
-)
-
-type InternalTransaction struct {
-	Type TransactionType
-	Peer peers.Peer
-}
-
 func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTransaction {
 	return InternalTransaction{
 		Type: tType,
-		Peer: peer,
+		Peer: &peer,
 	}
 }
 
-//json encoding of body only
-func (t *InternalTransaction) Marshal() ([]byte, error) {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b) //will write to b
-	if err := enc.Encode(t); err != nil {
+func (t *InternalTransaction) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(t); err != nil {
 		return nil, err
 	}
-	return b.Bytes(), nil
+	return bf.Bytes(), nil
 }
-func (t *InternalTransaction) Unmarshal(data []byte) error {
-	b := bytes.NewBuffer(data)
-	dec := json.NewDecoder(b) //will read from b
-	if err := dec.Decode(t); err != nil {
-		return err
-	}
-	return nil
+func (t *InternalTransaction) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, t)
 }
 
 /*******************************************************************************
 EventBody
 *******************************************************************************/
 
-type EventBody struct {
-	Transactions         [][]byte              //the payload
-	InternalTransactions []InternalTransaction //peers add and removal internal consensus
-	Parents              []string              //hashes of the event's parents, self-parent first
-	Creator              []byte                //creator's public key
-	Index                int64                 //index in the sequence of events created by Creator
-	BlockSignatures      []BlockSignature      //list of Block signatures signed by the Event's Creator ONLY
-
-	//wire
-	//It is cheaper to send int64s than hashes over the wire
-	selfParentIndex      int64
-	otherParentCreatorID int64
-	otherParentIndex     int64
-	creatorID            int64
+func (this *InternalTransaction) Equals(that *InternalTransaction) bool {
+	return this.Peer.Equals(that.Peer) &&
+		this.Type == that.Type
 }
 
-//json encoding of body only
-func (e *EventBody) Marshal() ([]byte, error) {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b) //will write to b
-	if err := enc.Encode(e); err != nil {
+func BytesEquals(this []byte, that []byte) bool {
+	if len(this) != len(that) {
+		return false
+	}
+	for i, v := range this {
+		if v != that[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (this *BlockSignature) Equals(that *BlockSignature) bool {
+	return reflect.DeepEqual(this.Validator, that.Validator) &&
+		this.Index == that.Index &&
+		this.Signature == that.Signature
+}
+
+func InternalTransactionListEquals(this []*InternalTransaction, that []*InternalTransaction) bool {
+	if len(this) != len(that) {
+		return false
+	}
+	for i, v := range this {
+		if !v.Equals(that[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func BlockSignatureListEquals(this []*BlockSignature, that []*BlockSignature) bool {
+	if len(this) != len(that) {
+		return false
+	}
+	for i, v := range this {
+		if !v.Equals(that[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (this *EventBody) Equals(that *EventBody) bool {
+	return reflect.DeepEqual(this.Transactions, that.Transactions) &&
+		InternalTransactionListEquals(this.InternalTransactions, that.InternalTransactions) &&
+		reflect.DeepEqual(this.Parents, that.Parents) &&
+		reflect.DeepEqual(this.Creator, that.Creator) &&
+		this.Index == that.Index &&
+		BlockSignatureListEquals(this.BlockSignatures, that.BlockSignatures)
+}
+
+func (e *EventBody) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(e); err != nil {
 		return nil, err
 	}
-	return b.Bytes(), nil
+	return bf.Bytes(), nil
 }
 
-func (e *EventBody) Unmarshal(data []byte) error {
-	b := bytes.NewBuffer(data)
-	dec := json.NewDecoder(b) //will read from b
-	if err := dec.Decode(e); err != nil {
-		return err
-	}
-	return nil
+func (e *EventBody) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, e)
 }
 
 func (e *EventBody) Hash() ([]byte, error) {
-	hashBytes, err := e.Marshal()
+	hashBytes, err := e.ProtoMarshal()
 	if err != nil {
 		return nil, err
 	}
@@ -101,31 +117,34 @@ func (e *EventBody) Hash() ([]byte, error) {
 Event
 *******************************************************************************/
 
-type EventMessage struct {
-	Body      EventBody
-	Signature string //creator's digital signature of body
-
-	topologicalIndex int64
-
-	creator string
-	hash    []byte
-	hex     string
-
-	// FlagTable stores connection information.
-	FlagTable []byte
-
-	// If the event is a witness, then stores the roots that it sees.
-	WitnessProof []string
-}
-
 type Event struct {
 	Message EventMessage
 
 	//used for sorting
-	round            *int64
-	lamportTimestamp *int64
+	round           		*int64
+	lamportTimestamp		*int64
+	roundReceived			*int64
+	selfParentIndex			int64
+	otherParentCreatorID	int64
+	otherParentIndex		int64
+	creatorID				int64
+	topologicalIndex		int64
+	creator					string
+	hash					[]byte
+	hex						string
+}
 
-	roundReceived *int64
+func (e EventMessage) ToEvent() Event {
+	return Event {
+		Message: e,
+	}
+}
+
+func (this *EventMessage) Equals(that *EventMessage) bool {
+	return this.Body.Equals(that.Body) &&
+		this.Signature == that.Signature &&
+		BytesEquals(this.FlagTable, that.FlagTable) &&
+		reflect.DeepEqual(this.WitnessProof, that.WitnessProof)
 }
 
 // NewEvent creates new block event.
@@ -135,20 +154,30 @@ func NewEvent(transactions [][]byte,
 	parents []string, creator []byte, index int64,
 	flagTable map[string]int64) Event {
 
+	internalTransactionPointers := make([]*InternalTransaction, len(internalTransactions))
+	for i, v := range internalTransactions {
+		internalTransactionPointers[i] = new(InternalTransaction)
+		*internalTransactionPointers[i] = v
+	}
+	blockSignaturePointers := make([]*BlockSignature, len(blockSignatures))
+	for i, v := range blockSignatures {
+		blockSignaturePointers[i] = new(BlockSignature)
+		*blockSignaturePointers[i] = v
+	}
 	body := EventBody{
 		Transactions:         transactions,
-		InternalTransactions: internalTransactions,
-		BlockSignatures:      blockSignatures,
+		InternalTransactions: internalTransactionPointers,
+		BlockSignatures:      blockSignaturePointers,
 		Parents:              parents,
 		Creator:              creator,
 		Index:                index,
 	}
 
-	ft, _ := json.Marshal(flagTable)
+	ft, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
 
 	return Event{
-		Message: EventMessage{
-			Body:      body,
+		Message: EventMessage {
+			Body:      &body,
 			FlagTable: ft,
 		},
 	}
@@ -163,10 +192,10 @@ func (e *Event) Round() int64 {
 }
 
 func (e *Event) Creator() string {
-	if e.Message.creator == "" {
-		e.Message.creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)
+	if e.creator == "" {
+		e.creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)
 	}
-	return e.Message.creator
+	return e.creator
 }
 
 func (e *Event) SelfParent() string {
@@ -185,7 +214,7 @@ func (e *Event) Index() int64 {
 	return e.Message.Body.Index
 }
 
-func (e *Event) BlockSignatures() []BlockSignature {
+func (e *Event) BlockSignatures() []*BlockSignature {
 	return e.Message.Body.BlockSignatures
 }
 
@@ -232,40 +261,37 @@ func (e *Event) Verify() (bool, error) {
 	return crypto.Verify(pubKey, signBytes, r, s), nil
 }
 
-//json encoding of body and signature
-func (e *Event) Marshal() ([]byte, error) {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	if err := enc.Encode(e.Message); err != nil {
+func (e *Event) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(&e.Message); err != nil {
 		return nil, err
 	}
-	return b.Bytes(), nil
+	return bf.Bytes(), nil
 }
 
-func (e *Event) Unmarshal(data []byte) error {
-	b := bytes.NewBuffer(data)
-	dec := json.NewDecoder(b) //will read from b
-	return dec.Decode(&e.Message)
+func (e *Event) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, &e.Message)
 }
 
 //sha256 hash of body
 func (e *Event) Hash() ([]byte, error) {
-	if len(e.Message.hash) == 0 {
+	if len(e.hash) == 0 {
 		hash, err := e.Message.Body.Hash()
 		if err != nil {
 			return nil, err
 		}
-		e.Message.hash = hash
+		e.hash = hash
 	}
-	return e.Message.hash, nil
+	return e.hash, nil
 }
 
 func (e *Event) Hex() string {
-	if e.Message.hex == "" {
+	if e.hex == "" {
 		hash, _ := e.Hash()
-		e.Message.hex = fmt.Sprintf("0x%X", hash)
+		e.hex = fmt.Sprintf("0x%X", hash)
 	}
-	return e.Message.hex
+	return e.hex
 }
 
 func (e *Event) SetRound(r int64) {
@@ -293,10 +319,10 @@ func (e *Event) SetWireInfo(selfParentIndex,
 	otherParentCreatorID,
 	otherParentIndex,
 	creatorID int64) {
-	e.Message.Body.selfParentIndex = selfParentIndex
-	e.Message.Body.otherParentCreatorID = otherParentCreatorID
-	e.Message.Body.otherParentIndex = otherParentIndex
-	e.Message.Body.creatorID = creatorID
+	e.selfParentIndex = selfParentIndex
+	e.otherParentCreatorID = otherParentCreatorID
+	e.otherParentIndex = otherParentIndex
+	e.creatorID = creatorID
 }
 
 func (e *Event) WireBlockSignatures() []WireBlockSignature {
@@ -313,14 +339,18 @@ func (e *Event) WireBlockSignatures() []WireBlockSignature {
 
 func (e *Event) ToWire() WireEvent {
 
+	transactions := make([]InternalTransaction, len(e.Message.Body.InternalTransactions))
+	for i, v := range e.Message.Body.InternalTransactions {
+		transactions[i] = *v
+	}
 	return WireEvent{
 		Body: WireBody{
 			Transactions:         e.Message.Body.Transactions,
-			InternalTransactions: e.Message.Body.InternalTransactions,
-			SelfParentIndex:      e.Message.Body.selfParentIndex,
-			OtherParentCreatorID: e.Message.Body.otherParentCreatorID,
-			OtherParentIndex:     e.Message.Body.otherParentIndex,
-			CreatorID:            e.Message.Body.creatorID,
+			InternalTransactions: transactions,
+			SelfParentIndex:      e.selfParentIndex,
+			OtherParentCreatorID: e.otherParentCreatorID,
+			OtherParentIndex:     e.otherParentIndex,
+			CreatorID:            e.creatorID,
 			Index:                e.Message.Body.Index,
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
@@ -331,32 +361,32 @@ func (e *Event) ToWire() WireEvent {
 }
 
 // ReplaceFlagTable replaces flag table.
-func (e *Event) ReplaceFlagTable(flagTable map[string]int) (err error) {
-	e.Message.FlagTable, err = json.Marshal(flagTable)
+func (e *Event) ReplaceFlagTable(flagTable map[string]int64) (err error) {
+	e.Message.FlagTable, err = proto.Marshal(&FlagTableWrapper { Body: flagTable })
 	return err
 }
 
 // GetFlagTable returns the flag table.
 func (e *Event) GetFlagTable() (result map[string]int64, err error) {
-	result = make(map[string]int64)
-	err = json.Unmarshal(e.Message.FlagTable, &result)
-	return result, err
+	flagTable := new(FlagTableWrapper)
+	err = proto.Unmarshal(e.Message.FlagTable, flagTable)
+	return flagTable.Body, err
 }
 
 // MergeFlagTable returns merged flag table object.
 func (e *Event) MergeFlagTable(
 	dst map[string]int64) (result map[string]int64, err error) {
-	src := make(map[string]int64)
-	if err := json.Unmarshal(e.Message.FlagTable, &src); err != nil {
+	src := new(FlagTableWrapper)
+	if err := proto.Unmarshal(e.Message.FlagTable, src); err != nil {
 		return nil, err
 	}
 
 	for id, flag := range dst {
-		if src[id] == 0 && flag == 1 {
-			src[id] = 1
+		if src.Body[id] == 0 && flag == 1 {
+			src.Body[id] = 1
 		}
 	}
-	return src, err
+	return src.Body, err
 }
 
 func rootSelfParent(participantID int64) string {
@@ -364,7 +394,7 @@ func rootSelfParent(participantID int64) string {
 }
 
 /*******************************************************************************
-Sorting
+sorting
 *******************************************************************************/
 
 // ByTopologicalOrder implements sort.Interface for []Event based on
@@ -375,7 +405,7 @@ type ByTopologicalOrder []Event
 func (a ByTopologicalOrder) Len() int      { return len(a) }
 func (a ByTopologicalOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByTopologicalOrder) Less(i, j int) bool {
-	return a[i].Message.topologicalIndex < a[j].Message.topologicalIndex
+	return a[i].topologicalIndex < a[j].topologicalIndex
 }
 
 // ByLamportTimestamp implements sort.Interface for []Event based on

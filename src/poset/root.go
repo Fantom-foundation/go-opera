@@ -1,10 +1,9 @@
 package poset
 
 import (
-	"bytes"
 	"fmt"
 
-	"github.com/ugorji/go/codec"
+	"github.com/golang/protobuf/proto"
 )
 
 /*
@@ -62,14 +61,6 @@ ex 2:
 
 //RootEvent contains enough information about an Event and its direct descendant
 //to allow inserting Events on top of it.
-type RootEvent struct {
-	Hash             string
-	CreatorID        int64
-	Index            int64
-	LamportTimestamp int64
-	Round            int64
-}
-
 //NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
 //of a Poset.
 func NewBaseRootEvent(creatorID int64) RootEvent {
@@ -84,54 +75,60 @@ func NewBaseRootEvent(creatorID int64) RootEvent {
 	return res
 }
 
+func (this *RootEvent) Equals(that *RootEvent) bool {
+	return this.Hash == that.Hash &&
+		this.CreatorID == that.CreatorID &&
+		this.Index == that.Index &&
+		this.LamportTimestamp == that.LamportTimestamp &&
+		this.Round == that.Round
+}
+
 //Root forms a base on top of which a participant's Events can be inserted. It
 //contains the SelfParent of the first descendant of the Root, as well as other
 //Events, belonging to a past before the Root, which might be referenced
 //in future Events. NextRound corresponds to a proposed value for the child's
 //Round; it is only used if the child's OtherParent is empty or NOT in the
 //Root's Others.
-type Root struct {
-	NextRound  int64
-	SelfParent RootEvent
-	Others     map[string]RootEvent
-}
-
 //NewBaseRoot initializes a Root object for a fresh Poset.
 func NewBaseRoot(creatorID int64) Root {
+	rootEvent := NewBaseRootEvent(creatorID)
 	res := Root{
 		NextRound:  0,
-		SelfParent: NewBaseRootEvent(creatorID),
-		Others:     map[string]RootEvent{},
+		SelfParent: &rootEvent,
+		Others:     map[string]*RootEvent{},
 	}
 	return res
 }
 
-//The JSON encoding of a Root must be DETERMINISTIC because it is itself
-//included in the JSON encoding of a Frame. The difficulty is that Roots contain
-//go maps for which one should not expect a de facto order of entries; we cannot
-//use the builtin JSON codec within overriding something. Instead, we are using
-//a third party library (ugorji/codec) that enables deterministic encoding of
-//golang maps.
-func (root *Root) Marshal() ([]byte, error) {
 
-	b := new(bytes.Buffer)
-	jh := new(codec.JsonHandle)
-	jh.Canonical = true
-	enc := codec.NewEncoder(b, jh)
-
-	if err := enc.Encode(root); err != nil {
-		return nil, err
+func EqualsMapStringRootEvent(this map[string]*RootEvent, that map[string]*RootEvent) bool {
+	if len(this) != len(that) {
+		return false
 	}
-
-	return b.Bytes(), nil
+	for k, v := range this {
+		v2, ok := that[k]
+		if !ok || !v2.Equals(v) {
+			return false
+		}
+	}
+	return true
 }
 
-func (root *Root) Unmarshal(data []byte) error {
+func (this *Root) Equals(that *Root) bool {
+	return this.NextRound == that.NextRound &&
+		this.SelfParent.Equals(that.SelfParent) &&
+		EqualsMapStringRootEvent(this.Others, that.Others)
+}
 
-	b := bytes.NewBuffer(data)
-	jh := new(codec.JsonHandle)
-	jh.Canonical = true
-	dec := codec.NewDecoder(b, jh)
+func (root *Root) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(root); err != nil {
+		return nil, err
+	}
+	return bf.Bytes(), nil
+}
 
-	return dec.Decode(root)
+func (root *Root) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, root)
 }

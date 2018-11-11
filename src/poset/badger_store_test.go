@@ -93,7 +93,7 @@ func TestNewBadgerStore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error retrieving DB root for participant %s: %s", participant, err)
 		}
-		if !reflect.DeepEqual(dbRoot, root) {
+		if !dbRoot.Equals(&root) {
 			t.Fatalf("%s DB root should be %#v, not %#v", participant, root, dbRoot)
 		}
 	}
@@ -169,7 +169,7 @@ func TestDBEventMethods(t *testing.T) {
 				p.pubKey,
 				k, nil)
 			event.Sign(p.privKey)
-			event.Message.topologicalIndex = topologicalIndex
+			event.topologicalIndex = topologicalIndex
 			topologicalIndex++
 			topologicalEvents = append(topologicalEvents, event)
 
@@ -189,7 +189,7 @@ func TestDBEventMethods(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(ev.Message.Body, rev.Message.Body) {
+			if !ev.Message.Body.Equals(rev.Message.Body) {
 				t.Fatalf("events[%s][%d].Body should be %#v, not %#v", p, k, ev.Message.Body, rev.Message.Body)
 			}
 			if !reflect.DeepEqual(ev.Message.Signature, rev.Message.Signature) {
@@ -218,7 +218,7 @@ func TestDBEventMethods(t *testing.T) {
 				te.Hex(),
 				dte.Hex())
 		}
-		if !reflect.DeepEqual(te.Message.Body, dte.Message.Body) {
+		if !te.Message.Body.Equals(dte.Message.Body) {
 			t.Fatalf("dbTopologicalEvents[%d].Body should be %#v, not %#v", i,
 				te.Message.Body,
 				dte.Message.Body)
@@ -282,7 +282,7 @@ func TestDBRoundMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(*round, storedRound) {
+	if !round.Equals(&storedRound) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
@@ -364,7 +364,7 @@ func TestDBBlockMethods(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(storedBlock, block) {
+		if !storedBlock.Equals(&block) {
 			t.Fatalf("Block and StoredBlock do not match")
 		}
 	})
@@ -398,8 +398,8 @@ func TestDBFrameMethods(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	var events []Event
-	var roots []Root
+	events := make([]*EventMessage, len(participants))
+	roots := make([]*Root, len(participants))
 	for id, p := range participants {
 		event := NewEvent(
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
@@ -409,10 +409,10 @@ func TestDBFrameMethods(t *testing.T) {
 			p.pubKey,
 			0, nil)
 		event.Sign(p.privKey)
-		events = append(events, event)
+		events[id] = &event.Message
 
 		root := NewBaseRoot(int64(id))
-		roots = append(roots, root)
+		roots[id] = &root
 	}
 	frame := Frame{
 		Round:  1,
@@ -430,7 +430,7 @@ func TestDBFrameMethods(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(storedFrame, frame) {
+		if !storedFrame.Equals(&frame) {
 			t.Fatalf("Frame and StoredFrame do not match")
 		}
 	})
@@ -474,7 +474,7 @@ func TestBadgerEvents(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(ev.Message.Body, rev.Message.Body) {
+			if !ev.Message.Body.Equals(rev.Message.Body) {
 				t.Fatalf("events[%s][%d].Body should be %#v, not %#v", p, k, ev, rev)
 			}
 			if !reflect.DeepEqual(ev.Message.Signature, rev.Message.Signature) {
@@ -568,7 +568,7 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(*round, storedRound) {
+	if !round.Equals(&storedRound) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
@@ -624,7 +624,7 @@ func TestBadgerBlocks(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(storedBlock, block) {
+		if !storedBlock.Equals(&block) {
 			t.Fatalf("Block and StoredBlock do not match")
 		}
 	})
@@ -658,8 +658,8 @@ func TestBadgerFrames(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	var events []Event
-	var roots []Root
+	events := make([]*EventMessage, len(participants))
+	roots := make([]*Root, len(participants))
 	for id, p := range participants {
 		event := NewEvent(
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
@@ -669,10 +669,10 @@ func TestBadgerFrames(t *testing.T) {
 			p.pubKey,
 			0, nil)
 		event.Sign(p.privKey)
-		events = append(events, event)
+		events[id] = &event.Message
 
 		root := NewBaseRoot(int64(id))
-		roots = append(roots, root)
+		roots[id] = &root
 	}
 	frame := Frame{
 		Round:  1,
@@ -690,7 +690,7 @@ func TestBadgerFrames(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(storedFrame, frame) {
+		if !storedFrame.Equals(&frame) {
 			t.Fatalf("Frame and StoredFrame do not match")
 		}
 	})

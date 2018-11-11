@@ -329,17 +329,18 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	if err != nil {
 		n.logger.WithField("error", err).Error("n.core.GetAnchorBlockWithFrame()")
 		respErr = err
-	}
-	resp.Block = block
-	resp.Frame = frame
+	} else {
+		resp.Block = block
+		resp.Frame = frame
 
-	// Get snapshot
-	snapshot, err := n.proxy.GetSnapshot(block.Index())
-	if err != nil {
-		n.logger.WithField("error", err).Error("n.proxy.GetSnapshot(block.Index())")
-		respErr = err
+		// Get snapshot
+		snapshot, err := n.proxy.GetSnapshot(block.Index())
+		if err != nil {
+			n.logger.WithField("error", err).Error("n.proxy.GetSnapshot(block.Index())")
+			respErr = err
+		}
+		resp.Snapshot = snapshot
 	}
-	resp.Snapshot = snapshot
 
 	n.logger.WithFields(logrus.Fields{
 		"Events": len(resp.Frame.Events),

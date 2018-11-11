@@ -10,12 +10,6 @@ const (
 	jsonPeerPath = "peers.json"
 )
 
-type Peer struct {
-	ID        int64 `json:"-"`
-	NetAddr   string
-	PubKeyHex string
-}
-
 func NewPeer(pubKeyHex, netAddr string) *Peer {
 	peer := &Peer{
 		PubKeyHex: pubKeyHex,
@@ -25,6 +19,12 @@ func NewPeer(pubKeyHex, netAddr string) *Peer {
 	peer.computeID()
 
 	return peer
+}
+
+func (this *Peer) Equals(that *Peer) bool {
+	return this.ID == that.ID &&
+		this.NetAddr == that.NetAddr &&
+		this.PubKeyHex == that.PubKeyHex
 }
 
 func (p *Peer) PubKeyBytes() ([]byte, error) {
