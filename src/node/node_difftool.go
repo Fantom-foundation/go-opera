@@ -1,20 +1,16 @@
 package node
 
 /*
- * Diff tool interface implementation
+ * Diff tool interface implementation (tmp)
  */
 
-func (n *Node) GetCore() *Core {
-	return n.core
+func (n *Node) GetLastBlockIndex() int {
+	return n.core.poset.Store.LastBlockIndex()
 }
 
 /*
  * Node's method candidates
  */
-
-func (n *Node) GetLastBlockIndex() int {
-	return n.core.GetLastBlockIndex()
-}
 
 func (n *Node) PushTx(tx []byte) {
 	n.coreLock.Lock()

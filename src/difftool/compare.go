@@ -1,7 +1,6 @@
 package difftool
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -9,44 +8,7 @@ import (
 	"github.com/andrecronje/lachesis/src/poset"
 )
 
-// Diff contains and prints differences details
-type Diff struct {
-	Err error `json:"-"`
-
-	node            [2]*node.Node `json:"-"`
-	IDs             [2]int
-	BlocksGap       int
-	FirstBlockIndex int
-
-	Descr string `json:"-"`
-}
-
-func (d *Diff) IsEmpty() bool {
-	// TODO: remove const true, it's for develop only
-	has := d.FirstBlockIndex > 0 || true
-	return !has
-}
-
-func (d *Diff) ToString() string {
-	if d.Err != nil {
-		return fmt.Sprintf("ERR: %s", d.Err.Error())
-	}
-	if d.IsEmpty() {
-		return ""
-	}
-
-	raw, err := json.Marshal(d)
-	if err != nil {
-		return fmt.Sprintf("JSON: %s", err.Error())
-	}
-	return string(raw)
-}
-
-/*
- * Comparing
- */
-
-func Compare(nodes ...*node.Node) (result []*Diff) {
+func Compare(nodes ...*node.Node) (result Result) {
 	for i := len(nodes) - 1; i > 0; i-- {
 		n0 := nodes[i]
 		for _, n1 := range nodes[:i] {
@@ -65,12 +27,14 @@ func compare(n0, n1 *node.Node) (diff *Diff) {
 
 	compareBlocks(diff)
 
+	compareConsensus(diff)
+
 	return
 }
 
 func compareBlocks(diff *Diff) {
-	var minH, tmp int
 	var n0, n1 = diff.node[0], diff.node[1]
+	var minH, tmp int
 	if minH, tmp = n0.GetLastBlockIndex(), n1.GetLastBlockIndex(); minH > tmp {
 		minH, tmp = tmp, minH
 	}
@@ -96,5 +60,16 @@ func compareBlocks(diff *Diff) {
 			diff.Descr = fmt.Sprintf("%+v \n!= \n%+v\n", b0.Body, b1.Body)
 			return
 		}
+	}
+}
+
+func compareConsensus(diff *Diff) {
+	var n0, n1 = diff.node[0], diff.node[1]
+
+	if r0, r1 := n0.GetLastRound(), n1.GetLastRound(); r0 != r1 {
+		if r0 < r1 {
+			r0, r1 = r1, r0
+		}
+		diff.RoundGap = r0 - r1
 	}
 }

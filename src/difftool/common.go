@@ -62,7 +62,7 @@ func (n NodeList) Keys() []*ecdsa.PrivateKey {
 	return keys
 }
 
-func (n NodeList) Nodes() []*node.Node {
+func (n NodeList) Values() []*node.Node {
 	nodes := make([]*node.Node, len(n))
 	i := 0
 	for _, node := range n {
