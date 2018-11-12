@@ -17,6 +17,7 @@ type Diff struct {
 	BlocksGap       int `json:",omitempty"`
 	FirstBlockIndex int `json:",omitempty"`
 	RoundGap        int `json:",omitempty"`
+	FirstRoundIndex int `json:",omitempty"`
 
 	Descr string `json:"-"`
 }
@@ -30,7 +31,7 @@ type Result []*Diff
 
 func (d *Diff) IsEmpty() bool {
 	// TODO: remove const true, it's for develop only
-	has := d.FirstBlockIndex > 0 || d.RoundGap != 0 || true
+	has := d.FirstBlockIndex > 0 || d.FirstRoundIndex > 0 || true
 	return !has
 }
 
@@ -47,6 +48,10 @@ func (d *Diff) ToString() string {
 		return fmt.Sprintf("JSON: %s", err.Error())
 	}
 	return string(raw)
+}
+
+func (d *Diff) AddDescr(s string) {
+	d.Descr = d.Descr + s + "\n"
 }
 
 /*

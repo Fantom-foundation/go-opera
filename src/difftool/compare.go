@@ -3,6 +3,7 @@ package difftool
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/poset"
@@ -25,51 +26,114 @@ func compare(n0, n1 *node.Node) (diff *Diff) {
 		IDs:  [2]int{n0.ID(), n1.ID()},
 	}
 
-	compareBlocks(diff)
-
-	compareConsensus(diff)
+	// TODO: uncomment returns, it's for develop only
+	if !compareBlocks(diff) {
+		//return
+	}
+	if !compareRounds(diff) {
+		//return
+	}
+	if !compareFrames(diff) {
+		//return
+	}
 
 	return
 }
 
-func compareBlocks(diff *Diff) {
+// compareBlocks returns true if we need to go deeper
+func compareBlocks(diff *Diff) bool {
 	var n0, n1 = diff.node[0], diff.node[1]
-	var minH, tmp int
-	if minH, tmp = n0.GetLastBlockIndex(), n1.GetLastBlockIndex(); minH > tmp {
+
+	minH, tmp := n0.GetLastBlockIndex(), n1.GetLastBlockIndex()
+	diff.BlocksGap = minH - tmp
+	if minH > tmp {
 		minH, tmp = tmp, minH
-	}
-	if minH != tmp {
-		diff.BlocksGap = tmp - minH
 	}
 
 	var b0, b1 poset.Block
 	for i := 0; i <= minH; i++ {
 		b0, diff.Err = n0.GetBlock(i)
 		if diff.Err != nil {
-			return
+			return false
 		}
 		b1, diff.Err = n1.GetBlock(i)
 		if diff.Err != nil {
-			return
+			return false
 		}
 
 		// NOTE: the same blocks Hashes are different because their Signatures.
 		// So, compare bodies only.
 		if !reflect.DeepEqual(b0.Body, b1.Body) {
 			diff.FirstBlockIndex = i
-			diff.Descr = fmt.Sprintf("%+v \n!= \n%+v\n", b0.Body, b1.Body)
-			return
+			diff.AddDescr(fmt.Sprintf("block:\n%+v \n!= \n%+v\n", b0.Body, b1.Body))
+
+			diff.FirstRoundIndex = b0.RoundReceived()
+			if diff.FirstRoundIndex > b1.RoundReceived() {
+				diff.FirstRoundIndex = b1.RoundReceived()
+			}
+
+			return true
 		}
 	}
+
+	return false
 }
 
-func compareConsensus(diff *Diff) {
+// compareRounds returns true if we need to go deeper
+func compareRounds(diff *Diff) bool {
 	var n0, n1 = diff.node[0], diff.node[1]
 
-	if r0, r1 := n0.GetLastRound(), n1.GetLastRound(); r0 != r1 {
-		if r0 < r1 {
-			r0, r1 = r1, r0
+	diff.RoundGap = n0.GetLastRound() - n1.GetLastRound()
+
+	var r0, r1 poset.RoundInfo
+	for i := 0; i <= diff.FirstRoundIndex; i++ {
+
+		r0, diff.Err = n0.GetRound(i)
+		if diff.Err != nil {
+			return false
 		}
-		diff.RoundGap = r0 - r1
+		r1, diff.Err = n1.GetRound(i)
+		if diff.Err != nil {
+			return false
+		}
+
+		if !reflect.DeepEqual(r0, r1) {
+			diff.FirstRoundIndex = i
+			diff.AddDescr(fmt.Sprintf("round:\n%+v \n!= \n%+v\n", r0, r1))
+			return true
+		}
+
+		w0, w1 := n0.RoundWitnesses(i), n1.RoundWitnesses(i)
+		sort.Sort(ByValue(w0))
+		sort.Sort(ByValue(w1))
+		if !reflect.DeepEqual(w0, w1) {
+			diff.FirstRoundIndex = i
+			diff.AddDescr(fmt.Sprintf("witness:\n%+v \n!= \n%+v\n", w0, w1))
+			return true
+		}
 	}
+
+	return false
+}
+
+// compareFrames returns true if we need to go deeper
+func compareFrames(diff *Diff) bool {
+	var n0, n1 = diff.node[0], diff.node[1]
+
+	var f0, f1 poset.Frame
+	f0, diff.Err = n0.GetFrame(diff.FirstRoundIndex)
+	if diff.Err != nil {
+		return false
+	}
+	f1, diff.Err = n1.GetFrame(diff.FirstRoundIndex)
+	if diff.Err != nil {
+		return false
+	}
+
+	if !reflect.DeepEqual(f0, f1) {
+		diff.AddDescr(fmt.Sprintf("frame:\n%+v \n!= \n%+v\n", f0, f1))
+		return true
+	}
+
+	return false
 }
