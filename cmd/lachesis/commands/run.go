@@ -109,6 +109,7 @@ func runSingleLachesis(config *CLIConfig) error {
 		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.TestDelay, config.Lachesis.Logger)
 	}
 
+	engine.Node.Register()
 	engine.Run()
 
 	return nil

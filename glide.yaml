@@ -35,3 +35,5 @@ import:
 - package: github.com/btcsuite/btcd
   subpackages:
   - peer
+- package: github.com/tebeka/atexit
+  version: ^0.1.0

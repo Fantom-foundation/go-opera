@@ -8,6 +8,7 @@ import (
 
 	"github.com/andrecronje/lachesis/src/poset"
 	"github.com/sirupsen/logrus"
+        "github.com/tebeka/atexit"
 )
 
 type InfosLite struct {
@@ -100,4 +101,14 @@ func (n *Node) PrintStat() {
 	res := g.GetInfosLite()
 	encoder.Encode(res)
 	n.core.PrintStat(n.logger)
+}
+
+func (n *Node) Register() {
+	atexit.Register(func() {
+		// You must build with debug tag to have PrintStat() defined
+		n.PrintStat()
+	})
+	// use the following way of exit to execute registered atexit handlers:
+	// import "github.com/tebeka/atexit"
+	// atexit.Exit(0)
 }
