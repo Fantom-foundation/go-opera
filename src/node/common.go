@@ -108,7 +108,7 @@ func (n NodeList) StartRandTxStream() (stop func()) {
 }
 
 // WaitForBlock waits until the target block has retrieved a state hash from the app
-func (n NodeList) WaitForBlock(target int) {
+func (n NodeList) WaitForBlock(target int64) {
 LOOP:
 	for {
 		time.Sleep(delay)

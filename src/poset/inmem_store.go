@@ -16,13 +16,13 @@ type InmemStore struct {
 	blockCache             *cm.LRU
 	frameCache             *cm.LRU
 	consensusCache         *cm.RollingIndex
-	totConsensusEvents     int
+	totConsensusEvents     int64
 	participantEventsCache *ParticipantEventsCache
 	rootsByParticipant     map[string]Root //[participant] => Root
 	rootsBySelfParent      map[string]Root //[Root.SelfParent.Hash] => Root
-	lastRound              int
+	lastRound              int64
 	lastConsensusEvents    map[string]string //[participant] => hex() of last consensus event
-	lastBlock              int
+	lastBlock              int64
 }
 
 func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
@@ -105,15 +105,15 @@ func (s *InmemStore) SetEvent(event Event) error {
 	return nil
 }
 
-func (s *InmemStore) addParticpantEvent(participant string, hash string, index int) error {
+func (s *InmemStore) addParticpantEvent(participant string, hash string, index int64) error {
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
-func (s *InmemStore) ParticipantEvents(participant string, skip int) ([]string, error) {
+func (s *InmemStore) ParticipantEvents(participant string, skip int64) ([]string, error) {
 	return s.participantEventsCache.Get(participant, skip)
 }
 
-func (s *InmemStore) ParticipantEvent(participant string, index int) (string, error) {
+func (s *InmemStore) ParticipantEvent(participant string, index int64) (string, error) {
 	ev, err := s.participantEventsCache.GetItem(participant, index)
 	if err != nil {
 		root, ok := s.rootsByParticipant[participant]
@@ -162,7 +162,7 @@ func (s *InmemStore) LastConsensusEventFrom(participant string) (last string, is
 	return
 }
 
-func (s *InmemStore) KnownEvents() map[int]int {
+func (s *InmemStore) KnownEvents() map[int64]int64 {
 	known := s.participantEventsCache.Known()
 	for p, pid := range s.participants.ByPubKey {
 		if known[pid.ID] == -1 {
@@ -184,7 +184,7 @@ func (s *InmemStore) ConsensusEvents() []string {
 	return res
 }
 
-func (s *InmemStore) ConsensusEventsCount() int {
+func (s *InmemStore) ConsensusEventsCount() int64 {
 	return s.totConsensusEvents
 }
 
@@ -195,15 +195,15 @@ func (s *InmemStore) AddConsensusEvent(event Event) error {
 	return nil
 }
 
-func (s *InmemStore) GetRound(r int) (RoundInfo, error) {
+func (s *InmemStore) GetRound(r int64) (RoundInfo, error) {
 	res, ok := s.roundCache.Get(r)
 	if !ok {
-		return *NewRoundInfo(), cm.NewStoreErr("RoundCache", cm.KeyNotFound, strconv.Itoa(r))
+		return *NewRoundInfo(), cm.NewStoreErr("RoundCache", cm.KeyNotFound, strconv.FormatInt(r, 10))
 	}
 	return res.(RoundInfo), nil
 }
 
-func (s *InmemStore) SetRound(r int, round RoundInfo) error {
+func (s *InmemStore) SetRound(r int64, round RoundInfo) error {
 	s.roundCache.Add(r, round)
 	if r > s.lastRound {
 		s.lastRound = r
@@ -211,11 +211,11 @@ func (s *InmemStore) SetRound(r int, round RoundInfo) error {
 	return nil
 }
 
-func (s *InmemStore) LastRound() int {
+func (s *InmemStore) LastRound() int64 {
 	return s.lastRound
 }
 
-func (s *InmemStore) RoundWitnesses(r int) []string {
+func (s *InmemStore) RoundWitnesses(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return []string{}
@@ -223,7 +223,7 @@ func (s *InmemStore) RoundWitnesses(r int) []string {
 	return round.Witnesses()
 }
 
-func (s *InmemStore) RoundEvents(r int) int {
+func (s *InmemStore) RoundEvents(r int64) int {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return 0
@@ -239,10 +239,10 @@ func (s *InmemStore) GetRoot(participant string) (Root, error) {
 	return res, nil
 }
 
-func (s *InmemStore) GetBlock(index int) (Block, error) {
+func (s *InmemStore) GetBlock(index int64) (Block, error) {
 	res, ok := s.blockCache.Get(index)
 	if !ok {
-		return Block{}, cm.NewStoreErr("BlockCache", cm.KeyNotFound, strconv.Itoa(index))
+		return Block{}, cm.NewStoreErr("BlockCache", cm.KeyNotFound, strconv.FormatInt(index, 10))
 	}
 	return res.(Block), nil
 }
@@ -260,14 +260,14 @@ func (s *InmemStore) SetBlock(block Block) error {
 	return nil
 }
 
-func (s *InmemStore) LastBlockIndex() int {
+func (s *InmemStore) LastBlockIndex() int64 {
 	return s.lastBlock
 }
 
-func (s *InmemStore) GetFrame(index int) (Frame, error) {
+func (s *InmemStore) GetFrame(index int64) (Frame, error) {
 	res, ok := s.frameCache.Get(index)
 	if !ok {
-		return Frame{}, cm.NewStoreErr("FrameCache", cm.KeyNotFound, strconv.Itoa(index))
+		return Frame{}, cm.NewStoreErr("FrameCache", cm.KeyNotFound, strconv.FormatInt(index, 10))
 	}
 	return res.(Frame), nil
 }

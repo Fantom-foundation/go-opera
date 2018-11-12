@@ -13,11 +13,11 @@ type Diff struct {
 	Err error `json:"-"`
 
 	node            [2]*node.Node `json:"-"`
-	IDs             [2]int
-	BlocksGap       int `json:",omitempty"`
-	FirstBlockIndex int `json:",omitempty"`
-	RoundGap        int `json:",omitempty"`
-	FirstRoundIndex int `json:",omitempty"`
+	IDs             [2]int64
+	BlocksGap       int64 `json:",omitempty"`
+	FirstBlockIndex int64 `json:",omitempty"`
+	RoundGap        int64 `json:",omitempty"`
+	FirstRoundIndex int64 `json:",omitempty"`
 
 	Descr string `json:"-"`
 }

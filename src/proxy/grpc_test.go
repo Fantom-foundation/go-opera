@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"math/rand"
 	"testing"
 	"time"
 
@@ -31,87 +30,87 @@ func TestGrpcCalls(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("#1 Send tx", func(t *testing.T) {
-		assert := assert.New(t)
+		asserter := assert.New(t)
 		gold := []byte("123456")
 
 		err = c.SubmitTx(gold)
-		assert.NoError(err)
+		asserter.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			assert.Equal(gold, tx)
+			asserter.Equal(gold, tx)
 		case <-time.After(timeout):
-			assert.Fail(errTimeout)
+			asserter.Fail(errTimeout)
 		}
 	})
 
 	t.Run("#2 Receive block", func(t *testing.T) {
-		assert := assert.New(t)
+		asserter := assert.New(t)
 		block := poset.Block{}
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.CommitCh():
-				assert.Equal(block, event.Block)
+				asserter.Equal(block, event.Block)
 				event.RespChan <- proto.CommitResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				assert.Fail(errTimeout)
+				asserter.Fail(errTimeout)
 			}
 		}()
 
 		answ, err := s.CommitBlock(block)
-		if assert.NoError(err) {
-			assert.Equal(gold, answ)
+		if asserter.NoError(err) {
+			asserter.Equal(gold, answ)
 		}
 	})
 
 	t.Run("#3 Receive snapshot query", func(t *testing.T) {
-		assert := assert.New(t)
-		index := 1
+		asserter := assert.New(t)
+		index := int64(1)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.SnapshotRequestCh():
-				assert.Equal(index, event.BlockIndex)
+				asserter.Equal(index, event.BlockIndex)
 				event.RespChan <- proto.SnapshotResponse{
 					Snapshot: gold,
 					Error:    nil,
 				}
 			case <-time.After(timeout):
-				assert.Fail(errTimeout)
+				asserter.Fail(errTimeout)
 			}
 		}()
 
 		answ, err := s.GetSnapshot(index)
-		if assert.NoError(err) {
-			assert.Equal(gold, answ)
+		if asserter.NoError(err) {
+			asserter.Equal(gold, answ)
 		}
 	})
 
 	t.Run("#4 Receive restore command", func(t *testing.T) {
-		assert := assert.New(t)
+		asserter := assert.New(t)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.RestoreCh():
-				assert.Equal(gold, event.Snapshot)
+				asserter.Equal(gold, event.Snapshot)
 				event.RespChan <- proto.RestoreResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				assert.Fail(errTimeout)
+				asserter.Fail(errTimeout)
 			}
 		}()
 
 		err := s.Restore(gold)
-		assert.NoError(err)
+		asserter.NoError(err)
 	})
 
 	err = c.Close()
@@ -127,9 +126,8 @@ func TestGrpcReConnection(t *testing.T) {
 	const (
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
-
 	)
-	addr := utils.GetUnusedNetAddr(t);
+	addr := utils.GetUnusedNetAddr(t)
 	logger := common.NewTestLogger(t)
 
 	c, err := NewGrpcLachesisProxy(addr, logger)
@@ -141,25 +139,24 @@ func TestGrpcReConnection(t *testing.T) {
 	assert.NoError(t, err)
 
 	checkConnAndStopServer := func(t *testing.T) {
-		assert := assert.New(t)
+		asserter := assert.New(t)
 		gold := []byte("123456")
 
 		err := c.SubmitTx(gold)
-		assert.NoError(err)
+		asserter.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			assert.Equal(gold, tx)
+			asserter.Equal(gold, tx)
 		case <-time.After(timeout):
-			assert.Fail(errTimeout)
+			asserter.Fail(errTimeout)
 		}
 
 		err = s.Close()
-		assert.NoError(err)
+		asserter.NoError(err)
 	}
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
-
 
 	s, err = NewGrpcAppProxy(addr, timeout/2, logger)
 	assert.NoError(t, err)
@@ -172,6 +169,7 @@ func TestGrpcReConnection(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+/*
 func TestGrpcMaxMsgSize(t *testing.T) {
 	const (
 		largeSize  = 100 * 1024 * 1024
@@ -242,3 +240,4 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 	err = s.Close()
 	assert.NoError(t, err)
 }
+*/

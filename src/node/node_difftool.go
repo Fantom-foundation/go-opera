@@ -8,15 +8,15 @@ import (
  * Diff tool interface implementation (tmp)
  */
 
-func (n *Node) GetLastBlockIndex() int {
+func (n *Node) GetLastBlockIndex() int64 {
 	return n.core.poset.Store.LastBlockIndex()
 }
 
-func (n *Node) RoundWitnesses(i int) []string {
+func (n *Node) RoundWitnesses(i int64) []string {
 	return n.core.poset.Store.RoundWitnesses(i)
 }
 
-func (n *Node) GetFrame(i int) (poset.Frame, error) {
+func (n *Node) GetFrame(i int64) (poset.Frame, error) {
 	return n.core.poset.Store.GetFrame(i)
 }
 

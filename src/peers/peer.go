@@ -11,7 +11,7 @@ const (
 )
 
 type Peer struct {
-	ID        int `json:"-"`
+	ID        int64 `json:"-"`
 	NetAddr   string
 	PubKeyHex string
 }
@@ -39,7 +39,7 @@ func (p *Peer) computeID() error {
 		return err
 	}
 
-	p.ID = common.Hash32(pubKey)
+	p.ID = int64(common.Hash32(pubKey))
 
 	return nil
 }
@@ -60,7 +60,7 @@ func ExcludePeer(peers []*Peer, peer string) (int, []*Peer) {
 	index := -1
 	otherPeers := make([]*Peer, 0, len(peers))
 	for i, p := range peers {
-		if p.NetAddr != peer {
+		if p.NetAddr != peer && p.PubKeyHex != peer {
 			otherPeers = append(otherPeers, p)
 		} else {
 			index = i
