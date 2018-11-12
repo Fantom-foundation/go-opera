@@ -1,9 +1,10 @@
-package difftool
+package node
 
 import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
+	_ "testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -11,27 +12,28 @@ import (
 	"github.com/andrecronje/lachesis/src/crypto"
 	"github.com/andrecronje/lachesis/src/dummy"
 	"github.com/andrecronje/lachesis/src/net"
-	"github.com/andrecronje/lachesis/src/node"
 	"github.com/andrecronje/lachesis/src/peers"
 	"github.com/andrecronje/lachesis/src/poset"
 )
 
 const delay = 100 * time.Millisecond
 
-type NodeList map[*ecdsa.PrivateKey]*node.Node
+// NodeList is a list of connected nodes for tests purposes
+type NodeList map[*ecdsa.PrivateKey]*Node
 
+// NewNodeList makes, fills and runs NodeList instance
 func NewNodeList(count int, logger *logrus.Logger) NodeList {
 	nodes := make(NodeList, count)
 	participants := peers.NewPeers()
 
 	for i := 0; i < count; i++ {
-		config := node.DefaultConfig()
+		config := DefaultConfig()
 		addr, transp := net.NewInmemTransport("")
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
 		peer := peers.NewPeer(pubKey, addr)
 
-		n := node.NewNode(
+		n := NewNode(
 			config,
 			peer.ID,
 			key,
@@ -52,6 +54,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 	return nodes
 }
 
+// Keys returns the all PrivateKeys slice
 func (n NodeList) Keys() []*ecdsa.PrivateKey {
 	keys := make([]*ecdsa.PrivateKey, len(n))
 	i := 0
@@ -62,8 +65,9 @@ func (n NodeList) Keys() []*ecdsa.PrivateKey {
 	return keys
 }
 
-func (n NodeList) Values() []*node.Node {
-	nodes := make([]*node.Node, len(n))
+// Values returns the all nodes slice
+func (n NodeList) Values() []*Node {
+	nodes := make([]*Node, len(n))
 	i := 0
 	for _, node := range n {
 		nodes[i] = node
@@ -72,6 +76,7 @@ func (n NodeList) Values() []*node.Node {
 	return nodes
 }
 
+// StartRandTxStream sends random txs to nodes until stop() called
 func (n NodeList) StartRandTxStream() (stop func()) {
 	stopCh := make(chan struct{})
 

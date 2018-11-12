@@ -30,8 +30,7 @@ type Result []*Diff
  */
 
 func (d *Diff) IsEmpty() bool {
-	// TODO: remove const true, it's for develop only
-	has := d.FirstBlockIndex > 0 || d.FirstRoundIndex > 0 || true
+	has := d.FirstBlockIndex > 0 || d.FirstRoundIndex > 0
 	return !has
 }
 

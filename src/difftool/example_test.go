@@ -4,12 +4,14 @@ import (
 	"testing"
 
 	"github.com/andrecronje/lachesis/src/common"
+	"github.com/andrecronje/lachesis/src/node"
 )
 
+// TestExample illustrates nodes comparing
 func TestExample(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
-	nodes := NewNodeList(3, logger)
+	nodes := node.NewNodeList(3, logger)
 
 	stop := nodes.StartRandTxStream()
 	nodes.WaitForBlock(5)
