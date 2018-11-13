@@ -11,6 +11,7 @@ import (
 func createDummyEventBody() EventBody {
 	body := EventBody{}
 	body.Transactions = [][]byte{[]byte("abc"), []byte("def")}
+	body.InternalTransactions = []InternalTransaction{}
 	body.Parents = []string{"self", "other"}
 	body.Creator = []byte("public key")
 	body.BlockSignatures = []BlockSignature{
@@ -38,6 +39,9 @@ func TestMarshallBody(t *testing.T) {
 
 	if !reflect.DeepEqual(body.Transactions, newBody.Transactions) {
 		t.Fatalf("Transactions do not match. Expected %#v, got %#v", body.Transactions, newBody.Transactions)
+	}
+	if !reflect.DeepEqual(body.InternalTransactions, newBody.InternalTransactions) {
+		t.Fatalf("Internal Transactions do not match. Expected %#v, got %#v", body.InternalTransactions, newBody.InternalTransactions)
 	}
 	if !reflect.DeepEqual(body.BlockSignatures, newBody.BlockSignatures) {
 		t.Fatalf("BlockSignatures do not match. Expected %#v, got %#v", body.BlockSignatures, newBody.BlockSignatures)
@@ -116,6 +120,7 @@ func TestWireEvent(t *testing.T) {
 	expectedWireEvent := WireEvent{
 		Body: WireBody{
 			Transactions:         event.Body.Transactions,
+			InternalTransactions: event.Body.InternalTransactions,
 			SelfParentIndex:      1,
 			OtherParentCreatorID: 66,
 			OtherParentIndex:     2,
@@ -135,7 +140,7 @@ func TestWireEvent(t *testing.T) {
 
 func TestIsLoaded(t *testing.T) {
 	//nil payload
-	event := NewEvent(nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, nil)
+	event := NewEvent(nil, nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, nil)
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
@@ -172,13 +177,13 @@ func TestIsLoaded(t *testing.T) {
 }
 
 func TestEventFlagTable(t *testing.T) {
-	exp := map[string]int{
+	exp := map[string]int64{
 		"x": 1,
 		"y": 0,
 		"z": 2,
 	}
 
-	event := NewEvent(nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, exp)
+	event := NewEvent(nil, nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, exp)
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
@@ -197,14 +202,16 @@ func TestEventFlagTable(t *testing.T) {
 	}
 }
 
-func TestMargeFlagTable(t *testing.T) {
-	exp := map[string]int{
+func TestMergeFlagTable(t *testing.T) {
+	exp := map[string]int64{
 		"x": 1,
 		"y": 1,
 		"z": 1,
+
+
 	}
 
-	syncData := []map[string]int{
+	syncData := []map[string]int64{
 		{
 			"x": 0,
 			"y": 1,
@@ -217,7 +224,7 @@ func TestMargeFlagTable(t *testing.T) {
 		},
 	}
 
-	start := map[string]int{
+	start := map[string]int64{
 		"x": 1,
 		"y": 0,
 		"z": 0,
@@ -227,7 +234,7 @@ func TestMargeFlagTable(t *testing.T) {
 	event := Event{FlagTable: ft}
 
 	for _, v := range syncData {
-		flagTable, err := event.MargeFlagTable(v)
+		flagTable, err := event.MergeFlagTable(v)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -236,7 +243,7 @@ func TestMargeFlagTable(t *testing.T) {
 		event.FlagTable = raw
 	}
 
-	var res map[string]int
+	var res map[string]int64
 	json.Unmarshal(event.FlagTable, &res)
 
 	if !reflect.DeepEqual(exp, res) {

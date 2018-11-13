@@ -16,8 +16,8 @@ import (
 //statehash should be ignored for validator checking
 
 type BlockBody struct {
-	Index         int
-	RoundReceived int
+	Index         int64
+	RoundReceived int64
 	StateHash     []byte
 	FrameHash     []byte
 	Transactions  [][]byte
@@ -54,7 +54,7 @@ func (bb *BlockBody) Hash() ([]byte, error) {
 
 type BlockSignature struct {
 	Validator []byte
-	Index     int
+	Index     int64
 	Signature string
 }
 
@@ -88,7 +88,7 @@ func (bs *BlockSignature) ToWire() WireBlockSignature {
 }
 
 type WireBlockSignature struct {
-	Index     int
+	Index     int64
 	Signature string
 }
 
@@ -102,7 +102,7 @@ type Block struct {
 	hex  string
 }
 
-func NewBlockFromFrame(blockIndex int, frame Frame) (Block, error) {
+func NewBlockFromFrame(blockIndex int64, frame Frame) (Block, error) {
 	frameHash, err := frame.Hash()
 	if err != nil {
 		return Block{}, err
@@ -114,7 +114,7 @@ func NewBlockFromFrame(blockIndex int, frame Frame) (Block, error) {
 	return NewBlock(blockIndex, frame.Round, frameHash, transactions), nil
 }
 
-func NewBlock(blockIndex, roundReceived int, frameHash []byte, txs [][]byte) Block {
+func NewBlock(blockIndex, roundReceived int64, frameHash []byte, txs [][]byte) Block {
 	body := BlockBody{
 		Index:         blockIndex,
 		RoundReceived: roundReceived,
@@ -127,7 +127,7 @@ func NewBlock(blockIndex, roundReceived int, frameHash []byte, txs [][]byte) Blo
 	}
 }
 
-func (b *Block) Index() int {
+func (b *Block) Index() int64 {
 	return b.Body.Index
 }
 
@@ -135,7 +135,7 @@ func (b *Block) Transactions() [][]byte {
 	return b.Body.Transactions
 }
 
-func (b *Block) RoundReceived() int {
+func (b *Block) RoundReceived() int64 {
 	return b.Body.RoundReceived
 }
 

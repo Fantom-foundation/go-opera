@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
- 	"github.com/andrecronje/lachesis/src/dummy"
+
+	"github.com/andrecronje/lachesis/src/dummy"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,15 +39,14 @@ var RootCmd = &cobra.Command{
 *******************************************************************************/
 
 func runDummy(cmd *cobra.Command, args []string) error {
- 	name := config.Name
-	proxyAddress := config.ProxyAddr
-	clientAddress := config.ClientAddr
- 	//Create and run Dummy Socket Client
-	client, err := dummy.NewDummySocketClient(clientAddress, proxyAddress, logger)
+	name := config.Name
+	address := config.ProxyAddr
+	//Create and run Dummy Socket Client
+	client, err := dummy.NewDummySocketClient(address, logger)
 	if err != nil {
 		return err
 	}
- 	//Listen for input messages from tty
+	//Listen for input messages from tty
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		fmt.Print("Enter your text: ")
@@ -56,7 +56,7 @@ func runDummy(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Error in SubmitTx: %v\n", err)
 		}
 	}
- 	return nil
+	return nil
 }
 
 /*******************************************************************************
@@ -64,26 +64,27 @@ func runDummy(cmd *cobra.Command, args []string) error {
 *******************************************************************************/
 
 func loadConfig(cmd *cobra.Command, args []string) error {
- 	err := viper.BindPFlags(cmd.Flags())
+	err := viper.BindPFlags(cmd.Flags())
 	if err != nil {
 		return err
 	}
- 	config, err = parseConfig()
+	config, err = parseConfig()
 	if err != nil {
 		return err
 	}
- 	logger = newLogger()
+	logger = newLogger()
 	logger.Level = logLevel(config.LogLevel)
- 	logger.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"name":          config.Name,
 		"client-listen": config.ClientAddr,
 		"proxy-connect": config.ProxyAddr,
 		"discard":       config.Discard,
 		"log":           config.LogLevel,
 	}).Debug("RUN")
- 	return nil
+	return nil
 }
- //Retrieve the default environment configuration.
+
+//Retrieve the default environment configuration.
 func parseConfig() (*CLIConfig, error) {
 	conf := NewDefaultCLIConfig()
 	err := viper.Unmarshal(conf)
@@ -92,31 +93,31 @@ func parseConfig() (*CLIConfig, error) {
 	}
 	return conf, err
 }
- func newLogger() *logrus.Logger {
+func newLogger() *logrus.Logger {
 	logger := logrus.New()
- 	pathMap := lfshook.PathMap{}
- 	_, err := os.OpenFile("dummy_info.log", os.O_CREATE|os.O_WRONLY, 0666)
+	pathMap := lfshook.PathMap{}
+	_, err := os.OpenFile("dummy_info.log", os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		logger.Info("Failed to open dummy_info.log file, using default stderr")
 	} else {
 		pathMap[logrus.InfoLevel] = "dummy_info.log"
 	}
- 	_, err = os.OpenFile("dummy_debug.log", os.O_CREATE|os.O_WRONLY, 0666)
+	_, err = os.OpenFile("dummy_debug.log", os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		logger.Info("Failed to open dummy_debug.log file, using default stderr")
 	} else {
 		pathMap[logrus.DebugLevel] = "dummy_debug.log"
 	}
- 	if err == nil && config.Discard {
+	if err == nil && config.Discard {
 		logger.Out = ioutil.Discard
 	}
- 	logger.Hooks.Add(lfshook.NewHook(
+	logger.Hooks.Add(lfshook.NewHook(
 		pathMap,
 		&logrus.TextFormatter{},
 	))
- 	return logger
+	return logger
 }
- func logLevel(l string) logrus.Level {
+func logLevel(l string) logrus.Level {
 	switch l {
 	case "debug":
 		return logrus.DebugLevel

@@ -1,3 +1,5 @@
+// +build multi
+
 // This is version of main.go with CPU profiling enabled.
 // Use it in go build command instead of main.go
 // lachesis.prof file is created in current directory with profiling data after execution finishes
@@ -20,8 +22,7 @@ import (
 
 // TODO: Change so that this is a flag in default main and not auto startup
 
-
-func profile() {
+func main() {
 	rootCmd := cmd.RootCmd
 
 	rootCmd.AddCommand(

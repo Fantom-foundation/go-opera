@@ -3,7 +3,7 @@ package version
 import "strings"
 
 const Maj = "0"
-const Min = "3"
+const Min = "4"
 const Fix = "3"
 
 func dashPrependAndSliceOn(condition bool, s string) string {

@@ -29,21 +29,22 @@ func NewService(bindAddress string, n *node.Node, logger *logrus.Logger) *Servic
 
 func (s *Service) Serve() {
 	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
-	http.Handle("/stats", corsHandler(s.GetStats))
-	http.Handle("/participants/", corsHandler(s.GetParticipants))
-	http.Handle("/event/", corsHandler(s.GetEvent))
-	http.Handle("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
-	http.Handle("/events/", corsHandler(s.GetKnownEvents))
-	http.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
-	http.Handle("/round/", corsHandler(s.GetRound))
-	http.Handle("/lastround/", corsHandler(s.GetLastRound))
-	http.Handle("/roundwitnesses/", corsHandler(s.GetRoundWitnesses))
-	http.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
-	http.Handle("/root/", corsHandler(s.GetRoot))
-	http.Handle("/block/", corsHandler(s.GetBlock))
-	http.Handle("/graph", corsHandler(s.GetGraph))
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("src/service/static/"))))
-	err := http.ListenAndServe(s.bindAddress, nil)
+	mux := http.NewServeMux()
+	mux.Handle("/stats", corsHandler(s.GetStats))
+	mux.Handle("/participants/", corsHandler(s.GetParticipants))
+	mux.Handle("/event/", corsHandler(s.GetEvent))
+	mux.Handle("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
+	mux.Handle("/events/", corsHandler(s.GetKnownEvents))
+	mux.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
+	mux.Handle("/round/", corsHandler(s.GetRound))
+	mux.Handle("/lastround/", corsHandler(s.GetLastRound))
+	mux.Handle("/roundwitnesses/", corsHandler(s.GetRoundWitnesses))
+	mux.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
+	mux.Handle("/root/", corsHandler(s.GetRoot))
+	mux.Handle("/block/", corsHandler(s.GetBlock))
+	mux.Handle("/graph", corsHandler(s.GetGraph))
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("src/service/static/"))))
+	err := http.ListenAndServe(s.bindAddress, mux)
 	if err != nil {
 		s.logger.WithField("error", err).Error("Service failed")
 	}
@@ -94,7 +95,7 @@ func (s *Service) GetEvent(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/event/"):]
 	event, err := s.node.GetEvent(param)
 	if err != nil {
-		s.logger.WithError(err).Errorf("Retrieving event %d", event)
+		s.logger.WithError(err).Errorf("Retrieving event %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -139,7 +140,7 @@ func (s *Service) GetConsensusEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRound(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/round/"):]
-	roundIndex, err := strconv.Atoi(param)
+	roundIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing roundIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -166,7 +167,7 @@ func (s *Service) GetLastRound(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/roundwitnesses/"):]
-	roundWitnessesIndex, err := strconv.Atoi(param)
+	roundWitnessesIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing roundWitnessesIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -181,7 +182,7 @@ func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/roundevents/"):]
-	roundEventsIndex, err := strconv.Atoi(param)
+	roundEventsIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing roundEventsIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -209,7 +210,7 @@ func (s *Service) GetRoot(w http.ResponseWriter, r *http.Request) {
 
 func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/block/"):]
-	blockIndex, err := strconv.Atoi(param)
+	blockIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Parsing block_index parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

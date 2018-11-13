@@ -20,7 +20,7 @@ func (t Trilean) String() string {
 }
 
 type pendingRound struct {
-	Index   int
+	Index   int64
 	Decided bool
 }
 

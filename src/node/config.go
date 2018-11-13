@@ -13,14 +13,15 @@ type Config struct {
 	HeartbeatTimeout time.Duration `mapstructure:"heartbeat"`
 	TCPTimeout       time.Duration `mapstructure:"timeout"`
 	CacheSize        int           `mapstructure:"cache-size"`
-	SyncLimit        int           `mapstructure:"sync-limit"`
+	SyncLimit        int64         `mapstructure:"sync-limit"`
 	Logger           *logrus.Logger
+	TestDelay uint64 `mapstructure:"test_delay"`
 }
 
 func NewConfig(heartbeat time.Duration,
 	timeout time.Duration,
 	cacheSize int,
-	syncLimit int,
+	syncLimit int64,
 	logger *logrus.Logger) *Config {
 
 	return &Config{
@@ -43,11 +44,13 @@ func DefaultConfig() *Config {
 		CacheSize:        500,
 		SyncLimit:        100,
 		Logger:           logger,
+		TestDelay:        1,
 	}
 }
 
 func TestConfig(t *testing.T) *Config {
 	config := DefaultConfig()
+	config.HeartbeatTimeout = time.Second * 1
 
 	config.Logger = common.NewTestLogger(t)
 

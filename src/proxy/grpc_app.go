@@ -9,6 +9,7 @@ package proxy
 import (
 	"errors"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -21,10 +22,11 @@ import (
 	"github.com/andrecronje/lachesis/src/proxy/internal"
 )
 
-var ErrNoAnswers = errors.New("No answers")
+var ErrNoAnswers = errors.New("no answers")
 
 type ClientStream internal.LachesisNode_ConnectServer
 
+//GrpcAppProxy implements the AppProxy interface
 type GrpcAppProxy struct {
 	logger   *logrus.Logger
 	listener net.Listener
@@ -39,6 +41,7 @@ type GrpcAppProxy struct {
 	event4clients chan *internal.ToClient
 }
 
+// NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps
 func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
 	var err error
 
@@ -47,11 +50,11 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 		logger.Level = logrus.DebugLevel
 	}
 
-	// TODO: make it buffered?
 	p := &GrpcAppProxy{
-		logger:        logger,
-		timeout:       timeout,
-		new_clients:   make(chan ClientStream, 100),
+		logger:      logger,
+		timeout:     timeout,
+		new_clients: make(chan ClientStream, 100),
+		// TODO: make chans buffered?
 		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
 		event4server:  make(chan []byte),
 		event4clients: make(chan *internal.ToClient),
@@ -61,8 +64,11 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 	if err != nil {
 		return nil, err
 	}
-	p.server = grpc.NewServer()
+	p.server = grpc.NewServer(
+		grpc.MaxRecvMsgSize(math.MaxInt32),
+		grpc.MaxSendMsgSize(math.MaxInt32))
 	internal.RegisterLachesisNodeServer(p.server, p)
+
 	go p.server.Serve(p.listener)
 
 	go p.send_events4clients()
@@ -94,7 +100,7 @@ func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error
 			if err != io.EOF {
 				p.logger.Debugf("client refused: %s", err)
 			} else {
-				p.logger.Debugf("client disconnected")
+				p.logger.Debugf("client disconnected well")
 			}
 			return err
 		}
@@ -138,12 +144,18 @@ func (p *GrpcAppProxy) send_events4clients() {
 }
 
 /*
- * inmem interface:
+ * inmem interface: AppProxy implementation
  */
 
 // SubmitCh implements AppProxy interface method
 func (p *GrpcAppProxy) SubmitCh() chan []byte {
 	return p.event4server
+}
+
+// SubmitCh implements AppProxy interface method
+// TODO: Incorrect implementation, just adding to the interface so long
+func (p *GrpcAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
+	return nil
 }
 
 // CommitBlock implements AppProxy interface method
@@ -164,8 +176,8 @@ func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 }
 
 // GetSnapshot implements AppProxy interface method
-func (p *GrpcAppProxy) GetSnapshot(blockIndex int) ([]byte, error) {
-	answer, ok := <-p.push_query(int64(blockIndex))
+func (p *GrpcAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
+	answer, ok := <-p.push_query(blockIndex)
 	if !ok {
 		return nil, ErrNoAnswers
 	}

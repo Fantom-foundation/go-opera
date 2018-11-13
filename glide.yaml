@@ -32,3 +32,6 @@ import:
   version: ^1.2.2
   subpackages:
   - assert
+- package: github.com/btcsuite/btcd
+  subpackages:
+  - peer

@@ -54,17 +54,15 @@ func run(c *cli.Context) error {
 	logger.Level = logLevel(c.String(LogLevelFlag.Name))
 
 	name := c.String(NameFlag.Name)
-	proxyAddress := c.String(ProxyAddressFlag.Name)
-	clientAddress := c.String(ClientAddressFlag.Name)
+	address := c.String(ProxyAddressFlag.Name)
 
 	logger.WithFields(logrus.Fields{
-		"name":        name,
-		"proxy_addr":  proxyAddress,
-		"client_addr": clientAddress,
+		"name":       name,
+		"proxy_addr": address,
 	}).Debug("RUN")
 
 	//Create and run Dummy Socket Client
-	client, err := dummy.NewDummySocketClient(clientAddress, proxyAddress, logger)
+	client, err := dummy.NewDummySocketClient(address, logger)
 	if err != nil {
 		return err
 	}
@@ -85,27 +83,27 @@ func run(c *cli.Context) error {
 
 func newLogger() *logrus.Logger {
 	logger := logrus.New()
- 	pathMap := lfshook.PathMap{}
- 	_, err := os.OpenFile("info.log", os.O_CREATE|os.O_WRONLY, 0666)
+	pathMap := lfshook.PathMap{}
+	_, err := os.OpenFile("info.log", os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		logger.Info("Failed to open info.log file, using default stderr")
 	} else {
 		pathMap[logrus.InfoLevel] = "info.log"
 	}
- 	_, err = os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY, 0666)
+	_, err = os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		logger.Info("Failed to open debug.log file, using default stderr")
 	} else {
 		pathMap[logrus.DebugLevel] = "debug.log"
 	}
- 	if err == nil {
+	if err == nil {
 		logger.Out = ioutil.Discard
 	}
- 	logger.Hooks.Add(lfshook.NewHook(
+	logger.Hooks.Add(lfshook.NewHook(
 		pathMap,
 		&logrus.TextFormatter{},
 	))
- 	return logger
+	return logger
 }
 
 func logLevel(l string) logrus.Level {

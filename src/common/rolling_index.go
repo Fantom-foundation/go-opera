@@ -1,11 +1,13 @@
 package common
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type RollingIndex struct {
 	name      string
 	size      int
-	lastIndex int
+	lastIndex int64
 	items     []interface{}
 }
 
@@ -18,22 +20,22 @@ func NewRollingIndex(name string, size int) *RollingIndex {
 	}
 }
 
-func (r *RollingIndex) GetLastWindow() (lastWindow []interface{}, lastIndex int) {
+func (r *RollingIndex) GetLastWindow() (lastWindow []interface{}, lastIndex int64) {
 	return r.items, r.lastIndex
 }
 
-func (r *RollingIndex) Get(skipIndex int) ([]interface{}, error) {
+func (r *RollingIndex) Get(skipIndex int64) ([]interface{}, error) {
 	res := make([]interface{}, 0)
 
 	if skipIndex > r.lastIndex {
 		return res, nil
 	}
 
-	cachedItems := len(r.items)
+	cachedItems := int64(len(r.items))
 	//assume there are no gaps between indexes
 	oldestCachedIndex := r.lastIndex - cachedItems + 1
 	if skipIndex+1 < oldestCachedIndex {
-		return res, NewStoreErr(r.name, TooLate, strconv.Itoa(skipIndex))
+		return res, NewStoreErr(r.name, TooLate, strconv.FormatInt(skipIndex, 10))
 	}
 
 	//index of 'skipped' in RollingIndex
@@ -42,25 +44,25 @@ func (r *RollingIndex) Get(skipIndex int) ([]interface{}, error) {
 	return r.items[start:], nil
 }
 
-func (r *RollingIndex) GetItem(index int) (interface{}, error) {
-	items := len(r.items)
+func (r *RollingIndex) GetItem(index int64) (interface{}, error) {
+	items := int64(len(r.items))
 	oldestCached := r.lastIndex - items + 1
 	if index < oldestCached {
-		return nil, NewStoreErr(r.name, TooLate, strconv.Itoa(index))
+		return nil, NewStoreErr(r.name, TooLate, strconv.FormatInt(index, 10))
 	}
 	findex := index - oldestCached
 	if findex >= items {
-		return nil, NewStoreErr(r.name, KeyNotFound, strconv.Itoa(index))
+		return nil, NewStoreErr(r.name, KeyNotFound, strconv.FormatInt(index, 10))
 	}
 	return r.items[findex], nil
 }
 
-func (r *RollingIndex) Set(item interface{}, index int) error {
+func (r *RollingIndex) Set(item interface{}, index int64) error {
 
 	//only allow to set items with index <= lastIndex + 1
 	//so that we may assume there are no gaps between items
 	if 0 <= r.lastIndex && index > r.lastIndex+1 {
-		return NewStoreErr(r.name, SkippedIndex, strconv.Itoa(index))
+		return NewStoreErr(r.name, SkippedIndex, strconv.FormatInt(index, 10))
 	}
 
 	//adding a new item
@@ -75,11 +77,11 @@ func (r *RollingIndex) Set(item interface{}, index int) error {
 
 	//replace and existing item
 	//make sure index is also greater or equal than the oldest cached item's index
-	cachedItems := len(r.items)
+	cachedItems := int64(len(r.items))
 	oldestCachedIndex := r.lastIndex - cachedItems + 1
 
 	if index < oldestCachedIndex {
-		return NewStoreErr(r.name, TooLate, strconv.Itoa(index))
+		return NewStoreErr(r.name, TooLate, strconv.FormatInt(index, 10))
 	}
 
 	//replacing existing item

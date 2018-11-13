@@ -18,7 +18,7 @@ type Graph struct {
 
 func (g *Graph) GetBlocks() []poset.Block {
 	res := []poset.Block{}
- 	blockIdx := 0
+ 	blockIdx := int64(0)
 	store := g.Node.core.poset.Store
 
  	for blockIdx <= store.LastBlockIndex() {
@@ -55,11 +55,13 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 
 		selfParent := fmt.Sprintf("Root%d", p.ID)
 
-		flagTable := make(map[string]int)
+		flagTable := make(map[string]int64)
 		flagTable[selfParent] = 1
 
 		// Create and save the first Event
-		initialEvent := poset.NewEvent([][]byte{}, []poset.BlockSignature{},
+		initialEvent := poset.NewEvent([][]byte{},
+			[]poset.InternalTransaction{},
+			[]poset.BlockSignature{},
 			[]string{}, []byte{}, 0, flagTable)
 
 		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
@@ -83,7 +85,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 func (g *Graph) GetRounds() []poset.RoundInfo {
 	res := []poset.RoundInfo{}
 
-	round := 0
+	round := int64(0)
 
 	store := g.Node.core.poset.Store
 

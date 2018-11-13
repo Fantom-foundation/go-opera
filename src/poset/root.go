@@ -64,15 +64,15 @@ ex 2:
 //to allow inserting Events on top of it.
 type RootEvent struct {
 	Hash             string
-	CreatorID        int
-	Index            int
-	LamportTimestamp int
-	Round            int
+	CreatorID        int64
+	Index            int64
+	LamportTimestamp int64
+	Round            int64
 }
 
 //NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
 //of a Poset.
-func NewBaseRootEvent(creatorID int) RootEvent {
+func NewBaseRootEvent(creatorID int64) RootEvent {
 	hash := fmt.Sprintf("Root%d", creatorID)
 	res := RootEvent{
 		Hash:             hash,
@@ -84,20 +84,20 @@ func NewBaseRootEvent(creatorID int) RootEvent {
 	return res
 }
 
-//Root forms a base on top of which a participant's Events can be inserted. In
+//Root forms a base on top of which a participant's Events can be inserted. It
 //contains the SelfParent of the first descendant of the Root, as well as other
 //Events, belonging to a past before the Root, which might be referenced
 //in future Events. NextRound corresponds to a proposed value for the child's
 //Round; it is only used if the child's OtherParent is empty or NOT in the
 //Root's Others.
 type Root struct {
-	NextRound  int
+	NextRound  int64
 	SelfParent RootEvent
 	Others     map[string]RootEvent
 }
 
 //NewBaseRoot initializes a Root object for a fresh Poset.
-func NewBaseRoot(creatorID int) Root {
+func NewBaseRoot(creatorID int64) Root {
 	res := Root{
 		NextRound:  0,
 		SelfParent: NewBaseRootEvent(creatorID),

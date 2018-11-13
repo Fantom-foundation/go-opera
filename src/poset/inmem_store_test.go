@@ -11,17 +11,17 @@ import (
 )
 
 type pub struct {
-	id      int
+	id      int64
 	privKey *ecdsa.PrivateKey
 	pubKey  []byte
 	hex     string
 }
 
 func initInmemStore(cacheSize int) (*InmemStore, []pub) {
-	n := 3
+	n := int64(3)
 	var participantPubs []pub
 	participants := peers.NewPeers()
-	for i := 0; i < n; i++ {
+	for i := int64(0); i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := crypto.FromECDSAPub(&key.PublicKey)
 		peer := peers.NewPeer(fmt.Sprintf("0x%X", pubKey), "")
@@ -37,7 +37,7 @@ func initInmemStore(cacheSize int) (*InmemStore, []pub) {
 
 func TestInmemEvents(t *testing.T) {
 	cacheSize := 100
-	testSize := 15
+	testSize := int64(15)
 	store, participants := initInmemStore(cacheSize)
 
 	events := make(map[string][]Event)
@@ -45,8 +45,9 @@ func TestInmemEvents(t *testing.T) {
 	t.Run("Store Events", func(t *testing.T) {
 		for _, p := range participants {
 			var items []Event
-			for k := 0; k < testSize; k++ {
+			for k := int64(0); k < testSize; k++ {
 				event := NewEvent([][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
+					nil,
 					[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 					[]string{"", ""},
 					p.pubKey,
@@ -75,13 +76,13 @@ func TestInmemEvents(t *testing.T) {
 	})
 
 	t.Run("Check ParticipantEventsCache", func(t *testing.T) {
-		skipIndex := -1 //do not skip any indexes
+		skipIndex := int64(-1) //do not skip any indexes
 		for _, p := range participants {
 			pEvents, err := store.ParticipantEvents(p.hex, skipIndex)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if l := len(pEvents); l != testSize {
+			if l := int64(len(pEvents)); l != testSize {
 				t.Fatalf("%s should have %d Events, not %d", p.hex, testSize, l)
 			}
 
@@ -96,7 +97,7 @@ func TestInmemEvents(t *testing.T) {
 	})
 
 	t.Run("Check KnownEvents", func(t *testing.T) {
-		expectedKnown := make(map[int]int)
+		expectedKnown := make(map[int64]int64)
 		for _, p := range participants {
 			expectedKnown[p.id] = testSize - 1
 		}
@@ -126,6 +127,7 @@ func TestInmemRounds(t *testing.T) {
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
+			nil,
 			[]BlockSignature{},
 			[]string{"", ""},
 			p.pubKey,
@@ -171,8 +173,8 @@ func TestInmemRounds(t *testing.T) {
 func TestInmemBlocks(t *testing.T) {
 	store, participants := initInmemStore(10)
 
-	index := 0
-	roundReceived := 7
+	index := int64(0)
+	roundReceived := int64(7)
 	transactions := [][]byte{
 		[]byte("tx1"),
 		[]byte("tx2"),

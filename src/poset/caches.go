@@ -43,7 +43,7 @@ func NewParticipantEventsCache(size int, participants *peers.Peers) *Participant
 	}
 }
 
-func (pec *ParticipantEventsCache) participantID(participant string) (int, error) {
+func (pec *ParticipantEventsCache) participantID(participant string) (int64, error) {
 	peer, ok := pec.participants.ByPubKey[participant]
 
 	if !ok {
@@ -54,7 +54,7 @@ func (pec *ParticipantEventsCache) participantID(participant string) (int, error
 }
 
 //return participant events with index > skip
-func (pec *ParticipantEventsCache) Get(participant string, skipIndex int) ([]string, error) {
+func (pec *ParticipantEventsCache) Get(participant string, skipIndex int64) ([]string, error) {
 	id, err := pec.participantID(participant)
 	if err != nil {
 		return []string{}, err
@@ -72,7 +72,7 @@ func (pec *ParticipantEventsCache) Get(participant string, skipIndex int) ([]str
 	return res, nil
 }
 
-func (pec *ParticipantEventsCache) GetItem(participant string, index int) (string, error) {
+func (pec *ParticipantEventsCache) GetItem(participant string, index int64) (string, error) {
 	id, err := pec.participantID(participant)
 	if err != nil {
 		return "", err
@@ -111,7 +111,7 @@ func (pec *ParticipantEventsCache) GetLastConsensus(participant string) (string,
 	return last.(string), nil
 }
 
-func (pec *ParticipantEventsCache) Set(participant string, hash string, index int) error {
+func (pec *ParticipantEventsCache) Set(participant string, hash string, index int64) error {
 	id, err := pec.participantID(participant)
 	if err != nil {
 		return err
@@ -120,12 +120,16 @@ func (pec *ParticipantEventsCache) Set(participant string, hash string, index in
 }
 
 //returns [participant id] => lastKnownIndex
-func (pec *ParticipantEventsCache) Known() map[int]int {
+func (pec *ParticipantEventsCache) Known() map[int64]int64 {
 	return pec.rim.Known()
 }
 
 func (pec *ParticipantEventsCache) Reset() error {
 	return pec.rim.Reset()
+}
+
+func (pec *ParticipantEventsCache) Import(other *ParticipantEventsCache) {
+	pec.rim.Import(other.rim)
 }
 
 //------------------------------------------------------------------------------
@@ -142,7 +146,7 @@ func NewParticipantBlockSignaturesCache(size int, participants *peers.Peers) *Pa
 	}
 }
 
-func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (int, error) {
+func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (int64, error) {
 	peer, ok := psc.participants.ByPubKey[participant]
 
 	if !ok {
@@ -153,7 +157,7 @@ func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (i
 }
 
 //return participant BlockSignatures where index > skip
-func (psc *ParticipantBlockSignaturesCache) Get(participant string, skipIndex int) ([]BlockSignature, error) {
+func (psc *ParticipantBlockSignaturesCache) Get(participant string, skipIndex int64) ([]BlockSignature, error) {
 	id, err := psc.participantID(participant)
 	if err != nil {
 		return []BlockSignature{}, err
@@ -171,7 +175,7 @@ func (psc *ParticipantBlockSignaturesCache) Get(participant string, skipIndex in
 	return res, nil
 }
 
-func (psc *ParticipantBlockSignaturesCache) GetItem(participant string, index int) (BlockSignature, error) {
+func (psc *ParticipantBlockSignaturesCache) GetItem(participant string, index int64) (BlockSignature, error) {
 	id, err := psc.participantID(participant)
 	if err != nil {
 		return BlockSignature{}, err
@@ -204,7 +208,7 @@ func (psc *ParticipantBlockSignaturesCache) Set(participant string, sig BlockSig
 }
 
 //returns [participant id] => last BlockSignature Index
-func (psc *ParticipantBlockSignaturesCache) Known() map[int]int {
+func (psc *ParticipantBlockSignaturesCache) Known() map[int64]int64 {
 	return psc.rim.Known()
 }
 
