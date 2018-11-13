@@ -6,7 +6,7 @@ package lachesis_log
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
+	"runtime"
 	"sync"
 	"time"
 
@@ -93,7 +93,9 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 	case logrus.FatalLevel:
 		fallthrough
 	case logrus.ErrorLevel:
-		debug.PrintStack()
+		buf := make([]byte, 1<<16)
+		stackSize := runtime.Stack(buf, false)
+		e.Data["z_trace"] = fmt.Sprintf(string(buf[0:stackSize]))
 		fallthrough
 	default:
 		t.stat[e.Level]++

@@ -285,7 +285,7 @@ func TestSync(t *testing.T) {
 	if core0Head.OtherParent() != index["e1"] {
 		t.Fatalf("core 0 head other-parent should be e1")
 	}
-	if len(core0Head.FlagTable) == 0 {
+	if len(core0Head.Message.FlagTable) == 0 {
 		t.Fatal("flag table is null")
 	}
 	index["e01"] = core0Head.Hex()

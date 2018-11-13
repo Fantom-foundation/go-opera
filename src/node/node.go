@@ -154,13 +154,13 @@ func (n *Node) Run(gossip bool) {
 func (n *Node) resetTimer() {
 	if !n.controlTimer.set {
 		ts := n.conf.HeartbeatTimeout
- 		//Slow gossip if nothing interesting to say
+		//Slow gossip if nothing interesting to say
 		if n.core.poset.PendingLoadedEvents == 0 &&
 			len(n.core.transactionPool) == 0 &&
 			len(n.core.blockSignaturePool) == 0 {
 			ts = time.Duration(time.Second)
 		}
- 		n.controlTimer.resetCh <- ts
+		n.controlTimer.resetCh <- ts
 	}
 }
 
@@ -173,7 +173,7 @@ func (n *Node) doBackgroundWork() {
 			n.resetTimer()
 		case t := <-n.submitInternalCh:
 			n.logger.Debug("Adding Internal Transaction")
- 			n.addInternalTransaction(t)
+			n.addInternalTransaction(t)
 			n.resetTimer()
 		case block := <-n.commitCh:
 			n.logger.WithFields(logrus.Fields{
@@ -329,17 +329,18 @@ func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardReques
 	if err != nil {
 		n.logger.WithField("error", err).Error("n.core.GetAnchorBlockWithFrame()")
 		respErr = err
-	}
-	resp.Block = block
-	resp.Frame = frame
+	} else {
+		resp.Block = block
+		resp.Frame = frame
 
-	// Get snapshot
-	snapshot, err := n.proxy.GetSnapshot(block.Index())
-	if err != nil {
-		n.logger.WithField("error", err).Error("n.proxy.GetSnapshot(block.Index())")
-		respErr = err
+		// Get snapshot
+		snapshot, err := n.proxy.GetSnapshot(block.Index())
+		if err != nil {
+			n.logger.WithField("error", err).Error("n.proxy.GetSnapshot(block.Index())")
+			respErr = err
+		}
+		resp.Snapshot = snapshot
 	}
-	resp.Snapshot = snapshot
 
 	n.logger.WithFields(logrus.Fields{
 		"Events": len(resp.Frame.Events),
@@ -395,19 +396,19 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 	elapsed := time.Since(start)
 	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestSync(peerAddr, knownEvents)")
 	// FIXIT: should we catch io.EOF error here and how we process it?
-//	if err == io.EOF {
-//		return false, nil, nil
-//	}
+	//	if err == io.EOF {
+	//		return false, nil, nil
+	//	}
 	if err != nil {
 		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
 		return false, nil, err
 	}
 	n.logger.WithFields(logrus.Fields{
-		"from_id":    resp.FromID,
-		"sync_limit": resp.SyncLimit,
-		"events":     len(resp.Events),
-		"known":      resp.Known,
-		"knownEvents":      knownEvents,
+		"from_id":     resp.FromID,
+		"sync_limit":  resp.SyncLimit,
+		"events":      len(resp.Events),
+		"known":       resp.Known,
+		"knownEvents": knownEvents,
 	}).Debug("SyncResponse")
 
 	if resp.SyncLimit {
@@ -448,7 +449,6 @@ func (n *Node) push(peerAddr string, knownEvents map[int64]int64) error {
 		n.logger.WithField("Error", err).Error("n.core.EventDiff(knownEvents)")
 		return err
 	}
-
 
 	if len(eventDiff) > 0 {
 		// Convert to WireEvents
@@ -639,8 +639,8 @@ func (n *Node) addTransaction(tx []byte) {
 
 func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {
 	n.coreLock.Lock()
- 	defer n.coreLock.Unlock()
- 	n.core.AddInternalTransactions([]poset.InternalTransaction{tx})
+	defer n.coreLock.Unlock()
+	n.core.AddInternalTransactions([]poset.InternalTransaction{tx})
 }
 
 func (n *Node) Shutdown() {
@@ -758,7 +758,7 @@ func (n *Node) GetKnownEvents() map[int64]int64 {
 
 func (n *Node) GetEvents() (map[int64]int64, error) {
 	res := n.core.KnownEvents()
- 	return res, nil
+	return res, nil
 }
 
 func (n *Node) GetConsensusEvents() []string {

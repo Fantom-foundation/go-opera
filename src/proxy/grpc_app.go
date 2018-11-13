@@ -160,7 +160,7 @@ func (p *GrpcAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
 
 // CommitBlock implements AppProxy interface method
 func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
-	data, err := block.Marshal()
+	data, err := block.ProtoMarshal()
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,35 @@
+syntax = "proto3";
+package poset;
+import "peer.proto";
+
+enum TransactionType {
+  PEER_ADD = 0;
+  PEER_REMOVE = 1;
+}
+
+message InternalTransaction {
+  TransactionType Type = 1;
+  Peer peer = 2;
+}
+
+message BlockSignature {
+  bytes Validator = 1;
+  int64 Index = 2;
+  string Signature = 3;
+}
+
+message EventBody {
+  repeated bytes Transactions = 1;
+  repeated InternalTransaction InternalTransactions = 2;
+  repeated string Parents = 3;
+  bytes Creator = 4;
+  int64 Index = 5;
+  repeated BlockSignature BlockSignatures = 6;
+}
+
+message EventMessage {
+  EventBody Body = 1;
+  string Signature = 2;
+  bytes FlagTable = 3;
+  repeated string WitnessProof = 4;
+}

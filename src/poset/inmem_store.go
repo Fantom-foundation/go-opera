@@ -228,7 +228,7 @@ func (s *InmemStore) RoundEvents(r int64) int {
 	if err != nil {
 		return 0
 	}
-	return len(round.Events)
+	return len(round.Message.Events)
 }
 
 func (s *InmemStore) GetRoot(participant string) (Root, error) {

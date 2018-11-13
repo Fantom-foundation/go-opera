@@ -1,0 +1,18 @@
+syntax = "proto3";
+package poset;
+
+enum Trilean {
+  UNDEFINED = 0;
+  TRUE = 1;
+  FALSE = 2;
+}
+
+message RoundEvent {
+  bool Consensus = 1;
+  bool Witness = 2;
+  Trilean Famous = 3;
+}
+
+message RoundInfoMessage {
+  map<string, RoundEvent> Events = 1;
+}

@@ -22,7 +22,7 @@ jobs:
   - stage: test
     script: make test
   - stage: testnet
-    script: env | sort && env -i PATH="$PATH" GOPATH="$GOPATH" n=3 logshold='-1,-1,-1,5,0,0' entry='main' BUILD_DIR="$TRAVIS_BUILD_DIR" scripts/multi.bash
+    script: env -i PATH="$PATH" GOPATH="$GOPATH" n=3 logshold='-1,-1,-1,5,0,0' entry='main' BUILD_DIR="$TRAVIS_BUILD_DIR" scripts/multi.bash
 notifications:
   slack:
     secure: "WPbL0WD5fY43IGl04bzuglbU1Ll1YIdc+kWvmT+lho3nnZ4YSp8yTT9LLxkOucpZFlNaSWoDY1y6yFD11+OBc6wi3f3h/t8fWl4xMyxiFVsgiRh1lz9MWqVVxEbEdqGlkavIx/q+f6Q/4p9sQvFC9ZiFRPEkCilkZF1zEwygqmb8TS3HZqMbt4wv66pZnljpj+Va3oN5PAx2PYD6FgBxLKimOqC2NWBVyzNcpGkRRk7MayENskuSZ7MB4ctjBc8Vbmk8AMjeBcMfzUwojYL0AizQZhlMCF9C64AQ9oPRF/rGj4XRLM63+E5BtjAv/ZwDuSOUo6QYDhLRKBMxXjzRNETSDtBPTknhJhr6GNuGyONu7oGvZMJaMaZMPbKKwGGC6GzPqf5KY0pY+kBUnhoF8RIKhDP1NTkNl3OVnd3gWXxsMXDqMHS7nvH1ubgMd7D+bDytK2/dSk5XB5ctU6q8z1EAwJ+ckuRsIzOTY+78cTs57pmG3p0ypqeqnui2bDmtD2EQueJ3CrTwnhK3slswjMi0TRsqEGDSrlXH6R4vqqaRj+s4bo0X4CfD6erEpDJxDyN/z7sci8ltXoGs/grZmRdofdFYQPlY1TPJV+zfYQqcXPoVwf4umyYw9FdYDVPC163heTnXlTVCC4rCZdAgQmpxInsNg1TYnfU8bInByCc="
