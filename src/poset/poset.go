@@ -898,7 +898,7 @@ func (p *Poset) DivideRounds() error {
 				new Events from a previous Round to be inserted; the lower bound
 				appears redundant. This is the case when the poset grows
 				linearly, without jumps, which is what we intend by 'Normally'.
-				But the Reset function introduces a dicontinuity  by jumping
+				But the Reset function introduces a discontinuity  by jumping
 				straight to a specific place in the poset. This technique relies
 				on a base layer of Events (the corresponding Frame's Events) for
 				other Events to be added on top, but the base layer must not be
@@ -1630,10 +1630,10 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 
 	event := &Event{
-		Message: EventMessage {
-			Body:      &body,
-			Signature: wevent.Signature,
-			FlagTable: wevent.FlagTable,
+		Message: EventMessage{
+			Body:         &body,
+			Signature:    wevent.Signature,
+			FlagTable:    wevent.FlagTable,
 			WitnessProof: wevent.WitnessProof,
 		},
 		selfParentIndex:      wevent.Body.SelfParentIndex,
