@@ -1,0 +1,10 @@
+syntax = "proto3";
+package poset;
+import "root.proto";
+import "event.proto";
+
+message Frame {
+  int64 Round = 1;
+  repeated Root Roots = 2;
+  repeated EventMessage Events = 3;
+}

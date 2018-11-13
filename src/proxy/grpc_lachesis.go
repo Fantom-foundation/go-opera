@@ -205,7 +205,7 @@ func (p *GrpcLachesisProxy) listen_events() {
 		// block commit event
 		if b := event.GetBlock(); b != nil {
 			var pb poset.Block
-			err = pb.Unmarshal(b.Data)
+			err = pb.ProtoUnmarshal(b.Data)
 			if err != nil {
 				continue
 			}

@@ -1,0 +1,8 @@
+syntax = "proto3";
+package poset;
+
+message Peer {
+  int64 ID = 1;
+  string NetAddr = 2;
+  string PubKeyHex = 3;
+}

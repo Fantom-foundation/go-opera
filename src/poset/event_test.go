@@ -4,18 +4,18 @@ import (
 	"reflect"
 	"testing"
 
-	"encoding/json"
+	"github.com/golang/protobuf/proto"
 	"github.com/andrecronje/lachesis/src/crypto"
 )
 
 func createDummyEventBody() EventBody {
 	body := EventBody{}
 	body.Transactions = [][]byte{[]byte("abc"), []byte("def")}
-	body.InternalTransactions = []InternalTransaction{}
+	body.InternalTransactions = []*InternalTransaction{}
 	body.Parents = []string{"self", "other"}
 	body.Creator = []byte("public key")
-	body.BlockSignatures = []BlockSignature{
-		{
+	body.BlockSignatures = []*BlockSignature{
+		&BlockSignature {
 			Validator: body.Creator,
 			Index:     0,
 			Signature: "r|s",
@@ -27,23 +27,23 @@ func createDummyEventBody() EventBody {
 func TestMarshallBody(t *testing.T) {
 	body := createDummyEventBody()
 
-	raw, err := body.Marshal()
+	raw, err := body.ProtoMarshal()
 	if err != nil {
 		t.Fatalf("Error marshalling EventBody: %s", err)
 	}
 
 	newBody := new(EventBody)
-	if err := newBody.Unmarshal(raw); err != nil {
+	if err := newBody.ProtoUnmarshal(raw); err != nil {
 		t.Fatalf("Error unmarshalling EventBody: %s", err)
 	}
 
 	if !reflect.DeepEqual(body.Transactions, newBody.Transactions) {
 		t.Fatalf("Transactions do not match. Expected %#v, got %#v", body.Transactions, newBody.Transactions)
 	}
-	if !reflect.DeepEqual(body.InternalTransactions, newBody.InternalTransactions) {
+	if !InternalTransactionListEquals(body.InternalTransactions, newBody.InternalTransactions) {
 		t.Fatalf("Internal Transactions do not match. Expected %#v, got %#v", body.InternalTransactions, newBody.InternalTransactions)
 	}
-	if !reflect.DeepEqual(body.BlockSignatures, newBody.BlockSignatures) {
+	if !BlockSignatureListEquals(body.BlockSignatures, newBody.BlockSignatures) {
 		t.Fatalf("BlockSignatures do not match. Expected %#v, got %#v", body.BlockSignatures, newBody.BlockSignatures)
 	}
 	if !reflect.DeepEqual(body.Parents, newBody.Parents) {
@@ -62,7 +62,7 @@ func TestSignEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Body: body}
+	event := Event{Message: EventMessage { Body: &body} }
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -83,22 +83,22 @@ func TestMarshallEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Body: body}
+	event := Event{Message: EventMessage { Body: &body} }
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
 
-	raw, err := event.Marshal()
+	raw, err := event.ProtoMarshal()
 	if err != nil {
 		t.Fatalf("Error marshalling Event: %s", err)
 	}
 
 	newEvent := new(Event)
-	if err := newEvent.Unmarshal(raw); err != nil {
+	if err := newEvent.ProtoUnmarshal(raw); err != nil {
 		t.Fatalf("Error unmarshalling Event: %s", err)
 	}
 
-	if !reflect.DeepEqual(*newEvent, event) {
+	if !newEvent.Message.Equals(&event.Message) {
 		t.Fatalf("Events are not deeply equal")
 	}
 }
@@ -110,25 +110,29 @@ func TestWireEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Body: body}
+	event := Event{Message: EventMessage { Body: &body} }
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
 
 	event.SetWireInfo(1, 66, 2, 67)
 
+	internalTransactions := make([]InternalTransaction, len(event.Message.Body.InternalTransactions))
+	for i, v := range event.Message.Body.InternalTransactions {
+		internalTransactions[i] = *v
+	}
 	expectedWireEvent := WireEvent{
 		Body: WireBody{
-			Transactions:         event.Body.Transactions,
-			InternalTransactions: event.Body.InternalTransactions,
+			Transactions:         event.Message.Body.Transactions,
+			InternalTransactions: internalTransactions,
 			SelfParentIndex:      1,
 			OtherParentCreatorID: 66,
 			OtherParentIndex:     2,
 			CreatorID:            67,
-			Index:                event.Body.Index,
+			Index:                event.Message.Body.Index,
 			BlockSignatures:      event.WireBlockSignatures(),
 		},
-		Signature: event.Signature,
+		Signature: event.Message.Signature,
 	}
 
 	wireEvent := event.ToWire()
@@ -146,31 +150,33 @@ func TestIsLoaded(t *testing.T) {
 	}
 
 	//empty payload
-	event.Body.Transactions = [][]byte{}
+	event.Message.Body.Transactions = [][]byte{}
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for empty Body.Transactions")
 	}
 
-	event.Body.BlockSignatures = []BlockSignature{}
+	event.Message.Body.BlockSignatures = []*BlockSignature{}
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for empty Body.BlockSignatures")
 	}
 
 	//initial event
-	event.Body.Index = 0
+	event.Message.Body.Index = 0
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for initial event")
 	}
 
 	//non-empty tx payload
-	event.Body.Transactions = [][]byte{[]byte("abc")}
+	event.Message.Body.Transactions = [][]byte{[]byte("abc")}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty transaction payload")
 	}
 
 	//non-empy signature payload
-	event.Body.Transactions = nil
-	event.Body.BlockSignatures = []BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}}
+	event.Message.Body.Transactions = nil
+	event.Message.Body.BlockSignatures = []*BlockSignature{
+		&BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"},
+	}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty signature payload")
 	}
@@ -188,7 +194,7 @@ func TestEventFlagTable(t *testing.T) {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
 
-	if len(event.FlagTable) == 0 {
+	if len(event.Message.FlagTable) == 0 {
 		t.Fatal("FlagTable is nil")
 	}
 
@@ -230,8 +236,8 @@ func TestMergeFlagTable(t *testing.T) {
 		"z": 0,
 	}
 
-	ft, _ := json.Marshal(start)
-	event := Event{FlagTable: ft}
+	ft, _ := proto.Marshal(&FlagTableWrapper { Body: start })
+	event := Event{Message: EventMessage { FlagTable: ft} }
 
 	for _, v := range syncData {
 		flagTable, err := event.MergeFlagTable(v)
@@ -239,14 +245,14 @@ func TestMergeFlagTable(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		raw, _ := json.Marshal(flagTable)
-		event.FlagTable = raw
+		raw, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+		event.Message.FlagTable = raw
 	}
 
-	var res map[string]int64
-	json.Unmarshal(event.FlagTable, &res)
+	var res FlagTableWrapper
+	proto.Unmarshal(event.Message.FlagTable, &res)
 
-	if !reflect.DeepEqual(exp, res) {
-		t.Fatalf("expected flag table: %+v, got: %+v", exp, res)
+	if !reflect.DeepEqual(exp, res.Body) {
+		t.Fatalf("expected flag table: %+v, got: %+v", exp, res.Body)
 	}
 }

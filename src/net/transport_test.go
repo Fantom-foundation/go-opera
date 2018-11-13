@@ -37,7 +37,6 @@ func TestTransport_StartStop(t *testing.T) {
 func TestTransport_Sync(t *testing.T) {
 	for ttype := 0; ttype < numTestTransports; ttype++ {
 		addr1, trans1 := NewTestTransport(ttype, "")
-		defer trans1.Close()
 		rpcCh := trans1.Consumer()
 
 		// Make the RPC request
@@ -87,7 +86,6 @@ func TestTransport_Sync(t *testing.T) {
 
 		// Transport 2 makes outbound request
 		addr2, trans2 := NewTestTransport(ttype, "")
-		defer trans2.Close()
 
 		trans1.Connect(addr2, trans2)
 		trans2.Connect(addr1, trans1)
@@ -101,13 +99,15 @@ func TestTransport_Sync(t *testing.T) {
 		if !reflect.DeepEqual(resp, out) {
 			t.Fatalf("command mismatch: %#v %#v", resp, out)
 		}
+
+		trans1.Close()
+		trans2.Close()
 	}
 }
 
 func TestTransport_EagerSync(t *testing.T) {
 	for ttype := 0; ttype < numTestTransports; ttype++ {
 		addr1, trans1 := NewTestTransport(ttype, "")
-		defer trans1.Close()
 		rpcCh := trans1.Consumer()
 
 		// Make the RPC request
@@ -148,7 +148,6 @@ func TestTransport_EagerSync(t *testing.T) {
 
 		// Transport 2 makes outbound request
 		addr2, trans2 := NewTestTransport(ttype, "")
-		defer trans2.Close()
 
 		trans1.Connect(addr2, trans2)
 		trans2.Connect(addr1, trans1)
@@ -162,5 +161,8 @@ func TestTransport_EagerSync(t *testing.T) {
 		if !reflect.DeepEqual(resp, out) {
 			t.Fatalf("command mismatch: %#v %#v", resp, out)
 		}
+
+		trans1.Close()
+		trans2.Close()
 	}
 }

@@ -39,10 +39,10 @@ func (p *InmemAppProxy) SubmitCh() chan []byte {
 	return p.submitCh
 }
 func (p *InmemAppProxy) ProposePeerAdd(peer peers.Peer) {
-	p.submitInternalCh <- poset.NewInternalTransaction(poset.PEER_ADD, peer)
+	p.submitInternalCh <- poset.NewInternalTransaction(poset.TransactionType_PEER_ADD, peer)
 }
 func (p *InmemAppProxy) ProposePeerRemove(peer peers.Peer) {
-	p.submitInternalCh <- poset.NewInternalTransaction(poset.PEER_REMOVE, peer)
+	p.submitInternalCh <- poset.NewInternalTransaction(poset.TransactionType_PEER_REMOVE, peer)
 }
 
 //SubmitCh returns the channel of raw transactions
