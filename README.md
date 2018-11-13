@@ -34,6 +34,30 @@ CLI tool for managing Go code. Go is very opinionated and will require you to
 [define a workspace](https://golang.org/doc/code.html#Workspaces) where all your
 go code will reside.
 
+### Protobuffer 3
+
+This project uses protobuffer 3 for the communication between posets.
+To use it, you have to install both `protoc` and the plugin for go code
+generation.
+
+You can download the compiler from [here](https://github.com/protocolbuffers/protobuf/releases).
+To install the plugin for go, run the following command:
+
+```bash
+go get -u github.com/golang/protobuf/protoc-gen-go
+```
+
+Once the stack it's setup, you can compile the proto messages by
+running this command:
+
+```bash
+make proto
+```
+
+Note that because of [this issue](https://github.com/andrecronje/lachesis/issues/82), you will need to modify the file
+`src/poset/event.pb.go` to make it compile. In particular, add
+`"github.com/andrecronje/lachesis/src/peers"` in the list of imports
+and then `s/Peer/peers.Peer/g`.
 
 # How to: Install Go 1.9.1 on Ubuntu 16.04
 

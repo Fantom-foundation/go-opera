@@ -4,10 +4,9 @@
 package poset
 
 import (
-	"fmt"
-	"github.com/golang/protobuf/proto"
-	"github.com/andrecronje/lachesis/src/peers"
-	"math"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -48,7 +47,7 @@ func (TransactionType) EnumDescriptor() ([]byte, []int) {
 
 type InternalTransaction struct {
 	Type                 TransactionType `protobuf:"varint,1,opt,name=Type,proto3,enum=poset.TransactionType" json:"Type,omitempty"`
-	Peer                 *peers.Peer     `protobuf:"bytes,2,opt,name=peer,proto3" json:"peer,omitempty"`
+	Peer                 *Peer           `protobuf:"bytes,2,opt,name=peer,proto3" json:"peer,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
 	XXX_unrecognized     []byte          `json:"-"`
 	XXX_sizecache        int32           `json:"-"`
@@ -86,7 +85,7 @@ func (m *InternalTransaction) GetType() TransactionType {
 	return TransactionType_PEER_ADD
 }
 
-func (m *InternalTransaction) GetPeer() *peers.Peer {
+func (m *InternalTransaction) GetPeer() *Peer {
 	if m != nil {
 		return m.Peer
 	}

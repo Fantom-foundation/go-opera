@@ -4,4 +4,4 @@ clean:
 	rm -rf *.pb.go
 
 proto:
-	protoc --go_out=plugins=grpc,import_path=poset:. *.proto
+	protoc --proto_path=. --go_out=paths=source_relative:. *.proto

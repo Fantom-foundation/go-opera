@@ -29,8 +29,8 @@ test:
 
 # clean up and generate protobuf files
 proto:
-	mage clean
-	mage build
+	make clean
+	make build
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test
 
