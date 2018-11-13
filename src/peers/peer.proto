@@ -1,5 +1,5 @@
 syntax = "proto3";
-package poset;
+package peers;
 
 message Peer {
   int64 ID = 1;

@@ -54,11 +54,6 @@ running this command:
 make proto
 ```
 
-Note that because of [this issue](https://github.com/andrecronje/lachesis/issues/82), you will need to modify the file
-`src/poset/event.pb.go` to make it compile. In particular, add
-`"github.com/andrecronje/lachesis/src/peers"` in the list of imports
-and then `s/Peer/peers.Peer/g`.
-
 # How to: Install Go 1.9.1 on Ubuntu 16.04
 
 Introduction

@@ -6,3 +6,6 @@ clean:
 
 proto:
 	protoc --go_out=plugins=grpc,import_path=internal:. *.proto
+
+build:
+	exit 0
