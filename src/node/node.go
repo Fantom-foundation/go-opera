@@ -128,7 +128,7 @@ func (n *Node) Run(gossip bool) {
 	go n.controlTimer.Run(n.conf.HeartbeatTimeout)
 
 	// Execute some background work regardless of the state of the node.
-	// Process SumbitTx and CommitBlock requests
+	// Process SubmitTx and CommitBlock requests
 	go n.doBackgroundWork()
 
 	// pause before gossiping test transactions to allow all nodes come up
