@@ -1,9 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # Get the version from the environment, or try to figure it out.
-if [ -z $VERSION ]; then
-	VERSION=$(awk -F\" '/Version =/ { print $2; exit }' < src/version/version.go)
+if [ -z "$VERSION" ]; then
+	declare -i n=10;
+	VERSION='';
+	while read -r l; do
+	  (( n-- )) || true;
+	  if [ $n -eq 0 ]; then
+	    break;
+	  fi
+	  l=${l:12};
+	  if [[ "${l:0:1}" == '"' ]]; then
+	    VERSION="${VERSION}"."${l:1:-1}";
+	  fi
+	done<src/version/version.go
+    VERSION="${VERSION:1}"
 fi
 if [ -z "$VERSION" ]; then
     echo "Please specify a version."
@@ -30,7 +42,7 @@ docker run --rm  \
     -e "BUILD_TAGS=$BUILD_TAGS" \
     -v "$(pwd)":/go/src/github.com/andrecronje/lachesis \
     -w /go/src/github.com/andrecronje/lachesis \
-    andrecronje/glider:0.0.2 ./scripts/dist_build.sh
+    offscale/golang-builder-alpine3.8 ./scripts/dist_build.sh
 
 # Add "lachesis" and $VERSION prefix to package name.
 rm -rf ./build/dist

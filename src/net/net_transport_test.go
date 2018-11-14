@@ -1,6 +1,7 @@
 package net
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -150,7 +151,14 @@ func TestNetworkTransport(t *testing.T) {
 		var resp = new(FastForwardResponse)
 		err = trans2.FastForward(trans1.LocalAddr(), expectedReq, resp)
 		if assert.NoError(err) {
-			assert.EqualValues(expectedResp, resp)
+			assert.EqualValues(expectedResp.Snapshot, resp.Snapshot)
+			assert.EqualValues(expectedResp.FromID, resp.FromID)
+			if !resp.Block.Equals(&expectedResp.Block) {
+				assert.Fail(fmt.Sprintf("Got #%v, expected %#v\n", resp.Block, expectedResp.Block))
+			}
+			if !resp.Frame.Equals(&expectedResp.Frame) {
+				assert.Fail(fmt.Sprintf("Got #%v, expected %#v\n", resp.Frame, expectedResp.Frame))
+			}
 		}
 	})
 

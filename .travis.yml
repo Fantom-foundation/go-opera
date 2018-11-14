@@ -16,8 +16,9 @@ addons:
   apt:
     packages:
     - jq
-    - tree
 jobs:
+  allow_failures:
+  - script: make test
   include:
   - stage: test
     script: make test
