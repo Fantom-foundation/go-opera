@@ -1,4 +1,4 @@
-SUBDIRS := poset/. proxy/.
+SUBDIRS := poset/. proxy/. peers/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
