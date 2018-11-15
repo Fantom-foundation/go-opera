@@ -298,7 +298,7 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 			unknown = append(unknown, ev)
 		}
 	}
-	sort.Sort(poset.ByTopologicalOrder(unknown))
+	sort.Stable(poset.ByTopologicalOrder(unknown))
 
 	return unknown, nil
 }
@@ -313,6 +313,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		"c.poset.PendingLoadedEvents": c.poset.PendingLoadedEvents,
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
+	myKnownEvents := c.KnownEvents()
 	otherHead := ""
 	// add unknown events
 	for k, we := range unknownEvents {
@@ -325,8 +326,10 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			return err
 
 		}
-		if err := c.InsertEvent(*ev, false); err != nil {
-			return err
+		if ev.Index() > myKnownEvents[ev.CreatorID()] {
+			if err := c.InsertEvent(*ev, false); err != nil {
+				return err
+			}
 		}
 
 		// assume last event corresponds to other-head
