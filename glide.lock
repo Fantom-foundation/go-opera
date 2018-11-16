@@ -1,5 +1,5 @@
 hash: 19626b09537db430cba02c95d580afd0d6444dd0f82dfaf21c8b907f7705df2f
-updated: 2018-11-12T10:51:11.464595955+11:00
+updated: 2018-11-14T11:33:27.639975236+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -49,11 +49,6 @@ imports:
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/konsorten/go-windows-terminal-sequences
   version: 5c8c8bd35d3832f5d134ae1e1e375b69a4d25242
-- name: github.com/magefile/mage
-  version: 11d15918ff3aa6f75cd6d3340a9507bb5309c679
-  subpackages:
-  - mg
-  - sh
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mitchellh/mapstructure

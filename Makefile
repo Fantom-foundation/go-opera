@@ -28,9 +28,9 @@ test:
 	glide novendor | grep -v -e "^\.$$" | xargs go test -timeout 45s
 
 # clean up and generate protobuf files
-proto:
-	make clean
-	make build
+proto: clean
+
+clean:
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test
 

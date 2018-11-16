@@ -389,6 +389,10 @@ func (e *Event) MergeFlagTable(
 	return src.Body, err
 }
 
+func (e *Event) CreatorID() int64 {
+	return e.creatorID
+}
+
 func rootSelfParent(participantID int64) string {
 	return fmt.Sprintf("Root%d", participantID)
 }
