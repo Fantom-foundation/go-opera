@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/andrecronje/lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/spf13/cobra"
 )
 

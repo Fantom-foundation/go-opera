@@ -10,9 +10,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/log"
-	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 // Core is an interface for interacting with a core.

@@ -18,8 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
-	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/proxy/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
 var ErrNoAnswers = errors.New("no answers")

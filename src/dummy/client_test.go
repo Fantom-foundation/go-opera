@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	bcrypto "github.com/andrecronje/lachesis/src/crypto"
+	bcrypto "github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
 func TestSocketProxyServer(t *testing.T) {

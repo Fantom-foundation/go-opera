@@ -3,23 +3,23 @@
 Usage
 =====
 
-In this section we will guide you through deploying an application on top of 
-Lachesis. Lachesis comes with the Dummy application which is used in this 
-demonstration. It is a simple chat application where participants write 
-messages on a channel and Lachesis guarantees that everyone sees the same messages 
+In this section we will guide you through deploying an application on top of
+Lachesis. Lachesis comes with the Dummy application which is used in this
+demonstration. It is a simple chat application where participants write
+messages on a channel and Lachesis guarantees that everyone sees the same messages
 in the same order.
 
 Docker
 ------
 
-We have provided a series of scripts to bootstrap a demo. Let us first use the 
-easy method to view the demo and then we will take a closer look at what is 
-happening behind the scenes.  
+We have provided a series of scripts to bootstrap a demo. Let us first use the
+easy method to view the demo and then we will take a closer look at what is
+happening behind the scenes.
 
-Make sure you have `Docker <https://docker.com>`__ installed.  
+Make sure you have `Docker <https://docker.com>`__ installed.
 
-The demo will pull Docker images from our `official public Docker registry 
-<https://hub.docker.com/u/andrecronje/>`__ 
+The demo will pull Docker images from our `official public Docker registry
+<https://hub.docker.com/u/Fantom-foundation/>`__
 
 ::
 
@@ -27,8 +27,8 @@ The demo will pull Docker images from our `official public Docker registry
     [...]/lachesis/demo$ make
 
 
-Once the testnet is started, a script is automatically launched to monitor 
-consensus figures:  
+Once the testnet is started, a script is automatically launched to monitor
+consensus figures:
 
 ::
 
@@ -37,21 +37,21 @@ consensus figures:
     consensus_events:180 consensus_transactions:40 events_per_second:0.00 id:2 last_block_index:3 last_consensus_round:17 num_peers:3 round_events:7 rounds_per_second:0.00 state:Babbling sync_rate:1.00 transaction_pool:0 undetermined_events:21
     consensus_events:180 consensus_transactions:40 events_per_second:0.00 id:0 last_block_index:3 last_consensus_round:17 num_peers:3 round_events:7 rounds_per_second:0.00 state:Babbling sync_rate:1.00 transaction_pool:0 undetermined_events:20
 
-Running ``docker ps -a`` will show you that 9 docker containers have been launched:  
+Running ``docker ps -a`` will show you that 9 docker containers have been launched:
 
 ::
 
     [...]/lachesis/demo$ docker ps -a
     CONTAINER ID        IMAGE                    COMMAND                  CREATED             STATUS              PORTS                   NAMES
-    ba80ef275f22        andrecronje/watcher   "/watch.sh"              48 seconds ago      Up 7 seconds                                watcher
-    4620ed62a67d        andrecronje/dummy     "dummy '--name=client"   49 seconds ago      Up 48 seconds       1339/tcp                client4
-    847ea77bd7fc        andrecronje/lachesis    "lachesis run --cache_s"   50 seconds ago      Up 49 seconds       80/tcp, 1337-1338/tcp   node4
-    11df03bf9690        andrecronje/dummy     "dummy '--name=client"   51 seconds ago      Up 50 seconds       1339/tcp                client3
-    00af002747ca        andrecronje/lachesis    "lachesis run --cache_s"   52 seconds ago      Up 50 seconds       80/tcp, 1337-1338/tcp   node3
-    b2011d3d65bb        andrecronje/dummy     "dummy '--name=client"   53 seconds ago      Up 51 seconds       1339/tcp                client2
-    e953b50bc1db        andrecronje/lachesis    "lachesis run --cache_s"   53 seconds ago      Up 52 seconds       80/tcp, 1337-1338/tcp   node2
-    0c9dd65de193        andrecronje/dummy     "dummy '--name=client"   54 seconds ago      Up 53 seconds       1339/tcp                client1
-    d1f4e5008d4d        andrecronje/lachesis    "lachesis run --cache_s"   55 seconds ago      Up 54 seconds       80/tcp, 1337-1338/tcp   node1
+    ba80ef275f22        Fantom-foundation/watcher   "/watch.sh"              48 seconds ago      Up 7 seconds                                watcher
+    4620ed62a67d        Fantom-foundation/dummy     "dummy '--name=client"   49 seconds ago      Up 48 seconds       1339/tcp                client4
+    847ea77bd7fc        Fantom-foundation/go-lachesis    "lachesis run --cache_s"   50 seconds ago      Up 49 seconds       80/tcp, 1337-1338/tcp   node4
+    11df03bf9690        Fantom-foundation/dummy     "dummy '--name=client"   51 seconds ago      Up 50 seconds       1339/tcp                client3
+    00af002747ca        Fantom-foundation/go-lachesis    "lachesis run --cache_s"   52 seconds ago      Up 50 seconds       80/tcp, 1337-1338/tcp   node3
+    b2011d3d65bb        Fantom-foundation/dummy     "dummy '--name=client"   53 seconds ago      Up 51 seconds       1339/tcp                client2
+    e953b50bc1db        Fantom-foundation/go-lachesis    "lachesis run --cache_s"   53 seconds ago      Up 52 seconds       80/tcp, 1337-1338/tcp   node2
+    0c9dd65de193        Fantom-foundation/dummy     "dummy '--name=client"   54 seconds ago      Up 53 seconds       1339/tcp                client1
+    d1f4e5008d4d        Fantom-foundation/go-lachesis    "lachesis run --cache_s"   55 seconds ago      Up 54 seconds       80/tcp, 1337-1338/tcp   node1
 
 
 Indeed, each node is comprised of an App and a Lachesis node (cf Design section).
@@ -75,41 +75,41 @@ Finally, stop the testnet:
 Manual Setup
 ------------
 
-The above scripts hide a lot of the complications involved in setting up a 
-Lachesis network. They generate the configuration files automatically, copy them 
-to the right places and launch the nodes in Docker containers. We recommend 
-looking at these scripts closely to understand how the demo works. Here, we will 
+The above scripts hide a lot of the complications involved in setting up a
+Lachesis network. They generate the configuration files automatically, copy them
+to the right places and launch the nodes in Docker containers. We recommend
+looking at these scripts closely to understand how the demo works. Here, we will
 attempt to explain the individual steps that take place behind the scenes.
 
-Configuration 
+Configuration
 ~~~~~~~~~~~~~
 
-Lachesis reads configuration from the directory specified by the ``datadir`` flag 
-which defaults to ``~/.lachesis`` on linux/osx. This directory must contain two 
+Lachesis reads configuration from the directory specified by the ``datadir`` flag
+which defaults to ``~/.lachesis`` on linux/osx. This directory must contain two
 files:
 
  - ``peers.json``  : Lists all the participants in the network.
- - ``priv_key.pem``: Contains the private key of the validator runnning the node. 
+ - ``priv_key.pem``: Contains the private key of the validator runnning the node.
 
-Every participant has a cryptographic key-pair that is used to encrypt, sign and 
-verify messages. The private key is secret but the public key is used by other 
-nodes to verify messages signed with the private key. The encryption scheme used 
+Every participant has a cryptographic key-pair that is used to encrypt, sign and
+verify messages. The private key is secret but the public key is used by other
+nodes to verify messages signed with the private key. The encryption scheme used
 by Lachesis is ECDSA with the P256 curve.
 
-To run a Lachesis network, it is necessary to predefine who the participants are 
-going to be. Each participant will generate a key-pair and decide which network 
-address it is going to be using for the Lachesis protocol. Someone, or some 
-process, then needs to aggregate the public keys and network addresses of all 
-participants into a single file - the peers.json file. Every participant uses a 
-copy of the same peers.json file. Lachesis will read that file to identify the 
-participants in the network, communicate with them and verify their 
+To run a Lachesis network, it is necessary to predefine who the participants are
+going to be. Each participant will generate a key-pair and decide which network
+address it is going to be using for the Lachesis protocol. Someone, or some
+process, then needs to aggregate the public keys and network addresses of all
+participants into a single file - the peers.json file. Every participant uses a
+copy of the same peers.json file. Lachesis will read that file to identify the
+participants in the network, communicate with them and verify their
 cryptographic signatures.
 
-To generate key-pairs in a format usable by Lachesis, we have created the 
-``keygen`` command. It is left to the user to derive a scheme to produce the 
+To generate key-pairs in a format usable by Lachesis, we have created the
+``keygen`` command. It is left to the user to derive a scheme to produce the
 configuration files but the docker demo scripts are a good place to start.
 
-So let us say I want to participate in a Lachesis network. I am going to start by 
+So let us say I want to participate in a Lachesis network. I am going to start by
 running ``lachesis keygen`` to create a key-pair:
 
 ::
@@ -117,7 +117,7 @@ running ``lachesis keygen`` to create a key-pair:
   lachesis keygen
   Your private key has been saved to: /home/martin/.lachesis/priv_key.pem
   Your public key has been saved to: /home/martin/.lachesis/key.pub
- 
+
 The private key looks something like this:
 
 ::
@@ -136,11 +136,11 @@ and the corresponding public key looks like this:
 
 **DO NOT REUSE THESE KEYS**
 
-Next, I am going to copy the public key (key.pub) and communicate it to whoever 
-is responsible for producing the peers.json file. At the same time, I will tell 
+Next, I am going to copy the public key (key.pub) and communicate it to whoever
+is responsible for producing the peers.json file. At the same time, I will tell
 them that I am going to be listening on 172.77.5.2:1337.
 
-Suppose three other people do the same thing. The resulting peers.json file 
+Suppose three other people do the same thing. The resulting peers.json file
 could look something like this:
 
 ::
@@ -164,9 +164,9 @@ could look something like this:
 	}
     ]
 
-Now everyone is going to take a copy of this peers.json file and put it in a 
-folder together with the priv_key.pem file they generated in the previous step. 
-That is the folder that they need to specify as the datadir when they run 
+Now everyone is going to take a copy of this peers.json file and put it in a
+folder together with the priv_key.pem file they generated in the previous step.
+That is the folder that they need to specify as the datadir when they run
 Lachesis.
 
 Lachesis Executable
@@ -177,10 +177,10 @@ Let us take a look at the help provided by the Lachesis CLI:
 ::
 
   Run node
-  
+
   Usage:
     lachesis run [flags]
-  
+
   Flags:
         --cache-size int          Number of items in LRU caches (default 500)
     -c, --client-connect string   IP:Port to connect to client (default "127.0.0.1:1339")
@@ -196,50 +196,50 @@ Let us take a look at the help provided by the Lachesis CLI:
         --store                   Use badgerDB instead of in-mem DB
         --sync-limit int          Max number of events for sync (default 100)
     -t, --timeout duration        TCP Timeout (default 1s)
-  
-	
-So we have just seen what the ``datadir`` flag does. The ``listen`` flag 
-corresponds to the NetAddr in the peers.json file; that is the endpoint that 
+
+
+So we have just seen what the ``datadir`` flag does. The ``listen`` flag
+corresponds to the NetAddr in the peers.json file; that is the endpoint that
 Lachesis uses to communicate with other Lachesis nodes.
 
-As we explained in the architecture section, each Lachesis node works in 
-conjunction with an application for which it orders transactions. When Lachesis 
-and the application are connected by a TCP interface, we specify two other 
+As we explained in the architecture section, each Lachesis node works in
+conjunction with an application for which it orders transactions. When Lachesis
+and the application are connected by a TCP interface, we specify two other
 endpoints:
 
  - ``proxy-listen``  : where Lachesis listens for transactions from the App
- - ``client-connect`` : where the App listens for transactions from Lachesis 
+ - ``client-connect`` : where the App listens for transactions from Lachesis
 
-We can also specify where Lachesis exposes its HTTP API providing information on 
-the Poset and Blockchain data store. This is controlled by the optional 
+We can also specify where Lachesis exposes its HTTP API providing information on
+the Poset and Blockchain data store. This is controlled by the optional
 ``service-listen`` flag.
 
-Finally, we can choose to run Lachesis with a database backend or only with an 
-in-memory cache. With the ``store`` flag set, Lachesis will look for a database 
-file in ``datadir``/babdger_db. If the file exists, the node will load the 
-database and bootstrap itself to a state consistent with the database and it 
-will be able to proceed with the consensus algorithm from there. If the file 
-does not exist yet, it will be created and the node will start from a clean 
-state. 
+Finally, we can choose to run Lachesis with a database backend or only with an
+in-memory cache. With the ``store`` flag set, Lachesis will look for a database
+file in ``datadir``/babdger_db. If the file exists, the node will load the
+database and bootstrap itself to a state consistent with the database and it
+will be able to proceed with the consensus algorithm from there. If the file
+does not exist yet, it will be created and the node will start from a clean
+state.
 
-Here is how the Docker demo starts Lachesis nodes together wth the Dummy 
+Here is how the Docker demo starts Lachesis nodes together wth the Dummy
 application:
 
 ::
 
     for i in $(seq 1 $N)
     do
-        docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it andrecronje/dummy:0.4.0 \
+        docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it Fantom-foundation/dummy:0.4.0 \
         --name="client $i" \
         --client-listen="172.77.5.$(($N+$i)):1339" \
         --proxy-connect="172.77.5.$i:1338" \
         --discard \
-        --log="debug" 
+        --log="debug"
     done
 
     for i in $(seq 1 $N)
     do
-        docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i andrecronje/lachesis:0.4.0 run \
+        docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i Fantom-foundation/go-lachesis:0.4.0 run \
         --cache-size=50000 \
         --timeout=200ms \
         --heartbeat=10ms \
@@ -258,13 +258,13 @@ application:
 Stats, blocks and Logs
 ----------------------
 
-Once a node is up and running, we can call the ``stats`` endpoint exposed by the 
+Once a node is up and running, we can call the ``stats`` endpoint exposed by the
 HTTP service:
 
 ::
 
     curl -s http://172.77.5.1:80/stats
-    
+
 or request to see a specific block:
 
 ::

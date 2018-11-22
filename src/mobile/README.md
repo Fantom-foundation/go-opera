@@ -11,7 +11,7 @@ $ gomobile init -ndk ~/PATH/TO/ANDROID/NDK
 ### Building android library
 To compile Go package as android library execute
 ```bash
-$ gomobile bind -v -target=android -tags=mobile github.com/andrecronje/lachesis/mobile
+$ gomobile bind -v -target=android -tags=mobile github.com/Fantom-foundation/go-lachesis/mobile
 ```
 
 ## Import the Lachesis Module

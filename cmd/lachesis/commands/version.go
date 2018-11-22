@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/andrecronje/lachesis/src/version"
+	"github.com/Fantom-foundation/go-lachesis/src/version"
 	"github.com/spf13/cobra"
 )
 

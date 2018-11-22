@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/andrecronje/lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 func TestTCPTransport_BadAddr(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/andrecronje/lachesis/src/dummy"
+	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 )
 
 var (

@@ -14,9 +14,9 @@ before_script:
     - apk add jq util-linux
     - go get -v github.com/SamuelMarks/batch-ethkey
     - go get -u -d github.com/magefile/mage
-    - mkdir -p /go/src/github.com/andrecronje
-    - ln -s "$CI_PROJECT_DIR" /go/src/github.com/andrecronje/lachesis
-    - cd /go/src/github.com/andrecronje/lachesis
+    - mkdir -p /go/src/github.com/Fantom-foundation
+    - ln -s "$CI_PROJECT_DIR" /go/src/github.com/Fantom-foundation/go-lachesis
+    - cd /go/src/github.com/Fantom-foundation/go-lachesis
     - glide install
 
 sonar scan:
@@ -24,7 +24,7 @@ sonar scan:
   image: gitlab.fantom.technology:4567/fantom/lachesis/sonar_scanner:latest
   allow_failure: true
   script:
-    - cat /go/src/github.com/andrecronje/lachesis/sonar-project.properties
+    - cat /go/src/github.com/Fantom-foundation/go-lachesis/sonar-project.properties
     - cat /root/sonar-scanner/conf/sonar-scanner.properties
     - export PATH=$PATH:/root/sonar-scanner/bin; sonar-scanner
 
@@ -32,19 +32,19 @@ test code:
   stage: test
   allow_failure: true
   script:
-  - cd /go/src/github.com/andrecronje/lachesis
+  - cd /go/src/github.com/Fantom-foundation/go-lachesis
   - go test -timeout 45s ./src/...
     
 build code:
   stage: build
   script:
-  - cd /go/src/github.com/andrecronje/lachesis
+  - cd /go/src/github.com/Fantom-foundation/go-lachesis
   - scripts/multi_build.bash
 
 deploy code:
   stage: deploy
   script:
-  - cd /go/src/github.com/andrecronje/lachesis
+  - cd /go/src/github.com/Fantom-foundation/go-lachesis
   - scripts/multi_build.bash
   - mv lachesis_linux scripts/
   - scripts/multi_run.bash

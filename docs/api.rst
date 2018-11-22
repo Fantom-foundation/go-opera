@@ -27,10 +27,10 @@ process as your handler):
   package main
   
   import (
-  	"github.com/andrecronje/lachesis/src/lachesis"
-  	"github.com/andrecronje/lachesis/src/crypto"
-  	"github.com/andrecronje/lachesis/src/poset"
-  	"github.com/andrecronje/lachesis/src/proxy/inmem"
+  	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+  	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+  	"github.com/Fantom-foundation/go-lachesis/src/poset"
+  	"github.com/Fantom-foundation/go-lachesis/src/proxy/inmem"
   )
   
   // Implements proxy.ProxyHandler interface
@@ -114,9 +114,9 @@ Assuming there is a Lachesis node running with its proxy listening on
   import (
   	"time"
   
-  	"github.com/andrecronje/lachesis/src/crypto"
-  	"github.com/andrecronje/lachesis/src/poset"
-  	"github.com/andrecronje/lachesis/src/proxy/socket/lachesis"
+  	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+  	"github.com/Fantom-foundation/go-lachesis/src/poset"
+  	"github.com/Fantom-foundation/go-lachesis/src/proxy/socket/lachesis"
   )
   
   // Implements proxy.ProxyHandler interface

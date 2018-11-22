@@ -68,8 +68,8 @@ n=3 BUILD\_DIR="$PWD" ./docker/builder/scale.bash
 
 -   glider base Docker Image with:
 
--   git clone https://github.com/andrecronje/evm \# or \`cd
-    > $GOPATH/src/github.com/andrecronje\`  
+-   git clone https://github.com/Fantom-foundation/evm \# or \`cd
+    > $GOPATH/src/github.com/Fantom-foundation\`  
     > cd evm/docker/glider  
     > docker build --compress --squash --force-rm --tag "${PWD\#\#\*/}"
     > .
@@ -104,15 +104,15 @@ source \~/.profile
 
 ### Step 2 Clone Repo
 
-mkdir -p $GOPATH/src/github.com/andrecronje/
+mkdir -p $GOPATH/src/github.com/Fantom-foundation/
 
-cd $GOPATH/src/github.com/andrecronje
+cd $GOPATH/src/github.com/Fantom-foundation
 
-git clone https://github.com/andrecronje/lachesis.git
+git clone https://github.com/Fantom-foundation/go-lachesis.git
 
 export GOPATH=$HOME/work
 
-cd $GOPATH/src/github.com/andrecronje/lachesis
+cd $GOPATH/src/github.com/Fantom-foundation/go-lachesis
 
 curl https://glide.sh/get \| sh
 
@@ -145,7 +145,7 @@ mkdir -p $HOME/work/src/github.com/user/
 
 cd $HOME/work/src/github.com/user/
 
-git clone https://github.com/andrecronje/lachesis.git
+git clone https://github.com/Fantom-foundation/go-lachesis.git
 
 apt-get install -y build-essential
 

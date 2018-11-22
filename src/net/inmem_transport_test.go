@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 func TestInmemTransport(t *testing.T) {

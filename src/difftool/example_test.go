@@ -3,8 +3,8 @@ package difftool
 import (
 	"testing"
 
-	"github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
 // TestExample illustrates nodes comparing

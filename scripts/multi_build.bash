@@ -23,7 +23,7 @@ declare -r entry="${entry:-main}" # you may use main_profile here to enable prof
 "$DIR/docker/install_deps.bash"
 
 # Use -tags="netgo multi" in bgo build below to build multu lachesis version for testing
-declare args="-X github.com/andrecronje/lachesis/src/version.GitCommit=$(git rev-parse HEAD)"
+declare args="-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=$(git rev-parse HEAD)"
 if [ "$TARGET_OS" == "linux" ]; then
   args="$args -linkmode external -extldflags -static -s -w"
 fi

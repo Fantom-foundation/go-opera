@@ -2,7 +2,7 @@
 
 package poset
 
-import "github.com/andrecronje/lachesis/src/peers"
+import "github.com/Fantom-foundation/go-lachesis/src/peers"
 
 // Store provides an interface for persistent and non-persistent stores
 // to store key lachesis consensus information on a node.

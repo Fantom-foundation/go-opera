@@ -2,7 +2,7 @@
 
 N=${1:-4}
 
-docker run -it --rm --name=watcher --net=lachesisnet --ip=172.77.5.99 andrecronje/watcher /watch.sh $N  
+docker run -it --rm --name=watcher --net=lachesisnet --ip=172.77.5.99 Fantom-foundation/watcher /watch.sh $N  
 
 # watch -t -n 1 '
 # for i in $(seq 1 '$N');

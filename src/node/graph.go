@@ -3,7 +3,7 @@ package node
 import (
 	"fmt"
 
-	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 type Infos struct {

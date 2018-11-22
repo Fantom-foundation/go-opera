@@ -10,10 +10,10 @@ import (
 
 	"strconv"
 
-	"github.com/andrecronje/lachesis/src/net"
-	"github.com/andrecronje/lachesis/src/peers"
-	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
 type Node struct {

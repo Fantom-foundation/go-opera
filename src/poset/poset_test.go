@@ -13,9 +13,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/crypto"
-	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 const (

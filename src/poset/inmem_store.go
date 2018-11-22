@@ -4,8 +4,8 @@ import (
 	_ "fmt"
 	"strconv"
 
-	cm "github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/peers"
+	cm "github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 type InmemStore struct {

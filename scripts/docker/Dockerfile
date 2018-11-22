@@ -1,12 +1,12 @@
 FROM offscale/golang-builder-alpine3.8 as stage0
 
-RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin && \
-    git clone 'https://github.com/SamuelMarks/lachesis' "$GOPATH/src/github.com/andrecronje/lachesis" && \
-    cd "$GOPATH/src/github.com/andrecronje/lachesis" && \
+RUN mkdir -p "$GOPATH/src/github.com/Fantom-foundation/go-lachesis" /cp_bin /bin && \
+    git clone 'https://github.com/SamuelMarks/lachesis' "$GOPATH/src/github.com/Fantom-foundation/go-lachesis" && \
+    cd "$GOPATH/src/github.com/Fantom-foundation/go-lachesis" && \
     glide install && \
-    cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
+    cd "$GOPATH/src/github.com/Fantom-foundation/go-lachesis/cmd/lachesis" && \
     go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
-    mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
+    mv "$GOPATH/src/github.com/Fantom-foundation/go-lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
 # ADD https://github.com/upx/upx/releases/download/v3.95/upx-3.95-amd64_linux.tar.xz /tmp
 # RUN /bin/tar --version && \

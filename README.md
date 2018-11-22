@@ -1,6 +1,6 @@
 # Lachesis
 ## BFT Consensus platform for distributed applications.
-[![Build Status](https://travis-ci.org/andrecronje/lachesis.svg?branch=master)](https://travis-ci.org/andrecronje/lachesis)
+[![Build Status](https://travis-ci.org/Fantom-foundation/go-lachesis.svg?branch=master)](https://travis-ci.org/Fantom-foundation/go-lachesis)
 
 [documentation](http://docs.fantom.foundation) pages.
 
@@ -38,19 +38,19 @@ make proto
 ```
 
 ### Lachesis and dependencies
-Clone the [repository](https://github.com/andrecronje/lachesis) in the appropriate
+Clone the [repository](https://github.com/Fantom-foundation/go-lachesis) in the appropriate
 GOPATH subdirectory:
 
 ```bash
-$ d="$GOPATH/src/github.com/andrecronje"
+$ d="$GOPATH/src/github.com/Fantom-foundation"
 $ mkdir -p "$d"
-$ git clone https://github.com/andrecronje/lachesis.git "$d"
+$ git clone https://github.com/Fantom-foundation/go-lachesis.git "$d"
 ```
 Lachesis uses [Glide](http://github.com/Masterminds/glide) to manage dependencies.
 
 ```bash
 $ curl https://glide.sh/get | sh
-$ cd "$GOPATH/src/github.com/andrecronje" && glide install
+$ cd "$GOPATH/src/github.com/Fantom-foundation" && glide install
 ```
 This will download all dependencies and put them in the **vendor** folder.
 
@@ -74,30 +74,30 @@ Lachesis has extensive unit-testing. Use the Go tool to run tests:
 
 If everything goes well, it should output something along these lines:
 ```
-?   	github.com/andrecronje/lachesis/cmd/dummy	[no test files]
-?   	github.com/andrecronje/lachesis/cmd/dummy/commands	[no test files]
-?   	github.com/andrecronje/lachesis/cmd/dummy_client	[no test files]
-?   	github.com/andrecronje/lachesis/cmd/lachesis	[no test files]
-?   	github.com/andrecronje/lachesis/cmd/lachesis/commands	[no test files]
-?   	github.com/andrecronje/lachesis/tester	[no test files]
-ok  	github.com/andrecronje/lachesis/src/common	(cached)
-ok  	github.com/andrecronje/lachesis/src/crypto	(cached)
-ok  	github.com/andrecronje/lachesis/src/difftool	(cached)
-ok  	github.com/andrecronje/lachesis/src/dummy	0.522s
-?   	github.com/andrecronje/lachesis/src/lachesis	[no test files]
-?   	github.com/andrecronje/lachesis/src/log	[no test files]
-?   	github.com/andrecronje/lachesis/src/mobile	[no test files]
-ok  	github.com/andrecronje/lachesis/src/net	(cached)
-ok  	github.com/andrecronje/lachesis/src/node	9.832s
-?   	github.com/andrecronje/lachesis/src/pb	[no test files]
-ok  	github.com/andrecronje/lachesis/src/peers	(cached)
-ok  	github.com/andrecronje/lachesis/src/poset	9.627s
-ok  	github.com/andrecronje/lachesis/src/proxy	1.019s
-?   	github.com/andrecronje/lachesis/src/proxy/internal	[no test files]
-?   	github.com/andrecronje/lachesis/src/proxy/proto	[no test files]
-?   	github.com/andrecronje/lachesis/src/service	[no test files]
-?   	github.com/andrecronje/lachesis/src/utils	[no test files]
-?   	github.com/andrecronje/lachesis/src/version	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/cmd/dummy	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/cmd/dummy/commands	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/cmd/dummy_client	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/cmd/lachesis	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/cmd/lachesis/commands	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/tester	[no test files]
+ok  	github.com/Fantom-foundation/go-lachesis/src/common	(cached)
+ok  	github.com/Fantom-foundation/go-lachesis/src/crypto	(cached)
+ok  	github.com/Fantom-foundation/go-lachesis/src/difftool	(cached)
+ok  	github.com/Fantom-foundation/go-lachesis/src/dummy	0.522s
+?   	github.com/Fantom-foundation/go-lachesis/src/lachesis	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/src/log	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/src/mobile	[no test files]
+ok  	github.com/Fantom-foundation/go-lachesis/src/net	(cached)
+ok  	github.com/Fantom-foundation/go-lachesis/src/node	9.832s
+?   	github.com/Fantom-foundation/go-lachesis/src/pb	[no test files]
+ok  	github.com/Fantom-foundation/go-lachesis/src/peers	(cached)
+ok  	github.com/Fantom-foundation/go-lachesis/src/poset	9.627s
+ok  	github.com/Fantom-foundation/go-lachesis/src/proxy	1.019s
+?   	github.com/Fantom-foundation/go-lachesis/src/proxy/internal	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/src/proxy/proto	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/src/service	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/src/utils	[no test files]
+?   	github.com/Fantom-foundation/go-lachesis/src/version	[no test files]
 ```
 
 ## Cross-build from source

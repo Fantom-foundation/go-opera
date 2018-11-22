@@ -14,7 +14,7 @@ docker network create \
 
 for i in $(seq 1 $N)
 do
-    docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it andrecronje/dummy:0.4.0 \
+    docker run -d --name=client$i --net=lachesisnet --ip=172.77.5.$(($N+$i)) -it Fantom-foundation/dummy:0.4.0 \
     --name="client $i" \
     --client-listen="172.77.5.$(($N+$i)):1339" \
     --proxy-connect="172.77.5.$i:1338" \
@@ -24,7 +24,7 @@ done
 
 for i in $(seq 1 $N)
 do
-    docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i andrecronje/lachesis:0.4.0 run \
+    docker create --name=node$i --net=lachesisnet --ip=172.77.5.$i Fantom-foundation/go-lachesis:0.4.0 run \
     --cache-size=50000 \
     --timeout=200ms \
     --heartbeat=10ms \

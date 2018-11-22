@@ -3,7 +3,7 @@ package peers
 import (
 	"encoding/hex"
 
-	"github.com/andrecronje/lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 const (

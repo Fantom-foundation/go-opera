@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 /*

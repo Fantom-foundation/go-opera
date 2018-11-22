@@ -1,8 +1,8 @@
 package proxy
 
 import (
-	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/proxy/proto"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
 
 // AppProxy provides an interface for lachesis to communicate

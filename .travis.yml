@@ -1,7 +1,7 @@
 language: go
 go:
 - 1.11.x
-go_import_path: github.com/andrecronje/lachesis
+go_import_path: github.com/Fantom-foundation/go-lachesis
 cache:
   directories:
   - "$HOME/.glide/cache"

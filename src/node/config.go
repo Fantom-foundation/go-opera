@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/sirupsen/logrus"
 )
 

@@ -4,13 +4,13 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/andrecronje/lachesis/src/crypto"
-	"github.com/andrecronje/lachesis/src/log"
-	"github.com/andrecronje/lachesis/src/net"
-	"github.com/andrecronje/lachesis/src/node"
-	"github.com/andrecronje/lachesis/src/peers"
-	"github.com/andrecronje/lachesis/src/poset"
-	"github.com/andrecronje/lachesis/src/service"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/service"
 	"github.com/sirupsen/logrus"
 )
 

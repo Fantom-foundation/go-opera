@@ -17,7 +17,7 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
-	cmd "github.com/andrecronje/lachesis/cmd/lachesis/commands"
+	cmd "github.com/Fantom-foundation/go-lachesis/cmd/lachesis/commands"
 )
 
 // TODO: Change so that this is a flag in default main and not auto startup

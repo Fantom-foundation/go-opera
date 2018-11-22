@@ -3,8 +3,8 @@ package poset
 import (
 	"fmt"
 
-	cm "github.com/andrecronje/lachesis/src/common"
-	"github.com/andrecronje/lachesis/src/peers"
+	cm "github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 type Key struct {

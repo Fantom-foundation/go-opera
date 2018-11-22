@@ -3,7 +3,7 @@ package dummy
 import (
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
 // DummyClient is a implementation of the dummy app. Lachesis and the

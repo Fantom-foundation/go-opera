@@ -40,8 +40,8 @@ mkdir -p build/pkg
 docker run --rm  \
     -u `id -u $USER` \
     -e "BUILD_TAGS=$BUILD_TAGS" \
-    -v "$(pwd)":/go/src/github.com/andrecronje/lachesis \
-    -w /go/src/github.com/andrecronje/lachesis \
+    -v "$(pwd)":/go/src/github.com/Fantom-foundation/go-lachesis \
+    -w /go/src/github.com/Fantom-foundation/go-lachesis \
     offscale/golang-builder-alpine3.8 ./scripts/dist_build.sh
 
 # Add "lachesis" and $VERSION prefix to package name.

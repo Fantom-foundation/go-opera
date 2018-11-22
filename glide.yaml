@@ -1,4 +1,4 @@
-package: github.com/andrecronje/lachesis
+package: github.com/Fantom-foundation/go-lachesis
 import:
 - package: github.com/dgraph-io/badger
   version: 1.5.3

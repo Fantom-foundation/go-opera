@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/andrecronje/lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
 // Diff contains and prints differences details

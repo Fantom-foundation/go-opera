@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/andrecronje/lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/sirupsen/logrus"
 )
 

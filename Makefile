@@ -11,13 +11,13 @@ vendor:
 # install compiles and places the binary in GOPATH/bin
 install:
 	go install --ldflags '-extldflags "-static"' \
-		--ldflags "-X github.com/andrecronje/lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
+		--ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
 		./cmd/lachesis
 
 # build compiles and places the binary in /build
 build:
 	CGO_ENABLED=0 go build \
-		--ldflags "-X github.com/andrecronje/lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
+		--ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
 		-o build/lachesis ./cmd/lachesis/main.go
 
 # dist builds binaries for all platforms and packages them for distribution

@@ -3,7 +3,7 @@ package node
 import (
 	"math/rand"
 
-	"github.com/andrecronje/lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 // PeerSelector provides an interface for the lachesis node to 

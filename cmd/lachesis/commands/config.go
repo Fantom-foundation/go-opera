@@ -1,6 +1,6 @@
 package commands
 
-import "github.com/andrecronje/lachesis/src/lachesis"
+import "github.com/Fantom-foundation/go-lachesis/src/lachesis"
 
 //CLIConfig contains configuration for the Run command
 type CLIConfig struct {

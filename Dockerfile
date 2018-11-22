@@ -25,12 +25,12 @@ RUN apk --no-cache add libc-dev cmake && \
     # /cp_bin/upx --brute /cp_bin/lachesis /cp_bin/crappy_sh /cp_bin/copy /cp_bin/list
 
 
-RUN mkdir -p "$GOPATH/src/github.com/andrecronje/lachesis" /cp_bin /bin
-# COPY . "$GOPATH/src/github.com/andrecronje/lachesis"
+RUN mkdir -p "$GOPATH/src/github.com/Fantom-foundation/go-lachesis" /cp_bin /bin
+# COPY . "$GOPATH/src/github.com/Fantom-foundation/go-lachesis"
 
-# RUN cd "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis" && \
+# RUN cd "$GOPATH/src/github.com/Fantom-foundation/go-lachesis/cmd/lachesis" && \
 #     go build -ldflags "-linkmode external -extldflags -static -s -w" -a main.go && \
-#     mv "$GOPATH/src/github.com/andrecronje/lachesis/cmd/lachesis/main" /cp_bin/lachesis
+#     mv "$GOPATH/src/github.com/Fantom-foundation/go-lachesis/cmd/lachesis/main" /cp_bin/lachesis
 
 COPY lachesis_linux /cp_bin/lachesis
 

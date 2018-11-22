@@ -4,7 +4,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 
-	cmd "github.com/andrecronje/lachesis/cmd/lachesis/commands"
+	cmd "github.com/Fantom-foundation/go-lachesis/cmd/lachesis/commands"
 )
 
 func main() {

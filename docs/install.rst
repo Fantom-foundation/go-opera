@@ -6,13 +6,13 @@ Install
 From Source
 ^^^^^^^^^^^
 
-Clone the `repository <https://github.com/andrecronje/lachesis>`__ in the appropriate GOPATH subdirectory:
+Clone the `repository <https://github.com/Fantom-foundation/go-lachesis>`__ in the appropriate GOPATH subdirectory:
 
 ::
 
-    $ mkdir -p $GOPATH/src/github.com/andrecronje/
-    $ cd $GOPATH/src/github.com/andrecronje
-    [...]/andrecronje$ git clone https://github.com/andrecronje/lachesis.git
+    $ mkdir -p $GOPATH/src/github.com/Fantom-foundation/
+    $ cd $GOPATH/src/github.com/Fantom-foundation
+    [...]/Fantom-foundation$ git clone https://github.com/Fantom-foundation/go-lachesis.git
 
 
 The easiest way to build binaries is to do so in a hermetic Docker container.
@@ -95,23 +95,23 @@ If everything goes well, it should output something along these lines:
 
 ::
 
-    ?       github.com/andrecronje/lachesis/src/lachesis     [no test files]
-    ok      github.com/andrecronje/lachesis/src/common     0.015s
-    ok      github.com/andrecronje/lachesis/src/crypto     0.122s
-    ok      github.com/andrecronje/lachesis/src/poset  10.270s
-    ?       github.com/andrecronje/lachesis/src/mobile     [no test files]
-    ok      github.com/andrecronje/lachesis/src/net        0.012s
-    ok      github.com/andrecronje/lachesis/src/node       19.171s
-    ok      github.com/andrecronje/lachesis/src/peers      0.038s
-    ?       github.com/andrecronje/lachesis/src/proxy      [no test files]
-    ok      github.com/andrecronje/lachesis/src/proxy/dummy        0.013s
-    ok      github.com/andrecronje/lachesis/src/proxy/inmem        0.037s
-    ok      github.com/andrecronje/lachesis/src/proxy/socket       0.009s
-    ?       github.com/andrecronje/lachesis/src/proxy/socket/app   [no test files]
-    ?       github.com/andrecronje/lachesis/src/proxy/socket/lachesis        [no test files]
-    ?       github.com/andrecronje/lachesis/src/service    [no test files]
-    ?       github.com/andrecronje/lachesis/src/version    [no test files]
-    ?       github.com/andrecronje/lachesis/cmd/lachesis     [no test files]
-    ?       github.com/andrecronje/lachesis/cmd/lachesis/commands    [no test files]
-    ?       github.com/andrecronje/lachesis/cmd/dummy      [no test files]
-    ?       github.com/andrecronje/lachesis/cmd/dummy/commands     [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/src/lachesis     [no test files]
+    ok      github.com/Fantom-foundation/go-lachesis/src/common     0.015s
+    ok      github.com/Fantom-foundation/go-lachesis/src/crypto     0.122s
+    ok      github.com/Fantom-foundation/go-lachesis/src/poset  10.270s
+    ?       github.com/Fantom-foundation/go-lachesis/src/mobile     [no test files]
+    ok      github.com/Fantom-foundation/go-lachesis/src/net        0.012s
+    ok      github.com/Fantom-foundation/go-lachesis/src/node       19.171s
+    ok      github.com/Fantom-foundation/go-lachesis/src/peers      0.038s
+    ?       github.com/Fantom-foundation/go-lachesis/src/proxy      [no test files]
+    ok      github.com/Fantom-foundation/go-lachesis/src/proxy/dummy        0.013s
+    ok      github.com/Fantom-foundation/go-lachesis/src/proxy/inmem        0.037s
+    ok      github.com/Fantom-foundation/go-lachesis/src/proxy/socket       0.009s
+    ?       github.com/Fantom-foundation/go-lachesis/src/proxy/socket/app   [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/src/proxy/socket/lachesis        [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/src/service    [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/src/version    [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/cmd/lachesis     [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/cmd/lachesis/commands    [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/cmd/dummy      [no test files]
+    ?       github.com/Fantom-foundation/go-lachesis/cmd/dummy/commands     [no test files]

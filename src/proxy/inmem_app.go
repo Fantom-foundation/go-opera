@@ -3,8 +3,8 @@ package proxy
 import (
 	"github.com/sirupsen/logrus"
 
-	"github.com/andrecronje/lachesis/src/peers"
-	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 // InmemAppProxy implements the AppProxy interface natively

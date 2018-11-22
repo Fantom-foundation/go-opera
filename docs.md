@@ -2,7 +2,7 @@
 
 ## Code organization
 
-The code itself is a fork of [Babble](https://github.com/andrecronje/babble) ([docs](http://babbleio.readthedocs.io/en/latest/)). Babble is a pretty straightforward go implementation of [Hashgraph](http://www.swirlds.com/downloads/SWIRLDS-TR-2016-01.pdf). The hashgraph paper is well written, and recommended reading.
+The code itself is a fork of [Babble](https://github.com/Fantom-foundation/babble) ([docs](http://babbleio.readthedocs.io/en/latest/)). Babble is a pretty straightforward go implementation of [Hashgraph](http://www.swirlds.com/downloads/SWIRLDS-TR-2016-01.pdf). The hashgraph paper is well written, and recommended reading.
 
 Hashgraph has the following core concepts:
 
@@ -15,7 +15,7 @@ The code is roughly organised as follows:
   - `/cmd/lachesis/main.go`: Main entrypoint
   - `/src/*`: Library code
     - `/src/node`: The core runtime / state machine implementation. `node/node.go` and `node/core.go` are the heart of the machine.
-    - `/src/poset`: Actual hashgraph algorithm implementation. Most of the interesting logic happens here. This is [forked from `/hashgraph` in babble](https://github.com/andrecronje/babble/tree/master/hashgraph).
+    - `/src/poset`: Actual hashgraph algorithm implementation. Most of the interesting logic happens here. This is [forked from `/hashgraph` in babble](https://github.com/Fantom-foundation/babble/tree/master/hashgraph).
     - `/src/proxy`: Proxy is a misnomer. This provides 2 APIs:
       - `/src/proxy/lachesis/*` is an API for 3rd party clients to talk to the server and commit transactions into the network
       - `/src/proxy/app/*` is an API for application logic & state transitions to exist out of process (for example account balances and stuff).

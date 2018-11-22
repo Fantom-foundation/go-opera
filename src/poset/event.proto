@@ -1,6 +1,6 @@
 syntax = "proto3";
 package poset;
-import "github.com/andrecronje/lachesis/src/peers/peer.proto";
+import "github.com/Fantom-foundation/go-lachesis/src/peers/peer.proto";
 
 enum TransactionType {
   PEER_ADD = 0;

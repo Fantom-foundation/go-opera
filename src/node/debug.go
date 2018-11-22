@@ -6,7 +6,7 @@ package node
 import (
 	"encoding/json"
 
-	"github.com/andrecronje/lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/sirupsen/logrus"
         "github.com/tebeka/atexit"
 )

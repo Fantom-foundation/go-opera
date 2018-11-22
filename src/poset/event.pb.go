@@ -5,7 +5,7 @@ package poset
 
 import (
 	fmt "fmt"
-	peers "github.com/andrecronje/lachesis/src/peers"
+	peers "github.com/Fantom-foundation/go-lachesis/src/peers"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
 )

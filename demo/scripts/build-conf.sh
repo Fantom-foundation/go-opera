@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # This script creates the configuration for a Lachesis testnet with a variable
-# number of nodes. It will generate crytographic key pairs and assemble a 
-# peers.json file in the format used by Lachesis. The files are copied into 
-# individual folders for each node so that these folders can be used as the 
+# number of nodes. It will generate crytographic key pairs and assemble a
+# peers.json file in the format used by Lachesis. The files are copied into
+# individual folders for each node so that these folders can be used as the
 # datadir that Lachesis reads configuration from.
 
 set -e
@@ -20,7 +20,7 @@ do
     echo "Generating key pair for node$i"
     docker run  \
         -v $dest:/.lachesis \
-        --rm andrecronje/lachesis keygen 
+        --rm Fantom-foundation/go-lachesis keygen
     echo "$IPBASE$i:$PORT" > $dest/addr
 done
 
@@ -46,4 +46,3 @@ do
     dest=$DEST/node$i
     cp $DEST/peers.json $dest/
 done
-
