@@ -13,18 +13,19 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-func initCores(n int, t *testing.T) ([]Core, map[int64]*ecdsa.PrivateKey, map[string]string) {
+func initCores(n int, t *testing.T) ([]*Core,
+	map[int64]*ecdsa.PrivateKey, map[string]string) {
 	cacheSize := 1000
 
-	var cores []Core
+	var cores []*Core
 	index := make(map[string]string)
 	participantKeys := map[int64]*ecdsa.PrivateKey{}
 
-	// participantKeys := []*ecdsa.PrivateKey{}
 	participants := peers.NewPeers()
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
-		pubHex := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
+		pubHex := fmt.Sprintf("0x%X",
+			crypto.FromECDSAPub(&key.PublicKey))
 		peer := peers.NewPeer(pubHex, "")
 		participants.AddPeer(peer)
 		participantKeys[peer.ID] = key
@@ -53,7 +54,9 @@ func initCores(n int, t *testing.T) ([]Core, map[int64]*ecdsa.PrivateKey, map[st
 			t.Fatal(err)
 		}
 
-		cores = append(cores, *core)
+		core.RunConsensus()
+
+		cores = append(cores, core)
 		index[fmt.Sprintf("e%d", i)] = core.head
 	}
 
@@ -72,7 +75,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initPoset(t *testing.T, cores []Core, keys map[int64]*ecdsa.PrivateKey,
+func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	index map[string]string, participant int64) {
 	for i := int64(0); i < int64(len(cores)); i++ {
 		if i != participant {
@@ -142,8 +145,9 @@ func initPoset(t *testing.T, cores []Core, keys map[int64]*ecdsa.PrivateKey,
 	}
 }
 
-func insertEvent(cores []Core, keys map[int64]*ecdsa.PrivateKey, index map[string]string,
-	event poset.Event, name string, participant int64, creator int64) error {
+func insertEvent(cores []*Core, keys map[int64]*ecdsa.PrivateKey,
+	index map[string]string, event poset.Event, name string, participant int64,
+	creator int64) error {
 
 	if participant == creator {
 		if err := cores[participant].SignAndInsertSelfEvent(event); err != nil {
@@ -161,11 +165,13 @@ func insertEvent(cores []Core, keys map[int64]*ecdsa.PrivateKey, index map[strin
 	return nil
 }
 
-func checkHeights(cores []Core, expectedHeights []map[string]uint64, t *testing.T) {
+func checkHeights(
+	cores []*Core, expectedHeights []map[string]uint64, t *testing.T) {
 	for i, core := range cores {
 		heights := core.Heights()
 		if !reflect.DeepEqual(heights, expectedHeights[i]) {
-			t.Errorf("Cores[%d].Heights() should be %v, not %v", i, expectedHeights[i], heights)
+			t.Errorf("Cores[%d].Heights() should be %v, not %v",
+				i, expectedHeights[i], heights)
 		}
 	}
 }
@@ -203,7 +209,8 @@ func TestEventDiff(t *testing.T) {
 	expectedOrder := []string{"e0", "e2", "e01", "e20", "e12"}
 	for i, e := range unknownBy1 {
 		if name := getName(index, e.Hex()); name != expectedOrder[i] {
-			t.Fatalf("element %d should be %s, not %s", i, expectedOrder[i], name)
+			t.Fatalf("element %d should be %s, not %s",
+				i, expectedOrder[i], name)
 		}
 	}
 
@@ -403,11 +410,13 @@ func TestSync(t *testing.T) {
 
 }
 
-func checkInDegree(cores []Core, expectedInDegree []map[string]uint64, t *testing.T) {
+func checkInDegree(
+	cores []*Core, expectedInDegree []map[string]uint64, t *testing.T) {
 	for i, core := range cores {
 		inDegrees := core.InDegrees()
 		if !reflect.DeepEqual(inDegrees, expectedInDegree[i]) {
-			t.Errorf("Cores[%d].InDegrees() should be %v, not %v", i, expectedInDegree[i], inDegrees)
+			t.Errorf("Cores[%d].InDegrees() should be %v, not %v",
+				i, expectedInDegree[i], inDegrees)
 		}
 	}
 }
@@ -676,7 +685,7 @@ type play struct {
 	payload [][]byte
 }
 
-func initConsensusPoset(t *testing.T) []Core {
+func initConsensusPoset(t *testing.T) []*Core {
 	cores, _, _ := initCores(3, t)
 	playbook := []play{
 		{from: 0, to: 1, payload: [][]byte{[]byte("e10")}},
@@ -702,7 +711,8 @@ func initConsensusPoset(t *testing.T) []Core {
 	}
 
 	for _, play := range playbook {
-		if err := syncAndRunConsensus(cores, play.from, play.to, play.payload); err != nil {
+		if err := syncAndRunConsensus(
+			cores, play.from, play.to, play.payload); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -712,8 +722,8 @@ func initConsensusPoset(t *testing.T) []Core {
 func TestConsensus(t *testing.T) {
 	cores := initConsensusPoset(t)
 
-	if l := len(cores[0].GetConsensusEvents()); l != 6 {
-		t.Fatalf("length of consensus should be 6 not %d", l)
+	if l := len(cores[0].GetConsensusEvents()); l != 4 {
+		t.Fatalf("length of consensus should be 4 not %d", l)
 	}
 
 	core0Consensus := cores[0].GetConsensusEvents()
@@ -806,7 +816,7 @@ func TestOverSyncLimit(t *testing.T) {
     |   e1  e2  e3
     0	1	2	3
 */
-func initFFPoset(cores []Core, t *testing.T) {
+func initFFPoset(cores []*Core, t *testing.T) {
 	playbook := []play{
 		{from: 1, to: 2, payload: [][]byte{[]byte("e21")}},
 		{from: 2, to: 3, payload: [][]byte{[]byte("e32")}},
@@ -835,7 +845,7 @@ func TestConsensusFF(t *testing.T) {
 	cores, _, _ := initCores(4, t)
 	initFFPoset(cores, t)
 
-	if r := cores[1].GetLastConsensusRoundIndex(); r == nil || *r != 1 {
+	if r := cores[1].GetLastConsensusRoundIndex(); r == nil || *r != 2 {
 		disp := "nil"
 		if r != nil {
 			disp = strconv.FormatInt(*r, 10)
@@ -843,8 +853,8 @@ func TestConsensusFF(t *testing.T) {
 		t.Fatalf("Cores[1] last consensus Round should be 1, not %s", disp)
 	}
 
-	if l := len(cores[1].GetConsensusEvents()); l != 6 {
-		t.Fatalf("Node 1 should have 6 consensus events, not %d", l)
+	if l := len(cores[1].GetConsensusEvents()); l != 7 {
+		t.Fatalf("Node 1 should have 7 consensus events, not %d", l)
 	}
 
 	core1Consensus := cores[1].GetConsensusEvents()
@@ -869,7 +879,8 @@ func TestCoreFastForward(t *testing.T) {
 		// Test no anchor block
 		_, _, err := cores[1].GetAnchorBlockWithFrame()
 		if err == nil {
-			t.Fatal("GetAnchorBlockWithFrame should throw an error because there is no anchor block yet")
+			t.Fatal("GetAnchorBlockWithFrame should throw an error" +
+				" because there is no anchor block yet")
 		}
 	})
 
@@ -916,7 +927,8 @@ func TestCoreFastForward(t *testing.T) {
 		// We should get an error because AnchorBlock doesnt contain enough
 		// signatures
 		if err == nil {
-			t.Fatal("FastForward should throw an error because the Block does not contain enough signatures")
+			t.Fatal("FastForward should throw an error because the Block" +
+				" does not contain enough signatures")
 		}
 	})
 
@@ -950,13 +962,14 @@ func TestCoreFastForward(t *testing.T) {
 
 		expectedKnown := map[int64]int64{
 			int64(common.Hash32(cores[0].pubKey)): -1,
-			int64(common.Hash32(cores[1].pubKey)): 1,
+			int64(common.Hash32(cores[1].pubKey)): 0,
 			int64(common.Hash32(cores[2].pubKey)): 1,
-			int64(common.Hash32(cores[3].pubKey)): 1,
+			int64(common.Hash32(cores[3].pubKey)): 0,
 		}
 
 		if !reflect.DeepEqual(knownBy0, expectedKnown) {
-			t.Fatalf("Cores[0].Known should be %v, not %v", expectedKnown, knownBy0)
+			t.Fatalf("Cores[0].Known should be %v, not %v",
+				expectedKnown, knownBy0)
 		}
 
 		if r := cores[0].GetLastConsensusRoundIndex(); r == nil || *r != 1 {
@@ -975,23 +988,24 @@ func TestCoreFastForward(t *testing.T) {
 			t.Fatalf("Blocks defer")
 		}
 
-		// lastEventFrom0, _, err := cores[0].poset.Store.LastEventFrom(cores[0].hexID)
-		// if err != nil {
-		// 	t.Fatal(err)
-		// }
-		// if c0h := cores[0].Head; c0h != lastEventFrom0 {
-		// 	t.Fatalf("Head should be %s, not %s", lastEventFrom0, c0h)
-		// }
+		lastEventFrom0, _, err := cores[0].poset.Store.LastEventFrom(
+			cores[0].hexID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c0h := cores[0].Head(); c0h != lastEventFrom0 {
+			t.Fatalf("Head should be %s, not %s", lastEventFrom0, c0h)
+		}
 
-		// if c0s := cores[0].Seq; c0s != 0 {
-		// 	t.Fatalf("Seq should be %d, not %d", 0, c0s)
-		// }
+		if c0s := cores[0].Seq; c0s != -1 {
+			t.Fatalf("Seq should be %d, not %d", -1, c0s)
+		}
 
 	})
 
 }
 
-func synchronizeCores(cores []Core, from int, to int, payload [][]byte) error {
+func synchronizeCores(cores []*Core, from int, to int, payload [][]byte) error {
 	knownByTo := cores[to].KnownEvents()
 	unknownByTo, err := cores[from].EventDiff(knownByTo)
 	if err != nil {
@@ -1008,7 +1022,8 @@ func synchronizeCores(cores []Core, from int, to int, payload [][]byte) error {
 	return cores[to].Sync(unknownWire)
 }
 
-func syncAndRunConsensus(cores []Core, from int, to int, payload [][]byte) error {
+func syncAndRunConsensus(
+	cores []*Core, from int, to int, payload [][]byte) error {
 	if err := synchronizeCores(cores, from, to, payload); err != nil {
 		return err
 	}
