@@ -1,15 +1,17 @@
 package difftool
 
 import (
-	"testing"
+	"fmt"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/sirupsen/logrus"
+
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
-// TestExample illustrates nodes comparing
-func TestExample(t *testing.T) {
-	logger := common.NewTestLogger(t)
+// Example illustrates nodes comparing
+func Example() {
+	logger := logrus.New()
+	logger.Level = logrus.FatalLevel
 
 	nodes := node.NewNodeList(3, logger)
 
@@ -17,9 +19,12 @@ func TestExample(t *testing.T) {
 	nodes.WaitForBlock(5)
 	stop()
 
-	diff_result := Compare(nodes.Values()...)
+	diffResult := Compare(nodes.Values()...)
 
-	if !diff_result.IsEmpty() {
-		t.Fatal("\n" + diff_result.ToString())
+	if !diffResult.IsEmpty() {
+		logger.Fatal("\n" + diffResult.ToString())
 	}
+	fmt.Println("all good")
+	// Output:
+	// all good
 }
