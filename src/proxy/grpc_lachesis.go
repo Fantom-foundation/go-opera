@@ -340,8 +340,11 @@ func (p *GrpcLachesisProxy) setStream(stream internal.LachesisNode_ConnectClient
 }
 
 func (p *GrpcLachesisProxy) closeStream() {
-	stream := p.stream.Load().(internal.LachesisNode_ConnectClient)
-	if stream != nil {
-		stream.CloseSend()
+	v := p.stream.Load()
+	if v != nil {
+		stream, ok := v.(internal.LachesisNode_ConnectClient)
+		if ok && stream != nil {
+			stream.CloseSend()
+		}
 	}
 }
