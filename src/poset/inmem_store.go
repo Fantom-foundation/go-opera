@@ -1,20 +1,22 @@
 package poset
 
 import (
-	_ "fmt"
+	"fmt"
+	"os"
 	"strconv"
 
 	cm "github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/hashicorp/golang-lru"
 )
 
 type InmemStore struct {
 	cacheSize              int
 	participants           *peers.Peers
-	eventCache             *cm.LRU
-	roundCache             *cm.LRU
-	blockCache             *cm.LRU
-	frameCache             *cm.LRU
+	eventCache             *lru.Cache
+	roundCache             *lru.Cache
+	blockCache             *lru.Cache
+	frameCache             *lru.Cache
 	consensusCache         *cm.RollingIndex
 	totConsensusEvents     int64
 	participantEventsCache *ParticipantEventsCache
@@ -33,13 +35,34 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 		rootsByParticipant[pk] = root
 	}
 
+	eventCache, err :=  lru.New(cacheSize)
+	if err != nil {
+		fmt.Println("Unable to init InmemStore.eventCache:", err)
+		os.Exit(31)
+	}
+	roundCache, err :=  lru.New(cacheSize)
+	if err != nil {
+		fmt.Println("Unable to init InmemStore.roundCache:", err)
+		os.Exit(32)
+	}
+	blockCache, err :=  lru.New(cacheSize)
+	if err != nil {
+		fmt.Println("Unable to init InmemStore.blockCache:", err)
+		os.Exit(33)
+	}
+	frameCache, err :=  lru.New(cacheSize)
+	if err != nil {
+		fmt.Println("Unable to init InmemStore.frameCache:", err)
+		os.Exit(34)
+	}
+
 	store := &InmemStore{
 		cacheSize:              cacheSize,
 		participants:           participants,
-		eventCache:             cm.NewLRU(cacheSize, nil),
-		roundCache:             cm.NewLRU(cacheSize, nil),
-		blockCache:             cm.NewLRU(cacheSize, nil),
-		frameCache:             cm.NewLRU(cacheSize, nil),
+		eventCache:             eventCache,
+		roundCache:             roundCache,
+		blockCache:             blockCache,
+		frameCache:             frameCache,
 		consensusCache:         cm.NewRollingIndex("ConsensusCache", cacheSize),
 		participantEventsCache: NewParticipantEventsCache(cacheSize, participants),
 		rootsByParticipant:     rootsByParticipant,
@@ -283,10 +306,22 @@ func (s *InmemStore) SetFrame(frame Frame) error {
 }
 
 func (s *InmemStore) Reset(roots map[string]Root) error {
+	eventCache, errr :=  lru.New(s.cacheSize)
+	if errr != nil {
+		fmt.Println("Unable to reset InmemStore.eventCache:", errr)
+		os.Exit(41)
+	}
+	roundCache, errr :=  lru.New(s.cacheSize)
+	if errr != nil {
+		fmt.Println("Unable to reset InmemStore.roundCache:", errr)
+		os.Exit(42)
+	}
+	// FIXIT: Should we recreate blockCache, frameCache and participantEventsCache here as well
+	//        and reset lastConsensusEvents ?
 	s.rootsByParticipant = roots
 	s.rootsBySelfParent = nil
-	s.eventCache = cm.NewLRU(s.cacheSize, nil)
-	s.roundCache = cm.NewLRU(s.cacheSize, nil)
+	s.eventCache = eventCache
+	s.roundCache = roundCache
 	s.consensusCache = cm.NewRollingIndex("ConsensusCache", s.cacheSize)
 	err := s.participantEventsCache.Reset()
 	s.lastRound = -1

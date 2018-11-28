@@ -1,5 +1,5 @@
-hash: 19626b09537db430cba02c95d580afd0d6444dd0f82dfaf21c8b907f7705df2f
-updated: 2018-11-14T11:33:27.639975236+11:00
+hash: e72ad995126b9c4187b2503f304edf7512945cd3abb072cc17e38cc58d806cc4
+updated: 2018-11-27T16:38:26.613802177+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -33,6 +33,10 @@ imports:
   - ptypes/timestamp
 - name: github.com/gorilla/websocket
   version: 66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d
+- name: github.com/hashicorp/golang-lru
+  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
+  subpackages:
+  - simplelru
 - name: github.com/hashicorp/hcl
   version: 65a6292f0157eff210d03ed1bf6c59b190b8b906
   subpackages:

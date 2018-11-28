@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/sirupsen/logrus"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
@@ -41,11 +42,11 @@ type Poset struct {
 	trustCount              int
 	core                    Core
 
-	ancestorCache     *common.LRU
-	selfAncestorCache *common.LRU
-	stronglySeeCache  *common.LRU
-	roundCache        *common.LRU
-	timestampCache    *common.LRU
+	ancestorCache     *lru.Cache
+	selfAncestorCache *lru.Cache
+	stronglySeeCache  *lru.Cache
+	roundCache        *lru.Cache
+	timestampCache    *lru.Cache
 
 	logger *logrus.Entry
 }
@@ -64,15 +65,35 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	trustCount := int(math.Ceil(float64(participants.Len()) / float64(3)))
 
 	cacheSize := store.CacheSize()
+	ancestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.ancestorCache")
+	}
+	selfAncestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.selfAncestorCache")
+	}
+	stronglySeeCache, err :=  lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.stronglySeeCache")
+	}
+	roundCache, err :=        lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.roundCache")
+	}
+	timestampCache, err :=    lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.timestampCache")
+	}
 	poset := Poset{
 		Participants:      participants,
 		Store:             store,
 		commitCh:          commitCh,
-		ancestorCache:     common.NewLRU(cacheSize, nil),
-		selfAncestorCache: common.NewLRU(cacheSize, nil),
-		stronglySeeCache:  common.NewLRU(cacheSize, nil),
-		roundCache:        common.NewLRU(cacheSize, nil),
-		timestampCache:    common.NewLRU(cacheSize, nil),
+		ancestorCache:     ancestorCache,
+		selfAncestorCache: selfAncestorCache,
+		stronglySeeCache:  stronglySeeCache,
+		roundCache:        roundCache,
+		timestampCache:    timestampCache,
 		logger:            logger,
 		superMajority:     superMajority,
 		trustCount:        trustCount,
@@ -1493,10 +1514,26 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 	p.topologicalIndex = 0
 
 	cacheSize := p.Store.CacheSize()
-	p.ancestorCache = common.NewLRU(cacheSize, nil)
-	p.selfAncestorCache = common.NewLRU(cacheSize, nil)
-	p.stronglySeeCache = common.NewLRU(cacheSize, nil)
-	p.roundCache = common.NewLRU(cacheSize, nil)
+	ancestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.ancestorCache")
+	}
+	selfAncestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.selfAncestorCache")
+	}
+	stronglySeeCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.stronglySeeCache")
+	}
+	roundCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.roundCache")
+	}
+	p.ancestorCache = ancestorCache
+	p.selfAncestorCache = selfAncestorCache
+	p.stronglySeeCache = stronglySeeCache
+	p.roundCache = roundCache
 
 	participants := p.Participants.ToPeerSlice()
 
