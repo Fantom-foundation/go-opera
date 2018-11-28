@@ -732,7 +732,7 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 				// wait until the target block has retrieved a state hash from
 				// the app
 				targetBlock, _ := n.core.poset.Store.GetBlock(target)
-				if len(targetBlock.StateHash()) == 0 {
+				if len(targetBlock.GetStateHash()) == 0 {
 					done = false
 					break
 				}

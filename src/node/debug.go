@@ -32,6 +32,8 @@ type EventMessageLite struct {
 //	FlagTable []byte // FlagTable stores connection information
 }
 type EventLite struct {
+	CreatorID            int64
+	OtherParentCreatorID int64
 	Message EventMessageLite
 }
 
@@ -62,6 +64,8 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 		hash := event.Hex()
 
 		lite_event := EventLite{
+			CreatorID: event.CreatorID(),
+			OtherParentCreatorID: event.OtherParentCreatorID(),
 			Message: EventMessageLite {
 				Body: EventBodyLite{
 					Parents: event.Message.Body.Parents,

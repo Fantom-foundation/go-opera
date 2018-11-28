@@ -4,8 +4,6 @@ package poset;
 message BlockBody {
   int64 Index = 1;
   int64 RoundReceived = 2;
-  bytes StateHash = 3;
-  bytes FrameHash = 4;
   repeated bytes Transactions = 5;
 }
 
@@ -19,4 +17,6 @@ message Block {
   map<string, string> Signatures = 2;
   bytes hash = 3;
   string hex = 4;
+  bytes StateHash = 5;
+  bytes FrameHash = 6;
 }

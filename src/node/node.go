@@ -618,7 +618,7 @@ func (n *Node) commit(block poset.Block) error {
 		// this requires a 1:1 relationship with nodes and clients
 		// multiple nodes can't read from the same client
 
-		block.Body.StateHash = stateHash
+		block.StateHash = stateHash
 		n.coreLock.Lock()
 		defer n.coreLock.Unlock()
 		sig, err := n.core.SignBlock(block)
