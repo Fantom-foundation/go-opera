@@ -70,7 +70,8 @@ func NewNode(conf *Config,
 
 	pubKey := core.HexID()
 
-	peerSelector := NewRandomPeerSelector(participants, pubKey)
+	peerSelector := NewSmartPeerSelector(participants, pubKey,
+		core.poset.GetFlagTableOfRandomUndeterminedEvent)
 
 	node := Node{
 		id:               id,

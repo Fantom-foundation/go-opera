@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"sort"
 
 	"github.com/sirupsen/logrus"
@@ -1747,6 +1748,28 @@ func (p *Poset) setAnchorBlock(i int64) {
 	}
 	*p.AnchorBlock = i
 }
+
+/*
+*/
+
+func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64, err error) {
+	// FIXME: possible data race: p.UndeterminedEvents can be modified by other goroutine
+	perm := rand.Perm(len(p.UndeterminedEvents))
+	for i := 0; i < len(perm); i++ {
+		hash := p.UndeterminedEvents[perm[i]]
+		ev, err := p.Store.GetEvent(hash)
+		if err != nil {
+			continue
+		}
+		ft, err := ev.GetFlagTable()
+		if err != nil {
+			continue
+		}
+		return ft, nil
+	}
+	return nil, err
+}
+
 
 /*******************************************************************************
    Helpers
