@@ -80,11 +80,11 @@ func NewBlock(blockIndex, roundReceived int64, frameHash []byte, txs [][]byte) B
 	body := BlockBody{
 		Index:         blockIndex,
 		RoundReceived: roundReceived,
-		FrameHash:     frameHash,
 		Transactions:  txs,
 	}
 	return Block{
 		Body:       &body,
+		FrameHash:     frameHash,
 		Signatures: make(map[string]string),
 	}
 }
@@ -99,14 +99,6 @@ func (b *Block) Transactions() [][]byte {
 
 func (b *Block) RoundReceived() int64 {
 	return b.Body.RoundReceived
-}
-
-func (b *Block) StateHash() []byte {
-	return b.Body.StateHash
-}
-
-func (b *Block) FrameHash() []byte {
-	return b.Body.FrameHash
 }
 
 func (b *Block) GetBlockSignatures() []BlockSignature {
@@ -156,15 +148,7 @@ func (b *Block) ProtoUnmarshal(data []byte) error {
 }
 
 func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
-	// TODO: Currently StateHash value is different on sender and receiver
-	// so we need to review StateHash placement inside block body.
-	// Setting StateHash to nil before Hash calculation is a temporary fix for
-	// block signature verification bug https://github.com/Fantom-foundation/go-lachesis/issues/42
-	saveStateHash := b.Body.StateHash
-	b.Body.StateHash = nil
-
 	signBytes, err := b.Body.Hash()
-	b.Body.StateHash = saveStateHash
 	if err != nil {
 		return bs, err
 	}
@@ -187,15 +171,7 @@ func (b *Block) SetSignature(bs BlockSignature) error {
 }
 
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
-	// TODO: Currently StateHash value is different on sender and receiver
-	// so we need to review StateHash placement inside block body.
-	// Setting StateHash to nil before Hash calculation is a temporary fix for
-	// block signature verification bug https://github.com/Fantom-foundation/go-lachesis/issues/42
-	saveStateHash := b.Body.StateHash
-	b.Body.StateHash = nil
-
 	signBytes, err := b.Body.Hash()
-	b.Body.StateHash = saveStateHash
 	if err != nil {
 		return false, err
 	}
@@ -226,8 +202,6 @@ func ListBytesEquals(this [][]byte, that [][]byte) bool {
 func (this *BlockBody) Equals(that *BlockBody) bool {
 	return this.Index == that.Index &&
 		this.RoundReceived == that.RoundReceived &&
-		BytesEquals(this.StateHash, that.StateHash) &&
-		BytesEquals(this.FrameHash, that.FrameHash) &&
 		ListBytesEquals(this.Transactions, that.Transactions)
 }
 

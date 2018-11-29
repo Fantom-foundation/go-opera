@@ -149,7 +149,7 @@ func TestLoadBadgerStore(t *testing.T) {
 //Call DB methods directly
 
 func TestDBEventMethods(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	testSize := int64(100)
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
@@ -169,7 +169,7 @@ func TestDBEventMethods(t *testing.T) {
 				p.pubKey,
 				k, nil)
 			event.Sign(p.privKey)
-			event.topologicalIndex = topologicalIndex
+			event.Message.TopologicalIndex = topologicalIndex
 			topologicalIndex++
 			topologicalEvents = append(topologicalEvents, event)
 
@@ -256,7 +256,7 @@ func TestDBEventMethods(t *testing.T) {
 }
 
 func TestDBRoundMethods(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
@@ -299,7 +299,7 @@ func TestDBRoundMethods(t *testing.T) {
 }
 
 func TestDBParticipantMethods(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, _ := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
@@ -324,7 +324,7 @@ func TestDBParticipantMethods(t *testing.T) {
 }
 
 func TestDBBlockMethods(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
@@ -394,7 +394,7 @@ func TestDBBlockMethods(t *testing.T) {
 }
 
 func TestDBFrameMethods(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
@@ -538,7 +538,7 @@ func TestBadgerEvents(t *testing.T) {
 }
 
 func TestBadgerRounds(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
@@ -585,7 +585,7 @@ func TestBadgerRounds(t *testing.T) {
 }
 
 func TestBadgerBlocks(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
@@ -654,7 +654,7 @@ func TestBadgerBlocks(t *testing.T) {
 }
 
 func TestBadgerFrames(t *testing.T) {
-	cacheSize := 0
+	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 

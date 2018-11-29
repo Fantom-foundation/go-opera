@@ -566,10 +566,10 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !(e0Event.selfParentIndex == -1 &&
-			e0Event.otherParentCreatorID == -1 &&
-			e0Event.otherParentIndex == -1 &&
-			e0Event.creatorID == p.Participants.ByPubKey[e0Event.Creator()].ID) {
+		if !(e0Event.Message.SelfParentIndex == -1 &&
+			e0Event.Message.OtherParentCreatorID == -1 &&
+			e0Event.Message.OtherParentIndex == -1 &&
+			e0Event.Message.CreatorID == p.Participants.ByPubKey[e0Event.Creator()].ID) {
 			t.Fatalf("Invalid wire info on %s", e0)
 		}
 
@@ -583,10 +583,10 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !(e21Event.selfParentIndex == 1 &&
-			e21Event.otherParentCreatorID == p.Participants.ByPubKey[e10Event.Creator()].ID &&
-			e21Event.otherParentIndex == 1 &&
-			e21Event.creatorID == p.Participants.ByPubKey[e21Event.Creator()].ID) {
+		if !(e21Event.Message.SelfParentIndex == 1 &&
+			e21Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e10Event.Creator()].ID &&
+			e21Event.Message.OtherParentIndex == 1 &&
+			e21Event.Message.CreatorID == p.Participants.ByPubKey[e21Event.Creator()].ID) {
 			t.Fatalf("Invalid wire info on %s", e21)
 		}
 
@@ -595,10 +595,10 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !(f1Event.selfParentIndex == 2 &&
-			f1Event.otherParentCreatorID == p.Participants.ByPubKey[e0Event.Creator()].ID &&
-			f1Event.otherParentIndex == 2 &&
-			f1Event.creatorID == p.Participants.ByPubKey[f1Event.Creator()].ID) {
+		if !(f1Event.Message.SelfParentIndex == 2 &&
+			f1Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e0Event.Creator()].ID &&
+			f1Event.Message.OtherParentIndex == 2 &&
+			f1Event.Message.CreatorID == p.Participants.ByPubKey[f1Event.Creator()].ID) {
 			t.Fatalf("Invalid wire info on %s", f1)
 		}
 
@@ -1675,9 +1675,9 @@ func TestProcessDecidedRounds(t *testing.T) {
 
 	frame1, err := p.GetFrame(block0.RoundReceived())
 	frame1Hash, err := frame1.Hash()
-	if !reflect.DeepEqual(block0.FrameHash(), frame1Hash) {
+	if !reflect.DeepEqual(block0.GetFrameHash(), frame1Hash) {
 		t.Fatalf("frame hash from block0 should be %v, not %v",
-			frame1Hash, block0.FrameHash())
+			frame1Hash, block0.GetFrameHash())
 	}
 
 	block1, err := p.Store.GetBlock(1)
@@ -1703,9 +1703,9 @@ func TestProcessDecidedRounds(t *testing.T) {
 
 	frame2, err := p.GetFrame(block1.RoundReceived())
 	frame2Hash, err := frame2.Hash()
-	if !reflect.DeepEqual(block1.FrameHash(), frame2Hash) {
+	if !reflect.DeepEqual(block1.GetFrameHash(), frame2Hash) {
 		t.Fatalf("frame hash from block1 should be %v, not %v",
-			frame2Hash, block1.FrameHash())
+			frame2Hash, block1.GetFrameHash())
 	}
 
 	expRounds := []pendingRound{
@@ -1928,9 +1928,9 @@ func TestGetFrame(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual(block0.FrameHash(), frameHash) {
+		if !reflect.DeepEqual(block0.GetFrameHash(), frameHash) {
 			t.Fatalf("frame hash (0x%X) from block 0 and frame hash"+
-				" (0x%X) differ", block0.FrameHash(), frameHash)
+				" (0x%X) differ", block0.GetFrameHash(), frameHash)
 		}
 	})
 

@@ -117,7 +117,7 @@ LOOP:
 				continue LOOP
 			}
 			block, _ := node.GetBlock(target)
-			if len(block.StateHash()) == 0 {
+			if len(block.GetStateHash()) == 0 {
 				continue LOOP
 			}
 		}

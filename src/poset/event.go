@@ -124,11 +124,6 @@ type Event struct {
 	round           		*int64
 	lamportTimestamp		*int64
 	roundReceived			*int64
-	selfParentIndex			int64
-	otherParentCreatorID	int64
-	otherParentIndex		int64
-	creatorID				int64
-	topologicalIndex		int64
 	creator					string
 	hash					[]byte
 	hex						string
@@ -319,10 +314,10 @@ func (e *Event) SetWireInfo(selfParentIndex,
 	otherParentCreatorID,
 	otherParentIndex,
 	creatorID int64) {
-	e.selfParentIndex = selfParentIndex
-	e.otherParentCreatorID = otherParentCreatorID
-	e.otherParentIndex = otherParentIndex
-	e.creatorID = creatorID
+	e.Message.SelfParentIndex = selfParentIndex
+	e.Message.OtherParentCreatorID = otherParentCreatorID
+	e.Message.OtherParentIndex = otherParentIndex
+	e.Message.CreatorID = creatorID
 }
 
 func (e *Event) WireBlockSignatures() []WireBlockSignature {
@@ -347,10 +342,10 @@ func (e *Event) ToWire() WireEvent {
 		Body: WireBody{
 			Transactions:         e.Message.Body.Transactions,
 			InternalTransactions: transactions,
-			SelfParentIndex:      e.selfParentIndex,
-			OtherParentCreatorID: e.otherParentCreatorID,
-			OtherParentIndex:     e.otherParentIndex,
-			CreatorID:            e.creatorID,
+			SelfParentIndex:      e.Message.SelfParentIndex,
+			OtherParentCreatorID: e.Message.OtherParentCreatorID,
+			OtherParentIndex:     e.Message.OtherParentIndex,
+			CreatorID:            e.Message.CreatorID,
 			Index:                e.Message.Body.Index,
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
@@ -390,7 +385,11 @@ func (e *Event) MergeFlagTable(
 }
 
 func (e *Event) CreatorID() int64 {
-	return e.creatorID
+	return e.Message.CreatorID
+}
+
+func (e *Event) OtherParentCreatorID() int64 {
+	return e.Message.OtherParentCreatorID
 }
 
 func rootSelfParent(participantID int64) string {
@@ -409,7 +408,7 @@ type ByTopologicalOrder []Event
 func (a ByTopologicalOrder) Len() int      { return len(a) }
 func (a ByTopologicalOrder) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByTopologicalOrder) Less(i, j int) bool {
-	return a[i].topologicalIndex < a[j].topologicalIndex
+	return a[i].Message.TopologicalIndex < a[j].Message.TopologicalIndex
 }
 
 // ByLamportTimestamp implements sort.Interface for []Event based on

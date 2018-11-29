@@ -32,4 +32,9 @@ message EventMessage {
   string Signature = 2;
   bytes FlagTable = 3;
   repeated string WitnessProof = 4;
+  int64 SelfParentIndex = 5;
+  int64 OtherParentCreatorID = 6;
+  int64 OtherParentIndex = 7;
+  int64 CreatorID = 8;
+  int64 TopologicalIndex = 9;
 }

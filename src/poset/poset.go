@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"sort"
 
 	"github.com/sirupsen/logrus"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
@@ -41,11 +43,11 @@ type Poset struct {
 	trustCount              int
 	core                    Core
 
-	ancestorCache     *common.LRU
-	selfAncestorCache *common.LRU
-	stronglySeeCache  *common.LRU
-	roundCache        *common.LRU
-	timestampCache    *common.LRU
+	ancestorCache     *lru.Cache
+	selfAncestorCache *lru.Cache
+	stronglySeeCache  *lru.Cache
+	roundCache        *lru.Cache
+	timestampCache    *lru.Cache
 
 	logger *logrus.Entry
 }
@@ -64,15 +66,35 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	trustCount := int(math.Ceil(float64(participants.Len()) / float64(3)))
 
 	cacheSize := store.CacheSize()
+	ancestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.ancestorCache")
+	}
+	selfAncestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.selfAncestorCache")
+	}
+	stronglySeeCache, err :=  lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.stronglySeeCache")
+	}
+	roundCache, err :=        lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.roundCache")
+	}
+	timestampCache, err :=    lru.New(cacheSize)
+	if err != nil {
+		logger.Fatal("Unable to init Poset.timestampCache")
+	}
 	poset := Poset{
 		Participants:      participants,
 		Store:             store,
 		commitCh:          commitCh,
-		ancestorCache:     common.NewLRU(cacheSize, nil),
-		selfAncestorCache: common.NewLRU(cacheSize, nil),
-		stronglySeeCache:  common.NewLRU(cacheSize, nil),
-		roundCache:        common.NewLRU(cacheSize, nil),
-		timestampCache:    common.NewLRU(cacheSize, nil),
+		ancestorCache:     ancestorCache,
+		selfAncestorCache: selfAncestorCache,
+		stronglySeeCache:  stronglySeeCache,
+		roundCache:        roundCache,
+		timestampCache:    timestampCache,
 		logger:            logger,
 		superMajority:     superMajority,
 		trustCount:        trustCount,
@@ -847,7 +869,7 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 		return fmt.Errorf("CheckOtherParent: %s", err)
 	}
 
-	event.topologicalIndex = p.topologicalIndex
+	event.Message.TopologicalIndex = p.topologicalIndex
 	p.topologicalIndex++
 
 	if setWireInfo {
@@ -986,6 +1008,9 @@ func (p *Poset) DivideRounds() error {
 		}
 
 		if updateEvent {
+			if ev.CreatorID() == 0 {
+				p.setWireInfo(&ev)
+			}
 			p.Store.SetEvent(ev)
 		}
 	}
@@ -1293,7 +1318,7 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 		events = append(events, e)
 	}
 
-	sort.Sort(ByLamportTimestamp(events))
+	sort.Stable(ByLamportTimestamp(events))
 
 	// Get/Create Roots
 	roots := make(map[string]Root)
@@ -1490,10 +1515,26 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 	p.topologicalIndex = 0
 
 	cacheSize := p.Store.CacheSize()
-	p.ancestorCache = common.NewLRU(cacheSize, nil)
-	p.selfAncestorCache = common.NewLRU(cacheSize, nil)
-	p.stronglySeeCache = common.NewLRU(cacheSize, nil)
-	p.roundCache = common.NewLRU(cacheSize, nil)
+	ancestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.ancestorCache")
+	}
+	selfAncestorCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.selfAncestorCache")
+	}
+	stronglySeeCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.stronglySeeCache")
+	}
+	roundCache, err := lru.New(cacheSize)
+	if err != nil {
+		p.logger.Fatal("Unable to reset Poset.roundCache")
+	}
+	p.ancestorCache = ancestorCache
+	p.selfAncestorCache = selfAncestorCache
+	p.stronglySeeCache = stronglySeeCache
+	p.roundCache = roundCache
 
 	participants := p.Participants.ToPeerSlice()
 
@@ -1652,11 +1693,11 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 			Signature:    wevent.Signature,
 			FlagTable:    wevent.FlagTable,
 			WitnessProof: wevent.WitnessProof,
+			SelfParentIndex:      wevent.Body.SelfParentIndex,
+			OtherParentCreatorID: wevent.Body.OtherParentCreatorID,
+			OtherParentIndex:     wevent.Body.OtherParentIndex,
+			CreatorID:            wevent.Body.CreatorID,
 		},
-		selfParentIndex:      wevent.Body.SelfParentIndex,
-		otherParentCreatorID: wevent.Body.OtherParentCreatorID,
-		otherParentIndex:     wevent.Body.OtherParentIndex,
-		creatorID:            wevent.Body.CreatorID,
 	}
 
 	p.logger.WithFields(logrus.Fields{
@@ -1707,6 +1748,28 @@ func (p *Poset) setAnchorBlock(i int64) {
 	}
 	*p.AnchorBlock = i
 }
+
+/*
+*/
+
+func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64, err error) {
+	// FIXME: possible data race: p.UndeterminedEvents can be modified by other goroutine
+	perm := rand.Perm(len(p.UndeterminedEvents))
+	for i := 0; i < len(perm); i++ {
+		hash := p.UndeterminedEvents[perm[i]]
+		ev, err := p.Store.GetEvent(hash)
+		if err != nil {
+			continue
+		}
+		ft, err := ev.GetFlagTable()
+		if err != nil {
+			continue
+		}
+		return ft, nil
+	}
+	return nil, err
+}
+
 
 /*******************************************************************************
    Helpers

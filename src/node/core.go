@@ -362,7 +362,7 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(block.FrameHash(), frameHash) {
+	if !reflect.DeepEqual(block.GetFrameHash(), frameHash) {
 		return fmt.Errorf("invalid Frame Hash")
 	}
 
