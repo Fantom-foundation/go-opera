@@ -8,6 +8,7 @@ import (
 	cm "github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/dgraph-io/badger"
+	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -48,6 +49,9 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*Bad
 		return nil, err
 	}
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
+		return nil, err
+	}
+	if err := store.dbSetRootEvents(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
 	return store, nil
@@ -504,6 +508,31 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 		}
 	}
 	return tx.Commit(nil)
+}
+
+func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
+	for participant, root := range roots {
+		var creator []byte
+		fmt.Sscanf(participant, "0x%X", &creator)
+		flagTable := map[string]int64{root.SelfParent.Hash: 1}
+		ft, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+		body := EventBody{
+			Creator:              creator,/*s.participants.ByPubKey[participant].PubKey,*/
+			Index:                root.SelfParent.Index,
+		}
+		event := Event{
+			Hex_: root.SelfParent.Hash,
+			Message: EventMessage {
+				TopologicalIndex: -1,
+				Body:      &body,
+				FlagTable: ft,
+			},
+		}
+		if err := s.SetEvent(event); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *BadgerStore) dbGetRoot(participant string) (Root, error) {
