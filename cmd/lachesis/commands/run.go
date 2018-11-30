@@ -14,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/urfave/cli"
 )
 
 //NewRunCmd returns the command that starts a Lachesis node
@@ -88,12 +87,7 @@ func runSingleLachesis(config *CLIConfig) error {
 	}
 
 	if config.Lachesis.Test {
-		p, err := engine.Store.Participants()
-		if err != nil {
-			return cli.NewExitError(
-				fmt.Sprintf("Failed to acquire participants: %s", err),
-				1)
-		}
+		p := engine.Peers
 		go func() {
 			for {
 				time.Sleep(10 * time.Second)
