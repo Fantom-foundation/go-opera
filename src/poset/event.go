@@ -126,7 +126,7 @@ type Event struct {
 	roundReceived			*int64
 	creator					string
 	hash					[]byte
-	hex						string
+	Hex_					string
 }
 
 func (e EventMessage) ToEvent() Event {
@@ -282,11 +282,11 @@ func (e *Event) Hash() ([]byte, error) {
 }
 
 func (e *Event) Hex() string {
-	if e.hex == "" {
+	if e.Hex_ == "" {
 		hash, _ := e.Hash()
-		e.hex = fmt.Sprintf("0x%X", hash)
+		e.Hex_ = fmt.Sprintf("0x%X", hash)
 	}
-	return e.hex
+	return e.Hex_
 }
 
 func (e *Event) SetRound(r int64) {
