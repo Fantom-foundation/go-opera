@@ -5,6 +5,8 @@ package node
 
 import (
 	"encoding/json"
+	"os"
+	"os/signal"
 
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/sirupsen/logrus"
@@ -115,4 +117,11 @@ func (n *Node) Register() {
 	// use the following way of exit to execute registered atexit handlers:
 	// import "github.com/tebeka/atexit"
 	// atexit.Exit(0)
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	go func () {
+		<-signalChan
+		atexit.Exit(13)
+	}()
 }
