@@ -13,12 +13,18 @@ install:
 	go install --ldflags '-extldflags "-static"' \
 		--ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
 		./cmd/lachesis
+	go install --ldflags '-extldflags "-static"' \
+		--ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
+		./cmd/network
 
 # build compiles and places the binary in /build
 build:
 	CGO_ENABLED=0 go build \
 		--ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
 		-o build/lachesis ./cmd/lachesis/main.go
+	CGO_ENABLED=0 go build \
+		--ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`" \
+		-o build/network ./cmd/network/
 
 # dist builds binaries for all platforms and packages them for distribution
 dist:
