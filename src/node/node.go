@@ -117,6 +117,7 @@ func (n *Node) Init() error {
 			return err
 		}
 	}
+	n.Register()
 
 	return n.core.SetHeadAndSeq()
 }
