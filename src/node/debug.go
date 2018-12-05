@@ -29,8 +29,12 @@ type EventBodyLite struct {
 type EventMessageLite struct {
 	Body      EventBodyLite
 	Signature string //creator's digital signature of body
-	TopologicalIndex int
+	TopologicalIndex int64
+	Hex              string
+	Round            int64
+	RoundReceived    int64
 
+	WitnessProof []string
 //	FlagTable []byte // FlagTable stores connection information
 }
 type EventLite struct {
@@ -74,8 +78,12 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 					Creator: peers.ByPubKey[event.Creator()].NetAddr,
 					Index: event.Message.Body.Index,
 				},
+				Hex: event.Message.Hex,
 				Signature: event.Message.Signature,
-				//				TopologicalIndex: event.TopologicalIndex,
+				WitnessProof: event.Message.WitnessProof,
+				Round: event.Message.Round,
+				RoundReceived: event.Message.RoundReceived,
+				TopologicalIndex: event.Message.TopologicalIndex,
 				//				FlagTable: event.FlagTable,
 			},
 		}
