@@ -18,8 +18,12 @@ type Graph struct {
 
 func (g *Graph) GetBlocks() []poset.Block {
 	res := []poset.Block{}
- 	blockIdx := int64(0)
 	store := g.Node.core.poset.Store
+ 	blockIdx := store.LastBlockIndex() - 10
+
+	if blockIdx < 0 {
+		blockIdx = 0
+	}
 
  	for blockIdx <= store.LastBlockIndex() {
 		r, err := store.GetBlock(blockIdx)
@@ -37,7 +41,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 
 	store := g.Node.core.poset.Store
 	peers := g.Node.core.poset.Participants
-
+	known := store.KnownEvents()
 	for _, p := range peers.ByPubKey {
 		root, err := store.GetRoot(p.PubKeyHex)
 
@@ -45,7 +49,12 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 			panic(err)
 		}
 
-		evs, err := store.ParticipantEvents(p.PubKeyHex, root.SelfParent.Index)
+		skip := known[p.ID] - 30
+		if skip < 0 {
+			skip = -1
+		}
+
+		evs, err := store.ParticipantEvents(p.PubKeyHex, skip)
 
 		if err != nil {
 			panic(err)
@@ -85,14 +94,18 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 func (g *Graph) GetRounds() []poset.RoundInfo {
 	res := []poset.RoundInfo{}
 
-	round := int64(0)
-
 	store := g.Node.core.poset.Store
+
+	round := store.LastRound() - 20
+
+	if round < 0 {
+		round = 0
+	}
 
 	for round <= store.LastRound() {
 		r, err := store.GetRound(round)
 
-		if err != nil || !r.IsQueued() {
+		if err != nil {
 			break
 		}
 
