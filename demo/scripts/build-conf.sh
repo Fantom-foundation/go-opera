@@ -18,9 +18,10 @@ do
     dest=$DEST/node$i
     mkdir -p $dest
     echo "Generating key pair for node$i"
-    docker run  \
-        -v $dest:/.lachesis \
-        --rm Fantom-foundation/go-lachesis keygen
+    docker run --rm \
+        -v $dest:/keys \
+        go-lachesis \
+        keygen --pem /keys/priv_key.pem --pub /keys/key.pub
     echo "$IPBASE$i:$PORT" > $dest/addr
 done
 
