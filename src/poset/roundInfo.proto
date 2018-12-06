@@ -15,4 +15,5 @@ message RoundEvent {
 
 message RoundInfoMessage {
   map<string, RoundEvent> Events = 1;
+  bool queued = 2;
 }

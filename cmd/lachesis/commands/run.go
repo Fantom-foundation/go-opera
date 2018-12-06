@@ -92,8 +92,9 @@ func runSingleLachesis(config *CLIConfig) error {
 			for {
 				time.Sleep(10 * time.Second)
 				ct := engine.Node.GetConsensusTransactionsCount()
+				pdl := engine.Node.GetPendingLoadedEvents()
 				// 3 - number of notes in test; 10 - number of transactions sended at once
-				if ct >= 3*10*config.Lachesis.TestN {
+				if ct >= 3*10*config.Lachesis.TestN && pdl < 1 {
 					time.Sleep(10 * time.Second)
 					engine.Node.Shutdown()
 					break

@@ -407,7 +407,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 
 func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 	var res []Event
-	t := int64(0)
+	t := int64(-1)
 	err := s.db.View(func(txn *badger.Txn) error {
 		key := topologicalEventKey(t)
 		item, errr := txn.Get(key)
@@ -521,11 +521,16 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 			Index:                root.SelfParent.Index,
 		}
 		event := Event{
-			Hex_: root.SelfParent.Hash,
 			Message: EventMessage {
+				Hex: root.SelfParent.Hash,
+				CreatorID: root.SelfParent.CreatorID,
 				TopologicalIndex: -1,
 				Body:      &body,
 				FlagTable: ft,
+				LamportTimestamp: 0,
+				Round:            0,
+				RoundReceived:    0 /*RoundNIL*/,
+				WitnessProof: []string{root.SelfParent.Hash},
 			},
 		}
 		if err := s.SetEvent(event); err != nil {
