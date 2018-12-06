@@ -101,7 +101,7 @@ func (b *Block) RoundReceived() int64 {
 	return b.Body.RoundReceived
 }
 
-func (b *Block) blockHash() ([]byte, error) {
+func (b *Block) BlockHash() ([]byte, error) {
 	hashBytes, err := b.ProtoMarshal()
 	if err != nil {
 		return nil, err
