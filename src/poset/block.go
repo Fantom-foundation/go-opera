@@ -101,6 +101,19 @@ func (b *Block) RoundReceived() int64 {
 	return b.Body.RoundReceived
 }
 
+func (b *Block) blockHash() ([]byte, error) {
+	hashBytes, err := b.ProtoMarshal()
+	if err != nil {
+		return nil, err
+	}
+	return crypto.SHA256(hashBytes), nil
+}
+
+func (b *Block) BlockHex() string {
+	hash, _ := b.BlockHash()
+	return fmt.Sprintf("0x%X", hash)
+}
+
 func (b *Block) GetBlockSignatures() []BlockSignature {
 	res := make([]BlockSignature, len(b.Signatures))
 	i := 0
