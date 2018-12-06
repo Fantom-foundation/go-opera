@@ -23,15 +23,6 @@ RUN apk --no-cache add libc-dev cmake \
 
 FROM scratch as lachesis_base
 
-ENV node_addr='127.0.0.1'
-
-EXPOSE 1338
-EXPOSE 1339
-EXPOSE 8000
-EXPOSE 12000
-
-VOLUME /data
-
 # cp -r /etc/ssl/certs certs, then add to your `docker build`: `--build-arg ca_certificates=certs`
 ARG ca_certificates
 ADD "$ca_certificates" /etc/ssl/certs/
