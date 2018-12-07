@@ -51,6 +51,10 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 		if len(selectablePeers) > 1 {
 			_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.last)
 			if len(selectablePeers) > 1 {
+				var k int64
+				minUsed := selectablePeers[len(selectablePeers) - 1].Used
+				for k = 0; selectablePeers[k].Used > minUsed; k++ {}
+				selectablePeers = selectablePeers[k:]
 				if ft, err := ps.GetFlagTable(); err == nil {
 					for id, flag := range ft {
 						if flag == 1 && len(selectablePeers) > 1 {

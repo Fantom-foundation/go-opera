@@ -519,6 +519,7 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 		body := EventBody{
 			Creator:              creator,/*s.participants.ByPubKey[participant].PubKey,*/
 			Index:                root.SelfParent.Index,
+			Parents:              []string{"",""},
 		}
 		event := Event{
 			Message: EventMessage {
