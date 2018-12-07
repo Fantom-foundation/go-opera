@@ -745,6 +745,7 @@ func (n *Node) logStats() {
 		"z_rpcJobs":              n.rpcJobs.get(),
 		"addr":                   n.localAddr,
 		"pending_loaded_events":  n.GetPendingLoadedEvents(),
+		"last_round":             n.GetLastRound(),
 	}).Warn("logStats()")
 }
 
