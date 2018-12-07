@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -29,22 +30,27 @@ func (j *JSONPeers) Peers() (*Peers, error) {
 	j.l.Lock()
 	defer j.l.Unlock()
 
-	// Read the file
+	// Read the file or create empty
 	buf, err := ioutil.ReadFile(j.path)
 	if err != nil {
-		return nil, err
-	}
-
-	// Check for no peers
-	if len(buf) == 0 {
-		return nil, nil
+		err = os.MkdirAll(filepath.Dir(j.path), 0750)
+		if err != nil {
+			return nil, err
+		}
+		f, err := os.OpenFile(j.path, os.O_CREATE|os.O_WRONLY, 0640)
+		if err != nil {
+			return nil, err
+		}
+		f.Close()
 	}
 
 	// Decode the peers
-	var peerSet []*Peer
-	dec := json.NewDecoder(bytes.NewReader(buf))
-	if err := dec.Decode(&peerSet); err != nil {
-		return nil, err
+	peerSet := make([]*Peer, len(buf))
+	if len(buf) > 0 {
+		dec := json.NewDecoder(bytes.NewReader(buf))
+		if err := dec.Decode(&peerSet); err != nil {
+			return nil, err
+		}
 	}
 
 	return NewPeersFromSlice(peerSet), nil

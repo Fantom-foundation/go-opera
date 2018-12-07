@@ -1,15 +1,17 @@
+.PHONY: up build conf start watch stop demo bombard
+
 nodes = 4
 txs = 10
 
 up: conf start watch
 
-# build lachesis and dummy docker images for local registry. If this step is not
-# run, the images will be pulled from the public registry on docker.io
-build :
-	cd ../docker && make demo
+# build lachesis and dummy docker images for local registry
+build:
+	docker build -f ./Dockerfile.dummy -t go-dummy ../
+	docker build -f ./Dockerfile.node -t go-lachesis ../
 
 # generate keys and peers.json file
-conf : 
+conf: 
 	rm -rf conf
 	./scripts/build-conf.sh $(nodes)
 
@@ -32,6 +34,3 @@ demo:
 # send a bunch of transactions
 bombard: 
 	./scripts/bombard.sh $(nodes) $(txs)
-
-.PHONY: up build conf start watch stop demo bombard
-	
