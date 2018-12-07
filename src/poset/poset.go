@@ -313,7 +313,8 @@ func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 		return err
 	}
 
-	sentinels[ex.Creator()] = true
+	creator := p.Participants.ById[ex.CreatorID()]
+	sentinels[creator.PubKeyHex] = true
 
 	if x == y {
 		return nil
