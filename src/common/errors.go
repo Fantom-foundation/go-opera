@@ -12,6 +12,7 @@ const (
 	NoRoot
 	UnknownParticipant
 	Empty
+	KeyAlreadyExists
 )
 
 type StoreErr struct {

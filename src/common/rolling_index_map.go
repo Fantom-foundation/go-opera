@@ -25,6 +25,15 @@ func NewRollingIndexMap(name string, size int, keys []int64) *RollingIndexMap {
 	}
 }
 
+func (rim *RollingIndexMap) AddKey(key int64) error {
+	if _, ok := rim.mapping[key]; ok {
+		return NewStoreErr(rim.name, KeyAlreadyExists, fmt.Sprintf("%d", key))
+	}
+	rim.keys = append(rim.keys, key)
+	rim.mapping[key] = NewRollingIndex(fmt.Sprintf("%s[%d]", rim.name, key), rim.size)
+	return nil
+}
+
 //return key items with index > skip
 func (rim *RollingIndexMap) Get(key int64, skipIndex int64) ([]interface{}, error) {
 	items, ok := rim.mapping[key]

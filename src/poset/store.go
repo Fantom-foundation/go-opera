@@ -9,6 +9,8 @@ import "github.com/Fantom-foundation/go-lachesis/src/peers"
 type Store interface {
 	CacheSize() int
 	Participants() (*peers.Peers, error)
+	RepertoireByPubKey() map[string]*peers.Peer
+	RepertoireByID() map[int64]*peers.Peer
 	RootsBySelfParent() (map[string]Root, error)
 	GetEvent(string) (Event, error)
 	SetEvent(Event) error
@@ -20,8 +22,10 @@ type Store interface {
 	ConsensusEvents() []string
 	ConsensusEventsCount() int64
 	AddConsensusEvent(Event) error
-	GetRound(int64) (RoundInfo, error)
-	SetRound(int64, RoundInfo) error
+	GetRoundCreated(int64) (RoundCreated, error)
+	SetRoundCreated(int64, RoundCreated) error
+	GetRoundReceived(int64) (RoundReceived, error)
+	SetRoundReceived(int64, RoundReceived) error
 	LastRound() int64
 	RoundWitnesses(int64) []string
 	RoundEvents(int64) int

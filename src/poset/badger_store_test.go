@@ -260,7 +260,7 @@ func TestDBRoundMethods(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	round := NewRoundInfo()
+	round := NewRoundCreated()
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
@@ -273,11 +273,11 @@ func TestDBRoundMethods(t *testing.T) {
 		round.AddEvent(event.Hex(), true)
 	}
 
-	if err := store.dbSetRound(0, *round); err != nil {
+	if err := store.dbSetRoundCreated(0, *round); err != nil {
 		t.Fatal(err)
 	}
 
-	storedRound, err := store.dbGetRound(0)
+	storedRound, err := store.dbGetRoundCreated(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +542,7 @@ func TestBadgerRounds(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	round := NewRoundInfo()
+	round := NewRoundCreated()
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
@@ -555,7 +555,7 @@ func TestBadgerRounds(t *testing.T) {
 		round.AddEvent(event.Hex(), true)
 	}
 
-	if err := store.SetRound(0, *round); err != nil {
+	if err := store.SetRoundCreated(0, *round); err != nil {
 		t.Fatal(err)
 	}
 
@@ -563,7 +563,7 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatalf("Store LastRound should be 0, not %d", c)
 	}
 
-	storedRound, err := store.GetRound(0)
+	storedRound, err := store.GetRoundCreated(0)
 	if err != nil {
 		t.Fatal(err)
 	}

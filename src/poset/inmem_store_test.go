@@ -123,7 +123,7 @@ func TestInmemEvents(t *testing.T) {
 func TestInmemRounds(t *testing.T) {
 	store, participants := initInmemStore(10)
 
-	round := NewRoundInfo()
+	round := NewRoundCreated()
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
@@ -137,10 +137,10 @@ func TestInmemRounds(t *testing.T) {
 	}
 
 	t.Run("Store Round", func(t *testing.T) {
-		if err := store.SetRound(0, *round); err != nil {
+		if err := store.SetRoundCreated(0, *round); err != nil {
 			t.Fatal(err)
 		}
-		storedRound, err := store.GetRound(0)
+		storedRound, err := store.GetRoundCreated(0)
 		if err != nil {
 			t.Fatal(err)
 		}

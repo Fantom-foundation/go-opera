@@ -203,6 +203,10 @@ func (e *Event) Transactions() [][]byte {
 	return e.Message.Body.Transactions
 }
 
+func (e *Event) InternalTransactions() []*InternalTransaction {
+	return e.Message.Body.InternalTransactions
+}
+
 func (e *Event) Index() int64 {
 	return e.Message.Body.Index
 }

@@ -43,6 +43,11 @@ func NewParticipantEventsCache(size int, participants *peers.Peers) *Participant
 	}
 }
 
+func (pec *ParticipantEventsCache) AddPeer(peer *peers.Peer) error {
+	pec.participants.AddPeer(peer)
+	return pec.rim.AddKey(peer.ID)
+}
+
 func (pec *ParticipantEventsCache) participantID(participant string) (int64, error) {
 	peer, ok := pec.participants.ByPubKey[participant]
 

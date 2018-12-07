@@ -331,6 +331,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			ev.Message.Round = poset.RoundNIL
 			ev.Message.RoundReceived = poset.RoundNIL
 			if err := c.InsertEvent(*ev, false); err != nil {
+				c.logger.Error("SYNC: INSERT ERR", err)
 				return err
 			}
 		}

@@ -8,8 +8,8 @@ import (
 
 type Infos struct {
 	ParticipantEvents map[string]map[string]poset.Event
-	Rounds            []poset.RoundInfo
-  Blocks            []poset.Block
+	Rounds            []poset.RoundCreated
+	Blocks            []poset.Block
 }
 
 type Graph struct {
@@ -40,9 +40,9 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	res := make(map[string]map[string]poset.Event)
 
 	store := g.Node.core.poset.Store
-	peers := g.Node.core.poset.Participants
+	repertoire := g.Node.core.poset.Store.RepertoireByPubKey()
 	known := store.KnownEvents()
-	for _, p := range peers.ByPubKey {
+	for _, p := range repertoire {
 		root, err := store.GetRoot(p.PubKeyHex)
 
 		if err != nil {
@@ -91,8 +91,8 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	return res
 }
 
-func (g *Graph) GetRounds() []poset.RoundInfo {
-	res := []poset.RoundInfo{}
+func (g *Graph) GetRounds() []poset.RoundCreated {
+	res := []poset.RoundCreated{}
 
 	store := g.Node.core.poset.Store
 
@@ -103,7 +103,7 @@ func (g *Graph) GetRounds() []poset.RoundInfo {
 	}
 
 	for round <= store.LastRound() {
-		r, err := store.GetRound(round)
+		r, err := store.GetRoundCreated(round)
 
 		if err != nil {
 			break

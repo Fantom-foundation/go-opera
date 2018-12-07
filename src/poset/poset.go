@@ -26,19 +26,20 @@ type Core interface {
 //Poset is a DAG of Events. It also contains methods to extract a consensus
 //order of Events and map them onto a blockchain.
 type Poset struct {
-	Participants            *peers.Peers     //[public key] => id
-	Store                   Store            //store of Events, Rounds, and Blocks
-	UndeterminedEvents      []string         //[index] => hash . FIFO queue of Events whose consensus order is not yet determined
-	PendingRounds           []*pendingRound  //FIFO queue of Rounds which have not attained consensus yet
-	LastConsensusRound      *int64           //index of last consensus round
-	FirstConsensusRound     *int64           //index of first consensus round (only used in tests)
-	AnchorBlock             *int64           //index of last block with enough signatures
-	LastCommitedRoundEvents int              //number of events in round before LastConsensusRound
-	SigPool                 []BlockSignature //Pool of Block signatures that need to be processed
-	ConsensusTransactions   uint64           //number of consensus transactions
+	Participants            *peers.Peers      //[public key] => id
+	Store                   Store             //store of Events, Rounds, and Blocks
+	UndeterminedEvents      []string          //[index] => hash . FIFO queue of Events whose consensus order is not yet determined
+	PendingRounds           []*pendingRound   //FIFO queue of Rounds which have not attained consensus yet
+	PendingRoundReceived    common.Int64Slice //FIFO queue of RoundReceived which have not been made into frames yet
+	LastConsensusRound      *int64            //index of last consensus round
+	FirstConsensusRound     *int64            //index of first consensus round (only used in tests)
+	AnchorBlock             *int64            //index of last block with enough signatures
+	LastCommitedRoundEvents int               //number of events in round before LastConsensusRound
+	SigPool                 []BlockSignature  //Pool of Block signatures that need to be processed
+	ConsensusTransactions   uint64            //number of consensus transactions
 	PendingLoadedEvents     int64            //number of loaded events that are not yet committed
-	commitCh                chan Block       //channel for committing Blocks
-	topologicalIndex        int64            //counter used to order events in topological order (only local)
+	commitCh                chan Block        //channel for committing Blocks
+	topologicalIndex        int64             //counter used to order events in topological order (only local)
 	superMajority           int
 	trustCount              int
 	core                    Core
@@ -74,30 +75,32 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	if err != nil {
 		logger.Fatal("Unable to init Poset.selfAncestorCache")
 	}
-	stronglySeeCache, err :=  lru.New(cacheSize)
+	stronglySeeCache, err := lru.New(cacheSize)
 	if err != nil {
 		logger.Fatal("Unable to init Poset.stronglySeeCache")
 	}
-	roundCache, err :=        lru.New(cacheSize)
+	roundCache, err := lru.New(cacheSize)
 	if err != nil {
-		logger.Fatal("Unable to init Poset.roundCache")
+		logger.Fatal("Unable to init Poset.roundCreatedCache")
 	}
-	timestampCache, err :=    lru.New(cacheSize)
+	timestampCache, err := lru.New(cacheSize)
 	if err != nil {
 		logger.Fatal("Unable to init Poset.timestampCache")
 	}
 	poset := Poset{
-		Participants:      participants,
-		Store:             store,
-		commitCh:          commitCh,
-		ancestorCache:     ancestorCache,
-		selfAncestorCache: selfAncestorCache,
-		stronglySeeCache:  stronglySeeCache,
-		roundCache:        roundCache,
-		timestampCache:    timestampCache,
-		logger:            logger,
-		superMajority:     superMajority,
-		trustCount:        trustCount,
+		Participants:         participants,
+		Store:                store,
+		PendingRounds:        []*pendingRound{},
+		PendingRoundReceived: common.Int64Slice{},
+		commitCh:             commitCh,
+		ancestorCache:        ancestorCache,
+		selfAncestorCache:    selfAncestorCache,
+		stronglySeeCache:     stronglySeeCache,
+		roundCache:           roundCache,
+		timestampCache:       timestampCache,
+		logger:               logger,
+		superMajority:        superMajority,
+		trustCount:           trustCount,
 	}
 
 	participants.OnNewPeer(func(peer *peers.Peer) {
@@ -775,9 +778,16 @@ func (p *Poset) setWireInfo(event *Event) error {
 	otherParentCreatorID := int64(-1)
 	otherParentIndex := int64(-1)
 
+	eventCreator := event.Creator()
+	creator, ok := p.Store.RepertoireByPubKey()[eventCreator]
+	if !ok {
+		return fmt.Errorf("Creator %s not found", eventCreator)
+	}
+	creatorId := creator.ID
+
 	//could be the first Event inserted for this creator. In this case, use Root
-	if lf, isRoot, _ := p.Store.LastEventFrom(event.Creator()); isRoot && lf == event.SelfParent() {
-		root, err := p.Store.GetRoot(event.Creator())
+	if lf, isRoot, _ := p.Store.LastEventFrom(eventCreator); isRoot && lf == event.SelfParent() {
+		root, err := p.Store.GetRoot(eventCreator)
 		if err != nil {
 			return err
 		}
@@ -792,7 +802,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 
 	if event.OtherParent() != "" {
 		//Check Root then regular Events
-		root, err := p.Store.GetRoot(event.Creator())
+		root, err := p.Store.GetRoot(eventCreator)
 		if err != nil {
 			return err
 		}
@@ -804,7 +814,11 @@ func (p *Poset) setWireInfo(event *Event) error {
 			if err != nil {
 				return err
 			}
-			otherParentCreatorID = p.Participants.ByPubKey[otherParent.Creator()].ID
+			otherParentCreator, ok := p.Store.RepertoireByPubKey()[otherParent.Creator()]
+			if !ok {
+				return fmt.Errorf("Creator %s not found", otherParent.Creator())
+			}
+			otherParentCreatorID = otherParentCreator.ID
 			otherParentIndex = otherParent.Index()
 		}
 	}
@@ -812,7 +826,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 	event.SetWireInfo(selfParentIndex,
 		otherParentCreatorID,
 		otherParentIndex,
-		p.Participants.ByPubKey[event.Creator()].ID)
+		creatorId)
 
 	return nil
 }
@@ -925,7 +939,7 @@ func (p *Poset) DivideRounds() error {
 			ev.SetRound(roundNumber)
 			updateEvent = true
 
-			roundInfo, err := p.Store.GetRound(roundNumber)
+			roundCreated, err := p.Store.GetRoundCreated(roundNumber)
 			if err != nil && !common.Is(err, common.KeyNotFound) {
 				return err
 			}
@@ -942,21 +956,21 @@ func (p *Poset) DivideRounds() error {
 				other Events to be added on top, but the base layer must not be
 				reprocessed.
 			*/
-			if !roundInfo.Message.Queued &&
+			if !roundCreated.Message.Queued &&
 				(p.LastConsensusRound == nil ||
 					roundNumber >= *p.LastConsensusRound) {
 
 				p.PendingRounds = append(p.PendingRounds, &pendingRound{roundNumber, false})
-				roundInfo.Message.Queued = true
+				roundCreated.Message.Queued = true
 			}
 
 			witness, err := p.witness(hash)
 			if err != nil {
 				return err
 			}
-			roundInfo.AddEvent(hash, witness)
+			roundCreated.AddEvent(hash, witness)
 
-			err = p.Store.SetRound(roundNumber, roundInfo)
+			err = p.Store.SetRoundCreated(roundNumber, roundCreated)
 			if err != nil {
 				return err
 			}
@@ -1034,7 +1048,7 @@ func (p *Poset) DecideFame() error {
 
 	for pos, r := range p.PendingRounds {
 		roundIndex := r.Index
-		roundInfo, err := p.Store.GetRound(roundIndex)
+		roundInfo, err := p.Store.GetRoundCreated(roundIndex)
 		if err != nil {
 			return err
 		}
@@ -1101,7 +1115,7 @@ func (p *Poset) DecideFame() error {
 			}
 		}
 
-		err = p.Store.SetRound(roundIndex, roundInfo)
+		err = p.Store.SetRoundCreated(roundIndex, roundInfo)
 		if err != nil {
 			return err
 		}
@@ -1109,7 +1123,6 @@ func (p *Poset) DecideFame() error {
 		if roundInfo.WitnessesDecided() {
 			decidedRounds[roundIndex] = int64(pos)
 		}
-
 	}
 
 	p.updatePendingRounds(decidedRounds)
@@ -1127,6 +1140,9 @@ func (p *Poset) DecideRoundReceived() error {
 	   unique famous witnesses have received it, if all earlier rounds have the
 	   fame of all witnesses decided"
 	*/
+
+	pendingRoundReceived := map[int64]bool{}
+
 	for _, x := range p.UndeterminedEvents {
 
 		received := false
@@ -1137,7 +1153,7 @@ func (p *Poset) DecideRoundReceived() error {
 
 		for i := r + 1; i <= p.Store.LastRound(); i++ {
 
-			tr, err := p.Store.GetRound(i)
+			tr, err := p.Store.GetRoundCreated(i)
 			if err != nil {
 				//Can happen after a Reset/FastSync
 				if p.LastConsensusRound != nil &&
@@ -1184,10 +1200,19 @@ func (p *Poset) DecideRoundReceived() error {
 				}
 
 				tr.SetConsensusEvent(x)
-				err = p.Store.SetRound(i, tr)
+				roundReceived, err := p.Store.GetRoundReceived(i)
+				if err != nil {
+					roundReceived = *NewRoundReceived()
+				}
+
+				roundReceived.Rounds = append(roundReceived.Rounds, x)
+
+				err = p.Store.SetRoundReceived(i, roundReceived)
 				if err != nil {
 					return err
 				}
+
+				pendingRoundReceived[i] = true
 
 				//break out of i loop
 				break
@@ -1199,6 +1224,12 @@ func (p *Poset) DecideRoundReceived() error {
 			newUndeterminedEvents = append(newUndeterminedEvents, x)
 		}
 	}
+
+	for i := range pendingRoundReceived {
+		p.PendingRoundReceived = append(p.PendingRoundReceived, i)
+	}
+
+	sort.Sort(p.PendingRoundReceived)
 
 	p.UndeterminedEvents = newUndeterminedEvents
 
@@ -1213,15 +1244,29 @@ func (p *Poset) ProcessDecidedRounds() error {
 	//Defer removing processed Rounds from the PendingRounds Queue
 	processedIndex := 0
 	defer func() {
-		p.PendingRounds = p.PendingRounds[processedIndex:]
+		if processedIndex == 0 {
+			return
+		}
+		lastProcessedRound := p.PendingRoundReceived[processedIndex - 1]
+		for i, round := range p.PendingRounds {
+			if round.Index == lastProcessedRound {
+				p.PendingRounds = p.PendingRounds[i+1:]
+				break
+			}
+		}
+		p.PendingRoundReceived = p.PendingRoundReceived[processedIndex:]
 	}()
 
-	for _, r := range p.PendingRounds {
+	for _, r := range p.PendingRoundReceived {
 
 		//Although it is possible for a Round to be 'decided' before a previous
 		//round, we should NEVER process a decided round before all the previous
 		//rounds are processed.
-		if !r.Decided {
+		//if !r.Decided {
+		//	break
+		//}
+		// Don't skip rounds
+		if p.LastConsensusRound != nil && r > (*p.LastConsensusRound + 1) {
 			break
 		}
 
@@ -1230,22 +1275,22 @@ func (p *Poset) ProcessDecidedRounds() error {
 		//Indeed, after a Reset, LastConsensusRound is added to PendingRounds,
 		//but its ConsensusEvents (which are necessarily 'under' this Round) are
 		//already deemed committed. Hence, skip this Round after a Reset.
-		if p.LastConsensusRound != nil && r.Index == *p.LastConsensusRound {
+		if p.LastConsensusRound != nil && r == *p.LastConsensusRound {
 			continue
 		}
 
-		frame, err := p.GetFrame(r.Index)
+		frame, err := p.GetFrame(r)
 		if err != nil {
-			return fmt.Errorf("getting Frame %d: %v", r.Index, err)
+			return fmt.Errorf("getting Frame %d: %v", r, err)
 		}
 
-		round, err := p.Store.GetRound(r.Index)
-		if err != nil {
-			return err
-		}
+		//round, err := p.Store.GetRoundReceived(r)
+		//if err != nil {
+		//	return err
+		//}
 		p.logger.WithFields(logrus.Fields{
-			"round_received": r.Index,
-			"witnesses":      round.FamousWitnesses(),
+			"round_received": r,
+			//"witnesses":      round.FamousWitnesses(),
 			"events":         len(frame.Events),
 			"roots":          frame.Roots,
 		}).Debugf("Processing Decided Round")
@@ -1280,13 +1325,13 @@ func (p *Poset) ProcessDecidedRounds() error {
 			}
 
 		} else {
-			p.logger.Debugf("No Events to commit for ConsensusRound %d", r.Index)
+			p.logger.Debugf("No Events to commit for ConsensusRound %d", r)
 		}
 
 		processedIndex++
 
-		if p.LastConsensusRound == nil || r.Index > *p.LastConsensusRound {
-			p.setLastConsensusRound(r.Index)
+		if p.LastConsensusRound == nil || r > *p.LastConsensusRound {
+			p.setLastConsensusRound(r)
 		}
 
 	}
@@ -1304,13 +1349,13 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	}
 
 	//Get the Round and corresponding consensus Events
-	round, err := p.Store.GetRound(roundReceived)
+	round, err := p.Store.GetRoundReceived(roundReceived)
 	if err != nil {
 		return Frame{}, err
 	}
 
 	var events []Event
-	for _, eh := range round.ConsensusEvents() {
+	for _, eh := range round.Rounds {
 		e, err := p.Store.GetEvent(eh)
 		if err != nil {
 			return Frame{}, err
@@ -1338,6 +1383,12 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	//Every participant needs a Root in the Frame. For the participants that
 	//have no Events in this Frame, we create a Root from their last consensus
 	//Event, or their last known Root
+	// INFO: Needs PeerSet from dynamic_participants
+	//peerSet, err := p.Store.GetPeerSet(roundReceived)
+	//if err != nil {
+	//	return nil, err
+	//}
+
 	for _, peer := range p.Participants.ToPubKeySlice() {
 		if _, ok := roots[peer]; !ok {
 			var root Root
@@ -1613,7 +1664,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	otherParent := ""
 	var err error
 
-	creator := p.Participants.ById[wevent.Body.CreatorID]
+	creator := p.Store.RepertoireByID()[wevent.Body.CreatorID]
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
 	if creator == nil {
 		return nil, fmt.Errorf("unknown wevent.Body.CreatorID=%v", wevent.Body.CreatorID)
@@ -1630,7 +1681,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		}
 	}
 	if wevent.Body.OtherParentIndex >= 0 {
-		otherParentCreator := p.Participants.ById[wevent.Body.OtherParentCreatorID]
+		otherParentCreator := p.Store.RepertoireByID()[wevent.Body.OtherParentCreatorID]
 		if otherParentCreator != nil {
 			otherParent, err = p.Store.ParticipantEvent(otherParentCreator.PubKeyHex, wevent.Body.OtherParentIndex)
 			if err != nil {
@@ -1689,10 +1740,10 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 
 	event := &Event{
 		Message: EventMessage{
-			Body:         &body,
-			Signature:    wevent.Signature,
-			FlagTable:    wevent.FlagTable,
-			WitnessProof: wevent.WitnessProof,
+			Body:                 &body,
+			Signature:            wevent.Signature,
+			FlagTable:            wevent.FlagTable,
+			WitnessProof:         wevent.WitnessProof,
 			SelfParentIndex:      wevent.Body.SelfParentIndex,
 			OtherParentCreatorID: wevent.Body.OtherParentCreatorID,
 			OtherParentIndex:     wevent.Body.OtherParentIndex,
@@ -1775,7 +1826,6 @@ func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64
 	}
 	return nil, err
 }
-
 
 /*******************************************************************************
    Helpers

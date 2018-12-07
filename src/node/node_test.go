@@ -2,19 +2,22 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/sirupsen/logrus"
@@ -435,6 +438,17 @@ func TestGossip(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	s := NewService("127.0.0.1:3000", nodes[0], logger)
+
+	srv := s.Serve()
+
+	t.Logf("serving for 3 seconds")
+	time.Sleep(3 * time.Second)
+	t.Logf("stopping after waiting for Serve()...")
+	if err := srv.Shutdown(nil); err != nil {
+		t.Fatal(err) // failure/timeout shutting down the server gracefully
+	}
+
 	checkGossip(nodes, 0, t)
 }
 
@@ -746,12 +760,97 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 	return nil
 }
 
+type Service struct {
+	bindAddress string
+	node        *Node
+	graph       *Graph
+	logger      *logrus.Logger
+}
+
+func NewService(bindAddress string, n *Node, logger *logrus.Logger) *Service {
+	service := Service{
+		bindAddress: bindAddress,
+		node:        n,
+		graph:       NewGraph(n),
+		logger:      logger,
+	}
+
+	return &service
+}
+
+func (s *Service) Serve() *http.Server {
+	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
+
+	http.HandleFunc("/stats", s.GetStats)
+
+	http.HandleFunc("/block/", s.GetBlock)
+
+	http.HandleFunc("/graph", s.GetGraph)
+
+	srv := &http.Server{Addr: s.bindAddress, Handler: nil}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			s.logger.WithField("error", err).Error("Service failed")
+		}
+	}()
+
+	return srv
+}
+
+func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
+	stats := s.node.GetStats()
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(stats)
+}
+
+func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
+	param := r.URL.Path[len("/block/"):]
+
+	blockIndex, err := strconv.ParseInt(param, 10, 64)
+
+	if err != nil {
+		s.logger.WithError(err).Errorf("Parsing block_index parameter %s", param)
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	block, err := s.node.GetBlock(blockIndex)
+
+	if err != nil {
+		s.logger.WithError(err).Errorf("Retrieving block %d", blockIndex)
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(block)
+}
+
+func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	encoder := json.NewEncoder(w)
+
+	res := s.graph.GetInfos()
+
+	encoder.Encode(res)
+}
+
 func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {
 
 	nodeBlocks := map[int64][]poset.Block{}
 	for _, n := range nodes {
 		var blocks []poset.Block
-		for i := fromBlock; i < n.core.poset.Store.LastBlockIndex(); i++ {
+		lastIndex := n.core.poset.Store.LastBlockIndex()
+		for i := fromBlock; i < lastIndex; i++ {
 			block, err := n.core.poset.Store.GetBlock(i)
 			if err != nil {
 				t.Fatalf("checkGossip: %v ", err)

@@ -9,19 +9,25 @@ type pendingRound struct {
 	Decided bool
 }
 
-type RoundInfo struct {
-	Message RoundInfoMessage
+type RoundCreated struct {
+	Message RoundCreatedMessage
 }
 
-func NewRoundInfo() *RoundInfo {
-	return &RoundInfo{
-		Message: RoundInfoMessage{
+func NewRoundCreated() *RoundCreated {
+	return &RoundCreated{
+		Message: RoundCreatedMessage{
 			Events: make(map[string]*RoundEvent),
 		},
 	}
 }
 
-func (r *RoundInfo) AddEvent(x string, witness bool) {
+func NewRoundReceived() *RoundReceived {
+	return &RoundReceived{
+		Rounds: []string{},
+	}
+}
+
+func (r *RoundCreated) AddEvent(x string, witness bool) {
 	_, ok := r.Message.Events[x]
 	if !ok {
 		r.Message.Events[x] = &RoundEvent{
@@ -30,7 +36,7 @@ func (r *RoundInfo) AddEvent(x string, witness bool) {
 	}
 }
 
-func (r *RoundInfo) SetConsensusEvent(x string) {
+func (r *RoundCreated) SetConsensusEvent(x string) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{}
@@ -39,7 +45,20 @@ func (r *RoundInfo) SetConsensusEvent(x string) {
 	r.Message.Events[x] = e
 }
 
-func (r *RoundInfo) SetFame(x string, f bool) {
+func (r *RoundCreated) SetRoundReceived(x string, round int64) {
+	e, ok := r.Message.Events[x]
+
+	if !ok {
+		return
+	}
+
+	e.RoundReceived = round
+
+	r.Message.Events[x] = e
+}
+
+
+func (r *RoundCreated) SetFame(x string, f bool) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{
@@ -55,7 +74,7 @@ func (r *RoundInfo) SetFame(x string, f bool) {
 }
 
 //return true if no witnesses' fame is left undefined
-func (r *RoundInfo) WitnessesDecided() bool {
+func (r *RoundCreated) WitnessesDecided() bool {
 	for _, e := range r.Message.Events {
 		if e.Witness && e.Famous == Trilean_UNDEFINED {
 			return false
@@ -65,7 +84,7 @@ func (r *RoundInfo) WitnessesDecided() bool {
 }
 
 //return witnesses
-func (r *RoundInfo) Witnesses() []string {
+func (r *RoundCreated) Witnesses() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if e.Witness {
@@ -75,7 +94,7 @@ func (r *RoundInfo) Witnesses() []string {
 	return res
 }
 
-func (r *RoundInfo) RoundEvents() []string {
+func (r *RoundCreated) RoundEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if !e.Consensus {
@@ -86,7 +105,7 @@ func (r *RoundInfo) RoundEvents() []string {
 }
 
 //return consensus events
-func (r *RoundInfo) ConsensusEvents() []string {
+func (r *RoundCreated) ConsensusEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if e.Consensus {
@@ -97,7 +116,7 @@ func (r *RoundInfo) ConsensusEvents() []string {
 }
 
 //return famous witnesses
-func (r *RoundInfo) FamousWitnesses() []string {
+func (r *RoundCreated) FamousWitnesses() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if e.Witness && e.Famous == Trilean_TRUE {
@@ -107,12 +126,12 @@ func (r *RoundInfo) FamousWitnesses() []string {
 	return res
 }
 
-func (r *RoundInfo) IsDecided(witness string) bool {
+func (r *RoundCreated) IsDecided(witness string) bool {
 	w, ok := r.Message.Events[witness]
 	return ok && w.Witness && w.Famous != Trilean_UNDEFINED
 }
 
-func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
+func (r *RoundCreated) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
 	if err := bf.Marshal(&r.Message); err != nil {
@@ -121,11 +140,24 @@ func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
-func (r *RoundInfo) ProtoUnmarshal(data []byte) error {
+func (r *RoundReceived) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(r); err != nil {
+		return nil, err
+	}
+	return bf.Bytes(), nil
+}
+
+func (r *RoundCreated) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, &r.Message)
 }
 
-func (r *RoundInfo) IsQueued() bool {
+func (r *RoundReceived) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, r)
+}
+
+func (r *RoundCreated) IsQueued() bool {
 	return r.Message.Queued
 }
 
@@ -148,7 +180,7 @@ func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*Rou
 	return true
 }
 
-func (this *RoundInfo) Equals(that *RoundInfo) bool {
+func (this *RoundCreated) Equals(that *RoundCreated) bool {
 	return this.Message.Queued == that.Message.Queued &&
 		EqualsMapStringRoundEvent(this.Message.Events, that.Message.Events)
 }

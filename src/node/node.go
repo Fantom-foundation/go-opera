@@ -790,8 +790,8 @@ func (n *Node) GetPendingLoadedEvents() int64 {
 	return n.core.GetPendingLoadedEvents()
 }
 
-func (n *Node) GetRound(roundIndex int64) (poset.RoundInfo, error) {
-	return n.core.poset.Store.GetRound(roundIndex)
+func (n *Node) GetRound(roundIndex int64) (poset.RoundCreated, error) {
+	return n.core.poset.Store.GetRoundCreated(roundIndex)
 }
 
 func (n *Node) GetLastRound() int64 {
