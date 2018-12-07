@@ -24,6 +24,7 @@ type EventBodyLite struct {
 	Parents         []string         //hashes of the event's parents, self-parent first
 	Creator         string           //creator's public key
 	Index           int64            //index in the sequence of events created by Creator
+	Transactions    [][]byte
 }
 
 type EventMessageLite struct {
@@ -77,6 +78,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 					Parents: event.Message.Body.Parents,
 					Creator: peers.ByPubKey[event.Creator()].NetAddr,
 					Index: event.Message.Body.Index,
+					Transactions: event.Message.Body.Transactions,
 				},
 				Hex: event.Message.Hex,
 				Signature: event.Message.Signature,
