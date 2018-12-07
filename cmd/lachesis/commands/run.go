@@ -101,7 +101,9 @@ func runSingleLachesis(config *CLIConfig) error {
 				}
 			}
 		}()
-		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.TestDelay, config.Lachesis.Logger)
+		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN,
+			config.Lachesis.TestDelay, config.Lachesis.Logger,
+			config.ProxyAddr)
 	}
 
 	engine.Node.Register()
