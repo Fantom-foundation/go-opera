@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay uint64, logger *logrus.Logger) {
+func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay uint64, logger *logrus.Logger, ProxyAddr string) {
 	// pause before shooting test transactions
 	time.Sleep(time.Duration(delay) * time.Second)
 
@@ -36,7 +36,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 		participant := participants[rand.Intn(len(participants))]
 		node := p[participant.PubKeyHex]
 
-		_, err := transact(proxies[node.ID])
+		_, err := transact(proxies[node.ID], ProxyAddr, iteration)
 
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
@@ -54,15 +54,16 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	fmt.Println("Pinging stopped after ", n, " iterations")
 }
 
-func transact(proxy *proxy.GrpcLachesisProxy) (string, error) {
+func transact(proxy *proxy.GrpcLachesisProxy, proxyAddr string, iteration uint64) (string, error) {
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes.
 	// A good assumption is to make txns 120 bytes in size.
 	// However, for speed, we're using 1 byte here. Modify accordingly.
-	var msg [1]byte
+	//var msg [1]byte
 	for i := 0; i < 10; i++ {
 		// Send 10 txns to the server.
-		err := proxy.SubmitTx(msg[:])
+		msg := fmt.Sprintf("%s.%d.%d", proxyAddr, iteration, i)
+		err := proxy.SubmitTx([]byte(msg))
 		if err != nil {
 			return "", err
 		}

@@ -117,16 +117,11 @@ func (e *EventBody) Hash() ([]byte, error) {
 Event
 *******************************************************************************/
 
+const LamportTimestampNIL int64 = -1
+const RoundNIL int64 = -1
+
 type Event struct {
 	Message EventMessage
-
-	//used for sorting
-	round           		*int64
-	lamportTimestamp		*int64
-	roundReceived			*int64
-	creator					string
-	hash					[]byte
-	hex						string
 }
 
 func (e EventMessage) ToEvent() Event {
@@ -174,23 +169,26 @@ func NewEvent(transactions [][]byte,
 		Message: EventMessage {
 			Body:      &body,
 			FlagTable: ft,
+			LamportTimestamp: LamportTimestampNIL,
+			Round:            RoundNIL,
+			RoundReceived:    RoundNIL,
 		},
 	}
 }
 
 // Round returns round of event.
-func (e *Event) Round() int64 {
-	if e.round == nil || *e.round < 0 {
-		return -1
+func (e *Event) GetRound() int64 {
+	if e.Message.Round < 0 {
+		return RoundNIL
 	}
-	return *e.round
+	return e.Message.Round
 }
 
 func (e *Event) Creator() string {
-	if e.creator == "" {
-		e.creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)
+	if e.Message.Creator == "" {
+		e.Message.Creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)
 	}
-	return e.creator
+	return e.Message.Creator
 }
 
 func (e *Event) SelfParent() string {
@@ -271,43 +269,34 @@ func (e *Event) ProtoUnmarshal(data []byte) error {
 
 //sha256 hash of body
 func (e *Event) Hash() ([]byte, error) {
-	if len(e.hash) == 0 {
+	if len(e.Message.Hash) == 0 {
 		hash, err := e.Message.Body.Hash()
 		if err != nil {
 			return nil, err
 		}
-		e.hash = hash
+		e.Message.Hash = hash
 	}
-	return e.hash, nil
+	return e.Message.Hash, nil
 }
 
 func (e *Event) Hex() string {
-	if e.hex == "" {
+	if e.Message.Hex == "" {
 		hash, _ := e.Hash()
-		e.hex = fmt.Sprintf("0x%X", hash)
+		e.Message.Hex = fmt.Sprintf("0x%X", hash)
 	}
-	return e.hex
+	return e.Message.Hex
 }
 
 func (e *Event) SetRound(r int64) {
-	if e.round == nil {
-		e.round = new(int64)
-	}
-	*e.round = r
+	e.Message.Round = r
 }
 
 func (e *Event) SetLamportTimestamp(t int64) {
-	if e.lamportTimestamp == nil {
-		e.lamportTimestamp = new(int64)
-	}
-	*e.lamportTimestamp = t
+	e.Message.LamportTimestamp = t
 }
 
 func (e *Event) SetRoundReceived(rr int64) {
-	if e.roundReceived == nil {
-		e.roundReceived = new(int64)
-	}
-	*e.roundReceived = rr
+	e.Message.RoundReceived = rr
 }
 
 func (e *Event) SetWireInfo(selfParentIndex,
@@ -419,13 +408,8 @@ type ByLamportTimestamp []Event
 func (a ByLamportTimestamp) Len() int      { return len(a) }
 func (a ByLamportTimestamp) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByLamportTimestamp) Less(i, j int) bool {
-	it, jt := int64(-1), int64(-1)
-	if a[i].lamportTimestamp != nil {
-		it = *a[i].lamportTimestamp
-	}
-	if a[j].lamportTimestamp != nil {
-		jt = *a[j].lamportTimestamp
-	}
+	it := a[i].Message.LamportTimestamp
+	jt := a[j].Message.LamportTimestamp
 	if it != jt {
 		return it < jt
 	}

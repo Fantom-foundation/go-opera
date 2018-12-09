@@ -103,6 +103,17 @@ func (p *Peers) ToPeerSlice() []*Peer {
 	return p.Sorted
 }
 
+func (p *Peers) ToPeerByUsedSlice() []*Peer {
+	res := []*Peer{}
+
+	for _, p := range p.ByPubKey {
+		res = append(res, p)
+	}
+
+	sort.Sort(ByUsed(res))
+	return res
+}
+
 func (p *Peers) ToPubKeySlice() []string {
 	p.RLock()
 	defer p.RUnlock()
@@ -170,4 +181,14 @@ func (a ByID) Less(i, j int) bool {
 	ai := a[i].ID
 	aj := a[j].ID
 	return ai < aj
+}
+
+type ByUsed []*Peer
+
+func (a ByUsed) Len() int      { return len(a) }
+func (a ByUsed) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByUsed) Less(i, j int) bool {
+	ai := a[i].Used
+	aj := a[j].Used
+	return ai > aj
 }

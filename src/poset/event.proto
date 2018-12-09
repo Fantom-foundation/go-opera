@@ -37,4 +37,10 @@ message EventMessage {
   int64 OtherParentIndex = 7;
   int64 CreatorID = 8;
   int64 TopologicalIndex = 9;
+  string Hex = 10;
+  int64 LamportTimestamp = 11;
+  int64 Round = 12;
+  int64 RoundReceived = 13;
+  string Creator = 14;
+  bytes Hash = 15;
 }

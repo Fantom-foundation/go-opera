@@ -45,12 +45,16 @@ func (ps *SmartPeerSelector) UpdateLast(peer string) {
 }
 
 func (ps *SmartPeerSelector) Next() *peers.Peer {
-	selectablePeers := ps.peers.ToPeerSlice()
+	selectablePeers := ps.peers.ToPeerByUsedSlice()[1:]
 	if len(selectablePeers) > 1 {
 		_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.localAddr)
 		if len(selectablePeers) > 1 {
 			_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.last)
 			if len(selectablePeers) > 1 {
+				var k int64
+				minUsed := selectablePeers[len(selectablePeers) - 1].Used
+				for k = 0; selectablePeers[k].Used > minUsed; k++ {}
+				selectablePeers = selectablePeers[k:]
 				if ft, err := ps.GetFlagTable(); err == nil {
 					for id, flag := range ft {
 						if flag == 1 && len(selectablePeers) > 1 {
@@ -62,6 +66,7 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 		}
 	}
 	i := rand.Intn(len(selectablePeers))
+	selectablePeers[i].Used++;
 	return selectablePeers[i]
 }
 

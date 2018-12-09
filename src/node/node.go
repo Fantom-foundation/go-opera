@@ -70,6 +70,7 @@ func NewNode(conf *Config,
 
 	pubKey := core.HexID()
 
+//	peerSelector := NewRandomPeerSelector(participants, localAddr)
 	peerSelector := NewSmartPeerSelector(participants, pubKey,
 		core.poset.GetFlagTableOfRandomUndeterminedEvent)
 
@@ -117,6 +118,7 @@ func (n *Node) Init() error {
 			return err
 		}
 	}
+	n.Register()
 
 	return n.core.SetHeadAndSeq()
 }
@@ -742,6 +744,8 @@ func (n *Node) logStats() {
 		"z_gossipJobs":           n.gossipJobs.get(),
 		"z_rpcJobs":              n.rpcJobs.get(),
 		"addr":                   n.localAddr,
+		"pending_loaded_events":  n.GetPendingLoadedEvents(),
+		"last_round":             n.GetLastRound(),
 	}).Warn("logStats()")
 }
 
@@ -780,6 +784,10 @@ func (n *Node) GetConsensusEvents() []string {
 
 func (n *Node) GetConsensusTransactionsCount() uint64 {
 	return n.core.GetConsensusTransactionsCount()
+}
+
+func (n *Node) GetPendingLoadedEvents() int64 {
+	return n.core.GetPendingLoadedEvents()
 }
 
 func (n *Node) GetRound(roundIndex int64) (poset.RoundInfo, error) {

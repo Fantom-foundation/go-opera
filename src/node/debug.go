@@ -5,6 +5,8 @@ package node
 
 import (
 	"encoding/json"
+	"os"
+	"os/signal"
 
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/sirupsen/logrus"
@@ -22,13 +24,18 @@ type EventBodyLite struct {
 	Parents         []string         //hashes of the event's parents, self-parent first
 	Creator         string           //creator's public key
 	Index           int64            //index in the sequence of events created by Creator
+	Transactions    [][]byte
 }
 
 type EventMessageLite struct {
 	Body      EventBodyLite
 	Signature string //creator's digital signature of body
-	TopologicalIndex int
+	TopologicalIndex int64
+	Hex              string
+	Round            int64
+	RoundReceived    int64
 
+	WitnessProof []string
 //	FlagTable []byte // FlagTable stores connection information
 }
 type EventLite struct {
@@ -71,9 +78,14 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 					Parents: event.Message.Body.Parents,
 					Creator: peers.ByPubKey[event.Creator()].NetAddr,
 					Index: event.Message.Body.Index,
+					Transactions: event.Message.Body.Transactions,
 				},
+				Hex: event.Message.Hex,
 				Signature: event.Message.Signature,
-				//				TopologicalIndex: event.TopologicalIndex,
+				WitnessProof: event.Message.WitnessProof,
+				Round: event.Message.Round,
+				RoundReceived: event.Message.RoundReceived,
+				TopologicalIndex: event.Message.TopologicalIndex,
 				//				FlagTable: event.FlagTable,
 			},
 		}
@@ -115,4 +127,11 @@ func (n *Node) Register() {
 	// use the following way of exit to execute registered atexit handlers:
 	// import "github.com/tebeka/atexit"
 	// atexit.Exit(0)
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	go func () {
+		<-signalChan
+		atexit.Exit(13)
+	}()
 }

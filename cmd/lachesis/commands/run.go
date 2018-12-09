@@ -14,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/urfave/cli"
 )
 
 //NewRunCmd returns the command that starts a Lachesis node
@@ -88,25 +87,23 @@ func runSingleLachesis(config *CLIConfig) error {
 	}
 
 	if config.Lachesis.Test {
-		p, err := engine.Store.Participants()
-		if err != nil {
-			return cli.NewExitError(
-				fmt.Sprintf("Failed to acquire participants: %s", err),
-				1)
-		}
+		p := engine.Peers
 		go func() {
 			for {
 				time.Sleep(10 * time.Second)
 				ct := engine.Node.GetConsensusTransactionsCount()
+				pdl := engine.Node.GetPendingLoadedEvents()
 				// 3 - number of notes in test; 10 - number of transactions sended at once
-				if ct >= 3*10*config.Lachesis.TestN {
+				if ct >= 3*10*config.Lachesis.TestN && pdl < 1 {
 					time.Sleep(10 * time.Second)
 					engine.Node.Shutdown()
 					break
 				}
 			}
 		}()
-		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN, config.Lachesis.TestDelay, config.Lachesis.Logger)
+		go tester.PingNodesN(p.Sorted, p.ByPubKey, config.Lachesis.TestN,
+			config.Lachesis.TestDelay, config.Lachesis.Logger,
+			config.ProxyAddr)
 	}
 
 	engine.Node.Register()

@@ -21,7 +21,6 @@ Create an 3 node lachesis cluster with:
   - [Go](https://golang.org)
   - [Glide](https://glide.sh)
   - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with: `go get -v github.com/SamuelMarks/batch-ethkey`
-  - [mage](github.com/magefile/mage)
   - [protocol buffers 3](https://github.com/protocolbuffers/protobuf), with: installation of [a release]([here](https://github.com/protocolbuffers/protobuf/releases)) & `go get -u github.com/golang/protobuf/protoc-gen-go`
 
 ### Protobuffer 3
