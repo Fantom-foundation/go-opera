@@ -33,6 +33,7 @@ func (s NodeState) String() string {
 type nodeState struct {
 	state    NodeState
 	wg       sync.WaitGroup
+	locker   sync.Mutex
 }
 
 func (b *nodeState) getState() NodeState {
@@ -47,13 +48,19 @@ func (b *nodeState) setState(s NodeState) {
 
 // Start a goroutine and add it to waitgroup
 func (b *nodeState) goFunc(f func()) {
-	b.wg.Add(1)
-	go func() {
-		defer b.wg.Done()
-		f()
-	}()
+	b.locker.Lock()
+	defer b.locker.Unlock()
+	if b.getState() != Shutdown {
+		b.wg.Add(1)
+		go func() {
+			defer b.wg.Done()
+			f()
+		}()
+	}
 }
 
 func (b *nodeState) waitRoutines() {
+	b.locker.Lock()
+	defer b.locker.Unlock()
 	b.wg.Wait()
 }

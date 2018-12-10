@@ -156,7 +156,7 @@ func TestDBEventMethods(t *testing.T) {
 
 	//insert events in db directly
 	events := make(map[string][]Event)
-	topologicalIndex := int64(0)
+	topologicalIndex := int64(-1)
 	var topologicalEvents []Event
 	for _, p := range participants {
 		var items []Event
