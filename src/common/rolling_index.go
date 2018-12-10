@@ -2,6 +2,7 @@ package common
 
 import (
 	"strconv"
+	"sync"
 )
 
 type RollingIndex struct {
@@ -9,6 +10,7 @@ type RollingIndex struct {
 	size      int
 	lastIndex int64
 	items     []interface{}
+	locker    sync.RWMutex
 }
 
 func NewRollingIndex(name string, size int) *RollingIndex {
@@ -21,10 +23,14 @@ func NewRollingIndex(name string, size int) *RollingIndex {
 }
 
 func (r *RollingIndex) GetLastWindow() (lastWindow []interface{}, lastIndex int64) {
+	r.locker.RLock()
+	defer r.locker.RUnlock()
 	return r.items, r.lastIndex
 }
 
 func (r *RollingIndex) Get(skipIndex int64) ([]interface{}, error) {
+	r.locker.RLock()
+	defer r.locker.RUnlock()
 	res := make([]interface{}, 0)
 
 	if skipIndex > r.lastIndex {
@@ -45,6 +51,8 @@ func (r *RollingIndex) Get(skipIndex int64) ([]interface{}, error) {
 }
 
 func (r *RollingIndex) GetItem(index int64) (interface{}, error) {
+	r.locker.RLock()
+	defer r.locker.RUnlock()
 	items := int64(len(r.items))
 	oldestCached := r.lastIndex - items + 1
 	if index < oldestCached {
@@ -58,6 +66,8 @@ func (r *RollingIndex) GetItem(index int64) (interface{}, error) {
 }
 
 func (r *RollingIndex) Set(item interface{}, index int64) error {
+	r.locker.Lock()
+	defer r.locker.Unlock()
 
 	//only allow to set items with index <= lastIndex + 1
 	//so that we may assume there are no gaps between items
@@ -68,7 +78,7 @@ func (r *RollingIndex) Set(item interface{}, index int64) error {
 	//adding a new item
 	if r.lastIndex < 0 || (index == r.lastIndex+1) {
 		if len(r.items) >= 2*r.size {
-			r.Roll()
+			r.roll()
 		}
 		r.items = append(r.items, item)
 		r.lastIndex = index
@@ -91,7 +101,7 @@ func (r *RollingIndex) Set(item interface{}, index int64) error {
 	return nil
 }
 
-func (r *RollingIndex) Roll() {
+func (r *RollingIndex) roll() {
 	newList := make([]interface{}, 0, 2*r.size)
 	newList = append(newList, r.items[r.size:]...)
 	r.items = newList

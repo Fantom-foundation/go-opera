@@ -649,7 +649,7 @@ func TestInsertEvent(t *testing.T) {
 		// 3 Events with index 0,
 		// 1 Event with non-empty Transactions
 		// = 4 Loaded Events
-		if ple := p.PendingLoadedEvents; ple != 4 {
+		if ple := p.GetPendingLoadedEvents(); ple != 4 {
 			t.Fatalf("PendingLoadedEvents should be 4, not %d", ple)
 		}
 	})
@@ -966,11 +966,19 @@ func TestDivideRounds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if r := ev.round; r == nil || *r != et.r {
-			t.Fatalf("%s round should be %d, not %d", e, et.r, *r)
+		if r := ev.GetRound(); r == RoundNIL || r != et.r {
+			disp := "nil"
+			if r >= 0 {
+				disp = strconv.FormatInt(r, 10)
+			}
+			t.Fatalf("%s round should be %d, not %s", e, et.r, disp)
 		}
-		if ts := ev.lamportTimestamp; ts == nil || *ts != et.t {
-			t.Fatalf("%s lamportTimestamp should be %d, not %d", e, et.t, *ts)
+		if ts := ev.GetLamportTimestamp(); ts == LamportTimestampNIL || ts != et.t {
+			disp := "nil"
+			if ts >= 0 {
+				disp = strconv.FormatInt(ts, 10)
+			}
+			t.Fatalf("%s lamportTimestamp should be %d, not %s", e, et.t, disp)
 		}
 	}
 
@@ -1433,11 +1441,19 @@ func TestDivideRoundsBis(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if r := ev.round; r == nil || *r != et.r {
-			t.Fatalf("%s round should be %d, not %d", e, et.r, *r)
+		if r := ev.GetRound(); r == RoundNIL || r != et.r {
+			disp := "nil"
+			if r >= 0 {
+				disp = strconv.FormatInt(r, 10)
+			}
+			t.Fatalf("%s round should be %d, not %s", e, et.r, disp)
 		}
-		if ts := ev.lamportTimestamp; ts == nil || *ts != et.t {
-			t.Fatalf("%s lamportTimestamp should be %d, not %d", e, et.t, *ts)
+		if ts := ev.GetLamportTimestamp(); ts == LamportTimestampNIL || ts != et.t {
+			disp := "nil"
+			if ts >= 0 {
+				disp = strconv.FormatInt(ts, 10)
+			}
+			t.Fatalf("%s lamportTimestamp should be %d, not %s", e, et.t, disp)
 		}
 	}
 
@@ -1569,11 +1585,11 @@ func TestDecideRoundReceived(t *testing.T) {
 
 		switch rune(name[0]) {
 		case rune('e'):
-			if r := *e.roundReceived; r != 1 {
+			if r := e.Message.RoundReceived; r != 1 {
 				t.Fatalf("%s round received should be 1 not %d", name, r)
 			}
 		case rune('f'):
-			if r := *e.roundReceived; r != 2 {
+			if r := e.Message.RoundReceived; r != 2 {
 				t.Fatalf("%s round received should be 2 not %d", name, r)
 			}
 		}
@@ -1649,7 +1665,7 @@ func TestProcessDecidedRounds(t *testing.T) {
 		t.Fatalf("length of consensus should be 12 not %d", l)
 	}
 
-	if ple := p.PendingLoadedEvents; ple != 3 {
+	if ple := p.GetPendingLoadedEvents(); ple != 3 {
 		t.Fatalf("pending loaded events number should be 3, not %d", ple)
 	}
 
@@ -2178,14 +2194,14 @@ func TestBootstrap(t *testing.T) {
 			" not %#v", p.LastCommitedRoundEvents, np.LastCommitedRoundEvents)
 	}
 
-	if p.ConsensusTransactions != np.ConsensusTransactions {
+	if p.GetConsensusTransactionsCount() != np.GetConsensusTransactionsCount() {
 		t.Fatalf("Bootstrapped poset's ConsensusTransactions should be %#v,"+
-			" not %#v", p.ConsensusTransactions, np.ConsensusTransactions)
+			" not %#v", p.GetConsensusTransactionsCount(), np.GetConsensusTransactionsCount())
 	}
 
-	if p.PendingLoadedEvents != np.PendingLoadedEvents {
+	if p.GetPendingLoadedEvents() != np.GetPendingLoadedEvents() {
 		t.Fatalf("Bootstrapped poset's PendingLoadedEvents should be %#v,"+
-			" not %#v", p.PendingLoadedEvents, np.PendingLoadedEvents)
+			" not %#v", p.GetPendingLoadedEvents(), np.GetPendingLoadedEvents())
 	}
 }
 

@@ -845,12 +845,12 @@ func TestConsensusFF(t *testing.T) {
 	cores, _, _ := initCores(4, t)
 	initFFPoset(cores, t)
 
-	if r := cores[1].GetLastConsensusRoundIndex(); r == nil || *r != 2 {
+	if r := cores[1].GetLastConsensusRound(); r < 0 || r != 2 {
 		disp := "nil"
-		if r != nil {
-			disp = strconv.FormatInt(*r, 10)
+		if r >= 0 {
+			disp = strconv.FormatInt(r, 10)
 		}
-		t.Fatalf("Cores[1] last consensus Round should be 1, not %s", disp)
+		t.Fatalf("Cores[1] last consensus Round should be 2, not %s", disp)
 	}
 
 	if l := len(cores[1].GetConsensusEvents()); l != 7 {
@@ -972,8 +972,12 @@ func TestCoreFastForward(t *testing.T) {
 				expectedKnown, knownBy0)
 		}
 
-		if r := cores[0].GetLastConsensusRoundIndex(); r == nil || *r != 1 {
-			t.Fatalf("Cores[0] last consensus Round should be 1, not %v", r)
+		if r := cores[0].GetLastConsensusRound(); r < 0 || r != 1 {
+			disp := "nil"
+			if r >= 0 {
+				disp = strconv.FormatInt(r, 10)
+			}
+			t.Fatalf("Cores[0] last consensus Round should be 1, not %s", disp)
 		}
 
 		if lbi := cores[0].poset.Store.LastBlockIndex(); lbi != 0 {

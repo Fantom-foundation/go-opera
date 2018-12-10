@@ -2,6 +2,7 @@ package node
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,7 @@ type ControlTimer struct {
 	stopCh       chan struct{} //receives instruction to stop the heartbeatTimer
 	shutdownCh   chan struct{} //receives instruction to exit Run loop
 	set          bool
+	Locker       sync.RWMutex
 }
 
 func NewControlTimer(timerFactory timerFactory) *ControlTimer {
@@ -41,7 +43,7 @@ func NewRandomControlTimer() *ControlTimer {
 func (c *ControlTimer) Run(init time.Duration) {
 
 	setTimer := func(t time.Duration) <-chan time.Time {
-		c.set = true
+		c.SetSet(true)
 		return c.timerFactory(t)
 	}
 
@@ -50,14 +52,14 @@ func (c *ControlTimer) Run(init time.Duration) {
 		select {
 		case <-timer:
 			c.tickCh <- struct{}{}
-			c.set = false
+			c.SetSet(false)
 		case t:= <-c.resetCh:
 			timer = setTimer(t)
 		case <-c.stopCh:
 			timer = nil
-			c.set = false
+			c.SetSet(false)
 		case <-c.shutdownCh:
-			c.set = false
+			c.SetSet(false)
 			return
 		}
 	}
@@ -65,4 +67,16 @@ func (c *ControlTimer) Run(init time.Duration) {
 
 func (c *ControlTimer) Shutdown() {
 	close(c.shutdownCh)
+}
+
+func (c *ControlTimer) SetSet(v bool) {
+	c.Locker.Lock()
+	defer c.Locker.Unlock()
+	c.set = v
+}
+
+func (c *ControlTimer) GetSet() bool {
+	c.Locker.RLock()
+	defer c.Locker.RUnlock()
+	return c.set
 }
