@@ -352,7 +352,10 @@ func (s *BadgerStore) dbGetEvent(key string) (Event, error) {
 		if err != nil {
 			return err
 		}
-		eventBytes, err = item.Value()
+		err = item.Value(func(val []byte) error {
+			eventBytes = val
+			return nil
+		})
 		return err
 	})
 
@@ -407,31 +410,35 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 
 func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 	var res []Event
+	var evKey string
 	t := int64(-1)
 	err := s.db.View(func(txn *badger.Txn) error {
 		key := topologicalEventKey(t)
 		item, errr := txn.Get(key)
 		for errr == nil {
-			v, errrr := item.Value()
+			errrr := item.Value(func(v []byte) error {
+				evKey = string(v)
+				return nil
+			})
 			if errrr != nil {
 				break
 			}
 
-			evKey := string(v)
 			eventItem, err := txn.Get([]byte(evKey))
 			if err != nil {
 				return err
 			}
-			eventBytes, err := eventItem.Value()
+			err = eventItem.Value(func(eventBytes []byte) error {
+				event := new(Event)
+				if err := event.ProtoUnmarshal(eventBytes); err != nil {
+					return err
+				}
+				res = append(res, *event)
+				return nil
+			})
 			if err != nil {
 				return err
 			}
-
-			event := new(Event)
-			if err := event.ProtoUnmarshal(eventBytes); err != nil {
-				return err
-			}
-			res = append(res, *event)
 
 			t++
 			key = topologicalEventKey(t)
@@ -455,11 +462,13 @@ func (s *BadgerStore) dbParticipantEvents(participant string, skip int64) ([]str
 		key := participantEventKey(participant, i)
 		item, errr := txn.Get(key)
 		for errr == nil {
-			v, errrr := item.Value()
+			errrr := item.Value(func(v []byte) error {
+				res = append(res, string(v))
+				return nil
+			})
 			if errrr != nil {
 				break
 			}
-			res = append(res, string(v))
 
 			i++
 			key = participantEventKey(participant, i)
@@ -483,7 +492,10 @@ func (s *BadgerStore) dbParticipantEvent(participant string, index int64) (strin
 		if err != nil {
 			return err
 		}
-		data, err = item.Value()
+		err = item.Value(func(val []byte) error {
+			data = val
+			return nil
+		})
 		return err
 	})
 	if err != nil {
@@ -549,7 +561,10 @@ func (s *BadgerStore) dbGetRoot(participant string) (Root, error) {
 		if err != nil {
 			return err
 		}
-		rootBytes, err = item.Value()
+		err = item.Value(func(val []byte) error {
+			rootBytes = val
+			return nil
+		})
 		return err
 	})
 
@@ -573,7 +588,10 @@ func (s *BadgerStore) dbGetRound(index int64) (RoundInfo, error) {
 		if err != nil {
 			return err
 		}
-		roundBytes, err = item.Value()
+		err = item.Value(func(val []byte) error {
+			roundBytes = val
+			return nil
+		})
 		return err
 	})
 
@@ -653,7 +671,10 @@ func (s *BadgerStore) dbGetBlock(index int64) (Block, error) {
 		if err != nil {
 			return err
 		}
-		blockBytes, err = item.Value()
+		err = item.Value(func(val []byte) error {
+			blockBytes = val
+			return nil
+		})
 		return err
 	})
 
@@ -695,7 +716,10 @@ func (s *BadgerStore) dbGetFrame(index int64) (Frame, error) {
 		if err != nil {
 			return err
 		}
-		frameBytes, err = item.Value()
+		err = item.Value(func(val []byte) error {
+			frameBytes = val
+			return nil
+		})
 		return err
 	})
 
