@@ -1,5 +1,5 @@
-hash: a3ff60efa6b0f531b9f2cae7aa5ea9b64cd8a7891d7f66d7c649f526237fa655
-updated: 2018-12-11T11:33:30.071266+11:00
+hash: a7c1266954aefa679f8a52b3fa9f29fdbb4eab51a9ac4c47ac95ce69029d87b8
+updated: 2018-12-11T14:59:08.745245+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -16,7 +16,7 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/golang/protobuf
-  version: aa810b61a9c79d51363740d207bb46cf8e620ed5
+  version: 8d0c54c1246661d9a51ca0ba455d22116d485eaa
   subpackages:
   - proto
   - ptypes

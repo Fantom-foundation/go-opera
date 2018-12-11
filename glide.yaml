@@ -3,7 +3,7 @@ import:
 - package: github.com/dgraph-io/badger
   version: ^2.0.0-rc1
 - package: github.com/golang/protobuf
-  version: ^1.2.0
+  version: 8d0c54c1246661d9a51ca0ba455d22116d485eaa
   subpackages:
   - proto
 - package: github.com/hashicorp/golang-lru
