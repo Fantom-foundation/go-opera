@@ -1,41 +1,31 @@
 package: github.com/Fantom-foundation/go-lachesis
 import:
 - package: github.com/dgraph-io/badger
-  version: 1.5.3
-- package: github.com/eclipse/paho.mqtt.golang
-  version: ^1.1.1
-- package: github.com/satori/go.uuid
-  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
+  version: ^2.0.0-rc1
+- package: github.com/golang/protobuf
+  version: ^1.2.0
+  subpackages:
+  - proto
+- package: github.com/hashicorp/golang-lru
+  version: ^0.5.0
+- package: github.com/rifflock/lfshook
+  version: ^2.4.0
+- package: github.com/rs/xid
+  version: ^1.2.1
 - package: github.com/sirupsen/logrus
-  version: ^1.1.1
+  version: ^1.2.0
 - package: github.com/spf13/cobra
   version: ^0.0.3
 - package: github.com/spf13/viper
-  version: ^1.2.1
-- package: github.com/ugorji/go
-  version: ^1.1.1
-  subpackages:
-  - codec
+  version: ^1.3.1
+- package: github.com/tebeka/atexit
+  version: ^0.1.0
 - package: github.com/urfave/cli
   version: ^1.20.0
-- package: github.com/rifflock/lfshook
-  version: ^2.4.0
-- package: github.com/gorilla/websocket
-  version: ^1.4.0
-- package: github.com/go-chi/chi
-  version: ^3.3.3
 - package: google.golang.org/grpc
-  version: ^1.16.0
-- package: github.com/rs/xid
-  version: ^1.2.1
+  version: ^1.17.0
+testImport:
 - package: github.com/stretchr/testify
   version: ^1.2.2
   subpackages:
   - assert
-- package: github.com/btcsuite/btcd
-  subpackages:
-  - peer
-- package: github.com/tebeka/atexit
-  version: ^0.1.0
-- package: github.com/hashicorp/golang-lru
-  version: ^0.5.0
