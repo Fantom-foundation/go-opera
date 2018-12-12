@@ -45,7 +45,9 @@ func (ps *SmartPeerSelector) UpdateLast(peer string) {
 }
 
 func (ps *SmartPeerSelector) Next() *peers.Peer {
-	selectablePeers := ps.peers.ToPeerByUsedSlice()[1:]
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+	selectablePeers := ps.peers.ToPeerByUsedSlice()//[1:]
 	if len(selectablePeers) > 1 {
 		_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.localAddr)
 		if len(selectablePeers) > 1 {

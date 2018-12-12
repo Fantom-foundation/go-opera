@@ -2,6 +2,7 @@ package difftool
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -18,6 +19,11 @@ func Example() {
 	stop := nodes.StartRandTxStream()
 	nodes.WaitForBlock(5)
 	stop()
+	for _, n := range nodes {
+		n.Stop()
+	}
+	// give some time for nodes to stop actually
+	time.Sleep(time.Duration(5) * time.Second)
 
 	diffResult := Compare(nodes.Values()...)
 

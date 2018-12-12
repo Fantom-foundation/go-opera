@@ -1,14 +1,10 @@
-hash: e72ad995126b9c4187b2503f304edf7512945cd3abb072cc17e38cc58d806cc4
-updated: 2018-11-27T16:38:26.613802177+11:00
+hash: a7c1266954aefa679f8a52b3fa9f29fdbb4eab51a9ac4c47ac95ce69029d87b8
+updated: 2018-12-11T14:59:08.745245+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
-- name: github.com/btcsuite/btcd
-  version: 67e573d211ace594f1366b4ce9d39726c4b19bd0
-  subpackages:
-  - peer
 - name: github.com/dgraph-io/badger
-  version: 391b6d3b93e6014fe8c2971fcc0c1266e47dbbd9
+  version: 439fd464b155d419201a5c195c70d40618376776
   subpackages:
   - options
   - protos
@@ -17,22 +13,16 @@ imports:
   - "y"
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
-- name: github.com/eclipse/paho.mqtt.golang
-  version: 36d01c2b4cbeb3d2a12063e4880ce30800af9560
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
-- name: github.com/go-chi/chi
-  version: b5294d10673813fac8558e7f47242bc9e61b4c25
 - name: github.com/golang/protobuf
-  version: d3de96c4c28ef8af3aa1a892fc481e0f103c01ff
+  version: 8d0c54c1246661d9a51ca0ba455d22116d485eaa
   subpackages:
   - proto
   - ptypes
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
-- name: github.com/gorilla/websocket
-  version: 66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d
 - name: github.com/hashicorp/golang-lru
   version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
   subpackages:
@@ -65,8 +55,6 @@ imports:
   version: b9218ef580f59a2e72dad1aa33d660150445d05a
 - name: github.com/rs/xid
   version: 15d26544def341f036c5f8dca987a4cbe575032c
-- name: github.com/satori/go.uuid
-  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
 - name: github.com/sirupsen/logrus
   version: bcd833dfe83d3cebad139e4a29ed79cb2318bf95
 - name: github.com/spf13/afero
@@ -82,17 +70,9 @@ imports:
 - name: github.com/spf13/pflag
   version: 082b515c9490f4eccc758469c3152b77d139f868
 - name: github.com/spf13/viper
-  version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
-- name: github.com/stretchr/testify
-  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
-  subpackages:
-  - assert
+  version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
 - name: github.com/tebeka/atexit
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
-- name: github.com/ugorji/go
-  version: b4c50a2b199d93b13dc15e78929cfb23bfdf21ab
-  subpackages:
-  - codec
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: golang.org/x/crypto
@@ -126,22 +106,27 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 2e463a05d100327ca47ac218281906921038fd95
+  version: df014850f6dee74ba2fc94874043a9f3f75fbfd8
   subpackages:
   - balancer
   - balancer/base
   - balancer/roundrobin
+  - binarylog/grpc_binarylog_v1
   - codes
   - connectivity
   - credentials
+  - credentials/internal
   - encoding
   - encoding/proto
   - grpclog
   - internal
   - internal/backoff
+  - internal/binarylog
   - internal/channelz
   - internal/envconfig
   - internal/grpcrand
+  - internal/grpcsync
+  - internal/syscall
   - internal/transport
   - keepalive
   - metadata
@@ -164,3 +149,7 @@ testImports:
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/stretchr/testify
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  subpackages:
+  - assert

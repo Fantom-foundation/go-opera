@@ -2,6 +2,7 @@ package dummy
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 
@@ -24,6 +25,7 @@ type State struct {
 	committedTxs [][]byte
 	stateHash    []byte
 	snapshots    map[int64][]byte
+	locker       sync.Mutex
 }
 
 func NewState(logger *logrus.Logger) *State {
@@ -43,6 +45,8 @@ func NewState(logger *logrus.Logger) *State {
  */
 
 func (s *State) CommitHandler(block poset.Block) ([]byte, error) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	s.logger.WithField("block", block).Debug("CommitBlock")
 
 	err := s.commit(block)
@@ -54,6 +58,8 @@ func (s *State) CommitHandler(block poset.Block) ([]byte, error) {
 }
 
 func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	s.logger.WithField("block", blockIndex).Debug("GetSnapshot")
 
 	snapshot, ok := s.snapshots[blockIndex]
@@ -65,6 +71,8 @@ func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
 }
 
 func (s *State) RestoreHandler(snapshot []byte) ([]byte, error) {
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	//XXX do something smart here
 	s.stateHash = snapshot
 	return s.stateHash, nil
@@ -75,6 +83,8 @@ func (s *State) RestoreHandler(snapshot []byte) ([]byte, error) {
  */
 
 func (s *State) GetCommittedTransactions() [][]byte {
+	s.locker.Lock()
+	defer s.locker.Unlock()
 	return s.committedTxs
 }
 

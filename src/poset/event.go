@@ -184,6 +184,13 @@ func (e *Event) GetRound() int64 {
 	return e.Message.Round
 }
 
+func (e *Event) GetLamportTimestamp() int64 {
+	if e.Message.LamportTimestamp < 0 {
+		return LamportTimestampNIL
+	}
+	return e.Message.LamportTimestamp
+}
+
 func (e *Event) Creator() string {
 	if e.Message.Creator == "" {
 		e.Message.Creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)

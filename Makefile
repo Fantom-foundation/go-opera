@@ -37,6 +37,7 @@ test:
 proto: clean
 
 clean:
+	rm -rf vendor
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test
 
