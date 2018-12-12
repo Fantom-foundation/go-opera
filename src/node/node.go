@@ -152,6 +152,8 @@ func (n *Node) Run(gossip bool) {
 			n.lachesis(gossip)
 		case CatchingUp:
 			n.fastForward()
+		case Stop:
+			// do nothing in Stop state
 		case Shutdown:
 			return
 		}
@@ -819,4 +821,8 @@ func (n *Node) GetBlock(blockIndex int64) (poset.Block, error) {
 
 func (n *Node) ID() int64 {
 	return n.id
+}
+
+func (n *Node) Stop() {
+	n.setState(Stop)
 }
