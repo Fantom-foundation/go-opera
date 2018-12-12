@@ -15,6 +15,8 @@ const (
 	CatchingUp
 
 	Shutdown
+
+	Stop
 )
 
 func (s NodeState) String() string {
@@ -25,6 +27,8 @@ func (s NodeState) String() string {
 		return "CatchingUp"
 	case Shutdown:
 		return "Shutdown"
+	case Stop:
+		return "Stop"
 	default:
 		return "Unknown"
 	}
