@@ -152,6 +152,8 @@ func (n *Node) Run(gossip bool) {
 			n.lachesis(gossip)
 		case CatchingUp:
 			n.fastForward()
+		case Stop:
+			// do nothing in Stop state
 		case Shutdown:
 			return
 		}
@@ -159,12 +161,12 @@ func (n *Node) Run(gossip bool) {
 }
 
 func (n *Node) resetTimer() {
-	if !n.controlTimer.set {
+	if !n.controlTimer.GetSet() {
 		ts := n.conf.HeartbeatTimeout
 		//Slow gossip if nothing interesting to say
-		if n.core.poset.PendingLoadedEvents == 0 &&
-			len(n.core.transactionPool) == 0 &&
-			len(n.core.blockSignaturePool) == 0 {
+		if n.core.poset.GetPendingLoadedEvents() == 0 &&
+			n.core.GetTransactionPoolCount() == 0 &&
+			n.core.GetBlockSignaturePoolCount() == 0 {
 			ts = time.Duration(time.Second)
 		}
 		n.controlTimer.resetCh <- ts
@@ -215,10 +217,12 @@ func (n *Node) lachesis(gossip bool) {
 			})
 		case <-n.controlTimer.tickCh:
 			if gossip && n.gossipJobs.get() < 1 {
-				peer := n.peerSelector.Next()
+				n.selectorLock.Lock()
+				peerAddr := n.peerSelector.Next().NetAddr
+				n.selectorLock.Unlock()
 				n.goFunc(func() {
 					n.gossipJobs.increment()
-					n.gossip(peer.NetAddr, returnCh)
+					n.gossip(peerAddr, returnCh)
 					n.gossipJobs.decrement()
 				})
 				n.logger.Debug("Gossip")
@@ -496,7 +500,9 @@ func (n *Node) fastForward() error {
 	n.waitRoutines()
 
 	// fastForwardRequest
+	n.selectorLock.Lock()
 	peer := n.peerSelector.Next()
+	n.selectorLock.Unlock()
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
 	elapsed := time.Since(start)
@@ -644,8 +650,7 @@ func (n *Node) commit(block poset.Block) error {
 }
 
 func (n *Node) addTransaction(tx []byte) {
-	n.coreLock.Lock()
-	defer n.coreLock.Unlock()
+	// we do not need coreLock here as n.core.AddTransactions has TransactionPoolLocker
 	n.core.AddTransactions([][]byte{tx})
 }
 
@@ -679,11 +684,11 @@ func (n *Node) Shutdown() {
 }
 
 func (n *Node) GetStats() map[string]string {
-	toString := func(i *int64) string {
-		if i == nil {
+	toString := func(i int64) string {
+		if i <= 0 {
 			return "nil"
 		}
-		return strconv.FormatInt(*i, 10)
+		return strconv.FormatInt(i, 10)
 	}
 
 	timeElapsed := time.Since(n.start)
@@ -693,10 +698,10 @@ func (n *Node) GetStats() map[string]string {
 	consensusTransactions := n.core.GetConsensusTransactionsCount()
 	transactionsPerSecond := float64(consensusTransactions) / timeElapsed.Seconds()
 
-	lastConsensusRound := n.core.GetLastConsensusRoundIndex()
+	lastConsensusRound := n.core.GetLastConsensusRound()
 	var consensusRoundsPerSecond float64
-	if lastConsensusRound != nil {
-		consensusRoundsPerSecond = float64(*lastConsensusRound) / timeElapsed.Seconds()
+	if lastConsensusRound != -1 {
+		consensusRoundsPerSecond = float64(lastConsensusRound) / timeElapsed.Seconds()
 	}
 
 	s := map[string]string{
@@ -710,7 +715,7 @@ func (n *Node) GetStats() map[string]string {
 		"sync_limit":              strconv.FormatInt(n.conf.SyncLimit, 10),
 		"consensus_transactions":  strconv.FormatUint(consensusTransactions, 10),
 		"undetermined_events":     strconv.Itoa(len(n.core.GetUndeterminedEvents())),
-		"transaction_pool":        strconv.Itoa(len(n.core.transactionPool)),
+		"transaction_pool":        strconv.FormatInt(n.core.GetTransactionPoolCount(), 10),
 		"num_peers":               strconv.Itoa(n.peerSelector.Peers().Len()),
 		"sync_rate":               strconv.FormatFloat(n.SyncRate(), 'f', 2, 64),
 		"transactions_per_second": strconv.FormatFloat(transactionsPerSecond, 'f', 2, 64),
@@ -816,4 +821,8 @@ func (n *Node) GetBlock(blockIndex int64) (poset.Block, error) {
 
 func (n *Node) ID() int64 {
 	return n.id
+}
+
+func (n *Node) Stop() {
+	n.setState(Stop)
 }

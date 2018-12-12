@@ -25,8 +25,7 @@ func (n *Node) GetFrame(i int64) (poset.Frame, error) {
  */
 
 func (n *Node) PushTx(tx []byte) {
-	n.coreLock.Lock()
-	defer n.coreLock.Unlock()
+	// we do not need coreLock here as n.core.AddTransactions has TransactionPoolLocker
 	n.core.AddTransactions([][]byte{tx})
 	n.logger.Debugf("PushTx('%s')", tx)
 }

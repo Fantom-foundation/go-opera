@@ -333,7 +333,9 @@ func initNodes(keys []*ecdsa.PrivateKey,
 			t.Fatalf("failed to create transport for peer %d: %s", id, err)
 		}
 
+		peers.Lock()
 		peer.NetAddr = trans.LocalAddr()
+		peers.Unlock()
 
 		var store poset.Store
 		switch storeType {
@@ -433,7 +435,7 @@ func TestGossip(t *testing.T) {
 
 	target := int64(50)
 
-	err := gossip(nodes, target, true, 3*time.Second)
+	err := gossip(nodes, target, true, 13*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -460,7 +462,7 @@ func TestMissingNodeGossip(t *testing.T) {
 	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	err := gossip(nodes[1:], 10, true, 3*time.Second)
+	err := gossip(nodes[1:], 10, true, 13*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,8 +522,8 @@ func TestFastForward(t *testing.T) {
 		"inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	target := int64(50)
-	err := gossip(nodes[1:], target, false, 3*time.Second)
+	target := int64(20)
+	err := gossip(nodes[1:], target, false, 15*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +563,7 @@ func TestCatchUp(t *testing.T) {
 
 	target := int64(50)
 
-	err := gossip(normalNodes, target, false, 4*time.Second)
+	err := gossip(normalNodes, target, false, 14*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -609,7 +611,7 @@ func TestFastSync(t *testing.T) {
 
 	var target int64 = 50
 
-	err := gossip(nodes, target, false, 3*time.Second)
+	err := gossip(nodes, target, false, 13*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

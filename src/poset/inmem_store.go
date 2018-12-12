@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 
 	cm "github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
@@ -28,6 +29,10 @@ type InmemStore struct {
 	lastRound              int64
 	lastConsensusEvents    map[string]string //[participant] => hex() of last consensus event
 	lastBlock              int64
+
+	lastRoundLocker          sync.RWMutex
+	lastBlockLocker          sync.RWMutex
+	totConsensusEventsLocker sync.RWMutex
 }
 
 func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
@@ -254,10 +259,14 @@ func (s *InmemStore) ConsensusEvents() []string {
 }
 
 func (s *InmemStore) ConsensusEventsCount() int64 {
+	s.totConsensusEventsLocker.RLock()
+	defer s.totConsensusEventsLocker.RUnlock()
 	return s.totConsensusEvents
 }
 
 func (s *InmemStore) AddConsensusEvent(event Event) error {
+	s.totConsensusEventsLocker.Lock()
+	defer s.totConsensusEventsLocker.Unlock()
 	s.consensusCache.Set(event.Hex(), s.totConsensusEvents)
 	s.totConsensusEvents++
 	s.lastConsensusEvents[event.Creator()] = event.Hex()
@@ -273,6 +282,8 @@ func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 }
 
 func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
+	s.lastRoundLocker.Lock()
+	defer s.lastRoundLocker.Unlock()
 	s.roundCreatedCache.Add(r, round)
 	if r > s.lastRound {
 		s.lastRound = r
@@ -289,6 +300,8 @@ func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 }
 
 func (s *InmemStore) SetRoundReceived(r int64, round RoundReceived) error {
+	s.lastRoundLocker.Lock()
+	defer s.lastRoundLocker.Unlock()
 	s.roundReceivedCache.Add(r, round)
 	if r > s.lastRound {
 		s.lastRound = r
@@ -297,6 +310,8 @@ func (s *InmemStore) SetRoundReceived(r int64, round RoundReceived) error {
 }
 
 func (s *InmemStore) LastRound() int64 {
+	s.lastRoundLocker.RLock()
+	defer s.lastRoundLocker.RUnlock()
 	return s.lastRound
 }
 
@@ -333,6 +348,8 @@ func (s *InmemStore) GetBlock(index int64) (Block, error) {
 }
 
 func (s *InmemStore) SetBlock(block Block) error {
+	s.lastBlockLocker.Lock()
+	defer s.lastBlockLocker.Unlock()
 	index := block.Index()
 	_, err := s.GetBlock(index)
 	if err != nil && !cm.Is(err, cm.KeyNotFound) {
@@ -346,6 +363,8 @@ func (s *InmemStore) SetBlock(block Block) error {
 }
 
 func (s *InmemStore) LastBlockIndex() int64 {
+	s.lastBlockLocker.RLock()
+	defer s.lastBlockLocker.RUnlock()
 	return s.lastBlock
 }
 
@@ -392,8 +411,12 @@ func (s *InmemStore) Reset(roots map[string]Root) error {
 	s.roundReceivedCache = roundReceivedCache
 	s.consensusCache = cm.NewRollingIndex("ConsensusCache", s.cacheSize)
 	err := s.participantEventsCache.Reset()
+	s.lastRoundLocker.Lock()
 	s.lastRound = -1
+	s.lastRoundLocker.Unlock()
+	s.lastBlockLocker.Lock()
 	s.lastBlock = -1
+	s.lastBlockLocker.Unlock()
 
 	if _, err := s.RootsBySelfParent(); err != nil {
 		return err

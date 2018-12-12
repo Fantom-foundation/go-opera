@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/hashicorp/golang-lru"
@@ -36,8 +37,8 @@ type Poset struct {
 	AnchorBlock             *int64            //index of last block with enough signatures
 	LastCommitedRoundEvents int               //number of events in round before LastConsensusRound
 	SigPool                 []BlockSignature  //Pool of Block signatures that need to be processed
-	ConsensusTransactions   uint64            //number of consensus transactions
-	PendingLoadedEvents     int64            //number of loaded events that are not yet committed
+	ConsensusTransactions   uint64           //number of consensus transactions
+	pendingLoadedEvents     int64            //number of loaded events that are not yet committed
 	commitCh                chan Block        //channel for committing Blocks
 	topologicalIndex        int64             //counter used to order events in topological order (only local)
 	superMajority           int
@@ -51,6 +52,11 @@ type Poset struct {
 	timestampCache    *lru.Cache
 
 	logger *logrus.Entry
+
+	undeterminedEventsLocker      sync.RWMutex
+	pendingLoadedEventsLocker     sync.RWMutex
+	firstLastConsensusRoundLocker sync.RWMutex
+	consensusTransactionsLocker   sync.RWMutex
 }
 
 //NewPoset instantiates a Poset from a list of participants, underlying
@@ -895,10 +901,14 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 		return fmt.Errorf("SetEvent: %s", err)
 	}
 
+	p.undeterminedEventsLocker.Lock()
 	p.UndeterminedEvents = append(p.UndeterminedEvents, event.Hex())
+	p.undeterminedEventsLocker.Unlock()
 
 	if event.IsLoaded() {
-		p.PendingLoadedEvents++
+		p.pendingLoadedEventsLocker.Lock()
+		p.pendingLoadedEvents++
+		p.pendingLoadedEventsLocker.Unlock()
 	}
 
 	blockSignatures := make([]BlockSignature, len(event.BlockSignatures()))
@@ -915,6 +925,9 @@ DivideRounds assigns a Round and LamportTimestamp to Events, and flags them as
 witnesses if necessary. Pushes Rounds in the PendingRounds queue if necessary.
 */
 func (p *Poset) DivideRounds() error {
+
+	p.undeterminedEventsLocker.RLock()
+	defer p.undeterminedEventsLocker.RUnlock()
 
 	for _, hash := range p.UndeterminedEvents {
 
@@ -956,9 +969,7 @@ func (p *Poset) DivideRounds() error {
 				other Events to be added on top, but the base layer must not be
 				reprocessed.
 			*/
-			if !roundCreated.Message.Queued &&
-				(p.LastConsensusRound == nil ||
-					roundNumber >= *p.LastConsensusRound) {
+			if !roundCreated.Message.Queued && roundNumber >= p.GetLastConsensusRound() {
 
 				p.PendingRounds = append(p.PendingRounds, &pendingRound{roundNumber, false})
 				roundCreated.Message.Queued = true
@@ -1133,6 +1144,9 @@ func (p *Poset) DecideFame() error {
 //reach consensus
 func (p *Poset) DecideRoundReceived() error {
 
+	p.undeterminedEventsLocker.Lock()
+	defer p.undeterminedEventsLocker.Unlock()
+
 	var newUndeterminedEvents []string
 
 	/* From whitepaper - 18/03/18
@@ -1156,8 +1170,7 @@ func (p *Poset) DecideRoundReceived() error {
 			tr, err := p.Store.GetRoundCreated(i)
 			if err != nil {
 				//Can happen after a Reset/FastSync
-				if p.LastConsensusRound != nil &&
-					r < *p.LastConsensusRound {
+				if r < p.GetLastConsensusRound() {
 					received = true
 					break
 				}
@@ -1275,7 +1288,7 @@ func (p *Poset) ProcessDecidedRounds() error {
 		//Indeed, after a Reset, LastConsensusRound is added to PendingRounds,
 		//but its ConsensusEvents (which are necessarily 'under' this Round) are
 		//already deemed committed. Hence, skip this Round after a Reset.
-		if p.LastConsensusRound != nil && r == *p.LastConsensusRound {
+		if r == p.GetLastConsensusRound() {
 			continue
 		}
 
@@ -1303,9 +1316,13 @@ func (p *Poset) ProcessDecidedRounds() error {
 				if err != nil {
 					return err
 				}
+				p.consensusTransactionsLocker.Lock()
 				p.ConsensusTransactions += uint64(len(ev.Transactions()))
+				p.consensusTransactionsLocker.Unlock()
 				if ev.IsLoaded() {
-					p.PendingLoadedEvents--
+					p.pendingLoadedEventsLocker.Lock()
+					p.pendingLoadedEvents--
+					p.pendingLoadedEventsLocker.Unlock()
 				}
 			}
 
@@ -1330,7 +1347,7 @@ func (p *Poset) ProcessDecidedRounds() error {
 
 		processedIndex++
 
-		if p.LastConsensusRound == nil || r > *p.LastConsensusRound {
+		if p.GetLastConsensusRound() < 0 || r > p.GetLastConsensusRound() {
 			p.setLastConsensusRound(r)
 		}
 
@@ -1556,13 +1573,19 @@ func (p *Poset) GetAnchorBlockWithFrame() (Block, Frame, error) {
 func (p *Poset) Reset(block Block, frame Frame) error {
 
 	//Clear all state
+	p.firstLastConsensusRoundLocker.Lock()
 	p.LastConsensusRound = nil
 	p.FirstConsensusRound = nil
+	p.firstLastConsensusRoundLocker.Unlock()
 	p.AnchorBlock = nil
 
+	p.undeterminedEventsLocker.Lock()
 	p.UndeterminedEvents = []string{}
+	p.undeterminedEventsLocker.Unlock()
 	p.PendingRounds = []*pendingRound{}
-	p.PendingLoadedEvents = 0
+	p.pendingLoadedEventsLocker.Lock()
+	p.pendingLoadedEvents = 0
+	p.pendingLoadedEventsLocker.Unlock()
 	p.topologicalIndex = 0
 
 	cacheSize := p.Store.CacheSize()
@@ -1785,6 +1808,8 @@ Setters
 *******************************************************************************/
 
 func (p *Poset) setLastConsensusRound(i int64) {
+	p.firstLastConsensusRoundLocker.Lock()
+	defer p.firstLastConsensusRoundLocker.Unlock()
 	if p.LastConsensusRound == nil {
 		p.LastConsensusRound = new(int64)
 	}
@@ -1803,11 +1828,14 @@ func (p *Poset) setAnchorBlock(i int64) {
 	*p.AnchorBlock = i
 }
 
-/*
-*/
+/*******************************************************************************
+Getters
+*******************************************************************************/
 
 func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64, err error) {
-	// FIXME: possible data race: p.UndeterminedEvents can be modified by other goroutine
+	p.undeterminedEventsLocker.RLock()
+	defer p.undeterminedEventsLocker.RUnlock()
+
 	perm := rand.Perm(len(p.UndeterminedEvents))
 	for i := 0; i < len(perm); i++ {
 		hash := p.UndeterminedEvents[perm[i]]
@@ -1827,6 +1855,33 @@ func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64
 	return nil, err
 }
 
+func (p *Poset) GetUndeterminedEvents() []string {
+	p.undeterminedEventsLocker.RLock()
+	defer p.undeterminedEventsLocker.RUnlock()
+	return p.UndeterminedEvents
+}
+
+func (p *Poset)  GetPendingLoadedEvents() int64 {
+	p.pendingLoadedEventsLocker.RLock()
+	defer p.pendingLoadedEventsLocker.RUnlock()
+	return p.pendingLoadedEvents
+}
+
+func (p *Poset) GetLastConsensusRound() int64 {
+	p.firstLastConsensusRoundLocker.RLock()
+	defer p.firstLastConsensusRoundLocker.RUnlock()
+	if p.LastConsensusRound == nil {
+		// -2 is less that undefined round index, -1
+		return -2
+	}
+	return *p.LastConsensusRound
+}
+
+func (p *Poset) GetConsensusTransactionsCount() uint64 {
+	p.consensusTransactionsLocker.RLock()
+	defer p.consensusTransactionsLocker.RUnlock()
+	return p.ConsensusTransactions
+}
 /*******************************************************************************
    Helpers
 *******************************************************************************/
