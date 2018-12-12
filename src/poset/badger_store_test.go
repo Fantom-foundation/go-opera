@@ -51,9 +51,9 @@ func removeBadgerStore(store *BadgerStore, t *testing.T) {
 
 func createTestDB(dir string, t *testing.T) *BadgerStore {
 	participants := peers.NewPeersFromSlice([]*peers.Peer{
-		peers.NewPeer("0xaa", ""),
-		peers.NewPeer("0xbb", ""),
-		peers.NewPeer("0xcc", ""),
+		peers.NewPeer("0xAA", ""),
+		peers.NewPeer("0xBB", ""),
+		peers.NewPeer("0xCC", ""),
 	})
 
 	cacheSize := 100
