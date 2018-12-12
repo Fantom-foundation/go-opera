@@ -2,7 +2,7 @@ SUBDIRS := internal/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
-.PHONY: $(TARGETS) $(SUBDIR_TARGETS)
+.PHONY: $(TARGETS) $(SUBDIR_TARGETS) test
 
 # static pattern rule, expands into:
 # all clean : % : foo/.% bar/.%
@@ -14,3 +14,6 @@ $(TARGETS) : % : $(addsuffix %,$(SUBDIRS))
 #   $(@F:.%=%) is just all
 $(SUBDIR_TARGETS) :
 	@$(MAKE) -C $(@D) $(@F:.%=%)
+
+test:
+	go test -race -timeout 45s
