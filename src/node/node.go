@@ -425,7 +425,7 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 	// 	}
 	if err != nil {
 		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
-		return false, nil, err
+		return resp.SyncLimit, nil, err
 	}
 	n.logger.WithFields(logrus.Fields{
 		"from_id":     resp.FromID,
