@@ -23,7 +23,7 @@ type Store interface {
 	GetRound(int64) (RoundInfo, error)
 	SetRound(int64, RoundInfo) error
 	LastRound() int64
-	RoundWitnesses(int64) []string
+	RoundClotho(int64) []string
 	RoundEvents(int64) int
 	GetRoot(string) (Root, error)
 	GetBlock(int64) (Block, error)

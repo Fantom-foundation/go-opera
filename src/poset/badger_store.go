@@ -265,12 +265,12 @@ func (s *BadgerStore) LastRound() int64 {
 	return s.inmemStore.LastRound()
 }
 
-func (s *BadgerStore) RoundWitnesses(r int64) []string {
+func (s *BadgerStore) RoundClotho(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return []string{}
 	}
-	return round.Witnesses()
+	return round.Clotho()
 }
 
 func (s *BadgerStore) RoundEvents(r int64) int {
@@ -543,7 +543,7 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 				LamportTimestamp: 0,
 				Round:            0,
 				RoundReceived:    0 /*RoundNIL*/,
-				WitnessProof: []string{root.SelfParent.Hash},
+				ClothoProof: []string{root.SelfParent.Hash},
 			},
 		}
 		if err := s.SetEvent(event); err != nil {

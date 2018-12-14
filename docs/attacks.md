@@ -36,10 +36,10 @@ connected to the Main Chain is deemed to be invalid and is ignored, as
 in the case of double spending.
 
 We suppose that less than one-third of nodes are malicious. The
-malicious nodes create a parasite chain. By the witness definition,
-witnesses are nominated by 2n/3 node awareness. A parasite chain is only
+malicious nodes create a parasite chain. By the clotho definition,
+clothos are nominated by 2n/3 node awareness. A parasite chain is only
 shared with malicious nodes that are less than one-third of
-participating nodes. A parasite chain is unable to generate witnesses
+participating nodes. A parasite chain is unable to generate clothos
 and have a shared consensus time.
 
 **Double Spending**
@@ -80,12 +80,12 @@ the event blocks until the event blocks assign time ordering.*
 
 Suppose that the pair of event blocks (x, y) has same generation g.
 Then, all nodes must detect two event blocks before generation g+2. By
-the witness definition, each witness supra-shares more than 2n/3
-previous witnesses. For this reason, when two witnesses in g + 1 are
-selected, they must supra-share same the witnesses which are more than
-one-thirds of witnesses in g. This means that more than n/3 witnesses in
-g + 1 share both two witnesses which include the pair respectively. With
-the witness definition and previous explanation, all witness in g + 2
+the clotho definition, each clotho supra-shares more than 2n/3
+previous clothos. For this reason, when two clothos in g + 1 are
+selected, they must supra-share same the clothos which are more than
+one-thirds of clothos in g. This means that more than n/3 clothos in
+g + 1 share both two clothos which include the pair respectively. With
+the clotho definition and previous explanation, all clotho in g + 2
 share both the pairs. Thus, all nodes detect the double spending event
 blocks at g+2 or earlier.
 

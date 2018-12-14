@@ -251,12 +251,12 @@ func (s *InmemStore) LastRound() int64 {
 	return s.lastRound
 }
 
-func (s *InmemStore) RoundWitnesses(r int64) []string {
+func (s *InmemStore) RoundClotho(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return []string{}
 	}
-	return round.Witnesses()
+	return round.Clotho()
 }
 
 func (s *InmemStore) RoundEvents(r int64) int {

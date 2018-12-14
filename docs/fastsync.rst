@@ -176,7 +176,7 @@ creator's Root.
 
 Here RoundInc() is the function that computes whether and Event's Round should
 be incremented over its ParentRound. It checks if the Event can StronglySee a
-super-majority of witnesses from ParentRound, as described in the original
+super-majority of clothos from ParentRound, as described in the original
 whitepaper.
 
 Note that there is still a possibility for an Event's OtherParent to refer to an

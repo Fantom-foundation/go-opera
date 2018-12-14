@@ -741,24 +741,24 @@ func TestStronglySee(t *testing.T) {
 	}
 }
 
-func TestWitness(t *testing.T) {
+func TestClotho(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	round0Witnesses := make(map[string]*RoundEvent)
-	round0Witnesses[index[e0]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e2]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round0Clotho := make(map[string]*RoundEvent)
+	round0Clotho[index[e0]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round0Clotho[index[e1]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round0Clotho[index[e2]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{
-		Message: RoundInfoMessage{Events: round0Witnesses}})
+		Message: RoundInfoMessage{Events: round0Clotho}})
 
-	round1Witnesses := make(map[string]*RoundEvent)
-	round1Witnesses[index[f1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round1Clotho := make(map[string]*RoundEvent)
+	round1Clotho[index[f1]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
 	p.Store.SetRound(1, RoundInfo{
-		Message: RoundInfoMessage{Events: round1Witnesses}})
+		Message: RoundInfoMessage{Events: round1Clotho}})
 
 	expected := []dominatorItem{
 		{"", e0, true, false},
@@ -771,13 +771,13 @@ func TestWitness(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.witness(index[exp.dominator])
+		a, err := p.clotho(index[exp.dominator])
 		if err != nil {
-			t.Fatalf("Error computing witness(%s). Err: %v",
+			t.Fatalf("Error computing clotho(%s). Err: %v",
 				exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("witness(%s) should be %v, not %v",
+			t.Fatalf("clotho(%s) should be %v, not %v",
 				exp.dominator, exp.val, a)
 		}
 	}
@@ -786,25 +786,25 @@ func TestWitness(t *testing.T) {
 func TestRound(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	round0Witnesses := make(map[string]*RoundEvent)
-	round0Witnesses[index[e0]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e2]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round0Clotho := make(map[string]*RoundEvent)
+	round0Clotho[index[e0]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round0Clotho[index[e1]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round0Clotho[index[e2]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{Message: RoundInfoMessage{
-		Events: round0Witnesses}})
+		Events: round0Clotho}})
 
-	round1Witnesses := make(map[string]*RoundEvent)
-	round1Witnesses[index[e21]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[e02]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[f1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round1Clotho := make(map[string]*RoundEvent)
+	round1Clotho[index[e21]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round1Clotho[index[e02]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round1Clotho[index[f1]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
 	p.Store.SetRound(1, RoundInfo{
-		Message: RoundInfoMessage{Events: round1Witnesses}})
+		Message: RoundInfoMessage{Events: round1Clotho}})
 
 	expected := []roundItem{
 		{e0, 0},
@@ -834,25 +834,25 @@ func TestRound(t *testing.T) {
 func TestRoundDiff(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	round0Witnesses := make(map[string]*RoundEvent)
-	round0Witnesses[index[e0]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e2]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round0Clotho := make(map[string]*RoundEvent)
+	round0Clotho[index[e0]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round0Clotho[index[e1]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round0Clotho[index[e2]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{
-		Message: RoundInfoMessage{Events: round0Witnesses}})
+		Message: RoundInfoMessage{Events: round0Clotho}})
 
-	round1Witnesses := make(map[string]*RoundEvent)
-	round1Witnesses[index[e21]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[e02]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[f1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round1Clotho := make(map[string]*RoundEvent)
+	round1Clotho[index[e21]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round1Clotho[index[e02]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
+	round1Clotho[index[f1]] = &RoundEvent{
+		Clotho: true, Famous: Trilean_UNDEFINED}
 	p.Store.SetRound(1,
-		RoundInfo{Message: RoundInfoMessage{Events: round1Witnesses}})
+		RoundInfo{Message: RoundInfoMessage{Events: round1Clotho}})
 
 	if d, err := p.roundDiff(index[s11], index[e21]); d != 1 {
 		if err != nil {
@@ -890,28 +890,28 @@ func TestDivideRounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := len(round0.Witnesses()); l != 3 {
-		t.Fatalf("round 0 should have 3 witnesses, not %d", l)
+	if l := len(round0.Clotho()); l != 3 {
+		t.Fatalf("round 0 should have 3 clothos, not %d", l)
 	}
-	if !contains(round0.Witnesses(), index[e0]) {
-		t.Fatalf("round 0 witnesses should contain %s", e0)
+	if !contains(round0.Clotho(), index[e0]) {
+		t.Fatalf("round 0 clothos should contain %s", e0)
 	}
-	if !contains(round0.Witnesses(), index[e1]) {
-		t.Fatalf("round 0 witnesses should contain %s", e1)
+	if !contains(round0.Clotho(), index[e1]) {
+		t.Fatalf("round 0 clothos should contain %s", e1)
 	}
-	if !contains(round0.Witnesses(), index[e2]) {
-		t.Fatalf("round 0 witnesses should contain %s", e2)
+	if !contains(round0.Clotho(), index[e2]) {
+		t.Fatalf("round 0 clothos should contain %s", e2)
 	}
 
 	round1, err := p.Store.GetRound(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := len(round1.Witnesses()); l != 3 {
-		t.Fatalf("round 1 should have 1 witness, not %d", l)
+	if l := len(round1.Clotho()); l != 3 {
+		t.Fatalf("round 1 should have 1 clotho, not %d", l)
 	}
-	if !contains(round1.Witnesses(), index[f1]) {
-		t.Fatalf("round 1 witnesses should contain %s", f1)
+	if !contains(round1.Clotho(), index[f1]) {
+		t.Fatalf("round 1 clothos should contain %s", f1)
 	}
 
 	round2, err := p.Store.GetRound(2)
@@ -919,8 +919,8 @@ func TestDivideRounds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if l := len(round2.Witnesses()); l != 1 {
-		t.Fatalf("round 1 should have 1 witness, not %d", l)
+	if l := len(round2.Clotho()); l != 1 {
+		t.Fatalf("round 1 should have 1 clotho, not %d", l)
 	}
 
 	expectedPendingRounds := []pendingRound{
@@ -1459,11 +1459,11 @@ func TestDivideRoundsBis(t *testing.T) {
 
 }
 
-func TestDecideFame(t *testing.T) {
+func TestDecideAtropos(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
 	p.DivideRounds()
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1471,15 +1471,15 @@ func TestDecideFame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round0.Message.Events[index[e0]]; !(f.Witness &&
+	if f := round0.Message.Events[index[e0]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", e0, f)
 	}
-	if f := round0.Message.Events[index[e1]]; !(f.Witness &&
+	if f := round0.Message.Events[index[e1]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", e1, f)
 	}
-	if f := round0.Message.Events[index[e2]]; !(f.Witness &&
+	if f := round0.Message.Events[index[e2]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", e2, f)
 	}
@@ -1488,15 +1488,15 @@ func TestDecideFame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round1.Message.Events[index[f2]]; !(f.Witness &&
+	if f := round1.Message.Events[index[f2]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", f2, f)
 	}
-	if f := round1.Message.Events[index[f0]]; !(f.Witness &&
+	if f := round1.Message.Events[index[f0]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", f0, f)
 	}
-	if f := round1.Message.Events[index[f1]]; !(f.Witness &&
+	if f := round1.Message.Events[index[f1]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", f1, f)
 	}
@@ -1505,15 +1505,15 @@ func TestDecideFame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round2.Message.Events[index[g1]]; !(f.Witness &&
+	if f := round2.Message.Events[index[g1]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", g1, f)
 	}
-	if f := round2.Message.Events[index[g0]]; !(f.Witness &&
+	if f := round2.Message.Events[index[g0]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", g0, f)
 	}
-	if f := round2.Message.Events[index[g2]]; !(f.Witness &&
+	if f := round2.Message.Events[index[g2]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", g2, f)
 	}
@@ -1522,15 +1522,15 @@ func TestDecideFame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round3.Message.Events[index[h2]]; !(f.Witness &&
+	if f := round3.Message.Events[index[h2]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", h2, f)
 	}
-	if f := round3.Message.Events[index[h0]]; !(f.Witness &&
+	if f := round3.Message.Events[index[h0]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", h0, f)
 	}
-	if f := round3.Message.Events[index[h10]]; !(f.Witness &&
+	if f := round3.Message.Events[index[h10]]; !(f.Clotho &&
 		f.Famous == Trilean_TRUE) {
 		t.Fatalf("%s should be famous; got %v", h10, f)
 	}
@@ -1539,15 +1539,15 @@ func TestDecideFame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round4.Message.Events[index[i0]]; !(f.Witness &&
+	if f := round4.Message.Events[index[i0]]; !(f.Clotho &&
 		f.Famous == Trilean_UNDEFINED) {
 		t.Fatalf("%s should be famous; got %v", i0, f)
 	}
-	if f := round4.Message.Events[index[i2]]; !(f.Witness &&
+	if f := round4.Message.Events[index[i2]]; !(f.Clotho &&
 		f.Famous == Trilean_UNDEFINED) {
 		t.Fatalf("%s should be famous; got %v", i2, f)
 	}
-	if f := round4.Message.Events[index[i1]]; !(f.Witness &&
+	if f := round4.Message.Events[index[i1]]; !(f.Clotho &&
 		f.Famous == Trilean_UNDEFINED) {
 		t.Fatalf("%s should be famous; got %v", i1, f)
 	}
@@ -1575,7 +1575,7 @@ func TestDecideRoundReceived(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	if err := p.DecideRoundReceived(); err != nil {
 		t.Fatal(err)
 	}
@@ -1649,7 +1649,7 @@ func TestProcessDecidedRounds(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	if err := p.ProcessDecidedRounds(); err != nil {
 		t.Fatal(err)
@@ -1752,7 +1752,7 @@ func BenchmarkConsensus(b *testing.B) {
 		b.StartTimer()
 
 		p.DivideRounds()
-		p.DecideFame()
+		p.DecideAtropos()
 		p.DecideRoundReceived()
 		p.ProcessDecidedRounds()
 	}
@@ -1784,7 +1784,7 @@ func TestGetFrame(t *testing.T) {
 	participants := p.Participants.ToPeerSlice()
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -1958,7 +1958,7 @@ func TestResetFromFrame(t *testing.T) {
 	participants := p.Participants.ToPeerSlice()
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -2030,14 +2030,14 @@ func TestResetFromFrame(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Check round 1 witnesses
-		pWitnesses := pRound1.Witnesses()
-		p2Witnesses := p2Round1.Witnesses()
-		sort.Strings(pWitnesses)
-		sort.Strings(p2Witnesses)
-		if !reflect.DeepEqual(pWitnesses, p2Witnesses) {
-			t.Fatalf("Reset Hg Round 1 witnesses should be %v, not %v",
-				pWitnesses, p2Witnesses)
+		// Check round 1 clothos
+		pClotho := pRound1.Clotho()
+		p2Clotho := p2Round1.Clotho()
+		sort.Strings(pClotho)
+		sort.Strings(p2Clotho)
+		if !reflect.DeepEqual(pClotho, p2Clotho) {
+			t.Fatalf("Reset Hg Round 1 clothos should be %v, not %v",
+				pClotho, p2Clotho)
 		}
 
 		// check event rounds and lamport timestamps
@@ -2070,7 +2070,7 @@ func TestResetFromFrame(t *testing.T) {
 	})
 
 	t.Run("TestConsensus", func(t *testing.T) {
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
@@ -2118,7 +2118,7 @@ func TestResetFromFrame(t *testing.T) {
 		}
 
 		p2.DivideRounds()
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
@@ -2132,14 +2132,14 @@ func TestResetFromFrame(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			pWitnesses := pRound.Witnesses()
-			p2Witnesses := p2Round.Witnesses()
-			sort.Strings(pWitnesses)
-			sort.Strings(p2Witnesses)
+			pClotho := pRound.Clotho()
+			p2Clotho := p2Round.Clotho()
+			sort.Strings(pClotho)
+			sort.Strings(p2Clotho)
 
-			if !reflect.DeepEqual(pWitnesses, p2Witnesses) {
-				t.Fatalf("Reset Hg Round %d witnesses should be %v, not %v",
-					r, pWitnesses, p2Witnesses)
+			if !reflect.DeepEqual(pClotho, p2Clotho) {
+				t.Fatalf("Reset Hg Round %d clothos should be %v, not %v",
+					r, pClotho, p2Clotho)
 			}
 		}
 	})
@@ -2151,7 +2151,7 @@ func TestBootstrap(t *testing.T) {
 	// Add events and run consensus methods on it
 	p, _ := initConsensusPoset(true, t)
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -2347,7 +2347,7 @@ func TestFunkyPosetFame(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2361,11 +2361,11 @@ func TestFunkyPosetFame(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var witnessNames []string
-		for _, w := range round.Witnesses() {
-			witnessNames = append(witnessNames, getName(index, w))
+		var clothoNames []string
+		for _, w := range round.Clotho() {
+			clothoNames = append(clothoNames, getName(index, w))
 		}
-		t.Logf("round %d witnesses: %v", r, witnessNames)
+		t.Logf("round %d clothos: %v", r, clothoNames)
 	}
 
 	expPendingRounds := []pendingRound{
@@ -2407,7 +2407,7 @@ func TestFunkyPosetBlocks(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.DecideRoundReceived(); err != nil {
@@ -2427,11 +2427,11 @@ func TestFunkyPosetBlocks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var witnessNames []string
-		for _, w := range round.Witnesses() {
-			witnessNames = append(witnessNames, getName(index, w))
+		var clothoNames []string
+		for _, w := range round.Clotho() {
+			clothoNames = append(clothoNames, getName(index, w))
 		}
-		t.Logf("round %d witnesses: %v", r, witnessNames)
+		t.Logf("round %d clothos: %v", r, clothoNames)
 	}
 
 	// Rounds 0,1,2,3,4 and 5 should be decided.
@@ -2471,7 +2471,7 @@ func TestFunkyPosetFrames(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.DecideRoundReceived(); err != nil {
@@ -2696,7 +2696,7 @@ func TestFunkyPosetReset(t *testing.T) {
 	p, index := initFunkyPoset(t, common.NewTestLogger(t), true)
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -2750,11 +2750,11 @@ func TestFunkyPosetReset(t *testing.T) {
 		}
 
 		p2.DivideRounds()
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
-		compareRoundWitnesses(p, p2, index, bi, true, t)
+		compareRoundClotho(p, p2, index, bi, true, t)
 	}
 
 }
@@ -2889,7 +2889,7 @@ func TestSparsePosetFrames(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.DecideRoundReceived(); err != nil {
@@ -3137,7 +3137,7 @@ func TestSparsePosetReset(t *testing.T) {
 	p, index := initSparsePoset(t, common.NewTestLogger(t))
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -3196,16 +3196,16 @@ func TestSparsePosetReset(t *testing.T) {
 		}
 
 		p2.DivideRounds()
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
-		compareRoundWitnesses(p, p2, index, int64(bi), true, t)
+		compareRoundClotho(p, p2, index, int64(bi), true, t)
 	}
 
 }
 
-func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
+func compareRoundClotho(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 
 	for i := round; i <= 5; i++ {
 		pRound, err := p.Store.GetRound(i)
@@ -3217,22 +3217,22 @@ func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, c
 			t.Fatal(err)
 		}
 
-		//Check Round1 Witnesses
-		pWitnesses := pRound.Witnesses()
-		p2Witnesses := p2Round.Witnesses()
-		sort.Strings(pWitnesses)
-		sort.Strings(p2Witnesses)
-		hwn := make([]string, len(pWitnesses))
-		p2wn := make([]string, len(p2Witnesses))
-		for _, w := range pWitnesses {
+		//Check Round1 Clotho
+		pClotho := pRound.Clotho()
+		p2Clotho := p2Round.Clotho()
+		sort.Strings(pClotho)
+		sort.Strings(p2Clotho)
+		hwn := make([]string, len(pClotho))
+		p2wn := make([]string, len(p2Clotho))
+		for _, w := range pClotho {
 			hwn = append(hwn, getName(index, w))
 		}
-		for _, w := range p2Witnesses {
+		for _, w := range p2Clotho {
 			p2wn = append(p2wn, getName(index, w))
 		}
 
 		if check && !reflect.DeepEqual(hwn, p2wn) {
-			t.Fatalf("Reset Hg Round %d witnesses should be %v, not %v", i, hwn, p2wn)
+			t.Fatalf("Reset Hg Round %d clothos should be %v, not %v", i, hwn, p2wn)
 		}
 	}
 
@@ -3310,7 +3310,7 @@ func compareRoots(t *testing.T, x, exp *Root, index map[string]string) {
 
 func compareEventMessages(t *testing.T, x, exp *EventMessage,
 	index map[string]string) {
-	if !reflect.DeepEqual(x.WitnessProof, exp.WitnessProof) ||
+	if !reflect.DeepEqual(x.ClothoProof, exp.ClothoProof) ||
 		!bytes.Equal(x.FlagTable, exp.FlagTable) ||
 		x.Signature != exp.Signature {
 		hash, _ := exp.Body.Hash()

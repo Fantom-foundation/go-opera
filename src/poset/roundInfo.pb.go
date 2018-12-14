@@ -46,8 +46,8 @@ func (Trilean) EnumDescriptor() ([]byte, []int) {
 
 type RoundEvent struct {
 	Consensus            bool     `protobuf:"varint,1,opt,name=Consensus,proto3" json:"Consensus,omitempty"`
-	Witness              bool     `protobuf:"varint,2,opt,name=Witness,proto3" json:"Witness,omitempty"`
-	Famous               Trilean  `protobuf:"varint,3,opt,name=Famous,proto3,enum=poset.Trilean" json:"Famous,omitempty"`
+	Clotho              bool     `protobuf:"varint,2,opt,name=Clotho,proto3" json:"Clotho,omitempty"`
+	Atropos               Trilean  `protobuf:"varint,3,opt,name=Atropos,proto3,enum=poset.Trilean" json:"Atropos,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -84,16 +84,16 @@ func (m *RoundEvent) GetConsensus() bool {
 	return false
 }
 
-func (m *RoundEvent) GetWitness() bool {
+func (m *RoundEvent) GetClotho() bool {
 	if m != nil {
-		return m.Witness
+		return m.Clotho
 	}
 	return false
 }
 
-func (m *RoundEvent) GetFamous() Trilean {
+func (m *RoundEvent) GetAtropos() Trilean {
 	if m != nil {
-		return m.Famous
+		return m.Atropos
 	}
 	return Trilean_UNDEFINED
 }

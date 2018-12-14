@@ -134,7 +134,7 @@ func (this *EventMessage) Equals(that *EventMessage) bool {
 	return this.Body.Equals(that.Body) &&
 		this.Signature == that.Signature &&
 		BytesEquals(this.FlagTable, that.FlagTable) &&
-		reflect.DeepEqual(this.WitnessProof, that.WitnessProof)
+		reflect.DeepEqual(this.ClothoProof, that.ClothoProof)
 }
 
 // NewEvent creates new block event.
@@ -347,7 +347,7 @@ func (e *Event) ToWire() WireEvent {
 		},
 		Signature:    e.Message.Signature,
 		FlagTable:    e.Message.FlagTable,
-		WitnessProof: e.Message.WitnessProof,
+		ClothoProof: e.Message.ClothoProof,
 	}
 }
 
@@ -447,7 +447,7 @@ type WireEvent struct {
 	Body         WireBody
 	Signature    string
 	FlagTable    []byte
-	WitnessProof []string
+	ClothoProof []string
 }
 
 func (we *WireEvent) BlockSignatures(validator []byte) []BlockSignature {

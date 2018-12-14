@@ -31,7 +31,7 @@ message EventMessage {
   EventBody Body = 1;
   string Signature = 2;
   bytes FlagTable = 3;
-  repeated string WitnessProof = 4;
+  repeated string ClothoProof = 4;
   int64 SelfParentIndex = 5;
   int64 OtherParentCreatorID = 6;
   int64 OtherParentIndex = 7;

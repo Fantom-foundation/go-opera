@@ -504,7 +504,7 @@ func (c *Core) RunConsensus() error {
 	}
 
 	start = time.Now()
-	err = c.poset.DecideFame()
+	err = c.poset.DecideAtropos()
 	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideClotho()")
 	if err != nil {
 		c.logger.WithField("Error", err).Error("c.poset.DecideClotho()")

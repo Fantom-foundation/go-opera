@@ -72,9 +72,9 @@ let setupStage = () => {
 let getEventColor = (event) => {
     let color = '#555555';
 
-    if (event.Famous) {
+    if (event.Atropos) {
         color = '#00ffff';
-    } else if (event.Witness) {
+    } else if (event.Clotho) {
         color = '#5555ff';
     } else if (event.Consensus) {
         color = '#00ff00';
@@ -284,12 +284,12 @@ let drawLegend = () => {
             color: getEventColor({ Consensus: true }),
         },
         {
-            name: 'Famous',
-            color: getEventColor({ Famous: true }),
+            name: 'Atropos',
+            color: getEventColor({ Atropos: true }),
         },
         {
-            name: 'Witness',
-            color: getEventColor({ Witness: true }),
+            name: 'Clotho',
+            color: getEventColor({ Clotho: true }),
         },
         {
             name: 'Normal',

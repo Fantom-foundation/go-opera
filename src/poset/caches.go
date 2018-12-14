@@ -19,7 +19,7 @@ func (k Key) ToString() string {
 type ParentRoundInfo struct {
 	round                     int
 	isRoot                    bool
-	rootStronglySeenWitnesses int
+	rootStronglySeenClotho int
 }
 
 func NewBaseParentRoundInfo() ParentRoundInfo {

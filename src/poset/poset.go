@@ -406,9 +406,9 @@ func (p *Poset) round2(x string) (int64, error) {
 				seeOpRoundRoots int64
 			)
 
-			// if in a flag table there are witnesses of the current round, then
+			// if in a flag table there are clothos of the current round, then
 			// current round is other parent round.
-			ws := p.Store.RoundWitnesses(opRound)
+			ws := p.Store.RoundClotho(opRound)
 			ft, _ := ex.GetFlagTable()
 			for k := range ft {
 				for _, w := range ws {
@@ -440,9 +440,9 @@ func (p *Poset) round2(x string) (int64, error) {
 		}
 	}
 
-	ws := p.Store.RoundWitnesses(parentRound)
+	ws := p.Store.RoundClotho(parentRound)
 
-	isSee := func(poset *Poset, root string, witnesses []string) bool {
+	isSee := func(poset *Poset, root string, clothos []string) bool {
 		for _, w := range ws {
 			if w == root && w != ex.Hex() {
 				see, err := poset.dominated(ex.Hex(), w)
@@ -458,10 +458,10 @@ func (p *Poset) round2(x string) (int64, error) {
 	}
 
 	// check wp
-	if len(ex.Message.WitnessProof) >= p.superMajority {
+	if len(ex.Message.ClothoProof) >= p.superMajority {
 		count := 0
 
-		for _, root := range ex.Message.WitnessProof {
+		for _, root := range ex.Message.ClothoProof {
 			if isSee(p, root, ws) {
 				count++
 			}
@@ -491,8 +491,8 @@ func (p *Poset) round2(x string) (int64, error) {
 	return parentRound, nil
 }
 
-// witness if is true then x is a witness (first event of a round for the owner)
-func (p *Poset) witness(x string) (bool, error) {
+// clotho if is true then x is a clotho (first event of a round for the owner)
+func (p *Poset) clotho(x string) (bool, error) {
 	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		return false, err
@@ -908,7 +908,7 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 
 /*
 DivideRounds assigns a Round and LamportTimestamp to Events, and flags them as
-witnesses if necessary. Pushes Rounds in the PendingRounds queue if necessary.
+clothos if necessary. Pushes Rounds in the PendingRounds queue if necessary.
 */
 func (p *Poset) DivideRounds() error {
 
@@ -961,25 +961,25 @@ func (p *Poset) DivideRounds() error {
 				roundInfo.Message.Queued = true
 			}
 
-			witness, err := p.witness(hash)
+			clotho, err := p.clotho(hash)
 			if err != nil {
 				return err
 			}
-			roundInfo.AddEvent(hash, witness)
+			roundInfo.AddEvent(hash, clotho)
 
 			err = p.Store.SetRound(roundNumber, roundInfo)
 			if err != nil {
 				return err
 			}
 
-			if witness {
+			if clotho {
 				// if event is self head
 				if p.core != nil && ev.Hex() == p.core.Head() &&
 					ev.Creator() == p.core.HexID() {
 
 					replaceFlagTable := func(event *Event, round int64) {
 						ft := make(map[string]int64)
-						ws := p.Store.RoundWitnesses(round)
+						ws := p.Store.RoundClotho(round)
 						for _, v := range ws {
 							ft[v] = 1
 						}
@@ -993,11 +993,11 @@ func (p *Poset) DivideRounds() error {
 						if err != nil {
 							return err
 						}
-						ev.Message.WitnessProof = []string{root.SelfParent.Hash}
+						ev.Message.ClothoProof = []string{root.SelfParent.Hash}
 					} else {
 						replaceFlagTable(&ev, ev.GetRound())
-						roots := p.Store.RoundWitnesses(ev.GetRound() - 1)
-						ev.Message.WitnessProof = roots
+						roots := p.Store.RoundClotho(ev.GetRound() - 1)
+						ev.Message.ClothoProof = roots
 					}
 				}
 			}
@@ -1028,8 +1028,8 @@ func (p *Poset) DivideRounds() error {
 	return nil
 }
 
-//DecideFame decides if witnesses are famous
-func (p *Poset) DecideFame() error {
+//DecideAtropos decides if clothos are atropos
+func (p *Poset) DecideAtropos() error {
 
 	//Initialize the vote map
 	votes := make(map[string]map[string]bool) //[x][y]=>vote(x,y)
@@ -1049,13 +1049,13 @@ func (p *Poset) DecideFame() error {
 		if err != nil {
 			return err
 		}
-		for _, x := range roundInfo.Witnesses() {
+		for _, x := range roundInfo.Clotho() {
 			if roundInfo.IsDecided(x) {
 				continue
 			}
 		VOTE_LOOP:
 			for j := roundIndex + 1; j <= p.Store.LastRound(); j++ {
-				for _, y := range p.Store.RoundWitnesses(j) {
+				for _, y := range p.Store.RoundClotho(j) {
 					diff := j - roundIndex
 					if diff == 1 {
 						ycx, err := p.dominated(y, x)
@@ -1065,19 +1065,19 @@ func (p *Poset) DecideFame() error {
 						setVote(votes, y, x, ycx)
 					} else {
 						//count votes
-						var ssWitnesses []string
-						for _, w := range p.Store.RoundWitnesses(j - 1) {
+						var ssClotho []string
+						for _, w := range p.Store.RoundClotho(j - 1) {
 							ss, err := p.strictlyDominated(y, w)
 							if err != nil {
 								return err
 							}
 							if ss {
-								ssWitnesses = append(ssWitnesses, w)
+								ssClotho = append(ssClotho, w)
 							}
 						}
 						yays := 0
 						nays := 0
-						for _, w := range ssWitnesses {
+						for _, w := range ssClotho {
 							if votes[w][x] {
 								yays++
 							} else {
@@ -1117,7 +1117,7 @@ func (p *Poset) DecideFame() error {
 			return err
 		}
 
-		if roundInfo.WitnessesDecided() {
+		if roundInfo.ClothoDecided() {
 			decidedRounds[roundIndex] = int64(pos)
 		}
 
@@ -1138,8 +1138,7 @@ func (p *Poset) DecideRoundReceived() error {
 
 	/* From whitepaper - 18/03/18
 	   "[...] An event is said to be “received” in the first round where all the
-	   unique famous witnesses have received it, if all earlier rounds have the
-	   fame of all witnesses decided"
+	   unique atropos have received it
 	*/
 	for _, x := range p.UndeterminedEvents {
 
@@ -1162,21 +1161,21 @@ func (p *Poset) DecideRoundReceived() error {
 			}
 
 			//We are looping from earlier to later rounds; so if we encounter
-			//one round with undecided witnesses, we are sure that this event
+			//one round with undecided clothos, we are sure that this event
 			//is not "received". Break out of i loop
-			if !(tr.WitnessesDecided()) {
+			if !(tr.ClothoDecided()) {
 				break
 			}
 
-			fws := tr.FamousWitnesses()
-			//set of famous witnesses that see x
+			fws := tr.Atropos()
+			//set of atropos that domniates x
 			var s []string
 			for _, w := range fws {
-				see, err := p.dominated(w, x)
+				domniates, err := p.dominated(w, x)
 				if err != nil {
 					return err
 				}
-				if see {
+				if domniates {
 					s = append(s, w)
 				}
 			}
@@ -1218,7 +1217,7 @@ func (p *Poset) DecideRoundReceived() error {
 	return nil
 }
 
-//ProcessDecidedRounds takes Rounds whose witnesses are decided, computes the
+//ProcessDecidedRounds takes Rounds whose clothos are decided, computes the
 //corresponding Frames, maps them into Blocks, and commits the Blocks via the
 //commit channel
 func (p *Poset) ProcessDecidedRounds() error {
@@ -1258,7 +1257,7 @@ func (p *Poset) ProcessDecidedRounds() error {
 		}
 		p.logger.WithFields(logrus.Fields{
 			"round_received": r.Index,
-			"witnesses":      round.FamousWitnesses(),
+			"clothos":      round.Atropos(),
 			"events":         len(frame.Events),
 			"roots":          frame.Roots,
 		}).Debugf("Processing Decided Round")
@@ -1612,7 +1611,7 @@ func (p *Poset) Bootstrap() error {
 		if err := p.DivideRounds(); err != nil {
 			return err
 		}
-		if err := p.DecideFame(); err != nil {
+		if err := p.DecideAtropos(); err != nil {
 			return err
 		}
 		if err := p.DecideRoundReceived(); err != nil {
@@ -1715,7 +1714,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 			Body:         &body,
 			Signature:    wevent.Signature,
 			FlagTable:    wevent.FlagTable,
-			WitnessProof: wevent.WitnessProof,
+			ClothoProof: wevent.ClothoProof,
 			SelfParentIndex:      wevent.Body.SelfParentIndex,
 			OtherParentCreatorID: wevent.Body.OtherParentCreatorID,
 			OtherParentIndex:     wevent.Body.OtherParentIndex,

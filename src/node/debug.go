@@ -35,7 +35,7 @@ type EventMessageLite struct {
 	Round            int64
 	RoundReceived    int64
 
-	WitnessProof []string
+	ClothoProof []string
 //	FlagTable []byte // FlagTable stores connection information
 }
 type EventLite struct {
@@ -82,7 +82,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 				},
 				Hex: event.Message.Hex,
 				Signature: event.Message.Signature,
-				WitnessProof: event.Message.WitnessProof,
+				ClothoProof: event.Message.ClothoProof,
 				Round: event.Message.Round,
 				RoundReceived: event.Message.RoundReceived,
 				TopologicalIndex: event.Message.TopologicalIndex,
