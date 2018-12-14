@@ -44,9 +44,9 @@ type Poset struct {
 	trustCount              int
 	core                    Core
 
-	ancestorCache     *lru.Cache
-	selfAncestorCache *lru.Cache
-	stronglySeeCache  *lru.Cache
+	dominatorCache     *lru.Cache
+	selfDominatorCache *lru.Cache
+	strictlyDominatedCache  *lru.Cache
 	roundCache        *lru.Cache
 	timestampCache    *lru.Cache
 
@@ -72,17 +72,17 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	trustCount := int(math.Ceil(float64(participants.Len()) / float64(3)))
 
 	cacheSize := store.CacheSize()
-	ancestorCache, err := lru.New(cacheSize)
+	dominatorCache, err := lru.New(cacheSize)
 	if err != nil {
-		logger.Fatal("Unable to init Poset.ancestorCache")
+		logger.Fatal("Unable to init Poset.dominatorCache")
 	}
-	selfAncestorCache, err := lru.New(cacheSize)
+	selfDominatorCache, err := lru.New(cacheSize)
 	if err != nil {
-		logger.Fatal("Unable to init Poset.selfAncestorCache")
+		logger.Fatal("Unable to init Poset.selfDominatorCache")
 	}
-	stronglySeeCache, err :=  lru.New(cacheSize)
+	strictlyDominatedCache, err :=  lru.New(cacheSize)
 	if err != nil {
-		logger.Fatal("Unable to init Poset.stronglySeeCache")
+		logger.Fatal("Unable to init Poset.strictlyDominatedCache")
 	}
 	roundCache, err :=        lru.New(cacheSize)
 	if err != nil {
@@ -96,9 +96,9 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 		Participants:      participants,
 		Store:             store,
 		commitCh:          commitCh,
-		ancestorCache:     ancestorCache,
-		selfAncestorCache: selfAncestorCache,
-		stronglySeeCache:  stronglySeeCache,
+		dominatorCache:     dominatorCache,
+		selfDominatorCache: selfDominatorCache,
+		strictlyDominatedCache:  strictlyDominatedCache,
 		roundCache:        roundCache,
 		timestampCache:    timestampCache,
 		logger:            logger,
@@ -123,9 +123,9 @@ func (p *Poset) SetCore(core Core) {
 Private Methods
 *******************************************************************************/
 
-//true if y is an ancestor of x
-func (p *Poset) ancestor(x, y string) (bool, error) {
-	if c, ok := p.ancestorCache.Get(Key{x, y}); ok {
+//true if y is an dominator of x
+func (p *Poset) dominator(x, y string) (bool, error) {
+	if c, ok := p.dominatorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
 
@@ -133,20 +133,20 @@ func (p *Poset) ancestor(x, y string) (bool, error) {
 		return false, nil
 	}
 
-	a, err := p.ancestor2(x, y)
+	a, err := p.dominator2(x, y)
 	if err != nil {
 		return false, err
 	}
-	p.ancestorCache.Add(Key{x, y}, a)
+	p.dominatorCache.Add(Key{x, y}, a)
 	return a, nil
 }
 
-func (p *Poset) ancestor2(x, y string) (bool, error) {
+func (p *Poset) dominator2(x, y string) (bool, error) {
 	if x == y {
 		return true, nil
 	}
 
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		roots, err2 := p.Store.RootsBySelfParent()
 		if err2 != nil {
@@ -163,7 +163,7 @@ func (p *Poset) ancestor2(x, y string) (bool, error) {
 		return false, err
 	}
 
-	ey, err := p.Store.GetEvent(y)
+	ey, err := p.Store.GetEventBlock(y)
 	if err != nil {
 		// check y roots
 		roots, err2 := p.Store.RootsBySelfParent()
@@ -185,7 +185,7 @@ func (p *Poset) ancestor2(x, y string) (bool, error) {
 		}
 	}
 
-	res, err := p.ancestor(ex.SelfParent(), y)
+	res, err := p.dominator(ex.SelfParent(), y)
 	if err != nil {
 		return false, err
 	}
@@ -194,30 +194,30 @@ func (p *Poset) ancestor2(x, y string) (bool, error) {
 		return true, nil
 	}
 
-	return p.ancestor(ex.OtherParent(), y)
+	return p.dominator(ex.OtherParent(), y)
 }
 
-//true if y is a self-ancestor of x
-func (p *Poset) selfAncestor(x, y string) (bool, error) {
-	if c, ok := p.selfAncestorCache.Get(Key{x, y}); ok {
+//true if y is a self-dominator of x
+func (p *Poset) selfDominator(x, y string) (bool, error) {
+	if c, ok := p.selfDominatorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
 	if len(x) == 0 || len(y) == 0 {
 		return false, nil
 	}
-	a, err := p.selfAncestor2(x, y)
+	a, err := p.selfDominator2(x, y)
 	if err != nil {
 		return false, err
 	}
-	p.selfAncestorCache.Add(Key{x, y}, a)
+	p.selfDominatorCache.Add(Key{x, y}, a)
 	return a, nil
 }
 
-func (p *Poset) selfAncestor2(x, y string) (bool, error) {
+func (p *Poset) selfDominator2(x, y string) (bool, error) {
 	if x == y {
 		return true, nil
 	}
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		roots, err := p.Store.RootsBySelfParent()
 		if err != nil {
@@ -231,7 +231,7 @@ func (p *Poset) selfAncestor2(x, y string) (bool, error) {
 		return false, err
 	}
 
-	ey, err := p.Store.GetEvent(y)
+	ey, err := p.Store.GetEventBlock(y)
 	if err != nil {
 		roots, err2 := p.Store.RootsBySelfParent()
 		if err2 != nil {
@@ -252,34 +252,34 @@ func (p *Poset) selfAncestor2(x, y string) (bool, error) {
 	return false, nil
 }
 
-//true if x sees y
-func (p *Poset) see(x, y string) (bool, error) {
-	return p.ancestor(x, y)
+//true if x is dominated by y
+func (p *Poset) dominated(x, y string) (bool, error) {
+	return p.dominator(x, y)
 	//it is not necessary to detect forks because we assume that the InsertEvent
 	//function makes it impossible to insert two Events at the same height for
 	//the same participant.
 }
 
-//true if x strongly sees y
-func (p *Poset) stronglySee(x, y string) (bool, error) {
+//true if x strictly dominated by y
+func (p *Poset) strictlyDominated(x, y string) (bool, error) {
 	if len(x) == 0 || len(y) == 0 {
 		return false, nil
 	}
 
-	if c, ok := p.stronglySeeCache.Get(Key{x, y}); ok {
+	if c, ok := p.strictlyDominatedCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
-	ss, err := p.stronglySee2(x, y)
+	ss, err := p.strictlyDominated2(x, y)
 	if err != nil {
 		return false, err
 	}
-	p.stronglySeeCache.Add(Key{x, y}, ss)
+	p.strictlyDominatedCache.Add(Key{x, y}, ss)
 	return ss, nil
 }
 
 // Possible improvement: Populate the cache for upper and downer events
 // that also stronglySee y
-func (p *Poset) stronglySee2(x, y string) (bool, error) {
+func (p *Poset) strictlyDominated2(x, y string) (bool, error) {
 	sentinels := make(map[string]bool)
 
 	if err := p.MapSentinels(x, y, sentinels); err != nil {
@@ -289,17 +289,17 @@ func (p *Poset) stronglySee2(x, y string) (bool, error) {
 	return len(sentinels) >= p.superMajority, nil
 }
 
-// participants in x's ancestry that see y
+// participants in x's dominator that dominate y
 func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 	if x == "" {
 		return nil
 	}
 
-	if see, err := p.see(x, y); err != nil || !see {
+	if see, err := p.dominated(x, y); err != nil || !see {
 		return err
 	}
 
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 
 	if err != nil {
 		roots, err2 := p.Store.RootsBySelfParent()
@@ -356,7 +356,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		return r.SelfParent.Round, nil
 	}
 
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		return math.MinInt64, err
 	}
@@ -413,7 +413,7 @@ func (p *Poset) round2(x string) (int64, error) {
 			for k := range ft {
 				for _, w := range ws {
 					if w == k && w != ex.Hex() {
-						see, err := p.see(ex.Hex(), w)
+						see, err := p.dominated(ex.Hex(), w)
 						if err != nil {
 							return math.MinInt32, err
 						}
@@ -445,7 +445,7 @@ func (p *Poset) round2(x string) (int64, error) {
 	isSee := func(poset *Poset, root string, witnesses []string) bool {
 		for _, w := range ws {
 			if w == root && w != ex.Hex() {
-				see, err := poset.see(ex.Hex(), w)
+				see, err := poset.dominated(ex.Hex(), w)
 				if err != nil {
 					return false
 				}
@@ -493,7 +493,7 @@ func (p *Poset) round2(x string) (int64, error) {
 
 // witness if is true then x is a witness (first event of a round for the owner)
 func (p *Poset) witness(x string) (bool, error) {
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		return false, err
 	}
@@ -514,7 +514,7 @@ func (p *Poset) witness(x string) (bool, error) {
 
 func (p *Poset) roundReceived(x string) (int64, error) {
 
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		return -1, err
 	}
@@ -544,7 +544,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 		return r.SelfParent.LamportTimestamp, nil
 	}
 
-	ex, err := p.Store.GetEvent(x)
+	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		return math.MinInt64, err
 	}
@@ -569,7 +569,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 
 	if ex.OtherParent() != "" {
 		opLT := int64(math.MinInt64)
-		if _, err := p.Store.GetEvent(ex.OtherParent()); err == nil {
+		if _, err := p.Store.GetEventBlock(ex.OtherParent()); err == nil {
 			//if we know the other-parent, fetch its Round directly
 			t, err := p.lamportTimestamp(ex.OtherParent())
 			if err != nil {
@@ -651,7 +651,7 @@ func (p *Poset) checkOtherParent(event Event) error {
 	otherParent := event.OtherParent()
 	if otherParent != "" {
 		//Check if we have it
-		_, err := p.Store.GetEvent(otherParent)
+		_, err := p.Store.GetEventBlock(otherParent)
 		if err != nil {
 			//it might still be in the Root
 			root, err := p.Store.GetRoot(event.Creator())
@@ -703,7 +703,7 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 		return *other, nil
 	}
 
-	otherParent, err := p.Store.GetEvent(op)
+	otherParent, err := p.Store.GetEventBlock(op)
 	if err != nil {
 		return RootEvent{}, err
 	}
@@ -789,7 +789,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 		}
 		selfParentIndex = root.SelfParent.Index
 	} else {
-		selfParent, err := p.Store.GetEvent(event.SelfParent())
+		selfParent, err := p.Store.GetEventBlock(event.SelfParent())
 		if err != nil {
 			return err
 		}
@@ -806,7 +806,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 			otherParentCreatorID = other.CreatorID
 			otherParentIndex = other.Index
 		} else {
-			otherParent, err := p.Store.GetEvent(event.OtherParent())
+			otherParent, err := p.Store.GetEventBlock(event.OtherParent())
 			if err != nil {
 				return err
 			}
@@ -847,7 +847,7 @@ Public Methods
 *******************************************************************************/
 
 //InsertEvent attempts to insert an Event in the DAG. It verifies the signature,
-//checks the ancestors are known, and prevents the introduction of forks.
+//checks the dominators are known, and prevents the introduction of forks.
 func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 	//verify signature
 	if ok, err := event.Verify(); !ok {
@@ -917,7 +917,7 @@ func (p *Poset) DivideRounds() error {
 
 	for _, hash := range p.UndeterminedEvents {
 
-		ev, err := p.Store.GetEvent(hash)
+		ev, err := p.Store.GetEventBlock(hash)
 		if err != nil {
 			return err
 		}
@@ -1058,7 +1058,7 @@ func (p *Poset) DecideFame() error {
 				for _, y := range p.Store.RoundWitnesses(j) {
 					diff := j - roundIndex
 					if diff == 1 {
-						ycx, err := p.see(y, x)
+						ycx, err := p.dominated(y, x)
 						if err != nil {
 							return err
 						}
@@ -1067,7 +1067,7 @@ func (p *Poset) DecideFame() error {
 						//count votes
 						var ssWitnesses []string
 						for _, w := range p.Store.RoundWitnesses(j - 1) {
-							ss, err := p.stronglySee(y, w)
+							ss, err := p.strictlyDominated(y, w)
 							if err != nil {
 								return err
 							}
@@ -1104,7 +1104,7 @@ func (p *Poset) DecideFame() error {
 							if t >= p.superMajority {
 								setVote(votes, y, x, v)
 							} else {
-								setVote(votes, y, x, middleBit(y)) //middle bit of y's hash
+								setVote(votes, y, x, randomShift(y)) //middle bit of y's hash
 							}
 						}
 					}
@@ -1172,7 +1172,7 @@ func (p *Poset) DecideRoundReceived() error {
 			//set of famous witnesses that see x
 			var s []string
 			for _, w := range fws {
-				see, err := p.see(w, x)
+				see, err := p.dominated(w, x)
 				if err != nil {
 					return err
 				}
@@ -1185,7 +1185,7 @@ func (p *Poset) DecideRoundReceived() error {
 
 				received = true
 
-				ex, err := p.Store.GetEvent(x)
+				ex, err := p.Store.GetEventBlock(x)
 				if err != nil {
 					return err
 				}
@@ -1328,7 +1328,7 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 
 	var events []Event
 	for _, eh := range round.ConsensusEvents() {
-		e, err := p.Store.GetEvent(eh)
+		e, err := p.Store.GetEventBlock(eh)
 		if err != nil {
 			return Frame{}, err
 		}
@@ -1365,7 +1365,7 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 			if isRoot {
 				root, _ = p.Store.GetRoot(peer)
 			} else {
-				lastConsensusEvent, err := p.Store.GetEvent(lastConsensusEventHash)
+				lastConsensusEvent, err := p.Store.GetEventBlock(lastConsensusEventHash)
 				if err != nil {
 					return Frame{}, err
 				}
@@ -1538,25 +1538,25 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 	p.topologicalIndex = 0
 
 	cacheSize := p.Store.CacheSize()
-	ancestorCache, err := lru.New(cacheSize)
+	dominatorCache, err := lru.New(cacheSize)
 	if err != nil {
-		p.logger.Fatal("Unable to reset Poset.ancestorCache")
+		p.logger.Fatal("Unable to reset Poset.dominatorCache")
 	}
-	selfAncestorCache, err := lru.New(cacheSize)
+	selfDominatorCache, err := lru.New(cacheSize)
 	if err != nil {
-		p.logger.Fatal("Unable to reset Poset.selfAncestorCache")
+		p.logger.Fatal("Unable to reset Poset.selfDominatorCache")
 	}
-	stronglySeeCache, err := lru.New(cacheSize)
+	strictlyDominatedCache, err := lru.New(cacheSize)
 	if err != nil {
-		p.logger.Fatal("Unable to reset Poset.stronglySeeCache")
+		p.logger.Fatal("Unable to reset Poset.strictlyDominatedCache")
 	}
 	roundCache, err := lru.New(cacheSize)
 	if err != nil {
 		p.logger.Fatal("Unable to reset Poset.roundCache")
 	}
-	p.ancestorCache = ancestorCache
-	p.selfAncestorCache = selfAncestorCache
-	p.stronglySeeCache = stronglySeeCache
+	p.dominatorCache = dominatorCache
+	p.selfDominatorCache = selfDominatorCache
+	p.strictlyDominatedCache = strictlyDominatedCache
 	p.roundCache = roundCache
 
 	participants := p.Participants.ToPeerSlice()
@@ -1788,7 +1788,7 @@ func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64
 	perm := rand.Perm(len(p.UndeterminedEvents))
 	for i := 0; i < len(perm); i++ {
 		hash := p.UndeterminedEvents[perm[i]]
-		ev, err := p.Store.GetEvent(hash)
+		ev, err := p.Store.GetEventBlock(hash)
 		if err != nil {
 			continue
 		}
@@ -1836,7 +1836,7 @@ func (p *Poset) GetConsensusTransactionsCount() uint64 {
    Helpers
 *******************************************************************************/
 
-func middleBit(ehex string) bool {
+func randomShift(ehex string) bool {
 	hash, err := hex.DecodeString(ehex[2:])
 	if err != nil {
 		fmt.Printf("ERROR decoding hex string: %s\n", err)

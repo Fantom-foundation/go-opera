@@ -106,7 +106,7 @@ func (s *InmemStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.rootsBySelfParent, nil
 }
 
-func (s *InmemStore) GetEvent(key string) (Event, error) {
+func (s *InmemStore) GetEventBlock(key string) (Event, error) {
 	res, ok := s.eventCache.Get(key)
 	if !ok {
 		return Event{}, cm.NewStoreErr("EventCache", cm.KeyNotFound, key)
@@ -117,7 +117,7 @@ func (s *InmemStore) GetEvent(key string) (Event, error) {
 
 func (s *InmemStore) SetEvent(event Event) error {
 	key := event.Hex()
-	_, err := s.GetEvent(key)
+	_, err := s.GetEventBlock(key)
 	if err != nil && !cm.Is(err, cm.KeyNotFound) {
 		return err
 	}

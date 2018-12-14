@@ -130,7 +130,7 @@ func (m *RoundInfoMessage) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_RoundInfoMessage proto.InternalMessageInfo
 
-func (m *RoundInfoMessage) GetEvents() map[string]*RoundEvent {
+func (m *RoundInfoMessage) GetEventBlocks() map[string]*RoundEvent {
 	if m != nil {
 		return m.Events
 	}

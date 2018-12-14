@@ -166,12 +166,12 @@ func (s *BadgerStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.inmemStore.RootsBySelfParent()
 }
 
-func (s *BadgerStore) GetEvent(key string) (event Event, err error) {
+func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
 	//try to get it from cache
-	event, err = s.inmemStore.GetEvent(key)
+	event, err = s.inmemStore.GetEventBlock(key)
 	//if not in cache, try to get it from db
 	if err != nil {
-		event, err = s.dbGetEvent(key)
+		event, err = s.dbGetEventBlock(key)
 	}
 	return event, mapError(err, "Event", key)
 }
@@ -222,7 +222,7 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 					index = root.SelfParent.Index
 				}
 			} else {
-				lastEvent, err := s.GetEvent(last)
+				lastEvent, err := s.GetEventBlock(last)
 				if err == nil {
 					index = lastEvent.Index()
 				}
@@ -345,7 +345,7 @@ func (s *BadgerStore) StorePath() string {
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //DB Methods
 
-func (s *BadgerStore) dbGetEvent(key string) (Event, error) {
+func (s *BadgerStore) dbGetEventBlock(key string) (Event, error) {
 	var eventBytes []byte
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))

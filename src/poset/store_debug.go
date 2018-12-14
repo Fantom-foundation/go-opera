@@ -10,7 +10,7 @@ type Store interface {
 	CacheSize() int
 	Participants() (*peers.Peers, error)
 	RootsBySelfParent() (map[string]Root, error)
-	GetEvent(string) (Event, error)
+	GetEventBlock(string) (Event, error)
 	SetEvent(Event) error
 	ParticipantEvents(string, int64) ([]string, error)
 	ParticipantEvent(string, int64) (string, error)

@@ -766,8 +766,8 @@ func (n *Node) GetParticipants() (*peers.Peers, error) {
 	return n.core.poset.Store.Participants()
 }
 
-func (n *Node) GetEvent(event string) (poset.Event, error) {
-	return n.core.poset.Store.GetEvent(event)
+func (n *Node) GetEventBlock(event string) (poset.Event, error) {
+	return n.core.poset.Store.GetEventBlock(event)
 }
 
 func (n *Node) GetLastEventFrom(participant string) (string, bool, error) {
@@ -778,7 +778,7 @@ func (n *Node) GetKnownEvents() map[int64]int64 {
 	return n.core.poset.Store.KnownEvents()
 }
 
-func (n *Node) GetEvents() (map[int64]int64, error) {
+func (n *Node) GetEventBlocks() (map[int64]int64, error) {
 	res := n.core.KnownEvents()
 	return res, nil
 }

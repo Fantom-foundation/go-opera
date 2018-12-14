@@ -32,7 +32,7 @@ func (s *Service) Serve() {
 	mux := http.NewServeMux()
 	mux.Handle("/stats", corsHandler(s.GetStats))
 	mux.Handle("/participants/", corsHandler(s.GetParticipants))
-	mux.Handle("/event/", corsHandler(s.GetEvent))
+	mux.Handle("/event/", corsHandler(s.GetEventBlock))
 	mux.Handle("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
 	mux.Handle("/events/", corsHandler(s.GetKnownEvents))
 	mux.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
@@ -91,9 +91,9 @@ func (s *Service) GetParticipants(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(participants)
 }
 
-func (s *Service) GetEvent(w http.ResponseWriter, r *http.Request) {
+func (s *Service) GetEventBlock(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/event/"):]
-	event, err := s.node.GetEvent(param)
+	event, err := s.node.GetEventBlock(param)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Retrieving event %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

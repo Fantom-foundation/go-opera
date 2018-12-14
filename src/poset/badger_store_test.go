@@ -185,7 +185,7 @@ func TestDBEventMethods(t *testing.T) {
 	//check events where correctly inserted and can be retrieved
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.dbGetEvent(ev.Hex())
+			rev, err := store.dbGetEventBlock(ev.Hex())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -470,7 +470,7 @@ func TestBadgerEvents(t *testing.T) {
 	// check that events were correclty inserted
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.GetEvent(ev.Hex())
+			rev, err := store.GetEventBlock(ev.Hex())
 			if err != nil {
 				t.Fatal(err)
 			}

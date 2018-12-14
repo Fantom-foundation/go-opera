@@ -64,7 +64,7 @@ func TestInmemEvents(t *testing.T) {
 
 		for p, evs := range events {
 			for k, ev := range evs {
-				rev, err := store.GetEvent(ev.Hex())
+				rev, err := store.GetEventBlock(ev.Hex())
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -135,8 +135,8 @@ func (node *TestNode) signAndAddEvent(event Event, name string,
 	*orderedEvents = append(*orderedEvents, event)
 }
 
-type ancestryItem struct {
-	descendant, ancestor string
+type dominatorItem struct {
+	dominated, dominator string
 	val                  bool
 	err                  bool
 }
@@ -298,10 +298,10 @@ func initPoset(t *testing.T) (*Poset, map[string]string) {
 	return p, index
 }
 
-func TestAncestor(t *testing.T) {
+func TestDominator(t *testing.T) {
 	p, index := initPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		// first generation
 		{e01, e0, true, false},
 		{e01, e1, true, false},
@@ -341,22 +341,22 @@ func TestAncestor(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.ancestor(index[exp.descendant], index[exp.ancestor])
+		a, err := p.dominator(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing ancestor(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing dominator(%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("ancestor(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("dominator(%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
 
-func TestSelfAncestor(t *testing.T) {
+func TestSelfDominator(t *testing.T) {
 	p, index := initPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		// 1 generation
 		{e01, e0, true, false},
 		{s00, e01, true, false},
@@ -380,14 +380,14 @@ func TestSelfAncestor(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.selfAncestor(index[exp.descendant], index[exp.ancestor])
+		a, err := p.selfDominator(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing selfAncestor(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing selfDominator(%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("selfAncestor(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("selfDominator(%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
@@ -395,7 +395,7 @@ func TestSelfAncestor(t *testing.T) {
 func TestSee(t *testing.T) {
 	p, index := initPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		{e01, e0, true, false},
 		{e01, e1, true, false},
 		{e20, e0, true, false},
@@ -407,14 +407,14 @@ func TestSee(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.see(index[exp.descendant], index[exp.ancestor])
+		a, err := p.dominatedindex[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing see(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing dominated%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("see(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("dominated%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
@@ -460,7 +460,7 @@ e0   e1 (a)e2
 0    1     2
 
 Node 2 Forks; events a and e2 are both created by node2, they are not
-self-parent sand yet they are both ancestors of event e20
+self-parent sand yet they are both dominators of event e20
 */
 func TestFork(t *testing.T) {
 	index := make(map[string]string)
@@ -551,17 +551,17 @@ func initRoundPoset(t *testing.T) (*Poset, map[string]string, []TestNode) {
 func TestInsertEvent(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	checkParents := func(e, selfAncestor, ancestor string) bool {
-		ev, err := p.Store.GetEvent(index[e])
+	checkParents := func(e, selfDominator, dominator string) bool {
+		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
 		}
-		return ev.SelfParent() == selfAncestor && ev.OtherParent() == ancestor
+		return ev.SelfParent() == selfDominator && ev.OtherParent() == dominator
 	}
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
 
-		e0Event, err := p.Store.GetEvent(index[e0])
+		e0Event, err := p.Store.GetEventBlock(index[e0])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -573,12 +573,12 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on %s", e0)
 		}
 
-		e21Event, err := p.Store.GetEvent(index[e21])
+		e21Event, err := p.Store.GetEventBlock(index[e21])
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		e10Event, err := p.Store.GetEvent(index[e10])
+		e10Event, err := p.Store.GetEventBlock(index[e10])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -590,7 +590,7 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on %s", e21)
 		}
 
-		f1Event, err := p.Store.GetEvent(index[f1])
+		f1Event, err := p.Store.GetEventBlock(index[f1])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -605,7 +605,7 @@ func TestInsertEvent(t *testing.T) {
 		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.Creator()].ID, 10)
 
 		type Hierarchy struct {
-			ev, selfAncestor, ancestor string
+			ev, selfDominator, dominator string
 		}
 
 		toCheck := []Hierarchy{
@@ -617,7 +617,7 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		for _, v := range toCheck {
-			if !checkParents(v.ev, v.selfAncestor, v.ancestor) {
+			if !checkParents(v.ev, v.selfDominator, v.dominator) {
 				t.Fatal(v.ev + " selfParent not good")
 			}
 		}
@@ -662,7 +662,7 @@ func TestReadWireInfo(t *testing.T) {
 		if k[0] == 'r' {
 			continue
 		}
-		ev, err := p.Store.GetEvent(evh)
+		ev, err := p.Store.GetEventBlock(evh)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -700,7 +700,7 @@ func TestReadWireInfo(t *testing.T) {
 func TestStronglySee(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		{e21, e0, true, false},
 		{e02, e10, true, false},
 		{e02, e0, true, false},
@@ -729,14 +729,14 @@ func TestStronglySee(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.stronglySee(index[exp.descendant], index[exp.ancestor])
+		a, err := p.strictlyDominated(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing stronglySee(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing strictlyDominated(%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("stronglySee(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("strictlyDominated(%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
@@ -760,7 +760,7 @@ func TestWitness(t *testing.T) {
 	p.Store.SetRound(1, RoundInfo{
 		Message: RoundInfoMessage{Events: round1Witnesses}})
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		{"", e0, true, false},
 		{"", e1, true, false},
 		{"", e2, true, false},
@@ -771,14 +771,14 @@ func TestWitness(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.witness(index[exp.ancestor])
+		a, err := p.witness(index[exp.dominator])
 		if err != nil {
 			t.Fatalf("Error computing witness(%s). Err: %v",
-				exp.ancestor, err)
+				exp.dominator, err)
 		}
 		if a != exp.val {
 			t.Fatalf("witness(%s) should be %v, not %v",
-				exp.ancestor, exp.val, a)
+				exp.dominator, exp.val, a)
 		}
 	}
 }
@@ -962,7 +962,7 @@ func TestDivideRounds(t *testing.T) {
 	}
 
 	for e, et := range expectedTimestamps {
-		ev, err := p.Store.GetEvent(index[e])
+		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1024,7 +1024,7 @@ func TestCreateRoot(t *testing.T) {
 	}
 
 	for evh, expRoot := range expected {
-		ev, err := p.Store.GetEvent(index[evh])
+		ev, err := p.Store.GetEventBlock(index[evh])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1103,7 +1103,7 @@ func TestCreateRootBis(t *testing.T) {
 	}
 
 	for evh, expRoot := range expected {
-		ev, err := p.Store.GetEvent(index[evh])
+		ev, err := p.Store.GetEventBlock(index[evh])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1253,7 +1253,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			}
 
 			// check that the event was recorded
-			_, err := p.Store.GetEvent(index[e21])
+			_, err := p.Store.GetEventBlock(index[e21])
 			if err != nil {
 				t.Fatalf("ERROR fetching Event %s: %s", e21, err)
 			}
@@ -1437,7 +1437,7 @@ func TestDivideRoundsBis(t *testing.T) {
 	}
 
 	for e, et := range expectedTimestamps {
-		ev, err := p.Store.GetEvent(index[e])
+		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1581,7 +1581,7 @@ func TestDecideRoundReceived(t *testing.T) {
 	}
 
 	for name, hash := range index {
-		e, _ := p.Store.GetEvent(hash)
+		e, _ := p.Store.GetEventBlock(hash)
 
 		switch rune(name[0]) {
 		case rune('e'):
@@ -1809,7 +1809,7 @@ func TestGetFrame(t *testing.T) {
 
 		hashes := []string{index[e0], index[e1], index[e2], index[e10]}
 		for _, eh := range hashes {
-			e, err := p.Store.GetEvent(eh)
+			e, err := p.Store.GetEventBlock(eh)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1822,7 +1822,7 @@ func TestGetFrame(t *testing.T) {
 			expEventMessages[k] = &expEvents[k].Message
 		}
 
-		messages := frame.GetEvents()
+		messages := frame.GetEventBlocks()
 		if len(expEventMessages) != len(messages) {
 			t.Fatalf("expected number of other parents: %d, got: %d",
 				len(expEventMessages), len(messages))
@@ -1912,7 +1912,7 @@ func TestGetFrame(t *testing.T) {
 		}
 		var expEvents []Event
 		for _, eh := range expectedEventsHashes {
-			e, err := p.Store.GetEvent(eh)
+			e, err := p.Store.GetEventBlock(eh)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1924,7 +1924,7 @@ func TestGetFrame(t *testing.T) {
 			expEventMessages[k] = &expEvents[k].Message
 		}
 
-		messages := frame.GetEvents()
+		messages := frame.GetEventBlocks()
 		if len(expEventMessages) != len(messages) {
 			t.Fatalf("expected number of other parents: %d, got: %d",
 				len(expEventMessages), len(messages))
@@ -2099,7 +2099,7 @@ func TestResetFromFrame(t *testing.T) {
 
 			var events []Event
 			for _, e := range round.RoundEvents() {
-				ev, err := p.Store.GetEvent(e)
+				ev, err := p.Store.GetEventBlock(e)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -3248,7 +3248,7 @@ func getDiff(p *Poset, known map[int64]int64, t *testing.T) []Event {
 			t.Fatal(err)
 		}
 		for _, e := range participantEvents {
-			ev, err := p.Store.GetEvent(e)
+			ev, err := p.Store.GetEventBlock(e)
 			if err != nil {
 				t.Fatal(err)
 			}
