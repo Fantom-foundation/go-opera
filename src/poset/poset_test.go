@@ -2341,7 +2341,7 @@ func initFunkyPoset(t *testing.T, logger *logrus.Logger, full bool) (*Poset, map
 	return poset, index
 }
 
-func TestFunkyPosetFame(t *testing.T) {
+func TestFunkyPosetAtropos(t *testing.T) {
 	p, index := initFunkyPoset(t, common.NewTestLogger(t), false)
 
 	if err := p.DivideRounds(); err != nil {

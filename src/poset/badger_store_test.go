@@ -573,7 +573,7 @@ func TestBadgerRounds(t *testing.T) {
 	}
 
 	clothos := store.RoundClotho(0)
-	expectedClothos := round.Clothos()
+	expectedClothos := round.Clotho()
 	if len(clothos) != len(expectedClothos) {
 		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
