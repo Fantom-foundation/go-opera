@@ -407,7 +407,7 @@ func TestSee(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.dominatedindex[exp.dominated], index[exp.dominator])
+		a, err := p.dominated(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
 			t.Fatalf("Error computing dominated%s, %s). Err: %v",
 				exp.dominated, exp.dominator, err)
@@ -746,17 +746,17 @@ func TestClotho(t *testing.T) {
 
 	round0Clotho := make(map[string]*RoundEvent)
 	round0Clotho[index[e0]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e1]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{
 		Message: RoundInfoMessage{Events: round0Clotho}})
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[f1]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(1, RoundInfo{
 		Message: RoundInfoMessage{Events: round1Clotho}})
 
@@ -788,21 +788,21 @@ func TestRound(t *testing.T) {
 
 	round0Clotho := make(map[string]*RoundEvent)
 	round0Clotho[index[e0]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e1]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{Message: RoundInfoMessage{
 		Events: round0Clotho}})
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[e21]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[e02]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[f1]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(1, RoundInfo{
 		Message: RoundInfoMessage{Events: round1Clotho}})
 
@@ -836,21 +836,21 @@ func TestRoundDiff(t *testing.T) {
 
 	round0Clotho := make(map[string]*RoundEvent)
 	round0Clotho[index[e0]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e1]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{
 		Message: RoundInfoMessage{Events: round0Clotho}})
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[e21]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[e02]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[f1]] = &RoundEvent{
-		Clotho: true, Famous: Trilean_UNDEFINED}
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(1,
 		RoundInfo{Message: RoundInfoMessage{Events: round1Clotho}})
 
@@ -1472,16 +1472,16 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f := round0.Message.Events[index[e0]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", e0, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", e0, f)
 	}
 	if f := round0.Message.Events[index[e1]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", e1, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", e1, f)
 	}
 	if f := round0.Message.Events[index[e2]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", e2, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", e2, f)
 	}
 
 	round1, err := p.Store.GetRound(1)
@@ -1489,16 +1489,16 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f := round1.Message.Events[index[f2]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", f2, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", f2, f)
 	}
 	if f := round1.Message.Events[index[f0]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", f0, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", f0, f)
 	}
 	if f := round1.Message.Events[index[f1]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", f1, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", f1, f)
 	}
 
 	round2, err := p.Store.GetRound(2)
@@ -1506,16 +1506,16 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f := round2.Message.Events[index[g1]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", g1, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", g1, f)
 	}
 	if f := round2.Message.Events[index[g0]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", g0, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", g0, f)
 	}
 	if f := round2.Message.Events[index[g2]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", g2, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", g2, f)
 	}
 
 	round3, err := p.Store.GetRound(3)
@@ -1523,16 +1523,16 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f := round3.Message.Events[index[h2]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", h2, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", h2, f)
 	}
 	if f := round3.Message.Events[index[h0]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", h0, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", h0, f)
 	}
 	if f := round3.Message.Events[index[h10]]; !(f.Clotho &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", h10, f)
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", h10, f)
 	}
 
 	round4, err := p.Store.GetRound(4)
@@ -1540,16 +1540,16 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f := round4.Message.Events[index[i0]]; !(f.Clotho &&
-		f.Famous == Trilean_UNDEFINED) {
-		t.Fatalf("%s should be famous; got %v", i0, f)
+		f.Atropos == Trilean_UNDEFINED) {
+		t.Fatalf("%s should be Atropos; got %v", i0, f)
 	}
 	if f := round4.Message.Events[index[i2]]; !(f.Clotho &&
-		f.Famous == Trilean_UNDEFINED) {
-		t.Fatalf("%s should be famous; got %v", i2, f)
+		f.Atropos == Trilean_UNDEFINED) {
+		t.Fatalf("%s should be Atropos; got %v", i2, f)
 	}
 	if f := round4.Message.Events[index[i1]]; !(f.Clotho &&
-		f.Famous == Trilean_UNDEFINED) {
-		t.Fatalf("%s should be famous; got %v", i1, f)
+		f.Atropos == Trilean_UNDEFINED) {
+		t.Fatalf("%s should be Atropos; got %v", i1, f)
 	}
 
 	expectedPendingRounds := []pendingRound{

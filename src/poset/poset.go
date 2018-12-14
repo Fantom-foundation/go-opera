@@ -1094,7 +1094,7 @@ func (p *Poset) DecideAtropos() error {
 						//normal round
 						if math.Mod(float64(diff), float64(c)) > 0 {
 							if t >= p.superMajority {
-								roundInfo.SetFame(x, v)
+								roundInfo.SetAtropos(x, v)
 								setVote(votes, y, x, v)
 								break VOTE_LOOP //break out of j loop
 							} else {

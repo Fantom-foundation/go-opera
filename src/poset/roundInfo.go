@@ -39,7 +39,7 @@ func (r *RoundInfo) SetConsensusEvent(x string) {
 	r.Message.Events[x] = e
 }
 
-func (r *RoundInfo) SetFame(x string, f bool) {
+func (r *RoundInfo) SetAtropos(x string, f bool) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{
