@@ -40,22 +40,22 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 		rootsByParticipant[pk] = root
 	}
 
-	eventCache, err :=  lru.New(cacheSize)
+	eventCache, err := lru.New(cacheSize)
 	if err != nil {
 		fmt.Println("Unable to init InmemStore.eventCache:", err)
 		os.Exit(31)
 	}
-	roundCache, err :=  lru.New(cacheSize)
+	roundCache, err := lru.New(cacheSize)
 	if err != nil {
 		fmt.Println("Unable to init InmemStore.roundCache:", err)
 		os.Exit(32)
 	}
-	blockCache, err :=  lru.New(cacheSize)
+	blockCache, err := lru.New(cacheSize)
 	if err != nil {
 		fmt.Println("Unable to init InmemStore.blockCache:", err)
 		os.Exit(33)
 	}
-	frameCache, err :=  lru.New(cacheSize)
+	frameCache, err := lru.New(cacheSize)
 	if err != nil {
 		fmt.Println("Unable to init InmemStore.frameCache:", err)
 		os.Exit(34)
@@ -81,11 +81,11 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 		store.rootsByParticipant[peer.PubKeyHex] = root
 		store.rootsBySelfParent = nil
 		store.RootsBySelfParent()
- 		old := store.participantEventsCache
+		old := store.participantEventsCache
 		store.participantEventsCache = NewParticipantEventsCache(cacheSize, participants)
 		store.participantEventsCache.Import(old)
 	})
- 	return store
+	return store
 }
 
 func (s *InmemStore) CacheSize() int {
@@ -122,7 +122,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		return err
 	}
 	if cm.Is(err, cm.KeyNotFound) {
-		if err := s.addParticpantEvent(event.Creator(), key, event.Index()); err != nil {
+		if err := s.addParticpantEvent(event.GetCreator(), key, event.Index()); err != nil {
 			return err
 		}
 	}
@@ -223,7 +223,7 @@ func (s *InmemStore) AddConsensusEvent(event Event) error {
 	defer s.totConsensusEventsLocker.Unlock()
 	s.consensusCache.Set(event.Hex(), s.totConsensusEvents)
 	s.totConsensusEvents++
-	s.lastConsensusEvents[event.Creator()] = event.Hex()
+	s.lastConsensusEvents[event.GetCreator()] = event.Hex()
 	return nil
 }
 
@@ -323,12 +323,12 @@ func (s *InmemStore) SetFrame(frame Frame) error {
 }
 
 func (s *InmemStore) Reset(roots map[string]Root) error {
-	eventCache, errr :=  lru.New(s.cacheSize)
+	eventCache, errr := lru.New(s.cacheSize)
 	if errr != nil {
 		fmt.Println("Unable to reset InmemStore.eventCache:", errr)
 		os.Exit(41)
 	}
-	roundCache, errr :=  lru.New(s.cacheSize)
+	roundCache, errr := lru.New(s.cacheSize)
 	if errr != nil {
 		fmt.Println("Unable to reset InmemStore.roundCache:", errr)
 		os.Exit(42)

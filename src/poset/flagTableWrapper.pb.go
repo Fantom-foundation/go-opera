@@ -3,9 +3,11 @@
 
 package poset
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -29,16 +31,17 @@ func (m *FlagTableWrapper) Reset()         { *m = FlagTableWrapper{} }
 func (m *FlagTableWrapper) String() string { return proto.CompactTextString(m) }
 func (*FlagTableWrapper) ProtoMessage()    {}
 func (*FlagTableWrapper) Descriptor() ([]byte, []int) {
-	return fileDescriptor_flagTableWrapper_6bdf727374f70c89, []int{0}
+	return fileDescriptor_145876e9aa9c0e93, []int{0}
 }
+
 func (m *FlagTableWrapper) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FlagTableWrapper.Unmarshal(m, b)
 }
 func (m *FlagTableWrapper) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_FlagTableWrapper.Marshal(b, m, deterministic)
 }
-func (dst *FlagTableWrapper) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_FlagTableWrapper.Merge(dst, src)
+func (m *FlagTableWrapper) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FlagTableWrapper.Merge(m, src)
 }
 func (m *FlagTableWrapper) XXX_Size() int {
 	return xxx_messageInfo_FlagTableWrapper.Size(m)
@@ -61,11 +64,9 @@ func init() {
 	proto.RegisterMapType((map[string]int64)(nil), "poset.FlagTableWrapper.BodyEntry")
 }
 
-func init() {
-	proto.RegisterFile("flagTableWrapper.proto", fileDescriptor_flagTableWrapper_6bdf727374f70c89)
-}
+func init() { proto.RegisterFile("flagTableWrapper.proto", fileDescriptor_145876e9aa9c0e93) }
 
-var fileDescriptor_flagTableWrapper_6bdf727374f70c89 = []byte{
+var fileDescriptor_145876e9aa9c0e93 = []byte{
 	// 143 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4b, 0xcb, 0x49, 0x4c,
 	0x0f, 0x49, 0x4c, 0xca, 0x49, 0x0d, 0x2f, 0x4a, 0x2c, 0x28, 0x48, 0x2d, 0xd2, 0x2b, 0x28, 0xca,

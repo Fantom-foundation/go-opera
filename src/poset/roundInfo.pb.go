@@ -3,9 +3,11 @@
 
 package poset
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -31,6 +33,7 @@ var Trilean_name = map[int32]string{
 	1: "TRUE",
 	2: "FALSE",
 }
+
 var Trilean_value = map[string]int32{
 	"UNDEFINED": 0,
 	"TRUE":      1,
@@ -40,8 +43,9 @@ var Trilean_value = map[string]int32{
 func (x Trilean) String() string {
 	return proto.EnumName(Trilean_name, int32(x))
 }
+
 func (Trilean) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_77608f4a2972004f, []int{0}
+	return fileDescriptor_06add9379b5a2b9a, []int{0}
 }
 
 type RoundEvent struct {
@@ -57,16 +61,17 @@ func (m *RoundEvent) Reset()         { *m = RoundEvent{} }
 func (m *RoundEvent) String() string { return proto.CompactTextString(m) }
 func (*RoundEvent) ProtoMessage()    {}
 func (*RoundEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_77608f4a2972004f, []int{0}
+	return fileDescriptor_06add9379b5a2b9a, []int{0}
 }
+
 func (m *RoundEvent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RoundEvent.Unmarshal(m, b)
 }
 func (m *RoundEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RoundEvent.Marshal(b, m, deterministic)
 }
-func (dst *RoundEvent) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RoundEvent.Merge(dst, src)
+func (m *RoundEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RoundEvent.Merge(m, src)
 }
 func (m *RoundEvent) XXX_Size() int {
 	return xxx_messageInfo_RoundEvent.Size(m)
@@ -110,16 +115,17 @@ func (m *RoundInfoMessage) Reset()         { *m = RoundInfoMessage{} }
 func (m *RoundInfoMessage) String() string { return proto.CompactTextString(m) }
 func (*RoundInfoMessage) ProtoMessage()    {}
 func (*RoundInfoMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_77608f4a2972004f, []int{1}
+	return fileDescriptor_06add9379b5a2b9a, []int{1}
 }
+
 func (m *RoundInfoMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RoundInfoMessage.Unmarshal(m, b)
 }
 func (m *RoundInfoMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RoundInfoMessage.Marshal(b, m, deterministic)
 }
-func (dst *RoundInfoMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RoundInfoMessage.Merge(dst, src)
+func (m *RoundInfoMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RoundInfoMessage.Merge(m, src)
 }
 func (m *RoundInfoMessage) XXX_Size() int {
 	return xxx_messageInfo_RoundInfoMessage.Size(m)
@@ -145,15 +151,15 @@ func (m *RoundInfoMessage) GetQueued() bool {
 }
 
 func init() {
+	proto.RegisterEnum("poset.Trilean", Trilean_name, Trilean_value)
 	proto.RegisterType((*RoundEvent)(nil), "poset.RoundEvent")
 	proto.RegisterType((*RoundInfoMessage)(nil), "poset.RoundInfoMessage")
 	proto.RegisterMapType((map[string]*RoundEvent)(nil), "poset.RoundInfoMessage.EventsEntry")
-	proto.RegisterEnum("poset.Trilean", Trilean_name, Trilean_value)
 }
 
-func init() { proto.RegisterFile("roundInfo.proto", fileDescriptor_roundInfo_77608f4a2972004f) }
+func init() { proto.RegisterFile("roundInfo.proto", fileDescriptor_06add9379b5a2b9a) }
 
-var fileDescriptor_roundInfo_77608f4a2972004f = []byte{
+var fileDescriptor_06add9379b5a2b9a = []byte{
 	// 274 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x90, 0xc1, 0x4b, 0xc3, 0x30,
 	0x14, 0xc6, 0xcd, 0x6a, 0xbb, 0xf5, 0x15, 0x67, 0x7d, 0x07, 0x29, 0xe2, 0x61, 0x4c, 0xd0, 0x22,

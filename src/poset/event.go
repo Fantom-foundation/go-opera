@@ -20,25 +20,25 @@ func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTran
 	}
 }
 
-func (t *InternalTransaction) ProtoMarshal() ([]byte, error) {
+func (m *InternalTransaction) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(t); err != nil {
+	if err := bf.Marshal(m); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
-func (t *InternalTransaction) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, t)
+func (m *InternalTransaction) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, m)
 }
 
 /*******************************************************************************
 EventBody
 *******************************************************************************/
 
-func (this *InternalTransaction) Equals(that *InternalTransaction) bool {
-	return this.Peer.Equals(that.Peer) &&
-		this.Type == that.Type
+func (m *InternalTransaction) Equals(that *InternalTransaction) bool {
+	return m.Peer.Equals(that.Peer) &&
+		m.Type == that.Type
 }
 
 func BytesEquals(this []byte, that []byte) bool {
@@ -51,12 +51,6 @@ func BytesEquals(this []byte, that []byte) bool {
 		}
 	}
 	return true
-}
-
-func (this *BlockSignature) Equals(that *BlockSignature) bool {
-	return reflect.DeepEqual(this.Validator, that.Validator) &&
-		this.Index == that.Index &&
-		this.Signature == that.Signature
 }
 
 func InternalTransactionListEquals(this []*InternalTransaction, that []*InternalTransaction) bool {
@@ -83,30 +77,30 @@ func BlockSignatureListEquals(this []*BlockSignature, that []*BlockSignature) bo
 	return true
 }
 
-func (this *EventBody) Equals(that *EventBody) bool {
-	return reflect.DeepEqual(this.Transactions, that.Transactions) &&
-		InternalTransactionListEquals(this.InternalTransactions, that.InternalTransactions) &&
-		reflect.DeepEqual(this.Parents, that.Parents) &&
-		reflect.DeepEqual(this.Creator, that.Creator) &&
-		this.Index == that.Index &&
-		BlockSignatureListEquals(this.BlockSignatures, that.BlockSignatures)
+func (m *EventBody) Equals(that *EventBody) bool {
+	return reflect.DeepEqual(m.Transactions, that.Transactions) &&
+		InternalTransactionListEquals(m.InternalTransactions, that.InternalTransactions) &&
+		reflect.DeepEqual(m.Parents, that.Parents) &&
+		reflect.DeepEqual(m.Creator, that.Creator) &&
+		m.Index == that.Index &&
+		BlockSignatureListEquals(m.BlockSignatures, that.BlockSignatures)
 }
 
-func (e *EventBody) ProtoMarshal() ([]byte, error) {
+func (m *EventBody) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(e); err != nil {
+	if err := bf.Marshal(m); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
 
-func (e *EventBody) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, e)
+func (m *EventBody) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, m)
 }
 
-func (e *EventBody) Hash() ([]byte, error) {
-	hashBytes, err := e.ProtoMarshal()
+func (m *EventBody) Hash() ([]byte, error) {
+	hashBytes, err := m.ProtoMarshal()
 	if err != nil {
 		return nil, err
 	}
@@ -120,21 +114,20 @@ Event
 const LamportTimestampNIL int64 = -1
 const RoundNIL int64 = -1
 
-type Event struct {
-	Message EventMessage
-}
-
-func (e EventMessage) ToEvent() Event {
-	return Event {
-		Message: e,
+func (m *EventMessage) ToEvent() Event {
+	return Event{
+		Message:          m,
+		LamportTimestamp: LamportTimestampNIL,
+		Round:            RoundNIL,
+		RoundReceived:    RoundNIL,
 	}
 }
 
-func (this *EventMessage) Equals(that *EventMessage) bool {
-	return this.Body.Equals(that.Body) &&
-		this.Signature == that.Signature &&
-		BytesEquals(this.FlagTable, that.FlagTable) &&
-		reflect.DeepEqual(this.ClothoProof, that.ClothoProof)
+func (m *EventMessage) Equals(that *EventMessage) bool {
+	return m.Body.Equals(that.Body) &&
+		m.Signature == that.Signature &&
+		BytesEquals(m.FlagTable, that.FlagTable) &&
+		reflect.DeepEqual(m.ClothoProof, that.ClothoProof)
 }
 
 // NewEvent creates new block event.
@@ -163,39 +156,36 @@ func NewEvent(transactions [][]byte,
 		Index:                index,
 	}
 
-	ft, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+	ft, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
 
 	return Event{
-		Message: EventMessage {
+		Message: &EventMessage{
 			Body:      &body,
 			FlagTable: ft,
-			LamportTimestamp: LamportTimestampNIL,
-			Round:            RoundNIL,
-			RoundReceived:    RoundNIL,
 		},
+		LamportTimestamp: LamportTimestampNIL,
+		Round:            RoundNIL,
+		RoundReceived:    RoundNIL,
 	}
 }
 
 // Round returns round of event.
-func (e *Event) GetRound() int64 {
-	if e.Message.Round < 0 {
+func (m *Event) GetEventRound() int64 {
+	if m.Round < 0 {
 		return RoundNIL
 	}
-	return e.Message.Round
+	return m.Round
 }
 
-func (e *Event) GetLamportTimestamp() int64 {
-	if e.Message.LamportTimestamp < 0 {
+func (e *Event) GetEventLamportTimestamp() int64 {
+	if e.LamportTimestamp < 0 {
 		return LamportTimestampNIL
 	}
-	return e.Message.LamportTimestamp
+	return e.LamportTimestamp
 }
 
-func (e *Event) Creator() string {
-	if e.Message.Creator == "" {
-		e.Message.Creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)
-	}
-	return e.Message.Creator
+func (e *Event) GetCreator() string {
+	return fmt.Sprintf("0x%X", e.Message.Body.Creator)
 }
 
 func (e *Event) SelfParent() string {
@@ -264,14 +254,14 @@ func (e *Event) Verify() (bool, error) {
 func (e *Event) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(&e.Message); err != nil {
+	if err := bf.Marshal(e); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
 
 func (e *Event) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, &e.Message)
+	return proto.Unmarshal(data, e)
 }
 
 //sha256 hash of body
@@ -287,23 +277,20 @@ func (e *Event) Hash() ([]byte, error) {
 }
 
 func (e *Event) Hex() string {
-	if e.Message.Hex == "" {
-		hash, _ := e.Hash()
-		e.Message.Hex = fmt.Sprintf("0x%X", hash)
-	}
-	return e.Message.Hex
+	hash, _ := e.Hash()
+	return fmt.Sprintf("0x%X", hash)
 }
 
 func (e *Event) SetRound(r int64) {
-	e.Message.Round = r
+	e.Round = r
 }
 
 func (e *Event) SetLamportTimestamp(t int64) {
-	e.Message.LamportTimestamp = t
+	e.LamportTimestamp = t
 }
 
 func (e *Event) SetRoundReceived(rr int64) {
-	e.Message.RoundReceived = rr
+	e.RoundReceived = rr
 }
 
 func (e *Event) SetWireInfo(selfParentIndex,
@@ -353,7 +340,7 @@ func (e *Event) ToWire() WireEvent {
 
 // ReplaceFlagTable replaces flag table.
 func (e *Event) ReplaceFlagTable(flagTable map[string]int64) (err error) {
-	e.Message.FlagTable, err = proto.Marshal(&FlagTableWrapper { Body: flagTable })
+	e.Message.FlagTable, err = proto.Marshal(&FlagTableWrapper{Body: flagTable})
 	return err
 }
 
@@ -415,8 +402,8 @@ type ByLamportTimestamp []Event
 func (a ByLamportTimestamp) Len() int      { return len(a) }
 func (a ByLamportTimestamp) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByLamportTimestamp) Less(i, j int) bool {
-	it := a[i].Message.LamportTimestamp
-	jt := a[j].Message.LamportTimestamp
+	it := a[i].LamportTimestamp
+	jt := a[j].LamportTimestamp
 	if it != jt {
 		return it < jt
 	}

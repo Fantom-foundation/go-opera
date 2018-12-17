@@ -240,6 +240,7 @@ func initPosetFull(t testing.TB, plays []play, db bool, n int,
 			nodes[i].Pub, 0, map[string]int64{rootSelfParent(peer.ID): 1})
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i),
 			index, orderedEvents)
+		fmt.Println(event.Hex())
 	}
 
 	playEvents(plays, nodes, index, orderedEvents)
@@ -569,7 +570,7 @@ func TestInsertEvent(t *testing.T) {
 		if !(e0Event.Message.SelfParentIndex == -1 &&
 			e0Event.Message.OtherParentCreatorID == -1 &&
 			e0Event.Message.OtherParentIndex == -1 &&
-			e0Event.Message.CreatorID == p.Participants.ByPubKey[e0Event.Creator()].ID) {
+			e0Event.Message.CreatorID == p.Participants.ByPubKey[e0Event.GetCreator()].ID) {
 			t.Fatalf("Invalid wire info on %s", e0)
 		}
 
@@ -584,9 +585,9 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		if !(e21Event.Message.SelfParentIndex == 1 &&
-			e21Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e10Event.Creator()].ID &&
+			e21Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e10Event.GetCreator()].ID &&
 			e21Event.Message.OtherParentIndex == 1 &&
-			e21Event.Message.CreatorID == p.Participants.ByPubKey[e21Event.Creator()].ID) {
+			e21Event.Message.CreatorID == p.Participants.ByPubKey[e21Event.GetCreator()].ID) {
 			t.Fatalf("Invalid wire info on %s", e21)
 		}
 
@@ -596,13 +597,13 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		if !(f1Event.Message.SelfParentIndex == 2 &&
-			f1Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e0Event.Creator()].ID &&
+			f1Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e0Event.GetCreator()].ID &&
 			f1Event.Message.OtherParentIndex == 2 &&
-			f1Event.Message.CreatorID == p.Participants.ByPubKey[f1Event.Creator()].ID) {
+			f1Event.Message.CreatorID == p.Participants.ByPubKey[f1Event.GetCreator()].ID) {
 			t.Fatalf("Invalid wire info on %s", f1)
 		}
 
-		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.Creator()].ID, 10)
+		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.GetCreator()].ID, 10)
 
 		type Hierarchy struct {
 			ev, selfDominator, dominator string
@@ -1585,11 +1586,11 @@ func TestDecideRoundReceived(t *testing.T) {
 
 		switch rune(name[0]) {
 		case rune('e'):
-			if r := e.Message.RoundReceived; r != 1 {
+			if r := e.RoundReceived; r != 1 {
 				t.Fatalf("%s round received should be 1 not %d", name, r)
 			}
 		case rune('f'):
-			if r := e.Message.RoundReceived; r != 2 {
+			if r := e.RoundReceived; r != 2 {
 				t.Fatalf("%s round received should be 2 not %d", name, r)
 			}
 		}
@@ -1819,7 +1820,7 @@ func TestGetFrame(t *testing.T) {
 		sort.Sort(ByLamportTimestamp(expEvents))
 		expEventMessages := make([]*EventMessage, len(expEvents))
 		for k := range expEvents {
-			expEventMessages[k] = &expEvents[k].Message
+			expEventMessages[k] = expEvents[k].Message
 		}
 
 		messages := frame.GetEventBlocks()
@@ -1921,7 +1922,7 @@ func TestGetFrame(t *testing.T) {
 		sort.Sort(ByLamportTimestamp(expEvents))
 		expEventMessages := make([]*EventMessage, len(expEvents))
 		for k := range expEvents {
-			expEventMessages[k] = &expEvents[k].Message
+			expEventMessages[k] = expEvents[k].Message
 		}
 
 		messages := frame.GetEventBlocks()
@@ -2146,6 +2147,7 @@ func TestResetFromFrame(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
+	os.RemoveAll(badgerDir)
 
 	// Initialize a first Poset with a DB backend
 	// Add events and run consensus methods on it
@@ -2173,19 +2175,19 @@ func TestBootstrap(t *testing.T) {
 	hConsensusEvents := p.Store.ConsensusEvents()
 	nhConsensusEvents := np.Store.ConsensusEvents()
 	if len(hConsensusEvents) != len(nhConsensusEvents) {
-		t.Fatalf("Bootstrapped poset should contain %d consensus events,"+
+		t.Fatalf("bootstrapped poset should contain %d consensus events,"+
 			"not %d", len(hConsensusEvents), len(nhConsensusEvents))
 	}
 
 	hKnown := p.Store.KnownEvents()
 	nhKnown := np.Store.KnownEvents()
 	if !reflect.DeepEqual(hKnown, nhKnown) {
-		t.Fatalf("Bootstrapped poset's Known should be %#v, not %#v",
+		t.Fatalf("bootstrapped poset's Known should be %#v, not %#v",
 			hKnown, nhKnown)
 	}
 
 	if *p.LastConsensusRound != *np.LastConsensusRound {
-		t.Fatalf("Bootstrapped poset's LastConsensusRound should be %#v,"+
+		t.Fatalf("bootstrapped poset's LastConsensusRound should be %#v,"+
 			" not %#v", *p.LastConsensusRound, *np.LastConsensusRound)
 	}
 
@@ -2743,6 +2745,11 @@ func TestFunkyPosetReset(t *testing.T) {
 				t.Fatalf("Reading WireInfo for %s: %s",
 					getName(index, diff[i].Hex()), err)
 			}
+			// TODO: to fix
+			ev.RoundReceived = -1
+			ev.Round = -1
+			ev.LamportTimestamp = -1
+
 			err = p2.InsertEvent(*ev, false)
 			if err != nil {
 				t.Fatal(err)
@@ -3188,7 +3195,13 @@ func TestSparsePosetReset(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ReadWireInfo(%s): %s", eventName, err)
 			}
-			compareEventMessages(t, &ev.Message, &diff[i].Message, index)
+			compareEventMessages(t, ev.Message, diff[i].Message, index)
+
+			// TODO: to fix
+			ev.RoundReceived = -1
+			ev.Round = -1
+			ev.LamportTimestamp = -1
+
 			err = p2.InsertEvent(*ev, false)
 			if err != nil {
 				t.Fatalf("InsertEvent(%s): %s", eventName, err)
@@ -3206,7 +3219,6 @@ func TestSparsePosetReset(t *testing.T) {
 }
 
 func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
-
 	for i := round; i <= 5; i++ {
 		pRound, err := p.Store.GetRound(i)
 		if err != nil {
@@ -3222,17 +3234,17 @@ func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, che
 		p2Clotho := p2Round.Clotho()
 		sort.Strings(pClotho)
 		sort.Strings(p2Clotho)
-		hwn := make([]string, len(pClotho))
+		pwn := make([]string, len(pClotho))
 		p2wn := make([]string, len(p2Clotho))
 		for _, w := range pClotho {
-			hwn = append(hwn, getName(index, w))
+			pwn = append(pwn, getName(index, w))
 		}
 		for _, w := range p2Clotho {
 			p2wn = append(p2wn, getName(index, w))
 		}
 
-		if check && !reflect.DeepEqual(hwn, p2wn) {
-			t.Fatalf("Reset Hg Round %d clothos should be %v, not %v", i, hwn, p2wn)
+		if check && !reflect.DeepEqual(pwn, p2wn) {
+			t.Fatalf("Reset Hg Round %d clothos should be %v, not %v", i, pwn, p2wn)
 		}
 	}
 

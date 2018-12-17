@@ -3,9 +3,11 @@
 
 package peers
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -32,16 +34,17 @@ func (m *Peer) Reset()         { *m = Peer{} }
 func (m *Peer) String() string { return proto.CompactTextString(m) }
 func (*Peer) ProtoMessage()    {}
 func (*Peer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_peer_bfbdfe31857d8da0, []int{0}
+	return fileDescriptor_055ae5a865fc1c9e, []int{0}
 }
+
 func (m *Peer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Peer.Unmarshal(m, b)
 }
 func (m *Peer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Peer.Marshal(b, m, deterministic)
 }
-func (dst *Peer) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Peer.Merge(dst, src)
+func (m *Peer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Peer.Merge(m, src)
 }
 func (m *Peer) XXX_Size() int {
 	return xxx_messageInfo_Peer.Size(m)
@@ -84,9 +87,9 @@ func init() {
 	proto.RegisterType((*Peer)(nil), "peers.Peer")
 }
 
-func init() { proto.RegisterFile("peer.proto", fileDescriptor_peer_bfbdfe31857d8da0) }
+func init() { proto.RegisterFile("peer.proto", fileDescriptor_055ae5a865fc1c9e) }
 
-var fileDescriptor_peer_bfbdfe31857d8da0 = []byte{
+var fileDescriptor_055ae5a865fc1c9e = []byte{
 	// 122 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2a, 0x48, 0x4d, 0x2d,
 	0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0xb1, 0x8b, 0x95, 0x92, 0xb8, 0x58, 0x02,
