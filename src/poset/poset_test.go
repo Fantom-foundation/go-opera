@@ -741,7 +741,7 @@ func TestAtropos(t *testing.T) {
 	}
 }
 
-func TestClotho(t *testing.T) {
+func TestClothos(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
 	round0Clotho := make(map[string]*RoundEvent)
