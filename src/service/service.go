@@ -174,7 +174,7 @@ func (s *Service) GetRoundClothos(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundClothos := s.node.GetRoundClothos(roundClothoIndex)
+	roundClothos := s.node.GetRoundClothos(roundClothosIndex)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(roundClothos)
