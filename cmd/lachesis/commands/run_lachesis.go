@@ -7,9 +7,15 @@ package commands
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func runLachesis(cmd *cobra.Command, args []string) error {
+
+	err := utils.CheckPid()
+	if err != nil {
+		return err
+	}
 
 	config := NewDefaultCLIConfig()
 
