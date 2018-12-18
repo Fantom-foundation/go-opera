@@ -38,7 +38,7 @@ func (s *Service) Serve() {
 	mux.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
 	mux.Handle("/round/", corsHandler(s.GetRound))
 	mux.Handle("/lastround/", corsHandler(s.GetLastRound))
-	mux.Handle("/roundclothos/", corsHandler(s.GetRoundClotho))
+	mux.Handle("/roundclothos/", corsHandler(s.GetRoundClothos))
 	mux.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
 	mux.Handle("/root/", corsHandler(s.GetRoot))
 	mux.Handle("/block/", corsHandler(s.GetBlock))
@@ -165,19 +165,19 @@ func (s *Service) GetLastRound(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(lastRound)
 }
 
-func (s *Service) GetRoundClotho(w http.ResponseWriter, r *http.Request) {
+func (s *Service) GetRoundClothos(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/roundclothos/"):]
-	roundClothoIndex, err := strconv.ParseInt(param, 10, 64)
+	roundClothosIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
-		s.logger.WithError(err).Errorf("Parsing roundClothoIndex parameter %s", param)
+		s.logger.WithError(err).Errorf("Parsing roundClothosIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	roundClotho := s.node.GetRoundClotho(roundClothoIndex)
+	roundClothos := s.node.GetRoundClothos(roundClothoIndex)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(roundClotho)
+	json.NewEncoder(w).Encode(roundClothos)
 }
 
 func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {

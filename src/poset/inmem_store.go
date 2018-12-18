@@ -251,7 +251,7 @@ func (s *InmemStore) LastRound() int64 {
 	return s.lastRound
 }
 
-func (s *InmemStore) RoundClotho(r int64) []string {
+func (s *InmemStore) RoundClothos(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return []string{}

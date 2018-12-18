@@ -286,7 +286,7 @@ func TestDBRoundMethods(t *testing.T) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
-	clothos := store.RoundClotho(0)
+	clothos := store.RoundClothos(0)
 	expectedClothos := round.Clotho()
 	if len(clothos) != len(expectedClothos) {
 		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
@@ -572,7 +572,7 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
-	clothos := store.RoundClotho(0)
+	clothos := store.RoundClothos(0)
 	expectedClothos := round.Clotho()
 	if len(clothos) != len(expectedClothos) {
 		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))

@@ -106,7 +106,7 @@ func compareRounds(diff *Diff) bool {
 			return true
 		}
 
-		w0, w1 := n0.RoundClotho(i), n1.RoundClotho(i)
+		w0, w1 := n0.RoundClothos(i), n1.RoundClothos(i)
 		sort.Sort(ByValue(w0))
 		sort.Sort(ByValue(w1))
 		if !reflect.DeepEqual(w0, w1) {

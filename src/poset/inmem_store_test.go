@@ -157,7 +157,7 @@ func TestInmemRounds(t *testing.T) {
 	})
 
 	t.Run("Check clothos", func(t *testing.T) {
-		clothos := store.RoundClotho(0)
+		clothos := store.RoundClothos(0)
 		expectedClotho := round.Clotho()
 		if len(clothos) != len(expectedClotho) {
 			t.Fatalf("There should be %d clothos, not %d", len(expectedClotho), len(clothos))

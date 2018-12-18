@@ -265,7 +265,7 @@ func (s *BadgerStore) LastRound() int64 {
 	return s.inmemStore.LastRound()
 }
 
-func (s *BadgerStore) RoundClotho(r int64) []string {
+func (s *BadgerStore) RoundClothos(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return []string{}

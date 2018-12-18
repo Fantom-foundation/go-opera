@@ -408,7 +408,7 @@ func (p *Poset) round2(x string) (int64, error) {
 
 			// if in a flag table there are clothos of the current round, then
 			// current round is other parent round.
-			ws := p.Store.RoundClotho(opRound)
+			ws := p.Store.RoundClothos(opRound)
 			ft, _ := ex.GetFlagTable()
 			for k := range ft {
 				for _, w := range ws {
@@ -440,7 +440,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		}
 	}
 
-	ws := p.Store.RoundClotho(parentRound)
+	ws := p.Store.RoundClothos(parentRound)
 
 	isSee := func(poset *Poset, root string, clothos []string) bool {
 		for _, w := range ws {
@@ -979,7 +979,7 @@ func (p *Poset) DivideRounds() error {
 
 					replaceFlagTable := func(event *Event, round int64) {
 						ft := make(map[string]int64)
-						ws := p.Store.RoundClotho(round)
+						ws := p.Store.RoundClothos(round)
 						for _, v := range ws {
 							ft[v] = 1
 						}
@@ -996,7 +996,7 @@ func (p *Poset) DivideRounds() error {
 						ev.Message.ClothoProof = []string{root.SelfParent.Hash}
 					} else {
 						replaceFlagTable(&ev, ev.GetRound())
-						roots := p.Store.RoundClotho(ev.GetRound() - 1)
+						roots := p.Store.RoundClothos(ev.GetRound() - 1)
 						ev.Message.ClothoProof = roots
 					}
 				}
@@ -1055,7 +1055,7 @@ func (p *Poset) DecideAtropos() error {
 			}
 		VOTE_LOOP:
 			for j := roundIndex + 1; j <= p.Store.LastRound(); j++ {
-				for _, y := range p.Store.RoundClotho(j) {
+				for _, y := range p.Store.RoundClothos(j) {
 					diff := j - roundIndex
 					if diff == 1 {
 						ycx, err := p.dominated(y, x)
@@ -1066,7 +1066,7 @@ func (p *Poset) DecideAtropos() error {
 					} else {
 						//count votes
 						var ssClotho []string
-						for _, w := range p.Store.RoundClotho(j - 1) {
+						for _, w := range p.Store.RoundClothos(j - 1) {
 							ss, err := p.strictlyDominated(y, w)
 							if err != nil {
 								return err

@@ -803,8 +803,8 @@ func (n *Node) GetLastRound() int64 {
 	return n.core.poset.Store.LastRound()
 }
 
-func (n *Node) GetRoundClotho(roundIndex int64) []string {
-	return n.core.poset.Store.RoundClotho(roundIndex)
+func (n *Node) GetRoundClothos(roundIndex int64) []string {
+	return n.core.poset.Store.RoundClothos(roundIndex)
 }
 
 func (n *Node) GetRoundEvents(roundIndex int64) int {

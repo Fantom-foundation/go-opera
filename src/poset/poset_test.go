@@ -2754,7 +2754,7 @@ func TestFunkyPosetReset(t *testing.T) {
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
-		compareRoundClotho(p, p2, index, bi, true, t)
+		compareRoundClothos(p, p2, index, bi, true, t)
 	}
 
 }
@@ -3200,12 +3200,12 @@ func TestSparsePosetReset(t *testing.T) {
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
-		compareRoundClotho(p, p2, index, int64(bi), true, t)
+		compareRoundClothos(p, p2, index, int64(bi), true, t)
 	}
 
 }
 
-func compareRoundClotho(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
+func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 
 	for i := round; i <= 5; i++ {
 		pRound, err := p.Store.GetRound(i)
