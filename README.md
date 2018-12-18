@@ -1,6 +1,16 @@
-# Lachesis
-## BFT Consensus platform for distributed applications.
+# Lachesis 
 [![Build Status](https://travis-ci.org/Fantom-foundation/go-lachesis.svg?branch=master)](https://travis-ci.org/Fantom-foundation/go-lachesis)
+[![issues][github-issues-image]][github-issues-url]
+[![twitter][twitter-image]][twitter-url]
+
+[codecov-image]: https://codecov.io/gh/fantom-foundation/go-lachesis/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/fantom-foundation/go-lachesis
+[twitter-image]: https://img.shields.io/twitter/follow/FantomFDN.svg?style=social
+[twitter-url]: https://twitter.com/intent/follow?screen_name=FantomFDN
+[github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg
+[github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
+
+## BFT Consensus platform for distributed applications.
 
 [documentation](http://docs.fantom.foundation) pages.
 
