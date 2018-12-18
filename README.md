@@ -1,5 +1,6 @@
 # Lachesis 
 [![Build Status](https://travis-ci.org/Fantom-foundation/go-lachesis.svg?branch=master)](https://travis-ci.org/Fantom-foundation/go-lachesis)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2409/badge)](https://bestpractices.coreinfrastructure.org/projects/2409)
 [![issues][github-issues-image]][github-issues-url]
 [![twitter][twitter-image]][twitter-url]
 
