@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"io"
+	"runtime"
 	"os"
 
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
@@ -121,6 +122,9 @@ func AddRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("datadir", config.Lachesis.DataDir, "Top-level directory for configuration and data")
 	cmd.Flags().String("log", config.Lachesis.LogLevel, "debug, info, warn, error, fatal, panic")
 	cmd.Flags().Bool("log2file", config.Log2file, "duplicate log output into file lachesis_<BindAddr>.log")
+	if runtime.GOOS != "windows" {
+		cmd.Flags().String("pidfile", config.Pidfile, "pidfile location; /tmp/go-lachesis.pid by default")
+	}
 
 	// Network
 	cmd.Flags().StringP("listen", "l", config.Lachesis.BindAddr, "Listen IP:Port for lachesis node")

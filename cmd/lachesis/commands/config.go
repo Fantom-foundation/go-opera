@@ -9,6 +9,7 @@ type CLIConfig struct {
 	ClientAddr string                  `mapstructure:"client-connect"`
 	Standalone bool                    `mapstructure:"standalone"`
 	Log2file   bool                    `mapstructure:"log2file"`
+	Pidfile    string                  `mapstructure:"pidfile"`
 }
 
 //NewDefaultCLIConfig creates a CLIConfig with default values
@@ -19,5 +20,6 @@ func NewDefaultCLIConfig() *CLIConfig {
 		ClientAddr: "127.0.0.1:1339",
 		Standalone: false,
 		Log2file:   false,
+		Pidfile:    "/tmp/go-lachesis.pid",
 	}
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/facebookgo/pidfile"
 )
 
-func CheckPid() error {
-	pidfile.SetPidfilePath("/tmp/lachesis.pid")
+func CheckPid(pidfileName string) error {
+	pidfile.SetPidfilePath(pidfileName)
 	pid, err := pidfile.Read()
 	if err == nil && pid > 0 {
 		process, err := os.FindProcess(pid)
