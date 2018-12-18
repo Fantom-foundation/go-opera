@@ -1,9 +1,14 @@
 # Lachesis 
+[![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg)](https://github.com/Fantom-foundation/go-lachesis/releases/latest)  
 [![Build Status](https://travis-ci.org/Fantom-foundation/go-lachesis.svg?branch=master)](https://travis-ci.org/Fantom-foundation/go-lachesis)  
 [![GolangCI](https://golangci.com/badges/github.com/Fantom-foundation/go-lachesis.svg)](https://golangci.com/r/github.com/Fantom-foundation/go-lachesis)  
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2409/badge)](https://bestpractices.coreinfrastructure.org/projects/2409)  
 [![issues][github-issues-image]][github-issues-url]  
+[![GoDoc](https://godoc.org/github.com/go-lachesis?status.png)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)  
+[![license](https://img.shields.io/github/license/Fantom-foundation/go-lachesis.svg)](LICENSE.md)  
+[![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
 [![twitter][twitter-image]][twitter-url]  
+
 
 [codecov-image]: https://codecov.io/gh/fantom-foundation/go-lachesis/branch/master/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/fantom-foundation/go-lachesis
