@@ -278,7 +278,7 @@ func (p *Poset) strictlyDominated(x, y string) (bool, error) {
 }
 
 // Possible improvement: Populate the cache for upper and downer events
-// that also stronglySee y
+// that also strictlyDominates y
 func (p *Poset) strictlyDominated2(x, y string) (bool, error) {
 	sentinels := make(map[string]bool)
 
@@ -295,7 +295,7 @@ func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 		return nil
 	}
 
-	if see, err := p.dominated(x, y); err != nil || !see {
+	if dominated, err := p.dominated(x, y); err != nil || !dominated {
 		return err
 	}
 
@@ -403,7 +403,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		if opRound > parentRound {
 			var (
 				found           bool
-				seeOpRoundRoots int64
+				clothoOpRoundRoots int64
 			)
 
 			// if in a flag table there are clothos of the current round, then
@@ -413,22 +413,22 @@ func (p *Poset) round2(x string) (int64, error) {
 			for k := range ft {
 				for _, w := range ws {
 					if w == k && w != ex.Hex() {
-						see, err := p.dominated(ex.Hex(), w)
+						dominate, err := p.dominated(ex.Hex(), w)
 						if err != nil {
 							return math.MinInt32, err
 						}
 
-						if see {
+						if dominate {
 							if !found {
 								found = true
 							}
-							seeOpRoundRoots++
+							clothoOpRoundRoots++
 						}
 					}
 				}
 			}
 
-			if seeOpRoundRoots >= int64(p.superMajority) {
+			if clothoOpRoundRoots >= int64(p.superMajority) {
 				return opRound + 1, nil
 			}
 
@@ -442,14 +442,14 @@ func (p *Poset) round2(x string) (int64, error) {
 
 	ws := p.Store.RoundClothos(parentRound)
 
-	isSee := func(poset *Poset, root string, clothos []string) bool {
+	isDominated := func(poset *Poset, root string, clothos []string) bool {
 		for _, w := range ws {
 			if w == root && w != ex.Hex() {
-				see, err := poset.dominated(ex.Hex(), w)
+				dominate, err := poset.dominated(ex.Hex(), w)
 				if err != nil {
 					return false
 				}
-				if see {
+				if dominate {
 					return true
 				}
 			}
@@ -462,7 +462,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		count := 0
 
 		for _, root := range ex.Message.ClothoProof {
-			if isSee(p, root, ws) {
+			if isDominated(p, root, ws) {
 				count++
 			}
 		}
@@ -478,7 +478,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		count := 0
 
 		for root := range ft {
-			if isSee(p, root, ws) {
+			if isDominated(p, root, ws) {
 				count++
 			}
 		}

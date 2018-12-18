@@ -392,7 +392,7 @@ func TestSelfDominator(t *testing.T) {
 	}
 }
 
-func TestSee(t *testing.T) {
+func TestClotho(t *testing.T) {
 	p, index := initPoset(t)
 
 	expected := []dominatorItem{
@@ -697,7 +697,7 @@ func TestReadWireInfo(t *testing.T) {
 	}
 }
 
-func TestStronglySee(t *testing.T) {
+func TestAtropos(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
 	expected := []dominatorItem{
