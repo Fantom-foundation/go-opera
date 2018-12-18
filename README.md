@@ -10,6 +10,8 @@
 [![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
 [![twitter][twitter-image]][twitter-url]  
 
+[![Throughput Graph](https://graphs.waffle.io/Fantom-foundation/go-lachesis/throughput.svg)](https://waffle.io/Fantom-foundation/go-lachesis/metrics/throughput)  
+
 
 [codecov-image]: https://codecov.io/gh/fantom-foundation/go-lachesis/branch/master/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/fantom-foundation/go-lachesis
