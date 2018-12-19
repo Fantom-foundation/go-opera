@@ -1,5 +1,7 @@
 # Lachesis 
 
+aBFT Consensus platform for distributed applications.
+
 ## Build Details
 
 [![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
@@ -21,6 +23,10 @@
 [![cii percentage](https://img.shields.io/cii/percentage/2409.svg?style=flat-square&logo=cci)](https://bestpractices.coreinfrastructure.org/en/projects/2409)  
   
 [![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square&logo=godoc)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)   
+
+[documentation](http://docs.fantom.foundation) pages.  
+
+[![Sonarcloud](https://sonarcloud.io/api/project_badges/quality_gate?project=Fantom-foundation_go-lachesis)](https://sonarcloud.io/dashboard?id=Fantom-foundation_go-lachesis)  
   
 ## GitHub
 
@@ -45,10 +51,6 @@
 [twitter-url]: https://twitter.com/intent/follow?screen_name=FantomFDN
 [github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
 [github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
-
-## BFT Consensus platform for distributed applications.
-
-[documentation](http://docs.fantom.foundation) pages.
 
 ## Dev
 
