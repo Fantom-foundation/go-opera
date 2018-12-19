@@ -16,6 +16,10 @@ addons:
   apt:
     packages:
     - jq
+  sonarcloud:
+    organization: "fantom-foundation"
+script:
+  - sonar-scanner
 jobs:
   include:
   - stage: test
