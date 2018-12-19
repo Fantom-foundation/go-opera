@@ -17,7 +17,7 @@ import (
 )
 
 type Node struct {
-	state *nodeState2
+	*nodeState2
 
 	conf   *Config
 	logger *logrus.Entry
@@ -92,7 +92,7 @@ func NewNode(conf *Config,
 		start:            time.Now(),
 		gossipJobs:       0,
 		rpcJobs:          0,
-		state:            newNodeState2(),
+		nodeState2:       newNodeState2(),
 	}
 
 	node.logger.WithField("peers", pmap).Debug("pmap")
@@ -101,7 +101,7 @@ func NewNode(conf *Config,
 	node.needBoostrap = store.NeedBoostrap()
 
 	// Initialize
-	node.state.setState(Gossiping)
+	node.setState(Gossiping)
 
 	return &node
 }
@@ -145,8 +145,8 @@ func (n *Node) Run(gossip bool) {
 	// Execute Node State Machine
 	for {
 		// Run different routines depending on node state
-		state := n.state.getState()
-		n.logger.WithField("state", n.state.state.String()).Debug("RunAsync(gossip bool)")
+		state := n.getState()
+		n.logger.WithField("state", state.String()).Debug("RunAsync(gossip bool)")
 
 		switch state {
 		case Gossiping:
@@ -209,7 +209,7 @@ func (n *Node) lachesis(gossip bool) {
 	for {
 		select {
 		case rpc := <-n.netCh:
-			n.state.goFunc(func() {
+			n.goFunc(func() {
 				n.rpcJobs.increment()
 				n.logger.Debug("Processing RPC")
 				n.processRPC(rpc)
@@ -221,7 +221,7 @@ func (n *Node) lachesis(gossip bool) {
 				n.selectorLock.Lock()
 				peerAddr := n.peerSelector.Next().NetAddr
 				n.selectorLock.Unlock()
-				n.state.goFunc(func() {
+				n.goFunc(func() {
 					n.gossipJobs.increment()
 					n.gossip(peerAddr, returnCh)
 					n.gossipJobs.decrement()
@@ -382,7 +382,7 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	// check and handle syncLimit
 	if syncLimit {
 		n.logger.WithField("from", peerAddr).Debug("SyncLimit")
-		n.state.setState(CatchingUp)
+		n.setState(CatchingUp)
 		parentReturnCh <- struct{}{}
 		return nil
 	}
@@ -498,7 +498,7 @@ func (n *Node) fastForward() error {
 	n.logger.Debug("fastForward()")
 
 	// wait until sync routines finish
-	n.state.waitRoutines()
+	n.waitRoutines()
 
 	// fastForwardRequest
 	n.selectorLock.Lock()
@@ -537,7 +537,7 @@ func (n *Node) fastForward() error {
 		return err
 	}
 
-	n.state.setState(Gossiping)
+	n.setState(Gossiping)
 
 	return nil
 }
@@ -662,16 +662,16 @@ func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {
 }
 
 func (n *Node) Shutdown() {
-	if n.state.getState() != Shutdown {
+	if n.getState() != Shutdown {
 		// n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
 		n.logger.Debug("Shutdown()")
 
 		// Exit any non-shutdown state immediately
-		n.state.setState(Shutdown)
+		n.setState(Shutdown)
 
 		// Stop and wait for concurrent operations
 		close(n.shutdownCh)
-		n.state.waitRoutines()
+		n.waitRoutines()
 
 		// For some reason this needs to be called after closing the shutdownCh
 		// Not entirely sure why...
@@ -724,7 +724,7 @@ func (n *Node) GetStats() map[string]string {
 		"rounds_per_second":       strconv.FormatFloat(consensusRoundsPerSecond, 'f', 2, 64),
 		"round_events":            strconv.Itoa(n.core.GetLastCommittedRoundEventsCount()),
 		"id":                      strconv.FormatInt(n.id, 10),
-		"state":                   n.state.getState().String(),
+		"state":                   n.getState().String(),
 	}
 	// n.mqtt.FireEvent(s, "/mq/lachesis/stats")
 	return s
@@ -825,5 +825,5 @@ func (n *Node) ID() int64 {
 }
 
 func (n *Node) Stop() {
-	n.state.setState(Stop)
+	n.setState(Stop)
 }
