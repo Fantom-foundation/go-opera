@@ -24,7 +24,7 @@ aBFT Consensus platform for distributed applications.
   
 [![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square&logo=godoc)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)   
 
-[documentation](http://docs.fantom.foundation) pages.  
+[Documentation](https://github.com/Fantom-foundation/fantom-documentation/wiki).  
 
 [![Sonarcloud](https://sonarcloud.io/api/project_badges/quality_gate?project=Fantom-foundation_go-lachesis)](https://sonarcloud.io/dashboard?id=Fantom-foundation_go-lachesis)  
   
