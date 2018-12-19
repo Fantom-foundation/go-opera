@@ -845,8 +845,9 @@ func TestRoundDiff(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRoundCreated(0, RoundCreated{
-		Message: RoundCreatedMessage{Events: round0Clotho}})
+	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
+	}
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[e21]] = &RoundEvent{
@@ -855,8 +856,9 @@ func TestRoundDiff(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[f1]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRoundCreated(1,
-		RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}})
+	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
+	}
 
 	if d, err := p.roundDiff(index[s11], index[e21]); d != 1 {
 		if err != nil {
