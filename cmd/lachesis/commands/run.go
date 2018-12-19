@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 	"io"
+	"log/syslog"
+	"runtime"
 	"os"
 
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
@@ -12,6 +14,7 @@ import (
 	aproxy "github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/Fantom-foundation/go-lachesis/tester"
 	"github.com/sirupsen/logrus"
+	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -38,6 +41,12 @@ func runSingleLachesis(config *CLIConfig) error {
 		}
 		mw := io.MultiWriter(os.Stdout, f)
 		config.Lachesis.NodeConfig.Logger.SetOutput(mw)
+	}
+	if config.Syslog {
+		hook, err := lSyslog.NewSyslogHook("", "", syslog.LOG_INFO, "")
+		if err == nil {
+			config.Lachesis.NodeConfig.Logger.Hooks.Add(hook)
+		}
 	}
 
 	lachesis_log.NewLocal(config.Lachesis.Logger, config.Lachesis.LogLevel)
@@ -121,6 +130,9 @@ func AddRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("datadir", config.Lachesis.DataDir, "Top-level directory for configuration and data")
 	cmd.Flags().String("log", config.Lachesis.LogLevel, "debug, info, warn, error, fatal, panic")
 	cmd.Flags().Bool("log2file", config.Log2file, "duplicate log output into file lachesis_<BindAddr>.log")
+	if runtime.GOOS != "windows" {
+		cmd.Flags().Bool("syslog", config.Syslog, "duplicate log output into syslog")
+	}
 
 	// Network
 	cmd.Flags().StringP("listen", "l", config.Lachesis.BindAddr, "Listen IP:Port for lachesis node")
