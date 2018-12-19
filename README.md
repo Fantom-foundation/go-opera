@@ -2,31 +2,32 @@
 
 ## Build Details
 
-[![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg?style=flat-square
+[![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
 )](https://github.com/Fantom-foundation/go-lachesis/releases/latest)  
-[![Build Status](https://img.shields.io/travis/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://travis-ci.org/Fantom-foundation/go-lachesis)  
-[![license](https://img.shields.io/github/license/Fantom-foundation/go-lachesis.svg?style=flat-square)](LICENSE.md)  
-[![libraries.io dependencies](https://img.shields.io/librariesio/github/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://libraries.io/github/Fantom-foundation/go-lachesis)  
+[![Build Status](https://img.shields.io/travis/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=travis)](https://travis-ci.org/Fantom-foundation/go-lachesis)  
+[![appveyor](https://img.shields.io/appveyor/ci/andrecronje/go-lachesis.svg?style=flat-square&logo=appveyor)](https://ci.appveyor.com/project/andrecronje/go-lachesis)  
+[![license](https://img.shields.io/github/license/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](LICENSE.md)  
+[![libraries.io dependencies](https://img.shields.io/librariesio/github/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=librariesio)](https://libraries.io/github/Fantom-foundation/go-lachesis)  
 
 ## Code Quality
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/Fantom-foundation/go-lachesis?style=flat-square)](https://goreportcard.com/report/github.com/Fantom-foundation/go-lachesis)  
-[![GolangCI](https://golangci.com/badges/github.com/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://golangci.com/r/github.com/Fantom-foundation/go-lachesis)   
-[![Code Climate Maintainability Grade](https://img.shields.io/codeclimate/maintainability/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://codeclimate.com/github/Fantom-foundation/go-lachesis)  
-[![Code Climate Maintainability](https://img.shields.io/codeclimate/maintainability-percentage/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://codeclimate.com/github/Fantom-foundation/go-lachesis)  
-[![Code Climate Technical Dept](https://img.shields.io/codeclimate/tech-debt/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://codeclimate.com/github/Fantom-foundation/go-lachesis)  
-[![Codacy code quality](https://img.shields.io/codacy/grade/c8c27910210f4b23bcbbe8c60338b1d5.svg?style=flat-square)](https://app.codacy.com/project/andrecronje/go-lachesis/dashboard)  
-[![cii best practices](https://img.shields.io/cii/level/2409.svg?style=flat-square)](https://bestpractices.coreinfrastructure.org/en/projects/2409)  
-[![cii percentage](https://img.shields.io/cii/percentage/2409.svg?style=flat-square)](https://bestpractices.coreinfrastructure.org/en/projects/2409)  
+[![Go Report Card](https://goreportcard.com/badge/github.com/Fantom-foundation/go-lachesis?style=flat-square&logo=goreportcard)](https://goreportcard.com/report/github.com/Fantom-foundation/go-lachesis)  
+[![GolangCI](https://golangci.com/badges/github.com/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=golangci)](https://golangci.com/r/github.com/Fantom-foundation/go-lachesis)   
+[![Code Climate Maintainability Grade](https://img.shields.io/codeclimate/maintainability/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=codeclimate)](https://codeclimate.com/github/Fantom-foundation/go-lachesis)  
+[![Code Climate Maintainability](https://img.shields.io/codeclimate/maintainability-percentage/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=codeclimate)](https://codeclimate.com/github/Fantom-foundation/go-lachesis)  
+[![Code Climate Technical Dept](https://img.shields.io/codeclimate/tech-debt/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=codeclimate)](https://codeclimate.com/github/Fantom-foundation/go-lachesis)  
+[![Codacy code quality](https://img.shields.io/codacy/grade/c8c27910210f4b23bcbbe8c60338b1d5.svg?style=flat-square&logo=codacy)](https://app.codacy.com/project/andrecronje/go-lachesis/dashboard)  
+[![cii best practices](https://img.shields.io/cii/level/2409.svg?style=flat-square&logo=cci)](https://bestpractices.coreinfrastructure.org/en/projects/2409)  
+[![cii percentage](https://img.shields.io/cii/percentage/2409.svg?style=flat-square&logo=cci)](https://bestpractices.coreinfrastructure.org/en/projects/2409)  
   
-[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)   
+[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square&logo=godoc)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)   
   
 ## GitHub
 
 
-[![Commit Activity](https://img.shields.io/github/commit-activity/w/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
-[![Last Commit](https://img.shields.io/github/last-commit/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
-[![Contributors](https://img.shields.io/github/contributors/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://github.com/Fantom-foundation/go-lachesis/graphs/contributors)  
+[![Commit Activity](https://img.shields.io/github/commit-activity/w/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
+[![Last Commit](https://img.shields.io/github/last-commit/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
+[![Contributors](https://img.shields.io/github/contributors/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/graphs/contributors)  
 [![Issues][github-issues-image]][github-issues-url]  
 [![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
 
@@ -42,7 +43,7 @@
 [codecov-url]: https://codecov.io/gh/fantom-foundation/go-lachesis
 [twitter-image]: https://img.shields.io/twitter/follow/FantomFDN.svg?style=social
 [twitter-url]: https://twitter.com/intent/follow?screen_name=FantomFDN
-[github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square
+[github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
 [github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
 
 ## BFT Consensus platform for distributed applications.
