@@ -14,20 +14,24 @@ import (
 )
 
 var (
+	// NameFlag is the name of the client
 	NameFlag = cli.StringFlag{
 		Name:  "name",
 		Usage: "Client Name",
 	}
+	// ProxyAddressFlag is the settings for the proxy address
 	ProxyAddressFlag = cli.StringFlag{
 		Name:  "proxy_addr",
 		Usage: "IP:Port to bind Proxy Server",
 		Value: "127.0.0.1:1338",
 	}
+	// ClientAddressFlag is the settings for the address flag (can lookup)
 	ClientAddressFlag = cli.StringFlag{
 		Name:  "client_addr",
 		Usage: "IP:Port of Client App",
 		Value: "127.0.0.1:1339",
 	}
+	// LogLevelFlag setting that the user wants
 	LogLevelFlag = cli.StringFlag{
 		Name:  "log_level",
 		Usage: "debug, info, warn, error, fatal, panic",

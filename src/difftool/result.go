@@ -29,11 +29,13 @@ type Result []*Diff
  * Diff's methods
  */
 
+// IsEmpty is the diff empty
 func (d *Diff) IsEmpty() bool {
 	has := d.FirstBlockIndex > 0 || d.FirstRoundIndex > 0
 	return !has
 }
 
+// ToString converts to a string
 func (d *Diff) ToString() string {
 	if d.Err != nil {
 		return fmt.Sprintf("ERR: %s", d.Err.Error())
@@ -49,6 +51,7 @@ func (d *Diff) ToString() string {
 	return string(raw)
 }
 
+// AddDescr appends description to the diff
 func (d *Diff) AddDescr(s string) {
 	d.Descr = d.Descr + s + "\n"
 }
@@ -57,6 +60,7 @@ func (d *Diff) AddDescr(s string) {
  * Result's methods
  */
 
+// IsEmpty is the result empty
 func (r Result) IsEmpty() bool {
 	for _, diff := range r {
 		if !diff.IsEmpty() {
@@ -66,6 +70,7 @@ func (r Result) IsEmpty() bool {
 	return true
 }
 
+// ToString result to string
 func (r Result) ToString() string {
 	var output []string
 	for _, diff := range r {

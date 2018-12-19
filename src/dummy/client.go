@@ -14,11 +14,13 @@ type DummyClient struct {
 	lachesisProxy proxy.LachesisProxy
 }
 
+// NewInmemDummyApp constructor
 func NewInmemDummyApp(logger *logrus.Logger) proxy.AppProxy {
 	state := NewState(logger)
 	return proxy.NewInmemAppProxy(state, logger)
 }
 
+// NewDummySocketClient constructor
 func NewDummySocketClient(addr string, logger *logrus.Logger) (*DummyClient, error) {
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
 	if err != nil {

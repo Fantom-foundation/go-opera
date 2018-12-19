@@ -28,6 +28,7 @@ type State struct {
 	locker       sync.Mutex
 }
 
+// NewState constructor
 func NewState(logger *logrus.Logger) *State {
 	state := &State{
 		logger:       logger,
@@ -44,6 +45,7 @@ func NewState(logger *logrus.Logger) *State {
  * inmem interface: ProxyHandler implementation
  */
 
+// CommitHandler triggers on block received
 func (s *State) CommitHandler(block poset.Block) ([]byte, error) {
 	s.locker.Lock()
 	defer s.locker.Unlock()
@@ -57,6 +59,7 @@ func (s *State) CommitHandler(block poset.Block) ([]byte, error) {
 	return s.stateHash, nil
 }
 
+// SnapshotHandler triggers on snapshot restore
 func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
 	s.locker.Lock()
 	defer s.locker.Unlock()
@@ -70,6 +73,7 @@ func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
 	return snapshot, nil
 }
 
+// RestoreHandler triggers on snapshot for a restore
 func (s *State) RestoreHandler(snapshot []byte) ([]byte, error) {
 	s.locker.Lock()
 	defer s.locker.Unlock()
@@ -82,6 +86,7 @@ func (s *State) RestoreHandler(snapshot []byte) ([]byte, error) {
  * staff:
  */
 
+// GetCommittedTransactions returns all final transactions
 func (s *State) GetCommittedTransactions() [][]byte {
 	s.locker.Lock()
 	defer s.locker.Unlock()

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Lachesis struct
 type Lachesis struct {
 	Config    *LachesisConfig
 	Node      *node.Node
@@ -23,6 +24,7 @@ type Lachesis struct {
 	Service   *service.Service
 }
 
+// NewLachesis constructor
 func NewLachesis(config *LachesisConfig) *Lachesis {
 	engine := &Lachesis{
 		Config: config,
@@ -171,6 +173,7 @@ func (l *Lachesis) initService() error {
 	return nil
 }
 
+// Init initializes the lachesis node
 func (l *Lachesis) Init() error {
 	if l.Config.Logger == nil {
 		l.Config.Logger = logrus.New()
@@ -204,6 +207,7 @@ func (l *Lachesis) Init() error {
 	return nil
 }
 
+// Run hosts the services for the lachesis node
 func (l *Lachesis) Run() {
 	if l.Service != nil {
 		go l.Service.Serve()
@@ -211,6 +215,7 @@ func (l *Lachesis) Run() {
 	l.Node.Run(true)
 }
 
+// Keygen generates a new key pair
 func Keygen(datadir string) (*ecdsa.PrivateKey, error) {
 	pemKey := crypto.NewPemKey(datadir)
 
