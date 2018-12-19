@@ -19,7 +19,7 @@ func (f *Frame) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, f)
 }
 
-// Provide alternative for non-existent Protobuf generated function
+// GetEventBlocks provides alternative for non-existent Protobuf generated function
 func (f *Frame) GetEventBlocks() ([]*EventMessage) {
 	return f.GetEvents()
 }

@@ -122,7 +122,7 @@ func (r *RoundCreated) ConsensusEvents() []string {
 	return res
 }
 
-// return Atropos
+// Atropos returns all events that are Atropos
 func (r *RoundCreated) Atropos() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -133,13 +133,13 @@ func (r *RoundCreated) Atropos() []string {
 	return res
 }
 
-// return whether the given even is Atropos or Clotho
+// IsDecided returns whether the given even is Atropos or Clotho
 func (r *RoundCreated) IsDecided(clotho string) bool {
 	w, ok := r.Message.Events[clotho]
 	return ok && w.Clotho && w.Atropos != Trilean_UNDEFINED
 }
 
-// serialise RoundCreated using protobuf
+// ProtoMarshal serialises RoundCreated using protobuf
 func (r *RoundCreated) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -149,7 +149,7 @@ func (r *RoundCreated) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
-// serialise RoundReceived using protobuf
+// ProtoMarshal serialise RoundReceived using protobuf
 func (r *RoundReceived) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -159,22 +159,22 @@ func (r *RoundReceived) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
-// de-serialise RoundCreated using protobuf
+// ProtoUnmarshal de-serialises RoundCreated using protobuf
 func (r *RoundCreated) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, &r.Message)
 }
 
-// de-serialise RoundReceived using protobuf
+// ProtoUnmarshal de-serialises RoundReceived using protobuf
 func (r *RoundReceived) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, r)
 }
 
-// is the RoundCreated queued in PendingRounds
+// IsQueued returns whether the RoundCreated is queued in PendingRounds
 func (r *RoundCreated) IsQueued() bool {
 	return r.Message.Queued
 }
 
-// are the round events the same
+// Equals determines whether this and another round event are the same
 func (this *RoundEvent) Equals(that *RoundEvent) bool {
 	return this.Consensus == that.Consensus &&
 		this.Clotho == that.Clotho &&

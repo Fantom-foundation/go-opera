@@ -119,12 +119,12 @@ func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
 	}
 }
 
-// retrieve cached PubKey map of peers
+// RepertoireByPubKey retrieves cached PubKey map of peers
 func (s *InmemStore) RepertoireByPubKey() map[string]*peers.Peer {
 	return s.repertoireByPubKey
 }
 
-// retrieve cached ID map of peers
+// RepertoireByID retrieve cached ID map of peers
 func (s *InmemStore) RepertoireByID() map[int64]*peers.Peer {
 	return s.repertoireByID
 }
@@ -260,7 +260,7 @@ func (s *InmemStore) AddConsensusEvent(event Event) error {
 	return nil
 }
 
-// retrieve created round from cache by id
+// GetRoundCreated retrieves created round from cache by id
 func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	res, ok := s.roundCreatedCache.Get(r)
 	if !ok {
@@ -269,7 +269,7 @@ func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	return res.(RoundCreated), nil
 }
 
-// store created round in cache by id
+// SetRoundCreated stores created round in cache by id
 func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
 	s.lastRoundLocker.Lock()
 	defer s.lastRoundLocker.Unlock()
@@ -280,7 +280,7 @@ func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
 	return nil
 }
 
-// get received round from cache by id
+// GetRoundReceived gets received round from cache by id
 func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	res, ok := s.roundReceivedCache.Get(r)
 	if !ok {
@@ -289,7 +289,7 @@ func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	return res.(RoundReceived), nil
 }
 
-// store received round in cache by id
+// SetRoundReceived stores received round in cache by id
 func (s *InmemStore) SetRoundReceived(r int64, round RoundReceived) error {
 	s.lastRoundLocker.Lock()
 	defer s.lastRoundLocker.Unlock()
