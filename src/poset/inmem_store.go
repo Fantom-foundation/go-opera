@@ -111,14 +111,12 @@ func (s *InmemStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
-func (s *InmemStore) setPeers(round int64, participants *peers.Peers) error {
+func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
 	// Extend PartipantEventsCache and Roots with new peers
 	for _, peer := range participants.ById {
 		s.repertoireByPubKey[peer.PubKeyHex] = peer
 		s.repertoireByID[peer.ID] = peer
 	}
-
-	return nil
 }
 
 // retrieve cached PubKey map of peers

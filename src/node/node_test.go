@@ -805,7 +805,9 @@ func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode stats %v", stats)
+	}
 }
 
 func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
@@ -833,7 +835,9 @@ func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	json.NewEncoder(w).Encode(block)
+	if err := json.NewEncoder(w).Encode(block); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode block %v", block)
+	}
 }
 
 func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
@@ -843,7 +847,9 @@ func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
 
 	res := s.graph.GetInfos()
 
-	encoder.Encode(res)
+	if err := encoder.Encode(res); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode Infos %v", res)
+	}
 }
 
 func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {

@@ -121,21 +121,27 @@ func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	res := s.graph.GetInfos()
-	encoder.Encode(res)
+	if err := encoder.Encode(res); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode Infos: %v", res)
+	}
 }
 
 func (s *Service) GetKnownEvents(w http.ResponseWriter, r *http.Request) {
 	knownEvents := s.node.GetKnownEvents()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(knownEvents)
+	if err := json.NewEncoder(w).Encode(knownEvents); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode known events: %v", knownEvents)
+	}
 }
 
 func (s *Service) GetConsensusEvents(w http.ResponseWriter, r *http.Request) {
 	consensusEvents := s.node.GetConsensusEvents()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(consensusEvents)
+	if err := json.NewEncoder(w).Encode(consensusEvents); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode consensus events: %v", consensusEvents)
+	}
 }
 
 func (s *Service) GetRound(w http.ResponseWriter, r *http.Request) {
@@ -155,14 +161,18 @@ func (s *Service) GetRound(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(round)
+	if err = json.NewEncoder(w).Encode(round); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode round: %v", round)
+	}
 }
 
 func (s *Service) GetLastRound(w http.ResponseWriter, r *http.Request) {
 	lastRound := s.node.GetLastRound()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(lastRound)
+	if err := json.NewEncoder(w).Encode(lastRound); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode last round: %d", lastRound)
+	}
 }
 
 func (s *Service) GetRoundClothos(w http.ResponseWriter, r *http.Request) {
@@ -177,7 +187,9 @@ func (s *Service) GetRoundClothos(w http.ResponseWriter, r *http.Request) {
 	roundClothos := s.node.GetRoundClothos(roundClothosIndex)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(roundClothos)
+	if err = json.NewEncoder(w).Encode(roundClothos); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode round clothos: %v", roundClothos)
+	}
 }
 
 func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +204,9 @@ func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {
 	roundEvent := s.node.GetRoundEvents(roundEventsIndex)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(roundEvent)
+	if err = json.NewEncoder(w).Encode(roundEvent); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode round event: %d", roundEvent)
+	}
 }
 
 func (s *Service) GetRoot(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +219,9 @@ func (s *Service) GetRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(root)
+	if err = json.NewEncoder(w).Encode(root); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode root: %v", root)
+	}
 }
 
 func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
@@ -225,5 +241,7 @@ func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(block)
+	if err = json.NewEncoder(w).Encode(block); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode block: %v", block)
+	}
 }
