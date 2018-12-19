@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
@@ -445,9 +446,12 @@ func TestGossip(t *testing.T) {
 	srv := s.Serve()
 
 	t.Logf("serving for 3 seconds")
-	time.Sleep(3 * time.Second)
+	shutdownTimeout := 3 * time.Second
+	time.Sleep(shutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
 	t.Logf("stopping after waiting for Serve()...")
-	if err := srv.Shutdown(nil); err != nil {
+	if err := srv.Shutdown(ctx); err != nil {
 		t.Fatal(err) // failure/timeout shutting down the server gracefully
 	}
 
