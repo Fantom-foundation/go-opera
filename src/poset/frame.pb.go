@@ -65,7 +65,7 @@ func (m *Frame) GetRoots() []*Root {
 	return nil
 }
 
-func (m *Frame) GetEvents() []*EventMessage {
+func (m *Frame) GetEventBlocks() []*EventMessage {
 	if m != nil {
 		return m.Events
 	}

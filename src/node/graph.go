@@ -76,7 +76,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
 
 		for _, e := range evs {
-			event, err := store.GetEvent(e)
+			event, err := store.GetEventBlock(e)
 
 			if err != nil {
 				panic(err)

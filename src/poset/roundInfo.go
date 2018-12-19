@@ -21,11 +21,11 @@ func NewRoundInfo() *RoundInfo {
 	}
 }
 
-func (r *RoundInfo) AddEvent(x string, witness bool) {
+func (r *RoundInfo) AddEvent(x string, clotho bool) {
 	_, ok := r.Message.Events[x]
 	if !ok {
 		r.Message.Events[x] = &RoundEvent{
-			Witness: witness,
+			Clotho: clotho,
 		}
 	}
 }
@@ -39,36 +39,36 @@ func (r *RoundInfo) SetConsensusEvent(x string) {
 	r.Message.Events[x] = e
 }
 
-func (r *RoundInfo) SetFame(x string, f bool) {
+func (r *RoundInfo) SetAtropos(x string, f bool) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{
-			Witness: true,
+			Clotho: true,
 		}
 	}
 	if f {
-		e.Famous = Trilean_TRUE
+		e.Atropos = Trilean_TRUE
 	} else {
-		e.Famous = Trilean_FALSE
+		e.Atropos = Trilean_FALSE
 	}
 	r.Message.Events[x] = e
 }
 
-//return true if no witnesses' fame is left undefined
-func (r *RoundInfo) WitnessesDecided() bool {
+//return true if no clothos' fame is left undefined
+func (r *RoundInfo) ClothoDecided() bool {
 	for _, e := range r.Message.Events {
-		if e.Witness && e.Famous == Trilean_UNDEFINED {
+		if e.Clotho && e.Atropos == Trilean_UNDEFINED {
 			return false
 		}
 	}
 	return true
 }
 
-//return witnesses
-func (r *RoundInfo) Witnesses() []string {
+//return clothos
+func (r *RoundInfo) Clotho() []string {
 	var res []string
 	for x, e := range r.Message.Events {
-		if e.Witness {
+		if e.Clotho {
 			res = append(res, x)
 		}
 	}
@@ -96,20 +96,20 @@ func (r *RoundInfo) ConsensusEvents() []string {
 	return res
 }
 
-//return famous witnesses
-func (r *RoundInfo) FamousWitnesses() []string {
+//return Atropos
+func (r *RoundInfo) Atropos() []string {
 	var res []string
 	for x, e := range r.Message.Events {
-		if e.Witness && e.Famous == Trilean_TRUE {
+		if e.Clotho && e.Atropos == Trilean_TRUE {
 			res = append(res, x)
 		}
 	}
 	return res
 }
 
-func (r *RoundInfo) IsDecided(witness string) bool {
-	w, ok := r.Message.Events[witness]
-	return ok && w.Witness && w.Famous != Trilean_UNDEFINED
+func (r *RoundInfo) IsDecided(clotho string) bool {
+	w, ok := r.Message.Events[clotho]
+	return ok && w.Clotho && w.Atropos != Trilean_UNDEFINED
 }
 
 func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
@@ -131,8 +131,8 @@ func (r *RoundInfo) IsQueued() bool {
 
 func (this *RoundEvent) Equals(that *RoundEvent) bool {
 	return this.Consensus == that.Consensus &&
-		this.Witness == that.Witness &&
-		this.Famous == that.Famous
+		this.Clotho == that.Clotho &&
+		this.Atropos == that.Atropos
 }
 
 func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*RoundEvent) bool {

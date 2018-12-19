@@ -166,12 +166,12 @@ func (s *BadgerStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.inmemStore.RootsBySelfParent()
 }
 
-func (s *BadgerStore) GetEvent(key string) (event Event, err error) {
+func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
 	//try to get it from cache
-	event, err = s.inmemStore.GetEvent(key)
+	event, err = s.inmemStore.GetEventBlock(key)
 	//if not in cache, try to get it from db
 	if err != nil {
-		event, err = s.dbGetEvent(key)
+		event, err = s.dbGetEventBlock(key)
 	}
 	return event, mapError(err, "Event", key)
 }
@@ -222,7 +222,7 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 					index = root.SelfParent.Index
 				}
 			} else {
-				lastEvent, err := s.GetEvent(last)
+				lastEvent, err := s.GetEventBlock(last)
 				if err == nil {
 					index = lastEvent.Index()
 				}
@@ -265,12 +265,12 @@ func (s *BadgerStore) LastRound() int64 {
 	return s.inmemStore.LastRound()
 }
 
-func (s *BadgerStore) RoundWitnesses(r int64) []string {
+func (s *BadgerStore) RoundClothos(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
 		return []string{}
 	}
-	return round.Witnesses()
+	return round.Clotho()
 }
 
 func (s *BadgerStore) RoundEvents(r int64) int {
@@ -345,7 +345,7 @@ func (s *BadgerStore) StorePath() string {
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //DB Methods
 
-func (s *BadgerStore) dbGetEvent(key string) (Event, error) {
+func (s *BadgerStore) dbGetEventBlock(key string) (Event, error) {
 	var eventBytes []byte
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
@@ -543,7 +543,7 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 				LamportTimestamp: 0,
 				Round:            0,
 				RoundReceived:    0 /*RoundNIL*/,
-				WitnessProof: []string{root.SelfParent.Hash},
+				ClothoProof: []string{root.SelfParent.Hash},
 			},
 		}
 		if err := s.SetEvent(event); err != nil {

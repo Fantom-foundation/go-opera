@@ -9,8 +9,8 @@ enum Trilean {
 
 message RoundEvent {
   bool Consensus = 1;
-  bool Witness = 2;
-  Trilean Famous = 3;
+  bool Clotho = 2;
+  Trilean Atropos = 3;
 }
 
 message RoundInfoMessage {

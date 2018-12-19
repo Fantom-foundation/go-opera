@@ -32,13 +32,13 @@ func (s *Service) Serve() {
 	mux := http.NewServeMux()
 	mux.Handle("/stats", corsHandler(s.GetStats))
 	mux.Handle("/participants/", corsHandler(s.GetParticipants))
-	mux.Handle("/event/", corsHandler(s.GetEvent))
+	mux.Handle("/event/", corsHandler(s.GetEventBlock))
 	mux.Handle("/lasteventfrom/", corsHandler(s.GetLastEventFrom))
 	mux.Handle("/events/", corsHandler(s.GetKnownEvents))
 	mux.Handle("/consensusevents/", corsHandler(s.GetConsensusEvents))
 	mux.Handle("/round/", corsHandler(s.GetRound))
 	mux.Handle("/lastround/", corsHandler(s.GetLastRound))
-	mux.Handle("/roundwitnesses/", corsHandler(s.GetRoundWitnesses))
+	mux.Handle("/roundclothos/", corsHandler(s.GetRoundClothos))
 	mux.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
 	mux.Handle("/root/", corsHandler(s.GetRoot))
 	mux.Handle("/block/", corsHandler(s.GetBlock))
@@ -91,9 +91,9 @@ func (s *Service) GetParticipants(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(participants)
 }
 
-func (s *Service) GetEvent(w http.ResponseWriter, r *http.Request) {
+func (s *Service) GetEventBlock(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/event/"):]
-	event, err := s.node.GetEvent(param)
+	event, err := s.node.GetEventBlock(param)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Retrieving event %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -165,19 +165,19 @@ func (s *Service) GetLastRound(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(lastRound)
 }
 
-func (s *Service) GetRoundWitnesses(w http.ResponseWriter, r *http.Request) {
-	param := r.URL.Path[len("/roundwitnesses/"):]
-	roundWitnessesIndex, err := strconv.ParseInt(param, 10, 64)
+func (s *Service) GetRoundClothos(w http.ResponseWriter, r *http.Request) {
+	param := r.URL.Path[len("/roundclothos/"):]
+	roundClothosIndex, err := strconv.ParseInt(param, 10, 64)
 	if err != nil {
-		s.logger.WithError(err).Errorf("Parsing roundWitnessesIndex parameter %s", param)
+		s.logger.WithError(err).Errorf("Parsing roundClothosIndex parameter %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	roundWitnesses := s.node.GetRoundWitnesses(roundWitnessesIndex)
+	roundClothos := s.node.GetRoundClothos(roundClothosIndex)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(roundWitnesses)
+	json.NewEncoder(w).Encode(roundClothos)
 }
 
 func (s *Service) GetRoundEvents(w http.ResponseWriter, r *http.Request) {

@@ -224,7 +224,7 @@ type EventMessage struct {
 	Body                 *EventBody `protobuf:"bytes,1,opt,name=Body,proto3" json:"Body,omitempty"`
 	Signature            string     `protobuf:"bytes,2,opt,name=Signature,proto3" json:"Signature,omitempty"`
 	FlagTable            []byte     `protobuf:"bytes,3,opt,name=FlagTable,proto3" json:"FlagTable,omitempty"`
-	WitnessProof         []string   `protobuf:"bytes,4,rep,name=WitnessProof,proto3" json:"WitnessProof,omitempty"`
+	ClothoProof         []string   `protobuf:"bytes,4,rep,name=ClothoProof,proto3" json:"ClothoProof,omitempty"`
 	SelfParentIndex      int64      `protobuf:"varint,5,opt,name=SelfParentIndex,proto3" json:"SelfParentIndex,omitempty"`
 	OtherParentCreatorID int64      `protobuf:"varint,6,opt,name=OtherParentCreatorID,proto3" json:"OtherParentCreatorID,omitempty"`
 	OtherParentIndex     int64      `protobuf:"varint,7,opt,name=OtherParentIndex,proto3" json:"OtherParentIndex,omitempty"`
@@ -286,9 +286,9 @@ func (m *EventMessage) GetFlagTable() []byte {
 	return nil
 }
 
-func (m *EventMessage) GetWitnessProof() []string {
+func (m *EventMessage) GetClothoProof() []string {
 	if m != nil {
-		return m.WitnessProof
+		return m.ClothoProof
 	}
 	return nil
 }

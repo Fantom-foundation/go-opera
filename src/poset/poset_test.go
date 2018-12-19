@@ -135,8 +135,8 @@ func (node *TestNode) signAndAddEvent(event Event, name string,
 	*orderedEvents = append(*orderedEvents, event)
 }
 
-type ancestryItem struct {
-	descendant, ancestor string
+type dominatorItem struct {
+	dominated, dominator string
 	val                  bool
 	err                  bool
 }
@@ -298,10 +298,10 @@ func initPoset(t *testing.T) (*Poset, map[string]string) {
 	return p, index
 }
 
-func TestAncestor(t *testing.T) {
+func TestDominator(t *testing.T) {
 	p, index := initPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		// first generation
 		{e01, e0, true, false},
 		{e01, e1, true, false},
@@ -341,22 +341,22 @@ func TestAncestor(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.ancestor(index[exp.descendant], index[exp.ancestor])
+		a, err := p.dominator(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing ancestor(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing dominator(%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("ancestor(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("dominator(%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
 
-func TestSelfAncestor(t *testing.T) {
+func TestSelfDominator(t *testing.T) {
 	p, index := initPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		// 1 generation
 		{e01, e0, true, false},
 		{s00, e01, true, false},
@@ -380,22 +380,22 @@ func TestSelfAncestor(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.selfAncestor(index[exp.descendant], index[exp.ancestor])
+		a, err := p.selfDominator(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing selfAncestor(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing selfDominator(%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("selfAncestor(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("selfDominator(%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
 
-func TestSee(t *testing.T) {
+func TestClotho(t *testing.T) {
 	p, index := initPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		{e01, e0, true, false},
 		{e01, e1, true, false},
 		{e20, e0, true, false},
@@ -407,14 +407,14 @@ func TestSee(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.see(index[exp.descendant], index[exp.ancestor])
+		a, err := p.dominated(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing see(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing dominated%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("see(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("dominated%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
@@ -460,7 +460,7 @@ e0   e1 (a)e2
 0    1     2
 
 Node 2 Forks; events a and e2 are both created by node2, they are not
-self-parent sand yet they are both ancestors of event e20
+self-parent sand yet they are both dominators of event e20
 */
 func TestFork(t *testing.T) {
 	index := make(map[string]string)
@@ -551,17 +551,17 @@ func initRoundPoset(t *testing.T) (*Poset, map[string]string, []TestNode) {
 func TestInsertEvent(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	checkParents := func(e, selfAncestor, ancestor string) bool {
-		ev, err := p.Store.GetEvent(index[e])
+	checkParents := func(e, selfDominator, dominator string) bool {
+		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
 		}
-		return ev.SelfParent() == selfAncestor && ev.OtherParent() == ancestor
+		return ev.SelfParent() == selfDominator && ev.OtherParent() == dominator
 	}
 
 	t.Run("Check Event Coordinates", func(t *testing.T) {
 
-		e0Event, err := p.Store.GetEvent(index[e0])
+		e0Event, err := p.Store.GetEventBlock(index[e0])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -573,12 +573,12 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on %s", e0)
 		}
 
-		e21Event, err := p.Store.GetEvent(index[e21])
+		e21Event, err := p.Store.GetEventBlock(index[e21])
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		e10Event, err := p.Store.GetEvent(index[e10])
+		e10Event, err := p.Store.GetEventBlock(index[e10])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -590,7 +590,7 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on %s", e21)
 		}
 
-		f1Event, err := p.Store.GetEvent(index[f1])
+		f1Event, err := p.Store.GetEventBlock(index[f1])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -605,7 +605,7 @@ func TestInsertEvent(t *testing.T) {
 		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.Creator()].ID, 10)
 
 		type Hierarchy struct {
-			ev, selfAncestor, ancestor string
+			ev, selfDominator, dominator string
 		}
 
 		toCheck := []Hierarchy{
@@ -617,7 +617,7 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		for _, v := range toCheck {
-			if !checkParents(v.ev, v.selfAncestor, v.ancestor) {
+			if !checkParents(v.ev, v.selfDominator, v.dominator) {
 				t.Fatal(v.ev + " selfParent not good")
 			}
 		}
@@ -662,7 +662,7 @@ func TestReadWireInfo(t *testing.T) {
 		if k[0] == 'r' {
 			continue
 		}
-		ev, err := p.Store.GetEvent(evh)
+		ev, err := p.Store.GetEventBlock(evh)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -697,10 +697,10 @@ func TestReadWireInfo(t *testing.T) {
 	}
 }
 
-func TestStronglySee(t *testing.T) {
+func TestAtropos(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		{e21, e0, true, false},
 		{e02, e10, true, false},
 		{e02, e0, true, false},
@@ -729,38 +729,38 @@ func TestStronglySee(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.stronglySee(index[exp.descendant], index[exp.ancestor])
+		a, err := p.strictlyDominated(index[exp.dominated], index[exp.dominator])
 		if err != nil && !exp.err {
-			t.Fatalf("Error computing stronglySee(%s, %s). Err: %v",
-				exp.descendant, exp.ancestor, err)
+			t.Fatalf("Error computing strictlyDominated(%s, %s). Err: %v",
+				exp.dominated, exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("stronglySee(%s, %s) should be %v, not %v",
-				exp.descendant, exp.ancestor, exp.val, a)
+			t.Fatalf("strictlyDominated(%s, %s) should be %v, not %v",
+				exp.dominated, exp.dominator, exp.val, a)
 		}
 	}
 }
 
-func TestWitness(t *testing.T) {
+func TestClothos(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	round0Witnesses := make(map[string]*RoundEvent)
-	round0Witnesses[index[e0]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e2]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round0Clotho := make(map[string]*RoundEvent)
+	round0Clotho[index[e0]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round0Clotho[index[e1]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round0Clotho[index[e2]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{
-		Message: RoundInfoMessage{Events: round0Witnesses}})
+		Message: RoundInfoMessage{Events: round0Clotho}})
 
-	round1Witnesses := make(map[string]*RoundEvent)
-	round1Witnesses[index[f1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round1Clotho := make(map[string]*RoundEvent)
+	round1Clotho[index[f1]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(1, RoundInfo{
-		Message: RoundInfoMessage{Events: round1Witnesses}})
+		Message: RoundInfoMessage{Events: round1Clotho}})
 
-	expected := []ancestryItem{
+	expected := []dominatorItem{
 		{"", e0, true, false},
 		{"", e1, true, false},
 		{"", e2, true, false},
@@ -771,14 +771,14 @@ func TestWitness(t *testing.T) {
 	}
 
 	for _, exp := range expected {
-		a, err := p.witness(index[exp.ancestor])
+		a, err := p.clotho(index[exp.dominator])
 		if err != nil {
-			t.Fatalf("Error computing witness(%s). Err: %v",
-				exp.ancestor, err)
+			t.Fatalf("Error computing clotho(%s). Err: %v",
+				exp.dominator, err)
 		}
 		if a != exp.val {
-			t.Fatalf("witness(%s) should be %v, not %v",
-				exp.ancestor, exp.val, a)
+			t.Fatalf("clotho(%s) should be %v, not %v",
+				exp.dominator, exp.val, a)
 		}
 	}
 }
@@ -786,25 +786,25 @@ func TestWitness(t *testing.T) {
 func TestRound(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	round0Witnesses := make(map[string]*RoundEvent)
-	round0Witnesses[index[e0]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e2]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round0Clotho := make(map[string]*RoundEvent)
+	round0Clotho[index[e0]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round0Clotho[index[e1]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round0Clotho[index[e2]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{Message: RoundInfoMessage{
-		Events: round0Witnesses}})
+		Events: round0Clotho}})
 
-	round1Witnesses := make(map[string]*RoundEvent)
-	round1Witnesses[index[e21]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[e02]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[f1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round1Clotho := make(map[string]*RoundEvent)
+	round1Clotho[index[e21]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round1Clotho[index[e02]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round1Clotho[index[f1]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(1, RoundInfo{
-		Message: RoundInfoMessage{Events: round1Witnesses}})
+		Message: RoundInfoMessage{Events: round1Clotho}})
 
 	expected := []roundItem{
 		{e0, 0},
@@ -834,25 +834,25 @@ func TestRound(t *testing.T) {
 func TestRoundDiff(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	round0Witnesses := make(map[string]*RoundEvent)
-	round0Witnesses[index[e0]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round0Witnesses[index[e2]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round0Clotho := make(map[string]*RoundEvent)
+	round0Clotho[index[e0]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round0Clotho[index[e1]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round0Clotho[index[e2]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(0, RoundInfo{
-		Message: RoundInfoMessage{Events: round0Witnesses}})
+		Message: RoundInfoMessage{Events: round0Clotho}})
 
-	round1Witnesses := make(map[string]*RoundEvent)
-	round1Witnesses[index[e21]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[e02]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
-	round1Witnesses[index[f1]] = &RoundEvent{
-		Witness: true, Famous: Trilean_UNDEFINED}
+	round1Clotho := make(map[string]*RoundEvent)
+	round1Clotho[index[e21]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round1Clotho[index[e02]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
+	round1Clotho[index[f1]] = &RoundEvent{
+		Clotho: true, Atropos: Trilean_UNDEFINED}
 	p.Store.SetRound(1,
-		RoundInfo{Message: RoundInfoMessage{Events: round1Witnesses}})
+		RoundInfo{Message: RoundInfoMessage{Events: round1Clotho}})
 
 	if d, err := p.roundDiff(index[s11], index[e21]); d != 1 {
 		if err != nil {
@@ -890,28 +890,28 @@ func TestDivideRounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := len(round0.Witnesses()); l != 3 {
-		t.Fatalf("round 0 should have 3 witnesses, not %d", l)
+	if l := len(round0.Clotho()); l != 3 {
+		t.Fatalf("round 0 should have 3 clothos, not %d", l)
 	}
-	if !contains(round0.Witnesses(), index[e0]) {
-		t.Fatalf("round 0 witnesses should contain %s", e0)
+	if !contains(round0.Clotho(), index[e0]) {
+		t.Fatalf("round 0 clothos should contain %s", e0)
 	}
-	if !contains(round0.Witnesses(), index[e1]) {
-		t.Fatalf("round 0 witnesses should contain %s", e1)
+	if !contains(round0.Clotho(), index[e1]) {
+		t.Fatalf("round 0 clothos should contain %s", e1)
 	}
-	if !contains(round0.Witnesses(), index[e2]) {
-		t.Fatalf("round 0 witnesses should contain %s", e2)
+	if !contains(round0.Clotho(), index[e2]) {
+		t.Fatalf("round 0 clothos should contain %s", e2)
 	}
 
 	round1, err := p.Store.GetRound(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l := len(round1.Witnesses()); l != 3 {
-		t.Fatalf("round 1 should have 1 witness, not %d", l)
+	if l := len(round1.Clotho()); l != 3 {
+		t.Fatalf("round 1 should have 1 clotho, not %d", l)
 	}
-	if !contains(round1.Witnesses(), index[f1]) {
-		t.Fatalf("round 1 witnesses should contain %s", f1)
+	if !contains(round1.Clotho(), index[f1]) {
+		t.Fatalf("round 1 clothos should contain %s", f1)
 	}
 
 	round2, err := p.Store.GetRound(2)
@@ -919,8 +919,8 @@ func TestDivideRounds(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if l := len(round2.Witnesses()); l != 1 {
-		t.Fatalf("round 1 should have 1 witness, not %d", l)
+	if l := len(round2.Clotho()); l != 1 {
+		t.Fatalf("round 1 should have 1 clotho, not %d", l)
 	}
 
 	expectedPendingRounds := []pendingRound{
@@ -962,7 +962,7 @@ func TestDivideRounds(t *testing.T) {
 	}
 
 	for e, et := range expectedTimestamps {
-		ev, err := p.Store.GetEvent(index[e])
+		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1024,7 +1024,7 @@ func TestCreateRoot(t *testing.T) {
 	}
 
 	for evh, expRoot := range expected {
-		ev, err := p.Store.GetEvent(index[evh])
+		ev, err := p.Store.GetEventBlock(index[evh])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1103,7 +1103,7 @@ func TestCreateRootBis(t *testing.T) {
 	}
 
 	for evh, expRoot := range expected {
-		ev, err := p.Store.GetEvent(index[evh])
+		ev, err := p.Store.GetEventBlock(index[evh])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1253,7 +1253,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			}
 
 			// check that the event was recorded
-			_, err := p.Store.GetEvent(index[e21])
+			_, err := p.Store.GetEventBlock(index[e21])
 			if err != nil {
 				t.Fatalf("ERROR fetching Event %s: %s", e21, err)
 			}
@@ -1437,7 +1437,7 @@ func TestDivideRoundsBis(t *testing.T) {
 	}
 
 	for e, et := range expectedTimestamps {
-		ev, err := p.Store.GetEvent(index[e])
+		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1459,11 +1459,11 @@ func TestDivideRoundsBis(t *testing.T) {
 
 }
 
-func TestDecideFame(t *testing.T) {
+func TestDecideAtropos(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
 	p.DivideRounds()
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1471,85 +1471,85 @@ func TestDecideFame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round0.Message.Events[index[e0]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", e0, f)
+	if f := round0.Message.Events[index[e0]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", e0, f)
 	}
-	if f := round0.Message.Events[index[e1]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", e1, f)
+	if f := round0.Message.Events[index[e1]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", e1, f)
 	}
-	if f := round0.Message.Events[index[e2]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", e2, f)
+	if f := round0.Message.Events[index[e2]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", e2, f)
 	}
 
 	round1, err := p.Store.GetRound(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round1.Message.Events[index[f2]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", f2, f)
+	if f := round1.Message.Events[index[f2]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", f2, f)
 	}
-	if f := round1.Message.Events[index[f0]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", f0, f)
+	if f := round1.Message.Events[index[f0]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", f0, f)
 	}
-	if f := round1.Message.Events[index[f1]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", f1, f)
+	if f := round1.Message.Events[index[f1]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", f1, f)
 	}
 
 	round2, err := p.Store.GetRound(2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round2.Message.Events[index[g1]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", g1, f)
+	if f := round2.Message.Events[index[g1]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", g1, f)
 	}
-	if f := round2.Message.Events[index[g0]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", g0, f)
+	if f := round2.Message.Events[index[g0]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", g0, f)
 	}
-	if f := round2.Message.Events[index[g2]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", g2, f)
+	if f := round2.Message.Events[index[g2]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", g2, f)
 	}
 
 	round3, err := p.Store.GetRound(3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round3.Message.Events[index[h2]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", h2, f)
+	if f := round3.Message.Events[index[h2]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", h2, f)
 	}
-	if f := round3.Message.Events[index[h0]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", h0, f)
+	if f := round3.Message.Events[index[h0]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", h0, f)
 	}
-	if f := round3.Message.Events[index[h10]]; !(f.Witness &&
-		f.Famous == Trilean_TRUE) {
-		t.Fatalf("%s should be famous; got %v", h10, f)
+	if f := round3.Message.Events[index[h10]]; !(f.Clotho &&
+		f.Atropos == Trilean_TRUE) {
+		t.Fatalf("%s should be Atropos; got %v", h10, f)
 	}
 
 	round4, err := p.Store.GetRound(4)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round4.Message.Events[index[i0]]; !(f.Witness &&
-		f.Famous == Trilean_UNDEFINED) {
-		t.Fatalf("%s should be famous; got %v", i0, f)
+	if f := round4.Message.Events[index[i0]]; !(f.Clotho &&
+		f.Atropos == Trilean_UNDEFINED) {
+		t.Fatalf("%s should be Atropos; got %v", i0, f)
 	}
-	if f := round4.Message.Events[index[i2]]; !(f.Witness &&
-		f.Famous == Trilean_UNDEFINED) {
-		t.Fatalf("%s should be famous; got %v", i2, f)
+	if f := round4.Message.Events[index[i2]]; !(f.Clotho &&
+		f.Atropos == Trilean_UNDEFINED) {
+		t.Fatalf("%s should be Atropos; got %v", i2, f)
 	}
-	if f := round4.Message.Events[index[i1]]; !(f.Witness &&
-		f.Famous == Trilean_UNDEFINED) {
-		t.Fatalf("%s should be famous; got %v", i1, f)
+	if f := round4.Message.Events[index[i1]]; !(f.Clotho &&
+		f.Atropos == Trilean_UNDEFINED) {
+		t.Fatalf("%s should be Atropos; got %v", i1, f)
 	}
 
 	expectedPendingRounds := []pendingRound{
@@ -1575,13 +1575,13 @@ func TestDecideRoundReceived(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	if err := p.DecideRoundReceived(); err != nil {
 		t.Fatal(err)
 	}
 
 	for name, hash := range index {
-		e, _ := p.Store.GetEvent(hash)
+		e, _ := p.Store.GetEventBlock(hash)
 
 		switch rune(name[0]) {
 		case rune('e'):
@@ -1649,7 +1649,7 @@ func TestProcessDecidedRounds(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	if err := p.ProcessDecidedRounds(); err != nil {
 		t.Fatal(err)
@@ -1752,7 +1752,7 @@ func BenchmarkConsensus(b *testing.B) {
 		b.StartTimer()
 
 		p.DivideRounds()
-		p.DecideFame()
+		p.DecideAtropos()
 		p.DecideRoundReceived()
 		p.ProcessDecidedRounds()
 	}
@@ -1784,7 +1784,7 @@ func TestGetFrame(t *testing.T) {
 	participants := p.Participants.ToPeerSlice()
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -1809,7 +1809,7 @@ func TestGetFrame(t *testing.T) {
 
 		hashes := []string{index[e0], index[e1], index[e2], index[e10]}
 		for _, eh := range hashes {
-			e, err := p.Store.GetEvent(eh)
+			e, err := p.Store.GetEventBlock(eh)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1822,7 +1822,7 @@ func TestGetFrame(t *testing.T) {
 			expEventMessages[k] = &expEvents[k].Message
 		}
 
-		messages := frame.GetEvents()
+		messages := frame.GetEventBlocks()
 		if len(expEventMessages) != len(messages) {
 			t.Fatalf("expected number of other parents: %d, got: %d",
 				len(expEventMessages), len(messages))
@@ -1912,7 +1912,7 @@ func TestGetFrame(t *testing.T) {
 		}
 		var expEvents []Event
 		for _, eh := range expectedEventsHashes {
-			e, err := p.Store.GetEvent(eh)
+			e, err := p.Store.GetEventBlock(eh)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1924,7 +1924,7 @@ func TestGetFrame(t *testing.T) {
 			expEventMessages[k] = &expEvents[k].Message
 		}
 
-		messages := frame.GetEvents()
+		messages := frame.GetEventBlocks()
 		if len(expEventMessages) != len(messages) {
 			t.Fatalf("expected number of other parents: %d, got: %d",
 				len(expEventMessages), len(messages))
@@ -1958,7 +1958,7 @@ func TestResetFromFrame(t *testing.T) {
 	participants := p.Participants.ToPeerSlice()
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -2030,14 +2030,14 @@ func TestResetFromFrame(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Check round 1 witnesses
-		pWitnesses := pRound1.Witnesses()
-		p2Witnesses := p2Round1.Witnesses()
-		sort.Strings(pWitnesses)
-		sort.Strings(p2Witnesses)
-		if !reflect.DeepEqual(pWitnesses, p2Witnesses) {
-			t.Fatalf("Reset Hg Round 1 witnesses should be %v, not %v",
-				pWitnesses, p2Witnesses)
+		// Check round 1 clothos
+		pClotho := pRound1.Clotho()
+		p2Clotho := p2Round1.Clotho()
+		sort.Strings(pClotho)
+		sort.Strings(p2Clotho)
+		if !reflect.DeepEqual(pClotho, p2Clotho) {
+			t.Fatalf("Reset Hg Round 1 clothos should be %v, not %v",
+				pClotho, p2Clotho)
 		}
 
 		// check event rounds and lamport timestamps
@@ -2070,7 +2070,7 @@ func TestResetFromFrame(t *testing.T) {
 	})
 
 	t.Run("TestConsensus", func(t *testing.T) {
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
@@ -2099,7 +2099,7 @@ func TestResetFromFrame(t *testing.T) {
 
 			var events []Event
 			for _, e := range round.RoundEvents() {
-				ev, err := p.Store.GetEvent(e)
+				ev, err := p.Store.GetEventBlock(e)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -2118,7 +2118,7 @@ func TestResetFromFrame(t *testing.T) {
 		}
 
 		p2.DivideRounds()
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
@@ -2132,14 +2132,14 @@ func TestResetFromFrame(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			pWitnesses := pRound.Witnesses()
-			p2Witnesses := p2Round.Witnesses()
-			sort.Strings(pWitnesses)
-			sort.Strings(p2Witnesses)
+			pClotho := pRound.Clotho()
+			p2Clotho := p2Round.Clotho()
+			sort.Strings(pClotho)
+			sort.Strings(p2Clotho)
 
-			if !reflect.DeepEqual(pWitnesses, p2Witnesses) {
-				t.Fatalf("Reset Hg Round %d witnesses should be %v, not %v",
-					r, pWitnesses, p2Witnesses)
+			if !reflect.DeepEqual(pClotho, p2Clotho) {
+				t.Fatalf("Reset Hg Round %d clothos should be %v, not %v",
+					r, pClotho, p2Clotho)
 			}
 		}
 	})
@@ -2151,7 +2151,7 @@ func TestBootstrap(t *testing.T) {
 	// Add events and run consensus methods on it
 	p, _ := initConsensusPoset(true, t)
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -2341,13 +2341,13 @@ func initFunkyPoset(t *testing.T, logger *logrus.Logger, full bool) (*Poset, map
 	return poset, index
 }
 
-func TestFunkyPosetFame(t *testing.T) {
+func TestFunkyPosetAtropos(t *testing.T) {
 	p, index := initFunkyPoset(t, common.NewTestLogger(t), false)
 
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2361,11 +2361,11 @@ func TestFunkyPosetFame(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var witnessNames []string
-		for _, w := range round.Witnesses() {
-			witnessNames = append(witnessNames, getName(index, w))
+		var clothoNames []string
+		for _, w := range round.Clotho() {
+			clothoNames = append(clothoNames, getName(index, w))
 		}
-		t.Logf("round %d witnesses: %v", r, witnessNames)
+		t.Logf("round %d clothos: %v", r, clothoNames)
 	}
 
 	expPendingRounds := []pendingRound{
@@ -2407,7 +2407,7 @@ func TestFunkyPosetBlocks(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.DecideRoundReceived(); err != nil {
@@ -2427,11 +2427,11 @@ func TestFunkyPosetBlocks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var witnessNames []string
-		for _, w := range round.Witnesses() {
-			witnessNames = append(witnessNames, getName(index, w))
+		var clothoNames []string
+		for _, w := range round.Clotho() {
+			clothoNames = append(clothoNames, getName(index, w))
 		}
-		t.Logf("round %d witnesses: %v", r, witnessNames)
+		t.Logf("round %d clothos: %v", r, clothoNames)
 	}
 
 	// Rounds 0,1,2,3,4 and 5 should be decided.
@@ -2471,7 +2471,7 @@ func TestFunkyPosetFrames(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.DecideRoundReceived(); err != nil {
@@ -2696,7 +2696,7 @@ func TestFunkyPosetReset(t *testing.T) {
 	p, index := initFunkyPoset(t, common.NewTestLogger(t), true)
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -2750,11 +2750,11 @@ func TestFunkyPosetReset(t *testing.T) {
 		}
 
 		p2.DivideRounds()
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
-		compareRoundWitnesses(p, p2, index, bi, true, t)
+		compareRoundClothos(p, p2, index, bi, true, t)
 	}
 
 }
@@ -2889,7 +2889,7 @@ func TestSparsePosetFrames(t *testing.T) {
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.DecideFame(); err != nil {
+	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.DecideRoundReceived(); err != nil {
@@ -3137,7 +3137,7 @@ func TestSparsePosetReset(t *testing.T) {
 	p, index := initSparsePoset(t, common.NewTestLogger(t))
 
 	p.DivideRounds()
-	p.DecideFame()
+	p.DecideAtropos()
 	p.DecideRoundReceived()
 	p.ProcessDecidedRounds()
 
@@ -3196,16 +3196,16 @@ func TestSparsePosetReset(t *testing.T) {
 		}
 
 		p2.DivideRounds()
-		p2.DecideFame()
+		p2.DecideAtropos()
 		p2.DecideRoundReceived()
 		p2.ProcessDecidedRounds()
 
-		compareRoundWitnesses(p, p2, index, int64(bi), true, t)
+		compareRoundClothos(p, p2, index, int64(bi), true, t)
 	}
 
 }
 
-func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
+func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 
 	for i := round; i <= 5; i++ {
 		pRound, err := p.Store.GetRound(i)
@@ -3217,22 +3217,22 @@ func compareRoundWitnesses(p, p2 *Poset, index map[string]string, round int64, c
 			t.Fatal(err)
 		}
 
-		//Check Round1 Witnesses
-		pWitnesses := pRound.Witnesses()
-		p2Witnesses := p2Round.Witnesses()
-		sort.Strings(pWitnesses)
-		sort.Strings(p2Witnesses)
-		hwn := make([]string, len(pWitnesses))
-		p2wn := make([]string, len(p2Witnesses))
-		for _, w := range pWitnesses {
+		//Check Round1 Clotho
+		pClotho := pRound.Clotho()
+		p2Clotho := p2Round.Clotho()
+		sort.Strings(pClotho)
+		sort.Strings(p2Clotho)
+		hwn := make([]string, len(pClotho))
+		p2wn := make([]string, len(p2Clotho))
+		for _, w := range pClotho {
 			hwn = append(hwn, getName(index, w))
 		}
-		for _, w := range p2Witnesses {
+		for _, w := range p2Clotho {
 			p2wn = append(p2wn, getName(index, w))
 		}
 
 		if check && !reflect.DeepEqual(hwn, p2wn) {
-			t.Fatalf("Reset Hg Round %d witnesses should be %v, not %v", i, hwn, p2wn)
+			t.Fatalf("Reset Hg Round %d clothos should be %v, not %v", i, hwn, p2wn)
 		}
 	}
 
@@ -3248,7 +3248,7 @@ func getDiff(p *Poset, known map[int64]int64, t *testing.T) []Event {
 			t.Fatal(err)
 		}
 		for _, e := range participantEvents {
-			ev, err := p.Store.GetEvent(e)
+			ev, err := p.Store.GetEventBlock(e)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -3310,7 +3310,7 @@ func compareRoots(t *testing.T, x, exp *Root, index map[string]string) {
 
 func compareEventMessages(t *testing.T, x, exp *EventMessage,
 	index map[string]string) {
-	if !reflect.DeepEqual(x.WitnessProof, exp.WitnessProof) ||
+	if !reflect.DeepEqual(x.ClothoProof, exp.ClothoProof) ||
 		!bytes.Equal(x.FlagTable, exp.FlagTable) ||
 		x.Signature != exp.Signature {
 		hash, _ := exp.Body.Hash()

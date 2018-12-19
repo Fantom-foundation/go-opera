@@ -185,7 +185,7 @@ func TestDBEventMethods(t *testing.T) {
 	//check events where correctly inserted and can be retrieved
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.dbGetEvent(ev.Hex())
+			rev, err := store.dbGetEventBlock(ev.Hex())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -286,14 +286,14 @@ func TestDBRoundMethods(t *testing.T) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
-	witnesses := store.RoundWitnesses(0)
-	expectedWitnesses := round.Witnesses()
-	if len(witnesses) != len(expectedWitnesses) {
-		t.Fatalf("There should be %d witnesses, not %d", len(expectedWitnesses), len(witnesses))
+	clothos := store.RoundClothos(0)
+	expectedClothos := round.Clotho()
+	if len(clothos) != len(expectedClothos) {
+		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
-	for _, w := range expectedWitnesses {
-		if !contains(witnesses, w) {
-			t.Fatalf("Witnesses should contain %s", w)
+	for _, w := range expectedClothos {
+		if !contains(clothos, w) {
+			t.Fatalf("Clothos should contain %s", w)
 		}
 	}
 }
@@ -470,7 +470,7 @@ func TestBadgerEvents(t *testing.T) {
 	// check that events were correclty inserted
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.GetEvent(ev.Hex())
+			rev, err := store.GetEventBlock(ev.Hex())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -572,14 +572,14 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
-	witnesses := store.RoundWitnesses(0)
-	expectedWitnesses := round.Witnesses()
-	if len(witnesses) != len(expectedWitnesses) {
-		t.Fatalf("There should be %d witnesses, not %d", len(expectedWitnesses), len(witnesses))
+	clothos := store.RoundClothos(0)
+	expectedClothos := round.Clotho()
+	if len(clothos) != len(expectedClothos) {
+		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
-	for _, w := range expectedWitnesses {
-		if !contains(witnesses, w) {
-			t.Fatalf("Witnesses should contain %s", w)
+	for _, w := range expectedClothos {
+		if !contains(clothos, w) {
+			t.Fatalf("Clothos should contain %s", w)
 		}
 	}
 }

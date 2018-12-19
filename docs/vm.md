@@ -440,7 +440,7 @@ Human readable code to 'out.code'.
 
 Number of constraints: 1
 
-Now we need to generate proof, given a witness of “a”: 1, ”b”: 1, ”out":
+Now we need to generate proof, given a clotho of “a”: 1, ”b”: 1, ”out":
 2 and inputs of 1, 1, 1, 2, we generate proof*π*and verification key *ν*
 
 Given Proof *π*, and Inputs *i* we can use Verification Key *υ*, to
@@ -520,7 +520,7 @@ and Two, if we execute *f(1, 1)*, does it execute correctly.
 For both of these, we provide a zk-SNARK enabled compiler, and a
 zk-SNARK enabled EVM.
 
-Execution of *f(a, b)* will provide witness “b" : 2, ‘a" : 1, “out0" : 3
+Execution of *f(a, b)* will provide clotho “b" : 2, ‘a" : 1, “out0" : 3
 as well as the Proving Key *pk*.
 
 Execution in the EVM (or other compatible VMs) is ensured in a trustless

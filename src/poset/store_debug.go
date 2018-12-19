@@ -10,7 +10,7 @@ type Store interface {
 	CacheSize() int
 	Participants() (*peers.Peers, error)
 	RootsBySelfParent() (map[string]Root, error)
-	GetEvent(string) (Event, error)
+	GetEventBlock(string) (Event, error)
 	SetEvent(Event) error
 	ParticipantEvents(string, int64) ([]string, error)
 	ParticipantEvent(string, int64) (string, error)
@@ -23,7 +23,7 @@ type Store interface {
 	GetRound(int64) (RoundInfo, error)
 	SetRound(int64, RoundInfo) error
 	LastRound() int64
-	RoundWitnesses(int64) []string
+	RoundClothos(int64) []string
 	RoundEvents(int64) int
 	GetRoot(string) (Root, error)
 	GetBlock(int64) (Block, error)
