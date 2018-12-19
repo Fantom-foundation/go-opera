@@ -1,15 +1,19 @@
 # Lachesis 
-[![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg)](https://github.com/Fantom-foundation/go-lachesis/releases/latest)  
-[![Go Report Card](https://goreportcard.com/badge/github.com/Fantom-foundation/go-lachesis)](https://goreportcard.com/report/github.com/Fantom-foundation/go-lachesis)  
-[![Build Status](https://travis-ci.org/Fantom-foundation/go-lachesis.svg?branch=master)](https://travis-ci.org/Fantom-foundation/go-lachesis)  
-[![GolangCI](https://golangci.com/badges/github.com/Fantom-foundation/go-lachesis.svg)](https://golangci.com/r/github.com/Fantom-foundation/go-lachesis)  
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2409/badge)](https://bestpractices.coreinfrastructure.org/projects/2409)  
+[![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg?style=flat-square
+)](https://github.com/Fantom-foundation/go-lachesis/releases/latest)  
+[![Go Report Card](https://goreportcard.com/badge/github.com/Fantom-foundation/go-lachesis?style=flat-square)](https://goreportcard.com/report/github.com/Fantom-foundation/go-lachesis)  
+[![Build Status](https://img.shields.io/travis/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://travis-ci.org/Fantom-foundation/go-lachesis)  
+[![GolangCI](https://golangci.com/badges/github.com/Fantom-foundation/go-lachesis.svg?style=flat-square)](https://golangci.com/r/github.com/Fantom-foundation/go-lachesis)  
 [![issues][github-issues-image]][github-issues-url]  
-[![GoDoc](https://godoc.org/github.com/go-lachesis?status.png)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)  
-[![license](https://img.shields.io/github/license/Fantom-foundation/go-lachesis.svg)](LICENSE.md)  
+[![GoDoc](https://img.shields.io/badge/godoc-reference-5272B4.svg?style=flat-square)](https://godoc.org/github.com/Fantom-foundation/go-lachesis)  
+[![license](https://img.shields.io/github/license/Fantom-foundation/go-lachesis.svg?style=flat-square)](LICENSE.md)  
+  
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2409/badge)](https://bestpractices.coreinfrastructure.org/projects/2409)  
 [![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
+  
 [![twitter][twitter-image]][twitter-url]  
-
+  
+  
 [![Throughput Graph](https://graphs.waffle.io/Fantom-foundation/go-lachesis/throughput.svg)](https://waffle.io/Fantom-foundation/go-lachesis/metrics/throughput)  
 
 
@@ -17,7 +21,7 @@
 [codecov-url]: https://codecov.io/gh/fantom-foundation/go-lachesis
 [twitter-image]: https://img.shields.io/twitter/follow/FantomFDN.svg?style=social
 [twitter-url]: https://twitter.com/intent/follow?screen_name=FantomFDN
-[github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg
+[github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square
 [github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
 
 ## BFT Consensus platform for distributed applications.
