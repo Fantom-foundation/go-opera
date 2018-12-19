@@ -117,9 +117,9 @@ const RoundNIL int64 = -1
 func (m *EventMessage) ToEvent() Event {
 	return Event{
 		Message:          m,
-		LamportTimestamp: LamportTimestampNIL,
-		Round:            RoundNIL,
-		RoundReceived:    RoundNIL,
+		lamportTimestamp: LamportTimestampNIL,
+		round:            RoundNIL,
+		roundReceived:    RoundNIL,
 	}
 }
 
@@ -163,25 +163,40 @@ func NewEvent(transactions [][]byte,
 			Body:      &body,
 			FlagTable: ft,
 		},
-		LamportTimestamp: LamportTimestampNIL,
-		Round:            RoundNIL,
-		RoundReceived:    RoundNIL,
+		lamportTimestamp: LamportTimestampNIL,
+		round:            RoundNIL,
+		roundReceived:    RoundNIL,
 	}
+}
+
+type Event struct {
+	Message          *EventMessage
+	lamportTimestamp int64
+	round            int64
+	roundReceived    int64
 }
 
 // Round returns round of event.
-func (m *Event) GetEventRound() int64 {
-	if m.Round < 0 {
+func (m *Event) GetRound() int64 {
+	if m.round < 0 {
 		return RoundNIL
 	}
-	return m.Round
+	return m.round
 }
 
-func (e *Event) GetEventLamportTimestamp() int64 {
-	if e.LamportTimestamp < 0 {
+// Round returns round in which the event is received.
+func (m *Event) GetRoundReceived() int64 {
+	if m.roundReceived < 0 {
+		return RoundNIL
+	}
+	return m.round
+}
+
+func (e *Event) GetLamportTimestamp() int64 {
+	if e.lamportTimestamp < 0 {
 		return LamportTimestampNIL
 	}
-	return e.LamportTimestamp
+	return e.lamportTimestamp
 }
 
 func (e *Event) GetCreator() string {
@@ -254,14 +269,15 @@ func (e *Event) Verify() (bool, error) {
 func (e *Event) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(e); err != nil {
+	if err := bf.Marshal(e.Message); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
 
 func (e *Event) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, e)
+	e.Message = &EventMessage{}
+	return proto.Unmarshal(data, e.Message)
 }
 
 //sha256 hash of body
@@ -282,15 +298,15 @@ func (e *Event) Hex() string {
 }
 
 func (e *Event) SetRound(r int64) {
-	e.Round = r
+	e.round = r
 }
 
 func (e *Event) SetLamportTimestamp(t int64) {
-	e.LamportTimestamp = t
+	e.lamportTimestamp = t
 }
 
 func (e *Event) SetRoundReceived(rr int64) {
-	e.RoundReceived = rr
+	e.roundReceived = rr
 }
 
 func (e *Event) SetWireInfo(selfParentIndex,
@@ -332,8 +348,8 @@ func (e *Event) ToWire() WireEvent {
 			Index:                e.Message.Body.Index,
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
-		Signature:    e.Message.Signature,
-		FlagTable:    e.Message.FlagTable,
+		Signature:   e.Message.Signature,
+		FlagTable:   e.Message.FlagTable,
 		ClothoProof: e.Message.ClothoProof,
 	}
 }
@@ -402,8 +418,8 @@ type ByLamportTimestamp []Event
 func (a ByLamportTimestamp) Len() int      { return len(a) }
 func (a ByLamportTimestamp) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByLamportTimestamp) Less(i, j int) bool {
-	it := a[i].LamportTimestamp
-	jt := a[j].LamportTimestamp
+	it := a[i].lamportTimestamp
+	jt := a[j].lamportTimestamp
 	if it != jt {
 		return it < jt
 	}
@@ -431,9 +447,9 @@ type WireBody struct {
 }
 
 type WireEvent struct {
-	Body         WireBody
-	Signature    string
-	FlagTable    []byte
+	Body        WireBody
+	Signature   string
+	FlagTable   []byte
 	ClothoProof []string
 }
 

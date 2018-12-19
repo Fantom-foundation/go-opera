@@ -431,7 +431,12 @@ func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 				return err
 			}
 			err = eventItem.Value(func(eventBytes []byte) error {
-				event := new(Event)
+				event := &Event{
+					roundReceived:    RoundNIL,
+					round:            RoundNIL,
+					lamportTimestamp: LamportTimestampNIL,
+				}
+
 				if err := event.ProtoUnmarshal(eventBytes); err != nil {
 					return err
 				}
@@ -542,11 +547,11 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 				TopologicalIndex: -1,
 				Body:             &body,
 				FlagTable:        ft,
-				ClothoProof:     []string{root.SelfParent.Hash},
+				ClothoProof:      []string{root.SelfParent.Hash},
 			},
-			LamportTimestamp: 0,
-			Round:            0,
-			RoundReceived:    0, /*RoundNIL*/
+			lamportTimestamp: 0,
+			round:            0,
+			roundReceived:    0, /*RoundNIL*/
 		}
 		if err := s.SetEvent(event); err != nil {
 			return err
@@ -605,7 +610,9 @@ func (s *BadgerStore) dbGetRound(index int64) (RoundInfo, error) {
 	if err := roundInfo.ProtoUnmarshal(roundBytes); err != nil {
 		return *NewRoundInfo(), err
 	}
-	// TODO: to fix
+	// In the current design, Queued field must be re-calculated every time for
+	// each round. When retrieving a round info from a database, this field
+	// should be ignored.
 	roundInfo.Message.Queued = false
 
 	return *roundInfo, nil

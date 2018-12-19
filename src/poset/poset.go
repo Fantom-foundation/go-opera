@@ -44,11 +44,11 @@ type Poset struct {
 	trustCount              int
 	core                    Core
 
-	dominatorCache     *lru.Cache
-	selfDominatorCache *lru.Cache
-	strictlyDominatedCache  *lru.Cache
-	roundCache        *lru.Cache
-	timestampCache    *lru.Cache
+	dominatorCache         *lru.Cache
+	selfDominatorCache     *lru.Cache
+	strictlyDominatedCache *lru.Cache
+	roundCache             *lru.Cache
+	timestampCache         *lru.Cache
 
 	logger *logrus.Entry
 
@@ -93,17 +93,17 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 		logger.Fatal("Unable to init Poset.timestampCache")
 	}
 	poset := Poset{
-		Participants:      participants,
-		Store:             store,
-		commitCh:          commitCh,
-		dominatorCache:     dominatorCache,
-		selfDominatorCache: selfDominatorCache,
-		strictlyDominatedCache:  strictlyDominatedCache,
-		roundCache:        roundCache,
-		timestampCache:    timestampCache,
-		logger:            logger,
-		superMajority:     superMajority,
-		trustCount:        trustCount,
+		Participants:           participants,
+		Store:                  store,
+		commitCh:               commitCh,
+		dominatorCache:         dominatorCache,
+		selfDominatorCache:     selfDominatorCache,
+		strictlyDominatedCache: strictlyDominatedCache,
+		roundCache:             roundCache,
+		timestampCache:         timestampCache,
+		logger:                 logger,
+		superMajority:          superMajority,
+		trustCount:             trustCount,
 	}
 
 	participants.OnNewPeer(func(peer *peers.Peer) {
@@ -402,7 +402,7 @@ func (p *Poset) round2(x string) (int64, error) {
 
 		if opRound > parentRound {
 			var (
-				found           bool
+				found              bool
 				clothoOpRoundRoots int64
 			)
 
@@ -516,7 +516,7 @@ func (p *Poset) roundReceived(x string) (int64, error) {
 		return -1, err
 	}
 
-	return ex.RoundReceived, nil
+	return ex.roundReceived, nil
 }
 
 func (p *Poset) lamportTimestamp(x string) (int64, error) {
@@ -925,7 +925,7 @@ func (p *Poset) DivideRounds() error {
 		   Compute Event's round, update the corresponding Round object, and
 		   add it to the PendingRounds queue if necessary.
 		*/
-		if ev.GetEventRound() == RoundNIL {
+		if ev.GetRound() == RoundNIL {
 
 			roundNumber, err := p.round(hash)
 			if err != nil {
@@ -1003,7 +1003,7 @@ func (p *Poset) DivideRounds() error {
 		/*
 			Compute the Event's LamportTimestamp
 		*/
-		if ev.GetEventLamportTimestamp() == LamportTimestampNIL {
+		if ev.GetLamportTimestamp() == LamportTimestampNIL {
 
 			lamportTimestamp, err := p.lamportTimestamp(hash)
 			if err != nil {
@@ -1254,7 +1254,7 @@ func (p *Poset) ProcessDecidedRounds() error {
 		}
 		p.logger.WithFields(logrus.Fields{
 			"round_received": r.Index,
-			"clothos":      round.Atropos(),
+			"clothos":        round.Atropos(),
 			"events":         len(frame.Events),
 			"roots":          frame.Roots,
 		}).Debugf("Processing Decided Round")
@@ -1601,11 +1601,6 @@ func (p *Poset) Bootstrap() error {
 
 	//Insert the Events in the Poset
 	for _, e := range topologicalEvents {
-		// TODO: to fix
-		e.RoundReceived = -1
-		e.Round = -1
-		e.LamportTimestamp = -1
-
 		if err := p.InsertEvent(e, true); err != nil {
 			return err
 		}
@@ -1717,12 +1712,15 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 			Body:                 &body,
 			Signature:            wevent.Signature,
 			FlagTable:            wevent.FlagTable,
-			ClothoProof:         wevent.ClothoProof,
+			ClothoProof:          wevent.ClothoProof,
 			SelfParentIndex:      wevent.Body.SelfParentIndex,
 			OtherParentCreatorID: wevent.Body.OtherParentCreatorID,
 			OtherParentIndex:     wevent.Body.OtherParentIndex,
 			CreatorID:            wevent.Body.CreatorID,
 		},
+		roundReceived:    RoundNIL,
+		round:            RoundNIL,
+		lamportTimestamp: LamportTimestampNIL,
 	}
 
 	p.logger.WithFields(logrus.Fields{

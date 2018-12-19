@@ -1586,11 +1586,11 @@ func TestDecideRoundReceived(t *testing.T) {
 
 		switch rune(name[0]) {
 		case rune('e'):
-			if r := e.RoundReceived; r != 1 {
+			if r := e.roundReceived; r != 1 {
 				t.Fatalf("%s round received should be 1 not %d", name, r)
 			}
 		case rune('f'):
-			if r := e.RoundReceived; r != 2 {
+			if r := e.roundReceived; r != 2 {
 				t.Fatalf("%s round received should be 2 not %d", name, r)
 			}
 		}
@@ -1823,7 +1823,7 @@ func TestGetFrame(t *testing.T) {
 			expEventMessages[k] = expEvents[k].Message
 		}
 
-		messages := frame.GetEventBlocks()
+		messages := frame.GetEvents()
 		if len(expEventMessages) != len(messages) {
 			t.Fatalf("expected number of other parents: %d, got: %d",
 				len(expEventMessages), len(messages))
@@ -1925,7 +1925,7 @@ func TestGetFrame(t *testing.T) {
 			expEventMessages[k] = expEvents[k].Message
 		}
 
-		messages := frame.GetEventBlocks()
+		messages := frame.GetEvents()
 		if len(expEventMessages) != len(messages) {
 			t.Fatalf("expected number of other parents: %d, got: %d",
 				len(expEventMessages), len(messages))
@@ -2745,11 +2745,6 @@ func TestFunkyPosetReset(t *testing.T) {
 				t.Fatalf("Reading WireInfo for %s: %s",
 					getName(index, diff[i].Hex()), err)
 			}
-			// TODO: to fix
-			ev.RoundReceived = -1
-			ev.Round = -1
-			ev.LamportTimestamp = -1
-
 			err = p2.InsertEvent(*ev, false)
 			if err != nil {
 				t.Fatal(err)
@@ -3196,12 +3191,6 @@ func TestSparsePosetReset(t *testing.T) {
 				t.Fatalf("ReadWireInfo(%s): %s", eventName, err)
 			}
 			compareEventMessages(t, ev.Message, diff[i].Message, index)
-
-			// TODO: to fix
-			ev.RoundReceived = -1
-			ev.Round = -1
-			ev.LamportTimestamp = -1
-
 			err = p2.InsertEvent(*ev, false)
 			if err != nil {
 				t.Fatalf("InsertEvent(%s): %s", eventName, err)

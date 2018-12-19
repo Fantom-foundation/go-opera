@@ -333,9 +333,9 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 		}
 		if ev.Index() > myKnownEvents[ev.CreatorID()] {
-			ev.LamportTimestamp = poset.LamportTimestampNIL
-			ev.Round = poset.RoundNIL
-			ev.RoundReceived = poset.RoundNIL
+			ev.SetLamportTimestamp(poset.LamportTimestampNIL)
+			ev.SetRound(poset.RoundNIL)
+			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
 				return err
 			}
