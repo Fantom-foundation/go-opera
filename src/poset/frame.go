@@ -5,7 +5,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-//json encoding of Frame
+// json encoding of Frame
 func (f *Frame) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -17,6 +17,11 @@ func (f *Frame) ProtoMarshal() ([]byte, error) {
 
 func (f *Frame) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, f)
+}
+
+// Provide alternative for non-existent Protobuf generated function
+func (f *Frame) GetEventBlocks() ([]*EventMessage) {
+	return f.GetEvents()
 }
 
 func (f *Frame) Hash() ([]byte, error) {

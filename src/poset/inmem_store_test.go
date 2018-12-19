@@ -52,7 +52,7 @@ func TestInmemEvents(t *testing.T) {
 					[]string{"", ""},
 					p.pubKey,
 					k, nil)
-				_ = event.Hex() //just to set private variables
+				_ = event.Hex() // just to set private variables
 				items = append(items, event)
 				err := store.SetEvent(event)
 				if err != nil {
@@ -64,7 +64,7 @@ func TestInmemEvents(t *testing.T) {
 
 		for p, evs := range events {
 			for k, ev := range evs {
-				rev, err := store.GetEvent(ev.Hex())
+				rev, err := store.GetEventBlock(ev.Hex())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -76,7 +76,7 @@ func TestInmemEvents(t *testing.T) {
 	})
 
 	t.Run("Check ParticipantEventsCache", func(t *testing.T) {
-		skipIndex := int64(-1) //do not skip any indexes
+		skipIndex := int64(-1) // do not skip any indexes
 		for _, p := range participants {
 			pEvents, err := store.ParticipantEvents(p.hex, skipIndex)
 			if err != nil {
@@ -156,15 +156,15 @@ func TestInmemRounds(t *testing.T) {
 		}
 	})
 
-	t.Run("Check witnesses", func(t *testing.T) {
-		witnesses := store.RoundWitnesses(0)
-		expectedWitnesses := round.Witnesses()
-		if len(witnesses) != len(expectedWitnesses) {
-			t.Fatalf("There should be %d witnesses, not %d", len(expectedWitnesses), len(witnesses))
+	t.Run("Check clothos", func(t *testing.T) {
+		clothos := store.RoundClothos(0)
+		expectedClotho := round.Clotho()
+		if len(clothos) != len(expectedClotho) {
+			t.Fatalf("There should be %d clothos, not %d", len(expectedClotho), len(clothos))
 		}
-		for _, w := range expectedWitnesses {
-			if !contains(witnesses, w) {
-				t.Fatalf("Witnesses should contain %s", w)
+		for _, w := range expectedClotho {
+			if !contains(clothos, w) {
+				t.Fatalf("Clotho should contain %s", w)
 			}
 		}
 	})

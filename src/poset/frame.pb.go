@@ -3,9 +3,11 @@
 
 package poset
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -31,16 +33,17 @@ func (m *Frame) Reset()         { *m = Frame{} }
 func (m *Frame) String() string { return proto.CompactTextString(m) }
 func (*Frame) ProtoMessage()    {}
 func (*Frame) Descriptor() ([]byte, []int) {
-	return fileDescriptor_frame_d54d99f75cce234f, []int{0}
+	return fileDescriptor_5379e2b825e15002, []int{0}
 }
+
 func (m *Frame) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Frame.Unmarshal(m, b)
 }
 func (m *Frame) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Frame.Marshal(b, m, deterministic)
 }
-func (dst *Frame) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Frame.Merge(dst, src)
+func (m *Frame) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Frame.Merge(m, src)
 }
 func (m *Frame) XXX_Size() int {
 	return xxx_messageInfo_Frame.Size(m)
@@ -76,9 +79,9 @@ func init() {
 	proto.RegisterType((*Frame)(nil), "poset.Frame")
 }
 
-func init() { proto.RegisterFile("frame.proto", fileDescriptor_frame_d54d99f75cce234f) }
+func init() { proto.RegisterFile("frame.proto", fileDescriptor_5379e2b825e15002) }
 
-var fileDescriptor_frame_d54d99f75cce234f = []byte{
+var fileDescriptor_5379e2b825e15002 = []byte{
 	// 140 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4e, 0x2b, 0x4a, 0xcc,
 	0x4d, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x2d, 0xc8, 0x2f, 0x4e, 0x2d, 0x91, 0xe2,

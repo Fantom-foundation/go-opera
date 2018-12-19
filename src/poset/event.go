@@ -125,7 +125,7 @@ type Event struct {
 }
 
 func (e EventMessage) ToEvent() Event {
-	return Event {
+	return Event{
 		Message: e,
 	}
 }
@@ -134,7 +134,7 @@ func (this *EventMessage) Equals(that *EventMessage) bool {
 	return this.Body.Equals(that.Body) &&
 		this.Signature == that.Signature &&
 		BytesEquals(this.FlagTable, that.FlagTable) &&
-		reflect.DeepEqual(this.WitnessProof, that.WitnessProof)
+		reflect.DeepEqual(this.ClothoProof, that.ClothoProof)
 }
 
 // NewEvent creates new block event.
@@ -163,12 +163,12 @@ func NewEvent(transactions [][]byte,
 		Index:                index,
 	}
 
-	ft, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+	ft, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
 
 	return Event{
-		Message: EventMessage {
-			Body:      &body,
-			FlagTable: ft,
+		Message: EventMessage{
+			Body:             &body,
+			FlagTable:        ft,
 			LamportTimestamp: LamportTimestampNIL,
 			Round:            RoundNIL,
 			RoundReceived:    RoundNIL,
@@ -222,7 +222,7 @@ func (e *Event) BlockSignatures() []*BlockSignature {
 	return e.Message.Body.BlockSignatures
 }
 
-//True if Event contains a payload or is the initial Event of its creator
+// True if Event contains a payload or is the initial Event of its creator
 func (e *Event) IsLoaded() bool {
 	if e.Message.Body.Index == 0 {
 		return true
@@ -234,7 +234,7 @@ func (e *Event) IsLoaded() bool {
 	return hasTransactions
 }
 
-//ecdsa sig
+// ecdsa sig
 func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
 	signBytes, err := e.Message.Body.Hash()
 	if err != nil {
@@ -278,7 +278,7 @@ func (e *Event) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, &e.Message)
 }
 
-//sha256 hash of body
+// sha256 hash of body
 func (e *Event) Hash() ([]byte, error) {
 	if len(e.Message.Hash) == 0 {
 		hash, err := e.Message.Body.Hash()
@@ -311,9 +311,9 @@ func (e *Event) SetRoundReceived(rr int64) {
 }
 
 func (e *Event) SetWireInfo(selfParentIndex,
-	otherParentCreatorID,
-	otherParentIndex,
-	creatorID int64) {
+otherParentCreatorID,
+otherParentIndex,
+creatorID int64) {
 	e.Message.SelfParentIndex = selfParentIndex
 	e.Message.OtherParentCreatorID = otherParentCreatorID
 	e.Message.OtherParentIndex = otherParentIndex
@@ -349,15 +349,15 @@ func (e *Event) ToWire() WireEvent {
 			Index:                e.Message.Body.Index,
 			BlockSignatures:      e.WireBlockSignatures(),
 		},
-		Signature:    e.Message.Signature,
-		FlagTable:    e.Message.FlagTable,
-		WitnessProof: e.Message.WitnessProof,
+		Signature:   e.Message.Signature,
+		FlagTable:   e.Message.FlagTable,
+		ClothoProof: e.Message.ClothoProof,
 	}
 }
 
 // ReplaceFlagTable replaces flag table.
 func (e *Event) ReplaceFlagTable(flagTable map[string]int64) (err error) {
-	e.Message.FlagTable, err = proto.Marshal(&FlagTableWrapper { Body: flagTable })
+	e.Message.FlagTable, err = proto.Marshal(&FlagTableWrapper{Body: flagTable})
 	return err
 }
 
@@ -448,10 +448,10 @@ type WireBody struct {
 }
 
 type WireEvent struct {
-	Body         WireBody
-	Signature    string
-	FlagTable    []byte
-	WitnessProof []string
+	Body        WireBody
+	Signature   string
+	FlagTable   []byte
+	ClothoProof []string
 }
 
 func (we *WireEvent) BlockSignatures(validator []byte) []BlockSignature {

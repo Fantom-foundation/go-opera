@@ -9,10 +9,12 @@ type pendingRound struct {
 	Decided bool
 }
 
+// protobuf message wrapper for created event messages
 type RoundCreated struct {
 	Message RoundCreatedMessage
 }
 
+// RoundCreated constructor
 func NewRoundCreated() *RoundCreated {
 	return &RoundCreated{
 		Message: RoundCreatedMessage{
@@ -21,21 +23,24 @@ func NewRoundCreated() *RoundCreated {
 	}
 }
 
+// RoundReceived constructor
 func NewRoundReceived() *RoundReceived {
 	return &RoundReceived{
 		Rounds: []string{},
 	}
 }
 
-func (r *RoundCreated) AddEvent(x string, witness bool) {
+// add event to created events message
+func (r *RoundCreated) AddEvent(x string, clotho bool) {
 	_, ok := r.Message.Events[x]
 	if !ok {
 		r.Message.Events[x] = &RoundEvent{
-			Witness: witness,
+			Clotho: clotho,
 		}
 	}
 }
 
+// mark the given event as a consensus event
 func (r *RoundCreated) SetConsensusEvent(x string) {
 	e, ok := r.Message.Events[x]
 	if !ok {
@@ -45,6 +50,7 @@ func (r *RoundCreated) SetConsensusEvent(x string) {
 	r.Message.Events[x] = e
 }
 
+// set the received round for the given event
 func (r *RoundCreated) SetRoundReceived(x string, round int64) {
 	e, ok := r.Message.Events[x]
 
@@ -57,43 +63,44 @@ func (r *RoundCreated) SetRoundReceived(x string, round int64) {
 	r.Message.Events[x] = e
 }
 
-
-func (r *RoundCreated) SetFame(x string, f bool) {
+// set whether the given event is Atropos, otherwise it is Clotho when not found
+func (r *RoundCreated) SetAtropos(x string, f bool) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{
-			Witness: true,
+			Clotho: true,
 		}
 	}
 	if f {
-		e.Famous = Trilean_TRUE
+		e.Atropos = Trilean_TRUE
 	} else {
-		e.Famous = Trilean_FALSE
+		e.Atropos = Trilean_FALSE
 	}
 	r.Message.Events[x] = e
 }
 
-//return true if no witnesses' fame is left undefined
-func (r *RoundCreated) WitnessesDecided() bool {
+// return true if no clothos' fame is left undefined
+func (r *RoundCreated) ClothoDecided() bool {
 	for _, e := range r.Message.Events {
-		if e.Witness && e.Famous == Trilean_UNDEFINED {
+		if e.Clotho && e.Atropos == Trilean_UNDEFINED {
 			return false
 		}
 	}
 	return true
 }
 
-//return witnesses
-func (r *RoundCreated) Witnesses() []string {
+// return clothos
+func (r *RoundCreated) Clotho() []string {
 	var res []string
 	for x, e := range r.Message.Events {
-		if e.Witness {
+		if e.Clotho {
 			res = append(res, x)
 		}
 	}
 	return res
 }
 
+// return all non-consensus events
 func (r *RoundCreated) RoundEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -104,7 +111,7 @@ func (r *RoundCreated) RoundEvents() []string {
 	return res
 }
 
-//return consensus events
+// return consensus events
 func (r *RoundCreated) ConsensusEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -115,22 +122,24 @@ func (r *RoundCreated) ConsensusEvents() []string {
 	return res
 }
 
-//return famous witnesses
-func (r *RoundCreated) FamousWitnesses() []string {
+// return Atropos
+func (r *RoundCreated) Atropos() []string {
 	var res []string
 	for x, e := range r.Message.Events {
-		if e.Witness && e.Famous == Trilean_TRUE {
+		if e.Clotho && e.Atropos == Trilean_TRUE {
 			res = append(res, x)
 		}
 	}
 	return res
 }
 
-func (r *RoundCreated) IsDecided(witness string) bool {
-	w, ok := r.Message.Events[witness]
-	return ok && w.Witness && w.Famous != Trilean_UNDEFINED
+// return whether the given even is Atropos or Clotho
+func (r *RoundCreated) IsDecided(clotho string) bool {
+	w, ok := r.Message.Events[clotho]
+	return ok && w.Clotho && w.Atropos != Trilean_UNDEFINED
 }
 
+// serialise RoundCreated using protobuf
 func (r *RoundCreated) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -140,6 +149,7 @@ func (r *RoundCreated) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// serialise RoundReceived using protobuf
 func (r *RoundReceived) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -149,22 +159,27 @@ func (r *RoundReceived) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// de-serialise RoundCreated using protobuf
 func (r *RoundCreated) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, &r.Message)
 }
 
+// de-serialise RoundReceived using protobuf
 func (r *RoundReceived) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, r)
 }
 
+// is the RoundCreated queued in PendingRounds
 func (r *RoundCreated) IsQueued() bool {
 	return r.Message.Queued
 }
 
+// are the round events the same
 func (this *RoundEvent) Equals(that *RoundEvent) bool {
 	return this.Consensus == that.Consensus &&
-		this.Witness == that.Witness &&
-		this.Famous == that.Famous
+		this.Clotho == that.Clotho &&
+		this.Atropos == that.Atropos &&
+		this.RoundReceived == that.RoundReceived
 }
 
 func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*RoundEvent) bool {

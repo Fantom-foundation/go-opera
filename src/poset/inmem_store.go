@@ -14,20 +14,20 @@ import (
 type InmemStore struct {
 	cacheSize              int
 	participants           *peers.Peers
-	eventCache             *lru.Cache       //hash => Event
-	roundCreatedCache      *lru.Cache       //round number => RoundCreated
-	roundReceivedCache     *lru.Cache       //round received number => RoundReceived
-	blockCache             *lru.Cache       //index => Block
-	frameCache             *lru.Cache       //round received => Frame
-	consensusCache         *cm.RollingIndex //consensus index => hash
+	eventCache             *lru.Cache       // hash => Event
+	roundCreatedCache      *lru.Cache       // round number => RoundCreated
+	roundReceivedCache     *lru.Cache       // round received number => RoundReceived
+	blockCache             *lru.Cache       // index => Block
+	frameCache             *lru.Cache       // round received => Frame
+	consensusCache         *cm.RollingIndex // consensus index => hash
 	totConsensusEvents     int64
 	repertoireByPubKey     map[string]*peers.Peer
 	repertoireByID         map[int64]*peers.Peer
-	participantEventsCache *ParticipantEventsCache //pubkey => Events
-	rootsByParticipant     map[string]Root         //[participant] => Root
-	rootsBySelfParent      map[string]Root         //[Root.SelfParent.Hash] => Root
+	participantEventsCache *ParticipantEventsCache // pubkey => Events
+	rootsByParticipant     map[string]Root         // [participant] => Root
+	rootsBySelfParent      map[string]Root         // [Root.SelfParent.Hash] => Root
 	lastRound              int64
-	lastConsensusEvents    map[string]string //[participant] => hex() of last consensus event
+	lastConsensusEvents    map[string]string // [participant] => hex() of last consensus event
 	lastBlock              int64
 
 	lastRoundLocker          sync.RWMutex
@@ -112,21 +112,8 @@ func (s *InmemStore) Participants() (*peers.Peers, error) {
 }
 
 func (s *InmemStore) setPeers(round int64, participants *peers.Peers) error {
-	//Extend PartipantEventsCache and Roots with new peers
-	//for id, peer := range participants.ById {
+	// Extend PartipantEventsCache and Roots with new peers
 	for _, peer := range participants.ById {
-		//if _, ok := s.participantEventsCache.participants.ById[id]; !ok {
-		//	if err := s.participantEventsCache.AddPeer(peer); err != nil {
-		//		return err
-		//	}
-		//}
-		//
-		//if _, ok := s.rootsByParticipant[peer.PubKeyHex]; !ok {
-		//	root := NewBaseRoot(peer.ID)
-		//	s.rootsByParticipant[peer.PubKeyHex] = root
-		//	s.rootsBySelfParent[root.SelfParent.Hash] = root
-		//}
-
 		s.repertoireByPubKey[peer.PubKeyHex] = peer
 		s.repertoireByID[peer.ID] = peer
 	}
@@ -134,10 +121,12 @@ func (s *InmemStore) setPeers(round int64, participants *peers.Peers) error {
 	return nil
 }
 
+// retrieve cached PubKey map of peers
 func (s *InmemStore) RepertoireByPubKey() map[string]*peers.Peer {
 	return s.repertoireByPubKey
 }
 
+// retrieve cached ID map of peers
 func (s *InmemStore) RepertoireByID() map[int64]*peers.Peer {
 	return s.repertoireByID
 }
@@ -152,7 +141,7 @@ func (s *InmemStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.rootsBySelfParent, nil
 }
 
-func (s *InmemStore) GetEvent(key string) (Event, error) {
+func (s *InmemStore) GetEventBlock(key string) (Event, error) {
 	res, ok := s.eventCache.Get(key)
 	if !ok {
 		return Event{}, cm.NewStoreErr("EventCache", cm.KeyNotFound, key)
@@ -163,7 +152,7 @@ func (s *InmemStore) GetEvent(key string) (Event, error) {
 
 func (s *InmemStore) SetEvent(event Event) error {
 	key := event.Hex()
-	_, err := s.GetEvent(key)
+	_, err := s.GetEventBlock(key)
 	if err != nil && !cm.Is(err, cm.KeyNotFound) {
 		return err
 	}
@@ -203,10 +192,10 @@ func (s *InmemStore) ParticipantEvent(participant string, index int64) (string, 
 }
 
 func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {
-	//try to get the last event from this participant
+	// try to get the last event from this participant
 	last, err = s.participantEventsCache.GetLast(participant)
 
-	//if there is none, grab the root
+	// if there is none, grab the root
 	if err != nil && cm.Is(err, cm.Empty) {
 		root, ok := s.rootsByParticipant[participant]
 		if ok {
@@ -221,9 +210,9 @@ func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool
 }
 
 func (s *InmemStore) LastConsensusEventFrom(participant string) (last string, isRoot bool, err error) {
-	//try to get the last consensus event from this participant
+	// try to get the last consensus event from this participant
 	last, ok := s.lastConsensusEvents[participant]
-	//if there is none, grab the root
+	// if there is none, grab the root
 	if !ok {
 		root, ok := s.rootsByParticipant[participant]
 		if ok {
@@ -273,6 +262,7 @@ func (s *InmemStore) AddConsensusEvent(event Event) error {
 	return nil
 }
 
+// retrieve created round from cache by id
 func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	res, ok := s.roundCreatedCache.Get(r)
 	if !ok {
@@ -281,6 +271,7 @@ func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	return res.(RoundCreated), nil
 }
 
+// store created round in cache by id
 func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
 	s.lastRoundLocker.Lock()
 	defer s.lastRoundLocker.Unlock()
@@ -291,6 +282,7 @@ func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
 	return nil
 }
 
+// get received round from cache by id
 func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	res, ok := s.roundReceivedCache.Get(r)
 	if !ok {
@@ -299,6 +291,7 @@ func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	return res.(RoundReceived), nil
 }
 
+// store received round in cache by id
 func (s *InmemStore) SetRoundReceived(r int64, round RoundReceived) error {
 	s.lastRoundLocker.Lock()
 	defer s.lastRoundLocker.Unlock()
@@ -315,12 +308,12 @@ func (s *InmemStore) LastRound() int64 {
 	return s.lastRound
 }
 
-func (s *InmemStore) RoundWitnesses(r int64) []string {
+func (s *InmemStore) RoundClothos(r int64) []string {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
 		return []string{}
 	}
-	return round.Witnesses()
+	return round.Clotho()
 }
 
 func (s *InmemStore) RoundEvents(r int64) int {

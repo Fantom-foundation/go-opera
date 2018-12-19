@@ -106,12 +106,12 @@ func compareRounds(diff *Diff) bool {
 			return true
 		}
 
-		w0, w1 := n0.RoundWitnesses(i), n1.RoundWitnesses(i)
+		w0, w1 := n0.RoundClothos(i), n1.RoundClothos(i)
 		sort.Sort(ByValue(w0))
 		sort.Sort(ByValue(w1))
 		if !reflect.DeepEqual(w0, w1) {
 			diff.FirstRoundIndex = i
-			diff.AddDescr(fmt.Sprintf("witness:\n%+v \n!= \n%+v\n", w0, w1))
+			diff.AddDescr(fmt.Sprintf("clotho:\n%+v \n!= \n%+v\n", w0, w1))
 			return true
 		}
 	}

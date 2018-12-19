@@ -12,7 +12,7 @@ type Store interface {
 	RepertoireByPubKey() map[string]*peers.Peer
 	RepertoireByID() map[int64]*peers.Peer
 	RootsBySelfParent() (map[string]Root, error)
-	GetEvent(string) (Event, error)
+	GetEventBlock(string) (Event, error)
 	SetEvent(Event) error
 	ParticipantEvents(string, int64) ([]string, error)
 	ParticipantEvent(string, int64) (string, error)
@@ -27,7 +27,7 @@ type Store interface {
 	GetRoundReceived(int64) (RoundReceived, error)
 	SetRoundReceived(int64, RoundReceived) error
 	LastRound() int64
-	RoundWitnesses(int64) []string
+	RoundClothos(int64) []string
 	RoundEvents(int64) int
 	GetRoot(string) (Root, error)
 	GetBlock(int64) (Block, error)

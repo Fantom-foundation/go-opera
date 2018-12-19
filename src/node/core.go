@@ -37,10 +37,10 @@ type Core struct {
 
 	maxTransactionsInEvent int
 
-	addSelfEventBlockLocker        sync.Mutex
-	transactionPoolLocker          sync.RWMutex
-	internalTransactionPoolLocker  sync.RWMutex
-	blockSignaturePoolLocker       sync.RWMutex
+	addSelfEventBlockLocker       sync.Mutex
+	transactionPoolLocker         sync.RWMutex
+	internalTransactionPoolLocker sync.RWMutex
+	blockSignaturePoolLocker      sync.RWMutex
 }
 
 func NewCore(id int64, key *ecdsa.PrivateKey, participants *peers.Peers,
@@ -141,7 +141,7 @@ func (c *Core) SetHeadAndSeq() error {
 		head = root.SelfParent.Hash
 		seq = root.SelfParent.Index
 	} else {
-		lastEvent, err := c.GetEvent(last)
+		lastEvent, err := c.GetEventBlock(last)
 		if err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ func (c *Core) bootstrapInDegrees() {
 				continue
 			}
 			for _, eh := range events {
-				event, err := c.poset.Store.GetEvent(eh)
+				event, err := c.poset.Store.GetEventBlock(eh)
 				if err != nil {
 					continue
 				}
@@ -228,7 +228,7 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 
 	c.inDegrees[event.Creator()] = 0
 
-	if otherEvent, err := c.poset.Store.GetEvent(event.OtherParent()); err == nil {
+	if otherEvent, err := c.poset.Store.GetEventBlock(event.OtherParent()); err == nil {
 		c.inDegrees[otherEvent.Creator()]++
 	}
 	return nil
@@ -290,7 +290,7 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 			return []poset.Event{}, err
 		}
 		for _, e := range participantEvents {
-			ev, err := c.poset.Store.GetEvent(e)
+			ev, err := c.poset.Store.GetEventBlock(e)
 			if err != nil {
 				return []poset.Event{}, err
 			}
@@ -407,11 +407,11 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	defer c.addSelfEventBlockLocker.Unlock()
 
 	// Get flag tables from parents
-	parentEvent, errSelf := c.poset.Store.GetEvent(c.head)
+	parentEvent, errSelf := c.poset.Store.GetEventBlock(c.head)
 	if errSelf != nil {
 		c.logger.Warnf("failed to get parent: %s", errSelf)
 	}
-	otherParentEvent, errOther := c.poset.Store.GetEvent(otherHead)
+	otherParentEvent, errOther := c.poset.Store.GetEventBlock(otherHead)
 	if errOther != nil {
 		c.logger.Warnf("failed to get other parent: %s", errOther)
 	}
@@ -459,7 +459,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPoolLocker.Lock()
-	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}
+	c.transactionPool = c.transactionPool[nTxs:] // [][]byte{}
 	c.transactionPoolLocker.Unlock()
 	c.internalTransactionPoolLocker.Lock()
 	c.internalTransactionPool = []poset.InternalTransaction{}
@@ -505,7 +505,7 @@ func (c *Core) RunConsensus() error {
 	}
 
 	start = time.Now()
-	err = c.poset.DecideFame()
+	err = c.poset.DecideAtropos()
 	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideClotho()")
 	if err != nil {
 		c.logger.WithField("Error", err).Error("c.poset.DecideClotho()")
@@ -564,16 +564,16 @@ func (c *Core) AddBlockSignature(bs poset.BlockSignature) {
 }
 
 func (c *Core) GetHead() (poset.Event, error) {
-	return c.poset.Store.GetEvent(c.head)
+	return c.poset.Store.GetEventBlock(c.head)
 }
 
-func (c *Core) GetEvent(hash string) (poset.Event, error) {
-	return c.poset.Store.GetEvent(hash)
+func (c *Core) GetEventBlock(hash string) (poset.Event, error) {
+	return c.poset.Store.GetEventBlock(hash)
 }
 
-func (c *Core) GetEventTransactions(hash string) ([][]byte, error) {
+func (c *Core) GetEventBlockTransactions(hash string) ([][]byte, error) {
 	var txs [][]byte
-	ex, err := c.GetEvent(hash)
+	ex, err := c.GetEventBlock(hash)
 	if err != nil {
 		return txs, err
 	}
@@ -600,7 +600,7 @@ func (c *Core) GetPendingLoadedEvents() int64 {
 func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	var txs [][]byte
 	for _, e := range c.GetConsensusEvents() {
-		eTxs, err := c.GetEventTransactions(e)
+		eTxs, err := c.GetEventBlockTransactions(e)
 		if err != nil {
 			return txs, fmt.Errorf("GetConsensusTransactions(): %s", e)
 		}

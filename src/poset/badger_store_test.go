@@ -81,7 +81,7 @@ func TestNewBadgerStore(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	//check roots
+	// check roots
 	inmemRoots := store.inmemStore.rootsByParticipant
 
 	if len(inmemRoots) != 3 {
@@ -108,7 +108,7 @@ func TestLoadBadgerStore(t *testing.T) {
 	os.Mkdir("test_data", os.ModeDir|0777)
 	dbPath := "test_data/badger"
 
-	//Create the test db
+	// Create the test db
 	tempStore := createTestDB(dbPath, t)
 	defer os.RemoveAll(tempStore.path)
 	tempStore.Close()
@@ -145,8 +145,8 @@ func TestLoadBadgerStore(t *testing.T) {
 
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//Call DB methods directly
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Call DB methods directly
 
 func TestDBEventMethods(t *testing.T) {
 	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
@@ -154,7 +154,7 @@ func TestDBEventMethods(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	//insert events in db directly
+	// insert events in db directly
 	events := make(map[string][]Event)
 	topologicalIndex := int64(-1)
 	var topologicalEvents []Event
@@ -182,10 +182,10 @@ func TestDBEventMethods(t *testing.T) {
 		events[p.hex] = items
 	}
 
-	//check events where correctly inserted and can be retrieved
+	// check events where correctly inserted and can be retrieved
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.dbGetEvent(ev.Hex())
+			rev, err := store.dbGetEventBlock(ev.Hex())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -201,7 +201,7 @@ func TestDBEventMethods(t *testing.T) {
 		}
 	}
 
-	//check topological order of events was correctly created
+	// check topological order of events was correctly created
 	dbTopologicalEvents, err := store.dbTopologicalEvents()
 	if err != nil {
 		t.Fatal(err)
@@ -234,8 +234,8 @@ func TestDBEventMethods(t *testing.T) {
 		}
 	}
 
-	//check that participant events where correctly added
-	skipIndex := int64(-1) //do not skip any indexes
+	// check that participant events where correctly added
+	skipIndex := int64(-1) // do not skip any indexes
 	for _, p := range participants {
 		pEvents, err := store.dbParticipantEvents(p.hex, skipIndex)
 		if err != nil {
@@ -286,14 +286,14 @@ func TestDBRoundMethods(t *testing.T) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
-	witnesses := store.RoundWitnesses(0)
-	expectedWitnesses := round.Witnesses()
-	if len(witnesses) != len(expectedWitnesses) {
-		t.Fatalf("There should be %d witnesses, not %d", len(expectedWitnesses), len(witnesses))
+	clothos := store.RoundClothos(0)
+	expectedClothos := round.Clotho()
+	if len(clothos) != len(expectedClothos) {
+		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
-	for _, w := range expectedWitnesses {
-		if !contains(witnesses, w) {
-			t.Fatalf("Witnesses should contain %s", w)
+	for _, w := range expectedClothos {
+		if !contains(clothos, w) {
+			t.Fatalf("Clothos should contain %s", w)
 		}
 	}
 }
@@ -436,18 +436,18 @@ func TestDBFrameMethods(t *testing.T) {
 	})
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//Check that the wrapper methods work
-//These methods use the inmemStore as a cache on top of the DB
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Check that the wrapper methods work
+// These methods use the inmemStore as a cache on top of the DB
 
 func TestBadgerEvents(t *testing.T) {
-	//Insert more events than can fit in cache to test retrieving from db.
+	// Insert more events than can fit in cache to test retrieving from db.
 	cacheSize := 10
 	testSize := int64(100)
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	//insert event
+	// insert event
 	events := make(map[string][]Event)
 	for _, p := range participants {
 		var items []Event
@@ -470,7 +470,7 @@ func TestBadgerEvents(t *testing.T) {
 	// check that events were correclty inserted
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.GetEvent(ev.Hex())
+			rev, err := store.GetEventBlock(ev.Hex())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -483,8 +483,8 @@ func TestBadgerEvents(t *testing.T) {
 		}
 	}
 
-	//check retrieving events per participant
-	skipIndex := int64(-1) //do not skip any indexes
+	// check retrieving events per participant
+	skipIndex := int64(-1) // do not skip any indexes
 	for _, p := range participants {
 		pEvents, err := store.ParticipantEvents(p.hex, skipIndex)
 		if err != nil {
@@ -503,7 +503,7 @@ func TestBadgerEvents(t *testing.T) {
 		}
 	}
 
-	//check retrieving participant last
+	// check retrieving participant last
 	for _, p := range participants {
 		last, _, err := store.LastEventFrom(p.hex)
 		if err != nil {
@@ -572,14 +572,14 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatalf("Round and StoredRound do not match")
 	}
 
-	witnesses := store.RoundWitnesses(0)
-	expectedWitnesses := round.Witnesses()
-	if len(witnesses) != len(expectedWitnesses) {
-		t.Fatalf("There should be %d witnesses, not %d", len(expectedWitnesses), len(witnesses))
+	clothos := store.RoundClothos(0)
+	expectedClothos := round.Clotho()
+	if len(clothos) != len(expectedClothos) {
+		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
-	for _, w := range expectedWitnesses {
-		if !contains(witnesses, w) {
-			t.Fatalf("Witnesses should contain %s", w)
+	for _, w := range expectedClothos {
+		if !contains(clothos, w) {
+			t.Fatalf("Clothos should contain %s", w)
 		}
 	}
 }

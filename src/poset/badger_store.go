@@ -29,7 +29,7 @@ type BadgerStore struct {
 	needBoostrap bool
 }
 
-//NewBadgerStore creates a brand new Store with a new database
+// NewBadgerStore creates a brand new Store with a new database
 func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*BadgerStore, error) {
 	inmemStore := NewInmemStore(participants, cacheSize)
 	opts := badger.DefaultOptions
@@ -58,7 +58,7 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*Bad
 	return store, nil
 }
 
-//LoadBadgerStore creates a Store from an existing database
+// LoadBadgerStore creates a Store from an existing database
 func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 
 	if _, err := os.Stat(path); err != nil {
@@ -86,7 +86,7 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 
 	inmemStore := NewInmemStore(participants, cacheSize)
 
-	//read roots from db and put them in InmemStore
+	// read roots from db and put them in InmemStore
 	roots := make(map[string]Root)
 	for p := range participants.ByPubKey {
 		root, err := store.dbGetRoot(p)
@@ -121,8 +121,8 @@ func LoadOrCreateBadgerStore(participants *peers.Peers, cacheSize int, path stri
 	return store, nil
 }
 
-//==============================================================================
-//Keys
+// ==============================================================================
+// Keys
 
 func topologicalEventKey(index int64) []byte {
 	return []byte(fmt.Sprintf("%s_%09d", topoPrefix, index))
@@ -155,8 +155,8 @@ func frameKey(index int64) []byte {
 	return []byte(fmt.Sprintf("%s_%09d", framePrefix, index))
 }
 
-//==============================================================================
-//Implement the Store interface
+// ==============================================================================
+// Implement the Store interface
 
 func (s *BadgerStore) CacheSize() int {
 	return s.inmemStore.CacheSize()
@@ -166,10 +166,12 @@ func (s *BadgerStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
+// Get PubKey map of peers
 func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
 	return s.inmemStore.RepertoireByPubKey()
 }
 
+// Get ID map of peers
 func (s *BadgerStore) RepertoireByID() map[int64]*peers.Peer {
 	return s.inmemStore.RepertoireByID()
 }
@@ -177,22 +179,22 @@ func (s *BadgerStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.inmemStore.RootsBySelfParent()
 }
 
-func (s *BadgerStore) GetEvent(key string) (event Event, err error) {
-	//try to get it from cache
-	event, err = s.inmemStore.GetEvent(key)
-	//if not in cache, try to get it from db
+func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
+	// try to get it from cache
+	event, err = s.inmemStore.GetEventBlock(key)
+	// if not in cache, try to get it from db
 	if err != nil {
-		event, err = s.dbGetEvent(key)
+		event, err = s.dbGetEventBlock(key)
 	}
 	return event, mapError(err, "Event", key)
 }
 
 func (s *BadgerStore) SetEvent(event Event) error {
-	//try to add it to the cache
+	// try to add it to the cache
 	if err := s.inmemStore.SetEvent(event); err != nil {
 		return err
 	}
-	//try to add it to the db
+	// try to add it to the db
 	return s.dbSetEvents([]Event{event})
 }
 
@@ -233,7 +235,7 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 					index = root.SelfParent.Index
 				}
 			} else {
-				lastEvent, err := s.GetEvent(last)
+				lastEvent, err := s.GetEventBlock(last)
 				if err == nil {
 					index = lastEvent.Index()
 				}
@@ -257,6 +259,7 @@ func (s *BadgerStore) AddConsensusEvent(event Event) error {
 	return s.inmemStore.AddConsensusEvent(event)
 }
 
+// retrieve created round by id from cache or store
 func (s *BadgerStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	res, err := s.inmemStore.GetRoundCreated(r)
 	if err != nil {
@@ -265,6 +268,7 @@ func (s *BadgerStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	return res, mapError(err, "RoundCreated", string(roundCreatedKey(r)))
 }
 
+// cache and set created round by id
 func (s *BadgerStore) SetRoundCreated(r int64, round RoundCreated) error {
 	if err := s.inmemStore.SetRoundCreated(r, round); err != nil {
 		return err
@@ -272,6 +276,7 @@ func (s *BadgerStore) SetRoundCreated(r int64, round RoundCreated) error {
 	return s.dbSetRoundCreated(r, round)
 }
 
+// retrieve received round by id from cache or store
 func (s *BadgerStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	res, err := s.inmemStore.GetRoundReceived(r)
 	if err != nil {
@@ -280,6 +285,7 @@ func (s *BadgerStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	return res, mapError(err, "RoundReceived", string(roundReceivedKey(r)))
 }
 
+// cache and set received round by id
 func (s *BadgerStore) SetRoundReceived(r int64, round RoundReceived) error {
 	if err := s.inmemStore.SetRoundReceived(r, round); err != nil {
 		return err
@@ -291,12 +297,12 @@ func (s *BadgerStore) LastRound() int64 {
 	return s.inmemStore.LastRound()
 }
 
-func (s *BadgerStore) RoundWitnesses(r int64) []string {
+func (s *BadgerStore) RoundClothos(r int64) []string {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
 		return []string{}
 	}
-	return round.Witnesses()
+	return round.Clotho()
 }
 
 func (s *BadgerStore) RoundEvents(r int64) int {
@@ -368,10 +374,10 @@ func (s *BadgerStore) StorePath() string {
 	return s.path
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//DB Methods
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// DB Methods
 
-func (s *BadgerStore) dbGetEvent(key string) (Event, error) {
+func (s *BadgerStore) dbGetEventBlock(key string) (Event, error) {
 	var eventBytes []byte
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(key))
@@ -407,24 +413,24 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 		if err != nil {
 			return err
 		}
-		//check if it already exists
+		// check if it already exists
 		existent := false
 		_, err = tx.Get([]byte(eventHex))
 		if err != nil && isDBKeyNotFound(err) {
 			existent = true
 		}
-		//insert [event hash] => [event bytes]
+		// insert [event hash] => [event bytes]
 		if err := tx.Set([]byte(eventHex), val); err != nil {
 			return err
 		}
 
 		if existent {
-			//insert [topo_index] => [event hash]
+			// insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.Message.TopologicalIndex)
 			if err := tx.Set(topoKey, []byte(eventHex)); err != nil {
 				return err
 			}
-			//insert [participant_index] => [event hash]
+			// insert [participant_index] => [event hash]
 			peKey := participantEventKey(event.Creator(), event.Index())
 			if err := tx.Set(peKey, []byte(eventHex)); err != nil {
 				return err
@@ -539,8 +545,8 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 			return err
 		}
 		key := participantRootKey(participant)
-		//		fmt.Println("Setting root", participant, "->", key)
-		//insert [participant_root] => [root bytes]
+		// 		fmt.Println("Setting root", participant, "->", key)
+		// insert [participant_root] => [root bytes]
 		if err := tx.Set(key, val); err != nil {
 			return err
 		}
@@ -553,23 +559,23 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 		var creator []byte
 		fmt.Sscanf(participant, "0x%X", &creator)
 		flagTable := map[string]int64{root.SelfParent.Hash: 1}
-		ft, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+		ft, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
 		body := EventBody{
-			Creator:              creator,/*s.participants.ByPubKey[participant].PubKey,*/
-			Index:                root.SelfParent.Index,
-			Parents:              []string{"",""},
+			Creator: creator, /*s.participants.ByPubKey[participant].PubKey,*/
+			Index:   root.SelfParent.Index,
+			Parents: []string{"", ""},
 		}
 		event := Event{
-			Message: EventMessage {
-				Hex: root.SelfParent.Hash,
-				CreatorID: root.SelfParent.CreatorID,
+			Message: EventMessage{
+				Hex:              root.SelfParent.Hash,
+				CreatorID:        root.SelfParent.CreatorID,
 				TopologicalIndex: -1,
-				Body:      &body,
-				FlagTable: ft,
+				Body:             &body,
+				FlagTable:        ft,
 				LamportTimestamp: 0,
 				Round:            0,
 				RoundReceived:    0 /*RoundNIL*/,
-				WitnessProof: []string{root.SelfParent.Hash},
+				ClothoProof:      []string{root.SelfParent.Hash},
 			},
 		}
 		if err := s.SetEvent(event); err != nil {
@@ -643,7 +649,7 @@ func (s *BadgerStore) dbSetRoundCreated(index int64, round RoundCreated) error {
 		return err
 	}
 
-	//insert [round_index] => [round bytes]
+	// insert [round_index] => [round bytes]
 	if err := tx.Set(key, val); err != nil {
 		return err
 	}
@@ -688,7 +694,7 @@ func (s *BadgerStore) dbSetRoundReceived(index int64, round RoundReceived) error
 		return err
 	}
 
-	//insert [round_index] => [round bytes]
+	// insert [round_index] => [round bytes]
 	if err := tx.Set(key, val); err != nil {
 		return err
 	}
@@ -726,7 +732,7 @@ func (s *BadgerStore) dbSetParticipants(participants *peers.Peers) error {
 	for participant, id := range participants.ByPubKey {
 		key := participantKey(participant)
 		val := []byte(strconv.FormatInt(id.ID, 10))
-		//insert [participant_participant] => [id]
+		// insert [participant_participant] => [id]
 		if err := tx.Set(key, val); err != nil {
 			return err
 		}
@@ -771,7 +777,7 @@ func (s *BadgerStore) dbSetBlock(block Block) error {
 		return err
 	}
 
-	//insert [index] => [block bytes]
+	// insert [index] => [block bytes]
 	if err := tx.Set(key, val); err != nil {
 		return err
 	}
@@ -816,7 +822,7 @@ func (s *BadgerStore) dbSetFrame(frame Frame) error {
 		return err
 	}
 
-	//insert [index] => [block bytes]
+	// insert [index] => [block bytes]
 	if err := tx.Set(key, val); err != nil {
 		return err
 	}
@@ -824,7 +830,7 @@ func (s *BadgerStore) dbSetFrame(frame Frame) error {
 	return tx.Commit(nil)
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 func isDBKeyNotFound(err error) bool {
 	return err.Error() == badger.ErrKeyNotFound.Error()

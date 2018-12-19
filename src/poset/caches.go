@@ -17,9 +17,9 @@ func (k Key) ToString() string {
 }
 
 type ParentRoundInfo struct {
-	round                     int
-	isRoot                    bool
-	rootStronglySeenWitnesses int
+	round   int
+	isRoot  bool
+	Atropos int
 }
 
 func NewBaseParentRoundInfo() ParentRoundInfo {
@@ -29,7 +29,7 @@ func NewBaseParentRoundInfo() ParentRoundInfo {
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 type ParticipantEventsCache struct {
 	participants *peers.Peers
@@ -43,6 +43,7 @@ func NewParticipantEventsCache(size int, participants *peers.Peers) *Participant
 	}
 }
 
+// add peer to cache and rolling index map, returns error if it failed to add to map
 func (pec *ParticipantEventsCache) AddPeer(peer *peers.Peer) error {
 	pec.participants.AddPeer(peer)
 	return pec.rim.AddKey(peer.ID)
@@ -58,7 +59,7 @@ func (pec *ParticipantEventsCache) participantID(participant string) (int64, err
 	return peer.ID, nil
 }
 
-//return participant events with index > skip
+// return participant events with index > skip
 func (pec *ParticipantEventsCache) Get(participant string, skipIndex int64) ([]string, error) {
 	id, err := pec.participantID(participant)
 	if err != nil {
@@ -124,7 +125,7 @@ func (pec *ParticipantEventsCache) Set(participant string, hash string, index in
 	return pec.rim.Set(id, hash, index)
 }
 
-//returns [participant id] => lastKnownIndex
+// returns [participant id] => lastKnownIndex
 func (pec *ParticipantEventsCache) Known() map[int64]int64 {
 	return pec.rim.Known()
 }
@@ -137,7 +138,7 @@ func (pec *ParticipantEventsCache) Import(other *ParticipantEventsCache) {
 	pec.rim.Import(other.rim)
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 type ParticipantBlockSignaturesCache struct {
 	participants *peers.Peers
@@ -161,7 +162,7 @@ func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (i
 	return peer.ID, nil
 }
 
-//return participant BlockSignatures where index > skip
+// return participant BlockSignatures where index > skip
 func (psc *ParticipantBlockSignaturesCache) Get(participant string, skipIndex int64) ([]BlockSignature, error) {
 	id, err := psc.participantID(participant)
 	if err != nil {
@@ -212,7 +213,7 @@ func (psc *ParticipantBlockSignaturesCache) Set(participant string, sig BlockSig
 	return psc.rim.Set(id, sig, sig.Index)
 }
 
-//returns [participant id] => last BlockSignature Index
+// returns [participant id] => last BlockSignature Index
 func (psc *ParticipantBlockSignaturesCache) Known() map[int64]int64 {
 	return psc.rim.Known()
 }

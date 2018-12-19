@@ -34,7 +34,7 @@ func New(privKey string,
 		"config":   fmt.Sprintf("%v", config),
 	}).Debug("New Mobile Node")
 
-	//Check private key
+	// Check private key
 	pemKey := &crypto.PemKey{}
 
 	key, err := pemKey.ReadKeyFromBuf([]byte(privKey))
@@ -88,8 +88,8 @@ func (n *Node) Shutdown() {
 }
 
 func (n *Node) SubmitTx(tx []byte) {
-	//have to make a copy or the tx will be garbage collected and weird stuff
-	//happens in transaction pool
+	// have to make a copy or the tx will be garbage collected and weird stuff
+	// happens in transaction pool
 	t := make([]byte, len(tx), len(tx))
 	copy(t, tx)
 	n.proxy.SubmitCh() <- t

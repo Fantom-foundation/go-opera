@@ -79,7 +79,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	index map[string]string, participant int64) {
 	for i := int64(0); i < int64(len(cores)); i++ {
 		if i != participant {
-			event, err := cores[i].GetEvent(index[fmt.Sprintf("e%d", i)])
+			event, err := cores[i].GetEventBlock(index[fmt.Sprintf("e%d", i)])
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -92,11 +92,11 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	}
 
 	// Get flag tables from parents
-	event0, err := cores[0].poset.Store.GetEvent(index["e0"])
+	event0, err := cores[0].poset.Store.GetEventBlock(index["e0"])
 	if err != nil {
 		t.Fatalf("failed to get parent: %s", err)
 	}
-	event1, err := cores[0].poset.Store.GetEvent(index["e1"])
+	event1, err := cores[0].poset.Store.GetEventBlock(index["e1"])
 	if err != nil {
 		t.Fatalf("failed to get parent: %s", err)
 	}
@@ -115,7 +115,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	}
 
 	// Get flag tables from parents
-	event2, err := cores[2].poset.Store.GetEvent(index["e2"])
+	event2, err := cores[2].poset.Store.GetEventBlock(index["e2"])
 	if err != nil {
 		t.Fatalf("failed to get parent: %s", err)
 	}

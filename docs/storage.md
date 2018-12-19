@@ -278,7 +278,7 @@ t = (s1,tn)=s2 m
 
 setup(t)
 
-t with witness w
+t with clotho w
 
 prove(,tn,w)
 

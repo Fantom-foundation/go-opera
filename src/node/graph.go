@@ -17,23 +17,23 @@ type Graph struct {
 }
 
 func (g *Graph) GetBlocks() []poset.Block {
-	res := []poset.Block{}
+	var res []poset.Block
 	store := g.Node.core.poset.Store
- 	blockIdx := store.LastBlockIndex() - 10
+	blockIdx := store.LastBlockIndex() - 10
 
 	if blockIdx < 0 {
 		blockIdx = 0
 	}
 
- 	for blockIdx <= store.LastBlockIndex() {
+	for blockIdx <= store.LastBlockIndex() {
 		r, err := store.GetBlock(blockIdx)
- 		if err != nil {
+		if err != nil {
 			break
 		}
- 		res = append(res, r)
- 		blockIdx++
+		res = append(res, r)
+		blockIdx++
 	}
- 	return res
+	return res
 }
 
 func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
@@ -76,7 +76,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
 
 		for _, e := range evs {
-			event, err := store.GetEvent(e)
+			event, err := store.GetEventBlock(e)
 
 			if err != nil {
 				panic(err)
@@ -91,8 +91,9 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	return res
 }
 
+// get slice of created rounds before and including the last round
 func (g *Graph) GetRounds() []poset.RoundCreated {
-	res := []poset.RoundCreated{}
+	var res []poset.RoundCreated
 
 	store := g.Node.core.poset.Store
 
@@ -121,7 +122,7 @@ func (g *Graph) GetInfos() Infos {
 	return Infos{
 		ParticipantEvents: g.GetParticipantEvents(),
 		Rounds:            g.GetRounds(),
-    Blocks:            g.GetBlocks(),
+		Blocks:            g.GetBlocks(),
 	}
 }
 
