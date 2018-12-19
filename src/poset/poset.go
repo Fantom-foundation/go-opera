@@ -171,7 +171,7 @@ func (p *Poset) dominator2(x, y string) (bool, error) {
 			return false, err2
 		}
 		if root, ok := roots[y]; ok {
-			yCreator := p.Participants.ById[root.SelfParent.CreatorID].PubKeyHex
+			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
 			if ex.Creator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
@@ -238,7 +238,7 @@ func (p *Poset) selfDominator2(x, y string) (bool, error) {
 			return false, err2
 		}
 		if root, ok := roots[y]; ok {
-			yCreator := p.Participants.ById[root.SelfParent.CreatorID].PubKeyHex
+			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
 			if ex.Creator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
@@ -289,7 +289,7 @@ func (p *Poset) strictlyDominated2(x, y string) (bool, error) {
 	return len(sentinels) >= p.superMajority, nil
 }
 
-// participants in x's dominator that dominate y
+// MapSentinels participants in x's dominator that dominate y
 func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 	if x == "" {
 		return nil
@@ -309,7 +309,7 @@ func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 		}
 
 		if root, ok := roots[x]; ok {
-			creator := p.Participants.ById[root.SelfParent.CreatorID]
+			creator := p.Participants.ByID[root.SelfParent.CreatorID]
 
 			sentinels[creator.PubKeyHex] = true
 
@@ -319,7 +319,7 @@ func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 		return err
 	}
 
-	creator := p.Participants.ById[ex.CreatorID()]
+	creator := p.Participants.ByID[ex.CreatorID()]
 	sentinels[creator.PubKeyHex] = true
 
 	if x == y {
@@ -555,7 +555,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 		return math.MinInt64, err
 	}
 
-	plt := int64(math.MinInt64)
+	var plt int64
 	//If it is the creator's first Event, use the corresponding Root
 	if ex.SelfParent() == root.SelfParent.Hash {
 		plt = root.SelfParent.LamportTimestamp
@@ -766,9 +766,12 @@ func (p *Poset) createRoot(ev Event) (Root, error) {
 	return root, nil
 }
 
+// SetWireInfo set wire info for the event
 func (p *Poset) SetWireInfo(event *Event) error {
 	return p.setWireInfo(event)
 }
+
+// SetWireInfoAndSign set wire info for the event and sign
 func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) error {
 	if err := p.setWireInfo(event); err != nil {
 		return err
@@ -777,7 +780,7 @@ func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) erro
 }
 
 func (p *Poset) setWireInfo(event *Event) error {
-	selfParentIndex := int64(-1)
+	var selfParentIndex int64
 	otherParentCreatorID := int64(-1)
 	otherParentIndex := int64(-1)
 
@@ -1635,7 +1638,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	otherParent := ""
 	var err error
 
-	creator := p.Participants.ById[wevent.Body.CreatorID]
+	creator := p.Participants.ByID[wevent.Body.CreatorID]
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
 	if creator == nil {
 		return nil, fmt.Errorf("unknown wevent.Body.CreatorID=%v", wevent.Body.CreatorID)
@@ -1652,7 +1655,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		}
 	}
 	if wevent.Body.OtherParentIndex >= 0 {
-		otherParentCreator := p.Participants.ById[wevent.Body.OtherParentCreatorID]
+		otherParentCreator := p.Participants.ByID[wevent.Body.OtherParentCreatorID]
 		if otherParentCreator != nil {
 			otherParent, err = p.Store.ParticipantEvent(otherParentCreator.PubKeyHex, wevent.Body.OtherParentIndex)
 			if err != nil {
@@ -1780,6 +1783,7 @@ func (p *Poset) setAnchorBlock(i int64) {
 Getters
 *******************************************************************************/
 
+// GetFlagTableOfRandomUndeterminedEvent returns the flag table for undermined events
 func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64, err error) {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
@@ -1803,18 +1807,21 @@ func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (result map[string]int64
 	return nil, err
 }
 
+// GetUndeterminedEvents returns all the undetermined events
 func (p *Poset) GetUndeterminedEvents() []string {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
 	return p.UndeterminedEvents
 }
 
+// GetPendingLoadedEvents returns all the pending events
 func (p *Poset)  GetPendingLoadedEvents() int64 {
 	p.pendingLoadedEventsLocker.RLock()
 	defer p.pendingLoadedEventsLocker.RUnlock()
 	return p.pendingLoadedEvents
 }
 
+// GetLastConsensusRound returns the last consensus round
 func (p *Poset) GetLastConsensusRound() int64 {
 	p.firstLastConsensusRoundLocker.RLock()
 	defer p.firstLastConsensusRoundLocker.RUnlock()
@@ -1825,6 +1832,7 @@ func (p *Poset) GetLastConsensusRound() int64 {
 	return *p.LastConsensusRound
 }
 
+// GetConsensusTransactionsCount returns the count of finalized transactions
 func (p *Poset) GetConsensusTransactionsCount() uint64 {
 	p.consensusTransactionsLocker.RLock()
 	defer p.consensusTransactionsLocker.RUnlock()

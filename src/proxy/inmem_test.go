@@ -29,18 +29,18 @@ func TestInmemAppCalls(t *testing.T) {
 	t.Run("#1 Send tx", func(t *testing.T) {
 		asserter := assert.New(t)
 
-		tx_origin := []byte("the test transaction")
+		txOrigin := []byte("the test transaction")
 
 		go func() {
 			select {
 			case tx := <-proxy.SubmitCh():
-				asserter.Equal(tx_origin, tx)
+				asserter.Equal(txOrigin, tx)
 			case <-time.After(timeout):
 				asserter.Fail(errTimeout)
 			}
 		}()
 
-		proxy.SubmitTx(tx_origin)
+		proxy.SubmitTx(txOrigin)
 	})
 
 	t.Run("#2 Commit block", func(t *testing.T) {

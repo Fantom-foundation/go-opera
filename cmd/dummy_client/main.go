@@ -46,7 +46,9 @@ func main() {
 		LogLevelFlag,
 	}
 	app.Action = run
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		fmt.Printf("Error in run: %v\n", err)
+	}
 }
 
 func run(c *cli.Context) error {

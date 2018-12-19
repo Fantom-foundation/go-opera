@@ -59,10 +59,11 @@ ex 2:
 -----------------
 */
 
-//RootEvent contains enough information about an Event and its direct dominated
-//to allow inserting Events on top of it.
-//NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
-//of a Poset.
+// RootEvent contains enough information about an Event and its direct dominated
+// to allow inserting Events on top of it.
+
+// NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
+// of a Poset.
 func NewBaseRootEvent(creatorID int64) RootEvent {
 	hash := fmt.Sprintf("Root%d", creatorID)
 	res := RootEvent{
@@ -75,21 +76,23 @@ func NewBaseRootEvent(creatorID int64) RootEvent {
 	return res
 }
 
-func (this *RootEvent) Equals(that *RootEvent) bool {
-	return this.Hash == that.Hash &&
-		this.CreatorID == that.CreatorID &&
-		this.Index == that.Index &&
-		this.LamportTimestamp == that.LamportTimestamp &&
-		this.Round == that.Round
+// Equals compares two root events for equality
+func (re *RootEvent) Equals(that *RootEvent) bool {
+	return re.Hash == that.Hash &&
+		re.CreatorID == that.CreatorID &&
+		re.Index == that.Index &&
+		re.LamportTimestamp == that.LamportTimestamp &&
+		re.Round == that.Round
 }
 
-//Root forms a base on top of which a participant's Events can be inserted. It
-//contains the SelfParent of the first dominated of the Root, as well as other
-//Events, belonging to a past before the Root, which might be referenced
-//in future Events. NextRound corresponds to a proposed value for the child's
-//Round; it is only used if the child's OtherParent is empty or NOT in the
-//Root's Others.
-//NewBaseRoot initializes a Root object for a fresh Poset.
+// Root forms a base on top of which a participant's Events can be inserted. It
+// contains the SelfParent of the first dominated of the Root, as well as other
+// Events, belonging to a past before the Root, which might be referenced
+// in future Events. NextRound corresponds to a proposed value for the child's
+// Round; it is only used if the child's OtherParent is empty or NOT in the
+// Root's Others.
+
+// NewBaseRoot initializes a Root object for a fresh Poset.
 func NewBaseRoot(creatorID int64) Root {
 	rootEvent := NewBaseRootEvent(creatorID)
 	res := Root{
@@ -100,7 +103,7 @@ func NewBaseRoot(creatorID int64) Root {
 	return res
 }
 
-
+// EqualsMapStringRootEvent compares the equality of two string maps of root events
 func EqualsMapStringRootEvent(this map[string]*RootEvent, that map[string]*RootEvent) bool {
 	if len(this) != len(that) {
 		return false
@@ -114,12 +117,14 @@ func EqualsMapStringRootEvent(this map[string]*RootEvent, that map[string]*RootE
 	return true
 }
 
-func (this *Root) Equals(that *Root) bool {
-	return this.NextRound == that.NextRound &&
-		this.SelfParent.Equals(that.SelfParent) &&
-		EqualsMapStringRootEvent(this.Others, that.Others)
+// Equals compares two roots
+func (root *Root) Equals(that *Root) bool {
+	return root.NextRound == that.NextRound &&
+		root.SelfParent.Equals(that.SelfParent) &&
+		EqualsMapStringRootEvent(root.Others, that.Others)
 }
 
+// ProtoMarshal converts root to protobuff
 func (root *Root) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -129,6 +134,7 @@ func (root *Root) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal converts protobuff to a root struct
 func (root *Root) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, root)
 }

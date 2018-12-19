@@ -58,7 +58,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 func (n NodeList) Keys() []*ecdsa.PrivateKey {
 	keys := make([]*ecdsa.PrivateKey, len(n))
 	i := 0
-	for key, _ := range n {
+	for key := range n {
 		keys[i] = key
 		i++
 	}

@@ -6,16 +6,19 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
+// Infos struct for graph data (visualizer)
 type Infos struct {
 	ParticipantEvents map[string]map[string]poset.Event
 	Rounds            []poset.RoundInfo
   Blocks            []poset.Block
 }
 
+// Graph stuct to represent the DAG
 type Graph struct {
 	*Node
 }
 
+// GetBlocks returns all blocks in the DAG
 func (g *Graph) GetBlocks() []poset.Block {
 	res := []poset.Block{}
 	store := g.Node.core.poset.Store
@@ -36,6 +39,7 @@ func (g *Graph) GetBlocks() []poset.Block {
  	return res
 }
 
+// GetParticipantEvents returns all known events per participant
 func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	res := make(map[string]map[string]poset.Event)
 
@@ -91,6 +95,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	return res
 }
 
+// GetRounds returns the rounds for the DAG
 func (g *Graph) GetRounds() []poset.RoundInfo {
 	res := []poset.RoundInfo{}
 
@@ -117,6 +122,7 @@ func (g *Graph) GetRounds() []poset.RoundInfo {
 	return res
 }
 
+// GetInfos returns the info subset for the DAG
 func (g *Graph) GetInfos() Infos {
 	return Infos{
 		ParticipantEvents: g.GetParticipantEvents(),
@@ -125,6 +131,7 @@ func (g *Graph) GetInfos() Infos {
 	}
 }
 
+// NewGraph creates a new DAG
 func NewGraph(n *Node) *Graph {
 	return &Graph{
 		Node: n,

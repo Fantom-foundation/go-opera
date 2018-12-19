@@ -237,22 +237,3 @@ func parseConfig() (*CLIConfig, error) {
 	}
 	return conf, err
 }
-
-func logLevel(l string) logrus.Level {
-	switch l {
-	case "debug":
-		return logrus.DebugLevel
-	case "info":
-		return logrus.InfoLevel
-	case "warn":
-		return logrus.WarnLevel
-	case "error":
-		return logrus.ErrorLevel
-	case "fatal":
-		return logrus.FatalLevel
-	case "panic":
-		return logrus.PanicLevel
-	default:
-		return logrus.DebugLevel
-	}
-}

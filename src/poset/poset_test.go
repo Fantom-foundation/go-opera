@@ -1690,7 +1690,13 @@ func TestProcessDecidedRounds(t *testing.T) {
 	}
 
 	frame1, err := p.GetFrame(block0.RoundReceived())
+	if err != nil {
+		t.Fatalf("frame should be returned: %v", err)
+	}
 	frame1Hash, err := frame1.Hash()
+	if err != nil {
+		t.Fatalf("Hash should be generated from frame: %v", err)
+	}
 	if !reflect.DeepEqual(block0.GetFrameHash(), frame1Hash) {
 		t.Fatalf("frame hash from block0 should be %v, not %v",
 			frame1Hash, block0.GetFrameHash())
@@ -2009,7 +2015,7 @@ func TestResetFromFrame(t *testing.T) {
 	}
 
 	known := p2.Store.KnownEvents()
-	for _, peer := range p2.Participants.ById {
+	for _, peer := range p2.Participants.ByID {
 		if l := known[peer.ID]; l != expectedKnown[peer.ID] {
 			t.Fatalf("Known[%d] should be %d, not %d",
 				peer.ID, expectedKnown[peer.ID], l)
@@ -3241,7 +3247,7 @@ func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, che
 func getDiff(p *Poset, known map[int64]int64, t *testing.T) []Event {
 	var diff []Event
 	for id, ct := range known {
-		pk := p.Participants.ById[id].PubKeyHex
+		pk := p.Participants.ByID[id].PubKeyHex
 		// get participant Events with index > ct
 		participantEvents, err := p.Store.ParticipantEvents(pk, ct)
 		if err != nil {
