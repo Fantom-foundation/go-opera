@@ -184,7 +184,10 @@ func (n *Node) doBackgroundWork() {
 		select {
 		case t := <-n.submitCh:
 			n.logger.Debug("Adding Transactions to Transaction Pool")
-			n.addTransaction(t)
+			err := n.addTransaction(t)
+			if err != nil {
+				n.logger.Errorf("Adding Transactions to Transaction Pool: %s", err)
+			}
 			n.resetTimer()
 		case t := <-n.submitInternalCh:
 			n.logger.Debug("Adding Internal Transaction")
@@ -655,9 +658,9 @@ func (n *Node) commit(block poset.Block) error {
 	return nil
 }
 
-func (n *Node) addTransaction(tx []byte) {
+func (n *Node) addTransaction(tx []byte) error {
 	// we do not need coreLock here as n.core.AddTransactions has TransactionPoolLocker
-	n.core.AddTransactions([][]byte{tx})
+	return n.core.AddTransactions([][]byte{tx})
 }
 
 func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {

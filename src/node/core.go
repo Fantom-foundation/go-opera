@@ -16,6 +16,16 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
+const (
+	// TODO: collect the similar magic constants in protocol config
+	// MaxReceiveMessageSize is size limitation of txs in bytes
+	MaxEventsPayloadSize = 100 * 1024 * 1024
+)
+
+var (
+	ErrTooBigTx = fmt.Errorf("Transaction too big")
+)
+
 // Core struct that controls the consensus, transaction, and communication
 type Core struct {
 	id     int64
@@ -35,8 +45,6 @@ type Core struct {
 	blockSignaturePool      []poset.BlockSignature
 
 	logger *logrus.Entry
-
-	maxTransactionsInEvent int
 
 	addSelfEventBlockLocker       sync.Mutex
 	transactionPoolLocker         sync.RWMutex
@@ -73,10 +81,6 @@ func NewCore(id int64, key *ecdsa.PrivateKey, participants *peers.Peers,
 		logger:                  logEntry,
 		head:                    "",
 		Seq:                     -1,
-		// MaxReceiveMessageSize limitation in grpc: https://github.com/grpc/grpc-go/blob/master/clientconn.go#L96
-		// default value is 4 * 1024 * 1024 bytes
-		// we use transactions of 120 bytes in tester, thus rounding it down to 16384
-		maxTransactionsInEvent: 16384,
 	}
 
 	p2.SetCore(core)
@@ -451,33 +455,44 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 		}
 	}
 
+	// get transactions batch for new Event
+	c.transactionPoolLocker.Lock()
+	var payloadSize, nTxs int
+	for nTxs = 0; nTxs < len(c.transactionPool); nTxs++ {
+		// NOTE: if len(tx)>MaxEventsPayloadSize it will be payloadSize>MaxEventsPayloadSize
+		txSize := len(c.transactionPool[nTxs])
+		if nTxs > 0 && payloadSize >= (MaxEventsPayloadSize-txSize) {
+			break
+		}
+		payloadSize += txSize
+	}
+	batch := c.transactionPool[0:nTxs]
+	c.transactionPool = c.transactionPool[nTxs:]
+	c.transactionPoolLocker.Unlock()
+
 	// create new event with self head and empty other parent
-	// empty transaction pool in its payload
-	var batch [][]byte
-	nTxs := min(int(c.GetTransactionPoolCount()), c.maxTransactionsInEvent)
-	c.transactionPoolLocker.RLock()
-	batch = c.transactionPool[0:nTxs:nTxs]
-	c.transactionPoolLocker.RUnlock()
 	newHead := poset.NewEvent(batch,
 		c.internalTransactionPool,
 		c.blockSignaturePool,
 		[]string{c.head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
+		// put batch back to transactionPool
+		c.transactionPoolLocker.Lock()
+		c.transactionPool = append(batch, c.transactionPool...)
+		c.transactionPoolLocker.Unlock()
 		return fmt.Errorf("newHead := poset.NewEventBlock: %s", err)
 	}
 	c.logger.WithFields(logrus.Fields{
-		"transactions":          c.GetTransactionPoolCount(),
+		"transactions":          nTxs,
 		"internal_transactions": c.GetInternalTransactionPoolCount(),
 		"block_signatures":      c.GetBlockSignaturePoolCount(),
 	}).Debug("newHead := poset.NewEventBlock")
 
-	c.transactionPoolLocker.Lock()
-	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}
-	c.transactionPoolLocker.Unlock()
 	c.internalTransactionPoolLocker.Lock()
 	c.internalTransactionPool = []poset.InternalTransaction{}
 	c.internalTransactionPoolLocker.Unlock()
+
 	// retain c.blockSignaturePool until c.transactionPool is empty
 	// FIXIT: is there any better strategy?
 	if c.GetTransactionPoolCount() == 0 {
@@ -563,10 +578,16 @@ func (c *Core) RunConsensus() error {
 }
 
 // AddTransactions add transactions to the pending pool
-func (c *Core) AddTransactions(txs [][]byte) {
+func (c *Core) AddTransactions(txs [][]byte) error {
+	for _, tx := range txs {
+		if len(tx) > MaxEventsPayloadSize {
+			return ErrTooBigTx
+		}
+	}
 	c.transactionPoolLocker.Lock()
 	defer c.transactionPoolLocker.Unlock()
 	c.transactionPool = append(c.transactionPool, txs...)
+	return nil
 }
 
 // AddInternalTransactions add internal transactions to the pending pool
