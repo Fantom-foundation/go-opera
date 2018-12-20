@@ -57,21 +57,21 @@ func (m *mobileAppProxy) RestoreHandler(snapshot []byte) ([]byte, error) {
 // gomobile cannot export a Block object because it doesn't support arrays of
 // arrays of bytes; so we have to serialize the block.
 // Overrides  InappProxy::CommitBlock
-func (p *mobileAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
+func (m *mobileAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	blockBytes, err := block.ProtoMarshal()
 	if err != nil {
-		p.logger.Debug("mobileAppProxy error marhsalling Block")
+		m.logger.Debug("mobileAppProxy error marhsalling Block")
 		return nil, err
 	}
-	stateHash := p.commitHandler.OnCommit(blockBytes)
+	stateHash := m.commitHandler.OnCommit(blockBytes)
 	return stateHash, nil
 }
 
 //TODO - Implement these two functions
-func (p *mobileAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
+func (m *mobileAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (p *mobileAppProxy) Restore(snapshot []byte) error {
+func (m *mobileAppProxy) Restore(snapshot []byte) error {
 	return nil
 }

@@ -1,5 +1,6 @@
 package mobile
 
+// MobileConfig stores all the configuration information for a mobile node
 type MobileConfig struct {
 	Heartbeat  int    //heartbeat timeout in milliseconds
 	TCPTimeout int    //TCP timeout in milliseconds
@@ -10,6 +11,7 @@ type MobileConfig struct {
 	StorePath  string //File containing the Store DB
 }
 
+// NewMobileConfig creates a new mobile config
 func NewMobileConfig(heartbeat int,
 	tcpTimeout int,
 	maxPool int,
@@ -29,6 +31,7 @@ func NewMobileConfig(heartbeat int,
 	}
 }
 
+// DefaultMobileConfig sets the default config
 func DefaultMobileConfig() *MobileConfig {
 	return &MobileConfig{
 		Heartbeat:  1000,

@@ -1,13 +1,14 @@
 package utils
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
 	"testing"
 )
 
-// source: https://gist.github.com/montanaflynn/b59c058ce2adc18f31d6
+// GetUnusedNetAddr source: https://gist.github.com/montanaflynn/b59c058ce2adc18f31d6
 func GetUnusedNetAddr(t testing.TB) string {
 	// Create a new server without specifying a port
 	// which will result in an open port being chosen
@@ -27,5 +28,22 @@ func GetUnusedNetAddr(t testing.TB) string {
 	}
 	// Return the port as an int
 	port, err := strconv.Atoi(portString)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
 	return fmt.Sprintf("127.0.0.1:%d", port)
+}
+
+// HashFromHex converts hex string to bytes.
+func HashFromHex(s string) []byte {
+	if len(s) > 1 {
+		if s[0:2] == "0x" || s[0:2] == "0X" {
+			s = s[2:]
+		}
+	}
+	if len(s)%2 == 1 {
+		s = "0" + s
+	}
+	h, _ := hex.DecodeString(s)
+	return h
 }

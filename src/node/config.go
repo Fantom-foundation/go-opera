@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Config for node configuration settings
 type Config struct {
 	HeartbeatTimeout time.Duration `mapstructure:"heartbeat"`
 	TCPTimeout       time.Duration `mapstructure:"timeout"`
@@ -18,6 +19,7 @@ type Config struct {
 	TestDelay uint64 `mapstructure:"test_delay"`
 }
 
+// NewConfig creates a new node config
 func NewConfig(heartbeat time.Duration,
 	timeout time.Duration,
 	cacheSize int,
@@ -33,6 +35,7 @@ func NewConfig(heartbeat time.Duration,
 	}
 }
 
+// DefaultConfig sets the default config for a node config
 func DefaultConfig() *Config {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
@@ -48,6 +51,7 @@ func DefaultConfig() *Config {
 	}
 }
 
+// TestConfig sets the test config for use with tests
 func TestConfig(t *testing.T) *Config {
 	config := DefaultConfig()
 	config.HeartbeatTimeout = time.Second * 1

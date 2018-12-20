@@ -7,6 +7,7 @@ import (
 
 	cm "github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 )
@@ -21,6 +22,7 @@ const (
 	framePrefix         = "frame"
 )
 
+// BadgerStore struct for badger config data
 type BadgerStore struct {
 	participants *peers.Peers
 	inmemStore   *InmemStore
@@ -50,9 +52,6 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*Bad
 		return nil, err
 	}
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
-		return nil, err
-	}
-	if err := store.dbSetRootEvents(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
 	return store, nil
@@ -106,6 +105,7 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 	return store, nil
 }
 
+// LoadOrCreateBadgerStore load or create a new badger store
 func LoadOrCreateBadgerStore(participants *peers.Peers, cacheSize int, path string) (*BadgerStore, error) {
 	store, err := LoadBadgerStore(cacheSize, path)
 
@@ -158,15 +158,17 @@ func frameKey(index int64) []byte {
 // ==============================================================================
 // Implement the Store interface
 
+// CacheSize returns the cache size for the store
 func (s *BadgerStore) CacheSize() int {
 	return s.inmemStore.CacheSize()
 }
 
+// Participants returns all participants in the store
 func (s *BadgerStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
-// Get PubKey map of peers
+// RepertoireByPubKey gets PubKey map of peers
 func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
 	return s.inmemStore.RepertoireByPubKey()
 }
@@ -175,10 +177,13 @@ func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
 func (s *BadgerStore) RepertoireByID() map[int64]*peers.Peer {
 	return s.inmemStore.RepertoireByID()
 }
+
+// RootsBySelfParent returns the roots for the self parent
 func (s *BadgerStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.inmemStore.RootsBySelfParent()
 }
 
+// GetEventBlock get specific event block by key
 func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
 	// try to get it from cache
 	event, err = s.inmemStore.GetEventBlock(key)
@@ -189,6 +194,7 @@ func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
 	return event, mapError(err, "Event", key)
 }
 
+// SetEvent set a specific event
 func (s *BadgerStore) SetEvent(event Event) error {
 	// try to add it to the cache
 	if err := s.inmemStore.SetEvent(event); err != nil {
@@ -198,6 +204,7 @@ func (s *BadgerStore) SetEvent(event Event) error {
 	return s.dbSetEvents([]Event{event})
 }
 
+// ParticipantEvents return all participant events
 func (s *BadgerStore) ParticipantEvents(participant string, skip int64) ([]string, error) {
 	res, err := s.inmemStore.ParticipantEvents(participant, skip)
 	if err != nil {
@@ -206,6 +213,7 @@ func (s *BadgerStore) ParticipantEvents(participant string, skip int64) ([]strin
 	return res, err
 }
 
+// ParticipantEvent get specific participant event
 func (s *BadgerStore) ParticipantEvent(participant string, index int64) (string, error) {
 	result, err := s.inmemStore.ParticipantEvent(participant, index)
 	if err != nil {
@@ -214,14 +222,17 @@ func (s *BadgerStore) ParticipantEvent(participant string, index int64) (string,
 	return result, mapError(err, "ParticipantEvent", string(participantEventKey(participant, index)))
 }
 
+// LastEventFrom returns the last event for a particpant
 func (s *BadgerStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {
 	return s.inmemStore.LastEventFrom(participant)
 }
 
+// LastConsensusEventFrom returns the last consensus events for a participant
 func (s *BadgerStore) LastConsensusEventFrom(participant string) (last string, isRoot bool, err error) {
 	return s.inmemStore.LastConsensusEventFrom(participant)
 }
 
+// KnownEvents returns all known events
 func (s *BadgerStore) KnownEvents() map[int64]int64 {
 	known := make(map[int64]int64)
 	for p, pid := range s.participants.ByPubKey {
@@ -231,7 +242,6 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 			if isRoot {
 				root, err := s.GetRoot(p)
 				if err != nil {
-					last = root.SelfParent.Hash
 					index = root.SelfParent.Index
 				}
 			} else {
@@ -247,19 +257,22 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 	return known
 }
 
+// ConsensusEvents returns all consensus events
 func (s *BadgerStore) ConsensusEvents() []string {
 	return s.inmemStore.ConsensusEvents()
 }
 
+// ConsensusEventsCount returns the count for all known consensus events
 func (s *BadgerStore) ConsensusEventsCount() int64 {
 	return s.inmemStore.ConsensusEventsCount()
 }
 
+// AddConsensusEvent adds a consensus event to the store
 func (s *BadgerStore) AddConsensusEvent(event Event) error {
 	return s.inmemStore.AddConsensusEvent(event)
 }
 
-// retrieve created round by id from cache or store
+// GetRoundCreated gets the created round info for a given index
 func (s *BadgerStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	res, err := s.inmemStore.GetRoundCreated(r)
 	if err != nil {
@@ -268,7 +281,7 @@ func (s *BadgerStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	return res, mapError(err, "RoundCreated", string(roundCreatedKey(r)))
 }
 
-// cache and set created round by id
+// SetRound sets the created round info for a given index
 func (s *BadgerStore) SetRoundCreated(r int64, round RoundCreated) error {
 	if err := s.inmemStore.SetRoundCreated(r, round); err != nil {
 		return err
@@ -276,7 +289,7 @@ func (s *BadgerStore) SetRoundCreated(r int64, round RoundCreated) error {
 	return s.dbSetRoundCreated(r, round)
 }
 
-// retrieve received round by id from cache or store
+// GetRoundReceived gets the received round for a given index
 func (s *BadgerStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	res, err := s.inmemStore.GetRoundReceived(r)
 	if err != nil {
@@ -285,7 +298,7 @@ func (s *BadgerStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	return res, mapError(err, "RoundReceived", string(roundReceivedKey(r)))
 }
 
-// cache and set received round by id
+// SetRoundReceived sets the received round info for a given index
 func (s *BadgerStore) SetRoundReceived(r int64, round RoundReceived) error {
 	if err := s.inmemStore.SetRoundReceived(r, round); err != nil {
 		return err
@@ -293,10 +306,12 @@ func (s *BadgerStore) SetRoundReceived(r int64, round RoundReceived) error {
 	return s.dbSetRoundReceived(r, round)
 }
 
+// LastRound returns the last round for the store
 func (s *BadgerStore) LastRound() int64 {
 	return s.inmemStore.LastRound()
 }
 
+// RoundClothos returns all clothos for a round
 func (s *BadgerStore) RoundClothos(r int64) []string {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
@@ -305,6 +320,7 @@ func (s *BadgerStore) RoundClothos(r int64) []string {
 	return round.Clotho()
 }
 
+// RoundEvents returns all events for a round
 func (s *BadgerStore) RoundEvents(r int64) int {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
@@ -313,6 +329,7 @@ func (s *BadgerStore) RoundEvents(r int64) int {
 	return len(round.Message.Events)
 }
 
+// GetRoot returns the root for a participant
 func (s *BadgerStore) GetRoot(participant string) (Root, error) {
 	root, err := s.inmemStore.GetRoot(participant)
 	if err != nil {
@@ -321,6 +338,7 @@ func (s *BadgerStore) GetRoot(participant string) (Root, error) {
 	return root, mapError(err, "Root", string(participantRootKey(participant)))
 }
 
+// GetBlock returns the block for a given index
 func (s *BadgerStore) GetBlock(rr int64) (Block, error) {
 	res, err := s.inmemStore.GetBlock(rr)
 	if err != nil {
@@ -329,6 +347,7 @@ func (s *BadgerStore) GetBlock(rr int64) (Block, error) {
 	return res, mapError(err, "Block", string(blockKey(rr)))
 }
 
+// SetBlock add a block
 func (s *BadgerStore) SetBlock(block Block) error {
 	if err := s.inmemStore.SetBlock(block); err != nil {
 		return err
@@ -336,10 +355,12 @@ func (s *BadgerStore) SetBlock(block Block) error {
 	return s.dbSetBlock(block)
 }
 
+// LastBlockIndex returns the last block index (height)
 func (s *BadgerStore) LastBlockIndex() int64 {
 	return s.inmemStore.LastBlockIndex()
 }
 
+// GetFrame returns a specific frame for the index
 func (s *BadgerStore) GetFrame(rr int64) (Frame, error) {
 	res, err := s.inmemStore.GetFrame(rr)
 	if err != nil {
@@ -348,6 +369,7 @@ func (s *BadgerStore) GetFrame(rr int64) (Frame, error) {
 	return res, mapError(err, "Frame", string(frameKey(rr)))
 }
 
+// SetFrame add a frame
 func (s *BadgerStore) SetFrame(frame Frame) error {
 	if err := s.inmemStore.SetFrame(frame); err != nil {
 		return err
@@ -355,10 +377,12 @@ func (s *BadgerStore) SetFrame(frame Frame) error {
 	return s.dbSetFrame(frame)
 }
 
+// Reset all roots
 func (s *BadgerStore) Reset(roots map[string]Root) error {
 	return s.inmemStore.Reset(roots)
 }
 
+// Close badger
 func (s *BadgerStore) Close() error {
 	if err := s.inmemStore.Close(); err != nil {
 		return err
@@ -366,10 +390,12 @@ func (s *BadgerStore) Close() error {
 	return s.db.Close()
 }
 
+// NeedBoostrap checks if bootstrapping is required
 func (s *BadgerStore) NeedBoostrap() bool {
 	return s.needBoostrap
 }
 
+// StorePath returns the path to the file on disk
 func (s *BadgerStore) StorePath() string {
 	return s.path
 }
@@ -415,23 +441,27 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 		}
 		// check if it already exists
 		existent := false
-		_, err = tx.Get([]byte(eventHex))
-		if err != nil && isDBKeyNotFound(err) {
+		val2, err := tx.Get([]byte(eventHex))
+		if err != nil && !isDBKeyNotFound(err) {
+			return err
+		}
+		if val2 != nil {
 			existent = true
 		}
+
 		// insert [event hash] => [event bytes]
 		if err := tx.Set([]byte(eventHex), val); err != nil {
 			return err
 		}
 
-		if existent {
+		if !existent {
 			// insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.Message.TopologicalIndex)
 			if err := tx.Set(topoKey, []byte(eventHex)); err != nil {
 				return err
 			}
 			// insert [participant_index] => [event hash]
-			peKey := participantEventKey(event.Creator(), event.Index())
+			peKey := participantEventKey(event.GetCreator(), event.Index())
 			if err := tx.Set(peKey, []byte(eventHex)); err != nil {
 				return err
 			}
@@ -443,7 +473,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 	var res []Event
 	var evKey string
-	t := int64(-1)
+	t := int64(0)
 	err := s.db.View(func(txn *badger.Txn) error {
 		key := topologicalEventKey(t)
 		item, errr := txn.Get(key)
@@ -461,7 +491,12 @@ func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 				return err
 			}
 			err = eventItem.Value(func(eventBytes []byte) error {
-				event := new(Event)
+				event := &Event{
+					roundReceived:    RoundNIL,
+					round:            RoundNIL,
+					lamportTimestamp: LamportTimestampNIL,
+				}
+
 				if err := event.ProtoUnmarshal(eventBytes); err != nil {
 					return err
 				}
@@ -545,7 +580,7 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 			return err
 		}
 		key := participantRootKey(participant)
-		// 		fmt.Println("Setting root", participant, "->", key)
+		// fmt.Println("Setting root", participant, "->", key)
 		// insert [participant_root] => [root bytes]
 		if err := tx.Set(key, val); err != nil {
 			return err
@@ -566,17 +601,17 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 			Parents: []string{"", ""},
 		}
 		event := Event{
-			Message: EventMessage{
-				Hex:              root.SelfParent.Hash,
+			Message: &EventMessage{
+				Hash:             utils.HashFromHex(root.SelfParent.Hash),
 				CreatorID:        root.SelfParent.CreatorID,
 				TopologicalIndex: -1,
 				Body:             &body,
 				FlagTable:        ft,
-				LamportTimestamp: 0,
-				Round:            0,
-				RoundReceived:    0 /*RoundNIL*/,
 				ClothoProof:      []string{root.SelfParent.Hash},
 			},
+			lamportTimestamp: 0,
+			round:            0,
+			roundReceived:    0, /*RoundNIL*/
 		}
 		if err := s.SetEvent(event); err != nil {
 			return err
@@ -635,6 +670,10 @@ func (s *BadgerStore) dbGetRoundCreated(index int64) (RoundCreated, error) {
 	if err := roundInfo.ProtoUnmarshal(roundBytes); err != nil {
 		return *NewRoundCreated(), err
 	}
+	// In the current design, Queued field must be re-calculated every time for
+	// each round. When retrieving a round info from a database, this field
+	// should be ignored.
+	roundInfo.Message.Queued = false
 
 	return *roundInfo, nil
 }
@@ -833,7 +872,7 @@ func (s *BadgerStore) dbSetFrame(frame Frame) error {
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 func isDBKeyNotFound(err error) bool {
-	return err.Error() == badger.ErrKeyNotFound.Error()
+	return err == badger.ErrKeyNotFound
 }
 
 func mapError(err error, name, key string) error {

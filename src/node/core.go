@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
+// Core struct that controls the consensus, transaction, and communication
 type Core struct {
 	id     int64
 	key    *ecdsa.PrivateKey
@@ -43,6 +44,7 @@ type Core struct {
 	blockSignaturePoolLocker      sync.RWMutex
 }
 
+// NewCore creates a new core struct
 func NewCore(id int64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	store poset.Store, commitCh chan poset.Block, logger *logrus.Logger) *Core {
 
@@ -82,10 +84,12 @@ func NewCore(id int64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	return core
 }
 
+// ID returns the ID of this core
 func (c *Core) ID() int64 {
 	return c.id
 }
 
+// PubKey returns the public key of this core
 func (c *Core) PubKey() []byte {
 	if c.pubKey == nil {
 		c.pubKey = crypto.FromECDSAPub(&c.key.PublicKey)
@@ -93,6 +97,7 @@ func (c *Core) PubKey() []byte {
 	return c.pubKey
 }
 
+// HexID returns the Hex representation of the public key
 func (c *Core) HexID() string {
 	if c.hexID == "" {
 		pubKey := c.PubKey()
@@ -101,6 +106,7 @@ func (c *Core) HexID() string {
 	return c.hexID
 }
 
+// Head returns the current chain head for this core
 func (c *Core) Head() string {
 	return c.head
 }
@@ -119,10 +125,12 @@ func (c *Core) Heights() map[string]uint64 {
 	return heights
 }
 
+// InDegrees returns all vertexes from other nodes that reference this top event block
 func (c *Core) InDegrees() map[string]uint64 {
 	return c.inDegrees
 }
 
+// SetHeadAndSeq calculates and sets the current head for the chain
 func (c *Core) SetHeadAndSeq() error {
 
 	var head string
@@ -161,6 +169,7 @@ func (c *Core) SetHeadAndSeq() error {
 	return nil
 }
 
+// Bootstrap the poset with default values
 func (c *Core) Bootstrap() error {
 	if err := c.poset.Bootstrap(); err != nil {
 		return err
@@ -199,6 +208,7 @@ func (c *Core) bootstrapInDegrees() {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+// SignAndInsertSelfEvent signs and inserts a self generated event block
 func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
 	if err := c.poset.SetWireInfoAndSign(&event, c.key); err != nil {
 		return err
@@ -207,11 +217,12 @@ func (c *Core) SignAndInsertSelfEvent(event poset.Event) error {
 	return c.InsertEvent(event, true)
 }
 
+// InsertEvent inserts an unknown event block
 func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 
 	c.logger.WithFields(logrus.Fields{
 		"event":      event,
-		"creator":    event.Creator(),
+		"creator":    event.GetCreator(),
 		"selfParent": event.SelfParent(),
 		"index":      event.Index(),
 		"hex":        event.Hex(),
@@ -221,25 +232,27 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 		return err
 	}
 
-	if event.Creator() == c.HexID() {
+	if event.GetCreator() == c.HexID() {
 		c.head = event.Hex()
 		c.Seq = event.Index()
 	}
 
-	c.inDegrees[event.Creator()] = 0
+	c.inDegrees[event.GetCreator()] = 0
 
 	if otherEvent, err := c.poset.Store.GetEventBlock(event.OtherParent()); err == nil {
-		c.inDegrees[otherEvent.Creator()]++
+		c.inDegrees[otherEvent.GetCreator()]++
 	}
 	return nil
 }
 
+// KnownEvents returns all known event blocks
 func (c *Core) KnownEvents() map[int64]int64 {
 	return c.poset.Store.KnownEvents()
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+// SignBlock sign a block to register it as an anchor block
 func (c *Core) SignBlock(block poset.Block) (poset.BlockSignature, error) {
 	sig, err := block.Sign(c.key)
 	if err != nil {
@@ -253,6 +266,7 @@ func (c *Core) SignBlock(block poset.Block) (poset.BlockSignature, error) {
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+// OverSyncLimit checks if the unknown events is over the sync limit and if the node should catch up
 func (c *Core) OverSyncLimit(knownEvents map[int64]int64, syncLimit int64) bool {
 	totUnknown := int64(0)
 	myKnownEvents := c.KnownEvents()
@@ -261,24 +275,22 @@ func (c *Core) OverSyncLimit(knownEvents map[int64]int64, syncLimit int64) bool 
 			totUnknown += li - knownEvents[i]
 		}
 	}
-	if totUnknown > syncLimit {
-		return true
-	}
-	return false
+	return totUnknown > syncLimit
 }
 
+// GetAnchorBlockWithFrame returns the current anchor block and their frame
 func (c *Core) GetAnchorBlockWithFrame() (poset.Block, poset.Frame, error) {
 	return c.poset.GetAnchorBlockWithFrame()
 }
 
-// returns events that c knows about and are not in 'known'
+// EventDiff returns events that c knows about and are not in 'known'
 func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error) {
 	var unknown []poset.Event
 	// known represents the index of the last event known for every participant
 	// compare this to our view of events and fill unknown with events that we know of
 	// and the other doesn't
 	for id, ct := range known {
-		peer := c.participants.ById[id]
+		peer := c.participants.ByID[id]
 		if peer == nil {
 			// unknown peer detected.
 			// TODO: we should handle this nicely
@@ -296,7 +308,7 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 			}
 			c.logger.WithFields(logrus.Fields{
 				"event":      ev,
-				"creator":    ev.Creator(),
+				"creator":    ev.GetCreator(),
 				"selfParent": ev.SelfParent(),
 				"index":      ev.Index(),
 				"hex":        ev.Hex(),
@@ -309,6 +321,7 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 	return unknown, nil
 }
 
+// Sync unknown events into our poset
 func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 	c.logger.WithFields(logrus.Fields{
@@ -333,9 +346,9 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 		}
 		if ev.Index() > myKnownEvents[ev.CreatorID()] {
-			ev.Message.LamportTimestamp = poset.LamportTimestampNIL
-			ev.Message.Round = poset.RoundNIL
-			ev.Message.RoundReceived = poset.RoundNIL
+			ev.SetLamportTimestamp(poset.LamportTimestampNIL)
+			ev.SetRound(poset.RoundNIL)
+			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
 				c.logger.Error("SYNC: INSERT ERR", err)
 				return err
@@ -359,6 +372,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	return nil
 }
 
+// FastForward catch up to another peer if too far behind
 func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) error {
 
 	// Check Block Signatures
@@ -401,6 +415,7 @@ func min(a, b int) int {
 	return b
 }
 
+// AddSelfEventBlock adds an event block created by this node
 func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 	c.addSelfEventBlockLocker.Lock()
@@ -475,6 +490,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	return nil
 }
 
+// FromWire converts wire events into event blocks (that were transported)
 func (c *Core) FromWire(wireEvents []poset.WireEvent) ([]poset.Event, error) {
 	events := make([]poset.Event, len(wireEvents), len(wireEvents))
 	for i, w := range wireEvents {
@@ -487,6 +503,7 @@ func (c *Core) FromWire(wireEvents []poset.WireEvent) ([]poset.Event, error) {
 	return events, nil
 }
 
+// ToWire converts event blocks into wire events (to be transported)
 func (c *Core) ToWire(events []poset.Event) ([]poset.WireEvent, error) {
 	wireEvents := make([]poset.WireEvent, len(events), len(events))
 	for i, e := range events {
@@ -495,6 +512,7 @@ func (c *Core) ToWire(events []poset.Event) ([]poset.WireEvent, error) {
 	return wireEvents, nil
 }
 
+// RunConsensus is the core consensus mechanism, this checks rounds / frames and creates blocks
 func (c *Core) RunConsensus() error {
 	start := time.Now()
 	err := c.poset.DivideRounds()
@@ -545,32 +563,38 @@ func (c *Core) RunConsensus() error {
 	return nil
 }
 
+// AddTransactions add transactions to the pending pool
 func (c *Core) AddTransactions(txs [][]byte) {
 	c.transactionPoolLocker.Lock()
 	defer c.transactionPoolLocker.Unlock()
 	c.transactionPool = append(c.transactionPool, txs...)
 }
 
+// AddInternalTransactions add internal transactions to the pending pool
 func (c *Core) AddInternalTransactions(txs []poset.InternalTransaction) {
 	c.internalTransactionPoolLocker.Lock()
 	defer c.internalTransactionPoolLocker.Unlock()
 	c.internalTransactionPool = append(c.internalTransactionPool, txs...)
 }
 
+// AddBlockSignature add block signatures to the pending pool
 func (c *Core) AddBlockSignature(bs poset.BlockSignature) {
 	c.blockSignaturePoolLocker.Lock()
 	defer c.blockSignaturePoolLocker.Unlock()
 	c.blockSignaturePool = append(c.blockSignaturePool, bs)
 }
 
+// GetHead get the current latest event block head
 func (c *Core) GetHead() (poset.Event, error) {
 	return c.poset.Store.GetEventBlock(c.head)
 }
 
+// GetEventBlock get a specific event block for the hash provided
 func (c *Core) GetEventBlock(hash string) (poset.Event, error) {
 	return c.poset.Store.GetEventBlock(hash)
 }
 
+// GetEventBlockTransactions get all transactions in an event block
 func (c *Core) GetEventBlockTransactions(hash string) ([][]byte, error) {
 	var txs [][]byte
 	ex, err := c.GetEventBlock(hash)
@@ -581,22 +605,27 @@ func (c *Core) GetEventBlockTransactions(hash string) ([][]byte, error) {
 	return txs, nil
 }
 
+// GetConsensusEvents get all known consensus events
 func (c *Core) GetConsensusEvents() []string {
 	return c.poset.Store.ConsensusEvents()
 }
 
+// GetConsensusEventsCount get the count of all known consensus events
 func (c *Core) GetConsensusEventsCount() int64 {
 	return c.poset.Store.ConsensusEventsCount()
 }
 
+// GetUndeterminedEvents get all unconfirmed consensus events (pending)
 func (c *Core) GetUndeterminedEvents() []string {
 	return c.poset.GetUndeterminedEvents()
 }
 
+// GetPendingLoadedEvents returns all pending (but already stored) events
 func (c *Core) GetPendingLoadedEvents() int64 {
 	return c.poset.GetPendingLoadedEvents()
 }
 
+// GetConsensusTransactions return all transactions that have reached finality
 func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	var txs [][]byte
 	for _, e := range c.GetConsensusEvents() {
@@ -609,34 +638,41 @@ func (c *Core) GetConsensusTransactions() ([][]byte, error) {
 	return txs, nil
 }
 
+// GetLastConsensusRound returns the last consensus round known
 func (c *Core) GetLastConsensusRound() int64 {
 	return c.poset.GetLastConsensusRound()
 }
 
+// GetConsensusTransactionsCount returns the count of transactions that are final
 func (c *Core) GetConsensusTransactionsCount() uint64 {
 	return c.poset.GetConsensusTransactionsCount()
 }
 
+// GetLastCommittedRoundEventsCount count of events in last round
 func (c *Core) GetLastCommittedRoundEventsCount() int {
 	return c.poset.LastCommitedRoundEvents
 }
 
+// GetLastBlockIndex retuns the latest block index
 func (c *Core) GetLastBlockIndex() int64 {
 	return c.poset.Store.LastBlockIndex()
 }
 
+// GetTransactionPoolCount returns the count of all pending transactions
 func (c *Core) GetTransactionPoolCount() int64 {
 	c.transactionPoolLocker.RLock()
 	defer c.transactionPoolLocker.RUnlock()
 	return int64(len(c.transactionPool))
 }
 
+// GetInternalTransactionPoolCount returns the count of all pending internal transactions
 func (c *Core) GetInternalTransactionPoolCount() int64 {
 	c.internalTransactionPoolLocker.RLock()
 	defer c.internalTransactionPoolLocker.RUnlock()
 	return int64(len(c.internalTransactionPool))
 }
 
+// GetBlockSignaturePoolCount returns the count of all pending block signatures
 func (c *Core) GetBlockSignaturePoolCount() int64 {
 	c.blockSignaturePoolLocker.RLock()
 	defer c.blockSignaturePoolLocker.RUnlock()

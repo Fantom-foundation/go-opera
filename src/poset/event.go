@@ -13,6 +13,8 @@ import (
 /*******************************************************************************
 InternalTransactions
 *******************************************************************************/
+
+// NewInternalTransaction constructor
 func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTransaction {
 	return InternalTransaction{
 		Type: tType,
@@ -20,6 +22,7 @@ func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTran
 	}
 }
 
+// ProtoMarshal marshal internal transaction to protobuff
 func (t *InternalTransaction) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -28,6 +31,8 @@ func (t *InternalTransaction) ProtoMarshal() ([]byte, error) {
 	}
 	return bf.Bytes(), nil
 }
+
+// ProtoUnmarshal unmarshal protobuff to internal transaction
 func (t *InternalTransaction) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, t)
 }
@@ -36,11 +41,13 @@ func (t *InternalTransaction) ProtoUnmarshal(data []byte) error {
 EventBody
 *******************************************************************************/
 
-func (this *InternalTransaction) Equals(that *InternalTransaction) bool {
-	return this.Peer.Equals(that.Peer) &&
-		this.Type == that.Type
+// Equals equality check for internal transaction
+func (t *InternalTransaction) Equals(that *InternalTransaction) bool {
+	return t.Peer.Equals(that.Peer) &&
+		t.Type == that.Type
 }
 
+// BytesEquals compares bytes for equality
 func BytesEquals(this []byte, that []byte) bool {
 	if len(this) != len(that) {
 		return false
@@ -53,12 +60,7 @@ func BytesEquals(this []byte, that []byte) bool {
 	return true
 }
 
-func (this *BlockSignature) Equals(that *BlockSignature) bool {
-	return reflect.DeepEqual(this.Validator, that.Validator) &&
-		this.Index == that.Index &&
-		this.Signature == that.Signature
-}
-
+// InternalTransactionListEquals list equality check
 func InternalTransactionListEquals(this []*InternalTransaction, that []*InternalTransaction) bool {
 	if len(this) != len(that) {
 		return false
@@ -71,6 +73,7 @@ func InternalTransactionListEquals(this []*InternalTransaction, that []*Internal
 	return true
 }
 
+// BlockSignatureListEquals block signature list equality check
 func BlockSignatureListEquals(this []*BlockSignature, that []*BlockSignature) bool {
 	if len(this) != len(that) {
 		return false
@@ -83,15 +86,17 @@ func BlockSignatureListEquals(this []*BlockSignature, that []*BlockSignature) bo
 	return true
 }
 
-func (this *EventBody) Equals(that *EventBody) bool {
-	return reflect.DeepEqual(this.Transactions, that.Transactions) &&
-		InternalTransactionListEquals(this.InternalTransactions, that.InternalTransactions) &&
-		reflect.DeepEqual(this.Parents, that.Parents) &&
-		reflect.DeepEqual(this.Creator, that.Creator) &&
-		this.Index == that.Index &&
-		BlockSignatureListEquals(this.BlockSignatures, that.BlockSignatures)
+// Equals event body equality check
+func (e *EventBody) Equals(that *EventBody) bool {
+	return reflect.DeepEqual(e.Transactions, that.Transactions) &&
+		InternalTransactionListEquals(e.InternalTransactions, that.InternalTransactions) &&
+		reflect.DeepEqual(e.Parents, that.Parents) &&
+		reflect.DeepEqual(e.Creator, that.Creator) &&
+		e.Index == that.Index &&
+		BlockSignatureListEquals(e.BlockSignatures, that.BlockSignatures)
 }
 
+// ProtoMarshal marshal event body to protobuff
 func (e *EventBody) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -101,10 +106,12 @@ func (e *EventBody) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal unmarshal protobuff to event body
 func (e *EventBody) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, e)
 }
 
+// Hash returns hash of event body
 func (e *EventBody) Hash() ([]byte, error) {
 	hashBytes, err := e.ProtoMarshal()
 	if err != nil {
@@ -117,24 +124,28 @@ func (e *EventBody) Hash() ([]byte, error) {
 Event
 *******************************************************************************/
 
+// LamportTimestampNIL nil value for lamport
 const LamportTimestampNIL int64 = -1
+
+// RoundNIL nil value for round
 const RoundNIL int64 = -1
 
-type Event struct {
-	Message EventMessage
-}
-
-func (e EventMessage) ToEvent() Event {
+// ToEvent converts message to event
+func (m *EventMessage) ToEvent() Event {
 	return Event{
-		Message: e,
+		Message:          m,
+		lamportTimestamp: LamportTimestampNIL,
+		round:            RoundNIL,
+		roundReceived:    RoundNIL,
 	}
 }
 
-func (this *EventMessage) Equals(that *EventMessage) bool {
-	return this.Body.Equals(that.Body) &&
-		this.Signature == that.Signature &&
-		BytesEquals(this.FlagTable, that.FlagTable) &&
-		reflect.DeepEqual(this.ClothoProof, that.ClothoProof)
+// Equals compares equality of two event messages
+func (m *EventMessage) Equals(that *EventMessage) bool {
+	return m.Body.Equals(that.Body) &&
+		m.Signature == that.Signature &&
+		BytesEquals(m.FlagTable, that.FlagTable) &&
+		reflect.DeepEqual(m.ClothoProof, that.ClothoProof)
 }
 
 // NewEvent creates new block event.
@@ -166,63 +177,84 @@ func NewEvent(transactions [][]byte,
 	ft, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
 
 	return Event{
-		Message: EventMessage{
-			Body:             &body,
-			FlagTable:        ft,
-			LamportTimestamp: LamportTimestampNIL,
-			Round:            RoundNIL,
-			RoundReceived:    RoundNIL,
+		Message: &EventMessage{
+			Body:      &body,
+			FlagTable: ft,
 		},
+		lamportTimestamp: LamportTimestampNIL,
+		round:            RoundNIL,
+		roundReceived:    RoundNIL,
 	}
 }
 
-// Round returns round of event.
+// Event struct
+type Event struct {
+	Message          *EventMessage
+	lamportTimestamp int64
+	round            int64
+	roundReceived    int64
+}
+
+// GetRound Round returns round of event.
 func (e *Event) GetRound() int64 {
-	if e.Message.Round < 0 {
+	if e.round < 0 {
 		return RoundNIL
 	}
-	return e.Message.Round
+	return e.round
 }
 
+// GetRoundReceived Round returns round in which the event is received.
+func (e *Event) GetRoundReceived() int64 {
+	if e.roundReceived < 0 {
+		return RoundNIL
+	}
+	return e.round
+}
+
+// GetLamportTimestamp returns the lamport timestamp
 func (e *Event) GetLamportTimestamp() int64 {
-	if e.Message.LamportTimestamp < 0 {
+	if e.lamportTimestamp < 0 {
 		return LamportTimestampNIL
 	}
-	return e.Message.LamportTimestamp
+	return e.lamportTimestamp
 }
 
-func (e *Event) Creator() string {
-	if e.Message.Creator == "" {
-		e.Message.Creator = fmt.Sprintf("0x%X", e.Message.Body.Creator)
-	}
-	return e.Message.Creator
+// GetCreator returns the creator for the event
+func (e *Event) GetCreator() string {
+	return fmt.Sprintf("0x%X", e.Message.Body.Creator)
 }
 
+// SelfParent returns the previous event block in this creator DAG
 func (e *Event) SelfParent() string {
 	return e.Message.Body.Parents[0]
 }
 
+// OtherParent returns the other (not this node) parent(s)
 func (e *Event) OtherParent() string {
 	return e.Message.Body.Parents[1]
 }
 
+// Transactions returns all transactions in the event
 func (e *Event) Transactions() [][]byte {
 	return e.Message.Body.Transactions
 }
 
+// InternalTransactions returns all internal transactions in the event
 func (e *Event) InternalTransactions() []*InternalTransaction {
 	return e.Message.Body.InternalTransactions
 }
 
+// Index returns the index (height) of this event
 func (e *Event) Index() int64 {
 	return e.Message.Body.Index
 }
 
+// BlockSignatures returns all block signatures for this event
 func (e *Event) BlockSignatures() []*BlockSignature {
 	return e.Message.Body.BlockSignatures
 }
 
-// True if Event contains a payload or is the initial Event of its creator
+// IsLoaded True if Event contains a payload or is the initial Event of its creator
 func (e *Event) IsLoaded() bool {
 	if e.Message.Body.Index == 0 {
 		return true
@@ -234,7 +266,7 @@ func (e *Event) IsLoaded() bool {
 	return hasTransactions
 }
 
-// ecdsa sig
+// Sign ecdsa sig
 func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
 	signBytes, err := e.Message.Body.Hash()
 	if err != nil {
@@ -248,6 +280,7 @@ func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
 	return err
 }
 
+// Verify ecdsa sig
 func (e *Event) Verify() (bool, error) {
 	pubBytes := e.Message.Body.Creator
 	pubKey := crypto.ToECDSAPub(pubBytes)
@@ -265,20 +298,23 @@ func (e *Event) Verify() (bool, error) {
 	return crypto.Verify(pubKey, signBytes, r, s), nil
 }
 
+// ProtoMarshal event to protobuff
 func (e *Event) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(&e.Message); err != nil {
+	if err := bf.Marshal(e.Message); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal profotbuff to event
 func (e *Event) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, &e.Message)
+	e.Message = &EventMessage{}
+	return proto.Unmarshal(data, e.Message)
 }
 
-// sha256 hash of body
+// Hash sha256 hash of body
 func (e *Event) Hash() ([]byte, error) {
 	if len(e.Message.Hash) == 0 {
 		hash, err := e.Message.Body.Hash()
@@ -290,36 +326,36 @@ func (e *Event) Hash() ([]byte, error) {
 	return e.Message.Hash, nil
 }
 
+// Hex of hash
 func (e *Event) Hex() string {
-	if e.Message.Hex == "" {
-		hash, _ := e.Hash()
-		e.Message.Hex = fmt.Sprintf("0x%X", hash)
-	}
-	return e.Message.Hex
+	hash, _ := e.Hash()
+	return fmt.Sprintf("0x%X", hash)
 }
 
+// SetRound for event
 func (e *Event) SetRound(r int64) {
-	e.Message.Round = r
+	e.round = r
 }
 
+// SetLamportTimestamp for event
 func (e *Event) SetLamportTimestamp(t int64) {
-	e.Message.LamportTimestamp = t
+	e.lamportTimestamp = t
 }
 
+// SetRoundReceived for event
 func (e *Event) SetRoundReceived(rr int64) {
-	e.Message.RoundReceived = rr
+	e.roundReceived = rr
 }
 
-func (e *Event) SetWireInfo(selfParentIndex,
-otherParentCreatorID,
-otherParentIndex,
-creatorID int64) {
+// SetWireInfo for event
+func (e *Event) SetWireInfo(selfParentIndex, otherParentCreatorID, otherParentIndex, creatorID int64) {
 	e.Message.SelfParentIndex = selfParentIndex
 	e.Message.OtherParentCreatorID = otherParentCreatorID
 	e.Message.OtherParentIndex = otherParentIndex
 	e.Message.CreatorID = creatorID
 }
 
+// WireBlockSignatures returns the wire block signatures for the event
 func (e *Event) WireBlockSignatures() []WireBlockSignature {
 	if e.Message.Body.BlockSignatures != nil {
 		wireSignatures := make([]WireBlockSignature, len(e.Message.Body.BlockSignatures))
@@ -332,6 +368,7 @@ func (e *Event) WireBlockSignatures() []WireBlockSignature {
 	return nil
 }
 
+// ToWire converts event to wire event
 func (e *Event) ToWire() WireEvent {
 
 	transactions := make([]InternalTransaction, len(e.Message.Body.InternalTransactions))
@@ -384,10 +421,12 @@ func (e *Event) MergeFlagTable(
 	return src.Body, err
 }
 
+// CreatorID returns the creator ID for an event
 func (e *Event) CreatorID() int64 {
 	return e.Message.CreatorID
 }
 
+// OtherParentCreatorID ID of other parent(s)
 func (e *Event) OtherParentCreatorID() int64 {
 	return e.Message.OtherParentCreatorID
 }
@@ -419,8 +458,8 @@ type ByLamportTimestamp []Event
 func (a ByLamportTimestamp) Len() int      { return len(a) }
 func (a ByLamportTimestamp) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a ByLamportTimestamp) Less(i, j int) bool {
-	it := a[i].Message.LamportTimestamp
-	jt := a[j].Message.LamportTimestamp
+	it := a[i].lamportTimestamp
+	jt := a[j].lamportTimestamp
 	if it != jt {
 		return it < jt
 	}
@@ -434,6 +473,7 @@ func (a ByLamportTimestamp) Less(i, j int) bool {
  WireEvent
 *******************************************************************************/
 
+// WireBody struct
 type WireBody struct {
 	Transactions         [][]byte
 	InternalTransactions []InternalTransaction
@@ -447,6 +487,7 @@ type WireBody struct {
 	Index int64
 }
 
+// WireEvent struct
 type WireEvent struct {
 	Body        WireBody
 	Signature   string
@@ -454,6 +495,7 @@ type WireEvent struct {
 	ClothoProof []string
 }
 
+// BlockSignatures TODO
 func (we *WireEvent) BlockSignatures(validator []byte) []BlockSignature {
 	if we.Body.BlockSignatures != nil {
 		blockSignatures := make([]BlockSignature, len(we.Body.BlockSignatures))

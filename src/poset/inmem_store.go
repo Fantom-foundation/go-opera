@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 )
 
+// InmemStore struct
 type InmemStore struct {
 	cacheSize              int
 	participants           *peers.Peers
@@ -35,6 +36,7 @@ type InmemStore struct {
 	totConsensusEventsLocker sync.RWMutex
 }
 
+// NewInmemStore constructor
 func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 	rootsByParticipant := make(map[string]Root)
 
@@ -103,17 +105,19 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 	return store
 }
 
+// CacheSize size of cache
 func (s *InmemStore) CacheSize() int {
 	return s.cacheSize
 }
 
+// Participants returns participants
 func (s *InmemStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
 func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
 	// Extend PartipantEventsCache and Roots with new peers
-	for _, peer := range participants.ById {
+	for _, peer := range participants.ByID {
 		s.repertoireByPubKey[peer.PubKeyHex] = peer
 		s.repertoireByID[peer.ID] = peer
 	}
@@ -129,6 +133,7 @@ func (s *InmemStore) RepertoireByID() map[int64]*peers.Peer {
 	return s.repertoireByID
 }
 
+// RootsBySelfParent TODO
 func (s *InmemStore) RootsBySelfParent() (map[string]Root, error) {
 	if s.rootsBySelfParent == nil {
 		s.rootsBySelfParent = make(map[string]Root)
@@ -139,6 +144,7 @@ func (s *InmemStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.rootsBySelfParent, nil
 }
 
+// GetEventBlock returns the event block for a key
 func (s *InmemStore) GetEventBlock(key string) (Event, error) {
 	res, ok := s.eventCache.Get(key)
 	if !ok {
@@ -148,6 +154,7 @@ func (s *InmemStore) GetEventBlock(key string) (Event, error) {
 	return res.(Event), nil
 }
 
+// SetEvent set event for event block
 func (s *InmemStore) SetEvent(event Event) error {
 	key := event.Hex()
 	_, err := s.GetEventBlock(key)
@@ -155,7 +162,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		return err
 	}
 	if cm.Is(err, cm.KeyNotFound) {
-		if err := s.addParticpantEvent(event.Creator(), key, event.Index()); err != nil {
+		if err := s.addParticpantEvent(event.GetCreator(), key, event.Index()); err != nil {
 			return err
 		}
 	}
@@ -170,10 +177,12 @@ func (s *InmemStore) addParticpantEvent(participant string, hash string, index i
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
+// ParticipantEvents events for the participant
 func (s *InmemStore) ParticipantEvents(participant string, skip int64) ([]string, error) {
 	return s.participantEventsCache.Get(participant, skip)
 }
 
+// ParticipantEvent specific event
 func (s *InmemStore) ParticipantEvent(participant string, index int64) (string, error) {
 	ev, err := s.participantEventsCache.GetItem(participant, index)
 	if err != nil {
@@ -189,6 +198,7 @@ func (s *InmemStore) ParticipantEvent(participant string, index int64) (string, 
 	return ev, err
 }
 
+// LastEventFrom participant
 func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {
 	// try to get the last event from this participant
 	last, err = s.participantEventsCache.GetLast(participant)
@@ -207,6 +217,7 @@ func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool
 	return
 }
 
+// LastConsensusEventFrom participant
 func (s *InmemStore) LastConsensusEventFrom(participant string) (last string, isRoot bool, err error) {
 	// try to get the last consensus event from this participant
 	last, ok := s.lastConsensusEvents[participant]
@@ -223,6 +234,7 @@ func (s *InmemStore) LastConsensusEventFrom(participant string) (last string, is
 	return
 }
 
+// KnownEvents returns all known events
 func (s *InmemStore) KnownEvents() map[int64]int64 {
 	known := s.participantEventsCache.Known()
 	for p, pid := range s.participants.ByPubKey {
@@ -236,6 +248,7 @@ func (s *InmemStore) KnownEvents() map[int64]int64 {
 	return known
 }
 
+// ConsensusEvents returns all consensus events
 func (s *InmemStore) ConsensusEvents() []string {
 	lastWindow, _ := s.consensusCache.GetLastWindow()
 	res := make([]string, len(lastWindow))
@@ -245,22 +258,24 @@ func (s *InmemStore) ConsensusEvents() []string {
 	return res
 }
 
+// ConsensusEventsCount returns count of all consnesus events
 func (s *InmemStore) ConsensusEventsCount() int64 {
 	s.totConsensusEventsLocker.RLock()
 	defer s.totConsensusEventsLocker.RUnlock()
 	return s.totConsensusEvents
 }
 
+// AddConsensusEvent to store
 func (s *InmemStore) AddConsensusEvent(event Event) error {
 	s.totConsensusEventsLocker.Lock()
 	defer s.totConsensusEventsLocker.Unlock()
 	s.consensusCache.Set(event.Hex(), s.totConsensusEvents)
 	s.totConsensusEvents++
-	s.lastConsensusEvents[event.Creator()] = event.Hex()
+	s.lastConsensusEvents[event.GetCreator()] = event.Hex()
 	return nil
 }
 
-// GetRoundCreated retrieves created round from cache by id
+// GetRoundCreated retrieves created round by ID
 func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	res, ok := s.roundCreatedCache.Get(r)
 	if !ok {
@@ -269,7 +284,7 @@ func (s *InmemStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	return res.(RoundCreated), nil
 }
 
-// SetRoundCreated stores created round in cache by id
+// SetRoundCreated stores created round by ID
 func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
 	s.lastRoundLocker.Lock()
 	defer s.lastRoundLocker.Unlock()
@@ -280,7 +295,7 @@ func (s *InmemStore) SetRoundCreated(r int64, round RoundCreated) error {
 	return nil
 }
 
-// GetRoundReceived gets received round from cache by id
+// GetRoundReceived gets received round by ID
 func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	res, ok := s.roundReceivedCache.Get(r)
 	if !ok {
@@ -289,7 +304,7 @@ func (s *InmemStore) GetRoundReceived(r int64) (RoundReceived, error) {
 	return res.(RoundReceived), nil
 }
 
-// SetRoundReceived stores received round in cache by id
+// SetRoundReceived stores received round by ID
 func (s *InmemStore) SetRoundReceived(r int64, round RoundReceived) error {
 	s.lastRoundLocker.Lock()
 	defer s.lastRoundLocker.Unlock()
@@ -300,12 +315,14 @@ func (s *InmemStore) SetRoundReceived(r int64, round RoundReceived) error {
 	return nil
 }
 
+// LastRound getter
 func (s *InmemStore) LastRound() int64 {
 	s.lastRoundLocker.RLock()
 	defer s.lastRoundLocker.RUnlock()
 	return s.lastRound
 }
 
+// RoundClothos all clothos for the specified round
 func (s *InmemStore) RoundClothos(r int64) []string {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
@@ -314,6 +331,7 @@ func (s *InmemStore) RoundClothos(r int64) []string {
 	return round.Clotho()
 }
 
+// RoundEvents returns events for the round
 func (s *InmemStore) RoundEvents(r int64) int {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
@@ -322,6 +340,7 @@ func (s *InmemStore) RoundEvents(r int64) int {
 	return len(round.Message.Events)
 }
 
+// GetRoot for participant
 func (s *InmemStore) GetRoot(participant string) (Root, error) {
 	res, ok := s.rootsByParticipant[participant]
 	if !ok {
@@ -330,6 +349,7 @@ func (s *InmemStore) GetRoot(participant string) (Root, error) {
 	return res, nil
 }
 
+// GetBlock for index
 func (s *InmemStore) GetBlock(index int64) (Block, error) {
 	res, ok := s.blockCache.Get(index)
 	if !ok {
@@ -338,6 +358,7 @@ func (s *InmemStore) GetBlock(index int64) (Block, error) {
 	return res.(Block), nil
 }
 
+// SetBlock TODO
 func (s *InmemStore) SetBlock(block Block) error {
 	s.lastBlockLocker.Lock()
 	defer s.lastBlockLocker.Unlock()
@@ -353,12 +374,14 @@ func (s *InmemStore) SetBlock(block Block) error {
 	return nil
 }
 
+// LastBlockIndex getter
 func (s *InmemStore) LastBlockIndex() int64 {
 	s.lastBlockLocker.RLock()
 	defer s.lastBlockLocker.RUnlock()
 	return s.lastBlock
 }
 
+// GetFrame by index
 func (s *InmemStore) GetFrame(index int64) (Frame, error) {
 	res, ok := s.frameCache.Get(index)
 	if !ok {
@@ -367,6 +390,7 @@ func (s *InmemStore) GetFrame(index int64) (Frame, error) {
 	return res.(Frame), nil
 }
 
+// SetFrame in the store
 func (s *InmemStore) SetFrame(frame Frame) error {
 	index := frame.Round
 	_, err := s.GetFrame(index)
@@ -377,6 +401,7 @@ func (s *InmemStore) SetFrame(frame Frame) error {
 	return nil
 }
 
+// Reset resets the store
 func (s *InmemStore) Reset(roots map[string]Root) error {
 	eventCache, errr := lru.New(s.cacheSize)
 	if errr != nil {
@@ -416,14 +441,17 @@ func (s *InmemStore) Reset(roots map[string]Root) error {
 	return err
 }
 
+// Close the store
 func (s *InmemStore) Close() error {
 	return nil
 }
 
+// NeedBoostrap for the store
 func (s *InmemStore) NeedBoostrap() bool {
 	return false
 }
 
+// StorePath getter
 func (s *InmemStore) StorePath() string {
 	return ""
 }

@@ -11,7 +11,7 @@ func (a ByValue) Less(i, j int) bool {
 	s0 := a[i]
 	s1 := a[j]
 
-	if len(s0) < len(s0) {
+	if len(s0) < len(s1) {
 		return true
 	}
 	if len(s0) > len(s1) {

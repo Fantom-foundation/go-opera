@@ -16,11 +16,13 @@ const (
 	pemKeyPath = "priv_key.pem"
 )
 
+// PemKey struct
 type PemKey struct {
 	l    sync.Mutex
 	path string
 }
 
+// NewPemKey constructor
 func NewPemKey(base string) *PemKey {
 	p := filepath.Join(base, pemKeyPath)
 
@@ -31,6 +33,7 @@ func NewPemKey(base string) *PemKey {
 	return pemKey
 }
 
+// ReadKey from disk
 func (k *PemKey) ReadKey() (*ecdsa.PrivateKey, error) {
 	k.l.Lock()
 	defer k.l.Unlock()
@@ -44,6 +47,7 @@ func (k *PemKey) ReadKey() (*ecdsa.PrivateKey, error) {
 	return k.ReadKeyFromBuf(buf)
 }
 
+// ReadKeyFromBuf from buffer
 func (k *PemKey) ReadKeyFromBuf(buf []byte) (*ecdsa.PrivateKey, error) {
 	if len(buf) == 0 {
 		return nil, nil
@@ -58,6 +62,7 @@ func (k *PemKey) ReadKeyFromBuf(buf []byte) (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(block.Bytes)
 }
 
+// WriteKey to disk
 func (k *PemKey) WriteKey(key *ecdsa.PrivateKey) error {
 	k.l.Lock()
 	defer k.l.Unlock()
@@ -75,11 +80,13 @@ func (k *PemKey) WriteKey(key *ecdsa.PrivateKey) error {
 	return ioutil.WriteFile(k.path, []byte(pemKey.PrivateKey), 0755)
 }
 
+// PemDump struct
 type PemDump struct {
 	PublicKey  string
 	PrivateKey string
 }
 
+// GeneratePemKey generate new PEM key
 func GeneratePemKey() (*PemDump, error) {
 	key, err := GenerateECDSAKey()
 	if err != nil {
@@ -89,6 +96,7 @@ func GeneratePemKey() (*PemDump, error) {
 	return ToPemKey(key)
 }
 
+// ToPemKey get PEM mfrom private key
 func ToPemKey(priv *ecdsa.PrivateKey) (*PemDump, error) {
 	pub := fmt.Sprintf("0x%X", FromECDSAPub(&priv.PublicKey))
 

@@ -1,6 +1,6 @@
 // +build multi
 
-// This version will be built when tag MULTI is used in go build
+// Package commands This version will be built when tag MULTI is used in go build
 //
 package commands
 

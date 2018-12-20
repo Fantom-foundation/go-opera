@@ -3,12 +3,11 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
-
-	"strconv"
 
 	"github.com/Fantom-foundation/go-lachesis/src/net"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
@@ -16,8 +15,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
+// Node struct that keeps all high level node functions
 type Node struct {
-	state *nodeState2
+	*nodeState2
 
 	conf   *Config
 	logger *logrus.Entry
@@ -53,6 +53,7 @@ type Node struct {
 	rpcJobs      count64
 }
 
+// NewNode create a new node struct
 func NewNode(conf *Config,
 	id int64,
 	key *ecdsa.PrivateKey,
@@ -70,7 +71,7 @@ func NewNode(conf *Config,
 
 	pubKey := core.HexID()
 
-	//	peerSelector := NewRandomPeerSelector(participants, localAddr)
+	// peerSelector := NewRandomPeerSelector(participants, localAddr)
 	peerSelector := NewSmartPeerSelector(participants, pubKey,
 		core.poset.GetFlagTableOfRandomUndeterminedEvent)
 
@@ -92,7 +93,7 @@ func NewNode(conf *Config,
 		start:            time.Now(),
 		gossipJobs:       0,
 		rpcJobs:          0,
-		state:            newNodeState2(),
+		nodeState2:       newNodeState2(),
 	}
 
 	node.logger.WithField("peers", pmap).Debug("pmap")
@@ -101,11 +102,12 @@ func NewNode(conf *Config,
 	node.needBoostrap = store.NeedBoostrap()
 
 	// Initialize
-	node.state.setState(Gossiping)
+	node.setState(Gossiping)
 
 	return &node
 }
 
+// Init initializes all the node processes
 func (n *Node) Init() error {
 	var peerAddresses []string
 	for _, p := range n.peerSelector.Peers().ToPeerSlice() {
@@ -124,11 +126,13 @@ func (n *Node) Init() error {
 	return n.core.SetHeadAndSeq()
 }
 
+// RunAsync run the background processes asynchronously
 func (n *Node) RunAsync(gossip bool) {
 	n.logger.Debug("RunAsync(gossip bool)")
 	go n.Run(gossip)
 }
 
+// Run core run loop, takes care of all processes
 func (n *Node) Run(gossip bool) {
 	// The ControlTimer allows the background routines to control the
 	// heartbeat timer when the node is in the Gossiping state. The timer should
@@ -145,8 +149,8 @@ func (n *Node) Run(gossip bool) {
 	// Execute Node State Machine
 	for {
 		// Run different routines depending on node state
-		state := n.state.getState()
-		n.logger.WithField("state", n.state.state.String()).Debug("RunAsync(gossip bool)")
+		state := n.getState()
+		n.logger.WithField("state", state.String()).Debug("RunAsync(gossip bool)")
 
 		switch state {
 		case Gossiping:
@@ -164,7 +168,7 @@ func (n *Node) Run(gossip bool) {
 func (n *Node) resetTimer() {
 	if !n.controlTimer.GetSet() {
 		ts := n.conf.HeartbeatTimeout
-		//Slow gossip if nothing interesting to say
+		// Slow gossip if nothing interesting to say
 		if n.core.poset.GetPendingLoadedEvents() == 0 &&
 			n.core.GetTransactionPoolCount() == 0 &&
 			n.core.GetBlockSignaturePoolCount() == 0 {
@@ -209,7 +213,7 @@ func (n *Node) lachesis(gossip bool) {
 	for {
 		select {
 		case rpc := <-n.netCh:
-			n.state.goFunc(func() {
+			n.goFunc(func() {
 				n.rpcJobs.increment()
 				n.logger.Debug("Processing RPC")
 				n.processRPC(rpc)
@@ -221,7 +225,7 @@ func (n *Node) lachesis(gossip bool) {
 				n.selectorLock.Lock()
 				peerAddr := n.peerSelector.Next().NetAddr
 				n.selectorLock.Unlock()
-				n.state.goFunc(func() {
+				n.goFunc(func() {
 					n.gossipJobs.increment()
 					n.gossip(peerAddr, returnCh)
 					n.gossipJobs.decrement()
@@ -382,7 +386,7 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	// check and handle syncLimit
 	if syncLimit {
 		n.logger.WithField("from", peerAddr).Debug("SyncLimit")
-		n.state.setState(CatchingUp)
+		n.setState(CatchingUp)
 		parentReturnCh <- struct{}{}
 		return nil
 	}
@@ -413,9 +417,9 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 	elapsed := time.Since(start)
 	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestSync(peerAddr, knownEvents)")
 	// FIXIT: should we catch io.EOF error here and how we process it?
-	//	if err == io.EOF {
-	//		return false, nil, nil
-	//	}
+	// 	if err == io.EOF {
+	// 		return false, nil, nil
+	// 	}
 	if err != nil {
 		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
 		return false, nil, err
@@ -498,7 +502,7 @@ func (n *Node) fastForward() error {
 	n.logger.Debug("fastForward()")
 
 	// wait until sync routines finish
-	n.state.waitRoutines()
+	n.waitRoutines()
 
 	// fastForwardRequest
 	n.selectorLock.Lock()
@@ -537,7 +541,7 @@ func (n *Node) fastForward() error {
 		return err
 	}
 
-	n.state.setState(Gossiping)
+	n.setState(Gossiping)
 
 	return nil
 }
@@ -551,7 +555,7 @@ func (n *Node) requestSync(target string, known map[int64]int64) (net.SyncRespon
 
 	var out net.SyncResponse
 	err := n.trans.Sync(target, &args, &out)
-	//n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
+	// n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
 	return out, err
 }
 
@@ -661,17 +665,18 @@ func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {
 	n.core.AddInternalTransactions([]poset.InternalTransaction{tx})
 }
 
+// Shutdown the node
 func (n *Node) Shutdown() {
-	if n.state.getState() != Shutdown {
+	if n.getState() != Shutdown {
 		// n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
 		n.logger.Debug("Shutdown()")
 
 		// Exit any non-shutdown state immediately
-		n.state.setState(Shutdown)
+		n.setState(Shutdown)
 
 		// Stop and wait for concurrent operations
 		close(n.shutdownCh)
-		n.state.waitRoutines()
+		n.waitRoutines()
 
 		// For some reason this needs to be called after closing the shutdownCh
 		// Not entirely sure why...
@@ -684,6 +689,7 @@ func (n *Node) Shutdown() {
 	}
 }
 
+// GetStats returns processing stats for the node
 func (n *Node) GetStats() map[string]string {
 	toString := func(i int64) string {
 		if i <= 0 {
@@ -724,7 +730,7 @@ func (n *Node) GetStats() map[string]string {
 		"rounds_per_second":       strconv.FormatFloat(consensusRoundsPerSecond, 'f', 2, 64),
 		"round_events":            strconv.Itoa(n.core.GetLastCommittedRoundEventsCount()),
 		"id":                      strconv.FormatInt(n.id, 10),
-		"state":                   n.state.getState().String(),
+		"state":                   n.getState().String(),
 	}
 	// n.mqtt.FireEvent(s, "/mq/lachesis/stats")
 	return s
@@ -755,6 +761,7 @@ func (n *Node) logStats() {
 	}).Warn("logStats()")
 }
 
+// SyncRate returns the current synchronization (talking to over nodes) rate in ms
 func (n *Node) SyncRate() float64 {
 	var syncErrorRate float64
 	if n.syncRequests != 0 {
@@ -763,67 +770,83 @@ func (n *Node) SyncRate() float64 {
 	return 1 - syncErrorRate
 }
 
+// GetParticipants returns all participants this node knows about
 func (n *Node) GetParticipants() (*peers.Peers, error) {
 	return n.core.poset.Store.Participants()
 }
 
+// GetEventBlock returns a specific event block for the given hash
 func (n *Node) GetEventBlock(event string) (poset.Event, error) {
 	return n.core.poset.Store.GetEventBlock(event)
 }
 
+// GetLastEventFrom returns the last event block for a specific participant
 func (n *Node) GetLastEventFrom(participant string) (string, bool, error) {
 	return n.core.poset.Store.LastEventFrom(participant)
 }
 
+// GetKnownEvents returns all known events
 func (n *Node) GetKnownEvents() map[int64]int64 {
 	return n.core.poset.Store.KnownEvents()
 }
 
+// GetEventBlocks returns all event blocks
 func (n *Node) GetEventBlocks() (map[int64]int64, error) {
 	res := n.core.KnownEvents()
 	return res, nil
 }
 
+// GetConsensusEvents returns all consensus events
 func (n *Node) GetConsensusEvents() []string {
 	return n.core.poset.Store.ConsensusEvents()
 }
 
+// GetConsensusTransactionsCount get the count of finalized transactions
 func (n *Node) GetConsensusTransactionsCount() uint64 {
 	return n.core.GetConsensusTransactionsCount()
 }
 
+// GetPendingLoadedEvents returns all the pending events
 func (n *Node) GetPendingLoadedEvents() int64 {
 	return n.core.GetPendingLoadedEvents()
 }
 
+// GetRound returns the created round info for a given index
 func (n *Node) GetRound(roundIndex int64) (poset.RoundCreated, error) {
 	return n.core.poset.Store.GetRoundCreated(roundIndex)
 }
 
+// GetLastRound returns the last round
 func (n *Node) GetLastRound() int64 {
 	return n.core.poset.Store.LastRound()
 }
 
+// GetRoundClothos returns all clotho for a given round index
 func (n *Node) GetRoundClothos(roundIndex int64) []string {
 	return n.core.poset.Store.RoundClothos(roundIndex)
 }
 
+// GetRoundEvents returns all the round events for a given round index
 func (n *Node) GetRoundEvents(roundIndex int64) int {
 	return n.core.poset.Store.RoundEvents(roundIndex)
 }
 
+// GetRoot returns the chain root for the frame
 func (n *Node) GetRoot(rootIndex string) (poset.Root, error) {
 	return n.core.poset.Store.GetRoot(rootIndex)
 }
 
+// GetBlock returns the block for a given index
 func (n *Node) GetBlock(blockIndex int64) (poset.Block, error) {
 	return n.core.poset.Store.GetBlock(blockIndex)
 }
 
+// ID shows the ID of the node
 func (n *Node) ID() int64 {
 	return n.id
 }
 
+// Stop stops the node from gossiping
 func (n *Node) Stop() {
-	n.state.setState(Stop)
+	n.setState(Stop)
 }

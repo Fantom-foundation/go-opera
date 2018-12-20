@@ -5,7 +5,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-// json encoding of Frame
+// ProtoMarshal json encoding of Frame
 func (f *Frame) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -15,6 +15,7 @@ func (f *Frame) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal converts protobuff to frame
 func (f *Frame) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, f)
 }
@@ -24,6 +25,7 @@ func (f *Frame) GetEventBlocks() ([]*EventMessage) {
 	return f.GetEvents()
 }
 
+// Hash returns the Hash of a frame
 func (f *Frame) Hash() ([]byte, error) {
 	hashBytes, err := f.ProtoMarshal()
 	if err != nil {
@@ -32,6 +34,7 @@ func (f *Frame) Hash() ([]byte, error) {
 	return crypto.SHA256(hashBytes), nil
 }
 
+// RootListEquals compares the equality of two root lists
 func RootListEquals(this []*Root, that []*Root) bool {
 	if len(this) != len(that) {
 		return false
@@ -44,6 +47,7 @@ func RootListEquals(this []*Root, that []*Root) bool {
 	return true
 }
 
+// EventListEquals compares the equality of two event lists
 func EventListEquals(this []*EventMessage, that []*EventMessage) bool {
 	if len(this) != len(that) {
 		return false
@@ -56,8 +60,9 @@ func EventListEquals(this []*EventMessage, that []*EventMessage) bool {
 	return true
 }
 
-func (this *Frame) Equals(that *Frame) bool {
-	return this.Round == that.Round &&
-		RootListEquals(this.Roots, that.Roots) &&
-		EventListEquals(this.Events, that.Events)
+// Equals compares the equality of two frames
+func (f *Frame) Equals(that *Frame) bool {
+	return f.Round == that.Round &&
+		RootListEquals(f.Roots, that.Roots) &&
+		EventListEquals(f.Events, that.Events)
 }

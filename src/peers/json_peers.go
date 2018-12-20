@@ -3,6 +3,7 @@ package peers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -51,6 +52,10 @@ func (j *JSONPeers) Peers() (*Peers, error) {
 		if err := dec.Decode(&peerSet); err != nil {
 			return nil, err
 		}
+	}
+
+	if len(peerSet) == 0 {
+		return nil, fmt.Errorf("peers not found")
 	}
 
 	return NewPeersFromSlice(peerSet), nil

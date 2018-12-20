@@ -7,11 +7,11 @@ import (
 const (
 	// Gossiping is the initial state of a Lachesis node.
 	Gossiping state = iota
-
+	// CatchingUp is the fast forward state
 	CatchingUp
-
+	// Shutdown is the shut down state
 	Shutdown
-
+	// Stop is the stop communicating state
 	Stop
 )
 

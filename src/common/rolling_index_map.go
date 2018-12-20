@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+// RollingIndexMap struct
 type RollingIndexMap struct {
 	name    string
 	size    int
@@ -12,6 +13,7 @@ type RollingIndexMap struct {
 	mapping map[int64]*RollingIndex
 }
 
+// NewRollingIndexMap constructor
 func NewRollingIndexMap(name string, size int, keys []int64) *RollingIndexMap {
 	items := make(map[int64]*RollingIndex)
 	for _, key := range keys {
@@ -35,7 +37,7 @@ func (rim *RollingIndexMap) AddKey(key int64) error {
 	return nil
 }
 
-// Get returns key items with index > skip
+// Get return key items with index > skip
 func (rim *RollingIndexMap) Get(key int64, skipIndex int64) ([]interface{}, error) {
 	items, ok := rim.mapping[key]
 	if !ok {
@@ -50,10 +52,12 @@ func (rim *RollingIndexMap) Get(key int64, skipIndex int64) ([]interface{}, erro
 	return cached, nil
 }
 
+// GetItem returns the item in rolling index for given key
 func (rim *RollingIndexMap) GetItem(key int64, index int64) (interface{}, error) {
 	return rim.mapping[key].GetItem(index)
 }
 
+// GetLast get last item for given key
 func (rim *RollingIndexMap) GetLast(key int64) (interface{}, error) {
 	pe, ok := rim.mapping[key]
 	if !ok {
@@ -66,6 +70,7 @@ func (rim *RollingIndexMap) GetLast(key int64) (interface{}, error) {
 	return cached[len(cached)-1], nil
 }
 
+// Set sets a given key for the index
 func (rim *RollingIndexMap) Set(key int64, item interface{}, index int64) error {
 	items, ok := rim.mapping[key]
 	if !ok {
@@ -85,6 +90,7 @@ func (rim *RollingIndexMap) Known() map[int64]int64 {
 	return known
 }
 
+// Reset resets the map
 func (rim *RollingIndexMap) Reset() error {
 	items := make(map[int64]*RollingIndex)
 	for _, key := range rim.keys {
@@ -94,6 +100,7 @@ func (rim *RollingIndexMap) Reset() error {
 	return nil
 }
 
+// Import from another index
 func (rim *RollingIndexMap) Import(other *RollingIndexMap) {
 	for _, key := range other.keys {
 		rim.mapping[key] = NewRollingIndex(fmt.Sprintf("%s[%d]", rim.name, key), rim.size)

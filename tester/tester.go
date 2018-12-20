@@ -3,18 +3,18 @@ package tester
 import (
 	"fmt"
 	"math/rand"
+	_ "os"
 	"strconv"
 	"strings"
-	"time"
-
-	_ "os"
 	_ "sync"
+	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/sirupsen/logrus"
 )
 
+// PingNodesN ping the nodes to make sure they are communicating
 func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay uint64, logger *logrus.Logger, ProxyAddr string) {
 	// pause before shooting test transactions
 	time.Sleep(time.Duration(delay) * time.Second)
@@ -26,9 +26,13 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 			fmt.Printf("node missing NetAddr [%v]", node)
 			continue
 		}
-		host_port := strings.Split(node.NetAddr, ":")
-		port, err := strconv.Atoi(host_port[1])
-		addr := fmt.Sprintf("%s:%d", host_port[0], port-3000 /*9000*/)
+		hostPort := strings.Split(node.NetAddr, ":")
+		port, err := strconv.Atoi(hostPort[1])
+		if err != nil {
+			fmt.Printf("error:\t\t\t%s\n", err.Error())
+			fmt.Printf("Unable to create port:\t\t\t%s (id=%d)\n", participant.NetAddr, node.ID)
+		}
+		addr := fmt.Sprintf("%s:%d", hostPort[0], port-3000 /*9000*/)
 		lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
@@ -63,7 +67,7 @@ func transact(proxy *proxy.GrpcLachesisProxy, proxyAddr string, iteration uint64
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes.
 	// A good assumption is to make txns 120 bytes in size.
 	// However, for speed, we're using 1 byte here. Modify accordingly.
-	//var msg [1]byte
+	// var msg [1]byte
 	for i := 0; i < 10; i++ {
 		// Send 10 txns to the server.
 		msg := fmt.Sprintf("%s.%d.%d", proxyAddr, iteration, i)
