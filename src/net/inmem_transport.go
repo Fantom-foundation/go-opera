@@ -127,9 +127,8 @@ func (i *InmemTransport) makeRPC(target string, args interface{}, r io.Reader, t
 }
 
 // Close is used to permanently disable the transport
-func (i *InmemTransport) Close() error {
+func (i *InmemTransport) Close() {
 	inmemMediumSync.Lock()
 	delete(inmemMedium, i.localAddr)
 	inmemMediumSync.Unlock()
-	return nil
 }

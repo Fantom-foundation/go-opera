@@ -2,6 +2,7 @@ package net
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,6 +46,9 @@ The response is an error string followed by the response object,
 both are encoded using msgpack
 */
 type NetworkTransport struct {
+	cancel context.CancelFunc
+	ctx    context.Context
+
 	logger *logrus.Logger
 
 	connPool     map[string][]*netConn
@@ -52,10 +56,6 @@ type NetworkTransport struct {
 	maxPool      int
 
 	consumeCh chan RPC
-
-	shutdown     bool
-	shutdownCh   chan struct{}
-	shutdownLock sync.Mutex
 
 	stream StreamLayer
 
@@ -98,30 +98,31 @@ func NewNetworkTransport(
 		logger.Level = logrus.DebugLevel
 		lachesis_log.NewLocal(logger, logger.Level.String())
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	trans := &NetworkTransport{
-		connPool:   make(map[string][]*netConn),
-		consumeCh:  make(chan RPC),
-		logger:     logger,
-		maxPool:    maxPool,
-		shutdownCh: make(chan struct{}),
-		stream:     stream,
-		timeout:    timeout,
+		cancel:    cancel,
+		ctx:       ctx,
+		connPool:  make(map[string][]*netConn),
+		consumeCh: make(chan RPC),
+		logger:    logger,
+		maxPool:   maxPool,
+		stream:    stream,
+		timeout:   timeout,
 	}
 	go trans.listen()
 	return trans
 }
 
 // Close is used to stop the network transport.
-func (n *NetworkTransport) Close() error {
-	n.shutdownLock.Lock()
-	defer n.shutdownLock.Unlock()
-
-	if !n.shutdown {
-		close(n.shutdownCh)
+func (n *NetworkTransport) Close() {
+	select {
+	case <-n.ctx.Done():
+	default:
+		n.cancel()
 		n.stream.Close()
-		n.shutdown = true
 	}
-	return nil
 }
 
 // Consumer implements the Transport interface.
@@ -137,7 +138,7 @@ func (n *NetworkTransport) LocalAddr() string {
 // IsShutdown is used to check if the transport is shutdown.
 func (n *NetworkTransport) IsShutdown() bool {
 	select {
-	case <-n.shutdownCh:
+	case <-n.ctx.Done():
 		return true
 	default:
 		return false
@@ -200,7 +201,7 @@ func (n *NetworkTransport) returnConn(conn *netConn) {
 	defer n.connPoolLock.Unlock()
 
 	key := conn.target
-	conns:= n.connPool[key]
+	conns := n.connPool[key]
 
 	if !n.IsShutdown() && len(conns) < n.maxPool {
 		n.connPool[key] = append(conns, conn)
@@ -385,7 +386,7 @@ func (n *NetworkTransport) handleCommand(r *bufio.Reader, dec *json.Decoder, enc
 	// Dispatch the RPC
 	select {
 	case n.consumeCh <- rpc:
-	case <-n.shutdownCh:
+	case <-n.ctx.Done():
 		return ErrTransportShutdown
 	}
 
@@ -405,7 +406,7 @@ func (n *NetworkTransport) handleCommand(r *bufio.Reader, dec *json.Decoder, enc
 		if err := enc.Encode(resp.Response); err != nil {
 			return err
 		}
-	case <-n.shutdownCh:
+	case <-n.ctx.Done():
 		return ErrTransportShutdown
 	}
 	return nil

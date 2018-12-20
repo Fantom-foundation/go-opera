@@ -39,5 +39,5 @@ type Transport interface {
 
 	// Close permanently closes a transport, stopping
 	// any associated goroutines and freeing other resources.
-	Close() error
+	Close()
 }
