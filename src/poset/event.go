@@ -13,6 +13,7 @@ import (
 /*******************************************************************************
 InternalTransactions
 *******************************************************************************/
+
 // NewInternalTransaction constructor
 func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTransaction {
 	return InternalTransaction{
@@ -135,7 +136,6 @@ const LamportTimestampNIL int64 = -1
 // RoundNIL nil value for round
 const RoundNIL int64 = -1
 
-=======
 // ToEvent converts message to event
 func (m *EventMessage) ToEvent() Event {
 	return Event{
@@ -193,6 +193,7 @@ func NewEvent(transactions [][]byte,
 	}
 }
 
+// Event struct
 type Event struct {
 	Message          *EventMessage
 	lamportTimestamp int64
@@ -201,19 +202,19 @@ type Event struct {
 }
 
 // GetRound Round returns round of event.
-func (m *Event) GetRound() int64 {
-	if m.round < 0 {
+func (e *Event) GetRound() int64 {
+	if e.round < 0 {
 		return RoundNIL
 	}
-	return m.round
+	return e.round
 }
 
-// Round returns round in which the event is received.
-func (m *Event) GetRoundReceived() int64 {
-	if m.roundReceived < 0 {
+// GetRoundReceived Round returns round in which the event is received.
+func (e *Event) GetRoundReceived() int64 {
+	if e.roundReceived < 0 {
 		return RoundNIL
 	}
-	return m.round
+	return e.round
 }
 
 // GetLamportTimestamp returns the lamport timestamp
