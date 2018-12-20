@@ -60,13 +60,6 @@ func BytesEquals(this []byte, that []byte) bool {
 	return true
 }
 
-// Equals block signature equality check
-func (bs *BlockSignature) Equals(that *BlockSignature) bool {
-	return reflect.DeepEqual(bs.Validator, that.Validator) &&
-		bs.Index == that.Index &&
-		bs.Signature == that.Signature
-}
-
 // InternalTransactionListEquals list equality check
 func InternalTransactionListEquals(this []*InternalTransaction, that []*InternalTransaction) bool {
 	if len(this) != len(that) {
