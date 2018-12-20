@@ -173,7 +173,7 @@ func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
 	return s.inmemStore.RepertoireByPubKey()
 }
 
-// Get ID map of peers
+// RepertoireByID gets ID map of peers
 func (s *BadgerStore) RepertoireByID() map[int64]*peers.Peer {
 	return s.inmemStore.RepertoireByID()
 }
@@ -281,7 +281,7 @@ func (s *BadgerStore) GetRoundCreated(r int64) (RoundCreated, error) {
 	return res, mapError(err, "RoundCreated", string(roundCreatedKey(r)))
 }
 
-// SetRound sets the created round info for a given index
+// SetRoundCreated sets the created round info for a given index
 func (s *BadgerStore) SetRoundCreated(r int64, round RoundCreated) error {
 	if err := s.inmemStore.SetRoundCreated(r, round); err != nil {
 		return err

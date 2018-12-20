@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Node struct
 type Node struct {
 	nodeID int64
 	node   *node.Node
@@ -75,6 +76,7 @@ func New(privKey string,
 	}
 }
 
+// Run the node (can be async)
 func (n *Node) Run(async bool) {
 	if async {
 		n.node.RunAsync(true)
@@ -83,10 +85,12 @@ func (n *Node) Run(async bool) {
 	}
 }
 
+// Shutdown the node
 func (n *Node) Shutdown() {
 	n.node.Shutdown()
 }
 
+// SubmitTx submits the transaction
 func (n *Node) SubmitTx(tx []byte) {
 	// have to make a copy or the tx will be garbage collected and weird stuff
 	// happens in transaction pool

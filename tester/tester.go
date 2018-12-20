@@ -3,10 +3,10 @@ package tester
 import (
 	"fmt"
 	"math/rand"
-	_ "os"
+	_ "os" // required for TODO
 	"strconv"
 	"strings"
-	_ "sync"
+	_ "sync" // required for TODO
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peers"

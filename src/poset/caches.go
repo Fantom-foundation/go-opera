@@ -49,7 +49,7 @@ func NewParticipantEventsCache(size int, participants *peers.Peers) *Participant
 	}
 }
 
-// add peer to cache and rolling index map, returns error if it failed to add to map
+// AddPeer adds peer to cache and rolling index map, returns error if it failed to add to map
 func (pec *ParticipantEventsCache) AddPeer(peer *peers.Peer) error {
 	pec.participants.AddPeer(peer)
 	return pec.rim.AddKey(peer.ID)
