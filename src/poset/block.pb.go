@@ -3,9 +3,11 @@
 
 package poset
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -31,16 +33,17 @@ func (m *BlockBody) Reset()         { *m = BlockBody{} }
 func (m *BlockBody) String() string { return proto.CompactTextString(m) }
 func (*BlockBody) ProtoMessage()    {}
 func (*BlockBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_block_0ed9261ee7039667, []int{0}
+	return fileDescriptor_8e550b1f5926e92d, []int{0}
 }
+
 func (m *BlockBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockBody.Unmarshal(m, b)
 }
 func (m *BlockBody) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BlockBody.Marshal(b, m, deterministic)
 }
-func (dst *BlockBody) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BlockBody.Merge(dst, src)
+func (m *BlockBody) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BlockBody.Merge(m, src)
 }
 func (m *BlockBody) XXX_Size() int {
 	return xxx_messageInfo_BlockBody.Size(m)
@@ -84,16 +87,17 @@ func (m *WireBlockSignature) Reset()         { *m = WireBlockSignature{} }
 func (m *WireBlockSignature) String() string { return proto.CompactTextString(m) }
 func (*WireBlockSignature) ProtoMessage()    {}
 func (*WireBlockSignature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_block_0ed9261ee7039667, []int{1}
+	return fileDescriptor_8e550b1f5926e92d, []int{1}
 }
+
 func (m *WireBlockSignature) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WireBlockSignature.Unmarshal(m, b)
 }
 func (m *WireBlockSignature) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_WireBlockSignature.Marshal(b, m, deterministic)
 }
-func (dst *WireBlockSignature) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_WireBlockSignature.Merge(dst, src)
+func (m *WireBlockSignature) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WireBlockSignature.Merge(m, src)
 }
 func (m *WireBlockSignature) XXX_Size() int {
 	return xxx_messageInfo_WireBlockSignature.Size(m)
@@ -134,16 +138,17 @@ func (m *Block) Reset()         { *m = Block{} }
 func (m *Block) String() string { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()    {}
 func (*Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_block_0ed9261ee7039667, []int{2}
+	return fileDescriptor_8e550b1f5926e92d, []int{2}
 }
+
 func (m *Block) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Block.Unmarshal(m, b)
 }
 func (m *Block) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Block.Marshal(b, m, deterministic)
 }
-func (dst *Block) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Block.Merge(dst, src)
+func (m *Block) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Block.Merge(m, src)
 }
 func (m *Block) XXX_Size() int {
 	return xxx_messageInfo_Block.Size(m)
@@ -203,9 +208,9 @@ func init() {
 	proto.RegisterMapType((map[string]string)(nil), "poset.Block.SignaturesEntry")
 }
 
-func init() { proto.RegisterFile("block.proto", fileDescriptor_block_0ed9261ee7039667) }
+func init() { proto.RegisterFile("block.proto", fileDescriptor_8e550b1f5926e92d) }
 
-var fileDescriptor_block_0ed9261ee7039667 = []byte{
+var fileDescriptor_8e550b1f5926e92d = []byte{
 	// 289 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x51, 0x3d, 0x6b, 0xc3, 0x30,
 	0x10, 0xc5, 0x5f, 0x01, 0x9f, 0x5d, 0x1a, 0x44, 0x07, 0x51, 0x32, 0x18, 0x93, 0xc1, 0x93, 0x87,

@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"reflect"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/golang/protobuf/proto"
@@ -38,28 +39,34 @@ func (bb *BlockBody) Hash() ([]byte, error) {
 
 //------------------------------------------------------------------------------
 
-func (bs *BlockSignature) ValidatorHex() string {
-	return fmt.Sprintf("0x%X", bs.Validator)
+func (m *BlockSignature) ValidatorHex() string {
+	return fmt.Sprintf("0x%X", m.Validator)
 }
 
-func (bs *BlockSignature) ProtoMarshal() ([]byte, error) {
+func (m *BlockSignature) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(bs); err != nil {
+	if err := bf.Marshal(m); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
 
-func (bs *BlockSignature) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, bs)
+func (m *BlockSignature) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, m)
 }
 
-func (bs *BlockSignature) ToWire() WireBlockSignature {
+func (m *BlockSignature) ToWire() WireBlockSignature {
 	return WireBlockSignature{
-		Index:     bs.Index,
-		Signature: bs.Signature,
+		Index:     m.Index,
+		Signature: m.Signature,
 	}
+}
+
+func (m *BlockSignature) Equals(that *BlockSignature) bool {
+	return reflect.DeepEqual(m.Validator, that.Validator) &&
+		m.Index == that.Index &&
+		m.Signature == that.Signature
 }
 
 //------------------------------------------------------------------------------
@@ -84,7 +91,7 @@ func NewBlock(blockIndex, roundReceived int64, frameHash []byte, txs [][]byte) B
 	}
 	return Block{
 		Body:       &body,
-		FrameHash:     frameHash,
+		FrameHash:  frameHash,
 		Signatures: make(map[string]string),
 	}
 }
@@ -210,7 +217,6 @@ func ListBytesEquals(this [][]byte, that [][]byte) bool {
 	}
 	return true
 }
-
 
 func (this *BlockBody) Equals(that *BlockBody) bool {
 	return this.Index == that.Index &&

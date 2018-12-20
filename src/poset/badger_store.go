@@ -2,6 +2,7 @@ package poset
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"os"
 	"strconv"
 
@@ -49,9 +50,6 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*Bad
 		return nil, err
 	}
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
-		return nil, err
-	}
-	if err := store.dbSetRootEvents(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
 	return store, nil
@@ -381,25 +379,29 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 		if err != nil {
 			return err
 		}
-		//check if it already exists
+		// check if it already exists
 		existent := false
-		_, err = tx.Get([]byte(eventHex))
-		if err != nil && isDBKeyNotFound(err) {
+		val2, err := tx.Get([]byte(eventHex))
+		if err != nil && !isDBKeyNotFound(err) {
+			return err
+		}
+		if val2 != nil {
 			existent = true
 		}
-		//insert [event hash] => [event bytes]
+
+		// insert [event hash] => [event bytes]
 		if err := tx.Set([]byte(eventHex), val); err != nil {
 			return err
 		}
 
-		if existent {
+		if !existent {
 			//insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.Message.TopologicalIndex)
 			if err := tx.Set(topoKey, []byte(eventHex)); err != nil {
 				return err
 			}
 			//insert [participant_index] => [event hash]
-			peKey := participantEventKey(event.Creator(), event.Index())
+			peKey := participantEventKey(event.GetCreator(), event.Index())
 			if err := tx.Set(peKey, []byte(eventHex)); err != nil {
 				return err
 			}
@@ -411,7 +413,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 	var res []Event
 	var evKey string
-	t := int64(-1)
+	t := int64(0)
 	err := s.db.View(func(txn *badger.Txn) error {
 		key := topologicalEventKey(t)
 		item, errr := txn.Get(key)
@@ -429,7 +431,12 @@ func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
 				return err
 			}
 			err = eventItem.Value(func(eventBytes []byte) error {
-				event := new(Event)
+				event := &Event{
+					roundReceived:    RoundNIL,
+					round:            RoundNIL,
+					lamportTimestamp: LamportTimestampNIL,
+				}
+
 				if err := event.ProtoUnmarshal(eventBytes); err != nil {
 					return err
 				}
@@ -513,7 +520,7 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 			return err
 		}
 		key := participantRootKey(participant)
-//		fmt.Println("Setting root", participant, "->", key)
+		//		fmt.Println("Setting root", participant, "->", key)
 		//insert [participant_root] => [root bytes]
 		if err := tx.Set(key, val); err != nil {
 			return err
@@ -527,24 +534,24 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 		var creator []byte
 		fmt.Sscanf(participant, "0x%X", &creator)
 		flagTable := map[string]int64{root.SelfParent.Hash: 1}
-		ft, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+		ft, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
 		body := EventBody{
-			Creator:              creator,/*s.participants.ByPubKey[participant].PubKey,*/
-			Index:                root.SelfParent.Index,
-			Parents:              []string{"",""},
+			Creator: creator, /*s.participants.ByPubKey[participant].PubKey,*/
+			Index:   root.SelfParent.Index,
+			Parents: []string{"", ""},
 		}
 		event := Event{
-			Message: EventMessage {
-				Hex: root.SelfParent.Hash,
-				CreatorID: root.SelfParent.CreatorID,
+			Message: &EventMessage{
+				Hash:             utils.HashFromHex(root.SelfParent.Hash),
+				CreatorID:        root.SelfParent.CreatorID,
 				TopologicalIndex: -1,
-				Body:      &body,
-				FlagTable: ft,
-				LamportTimestamp: 0,
-				Round:            0,
-				RoundReceived:    0 /*RoundNIL*/,
-				ClothoProof: []string{root.SelfParent.Hash},
+				Body:             &body,
+				FlagTable:        ft,
+				ClothoProof:      []string{root.SelfParent.Hash},
 			},
+			lamportTimestamp: 0,
+			round:            0,
+			roundReceived:    0, /*RoundNIL*/
 		}
 		if err := s.SetEvent(event); err != nil {
 			return err
@@ -603,6 +610,10 @@ func (s *BadgerStore) dbGetRound(index int64) (RoundInfo, error) {
 	if err := roundInfo.ProtoUnmarshal(roundBytes); err != nil {
 		return *NewRoundInfo(), err
 	}
+	// In the current design, Queued field must be re-calculated every time for
+	// each round. When retrieving a round info from a database, this field
+	// should be ignored.
+	roundInfo.Message.Queued = false
 
 	return *roundInfo, nil
 }
@@ -756,7 +767,7 @@ func (s *BadgerStore) dbSetFrame(frame Frame) error {
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 func isDBKeyNotFound(err error) bool {
-	return err.Error() == badger.ErrKeyNotFound.Error()
+	return err == badger.ErrKeyNotFound
 }
 
 func mapError(err error, name, key string) error {

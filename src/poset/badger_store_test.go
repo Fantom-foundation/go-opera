@@ -156,7 +156,7 @@ func TestDBEventMethods(t *testing.T) {
 
 	//insert events in db directly
 	events := make(map[string][]Event)
-	topologicalIndex := int64(-1)
+	topologicalIndex := int64(0)
 	var topologicalEvents []Event
 	for _, p := range participants {
 		var items []Event
@@ -409,7 +409,7 @@ func TestDBFrameMethods(t *testing.T) {
 			p.pubKey,
 			0, nil)
 		event.Sign(p.privKey)
-		events[id] = &event.Message
+		events[id] = event.Message
 
 		root := NewBaseRoot(int64(id))
 		roots[id] = &root
@@ -669,7 +669,7 @@ func TestBadgerFrames(t *testing.T) {
 			p.pubKey,
 			0, nil)
 		event.Sign(p.privKey)
-		events[id] = &event.Message
+		events[id] = event.Message
 
 		root := NewBaseRoot(int64(id))
 		roots[id] = &root
