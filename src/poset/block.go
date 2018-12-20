@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"reflect"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/golang/protobuf/proto"
@@ -40,6 +41,7 @@ func (bb *BlockBody) Hash() ([]byte, error) {
 
 //------------------------------------------------------------------------------
 
+=======
 // ValidatorHex returns the Hex ID of a validator for this block
 func (bs *BlockSignature) ValidatorHex() string {
 	return fmt.Sprintf("0x%X", bs.Validator)
@@ -68,6 +70,12 @@ func (bs *BlockSignature) ToWire() WireBlockSignature {
 	}
 }
 
+func (bs *BlockSignature) Equals(that *BlockSignature) bool {
+	return reflect.DeepEqual(bs.Validator, that.Validator) &&
+		bs.Index == that.Index &&
+		bs.Signature == that.Signature
+}
+
 //------------------------------------------------------------------------------
 
 // NewBlockFromFrame creates a new block from the given frame
@@ -92,7 +100,7 @@ func NewBlock(blockIndex, roundReceived int64, frameHash []byte, txs [][]byte) B
 	}
 	return Block{
 		Body:       &body,
-		FrameHash:     frameHash,
+		FrameHash:  frameHash,
 		Signatures: make(map[string]string),
 	}
 }
@@ -232,7 +240,6 @@ func ListBytesEquals(this [][]byte, that [][]byte) bool {
 	}
 	return true
 }
-
 
 // Equals compares the equality of a block body
 func (bb *BlockBody) Equals(that *BlockBody) bool {

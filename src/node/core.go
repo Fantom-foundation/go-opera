@@ -38,10 +38,10 @@ type Core struct {
 
 	maxTransactionsInEvent int
 
-	addSelfEventBlockLocker        sync.Mutex
-	transactionPoolLocker          sync.RWMutex
-	internalTransactionPoolLocker  sync.RWMutex
-	blockSignaturePoolLocker       sync.RWMutex
+	addSelfEventBlockLocker       sync.Mutex
+	transactionPoolLocker         sync.RWMutex
+	internalTransactionPoolLocker sync.RWMutex
+	blockSignaturePoolLocker      sync.RWMutex
 }
 
 // NewCore creates a new core struct
@@ -222,7 +222,7 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 
 	c.logger.WithFields(logrus.Fields{
 		"event":      event,
-		"creator":    event.Creator(),
+		"creator":    event.GetCreator(),
 		"selfParent": event.SelfParent(),
 		"index":      event.Index(),
 		"hex":        event.Hex(),
@@ -232,15 +232,15 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 		return err
 	}
 
-	if event.Creator() == c.HexID() {
+	if event.GetCreator() == c.HexID() {
 		c.head = event.Hex()
 		c.Seq = event.Index()
 	}
 
-	c.inDegrees[event.Creator()] = 0
+	c.inDegrees[event.GetCreator()] = 0
 
 	if otherEvent, err := c.poset.Store.GetEventBlock(event.OtherParent()); err == nil {
-		c.inDegrees[otherEvent.Creator()]++
+		c.inDegrees[otherEvent.GetCreator()]++
 	}
 	return nil
 }
@@ -308,7 +308,7 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 			}
 			c.logger.WithFields(logrus.Fields{
 				"event":      ev,
-				"creator":    ev.Creator(),
+				"creator":    ev.GetCreator(),
 				"selfParent": ev.SelfParent(),
 				"index":      ev.Index(),
 				"hex":        ev.Hex(),
@@ -346,9 +346,9 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 		}
 		if ev.Index() > myKnownEvents[ev.CreatorID()] {
-			ev.Message.LamportTimestamp = poset.LamportTimestampNIL
-			ev.Message.Round = poset.RoundNIL
-			ev.Message.RoundReceived = poset.RoundNIL
+			ev.SetLamportTimestamp(poset.LamportTimestampNIL)
+			ev.SetRound(poset.RoundNIL)
+			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
 				return err
 			}

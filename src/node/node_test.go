@@ -566,7 +566,7 @@ func TestCatchUp(t *testing.T) {
 				t.Fatalf("Timeout waiting for node4 to enter CatchingUp state")
 			default:
 			}
-			if node4.state.getState() == CatchingUp {
+			if node4.getState() == CatchingUp {
 				break
 			}
 		}
@@ -625,7 +625,7 @@ func TestFastSync(t *testing.T) {
 				t.Fatalf("Timeout waiting for node4 to enter CatchingUp state")
 			default:
 			}
-			if node4.state.getState() == CatchingUp {
+			if node4.getState() == CatchingUp {
 				break
 			}
 		}

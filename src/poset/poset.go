@@ -10,8 +10,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/sirupsen/logrus"
 	"github.com/hashicorp/golang-lru"
+	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
@@ -44,11 +44,11 @@ type Poset struct {
 	trustCount              int
 	core                    Core
 
-	dominatorCache     *lru.Cache
-	selfDominatorCache *lru.Cache
-	strictlyDominatedCache  *lru.Cache
-	roundCache        *lru.Cache
-	timestampCache    *lru.Cache
+	dominatorCache         *lru.Cache
+	selfDominatorCache     *lru.Cache
+	strictlyDominatedCache *lru.Cache
+	roundCache             *lru.Cache
+	timestampCache         *lru.Cache
 
 	logger *logrus.Entry
 
@@ -80,30 +80,30 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	if err != nil {
 		logger.Fatal("Unable to init Poset.selfDominatorCache")
 	}
-	strictlyDominatedCache, err :=  lru.New(cacheSize)
+	strictlyDominatedCache, err := lru.New(cacheSize)
 	if err != nil {
 		logger.Fatal("Unable to init Poset.strictlyDominatedCache")
 	}
-	roundCache, err :=        lru.New(cacheSize)
+	roundCache, err := lru.New(cacheSize)
 	if err != nil {
 		logger.Fatal("Unable to init Poset.roundCache")
 	}
-	timestampCache, err :=    lru.New(cacheSize)
+	timestampCache, err := lru.New(cacheSize)
 	if err != nil {
 		logger.Fatal("Unable to init Poset.timestampCache")
 	}
 	poset := Poset{
-		Participants:      participants,
-		Store:             store,
-		commitCh:          commitCh,
-		dominatorCache:     dominatorCache,
-		selfDominatorCache: selfDominatorCache,
-		strictlyDominatedCache:  strictlyDominatedCache,
-		roundCache:        roundCache,
-		timestampCache:    timestampCache,
-		logger:            logger,
-		superMajority:     superMajority,
-		trustCount:        trustCount,
+		Participants:           participants,
+		Store:                  store,
+		commitCh:               commitCh,
+		dominatorCache:         dominatorCache,
+		selfDominatorCache:     selfDominatorCache,
+		strictlyDominatedCache: strictlyDominatedCache,
+		roundCache:             roundCache,
+		timestampCache:         timestampCache,
+		logger:                 logger,
+		superMajority:          superMajority,
+		trustCount:             trustCount,
 	}
 
 	participants.OnNewPeer(func(peer *peers.Peer) {
@@ -172,7 +172,7 @@ func (p *Poset) dominator2(x, y string) (bool, error) {
 		}
 		if root, ok := roots[y]; ok {
 			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
-			if ex.Creator() == yCreator {
+			if ex.GetCreator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
 		} else {
@@ -180,7 +180,7 @@ func (p *Poset) dominator2(x, y string) (bool, error) {
 		}
 	} else {
 		// check if creators are equals and check indexes
-		if ex.Creator() == ey.Creator() {
+		if ex.GetCreator() == ey.GetCreator() {
 			return ex.Index() >= ey.Index(), nil
 		}
 	}
@@ -239,12 +239,12 @@ func (p *Poset) selfDominator2(x, y string) (bool, error) {
 		}
 		if root, ok := roots[y]; ok {
 			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
-			if ex.Creator() == yCreator {
+			if ex.GetCreator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
 		}
 	} else {
-		if ex.Creator() == ey.Creator() {
+		if ex.GetCreator() == ey.GetCreator() {
 			return ex.Index() >= ey.Index(), nil
 		}
 	}
@@ -361,7 +361,7 @@ func (p *Poset) round2(x string) (int64, error) {
 		return math.MinInt64, err
 	}
 
-	root, err := p.Store.GetRoot(ex.Creator())
+	root, err := p.Store.GetRoot(ex.GetCreator())
 	if err != nil {
 		return math.MinInt64, err
 	}
@@ -402,7 +402,7 @@ func (p *Poset) round2(x string) (int64, error) {
 
 		if opRound > parentRound {
 			var (
-				found           bool
+				found              bool
 				clothoOpRoundRoots int64
 			)
 
@@ -497,9 +497,6 @@ func (p *Poset) clotho(x string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if ex.OtherParent() == "" {
-		return true, nil
-	}
 
 	xRound, err := p.round(x)
 	if err != nil {
@@ -519,7 +516,7 @@ func (p *Poset) roundReceived(x string) (int64, error) {
 		return -1, err
 	}
 
-	return ex.Message.RoundReceived, nil
+	return ex.roundReceived, nil
 }
 
 func (p *Poset) lamportTimestamp(x string) (int64, error) {
@@ -550,7 +547,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 	}
 
 	//We are going to need the Root later
-	root, err := p.Store.GetRoot(ex.Creator())
+	root, err := p.Store.GetRoot(ex.GetCreator())
 	if err != nil {
 		return math.MinInt64, err
 	}
@@ -622,7 +619,7 @@ func (p *Poset) roundDiff(x, y string) (int64, error) {
 //Check the SelfParent is the Creator's last known Event
 func (p *Poset) checkSelfParent(event Event) error {
 	selfParent := event.SelfParent()
-	creator := event.Creator()
+	creator := event.GetCreator()
 
 	creatorLastKnown, _, err := p.Store.LastEventFrom(creator)
 
@@ -654,7 +651,7 @@ func (p *Poset) checkOtherParent(event Event) error {
 		_, err := p.Store.GetEventBlock(otherParent)
 		if err != nil {
 			//it might still be in the Root
-			root, err := p.Store.GetRoot(event.Creator())
+			root, err := p.Store.GetRoot(event.GetCreator())
 			if err != nil {
 				return err
 			}
@@ -680,7 +677,7 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 	}
 	selfParentRootEvent := RootEvent{
 		Hash:             sp,
-		CreatorID:        p.Participants.ByPubKey[ev.Creator()].ID,
+		CreatorID:        p.Participants.ByPubKey[ev.GetCreator()].ID,
 		Index:            ev.Index() - 1,
 		LamportTimestamp: spLT,
 		Round:            spRound,
@@ -695,7 +692,7 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	op := ev.OtherParent()
 
 	//it might still be in the Root
-	root, err := p.Store.GetRoot(ev.Creator())
+	root, err := p.Store.GetRoot(ev.GetCreator())
 	if err != nil {
 		return RootEvent{}, err
 	}
@@ -717,7 +714,7 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	}
 	otherParentRootEvent := RootEvent{
 		Hash:             op,
-		CreatorID:        p.Participants.ByPubKey[otherParent.Creator()].ID,
+		CreatorID:        p.Participants.ByPubKey[otherParent.GetCreator()].ID,
 		Index:            otherParent.Index(),
 		LamportTimestamp: opLT,
 		Round:            opRound,
@@ -785,8 +782,8 @@ func (p *Poset) setWireInfo(event *Event) error {
 	otherParentIndex := int64(-1)
 
 	//could be the first Event inserted for this creator. In this case, use Root
-	if lf, isRoot, _ := p.Store.LastEventFrom(event.Creator()); isRoot && lf == event.SelfParent() {
-		root, err := p.Store.GetRoot(event.Creator())
+	if lf, isRoot, _ := p.Store.LastEventFrom(event.GetCreator()); isRoot && lf == event.SelfParent() {
+		root, err := p.Store.GetRoot(event.GetCreator())
 		if err != nil {
 			return err
 		}
@@ -801,7 +798,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 
 	if event.OtherParent() != "" {
 		//Check Root then regular Events
-		root, err := p.Store.GetRoot(event.Creator())
+		root, err := p.Store.GetRoot(event.GetCreator())
 		if err != nil {
 			return err
 		}
@@ -813,7 +810,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 			if err != nil {
 				return err
 			}
-			otherParentCreatorID = p.Participants.ByPubKey[otherParent.Creator()].ID
+			otherParentCreatorID = p.Participants.ByPubKey[otherParent.GetCreator()].ID
 			otherParentIndex = otherParent.Index()
 		}
 	}
@@ -821,7 +818,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 	event.SetWireInfo(selfParentIndex,
 		otherParentCreatorID,
 		otherParentIndex,
-		p.Participants.ByPubKey[event.Creator()].ID)
+		p.Participants.ByPubKey[event.GetCreator()].ID)
 
 	return nil
 }
@@ -860,7 +857,7 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 
 		p.logger.WithFields(logrus.Fields{
 			"event":      event,
-			"creator":    event.Creator(),
+			"creator":    event.GetCreator(),
 			"selfParent": event.SelfParent(),
 			"index":      event.Index(),
 			"hex":        event.Hex(),
@@ -931,7 +928,7 @@ func (p *Poset) DivideRounds() error {
 		   Compute Event's round, update the corresponding Round object, and
 		   add it to the PendingRounds queue if necessary.
 		*/
-		if ev.Message.Round == RoundNIL {
+		if ev.GetRound() == RoundNIL {
 
 			roundNumber, err := p.round(hash)
 			if err != nil {
@@ -978,7 +975,7 @@ func (p *Poset) DivideRounds() error {
 			if clotho {
 				// if event is self head
 				if p.core != nil && ev.Hex() == p.core.Head() &&
-					ev.Creator() == p.core.HexID() {
+					ev.GetCreator() == p.core.HexID() {
 
 					replaceFlagTable := func(event *Event, round int64) {
 						ft := make(map[string]int64)
@@ -992,7 +989,7 @@ func (p *Poset) DivideRounds() error {
 					// special case
 					if ev.GetRound() == 0 {
 						replaceFlagTable(&ev, 0)
-						root, err := p.Store.GetRoot(ev.Creator())
+						root, err := p.Store.GetRoot(ev.GetCreator())
 						if err != nil {
 							return err
 						}
@@ -1009,7 +1006,7 @@ func (p *Poset) DivideRounds() error {
 		/*
 			Compute the Event's LamportTimestamp
 		*/
-		if ev.Message.LamportTimestamp == LamportTimestampNIL {
+		if ev.GetLamportTimestamp() == LamportTimestampNIL {
 
 			lamportTimestamp, err := p.lamportTimestamp(hash)
 			if err != nil {
@@ -1056,7 +1053,7 @@ func (p *Poset) DecideAtropos() error {
 			if roundInfo.IsDecided(x) {
 				continue
 			}
-		VOTE_LOOP:
+		VoteLoop:
 			for j := roundIndex + 1; j <= p.Store.LastRound(); j++ {
 				for _, y := range p.Store.RoundClothos(j) {
 					diff := j - roundIndex
@@ -1099,7 +1096,7 @@ func (p *Poset) DecideAtropos() error {
 							if t >= p.superMajority {
 								roundInfo.SetAtropos(x, v)
 								setVote(votes, y, x, v)
-								break VOTE_LOOP //break out of j loop
+								break VoteLoop //break out of j loop
 							} else {
 								setVote(votes, y, x, v)
 							}
@@ -1260,7 +1257,7 @@ func (p *Poset) ProcessDecidedRounds() error {
 		}
 		p.logger.WithFields(logrus.Fields{
 			"round_received": r.Index,
-			"clothos":      round.Atropos(),
+			"clothos":        round.Atropos(),
 			"events":         len(frame.Events),
 			"roots":          frame.Roots,
 		}).Debugf("Processing Decided Round")
@@ -1344,13 +1341,13 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	//The events are in topological order. Each time we run into the first Event
 	//of a participant, we create a Root for it.
 	for _, ev := range events {
-		c := ev.Creator()
+		c := ev.GetCreator()
 		if _, ok := roots[c]; !ok {
 			root, err := p.createRoot(ev)
 			if err != nil {
 				return Frame{}, err
 			}
-			roots[ev.Creator()] = root
+			roots[ev.GetCreator()] = root
 		}
 	}
 
@@ -1393,17 +1390,16 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 		if otherParent != "" {
 			opt, ok := treated[otherParent]
 			if !opt || !ok {
-				if ev.SelfParent() != roots[ev.Creator()].SelfParent.Hash {
+				if ev.SelfParent() != roots[ev.GetCreator()].SelfParent.Hash {
 					other, err := p.createOtherParentRootEvent(ev)
 					if err != nil {
 						return Frame{}, err
 					}
-					roots[ev.Creator()].Others[ev.Hex()] = &other
+					roots[ev.GetCreator()].Others[ev.Hex()] = &other
 				}
 			}
 		}
-		eventMessages[i] = new(EventMessage)
-		*eventMessages[i] = ev.Message
+		eventMessages[i] = ev.Message
 	}
 
 	//order roots
@@ -1595,37 +1591,39 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 //method call, the Poset should be in a state coherent with the 'tip' of the
 //Poset
 func (p *Poset) Bootstrap() error {
-	if badgerStore, ok := p.Store.(*BadgerStore); ok {
-		//Retreive the Events from the underlying DB. They come out in topological
-		//order
-		topologicalEvents, err := badgerStore.dbTopologicalEvents()
-		if err != nil {
-			return err
-		}
+	badgerStore, ok := p.Store.(*BadgerStore)
+	if !ok {
+		return nil
+	}
+	//Retreive the Events from the underlying DB. They come out in topological
+	//order
+	topologicalEvents, err := badgerStore.dbTopologicalEvents()
+	if err != nil {
+		return err
+	}
 
-		//Insert the Events in the Poset
-		for _, e := range topologicalEvents {
-			if err := p.InsertEvent(e, true); err != nil {
-				return err
-			}
+	//Insert the Events in the Poset
+	for _, e := range topologicalEvents {
+		if err := p.InsertEvent(e, true); err != nil {
+			return err
 		}
+	}
 
-		//Compute the consensus order of Events
-		if err := p.DivideRounds(); err != nil {
-			return err
-		}
-		if err := p.DecideAtropos(); err != nil {
-			return err
-		}
-		if err := p.DecideRoundReceived(); err != nil {
-			return err
-		}
-		if err := p.ProcessDecidedRounds(); err != nil {
-			return err
-		}
-		if err := p.ProcessSigPool(); err != nil {
-			return err
-		}
+	//Compute the consensus order of Events
+	if err := p.DivideRounds(); err != nil {
+		return err
+	}
+	if err := p.DecideAtropos(); err != nil {
+		return err
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		return err
+	}
+	if err := p.ProcessDecidedRounds(); err != nil {
+		return err
+	}
+	if err := p.ProcessSigPool(); err != nil {
+		return err
 	}
 
 	return nil
@@ -1713,19 +1711,19 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 
 	event := &Event{
-		Message: EventMessage{
-			Body:         &body,
-			Signature:    wevent.Signature,
-			FlagTable:    wevent.FlagTable,
-			ClothoProof: wevent.ClothoProof,
+		Message: &EventMessage{
+			Body:                 &body,
+			Signature:            wevent.Signature,
+			FlagTable:            wevent.FlagTable,
+			ClothoProof:          wevent.ClothoProof,
 			SelfParentIndex:      wevent.Body.SelfParentIndex,
 			OtherParentCreatorID: wevent.Body.OtherParentCreatorID,
 			OtherParentIndex:     wevent.Body.OtherParentIndex,
 			CreatorID:            wevent.Body.CreatorID,
-			LamportTimestamp:     LamportTimestampNIL,
-			Round:                RoundNIL,
-			RoundReceived:        RoundNIL,
 		},
+		roundReceived:    RoundNIL,
+		round:            RoundNIL,
+		lamportTimestamp: LamportTimestampNIL,
 	}
 
 	p.logger.WithFields(logrus.Fields{
@@ -1815,7 +1813,7 @@ func (p *Poset) GetUndeterminedEvents() []string {
 }
 
 // GetPendingLoadedEvents returns all the pending events
-func (p *Poset)  GetPendingLoadedEvents() int64 {
+func (p *Poset) GetPendingLoadedEvents() int64 {
 	p.pendingLoadedEventsLocker.RLock()
 	defer p.pendingLoadedEventsLocker.RUnlock()
 	return p.pendingLoadedEvents

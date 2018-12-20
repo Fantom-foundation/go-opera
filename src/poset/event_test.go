@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/golang/protobuf/proto"
 )
 
 func createDummyEventBody() EventBody {
@@ -15,7 +15,7 @@ func createDummyEventBody() EventBody {
 	body.Parents = []string{"self", "other"}
 	body.Creator = []byte("public key")
 	body.BlockSignatures = []*BlockSignature{
-		&BlockSignature {
+		&BlockSignature{
 			Validator: body.Creator,
 			Index:     0,
 			Signature: "r|s",
@@ -62,7 +62,7 @@ func TestSignEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Message: EventMessage { Body: &body} }
+	event := Event{Message: &EventMessage{Body: &body}}
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -83,7 +83,7 @@ func TestMarshallEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Message: EventMessage { Body: &body} }
+	event := Event{Message: &EventMessage{Body: &body}}
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -98,7 +98,7 @@ func TestMarshallEvent(t *testing.T) {
 		t.Fatalf("Error unmarshalling Event: %s", err)
 	}
 
-	if !newEvent.Message.Equals(&event.Message) {
+	if !newEvent.Message.Equals(event.Message) {
 		t.Fatalf("Events are not deeply equal")
 	}
 }
@@ -110,7 +110,7 @@ func TestWireEvent(t *testing.T) {
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
 
-	event := Event{Message: EventMessage { Body: &body} }
+	event := Event{Message: &EventMessage{Body: &body}}
 	if err := event.Sign(privateKey); err != nil {
 		t.Fatalf("Error signing Event: %s", err)
 	}
@@ -213,8 +213,6 @@ func TestMergeFlagTable(t *testing.T) {
 		"x": 1,
 		"y": 1,
 		"z": 1,
-
-
 	}
 
 	syncData := []map[string]int64{
@@ -236,8 +234,8 @@ func TestMergeFlagTable(t *testing.T) {
 		"z": 0,
 	}
 
-	ft, _ := proto.Marshal(&FlagTableWrapper { Body: start })
-	event := Event{Message: EventMessage { FlagTable: ft} }
+	ft, _ := proto.Marshal(&FlagTableWrapper{Body: start})
+	event := Event{Message: &EventMessage{FlagTable: ft}}
 
 	for _, v := range syncData {
 		flagTable, err := event.MergeFlagTable(v)
@@ -245,7 +243,7 @@ func TestMergeFlagTable(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		raw, _ := proto.Marshal(&FlagTableWrapper { Body: flagTable })
+		raw, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
 		event.Message.FlagTable = raw
 	}
 
