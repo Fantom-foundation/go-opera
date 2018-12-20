@@ -494,7 +494,7 @@ func TestSyncLimit(t *testing.T) {
 		t.Fatalf("SyncResponse.FromID should be %d, not %d",
 			expectedResp.FromID, out.FromID)
 	}
-	if expectedResp.SyncLimit != true {
+	if !expectedResp.SyncLimit {
 		t.Fatal("SyncResponse.SyncLimit should be true")
 	}
 }

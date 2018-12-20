@@ -1725,7 +1725,15 @@ func TestProcessDecidedRounds(t *testing.T) {
 	}
 
 	frame2, err := p.GetFrame(block1.RoundReceived())
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	frame2Hash, err := frame2.Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	
 	if !reflect.DeepEqual(block1.GetFrameHash(), frame2Hash) {
 		t.Fatalf("frame hash from block1 should be %v, not %v",
 			frame2Hash, block1.GetFrameHash())
@@ -2169,6 +2177,9 @@ func TestBootstrap(t *testing.T) {
 	// Now we want to create a new Poset based on the database of the previous
 	// Poset and see if we can boostrap it to the same state.
 	recycledStore, err := LoadBadgerStore(cacheSize, badgerDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	np := NewPoset(recycledStore.participants,
 		recycledStore,
 		nil,
@@ -2739,7 +2750,7 @@ func TestFunkyPosetReset(t *testing.T) {
 		p2Known := p2.Store.KnownEvents()
 		diff := getDiff(p, p2Known, t)
 
-		wireDiff := make([]WireEvent, len(diff), len(diff))
+		wireDiff := make([]WireEvent, len(diff))
 		for i, e := range diff {
 			wireDiff[i] = e.ToWire()
 		}
@@ -3184,7 +3195,7 @@ func TestSparsePosetReset(t *testing.T) {
 		t.Logf("p2.Known: %v", p2Known)
 		t.Logf("diff: %v", len(diff))
 
-		wireDiff := make([]WireEvent, len(diff), len(diff))
+		wireDiff := make([]WireEvent, len(diff))
 		for i, e := range diff {
 			wireDiff[i] = e.ToWire()
 		}

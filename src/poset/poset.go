@@ -509,16 +509,6 @@ func (p *Poset) clotho(x string) (bool, error) {
 	return xRound > spRound, nil
 }
 
-func (p *Poset) roundReceived(x string) (int64, error) {
-
-	ex, err := p.Store.GetEventBlock(x)
-	if err != nil {
-		return -1, err
-	}
-
-	return ex.roundReceived, nil
-}
-
 func (p *Poset) lamportTimestamp(x string) (int64, error) {
 	if c, ok := p.timestampCache.Get(x); ok {
 		return c.(int64), nil
