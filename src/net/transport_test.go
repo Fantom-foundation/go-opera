@@ -136,6 +136,9 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 
 		var resp = new(FastForwardResponse)
 		err = trans2.FastForward(trans1.LocalAddr(), expectedReq, resp)
+		if resp.Block.Signatures == nil {
+			resp.Block.Signatures = make(map[string]string)
+		}
 		if assert.NoError(err) {
 			assert.EqualValues(expectedResp, resp)
 		}

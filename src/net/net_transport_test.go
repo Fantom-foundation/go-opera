@@ -26,23 +26,9 @@ func TestNetworkTransport(t *testing.T) {
 	defer trans2.Close()
 
 	testTransportImplementation(t, trans1, trans2)
-}
-
-func TestNetworkTransportPool(t *testing.T) {
-	logger := common.NewTestLogger(t)
-	maxPool := 3
-
-	// Transport 1 is consumer
-	trans1, err := NewTCPTransport("127.0.0.1:0", nil, 2, time.Second, logger)
-	assert.NoError(t, err)
-	defer trans1.Close()
 
 	rpcCh := trans1.Consumer()
 
-	// Transport 2 makes outbound request
-	trans2, err := NewTCPTransport("127.0.0.1:0", nil, maxPool, time.Second, logger)
-	assert.NoError(t, err)
-	defer trans2.Close()
 	t.Run("PooledConn", func(t *testing.T) {
 		assert := assert.New(t)
 
