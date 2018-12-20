@@ -14,7 +14,7 @@ type RoundCreated struct {
 	Message RoundCreatedMessage
 }
 
-// NewRoundInfo creates a new round info struct
+// NewRoundCreated creates a new round info struct
 func NewRoundCreated() *RoundCreated {
 	return &RoundCreated{
 		Message: RoundCreatedMessage{
@@ -23,7 +23,7 @@ func NewRoundCreated() *RoundCreated {
 	}
 }
 
-// RoundReceived constructor
+// NewRoundReceived constructor
 func NewRoundReceived() *RoundReceived {
 	return &RoundReceived{
 		Rounds: []string{},
