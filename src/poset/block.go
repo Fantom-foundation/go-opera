@@ -41,7 +41,6 @@ func (bb *BlockBody) Hash() ([]byte, error) {
 
 //------------------------------------------------------------------------------
 
-=======
 // ValidatorHex returns the Hex ID of a validator for this block
 func (bs *BlockSignature) ValidatorHex() string {
 	return fmt.Sprintf("0x%X", bs.Validator)
