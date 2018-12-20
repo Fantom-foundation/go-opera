@@ -69,6 +69,7 @@ func (bs *BlockSignature) ToWire() WireBlockSignature {
 	}
 }
 
+// Equals checks blocksignature equality
 func (bs *BlockSignature) Equals(that *BlockSignature) bool {
 	return reflect.DeepEqual(bs.Validator, that.Validator) &&
 		bs.Index == that.Index &&
