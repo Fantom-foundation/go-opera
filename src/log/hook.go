@@ -1,6 +1,4 @@
-// lachesis_log.go
-// lachesis hook to logrus
-//
+// Package lachesis_log lachesis hook to logrus
 package lachesis_log
 
 import (
@@ -13,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Hook struct for linking to logrus and counting log outputs
 type Hook struct {
 	mu   sync.RWMutex
 	stat [6]int64 // 6 is current value of len(logrus.AllLevels)
@@ -42,6 +41,7 @@ func NewLocal(logger *logrus.Logger, logLevel string) {
 	}
 }
 
+// Fire triggers on every log event and counts the events
 func (t *Hook) Fire(e *logrus.Entry) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -103,6 +103,7 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 	return nil
 }
 
+// Levels returns all log levels
 func (t *Hook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }

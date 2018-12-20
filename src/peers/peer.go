@@ -10,6 +10,7 @@ const (
 	jsonPeerPath = "peers.json"
 )
 
+// NewPeer creates a new peer based on public key and network address
 func NewPeer(pubKeyHex, netAddr string) *Peer {
 	peer := &Peer{
 		PubKeyHex: pubKeyHex,
@@ -22,12 +23,14 @@ func NewPeer(pubKeyHex, netAddr string) *Peer {
 	return peer
 }
 
-func (this *Peer) Equals(that *Peer) bool {
-	return this.ID == that.ID &&
-		this.NetAddr == that.NetAddr &&
-		this.PubKeyHex == that.PubKeyHex
+// Equals checks peers for equality
+func (p *Peer) Equals(cmp *Peer) bool {
+	return p.ID == cmp.ID &&
+		p.NetAddr == cmp.NetAddr &&
+		p.PubKeyHex == cmp.PubKeyHex
 }
 
+// PubKeyBytes returns the public key bytes for a peer
 func (p *Peer) PubKeyBytes() ([]byte, error) {
 	return hex.DecodeString(p.PubKeyHex[2:])
 }

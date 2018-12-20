@@ -9,10 +9,12 @@ type pendingRound struct {
 	Decided bool
 }
 
+// RoundInfo info for the round
 type RoundInfo struct {
 	Message RoundInfoMessage
 }
 
+// NewRoundInfo creates a new round info struct
 func NewRoundInfo() *RoundInfo {
 	return &RoundInfo{
 		Message: RoundInfoMessage{
@@ -21,6 +23,7 @@ func NewRoundInfo() *RoundInfo {
 	}
 }
 
+// AddEvent add event to round info (optionally set clotho)
 func (r *RoundInfo) AddEvent(x string, clotho bool) {
 	_, ok := r.Message.Events[x]
 	if !ok {
@@ -30,6 +33,7 @@ func (r *RoundInfo) AddEvent(x string, clotho bool) {
 	}
 }
 
+// SetConsensusEvent set an event as an consensus event
 func (r *RoundInfo) SetConsensusEvent(x string) {
 	e, ok := r.Message.Events[x]
 	if !ok {
@@ -39,6 +43,7 @@ func (r *RoundInfo) SetConsensusEvent(x string) {
 	r.Message.Events[x] = e
 }
 
+// SetAtropos sets an event as san atropos
 func (r *RoundInfo) SetAtropos(x string, f bool) {
 	e, ok := r.Message.Events[x]
 	if !ok {
@@ -54,7 +59,7 @@ func (r *RoundInfo) SetAtropos(x string, f bool) {
 	r.Message.Events[x] = e
 }
 
-//return true if no clothos' fame is left undefined
+// ClothoDecided return true if no clothos' fame is left undefined
 func (r *RoundInfo) ClothoDecided() bool {
 	for _, e := range r.Message.Events {
 		if e.Clotho && e.Atropos == Trilean_UNDEFINED {
@@ -64,7 +69,7 @@ func (r *RoundInfo) ClothoDecided() bool {
 	return true
 }
 
-//return clothos
+// Clotho return clothos
 func (r *RoundInfo) Clotho() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -75,6 +80,7 @@ func (r *RoundInfo) Clotho() []string {
 	return res
 }
 
+// RoundEvents returns the round events
 func (r *RoundInfo) RoundEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -85,7 +91,7 @@ func (r *RoundInfo) RoundEvents() []string {
 	return res
 }
 
-//return consensus events
+// ConsensusEvents return consensus events
 func (r *RoundInfo) ConsensusEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -96,7 +102,7 @@ func (r *RoundInfo) ConsensusEvents() []string {
 	return res
 }
 
-//return Atropos
+// Atropos return Atropos
 func (r *RoundInfo) Atropos() []string {
 	var res []string
 	for x, e := range r.Message.Events {
@@ -107,11 +113,13 @@ func (r *RoundInfo) Atropos() []string {
 	return res
 }
 
+// IsDecided checks if the event is a decided clotho
 func (r *RoundInfo) IsDecided(clotho string) bool {
 	w, ok := r.Message.Events[clotho]
 	return ok && w.Clotho && w.Atropos != Trilean_UNDEFINED
 }
 
+// ProtoMarshal marshals the round info to protobuff
 func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -121,20 +129,24 @@ func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal unmarshals protobuff to a round info
 func (r *RoundInfo) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, &r.Message)
 }
 
+// IsQueued checks if the round is queued for processing
 func (r *RoundInfo) IsQueued() bool {
 	return r.Message.Queued
 }
 
-func (this *RoundEvent) Equals(that *RoundEvent) bool {
-	return this.Consensus == that.Consensus &&
-		this.Clotho == that.Clotho &&
-		this.Atropos == that.Atropos
+// Equals compares round events for equality
+func (re *RoundEvent) Equals(that *RoundEvent) bool {
+	return re.Consensus == that.Consensus &&
+		re.Clotho == that.Clotho &&
+		re.Atropos == that.Atropos
 }
 
+// EqualsMapStringRoundEvent compares a map string of round eventss for equality
 func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*RoundEvent) bool {
 	if len(this) != len(that) {
 		return false
@@ -148,7 +160,8 @@ func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*Rou
 	return true
 }
 
-func (this *RoundInfo) Equals(that *RoundInfo) bool {
-	return this.Message.Queued == that.Message.Queued &&
-		EqualsMapStringRoundEvent(this.Message.Events, that.Message.Events)
+// Equals compares two round info structs for equality
+func (r *RoundInfo) Equals(that *RoundInfo) bool {
+	return r.Message.Queued == that.Message.Queued &&
+		EqualsMapStringRoundEvent(r.Message.Events, that.Message.Events)
 }

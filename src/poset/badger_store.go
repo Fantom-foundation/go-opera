@@ -21,6 +21,7 @@ const (
 	framePrefix       = "frame"
 )
 
+// BadgerStore struct for badger config data
 type BadgerStore struct {
 	participants *peers.Peers
 	inmemStore   *InmemStore
@@ -103,6 +104,7 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 	return store, nil
 }
 
+// LoadOrCreateBadgerStore load or create a new badger store
 func LoadOrCreateBadgerStore(participants *peers.Peers, cacheSize int, path string) (*BadgerStore, error) {
 	store, err := LoadBadgerStore(cacheSize, path)
 
@@ -152,18 +154,22 @@ func frameKey(index int64) []byte {
 //==============================================================================
 //Implement the Store interface
 
+// CacheSize returns the cache size for the store
 func (s *BadgerStore) CacheSize() int {
 	return s.inmemStore.CacheSize()
 }
 
+// Participants returns all participants in the store
 func (s *BadgerStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
+// RootsBySelfParent returns the roots for the self parent
 func (s *BadgerStore) RootsBySelfParent() (map[string]Root, error) {
 	return s.inmemStore.RootsBySelfParent()
 }
 
+// GetEventBlock get specific event block by key
 func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
 	//try to get it from cache
 	event, err = s.inmemStore.GetEventBlock(key)
@@ -174,6 +180,7 @@ func (s *BadgerStore) GetEventBlock(key string) (event Event, err error) {
 	return event, mapError(err, "Event", key)
 }
 
+// SetEvent set a specific event
 func (s *BadgerStore) SetEvent(event Event) error {
 	//try to add it to the cache
 	if err := s.inmemStore.SetEvent(event); err != nil {
@@ -183,6 +190,7 @@ func (s *BadgerStore) SetEvent(event Event) error {
 	return s.dbSetEvents([]Event{event})
 }
 
+// ParticipantEvents return all participant events
 func (s *BadgerStore) ParticipantEvents(participant string, skip int64) ([]string, error) {
 	res, err := s.inmemStore.ParticipantEvents(participant, skip)
 	if err != nil {
@@ -191,6 +199,7 @@ func (s *BadgerStore) ParticipantEvents(participant string, skip int64) ([]strin
 	return res, err
 }
 
+// ParticipantEvent get specific participant event
 func (s *BadgerStore) ParticipantEvent(participant string, index int64) (string, error) {
 	result, err := s.inmemStore.ParticipantEvent(participant, index)
 	if err != nil {
@@ -199,14 +208,17 @@ func (s *BadgerStore) ParticipantEvent(participant string, index int64) (string,
 	return result, mapError(err, "ParticipantEvent", string(participantEventKey(participant, index)))
 }
 
+// LastEventFrom returns the last event for a particpant
 func (s *BadgerStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {
 	return s.inmemStore.LastEventFrom(participant)
 }
 
+// LastConsensusEventFrom returns the last consensus events for a participant
 func (s *BadgerStore) LastConsensusEventFrom(participant string) (last string, isRoot bool, err error) {
 	return s.inmemStore.LastConsensusEventFrom(participant)
 }
 
+// KnownEvents returns all known events
 func (s *BadgerStore) KnownEvents() map[int64]int64 {
 	known := make(map[int64]int64)
 	for p, pid := range s.participants.ByPubKey {
@@ -216,7 +228,6 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 			if isRoot {
 				root, err := s.GetRoot(p)
 				if err != nil {
-					last = root.SelfParent.Hash
 					index = root.SelfParent.Index
 				}
 			} else {
@@ -232,18 +243,22 @@ func (s *BadgerStore) KnownEvents() map[int64]int64 {
 	return known
 }
 
+// ConsensusEvents returns all consensus events
 func (s *BadgerStore) ConsensusEvents() []string {
 	return s.inmemStore.ConsensusEvents()
 }
 
+// ConsensusEventsCount returns the count for all known consensus events
 func (s *BadgerStore) ConsensusEventsCount() int64 {
 	return s.inmemStore.ConsensusEventsCount()
 }
 
+// AddConsensusEvent adds a consensus event to the store
 func (s *BadgerStore) AddConsensusEvent(event Event) error {
 	return s.inmemStore.AddConsensusEvent(event)
 }
 
+// GetRound gets the round info for a given index
 func (s *BadgerStore) GetRound(r int64) (RoundInfo, error) {
 	res, err := s.inmemStore.GetRound(r)
 	if err != nil {
@@ -252,6 +267,7 @@ func (s *BadgerStore) GetRound(r int64) (RoundInfo, error) {
 	return res, mapError(err, "Round", string(roundKey(r)))
 }
 
+// SetRound sets the round info for a given index
 func (s *BadgerStore) SetRound(r int64, round RoundInfo) error {
 	if err := s.inmemStore.SetRound(r, round); err != nil {
 		return err
@@ -259,10 +275,12 @@ func (s *BadgerStore) SetRound(r int64, round RoundInfo) error {
 	return s.dbSetRound(r, round)
 }
 
+// LastRound returns the last round for the store
 func (s *BadgerStore) LastRound() int64 {
 	return s.inmemStore.LastRound()
 }
 
+// RoundClothos returns all clothos for a round
 func (s *BadgerStore) RoundClothos(r int64) []string {
 	round, err := s.GetRound(r)
 	if err != nil {
@@ -271,6 +289,7 @@ func (s *BadgerStore) RoundClothos(r int64) []string {
 	return round.Clotho()
 }
 
+// RoundEvents returns all events for a round
 func (s *BadgerStore) RoundEvents(r int64) int {
 	round, err := s.GetRound(r)
 	if err != nil {
@@ -279,6 +298,7 @@ func (s *BadgerStore) RoundEvents(r int64) int {
 	return len(round.Message.Events)
 }
 
+// GetRoot returns the root for a participant
 func (s *BadgerStore) GetRoot(participant string) (Root, error) {
 	root, err := s.inmemStore.GetRoot(participant)
 	if err != nil {
@@ -287,6 +307,7 @@ func (s *BadgerStore) GetRoot(participant string) (Root, error) {
 	return root, mapError(err, "Root", string(participantRootKey(participant)))
 }
 
+// GetBlock returns the block for a given index
 func (s *BadgerStore) GetBlock(rr int64) (Block, error) {
 	res, err := s.inmemStore.GetBlock(rr)
 	if err != nil {
@@ -295,6 +316,7 @@ func (s *BadgerStore) GetBlock(rr int64) (Block, error) {
 	return res, mapError(err, "Block", string(blockKey(rr)))
 }
 
+// SetBlock add a block
 func (s *BadgerStore) SetBlock(block Block) error {
 	if err := s.inmemStore.SetBlock(block); err != nil {
 		return err
@@ -302,10 +324,12 @@ func (s *BadgerStore) SetBlock(block Block) error {
 	return s.dbSetBlock(block)
 }
 
+// LastBlockIndex returns the last block index (height)
 func (s *BadgerStore) LastBlockIndex() int64 {
 	return s.inmemStore.LastBlockIndex()
 }
 
+// GetFrame returns a specific frame for the index
 func (s *BadgerStore) GetFrame(rr int64) (Frame, error) {
 	res, err := s.inmemStore.GetFrame(rr)
 	if err != nil {
@@ -314,6 +338,7 @@ func (s *BadgerStore) GetFrame(rr int64) (Frame, error) {
 	return res, mapError(err, "Frame", string(frameKey(rr)))
 }
 
+// SetFrame add a frame
 func (s *BadgerStore) SetFrame(frame Frame) error {
 	if err := s.inmemStore.SetFrame(frame); err != nil {
 		return err
@@ -321,10 +346,12 @@ func (s *BadgerStore) SetFrame(frame Frame) error {
 	return s.dbSetFrame(frame)
 }
 
+// Reset all roots
 func (s *BadgerStore) Reset(roots map[string]Root) error {
 	return s.inmemStore.Reset(roots)
 }
 
+// Close badger
 func (s *BadgerStore) Close() error {
 	if err := s.inmemStore.Close(); err != nil {
 		return err
@@ -332,10 +359,12 @@ func (s *BadgerStore) Close() error {
 	return s.db.Close()
 }
 
+// NeedBoostrap checks if bootstrapping is required
 func (s *BadgerStore) NeedBoostrap() bool {
 	return s.needBoostrap
 }
 
+// StorePath returns the path to the file on disk
 func (s *BadgerStore) StorePath() string {
 	return s.path
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 )
 
+// RollingIndex struct
 type RollingIndex struct {
 	name      string
 	size      int
@@ -13,6 +14,7 @@ type RollingIndex struct {
 	locker    sync.RWMutex
 }
 
+// NewRollingIndex constructor
 func NewRollingIndex(name string, size int) *RollingIndex {
 	return &RollingIndex{
 		name:      name,
@@ -22,12 +24,14 @@ func NewRollingIndex(name string, size int) *RollingIndex {
 	}
 }
 
+// GetLastWindow getter
 func (r *RollingIndex) GetLastWindow() (lastWindow []interface{}, lastIndex int64) {
 	r.locker.RLock()
 	defer r.locker.RUnlock()
 	return r.items, r.lastIndex
 }
 
+// Get with skipIndex option
 func (r *RollingIndex) Get(skipIndex int64) ([]interface{}, error) {
 	r.locker.RLock()
 	defer r.locker.RUnlock()
@@ -50,6 +54,7 @@ func (r *RollingIndex) Get(skipIndex int64) ([]interface{}, error) {
 	return r.items[start:], nil
 }
 
+// GetItem get item for a given index
 func (r *RollingIndex) GetItem(index int64) (interface{}, error) {
 	r.locker.RLock()
 	defer r.locker.RUnlock()
@@ -65,6 +70,7 @@ func (r *RollingIndex) GetItem(index int64) (interface{}, error) {
 	return r.items[findex], nil
 }
 
+// Set item for given index
 func (r *RollingIndex) Set(item interface{}, index int64) error {
 	r.locker.Lock()
 	defer r.locker.Unlock()

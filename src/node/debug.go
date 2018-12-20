@@ -1,6 +1,6 @@
 // +build debug
 
-// These functions are used only in debugging
+// Package node these functions are used only in debugging
 package node
 
 import (
@@ -13,13 +13,14 @@ import (
         "github.com/tebeka/atexit"
 )
 
+// InfosLite small subset of debug info for node
 type InfosLite struct {
 	ParticipantEvents map[string]map[string]EventLite
 	Rounds            []poset.RoundInfo
 	Blocks            []poset.Block
 }
 
-
+// EventBodyLite small subset of event body for debugging
 type EventBodyLite struct {
 	Parents         []string         //hashes of the event's parents, self-parent first
 	Creator         string           //creator's public key
@@ -27,6 +28,7 @@ type EventBodyLite struct {
 	Transactions    [][]byte
 }
 
+// EventMessageLite small subset of event body for debugging
 type EventMessageLite struct {
 	Body      EventBodyLite
 	Signature string //creator's digital signature of body
@@ -38,13 +40,15 @@ type EventMessageLite struct {
 	ClothoProof []string
 //	FlagTable []byte // FlagTable stores connection information
 }
+
+// EventLite small subset of event for debugging
 type EventLite struct {
 	CreatorID            int64
 	OtherParentCreatorID int64
 	Message EventMessageLite
 }
 
-
+// GetParticipantEventsLite returns all participants
 func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 	res := make(map[string]map[string]EventLite)
 
@@ -70,7 +74,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 
 		hash := event.Hex()
 
-		lite_event := EventLite{
+		liteEvent := EventLite{
 			CreatorID: event.CreatorID(),
 			OtherParentCreatorID: event.OtherParentCreatorID(),
 			Message: EventMessageLite {
@@ -90,12 +94,13 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 			},
 		}
 
-		res[g.Node.localAddr/*p.PubKeyHex*/][hash] = lite_event
+		res[g.Node.localAddr/*p.PubKeyHex*/][hash] = liteEvent
 	}
 
 	return res
 }
 
+// GetInfosLite returns debug stats
 func (g *Graph) GetInfosLite() InfosLite {
 	return InfosLite{
 		ParticipantEvents: g.GetParticipantEventsLite(),
@@ -104,11 +109,13 @@ func (g *Graph) GetInfosLite() InfosLite {
 	}
 }
 
+// PrintStat prints debug stats
 func (c *Core) PrintStat(logger *logrus.Entry) {
 	logger.Warn("**core.HexID=", c.HexID())
 	c.poset.PrintStat(logger)
 }
 
+// PrintStat prints debug stats
 func (n *Node) PrintStat() {
 	n.logger.Warn("*Node=", n.localAddr)
 	g := NewGraph(n)
@@ -119,6 +126,7 @@ func (n *Node) PrintStat() {
 	n.core.PrintStat(n.logger)
 }
 
+// Register a print listener
 func (n *Node) Register() {
 	atexit.Register(func() {
 		// You must build with debug tag to have PrintStat() defined

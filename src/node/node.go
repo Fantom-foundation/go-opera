@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
+// Node struct that keeps all high level node functions
 type Node struct {
 	*nodeState2
 
@@ -53,6 +54,7 @@ type Node struct {
 	rpcJobs      count64
 }
 
+// NewNode create a new node struct
 func NewNode(conf *Config,
 	id int64,
 	key *ecdsa.PrivateKey,
@@ -106,6 +108,7 @@ func NewNode(conf *Config,
 	return &node
 }
 
+// Init initializes all the node processes
 func (n *Node) Init() error {
 	var peerAddresses []string
 	for _, p := range n.peerSelector.Peers().ToPeerSlice() {
@@ -124,11 +127,13 @@ func (n *Node) Init() error {
 	return n.core.SetHeadAndSeq()
 }
 
+// RunAsync run the background processes asynchronously
 func (n *Node) RunAsync(gossip bool) {
 	n.logger.Debug("RunAsync(gossip bool)")
 	go n.Run(gossip)
 }
 
+// Run core run loop, takes care of all processes
 func (n *Node) Run(gossip bool) {
 	// The ControlTimer allows the background routines to control the
 	// heartbeat timer when the node is in the Gossiping state. The timer should
@@ -661,6 +666,7 @@ func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {
 	n.core.AddInternalTransactions([]poset.InternalTransaction{tx})
 }
 
+// Shutdown the node
 func (n *Node) Shutdown() {
 	if n.getState() != Shutdown {
 		// n.mqtt.FireEvent("Shutdown()", "/mq/lachesis/node")
@@ -684,6 +690,7 @@ func (n *Node) Shutdown() {
 	}
 }
 
+// GetStats returns processing stats for the node
 func (n *Node) GetStats() map[string]string {
 	toString := func(i int64) string {
 		if i <= 0 {
@@ -755,6 +762,7 @@ func (n *Node) logStats() {
 	}).Warn("logStats()")
 }
 
+// SyncRate returns the current synchronization (talking to over nodes) rate in ms
 func (n *Node) SyncRate() float64 {
 	var syncErrorRate float64
 	if n.syncRequests != 0 {
@@ -763,67 +771,83 @@ func (n *Node) SyncRate() float64 {
 	return 1 - syncErrorRate
 }
 
+// GetParticipants returns all participants this node knows about
 func (n *Node) GetParticipants() (*peers.Peers, error) {
 	return n.core.poset.Store.Participants()
 }
 
+// GetEventBlock returns a specific event block for the given hash
 func (n *Node) GetEventBlock(event string) (poset.Event, error) {
 	return n.core.poset.Store.GetEventBlock(event)
 }
 
+// GetLastEventFrom returns the last event block for a specific participant
 func (n *Node) GetLastEventFrom(participant string) (string, bool, error) {
 	return n.core.poset.Store.LastEventFrom(participant)
 }
 
+// GetKnownEvents returns all known events
 func (n *Node) GetKnownEvents() map[int64]int64 {
 	return n.core.poset.Store.KnownEvents()
 }
 
+// GetEventBlocks returns all event blocks
 func (n *Node) GetEventBlocks() (map[int64]int64, error) {
 	res := n.core.KnownEvents()
 	return res, nil
 }
 
+// GetConsensusEvents returns all consensus events
 func (n *Node) GetConsensusEvents() []string {
 	return n.core.poset.Store.ConsensusEvents()
 }
 
+// GetConsensusTransactionsCount get the count of finalized transactions
 func (n *Node) GetConsensusTransactionsCount() uint64 {
 	return n.core.GetConsensusTransactionsCount()
 }
 
+// GetPendingLoadedEvents returns all the pending events
 func (n *Node) GetPendingLoadedEvents() int64 {
 	return n.core.GetPendingLoadedEvents()
 }
 
+// GetRound returns the round info for a given index
 func (n *Node) GetRound(roundIndex int64) (poset.RoundInfo, error) {
 	return n.core.poset.Store.GetRound(roundIndex)
 }
 
+// GetLastRound returns the last round
 func (n *Node) GetLastRound() int64 {
 	return n.core.poset.Store.LastRound()
 }
 
+// GetRoundClothos returns all clotho for a given round index
 func (n *Node) GetRoundClothos(roundIndex int64) []string {
 	return n.core.poset.Store.RoundClothos(roundIndex)
 }
 
+// GetRoundEvents returns all the round events for a given round index
 func (n *Node) GetRoundEvents(roundIndex int64) int {
 	return n.core.poset.Store.RoundEvents(roundIndex)
 }
 
+// GetRoot returns the chain root for the frame
 func (n *Node) GetRoot(rootIndex string) (poset.Root, error) {
 	return n.core.poset.Store.GetRoot(rootIndex)
 }
 
+// GetBlock returns the block for a given index
 func (n *Node) GetBlock(blockIndex int64) (poset.Block, error) {
 	return n.core.poset.Store.GetBlock(blockIndex)
 }
 
+// ID shows the ID of the node
 func (n *Node) ID() int64 {
 	return n.id
 }
 
+// Stop stops the node from gossiping
 func (n *Node) Stop() {
 	n.setState(Stop)
 }

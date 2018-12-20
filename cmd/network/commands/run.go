@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -236,23 +235,4 @@ func parseConfig() (*CLIConfig, error) {
 		return nil, err
 	}
 	return conf, err
-}
-
-func logLevel(l string) logrus.Level {
-	switch l {
-	case "debug":
-		return logrus.DebugLevel
-	case "info":
-		return logrus.InfoLevel
-	case "warn":
-		return logrus.WarnLevel
-	case "error":
-		return logrus.ErrorLevel
-	case "fatal":
-		return logrus.FatalLevel
-	case "panic":
-		return logrus.PanicLevel
-	default:
-		return logrus.DebugLevel
-	}
 }

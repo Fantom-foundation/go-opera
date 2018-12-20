@@ -15,7 +15,7 @@ import (
 //stateHash will be different
 //statehash should be ignored for validator checking
 
-//json encoding of body only
+// ProtoMarshal json encoding of body only
 func (bb *BlockBody) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -25,10 +25,12 @@ func (bb *BlockBody) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal unmarshal the protobuff for the block body
 func (bb *BlockBody) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, bb)
 }
 
+// Hash returns the block body hash
 func (bb *BlockBody) Hash() ([]byte, error) {
 	hashBytes, err := bb.ProtoMarshal()
 	if err != nil {
@@ -39,38 +41,44 @@ func (bb *BlockBody) Hash() ([]byte, error) {
 
 //------------------------------------------------------------------------------
 
-func (m *BlockSignature) ValidatorHex() string {
-	return fmt.Sprintf("0x%X", m.Validator)
+// ValidatorHex returns the Hex ID of a validator for this block
+func (bs *BlockSignature) ValidatorHex() string {
+	return fmt.Sprintf("0x%X", bs.Validator)
 }
 
-func (m *BlockSignature) ProtoMarshal() ([]byte, error) {
+// ProtoMarshal marshal the block signatures to protobuff
+func (bs *BlockSignature) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
-	if err := bf.Marshal(m); err != nil {
+	if err := bf.Marshal(bs); err != nil {
 		return nil, err
 	}
 	return bf.Bytes(), nil
 }
 
-func (m *BlockSignature) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, m)
+// ProtoUnmarshal unmarshals the blocksignature from protobuff
+func (bs *BlockSignature) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, bs)
 }
 
-func (m *BlockSignature) ToWire() WireBlockSignature {
+// ToWire converts block signatures to wire (transport)
+func (bs *BlockSignature) ToWire() WireBlockSignature {
 	return WireBlockSignature{
-		Index:     m.Index,
-		Signature: m.Signature,
+		Index:     bs.Index,
+		Signature: bs.Signature,
 	}
 }
 
-func (m *BlockSignature) Equals(that *BlockSignature) bool {
-	return reflect.DeepEqual(m.Validator, that.Validator) &&
-		m.Index == that.Index &&
-		m.Signature == that.Signature
+// Equals checks blocksignature equality
+func (bs *BlockSignature) Equals(that *BlockSignature) bool {
+	return reflect.DeepEqual(bs.Validator, that.Validator) &&
+		bs.Index == that.Index &&
+		bs.Signature == that.Signature
 }
 
 //------------------------------------------------------------------------------
 
+// NewBlockFromFrame creates a new block from the given frame
 func NewBlockFromFrame(blockIndex int64, frame Frame) (Block, error) {
 	frameHash, err := frame.Hash()
 	if err != nil {
@@ -83,6 +91,7 @@ func NewBlockFromFrame(blockIndex int64, frame Frame) (Block, error) {
 	return NewBlock(blockIndex, frame.Round, frameHash, transactions), nil
 }
 
+// NewBlock creates a new empty block
 func NewBlock(blockIndex, roundReceived int64, frameHash []byte, txs [][]byte) Block {
 	body := BlockBody{
 		Index:         blockIndex,
@@ -96,18 +105,22 @@ func NewBlock(blockIndex, roundReceived int64, frameHash []byte, txs [][]byte) B
 	}
 }
 
+// Index returns the index (height) of the block
 func (b *Block) Index() int64 {
 	return b.Body.Index
 }
 
+// Transactions returns the transactions in a block
 func (b *Block) Transactions() [][]byte {
 	return b.Body.Transactions
 }
 
+// RoundReceived returns the round in which the block was received
 func (b *Block) RoundReceived() int64 {
 	return b.Body.RoundReceived
 }
 
+// BlockHash returns the Hash of the block (used for API)
 func (b *Block) BlockHash() ([]byte, error) {
 	hashBytes, err := b.ProtoMarshal()
 	if err != nil {
@@ -116,11 +129,13 @@ func (b *Block) BlockHash() ([]byte, error) {
 	return crypto.SHA256(hashBytes), nil
 }
 
+// BlockHex returns the Hex of the block (used for API)
 func (b *Block) BlockHex() string {
 	hash, _ := b.BlockHash()
 	return fmt.Sprintf("0x%X", hash)
 }
 
+// GetBlockSignatures returns the block signatures for the block
 func (b *Block) GetBlockSignatures() []BlockSignature {
 	res := make([]BlockSignature, len(b.Signatures))
 	i := 0
@@ -136,6 +151,7 @@ func (b *Block) GetBlockSignatures() []BlockSignature {
 	return res
 }
 
+// GetSignature returns all validator signatures for the block
 func (b *Block) GetSignature(validator string) (res BlockSignature, err error) {
 	sig, ok := b.Signatures[validator]
 	if !ok {
@@ -150,10 +166,12 @@ func (b *Block) GetSignature(validator string) (res BlockSignature, err error) {
 	}, nil
 }
 
+// AppendTransactions appends the transactions to the block body
 func (b *Block) AppendTransactions(txs [][]byte) {
 	b.Body.Transactions = append(b.Body.Transactions, txs...)
 }
 
+// ProtoMarshal marshals the block into protobuff
 func (b *Block) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
@@ -163,10 +181,12 @@ func (b *Block) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
+// ProtoUnmarshal unamrshals protobuff into a block
 func (b *Block) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, b)
 }
 
+// Sign the block for this node
 func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
 	signBytes, err := b.Body.Hash()
 	if err != nil {
@@ -185,11 +205,13 @@ func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
 	return signature, nil
 }
 
+// SetSignature sets the known blocksignatures for the block
 func (b *Block) SetSignature(bs BlockSignature) error {
 	b.Signatures[bs.ValidatorHex()] = bs.Signature
 	return nil
 }
 
+// Verify verifies a blocksignature is from the node that signeds
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
 	signBytes, err := b.Body.Hash()
 	if err != nil {
@@ -206,6 +228,7 @@ func (b *Block) Verify(sig BlockSignature) (bool, error) {
 	return crypto.Verify(pubKey, signBytes, r, s), nil
 }
 
+// ListBytesEquals compares the equality of two lists
 func ListBytesEquals(this [][]byte, that [][]byte) bool {
 	if len(this) != len(that) {
 		return false
@@ -218,16 +241,19 @@ func ListBytesEquals(this [][]byte, that [][]byte) bool {
 	return true
 }
 
-func (this *BlockBody) Equals(that *BlockBody) bool {
-	return this.Index == that.Index &&
-		this.RoundReceived == that.RoundReceived &&
-		ListBytesEquals(this.Transactions, that.Transactions)
+// Equals compares the equality of a block body
+func (bb *BlockBody) Equals(that *BlockBody) bool {
+	return bb.Index == that.Index &&
+		bb.RoundReceived == that.RoundReceived &&
+		ListBytesEquals(bb.Transactions, that.Transactions)
 }
 
-func (this *WireBlockSignature) Equals(that *WireBlockSignature) bool {
-	return this.Index == that.Index && this.Signature == that.Signature
+// Equals compares the equality of wire block signatures
+func (wbs *WireBlockSignature) Equals(that *WireBlockSignature) bool {
+	return wbs.Index == that.Index && wbs.Signature == that.Signature
 }
 
+// MapStringsEquals compares the equality of two string maps
 func MapStringsEquals(this map[string]string, that map[string]string) bool {
 	if len(this) != len(that) {
 		return false
@@ -241,9 +267,10 @@ func MapStringsEquals(this map[string]string, that map[string]string) bool {
 	return true
 }
 
-func (this *Block) Equals(that *Block) bool {
-	return this.Body.Equals(that.Body) &&
-		MapStringsEquals(this.Signatures, that.Signatures) &&
-		BytesEquals(this.Hash, that.Hash) &&
-		this.Hex == that.Hex
+// Equals compares the equality of two blocks
+func (b *Block) Equals(that *Block) bool {
+	return b.Body.Equals(that.Body) &&
+		MapStringsEquals(b.Signatures, that.Signatures) &&
+		BytesEquals(b.Hash, that.Hash) &&
+		b.Hex == that.Hex
 }

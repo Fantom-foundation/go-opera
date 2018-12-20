@@ -16,7 +16,7 @@ import (
 
 var tx string
 
-// ProxyCmd displays the version of babble being used
+// NewProxyCmd displays the version of babble being used
 func NewProxyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "proxy",
@@ -29,11 +29,12 @@ func NewProxyCmd() *cobra.Command {
 	return cmd
 }
 
+// Handler struct
 type Handler struct {
 	stateHash []byte
 }
 
-// Called when a new block is comming
+// CommitHandler Called when a new block is comming
 // You must provide a method to compute the stateHash incrementaly with incoming blocks
 func (h *Handler) CommitHandler(block poset.Block) (stateHash []byte, err error) {
 	hash := h.stateHash
@@ -48,16 +49,17 @@ func (h *Handler) CommitHandler(block poset.Block) (stateHash []byte, err error)
 	return h.stateHash, nil
 }
 
-// Called when syncing with the network
+// SnapshotHandler Called when syncing with the network
 func (h *Handler) SnapshotHandler(blockIndex int) (snapshot []byte, err error) {
 	return []byte{}, nil
 }
 
-// Called when syncing with the network
+// RestoreHandler Called when syncing with the network
 func (h *Handler) RestoreHandler(snapshot []byte) (stateHash []byte, err error) {
 	return []byte{}, nil
 }
 
+// NewHandler constructor
 func NewHandler() *Handler {
 	return &Handler{}
 }
@@ -103,7 +105,7 @@ func connectProxy(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-//AddRunFlags adds flags to the Run command
+// AddProxyFlags adds flags to the Run command
 func AddProxyFlags(cmd *cobra.Command) {
 	cmd.Flags().IntVar(&config.Node, "node", config.Node, "Node index to connect to (starts from 0)")
 	cmd.Flags().BoolVar(&config.Stdin, "stdin", config.Stdin, "Send some transactions from stdin")
