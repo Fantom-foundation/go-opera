@@ -226,7 +226,7 @@ func TestSync(t *testing.T) {
 	   0   1   2        0   1   2       0   1   2
 	*/
 
-	expectedHeights := make([]map[string]uint64, 3, 3)
+	expectedHeights := make([]map[string]uint64, 3)
 	expectedHeights[0] = map[string]uint64{
 		cores[0].hexID: 1,
 		cores[1].hexID: 0,
@@ -445,7 +445,7 @@ func TestInDegrees(t *testing.T) {
 	   0   1   2        0   1   2       0   1   2
 	*/
 
-	expectedHeights := make([]map[string]uint64, 3, 3)
+	expectedHeights := make([]map[string]uint64, 3)
 	expectedHeights[0] = map[string]uint64{
 		cores[0].hexID: 2,
 		cores[1].hexID: 1,
@@ -463,7 +463,7 @@ func TestInDegrees(t *testing.T) {
 	}
 	checkHeights(cores, expectedHeights, t)
 
-	expectedInDegree := make([]map[string]uint64, 3, 3)
+	expectedInDegree := make([]map[string]uint64, 3)
 	expectedInDegree[0] = map[string]uint64{
 		cores[0].hexID: 0,
 		cores[1].hexID: 1,

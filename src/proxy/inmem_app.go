@@ -95,7 +95,7 @@ func (p *InmemAppProxy) Restore(snapshot []byte) error {
 func (p *InmemAppProxy) SubmitTx(tx []byte) {
 	//have to make a copy, or the tx will be garbage collected and weird stuff
 	//happens in transaction pool
-	t := make([]byte, len(tx), len(tx))
+	t := make([]byte, len(tx))
 	copy(t, tx)
 	p.submitCh <- t
 }

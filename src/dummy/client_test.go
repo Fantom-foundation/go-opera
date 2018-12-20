@@ -52,7 +52,6 @@ func TestSocketProxyServer(t *testing.T) {
 func TestDummySocketClient(t *testing.T) {
 	const (
 		timeout    = 2 * time.Second
-		errTimeout = "time is over"
 		addr       = "127.0.0.1:9992"
 	)
 	asserter := assert.New(t)
