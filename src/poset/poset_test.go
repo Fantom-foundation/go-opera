@@ -485,7 +485,7 @@ func TestFork(t *testing.T) {
 		poset.InsertEvent(event, true)
 	}
 
-	//a and e2 need to have different hashes
+	// a and e2 need to have different hashes
 	eventA := NewEvent([][]byte{[]byte("yo")}, nil, nil, []string{"", ""}, nodes[2].Pub, 0, nil)
 	eventA.Sign(nodes[2].Key)
 	index["a"] = eventA.Hex()
@@ -494,7 +494,7 @@ func TestFork(t *testing.T) {
 	}
 
 	event01 := NewEvent(nil, nil, nil,
-		[]string{index[e0], index[a]}, //e0 and a
+		[]string{index[e0], index[a]}, // e0 and a
 		nodes[0].Pub, 1, nil)
 	event01.Sign(nodes[0].Key)
 	index[e01] = event01.Hex()
@@ -503,7 +503,7 @@ func TestFork(t *testing.T) {
 	}
 
 	event20 := NewEvent(nil, nil, nil,
-		[]string{index[e2], index[e01]}, //e2 and e01
+		[]string{index[e2], index[e01]}, // e2 and e01
 		nodes[2].Pub, 1, nil)
 	event20.Sign(nodes[2].Key)
 	index[e20] = event20.Hex()
@@ -752,14 +752,16 @@ func TestClothos(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRound(0, RoundInfo{
-		Message: RoundInfoMessage{Events: round0Clotho}})
+	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
+	}
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[f1]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRound(1, RoundInfo{
-		Message: RoundInfoMessage{Events: round1Clotho}})
+	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
+	}
 
 	expected := []dominatorItem{
 		{"", e0, true, false},
@@ -794,8 +796,9 @@ func TestRound(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRound(0, RoundInfo{Message: RoundInfoMessage{
-		Events: round0Clotho}})
+	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
+	}
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[e21]] = &RoundEvent{
@@ -804,8 +807,9 @@ func TestRound(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[f1]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRound(1, RoundInfo{
-		Message: RoundInfoMessage{Events: round1Clotho}})
+	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
+	}
 
 	expected := []roundItem{
 		{e0, 0},
@@ -842,8 +846,9 @@ func TestRoundDiff(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round0Clotho[index[e2]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRound(0, RoundInfo{
-		Message: RoundInfoMessage{Events: round0Clotho}})
+	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
+	}
 
 	round1Clotho := make(map[string]*RoundEvent)
 	round1Clotho[index[e21]] = &RoundEvent{
@@ -852,8 +857,9 @@ func TestRoundDiff(t *testing.T) {
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	round1Clotho[index[f1]] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	p.Store.SetRound(1,
-		RoundInfo{Message: RoundInfoMessage{Events: round1Clotho}})
+	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
+		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
+	}
 
 	if d, err := p.roundDiff(index[s11], index[e21]); d != 1 {
 		if err != nil {
@@ -887,7 +893,7 @@ func TestDivideRounds(t *testing.T) {
 		t.Fatalf("last round should be 2 not %d", l)
 	}
 
-	round0, err := p.Store.GetRound(0)
+	round0, err := p.Store.GetRoundCreated(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -904,7 +910,7 @@ func TestDivideRounds(t *testing.T) {
 		t.Fatalf("round 0 clothos should contain %s", e2)
 	}
 
-	round1, err := p.Store.GetRound(1)
+	round1, err := p.Store.GetRoundCreated(1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -915,7 +921,7 @@ func TestDivideRounds(t *testing.T) {
 		t.Fatalf("round 1 clothos should contain %s", f1)
 	}
 
-	round2, err := p.Store.GetRound(2)
+	round2, err := p.Store.GetRoundCreated(2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1136,7 +1142,7 @@ func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]string) {
 	poset := NewPoset(participants, NewInmemStore(participants, cacheSize),
 		nil, testLogger(t))
 
-	//create a block and signatures manually
+	// create a block and signatures manually
 	block := NewBlock(0, 1, []byte("framehash"),
 		[][]byte{[]byte("block tx")})
 	err := poset.Store.SetBlock(block)
@@ -1468,7 +1474,7 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	round0, err := p.Store.GetRound(0)
+	round0, err := p.Store.GetRoundCreated(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1485,7 +1491,7 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatalf("%s should be Atropos; got %v", e2, f)
 	}
 
-	round1, err := p.Store.GetRound(1)
+	round1, err := p.Store.GetRoundCreated(1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1502,7 +1508,7 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatalf("%s should be Atropos; got %v", f1, f)
 	}
 
-	round2, err := p.Store.GetRound(2)
+	round2, err := p.Store.GetRoundCreated(2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1519,7 +1525,7 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatalf("%s should be Atropos; got %v", g2, f)
 	}
 
-	round3, err := p.Store.GetRound(3)
+	round3, err := p.Store.GetRoundCreated(3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1536,7 +1542,7 @@ func TestDecideAtropos(t *testing.T) {
 		t.Fatalf("%s should be Atropos; got %v", h10, f)
 	}
 
-	round4, err := p.Store.GetRound(4)
+	round4, err := p.Store.GetRoundCreated(4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1596,7 +1602,7 @@ func TestDecideRoundReceived(t *testing.T) {
 		}
 	}
 
-	round0, err := p.Store.GetRound(0)
+	round0, err := p.Store.GetRoundCreated(0)
 	if err != nil {
 		t.Fatalf("could not retrieve Round 0. %s", err)
 	}
@@ -1604,7 +1610,7 @@ func TestDecideRoundReceived(t *testing.T) {
 		t.Fatalf("round 0 should contain 0 ConsensusEvents, not %d", ce)
 	}
 
-	round1, err := p.Store.GetRound(1)
+	round1, err := p.Store.GetRoundCreated(1)
 	if err != nil {
 		t.Fatalf("could not retrieve Round 1. %s", err)
 	}
@@ -1612,7 +1618,7 @@ func TestDecideRoundReceived(t *testing.T) {
 		t.Fatalf("round 1 should contain 4 ConsensusEvents, not %d", ce)
 	}
 
-	round2, err := p.Store.GetRound(2)
+	round2, err := p.Store.GetRoundCreated(2)
 	if err != nil {
 		t.Fatalf("could not retrieve Round 2. %s", err)
 	}
@@ -2036,11 +2042,11 @@ func TestResetFromFrame(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		pRound1, err := p.Store.GetRound(2)
+		pRound1, err := p.Store.GetRoundCreated(2)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p2Round1, err := p2.Store.GetRound(2)
+		p2Round1, err := p2.Store.GetRoundCreated(2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2107,7 +2113,7 @@ func TestResetFromFrame(t *testing.T) {
 	t.Run("TestContinueAfterReset", func(t *testing.T) {
 		// Insert remaining Events into the Reset poset
 		for r := int64(2); r <= int64(2); r++ {
-			round, err := p.Store.GetRound(r)
+			round, err := p.Store.GetRoundCreated(r)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2138,11 +2144,11 @@ func TestResetFromFrame(t *testing.T) {
 		p2.ProcessDecidedRounds()
 
 		for r := int64(2); r <= 2; r++ {
-			pRound, err := p.Store.GetRound(r)
+			pRound, err := p.Store.GetRoundCreated(r)
 			if err != nil {
 				t.Fatal(err)
 			}
-			p2Round, err := p2.Store.GetRound(r)
+			p2Round, err := p2.Store.GetRoundCreated(r)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2376,7 +2382,7 @@ func TestFunkyPosetAtropos(t *testing.T) {
 	}
 
 	for r := int64(0); r < l+1; r++ {
-		round, err := p.Store.GetRound(r)
+		round, err := p.Store.GetRoundCreated(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2412,10 +2418,11 @@ func TestFunkyPosetAtropos(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 5; i < len(p.PendingRounds)+5; i++ {
-		if !reflect.DeepEqual(*p.PendingRounds[i-5], expPendingRounds[i]) {
-			t.Fatalf("pending round %d should be %v, not %v", i,
-				expPendingRounds[i], *p.PendingRounds[i-5])
+	remainingPendingRounds := expPendingRounds[5:]
+	for i := 0; i < len(p.PendingRounds); i++ {
+		if !reflect.DeepEqual(*p.PendingRounds[i], remainingPendingRounds[i]) {
+			t.Fatalf("remaining pending round %d should be %v, not %v", i,
+				remainingPendingRounds[i], *p.PendingRounds[i])
 		}
 	}
 }
@@ -2442,7 +2449,7 @@ func TestFunkyPosetBlocks(t *testing.T) {
 	}
 
 	for r := int64(0); r < l+1; r++ {
-		round, err := p.Store.GetRound(r)
+		round, err := p.Store.GetRoundCreated(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3226,16 +3233,16 @@ func TestSparsePosetReset(t *testing.T) {
 
 func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
 	for i := round; i <= 5; i++ {
-		pRound, err := p.Store.GetRound(i)
+		pRound, err := p.Store.GetRoundCreated(i)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p2Round, err := p2.Store.GetRound(i)
+		p2Round, err := p2.Store.GetRoundCreated(i)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		//Check Round1 Clotho
+		// Check Round1 Clotho
 		pClotho := pRound.Clotho()
 		p2Clotho := p2Round.Clotho()
 		sort.Strings(pClotho)

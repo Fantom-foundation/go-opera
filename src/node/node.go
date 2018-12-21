@@ -3,12 +3,11 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
-
-	"strconv"
 
 	"github.com/Fantom-foundation/go-lachesis/src/net"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
@@ -72,7 +71,7 @@ func NewNode(conf *Config,
 
 	pubKey := core.HexID()
 
-	//	peerSelector := NewRandomPeerSelector(participants, localAddr)
+	// peerSelector := NewRandomPeerSelector(participants, localAddr)
 	peerSelector := NewSmartPeerSelector(participants, pubKey,
 		core.poset.GetFlagTableOfRandomUndeterminedEvent)
 
@@ -169,7 +168,7 @@ func (n *Node) Run(gossip bool) {
 func (n *Node) resetTimer() {
 	if !n.controlTimer.GetSet() {
 		ts := n.conf.HeartbeatTimeout
-		//Slow gossip if nothing interesting to say
+		// Slow gossip if nothing interesting to say
 		if n.core.poset.GetPendingLoadedEvents() == 0 &&
 			n.core.GetTransactionPoolCount() == 0 &&
 			n.core.GetBlockSignaturePoolCount() == 0 {
@@ -418,9 +417,9 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 	elapsed := time.Since(start)
 	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestSync(peerAddr, knownEvents)")
 	// FIXIT: should we catch io.EOF error here and how we process it?
-	//	if err == io.EOF {
-	//		return false, nil, nil
-	//	}
+	// 	if err == io.EOF {
+	// 		return false, nil, nil
+	// 	}
 	if err != nil {
 		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
 		return false, nil, err
@@ -556,7 +555,7 @@ func (n *Node) requestSync(target string, known map[int64]int64) (net.SyncRespon
 
 	var out net.SyncResponse
 	err := n.trans.Sync(target, &args, &out)
-	//n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
+	// n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
 	return out, err
 }
 
@@ -812,9 +811,9 @@ func (n *Node) GetPendingLoadedEvents() int64 {
 	return n.core.GetPendingLoadedEvents()
 }
 
-// GetRound returns the round info for a given index
-func (n *Node) GetRound(roundIndex int64) (poset.RoundInfo, error) {
-	return n.core.poset.Store.GetRound(roundIndex)
+// GetRound returns the created round info for a given index
+func (n *Node) GetRound(roundIndex int64) (poset.RoundCreated, error) {
+	return n.core.poset.Store.GetRoundCreated(roundIndex)
 }
 
 // GetLastRound returns the last round

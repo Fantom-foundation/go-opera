@@ -3,12 +3,11 @@ package tester
 import (
 	"fmt"
 	"math/rand"
+	_ "os" // required for TODO
 	"strconv"
 	"strings"
+	_ "sync" // required for TODO
 	"time"
-
-	_ "os"
-	_ "sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
@@ -23,6 +22,10 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	proxies := make(map[int64]*proxy.GrpcLachesisProxy)
 	for _, participant := range participants {
 		node := p[participant.PubKeyHex]
+		if node.NetAddr == "" {
+			fmt.Printf("node missing NetAddr [%v]", node)
+			continue
+		}
 		hostPort := strings.Split(node.NetAddr, ":")
 		port, err := strconv.Atoi(hostPort[1])
 		if err != nil {
@@ -64,7 +67,7 @@ func transact(proxy *proxy.GrpcLachesisProxy, proxyAddr string, iteration uint64
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes.
 	// A good assumption is to make txns 120 bytes in size.
 	// However, for speed, we're using 1 byte here. Modify accordingly.
-	//var msg [1]byte
+	// var msg [1]byte
 	for i := 0; i < 10; i++ {
 		// Send 10 txns to the server.
 		msg := fmt.Sprintf("%s.%d.%d", proxyAddr, iteration, i)

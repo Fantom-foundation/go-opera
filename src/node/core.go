@@ -350,6 +350,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			ev.SetRound(poset.RoundNIL)
 			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
+				c.logger.Error("SYNC: INSERT ERR", err)
 				return err
 			}
 		}
@@ -473,7 +474,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.transactionPoolLocker.Lock()
-	c.transactionPool = c.transactionPool[nTxs:] //[][]byte{}
+	c.transactionPool = c.transactionPool[nTxs:] // [][]byte{}
 	c.transactionPoolLocker.Unlock()
 	c.internalTransactionPoolLocker.Lock()
 	c.internalTransactionPool = []poset.InternalTransaction{}

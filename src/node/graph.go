@@ -9,8 +9,8 @@ import (
 // Infos struct for graph data (visualizer)
 type Infos struct {
 	ParticipantEvents map[string]map[string]poset.Event
-	Rounds            []poset.RoundInfo
-  Blocks            []poset.Block
+	Rounds            []poset.RoundCreated
+	Blocks            []poset.Block
 }
 
 // Graph stuct to represent the DAG
@@ -20,23 +20,23 @@ type Graph struct {
 
 // GetBlocks returns all blocks in the DAG
 func (g *Graph) GetBlocks() []poset.Block {
-	res := []poset.Block{}
+	var res []poset.Block
 	store := g.Node.core.poset.Store
- 	blockIdx := store.LastBlockIndex() - 10
+	blockIdx := store.LastBlockIndex() - 10
 
 	if blockIdx < 0 {
 		blockIdx = 0
 	}
 
- 	for blockIdx <= store.LastBlockIndex() {
+	for blockIdx <= store.LastBlockIndex() {
 		r, err := store.GetBlock(blockIdx)
- 		if err != nil {
+		if err != nil {
 			break
 		}
- 		res = append(res, r)
- 		blockIdx++
+		res = append(res, r)
+		blockIdx++
 	}
- 	return res
+	return res
 }
 
 // GetParticipantEvents returns all known events per participant
@@ -44,9 +44,9 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	res := make(map[string]map[string]poset.Event)
 
 	store := g.Node.core.poset.Store
-	peers := g.Node.core.poset.Participants
+	repertoire := g.Node.core.poset.Store.RepertoireByPubKey()
 	known := store.KnownEvents()
-	for _, p := range peers.ByPubKey {
+	for _, p := range repertoire {
 		root, err := store.GetRoot(p.PubKeyHex)
 
 		if err != nil {
@@ -95,9 +95,9 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 	return res
 }
 
-// GetRounds returns the rounds for the DAG
-func (g *Graph) GetRounds() []poset.RoundInfo {
-	res := []poset.RoundInfo{}
+// GetRounds returns the created rounds for the DAG
+func (g *Graph) GetRounds() []poset.RoundCreated {
+	var res []poset.RoundCreated
 
 	store := g.Node.core.poset.Store
 
@@ -108,7 +108,7 @@ func (g *Graph) GetRounds() []poset.RoundInfo {
 	}
 
 	for round <= store.LastRound() {
-		r, err := store.GetRound(round)
+		r, err := store.GetRoundCreated(round)
 
 		if err != nil {
 			break
@@ -127,7 +127,7 @@ func (g *Graph) GetInfos() Infos {
 	return Infos{
 		ParticipantEvents: g.GetParticipantEvents(),
 		Rounds:            g.GetRounds(),
-    Blocks:            g.GetBlocks(),
+		Blocks:            g.GetBlocks(),
 	}
 }
 

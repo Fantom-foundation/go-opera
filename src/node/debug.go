@@ -10,42 +10,42 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/sirupsen/logrus"
-        "github.com/tebeka/atexit"
+	"github.com/tebeka/atexit"
 )
 
 // InfosLite small subset of debug info for node
 type InfosLite struct {
 	ParticipantEvents map[string]map[string]EventLite
-	Rounds            []poset.RoundInfo
+	Rounds            []poset.RoundCreated
 	Blocks            []poset.Block
 }
 
 // EventBodyLite small subset of event body for debugging
 type EventBodyLite struct {
-	Parents         []string         //hashes of the event's parents, self-parent first
-	Creator         string           //creator's public key
-	Index           int64            //index in the sequence of events created by Creator
-	Transactions    [][]byte
+	Parents      []string // hashes of the event's parents, self-parent first
+	Creator      string   // creator's public key
+	Index        int64    // index in the sequence of events created by Creator
+	Transactions [][]byte
 }
 
 // EventMessageLite small subset of event body for debugging
 type EventMessageLite struct {
-	Body      EventBodyLite
-	Signature string //creator's digital signature of body
+	Body             EventBodyLite
+	Signature        string // creator's digital signature of body
 	TopologicalIndex int64
 	Hex              string
 	Round            int64
 	RoundReceived    int64
 
 	ClothoProof []string
-//	FlagTable []byte // FlagTable stores connection information
+	// FlagTable []byte // FlagTable stores connection information
 }
 
 // EventLite small subset of event for debugging
 type EventLite struct {
 	CreatorID            int64
 	OtherParentCreatorID int64
-	Message EventMessageLite
+	Message              EventMessageLite
 }
 
 // GetParticipantEventsLite returns all participants
@@ -55,16 +55,14 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 	store := g.Node.core.poset.Store
 	peers := g.Node.core.poset.Participants
 
-
-	//		evs, err := store.ParticipantEvents(p.PubKeyHex, root.SelfParent.Index)
+	// evs, err := store.ParticipantEvents(p.PubKeyHex, root.SelfParent.Index)
 	evs, err := store.TopologicalEvents()
 
 	if err != nil {
 		panic(err)
 	}
 
-	res[g.Node.localAddr/*p.PubKeyHex*/] = make(map[string]EventLite)
-
+	res[g.Node.localAddr /*p.PubKeyHex*/ ] = make(map[string]EventLite)
 
 	for _, event := range evs {
 
@@ -75,26 +73,26 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 		hash := event.Hex()
 
 		liteEvent := EventLite{
-			CreatorID: event.CreatorID(),
+			CreatorID:            event.CreatorID(),
 			OtherParentCreatorID: event.OtherParentCreatorID(),
-			Message: EventMessageLite {
+			Message: EventMessageLite{
 				Body: EventBodyLite{
-					Parents: event.Message.Body.Parents,
-					Creator: peers.ByPubKey[event.Creator()].NetAddr,
-					Index: event.Message.Body.Index,
+					Parents:      event.Message.Body.Parents,
+					Creator:      peers.ByPubKey[event.Creator()].NetAddr,
+					Index:        event.Message.Body.Index,
 					Transactions: event.Message.Body.Transactions,
 				},
-				Hex: event.Message.Hex,
-				Signature: event.Message.Signature,
-				ClothoProof: event.Message.ClothoProof,
-				Round: event.Message.Round,
-				RoundReceived: event.Message.RoundReceived,
+				Hex:              event.Message.Hex,
+				Signature:        event.Message.Signature,
+				ClothoProof:      event.Message.ClothoProof,
+				Round:            event.Message.Round,
+				RoundReceived:    event.Message.RoundReceived,
 				TopologicalIndex: event.Message.TopologicalIndex,
-				//				FlagTable: event.FlagTable,
+				// 				FlagTable: event.FlagTable,
 			},
 		}
 
-		res[g.Node.localAddr/*p.PubKeyHex*/][hash] = liteEvent
+		res[g.Node.localAddr /*p.PubKeyHex*/ ][hash] = liteEvent
 	}
 
 	return res
@@ -105,7 +103,7 @@ func (g *Graph) GetInfosLite() InfosLite {
 	return InfosLite{
 		ParticipantEvents: g.GetParticipantEventsLite(),
 		Rounds:            g.GetRounds(),
-    Blocks:            g.GetBlocks(),
+		Blocks:            g.GetBlocks(),
 	}
 }
 
@@ -138,7 +136,7 @@ func (n *Node) Register() {
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
-	go func () {
+	go func() {
 		<-signalChan
 		atexit.Exit(13)
 	}()

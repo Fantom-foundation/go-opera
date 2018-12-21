@@ -52,7 +52,7 @@ func TestInmemEvents(t *testing.T) {
 					[]string{"", ""},
 					p.pubKey,
 					k, nil)
-				_ = event.Hex() //just to set private variables
+				_ = event.Hex() // just to set private variables
 				items = append(items, event)
 				err := store.SetEvent(event)
 				if err != nil {
@@ -76,7 +76,7 @@ func TestInmemEvents(t *testing.T) {
 	})
 
 	t.Run("Check ParticipantEventsCache", func(t *testing.T) {
-		skipIndex := int64(-1) //do not skip any indexes
+		skipIndex := int64(-1) // do not skip any indexes
 		for _, p := range participants {
 			pEvents, err := store.ParticipantEvents(p.hex, skipIndex)
 			if err != nil {
@@ -123,7 +123,7 @@ func TestInmemEvents(t *testing.T) {
 func TestInmemRounds(t *testing.T) {
 	store, participants := initInmemStore(10)
 
-	round := NewRoundInfo()
+	round := NewRoundCreated()
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
@@ -137,10 +137,10 @@ func TestInmemRounds(t *testing.T) {
 	}
 
 	t.Run("Store Round", func(t *testing.T) {
-		if err := store.SetRound(0, *round); err != nil {
+		if err := store.SetRoundCreated(0, *round); err != nil {
 			t.Fatal(err)
 		}
-		storedRound, err := store.GetRound(0)
+		storedRound, err := store.GetRoundCreated(0)
 		if err != nil {
 			t.Fatal(err)
 		}
