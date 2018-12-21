@@ -51,9 +51,9 @@ fi
 env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args" -o lachesis_"$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$entry.go" || exit 1
 
 # Create peers.json and lachesis_data_dir if needed
-if [ ! -d "$BUILD_DIR/lachesis_data_dir" ]; then
+if [ ! -d "$DATAL_DIR/lachesis_data_dir" ]; then
     "$GOPATH/bin/batch-ethkey" -dir "$BUILD_DIR/nodes" -network "$ip_start" -inc-port -n "$n" > "$PEERS_DIR/peers.json"
     cat "$PEERS_DIR/peers.json"
-    cp -rv "$BUILD_DIR/nodes" "$BUILD_DIR/lachesis_data_dir"
-    cp -v "$PEERS_DIR/peers.json" "$BUILD_DIR/lachesis_data_dir/"
+    cp -rv "$BUILD_DIR/nodes" "$DATAL_DIR/lachesis_data_dir"
+    cp -v "$PEERS_DIR/peers.json" "$DATAL_DIR/lachesis_data_dir/"
 fi

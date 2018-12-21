@@ -20,10 +20,10 @@ declare -i node_num=0
 
 declare -r digits="${#n}"
 
-for ip in $(jq -rc '.[].NetAddr' "$PEERS_DIR/lachesis_data_dir/peers.json"); do
+for ip in $(jq -rc '.[].NetAddr' "$DATAL_DIR/lachesis_data_dir/peers.json"); do
     ip="${ip%:*}";
     printf -v node_num_p "%0${digits}d" "$node_num"
-    cp "$PEERS_DIR/lachesis_data_dir/peers.json" "$BUILD_DIR/lachesis_data_dir/$node_num_p/"
+    cp "$DATAL_DIR/lachesis_data_dir/peers.json" "$DATAL_DIR/lachesis_data_dir/$node_num_p/"
 
     echo "$ip"
     ((node_num++)) || true
@@ -46,9 +46,9 @@ shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
 if [ "$debug" == 0 ]; then
-  GOMAXPROCS=$((logicalCpuCount - 1)) "$BUILD_DIR/lachesis_$TARGET_OS" run --datadir "$BUILD_DIR/lachesis_data_dir" --store --listen="$node_addr":12000 --log=warn --heartbeat=5s -p "$node_addr":9000 --test --test_n=10 --test_delay=10
+  GOMAXPROCS=$(($logicalCpuCount - 1)) "$BUILD_DIR/lachesis_$TARGET_OS" run --datadir "$DATAL_DIR/lachesis_data_dir" --store --listen="$node_addr":12000 --log=warn --heartbeat=5s -p "$node_addr":9000 --test --test_n=10 --test_delay=10
 else
-  GOMAXPROCS=$((logicalCpuCount - 1)) dlv --listen=localhost:37555 --headless=true --api-version=2 --backend=default exec "$BUILD_DIR/lachesis_$TARGET_OS" -- run --datadir "$BUILD_DIR/lachesis_data_dir" --store --listen="$node_addr":12000 --log=warn --heartbeat=5s -p "$node_addr":9000 --test --test_n=10 --test_delay=10
+  GOMAXPROCS=$(($logicalCpuCount - 1)) dlv --listen=localhost:37555 --headless=true --api-version=2 --backend=default exec "$BUILD_DIR/lachesis_$TARGET_OS" -- run --datadir "$DATAL_DIR/lachesis_data_dir" --store --listen="$node_addr":12000 --log=warn --heartbeat=5s -p "$node_addr":9000 --test --test_n=10 --test_delay=10
 fi
 
 declare -i rc=$?
