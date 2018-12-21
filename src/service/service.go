@@ -45,8 +45,6 @@ func (s *Service) Serve() {
 	mux.Handle("/roundevents/", corsHandler(s.GetRoundEvents))
 	mux.Handle("/root/", corsHandler(s.GetRoot))
 	mux.Handle("/block/", corsHandler(s.GetBlock))
-	mux.Handle("/graph", corsHandler(s.GetGraph))
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("src/service/static/"))))
 	err := http.ListenAndServe(s.bindAddress, mux)
 	if err != nil {
 		s.logger.WithField("error", err).Error("Service failed")
@@ -122,16 +120,6 @@ func (s *Service) GetLastEventFrom(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(event)
-}
-
-// GetGraph returns the DAG
-func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	res := s.graph.GetInfos()
-	if err := encoder.Encode(res); err != nil {
-		s.logger.WithError(err).Errorf("Failed to encode Infos: %v", res)
-	}
 }
 
 // GetKnownEvents returns all known events by ID
