@@ -52,6 +52,35 @@ aBFT Consensus platform for distributed applications.
 [github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
 [github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
 
+# Features
+- [x] k-node selection
+- [x] k-parent EventBlock
+- [x] EventBlock merge
+- [ ] Lachesis consensus
+    - [x] Dominators
+    - [x] Self Dominators
+    - [x] Atropos
+    - [x] Clotho
+    - [x] Frame
+    - [x] Frame Received
+    - [x] Dominated
+    - [x] Lamport Timestamp
+    - [x] Atropos Consensus Time
+    - [x] Consensus Timestamp
+    - [x] Ordering on same Consensus Timestamp (Lamport Timestamp)
+    - [ ] Ordering on same Lamport Timestamp (Flag Table)
+    - [x] Ordering on same Flag Table (Signature XOR)
+    - [x] Transaction submit
+    - [x] Consensus Transaction output
+    - [ ] Dynamic participants
+        - [ ] Peer add
+        - [ ] Peer Remove
+- [x] Caching for performances
+- [x] Sync
+- [x] Event Signature
+- [ ] Transaction validation
+- [ ] Optimum Network pruning
+
 ## Dev
 
 ### Docker
