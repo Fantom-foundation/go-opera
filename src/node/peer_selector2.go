@@ -1,6 +1,7 @@
 package node
 
 import (
+	"math"
 	"math/rand"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
@@ -32,8 +33,8 @@ func NewSmartPeerSelector(participants *peers.Peers,
 	GetFlagTable func() (map[string]int64, error)) *SmartPeerSelector {
 
 	return &SmartPeerSelector{
-		localAddr: localAddr,
-		peers:     participants,
+		localAddr:    localAddr,
+		peers:        participants,
 		GetFlagTable: GetFlagTable,
 	}
 }
@@ -47,19 +48,21 @@ func (ps *SmartPeerSelector) Peers() *peers.Peers {
 func (ps *SmartPeerSelector) UpdateLast(peer string) {
 	ps.last = peer
 }
+
 // Next returns the next peer based on the flag table cost function selection
 func (ps *SmartPeerSelector) Next() *peers.Peer {
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
-	selectablePeers := ps.peers.ToPeerByUsedSlice()//[1:]
+	selectablePeers := ps.peers.ToPeerByUsedSlice() //[1:]
 	if len(selectablePeers) > 1 {
 		_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.localAddr)
 		if len(selectablePeers) > 1 {
 			_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.last)
 			if len(selectablePeers) > 1 {
 				var k int64
-				minUsed := selectablePeers[len(selectablePeers) - 1].Used
-				for k = 0; selectablePeers[k].Used > minUsed; k++ {}
+				minUsed := selectablePeers[len(selectablePeers)-1].Used
+				for k = 0; selectablePeers[k].Used > minUsed; k++ {
+				}
 				selectablePeers = selectablePeers[k:]
 				if ft, err := ps.GetFlagTable(); err == nil {
 					for id, flag := range ft {
@@ -72,6 +75,73 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 		}
 	}
 	i := rand.Intn(len(selectablePeers))
-	selectablePeers[i].Used++;
+	selectablePeers[i].Used++
 	return selectablePeers[i]
+}
+
+// Next2 returns the next peer based on the flag table cost function selection
+func (ps *SmartPeerSelector) Next2() *peers.Peer {
+	flagTable, err := ps.GetFlagTable()
+	if err != nil {
+		flagTable = nil
+	}
+
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+
+	sortedSrc := ps.peers.ToPeerByUsedSlice()
+	selected := make([]*peers.Peer, len(sortedSrc))
+	sCount := 0
+	flagged := make([]*peers.Peer, len(sortedSrc))
+	fCount := 0
+	minUsedIdx := 0
+	minUsedVal := int64(math.MaxInt64)
+	lastused := make([]*peers.Peer, 1)
+
+	for _, p := range sortedSrc {
+		if p.NetAddr == ps.localAddr {
+			continue
+		}
+		if p.NetAddr == ps.last || p.PubKeyHex == ps.last {
+			lastused[0] = p
+			continue
+		}
+
+		if f, ok := flagTable[p.NetAddr]; ok && f == 1 {
+			flagged[fCount] = p
+			fCount += 1
+			continue
+		}
+		if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
+			flagged[fCount] = p
+			fCount += 1
+			continue
+		}
+
+		if p.Used < minUsedVal {
+			minUsedVal = p.Used
+			minUsedIdx = sCount
+		}
+		selected[sCount] = p
+		sCount += 1
+	}
+
+	selected = selected[minUsedIdx:sCount]
+	if len(selected) < 1 {
+		selected = flagged[0:fCount]
+	}
+	if len(selected) < 1 {
+		selected = lastused
+	}
+	if len(selected) == 1 {
+		selected[0].Used++
+		return selected[0]
+	}
+	if len(selected) < 1 {
+		return nil
+	}
+
+	i := rand.Intn(len(selected))
+	selected[i].Used++
+	return selected[i]
 }
