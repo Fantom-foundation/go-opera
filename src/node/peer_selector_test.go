@@ -3,17 +3,10 @@ package node
 import (
 	"fmt"
 	"math/rand"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
-
-func TestSmartSelector(t *testing.T) {
-	_ = assert.New(t)
-}
 
 /*
  * stuff

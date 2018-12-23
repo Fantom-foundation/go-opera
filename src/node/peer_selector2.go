@@ -66,14 +66,14 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 	fCount := 0
 	minUsedIdx := 0
 	minUsedVal := int64(math.MaxInt64)
-	lastused := make([]*peers.Peer, 1)
+	var lastused []*peers.Peer
 
 	for _, p := range sortedSrc {
 		if p.NetAddr == ps.localAddr {
 			continue
 		}
 		if p.NetAddr == ps.last || p.PubKeyHex == ps.last {
-			lastused[0] = p
+			lastused = append(lastused, p)
 			continue
 		}
 
