@@ -51,36 +51,6 @@ func (ps *SmartPeerSelector) UpdateLast(peer string) {
 
 // Next returns the next peer based on the flag table cost function selection
 func (ps *SmartPeerSelector) Next() *peers.Peer {
-	ps.peers.Lock()
-	defer ps.peers.Unlock()
-	selectablePeers := ps.peers.ToPeerByUsedSlice() //[1:]
-	if len(selectablePeers) > 1 {
-		_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.localAddr)
-		if len(selectablePeers) > 1 {
-			_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.last)
-			if len(selectablePeers) > 1 {
-				var k int64
-				minUsed := selectablePeers[len(selectablePeers)-1].Used
-				for k = 0; selectablePeers[k].Used > minUsed; k++ {
-				}
-				selectablePeers = selectablePeers[k:]
-				if ft, err := ps.GetFlagTable(); err == nil {
-					for id, flag := range ft {
-						if flag == 1 && len(selectablePeers) > 1 {
-							peers.ExcludePeer(selectablePeers, id)
-						}
-					}
-				}
-			}
-		}
-	}
-	i := rand.Intn(len(selectablePeers))
-	selectablePeers[i].Used++
-	return selectablePeers[i]
-}
-
-// Next2 returns the next peer based on the flag table cost function selection
-func (ps *SmartPeerSelector) Next2() *peers.Peer {
 	flagTable, err := ps.GetFlagTable()
 	if err != nil {
 		flagTable = nil
