@@ -81,7 +81,7 @@ func TestNewBadgerStore(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	//check roots
+	// check roots
 	inmemRoots := store.inmemStore.rootsByParticipant
 
 	if len(inmemRoots) != 3 {
@@ -108,7 +108,7 @@ func TestLoadBadgerStore(t *testing.T) {
 	os.Mkdir("test_data", os.ModeDir|0777)
 	dbPath := "test_data/badger"
 
-	//Create the test db
+	// Create the test db
 	tempStore := createTestDB(dbPath, t)
 	defer os.RemoveAll(tempStore.path)
 	tempStore.Close()
@@ -145,8 +145,8 @@ func TestLoadBadgerStore(t *testing.T) {
 
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//Call DB methods directly
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Call DB methods directly
 
 func TestDBEventMethods(t *testing.T) {
 	cacheSize := 1 // Inmem_store's caches accept positive cacheSize only
@@ -154,7 +154,7 @@ func TestDBEventMethods(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	//insert events in db directly
+	// insert events in db directly
 	events := make(map[string][]Event)
 	topologicalIndex := int64(0)
 	var topologicalEvents []Event
@@ -182,7 +182,7 @@ func TestDBEventMethods(t *testing.T) {
 		events[p.hex] = items
 	}
 
-	//check events where correctly inserted and can be retrieved
+	// check events where correctly inserted and can be retrieved
 	for p, evs := range events {
 		for k, ev := range evs {
 			rev, err := store.dbGetEventBlock(ev.Hex())
@@ -201,7 +201,7 @@ func TestDBEventMethods(t *testing.T) {
 		}
 	}
 
-	//check topological order of events was correctly created
+	// check topological order of events was correctly created
 	dbTopologicalEvents, err := store.dbTopologicalEvents()
 	if err != nil {
 		t.Fatal(err)
@@ -234,8 +234,8 @@ func TestDBEventMethods(t *testing.T) {
 		}
 	}
 
-	//check that participant events where correctly added
-	skipIndex := int64(-1) //do not skip any indexes
+	// check that participant events where correctly added
+	skipIndex := int64(-1) // do not skip any indexes
 	for _, p := range participants {
 		pEvents, err := store.dbParticipantEvents(p.hex, skipIndex)
 		if err != nil {
@@ -260,7 +260,7 @@ func TestDBRoundMethods(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	round := NewRoundInfo()
+	round := NewRoundCreated()
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
@@ -273,11 +273,11 @@ func TestDBRoundMethods(t *testing.T) {
 		round.AddEvent(event.Hex(), true)
 	}
 
-	if err := store.dbSetRound(0, *round); err != nil {
+	if err := store.dbSetRoundCreated(0, *round); err != nil {
 		t.Fatal(err)
 	}
 
-	storedRound, err := store.dbGetRound(0)
+	storedRound, err := store.dbGetRoundCreated(0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,18 +436,18 @@ func TestDBFrameMethods(t *testing.T) {
 	})
 }
 
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//Check that the wrapper methods work
-//These methods use the inmemStore as a cache on top of the DB
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Check that the wrapper methods work
+// These methods use the inmemStore as a cache on top of the DB
 
 func TestBadgerEvents(t *testing.T) {
-	//Insert more events than can fit in cache to test retrieving from db.
+	// Insert more events than can fit in cache to test retrieving from db.
 	cacheSize := 10
 	testSize := int64(100)
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	//insert event
+	// insert event
 	events := make(map[string][]Event)
 	for _, p := range participants {
 		var items []Event
@@ -483,8 +483,8 @@ func TestBadgerEvents(t *testing.T) {
 		}
 	}
 
-	//check retrieving events per participant
-	skipIndex := int64(-1) //do not skip any indexes
+	// check retrieving events per participant
+	skipIndex := int64(-1) // do not skip any indexes
 	for _, p := range participants {
 		pEvents, err := store.ParticipantEvents(p.hex, skipIndex)
 		if err != nil {
@@ -503,7 +503,7 @@ func TestBadgerEvents(t *testing.T) {
 		}
 	}
 
-	//check retrieving participant last
+	// check retrieving participant last
 	for _, p := range participants {
 		last, _, err := store.LastEventFrom(p.hex)
 		if err != nil {
@@ -542,7 +542,7 @@ func TestBadgerRounds(t *testing.T) {
 	store, participants := initBadgerStore(cacheSize, t)
 	defer removeBadgerStore(store, t)
 
-	round := NewRoundInfo()
+	round := NewRoundCreated()
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
@@ -555,7 +555,7 @@ func TestBadgerRounds(t *testing.T) {
 		round.AddEvent(event.Hex(), true)
 	}
 
-	if err := store.SetRound(0, *round); err != nil {
+	if err := store.SetRoundCreated(0, *round); err != nil {
 		t.Fatal(err)
 	}
 
@@ -563,7 +563,7 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatalf("Store LastRound should be 0, not %d", c)
 	}
 
-	storedRound, err := store.GetRound(0)
+	storedRound, err := store.GetRoundCreated(0)
 	if err != nil {
 		t.Fatal(err)
 	}

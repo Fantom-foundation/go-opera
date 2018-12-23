@@ -21,6 +21,8 @@ addons:
 script:
   - sonar-scanner
 jobs:
+  allow_failures:
+  - script: make test
   include:
   - stage: test
     script: make test

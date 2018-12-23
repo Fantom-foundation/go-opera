@@ -87,7 +87,7 @@ func compareRounds(diff *Diff) bool {
 
 	diff.RoundGap = n0.GetLastRound() - n1.GetLastRound()
 
-	var r0, r1 poset.RoundInfo
+	var r0, r1 poset.RoundCreated
 	var i int64
 	for i = 0; i <= diff.FirstRoundIndex; i++ {
 

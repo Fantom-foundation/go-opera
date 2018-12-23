@@ -9,22 +9,29 @@ type pendingRound struct {
 	Decided bool
 }
 
-// RoundInfo info for the round
-type RoundInfo struct {
-	Message RoundInfoMessage
+// RoundCreated wrapper for protobuf created round event messages
+type RoundCreated struct {
+	Message RoundCreatedMessage
 }
 
-// NewRoundInfo creates a new round info struct
-func NewRoundInfo() *RoundInfo {
-	return &RoundInfo{
-		Message: RoundInfoMessage{
+// NewRoundCreated creates a new round info struct
+func NewRoundCreated() *RoundCreated {
+	return &RoundCreated{
+		Message: RoundCreatedMessage{
 			Events: make(map[string]*RoundEvent),
 		},
 	}
 }
 
+// NewRoundReceived constructor
+func NewRoundReceived() *RoundReceived {
+	return &RoundReceived{
+		Rounds: []string{},
+	}
+}
+
 // AddEvent add event to round info (optionally set clotho)
-func (r *RoundInfo) AddEvent(x string, clotho bool) {
+func (r *RoundCreated) AddEvent(x string, clotho bool) {
 	_, ok := r.Message.Events[x]
 	if !ok {
 		r.Message.Events[x] = &RoundEvent{
@@ -33,8 +40,8 @@ func (r *RoundInfo) AddEvent(x string, clotho bool) {
 	}
 }
 
-// SetConsensusEvent set an event as an consensus event
-func (r *RoundInfo) SetConsensusEvent(x string) {
+// SetConsensusEvent set an event as a consensus event
+func (r *RoundCreated) SetConsensusEvent(x string) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{}
@@ -43,8 +50,21 @@ func (r *RoundInfo) SetConsensusEvent(x string) {
 	r.Message.Events[x] = e
 }
 
-// SetAtropos sets an event as san atropos
-func (r *RoundInfo) SetAtropos(x string, f bool) {
+// SetRoundReceived set the received round for the given event
+func (r *RoundCreated) SetRoundReceived(x string, round int64) {
+	e, ok := r.Message.Events[x]
+
+	if !ok {
+		return
+	}
+
+	e.RoundReceived = round
+
+	r.Message.Events[x] = e
+}
+
+// SetAtropos sets whether the given event is Atropos, otherwise it is Clotho when not found
+func (r *RoundCreated) SetAtropos(x string, f bool) {
 	e, ok := r.Message.Events[x]
 	if !ok {
 		e = &RoundEvent{
@@ -60,7 +80,7 @@ func (r *RoundInfo) SetAtropos(x string, f bool) {
 }
 
 // ClothoDecided return true if no clothos' fame is left undefined
-func (r *RoundInfo) ClothoDecided() bool {
+func (r *RoundCreated) ClothoDecided() bool {
 	for _, e := range r.Message.Events {
 		if e.Clotho && e.Atropos == Trilean_UNDEFINED {
 			return false
@@ -70,7 +90,7 @@ func (r *RoundInfo) ClothoDecided() bool {
 }
 
 // Clotho return clothos
-func (r *RoundInfo) Clotho() []string {
+func (r *RoundCreated) Clotho() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if e.Clotho {
@@ -80,8 +100,8 @@ func (r *RoundInfo) Clotho() []string {
 	return res
 }
 
-// RoundEvents returns the round events
-func (r *RoundInfo) RoundEvents() []string {
+// RoundEvents returns all non-consensus events for the created round 
+func (r *RoundCreated) RoundEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if !e.Consensus {
@@ -91,8 +111,8 @@ func (r *RoundInfo) RoundEvents() []string {
 	return res
 }
 
-// ConsensusEvents return consensus events
-func (r *RoundInfo) ConsensusEvents() []string {
+// ConsensusEvents returns all consensus events for the created round
+func (r *RoundCreated) ConsensusEvents() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if e.Consensus {
@@ -103,7 +123,7 @@ func (r *RoundInfo) ConsensusEvents() []string {
 }
 
 // Atropos return Atropos
-func (r *RoundInfo) Atropos() []string {
+func (r *RoundCreated) Atropos() []string {
 	var res []string
 	for x, e := range r.Message.Events {
 		if e.Clotho && e.Atropos == Trilean_TRUE {
@@ -114,13 +134,13 @@ func (r *RoundInfo) Atropos() []string {
 }
 
 // IsDecided checks if the event is a decided clotho
-func (r *RoundInfo) IsDecided(clotho string) bool {
+func (r *RoundCreated) IsDecided(clotho string) bool {
 	w, ok := r.Message.Events[clotho]
 	return ok && w.Clotho && w.Atropos != Trilean_UNDEFINED
 }
 
-// ProtoMarshal marshals the round info to protobuff
-func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
+// ProtoMarshal marshals the created round to protobuf
+func (r *RoundCreated) ProtoMarshal() ([]byte, error) {
 	var bf proto.Buffer
 	bf.SetDeterministic(true)
 	if err := bf.Marshal(&r.Message); err != nil {
@@ -129,13 +149,28 @@ func (r *RoundInfo) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
-// ProtoUnmarshal unmarshals protobuff to a round info
-func (r *RoundInfo) ProtoUnmarshal(data []byte) error {
+// ProtoMarshal serialises the received round using protobuf
+func (r *RoundReceived) ProtoMarshal() ([]byte, error) {
+	var bf proto.Buffer
+	bf.SetDeterministic(true)
+	if err := bf.Marshal(r); err != nil {
+		return nil, err
+	}
+	return bf.Bytes(), nil
+}
+
+// ProtoUnmarshal de-serialises the created round using protobuf
+func (r *RoundCreated) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, &r.Message)
 }
 
-// IsQueued checks if the round is queued for processing
-func (r *RoundInfo) IsQueued() bool {
+// ProtoUnmarshal de-serialises RoundReceived using protobuf
+func (r *RoundReceived) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, r)
+}
+
+// IsQueued returns whether the RoundCreated is queued for processing in PendingRounds
+func (r *RoundCreated) IsQueued() bool {
 	return r.Message.Queued
 }
 
@@ -143,7 +178,8 @@ func (r *RoundInfo) IsQueued() bool {
 func (re *RoundEvent) Equals(that *RoundEvent) bool {
 	return re.Consensus == that.Consensus &&
 		re.Clotho == that.Clotho &&
-		re.Atropos == that.Atropos
+		re.Atropos == that.Atropos &&
+		re.RoundReceived == that.RoundReceived
 }
 
 // EqualsMapStringRoundEvent compares a map string of round eventss for equality
@@ -160,8 +196,8 @@ func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*Rou
 	return true
 }
 
-// Equals compares two round info structs for equality
-func (r *RoundInfo) Equals(that *RoundInfo) bool {
+// Equals compares two round created structs for equality
+func (r *RoundCreated) Equals(that *RoundCreated) bool {
 	return r.Message.Queued == that.Message.Queued &&
 		EqualsMapStringRoundEvent(r.Message.Events, that.Message.Events)
 }

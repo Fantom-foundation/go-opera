@@ -20,9 +20,9 @@ func (k Key) ToString() string {
 
 // ParentRoundInfo struct
 type ParentRoundInfo struct {
-	round                     int
-	isRoot                    bool
-	Atropos                   int
+	round   int
+	isRoot  bool
+	Atropos int
 }
 
 // NewBaseParentRoundInfo constructor
@@ -33,7 +33,7 @@ func NewBaseParentRoundInfo() ParentRoundInfo {
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // ParticipantEventsCache struct
 type ParticipantEventsCache struct {
@@ -47,6 +47,12 @@ func NewParticipantEventsCache(size int, participants *peers.Peers) *Participant
 		participants: participants,
 		rim:          cm.NewRollingIndexMap("ParticipantEvents", size, participants.ToIDSlice()),
 	}
+}
+
+// AddPeer adds peer to cache and rolling index map, returns error if it failed to add to map
+func (pec *ParticipantEventsCache) AddPeer(peer *peers.Peer) error {
+	pec.participants.AddPeer(peer)
+	return pec.rim.AddKey(peer.ID)
 }
 
 func (pec *ParticipantEventsCache) participantID(participant string) (int64, error) {
@@ -144,7 +150,7 @@ func (pec *ParticipantEventsCache) Import(other *ParticipantEventsCache) {
 	pec.rim.Import(other.rim)
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 // ParticipantBlockSignaturesCache struct
 type ParticipantBlockSignaturesCache struct {

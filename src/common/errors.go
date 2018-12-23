@@ -20,6 +20,8 @@ const (
 	UnknownParticipant
 	// Empty TODO
 	Empty
+	// KeyAlreadyExists key already exists in the store
+	KeyAlreadyExists
 )
 
 // StoreErr storage error

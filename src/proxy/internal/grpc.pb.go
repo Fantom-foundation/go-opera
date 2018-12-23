@@ -4,9 +4,9 @@
 package internal
 
 import (
+	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
-	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 	math "math"
 )
@@ -73,7 +73,7 @@ func (*ToServer_Tx_) isToServer_Event() {}
 
 func (*ToServer_Answer_) isToServer_Event() {}
 
-func (m *ToServer) GetEventBlock() isToServer_Event {
+func (m *ToServer) GetEvent() isToServer_Event {
 	if m != nil {
 		return m.Event
 	}
@@ -81,14 +81,14 @@ func (m *ToServer) GetEventBlock() isToServer_Event {
 }
 
 func (m *ToServer) GetTx() *ToServer_Tx {
-	if x, ok := m.GetEventBlock().(*ToServer_Tx_); ok {
+	if x, ok := m.GetEvent().(*ToServer_Tx_); ok {
 		return x.Tx
 	}
 	return nil
 }
 
 func (m *ToServer) GetAnswer() *ToServer_Answer {
-	if x, ok := m.GetEventBlock().(*ToServer_Answer_); ok {
+	if x, ok := m.GetEvent().(*ToServer_Answer_); ok {
 		return x.Answer
 	}
 	return nil
@@ -411,7 +411,7 @@ func (*ToClient_Query_) isToClient_Event() {}
 
 func (*ToClient_Restore_) isToClient_Event() {}
 
-func (m *ToClient) GetEventBlock() isToClient_Event {
+func (m *ToClient) GetEvent() isToClient_Event {
 	if m != nil {
 		return m.Event
 	}
@@ -419,21 +419,21 @@ func (m *ToClient) GetEventBlock() isToClient_Event {
 }
 
 func (m *ToClient) GetBlock() *ToClient_Block {
-	if x, ok := m.GetEventBlock().(*ToClient_Block_); ok {
+	if x, ok := m.GetEvent().(*ToClient_Block_); ok {
 		return x.Block
 	}
 	return nil
 }
 
 func (m *ToClient) GetQuery() *ToClient_Query {
-	if x, ok := m.GetEventBlock().(*ToClient_Query_); ok {
+	if x, ok := m.GetEvent().(*ToClient_Query_); ok {
 		return x.Query
 	}
 	return nil
 }
 
 func (m *ToClient) GetRestore() *ToClient_Restore {
-	if x, ok := m.GetEventBlock().(*ToClient_Restore_); ok {
+	if x, ok := m.GetEvent().(*ToClient_Restore_); ok {
 		return x.Restore
 	}
 	return nil

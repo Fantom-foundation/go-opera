@@ -27,6 +27,16 @@ func NewRollingIndexMap(name string, size int, keys []int64) *RollingIndexMap {
 	}
 }
 
+// AddKey adds a key to map if it doesn't already exist, returns an error if it already exists
+func (rim *RollingIndexMap) AddKey(key int64) error {
+	if _, ok := rim.mapping[key]; ok {
+		return NewStoreErr(rim.name, KeyAlreadyExists, fmt.Sprintf("%d", key))
+	}
+	rim.keys = append(rim.keys, key)
+	rim.mapping[key] = NewRollingIndex(fmt.Sprintf("%s[%d]", rim.name, key), rim.size)
+	return nil
+}
+
 // Get return key items with index > skip
 func (rim *RollingIndexMap) Get(key int64, skipIndex int64) ([]interface{}, error) {
 	items, ok := rim.mapping[key]
@@ -94,8 +104,8 @@ func (rim *RollingIndexMap) Reset() error {
 func (rim *RollingIndexMap) Import(other *RollingIndexMap) {
 	for _, key := range other.keys {
 		rim.mapping[key] = NewRollingIndex(fmt.Sprintf("%s[%d]", rim.name, key), rim.size)
- 		rim.mapping[key].lastIndex = other.mapping[key].lastIndex
+		rim.mapping[key].lastIndex = other.mapping[key].lastIndex
 		rim.mapping[key].items = other.mapping[key].items
- 		// copy(rim.mapping[key].items[:len(other.mapping[key].items)], other.mapping[key].items)
+		// copy(rim.mapping[key].items[:len(other.mapping[key].items)], other.mapping[key].items)
 	}
 }

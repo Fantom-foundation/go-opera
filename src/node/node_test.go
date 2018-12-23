@@ -1,12 +1,16 @@
 package node
 
 import (
+	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -437,6 +441,20 @@ func TestGossip(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	s := NewService("127.0.0.1:3000", nodes[0], logger)
+
+	srv := s.Serve()
+
+	t.Logf("serving for 3 seconds")
+	shutdownTimeout := 3 * time.Second
+	time.Sleep(shutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	t.Logf("stopping after waiting for Serve()...")
+	if err := srv.Shutdown(ctx); err != nil {
+		t.Fatal(err) // failure/timeout shutting down the server gracefully
+	}
+
 	checkGossip(nodes, 0, t)
 }
 
@@ -494,7 +512,7 @@ func TestSyncLimit(t *testing.T) {
 		t.Fatalf("SyncResponse.FromID should be %d, not %d",
 			expectedResp.FromID, out.FromID)
 	}
-	if expectedResp.SyncLimit != true {
+	if !expectedResp.SyncLimit {
 		t.Fatal("SyncResponse.SyncLimit should be true")
 	}
 }
@@ -748,12 +766,103 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 	return nil
 }
 
+type Service struct {
+	bindAddress string
+	node        *Node
+	graph       *Graph
+	logger      *logrus.Logger
+}
+
+func NewService(bindAddress string, n *Node, logger *logrus.Logger) *Service {
+	service := Service{
+		bindAddress: bindAddress,
+		node:        n,
+		graph:       NewGraph(n),
+		logger:      logger,
+	}
+
+	return &service
+}
+
+func (s *Service) Serve() *http.Server {
+	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
+
+	http.HandleFunc("/stats", s.GetStats)
+
+	http.HandleFunc("/block/", s.GetBlock)
+
+	http.HandleFunc("/graph", s.GetGraph)
+
+	srv := &http.Server{Addr: s.bindAddress, Handler: nil}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			s.logger.WithField("error", err).Error("Service failed")
+		}
+	}()
+
+	return srv
+}
+
+func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
+	stats := s.node.GetStats()
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode stats %v", stats)
+	}
+}
+
+func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
+	param := r.URL.Path[len("/block/"):]
+
+	blockIndex, err := strconv.ParseInt(param, 10, 64)
+
+	if err != nil {
+		s.logger.WithError(err).Errorf("Parsing block_index parameter %s", param)
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	block, err := s.node.GetBlock(blockIndex)
+
+	if err != nil {
+		s.logger.WithError(err).Errorf("Retrieving block %d", blockIndex)
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(block); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode block %v", block)
+	}
+}
+
+func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	encoder := json.NewEncoder(w)
+
+	res := s.graph.GetInfos()
+
+	if err := encoder.Encode(res); err != nil {
+		s.logger.WithError(err).Errorf("Failed to encode Infos %v", res)
+	}
+}
+
 func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {
 
 	nodeBlocks := map[int64][]poset.Block{}
 	for _, n := range nodes {
 		var blocks []poset.Block
-		for i := fromBlock; i < n.core.poset.Store.LastBlockIndex(); i++ {
+		lastIndex := n.core.poset.Store.LastBlockIndex()
+		for i := fromBlock; i < lastIndex; i++ {
 			block, err := n.core.poset.Store.GetBlock(i)
 			if err != nil {
 				t.Fatalf("checkGossip: %v ", err)

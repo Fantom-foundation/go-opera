@@ -20,6 +20,11 @@ func (f *Frame) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, f)
 }
 
+// GetEventBlocks provides alternative for non-existent Protobuf generated function
+func (f *Frame) GetEventBlocks() ([]*EventMessage) {
+	return f.GetEvents()
+}
+
 // Hash returns the Hash of a frame
 func (f *Frame) Hash() ([]byte, error) {
 	hashBytes, err := f.ProtoMarshal()

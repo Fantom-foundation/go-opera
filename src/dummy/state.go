@@ -77,7 +77,7 @@ func (s *State) SnapshotHandler(blockIndex int64) ([]byte, error) {
 func (s *State) RestoreHandler(snapshot []byte) ([]byte, error) {
 	s.locker.Lock()
 	defer s.locker.Unlock()
-	//XXX do something smart here
+	// XXX do something smart here
 	s.stateHash = snapshot
 	return s.stateHash, nil
 }

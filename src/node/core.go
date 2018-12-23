@@ -354,6 +354,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			ev.SetRound(poset.RoundNIL)
 			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
+				c.logger.Error("SYNC: INSERT ERR", err)
 				return err
 			}
 		}
@@ -506,7 +507,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 
 // FromWire converts wire events into event blocks (that were transported)
 func (c *Core) FromWire(wireEvents []poset.WireEvent) ([]poset.Event, error) {
-	events := make([]poset.Event, len(wireEvents), len(wireEvents))
+	events := make([]poset.Event, len(wireEvents))
 	for i, w := range wireEvents {
 		ev, err := c.poset.ReadWireInfo(w)
 		if err != nil {
@@ -519,7 +520,7 @@ func (c *Core) FromWire(wireEvents []poset.WireEvent) ([]poset.Event, error) {
 
 // ToWire converts event blocks into wire events (to be transported)
 func (c *Core) ToWire(events []poset.Event) ([]poset.WireEvent, error) {
-	wireEvents := make([]poset.WireEvent, len(events), len(events))
+	wireEvents := make([]poset.WireEvent, len(events))
 	for i, e := range events {
 		wireEvents[i] = e.ToWire()
 	}

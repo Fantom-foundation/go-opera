@@ -126,6 +126,7 @@ Event
 
 // LamportTimestampNIL nil value for lamport
 const LamportTimestampNIL int64 = -1
+
 // RoundNIL nil value for round
 const RoundNIL int64 = -1
 
@@ -238,7 +239,12 @@ func (e *Event) Transactions() [][]byte {
 	return e.Message.Body.Transactions
 }
 
-// Index returns the index (heigh) of this event
+// InternalTransactions returns all internal transactions in the event
+func (e *Event) InternalTransactions() []*InternalTransaction {
+	return e.Message.Body.InternalTransactions
+}
+
+// Index returns the index (height) of this event
 func (e *Event) Index() int64 {
 	return e.Message.Body.Index
 }
@@ -342,10 +348,7 @@ func (e *Event) SetRoundReceived(rr int64) {
 }
 
 // SetWireInfo for event
-func (e *Event) SetWireInfo(selfParentIndex,
-	otherParentCreatorID,
-	otherParentIndex,
-	creatorID int64) {
+func (e *Event) SetWireInfo(selfParentIndex, otherParentCreatorID, otherParentIndex, creatorID int64) {
 	e.Message.SelfParentIndex = selfParentIndex
 	e.Message.OtherParentCreatorID = otherParentCreatorID
 	e.Message.OtherParentIndex = otherParentIndex
