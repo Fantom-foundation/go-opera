@@ -10,7 +10,7 @@ const (
 	fakePeersCount = 50
 )
 
-func TestSmartSelector_Empty(t *testing.T) {
+func TestSmartSelectorEmpty(t *testing.T) {
 	assert := assert.New(t)
 
 	ss := NewSmartPeerSelector(
@@ -24,7 +24,7 @@ func TestSmartSelector_Empty(t *testing.T) {
 	assert.Nil(ss.Next())
 }
 
-func TestSmartSelector_NoLocalAddr(t *testing.T) {
+func TestSmartSelectorLocalAddrOnly(t *testing.T) {
 	assert := assert.New(t)
 
 	ss := NewSmartPeerSelector(
@@ -38,7 +38,7 @@ func TestSmartSelector_NoLocalAddr(t *testing.T) {
 	assert.Nil(ss.Next())
 }
 
-func TestSmartSelector_Used(t *testing.T) {
+func TestSmartSelectorUsed(t *testing.T) {
 	assert := assert.New(t)
 
 	ss := NewSmartPeerSelector(
@@ -54,7 +54,7 @@ func TestSmartSelector_Used(t *testing.T) {
 	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
 }
 
-func TestSmartSelector_Flagged(t *testing.T) {
+func TestSmartSelectorFlagged(t *testing.T) {
 	assert := assert.New(t)
 
 	ss := NewSmartPeerSelector(
@@ -72,7 +72,7 @@ func TestSmartSelector_Flagged(t *testing.T) {
 	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
 }
 
-func TestSmartSelector_General(t *testing.T) {
+func TestSmartSelectorGeneral(t *testing.T) {
 	assert := assert.New(t)
 
 	ss := NewSmartPeerSelector(
