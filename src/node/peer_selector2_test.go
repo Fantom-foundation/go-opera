@@ -6,10 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	fakePeersCount = 50
-)
-
 func TestSmartSelectorEmpty(t *testing.T) {
 	assert := assert.New(t)
 
@@ -100,6 +96,8 @@ func TestSmartSelectorGeneral(t *testing.T) {
  */
 
 func BenchmarkSmartSelectorNext(b *testing.B) {
+	const fakePeersCount = 50
+
 	participants1 := fakePeers(fakePeersCount)
 	participants2 := clonePeers(participants1)
 
