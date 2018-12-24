@@ -1021,7 +1021,10 @@ func synchronizeCores(cores []*Core, from int, to int, payload [][]byte) error {
 		return err
 	}
 
-	cores[to].AddTransactions(payload)
+	err = cores[to].AddTransactions(payload)
+	if err != nil {
+		return err
+	}
 
 	return cores[to].Sync(unknownWire)
 }

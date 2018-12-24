@@ -28,8 +28,13 @@ func (n *Node) GetFrame(i int64) (poset.Frame, error) {
  */
 
 // PushTx push transactions into the pending pool
-func (n *Node) PushTx(tx []byte) {
+func (n *Node) PushTx(tx []byte) error {
 	// we do not need coreLock here as n.core.AddTransactions has TransactionPoolLocker
-	n.core.AddTransactions([][]byte{tx})
-	n.logger.Debugf("PushTx('%s')", tx)
+	err := n.core.AddTransactions([][]byte{tx})
+	if err != nil {
+		n.logger.Errorf("PushTx('%s') %s", tx, err)
+	} else {
+		n.logger.Debugf("PushTx('%s')", tx)
+	}
+	return err
 }

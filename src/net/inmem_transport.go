@@ -1,6 +1,7 @@
 package net
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
@@ -59,48 +60,28 @@ func (i *InmemTransport) LocalAddr() string {
 
 // Sync implements the Transport interface.
 func (i *InmemTransport) Sync(target string, args *SyncRequest, resp *SyncResponse) error {
-	rpcResp, err := i.makeRPC(target, args, nil, i.timeout)
-	if err != nil {
-		return err
-	}
-
-	// Copy the result back
-	out := rpcResp.Response.(*SyncResponse)
-	*resp = *out
-	return nil
+	return i.makeRPC(target, args, resp, nil, i.timeout)
 }
 
 // EagerSync implements the Transport interface.
 func (i *InmemTransport) EagerSync(target string, args *EagerSyncRequest, resp *EagerSyncResponse) error {
-	rpcResp, err := i.makeRPC(target, args, nil, i.timeout)
-	if err != nil {
-		return err
-	}
-
-	// Copy the result back
-	out := rpcResp.Response.(*EagerSyncResponse)
-	*resp = *out
-	return nil
+	return i.makeRPC(target, args, resp, nil, i.timeout)
 }
 
 // FastForward implements the Transport interface.
 func (i *InmemTransport) FastForward(target string, args *FastForwardRequest, resp *FastForwardResponse) error {
-	rpcResp, err := i.makeRPC(target, args, nil, i.timeout)
-	if err != nil {
-		return err
-	}
-
-	// Copy the result back
-	out := rpcResp.Response.(*FastForwardResponse)
-	*resp = *out
-	return nil
+	return i.makeRPC(target, args, resp, nil, i.timeout)
 }
 
-func (i *InmemTransport) makeRPC(target string, args interface{}, r io.Reader, timeout time.Duration) (rpcResp RPCResponse, err error) {
+func (i *InmemTransport) makeRPC(target string, args, resp interface{}, r io.Reader, timeout time.Duration) (err error) {
+	args, err = deepRequestCopy(args)
+	if err != nil {
+		return
+	}
+
 	inmemMediumSync.RLock()
 	peer, ok := inmemMedium[target]
 	inmemMediumSync.RUnlock()
-
 	if !ok {
 		err = fmt.Errorf("failed to connect to peer: %v", target)
 		return
@@ -116,8 +97,9 @@ func (i *InmemTransport) makeRPC(target string, args interface{}, r io.Reader, t
 
 	// Wait for a response
 	select {
-	case rpcResp = <-respCh:
-		if rpcResp.Error != nil {
+	case rpcResp := <-respCh:
+		err = deepResponceCopy(rpcResp.Response, resp)
+		if err == nil && rpcResp.Error != nil {
 			err = rpcResp.Error
 		}
 	case <-time.After(timeout):
@@ -131,4 +113,34 @@ func (i *InmemTransport) Close() {
 	inmemMediumSync.Lock()
 	delete(inmemMedium, i.localAddr)
 	inmemMediumSync.Unlock()
+}
+
+func deepRequestCopy(src interface{}) (dst interface{}, err error) {
+	data, err := json.Marshal(src)
+	if err != nil {
+		return
+	}
+
+	switch t := src.(type) {
+	case *SyncRequest:
+		dst = new(SyncRequest)
+	case *EagerSyncRequest:
+		dst = new(EagerSyncRequest)
+	case *FastForwardRequest:
+		dst = new(FastForwardRequest)
+	default:
+		err = fmt.Errorf("Unknown request type %s", t)
+		return
+	}
+
+	err = json.Unmarshal(data, dst)
+	return
+}
+
+func deepResponceCopy(src, dst interface{}) error {
+	data, err := json.Marshal(src)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, dst)
 }
