@@ -1,5 +1,5 @@
-hash: a7c1266954aefa679f8a52b3fa9f29fdbb4eab51a9ac4c47ac95ce69029d87b8
-updated: 2018-12-18T16:44:47.361940366+11:00
+hash: 4af77cc4c5d284d0fb082dc354cc46e342a65357258bfda1417f6f597cb6ebb1
+updated: 2018-12-28T16:11:35.582094981+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
