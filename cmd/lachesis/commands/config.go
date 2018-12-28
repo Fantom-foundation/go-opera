@@ -1,6 +1,10 @@
 package commands
 
-import "github.com/Fantom-foundation/go-lachesis/src/lachesis"
+import (
+	"os"
+	"path/filepath"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+)
 
 //CLIConfig contains configuration for the Run command
 type CLIConfig struct {
@@ -20,6 +24,7 @@ func NewDefaultCLIConfig() *CLIConfig {
 		ClientAddr: "127.0.0.1:1339",
 		Standalone: false,
 		Log2file:   false,
-		Pidfile:    "/tmp/go-lachesis.pid",
+		Pidfile:    filepath.Join(os.TempDir(), "go-lachesis.pid"),
+
 	}
 }
