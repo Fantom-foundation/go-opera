@@ -430,12 +430,6 @@ func (e *Event) OtherParentCreatorID() int64 {
 	return e.Message.OtherParentCreatorID
 }
 
-func rootSelfParent(participantID int64) (hash EventHash) {
-	bytes := []byte(fmt.Sprintf("Root%d", participantID))
-	hash.Set(bytes)
-	return
-}
-
 /*******************************************************************************
 sorting
 *******************************************************************************/

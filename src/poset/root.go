@@ -2,6 +2,7 @@ package poset
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/golang/protobuf/proto"
 )
@@ -137,4 +138,10 @@ func (root *Root) ProtoMarshal() ([]byte, error) {
 // ProtoUnmarshal converts protobuff to a root struct
 func (root *Root) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, root)
+}
+
+func rootSelfParent(participantID int64) (hash EventHash) {
+	bytes := []byte(fmt.Sprintf("Root%d", participantID))
+	hash.Set(bytes)
+	return
 }
