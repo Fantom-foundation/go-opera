@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 // PeerSelector provides an interface for the lachesis node to
@@ -24,13 +25,13 @@ type SmartPeerSelector struct {
 	peers        *peers.Peers
 	localAddr    string
 	last         string
-	GetFlagTable func() (map[string]int64, error)
+	GetFlagTable func() (poset.FlagTable, error)
 }
 
 // NewSmartPeerSelector creates a new smart peer selection struct
 func NewSmartPeerSelector(participants *peers.Peers,
 	localAddr string,
-	GetFlagTable func() (map[string]int64, error)) *SmartPeerSelector {
+	GetFlagTable func() (poset.FlagTable, error)) *SmartPeerSelector {
 
 	return &SmartPeerSelector{
 		localAddr:    localAddr,
@@ -51,10 +52,12 @@ func (ps *SmartPeerSelector) UpdateLast(peer string) {
 
 // Next returns the next peer based on the flag table cost function selection
 func (ps *SmartPeerSelector) Next() *peers.Peer {
-	flagTable, err := ps.GetFlagTable()
+	// TODO: link peer and flagTable, then uncomment
+	/* flagTable, err := ps.GetFlagTable()
 	if err != nil {
 		flagTable = nil
 	}
+	*/
 
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
@@ -77,16 +80,19 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 			continue
 		}
 
-		if f, ok := flagTable[p.NetAddr]; ok && f == 1 {
-			flagged[fCount] = p
-			fCount += 1
-			continue
-		}
-		if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
-			flagged[fCount] = p
-			fCount += 1
-			continue
-		}
+		// TODO: link peer and flagTable, then uncomment
+		/*
+			if f, ok := flagTable[p.NetAddr]; ok && f == 1 {
+				flagged[fCount] = p
+				fCount += 1
+				continue
+			}
+			if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
+				flagged[fCount] = p
+				fCount += 1
+				continue
+			}
+		*/
 
 		if p.Used < minUsedVal {
 			minUsedVal = p.Used
