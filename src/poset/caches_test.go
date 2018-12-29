@@ -20,14 +20,14 @@ func TestParticipantEventsCache(t *testing.T) {
 
 	pec := NewParticipantEventsCache(size, participants)
 
-	items := make(map[string][]string)
+	items := make(map[string]EventHashes)
 	for pk := range participants.ByPubKey {
-		items[pk] = []string{}
+		items[pk] = EventHashes{}
 	}
 
 	for i := int64(0); i < testSize; i++ {
 		for pk := range participants.ByPubKey {
-			item := fmt.Sprintf("%s%d", pk, i)
+			item := fakeEventHash(fmt.Sprintf("%s%d", pk, i))
 
 			pec.Set(pk, item, i)
 
@@ -62,7 +62,7 @@ func TestParticipantEventsCache(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !reflect.DeepEqual([]string{}, actual3) {
+		if !reflect.DeepEqual(EventHashes{}, actual3) {
 			t.Fatalf("expected and cached not equal")
 		}
 	}
@@ -107,7 +107,7 @@ func TestParticipantEventsCache(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !reflect.DeepEqual([]string{}, cached3) {
+		if !reflect.DeepEqual(EventHashes{}, cached3) {
 			t.Fatalf("expected and cached not equal")
 		}
 	}
@@ -124,14 +124,14 @@ func TestParticipantEventsCacheEdge(t *testing.T) {
 
 	pec := NewParticipantEventsCache(size, participants)
 
-	items := make(map[string][]string)
+	items := make(map[string]EventHashes)
 	for pk := range participants.ByPubKey {
-		items[pk] = []string{}
+		items[pk] = EventHashes{}
 	}
 
 	for i := int64(0); i < testSize; i++ {
 		for pk := range participants.ByPubKey {
-			item := fmt.Sprintf("%s%d", pk, i)
+			item := fakeEventHash(fmt.Sprintf("%s%d", pk, i))
 
 			pec.Set(pk, item, i)
 

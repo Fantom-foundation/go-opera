@@ -49,10 +49,10 @@ func TestInmemEvents(t *testing.T) {
 				event := NewEvent([][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
 					nil,
 					[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
-					[]string{"", ""},
+					make(EventHashes, 2),
 					p.pubKey,
 					k, nil)
-				_ = event.Hex() // just to set private variables
+				_ = event.Hash() // just to set private variables
 				items = append(items, event)
 				err := store.SetEvent(event)
 				if err != nil {
@@ -64,7 +64,7 @@ func TestInmemEvents(t *testing.T) {
 
 		for p, evs := range events {
 			for k, ev := range evs {
-				rev, err := store.GetEventBlock(ev.Hex())
+				rev, err := store.GetEventBlock(ev.Hash())
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -88,9 +88,9 @@ func TestInmemEvents(t *testing.T) {
 
 			expectedEvents := events[p.hex][skipIndex+1:]
 			for k, e := range expectedEvents {
-				if e.Hex() != pEvents[k] {
+				if e.Hash() != pEvents[k] {
 					t.Fatalf("ParticipantEvents[%s][%d] should be %s, not %s",
-						p.hex, k, e.Hex(), pEvents[k])
+						p.hex, k, e.Hash(), pEvents[k])
 				}
 			}
 		}
@@ -129,11 +129,11 @@ func TestInmemRounds(t *testing.T) {
 		event := NewEvent([][]byte{},
 			nil,
 			[]BlockSignature{},
-			[]string{"", ""},
+			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
 		events[p.hex] = event
-		round.AddEvent(event.Hex(), true)
+		round.AddEvent(event.Hash(), true)
 	}
 
 	t.Run("Store Round", func(t *testing.T) {
@@ -163,7 +163,7 @@ func TestInmemRounds(t *testing.T) {
 			t.Fatalf("There should be %d clothos, not %d", len(expectedClotho), len(clothos))
 		}
 		for _, w := range expectedClotho {
-			if !contains(clothos, w) {
+			if !clothos.Contains(w) {
 				t.Fatalf("Clotho should contain %s", w)
 			}
 		}
