@@ -107,8 +107,8 @@ func compareRounds(diff *Diff) bool {
 		}
 
 		w0, w1 := n0.RoundClothos(i), n1.RoundClothos(i)
-		sort.Sort(ByValue(w0))
-		sort.Sort(ByValue(w1))
+		sort.Sort(w0)
+		sort.Sort(w1)
 		if !reflect.DeepEqual(w0, w1) {
 			diff.FirstRoundIndex = i
 			diff.AddDescr(fmt.Sprintf("clotho:\n%+v \n!= \n%+v\n", w0, w1))
