@@ -28,7 +28,7 @@ func TestEventHash(t *testing.T) {
 func TestEventHashes(t *testing.T) {
 	assert := assert.New(t)
 
-	selfParent := rootSelfParent(999)
+	selfParent := GenRootSelfParent(999)
 	otherParent := EventHash{}
 	hh := EventHashes{selfParent, otherParent}
 

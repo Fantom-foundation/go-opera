@@ -14,11 +14,11 @@ import (
 )
 
 func initCores(n int, t *testing.T) ([]*Core,
-	map[int64]*ecdsa.PrivateKey, map[string]string) {
+	map[int64]*ecdsa.PrivateKey, map[string]poset.EventHash) {
 	cacheSize := 1000
 
 	var cores []*Core
-	index := make(map[string]string)
+	index := make(map[string]poset.EventHash)
 	participantKeys := map[int64]*ecdsa.PrivateKey{}
 
 	participants := peers.NewPeers()
@@ -39,16 +39,16 @@ func initCores(n int, t *testing.T) ([]*Core,
 			nil,
 			common.NewTestLogger(t))
 
-		selfParent := fmt.Sprintf("Root%d", peer.ID)
+		selfParent := poset.GenRootSelfParent(peer.ID)
 
-		flagTable := make(map[string]int64)
+		flagTable := make(poset.FlagTable)
 		flagTable[selfParent] = 1
 
 		// Create and save the first Event
 		initialEvent := poset.NewEvent([][]byte(nil),
 			[]poset.InternalTransaction{},
 			nil,
-			[]string{selfParent, ""}, core.PubKey(), 0, flagTable)
+			poset.EventHashes{selfParent, poset.EventHash{}}, core.PubKey(), 0, flagTable)
 		err := core.SignAndInsertSelfEvent(initialEvent)
 		if err != nil {
 			t.Fatal(err)
@@ -76,7 +76,7 @@ e0  e1  e2
 0   1   2
 */
 func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
-	index map[string]string, participant int64) {
+	index map[string]poset.EventHash, participant int64) {
 	for i := int64(0); i < int64(len(cores)); i++ {
 		if i != participant {
 			event, err := cores[i].GetEventBlock(index[fmt.Sprintf("e%d", i)])
@@ -86,7 +86,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 			err = cores[participant].InsertEvent(event, true)
 			if err != nil {
 				t.Fatalf("error inserting %s: %s\n",
-					getName(index, event.Hex()), err)
+					getName(index, event.Hash()), err)
 			}
 		}
 	}
@@ -107,7 +107,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	event01 := poset.NewEvent([][]byte{},
 		[]poset.InternalTransaction{},
 		nil,
-		[]string{index["e0"], index["e1"]}, // e0 and e1
+		poset.EventHashes{index["e0"], index["e1"]}, // e0 and e1
 		cores[0].PubKey(), 1, event01ft)
 	if err := insertEvent(cores, keys, index, event01, "e01", participant,
 		int64(common.Hash32(cores[0].pubKey))); err != nil {
@@ -125,7 +125,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	event20 := poset.NewEvent([][]byte{},
 		[]poset.InternalTransaction{},
 		nil,
-		[]string{index["e2"], index["e01"]}, // e2 and e01
+		poset.EventHashes{index["e2"], index["e01"]}, // e2 and e01
 		cores[2].PubKey(), 1, event20ft)
 	if err := insertEvent(cores, keys, index, event20, "e20", participant,
 		int64(common.Hash32(cores[2].pubKey))); err != nil {
@@ -137,7 +137,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 	event12 := poset.NewEvent([][]byte{},
 		[]poset.InternalTransaction{},
 		nil,
-		[]string{index["e1"], index["e20"]}, // e1 and e20
+		poset.EventHashes{index["e1"], index["e20"]}, // e1 and e20
 		cores[1].PubKey(), 1, event12ft)
 	if err := insertEvent(cores, keys, index, event12, "e12", participant,
 		int64(common.Hash32(cores[1].pubKey))); err != nil {
@@ -146,7 +146,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 }
 
 func insertEvent(cores []*Core, keys map[int64]*ecdsa.PrivateKey,
-	index map[string]string, event poset.Event, name string, participant int64,
+	index map[string]poset.EventHash, event poset.Event, name string, participant int64,
 	creator int64) error {
 
 	if participant == creator {
@@ -160,7 +160,7 @@ func insertEvent(cores []*Core, keys map[int64]*ecdsa.PrivateKey,
 		if err := cores[participant].InsertEvent(event, true); err != nil {
 			return err
 		}
-		index[name] = event.Hex()
+		index[name] = event.Hash()
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func TestEventDiff(t *testing.T) {
 
 	expectedOrder := []string{"e0", "e2", "e01", "e20", "e12"}
 	for i, e := range unknownBy1 {
-		if name := getName(index, e.Hex()); name != expectedOrder[i] {
+		if name := getName(index, e.Hash()); name != expectedOrder[i] {
 			t.Fatalf("element %d should be %s, not %s",
 				i, expectedOrder[i], name)
 		}
@@ -295,7 +295,7 @@ func TestSync(t *testing.T) {
 	if len(core0Head.Message.FlagTable) == 0 {
 		t.Fatal("flag table is null")
 	}
-	index["e01"] = core0Head.Hex()
+	index["e01"] = core0Head.Hash()
 
 	// core 0 is going to tell core 2 everything it knows
 	if err := synchronizeCores(cores, 0, 2, [][]byte{}); err != nil {
@@ -350,7 +350,7 @@ func TestSync(t *testing.T) {
 	if core2Head.OtherParent() != index["e01"] {
 		t.Fatalf("core 2 head other-parent should be e01")
 	}
-	index["e20"] = core2Head.Hex()
+	index["e20"] = core2Head.Hash()
 
 	// core 2 is going to tell core 1 everything it knows
 	if err := synchronizeCores(cores, 2, 1, [][]byte{}); err != nil {
@@ -406,7 +406,7 @@ func TestSync(t *testing.T) {
 	if core1Head.OtherParent() != index["e20"] {
 		t.Fatalf("core 1 head other-parent should be e20")
 	}
-	index["e12"] = core1Head.Hex()
+	index["e12"] = core1Head.Hash()
 
 }
 
@@ -1038,7 +1038,7 @@ func syncAndRunConsensus(
 	return nil
 }
 
-func getName(index map[string]string, hash string) string {
+func getName(index map[string]poset.EventHash, hash poset.EventHash) string {
 	for name, h := range index {
 		if h == hash {
 			return name

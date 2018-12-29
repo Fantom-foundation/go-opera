@@ -37,7 +37,7 @@ type Core struct {
 	inDegrees map[string]uint64
 
 	participants *peers.Peers // [PubKey] => id
-	head         string
+	head         poset.EventHash
 	Seq          int64
 
 	transactionPool         [][]byte
@@ -79,7 +79,7 @@ func NewCore(id int64, key *ecdsa.PrivateKey, participants *peers.Peers,
 		internalTransactionPool: []poset.InternalTransaction{},
 		blockSignaturePool:      []poset.BlockSignature{},
 		logger:                  logEntry,
-		head:                    "",
+		head:                    poset.EventHash{},
 		Seq:                     -1,
 	}
 
@@ -111,7 +111,7 @@ func (c *Core) HexID() string {
 }
 
 // Head returns the current chain head for this core
-func (c *Core) Head() string {
+func (c *Core) Head() poset.EventHash {
 	return c.head
 }
 
@@ -137,7 +137,7 @@ func (c *Core) InDegrees() map[string]uint64 {
 // SetHeadAndSeq calculates and sets the current head for the chain
 func (c *Core) SetHeadAndSeq() error {
 
-	var head string
+	var head poset.EventHash
 	var seq int64
 
 	last, isRoot, err := c.poset.Store.LastEventFrom(c.HexID())
@@ -150,7 +150,7 @@ func (c *Core) SetHeadAndSeq() error {
 		if err != nil {
 			return err
 		}
-		head = root.SelfParent.Hash
+		head.Set(root.SelfParent.Hash)
 		seq = root.SelfParent.Index
 	} else {
 		lastEvent, err := c.GetEventBlock(last)
@@ -229,7 +229,7 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 		"creator":    event.GetCreator(),
 		"selfParent": event.SelfParent(),
 		"index":      event.Index(),
-		"hex":        event.Hex(),
+		"hex":        event.Hash(),
 	}).Debug("InsertEvent(event poset.Event, setWireInfo bool)")
 
 	if err := c.poset.InsertEvent(event, setWireInfo); err != nil {
@@ -237,7 +237,7 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 	}
 
 	if event.GetCreator() == c.HexID() {
-		c.head = event.Hex()
+		c.head = event.Hash()
 		c.Seq = event.Index()
 	}
 
@@ -315,7 +315,7 @@ func (c *Core) EventDiff(known map[int64]int64) (events []poset.Event, err error
 				"creator":    ev.GetCreator(),
 				"selfParent": ev.SelfParent(),
 				"index":      ev.Index(),
-				"hex":        ev.Hex(),
+				"hex":        ev.Hash(),
 			}).Debugf("Sending Unknown Event")
 			unknown = append(unknown, ev)
 		}
@@ -337,7 +337,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	myKnownEvents := c.KnownEvents()
-	otherHead := ""
+	otherHead := poset.EventHash{}
 	// add unknown events
 	for k, we := range unknownEvents {
 		c.logger.WithFields(logrus.Fields{
@@ -361,7 +361,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 
 		// assume last event corresponds to other-head
 		if k == len(unknownEvents)-1 {
-			otherHead = ev.Hex()
+			otherHead = ev.Hash()
 		}
 	}
 
@@ -420,7 +420,7 @@ func min(a, b int) int {
 }
 
 // AddSelfEventBlock adds an event block created by this node
-func (c *Core) AddSelfEventBlock(otherHead string) error {
+func (c *Core) AddSelfEventBlock(otherHead poset.EventHash) error {
 
 	c.addSelfEventBlockLocker.Lock()
 	defer c.addSelfEventBlockLocker.Unlock()
@@ -436,12 +436,12 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	}
 
 	var (
-		flagTable map[string]int64
+		flagTable poset.FlagTable
 		err       error
 	)
 
 	if errSelf != nil {
-		flagTable = map[string]int64{c.head: 1}
+		flagTable = poset.FlagTable{c.head: 1}
 	} else {
 		flagTable, err = parentEvent.GetFlagTable()
 		if err != nil {
@@ -475,7 +475,7 @@ func (c *Core) AddSelfEventBlock(otherHead string) error {
 	newHead := poset.NewEvent(batch,
 		c.internalTransactionPool,
 		c.blockSignaturePool,
-		[]string{c.head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
+		poset.EventHashes{c.head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		// put batch back to transactionPool
@@ -611,12 +611,12 @@ func (c *Core) GetHead() (poset.Event, error) {
 }
 
 // GetEventBlock get a specific event block for the hash provided
-func (c *Core) GetEventBlock(hash string) (poset.Event, error) {
+func (c *Core) GetEventBlock(hash poset.EventHash) (poset.Event, error) {
 	return c.poset.Store.GetEventBlock(hash)
 }
 
 // GetEventBlockTransactions get all transactions in an event block
-func (c *Core) GetEventBlockTransactions(hash string) ([][]byte, error) {
+func (c *Core) GetEventBlockTransactions(hash poset.EventHash) ([][]byte, error) {
 	var txs [][]byte
 	ex, err := c.GetEventBlock(hash)
 	if err != nil {
@@ -627,7 +627,7 @@ func (c *Core) GetEventBlockTransactions(hash string) ([][]byte, error) {
 }
 
 // GetConsensusEvents get all known consensus events
-func (c *Core) GetConsensusEvents() []string {
+func (c *Core) GetConsensusEvents() poset.EventHashes {
 	return c.poset.Store.ConsensusEvents()
 }
 
@@ -637,7 +637,7 @@ func (c *Core) GetConsensusEventsCount() int64 {
 }
 
 // GetUndeterminedEvents get all unconfirmed consensus events (pending)
-func (c *Core) GetUndeterminedEvents() []string {
+func (c *Core) GetUndeterminedEvents() poset.EventHashes {
 	return c.poset.GetUndeterminedEvents()
 }
 

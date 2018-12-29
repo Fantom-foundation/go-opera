@@ -1690,7 +1690,7 @@ func (p *Poset) Bootstrap() error {
 // corresponding public keys.
 func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	var (
-		selfParent  EventHash = rootSelfParent(wevent.Body.CreatorID)
+		selfParent  EventHash = GenRootSelfParent(wevent.Body.CreatorID)
 		otherParent EventHash
 		err         error
 	)
@@ -1865,7 +1865,7 @@ func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (FlagTable, error) {
 }
 
 // GetUndeterminedEvents returns all the undetermined events
-func (p *Poset) GetUndeterminedEvents() []EventHash {
+func (p *Poset) GetUndeterminedEvents() EventHashes {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
 	return p.UndeterminedEvents

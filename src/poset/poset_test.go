@@ -237,7 +237,7 @@ func initPosetFull(t testing.TB, plays []play, db bool, n int,
 
 	// Needed to have sorted nodes based on participants hash32
 	for i, peer := range participants.ToPeerSlice() {
-		selfParent := rootSelfParent(peer.ID)
+		selfParent := GenRootSelfParent(peer.ID)
 		event := NewEvent(nil, nil, nil,
 			EventHashes{selfParent, EventHash{}},
 			nodes[i].Pub,
@@ -1121,7 +1121,7 @@ func initDentedPoset(t *testing.T) (*Poset, map[string]EventHash) {
 	orderedPeers := participants.ToPeerSlice()
 
 	for i, peer := range orderedPeers {
-		hash := rootSelfParent(peer.ID)
+		hash := GenRootSelfParent(peer.ID)
 		name := fmt.Sprintf("e%d", i)
 		index[name] = hash
 	}
@@ -1186,7 +1186,7 @@ func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]EventHash) {
 
 	for i, peer := range participants.ToPeerSlice() {
 		event := NewEvent(nil, nil, nil,
-			EventHashes{rootSelfParent(peer.ID), EventHash{}},
+			EventHashes{GenRootSelfParent(peer.ID), EventHash{}},
 			nodes[i].Pub,
 			0,
 			nil)
@@ -2346,7 +2346,7 @@ func initFunkyPoset(t *testing.T, logger *logrus.Logger, full bool) (*Poset, map
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		selfParent := rootSelfParent(peer.ID)
+		selfParent := GenRootSelfParent(peer.ID)
 		event := NewEvent(
 			[][]byte{[]byte(name)},
 			nil,
@@ -2992,7 +2992,7 @@ func initSparsePoset(
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		selfParent := rootSelfParent(peer.ID)
+		selfParent := GenRootSelfParent(peer.ID)
 		event := NewEvent(
 			[][]byte{[]byte(name)},
 			nil,

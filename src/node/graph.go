@@ -1,14 +1,12 @@
 package node
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 // Infos struct for graph data (visualizer)
 type Infos struct {
-	ParticipantEvents map[string]map[string]poset.Event
+	ParticipantEvents map[string]map[poset.EventHash]poset.Event
 	Rounds            []poset.RoundCreated
 	Blocks            []poset.Block
 }
@@ -40,8 +38,8 @@ func (g *Graph) GetBlocks() []poset.Block {
 }
 
 // GetParticipantEvents returns all known events per participant
-func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
-	res := make(map[string]map[string]poset.Event)
+func (g *Graph) GetParticipantEvents() map[string]map[poset.EventHash]poset.Event {
+	res := make(map[string]map[poset.EventHash]poset.Event)
 
 	store := g.Node.core.poset.Store
 	repertoire := g.Node.core.poset.Store.RepertoireByPubKey()
@@ -64,20 +62,23 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 			panic(err)
 		}
 
-		res[p.PubKeyHex] = make(map[string]poset.Event)
+		res[p.PubKeyHex] = make(map[poset.EventHash]poset.Event)
 
-		selfParent := fmt.Sprintf("Root%d", p.ID)
+		selfParent := poset.GenRootSelfParent(p.ID)
 
-		flagTable := make(map[string]int64)
+		flagTable := poset.FlagTable{}
 		flagTable[selfParent] = 1
 
 		// Create and save the first Event
 		initialEvent := poset.NewEvent([][]byte{},
 			[]poset.InternalTransaction{},
 			[]poset.BlockSignature{},
-			[]string{}, []byte{}, 0, flagTable)
+			poset.EventHashes{}, []byte{}, 0, flagTable)
 
-		res[p.PubKeyHex][root.SelfParent.Hash] = initialEvent
+		// TODO: initialEvent.Hash() instead of rootSelfParentHash ?
+		rootSelfParentHash := poset.EventHash{}
+		rootSelfParentHash.Set(root.SelfParent.Hash)
+		res[p.PubKeyHex][rootSelfParentHash] = initialEvent
 
 		for _, e := range evs {
 			event, err := store.GetEventBlock(e)
@@ -86,7 +87,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[string]poset.Event {
 				panic(err)
 			}
 
-			hash := event.Hex()
+			hash := event.Hash()
 
 			res[p.PubKeyHex][hash] = event
 		}
