@@ -3,7 +3,7 @@ package poset
 import (
 	"fmt"
 
-	cm "github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
@@ -38,14 +38,14 @@ func NewBaseParentRoundInfo() ParentRoundInfo {
 // ParticipantEventsCache struct
 type ParticipantEventsCache struct {
 	participants *peers.Peers
-	rim          *cm.RollingIndexMap
+	rim          *common.RollingIndexMap
 }
 
 // NewParticipantEventsCache constructor
 func NewParticipantEventsCache(size int, participants *peers.Peers) *ParticipantEventsCache {
 	return &ParticipantEventsCache{
 		participants: participants,
-		rim:          cm.NewRollingIndexMap("ParticipantEvents", size, participants.ToIDSlice()),
+		rim:          common.NewRollingIndexMap("ParticipantEvents", size, participants.ToIDSlice()),
 	}
 }
 
@@ -59,7 +59,7 @@ func (pec *ParticipantEventsCache) participantID(participant string) (int64, err
 	peer, ok := pec.participants.ByPubKey[participant]
 
 	if !ok {
-		return -1, cm.NewStoreErr("ParticipantEvents", cm.UnknownParticipant, participant)
+		return -1, common.NewStoreErr("ParticipantEvents", common.UnknownParticipant, participant)
 	}
 
 	return peer.ID, nil
@@ -145,14 +145,14 @@ func (pec *ParticipantEventsCache) Import(other *ParticipantEventsCache) {
 // ParticipantBlockSignaturesCache struct
 type ParticipantBlockSignaturesCache struct {
 	participants *peers.Peers
-	rim          *cm.RollingIndexMap
+	rim          *common.RollingIndexMap
 }
 
 // NewParticipantBlockSignaturesCache constructor
 func NewParticipantBlockSignaturesCache(size int, participants *peers.Peers) *ParticipantBlockSignaturesCache {
 	return &ParticipantBlockSignaturesCache{
 		participants: participants,
-		rim:          cm.NewRollingIndexMap("ParticipantBlockSignatures", size, participants.ToIDSlice()),
+		rim:          common.NewRollingIndexMap("ParticipantBlockSignatures", size, participants.ToIDSlice()),
 	}
 }
 
@@ -160,7 +160,7 @@ func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (i
 	peer, ok := psc.participants.ByPubKey[participant]
 
 	if !ok {
-		return -1, cm.NewStoreErr("ParticipantBlockSignatures", cm.UnknownParticipant, participant)
+		return -1, common.NewStoreErr("ParticipantBlockSignatures", common.UnknownParticipant, participant)
 	}
 
 	return peer.ID, nil

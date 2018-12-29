@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	cm "github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
@@ -42,7 +42,7 @@ func TestParticipantEventsCache(t *testing.T) {
 
 		index1 := int64(9)
 		_, err := pec.GetItem(pk, index1)
-		if err == nil || !cm.Is(err, cm.TooLate) {
+		if err == nil || !common.Is(err, common.TooLate) {
 			t.Fatalf("Expected ErrTooLate")
 		}
 
@@ -78,7 +78,7 @@ func TestParticipantEventsCache(t *testing.T) {
 
 	//GET ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	for pk := range participants.ByPubKey {
-		if _, err := pec.Get(pk, 0); err != nil && !cm.Is(err, cm.TooLate) {
+		if _, err := pec.Get(pk, 0); err != nil && !common.Is(err, common.TooLate) {
 			t.Fatalf("Skipping 0 elements should return ErrTooLate")
 		}
 

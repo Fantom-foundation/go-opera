@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	cm "github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/dgraph-io/badger"
 )
@@ -875,7 +875,7 @@ func isDBKeyNotFound(err error) bool {
 func mapError(err error, name, key string) error {
 	if err != nil {
 		if isDBKeyNotFound(err) {
-			return cm.NewStoreErr(name, cm.KeyNotFound, key)
+			return common.NewStoreErr(name, common.KeyNotFound, key)
 		}
 	}
 	return err
