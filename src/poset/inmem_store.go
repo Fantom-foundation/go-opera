@@ -26,9 +26,9 @@ type InmemStore struct {
 	repertoireByID         map[int64]*peers.Peer
 	participantEventsCache *ParticipantEventsCache // pubkey => Events
 	rootsByParticipant     map[string]Root         // [participant] => Root
-	rootsBySelfParent      map[string]Root         // [Root.SelfParent.Hash] => Root
+	rootsBySelfParent      map[EventHash]Root      // [Root.SelfParent.Hash] => Root
 	lastRound              int64
-	lastConsensusEvents    map[string]string // [participant] => hex() of last consensus event
+	lastConsensusEvents    map[string]EventHash // [participant] => hex() of last consensus event
 	lastBlock              int64
 
 	lastRoundLocker          sync.RWMutex
@@ -86,7 +86,7 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 		rootsByParticipant:     rootsByParticipant,
 		lastRound:              -1,
 		lastBlock:              -1,
-		lastConsensusEvents:    map[string]string{},
+		lastConsensusEvents:    map[string]EventHash{},
 	}
 
 	participants.OnNewPeer(func(peer *peers.Peer) {
@@ -134,21 +134,23 @@ func (s *InmemStore) RepertoireByID() map[int64]*peers.Peer {
 }
 
 // RootsBySelfParent TODO
-func (s *InmemStore) RootsBySelfParent() (map[string]Root, error) {
+func (s *InmemStore) RootsBySelfParent() (map[EventHash]Root, error) {
 	if s.rootsBySelfParent == nil {
-		s.rootsBySelfParent = make(map[string]Root)
+		s.rootsBySelfParent = make(map[EventHash]Root)
 		for _, root := range s.rootsByParticipant {
-			s.rootsBySelfParent[root.SelfParent.Hash] = root
+			var hash EventHash
+			hash.Set(root.SelfParent.Hash)
+			s.rootsBySelfParent[hash] = root
 		}
 	}
 	return s.rootsBySelfParent, nil
 }
 
-// GetEventBlock returns the event block for a key
-func (s *InmemStore) GetEventBlock(key string) (Event, error) {
-	res, ok := s.eventCache.Get(key)
+// GetEventBlock gets specific event block by hash
+func (s *InmemStore) GetEventBlock(hash EventHash) (Event, error) {
+	res, ok := s.eventCache.Get(hash)
 	if !ok {
-		return Event{}, cm.NewStoreErr("EventCache", cm.KeyNotFound, key)
+		return Event{}, cm.NewStoreErr("EventCache", cm.KeyNotFound, hash.String())
 	}
 
 	return res.(Event), nil
@@ -156,81 +158,86 @@ func (s *InmemStore) GetEventBlock(key string) (Event, error) {
 
 // SetEvent set event for event block
 func (s *InmemStore) SetEvent(event Event) error {
-	key := event.Hex()
-	_, err := s.GetEventBlock(key)
+	eventHash := event.Hash()
+	_, err := s.GetEventBlock(eventHash)
 	if err != nil && !cm.Is(err, cm.KeyNotFound) {
 		return err
 	}
 	if cm.Is(err, cm.KeyNotFound) {
-		if err := s.addParticpantEvent(event.GetCreator(), key, event.Index()); err != nil {
+		if err := s.addParticpantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
 			return err
 		}
 	}
 
 	// fmt.Println("Adding event to cache", event.Hex())
-	s.eventCache.Add(key, event)
+	s.eventCache.Add(eventHash, event)
 
 	return nil
 }
 
-func (s *InmemStore) addParticpantEvent(participant string, hash string, index int64) error {
+func (s *InmemStore) addParticpantEvent(participant string, hash EventHash, index int64) error {
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
 // ParticipantEvents events for the participant
-func (s *InmemStore) ParticipantEvents(participant string, skip int64) ([]string, error) {
+func (s *InmemStore) ParticipantEvents(participant string, skip int64) (EventHashes, error) {
 	return s.participantEventsCache.Get(participant, skip)
 }
 
 // ParticipantEvent specific event
-func (s *InmemStore) ParticipantEvent(participant string, index int64) (string, error) {
-	ev, err := s.participantEventsCache.GetItem(participant, index)
-	if err != nil {
-		root, ok := s.rootsByParticipant[participant]
-		if !ok {
-			return "", cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
-		}
-		if root.SelfParent.Index == index {
-			ev = root.SelfParent.Hash
-			err = nil
-		}
+func (s *InmemStore) ParticipantEvent(participant string, index int64) (hash EventHash, err error) {
+	hash, err = s.participantEventsCache.GetItem(participant, index)
+	if err == nil {
+		return
 	}
-	return ev, err
+
+	root, ok := s.rootsByParticipant[participant]
+	if !ok {
+		err = cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
+		return
+	}
+
+	if root.SelfParent.Index == index {
+		hash.Set(root.SelfParent.Hash)
+		err = nil
+	}
+	return
 }
 
 // LastEventFrom participant
-func (s *InmemStore) LastEventFrom(participant string) (last string, isRoot bool, err error) {
+func (s *InmemStore) LastEventFrom(participant string) (last EventHash, isRoot bool, err error) {
 	// try to get the last event from this participant
 	last, err = s.participantEventsCache.GetLast(participant)
-
+	if err == nil || !cm.Is(err, cm.Empty) {
+		return
+	}
 	// if there is none, grab the root
-	if err != nil && cm.Is(err, cm.Empty) {
-		root, ok := s.rootsByParticipant[participant]
-		if ok {
-			last = root.SelfParent.Hash
-			isRoot = true
-			err = nil
-		} else {
-			err = cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
-		}
+	if root, ok := s.rootsByParticipant[participant]; ok {
+		last.Set(root.SelfParent.Hash)
+		isRoot = true
+		err = nil
+	} else {
+		err = cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
 	}
 	return
 }
 
 // LastConsensusEventFrom participant
-func (s *InmemStore) LastConsensusEventFrom(participant string) (last string, isRoot bool, err error) {
+func (s *InmemStore) LastConsensusEventFrom(participant string) (last EventHash, isRoot bool, err error) {
 	// try to get the last consensus event from this participant
 	last, ok := s.lastConsensusEvents[participant]
-	// if there is none, grab the root
-	if !ok {
-		root, ok := s.rootsByParticipant[participant]
-		if ok {
-			last = root.SelfParent.Hash
-			isRoot = true
-		} else {
-			err = cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
-		}
+	if ok {
+		return
 	}
+	// if there is none, grab the root
+	root, ok := s.rootsByParticipant[participant]
+	if ok {
+		last.Set(root.SelfParent.Hash)
+		isRoot = true
+	} else {
+		err = cm.NewStoreErr("InmemStore.Roots", cm.NoRoot, participant)
+	}
+
 	return
 }
 
@@ -249,11 +256,11 @@ func (s *InmemStore) KnownEvents() map[int64]int64 {
 }
 
 // ConsensusEvents returns all consensus events
-func (s *InmemStore) ConsensusEvents() []string {
+func (s *InmemStore) ConsensusEvents() EventHashes {
 	lastWindow, _ := s.consensusCache.GetLastWindow()
-	res := make([]string, len(lastWindow))
+	res := make(EventHashes, len(lastWindow))
 	for i, item := range lastWindow {
-		res[i] = item.(string)
+		res[i] = item.(EventHash)
 	}
 	return res
 }
@@ -269,9 +276,9 @@ func (s *InmemStore) ConsensusEventsCount() int64 {
 func (s *InmemStore) AddConsensusEvent(event Event) error {
 	s.totConsensusEventsLocker.Lock()
 	defer s.totConsensusEventsLocker.Unlock()
-	s.consensusCache.Set(event.Hex(), s.totConsensusEvents)
+	s.consensusCache.Set(event.Hash(), s.totConsensusEvents)
 	s.totConsensusEvents++
-	s.lastConsensusEvents[event.GetCreator()] = event.Hex()
+	s.lastConsensusEvents[event.GetCreator()] = event.Hash()
 	return nil
 }
 
@@ -323,10 +330,10 @@ func (s *InmemStore) LastRound() int64 {
 }
 
 // RoundClothos all clothos for the specified round
-func (s *InmemStore) RoundClothos(r int64) []string {
+func (s *InmemStore) RoundClothos(r int64) EventHashes {
 	round, err := s.GetRoundCreated(r)
 	if err != nil {
-		return []string{}
+		return EventHashes{}
 	}
 	return round.Clotho()
 }

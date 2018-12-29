@@ -21,7 +21,7 @@ message BlockSignature {
 message EventBody {
   repeated bytes Transactions = 1;
   repeated InternalTransaction InternalTransactions = 2;
-  repeated string Parents = 3;
+  repeated bytes Parents = 3;
   bytes Creator = 4;
   int64 Index = 5;
   repeated BlockSignature BlockSignatures = 6;
@@ -31,7 +31,7 @@ message EventMessage {
   EventBody Body = 1;
   string Signature = 2;
   bytes FlagTable = 3;
-  repeated string ClothoProof = 4;
+  repeated bytes ClothoProof = 4;
   int64 SelfParentIndex = 5;
   int64 OtherParentCreatorID = 6;
   int64 OtherParentIndex = 7;
