@@ -246,7 +246,10 @@ func TestMergeFlagTable(t *testing.T) {
 	}
 
 	res := FlagTable{}
-	res.Unmarshal(event.Message.FlagTable)
+	err := res.Unmarshal(event.Message.FlagTable)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if !reflect.DeepEqual(exp, res) {
 		t.Fatalf("expected flag table: %+v, got: %+v", exp, res)

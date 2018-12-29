@@ -79,7 +79,7 @@ func NewBaseRootEvent(creatorID int64) RootEvent {
 
 // Equals compares two root events for equality
 func (re *RootEvent) Equals(that *RootEvent) bool {
-	return bytes.Compare(re.Hash, that.Hash) == 0 &&
+	return bytes.Equal(re.Hash, that.Hash) &&
 		re.CreatorID == that.CreatorID &&
 		re.Index == that.Index &&
 		re.LamportTimestamp == that.LamportTimestamp &&

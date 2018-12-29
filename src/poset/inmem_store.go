@@ -276,7 +276,10 @@ func (s *InmemStore) ConsensusEventsCount() int64 {
 func (s *InmemStore) AddConsensusEvent(event Event) error {
 	s.totConsensusEventsLocker.Lock()
 	defer s.totConsensusEventsLocker.Unlock()
-	s.consensusCache.Set(event.Hash(), s.totConsensusEvents)
+	err := s.consensusCache.Set(event.Hash(), s.totConsensusEvents)
+	if err != nil {
+		return err
+	}
 	s.totConsensusEvents++
 	s.lastConsensusEvents[event.GetCreator()] = event.Hash()
 	return nil
