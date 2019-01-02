@@ -1,5 +1,5 @@
-hash: a7c1266954aefa679f8a52b3fa9f29fdbb4eab51a9ac4c47ac95ce69029d87b8
-updated: 2018-12-11T14:59:08.745245+11:00
+hash: 4af77cc4c5d284d0fb082dc354cc46e342a65357258bfda1417f6f597cb6ebb1
+updated: 2018-12-28T16:11:35.582094981+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -13,6 +13,10 @@ imports:
   - "y"
 - name: github.com/dgryski/go-farm
   version: 2de33835d10275975374b37b2dcfd22c9020a1f5
+- name: github.com/facebookgo/atomicfile
+  version: 2de1f203e7d5e386a6833233882782932729f27e
+- name: github.com/facebookgo/pidfile
+  version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/golang/protobuf
