@@ -45,14 +45,11 @@ func (ps *RandomPeerSelector) UpdateLast(peer string) {
 
 // Next returns the next randomly selected peer(s) to communicate with
 func (ps *RandomPeerSelector) Next() *peers.Peer {
-	selectablePeers := ps.peers.ToPeerSlice()
+	slice := ps.peers.ToPeerSlice()
+	selectablePeers := peers.ExcludePeers(slice, ps.localAddr, ps.last)
 
-	if len(selectablePeers) > 1 {
-		_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.localAddr)
-
-		if len(selectablePeers) > 1 {
-			_, selectablePeers = peers.ExcludePeer(selectablePeers, ps.last)
-		}
+	if len(selectablePeers) < 1 {
+		selectablePeers = slice
 	}
 
 	i := rand.Intn(len(selectablePeers))
