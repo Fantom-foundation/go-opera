@@ -5,8 +5,10 @@
 package commands
 
 import (
+	"runtime"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func runLachesis(cmd *cobra.Command, args []string) error {
@@ -20,6 +22,13 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 	err := viper.Unmarshal(config)
 	if err != nil {
 		return err
+	}
+
+	if runtime.GOOS != "windows" {
+		err := utils.CheckPid(config.Pidfile)
+		if err != nil {
+			return err
+		}
 	}
 
 	return runSingleLachesis(config)
