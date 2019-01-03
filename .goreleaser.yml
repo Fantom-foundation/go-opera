@@ -6,7 +6,7 @@ builds:
     binary: go-lachesis-dummy
     ldflags:
       - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit='{{ .ShortCommit }}'
+      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit={{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -19,7 +19,7 @@ builds:
     binary: go-lachesis-dummy-client
     ldflags:
       - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit='{{ .ShortCommit }}'
+      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit={{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -30,7 +30,7 @@ builds:
     binary: go-lachesis
     ldflags:
       - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit='{{ .ShortCommit }}'
+      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit={{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -41,7 +41,7 @@ builds:
     binary: go-lachesis-with-profiler
     ldflags:
       - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit='{{ .ShortCommit }}'
+      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit={{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -52,7 +52,7 @@ builds:
     binary: go-lachesis-network
     ldflags:
       - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit='{{ .ShortCommit }}'
+      - -X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit={{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
