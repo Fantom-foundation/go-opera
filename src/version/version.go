@@ -7,7 +7,7 @@ const Maj = "0"
 // Min minor semver version
 const Min = "4"
 // Fix fix semver version
-const Fix = "5"
+const Fix = "5-rc1"
 
 func dashPrependAndSliceOn(condition bool, s string) string {
 	if !condition {
