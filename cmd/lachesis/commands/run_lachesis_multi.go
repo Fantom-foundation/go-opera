@@ -7,10 +7,12 @@ package commands
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func runLachesis(cmd *cobra.Command, args []string) error {
@@ -45,7 +47,15 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 		configs[i].ProxyAddr = fmt.Sprintf("127.0.0.1:%d", 9000 + i + 1)
 		configs[i].Lachesis.DataDir += fmt.Sprintf("/%0*d", digits, i)
 
-		if i > 0 {
+		switch i {
+		case 0:
+			if runtime.GOOS != "windows" {
+				err := utils.CheckPid(configs[0].Pidfile)
+				if err != nil {
+					return err
+				}
+			}
+		default:
 			go runSingleLachesis(configs[i])
 		}
 

@@ -131,6 +131,7 @@ func AddRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("log", config.Lachesis.LogLevel, "debug, info, warn, error, fatal, panic")
 	cmd.Flags().Bool("log2file", config.Log2file, "duplicate log output into file lachesis_<BindAddr>.log")
 	if runtime.GOOS != "windows" {
+		cmd.Flags().String("pidfile", config.Pidfile, "pidfile location; /tmp/go-lachesis.pid by default")
 		cmd.Flags().Bool("syslog", config.Syslog, "duplicate log output into syslog")
 	}
 
