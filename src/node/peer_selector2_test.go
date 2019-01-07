@@ -53,38 +53,44 @@ func TestSmartSelectorUsed(t *testing.T) {
 func TestSmartSelectorFlagged(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(3)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(3),
-		fakeAddr(0),
+		fp,
+		fps[0].NetAddr,
 		func() (map[string]int64, error) {
 			return map[string]int64{
-				fakeAddr(2): 1,
+				fps[2].PubKeyHex: 1,
 			}, nil
 		},
 	)
 
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
 }
 
 func TestSmartSelectorGeneral(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(4)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(4),
-		fakeAddr(3),
+		fp,
+		fps[3].NetAddr,
 		func() (map[string]int64, error) {
 			return map[string]int64{
-				fakeAddr(0): 0,
-				fakeAddr(1): 0,
-				fakeAddr(2): 1,
-				fakeAddr(3): 0,
+				fps[0].PubKeyHex: 0,
+				fps[1].PubKeyHex: 0,
+				fps[2].PubKeyHex: 1,
+				fps[3].PubKeyHex: 0,
 			}, nil
 		},
 	)
 
-	addresses := []string{fakeAddr(0), fakeAddr(1)}
+	addresses := []string{fps[0].NetAddr, fps[1].NetAddr}
 	assert.Contains(addresses, ss.Next().NetAddr)
 	assert.Contains(addresses, ss.Next().NetAddr)
 	assert.Contains(addresses, ss.Next().NetAddr)

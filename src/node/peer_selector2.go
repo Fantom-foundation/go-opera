@@ -60,6 +60,10 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 	defer ps.peers.Unlock()
 
 	sortedSrc := ps.peers.ToPeerByUsedSlice()
+	n := int(2 * len(sortedSrc) / 3 + 1)
+	if n < len(sortedSrc) {
+		sortedSrc = sortedSrc[0 : n]
+	}
 	selected := make([]*peers.Peer, len(sortedSrc))
 	sCount := 0
 	flagged := make([]*peers.Peer, len(sortedSrc))
@@ -77,11 +81,6 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 			continue
 		}
 
-		if f, ok := flagTable[p.NetAddr]; ok && f == 1 {
-			flagged[fCount] = p
-			fCount += 1
-			continue
-		}
 		if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
 			flagged[fCount] = p
 			fCount += 1

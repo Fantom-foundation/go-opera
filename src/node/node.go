@@ -73,7 +73,7 @@ func NewNode(conf *Config,
 
 	// peerSelector := NewRandomPeerSelector(participants, localAddr)
 	peerSelector := NewSmartPeerSelector(participants, pubKey,
-		core.poset.GetFlagTableOfRandomUndeterminedEvent)
+		core.poset.GetPeerFlagTableOfRandomUndeterminedEvent)
 
 	node := Node{
 		id:               id,
