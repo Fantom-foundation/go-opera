@@ -139,7 +139,6 @@ func AddRunFlags(cmd *cobra.Command) {
 		fallthrough
 	case "plan9", "nacl":
 		cmd.Flags().String("pidfile", config.Pidfile, "pidfile location; /tmp/go-lachesis.pid by default")
-		fallthrough
 	case "windows":
 	}
 
