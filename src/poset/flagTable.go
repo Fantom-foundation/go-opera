@@ -4,8 +4,10 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// FlagTable is a dedicated type for the Events flags map.
 type FlagTable map[EventHash]int64
 
+// Marshal converts FlagTable to protobuff.
 func (ft FlagTable) Marshal() []byte {
 	body := make(map[string]int64, len(ft))
 	for k, v := range ft {
@@ -21,6 +23,7 @@ func (ft FlagTable) Marshal() []byte {
 	return bytes
 }
 
+// Marshal reads protobuff into FlagTable.
 func (ft FlagTable) Unmarshal(buf []byte) error {
 	wrapper := new(FlagTableWrapper)
 	err := proto.Unmarshal(buf, wrapper)

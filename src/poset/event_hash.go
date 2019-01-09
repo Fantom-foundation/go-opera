@@ -8,20 +8,26 @@ import (
 )
 
 type (
-	EventHash   [sha256.Size]byte
+	// EventHashes is a dedicated type for Event's hash.
+	EventHash [sha256.Size]byte
+
+	// EventHashes provides additional methods of EventHash slice.
 	EventHashes []EventHash
 )
 
+// CalcEventHash returns hash of bytes.
 func CalcEventHash(bytes []byte) (hash EventHash) {
 	hash.Calc(bytes)
 	return
 }
 
+// Calc sets value to hash of bytes.
 func (hash *EventHash) Calc(bytes []byte) {
 	raw := crypto.SHA256(bytes)
 	hash.Set(raw)
 }
 
+// Set sets value to bytes.
 func (hash *EventHash) Set(raw []byte) {
 	copy(hash[:], raw)
 	for i := len(raw); i < len(hash); i++ {
@@ -29,6 +35,7 @@ func (hash *EventHash) Set(raw []byte) {
 	}
 }
 
+// Parse sets value to bytes parsed from hex string.
 func (hash *EventHash) Parse(raw string) error {
 	if raw[0:2] == "0x" {
 		raw = raw[2:]
@@ -41,6 +48,7 @@ func (hash *EventHash) Parse(raw string) error {
 	return nil
 }
 
+// Equal compares value with bytes.
 func (hash *EventHash) Equal(raw []byte) bool {
 	if len(hash) != len(raw) {
 		return false
@@ -50,15 +58,18 @@ func (hash *EventHash) Equal(raw []byte) bool {
 	return *hash == other
 }
 
+// Equal returns value as bytes.
 func (hash *EventHash) Bytes() []byte {
 	var val EventHash = *hash
 	return val[:]
 }
 
+// Equal returns value as hex string.
 func (hash *EventHash) String() string {
 	return "0x" + hex.EncodeToString(hash.Bytes())
 }
 
+// Zero returns true if zero value.
 func (hash *EventHash) Zero() bool {
 	for _, b := range hash {
 		if b != 0 {
@@ -68,6 +79,7 @@ func (hash *EventHash) Zero() bool {
 	return true
 }
 
+// Bytes returns values as slice of bytes.
 func (hashes EventHashes) Bytes() [][]byte {
 	res := make([][]byte, len(hashes))
 	for i, hash := range hashes {
@@ -76,6 +88,7 @@ func (hashes EventHashes) Bytes() [][]byte {
 	return res
 }
 
+// Strings returns values as slice of hex strings.
 func (hashes EventHashes) Strings() []string {
 	res := make([]string, len(hashes))
 	for i, hash := range hashes {
@@ -84,6 +97,7 @@ func (hashes EventHashes) Strings() []string {
 	return res
 }
 
+// Contains returns true if there is the hash in values.
 func (hashes EventHashes) Contains(hash EventHash) bool {
 	for _, h := range hashes {
 		if hash == h {
@@ -93,8 +107,13 @@ func (hashes EventHashes) Contains(hash EventHash) bool {
 	return false
 }
 
-func (hashes EventHashes) Len() int      { return len(hashes) }
+// Len is a part of sort.Interface implementation.
+func (hashes EventHashes) Len() int { return len(hashes) }
+
+// Swap is a part of sort.Interface implementation.
 func (hashes EventHashes) Swap(i, j int) { hashes[i], hashes[j] = hashes[j], hashes[i] }
+
+// Less is a part of sort.Interface implementation.
 func (hashes EventHashes) Less(i, j int) bool {
 	const N = len(EventHash{})
 	for n := 0; n < N; n++ {

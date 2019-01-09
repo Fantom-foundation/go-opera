@@ -140,6 +140,8 @@ func (root *Root) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, root)
 }
 
+// GenRootSelfParent generates Event's parent hash from participant ID.
+// Use it for first Event only.
 func GenRootSelfParent(participantID int64) (hash EventHash) {
 	bytes := []byte(fmt.Sprintf("Root%d", participantID))
 	hash.Set(bytes)
