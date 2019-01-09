@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// EventHashe is a dedicated type for Event's hash.
+	// EventHash is a dedicated type for Event's hash.
 	EventHash [sha256.Size]byte
 
 	// EventHashes provides additional methods of EventHash slice.
