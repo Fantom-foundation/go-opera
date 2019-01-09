@@ -20,7 +20,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ToServer struct {
 	// Types that are valid to be assigned to Event:
@@ -94,78 +94,12 @@ func (m *ToServer) GetAnswer() *ToServer_Answer {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ToServer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToServer_OneofMarshaler, _ToServer_OneofUnmarshaler, _ToServer_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ToServer) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ToServer_Tx_)(nil),
 		(*ToServer_Answer_)(nil),
 	}
-}
-
-func _ToServer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ToServer)
-	// event
-	switch x := m.Event.(type) {
-	case *ToServer_Tx_:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Tx); err != nil {
-			return err
-		}
-	case *ToServer_Answer_:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Answer); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("ToServer.Event has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ToServer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ToServer)
-	switch tag {
-	case 1: // event.tx
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ToServer_Tx)
-		err := b.DecodeMessage(msg)
-		m.Event = &ToServer_Tx_{msg}
-		return true, err
-	case 2: // event.answer
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ToServer_Answer)
-		err := b.DecodeMessage(msg)
-		m.Event = &ToServer_Answer_{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ToServer_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ToServer)
-	// event
-	switch x := m.Event.(type) {
-	case *ToServer_Tx_:
-		s := proto.Size(x.Tx)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToServer_Answer_:
-		s := proto.Size(x.Answer)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type ToServer_Tx struct {
@@ -287,70 +221,12 @@ func (m *ToServer_Answer) GetError() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ToServer_Answer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToServer_Answer_OneofMarshaler, _ToServer_Answer_OneofUnmarshaler, _ToServer_Answer_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ToServer_Answer) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ToServer_Answer_Data)(nil),
 		(*ToServer_Answer_Error)(nil),
 	}
-}
-
-func _ToServer_Answer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ToServer_Answer)
-	// payload
-	switch x := m.Payload.(type) {
-	case *ToServer_Answer_Data:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		b.EncodeRawBytes(x.Data)
-	case *ToServer_Answer_Error:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		b.EncodeStringBytes(x.Error)
-	case nil:
-	default:
-		return fmt.Errorf("ToServer_Answer.Payload has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ToServer_Answer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ToServer_Answer)
-	switch tag {
-	case 2: // payload.data
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeRawBytes(true)
-		m.Payload = &ToServer_Answer_Data{x}
-		return true, err
-	case 3: // payload.error
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.Payload = &ToServer_Answer_Error{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ToServer_Answer_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ToServer_Answer)
-	// payload
-	switch x := m.Payload.(type) {
-	case *ToServer_Answer_Data:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Data)))
-		n += len(x.Data)
-	case *ToServer_Answer_Error:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Error)))
-		n += len(x.Error)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type ToClient struct {
@@ -439,97 +315,13 @@ func (m *ToClient) GetRestore() *ToClient_Restore {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*ToClient) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToClient_OneofMarshaler, _ToClient_OneofUnmarshaler, _ToClient_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*ToClient) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*ToClient_Block_)(nil),
 		(*ToClient_Query_)(nil),
 		(*ToClient_Restore_)(nil),
 	}
-}
-
-func _ToClient_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*ToClient)
-	// event
-	switch x := m.Event.(type) {
-	case *ToClient_Block_:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Block); err != nil {
-			return err
-		}
-	case *ToClient_Query_:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Query); err != nil {
-			return err
-		}
-	case *ToClient_Restore_:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Restore); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("ToClient.Event has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _ToClient_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*ToClient)
-	switch tag {
-	case 1: // event.block
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ToClient_Block)
-		err := b.DecodeMessage(msg)
-		m.Event = &ToClient_Block_{msg}
-		return true, err
-	case 2: // event.query
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ToClient_Query)
-		err := b.DecodeMessage(msg)
-		m.Event = &ToClient_Query_{msg}
-		return true, err
-	case 3: // event.restore
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ToClient_Restore)
-		err := b.DecodeMessage(msg)
-		m.Event = &ToClient_Restore_{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _ToClient_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*ToClient)
-	// event
-	switch x := m.Event.(type) {
-	case *ToClient_Block_:
-		s := proto.Size(x.Block)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToClient_Query_:
-		s := proto.Size(x.Query)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *ToClient_Restore_:
-		s := proto.Size(x.Restore)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type ToClient_Block struct {

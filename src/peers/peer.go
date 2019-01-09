@@ -72,3 +72,16 @@ func ExcludePeer(peers []*Peer, peer string) (int, []*Peer) {
 	}
 	return index, otherPeers
 }
+
+func ExcludePeers(peers []*Peer, local string, last string) ([]*Peer) {
+	otherPeers := make([]*Peer, 0, len(peers))
+	for _, p := range peers {
+		if p.NetAddr != local &&
+			p.PubKeyHex != local &&
+			p.NetAddr != last &&
+			p.PubKeyHex != last {
+			otherPeers = append(otherPeers, p)
+		}
+	}
+	return otherPeers
+}

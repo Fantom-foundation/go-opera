@@ -1,21 +1,23 @@
 package node
 
 import (
+	"math/rand"
 	"testing"
-	// "math/rand"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 func TestSmartSelectorEmpty(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(0)
+
 	ss := NewSmartPeerSelector(
-		fakePeers(0),
-		fakeAddr(0),
-		func() (poset.FlagTable, error) {
+		fp,
+		"",
+		func() (map[string]int64, error) {
 			return nil, nil
 		},
 	)
@@ -26,10 +28,13 @@ func TestSmartSelectorEmpty(t *testing.T) {
 func TestSmartSelectorLocalAddrOnly(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(1)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(1),
-		fakeAddr(0),
-		func() (poset.FlagTable, error) {
+		fp,
+		fps[0].NetAddr,
+		func() (map[string]int64, error) {
 			return nil, nil
 		},
 	)
@@ -40,62 +45,68 @@ func TestSmartSelectorLocalAddrOnly(t *testing.T) {
 func TestSmartSelectorUsed(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(3)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(2),
-		fakeAddr(0),
-		func() (poset.FlagTable, error) {
+		fp,
+		fps[0].NetAddr,
+		func() (map[string]int64, error) {
 			return nil, nil
 		},
 	)
 
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
 }
 
-// TODO: link peer and flagTable, then uncomment
-/*
 func TestSmartSelectorFlagged(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(3)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(3),
-		fakeAddr(0),
-		func() (poset.FlagTable, error) {
-			return poset.FlagTable{
-				fakeAddr(2): 1,
+		fp,
+		fps[0].NetAddr,
+		func() (map[string]int64, error) {
+			return map[string]int64{
+				fps[2].PubKeyHex: 1,
 			}, nil
 		},
 	)
 
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
 }
 
 func TestSmartSelectorGeneral(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(4)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(4),
-		fakeAddr(3),
-		func() (poset.FlagTable, error) {
-			return poset.FlagTable{
-				fakeAddr(0): 0,
-				fakeAddr(1): 0,
-				fakeAddr(2): 1,
-				fakeAddr(3): 0,
+		fp,
+		fps[3].NetAddr,
+		func() (map[string]int64, error) {
+			return map[string]int64{
+				fps[0].PubKeyHex: 0,
+				fps[1].PubKeyHex: 0,
+				fps[2].PubKeyHex: 1,
+				fps[3].PubKeyHex: 0,
 			}, nil
 		},
 	)
 
-	addresses := []string{fakeAddr(0), fakeAddr(1)}
+	addresses := []string{fps[0].NetAddr, fps[1].NetAddr}
 	assert.Contains(addresses, ss.Next().NetAddr)
 	assert.Contains(addresses, ss.Next().NetAddr)
 	assert.Contains(addresses, ss.Next().NetAddr)
 	assert.Contains(addresses, ss.Next().NetAddr)
 }
-*/
 
 /*
  * go test -bench "BenchmarkSmartSelectorNext" -benchmem -run "^$" ./src/node
@@ -107,13 +118,12 @@ func BenchmarkSmartSelectorNext(b *testing.B) {
 	participants1 := fakePeers(fakePeersCount)
 	participants2 := clonePeers(participants1)
 
-	// TODO: link peer and flagTable, then uncomment
-	flagTable1 := poset.FlagTable(nil) // fakeFlagTable(participants1)
+	flagTable1 := fakeFlagTable(participants1)
 
 	ss1 := NewSmartPeerSelector(
 		participants1,
 		fakeAddr(0),
-		func() (poset.FlagTable, error) {
+		func() (map[string]int64, error) {
 			return flagTable1, nil
 		},
 	)
@@ -152,13 +162,10 @@ func BenchmarkSmartSelectorNext(b *testing.B) {
  * stuff
  */
 
-// TODO: link peer and flagTable, then uncomment
-/*
-func fakeFlagTable(participants *peers.Peers) poset.FlagTable {
-	res := make(poset.FlagTable, participants.Len())
+func fakeFlagTable(participants *peers.Peers) map[string]int64 {
+	res := make(map[string]int64, participants.Len())
 	for _, p := range participants.ToPeerSlice() {
 		res[p.PubKeyHex] = rand.Int63n(2)
 	}
 	return res
 }
-*/

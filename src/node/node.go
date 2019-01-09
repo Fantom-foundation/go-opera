@@ -73,7 +73,7 @@ func NewNode(conf *Config,
 
 	// peerSelector := NewRandomPeerSelector(participants, localAddr)
 	peerSelector := NewSmartPeerSelector(participants, pubKey,
-		core.poset.GetFlagTableOfRandomUndeterminedEvent)
+		core.poset.GetPeerFlagTableOfRandomUndeterminedEvent)
 
 	node := Node{
 		id:               id,
@@ -425,7 +425,7 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 	// 	}
 	if err != nil {
 		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
-		return false, nil, err
+		return resp.SyncLimit, nil, err
 	}
 	n.logger.WithFields(logrus.Fields{
 		"from_id":     resp.FromID,
@@ -710,8 +710,8 @@ func (n *Node) GetStats() map[string]string {
 
 	lastConsensusRound := n.core.GetLastConsensusRound()
 	var consensusRoundsPerSecond float64
-	if lastConsensusRound != -1 {
-		consensusRoundsPerSecond = float64(lastConsensusRound) / timeElapsed.Seconds()
+	if lastConsensusRound > poset.RoundNIL {
+		consensusRoundsPerSecond = float64(lastConsensusRound + 1) / timeElapsed.Seconds()
 	}
 
 	s := map[string]string{

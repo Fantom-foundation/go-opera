@@ -5,33 +5,20 @@ import (
 	"math/rand"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-// PeerSelector provides an interface for the lachesis node to
-// update the last peer it gossiped with and select the next peer
-// to gossip with
-//type PeerSelector interface {
-//	Peers() *peers.Peers
-//	UpdateLast(peer string)
-//	Next() *peers.Peer
-//}
-
-//+++++++++++++++++++++++++++++++++++++++
-//Selection based on FlagTable of a randomly chosen undermined event
-
-// SmartPeerSelector flag table based smart selection struct
+// SmartPeerSelector provides selection based on FlagTable of a randomly chosen undermined event
 type SmartPeerSelector struct {
 	peers        *peers.Peers
 	localAddr    string
 	last         string
-	GetFlagTable func() (poset.FlagTable, error)
+	GetFlagTable func() (map[string]int64, error)
 }
 
 // NewSmartPeerSelector creates a new smart peer selection struct
 func NewSmartPeerSelector(participants *peers.Peers,
 	localAddr string,
-	GetFlagTable func() (poset.FlagTable, error)) *SmartPeerSelector {
+	GetFlagTable func() (map[string]int64, error)) *SmartPeerSelector {
 
 	return &SmartPeerSelector{
 		localAddr:    localAddr,
@@ -52,17 +39,19 @@ func (ps *SmartPeerSelector) UpdateLast(peer string) {
 
 // Next returns the next peer based on the flag table cost function selection
 func (ps *SmartPeerSelector) Next() *peers.Peer {
-	// TODO: link peer and flagTable, then uncomment
-	/* flagTable, err := ps.GetFlagTable()
+	flagTable, err := ps.GetFlagTable()
 	if err != nil {
 		flagTable = nil
 	}
-	*/
 
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
 
 	sortedSrc := ps.peers.ToPeerByUsedSlice()
+	n := int(2*len(sortedSrc)/3 + 1)
+	if n < len(sortedSrc) {
+		sortedSrc = sortedSrc[0:n]
+	}
 	selected := make([]*peers.Peer, len(sortedSrc))
 	sCount := 0
 	flagged := make([]*peers.Peer, len(sortedSrc))
@@ -80,19 +69,11 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 			continue
 		}
 
-		// TODO: link peer and flagTable, then uncomment
-		/*
-			if f, ok := flagTable[p.NetAddr]; ok && f == 1 {
-				flagged[fCount] = p
-				fCount += 1
-				continue
-			}
-			if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
-				flagged[fCount] = p
-				fCount += 1
-				continue
-			}
-		*/
+		if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
+			flagged[fCount] = p
+			fCount += 1
+			continue
+		}
 
 		if p.Used < minUsedVal {
 			minUsedVal = p.Used

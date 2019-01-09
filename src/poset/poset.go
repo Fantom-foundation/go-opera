@@ -1841,7 +1841,7 @@ Getters
 *******************************************************************************/
 
 // GetFlagTableOfRandomUndeterminedEvent returns the flag table for undermined events
-func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (FlagTable, error) {
+func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (map[string]int64, error) {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
 
@@ -1859,7 +1859,14 @@ func (p *Poset) GetFlagTableOfRandomUndeterminedEvent() (FlagTable, error) {
 		if len(ft) >= len(p.Participants.Sorted) {
 			continue
 		}
-		return ft, nil
+		tablePeers := make(map[string]int64, len(ft))
+		for e, _ := range ft {
+			ex, err := p.Store.GetEventBlock(e)
+			if err == nil {
+				tablePeers[ex.GetCreator()] = 1
+			}
+		}
+		return tablePeers, nil
 	}
 	return nil, nil
 }
