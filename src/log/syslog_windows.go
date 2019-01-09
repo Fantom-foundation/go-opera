@@ -38,8 +38,7 @@ func NewSyslogHook(network, raddr string, src string) (*SyslogHook, error) {
 func (hook *SyslogHook) Fire(entry *logrus.Entry) error {
 	line, err := entry.String()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
-		return err
+		return fmt.Errorf("Unable to read entry, %v", err)
 	}
 
 	switch entry.Level {
