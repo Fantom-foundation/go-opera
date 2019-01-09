@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// EventHashes is a dedicated type for Event's hash.
+	// EventHashe is a dedicated type for Event's hash.
 	EventHash [sha256.Size]byte
 
 	// EventHashes provides additional methods of EventHash slice.
@@ -58,13 +58,13 @@ func (hash *EventHash) Equal(raw []byte) bool {
 	return *hash == other
 }
 
-// Equal returns value as bytes.
+// Bytes returns value as bytes.
 func (hash *EventHash) Bytes() []byte {
-	var val EventHash = *hash
+	var val = *hash
 	return val[:]
 }
 
-// Equal returns value as hex string.
+// String returns value as hex string.
 func (hash *EventHash) String() string {
 	return "0x" + hex.EncodeToString(hash.Bytes())
 }

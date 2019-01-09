@@ -23,7 +23,7 @@ func (ft FlagTable) Marshal() []byte {
 	return bytes
 }
 
-// Marshal reads protobuff into FlagTable.
+// Unmarshal reads protobuff into FlagTable.
 func (ft FlagTable) Unmarshal(buf []byte) error {
 	wrapper := new(FlagTableWrapper)
 	err := proto.Unmarshal(buf, wrapper)
