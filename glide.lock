@@ -1,5 +1,5 @@
-hash: 4af77cc4c5d284d0fb082dc354cc46e342a65357258bfda1417f6f597cb6ebb1
-updated: 2018-12-28T16:11:35.582094981+11:00
+hash: eba04f04ea7ccbf0178696b46335ec7a9751120967ada10ecdbc218d475e2d67
+updated: 2019-01-09T14:04:47.320809902+11:00
 imports:
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
@@ -60,7 +60,9 @@ imports:
 - name: github.com/rs/xid
   version: 15d26544def341f036c5f8dca987a4cbe575032c
 - name: github.com/sirupsen/logrus
-  version: bcd833dfe83d3cebad139e4a29ed79cb2318bf95
+  version: e1e72e9de974bd926e5c56f83753fba2df402ce5
+  subpackages:
+  - hooks/syslog
 - name: github.com/spf13/afero
   version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
@@ -98,6 +100,7 @@ imports:
   subpackages:
   - unix
   - windows
+  - windows/svc/eventlog
 - name: golang.org/x/text
   version: 4d1c5fb19474adfe9562c9847ba425e7da817e81
   subpackages:
@@ -154,6 +157,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  version: ffdc059bfe9ce6a4e144ba849dbedead332c6053
   subpackages:
   - assert

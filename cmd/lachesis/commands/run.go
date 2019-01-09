@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 	"io"
-	"log/syslog"
 	"runtime"
 	"os"
 
@@ -14,7 +13,6 @@ import (
 	aproxy "github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/Fantom-foundation/go-lachesis/tester"
 	"github.com/sirupsen/logrus"
-	lSyslog "github.com/sirupsen/logrus/hooks/syslog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -43,7 +41,7 @@ func runSingleLachesis(config *CLIConfig) error {
 		config.Lachesis.NodeConfig.Logger.SetOutput(mw)
 	}
 	if config.Syslog {
-		hook, err := lSyslog.NewSyslogHook("", "", syslog.LOG_INFO, "")
+		hook, err := lachesis_log.NewSyslogHook("", "", "go-lachesis")
 		if err == nil {
 			config.Lachesis.NodeConfig.Logger.Hooks.Add(hook)
 			config.Lachesis.NodeConfig.Logger.SetFormatter(&logrus.TextFormatter{
