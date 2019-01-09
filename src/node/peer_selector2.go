@@ -7,19 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
-// PeerSelector provides an interface for the lachesis node to
-// update the last peer it gossiped with and select the next peer
-// to gossip with
-//type PeerSelector interface {
-//	Peers() *peers.Peers
-//	UpdateLast(peer string)
-//	Next() *peers.Peer
-//}
-
-//+++++++++++++++++++++++++++++++++++++++
-//Selection based on FlagTable of a randomly chosen undermined event
-
-// SmartPeerSelector flag table based smart selection struct
+// SmartPeerSelector provides selection based on FlagTable of a randomly chosen undermined event
 type SmartPeerSelector struct {
 	peers        *peers.Peers
 	localAddr    string
@@ -60,9 +48,9 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 	defer ps.peers.Unlock()
 
 	sortedSrc := ps.peers.ToPeerByUsedSlice()
-	n := int(2 * len(sortedSrc) / 3 + 1)
+	n := int(2*len(sortedSrc)/3 + 1)
 	if n < len(sortedSrc) {
-		sortedSrc = sortedSrc[0 : n]
+		sortedSrc = sortedSrc[0:n]
 	}
 	selected := make([]*peers.Peer, len(sortedSrc))
 	sCount := 0

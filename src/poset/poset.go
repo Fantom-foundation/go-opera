@@ -20,7 +20,7 @@ import (
 
 // Core is an interface for interacting with a core.
 type Core interface {
-	Head() string
+	Head() EventHash
 	HexID() string
 }
 
@@ -29,7 +29,7 @@ type Core interface {
 type Poset struct {
 	Participants            *peers.Peers      // [public key] => id
 	Store                   Store             // store of Events, Rounds, and Blocks
-	UndeterminedEvents      []string          // [index] => hash . FIFO queue of Events whose consensus order is not yet determined
+	UndeterminedEvents      []EventHash       // [index] => hash . FIFO queue of Events whose consensus order is not yet determined
 	PendingRounds           []*pendingRound   // FIFO queue of Rounds which have not attained consensus yet
 	PendingRoundReceived    common.Int64Slice // FIFO queue of RoundReceived which have not been made into frames yet
 	LastConsensusRound      *int64            // index of last consensus round
@@ -127,7 +127,7 @@ Private Methods
 *******************************************************************************/
 
 // true if y is an dominator of x
-func (p *Poset) dominator(x, y string) (bool, error) {
+func (p *Poset) dominator(x, y EventHash) (bool, error) {
 	if c, ok := p.dominatorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
@@ -144,7 +144,7 @@ func (p *Poset) dominator(x, y string) (bool, error) {
 	return a, nil
 }
 
-func (p *Poset) dominator2(x, y string) (bool, error) {
+func (p *Poset) dominator2(x, y EventHash) (bool, error) {
 	if x == y {
 		return true, nil
 	}
@@ -156,8 +156,8 @@ func (p *Poset) dominator2(x, y string) (bool, error) {
 			return false, err2
 		}
 		for _, root := range roots {
-			if other, ok := root.Others[y]; ok {
-				return other.Hash == x, nil
+			if other, ok := root.Others[y.String()]; ok {
+				return x.Equal(other.Hash), nil
 			}
 		}
 		return false, nil
@@ -201,7 +201,7 @@ func (p *Poset) dominator2(x, y string) (bool, error) {
 }
 
 // true if y is a self-dominator of x
-func (p *Poset) selfDominator(x, y string) (bool, error) {
+func (p *Poset) selfDominator(x, y EventHash) (bool, error) {
 	if c, ok := p.selfDominatorCache.Get(Key{x, y}); ok {
 		return c.(bool), nil
 	}
@@ -216,7 +216,7 @@ func (p *Poset) selfDominator(x, y string) (bool, error) {
 	return a, nil
 }
 
-func (p *Poset) selfDominator2(x, y string) (bool, error) {
+func (p *Poset) selfDominator2(x, y EventHash) (bool, error) {
 	if x == y {
 		return true, nil
 	}
@@ -227,7 +227,7 @@ func (p *Poset) selfDominator2(x, y string) (bool, error) {
 			return false, err
 		}
 		if root, ok := roots[x]; ok {
-			if root.SelfParent.Hash == y {
+			if y.Equal(root.SelfParent.Hash) {
 				return true, nil
 			}
 		}
@@ -256,7 +256,7 @@ func (p *Poset) selfDominator2(x, y string) (bool, error) {
 }
 
 // true if x is dominated by y
-func (p *Poset) dominated(x, y string) (bool, error) {
+func (p *Poset) dominated(x, y EventHash) (bool, error) {
 	return p.dominator(x, y)
 	// it is not necessary to detect forks because we assume that the InsertEvent
 	// function makes it impossible to insert two Events at the same height for
@@ -264,7 +264,7 @@ func (p *Poset) dominated(x, y string) (bool, error) {
 }
 
 // true if x strictly dominated by y
-func (p *Poset) strictlyDominated(x, y string) (bool, error) {
+func (p *Poset) strictlyDominated(x, y EventHash) (bool, error) {
 	if len(x) == 0 || len(y) == 0 {
 		return false, nil
 	}
@@ -282,7 +282,7 @@ func (p *Poset) strictlyDominated(x, y string) (bool, error) {
 
 // Possible improvement: Populate the cache for upper and downer events
 // that also strictlyDominates y
-func (p *Poset) strictlyDominated2(x, y string) (bool, error) {
+func (p *Poset) strictlyDominated2(x, y EventHash) (bool, error) {
 	sentinels := make(map[string]bool)
 
 	if err := p.MapSentinels(x, y, sentinels); err != nil {
@@ -293,8 +293,8 @@ func (p *Poset) strictlyDominated2(x, y string) (bool, error) {
 }
 
 // MapSentinels participants in x's dominator that dominate y
-func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
-	if x == "" {
+func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
+	if x.Zero() {
 		return nil
 	}
 
@@ -336,7 +336,7 @@ func (p *Poset) MapSentinels(x, y string, sentinels map[string]bool) error {
 	return p.MapSentinels(ex.SelfParent(), y, sentinels)
 }
 
-func (p *Poset) round(x string) (int64, error) {
+func (p *Poset) round(x EventHash) (int64, error) {
 	if c, ok := p.roundCache.Get(x); ok {
 		return c.(int64), nil
 	}
@@ -348,7 +348,7 @@ func (p *Poset) round(x string) (int64, error) {
 	return r, nil
 }
 
-func (p *Poset) round2(x string) (int64, error) {
+func (p *Poset) round2(x EventHash) (int64, error) {
 
 	/*
 		x is the Root
@@ -372,10 +372,12 @@ func (p *Poset) round2(x string) (int64, error) {
 	/*
 		The Event is directly attached to the Root.
 	*/
-	if ex.SelfParent() == root.SelfParent.Hash {
+	if sp := ex.SelfParent(); sp.Equal(root.SelfParent.Hash) {
 		// Root is authoritative EXCEPT if other-parent is not in the root
-		if other, ok := root.Others[ex.Hex()]; (ex.OtherParent() == "") ||
-			(ok && other.Hash == ex.OtherParent()) {
+		hash := ex.Hash()
+		op := ex.OtherParent()
+		if other, ok := root.Others[hash.String()]; op.Zero() ||
+			(ok && op.Equal(other.Hash)) {
 
 			return root.NextRound, nil
 		}
@@ -392,9 +394,10 @@ func (p *Poset) round2(x string) (int64, error) {
 	var parentRound = spRound
 	var opRound int64
 
-	if ex.OtherParent() != "" {
+	if op := ex.OtherParent(); !op.Zero() {
 		// XXX
-		if other, ok := root.Others[ex.Hex()]; ok && other.Hash == ex.OtherParent() {
+		hash := ex.Hash()
+		if other, ok := root.Others[hash.String()]; ok && op.Equal(other.Hash) {
 			opRound = root.NextRound
 		} else {
 			opRound, err = p.round(ex.OtherParent())
@@ -415,8 +418,8 @@ func (p *Poset) round2(x string) (int64, error) {
 			ft, _ := ex.GetFlagTable()
 			for k := range ft {
 				for _, w := range ws {
-					if w == k && w != ex.Hex() {
-						dominate, err := p.dominated(ex.Hex(), w)
+					if w == k && w != ex.Hash() {
+						dominate, err := p.dominated(ex.Hash(), w)
 						if err != nil {
 							return math.MinInt32, err
 						}
@@ -445,10 +448,10 @@ func (p *Poset) round2(x string) (int64, error) {
 
 	ws := p.Store.RoundClothos(parentRound)
 
-	isDominated := func(poset *Poset, root string, clothos []string) bool {
+	isDominated := func(poset *Poset, root EventHash, clothos EventHashes) bool {
 		for _, w := range ws {
-			if w == root && w != ex.Hex() {
-				dominate, err := poset.dominated(ex.Hex(), w)
+			if w == root && w != ex.Hash() {
+				dominate, err := poset.dominated(ex.Hash(), w)
 				if err != nil {
 					return false
 				}
@@ -463,8 +466,9 @@ func (p *Poset) round2(x string) (int64, error) {
 	// check wp
 	if len(ex.Message.ClothoProof) >= p.superMajority {
 		count := 0
-
-		for _, root := range ex.Message.ClothoProof {
+		for _, h := range ex.Message.ClothoProof {
+			var root EventHash
+			root.Set(h)
 			if isDominated(p, root, ws) {
 				count++
 			}
@@ -495,7 +499,7 @@ func (p *Poset) round2(x string) (int64, error) {
 }
 
 // clotho if is true then x is a clotho (first event of a round for the owner)
-func (p *Poset) clotho(x string) (bool, error) {
+func (p *Poset) clotho(x EventHash) (bool, error) {
 	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
 		return false, err
@@ -512,7 +516,7 @@ func (p *Poset) clotho(x string) (bool, error) {
 	return xRound > spRound, nil
 }
 
-func (p *Poset) lamportTimestamp(x string) (int64, error) {
+func (p *Poset) lamportTimestamp(x EventHash) (int64, error) {
 	if c, ok := p.timestampCache.Get(x); ok {
 		return c.(int64), nil
 	}
@@ -524,7 +528,7 @@ func (p *Poset) lamportTimestamp(x string) (int64, error) {
 	return r, nil
 }
 
-func (p *Poset) lamportTimestamp2(x string) (int64, error) {
+func (p *Poset) lamportTimestamp2(x EventHash) (int64, error) {
 	/*
 		x is the Root
 		User Root.SelfParent.LamportTimestamp
@@ -547,26 +551,28 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 
 	var plt int64
 	// If it is the creator's first Event, use the corresponding Root
-	if ex.SelfParent() == root.SelfParent.Hash {
+	selfParent := ex.SelfParent()
+	if selfParent.Equal(root.SelfParent.Hash) {
 		plt = root.SelfParent.LamportTimestamp
 	} else {
-		t, err := p.lamportTimestamp(ex.SelfParent())
+		t, err := p.lamportTimestamp(selfParent)
 		if err != nil {
 			return math.MinInt64, err
 		}
 		plt = t
 	}
 
-	if ex.OtherParent() != "" {
+	otherParent := ex.OtherParent()
+	if !otherParent.Zero() {
 		opLT := int64(math.MinInt64)
-		if _, err := p.Store.GetEventBlock(ex.OtherParent()); err == nil {
+		if _, err := p.Store.GetEventBlock(otherParent); err == nil {
 			// if we know the other-parent, fetch its Round directly
-			t, err := p.lamportTimestamp(ex.OtherParent())
+			t, err := p.lamportTimestamp(otherParent)
 			if err != nil {
 				return math.MinInt64, err
 			}
 			opLT = t
-		} else if other, ok := root.Others[x]; ok && other.Hash == ex.OtherParent() {
+		} else if other, ok := root.Others[x.String()]; ok && otherParent.Equal(other.Hash) {
 			// we do not know the other-parent but it is referenced  in Root.Others
 			// we use the Root's LamportTimestamp
 			opLT = other.LamportTimestamp
@@ -581,7 +587,7 @@ func (p *Poset) lamportTimestamp2(x string) (int64, error) {
 }
 
 // lamport(y) - lamport(x)
-func (p *Poset) lamportTimestampDiff(x, y string) (int64, error) {
+func (p *Poset) lamportTimestampDiff(x, y EventHash) (int64, error) {
 	xlt, err := p.lamportTimestamp(x)
 	if err != nil {
 		return 0, err
@@ -594,7 +600,7 @@ func (p *Poset) lamportTimestampDiff(x, y string) (int64, error) {
 }
 
 // round(x) - round(y)
-func (p *Poset) roundDiff(x, y string) (int64, error) {
+func (p *Poset) roundDiff(x, y EventHash) (int64, error) {
 
 	xRound, err := p.round(x)
 	if err != nil {
@@ -620,7 +626,7 @@ func (p *Poset) checkSelfParent(event Event) error {
 		"selfParent":       selfParent,
 		"creator":          creator,
 		"creatorLastKnown": creatorLastKnown,
-		"event":            event.Hex(),
+		"event":            event.Hash(),
 	}).Debugf("checkSelfParent")
 
 	if err != nil {
@@ -639,7 +645,7 @@ func (p *Poset) checkSelfParent(event Event) error {
 // Check if we know the OtherParent
 func (p *Poset) checkOtherParent(event Event) error {
 	otherParent := event.OtherParent()
-	if otherParent != "" {
+	if !otherParent.Zero() {
 		// Check if we have it
 		_, err := p.Store.GetEventBlock(otherParent)
 		if err != nil {
@@ -648,8 +654,10 @@ func (p *Poset) checkOtherParent(event Event) error {
 			if err != nil {
 				return err
 			}
-			other, ok := root.Others[event.Hex()]
-			if ok && other.Hash == event.OtherParent() {
+			hash := event.Hash()
+			otherParent := event.OtherParent()
+			other, ok := root.Others[hash.String()]
+			if ok && otherParent.Equal(other.Hash) {
 				return nil
 			}
 			return fmt.Errorf("other-parent not known")
@@ -669,7 +677,7 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 		return RootEvent{}, err
 	}
 	selfParentRootEvent := RootEvent{
-		Hash:             sp,
+		Hash:             sp.Bytes(),
 		CreatorID:        p.Participants.ByPubKey[ev.GetCreator()].ID,
 		Index:            ev.Index() - 1,
 		LamportTimestamp: spLT,
@@ -681,7 +689,6 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 }
 
 func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
-
 	op := ev.OtherParent()
 
 	// it might still be in the Root
@@ -689,7 +696,8 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	if err != nil {
 		return RootEvent{}, err
 	}
-	if other, ok := root.Others[ev.Hex()]; ok && other.Hash == op {
+	hash := ev.Hash()
+	if other, ok := root.Others[hash.String()]; ok && op.Equal(other.Hash) {
 		return *other, nil
 	}
 
@@ -706,7 +714,7 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 		return RootEvent{}, err
 	}
 	otherParentRootEvent := RootEvent{
-		Hash:             op,
+		Hash:             op.Bytes(),
 		CreatorID:        p.Participants.ByPubKey[otherParent.GetCreator()].ID,
 		Index:            otherParent.Index(),
 		LamportTimestamp: opLT,
@@ -718,7 +726,7 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 
 func (p *Poset) createRoot(ev Event) (Root, error) {
 
-	evRound, err := p.round(ev.Hex())
+	evRound, err := p.round(ev.Hash())
 	if err != nil {
 		return Root{}, err
 	}
@@ -735,7 +743,8 @@ func (p *Poset) createRoot(ev Event) (Root, error) {
 		OtherParent
 	*/
 	var otherParentRootEvent *RootEvent
-	if ev.OtherParent() != "" {
+	otherParent := ev.OtherParent()
+	if !otherParent.Zero() {
 		opre, err := p.createOtherParentRootEvent(ev)
 		if err != nil {
 			return Root{}, err
@@ -750,7 +759,8 @@ func (p *Poset) createRoot(ev Event) (Root, error) {
 	}
 
 	if otherParentRootEvent != nil {
-		root.Others[ev.Hex()] = otherParentRootEvent
+		hash := ev.Hash()
+		root.Others[hash.String()] = otherParentRootEvent
 	}
 
 	return root, nil
@@ -796,17 +806,20 @@ func (p *Poset) setWireInfo(event *Event) error {
 		selfParentIndex = selfParent.Index()
 	}
 
-	if event.OtherParent() != "" {
+	otherParent := event.OtherParent()
+	if !otherParent.Zero() {
 		// Check Root then regular Events
 		root, err := p.Store.GetRoot(eventCreator)
 		if err != nil {
 			return err
 		}
-		if other, ok := root.Others[event.Hex()]; ok && other.Hash == event.OtherParent() {
+		hash := event.Hash()
+		otherParentHash := event.OtherParent()
+		if other, ok := root.Others[hash.String()]; ok && otherParentHash.Equal(other.Hash) {
 			otherParentCreatorID = other.CreatorID
 			otherParentIndex = other.Index
 		} else {
-			otherParent, err := p.Store.GetEventBlock(event.OtherParent())
+			otherParent, err := p.Store.GetEventBlock(otherParentHash)
 			if err != nil {
 				return err
 			}
@@ -858,13 +871,13 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 		if err != nil {
 			return err
 		}
-
+		hash := event.Hash()
 		p.logger.WithFields(logrus.Fields{
 			"event":      event,
 			"creator":    event.GetCreator(),
 			"selfParent": event.SelfParent(),
 			"index":      event.Index(),
-			"hex":        event.Hex(),
+			"hex":        hash.String(),
 		}).Debugf("Invalid Event signature")
 
 		return fmt.Errorf("invalid Event signature")
@@ -892,7 +905,7 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 	}
 
 	p.undeterminedEventsLocker.Lock()
-	p.UndeterminedEvents = append(p.UndeterminedEvents, event.Hex())
+	p.UndeterminedEvents = append(p.UndeterminedEvents, event.Hash())
 	p.undeterminedEventsLocker.Unlock()
 
 	if event.IsLoaded() {
@@ -978,11 +991,11 @@ func (p *Poset) DivideRounds() error {
 
 			if clotho {
 				// if event is self head
-				if p.core != nil && ev.Hex() == p.core.Head() &&
+				if p.core != nil && ev.Hash() == p.core.Head() &&
 					ev.GetCreator() == p.core.HexID() {
 
 					replaceFlagTable := func(event *Event, round int64) {
-						ft := make(map[string]int64)
+						ft := make(FlagTable)
 						ws := p.Store.RoundClothos(round)
 						for _, v := range ws {
 							ft[v] = 1
@@ -997,11 +1010,11 @@ func (p *Poset) DivideRounds() error {
 						if err != nil {
 							return err
 						}
-						ev.Message.ClothoProof = []string{root.SelfParent.Hash}
+						ev.Message.ClothoProof = [][]byte{root.SelfParent.Hash}
 					} else {
 						replaceFlagTable(&ev, ev.GetRound())
 						roots := p.Store.RoundClothos(ev.GetRound() - 1)
-						ev.Message.ClothoProof = roots
+						ev.Message.ClothoProof = roots.Bytes()
 					}
 				}
 			}
@@ -1036,10 +1049,10 @@ func (p *Poset) DivideRounds() error {
 func (p *Poset) DecideAtropos() error {
 
 	// Initialize the vote map
-	votes := make(map[string]map[string]bool) // [x][y]=>vote(x,y)
-	setVote := func(votes map[string]map[string]bool, x, y string, vote bool) {
+	votes := make(map[EventHash]map[EventHash]bool) // [x][y]=>vote(x,y)
+	setVote := func(votes map[EventHash]map[EventHash]bool, x, y EventHash, vote bool) {
 		if votes[x] == nil {
-			votes[x] = make(map[string]bool)
+			votes[x] = make(map[EventHash]bool)
 		}
 		votes[x][y] = vote
 	}
@@ -1069,7 +1082,7 @@ func (p *Poset) DecideAtropos() error {
 						setVote(votes, y, x, ycx)
 					} else {
 						// count votes
-						var ssClotho []string
+						var ssClotho []EventHash
 						for _, w := range p.Store.RoundClothos(j - 1) {
 							ss, err := p.strictlyDominated(y, w)
 							if err != nil {
@@ -1137,7 +1150,7 @@ func (p *Poset) DecideRoundReceived() error {
 	p.undeterminedEventsLocker.Lock()
 	defer p.undeterminedEventsLocker.Unlock()
 
-	var newUndeterminedEvents []string
+	var newUndeterminedEvents []EventHash
 
 	/* From whitepaper - 18/03/18
 	   "[...] An event is said to be “received” in the first round where all the
@@ -1175,7 +1188,7 @@ func (p *Poset) DecideRoundReceived() error {
 
 			fws := tr.Atropos()
 			// set of atropos that domniates x
-			var s []string
+			var s []EventHash
 			for _, w := range fws {
 				domniates, err := p.dominated(w, x)
 				if err != nil {
@@ -1207,7 +1220,7 @@ func (p *Poset) DecideRoundReceived() error {
 					roundReceived = *NewRoundReceived()
 				}
 
-				roundReceived.Rounds = append(roundReceived.Rounds, x)
+				roundReceived.Rounds = append(roundReceived.Rounds, x.Bytes())
 
 				err = p.Store.SetRoundReceived(i, roundReceived)
 				if err != nil {
@@ -1361,7 +1374,9 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 
 	var events []Event
 	for _, eh := range round.Rounds {
-		e, err := p.Store.GetEventBlock(eh)
+		var hash EventHash
+		hash.Set(eh)
+		e, err := p.Store.GetEventBlock(hash)
 		if err != nil {
 			return Frame{}, err
 		}
@@ -1422,20 +1437,22 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	// When inserting these Events in a newly reset poset, the CheckOtherParent
 	// method would return an error because the other-parent would not be found.
 	// So we make it possible to also look for other-parents in the creator's Root.
-	treated := map[string]bool{}
+	treated := map[EventHash]bool{}
 	eventMessages := make([]*EventMessage, len(events))
 	for i, ev := range events {
-		treated[ev.Hex()] = true
+		hash := ev.Hash()
 		otherParent := ev.OtherParent()
-		if otherParent != "" {
+		selfParent := ev.SelfParent()
+		treated[ev.Hash()] = true
+		if !otherParent.Zero() {
 			opt, ok := treated[otherParent]
 			if !opt || !ok {
-				if ev.SelfParent() != roots[ev.GetCreator()].SelfParent.Hash {
+				if !selfParent.Equal(roots[ev.GetCreator()].SelfParent.Hash) {
 					other, err := p.createOtherParentRootEvent(ev)
 					if err != nil {
 						return Frame{}, err
 					}
-					roots[ev.GetCreator()].Others[ev.Hex()] = &other
+					roots[ev.GetCreator()].Others[hash.String()] = &other
 				}
 			}
 		}
@@ -1567,7 +1584,7 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 	p.AnchorBlock = nil
 
 	p.undeterminedEventsLocker.Lock()
-	p.UndeterminedEvents = []string{}
+	p.UndeterminedEvents = EventHashes{}
 	p.undeterminedEventsLocker.Unlock()
 	p.PendingRounds = []*pendingRound{}
 	p.pendingLoadedEventsLocker.Lock()
@@ -1672,9 +1689,11 @@ func (p *Poset) Bootstrap() error {
 // ReadWireInfo converts a WireEvent to an Event by replacing int IDs with the
 // corresponding public keys.
 func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
-	selfParent := rootSelfParent(wevent.Body.CreatorID)
-	otherParent := ""
-	var err error
+	var (
+		selfParent  EventHash = GenRootSelfParent(wevent.Body.CreatorID)
+		otherParent EventHash
+		err         error
+	)
 
 	creator := p.Store.RepertoireByID()[wevent.Body.CreatorID]
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
@@ -1709,7 +1728,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 				for _, re := range root.Others {
 					if re.CreatorID == wevent.Body.OtherParentCreatorID &&
 						re.Index == wevent.Body.OtherParentIndex {
-						otherParent = re.Hash
+						otherParent.Set(re.Hash)
 						found = true
 						break
 					}
@@ -1744,7 +1763,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	body := EventBody{
 		Transactions:         wevent.Body.Transactions,
 		InternalTransactions: transactions,
-		Parents:              []string{selfParent, otherParent},
+		Parents:              [][]byte{selfParent.Bytes(), otherParent.Bytes()},
 		Creator:              creatorBytes,
 		Index:                wevent.Body.Index,
 		BlockSignatures:      blockSignatures,
@@ -1822,7 +1841,7 @@ Getters
 *******************************************************************************/
 
 // GetFlagTableOfRandomUndeterminedEvent returns the flag table for undermined events
-func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (result map[string]int64, err error) {
+func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (map[string]int64, error) {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
 
@@ -1849,11 +1868,11 @@ func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (result map[string]i
 		}
 		return tablePeers, nil
 	}
-	return nil, err
+	return nil, nil
 }
 
 // GetUndeterminedEvents returns all the undetermined events
-func (p *Poset) GetUndeterminedEvents() []string {
+func (p *Poset) GetUndeterminedEvents() EventHashes {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
 	return p.UndeterminedEvents
@@ -1888,12 +1907,8 @@ func (p *Poset) GetConsensusTransactionsCount() uint64 {
    Helpers
 *******************************************************************************/
 
-func randomShift(ehex string) bool {
-	hash, err := hex.DecodeString(ehex[2:])
-	if err != nil {
-		fmt.Printf("ERROR decoding hex string: %s\n", err)
-	}
-	if len(hash) > 0 && hash[len(hash)/2] == 0 {
+func randomShift(hash EventHash) bool {
+	if !hash.Zero() && hash[len(hash)/2] == 0 {
 		return false
 	}
 	return true

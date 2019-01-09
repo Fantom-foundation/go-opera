@@ -112,12 +112,13 @@ func (e *EventBody) ProtoUnmarshal(data []byte) error {
 }
 
 // Hash returns hash of event body
-func (e *EventBody) Hash() ([]byte, error) {
-	hashBytes, err := e.ProtoMarshal()
+func (e *EventBody) Hash() (hash EventHash, err error) {
+	var bytes []byte
+	bytes, err = e.ProtoMarshal()
 	if err != nil {
-		return nil, err
+		return
 	}
-	return crypto.SHA256(hashBytes), nil
+	return CalcEventHash(bytes), nil
 }
 
 /*******************************************************************************
@@ -149,11 +150,12 @@ func (m *EventMessage) Equals(that *EventMessage) bool {
 }
 
 // NewEvent creates new block event.
-func NewEvent(transactions [][]byte,
+func NewEvent(
+	transactions [][]byte,
 	internalTransactions []InternalTransaction,
 	blockSignatures []BlockSignature,
-	parents []string, creator []byte, index int64,
-	flagTable map[string]int64) Event {
+	parents EventHashes, creator []byte, index int64,
+	ft FlagTable) Event {
 
 	internalTransactionPointers := make([]*InternalTransaction, len(internalTransactions))
 	for i, v := range internalTransactions {
@@ -165,21 +167,20 @@ func NewEvent(transactions [][]byte,
 		blockSignaturePointers[i] = new(BlockSignature)
 		*blockSignaturePointers[i] = v
 	}
+
 	body := EventBody{
 		Transactions:         transactions,
 		InternalTransactions: internalTransactionPointers,
 		BlockSignatures:      blockSignaturePointers,
-		Parents:              parents,
+		Parents:              parents.Bytes(),
 		Creator:              creator,
 		Index:                index,
 	}
 
-	ft, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
-
 	return Event{
 		Message: &EventMessage{
 			Body:      &body,
-			FlagTable: ft,
+			FlagTable: ft.Marshal(),
 		},
 		lamportTimestamp: LamportTimestampNIL,
 		round:            RoundNIL,
@@ -224,14 +225,16 @@ func (e *Event) GetCreator() string {
 	return fmt.Sprintf("0x%X", e.Message.Body.Creator)
 }
 
-// SelfParent returns the previous event block in this creator DAG
-func (e *Event) SelfParent() string {
-	return e.Message.Body.Parents[0]
+// SelfParent returns the previous event block hash in this creator DAG
+func (e *Event) SelfParent() (hash EventHash) {
+	hash.Set(e.Message.Body.Parents[0])
+	return
 }
 
-// OtherParent returns the other (not this node) parent(s)
-func (e *Event) OtherParent() string {
-	return e.Message.Body.Parents[1]
+// OtherParent returns the other (not creaters) parent(s) hash(es)
+func (e *Event) OtherParent() (hash EventHash) {
+	hash.Set(e.Message.Body.Parents[1])
+	return
 }
 
 // Transactions returns all transactions in the event
@@ -268,11 +271,11 @@ func (e *Event) IsLoaded() bool {
 
 // Sign ecdsa sig
 func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
-	signBytes, err := e.Message.Body.Hash()
+	hash, err := e.Message.Body.Hash()
 	if err != nil {
 		return err
 	}
-	R, S, err := crypto.Sign(privKey, signBytes)
+	R, S, err := crypto.Sign(privKey, hash.Bytes())
 	if err != nil {
 		return err
 	}
@@ -285,7 +288,7 @@ func (e *Event) Verify() (bool, error) {
 	pubBytes := e.Message.Body.Creator
 	pubKey := crypto.ToECDSAPub(pubBytes)
 
-	signBytes, err := e.Message.Body.Hash()
+	hash, err := e.Message.Body.Hash()
 	if err != nil {
 		return false, err
 	}
@@ -295,7 +298,7 @@ func (e *Event) Verify() (bool, error) {
 		return false, err
 	}
 
-	return crypto.Verify(pubKey, signBytes, r, s), nil
+	return crypto.Verify(pubKey, hash.Bytes(), r, s), nil
 }
 
 // ProtoMarshal event to protobuff
@@ -315,21 +318,17 @@ func (e *Event) ProtoUnmarshal(data []byte) error {
 }
 
 // Hash sha256 hash of body
-func (e *Event) Hash() ([]byte, error) {
+func (e *Event) Hash() (hash EventHash) {
+	var err error
 	if len(e.Message.Hash) == 0 {
-		hash, err := e.Message.Body.Hash()
+		hash, err = e.Message.Body.Hash()
 		if err != nil {
-			return nil, err
+			panic(err)
 		}
-		e.Message.Hash = hash
+		e.Message.Hash = hash.Bytes()
 	}
-	return e.Message.Hash, nil
-}
-
-// Hex of hash
-func (e *Event) Hex() string {
-	hash, _ := e.Hash()
-	return fmt.Sprintf("0x%X", hash)
+	hash.Set(e.Message.Hash)
+	return
 }
 
 // SetRound for event
@@ -393,32 +392,32 @@ func (e *Event) ToWire() WireEvent {
 }
 
 // ReplaceFlagTable replaces flag table.
-func (e *Event) ReplaceFlagTable(flagTable map[string]int64) (err error) {
-	e.Message.FlagTable, err = proto.Marshal(&FlagTableWrapper{Body: flagTable})
-	return err
+func (e *Event) ReplaceFlagTable(flagTable FlagTable) (err error) {
+	e.Message.FlagTable = flagTable.Marshal()
+	return nil
 }
 
 // GetFlagTable returns the flag table.
-func (e *Event) GetFlagTable() (result map[string]int64, err error) {
-	flagTable := new(FlagTableWrapper)
-	err = proto.Unmarshal(e.Message.FlagTable, flagTable)
-	return flagTable.Body, err
+func (e *Event) GetFlagTable() (FlagTable, error) {
+	res := FlagTable{}
+	err := res.Unmarshal(e.Message.FlagTable)
+	return res, err
 }
 
 // MergeFlagTable returns merged flag table object.
-func (e *Event) MergeFlagTable(
-	dst map[string]int64) (result map[string]int64, err error) {
-	src := new(FlagTableWrapper)
-	if err := proto.Unmarshal(e.Message.FlagTable, src); err != nil {
+func (e *Event) MergeFlagTable(dst FlagTable) (FlagTable, error) {
+	res := FlagTable{}
+	err := res.Unmarshal(e.Message.FlagTable)
+	if err != nil {
 		return nil, err
 	}
 
 	for id, flag := range dst {
-		if src.Body[id] == 0 && flag == 1 {
-			src.Body[id] = 1
+		if res[id] == 0 && flag == 1 {
+			res[id] = 1
 		}
 	}
-	return src.Body, err
+	return res, nil
 }
 
 // CreatorID returns the creator ID for an event
@@ -429,10 +428,6 @@ func (e *Event) CreatorID() int64 {
 // OtherParentCreatorID ID of other parent(s)
 func (e *Event) OtherParentCreatorID() int64 {
 	return e.Message.OtherParentCreatorID
-}
-
-func rootSelfParent(participantID int64) string {
-	return fmt.Sprintf("Root%d", participantID)
 }
 
 /*******************************************************************************
@@ -492,7 +487,7 @@ type WireEvent struct {
 	Body        WireBody
 	Signature   string
 	FlagTable   []byte
-	ClothoProof []string
+	ClothoProof [][]byte
 }
 
 // BlockSignatures TODO

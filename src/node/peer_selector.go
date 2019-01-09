@@ -15,9 +15,6 @@ type PeerSelector interface {
 	Next() *peers.Peer
 }
 
-//+++++++++++++++++++++++++++++++++++++++
-//RANDOM
-
 // RandomPeerSelector is a randomized peer selection struct
 type RandomPeerSelector struct {
 	peers     *peers.Peers

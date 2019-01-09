@@ -128,10 +128,10 @@ func NewTestNode(key *ecdsa.PrivateKey, id int) TestNode {
 }
 
 func (node *TestNode) signAndAddEvent(event Event, name string,
-	index map[string]string, orderedEvents *[]Event) {
+	index map[string]EventHash, orderedEvents *[]Event) {
 	event.Sign(node.Key)
 	node.Events = append(node.Events, event)
-	index[name] = event.Hex()
+	index[name] = event.Hash()
 	*orderedEvents = append(*orderedEvents, event)
 }
 
@@ -163,13 +163,12 @@ func testLogger(t testing.TB) *logrus.Entry {
 
 /* Initialisation functions */
 
-func initPosetNodes(n int) ([]TestNode, map[string]string,
-	*[]Event, *peers.Peers) {
+func initPosetNodes(n int) ([]TestNode, map[string]EventHash, *[]Event, *peers.Peers) {
 	var (
 		participants  = peers.NewPeers()
 		orderedEvents = &[]Event{}
 		nodes         = make([]TestNode, 0)
-		index         = make(map[string]string)
+		index         = make(map[string]EventHash)
 		keys          = make(map[string]*ecdsa.PrivateKey)
 	)
 
@@ -189,23 +188,25 @@ func initPosetNodes(n int) ([]TestNode, map[string]string,
 }
 
 func playEvents(plays []play, nodes []TestNode,
-	index map[string]string, orderedEvents *[]Event) {
+	index map[string]EventHash, orderedEvents *[]Event) {
 	for _, p := range plays {
-		ft := make(map[string]int64)
+		ft := make(FlagTable)
 		for k := range p.knownRoots {
 			ft[index[p.knownRoots[k]]] = 1
 		}
 
 		e := NewEvent(p.txPayload, nil,
 			p.sigPayload,
-			[]string{index[p.selfParent], index[p.otherParent]},
+			EventHashes{index[p.selfParent], index[p.otherParent]},
 			nodes[p.to].Pub, p.index, ft)
 
 		nodes[p.to].signAndAddEvent(e, p.name, index, orderedEvents)
 	}
 }
 
-func createPoset(t testing.TB, db bool, orderedEvents *[]Event,
+func createPoset(t testing.TB,
+	db bool,
+	orderedEvents *[]Event,
 	participants *peers.Peers,
 	logger *logrus.Entry) *Poset {
 	var store Store
@@ -231,16 +232,23 @@ func createPoset(t testing.TB, db bool, orderedEvents *[]Event,
 }
 
 func initPosetFull(t testing.TB, plays []play, db bool, n int,
-	logger *logrus.Entry) (*Poset, map[string]string, *[]Event, []TestNode) {
+	logger *logrus.Entry) (*Poset, map[string]EventHash, *[]Event, []TestNode) {
 	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	// Needed to have sorted nodes based on participants hash32
 	for i, peer := range participants.ToPeerSlice() {
-		event := NewEvent(nil, nil, nil, []string{rootSelfParent(peer.ID), ""},
-			nodes[i].Pub, 0, map[string]int64{rootSelfParent(peer.ID): 1})
-		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i),
-			index, orderedEvents)
-		fmt.Println(event.Hex())
+		selfParent := GenRootSelfParent(peer.ID)
+		event := NewEvent(nil, nil, nil,
+			EventHashes{selfParent, EventHash{}},
+			nodes[i].Pub,
+			0,
+			FlagTable{selfParent: 1})
+
+		nodes[i].signAndAddEvent(
+			event,
+			fmt.Sprintf("e%d", i),
+			index,
+			orderedEvents)
 	}
 
 	playEvents(plays, nodes, index, orderedEvents)
@@ -253,7 +261,9 @@ func initPosetFull(t testing.TB, plays []play, db bool, n int,
 		if err != nil {
 			panic(err)
 		}
-		index["r"+strconv.Itoa(i)] = root.SelfParent.Hash
+		var hash EventHash
+		hash.Set(root.SelfParent.Hash)
+		index["r"+strconv.Itoa(i)] = hash
 	}
 
 	return poset, index, orderedEvents, nodes
@@ -277,7 +287,7 @@ e0  e1  e2
 r0  r1  r2
 0   1   2
 */
-func initPoset(t *testing.T) (*Poset, map[string]string) {
+func initPoset(t *testing.T) (*Poset, map[string]EventHash) {
 	plays := []play{
 		{0, 1, e0, e1, e01, nil, nil, []string{e0, e1}},
 		{2, 1, e2, "", s20, nil, nil, []string{e2}},
@@ -464,7 +474,7 @@ Node 2 Forks; events a and e2 are both created by node2, they are not
 self-parent sand yet they are both dominators of event e20
 */
 func TestFork(t *testing.T) {
-	index := make(map[string]string)
+	index := make(map[string]EventHash)
 	var nodes []TestNode
 	participants := peers.NewPeers()
 
@@ -479,34 +489,34 @@ func TestFork(t *testing.T) {
 	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
-		event := NewEvent(nil, nil, nil, []string{"", ""}, node.Pub, 0, nil)
+		event := NewEvent(nil, nil, nil, make(EventHashes, 2), node.Pub, 0, nil)
 		event.Sign(node.Key)
-		index[fmt.Sprintf("e%d", i)] = event.Hex()
+		index[fmt.Sprintf("e%d", i)] = event.Hash()
 		poset.InsertEvent(event, true)
 	}
 
 	// a and e2 need to have different hashes
-	eventA := NewEvent([][]byte{[]byte("yo")}, nil, nil, []string{"", ""}, nodes[2].Pub, 0, nil)
+	eventA := NewEvent([][]byte{[]byte("yo")}, nil, nil, make(EventHashes, 2), nodes[2].Pub, 0, nil)
 	eventA.Sign(nodes[2].Key)
-	index["a"] = eventA.Hex()
+	index["a"] = eventA.Hash()
 	if err := poset.InsertEvent(eventA, true); err == nil {
 		t.Fatal("InsertEvent should return error for 'a'")
 	}
 
 	event01 := NewEvent(nil, nil, nil,
-		[]string{index[e0], index[a]}, // e0 and a
+		EventHashes{index[e0], index[a]}, // e0 and a
 		nodes[0].Pub, 1, nil)
 	event01.Sign(nodes[0].Key)
-	index[e01] = event01.Hex()
+	index[e01] = event01.Hash()
 	if err := poset.InsertEvent(event01, true); err == nil {
 		t.Fatalf("InsertEvent should return error for %s", e01)
 	}
 
 	event20 := NewEvent(nil, nil, nil,
-		[]string{index[e2], index[e01]}, // e2 and e01
+		EventHashes{index[e2], index[e01]}, // e2 and e01
 		nodes[2].Pub, 1, nil)
 	event20.Sign(nodes[2].Key)
-	index[e20] = event20.Hex()
+	index[e20] = event20.Hash()
 	if err := poset.InsertEvent(event20, true); err == nil {
 		t.Fatalf("InsertEvent should return error for %s", e20)
 	}
@@ -531,7 +541,7 @@ e0  e1  e2
 0   1    2
 */
 
-func initRoundPoset(t *testing.T) (*Poset, map[string]string, []TestNode) {
+func initRoundPoset(t *testing.T) (*Poset, map[string]EventHash, []TestNode) {
 	plays := []play{
 		{1, 1, e1, e0, e10, nil, nil, []string{e0, e1}},
 		{2, 1, e2, "", s20, nil, nil, []string{e2}},
@@ -552,7 +562,7 @@ func initRoundPoset(t *testing.T) (*Poset, map[string]string, []TestNode) {
 func TestInsertEvent(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
-	checkParents := func(e, selfDominator, dominator string) bool {
+	checkParents := func(e string, selfDominator, dominator EventHash) bool {
 		ev, err := p.Store.GetEventBlock(index[e])
 		if err != nil {
 			t.Fatal(err)
@@ -606,11 +616,13 @@ func TestInsertEvent(t *testing.T) {
 		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.GetCreator()].ID, 10)
 
 		type Hierarchy struct {
-			ev, selfDominator, dominator string
+			ev            string
+			selfDominator EventHash
+			dominator     EventHash
 		}
 
 		toCheck := []Hierarchy{
-			{e0, "Root" + e0CreatorID, ""},
+			{e0, fakeEventHash("Root" + e0CreatorID), fakeEventHash("")},
 			{e10, index[e1], index[e0]},
 			{e21, index[s20], index[e10]},
 			{e02, index[s00], index[e21]},
@@ -626,7 +638,7 @@ func TestInsertEvent(t *testing.T) {
 
 	t.Run("Check UndeterminedEvents", func(t *testing.T) {
 
-		expectedUndeterminedEvents := []string{
+		expectedUndeterminedEvents := EventHashes{
 			index[e0],
 			index[e1],
 			index[e2],
@@ -746,18 +758,22 @@ func TestClothos(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
 	round0Clotho := make(map[string]*RoundEvent)
-	round0Clotho[index[e0]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e0])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round0Clotho[index[e1]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e1])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round0Clotho[index[e2]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e2])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
+
 	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
 		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
 	}
 
 	round1Clotho := make(map[string]*RoundEvent)
-	round1Clotho[index[f1]] = &RoundEvent{
+	round1Clotho[hashString(index[f1])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
 	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
 		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
@@ -790,23 +806,31 @@ func TestRound(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
 	round0Clotho := make(map[string]*RoundEvent)
-	round0Clotho[index[e0]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e0])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round0Clotho[index[e1]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e1])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round0Clotho[index[e2]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e2])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
+
 	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
 		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
 	}
 
 	round1Clotho := make(map[string]*RoundEvent)
-	round1Clotho[index[e21]] = &RoundEvent{
+
+	round1Clotho[hashString(index[e21])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round1Clotho[index[e02]] = &RoundEvent{
+
+	round1Clotho[hashString(index[e02])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round1Clotho[index[f1]] = &RoundEvent{
+
+	round1Clotho[hashString(index[f1])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
+
 	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
 		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
 	}
@@ -840,23 +864,31 @@ func TestRoundDiff(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
 
 	round0Clotho := make(map[string]*RoundEvent)
-	round0Clotho[index[e0]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e0])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round0Clotho[index[e1]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e1])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round0Clotho[index[e2]] = &RoundEvent{
+
+	round0Clotho[hashString(index[e2])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
+
 	if err := p.Store.SetRoundCreated(0, RoundCreated{Message: RoundCreatedMessage{Events: round0Clotho}}); err != nil {
 		t.Fatalf("Failed to SetRoundCreated(0, ..) Err: %v", err)
 	}
 
 	round1Clotho := make(map[string]*RoundEvent)
-	round1Clotho[index[e21]] = &RoundEvent{
+
+	round1Clotho[hashString(index[e21])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round1Clotho[index[e02]] = &RoundEvent{
+
+	round1Clotho[hashString(index[e02])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
-	round1Clotho[index[f1]] = &RoundEvent{
+
+	round1Clotho[hashString(index[f1])] = &RoundEvent{
 		Clotho: true, Atropos: Trilean_UNDEFINED}
+
 	if err := p.Store.SetRoundCreated(1, RoundCreated{Message: RoundCreatedMessage{Events: round1Clotho}}); err != nil {
 		t.Fatalf("Failed to SetRoundCreated(1, ..) Err: %v", err)
 	}
@@ -900,13 +932,13 @@ func TestDivideRounds(t *testing.T) {
 	if l := len(round0.Clotho()); l != 3 {
 		t.Fatalf("round 0 should have 3 clothos, not %d", l)
 	}
-	if !contains(round0.Clotho(), index[e0]) {
+	if !round0.Clotho().Contains(index[e0]) {
 		t.Fatalf("round 0 clothos should contain %s", e0)
 	}
-	if !contains(round0.Clotho(), index[e1]) {
+	if !round0.Clotho().Contains(index[e1]) {
 		t.Fatalf("round 0 clothos should contain %s", e1)
 	}
-	if !contains(round0.Clotho(), index[e2]) {
+	if !round0.Clotho().Contains(index[e2]) {
 		t.Fatalf("round 0 clothos should contain %s", e2)
 	}
 
@@ -917,7 +949,7 @@ func TestDivideRounds(t *testing.T) {
 	if l := len(round1.Clotho()); l != 3 {
 		t.Fatalf("round 1 should have 1 clotho, not %d", l)
 	}
-	if !contains(round1.Clotho(), index[f1]) {
+	if !round1.Clotho().Contains(index[f1]) {
 		t.Fatalf("round 1 clothos should contain %s", f1)
 	}
 
@@ -1003,29 +1035,46 @@ func TestCreateRoot(t *testing.T) {
 		e0: baseRoot,
 		e02: {
 			NextRound: 1,
-			SelfParent: &RootEvent{Hash: index[s00],
-				CreatorID: participants[0].ID, Index: 1,
-				LamportTimestamp: 1, Round: 0},
+			SelfParent: &RootEvent{
+				Hash:             hashBytes(index[s00]),
+				CreatorID:        participants[0].ID,
+				Index:            1,
+				LamportTimestamp: 1,
+				Round:            0},
 			Others: map[string]*RootEvent{
-				index[e02]: {Hash: index[e21], CreatorID: participants[2].ID,
-					Index: 2, LamportTimestamp: 2, Round: 1},
+				hashString(index[e02]): {
+					Hash:             hashBytes(index[e21]),
+					CreatorID:        participants[2].ID,
+					Index:            2,
+					LamportTimestamp: 2,
+					Round:            1},
 			},
 		},
 		s10: {
 			NextRound: 0,
-			SelfParent: &RootEvent{Hash: index[e10],
-				CreatorID: participants[1].ID, Index: 1,
-				LamportTimestamp: 1, Round: 0},
+			SelfParent: &RootEvent{
+				Hash:             hashBytes(index[e10]),
+				CreatorID:        participants[1].ID,
+				Index:            1,
+				LamportTimestamp: 1,
+				Round:            0},
 			Others: map[string]*RootEvent{},
 		},
 		f1: {
 			NextRound: 1,
-			SelfParent: &RootEvent{Hash: index[s10],
-				CreatorID: participants[1].ID, Index: 2,
-				LamportTimestamp: 2, Round: 0},
+			SelfParent: &RootEvent{
+				Hash:             hashBytes(index[s10]),
+				CreatorID:        participants[1].ID,
+				Index:            2,
+				LamportTimestamp: 2,
+				Round:            0},
 			Others: map[string]*RootEvent{
-				index[f1]: {Hash: index[e02], CreatorID: participants[0].ID,
-					Index: 2, LamportTimestamp: 3, Round: 1},
+				hashString(index[f1]): {
+					Hash:             hashBytes(index[e02]),
+					CreatorID:        participants[0].ID,
+					Index:            2,
+					LamportTimestamp: 3,
+					Round:            1},
 			},
 		},
 	}
@@ -1066,23 +1115,22 @@ e01  e12
  R0      R2
 
 */
-func initDentedPoset(t *testing.T) (*Poset, map[string]string) {
+func initDentedPoset(t *testing.T) (*Poset, map[string]EventHash) {
 	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	orderedPeers := participants.ToPeerSlice()
 
-	for _, peer := range orderedPeers {
-		index[rootSelfParent(peer.ID)] = rootSelfParent(peer.ID)
+	for i, peer := range orderedPeers {
+		hash := GenRootSelfParent(peer.ID)
+		name := fmt.Sprintf("e%d", i)
+		index[name] = hash
 	}
 
 	plays := []play{
-		{0, 0, rootSelfParent(orderedPeers[0].ID), "", e0, nil, nil,
-			[]string{}},
-		{2, 0, rootSelfParent(orderedPeers[2].ID), "", e2, nil, nil,
-			[]string{}},
+		{0, 0, e0, "", e0, nil, nil, []string{}},
+		{2, 0, e2, "", e2, nil, nil, []string{}},
 		{0, 1, e0, "", e01, nil, nil, []string{}},
-		{1, 0, rootSelfParent(orderedPeers[1].ID), e2, e12, nil, nil,
-			[]string{}},
+		{1, 0, e1, e2, e12, nil, nil, []string{}},
 	}
 
 	playEvents(plays, nodes, index, orderedEvents)
@@ -1103,8 +1151,12 @@ func TestCreateRootBis(t *testing.T) {
 			NextRound:  0,
 			SelfParent: &root,
 			Others: map[string]*RootEvent{
-				index[e12]: {Hash: index[e2], CreatorID: participants[2].ID,
-					Index: 0, LamportTimestamp: 0, Round: 0},
+				hashString(index[e12]): {
+					Hash:             hashBytes(index[e2]),
+					CreatorID:        participants[2].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 			},
 		},
 	}
@@ -1129,12 +1181,15 @@ func TestCreateRootBis(t *testing.T) {
 e0  e1  e2    Block (0, 1)
 0   1    2
 */
-func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]string) {
+func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]EventHash) {
 	nodes, index, orderedEvents, participants := initPosetNodes(n)
 
 	for i, peer := range participants.ToPeerSlice() {
-		event := NewEvent(nil, nil, nil, []string{rootSelfParent(peer.ID), ""},
-			nodes[i].Pub, 0, nil)
+		event := NewEvent(nil, nil, nil,
+			EventHashes{GenRootSelfParent(peer.ID), EventHash{}},
+			nodes[i].Pub,
+			0,
+			nil)
 		nodes[i].signAndAddEvent(event, fmt.Sprintf("e%d", i),
 			index, orderedEvents)
 	}
@@ -1198,11 +1253,11 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			e := NewEvent(pl.txPayload,
 				nil,
 				pl.sigPayload,
-				[]string{index[pl.selfParent], index[pl.otherParent]},
+				EventHashes{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
 				pl.index, nil)
 			e.Sign(nodes[pl.to].Key)
-			index[pl.name] = e.Hex()
+			index[pl.name] = e.Hash()
 			if err := p.InsertEvent(e, true); err != nil {
 				t.Fatalf("error inserting event %s: %s\n", pl.name, err)
 			}
@@ -1250,11 +1305,11 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			e := NewEvent(nil,
 				nil,
 				pl.sigPayload,
-				[]string{index[pl.selfParent], index[pl.otherParent]},
+				EventHashes{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
 				pl.index, nil)
 			e.Sign(nodes[pl.to].Key)
-			index[pl.name] = e.Hex()
+			index[pl.name] = e.Hash()
 			if err := p.InsertEvent(e, true); err != nil {
 				t.Fatalf("ERROR inserting event %s: %s", pl.name, err)
 			}
@@ -1284,11 +1339,11 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			e := NewEvent(nil,
 				nil,
 				pl.sigPayload,
-				[]string{index[pl.selfParent], index[pl.otherParent]},
+				EventHashes{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
 				pl.index, nil)
 			e.Sign(nodes[pl.to].Key)
-			index[pl.name] = e.Hex()
+			index[pl.name] = e.Hash()
 			if err := p.InsertEvent(e, true); err != nil {
 				t.Fatalf("ERROR inserting event %s: %s\n", pl.name, err)
 			}
@@ -1361,7 +1416,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 	   [e0][e1][e2]
 		0   1    2
 */
-func initConsensusPoset(db bool, t testing.TB) (*Poset, map[string]string) {
+func initConsensusPoset(db bool, t testing.TB) (*Poset, map[string]EventHash) {
 	plays := []play{
 		{1, 1, e1, e0, e10, nil, nil, []string{e0, e1}},
 		{2, 1, e2, e10, f2, [][]byte{[]byte(f2)}, nil, []string{e0, e1, e2}},
@@ -1478,15 +1533,15 @@ func TestDecideAtropos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round0.Message.Events[index[e0]]; !(f.Clotho &&
+	if f := round0.Message.Events[hashString(index[e0])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", e0, f)
 	}
-	if f := round0.Message.Events[index[e1]]; !(f.Clotho &&
+	if f := round0.Message.Events[hashString(index[e1])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", e1, f)
 	}
-	if f := round0.Message.Events[index[e2]]; !(f.Clotho &&
+	if f := round0.Message.Events[hashString(index[e2])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", e2, f)
 	}
@@ -1495,15 +1550,15 @@ func TestDecideAtropos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round1.Message.Events[index[f2]]; !(f.Clotho &&
+	if f := round1.Message.Events[hashString(index[f2])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", f2, f)
 	}
-	if f := round1.Message.Events[index[f0]]; !(f.Clotho &&
+	if f := round1.Message.Events[hashString(index[f0])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", f0, f)
 	}
-	if f := round1.Message.Events[index[f1]]; !(f.Clotho &&
+	if f := round1.Message.Events[hashString(index[f1])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", f1, f)
 	}
@@ -1512,15 +1567,15 @@ func TestDecideAtropos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round2.Message.Events[index[g1]]; !(f.Clotho &&
+	if f := round2.Message.Events[hashString(index[g1])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", g1, f)
 	}
-	if f := round2.Message.Events[index[g0]]; !(f.Clotho &&
+	if f := round2.Message.Events[hashString(index[g0])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", g0, f)
 	}
-	if f := round2.Message.Events[index[g2]]; !(f.Clotho &&
+	if f := round2.Message.Events[hashString(index[g2])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", g2, f)
 	}
@@ -1529,15 +1584,15 @@ func TestDecideAtropos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round3.Message.Events[index[h2]]; !(f.Clotho &&
+	if f := round3.Message.Events[hashString(index[h2])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", h2, f)
 	}
-	if f := round3.Message.Events[index[h0]]; !(f.Clotho &&
+	if f := round3.Message.Events[hashString(index[h0])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", h0, f)
 	}
-	if f := round3.Message.Events[index[h10]]; !(f.Clotho &&
+	if f := round3.Message.Events[hashString(index[h10])]; !(f.Clotho &&
 		f.Atropos == Trilean_TRUE) {
 		t.Fatalf("%s should be Atropos; got %v", h10, f)
 	}
@@ -1546,15 +1601,15 @@ func TestDecideAtropos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f := round4.Message.Events[index[i0]]; !(f.Clotho &&
+	if f := round4.Message.Events[hashString(index[i0])]; !(f.Clotho &&
 		f.Atropos == Trilean_UNDEFINED) {
 		t.Fatalf("%s should be Atropos; got %v", i0, f)
 	}
-	if f := round4.Message.Events[index[i2]]; !(f.Clotho &&
+	if f := round4.Message.Events[hashString(index[i2])]; !(f.Clotho &&
 		f.Atropos == Trilean_UNDEFINED) {
 		t.Fatalf("%s should be Atropos; got %v", i2, f)
 	}
-	if f := round4.Message.Events[index[i1]]; !(f.Clotho &&
+	if f := round4.Message.Events[hashString(index[i1])]; !(f.Clotho &&
 		f.Atropos == Trilean_UNDEFINED) {
 		t.Fatalf("%s should be Atropos; got %v", i1, f)
 	}
@@ -1626,7 +1681,7 @@ func TestDecideRoundReceived(t *testing.T) {
 		t.Fatalf("round 2 should contain 9 ConsensusEvents, not %d", ce)
 	}
 
-	expectedUndeterminedEvents := []string{
+	expectedUndeterminedEvents := []EventHash{
 		index[g0x],
 		index[h2],
 		index[h0],
@@ -1739,7 +1794,7 @@ func TestProcessDecidedRounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if !reflect.DeepEqual(block1.GetFrameHash(), frame2Hash) {
 		t.Fatalf("frame hash from block1 should be %v, not %v",
 			frame2Hash, block1.GetFrameHash())
@@ -1828,7 +1883,7 @@ func TestGetFrame(t *testing.T) {
 
 		var expEvents []Event
 
-		hashes := []string{index[e0], index[e1], index[e2], index[e10]}
+		hashes := EventHashes{index[e0], index[e1], index[e2], index[e10]}
 		for _, eh := range hashes {
 			e, err := p.Store.GetEventBlock(eh)
 			if err != nil {
@@ -1859,15 +1914,15 @@ func TestGetFrame(t *testing.T) {
 		expRoots[0] = Root{
 			NextRound: 1,
 			SelfParent: &RootEvent{
-				Hash:             index[e0],
+				Hash:             hashBytes(index[e0]),
 				CreatorID:        participants[0].ID,
 				Index:            0,
 				LamportTimestamp: 0,
 				Round:            0,
 			},
 			Others: map[string]*RootEvent{
-				index[f0]: {
-					Hash:             index[f2b],
+				hashString(index[f0]): {
+					Hash:             hashBytes(index[f2b]),
 					CreatorID:        participants[2].ID,
 					Index:            2,
 					LamportTimestamp: 3,
@@ -1878,15 +1933,15 @@ func TestGetFrame(t *testing.T) {
 		expRoots[1] = Root{
 			NextRound: 1,
 			SelfParent: &RootEvent{
-				Hash:             index[e10],
+				Hash:             hashBytes(index[e10]),
 				CreatorID:        participants[1].ID,
 				Index:            1,
 				LamportTimestamp: 1,
 				Round:            0,
 			},
 			Others: map[string]*RootEvent{
-				index[f1]: {
-					Hash:             index[f0],
+				hashString(index[f1]): {
+					Hash:             hashBytes(index[f0]),
 					CreatorID:        participants[0].ID,
 					Index:            1,
 					LamportTimestamp: 4,
@@ -1897,15 +1952,15 @@ func TestGetFrame(t *testing.T) {
 		expRoots[2] = Root{
 			NextRound: 1,
 			SelfParent: &RootEvent{
-				Hash:             index[e2],
+				Hash:             hashBytes(index[e2]),
 				CreatorID:        participants[2].ID,
 				Index:            0,
 				LamportTimestamp: 0,
 				Round:            0,
 			},
 			Others: map[string]*RootEvent{
-				index[f2]: {
-					Hash:             index[e10],
+				hashString(index[f2]): {
+					Hash:             hashBytes(index[e10]),
 					CreatorID:        participants[1].ID,
 					Index:            1,
 					LamportTimestamp: 1,
@@ -1925,7 +1980,7 @@ func TestGetFrame(t *testing.T) {
 			compareOtherParents(t, r.Others, expRoot.Others, index)
 		}
 
-		expectedEventsHashes := []string{
+		expectedEventsHashes := EventHashes{
 			index[f2],
 			index[f2b],
 			index[f0],
@@ -2054,8 +2109,8 @@ func TestResetFromFrame(t *testing.T) {
 		// Check round 1 clothos
 		pClotho := pRound1.Clotho()
 		p2Clotho := p2Round1.Clotho()
-		sort.Strings(pClotho)
-		sort.Strings(p2Clotho)
+		sort.Sort(pClotho)
+		sort.Sort(p2Clotho)
 		if !reflect.DeepEqual(pClotho, p2Clotho) {
 			t.Fatalf("Reset Hg Round 1 clothos should be %v, not %v",
 				pClotho, p2Clotho)
@@ -2065,27 +2120,27 @@ func TestResetFromFrame(t *testing.T) {
 		for _, em := range frame.Events {
 			e := em.ToEvent()
 			ev := &e
-			p2r, err := p2.round(ev.Hex())
+			p2r, err := p2.round(ev.Hash())
 			if err != nil {
 				t.Fatalf("Error computing %s Round: %d",
-					getName(index, ev.Hex()), p2r)
+					getName(index, ev.Hash()), p2r)
 			}
-			hr, _ := p.round(ev.Hex())
+			hr, _ := p.round(ev.Hash())
 			if p2r != hr {
 
 				t.Fatalf("p2[%v].Round should be %d, not %d",
-					getName(index, ev.Hex()), hr, p2r)
+					getName(index, ev.Hash()), hr, p2r)
 			}
 
-			p2s, err := p2.lamportTimestamp(ev.Hex())
+			p2s, err := p2.lamportTimestamp(ev.Hash())
 			if err != nil {
 				t.Fatalf("Error computing %s LamportTimestamp: %d",
-					getName(index, ev.Hex()), p2s)
+					getName(index, ev.Hash()), p2s)
 			}
-			hs, _ := p.lamportTimestamp(ev.Hex())
+			hs, _ := p.lamportTimestamp(ev.Hash())
 			if p2s != hs {
 				t.Fatalf("p2[%v].LamportTimestamp should be %d, not %d",
-					getName(index, ev.Hex()), hs, p2s)
+					getName(index, ev.Hash()), hs, p2s)
 			}
 		}
 	})
@@ -2155,8 +2210,8 @@ func TestResetFromFrame(t *testing.T) {
 
 			pClotho := pRound.Clotho()
 			p2Clotho := p2Round.Clotho()
-			sort.Strings(pClotho)
-			sort.Strings(p2Clotho)
+			sort.Sort(pClotho)
+			sort.Sort(p2Clotho)
 
 			if !reflect.DeepEqual(pClotho, p2Clotho) {
 				t.Fatalf("Reset Hg Round %d clothos should be %v, not %v",
@@ -2286,14 +2341,20 @@ func TestBootstrap(t *testing.T) {
 	0	 1	  2	   3
 */
 
-func initFunkyPoset(t *testing.T, logger *logrus.Logger, full bool) (*Poset, map[string]string) {
+func initFunkyPoset(t *testing.T, logger *logrus.Logger, full bool) (*Poset, map[string]EventHash) {
 	nodes, index, orderedEvents, participants := initPosetNodes(4)
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil,
-			nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0,
-			map[string]int64{rootSelfParent(peer.ID): 1})
+		selfParent := GenRootSelfParent(peer.ID)
+		event := NewEvent(
+			[][]byte{[]byte(name)},
+			nil,
+			nil,
+			EventHashes{selfParent, EventHash{}},
+			nodes[i].Pub,
+			0,
+			FlagTable{selfParent: 1})
 		nodes[i].signAndAddEvent(event, name, index, orderedEvents)
 	}
 
@@ -2517,9 +2578,9 @@ func TestFunkyPosetFrames(t *testing.T) {
 		for k, em := range frame.Events {
 			e := em.ToEvent()
 			ev := &e
-			r, _ := p.round(ev.Hex())
+			r, _ := p.round(ev.Hash())
 			t.Logf("frame %d events %d: %s, round %d",
-				frame.Round, k, getName(index, ev.Hex()), r)
+				frame.Round, k, getName(index, ev.Hash()), r)
 		}
 		for k, r := range frame.Roots {
 			t.Logf("frame %d root %d: next round %d, self parent: %v,"+
@@ -2539,35 +2600,53 @@ func TestFunkyPosetFrames(t *testing.T) {
 			NewBaseRoot(participants[0].ID),
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[w01],
-					CreatorID: participants[1].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w01]),
+					CreatorID:        participants[1].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[a12]: {Hash: index[a23],
-						CreatorID: participants[2].ID, Index: 1,
-						LamportTimestamp: 1, Round: 0},
+					hashString(index[a12]): {
+						Hash:             hashBytes(index[a23]),
+						CreatorID:        participants[2].ID,
+						Index:            1,
+						LamportTimestamp: 1,
+						Round:            0},
 				},
 			},
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[a23],
-					CreatorID: participants[2].ID, Index: 1,
-					LamportTimestamp: 1, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[a23]),
+					CreatorID:        participants[2].ID,
+					Index:            1,
+					LamportTimestamp: 1,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[a21]: {Hash: index[a12],
-						CreatorID: participants[1].ID, Index: 1,
-						LamportTimestamp: 2, Round: 1},
+					hashString(index[a21]): {
+						Hash:             hashBytes(index[a12]),
+						CreatorID:        participants[1].ID,
+						Index:            1,
+						LamportTimestamp: 2,
+						Round:            1},
 				},
 			},
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[w03],
-					CreatorID: participants[3].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w03]),
+					CreatorID:        participants[3].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[w13]: {Hash: index[a21],
-						CreatorID: participants[2].ID, Index: 2,
-						LamportTimestamp: 3, Round: 1},
+					hashString(index[w13]): {
+						Hash:             hashBytes(index[a21]),
+						CreatorID:        participants[2].ID,
+						Index:            2,
+						LamportTimestamp: 3,
+						Round:            1},
 				},
 			},
 		},
@@ -2575,127 +2654,192 @@ func TestFunkyPosetFrames(t *testing.T) {
 			NewBaseRoot(participants[0].ID),
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[a12],
-					CreatorID: participants[1].ID, Index: 1,
-					LamportTimestamp: 2, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[a12]),
+					CreatorID:        participants[1].ID,
+					Index:            1,
+					LamportTimestamp: 2,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[a10]: {Hash: index[a00],
-						CreatorID: participants[0].ID, Index: 1,
-						LamportTimestamp: 1, Round: 0},
+					hashString(index[a10]): {
+						Hash:             hashBytes(index[a00]),
+						CreatorID:        participants[0].ID,
+						Index:            1,
+						LamportTimestamp: 1,
+						Round:            0},
 				},
 			},
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[a21],
-					CreatorID: participants[2].ID, Index: 2,
-					LamportTimestamp: 3, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[a21]),
+					CreatorID:        participants[2].ID,
+					Index:            2,
+					LamportTimestamp: 3,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[w12]: {Hash: index[w13],
-						CreatorID: participants[3].ID, Index: 1,
-						LamportTimestamp: 4, Round: 1},
+					hashString(index[w12]): {
+						Hash:             hashBytes(index[w13]),
+						CreatorID:        participants[3].ID,
+						Index:            1,
+						LamportTimestamp: 4,
+						Round:            1},
 				},
 			},
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[w03],
-					CreatorID: participants[3].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w03]),
+					CreatorID:        participants[3].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[w13]: {Hash: index[a21],
-						CreatorID: participants[2].ID, Index: 2,
-						LamportTimestamp: 3, Round: 1},
+					hashString(index[w13]): {
+						Hash:             hashBytes(index[a21]),
+						CreatorID:        participants[2].ID,
+						Index:            2,
+						LamportTimestamp: 3,
+						Round:            1},
 				},
 			},
 		},
 		4: {
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[a00],
-					CreatorID: participants[0].ID, Index: 1,
-					LamportTimestamp: 1, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[a00]),
+					CreatorID:        participants[0].ID,
+					Index:            1,
+					LamportTimestamp: 1,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[w10]: {Hash: index[w11],
-						CreatorID: participants[1].ID, Index: 3,
-						LamportTimestamp: 6, Round: 2},
+					hashString(index[w10]): {
+						Hash:             hashBytes(index[w11]),
+						CreatorID:        participants[1].ID,
+						Index:            3,
+						LamportTimestamp: 6,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 3,
-				SelfParent: &RootEvent{Hash: index[w11],
-					CreatorID: participants[1].ID, Index: 3,
-					LamportTimestamp: 6, Round: 2},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w11]),
+					CreatorID:        participants[1].ID,
+					Index:            3,
+					LamportTimestamp: 6,
+					Round:            2},
 				Others: map[string]*RootEvent{
-					index[w21]: {Hash: index[w23],
-						CreatorID: participants[3].ID, Index: 2,
-						LamportTimestamp: 8, Round: 2},
+					hashString(index[w21]): {
+						Hash:             hashBytes(index[w23]),
+						CreatorID:        participants[3].ID,
+						Index:            2,
+						LamportTimestamp: 8,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[w12],
-					CreatorID: participants[2].ID, Index: 3,
-					LamportTimestamp: 5, Round: 2},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w12]),
+					CreatorID:        participants[2].ID,
+					Index:            3,
+					LamportTimestamp: 5,
+					Round:            2},
 				Others: map[string]*RootEvent{
-					index[b21]: {Hash: index[w11],
-						CreatorID: participants[1].ID, Index: 3,
-						LamportTimestamp: 6, Round: 2},
+					hashString(index[b21]): {
+						Hash:             hashBytes(index[w11]),
+						CreatorID:        participants[1].ID,
+						Index:            3,
+						LamportTimestamp: 6,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[w13],
-					CreatorID: participants[3].ID, Index: 1,
-					LamportTimestamp: 4, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w13]),
+					CreatorID:        participants[3].ID,
+					Index:            1,
+					LamportTimestamp: 4,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[w23]: {Hash: index[b21],
-						CreatorID: participants[2].ID, Index: 4,
-						LamportTimestamp: 7, Round: 2},
+					hashString(index[w23]): {
+						Hash:             hashBytes(index[b21]),
+						CreatorID:        participants[2].ID,
+						Index:            4,
+						LamportTimestamp: 7,
+						Round:            2},
 				},
 			},
 		},
 		5: {
 			{
 				NextRound: 4,
-				SelfParent: &RootEvent{Hash: index[b00],
-					CreatorID: participants[0].ID, Index: 3,
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[b00]),
+					CreatorID:        participants[0].ID,
+					Index:            3,
 					LamportTimestamp: 8, Round: 3},
 				Others: map[string]*RootEvent{
-					index[w20]: {Hash: index[w22],
-						CreatorID: participants[2].ID, Index: 5,
-						LamportTimestamp: 11, Round: 3},
+					hashString(index[w20]): {
+						Hash:             hashBytes(index[w22]),
+						CreatorID:        participants[2].ID,
+						Index:            5,
+						LamportTimestamp: 11,
+						Round:            3},
 				},
 			},
 			{
 				NextRound: 4,
-				SelfParent: &RootEvent{Hash: index[c10],
-					CreatorID: participants[1].ID, Index: 5,
-					LamportTimestamp: 10, Round: 3},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[c10]),
+					CreatorID:        participants[1].ID,
+					Index:            5,
+					LamportTimestamp: 10,
+					Round:            3},
 				Others: map[string]*RootEvent{
-					index[w31]: {Hash: index[w20],
-						CreatorID: participants[0].ID, Index: 4,
-						LamportTimestamp: 12, Round: 4},
+					hashString(index[w31]): {
+						Hash:             hashBytes(index[w20]),
+						CreatorID:        participants[0].ID,
+						Index:            4,
+						LamportTimestamp: 12,
+						Round:            4},
 				},
 			},
 			{
 				NextRound: 4,
-				SelfParent: &RootEvent{Hash: index[w22],
-					CreatorID: participants[2].ID, Index: 5,
-					LamportTimestamp: 11, Round: 3},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w22]),
+					CreatorID:        participants[2].ID,
+					Index:            5,
+					LamportTimestamp: 11,
+					Round:            3},
 				Others: map[string]*RootEvent{
-					index[w32]: {Hash: index[w31],
-						CreatorID: participants[1].ID, Index: 6,
-						LamportTimestamp: 13, Round: 4},
+					hashString(index[w32]): {
+						Hash:             hashBytes(index[w31]),
+						CreatorID:        participants[1].ID,
+						Index:            6,
+						LamportTimestamp: 13,
+						Round:            4},
 				},
 			},
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[w13],
-					CreatorID: participants[3].ID, Index: 1,
-					LamportTimestamp: 4, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w13]),
+					CreatorID:        participants[3].ID,
+					Index:            1,
+					LamportTimestamp: 4,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[w23]: {Hash: index[b21],
-						CreatorID: participants[2].ID, Index: 4,
-						LamportTimestamp: 7, Round: 2},
+					hashString(index[w23]): {
+						Hash:             hashBytes(index[b21]),
+						CreatorID:        participants[2].ID,
+						Index:            4,
+						LamportTimestamp: 7,
+						Round:            2},
 				},
 			},
 		},
@@ -2767,7 +2911,7 @@ func TestFunkyPosetReset(t *testing.T) {
 			ev, err := p2.ReadWireInfo(wev)
 			if err != nil {
 				t.Fatalf("Reading WireInfo for %s: %s",
-					getName(index, diff[i].Hex()), err)
+					getName(index, diff[i].Hash()), err)
 			}
 			err = p2.InsertEvent(*ev, false)
 			if err != nil {
@@ -2843,14 +2987,20 @@ func TestFunkyPosetReset(t *testing.T) {
 */
 
 func initSparsePoset(
-	t *testing.T, logger *logrus.Logger) (*Poset, map[string]string) {
+	t *testing.T, logger *logrus.Logger) (*Poset, map[string]EventHash) {
 	nodes, index, orderedEvents, participants := initPosetNodes(4)
 
 	for i, peer := range participants.ToPeerSlice() {
 		name := fmt.Sprintf("w0%d", i)
-		event := NewEvent([][]byte{[]byte(name)}, nil,
-			nil, []string{rootSelfParent(peer.ID), ""}, nodes[i].Pub, 0,
-			map[string]int64{rootSelfParent(peer.ID): 1})
+		selfParent := GenRootSelfParent(peer.ID)
+		event := NewEvent(
+			[][]byte{[]byte(name)},
+			nil,
+			nil,
+			EventHashes{selfParent, EventHash{}},
+			nodes[i].Pub,
+			0,
+			FlagTable{selfParent: 1})
 		nodes[i].signAndAddEvent(event, name, index, orderedEvents)
 	}
 
@@ -2938,19 +3088,21 @@ func TestSparsePosetFrames(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			hex := fmt.Sprintf("0x%X", hash)
-			r, err := p.round(hex)
+			r, err := p.round(hash)
 			if err != nil {
 				t.Fatal(err)
 			}
 			t.Logf("frame %d event %d: %s, round %d",
-				frame.Round, k, getName(index, hex), r)
+				frame.Round, k, getName(index, hash), r)
 		}
 		for k, r := range frame.Roots {
-			sp := getName(index, r.SelfParent.Hash)
+			var hash EventHash
+			hash.Set(r.SelfParent.Hash)
+			sp := getName(index, hash)
 			var ops []string
 			for k := range r.Others {
-				ops = append(ops, getName(index, k))
+				_ = hash.Parse(k)
+				ops = append(ops, getName(index, hash))
 			}
 
 			t.Logf("frame %d root %d: self parent index %s:"+
@@ -2969,35 +3121,53 @@ func TestSparsePosetFrames(t *testing.T) {
 		2: {
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[w00],
-					CreatorID: participants[0].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w00]),
+					CreatorID:        participants[0].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[w10]: {Hash: index[e32],
-						CreatorID: participants[3].ID, Index: 1,
-						LamportTimestamp: 3, Round: 1},
+					hashString(index[w10]): {
+						Hash:             hashBytes(index[e32]),
+						CreatorID:        participants[3].ID,
+						Index:            1,
+						LamportTimestamp: 3,
+						Round:            1},
 				},
 			},
 			{
 				NextRound: 0,
-				SelfParent: &RootEvent{Hash: index[w01],
-					CreatorID: participants[1].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w01]),
+					CreatorID:        participants[1].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[e10]: {Hash: index[w00],
-						CreatorID: participants[0].ID, Index: 0,
-						LamportTimestamp: 0, Round: 0},
+					hashString(index[e10]): {
+						Hash:             hashBytes(index[w00]),
+						CreatorID:        participants[0].ID,
+						Index:            0,
+						LamportTimestamp: 0,
+						Round:            0},
 				},
 			},
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[w02],
-					CreatorID: participants[2].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w02]),
+					CreatorID:        participants[2].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[e21]: {Hash: index[e10],
-						CreatorID: participants[1].ID, Index: 1,
-						LamportTimestamp: 1, Round: 0},
+					hashString(index[e21]): {
+						Hash:             hashBytes(index[e10]),
+						CreatorID:        participants[1].ID,
+						Index:            1,
+						LamportTimestamp: 1,
+						Round:            0},
 				},
 			},
 			NewBaseRoot(participants[3].ID),
@@ -3005,138 +3175,210 @@ func TestSparsePosetFrames(t *testing.T) {
 		3: {
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[w10],
-					CreatorID: participants[0].ID, Index: 1,
-					LamportTimestamp: 4, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w10]),
+					CreatorID:        participants[0].ID,
+					Index:            1,
+					LamportTimestamp: 4,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[f01]: {Hash: index[w11],
-						CreatorID: participants[1].ID, Index: 2,
-						LamportTimestamp: 5, Round: 2},
+					hashString(index[f01]): {
+						Hash:             hashBytes(index[w11]),
+						CreatorID:        participants[1].ID,
+						Index:            2,
+						LamportTimestamp: 5,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[e10],
-					CreatorID: participants[1].ID, Index: 1,
-					LamportTimestamp: 1, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[e10]),
+					CreatorID:        participants[1].ID,
+					Index:            1,
+					LamportTimestamp: 1,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[w11]: {Hash: index[w10],
-						CreatorID: participants[0].ID, Index: 1,
-						LamportTimestamp: 4, Round: 1},
+					hashString(index[w11]): {
+						Hash:             hashBytes(index[w10]),
+						CreatorID:        participants[0].ID,
+						Index:            1,
+						LamportTimestamp: 4,
+						Round:            1},
 				},
 			},
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[e21],
-					CreatorID: participants[2].ID, Index: 1,
-					LamportTimestamp: 2, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[e21]),
+					CreatorID:        participants[2].ID,
+					Index:            1,
+					LamportTimestamp: 2,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[w12]: {Hash: index[f01],
-						CreatorID: participants[0].ID, Index: 2,
-						LamportTimestamp: 6, Round: 2},
+					hashString(index[w12]): {
+						Hash:             hashBytes(index[f01]),
+						CreatorID:        participants[0].ID,
+						Index:            2,
+						LamportTimestamp: 6,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 1,
-				SelfParent: &RootEvent{Hash: index[w03],
-					CreatorID: participants[3].ID, Index: 0,
-					LamportTimestamp: 0, Round: 0},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w03]),
+					CreatorID:        participants[3].ID,
+					Index:            0,
+					LamportTimestamp: 0,
+					Round:            0},
 				Others: map[string]*RootEvent{
-					index[e32]: {Hash: index[e21],
-						CreatorID: participants[2].ID, Index: 1,
-						LamportTimestamp: 2, Round: 1},
+					hashString(index[e32]): {
+						Hash:             hashBytes(index[e21]),
+						CreatorID:        participants[2].ID,
+						Index:            1,
+						LamportTimestamp: 2,
+						Round:            1},
 				},
 			},
 		},
 		4: {
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[w10],
-					CreatorID: participants[0].ID, Index: 1,
-					LamportTimestamp: 4, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w10]),
+					CreatorID:        participants[0].ID,
+					Index:            1,
+					LamportTimestamp: 4,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[f01]: {Hash: index[w11],
-						CreatorID: participants[1].ID, Index: 2,
-						LamportTimestamp: 5, Round: 2},
+					hashString(index[f01]): {
+						Hash:             hashBytes(index[w11]),
+						CreatorID:        participants[1].ID,
+						Index:            2,
+						LamportTimestamp: 5,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 3,
-				SelfParent: &RootEvent{Hash: index[w11],
-					CreatorID: participants[1].ID, Index: 2,
-					LamportTimestamp: 5, Round: 2},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w11]),
+					CreatorID:        participants[1].ID,
+					Index:            2,
+					LamportTimestamp: 5,
+					Round:            2},
 				Others: map[string]*RootEvent{
-					index[w21]: {Hash: index[w13],
-						CreatorID: participants[3].ID, Index: 2,
-						LamportTimestamp: 8, Round: 3},
+					hashString(index[w21]): {
+						Hash:             hashBytes(index[w13]),
+						CreatorID:        participants[3].ID,
+						Index:            2,
+						LamportTimestamp: 8,
+						Round:            3},
 				},
 			},
 			{
 				NextRound: 3,
-				SelfParent: &RootEvent{Hash: index[w12],
-					CreatorID: participants[2].ID, Index: 2,
-					LamportTimestamp: 7, Round: 2},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w12]),
+					CreatorID:        participants[2].ID,
+					Index:            2,
+					LamportTimestamp: 7,
+					Round:            2},
 				Others: map[string]*RootEvent{
-					index[w22]: {Hash: index[w21],
-						CreatorID: participants[1].ID, Index: 3,
-						LamportTimestamp: 9, Round: 3},
+					hashString(index[w22]): {
+						Hash:             hashBytes(index[w21]),
+						CreatorID:        participants[1].ID,
+						Index:            3,
+						LamportTimestamp: 9,
+						Round:            3},
 				},
 			},
 			{
 				NextRound: 3,
-				SelfParent: &RootEvent{Hash: index[e32],
-					CreatorID: participants[3].ID, Index: 1,
-					LamportTimestamp: 3, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[e32]),
+					CreatorID:        participants[3].ID,
+					Index:            1,
+					LamportTimestamp: 3,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[w13]: {Hash: index[w12],
-						CreatorID: participants[2].ID, Index: 2,
-						LamportTimestamp: 7, Round: 2},
+					hashString(index[w13]): {
+						Hash:             hashBytes(index[w12]),
+						CreatorID:        participants[2].ID,
+						Index:            2,
+						LamportTimestamp: 7,
+						Round:            2},
 				},
 			},
 		},
 		5: {
 			{
 				NextRound: 2,
-				SelfParent: &RootEvent{Hash: index[w10],
-					CreatorID: participants[0].ID, Index: 1,
-					LamportTimestamp: 4, Round: 1},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w10]),
+					CreatorID:        participants[0].ID,
+					Index:            1,
+					LamportTimestamp: 4,
+					Round:            1},
 				Others: map[string]*RootEvent{
-					index[f01]: {Hash: index[w11],
-						CreatorID: participants[1].ID, Index: 2,
-						LamportTimestamp: 5, Round: 2},
+					hashString(index[f01]): {
+						Hash:             hashBytes(index[w11]),
+						CreatorID:        participants[1].ID,
+						Index:            2,
+						LamportTimestamp: 5,
+						Round:            2},
 				},
 			},
 			{
 				NextRound: 4,
-				SelfParent: &RootEvent{Hash: index[w21],
-					CreatorID: participants[1].ID, Index: 3,
-					LamportTimestamp: 9, Round: 3},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w21]),
+					CreatorID:        participants[1].ID,
+					Index:            3,
+					LamportTimestamp: 9,
+					Round:            3},
 				Others: map[string]*RootEvent{
-					index[g13]: {Hash: index[w23],
-						CreatorID: participants[3].ID, Index: 3,
-						LamportTimestamp: 11, Round: 4},
+					hashString(index[g13]): {
+						Hash:             hashBytes(index[w23]),
+						CreatorID:        participants[3].ID,
+						Index:            3,
+						LamportTimestamp: 11,
+						Round:            4},
 				},
 			},
 			{
 				NextRound: 4,
-				SelfParent: &RootEvent{Hash: index[w22],
-					CreatorID: participants[2].ID, Index: 3,
-					LamportTimestamp: 10, Round: 3},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w22]),
+					CreatorID:        participants[2].ID,
+					Index:            3,
+					LamportTimestamp: 10,
+					Round:            3},
 				Others: map[string]*RootEvent{
-					index[w32]: {Hash: index[g13],
-						CreatorID: participants[1].ID, Index: 4,
-						LamportTimestamp: 12, Round: 4},
+					hashString(index[w32]): {
+						Hash:             hashBytes(index[g13]),
+						CreatorID:        participants[1].ID,
+						Index:            4,
+						LamportTimestamp: 12,
+						Round:            4},
 				},
 			},
 			{
 				NextRound: 4,
-				SelfParent: &RootEvent{Hash: index[w13],
-					CreatorID: participants[3].ID, Index: 2,
-					LamportTimestamp: 8, Round: 3},
+				SelfParent: &RootEvent{
+					Hash:             hashBytes(index[w13]),
+					CreatorID:        participants[3].ID,
+					Index:            2,
+					LamportTimestamp: 8,
+					Round:            3},
 				Others: map[string]*RootEvent{
-					index[w23]: {Hash: index[w22],
-						CreatorID: participants[2].ID, Index: 3,
-						LamportTimestamp: 10, Round: 3},
+					hashString(index[w23]): {
+						Hash:             hashBytes(index[w22]),
+						CreatorID:        participants[2].ID,
+						Index:            3,
+						LamportTimestamp: 10,
+						Round:            3},
 				},
 			},
 		},
@@ -3209,7 +3451,7 @@ func TestSparsePosetReset(t *testing.T) {
 
 		// Insert remaining Events into the Reset poset
 		for i, wev := range wireDiff {
-			eventName := getName(index, diff[i].Hex())
+			eventName := getName(index, diff[i].Hash())
 			ev, err := p2.ReadWireInfo(wev)
 			if err != nil {
 				t.Fatalf("ReadWireInfo(%s): %s", eventName, err)
@@ -3231,7 +3473,7 @@ func TestSparsePosetReset(t *testing.T) {
 
 }
 
-func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, check bool, t *testing.T) {
+func compareRoundClothos(p, p2 *Poset, index map[string]EventHash, round int64, check bool, t *testing.T) {
 	for i := round; i <= 5; i++ {
 		pRound, err := p.Store.GetRoundCreated(i)
 		if err != nil {
@@ -3245,8 +3487,8 @@ func compareRoundClothos(p, p2 *Poset, index map[string]string, round int64, che
 		// Check Round1 Clotho
 		pClotho := pRound.Clotho()
 		p2Clotho := p2Round.Clotho()
-		sort.Strings(pClotho)
-		sort.Strings(p2Clotho)
+		sort.Sort(pClotho)
+		sort.Sort(p2Clotho)
 		pwn := make([]string, len(pClotho))
 		p2wn := make([]string, len(p2Clotho))
 		for _, w := range pClotho {
@@ -3284,7 +3526,7 @@ func getDiff(p *Poset, known map[int64]int64, t *testing.T) []Event {
 	return diff
 }
 
-func getName(index map[string]string, hash string) string {
+func getName(index map[string]EventHash, hash EventHash) string {
 	for name, h := range index {
 		if h == hash {
 			return name
@@ -3293,18 +3535,19 @@ func getName(index map[string]string, hash string) string {
 	return ""
 }
 
-func compareRootEvents(t *testing.T, x, exp *RootEvent,
-	index map[string]string) {
-	if x.Hash != exp.Hash || x.Index != exp.Index ||
+func compareRootEvents(t *testing.T, x, exp *RootEvent, index map[string]EventHash) {
+	var xHash, expHash EventHash
+	xHash.Set(x.Hash)
+	expHash.Set(exp.Hash)
+	if xHash != expHash || x.Index != exp.Index ||
 		x.CreatorID != exp.CreatorID || x.Round != exp.Round ||
 		x.LamportTimestamp != exp.LamportTimestamp {
 		t.Fatalf("expected root event %s: %v, got %s: %v",
-			getName(index, exp.Hash), exp, getName(index, x.Hash), x)
+			getName(index, expHash), exp, getName(index, xHash), x)
 	}
 }
 
-func compareOtherParents(t *testing.T, x, exp map[string]*RootEvent,
-	index map[string]string) {
+func compareOtherParents(t *testing.T, x, exp map[string]*RootEvent, index map[string]EventHash) {
 	if len(x) != len(exp) {
 		t.Fatalf("expected number of other parents: %d, got: %d",
 			len(exp), len(x))
@@ -3312,7 +3555,9 @@ func compareOtherParents(t *testing.T, x, exp map[string]*RootEvent,
 
 	var others []string
 	for k := range x {
-		others = append(others, getName(index, k))
+		var hash EventHash
+		_ = hash.Parse(k)
+		others = append(others, getName(index, hash))
 	}
 
 	for k, v := range exp {
@@ -3324,7 +3569,7 @@ func compareOtherParents(t *testing.T, x, exp map[string]*RootEvent,
 	}
 }
 
-func compareRoots(t *testing.T, x, exp *Root, index map[string]string) {
+func compareRoots(t *testing.T, x, exp *Root, index map[string]EventHash) {
 	compareRootEvents(t, x.SelfParent, exp.SelfParent, index)
 	compareOtherParents(t, x.Others, exp.Others, index)
 	if exp.NextRound != x.NextRound {
@@ -3333,15 +3578,13 @@ func compareRoots(t *testing.T, x, exp *Root, index map[string]string) {
 	}
 }
 
-func compareEventMessages(t *testing.T, x, exp *EventMessage,
-	index map[string]string) {
+func compareEventMessages(t *testing.T, x, exp *EventMessage, index map[string]EventHash) {
 	if !reflect.DeepEqual(x.ClothoProof, exp.ClothoProof) ||
 		!bytes.Equal(x.FlagTable, exp.FlagTable) ||
 		x.Signature != exp.Signature {
 		hash, _ := exp.Body.Hash()
-		hex := fmt.Sprintf("0x%X", hash)
 		t.Fatalf("expcted message to event %s: %v, got: %v",
-			getName(index, hex), exp, x)
+			getName(index, hash), exp, x)
 	}
 	compareEventBody(t, x.Body, exp.Body)
 }
@@ -3354,4 +3597,16 @@ func compareEventBody(t *testing.T, x, exp *EventBody) {
 		!reflect.DeepEqual(x.Transactions, exp.Transactions) {
 		t.Fatalf("expcted event body: %v, got: %v", exp, x)
 	}
+}
+
+/*
+ * stuff
+ */
+
+func hashBytes(h EventHash) []byte {
+	return h.Bytes()
+}
+
+func hashString(h EventHash) string {
+	return h.String()
 }

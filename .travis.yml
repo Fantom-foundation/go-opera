@@ -11,7 +11,7 @@ before_install:
 - go get -v github.com/SamuelMarks/batch-ethkey
 - go get -u -d github.com/magefile/mage
 - pushd "$GOPATH/src/github.com/magefile/mage" && go run bootstrap.go && popd
-- if ! find vendor -mindepth 1 2>/dev/null | read; then make vendor; fi
+- make vendor
 addons:
   apt:
     packages:

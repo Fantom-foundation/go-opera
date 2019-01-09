@@ -20,5 +20,5 @@ message RoundCreatedMessage {
 }
 
 message RoundReceived {
-  repeated string Rounds = 1;
+  repeated bytes Rounds = 1;
 }

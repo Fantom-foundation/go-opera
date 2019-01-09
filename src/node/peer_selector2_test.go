@@ -1,17 +1,22 @@
 package node
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 func TestSmartSelectorEmpty(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(0)
+
 	ss := NewSmartPeerSelector(
-		fakePeers(0),
-		fakeAddr(0),
+		fp,
+		"",
 		func() (map[string]int64, error) {
 			return nil, nil
 		},
@@ -23,9 +28,12 @@ func TestSmartSelectorEmpty(t *testing.T) {
 func TestSmartSelectorLocalAddrOnly(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(1)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(1),
-		fakeAddr(0),
+		fp,
+		fps[0].NetAddr,
 		func() (map[string]int64, error) {
 			return nil, nil
 		},
@@ -37,17 +45,20 @@ func TestSmartSelectorLocalAddrOnly(t *testing.T) {
 func TestSmartSelectorUsed(t *testing.T) {
 	assert := assert.New(t)
 
+	fp := fakePeers(3)
+	fps := fp.ToPeerSlice()
+
 	ss := NewSmartPeerSelector(
-		fakePeers(2),
-		fakeAddr(0),
+		fp,
+		fps[0].NetAddr,
 		func() (map[string]int64, error) {
 			return nil, nil
 		},
 	)
 
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
-	assert.Equal(fakeAddr(1), ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
 }
 
 func TestSmartSelectorFlagged(t *testing.T) {
@@ -145,4 +156,16 @@ func BenchmarkSmartSelectorNext(b *testing.B) {
 		}
 	})
 
+}
+
+/*
+ * stuff
+ */
+
+func fakeFlagTable(participants *peers.Peers) map[string]int64 {
+	res := make(map[string]int64, participants.Len())
+	for _, p := range participants.ToPeerSlice() {
+		res[p.PubKeyHex] = rand.Int63n(2)
+	}
+	return res
 }

@@ -3,14 +3,14 @@ package poset
 import (
 	"fmt"
 
-	cm "github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 // Key struct
 type Key struct {
-	x string
-	y string
+	x EventHash
+	y EventHash
 }
 
 // ToString converts key to string
@@ -38,14 +38,14 @@ func NewBaseParentRoundInfo() ParentRoundInfo {
 // ParticipantEventsCache struct
 type ParticipantEventsCache struct {
 	participants *peers.Peers
-	rim          *cm.RollingIndexMap
+	rim          *common.RollingIndexMap
 }
 
 // NewParticipantEventsCache constructor
 func NewParticipantEventsCache(size int, participants *peers.Peers) *ParticipantEventsCache {
 	return &ParticipantEventsCache{
 		participants: participants,
-		rim:          cm.NewRollingIndexMap("ParticipantEvents", size, participants.ToIDSlice()),
+		rim:          common.NewRollingIndexMap("ParticipantEvents", size, participants.ToIDSlice()),
 	}
 }
 
@@ -59,80 +59,70 @@ func (pec *ParticipantEventsCache) participantID(participant string) (int64, err
 	peer, ok := pec.participants.ByPubKey[participant]
 
 	if !ok {
-		return -1, cm.NewStoreErr("ParticipantEvents", cm.UnknownParticipant, participant)
+		return -1, common.NewStoreErr("ParticipantEvents", common.UnknownParticipant, participant)
 	}
 
 	return peer.ID, nil
 }
 
 // Get return participant events with index > skip
-func (pec *ParticipantEventsCache) Get(participant string, skipIndex int64) ([]string, error) {
+func (pec *ParticipantEventsCache) Get(participant string, skipIndex int64) (EventHashes, error) {
 	id, err := pec.participantID(participant)
 	if err != nil {
-		return []string{}, err
+		return EventHashes{}, err
 	}
 
 	pe, err := pec.rim.Get(id, skipIndex)
 	if err != nil {
-		return []string{}, err
+		return EventHashes{}, err
 	}
 
-	res := make([]string, len(pe))
+	res := make(EventHashes, len(pe))
 	for k := 0; k < len(pe); k++ {
-		res[k] = pe[k].(string)
+		res[k].Set(pe[k].([]byte))
 	}
 	return res, nil
 }
 
 // GetItem get event for participant at index
-func (pec *ParticipantEventsCache) GetItem(participant string, index int64) (string, error) {
+func (pec *ParticipantEventsCache) GetItem(participant string, index int64) (hash EventHash, err error) {
 	id, err := pec.participantID(participant)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	item, err := pec.rim.GetItem(id, index)
 	if err != nil {
-		return "", err
+		return
 	}
-	return item.(string), nil
+
+	hash.Set(item.([]byte))
+	return
 }
 
 // GetLast get last event for participant
-func (pec *ParticipantEventsCache) GetLast(participant string) (string, error) {
+func (pec *ParticipantEventsCache) GetLast(participant string) (hash EventHash, err error) {
 	id, err := pec.participantID(participant)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	last, err := pec.rim.GetLast(id)
 	if err != nil {
-		return "", err
-	}
-	return last.(string), nil
-}
-
-// GetLastConsensus get last consensus for participant
-func (pec *ParticipantEventsCache) GetLastConsensus(participant string) (string, error) {
-	id, err := pec.participantID(participant)
-	if err != nil {
-		return "", err
+		return
 	}
 
-	last, err := pec.rim.GetLast(id)
-	if err != nil {
-		return "", err
-	}
-	return last.(string), nil
+	hash.Set(last.([]byte))
+	return
 }
 
 // Set the event for the participant
-func (pec *ParticipantEventsCache) Set(participant string, hash string, index int64) error {
+func (pec *ParticipantEventsCache) Set(participant string, hash EventHash, index int64) error {
 	id, err := pec.participantID(participant)
 	if err != nil {
 		return err
 	}
-	return pec.rim.Set(id, hash, index)
+	return pec.rim.Set(id, hash.Bytes(), index)
 }
 
 // Known returns [participant id] => lastKnownIndex
@@ -155,14 +145,14 @@ func (pec *ParticipantEventsCache) Import(other *ParticipantEventsCache) {
 // ParticipantBlockSignaturesCache struct
 type ParticipantBlockSignaturesCache struct {
 	participants *peers.Peers
-	rim          *cm.RollingIndexMap
+	rim          *common.RollingIndexMap
 }
 
 // NewParticipantBlockSignaturesCache constructor
 func NewParticipantBlockSignaturesCache(size int, participants *peers.Peers) *ParticipantBlockSignaturesCache {
 	return &ParticipantBlockSignaturesCache{
 		participants: participants,
-		rim:          cm.NewRollingIndexMap("ParticipantBlockSignatures", size, participants.ToIDSlice()),
+		rim:          common.NewRollingIndexMap("ParticipantBlockSignatures", size, participants.ToIDSlice()),
 	}
 }
 
@@ -170,7 +160,7 @@ func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (i
 	peer, ok := psc.participants.ByPubKey[participant]
 
 	if !ok {
-		return -1, cm.NewStoreErr("ParticipantBlockSignatures", cm.UnknownParticipant, participant)
+		return -1, common.NewStoreErr("ParticipantBlockSignatures", common.UnknownParticipant, participant)
 	}
 
 	return peer.ID, nil

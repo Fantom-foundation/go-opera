@@ -26,28 +26,28 @@ func NewRoundCreated() *RoundCreated {
 // NewRoundReceived constructor
 func NewRoundReceived() *RoundReceived {
 	return &RoundReceived{
-		Rounds: []string{},
+		Rounds: [][]byte{},
 	}
 }
 
 // AddEvent add event to round info (optionally set clotho)
-func (r *RoundCreated) AddEvent(x string, clotho bool) {
-	_, ok := r.Message.Events[x]
+func (r *RoundCreated) AddEvent(x EventHash, clotho bool) {
+	_, ok := r.Message.Events[x.String()]
 	if !ok {
-		r.Message.Events[x] = &RoundEvent{
+		r.Message.Events[x.String()] = &RoundEvent{
 			Clotho: clotho,
 		}
 	}
 }
 
 // SetConsensusEvent set an event as a consensus event
-func (r *RoundCreated) SetConsensusEvent(x string) {
-	e, ok := r.Message.Events[x]
+func (r *RoundCreated) SetConsensusEvent(x EventHash) {
+	e, ok := r.Message.Events[x.String()]
 	if !ok {
 		e = &RoundEvent{}
 	}
 	e.Consensus = true
-	r.Message.Events[x] = e
+	r.Message.Events[x.String()] = e
 }
 
 // SetRoundReceived set the received round for the given event
@@ -64,8 +64,8 @@ func (r *RoundCreated) SetRoundReceived(x string, round int64) {
 }
 
 // SetAtropos sets whether the given event is Atropos, otherwise it is Clotho when not found
-func (r *RoundCreated) SetAtropos(x string, f bool) {
-	e, ok := r.Message.Events[x]
+func (r *RoundCreated) SetAtropos(x EventHash, f bool) {
+	e, ok := r.Message.Events[x.String()]
 	if !ok {
 		e = &RoundEvent{
 			Clotho: true,
@@ -76,7 +76,7 @@ func (r *RoundCreated) SetAtropos(x string, f bool) {
 	} else {
 		e.Atropos = Trilean_FALSE
 	}
-	r.Message.Events[x] = e
+	r.Message.Events[x.String()] = e
 }
 
 // ClothoDecided return true if no clothos' fame is left undefined
@@ -90,52 +90,57 @@ func (r *RoundCreated) ClothoDecided() bool {
 }
 
 // Clotho return clothos
-func (r *RoundCreated) Clotho() []string {
-	var res []string
+func (r *RoundCreated) Clotho() EventHashes {
+	var res EventHashes
 	for x, e := range r.Message.Events {
 		if e.Clotho {
-			res = append(res, x)
+			var hash EventHash
+			_ = hash.Parse(x)
+			res = append(res, hash)
 		}
 	}
 	return res
 }
 
-// RoundEvents returns all non-consensus events for the created round 
-func (r *RoundCreated) RoundEvents() []string {
-	var res []string
+// RoundEvents returns all non-consensus events for the created round
+func (r *RoundCreated) RoundEvents() (res EventHashes) {
 	for x, e := range r.Message.Events {
 		if !e.Consensus {
-			res = append(res, x)
+			var hash EventHash
+			_ = hash.Parse(x)
+			res = append(res, hash)
 		}
 	}
 	return res
 }
 
 // ConsensusEvents returns all consensus events for the created round
-func (r *RoundCreated) ConsensusEvents() []string {
-	var res []string
+func (r *RoundCreated) ConsensusEvents() (res EventHashes) {
 	for x, e := range r.Message.Events {
 		if e.Consensus {
-			res = append(res, x)
+			var hash EventHash
+			_ = hash.Parse(x)
+			res = append(res, hash)
 		}
 	}
 	return res
 }
 
 // Atropos return Atropos
-func (r *RoundCreated) Atropos() []string {
-	var res []string
+func (r *RoundCreated) Atropos() (res []EventHash) {
 	for x, e := range r.Message.Events {
 		if e.Clotho && e.Atropos == Trilean_TRUE {
-			res = append(res, x)
+			var hash EventHash
+			_ = hash.Parse(x)
+			res = append(res, hash)
 		}
 	}
-	return res
+	return
 }
 
 // IsDecided checks if the event is a decided clotho
-func (r *RoundCreated) IsDecided(clotho string) bool {
-	w, ok := r.Message.Events[clotho]
+func (r *RoundCreated) IsDecided(clotho EventHash) bool {
+	w, ok := r.Message.Events[clotho.String()]
 	return ok && w.Clotho && w.Atropos != Trilean_UNDEFINED
 }
 

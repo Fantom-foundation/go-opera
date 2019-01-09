@@ -5,14 +5,13 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/golang/protobuf/proto"
 )
 
 func createDummyEventBody() EventBody {
 	body := EventBody{}
 	body.Transactions = [][]byte{[]byte("abc"), []byte("def")}
 	body.InternalTransactions = []*InternalTransaction{}
-	body.Parents = []string{"self", "other"}
+	body.Parents = [][]byte{[]byte("self"), []byte("other")}
 	body.Creator = []byte("public key")
 	body.BlockSignatures = []*BlockSignature{
 		&BlockSignature{
@@ -144,7 +143,8 @@ func TestWireEvent(t *testing.T) {
 
 func TestIsLoaded(t *testing.T) {
 	//nil payload
-	event := NewEvent(nil, nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, nil)
+
+	event := NewEvent(nil, nil, nil, make(EventHashes, 2), []byte("creator"), 1, nil)
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
@@ -183,13 +183,13 @@ func TestIsLoaded(t *testing.T) {
 }
 
 func TestEventFlagTable(t *testing.T) {
-	exp := map[string]int64{
-		"x": 1,
-		"y": 0,
-		"z": 2,
+	exp := FlagTable{
+		fakeEventHash("x"): 1,
+		fakeEventHash("y"): 0,
+		fakeEventHash("z"): 2,
 	}
 
-	event := NewEvent(nil, nil, nil, []string{"p1", "p2"}, []byte("creator"), 1, exp)
+	event := NewEvent(nil, nil, nil, make(EventHashes, 2), []byte("creator"), 1, exp)
 	if event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return false for nil Body.Transactions and Body.BlockSignatures")
 	}
@@ -209,32 +209,32 @@ func TestEventFlagTable(t *testing.T) {
 }
 
 func TestMergeFlagTable(t *testing.T) {
-	exp := map[string]int64{
-		"x": 1,
-		"y": 1,
-		"z": 1,
+	exp := FlagTable{
+		fakeEventHash("x"): 1,
+		fakeEventHash("y"): 1,
+		fakeEventHash("z"): 1,
 	}
 
-	syncData := []map[string]int64{
+	syncData := []FlagTable{
 		{
-			"x": 0,
-			"y": 1,
-			"z": 0,
+			fakeEventHash("x"): 0,
+			fakeEventHash("y"): 1,
+			fakeEventHash("z"): 0,
 		},
 		{
-			"x": 0,
-			"y": 0,
-			"z": 1,
+			fakeEventHash("x"): 0,
+			fakeEventHash("y"): 0,
+			fakeEventHash("z"): 1,
 		},
 	}
 
-	start := map[string]int64{
-		"x": 1,
-		"y": 0,
-		"z": 0,
+	start := FlagTable{
+		fakeEventHash("x"): 1,
+		fakeEventHash("y"): 0,
+		fakeEventHash("z"): 0,
 	}
 
-	ft, _ := proto.Marshal(&FlagTableWrapper{Body: start})
+	ft := start.Marshal()
 	event := Event{Message: &EventMessage{FlagTable: ft}}
 
 	for _, v := range syncData {
@@ -242,15 +242,25 @@ func TestMergeFlagTable(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		raw, _ := proto.Marshal(&FlagTableWrapper{Body: flagTable})
-		event.Message.FlagTable = raw
+		event.Message.FlagTable = flagTable.Marshal()
 	}
 
-	var res FlagTableWrapper
-	proto.Unmarshal(event.Message.FlagTable, &res)
-
-	if !reflect.DeepEqual(exp, res.Body) {
-		t.Fatalf("expected flag table: %+v, got: %+v", exp, res.Body)
+	res := FlagTable{}
+	err := res.Unmarshal(event.Message.FlagTable)
+	if err != nil {
+		t.Error(err)
 	}
+
+	if !reflect.DeepEqual(exp, res) {
+		t.Fatalf("expected flag table: %+v, got: %+v", exp, res)
+	}
+}
+
+/*
+ * stuff
+ */
+
+func fakeEventHash(s string) (hash EventHash) {
+	hash.Set([]byte(s))
+	return
 }

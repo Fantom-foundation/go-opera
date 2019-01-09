@@ -165,7 +165,7 @@ func TestDBEventMethods(t *testing.T) {
 				[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
 				[]InternalTransaction{},
 				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
-				[]string{"", ""},
+				make(EventHashes, 2),
 				p.pubKey,
 				k, nil)
 			event.Sign(p.privKey)
@@ -185,7 +185,7 @@ func TestDBEventMethods(t *testing.T) {
 	// check events where correctly inserted and can be retrieved
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.dbGetEventBlock(ev.Hex())
+			rev, err := store.dbGetEventBlock(ev.Hash())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -213,10 +213,10 @@ func TestDBEventMethods(t *testing.T) {
 	for i, dte := range dbTopologicalEvents {
 		te := topologicalEvents[i]
 
-		if dte.Hex() != te.Hex() {
+		if dte.Hash() != te.Hash() {
 			t.Fatalf("dbTopologicalEvents[%d].Hex should be %s, not %s", i,
-				te.Hex(),
-				dte.Hex())
+				te.Hash(),
+				dte.Hash())
 		}
 		if !te.Message.Body.Equals(dte.Message.Body) {
 			t.Fatalf("dbTopologicalEvents[%d].Body should be %#v, not %#v", i,
@@ -247,9 +247,9 @@ func TestDBEventMethods(t *testing.T) {
 
 		expectedEvents := events[p.hex][skipIndex+1:]
 		for k, e := range expectedEvents {
-			if e.Hex() != pEvents[k] {
+			if e.Hash() != pEvents[k] {
 				t.Fatalf("ParticipantEvents[%s][%d] should be %s, not %s",
-					p.hex, k, e.Hex(), pEvents[k])
+					p.hex, k, e.Hash(), pEvents[k])
 			}
 		}
 	}
@@ -266,11 +266,11 @@ func TestDBRoundMethods(t *testing.T) {
 		event := NewEvent([][]byte{},
 			[]InternalTransaction{},
 			[]BlockSignature{},
-			[]string{"", ""},
+			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
 		events[p.hex] = event
-		round.AddEvent(event.Hex(), true)
+		round.AddEvent(event.Hash(), true)
 	}
 
 	if err := store.dbSetRoundCreated(0, *round); err != nil {
@@ -292,7 +292,7 @@ func TestDBRoundMethods(t *testing.T) {
 		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
 	for _, w := range expectedClothos {
-		if !contains(clothos, w) {
+		if !clothos.Contains(w) {
 			t.Fatalf("Clothos should contain %s", w)
 		}
 	}
@@ -405,7 +405,7 @@ func TestDBFrameMethods(t *testing.T) {
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
 			[]InternalTransaction{},
 			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
-			[]string{"", ""},
+			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
 		event.Sign(p.privKey)
@@ -452,10 +452,11 @@ func TestBadgerEvents(t *testing.T) {
 	for _, p := range participants {
 		var items []Event
 		for k := int64(0); k < testSize; k++ {
-			event := NewEvent([][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
+			event := NewEvent(
+				[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
 				[]InternalTransaction{},
 				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
-				[]string{"", ""},
+				make(EventHashes, 2),
 				p.pubKey,
 				k, nil)
 			items = append(items, event)
@@ -470,7 +471,7 @@ func TestBadgerEvents(t *testing.T) {
 	// check that events were correclty inserted
 	for p, evs := range events {
 		for k, ev := range evs {
-			rev, err := store.GetEventBlock(ev.Hex())
+			rev, err := store.GetEventBlock(ev.Hash())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -496,9 +497,9 @@ func TestBadgerEvents(t *testing.T) {
 
 		expectedEvents := events[p.hex][skipIndex+1:]
 		for k, e := range expectedEvents {
-			if e.Hex() != pEvents[k] {
+			if e.Hash() != pEvents[k] {
 				t.Fatalf("ParticipantEvents[%s][%d] should be %s, not %s",
-					p.hex, k, e.Hex(), pEvents[k])
+					p.hex, k, e.Hash(), pEvents[k])
 			}
 		}
 	}
@@ -511,9 +512,9 @@ func TestBadgerEvents(t *testing.T) {
 		}
 
 		evs := events[p.hex]
-		expectedLast := evs[len(evs)-1]
-		if last != expectedLast.Hex() {
-			t.Fatalf("%s last should be %s, not %s", p.hex, expectedLast.Hex(), last)
+		expectedLast := evs[len(evs)-1].Hash()
+		if last != expectedLast {
+			t.Fatalf("%s last should be %s, not %s", p.hex, expectedLast.String(), last.String())
 		}
 	}
 
@@ -548,11 +549,11 @@ func TestBadgerRounds(t *testing.T) {
 		event := NewEvent([][]byte{},
 			[]InternalTransaction{},
 			[]BlockSignature{},
-			[]string{"", ""},
+			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
 		events[p.hex] = event
-		round.AddEvent(event.Hex(), true)
+		round.AddEvent(event.Hash(), true)
 	}
 
 	if err := store.SetRoundCreated(0, *round); err != nil {
@@ -578,7 +579,7 @@ func TestBadgerRounds(t *testing.T) {
 		t.Fatalf("There should be %d clothos, not %d", len(expectedClothos), len(clothos))
 	}
 	for _, w := range expectedClothos {
-		if !contains(clothos, w) {
+		if !clothos.Contains(w) {
 			t.Fatalf("Clothos should contain %s", w)
 		}
 	}
@@ -665,7 +666,7 @@ func TestBadgerFrames(t *testing.T) {
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
 			[]InternalTransaction{},
 			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
-			[]string{"", ""},
+			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
 		event.Sign(p.privKey)

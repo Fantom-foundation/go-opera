@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
@@ -65,9 +66,9 @@ ex 2:
 // NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
 // of a Poset.
 func NewBaseRootEvent(creatorID int64) RootEvent {
-	hash := fmt.Sprintf("Root%d", creatorID)
+	hash := GenRootSelfParent(creatorID)
 	res := RootEvent{
-		Hash:             hash,
+		Hash:             hash.Bytes(),
 		CreatorID:        creatorID,
 		Index:            -1,
 		LamportTimestamp: -1,
@@ -78,7 +79,7 @@ func NewBaseRootEvent(creatorID int64) RootEvent {
 
 // Equals compares two root events for equality
 func (re *RootEvent) Equals(that *RootEvent) bool {
-	return re.Hash == that.Hash &&
+	return bytes.Equal(re.Hash, that.Hash) &&
 		re.CreatorID == that.CreatorID &&
 		re.Index == that.Index &&
 		re.LamportTimestamp == that.LamportTimestamp &&
@@ -137,4 +138,12 @@ func (root *Root) ProtoMarshal() ([]byte, error) {
 // ProtoUnmarshal converts protobuff to a root struct
 func (root *Root) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, root)
+}
+
+// GenRootSelfParent generates Event's parent hash from participant ID.
+// Use it for first Event only.
+func GenRootSelfParent(participantID int64) (hash EventHash) {
+	bytes := []byte(fmt.Sprintf("Root%d", participantID))
+	hash.Set(bytes)
+	return
 }

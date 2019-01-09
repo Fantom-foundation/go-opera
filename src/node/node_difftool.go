@@ -14,7 +14,7 @@ func (n *Node) GetLastBlockIndex() int64 {
 }
 
 // RoundClothos returns all clothos in a round
-func (n *Node) RoundClothos(i int64) []string {
+func (n *Node) RoundClothos(i int64) poset.EventHashes {
 	return n.core.poset.Store.RoundClothos(i)
 }
 

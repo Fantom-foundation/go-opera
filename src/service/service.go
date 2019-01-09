@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Fantom-foundation/go-lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/sirupsen/logrus"
 )
 
@@ -97,7 +98,16 @@ func (s *Service) GetParticipants(w http.ResponseWriter, r *http.Request) {
 // GetEventBlock returns a specific event block by id
 func (s *Service) GetEventBlock(w http.ResponseWriter, r *http.Request) {
 	param := r.URL.Path[len("/event/"):]
-	event, err := s.node.GetEventBlock(param)
+
+	var hash poset.EventHash
+	err := hash.Parse(param)
+	if err != nil {
+		s.logger.WithError(err).Errorf("Parsing event hash %s", param)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	event, err := s.node.GetEventBlock(hash)
 	if err != nil {
 		s.logger.WithError(err).Errorf("Retrieving event %s", param)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
