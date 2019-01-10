@@ -40,6 +40,15 @@ func runSingleLachesis(config *CLIConfig) error {
 		mw := io.MultiWriter(os.Stdout, f)
 		config.Lachesis.NodeConfig.Logger.SetOutput(mw)
 	}
+	if config.Syslog {
+		hook, err := lachesis_log.NewSyslogHook("", "", "go-lachesis")
+		if err == nil {
+			config.Lachesis.NodeConfig.Logger.Hooks.Add(hook)
+			config.Lachesis.NodeConfig.Logger.SetFormatter(&logrus.TextFormatter{
+				DisableColors: true,
+			})
+		}
+	}
 
 	lachesis_log.NewLocal(config.Lachesis.Logger, config.Lachesis.LogLevel)
 
@@ -122,8 +131,13 @@ func AddRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("datadir", config.Lachesis.DataDir, "Top-level directory for configuration and data")
 	cmd.Flags().String("log", config.Lachesis.LogLevel, "debug, info, warn, error, fatal, panic")
 	cmd.Flags().Bool("log2file", config.Log2file, "duplicate log output into file lachesis_<BindAddr>.log")
-	if runtime.GOOS != "windows" {
+	switch runtime.GOOS {
+	default:
+		cmd.Flags().Bool("syslog", config.Syslog, "duplicate log output into syslog")
+		fallthrough
+	case "plan9", "nacl":
 		cmd.Flags().String("pidfile", config.Pidfile, "pidfile location; /tmp/go-lachesis.pid by default")
+	case "windows":
 	}
 
 	// Network
