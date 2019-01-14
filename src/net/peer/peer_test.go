@@ -2,6 +2,7 @@ package peer_test
 
 import (
 	"context"
+	"net"
 	"os"
 	"reflect"
 	"testing"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/net"
+	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
 	"github.com/Fantom-foundation/go-lachesis/src/net/peer"
 )
 
@@ -43,7 +44,7 @@ func TestPeerClient(t *testing.T) {
 			}
 		}()
 
-		resp := &net.SyncResponse{}
+		resp := &lnet.SyncResponse{}
 		if err := tr.Sync(
 			ctx, target, expSyncRequest, resp); err != nil {
 			t.Fatal(err)
@@ -70,7 +71,7 @@ func TestPeerClient(t *testing.T) {
 			}
 		}()
 
-		resp := &net.EagerSyncResponse{}
+		resp := &lnet.EagerSyncResponse{}
 		if err := tr.ForceSync(
 			ctx, target, expEagerSyncRequest, resp); err != nil {
 			t.Fatal(err)
@@ -99,7 +100,7 @@ func TestPeerClient(t *testing.T) {
 			}
 		}()
 
-		resp := &net.FastForwardResponse{}
+		resp := &lnet.FastForwardResponse{}
 		if err := tr.FastForward(
 			ctx, target, expFastForwardRequest, resp); err != nil {
 			t.Fatal(err)
@@ -117,13 +118,19 @@ func TestPeerClose(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)
 
+	conf := &peer.BackendConfig{
+		ReceiveTimeout: timeout,
+		ProcessTimeout: timeout,
+		IdleTimeout:    timeout,
+	}
+
 	network := newNetwork(t, done, logger, connectLimit,
-		expSyncResponse, timeout, timeout, timeout, netSize)
+		expSyncResponse, conf, timeout, netSize)
 	defer networkStop(t, network)
 
 	runClient := func(cli, srv *node, errorIsNil bool) {
 		req := expSyncRequest
-		resp := &net.SyncResponse{}
+		resp := &lnet.SyncResponse{}
 		err := cli.transport.Sync(context.Background(),
 			srv.address, req, resp)
 		if errorIsNil && err != nil {
@@ -152,11 +159,12 @@ func TestPeerClose(t *testing.T) {
 }
 
 func newNode(t *testing.T, done chan struct{}, logger logrus.FieldLogger,
-	limit int, resp interface{}, backendTimeout, clientTimeout,
-	idleTimeout time.Duration) *node {
+	limit int, resp interface{}, backConf *peer.BackendConfig,
+	clientTimeout time.Duration) *node {
 	createFu := func(target string,
 		timeout time.Duration) (peer.SyncClient, error) {
-		rClient, err := peer.NewRPCClient(peer.TCP, target, timeout)
+		rClient, err := peer.NewRPCClient(
+			peer.TCP, target, timeout, net.DialTimeout)
 		if err != nil {
 			return nil, err
 		}
@@ -164,17 +172,18 @@ func newNode(t *testing.T, done chan struct{}, logger logrus.FieldLogger,
 	}
 	producer := peer.NewProducer(limit, clientTimeout, createFu)
 	address := newAddress()
-	backend := newBackend(t, logger, address, done, resp,
-		backendTimeout, backendTimeout, idleTimeout, 0)
-	return &node{address, peer.NewTransport(logger, producer, backend)}
+	backend := newBackend(t, backConf, logger, address, done,
+		resp, 0, net.Listen)
+	return &node{address: address,
+		transport: peer.NewTransport(logger, producer, backend)}
 }
 
 func newNetwork(t *testing.T, done chan struct{}, logger logrus.FieldLogger,
-	limit int, resp interface{}, backendTimeout, dialTimeout,
-	idleTimeout time.Duration, size int) (network []*node) {
+	limit int, resp interface{}, backConf *peer.BackendConfig,
+	dialTimeout time.Duration, size int) (network []*node) {
 	for i := 0; i < size; i++ {
-		network = append(network, newNode(t, done, logger, limit,
-			resp, backendTimeout, dialTimeout, idleTimeout))
+		network = append(network, newNode(
+			t, done, logger, limit, resp, backConf, dialTimeout))
 	}
 	return network
 }

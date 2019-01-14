@@ -2,8 +2,11 @@ package peer_test
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/net"
 	"github.com/Fantom-foundation/go-lachesis/src/net/peer"
@@ -13,12 +16,19 @@ type env struct {
 	shutdown bool
 	done     chan struct{}
 	handler  *peer.Lachesis
+	mtx      sync.Mutex
+	err      []error
 }
 
-func newEnv(t *testing.T, request, response interface{}, err error,
+func newEnv(request, response interface{}, err error,
 	delay, timeout time.Duration, receiver chan *net.RPC) *env {
 	done := make(chan struct{})
 	handler := peer.NewLachesis(nil, receiver, timeout, timeout)
+
+	environment := &env{
+		done:    done,
+		handler: handler,
+	}
 
 	// Processing simulation.
 	go func() {
@@ -32,8 +42,11 @@ func newEnv(t *testing.T, request, response interface{}, err error,
 					return
 				}
 				if !reflect.DeepEqual(r.Command, request) {
-					t.Fatalf("expected request %+v, got %+v",
+					err := errors.Errorf("expected request %+v, got %+v",
 						request, r)
+					environment.mtx.Lock()
+					environment.err = append(environment.err, err)
+					environment.mtx.Unlock()
 				}
 				req = r
 			}
@@ -49,36 +62,39 @@ func newEnv(t *testing.T, request, response interface{}, err error,
 			}
 		}
 	}()
-	return &env{
-		done:    done,
-		handler: handler,
-	}
+	return environment
 }
 
-func (e *env) Close() {
+func (e *env) close(t *testing.T) {
 	if e.shutdown {
 		return
 	}
 	e.shutdown = true
 	close(e.done)
+
+	e.mtx.Lock()
+	defer e.mtx.Unlock()
+	if len(e.err) != 0 {
+		t.Fatal(e.err[0])
+	}
 }
 
 func TestLachesisSync(t *testing.T) {
 	receiver := make(chan *net.RPC)
-	env := newEnv(t, expSyncRequest, expSyncResponse,
+	env := newEnv(expSyncRequest, expSyncResponse,
 		testError, 0, time.Second, receiver)
-	defer env.Close()
+	defer env.close(t)
 
 	resp := &net.SyncResponse{}
 	if err := env.handler.Sync(expSyncRequest, resp); err == nil {
 		t.Fatalf("expected error %s, got: error is null", testError)
 	}
-	env.Close()
+	env.close(t)
 
 	receiver = make(chan *net.RPC)
-	env = newEnv(t, expSyncRequest, expSyncResponse,
+	env = newEnv(expSyncRequest, expSyncResponse,
 		nil, 0, time.Second, receiver)
-	defer env.Close()
+	defer env.close(t)
 
 	resp = &net.SyncResponse{}
 	if err := env.handler.Sync(expSyncRequest, resp); err != nil {
@@ -93,20 +109,20 @@ func TestLachesisSync(t *testing.T) {
 
 func TestLachesisForceSync(t *testing.T) {
 	receiver := make(chan *net.RPC)
-	env := newEnv(t, expEagerSyncRequest, expEagerSyncResponse,
+	env := newEnv(expEagerSyncRequest, expEagerSyncResponse,
 		testError, 0, time.Second, receiver)
-	defer env.Close()
+	defer env.close(t)
 
 	resp := &net.EagerSyncResponse{}
 	if err := env.handler.ForceSync(expEagerSyncRequest, resp); err == nil {
 		t.Fatalf("expected error %s, got: error is null", testError)
 	}
-	env.Close()
+	env.close(t)
 
 	receiver = make(chan *net.RPC)
-	env = newEnv(t, expEagerSyncRequest, expEagerSyncResponse,
+	env = newEnv(expEagerSyncRequest, expEagerSyncResponse,
 		nil, 0, time.Second, receiver)
-	defer env.Close()
+	defer env.close(t)
 
 	resp = &net.EagerSyncResponse{}
 	if err := env.handler.ForceSync(expEagerSyncRequest, resp); err != nil {
@@ -127,18 +143,18 @@ func TestLachesisFastForward(t *testing.T) {
 	expResponse := newFastForwardResponse(t)
 
 	receiver := make(chan *net.RPC)
-	env := newEnv(t, request, expResponse, testError, 0, time.Second, receiver)
-	defer env.Close()
+	env := newEnv(request, expResponse, testError, 0, time.Second, receiver)
+	defer env.close(t)
 
 	resp := &net.FastForwardResponse{}
 	if err := env.handler.FastForward(request, resp); err == nil {
 		t.Fatalf("expected error %s, got: error is null", testError)
 	}
-	env.Close()
+	env.close(t)
 
 	receiver = make(chan *net.RPC)
-	env = newEnv(t, request, expResponse, nil, 0, time.Second, receiver)
-	defer env.Close()
+	env = newEnv(request, expResponse, nil, 0, time.Second, receiver)
+	defer env.close(t)
 
 	resp = &net.FastForwardResponse{}
 	if err := env.handler.FastForward(request, resp); err != nil {
@@ -155,9 +171,9 @@ func TestTimeout(t *testing.T) {
 	delay := time.Second
 
 	t.Run("ReceiverIsBusy", func(t *testing.T) {
-		env := newEnv(t, expSyncRequest, expSyncResponse,
+		env := newEnv(expSyncRequest, expSyncResponse,
 			nil, delay/2, delay/2, nil)
-		defer env.Close()
+		defer env.close(t)
 
 		resp := &net.SyncResponse{}
 		if err := env.handler.Sync(
@@ -169,9 +185,9 @@ func TestTimeout(t *testing.T) {
 
 	t.Run("ProcessingTimeout", func(t *testing.T) {
 		receiver := make(chan *net.RPC)
-		env := newEnv(t, expSyncRequest, expSyncResponse,
+		env := newEnv(expSyncRequest, expSyncResponse,
 			nil, delay, delay/2, receiver)
-		defer env.Close()
+		defer env.close(t)
 
 		resp := &net.SyncResponse{}
 		if err := env.handler.Sync(

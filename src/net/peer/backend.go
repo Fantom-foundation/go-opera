@@ -20,6 +20,9 @@ const (
 	TCP = "tcp"
 )
 
+// CreateListenerFunc creates a new network listener.
+type CreateListenerFunc func(network, address string) (net.Listener, error)
+
 // SyncServer is an interface representing methods for sync server.
 type SyncServer interface {
 	ReceiverChannel() <-chan *lnet.RPC
@@ -27,14 +30,22 @@ type SyncServer interface {
 	Close() error
 }
 
+// BackendConfig is a configuration for a sync server.
+type BackendConfig struct {
+	ReceiveTimeout time.Duration
+	ProcessTimeout time.Duration
+	IdleTimeout    time.Duration
+}
+
 // Backend is sync server.
 type Backend struct {
-	done        chan struct{}
-	idleTimeout time.Duration
-	listener    *net.TCPListener
-	logger      logrus.FieldLogger
-	receiver    chan *lnet.RPC
-	server      *rpc.Server
+	done         chan struct{}
+	idleTimeout  time.Duration
+	listener     net.Listener
+	listenerFunc CreateListenerFunc
+	logger       logrus.FieldLogger
+	receiver     chan *lnet.RPC
+	server       *rpc.Server
 
 	mtx      sync.RWMutex
 	shutdown bool
@@ -45,24 +56,36 @@ type Backend struct {
 	wg *sync.WaitGroup
 }
 
+// NewBackendConfig creates a default a sync server config.
+func NewBackendConfig() *BackendConfig {
+	return &BackendConfig{
+		ReceiveTimeout: time.Minute,
+		ProcessTimeout: time.Minute,
+		IdleTimeout:    time.Minute * 10,
+	}
+}
+
 // NewBackend creates new sync Backend.
-func NewBackend(receiveTimeout, processTimeout, idleTimeout time.Duration,
-	logger logrus.FieldLogger) *Backend {
+func NewBackend(conf *BackendConfig,
+	logger logrus.FieldLogger, listenerFunc CreateListenerFunc) *Backend {
 	conns := make(map[net.Conn]bool)
 	receiver := make(chan *lnet.RPC)
 	done := make(chan struct{})
 	rpcServer := rpc.NewServer()
-	rpcServer.RegisterName(lachesis, NewLachesis(
-		done, receiver, receiveTimeout, processTimeout))
+	if err := rpcServer.RegisterName(lachesis, NewLachesis(
+		done, receiver, conf.ReceiveTimeout, conf.ProcessTimeout)); err != nil {
+		logger.Panic(err)
+	}
 
 	return &Backend{
-		conns:       conns,
-		done:        done,
-		idleTimeout: idleTimeout,
-		logger:      logger,
-		receiver:    receiver,
-		server:      rpcServer,
-		wg:          &sync.WaitGroup{},
+		conns:        conns,
+		done:         done,
+		idleTimeout:  conf.IdleTimeout,
+		listenerFunc: listenerFunc,
+		logger:       logger,
+		receiver:     receiver,
+		server:       rpcServer,
+		wg:           &sync.WaitGroup{},
 	}
 }
 
@@ -86,13 +109,7 @@ func (srv *Backend) ListenAndServe(network, address string) error {
 	errChan := make(chan error)
 
 	go func() {
-		tcpAddr, err := net.ResolveTCPAddr(network, address)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		listener, err := net.ListenTCP(network, tcpAddr)
+		listener, err := srv.listenerFunc(network, address)
 		if err != nil {
 			errChan <- err
 			return
@@ -103,7 +120,7 @@ func (srv *Backend) ListenAndServe(network, address string) error {
 		errChan <- nil
 
 		for {
-			conn, err := listener.AcceptTCP()
+			conn, err := listener.Accept()
 			if err != nil {
 				return
 			}
@@ -247,13 +264,19 @@ func (c *serverCodec) Close() error {
 }
 
 func (c *serverCodec) decode(e interface{}) error {
-	c.rwc.SetDeadline(time.Now().Add(c.idleTimeout))
-	return c.dec.Decode(e)
+	err := c.rwc.SetDeadline(time.Now().Add(c.idleTimeout))
+	if err == nil {
+		err = c.dec.Decode(e)
+	}
+	return err
 }
 
 func (c *serverCodec) encode(e interface{}) error {
-	c.rwc.SetDeadline(time.Now().Add(c.idleTimeout))
-	return c.enc.Encode(e)
+	err := c.rwc.SetDeadline(time.Now().Add(c.idleTimeout))
+	if err == nil {
+		err = c.enc.Encode(e)
+	}
+	return err
 }
 
 func (c *serverCodec) flush() error {

@@ -20,6 +20,7 @@ type SyncPeer interface {
 		req *net.EagerSyncRequest, resp *net.EagerSyncResponse) error
 	FastForward(ctx context.Context, target string,
 		req *net.FastForwardRequest, resp *net.FastForwardResponse) error
+	ReceiverChannel() <-chan *net.RPC
 	Close() error
 }
 
@@ -109,6 +110,7 @@ func (tr *Peer) forceSync(ctx context.Context, target string,
 		return err
 	}
 	tr.clientProducer.Pull(target, cli)
+
 	return nil
 }
 
@@ -142,7 +144,16 @@ func (tr *Peer) fastForward(ctx context.Context, target string,
 		return err
 	}
 	tr.clientProducer.Pull(target, cli)
+
 	return nil
+}
+
+// ReceiverChannel returns a sync server receiver channel.
+func (tr *Peer) ReceiverChannel() <-chan *net.RPC {
+	tr.mtx.Lock()
+	defer tr.mtx.Unlock()
+
+	return tr.server.ReceiverChannel()
 }
 
 // Close closes the transport.
@@ -169,6 +180,7 @@ func (tr *Peer) Close() error {
 
 	// Waiting for all outgoing connections to complete.
 	tr.wg.Wait()
+
 	return nil
 }
 

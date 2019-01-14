@@ -10,8 +10,12 @@ import (
 )
 
 // CreateSyncClientFunc is a function to create a sync client.
-type CreateSyncClientFunc = func(target string,
+type CreateSyncClientFunc func(target string,
 	timeout time.Duration) (SyncClient, error)
+
+// CreateNetConnFunc is a function to create new network connection.
+type CreateNetConnFunc func(network,
+	address string, timeout time.Duration) (net.Conn, error)
 
 // RPCClient is an interface representing methods for a RPC Client.
 type RPCClient interface {
@@ -38,8 +42,9 @@ type Client struct {
 
 // NewRPCClient creates new RPC client.
 func NewRPCClient(
-	network, address string, timeout time.Duration) (*rpc.Client, error) {
-	conn, err := net.DialTimeout(network, address, timeout)
+	network, address string, timeout time.Duration,
+	createNetConnFunc CreateNetConnFunc) (*rpc.Client, error) {
+	conn, err := createNetConnFunc(network, address, timeout)
 	if err != nil {
 		return nil, err
 	}
