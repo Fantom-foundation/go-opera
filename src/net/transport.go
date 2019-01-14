@@ -12,12 +12,12 @@ type RPCResponse struct {
 type RPC struct {
 	Command  interface{}
 	Reader   io.Reader
-	RespChan chan<- RPCResponse
+	RespChan chan<- *RPCResponse
 }
 
 // Respond is used to respond with a response, error or both
 func (r *RPC) Respond(resp interface{}, err error) {
-	r.RespChan <- RPCResponse{resp, err}
+	r.RespChan <- &RPCResponse{resp, err}
 }
 
 // Transport provides an interface for network transports
@@ -25,7 +25,7 @@ func (r *RPC) Respond(resp interface{}, err error) {
 type Transport interface {
 	// Consumer returns a channel that can be used to
 	// consume and respond to RPC requests.
-	Consumer() <-chan RPC
+	Consumer() <-chan *RPC
 
 	// LocalAddr is used to return our local address to distinguish from our peers.
 	LocalAddr() string

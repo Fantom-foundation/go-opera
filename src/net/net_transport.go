@@ -55,7 +55,7 @@ type NetworkTransport struct {
 	connPoolLock sync.Mutex
 	maxPool      int
 
-	consumeCh chan RPC
+	consumeCh chan *RPC
 
 	stream StreamLayer
 
@@ -105,7 +105,7 @@ func NewNetworkTransport(
 		cancel:    cancel,
 		ctx:       ctx,
 		connPool:  make(map[string][]*netConn),
-		consumeCh: make(chan RPC),
+		consumeCh: make(chan *RPC),
 		logger:    logger,
 		maxPool:   maxPool,
 		stream:    stream,
@@ -126,7 +126,7 @@ func (n *NetworkTransport) Close() {
 }
 
 // Consumer implements the Transport interface.
-func (n *NetworkTransport) Consumer() <-chan RPC {
+func (n *NetworkTransport) Consumer() <-chan *RPC {
 	return n.consumeCh
 }
 
@@ -354,8 +354,8 @@ func (n *NetworkTransport) handleCommand(r *bufio.Reader, dec *json.Decoder, enc
 	}
 
 	// Create the RPC object
-	respCh := make(chan RPCResponse, 1)
-	rpc := RPC{
+	respCh := make(chan *RPCResponse, 1)
+	rpc := &RPC{
 		RespChan: respCh,
 	}
 

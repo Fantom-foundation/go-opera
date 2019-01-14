@@ -65,7 +65,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 		}
 	})
 
-	t.Run("EagerSync", func(t *testing.T) {
+	t.Run("ForceSync", func(t *testing.T) {
 		assert := assert.New(t)
 
 		expectedReq := &EagerSyncRequest{
