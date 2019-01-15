@@ -31,7 +31,7 @@ func initInmemStore(cacheSize int) (*InmemStore, []pub) {
 		participantPubs[len(participantPubs)-1].id = peer.ID
 	}
 
-	store := NewInmemStore(participants, cacheSize)
+	store := NewInmemStore(participants, cacheSize, nil)
 	return store, participantPubs
 }
 

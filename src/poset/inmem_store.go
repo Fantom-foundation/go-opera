@@ -6,9 +6,13 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/hashicorp/golang-lru"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/hashicorp/golang-lru"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
 )
 
 // InmemStore struct
@@ -34,10 +38,12 @@ type InmemStore struct {
 	lastRoundLocker          sync.RWMutex
 	lastBlockLocker          sync.RWMutex
 	totConsensusEventsLocker sync.RWMutex
+
+	states state.Database
 }
 
 // NewInmemStore constructor
-func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
+func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config) *InmemStore {
 	rootsByParticipant := make(map[string]Root)
 
 	for pk, pid := range participants.ByPubKey {
@@ -87,6 +93,9 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 		lastRound:              -1,
 		lastBlock:              -1,
 		lastConsensusEvents:    map[string]EventHash{},
+		states: state.NewDatabase(
+			kvdb.NewTable(
+				kvdb.NewMemDatabase(), statePrefix)),
 	}
 
 	participants.OnNewPeer(func(peer *peers.Peer) {
@@ -102,6 +111,10 @@ func NewInmemStore(participants *peers.Peers, cacheSize int) *InmemStore {
 	})
 
 	store.setPeers(0, participants)
+
+	// TODO: replace with real genesis
+	pos.FakeGenesis(participants, posConf, store.states)
+
 	return store
 }
 
@@ -464,4 +477,9 @@ func (s *InmemStore) NeedBoostrap() bool {
 // StorePath getter
 func (s *InmemStore) StorePath() string {
 	return ""
+}
+
+// StateDB returns state database
+func (s *InmemStore) StateDB() state.Database {
+	return s.states
 }

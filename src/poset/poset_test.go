@@ -15,6 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
 )
 
 const (
@@ -212,12 +213,12 @@ func createPoset(t testing.TB,
 	var store Store
 	if db {
 		var err error
-		store, err = NewBadgerStore(participants, cacheSize, badgerDir)
+		store, err = NewBadgerStore(participants, cacheSize, badgerDir, nil)
 		if err != nil {
 			t.Fatal("ERROR creating badger store", err)
 		}
 	} else {
-		store = NewInmemStore(participants, cacheSize)
+		store = NewInmemStore(participants, cacheSize, nil)
 	}
 
 	poset := NewPoset(participants, store, nil, logger)
@@ -485,7 +486,7 @@ func TestFork(t *testing.T) {
 		participants.AddPeer(peers.NewPeer(node.PubHex, ""))
 	}
 
-	store := NewInmemStore(participants, cacheSize)
+	store := NewInmemStore(participants, cacheSize, pos.DefaultConfig())
 	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
@@ -1194,7 +1195,7 @@ func initBlockPoset(t *testing.T) (*Poset, []TestNode, map[string]EventHash) {
 			index, orderedEvents)
 	}
 
-	poset := NewPoset(participants, NewInmemStore(participants, cacheSize),
+	poset := NewPoset(participants, NewInmemStore(participants, cacheSize, pos.DefaultConfig()),
 		nil, testLogger(t))
 
 	// create a block and signatures manually
@@ -2055,7 +2056,7 @@ func TestResetFromFrame(t *testing.T) {
 	unmarshalledFrame.ProtoUnmarshal(marshalledFrame)
 
 	p2 := NewPoset(p.Participants,
-		NewInmemStore(p.Participants, cacheSize),
+		NewInmemStore(p.Participants, cacheSize, nil),
 		nil,
 		testLogger(t))
 	err = p2.Reset(block, *unmarshalledFrame)
@@ -2888,7 +2889,7 @@ func TestFunkyPosetReset(t *testing.T) {
 		unmarshalledFrame.ProtoUnmarshal(marshalledFrame)
 
 		p2 := NewPoset(p.Participants,
-			NewInmemStore(p.Participants, cacheSize),
+			NewInmemStore(p.Participants, cacheSize, nil),
 			nil,
 			testLogger(t))
 		err = p2.Reset(block, *unmarshalledFrame)
@@ -3427,7 +3428,7 @@ func TestSparsePosetReset(t *testing.T) {
 		unmarshalledFrame.ProtoUnmarshal(marshalledFrame)
 
 		p2 := NewPoset(p.Participants,
-			NewInmemStore(p.Participants, cacheSize),
+			NewInmemStore(p.Participants, cacheSize, nil),
 			nil,
 			testLogger(t))
 		err = p2.Reset(block, *unmarshalledFrame)

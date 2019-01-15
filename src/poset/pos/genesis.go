@@ -7,7 +7,11 @@ import (
 )
 
 // FakeGenesis is a stub
-func FakeGenesis(participants *peers.Peers, conf Config, db state.Database) {
+func FakeGenesis(participants *peers.Peers, conf *Config, db state.Database) {
+	if conf == nil {
+		conf = DefaultConfig()
+	}
+
 	balance := conf.TotalSupply / uint64(participants.Len())
 
 	statedb, _ := state.New(common.Hash{}, db)
