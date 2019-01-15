@@ -104,7 +104,7 @@ func TestSignatureEncoding(t *testing.T) {
 
 	msg := "J'aime mieux forger mon ame que la meubler"
 	msgBytes := []byte(msg)
-	msgHashBytes := SHA256(msgBytes)
+	msgHashBytes := Keccak256(msgBytes)
 
 	r, s, _ := Sign(privKey, msgHashBytes)
 

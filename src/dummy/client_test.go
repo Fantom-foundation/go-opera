@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	bcrypto "github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
@@ -51,8 +51,8 @@ func TestSocketProxyServer(t *testing.T) {
 
 func TestDummySocketClient(t *testing.T) {
 	const (
-		timeout    = 2 * time.Second
-		addr       = "127.0.0.1:9992"
+		timeout = 2 * time.Second
+		addr    = "127.0.0.1:9992"
 	)
 	asserter := assert.New(t)
 	logger := common.NewTestLogger(t)
@@ -85,12 +85,7 @@ func TestDummySocketClient(t *testing.T) {
 	stateHash, err := appProxy.CommitBlock(blocks[0])
 	asserter.NoError(err)
 
-	expectedStateHash := initialStateHash
-
-	for _, t := range blocks[0].Transactions() {
-		tHash := bcrypto.SHA256(t)
-		expectedStateHash = bcrypto.SimpleHashFromTwoHashes(expectedStateHash, tHash)
-	}
+	expectedStateHash := crypto.Keccak256(append([][]byte{initialStateHash}, blocks[0].Transactions()...)...)
 
 	asserter.Equal(expectedStateHash, stateHash)
 

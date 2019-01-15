@@ -40,11 +40,10 @@ func (h *Handler) CommitHandler(block poset.Block) (stateHash []byte, err error)
 	hash := h.stateHash
 
 	for _, tx := range block.Transactions() {
-		hash = crypto.SimpleHashFromTwoHashes(hash, crypto.SHA256(tx))
 		fmt.Println(string(tx))
 	}
 
-	h.stateHash = hash
+	h.stateHash = crypto.Keccak256(append([][]byte{hash}, block.Transactions()...)...)
 
 	return h.stateHash, nil
 }

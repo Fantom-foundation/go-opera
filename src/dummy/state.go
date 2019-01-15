@@ -96,11 +96,8 @@ func (s *State) GetCommittedTransactions() [][]byte {
 func (s *State) commit(block poset.Block) error {
 	s.committedTxs = append(s.committedTxs, block.Transactions()...)
 	// log tx and update state hash
-	hash := s.stateHash
-	for _, tx := range block.Transactions() {
-		s.logger.Info(string(tx))
-		hash = crypto.SimpleHashFromTwoHashes(hash, crypto.SHA256(tx))
-	}
+	// TODO: fix idempotency
+	hash := crypto.Keccak256(append([][]byte{s.stateHash}, block.Transactions()...)...)
 	s.snapshots[block.Index()] = hash
 	s.stateHash = hash
 	return nil

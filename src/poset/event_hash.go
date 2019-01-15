@@ -1,50 +1,36 @@
 package poset
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 type (
 	// EventHash is a dedicated type for Event's hash.
-	EventHash [sha256.Size]byte
+	EventHash common.Hash
 
 	// EventHashes provides additional methods of EventHash slice.
 	EventHashes []EventHash
 )
 
-// CalcEventHash returns hash of bytes.
-func CalcEventHash(bytes []byte) (hash EventHash) {
-	hash.Calc(bytes)
-	return
-}
-
-// Calc sets value to hash of bytes.
-func (hash *EventHash) Calc(bytes []byte) {
-	raw := crypto.SHA256(bytes)
-	hash.Set(raw)
+// CalcEventHash calcs hash of data.
+func CalcEventHash(data []byte) EventHash {
+	return EventHash(crypto.Keccak256Hash(data))
 }
 
 // Set sets value to bytes.
 func (hash *EventHash) Set(raw []byte) {
-	copy(hash[:], raw)
-	for i := len(raw); i < len(hash); i++ {
-		hash[i] = 0
-	}
+	(*common.Hash)(hash).SetBytes(raw)
 }
 
 // Parse sets value to bytes parsed from hex string.
 func (hash *EventHash) Parse(raw string) error {
-	if raw[0:2] == "0x" {
-		raw = raw[2:]
-	}
-	bytes, err := hex.DecodeString(raw)
+	b, err := hexutil.Decode(raw)
 	if err != nil {
 		return err
 	}
-	hash.Set(bytes)
+	hash.Set(b)
 	return nil
 }
 
@@ -60,13 +46,12 @@ func (hash *EventHash) Equal(raw []byte) bool {
 
 // Bytes returns value as bytes.
 func (hash *EventHash) Bytes() []byte {
-	var val = *hash
-	return val[:]
+	return (*common.Hash)(hash).Bytes()
 }
 
 // String returns value as hex string.
 func (hash *EventHash) String() string {
-	return "0x" + hex.EncodeToString(hash.Bytes())
+	return (*common.Hash)(hash).String()
 }
 
 // Zero returns true if zero value.
