@@ -15,7 +15,7 @@ func NewPeer(pubKeyHex, netAddr string) *Peer {
 	peer := &Peer{
 		PubKeyHex: pubKeyHex,
 		NetAddr:   netAddr,
-		Used: 0,
+		Used:      0,
 	}
 
 	peer.computeID()
@@ -48,6 +48,17 @@ func (p *Peer) computeID() error {
 	return nil
 }
 
+// Address returns the address for a peer
+// TODO: hash of publickey
+func (p *Peer) Address() (a common.Address) {
+	bytes, err := p.PubKeyBytes()
+	if err != nil {
+		panic(err)
+	}
+	copy(a[:], bytes)
+	return
+}
+
 // PeerStore provides an interface for persistent storage and
 // retrieval of peers.
 type PeerStore interface {
@@ -73,7 +84,7 @@ func ExcludePeer(peers []*Peer, peer string) (int, []*Peer) {
 	return index, otherPeers
 }
 
-func ExcludePeers(peers []*Peer, local string, last string) ([]*Peer) {
+func ExcludePeers(peers []*Peer, local string, last string) []*Peer {
 	otherPeers := make([]*Peer, 0, len(peers))
 	for _, p := range peers {
 		if p.NetAddr != local &&
