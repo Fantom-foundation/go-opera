@@ -25,7 +25,7 @@ type Node struct {
 	conf   *Config
 	logger *logrus.Entry
 
-	id       int64
+	id       uint64
 	core     *Core
 	coreLock sync.Mutex
 
@@ -58,7 +58,7 @@ type Node struct {
 
 // NewNode create a new node struct
 func NewNode(conf *Config,
-	id int64,
+	id uint64,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
 	store poset.Store,
@@ -416,7 +416,7 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	return nil
 }
 
-func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64]int64, err error) {
+func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[uint64]int64, err error) {
 	// Compute Known
 	n.coreLock.Lock()
 	knownEvents := n.core.KnownEvents()
@@ -459,7 +459,7 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[int64
 	return false, resp.Known, nil
 }
 
-func (n *Node) push(peerAddr string, knownEvents map[int64]int64) error {
+func (n *Node) push(peerAddr string, knownEvents map[uint64]int64) error {
 
 	// Check SyncLimit
 	n.coreLock.Lock()
@@ -557,7 +557,7 @@ func (n *Node) fastForward() error {
 	return nil
 }
 
-func (n *Node) requestSync(target string, known map[int64]int64) (net.SyncResponse, error) {
+func (n *Node) requestSync(target string, known map[uint64]int64) (net.SyncResponse, error) {
 
 	args := net.SyncRequest{
 		FromID: n.id,
@@ -740,7 +740,7 @@ func (n *Node) GetStats() map[string]string {
 		"events_per_second":       strconv.FormatFloat(consensusEventsPerSecond, 'f', 2, 64),
 		"rounds_per_second":       strconv.FormatFloat(consensusRoundsPerSecond, 'f', 2, 64),
 		"round_events":            strconv.Itoa(n.core.GetLastCommittedRoundEventsCount()),
-		"id":                      strconv.FormatInt(n.id, 10),
+		"id":                      fmt.Sprint(n.id),
 		"state":                   n.getState().String(),
 	}
 	// n.mqtt.FireEvent(s, "/mq/lachesis/stats")
@@ -797,12 +797,12 @@ func (n *Node) GetLastEventFrom(participant string) (poset.EventHash, bool, erro
 }
 
 // GetKnownEvents returns all known events
-func (n *Node) GetKnownEvents() map[int64]int64 {
+func (n *Node) GetKnownEvents() map[uint64]int64 {
 	return n.core.poset.Store.KnownEvents()
 }
 
 // GetEventBlocks returns all event blocks
-func (n *Node) GetEventBlocks() (map[int64]int64, error) {
+func (n *Node) GetEventBlocks() (map[uint64]int64, error) {
 	res := n.core.KnownEvents()
 	return res, nil
 }
@@ -853,7 +853,7 @@ func (n *Node) GetBlock(blockIndex int64) (poset.Block, error) {
 }
 
 // ID shows the ID of the node
-func (n *Node) ID() int64 {
+func (n *Node) ID() uint64 {
 	return n.id
 }
 

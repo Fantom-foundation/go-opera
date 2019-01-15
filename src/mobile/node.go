@@ -13,7 +13,7 @@ import (
 
 // Node struct
 type Node struct {
-	nodeID int64
+	nodeID uint64
 	node   *node.Node
 	proxy  proxy.AppProxy
 	logger *logrus.Logger

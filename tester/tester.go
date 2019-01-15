@@ -19,7 +19,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	// pause before shooting test transactions
 	time.Sleep(time.Duration(delay) * time.Second)
 
-	proxies := make(map[int64]*proxy.GrpcLachesisProxy)
+	proxies := make(map[uint64]*proxy.GrpcLachesisProxy)
 	for _, participant := range participants {
 		node := p[participant.PubKeyHex]
 		if node.NetAddr == "" {

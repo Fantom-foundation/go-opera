@@ -3,7 +3,7 @@ package poset;
 
 message RootEvent {
   bytes Hash  = 1;
-  int64 CreatorID = 2;
+  uint64 CreatorID = 2;
   int64 Index = 3;
   int64 LamportTimestamp = 4;
   int64 Round = 5;

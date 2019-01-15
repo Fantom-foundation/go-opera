@@ -65,7 +65,7 @@ ex 2:
 
 // NewBaseRootEvent creates a RootEvent corresponding to the the very beginning
 // of a Poset.
-func NewBaseRootEvent(creatorID int64) RootEvent {
+func NewBaseRootEvent(creatorID uint64) RootEvent {
 	hash := GenRootSelfParent(creatorID)
 	res := RootEvent{
 		Hash:             hash.Bytes(),
@@ -94,7 +94,7 @@ func (re *RootEvent) Equals(that *RootEvent) bool {
 // Root's Others.
 
 // NewBaseRoot initializes a Root object for a fresh Poset.
-func NewBaseRoot(creatorID int64) Root {
+func NewBaseRoot(creatorID uint64) Root {
 	rootEvent := NewBaseRootEvent(creatorID)
 	res := Root{
 		NextRound:  0,
@@ -142,7 +142,7 @@ func (root *Root) ProtoUnmarshal(data []byte) error {
 
 // GenRootSelfParent generates Event's parent hash from participant ID.
 // Use it for first Event only.
-func GenRootSelfParent(participantID int64) (hash EventHash) {
+func GenRootSelfParent(participantID uint64) (hash EventHash) {
 	bytes := []byte(fmt.Sprintf("Root%d", participantID))
 	hash.Set(bytes)
 	return
