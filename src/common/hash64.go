@@ -6,7 +6,7 @@ import "hash/fnv"
 func Hash64(data []byte) uint64 {
 	h := fnv.New64a()
 
-	h.Write(data)
+	_, _ = h.Write(data)
 
 	return h.Sum64()
 }

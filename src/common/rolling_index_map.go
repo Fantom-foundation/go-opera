@@ -60,7 +60,7 @@ func (rim *RollingIndexMap) GetItem(key uint64, index int64) (interface{}, error
 func (rim *RollingIndexMap) GetLast(key uint64) (interface{}, error) {
 	pe, ok := rim.mapping[key]
 	if !ok {
-		return nil, NewStoreErr(rim.name, KeyNotFound, fmt.Sprint(key, 10))
+		return nil, NewStoreErr(rim.name, KeyNotFound, fmt.Sprint(key))
 	}
 	cached, _ := pe.GetLastWindow()
 	if len(cached) == 0 {
