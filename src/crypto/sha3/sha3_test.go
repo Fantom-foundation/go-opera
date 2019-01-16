@@ -185,16 +185,28 @@ func TestSqueezing(t *testing.T) {
 	testUnalignedAndGeneric(t, func(impl string) {
 		for functionName, newShakeHash := range testShakes {
 			d0 := newShakeHash()
-			d0.Write([]byte(testString))
+			_, err := d0.Write([]byte(testString))
+			if err != nil {
+				panic(err)
+			}
 			ref := make([]byte, 32)
-			d0.Read(ref)
+			_, err = d0.Read(ref)
+			if err != nil {
+				panic(err)
+			}
 
 			d1 := newShakeHash()
-			d1.Write([]byte(testString))
+			_, err = d1.Write([]byte(testString))
+			if err != nil {
+				panic(err)
+			}
 			var multiple []byte
 			for range ref {
 				one := make([]byte, 1)
-				d1.Read(one)
+				_, err = d1.Read(one)
+				if err != nil {
+					panic(err)
+				}
 				multiple = append(multiple, one...)
 			}
 			if !bytes.Equal(ref, multiple) {
@@ -256,9 +268,15 @@ func benchmarkShake(b *testing.B, h ShakeHash, size, num int) {
 	for i := 0; i < b.N; i++ {
 		h.Reset()
 		for j := 0; j < num; j++ {
-			h.Write(data)
+			_, err := h.Write(data)
+			if err != nil {
+				panic(err)
+			}
 		}
-		h.Read(d)
+		_, err := h.Read(d)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -289,9 +307,18 @@ func Example_mac() {
 	h := make([]byte, 32)
 	d := NewShake256()
 	// Write the key into the hash.
-	d.Write(k)
+	_, err := d.Write(k)
+	if err != nil {
+		panic(err)
+	}
 	// Now write the data.
-	d.Write(buf)
+	_, err = d.Write(buf)
+	if err != nil {
+		panic(err)
+	}
 	// Read 32 bytes of output from the hash into h.
-	d.Read(h)
+	_, err = d.Read(h)
+	if err != nil {
+		panic(err)
+	}
 }

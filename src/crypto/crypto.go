@@ -9,7 +9,10 @@ import (
 func Keccak256(data ...[]byte) []byte {
 	d := sha3.NewKeccak256()
 	for _, b := range data {
-		d.Write(b)
+		_, err := d.Write(b)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return d.Sum(nil)
 }
@@ -19,7 +22,10 @@ func Keccak256(data ...[]byte) []byte {
 func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	d := sha3.NewKeccak256()
 	for _, b := range data {
-		d.Write(b)
+		_, err := d.Write(b)
+		if err != nil {
+			panic(err)
+		}
 	}
 	d.Sum(h[:0])
 	return h
@@ -29,7 +35,10 @@ func Keccak256Hash(data ...[]byte) (h common.Hash) {
 func Keccak512(data ...[]byte) []byte {
 	d := sha3.NewKeccak512()
 	for _, b := range data {
-		d.Write(b)
+		_, err := d.Write(b)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return d.Sum(nil)
 }

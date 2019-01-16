@@ -68,7 +68,10 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kvdb.Putter) error {
 				if !ok {
 					hash = crypto.Keccak256(enc)
 				}
-				proofDb.Put(hash, enc)
+				err := proofDb.Put(hash, enc)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

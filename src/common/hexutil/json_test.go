@@ -175,11 +175,11 @@ func TestMarshalBig(t *testing.T) {
 		in := test.input.(*big.Int)
 		out, err := json.Marshal((*Big)(in))
 		if err != nil {
-			t.Errorf("%d: %v", in, err)
+			t.Errorf("%s: %v", in, err)
 			continue
 		}
 		if want := `"` + test.want + `"`; string(out) != want {
-			t.Errorf("%d: MarshalJSON output mismatch: got %q, want %q", in, out, want)
+			t.Errorf("%s: MarshalJSON output mismatch: got %q, want %q", in, out, want)
 			continue
 		}
 		if out := (*Big)(in).String(); out != test.want {
@@ -230,7 +230,9 @@ func BenchmarkUnmarshalUint64(b *testing.B) {
 	input := []byte(`"0x123456789abcdf"`)
 	for i := 0; i < b.N; i++ {
 		var v Uint64
-		v.UnmarshalJSON(input)
+		if err := v.UnmarshalJSON(input); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

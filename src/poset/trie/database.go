@@ -344,7 +344,10 @@ func (db *Database) node(hash common.Hash, cachegen uint16) node {
 		return nil
 	}
 	if db.cleans != nil {
-		db.cleans.Set(string(hash[:]), enc)
+		err = db.cleans.Set(string(hash[:]), enc)
+		if err != nil {
+			return nil
+		}
 	}
 	return mustDecodeNode(hash[:], enc, cachegen)
 }
@@ -370,7 +373,10 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 	enc, err := db.diskdb.Get(hash[:])
 	if err == nil && enc != nil {
 		if db.cleans != nil {
-			db.cleans.Set(string(hash[:]), enc)
+			err = db.cleans.Set(string(hash[:]), enc)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return enc, err
@@ -745,6 +751,7 @@ func (db *Database) Size() (common.StorageSize, common.StorageSize) {
 // missing.
 //
 // This method is extremely CPU and memory intensive, only use when must.
+/*
 func (db *Database) verifyIntegrity() {
 	// Iterate over all the cached nodes and accumulate them into a set
 	reachable := map[common.Hash]struct{}{{}: {}}
@@ -764,9 +771,11 @@ func (db *Database) verifyIntegrity() {
 		panic(fmt.Sprintf("trie cache memory leak: %v", unreachable))
 	}
 }
+*/
 
 // accumulate iterates over the trie defined by hash and accumulates all the
 // cached children found in memory.
+/*
 func (db *Database) accumulate(hash common.Hash, reachable map[common.Hash]struct{}) {
 	// Mark the node reachable if present in the memory cache
 	node, ok := db.dirties[hash]
@@ -780,3 +789,4 @@ func (db *Database) accumulate(hash common.Hash, reachable map[common.Hash]struc
 		db.accumulate(child, reachable)
 	}
 }
+*/

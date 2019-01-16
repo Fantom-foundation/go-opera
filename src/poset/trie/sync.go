@@ -166,7 +166,10 @@ func (s *Sync) Process(results []SyncResult) (bool, int, error) {
 		// If the item is a raw entry request, commit directly
 		if request.raw {
 			request.data = item.Data
-			s.commit(request)
+			err := s.commit(request)
+			if err != nil {
+				return committed, i, err
+			}
 			committed = true
 			continue
 		}
@@ -183,7 +186,10 @@ func (s *Sync) Process(results []SyncResult) (bool, int, error) {
 			return committed, i, err
 		}
 		if len(requests) == 0 && request.deps == 0 {
-			s.commit(request)
+			err = s.commit(request)
+			if err != nil {
+				return committed, i, err
+			}
 			committed = true
 			continue
 		}

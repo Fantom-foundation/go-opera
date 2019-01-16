@@ -178,12 +178,12 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 			switch n := n.(type) {
 			case *shortNode:
 				if child, ok := n.Val.(valueNode); ok {
-					h.onleaf(child, hash)
+					_ = h.onleaf(child, hash)
 				}
 			case *fullNode:
 				for i := 0; i < 16; i++ {
 					if child, ok := n.Children[i].(valueNode); ok {
-						h.onleaf(child, hash)
+						_ = h.onleaf(child, hash)
 					}
 				}
 			}
@@ -195,7 +195,7 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 func (h *hasher) makeHashNode(data []byte) hashNode {
 	n := make(hashNode, h.sha.Size())
 	h.sha.Reset()
-	h.sha.Write(data)
-	h.sha.Read(n)
+	_, _ = h.sha.Write(data)
+	_, _ = h.sha.Read(n)
 	return n
 }

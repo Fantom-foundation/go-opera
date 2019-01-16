@@ -24,7 +24,10 @@ func makeProvers(trie *Trie) []func(key []byte) *kvdb.MemDatabase {
 	// Create a direct trie based Merkle prover
 	provers = append(provers, func(key []byte) *kvdb.MemDatabase {
 		proof := kvdb.NewMemDatabase()
-		trie.Prove(key, 0, proof)
+		err := trie.Prove(key, 0, proof)
+		if err != nil {
+			panic(err)
+		}
 		return proof
 	})
 	// Create a leaf iterator based Merkle prover
@@ -32,7 +35,10 @@ func makeProvers(trie *Trie) []func(key []byte) *kvdb.MemDatabase {
 		proof := kvdb.NewMemDatabase()
 		if it := NewIterator(trie.NodeIterator(key)); it.Next() && bytes.Equal(key, it.Key) {
 			for _, p := range it.Prove() {
-				proof.Put(crypto.Keccak256(p), p)
+				err := proof.Put(crypto.Keccak256(p), p)
+				if err != nil {
+					panic(err)
+				}
 			}
 		}
 		return proof
@@ -91,11 +97,20 @@ func TestBadProof(t *testing.T) {
 				t.Fatalf("prover %d: nil proof", i)
 			}
 			key := proof.Keys()[mrand.Intn(proof.Len())]
-			val, _ := proof.Get(key)
-			proof.Delete(key)
+			val, err := proof.Get(key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = proof.Delete(key)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			mutateByte(val)
-			proof.Put(crypto.Keccak256(val), val)
+			err = proof.Put(crypto.Keccak256(val), val)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			if _, _, err := VerifyProof(root, kv.k, proof); err == nil {
 				t.Fatalf("prover %d: expected proof to fail for key %x", i, kv.k)
@@ -149,7 +164,11 @@ func BenchmarkProve(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		kv := vals[keys[i%len(keys)]]
 		proofs := kvdb.NewMemDatabase()
-		if trie.Prove(kv.k, 0, proofs); len(proofs.Keys()) == 0 {
+		err := trie.Prove(kv.k, 0, proofs)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(proofs.Keys()) == 0 {
 			b.Fatalf("zero length proof for %x", kv.k)
 		}
 	}
@@ -197,6 +216,9 @@ func randomTrie(n int) (*Trie, map[string]*kv) {
 
 func randBytes(n int) []byte {
 	r := make([]byte, n)
-	crand.Read(r)
+	_, err := crand.Read(r)
+	if err != nil {
+		panic(err)
+	}
 	return r
 }

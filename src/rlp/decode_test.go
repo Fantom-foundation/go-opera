@@ -688,9 +688,16 @@ func ExampleDecode() {
 	err := Decode(bytes.NewReader(input), &s)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
-	} else {
-		fmt.Printf("Decoded value: %#v\n", s)
+		return
 	}
+
+	if s.private != 0 {
+		fmt.Println("Error: private field is not ignored!")
+		return
+	}
+
+	fmt.Printf("Decoded value: %#v\n", s)
+
 	// Output:
 	// Decoded value: rlp.example{A:0xa, B:0x14, private:0x0, String:"foobar"}
 }

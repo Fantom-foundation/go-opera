@@ -26,7 +26,10 @@ func TestIterator(t *testing.T) {
 		all[val.k] = val.v
 		trie.Update([]byte(val.k), []byte(val.v))
 	}
-	trie.Commit(nil)
+	_, err := trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	found := make(map[string]string)
 	it := NewIterator(trie.NodeIterator(nil))
@@ -182,7 +185,10 @@ func TestDifferenceIterator(t *testing.T) {
 	for _, val := range testdata1 {
 		triea.Update([]byte(val.k), []byte(val.v))
 	}
-	triea.Commit(nil)
+	_, err := triea.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	trieb := newEmpty()
 	for _, val := range testdata2 {
@@ -218,13 +224,19 @@ func TestUnionIterator(t *testing.T) {
 	for _, val := range testdata1 {
 		triea.Update([]byte(val.k), []byte(val.v))
 	}
-	triea.Commit(nil)
+	_, err := triea.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	trieb := newEmpty()
 	for _, val := range testdata2 {
 		trieb.Update([]byte(val.k), []byte(val.v))
 	}
-	trieb.Commit(nil)
+	_, err = trieb.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	di, _ := NewUnionIterator([]NodeIterator{triea.NodeIterator(nil), trieb.NodeIterator(nil)})
 	it := NewIterator(di)
@@ -280,9 +292,15 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 	for _, val := range testdata1 {
 		tr.Update([]byte(val.k), []byte(val.v))
 	}
-	tr.Commit(nil)
+	_, err := tr.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !memonly {
-		triedb.Commit(tr.Hash(), true)
+		err = triedb.Commit(tr.Hash(), true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	wantNodeCount := checkIteratorNoDups(t, tr.NodeIterator(nil), nil)
 
@@ -321,7 +339,10 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 			delete(triedb.dirties, rkey)
 		} else {
 			rval, _ = diskdb.Get(rkey[:])
-			diskdb.Delete(rkey[:])
+			err = diskdb.Delete(rkey[:])
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 		// Iterate until the error is hit.
 		seen := make(map[string]bool)
@@ -336,7 +357,10 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 		if memonly {
 			triedb.dirties[rkey] = robj
 		} else {
-			diskdb.Put(rkey[:], rval)
+			err = diskdb.Put(rkey[:], rval)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 		checkIteratorNoDups(t, it, seen)
 		if it.Error() != nil {
@@ -367,9 +391,15 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	for _, val := range testdata1 {
 		ctr.Update([]byte(val.k), []byte(val.v))
 	}
-	root, _ := ctr.Commit(nil)
+	root, err := ctr.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !memonly {
-		triedb.Commit(root, true)
+		err := triedb.Commit(root, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	barNodeHash := common.HexToHash("05041990364eb72fcb1127652ce40d8bab765f2bfe53225b1170d276cc101c2e")
 	var (
@@ -381,7 +411,10 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 		delete(triedb.dirties, barNodeHash)
 	} else {
 		barNodeBlob, _ = diskdb.Get(barNodeHash[:])
-		diskdb.Delete(barNodeHash[:])
+		err = diskdb.Delete(barNodeHash[:])
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Create a new iterator that seeks to "bars". Seeking can't proceed because
 	// the node is missing.
@@ -397,7 +430,10 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	if memonly {
 		triedb.dirties[barNodeHash] = barNodeObj
 	} else {
-		diskdb.Put(barNodeHash[:], barNodeBlob)
+		err = diskdb.Put(barNodeHash[:], barNodeBlob)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Check that iteration produces the right set of values.
 	if err := checkIteratorOrder(testdata1[2:], NewIterator(it)); err != nil {

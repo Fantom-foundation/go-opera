@@ -187,6 +187,9 @@ func (d *state) Sum(in []byte) []byte {
 	// and summing.
 	dup := d.clone()
 	hash := make([]byte, dup.outputLen)
-	dup.Read(hash)
+	_, err := dup.Read(hash)
+	if err != nil {
+		panic(err)
+	}
 	return append(in, hash...)
 }

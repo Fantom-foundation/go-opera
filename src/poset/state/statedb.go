@@ -51,7 +51,6 @@ type DB struct {
 
 	thash, bhash common.Hash
 	txIndex      int
-	logSize      uint
 
 	preimages map[common.Hash][]byte
 

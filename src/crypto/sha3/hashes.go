@@ -41,7 +41,10 @@ func New512() hash.Hash { return &state{rate: 72, outputLen: 64, dsbyte: 0x06} }
 // Sum224 returns the SHA3-224 digest of the data.
 func Sum224(data []byte) (digest [28]byte) {
 	h := New224()
-	h.Write(data)
+	_, err := h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	h.Sum(digest[:0])
 	return
 }
@@ -49,7 +52,10 @@ func Sum224(data []byte) (digest [28]byte) {
 // Sum256 returns the SHA3-256 digest of the data.
 func Sum256(data []byte) (digest [32]byte) {
 	h := New256()
-	h.Write(data)
+	_, err := h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	h.Sum(digest[:0])
 	return
 }
@@ -57,7 +63,10 @@ func Sum256(data []byte) (digest [32]byte) {
 // Sum384 returns the SHA3-384 digest of the data.
 func Sum384(data []byte) (digest [48]byte) {
 	h := New384()
-	h.Write(data)
+	_, err := h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	h.Sum(digest[:0])
 	return
 }
@@ -65,7 +74,10 @@ func Sum384(data []byte) (digest [48]byte) {
 // Sum512 returns the SHA3-512 digest of the data.
 func Sum512(data []byte) (digest [64]byte) {
 	h := New512()
-	h.Write(data)
+	_, err := h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	h.Sum(digest[:0])
 	return
 }

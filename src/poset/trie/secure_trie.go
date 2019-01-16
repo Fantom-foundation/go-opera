@@ -170,7 +170,7 @@ func (t *SecureTrie) NodeIterator(start []byte) NodeIterator {
 func (t *SecureTrie) hashKey(key []byte) []byte {
 	h := newHasher(0, 0, nil)
 	h.sha.Reset()
-	h.sha.Write(key)
+	_, _ = h.sha.Write(key)
 	buf := h.sha.Sum(t.hashKeyBuf[:0])
 	returnHasherToPool(h)
 	return buf
