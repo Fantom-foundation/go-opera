@@ -37,7 +37,7 @@ var (
 	expFastForwardRequest = &lnet.FastForwardRequest{FromID: 0}
 	expSyncRequest        = &lnet.SyncRequest{
 		FromID: 0,
-		Known:  map[int64]int64{0: 1, 1: 2, 2: 3},
+		Known:  map[uint64]int64{0: 1, 1: 2, 2: 3},
 	}
 
 	expSyncResponse = &lnet.SyncResponse{
@@ -53,7 +53,7 @@ var (
 				},
 			},
 		},
-		Known: map[int64]int64{0: 5, 1: 5, 2: 6},
+		Known: map[uint64]int64{0: 5, 1: 5, 2: 6},
 	}
 	testError = errors.New("error")
 )

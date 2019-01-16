@@ -11,7 +11,7 @@ type Listener struct {
 	Address string
 	Input   chan *Conn
 
-	mtx      sync.Mutex
+	mtx      sync.RWMutex
 	shutdown bool
 }
 
@@ -54,4 +54,10 @@ func (l *Listener) Addr() net.Addr {
 		AddressString: l.Address,
 		NetworkString: "tcp",
 	}
+}
+
+func (l *Listener) isClosed() bool {
+	l.mtx.RLock()
+	defer l.mtx.RUnlock()
+	return l.shutdown
 }

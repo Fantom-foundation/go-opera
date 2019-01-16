@@ -76,7 +76,7 @@ func (tr *Peer) sync(ctx context.Context, target string,
 		logger.Error(err)
 		return err
 	}
-	tr.clientProducer.Pull(target, cli)
+	tr.clientProducer.Push(target, cli)
 
 	return err
 }
@@ -109,7 +109,7 @@ func (tr *Peer) forceSync(ctx context.Context, target string,
 		logger.Error(err)
 		return err
 	}
-	tr.clientProducer.Pull(target, cli)
+	tr.clientProducer.Push(target, cli)
 
 	return nil
 }
@@ -143,7 +143,7 @@ func (tr *Peer) fastForward(ctx context.Context, target string,
 		logger.Error(err)
 		return err
 	}
-	tr.clientProducer.Pull(target, cli)
+	tr.clientProducer.Push(target, cli)
 
 	return nil
 }

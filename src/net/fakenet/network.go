@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // Network is a fake network.
@@ -33,10 +35,12 @@ func (n *Network) CreateListener(
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
 
-	// If listener does not exist, create new listener.
-	if _, ok := n.conns[address]; !ok {
-		n.conns[address] = NewListener(address)
+	// If listener exists and not closed, then returns error.
+	if lis, ok := n.conns[address]; ok && !lis.isClosed() {
+		return nil, ErrAddressAlreadyInUse
 	}
+
+	n.conns[address] = NewListener(address)
 	return n.conns[address], nil
 }
 
@@ -44,10 +48,12 @@ func (n *Network) CreateListener(
 func (n *Network) CreateNetConn(network,
 	address string, timeout time.Duration) (net.Conn, error) {
 
-	// If listener does not exist, create new listener.
+	// If listener does not exist, returns "connection refused" error.
 	n.mtx.Lock()
-	if _, ok := n.conns[address]; !ok {
-		n.conns[address] = NewListener(address)
+	if lis, ok := n.conns[address]; !ok || lis.isClosed() {
+		n.mtx.Unlock()
+		return nil, errors.Errorf(
+			"dial tcp %s: connect: connection refused", address)
 	}
 	n.mtx.Unlock()
 
@@ -68,7 +74,13 @@ func (n *Network) CreateNetConn(network,
 		Writer:   clientWrite,
 	}
 
-	n.conns[address].Input <- server
+	select {
+	case n.conns[address].Input <- server:
+	// if a server cannot accept the connection then it returns an error.
+	case <-time.After(timeout):
+		return nil, errors.Errorf(
+			"dial tcp %s: connect: connection refused", address)
+	}
 
 	return client, nil
 }

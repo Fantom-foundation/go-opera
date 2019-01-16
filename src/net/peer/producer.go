@@ -9,7 +9,7 @@ import (
 // clients.
 type ClientProducer interface {
 	Pop(target string) (SyncClient, error)
-	Pull(target string, client SyncClient)
+	Push(target string, client SyncClient)
 	Close()
 }
 
@@ -17,7 +17,7 @@ type ClientProducer interface {
 // a pool for reuse.
 type Producer struct {
 	createFunc CreateSyncClientFunc
-	limit      int
+	poolSize   int
 	timeout    time.Duration
 
 	mtx      sync.Mutex
@@ -26,11 +26,11 @@ type Producer struct {
 }
 
 // NewProducer creates new producer of sync clients.
-func NewProducer(limit int, connectTimeout time.Duration,
+func NewProducer(poolSize int, connectTimeout time.Duration,
 	createClientFunc CreateSyncClientFunc) *Producer {
 	return &Producer{
 		createFunc: createClientFunc,
-		limit:      limit,
+		poolSize:   poolSize,
 		timeout:    connectTimeout,
 		pool:       make(map[string][]SyncClient),
 	}
@@ -58,12 +58,13 @@ func (p *Producer) Pop(target string) (SyncClient, error) {
 	return p.createFunc(target, p.timeout)
 }
 
-// Pull saves a connection in a pool.
-func (p *Producer) Pull(target string, client SyncClient) {
+// Push saves a connection in a pool.
+func (p *Producer) Push(target string, client SyncClient) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	if p.shutdown || len(p.pool[target]) >= p.limit {
+	if p.shutdown || len(p.pool[target]) >= p.poolSize {
+		client.Close()
 		return
 	}
 

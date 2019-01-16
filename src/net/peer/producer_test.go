@@ -41,7 +41,7 @@ func TestProducer(t *testing.T) {
 	}
 
 	// Test reuse connection.
-	producer.Pull(target, cli)
+	producer.Push(target, cli)
 
 	if producer.ConnLen(target) != 1 {
 		t.Fatalf("expected %d, got %d", 1, producer.ConnLen(target))
@@ -68,7 +68,7 @@ func TestProducer(t *testing.T) {
 
 	// Test full pull.
 	for i := 0; i < limit+1; i++ {
-		producer.Pull(target, cli)
+		producer.Push(target, cli)
 	}
 
 	if producer.ConnLen(target) != limit {
@@ -82,7 +82,7 @@ func TestProducer(t *testing.T) {
 		t.Fatalf("expected %s, got %s", peer.ErrClientProducerStopped, err)
 	}
 
-	producer.Pull(target, cli)
+	producer.Push(target, cli)
 
 	if producer.ConnLen(target) != 0 {
 		t.Fatalf("expected %d, got %d", 0, producer.ConnLen(target))
