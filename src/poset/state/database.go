@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset/trie"
 )
 
-// Trie cache generation limit after which to evict trie nodes from memory.
+// MaxTrieCacheGen is a trie cache generation limit after which to evict trie nodes from memory.
 var MaxTrieCacheGen = uint16(120)
 
 const (
@@ -57,7 +57,7 @@ func NewDatabase(db kvdb.Database) Database {
 	return NewDatabaseWithCache(db, 0)
 }
 
-// NewDatabase creates a backing store for state. The returned database is safe for
+// NewDatabaseWithCache creates a backing store for state. The returned database is safe for
 // concurrent use and retains both a few recent expanded trie nodes in memory, as
 // well as a lot of collapsed RLP trie nodes in a large memory cache.
 func NewDatabaseWithCache(db kvdb.Database, cache int) Database {

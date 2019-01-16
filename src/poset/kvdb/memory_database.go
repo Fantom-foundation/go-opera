@@ -21,6 +21,7 @@ func NewMemDatabase() *MemDatabase {
 	}
 }
 
+// Keys returns slice of keys in the db.
 func (w *MemDatabase) Keys() [][]byte {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
@@ -32,6 +33,7 @@ func (w *MemDatabase) Keys() [][]byte {
 	return keys
 }
 
+// Len returns count of key-values pairs in the db.
 func (w *MemDatabase) Len() int {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
@@ -43,6 +45,7 @@ func (w *MemDatabase) Len() int {
  * Database interface implementation
  */
 
+// Put puts key-value pair into db.
 func (w *MemDatabase) Put(key []byte, value []byte) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
@@ -51,6 +54,7 @@ func (w *MemDatabase) Put(key []byte, value []byte) error {
 	return nil
 }
 
+// Has checks if key is in the db.
 func (w *MemDatabase) Has(key []byte) (bool, error) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
@@ -59,6 +63,7 @@ func (w *MemDatabase) Has(key []byte) (bool, error) {
 	return ok, nil
 }
 
+// Get returns key-value pair by key.
 func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
@@ -69,6 +74,7 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 	return nil, errors.New("not found")
 }
 
+// Delete removes key-value pair by key.
 func (w *MemDatabase) Delete(key []byte) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
@@ -77,8 +83,10 @@ func (w *MemDatabase) Delete(key []byte) error {
 	return nil
 }
 
+// Close does nothing.
 func (w *MemDatabase) Close() {}
 
+// NewBatch creates new batch.
 func (w *MemDatabase) NewBatch() Batch {
 	return &memBatch{db: w}
 }
@@ -92,24 +100,28 @@ type kv struct {
 	del  bool
 }
 
+// memBatch is a batch structure.
 type memBatch struct {
 	db     *MemDatabase
 	writes []kv
 	size   int
 }
 
+// Put puts key-value pair into batch.
 func (b *memBatch) Put(key, value []byte) error {
 	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
 	b.size += len(value)
 	return nil
 }
 
+// Delete removes key-value pair from batch by key.
 func (b *memBatch) Delete(key []byte) error {
 	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
-	b.size += 1
+	b.size++
 	return nil
 }
 
+// Write writes batch into db.
 func (b *memBatch) Write() error {
 	b.db.lock.Lock()
 	defer b.db.lock.Unlock()
@@ -124,10 +136,12 @@ func (b *memBatch) Write() error {
 	return nil
 }
 
+// ValueSize returns values sizes sum.
 func (b *memBatch) ValueSize() int {
 	return b.size
 }
 
+// Reset cleans whole batch.
 func (b *memBatch) Reset() {
 	b.writes = b.writes[:0]
 	b.size = 0

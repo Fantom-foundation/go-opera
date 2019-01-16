@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
+// Storage
 type Storage map[common.Hash]common.Hash
 
 func (self Storage) String() (str string) {
@@ -20,9 +21,10 @@ func (self Storage) String() (str string) {
 	return
 }
 
-func (self Storage) Copy() Storage {
+// Copy creates a deep, independent copy of the state.
+func (s Storage) Copy() Storage {
 	cpy := make(Storage)
-	for key, value := range self {
+	for key, value := range s {
 		cpy[key] = value
 	}
 
@@ -39,7 +41,7 @@ type stateObject struct {
 	address  common.Address
 	addrHash common.Hash // hash of address of the account
 	data     Account
-	db       *StateDB
+	db       *DB
 
 	// DB error.
 	// State objects are used by the consensus core which are
@@ -74,7 +76,7 @@ type Account struct {
 }
 
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, data Account) *stateObject {
+func newObject(db *DB, address common.Address, data Account) *stateObject {
 	return &stateObject{
 		db:            db,
 		address:       address,
@@ -86,190 +88,190 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 }
 
 // EncodeRLP implements rlp.Encoder.
-func (self *stateObject) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, self.data)
+func (s *stateObject) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, s.data)
 }
 
 // setError remembers the first non-nil error it is called with.
-func (self *stateObject) setError(err error) {
-	if self.dbErr == nil {
-		self.dbErr = err
+func (s *stateObject) setError(err error) {
+	if s.dbErr == nil {
+		s.dbErr = err
 	}
 }
 
-func (self *stateObject) markSuicided() {
-	self.suicided = true
+func (s *stateObject) markSuicided() {
+	s.suicided = true
 }
 
-func (self *stateObject) touch() {
-	self.db.journal.append(touchChange{
-		account: &self.address,
+func (s *stateObject) touch() {
+	s.db.journal.append(touchChange{
+		account: &s.address,
 	})
-	if self.address == ripemd {
+	if s.address == ripemd {
 		// Explicitly put it in the dirty-cache, which is otherwise generated from
 		// flattened journals.
-		self.db.journal.dirty(self.address)
+		s.db.journal.dirty(s.address)
 	}
 }
 
-func (self *stateObject) getTrie(db Database) Trie {
-	if self.trie == nil {
+func (s *stateObject) getTrie(db Database) Trie {
+	if s.trie == nil {
 		var err error
-		self.trie, err = db.OpenStorageTrie(self.addrHash, self.data.Root)
+		s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
 		if err != nil {
-			self.trie, _ = db.OpenStorageTrie(self.addrHash, common.Hash{})
-			self.setError(fmt.Errorf("can't create storage trie: %v", err))
+			s.trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
+			s.setError(fmt.Errorf("can't create storage trie: %v", err))
 		}
 	}
-	return self.trie
+	return s.trie
 }
 
 // GetState retrieves a value from the account storage trie.
-func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
+func (s *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	// If we have a dirty value for this state entry, return it
-	value, dirty := self.dirtyStorage[key]
+	value, dirty := s.dirtyStorage[key]
 	if dirty {
 		return value
 	}
 	// Otherwise return the entry's original value
-	return self.GetCommittedState(db, key)
+	return s.GetCommittedState(db, key)
 }
 
 // GetCommittedState retrieves a value from the committed account storage trie.
-func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.Hash {
+func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Hash {
 	// If we have the original value cached, return that
-	value, cached := self.originStorage[key]
+	value, cached := s.originStorage[key]
 	if cached {
 		return value
 	}
 	// Otherwise load the value from the database
-	enc, err := self.getTrie(db).TryGet(key[:])
+	enc, err := s.getTrie(db).TryGet(key[:])
 	if err != nil {
-		self.setError(err)
+		s.setError(err)
 		return common.Hash{}
 	}
 	if len(enc) > 0 {
 		_, content, _, err := rlp.Split(enc)
 		if err != nil {
-			self.setError(err)
+			s.setError(err)
 		}
 		value.SetBytes(content)
 	}
-	self.originStorage[key] = value
+	s.originStorage[key] = value
 	return value
 }
 
 // SetState updates a value in account storage.
-func (self *stateObject) SetState(db Database, key, value common.Hash) {
+func (s *stateObject) SetState(db Database, key, value common.Hash) {
 	// If the new value is the same as old, don't set
-	prev := self.GetState(db, key)
+	prev := s.GetState(db, key)
 	if prev == value {
 		return
 	}
 	// New value is different, update and journal the change
-	self.db.journal.append(storageChange{
-		account:  &self.address,
+	s.db.journal.append(storageChange{
+		account:  &s.address,
 		key:      key,
 		prevalue: prev,
 	})
-	self.setState(key, value)
+	s.setState(key, value)
 }
 
-func (self *stateObject) setState(key, value common.Hash) {
-	self.dirtyStorage[key] = value
+func (s *stateObject) setState(key, value common.Hash) {
+	s.dirtyStorage[key] = value
 }
 
 // updateTrie writes cached storage modifications into the object's storage trie.
-func (self *stateObject) updateTrie(db Database) Trie {
-	tr := self.getTrie(db)
-	for key, value := range self.dirtyStorage {
-		delete(self.dirtyStorage, key)
+func (s *stateObject) updateTrie(db Database) Trie {
+	tr := s.getTrie(db)
+	for key, value := range s.dirtyStorage {
+		delete(s.dirtyStorage, key)
 
 		// Skip noop changes, persist actual changes
-		if value == self.originStorage[key] {
+		if value == s.originStorage[key] {
 			continue
 		}
-		self.originStorage[key] = value
+		s.originStorage[key] = value
 
 		if (value == common.Hash{}) {
-			self.setError(tr.TryDelete(key[:]))
+			s.setError(tr.TryDelete(key[:]))
 			continue
 		}
 		// Encoding []byte cannot fail, ok to ignore the error.
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
-		self.setError(tr.TryUpdate(key[:], v))
+		s.setError(tr.TryUpdate(key[:], v))
 	}
 	return tr
 }
 
 // UpdateRoot sets the trie root to the current root hash of
-func (self *stateObject) updateRoot(db Database) {
-	self.updateTrie(db)
-	self.data.Root = self.trie.Hash()
+func (s *stateObject) updateRoot(db Database) {
+	s.updateTrie(db)
+	s.data.Root = s.trie.Hash()
 }
 
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
-func (self *stateObject) CommitTrie(db Database) error {
-	self.updateTrie(db)
-	if self.dbErr != nil {
-		return self.dbErr
+func (s *stateObject) CommitTrie(db Database) error {
+	s.updateTrie(db)
+	if s.dbErr != nil {
+		return s.dbErr
 	}
-	root, err := self.trie.Commit(nil)
+	root, err := s.trie.Commit(nil)
 	if err == nil {
-		self.data.Root = root
+		s.data.Root = root
 	}
 	return err
 }
 
 // AddBalance removes amount from c's balance.
 // It is used to add funds to the destination account of a transfer.
-func (c *stateObject) AddBalance(amount uint64) {
+func (s *stateObject) AddBalance(amount uint64) {
 	// EIP158: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount == 0 {
-		if c.empty() {
-			c.touch()
+		if s.empty() {
+			s.touch()
 		}
 
 		return
 	}
-	c.SetBalance(c.Balance() + amount)
+	s.SetBalance(s.Balance() + amount)
 }
 
 // SubBalance removes amount from c's balance.
 // It is used to remove funds from the origin account of a transfer.
-func (c *stateObject) SubBalance(amount uint64) {
+func (s *stateObject) SubBalance(amount uint64) {
 	if amount == 0 {
 		return
 	}
-	if c.Balance() < amount {
+	if s.Balance() < amount {
 		panic("balance must be positive")
 	}
-	c.SetBalance(c.Balance() - amount)
+	s.SetBalance(s.Balance() - amount)
 }
 
-func (self *stateObject) SetBalance(amount uint64) {
-	self.db.journal.append(balanceChange{
-		account: &self.address,
-		prev:    self.data.Balance,
+func (s *stateObject) SetBalance(amount uint64) {
+	s.db.journal.append(balanceChange{
+		account: &s.address,
+		prev:    s.data.Balance,
 	})
-	self.setBalance(amount)
+	s.setBalance(amount)
 }
 
-func (self *stateObject) setBalance(amount uint64) {
-	self.data.Balance = amount
+func (s *stateObject) setBalance(amount uint64) {
+	s.data.Balance = amount
 }
 
-func (self *stateObject) deepCopy(db *StateDB) *stateObject {
-	stateObject := newObject(db, self.address, self.data)
-	if self.trie != nil {
-		stateObject.trie = db.db.CopyTrie(self.trie)
+func (s *stateObject) deepCopy(db *DB) *stateObject {
+	stateObject := newObject(db, s.address, s.data)
+	if s.trie != nil {
+		stateObject.trie = db.db.CopyTrie(s.trie)
 	}
-	stateObject.dirtyStorage = self.dirtyStorage.Copy()
-	stateObject.originStorage = self.originStorage.Copy()
-	stateObject.suicided = self.suicided
-	stateObject.deleted = self.deleted
+	stateObject.dirtyStorage = s.dirtyStorage.Copy()
+	stateObject.originStorage = s.originStorage.Copy()
+	stateObject.suicided = s.suicided
+	stateObject.deleted = s.deleted
 	return stateObject
 }
 
@@ -277,18 +279,19 @@ func (self *stateObject) deepCopy(db *StateDB) *stateObject {
  * Attribute accessors
  */
 
-// Returns the address of the contract/account
-func (c *stateObject) Address() common.Address {
-	return c.address
+// Returns the address of the contract/account.
+func (s *stateObject) Address() common.Address {
+	return s.address
 }
 
-func (self *stateObject) Balance() uint64 {
-	return self.data.Balance
+// Balance returns balance.
+func (s *stateObject) Balance() uint64 {
+	return s.data.Balance
 }
 
-// Never called, but must be present to allow stateObject to be used
+// Value is never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef
 // interface. Interfaces are awesome.
-func (self *stateObject) Value() int64 {
+func (s *stateObject) Value() int64 {
 	panic("Value on stateObject should never be called")
 }

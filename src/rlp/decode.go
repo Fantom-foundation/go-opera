@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	// EOL is returned when the end of the current list
+	// ErrEOL is returned when the end of the current list
 	// has been reached during streaming.
-	EOL = errors.New("rlp: end of list")
+	ErrEOL = errors.New("rlp: end of list")
 
-	// Actual Errors
+	// Actual Errors:
+
 	ErrExpectedString   = errors.New("rlp: expected String or Byte")
 	ErrExpectedList     = errors.New("rlp: expected List")
 	ErrCanonInt         = errors.New("rlp: non-canonical integer format")
@@ -26,7 +27,8 @@ var (
 	ErrValueTooLarge    = errors.New("rlp: value size exceeds available input length")
 	ErrMoreThanOneValue = errors.New("rlp: input contains more than one value")
 
-	// internal errors
+	// internal errors:
+
 	errNotInList     = errors.New("rlp: call of ListEnd outside of any list")
 	errNotAtEOL      = errors.New("rlp: call of ListEnd not positioned at EOL")
 	errUintOverflow  = errors.New("rlp: uint overflow")
@@ -336,7 +338,7 @@ func decodeSliceElems(s *Stream, val reflect.Value, elemdec decoder) error {
 			val.SetLen(i + 1)
 		}
 		// decode into element
-		if err := elemdec(s, val.Index(i)); err == EOL {
+		if err := elemdec(s, val.Index(i)); err == ErrEOL {
 			break
 		} else if err != nil {
 			return addErrorContext(err, fmt.Sprint("[", i, "]"))
@@ -355,7 +357,7 @@ func decodeListArray(s *Stream, val reflect.Value, elemdec decoder) error {
 	vlen := val.Len()
 	i := 0
 	for ; i < vlen; i++ {
-		if err := elemdec(s, val.Index(i)); err == EOL {
+		if err := elemdec(s, val.Index(i)); err == ErrEOL {
 			break
 		} else if err != nil {
 			return addErrorContext(err, fmt.Sprint("[", i, "]"))
@@ -424,7 +426,7 @@ func makeStructDecoder(typ reflect.Type) (decoder, error) {
 		}
 		for _, f := range fields {
 			err := f.info.decoder(s, val.Field(f.index))
-			if err == EOL {
+			if err == ErrEOL {
 				return &decodeError{msg: "too few elements", typ: typ}
 			} else if err != nil {
 				return addErrorContext(err, "."+typ.Field(f.index).Name)
@@ -537,6 +539,8 @@ func decodeDecoder(s *Stream, val reflect.Value) error {
 type Kind int
 
 const (
+	// Kind constants.
+
 	Byte Kind = iota
 	String
 	List
@@ -860,7 +864,7 @@ func (s *Stream) Kind() (kind Kind, size uint64, err error) {
 		// Don't read further if we're at the end of the
 		// innermost list.
 		if tos != nil && tos.pos == tos.size {
-			return 0, 0, EOL
+			return 0, 0, ErrEOL
 		}
 		s.kind, s.size, s.kinderr = s.readKind()
 		if s.kinderr == nil {

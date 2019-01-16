@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	// Common encoded values.
-	// These are useful when implementing EncodeRLP.
+	// EmptyString is empty string encoded value.
 	EmptyString = []byte{0x80}
-	EmptyList   = []byte{0xC0}
+	// EmptyList is empty list encoded value.
+	EmptyList = []byte{0xC0}
 )
 
 // Encoder is implemented by types that require custom

@@ -22,6 +22,7 @@ func NewBadgerDatabase(db *badger.DB) *BadgerDatabase {
  * Database interface implementation
  */
 
+// Put puts key-value pair into db.
 func (w *BadgerDatabase) Put(key []byte, value []byte) error {
 	tx := w.db.NewTransaction(true)
 	defer tx.Discard()
@@ -34,6 +35,7 @@ func (w *BadgerDatabase) Put(key []byte, value []byte) error {
 	return tx.Commit(nil)
 }
 
+// Has checks if key is in the db.
 func (w *BadgerDatabase) Has(key []byte) (bool, error) {
 	err := w.db.View(func(txn *badger.Txn) error {
 		_, rerr := txn.Get(key)
@@ -49,6 +51,7 @@ func (w *BadgerDatabase) Has(key []byte) (bool, error) {
 	return true, nil
 }
 
+// Get returns key-value pair by key.
 func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 	err = w.db.View(func(txn *badger.Txn) error {
 		item, rerr := txn.Get(key)
@@ -62,6 +65,7 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 	return
 }
 
+// Delete removes key-value pair by key.
 func (w *BadgerDatabase) Delete(key []byte) error {
 	tx := w.db.NewTransaction(true)
 	defer tx.Discard()
@@ -69,8 +73,10 @@ func (w *BadgerDatabase) Delete(key []byte) error {
 	return tx.Commit(nil)
 }
 
+// Close does nothing.
 func (w *BadgerDatabase) Close() {}
 
+// NewBatch creates new batch.
 func (w *BadgerDatabase) NewBatch() Batch {
 	return &badgerBatch{db: w}
 }
@@ -79,24 +85,28 @@ func (w *BadgerDatabase) NewBatch() Batch {
  * Batch
  */
 
+// badgerBatch is a batch structure.
 type badgerBatch struct {
 	db     *BadgerDatabase
 	writes []kv
 	size   int
 }
 
+// Put puts key-value pair into batch.
 func (b *badgerBatch) Put(key, value []byte) error {
 	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
 	b.size += len(value)
 	return nil
 }
 
+// Delete removes key-value pair from batch by key.
 func (b *badgerBatch) Delete(key []byte) error {
 	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
-	b.size += 1
+	b.size++
 	return nil
 }
 
+// Write writes batch into db.
 func (b *badgerBatch) Write() error {
 	tx := b.db.db.NewTransaction(true)
 	defer tx.Discard()
@@ -116,10 +126,12 @@ func (b *badgerBatch) Write() error {
 	return tx.Commit(nil)
 }
 
+// ValueSize returns values sizes sum.
 func (b *badgerBatch) ValueSize() int {
 	return b.size
 }
 
+// Reset cleans whole batch.
 func (b *badgerBatch) Reset() {
 	b.writes = b.writes[:0]
 	b.size = 0

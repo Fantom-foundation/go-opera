@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
-	_ "testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
