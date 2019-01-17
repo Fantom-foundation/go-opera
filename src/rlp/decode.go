@@ -538,14 +538,14 @@ func decodeDecoder(s *Stream, val reflect.Value) error {
 // Kind represents the kind of value contained in an RLP stream.
 type Kind int
 
+// Kind constants.
 const (
-	// Kind constants.
-
 	Byte Kind = iota
 	String
 	List
 )
 
+// String returns Kind representation.
 func (k Kind) String() string {
 	switch k {
 	case Byte:

@@ -182,7 +182,10 @@ func TestAppendNoRealloc(t *testing.T) {
 	testUnalignedAndGeneric(t, func(impl string) {
 		buf := make([]byte, 1, 200)
 		d := New224()
-		d.Write([]byte{0xcc})
+		_, err := d.Write([]byte{0xcc})
+		if err != nil {
+			t.Fatal(err)
+		}
 		buf = d.Sum(buf)
 		expected := "00DF70ADC49B2E76EEE3A6931B93FA41841C3AF2CDF5B32A18B5478C39"
 		if got := strings.ToUpper(hex.EncodeToString(buf)); got != expected {

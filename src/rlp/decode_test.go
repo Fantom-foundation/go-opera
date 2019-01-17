@@ -718,7 +718,7 @@ func ExampleDecode_structTagNil() {
 	}
 	err := Decode(bytes.NewReader(input), &normalRules)
 	if err != nil {
-		fmt.Errorf("error while decoding: %s", err)
+		fmt.Printf("error while decoding: %s", err)
 		return
 	}
 	fmt.Printf("normal: String = %q\n", *normalRules.String)
@@ -730,7 +730,7 @@ func ExampleDecode_structTagNil() {
 	}
 	err = Decode(bytes.NewReader(input), &withEmptyOK)
 	if err != nil {
-		fmt.Errorf("error while decoding: %s", err)
+		fmt.Printf("error while decoding: %s", err)
 		return
 	}
 	fmt.Printf("with nil tag: String = %v\n", withEmptyOK.String)
