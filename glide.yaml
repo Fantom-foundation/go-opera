@@ -25,11 +25,19 @@ import:
 - package: google.golang.org/grpc
   version: ^1.17.0
 - package: github.com/facebookgo/pidfile
-- package: golang.org/x/sys/windows
-- package: golang.org/x/sys/windows/svc/eventlog
+- package: golang.org/x/sys
+  subpackages:
+  - windows
+  - windows/svc/eventlog
+- package: github.com/allegro/bigcache
+  version: ^1.1.0
 - package: github.com/pkg/errors
 testImport:
 - package: github.com/stretchr/testify
   version: ^1.2.2
   subpackages:
   - assert
+- package: github.com/davecgh/go-spew
+  version: ^1.1.1
+  subpackages:
+  - spew

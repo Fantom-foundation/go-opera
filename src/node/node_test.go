@@ -58,7 +58,7 @@ func TestProcessSync(t *testing.T) {
 	defer peer0Trans.Close()
 
 	node0 := NewNode(config, ps[0].ID, keys[0], p,
-		poset.NewInmemStore(p, config.CacheSize),
+		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		dummy.NewInmemDummyApp(testLogger))
 	node0.Init()
@@ -74,7 +74,7 @@ func TestProcessSync(t *testing.T) {
 	defer peer1Trans.Close()
 
 	node1 := NewNode(config, ps[1].ID, keys[1], p,
-		poset.NewInmemStore(p, config.CacheSize),
+		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		dummy.NewInmemDummyApp(testLogger))
 	node1.Init()
@@ -159,7 +159,7 @@ func TestProcessEagerSync(t *testing.T) {
 	defer peer0Trans.Close()
 
 	node0 := NewNode(config, ps[0].ID, keys[0], p,
-		poset.NewInmemStore(p, config.CacheSize),
+		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		dummy.NewInmemDummyApp(testLogger))
 	node0.Init()
@@ -175,7 +175,7 @@ func TestProcessEagerSync(t *testing.T) {
 	defer peer1Trans.Close()
 
 	node1 := NewNode(config, ps[1].ID, keys[1], p,
-		poset.NewInmemStore(p, config.CacheSize),
+		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		dummy.NewInmemDummyApp(testLogger))
 	node1.Init()
@@ -239,7 +239,7 @@ func TestAddTransaction(t *testing.T) {
 	defer peer0Trans.Close()
 
 	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0], p,
-		poset.NewInmemStore(p, config.CacheSize),
+		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		peer0Proxy)
 	node0.Init()
@@ -256,7 +256,7 @@ func TestAddTransaction(t *testing.T) {
 	defer peer1Trans.Close()
 
 	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1], p,
-		poset.NewInmemStore(p, config.CacheSize),
+		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		peer1Proxy)
 	node1.Init()
@@ -342,13 +342,13 @@ func initNodes(keys []*ecdsa.PrivateKey,
 		switch storeType {
 		case "badger":
 			path, _ := ioutil.TempDir("", "badger")
-			store, err = poset.NewBadgerStore(peers, conf.CacheSize, path)
+			store, err = poset.NewBadgerStore(peers, conf.CacheSize, path, nil)
 			if err != nil {
 				t.Fatalf("failed to create BadgerStore for peer %d: %s",
 					id, err)
 			}
 		case "inmem":
-			store = poset.NewInmemStore(peers, conf.CacheSize)
+			store = poset.NewInmemStore(peers, conf.CacheSize, nil)
 		}
 		prox := dummy.NewInmemDummyApp(logger)
 
@@ -393,7 +393,7 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 			t.Fatal(err)
 		}
 	} else {
-		store = poset.NewInmemStore(oldNode.core.participants, conf.CacheSize)
+		store = poset.NewInmemStore(oldNode.core.participants, conf.CacheSize, nil)
 	}
 
 	trans, err := net.NewTCPTransport(oldNode.localAddr,

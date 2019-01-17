@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/net"
@@ -11,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/service"
-	"github.com/sirupsen/logrus"
 )
 
 // Lachesis struct
@@ -77,31 +78,26 @@ func (l *Lachesis) initPeers() error {
 	return nil
 }
 
-func (l *Lachesis) initStore() error {
-	var dbDir = fmt.Sprintf("%s/badger", l.Config.DataDir)
-
+func (l *Lachesis) initStore() (err error) {
 	if !l.Config.Store {
-		l.Store = poset.NewInmemStore(l.Peers, l.Config.NodeConfig.CacheSize)
-
+		l.Store = poset.NewInmemStore(l.Peers, l.Config.NodeConfig.CacheSize, &l.Config.PoSConfig)
 		l.Config.Logger.Debug("created new in-mem store")
 	} else {
-		var err error
-
-		l.Config.Logger.WithField("path", l.Config.BadgerDir()).Debug("Attempting to load or create database")
-		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir)
-
+		dbDir := l.Config.BadgerDir()
+		l.Config.Logger.WithField("path", dbDir).Debug("Attempting to load or create database")
+		l.Store, err = poset.LoadOrCreateBadgerStore(l.Peers, l.Config.NodeConfig.CacheSize, dbDir, &l.Config.PoSConfig)
 		if err != nil {
-			return err
-		}
-
-		if l.Store.NeedBoostrap() {
-			l.Config.Logger.Debug("loaded badger store from existing database at ", dbDir)
-		} else {
-			l.Config.Logger.Debug("created new badger store from fresh database")
+			return
 		}
 	}
 
-	return nil
+	if l.Store.NeedBoostrap() {
+		l.Config.Logger.Debug("loaded store from existing database")
+	} else {
+		l.Config.Logger.Debug("created new store from blank database")
+	}
+
+	return
 }
 
 func (l *Lachesis) initKey() error {

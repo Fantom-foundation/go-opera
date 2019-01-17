@@ -1,6 +1,10 @@
-hash: eba04f04ea7ccbf0178696b46335ec7a9751120967ada10ecdbc218d475e2d67
-updated: 2019-01-09T14:04:47.320809902+11:00
+hash: 97f63efc22fbc32e4b7878f4c1ac7cc34bbaecaf3cd1c02762ea8f761d503761
+updated: 2019-01-15T21:12:15.184480534+10:00
 imports:
+- name: github.com/allegro/bigcache
+  version: f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068
+  subpackages:
+  - queue
 - name: github.com/AndreasBriese/bbloom
   version: 343706a395b76e5ca5c7dca46a5d937b48febc74
 - name: github.com/dgraph-io/badger
@@ -61,8 +65,6 @@ imports:
   version: 15d26544def341f036c5f8dca987a4cbe575032c
 - name: github.com/sirupsen/logrus
   version: e1e72e9de974bd926e5c56f83753fba2df402ce5
-  subpackages:
-  - hooks/syslog
 - name: github.com/spf13/afero
   version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
@@ -100,6 +102,7 @@ imports:
   subpackages:
   - unix
   - windows
+  - windows/registry
   - windows/svc/eventlog
 - name: golang.org/x/text
   version: 4d1c5fb19474adfe9562c9847ba425e7da817e81
@@ -149,7 +152,7 @@ imports:
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports:
 - name: github.com/davecgh/go-spew
-  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
+  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
   - spew
 - name: github.com/pmezard/go-difflib

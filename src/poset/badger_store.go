@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/dgraph-io/badger"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/dgraph-io/badger"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
 )
 
 const (
@@ -17,6 +21,7 @@ const (
 	topoPrefix          = "topo"
 	blockPrefix         = "block"
 	framePrefix         = "frame"
+	statePrefix         = "state"
 )
 
 // BadgerStore struct for badger config data
@@ -26,11 +31,13 @@ type BadgerStore struct {
 	db           *badger.DB
 	path         string
 	needBoostrap bool
+
+	states state.Database
 }
 
 // NewBadgerStore creates a brand new Store with a new database
-func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*BadgerStore, error) {
-	inmemStore := NewInmemStore(participants, cacheSize)
+func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posConf *pos.Config) (*BadgerStore, error) {
+	inmemStore := NewInmemStore(participants, cacheSize, posConf)
 	opts := badger.DefaultOptions
 	opts.Dir = path
 	opts.ValueDir = path
@@ -44,6 +51,10 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*Bad
 		inmemStore:   inmemStore,
 		db:           handle,
 		path:         path,
+		states: state.NewDatabase(
+			kvdb.NewTable(
+				kvdb.NewBadgerDatabase(
+					handle), statePrefix)),
 	}
 	if err := store.dbSetParticipants(participants); err != nil {
 		return nil, err
@@ -51,6 +62,10 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string) (*Bad
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
+
+	// TODO: replace with real genesis
+	pos.FakeGenesis(participants, posConf, store.states)
+
 	return store, nil
 }
 
@@ -73,6 +88,10 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 		db:           handle,
 		path:         path,
 		needBoostrap: true,
+		states: state.NewDatabase(
+			kvdb.NewTable(
+				kvdb.NewBadgerDatabase(
+					handle), statePrefix)),
 	}
 
 	participants, err := store.dbGetParticipants()
@@ -80,7 +99,7 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 		return nil, err
 	}
 
-	inmemStore := NewInmemStore(participants, cacheSize)
+	inmemStore := NewInmemStore(participants, cacheSize, nil)
 
 	// read roots from db and put them in InmemStore
 	roots := make(map[string]Root)
@@ -103,12 +122,12 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 }
 
 // LoadOrCreateBadgerStore load or create a new badger store
-func LoadOrCreateBadgerStore(participants *peers.Peers, cacheSize int, path string) (*BadgerStore, error) {
+func LoadOrCreateBadgerStore(participants *peers.Peers, cacheSize int, path string, posConf *pos.Config) (*BadgerStore, error) {
 	store, err := LoadBadgerStore(cacheSize, path)
 
 	if err != nil {
 		fmt.Println("Could not load store - creating new")
-		store, err = NewBadgerStore(participants, cacheSize, path)
+		store, err = NewBadgerStore(participants, cacheSize, path, posConf)
 
 		if err != nil {
 			return nil, err
@@ -395,6 +414,11 @@ func (s *BadgerStore) NeedBoostrap() bool {
 // StorePath returns the path to the file on disk
 func (s *BadgerStore) StorePath() string {
 	return s.path
+}
+
+// StateDB returns state database
+func (s *BadgerStore) StateDB() state.Database {
+	return s.states
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

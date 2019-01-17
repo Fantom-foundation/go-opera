@@ -7,30 +7,33 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/sirupsen/logrus"
 )
 
 type LachesisConfig struct {
 	DataDir     string `mapstructure:"datadir"`
 	BindAddr    string `mapstructure:"listen"`
 	ServiceAddr string `mapstructure:"service-listen"`
-  ServiceOnly bool   `mapstructure:"service-only"`
+	ServiceOnly bool   `mapstructure:"service-only"`
 	MaxPool     int    `mapstructure:"max-pool"`
 	Store       bool   `mapstructure:"store"`
 	LogLevel    string `mapstructure:"log"`
 
 	NodeConfig node.Config `mapstructure:",squash"`
+	PoSConfig  pos.Config  `mapstructure:",squash"`
 
 	LoadPeers bool
 	Proxy     proxy.AppProxy
 	Key       *ecdsa.PrivateKey
 	Logger    *logrus.Logger
 
-	Test  bool   `mapstructure:"test"`
-	TestN uint64 `mapstructure:"test_n"`
+	Test      bool   `mapstructure:"test"`
+	TestN     uint64 `mapstructure:"test_n"`
 	TestDelay uint64 `mapstructure:"test_delay"`
 }
 
@@ -42,6 +45,7 @@ func NewDefaultConfig() *LachesisConfig {
 		ServiceOnly: false,
 		MaxPool:     2,
 		NodeConfig:  *node.DefaultConfig(),
+		PoSConfig:   *pos.DefaultConfig(),
 		Store:       false,
 		LogLevel:    "info",
 		Proxy:       nil,
@@ -50,7 +54,7 @@ func NewDefaultConfig() *LachesisConfig {
 		Key:         nil,
 		Test:        false,
 		TestN:       ^uint64(0),
-	        TestDelay:   1,
+		TestDelay:   1,
 	}
 
 	config.Logger.Level = LogLevel(config.LogLevel)

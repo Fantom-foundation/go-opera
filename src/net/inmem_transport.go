@@ -35,15 +35,21 @@ func NewInmemTransport(addr string) (string, *InmemTransport) {
 	if addr == "" {
 		addr = NewInmemAddr()
 	}
-	trans := &InmemTransport{
+
+	inmemMediumSync.Lock()
+	defer inmemMediumSync.Unlock()
+
+	trans, ok := inmemMedium[addr]
+	if ok {
+		return addr, trans
+	}
+
+	trans = &InmemTransport{
 		consumerCh: make(chan *RPC, 16),
 		localAddr:  addr,
 		timeout:    50 * time.Millisecond,
 	}
-
-	inmemMediumSync.Lock()
 	inmemMedium[addr] = trans
-	inmemMediumSync.Unlock()
 
 	return addr, trans
 }

@@ -35,7 +35,7 @@ func initCores(n int, t *testing.T) ([]*Core,
 		core := NewCore(uint64(i),
 			participantKeys[peer.ID],
 			participants,
-			poset.NewInmemStore(participants, cacheSize),
+			poset.NewInmemStore(participants, cacheSize, nil),
 			nil,
 			common.NewTestLogger(t))
 

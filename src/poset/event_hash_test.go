@@ -21,8 +21,8 @@ func TestEventHash(t *testing.T) {
 	h.Set(arrShortTrim)
 	b2 := h.Bytes()
 
-	assert.Equal(b1, arrLongFull)
-	assert.Equal(b2, arrShortFull)
+	assert.Equal(arrLongFull, b1)
+	assert.Equal(arrShortFull, b2)
 }
 
 func TestEventHashes(t *testing.T) {
@@ -34,11 +34,11 @@ func TestEventHashes(t *testing.T) {
 
 	bb := hh.Bytes()
 	for i := 0; i < hh.Len(); i++ {
-		assert.Equal(bb[i], hh[i].Bytes())
+		assert.Equal(hh[i].Bytes(), bb[i])
 	}
 
 	ss := hh.Strings()
 	for i := 0; i < hh.Len(); i++ {
-		assert.Equal(ss[i], hh[i].String())
+		assert.Equal(hh[i].String(), ss[i])
 	}
 }

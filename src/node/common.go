@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
-	_ "testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -23,32 +22,35 @@ type NodeList map[*ecdsa.PrivateKey]*Node
 
 // NewNodeList makes, fills and runs NodeList instance
 func NewNodeList(count int, logger *logrus.Logger) NodeList {
-	nodes := make(NodeList, count)
-	participants := peers.NewPeers()
 	config := DefaultConfig()
 	config.Logger = logger
 
+	participants := peers.NewPeers()
+	keys := make(map[*peers.Peer]*ecdsa.PrivateKey)
 	for i := 0; i < count; i++ {
-		addr, transp := net.NewInmemTransport("")
+		addr, _ := net.NewInmemTransport("")
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
 		peer := peers.NewPeer(pubKey, addr)
+		participants.AddPeer(peer)
+		keys[peer] = key
+	}
+
+	nodes := make(NodeList, count)
+	for _, peer := range participants.ToPeerSlice() {
+		key := keys[peer]
+		_, transp := net.NewInmemTransport(peer.GetNetAddr())
 		n := NewNode(
 			config,
 			peer.ID,
 			key,
 			participants,
-			poset.NewInmemStore(participants, config.CacheSize),
+			poset.NewInmemStore(participants, config.CacheSize, nil),
 			transp,
 			dummy.NewInmemDummyApp(logger))
-
-		participants.AddPeer(peer)
-		nodes[key] = n
-	}
-
-	for _, n := range nodes {
 		n.Init()
 		n.RunAsync(true)
+		nodes[key] = n
 	}
 
 	return nodes

@@ -2,7 +2,10 @@
 
 package poset
 
-import "github.com/Fantom-foundation/go-lachesis/src/peers"
+import (
+	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+)
 
 // Store provides an interface for persistent and non-persistent stores
 // to store key lachesis consensus information on a node.
@@ -39,4 +42,6 @@ type Store interface {
 	Close() error
 	NeedBoostrap() bool // Was the store loaded from existing db
 	StorePath() string
+	// StateDB returns state database
+	StateDB() state.Database
 }

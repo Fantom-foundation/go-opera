@@ -21,7 +21,7 @@ func (f *Frame) ProtoUnmarshal(data []byte) error {
 }
 
 // GetEventBlocks provides alternative for non-existent Protobuf generated function
-func (f *Frame) GetEventBlocks() ([]*EventMessage) {
+func (f *Frame) GetEventBlocks() []*EventMessage {
 	return f.GetEvents()
 }
 
@@ -31,7 +31,7 @@ func (f *Frame) Hash() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return crypto.SHA256(hashBytes), nil
+	return crypto.Keccak256(hashBytes), nil
 }
 
 // RootListEquals compares the equality of two root lists

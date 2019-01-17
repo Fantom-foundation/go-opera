@@ -32,7 +32,7 @@ func initBadgerStore(cacheSize int, t *testing.T) (*BadgerStore, []pub) {
 		log.Fatal(err)
 	}
 
-	store, err := NewBadgerStore(participants, cacheSize, dir)
+	store, err := NewBadgerStore(participants, cacheSize, dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func createTestDB(dir string, t *testing.T) *BadgerStore {
 
 	cacheSize := 100
 
-	store, err := NewBadgerStore(participants, cacheSize, dir)
+	store, err := NewBadgerStore(participants, cacheSize, dir, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

@@ -38,7 +38,7 @@ func (bb *BlockBody) Hash() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return crypto.SHA256(hashBytes), nil
+	return crypto.Keccak256(hashBytes), nil
 }
 
 // ------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ func (b *Block) BlockHash() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return crypto.SHA256(hashBytes), nil
+	return crypto.Keccak256(hashBytes), nil
 }
 
 // BlockHex returns the Hex of the block (used for API)
