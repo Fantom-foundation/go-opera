@@ -127,7 +127,10 @@ func TestMissingKeyProof(t *testing.T) {
 
 	for i, key := range []string{"a", "j", "l", "z"} {
 		proof := kvdb.NewMemDatabase()
-		trie.Prove([]byte(key), 0, proof)
+		err := trie.Prove([]byte(key), 0, proof)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if proof.Len() != 1 {
 			t.Errorf("test %d: proof should have one element", i)
@@ -182,7 +185,10 @@ func BenchmarkVerifyProof(b *testing.B) {
 	for k := range vals {
 		keys = append(keys, k)
 		proof := kvdb.NewMemDatabase()
-		trie.Prove([]byte(k), 0, proof)
+		err := trie.Prove([]byte(k), 0, proof)
+		if err != nil {
+			b.Fatal(err)
+		}
 		proofs = append(proofs, proof)
 	}
 

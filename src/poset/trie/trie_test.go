@@ -71,7 +71,10 @@ func testMissingNode(t *testing.T, memonly bool) {
 	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")
 	root, _ := trie.Commit(nil)
 	if !memonly {
-		triedb.Commit(root, true)
+		err := triedb.Commit(root, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	trie, _ = New(root, triedb)
@@ -104,7 +107,10 @@ func testMissingNode(t *testing.T, memonly bool) {
 	if memonly {
 		delete(triedb.dirties, hash)
 	} else {
-		diskdb.Delete(hash[:])
+		err = diskdb.Delete(hash[:])
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	trie, _ = New(root, triedb)
@@ -180,7 +186,10 @@ func TestGet(t *testing.T) {
 		if i == 1 {
 			return
 		}
-		trie.Commit(nil)
+		_, err := trie.Commit(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -319,8 +328,14 @@ func TestCacheUnload(t *testing.T) {
 	updateString(trie, key1, "this is the branch of key1.")
 	updateString(trie, key2, "this is the branch of key2.")
 
-	root, _ := trie.Commit(nil)
-	trie.db.Commit(root, true)
+	root, err := trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = trie.db.Commit(root, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Commit the trie repeatedly and access key1.
 	// The branch containing it is loaded from DB exactly two times:
@@ -331,7 +346,10 @@ func TestCacheUnload(t *testing.T) {
 	trie.SetCacheLimit(5)
 	for i := 0; i < 12; i++ {
 		getString(trie, key1)
-		trie.Commit(nil)
+		_, err = trie.Commit(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Check that it got loaded two times.
 	for dbkey, count := range diskdb.gets {

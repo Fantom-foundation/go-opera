@@ -100,7 +100,10 @@ func TestKeccakKats(t *testing.T) {
 				if err != nil {
 					t.Errorf("error decoding KAT: %s", err)
 				}
-				d.Write(in[:kat.Length/8])
+				_, err = d.Write(in[:kat.Length/8])
+				if err != nil {
+					t.Fatal(err)
+				}
 				got := strings.ToUpper(hex.EncodeToString(d.Sum(nil)))
 				if got != kat.Digest {
 					t.Errorf("function=%s, implementation=%s, length=%d\nmessage:\n  %s\ngot:\n  %s\nwanted:\n %s",
@@ -122,7 +125,10 @@ func TestUnalignedWrite(t *testing.T) {
 		for alg, df := range testDigests {
 			d := df()
 			d.Reset()
-			d.Write(buf)
+			_, err := d.Write(buf)
+			if err != nil {
+				t.Fatal(err)
+			}
 			want := d.Sum(nil)
 			d.Reset()
 			for i := 0; i < len(buf); {
@@ -133,7 +139,10 @@ func TestUnalignedWrite(t *testing.T) {
 					if v := len(buf) - i; v < j {
 						j = v
 					}
-					d.Write(buf[i : i+j])
+					_, err := d.Write(buf[i : i+j])
+					if err != nil {
+						t.Fatal(err)
+					}
 					i += j
 				}
 			}
@@ -155,7 +164,10 @@ func TestAppend(t *testing.T) {
 			// The second time, it will not.
 			buf := make([]byte, 2, capacity)
 			d.Reset()
-			d.Write([]byte{0xcc})
+			_, err := d.Write([]byte{0xcc})
+			if err != nil {
+				t.Fatal(err)
+			}
 			buf = d.Sum(buf)
 			expected := "0000DF70ADC49B2E76EEE3A6931B93FA41841C3AF2CDF5B32A18B5478C39"
 			if got := strings.ToUpper(hex.EncodeToString(buf)); got != expected {
@@ -246,7 +258,10 @@ func benchmarkHash(b *testing.B, h hash.Hash, size, num int) {
 	var state []byte
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < num; j++ {
-			h.Write(data)
+			_, err := h.Write(data)
+			if err != nil {
+				b.Fatal(err)
+			}
 		}
 		state = h.Sum(state[:0])
 	}

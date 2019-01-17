@@ -15,22 +15,22 @@ type testEncoder struct {
 	err error
 }
 
-func (e *testEncoder) EncodeRLP(w io.Writer) error {
+func (e *testEncoder) EncodeRLP(w io.Writer) (err error) {
 	if e == nil {
-		w.Write([]byte{0, 0, 0, 0})
+		_, err = w.Write([]byte{0, 0, 0, 0})
 	} else if e.err != nil {
-		return e.err
+		err = e.err
 	} else {
-		w.Write([]byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1})
+		_, err = w.Write([]byte{0, 1, 0, 1, 0, 1, 0, 1, 0, 1})
 	}
-	return nil
+	return
 }
 
 type byteEncoder byte
 
 func (e byteEncoder) EncodeRLP(w io.Writer) error {
-	w.Write(EmptyList)
-	return nil
+	_, err := w.Write(EmptyList)
+	return err
 }
 
 type encodableReader struct {
@@ -306,20 +306,44 @@ func TestEncodeToReaderPiecewise(t *testing.T) {
 // returns its encbuf to the pool only once.
 func TestEncodeToReaderReturnToPool(t *testing.T) {
 	buf := make([]byte, 50)
+
+	const count = 5
+	errs := make(chan error)
 	wg := new(sync.WaitGroup)
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
+	wg.Add(count)
+	go func() {
+		wg.Wait()
+		close(errs)
+	}()
+	for i := 0; i < count; i++ {
 		go func() {
+			defer wg.Done()
 			for i := 0; i < 1000; i++ {
-				_, r, _ := EncodeToReader("foo")
-				ioutil.ReadAll(r)
-				r.Read(buf)
-				r.Read(buf)
-				r.Read(buf)
-				r.Read(buf)
+				_, r, err := EncodeToReader("foo")
+				if err != nil {
+					errs <- err
+					return
+				}
+				_, err = ioutil.ReadAll(r)
+				if err != nil {
+					errs <- err
+					return
+				}
+				for j := 0; j < 4; j++ {
+					_, err = r.Read(buf)
+					if err != nil && err != io.EOF {
+						errs <- err
+						return
+					}
+				}
 			}
-			wg.Done()
 		}()
 	}
-	wg.Wait()
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
 }

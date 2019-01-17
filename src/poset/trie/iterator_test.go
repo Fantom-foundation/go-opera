@@ -85,7 +85,7 @@ func TestIteratorLargeData(t *testing.T) {
 // Tests that the node iterator indeed walks over the entire database contents.
 func TestNodeIteratorCoverage(t *testing.T) {
 	// Create some arbitrary test trie to iterate
-	db, trie, _ := makeTestTrie()
+	db, trie, _ := makeTestTrie(t)
 
 	// Gather all the node hashes found by the iterator
 	hashes := make(map[common.Hash]struct{})
@@ -194,7 +194,10 @@ func TestDifferenceIterator(t *testing.T) {
 	for _, val := range testdata2 {
 		trieb.Update([]byte(val.k), []byte(val.v))
 	}
-	trieb.Commit(nil)
+	_, err = trieb.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	found := make(map[string]string)
 	di, _ := NewDifferenceIterator(triea.NodeIterator(nil), trieb.NodeIterator(nil))

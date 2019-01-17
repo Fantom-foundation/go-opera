@@ -9,10 +9,13 @@ import (
 )
 
 // makeTestTrie create a sample test trie to test node-wise reconstruction.
-func makeTestTrie() (*Database, *Trie, map[string][]byte) {
+func makeTestTrie(t *testing.T) (*Database, *Trie, map[string][]byte) {
 	// Create an empty trie
 	triedb := NewDatabase(kvdb.NewMemDatabase())
-	trie, _ := New(common.Hash{}, triedb)
+	trie, err := New(common.Hash{}, triedb)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Fill it with some arbitrary data
 	content := make(map[string][]byte)
@@ -33,7 +36,10 @@ func makeTestTrie() (*Database, *Trie, map[string][]byte) {
 			trie.Update(key, val)
 		}
 	}
-	trie.Commit(nil)
+	_, err = trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Return the generated trie
 	return triedb, trie, content
@@ -91,7 +97,7 @@ func TestIterativeSyncBatched(t *testing.T)    { testIterativeSync(t, 100) }
 
 func testIterativeSync(t *testing.T, batch int) {
 	// Create a random trie to copy
-	srcDb, srcTrie, srcData := makeTestTrie()
+	srcDb, srcTrie, srcData := makeTestTrie(t)
 
 	// Create a destination trie and sync with the scheduler
 	diskdb := kvdb.NewMemDatabase()
@@ -124,7 +130,7 @@ func testIterativeSync(t *testing.T, batch int) {
 // partial results are returned, and the others sent only later.
 func TestIterativeDelayedSync(t *testing.T) {
 	// Create a random trie to copy
-	srcDb, srcTrie, srcData := makeTestTrie()
+	srcDb, srcTrie, srcData := makeTestTrie(t)
 
 	// Create a destination trie and sync with the scheduler
 	diskdb := kvdb.NewMemDatabase()
@@ -162,7 +168,7 @@ func TestIterativeRandomSyncBatched(t *testing.T)    { testIterativeRandomSync(t
 
 func testIterativeRandomSync(t *testing.T, batch int) {
 	// Create a random trie to copy
-	srcDb, srcTrie, srcData := makeTestTrie()
+	srcDb, srcTrie, srcData := makeTestTrie(t)
 
 	// Create a destination trie and sync with the scheduler
 	diskdb := kvdb.NewMemDatabase()
@@ -203,7 +209,7 @@ func testIterativeRandomSync(t *testing.T, batch int) {
 // partial results are returned (Even those randomly), others sent only later.
 func TestIterativeRandomDelayedSync(t *testing.T) {
 	// Create a random trie to copy
-	srcDb, srcTrie, srcData := makeTestTrie()
+	srcDb, srcTrie, srcData := makeTestTrie(t)
 
 	// Create a destination trie and sync with the scheduler
 	diskdb := kvdb.NewMemDatabase()
@@ -250,7 +256,7 @@ func TestIterativeRandomDelayedSync(t *testing.T) {
 // have such references.
 func TestDuplicateAvoidanceSync(t *testing.T) {
 	// Create a random trie to copy
-	srcDb, srcTrie, srcData := makeTestTrie()
+	srcDb, srcTrie, srcData := makeTestTrie(t)
 
 	// Create a destination trie and sync with the scheduler
 	diskdb := kvdb.NewMemDatabase()
@@ -290,7 +296,7 @@ func TestDuplicateAvoidanceSync(t *testing.T) {
 // the database.
 func TestIncompleteSync(t *testing.T) {
 	// Create a random trie to copy
-	srcDb, srcTrie, _ := makeTestTrie()
+	srcDb, srcTrie, _ := makeTestTrie(t)
 
 	// Create a destination trie and sync with the scheduler
 	diskdb := kvdb.NewMemDatabase()
@@ -333,10 +339,14 @@ func TestIncompleteSync(t *testing.T) {
 		key := node.Bytes()
 		value, _ := diskdb.Get(key)
 
-		diskdb.Delete(key)
+		if err := diskdb.Delete(key); err != nil {
+			t.Fatal(err)
+		}
 		if err := checkTrieConsistency(triedb, added[0]); err == nil {
 			t.Fatalf("trie inconsistency not caught, missing: %x", key)
 		}
-		diskdb.Put(key, value)
+		if err := diskdb.Put(key, value); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

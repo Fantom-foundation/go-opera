@@ -17,7 +17,7 @@ func newEmptySecure() *SecureTrie {
 }
 
 // makeTestSecureTrie creates a large enough secure trie for testing.
-func makeTestSecureTrie() (*Database, *SecureTrie, map[string][]byte) {
+func makeTestSecureTrie(t *testing.T) (*Database, *SecureTrie, map[string][]byte) {
 	// Create an empty trie
 	triedb := NewDatabase(kvdb.NewMemDatabase())
 
@@ -44,7 +44,7 @@ func makeTestSecureTrie() (*Database, *SecureTrie, map[string][]byte) {
 	}
 	_, err := trie.Commit(nil)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	// Return the generated trie
@@ -95,7 +95,7 @@ func TestSecureGetKey(t *testing.T) {
 
 func TestSecureTrieConcurrency(t *testing.T) {
 	// Create an initial trie and copy if for concurrent access
-	_, trie, _ := makeTestSecureTrie()
+	_, trie, _ := makeTestSecureTrie(t)
 
 	threads := runtime.NumCPU()
 	tries := make([]*SecureTrie, threads)
@@ -104,8 +104,13 @@ func TestSecureTrieConcurrency(t *testing.T) {
 		tries[i] = &cpy
 	}
 	// Start a batch of goroutines interactng with the trie
+	errs := make(chan error)
 	pend := new(sync.WaitGroup)
 	pend.Add(threads)
+	go func() {
+		pend.Wait()
+		close(errs)
+	}()
 	for i := 0; i < threads; i++ {
 		go func(index int) {
 			defer pend.Done()
@@ -126,10 +131,14 @@ func TestSecureTrieConcurrency(t *testing.T) {
 			}
 			_, err := tries[index].Commit(nil)
 			if err != nil {
-				t.Fatal(err)
+				errs <- err
 			}
 		}(i)
 	}
 	// Wait for all threads to finish
-	pend.Wait()
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
