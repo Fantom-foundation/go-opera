@@ -10,6 +10,9 @@ const (
 	jsonPeerPath = "peers.json"
 )
 
+// PeerNIL is used for nil peer id
+const PeerNIL uint64 = 0
+
 // NewPeer creates a new peer based on public key and network address
 func NewPeer(pubKeyHex, netAddr string) *Peer {
 	peer := &Peer{
@@ -43,7 +46,7 @@ func (p *Peer) computeID() error {
 		return err
 	}
 
-	p.ID = int64(common.Hash32(pubKey))
+	p.ID = common.Hash64(pubKey)
 
 	return nil
 }
@@ -73,6 +76,7 @@ func ExcludePeer(peers []*Peer, peer string) (int, []*Peer) {
 	return index, otherPeers
 }
 
+// ExcludePeers is used to exclude multiple peers from a list of peers.
 func ExcludePeers(peers []*Peer, local string, last string) ([]*Peer) {
 	otherPeers := make([]*Peer, 0, len(peers))
 	for _, p := range peers {

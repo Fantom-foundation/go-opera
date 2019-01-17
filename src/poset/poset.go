@@ -781,7 +781,7 @@ func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) erro
 
 func (p *Poset) setWireInfo(event *Event) error {
 	var selfParentIndex int64
-	otherParentCreatorID := int64(-1)
+	otherParentCreatorID := peers.PeerNIL
 	otherParentIndex := int64(-1)
 
 	eventCreator := event.GetCreator()

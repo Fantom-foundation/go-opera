@@ -2,7 +2,7 @@ syntax = "proto3";
 package peers;
 
 message Peer {
-  int64 ID = 1;
+  uint64 ID = 1;
   string NetAddr = 2;
   string PubKeyHex = 3;
   int64 used = 4;

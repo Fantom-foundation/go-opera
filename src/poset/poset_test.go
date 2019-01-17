@@ -107,16 +107,16 @@ var (
 )
 
 type TestNode struct {
-	ID     int
+	ID     uint64
 	Pub    []byte
 	PubHex string
 	Key    *ecdsa.PrivateKey
 	Events []Event
 }
 
-func NewTestNode(key *ecdsa.PrivateKey, id int) TestNode {
+func NewTestNode(key *ecdsa.PrivateKey) TestNode {
 	pub := crypto.FromECDSAPub(&key.PublicKey)
-	ID := common.Hash32(pub)
+	ID := common.Hash64(pub)
 	node := TestNode{
 		ID:     ID,
 		Key:    key,
@@ -180,8 +180,8 @@ func initPosetNodes(n int) ([]TestNode, map[string]EventHash, *[]Event, *peers.P
 		keys[pubHex] = key
 	}
 
-	for i, peer := range participants.ToPeerSlice() {
-		nodes = append(nodes, NewTestNode(keys[peer.PubKeyHex], i))
+	for _, peer := range participants.ToPeerSlice() {
+		nodes = append(nodes, NewTestNode(keys[peer.PubKeyHex]))
 	}
 
 	return nodes, index, orderedEvents, participants
@@ -480,7 +480,7 @@ func TestFork(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
-		node := NewTestNode(key, i)
+		node := NewTestNode(key)
 		nodes = append(nodes, node)
 		participants.AddPeer(peers.NewPeer(node.PubHex, ""))
 	}
@@ -578,7 +578,7 @@ func TestInsertEvent(t *testing.T) {
 		}
 
 		if !(e0Event.Message.SelfParentIndex == -1 &&
-			e0Event.Message.OtherParentCreatorID == -1 &&
+			e0Event.Message.OtherParentCreatorID == peers.PeerNIL &&
 			e0Event.Message.OtherParentIndex == -1 &&
 			e0Event.Message.CreatorID == p.Participants.ByPubKey[e0Event.GetCreator()].ID) {
 			t.Fatalf("Invalid wire info on %s", e0)
@@ -613,7 +613,7 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatalf("Invalid wire info on %s", f1)
 		}
 
-		e0CreatorID := strconv.FormatInt(p.Participants.ByPubKey[e0Event.GetCreator()].ID, 10)
+		e0CreatorID := fmt.Sprint(p.Participants.ByPubKey[e0Event.GetCreator()].ID)
 
 		type Hierarchy struct {
 			ev            string
@@ -1330,7 +1330,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 			// wrong validator
 			// Validator should be same as Event creator (node 0)
 			key, _ := crypto.GenerateECDSAKey()
-			badNode := NewTestNode(key, 666)
+			badNode := NewTestNode(key)
 			badNodeSig, _ := block.Sign(badNode.Key)
 
 			pl := play{0, 2, s00, e21, e02, nil, []BlockSignature{badNodeSig},
@@ -1839,7 +1839,7 @@ func TestKnown(t *testing.T) {
 
 	participants := p.Participants.ToPeerSlice()
 
-	expectedKnown := map[int64]int64{
+	expectedKnown := map[uint64]int64{
 		participants[0].ID: 10,
 		participants[1].ID: 9,
 		participants[2].ID: 9,
@@ -1847,9 +1847,9 @@ func TestKnown(t *testing.T) {
 
 	known := p.Store.KnownEvents()
 	for i := range p.Participants.ToIDSlice() {
-		if l := known[int64(i)]; l != expectedKnown[int64(i)] {
+		if l := known[uint64(i)]; l != expectedKnown[uint64(i)] {
 			t.Fatalf("known event %d should be %d, not %d", i,
-				expectedKnown[int64(i)], l)
+				expectedKnown[uint64(i)], l)
 		}
 	}
 }
@@ -2078,7 +2078,7 @@ func TestResetFromFrame(t *testing.T) {
 	*/
 
 	// Test Known
-	expectedKnown := map[int64]int64{
+	expectedKnown := map[uint64]int64{
 		participants[0].ID: 2,
 		participants[1].ID: 4,
 		participants[2].ID: 3,
@@ -3505,7 +3505,7 @@ func compareRoundClothos(p, p2 *Poset, index map[string]EventHash, round int64, 
 
 }
 
-func getDiff(p *Poset, known map[int64]int64, t *testing.T) []Event {
+func getDiff(p *Poset, known map[uint64]int64, t *testing.T) []Event {
 	var diff []Event
 	for id, ct := range known {
 		pk := p.Participants.ByID[id].PubKeyHex
