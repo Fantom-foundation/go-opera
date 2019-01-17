@@ -11,8 +11,8 @@ import (
 func (p *Poset) PrintStat(logger *logrus.Entry) {
 	logger.Warn("****Known events:");
 	for pidID, index := range p.Store.KnownEvents() {
-		logger.Warn("    index=", index, " peer=", p.Participants.ByID[int64(pidID)].NetAddr,
-			" pubKeyHex=", p.Participants.ByID[int64(pidID)].PubKeyHex)
+		logger.Warn("    index=", index, " peer=", p.Participants.ByID[pidID].NetAddr,
+			" pubKeyHex=", p.Participants.ByID[pidID].PubKeyHex)
 	}
 }
 

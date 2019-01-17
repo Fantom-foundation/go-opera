@@ -8,7 +8,7 @@ import (
 // PubKeyPeers map of peers sorted by public key
 type PubKeyPeers map[string]*Peer
 // IDPeers map of peers sorted by ID
-type IDPeers map[int64]*Peer
+type IDPeers map[uint64]*Peer
 // Listener for listening for new peers joining
 type Listener func(*Peer)
 
@@ -103,7 +103,7 @@ func (p *Peers) RemovePeerByPubKey(pubKey string) {
 }
 
 // RemovePeerByID removes a peer based on their ID
-func (p *Peers) RemovePeerByID(id int64) {
+func (p *Peers) RemovePeerByID(id uint64) {
 	p.RemovePeer(p.ByID[id])
 }
 
@@ -141,11 +141,11 @@ func (p *Peers) ToPubKeySlice() []string {
 }
 
 // ToIDSlice peers struct by ID
-func (p *Peers) ToIDSlice() []int64 {
+func (p *Peers) ToIDSlice() []uint64 {
 	p.RLock()
 	defer p.RUnlock()
 
-	res := []int64{}
+	res := []uint64{}
 
 	for _, peer := range p.Sorted {
 		res = append(res, peer.ID)

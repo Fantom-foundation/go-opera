@@ -47,3 +47,18 @@ func HashFromHex(s string) []byte {
 	h, _ := hex.DecodeString(s)
 	return h
 }
+
+// FreePort gets free network port on host.
+func FreePort(network string) (port uint16) {
+	addr, err := net.ResolveTCPAddr(network, "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+
+	l, err := net.ListenTCP(network, addr)
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	return uint16(l.Addr().(*net.TCPAddr).Port)
+}

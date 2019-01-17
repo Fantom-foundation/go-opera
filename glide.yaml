@@ -31,6 +31,7 @@ import:
   - windows/svc/eventlog
 - package: github.com/allegro/bigcache
   version: ^1.1.0
+- package: github.com/pkg/errors
 testImport:
 - package: github.com/stretchr/testify
   version: ^1.2.2

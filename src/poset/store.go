@@ -13,7 +13,7 @@ type Store interface {
 	CacheSize() int
 	Participants() (*peers.Peers, error)
 	RepertoireByPubKey() map[string]*peers.Peer
-	RepertoireByID() map[int64]*peers.Peer
+	RepertoireByID() map[uint64]*peers.Peer
 	RootsBySelfParent() (map[EventHash]Root, error)
 	GetEventBlock(EventHash) (Event, error)
 	SetEvent(Event) error
@@ -21,7 +21,7 @@ type Store interface {
 	ParticipantEvent(string, int64) (EventHash, error)
 	LastEventFrom(string) (EventHash, bool, error)
 	LastConsensusEventFrom(string) (EventHash, bool, error)
-	KnownEvents() map[int64]int64
+	KnownEvents() map[uint64]int64
 	ConsensusEvents() EventHashes
 	ConsensusEventsCount() int64
 	AddConsensusEvent(Event) error

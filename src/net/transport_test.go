@@ -20,7 +20,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 
 		expectedReq := &SyncRequest{
 			FromID: 0,
-			Known: map[int64]int64{
+			Known: map[uint64]int64{
 				0: 1,
 				1: 2,
 				2: 3,
@@ -40,7 +40,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 					},
 				},
 			},
-			Known: map[int64]int64{
+			Known: map[uint64]int64{
 				0: 5,
 				1: 5,
 				2: 6,

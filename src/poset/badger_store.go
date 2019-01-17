@@ -3,7 +3,6 @@ package poset
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/dgraph-io/badger"
 
@@ -191,7 +190,7 @@ func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
 }
 
 // RepertoireByID gets ID map of peers
-func (s *BadgerStore) RepertoireByID() map[int64]*peers.Peer {
+func (s *BadgerStore) RepertoireByID() map[uint64]*peers.Peer {
 	return s.inmemStore.RepertoireByID()
 }
 
@@ -250,8 +249,8 @@ func (s *BadgerStore) LastConsensusEventFrom(participant string) (last EventHash
 }
 
 // KnownEvents returns all known events
-func (s *BadgerStore) KnownEvents() map[int64]int64 {
-	known := make(map[int64]int64)
+func (s *BadgerStore) KnownEvents() map[uint64]int64 {
+	known := make(map[uint64]int64)
 	for p, pid := range s.participants.ByPubKey {
 		index := int64(-1)
 		last, isRoot, err := s.LastEventFrom(p)
@@ -791,7 +790,7 @@ func (s *BadgerStore) dbSetParticipants(participants *peers.Peers) error {
 
 	for participant, id := range participants.ByPubKey {
 		key := participantKey(participant)
-		val := []byte(strconv.FormatInt(id.ID, 10))
+		val := []byte(fmt.Sprint(id.ID))
 		// insert [participant_participant] => [id]
 		if err := tx.Set(key, val); err != nil {
 			return err

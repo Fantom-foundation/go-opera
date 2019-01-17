@@ -55,11 +55,11 @@ func (pec *ParticipantEventsCache) AddPeer(peer *peers.Peer) error {
 	return pec.rim.AddKey(peer.ID)
 }
 
-func (pec *ParticipantEventsCache) participantID(participant string) (int64, error) {
+func (pec *ParticipantEventsCache) participantID(participant string) (uint64, error) {
 	peer, ok := pec.participants.ByPubKey[participant]
 
 	if !ok {
-		return -1, common.NewStoreErr("ParticipantEvents", common.UnknownParticipant, participant)
+		return peers.PeerNIL, common.NewStoreErr("ParticipantEvents", common.UnknownParticipant, participant)
 	}
 
 	return peer.ID, nil
@@ -126,7 +126,7 @@ func (pec *ParticipantEventsCache) Set(participant string, hash EventHash, index
 }
 
 // Known returns [participant id] => lastKnownIndex
-func (pec *ParticipantEventsCache) Known() map[int64]int64 {
+func (pec *ParticipantEventsCache) Known() map[uint64]int64 {
 	return pec.rim.Known()
 }
 
@@ -156,11 +156,11 @@ func NewParticipantBlockSignaturesCache(size int, participants *peers.Peers) *Pa
 	}
 }
 
-func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (int64, error) {
+func (psc *ParticipantBlockSignaturesCache) participantID(participant string) (uint64, error) {
 	peer, ok := psc.participants.ByPubKey[participant]
 
 	if !ok {
-		return -1, common.NewStoreErr("ParticipantBlockSignatures", common.UnknownParticipant, participant)
+		return peers.PeerNIL, common.NewStoreErr("ParticipantBlockSignatures", common.UnknownParticipant, participant)
 	}
 
 	return peer.ID, nil
@@ -221,7 +221,7 @@ func (psc *ParticipantBlockSignaturesCache) Set(participant string, sig BlockSig
 }
 
 // Known returns [participant id] => last BlockSignature Index
-func (psc *ParticipantBlockSignaturesCache) Known() map[int64]int64 {
+func (psc *ParticipantBlockSignaturesCache) Known() map[uint64]int64 {
 	return psc.rim.Known()
 }
 

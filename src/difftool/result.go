@@ -13,7 +13,7 @@ type Diff struct {
 	Err error `json:"-"`
 
 	node            [2]*node.Node `json:"-"`
-	IDs             [2]int64
+	IDs             [2]uint64
 	BlocksGap       int64 `json:",omitempty"`
 	FirstBlockIndex int64 `json:",omitempty"`
 	RoundGap        int64 `json:",omitempty"`

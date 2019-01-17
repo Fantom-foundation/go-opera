@@ -11,17 +11,17 @@ import (
 )
 
 type pub struct {
-	id      int64
+	id      uint64
 	privKey *ecdsa.PrivateKey
 	pubKey  []byte
 	hex     string
 }
 
 func initInmemStore(cacheSize int) (*InmemStore, []pub) {
-	n := int64(3)
+	n := uint64(3)
 	var participantPubs []pub
 	participants := peers.NewPeers()
-	for i := int64(0); i < n; i++ {
+	for i := uint64(0); i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := crypto.FromECDSAPub(&key.PublicKey)
 		peer := peers.NewPeer(fmt.Sprintf("0x%X", pubKey), "")
@@ -97,7 +97,7 @@ func TestInmemEvents(t *testing.T) {
 	})
 
 	t.Run("Check KnownEvents", func(t *testing.T) {
-		expectedKnown := make(map[int64]int64)
+		expectedKnown := make(map[uint64]int64)
 		for _, p := range participants {
 			expectedKnown[p.id] = testSize - 1
 		}
