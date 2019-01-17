@@ -27,6 +27,7 @@ import:
 - package: github.com/facebookgo/pidfile
 - package: golang.org/x/sys/windows
 - package: golang.org/x/sys/windows/svc/eventlog
+- package: github.com/pkg/errors
 testImport:
 - package: github.com/stretchr/testify
   version: ^1.2.2

@@ -24,7 +24,7 @@ func NewInmemAddr() string {
 // InmemTransport implements the Transport interface, to allow lachesis to be
 // tested in-memory without going over a network.
 type InmemTransport struct {
-	consumerCh chan RPC
+	consumerCh chan *RPC
 	localAddr  string
 	timeout    time.Duration
 }
@@ -36,7 +36,7 @@ func NewInmemTransport(addr string) (string, *InmemTransport) {
 		addr = NewInmemAddr()
 	}
 	trans := &InmemTransport{
-		consumerCh: make(chan RPC, 16),
+		consumerCh: make(chan *RPC, 16),
 		localAddr:  addr,
 		timeout:    50 * time.Millisecond,
 	}
@@ -49,7 +49,7 @@ func NewInmemTransport(addr string) (string, *InmemTransport) {
 }
 
 // Consumer implements the Transport interface.
-func (i *InmemTransport) Consumer() <-chan RPC {
+func (i *InmemTransport) Consumer() <-chan *RPC {
 	return i.consumerCh
 }
 
@@ -88,8 +88,8 @@ func (i *InmemTransport) makeRPC(target string, args, resp interface{}, r io.Rea
 	}
 
 	// Send the RPC over
-	respCh := make(chan RPCResponse)
-	peer.consumerCh <- RPC{
+	respCh := make(chan *RPCResponse)
+	peer.consumerCh <- &RPC{
 		Command:  args,
 		Reader:   r,
 		RespChan: respCh,

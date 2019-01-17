@@ -35,7 +35,7 @@ type Node struct {
 	selectorLock sync.Mutex
 
 	trans net.Transport
-	netCh <-chan net.RPC
+	netCh <-chan *net.RPC
 
 	proxy            proxy.AppProxy
 
@@ -253,7 +253,7 @@ func (n *Node) lachesis(gossip bool) {
 	}
 }
 
-func (n *Node) processRPC(rpc net.RPC) {
+func (n *Node) processRPC(rpc *net.RPC) {
 	switch cmd := rpc.Command.(type) {
 	case *net.SyncRequest:
 		n.processSyncRequest(rpc, cmd)
@@ -267,7 +267,7 @@ func (n *Node) processRPC(rpc net.RPC) {
 	}
 }
 
-func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
+func (n *Node) processSyncRequest(rpc *net.RPC, cmd *net.SyncRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from_id": cmd.FromID,
 		"known":   cmd.Known,
@@ -324,7 +324,7 @@ func (n *Node) processSyncRequest(rpc net.RPC, cmd *net.SyncRequest) {
 	rpc.Respond(resp, respErr)
 }
 
-func (n *Node) processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest) {
+func (n *Node) processEagerSyncRequest(rpc *net.RPC, cmd *net.EagerSyncRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from_id": cmd.FromID,
 		"events":  len(cmd.Events),
@@ -346,7 +346,7 @@ func (n *Node) processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest) {
 	rpc.Respond(resp, err)
 }
 
-func (n *Node) processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest) {
+func (n *Node) processFastForwardRequest(rpc *net.RPC, cmd *net.FastForwardRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from": cmd.FromID,
 	}).Debug("processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest)")

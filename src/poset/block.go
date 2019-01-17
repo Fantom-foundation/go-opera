@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
@@ -273,6 +274,8 @@ func MapStringsEquals(this map[string]string, that map[string]string) bool {
 func (b *Block) Equals(that *Block) bool {
 	return b.Body.Equals(that.Body) &&
 		MapStringsEquals(b.Signatures, that.Signatures) &&
-		BytesEquals(b.Hash, that.Hash) &&
-		b.Hex == that.Hex
+		b.Hex == that.Hex &&
+		bytes.Equal(b.Hash, that.Hash) &&
+		bytes.Equal(b.FrameHash, that.FrameHash) &&
+		bytes.Equal(b.StateHash, that.StateHash)
 }
