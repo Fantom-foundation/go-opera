@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"fmt"
 	"reflect"
@@ -45,19 +46,6 @@ EventBody
 func (t *InternalTransaction) Equals(that *InternalTransaction) bool {
 	return t.Peer.Equals(that.Peer) &&
 		t.Type == that.Type
-}
-
-// BytesEquals compares bytes for equality
-func BytesEquals(this []byte, that []byte) bool {
-	if len(this) != len(that) {
-		return false
-	}
-	for i, v := range this {
-		if v != that[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // InternalTransactionListEquals list equality check
@@ -145,7 +133,7 @@ func (m *EventMessage) ToEvent() Event {
 func (m *EventMessage) Equals(that *EventMessage) bool {
 	return m.Body.Equals(that.Body) &&
 		m.Signature == that.Signature &&
-		BytesEquals(m.FlagTable, that.FlagTable) &&
+		bytes.Equal(m.FlagTable, that.FlagTable) &&
 		reflect.DeepEqual(m.ClothoProof, that.ClothoProof)
 }
 

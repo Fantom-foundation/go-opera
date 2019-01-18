@@ -237,7 +237,7 @@ func ListBytesEquals(this [][]byte, that [][]byte) bool {
 		return false
 	}
 	for i, v := range this {
-		if !BytesEquals(v, that[i]) {
+		if !bytes.Equal(v, that[i]) {
 			return false
 		}
 	}
