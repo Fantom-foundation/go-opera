@@ -10,6 +10,7 @@ import (
 // Store provides an interface for persistent and non-persistent stores
 // to store key lachesis consensus information on a node.
 type Store interface {
+	TopologicalEvents() ([]Event, error)
 	CacheSize() int
 	Participants() (*peers.Peers, error)
 	RootsBySelfParent() (map[string]Root, error)
@@ -38,7 +39,6 @@ type Store interface {
 	Close() error
 	NeedBoostrap() bool // Was the store loaded from existing db
 	StorePath() string
-	TopologicalEvents() ([]Event, error)
 	// StateDB returns state database
 	StateDB() state.Database
 }

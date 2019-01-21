@@ -118,6 +118,16 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 	return store
 }
 
+/*
+ * Store interface implementation:
+ */
+
+// TopologicalEvents returns event in topological order.
+func (s *InmemStore) TopologicalEvents() ([]Event, error) {
+	// NOTE: it's used for bootstrap only, so is not implemented
+	return nil, nil
+}
+
 // CacheSize size of cache
 func (s *InmemStore) CacheSize() int {
 	return s.cacheSize

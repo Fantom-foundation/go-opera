@@ -10,6 +10,7 @@ import (
 // Store provides an interface for persistent and non-persistent stores
 // to store key lachesis consensus information on a node.
 type Store interface {
+	TopologicalEvents() ([]Event, error) // returns event in topological order
 	CacheSize() int
 	Participants() (*peers.Peers, error)
 	RepertoireByPubKey() map[string]*peers.Peer

@@ -1648,13 +1648,9 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 // method call, the Poset should be in a state coherent with the 'tip' of the
 // Poset
 func (p *Poset) Bootstrap() error {
-	badgerStore, ok := p.Store.(*BadgerStore)
-	if !ok {
-		return nil
-	}
 	// Retreive the Events from the underlying DB. They come out in topological
 	// order
-	topologicalEvents, err := badgerStore.dbTopologicalEvents()
+	topologicalEvents, err := p.Store.TopologicalEvents()
 	if err != nil {
 		return err
 	}

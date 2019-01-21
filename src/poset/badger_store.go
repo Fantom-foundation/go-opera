@@ -171,8 +171,62 @@ func frameKey(index int64) []byte {
 	return []byte(fmt.Sprintf("%s_%09d", framePrefix, index))
 }
 
-// ==============================================================================
-// Implement the Store interface
+/*
+ * Store interface implementation:
+ */
+
+// TopologicalEvents returns event in topological order.
+func (s *BadgerStore) TopologicalEvents() ([]Event, error) {
+	var res []Event
+	var evKey string
+	t := int64(0)
+	err := s.db.View(func(txn *badger.Txn) error {
+		key := topologicalEventKey(t)
+		item, errr := txn.Get(key)
+		for errr == nil {
+			errrr := item.Value(func(v []byte) error {
+				evKey = string(v)
+				return nil
+			})
+			if errrr != nil {
+				break
+			}
+
+			eventItem, err := txn.Get([]byte(evKey))
+			if err != nil {
+				return err
+			}
+			err = eventItem.Value(func(eventBytes []byte) error {
+				event := &Event{
+					roundReceived:    RoundNIL,
+					round:            RoundNIL,
+					lamportTimestamp: LamportTimestampNIL,
+				}
+
+				if err := event.ProtoUnmarshal(eventBytes); err != nil {
+					return err
+				}
+				res = append(res, *event)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			t++
+			key = topologicalEventKey(t)
+			item, errr = txn.Get(key)
+		}
+
+		if !isDBKeyNotFound(errr) {
+			return errr
+		}
+
+		return nil
+	})
+
+	return res, err
+}
 
 // CacheSize returns the cache size for the store
 func (s *BadgerStore) CacheSize() int {
@@ -489,58 +543,6 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 		}
 	}
 	return tx.Commit(nil)
-}
-
-func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
-	var res []Event
-	var evKey string
-	t := int64(0)
-	err := s.db.View(func(txn *badger.Txn) error {
-		key := topologicalEventKey(t)
-		item, errr := txn.Get(key)
-		for errr == nil {
-			errrr := item.Value(func(v []byte) error {
-				evKey = string(v)
-				return nil
-			})
-			if errrr != nil {
-				break
-			}
-
-			eventItem, err := txn.Get([]byte(evKey))
-			if err != nil {
-				return err
-			}
-			err = eventItem.Value(func(eventBytes []byte) error {
-				event := &Event{
-					roundReceived:    RoundNIL,
-					round:            RoundNIL,
-					lamportTimestamp: LamportTimestampNIL,
-				}
-
-				if err := event.ProtoUnmarshal(eventBytes); err != nil {
-					return err
-				}
-				res = append(res, *event)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			t++
-			key = topologicalEventKey(t)
-			item, errr = txn.Get(key)
-		}
-
-		if !isDBKeyNotFound(errr) {
-			return errr
-		}
-
-		return nil
-	})
-
-	return res, err
 }
 
 func (s *BadgerStore) dbParticipantEvents(participant string, skip int64) (res EventHashes, err error) {
