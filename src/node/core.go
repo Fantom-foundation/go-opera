@@ -527,37 +527,37 @@ func (c *Core) ToWire(events []poset.Event) ([]poset.WireEvent, error) {
 	return wireEvents, nil
 }
 
-// RunConsensus is the core consensus mechanism, this checks rounds / frames and creates blocks
+// RunConsensus is the core consensus mechanism, this checks rounds/frames and creates blocks.
 func (c *Core) RunConsensus() error {
 	start := time.Now()
 	err := c.poset.DivideRounds()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DivideAtropos()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DivideRounds()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.DivideAtropos()")
+		c.logger.WithField("Error", err).Error("c.poset.DivideRounds()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.DecideAtropos()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideClotho()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideAtropos()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.DecideClotho()")
+		c.logger.WithField("Error", err).Error("c.poset.DecideAtropos()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.DecideRoundReceived()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideAtroposRoundReceived()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideRoundReceived()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.DecideAtroposRoundReceived()")
+		c.logger.WithField("Error", err).Error("c.poset.DecideRoundReceived()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.ProcessDecidedRounds()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.ProcessAtroposRounds()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.ProcessDecidedRounds()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.ProcessAtroposRounds()")
+		c.logger.WithField("Error", err).Error("c.poset.ProcessDecidedRounds()")
 		return err
 	}
 
