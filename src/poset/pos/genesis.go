@@ -7,7 +7,7 @@ import (
 )
 
 // FakeGenesis is a stub
-func FakeGenesis(participants *peers.Peers, conf *Config, db state.Database) {
+func FakeGenesis(participants *peers.Peers, conf *Config, db state.Database) (common.Hash, error) {
 	if conf == nil {
 		conf = DefaultConfig()
 	}
@@ -19,5 +19,5 @@ func FakeGenesis(participants *peers.Peers, conf *Config, db state.Database) {
 	for _, p := range participants.ToPeerSlice() {
 		statedb.AddBalance(p.Address(), balance)
 	}
-	_, _ = statedb.Commit(true)
+	return statedb.Commit(true)
 }

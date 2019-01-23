@@ -32,7 +32,8 @@ type BadgerStore struct {
 	path         string
 	needBoostrap bool
 
-	states state.Database
+	states    state.Database
+	stateRoot common.Hash
 }
 
 // NewBadgerStore creates a brand new Store with a new database
@@ -64,7 +65,10 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 	}
 
 	// TODO: replace with real genesis
-	pos.FakeGenesis(participants, posConf, store.states)
+	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
+	if err != nil {
+		return nil, err
+	}
 
 	return store, nil
 }
@@ -473,6 +477,11 @@ func (s *BadgerStore) StorePath() string {
 // StateDB returns state database
 func (s *BadgerStore) StateDB() state.Database {
 	return s.states
+}
+
+// StateRoot returns genesis state hash.
+func (s *BadgerStore) StateRoot() common.Hash {
+	return s.stateRoot
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
