@@ -35,7 +35,7 @@ func TestStateBalances(t *testing.T) {
 		statedb := roundStateDB(root)
 		got := statedb.GetBalance(addr)
 		if got != balance {
-			return fmt.Errorf("Unexpected balance %d of %s at %s. %d expected.", got, addr.String(), root.String(), balance)
+			return fmt.Errorf("Unexpected balance %d of %s at %s. %d expected", got, addr.String(), root.String(), balance)
 		}
 		return nil
 	}

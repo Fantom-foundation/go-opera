@@ -17,12 +17,13 @@ import (
 )
 
 const (
-	// TODO: collect the similar magic constants in protocol config
-	// MaxReceiveMessageSize is size limitation of txs in bytes
+	// MaxReceiveMessageSize is size limitation of txs in bytes.
+	// TODO: collect the similar magic constants in protocol config.
 	MaxEventsPayloadSize = 100 * 1024 * 1024
 )
 
 var (
+	// ErrTooBigTx is returned when transaction size > MaxEventsPayloadSize
 	ErrTooBigTx = fmt.Errorf("Transaction too big")
 )
 

@@ -1899,11 +1899,11 @@ func (p *Poset) setAnchorBlock(i int64) {
 	*p.AnchorBlock = i
 }
 
-/*******************************************************************************
-Getters
-*******************************************************************************/
+/*
+ * Getters
+ */
 
-// GetFlagTableOfRandomUndeterminedEvent returns the flag table for undermined events
+// GetPeerFlagTableOfRandomUndeterminedEvent returns the flag table for undermined events
 func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (map[string]int64, error) {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
@@ -1923,7 +1923,7 @@ func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (map[string]int64, e
 			continue
 		}
 		tablePeers := make(map[string]int64, len(ft))
-		for e, _ := range ft {
+		for e := range ft {
 			ex, err := p.Store.GetEventBlock(e)
 			if err == nil {
 				tablePeers[ex.GetCreator()] = 1
