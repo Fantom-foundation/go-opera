@@ -21,7 +21,8 @@ func Compare(nodes ...*node.Node) (result Result) {
 	return
 }
 
-// compare compares pair of nodes
+// compare compares pair of nodes.
+// TODO: refactoring
 func compare(n0, n1 *node.Node) (diff *Diff) {
 	diff = &Diff{
 		node: [2]*node.Node{n0, n1},

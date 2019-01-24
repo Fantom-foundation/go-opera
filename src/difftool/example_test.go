@@ -9,8 +9,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
-// Example illustrates nodes comparing
-func Example() {
+// UsingExample illustrates nodes comparing.
+func UsingExample() {
 	logger := logrus.New()
 	logger.Level = logrus.FatalLevel
 
