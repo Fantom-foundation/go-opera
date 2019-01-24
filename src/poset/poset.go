@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
 )
 
 // Core is an interface for interacting with a core.
@@ -1357,15 +1358,19 @@ func (p *Poset) ProcessDecidedRounds() error {
 	return nil
 }
 
-// GetFrame computes the Frame corresponding to a RoundReceived.
+// GetFrame returns the Frame corresponding to a RoundReceived.
 func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
-
 	// Try to get it from the Store first
 	frame, err := p.Store.GetFrame(roundReceived)
 	if err == nil || !common.Is(err, common.KeyNotFound) {
 		return frame, err
 	}
+	// otherwise make new
+	return p.MakeFrame(roundReceived)
+}
 
+// MakeFrame computes the Frame corresponding to a RoundReceived.
+func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 	// Get the Round and corresponding consensus Events
 	round, err := p.Store.GetRoundReceived(roundReceived)
 	if err != nil {
@@ -1384,6 +1389,11 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	}
 
 	sort.Stable(ByLamportTimestamp(events))
+
+	stateHash, err := p.ApplyInternalTransactions(roundReceived, events)
+	if err != nil {
+		return Frame{}, err
+	}
 
 	// Get/Create Roots
 	roots := make(map[string]Root)
@@ -1468,9 +1478,10 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	}
 
 	res := Frame{
-		Round:  roundReceived,
-		Roots:  orderedRoots,
-		Events: eventMessages,
+		Round:     roundReceived,
+		Roots:     orderedRoots,
+		Events:    eventMessages,
+		StateHash: stateHash.Bytes(),
 	}
 
 	if err := p.Store.SetFrame(res); err != nil {
@@ -1478,6 +1489,62 @@ func (p *Poset) GetFrame(roundReceived int64) (Frame, error) {
 	}
 
 	return res, nil
+}
+
+// ApplyInternalTransactions calcs new PoS-state from prev round's state and returns its hash.
+func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (hash common.Hash, err error) {
+	// TODO: set RoundNIL = 0, condition change to "round <= RoundNIL"
+	if round <= 0 {
+		err = fmt.Errorf("Empty round is not allowed")
+		return
+	}
+
+	var prevState common.Hash
+	if round == 1 {
+		prevState = p.Store.StateRoot()
+	} else {
+		var prevFrame Frame
+		prevFrame, err = p.Store.GetFrame(round - 1)
+		if err != nil {
+			return
+		}
+		prevState = common.BytesToHash(prevFrame.StateHash)
+	}
+
+	statedb, err := state.New(prevState, p.Store.StateDB())
+	if err != nil {
+		return
+	}
+
+	for _, ev := range orderedEvents {
+		creator := p.Participants.ByID[ev.CreatorID()]
+		if creator == nil {
+			p.logger.Warnf("Unknown participant ID=%d", ev.CreatorID())
+			continue
+		}
+		sender := creator.Address()
+		if body := ev.Message.GetBody(); body != nil {
+			for _, tx := range body.GetInternalTransactions() {
+				if tx.GetType() != TransactionType_POS_TRANSFER {
+					continue
+				}
+				p.logger.Debug("ApplyInternalTransaction", tx)
+				if statedb.GetBalance(sender) < tx.Amount {
+					p.logger.Warn("Balance is not enough", sender, tx.Amount)
+					continue
+				}
+				reciver := tx.Peer.Address()
+				statedb.SubBalance(sender, tx.Amount)
+				if !statedb.Exist(reciver) {
+					statedb.CreateAccount(reciver)
+				}
+				statedb.AddBalance(reciver, tx.Amount)
+			}
+		}
+	}
+
+	hash, err = statedb.Commit(true)
+	return
 }
 
 // ProcessSigPool runs through the SignaturePool and tries to map a Signature to

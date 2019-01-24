@@ -77,6 +77,9 @@ func TestStateBalances(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if statedb.GetBalance(aa[1]) != 11 {
+		t.Fatal("GetBalance() does not return actual before commit!")
+	}
 
 	// fork 2
 
