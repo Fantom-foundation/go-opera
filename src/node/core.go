@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	// MaxReceiveMessageSize is size limitation of txs in bytes.
+	// MaxEventsPayloadSize is size limitation of txs in bytes.
 	// TODO: collect the similar magic constants in protocol config.
 	MaxEventsPayloadSize = 100 * 1024 * 1024
 )
