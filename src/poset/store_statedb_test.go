@@ -31,7 +31,7 @@ func TestStateBalances(t *testing.T) {
 		return db
 	}
 
-	checkBalanse := func(root common.Hash, addr common.Address, balance uint64) error {
+	checkBalance := func(root common.Hash, addr common.Address, balance uint64) error {
 		statedb := roundStateDB(root)
 		got := statedb.GetBalance(addr)
 		if got != balance {
@@ -54,7 +54,7 @@ func TestStateBalances(t *testing.T) {
 	// empty
 
 	for _, a := range aa {
-		err = checkBalanse(root, a, 0)
+		err = checkBalance(root, a, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,51 +93,51 @@ func TestStateBalances(t *testing.T) {
 
 	// check root
 
-	err = checkBalanse(root, aa[0], 10)
+	err = checkBalance(root, aa[0], 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = checkBalanse(root, aa[1], 0)
+	err = checkBalance(root, aa[1], 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = checkBalanse(root, aa[2], 0)
+	err = checkBalance(root, aa[2], 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check fork1
 
-	err = checkBalanse(fork1, aa[0], 10)
+	err = checkBalance(fork1, aa[0], 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = checkBalanse(fork1, aa[1], 11)
+	err = checkBalance(fork1, aa[1], 11)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = checkBalanse(fork1, aa[2], 0)
+	err = checkBalance(fork1, aa[2], 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// check fork2
 
-	err = checkBalanse(fork2, aa[0], 5)
+	err = checkBalance(fork2, aa[0], 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = checkBalanse(fork2, aa[1], 0)
+	err = checkBalance(fork2, aa[1], 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = checkBalanse(fork2, aa[2], 12)
+	err = checkBalance(fork2, aa[2], 12)
 	if err != nil {
 		t.Fatal(err)
 	}
