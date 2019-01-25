@@ -7,8 +7,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 func TestStateBalances(t *testing.T) {

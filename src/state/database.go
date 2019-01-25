@@ -7,8 +7,8 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/trie"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/trie"
 )
 
 // MaxTrieCacheGen is a trie cache generation limit after which to evict trie nodes from memory.

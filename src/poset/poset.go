@@ -16,7 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // Core is an interface for interacting with a core.

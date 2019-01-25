@@ -11,7 +11,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 

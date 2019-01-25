@@ -3,7 +3,7 @@ package pos
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // FakeGenesis is a stub

@@ -9,10 +9,10 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // InmemStore struct

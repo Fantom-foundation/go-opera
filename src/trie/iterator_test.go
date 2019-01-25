@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 func TestIterator(t *testing.T) {

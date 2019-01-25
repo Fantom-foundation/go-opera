@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 // makeTestTrie create a sample test trie to test node-wise reconstruction.

@@ -15,7 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
 )
 
 const (
