@@ -202,7 +202,7 @@ func TestDBEventMethods(t *testing.T) {
 	}
 
 	// check topological order of events was correctly created
-	dbTopologicalEvents, err := store.dbTopologicalEvents()
+	dbTopologicalEvents, err := store.TopologicalEvents()
 	if err != nil {
 		t.Fatal(err)
 	}

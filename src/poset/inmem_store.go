@@ -9,10 +9,10 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // InmemStore struct
@@ -39,7 +39,8 @@ type InmemStore struct {
 	lastBlockLocker          sync.RWMutex
 	totConsensusEventsLocker sync.RWMutex
 
-	states state.Database
+	states    state.Database
+	stateRoot common.Hash
 }
 
 // NewInmemStore constructor
@@ -113,9 +114,23 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 	store.setPeers(0, participants)
 
 	// TODO: replace with real genesis
-	pos.FakeGenesis(participants, posConf, store.states)
+	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
+	if err != nil {
+		fmt.Println("Unable to init genesis state:", err)
+		os.Exit(36)
+	}
 
 	return store
+}
+
+/*
+ * Store interface implementation:
+ */
+
+// TopologicalEvents returns event in topological order.
+func (s *InmemStore) TopologicalEvents() ([]Event, error) {
+	// NOTE: it's used for bootstrap only, so is not implemented
+	return nil, nil
 }
 
 // CacheSize size of cache
@@ -482,4 +497,9 @@ func (s *InmemStore) StorePath() string {
 // StateDB returns state database
 func (s *InmemStore) StateDB() state.Database {
 	return s.states
+}
+
+// StateRoot returns genesis state hash.
+func (s *InmemStore) StateRoot() common.Hash {
+	return s.stateRoot
 }

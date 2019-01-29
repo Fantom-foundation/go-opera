@@ -10,8 +10,8 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/trie"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
+	"github.com/Fantom-foundation/go-lachesis/src/trie"
 )
 
 type revision struct {

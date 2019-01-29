@@ -7,10 +7,10 @@ import (
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 const (
@@ -32,7 +32,8 @@ type BadgerStore struct {
 	path         string
 	needBoostrap bool
 
-	states state.Database
+	states    state.Database
+	stateRoot common.Hash
 }
 
 // NewBadgerStore creates a brand new Store with a new database
@@ -64,7 +65,10 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 	}
 
 	// TODO: replace with real genesis
-	pos.FakeGenesis(participants, posConf, store.states)
+	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
+	if err != nil {
+		return nil, err
+	}
 
 	return store, nil
 }
@@ -171,8 +175,62 @@ func frameKey(index int64) []byte {
 	return []byte(fmt.Sprintf("%s_%09d", framePrefix, index))
 }
 
-// ==============================================================================
-// Implement the Store interface
+/*
+ * Store interface implementation:
+ */
+
+// TopologicalEvents returns event in topological order.
+func (s *BadgerStore) TopologicalEvents() ([]Event, error) {
+	var res []Event
+	var evKey string
+	t := int64(0)
+	err := s.db.View(func(txn *badger.Txn) error {
+		key := topologicalEventKey(t)
+		item, errr := txn.Get(key)
+		for errr == nil {
+			errrr := item.Value(func(v []byte) error {
+				evKey = string(v)
+				return nil
+			})
+			if errrr != nil {
+				break
+			}
+
+			eventItem, err := txn.Get([]byte(evKey))
+			if err != nil {
+				return err
+			}
+			err = eventItem.Value(func(eventBytes []byte) error {
+				event := &Event{
+					roundReceived:    RoundNIL,
+					round:            RoundNIL,
+					lamportTimestamp: LamportTimestampNIL,
+				}
+
+				if err := event.ProtoUnmarshal(eventBytes); err != nil {
+					return err
+				}
+				res = append(res, *event)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			t++
+			key = topologicalEventKey(t)
+			item, errr = txn.Get(key)
+		}
+
+		if !isDBKeyNotFound(errr) {
+			return errr
+		}
+
+		return nil
+	})
+
+	return res, err
+}
 
 // CacheSize returns the cache size for the store
 func (s *BadgerStore) CacheSize() int {
@@ -421,6 +479,11 @@ func (s *BadgerStore) StateDB() state.Database {
 	return s.states
 }
 
+// StateRoot returns genesis state hash.
+func (s *BadgerStore) StateRoot() common.Hash {
+	return s.stateRoot
+}
+
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // DB Methods
 
@@ -489,58 +552,6 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 		}
 	}
 	return tx.Commit(nil)
-}
-
-func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
-	var res []Event
-	var evKey string
-	t := int64(0)
-	err := s.db.View(func(txn *badger.Txn) error {
-		key := topologicalEventKey(t)
-		item, errr := txn.Get(key)
-		for errr == nil {
-			errrr := item.Value(func(v []byte) error {
-				evKey = string(v)
-				return nil
-			})
-			if errrr != nil {
-				break
-			}
-
-			eventItem, err := txn.Get([]byte(evKey))
-			if err != nil {
-				return err
-			}
-			err = eventItem.Value(func(eventBytes []byte) error {
-				event := &Event{
-					roundReceived:    RoundNIL,
-					round:            RoundNIL,
-					lamportTimestamp: LamportTimestampNIL,
-				}
-
-				if err := event.ProtoUnmarshal(eventBytes); err != nil {
-					return err
-				}
-				res = append(res, *event)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			t++
-			key = topologicalEventKey(t)
-			item, errr = txn.Get(key)
-		}
-
-		if !isDBKeyNotFound(errr) {
-			return errr
-		}
-
-		return nil
-	})
-
-	return res, err
 }
 
 func (s *BadgerStore) dbParticipantEvents(participant string, skip int64) (res EventHashes, err error) {

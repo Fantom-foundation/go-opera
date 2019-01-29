@@ -5,11 +5,13 @@ import "github.com/Fantom-foundation/go-lachesis/src/peers/peer.proto";
 enum TransactionType {
   PEER_ADD = 0;
   PEER_REMOVE = 1;
+  POS_TRANSFER = 2;
 }
 
 message InternalTransaction {
   TransactionType Type = 1;
   peers.Peer peer = 2;
+  uint64 Amount = 3;
 }
 
 message BlockSignature {

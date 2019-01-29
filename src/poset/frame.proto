@@ -7,4 +7,5 @@ message Frame {
   int64 Round = 1;
   repeated Root Roots = 2;
   repeated EventMessage Events = 3;
+  bytes StateHash = 4;
 }
