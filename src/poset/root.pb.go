@@ -3,11 +3,9 @@
 
 package poset
 
-import (
-	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -18,7 +16,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type RootEvent struct {
 	Hash                 []byte   `protobuf:"bytes,1,opt,name=Hash,proto3" json:"Hash,omitempty"`
@@ -35,17 +33,16 @@ func (m *RootEvent) Reset()         { *m = RootEvent{} }
 func (m *RootEvent) String() string { return proto.CompactTextString(m) }
 func (*RootEvent) ProtoMessage()    {}
 func (*RootEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_08a043f6ee9336a8, []int{0}
+	return fileDescriptor_root_815ed4e607cafbbe, []int{0}
 }
-
 func (m *RootEvent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RootEvent.Unmarshal(m, b)
 }
 func (m *RootEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_RootEvent.Marshal(b, m, deterministic)
 }
-func (m *RootEvent) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RootEvent.Merge(m, src)
+func (dst *RootEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RootEvent.Merge(dst, src)
 }
 func (m *RootEvent) XXX_Size() int {
 	return xxx_messageInfo_RootEvent.Size(m)
@@ -104,17 +101,16 @@ func (m *Root) Reset()         { *m = Root{} }
 func (m *Root) String() string { return proto.CompactTextString(m) }
 func (*Root) ProtoMessage()    {}
 func (*Root) Descriptor() ([]byte, []int) {
-	return fileDescriptor_08a043f6ee9336a8, []int{1}
+	return fileDescriptor_root_815ed4e607cafbbe, []int{1}
 }
-
 func (m *Root) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Root.Unmarshal(m, b)
 }
 func (m *Root) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Root.Marshal(b, m, deterministic)
 }
-func (m *Root) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Root.Merge(m, src)
+func (dst *Root) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Root.Merge(dst, src)
 }
 func (m *Root) XXX_Size() int {
 	return xxx_messageInfo_Root.Size(m)
@@ -152,9 +148,9 @@ func init() {
 	proto.RegisterMapType((map[string]*RootEvent)(nil), "poset.Root.OthersEntry")
 }
 
-func init() { proto.RegisterFile("root.proto", fileDescriptor_08a043f6ee9336a8) }
+func init() { proto.RegisterFile("root.proto", fileDescriptor_root_815ed4e607cafbbe) }
 
-var fileDescriptor_08a043f6ee9336a8 = []byte{
+var fileDescriptor_root_815ed4e607cafbbe = []byte{
 	// 267 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xc1, 0x4a, 0xfb, 0x40,
 	0x10, 0xc6, 0xd9, 0x26, 0x29, 0x64, 0xf2, 0x3f, 0x84, 0xe1, 0x0f, 0x2e, 0xe2, 0x21, 0xf4, 0x20,

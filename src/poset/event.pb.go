@@ -3,12 +3,10 @@
 
 package poset
 
-import (
-	fmt "fmt"
-	peers "github.com/Fantom-foundation/go-lachesis/src/peers"
-	proto "github.com/golang/protobuf/proto"
-	math "math"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
+import peers "github.com/Fantom-foundation/go-lachesis/src/peers"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -19,7 +17,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type TransactionType int32
 
@@ -34,7 +32,6 @@ var TransactionType_name = map[int32]string{
 	1: "PEER_REMOVE",
 	2: "POS_TRANSFER",
 }
-
 var TransactionType_value = map[string]int32{
 	"PEER_ADD":     0,
 	"PEER_REMOVE":  1,
@@ -44,9 +41,8 @@ var TransactionType_value = map[string]int32{
 func (x TransactionType) String() string {
 	return proto.EnumName(TransactionType_name, int32(x))
 }
-
 func (TransactionType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_2d17a9d3f0ddf27e, []int{0}
+	return fileDescriptor_event_5aebafcbbd031977, []int{0}
 }
 
 type InternalTransaction struct {
@@ -62,17 +58,16 @@ func (m *InternalTransaction) Reset()         { *m = InternalTransaction{} }
 func (m *InternalTransaction) String() string { return proto.CompactTextString(m) }
 func (*InternalTransaction) ProtoMessage()    {}
 func (*InternalTransaction) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2d17a9d3f0ddf27e, []int{0}
+	return fileDescriptor_event_5aebafcbbd031977, []int{0}
 }
-
 func (m *InternalTransaction) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InternalTransaction.Unmarshal(m, b)
 }
 func (m *InternalTransaction) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_InternalTransaction.Marshal(b, m, deterministic)
 }
-func (m *InternalTransaction) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InternalTransaction.Merge(m, src)
+func (dst *InternalTransaction) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InternalTransaction.Merge(dst, src)
 }
 func (m *InternalTransaction) XXX_Size() int {
 	return xxx_messageInfo_InternalTransaction.Size(m)
@@ -117,17 +112,16 @@ func (m *BlockSignature) Reset()         { *m = BlockSignature{} }
 func (m *BlockSignature) String() string { return proto.CompactTextString(m) }
 func (*BlockSignature) ProtoMessage()    {}
 func (*BlockSignature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2d17a9d3f0ddf27e, []int{1}
+	return fileDescriptor_event_5aebafcbbd031977, []int{1}
 }
-
 func (m *BlockSignature) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockSignature.Unmarshal(m, b)
 }
 func (m *BlockSignature) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_BlockSignature.Marshal(b, m, deterministic)
 }
-func (m *BlockSignature) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BlockSignature.Merge(m, src)
+func (dst *BlockSignature) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BlockSignature.Merge(dst, src)
 }
 func (m *BlockSignature) XXX_Size() int {
 	return xxx_messageInfo_BlockSignature.Size(m)
@@ -175,17 +169,16 @@ func (m *EventBody) Reset()         { *m = EventBody{} }
 func (m *EventBody) String() string { return proto.CompactTextString(m) }
 func (*EventBody) ProtoMessage()    {}
 func (*EventBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2d17a9d3f0ddf27e, []int{2}
+	return fileDescriptor_event_5aebafcbbd031977, []int{2}
 }
-
 func (m *EventBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EventBody.Unmarshal(m, b)
 }
 func (m *EventBody) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_EventBody.Marshal(b, m, deterministic)
 }
-func (m *EventBody) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventBody.Merge(m, src)
+func (dst *EventBody) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_EventBody.Merge(dst, src)
 }
 func (m *EventBody) XXX_Size() int {
 	return xxx_messageInfo_EventBody.Size(m)
@@ -258,17 +251,16 @@ func (m *EventMessage) Reset()         { *m = EventMessage{} }
 func (m *EventMessage) String() string { return proto.CompactTextString(m) }
 func (*EventMessage) ProtoMessage()    {}
 func (*EventMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2d17a9d3f0ddf27e, []int{3}
+	return fileDescriptor_event_5aebafcbbd031977, []int{3}
 }
-
 func (m *EventMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EventMessage.Unmarshal(m, b)
 }
 func (m *EventMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_EventMessage.Marshal(b, m, deterministic)
 }
-func (m *EventMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventMessage.Merge(m, src)
+func (dst *EventMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_EventMessage.Merge(dst, src)
 }
 func (m *EventMessage) XXX_Size() int {
 	return xxx_messageInfo_EventMessage.Size(m)
@@ -350,16 +342,16 @@ func (m *EventMessage) GetHash() []byte {
 }
 
 func init() {
-	proto.RegisterEnum("poset.TransactionType", TransactionType_name, TransactionType_value)
 	proto.RegisterType((*InternalTransaction)(nil), "poset.InternalTransaction")
 	proto.RegisterType((*BlockSignature)(nil), "poset.BlockSignature")
 	proto.RegisterType((*EventBody)(nil), "poset.EventBody")
 	proto.RegisterType((*EventMessage)(nil), "poset.EventMessage")
+	proto.RegisterEnum("poset.TransactionType", TransactionType_name, TransactionType_value)
 }
 
-func init() { proto.RegisterFile("event.proto", fileDescriptor_2d17a9d3f0ddf27e) }
+func init() { proto.RegisterFile("event.proto", fileDescriptor_event_5aebafcbbd031977) }
 
-var fileDescriptor_2d17a9d3f0ddf27e = []byte{
+var fileDescriptor_event_5aebafcbbd031977 = []byte{
 	// 530 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x93, 0x41, 0x6f, 0xda, 0x40,
 	0x10, 0x85, 0x6b, 0xe3, 0x90, 0x30, 0xb6, 0x82, 0xb5, 0xa5, 0x91, 0x15, 0x55, 0xaa, 0x85, 0x7a,
