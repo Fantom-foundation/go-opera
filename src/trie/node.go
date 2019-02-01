@@ -27,7 +27,7 @@ type (
 		Val   node
 		flags nodeFlag
 	}
-	hashNode  []byte
+	hashNode []byte
 	valueNode []byte
 )
 

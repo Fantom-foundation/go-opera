@@ -5,10 +5,10 @@
 package commands
 
 import (
-	"runtime"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
+	"runtime"
 )
 
 func runLachesis(cmd *cobra.Command, args []string) error {

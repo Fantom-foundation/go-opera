@@ -44,7 +44,7 @@ func TestNetworkTransport(t *testing.T) {
 		expectedResp := &SyncResponse{
 			FromID: 1,
 			Events: []poset.WireEvent{
-				poset.WireEvent{
+				{
 					Body: poset.WireBody{
 						Transactions:         [][]byte(nil),
 						SelfParentIndex:      1,
