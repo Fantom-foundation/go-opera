@@ -156,13 +156,15 @@ func (n *Node) Run(gossip bool) {
 	for {
 		// Run different routines depending on node state
 		state := n.getState()
-		n.logger.WithField("state", state.String()).Debug("RunAsync(gossip bool)")
+		n.logger.WithField("state", state.String()).Debug("Run(gossip bool)")
 
 		switch state {
 		case Gossiping:
 			n.lachesis(gossip)
 		case CatchingUp:
-			n.fastForward()
+			if err := n.fastForward(); err != nil {
+				n.logger.WithField("state", "fastForward").WithError(err).Debug("Run(gossip bool)")
+			}
 		case Stop:
 			// do nothing in Stop state
 		case Shutdown:
@@ -238,7 +240,9 @@ func (n *Node) lachesis(gossip bool) {
 				n.selectorLock.Unlock()
 				n.goFunc(func() {
 					n.gossipJobs.increment()
-					n.gossip(peerAddr, returnCh)
+					if err := n.gossip(peerAddr, returnCh); err != nil {
+						n.logger.WithError(err).Debug("node::lachesis(bool)::n.controlTimer.tickCh")
+					}
 					n.gossipJobs.decrement()
 				})
 				n.logger.Debug("Gossip")
@@ -696,7 +700,9 @@ func (n *Node) Shutdown() {
 		// transport and store should only be closed once all concurrent operations
 		// are finished otherwise they will panic trying to use close objects
 		n.trans.Close()
-		n.core.poset.Store.Close()
+		if err := n.core.poset.Store.Close(); err != nil {
+			n.logger.WithError(err).Debug("node::Shutdown::n.core.poset.Store.Close()")
+		}
 	}
 }
 

@@ -113,8 +113,6 @@ func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error
 			continue
 		}
 	}
-
-	return nil
 }
 
 func (p *GrpcAppProxy) send_events4clients() {

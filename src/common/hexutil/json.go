@@ -201,8 +201,8 @@ func (b *Uint64) UnmarshalText(input []byte) error {
 		return ErrUint64Range
 	}
 	var dec uint64
-	for _, byte := range raw {
-		nib := decodeNibble(byte)
+	for _, _byte := range raw {
+		nib := decodeNibble(_byte)
 		if nib == badNibble {
 			return ErrSyntax
 		}
