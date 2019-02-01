@@ -62,7 +62,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 		panic(err)
 	}
 
-	res[g.Node.localAddr /*p.PubKeyHex*/ ] = make(map[string]EventLite)
+	res[g.Node.localAddr /*p.PubKeyHex*/] = make(map[string]EventLite)
 
 	for _, event := range evs {
 
@@ -92,7 +92,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 			},
 		}
 
-		res[g.Node.localAddr /*p.PubKeyHex*/ ][hash] = liteEvent
+		res[g.Node.localAddr /*p.PubKeyHex*/][hash] = liteEvent
 	}
 
 	return res

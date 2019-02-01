@@ -46,7 +46,7 @@ func (n *Network) CreateListener(
 
 // CreateNetConn returns a fake connection to a fake node.
 func (n *Network) CreateNetConn(network,
-address string, timeout time.Duration) (net.Conn, error) {
+	address string, timeout time.Duration) (net.Conn, error) {
 
 	// If listener does not exist, returns "connection refused" error.
 	n.mtx.Lock()

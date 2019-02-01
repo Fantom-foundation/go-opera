@@ -15,7 +15,7 @@ type CreateSyncClientFunc func(target string,
 
 // CreateNetConnFunc is a function to create new network connection.
 type CreateNetConnFunc func(network,
-address string, timeout time.Duration) (net.Conn, error)
+	address string, timeout time.Duration) (net.Conn, error)
 
 // RPCClient is an interface representing methods for a RPC Client.
 type RPCClient interface {
