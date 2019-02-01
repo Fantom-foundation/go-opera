@@ -27,9 +27,6 @@ import:
   version: ^0.1.0
 - package: github.com/urfave/cli
   version: ^1.20.0
-- package: golang.org/x/net
-  subpackages:
-  - context
 - package: golang.org/x/sys
   subpackages:
   - windows
