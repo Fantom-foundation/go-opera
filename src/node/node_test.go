@@ -434,9 +434,9 @@ func TestGossip(t *testing.T) {
 	keys, ps := initPeers(4)
 	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
 
-	target := int64(50)
+	target := int64(10)
 
-	err := gossip(nodes, target, true, 13*time.Second)
+	err := gossip(nodes, target, true, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func TestMissingNodeGossip(t *testing.T) {
 	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	err := gossip(nodes[1:], 10, true, 13*time.Second)
+	err := gossip(nodes[1:], 5, true, 40*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,8 +526,8 @@ func TestFastForward(t *testing.T) {
 		"inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	target := int64(20)
-	err := gossip(nodes[1:], target, false, 15*time.Second)
+	target := int64(10)
+	err := gossip(nodes[1:], target, false, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -565,9 +565,9 @@ func TestCatchUp(t *testing.T) {
 	normalNodes := initNodes(keys[0:3], ps, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(normalNodes)
 
-	target := int64(50)
+	target := int64(10)
 
-	err := gossip(normalNodes, target, false, 14*time.Second)
+	err := gossip(normalNodes, target, false, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,8 +595,8 @@ func TestCatchUp(t *testing.T) {
 
 	// Gossip some more
 	nodes := append(normalNodes, node4)
-	newTarget := target + 20
-	err = bombardAndWait(nodes, newTarget, 10*time.Second)
+	newTarget := target + 4
+	err = bombardAndWait(nodes, newTarget, 20*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -613,7 +613,7 @@ func TestFastSync(t *testing.T) {
 	nodes := initNodes(keys, ps, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	var target int64 = 50
+	var target int64 = 20
 
 	err := gossip(nodes, target, false, 13*time.Second)
 	if err != nil {
@@ -624,7 +624,7 @@ func TestFastSync(t *testing.T) {
 	node4 := nodes[3]
 	node4.Shutdown()
 
-	secondTarget := target + 50
+	secondTarget := target + 20
 	err = bombardAndWait(nodes[0:3], secondTarget, 6*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -655,8 +655,8 @@ func TestFastSync(t *testing.T) {
 	nodes[3] = node4
 
 	// Gossip some more
-	thirdTarget := secondTarget + 20
-	err = bombardAndWait(nodes, thirdTarget, 6*time.Second)
+	thirdTarget := secondTarget + 10
+	err = bombardAndWait(nodes, thirdTarget, 15*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -732,13 +732,14 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 
 	quit := make(chan struct{})
 	makeRandomTransactions(nodes, quit)
+	tag := "beginning"
 
 	// wait until all nodes have at least 'target' blocks
 	stopper := time.After(timeout)
 	for {
 		select {
 		case <-stopper:
-			return fmt.Errorf("timeout")
+			return fmt.Errorf("timeout in %v", tag)
 		default:
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -747,6 +748,7 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 			ce := n.core.GetLastBlockIndex()
 			if ce < target {
 				done = false
+				tag = fmt.Sprintf("ce<target:%v<%v", ce, target)
 				break
 			} else {
 				// wait until the target block has retrieved a state hash from
@@ -754,6 +756,7 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 				targetBlock, _ := n.core.poset.Store.GetBlock(target)
 				if len(targetBlock.GetStateHash()) == 0 {
 					done = false
+					tag = "stateHash==0"
 					break
 				}
 			}
