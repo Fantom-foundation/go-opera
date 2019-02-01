@@ -3,6 +3,8 @@ BUILD_TAGS?=lachesis
 SUBDIRS := src/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
+export PROTOC?=protoc
+
 
 # vendor uses Glide to install all the Go dependencies in vendor/
 vendor:
