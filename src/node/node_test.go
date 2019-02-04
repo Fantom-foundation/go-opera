@@ -24,8 +24,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func initPeers(n int) ([]*ecdsa.PrivateKey, *peers.Peers) {
+func initPeers(n int, t testing.TB) ([]*ecdsa.PrivateKey, []string, *peers.Peers) {
 	var keys []*ecdsa.PrivateKey
+	addresses := utils.GetUnusedNetAddr(n, t)
 	ps := peers.NewPeers()
 
 	for i := 0; i < n; i++ {
@@ -34,15 +35,15 @@ func initPeers(n int) ([]*ecdsa.PrivateKey, *peers.Peers) {
 
 		ps.AddPeer(peers.NewPeer(
 			fmt.Sprintf("0x%X", crypto.FromECDSAPub(&keys[i].PublicKey)),
-			fmt.Sprintf("127.0.0.1:%d", i),
+			addresses[i],
 		))
 	}
 
-	return keys, ps
+	return keys, addresses, ps
 }
 
 func TestProcessSync(t *testing.T) {
-	keys, p := initPeers(2)
+	keys, addresses, p := initPeers(2, t)
 	testLogger := common.NewTestLogger(t)
 	config := TestConfig(t)
 
@@ -50,7 +51,7 @@ func TestProcessSync(t *testing.T) {
 
 	ps := p.ToPeerSlice()
 
-	peer0Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2,
+	peer0Trans, err := net.NewTCPTransport(addresses[0], nil, 2,
 		time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -66,7 +67,7 @@ func TestProcessSync(t *testing.T) {
 	node0.RunAsync(false)
 	defer node0.Shutdown()
 
-	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2,
+	peer1Trans, err := net.NewTCPTransport(addresses[1], nil, 2,
 		time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -143,7 +144,7 @@ func TestProcessSync(t *testing.T) {
 }
 
 func TestProcessEagerSync(t *testing.T) {
-	keys, p := initPeers(2)
+	keys, addresses, p := initPeers(2, t)
 	testLogger := common.NewTestLogger(t)
 	config := TestConfig(t)
 
@@ -151,7 +152,7 @@ func TestProcessEagerSync(t *testing.T) {
 
 	ps := p.ToPeerSlice()
 
-	peer0Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2,
+	peer0Trans, err := net.NewTCPTransport(addresses[0], nil, 2,
 		time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -167,7 +168,7 @@ func TestProcessEagerSync(t *testing.T) {
 	node0.RunAsync(false)
 	defer node0.Shutdown()
 
-	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2,
+	peer1Trans, err := net.NewTCPTransport(addresses[1], nil, 2,
 		time.Second, testLogger)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -222,7 +223,7 @@ func TestProcessEagerSync(t *testing.T) {
 }
 
 func TestAddTransaction(t *testing.T) {
-	keys, p := initPeers(2)
+	keys, addresses, p := initPeers(2, t)
 	testLogger := common.NewTestLogger(t)
 	config := TestConfig(t)
 
@@ -230,7 +231,7 @@ func TestAddTransaction(t *testing.T) {
 
 	ps := p.ToPeerSlice()
 
-	peer0Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2,
+	peer0Trans, err := net.NewTCPTransport(addresses[0], nil, 2,
 		time.Second, common.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -247,7 +248,7 @@ func TestAddTransaction(t *testing.T) {
 	node0.RunAsync(false)
 	defer node0.Shutdown()
 
-	peer1Trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t), nil, 2,
+	peer1Trans, err := net.NewTCPTransport(addresses[1], nil, 2,
 		time.Second, common.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -306,6 +307,7 @@ func TestAddTransaction(t *testing.T) {
 }
 
 func initNodes(keys []*ecdsa.PrivateKey,
+	addresses []string,
 	peers *peers.Peers,
 	cacheSize int,
 	syncLimit int64,
@@ -315,7 +317,7 @@ func initNodes(keys []*ecdsa.PrivateKey,
 
 	var nodes []*Node
 
-	for _, k := range keys {
+	for idx, k := range keys {
 		key := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&k.PublicKey))
 		peer, ok := peers.ReadByPubKey(key)
 		if !ok {
@@ -331,7 +333,7 @@ func initNodes(keys []*ecdsa.PrivateKey,
 			logger,
 		)
 
-		trans, err := net.NewTCPTransport(utils.GetUnusedNetAddr(t),
+		trans, err := net.NewTCPTransport(addresses[idx],
 			nil, 2, time.Second, logger)
 		if err != nil {
 			t.Fatalf("failed to create transport for peer %d: %s", id, err)
@@ -434,8 +436,8 @@ func TestGossip(t *testing.T) {
 
 	logger := common.NewTestLogger(t)
 
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 
 	target := int64(10)
 
@@ -444,7 +446,8 @@ func TestGossip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := NewService("127.0.0.1:3000", nodes[0], logger)
+	srv_addr := utils.GetUnusedNetAddr(1, t)
+	s := NewService(srv_addr[0], nodes[0], logger)
 
 	srv := s.Serve()
 
@@ -465,8 +468,8 @@ func TestMissingNodeGossip(t *testing.T) {
 
 	logger := common.NewTestLogger(t)
 
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
 	err := gossip(nodes[1:], 5, true, 40*time.Second)
@@ -481,8 +484,8 @@ func TestSyncLimit(t *testing.T) {
 
 	logger := common.NewTestLogger(t)
 
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 
 	err := gossip(nodes, 10, false, 3*time.Second)
 	if err != nil {
@@ -524,8 +527,8 @@ func TestFastForward(t *testing.T) {
 
 	logger := common.NewTestLogger(t)
 
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 1000,
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 1000,
 		"inmem", logger, t)
 	defer shutdownNodes(nodes)
 
@@ -562,10 +565,10 @@ func TestCatchUp(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
 	// Create  config for 4 nodes
-	keys, ps := initPeers(4)
+	keys, addresses, ps := initPeers(4, t)
 
 	// Initialize the first 3 nodes only
-	normalNodes := initNodes(keys[0:3], ps, 1000, 400, "inmem", logger, t)
+	normalNodes := initNodes(keys[0:3], addresses[0:3], ps, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(normalNodes)
 
 	target := int64(10)
@@ -576,7 +579,7 @@ func TestCatchUp(t *testing.T) {
 	}
 	checkGossip(normalNodes, 0, t)
 
-	node4 := initNodes(keys[3:], ps, 1000, 400, "inmem", logger, t)[0]
+	node4 := initNodes(keys[3:], addresses[3:], ps, 1000, 400, "inmem", logger, t)[0]
 
 	// Run parallel routine to check node4 eventually reaches CatchingUp state.
 	timeout := time.After(10 * time.Second)
@@ -612,8 +615,8 @@ func TestFastSync(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
 	// Create  config for 4 nodes
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 400, "inmem", logger, t)
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
 	var target int64 = 20
@@ -671,8 +674,8 @@ func TestFastSync(t *testing.T) {
 func TestShutdown(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, t)
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 	runNodes(nodes, false)
 
 	nodes[0].Shutdown()
@@ -693,8 +696,8 @@ func TestBootstrapAllNodes(t *testing.T) {
 
 	// create a first network with BadgerStore
 	// and wait till it reaches 10 consensus rounds before shutting it down
-	keys, ps := initPeers(4)
-	nodes := initNodes(keys, ps, 1000, 1000, "badger", logger, t)
+	keys, addresses, ps := initPeers(4, t)
+	nodes := initNodes(keys, addresses, ps, 1000, 1000, "badger", logger, t)
 
 	err := gossip(nodes, 10, false, 3*time.Second)
 	if err != nil {
@@ -925,8 +928,8 @@ func submitTransaction(n *Node, tx []byte) error {
 func BenchmarkGossip(b *testing.B) {
 	logger := common.NewTestLogger(b)
 	for n := 0; n < b.N; n++ {
-		keys, ps := initPeers(4)
-		nodes := initNodes(keys, ps, 1000, 1000, "inmem", logger, b)
+		keys, addresses, ps := initPeers(4, b)
+		nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, b)
 		gossip(nodes, 50, true, 3*time.Second)
 	}
 }

@@ -19,14 +19,14 @@ func TestGrpcCalls(t *testing.T) {
 		errTimeout = "time is over"
 	)
 
-	addr := utils.GetUnusedNetAddr(t)
+	addr := utils.GetUnusedNetAddr(1, t)
 
 	logger := common.NewTestLogger(t)
 
-	s, err := NewGrpcAppProxy(addr, timeout, logger)
+	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
 	assert.NoError(t, err)
 
-	c, err := NewGrpcLachesisProxy(addr, logger)
+	c, err := NewGrpcLachesisProxy(addr[0], logger)
 	assert.NoError(t, err)
 
 	t.Run("#1 Send tx", func(t *testing.T) {
@@ -127,15 +127,15 @@ func TestGrpcReConnection(t *testing.T) {
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
 	)
-	addr := utils.GetUnusedNetAddr(t)
+	addr := utils.GetUnusedNetAddr(1, t)
 	logger := common.NewTestLogger(t)
 
-	c, err := NewGrpcLachesisProxy(addr, logger)
+	c, err := NewGrpcLachesisProxy(addr[0], logger)
 	if assert.NoError(t, err) {
 		assert.NotNil(t, c)
 	}
 
-	s, err := NewGrpcAppProxy(addr, timeout, logger)
+	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
 	assert.NoError(t, err)
 
 	checkConnAndStopServer := func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestGrpcReConnection(t *testing.T) {
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
 
-	s, err = NewGrpcAppProxy(addr, timeout/2, logger)
+	s, err = NewGrpcAppProxy(addr[0], timeout/2, logger)
 	assert.NoError(t, err)
 
 	<-time.After(timeout)

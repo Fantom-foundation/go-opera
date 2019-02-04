@@ -2,36 +2,37 @@ package utils
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"strconv"
 	"testing"
 )
 
-// GetUnusedNetAddr source: https://gist.github.com/montanaflynn/b59c058ce2adc18f31d6
-func GetUnusedNetAddr(t testing.TB) string {
-	// Create a new server without specifying a port
-	// which will result in an open port being chosen
-	server, err := net.Listen("tcp", ":0")
-	// If there's an error it likely means no ports
-	// are available or something else prevented finding
-	// an open port
-	if err != nil {
-		t.Fatalf("err: %v", err)
+func GetUnusedNetAddr(n int, t testing.TB) []string {
+	// addresses 1-1024 are reserved for non-root users;
+	// so we start with default lachesis port ang going up until one free found
+	idx := int(0)
+	addresses := make([]string, n)
+	for i := 12000; i < 65536; i++ {
+		addrStr := "127.0.0.1:" + strconv.Itoa(i)
+		addr, err := net.ResolveTCPAddr("tcp", addrStr)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		l, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			continue
+		}
+		defer l.Close()
+		t.Logf("Unused port %s is chosen", addrStr)
+		addresses[idx] = addrStr
+		idx++
+		if idx == n {
+			return addresses
+		}
 	}
-	defer server.Close()
-	hostString := server.Addr().String()
-	// Split the host from the port
-	_, portString, err := net.SplitHostPort(hostString)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// Return the port as an int
-	port, err := strconv.Atoi(portString)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return fmt.Sprintf("127.0.0.1:%d", port)
+	t.Fatalf("No free port left!!!")
+	return addresses
 }
 
 // HashFromHex converts hex string to bytes.
