@@ -1,5 +1,5 @@
-hash: 97f63efc22fbc32e4b7878f4c1ac7cc34bbaecaf3cd1c02762ea8f761d503761
-updated: 2019-01-15T21:12:15.184480534+10:00
+hash: f9d358c2989ddd4e2d5ddeafb8d64b38c16da852a39090325ac67570eed7fca4
+updated: 2019-02-01T15:22:57.524139+11:00
 imports:
 - name: github.com/allegro/bigcache
   version: f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068
@@ -24,7 +24,7 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/golang/protobuf
-  version: 8d0c54c1246661d9a51ca0ba455d22116d485eaa
+  version: aa810b61a9c79d51363740d207bb46cf8e620ed5
   subpackages:
   - proto
   - ptypes
@@ -58,7 +58,7 @@ imports:
 - name: github.com/pelletier/go-toml
   version: 81a861c69d25a841d0c4394f0e6f84bc8c5afae0
 - name: github.com/pkg/errors
-  version: 059132a15dd08d6704c67711dae0cf35ab991756
+  version: ba968bfe8b2f7e042a574c888954fccecfa385b4
 - name: github.com/rifflock/lfshook
   version: b9218ef580f59a2e72dad1aa33d660150445d05a
 - name: github.com/rs/xid
@@ -116,7 +116,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: df014850f6dee74ba2fc94874043a9f3f75fbfd8
+  version: a02b0774206b209466313a0b525d2c738fe407eb
   subpackages:
   - balancer
   - balancer/base

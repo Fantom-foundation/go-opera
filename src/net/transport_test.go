@@ -30,7 +30,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 		expectedResp := &SyncResponse{
 			FromID: 1,
 			Events: []poset.WireEvent{
-				poset.WireEvent{
+				{
 					Body: poset.WireBody{
 						Transactions:         [][]byte(nil),
 						SelfParentIndex:      1,
@@ -71,7 +71,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 		expectedReq := &EagerSyncRequest{
 			FromID: 0,
 			Events: []poset.WireEvent{
-				poset.WireEvent{
+				{
 					Body: poset.WireBody{
 						Transactions:         [][]byte(nil),
 						SelfParentIndex:      1,

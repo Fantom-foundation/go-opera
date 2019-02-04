@@ -37,7 +37,7 @@ type Node struct {
 	trans net.Transport
 	netCh <-chan *net.RPC
 
-	proxy            proxy.AppProxy
+	proxy proxy.AppProxy
 
 	submitCh         chan []byte
 	submitInternalCh chan poset.InternalTransaction
@@ -719,7 +719,7 @@ func (n *Node) GetStats() map[string]string {
 	lastConsensusRound := n.core.GetLastConsensusRound()
 	var consensusRoundsPerSecond float64
 	if lastConsensusRound > poset.RoundNIL {
-		consensusRoundsPerSecond = float64(lastConsensusRound + 1) / timeElapsed.Seconds()
+		consensusRoundsPerSecond = float64(lastConsensusRound+1) / timeElapsed.Seconds()
 	}
 
 	s := map[string]string{

@@ -304,16 +304,16 @@ func TestSync(t *testing.T) {
 
 	/*
 
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                                    |   |  e20
-	                                    |   | / |
-	                                    |   /   |
-	                                    | / |   |
-	   e01 |   |                        e01 |   |
-	   | \ |   |                        | \ |   |
-	   e0  e1  |        |   e1  |       e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+											|   |  e20
+											|   | / |
+											|   /   |
+											| / |   |
+		   e01 |   |                        e01 |   |
+		   | \ |   |                        | \ |   |
+		   e0  e1  |        |   e1  |       e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -358,18 +358,18 @@ func TestSync(t *testing.T) {
 	}
 
 	/*
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                    |  e12  |
-	                    |   | \ |
-	                    |   |  e20      |   |  e20
-	                    |   | / |       |   | / |
-	                    |   /   |       |   /   |
-	                    | / |   |       | / |   |
-	   e01 |   |        e01 |   |       e01 |   |
-	   | \ |   |        | \ |   |       | \ |   |
-	   e0  e1  |        e0  e1  e2      e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+							|  e12  |
+							|   | \ |
+							|   |  e20      |   |  e20
+							|   | / |       |   | / |
+							|   /   |       |   /   |
+							| / |   |       | / |   |
+		   e01 |   |        e01 |   |       e01 |   |
+		   | \ |   |        | \ |   |       | \ |   |
+		   e0  e1  |        e0  e1  e2      e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -537,16 +537,16 @@ func TestInDegrees(t *testing.T) {
 
 	/*
 
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                                    |   |  e20
-	                                    |   | / |
-	                                    |   /   |
-	                                    | / |   |
-	   e01 |   |                        e01 |  e21
-	   | \ |   |                        | \ | / |
-	   e0  e1  |        |   e1  |       e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+											|   |  e20
+											|   | / |
+											|   /   |
+											| / |   |
+		   e01 |   |                        e01 |  e21
+		   | \ |   |                        | \ | / |
+		   e0  e1  |        |   e1  |       e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -590,18 +590,18 @@ func TestInDegrees(t *testing.T) {
 
 	/*
 
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                    |  e12  |
-	                    |   | \ |
-	                    |   |  e20      |   |  e20
-	                    |   | / |       |   | / |
-	                    |   /   |       |   /   |
-	                    | / |   |       | / |   |
-	   e01 |   |        e01 |  e21      e01 |  e21
-	   | \ |   |        | \ | / |       | \ | / |
-	   e0  e1  |        e0  e1  e2      e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+							|  e12  |
+							|   | \ |
+							|   |  e20      |   |  e20
+							|   | / |       |   | / |
+							|   /   |       |   /   |
+							| / |   |       | / |   |
+		   e01 |   |        e01 |  e21      e01 |  e21
+		   | \ |   |        | \ | / |       | \ | / |
+		   e0  e1  |        e0  e1  e2      e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
