@@ -54,7 +54,9 @@ func initCores(n int, t *testing.T) ([]*Core,
 			t.Fatal(err)
 		}
 
-		core.RunConsensus()
+		if err := core.RunConsensus(); err != nil {
+			panic(err)
+		}
 
 		cores = append(cores, core)
 		index[fmt.Sprintf("e%d", i)] = core.head
@@ -156,7 +158,9 @@ func insertEvent(cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
 		// event is not signed because passed by value
 		index[name] = cores[participant].head
 	} else {
-		event.Sign(keys[creator])
+		if err := event.Sign(keys[creator]); err != nil {
+			panic(err)
+		}
 		if err := cores[participant].InsertEvent(event, true); err != nil {
 			return err
 		}
@@ -1034,8 +1038,7 @@ func syncAndRunConsensus(
 	if err := synchronizeCores(cores, from, to, payload); err != nil {
 		return err
 	}
-	cores[to].RunConsensus()
-	return nil
+	return cores[to].RunConsensus()
 }
 
 func getName(index map[string]poset.EventHash, hash poset.EventHash) string {
