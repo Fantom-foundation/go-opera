@@ -309,6 +309,8 @@ func (s *BadgerStore) LastConsensusEventFrom(participant string) (last EventHash
 // KnownEvents returns all known events
 func (s *BadgerStore) KnownEvents() map[uint64]int64 {
 	known := make(map[uint64]int64)
+	s.participants.RLock()
+	defer s.participants.RUnlock()
 	for p, pid := range s.participants.ByPubKey {
 		index := int64(-1)
 		last, isRoot, err := s.LastEventFrom(p)
@@ -627,7 +629,7 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 		selfParentHash.Set(root.SelfParent.Hash)
 		fmt.Sscanf(participant, "0x%X", &creator)
 		body := EventBody{
-			Creator: creator, /*s.participants.ByPubKey[participant].PubKey,*/
+			Creator: creator,
 			Index:   root.SelfParent.Index,
 			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
 		}
@@ -799,6 +801,8 @@ func (s *BadgerStore) dbSetParticipants(participants *peers.Peers) error {
 	tx := s.db.NewTransaction(true)
 	defer tx.Discard()
 
+	participants.RLock()
+	defer participants.RUnlock()
 	for participant, id := range participants.ByPubKey {
 		key := participantKey(participant)
 		val := []byte(fmt.Sprint(id.ID))

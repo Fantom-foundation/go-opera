@@ -132,7 +132,7 @@ func (l *Lachesis) initNode() error {
 	key := l.Config.Key
 
 	nodePub := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
-	n, ok := l.Peers.ByPubKey[nodePub]
+	n, ok := l.Peers.ReadByPubKey(nodePub)
 
 	if !ok {
 		return fmt.Errorf("cannot find self pubkey in peers.json")

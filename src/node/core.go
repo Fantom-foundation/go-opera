@@ -65,9 +65,11 @@ func NewCore(id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	logEntry := logger.WithField("id", id)
 
 	inDegrees := make(map[string]uint64)
+	participants.RLock()
 	for pubKey := range participants.ByPubKey {
 		inDegrees[pubKey] = 0
 	}
+	participants.RUnlock()
 
 	p2 := poset.NewPoset(participants, store, commitCh, logEntry)
 	core := &Core{
@@ -119,6 +121,8 @@ func (c *Core) Head() poset.EventHash {
 // Heights returns map with heights for each participants
 func (c *Core) Heights() map[string]uint64 {
 	heights := make(map[string]uint64)
+	c.participants.RLock()
+	defer c.participants.RUnlock()
 	for pubKey := range c.participants.ByPubKey {
 		participantEvents, err := c.poset.Store.ParticipantEvents(pubKey, -1)
 		if err == nil {
@@ -184,6 +188,8 @@ func (c *Core) Bootstrap() error {
 }
 
 func (c *Core) bootstrapInDegrees() {
+	c.participants.RLock()
+	defer c.participants.RUnlock()
 	for pubKey := range c.participants.ByPubKey {
 		c.inDegrees[pubKey] = 0
 		eventHash, _, err := c.poset.Store.LastEventFrom(pubKey)
@@ -295,8 +301,8 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 	// compare this to our view of events and fill unknown with events that we know of
 	// and the other doesn't
 	for id, ct := range known {
-		peer := c.participants.ByID[id]
-		if peer == nil {
+		peer, ok := c.participants.ReadByID(id)
+		if !ok {
 			// unknown peer detected.
 			// TODO: we should handle this nicely
 			continue

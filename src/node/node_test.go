@@ -317,7 +317,10 @@ func initNodes(keys []*ecdsa.PrivateKey,
 
 	for _, k := range keys {
 		key := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&k.PublicKey))
-		peer := peers.ByPubKey[key]
+		peer, ok := peers.ReadByPubKey(key)
+		if !ok {
+			t.Fatalf("peer %v not found", key)
+		}
 		id := peer.ID
 
 		conf := NewConfig(

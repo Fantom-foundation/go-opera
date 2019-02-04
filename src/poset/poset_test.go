@@ -578,10 +578,15 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		peer0, ok := p.Participants.ReadByPubKey(e0Event.GetCreator())
+		if !ok {
+			t.Fatal(fmt.Errorf("Creator0 %v not found", e0Event.GetCreator()))
+		}
+
 		if !(e0Event.Message.SelfParentIndex == -1 &&
 			e0Event.Message.OtherParentCreatorID == peers.PeerNIL &&
 			e0Event.Message.OtherParentIndex == -1 &&
-			e0Event.Message.CreatorID == p.Participants.ByPubKey[e0Event.GetCreator()].ID) {
+			e0Event.Message.CreatorID == peer0.ID) {
 			t.Fatalf("Invalid wire info on %s", e0)
 		}
 
@@ -595,10 +600,20 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		peer10, ok := p.Participants.ReadByPubKey(e10Event.GetCreator())
+		if !ok {
+			t.Fatal(fmt.Errorf("Creator10 %v not found", e10Event.GetCreator()))
+		}
+
+		peer21, ok := p.Participants.ReadByPubKey(e21Event.GetCreator())
+		if !ok {
+			t.Fatal(fmt.Errorf("Creator21 %v not found", e21Event.GetCreator()))
+		}
+
 		if !(e21Event.Message.SelfParentIndex == 1 &&
-			e21Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e10Event.GetCreator()].ID &&
+			e21Event.Message.OtherParentCreatorID == peer10.ID &&
 			e21Event.Message.OtherParentIndex == 1 &&
-			e21Event.Message.CreatorID == p.Participants.ByPubKey[e21Event.GetCreator()].ID) {
+			e21Event.Message.CreatorID == peer21.ID) {
 			t.Fatalf("Invalid wire info on %s", e21)
 		}
 
@@ -607,14 +622,19 @@ func TestInsertEvent(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		peerf1, ok := p.Participants.ReadByPubKey(f1Event.GetCreator())
+		if !ok {
+			t.Fatal(fmt.Errorf("Creatorf1 %v not found", e10Event.GetCreator()))
+		}
+
 		if !(f1Event.Message.SelfParentIndex == 2 &&
-			f1Event.Message.OtherParentCreatorID == p.Participants.ByPubKey[e0Event.GetCreator()].ID &&
+			f1Event.Message.OtherParentCreatorID == peer0.ID &&
 			f1Event.Message.OtherParentIndex == 2 &&
-			f1Event.Message.CreatorID == p.Participants.ByPubKey[f1Event.GetCreator()].ID) {
+			f1Event.Message.CreatorID == peerf1.ID) {
 			t.Fatalf("Invalid wire info on %s", f1)
 		}
 
-		e0CreatorID := fmt.Sprint(p.Participants.ByPubKey[e0Event.GetCreator()].ID)
+		e0CreatorID := fmt.Sprint(peer0.ID)
 
 		type Hierarchy struct {
 			ev            string
@@ -2086,12 +2106,14 @@ func TestResetFromFrame(t *testing.T) {
 	}
 
 	known := p2.Store.KnownEvents()
+	p2.Participants.RLock()
 	for _, peer := range p2.Participants.ByID {
 		if l := known[peer.ID]; l != expectedKnown[peer.ID] {
 			t.Fatalf("Known[%d] should be %d, not %d",
 				peer.ID, expectedKnown[peer.ID], l)
 		}
 	}
+	p2.Participants.RUnlock()
 
 	t.Run("TestDivideRounds", func(t *testing.T) {
 		if err := p2.DivideRounds(); err != nil {
@@ -3509,7 +3531,11 @@ func compareRoundClothos(p, p2 *Poset, index map[string]EventHash, round int64, 
 func getDiff(p *Poset, known map[uint64]int64, t *testing.T) []Event {
 	var diff []Event
 	for id, ct := range known {
-		pk := p.Participants.ByID[id].PubKeyHex
+		peer, ok := p.Participants.ReadByID(id)
+		if !ok {
+			t.Fatal(fmt.Errorf("Participant with ID %v not found", id))
+		}
+		pk := peer.PubKeyHex
 		// get participant Events with index > ct
 		participantEvents, err := p.Store.ParticipantEvents(pk, ct)
 		if err != nil {
