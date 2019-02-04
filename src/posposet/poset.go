@@ -8,6 +8,8 @@ import (
 
 // Poset is the main package struct.
 type Poset struct {
+	Store *Store
+
 	Creator Node
 
 	processing_wg sync.WaitGroup
@@ -15,9 +17,10 @@ type Poset struct {
 }
 
 // New creates Poset instance.
-func New(key PrivateKey) *Poset {
+func New(store *Store, key PrivateKey) *Poset {
 	pk := key.PublicKey()
 	return &Poset{
+		Store: store,
 		Creator: Node{
 			ID:     AddressOf(pk),
 			PubKey: pk,
@@ -56,4 +59,8 @@ func (p *Poset) Stop() {
 	close(p.processing_ch)
 	p.processing_wg.Wait()
 	p.processing_ch = nil
+}
+
+func (p *Poset) PushEvent(e Event) {
+
 }

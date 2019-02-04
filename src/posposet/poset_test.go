@@ -8,7 +8,9 @@ import (
 )
 
 func TestStartStop(t *testing.T) {
-	p := posposet.New(posposet.GenerateKey())
+	store := posposet.NewInmemStore()
+
+	p := posposet.New(store, posposet.GenerateKey())
 	p.Stop()
 	p.Start()
 	p.Start()
