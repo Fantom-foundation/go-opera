@@ -20,7 +20,11 @@ func TestNetworkConnRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	go func() {
 		for {
@@ -35,9 +39,15 @@ func TestNetworkConnRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	listener.Close()
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = network.CreateNetConn("tcp", address, time.Second)
 	if err == nil {
@@ -53,7 +63,11 @@ func TestNetworkAddrAlreadyInUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	_, err = network.CreateListener("tcp", address)
 	if err != fakenet.ErrAddressAlreadyInUse {

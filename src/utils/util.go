@@ -63,6 +63,10 @@ func FreePort(network string) (port uint16) {
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
+	defer func() {
+		if err := l.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	return uint16(l.Addr().(*net.TCPAddr).Port)
 }

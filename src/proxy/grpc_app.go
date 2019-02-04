@@ -69,7 +69,11 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	internal.RegisterLachesisNodeServer(p.server, p)
 
-	go p.server.Serve(p.listener)
+	go func() {
+		if err := p.server.Serve(p.listener); err != nil {
+			logger.Fatal(err)
+		}
+	}()
 
 	go p.send_events4clients()
 
@@ -78,10 +82,10 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 
 func (p *GrpcAppProxy) Close() error {
 	p.server.Stop()
-	p.listener.Close()
+	err := p.listener.Close()
 	close(p.event4server)
 	close(p.event4clients)
-	return nil
+	return err
 }
 
 /*

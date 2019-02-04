@@ -195,8 +195,12 @@ func TestInmemBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block.SetSignature(sig1)
-	block.SetSignature(sig2)
+	if err := block.SetSignature(sig1); err != nil {
+		t.Fatal(err)
+	}
+	if err := block.SetSignature(sig2); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Store Block", func(t *testing.T) {
 		if err := store.SetBlock(block); err != nil {

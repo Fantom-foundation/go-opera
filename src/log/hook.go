@@ -29,13 +29,15 @@ func NewLocal(logger *logrus.Logger, logLevel string) {
 		h.logshold = [6]int64{-1, -1, -1, -1, -1, -1}
 		logstr := os.Getenv("logshold")
 		if len(logstr) > 0 {
-			fmt.Sscanf(logstr, "%d,%d,%d,%d,%d,%d",
+			if _, err := fmt.Sscanf(logstr, "%d,%d,%d,%d,%d,%d",
 				&h.logshold[logrus.DebugLevel],
 				&h.logshold[logrus.InfoLevel],
 				&h.logshold[logrus.WarnLevel],
 				&h.logshold[logrus.ErrorLevel],
 				&h.logshold[logrus.FatalLevel],
-				&h.logshold[logrus.PanicLevel])
+				&h.logshold[logrus.PanicLevel]); err != nil {
+				logger.Fatal(err)
+			}
 		}
 		logger.Hooks.Add(h)
 	}

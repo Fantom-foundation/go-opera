@@ -106,7 +106,9 @@ func sendTxs(lachesisNode *exec.Cmd, i int) {
 }
 
 func runLachesis(cmd *cobra.Command, args []string) error {
-	os.RemoveAll("/tmp/lachesis_configs")
+	if err := os.RemoveAll("/tmp/lachesis_configs"); err != nil {
+		log.Fatal(err)
+	}
 
 	if err := buildConfig(); err != nil {
 		log.Fatal(err)
@@ -147,7 +149,9 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 
 			processes[i] = lachesisNode.Process
 
-			lachesisNode.Wait()
+			if err := lachesisNode.Wait(); err != nil {
+				log.Fatal(err)
+			}
 
 			fmt.Println("Terminated", i)
 
@@ -161,7 +165,9 @@ func runLachesis(cmd *cobra.Command, args []string) error {
 	go func() {
 		for range c {
 			for _, proc := range processes {
-				proc.Kill()
+				if err := proc.Kill(); err != nil {
+					panic(err)
+				}
 			}
 		}
 	}()

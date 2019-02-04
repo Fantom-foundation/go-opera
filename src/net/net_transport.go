@@ -121,7 +121,9 @@ func (n *NetworkTransport) Close() {
 	case <-n.ctx.Done():
 	default:
 		n.cancel()
-		n.stream.Close()
+		if err := n.stream.Close(); err != nil {
+			n.logger.Fatal(err)
+		}
 	}
 }
 
@@ -206,7 +208,9 @@ func (n *NetworkTransport) returnConn(conn *netConn) {
 	if !n.IsShutdown() && len(conns) < n.maxPool {
 		n.connPool[key] = append(conns, conn)
 	} else {
-		conn.Release()
+		if err := conn.Release(); err != nil {
+			n.logger.Fatal(err)
+		}
 	}
 }
 
@@ -235,7 +239,9 @@ func (n *NetworkTransport) genericRPC(target string, rpcType uint8, args interfa
 
 	// Set a deadline
 	if n.timeout > 0 {
-		conn.conn.SetDeadline(time.Now().Add(n.timeout))
+		if err := conn.conn.SetDeadline(time.Now().Add(n.timeout)); err != nil {
+			n.logger.Fatal(err)
+		}
 	}
 
 	// Send the RPC
@@ -255,19 +261,25 @@ func (n *NetworkTransport) genericRPC(target string, rpcType uint8, args interfa
 func sendRPC(conn *netConn, rpcType uint8, args interface{}) error {
 	// Write the request type
 	if err := conn.w.WriteByte(rpcType); err != nil {
-		conn.Release()
+		if err := conn.Release(); err != nil {
+			return err
+		}
 		return err
 	}
 
 	// Send the request
 	if err := conn.enc.Encode(args); err != nil {
-		conn.Release()
+		if err := conn.Release(); err != nil {
+			return err
+		}
 		return err
 	}
 
 	// Flush
 	if err := conn.w.Flush(); err != nil {
-		conn.Release()
+		if err := conn.Release(); err != nil {
+			return err
+		}
 		return err
 	}
 	return nil
@@ -279,13 +291,17 @@ func decodeResponse(conn *netConn, resp interface{}) (bool, error) {
 	// Decode the error if any
 	var rpcError string
 	if err := conn.dec.Decode(&rpcError); err != nil {
-		conn.Release()
+		if err := conn.Release(); err != nil {
+			return false, err
+		}
 		return false, err
 	}
 
 	// Decode the response
 	if err := conn.dec.Decode(resp); err != nil {
-		conn.Release()
+		if err := conn.Release(); err != nil {
+			return false, err
+		}
 		return false, err
 	}
 
@@ -324,7 +340,11 @@ func (n *NetworkTransport) listen() {
 
 // handleConn is used to handle an inbound connection for its lifespan.
 func (n *NetworkTransport) handleConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			n.logger.Fatal(err)
+		}
+	}()
 	r := bufio.NewReader(conn)
 	w := bufio.NewWriter(conn)
 	dec := json.NewDecoder(r)
