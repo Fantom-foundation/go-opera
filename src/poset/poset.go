@@ -1001,7 +1001,9 @@ func (p *Poset) DivideRounds() error {
 						for _, v := range ws {
 							ft[v] = 1
 						}
-						event.ReplaceFlagTable(ft)
+						if err := event.ReplaceFlagTable(ft); err != nil {
+							p.logger.Fatal(err)
+						}
 					}
 
 					// special case
@@ -1037,9 +1039,13 @@ func (p *Poset) DivideRounds() error {
 
 		if updateEvent {
 			if ev.CreatorID() == 0 {
-				p.setWireInfo(&ev)
+				if err := p.setWireInfo(&ev); err != nil {
+					p.logger.Fatal(err)
+				}
 			}
-			p.Store.SetEvent(ev)
+			if err := p.Store.SetEvent(ev); err != nil {
+				p.logger.Fatal(err)
+			}
 		}
 	}
 
@@ -1592,7 +1598,9 @@ func (p *Poset) ProcessSigPool() error {
 				continue
 			}
 
-			block.SetSignature(bs)
+			if err := block.SetSignature(bs); err != nil {
+				p.logger.Fatal(err)
+			}
 
 			if err := p.Store.SetBlock(block); err != nil {
 				p.logger.WithFields(logrus.Fields{

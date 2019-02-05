@@ -160,11 +160,14 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 	select {
 	case <-p.shutdown:
 		p.closeStream()
-		p.conn.Close()
+		err := p.conn.Close()
 		close(p.commitCh)
 		close(p.queryCh)
 		close(p.restoreCh)
 		p.reconnect_ticket <- ZeroTime
+		if err != nil {
+			return err
+		}
 		return ErrConnShutdown
 	default:
 		// see code below
@@ -255,7 +258,9 @@ func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitRe
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
 		}
-		p.sendToServer(answer)
+		if err := p.sendToServer(answer); err != nil {
+			p.logger.Debug(err)
+		}
 	}()
 	return respCh
 }
@@ -268,7 +273,9 @@ func (p *GrpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.Snapsh
 		if ok {
 			answer = newAnswer(uuid[:], resp.Snapshot, resp.Error)
 		}
-		p.sendToServer(answer)
+		if err := p.sendToServer(answer); err != nil {
+			p.logger.Debug(err)
+		}
 	}()
 	return respCh
 }
@@ -281,7 +288,9 @@ func (p *GrpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.Restore
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
 		}
-		p.sendToServer(answer)
+		if err := p.sendToServer(answer); err != nil {
+			p.logger.Debug(err)
+		}
 	}()
 	return respCh
 }
@@ -344,7 +353,9 @@ func (p *GrpcLachesisProxy) closeStream() {
 	if v != nil {
 		stream, ok := v.(internal.LachesisNode_ConnectClient)
 		if ok && stream != nil {
-			stream.CloseSend()
+			if err := stream.CloseSend(); err != nil {
+				p.logger.Debug(err)
+			}
 		}
 	}
 }

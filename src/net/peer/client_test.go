@@ -101,7 +101,11 @@ func TestClientSync(t *testing.T) {
 	ctx := context.Background()
 	m := newRPCClient(t, testError, expSyncResponse)
 	cli := newClient(t, m)
-	defer cli.Close()
+	defer func() {
+		if err := cli.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	resp := &lnet.SyncResponse{}
 	if err := cli.Sync(
@@ -126,7 +130,11 @@ func TestClientForceSync(t *testing.T) {
 	ctx := context.Background()
 	m := newRPCClient(t, testError, expEagerSyncResponse)
 	cli := newClient(t, m)
-	defer cli.Close()
+	defer func() {
+		if err := cli.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	resp := &lnet.EagerSyncResponse{}
 	if err := cli.ForceSync(
@@ -152,7 +160,11 @@ func TestClientFastForward(t *testing.T) {
 	ctx := context.Background()
 	m := newRPCClient(t, testError, expResponse)
 	cli := newClient(t, m)
-	defer cli.Close()
+	defer func() {
+		if err := cli.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	resp := &lnet.FastForwardResponse{}
 	if err := cli.FastForward(
@@ -183,7 +195,11 @@ func TestNewClient(t *testing.T) {
 	address := newAddress()
 	backend := newBackend(t, conf, logger, address, done,
 		expSyncResponse, 0, net.Listen)
-	defer backend.Close()
+	defer func() {
+		if err := backend.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	rpcCli, err := peer.NewRPCClient(
 		peer.TCP, address, time.Second, net.DialTimeout)
@@ -224,7 +240,11 @@ func TestFakeNet(t *testing.T) {
 	address := newAddress()
 	backend := newBackend(t, conf, logger, address, done,
 		expSyncResponse, 0, network.CreateListener)
-	defer backend.Close()
+	defer func() {
+		if err := backend.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	rpcCli, err := peer.NewRPCClient(peer.TCP, address, time.Second,
 		network.CreateNetConn)

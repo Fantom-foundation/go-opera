@@ -13,7 +13,9 @@ func TestRollingIndex(t *testing.T) {
 	items := []string{}
 	for i := int64(0); i < testSize; i++ {
 		item := fmt.Sprintf("item%d", i)
-		RollingIndex.Set(item, i)
+		if err := RollingIndex.Set(item, i); err != nil {
+			t.Fatal(err)
+		}
 		items = append(items, item)
 	}
 	cached, lastIndex := RollingIndex.GetLastWindow()
@@ -91,7 +93,9 @@ func TestRollingIndexSkip(t *testing.T) {
 	items := []string{}
 	for i := int64(0); i < testSize; i++ {
 		item := fmt.Sprintf("item%d", i)
-		RollingIndex.Set(item, i)
+		if err := RollingIndex.Set(item, i); err != nil {
+			t.Fatal(err)
+		}
 		items = append(items, item)
 	}
 

@@ -61,7 +61,9 @@ func NewPeersFromSlice(source []*Peer) *Peers {
 // Handle with care
 func (p *Peers) addPeerRaw(peer *Peer) {
 	if peer.ID == 0 {
-		peer.computeID()
+		if err := peer.computeID(); err != nil {
+			panic(err)
+		}
 	}
 
 	p.ByPubKey[peer.PubKeyHex] = peer

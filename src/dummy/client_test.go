@@ -60,12 +60,20 @@ func TestDummySocketClient(t *testing.T) {
 	// server
 	appProxy, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
 	asserter.NoError(err)
-	defer appProxy.Close()
+	defer func() {
+		if err := appProxy.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// client
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
 	asserter.NoError(err)
-	defer lachesisProxy.Close()
+	defer func() {
+		if err := lachesisProxy.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	state := NewState(logger)
 

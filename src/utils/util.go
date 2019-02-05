@@ -19,7 +19,11 @@ func GetUnusedNetAddr(t testing.TB) string {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	defer server.Close()
+	defer func() {
+		if err := server.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	hostString := server.Addr().String()
 	// Split the host from the port
 	_, portString, err := net.SplitHostPort(hostString)
@@ -59,6 +63,10 @@ func FreePort(network string) (port uint16) {
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
+	defer func() {
+		if err := l.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	return uint16(l.Addr().(*net.TCPAddr).Port)
 }

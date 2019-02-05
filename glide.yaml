@@ -9,6 +9,8 @@ import:
   version: ^1.2.0
   subpackages:
   - proto
+- package: github.com/hashicorp/go-multierror
+  version: ^1.0.0
 - package: github.com/hashicorp/golang-lru
   version: ^0.5.0
 - package: github.com/pkg/errors
@@ -27,6 +29,9 @@ import:
   version: ^0.1.0
 - package: github.com/urfave/cli
   version: ^1.20.0
+- package: golang.org/x/net
+  subpackages:
+  - context
 - package: golang.org/x/sys
   subpackages:
   - windows

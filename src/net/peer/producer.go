@@ -64,7 +64,9 @@ func (p *Producer) Push(target string, client SyncClient) {
 	defer p.mtx.Unlock()
 
 	if p.shutdown || len(p.pool[target]) >= p.poolSize {
-		client.Close()
+		if err := client.Close(); err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -84,7 +86,9 @@ func (p *Producer) Close() {
 
 	for target := range p.pool {
 		for k := range p.pool[target] {
-			p.pool[target][k].Close()
+			if err := p.pool[target][k].Close(); err != nil {
+				panic(err)
+			}
 		}
 	}
 	p.pool = nil

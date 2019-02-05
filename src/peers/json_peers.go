@@ -42,7 +42,9 @@ func (j *JSONPeers) Peers() (*Peers, error) {
 		if err != nil {
 			return nil, err
 		}
-		f.Close()
+		if err := f.Close(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Decode the peers

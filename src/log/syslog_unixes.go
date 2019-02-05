@@ -26,7 +26,9 @@ func NewSyslogHook(network, raddr string, tag string) (*SyslogHook, error) {
 func (hook *SyslogHook) Fire(entry *logrus.Entry) error {
 	line, err := entry.String()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
+		if _, er := fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err); er != nil {
+			panic(er)
+		}
 		return err
 	}
 
