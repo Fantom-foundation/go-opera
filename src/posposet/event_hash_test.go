@@ -8,42 +8,20 @@ import (
 )
 
 func TestEventHash(t *testing.T) {
-	creators := []posposet.Address{
-		posposet.Address{},
-		FakeAddress(),
-		FakeAddress(),
-		FakeAddress(),
-	}
-	parents := []posposet.EventHashes{
-		nil,
-		FakeEventHashes(0),
-		FakeEventHashes(1),
-		FakeEventHashes(3),
-		FakeEventHashes(3),
-	}
-
 	var (
-		hashes []posposet.EventHash
-		events []posposet.Event
+		events = FakeEvents()
+		hashes = make([]posposet.EventHash, len(events))
 	)
 
 	t.Run("Calculation", func(t *testing.T) {
-		for c := 0; c < len(creators); c++ {
-			for p := 0; p < len(parents); p++ {
-				e := posposet.Event{
-					Index:   rand.Uint64(),
-					Creator: creators[c],
-					Parents: parents[p],
-				}
-				events = append(events, e)
-				hashes = append(hashes, e.Hash())
-			}
+		for i, e := range events {
+			hashes[i] = e.Hash()
 		}
 	})
 
 	t.Run("Comparison", func(t *testing.T) {
-		for i := 0; i < len(events); i++ {
-			hash := events[i].Hash()
+		for i, e := range events {
+			hash := e.Hash()
 			if hash != hashes[i] {
 				t.Fatal("Non-deterministic event hash detected")
 			}

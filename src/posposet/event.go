@@ -2,12 +2,11 @@ package posposet
 
 // Event is a poset event.
 type Event struct {
-	Index   uint64
 	Creator Address
 	Parents EventHashes
 
-	creator *Node
-	parents []*Event
+	hash    EventHash
+	parents map[EventHash]*Event
 }
 
 // Hash calcs hash of event.
