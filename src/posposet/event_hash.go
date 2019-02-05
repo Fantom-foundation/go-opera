@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"strings"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
@@ -34,6 +36,16 @@ func (hash *EventHash) String() string {
 	return (*common.Hash)(hash).String()
 }
 
+// String returns short string representation.
+func (hash *EventHash) ShortString() string {
+	return (*common.Hash)(hash).ShortString()
+}
+
+// IsZero returns true if hash is empty.
+func (hash *EventHash) IsZero() bool {
+	return *hash == EventHash{}
+}
+
 // Strings returns values as slice of hex strings.
 func (hashes EventHashes) Strings() []string {
 	res := make([]string, len(hashes))
@@ -41,4 +53,13 @@ func (hashes EventHashes) Strings() []string {
 		res[i] = hash.String()
 	}
 	return res
+}
+
+// String returns short string representation.
+func (hashes EventHashes) ShortString() string {
+	strs := make([]string, len(hashes))
+	for i, hash := range hashes {
+		strs[i] = hash.ShortString()
+	}
+	return "[" + strings.Join(strs, ", ") + "]"
 }
