@@ -1,11 +1,10 @@
-package posposet_test
+package posposet
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
@@ -17,7 +16,7 @@ func TestEventSerialization(t *testing.T) {
 		buf, err := rlp.EncodeToBytes(e0)
 		assert.NoError(err)
 
-		e1 := &posposet.Event{}
+		e1 := &Event{}
 		err = rlp.DecodeBytes(buf, e1)
 		if !assert.NoError(err) {
 			return
@@ -31,21 +30,21 @@ func TestEventSerialization(t *testing.T) {
  * Utils:
  */
 
-func FakeEvents() (res []*posposet.Event) {
-	creators := []posposet.Address{
-		posposet.Address{},
+func FakeEvents() (res []*Event) {
+	creators := []Address{
+		Address{},
 		FakeAddress(),
 		FakeAddress(),
 		FakeAddress(),
 	}
-	parents := []posposet.EventHashes{
+	parents := []EventHashes{
 		FakeEventHashes(0),
 		FakeEventHashes(1),
 		FakeEventHashes(8),
 	}
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
-			e := &posposet.Event{
+			e := &Event{
 				Creator: creators[c],
 				Parents: parents[p],
 			}

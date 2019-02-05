@@ -1,16 +1,14 @@
-package posposet_test
+package posposet
 
 import (
 	"math/rand"
 	"testing"
-
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
 func TestEventHash(t *testing.T) {
 	var (
 		events = FakeEvents()
-		hashes = make([]posposet.EventHash, len(events))
+		hashes = make([]EventHash, len(events))
 	)
 
 	t.Run("Calculation", func(t *testing.T) {
@@ -21,6 +19,7 @@ func TestEventHash(t *testing.T) {
 
 	t.Run("Comparison", func(t *testing.T) {
 		for i, e := range events {
+			e.hash = FakeEventHash() // private fields don't affect hash calculation
 			hash := e.Hash()
 			if hash != hashes[i] {
 				t.Fatal("Non-deterministic event hash detected")
@@ -38,7 +37,7 @@ func TestEventHash(t *testing.T) {
  * Utils:
  */
 
-func FakeEventHash() (h posposet.EventHash) {
+func FakeEventHash() (h EventHash) {
 	_, err := rand.Read(h[:])
 	if err != nil {
 		panic(err)
@@ -46,8 +45,8 @@ func FakeEventHash() (h posposet.EventHash) {
 	return
 }
 
-func FakeEventHashes(n int) (hh posposet.EventHashes) {
-	hh = make(posposet.EventHashes, n)
+func FakeEventHashes(n int) (hh EventHashes) {
+	hh = make(EventHashes, n)
 	for i := 0; i < n; i++ {
 		hh[i] = FakeEventHash()
 	}

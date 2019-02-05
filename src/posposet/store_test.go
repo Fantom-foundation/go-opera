@@ -1,15 +1,13 @@
-package posposet_test
+package posposet
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
 func TestMemStoreEvents(t *testing.T) {
-	store := posposet.NewMemStore()
+	store := NewMemStore()
 
 	t.Run("NotExisting", func(t *testing.T) {
 		assert := assert.New(t)
