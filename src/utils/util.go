@@ -4,15 +4,19 @@ import (
 	"encoding/hex"
 	"net"
 	"strconv"
+	"sync/atomic"
 	"testing"
 )
 
+var startBase uint32 = 12000
+
+// GetUnusedNetAddr return array of n unused ports starting with base port
+// NB: addresses 1-1024 are reserved for non-root users;
 func GetUnusedNetAddr(n int, t testing.TB) []string {
-	// addresses 1-1024 are reserved for non-root users;
-	// so we start with default lachesis port ang going up until one free found
 	idx := int(0)
+	base := atomic.AddUint32(&startBase, 100)
 	addresses := make([]string, n)
-	for i := 12000; i < 65536; i++ {
+	for i := int(base); i < 65536; i++ {
 		addrStr := "127.0.0.1:" + strconv.Itoa(i)
 		addr, err := net.ResolveTCPAddr("tcp", addrStr)
 		if err != nil {
