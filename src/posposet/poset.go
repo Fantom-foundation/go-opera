@@ -3,64 +3,131 @@ package posposet
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
-// Poset is the main package struct.
+// Poset processes events to get consensus.
 type Poset struct {
-	Store *Store
+	store *Store
 
-	Creator Node
+	processingWg   sync.WaitGroup
+	processingDone chan struct{}
 
-	processing_wg sync.WaitGroup
-	processing_ch chan struct{}
+	newEventsCh      chan *Event
+	incompleteEvents map[EventHash]*Event
 }
 
 // New creates Poset instance.
-func New(store *Store, key PrivateKey) *Poset {
-	pk := key.PublicKey()
+func New(store *Store) *Poset {
+	const buffSize = 10
+
 	return &Poset{
-		Store: store,
-		Creator: Node{
-			ID:     AddressOf(pk),
-			PubKey: pk,
-			key:    &key,
-		},
+		store: store,
+
+		newEventsCh:      make(chan *Event, buffSize),
+		incompleteEvents: make(map[EventHash]*Event),
 	}
 }
 
-// Start starts events processing. It is not thread-safe.
+// Start starts events processing. It is not safe for concurrent use.
 func (p *Poset) Start() {
-	if p.processing_ch != nil {
+	if p.processingDone != nil {
 		return
 	}
-	p.processing_ch = make(chan struct{})
-	p.processing_wg.Add(1)
+	p.processingDone = make(chan struct{})
+	p.processingWg.Add(1)
 	go func() {
-		defer p.processing_wg.Done()
-		fmt.Println("start processing ...")
+		defer p.processingWg.Done()
+		log.Debug("Start processing ...")
 		for {
 			select {
-			case <-p.processing_ch:
-				fmt.Println("stop processing ...")
+			case <-p.processingDone:
+				log.Debug("Stop processing ...")
 				return
-			case <-time.After(1 * time.Microsecond):
-				fmt.Println("processing ...")
+			case e := <-p.newEventsCh:
+				p.onNewEvent(e)
 			}
 		}
 	}()
 }
 
-// Stop stops events processing. It is not thread-safe.
+// Stop stops events processing. It is not safe for concurrent use.
 func (p *Poset) Stop() {
-	if p.processing_ch == nil {
+	if p.processingDone == nil {
 		return
 	}
-	close(p.processing_ch)
-	p.processing_wg.Wait()
-	p.processing_ch = nil
+	close(p.processingDone)
+	p.processingWg.Wait()
+	p.processingDone = nil
 }
 
-func (p *Poset) PushEvent(e Event) {
+// PushEvent takes event into processing. Event order doesn't matter.
+func (p *Poset) PushEvent(e Event) error {
+	err := initEventsIdxs(&e)
+	if err != nil {
+		return err
+	}
 
+	p.newEventsCh <- &e
+	return nil
+}
+
+// onNewEvent runs consensus calc from new event. It is not safe for concurrent use.
+func (p *Poset) onNewEvent(e *Event) {
+	log.WithField("event", e).Debug("onNewEvent()")
+
+	if exists := p.store.GetEvent(e.Hash()); exists != nil {
+		log.WithField("event", e).Warnf("Event had received already")
+		return
+	}
+
+	// fill event's parents index or hold it as incompleted
+	for i, hash := range e.Parents {
+		if i == 0 && hash.IsZero() {
+			// first event from address
+			continue
+		}
+		if parent := e.parents[hash]; parent == nil {
+			parent = p.store.GetEvent(hash)
+			if parent == nil {
+				log.WithField("event", e).Warn("Event's parent had not received yet")
+				p.incompleteEvents[e.hash] = e
+				return
+			} else {
+				e.parents[hash] = parent
+			}
+		}
+	}
+	p.store.SetEvent(e)
+	p.consensus(e)
+
+	// check child events complete
+	for hash, incompleted := range p.incompleteEvents {
+		if parent, ok := incompleted.parents[e.hash]; ok && parent == nil {
+			delete(p.incompleteEvents, hash)
+			p.onNewEvent(incompleted)
+		}
+	}
+}
+
+// consensus is not safe for concurrent use.
+func (p *Poset) consensus(e *Event) {
+	log.WithField("event", e).Debug("consensus()")
+}
+
+/*
+ * Utils:
+ */
+
+func initEventsIdxs(e *Event) error {
+	// internal hash index initialization
+	e.hash = e.Hash()
+	// internal parents index initialization
+	e.parents = make(map[EventHash]*Event, len(e.Parents))
+	for _, hash := range e.Parents {
+		if _, ok := e.parents[hash]; ok {
+			return fmt.Errorf("Event has double parents: %s", hash.String())
+		}
+		e.parents[hash] = nil
+	}
+	return nil
 }
