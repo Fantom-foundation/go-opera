@@ -24,6 +24,11 @@ func EventHashOf(e *Event) EventHash {
 	return EventHash(crypto.Keccak256Hash(buf))
 }
 
+// Bytes returns value as byte slice.
+func (hash *EventHash) Bytes() []byte {
+	return (*common.Hash)(hash).Bytes()
+}
+
 // String returns value as hex string.
 func (hash *EventHash) String() string {
 	return (*common.Hash)(hash).String()

@@ -62,19 +62,33 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 		return rerr
 	})
 
+	if err == badger.ErrKeyNotFound {
+		err = nil
+	}
 	return
 }
 
 // Delete removes key-value pair by key.
 func (w *BadgerDatabase) Delete(key []byte) error {
 	tx := w.db.NewTransaction(true)
-	defer tx.Discard()
+
+	err := tx.Delete(key)
+	if err != nil {
+		tx.Discard()
+		if err == badger.ErrKeyNotFound {
+			return nil
+		} else {
+			return err
+		}
+	}
 
 	return tx.Commit(nil)
 }
 
-// Close does nothing.
-func (w *BadgerDatabase) Close() {}
+// Close leaves underlying database.
+func (w *BadgerDatabase) Close() {
+	w.db = nil
+}
 
 // NewBatch creates new batch.
 func (w *BadgerDatabase) NewBatch() Batch {
