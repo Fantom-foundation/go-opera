@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// TODO: to remove
 // GetUnusedNetAddr source: https://gist.github.com/montanaflynn/b59c058ce2adc18f31d6
 func GetUnusedNetAddr(t testing.TB) string {
 	// Create a new server without specifying a port

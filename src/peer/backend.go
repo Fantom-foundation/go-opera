@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-
-	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
 )
 
 const (
@@ -25,7 +23,7 @@ type CreateListenerFunc func(network, address string) (net.Listener, error)
 
 // SyncServer is an interface representing methods for sync server.
 type SyncServer interface {
-	ReceiverChannel() <-chan *lnet.RPC
+	ReceiverChannel() <-chan *RPC
 	ListenAndServe(network, address string) error
 	Close() error
 }
@@ -44,7 +42,7 @@ type Backend struct {
 	listener     net.Listener
 	listenerFunc CreateListenerFunc
 	logger       logrus.FieldLogger
-	receiver     chan *lnet.RPC
+	receiver     chan *RPC
 	server       *rpc.Server
 
 	mtx      sync.RWMutex
@@ -69,7 +67,7 @@ func NewBackendConfig() *BackendConfig {
 func NewBackend(conf *BackendConfig,
 	logger logrus.FieldLogger, listenerFunc CreateListenerFunc) *Backend {
 	conns := make(map[net.Conn]bool)
-	receiver := make(chan *lnet.RPC)
+	receiver := make(chan *RPC)
 	done := make(chan struct{})
 	rpcServer := rpc.NewServer()
 	if err := rpcServer.RegisterName(lachesis, NewLachesis(
@@ -90,7 +88,7 @@ func NewBackend(conf *BackendConfig,
 }
 
 // ReceiverChannel returns a receiver channel.
-func (srv *Backend) ReceiverChannel() <-chan *lnet.RPC {
+func (srv *Backend) ReceiverChannel() <-chan *RPC {
 	srv.mtx.RLock()
 	defer srv.mtx.RUnlock()
 	return srv.receiver
