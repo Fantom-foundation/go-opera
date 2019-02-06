@@ -32,7 +32,6 @@ type Node struct {
 	localAddr string
 
 	peerSelector PeerSelector
-	selectorLock sync.Mutex
 
 	trans net.Transport
 	netCh <-chan *net.RPC
@@ -236,9 +235,7 @@ func (n *Node) lachesis(gossip bool) {
 		case <-n.controlTimer.tickCh:
 			n.logStats()
 			if gossip && n.gossipJobs.get() < 1 {
-				n.selectorLock.Lock()
 				peerAddr := n.peerSelector.Next().NetAddr
-				n.selectorLock.Unlock()
 				n.goFunc(func() {
 					n.gossipJobs.increment()
 					if err := n.gossip(peerAddr, returnCh); err != nil {
@@ -413,9 +410,7 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	}
 
 	// update peer selector
-	n.selectorLock.Lock()
 	n.peerSelector.UpdateLast(peerAddr)
-	n.selectorLock.Unlock()
 
 	return nil
 }
@@ -520,9 +515,7 @@ func (n *Node) fastForward() error {
 	n.waitRoutines()
 
 	// fastForwardRequest
-	n.selectorLock.Lock()
 	peer := n.peerSelector.Next()
-	n.selectorLock.Unlock()
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
 	elapsed := time.Since(start)
