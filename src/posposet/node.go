@@ -1,6 +1,7 @@
 package posposet
 
 // Node is a event's author.
+// TODO: move to new src/node/.
 type Node struct {
 	ID     Address
 	PubKey PublicKey

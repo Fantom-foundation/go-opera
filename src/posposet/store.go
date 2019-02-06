@@ -8,9 +8,11 @@ import (
 )
 
 // Store is a poset persistent storage working over physical key-value database.
+// TODO: make it internal.
 type Store struct {
 	physicalDB kvdb.Database
 
+	states kvdb.Database
 	events kvdb.Database
 }
 
@@ -33,11 +35,13 @@ func NewBadgerStore(db *badger.DB) *Store {
 }
 
 func (s *Store) init() {
+	s.states = kvdb.NewTable(s.physicalDB, "states_")
 	s.events = kvdb.NewTable(s.physicalDB, "events_")
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
+	s.states = nil
 	s.events = nil
 	s.physicalDB.Close()
 }
@@ -56,6 +60,19 @@ func (s *Store) GetEvent(h EventHash) *Event {
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h EventHash) bool {
 	return s.has(s.events, h.Bytes())
+}
+
+// SetEvent stores event.
+func (s *Store) SetState(st *State) {
+	const key = "current"
+	s.set(s.states, []byte(key), st)
+}
+
+// GetEvent returns stored event.
+func (s *Store) GetState() *State {
+	const key = "current"
+	st, _ := s.get(s.states, []byte(key), &State{}).(*State)
+	return st
 }
 
 /*

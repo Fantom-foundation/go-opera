@@ -8,6 +8,7 @@ import (
 // Poset processes events to get consensus.
 type Poset struct {
 	store *Store
+	state *State
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
@@ -20,12 +21,15 @@ type Poset struct {
 func New(store *Store) *Poset {
 	const buffSize = 10
 
-	return &Poset{
+	p := &Poset{
 		store: store,
 
 		newEventsCh:      make(chan *Event, buffSize),
 		incompleteEvents: make(map[EventHash]*Event),
 	}
+
+	p.bootstrap()
+	return p
 }
 
 // Start starts events processing. It is not safe for concurrent use.
