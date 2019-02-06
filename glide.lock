@@ -1,5 +1,5 @@
-hash: f9d358c2989ddd4e2d5ddeafb8d64b38c16da852a39090325ac67570eed7fca4
-updated: 2019-02-01T15:22:57.524139+11:00
+hash: 7e4fbc56355e314b67d2c339dbee99345a9cb8c9cd466501ccb5fbe632220ae3
+updated: 2019-02-04T15:23:38.821605+11:00
 imports:
 - name: github.com/allegro/bigcache
   version: f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068
@@ -31,6 +31,10 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/hashicorp/errwrap
+  version: 8a6fb523712970c966eefc6b39ed2c5e74880354
+- name: github.com/hashicorp/go-multierror
+  version: 886a7fbe3eb1c874d46f623bfa70af45f425b3d1
 - name: github.com/hashicorp/golang-lru
   version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
   subpackages:

@@ -63,7 +63,9 @@ func TestProcessSync(t *testing.T) {
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		dummy.NewInmemDummyApp(testLogger))
-	node0.Init()
+	if err := node0.Init(); err != nil {
+		t.Fatal(err)
+	}
 
 	node0.RunAsync(false)
 	defer node0.Shutdown()
@@ -79,7 +81,9 @@ func TestProcessSync(t *testing.T) {
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		dummy.NewInmemDummyApp(testLogger))
-	node1.Init()
+	if err := node1.Init(); err != nil {
+		t.Fatal(err)
+	}
 
 	node1.RunAsync(false)
 	defer node1.Shutdown()
@@ -164,7 +168,9 @@ func TestProcessEagerSync(t *testing.T) {
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		dummy.NewInmemDummyApp(testLogger))
-	node0.Init()
+	if err := node0.Init(); err != nil {
+		t.Fatal(err)
+	}
 
 	node0.RunAsync(false)
 	defer node0.Shutdown()
@@ -180,7 +186,9 @@ func TestProcessEagerSync(t *testing.T) {
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		dummy.NewInmemDummyApp(testLogger))
-	node1.Init()
+	if err := node1.Init(); err != nil {
+		t.Fatal(err)
+	}
 
 	node1.RunAsync(false)
 	defer node1.Shutdown()
@@ -244,7 +252,9 @@ func TestAddTransaction(t *testing.T) {
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		peer0Proxy)
-	node0.Init()
+	if err := node0.Init(); err != nil {
+		t.Fatal(err)
+	}
 
 	node0.RunAsync(false)
 	defer node0.Shutdown()
@@ -261,7 +271,9 @@ func TestAddTransaction(t *testing.T) {
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		peer1Proxy)
-	node1.Init()
+	if err := node1.Init(); err != nil {
+		t.Fatal(err)
+	}
 
 	node1.RunAsync(false)
 	defer node1.Shutdown()
@@ -715,8 +727,12 @@ func TestShutdown(t *testing.T) {
 func TestBootstrapAllNodes(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
-	os.RemoveAll("test_data")
-	os.Mkdir("test_data", os.ModeDir|0777)
+	if err := os.RemoveAll("test_data"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir("test_data", os.ModeDir|0777); err != nil {
+		t.Fatal(err)
+	}
 
 	// create a first network with BadgerStore
 	// and wait till it reaches 10 consensus rounds before shutting it down
@@ -934,8 +950,10 @@ func makeRandomTransactions(nodes []*Node, quit chan struct{}) {
 			default:
 				n := rand.Intn(len(nodes))
 				node := nodes[n]
-				submitTransaction(node, []byte(
-					fmt.Sprintf("node%d transaction %d", n, seq[n])))
+				if err := submitTransaction(node, []byte(
+					fmt.Sprintf("node%d transaction %d", n, seq[n]))); err != nil {
+					panic(err)
+				}
 				seq[n] = seq[n] + 1
 				time.Sleep(3 * time.Millisecond)
 			}
@@ -954,6 +972,8 @@ func BenchmarkGossip(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		keys, addresses, ps := initPeers(4, b)
 		nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, b)
-		gossip(nodes, 50, true, 3*time.Second)
+		if err := gossip(nodes, 50, true, 3*time.Second); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

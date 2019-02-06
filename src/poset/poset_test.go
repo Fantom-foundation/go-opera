@@ -130,7 +130,9 @@ func NewTestNode(key *ecdsa.PrivateKey) TestNode {
 
 func (node *TestNode) signAndAddEvent(event Event, name string,
 	index map[string]EventHash, orderedEvents *[]Event) {
-	event.Sign(node.Key)
+	if err := event.Sign(node.Key); err != nil {
+		panic(err)
+	}
 	node.Events = append(node.Events, event)
 	index[name] = event.Hash()
 	*orderedEvents = append(*orderedEvents, event)
@@ -491,14 +493,20 @@ func TestFork(t *testing.T) {
 
 	for i, node := range nodes {
 		event := NewEvent(nil, nil, nil, make(EventHashes, 2), node.Pub, 0, nil)
-		event.Sign(node.Key)
+		if err := event.Sign(node.Key); err != nil {
+			t.Fatal(err)
+		}
 		index[fmt.Sprintf("e%d", i)] = event.Hash()
-		poset.InsertEvent(event, true)
+		if err := poset.InsertEvent(event, true); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// a and e2 need to have different hashes
 	eventA := NewEvent([][]byte{[]byte("yo")}, nil, nil, make(EventHashes, 2), nodes[2].Pub, 0, nil)
-	eventA.Sign(nodes[2].Key)
+	if err := eventA.Sign(nodes[2].Key); err != nil {
+		t.Fatal(err)
+	}
 	index["a"] = eventA.Hash()
 	if err := poset.InsertEvent(eventA, true); err == nil {
 		t.Fatal("InsertEvent should return error for 'a'")
@@ -507,7 +515,9 @@ func TestFork(t *testing.T) {
 	event01 := NewEvent(nil, nil, nil,
 		EventHashes{index[e0], index[a]}, // e0 and a
 		nodes[0].Pub, 1, nil)
-	event01.Sign(nodes[0].Key)
+	if err := event01.Sign(nodes[0].Key); err != nil {
+		t.Fatal(err)
+	}
 	index[e01] = event01.Hash()
 	if err := poset.InsertEvent(event01, true); err == nil {
 		t.Fatalf("InsertEvent should return error for %s", e01)
@@ -516,7 +526,9 @@ func TestFork(t *testing.T) {
 	event20 := NewEvent(nil, nil, nil,
 		EventHashes{index[e2], index[e01]}, // e2 and e01
 		nodes[2].Pub, 1, nil)
-	event20.Sign(nodes[2].Key)
+	if err := event20.Sign(nodes[2].Key); err != nil {
+		t.Fatal(err)
+	}
 	index[e20] = event20.Hash()
 	if err := poset.InsertEvent(event20, true); err == nil {
 		t.Fatalf("InsertEvent should return error for %s", e20)
@@ -1046,7 +1058,9 @@ func TestDivideRounds(t *testing.T) {
 
 func TestCreateRoot(t *testing.T) {
 	p, index, _ := initRoundPoset(t)
-	p.DivideRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
 
 	participants := p.Participants.ToPeerSlice()
 
@@ -1277,7 +1291,9 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 				EventHashes{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
 				pl.index, nil)
-			e.Sign(nodes[pl.to].Key)
+			if err := e.Sign(nodes[pl.to].Key); err != nil {
+				t.Fatal(err)
+			}
 			index[pl.name] = e.Hash()
 			if err := p.InsertEvent(e, true); err != nil {
 				t.Fatalf("error inserting event %s: %s\n", pl.name, err)
@@ -1291,7 +1307,9 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 		}
 
 		// Process SigPool
-		p.ProcessSigPool()
+		if err := p.ProcessSigPool(); err != nil {
+			t.Fatal(err)
+		}
 
 		// Check that the block contains 3 signatures
 		block, _ := p.Store.GetBlock(0)
@@ -1329,7 +1347,9 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 				EventHashes{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
 				pl.index, nil)
-			e.Sign(nodes[pl.to].Key)
+			if err := e.Sign(nodes[pl.to].Key); err != nil {
+				t.Fatal(err)
+			}
 			index[pl.name] = e.Hash()
 			if err := p.InsertEvent(e, true); err != nil {
 				t.Fatalf("ERROR inserting event %s: %s", pl.name, err)
@@ -1363,7 +1383,9 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 				EventHashes{index[pl.selfParent], index[pl.otherParent]},
 				nodes[pl.to].Pub,
 				pl.index, nil)
-			e.Sign(nodes[pl.to].Key)
+			if err := e.Sign(nodes[pl.to].Key); err != nil {
+				t.Fatal(err)
+			}
 			index[pl.name] = e.Hash()
 			if err := p.InsertEvent(e, true); err != nil {
 				t.Fatalf("ERROR inserting event %s: %s\n", pl.name, err)
@@ -1545,7 +1567,9 @@ func TestDivideRoundsBis(t *testing.T) {
 func TestDecideAtropos(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
-	p.DivideRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
 	if err := p.DecideAtropos(); err != nil {
 		t.Fatal(err)
 	}
@@ -1657,8 +1681,12 @@ func TestDecideAtropos(t *testing.T) {
 func TestDecideRoundReceived(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
-	p.DivideRounds()
-	p.DecideAtropos()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
 	if err := p.DecideRoundReceived(); err != nil {
 		t.Fatal(err)
 	}
@@ -1731,9 +1759,15 @@ func TestDecideRoundReceived(t *testing.T) {
 func TestProcessDecidedRounds(t *testing.T) {
 	p, index := initConsensusPoset(false, t)
 
-	p.DivideRounds()
-	p.DecideAtropos()
-	p.DecideRoundReceived()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		t.Fatal(err)
+	}
 	if err := p.ProcessDecidedRounds(); err != nil {
 		t.Fatal(err)
 	}
@@ -1848,10 +1882,18 @@ func BenchmarkConsensus(b *testing.B) {
 		p, _ := initConsensusPoset(false, b)
 		b.StartTimer()
 
-		p.DivideRounds()
-		p.DecideAtropos()
-		p.DecideRoundReceived()
-		p.ProcessDecidedRounds()
+		if err := p.DivideRounds(); err != nil {
+			b.Fatal(err)
+		}
+		if err := p.DecideAtropos(); err != nil {
+			b.Fatal(err)
+		}
+		if err := p.DecideRoundReceived(); err != nil {
+			b.Fatal(err)
+		}
+		if err := p.ProcessDecidedRounds(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -1880,10 +1922,18 @@ func TestGetFrame(t *testing.T) {
 
 	participants := p.Participants.ToPeerSlice()
 
-	p.DivideRounds()
-	p.DecideAtropos()
-	p.DecideRoundReceived()
-	p.ProcessDecidedRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.ProcessDecidedRounds(); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("round 1", func(t *testing.T) {
 		expRoots := make([]Root, n)
@@ -2054,10 +2104,18 @@ func TestResetFromFrame(t *testing.T) {
 
 	participants := p.Participants.ToPeerSlice()
 
-	p.DivideRounds()
-	p.DecideAtropos()
-	p.DecideRoundReceived()
-	p.ProcessDecidedRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.ProcessDecidedRounds(); err != nil {
+		t.Fatal(err)
+	}
 
 	block, err := p.Store.GetBlock(1)
 	if err != nil {
@@ -2073,7 +2131,9 @@ func TestResetFromFrame(t *testing.T) {
 	// in the Events (round, roundReceived,etc)
 	marshalledFrame, _ := frame.ProtoMarshal()
 	unmarshalledFrame := new(Frame)
-	unmarshalledFrame.ProtoUnmarshal(marshalledFrame)
+	if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+		t.Fatal(err)
+	}
 
 	p2 := NewPoset(p.Participants,
 		NewInmemStore(p.Participants, cacheSize, nil),
@@ -2169,9 +2229,15 @@ func TestResetFromFrame(t *testing.T) {
 	})
 
 	t.Run("TestConsensus", func(t *testing.T) {
-		p2.DecideAtropos()
-		p2.DecideRoundReceived()
-		p2.ProcessDecidedRounds()
+		if err := p2.DecideAtropos(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideRoundReceived(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.ProcessDecidedRounds(); err != nil {
+			t.Fatal(err)
+		}
 
 		if lbi := p2.Store.LastBlockIndex(); lbi != block.Index() {
 			t.Fatalf("LastBlockIndex should be %d, not %d",
@@ -2211,15 +2277,27 @@ func TestResetFromFrame(t *testing.T) {
 
 				marshalledEv, _ := ev.ProtoMarshal()
 				unmarshalledEv := new(Event)
-				unmarshalledEv.ProtoUnmarshal(marshalledEv)
-				p2.InsertEvent(*unmarshalledEv, true)
+				if err := unmarshalledEv.ProtoUnmarshal(marshalledEv); err != nil {
+					t.Fatal(err)
+				}
+				if err := p2.InsertEvent(*unmarshalledEv, true); err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 
-		p2.DivideRounds()
-		p2.DecideAtropos()
-		p2.DecideRoundReceived()
-		p2.ProcessDecidedRounds()
+		if err := p2.DivideRounds(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideAtropos(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideRoundReceived(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.ProcessDecidedRounds(); err != nil {
+			t.Fatal(err)
+		}
 
 		for r := int64(2); r <= 2; r++ {
 			pRound, err := p.Store.GetRoundCreated(r)
@@ -2245,18 +2323,34 @@ func TestResetFromFrame(t *testing.T) {
 }
 
 func TestBootstrap(t *testing.T) {
-	os.RemoveAll(badgerDir)
+	if err := os.RemoveAll(badgerDir); err != nil {
+		t.Fatal(err)
+	}
 
 	// Initialize a first Poset with a DB backend
 	// Add events and run consensus methods on it
 	p, _ := initConsensusPoset(true, t)
-	p.DivideRounds()
-	p.DecideAtropos()
-	p.DecideRoundReceived()
-	p.ProcessDecidedRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.ProcessDecidedRounds(); err != nil {
+		t.Fatal(err)
+	}
 
-	p.Store.Close()
-	defer os.RemoveAll(badgerDir)
+	if err := p.Store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(badgerDir); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// Now we want to create a new Poset based on the database of the previous
 	// Poset and see if we can boostrap it to the same state.
@@ -2888,10 +2982,18 @@ func TestFunkyPosetFrames(t *testing.T) {
 func TestFunkyPosetReset(t *testing.T) {
 	p, index := initFunkyPoset(t, common.NewTestLogger(t), true)
 
-	p.DivideRounds()
-	p.DecideAtropos()
-	p.DecideRoundReceived()
-	p.ProcessDecidedRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.ProcessDecidedRounds(); err != nil {
+		t.Fatal(err)
+	}
 
 	for bi := int64(0); bi < 3; bi++ {
 		block, err := p.Store.GetBlock(bi)
@@ -2908,7 +3010,9 @@ func TestFunkyPosetReset(t *testing.T) {
 		// in the Events (round, roundReceived,etc)
 		marshalledFrame, _ := frame.ProtoMarshal()
 		unmarshalledFrame := new(Frame)
-		unmarshalledFrame.ProtoUnmarshal(marshalledFrame)
+		if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+			t.Fatal(err)
+		}
 
 		p2 := NewPoset(p.Participants,
 			NewInmemStore(p.Participants, cacheSize, nil),
@@ -2942,10 +3046,18 @@ func TestFunkyPosetReset(t *testing.T) {
 			}
 		}
 
-		p2.DivideRounds()
-		p2.DecideAtropos()
-		p2.DecideRoundReceived()
-		p2.ProcessDecidedRounds()
+		if err := p2.DivideRounds(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideAtropos(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideRoundReceived(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.ProcessDecidedRounds(); err != nil {
+			t.Fatal(err)
+		}
 
 		compareRoundClothos(p, p2, index, bi, true, t)
 	}
@@ -3106,7 +3218,9 @@ func TestSparsePosetFrames(t *testing.T) {
 
 		frame, err := p.GetFrame(block.RoundReceived())
 		for k, ev := range frame.Events {
-			ev.Body.Hash()
+			if _, err := ev.Body.Hash(); err != nil {
+				t.Fatal(err)
+			}
 			hash, err := ev.Body.Hash()
 			if err != nil {
 				t.Fatal(err)
@@ -3427,10 +3541,18 @@ func TestSparsePosetFrames(t *testing.T) {
 func TestSparsePosetReset(t *testing.T) {
 	p, index := initSparsePoset(t, common.NewTestLogger(t))
 
-	p.DivideRounds()
-	p.DecideAtropos()
-	p.DecideRoundReceived()
-	p.ProcessDecidedRounds()
+	if err := p.DivideRounds(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideAtropos(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DecideRoundReceived(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.ProcessDecidedRounds(); err != nil {
+		t.Fatal(err)
+	}
 
 	for bi := 0; bi < 5; bi++ {
 		block, err := p.Store.GetBlock(int64(bi))
@@ -3447,7 +3569,9 @@ func TestSparsePosetReset(t *testing.T) {
 		// in the Events (round, roundReceived,etc)
 		marshalledFrame, _ := frame.ProtoMarshal()
 		unmarshalledFrame := new(Frame)
-		unmarshalledFrame.ProtoUnmarshal(marshalledFrame)
+		if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+			t.Fatal(err)
+		}
 
 		p2 := NewPoset(p.Participants,
 			NewInmemStore(p.Participants, cacheSize, nil),
@@ -3486,10 +3610,18 @@ func TestSparsePosetReset(t *testing.T) {
 			}
 		}
 
-		p2.DivideRounds()
-		p2.DecideAtropos()
-		p2.DecideRoundReceived()
-		p2.ProcessDecidedRounds()
+		if err := p2.DivideRounds(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideAtropos(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.DecideRoundReceived(); err != nil {
+			t.Fatal(err)
+		}
+		if err := p2.ProcessDecidedRounds(); err != nil {
+			t.Fatal(err)
+		}
 
 		compareRoundClothos(p, p2, index, int64(bi), true, t)
 	}

@@ -27,7 +27,11 @@ func GetUnusedNetAddr(n int, t testing.TB) []string {
 		if err != nil {
 			continue
 		}
-		defer l.Close()
+		defer func() {
+			if err := l.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 		t.Logf("Unused port %s is chosen", addrStr)
 		addresses[idx] = addrStr
 		idx++
@@ -64,6 +68,10 @@ func FreePort(network string) (port uint16) {
 	if err != nil {
 		panic(err)
 	}
-	defer l.Close()
+	defer func() {
+		if err := l.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	return uint16(l.Addr().(*net.TCPAddr).Port)
 }

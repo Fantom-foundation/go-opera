@@ -32,7 +32,9 @@ func TestParticipantEventsCache(t *testing.T) {
 		for pk := range participants.ByPubKey {
 			item := fakeEventHash(fmt.Sprintf("%s%d", pk, i))
 
-			pec.Set(pk, item, i)
+			if err := pec.Set(pk, item, i); err != nil {
+				t.Fatal(err)
+			}
 
 			pitems := items[pk]
 			pitems = append(pitems, item)
@@ -144,7 +146,9 @@ func TestParticipantEventsCacheEdge(t *testing.T) {
 		for pk := range participants.ByPubKey {
 			item := fakeEventHash(fmt.Sprintf("%s%d", pk, i))
 
-			pec.Set(pk, item, i)
+			if err := pec.Set(pk, item, i); err != nil {
+				t.Fatal(err)
+			}
 
 			pitems := items[pk]
 			pitems = append(pitems, item)

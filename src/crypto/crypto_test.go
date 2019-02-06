@@ -16,7 +16,11 @@ func TestPem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v ", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// Create the PEM key
 	pemKey := NewPemKey(dir)

@@ -107,7 +107,9 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 		store.repertoireByPubKey[peer.PubKeyHex] = peer
 		store.repertoireByID[peer.ID] = peer
 		store.rootsBySelfParent = nil
-		store.RootsBySelfParent()
+		if _, err := store.RootsBySelfParent(); err != nil {
+			panic(err)
+		}
 		old := store.participantEventsCache
 		store.participantEventsCache = NewParticipantEventsCache(cacheSize, participants)
 		store.participantEventsCache.Import(old)

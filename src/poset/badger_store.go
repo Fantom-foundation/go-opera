@@ -627,7 +627,9 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 		var creator []byte
 		var selfParentHash EventHash
 		selfParentHash.Set(root.SelfParent.Hash)
-		fmt.Sscanf(participant, "0x%X", &creator)
+		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
+			return err
+		}
 		body := EventBody{
 			Creator: creator,
 			Index:   root.SelfParent.Index,
