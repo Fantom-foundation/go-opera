@@ -82,10 +82,11 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 
 func (p *GrpcAppProxy) Close() error {
 	p.server.Stop()
-	err := p.listener.Close()
+	//All listeners are closed by gRPC.Stop() function
+	//err := p.listener.Close()
 	close(p.event4server)
 	close(p.event4clients)
-	return err
+	return nil //err
 }
 
 /*
