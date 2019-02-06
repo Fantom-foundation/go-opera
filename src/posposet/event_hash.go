@@ -27,23 +27,23 @@ func EventHashOf(e *Event) EventHash {
 }
 
 // Bytes returns value as byte slice.
-func (hash *EventHash) Bytes() []byte {
-	return (*common.Hash)(hash).Bytes()
+func (hash EventHash) Bytes() []byte {
+	return (common.Hash)(hash).Bytes()
 }
 
 // String returns value as hex string.
-func (hash *EventHash) String() string {
-	return (*common.Hash)(hash).String()
+func (hash EventHash) String() string {
+	return (common.Hash)(hash).String()
 }
 
 // String returns short string representation.
-func (hash *EventHash) ShortString() string {
-	return (*common.Hash)(hash).ShortString()
+func (hash EventHash) ShortString() string {
+	return (common.Hash)(hash).ShortString()
 }
 
 // IsZero returns true if hash is empty.
-func (hash *EventHash) IsZero() bool {
-	return *hash == EventHash{}
+func (hash EventHash) IsZero() bool {
+	return hash == EventHash{}
 }
 
 // Strings returns values as slice of hex strings.

@@ -7,7 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
-// Store is a poset persistent storage.
+// Store is a poset persistent storage working over physical key-value database.
 type Store struct {
 	physicalDB kvdb.Database
 
@@ -42,14 +42,15 @@ func (s *Store) Close() {
 	s.physicalDB.Close()
 }
 
+// SetEvent stores event.
 func (s *Store) SetEvent(e *Event) {
-	hash := e.Hash()
-	s.set(hash.Bytes(), e)
+	s.set(e.Hash().Bytes(), e)
 }
 
+// GetEvent returns stored event.
 func (s *Store) GetEvent(h EventHash) *Event {
-	val, _ := s.get(h.Bytes(), &Event{}).(*Event)
-	return val
+	e, _ := s.get(h.Bytes(), &Event{}).(*Event)
+	return e
 }
 
 /*

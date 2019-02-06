@@ -24,7 +24,13 @@ func TestMemStoreEvents(t *testing.T) {
 		for _, e0 := range events {
 			store.SetEvent(e0)
 			e1 := store.GetEvent(e0.Hash())
-			assert.Equal(e0, e1)
+
+			if !assert.Equal(e0.Hash(), e1.Hash()) {
+				break
+			}
+			if !assert.Equal(e0, e1) {
+				break
+			}
 		}
 	})
 

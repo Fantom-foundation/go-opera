@@ -102,7 +102,7 @@ func GenEventsByNode(nodes, events, maxParents int) map[Address][]*Event {
 
 // PushEventSync takes event into processing. Event order doesn't matter.
 func (p *Poset) PushEventSync(e Event) error {
-	err := initEventsIdxs(&e)
+	err := initEventIdx(&e)
 	if err != nil {
 		return err
 	}

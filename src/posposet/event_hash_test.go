@@ -19,7 +19,6 @@ func TestEventHash(t *testing.T) {
 
 	t.Run("Comparison", func(t *testing.T) {
 		for i, e := range events {
-			e.hash = FakeEventHash() // private fields don't affect hash calculation
 			hash := e.Hash()
 			if hash != hashes[i] {
 				t.Fatal("Non-deterministic event hash detected")

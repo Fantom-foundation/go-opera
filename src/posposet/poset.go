@@ -62,7 +62,7 @@ func (p *Poset) Stop() {
 
 // PushEvent takes event into processing. Event order doesn't matter.
 func (p *Poset) PushEvent(e Event) error {
-	err := initEventsIdxs(&e)
+	err := initEventIdx(&e)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (p *Poset) PushEvent(e Event) error {
 
 // onNewEvent runs consensus calc from new event. It is not safe for concurrent use.
 func (p *Poset) onNewEvent(e *Event) {
-	log.WithField("event", e).Debug("onNewEvent()")
+	//log.WithField("event", e).Debug("onNewEvent()")
 
 	if exists := p.store.GetEvent(e.Hash()); exists != nil {
 		log.WithField("event", e).Warnf("Event had received already")
@@ -89,8 +89,8 @@ func (p *Poset) onNewEvent(e *Event) {
 		if parent := e.parents[hash]; parent == nil {
 			parent = p.store.GetEvent(hash)
 			if parent == nil {
-				log.WithField("event", e).Warn("Event's parent had not received yet")
-				p.incompleteEvents[e.hash] = e
+				//log.WithField("event", e).Warn("Event's parent had not received yet")
+				p.incompleteEvents[e.Hash()] = e
 				return
 			} else {
 				e.parents[hash] = parent
@@ -102,7 +102,7 @@ func (p *Poset) onNewEvent(e *Event) {
 
 	// check child events complete
 	for hash, incompleted := range p.incompleteEvents {
-		if parent, ok := incompleted.parents[e.hash]; ok && parent == nil {
+		if parent, ok := incompleted.parents[e.Hash()]; ok && parent == nil {
 			delete(p.incompleteEvents, hash)
 			p.onNewEvent(incompleted)
 		}
@@ -111,16 +111,14 @@ func (p *Poset) onNewEvent(e *Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *Event) {
-	log.WithField("event", e).Debug("consensus()")
+	//log.WithField("event", e).Debug("consensus()")
 }
 
 /*
  * Utils:
  */
 
-func initEventsIdxs(e *Event) error {
-	// internal hash index initialization
-	e.hash = e.Hash()
+func initEventIdx(e *Event) error {
 	// internal parents index initialization
 	e.parents = make(map[EventHash]*Event, len(e.Parents))
 	for _, hash := range e.Parents {
