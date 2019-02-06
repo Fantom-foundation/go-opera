@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -327,14 +328,14 @@ func initNodes(keys []*ecdsa.PrivateKey,
 
 		conf := NewConfig(
 			5*time.Millisecond,
-			time.Second,
+			2*time.Second,
 			cacheSize,
 			syncLimit,
 			logger,
 		)
 
 		trans, err := net.NewTCPTransport(addresses[idx],
-			nil, 2, time.Second, logger)
+			nil, 2, 2*time.Second, logger)
 		if err != nil {
 			t.Fatalf("failed to create transport for peer %d: %s", id, err)
 		}
@@ -439,7 +440,7 @@ func TestGossip(t *testing.T) {
 	keys, addresses, ps := initPeers(4, t)
 	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 
-	target := int64(10)
+	target := int64(1)
 
 	err := gossip(nodes, target, true, 30*time.Second)
 	if err != nil {
@@ -472,7 +473,7 @@ func TestMissingNodeGossip(t *testing.T) {
 	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	err := gossip(nodes[1:], 5, true, 40*time.Second)
+	err := gossip(nodes[1:], 3, true, 120*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,7 +488,7 @@ func TestSyncLimit(t *testing.T) {
 	keys, addresses, ps := initPeers(4, t)
 	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
 
-	err := gossip(nodes, 10, false, 3*time.Second)
+	err := gossip(nodes, 10, false, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,11 +533,12 @@ func TestFastForward(t *testing.T) {
 		"inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	target := int64(10)
-	err := gossip(nodes[1:], target, false, 30*time.Second)
+	target := int64(3)
+	err := gossip(nodes[1:], target, false, 60*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(2 * time.Second)
 
 	err = nodes[0].fastForward()
 	if err != nil {
@@ -562,6 +564,8 @@ func TestFastForward(t *testing.T) {
 }
 
 func TestCatchUp(t *testing.T) {
+	var let sync.Mutex
+	caught := false
 	logger := common.NewTestLogger(t)
 
 	// Create  config for 4 nodes
@@ -571,7 +575,7 @@ func TestCatchUp(t *testing.T) {
 	normalNodes := initNodes(keys[0:3], addresses[0:3], ps, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(normalNodes)
 
-	target := int64(10)
+	target := int64(3)
 
 	err := gossip(normalNodes, target, false, 30*time.Second)
 	if err != nil {
@@ -579,18 +583,22 @@ func TestCatchUp(t *testing.T) {
 	}
 	checkGossip(normalNodes, 0, t)
 
-	node4 := initNodes(keys[3:], addresses[3:], ps, 1000, 400, "inmem", logger, t)[0]
+	node4 := initNodes(keys[3:], addresses[3:], ps, 1000, 40, "inmem", logger, t)[0]
 
 	// Run parallel routine to check node4 eventually reaches CatchingUp state.
-	timeout := time.After(10 * time.Second)
+	timeout := time.After(30 * time.Second)
 	go func() {
+		let.Lock()
+		defer let.Unlock()
 		for {
 			select {
 			case <-timeout:
-				t.Fatalf("Timeout waiting for node4 to enter CatchingUp state")
+				t.Logf("Timeout waiting for node4 to enter CatchingUp state")
+				break
 			default:
 			}
 			if node4.getState() == CatchingUp {
+				caught = true
 				break
 			}
 		}
@@ -609,9 +617,16 @@ func TestCatchUp(t *testing.T) {
 
 	start := node4.core.poset.FirstConsensusRound
 	checkGossip(nodes, *start, t)
+	let.Lock()
+	let.Unlock()
+	if !caught {
+		t.Fatalf("Node4 didn't reach CatchingUp state")
+	}
 }
 
 func TestFastSync(t *testing.T) {
+	var let sync.Mutex
+	caught := false
 	logger := common.NewTestLogger(t)
 
 	// Create  config for 4 nodes
@@ -619,9 +634,9 @@ func TestFastSync(t *testing.T) {
 	nodes := initNodes(keys, addresses, ps, 1000, 400, "inmem", logger, t)
 	defer shutdownNodes(nodes)
 
-	var target int64 = 20
+	var target int64 = 10
 
-	err := gossip(nodes, target, false, 13*time.Second)
+	err := gossip(nodes, target, false, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -630,8 +645,8 @@ func TestFastSync(t *testing.T) {
 	node4 := nodes[3]
 	node4.Shutdown()
 
-	secondTarget := target + 20
-	err = bombardAndWait(nodes[0:3], secondTarget, 6*time.Second)
+	secondTarget := target + 10
+	err = bombardAndWait(nodes[0:3], secondTarget, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -641,15 +656,19 @@ func TestFastSync(t *testing.T) {
 	node4 = recycleNode(node4, logger, t)
 
 	// Run parallel routine to check node4 eventually reaches CatchingUp state.
-	timeout := time.After(6 * time.Second)
+	timeout := time.After(30 * time.Second)
 	go func() {
+		let.Lock()
+		defer let.Unlock()
 		for {
 			select {
 			case <-timeout:
-				t.Fatalf("Timeout waiting for node4 to enter CatchingUp state")
+				t.Logf("Timeout waiting for node4 to enter CatchingUp state")
+				break
 			default:
 			}
 			if node4.getState() == CatchingUp {
+				caught = true
 				break
 			}
 		}
@@ -662,13 +681,18 @@ func TestFastSync(t *testing.T) {
 
 	// Gossip some more
 	thirdTarget := secondTarget + 10
-	err = bombardAndWait(nodes, thirdTarget, 15*time.Second)
+	err = bombardAndWait(nodes, thirdTarget, 25*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	start := node4.core.poset.FirstConsensusRound
 	checkGossip(nodes, *start, t)
+	let.Lock()
+	let.Unlock()
+	if !caught {
+		t.Fatalf("Node4 didn't reach CatchingUp state")
+	}
 }
 
 func TestShutdown(t *testing.T) {
