@@ -63,6 +63,9 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
+	if err := store.dbSetLeafEvents(inmemStore.rootsByParticipant); err != nil {
+		return nil, err
+	}
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -526,13 +529,12 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 		// check if it already exists
-		existent := false
-		val2, err := tx.Get(eventHash.Bytes())
-		if err != nil && !isDBKeyNotFound(err) {
+		notFound := true
+		_, err = tx.Get(eventHash.Bytes())
+		if err == nil {
+			notFound = false
+		} else if !isDBKeyNotFound(err) {
 			return err
-		}
-		if val2 != nil {
-			existent = true
 		}
 
 		// insert [event hash] => [event bytes]
@@ -540,7 +542,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 
-		if !existent {
+		if notFound {
 			// insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.Message.TopologicalIndex)
 			if err := tx.Set(topoKey, eventHash.Bytes()); err != nil {
@@ -622,7 +624,7 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 	return tx.Commit(nil)
 }
 
-func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
+func (s *BadgerStore) dbSetLeafEvents(roots map[string]Root) error {
 	for participant, root := range roots {
 		var creator []byte
 		var selfParentHash EventHash
