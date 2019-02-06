@@ -558,7 +558,7 @@ func TestFastForward(t *testing.T) {
 	}
 
 	lbi := nodes[0].core.GetLastBlockIndex()
-	if lbi <= 0 {
+	if lbi < 0 {
 		t.Fatalf("LastBlockIndex is too low: %d", lbi)
 	}
 	sBlock, err := nodes[0].GetBlock(lbi)
