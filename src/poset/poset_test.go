@@ -492,7 +492,13 @@ func TestFork(t *testing.T) {
 	poset := NewPoset(participants, store, nil, testLogger(t))
 
 	for i, node := range nodes {
-		event := NewEvent(nil, nil, nil, make(EventHashes, 2), node.Pub, 0, nil)
+		parents := make(EventHashes, 2)
+		self_parent, _, err := poset.Store.LastEventFrom(fmt.Sprintf("0x%X", node.Pub))
+		if err != nil {
+			t.Fatal(err)
+		}
+		parents[0] = self_parent
+		event := NewEvent(nil, nil, nil, parents, node.Pub, 0, nil)
 		if err := event.Sign(node.Key); err != nil {
 			t.Fatal(err)
 		}
@@ -2271,7 +2277,7 @@ func TestResetFromFrame(t *testing.T) {
 				events = append(events, ev)
 			}
 
-			sort.Sort(ByTopologicalOrder(events))
+			sort.Stable(ByTopologicalOrder(events))
 
 			for _, ev := range events {
 
