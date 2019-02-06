@@ -44,33 +44,38 @@ func (s *Store) Close() {
 
 // SetEvent stores event.
 func (s *Store) SetEvent(e *Event) {
-	s.set(e.Hash().Bytes(), e)
+	s.set(s.events, e.Hash().Bytes(), e)
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetEvent(h EventHash) *Event {
-	e, _ := s.get(h.Bytes(), &Event{}).(*Event)
+	e, _ := s.get(s.events, h.Bytes(), &Event{}).(*Event)
 	return e
+}
+
+// HasEvent returns true if event exists.
+func (s *Store) HasEvent(h EventHash) bool {
+	return s.has(s.events, h.Bytes())
 }
 
 /*
  * Utils:
  */
 
-func (s *Store) set(key []byte, val interface{}) {
+func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		panic(err)
 	}
 
-	err = s.events.Put(key, buf)
+	err = table.Put(key, buf)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *Store) get(key []byte, to interface{}) interface{} {
-	buf, err := s.events.Get(key)
+func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{} {
+	buf, err := table.Get(key)
 	if err != nil {
 		panic(err)
 	}
@@ -83,4 +88,12 @@ func (s *Store) get(key []byte, to interface{}) interface{} {
 		panic(err)
 	}
 	return to
+}
+
+func (s *Store) has(table kvdb.Database, key []byte) bool {
+	res, err := table.Has(key)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }

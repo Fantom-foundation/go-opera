@@ -73,9 +73,7 @@ func (p *Poset) PushEvent(e Event) error {
 
 // onNewEvent runs consensus calc from new event. It is not safe for concurrent use.
 func (p *Poset) onNewEvent(e *Event) {
-	//log.WithField("event", e).Debug("onNewEvent()")
-
-	if exists := p.store.GetEvent(e.Hash()); exists != nil {
+	if p.store.HasEvent(e.Hash()) {
 		log.WithField("event", e).Warnf("Event had received already")
 		return
 	}
@@ -88,12 +86,12 @@ func (p *Poset) onNewEvent(e *Event) {
 		}
 		if parent := e.parents[hash]; parent == nil {
 			parent = p.store.GetEvent(hash)
-			if parent == nil {
+			if parent != nil {
+				e.parents[hash] = parent
+			} else {
 				//log.WithField("event", e).Warn("Event's parent had not received yet")
 				p.incompleteEvents[e.Hash()] = e
 				return
-			} else {
-				e.parents[hash] = parent
 			}
 		}
 	}
