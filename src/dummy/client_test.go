@@ -11,21 +11,22 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func TestSocketProxyServer(t *testing.T) {
 	const (
 		timeout    = 2 * time.Second
 		errTimeout = "time is over"
-		addr       = "127.0.0.1:9990"
 	)
+	addr := utils.GetUnusedNetAddr(1, t)
 	asserter := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	txOrigin := []byte("the test transaction")
 
 	// Server
-	app, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
+	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
 	asserter.NoError(err)
 
 	//  listens for a request
@@ -39,7 +40,7 @@ func TestSocketProxyServer(t *testing.T) {
 	}()
 
 	// Client part connecting to RPC service and calling methods
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
 	asserter.NoError(err)
 
 	node, err := NewDummyClient(lachesisProxy, nil, logger)
@@ -52,13 +53,13 @@ func TestSocketProxyServer(t *testing.T) {
 func TestDummySocketClient(t *testing.T) {
 	const (
 		timeout = 2 * time.Second
-		addr    = "127.0.0.1:9992"
 	)
+	addr := utils.GetUnusedNetAddr(1, t)
 	asserter := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	// server
-	appProxy, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
+	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
 	asserter.NoError(err)
 	defer func() {
 		if err := appProxy.Close(); err != nil {
@@ -67,7 +68,7 @@ func TestDummySocketClient(t *testing.T) {
 	}()
 
 	// client
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
 	asserter.NoError(err)
 	defer func() {
 		if err := lachesisProxy.Close(); err != nil {
