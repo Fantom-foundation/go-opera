@@ -21,11 +21,14 @@ func TestParticipantEventsCache(t *testing.T) {
 	pec := NewParticipantEventsCache(size, participants)
 
 	items := make(map[string]EventHashes)
+	participants.RLock()
 	for pk := range participants.ByPubKey {
 		items[pk] = EventHashes{}
 	}
+	participants.RUnlock()
 
 	for i := int64(0); i < testSize; i++ {
+		participants.RLock()
 		for pk := range participants.ByPubKey {
 			item := fakeEventHash(fmt.Sprintf("%s%d", pk, i))
 
@@ -37,9 +40,11 @@ func TestParticipantEventsCache(t *testing.T) {
 			pitems = append(pitems, item)
 			items[pk] = pitems
 		}
+		participants.RUnlock()
 	}
 
 	// GET ITEM ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	participants.RLock()
 	for pk := range participants.ByPubKey {
 
 		index1 := int64(9)
@@ -68,6 +73,7 @@ func TestParticipantEventsCache(t *testing.T) {
 			t.Fatalf("expected and cached not equal")
 		}
 	}
+	participants.RUnlock()
 
 	//KNOWN ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	known := pec.Known()
@@ -79,6 +85,8 @@ func TestParticipantEventsCache(t *testing.T) {
 	}
 
 	//GET ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	participants.RLock()
+	defer participants.RUnlock()
 	for pk := range participants.ByPubKey {
 		if _, err := pec.Get(pk, 0); err != nil && !common.Is(err, common.TooLate) {
 			t.Fatalf("Skipping 0 elements should return ErrTooLate")
@@ -127,11 +135,14 @@ func TestParticipantEventsCacheEdge(t *testing.T) {
 	pec := NewParticipantEventsCache(size, participants)
 
 	items := make(map[string]EventHashes)
+	participants.RLock()
 	for pk := range participants.ByPubKey {
 		items[pk] = EventHashes{}
 	}
+	participants.RUnlock()
 
 	for i := int64(0); i < testSize; i++ {
+		participants.RLock()
 		for pk := range participants.ByPubKey {
 			item := fakeEventHash(fmt.Sprintf("%s%d", pk, i))
 
@@ -143,8 +154,11 @@ func TestParticipantEventsCacheEdge(t *testing.T) {
 			pitems = append(pitems, item)
 			items[pk] = pitems
 		}
+		participants.RUnlock()
 	}
 
+	participants.RLock()
+	defer participants.RUnlock()
 	for pk := range participants.ByPubKey {
 		expected := items[pk][size:]
 		cached, err := pec.Get(pk, int64(size-1))

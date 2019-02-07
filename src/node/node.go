@@ -32,7 +32,6 @@ type Node struct {
 	localAddr string
 
 	peerSelector PeerSelector
-	selectorLock sync.Mutex
 
 	trans net.Transport
 	netCh <-chan *net.RPC
@@ -83,7 +82,7 @@ func NewNode(conf *Config,
 		conf:             conf,
 		core:             core,
 		localAddr:        localAddr,
-		logger:           conf.Logger.WithField("this_id", id),
+		logger:           conf.Logger.WithField("this_id", id).WithField("addr", localAddr),
 		peerSelector:     peerSelector,
 		trans:            trans,
 		netCh:            trans.Consumer(),
@@ -234,10 +233,9 @@ func (n *Node) lachesis(gossip bool) {
 				n.rpcJobs.decrement()
 			})
 		case <-n.controlTimer.tickCh:
+			n.logStats()
 			if gossip && n.gossipJobs.get() < 1 {
-				n.selectorLock.Lock()
 				peerAddr := n.peerSelector.Next().NetAddr
-				n.selectorLock.Unlock()
 				n.goFunc(func() {
 					n.gossipJobs.increment()
 					if err := n.gossip(peerAddr, returnCh); err != nil {
@@ -247,7 +245,6 @@ func (n *Node) lachesis(gossip bool) {
 				})
 				n.logger.Debug("Gossip")
 			}
-			n.logStats()
 			n.resetTimer()
 		case <-returnCh:
 			return
@@ -413,9 +410,7 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	}
 
 	// update peer selector
-	n.selectorLock.Lock()
 	n.peerSelector.UpdateLast(peerAddr)
-	n.selectorLock.Unlock()
 
 	return nil
 }
@@ -520,9 +515,7 @@ func (n *Node) fastForward() error {
 	n.waitRoutines()
 
 	// fastForwardRequest
-	n.selectorLock.Lock()
 	peer := n.peerSelector.Next()
-	n.selectorLock.Unlock()
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
 	elapsed := time.Since(start)
@@ -628,6 +621,9 @@ func (n *Node) sync(events []poset.WireEvent) error {
 
 func (n *Node) commit(block poset.Block) error {
 
+	n.coreLock.Lock()
+	defer n.coreLock.Unlock()
+
 	stateHash := []byte{0, 1, 2}
 	_, err := n.proxy.CommitBlock(block)
 	if err != nil {
@@ -657,8 +653,6 @@ func (n *Node) commit(block poset.Block) error {
 		// multiple nodes can't read from the same client
 
 		block.StateHash = stateHash
-		n.coreLock.Lock()
-		defer n.coreLock.Unlock()
 		sig, err := n.core.SignBlock(block)
 		if err != nil {
 			return err
@@ -768,13 +762,17 @@ func (n *Node) logStats() {
 		"t/s":                    stats["transactions_per_second"],
 		"rounds/s":               stats["rounds_per_second"],
 		"round_events":           stats["round_events"],
-		"id":                     stats["id"],
 		"state":                  stats["state"],
 		"z_gossipJobs":           n.gossipJobs.get(),
 		"z_rpcJobs":              n.rpcJobs.get(),
-		"addr":                   n.localAddr,
 		"pending_loaded_events":  n.GetPendingLoadedEvents(),
 		"last_round":             n.GetLastRound(),
+		// "addr" is already defined in Node.logger, see NewNode() function
+		// uncomment when needed
+		//		"addr":                   n.localAddr,
+		// "id" is duplicate of "this_id" in Node.logger, see NewNode() function
+		// uncomment when needed
+		//		"id":                     stats["id"],
 	}).Warn("logStats()")
 }
 

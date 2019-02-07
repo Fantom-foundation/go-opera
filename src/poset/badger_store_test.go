@@ -154,8 +154,10 @@ func TestLoadBadgerStore(t *testing.T) {
 			badgerStore.participants.Len())
 	}
 
+	dbParticipants.RLock()
+	defer dbParticipants.RUnlock()
 	for dbP, dbPeer := range dbParticipants.ByPubKey {
-		peer, ok := badgerStore.participants.ByPubKey[dbP]
+		peer, ok := badgerStore.participants.ReadByPubKey(dbP)
 		if !ok {
 			t.Fatalf("BadgerStore participants does not contains %s", dbP)
 		}
@@ -335,8 +337,10 @@ func TestDBParticipantMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	store.participants.RLock()
+	defer store.participants.RUnlock()
 	for p, peer := range store.participants.ByPubKey {
-		dbPeer, ok := participantsFromDB.ByPubKey[p]
+		dbPeer, ok := participantsFromDB.ReadByPubKey(p)
 		if !ok {
 			t.Fatalf("DB does not contain participant %s", p)
 		}

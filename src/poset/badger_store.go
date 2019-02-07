@@ -63,6 +63,9 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
+	if err := store.dbSetLeafEvents(inmemStore.rootsByParticipant); err != nil {
+		return nil, err
+	}
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -309,6 +312,8 @@ func (s *BadgerStore) LastConsensusEventFrom(participant string) (last EventHash
 // KnownEvents returns all known events
 func (s *BadgerStore) KnownEvents() map[uint64]int64 {
 	known := make(map[uint64]int64)
+	s.participants.RLock()
+	defer s.participants.RUnlock()
 	for p, pid := range s.participants.ByPubKey {
 		index := int64(-1)
 		last, isRoot, err := s.LastEventFrom(p)
@@ -524,13 +529,12 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 		// check if it already exists
-		existent := false
-		val2, err := tx.Get(eventHash.Bytes())
-		if err != nil && !isDBKeyNotFound(err) {
+		notFound := true
+		_, err = tx.Get(eventHash.Bytes())
+		if err == nil {
+			notFound = false
+		} else if !isDBKeyNotFound(err) {
 			return err
-		}
-		if val2 != nil {
-			existent = true
 		}
 
 		// insert [event hash] => [event bytes]
@@ -538,7 +542,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 
-		if !existent {
+		if notFound {
 			// insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.Message.TopologicalIndex)
 			if err := tx.Set(topoKey, eventHash.Bytes()); err != nil {
@@ -620,7 +624,7 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 	return tx.Commit(nil)
 }
 
-func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
+func (s *BadgerStore) dbSetLeafEvents(roots map[string]Root) error {
 	for participant, root := range roots {
 		var creator []byte
 		var selfParentHash EventHash
@@ -629,7 +633,7 @@ func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
 			return err
 		}
 		body := EventBody{
-			Creator: creator, /*s.participants.ByPubKey[participant].PubKey,*/
+			Creator: creator,
 			Index:   root.SelfParent.Index,
 			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
 		}
@@ -801,6 +805,8 @@ func (s *BadgerStore) dbSetParticipants(participants *peers.Peers) error {
 	tx := s.db.NewTransaction(true)
 	defer tx.Discard()
 
+	participants.RLock()
+	defer participants.RUnlock()
 	for participant, id := range participants.ByPubKey {
 		key := participantKey(participant)
 		val := []byte(fmt.Sprint(id.ID))

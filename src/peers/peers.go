@@ -191,6 +191,27 @@ func (p *Peers) Len() int {
 	return len(p.ByPubKey)
 }
 
+func (p *Peers) ReadByPubKey(key string) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByPubKey[key];
+	return *peer, ok;
+}
+
+func (p *Peers) ReadByID(key uint64) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByID[key];
+	return *peer, ok;
+}
+
+func (p *Peers) ReadByAddress(key common.Address) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByAddress[key];
+	return *peer, ok;
+}
+
 // ByPubHex implements sort.Interface for Peers based on
 // the PubKeyHex field.
 type ByPubHex []*Peer

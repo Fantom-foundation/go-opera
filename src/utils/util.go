@@ -2,40 +2,45 @@ package utils
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net"
 	"strconv"
+	"sync/atomic"
 	"testing"
 )
 
-// GetUnusedNetAddr source: https://gist.github.com/montanaflynn/b59c058ce2adc18f31d6
-func GetUnusedNetAddr(t testing.TB) string {
-	// Create a new server without specifying a port
-	// which will result in an open port being chosen
-	server, err := net.Listen("tcp", ":0")
-	// If there's an error it likely means no ports
-	// are available or something else prevented finding
-	// an open port
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer func() {
-		if err := server.Close(); err != nil {
-			t.Fatal(err)
+var startBase uint32 = 12000
+
+// GetUnusedNetAddr return array of n unused ports starting with base port
+// NB: addresses 1-1024 are reserved for non-root users;
+func GetUnusedNetAddr(n int, t testing.TB) []string {
+	idx := int(0)
+	base := atomic.AddUint32(&startBase, 100)
+	addresses := make([]string, n)
+	for i := int(base); i < 65536; i++ {
+		addrStr := "127.0.0.1:" + strconv.Itoa(i)
+		addr, err := net.ResolveTCPAddr("tcp", addrStr)
+		if err != nil {
+			t.Fatalf("err: %v", err)
 		}
-	}()
-	hostString := server.Addr().String()
-	// Split the host from the port
-	_, portString, err := net.SplitHostPort(hostString)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+
+		l, err := net.ListenTCP("tcp", addr)
+		if err != nil {
+			continue
+		}
+		defer func() {
+			if err := l.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		t.Logf("Unused port %s is chosen", addrStr)
+		addresses[idx] = addrStr
+		idx++
+		if idx == n {
+			return addresses
+		}
 	}
-	// Return the port as an int
-	port, err := strconv.Atoi(portString)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	return fmt.Sprintf("127.0.0.1:%d", port)
+	t.Fatalf("No free port left!!!")
+	return addresses
 }
 
 // HashFromHex converts hex string to bytes.

@@ -175,7 +175,11 @@ func (p *Poset) dominator2(x, y EventHash) (bool, error) {
 			return false, err2
 		}
 		if root, ok := roots[y]; ok {
-			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
+			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
+			if !ok {
+				return false, fmt.Errorf("Creator with ID %v not found", root.SelfParent.CreatorID)
+			}
+			yCreator := peer.PubKeyHex
 			if ex.GetCreator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
@@ -242,7 +246,11 @@ func (p *Poset) selfDominator2(x, y EventHash) (bool, error) {
 			return false, err2
 		}
 		if root, ok := roots[y]; ok {
-			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
+			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
+			if !ok {
+				return false, fmt.Errorf("Self-parent creator with ID %v not found", root.SelfParent.CreatorID)
+			}
+			yCreator := peer.PubKeyHex
 			if ex.GetCreator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
@@ -313,7 +321,10 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 		}
 
 		if root, ok := roots[x]; ok {
-			creator := p.Participants.ByID[root.SelfParent.CreatorID]
+			creator, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
+			if !ok {
+				return fmt.Errorf("Self-parent creator with ID %v not found", root.SelfParent.CreatorID)
+			}
 
 			sentinels[creator.PubKeyHex] = true
 
@@ -323,7 +334,10 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 		return err
 	}
 
-	creator := p.Participants.ByID[ex.CreatorID()]
+	creator, ok := p.Participants.ReadByID(ex.CreatorID())
+	if !ok {
+		return fmt.Errorf("Creator with ID %v not found", ex.CreatorID())
+	}
 	sentinels[creator.PubKeyHex] = true
 
 	if x == y {
@@ -677,9 +691,13 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 	if err != nil {
 		return RootEvent{}, err
 	}
+	peer, ok := p.Participants.ReadByPubKey(ev.GetCreator())
+	if !ok {
+		return RootEvent{}, fmt.Errorf("Creator %v not found", ev.GetCreator())
+	}
 	selfParentRootEvent := RootEvent{
 		Hash:             sp.Bytes(),
-		CreatorID:        p.Participants.ByPubKey[ev.GetCreator()].ID,
+		CreatorID:        peer.ID,
 		Index:            ev.Index() - 1,
 		LamportTimestamp: spLT,
 		Round:            spRound,
@@ -714,9 +732,13 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	if err != nil {
 		return RootEvent{}, err
 	}
+	peer, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
+	if !ok {
+		return RootEvent{}, fmt.Errorf("Other parent's creator %v not found", otherParent.GetCreator())
+	}
 	otherParentRootEvent := RootEvent{
 		Hash:             op.Bytes(),
-		CreatorID:        p.Participants.ByPubKey[otherParent.GetCreator()].ID,
+		CreatorID:        peer.ID,
 		Index:            otherParent.Index(),
 		LamportTimestamp: opLT,
 		Round:            opRound,
@@ -1523,8 +1545,8 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (h
 	}
 
 	for _, ev := range orderedEvents {
-		creator := p.Participants.ByID[ev.CreatorID()]
-		if creator == nil {
+		creator, ok := p.Participants.ReadByID(ev.CreatorID())
+		if !ok {
 			p.logger.Warnf("Unknown participant ID=%d", ev.CreatorID())
 			continue
 		}
@@ -1563,7 +1585,7 @@ func (p *Poset) ProcessSigPool() error {
 	for i, bs := range p.SigPool {
 		// check if validator belongs to list of participants
 		validatorHex := fmt.Sprintf("0x%X", bs.Validator)
-		if _, ok := p.Participants.ByPubKey[validatorHex]; !ok {
+		if _, ok := p.Participants.ReadByPubKey(validatorHex); !ok {
 			p.logger.WithFields(logrus.Fields{
 				"index":     bs.Index,
 				"validator": validatorHex,
@@ -1590,9 +1612,11 @@ func (p *Poset) ProcessSigPool() error {
 				return err
 			}
 			if !valid {
+				peer, ok := p.Participants.ReadByPubKey(validatorHex)
 				p.logger.WithFields(logrus.Fields{
 					"index":     bs.Index,
-					"validator": p.Participants.ByPubKey[validatorHex],
+					"validator": peer,
+					"ok":        ok,
 					"block":     block,
 				}).Warning("Verifying Block signature. Invalid signature")
 				continue

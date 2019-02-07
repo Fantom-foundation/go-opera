@@ -47,10 +47,12 @@ type InmemStore struct {
 func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config) *InmemStore {
 	rootsByParticipant := make(map[string]Root)
 
+	participants.RLock()
 	for pk, pid := range participants.ByPubKey {
 		root := NewBaseRoot(pid.ID)
 		rootsByParticipant[pk] = root
 	}
+	participants.RUnlock()
 
 	eventCache, err := lru.New(cacheSize)
 	if err != nil {
@@ -147,6 +149,8 @@ func (s *InmemStore) Participants() (*peers.Peers, error) {
 
 func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
 	// Extend PartipantEventsCache and Roots with new peers
+	participants.RLock()
+	defer participants.RUnlock()
 	for _, peer := range participants.ByID {
 		s.repertoireByPubKey[peer.PubKeyHex] = peer
 		s.repertoireByID[peer.ID] = peer
@@ -274,6 +278,8 @@ func (s *InmemStore) LastConsensusEventFrom(participant string) (last EventHash,
 // KnownEvents returns all known events
 func (s *InmemStore) KnownEvents() map[uint64]int64 {
 	known := s.participantEventsCache.Known()
+	s.participants.RLock()
+	defer s.participants.RUnlock()
 	for p, pid := range s.participants.ByPubKey {
 		if known[pid.ID] == -1 {
 			root, ok := s.rootsByParticipant[p]
