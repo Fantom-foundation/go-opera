@@ -36,3 +36,21 @@ func TestMemStoreEvents(t *testing.T) {
 
 	store.Close()
 }
+
+func TestIntToKey(t *testing.T) {
+	assert := assert.New(t)
+
+	tests := map[uint64][]byte{
+		0x0:                {0x0, 0, 0, 0, 0, 0, 0, 0},
+		0x102:              {0x2, 0x1, 0, 0, 0, 0, 0, 0},
+		0xFFFFFFFFFFFFFFFF: {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+	}
+
+	for n, key0 := range tests {
+		key1 := intToKey(n)
+
+		if !assert.Equal(key0, key1) {
+			break
+		}
+	}
+}

@@ -3,7 +3,7 @@ package posposet
 // State is a poset current state.
 // TODO: make it internal.
 type State struct {
-	FrameIndex uint64
+	CurrentFrameN uint64
 }
 
 func (p *Poset) bootstrap() {
@@ -11,7 +11,7 @@ func (p *Poset) bootstrap() {
 	p.state = p.store.GetState()
 	if p.state == nil {
 		p.state = &State{
-			FrameIndex: 0,
+			CurrentFrameN: 1,
 		}
 	}
 	// TODO: restore all others from store.

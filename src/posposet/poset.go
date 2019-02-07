@@ -113,7 +113,51 @@ func (p *Poset) onNewEvent(e *Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *Event) {
-	//log.WithField("event", e).Debug("consensus()")
+	if p.checkIfRoot(e) {
+		log.WithField("event", e).Debug("IS ROOT!")
+	}
+}
+
+// checkIfRoot is not safe for concurrent use.
+func (p *Poset) checkIfRoot(e *Event) bool {
+	frame := p.frame(p.state.CurrentFrameN - 1)
+	stakes := p.newStakes(frame)
+
+	forEachParents := func(e *Event) {
+		for hash, parent := range e.parents {
+			if hash.IsZero() { // first event of node
+				stakes.Count(e.Creator)
+				continue
+			}
+			// read parent from store
+			if parent == nil {
+				parent = p.store.GetEvent(hash)
+				if err := initEventIdx(parent); err != nil {
+					panic(err)
+				}
+			}
+			if frame.IsRoot(parent.Hash()) {
+				stakes.Count(parent.Creator)
+			}
+		}
+	}
+
+	forEachParents(e)
+
+	return stakes.IsMajority()
+}
+
+func (p *Poset) frame(n uint64) *Frame {
+	if n < 1 {
+		return &Frame{Index: 0}
+	}
+	f := p.store.GetFrame(n)
+	if f == nil {
+		f = StartNewFrame(n-1, func(f *Frame) {
+			p.store.SetFrame(f)
+		})
+	}
+	return f
 }
 
 /*
@@ -121,6 +165,9 @@ func (p *Poset) consensus(e *Event) {
  */
 
 func initEventIdx(e *Event) error {
+	if e == nil {
+		return fmt.Errorf("Event not found")
+	}
 	// internal parents index initialization
 	e.parents = make(map[EventHash]*Event, len(e.Parents))
 	for _, hash := range e.Parents {

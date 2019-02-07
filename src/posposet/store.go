@@ -9,11 +9,13 @@ import (
 
 // Store is a poset persistent storage working over physical key-value database.
 // TODO: make it internal.
+// TODO: cache with LRU.
 type Store struct {
 	physicalDB kvdb.Database
 
 	states kvdb.Database
 	events kvdb.Database
+	frames kvdb.Database
 }
 
 // NewInmemStore creates store over memory map.
@@ -37,12 +39,14 @@ func NewBadgerStore(db *badger.DB) *Store {
 func (s *Store) init() {
 	s.states = kvdb.NewTable(s.physicalDB, "states_")
 	s.events = kvdb.NewTable(s.physicalDB, "events_")
+	s.frames = kvdb.NewTable(s.physicalDB, "frames_")
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
 	s.states = nil
 	s.events = nil
+	s.frames = nil
 	s.physicalDB.Close()
 }
 
@@ -73,6 +77,17 @@ func (s *Store) GetState() *State {
 	const key = "current"
 	st, _ := s.get(s.states, []byte(key), &State{}).(*State)
 	return st
+}
+
+// SetFrame stores event.
+func (s *Store) SetFrame(f *Frame) {
+	s.set(s.frames, intToKey(f.Index), f)
+}
+
+// GetFrame returns stored frame.
+func (s *Store) GetFrame(n uint64) *Frame {
+	f, _ := s.get(s.frames, intToKey(n), &State{}).(*Frame)
+	return f
 }
 
 /*
@@ -113,4 +128,13 @@ func (s *Store) has(table kvdb.Database, key []byte) bool {
 		panic(err)
 	}
 	return res
+}
+
+func intToKey(n uint64) []byte {
+	var res [8]byte
+	for i := 0; i < len(res); i++ {
+		res[i] = byte(n)
+		n = n >> 8
+	}
+	return res[:]
 }
