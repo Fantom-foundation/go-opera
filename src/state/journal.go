@@ -76,7 +76,7 @@ type (
 	}
 	suicideChange struct {
 		account     *common.Address
-		prev        bool // whether account had already suicided
+		prev        bool // whether account had already suicide
 		prevbalance uint64
 	}
 

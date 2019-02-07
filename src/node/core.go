@@ -24,7 +24,7 @@ const (
 
 var (
 	// ErrTooBigTx is returned when transaction size > MaxEventsPayloadSize
-	ErrTooBigTx = fmt.Errorf("Transaction too big")
+	ErrTooBigTx = fmt.Errorf("transaction too big")
 )
 
 // Core struct that controls the consensus, transaction, and communication
@@ -678,7 +678,7 @@ func (c *Core) GetConsensusTransactionsCount() uint64 {
 
 // GetLastCommittedRoundEventsCount count of events in last round
 func (c *Core) GetLastCommittedRoundEventsCount() int {
-	return c.poset.LastCommitedRoundEvents
+	return c.poset.LastCommittedRoundEvents
 }
 
 // GetLastBlockIndex retuns the latest block index

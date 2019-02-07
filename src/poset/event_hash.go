@@ -14,7 +14,7 @@ type (
 	EventHashes []EventHash
 )
 
-// CalcEventHash calcs hash of data.
+// CalcEventHash calculates hash of data.
 func CalcEventHash(data []byte) EventHash {
 	return EventHash(crypto.Keccak256Hash(data))
 }

@@ -135,9 +135,9 @@ func (n *cachedNode) obj(hash common.Hash, cachegen uint16) node {
 	return expandNode(hash[:], n.node, cachegen)
 }
 
-// childs returns all the tracked children of this node, both the implicit ones
+// descendents returns all the tracked children of this node, both the implicit ones
 // from inside the node as well as the explicit ones from outside the node.
-func (n *cachedNode) childs() []common.Hash {
+func (n *cachedNode) descendents() []common.Hash {
 	children := make([]common.Hash, 0, 16)
 	for child := range n.children {
 		children = append(children, child)
@@ -293,7 +293,7 @@ func (db *Database) insert(hash common.Hash, blob []byte, node node) {
 		size:      uint16(len(blob)),
 		flushPrev: db.newest,
 	}
-	for _, child := range entry.childs() {
+	for _, child := range entry.descendents() {
 		if c := db.dirties[child]; c != nil {
 			c.parents++
 		}
@@ -506,7 +506,7 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 			db.dirties[node.flushNext].flushPrev = node.flushPrev
 		}
 		// Dereference all children and delete the node
-		for _, hash := range node.childs() {
+		for _, hash := range node.descendents() {
 			db.dereference(hash, child)
 		}
 		delete(db.dirties, child)
@@ -684,7 +684,7 @@ func (db *Database) commit(hash common.Hash, batch kvdb.Batch) error {
 	if !ok {
 		return nil
 	}
-	for _, child := range node.childs() {
+	for _, child := range node.descendents() {
 		if err := db.commit(child, batch); err != nil {
 			return err
 		}
@@ -725,7 +725,7 @@ func (db *Database) uncache(hash common.Hash) {
 		db.dirties[node.flushNext].flushPrev = node.flushPrev
 	}
 	// Uncache the node's subtries and remove the node itself too
-	for _, child := range node.childs() {
+	for _, child := range node.descendents() {
 		db.uncache(child)
 	}
 	delete(db.dirties, hash)
@@ -785,7 +785,7 @@ func (db *Database) accumulate(hash common.Hash, reachable map[common.Hash]struc
 	reachable[hash] = struct{}{}
 
 	// Iterate over all the children and accumulate them too
-	for _, child := range node.childs() {
+	for _, child := range node.descendents() {
 		db.accumulate(child, reachable)
 	}
 }

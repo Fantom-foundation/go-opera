@@ -16,7 +16,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 	rpcCh := trans1.Consumer()
 
 	t.Run("Sync", func(t *testing.T) {
-		assert := assert.New(t)
+		assertO := assert.New(t)
 
 		expectedReq := &SyncRequest{
 			FromID: 0,
@@ -51,22 +51,22 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 			select {
 			case rpc := <-rpcCh:
 				req := rpc.Command.(*SyncRequest)
-				assert.EqualValues(expectedReq, req)
+				assertO.EqualValues(expectedReq, req)
 				rpc.Respond(expectedResp, nil)
 			case <-time.After(timeout):
-				assert.Fail("timeout")
+				assertO.Fail("timeout")
 			}
 		}()
 
 		var resp = new(SyncResponse)
 		err := trans2.Sync(trans1.LocalAddr(), expectedReq, resp)
-		if assert.NoError(err) {
-			assert.EqualValues(expectedResp, resp)
+		if assertO.NoError(err) {
+			assertO.EqualValues(expectedResp, resp)
 		}
 	})
 
 	t.Run("EagerSync", func(t *testing.T) {
-		assert := assert.New(t)
+		assertO := assert.New(t)
 
 		expectedReq := &EagerSyncRequest{
 			FromID: 0,
@@ -92,22 +92,22 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 			select {
 			case rpc := <-rpcCh:
 				req := rpc.Command.(*EagerSyncRequest)
-				assert.EqualValues(expectedReq, req)
+				assertO.EqualValues(expectedReq, req)
 				rpc.Respond(expectedResp, nil)
 			case <-time.After(timeout):
-				assert.Fail("timeout")
+				assertO.Fail("timeout")
 			}
 		}()
 
 		var resp = new(EagerSyncResponse)
 		err := trans2.EagerSync(trans1.LocalAddr(), expectedReq, resp)
-		if assert.NoError(err) {
-			assert.EqualValues(expectedResp, resp)
+		if assertO.NoError(err) {
+			assertO.EqualValues(expectedResp, resp)
 		}
 	})
 
 	t.Run("FastForward", func(t *testing.T) {
-		assert := assert.New(t)
+		assertO := assert.New(t)
 
 		expectedReq := &FastForwardRequest{
 			FromID: 0,
@@ -115,7 +115,7 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 
 		frame := poset.Frame{}
 		block, err := poset.NewBlockFromFrame(1, frame)
-		assert.NoError(err)
+		assertO.NoError(err)
 		expectedResp := &FastForwardResponse{
 			FromID:   1,
 			Block:    block,
@@ -127,10 +127,10 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 			select {
 			case rpc := <-rpcCh:
 				req := rpc.Command.(*FastForwardRequest)
-				assert.EqualValues(expectedReq, req)
+				assertO.EqualValues(expectedReq, req)
 				rpc.Respond(expectedResp, nil)
 			case <-time.After(timeout):
-				assert.Fail("timeout")
+				assertO.Fail("timeout")
 			}
 		}()
 
@@ -139,8 +139,8 @@ func testTransportImplementation(t *testing.T, trans1, trans2 Transport) {
 		if resp.Block.Signatures == nil {
 			resp.Block.Signatures = make(map[string]string)
 		}
-		if assert.NoError(err) {
-			assert.EqualValues(expectedResp, resp)
+		if assertO.NoError(err) {
+			assertO.EqualValues(expectedResp, resp)
 		}
 	})
 }

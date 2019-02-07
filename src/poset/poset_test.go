@@ -493,11 +493,11 @@ func TestFork(t *testing.T) {
 
 	for i, node := range nodes {
 		parents := make(EventHashes, 2)
-		self_parent, _, err := poset.Store.LastEventFrom(fmt.Sprintf("0x%X", node.Pub))
+		selfParent, _, err := poset.Store.LastEventFrom(fmt.Sprintf("0x%X", node.Pub))
 		if err != nil {
 			t.Fatal(err)
 		}
-		parents[0] = self_parent
+		parents[0] = selfParent
 		event := NewEvent(nil, nil, nil, parents, node.Pub, 0, nil)
 		if err := event.Sign(node.Key); err != nil {
 			t.Fatal(err)
@@ -598,7 +598,7 @@ func TestInsertEvent(t *testing.T) {
 
 		peer0, ok := p.Participants.ReadByPubKey(e0Event.GetCreator())
 		if !ok {
-			t.Fatal(fmt.Errorf("Creator0 %v not found", e0Event.GetCreator()))
+			t.Fatal(fmt.Errorf("creator0 %v not found", e0Event.GetCreator()))
 		}
 
 		if !(e0Event.Message.SelfParentIndex == -1 &&
@@ -620,12 +620,12 @@ func TestInsertEvent(t *testing.T) {
 
 		peer10, ok := p.Participants.ReadByPubKey(e10Event.GetCreator())
 		if !ok {
-			t.Fatal(fmt.Errorf("Creator10 %v not found", e10Event.GetCreator()))
+			t.Fatal(fmt.Errorf("creator10 %v not found", e10Event.GetCreator()))
 		}
 
 		peer21, ok := p.Participants.ReadByPubKey(e21Event.GetCreator())
 		if !ok {
-			t.Fatal(fmt.Errorf("Creator21 %v not found", e21Event.GetCreator()))
+			t.Fatal(fmt.Errorf("creator21 %v not found", e21Event.GetCreator()))
 		}
 
 		if !(e21Event.Message.SelfParentIndex == 1 &&
@@ -642,7 +642,7 @@ func TestInsertEvent(t *testing.T) {
 
 		peerf1, ok := p.Participants.ReadByPubKey(f1Event.GetCreator())
 		if !ok {
-			t.Fatal(fmt.Errorf("Creatorf1 %v not found", e10Event.GetCreator()))
+			t.Fatal(fmt.Errorf("creatorf1 %v not found", e10Event.GetCreator()))
 		}
 
 		if !(f1Event.Message.SelfParentIndex == 2 &&
@@ -2135,9 +2135,9 @@ func TestResetFromFrame(t *testing.T) {
 
 	// This operation clears the private fields which need to be recomputed
 	// in the Events (round, roundReceived,etc)
-	marshalledFrame, _ := frame.ProtoMarshal()
-	unmarshalledFrame := new(Frame)
-	if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+	marshaledFrame, _ := frame.ProtoMarshal()
+	unmarshaledFrame := new(Frame)
+	if err := unmarshaledFrame.ProtoUnmarshal(marshaledFrame); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2145,7 +2145,7 @@ func TestResetFromFrame(t *testing.T) {
 		NewInmemStore(p.Participants, cacheSize, nil),
 		nil,
 		testLogger(t))
-	err = p2.Reset(block, *unmarshalledFrame)
+	err = p2.Reset(block, *unmarshaledFrame)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2281,12 +2281,12 @@ func TestResetFromFrame(t *testing.T) {
 
 			for _, ev := range events {
 
-				marshalledEv, _ := ev.ProtoMarshal()
-				unmarshalledEv := new(Event)
-				if err := unmarshalledEv.ProtoUnmarshal(marshalledEv); err != nil {
+				marshaledEv, _ := ev.ProtoMarshal()
+				unmarshaledEv := new(Event)
+				if err := unmarshaledEv.ProtoUnmarshal(marshaledEv); err != nil {
 					t.Fatal(err)
 				}
-				if err := p2.InsertEvent(*unmarshalledEv, true); err != nil {
+				if err := p2.InsertEvent(*unmarshaledEv, true); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -2392,9 +2392,9 @@ func TestBootstrap(t *testing.T) {
 			" not %#v", *p.LastConsensusRound, *np.LastConsensusRound)
 	}
 
-	if p.LastCommitedRoundEvents != np.LastCommitedRoundEvents {
-		t.Fatalf("Bootstrapped poset's LastCommitedRoundEvents should be %#v,"+
-			" not %#v", p.LastCommitedRoundEvents, np.LastCommitedRoundEvents)
+	if p.LastCommittedRoundEvents != np.LastCommittedRoundEvents {
+		t.Fatalf("Bootstrapped poset's LastCommittedRoundEvents should be %#v,"+
+			" not %#v", p.LastCommittedRoundEvents, np.LastCommittedRoundEvents)
 	}
 
 	if p.GetConsensusTransactionsCount() != np.GetConsensusTransactionsCount() {
@@ -3014,9 +3014,9 @@ func TestFunkyPosetReset(t *testing.T) {
 
 		// This operation clears the private fields which need to be recomputed
 		// in the Events (round, roundReceived,etc)
-		marshalledFrame, _ := frame.ProtoMarshal()
-		unmarshalledFrame := new(Frame)
-		if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+		marshaledFrame, _ := frame.ProtoMarshal()
+		unmarshaledFrame := new(Frame)
+		if err := unmarshaledFrame.ProtoUnmarshal(marshaledFrame); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3024,7 +3024,7 @@ func TestFunkyPosetReset(t *testing.T) {
 			NewInmemStore(p.Participants, cacheSize, nil),
 			nil,
 			testLogger(t))
-		err = p2.Reset(block, *unmarshalledFrame)
+		err = p2.Reset(block, *unmarshaledFrame)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3573,9 +3573,9 @@ func TestSparsePosetReset(t *testing.T) {
 
 		// This operation clears the private fields which need to be recomputed
 		// in the Events (round, roundReceived,etc)
-		marshalledFrame, _ := frame.ProtoMarshal()
-		unmarshalledFrame := new(Frame)
-		if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+		marshaledFrame, _ := frame.ProtoMarshal()
+		unmarshaledFrame := new(Frame)
+		if err := unmarshaledFrame.ProtoUnmarshal(marshaledFrame); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3583,7 +3583,7 @@ func TestSparsePosetReset(t *testing.T) {
 			NewInmemStore(p.Participants, cacheSize, nil),
 			nil,
 			testLogger(t))
-		err = p2.Reset(block, *unmarshalledFrame)
+		err = p2.Reset(block, *unmarshaledFrame)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3671,7 +3671,7 @@ func getDiff(p *Poset, known map[uint64]int64, t *testing.T) []Event {
 	for id, ct := range known {
 		peer, ok := p.Participants.ReadByID(id)
 		if !ok {
-			t.Fatal(fmt.Errorf("Participant with ID %v not found", id))
+			t.Fatal(fmt.Errorf("participant with ID %v not found", id))
 		}
 		pk := peer.PubKeyHex
 		// get participant Events with index > ct

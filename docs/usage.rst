@@ -89,7 +89,7 @@ which defaults to ``~/.lachesis`` on linux/osx. This directory must contain two
 files:
 
  - ``peers.json``  : Lists all the participants in the network.
- - ``priv_key.pem``: Contains the private key of the validator runnning the node.
+ - ``priv_key.pem``: Contains the private key of the validator running the node.
 
 Every participant has a cryptographic key-pair that is used to encrypt, sign and
 verify messages. The private key is secret but the public key is used by other

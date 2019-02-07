@@ -22,7 +22,7 @@ func init() {
 	RootCmd.Flags().String("name", config.Name, "Client name")
 	RootCmd.Flags().String("client-listen", config.ClientAddr, "Listen IP:Port of Dummy Socket Client")
 	RootCmd.Flags().String("proxy-connect", config.ProxyAddr, "IP:Port to connect to Lachesis proxy")
-	RootCmd.Flags().Bool("discard", config.Discard, "discard output to stderr and sdout")
+	RootCmd.Flags().Bool("discard", config.Discard, "discard output to stderr and stdout")
 	RootCmd.Flags().String("log", config.LogLevel, "debug, info, warn, error, fatal, panic")
 }
 

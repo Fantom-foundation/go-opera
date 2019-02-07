@@ -71,7 +71,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 		}
 
 		if peer, ok := peers.ReadByPubKey(event.Creator()); !ok {
-			panic(fmt.Sprintf("Creator %v not found", event.Creator())
+			panic(fmt.Sprintf("Creator %v not found", event.Creator()))
 		}
 
 		hash := event.Hex()

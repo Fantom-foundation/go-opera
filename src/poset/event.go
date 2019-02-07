@@ -101,12 +101,11 @@ func (e *EventBody) ProtoUnmarshal(data []byte) error {
 
 // Hash returns hash of event body
 func (e *EventBody) Hash() (hash EventHash, err error) {
-	var bytes []byte
-	bytes, err = e.ProtoMarshal()
+	bytes_, err := e.ProtoMarshal()
 	if err != nil {
 		return
 	}
-	return CalcEventHash(bytes), nil
+	return CalcEventHash(bytes_), nil
 }
 
 /*******************************************************************************
@@ -219,7 +218,7 @@ func (e *Event) SelfParent() (hash EventHash) {
 	return
 }
 
-// OtherParent returns the other (not creaters) parent(s) hash(es)
+// OtherParent returns the other (not creators) parent(s) hash(es)
 func (e *Event) OtherParent() (hash EventHash) {
 	hash.Set(e.Message.Body.Parents[1])
 	return

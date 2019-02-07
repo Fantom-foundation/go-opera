@@ -459,8 +459,8 @@ func TestGossip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv_addr := utils.GetUnusedNetAddr(1, t)
-	s := NewService(srv_addr[0], nodes[0], logger)
+	srvAddr := utils.GetUnusedNetAddr(1, t)
+	s := NewService(srvAddr[0], nodes[0], logger)
 
 	srv := s.Serve()
 

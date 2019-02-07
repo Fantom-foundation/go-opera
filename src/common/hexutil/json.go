@@ -20,7 +20,7 @@ var (
 // The empty slice marshals as "0x".
 type Bytes []byte
 
-// MarshalText implements encoding.TextMarshaler
+// MarshalText implements encoding.TextMarshaller
 func (b Bytes) MarshalText() ([]byte, error) {
 	result := make([]byte, len(b)*2+2)
 	copy(result, `0x`)
@@ -28,7 +28,7 @@ func (b Bytes) MarshalText() ([]byte, error) {
 	return result, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaller.
 func (b *Bytes) UnmarshalJSON(input []byte) error {
 	if !isString(input) {
 		return errNonString(bytesT)
@@ -36,7 +36,7 @@ func (b *Bytes) UnmarshalJSON(input []byte) error {
 	return wrapTypeError(b.UnmarshalText(input[1:len(input)-1]), bytesT)
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
+// UnmarshalText implements encoding.TextUnmarshaller.
 func (b *Bytes) UnmarshalText(input []byte) error {
 	raw, err := checkText(input, true)
 	if err != nil {
@@ -116,12 +116,12 @@ func UnmarshalFixedUnprefixedText(typname string, input, out []byte) error {
 // marshaled without error.
 type Big big.Int
 
-// MarshalText implements encoding.TextMarshaler
+// MarshalText implements encoding.TextMarshaller
 func (b Big) MarshalText() ([]byte, error) {
 	return []byte(EncodeBig((*big.Int)(&b))), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaller.
 func (b *Big) UnmarshalJSON(input []byte) error {
 	if !isString(input) {
 		return errNonString(bigT)
@@ -129,7 +129,7 @@ func (b *Big) UnmarshalJSON(input []byte) error {
 	return wrapTypeError(b.UnmarshalText(input[1:len(input)-1]), bigT)
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler
+// UnmarshalText implements encoding.TextUnmarshaller
 func (b *Big) UnmarshalText(input []byte) error {
 	raw, err := checkNumberText(input)
 	if err != nil {
@@ -175,7 +175,7 @@ func (b *Big) String() string {
 // The zero value marshals as "0x0".
 type Uint64 uint64
 
-// MarshalText implements encoding.TextMarshaler.
+// MarshalText implements encoding.TextMarshaller.
 func (b Uint64) MarshalText() ([]byte, error) {
 	buf := make([]byte, 2, 10)
 	copy(buf, `0x`)
@@ -183,7 +183,7 @@ func (b Uint64) MarshalText() ([]byte, error) {
 	return buf, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaller.
 func (b *Uint64) UnmarshalJSON(input []byte) error {
 	if !isString(input) {
 		return errNonString(uint64T)
@@ -191,7 +191,7 @@ func (b *Uint64) UnmarshalJSON(input []byte) error {
 	return wrapTypeError(b.UnmarshalText(input[1:len(input)-1]), uint64T)
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler
+// UnmarshalText implements encoding.TextUnmarshaller
 func (b *Uint64) UnmarshalText(input []byte) error {
 	raw, err := checkNumberText(input)
 	if err != nil {
@@ -222,12 +222,12 @@ func (b Uint64) String() string {
 // The zero value marshals as "0x0".
 type Uint uint
 
-// MarshalText implements encoding.TextMarshaler.
+// MarshalText implements encoding.TextMarshaller.
 func (b Uint) MarshalText() ([]byte, error) {
 	return Uint64(b).MarshalText()
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements json.Unmarshaller.
 func (b *Uint) UnmarshalJSON(input []byte) error {
 	if !isString(input) {
 		return errNonString(uintT)
@@ -235,7 +235,7 @@ func (b *Uint) UnmarshalJSON(input []byte) error {
 	return wrapTypeError(b.UnmarshalText(input[1:len(input)-1]), uintT)
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
+// UnmarshalText implements encoding.TextUnmarshaller.
 func (b *Uint) UnmarshalText(input []byte) error {
 	var u64 Uint64
 	err := u64.UnmarshalText(input)

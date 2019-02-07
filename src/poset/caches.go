@@ -204,7 +204,7 @@ func (psc *ParticipantBlockSignaturesCache) GetLast(participant string) (BlockSi
 	peer, ok := psc.participants.ReadByPubKey(participant)
 
 	if !ok {
-		return BlockSignature{}, fmt.Errorf("Participant %v not found", participant)
+		return BlockSignature{}, fmt.Errorf("participant %v not found", participant)
 	}
 
 	last, err := psc.rim.GetLast(peer.ID)

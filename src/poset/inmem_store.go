@@ -148,7 +148,7 @@ func (s *InmemStore) Participants() (*peers.Peers, error) {
 }
 
 func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
-	// Extend PartipantEventsCache and Roots with new peers
+	// Extend ParticipantEventsCache and Roots with new peers
 	participants.RLock()
 	defer participants.RUnlock()
 	for _, peer := range participants.ByID {
@@ -198,7 +198,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		return err
 	}
 	if common.Is(err, common.KeyNotFound) {
-		if err := s.addParticpantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
+		if err := s.addParticipantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
 			return err
 		}
 	}
@@ -209,7 +209,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 	return nil
 }
 
-func (s *InmemStore) addParticpantEvent(participant string, hash EventHash, index int64) error {
+func (s *InmemStore) addParticipantEvent(participant string, hash EventHash, index int64) error {
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
@@ -492,8 +492,8 @@ func (s *InmemStore) Close() error {
 	return nil
 }
 
-// NeedBoostrap for the store
-func (s *InmemStore) NeedBoostrap() bool {
+// NeedBootstrap for the store
+func (s *InmemStore) NeedBootstrap() bool {
 	return false
 }
 
