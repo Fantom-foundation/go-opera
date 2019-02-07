@@ -492,7 +492,7 @@ func (s *InmemStore) Close() error {
 	return nil
 }
 
-// NeedBoostrap for the store
+// NeedBootstrap for the store
 func (s *InmemStore) NeedBoostrap() bool {
 	return false
 }

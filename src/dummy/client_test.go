@@ -55,12 +55,12 @@ func TestDummySocketClient(t *testing.T) {
 		timeout = 2 * time.Second
 	)
 	addr := utils.GetUnusedNetAddr(1, t)
-	asserter := assert.New(t)
+	assertO := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	// server
 	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 	defer func() {
 		if err := appProxy.Close(); err != nil {
 			t.Fatal(err)
@@ -69,7 +69,7 @@ func TestDummySocketClient(t *testing.T) {
 
 	// client
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 	defer func() {
 		if err := lachesisProxy.Close(); err != nil {
 			t.Fatal(err)
@@ -79,7 +79,7 @@ func TestDummySocketClient(t *testing.T) {
 	state := NewState(logger)
 
 	_, err = NewDummyClient(lachesisProxy, state, logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	initialStateHash := state.stateHash
 	//create a few blocks
@@ -92,23 +92,23 @@ func TestDummySocketClient(t *testing.T) {
 
 	//commit first block and check that the client's statehash is correct
 	stateHash, err := appProxy.CommitBlock(blocks[0])
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	expectedStateHash := crypto.Keccak256(append([][]byte{initialStateHash}, blocks[0].Transactions()...)...)
 
-	asserter.Equal(expectedStateHash, stateHash)
+	assertO.Equal(expectedStateHash, stateHash)
 
 	snapshot, err := appProxy.GetSnapshot(blocks[0].Index())
-	asserter.NoError(err)
+	assertO.NoError(err)
 
-	asserter.Equal(expectedStateHash, snapshot)
+	assertO.Equal(expectedStateHash, snapshot)
 
 	//commit a few more blocks, then attempt to restore back to block 0 state
 	for i := 1; i < 5; i++ {
 		_, err := appProxy.CommitBlock(blocks[i])
-		asserter.NoError(err)
+		assertO.NoError(err)
 	}
 
 	err = appProxy.Restore(snapshot)
-	asserter.NoError(err)
+	assertO.NoError(err)
 }

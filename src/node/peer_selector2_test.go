@@ -10,7 +10,7 @@ import (
 )
 
 func TestSmartSelectorEmpty(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	fp := fakePeers(0)
 
@@ -22,11 +22,11 @@ func TestSmartSelectorEmpty(t *testing.T) {
 		},
 	)
 
-	assert.Nil(ss.Next())
+	assertO.Nil(ss.Next())
 }
 
 func TestSmartSelectorLocalAddrOnly(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	fp := fakePeers(1)
 	fps := fp.ToPeerSlice()
@@ -39,11 +39,11 @@ func TestSmartSelectorLocalAddrOnly(t *testing.T) {
 		},
 	)
 
-	assert.Nil(ss.Next())
+	assertO.Nil(ss.Next())
 }
 
 func TestSmartSelectorUsed(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	fp := fakePeers(3)
 	fps := fp.ToPeerSlice()
@@ -56,13 +56,13 @@ func TestSmartSelectorUsed(t *testing.T) {
 		},
 	)
 
-	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
-	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
-	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
 }
 
 func TestSmartSelectorFlagged(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	fp := fakePeers(3)
 	fps := fp.ToPeerSlice()
@@ -77,13 +77,13 @@ func TestSmartSelectorFlagged(t *testing.T) {
 		},
 	)
 
-	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
-	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
-	assert.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
 }
 
 func TestSmartSelectorGeneral(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	fp := fakePeers(4)
 	fps := fp.ToPeerSlice()
@@ -102,10 +102,10 @@ func TestSmartSelectorGeneral(t *testing.T) {
 	)
 
 	addresses := []string{fps[0].NetAddr, fps[1].NetAddr}
-	assert.Contains(addresses, ss.Next().NetAddr)
-	assert.Contains(addresses, ss.Next().NetAddr)
-	assert.Contains(addresses, ss.Next().NetAddr)
-	assert.Contains(addresses, ss.Next().NetAddr)
+	assertO.Contains(addresses, ss.Next().NetAddr)
+	assertO.Contains(addresses, ss.Next().NetAddr)
+	assertO.Contains(addresses, ss.Next().NetAddr)
+	assertO.Contains(addresses, ss.Next().NetAddr)
 }
 
 /*
@@ -159,7 +159,7 @@ func BenchmarkSmartSelectorNext(b *testing.B) {
 }
 
 /*
- * stuff
+ * utility function for peer_selector2_test
  */
 
 func fakeFlagTable(participants *peers.Peers) map[string]int64 {

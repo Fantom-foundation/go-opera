@@ -177,7 +177,7 @@ func (p *Poset) dominator2(x, y EventHash) (bool, error) {
 		if root, ok := roots[y]; ok {
 			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
 			if !ok {
-				return false, fmt.Errorf("Creator with ID %v not found", root.SelfParent.CreatorID)
+				return false, fmt.Errorf("creator with ID %v not found", root.SelfParent.CreatorID)
 			}
 			yCreator := peer.PubKeyHex
 			if ex.GetCreator() == yCreator {
@@ -248,7 +248,7 @@ func (p *Poset) selfDominator2(x, y EventHash) (bool, error) {
 		if root, ok := roots[y]; ok {
 			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
 			if !ok {
-				return false, fmt.Errorf("Self-parent creator with ID %v not found", root.SelfParent.CreatorID)
+				return false, fmt.Errorf("self-parent creator with ID %v not found", root.SelfParent.CreatorID)
 			}
 			yCreator := peer.PubKeyHex
 			if ex.GetCreator() == yCreator {
@@ -323,7 +323,7 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 		if root, ok := roots[x]; ok {
 			creator, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
 			if !ok {
-				return fmt.Errorf("Self-parent creator with ID %v not found", root.SelfParent.CreatorID)
+				return fmt.Errorf("self-parent creator with ID %v not found", root.SelfParent.CreatorID)
 			}
 
 			sentinels[creator.PubKeyHex] = true
@@ -336,7 +336,7 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 
 	creator, ok := p.Participants.ReadByID(ex.CreatorID())
 	if !ok {
-		return fmt.Errorf("Creator with ID %v not found", ex.CreatorID())
+		return fmt.Errorf("creator with ID %v not found", ex.CreatorID())
 	}
 	sentinels[creator.PubKeyHex] = true
 
@@ -693,7 +693,7 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 	}
 	peer, ok := p.Participants.ReadByPubKey(ev.GetCreator())
 	if !ok {
-		return RootEvent{}, fmt.Errorf("Creator %v not found", ev.GetCreator())
+		return RootEvent{}, fmt.Errorf("creator %v not found", ev.GetCreator())
 	}
 	selfParentRootEvent := RootEvent{
 		Hash:             sp.Bytes(),
@@ -734,7 +734,7 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	}
 	peer, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
 	if !ok {
-		return RootEvent{}, fmt.Errorf("Other parent's creator %v not found", otherParent.GetCreator())
+		return RootEvent{}, fmt.Errorf("other parent's creator %v not found", otherParent.GetCreator())
 	}
 	otherParentRootEvent := RootEvent{
 		Hash:             op.Bytes(),
@@ -810,7 +810,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 	eventCreator := event.GetCreator()
 	creator, ok := p.Store.RepertoireByPubKey()[eventCreator]
 	if !ok {
-		return fmt.Errorf("Creator %s not found", eventCreator)
+		return fmt.Errorf("creator %s not found", eventCreator)
 	}
 	creatorID := creator.ID
 
@@ -848,7 +848,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 			}
 			otherParentCreator, ok := p.Store.RepertoireByPubKey()[otherParent.GetCreator()]
 			if !ok {
-				return fmt.Errorf("Creator %s not found", otherParent.GetCreator())
+				return fmt.Errorf("creator %s not found", otherParent.GetCreator())
 			}
 			otherParentCreatorID = otherParentCreator.ID
 			otherParentIndex = otherParent.Index()
@@ -1523,7 +1523,7 @@ func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (hash common.Hash, err error) {
 	// TODO: set RoundNIL = 0, condition change to "round <= RoundNIL"
 	if round <= 0 {
-		err = fmt.Errorf("Empty round is not allowed")
+		err = fmt.Errorf("empty round is not allowed")
 		return
 	}
 

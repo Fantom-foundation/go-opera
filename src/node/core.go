@@ -24,7 +24,7 @@ const (
 
 var (
 	// ErrTooBigTx is returned when transaction size > MaxEventsPayloadSize
-	ErrTooBigTx = fmt.Errorf("Transaction too big")
+	ErrTooBigTx = fmt.Errorf("transaction too big")
 )
 
 // Core struct that controls the consensus, transaction, and communication

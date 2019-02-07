@@ -26,11 +26,11 @@ const (
 
 // BadgerStore struct for badger config data
 type BadgerStore struct {
-	participants *peers.Peers
-	inmemStore   *InmemStore
-	db           *badger.DB
-	path         string
-	needBoostrap bool
+	participants  *peers.Peers
+	inmemStore    *InmemStore
+	db            *badger.DB
+	path          string
+	needBootstrap bool
 
 	states    state.Database
 	stateRoot common.Hash
@@ -92,9 +92,9 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 		return nil, err
 	}
 	store := &BadgerStore{
-		db:           handle,
-		path:         path,
-		needBoostrap: true,
+		db:            handle,
+		path:          path,
+		needBootstrap: true,
 		states: state.NewDatabase(
 			kvdb.NewTable(
 				kvdb.NewBadgerDatabase(
@@ -299,7 +299,7 @@ func (s *BadgerStore) ParticipantEvent(participant string, index int64) (EventHa
 	return result, mapError(err, "ParticipantEvent", string(participantEventKey(participant, index)))
 }
 
-// LastEventFrom returns the last event for a particpant
+// LastEventFrom returns the last event for a participant
 func (s *BadgerStore) LastEventFrom(participant string) (last EventHash, isRoot bool, err error) {
 	return s.inmemStore.LastEventFrom(participant)
 }
@@ -469,9 +469,9 @@ func (s *BadgerStore) Close() error {
 	return s.db.Close()
 }
 
-// NeedBoostrap checks if bootstrapping is required
-func (s *BadgerStore) NeedBoostrap() bool {
-	return s.needBoostrap
+// NeedBootstrap checks if bootstrapping is required
+func (s *BadgerStore) NeedBootstrap() bool {
+	return s.needBootstrap
 }
 
 // StorePath returns the path to the file on disk

@@ -11,11 +11,11 @@ import (
 //
 // Deprecated: use hexutil.Encode instead.
 func ToHex(b []byte) string {
-	hex := Bytes2Hex(b)
-	if len(hex) == 0 {
-		hex = "0"
+	hexadecimal := Bytes2Hex(b)
+	if len(hexadecimal) == 0 {
+		hexadecimal = "0"
 	}
-	return "0x" + hex
+	return "0x" + hexadecimal
 }
 
 // ToHexArray creates a array of hex-string based on []byte

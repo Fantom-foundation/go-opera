@@ -163,11 +163,11 @@ func (s *DB) GetProof(a common.Address) ([][]byte, error) {
 // GetStorageProof returns the StorageProof for given key.
 func (s *DB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, error) {
 	var proof proofList
-	trie := s.StorageTrie(a)
-	if trie == nil {
+	trie_ := s.StorageTrie(a)
+	if trie_ == nil {
 		return proof, errors.New("storage trie for requested address does not exist")
 	}
-	err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
+	err := trie_.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
 	return [][]byte(proof), err
 }
 

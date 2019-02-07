@@ -135,7 +135,7 @@ func deepRequestCopy(src interface{}) (dst interface{}, err error) {
 	case *FastForwardRequest:
 		dst = new(FastForwardRequest)
 	default:
-		err = fmt.Errorf("Unknown request type %s", t)
+		err = fmt.Errorf("unknown request type %s", t)
 		return
 	}
 
