@@ -2,36 +2,45 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
-// stakes is for PoS balances accumulation
+// stakes is for PoS balances accumulator.
 type stakes struct {
-	balances common.Hash
-	items    map[common.Address]struct{}
-	total    uint64
-}
-
-func (p *Poset) newStakes(f *Frame) *stakes {
-	return &stakes{
-		balances: f.Balances,
-		items:    make(map[common.Address]struct{}),
-		total:    0,
-	}
+	balances       *state.DB
+	alreadyCounted map[common.Address]struct{}
+	majority       uint64
+	total          uint64
 }
 
 func (s *stakes) Count(creator common.Address) {
-	if _, ok := s.items[creator]; ok {
+	if _, ok := s.alreadyCounted[creator]; ok {
 		return // already counted
 	}
-	if s.IsMajority() {
+	if s.HasMajority() {
 		return // no sense to count further
 	}
-	balance := uint64(1) // TODO: take it from PoS state
-	s.items[creator] = struct{}{}
-	s.total += balance
+	s.total += s.balances.GetBalance(creator)
+	s.alreadyCounted[creator] = struct{}{}
 }
 
-func (s *stakes) IsMajority() bool {
-	const totalCap = uint64(4) // TODO: take it from genesis
-	return s.total > totalCap*2/3
+func (s *stakes) HasMajority() bool {
+	return s.total > s.majority
+}
+
+/*
+ * Poset's methods:
+ */
+
+func (p *Poset) newStakes(f *Frame) *stakes {
+	db, err := state.New(f.Balances, p.store.balances)
+	if err != nil {
+		panic(err)
+	}
+	return &stakes{
+		balances:       db,
+		alreadyCounted: make(map[common.Address]struct{}),
+		total:          0,
+		majority:       p.state.TotalCap * 2 / 3,
+	}
 }

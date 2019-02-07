@@ -1,21 +1,26 @@
 package posposet
 
 import (
+	"fmt"
+
 	"github.com/dgraph-io/badger"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // Store is a poset persistent storage working over physical key-value database.
-// TODO: make it internal.
-// TODO: cache with LRU.
 type Store struct {
 	physicalDB kvdb.Database
 
+	// TODO: cache with LRU.
 	states kvdb.Database
 	events kvdb.Database
 	frames kvdb.Database
+
+	balances state.Database
 }
 
 // NewInmemStore creates store over memory map.
@@ -37,9 +42,12 @@ func NewBadgerStore(db *badger.DB) *Store {
 }
 
 func (s *Store) init() {
-	s.states = kvdb.NewTable(s.physicalDB, "states_")
-	s.events = kvdb.NewTable(s.physicalDB, "events_")
-	s.frames = kvdb.NewTable(s.physicalDB, "frames_")
+	s.states = kvdb.NewTable(s.physicalDB, "state_")
+	s.events = kvdb.NewTable(s.physicalDB, "event_")
+	s.frames = kvdb.NewTable(s.physicalDB, "frame_")
+
+	s.balances = state.NewDatabase(
+		kvdb.NewTable(s.physicalDB, "balance_"))
 }
 
 // Close leaves underlying database.
@@ -47,7 +55,45 @@ func (s *Store) Close() {
 	s.states = nil
 	s.events = nil
 	s.frames = nil
+	s.balances = nil
 	s.physicalDB.Close()
+}
+
+// ApplyGenesis stores initial state.
+func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
+	st := s.GetState()
+	if st != nil {
+		return fmt.Errorf("Genesis has applied already")
+	}
+
+	if balances == nil {
+		return fmt.Errorf("Balances shouldn't be nil")
+	}
+
+	st = &State{
+		CurrentFrameN: 1,
+		TotalCap:      0,
+	}
+	genesis, err := state.New(common.Hash{}, s.balances)
+	if err != nil {
+		return err
+	}
+	for addr, balance := range balances {
+		genesis.AddBalance(common.Address(addr), balance)
+		st.TotalCap += balance
+	}
+
+	if st.TotalCap < uint64(len(balances)) {
+		return fmt.Errorf("Balance shouldn't be zero")
+	}
+
+	st.Genesis, err = genesis.Commit(true)
+	if err != nil {
+		return err
+	}
+
+	s.SetState(st)
+	return nil
 }
 
 // SetEvent stores event.

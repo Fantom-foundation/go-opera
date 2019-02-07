@@ -120,6 +120,7 @@ func (p *Poset) consensus(e *Event) {
 
 // checkIfRoot is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) bool {
+	log.WithField("event", e).Debug("HERE")
 	frame := p.frame(p.state.CurrentFrameN - 1)
 	stakes := p.newStakes(frame)
 
@@ -144,20 +145,7 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 
 	forEachParents(e)
 
-	return stakes.IsMajority()
-}
-
-func (p *Poset) frame(n uint64) *Frame {
-	if n < 1 {
-		return &Frame{Index: 0}
-	}
-	f := p.store.GetFrame(n)
-	if f == nil {
-		f = StartNewFrame(n-1, func(f *Frame) {
-			p.store.SetFrame(f)
-		})
-	}
-	return f
+	return stakes.HasMajority()
 }
 
 /*

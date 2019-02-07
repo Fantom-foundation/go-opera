@@ -1,18 +1,23 @@
 package posposet
 
+import (
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+)
+
+// TODO: make State internal
+
 // State is a poset current state.
-// TODO: make it internal.
 type State struct {
 	CurrentFrameN uint64
+	Genesis       common.Hash
+	TotalCap      uint64
 }
 
 func (p *Poset) bootstrap() {
 	// restore state
 	p.state = p.store.GetState()
 	if p.state == nil {
-		p.state = &State{
-			CurrentFrameN: 1,
-		}
+		panic("Apply genesis for store first")
 	}
 	// TODO: restore all others from store.
 }
