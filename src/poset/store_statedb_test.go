@@ -16,7 +16,7 @@ func TestStateBalances(t *testing.T) {
 	participants := peers.NewPeers()
 	for i := 0; i < 3; i++ {
 		key, _ := crypto.GenerateECDSAKey()
-		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
+		pubKey := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
 		p := peers.NewPeer(pubKey, fmt.Sprintf("addr%d", i))
 		participants.AddPeer(p)
 	}

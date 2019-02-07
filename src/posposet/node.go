@@ -1,18 +1,23 @@
 package posposet
 
+import (
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+)
+
 // Node is a event's author.
 // TODO: move to new src/node/.
 type Node struct {
-	ID     Address
-	PubKey PublicKey
+	ID     common.Address
+	PubKey common.PublicKey
 
-	key *PrivateKey
+	key *common.PrivateKey
 }
 
 // NewNode creates Node instance.
-func NewNode(pk PublicKey) *Node {
+func NewNode(pk common.PublicKey) *Node {
 	return &Node{
-		ID:     AddressOf(pk),
+		ID:     crypto.AddressOf(pk),
 		PubKey: pk,
 	}
 }

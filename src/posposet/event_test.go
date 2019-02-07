@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
@@ -31,11 +32,11 @@ func TestEventSerialization(t *testing.T) {
  */
 
 func FakeEvents() (res []*Event) {
-	creators := []Address{
-		Address{},
-		FakeAddress(),
-		FakeAddress(),
-		FakeAddress(),
+	creators := []common.Address{
+		common.Address{},
+		common.FakeAddress(),
+		common.FakeAddress(),
+		common.FakeAddress(),
 	}
 	parents := []EventHashes{
 		FakeEventHashes(0),

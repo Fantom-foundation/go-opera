@@ -7,19 +7,19 @@ import (
 // stakes is for PoS balances accumulation
 type stakes struct {
 	balances common.Hash
-	items    map[Address]struct{}
+	items    map[common.Address]struct{}
 	total    uint64
 }
 
 func (p *Poset) newStakes(f *Frame) *stakes {
 	return &stakes{
 		balances: f.Balances,
-		items:    make(map[Address]struct{}),
+		items:    make(map[common.Address]struct{}),
 		total:    0,
 	}
 }
 
-func (s *stakes) Count(creator Address) {
+func (s *stakes) Count(creator common.Address) {
 	if _, ok := s.items[creator]; ok {
 		return // already counted
 	}

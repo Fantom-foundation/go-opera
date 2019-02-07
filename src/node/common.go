@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/net"
@@ -30,7 +31,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 	for i := 0; i < count; i++ {
 		addr, _ := net.NewInmemTransport("")
 		key, _ := crypto.GenerateECDSAKey()
-		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
+		pubKey := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
 		peer := peers.NewPeer(pubKey, addr)
 		participants.AddPeer(peer)
 		keys[peer] = key

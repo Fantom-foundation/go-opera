@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/golang/protobuf/proto"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/golang/protobuf/proto"
 )
 
 /*******************************************************************************
@@ -274,7 +276,7 @@ func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
 // Verify ecdsa sig
 func (e *Event) Verify() (bool, error) {
 	pubBytes := e.Message.Body.Creator
-	pubKey := crypto.ToECDSAPub(pubBytes)
+	pubKey := common.ToECDSAPub(pubBytes)
 
 	hash, err := e.Message.Body.Hash()
 	if err != nil {

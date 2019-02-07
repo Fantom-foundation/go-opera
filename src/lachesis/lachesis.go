@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/net"
@@ -131,7 +132,7 @@ func (l *Lachesis) initKey() error {
 func (l *Lachesis) initNode() error {
 	key := l.Config.Key
 
-	nodePub := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
+	nodePub := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
 	n, ok := l.Peers.ByPubKey[nodePub]
 
 	if !ok {

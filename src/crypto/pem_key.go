@@ -10,6 +10,8 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 const (
@@ -98,7 +100,7 @@ func GeneratePemKey() (*PemDump, error) {
 
 // ToPemKey get PEM mfrom private key
 func ToPemKey(priv *ecdsa.PrivateKey) (*PemDump, error) {
-	pub := fmt.Sprintf("0x%X", FromECDSAPub(&priv.PublicKey))
+	pub := fmt.Sprintf("0x%X", common.FromECDSAPub(&priv.PublicKey))
 
 	b, err := x509.MarshalECPrivateKey(priv)
 

@@ -33,7 +33,7 @@ func initPeers(n int) ([]*ecdsa.PrivateKey, *peers.Peers) {
 		keys = append(keys, key)
 
 		ps.AddPeer(peers.NewPeer(
-			fmt.Sprintf("0x%X", crypto.FromECDSAPub(&keys[i].PublicKey)),
+			fmt.Sprintf("0x%X", common.FromECDSAPub(&keys[i].PublicKey)),
 			fmt.Sprintf("127.0.0.1:%d", i),
 		))
 	}
@@ -316,7 +316,7 @@ func initNodes(keys []*ecdsa.PrivateKey,
 	var nodes []*Node
 
 	for _, k := range keys {
-		key := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&k.PublicKey))
+		key := fmt.Sprintf("0x%X", common.FromECDSAPub(&k.PublicKey))
 		peer := peers.ByPubKey[key]
 		id := peer.ID
 

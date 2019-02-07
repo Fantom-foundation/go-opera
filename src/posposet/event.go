@@ -2,11 +2,13 @@ package posposet
 
 import (
 	"fmt"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 // Event is a poset event.
 type Event struct {
-	Creator Address
+	Creator common.Address
 	Parents EventHashes
 
 	hash    EventHash

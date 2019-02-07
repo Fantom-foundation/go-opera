@@ -8,8 +8,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/golang/protobuf/proto"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 // StateHash is the hash of the current state of transactions, if you have one
@@ -200,7 +202,7 @@ func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
 		return bs, err
 	}
 	signature := BlockSignature{
-		Validator: crypto.FromECDSAPub(&privKey.PublicKey),
+		Validator: common.FromECDSAPub(&privKey.PublicKey),
 		Index:     b.Index(),
 		Signature: crypto.EncodeSignature(R, S),
 	}
@@ -221,7 +223,7 @@ func (b *Block) Verify(sig BlockSignature) (bool, error) {
 		return false, err
 	}
 
-	pubKey := crypto.ToECDSAPub(sig.Validator)
+	pubKey := common.ToECDSAPub(sig.Validator)
 
 	r, s, err := crypto.DecodeSignature(sig.Signature)
 	if err != nil {

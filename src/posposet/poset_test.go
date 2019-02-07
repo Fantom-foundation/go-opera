@@ -3,6 +3,8 @@ package posposet
 import (
 	"math/rand"
 	"testing"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 func TestPoset(t *testing.T) {
@@ -54,13 +56,13 @@ func FakePoset() *Poset {
 	return p
 }
 
-func GenEventsByNode(nodes, events, maxParents int) map[Address][]*Event {
-	res := make(map[Address][]*Event, nodes)
+func GenEventsByNode(nodes, events, maxParents int) map[common.Address][]*Event {
+	res := make(map[common.Address][]*Event, nodes)
 
 	// make nodes
-	nn := make([]Address, nodes)
+	nn := make([]common.Address, nodes)
 	for i := 0; i < nodes; i++ {
-		node := FakeAddress()
+		node := common.FakeAddress()
 		nn[i] = node
 		res[node] = nil
 	}
