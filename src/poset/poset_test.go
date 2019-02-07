@@ -2135,9 +2135,9 @@ func TestResetFromFrame(t *testing.T) {
 
 	// This operation clears the private fields which need to be recomputed
 	// in the Events (round, roundReceived,etc)
-	marshalledFrame, _ := frame.ProtoMarshal()
-	unmarshalledFrame := new(Frame)
-	if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+	marshaledFrame, _ := frame.ProtoMarshal()
+	unmarshaledFrame := new(Frame)
+	if err := unmarshaledFrame.ProtoUnmarshal(marshaledFrame); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2145,7 +2145,7 @@ func TestResetFromFrame(t *testing.T) {
 		NewInmemStore(p.Participants, cacheSize, nil),
 		nil,
 		testLogger(t))
-	err = p2.Reset(block, *unmarshalledFrame)
+	err = p2.Reset(block, *unmarshaledFrame)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2281,12 +2281,12 @@ func TestResetFromFrame(t *testing.T) {
 
 			for _, ev := range events {
 
-				marshalledEv, _ := ev.ProtoMarshal()
-				unmarshalledEv := new(Event)
-				if err := unmarshalledEv.ProtoUnmarshal(marshalledEv); err != nil {
+				marshaledEv, _ := ev.ProtoMarshal()
+				unmarshaledEv := new(Event)
+				if err := unmarshaledEv.ProtoUnmarshal(marshaledEv); err != nil {
 					t.Fatal(err)
 				}
-				if err := p2.InsertEvent(*unmarshalledEv, true); err != nil {
+				if err := p2.InsertEvent(*unmarshaledEv, true); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -2392,9 +2392,9 @@ func TestBootstrap(t *testing.T) {
 			" not %#v", *p.LastConsensusRound, *np.LastConsensusRound)
 	}
 
-	if p.LastCommitedRoundEvents != np.LastCommitedRoundEvents {
-		t.Fatalf("Bootstrapped poset's LastCommitedRoundEvents should be %#v,"+
-			" not %#v", p.LastCommitedRoundEvents, np.LastCommitedRoundEvents)
+	if p.LastCommittedRoundEvents != np.LastCommittedRoundEvents {
+		t.Fatalf("Bootstrapped poset's LastCommittedRoundEvents should be %#v,"+
+			" not %#v", p.LastCommittedRoundEvents, np.LastCommittedRoundEvents)
 	}
 
 	if p.GetConsensusTransactionsCount() != np.GetConsensusTransactionsCount() {
@@ -3014,9 +3014,9 @@ func TestFunkyPosetReset(t *testing.T) {
 
 		// This operation clears the private fields which need to be recomputed
 		// in the Events (round, roundReceived,etc)
-		marshalledFrame, _ := frame.ProtoMarshal()
-		unmarshalledFrame := new(Frame)
-		if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+		marshaledFrame, _ := frame.ProtoMarshal()
+		unmarshaledFrame := new(Frame)
+		if err := unmarshaledFrame.ProtoUnmarshal(marshaledFrame); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3024,7 +3024,7 @@ func TestFunkyPosetReset(t *testing.T) {
 			NewInmemStore(p.Participants, cacheSize, nil),
 			nil,
 			testLogger(t))
-		err = p2.Reset(block, *unmarshalledFrame)
+		err = p2.Reset(block, *unmarshaledFrame)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3573,9 +3573,9 @@ func TestSparsePosetReset(t *testing.T) {
 
 		// This operation clears the private fields which need to be recomputed
 		// in the Events (round, roundReceived,etc)
-		marshalledFrame, _ := frame.ProtoMarshal()
-		unmarshalledFrame := new(Frame)
-		if err := unmarshalledFrame.ProtoUnmarshal(marshalledFrame); err != nil {
+		marshaledFrame, _ := frame.ProtoMarshal()
+		unmarshaledFrame := new(Frame)
+		if err := unmarshaledFrame.ProtoUnmarshal(marshaledFrame); err != nil {
 			t.Fatal(err)
 		}
 
@@ -3583,7 +3583,7 @@ func TestSparsePosetReset(t *testing.T) {
 			NewInmemStore(p.Participants, cacheSize, nil),
 			nil,
 			testLogger(t))
-		err = p2.Reset(block, *unmarshalledFrame)
+		err = p2.Reset(block, *unmarshaledFrame)
 		if err != nil {
 			t.Fatal(err)
 		}

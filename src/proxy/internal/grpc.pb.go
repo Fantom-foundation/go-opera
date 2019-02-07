@@ -96,13 +96,13 @@ func (m *ToServer) GetAnswer() *ToServer_Answer {
 
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ToServer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToServer_OneofMarshaler, _ToServer_OneofUnmarshaler, _ToServer_OneofSizer, []interface{}{
+	return _ToServer_OneofMarshaller, _ToServer_OneofUnmarshaller, _ToServer_OneofSizer, []interface{}{
 		(*ToServer_Tx_)(nil),
 		(*ToServer_Answer_)(nil),
 	}
 }
 
-func _ToServer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+func _ToServer_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
 	m := msg.(*ToServer)
 	// event
 	switch x := m.Event.(type) {
@@ -123,7 +123,7 @@ func _ToServer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	return nil
 }
 
-func _ToServer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+func _ToServer_OneofUnmarshaller(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
 	m := msg.(*ToServer)
 	switch tag {
 	case 1: // event.tx
@@ -287,13 +287,13 @@ func (m *ToServer_Answer) GetError() string {
 
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ToServer_Answer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToServer_Answer_OneofMarshaler, _ToServer_Answer_OneofUnmarshaler, _ToServer_Answer_OneofSizer, []interface{}{
+	return _ToServer_Answer_OneofMarshaller, _ToServer_Answer_OneofUnmarshaller, _ToServer_Answer_OneofSizer, []interface{}{
 		(*ToServer_Answer_Data)(nil),
 		(*ToServer_Answer_Error)(nil),
 	}
 }
 
-func _ToServer_Answer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+func _ToServer_Answer_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
 	m := msg.(*ToServer_Answer)
 	// payload
 	switch x := m.Payload.(type) {
@@ -310,7 +310,7 @@ func _ToServer_Answer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	return nil
 }
 
-func _ToServer_Answer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+func _ToServer_Answer_OneofUnmarshaller(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
 	m := msg.(*ToServer_Answer)
 	switch tag {
 	case 2: // payload.data
@@ -438,14 +438,14 @@ func (m *ToClient) GetRestore() *ToClient_Restore {
 
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ToClient) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToClient_OneofMarshaler, _ToClient_OneofUnmarshaler, _ToClient_OneofSizer, []interface{}{
+	return _ToClient_OneofMarshaller, _ToClient_OneofUnmarshaller, _ToClient_OneofSizer, []interface{}{
 		(*ToClient_Block_)(nil),
 		(*ToClient_Query_)(nil),
 		(*ToClient_Restore_)(nil),
 	}
 }
 
-func _ToClient_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+func _ToClient_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
 	m := msg.(*ToClient)
 	// event
 	switch x := m.Event.(type) {
@@ -471,7 +471,7 @@ func _ToClient_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	return nil
 }
 
-func _ToClient_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+func _ToClient_OneofUnmarshaller(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
 	m := msg.(*ToClient)
 	switch tag {
 	case 1: // event.block

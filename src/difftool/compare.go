@@ -68,7 +68,7 @@ func compareBlocks(diff *Diff) bool {
 		// So, compare bodies only.
 		if !reflect.DeepEqual(b0.Body, b1.Body) {
 			diff.FirstBlockIndex = i
-			diff.AddDescr(fmt.Sprintf("block:\n%+v \n!= \n%+v\n", b0.Body, b1.Body))
+			diff.AddDescription(fmt.Sprintf("block:\n%+v \n!= \n%+v\n", b0.Body, b1.Body))
 
 			diff.FirstRoundIndex = b0.RoundReceived()
 			if diff.FirstRoundIndex > b1.RoundReceived() {
@@ -103,7 +103,7 @@ func compareRounds(diff *Diff) bool {
 
 		if !reflect.DeepEqual(r0, r1) {
 			diff.FirstRoundIndex = i
-			diff.AddDescr(fmt.Sprintf("round:\n%+v \n!= \n%+v\n", r0, r1))
+			diff.AddDescription(fmt.Sprintf("round:\n%+v \n!= \n%+v\n", r0, r1))
 			return true
 		}
 
@@ -112,7 +112,7 @@ func compareRounds(diff *Diff) bool {
 		sort.Sort(w1)
 		if !reflect.DeepEqual(w0, w1) {
 			diff.FirstRoundIndex = i
-			diff.AddDescr(fmt.Sprintf("clotho:\n%+v \n!= \n%+v\n", w0, w1))
+			diff.AddDescription(fmt.Sprintf("clotho:\n%+v \n!= \n%+v\n", w0, w1))
 			return true
 		}
 	}
@@ -135,7 +135,7 @@ func compareFrames(diff *Diff) bool {
 	}
 
 	if !reflect.DeepEqual(f0, f1) {
-		diff.AddDescr(fmt.Sprintf("frame:\n%+v \n!= \n%+v\n", f0, f1))
+		diff.AddDescription(fmt.Sprintf("frame:\n%+v \n!= \n%+v\n", f0, f1))
 		return true
 	}
 

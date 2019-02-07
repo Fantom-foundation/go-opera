@@ -416,13 +416,13 @@ func (s *DB) Snapshot() int {
 }
 
 // RevertToSnapshot reverts all state changes made since the given revision.
-func (s *DB) RevertToSnapshot(revid int) {
+func (s *DB) RevertToSnapshot(revId int) {
 	// Find the snapshot in the stack of valid snapshots.
 	idx := sort.Search(len(s.validRevisions), func(i int) bool {
-		return s.validRevisions[i].id >= revid
+		return s.validRevisions[i].id >= revId
 	})
-	if idx == len(s.validRevisions) || s.validRevisions[idx].id != revid {
-		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
+	if idx == len(s.validRevisions) || s.validRevisions[idx].id != revId {
+		panic(fmt.Errorf("revision id %v cannot be reverted", revId))
 	}
 	snapshot := s.validRevisions[idx].journalIndex
 
