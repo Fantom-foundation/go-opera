@@ -63,3 +63,13 @@ func (hashes EventHashes) ShortString() string {
 	}
 	return "[" + strings.Join(strs, ", ") + "]"
 }
+
+// Contains returns true if hash is in.
+func (hashes EventHashes) Contains(hash EventHash) bool {
+	for _, h := range hashes {
+		if hash == h {
+			return true
+		}
+	}
+	return false
+}

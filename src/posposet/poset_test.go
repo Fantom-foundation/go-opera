@@ -50,6 +50,7 @@ func TestPoset(t *testing.T) {
  * Utils:
  */
 
+// FakePoset creates
 func FakePoset(nodes []common.Address) *Poset {
 	balances := make(map[common.Address]uint64, len(nodes))
 	for _, addr := range nodes {
@@ -66,41 +67,46 @@ func FakePoset(nodes []common.Address) *Poset {
 	return p
 }
 
-func GenEventsByNode(nodes, events, maxParents int) (nodeList []common.Address, eventList map[common.Address][]*Event) {
+// GenEventsByNode generates random events.
+// Result:
+//   - nodes  is an array of node addresses;
+//   - events maps node address to array of its events;
+func GenEventsByNode(nodeCount, eventCount, parentCount int) (
+	nodes []common.Address, events map[common.Address][]*Event) {
 	// init results
-	nodeList = make([]common.Address, nodes)
-	eventList = make(map[common.Address][]*Event, nodes)
+	nodes = make([]common.Address, nodeCount)
+	events = make(map[common.Address][]*Event, nodeCount)
 	// make nodes
-	for i := 0; i < nodes; i++ {
-		nodeList[i] = common.FakeAddress()
+	for i := 0; i < nodeCount; i++ {
+		nodes[i] = common.FakeAddress()
 	}
 	// make events
-	for i := 0; i < nodes*events; i++ {
+	for i := 0; i < nodeCount*eventCount; i++ {
 		// make event with random parents
-		parents := rand.Perm(nodes)
-		creator := nodeList[parents[0]]
+		parents := rand.Perm(nodeCount)
+		creator := nodes[parents[0]]
 		e := &Event{
 			Creator: creator,
 			Parents: EventHashes{},
 		}
 		// first parent is a last creator's event or empty hash
-		if ee := eventList[creator]; len(ee) > 0 {
+		if ee := events[creator]; len(ee) > 0 {
 			e.Parents = append(e.Parents, ee[len(ee)-1].Hash())
 		} else {
 			e.Parents = append(e.Parents, EventHash{})
 		}
 		// other parents are the lasts other's events
-		others := maxParents
+		others := parentCount
 		for _, other := range parents[1:] {
 			if others--; others < 0 {
 				break
 			}
-			if ee := eventList[nodeList[other]]; len(ee) > 0 {
+			if ee := events[nodes[other]]; len(ee) > 0 {
 				e.Parents = append(e.Parents, ee[len(ee)-1].Hash())
 			}
 		}
 		// save event
-		eventList[creator] = append(eventList[creator], e)
+		events[creator] = append(events[creator], e)
 	}
 
 	return
