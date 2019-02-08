@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/log"
+	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
@@ -333,7 +333,7 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 }
 
 // Sync unknown events into our poset
-func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
+func (c *Core) Sync(peer *peers.Peer, unknownEvents []poset.WireEvent) error {
 
 	c.logger.WithFields(logrus.Fields{
 		"unknown_events":              len(unknownEvents),
@@ -344,7 +344,11 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	myKnownEvents := c.KnownEvents()
-	otherHead := poset.EventHash{}
+	otherHead, _, err := c.poset.Store.LastEventFrom(peer.PubKeyHex)
+	if err != nil {
+		c.logger.WithField("peer", peer).Errorf("c.poset.Store.LastEventFrom(peer.PubKeyHex)")
+		return err
+	}
 	// add unknown events
 	for k, we := range unknownEvents {
 		c.logger.WithFields(logrus.Fields{
@@ -361,7 +365,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			ev.SetRound(poset.RoundNIL)
 			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
-				c.logger.Error("SYNC: INSERT ERR", err)
+				c.logger.Error("SYNC: INSERT ERR:", err)
 				return err
 			}
 		}
