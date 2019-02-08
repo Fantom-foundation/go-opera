@@ -11,7 +11,7 @@ type Infos struct {
 	Blocks            []poset.Block
 }
 
-// Graph stuct to represent the DAG
+// Graph struct to represent the DAG
 type Graph struct {
 	*Node
 }

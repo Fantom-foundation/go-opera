@@ -3,7 +3,7 @@
 
 Introduction
 
-Gois an open source, modern programming language developed by Google that uses high-level syntax similar to scripting languages and makes it easy to build simple, reliable, and efficient software. It is popular for many applications, at many companies, and has a robust set of tools and over 90,000 repos.
+Go is an open source, modern programming language developed by Google that uses high-level syntax similar to scripting languages and makes it easy to build simple, reliable, and efficient software. It is popular for many applications, at many companies, and has a robust set of tools and over 90,000 repos.
 
 This tutorial will walk you through downloading and installing Go 1.9.1, as well as building a simple Hello World application. It’s an update/edit of my other story “How to: Install Go 1.8 on Ubuntu 16.04”
 

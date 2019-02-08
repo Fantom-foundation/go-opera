@@ -20,34 +20,34 @@ func TestSocketProxyServer(t *testing.T) {
 		errTimeout = "time is over"
 	)
 	addr := utils.GetUnusedNetAddr(1, t)
-	asserter := assert.New(t)
+	assertO := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	txOrigin := []byte("the test transaction")
 
 	// Server
 	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	//  listens for a request
 	go func() {
 		select {
 		case tx := <-app.SubmitCh():
-			asserter.Equal(txOrigin, tx)
+			assertO.Equal(txOrigin, tx)
 		case <-time.After(timeout):
-			asserter.Fail(errTimeout)
+			assertO.Fail(errTimeout)
 		}
 	}()
 
 	// Client part connecting to RPC service and calling methods
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	node, err := NewDummyClient(lachesisProxy, nil, logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	err = node.SubmitTx(txOrigin)
-	asserter.NoError(err)
+	assertO.NoError(err)
 }
 
 func TestDummySocketClient(t *testing.T) {

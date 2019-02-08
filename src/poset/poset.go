@@ -28,23 +28,23 @@ type Core interface {
 // Poset is a DAG of Events. It also contains methods to extract a consensus
 // order of Events and map them onto a blockchain.
 type Poset struct {
-	Participants            *peers.Peers      // [public key] => id
-	Store                   Store             // store of Events, Rounds, and Blocks
-	UndeterminedEvents      []EventHash       // [index] => hash . FIFO queue of Events whose consensus order is not yet determined
-	PendingRounds           []*pendingRound   // FIFO queue of Rounds which have not attained consensus yet
-	PendingRoundReceived    common.Int64Slice // FIFO queue of RoundReceived which have not been made into frames yet
-	LastConsensusRound      *int64            // index of last consensus round
-	FirstConsensusRound     *int64            // index of first consensus round (only used in tests)
-	AnchorBlock             *int64            // index of last block with enough signatures
-	LastCommitedRoundEvents int               // number of events in round before LastConsensusRound
-	SigPool                 []BlockSignature  // Pool of Block signatures that need to be processed
-	ConsensusTransactions   uint64            // number of consensus transactions
-	pendingLoadedEvents     int64             // number of loaded events that are not yet committed
-	commitCh                chan Block        // channel for committing Blocks
-	topologicalIndex        int64             // counter used to order events in topological order (only local)
-	superMajority           int
-	trustCount              int
-	core                    Core
+	Participants             *peers.Peers      // [public key] => id
+	Store                    Store             // store of Events, Rounds, and Blocks
+	UndeterminedEvents       []EventHash       // [index] => hash . FIFO queue of Events whose consensus order is not yet determined
+	PendingRounds            []*pendingRound   // FIFO queue of Rounds which have not attained consensus yet
+	PendingRoundReceived     common.Int64Slice // FIFO queue of RoundReceived which have not been made into frames yet
+	LastConsensusRound       *int64            // index of last consensus round
+	FirstConsensusRound      *int64            // index of first consensus round (only used in tests)
+	AnchorBlock              *int64            // index of last block with enough signatures
+	LastCommittedRoundEvents int               // number of events in round before LastConsensusRound
+	SigPool                  []BlockSignature  // Pool of Block signatures that need to be processed
+	ConsensusTransactions    uint64            // number of consensus transactions
+	pendingLoadedEvents      int64             // number of loaded events that are not yet committed
+	commitCh                 chan Block        // channel for committing Blocks
+	topologicalIndex         int64             // counter used to order events in topological order (only local)
+	superMajority            int
+	trustCount               int
+	core                     Core
 
 	dominatorCache         *lru.Cache
 	selfDominatorCache     *lru.Cache

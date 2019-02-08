@@ -682,7 +682,7 @@ func (c *Core) GetConsensusTransactionsCount() uint64 {
 
 // GetLastCommittedRoundEventsCount count of events in last round
 func (c *Core) GetLastCommittedRoundEventsCount() int {
-	return c.poset.LastCommitedRoundEvents
+	return c.poset.LastCommittedRoundEvents
 }
 
 // GetLastBlockIndex retuns the latest block index

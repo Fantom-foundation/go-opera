@@ -177,8 +177,8 @@ func TestAppend(t *testing.T) {
 	})
 }
 
-// TestAppendNoRealloc tests that appending works when no reallocation is necessary.
-func TestAppendNoRealloc(t *testing.T) {
+// TestAppendNoReAlloc tests that appending works when no reallocation is necessary.
+func TestAppendNoReAlloc(t *testing.T) {
 	testUnalignedAndGeneric(t, func(impl string) {
 		buf := make([]byte, 1, 200)
 		d := New224()
