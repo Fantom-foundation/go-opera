@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"testing"
 
@@ -14,23 +15,23 @@ func TestParseEvents(t *testing.T) {
 	assert := assert.New(t)
 
 	nodes, events, names := ParseEvents(`
-a00 b00 c00 d00
-║   ║   ║   ║
-a01 ║   ║   ║
-║   ╠ ─ c01 ║
-a02 ╣   ║   ║
-║   ║   ║   ║
-╠ ─ ╫ ─ c02 ║
-║   b01 ║   ║
-║   ╠ ─ ╫ ─ d01
-║   ║   ║   ║
-║   ║   ║   ║
-╠ ─ b02 ╬ ─ ╣
-║   ║   ║   ║
-a03 ╣   ╠ ─ d02
-║   ║   ║   ║
-║   ║   ║   ╠ ─ e00
-║   ║   ║   ║   ║
+a00 b00   c00 d00
+║   ║     ║   ║
+a01 ║     ║   ║
+║   ╠  ─  c01 ║
+a02 ╣     ║   ║
+║   ║     ║   ║
+╠ ─ ╫ ─ ─ c02 ║
+║   b01   ║   ║
+║   ╠ ─ ─ ╫ ─ d01
+║   ║     ║   ║
+║   ║     ║   ║
+╠ ═ b02 ═ ╬ ═ ╣
+║   ║     ║   ║
+a03 ╣     ╠ ─ d02
+║   ║     ║   ║
+║   ║     ║   ╠ ─ e00
+║   ║     ║   ║   ║
 `)
 	expected := map[string][]string{
 		"a00": {""},
@@ -69,7 +70,7 @@ a03 ╣   ╠ ─ d02
 			return
 		}
 		for _, pName := range parents {
-			hash := EventHash{}
+			hash := EventHash_Zero()
 			if pName != "" {
 				hash = names[pName].Hash()
 			}
@@ -141,7 +142,7 @@ func ParseEvents(asciiScheme string) (
 			if last := len(events[creator]) - 1; last >= 0 {
 				parents.Add(events[creator][last].Hash())
 			} else {
-				parents.Add(EventHash{})
+				parents.Add(EventHash_Zero())
 			}
 			// find other parents
 			for _, p := range nLinks[i] {
@@ -157,6 +158,51 @@ func ParseEvents(asciiScheme string) (
 			events[creator] = append(events[creator], e)
 			names[name] = e
 		}
+	}
+
+	return
+}
+
+// GenEventsByNode generates random events.
+// Result:
+//   - nodes  is an array of node addresses;
+//   - events maps node address to array of its events;
+func GenEventsByNode(nodeCount, eventCount, parentCount int) (
+	nodes []common.Address, events map[common.Address][]*Event) {
+	// init results
+	nodes = make([]common.Address, nodeCount)
+	events = make(map[common.Address][]*Event, nodeCount)
+	// make nodes
+	for i := 0; i < nodeCount; i++ {
+		nodes[i] = common.FakeAddress()
+	}
+	// make events
+	for i := 0; i < nodeCount*eventCount; i++ {
+		// make event with random parents
+		parents := rand.Perm(nodeCount)
+		creator := nodes[parents[0]]
+		e := &Event{
+			Creator: creator,
+			Parents: EventHashes{},
+		}
+		// first parent is a last creator's event or empty hash
+		if ee := events[creator]; len(ee) > 0 {
+			e.Parents.Add(ee[len(ee)-1].Hash())
+		} else {
+			e.Parents.Add(EventHash_Zero())
+		}
+		// other parents are the lasts other's events
+		others := parentCount
+		for _, other := range parents[1:] {
+			if others--; others < 0 {
+				break
+			}
+			if ee := events[nodes[other]]; len(ee) > 0 {
+				e.Parents.Add(ee[len(ee)-1].Hash())
+			}
+		}
+		// save event
+		events[creator] = append(events[creator], e)
 	}
 
 	return

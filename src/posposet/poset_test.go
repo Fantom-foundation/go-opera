@@ -1,8 +1,10 @@
 package posposet
 
 import (
-	"math/rand"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
@@ -22,13 +24,9 @@ func TestPoset(t *testing.T) {
 		for _, events := range eventsByNode {
 			for i := len(events) - 1; i >= 0; i-- {
 				e := events[i]
-				err := p.PushEventSync(*e)
-				if err != nil {
-					t.Fatal(err)
-				}
+				p.PushEventSync(*e)
 			}
 		}
-
 		// check all events are in poset store
 		for _, events := range eventsByNode {
 			for _, e0 := range events {
@@ -44,6 +42,35 @@ func TestPoset(t *testing.T) {
 		p.Stop()
 		p.Stop()
 	})
+}
+
+func TestRoots(t *testing.T) {
+	assert := assert.New(t)
+	nodes, _, names := ParseEvents(`
+a00   b00   c00   
+║     ║     ║     
+a01 ─ ╬ ─ ─ ╣     d00
+║     ║     ║     ║
+║     ╠ ─ ─ c01 ─ ╣
+║     ║     ║     ║     e00
+╠ ─ ─ B01 ─ ╣     ║     ║
+║     ║     ║     ║     ║
+║     ║     ╠ ─ ─ D01 ─ ╣
+║     ║     ║     ║     ║
+A02 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
+║     ║     ║     ║     ║
+`)
+	p := FakePoset(nodes)
+	// process events
+	for _, e := range names {
+		p.PushEventSync(*e)
+	}
+	// check roots
+	for name, e := range names {
+		mustBeRoot := (name == strings.ToUpper(name))
+		isReallyRoot := p.frame(p.state.LastFinishedFrameN + 1).IsRoot(e.Hash())
+		assert.Equal(mustBeRoot, isReallyRoot, name)
+	}
 }
 
 /*
@@ -67,62 +94,14 @@ func FakePoset(nodes []common.Address) *Poset {
 	return p
 }
 
-// GenEventsByNode generates random events.
-// Result:
-//   - nodes  is an array of node addresses;
-//   - events maps node address to array of its events;
-func GenEventsByNode(nodeCount, eventCount, parentCount int) (
-	nodes []common.Address, events map[common.Address][]*Event) {
-	// init results
-	nodes = make([]common.Address, nodeCount)
-	events = make(map[common.Address][]*Event, nodeCount)
-	// make nodes
-	for i := 0; i < nodeCount; i++ {
-		nodes[i] = common.FakeAddress()
-	}
-	// make events
-	for i := 0; i < nodeCount*eventCount; i++ {
-		// make event with random parents
-		parents := rand.Perm(nodeCount)
-		creator := nodes[parents[0]]
-		e := &Event{
-			Creator: creator,
-			Parents: EventHashes{},
-		}
-		// first parent is a last creator's event or empty hash
-		if ee := events[creator]; len(ee) > 0 {
-			e.Parents.Add(ee[len(ee)-1].Hash())
-		} else {
-			e.Parents.Add(EventHash{})
-		}
-		// other parents are the lasts other's events
-		others := parentCount
-		for _, other := range parents[1:] {
-			if others--; others < 0 {
-				break
-			}
-			if ee := events[nodes[other]]; len(ee) > 0 {
-				e.Parents.Add(ee[len(ee)-1].Hash())
-			}
-		}
-		// save event
-		events[creator] = append(events[creator], e)
-	}
-
-	return
-}
-
 /*
  * Poset test methods:
  */
 
 // PushEventSync takes event into processing. It's a sync version of Poset.PushEvent().
 // Event order doesn't matter.
-func (p *Poset) PushEventSync(e Event) error {
-	err := initEventIdx(&e)
-	if err != nil {
-		return err
-	}
+func (p *Poset) PushEventSync(e Event) {
+	initEventIdx(&e)
+
 	p.onNewEvent(&e)
-	return nil
 }

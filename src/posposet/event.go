@@ -11,8 +11,8 @@ type Event struct {
 	Creator common.Address
 	Parents EventHashes
 
-	hash    EventHash
-	parents map[EventHash]*Event
+	hash    EventHash            // cache for .Hash()
+	parents map[EventHash]*Event // temporary cache for internal purpose
 }
 
 // Hash calcs hash of event.

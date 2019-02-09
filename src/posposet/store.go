@@ -71,7 +71,7 @@ func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
 	}
 
 	st = &State{
-		CurrentFrameN: 1,
+		LastFinishedFrameN: 0,
 		TotalCap:      0,
 	}
 	genesis, err := state.New(common.Hash{}, s.balances)
@@ -104,6 +104,9 @@ func (s *Store) SetEvent(e *Event) {
 // GetEvent returns stored event.
 func (s *Store) GetEvent(h EventHash) *Event {
 	e, _ := s.get(s.events, h.Bytes(), &Event{}).(*Event)
+	if e != nil {
+		e.hash = h // fill cache
+	}
 	return e
 }
 
@@ -132,7 +135,7 @@ func (s *Store) SetFrame(f *Frame) {
 
 // GetFrame returns stored frame.
 func (s *Store) GetFrame(n uint64) *Frame {
-	f, _ := s.get(s.frames, intToKey(n), &State{}).(*Frame)
+	f, _ := s.get(s.frames, intToKey(n), &Frame{}).(*Frame)
 	return f
 }
 

@@ -9,7 +9,7 @@ import (
 // Frame
 type Frame struct {
 	Index    uint64
-	Roots    map[EventHash]struct{}
+	Roots    EventHashes
 	Balances common.Hash
 
 	save func()
@@ -20,13 +20,18 @@ func (f *Frame) IsRoot(h EventHash) bool {
 	if f.Index == 0 {
 		return h.IsZero()
 	}
-	_, ok := f.Roots[h]
-	return ok
+	return f.Roots.Contains(h)
 }
 
 // SetRoot appends event to the roots list.
 func (f *Frame) SetRoot(h EventHash) {
-	f.Roots[h] = struct{}{}
+	f.Roots.Add(h)
+	f.save()
+}
+
+// SetBalances save PoS-balanses state.
+func (f *Frame) SetBalances(balances common.Hash) {
+	f.Balances = balances
 	f.save()
 }
 
@@ -35,24 +40,24 @@ func (f *Frame) SetRoot(h EventHash) {
  */
 
 func (p *Poset) frame(n uint64) *Frame {
+	if n < p.state.LastFinishedFrameN {
+		panic("Too old frame requested")
+	}
+	// return ephemeral
 	if n == 0 {
 		return &Frame{
 			Index:    0,
 			Balances: p.state.Genesis,
 		}
 	}
-	f := p.store.GetFrame(n)
-	if f == nil {
-		f = p.newFrameFrom(p.frame(n - 1))
+	// return existing
+	f := p.frames[n]
+	if f != nil {
+		return f
 	}
-	return f
-}
-
-func (p *Poset) newFrameFrom(prev *Frame) *Frame {
-	f := &Frame{
-		Index:    prev.Index + 1,
-		Roots:    make(map[EventHash]struct{}),
-		Balances: prev.Balances,
+	// create new frame
+	f = &Frame{
+		Index: n,
 	}
 	f.save = func() {
 		if f.Index > 0 {
@@ -61,6 +66,7 @@ func (p *Poset) newFrameFrom(prev *Frame) *Frame {
 			panic("Frame 0 should be ephemeral")
 		}
 	}
+	p.frames[n] = f
 
 	return f
 }

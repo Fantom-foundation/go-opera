@@ -6,23 +6,41 @@ import (
 
 // TODO: make State internal
 
-// State is a poset current state.
+// State is a current poset state.
 type State struct {
-	CurrentFrameN uint64
-	Genesis       common.Hash
-	TotalCap      uint64
+	LastFinishedFrameN uint64
+	Genesis            common.Hash
+	TotalCap           uint64
 }
 
+/*
+ * Poset's methods:
+ */
+
+// State saves current state.
+func (p *Poset) saveState() {
+	p.store.SetState(p.state)
+}
+
+// bootstrap restores current state from store.
 func (p *Poset) bootstrap() {
 	// restore state
 	p.state = p.store.GetState()
 	if p.state == nil {
 		panic("Apply genesis for store first")
 	}
-	// TODO: restore all others from store.
-}
+	// restore frames
+	p.frames = make(map[uint64]*Frame)
+	n := p.state.LastFinishedFrameN
+	for {
+		f := p.store.GetFrame(n)
+		if f == nil {
+			break
+		}
+		p.frames[n] = f
+		n++
+	}
+	// TODO: implement flagTable restoring
+	p.flagTable = NewFlagTable()
 
-// State saves current State
-func (p *Poset) saveState() {
-	p.store.SetState(p.state)
 }

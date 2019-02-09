@@ -26,6 +26,10 @@ type (
  * EventHash methods:
  */
 
+func EventHash_Zero() EventHash {
+	return EventHash{}
+}
+
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) EventHash {
 	buf, err := rlp.EncodeToBytes(e)
@@ -51,8 +55,8 @@ func (hash EventHash) ShortString() string {
 }
 
 // IsZero returns true if hash is empty.
-func (hash EventHash) IsZero() bool {
-	return hash == EventHash{}
+func (hash *EventHash) IsZero() bool {
+	return *hash == EventHash{}
 }
 
 /*
@@ -94,11 +98,13 @@ func (hh *EventHashes) All() map[EventHash]struct{} {
 }
 
 // Add appends hash to the index.
-func (hh *EventHashes) Add(hash EventHash) {
+func (hh *EventHashes) Add(hash ...EventHash) {
 	if hh.index == nil {
 		hh.index = make(map[EventHash]struct{})
 	}
-	hh.index[hash] = struct{}{}
+	for _, h := range hash {
+		hh.index[h] = struct{}{}
+	}
 }
 
 // Contains returns true if hash is in.
