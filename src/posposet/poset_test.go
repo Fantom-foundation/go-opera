@@ -91,9 +91,9 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		}
 		// first parent is a last creator's event or empty hash
 		if ee := events[creator]; len(ee) > 0 {
-			e.Parents = append(e.Parents, ee[len(ee)-1].Hash())
+			e.Parents.Add(ee[len(ee)-1].Hash())
 		} else {
-			e.Parents = append(e.Parents, EventHash{})
+			e.Parents.Add(EventHash{})
 		}
 		// other parents are the lasts other's events
 		others := parentCount
@@ -102,7 +102,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 				break
 			}
 			if ee := events[nodes[other]]; len(ee) > 0 {
-				e.Parents = append(e.Parents, ee[len(ee)-1].Hash())
+				e.Parents.Add(ee[len(ee)-1].Hash())
 			}
 		}
 		// save event

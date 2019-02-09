@@ -1,6 +1,9 @@
 package posposet
 
 import (
+	"bytes"
+	"io"
+	"sort"
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -13,9 +16,15 @@ type (
 	// It is a hash of Event.
 	EventHash common.Hash
 
-	// EventHashes provides additional methods of EventHash slice.
-	EventHashes []EventHash
+	// EventHashes provides additional methods of EventHash index.
+	EventHashes struct {
+		index map[EventHash]struct{}
+	}
 )
+
+/*
+ * EventHash methods:
+ */
 
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) EventHash {
@@ -36,7 +45,7 @@ func (hash EventHash) String() string {
 	return (common.Hash)(hash).String()
 }
 
-// String returns short string representation.
+// String returns human readable string representation.
 func (hash EventHash) ShortString() string {
 	return (common.Hash)(hash).ShortString()
 }
@@ -46,30 +55,92 @@ func (hash EventHash) IsZero() bool {
 	return hash == EventHash{}
 }
 
+/*
+ * EventHashes methods:
+ */
+
 // Strings returns values as slice of hex strings.
-func (hashes EventHashes) Strings() []string {
-	res := make([]string, len(hashes))
-	for i, hash := range hashes {
-		res[i] = hash.String()
+func (hh *EventHashes) Strings() []string {
+	res := make([]string, 0, len(hh.index))
+	if hh.index == nil {
+		return res
+	}
+	for hash, _ := range hh.index {
+		res = append(res, hash.String())
 	}
 	return res
 }
 
-// String returns short string representation.
-func (hashes EventHashes) ShortString() string {
-	strs := make([]string, len(hashes))
-	for i, hash := range hashes {
-		strs[i] = hash.ShortString()
+// String returns human readable string representation.
+func (hh *EventHashes) ShortString() string {
+	if hh.index == nil {
+		return ""
+	}
+	strs := make([]string, 0, len(hh.index))
+	for hash, _ := range hh.index {
+		strs = append(strs, hash.ShortString())
 	}
 	return "[" + strings.Join(strs, ", ") + "]"
 }
 
-// Contains returns true if hash is in.
-func (hashes EventHashes) Contains(hash EventHash) bool {
-	for _, h := range hashes {
-		if hash == h {
-			return true
-		}
+// All returns index length.
+func (hh *EventHashes) Len() int {
+	return len(hh.index)
+}
+
+// All returns whole index.
+func (hh *EventHashes) All() map[EventHash]struct{} {
+	return hh.index
+}
+
+// Add appends hash to the index.
+func (hh *EventHashes) Add(hash EventHash) {
+	if hh.index == nil {
+		hh.index = make(map[EventHash]struct{})
 	}
-	return false
+	hh.index[hash] = struct{}{}
+}
+
+// Contains returns true if hash is in.
+func (hh *EventHashes) Contains(hash EventHash) bool {
+	if hh.index == nil {
+		return false
+	}
+	_, ok := hh.index[hash]
+	return ok
+}
+
+// EncodeRLP is a specialized encoder to encode index into array.
+func (hh *EventHashes) EncodeRLP(w io.Writer) error {
+	var arr []EventHash
+	for h := range hh.index {
+		arr = append(arr, h)
+	}
+	sort.Sort(sortableEventHashes(arr))
+	return rlp.Encode(w, arr)
+}
+
+// DecodeRLP is a specialized decoder to decode index from array.
+func (hh *EventHashes) DecodeRLP(s *rlp.Stream) error {
+	var arr []EventHash
+	err := s.Decode(&arr)
+	if err != nil {
+		return err
+	}
+	for _, h := range arr {
+		hh.Add(h)
+	}
+	return nil
+}
+
+/*
+ * Sorting:
+ */
+
+type sortableEventHashes []EventHash
+
+func (hh sortableEventHashes) Len() int      { return len(hh) }
+func (hh sortableEventHashes) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
+func (hh sortableEventHashes) Less(i, j int) bool {
+	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
 }

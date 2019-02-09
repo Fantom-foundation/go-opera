@@ -83,8 +83,8 @@ func (p *Poset) onNewEvent(e *Event) {
 	}
 
 	// fill event's parents index or hold it as incompleted
-	for i, hash := range e.Parents {
-		if i == 0 && hash.IsZero() {
+	for hash := range e.Parents.All() {
+		if hash.IsZero() {
 			// first event from address
 			continue
 		}
@@ -157,11 +157,8 @@ func initEventIdx(e *Event) error {
 		return fmt.Errorf("Event not found")
 	}
 	// internal parents index initialization
-	e.parents = make(map[EventHash]*Event, len(e.Parents))
-	for _, hash := range e.Parents {
-		if _, ok := e.parents[hash]; ok {
-			return fmt.Errorf("Event has double parents: %s", hash.String())
-		}
+	e.parents = make(map[EventHash]*Event, e.Parents.Len())
+	for hash := range e.Parents.All() {
 		e.parents[hash] = nil
 	}
 	return nil

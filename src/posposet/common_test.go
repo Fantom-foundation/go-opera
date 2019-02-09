@@ -65,7 +65,7 @@ a03 ╣   ╠ ─ d02
 
 	for eName, e := range names {
 		parents := expected[eName]
-		if !assert.Equal(len(parents), len(e.Parents), "at event "+eName) {
+		if !assert.Equal(len(parents), e.Parents.Len(), "at event "+eName) {
 			return
 		}
 		for _, pName := range parents {
@@ -139,15 +139,15 @@ func ParseEvents(asciiScheme string) (
 			// find creator's parent
 			var parents EventHashes
 			if last := len(events[creator]) - 1; last >= 0 {
-				parents = append(parents, events[creator][last].Hash())
+				parents.Add(events[creator][last].Hash())
 			} else {
-				parents = append(parents, EventHash{})
+				parents.Add(EventHash{})
 			}
 			// find other parents
 			for _, p := range nLinks[i] {
 				other := nodes[p]
 				last := len(events[other]) - 1
-				parents = append(parents, events[other][last].Hash())
+				parents.Add(events[other][last].Hash())
 			}
 			// save event
 			e := &Event{
