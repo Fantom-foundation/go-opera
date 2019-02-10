@@ -2,8 +2,6 @@ package posposet
 
 import (
 	"sync"
-
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 // Poset processes events to get consensus.
@@ -81,22 +79,13 @@ func (p *Poset) onNewEvent(e *Event) {
 		return
 	}
 
-	// unique parent nodes checker
-	parentNodes := make(map[common.Address]struct{})
-	isParentNodeUnique := func(e *Event, node common.Address) bool {
-		if _, ok := parentNodes[node]; ok {
-			log.Warnf("Event %s has double refer to node %s, so rejected", e.Hash().ShortString(), node.String())
-			return false
-		}
-		parentNodes[node] = struct{}{}
-		return true
-	}
+	nodes := newParentNodesInspector(e)
 
 	// fill event's parents index or hold it as incompleted
 	for hash := range e.Parents.All() {
 		if hash.IsZero() {
 			// first event of node
-			if !isParentNodeUnique(e, e.Creator) {
+			if !nodes.IsParentUnique(e.Creator) {
 				return
 			}
 			continue
@@ -111,9 +100,12 @@ func (p *Poset) onNewEvent(e *Event) {
 			}
 			e.parents[hash] = parent
 		}
-		if !isParentNodeUnique(e, parent.Creator) {
+		if !nodes.IsParentUnique(parent.Creator) {
 			return
 		}
+	}
+	if !nodes.HasSelfParent() {
+		return
 	}
 
 	// parents OK

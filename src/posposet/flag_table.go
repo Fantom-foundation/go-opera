@@ -5,6 +5,7 @@ package posposet
 // TODO: cache PoS-stake at FlagTable.eventKnowsRoots
 
 // FlagTable stores the reachability of each top event to the roots.
+// It helps to select root without using path searching algorithms.
 // Zero-hash is a self-parent root.
 type FlagTable struct {
 	//lastNodeEvent   map[common.Address]EventHash

@@ -29,7 +29,7 @@ func (f *Frame) SetRoot(h EventHash) {
 	f.save()
 }
 
-// SetBalances save PoS-balanses state.
+// SetBalances save PoS-balances state.
 func (f *Frame) SetBalances(balances common.Hash) {
 	f.Balances = balances
 	f.save()

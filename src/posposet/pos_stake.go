@@ -9,8 +9,9 @@ import (
 type stakeCounter struct {
 	balances       *state.DB
 	alreadyCounted map[common.Address]struct{}
-	majority       uint64
-	total          uint64
+	amount         uint64
+	majoritySum    uint64
+	trustSum       uint64
 }
 
 func (s *stakeCounter) Count(creator common.Address) {
@@ -22,12 +23,16 @@ func (s *stakeCounter) Count(creator common.Address) {
 		// log.WithField("node", creator.String()).Debug("no sense to count further")
 		return // no sense to count further
 	}
-	s.total += s.balances.GetBalance(creator)
+	s.amount += s.balances.GetBalance(creator)
 	s.alreadyCounted[creator] = struct{}{}
 }
 
 func (s *stakeCounter) HasMajority() bool {
-	return s.total > s.majority
+	return s.amount > s.majoritySum
+}
+
+func (s *stakeCounter) HasTrust() bool {
+	return s.amount > s.trustSum
 }
 
 /*
@@ -43,7 +48,8 @@ func (p *Poset) newStakeCounter() *stakeCounter {
 	return &stakeCounter{
 		balances:       db,
 		alreadyCounted: make(map[common.Address]struct{}),
-		total:          0,
-		majority:       p.state.TotalCap * 2 / 3,
+		amount:         0,
+		majoritySum:    p.state.TotalCap * 2 / 3,
+		trustSum:       p.state.TotalCap * 1 / 3,
 	}
 }
