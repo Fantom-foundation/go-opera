@@ -80,12 +80,16 @@ func (p *Poset) onNewEvent(e *Event) {
 	}
 
 	nodes := newParentNodesInspector(e)
+	ltime := newParentLamportTimeInspector(e)
 
 	// fill event's parents index or hold it as incompleted
 	for hash := range e.Parents.All() {
 		if hash.IsZero() {
 			// first event of node
 			if !nodes.IsParentUnique(e.Creator) {
+				return
+			}
+			if !ltime.IsGreaterThan(0) {
 				return
 			}
 			continue
@@ -103,8 +107,14 @@ func (p *Poset) onNewEvent(e *Event) {
 		if !nodes.IsParentUnique(parent.Creator) {
 			return
 		}
+		if !ltime.IsGreaterThan(parent.LamportTime) {
+			return
+		}
 	}
 	if !nodes.HasSelfParent() {
+		return
+	}
+	if !ltime.IsSequential() {
 		return
 	}
 

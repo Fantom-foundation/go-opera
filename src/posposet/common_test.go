@@ -138,22 +138,33 @@ func ParseEvents(asciiScheme string) (
 			// find creator
 			creator := nodes[nCreators[i]]
 			// find creator's parent
-			var parents EventHashes
+			var (
+				parents EventHashes
+				ltime   uint64
+			)
 			if last := len(events[creator]) - 1; last >= 0 {
-				parents.Add(events[creator][last].Hash())
+				parent := events[creator][last]
+				parents.Add(parent.Hash())
+				ltime = parent.LamportTime
 			} else {
 				parents.Add(EventHash_Zero())
+				ltime = 0
 			}
 			// find other parents
 			for _, p := range nLinks[i] {
 				other := nodes[p]
 				last := len(events[other]) - 1
-				parents.Add(events[other][last].Hash())
+				parent := events[other][last]
+				parents.Add(parent.Hash())
+				if ltime < parent.LamportTime {
+					ltime = parent.LamportTime
+				}
 			}
 			// save event
 			e := &Event{
-				Creator: creator,
-				Parents: parents,
+				Creator:     creator,
+				Parents:     parents,
+				LamportTime: ltime + 1,
 			}
 			events[creator] = append(events[creator], e)
 			names[name] = e
@@ -187,9 +198,12 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		}
 		// first parent is a last creator's event or empty hash
 		if ee := events[creator]; len(ee) > 0 {
-			e.Parents.Add(ee[len(ee)-1].Hash())
+			parent := ee[len(ee)-1]
+			e.Parents.Add(parent.Hash())
+			e.LamportTime = parent.LamportTime + 1
 		} else {
 			e.Parents.Add(EventHash_Zero())
+			e.LamportTime = 1
 		}
 		// other parents are the lasts other's events
 		others := parentCount
@@ -198,7 +212,11 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 				break
 			}
 			if ee := events[nodes[other]]; len(ee) > 0 {
-				e.Parents.Add(ee[len(ee)-1].Hash())
+				parent := ee[len(ee)-1]
+				e.Parents.Add(parent.Hash())
+				if e.LamportTime <= parent.LamportTime {
+					e.LamportTime = parent.LamportTime + 1
+				}
 			}
 		}
 		// save event
