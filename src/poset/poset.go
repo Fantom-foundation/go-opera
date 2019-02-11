@@ -1083,7 +1083,7 @@ func (p *Poset) DecideAtropos() error {
 	}
 
 	decidedRounds := map[int64]int64{} // [round number] => index in p.PendingRounds
-	c := 3
+	c := 11
 
 	for pos, r := range p.PendingRounds {
 		roundIndex := r.Index
