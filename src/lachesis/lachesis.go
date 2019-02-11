@@ -39,9 +39,9 @@ func NewLachesis(config *LachesisConfig) *Lachesis {
 func (l *Lachesis) initTransport() error {
 	createCliFu := func(target string,
 		timeout time.Duration) (peer.SyncClient, error) {
-		// TODO hard timeout
+
 		rpcCli, err := peer.NewRPCClient(
-			peer.TCP, target, time.Second, net.DialTimeout)
+			peer.TCP, target, time.Second, l.Config.ConnFunc)
 		if err != nil {
 			return nil, err
 		}

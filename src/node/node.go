@@ -751,17 +751,7 @@ func (n *Node) GetKnownEvents() map[uint64]int64 {
 	return n.core.poset.Store.KnownEvents()
 }
 
-// GetEventBlocks returns all event blocks
-func (n *Node) GetKnownEvents2() map[uint64]int64 {
-	result := make(map[uint64]int64)
-	events := n.core.KnownEvents()
-	for k := range events {
-		result[k] = events[k]
-	}
-
-	return result
-}
-
+// EventDiff returns events that n knows about and are not in 'known'
 func (n *Node) EventDiff(
 	known map[uint64]int64) (events []poset.Event, err error) {
 	return n.core.EventDiff(known)
