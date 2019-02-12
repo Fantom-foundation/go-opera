@@ -182,7 +182,10 @@ func TestAddTransaction(t *testing.T) {
 
 	// Add new Tx
 	message := "Test"
-	node.addTransaction([]byte(message))
+	err := node.addTransaction([]byte(message))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	// Check tx pool
 	txPoolCount := node.core.GetTransactionPoolCount()
@@ -224,7 +227,10 @@ func TestCommit(t *testing.T) {
 		})
 
 	// Make a commit
-	node.commit(block)
+	err := node.commit(block)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 
 	testBlock, err := node.GetBlock(0)
 	if err != nil {
