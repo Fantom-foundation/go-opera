@@ -1034,7 +1034,7 @@ func synchronizeCores(cores []*Core, from int, to int, payload [][]byte) error {
 	if !ok {
 		return fmt.Errorf("peer from %d not found", from)
 	}
-	cores[to].logger.Debug("2Sync()");
+	cores[to].logger.Debug("2Sync()")
 	return cores[to].Sync(&peer, unknownWire)
 }
 

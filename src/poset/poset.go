@@ -417,7 +417,7 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 		p.logger.Debug("p.round2(): return RoundNIL 2")
 		return RoundNIL, err
 	}
-	if (opRound > parentRound) {
+	if opRound > parentRound {
 		parentRound = opRound
 	}
 	p.logger.WithField("parentRound", parentRound).Debug("p.round2()")
