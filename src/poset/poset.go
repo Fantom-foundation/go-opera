@@ -1782,9 +1782,12 @@ func (p *Poset) Bootstrap() error {
 func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	var (
 		selfParent  EventHash = GenRootSelfParent(wevent.Body.CreatorID)
-		otherParent EventHash = GenRootSelfParent(wevent.Body.OtherParentCreatorID)
+		otherParent EventHash
 		err         error
 	)
+	if wevent.Body.OtherParentCreatorID != 0 {
+		otherParent = GenRootSelfParent(wevent.Body.OtherParentCreatorID)
+	}
 
 	creator := p.Store.RepertoireByID()[wevent.Body.CreatorID]
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
