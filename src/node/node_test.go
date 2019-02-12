@@ -297,7 +297,7 @@ func TestAddTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := node0.sync(out.Events); err != nil {
+	if err := node0.sync(ps[1], out.Events); err != nil {
 		t.Fatal(err)
 	}
 
@@ -716,7 +716,14 @@ func TestShutdown(t *testing.T) {
 
 	nodes[0].Shutdown()
 
-	err := nodes[1].gossip(nodes[0].localAddr, nil)
+	// That modification of used counters should force SmartPeerSelector
+	// to choose nodes[0] to gossip to
+	// must be changed accordingly if PeerSelector is changed
+	nodes[1].peerSelector.Peers().ByID[nodes[1].id].Used = 2
+	nodes[1].peerSelector.Peers().ByID[nodes[2].id].Used = 2
+	nodes[1].peerSelector.Peers().ByID[nodes[0].id].Used = 1
+
+	err := nodes[1].gossip(nil)
 	if err == nil {
 		t.Fatal("Expected Timeout Error")
 	}
