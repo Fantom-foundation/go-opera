@@ -54,7 +54,9 @@ func initCores(n int, t *testing.T) ([]*Core,
 			t.Fatal(err)
 		}
 
-		core.RunConsensus()
+		if err := core.RunConsensus(); err != nil {
+			panic(err)
+		}
 
 		cores = append(cores, core)
 		index[fmt.Sprintf("e%d", i)] = core.head
@@ -156,7 +158,9 @@ func insertEvent(cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
 		// event is not signed because passed by value
 		index[name] = cores[participant].head
 	} else {
-		event.Sign(keys[creator])
+		if err := event.Sign(keys[creator]); err != nil {
+			panic(err)
+		}
 		if err := cores[participant].InsertEvent(event, true); err != nil {
 			return err
 		}
@@ -304,16 +308,16 @@ func TestSync(t *testing.T) {
 
 	/*
 
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                                    |   |  e20
-	                                    |   | / |
-	                                    |   /   |
-	                                    | / |   |
-	   e01 |   |                        e01 |   |
-	   | \ |   |                        | \ |   |
-	   e0  e1  |        |   e1  |       e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+											|   |  e20
+											|   | / |
+											|   /   |
+											| / |   |
+		   e01 |   |                        e01 |   |
+		   | \ |   |                        | \ |   |
+		   e0  e1  |        |   e1  |       e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -358,18 +362,18 @@ func TestSync(t *testing.T) {
 	}
 
 	/*
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                    |  e12  |
-	                    |   | \ |
-	                    |   |  e20      |   |  e20
-	                    |   | / |       |   | / |
-	                    |   /   |       |   /   |
-	                    | / |   |       | / |   |
-	   e01 |   |        e01 |   |       e01 |   |
-	   | \ |   |        | \ |   |       | \ |   |
-	   e0  e1  |        e0  e1  e2      e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+							|  e12  |
+							|   | \ |
+							|   |  e20      |   |  e20
+							|   | / |       |   | / |
+							|   /   |       |   /   |
+							| / |   |       | / |   |
+		   e01 |   |        e01 |   |       e01 |   |
+		   | \ |   |        | \ |   |       | \ |   |
+		   e0  e1  |        e0  e1  e2      e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -537,16 +541,16 @@ func TestInDegrees(t *testing.T) {
 
 	/*
 
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                                    |   |  e20
-	                                    |   | / |
-	                                    |   /   |
-	                                    | / |   |
-	   e01 |   |                        e01 |  e21
-	   | \ |   |                        | \ | / |
-	   e0  e1  |        |   e1  |       e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+											|   |  e20
+											|   | / |
+											|   /   |
+											| / |   |
+		   e01 |   |                        e01 |  e21
+		   | \ |   |                        | \ | / |
+		   e0  e1  |        |   e1  |       e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -590,18 +594,18 @@ func TestInDegrees(t *testing.T) {
 
 	/*
 
-	   core 0           core 1          core 2
+		   core 0           core 1          core 2
 
-	                    |  e12  |
-	                    |   | \ |
-	                    |   |  e20      |   |  e20
-	                    |   | / |       |   | / |
-	                    |   /   |       |   /   |
-	                    | / |   |       | / |   |
-	   e01 |   |        e01 |  e21      e01 |  e21
-	   | \ |   |        | \ | / |       | \ | / |
-	   e0  e1  |        e0  e1  e2      e0  e1  e2
-	   0   1   2        0   1   2       0   1   2
+							|  e12  |
+							|   | \ |
+							|   |  e20      |   |  e20
+							|   | / |       |   | / |
+							|   /   |       |   /   |
+							| / |   |       | / |   |
+		   e01 |   |        e01 |  e21      e01 |  e21
+		   | \ |   |        | \ | / |       | \ | / |
+		   e0  e1  |        e0  e1  e2      e0  e1  e2
+		   0   1   2        0   1   2       0   1   2
 	*/
 
 	expectedHeights[0] = map[string]uint64{
@@ -1034,8 +1038,7 @@ func syncAndRunConsensus(
 	if err := synchronizeCores(cores, from, to, payload); err != nil {
 		return err
 	}
-	cores[to].RunConsensus()
-	return nil
+	return cores[to].RunConsensus()
 }
 
 func getName(index map[string]poset.EventHash, hash poset.EventHash) string {

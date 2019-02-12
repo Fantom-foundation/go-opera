@@ -7,10 +7,10 @@ import (
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 const (
@@ -26,13 +26,14 @@ const (
 
 // BadgerStore struct for badger config data
 type BadgerStore struct {
-	participants *peers.Peers
-	inmemStore   *InmemStore
-	db           *badger.DB
-	path         string
-	needBoostrap bool
+	participants  *peers.Peers
+	inmemStore    *InmemStore
+	db            *badger.DB
+	path          string
+	needBootstrap bool
 
-	states state.Database
+	states    state.Database
+	stateRoot common.Hash
 }
 
 // NewBadgerStore creates a brand new Store with a new database
@@ -62,9 +63,15 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
+	if err := store.dbSetLeafEvents(inmemStore.rootsByParticipant); err != nil {
+		return nil, err
+	}
 
 	// TODO: replace with real genesis
-	pos.FakeGenesis(participants, posConf, store.states)
+	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
+	if err != nil {
+		return nil, err
+	}
 
 	return store, nil
 }
@@ -85,9 +92,9 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 		return nil, err
 	}
 	store := &BadgerStore{
-		db:           handle,
-		path:         path,
-		needBoostrap: true,
+		db:            handle,
+		path:          path,
+		needBootstrap: true,
 		states: state.NewDatabase(
 			kvdb.NewTable(
 				kvdb.NewBadgerDatabase(
@@ -171,8 +178,62 @@ func frameKey(index int64) []byte {
 	return []byte(fmt.Sprintf("%s_%09d", framePrefix, index))
 }
 
-// ==============================================================================
-// Implement the Store interface
+/*
+ * Store interface implementation:
+ */
+
+// TopologicalEvents returns event in topological order.
+func (s *BadgerStore) TopologicalEvents() ([]Event, error) {
+	var res []Event
+	var evKey string
+	t := int64(0)
+	err := s.db.View(func(txn *badger.Txn) error {
+		key := topologicalEventKey(t)
+		item, errr := txn.Get(key)
+		for errr == nil {
+			errrr := item.Value(func(v []byte) error {
+				evKey = string(v)
+				return nil
+			})
+			if errrr != nil {
+				break
+			}
+
+			eventItem, err := txn.Get([]byte(evKey))
+			if err != nil {
+				return err
+			}
+			err = eventItem.Value(func(eventBytes []byte) error {
+				event := &Event{
+					roundReceived:    RoundNIL,
+					round:            RoundNIL,
+					lamportTimestamp: LamportTimestampNIL,
+				}
+
+				if err := event.ProtoUnmarshal(eventBytes); err != nil {
+					return err
+				}
+				res = append(res, *event)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+
+			t++
+			key = topologicalEventKey(t)
+			item, errr = txn.Get(key)
+		}
+
+		if !isDBKeyNotFound(errr) {
+			return errr
+		}
+
+		return nil
+	})
+
+	return res, err
+}
 
 // CacheSize returns the cache size for the store
 func (s *BadgerStore) CacheSize() int {
@@ -238,7 +299,7 @@ func (s *BadgerStore) ParticipantEvent(participant string, index int64) (EventHa
 	return result, mapError(err, "ParticipantEvent", string(participantEventKey(participant, index)))
 }
 
-// LastEventFrom returns the last event for a particpant
+// LastEventFrom returns the last event for a participant
 func (s *BadgerStore) LastEventFrom(participant string) (last EventHash, isRoot bool, err error) {
 	return s.inmemStore.LastEventFrom(participant)
 }
@@ -251,6 +312,8 @@ func (s *BadgerStore) LastConsensusEventFrom(participant string) (last EventHash
 // KnownEvents returns all known events
 func (s *BadgerStore) KnownEvents() map[uint64]int64 {
 	known := make(map[uint64]int64)
+	s.participants.RLock()
+	defer s.participants.RUnlock()
 	for p, pid := range s.participants.ByPubKey {
 		index := int64(-1)
 		last, isRoot, err := s.LastEventFrom(p)
@@ -406,9 +469,9 @@ func (s *BadgerStore) Close() error {
 	return s.db.Close()
 }
 
-// NeedBoostrap checks if bootstrapping is required
-func (s *BadgerStore) NeedBoostrap() bool {
-	return s.needBoostrap
+// NeedBootstrap checks if bootstrapping is required
+func (s *BadgerStore) NeedBootstrap() bool {
+	return s.needBootstrap
 }
 
 // StorePath returns the path to the file on disk
@@ -419,6 +482,11 @@ func (s *BadgerStore) StorePath() string {
 // StateDB returns state database
 func (s *BadgerStore) StateDB() state.Database {
 	return s.states
+}
+
+// StateRoot returns genesis state hash.
+func (s *BadgerStore) StateRoot() common.Hash {
+	return s.stateRoot
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -461,13 +529,12 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 		// check if it already exists
-		existent := false
-		val2, err := tx.Get(eventHash.Bytes())
-		if err != nil && !isDBKeyNotFound(err) {
+		notFound := true
+		_, err = tx.Get(eventHash.Bytes())
+		if err == nil {
+			notFound = false
+		} else if !isDBKeyNotFound(err) {
 			return err
-		}
-		if val2 != nil {
-			existent = true
 		}
 
 		// insert [event hash] => [event bytes]
@@ -475,7 +542,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			return err
 		}
 
-		if !existent {
+		if notFound {
 			// insert [topo_index] => [event hash]
 			topoKey := topologicalEventKey(event.Message.TopologicalIndex)
 			if err := tx.Set(topoKey, eventHash.Bytes()); err != nil {
@@ -489,58 +556,6 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 		}
 	}
 	return tx.Commit(nil)
-}
-
-func (s *BadgerStore) dbTopologicalEvents() ([]Event, error) {
-	var res []Event
-	var evKey string
-	t := int64(0)
-	err := s.db.View(func(txn *badger.Txn) error {
-		key := topologicalEventKey(t)
-		item, errr := txn.Get(key)
-		for errr == nil {
-			errrr := item.Value(func(v []byte) error {
-				evKey = string(v)
-				return nil
-			})
-			if errrr != nil {
-				break
-			}
-
-			eventItem, err := txn.Get([]byte(evKey))
-			if err != nil {
-				return err
-			}
-			err = eventItem.Value(func(eventBytes []byte) error {
-				event := &Event{
-					roundReceived:    RoundNIL,
-					round:            RoundNIL,
-					lamportTimestamp: LamportTimestampNIL,
-				}
-
-				if err := event.ProtoUnmarshal(eventBytes); err != nil {
-					return err
-				}
-				res = append(res, *event)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			t++
-			key = topologicalEventKey(t)
-			item, errr = txn.Get(key)
-		}
-
-		if !isDBKeyNotFound(errr) {
-			return errr
-		}
-
-		return nil
-	})
-
-	return res, err
 }
 
 func (s *BadgerStore) dbParticipantEvents(participant string, skip int64) (res EventHashes, err error) {
@@ -609,14 +624,16 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 	return tx.Commit(nil)
 }
 
-func (s *BadgerStore) dbSetRootEvents(roots map[string]Root) error {
+func (s *BadgerStore) dbSetLeafEvents(roots map[string]Root) error {
 	for participant, root := range roots {
 		var creator []byte
 		var selfParentHash EventHash
 		selfParentHash.Set(root.SelfParent.Hash)
-		fmt.Sscanf(participant, "0x%X", &creator)
+		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
+			return err
+		}
 		body := EventBody{
-			Creator: creator, /*s.participants.ByPubKey[participant].PubKey,*/
+			Creator: creator,
 			Index:   root.SelfParent.Index,
 			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
 		}
@@ -788,6 +805,8 @@ func (s *BadgerStore) dbSetParticipants(participants *peers.Peers) error {
 	tx := s.db.NewTransaction(true)
 	defer tx.Discard()
 
+	participants.RLock()
+	defer participants.RUnlock()
 	for participant, id := range participants.ByPubKey {
 		key := participantKey(participant)
 		val := []byte(fmt.Sprint(id.ID))

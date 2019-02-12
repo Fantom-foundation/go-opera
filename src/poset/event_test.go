@@ -14,7 +14,7 @@ func createDummyEventBody() EventBody {
 	body.Parents = [][]byte{[]byte("self"), []byte("other")}
 	body.Creator = []byte("public key")
 	body.BlockSignatures = []*BlockSignature{
-		&BlockSignature{
+		{
 			Validator: body.Creator,
 			Index:     0,
 			Signature: "r|s",
@@ -172,10 +172,10 @@ func TestIsLoaded(t *testing.T) {
 		t.Fatalf("IsLoaded() should return true for non-empty transaction payload")
 	}
 
-	//non-empy signature payload
+	//non-empty signature payload
 	event.Message.Body.Transactions = nil
 	event.Message.Body.BlockSignatures = []*BlockSignature{
-		&BlockSignature{Validator: []byte("validator"), Index: 0, Signature: "r|s"},
+		{Validator: []byte("validator"), Index: 0, Signature: "r|s"},
 	}
 	if !event.IsLoaded() {
 		t.Fatalf("IsLoaded() should return true for non-empty signature payload")

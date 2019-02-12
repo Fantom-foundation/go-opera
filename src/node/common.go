@@ -69,7 +69,9 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 			poset.NewInmemStore(participants, config.CacheSize, nil),
 			transport,
 			dummy.NewInmemDummyApp(logger))
-		n.Init()
+		if err := n.Init(); err != nil {
+			logger.Fatal(err)
+		}
 		n.RunAsync(true)
 		nodes[key] = n
 	}
@@ -120,7 +122,9 @@ func (n NodeList) StartRandTxStream() (stop func()) {
 					j := rand.Intn(count)
 					node := n[keys[j]]
 					tx := []byte(fmt.Sprintf("node#%d transaction %d", node.ID(), seq))
-					node.PushTx(tx)
+					if err := node.PushTx(tx); err != nil {
+						panic(err)
+					}
 					seq++
 				}
 			}

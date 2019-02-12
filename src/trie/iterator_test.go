@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 func TestIterator(t *testing.T) {
@@ -181,26 +181,26 @@ func checkIteratorOrder(want []kvs, it *Iterator) error {
 }
 
 func TestDifferenceIterator(t *testing.T) {
-	triea := newEmpty()
+	trieA := newEmpty()
 	for _, val := range testdata1 {
-		triea.Update([]byte(val.k), []byte(val.v))
+		trieA.Update([]byte(val.k), []byte(val.v))
 	}
-	_, err := triea.Commit(nil)
+	_, err := trieA.Commit(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	trieb := newEmpty()
+	trieB := newEmpty()
 	for _, val := range testdata2 {
-		trieb.Update([]byte(val.k), []byte(val.v))
+		trieB.Update([]byte(val.k), []byte(val.v))
 	}
-	_, err = trieb.Commit(nil)
+	_, err = trieB.Commit(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found := make(map[string]string)
-	di, _ := NewDifferenceIterator(triea.NodeIterator(nil), trieb.NodeIterator(nil))
+	di, _ := NewDifferenceIterator(trieA.NodeIterator(nil), trieB.NodeIterator(nil))
 	it := NewIterator(di)
 	for it.Next() {
 		found[string(it.Key)] = string(it.Value)
@@ -223,25 +223,25 @@ func TestDifferenceIterator(t *testing.T) {
 }
 
 func TestUnionIterator(t *testing.T) {
-	triea := newEmpty()
+	trieA := newEmpty()
 	for _, val := range testdata1 {
-		triea.Update([]byte(val.k), []byte(val.v))
+		trieA.Update([]byte(val.k), []byte(val.v))
 	}
-	_, err := triea.Commit(nil)
+	_, err := trieA.Commit(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	trieb := newEmpty()
+	trieB := newEmpty()
 	for _, val := range testdata2 {
-		trieb.Update([]byte(val.k), []byte(val.v))
+		trieB.Update([]byte(val.k), []byte(val.v))
 	}
-	_, err = trieb.Commit(nil)
+	_, err = trieB.Commit(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	di, _ := NewUnionIterator([]NodeIterator{triea.NodeIterator(nil), trieb.NodeIterator(nil)})
+	di, _ := NewUnionIterator([]NodeIterator{trieA.NodeIterator(nil), trieB.NodeIterator(nil)})
 	it := NewIterator(di)
 
 	all := []struct{ k, v string }{
@@ -275,19 +275,19 @@ func TestUnionIterator(t *testing.T) {
 	}
 }
 
-func TestIteratorNoDups(t *testing.T) {
+func TestIteratorNoDuplicates(t *testing.T) {
 	var tr Trie
 	for _, val := range testdata1 {
 		tr.Update([]byte(val.k), []byte(val.v))
 	}
-	checkIteratorNoDups(t, tr.NodeIterator(nil), nil)
+	checkIteratorNoDuplicates(t, tr.NodeIterator(nil), nil)
 }
 
 // This test checks that nodeIterator.Next can be retried after inserting missing trie nodes.
-func TestIteratorContinueAfterErrorDisk(t *testing.T)    { testIteratorContinueAfterError(t, false) }
-func TestIteratorContinueAfterErrorMemonly(t *testing.T) { testIteratorContinueAfterError(t, true) }
+func TestIteratorContinueAfterErrorDisk(t *testing.T)       { testIteratorContinueAfterError(t, false) }
+func TestIteratorContinueAfterErrorMemoryOnly(t *testing.T) { testIteratorContinueAfterError(t, true) }
 
-func testIteratorContinueAfterError(t *testing.T, memonly bool) {
+func testIteratorContinueAfterError(t *testing.T, memoryOnly bool) {
 	diskdb := kvdb.NewMemDatabase()
 	triedb := NewDatabase(diskdb)
 
@@ -299,19 +299,19 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !memonly {
+	if !memoryOnly {
 		err = triedb.Commit(tr.Hash(), true)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	wantNodeCount := checkIteratorNoDups(t, tr.NodeIterator(nil), nil)
+	wantNodeCount := checkIteratorNoDuplicates(t, tr.NodeIterator(nil), nil)
 
 	var (
 		diskKeys [][]byte
 		memKeys  []common.Hash
 	)
-	if memonly {
+	if memoryOnly {
 		memKeys = triedb.Nodes()
 	} else {
 		diskKeys = diskdb.Keys()
@@ -328,7 +328,7 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 			robj *cachedNode
 		)
 		for {
-			if memonly {
+			if memoryOnly {
 				rkey = memKeys[rand.Intn(len(memKeys))]
 			} else {
 				copy(rkey[:], diskKeys[rand.Intn(len(diskKeys))])
@@ -337,7 +337,7 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 				break
 			}
 		}
-		if memonly {
+		if memoryOnly {
 			robj = triedb.dirties[rkey]
 			delete(triedb.dirties, rkey)
 		} else {
@@ -350,14 +350,14 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 		// Iterate until the error is hit.
 		seen := make(map[string]bool)
 		it := tr.NodeIterator(nil)
-		checkIteratorNoDups(t, it, seen)
+		checkIteratorNoDuplicates(t, it, seen)
 		missing, ok := it.Error().(*MissingNodeError)
 		if !ok || missing.NodeHash != rkey {
 			t.Fatal("didn't hit missing node, got", it.Error())
 		}
 
 		// Add the node back and continue iteration.
-		if memonly {
+		if memoryOnly {
 			triedb.dirties[rkey] = robj
 		} else {
 			err = diskdb.Put(rkey[:], rval)
@@ -365,7 +365,7 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 				t.Fatal(err)
 			}
 		}
-		checkIteratorNoDups(t, it, seen)
+		checkIteratorNoDuplicates(t, it, seen)
 		if it.Error() != nil {
 			t.Fatal("unexpected error", it.Error())
 		}
@@ -381,11 +381,11 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 func TestIteratorContinueAfterSeekErrorDisk(t *testing.T) {
 	testIteratorContinueAfterSeekError(t, false)
 }
-func TestIteratorContinueAfterSeekErrorMemonly(t *testing.T) {
+func TestIteratorContinueAfterSeekErrorMemoryOnly(t *testing.T) {
 	testIteratorContinueAfterSeekError(t, true)
 }
 
-func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
+func testIteratorContinueAfterSeekError(t *testing.T, memoryOnly bool) {
 	// Commit test trie to db, then remove the node containing "bars".
 	diskdb := kvdb.NewMemDatabase()
 	triedb := NewDatabase(diskdb)
@@ -398,7 +398,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !memonly {
+	if !memoryOnly {
 		err := triedb.Commit(root, true)
 		if err != nil {
 			t.Fatal(err)
@@ -409,7 +409,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 		barNodeBlob []byte
 		barNodeObj  *cachedNode
 	)
-	if memonly {
+	if memoryOnly {
 		barNodeObj = triedb.dirties[barNodeHash]
 		delete(triedb.dirties, barNodeHash)
 	} else {
@@ -430,7 +430,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 		t.Fatal("wrong node missing")
 	}
 	// Reinsert the missing node.
-	if memonly {
+	if memoryOnly {
 		triedb.dirties[barNodeHash] = barNodeObj
 	} else {
 		err = diskdb.Put(barNodeHash[:], barNodeBlob)
@@ -444,7 +444,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	}
 }
 
-func checkIteratorNoDups(t *testing.T, it NodeIterator, seen map[string]bool) int {
+func checkIteratorNoDuplicates(t *testing.T, it NodeIterator, seen map[string]bool) int {
 	if seen == nil {
 		seen = make(map[string]bool)
 	}

@@ -214,7 +214,7 @@ func (b *Block) SetSignature(bs BlockSignature) error {
 	return nil
 }
 
-// Verify verifies a blocksignature is from the node that signeds
+// Verify verifies a blocksignature is from the node that signed
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
 	signBytes, err := b.Body.Hash()
 	if err != nil {
@@ -237,7 +237,7 @@ func ListBytesEquals(this [][]byte, that [][]byte) bool {
 		return false
 	}
 	for i, v := range this {
-		if !BytesEquals(v, that[i]) {
+		if !bytes.Equal(v, that[i]) {
 			return false
 		}
 	}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 func init() {
@@ -148,9 +148,9 @@ func TestMissingKeyProof(t *testing.T) {
 // mutateByte changes one byte in b.
 func mutateByte(b []byte) {
 	for r := mrand.Intn(len(b)); ; {
-		new := byte(mrand.Intn(255))
-		if new != b[r] {
-			b[r] = new
+		_new := byte(mrand.Intn(255))
+		if _new != b[r] {
+			b[r] = _new
 			break
 		}
 	}

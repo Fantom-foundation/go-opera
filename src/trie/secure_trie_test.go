@@ -8,7 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 func newEmptySecure() *SecureTrie {
@@ -103,7 +103,7 @@ func TestSecureTrieConcurrency(t *testing.T) {
 		cpy := *trie
 		tries[i] = &cpy
 	}
-	// Start a batch of goroutines interactng with the trie
+	// Start a batch of goroutines interacting with the trie
 	errs := make(chan error)
 	pend := new(sync.WaitGroup)
 	pend.Add(threads)

@@ -3,12 +3,19 @@ package peers
 import (
 	"sort"
 	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 // PubKeyPeers map of peers sorted by public key
 type PubKeyPeers map[string]*Peer
+
 // IDPeers map of peers sorted by ID
 type IDPeers map[uint64]*Peer
+
+// AddressPeers maps address to peer
+type AddressPeers map[common.Address]*Peer
+
 // Listener for listening for new peers joining
 type Listener func(*Peer)
 
@@ -18,6 +25,7 @@ type Peers struct {
 	Sorted    []*Peer
 	ByPubKey  PubKeyPeers
 	ByID      IDPeers
+	ByAddress AddressPeers
 	Listeners []Listener
 }
 
@@ -26,8 +34,9 @@ type Peers struct {
 // NewPeers creates a new peers struct
 func NewPeers() *Peers {
 	return &Peers{
-		ByPubKey: make(PubKeyPeers),
-		ByID:     make(IDPeers),
+		ByPubKey:  make(PubKeyPeers),
+		ByID:      make(IDPeers),
+		ByAddress: make(AddressPeers),
 	}
 }
 
@@ -52,11 +61,14 @@ func NewPeersFromSlice(source []*Peer) *Peers {
 // Handle with care
 func (p *Peers) addPeerRaw(peer *Peer) {
 	if peer.ID == 0 {
-		peer.computeID()
+		if err := peer.computeID(); err != nil {
+			panic(err)
+		}
 	}
 
 	p.ByPubKey[peer.PubKeyHex] = peer
 	p.ByID[peer.ID] = peer
+	p.ByAddress[peer.Address()] = peer
 }
 
 // AddPeer adds a peer to the peers struct
@@ -65,7 +77,7 @@ func (p *Peers) AddPeer(peer *Peer) {
 	p.addPeerRaw(peer)
 	p.internalSort()
 	p.Unlock()
- 	p.EmitNewPeer(peer)
+	p.EmitNewPeer(peer)
 }
 
 func (p *Peers) internalSort() {
@@ -93,6 +105,7 @@ func (p *Peers) RemovePeer(peer *Peer) {
 
 	delete(p.ByPubKey, peer.PubKeyHex)
 	delete(p.ByID, peer.ID)
+	delete(p.ByAddress, peer.Address())
 
 	p.internalSort()
 }
@@ -160,13 +173,13 @@ func (p *Peers) ToIDSlice() []uint64 {
 func (p *Peers) OnNewPeer(cb func(*Peer)) {
 	p.Listeners = append(p.Listeners, cb)
 }
+
 // EmitNewPeer emits an event for all listeners as soon as a peer joins
 func (p *Peers) EmitNewPeer(peer *Peer) {
 	for _, listener := range p.Listeners {
 		listener(peer)
 	}
 }
-
 
 /* Utilities */
 
@@ -176,6 +189,27 @@ func (p *Peers) Len() int {
 	defer p.RUnlock()
 
 	return len(p.ByPubKey)
+}
+
+func (p *Peers) ReadByPubKey(key string) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByPubKey[key]
+	return *peer, ok
+}
+
+func (p *Peers) ReadByID(key uint64) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByID[key]
+	return *peer, ok
+}
+
+func (p *Peers) ReadByAddress(key common.Address) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByAddress[key]
+	return *peer, ok
 }
 
 // ByPubHex implements sort.Interface for Peers based on

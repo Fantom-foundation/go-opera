@@ -9,10 +9,10 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/state"
+	"github.com/Fantom-foundation/go-lachesis/src/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // InmemStore struct
@@ -39,17 +39,20 @@ type InmemStore struct {
 	lastBlockLocker          sync.RWMutex
 	totConsensusEventsLocker sync.RWMutex
 
-	states state.Database
+	states    state.Database
+	stateRoot common.Hash
 }
 
 // NewInmemStore constructor
 func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config) *InmemStore {
 	rootsByParticipant := make(map[string]Root)
 
+	participants.RLock()
 	for pk, pid := range participants.ByPubKey {
 		root := NewBaseRoot(pid.ID)
 		rootsByParticipant[pk] = root
 	}
+	participants.RUnlock()
 
 	eventCache, err := lru.New(cacheSize)
 	if err != nil {
@@ -104,7 +107,9 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 		store.repertoireByPubKey[peer.PubKeyHex] = peer
 		store.repertoireByID[peer.ID] = peer
 		store.rootsBySelfParent = nil
-		store.RootsBySelfParent()
+		if _, err := store.RootsBySelfParent(); err != nil {
+			panic(err)
+		}
 		old := store.participantEventsCache
 		store.participantEventsCache = NewParticipantEventsCache(cacheSize, participants)
 		store.participantEventsCache.Import(old)
@@ -113,9 +118,23 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 	store.setPeers(0, participants)
 
 	// TODO: replace with real genesis
-	pos.FakeGenesis(participants, posConf, store.states)
+	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
+	if err != nil {
+		fmt.Println("Unable to init genesis state:", err)
+		os.Exit(36)
+	}
 
 	return store
+}
+
+/*
+ * Store interface implementation:
+ */
+
+// TopologicalEvents returns event in topological order.
+func (s *InmemStore) TopologicalEvents() ([]Event, error) {
+	// NOTE: it's used for bootstrap only, so is not implemented
+	return nil, nil
 }
 
 // CacheSize size of cache
@@ -129,7 +148,9 @@ func (s *InmemStore) Participants() (*peers.Peers, error) {
 }
 
 func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
-	// Extend PartipantEventsCache and Roots with new peers
+	// Extend ParticipantEventsCache and Roots with new peers
+	participants.RLock()
+	defer participants.RUnlock()
 	for _, peer := range participants.ByID {
 		s.repertoireByPubKey[peer.PubKeyHex] = peer
 		s.repertoireByID[peer.ID] = peer
@@ -177,7 +198,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		return err
 	}
 	if common.Is(err, common.KeyNotFound) {
-		if err := s.addParticpantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
+		if err := s.addParticipantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
 			return err
 		}
 	}
@@ -188,7 +209,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 	return nil
 }
 
-func (s *InmemStore) addParticpantEvent(participant string, hash EventHash, index int64) error {
+func (s *InmemStore) addParticipantEvent(participant string, hash EventHash, index int64) error {
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
@@ -257,6 +278,8 @@ func (s *InmemStore) LastConsensusEventFrom(participant string) (last EventHash,
 // KnownEvents returns all known events
 func (s *InmemStore) KnownEvents() map[uint64]int64 {
 	known := s.participantEventsCache.Known()
+	s.participants.RLock()
+	defer s.participants.RUnlock()
 	for p, pid := range s.participants.ByPubKey {
 		if known[pid.ID] == -1 {
 			root, ok := s.rootsByParticipant[p]
@@ -469,8 +492,8 @@ func (s *InmemStore) Close() error {
 	return nil
 }
 
-// NeedBoostrap for the store
-func (s *InmemStore) NeedBoostrap() bool {
+// NeedBootstrap for the store
+func (s *InmemStore) NeedBootstrap() bool {
 	return false
 }
 
@@ -482,4 +505,9 @@ func (s *InmemStore) StorePath() string {
 // StateDB returns state database
 func (s *InmemStore) StateDB() state.Database {
 	return s.states
+}
+
+// StateRoot returns genesis state hash.
+func (s *InmemStore) StateRoot() common.Hash {
+	return s.stateRoot
 }

@@ -17,13 +17,14 @@ import (
 )
 
 const (
-	// TODO: collect the similar magic constants in protocol config
-	// MaxReceiveMessageSize is size limitation of txs in bytes
+	// MaxEventsPayloadSize is size limitation of txs in bytes.
+	// TODO: collect the similar magic constants in protocol config.
 	MaxEventsPayloadSize = 100 * 1024 * 1024
 )
 
 var (
-	ErrTooBigTx = fmt.Errorf("Transaction too big")
+	// ErrTooBigTx is returned when transaction size > MaxEventsPayloadSize
+	ErrTooBigTx = fmt.Errorf("transaction too big")
 )
 
 // Core struct that controls the consensus, transaction, and communication
@@ -64,9 +65,11 @@ func NewCore(id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	logEntry := logger.WithField("id", id)
 
 	inDegrees := make(map[string]uint64)
+	participants.RLock()
 	for pubKey := range participants.ByPubKey {
 		inDegrees[pubKey] = 0
 	}
+	participants.RUnlock()
 
 	p2 := poset.NewPoset(participants, store, commitCh, logEntry)
 	core := &Core{
@@ -118,6 +121,8 @@ func (c *Core) Head() poset.EventHash {
 // Heights returns map with heights for each participants
 func (c *Core) Heights() map[string]uint64 {
 	heights := make(map[string]uint64)
+	c.participants.RLock()
+	defer c.participants.RUnlock()
 	for pubKey := range c.participants.ByPubKey {
 		participantEvents, err := c.poset.Store.ParticipantEvents(pubKey, -1)
 		if err == nil {
@@ -183,6 +188,8 @@ func (c *Core) Bootstrap() error {
 }
 
 func (c *Core) bootstrapInDegrees() {
+	c.participants.RLock()
+	defer c.participants.RUnlock()
 	for pubKey := range c.participants.ByPubKey {
 		c.inDegrees[pubKey] = 0
 		eventHash, _, err := c.poset.Store.LastEventFrom(pubKey)
@@ -294,8 +301,8 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 	// compare this to our view of events and fill unknown with events that we know of
 	// and the other doesn't
 	for id, ct := range known {
-		peer := c.participants.ByID[id]
-		if peer == nil {
+		peer, ok := c.participants.ReadByID(id)
+		if !ok {
 			// unknown peer detected.
 			// TODO: we should handle this nicely
 			continue
@@ -527,37 +534,37 @@ func (c *Core) ToWire(events []poset.Event) ([]poset.WireEvent, error) {
 	return wireEvents, nil
 }
 
-// RunConsensus is the core consensus mechanism, this checks rounds / frames and creates blocks
+// RunConsensus is the core consensus mechanism, this checks rounds/frames and creates blocks.
 func (c *Core) RunConsensus() error {
 	start := time.Now()
 	err := c.poset.DivideRounds()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DivideAtropos()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DivideRounds()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.DivideAtropos()")
+		c.logger.WithField("Error", err).Error("c.poset.DivideRounds()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.DecideAtropos()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideClotho()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideAtropos()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.DecideClotho()")
+		c.logger.WithField("Error", err).Error("c.poset.DecideAtropos()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.DecideRoundReceived()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideAtroposRoundReceived()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.DecideRoundReceived()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.DecideAtroposRoundReceived()")
+		c.logger.WithField("Error", err).Error("c.poset.DecideRoundReceived()")
 		return err
 	}
 
 	start = time.Now()
 	err = c.poset.ProcessDecidedRounds()
-	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.ProcessAtroposRounds()")
+	c.logger.WithField("Duration", time.Since(start).Nanoseconds()).Debug("c.poset.ProcessDecidedRounds()")
 	if err != nil {
-		c.logger.WithField("Error", err).Error("c.poset.ProcessAtroposRounds()")
+		c.logger.WithField("Error", err).Error("c.poset.ProcessDecidedRounds()")
 		return err
 	}
 
@@ -671,7 +678,7 @@ func (c *Core) GetConsensusTransactionsCount() uint64 {
 
 // GetLastCommittedRoundEventsCount count of events in last round
 func (c *Core) GetLastCommittedRoundEventsCount() int {
-	return c.poset.LastCommitedRoundEvents
+	return c.poset.LastCommittedRoundEvents
 }
 
 // GetLastBlockIndex retuns the latest block index

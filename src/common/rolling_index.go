@@ -63,11 +63,11 @@ func (r *RollingIndex) GetItem(index int64) (interface{}, error) {
 	if index < oldestCached {
 		return nil, NewStoreErr(r.name, TooLate, strconv.FormatInt(index, 10))
 	}
-	findex := index - oldestCached
-	if findex >= items {
+	foundIndex := index - oldestCached
+	if foundIndex >= items {
 		return nil, NewStoreErr(r.name, KeyNotFound, strconv.FormatInt(index, 10))
 	}
-	return r.items[findex], nil
+	return r.items[foundIndex], nil
 }
 
 // Set item for given index

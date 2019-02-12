@@ -15,7 +15,7 @@ func (f *Frame) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
-// ProtoUnmarshal converts protobuff to frame
+// ProtoUnmarshal converts protobuf to frame
 func (f *Frame) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, f)
 }

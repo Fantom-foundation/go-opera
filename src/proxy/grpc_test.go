@@ -19,98 +19,98 @@ func TestGrpcCalls(t *testing.T) {
 		errTimeout = "time is over"
 	)
 
-	addr := utils.GetUnusedNetAddr(t)
+	addr := utils.GetUnusedNetAddr(1, t)
 
 	logger := common.NewTestLogger(t)
 
-	s, err := NewGrpcAppProxy(addr, timeout, logger)
+	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
 	assert.NoError(t, err)
 
-	c, err := NewGrpcLachesisProxy(addr, logger)
+	c, err := NewGrpcLachesisProxy(addr[0], logger)
 	assert.NoError(t, err)
 
 	t.Run("#1 Send tx", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 		gold := []byte("123456")
 
 		err = c.SubmitTx(gold)
-		asserter.NoError(err)
+		assertO.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			asserter.Equal(gold, tx)
+			assertO.Equal(gold, tx)
 		case <-time.After(timeout):
-			asserter.Fail(errTimeout)
+			assertO.Fail(errTimeout)
 		}
 	})
 
 	t.Run("#2 Receive block", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 		block := poset.Block{}
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.CommitCh():
-				asserter.Equal(block, event.Block)
+				assertO.Equal(block, event.Block)
 				event.RespChan <- proto.CommitResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				asserter.Fail(errTimeout)
+				assertO.Fail(errTimeout)
 			}
 		}()
 
 		answ, err := s.CommitBlock(block)
-		if asserter.NoError(err) {
-			asserter.Equal(gold, answ)
+		if assertO.NoError(err) {
+			assertO.Equal(gold, answ)
 		}
 	})
 
 	t.Run("#3 Receive snapshot query", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 		index := int64(1)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.SnapshotRequestCh():
-				asserter.Equal(index, event.BlockIndex)
+				assertO.Equal(index, event.BlockIndex)
 				event.RespChan <- proto.SnapshotResponse{
 					Snapshot: gold,
 					Error:    nil,
 				}
 			case <-time.After(timeout):
-				asserter.Fail(errTimeout)
+				assertO.Fail(errTimeout)
 			}
 		}()
 
 		answ, err := s.GetSnapshot(index)
-		if asserter.NoError(err) {
-			asserter.Equal(gold, answ)
+		if assertO.NoError(err) {
+			assertO.Equal(gold, answ)
 		}
 	})
 
 	t.Run("#4 Receive restore command", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.RestoreCh():
-				asserter.Equal(gold, event.Snapshot)
+				assertO.Equal(gold, event.Snapshot)
 				event.RespChan <- proto.RestoreResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				asserter.Fail(errTimeout)
+				assertO.Fail(errTimeout)
 			}
 		}()
 
 		err := s.Restore(gold)
-		asserter.NoError(err)
+		assertO.NoError(err)
 	})
 
 	err = c.Close()
@@ -127,38 +127,38 @@ func TestGrpcReConnection(t *testing.T) {
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
 	)
-	addr := utils.GetUnusedNetAddr(t)
+	addr := utils.GetUnusedNetAddr(1, t)
 	logger := common.NewTestLogger(t)
 
-	c, err := NewGrpcLachesisProxy(addr, logger)
+	c, err := NewGrpcLachesisProxy(addr[0], logger)
 	if assert.NoError(t, err) {
 		assert.NotNil(t, c)
 	}
 
-	s, err := NewGrpcAppProxy(addr, timeout, logger)
+	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
 	assert.NoError(t, err)
 
 	checkConnAndStopServer := func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 		gold := []byte("123456")
 
 		err := c.SubmitTx(gold)
-		asserter.NoError(err)
+		assertO.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			asserter.Equal(gold, tx)
+			assertO.Equal(gold, tx)
 		case <-time.After(timeout):
-			asserter.Fail(errTimeout)
+			assertO.Fail(errTimeout)
 		}
 
 		err = s.Close()
-		asserter.NoError(err)
+		assertO.NoError(err)
 	}
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
 
-	s, err = NewGrpcAppProxy(addr, timeout/2, logger)
+	s, err = NewGrpcAppProxy(addr[0], timeout/2, logger)
 	assert.NoError(t, err)
 
 	<-time.After(timeout)
@@ -228,9 +228,9 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 			}
 		}()
 
-		answ, err := s.CommitBlock(block)
+		answer, err := s.CommitBlock(block)
 		if assert.NoError(err) {
-			assert.Equal(hash, answ)
+			assert.Equal(hash, answer)
 		}
 	})
 

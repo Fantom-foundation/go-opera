@@ -30,8 +30,9 @@ type Node struct {
 	core     *Core
 	coreLock sync.Mutex
 
+	localAddr string
+
 	peerSelector PeerSelector
-	selectorLock sync.Mutex
 
 	trans peer.SyncPeer
 	proxy proxy.AppProxy
@@ -98,7 +99,7 @@ func NewNode(conf *Config,
 	node.logger.WithField("peers", pmap).Debug("pmap")
 	node.logger.WithField("pubKey", pubKey).Debug("pubKey")
 
-	node.needBoostrap = store.NeedBoostrap()
+	node.needBoostrap = store.NeedBootstrap()
 
 	// Initialize
 	node.setState(Gossiping)
@@ -149,13 +150,15 @@ func (n *Node) Run(gossip bool) {
 	for {
 		// Run different routines depending on node state
 		state := n.getState()
-		n.logger.WithField("state", state.String()).Debug("RunAsync(gossip bool)")
+		n.logger.WithField("state", state.String()).Debug("Run(gossip bool)")
 
 		switch state {
 		case Gossiping:
 			n.lachesis(gossip)
 		case CatchingUp:
-			n.fastForward()
+			if err := n.fastForward(); err != nil {
+				n.logger.WithField("state", "fastForward").WithError(err).Debug("Run(gossip bool)")
+			}
 		case Stop:
 			// do nothing in Stop state
 		case Shutdown:
@@ -228,13 +231,14 @@ func (n *Node) lachesis(gossip bool) {
 				n.rpcJobs.decrement()
 			})
 		case <-n.controlTimer.tickCh:
+			n.logStats()
 			if gossip && n.gossipJobs.get() < 1 {
-				n.selectorLock.Lock()
 				peerAddr := n.peerSelector.Next().NetAddr
-				n.selectorLock.Unlock()
 				n.goFunc(func() {
 					n.gossipJobs.increment()
-					n.gossip(peerAddr, returnCh)
+					if err := n.gossip(peerAddr, returnCh); err != nil {
+						n.logger.WithError(err).Debug("node::lachesis(bool)::n.controlTimer.tickCh")
+					}
 					n.gossipJobs.decrement()
 				})
 				n.logger.Debug("Gossip")
@@ -413,9 +417,7 @@ func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
 	}
 
 	// update peer selector
-	n.selectorLock.Lock()
 	n.peerSelector.UpdateLast(peerAddr)
-	n.selectorLock.Unlock()
 
 	return nil
 }
@@ -520,9 +522,7 @@ func (n *Node) fastForward() error {
 	n.waitRoutines()
 
 	// fastForwardRequest
-	n.selectorLock.Lock()
 	peer := n.peerSelector.Next()
-	n.selectorLock.Unlock()
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
 	elapsed := time.Since(start)
@@ -599,6 +599,9 @@ func (n *Node) sync(events []poset.WireEvent) error {
 
 func (n *Node) commit(block poset.Block) error {
 
+	n.coreLock.Lock()
+	defer n.coreLock.Unlock()
+
 	stateHash := []byte{0, 1, 2}
 	_, err := n.proxy.CommitBlock(block)
 	if err != nil {
@@ -628,8 +631,6 @@ func (n *Node) commit(block poset.Block) error {
 		// multiple nodes can't read from the same client
 
 		block.StateHash = stateHash
-		n.coreLock.Lock()
-		defer n.coreLock.Unlock()
 		sig, err := n.core.SignBlock(block)
 		if err != nil {
 			return err
@@ -671,7 +672,9 @@ func (n *Node) Shutdown() {
 		// transport and store should only be closed once all concurrent operations
 		// are finished otherwise they will panic trying to use close objects
 		n.trans.Close()
-		n.core.poset.Store.Close()
+		if err := n.core.poset.Store.Close(); err != nil {
+			n.logger.WithError(err).Debug("node::Shutdown::n.core.poset.Store.Close()")
+		}
 	}
 }
 
@@ -720,6 +723,35 @@ func (n *Node) GetStats() map[string]string {
 	}
 	// n.mqtt.FireEvent(s, "/mq/lachesis/stats")
 	return s
+}
+
+func (n *Node) logStats() {
+	stats := n.GetStats()
+	n.logger.WithFields(logrus.Fields{
+		"last_consensus_round":   stats["last_consensus_round"],
+		"last_block_index":       stats["last_block_index"],
+		"consensus_events":       stats["consensus_events"],
+		"consensus_transactions": stats["consensus_transactions"],
+		"undetermined_events":    stats["undetermined_events"],
+		"transaction_pool":       stats["transaction_pool"],
+		"num_peers":              stats["num_peers"],
+		"sync_rate":              stats["sync_rate"],
+		"events/s":               stats["events_per_second"],
+		"t/s":                    stats["transactions_per_second"],
+		"rounds/s":               stats["rounds_per_second"],
+		"round_events":           stats["round_events"],
+		"state":                  stats["state"],
+		"z_gossipJobs":           n.gossipJobs.get(),
+		"z_rpcJobs":              n.rpcJobs.get(),
+		"pending_loaded_events":  n.GetPendingLoadedEvents(),
+		"last_round":             n.GetLastRound(),
+		// "addr" is already defined in Node.logger, see NewNode() function
+		// uncomment when needed
+		//		"addr":                   n.localAddr,
+		// "id" is duplicate of "this_id" in Node.logger, see NewNode() function
+		// uncomment when needed
+		//		"id":                     stats["id"],
+	}).Warn("logStats()")
 }
 
 // SyncRate returns the current synchronization (talking to over nodes) rate in ms

@@ -4,8 +4,10 @@ import "strings"
 
 // Maj major semver version
 const Maj = "0"
+
 // Min minor semver version
 const Min = "4"
+
 // Fix fix semver version
 const Fix = "5-rc1"
 

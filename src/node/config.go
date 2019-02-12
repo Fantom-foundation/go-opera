@@ -16,7 +16,7 @@ type Config struct {
 	CacheSize        int           `mapstructure:"cache-size"`
 	SyncLimit        int64         `mapstructure:"sync-limit"`
 	Logger           *logrus.Logger
-	TestDelay uint64 `mapstructure:"test_delay"`
+	TestDelay        uint64 `mapstructure:"test_delay"`
 }
 
 // NewConfig creates a new node config

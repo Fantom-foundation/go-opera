@@ -1,25 +1,28 @@
 // Package common contains various helper functions.
 package common
 
-import "encoding/hex"
+import (
+	"encoding/hex"
+	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
+)
 
 // ToHex returns the hex representation of b, prefixed with '0x'.
 // For empty slices, the return value is "0x0".
 //
 // Deprecated: use hexutil.Encode instead.
 func ToHex(b []byte) string {
-	hex := Bytes2Hex(b)
-	if len(hex) == 0 {
-		hex = "0"
+	hexadecimal := Bytes2Hex(b)
+	if len(hexadecimal) == 0 {
+		hexadecimal = "0"
 	}
-	return "0x" + hex
+	return "0x" + hexadecimal
 }
 
 // ToHexArray creates a array of hex-string based on []byte
 func ToHexArray(b [][]byte) []string {
 	r := make([]string, len(b))
 	for i := range b {
-		r[i] = ToHex(b[i])
+		r[i] = hexutil.Encode(b[i])
 	}
 	return r
 }

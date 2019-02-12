@@ -65,7 +65,11 @@ func TestBackendClose(t *testing.T) {
 	address := newAddress()
 	backend := newBackend(t, conf, logger, address, done,
 		expSyncResponse, srvTimeout, net.Listen)
-	defer backend.Close()
+	defer func() {
+		if err := backend.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	rpcCli, err := peer.NewRPCClient(
 		peer.TCP, address, time.Second, net.DialTimeout)

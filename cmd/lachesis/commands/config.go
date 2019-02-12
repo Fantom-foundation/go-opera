@@ -1,9 +1,9 @@
 package commands
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"os"
 	"path/filepath"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 //CLIConfig contains configuration for the Run command
