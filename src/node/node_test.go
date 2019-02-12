@@ -352,7 +352,7 @@ func TestSyncAndRequestSync(t *testing.T) {
 	}
 
 	// Sync events
-	if err := node1.sync(resp.Events); err != nil {
+	if err := node1.sync(data.PeersSlice[1], resp.Events); err != nil {
 		t.Fatal(err)
 	}
 
