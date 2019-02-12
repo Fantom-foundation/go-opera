@@ -16,6 +16,8 @@ type IDPeers map[uint64]*Peer
 // AddressPeers maps address to peer
 type AddressPeers map[common.Address]*Peer
 
+type NetAddrPeers map[string]*Peer
+
 // Listener for listening for new peers joining
 type Listener func(*Peer)
 
@@ -26,6 +28,7 @@ type Peers struct {
 	ByPubKey  PubKeyPeers
 	ByID      IDPeers
 	ByAddress AddressPeers
+	ByNetAddr NetAddrPeers
 	Listeners []Listener
 }
 
@@ -37,6 +40,7 @@ func NewPeers() *Peers {
 		ByPubKey:  make(PubKeyPeers),
 		ByID:      make(IDPeers),
 		ByAddress: make(AddressPeers),
+		ByNetAddr: make(NetAddrPeers),
 	}
 }
 
@@ -69,6 +73,7 @@ func (p *Peers) addPeerRaw(peer *Peer) {
 	p.ByPubKey[peer.PubKeyHex] = peer
 	p.ByID[peer.ID] = peer
 	p.ByAddress[peer.Address()] = peer
+	p.ByNetAddr[peer.NetAddr] = peer
 }
 
 // AddPeer adds a peer to the peers struct
@@ -106,6 +111,7 @@ func (p *Peers) RemovePeer(peer *Peer) {
 	delete(p.ByPubKey, peer.PubKeyHex)
 	delete(p.ByID, peer.ID)
 	delete(p.ByAddress, peer.Address())
+	delete(p.ByNetAddr, peer.NetAddr)
 
 	p.internalSort()
 }
@@ -209,6 +215,13 @@ func (p *Peers) ReadByAddress(key common.Address) (Peer, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	peer, ok := p.ByAddress[key]
+	return *peer, ok
+}
+
+func (p *Peers) ReadByNetAddr(key string) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByNetAddr[key]
 	return *peer, ok
 }
 

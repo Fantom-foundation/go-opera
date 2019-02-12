@@ -42,7 +42,7 @@ type Store interface {
 	SetFrame(Frame) error
 	Reset(map[string]Root) error
 	Close() error
-	NeedBoostrap() bool // Was the store loaded from existing db
+	NeedBootstrap() bool // Was the store loaded from existing db
 	StorePath() string
 	// StateDB returns state database
 	StateDB() state.Database
