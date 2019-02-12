@@ -116,6 +116,9 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 	})
 
 	store.setPeers(0, participants)
+	if err = store.setLeafEvents(store.rootsByParticipant); err != nil {
+		panic(err)
+	}
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -510,4 +513,38 @@ func (s *InmemStore) StateDB() state.Database {
 // StateRoot returns genesis state hash.
 func (s *InmemStore) StateRoot() common.Hash {
 	return s.stateRoot
+}
+
+
+func (s *InmemStore) setLeafEvents(roots map[string]Root) error {
+	for participant, root := range roots {
+		var creator []byte
+		var selfParentHash EventHash
+		selfParentHash.Set(root.SelfParent.Hash)
+		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
+			return err
+		}
+		body := EventBody{
+			Creator: creator,
+			Index:   root.SelfParent.Index,
+			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
+		}
+		event := Event{
+			Message: &EventMessage{
+				Hash:             root.SelfParent.Hash,
+				CreatorID:        root.SelfParent.CreatorID,
+				TopologicalIndex: -1,
+				Body:             &body,
+				FlagTable:        FlagTable{selfParentHash: 1}.Marshal(),
+				ClothoProof:      [][]byte{root.SelfParent.Hash},
+			},
+			lamportTimestamp: 0,
+			round:            0,
+			roundReceived:    0, /*RoundNIL*/
+		}
+		if err := s.SetEvent(event); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -1030,7 +1030,12 @@ func synchronizeCores(cores []*Core, from int, to int, payload [][]byte) error {
 		return err
 	}
 
-	return cores[to].Sync(unknownWire)
+	peer, ok := cores[to].participants.ReadByPubKey(cores[from].HexID())
+	if !ok {
+		return fmt.Errorf("peer from %d not found", from)
+	}
+	cores[to].logger.Debug("2Sync()");
+	return cores[to].Sync(&peer, unknownWire)
 }
 
 func syncAndRunConsensus(
