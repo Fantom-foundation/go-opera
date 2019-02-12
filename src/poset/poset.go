@@ -10,11 +10,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/log"
+	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -371,16 +371,19 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	*/
 	rootsBySelfParent, _ := p.Store.RootsBySelfParent()
 	if r, ok := rootsBySelfParent[x]; ok {
+		p.logger.Debug("p.round2(): return r.SelfParent.Round")
 		return r.SelfParent.Round, nil
 	}
 
 	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
+		p.logger.Debug("p.round2(): return math.MinInt64")
 		return math.MinInt64, err
 	}
 
 	root, err := p.Store.GetRoot(ex.GetCreator())
 	if err != nil {
+		p.logger.Debug("p.round2(): return math.MinInt64 2")
 		return math.MinInt64, err
 	}
 
@@ -394,6 +397,7 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 		if other, ok := root.Others[hash.String()]; op.Zero() ||
 			(ok && op.Equal(other.Hash)) {
 
+			p.logger.Debug("p.round2(): return root.NextRound")
 			return root.NextRound, nil
 		}
 	}
@@ -404,64 +408,29 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	*/
 	spRound, err := p.round(ex.SelfParent())
 	if err != nil {
-		return math.MinInt64, err
+		p.logger.Debug("p.round2(): return RoundNIL")
+		return RoundNIL, err
 	}
 	var parentRound = spRound
-	var opRound int64
+	opRound, err := p.round(ex.OtherParent())
+	if err != nil {
+		p.logger.Debug("p.round2(): return RoundNIL 2")
+		return RoundNIL, err
+	}
+	if (opRound > parentRound) {
+		parentRound = opRound
+	}
+	p.logger.WithField("parentRound", parentRound).Debug("p.round2()")
 
-	if op := ex.OtherParent(); !op.Zero() {
-		// XXX
-		hash := ex.Hash()
-		if other, ok := root.Others[hash.String()]; ok && op.Equal(other.Hash) {
-			opRound = root.NextRound
-		} else {
-			opRound, err = p.round(ex.OtherParent())
-			if err != nil {
-				return math.MinInt64, err
-			}
-		}
-
-		if opRound > parentRound {
-			var (
-				found              bool
-				clothoOpRoundRoots int64
-			)
-
-			// if in a flag table there are clothos of the current round, then
-			// current round is other parent round.
-			ws := p.Store.RoundClothos(opRound)
-			ft, _ := ex.GetFlagTable()
-			for k := range ft {
-				for _, w := range ws {
-					if w == k && w != ex.Hash() {
-						dominate, err := p.dominated(ex.Hash(), w)
-						if err != nil {
-							return math.MinInt32, err
-						}
-
-						if dominate {
-							if !found {
-								found = true
-							}
-							clothoOpRoundRoots++
-						}
-					}
-				}
-			}
-
-			if clothoOpRoundRoots >= int64(p.superMajority) {
-				return opRound + 1, nil
-			}
-
-			if found {
-				return opRound, nil
-			}
-
-			parentRound = opRound
-		}
+	// base of recursion. If both parents are of RoundNIL they are leaf events
+	if parentRound == RoundNIL {
+		return 0, nil
 	}
 
 	ws := p.Store.RoundClothos(parentRound)
+	p.logger.WithFields(logrus.Fields{
+		"len(ws)": len(ws),
+	}).Debug("p.round2()")
 
 	isDominated := func(poset *Poset, root EventHash, clothos EventHashes) bool {
 		for _, w := range ws {
@@ -479,6 +448,10 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	}
 
 	// check wp
+	p.logger.WithFields(logrus.Fields{
+		"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
+		"p.superMajority":  p.superMajority,
+	}).Debug("p.round2()")
 	if len(ex.Message.ClothoProof) >= p.superMajority {
 		count := 0
 		for _, h := range ex.Message.ClothoProof {
@@ -489,27 +462,44 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 			}
 		}
 
+		p.logger.WithFields(logrus.Fields{
+			"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
+			"p.superMajority":  p.superMajority,
+			"count": count,
+		}).Debug("p.round2()")
 		if count >= p.superMajority {
+			p.logger.Debug("p.round2(): return parentRound + 1")
 			return parentRound + 1, err
 		}
-	}
+	} else {
 
-	// check ft
-	ft, _ := ex.GetFlagTable()
-	if len(ft) >= p.superMajority {
-		count := 0
+		// check ft
+		ft, _ := ex.GetFlagTable()
+		p.logger.WithFields(logrus.Fields{
+			"len(ft)": len(ft),
+			"p.superMajority":  p.superMajority,
+		}).Debug("p.round2()")
+		if len(ft) >= p.superMajority {
+			count := 0
 
-		for root := range ft {
-			if isDominated(p, root, ws) {
-				count++
+			for root := range ft {
+				if isDominated(p, root, ws) {
+					count++
+				}
+			}
+
+			p.logger.WithFields(logrus.Fields{
+				"len(ft)": len(ft),
+				"count": count,
+				"p.superMajority":  p.superMajority,
+			}).Debug("p.round2()")
+			if count >= p.superMajority {
+				p.logger.Debug("p.round2(): return parentRound + 1 (2)")
+				return parentRound + 1, err
 			}
 		}
-
-		if count >= p.superMajority {
-			return parentRound + 1, err
-		}
 	}
-
+	p.logger.Debug("p.round2(): return parentRound, last")
 	return parentRound, nil
 }
 
@@ -983,6 +973,12 @@ func (p *Poset) DivideRounds() error {
 				return err
 			}
 
+			p.logger.WithFields(logrus.Fields{
+				"hash":  hash,
+				"roundNumber": roundNumber,
+				"roundCreated": roundCreated,
+			}).Debug("p.DivideRounds()")
+
 			/*
 				Why the lower bound?
 				Normally, once a Round has attained consensus, it is impossible for
@@ -1087,7 +1083,7 @@ func (p *Poset) DecideAtropos() error {
 	}
 
 	decidedRounds := map[int64]int64{} // [round number] => index in p.PendingRounds
-	c := 3
+	c := 11
 
 	for pos, r := range p.PendingRounds {
 		roundIndex := r.Index
@@ -1786,7 +1782,7 @@ func (p *Poset) Bootstrap() error {
 func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	var (
 		selfParent  EventHash = GenRootSelfParent(wevent.Body.CreatorID)
-		otherParent EventHash
+		otherParent EventHash = GenRootSelfParent(wevent.Body.OtherParentCreatorID)
 		err         error
 	)
 

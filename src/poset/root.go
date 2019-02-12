@@ -72,7 +72,7 @@ func NewBaseRootEvent(creatorID uint64) RootEvent {
 		CreatorID:        creatorID,
 		Index:            -1,
 		LamportTimestamp: -1,
-		Round:            -1,
+		Round:            RoundNIL,
 	}
 	return res
 }

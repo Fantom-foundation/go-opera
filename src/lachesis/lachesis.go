@@ -91,7 +91,7 @@ func (l *Lachesis) initStore() (err error) {
 		}
 	}
 
-	if l.Store.NeedBoostrap() {
+	if l.Store.NeedBootstrap() {
 		l.Config.Logger.Debug("loaded store from existing database")
 	} else {
 		l.Config.Logger.Debug("created new store from blank database")
