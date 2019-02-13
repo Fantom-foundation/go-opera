@@ -24,7 +24,7 @@ func newParentNodesInspector(e *Event) *parentNodesInspector {
 func (pi *parentNodesInspector) IsParentUnique(node common.Address) bool {
 	if _, ok := pi.nodes[node]; ok {
 		log.Warnf("Event %s has double refer to node %s, so rejected",
-			pi.event.Hash().ShortString(),
+			pi.event.Hash().String(),
 			node.String())
 		return false
 	}
@@ -36,7 +36,7 @@ func (pi *parentNodesInspector) IsParentUnique(node common.Address) bool {
 func (pi *parentNodesInspector) HasSelfParent() bool {
 	if _, ok := pi.nodes[pi.event.Creator]; !ok {
 		log.Warnf("Event %s has no refer to self-node %s, so rejected",
-			pi.event.Hash().ShortString(),
+			pi.event.Hash().String(),
 			pi.event.Creator.String())
 		return false
 	}
@@ -62,7 +62,7 @@ func newParentLamportTimeInspector(e *Event) *parentLamportTimeInspector {
 func (ti *parentLamportTimeInspector) IsGreaterThan(time uint64) bool {
 	if ti.event.LamportTime <= time {
 		log.Warnf("Event %s has lamport time %d. It isn't next of parents, so rejected",
-			ti.event.Hash().ShortString(),
+			ti.event.Hash().String(),
 			ti.event.LamportTime)
 		return false
 	}
@@ -75,7 +75,7 @@ func (ti *parentLamportTimeInspector) IsGreaterThan(time uint64) bool {
 func (ti *parentLamportTimeInspector) IsSequential() bool {
 	if ti.event.LamportTime != ti.maxTime+1 {
 		log.Warnf("Event %s has lamport time %d. It is too far from parents, so rejected",
-			ti.event.Hash().ShortString(),
+			ti.event.Hash().String(),
 			ti.event.LamportTime)
 		return false
 	}

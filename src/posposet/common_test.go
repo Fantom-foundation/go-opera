@@ -168,6 +168,7 @@ func ParseEvents(asciiScheme string) (
 			}
 			events[creator] = append(events[creator], e)
 			names[name] = e
+			EventNameDict[e.Hash()] = name
 		}
 	}
 

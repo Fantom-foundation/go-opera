@@ -44,13 +44,11 @@ func (hash EventHash) Bytes() []byte {
 	return (common.Hash)(hash).Bytes()
 }
 
-// String returns value as hex string.
-func (hash EventHash) String() string {
-	return (common.Hash)(hash).String()
-}
-
 // String returns human readable string representation.
-func (hash EventHash) ShortString() string {
+func (hash EventHash) String() string {
+	if name, ok := EventNameDict[hash]; ok {
+		return name
+	}
 	return (common.Hash)(hash).ShortString()
 }
 
@@ -63,26 +61,20 @@ func (hash *EventHash) IsZero() bool {
  * EventHashes methods:
  */
 
-// Strings returns values as slice of hex strings.
-func (hh *EventHashes) Strings() []string {
-	res := make([]string, 0, len(hh.index))
-	if hh.index == nil {
-		return res
-	}
-	for hash, _ := range hh.index {
-		res = append(res, hash.String())
-	}
-	return res
+func newEventHashes(hash ...EventHash) *EventHashes {
+	hh := &EventHashes{}
+	hh.Add(hash...)
+	return hh
 }
 
 // String returns human readable string representation.
-func (hh *EventHashes) ShortString() string {
+func (hh *EventHashes) String() string {
 	if hh.index == nil {
 		return ""
 	}
 	strs := make([]string, 0, len(hh.index))
 	for hash, _ := range hh.index {
-		strs = append(strs, hash.ShortString())
+		strs = append(strs, hash.String())
 	}
 	return "[" + strings.Join(strs, ", ") + "]"
 }
@@ -97,14 +89,32 @@ func (hh *EventHashes) All() map[EventHash]struct{} {
 	return hh.index
 }
 
+// All returns whole index.
+func (hh *EventHashes) Slice() []EventHash {
+	if hh == nil {
+		return nil
+	}
+	arr := make([]EventHash, len(hh.index))
+	i := 0
+	for h := range hh.index {
+		arr[i] = h
+		i++
+	}
+	return arr
+}
+
 // Add appends hash to the index.
-func (hh *EventHashes) Add(hash ...EventHash) {
+func (hh *EventHashes) Add(hash ...EventHash) (changed bool) {
 	if hh.index == nil {
 		hh.index = make(map[EventHash]struct{})
 	}
 	for _, h := range hash {
-		hh.index[h] = struct{}{}
+		if _, ok := hh.index[h]; !ok {
+			hh.index[h] = struct{}{}
+			changed = true
+		}
 	}
+	return
 }
 
 // Contains returns true if hash is in.

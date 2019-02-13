@@ -26,5 +26,5 @@ func (e *Event) Hash() EventHash {
 
 // String returns string representation.
 func (e *Event) String() string {
-	return fmt.Sprintf("Event{%s, %s, %d}", e.Hash().ShortString(), e.Parents.ShortString(), e.LamportTime)
+	return fmt.Sprintf("Event{%s, %s, %d}", e.Hash().String(), e.Parents.String(), e.LamportTime)
 }
