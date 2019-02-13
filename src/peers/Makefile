@@ -1,7 +1,11 @@
+export GO?=go
+export PROTOC?=protoc
+export RM?=rm
+
 .PHONY: build clean proto test
 
 clean:
-	rm -rf *.pb.go
+	$(RM) -rf *.pb.go
 
 proto:
 	$(PROTOC) --proto_path=. --go_out=paths=source_relative:. *.proto
@@ -9,4 +13,4 @@ proto:
 build:
 
 test:
-	go test -race -timeout 45s
+	$(GO) test -race -timeout 45s
