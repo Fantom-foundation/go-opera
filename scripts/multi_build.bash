@@ -3,14 +3,12 @@
 set -euo pipefail
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
-declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-declare -r parent_dir="${DIR%/*}"
-declare -r gparent_dir="${parent_dir%/*}"
+declare -xr DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -xr parent_dir="${DIR%/*}"
+declare -xr gparent_dir="${parent_dir%/*}"
 
 . "$DIR/set_globals.bash"
-for dir in "$BUILD_DIR" "$DIR" "$parent_dir" "$gparent_dir"; do
-  rm -rf "$dir"/{nodes,peers.json,lachesis_d*}
-done
+. "$DIR/clean_dirs.bash"
 . "$DIR/ncpus.bash"
 
 # Config
