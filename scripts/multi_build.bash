@@ -8,7 +8,9 @@ declare -r parent_dir="${DIR%/*}"
 declare -r gparent_dir="${parent_dir%/*}"
 
 . "$DIR/set_globals.bash"
-"$DIR/docker/clean.bash"
+for dir in "$BUILD_DIR" "$DIR" "$parent_dir" "$gparent_dir"; do
+  rm -rf "$dir"/{nodes,peers.json,lachesis_d*}
+done
 . "$DIR/ncpus.bash"
 
 # Config
