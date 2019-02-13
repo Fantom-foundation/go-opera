@@ -401,7 +401,7 @@ func (n *Node) gossip(parentReturnCh chan struct{}) error {
 
 	peer := n.peerSelector.Next()
 	if peer == nil {
-		fmt.Errorf("Can't select next peer")
+		return fmt.Errorf("can't select next peer")
 	}
 
 	// pull
