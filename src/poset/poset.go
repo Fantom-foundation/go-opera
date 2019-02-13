@@ -10,11 +10,11 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/log"
+	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -28,23 +28,23 @@ type Core interface {
 // Poset is a DAG of Events. It also contains methods to extract a consensus
 // order of Events and map them onto a blockchain.
 type Poset struct {
-	Participants            *peers.Peers      // [public key] => id
-	Store                   Store             // store of Events, Rounds, and Blocks
-	UndeterminedEvents      []EventHash       // [index] => hash . FIFO queue of Events whose consensus order is not yet determined
-	PendingRounds           []*pendingRound   // FIFO queue of Rounds which have not attained consensus yet
-	PendingRoundReceived    common.Int64Slice // FIFO queue of RoundReceived which have not been made into frames yet
-	LastConsensusRound      *int64            // index of last consensus round
-	FirstConsensusRound     *int64            // index of first consensus round (only used in tests)
-	AnchorBlock             *int64            // index of last block with enough signatures
-	LastCommitedRoundEvents int               // number of events in round before LastConsensusRound
-	SigPool                 []BlockSignature  // Pool of Block signatures that need to be processed
-	ConsensusTransactions   uint64            // number of consensus transactions
-	pendingLoadedEvents     int64             // number of loaded events that are not yet committed
-	commitCh                chan Block        // channel for committing Blocks
-	topologicalIndex        int64             // counter used to order events in topological order (only local)
-	superMajority           int
-	trustCount              int
-	core                    Core
+	Participants             *peers.Peers      // [public key] => id
+	Store                    Store             // store of Events, Rounds, and Blocks
+	UndeterminedEvents       []EventHash       // [index] => hash . FIFO queue of Events whose consensus order is not yet determined
+	PendingRounds            []*pendingRound   // FIFO queue of Rounds which have not attained consensus yet
+	PendingRoundReceived     common.Int64Slice // FIFO queue of RoundReceived which have not been made into frames yet
+	LastConsensusRound       *int64            // index of last consensus round
+	FirstConsensusRound      *int64            // index of first consensus round (only used in tests)
+	AnchorBlock              *int64            // index of last block with enough signatures
+	LastCommittedRoundEvents int               // number of events in round before LastConsensusRound
+	SigPool                  []BlockSignature  // Pool of Block signatures that need to be processed
+	ConsensusTransactions    uint64            // number of consensus transactions
+	pendingLoadedEvents      int64             // number of loaded events that are not yet committed
+	commitCh                 chan Block        // channel for committing Blocks
+	topologicalIndex         int64             // counter used to order events in topological order (only local)
+	superMajority            int
+	trustCount               int
+	core                     Core
 
 	dominatorCache         *lru.Cache
 	selfDominatorCache     *lru.Cache
@@ -175,7 +175,11 @@ func (p *Poset) dominator2(x, y EventHash) (bool, error) {
 			return false, err2
 		}
 		if root, ok := roots[y]; ok {
-			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
+			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
+			if !ok {
+				return false, fmt.Errorf("creator with ID %v not found", root.SelfParent.CreatorID)
+			}
+			yCreator := peer.PubKeyHex
 			if ex.GetCreator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
@@ -242,7 +246,11 @@ func (p *Poset) selfDominator2(x, y EventHash) (bool, error) {
 			return false, err2
 		}
 		if root, ok := roots[y]; ok {
-			yCreator := p.Participants.ByID[root.SelfParent.CreatorID].PubKeyHex
+			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
+			if !ok {
+				return false, fmt.Errorf("self-parent creator with ID %v not found", root.SelfParent.CreatorID)
+			}
+			yCreator := peer.PubKeyHex
 			if ex.GetCreator() == yCreator {
 				return ex.Index() >= root.SelfParent.Index, nil
 			}
@@ -313,7 +321,10 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 		}
 
 		if root, ok := roots[x]; ok {
-			creator := p.Participants.ByID[root.SelfParent.CreatorID]
+			creator, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
+			if !ok {
+				return fmt.Errorf("self-parent creator with ID %v not found", root.SelfParent.CreatorID)
+			}
 
 			sentinels[creator.PubKeyHex] = true
 
@@ -323,7 +334,10 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 		return err
 	}
 
-	creator := p.Participants.ByID[ex.CreatorID()]
+	creator, ok := p.Participants.ReadByID(ex.CreatorID())
+	if !ok {
+		return fmt.Errorf("creator with ID %v not found", ex.CreatorID())
+	}
 	sentinels[creator.PubKeyHex] = true
 
 	if x == y {
@@ -357,16 +371,19 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	*/
 	rootsBySelfParent, _ := p.Store.RootsBySelfParent()
 	if r, ok := rootsBySelfParent[x]; ok {
+		p.logger.Debug("p.round2(): return r.SelfParent.Round")
 		return r.SelfParent.Round, nil
 	}
 
 	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
+		p.logger.Debug("p.round2(): return math.MinInt64")
 		return math.MinInt64, err
 	}
 
 	root, err := p.Store.GetRoot(ex.GetCreator())
 	if err != nil {
+		p.logger.Debug("p.round2(): return math.MinInt64 2")
 		return math.MinInt64, err
 	}
 
@@ -380,6 +397,7 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 		if other, ok := root.Others[hash.String()]; op.Zero() ||
 			(ok && op.Equal(other.Hash)) {
 
+			p.logger.Debug("p.round2(): return root.NextRound")
 			return root.NextRound, nil
 		}
 	}
@@ -390,64 +408,29 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	*/
 	spRound, err := p.round(ex.SelfParent())
 	if err != nil {
-		return math.MinInt64, err
+		p.logger.Debug("p.round2(): return RoundNIL")
+		return RoundNIL, err
 	}
 	var parentRound = spRound
-	var opRound int64
+	opRound, err := p.round(ex.OtherParent())
+	if err != nil {
+		p.logger.Debug("p.round2(): return RoundNIL 2")
+		return RoundNIL, err
+	}
+	if opRound > parentRound {
+		parentRound = opRound
+	}
+	p.logger.WithField("parentRound", parentRound).Debug("p.round2()")
 
-	if op := ex.OtherParent(); !op.Zero() {
-		// XXX
-		hash := ex.Hash()
-		if other, ok := root.Others[hash.String()]; ok && op.Equal(other.Hash) {
-			opRound = root.NextRound
-		} else {
-			opRound, err = p.round(ex.OtherParent())
-			if err != nil {
-				return math.MinInt64, err
-			}
-		}
-
-		if opRound > parentRound {
-			var (
-				found              bool
-				clothoOpRoundRoots int64
-			)
-
-			// if in a flag table there are clothos of the current round, then
-			// current round is other parent round.
-			ws := p.Store.RoundClothos(opRound)
-			ft, _ := ex.GetFlagTable()
-			for k := range ft {
-				for _, w := range ws {
-					if w == k && w != ex.Hash() {
-						dominate, err := p.dominated(ex.Hash(), w)
-						if err != nil {
-							return math.MinInt32, err
-						}
-
-						if dominate {
-							if !found {
-								found = true
-							}
-							clothoOpRoundRoots++
-						}
-					}
-				}
-			}
-
-			if clothoOpRoundRoots >= int64(p.superMajority) {
-				return opRound + 1, nil
-			}
-
-			if found {
-				return opRound, nil
-			}
-
-			parentRound = opRound
-		}
+	// base of recursion. If both parents are of RoundNIL they are leaf events
+	if parentRound == RoundNIL {
+		return 0, nil
 	}
 
 	ws := p.Store.RoundClothos(parentRound)
+	p.logger.WithFields(logrus.Fields{
+		"len(ws)": len(ws),
+	}).Debug("p.round2()")
 
 	isDominated := func(poset *Poset, root EventHash, clothos EventHashes) bool {
 		for _, w := range ws {
@@ -465,6 +448,10 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	}
 
 	// check wp
+	p.logger.WithFields(logrus.Fields{
+		"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
+		"p.superMajority":  p.superMajority,
+	}).Debug("p.round2()")
 	if len(ex.Message.ClothoProof) >= p.superMajority {
 		count := 0
 		for _, h := range ex.Message.ClothoProof {
@@ -475,27 +462,44 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 			}
 		}
 
+		p.logger.WithFields(logrus.Fields{
+			"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
+			"p.superMajority":  p.superMajority,
+			"count": count,
+		}).Debug("p.round2()")
 		if count >= p.superMajority {
+			p.logger.Debug("p.round2(): return parentRound + 1")
 			return parentRound + 1, err
 		}
-	}
+	} else {
 
-	// check ft
-	ft, _ := ex.GetFlagTable()
-	if len(ft) >= p.superMajority {
-		count := 0
+		// check ft
+		ft, _ := ex.GetFlagTable()
+		p.logger.WithFields(logrus.Fields{
+			"len(ft)": len(ft),
+			"p.superMajority":  p.superMajority,
+		}).Debug("p.round2()")
+		if len(ft) >= p.superMajority {
+			count := 0
 
-		for root := range ft {
-			if isDominated(p, root, ws) {
-				count++
+			for root := range ft {
+				if isDominated(p, root, ws) {
+					count++
+				}
+			}
+
+			p.logger.WithFields(logrus.Fields{
+				"len(ft)": len(ft),
+				"count": count,
+				"p.superMajority":  p.superMajority,
+			}).Debug("p.round2()")
+			if count >= p.superMajority {
+				p.logger.Debug("p.round2(): return parentRound + 1 (2)")
+				return parentRound + 1, err
 			}
 		}
-
-		if count >= p.superMajority {
-			return parentRound + 1, err
-		}
 	}
-
+	p.logger.Debug("p.round2(): return parentRound, last")
 	return parentRound, nil
 }
 
@@ -677,9 +681,13 @@ func (p *Poset) createSelfParentRootEvent(ev Event) (RootEvent, error) {
 	if err != nil {
 		return RootEvent{}, err
 	}
+	peer, ok := p.Participants.ReadByPubKey(ev.GetCreator())
+	if !ok {
+		return RootEvent{}, fmt.Errorf("creator %v not found", ev.GetCreator())
+	}
 	selfParentRootEvent := RootEvent{
 		Hash:             sp.Bytes(),
-		CreatorID:        p.Participants.ByPubKey[ev.GetCreator()].ID,
+		CreatorID:        peer.ID,
 		Index:            ev.Index() - 1,
 		LamportTimestamp: spLT,
 		Round:            spRound,
@@ -714,9 +722,13 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	if err != nil {
 		return RootEvent{}, err
 	}
+	peer, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
+	if !ok {
+		return RootEvent{}, fmt.Errorf("other parent's creator %v not found", otherParent.GetCreator())
+	}
 	otherParentRootEvent := RootEvent{
 		Hash:             op.Bytes(),
-		CreatorID:        p.Participants.ByPubKey[otherParent.GetCreator()].ID,
+		CreatorID:        peer.ID,
 		Index:            otherParent.Index(),
 		LamportTimestamp: opLT,
 		Round:            opRound,
@@ -788,7 +800,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 	eventCreator := event.GetCreator()
 	creator, ok := p.Store.RepertoireByPubKey()[eventCreator]
 	if !ok {
-		return fmt.Errorf("Creator %s not found", eventCreator)
+		return fmt.Errorf("creator %s not found", eventCreator)
 	}
 	creatorID := creator.ID
 
@@ -826,7 +838,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 			}
 			otherParentCreator, ok := p.Store.RepertoireByPubKey()[otherParent.GetCreator()]
 			if !ok {
-				return fmt.Errorf("Creator %s not found", otherParent.GetCreator())
+				return fmt.Errorf("creator %s not found", otherParent.GetCreator())
 			}
 			otherParentCreatorID = otherParentCreator.ID
 			otherParentIndex = otherParent.Index()
@@ -961,6 +973,12 @@ func (p *Poset) DivideRounds() error {
 				return err
 			}
 
+			p.logger.WithFields(logrus.Fields{
+				"hash":  hash,
+				"roundNumber": roundNumber,
+				"roundCreated": roundCreated,
+			}).Debug("p.DivideRounds()")
+
 			/*
 				Why the lower bound?
 				Normally, once a Round has attained consensus, it is impossible for
@@ -1001,7 +1019,9 @@ func (p *Poset) DivideRounds() error {
 						for _, v := range ws {
 							ft[v] = 1
 						}
-						event.ReplaceFlagTable(ft)
+						if err := event.ReplaceFlagTable(ft); err != nil {
+							p.logger.Fatal(err)
+						}
 					}
 
 					// special case
@@ -1037,9 +1057,13 @@ func (p *Poset) DivideRounds() error {
 
 		if updateEvent {
 			if ev.CreatorID() == 0 {
-				p.setWireInfo(&ev)
+				if err := p.setWireInfo(&ev); err != nil {
+					p.logger.Fatal(err)
+				}
 			}
-			p.Store.SetEvent(ev)
+			if err := p.Store.SetEvent(ev); err != nil {
+				p.logger.Fatal(err)
+			}
 		}
 	}
 
@@ -1059,7 +1083,7 @@ func (p *Poset) DecideAtropos() error {
 	}
 
 	decidedRounds := map[int64]int64{} // [round number] => index in p.PendingRounds
-	c := 3
+	c := 11
 
 	for pos, r := range p.PendingRounds {
 		roundIndex := r.Index
@@ -1495,7 +1519,7 @@ func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (hash common.Hash, err error) {
 	// TODO: set RoundNIL = 0, condition change to "round <= RoundNIL"
 	if round <= 0 {
-		err = fmt.Errorf("Empty round is not allowed")
+		err = fmt.Errorf("empty round is not allowed")
 		return
 	}
 
@@ -1517,8 +1541,8 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (h
 	}
 
 	for _, ev := range orderedEvents {
-		creator := p.Participants.ByID[ev.CreatorID()]
-		if creator == nil {
+		creator, ok := p.Participants.ReadByID(ev.CreatorID())
+		if !ok {
 			p.logger.Warnf("Unknown participant ID=%d", ev.CreatorID())
 			continue
 		}
@@ -1557,7 +1581,7 @@ func (p *Poset) ProcessSigPool() error {
 	for i, bs := range p.SigPool {
 		// check if validator belongs to list of participants
 		validatorHex := fmt.Sprintf("0x%X", bs.Validator)
-		if _, ok := p.Participants.ByPubKey[validatorHex]; !ok {
+		if _, ok := p.Participants.ReadByPubKey(validatorHex); !ok {
 			p.logger.WithFields(logrus.Fields{
 				"index":     bs.Index,
 				"validator": validatorHex,
@@ -1584,15 +1608,19 @@ func (p *Poset) ProcessSigPool() error {
 				return err
 			}
 			if !valid {
+				peer, ok := p.Participants.ReadByPubKey(validatorHex)
 				p.logger.WithFields(logrus.Fields{
 					"index":     bs.Index,
-					"validator": p.Participants.ByPubKey[validatorHex],
+					"validator": peer,
+					"ok":        ok,
 					"block":     block,
 				}).Warning("Verifying Block signature. Invalid signature")
 				continue
 			}
 
-			block.SetSignature(bs)
+			if err := block.SetSignature(bs); err != nil {
+				p.logger.Fatal(err)
+			}
 
 			if err := p.Store.SetBlock(block); err != nil {
 				p.logger.WithFields(logrus.Fields{
@@ -1757,6 +1785,9 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		otherParent EventHash
 		err         error
 	)
+	if wevent.Body.OtherParentCreatorID != 0 {
+		otherParent = GenRootSelfParent(wevent.Body.OtherParentCreatorID)
+	}
 
 	creator := p.Store.RepertoireByID()[wevent.Body.CreatorID]
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0

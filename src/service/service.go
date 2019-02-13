@@ -60,14 +60,14 @@ func corsHandler(h http.HandlerFunc) http.HandlerFunc {
 			"Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
 		if r.Method == "OPTIONS" {
 			/*w.Header().Set("Access-Control-Allow-Origin", "*")
-			    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-						w.Header().Set("Access-Control-Allow-Headers",
-			        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
+			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
 		} else {
 			/*w.Header().Set("Access-Control-Allow-Origin", "*")
-			    	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-						w.Header().Set("Access-Control-Allow-Headers",
-			        "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
+			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers",
+			"Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")*/
 			h.ServeHTTP(w, r)
 		}
 	}
@@ -80,7 +80,9 @@ func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
 	stats := s.node.GetStats()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		s.logger.Debug(err)
+	}
 }
 
 // GetParticipants returns all the known participants
@@ -92,7 +94,9 @@ func (s *Service) GetParticipants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(participants)
+	if err := json.NewEncoder(w).Encode(participants); err != nil {
+		s.logger.Debug(err)
+	}
 }
 
 // GetEventBlock returns a specific event block by id
@@ -115,7 +119,9 @@ func (s *Service) GetEventBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(event)
+	if err := json.NewEncoder(w).Encode(event); err != nil {
+		s.logger.Debug(err)
+	}
 }
 
 // GetLastEventFrom returns the last event for a specific participant
@@ -129,7 +135,9 @@ func (s *Service) GetLastEventFrom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(event)
+	if err := json.NewEncoder(w).Encode(event); err != nil {
+		s.logger.Debug(err)
+	}
 }
 
 // GetKnownEvents returns all known events by ID

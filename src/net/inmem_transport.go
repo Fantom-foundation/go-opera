@@ -104,7 +104,7 @@ func (i *InmemTransport) makeRPC(target string, args, resp interface{}, r io.Rea
 	// Wait for a response
 	select {
 	case rpcResp := <-respCh:
-		err = deepResponceCopy(rpcResp.Response, resp)
+		err = deepResponseCopy(rpcResp.Response, resp)
 		if err == nil && rpcResp.Error != nil {
 			err = rpcResp.Error
 		}
@@ -135,7 +135,7 @@ func deepRequestCopy(src interface{}) (dst interface{}, err error) {
 	case *FastForwardRequest:
 		dst = new(FastForwardRequest)
 	default:
-		err = fmt.Errorf("Unknown request type %s", t)
+		err = fmt.Errorf("unknown request type %s", t)
 		return
 	}
 
@@ -143,7 +143,7 @@ func deepRequestCopy(src interface{}) (dst interface{}, err error) {
 	return
 }
 
-func deepResponceCopy(src, dst interface{}) error {
+func deepResponseCopy(src, dst interface{}) error {
 	data, err := json.Marshal(src)
 	if err != nil {
 		return err

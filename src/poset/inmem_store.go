@@ -47,10 +47,12 @@ type InmemStore struct {
 func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config) *InmemStore {
 	rootsByParticipant := make(map[string]Root)
 
+	participants.RLock()
 	for pk, pid := range participants.ByPubKey {
 		root := NewBaseRoot(pid.ID)
 		rootsByParticipant[pk] = root
 	}
+	participants.RUnlock()
 
 	eventCache, err := lru.New(cacheSize)
 	if err != nil {
@@ -105,13 +107,18 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 		store.repertoireByPubKey[peer.PubKeyHex] = peer
 		store.repertoireByID[peer.ID] = peer
 		store.rootsBySelfParent = nil
-		store.RootsBySelfParent()
+		if _, err := store.RootsBySelfParent(); err != nil {
+			panic(err)
+		}
 		old := store.participantEventsCache
 		store.participantEventsCache = NewParticipantEventsCache(cacheSize, participants)
 		store.participantEventsCache.Import(old)
 	})
 
 	store.setPeers(0, participants)
+	if err = store.setLeafEvents(store.rootsByParticipant); err != nil {
+		panic(err)
+	}
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -144,7 +151,9 @@ func (s *InmemStore) Participants() (*peers.Peers, error) {
 }
 
 func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
-	// Extend PartipantEventsCache and Roots with new peers
+	// Extend ParticipantEventsCache and Roots with new peers
+	participants.RLock()
+	defer participants.RUnlock()
 	for _, peer := range participants.ByID {
 		s.repertoireByPubKey[peer.PubKeyHex] = peer
 		s.repertoireByID[peer.ID] = peer
@@ -192,7 +201,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 		return err
 	}
 	if common.Is(err, common.KeyNotFound) {
-		if err := s.addParticpantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
+		if err := s.addParticipantEvent(event.GetCreator(), eventHash, event.Index()); err != nil {
 			return err
 		}
 	}
@@ -203,7 +212,7 @@ func (s *InmemStore) SetEvent(event Event) error {
 	return nil
 }
 
-func (s *InmemStore) addParticpantEvent(participant string, hash EventHash, index int64) error {
+func (s *InmemStore) addParticipantEvent(participant string, hash EventHash, index int64) error {
 	return s.participantEventsCache.Set(participant, hash, index)
 }
 
@@ -272,6 +281,8 @@ func (s *InmemStore) LastConsensusEventFrom(participant string) (last EventHash,
 // KnownEvents returns all known events
 func (s *InmemStore) KnownEvents() map[uint64]int64 {
 	known := s.participantEventsCache.Known()
+	s.participants.RLock()
+	defer s.participants.RUnlock()
 	for p, pid := range s.participants.ByPubKey {
 		if known[pid.ID] == -1 {
 			root, ok := s.rootsByParticipant[p]
@@ -484,8 +495,8 @@ func (s *InmemStore) Close() error {
 	return nil
 }
 
-// NeedBoostrap for the store
-func (s *InmemStore) NeedBoostrap() bool {
+// NeedBootstrap for the store
+func (s *InmemStore) NeedBootstrap() bool {
 	return false
 }
 
@@ -502,4 +513,38 @@ func (s *InmemStore) StateDB() state.Database {
 // StateRoot returns genesis state hash.
 func (s *InmemStore) StateRoot() common.Hash {
 	return s.stateRoot
+}
+
+
+func (s *InmemStore) setLeafEvents(roots map[string]Root) error {
+	for participant, root := range roots {
+		var creator []byte
+		var selfParentHash EventHash
+		selfParentHash.Set(root.SelfParent.Hash)
+		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
+			return err
+		}
+		body := EventBody{
+			Creator: creator,
+			Index:   root.SelfParent.Index,
+			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
+		}
+		event := Event{
+			Message: &EventMessage{
+				Hash:             root.SelfParent.Hash,
+				CreatorID:        root.SelfParent.CreatorID,
+				TopologicalIndex: -1,
+				Body:             &body,
+				FlagTable:        FlagTable{selfParentHash: 1}.Marshal(),
+				ClothoProof:      [][]byte{root.SelfParent.Hash},
+			},
+			lamportTimestamp: 0,
+			round:            0,
+			roundReceived:    0, /*RoundNIL*/
+		}
+		if err := s.SetEvent(event); err != nil {
+			return err
+		}
+	}
+	return nil
 }

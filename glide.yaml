@@ -9,6 +9,8 @@ import:
   version: ^1.2.0
   subpackages:
   - proto
+- package: github.com/hashicorp/go-multierror
+  version: ^1.0.0
 - package: github.com/hashicorp/golang-lru
   version: ^0.5.0
 - package: github.com/pkg/errors

@@ -629,7 +629,7 @@ dissemination;
 
 -   Gossip about reduced gossip: when the local node and a target node
     > have much common in their Kernels, the gossip about reduced gossip
-    > protocol is initiated to only exchanged the complemental parts.
+    > protocol is initiated to only exchanged the complementary parts.
 
 -   Targeted gossip: any time when a local node updates its Kernel, it
     > identifies the set of target nodes who will be benet from the
@@ -650,7 +650,7 @@ transitive trust relationship gathered by remote attestations and gossip
 protocols, The graph further builds a\`Conspiracy Breaching' model for
 nodes to illustrate how intense a target node is attested by other
 nodes. This model helps locating the nodes who have the greatest
-\`diculties to lie'. Meanwhile, small world network algorithm improves
+\`difficulties to lie'. Meanwhile, small world network algorithm improves
 the networks' robustness.
 
 Execution Trust
@@ -672,7 +672,7 @@ A fee based token economy marketplace will be used to ensure fair value.
 
 Tasks are associated with a bid: the amount of coin offered for
 performing the task. Bidders can adjust the bid on their pending tasks
-to expedite their execution. Workers will decide if a bid is sucient for
+to expedite their execution. Workers will decide if a bid is sufficient for
 them to execute upon. Since this is a competitive market, workers will
 execute work when profitable for them to do so.
 
@@ -774,7 +774,7 @@ the same time, or none at all. Therefore, the transaction in the
 Ethereum is actually a kind of rigid transaction that satisfies the
 characteristics of ACID (Atomicity, Consistency, Isolation,
 Durability)[8], which is also an important reason for the lack of
-expansibility in the Ethereum.
+expandability in Ethereum.
 
 Based on considerations of scalability and performance, we adopted a
 final consistency scheme satisfying BASE (Basically Available, Soft

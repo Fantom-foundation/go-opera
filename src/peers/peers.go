@@ -16,6 +16,8 @@ type IDPeers map[uint64]*Peer
 // AddressPeers maps address to peer
 type AddressPeers map[common.Address]*Peer
 
+type NetAddrPeers map[string]*Peer
+
 // Listener for listening for new peers joining
 type Listener func(*Peer)
 
@@ -26,6 +28,7 @@ type Peers struct {
 	ByPubKey  PubKeyPeers
 	ByID      IDPeers
 	ByAddress AddressPeers
+	ByNetAddr NetAddrPeers
 	Listeners []Listener
 }
 
@@ -37,6 +40,7 @@ func NewPeers() *Peers {
 		ByPubKey:  make(PubKeyPeers),
 		ByID:      make(IDPeers),
 		ByAddress: make(AddressPeers),
+		ByNetAddr: make(NetAddrPeers),
 	}
 }
 
@@ -61,12 +65,15 @@ func NewPeersFromSlice(source []*Peer) *Peers {
 // Handle with care
 func (p *Peers) addPeerRaw(peer *Peer) {
 	if peer.ID == 0 {
-		peer.computeID()
+		if err := peer.computeID(); err != nil {
+			panic(err)
+		}
 	}
 
 	p.ByPubKey[peer.PubKeyHex] = peer
 	p.ByID[peer.ID] = peer
 	p.ByAddress[peer.Address()] = peer
+	p.ByNetAddr[peer.NetAddr] = peer
 }
 
 // AddPeer adds a peer to the peers struct
@@ -104,6 +111,7 @@ func (p *Peers) RemovePeer(peer *Peer) {
 	delete(p.ByPubKey, peer.PubKeyHex)
 	delete(p.ByID, peer.ID)
 	delete(p.ByAddress, peer.Address())
+	delete(p.ByNetAddr, peer.NetAddr)
 
 	p.internalSort()
 }
@@ -187,6 +195,34 @@ func (p *Peers) Len() int {
 	defer p.RUnlock()
 
 	return len(p.ByPubKey)
+}
+
+func (p *Peers) ReadByPubKey(key string) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByPubKey[key]
+	return *peer, ok
+}
+
+func (p *Peers) ReadByID(key uint64) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByID[key]
+	return *peer, ok
+}
+
+func (p *Peers) ReadByAddress(key common.Address) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByAddress[key]
+	return *peer, ok
+}
+
+func (p *Peers) ReadByNetAddr(key string) (Peer, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	peer, ok := p.ByNetAddr[key]
+	return *peer, ok
 }
 
 // ByPubHex implements sort.Interface for Peers based on

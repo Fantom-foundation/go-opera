@@ -11,10 +11,10 @@ type timerFactory func(time.Duration) <-chan time.Time
 // ControlTimer struct that controls timing events in the node
 type ControlTimer struct {
 	timerFactory timerFactory
-	tickCh       chan struct{} //sends a signal to listening process
+	tickCh       chan struct{}      //sends a signal to listening process
 	resetCh      chan time.Duration //receives instruction to reset the heartbeatTimer
-	stopCh       chan struct{} //receives instruction to stop the heartbeatTimer
-	shutdownCh   chan struct{} //receives instruction to exit Run loop
+	stopCh       chan struct{}      //receives instruction to stop the heartbeatTimer
+	shutdownCh   chan struct{}      //receives instruction to exit Run loop
 	set          bool
 	Locker       sync.RWMutex
 }
@@ -57,7 +57,7 @@ func (c *ControlTimer) Run(init time.Duration) {
 		case <-timer:
 			c.tickCh <- struct{}{}
 			c.SetSet(false)
-		case t:= <-c.resetCh:
+		case t := <-c.resetCh:
 			timer = setTimer(t)
 		case <-c.stopCh:
 			timer = nil

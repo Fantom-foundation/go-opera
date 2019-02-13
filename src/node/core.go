@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/log"
+	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
@@ -24,7 +24,7 @@ const (
 
 var (
 	// ErrTooBigTx is returned when transaction size > MaxEventsPayloadSize
-	ErrTooBigTx = fmt.Errorf("Transaction too big")
+	ErrTooBigTx = fmt.Errorf("transaction too big")
 )
 
 // Core struct that controls the consensus, transaction, and communication
@@ -65,9 +65,11 @@ func NewCore(id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	logEntry := logger.WithField("id", id)
 
 	inDegrees := make(map[string]uint64)
+	participants.RLock()
 	for pubKey := range participants.ByPubKey {
 		inDegrees[pubKey] = 0
 	}
+	participants.RUnlock()
 
 	p2 := poset.NewPoset(participants, store, commitCh, logEntry)
 	core := &Core{
@@ -119,6 +121,8 @@ func (c *Core) Head() poset.EventHash {
 // Heights returns map with heights for each participants
 func (c *Core) Heights() map[string]uint64 {
 	heights := make(map[string]uint64)
+	c.participants.RLock()
+	defer c.participants.RUnlock()
 	for pubKey := range c.participants.ByPubKey {
 		participantEvents, err := c.poset.Store.ParticipantEvents(pubKey, -1)
 		if err == nil {
@@ -184,6 +188,8 @@ func (c *Core) Bootstrap() error {
 }
 
 func (c *Core) bootstrapInDegrees() {
+	c.participants.RLock()
+	defer c.participants.RUnlock()
 	for pubKey := range c.participants.ByPubKey {
 		c.inDegrees[pubKey] = 0
 		eventHash, _, err := c.poset.Store.LastEventFrom(pubKey)
@@ -295,8 +301,8 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 	// compare this to our view of events and fill unknown with events that we know of
 	// and the other doesn't
 	for id, ct := range known {
-		peer := c.participants.ByID[id]
-		if peer == nil {
+		peer, ok := c.participants.ReadByID(id)
+		if !ok {
 			// unknown peer detected.
 			// TODO: we should handle this nicely
 			continue
@@ -327,7 +333,7 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 }
 
 // Sync unknown events into our poset
-func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
+func (c *Core) Sync(peer *peers.Peer, unknownEvents []poset.WireEvent) error {
 
 	c.logger.WithFields(logrus.Fields{
 		"unknown_events":              len(unknownEvents),
@@ -338,7 +344,11 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	myKnownEvents := c.KnownEvents()
-	otherHead := poset.EventHash{}
+	otherHead, _, err := c.poset.Store.LastEventFrom(peer.PubKeyHex)
+	if err != nil {
+		c.logger.WithField("peer", peer).Errorf("c.poset.Store.LastEventFrom(peer.PubKeyHex)")
+		return err
+	}
 	// add unknown events
 	for k, we := range unknownEvents {
 		c.logger.WithFields(logrus.Fields{
@@ -355,7 +365,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			ev.SetRound(poset.RoundNIL)
 			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
-				c.logger.Error("SYNC: INSERT ERR", err)
+				c.logger.Error("SYNC: INSERT ERR:", err)
 				return err
 			}
 		}
@@ -672,7 +682,7 @@ func (c *Core) GetConsensusTransactionsCount() uint64 {
 
 // GetLastCommittedRoundEventsCount count of events in last round
 func (c *Core) GetLastCommittedRoundEventsCount() int {
-	return c.poset.LastCommitedRoundEvents
+	return c.poset.LastCommittedRoundEvents
 }
 
 // GetLastBlockIndex retuns the latest block index

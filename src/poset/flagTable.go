@@ -7,7 +7,7 @@ import (
 // FlagTable is a dedicated type for the Events flags map.
 type FlagTable map[EventHash]int64
 
-// Marshal converts FlagTable to protobuff.
+// Marshal converts FlagTable to protobuf.
 func (ft FlagTable) Marshal() []byte {
 	body := make(map[string]int64, len(ft))
 	for k, v := range ft {

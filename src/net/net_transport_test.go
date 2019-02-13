@@ -30,7 +30,7 @@ func TestNetworkTransport(t *testing.T) {
 	rpcCh := trans1.Consumer()
 
 	t.Run("PooledConn", func(t *testing.T) {
-		assert := assert.New(t)
+		assertO := assert.New(t)
 
 		expectedReq := &SyncRequest{
 			FromID: 0,
@@ -44,7 +44,7 @@ func TestNetworkTransport(t *testing.T) {
 		expectedResp := &SyncResponse{
 			FromID: 1,
 			Events: []poset.WireEvent{
-				poset.WireEvent{
+				{
 					Body: poset.WireBody{
 						Transactions:         [][]byte(nil),
 						SelfParentIndex:      1,
@@ -66,7 +66,7 @@ func TestNetworkTransport(t *testing.T) {
 				select {
 				case rpc := <-rpcCh:
 					req := rpc.Command.(*SyncRequest)
-					assert.EqualValues(expectedReq, req)
+					assertO.EqualValues(expectedReq, req)
 					rpc.Respond(expectedResp, nil)
 				case <-time.After(200 * time.Millisecond):
 					return
@@ -80,8 +80,8 @@ func TestNetworkTransport(t *testing.T) {
 			defer wg.Done()
 			var resp = new(SyncResponse)
 			err := trans2.Sync(trans1.LocalAddr(), expectedReq, resp)
-			if assert.NoError(err) {
-				assert.EqualValues(expectedResp, resp)
+			if assertO.NoError(err) {
+				assertO.EqualValues(expectedResp, resp)
 			}
 		}
 
@@ -95,6 +95,6 @@ func TestNetworkTransport(t *testing.T) {
 
 		// Check the conn pool size
 		addr := trans1.LocalAddr()
-		assert.Equal(maxPool, len(trans2.connPool[addr]))
+		assertO.Equal(maxPool, len(trans2.connPool[addr]))
 	})
 }

@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc/eventlog"
-	"github.com/sirupsen/logrus"
 )
 
 // SyslogHook to send logs via syslog.
 type SyslogHook struct {
-	Writer        *eventlog.Log
+	Writer *eventlog.Log
 }
 
 // Creates a hook to be added to an instance of logger. This is called with
@@ -32,7 +32,7 @@ func NewSyslogHook(network, raddr string, src string) (*SyslogHook, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &SyslogHook{el,}, err
+	return &SyslogHook{el}, err
 }
 
 func (hook *SyslogHook) Fire(entry *logrus.Entry) error {

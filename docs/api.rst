@@ -167,7 +167,7 @@ Assuming there is a Lachesis node running with its proxy listening on
   		panic(err)
   	}
   
-  	// Wait indefinitly
+  	// Wait indefinitely
   	for {
   		time.Sleep(time.Second)
   	}

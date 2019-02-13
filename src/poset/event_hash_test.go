@@ -7,7 +7,7 @@ import (
 )
 
 func TestEventHash(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 	var h EventHash
 
 	arrLongTrim := []byte{1, 2, 3, 4}
@@ -21,12 +21,12 @@ func TestEventHash(t *testing.T) {
 	h.Set(arrShortTrim)
 	b2 := h.Bytes()
 
-	assert.Equal(arrLongFull, b1)
-	assert.Equal(arrShortFull, b2)
+	assertO.Equal(arrLongFull, b1)
+	assertO.Equal(arrShortFull, b2)
 }
 
 func TestEventHashes(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	selfParent := GenRootSelfParent(999)
 	otherParent := EventHash{}
@@ -34,11 +34,11 @@ func TestEventHashes(t *testing.T) {
 
 	bb := hh.Bytes()
 	for i := 0; i < hh.Len(); i++ {
-		assert.Equal(hh[i].Bytes(), bb[i])
+		assertO.Equal(hh[i].Bytes(), bb[i])
 	}
 
 	ss := hh.Strings()
 	for i := 0; i < hh.Len(); i++ {
-		assert.Equal(hh[i].String(), ss[i])
+		assertO.Equal(hh[i].String(), ss[i])
 	}
 }

@@ -12,7 +12,7 @@ import (
 
 // SyslogHook to send logs via syslog.
 type SyslogHook struct {
-	Writer        *syslog.Writer
+	Writer *syslog.Writer
 }
 
 // Creates a hook to be added to an instance of logger. This is called with
@@ -20,13 +20,15 @@ type SyslogHook struct {
 // `if err == nil { log.Hooks.Add(hook) }`
 func NewSyslogHook(network, raddr string, tag string) (*SyslogHook, error) {
 	w, err := syslog.Dial(network, raddr, syslog.LOG_INFO, tag)
-	return &SyslogHook{w,}, err
+	return &SyslogHook{w}, err
 }
 
 func (hook *SyslogHook) Fire(entry *logrus.Entry) error {
 	line, err := entry.String()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
+		if _, er := fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err); er != nil {
+			panic(er)
+		}
 		return err
 	}
 

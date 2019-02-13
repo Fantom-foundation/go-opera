@@ -72,7 +72,7 @@ func NewBaseRootEvent(creatorID uint64) RootEvent {
 		CreatorID:        creatorID,
 		Index:            -1,
 		LamportTimestamp: -1,
-		Round:            -1,
+		Round:            RoundNIL,
 	}
 	return res
 }
@@ -143,7 +143,6 @@ func (root *Root) ProtoUnmarshal(data []byte) error {
 // GenRootSelfParent generates Event's parent hash from participant ID.
 // Use it for first Event only.
 func GenRootSelfParent(participantID uint64) (hash EventHash) {
-	bytes := []byte(fmt.Sprintf("Root%d", participantID))
-	hash.Set(bytes)
+	hash.Set([]byte(fmt.Sprintf("Root%d", participantID)))
 	return
 }

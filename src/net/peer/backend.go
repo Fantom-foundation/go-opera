@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -174,16 +175,22 @@ func (srv *Backend) serveConn(conn net.Conn) {
 	}
 
 	if err := srv.serveCodec(codec); err != io.EOF {
-		logger.Warn(err)
+		logger.Warn(err.GoString())
 	}
 }
 
-func (srv *Backend) serveCodec(codec rpc.ServerCodec) error {
-	defer codec.Close()
+func (srv *Backend) serveCodec(codec rpc.ServerCodec) *multierror.Error {
+	var result *multierror.Error
+	defer func() {
+		if err := codec.Close(); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}()
 
 	for {
 		if err := srv.server.ServeRequest(codec); err != nil {
-			return err
+			result = multierror.Append(result, err)
+			return result
 		}
 	}
 }
@@ -204,12 +211,20 @@ func (srv *Backend) Close() error {
 	}
 
 	// Stop accepting new connections.
-	srv.listener.Close()
+	if err := srv.listener.Close(); err != nil {
+		return err
+	}
 
 	// Close current connections.
 	srv.connsLock.Lock()
+	var er error
 	for k := range srv.conns {
-		k.Close()
+		if err := k.Close(); err != nil {
+			er = err
+		}
+	}
+	if er != nil {
+		return er
 	}
 	srv.connsLock.Unlock()
 
@@ -242,13 +257,17 @@ func (c *serverCodec) WriteResponse(
 	r *rpc.Response, body interface{}) (err error) {
 	if err = c.encode(r); err != nil {
 		if c.flush() == nil {
-			c.Close()
+			if err := c.Close(); err != nil {
+				return err
+			}
 		}
 		return
 	}
 	if err = c.encode(body); err != nil {
 		if c.flush() == nil {
-			c.Close()
+			if err := c.Close(); err != nil {
+				return err
+			}
 		}
 		return
 	}

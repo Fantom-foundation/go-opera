@@ -27,16 +27,16 @@ func TestInmemAppCalls(t *testing.T) {
 	block := poset.NewBlock(0, 1, []byte{}, transactions)
 
 	t.Run("#1 Send tx", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 
 		txOrigin := []byte("the test transaction")
 
 		go func() {
 			select {
 			case tx := <-proxy.SubmitCh():
-				asserter.Equal(txOrigin, tx)
+				assertO.Equal(txOrigin, tx)
 			case <-time.After(timeout):
-				asserter.Fail(errTimeout)
+				assertO.Fail(errTimeout)
 			}
 		}()
 
@@ -44,29 +44,29 @@ func TestInmemAppCalls(t *testing.T) {
 	})
 
 	t.Run("#2 Commit block", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 
 		stateHash, err := proxy.CommitBlock(block)
-		if asserter.NoError(err) {
-			asserter.EqualValues(goldStateHash(), stateHash)
-			asserter.EqualValues(transactions, proxy.transactions)
+		if assertO.NoError(err) {
+			assertO.EqualValues(goldStateHash(), stateHash)
+			assertO.EqualValues(transactions, proxy.transactions)
 		}
 	})
 
 	t.Run("#3 Get snapshot", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 
 		snapshot, err := proxy.GetSnapshot(block.Index())
-		if asserter.NoError(err) {
-			asserter.Equal(goldSnapshot(), snapshot)
+		if assertO.NoError(err) {
+			assertO.Equal(goldSnapshot(), snapshot)
 		}
 	})
 
 	t.Run("#4 Restore snapshot", func(t *testing.T) {
-		asserter := assert.New(t)
+		assertO := assert.New(t)
 
 		err := proxy.Restore(goldSnapshot())
-		asserter.NoError(err)
+		assertO.NoError(err)
 	})
 }
 
