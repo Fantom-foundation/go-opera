@@ -17,7 +17,7 @@ type parentNodesInspector struct {
 func newParentNodesInspector(e *Event) *parentNodesInspector {
 	return &parentNodesInspector{
 		event: e,
-		nodes: make(map[common.Address]struct{}, e.Parents.Len()),
+		nodes: make(map[common.Address]struct{}, len(e.Parents)),
 	}
 }
 

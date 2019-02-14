@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -17,18 +18,16 @@ type (
 	EventHash common.Hash
 
 	// EventHashes provides additional methods of EventHash index.
-	EventHashes struct {
-		index map[EventHash]struct{}
-	}
+	EventHashes map[EventHash]struct{}
+)
+
+var (
+	ZeroEventHash = EventHash{}
 )
 
 /*
  * EventHash methods:
  */
-
-func EventHash_Zero() EventHash {
-	return EventHash{}
-}
 
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) EventHash {
@@ -68,35 +67,19 @@ func newEventHashes(hash ...EventHash) *EventHashes {
 }
 
 // String returns human readable string representation.
-func (hh *EventHashes) String() string {
-	if hh.index == nil {
-		return ""
+func (hh EventHashes) String() string {
+	arr := make([]string, 0, len(hh))
+	for hash, _ := range hh {
+		arr = append(arr, hash.String())
 	}
-	strs := make([]string, 0, len(hh.index))
-	for hash, _ := range hh.index {
-		strs = append(strs, hash.String())
-	}
-	return "[" + strings.Join(strs, ", ") + "]"
-}
-
-// All returns index length.
-func (hh *EventHashes) Len() int {
-	return len(hh.index)
+	return "[" + strings.Join(arr, ", ") + "]"
 }
 
 // All returns whole index.
-func (hh *EventHashes) All() map[EventHash]struct{} {
-	return hh.index
-}
-
-// All returns whole index.
-func (hh *EventHashes) Slice() []EventHash {
-	if hh == nil {
-		return nil
-	}
-	arr := make([]EventHash, len(hh.index))
+func (hh EventHashes) Slice() []EventHash {
+	arr := make([]EventHash, len(hh))
 	i := 0
-	for h := range hh.index {
+	for h := range hh {
 		arr[i] = h
 		i++
 	}
@@ -104,13 +87,10 @@ func (hh *EventHashes) Slice() []EventHash {
 }
 
 // Add appends hash to the index.
-func (hh *EventHashes) Add(hash ...EventHash) (changed bool) {
-	if hh.index == nil {
-		hh.index = make(map[EventHash]struct{})
-	}
+func (hh EventHashes) Add(hash ...EventHash) (changed bool) {
 	for _, h := range hash {
-		if _, ok := hh.index[h]; !ok {
-			hh.index[h] = struct{}{}
+		if _, ok := hh[h]; !ok {
+			hh[h] = struct{}{}
 			changed = true
 		}
 	}
@@ -118,21 +98,18 @@ func (hh *EventHashes) Add(hash ...EventHash) (changed bool) {
 }
 
 // Contains returns true if hash is in.
-func (hh *EventHashes) Contains(hash EventHash) bool {
-	if hh.index == nil {
-		return false
-	}
-	_, ok := hh.index[hash]
+func (hh EventHashes) Contains(hash EventHash) bool {
+	_, ok := hh[hash]
 	return ok
 }
 
 // EncodeRLP is a specialized encoder to encode index into array.
-func (hh *EventHashes) EncodeRLP(w io.Writer) error {
+func (hh EventHashes) EncodeRLP(w io.Writer) error {
 	var arr []EventHash
-	for h := range hh.index {
+	for h := range hh {
 		arr = append(arr, h)
 	}
-	sort.Sort(sortableEventHashes(arr))
+	sort.Sort(forStableSigning(arr))
 	return rlp.Encode(w, arr)
 }
 
@@ -143,9 +120,15 @@ func (hh *EventHashes) DecodeRLP(s *rlp.Stream) error {
 	if err != nil {
 		return err
 	}
+
+	res := EventHashes{}
 	for _, h := range arr {
-		hh.Add(h)
+		if !res.Add(h) {
+			return fmt.Errorf("Double value is detected")
+		}
 	}
+
+	*hh = res
 	return nil
 }
 
@@ -153,10 +136,10 @@ func (hh *EventHashes) DecodeRLP(s *rlp.Stream) error {
  * Sorting:
  */
 
-type sortableEventHashes []EventHash
+type forStableSigning []EventHash
 
-func (hh sortableEventHashes) Len() int      { return len(hh) }
-func (hh sortableEventHashes) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh sortableEventHashes) Less(i, j int) bool {
+func (hh forStableSigning) Len() int      { return len(hh) }
+func (hh forStableSigning) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
+func (hh forStableSigning) Less(i, j int) bool {
 	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
 }

@@ -44,9 +44,10 @@ func FakeEventHash() (h EventHash) {
 	return
 }
 
-func FakeEventHashes(n int) (hh EventHashes) {
+func FakeEventHashes(n int) EventHashes {
+	res := EventHashes{}
 	for i := 0; i < n; i++ {
-		hh.Add(FakeEventHash())
+		res.Add(FakeEventHash())
 	}
-	return
+	return res
 }

@@ -66,11 +66,11 @@ a03 ╣     ╠ ─ d02
 
 	for eName, e := range names {
 		parents := expected[eName]
-		if !assert.Equal(len(parents), e.Parents.Len(), "at event "+eName) {
+		if !assert.Equal(len(parents), len(e.Parents), "at event "+eName) {
 			return
 		}
 		for _, pName := range parents {
-			hash := EventHash_Zero()
+			hash := ZeroEventHash
 			if pName != "" {
 				hash = names[pName].Hash()
 			}
@@ -139,7 +139,7 @@ func ParseEvents(asciiScheme string) (
 			creator := nodes[nCreators[i]]
 			// find creator's parent
 			var (
-				parents EventHashes
+				parents = EventHashes{}
 				ltime   uint64
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
@@ -147,7 +147,7 @@ func ParseEvents(asciiScheme string) (
 				parents.Add(parent.Hash())
 				ltime = parent.LamportTime
 			} else {
-				parents.Add(EventHash_Zero())
+				parents.Add(ZeroEventHash)
 				ltime = 0
 			}
 			// find other parents
@@ -212,7 +212,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 			e.Parents.Add(parent.Hash())
 			e.LamportTime = parent.LamportTime + 1
 		} else {
-			e.Parents.Add(EventHash_Zero())
+			e.Parents.Add(ZeroEventHash)
 			e.LamportTime = 1
 		}
 		// other parents are the lasts other's events
