@@ -877,7 +877,6 @@ func TestFastSync(t *testing.T) {
 	}()
 
 	node4.RunAsync(true)
-	defer node4.Shutdown()
 
 	nodes[3] = node4
 
@@ -961,6 +960,9 @@ func TestBootstrapAllNodes(t *testing.T) {
 	// Now try to recreate a network from the databases created
 	// in the first step and advance it to 20 consensus rounds
 	newNodes := recycleNodes(nodes, logger, t)
+	for _, n := range nodes {
+		n.RunAsync(true)
+	}
 	err = gossip(newNodes, 20, false, 3*time.Second)
 	if err != nil {
 		t.Fatal(err)

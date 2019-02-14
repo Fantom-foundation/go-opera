@@ -278,6 +278,7 @@ func TestSyncLimit(t *testing.T) {
 	}
 }
 
+// TODO: Failed
 func TestCatchUp(t *testing.T) {
 	var let sync.Mutex
 	caught := false
@@ -328,8 +329,8 @@ func TestCatchUp(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
-	defer node4.Shutdown()
+	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, false)
+	node4.Shutdown()
 
 	// Run parallel routine to check node4 eventually reaches CatchingUp state.
 	timeout := time.After(30 * time.Second)
@@ -350,11 +351,13 @@ func TestCatchUp(t *testing.T) {
 		}
 	}()
 
+	node4.RunAsync(true)
 	defer node4.Shutdown()
 
 	// Gossip some more
 	nodes := append(normalNodes, node4)
 	newTarget := target + 4
+
 	err = bombardAndWait(nodes, newTarget, 20*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -603,16 +606,12 @@ func BenchmarkGossip(b *testing.B) {
 		defer transportClose(b, trans4)
 
 		node1 := runNode(b, logger, config, ps[0].ID, keys[0], p, trans1, true)
-		defer node1.Shutdown()
 
 		node2 := runNode(b, logger, config, ps[1].ID, keys[1], p, trans2, true)
-		defer node2.Shutdown()
 
 		node3 := runNode(b, logger, config, ps[2].ID, keys[2], p, trans3, true)
-		defer node3.Shutdown()
 
 		node4 := runNode(b, logger, config, ps[3].ID, keys[3], p, trans4, true)
-		defer node4.Shutdown()
 
 		nodes := []*node.Node{node1, node2, node3, node4}
 		if err := gossip(nodes, 50, true, 3*time.Second); err != nil {
