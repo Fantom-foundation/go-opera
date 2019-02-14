@@ -56,9 +56,15 @@ func TestSmartSelectorUsed(t *testing.T) {
 		},
 	)
 
-	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
-	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
-	assertO.Equal(fps[1].NetAddr, ss.Next().NetAddr)
+	choose1 := ss.Next().NetAddr
+	assertO.NotEqual(fps[0].NetAddr, choose1)
+
+	choose2 := ss.Next().NetAddr
+	assertO.NotEqual(fps[0].NetAddr, choose2)
+	assertO.NotEqual(choose1, choose2)
+
+	choose3 := ss.Next().NetAddr
+	assertO.NotEqual(fps[0].NetAddr, choose3)
 }
 
 func TestSmartSelectorFlagged(t *testing.T) {

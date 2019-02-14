@@ -301,8 +301,6 @@ func TestCatchUp(t *testing.T) {
 	caught := false
 	logger := common.NewTestLogger(t)
 	config := node.TestConfig(t)
-	config.CacheSize = 1000
-	config.SyncLimit = 400
 
 	poolSize := 2
 	backConfig := peer.NewBackendConfig()
@@ -344,9 +342,6 @@ func TestCatchUp(t *testing.T) {
 	}
 	checkGossip(normalNodes, 0, t)
 
-	config.CacheSize = 1000
-	config.SyncLimit = 40
-
 	trans4 := createTransport(t, logger, backConfig, adds[3],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
@@ -373,7 +368,6 @@ func TestCatchUp(t *testing.T) {
 		}
 	}()
 
-	node4.RunAsync(true)
 	defer node4.Shutdown()
 
 	// Gossip some more
