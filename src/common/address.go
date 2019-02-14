@@ -4,6 +4,11 @@ import (
 	"math/rand"
 )
 
+var (
+	// NodeNameDict is an optional dictionary to make node address human readable in log.
+	NodeNameDict = make(map[Address]string)
+)
+
 // Address is a unique identificator of Node.
 // It is a hash of node's PubKey.
 type Address Hash
@@ -13,9 +18,12 @@ func (a *Address) Bytes() []byte {
 	return (*Hash)(a).Bytes()
 }
 
-// String returns value as hex string.
+// String returns human readable string representation.
 func (a *Address) String() string {
-	return (*Hash)(a).String()
+	if name, ok := NodeNameDict[*a]; ok {
+		return name
+	}
+	return (*Hash)(a).ShortString()
 }
 
 /*

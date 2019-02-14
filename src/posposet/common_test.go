@@ -172,6 +172,15 @@ func ParseEvents(asciiScheme string) (
 		}
 	}
 
+	// human readable names for nodes in log
+	for node, ee := range events {
+		if len(ee) < 1 {
+			continue
+		}
+		name := ee[0].Hash().String()
+		common.NodeNameDict[node] = "node" + strings.ToUpper(name[0:1])
+	}
+
 	return
 }
 
