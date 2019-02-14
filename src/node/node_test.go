@@ -212,7 +212,7 @@ func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
 }
 
 func submitTransaction(n *Node, tx []byte) error {
-	n.proxy.SubmitCh() <- tx
+	n.proxy.SubmitCh() <- []byte(tx)
 	return nil
 }
 

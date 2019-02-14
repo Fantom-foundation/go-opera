@@ -574,7 +574,7 @@ func makeRandomTransactions(nodes []*node.Node, quit chan struct{}) {
 }
 
 func submitTransaction(n *node.Node, tx []byte) error {
-	return n.SubmitCh([]byte(tx))
+	return n.SubmitCh(tx)
 }
 
 
