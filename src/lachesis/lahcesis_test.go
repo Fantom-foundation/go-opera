@@ -97,25 +97,17 @@ func TestGossip(t *testing.T) {
 
 	poolSize := 2
 	logger := common.NewTestLogger(t)
+	config := node.TestConfig(t)
 	backConfig := peer.NewBackendConfig()
-
-	target := int64(1)
-
-	config := node.NewConfig(
-		5*time.Millisecond,
-		time.Second,
-		10000,
-		1000,
-		logger,
-	)
 
 	network, createFu := createNetwork()
 	keys, p, adds := initPeers(4, network)
 	ps := p.ToPeerSlice()
+
 	trans1 := createTransport(t, logger, backConfig, adds[0],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans1)
-
+	
 	trans2 := createTransport(t, logger, backConfig, adds[1],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans2)
@@ -123,28 +115,23 @@ func TestGossip(t *testing.T) {
 	trans3 := createTransport(t, logger, backConfig, adds[2],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans3)
-
+		
 	trans4 := createTransport(t, logger, backConfig, adds[3],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
-
+		
 	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
-	defer node1.Shutdown()
-
+	
 	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
-	defer node2.Shutdown()
-
+	
 	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
-	defer node3.Shutdown()
-
+	
 	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
-	defer node4.Shutdown()
-
+	
 	nodes := []*node.Node{node1, node2, node3, node4}
-
-	done := make(chan struct{})
-	defer close(done)
-
+	
+	target := int64(1)
+	
 	err := gossip(nodes, target, true, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -197,16 +184,12 @@ func TestMissingNodeGossip(t *testing.T) {
 	defer transportClose(t, trans4)
 
 	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
-	defer node1.Shutdown()
 
 	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
-	defer node2.Shutdown()
 
 	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
-	defer node3.Shutdown()
 
 	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
-	defer node4.Shutdown()
 
 	nodes := []*node.Node{node1, node2, node3, node4}
 
@@ -295,7 +278,6 @@ func TestSyncLimit(t *testing.T) {
 	}
 }
 
-// TODO: Failed
 func TestCatchUp(t *testing.T) {
 	var let sync.Mutex
 	caught := false

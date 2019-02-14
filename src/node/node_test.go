@@ -797,9 +797,9 @@ func TestFastSync(t *testing.T) {
 	var let sync.Mutex
 	caught := false
 	logger := common.NewTestLogger(t)
-	config := TestConfig(t)
-
+	
 	poolSize := 2
+	config := TestConfig(t)
 	backConfig := peer.NewBackendConfig()
 
 	network, createFu := createNetwork()

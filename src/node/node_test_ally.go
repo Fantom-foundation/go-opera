@@ -6,7 +6,7 @@ package node
 
 // SubmitCh func for test
 func (n *Node) SubmitCh(tx []byte) error {
-	n.proxy.SubmitCh() <- tx
+	n.proxy.SubmitCh() <- []byte(tx)
 	return nil
 }
 

@@ -34,6 +34,9 @@ func (ps *SmartPeerSelector) Peers() *peers.Peers {
 
 // UpdateLast sets the last peer communicated with (avoid double talk)
 func (ps *SmartPeerSelector) UpdateLast(peer string) {
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+	
 	ps.last = peer
 }
 
