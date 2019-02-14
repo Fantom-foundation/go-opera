@@ -1,9 +1,12 @@
+export PROTOC?=protoc
+export RM?=rm
+
 .PHONY: build clean proto
 
 clean:
-	rm -rf *.pb.go
+	$(RM) -rf *.pb.go
 
 proto:
-	protoc --go_out=plugins=grpc,import_path=internal:. *.proto
+	$(PROTOC) --go_out=plugins=grpc,import_path=internal:. *.proto
 
 build:
