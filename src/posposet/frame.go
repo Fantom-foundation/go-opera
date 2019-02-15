@@ -42,6 +42,9 @@ func (f *Frame) NodeEventAdd(node common.Address, event EventHash) {
 }
 
 func (f *Frame) HasNodeEvent(node common.Address) bool {
+	if f.Index == 0 {
+		return false
+	}
 	if len(f.NonRoots[node]) > 0 {
 		return true
 	}

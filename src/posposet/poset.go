@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -8,7 +9,7 @@ import (
 type Poset struct {
 	store     *Store
 	state     *State
-	flagTable *FlagTable
+	flagTable FlagTable
 	frames    map[uint64]*Frame
 
 	processingWg   sync.WaitGroup
@@ -23,7 +24,8 @@ func New(store *Store) *Poset {
 	const buffSize = 10
 
 	p := &Poset{
-		store: store,
+		store:  store,
+		frames: make(map[uint64]*Frame),
 
 		newEventsCh:      make(chan *Event, buffSize),
 		incompleteEvents: make(map[EventHash]*Event),
@@ -42,11 +44,11 @@ func (p *Poset) Start() {
 	p.processingWg.Add(1)
 	go func() {
 		defer p.processingWg.Done()
-		log.Debug("Start of events processing ...")
+		//log.Debug("Start of events processing ...")
 		for {
 			select {
 			case <-p.processingDone:
-				log.Debug("Stop of events processing ...")
+				//log.Debug("Stop of events processing ...")
 				return
 			case e := <-p.newEventsCh:
 				p.onNewEvent(e)
@@ -83,7 +85,7 @@ func (p *Poset) onNewEvent(e *Event) {
 	ltime := newParentLamportTimeInspector(e)
 
 	// fill event's parents index or hold it as incompleted
-	for hash := range e.Parents.All() {
+	for hash := range e.Parents {
 		if hash.IsZero() {
 			// first event of node
 			if !nodes.IsParentUnique(e.Creator) {
@@ -142,6 +144,66 @@ func (p *Poset) consensus(e *Event) {
 	}
 }
 
+// checkIfRoot checks root-conditions for new event.
+// Event.parents should be filled.
+// It is not safe for concurrent use.
+func (p *Poset) checkIfRoot(e *Event) bool {
+	log.Debugf("----- %s", e)
+
+	frame := p.lastNodeFrame(e.Creator)
+	if frame == nil {
+		frame = p.frame(p.state.LastFinishedFrameN+1, true)
+	}
+	log.Debugf(" last node frame: %d", frame.Index)
+
+	knownRoots := Roots{}
+	for hash, parent := range e.parents {
+		if !hash.IsZero() {
+			roots := frame.NodeRootsGet(parent.Creator)
+			knownRoots.Add(roots)
+		} else {
+			roots := rootZero(e.Creator)
+			knownRoots.Add(roots)
+		}
+	}
+	frame.NodeRootsAdd(e.Creator, knownRoots)
+	log.Debugf(" known %s for %s", knownRoots.String(), e.Creator.String())
+
+	stake := p.newStakeCounter()
+	for node := range knownRoots {
+		stake.Count(node)
+	}
+	isRoot := stake.HasMajority()
+
+	// NOTE: temporary
+	if name := e.Hash().String(); (strings.ToUpper(name) == name) != isRoot {
+		log.Debug(" ERR !!!!!!!!!!!!!!!!")
+	}
+
+	if !isRoot {
+		frame.NodeEventAdd(e.Creator, e.Hash())
+		return false
+	}
+
+	log.Debug(" selected as root")
+
+	frame = p.frame(frame.Index+1, true)
+	frame.NodeRootsAdd(e.Creator, rootFrom(e))
+
+	for phash, parent := range e.parents {
+		var roots Roots
+		if !phash.IsZero() {
+			roots = frame.NodeRootsGet(parent.Creator)
+		} else {
+			roots = rootZero(e.Creator)
+		}
+		frame.NodeRootsAdd(e.Creator, roots)
+	}
+	log.Debugf(" will known %s for %s", frame.NodeRootsGet(e.Creator).String(), e.Creator.String())
+
+	return true
+}
+
 func (p *Poset) checkIfClotho(e *Event) bool {
 	// TODO: implement it
 	return false
@@ -156,8 +218,8 @@ func initEventIdx(e *Event) {
 	if e.parents != nil {
 		return
 	}
-	e.parents = make(map[EventHash]*Event, e.Parents.Len())
-	for hash := range e.Parents.All() {
+	e.parents = make(map[EventHash]*Event, len(e.Parents))
+	for hash := range e.Parents {
 		e.parents[hash] = nil
 	}
 }

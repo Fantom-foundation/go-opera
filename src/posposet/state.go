@@ -29,4 +29,10 @@ func (p *Poset) bootstrap() {
 	if p.state == nil {
 		panic("Apply genesis for store first")
 	}
+	// restore frames
+	for n := p.state.LastFinishedFrameN; true; n++ {
+		if p.frame(n, false) == nil {
+			break
+		}
+	}
 }

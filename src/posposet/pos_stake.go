@@ -40,7 +40,7 @@ func (s *stakeCounter) HasTrust() bool {
  */
 
 func (p *Poset) newStakeCounter() *stakeCounter {
-	frame := p.frame(p.state.LastFinishedFrameN)
+	frame := p.frame(p.state.LastFinishedFrameN, false)
 	db, err := state.New(frame.Balances, p.store.balances)
 	if err != nil {
 		panic(err)
