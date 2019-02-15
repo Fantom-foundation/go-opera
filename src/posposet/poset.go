@@ -156,7 +156,7 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 	}
 	log.Debugf(" last node frame: %d", frame.Index)
 
-	knownRoots := Roots{}
+	knownRoots := Events{}
 	for hash, parent := range e.parents {
 		if !hash.IsZero() {
 			roots := frame.NodeRootsGet(parent.Creator)
@@ -191,7 +191,7 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 	frame.NodeRootsAdd(e.Creator, rootFrom(e))
 
 	for phash, parent := range e.parents {
-		var roots Roots
+		var roots Events
 		if !phash.IsZero() {
 			roots = frame.NodeRootsGet(parent.Creator)
 		} else {

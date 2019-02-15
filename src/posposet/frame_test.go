@@ -17,7 +17,7 @@ func TestFrameSerialization(t *testing.T) {
 
 	flagTable := FlagTable{}
 	for _, node := range nodes {
-		roots := Roots{}
+		roots := Events{}
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
@@ -27,7 +27,7 @@ func TestFrameSerialization(t *testing.T) {
 	f0 := &Frame{
 		Index:     rand.Uint64(),
 		FlagTable: flagTable,
-		NonRoots:  Roots{},
+		NonRoots:  Events{},
 		Balances:  common.FakeHash(),
 	}
 	buf, err := rlp.EncodeToBytes(f0)

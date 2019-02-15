@@ -45,7 +45,7 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 		f = &Frame{
 			Index:     n,
 			FlagTable: FlagTable{},
-			NonRoots:  Roots{},
+			NonRoots:  Events{},
 		}
 	}
 

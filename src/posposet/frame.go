@@ -10,16 +10,16 @@ import (
 type Frame struct {
 	Index     uint64
 	FlagTable FlagTable
-	NonRoots  Roots
+	NonRoots  Events
 	Balances  common.Hash
 
 	save func()
 }
 
 // NodeRootsAdd appends root known for node.
-func (f *Frame) NodeRootsAdd(node common.Address, roots Roots) {
+func (f *Frame) NodeRootsAdd(node common.Address, roots Events) {
 	if f.FlagTable[node] == nil {
-		f.FlagTable[node] = Roots{}
+		f.FlagTable[node] = Events{}
 	}
 	if f.FlagTable[node].Add(roots) {
 		f.save()
@@ -27,7 +27,7 @@ func (f *Frame) NodeRootsAdd(node common.Address, roots Roots) {
 }
 
 // NodeRootsGet returns roots of node. For read only, please.
-func (f *Frame) NodeRootsGet(node common.Address) Roots {
+func (f *Frame) NodeRootsGet(node common.Address) Events {
 	return f.FlagTable[node]
 }
 
