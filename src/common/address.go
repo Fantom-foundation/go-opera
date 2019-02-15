@@ -1,9 +1,5 @@
 package common
 
-import (
-	"math/rand"
-)
-
 var (
 	// NodeNameDict is an optional dictionary to make node address human readable in log.
 	NodeNameDict = make(map[Address]string)
@@ -30,10 +26,6 @@ func (a *Address) String() string {
  * Utils:
  */
 
-func FakeAddress() (a Address) {
-	_, err := rand.Read(a[:])
-	if err != nil {
-		panic(err)
-	}
-	return
+func FakeAddress() Address {
+	return Address(FakeHash())
 }

@@ -1,71 +1,136 @@
 package posposet
 
+import (
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/rlp"
+)
+
 // TODO: make FlagTable internal
+// TODO: cache PoS-stake at FlagTable.Roots
 
-// TODO: cache PoS-stake at FlagTable.eventKnowsRoots
+type (
+	// Roots its a root events hashes grouped by creator.
+	// ( root creator --> root hashes )
+	Roots map[common.Address]EventHashes
 
-// FlagTable stores the reachability of each top event to the roots.
-// It helps to select root without using path searching algorithms.
-// Zero-hash is a self-parent root.
-type FlagTable struct {
-	//lastNodeEvent   map[common.Address]EventHash
-	eventKnowsRoots map[EventHash]EventHashes
-}
+	// FlagTable stores the reachability of each top event to the roots.
+	// It helps to select root without using path searching algorithms.
+	// Zero-hash is a self-parent root.
+	// ( node --> root creator --> root hashes )
+	FlagTable map[common.Address]Roots
 
-func NewFlagTable() *FlagTable {
-	return &FlagTable{
-		//lastNodeEvent:   make(map[common.Address]EventHash),
-		eventKnowsRoots: make(map[EventHash]EventHashes),
+	// event is an internal struct for serialization purpose.
+	event struct {
+		Creator common.Address
+		Hash    EventHash
 	}
-}
 
-func (ft *FlagTable) KnownRootsOf(e *Event, parent EventHash) *EventHashes {
-	if parent.IsZero() {
-		// self-root
-		return &EventHashes{
-			index: map[EventHash]struct{}{
-				e.Hash(): struct{}{},
-			},
+	// flag is an internal struct for serialization purpose.
+	flag struct {
+		Node  common.Address
+		Roots Roots
+	}
+)
+
+// Add unions roots into one.
+func (rr Roots) Add(roots Roots) (changed bool) {
+	for creator, hashes := range roots {
+		if rr[creator] == nil {
+			rr[creator] = EventHashes{}
+		}
+		if rr[creator].Add(hashes.Slice()...) {
+			changed = true
 		}
 	}
-	roots := ft.eventKnowsRoots[parent]
-	return &roots
+	return
 }
 
-func (ft *FlagTable) SetKnownRoots(e *Event, roots EventHashes) {
-	ft.eventKnowsRoots[e.Hash()] = roots
-	// TODO: is it last anyway?
-	//ft.lastNodeEvent[e.Creator] = e.Hash()
-	// TODO: save in store
+// String returns human readable string representation.
+func (rr Roots) String() string {
+	var ss []string
+	for node, roots := range rr {
+		ss = append(ss, node.String()+":"+roots.String())
+	}
+	return "Roots{" + strings.Join(ss, ", ") + "}"
+}
+
+// EncodeRLP is a specialized encoder to encode index into array.
+func (rr Roots) EncodeRLP(w io.Writer) error {
+	var arr []event
+	for creator, hh := range rr {
+		for hash := range hh {
+			arr = append(arr, event{creator, hash})
+		}
+	}
+	return rlp.Encode(w, arr)
+}
+
+// DecodeRLP is a specialized decoder to decode index from array.
+func (rr *Roots) DecodeRLP(s *rlp.Stream) error {
+	var arr []event
+	err := s.Decode(&arr)
+	if err != nil {
+		return err
+	}
+
+	res := Roots{}
+	for _, e := range arr {
+		if res[e.Creator] == nil {
+			res[e.Creator] = EventHashes{}
+		}
+		if !res[e.Creator].Add(e.Hash) {
+			return fmt.Errorf("Double value is detected")
+		}
+	}
+
+	*rr = res
+	return nil
+}
+
+// EncodeRLP is a specialized encoder to encode index into array.
+func (ft FlagTable) EncodeRLP(w io.Writer) error {
+	var arr []flag
+	for node, roots := range ft {
+		arr = append(arr, flag{node, roots})
+	}
+	return rlp.Encode(w, arr)
+}
+
+// DecodeRLP is a specialized decoder to decode index from array.
+func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
+	var arr []flag
+	err := s.Decode(&arr)
+	if err != nil {
+		return err
+	}
+
+	res := FlagTable{}
+	for _, f := range arr {
+		res[f.Node] = f.Roots
+	}
+
+	*ft = res
+	return nil
 }
 
 /*
- * Poset's methods:
+ * Utils:
  */
 
-// checkIfRoot is not safe for concurrent use.
-func (p *Poset) checkIfRoot(e *Event) bool {
-	var knownRoots EventHashes
-
-	for parent := range e.Parents.All() {
-		for root := range p.flagTable.KnownRootsOf(e, parent).All() {
-			knownRoots.Add(root)
-		}
+// rootZero makes roots from single event.
+func rootZero(node common.Address) Roots {
+	return Roots{
+		node: newEventHashes(ZeroEventHash),
 	}
-	p.flagTable.SetKnownRoots(e, knownRoots)
+}
 
-	stake := p.newStakeCounter()
-	for h := range knownRoots.All() {
-		parent := p.store.GetEvent(h)
-		stake.Count(parent.Creator)
+// rootFrom makes roots from single event.
+func rootFrom(e *Event) Roots {
+	return Roots{
+		e.Creator: newEventHashes(e.Hash()),
 	}
-
-	if !stake.HasMajority() {
-		return false
-	}
-
-	frame := p.frame(p.state.LastFinishedFrameN + 1)
-	frame.SetRoot(e.Hash())
-
-	return true
 }

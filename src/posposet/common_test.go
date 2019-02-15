@@ -81,6 +81,27 @@ a03 ╣     ╠ ─ d02
 	}
 }
 
+/*
+ * Utils:
+ */
+
+// FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
+func FakePoset(nodes []common.Address) *Poset {
+	balances := make(map[common.Address]uint64, len(nodes))
+	for _, addr := range nodes {
+		balances[addr] = uint64(1)
+	}
+
+	store := NewMemStore()
+	err := store.ApplyGenesis(balances)
+	if err != nil {
+		panic(err)
+	}
+
+	p := New(store)
+	return p
+}
+
 // ParseEvents parses events from ASCII-scheme.
 // Use joiners ║ ╬ ╠ ╣ ╫ and optional fillers ─ ═ to draw ASCII-scheme.
 // Result:
@@ -233,5 +254,30 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		events[creator] = append(events[creator], e)
 	}
 
+	return
+}
+
+// FakeFuzzingEvents generates random independent events.
+func FakeFuzzingEvents() (res []*Event) {
+	creators := []common.Address{
+		common.Address{},
+		common.FakeAddress(),
+		common.FakeAddress(),
+		common.FakeAddress(),
+	}
+	parents := []EventHashes{
+		FakeEventHashes(0),
+		FakeEventHashes(1),
+		FakeEventHashes(8),
+	}
+	for c := 0; c < len(creators); c++ {
+		for p := 0; p < len(parents); p++ {
+			e := &Event{
+				Creator: creators[c],
+				Parents: parents[p],
+			}
+			res = append(res, e)
+		}
+	}
 	return
 }

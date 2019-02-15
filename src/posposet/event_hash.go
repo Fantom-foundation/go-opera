@@ -60,8 +60,8 @@ func (hash *EventHash) IsZero() bool {
  * EventHashes methods:
  */
 
-func newEventHashes(hash ...EventHash) *EventHashes {
-	hh := &EventHashes{}
+func newEventHashes(hash ...EventHash) EventHashes {
+	hh := EventHashes{}
 	hh.Add(hash...)
 	return hh
 }

@@ -7,7 +7,7 @@ import (
 
 func TestEventHash(t *testing.T) {
 	var (
-		events = FakeEvents()
+		events = FakeFuzzingEvents()
 		hashes = make([]EventHash, len(events))
 	)
 

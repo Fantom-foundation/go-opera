@@ -29,18 +29,4 @@ func (p *Poset) bootstrap() {
 	if p.state == nil {
 		panic("Apply genesis for store first")
 	}
-	// restore frames
-	p.frames = make(map[uint64]*Frame)
-	n := p.state.LastFinishedFrameN
-	for {
-		f := p.store.GetFrame(n)
-		if f == nil {
-			break
-		}
-		p.frames[n] = f
-		n++
-	}
-	// TODO: implement flagTable restoring
-	p.flagTable = NewFlagTable()
-
 }

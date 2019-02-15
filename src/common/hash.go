@@ -3,7 +3,6 @@ package common
 import (
 	"crypto/sha256"
 	"database/sql/driver"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -122,15 +121,14 @@ func (h Hash) Value() (driver.Value, error) {
 	return h[:], nil
 }
 
-// UnprefixedHash allows marshaling a Hash without 0x prefix.
-type UnprefixedHash Hash
+/*
+ * Utils:
+ */
 
-// UnmarshalText decodes the hash from hex. The 0x prefix is optional.
-func (h *UnprefixedHash) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedHash", input, h[:])
-}
-
-// MarshalText encodes the hash as hex.
-func (h UnprefixedHash) MarshalText() ([]byte, error) {
-	return []byte(hex.EncodeToString(h[:])), nil
+func FakeHash() (h Hash) {
+	_, err := rand.Read(h[:])
+	if err != nil {
+		panic(err)
+	}
+	return
 }

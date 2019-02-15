@@ -20,7 +20,7 @@ func TestMemStoreEvents(t *testing.T) {
 	t.Run("Events", func(t *testing.T) {
 		assert := assert.New(t)
 
-		events := FakeEvents()
+		events := FakeFuzzingEvents()
 		for _, e0 := range events {
 			store.SetEvent(e0)
 			e1 := store.GetEvent(e0.Hash())
