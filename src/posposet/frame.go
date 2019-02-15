@@ -10,45 +10,32 @@ import (
 type Frame struct {
 	Index     uint64
 	FlagTable FlagTable
-	NonRoots  Events
 	Balances  common.Hash
 
 	save func()
 }
 
-// NodeRootsAdd appends root known for node.
-func (f *Frame) NodeRootsAdd(node common.Address, roots Events) {
-	if f.FlagTable[node] == nil {
-		f.FlagTable[node] = Events{}
+// EventRootsAdd appends known roots for event.
+func (f *Frame) EventRootsAdd(event EventHash, roots Events) {
+	if f.FlagTable[event] == nil {
+		f.FlagTable[event] = Events{}
 	}
-	if f.FlagTable[node].Add(roots) {
+	if f.FlagTable[event].Add(roots) {
 		f.save()
 	}
 }
 
-// NodeRootsGet returns roots of node. For read only, please.
-func (f *Frame) NodeRootsGet(node common.Address) Events {
-	return f.FlagTable[node]
+// EventRootsGet returns known roots of event. For read only, please.
+func (f *Frame) EventRootsGet(event EventHash) Events {
+	return f.FlagTable[event]
 }
 
-// NodeEventAdd appends event to frame.
-func (f *Frame) NodeEventAdd(node common.Address, event EventHash) {
-	if f.NonRoots[node] == nil {
-		f.NonRoots[node] = EventHashes{}
-	}
-	if f.NonRoots[node].Add(event) {
-		f.save()
-	}
-}
-
-func (f *Frame) HasNodeEvent(node common.Address) bool {
+// HasNodeEvent returns true if event is in.
+func (f *Frame) HasNodeEvent(node common.Address, event EventHash) bool {
 	if f.Index == 0 {
 		return false
 	}
-	if len(f.NonRoots[node]) > 0 {
-		return true
-	}
-	if f.FlagTable[node] != nil && len(f.FlagTable[node][node]) > 0 {
+	if _, ok := f.FlagTable[event]; ok {
 		return true
 	}
 	return false

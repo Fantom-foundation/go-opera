@@ -17,11 +17,11 @@ type (
 	// ( creator --> event hashes )
 	Events map[common.Address]EventHashes
 
-	// FlagTable stores the reachability of each top event to the roots.
+	// FlagTable stores the reachability of each event to the roots.
 	// It helps to select root without using path searching algorithms.
 	// Zero-hash is a self-parent root.
-	// ( node --> root creator --> root hashes )
-	FlagTable map[common.Address]Events
+	// ( event hash --> root creator --> root hashes )
+	FlagTable map[EventHash]Events
 
 	// event is an internal struct for serialization purpose.
 	event struct {
@@ -31,10 +31,14 @@ type (
 
 	// flag is an internal struct for serialization purpose.
 	flag struct {
-		Node  common.Address
+		Event EventHash
 		Roots Events
 	}
 )
+
+/*
+ * Events's methods:
+ */
 
 // Add unions roots into one.
 func (rr Events) Add(roots Events) (changed bool) {
@@ -91,11 +95,15 @@ func (rr *Events) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
+/*
+ * FlagTable's methods:
+ */
+
 // EncodeRLP is a specialized encoder to encode index into array.
 func (ft FlagTable) EncodeRLP(w io.Writer) error {
 	var arr []flag
-	for node, roots := range ft {
-		arr = append(arr, flag{node, roots})
+	for event, roots := range ft {
+		arr = append(arr, flag{event, roots})
 	}
 	return rlp.Encode(w, arr)
 }
@@ -110,7 +118,7 @@ func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
 
 	res := FlagTable{}
 	for _, f := range arr {
-		res[f.Node] = f.Roots
+		res[f.Event] = f.Roots
 	}
 
 	*ft = res

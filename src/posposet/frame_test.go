@@ -21,13 +21,12 @@ func TestFrameSerialization(t *testing.T) {
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
-		flagTable[node] = roots
+		flagTable[FakeEventHash()] = roots
 	}
 
 	f0 := &Frame{
 		Index:     rand.Uint64(),
 		FlagTable: flagTable,
-		NonRoots:  Events{},
 		Balances:  common.FakeHash(),
 	}
 	buf, err := rlp.EncodeToBytes(f0)

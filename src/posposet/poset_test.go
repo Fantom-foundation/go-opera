@@ -9,7 +9,6 @@ import (
 )
 
 func TestPosetRush(t *testing.T) {
-	return // NOTE: temporary
 	nodes, eventsByNode := GenEventsByNode(4, 10, 3)
 	p := FakePoset(nodes)
 

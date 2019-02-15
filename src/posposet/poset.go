@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"strings"
 	"sync"
 )
 
@@ -148,26 +147,26 @@ func (p *Poset) consensus(e *Event) {
 // Event.parents should be filled.
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) bool {
-	log.Debugf("----- %s", e)
-
-	frame := p.lastNodeFrame(e.Creator)
+	//log.Debugf("----- %s", e)
+	prev := prevEvent(e)
+	frame := p.lastNodeFrame(e.Creator, prev)
 	if frame == nil {
 		frame = p.frame(p.state.LastFinishedFrameN+1, true)
 	}
-	log.Debugf(" last node frame: %d", frame.Index)
+	//log.Debugf(" last node frame: %d", frame.Index)
 
 	knownRoots := Events{}
-	for hash, parent := range e.parents {
-		if !hash.IsZero() {
-			roots := frame.NodeRootsGet(parent.Creator)
+	for parent := range e.Parents {
+		if !parent.IsZero() {
+			roots := frame.EventRootsGet(parent)
 			knownRoots.Add(roots)
 		} else {
 			roots := rootZero(e.Creator)
 			knownRoots.Add(roots)
 		}
 	}
-	frame.NodeRootsAdd(e.Creator, knownRoots)
-	log.Debugf(" known %s for %s", knownRoots.String(), e.Creator.String())
+	frame.EventRootsAdd(e.Hash(), knownRoots)
+	//log.Debugf(" known %s for %s", knownRoots.String(), e.Hash().String())
 
 	stake := p.newStakeCounter()
 	for node := range knownRoots {
@@ -175,31 +174,24 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 	}
 	isRoot := stake.HasMajority()
 
-	// NOTE: temporary
-	if name := e.Hash().String(); (strings.ToUpper(name) == name) != isRoot {
-		log.Debug(" ERR !!!!!!!!!!!!!!!!")
-	}
-
 	if !isRoot {
-		frame.NodeEventAdd(e.Creator, e.Hash())
 		return false
 	}
-
-	log.Debug(" selected as root")
+	//log.Debug(" selected as root")
 
 	frame = p.frame(frame.Index+1, true)
-	frame.NodeRootsAdd(e.Creator, rootFrom(e))
+	frame.EventRootsAdd(e.Hash(), rootFrom(e))
 
-	for phash, parent := range e.parents {
+	for parent := range e.Parents {
 		var roots Events
-		if !phash.IsZero() {
-			roots = frame.NodeRootsGet(parent.Creator)
+		if !parent.IsZero() {
+			roots = frame.EventRootsGet(parent)
 		} else {
 			roots = rootZero(e.Creator)
 		}
-		frame.NodeRootsAdd(e.Creator, roots)
+		frame.EventRootsAdd(e.Hash(), roots)
 	}
-	log.Debugf(" will known %s for %s", frame.NodeRootsGet(e.Creator).String(), e.Creator.String())
+	//log.Debugf(" will known %s for %s", frame.EventRootsGet(e.Hash()).String(), e.Hash().String())
 
 	return true
 }
@@ -222,4 +214,14 @@ func initEventIdx(e *Event) {
 	for hash := range e.Parents {
 		e.parents[hash] = nil
 	}
+}
+
+// prevEvent returns previous event by internal index of parents.
+func prevEvent(e *Event) EventHash {
+	for hash, parent := range e.parents {
+		if hash.IsZero() || parent.Creator == e.Creator {
+			return hash
+		}
+	}
+	return ZeroEventHash
 }
