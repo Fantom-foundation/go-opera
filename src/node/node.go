@@ -59,10 +59,11 @@ type Node struct {
 func NewNode(conf *Config,
 	id uint64,
 	key *ecdsa.PrivateKey,
-	participants *peers.Peers,
 	store poset.Store,
 	trans net.Transport,
-	proxy proxy.AppProxy) *Node {
+	proxy proxy.AppProxy,
+	selectorInitFunc SelectorCreationFn,
+	selectorInitArgs SelectorCreationFnArgs) *Node {
 
 	localAddr := trans.LocalAddr()
 
@@ -73,9 +74,9 @@ func NewNode(conf *Config,
 
 	pubKey := core.HexID()
 
-	// peerSelector := NewRandomPeerSelector(participants, localAddr)
-	peerSelector := NewSmartPeerSelector(participants, pubKey,
-		core.poset.GetPeerFlagTableOfRandomUndeterminedEvent)
+	selectorInitArgs.PubKey = pubKey
+	selectorInitArgs.GetFlagTable = core.poset.GetPeerFlagTableOfRandomUndeterminedEvent
+	peerSelector := selectorInitFunc(selectorInitArgs)
 
 	node := Node{
 		id:               id,

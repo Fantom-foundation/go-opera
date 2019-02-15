@@ -59,10 +59,16 @@ func TestProcessSync(t *testing.T) {
 	}
 	defer peer0Trans.Close()
 
-	node0 := NewNode(config, ps[0].ID, keys[0], p,
+	selector0Args := SelectorCreationFnArgs{
+		Peers: p,
+		LocalAddr: peer0Trans.LocalAddr(),
+	}
+	node0 := NewNode(config, ps[0].ID, keys[0],
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
-		dummy.NewInmemDummyApp(testLogger))
+		dummy.NewInmemDummyApp(testLogger),
+		NewSmartPeerSelectorFromArgs,
+		selector0Args)
 	if err := node0.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -77,10 +83,16 @@ func TestProcessSync(t *testing.T) {
 	}
 	defer peer1Trans.Close()
 
-	node1 := NewNode(config, ps[1].ID, keys[1], p,
+	selector1Args := SelectorCreationFnArgs{
+		Peers: p,
+		LocalAddr: peer1Trans.LocalAddr(),
+	}
+	node1 := NewNode(config, ps[1].ID, keys[1],
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
-		dummy.NewInmemDummyApp(testLogger))
+		dummy.NewInmemDummyApp(testLogger),
+		NewSmartPeerSelectorFromArgs,
+		selector1Args)
 	if err := node1.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -164,10 +176,16 @@ func TestProcessEagerSync(t *testing.T) {
 	}
 	defer peer0Trans.Close()
 
-	node0 := NewNode(config, ps[0].ID, keys[0], p,
+	selector0Args := SelectorCreationFnArgs{
+		Peers: p,
+		LocalAddr: peer0Trans.LocalAddr(),
+	}
+	node0 := NewNode(config, ps[0].ID, keys[0],
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
-		dummy.NewInmemDummyApp(testLogger))
+		dummy.NewInmemDummyApp(testLogger),
+		NewSmartPeerSelectorFromArgs,
+		selector0Args)
 	if err := node0.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -182,10 +200,16 @@ func TestProcessEagerSync(t *testing.T) {
 	}
 	defer peer1Trans.Close()
 
-	node1 := NewNode(config, ps[1].ID, keys[1], p,
+	selector1Args := SelectorCreationFnArgs{
+		Peers: p,
+		LocalAddr: peer1Trans.LocalAddr(),
+	}
+	node1 := NewNode(config, ps[1].ID, keys[1],
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
-		dummy.NewInmemDummyApp(testLogger))
+		dummy.NewInmemDummyApp(testLogger),
+		NewSmartPeerSelectorFromArgs,
+		selector1Args)
 	if err := node1.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -248,10 +272,16 @@ func TestAddTransaction(t *testing.T) {
 	peer0Proxy := dummy.NewInmemDummyApp(testLogger)
 	defer peer0Trans.Close()
 
-	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0], p,
+	selector0Args := SelectorCreationFnArgs{
+		Peers: p,
+		LocalAddr: peer0Trans.LocalAddr(),
+	}
+	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0],
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
-		peer0Proxy)
+		peer0Proxy,
+		NewSmartPeerSelectorFromArgs,
+		selector0Args)
 	if err := node0.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -267,10 +297,16 @@ func TestAddTransaction(t *testing.T) {
 	peer1Proxy := dummy.NewInmemDummyApp(testLogger)
 	defer peer1Trans.Close()
 
-	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1], p,
+	selector1Args := SelectorCreationFnArgs{
+		Peers: p,
+		LocalAddr: peer1Trans.LocalAddr(),
+	}
+	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1],
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
-		peer1Proxy)
+		peer1Proxy,
+		NewSmartPeerSelectorFromArgs,
+		selector1Args)
 	if err := node1.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -370,13 +406,18 @@ func initNodes(keys []*ecdsa.PrivateKey,
 		}
 		prox := dummy.NewInmemDummyApp(logger)
 
+		selectorArgs := SelectorCreationFnArgs{
+			Peers: peers,
+			LocalAddr: trans.LocalAddr(),
+		}
 		node := NewNode(conf,
 			id,
 			k,
-			peers,
 			store,
 			trans,
-			prox)
+			prox,
+			NewSmartPeerSelectorFromArgs,
+			selectorArgs)
 
 		if err := node.Init(); err != nil {
 			t.Fatalf("failed to initialize node%d: %s", id, err)
@@ -421,7 +462,12 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 	}
 	prox := dummy.NewInmemDummyApp(logger)
 
-	newNode := NewNode(conf, id, key, ps, store, trans, prox)
+	selectorArgs := SelectorCreationFnArgs{
+		Peers: ps,
+		LocalAddr: trans.LocalAddr(),
+	}
+	newNode := NewNode(conf, id, key, store, trans, prox,
+		NewSmartPeerSelectorFromArgs, selectorArgs)
 
 	if err := newNode.Init(); err != nil {
 		t.Fatal(err)
