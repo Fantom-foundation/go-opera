@@ -107,18 +107,13 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 		store.repertoireByPubKey[peer.PubKeyHex] = peer
 		store.repertoireByID[peer.ID] = peer
 		store.rootsBySelfParent = nil
-		if _, err := store.RootsBySelfParent(); err != nil {
-			panic(err)
-		}
+		_ = store.RootsBySelfParent()
 		old := store.participantEventsCache
 		store.participantEventsCache = NewParticipantEventsCache(cacheSize, participants)
 		store.participantEventsCache.Import(old)
 	})
 
 	store.setPeers(0, participants)
-	if err = store.setLeafEvents(store.rootsByParticipant); err != nil {
-		panic(err)
-	}
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -170,8 +165,8 @@ func (s *InmemStore) RepertoireByID() map[uint64]*peers.Peer {
 	return s.repertoireByID
 }
 
-// RootsBySelfParent TODO
-func (s *InmemStore) RootsBySelfParent() (map[EventHash]Root, error) {
+// RootsBySelfParent retrieve EventHash map of roots
+func (s *InmemStore) RootsBySelfParent() map[EventHash]Root {
 	if s.rootsBySelfParent == nil {
 		s.rootsBySelfParent = make(map[EventHash]Root)
 		for _, root := range s.rootsByParticipant {
@@ -180,7 +175,12 @@ func (s *InmemStore) RootsBySelfParent() (map[EventHash]Root, error) {
 			s.rootsBySelfParent[hash] = root
 		}
 	}
-	return s.rootsBySelfParent, nil
+	return s.rootsBySelfParent
+}
+
+// RootsByParticipant retrieve PubKeyHex map of roots
+func (s *InmemStore) RootsByParticipant() map[string]Root {
+	return s.rootsByParticipant
 }
 
 // GetEventBlock gets specific event block by hash
@@ -471,6 +471,7 @@ func (s *InmemStore) Reset(roots map[string]Root) error {
 	//        and reset lastConsensusEvents ?
 	s.rootsByParticipant = roots
 	s.rootsBySelfParent = nil
+	_ = s.RootsBySelfParent()
 	s.eventCache = eventCache
 	s.roundCreatedCache = roundCache
 	s.roundReceivedCache = roundReceivedCache
@@ -482,10 +483,6 @@ func (s *InmemStore) Reset(roots map[string]Root) error {
 	s.lastBlockLocker.Lock()
 	s.lastBlock = -1
 	s.lastBlockLocker.Unlock()
-
-	if _, err := s.RootsBySelfParent(); err != nil {
-		return err
-	}
 
 	return err
 }
@@ -513,38 +510,4 @@ func (s *InmemStore) StateDB() state.Database {
 // StateRoot returns genesis state hash.
 func (s *InmemStore) StateRoot() common.Hash {
 	return s.stateRoot
-}
-
-
-func (s *InmemStore) setLeafEvents(roots map[string]Root) error {
-	for participant, root := range roots {
-		var creator []byte
-		var selfParentHash EventHash
-		selfParentHash.Set(root.SelfParent.Hash)
-		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
-			return err
-		}
-		body := EventBody{
-			Creator: creator,
-			Index:   root.SelfParent.Index,
-			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
-		}
-		event := Event{
-			Message: &EventMessage{
-				Hash:             root.SelfParent.Hash,
-				CreatorID:        root.SelfParent.CreatorID,
-				TopologicalIndex: -1,
-				Body:             &body,
-				FlagTable:        FlagTable{selfParentHash: 1}.Marshal(),
-				ClothoProof:      [][]byte{root.SelfParent.Hash},
-			},
-			lamportTimestamp: 0,
-			round:            0,
-			roundReceived:    0, /*RoundNIL*/
-		}
-		if err := s.SetEvent(event); err != nil {
-			return err
-		}
-	}
-	return nil
 }
