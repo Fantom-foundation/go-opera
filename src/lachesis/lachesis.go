@@ -53,6 +53,9 @@ func (l *Lachesis) initTransport() error {
 		l.Config.MaxPool, l.Config.NodeConfig.TCPTimeout, createCliFu)
 	backend := peer.NewBackend(
 		peer.NewBackendConfig(), l.Config.Logger, net.Listen)
+	if err := backend.ListenAndServe(peer.TCP, l.Config.BindAddr); err != nil {
+		return err
+	}
 	l.Transport = peer.NewTransport(l.Config.Logger, producer, backend)
 	return nil
 }
