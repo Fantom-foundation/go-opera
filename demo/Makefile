@@ -1,3 +1,6 @@
+export DOCKER?=docker
+export RM?=rm
+
 .PHONY: up build conf start watch stop demo bombard
 
 nodes = 4
@@ -7,12 +10,12 @@ up: conf start watch
 
 # build lachesis and dummy docker images for local registry
 build:
-	docker build -f ./Dockerfile.dummy -t go-dummy ../
-	docker build -f ./Dockerfile.node -t go-lachesis ../
+	$(DOCKER) build -f ./Dockerfile.dummy -t go-dummy ../
+	$(DOCKER) build -f ./Dockerfile.node -t go-lachesis ../
 
 # generate keys and peers.json file
 conf: 
-	rm -rf conf
+	$(RM) -rf conf
 	./scripts/build-conf.sh $(nodes)
 
 # launch testnet
