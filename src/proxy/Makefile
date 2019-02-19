@@ -18,4 +18,4 @@ $(SUBDIR_TARGETS) :
 	@$(MAKE) -C $(@D) $(@F:.%=%)
 
 test:
-	$(GO) test -race -timeout 45s
+	$(GO) test -race -cover -timeout 45s

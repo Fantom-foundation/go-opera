@@ -13,4 +13,4 @@ proto:
 build:
 
 test:
-	$(GO) test -race -timeout 45s
+	$(GO) test -race -cover -timeout 45s

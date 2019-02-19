@@ -14,9 +14,8 @@ type Store interface {
 	TopologicalEvents() ([]Event, error) // returns event in topological order
 	CacheSize() int
 	Participants() (*peers.Peers, error)
-	RepertoireByPubKey() map[string]*peers.Peer
-	RepertoireByID() map[uint64]*peers.Peer
-	RootsBySelfParent() (map[EventHash]Root, error)
+	RootsBySelfParent() map[EventHash]Root
+	RootsByParticipant() map[string]Root
 	GetEventBlock(EventHash) (Event, error)
 	SetEvent(Event) error
 	ParticipantEvents(string, int64) (EventHashes, error)
