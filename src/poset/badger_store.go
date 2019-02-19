@@ -63,9 +63,6 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 	if err := store.dbSetRoots(inmemStore.rootsByParticipant); err != nil {
 		return nil, err
 	}
-	if err := store.dbSetLeafEvents(inmemStore.rootsByParticipant); err != nil {
-		return nil, err
-	}
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -245,19 +242,14 @@ func (s *BadgerStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
-// RepertoireByPubKey gets PubKey map of peers
-func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
-	return s.inmemStore.RepertoireByPubKey()
-}
-
-// RepertoireByID gets ID map of peers
-func (s *BadgerStore) RepertoireByID() map[uint64]*peers.Peer {
-	return s.inmemStore.RepertoireByID()
-}
-
-// RootsBySelfParent returns the roots for the self parent
-func (s *BadgerStore) RootsBySelfParent() (map[EventHash]Root, error) {
+// RootsBySelfParent returns Self Parent's EventHash map of the roots
+func (s *BadgerStore) RootsBySelfParent() map[EventHash]Root {
 	return s.inmemStore.RootsBySelfParent()
+}
+
+// RootsByParticipant returns PubKeyHex map of the roots
+func (s *BadgerStore) RootsByParticipant() map[string]Root {
+	return s.inmemStore.RootsByParticipant()
 }
 
 // GetEventBlock get specific event block by hash
@@ -622,39 +614,6 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 		}
 	}
 	return tx.Commit(nil)
-}
-
-func (s *BadgerStore) dbSetLeafEvents(roots map[string]Root) error {
-	for participant, root := range roots {
-		var creator []byte
-		var selfParentHash EventHash
-		selfParentHash.Set(root.SelfParent.Hash)
-		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
-			return err
-		}
-		body := EventBody{
-			Creator: creator,
-			Index:   root.SelfParent.Index,
-			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(), // make([][]byte, 2),
-		}
-		event := Event{
-			Message: &EventMessage{
-				Hash:             root.SelfParent.Hash,
-				CreatorID:        root.SelfParent.CreatorID,
-				TopologicalIndex: -1,
-				Body:             &body,
-				FlagTable:        FlagTable{selfParentHash: 1}.Marshal(),
-				ClothoProof:      [][]byte{root.SelfParent.Hash},
-			},
-			lamportTimestamp: 0,
-			round:            0,
-			roundReceived:    0, /*RoundNIL*/
-		}
-		if err := s.SetEvent(event); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (s *BadgerStore) dbGetRoot(participant string) (Root, error) {
