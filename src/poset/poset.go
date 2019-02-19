@@ -798,7 +798,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 	otherParentIndex := int64(-1)
 
 	eventCreator := event.GetCreator()
-	creator, ok := p.Store.RepertoireByPubKey()[eventCreator]
+	creator, ok := p.Participants.ReadByPubKey(eventCreator)
 	if !ok {
 		return fmt.Errorf("creator %s not found", eventCreator)
 	}
@@ -836,7 +836,7 @@ func (p *Poset) setWireInfo(event *Event) error {
 			if err != nil {
 				return err
 			}
-			otherParentCreator, ok := p.Store.RepertoireByPubKey()[otherParent.GetCreator()]
+			otherParentCreator, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
 			if !ok {
 				return fmt.Errorf("creator %s not found", otherParent.GetCreator())
 			}
@@ -1789,9 +1789,9 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		otherParent = GenRootSelfParent(wevent.Body.OtherParentCreatorID)
 	}
 
-	creator := p.Store.RepertoireByID()[wevent.Body.CreatorID]
+	creator, ok := p.Participants.ReadByID(wevent.Body.CreatorID)
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
-	if creator == nil {
+	if !ok {
 		return nil, fmt.Errorf("unknown wevent.Body.CreatorID=%v", wevent.Body.CreatorID)
 	}
 	creatorBytes, err := hex.DecodeString(creator.PubKeyHex[2:])
@@ -1806,8 +1806,8 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		}
 	}
 	if wevent.Body.OtherParentIndex >= 0 {
-		otherParentCreator := p.Store.RepertoireByID()[wevent.Body.OtherParentCreatorID]
-		if otherParentCreator != nil {
+		otherParentCreator, ok := p.Participants.ReadByID(wevent.Body.OtherParentCreatorID)
+		if ok {
 			otherParent, err = p.Store.ParticipantEvent(otherParentCreator.PubKeyHex, wevent.Body.OtherParentIndex)
 			if err != nil {
 				// PROBLEM Check if other parent can be found in the root
