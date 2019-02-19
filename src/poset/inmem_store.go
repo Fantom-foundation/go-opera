@@ -26,8 +26,6 @@ type InmemStore struct {
 	frameCache             *lru.Cache           // round received => Frame
 	consensusCache         *common.RollingIndex // consensus index => hash
 	totConsensusEvents     int64
-	repertoireByPubKey     map[string]*peers.Peer
-	repertoireByID         map[uint64]*peers.Peer
 	participantEventsCache *ParticipantEventsCache // pubkey => Events
 	rootsByParticipant     map[string]Root         // [participant] => Root
 	rootsBySelfParent      map[EventHash]Root      // [Root.SelfParent.Hash] => Root
@@ -89,8 +87,6 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 		blockCache:             blockCache,
 		frameCache:             frameCache,
 		consensusCache:         common.NewRollingIndex("ConsensusCache", cacheSize),
-		repertoireByPubKey:     make(map[string]*peers.Peer),
-		repertoireByID:         make(map[uint64]*peers.Peer),
 		participantEventsCache: NewParticipantEventsCache(cacheSize, participants),
 		rootsByParticipant:     rootsByParticipant,
 		lastRound:              -1,
@@ -104,16 +100,12 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 	participants.OnNewPeer(func(peer *peers.Peer) {
 		root := NewBaseRoot(peer.ID)
 		store.rootsByParticipant[peer.PubKeyHex] = root
-		store.repertoireByPubKey[peer.PubKeyHex] = peer
-		store.repertoireByID[peer.ID] = peer
 		store.rootsBySelfParent = nil
 		_ = store.RootsBySelfParent()
 		old := store.participantEventsCache
 		store.participantEventsCache = NewParticipantEventsCache(cacheSize, participants)
 		store.participantEventsCache.Import(old)
 	})
-
-	store.setPeers(0, participants)
 
 	// TODO: replace with real genesis
 	store.stateRoot, err = pos.FakeGenesis(participants, posConf, store.states)
@@ -143,26 +135,6 @@ func (s *InmemStore) CacheSize() int {
 // Participants returns participants
 func (s *InmemStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
-}
-
-func (s *InmemStore) setPeers(round int64, participants *peers.Peers) {
-	// Extend ParticipantEventsCache and Roots with new peers
-	participants.RLock()
-	defer participants.RUnlock()
-	for _, peer := range participants.ByID {
-		s.repertoireByPubKey[peer.PubKeyHex] = peer
-		s.repertoireByID[peer.ID] = peer
-	}
-}
-
-// RepertoireByPubKey retrieves cached PubKey map of peers
-func (s *InmemStore) RepertoireByPubKey() map[string]*peers.Peer {
-	return s.repertoireByPubKey
-}
-
-// RepertoireByID retrieve cached ID map of peers
-func (s *InmemStore) RepertoireByID() map[uint64]*peers.Peer {
-	return s.repertoireByID
 }
 
 // RootsBySelfParent retrieve EventHash map of roots

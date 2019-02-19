@@ -242,16 +242,6 @@ func (s *BadgerStore) Participants() (*peers.Peers, error) {
 	return s.participants, nil
 }
 
-// RepertoireByPubKey gets PubKey map of peers
-func (s *BadgerStore) RepertoireByPubKey() map[string]*peers.Peer {
-	return s.inmemStore.RepertoireByPubKey()
-}
-
-// RepertoireByID gets ID map of peers
-func (s *BadgerStore) RepertoireByID() map[uint64]*peers.Peer {
-	return s.inmemStore.RepertoireByID()
-}
-
 // RootsBySelfParent returns Self Parent's EventHash map of the roots
 func (s *BadgerStore) RootsBySelfParent() map[EventHash]Root {
 	return s.inmemStore.RootsBySelfParent()
