@@ -53,3 +53,11 @@ func (p *Poset) newStakeCounter() *stakeCounter {
 		trustSum:       p.state.TotalCap * 1 / 3,
 	}
 }
+
+func (p *Poset) hasMajority(roots Events) bool {
+	stake := p.newStakeCounter()
+	for node := range roots {
+		stake.Count(node)
+	}
+	return stake.HasMajority()
+}

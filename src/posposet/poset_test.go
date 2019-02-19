@@ -43,13 +43,8 @@ func TestPosetRush(t *testing.T) {
 	})
 }
 
-func TestPosetRoots(t *testing.T) {
-	assert := assert.New(t)
-	// node name means:
-	// - 1st letter uppercase - node should be root;
-	// - 2nd number - index by node;
-	// - 3rd number - frame where node should be in;
-	nodes, _, names := ParseEvents(`
+func TestPosetSimpleRoots(t *testing.T) {
+	testSpecialNamedRoots(t, `
 a01   b01   c01   
 ║     ║     ║     
 a11 ─ ╬ ─ ─ ╣     d01
@@ -93,29 +88,83 @@ A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
 ║     ║     ╠ ─ ─ ╬ ─ ─ E34
 ║     ║     ║     ║     ║
 `)
+}
+
+func TestPosetFarRoots(t *testing.T) {
+	testSpecialNamedRoots(t, `
+a01   b01   c01
+║     ║     ║
+a11 ─ ╬ ─ ─ ╣     d01
+║     ║     ║     ║
+║     ╠ ─ ─ c11 ─ ╣
+║     ║     ║     ║
+╠ ─ ─ B12 ─ ╣     ║
+║     ║     ║     ║
+║     ╠ ─ ─ ╬ ─ ─ D12
+║     ║     ║     ║
+A22 ─ ╫ ─ ─ ╬ ─ ─ ╣
+║     ║     ║     ║
+╠ ─ ─ ╫ ─ ─ C22 ─ ╣
+║     ║     ║     ║
+╠ ─ ─ B23 ─ ╣     ║
+║     ║     ║     ║
+║     ╠ ─ ─ ╬ ─ ─ D23
+║     ║     ║     ║
+A33 ─ ╬ ─ ─ ╣     ║
+║     ║     ║     ║
+║     ╠ ─ ─ C33   ║
+║     ║     ║     ║
+╠ ─ ─ b33 ─ ╣     ║
+║     ║     ║     ║
+a43 ─ ╬ ─ ─ ╣     ║
+║     ║     ║     ║
+║     ╠ ─ ─ C44 ─ ╣
+║     ║     ║     ║     ║
+║     ║     ╠ ─ ─ ╬ ─ ─ E04
+║     ║     ║     ║     ║
+╠ ─ ─ B44 ─ ╣     ║     ║
+║     ║     ║     ║     ║
+╠ ─ ─ ╫ ─ ─ ╬ ─ ─ D34   ║
+║     ║     ║     ║     ║
+A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
+║     ║     ║     ║     ║
+╠ ─ ─ ╫ ─ ─ c54 ─ ╣     ║
+║     ║     ║     ║     ║
+║     ╠ ─ ─ ╫ ─ ─ ╬ ─ ─ E15
+║     ║     ║     ║     ║
+║     ║     ╠ ─ ─ ╬ ─ ─ E25
+║     ║     ║     ║     ║
+`)
+}
+
+// testSpecialNamedRoots is a general test of root selection.
+// Node name means:
+// - 1st letter uppercase - node should be root;
+// - 2nd number - index by node;
+// - 3rd number - frame where node should be in;
+func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
+	assert := assert.New(t)
+	// init
+	nodes, _, names := ParseEvents(asciiScheme)
 	p := FakePoset(nodes)
 	// process events
-	for _, e := range names {
-		p.PushEventSync(*e)
+	for _, event := range names {
+		p.PushEventSync(*event)
 	}
-
-	for name, e := range names {
+	// check each
+	for name, event := range names {
 		// check roots
 		mustBeRoot := (name == strings.ToUpper(name))
-		isReallyRoot := p.RootFrame(e) != nil
-		if !assert.Equal(mustBeRoot, isReallyRoot, name) {
+		frame, isRoot := p.FrameOfEvent(event.Hash())
+		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
-		}
-		if !isReallyRoot {
-			continue
 		}
 		// check frames
 		mustBeFrame, err := strconv.ParseUint(name[2:3], 10, 64)
 		if !assert.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
 			return
 		}
-		reallyFrame := p.RootFrame(e)
-		if !assert.Equal(mustBeFrame, *reallyFrame, name) {
+		if !assert.Equal(mustBeFrame, frame.Index, "frame of "+name) {
 			break
 		}
 	}

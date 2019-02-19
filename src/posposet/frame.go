@@ -30,17 +30,6 @@ func (f *Frame) EventRootsGet(event EventHash) Events {
 	return f.FlagTable[event]
 }
 
-// HasNodeEvent returns true if event is in.
-func (f *Frame) HasNodeEvent(node common.Address, event EventHash) bool {
-	if f.Index == 0 {
-		return false
-	}
-	if _, ok := f.FlagTable[event]; ok {
-		return true
-	}
-	return false
-}
-
 // SetBalances save PoS-balances state.
 func (f *Frame) SetBalances(balances common.Hash) {
 	if f.Balances != balances {

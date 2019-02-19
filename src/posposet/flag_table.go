@@ -59,7 +59,7 @@ func (rr Events) String() string {
 	for node, roots := range rr {
 		ss = append(ss, node.String()+":"+roots.String())
 	}
-	return "Roots{" + strings.Join(ss, ", ") + "}"
+	return "byNode{" + strings.Join(ss, ", ") + "}"
 }
 
 // EncodeRLP is a specialized encoder to encode index into array.

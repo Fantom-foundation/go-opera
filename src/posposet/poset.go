@@ -148,52 +148,54 @@ func (p *Poset) consensus(e *Event) {
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) bool {
 	//log.Debugf("----- %s", e)
-	prev := prevEvent(e)
-	frame := p.lastNodeFrame(e.Creator, prev)
-	if frame == nil {
-		frame = p.frame(p.state.LastFinishedFrameN+1, true)
-	}
-	//log.Debugf(" last node frame: %d", frame.Index)
 
-	knownRoots := Events{}
+	// known roots groupped by frame num
+	knownRootsDirect := Roots{}
+	knownRootsThrough := Roots{}
 	for parent := range e.Parents {
 		if !parent.IsZero() {
+			frame, isRoot := p.FrameOfEvent(parent)
+			if frame == nil {
+				continue
+			}
 			roots := frame.EventRootsGet(parent)
-			knownRoots.Add(roots)
+			knownRootsDirect.Add(frame.Index, roots)
+			if !isRoot {
+				continue
+			}
+			frame = p.frame(frame.Index-1, false)
+			if frame == nil {
+				continue
+			}
+			roots = frame.EventRootsGet(parent)
+			knownRootsThrough.Add(frame.Index, roots)
 		} else {
 			roots := rootZero(e.Creator)
-			knownRoots.Add(roots)
+			knownRootsDirect.Add(p.state.LastFinishedFrameN+1, roots)
 		}
 	}
-	frame.EventRootsAdd(e.Hash(), knownRoots)
-	//log.Debugf(" known %s for %s", knownRoots.String(), e.Hash().String())
-
-	stake := p.newStakeCounter()
-	for node := range knownRoots {
-		stake.Count(node)
+	// use parent's frames only
+	knownRoots := Roots{}
+	for n, _ := range knownRootsDirect {
+		knownRoots.Add(n, knownRootsDirect[n])
+		knownRoots.Add(n, knownRootsThrough[n])
 	}
-	isRoot := stake.HasMajority()
 
-	if !isRoot {
-		return false
-	}
-	//log.Debug(" selected as root")
+	for _, fnum := range knownRoots.FrameNumsDesc() {
+		roots := knownRoots[fnum]
 
-	frame = p.frame(frame.Index+1, true)
-	frame.EventRootsAdd(e.Hash(), rootFrom(e))
-
-	for parent := range e.Parents {
-		var roots Events
-		if !parent.IsZero() {
-			roots = frame.EventRootsGet(parent)
-		} else {
-			roots = rootZero(e.Creator)
-		}
+		frame := p.frame(fnum, true)
 		frame.EventRootsAdd(e.Hash(), roots)
-	}
-	//log.Debugf(" will known %s for %s", frame.EventRootsGet(e.Hash()).String(), e.Hash().String())
+		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
 
-	return true
+		if p.hasMajority(roots) {
+			frame = p.frame(fnum+1, true)
+			frame.EventRootsAdd(e.Hash(), rootFrom(e))
+			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Poset) checkIfClotho(e *Event) bool {
@@ -214,14 +216,4 @@ func initEventIdx(e *Event) {
 	for hash := range e.Parents {
 		e.parents[hash] = nil
 	}
-}
-
-// prevEvent returns previous event by internal index of parents.
-func prevEvent(e *Event) EventHash {
-	for hash, parent := range e.parents {
-		if hash.IsZero() || parent.Creator == e.Creator {
-			return hash
-		}
-	}
-	return ZeroEventHash
 }
