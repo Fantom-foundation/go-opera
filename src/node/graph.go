@@ -42,7 +42,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[poset.EventHash]poset.Even
 	res := make(map[string]map[poset.EventHash]poset.Event)
 
 	store := g.Node.core.poset.Store
-	repertoire := g.Node.core.poset.Store.RepertoireByPubKey()
+	repertoire := g.Node.core.poset.Participants.ToPeerSlice()
 	known := store.KnownEvents()
 	for _, p := range repertoire {
 		root, err := store.GetRoot(p.PubKeyHex)
