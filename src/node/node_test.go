@@ -59,15 +59,15 @@ func TestProcessSync(t *testing.T) {
 	}
 	defer peer0Trans.Close()
 
-	selector0Args := SelectorCreationFnArgs{
-		Peers: p,
+	selector0Args := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: peer0Trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	node0 := NewNode(config, ps[0].ID, keys[0],
+	node0 := NewNode(config, ps[0].ID, keys[0], p,
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorFromArgs,
+		NewSmartPeerSelectorWrapper,
 		selector0Args)
 	if err := node0.Init(); err != nil {
 		t.Fatal(err)
@@ -83,15 +83,15 @@ func TestProcessSync(t *testing.T) {
 	}
 	defer peer1Trans.Close()
 
-	selector1Args := SelectorCreationFnArgs{
-		Peers: p,
+	selector1Args := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: peer1Trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	node1 := NewNode(config, ps[1].ID, keys[1],
+	node1 := NewNode(config, ps[1].ID, keys[1], p,
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorFromArgs,
+		NewSmartPeerSelectorWrapper,
 		selector1Args)
 	if err := node1.Init(); err != nil {
 		t.Fatal(err)
@@ -176,15 +176,15 @@ func TestProcessEagerSync(t *testing.T) {
 	}
 	defer peer0Trans.Close()
 
-	selector0Args := SelectorCreationFnArgs{
-		Peers: p,
+	selector0Args := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: peer0Trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	node0 := NewNode(config, ps[0].ID, keys[0],
+	node0 := NewNode(config, ps[0].ID, keys[0], p,
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorFromArgs,
+		NewSmartPeerSelectorWrapper,
 		selector0Args)
 	if err := node0.Init(); err != nil {
 		t.Fatal(err)
@@ -200,15 +200,15 @@ func TestProcessEagerSync(t *testing.T) {
 	}
 	defer peer1Trans.Close()
 
-	selector1Args := SelectorCreationFnArgs{
-		Peers: p,
+	selector1Args := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: peer1Trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	node1 := NewNode(config, ps[1].ID, keys[1],
+	node1 := NewNode(config, ps[1].ID, keys[1], p,
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorFromArgs,
+		NewSmartPeerSelectorWrapper,
 		selector1Args)
 	if err := node1.Init(); err != nil {
 		t.Fatal(err)
@@ -272,15 +272,15 @@ func TestAddTransaction(t *testing.T) {
 	peer0Proxy := dummy.NewInmemDummyApp(testLogger)
 	defer peer0Trans.Close()
 
-	selector0Args := SelectorCreationFnArgs{
-		Peers: p,
+	selector0Args := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: peer0Trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0],
+	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0], p,
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer0Trans,
 		peer0Proxy,
-		NewSmartPeerSelectorFromArgs,
+		NewSmartPeerSelectorWrapper,
 		selector0Args)
 	if err := node0.Init(); err != nil {
 		t.Fatal(err)
@@ -297,15 +297,15 @@ func TestAddTransaction(t *testing.T) {
 	peer1Proxy := dummy.NewInmemDummyApp(testLogger)
 	defer peer1Trans.Close()
 
-	selector1Args := SelectorCreationFnArgs{
-		Peers: p,
+	selector1Args := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: peer1Trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1],
+	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1], p,
 		poset.NewInmemStore(p, config.CacheSize, nil),
 		peer1Trans,
 		peer1Proxy,
-		NewSmartPeerSelectorFromArgs,
+		NewSmartPeerSelectorWrapper,
 		selector1Args)
 	if err := node1.Init(); err != nil {
 		t.Fatal(err)
@@ -406,17 +406,18 @@ func initNodes(keys []*ecdsa.PrivateKey,
 		}
 		prox := dummy.NewInmemDummyApp(logger)
 
-		selectorArgs := SelectorCreationFnArgs{
-			Peers: peers,
+		selectorArgs := SmartPeerSelectorCreationFnArgs{
 			LocalAddr: trans.LocalAddr(),
+			GetFlagTable: nil,
 		}
 		node := NewNode(conf,
 			id,
 			k,
+			peers,
 			store,
 			trans,
 			prox,
-			NewSmartPeerSelectorFromArgs,
+			NewSmartPeerSelectorWrapper,
 			selectorArgs)
 
 		if err := node.Init(); err != nil {
@@ -462,12 +463,12 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 	}
 	prox := dummy.NewInmemDummyApp(logger)
 
-	selectorArgs := SelectorCreationFnArgs{
-		Peers: ps,
+	selectorArgs := SmartPeerSelectorCreationFnArgs{
 		LocalAddr: trans.LocalAddr(),
+		GetFlagTable: nil,
 	}
-	newNode := NewNode(conf, id, key, store, trans, prox,
-		NewSmartPeerSelectorFromArgs, selectorArgs)
+	newNode := NewNode(conf, id, key, ps, store, trans, prox,
+		NewSmartPeerSelectorWrapper, selectorArgs)
 
 	if err := newNode.Init(); err != nil {
 		t.Fatal(err)

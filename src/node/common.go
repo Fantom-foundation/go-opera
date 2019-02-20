@@ -40,18 +40,19 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 	for _, peer := range participants.ToPeerSlice() {
 		key := keys[peer]
 		_, transp := net.NewInmemTransport(peer.GetNetAddr())
-		selectorArgs := SelectorCreationFnArgs{
-			Peers: participants,
+		selectorArgs := SmartPeerSelectorCreationFnArgs{
 			LocalAddr: transp.LocalAddr(),
+			GetFlagTable: nil,
 		}
 		n := NewNode(
 			config,
 			peer.ID,
 			key,
+			participants,
 			poset.NewInmemStore(participants, config.CacheSize, nil),
 			transp,
 			dummy.NewInmemDummyApp(logger),
-			NewSmartPeerSelectorFromArgs,
+			NewSmartPeerSelectorWrapper,
 			selectorArgs,
 			)
 		if err := n.Init(); err != nil {

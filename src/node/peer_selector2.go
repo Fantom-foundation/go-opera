@@ -18,24 +18,25 @@ type SmartPeerSelector struct {
 	GetFlagTable GetFlagTableFn
 }
 
+// SmartPeerSelectorCreationFnArgs specifies the union of possible arguments that can be extracted to create a variant of PeerSelector
+type SmartPeerSelectorCreationFnArgs struct {
+	GetFlagTable GetFlagTableFn
+	LocalAddr    string
+}
+
 // NewSmartPeerSelector creates a new smart peer selection struct
-func NewSmartPeerSelector(participants *peers.Peers,
-	localAddr string,
-	GetFlagTable GetFlagTableFn) *SmartPeerSelector {
+func NewSmartPeerSelector(participants *peers.Peers, args SmartPeerSelectorCreationFnArgs) *SmartPeerSelector {
 
 	return &SmartPeerSelector{
-		localAddr:    localAddr,
+		localAddr:    args.LocalAddr,
 		peers:        participants,
-		GetFlagTable: GetFlagTable,
+		GetFlagTable: args.GetFlagTable,
 	}
 }
 
-// NewSmartPeerSelectorFromArgs creates SmartPeerSelector from SelectorCreationFnArgs
-func NewSmartPeerSelectorFromArgs(args SelectorCreationFnArgs) PeerSelector {
-	return NewSmartPeerSelector(
-		args.Peers,
-		args.PubKey,
-		args.GetFlagTable)
+// NewSmartPeerSelectorWrapper implements SelectorCreationFn to allow dynamic creation of SmartPeerSelector ie NewNode
+func NewSmartPeerSelectorWrapper(participants *peers.Peers, args interface{}) PeerSelector {
+	return NewSmartPeerSelector(participants, args.(SmartPeerSelectorCreationFnArgs))
 }
 
 // Peers returns all known peers
