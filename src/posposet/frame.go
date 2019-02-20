@@ -15,18 +15,18 @@ type Frame struct {
 	save func()
 }
 
-// EventRootsAdd appends known roots for event.
-func (f *Frame) EventRootsAdd(event EventHash, roots Events) {
+// AddRootsOf appends known roots for event.
+func (f *Frame) AddRootsOf(event EventHash, roots eventsByNode) {
 	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = Events{}
+		f.FlagTable[event] = eventsByNode{}
 	}
 	if f.FlagTable[event].Add(roots) {
 		f.save()
 	}
 }
 
-// EventRootsGet returns known roots of event. For read only, please.
-func (f *Frame) EventRootsGet(event EventHash) Events {
+// GetRootsOf returns known roots of event. For read only, please.
+func (f *Frame) GetRootsOf(event EventHash) eventsByNode {
 	return f.FlagTable[event]
 }
 

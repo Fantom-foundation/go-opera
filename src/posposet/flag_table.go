@@ -13,26 +13,26 @@ import (
 // TODO: cache PoS-stake at FlagTable
 
 type (
-	// Events its a event hashes groupped by creator.
+	// eventsByNode is a event hashes groupped by creator.
 	// ( creator --> event hashes )
-	Events map[common.Address]EventHashes
+	eventsByNode map[common.Address]EventHashes
 
 	// FlagTable stores the reachability of each event to the roots.
 	// It helps to select root without using path searching algorithms.
 	// Zero-hash is a self-parent root.
 	// ( event hash --> root creator --> root hashes )
-	FlagTable map[EventHash]Events
+	FlagTable map[EventHash]eventsByNode
 
-	// event is an internal struct for serialization purpose.
-	event struct {
+	// storedEvent is an internal struct for serialization purpose.
+	storedEvent struct {
 		Creator common.Address
 		Hash    EventHash
 	}
 
-	// flag is an internal struct for serialization purpose.
-	flag struct {
+	// storedFlag is an internal struct for serialization purpose.
+	storedFlag struct {
 		Event EventHash
-		Roots Events
+		Roots eventsByNode
 	}
 )
 
@@ -41,12 +41,12 @@ type (
  */
 
 // Add unions roots into one.
-func (rr Events) Add(roots Events) (changed bool) {
+func (ee eventsByNode) Add(roots eventsByNode) (changed bool) {
 	for creator, hashes := range roots {
-		if rr[creator] == nil {
-			rr[creator] = EventHashes{}
+		if ee[creator] == nil {
+			ee[creator] = EventHashes{}
 		}
-		if rr[creator].Add(hashes.Slice()...) {
+		if ee[creator].Add(hashes.Slice()...) {
 			changed = true
 		}
 	}
@@ -54,34 +54,34 @@ func (rr Events) Add(roots Events) (changed bool) {
 }
 
 // String returns human readable string representation.
-func (rr Events) String() string {
+func (ee eventsByNode) String() string {
 	var ss []string
-	for node, roots := range rr {
+	for node, roots := range ee {
 		ss = append(ss, node.String()+":"+roots.String())
 	}
 	return "byNode{" + strings.Join(ss, ", ") + "}"
 }
 
 // EncodeRLP is a specialized encoder to encode index into array.
-func (rr Events) EncodeRLP(w io.Writer) error {
-	var arr []event
-	for creator, hh := range rr {
+func (ee eventsByNode) EncodeRLP(w io.Writer) error {
+	var arr []storedEvent
+	for creator, hh := range ee {
 		for hash := range hh {
-			arr = append(arr, event{creator, hash})
+			arr = append(arr, storedEvent{creator, hash})
 		}
 	}
 	return rlp.Encode(w, arr)
 }
 
 // DecodeRLP is a specialized decoder to decode index from array.
-func (rr *Events) DecodeRLP(s *rlp.Stream) error {
-	var arr []event
+func (ee *eventsByNode) DecodeRLP(s *rlp.Stream) error {
+	var arr []storedEvent
 	err := s.Decode(&arr)
 	if err != nil {
 		return err
 	}
 
-	res := Events{}
+	res := eventsByNode{}
 	for _, e := range arr {
 		if res[e.Creator] == nil {
 			res[e.Creator] = EventHashes{}
@@ -91,7 +91,7 @@ func (rr *Events) DecodeRLP(s *rlp.Stream) error {
 		}
 	}
 
-	*rr = res
+	*ee = res
 	return nil
 }
 
@@ -101,16 +101,16 @@ func (rr *Events) DecodeRLP(s *rlp.Stream) error {
 
 // EncodeRLP is a specialized encoder to encode index into array.
 func (ft FlagTable) EncodeRLP(w io.Writer) error {
-	var arr []flag
+	var arr []storedFlag
 	for event, roots := range ft {
-		arr = append(arr, flag{event, roots})
+		arr = append(arr, storedFlag{event, roots})
 	}
 	return rlp.Encode(w, arr)
 }
 
 // DecodeRLP is a specialized decoder to decode index from array.
 func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
-	var arr []flag
+	var arr []storedFlag
 	err := s.Decode(&arr)
 	if err != nil {
 		return err
@@ -130,15 +130,15 @@ func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
  */
 
 // rootZero makes roots from single event.
-func rootZero(node common.Address) Events {
-	return Events{
+func rootZero(node common.Address) eventsByNode {
+	return eventsByNode{
 		node: newEventHashes(ZeroEventHash),
 	}
 }
 
 // rootFrom makes roots from single event.
-func rootFrom(e *Event) Events {
-	return Events{
+func rootFrom(e *Event) eventsByNode {
+	return eventsByNode{
 		e.Creator: newEventHashes(e.Hash()),
 	}
 }

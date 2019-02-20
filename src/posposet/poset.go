@@ -144,21 +144,19 @@ func (p *Poset) consensus(e *Event) {
 }
 
 // checkIfRoot checks root-conditions for new event.
-// Event.parents should be filled.
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) bool {
 	//log.Debugf("----- %s", e)
 
-	// known roots groupped by frame num
-	knownRootsDirect := Roots{}
-	knownRootsThrough := Roots{}
+	knownRootsDirect := eventsByFrame{}
+	knownRootsThrough := eventsByFrame{}
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
 			if frame == nil {
 				continue
 			}
-			roots := frame.EventRootsGet(parent)
+			roots := frame.GetRootsOf(parent)
 			knownRootsDirect.Add(frame.Index, roots)
 			if !isRoot {
 				continue
@@ -167,7 +165,7 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 			if frame == nil {
 				continue
 			}
-			roots = frame.EventRootsGet(parent)
+			roots = frame.GetRootsOf(parent)
 			knownRootsThrough.Add(frame.Index, roots)
 		} else {
 			roots := rootZero(e.Creator)
@@ -175,7 +173,7 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 		}
 	}
 	// use parent's frames only
-	knownRoots := Roots{}
+	knownRoots := eventsByFrame{}
 	for n, _ := range knownRootsDirect {
 		knownRoots.Add(n, knownRootsDirect[n])
 		knownRoots.Add(n, knownRootsThrough[n])
@@ -185,12 +183,12 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 		roots := knownRoots[fnum]
 
 		frame := p.frame(fnum, true)
-		frame.EventRootsAdd(e.Hash(), roots)
+		frame.AddRootsOf(e.Hash(), roots)
 		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
 
 		if p.hasMajority(roots) {
 			frame = p.frame(fnum+1, true)
-			frame.EventRootsAdd(e.Hash(), rootFrom(e))
+			frame.AddRootsOf(e.Hash(), rootFrom(e))
 			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
 			return true
 		}

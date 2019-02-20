@@ -54,7 +54,7 @@ func (p *Poset) newStakeCounter() *stakeCounter {
 	}
 }
 
-func (p *Poset) hasMajority(roots Events) bool {
+func (p *Poset) hasMajority(roots eventsByNode) bool {
 	stake := p.newStakeCounter()
 	for node := range roots {
 		stake.Count(node)

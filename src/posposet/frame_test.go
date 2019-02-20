@@ -17,7 +17,7 @@ func TestFrameSerialization(t *testing.T) {
 
 	flagTable := FlagTable{}
 	for _, node := range nodes {
-		roots := Events{}
+		roots := eventsByNode{}
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
