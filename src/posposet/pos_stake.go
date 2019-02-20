@@ -7,57 +7,53 @@ import (
 
 // stakeCounter is for PoS balances accumulator.
 type stakeCounter struct {
-	balances       *state.DB
-	alreadyCounted map[common.Address]struct{}
-	amount         uint64
-	majoritySum    uint64
-	trustSum       uint64
+	balances *state.DB
+	amount   uint64
+	goal     uint64
 }
 
-func (s *stakeCounter) Count(creator common.Address) {
-	if _, ok := s.alreadyCounted[creator]; ok {
-		// log.WithField("node", creator.String()).Debug("already counted")
-		return // already counted
-	}
-	if s.HasMajority() {
-		// log.WithField("node", creator.String()).Debug("no sense to count further")
+func (s *stakeCounter) Count(node common.Address) {
+	if s.IsGoalAchieved() {
 		return // no sense to count further
 	}
-	s.amount += s.balances.GetBalance(creator)
-	s.alreadyCounted[creator] = struct{}{}
+	s.amount += s.balances.GetBalance(node)
 }
 
-func (s *stakeCounter) HasMajority() bool {
-	return s.amount > s.majoritySum
-}
-
-func (s *stakeCounter) HasTrust() bool {
-	return s.amount > s.trustSum
+func (s *stakeCounter) IsGoalAchieved() bool {
+	return s.amount > s.goal
 }
 
 /*
  * Poset's methods:
  */
 
-func (p *Poset) newStakeCounter() *stakeCounter {
+func (p *Poset) newStakeCounter(goal uint64) *stakeCounter {
 	frame := p.frame(p.state.LastFinishedFrameN, false)
 	db, err := state.New(frame.Balances, p.store.balances)
 	if err != nil {
 		panic(err)
 	}
 	return &stakeCounter{
-		balances:       db,
-		alreadyCounted: make(map[common.Address]struct{}),
-		amount:         0,
-		majoritySum:    p.state.TotalCap * 2 / 3,
-		trustSum:       p.state.TotalCap * 1 / 3,
+		balances: db,
+		amount:   0,
+		goal:     goal,
 	}
 }
 
 func (p *Poset) hasMajority(roots eventsByNode) bool {
-	stake := p.newStakeCounter()
+	stake := p.newStakeCounter(
+		p.state.TotalCap * 2 / 3)
 	for node := range roots {
 		stake.Count(node)
 	}
-	return stake.HasMajority()
+	return stake.IsGoalAchieved()
+}
+
+func (p *Poset) hasTrust(roots eventsByNode) bool {
+	stake := p.newStakeCounter(
+		p.state.TotalCap * 1 / 3)
+	for node := range roots {
+		stake.Count(node)
+	}
+	return stake.IsGoalAchieved()
 }
