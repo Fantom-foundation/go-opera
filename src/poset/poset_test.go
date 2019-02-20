@@ -1914,7 +1914,7 @@ func TestKnown(t *testing.T) {
 		participants[2].ID: 9,
 	}
 
-	known := p.Store.KnownEvents()
+	known := KnownEvents(p.Store)
 	for i := range p.Participants.ToIDSlice() {
 		if l := known[uint64(i)]; l != expectedKnown[uint64(i)] {
 			t.Fatalf("known event %d should be %d, not %d", i,
@@ -2171,7 +2171,7 @@ func TestResetFromFrame(t *testing.T) {
 		participants[2].ID: 3,
 	}
 
-	known := p2.Store.KnownEvents()
+	known := KnownEvents(p2.Store)
 	p2.Participants.RLock()
 	for _, peer := range p2.Participants.ByID {
 		if l := known[peer.ID]; l != expectedKnown[peer.ID] {
@@ -2380,8 +2380,8 @@ func TestBootstrap(t *testing.T) {
 			"not %d", len(hConsensusEvents), len(nhConsensusEvents))
 	}
 
-	hKnown := p.Store.KnownEvents()
-	nhKnown := np.Store.KnownEvents()
+	hKnown := KnownEvents(p.Store)
+	nhKnown := KnownEvents(np.Store)
 	if !reflect.DeepEqual(hKnown, nhKnown) {
 		t.Fatalf("bootstrapped poset's Known should be %#v, not %#v",
 			hKnown, nhKnown)
@@ -3031,7 +3031,7 @@ func TestFunkyPosetReset(t *testing.T) {
 
 		// Test continue after reset
 		// Compute diff
-		p2Known := p2.Store.KnownEvents()
+		p2Known := KnownEvents(p2.Store)
 		diff := getDiff(p, p2Known, t)
 
 		wireDiff := make([]WireEvent, len(diff))
@@ -3591,7 +3591,7 @@ func TestSparsePosetReset(t *testing.T) {
 		// Test continue after Reset
 
 		// Compute diff
-		p2Known := p2.Store.KnownEvents()
+		p2Known := KnownEvents(p2.Store)
 		diff := getDiff(p, p2Known, t)
 
 		t.Logf("p2.Known: %v", p2Known)

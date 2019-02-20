@@ -106,11 +106,20 @@ func (c *Core) Head() poset.EventHash {
 	return c.head
 }
 
-// Heights returns map with heights for each participants
+// Heights returns map with heights for each participant PubKeyHex
 func (c *Core) Heights() map[string]int64 {
 	heights := make(map[string]int64)
 	for _, peer := range c.participants.ToPeerSlice() {
 		heights[peer.PubKeyHex] = peer.Height;
+	}
+	return heights
+}
+
+// Heights returns map with heights for each participant ID
+func (c *Core) HeightsByID() map[uint64]int64 {
+	heights := make(map[uint64]int64)
+	for _, peer := range c.participants.ToPeerSlice() {
+		heights[peer.ID] = peer.Height;
 	}
 	return heights
 }
@@ -241,9 +250,9 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 	return nil
 }
 
-// KnownEvents returns all known event blocks
+// KnownEvents returns map of last known event blocks per participant.ID
 func (c *Core) KnownEvents() map[uint64]int64 {
-	return c.poset.Store.KnownEvents()
+	return c.HeightsByID()
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

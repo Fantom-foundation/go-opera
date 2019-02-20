@@ -22,7 +22,6 @@ type Store interface {
 	ParticipantEvent(string, int64) (EventHash, error)
 	LastEventFrom(string) (EventHash, bool, error)
 	LastConsensusEventFrom(string) (EventHash, bool, error)
-	KnownEvents() map[uint64]int64
 	ConsensusEvents() EventHashes
 	ConsensusEventsCount() int64
 	AddConsensusEvent(Event) error
