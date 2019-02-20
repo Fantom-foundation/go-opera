@@ -130,7 +130,7 @@ func (p *Peers) RemovePeerByID(id uint64) {
 
 // ToPeerSlice returns a slice of peers sorted
 func (p *Peers) ToPeerSlice() []*Peer {
-	return p.Sorted
+	return append([]*Peer(nil), p.Sorted...)
 }
 
 // ToPeerByUsedSlice sorted peers list
@@ -223,6 +223,37 @@ func (p *Peers) ReadByNetAddr(key string) (Peer, bool) {
 	defer p.RUnlock()
 	peer, ok := p.ByNetAddr[key]
 	return *peer, ok
+}
+
+func (p *Peers) SetHeightByPubKeyHex(key string, height int64) {
+	p.Lock()
+	defer p.Unlock()
+	p.ByPubKey[key].Height = height
+}
+
+func (p *Peers) GetHeightByPubKeyHex(key string) int64 {
+	p.RLock()
+	defer p.RUnlock()
+	return p.ByPubKey[key].Height
+}
+
+func (p *Peers) NextHeightByPubKeyHex(key string) int64 {
+	p.Lock()
+	defer p.Unlock()
+	p.ByPubKey[key].Height++
+	return p.ByPubKey[key].Height
+}
+
+func (p *Peers) SetInDegreeByPubKeyHex(key string, inDegree int64) {
+	p.Lock()
+	defer p.Unlock()
+	p.ByPubKey[key].InDegree = inDegree
+}
+
+func (p *Peers) IncInDegreeByPubKeyHex(key string) {
+	p.Lock()
+	defer p.Unlock()
+	p.ByPubKey[key].InDegree++
 }
 
 // ByPubHex implements sort.Interface for Peers based on

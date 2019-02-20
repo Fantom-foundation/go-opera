@@ -128,7 +128,7 @@ func (n *Node) Init() error {
 	}
 	n.Register()
 
-	return n.core.SetHeadAndSeq()
+	return n.core.SetHeadAndHeight()
 }
 
 // RunAsync run the background processes asynchronously
