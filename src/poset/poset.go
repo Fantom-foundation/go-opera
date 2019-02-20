@@ -113,7 +113,7 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	// Leaf events are roots by default, so we need to construct a common
 	// flagtable indicating leaf events can see each other.
 	ft := FlagTable{}
-	for selfParentHash, _ := range poset.Store.RootsBySelfParent() {
+	for selfParentHash := range poset.Store.RootsBySelfParent() {
 		ft[selfParentHash] = 1
 	}
 	// Set Leaf Events for each participant
@@ -811,22 +811,17 @@ func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) erro
 }
 
 func (p *Poset) setWireInfo(event *Event) error {
-	var selfParentIndex int64
-	otherParentCreatorID := peers.PeerNIL
-	otherParentIndex := int64(-1)
 
 	eventCreator := event.GetCreator()
 	creator, ok := p.Participants.ReadByPubKey(eventCreator)
 	if !ok {
 		return fmt.Errorf("creator %s not found", eventCreator)
 	}
-	creatorID := creator.ID
 
 	selfParent, err := p.Store.GetEventBlock(event.SelfParent())
 	if err != nil {
 		return err
 	}
-	selfParentIndex = selfParent.Index()
 
 	otherParent, err := p.Store.GetEventBlock(event.OtherParent())
 	if err != nil {
@@ -836,13 +831,11 @@ func (p *Poset) setWireInfo(event *Event) error {
 	if !ok {
 		return fmt.Errorf("creator %s not found", otherParent.GetCreator())
 	}
-	otherParentCreatorID = otherParentCreator.ID
-	otherParentIndex = otherParent.Index()
 
-	event.SetWireInfo(selfParentIndex,
-		otherParentCreatorID,
-		otherParentIndex,
-		creatorID)
+	event.SetWireInfo(selfParent.Index(),
+		otherParentCreator.ID,
+		otherParent.Index(),
+		creator.ID)
 
 	return nil
 }
