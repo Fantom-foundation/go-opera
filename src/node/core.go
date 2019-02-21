@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
@@ -110,7 +110,7 @@ func (c *Core) Head() poset.EventHash {
 func (c *Core) Heights() map[string]int64 {
 	heights := make(map[string]int64)
 	for _, peer := range c.participants.ToPeerSlice() {
-		heights[peer.PubKeyHex] = peer.Height;
+		heights[peer.PubKeyHex] = peer.Height
 	}
 	return heights
 }
@@ -119,7 +119,7 @@ func (c *Core) Heights() map[string]int64 {
 func (c *Core) HeightsByID() map[uint64]int64 {
 	heights := make(map[uint64]int64)
 	for _, peer := range c.participants.ToPeerSlice() {
-		heights[peer.ID] = peer.Height;
+		heights[peer.ID] = peer.Height
 	}
 	return heights
 }
@@ -128,7 +128,7 @@ func (c *Core) HeightsByID() map[uint64]int64 {
 func (c *Core) InDegrees() map[string]int64 {
 	inDegrees := make(map[string]int64)
 	for _, peer := range c.participants.ToPeerSlice() {
-		inDegrees[peer.PubKeyHex] = peer.InDegree;
+		inDegrees[peer.PubKeyHex] = peer.InDegree
 	}
 	return inDegrees
 }
@@ -165,7 +165,7 @@ func (c *Core) SetHeadAndHeight() error {
 
 	c.logger.WithFields(logrus.Fields{
 		"core.head": c.head,
-		"Height":  c.participants.GetHeightByPubKeyHex(c.HexID()),
+		"Height":    c.participants.GetHeightByPubKeyHex(c.HexID()),
 		"is_root":   isRoot,
 	}).Debugf("SetHeadAndHeight()")
 
@@ -312,12 +312,12 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 				return []poset.Event{}, err
 			}
 			c.logger.WithFields(logrus.Fields{
-				"event":      ev,
-				"creator":    ev.GetCreator(),
-				"selfParent": ev.SelfParent(),
-				"index":      ev.Index(),
-				"hex":        ev.Hash(),
-				"selfParentIndex": ev.Message.SelfParentIndex,
+				"event":            ev,
+				"creator":          ev.GetCreator(),
+				"selfParent":       ev.SelfParent(),
+				"index":            ev.Index(),
+				"hex":              ev.Hash(),
+				"selfParentIndex":  ev.Message.SelfParentIndex,
 				"otherParentIndex": ev.Message.OtherParentIndex,
 			}).Debugf("Sending Unknown Event")
 			unknown = append(unknown, ev)

@@ -41,7 +41,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 		key := keys[peer]
 		_, transp := net.NewInmemTransport(peer.GetNetAddr())
 		selectorArgs := SmartPeerSelectorCreationFnArgs{
-			LocalAddr: transp.LocalAddr(),
+			LocalAddr:    transp.LocalAddr(),
 			GetFlagTable: nil,
 		}
 		n := NewNode(
@@ -54,7 +54,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 			dummy.NewInmemDummyApp(logger),
 			NewSmartPeerSelectorWrapper,
 			selectorArgs,
-			)
+		)
 		if err := n.Init(); err != nil {
 			logger.Fatal(err)
 		}

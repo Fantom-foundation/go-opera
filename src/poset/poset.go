@@ -10,11 +10,11 @@ import (
 	"sort"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -468,7 +468,7 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	// check wp
 	p.logger.WithFields(logrus.Fields{
 		"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
-		"p.superMajority":  p.superMajority,
+		"p.superMajority":             p.superMajority,
 	}).Debug("p.round2()")
 	if len(ex.Message.ClothoProof) >= p.superMajority {
 		count := 0
@@ -482,8 +482,8 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 
 		p.logger.WithFields(logrus.Fields{
 			"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
-			"p.superMajority":  p.superMajority,
-			"count": count,
+			"p.superMajority":             p.superMajority,
+			"count":                       count,
 		}).Debug("p.round2()")
 		if count >= p.superMajority {
 			p.logger.Debug("p.round2(): return parentRound + 1")
@@ -494,8 +494,8 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 		// check ft
 		ft, _ := ex.GetFlagTable()
 		p.logger.WithFields(logrus.Fields{
-			"len(ft)": len(ft),
-			"p.superMajority":  p.superMajority,
+			"len(ft)":         len(ft),
+			"p.superMajority": p.superMajority,
 		}).Debug("p.round2()")
 		if len(ft) >= p.superMajority {
 			count := 0
@@ -507,9 +507,9 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"len(ft)": len(ft),
-				"count": count,
-				"p.superMajority":  p.superMajority,
+				"len(ft)":         len(ft),
+				"count":           count,
+				"p.superMajority": p.superMajority,
 			}).Debug("p.round2()")
 			if count >= p.superMajority {
 				p.logger.Debug("p.round2(): return parentRound + 1 (2)")
@@ -961,8 +961,8 @@ func (p *Poset) DivideRounds() error {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"hash":  hash,
-				"roundNumber": roundNumber,
+				"hash":         hash,
+				"roundNumber":  roundNumber,
 				"roundCreated": roundCreated,
 			}).Debug("p.DivideRounds()")
 

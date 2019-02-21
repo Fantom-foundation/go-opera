@@ -23,14 +23,14 @@ type RandomPeerSelector struct {
 }
 
 // SelectorCreationFnArgs specifies the union of possible arguments that can be extracted to create a variant of PeerSelector
-type SelectorCreationFnArgs interface {}
+type SelectorCreationFnArgs interface{}
 
 // SelectorCreationFn declares the function signature to create variants of PeerSelector
 type SelectorCreationFn func(*peers.Peers, interface{}) PeerSelector
 
 // RandomPeerSelectorCreationFnArgs arguments for RandomPeerSelector
 type RandomPeerSelectorCreationFnArgs struct {
-	LocalAddr    string
+	LocalAddr string
 }
 
 // NewRandomPeerSelector creates a new random peer selector

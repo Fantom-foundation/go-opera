@@ -60,7 +60,7 @@ func TestProcessSync(t *testing.T) {
 	defer peer0Trans.Close()
 
 	selector0Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: peer0Trans.LocalAddr(),
+		LocalAddr:    peer0Trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	node0 := NewNode(config, ps[0].ID, keys[0], p,
@@ -84,7 +84,7 @@ func TestProcessSync(t *testing.T) {
 	defer peer1Trans.Close()
 
 	selector1Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: peer1Trans.LocalAddr(),
+		LocalAddr:    peer1Trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	node1 := NewNode(config, ps[1].ID, keys[1], p,
@@ -177,7 +177,7 @@ func TestProcessEagerSync(t *testing.T) {
 	defer peer0Trans.Close()
 
 	selector0Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: peer0Trans.LocalAddr(),
+		LocalAddr:    peer0Trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	node0 := NewNode(config, ps[0].ID, keys[0], p,
@@ -201,7 +201,7 @@ func TestProcessEagerSync(t *testing.T) {
 	defer peer1Trans.Close()
 
 	selector1Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: peer1Trans.LocalAddr(),
+		LocalAddr:    peer1Trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	node1 := NewNode(config, ps[1].ID, keys[1], p,
@@ -273,7 +273,7 @@ func TestAddTransaction(t *testing.T) {
 	defer peer0Trans.Close()
 
 	selector0Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: peer0Trans.LocalAddr(),
+		LocalAddr:    peer0Trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0], p,
@@ -298,7 +298,7 @@ func TestAddTransaction(t *testing.T) {
 	defer peer1Trans.Close()
 
 	selector1Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: peer1Trans.LocalAddr(),
+		LocalAddr:    peer1Trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1], p,
@@ -407,7 +407,7 @@ func initNodes(keys []*ecdsa.PrivateKey,
 		prox := dummy.NewInmemDummyApp(logger)
 
 		selectorArgs := SmartPeerSelectorCreationFnArgs{
-			LocalAddr: trans.LocalAddr(),
+			LocalAddr:    trans.LocalAddr(),
 			GetFlagTable: nil,
 		}
 		node := NewNode(conf,
@@ -464,7 +464,7 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 	prox := dummy.NewInmemDummyApp(logger)
 
 	selectorArgs := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: trans.LocalAddr(),
+		LocalAddr:    trans.LocalAddr(),
 		GetFlagTable: nil,
 	}
 	newNode := NewNode(conf, id, key, ps, store, trans, prox,
