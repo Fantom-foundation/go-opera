@@ -13,7 +13,6 @@ type Frame struct {
 	Index            uint64
 	FlagTable        FlagTable
 	ClothoCandidates eventsByNode
-	ClothoList       eventsByNode
 	Balances         common.Hash
 
 	save func()

@@ -32,7 +32,6 @@ func TestFrameSerialization(t *testing.T) {
 		Index:            rand.Uint64(),
 		FlagTable:        flagTable,
 		ClothoCandidates: cc,
-		ClothoList:       eventsByNode{},
 		Balances:         common.FakeHash(),
 	}
 	buf, err := rlp.EncodeToBytes(f0)

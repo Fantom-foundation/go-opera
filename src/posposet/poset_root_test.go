@@ -122,13 +122,13 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	}
 	// check each
 	for name, event := range names {
-		// check roots
+		// check root
 		mustBeRoot := (name == strings.ToUpper(name))
 		frame, isRoot := p.FrameOfEvent(event.Hash())
 		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
 		}
-		// check frames
+		// check frame
 		mustBeFrame, err := strconv.ParseUint(name[2:3], 10, 64)
 		if !assert.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
 			return

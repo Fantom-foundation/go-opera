@@ -76,13 +76,13 @@ func testSpecialNamedCC(t *testing.T, asciiScheme string) {
 	}
 	// check each
 	for name, event := range names {
-		// check roots
+		// check root
 		mustBeRoot := (name == strings.ToUpper(name))
 		frame, isRoot := p.FrameOfEvent(event.Hash())
 		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
 		}
-		// check frames
+		// check frame
 		mustBeFrame, err := strconv.ParseUint(name[2:3], 10, 64)
 		if !assert.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
 			return
@@ -90,15 +90,15 @@ func testSpecialNamedCC(t *testing.T, asciiScheme string) {
 		if !assert.Equal(mustBeFrame, frame.Index, "frame of "+name) {
 			break
 		}
-		// check Clotho
+		// check Clotho Candidate
 		mustBeCC := len(name) > 3 && name[3:4] == "+"
 		isCC := frame.ClothoCandidates[event.Creator].Contains(event.Hash())
-		if !assert.Equal(mustBeCC, isCC, name+" is CC") {
+		if !assert.Equal(mustBeCC, isCC, name+" is Clotho Candidate") {
 			break
 		}
-		continue // TODO: temporary
+		// check Clotho
 		mustBeClotho := len(name) > 4 && name[3:5] == "++"
-		isClotho := frame.ClothoList[event.Creator].Contains(event.Hash())
+		isClotho := isCC && frame.Index < (p.frames[p.frameNumsDesc()[0]].Index-1)
 		if !assert.Equal(mustBeClotho, isClotho, name+" is Clotho") {
 			break
 		}

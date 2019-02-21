@@ -135,14 +135,17 @@ func (p *Poset) onNewEvent(e *Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *Event) {
-	var (
-		frame *Frame
-	)
+	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
 		return
 	}
-	if !p.checkIfClotho(e, frame) {
-		return
+	p.setClothoCandidates(e, frame)
+
+	// process matured frames
+	for n := p.state.LastFinishedFrameN + 1; n < frame.Index-1; n++ {
+		if !p.checkIfAtropos(n) {
+			break
+		}
 	}
 }
 
@@ -200,10 +203,9 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 	return nil
 }
 
-// checkIfClotho checks clotho-conditions for seen by new root.
+// setClothoCandidates checks clotho-conditions for seen by new root.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfClotho(root *Event, frame *Frame) bool {
-	res := false
+func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 	// check Clotho Candidates in previous frame
 	prev := p.frame(frame.Index-1, false)
 	// events from previous frame, reachable by root
@@ -226,12 +228,22 @@ func (p *Poset) checkIfClotho(root *Event, frame *Frame) bool {
 		// check CC-condition
 		if p.hasTrust(roots) {
 			prev.AddClothoCandidate(seen, seenCreator)
-			res = true
-			log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
+			//log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
 		}
 	}
+}
 
-	return res
+// checkIfAtropos checks frame for Atropos condition.
+// It is not safe for concurrent use.
+func (p *Poset) checkIfAtropos(n uint64) bool {
+	f := p.frame(n, false)
+	if f == nil {
+		panic("Bad frame index")
+	}
+
+	// TODO: implement it
+
+	return true
 }
 
 /*
