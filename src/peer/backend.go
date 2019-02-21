@@ -58,8 +58,10 @@ type Backend struct {
 // NewBackendConfig creates a default a sync server config.
 func NewBackendConfig() *BackendConfig {
 	return &BackendConfig{
-		ReceiveTimeout: time.Minute,
-		ProcessTimeout: time.Minute,
+		// TODO: We increase the values because currently we have too long time for sync process.
+		// Revert the values after refactor sync process (node.go)
+		ReceiveTimeout: time.Minute * 60,
+		ProcessTimeout: time.Minute * 60,
 		IdleTimeout:    time.Minute * 10,
 	}
 }
@@ -182,12 +184,14 @@ func (srv *Backend) serveCodec(codec rpc.ServerCodec) *multierror.Error {
 	defer func() {
 		if err := codec.Close(); err != nil {
 			result = multierror.Append(result, err)
+			println(err.Error())
 		}
 	}()
 
 	for {
 		if err := srv.server.ServeRequest(codec); err != nil {
 			result = multierror.Append(result, err)
+			println(err.Error())
 			return result
 		}
 	}
