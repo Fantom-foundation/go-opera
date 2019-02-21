@@ -135,17 +135,21 @@ func (p *Poset) onNewEvent(e *Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *Event) {
-	if !p.checkIfRoot(e) {
+	var (
+		frame *Frame
+	)
+	if frame = p.checkIfRoot(e); frame == nil {
 		return
 	}
-	if !p.checkIfClotho(e) {
+	if !p.checkIfClotho(e, frame) {
 		return
 	}
 }
 
-// checkIfRoot checks root-conditions for new event.
+// checkIfRoot checks root-conditions for new event
+// and returns frame where event is root.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfRoot(e *Event) bool {
+func (p *Poset) checkIfRoot(e *Event) *Frame {
 	//log.Debugf("----- %s", e)
 
 	knownRootsDirect := eventsByFrame{}
@@ -190,15 +194,44 @@ func (p *Poset) checkIfRoot(e *Event) bool {
 			frame = p.frame(fnum+1, true)
 			frame.AddRootsOf(e.Hash(), rootFrom(e))
 			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
-			return true
+			return frame
 		}
 	}
-	return false
+	return nil
 }
 
-func (p *Poset) checkIfClotho(e *Event) bool {
-	// TODO: implement it
-	return false
+// checkIfClotho checks clotho-conditions for seen by new root.
+// It is not safe for concurrent use.
+func (p *Poset) checkIfClotho(root *Event, frame *Frame) bool {
+	res := false
+	// check Clotho Candidates in previous frame
+	prev := p.frame(frame.Index-1, false)
+	// events from previous frame, reachable by root
+	for seen, seenCreator := range prev.FlagTable[root.Hash()].Each() {
+		// seen is CC already
+		if ccs := prev.ClothoCandidates[seenCreator]; ccs != nil && ccs.Contains(seen) {
+			continue
+		}
+		// seen is not root
+		if !prev.FlagTable.IsRoot(seen) {
+			continue
+		}
+		// all roots from frame, reach the seen
+		roots := eventsByNode{}
+		for root, creator := range frame.FlagTable.Roots().Each() {
+			if hashes := prev.FlagTable[root][seenCreator]; hashes != nil && hashes.Contains(seen) {
+				roots.AddOne(root, creator)
+			}
+		}
+		// check CC-condition
+		if p.hasTrust(roots) {
+			prev.AddClothoCandidate(seen, seenCreator)
+			res = true
+			log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
+		}
+	}
+
+	return res
 }
 
 /*

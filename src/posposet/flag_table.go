@@ -37,12 +37,65 @@ type (
 )
 
 /*
- * Events's methods:
+ * FlagTable's methods:
  */
 
-// Add unions roots into one.
-func (ee eventsByNode) Add(roots eventsByNode) (changed bool) {
-	for creator, hashes := range roots {
+func (ft FlagTable) IsRoot(event EventHash) bool {
+	if knowns := ft[event]; knowns != nil {
+		for _, events := range knowns {
+			if events.Contains(event) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (ft FlagTable) Roots() eventsByNode {
+	roots := eventsByNode{}
+	for event, events := range ft {
+		for node, hashes := range events {
+			if hashes.Contains(event) {
+				roots.AddOne(event, node)
+			}
+		}
+	}
+	return roots
+}
+
+// EncodeRLP is a specialized encoder to encode index into array.
+func (ft FlagTable) EncodeRLP(w io.Writer) error {
+	var arr []storedFlag
+	for event, roots := range ft {
+		arr = append(arr, storedFlag{event, roots})
+	}
+	return rlp.Encode(w, arr)
+}
+
+// DecodeRLP is a specialized decoder to decode index from array.
+func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
+	var arr []storedFlag
+	err := s.Decode(&arr)
+	if err != nil {
+		return err
+	}
+
+	res := FlagTable{}
+	for _, f := range arr {
+		res[f.Event] = f.Roots
+	}
+
+	*ft = res
+	return nil
+}
+
+/*
+ * eventsByNode's methods:
+ */
+
+// Add unions events into one.
+func (ee eventsByNode) Add(events eventsByNode) (changed bool) {
+	for creator, hashes := range events {
 		if ee[creator] == nil {
 			ee[creator] = EventHashes{}
 		}
@@ -51,6 +104,28 @@ func (ee eventsByNode) Add(roots eventsByNode) (changed bool) {
 		}
 	}
 	return
+}
+
+// AddOne appends one event.
+func (ee eventsByNode) AddOne(event EventHash, creator common.Address) (changed bool) {
+	if ee[creator] == nil {
+		ee[creator] = EventHashes{}
+	}
+	if ee[creator].Add(event) {
+		changed = true
+	}
+	return
+}
+
+// Add unions roots into one.
+func (ee eventsByNode) Each() map[EventHash]common.Address {
+	res := make(map[EventHash]common.Address)
+	for creator, events := range ee {
+		for e := range events {
+			res[e] = creator
+		}
+	}
+	return res
 }
 
 // String returns human readable string representation.
@@ -92,36 +167,6 @@ func (ee *eventsByNode) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	*ee = res
-	return nil
-}
-
-/*
- * FlagTable's methods:
- */
-
-// EncodeRLP is a specialized encoder to encode index into array.
-func (ft FlagTable) EncodeRLP(w io.Writer) error {
-	var arr []storedFlag
-	for event, roots := range ft {
-		arr = append(arr, storedFlag{event, roots})
-	}
-	return rlp.Encode(w, arr)
-}
-
-// DecodeRLP is a specialized decoder to decode index from array.
-func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
-	var arr []storedFlag
-	err := s.Decode(&arr)
-	if err != nil {
-		return err
-	}
-
-	res := FlagTable{}
-	for _, f := range arr {
-		res[f.Event] = f.Roots
-	}
-
-	*ft = res
 	return nil
 }
 

@@ -13,21 +13,27 @@ import (
 func TestFrameSerialization(t *testing.T) {
 	assert := assert.New(t)
 
+	// fake random data
 	nodes, events := GenEventsByNode(4, 10, 3)
-
 	flagTable := FlagTable{}
+	cc := eventsByNode{}
 	for _, node := range nodes {
 		roots := eventsByNode{}
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
 		flagTable[FakeEventHash()] = roots
+		if node[0] > 256/2 {
+			cc.Add(roots)
+		}
 	}
 
 	f0 := &Frame{
-		Index:     rand.Uint64(),
-		FlagTable: flagTable,
-		Balances:  common.FakeHash(),
+		Index:            rand.Uint64(),
+		FlagTable:        flagTable,
+		ClothoCandidates: cc,
+		ClothoList:       eventsByNode{},
+		Balances:         common.FakeHash(),
 	}
 	buf, err := rlp.EncodeToBytes(f0)
 	assert.NoError(err)

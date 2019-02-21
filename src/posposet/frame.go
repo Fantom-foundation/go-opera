@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"fmt"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
@@ -8,9 +10,11 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index     uint64
-	FlagTable FlagTable
-	Balances  common.Hash
+	Index            uint64
+	FlagTable        FlagTable
+	ClothoCandidates eventsByNode
+	ClothoList       eventsByNode
+	Balances         common.Hash
 
 	save func()
 }
@@ -21,6 +25,13 @@ func (f *Frame) AddRootsOf(event EventHash, roots eventsByNode) {
 		f.FlagTable[event] = eventsByNode{}
 	}
 	if f.FlagTable[event].Add(roots) {
+		f.save()
+	}
+}
+
+// AddClothoCandidate adds event into ClothoCandidates list.
+func (f *Frame) AddClothoCandidate(event EventHash, creator common.Address) {
+	if f.ClothoCandidates.AddOne(event, creator) {
 		f.save()
 	}
 }
@@ -44,10 +55,10 @@ func (f *Frame) SetBalances(balances common.Hash) {
 
 func (p *Poset) saveFuncForFrame(f *Frame) func() {
 	return func() {
-		if f.Index > 0 {
+		if f.Index > p.state.LastFinishedFrameN {
 			p.store.SetFrame(f)
 		} else {
-			panic("Frame 0 should be ephemeral")
+			panic(fmt.Errorf("Frame %d is finished and should not be changed", f.Index))
 		}
 	}
 }

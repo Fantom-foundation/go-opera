@@ -13,7 +13,7 @@ type Event struct {
 	LamportTime uint64
 
 	hash    EventHash            // cache for .Hash()
-	parents map[EventHash]*Event // temporary cache for internal purpose
+	parents map[EventHash]*Event // TODO: move this temporary cache into Poset for root selection purpose
 }
 
 // Hash calcs hash of event.

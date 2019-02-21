@@ -10,8 +10,8 @@ import (
 
 func TestPosetSimpleRoot(t *testing.T) {
 	testSpecialNamedRoots(t, `
-a01   b01   c01   
-║     ║     ║     
+a01   b01   c01
+║     ║     ║
 a11 ─ ╬ ─ ─ ╣     d01
 ║     ║     ║     ║
 ║     ╠ ─ ─ c11 ─ ╣

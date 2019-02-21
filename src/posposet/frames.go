@@ -46,9 +46,9 @@ func (ee eventsByFrame) String() string {
 func (p *Poset) FrameOfEvent(event EventHash) (frame *Frame, isRoot bool) {
 	for _, n := range p.frameNumsDesc() {
 		frame := p.frame(n, false)
-		if knownRoots := frame.FlagTable[event]; knownRoots != nil {
-			for _, hashes := range knownRoots {
-				if hashes.Contains(event) {
+		if knowns := frame.FlagTable[event]; knowns != nil {
+			for _, events := range knowns {
+				if events.Contains(event) {
 					return frame, true
 				}
 			}
@@ -78,8 +78,10 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:     n,
-			FlagTable: FlagTable{},
+			Index:            n,
+			FlagTable:        FlagTable{},
+			ClothoCandidates: eventsByNode{},
+			ClothoList:       eventsByNode{},
 		}
 	}
 
