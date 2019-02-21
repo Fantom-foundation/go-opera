@@ -75,7 +75,7 @@ func NewNode(conf *Config,
 
 	if args, ok := selectorInitArgs.(SmartPeerSelectorCreationFnArgs); ok {
 		args.GetFlagTable = core.poset.GetPeerFlagTableOfRandomUndeterminedEvent
-		args.LocalAddr = pubKey
+		args.LocalAddr = localAddr
 		selectorInitArgs = args
 	}
 
