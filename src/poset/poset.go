@@ -113,7 +113,7 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 	// Leaf events are roots by default, so we need to construct a common
 	// flagtable indicating leaf events can see each other.
 	ft := FlagTable{}
-	for selfParentHash, _ := range poset.Store.RootsBySelfParent() {
+	for selfParentHash := range poset.Store.RootsBySelfParent() {
 		ft[selfParentHash] = 1
 	}
 	// Set Leaf Events for each participant
@@ -124,7 +124,7 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 		}
 		body := EventBody{
 			Creator: creator,
-			Index:   root.SelfParent.Index,
+			Index:   0,
 			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(),
 		}
 		event := Event{
@@ -811,62 +811,31 @@ func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) erro
 }
 
 func (p *Poset) setWireInfo(event *Event) error {
-	var selfParentIndex int64
-	otherParentCreatorID := peers.PeerNIL
-	otherParentIndex := int64(-1)
 
 	eventCreator := event.GetCreator()
 	creator, ok := p.Participants.ReadByPubKey(eventCreator)
 	if !ok {
 		return fmt.Errorf("creator %s not found", eventCreator)
 	}
-	creatorID := creator.ID
 
-	// could be the first Event inserted for this creator. In this case, use Root
-	if lf, isRoot, _ := p.Store.LastEventFrom(eventCreator); isRoot && lf == event.SelfParent() {
-		root, err := p.Store.GetRoot(eventCreator)
-		if err != nil {
-			return err
-		}
-		selfParentIndex = root.SelfParent.Index
-	} else {
-		selfParent, err := p.Store.GetEventBlock(event.SelfParent())
-		if err != nil {
-			return err
-		}
-		selfParentIndex = selfParent.Index()
+	selfParent, err := p.Store.GetEventBlock(event.SelfParent())
+	if err != nil {
+		return err
 	}
 
-	otherParent := event.OtherParent()
-	if !otherParent.Zero() {
-		// Check Root then regular Events
-		root, err := p.Store.GetRoot(eventCreator)
-		if err != nil {
-			return err
-		}
-		hash := event.Hash()
-		otherParentHash := event.OtherParent()
-		if other, ok := root.Others[hash.String()]; ok && otherParentHash.Equal(other.Hash) {
-			otherParentCreatorID = other.CreatorID
-			otherParentIndex = other.Index
-		} else {
-			otherParent, err := p.Store.GetEventBlock(otherParentHash)
-			if err != nil {
-				return err
-			}
-			otherParentCreator, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
-			if !ok {
-				return fmt.Errorf("creator %s not found", otherParent.GetCreator())
-			}
-			otherParentCreatorID = otherParentCreator.ID
-			otherParentIndex = otherParent.Index()
-		}
+	otherParent, err := p.Store.GetEventBlock(event.OtherParent())
+	if err != nil {
+		return err
+	}
+	otherParentCreator, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
+	if !ok {
+		return fmt.Errorf("creator %s not found", otherParent.GetCreator())
 	}
 
-	event.SetWireInfo(selfParentIndex,
-		otherParentCreatorID,
-		otherParentIndex,
-		creatorID)
+	event.SetWireInfo(selfParent.Index(),
+		otherParentCreator.ID,
+		otherParent.Index(),
+		creator.ID)
 
 	return nil
 }
@@ -1814,13 +1783,14 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 	creatorBytes, err := hex.DecodeString(creator.PubKeyHex[2:])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hexDecodeString(creator.PubKeyHex[2:]): %v", err)
 	}
 
 	if wevent.Body.SelfParentIndex >= 0 {
 		selfParent, err = p.Store.ParticipantEvent(creator.PubKeyHex, wevent.Body.SelfParentIndex)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("p.Store.ParticipantEvent(creator.PubKeyHex %v, wevent.Body.SelfParentIndex %v): %v",
+				creator.PubKeyHex, wevent.Body.SelfParentIndex, err)
 		}
 	}
 	if wevent.Body.OtherParentIndex >= 0 {
@@ -1833,7 +1803,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 				// we do not know the creators of the roots RootEvents
 				root, err := p.Store.GetRoot(creator.PubKeyHex)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("p.Store.GetRoot(creator.PubKeyHex %v): %v", creator.PubKeyHex, err)
 				}
 				// loop through others
 				found := false

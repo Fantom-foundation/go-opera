@@ -1005,8 +1005,8 @@ func TestCoreFastForward(t *testing.T) {
 			t.Fatalf("Head should be %s, not %s", lastEventFrom0, c0h)
 		}
 
-		if c0s := cores[0].Seq; c0s != -1 {
-			t.Fatalf("Seq should be %d, not %d", -1, c0s)
+		if c0s := cores[0].participants.GetHeightByPubKeyHex(cores[0].HexID()); c0s != -1 {
+			t.Fatalf("core 0 height should be %d, not %d", -1, c0s)
 		}
 
 	})
