@@ -18,7 +18,7 @@ type SmartPeerSelector struct {
 	GetFlagTable GetFlagTableFn
 }
 
-// SmartPeerSelectorCreationFnArgs specifies the union of possible arguments that can be extracted to create a variant of PeerSelector
+// SmartPeerSelectorCreationFnArgs specifies which additional arguments are required to create a SmartPeerSelector
 type SmartPeerSelectorCreationFnArgs struct {
 	GetFlagTable GetFlagTableFn
 	LocalAddr    string
