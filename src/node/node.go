@@ -132,7 +132,7 @@ func (n *Node) Init() error {
 	}
 	n.Register()
 
-	return n.core.SetHeadAndSeq()
+	return n.core.SetHeadAndHeight()
 }
 
 // RunAsync run the background processes asynchronously
@@ -821,10 +821,11 @@ func (n *Node) GetLastEventFrom(participant string) (poset.EventHash, bool, erro
 
 // GetKnownEvents returns all known events
 func (n *Node) GetKnownEvents() map[uint64]int64 {
-	return n.core.poset.Store.KnownEvents()
+	return n.core.KnownEvents()
 }
 
 // GetEventBlocks returns all event blocks
+// TODO: replace this function with n.GetKnownEvents() defined above
 func (n *Node) GetEventBlocks() (map[uint64]int64, error) {
 	res := n.core.KnownEvents()
 	return res, nil

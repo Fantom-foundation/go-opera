@@ -6,4 +6,6 @@ message Peer {
   string NetAddr = 2;
   string PubKeyHex = 3;
   int64 used = 4;
+  int64 height = 5;
+  int64 inDegree = 6;
 }
