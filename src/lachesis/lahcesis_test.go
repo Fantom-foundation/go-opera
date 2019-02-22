@@ -82,10 +82,14 @@ func transportClose(t testing.TB, syncPeer peer.SyncPeer) {
 
 func runNode(t testing.TB, logger *logrus.Logger, config *node.Config,
 	id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
-	trans peer.SyncPeer, run bool) *node.Node {
+	trans peer.SyncPeer, localAddr string, run bool) *node.Node {
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)
 	app := dummy.NewInmemDummyApp(logger)
-	node := node.NewNode(config, id, key, participants, db, trans, app)
+	selectorArgs := node.SmartPeerSelectorCreationFnArgs{
+		LocalAddr: localAddr,
+		GetFlagTable: nil,
+	}
+	node := node.NewNode(config, id, key, participants, db, trans, app, node.NewSmartPeerSelectorWrapper, selectorArgs, localAddr)
 	if err := node.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -120,13 +124,13 @@ func TestGossip(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 		
-	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
+	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 	
-	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
+	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 	
-	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
+	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 	
-	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
+	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 	
 	nodes := []*node.Node{node1, node2, node3, node4}
 	
@@ -183,13 +187,13 @@ func TestMissingNodeGossip(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
+	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 
-	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
+	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 
-	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
+	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 
-	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
+	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 
 	nodes := []*node.Node{node1, node2, node3, node4}
 
@@ -229,16 +233,16 @@ func TestSyncLimit(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
+	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 	defer node1.Shutdown()
 
-	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
+	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 	defer node2.Shutdown()
 
-	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
+	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 	defer node3.Shutdown()
 
-	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
+	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 	defer node4.Shutdown()
 
 	nodes := []*node.Node{node1, node2, node3, node4}
@@ -306,13 +310,13 @@ func TestCatchUp(t *testing.T) {
 	defer transportClose(t, trans3)
 
 	// Initialize the first 3 nodes only
-	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
+	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 	defer node1.Shutdown()
 
-	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
+	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 	defer node2.Shutdown()
 
-	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
+	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 	defer node3.Shutdown()
 
 	normalNodes := []*node.Node{node1, node2, node3}
@@ -329,7 +333,7 @@ func TestCatchUp(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, false)
+	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], false)
 	node4.Shutdown()
 
 	// Run parallel routine to check node4 eventually reaches CatchingUp state.
@@ -605,13 +609,13 @@ func BenchmarkGossip(b *testing.B) {
 			poolSize, createFu, network.CreateListener)
 		defer transportClose(b, trans4)
 
-		node1 := runNode(b, logger, config, ps[0].ID, keys[0], p, trans1, true)
+		node1 := runNode(b, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 
-		node2 := runNode(b, logger, config, ps[1].ID, keys[1], p, trans2, true)
+		node2 := runNode(b, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 
-		node3 := runNode(b, logger, config, ps[2].ID, keys[2], p, trans3, true)
+		node3 := runNode(b, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 
-		node4 := runNode(b, logger, config, ps[3].ID, keys[3], p, trans4, true)
+		node4 := runNode(b, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 
 		nodes := []*node.Node{node1, node2, node3, node4}
 		if err := gossip(nodes, 50, true, 3*time.Second); err != nil {

@@ -551,15 +551,6 @@ func TestBadgerEvents(t *testing.T) {
 		}
 	}
 
-	expectedKnown := make(map[uint64]int64)
-	for _, p := range participants {
-		expectedKnown[p.id] = testSize - 1
-	}
-	known := store.KnownEvents()
-	if !reflect.DeepEqual(expectedKnown, known) {
-		t.Fatalf("Incorrect Known. Got %#v, expected %#v", known, expectedKnown)
-	}
-
 	for _, p := range participants {
 		evs := events[p.hex]
 		for _, ev := range evs {

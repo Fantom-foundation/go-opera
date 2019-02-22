@@ -7,24 +7,36 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
+// GetFlagTableFn declares flag table function signature
+type GetFlagTableFn func() (map[string]int64, error)
+
 // SmartPeerSelector provides selection based on FlagTable of a randomly chosen undermined event
 type SmartPeerSelector struct {
 	peers        *peers.Peers
 	localAddr    string
 	last         string
-	GetFlagTable func() (map[string]int64, error)
+	GetFlagTable GetFlagTableFn
+}
+
+// SmartPeerSelectorCreationFnArgs specifies the union of possible arguments that can be extracted to create a variant of PeerSelector
+type SmartPeerSelectorCreationFnArgs struct {
+	GetFlagTable GetFlagTableFn
+	LocalAddr    string
 }
 
 // NewSmartPeerSelector creates a new smart peer selection struct
-func NewSmartPeerSelector(participants *peers.Peers,
-	localAddr string,
-	GetFlagTable func() (map[string]int64, error)) *SmartPeerSelector {
+func NewSmartPeerSelector(participants *peers.Peers, args SmartPeerSelectorCreationFnArgs) *SmartPeerSelector {
 
 	return &SmartPeerSelector{
-		localAddr:    localAddr,
+		localAddr:    args.LocalAddr,
 		peers:        participants,
-		GetFlagTable: GetFlagTable,
+		GetFlagTable: args.GetFlagTable,
 	}
+}
+
+// NewSmartPeerSelectorWrapper implements SelectorCreationFn to allow dynamic creation of SmartPeerSelector ie NewNode
+func NewSmartPeerSelectorWrapper(participants *peers.Peers, args interface{}) PeerSelector {
+	return NewSmartPeerSelector(participants, args.(SmartPeerSelectorCreationFnArgs))
 }
 
 // Peers returns all known peers

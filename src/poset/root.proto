@@ -2,7 +2,7 @@ syntax = "proto3";
 package poset;
 
 message RootEvent {
-  bytes Hash  = 1;
+  bytes Hash = 1;
   uint64 CreatorID = 2;
   int64 Index = 3;
   int64 LamportTimestamp = 4;

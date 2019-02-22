@@ -61,6 +61,12 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 			logger.Panic(err)
 		}
 		transport := peer.NewTransport(logger, producer, backend)
+
+		selectorArgs := SmartPeerSelectorCreationFnArgs{
+			LocalAddr: peer2.NetAddr,
+			GetFlagTable: nil,
+		}
+
 		n := NewNode(
 			config,
 			peer2.ID,
@@ -68,7 +74,11 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 			participants,
 			poset.NewInmemStore(participants, config.CacheSize, nil),
 			transport,
-			dummy.NewInmemDummyApp(logger))
+			dummy.NewInmemDummyApp(logger),
+			NewSmartPeerSelectorWrapper,
+			selectorArgs,
+			peer2.NetAddr,
+			)
 		if err := n.Init(); err != nil {
 			logger.Fatal(err)
 		}

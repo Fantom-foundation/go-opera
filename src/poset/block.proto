@@ -19,5 +19,6 @@ message Block {
   string hex = 4;
   bytes StateHash = 5;
   bytes FrameHash = 6;
-  int64 CreatedTime = 7; // The block structure (and subsequent protobuffs) need a timestamp
+  int64 CreatedTime =
+      7; // The block structure (and subsequent protobuffs) need a timestamp
 }

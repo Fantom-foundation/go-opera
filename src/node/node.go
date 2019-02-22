@@ -61,18 +61,23 @@ func NewNode(conf *Config,
 	participants *peers.Peers,
 	store poset.Store,
 	trans peer.SyncPeer,
-	proxy proxy.AppProxy) *Node {
-
-	pmap, _ := store.Participants()
+	proxy proxy.AppProxy,
+	selectorInitFunc SelectorCreationFn,
+	selectorInitArgs SelectorCreationFnArgs,
+	localAddr string) *Node {
 
 	commitCh := make(chan poset.Block, 400)
-	core := NewCore(id, key, pmap, store, commitCh, conf.Logger)
+	core := NewCore(id, key, participants, store, commitCh, conf.Logger)
 
 	pubKey := core.HexID()
 
-	// peerSelector := NewRandomPeerSelector(participants, localAddr)
-	peerSelector := NewSmartPeerSelector(participants, pubKey,
-		core.poset.GetPeerFlagTableOfRandomUndeterminedEvent)
+	if args, ok := selectorInitArgs.(SmartPeerSelectorCreationFnArgs); ok {
+		args.GetFlagTable = core.poset.GetPeerFlagTableOfRandomUndeterminedEvent
+		args.LocalAddr = localAddr
+		selectorInitArgs = args
+	}
+
+	peerSelector := selectorInitFunc(participants, selectorInitArgs)
 
 	node := Node{
 		id:               id,
@@ -96,7 +101,7 @@ func NewNode(conf *Config,
 
 	signal.Notify(node.signalTERMch, syscall.SIGTERM, os.Kill)
 
-	node.logger.WithField("peers", pmap).Debug("pmap")
+	node.logger.WithField("participants", participants).Debug("participants")
 	node.logger.WithField("pubKey", pubKey).Debug("pubKey")
 
 	node.needBoostrap = store.NeedBootstrap()
@@ -123,7 +128,7 @@ func (n *Node) Init() error {
 	}
 	n.Register()
 
-	return n.core.SetHeadAndSeq()
+	return n.core.SetHeadAndHeight()
 }
 
 // RunAsync run the background processes asynchronously
@@ -800,7 +805,7 @@ func (n *Node) GetLastEventFrom(participant string) (poset.EventHash, bool, erro
 
 // GetKnownEvents returns all known events
 func (n *Node) GetKnownEvents() map[uint64]int64 {
-	return n.core.poset.Store.KnownEvents()
+	return n.core.KnownEvents()
 }
 
 // EventDiff returns events that n knows about and are not in 'known'

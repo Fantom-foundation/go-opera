@@ -196,7 +196,7 @@ func (e *Event) GetRoundReceived() int64 {
 	if e.roundReceived < 0 {
 		return RoundNIL
 	}
-	return e.round
+	return e.roundReceived
 }
 
 // GetLamportTimestamp returns the lamport timestamp

@@ -118,12 +118,17 @@ func transportClose(t *testing.T, syncPeer peer.SyncPeer) {
 
 func createNode(t *testing.T, logger *logrus.Logger, config *Config,
 	id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
-	trans peer.SyncPeer, run bool) *Node {
+	trans peer.SyncPeer, localAddr string, run bool) *Node {
 
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)
 	app := dummy.NewInmemDummyApp(logger)
 
-	node := NewNode(config, id, key, participants, db, trans, app)
+	selectorArgs := SmartPeerSelectorCreationFnArgs{
+		LocalAddr: localAddr,
+		GetFlagTable: nil,
+	}
+
+	node := NewNode(config, id, key, participants, db, trans, app, NewSmartPeerSelectorWrapper, selectorArgs, localAddr)
 	if err := node.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -255,8 +260,13 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 
 	prox := dummy.NewInmemDummyApp(logger)
 
+	selectorArgs := SmartPeerSelectorCreationFnArgs{
+		LocalAddr: p[0].NetAddr,
+		GetFlagTable: nil,
+	}
+
 	// Create & Init node
-	newNode := NewNode(conf, id, key, ps, store, trans, prox)
+	newNode := NewNode(conf, id, key, ps, store, trans, prox, NewSmartPeerSelectorWrapper, selectorArgs, p[0].NetAddr)
 	if err := newNode.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +319,7 @@ func TestCreateAndInitNode(t *testing.T) {
 	defer transportClose(t, trans)
 
 	// Create & Init node
-	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, false)
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 
 	// Check status
 	nodeState := node.getState()
@@ -347,7 +357,7 @@ func TestAddTransaction(t *testing.T) {
 	defer transportClose(t, trans)
 
 	// Create & Init node
-	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, false)
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 	defer node.Shutdown()
 
 	// Add new Tx
@@ -384,7 +394,7 @@ func TestCommit(t *testing.T) {
 	defer transportClose(t, trans)
 
 	// Create & Init node
-	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, false)
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 	defer node.Shutdown()
 
 	// Create block
@@ -425,7 +435,7 @@ func TestDoBackgroundWork(t *testing.T) {
 	defer transportClose(t, trans)
 
 	// Create & Init node
-	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, false)
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 	defer node.Shutdown()
 
 	// Check submitCh case
@@ -502,10 +512,10 @@ func TestSyncAndRequestSync(t *testing.T) {
 	defer transportClose(t, trans2)
 
 	// Create & Init node
-	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, false)
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, false)
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
 
 	// Submit transaction for node
@@ -561,10 +571,10 @@ func TestRequestEagerSyncAndEventDiff(t *testing.T) {
 	defer transportClose(t, trans2)
 
 	// Create & Init node
-	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, false)
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, false)
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
 
 	// Get known events
@@ -616,10 +626,10 @@ func TestRequestFastForward(t *testing.T) {
 	defer transportClose(t, trans2)
 
 	// Create & Init node
-	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, false)
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, false)
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
 
 	// Create frame
@@ -748,16 +758,16 @@ func TestFastForward(t *testing.T) {
 	defer transportClose(t, trans4)
 
 	// Create & Init node
-	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, false)
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, false)
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
 
-	node3 := createNode(t, data.Logger, data.Config, data.PeersSlice[2].ID, data.Keys[2], data.Peers, trans3, false)
+	node3 := createNode(t, data.Logger, data.Config, data.PeersSlice[2].ID, data.Keys[2], data.Peers, trans3, data.Adds[2], false)
 	defer node3.Shutdown()
 
-	node4 := createNode(t, data.Logger, data.Config, data.PeersSlice[3].ID, data.Keys[3], data.Peers, trans4, false)
+	node4 := createNode(t, data.Logger, data.Config, data.PeersSlice[3].ID, data.Keys[3], data.Peers, trans4, data.Adds[3], false)
 	defer node4.Shutdown()
 
 	nodes := []*Node{node1, node2, node3, node4}
@@ -822,16 +832,16 @@ func TestFastSync(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
+	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
+	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 	defer node2.Shutdown()
 
-	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
+	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 	defer node3.Shutdown()
 
-	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
+	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 	defer node4.Shutdown()
 
 	nodes := []*Node{node1, node2, node3, node4}
@@ -934,16 +944,16 @@ func TestBootstrapAllNodes(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, true)
+	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, true)
+	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 	defer node2.Shutdown()
 
-	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, true)
+	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 	defer node3.Shutdown()
 
-	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, true)
+	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 	defer node4.Shutdown()
 
 	nodes := []*Node{node1, node2, node3, node4}
@@ -1005,16 +1015,16 @@ func TestShutdown(t *testing.T) {
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
 
-	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, false)
+	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], false)
 	defer node1.Shutdown()
 
-	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, false)
+	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], false)
 	defer node2.Shutdown()
 
-	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, false)
+	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], false)
 	defer node3.Shutdown()
 
-	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, false)
+	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], false)
 	defer node4.Shutdown()
 
 	nodes := []*Node{node1, node2, node3, node4}

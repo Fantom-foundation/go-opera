@@ -97,7 +97,7 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 	case logrus.ErrorLevel:
 		buf := make([]byte, 1<<16)
 		stackSize := runtime.Stack(buf, false)
-		e.Data["z_trace"] = fmt.Sprintf(string(buf[0:stackSize]))
+		e.Data["z_trace"] = fmt.Sprint(string(buf[0:stackSize]))
 		fallthrough
 	default:
 		t.stat[e.Level]++

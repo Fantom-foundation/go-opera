@@ -153,6 +153,10 @@ func (l *Lachesis) initNode() error {
 		"id":           nodeID,
 	}).Debug("PARTICIPANTS")
 
+	selectorArgs := node.SmartPeerSelectorCreationFnArgs{
+		LocalAddr:    l.Config.BindAddr,
+		GetFlagTable: nil,
+	}
 	l.Node = node.NewNode(
 		&l.Config.NodeConfig,
 		nodeID,
@@ -161,6 +165,9 @@ func (l *Lachesis) initNode() error {
 		l.Store,
 		l.Transport,
 		l.Config.Proxy,
+		node.NewSmartPeerSelectorWrapper,
+		selectorArgs,
+		l.Config.BindAddr,
 	)
 
 	if err := l.Node.Init(); err != nil {

@@ -10,11 +10,11 @@ import (
 	"sort"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	lachesis_log "github.com/Fantom-foundation/go-lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -110,6 +110,41 @@ func NewPoset(participants *peers.Peers, store Store, commitCh chan Block, logge
 		trustCount:             trustCount,
 	}
 
+	// Leaf events are roots by default, so we need to construct a common
+	// flagtable indicating leaf events can see each other.
+	ft := FlagTable{}
+	for selfParentHash := range poset.Store.RootsBySelfParent() {
+		ft[selfParentHash] = 1
+	}
+	// Set Leaf Events for each participant
+	for participant, root := range poset.Store.RootsByParticipant() {
+		var creator []byte
+		if _, err := fmt.Sscanf(participant, "0x%X", &creator); err != nil {
+			panic(err)
+		}
+		body := EventBody{
+			Creator: creator,
+			Index:   0,
+			Parents: EventHashes{EventHash{}, EventHash{}}.Bytes(),
+		}
+		event := Event{
+			Message: &EventMessage{
+				Hash:             root.SelfParent.Hash,
+				CreatorID:        root.SelfParent.CreatorID,
+				TopologicalIndex: -1,
+				Body:             &body,
+				FlagTable:        ft.Marshal(),
+				ClothoProof:      [][]byte{root.SelfParent.Hash},
+			},
+			lamportTimestamp: 0,
+			round:            0,
+			roundReceived:    0, /*RoundNIL*/
+		}
+		if err := poset.Store.SetEvent(event); err != nil {
+			panic(err)
+		}
+	}
+
 	participants.OnNewPeer(func(peer *peers.Peer) {
 		poset.superMajority = 2*participants.Len()/3 + 1
 		poset.trustCount = int(math.Ceil(float64(participants.Len()) / float64(3)))
@@ -150,12 +185,10 @@ func (p *Poset) dominator2(x, y EventHash) (bool, error) {
 		return true, nil
 	}
 
+	roots := p.Store.RootsBySelfParent()
+
 	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
-		roots, err2 := p.Store.RootsBySelfParent()
-		if err2 != nil {
-			return false, err2
-		}
 		for _, root := range roots {
 			if other, ok := root.Others[y.String()]; ok {
 				return x.Equal(other.Hash), nil
@@ -170,10 +203,6 @@ func (p *Poset) dominator2(x, y EventHash) (bool, error) {
 	ey, err := p.Store.GetEventBlock(y)
 	if err != nil {
 		// check y roots
-		roots, err2 := p.Store.RootsBySelfParent()
-		if err2 != nil {
-			return false, err2
-		}
 		if root, ok := roots[y]; ok {
 			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
 			if !ok {
@@ -225,12 +254,9 @@ func (p *Poset) selfDominator2(x, y EventHash) (bool, error) {
 	if x == y {
 		return true, nil
 	}
+	roots := p.Store.RootsBySelfParent()
 	ex, err := p.Store.GetEventBlock(x)
 	if err != nil {
-		roots, err := p.Store.RootsBySelfParent()
-		if err != nil {
-			return false, err
-		}
 		if root, ok := roots[x]; ok {
 			if y.Equal(root.SelfParent.Hash) {
 				return true, nil
@@ -241,10 +267,6 @@ func (p *Poset) selfDominator2(x, y EventHash) (bool, error) {
 
 	ey, err := p.Store.GetEventBlock(y)
 	if err != nil {
-		roots, err2 := p.Store.RootsBySelfParent()
-		if err2 != nil {
-			return false, err2
-		}
 		if root, ok := roots[y]; ok {
 			peer, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
 			if !ok {
@@ -314,11 +336,7 @@ func (p *Poset) MapSentinels(x, y EventHash, sentinels map[string]bool) error {
 	ex, err := p.Store.GetEventBlock(x)
 
 	if err != nil {
-		roots, err2 := p.Store.RootsBySelfParent()
-
-		if err2 != nil {
-			return err2
-		}
+		roots := p.Store.RootsBySelfParent()
 
 		if root, ok := roots[x]; ok {
 			creator, ok := p.Participants.ReadByID(root.SelfParent.CreatorID)
@@ -369,7 +387,7 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 		x is the Root
 		Use Root.SelfParent.Round
 	*/
-	rootsBySelfParent, _ := p.Store.RootsBySelfParent()
+	rootsBySelfParent := p.Store.RootsBySelfParent()
 	if r, ok := rootsBySelfParent[x]; ok {
 		p.logger.Debug("p.round2(): return r.SelfParent.Round")
 		return r.SelfParent.Round, nil
@@ -450,7 +468,7 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	// check wp
 	p.logger.WithFields(logrus.Fields{
 		"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
-		"p.superMajority":  p.superMajority,
+		"p.superMajority":             p.superMajority,
 	}).Debug("p.round2()")
 	if len(ex.Message.ClothoProof) >= p.superMajority {
 		count := 0
@@ -464,8 +482,8 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 
 		p.logger.WithFields(logrus.Fields{
 			"len(ex.Message.ClothoProof)": len(ex.Message.ClothoProof),
-			"p.superMajority":  p.superMajority,
-			"count": count,
+			"p.superMajority":             p.superMajority,
+			"count":                       count,
 		}).Debug("p.round2()")
 		if count >= p.superMajority {
 			p.logger.Debug("p.round2(): return parentRound + 1")
@@ -476,8 +494,8 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 		// check ft
 		ft, _ := ex.GetFlagTable()
 		p.logger.WithFields(logrus.Fields{
-			"len(ft)": len(ft),
-			"p.superMajority":  p.superMajority,
+			"len(ft)":         len(ft),
+			"p.superMajority": p.superMajority,
 		}).Debug("p.round2()")
 		if len(ft) >= p.superMajority {
 			count := 0
@@ -489,9 +507,9 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"len(ft)": len(ft),
-				"count": count,
-				"p.superMajority":  p.superMajority,
+				"len(ft)":         len(ft),
+				"count":           count,
+				"p.superMajority": p.superMajority,
 			}).Debug("p.round2()")
 			if count >= p.superMajority {
 				p.logger.Debug("p.round2(): return parentRound + 1 (2)")
@@ -538,7 +556,7 @@ func (p *Poset) lamportTimestamp2(x EventHash) (int64, error) {
 		x is the Root
 		User Root.SelfParent.LamportTimestamp
 	*/
-	rootsBySelfParent, _ := p.Store.RootsBySelfParent()
+	rootsBySelfParent := p.Store.RootsBySelfParent()
 	if r, ok := rootsBySelfParent[x]; ok {
 		return r.SelfParent.LamportTimestamp, nil
 	}
@@ -793,62 +811,31 @@ func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) erro
 }
 
 func (p *Poset) setWireInfo(event *Event) error {
-	var selfParentIndex int64
-	otherParentCreatorID := peers.PeerNIL
-	otherParentIndex := int64(-1)
 
 	eventCreator := event.GetCreator()
-	creator, ok := p.Store.RepertoireByPubKey()[eventCreator]
+	creator, ok := p.Participants.ReadByPubKey(eventCreator)
 	if !ok {
 		return fmt.Errorf("creator %s not found", eventCreator)
 	}
-	creatorID := creator.ID
 
-	// could be the first Event inserted for this creator. In this case, use Root
-	if lf, isRoot, _ := p.Store.LastEventFrom(eventCreator); isRoot && lf == event.SelfParent() {
-		root, err := p.Store.GetRoot(eventCreator)
-		if err != nil {
-			return err
-		}
-		selfParentIndex = root.SelfParent.Index
-	} else {
-		selfParent, err := p.Store.GetEventBlock(event.SelfParent())
-		if err != nil {
-			return err
-		}
-		selfParentIndex = selfParent.Index()
+	selfParent, err := p.Store.GetEventBlock(event.SelfParent())
+	if err != nil {
+		return err
 	}
 
-	otherParent := event.OtherParent()
-	if !otherParent.Zero() {
-		// Check Root then regular Events
-		root, err := p.Store.GetRoot(eventCreator)
-		if err != nil {
-			return err
-		}
-		hash := event.Hash()
-		otherParentHash := event.OtherParent()
-		if other, ok := root.Others[hash.String()]; ok && otherParentHash.Equal(other.Hash) {
-			otherParentCreatorID = other.CreatorID
-			otherParentIndex = other.Index
-		} else {
-			otherParent, err := p.Store.GetEventBlock(otherParentHash)
-			if err != nil {
-				return err
-			}
-			otherParentCreator, ok := p.Store.RepertoireByPubKey()[otherParent.GetCreator()]
-			if !ok {
-				return fmt.Errorf("creator %s not found", otherParent.GetCreator())
-			}
-			otherParentCreatorID = otherParentCreator.ID
-			otherParentIndex = otherParent.Index()
-		}
+	otherParent, err := p.Store.GetEventBlock(event.OtherParent())
+	if err != nil {
+		return err
+	}
+	otherParentCreator, ok := p.Participants.ReadByPubKey(otherParent.GetCreator())
+	if !ok {
+		return fmt.Errorf("creator %s not found", otherParent.GetCreator())
 	}
 
-	event.SetWireInfo(selfParentIndex,
-		otherParentCreatorID,
-		otherParentIndex,
-		creatorID)
+	event.SetWireInfo(selfParent.Index(),
+		otherParentCreator.ID,
+		otherParent.Index(),
+		creator.ID)
 
 	return nil
 }
@@ -974,8 +961,8 @@ func (p *Poset) DivideRounds() error {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"hash":  hash,
-				"roundNumber": roundNumber,
+				"hash":         hash,
+				"roundNumber":  roundNumber,
 				"roundCreated": roundCreated,
 			}).Debug("p.DivideRounds()")
 
@@ -1789,25 +1776,26 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		otherParent = GenRootSelfParent(wevent.Body.OtherParentCreatorID)
 	}
 
-	creator := p.Store.RepertoireByID()[wevent.Body.CreatorID]
+	creator, ok := p.Participants.ReadByID(wevent.Body.CreatorID)
 	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
-	if creator == nil {
+	if !ok {
 		return nil, fmt.Errorf("unknown wevent.Body.CreatorID=%v", wevent.Body.CreatorID)
 	}
 	creatorBytes, err := hex.DecodeString(creator.PubKeyHex[2:])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hexDecodeString(creator.PubKeyHex[2:]): %v", err)
 	}
 
 	if wevent.Body.SelfParentIndex >= 0 {
 		selfParent, err = p.Store.ParticipantEvent(creator.PubKeyHex, wevent.Body.SelfParentIndex)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("p.Store.ParticipantEvent(creator.PubKeyHex %v, wevent.Body.SelfParentIndex %v): %v",
+				creator.PubKeyHex, wevent.Body.SelfParentIndex, err)
 		}
 	}
 	if wevent.Body.OtherParentIndex >= 0 {
-		otherParentCreator := p.Store.RepertoireByID()[wevent.Body.OtherParentCreatorID]
-		if otherParentCreator != nil {
+		otherParentCreator, ok := p.Participants.ReadByID(wevent.Body.OtherParentCreatorID)
+		if ok {
 			otherParent, err = p.Store.ParticipantEvent(otherParentCreator.PubKeyHex, wevent.Body.OtherParentIndex)
 			if err != nil {
 				// PROBLEM Check if other parent can be found in the root
@@ -1815,7 +1803,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 				// we do not know the creators of the roots RootEvents
 				root, err := p.Store.GetRoot(creator.PubKeyHex)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("p.Store.GetRoot(creator.PubKeyHex %v): %v", creator.PubKeyHex, err)
 				}
 				// loop through others
 				found := false

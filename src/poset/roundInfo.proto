@@ -19,6 +19,4 @@ message RoundCreatedMessage {
   bool queued = 2;
 }
 
-message RoundReceived {
-  repeated bytes Rounds = 1;
-}
+message RoundReceived { repeated bytes Rounds = 1; }
