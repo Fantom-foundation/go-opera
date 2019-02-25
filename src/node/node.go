@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
@@ -33,9 +34,7 @@ type Node struct {
 
 	peerSelector PeerSelector
 
-	trans net.Transport
-	netCh <-chan *net.RPC
-
+	trans peer.SyncPeer
 	proxy proxy.AppProxy
 
 	submitCh         chan []byte
@@ -61,12 +60,11 @@ func NewNode(conf *Config,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
 	store poset.Store,
-	trans net.Transport,
+	trans peer.SyncPeer,
 	proxy proxy.AppProxy,
 	selectorInitFunc SelectorCreationFn,
-	selectorInitArgs SelectorCreationFnArgs) *Node {
-
-	localAddr := trans.LocalAddr()
+	selectorInitArgs SelectorCreationFnArgs,
+	localAddr string) *Node {
 
 	commitCh := make(chan poset.Block, 400)
 	core := NewCore(id, key, participants, store, commitCh, conf.Logger)
@@ -85,11 +83,9 @@ func NewNode(conf *Config,
 		id:               id,
 		conf:             conf,
 		core:             core,
-		localAddr:        localAddr,
-		logger:           conf.Logger.WithField("this_id", id).WithField("addr", localAddr),
+		logger:           conf.Logger.WithField("this_id", id),
 		peerSelector:     peerSelector,
 		trans:            trans,
-		netCh:            trans.Consumer(),
 		proxy:            proxy,
 		submitCh:         proxy.SubmitCh(),
 		submitInternalCh: proxy.SubmitInternalCh(),
@@ -228,7 +224,10 @@ func (n *Node) lachesis(gossip bool) {
 	returnCh := make(chan struct{}, 100)
 	for {
 		select {
-		case rpc := <-n.netCh:
+		case rpc, ok := <-n.trans.ReceiverChannel():
+			if !ok {
+				return
+			}
 			n.goFunc(func() {
 				n.rpcJobs.increment()
 				n.logger.Debug("Processing RPC")
@@ -257,27 +256,31 @@ func (n *Node) lachesis(gossip bool) {
 	}
 }
 
-func (n *Node) processRPC(rpc *net.RPC) {
+func (n *Node) processRPC(rpc *peer.RPC) {
+	logger := n.logger.WithFields(logrus.Fields{"method": "processRPC",
+		"cmd": rpc.Command})
 	switch cmd := rpc.Command.(type) {
-	case *net.SyncRequest:
+	case *peer.SyncRequest:
 		n.processSyncRequest(rpc, cmd)
-	case *net.EagerSyncRequest:
+	case *peer.ForceSyncRequest:
 		n.processEagerSyncRequest(rpc, cmd)
-	case *net.FastForwardRequest:
+	case *peer.FastForwardRequest:
 		n.processFastForwardRequest(rpc, cmd)
 	default:
-		n.logger.WithField("cmd", rpc.Command).Error("Unexpected RPC command")
-		rpc.Respond(nil, fmt.Errorf("unexpected command"))
+		logger.Warn("unexpected RPC command")
+		// TODO: context.Background
+		rpc.SendResult(context.Background(), n.logger,
+			nil, fmt.Errorf("unexpected command"))
 	}
 }
 
-func (n *Node) processSyncRequest(rpc *net.RPC, cmd *net.SyncRequest) {
+func (n *Node) processSyncRequest(rpc *peer.RPC, cmd *peer.SyncRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from_id": cmd.FromID,
 		"known":   cmd.Known,
 	}).Debug("processSyncRequest(rpc net.RPC, cmd *net.SyncRequest)")
 
-	resp := &net.SyncResponse{
+	resp := &peer.SyncResponse{
 		FromID: n.id,
 	}
 	var respErr error
@@ -325,48 +328,52 @@ func (n *Node) processSyncRequest(rpc *net.RPC, cmd *net.SyncRequest) {
 		"error":      respErr,
 	}).Debug("SyncRequest Received")
 
-	rpc.Respond(resp, respErr)
+	// TODO: context.Background
+	rpc.SendResult(context.Background(), n.logger, resp, respErr)
 }
 
-func (n *Node) processEagerSyncRequest(rpc *net.RPC, cmd *net.EagerSyncRequest) {
+func (n *Node) processEagerSyncRequest(rpc *peer.RPC, cmd *peer.ForceSyncRequest) {
 	success := true
 	participants, err := n.GetParticipants()
 	if err != nil {
 		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
-	peer, ok := participants.ReadByID(cmd.FromID)
+	p, ok := participants.ReadByID(cmd.FromID)
 	if !ok {
 		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
 	n.logger.WithFields(logrus.Fields{
-		"from":    peer.NetAddr,
+		"from":    p.NetAddr,
 		"from_id": cmd.FromID,
 		"events":  len(cmd.Events),
-	}).Debug("processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest)")
+	}).Debug("processEagerSyncRequest(rpc net.RPC, cmd *net.ForceSyncRequest)")
+
+
+	resp := &peer.ForceSyncResponse{
+		FromID:  n.id,
+		Success: success,
+	}
+	// TODO: context.Background
+	rpc.SendResult(context.Background(), n.logger, resp, nil)
 
 	n.coreLock.Lock()
-	err = n.sync(&peer, cmd.Events)
+	err = n.sync(&p, cmd.Events)
 	n.coreLock.Unlock()
+
 	if err != nil {
 		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
-
-	resp := &net.EagerSyncResponse{
-		FromID:  n.id,
-		Success: success,
-	}
-	rpc.Respond(resp, err)
 }
 
-func (n *Node) processFastForwardRequest(rpc *net.RPC, cmd *net.FastForwardRequest) {
+func (n *Node) processFastForwardRequest(rpc *peer.RPC, cmd *peer.FastForwardRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from": cmd.FromID,
 	}).Debug("processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest)")
 
-	resp := &net.FastForwardResponse{
+	resp := &peer.FastForwardResponse{
 		FromID: n.id,
 	}
 	var respErr error
@@ -395,7 +402,8 @@ func (n *Node) processFastForwardRequest(rpc *net.RPC, cmd *net.FastForwardReque
 		"Events": len(resp.Frame.Events),
 		"Error":  respErr,
 	}).Debug("FastForwardRequest Received")
-	rpc.Respond(resp, respErr)
+	// TODO: context.Background
+	rpc.SendResult(context.Background(), n.logger, resp, respErr)
 }
 
 // This function is usually called in a go-routine and needs to inform the
@@ -508,7 +516,7 @@ func (n *Node) push(peerAddr string, knownEvents map[uint64]int64) error {
 			return err
 		}
 
-		// Create and Send EagerSyncRequest
+		// Create and Send ForceSyncRequest
 		start = time.Now()
 		n.logger.WithField("wireEvents", wireEvents).Debug("Sending n.requestEagerSync.wireEvents")
 		resp2, err := n.requestEagerSync(peerAddr, wireEvents)
@@ -521,7 +529,7 @@ func (n *Node) push(peerAddr string, knownEvents map[uint64]int64) error {
 		n.logger.WithFields(logrus.Fields{
 			"from_id": resp2.FromID,
 			"success": resp2.Success,
-		}).Debug("EagerSyncResponse")
+		}).Debug("ForceSyncResponse")
 	}
 
 	return nil
@@ -573,45 +581,26 @@ func (n *Node) fastForward() error {
 	return nil
 }
 
-func (n *Node) requestSync(target string, known map[uint64]int64) (net.SyncResponse, error) {
-
-	args := net.SyncRequest{
-		FromID: n.id,
-		Known:  known,
-	}
-
-	var out net.SyncResponse
-	err := n.trans.Sync(target, &args, &out)
-	// n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
-	return out, err
-}
-
-func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (net.EagerSyncResponse, error) {
-	args := net.EagerSyncRequest{
-		FromID: n.id,
-		Events: events,
-	}
-
-	var out net.EagerSyncResponse
-	n.logger.WithFields(logrus.Fields{
-		"target": target,
-	}).Debug("requestEagerSync(target string, events []poset.WireEvent)")
-	err := n.trans.EagerSync(target, &args, &out)
+func (n *Node) requestSync(target string, known map[uint64]int64) (*peer.SyncResponse, error) {
+	args := &peer.SyncRequest{FromID: n.id, Known: known}
+	out := &peer.SyncResponse{}
+	err := n.trans.Sync(context.Background(), target, args, out)
 
 	return out, err
 }
 
-func (n *Node) requestFastForward(target string) (net.FastForwardResponse, error) {
-	n.logger.WithFields(logrus.Fields{
-		"target": target,
-	}).Debug("requestFastForward(target string) (net.FastForwardResponse, error)")
+func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (*peer.ForceSyncResponse, error) {
+	args := &peer.ForceSyncRequest{FromID: n.id, Events: events}
+	out := &peer.ForceSyncResponse{}
+	err := n.trans.ForceSync(context.Background(), target, args, out)
 
-	args := net.FastForwardRequest{
-		FromID: n.id,
-	}
+	return out, err
+}
 
-	var out net.FastForwardResponse
-	err := n.trans.FastForward(target, &args, &out)
+func (n *Node) requestFastForward(target string) (*peer.FastForwardResponse, error) {
+	args := &peer.FastForwardRequest{FromID: n.id}
+	out := &peer.FastForwardResponse{}
+	err := n.trans.FastForward(context.Background(), target, args, out)
 
 	return out, err
 }
@@ -626,12 +615,7 @@ func (n *Node) sync(peer *peers.Peer, events []poset.WireEvent) error {
 		return fmt.Errorf("n.core.Sync(peer, events): %v", err)
 	}
 
-	// Run consensus methods
-	start = time.Now()
-	err = n.core.RunConsensus()
-	elapsed = time.Since(start)
-	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.RunConsensus()")
-	if err != nil {
+	if err := n.core.RunConsensus(); err != nil {
 		return err
 	}
 
@@ -824,11 +808,10 @@ func (n *Node) GetKnownEvents() map[uint64]int64 {
 	return n.core.KnownEvents()
 }
 
-// GetEventBlocks returns all event blocks
-// TODO: replace this function with n.GetKnownEvents() defined above
-func (n *Node) GetEventBlocks() (map[uint64]int64, error) {
-	res := n.core.KnownEvents()
-	return res, nil
+// EventDiff returns events that n knows about and are not in 'known'
+func (n *Node) EventDiff(
+	known map[uint64]int64) (events []poset.Event, err error) {
+	return n.core.EventDiff(known)
 }
 
 // GetConsensusEvents returns all consensus events

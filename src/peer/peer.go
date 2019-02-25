@@ -5,8 +5,6 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/Fantom-foundation/go-lachesis/src/net"
 )
 
 // NewSyncClientFunc creates a new sync client.
@@ -15,12 +13,12 @@ type NewSyncClientFunc func(target string) (SyncClient, error)
 // SyncPeer is an interface representing methods for sync transport.
 type SyncPeer interface {
 	Sync(ctx context.Context, target string,
-		req *net.SyncRequest, resp *net.SyncResponse) error
+		req *SyncRequest, resp *SyncResponse) error
 	ForceSync(ctx context.Context, target string,
-		req *net.EagerSyncRequest, resp *net.EagerSyncResponse) error
+		req *ForceSyncRequest, resp *ForceSyncResponse) error
 	FastForward(ctx context.Context, target string,
-		req *net.FastForwardRequest, resp *net.FastForwardResponse) error
-	ReceiverChannel() <-chan *net.RPC
+		req *FastForwardRequest, resp *FastForwardResponse) error
+	ReceiverChannel() <-chan *RPC
 	Close() error
 }
 
@@ -50,7 +48,7 @@ func NewTransport(logger logrus.FieldLogger,
 
 // Sync creates a sync request to a specific node.
 func (tr *Peer) Sync(ctx context.Context, target string,
-	req *net.SyncRequest, resp *net.SyncResponse) error {
+	req *SyncRequest, resp *SyncResponse) error {
 	if tr.isShutdown() {
 		return ErrTransportStopped
 	}
@@ -62,7 +60,7 @@ func (tr *Peer) Sync(ctx context.Context, target string,
 }
 
 func (tr *Peer) sync(ctx context.Context, target string,
-	req *net.SyncRequest, resp *net.SyncResponse) error {
+	req *SyncRequest, resp *SyncResponse) error {
 	logger := tr.logger.WithFields(logrus.Fields{"method": "sync",
 		"target": target})
 
@@ -83,7 +81,7 @@ func (tr *Peer) sync(ctx context.Context, target string,
 
 // ForceSync creates a force sync request to a specific node.
 func (tr *Peer) ForceSync(ctx context.Context, target string,
-	req *net.EagerSyncRequest, resp *net.EagerSyncResponse) error {
+	req *ForceSyncRequest, resp *ForceSyncResponse) error {
 	if tr.isShutdown() {
 		return ErrTransportStopped
 	}
@@ -95,7 +93,7 @@ func (tr *Peer) ForceSync(ctx context.Context, target string,
 }
 
 func (tr *Peer) forceSync(ctx context.Context, target string,
-	req *net.EagerSyncRequest, resp *net.EagerSyncResponse) error {
+	req *ForceSyncRequest, resp *ForceSyncResponse) error {
 	logger := tr.logger.WithFields(logrus.Fields{"method": "forceSync",
 		"target": target})
 
@@ -116,7 +114,7 @@ func (tr *Peer) forceSync(ctx context.Context, target string,
 
 // FastForward creates a fast forward request to a specific node.
 func (tr *Peer) FastForward(ctx context.Context, target string,
-	req *net.FastForwardRequest, resp *net.FastForwardResponse) error {
+	req *FastForwardRequest, resp *FastForwardResponse) error {
 
 	if tr.isShutdown() {
 		return ErrTransportStopped
@@ -129,7 +127,7 @@ func (tr *Peer) FastForward(ctx context.Context, target string,
 }
 
 func (tr *Peer) fastForward(ctx context.Context, target string,
-	req *net.FastForwardRequest, resp *net.FastForwardResponse) error {
+	req *FastForwardRequest, resp *FastForwardResponse) error {
 	logger := tr.logger.WithFields(logrus.Fields{"method": "fastForward",
 		"target": target})
 
@@ -149,7 +147,7 @@ func (tr *Peer) fastForward(ctx context.Context, target string,
 }
 
 // ReceiverChannel returns a sync server receiver channel.
-func (tr *Peer) ReceiverChannel() <-chan *net.RPC {
+func (tr *Peer) ReceiverChannel() <-chan *RPC {
 	tr.mtx.Lock()
 	defer tr.mtx.Unlock()
 

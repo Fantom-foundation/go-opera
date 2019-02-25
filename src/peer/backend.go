@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-
-	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -26,7 +24,7 @@ type CreateListenerFunc func(network, address string) (net.Listener, error)
 
 // SyncServer is an interface representing methods for sync server.
 type SyncServer interface {
-	ReceiverChannel() <-chan *lnet.RPC
+	ReceiverChannel() <-chan *RPC
 	ListenAndServe(network, address string) error
 	Close() error
 }
@@ -45,7 +43,7 @@ type Backend struct {
 	listener     net.Listener
 	listenerFunc CreateListenerFunc
 	logger       logrus.FieldLogger
-	receiver     chan *lnet.RPC
+	receiver     chan *RPC
 	server       *rpc.Server
 
 	mtx      sync.RWMutex
@@ -60,8 +58,10 @@ type Backend struct {
 // NewBackendConfig creates a default a sync server config.
 func NewBackendConfig() *BackendConfig {
 	return &BackendConfig{
-		ReceiveTimeout: time.Minute,
-		ProcessTimeout: time.Minute,
+		// TODO: We increase the values because currently we have too long time for sync process.
+		// Revert the values after refactor sync process (node.go)
+		ReceiveTimeout: time.Minute * 60,
+		ProcessTimeout: time.Minute * 60,
 		IdleTimeout:    time.Minute * 10,
 	}
 }
@@ -70,7 +70,7 @@ func NewBackendConfig() *BackendConfig {
 func NewBackend(conf *BackendConfig,
 	logger logrus.FieldLogger, listenerFunc CreateListenerFunc) *Backend {
 	conns := make(map[net.Conn]bool)
-	receiver := make(chan *lnet.RPC)
+	receiver := make(chan *RPC)
 	done := make(chan struct{})
 	rpcServer := rpc.NewServer()
 	if err := rpcServer.RegisterName(lachesis, NewLachesis(
@@ -91,7 +91,7 @@ func NewBackend(conf *BackendConfig,
 }
 
 // ReceiverChannel returns a receiver channel.
-func (srv *Backend) ReceiverChannel() <-chan *lnet.RPC {
+func (srv *Backend) ReceiverChannel() <-chan *RPC {
 	srv.mtx.RLock()
 	defer srv.mtx.RUnlock()
 	return srv.receiver
@@ -184,12 +184,14 @@ func (srv *Backend) serveCodec(codec rpc.ServerCodec) *multierror.Error {
 	defer func() {
 		if err := codec.Close(); err != nil {
 			result = multierror.Append(result, err)
+			println(err.Error())
 		}
 	}()
 
 	for {
 		if err := srv.server.ServeRequest(codec); err != nil {
 			result = multierror.Append(result, err)
+			println(err.Error())
 			return result
 		}
 	}

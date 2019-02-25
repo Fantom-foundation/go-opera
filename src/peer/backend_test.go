@@ -9,8 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
-	"github.com/Fantom-foundation/go-lachesis/src/net/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
@@ -34,7 +33,7 @@ func newBackend(t *testing.T, conf *peer.BackendConfig,
 				// Delay response.
 				time.Sleep(delay)
 
-				req.RespChan <- &lnet.RPCResponse{
+				req.RespChan <- &peer.RPCResponse{
 					Response: resp,
 				}
 			}
@@ -84,8 +83,8 @@ func TestBackendClose(t *testing.T) {
 	}
 
 	request := func() {
-		resp := &lnet.SyncResponse{}
-		result <- cli.Sync(context.Background(), &lnet.SyncRequest{}, resp)
+		resp := &peer.SyncResponse{}
+		result <- cli.Sync(context.Background(), &peer.SyncRequest{}, resp)
 	}
 
 	for i := 0; i < reqNumber; i++ {

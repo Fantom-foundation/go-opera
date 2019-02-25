@@ -1,431 +1,224 @@
 package node
 
 import (
-	"context"
+	"bytes"
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"net/http"
 	"os"
 	"reflect"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
-	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer/fakenet"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
-	"github.com/sirupsen/logrus"
 )
 
-func initPeers(n int, t testing.TB) ([]*ecdsa.PrivateKey, []string, *peers.Peers) {
+type TestData struct {
+	PoolSize   int
+	Logger     *logrus.Logger
+	Config     *Config
+	BackConfig *peer.BackendConfig
+	Network    *fakenet.Network
+	CreateFu   peer.CreateSyncClientFunc
+	Keys       []*ecdsa.PrivateKey
+	Adds       []string
+	PeersSlice []*peers.Peer
+	Peers      *peers.Peers
+}
+
+func InitTestData(t *testing.T, peersCount int, poolSize int) *TestData {
+	network, createFu := createNetwork()
+	keys, p, adds := initPeers(peersCount, network)
+
+	return &TestData{
+		PoolSize:   poolSize,
+		Logger:     common.NewTestLogger(t),
+		Config:     TestConfig(t),
+		BackConfig: peer.NewBackendConfig(),
+		Network:    network,
+		CreateFu:   createFu,
+		Keys:       keys,
+		Adds:       adds,
+		PeersSlice: p.ToPeerSlice(),
+		Peers:      p,
+	}
+}
+
+func initPeers(
+	number int, network *fakenet.Network) ([]*ecdsa.PrivateKey, *peers.Peers, []string) {
+
 	var keys []*ecdsa.PrivateKey
-	addresses := utils.GetUnusedNetAddr(n, t)
+	var adds []string
+
 	ps := peers.NewPeers()
 
-	for i := 0; i < n; i++ {
+	for i := 0; i < number; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		keys = append(keys, key)
+		addr := network.RandomAddress()
+		adds = append(adds, addr)
 
 		ps.AddPeer(peers.NewPeer(
 			fmt.Sprintf("0x%X", crypto.FromECDSAPub(&keys[i].PublicKey)),
-			addresses[i],
+			addr,
 		))
 	}
 
-	return keys, addresses, ps
+	return keys, ps, adds
 }
 
-func TestProcessSync(t *testing.T) {
-	keys, addresses, p := initPeers(2, t)
-	testLogger := common.NewTestLogger(t)
-	config := TestConfig(t)
+func createNetwork() (*fakenet.Network, peer.CreateSyncClientFunc) {
+	network := fakenet.NewNetwork()
 
-	// Start two nodes
+	createFu := func(target string,
+		timeout time.Duration) (peer.SyncClient, error) {
 
-	ps := p.ToPeerSlice()
-
-	peer0Trans, err := net.NewTCPTransport(addresses[0], nil, 2,
-		time.Second, testLogger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer peer0Trans.Close()
-
-	selector0Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    peer0Trans.LocalAddr(),
-		GetFlagTable: nil,
-	}
-	node0 := NewNode(config, ps[0].ID, keys[0], p,
-		poset.NewInmemStore(p, config.CacheSize, nil),
-		peer0Trans,
-		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorWrapper,
-		selector0Args)
-	if err := node0.Init(); err != nil {
-		t.Fatal(err)
-	}
-
-	node0.RunAsync(false)
-	defer node0.Shutdown()
-
-	peer1Trans, err := net.NewTCPTransport(addresses[1], nil, 2,
-		time.Second, testLogger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer peer1Trans.Close()
-
-	selector1Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    peer1Trans.LocalAddr(),
-		GetFlagTable: nil,
-	}
-	node1 := NewNode(config, ps[1].ID, keys[1], p,
-		poset.NewInmemStore(p, config.CacheSize, nil),
-		peer1Trans,
-		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorWrapper,
-		selector1Args)
-	if err := node1.Init(); err != nil {
-		t.Fatal(err)
-	}
-
-	node1.RunAsync(false)
-	defer node1.Shutdown()
-
-	// Manually prepare SyncRequest and expected SyncResponse
-
-	node0KnownEvents := node0.core.KnownEvents()
-	node1KnownEvents := node1.core.KnownEvents()
-
-	unknownEvents, err := node1.core.EventDiff(node0KnownEvents)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	unknownWireEvents, err := node1.core.ToWire(unknownEvents)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	args := net.SyncRequest{
-		FromID: node0.id,
-		Known:  node0KnownEvents,
-	}
-	expectedResp := net.SyncResponse{
-		FromID: node1.id,
-		Events: unknownWireEvents,
-		Known:  node1KnownEvents,
-	}
-
-	// Make actual SyncRequest and check SyncResponse
-
-	testLogger.Println("SYNCING...")
-	time.Sleep(2000 * time.Millisecond)
-	var out net.SyncResponse
-	if err := peer0Trans.Sync(peer1Trans.LocalAddr(), &args, &out); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Verify the response
-	if expectedResp.FromID != out.FromID {
-		t.Fatalf("SyncResponse.FromID should be %d, not %d",
-			expectedResp.FromID, out.FromID)
-	}
-
-	if l := len(out.Events); l != len(expectedResp.Events) {
-		t.Fatalf("SyncResponse.Events should contain %d items, not %d",
-			len(expectedResp.Events), l)
-	}
-
-	for i, e := range expectedResp.Events {
-		ex := out.Events[i]
-		if !reflect.DeepEqual(e.Body, ex.Body) {
-			t.Fatalf("SyncResponse.Events[%d] should be %v, not %v",
-				i, e.Body, ex.Body)
-		}
-	}
-
-	if !reflect.DeepEqual(expectedResp.Known, out.Known) {
-		t.Fatalf("SyncResponse.KnownEvents should be %#v, not %#v",
-			expectedResp.Known, out.Known)
-	}
-
-}
-
-func TestProcessEagerSync(t *testing.T) {
-	keys, addresses, p := initPeers(2, t)
-	testLogger := common.NewTestLogger(t)
-	config := TestConfig(t)
-
-	// Start two nodes
-
-	ps := p.ToPeerSlice()
-
-	peer0Trans, err := net.NewTCPTransport(addresses[0], nil, 2,
-		time.Second, testLogger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer peer0Trans.Close()
-
-	selector0Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    peer0Trans.LocalAddr(),
-		GetFlagTable: nil,
-	}
-	node0 := NewNode(config, ps[0].ID, keys[0], p,
-		poset.NewInmemStore(p, config.CacheSize, nil),
-		peer0Trans,
-		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorWrapper,
-		selector0Args)
-	if err := node0.Init(); err != nil {
-		t.Fatal(err)
-	}
-
-	node0.RunAsync(false)
-	defer node0.Shutdown()
-
-	peer1Trans, err := net.NewTCPTransport(addresses[1], nil, 2,
-		time.Second, testLogger)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer peer1Trans.Close()
-
-	selector1Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    peer1Trans.LocalAddr(),
-		GetFlagTable: nil,
-	}
-	node1 := NewNode(config, ps[1].ID, keys[1], p,
-		poset.NewInmemStore(p, config.CacheSize, nil),
-		peer1Trans,
-		dummy.NewInmemDummyApp(testLogger),
-		NewSmartPeerSelectorWrapper,
-		selector1Args)
-	if err := node1.Init(); err != nil {
-		t.Fatal(err)
-	}
-
-	node1.RunAsync(false)
-	defer node1.Shutdown()
-
-	// Manually prepare EagerSyncRequest and expected EagerSyncResponse
-
-	node1KnownEvents := node1.core.KnownEvents()
-
-	unknownEvents, err := node0.core.EventDiff(node1KnownEvents)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	unknownWireEvents, err := node0.core.ToWire(unknownEvents)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	args := net.EagerSyncRequest{
-		FromID: node0.id,
-		Events: unknownWireEvents,
-	}
-	expectedResp := net.EagerSyncResponse{
-		FromID:  node1.id,
-		Success: true,
-	}
-
-	time.Sleep(2000 * time.Millisecond)
-	// Make actual EagerSyncRequest and check EagerSyncResponse
-	var out net.EagerSyncResponse
-	if err := peer0Trans.EagerSync(
-		peer1Trans.LocalAddr(), &args, &out); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Verify the response
-	if expectedResp.Success != out.Success {
-		t.Fatalf("EagerSyncResponse.Sucess should be %v, not %v",
-			expectedResp.Success, out.Success)
-	}
-}
-
-func TestAddTransaction(t *testing.T) {
-	keys, addresses, p := initPeers(2, t)
-	testLogger := common.NewTestLogger(t)
-	config := TestConfig(t)
-
-	// Start two nodes
-
-	ps := p.ToPeerSlice()
-
-	peer0Trans, err := net.NewTCPTransport(addresses[0], nil, 2,
-		time.Second, common.NewTestLogger(t))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	peer0Proxy := dummy.NewInmemDummyApp(testLogger)
-	defer peer0Trans.Close()
-
-	selector0Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    peer0Trans.LocalAddr(),
-		GetFlagTable: nil,
-	}
-	node0 := NewNode(TestConfig(t), ps[0].ID, keys[0], p,
-		poset.NewInmemStore(p, config.CacheSize, nil),
-		peer0Trans,
-		peer0Proxy,
-		NewSmartPeerSelectorWrapper,
-		selector0Args)
-	if err := node0.Init(); err != nil {
-		t.Fatal(err)
-	}
-
-	node0.RunAsync(false)
-	defer node0.Shutdown()
-
-	peer1Trans, err := net.NewTCPTransport(addresses[1], nil, 2,
-		time.Second, common.NewTestLogger(t))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	peer1Proxy := dummy.NewInmemDummyApp(testLogger)
-	defer peer1Trans.Close()
-
-	selector1Args := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    peer1Trans.LocalAddr(),
-		GetFlagTable: nil,
-	}
-	node1 := NewNode(TestConfig(t), ps[1].ID, keys[1], p,
-		poset.NewInmemStore(p, config.CacheSize, nil),
-		peer1Trans,
-		peer1Proxy,
-		NewSmartPeerSelectorWrapper,
-		selector1Args)
-	if err := node1.Init(); err != nil {
-		t.Fatal(err)
-	}
-
-	node1.RunAsync(false)
-	defer node1.Shutdown()
-	// Submit a Tx to node0
-
-	time.Sleep(2000 * time.Millisecond)
-	message := "Hello World!"
-	peer0Proxy.SubmitCh() <- []byte(message)
-
-	// simulate a SyncRequest from node0 to node1
-
-	node0KnownEvents := node0.core.KnownEvents()
-	args := net.SyncRequest{
-		FromID: node0.id,
-		Known:  node0KnownEvents,
-	}
-
-	peer1Trans.LocalAddr()
-	var out net.SyncResponse
-	if err := peer0Trans.Sync(peer1Trans.LocalAddr(), &args, &out); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := node0.sync(ps[1], out.Events); err != nil {
-		t.Fatal(err)
-	}
-
-	// check the Tx was removed from the transactionPool
-	// and added to the new Head
-
-	if l := len(node0.core.transactionPool); l > 0 {
-		t.Fatalf("node0's transactionPool should have 0 elements, not %d\n", l)
-	}
-
-	node0Head, _ := node0.core.GetHead()
-	if l := len(node0Head.Transactions()); l != 1 {
-		t.Fatalf("node0's Head should have 1 element, not %d\n", l)
-	}
-
-	if m := string(node0Head.Transactions()[0]); m != message {
-		t.Fatalf("Transaction message should be '%s' not, not %s\n",
-			message, m)
-	}
-}
-
-func initNodes(keys []*ecdsa.PrivateKey,
-	addresses []string,
-	peers *peers.Peers,
-	cacheSize int,
-	syncLimit int64,
-	storeType string,
-	logger *logrus.Logger,
-	t testing.TB) []*Node {
-
-	var nodes []*Node
-
-	for idx, k := range keys {
-		key := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&k.PublicKey))
-		peer, ok := peers.ReadByPubKey(key)
-		if !ok {
-			t.Fatalf("peer %v not found", key)
-		}
-		id := peer.ID
-
-		conf := NewConfig(
-			5*time.Millisecond,
-			2*time.Second,
-			cacheSize,
-			syncLimit,
-			logger,
-		)
-
-		trans, err := net.NewTCPTransport(addresses[idx],
-			nil, 2, 2*time.Second, logger)
+		rpcCli, err := peer.NewRPCClient(
+			peer.TCP, target, time.Second, network.CreateNetConn)
 		if err != nil {
-			t.Fatalf("failed to create transport for peer %d: %s", id, err)
+			return nil, err
 		}
 
-		peers.Lock()
-		peer.NetAddr = trans.LocalAddr()
-		peers.Unlock()
-
-		var store poset.Store
-		switch storeType {
-		case "badger":
-			path, _ := ioutil.TempDir("", "badger")
-			store, err = poset.NewBadgerStore(peers, conf.CacheSize, path, nil)
-			if err != nil {
-				t.Fatalf("failed to create BadgerStore for peer %d: %s",
-					id, err)
-			}
-		case "inmem":
-			store = poset.NewInmemStore(peers, conf.CacheSize, nil)
-		}
-		prox := dummy.NewInmemDummyApp(logger)
-
-		selectorArgs := SmartPeerSelectorCreationFnArgs{
-			LocalAddr:    trans.LocalAddr(),
-			GetFlagTable: nil,
-		}
-		node := NewNode(conf,
-			id,
-			k,
-			peers,
-			store,
-			trans,
-			prox,
-			NewSmartPeerSelectorWrapper,
-			selectorArgs)
-
-		if err := node.Init(); err != nil {
-			t.Fatalf("failed to initialize node%d: %s", id, err)
-		}
-		nodes = append(nodes, node)
+		return peer.NewClient(rpcCli)
 	}
-	return nodes
+
+	return network, createFu
+}
+
+func createTransport(t *testing.T, logger logrus.FieldLogger,
+	backConf *peer.BackendConfig, addr string, poolSize int,
+	clientFu peer.CreateSyncClientFunc,
+	listenerFu peer.CreateListenerFunc) peer.SyncPeer {
+
+	producer := peer.NewProducer(poolSize, time.Second, clientFu)
+
+	backend := peer.NewBackend(backConf, logger, listenerFu)
+	if err := backend.ListenAndServe(peer.TCP, addr); err != nil {
+		t.Fatal(err)
+	}
+
+	return peer.NewTransport(logger, producer, backend)
+}
+
+func transportClose(t *testing.T, syncPeer peer.SyncPeer) {
+	if err := syncPeer.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func createNode(t *testing.T, logger *logrus.Logger, config *Config,
+	id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
+	trans peer.SyncPeer, localAddr string, run bool) *Node {
+
+	db := poset.NewInmemStore(participants, config.CacheSize, nil)
+	app := dummy.NewInmemDummyApp(logger)
+
+	selectorArgs := SmartPeerSelectorCreationFnArgs{
+		LocalAddr: localAddr,
+		GetFlagTable: nil,
+	}
+
+	node := NewNode(config, id, key, participants, db, trans, app, NewSmartPeerSelectorWrapper, selectorArgs, localAddr)
+	if err := node.Init(); err != nil {
+		t.Fatal(err)
+	}
+
+	go node.Run(run)
+
+	return node
+}
+
+func gossip(
+	nodes []*Node, target int64, shutdown bool, timeout time.Duration) error {
+	for _, n := range nodes {
+		node := n
+		go func() {
+			node.Run(true)
+		}()
+	}
+	err := bombardAndWait(nodes, target, timeout)
+	if err != nil {
+		return err
+	}
+	if shutdown {
+		for _, n := range nodes {
+			n.Shutdown()
+		}
+	}
+	return nil
+}
+
+func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
+
+	quit := make(chan struct{})
+	go func() {
+		seq := make(map[int]int)
+		for {
+			select {
+			case <-quit:
+				return
+			default:
+				n := rand.Intn(len(nodes))
+				node := nodes[n]
+				if err := submitTransaction(node, []byte(
+					fmt.Sprintf("node%d transaction %d", n, seq[n]))); err != nil {
+					panic(err)
+				}
+				seq[n] = seq[n] + 1
+				time.Sleep(3 * time.Millisecond)
+			}
+		}
+	}()
+	tag := "beginning"
+
+	// wait until all nodes have at least 'target' blocks
+	stopper := time.After(timeout)
+	for {
+		select {
+		case <-stopper:
+			return fmt.Errorf("timeout in %v", tag)
+		default:
+		}
+		time.Sleep(10 * time.Millisecond)
+		done := true
+		for _, n := range nodes {
+			ce := n.GetLastBlockIndex()
+			if ce < target {
+				done = false
+				tag = fmt.Sprintf("ce<target:%v<%v", ce, target)
+				break
+			} else {
+				// wait until the target block has retrieved a state hash from
+				// the app
+				targetBlock, _ := n.GetBlock(target)
+				if len(targetBlock.GetStateHash()) == 0 {
+					done = false
+					tag = "stateHash==0"
+					break
+				}
+			}
+		}
+		if done {
+			break
+		}
+	}
+	close(quit)
+	return nil
+}
+
+func submitTransaction(n *Node, tx []byte) error {
+	n.proxy.SubmitCh() <- []byte(tx)
+	return nil
 }
 
 func recycleNodes(
@@ -456,507 +249,29 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 		store = poset.NewInmemStore(oldNode.core.participants, conf.CacheSize, nil)
 	}
 
-	trans, err := net.NewTCPTransport(oldNode.localAddr,
-		nil, 2, time.Second, logger)
-	if err != nil {
-		t.Fatal(err)
-	}
+	backConfig := peer.NewBackendConfig()
+	network, createFu := createNetwork()
+	p := ps.ToPeerSlice()
+
+	// Create transport
+	trans := createTransport(t, logger, backConfig, p[0].NetAddr,
+		2, createFu, network.CreateListener)
+	defer transportClose(t, trans)
+
 	prox := dummy.NewInmemDummyApp(logger)
 
 	selectorArgs := SmartPeerSelectorCreationFnArgs{
-		LocalAddr:    trans.LocalAddr(),
+		LocalAddr: p[0].NetAddr,
 		GetFlagTable: nil,
 	}
-	newNode := NewNode(conf, id, key, ps, store, trans, prox,
-		NewSmartPeerSelectorWrapper, selectorArgs)
 
+	// Create & Init node
+	newNode := NewNode(conf, id, key, ps, store, trans, prox, NewSmartPeerSelectorWrapper, selectorArgs, p[0].NetAddr)
 	if err := newNode.Init(); err != nil {
 		t.Fatal(err)
 	}
 
 	return newNode
-}
-
-func runNodes(nodes []*Node, gossip bool) {
-	for _, n := range nodes {
-		node := n
-		go func() {
-			node.Run(gossip)
-		}()
-	}
-}
-
-func shutdownNodes(nodes []*Node) {
-	for _, n := range nodes {
-		n.Shutdown()
-	}
-}
-
-func TestGossip(t *testing.T) {
-
-	logger := common.NewTestLogger(t)
-
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
-
-	target := int64(1)
-
-	err := gossip(nodes, target, true, 30*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	srvAddr := utils.GetUnusedNetAddr(1, t)
-	s := NewService(srvAddr[0], nodes[0], logger)
-
-	srv := s.Serve()
-
-	t.Logf("serving for 3 seconds")
-	shutdownTimeout := 3 * time.Second
-	time.Sleep(shutdownTimeout)
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-	t.Logf("stopping after waiting for Serve()...")
-	if err := srv.Shutdown(ctx); err != nil {
-		t.Fatal(err) // failure/timeout shutting down the server gracefully
-	}
-
-	checkGossip(nodes, 0, t)
-}
-
-func TestMissingNodeGossip(t *testing.T) {
-
-	logger := common.NewTestLogger(t)
-
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
-	defer shutdownNodes(nodes)
-
-	err := gossip(nodes[1:], 3, true, 120*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	checkGossip(nodes[1:], 0, t)
-}
-
-func TestSyncLimit(t *testing.T) {
-
-	logger := common.NewTestLogger(t)
-
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
-
-	err := gossip(nodes, 10, false, 30*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer shutdownNodes(nodes)
-
-	// create fake node[0] known to artificially reach SyncLimit
-	node0KnownEvents := nodes[0].core.KnownEvents()
-	for k := range node0KnownEvents {
-		node0KnownEvents[k] = 0
-	}
-
-	args := net.SyncRequest{
-		FromID: nodes[0].id,
-		Known:  node0KnownEvents,
-	}
-	expectedResp := net.SyncResponse{
-		FromID:    nodes[1].id,
-		SyncLimit: true,
-	}
-
-	var out net.SyncResponse
-	if err := nodes[0].trans.Sync(nodes[1].localAddr, &args, &out); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Verify the response
-	if expectedResp.FromID != out.FromID {
-		t.Fatalf("SyncResponse.FromID should be %d, not %d",
-			expectedResp.FromID, out.FromID)
-	}
-	if !expectedResp.SyncLimit {
-		t.Fatal("SyncResponse.SyncLimit should be true")
-	}
-}
-
-func TestFastForward(t *testing.T) {
-
-	logger := common.NewTestLogger(t)
-
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 1000,
-		"inmem", logger, t)
-	defer shutdownNodes(nodes)
-
-	target := int64(3)
-	err := gossip(nodes[1:], target, false, 60*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(2 * time.Second)
-
-	err = nodes[0].fastForward()
-	if err != nil {
-		t.Fatalf("Error FastForwarding: %s", err)
-	}
-
-	lbi := nodes[0].core.GetLastBlockIndex()
-	if lbi < 0 {
-		t.Fatalf("LastBlockIndex is too low: %d", lbi)
-	}
-	sBlock, err := nodes[0].GetBlock(lbi)
-	if err != nil {
-		t.Fatalf("Error retrieving latest Block"+
-			" from reset hasposetraph: %v", err)
-	}
-	expectedBlock, err := nodes[1].GetBlock(lbi)
-	if err != nil {
-		t.Fatalf("Failed to retrieve block %d from node1: %v", lbi, err)
-	}
-	if !reflect.DeepEqual(sBlock.Body, expectedBlock.Body) {
-		t.Fatalf("Blocks defer")
-	}
-}
-
-func TestCatchUp(t *testing.T) {
-	var let sync.Mutex
-	caught := false
-	logger := common.NewTestLogger(t)
-
-	// Create  config for 4 nodes
-	keys, addresses, ps := initPeers(4, t)
-
-	// Initialize the first 3 nodes only
-	normalNodes := initNodes(keys[0:3], addresses[0:3], ps, 1000, 400, "inmem", logger, t)
-	defer shutdownNodes(normalNodes)
-
-	target := int64(3)
-
-	err := gossip(normalNodes, target, false, 30*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkGossip(normalNodes, 0, t)
-
-	node4 := initNodes(keys[3:], addresses[3:], ps, 1000, 40, "inmem", logger, t)[0]
-
-	// Run parallel routine to check node4 eventually reaches CatchingUp state.
-	timeout := time.After(30 * time.Second)
-	go func() {
-		let.Lock()
-		defer let.Unlock()
-		for {
-			select {
-			case <-timeout:
-				t.Logf("Timeout waiting for node4 to enter CatchingUp state")
-				break
-			default:
-			}
-			if node4.getState() == CatchingUp {
-				caught = true
-				break
-			}
-		}
-	}()
-
-	node4.RunAsync(true)
-	defer node4.Shutdown()
-
-	// Gossip some more
-	nodes := append(normalNodes, node4)
-	newTarget := target + 4
-	err = bombardAndWait(nodes, newTarget, 20*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	start := node4.core.poset.FirstConsensusRound
-	checkGossip(nodes, *start, t)
-	let.Lock()
-	let.Unlock()
-	if !caught {
-		t.Fatalf("Node4 didn't reach CatchingUp state")
-	}
-}
-
-func TestFastSync(t *testing.T) {
-	var let sync.Mutex
-	caught := false
-	logger := common.NewTestLogger(t)
-
-	// Create  config for 4 nodes
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 400, "inmem", logger, t)
-	defer shutdownNodes(nodes)
-
-	var target int64 = 10
-
-	err := gossip(nodes, target, false, 30*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkGossip(nodes, 0, t)
-
-	node4 := nodes[3]
-	node4.Shutdown()
-
-	secondTarget := target + 10
-	err = bombardAndWait(nodes[0:3], secondTarget, 30*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkGossip(nodes[0:3], 0, t)
-
-	// Can't re-run it; have to reinstantiate a new node.
-	node4 = recycleNode(node4, logger, t)
-
-	// Run parallel routine to check node4 eventually reaches CatchingUp state.
-	timeout := time.After(30 * time.Second)
-	go func() {
-		let.Lock()
-		defer let.Unlock()
-		for {
-			select {
-			case <-timeout:
-				t.Logf("Timeout waiting for node4 to enter CatchingUp state")
-				break
-			default:
-			}
-			if node4.getState() == CatchingUp {
-				caught = true
-				break
-			}
-		}
-	}()
-
-	node4.RunAsync(true)
-	defer node4.Shutdown()
-
-	nodes[3] = node4
-
-	// Gossip some more
-	thirdTarget := secondTarget + 10
-	err = bombardAndWait(nodes, thirdTarget, 25*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	start := node4.core.poset.FirstConsensusRound
-	checkGossip(nodes, *start, t)
-	let.Lock()
-	let.Unlock()
-	if !caught {
-		t.Fatalf("Node4 didn't reach CatchingUp state")
-	}
-}
-
-func TestShutdown(t *testing.T) {
-	logger := common.NewTestLogger(t)
-
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, t)
-	runNodes(nodes, false)
-
-	nodes[0].Shutdown()
-
-	// That modification of used counters should force SmartPeerSelector
-	// to choose nodes[0] to gossip to
-	// must be changed accordingly if PeerSelector is changed
-	nodes[1].peerSelector.Peers().ByID[nodes[1].id].Used = 2
-	nodes[1].peerSelector.Peers().ByID[nodes[2].id].Used = 2
-	nodes[1].peerSelector.Peers().ByID[nodes[0].id].Used = 1
-
-	err := nodes[1].gossip(nil)
-	if err == nil {
-		t.Fatal("Expected Timeout Error")
-	}
-
-	nodes[1].Shutdown()
-}
-
-func TestBootstrapAllNodes(t *testing.T) {
-	logger := common.NewTestLogger(t)
-
-	if err := os.RemoveAll("test_data"); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir("test_data", os.ModeDir|0777); err != nil {
-		t.Fatal(err)
-	}
-
-	// create a first network with BadgerStore
-	// and wait till it reaches 10 consensus rounds before shutting it down
-	keys, addresses, ps := initPeers(4, t)
-	nodes := initNodes(keys, addresses, ps, 1000, 1000, "badger", logger, t)
-
-	err := gossip(nodes, 10, false, 3*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkGossip(nodes, 0, t)
-	shutdownNodes(nodes)
-
-	// Now try to recreate a network from the databases created
-	// in the first step and advance it to 20 consensus rounds
-	newNodes := recycleNodes(nodes, logger, t)
-	err = gossip(newNodes, 20, false, 3*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	checkGossip(newNodes, 0, t)
-	shutdownNodes(newNodes)
-
-	// Check that both networks did not have
-	// completely different consensus events
-	checkGossip([]*Node{nodes[0], newNodes[0]}, 0, t)
-}
-
-func gossip(
-	nodes []*Node, target int64, shutdown bool, timeout time.Duration) error {
-	runNodes(nodes, true)
-	err := bombardAndWait(nodes, target, timeout)
-	if err != nil {
-		return err
-	}
-	if shutdown {
-		shutdownNodes(nodes)
-	}
-	return nil
-}
-
-func bombardAndWait(nodes []*Node, target int64, timeout time.Duration) error {
-
-	quit := make(chan struct{})
-	makeRandomTransactions(nodes, quit)
-	tag := "beginning"
-
-	// wait until all nodes have at least 'target' blocks
-	stopper := time.After(timeout)
-	for {
-		select {
-		case <-stopper:
-			return fmt.Errorf("timeout in %v", tag)
-		default:
-		}
-		time.Sleep(10 * time.Millisecond)
-		done := true
-		for _, n := range nodes {
-			ce := n.core.GetLastBlockIndex()
-			if ce < target {
-				done = false
-				tag = fmt.Sprintf("ce<target:%v<%v", ce, target)
-				break
-			} else {
-				// wait until the target block has retrieved a state hash from
-				// the app
-				targetBlock, _ := n.core.poset.Store.GetBlock(target)
-				if len(targetBlock.GetStateHash()) == 0 {
-					done = false
-					tag = "stateHash==0"
-					break
-				}
-			}
-		}
-		if done {
-			break
-		}
-	}
-	close(quit)
-	return nil
-}
-
-type Service struct {
-	bindAddress string
-	node        *Node
-	graph       *Graph
-	logger      *logrus.Logger
-}
-
-func NewService(bindAddress string, n *Node, logger *logrus.Logger) *Service {
-	service := Service{
-		bindAddress: bindAddress,
-		node:        n,
-		graph:       NewGraph(n),
-		logger:      logger,
-	}
-
-	return &service
-}
-
-func (s *Service) Serve() *http.Server {
-	s.logger.WithField("bind_address", s.bindAddress).Debug("Service serving")
-
-	http.HandleFunc("/stats", s.GetStats)
-
-	http.HandleFunc("/block/", s.GetBlock)
-
-	http.HandleFunc("/graph", s.GetGraph)
-
-	srv := &http.Server{Addr: s.bindAddress, Handler: nil}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			s.logger.WithField("error", err).Error("Service failed")
-		}
-	}()
-
-	return srv
-}
-
-func (s *Service) GetStats(w http.ResponseWriter, r *http.Request) {
-	stats := s.node.GetStats()
-
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(stats); err != nil {
-		s.logger.WithError(err).Errorf("Failed to encode stats %v", stats)
-	}
-}
-
-func (s *Service) GetBlock(w http.ResponseWriter, r *http.Request) {
-	param := r.URL.Path[len("/block/"):]
-
-	blockIndex, err := strconv.ParseInt(param, 10, 64)
-
-	if err != nil {
-		s.logger.WithError(err).Errorf("Parsing block_index parameter %s", param)
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-
-		return
-	}
-
-	block, err := s.node.GetBlock(blockIndex)
-
-	if err != nil {
-		s.logger.WithError(err).Errorf("Retrieving block %d", blockIndex)
-
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(block); err != nil {
-		s.logger.WithError(err).Errorf("Failed to encode block %v", block)
-	}
-}
-
-func (s *Service) GetGraph(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	encoder := json.NewEncoder(w)
-
-	res := s.graph.GetInfos()
-
-	if err := encoder.Encode(res); err != nil {
-		s.logger.WithError(err).Errorf("Failed to encode Infos %v", res)
-	}
 }
 
 func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {
@@ -994,40 +309,739 @@ func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {
 	}
 }
 
-func makeRandomTransactions(nodes []*Node, quit chan struct{}) {
+func TestCreateAndInitNode(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 1, 2)
+
+	// Create transport
+	trans := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans)
+
+	// Create & Init node
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
+
+	// Check status
+	nodeState := node.getState()
+	if nodeState != Gossiping {
+		t.Fatal(nodeState)
+	}
+
+	// Check ID
+	if node.ID() != data.PeersSlice[0].ID {
+		t.Fatal(node.id)
+	}
+
+	// Stop node & check status
+	node.Stop()
+	nodeState = node.getState()
+	if nodeState != Stop {
+		t.Fatal(nodeState)
+	}
+
+	// Shutdown node & check status
+	node.Shutdown()
+	nodeState = node.getState()
+	if nodeState != Shutdown {
+		t.Fatal(nodeState)
+	}
+}
+
+func TestAddTransaction(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 1, 2)
+
+	// Create transport
+	trans := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans)
+
+	// Create & Init node
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
+	defer node.Shutdown()
+
+	// Add new Tx
+	message := "Test"
+	err := node.addTransaction([]byte(message))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Check tx pool
+	txPoolCount := node.core.GetTransactionPoolCount()
+	if txPoolCount != 1 {
+		t.Fatal("Transaction pool count wrong")
+	}
+
+	// Add new Internal Tx
+	internalTx := poset.InternalTransaction{}
+	node.addInternalTransaction(internalTx)
+
+	// Check internal tx pool
+	txPoolCount = node.core.GetInternalTransactionPoolCount()
+	if txPoolCount != 1 {
+		t.Fatal("Transaction pool count wrong")
+	}
+}
+
+func TestCommit(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 1, 2)
+
+	// Create transport
+	trans := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans)
+
+	// Create & Init node
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
+	defer node.Shutdown()
+
+	// Create block
+	block := poset.NewBlock(0, 1,
+		[]byte("framehash"),
+		[][]byte{
+			[]byte("test1"),
+			[]byte("test2"),
+			[]byte("test3"),
+		})
+
+	// Make a commit
+	err := node.commit(block)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	testBlock, err := node.GetBlock(0)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	blockhex := len(block.GetBody().Transactions)
+	testBlockHex := len(testBlock.GetBody().Transactions)
+
+	if blockhex != testBlockHex {
+		t.Fatal(testBlockHex)
+	}
+}
+
+func TestDoBackgroundWork(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 1, 2)
+
+	// Create transport
+	trans := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans)
+
+	// Create & Init node
+	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
+	defer node.Shutdown()
+
+	// Check submitCh case
+	message := "Test"
+	node.submitCh <- []byte(message)
+
+	// Because of we need to wait to complete submitCh.
+	time.Sleep(3 * time.Second)
+
+	txPoolCount := node.core.GetTransactionPoolCount()
+	if txPoolCount != 1 {
+		t.Fatal("Transaction pool count wrong")
+	}
+
+	// Check submitInternalCh case
+	internalTx := poset.InternalTransaction{}
+	node.submitInternalCh <- internalTx
+
+	// Because of we need to wait to complete submitInternalCh.
+	time.Sleep(3 * time.Second)
+
+	txPoolCount = node.core.GetInternalTransactionPoolCount()
+	if txPoolCount != 1 {
+		t.Fatal("Transaction pool count wrong")
+	}
+
+	// Check commitCh case
+	block := poset.NewBlock(0, 1,
+		[]byte("framehash"),
+		[][]byte{
+			[]byte("test1"),
+			[]byte("test2"),
+			[]byte("test3"),
+		})
+	node.commitCh <- block
+
+	// Because of we need to wait to complete commit.
+	time.Sleep(3 * time.Second)
+
+	testBlock, err := node.GetBlock(0)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	blockhex := len(block.GetBody().Transactions)
+	testBlockHex := len(testBlock.GetBody().Transactions)
+
+	if blockhex != testBlockHex {
+		t.Fatal(testBlockHex)
+	}
+
+	// Check signalTERMch case
+	node.signalTERMch <- nil
+
+	// Because of we need to wait to complete Shutdown.
+	time.Sleep(3 * time.Second)
+
+	if node.getState() != Shutdown {
+		t.Fatal(node.getState())
+	}
+}
+
+func TestSyncAndRequestSync(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 2, 2)
+
+	// Create transport
+	trans1 := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, data.Logger, data.BackConfig, data.Adds[1],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans2)
+
+	// Create & Init node
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
+	defer node2.Shutdown()
+
+	// Submit transaction for node
+	message := "Test"
+	node1.submitCh <- []byte(message)
+
+	// Get known events from node1 & make sync request object
+	node1KnownEvents := node1.core.KnownEvents()
+
+	// Sync request
+	resp, err := node1.requestSync(data.Adds[1], node1KnownEvents)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Sync events
+	if err := node1.sync(data.PeersSlice[1], resp.Events); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check pool
+	if l := len(node1.core.transactionPool); l > 0 {
+		t.Fatalf("expected %d, got %d", 0, l)
+	}
+
+	// Get head & check tx count
+	node1Head, err := node1.core.GetHead()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if l := len(node1Head.Transactions()); l != 1 {
+		t.Fatalf("expected %d, got %d", 1, l)
+	}
+
+	// Check message
+	if m := string(node1Head.Transactions()[0]); m != message {
+		t.Fatalf("expected message %s, got %s", message, m)
+	}
+}
+
+func TestRequestEagerSyncAndEventDiff(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 2, 2)
+
+	// Create transport
+	trans1 := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, data.Logger, data.BackConfig, data.Adds[1],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans2)
+
+	// Create & Init node
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
+	defer node2.Shutdown()
+
+	// Get known events
+	node1KnownEvents := node1.core.KnownEvents()
+
+	// Get unknown events & convert it into wire
+	unknownEvents, err := node1.EventDiff(node1KnownEvents)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unknownWireEvents, err := node1.core.ToWire(unknownEvents)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Eager Sync
+	result, err := node1.requestEagerSync(data.Adds[1], unknownWireEvents)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := &peer.ForceSyncResponse{
+		FromID:  node2.id,
+		Success: true,
+	}
+
+	// Check result
+	if expected.Success != result.Success {
+		t.Fatalf("expected %v, got %v", expected.Success, result.Success)
+	}
+
+	if expected.FromID != result.FromID {
+		t.Fatalf("expected %v, got %v", expected.FromID, result.FromID)
+	}
+}
+
+func TestRequestFastForward(t *testing.T) {
+	// Init data
+	data := InitTestData(t, 2, 2)
+
+	// Create transport
+	trans1 := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, data.Logger, data.BackConfig, data.Adds[1],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans2)
+
+	// Create & Init node
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
+	defer node2.Shutdown()
+
+	// Create frame
+	frame := poset.Frame{
+		Round: 1,
+		Events: []*poset.EventMessage{
+			&poset.EventMessage{
+				Body: &poset.EventBody{
+					Transactions: [][]byte{
+						[]byte("test1"),
+						[]byte("test2"),
+						[]byte("test3"),
+					},
+				},
+			},
+		},
+	}
+
+	if err := node2.core.poset.Store.SetFrame(frame); err != nil {
+		t.Fatal(err)
+	}
+
+	// Commit block
+	block0 := poset.NewBlock(0, 1,
+		[]byte("framehash"),
+		[][]byte{
+			[]byte("test1"),
+			[]byte("test2"),
+			[]byte("test3"),
+		})
+
+	node2.commitCh <- block0
+
+	// Because of we need to wait to complete commit.
+	time.Sleep(3 * time.Second)
+
+	// Assign AnchorBlock
+	node2.core.poset.AnchorBlock = new(int64)
+	*node2.core.poset.AnchorBlock = 0
+
+	block, _, err := node2.core.GetAnchorBlockWithFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Fast forward request
+	result, err := node1.requestFastForward(data.Adds[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create expected result
+	block, err = poset.NewBlockFromFrame(0, frame)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Assign test values
+	b, err := node2.core.poset.Store.GetBlock(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: Perhaps we should re-calculate the value before assign the value.
+	block.Signatures = b.Signatures
+	block.FrameHash = []byte("framehash")
+	block.CreatedTime = b.CreatedTime
+
+	// Because of we have the value in src/node/commit func with explanation.
+	block.StateHash = []byte{0, 1, 2}
+
+	// Get snapshot
+	snapshot, err := node2.proxy.GetSnapshot(block.Index())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create expected object
+	expected := peer.FastForwardResponse{
+		FromID:   node2.id,
+		Block:    block,
+		Frame:    frame,
+		Snapshot: snapshot,
+	}
+
+	// Check actual result
+	if !result.Block.Equals(&expected.Block) || !result.Frame.Equals(&expected.Frame) ||
+		result.FromID != expected.FromID || !bytes.Equal(result.Snapshot, expected.Snapshot) {
+		t.Fatalf("bad response, expected: %+v, got: %+v", expected, result)
+	}
+
+	hash1, err := expected.Frame.Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash2, err := result.Frame.Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(hash1, hash2) {
+		t.Fatalf("expected hash %s, got %s", hexutil.Encode(hash1), hexutil.Encode(hash2))
+	}
+}
+
+func TestFastForward(t *testing.T) {
+
+	data := InitTestData(t, 4, 2)
+
+	// Create transport
+	trans1 := createTransport(t, data.Logger, data.BackConfig, data.Adds[0],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, data.Logger, data.BackConfig, data.Adds[1],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans2)
+
+	trans3 := createTransport(t, data.Logger, data.BackConfig, data.Adds[2],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans3)
+
+	trans4 := createTransport(t, data.Logger, data.BackConfig, data.Adds[3],
+		data.PoolSize, data.CreateFu, data.Network.CreateListener)
+	defer transportClose(t, trans4)
+
+	// Create & Init node
+	node1 := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans1, data.Adds[0], false)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
+	defer node2.Shutdown()
+
+	node3 := createNode(t, data.Logger, data.Config, data.PeersSlice[2].ID, data.Keys[2], data.Peers, trans3, data.Adds[2], false)
+	defer node3.Shutdown()
+
+	node4 := createNode(t, data.Logger, data.Config, data.PeersSlice[3].ID, data.Keys[3], data.Peers, trans4, data.Adds[3], false)
+	defer node4.Shutdown()
+
+	nodes := []*Node{node1, node2, node3, node4}
+
+	target := int64(3)
+	err := gossip(nodes[1:], target, false, 60*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(2 * time.Second)
+
+	err = nodes[0].fastForward()
+	if err != nil {
+		t.Fatalf("Error FastForwarding: %s", err)
+	}
+
+	lbi := nodes[0].GetLastBlockIndex()
+	if lbi < 0 {
+		t.Fatalf("LastBlockIndex is too low: %d", lbi)
+	}
+	sBlock, err := nodes[0].GetBlock(lbi)
+	if err != nil {
+		t.Fatalf("Error retrieving latest Block"+
+			" from reset hasposetraph: %v", err)
+	}
+	expectedBlock, err := nodes[1].GetBlock(lbi)
+	if err != nil {
+		t.Fatalf("Failed to retrieve block %d from node1: %v", lbi, err)
+	}
+	if !reflect.DeepEqual(sBlock.Body, expectedBlock.Body) {
+		t.Fatalf("Blocks defer")
+	}
+}
+
+// TODO: Failed
+func TestFastSync(t *testing.T) {
+	var let sync.Mutex
+	caught := false
+	logger := common.NewTestLogger(t)
+	
+	poolSize := 2
+	config := TestConfig(t)
+	backConfig := peer.NewBackendConfig()
+
+	network, createFu := createNetwork()
+	keys, p, adds := initPeers(4, network)
+	ps := p.ToPeerSlice()
+
+	trans1 := createTransport(t, logger, backConfig, adds[0],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, logger, backConfig, adds[1],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans2)
+
+	trans3 := createTransport(t, logger, backConfig, adds[2],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans3)
+
+	trans4 := createTransport(t, logger, backConfig, adds[3],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans4)
+
+	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
+	defer node2.Shutdown()
+
+	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
+	defer node3.Shutdown()
+
+	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
+	defer node4.Shutdown()
+
+	nodes := []*Node{node1, node2, node3, node4}
+
+	var target int64 = 10
+
+	err := gossip(nodes, target, false, 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkGossip(nodes, 0, t)
+
+	node4 = nodes[3]
+	node4.Shutdown()
+
+	secondTarget := target + 10
+	err = bombardAndWait(nodes[0:3], secondTarget, 30*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkGossip(nodes[0:3], 0, t)
+
+	// Can't re-run it; have to reinstantiate a new node.
+	node4 = recycleNode(node4, logger, t)
+
+	// Run parallel routine to check node4 eventually reaches CatchingUp state.
+	timeout := time.After(30 * time.Second)
 	go func() {
-		seq := make(map[int]int)
+		let.Lock()
+		defer let.Unlock()
 		for {
 			select {
-			case <-quit:
-				return
+			case <-timeout:
+				t.Logf("Timeout waiting for node4 to enter CatchingUp state")
+				break
 			default:
-				n := rand.Intn(len(nodes))
-				node := nodes[n]
-				if err := submitTransaction(node, []byte(
-					fmt.Sprintf("node%d transaction %d", n, seq[n]))); err != nil {
-					panic(err)
-				}
-				seq[n] = seq[n] + 1
-				time.Sleep(3 * time.Millisecond)
+			}
+			if node4.getState() == CatchingUp {
+				caught = true
+				break
 			}
 		}
 	}()
-}
 
-func submitTransaction(n *Node, tx []byte) error {
+	node4.RunAsync(true)
 
-	n.proxy.SubmitCh() <- []byte(tx)
-	return nil
-}
+	nodes[3] = node4
 
-func BenchmarkGossip(b *testing.B) {
-	logger := common.NewTestLogger(b)
-	for n := 0; n < b.N; n++ {
-		keys, addresses, ps := initPeers(4, b)
-		nodes := initNodes(keys, addresses, ps, 1000, 1000, "inmem", logger, b)
-		if err := gossip(nodes, 50, true, 3*time.Second); err != nil {
-			b.Fatal(err)
-		}
+	// Gossip some more
+	thirdTarget := secondTarget + 10
+	err = bombardAndWait(nodes, thirdTarget, 25*time.Second)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	start := node4.core.poset.FirstConsensusRound
+	checkGossip(nodes, *start, t)
+	let.Lock()
+	let.Unlock()
+	if !caught {
+		t.Fatalf("Node4 didn't reach CatchingUp state")
+	}
+}
+
+// TODO: Failed
+func TestBootstrapAllNodes(t *testing.T) {
+	logger := common.NewTestLogger(t)
+
+	if err := os.RemoveAll("test_data"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir("test_data", os.ModeDir|0777); err != nil {
+		t.Fatal(err)
+	}
+
+	// create a first network with BadgerStore
+	// and wait till it reaches 10 consensus rounds before shutting it down
+	config := TestConfig(t)
+
+	poolSize := 2
+	backConfig := peer.NewBackendConfig()
+
+	network, createFu := createNetwork()
+	keys, p, adds := initPeers(4, network)
+	ps := p.ToPeerSlice()
+
+	trans1 := createTransport(t, logger, backConfig, adds[0],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, logger, backConfig, adds[1],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans2)
+
+	trans3 := createTransport(t, logger, backConfig, adds[2],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans3)
+
+	trans4 := createTransport(t, logger, backConfig, adds[3],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans4)
+
+	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
+	defer node2.Shutdown()
+
+	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
+	defer node3.Shutdown()
+
+	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
+	defer node4.Shutdown()
+
+	nodes := []*Node{node1, node2, node3, node4}
+
+	err := gossip(nodes, 10, false, 3*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkGossip(nodes, 0, t)
+	for _, n := range nodes {
+		n.Shutdown()
+	}
+
+	// Now try to recreate a network from the databases created
+	// in the first step and advance it to 20 consensus rounds
+	newNodes := recycleNodes(nodes, logger, t)
+	for _, n := range nodes {
+		n.RunAsync(true)
+	}
+	err = gossip(newNodes, 20, false, 3*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkGossip(newNodes, 0, t)
+	for _, n := range nodes {
+		n.Shutdown()
+	}
+
+	// Check that both networks did not have
+	// completely different consensus events
+	checkGossip([]*Node{nodes[0], newNodes[0]}, 0, t)
+}
+
+func TestShutdown(t *testing.T) {
+	logger := common.NewTestLogger(t)
+
+	config := TestConfig(t)
+
+	poolSize := 2
+	backConfig := peer.NewBackendConfig()
+
+	network, createFu := createNetwork()
+	keys, p, adds := initPeers(4, network)
+	ps := p.ToPeerSlice()
+
+	trans1 := createTransport(t, logger, backConfig, adds[0],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans1)
+
+	trans2 := createTransport(t, logger, backConfig, adds[1],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans2)
+
+	trans3 := createTransport(t, logger, backConfig, adds[2],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans3)
+
+	trans4 := createTransport(t, logger, backConfig, adds[3],
+		poolSize, createFu, network.CreateListener)
+	defer transportClose(t, trans4)
+
+	node1 := createNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], false)
+	defer node1.Shutdown()
+
+	node2 := createNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], false)
+	defer node2.Shutdown()
+
+	node3 := createNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], false)
+	defer node3.Shutdown()
+
+	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], false)
+	defer node4.Shutdown()
+
+	nodes := []*Node{node1, node2, node3, node4}
+
+	nodes[0].Shutdown()
+
+	// That modification of used counters should force SmartPeerSelector
+	// to choose nodes[0] to gossip to
+	// must be changed accordingly if PeerSelector is changed
+	nodes[1].peerSelector.Peers().ByID[nodes[1].id].Used = 2
+	nodes[1].peerSelector.Peers().ByID[nodes[2].id].Used = 2
+	nodes[1].peerSelector.Peers().ByID[nodes[0].id].Used = 1
+
+	err := nodes[1].gossip(nil)
+	if err == nil {
+		t.Fatal("Expected Timeout Error")
+	}
+
+	nodes[1].Shutdown()
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
 	"net"
 	"net/rpc"
 	"reflect"
@@ -12,14 +13,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
-	"github.com/Fantom-foundation/go-lachesis/src/net/fakenet"
-	"github.com/Fantom-foundation/go-lachesis/src/net/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer/fakenet"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 var (
-	expEagerSyncRequest = &lnet.EagerSyncRequest{
+	expEagerSyncRequest = &peer.ForceSyncRequest{
 		FromID: 0,
 		Events: []poset.WireEvent{
 			{
@@ -33,14 +33,14 @@ var (
 			},
 		},
 	}
-	expEagerSyncResponse  = &lnet.EagerSyncResponse{FromID: 1, Success: true}
-	expFastForwardRequest = &lnet.FastForwardRequest{FromID: 0}
-	expSyncRequest        = &lnet.SyncRequest{
+	expEagerSyncResponse  = &peer.ForceSyncResponse{FromID: 1, Success: true}
+	expFastForwardRequest = &peer.FastForwardRequest{FromID: 0}
+	expSyncRequest        = &peer.SyncRequest{
 		FromID: 0,
 		Known:  map[uint64]int64{0: 1, 1: 2, 2: 3},
 	}
 
-	expSyncResponse = &lnet.SyncResponse{
+	expSyncResponse = &peer.SyncResponse{
 		FromID: 1,
 		Events: []poset.WireEvent{
 			{
@@ -107,7 +107,7 @@ func TestClientSync(t *testing.T) {
 		}
 	}()
 
-	resp := &lnet.SyncResponse{}
+	resp := &peer.SyncResponse{}
 	if err := cli.Sync(
 		ctx, expSyncRequest, resp); err != testError {
 		t.Fatalf("expected error: %s, got: %s", testError, err)
@@ -136,7 +136,7 @@ func TestClientForceSync(t *testing.T) {
 		}
 	}()
 
-	resp := &lnet.EagerSyncResponse{}
+	resp := &peer.ForceSyncResponse{}
 	if err := cli.ForceSync(
 		ctx, expEagerSyncRequest, resp); err != testError {
 		t.Fatalf("expected error: %s, got: %s", testError, err)
@@ -166,7 +166,7 @@ func TestClientFastForward(t *testing.T) {
 		}
 	}()
 
-	resp := &lnet.FastForwardResponse{}
+	resp := &peer.FastForwardResponse{}
 	if err := cli.FastForward(
 		ctx, expFastForwardRequest, resp); err != testError {
 		t.Fatalf("expected error: %s, got: %s", testError, err)
@@ -212,9 +212,9 @@ func TestNewClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := &lnet.SyncResponse{}
+	resp := &peer.SyncResponse{}
 	if err := cli.Sync(
-		context.Background(), &lnet.SyncRequest{}, resp); err != nil {
+		context.Background(), &peer.SyncRequest{}, resp); err != nil {
 		t.Fatal(err)
 	}
 
@@ -257,9 +257,9 @@ func TestFakeNet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := &lnet.SyncResponse{}
+	resp := &peer.SyncResponse{}
 	if err := cli.Sync(
-		context.Background(), &lnet.SyncRequest{}, resp); err != nil {
+		context.Background(), &peer.SyncRequest{}, resp); err != nil {
 		t.Fatal(err)
 	}
 
@@ -269,14 +269,14 @@ func TestFakeNet(t *testing.T) {
 	}
 }
 
-func newFastForwardResponse(t *testing.T) *lnet.FastForwardResponse {
+func newFastForwardResponse(t *testing.T) *peer.FastForwardResponse {
 	frame := poset.Frame{}
 	block, err := poset.NewBlockFromFrame(1, frame)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return &lnet.FastForwardResponse{
+	return &peer.FastForwardResponse{
 		FromID:   1,
 		Block:    block,
 		Frame:    frame,
@@ -284,9 +284,16 @@ func newFastForwardResponse(t *testing.T) *lnet.FastForwardResponse {
 	}
 }
 
-func checkFastForwardResponse(t *testing.T, exp, got *lnet.FastForwardResponse) {
+func checkFastForwardResponse(t *testing.T, exp, got *peer.FastForwardResponse) {
 	if !got.Block.Equals(&exp.Block) || !got.Frame.Equals(&exp.Frame) ||
 		got.FromID != exp.FromID || !bytes.Equal(got.Snapshot, exp.Snapshot) {
 		t.Fatalf("bad response, expected: %+v, got: %+v", exp, got)
+	}
+
+	hash1, _ := exp.Frame.Hash()
+	hash2, _ := got.Frame.Hash()
+	if !bytes.Equal(hash1, hash2) {
+		t.Fatalf("expected hash %s, got %s", hexutil.Encode(hash1), hexutil.Encode(hash2))
+
 	}
 }

@@ -10,7 +10,8 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
-	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer/fakenet"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
@@ -23,38 +24,61 @@ type NodeList map[*ecdsa.PrivateKey]*Node
 // NewNodeList makes, fills and runs NodeList instance
 func NewNodeList(count int, logger *logrus.Logger) NodeList {
 	config := DefaultConfig()
+	syncBackConfig := peer.NewBackendConfig()
+
 	config.Logger = logger
+	network := fakenet.NewNetwork()
+	createFu := func(target string,
+		timeout time.Duration) (peer.SyncClient, error) {
+		rpcCli, err := peer.NewRPCClient(
+			peer.TCP, target, time.Second, network.CreateNetConn)
+		if err != nil {
+			return nil, err
+		}
+
+		return peer.NewClient(rpcCli)
+	}
 
 	participants := peers.NewPeers()
 	keys := make(map[*peers.Peer]*ecdsa.PrivateKey)
 	for i := 0; i < count; i++ {
-		addr, _ := net.NewInmemTransport("")
+		addr := network.RandomAddress()
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
-		peer := peers.NewPeer(pubKey, addr)
-		participants.AddPeer(peer)
-		keys[peer] = key
+		peer2 := peers.NewPeer(pubKey, addr)
+		participants.AddPeer(peer2)
+		keys[peer2] = key
 	}
 
 	nodes := make(NodeList, count)
-	for _, peer := range participants.ToPeerSlice() {
-		key := keys[peer]
-		_, transp := net.NewInmemTransport(peer.GetNetAddr())
+	for _, peer2 := range participants.ToPeerSlice() {
+		key := keys[peer2]
+
+		producer := peer.NewProducer(config.CacheSize, time.Second, createFu)
+		backend := peer.NewBackend(
+			syncBackConfig, logger, network.CreateListener)
+		if err := backend.ListenAndServe(peer.TCP, peer2.NetAddr); err != nil {
+			logger.Panic(err)
+		}
+		transport := peer.NewTransport(logger, producer, backend)
+
 		selectorArgs := SmartPeerSelectorCreationFnArgs{
-			LocalAddr:    transp.LocalAddr(),
+			LocalAddr: peer2.NetAddr,
 			GetFlagTable: nil,
 		}
+
 		n := NewNode(
 			config,
-			peer.ID,
+			peer2.ID,
 			key,
 			participants,
 			poset.NewInmemStore(participants, config.CacheSize, nil),
-			transp,
+			transport,
 			dummy.NewInmemDummyApp(logger),
 			NewSmartPeerSelectorWrapper,
 			selectorArgs,
-		)
+			peer2.NetAddr,
+			)
 		if err := n.Init(); err != nil {
 			logger.Fatal(err)
 		}

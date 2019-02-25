@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/net/fakenet"
+	"github.com/Fantom-foundation/go-lachesis/src/peer/fakenet"
 )
 
 func TestNetworkConnRefused(t *testing.T) {

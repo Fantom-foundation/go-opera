@@ -2,6 +2,7 @@ package lachesis
 
 import (
 	"crypto/ecdsa"
+	"net"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
@@ -32,6 +34,8 @@ type LachesisConfig struct {
 	Key       *ecdsa.PrivateKey
 	Logger    *logrus.Logger
 
+	ConnFunc peer.CreateNetConnFunc
+
 	Test      bool   `mapstructure:"test"`
 	TestN     uint64 `mapstructure:"test_n"`
 	TestDelay uint64 `mapstructure:"test_delay"`
@@ -43,6 +47,7 @@ func NewDefaultConfig() *LachesisConfig {
 		BindAddr:    ":1337",
 		ServiceAddr: ":8000",
 		ServiceOnly: false,
+		ConnFunc:    net.DialTimeout,
 		MaxPool:     2,
 		NodeConfig:  *node.DefaultConfig(),
 		PoSConfig:   *pos.DefaultConfig(),
