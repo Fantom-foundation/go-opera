@@ -9,7 +9,7 @@ import (
 func TestPosetRush(t *testing.T) {
 	assert := assert.New(t)
 
-	nodes, eventsByNode := GenEventsByNode(4, 10, 3)
+	nodes, eventsByNode := GenEventsByNode(6, 90, 3)
 	p := FakePoset(nodes)
 
 	t.Run("Multiple start", func(t *testing.T) {

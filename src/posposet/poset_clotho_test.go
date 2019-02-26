@@ -9,7 +9,7 @@ import (
 )
 
 func TestPosetSimpleClotho(t *testing.T) {
-	testSpecialNamedCC(t, `
+	testSpecialNamedClotho(t, `
 a01     b01     c01
 ║       ║       ║
 a11 ─ ─ ╬ ─ ─ ─ ╣       d01
@@ -59,13 +59,13 @@ A54 ─ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ ╣       ║
  * Utils:
  */
 
-// testSpecialNamedCC is a general test of root selection.
+// testSpecialNamedClotho is a general test of Clotho selection.
 // Node name means:
 // - 1st letter uppercase - node should be root;
 // - 2nd number - index by node;
 // - 3rd number - frame where node should be in;
 // - last "+" - single if ClothoCandidate, double if Clotho;
-func testSpecialNamedCC(t *testing.T, asciiScheme string) {
+func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
 	nodes, _, names := ParseEvents(asciiScheme)

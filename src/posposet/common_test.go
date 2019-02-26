@@ -22,15 +22,19 @@ a01 ║     ║   ║
 a02 ╣     ║   ║
 ║   ║     ║   ║
 ╠ ─ ╫ ─ ─ c02 ║
-║   b01   ║   ║
+║   b01  ╝║   ║
 ║   ╠ ─ ─ ╫ ─ d01
 ║   ║     ║   ║
 ║   ║     ║   ║
-╠ ═ b02 ═ ╬ ═ ╣
-║   ║     ║   ║
+╠ ═ b02 ═ ╬   ╣
+║   ║     ║  ║║
 a03 ╣     ╠ ─ d02
-║   ║     ║   ║
-║   ║     ║   ╠ ─ e00
+║║  ║     ║  ║║
+║║  ║     ║  ║╠ ─ e00
+║║  ║     ║   ║   ║
+a04 ╫ ─ ─ ╬  ╝║   ║
+║║  ║     ║   ║   ║
+║╚  ╫╩  ─ c03 ╣   ║
 ║   ║     ║   ║   ║
 `)
 	expected := map[string][]string{
@@ -38,12 +42,14 @@ a03 ╣     ╠ ─ d02
 		"a01": {"a00"},
 		"a02": {"a01", "b00"},
 		"a03": {"a02", "b02"},
+		"a04": {"a03", "c02", "d01"},
 		"b00": {""},
-		"b01": {"b00"},
+		"b01": {"b00", "c01"},
 		"b02": {"b01", "a02", "c02", "d01"},
 		"c00": {""},
 		"c01": {"c00", "b00"},
 		"c02": {"c01", "a02"},
+		"c03": {"c02", "a03", "b01", "d02"},
 		"d00": {""},
 		"d01": {"d00", "b01"},
 		"d02": {"d01", "c02"},
@@ -103,7 +109,7 @@ func FakePoset(nodes []common.Address) *Poset {
 }
 
 // ParseEvents parses events from ASCII-scheme.
-// Use joiners ║ ╬ ╠ ╣ ╫ and optional fillers ─ ═ to draw ASCII-scheme.
+// Use joiners ║ ╬ ╠ ╣ ╫ ╚ ╝ ╩ and optional fillers ─ ═ to draw ASCII-scheme.
 // Result:
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
@@ -118,38 +124,41 @@ func ParseEvents(asciiScheme string) (
 		var (
 			nNames    []string // event-N --> name
 			nCreators []int    // event-N --> creator
-			nLinks    [][]int  // event-N --> parents
+			nLinks    [][]int  // event-N --> parents+1 (negative if link to pre-last event)
 		)
 		// parse line
-		current := 0
+		current := 1
 		for _, symbol := range strings.Split(strings.TrimSpace(line), " ") {
 			symbol = strings.TrimSpace(symbol)
 			switch symbol {
 			case "─", "═", "": // skip filler
-				break
-			case "╠": // start new link array
+				current--
+			case "╠", "║╠", "╠╫": // start new link array with current
 				nLinks = append(nLinks, []int{current})
-				current++
-			case "╬", "╣": // append to last link array
+			case "║╚", "╚": // start new link array with prev
+				nLinks = append(nLinks, []int{-1 * current})
+			case "╣", "╣║", "╫╣", "╬": // append current to last link array
 				last := len(nLinks) - 1
 				nLinks[last] = append(nLinks[last], current)
-				current++
-			case "║", "╫": // don't mutate link array
-				current++
+			case "╝║", "╝", "╩╫", "╫╩": // append prev to last link array
+				last := len(nLinks) - 1
+				nLinks[last] = append(nLinks[last], -1*current)
+			case "╫", "║", "║║": // don't mutate link array
+				break
 			default: // it is a event name
 				if _, ok := names[symbol]; ok {
 					panic(fmt.Errorf("Event '%s' already exists", symbol))
 				}
-				nCreators = append(nCreators, current)
+				nCreators = append(nCreators, current-1)
 				nNames = append(nNames, symbol)
 				if len(nLinks) < len(nNames) {
 					nLinks = append(nLinks, []int(nil))
 				}
-				current++
 			}
+			current++
 		}
 		// make nodes if not enough
-		for i := len(nodes); i < current; i++ {
+		for i := len(nodes); i < (current - 1); i++ {
 			addr := common.FakeAddress()
 			nodes = append(nodes, addr)
 			events[addr] = nil
@@ -173,8 +182,14 @@ func ParseEvents(asciiScheme string) (
 			}
 			// find other parents
 			for _, p := range nLinks[i] {
+				prev := 0
+				if p < 0 {
+					p *= -1
+					prev = -1
+				}
+				p = p - 1
 				other := nodes[p]
-				last := len(events[other]) - 1
+				last := len(events[other]) - 1 + prev
 				parent := events[other][last]
 				parents.Add(parent.Hash())
 				if ltime < parent.LamportTime {
