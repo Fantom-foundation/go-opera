@@ -2,6 +2,8 @@ package posposet
 
 import (
 	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 // Poset processes events to get consensus.
@@ -80,8 +82,8 @@ func (p *Poset) onNewEvent(e *Event) {
 		return
 	}
 
-	nodes := newParentNodesInspector(e)
-	ltime := newParentLamportTimeInspector(e)
+	nodes := newParentsValidator(e)
+	ltime := newLamportTimeValidator(e)
 
 	// fill event's parents index or hold it as incompleted
 	for hash := range e.Parents {
@@ -141,9 +143,9 @@ func (p *Poset) consensus(e *Event) {
 	}
 	p.setClothoCandidates(e, frame)
 
-	// process matured frames
-	for n := p.state.LastFinishedFrameN + 1; n < frame.Index-1; n++ {
-		if !p.checkIfAtropos(n) {
+	// process matured frames where ClothoCandidates have become Clothos
+	for n := p.state.LastFinishedFrameN + 1; n <= frame.Index-3; n++ {
+		if !p.checkIfAtropos(n, frame.Index) {
 			break
 		}
 	}
@@ -154,39 +156,32 @@ func (p *Poset) consensus(e *Event) {
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) *Frame {
 	//log.Debugf("----- %s", e)
-
-	knownRootsDirect := eventsByFrame{}
-	knownRootsThrough := eventsByFrame{}
+	knownRoots := eventsByFrame{}
+	minFrame := p.state.LastFinishedFrameN
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil {
-				continue
+			if prev := p.store.GetEvent(parent); prev.Creator == e.Creator {
+				minFrame = frame.Index
 			}
 			roots := frame.GetRootsOf(parent)
-			knownRootsDirect.Add(frame.Index, roots)
-			if !isRoot {
+			knownRoots.Add(frame.Index, roots)
+			if !isRoot || frame.Index <= minFrame {
 				continue
 			}
 			frame = p.frame(frame.Index-1, false)
-			if frame == nil {
-				continue
-			}
 			roots = frame.GetRootsOf(parent)
-			knownRootsThrough.Add(frame.Index, roots)
+			knownRoots.Add(frame.Index, roots)
 		} else {
 			roots := rootZero(e.Creator)
-			knownRootsDirect.Add(p.state.LastFinishedFrameN+1, roots)
+			knownRoots.Add(p.state.LastFinishedFrameN+1, roots)
 		}
 	}
-	// use parent's frames only
-	knownRoots := eventsByFrame{}
-	for n, _ := range knownRootsDirect {
-		knownRoots.Add(n, knownRootsDirect[n])
-		knownRoots.Add(n, knownRootsThrough[n])
-	}
-
+	// NOTE: check all frames according to Lachesis examples, not max frame like Swirlds.
 	for _, fnum := range knownRoots.FrameNumsDesc() {
+		if fnum < minFrame {
+			continue
+		}
 		roots := knownRoots[fnum]
 
 		frame := p.frame(fnum, true)
@@ -211,7 +206,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 	// events from previous frame, reachable by root
 	for seen, seenCreator := range prev.FlagTable[root.Hash()].Each() {
 		// seen is CC already
-		if ccs := prev.ClothoCandidates[seenCreator]; ccs != nil && ccs.Contains(seen) {
+		if prev.ClothoCandidates.Contains(seenCreator, seen) {
 			continue
 		}
 		// seen is not root
@@ -221,7 +216,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 		// all roots from frame, reach the seen
 		roots := eventsByNode{}
 		for root, creator := range frame.FlagTable.Roots().Each() {
-			if hashes := prev.FlagTable[root][seenCreator]; hashes != nil && hashes.Contains(seen) {
+			if prev.FlagTable.EventKnows(root, seenCreator, seen) {
 				roots.AddOne(root, creator)
 			}
 		}
@@ -235,15 +230,45 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 
 // checkIfAtropos checks frame for Atropos condition.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfAtropos(n uint64) bool {
-	f := p.frame(n, false)
-	if f == nil {
-		panic("Bad frame index")
+func (p *Poset) checkIfAtropos(frameNum, lastNum uint64) bool {
+	const H = 3
+	frame := p.frame(frameNum, false)
+	//frame.Atropos = make(map[EventHash]Timestamp)
+
+	// check every clotho of frame
+	for clotho, cnode := range frame.ClothoCandidates.Each() {
+		timeOfC := make(map[common.Address]map[EventHash]Timestamp)
+		// for later frames
+		for diff := uint64(1); diff <= (lastNum - frameNum); diff++ {
+			later := p.frame(frameNum+diff, false)
+			for r, n := range later.FlagTable.Roots().Each() {
+				if diff == 1 {
+					if frame.FlagTable.EventKnows(r, cnode, clotho) {
+						if timeOfC[n] == nil {
+							timeOfC[n] = make(map[EventHash]Timestamp)
+						}
+						timeOfC[n][r] = p.store.GetEvent(r).LamportTime
+					}
+				} else {
+					/*s := 0 //the set of root that w can be happened-before with 2n/3 condition c
+					t := p.reselection(eventsByNode{}, clotho)
+					k := 0 // number of root in s having t
+					if diff%H > 0 {
+
+					} else {
+
+					}*/
+				}
+			}
+		}
+
 	}
 
-	// TODO: implement it
+	return false
+}
 
-	return true
+func (p *Poset) reselection(roots eventsByNode, c EventHash) Timestamp {
+	return Timestamp(1)
 }
 
 /*

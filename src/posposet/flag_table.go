@@ -40,6 +40,7 @@ type (
  * FlagTable's methods:
  */
 
+// IsRoot returns true if event is root.
 func (ft FlagTable) IsRoot(event EventHash) bool {
 	if knowns := ft[event]; knowns != nil {
 		for _, events := range knowns {
@@ -51,6 +52,7 @@ func (ft FlagTable) IsRoot(event EventHash) bool {
 	return false
 }
 
+// Roots returns all roots by node.
 func (ft FlagTable) Roots() eventsByNode {
 	roots := eventsByNode{}
 	for event, events := range ft {
@@ -61,6 +63,11 @@ func (ft FlagTable) Roots() eventsByNode {
 		}
 	}
 	return roots
+}
+
+// EventKnows return true if e knows event of node.
+func (ft FlagTable) EventKnows(e EventHash, node common.Address, event EventHash) bool {
+	return ft[e] != nil && ft[e].Contains(node, event)
 }
 
 // EncodeRLP is a specialized encoder to encode index into array.
@@ -115,6 +122,11 @@ func (ee eventsByNode) AddOne(event EventHash, creator common.Address) (changed 
 		changed = true
 	}
 	return
+}
+
+// Contains returns true if event of node is in.
+func (ee eventsByNode) Contains(node common.Address, event EventHash) bool {
+	return ee[node] != nil && ee[node].Contains(event)
 }
 
 // Add unions roots into one.
