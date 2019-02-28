@@ -170,7 +170,7 @@ func ParseEvents(asciiScheme string) (
 			// find creator's parent
 			var (
 				parents = EventHashes{}
-				ltime   uint64
+				ltime   Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]

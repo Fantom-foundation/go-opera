@@ -2,22 +2,43 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
-// Node is a event's author.
-// TODO: move to new src/node/.
-type Node struct {
-	ID     common.Address
-	PubKey common.PublicKey
+/*
+ * Event's parents validator:
+ */
 
-	key *common.PrivateKey
+// parentsValidator checks parent nodes rule.
+type parentsValidator struct {
+	event *Event
+	nodes map[common.Address]struct{}
 }
 
-// NewNode creates Node instance.
-func NewNode(pk common.PublicKey) *Node {
-	return &Node{
-		ID:     crypto.AddressOf(pk),
-		PubKey: pk,
+func newParentsValidator(e *Event) *parentsValidator {
+	return &parentsValidator{
+		event: e,
+		nodes: make(map[common.Address]struct{}, len(e.Parents)),
 	}
+}
+
+func (v *parentsValidator) IsParentUnique(node common.Address) bool {
+	if _, ok := v.nodes[node]; ok {
+		log.Warnf("Event %s has double refer to node %s, so rejected",
+			v.event.Hash().String(),
+			node.String())
+		return false
+	}
+	v.nodes[node] = struct{}{}
+	return true
+
+}
+
+func (v *parentsValidator) HasSelfParent() bool {
+	if _, ok := v.nodes[v.event.Creator]; !ok {
+		log.Warnf("Event %s has no refer to self-node %s, so rejected",
+			v.event.Hash().String(),
+			v.event.Creator.String())
+		return false
+	}
+	return true
 }

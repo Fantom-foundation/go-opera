@@ -10,7 +10,7 @@ import (
 type Event struct {
 	Creator     common.Address
 	Parents     EventHashes
-	LamportTime uint64
+	LamportTime Timestamp
 
 	hash    EventHash            // cache for .Hash()
 	parents map[EventHash]*Event // TODO: move this temporary cache into Poset for root selection purpose
