@@ -12,9 +12,9 @@ import (
 
 func TestFrameSerialization(t *testing.T) {
 	assert := assert.New(t)
-
 	// fake random data
 	nodes, events := GenEventsByNode(4, 10, 3)
+
 	flagTable := FlagTable{}
 	cc := eventsByNode{}
 	for _, node := range nodes {
@@ -28,10 +28,16 @@ func TestFrameSerialization(t *testing.T) {
 		}
 	}
 
+	timestamps := timestampsByEvent{
+		FakeEventHash(): Timestamp(0),
+		FakeEventHash(): Timestamp(rand.Uint64()),
+	}
+
 	f0 := &Frame{
 		Index:            rand.Uint64(),
 		FlagTable:        flagTable,
 		ClothoCandidates: cc,
+		Atroposes:        timestamps,
 		Balances:         common.FakeHash(),
 	}
 	buf, err := rlp.EncodeToBytes(f0)

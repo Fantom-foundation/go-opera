@@ -81,6 +81,7 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: eventsByNode{},
+			Atroposes:        timestampsByEvent{},
 		}
 	}
 

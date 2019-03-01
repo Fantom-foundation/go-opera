@@ -13,6 +13,7 @@ type Frame struct {
 	Index            uint64
 	FlagTable        FlagTable
 	ClothoCandidates eventsByNode
+	Atroposes        timestampsByEvent
 	Balances         common.Hash
 
 	save func()
@@ -33,6 +34,15 @@ func (f *Frame) AddClothoCandidate(event EventHash, creator common.Address) {
 	if f.ClothoCandidates.AddOne(event, creator) {
 		f.save()
 	}
+}
+
+// SetAtropos makes Atropos from Clotho and consensus time.
+func (f *Frame) SetAtropos(clotho EventHash, consensusTime Timestamp) {
+	if t, ok := f.Atroposes[clotho]; ok && t == consensusTime {
+		return
+	}
+	f.Atroposes[clotho] = consensusTime
+	f.save()
 }
 
 // GetRootsOf returns known roots of event. For read only, please.
