@@ -2,8 +2,6 @@ package posposet
 
 import (
 	"sync"
-
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 // Poset processes events to get consensus.
@@ -144,9 +142,9 @@ func (p *Poset) consensus(e *Event) {
 	p.setClothoCandidates(e, frame)
 
 	// process matured frames where ClothoCandidates have become Clothos
-	for n := p.state.LastFinishedFrameN + 1; n <= frame.Index-3; n++ {
-		if !p.checkIfAtropos(n, frame.Index) {
-			break
+	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
+		if p.hasAtropos(n, frame.Index) {
+			p.makeBlock(n)
 		}
 	}
 }
@@ -177,17 +175,15 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 			knownRoots.Add(p.state.LastFinishedFrameN+1, roots)
 		}
 	}
-	// NOTE: check all frames according to Lachesis examples, not max frame like Swirlds.
+
 	for _, fnum := range knownRoots.FrameNumsDesc() {
 		if fnum < minFrame {
 			continue
 		}
 		roots := knownRoots[fnum]
-
 		frame := p.frame(fnum, true)
 		frame.AddRootsOf(e.Hash(), roots)
 		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
-
 		if p.hasMajority(roots) {
 			frame = p.frame(fnum+1, true)
 			frame.AddRootsOf(e.Hash(), rootFrom(e))
@@ -228,47 +224,78 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 	}
 }
 
-// checkIfAtropos checks frame for Atropos condition.
+// hasAtropos checks frame Clothos for Atropos condition.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfAtropos(frameNum, lastNum uint64) bool {
-	const H = 3
+// Algorithm 5 "Atropos Consensus Time Selection" implementation.
+func (p *Poset) hasAtropos(frameNum, lastNum uint64) bool {
+	var has = false
 	frame := p.frame(frameNum, false)
-	//frame.Atropos = make(map[EventHash]Timestamp)
+CLOTHO:
+	for clotho, clothoCreator := range frame.ClothoCandidates.Each() {
+		if _, already := frame.Atroposes[clotho]; already {
+			has = true
+			continue CLOTHO
+		}
 
-	// check every clotho of frame
-	for clotho, cnode := range frame.ClothoCandidates.Each() {
-		timeOfC := make(map[common.Address]map[EventHash]Timestamp)
+		timeOfC := timestampsByEvent{}
+
 		// for later frames
 		for diff := uint64(1); diff <= (lastNum - frameNum); diff++ {
 			later := p.frame(frameNum+diff, false)
-			for r, n := range later.FlagTable.Roots().Each() {
+			for r := range later.FlagTable.Roots().Each() {
 				if diff == 1 {
-					if frame.FlagTable.EventKnows(r, cnode, clotho) {
-						if timeOfC[n] == nil {
-							timeOfC[n] = make(map[EventHash]Timestamp)
-						}
-						timeOfC[n][r] = p.store.GetEvent(r).LamportTime
+					if frame.FlagTable.EventKnows(r, clothoCreator, clotho) {
+						timeOfC[r] = p.store.GetEvent(r).LamportTime
 					}
 				} else {
-					/*s := 0 //the set of root that w can be happened-before with 2n/3 condition c
-					t := p.reselection(eventsByNode{}, clotho)
-					k := 0 // number of root in s having t
-					if diff%H > 0 {
+					// the set of root in prev frame that r can be happened-before with 2n/3 condition
+					prev := p.frame(later.Index-1, false)
+					S := prev.GetRootsOf(r)
+					// time reselection (algorithm 6 "Consensus Time Reselection" implementation)
+					counter := timeCounter{}
+					for r := range S.Each() {
+						if t, ok := timeOfC[r]; ok {
+							counter.Add(t)
+						}
+					}
+					T := counter.MaxMin()
+					// votes for reselected time
+					K := eventsByNode{}
+					for r, n := range S.Each() {
+						if t, ok := timeOfC[r]; ok && t == T {
+							K.AddOne(r, n)
+						}
+					}
 
-					} else {
+					if diff%3 > 0 && p.hasMajority(K) {
+						frame.SetAtropos(clotho, T)
+						has = true
+						continue CLOTHO
+					}
 
-					}*/
+					timeOfC[r] = T
 				}
 			}
 		}
-
 	}
-
-	return false
+	return has
 }
 
-func (p *Poset) reselection(roots eventsByNode, c EventHash) Timestamp {
-	return Timestamp(1)
+func (p *Poset) makeBlock(frameNum uint64) {
+	/*
+		frame := p.frame(frameNum, false)
+
+		// NOTE: actually not every Clotho is Atropos, fix it
+		var orderedAtroposes Events
+		for clotho := range frame.ClothoCandidates.Each() {
+			sortedAtropos = append(atroposes, p.store.GetEvent(clotho))
+		}
+		sort.Sort(orderedAtroposes)
+
+		for _, a := range orderedAtroposes {
+
+		}
+	*/
 }
 
 /*
