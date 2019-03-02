@@ -9,7 +9,7 @@ import (
 func TestPosetRush(t *testing.T) {
 	assert := assert.New(t)
 
-	nodes, eventsByNode := GenEventsByNode(6, 90, 3)
+	nodes, nodesEvents := GenEventsByNode(5, 99, 3)
 	p := FakePoset(nodes)
 
 	t.Run("Multiple start", func(t *testing.T) {
@@ -20,14 +20,14 @@ func TestPosetRush(t *testing.T) {
 
 	t.Run("Unordered event stream", func(t *testing.T) {
 		// push events in reverse order
-		for _, events := range eventsByNode {
+		for _, events := range nodesEvents {
 			for i := len(events) - 1; i >= 0; i-- {
 				e := events[i]
 				p.PushEventSync(*e)
 			}
 		}
 		// check all events are in poset store
-		for _, events := range eventsByNode {
+		for _, events := range nodesEvents {
 			for _, e0 := range events {
 				e1 := p.store.GetEvent(e0.Hash())
 				if !assert.NotNil(e1, "Event is not in poset store") {

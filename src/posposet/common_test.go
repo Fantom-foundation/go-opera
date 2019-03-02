@@ -229,15 +229,25 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 	// init results
 	nodes = make([]common.Address, nodeCount)
 	events = make(map[common.Address][]*Event, nodeCount)
-	// make nodes
+	// make and name nodes
 	for i := 0; i < nodeCount; i++ {
-		nodes[i] = common.FakeAddress()
+		addr := common.FakeAddress()
+		nodes[i] = addr
+		common.NodeNameDict[addr] = "node" + string('A'+i)
 	}
 	// make events
 	for i := 0; i < nodeCount*eventCount; i++ {
-		// make event with random parents
+		// seq parent
+		self := i % nodeCount
 		parents := rand.Perm(nodeCount)
-		creator := nodes[parents[0]]
+		creator := nodes[self]
+		for j, n := range parents {
+			if n == self {
+				parents = append(parents[0:j], parents[j+1:]...)
+				break
+			}
+		}
+		// make
 		e := &Event{
 			Creator: creator,
 			Parents: EventHashes{},
@@ -252,11 +262,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 			e.LamportTime = 1
 		}
 		// other parents are the lasts other's events
-		others := parentCount
-		for _, other := range parents[1:] {
-			if others--; others < 0 {
-				break
-			}
+		for _, other := range parents[1:parentCount] {
 			if ee := events[nodes[other]]; len(ee) > 0 {
 				parent := ee[len(ee)-1]
 				e.Parents.Add(parent.Hash())
@@ -265,7 +271,8 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 				}
 			}
 		}
-		// save event
+		// save and name event
+		EventNameDict[e.Hash()] = fmt.Sprintf("%s%03d", string('a'+self), len(events[creator]))
 		events[creator] = append(events[creator], e)
 	}
 
