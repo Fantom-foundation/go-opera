@@ -22,10 +22,12 @@ func TestEventSerialization(t *testing.T) {
 		e1 := &Event{}
 		err = rlp.DecodeBytes(buf, e1)
 		if !assert.NoError(err) {
-			return
+			break
 		}
 
-		assert.Equal(e0, e1)
+		if !assert.Equal(e0, e1) {
+			break
+		}
 	}
 }
 

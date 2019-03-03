@@ -69,6 +69,7 @@ func (p *Poset) Stop() {
 
 // PushEvent takes event into processing. Event order doesn't matter.
 func (p *Poset) PushEvent(e Event) {
+	e.parents = nil
 	p.newEventsCh <- &e
 }
 
@@ -141,6 +142,8 @@ func (p *Poset) onNewEvent(e *Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *Event) {
+	const X = 10 // TODO: remove this magic number
+
 	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
 		return
@@ -151,7 +154,18 @@ func (p *Poset) consensus(e *Event) {
 	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
 			events := p.topologicalOrdered(n)
+			next := p.frame(frame.Index+X, true) // NOTE: is it frame blank anyway?
+			next.SetBalances(p.applyTransactions(frame.Balances, events))
 			p.makeBlock(n, events)
+
+			p.state.LastFinishedFrameN = n
+			p.saveState()
+			// clean old frames
+			for i := range p.frames {
+				if i+X < p.state.LastFinishedFrameN {
+					delete(p.frames, i)
+				}
+			}
 		}
 	}
 }
@@ -191,7 +205,8 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		frame := p.frame(fnum, true)
 		frame.AddRootsOf(e.Hash(), roots)
 		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
-		if p.hasMajority(roots) {
+		f := p.frame(fnum, false)
+		if p.hasMajority(f, roots) {
 			frame = p.frame(fnum+1, true)
 			frame.AddRootsOf(e.Hash(), rootFrom(e))
 			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
@@ -224,7 +239,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 			}
 		}
 		// check CC-condition
-		if p.hasTrust(roots) {
+		if p.hasTrust(frame, roots) {
 			prev.AddClothoCandidate(seen, seenCreator)
 			//log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
 		}
@@ -274,7 +289,7 @@ CLOTHO:
 						}
 					}
 
-					if diff%3 > 0 && p.hasMajority(K) {
+					if diff%3 > 0 && p.hasMajority(prev, K) {
 						//log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
 						frame.SetAtropos(clotho, T)
 						has = true

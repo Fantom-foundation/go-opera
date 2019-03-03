@@ -72,12 +72,10 @@ func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
 
 	st = &State{
 		LastFinishedFrameN: 0,
-		TotalCap:      0,
+		TotalCap:           0,
 	}
-	genesis, err := state.New(common.Hash{}, s.balances)
-	if err != nil {
-		return err
-	}
+
+	genesis := s.StateDB(common.Hash{})
 	for addr, balance := range balances {
 		genesis.AddBalance(common.Address(addr), balance)
 		st.TotalCap += balance
@@ -87,6 +85,7 @@ func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
 		return fmt.Errorf("Balance shouldn't be zero")
 	}
 
+	var err error
 	st.Genesis, err = genesis.Commit(true)
 	if err != nil {
 		return err
@@ -137,6 +136,15 @@ func (s *Store) SetFrame(f *Frame) {
 func (s *Store) GetFrame(n uint64) *Frame {
 	f, _ := s.get(s.frames, intToKey(n), &Frame{}).(*Frame)
 	return f
+}
+
+// StateDB returns state database.
+func (s *Store) StateDB(from common.Hash) *state.DB {
+	db, err := state.New(from, s.balances)
+	if err != nil {
+		panic(err)
+	}
+	return db
 }
 
 /*

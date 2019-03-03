@@ -14,13 +14,16 @@ import (
 
 // Event is a poset event.
 type Event struct {
-	Creator     common.Address
-	Parents     EventHashes
-	LamportTime Timestamp
+	Index                uint64
+	Creator              common.Address
+	Parents              EventHashes
+	LamportTime          Timestamp
+	InternalTransactions []InternalTransaction
+	ExternalTransactions [][]byte
 
 	hash          EventHash            // cache for .Hash()
 	consensusTime Timestamp            // for internal purpose
-	parents       map[EventHash]*Event // TODO: move this temporary cache into Poset for root selection purpose
+	parents       map[EventHash]*Event // for internal purpose
 }
 
 // Hash calcs hash of event.

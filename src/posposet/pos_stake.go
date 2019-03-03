@@ -27,12 +27,9 @@ func (s *stakeCounter) IsGoalAchieved() bool {
  * Poset's methods:
  */
 
-func (p *Poset) newStakeCounter(goal uint64) *stakeCounter {
-	frame := p.frame(p.state.LastFinishedFrameN, false)
-	db, err := state.New(frame.Balances, p.store.balances)
-	if err != nil {
-		panic(err)
-	}
+func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
+	db := p.store.StateDB(frame.Balances)
+
 	return &stakeCounter{
 		balances: db,
 		amount:   0,
@@ -40,18 +37,18 @@ func (p *Poset) newStakeCounter(goal uint64) *stakeCounter {
 	}
 }
 
-func (p *Poset) hasMajority(roots eventsByNode) bool {
-	stake := p.newStakeCounter(
-		p.state.TotalCap * 2 / 3)
+func (p *Poset) hasMajority(frame *Frame, roots eventsByNode) bool {
+	stake := p.newStakeCounter(frame,
+		p.state.TotalCap*2/3)
 	for node := range roots {
 		stake.Count(node)
 	}
 	return stake.IsGoalAchieved()
 }
 
-func (p *Poset) hasTrust(roots eventsByNode) bool {
-	stake := p.newStakeCounter(
-		p.state.TotalCap * 1 / 3)
+func (p *Poset) hasTrust(frame *Frame, roots eventsByNode) bool {
+	stake := p.newStakeCounter(frame,
+		p.state.TotalCap*1/3)
 	for node := range roots {
 		stake.Count(node)
 	}

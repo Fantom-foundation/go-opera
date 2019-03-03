@@ -60,7 +60,7 @@ func (p *Poset) FrameOfEvent(event EventHash) (frame *Frame, isRoot bool) {
 
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
-	if n < p.state.LastFinishedFrameN {
+	if n < p.state.LastFinishedFrameN && orCreate {
 		panic(fmt.Errorf("Too old frame%d is requested", n))
 	}
 	// return ephemeral
@@ -82,11 +82,12 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			FlagTable:        FlagTable{},
 			ClothoCandidates: eventsByNode{},
 			Atroposes:        timestampsByEvent{},
+			Balances:         p.frame(n-1, true).Balances,
 		}
+		f.save = p.saveFuncForFrame(f)
+		p.frames[n] = f
+		f.save()
 	}
-
-	f.save = p.saveFuncForFrame(f)
-	p.frames[n] = f
 
 	return f
 }
