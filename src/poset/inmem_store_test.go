@@ -97,17 +97,6 @@ func TestInmemEvents(t *testing.T) {
 		}
 	})
 
-	t.Run("Check KnownEvents", func(t *testing.T) {
-		expectedKnown := make(map[uint64]int64)
-		for _, p := range participants {
-			expectedKnown[p.id] = testSize - 1
-		}
-		known := store.KnownEvents()
-		if !reflect.DeepEqual(expectedKnown, known) {
-			t.Fatalf("Incorrect Known. Got %#v, expected %#v", known, expectedKnown)
-		}
-	})
-
 	t.Run("Add ConsensusEvents", func(t *testing.T) {
 		for _, p := range participants {
 			evs := events[p.hex]
@@ -196,8 +185,12 @@ func TestInmemBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block.SetSignature(sig1)
-	block.SetSignature(sig2)
+	if err := block.SetSignature(sig1); err != nil {
+		t.Fatal(err)
+	}
+	if err := block.SetSignature(sig2); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Store Block", func(t *testing.T) {
 		if err := store.SetBlock(block); err != nil {

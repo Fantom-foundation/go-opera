@@ -29,13 +29,15 @@ func NewLocal(logger *logrus.Logger, logLevel string) {
 		h.logshold = [6]int64{-1, -1, -1, -1, -1, -1}
 		logstr := os.Getenv("logshold")
 		if len(logstr) > 0 {
-			fmt.Sscanf(logstr, "%d,%d,%d,%d,%d,%d",
+			if _, err := fmt.Sscanf(logstr, "%d,%d,%d,%d,%d,%d",
 				&h.logshold[logrus.DebugLevel],
 				&h.logshold[logrus.InfoLevel],
 				&h.logshold[logrus.WarnLevel],
 				&h.logshold[logrus.ErrorLevel],
 				&h.logshold[logrus.FatalLevel],
-				&h.logshold[logrus.PanicLevel])
+				&h.logshold[logrus.PanicLevel]); err != nil {
+				logger.Fatal(err)
+			}
 		}
 		logger.Hooks.Add(h)
 	}
@@ -95,7 +97,7 @@ func (t *Hook) Fire(e *logrus.Entry) error {
 	case logrus.ErrorLevel:
 		buf := make([]byte, 1<<16)
 		stackSize := runtime.Stack(buf, false)
-		e.Data["z_trace"] = fmt.Sprintf(string(buf[0:stackSize]))
+		e.Data["z_trace"] = fmt.Sprint(string(buf[0:stackSize]))
 		fallthrough
 	default:
 		t.stat[e.Level]++

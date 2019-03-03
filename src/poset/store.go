@@ -14,16 +14,14 @@ type Store interface {
 	TopologicalEvents() ([]Event, error) // returns event in topological order
 	CacheSize() int
 	Participants() (*peers.Peers, error)
-	RepertoireByPubKey() map[string]*peers.Peer
-	RepertoireByID() map[uint64]*peers.Peer
-	RootsBySelfParent() (map[EventHash]Root, error)
+	RootsBySelfParent() map[EventHash]Root
+	RootsByParticipant() map[string]Root
 	GetEventBlock(EventHash) (Event, error)
 	SetEvent(Event) error
 	ParticipantEvents(string, int64) (EventHashes, error)
 	ParticipantEvent(string, int64) (EventHash, error)
 	LastEventFrom(string) (EventHash, bool, error)
 	LastConsensusEventFrom(string) (EventHash, bool, error)
-	KnownEvents() map[uint64]int64
 	ConsensusEvents() EventHashes
 	ConsensusEventsCount() int64
 	AddConsensusEvent(Event) error
@@ -42,7 +40,7 @@ type Store interface {
 	SetFrame(Frame) error
 	Reset(map[string]Root) error
 	Close() error
-	NeedBoostrap() bool // Was the store loaded from existing db
+	NeedBootstrap() bool // Was the store loaded from existing db
 	StorePath() string
 	// StateDB returns state database
 	StateDB() state.Database

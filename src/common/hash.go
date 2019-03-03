@@ -68,7 +68,9 @@ func (h Hash) ShortString() string {
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
 // without going through the stringer interface used for logging.
 func (h Hash) Format(s fmt.State, c rune) {
-	fmt.Fprintf(s, "%"+string(c), h[:])
+	if _, err := fmt.Fprintf(s, "%"+string(c), h[:]); err != nil {
+		panic(err)
+	}
 }
 
 // UnmarshalText parses a hash in hex syntax.

@@ -1,3 +1,5 @@
+export GO?=go
+
 SUBDIRS := internal/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
@@ -16,4 +18,4 @@ $(SUBDIR_TARGETS) :
 	@$(MAKE) -C $(@D) $(@F:.%=%)
 
 test:
-	go test -race -timeout 45s
+	$(GO) test -race -cover -timeout 45s

@@ -187,7 +187,7 @@ func (re *RoundEvent) Equals(that *RoundEvent) bool {
 		re.RoundReceived == that.RoundReceived
 }
 
-// EqualsMapStringRoundEvent compares a map string of round eventss for equality
+// EqualsMapStringRoundEvent compares a map string of round events for equality
 func EqualsMapStringRoundEvent(this map[string]*RoundEvent, that map[string]*RoundEvent) bool {
 	if len(this) != len(that) {
 		return false

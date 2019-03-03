@@ -31,6 +31,6 @@ func (a *testLoggerAdapter) Write(d []byte) (int, error) {
 func NewTestLogger(t testing.TB) *logrus.Logger {
 	logger := logrus.New()
 	logger.Out = &testLoggerAdapter{t: t}
-	logger.Level = logrus.FatalLevel
+	logger.Level = logrus.DebugLevel
 	return logger
 }

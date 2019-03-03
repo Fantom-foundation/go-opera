@@ -10,8 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
-	"github.com/Fantom-foundation/go-lachesis/src/net/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 )
 
 var logger logrus.FieldLogger
@@ -44,7 +43,7 @@ func TestPeerClient(t *testing.T) {
 			}
 		}()
 
-		resp := &lnet.SyncResponse{}
+		resp := &peer.SyncResponse{}
 		if err := tr.Sync(
 			ctx, target, expSyncRequest, resp); err != nil {
 			t.Fatal(err)
@@ -71,7 +70,7 @@ func TestPeerClient(t *testing.T) {
 			}
 		}()
 
-		resp := &lnet.EagerSyncResponse{}
+		resp := &peer.ForceSyncResponse{}
 		if err := tr.ForceSync(
 			ctx, target, expEagerSyncRequest, resp); err != nil {
 			t.Fatal(err)
@@ -100,7 +99,7 @@ func TestPeerClient(t *testing.T) {
 			}
 		}()
 
-		resp := &lnet.FastForwardResponse{}
+		resp := &peer.FastForwardResponse{}
 		if err := tr.FastForward(
 			ctx, target, expFastForwardRequest, resp); err != nil {
 			t.Fatal(err)
@@ -130,7 +129,7 @@ func TestPeerClose(t *testing.T) {
 
 	runClient := func(cli, srv *node, errorIsNil bool) {
 		req := expSyncRequest
-		resp := &lnet.SyncResponse{}
+		resp := &peer.SyncResponse{}
 		err := cli.transport.Sync(context.Background(),
 			srv.address, req, resp)
 		if errorIsNil && err != nil {

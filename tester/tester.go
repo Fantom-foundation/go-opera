@@ -57,7 +57,9 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	}
 
 	for _, lachesisProxy := range proxies {
-		lachesisProxy.Close()
+		if err := lachesisProxy.Close(); err != nil {
+			logger.Fatal(err)
+		}
 	}
 	fmt.Println("Pinging stopped after ", n, " iterations")
 }

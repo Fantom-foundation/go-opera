@@ -3,12 +3,12 @@
 set -euo pipefail
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
-declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-declare -r parent_dir="${DIR%/*}"
-declare -r gparent_dir="${parent_dir%/*}"
+declare -xr DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -xr parent_dir="${DIR%/*}"
+declare -xr gparent_dir="${parent_dir%/*}"
 
 . "$DIR/set_globals.bash"
-"$DIR/docker/clean.bash"
+. "$DIR/clean_dirs.bash"
 . "$DIR/ncpus.bash"
 
 # Config
@@ -52,7 +52,8 @@ env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args"
 
 # Create peers.json and lachesis_data_dir if needed
 if [ ! -d "$DATAL_DIR/lachesis_data_dir" ]; then
-    "$GOPATH/bin/batch-ethkey" -dir "$BUILD_DIR/nodes" -network "$ip_start" -inc-port -n "$n" > "$PEERS_DIR/peers.json"
+    "$GOPATH/bin/batch-ethkey" -dir "$BUILD_DIR/nodes" -network "$ip_start" -inc-port -n "$n" --port-start 12001
+    cat "$BUILD_DIR/nodes/peers.json"> "$PEERS_DIR/peers.json"
     cat "$PEERS_DIR/peers.json"
     cp -rv "$BUILD_DIR/nodes" "$DATAL_DIR/lachesis_data_dir"
     cp -v "$PEERS_DIR/peers.json" "$DATAL_DIR/lachesis_data_dir/"

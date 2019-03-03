@@ -70,6 +70,10 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 			panic(err)
 		}
 
+		if peer, ok := peers.ReadByPubKey(event.Creator()); !ok {
+			panic(fmt.Sprintf("Creator %v not found", event.Creator()))
+		}
+
 		hash := event.Hex()
 
 		liteEvent := EventLite{
@@ -78,7 +82,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 			Message: EventMessageLite{
 				Body: EventBodyLite{
 					Parents:      event.Message.Body.Parents,
-					Creator:      peers.ByPubKey[event.Creator()].NetAddr,
+					Creator:      peer.NetAddr,
 					Index:        event.Message.Body.Index,
 					Transactions: event.Message.Body.Transactions,
 				},

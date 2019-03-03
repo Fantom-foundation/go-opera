@@ -11,7 +11,7 @@ type Infos struct {
 	Blocks            []poset.Block
 }
 
-// Graph stuct to represent the DAG
+// Graph struct to represent the DAG
 type Graph struct {
 	*Node
 }
@@ -42,8 +42,8 @@ func (g *Graph) GetParticipantEvents() map[string]map[poset.EventHash]poset.Even
 	res := make(map[string]map[poset.EventHash]poset.Event)
 
 	store := g.Node.core.poset.Store
-	repertoire := g.Node.core.poset.Store.RepertoireByPubKey()
-	known := store.KnownEvents()
+	repertoire := g.Node.core.poset.Participants.ToPeerSlice()
+	known := g.Node.core.KnownEvents()
 	for _, p := range repertoire {
 		root, err := store.GetRoot(p.PubKeyHex)
 

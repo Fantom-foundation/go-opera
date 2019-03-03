@@ -19,9 +19,13 @@ func NewPeer(pubKeyHex, netAddr string) *Peer {
 		PubKeyHex: pubKeyHex,
 		NetAddr:   netAddr,
 		Used:      0,
+		Height:    -1,
+		InDegree:  0,
 	}
 
-	peer.computeID()
+	if err := peer.computeID(); err != nil {
+		panic(err)
+	}
 
 	return peer
 }

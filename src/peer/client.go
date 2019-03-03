@@ -5,8 +5,6 @@ import (
 	"net"
 	"net/rpc"
 	"time"
-
-	lnet "github.com/Fantom-foundation/go-lachesis/src/net"
 )
 
 // CreateSyncClientFunc is a function to create a sync client.
@@ -27,11 +25,11 @@ type RPCClient interface {
 // SyncClient is an interface representing methods for sync client.
 type SyncClient interface {
 	Sync(ctx context.Context,
-		req *lnet.SyncRequest, resp *lnet.SyncResponse) error
+		req *SyncRequest, resp *SyncResponse) error
 	ForceSync(ctx context.Context,
-		req *lnet.EagerSyncRequest, resp *lnet.EagerSyncResponse) error
+		req *ForceSyncRequest, resp *ForceSyncResponse) error
 	FastForward(ctx context.Context,
-		req *lnet.FastForwardRequest, resp *lnet.FastForwardResponse) error
+		req *FastForwardRequest, resp *FastForwardResponse) error
 	Close() error
 }
 
@@ -59,19 +57,19 @@ func NewClient(rpcClient RPCClient) (*Client, error) {
 
 // Sync sends a sync request.
 func (c *Client) Sync(ctx context.Context,
-	req *lnet.SyncRequest, resp *lnet.SyncResponse) error {
+	req *SyncRequest, resp *SyncResponse) error {
 	return c.call(ctx, MethodSync, req, resp, nil)
 }
 
 // ForceSync sends a force sync request.
 func (c *Client) ForceSync(ctx context.Context,
-	req *lnet.EagerSyncRequest, resp *lnet.EagerSyncResponse) error {
+	req *ForceSyncRequest, resp *ForceSyncResponse) error {
 	return c.call(ctx, MethodForceSync, req, resp, nil)
 }
 
 // FastForward sends a fast forward request.
 func (c *Client) FastForward(ctx context.Context,
-	req *lnet.FastForwardRequest, resp *lnet.FastForwardResponse) error {
+	req *FastForwardRequest, resp *FastForwardResponse) error {
 	return c.call(ctx, MethodFastForward, req, resp, nil)
 }
 

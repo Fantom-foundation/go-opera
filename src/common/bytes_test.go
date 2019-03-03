@@ -8,16 +8,16 @@ import (
 )
 
 func TestCopyBytes(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	data1 := []byte{1, 2, 3, 4}
 	exp1 := []byte{1, 2, 3, 4}
 	res1 := CopyBytes(data1)
-	assert.EqualValues(res1, exp1)
+	assertO.EqualValues(res1, exp1)
 }
 
 func TestLeftPadBytes(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	val1 := []byte{1, 2, 3, 4}
 	exp1 := []byte{0, 0, 0, 0, 1, 2, 3, 4}
@@ -25,12 +25,12 @@ func TestLeftPadBytes(t *testing.T) {
 	res1 := LeftPadBytes(val1, 8)
 	res2 := LeftPadBytes(val1, 2)
 
-	assert.EqualValues(res1, exp1)
-	assert.EqualValues(res2, val1)
+	assertO.EqualValues(res1, exp1)
+	assertO.EqualValues(res2, val1)
 }
 
 func TestRightPadBytes(t *testing.T) {
-	assert := assert.New(t)
+	assertO := assert.New(t)
 
 	val := []byte{1, 2, 3, 4}
 	exp := []byte{1, 2, 3, 4, 0, 0, 0, 0}
@@ -38,8 +38,8 @@ func TestRightPadBytes(t *testing.T) {
 	resstd := RightPadBytes(val, 8)
 	resshrt := RightPadBytes(val, 2)
 
-	assert.EqualValues(resstd, exp)
-	assert.EqualValues(resshrt, val)
+	assertO.EqualValues(resstd, exp)
+	assertO.EqualValues(resshrt, val)
 }
 
 func TestFromHex(t *testing.T) {

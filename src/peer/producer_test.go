@@ -6,8 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/net"
-	"github.com/Fantom-foundation/go-lachesis/src/net/peer"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 )
 
 func TestProducer(t *testing.T) {
@@ -30,7 +29,7 @@ func TestProducer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp := &net.SyncResponse{}
+	resp := &peer.SyncResponse{}
 	if err := cli.Sync(ctx, expSyncRequest, resp); err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +51,7 @@ func TestProducer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp = &net.SyncResponse{}
+	resp = &peer.SyncResponse{}
 	if err := cli.Sync(ctx, expSyncRequest, resp); err != nil {
 		t.Fatal(err)
 	}

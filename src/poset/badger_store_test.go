@@ -3,7 +3,6 @@ package poset
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"reflect"
 	"testing"
@@ -26,11 +25,15 @@ func initBadgerStore(cacheSize int, t *testing.T) (*BadgerStore, []pub) {
 			pub{peer.ID, key, pubKey, peer.PubKeyHex})
 	}
 
-	os.RemoveAll("test_data")
-	os.Mkdir("test_data", os.ModeDir|0777)
+	if err := os.RemoveAll("test_data"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir("test_data", os.ModeDir|0777); err != nil {
+		t.Fatal(err)
+	}
 	dir, err := ioutil.TempDir("test_data", "badger")
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 
 	store, err := NewBadgerStore(participants, cacheSize, dir, nil)
@@ -68,12 +71,20 @@ func createTestDB(dir string, t *testing.T) *BadgerStore {
 }
 
 func TestNewBadgerStore(t *testing.T) {
-	os.RemoveAll("test_data")
-	os.Mkdir("test_data", os.ModeDir|0777)
+	if err := os.RemoveAll("test_data"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir("test_data", os.ModeDir|0777); err != nil {
+		t.Fatal(err)
+	}
 
 	dbPath := "test_data/badger"
 	store := createTestDB(dbPath, t)
-	defer os.RemoveAll(store.path)
+	defer func() {
+		if err := os.RemoveAll(store.path); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if store.path != dbPath {
 		t.Fatalf("unexpected path %q", store.path)
@@ -105,14 +116,24 @@ func TestNewBadgerStore(t *testing.T) {
 }
 
 func TestLoadBadgerStore(t *testing.T) {
-	os.RemoveAll("test_data")
-	os.Mkdir("test_data", os.ModeDir|0777)
+	if err := os.RemoveAll("test_data"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir("test_data", os.ModeDir|0777); err != nil {
+		t.Fatal(err)
+	}
 	dbPath := "test_data/badger"
 
 	// Create the test db
 	tempStore := createTestDB(dbPath, t)
-	defer os.RemoveAll(tempStore.path)
-	tempStore.Close()
+	defer func() {
+		if err := os.RemoveAll(tempStore.path); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := tempStore.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	badgerStore, err := LoadBadgerStore(cacheSize, tempStore.path)
 	if err != nil {
@@ -134,8 +155,10 @@ func TestLoadBadgerStore(t *testing.T) {
 			badgerStore.participants.Len())
 	}
 
+	dbParticipants.RLock()
+	defer dbParticipants.RUnlock()
 	for dbP, dbPeer := range dbParticipants.ByPubKey {
-		peer, ok := badgerStore.participants.ByPubKey[dbP]
+		peer, ok := badgerStore.participants.ReadByPubKey(dbP)
 		if !ok {
 			t.Fatalf("BadgerStore participants does not contains %s", dbP)
 		}
@@ -169,7 +192,9 @@ func TestDBEventMethods(t *testing.T) {
 				make(EventHashes, 2),
 				p.pubKey,
 				k, nil)
-			event.Sign(p.privKey)
+			if err := event.Sign(p.privKey); err != nil {
+				t.Fatal(err)
+			}
 			event.Message.TopologicalIndex = topologicalIndex
 			topologicalIndex++
 			topologicalEvents = append(topologicalEvents, event)
@@ -313,8 +338,10 @@ func TestDBParticipantMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	store.participants.RLock()
+	defer store.participants.RUnlock()
 	for p, peer := range store.participants.ByPubKey {
-		dbPeer, ok := participantsFromDB.ByPubKey[p]
+		dbPeer, ok := participantsFromDB.ReadByPubKey(p)
 		if !ok {
 			t.Fatalf("DB does not contain participant %s", p)
 		}
@@ -352,8 +379,12 @@ func TestDBBlockMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block.SetSignature(sig1)
-	block.SetSignature(sig2)
+	if err := block.SetSignature(sig1); err != nil {
+		t.Fatal(err)
+	}
+	if err := block.SetSignature(sig2); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Store Block", func(t *testing.T) {
 		if err := store.dbSetBlock(block); err != nil {
@@ -409,7 +440,9 @@ func TestDBFrameMethods(t *testing.T) {
 			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
-		event.Sign(p.privKey)
+		if err := event.Sign(p.privKey); err != nil {
+			t.Fatal(err)
+		}
 		events[id] = event.Message
 
 		root := NewBaseRoot(uint64(id))
@@ -469,7 +502,7 @@ func TestBadgerEvents(t *testing.T) {
 		events[p.hex] = items
 	}
 
-	// check that events were correclty inserted
+	// check that events were correctly inserted
 	for p, evs := range events {
 		for k, ev := range evs {
 			rev, err := store.GetEventBlock(ev.Hash())
@@ -517,15 +550,6 @@ func TestBadgerEvents(t *testing.T) {
 		if last != expectedLast {
 			t.Fatalf("%s last should be %s, not %s", p.hex, expectedLast.String(), last.String())
 		}
-	}
-
-	expectedKnown := make(map[uint64]int64)
-	for _, p := range participants {
-		expectedKnown[p.id] = testSize - 1
-	}
-	known := store.KnownEvents()
-	if !reflect.DeepEqual(expectedKnown, known) {
-		t.Fatalf("Incorrect Known. Got %#v, expected %#v", known, expectedKnown)
 	}
 
 	for _, p := range participants {
@@ -613,8 +637,12 @@ func TestBadgerBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	block.SetSignature(sig1)
-	block.SetSignature(sig2)
+	if err := block.SetSignature(sig1); err != nil {
+		t.Fatal(err)
+	}
+	if err := block.SetSignature(sig2); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Store Block", func(t *testing.T) {
 		if err := store.SetBlock(block); err != nil {
@@ -670,7 +698,9 @@ func TestBadgerFrames(t *testing.T) {
 			make(EventHashes, 2),
 			p.pubKey,
 			0, nil)
-		event.Sign(p.privKey)
+		if err := event.Sign(p.privKey); err != nil {
+			t.Fatal(err)
+		}
 		events[id] = event.Message
 
 		root := NewBaseRoot(uint64(id))

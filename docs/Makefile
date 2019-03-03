@@ -2,8 +2,8 @@
 #
 
 # You can set these variables from the command line.
-SPHINXOPTS    =
-SPHINXBUILD   = python -msphinx
+SPHINXOPTS    ?=
+SPHINXBUILD   ?= python -msphinx
 SPHINXPROJ    = Lachesis
 SOURCEDIR     = .
 BUILDDIR      = _build

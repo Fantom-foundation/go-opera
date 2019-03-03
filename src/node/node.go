@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/net"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
@@ -32,11 +33,8 @@ type Node struct {
 	localAddr string
 
 	peerSelector PeerSelector
-	selectorLock sync.Mutex
 
-	trans net.Transport
-	netCh <-chan *net.RPC
-
+	trans peer.SyncPeer
 	proxy proxy.AppProxy
 
 	submitCh         chan []byte
@@ -62,31 +60,32 @@ func NewNode(conf *Config,
 	key *ecdsa.PrivateKey,
 	participants *peers.Peers,
 	store poset.Store,
-	trans net.Transport,
-	proxy proxy.AppProxy) *Node {
-
-	localAddr := trans.LocalAddr()
-
-	pmap, _ := store.Participants()
+	trans peer.SyncPeer,
+	proxy proxy.AppProxy,
+	selectorInitFunc SelectorCreationFn,
+	selectorInitArgs SelectorCreationFnArgs,
+	localAddr string) *Node {
 
 	commitCh := make(chan poset.Block, 400)
-	core := NewCore(id, key, pmap, store, commitCh, conf.Logger)
+	core := NewCore(id, key, participants, store, commitCh, conf.Logger)
 
 	pubKey := core.HexID()
 
-	// peerSelector := NewRandomPeerSelector(participants, localAddr)
-	peerSelector := NewSmartPeerSelector(participants, pubKey,
-		core.poset.GetPeerFlagTableOfRandomUndeterminedEvent)
+	if args, ok := selectorInitArgs.(SmartPeerSelectorCreationFnArgs); ok {
+		args.GetFlagTable = core.poset.GetPeerFlagTableOfRandomUndeterminedEvent
+		args.LocalAddr = localAddr
+		selectorInitArgs = args
+	}
+
+	peerSelector := selectorInitFunc(participants, selectorInitArgs)
 
 	node := Node{
 		id:               id,
 		conf:             conf,
 		core:             core,
-		localAddr:        localAddr,
 		logger:           conf.Logger.WithField("this_id", id),
 		peerSelector:     peerSelector,
 		trans:            trans,
-		netCh:            trans.Consumer(),
 		proxy:            proxy,
 		submitCh:         proxy.SubmitCh(),
 		submitInternalCh: proxy.SubmitInternalCh(),
@@ -102,10 +101,10 @@ func NewNode(conf *Config,
 
 	signal.Notify(node.signalTERMch, syscall.SIGTERM, os.Kill)
 
-	node.logger.WithField("peers", pmap).Debug("pmap")
+	node.logger.WithField("participants", participants).Debug("participants")
 	node.logger.WithField("pubKey", pubKey).Debug("pubKey")
 
-	node.needBoostrap = store.NeedBoostrap()
+	node.needBoostrap = store.NeedBootstrap()
 
 	// Initialize
 	node.setState(Gossiping)
@@ -129,7 +128,7 @@ func (n *Node) Init() error {
 	}
 	n.Register()
 
-	return n.core.SetHeadAndSeq()
+	return n.core.SetHeadAndHeight()
 }
 
 // RunAsync run the background processes asynchronously
@@ -156,13 +155,15 @@ func (n *Node) Run(gossip bool) {
 	for {
 		// Run different routines depending on node state
 		state := n.getState()
-		n.logger.WithField("state", state.String()).Debug("RunAsync(gossip bool)")
+		n.logger.WithField("state", state.String()).Debug("Run(gossip bool)")
 
 		switch state {
 		case Gossiping:
 			n.lachesis(gossip)
 		case CatchingUp:
-			n.fastForward()
+			if err := n.fastForward(); err != nil {
+				n.logger.WithField("state", "fastForward").WithError(err).Debug("Run(gossip bool)")
+			}
 		case Stop:
 			// do nothing in Stop state
 		case Shutdown:
@@ -223,7 +224,10 @@ func (n *Node) lachesis(gossip bool) {
 	returnCh := make(chan struct{}, 100)
 	for {
 		select {
-		case rpc := <-n.netCh:
+		case rpc, ok := <-n.trans.ReceiverChannel():
+			if !ok {
+				return
+			}
 			n.goFunc(func() {
 				n.rpcJobs.increment()
 				n.logger.Debug("Processing RPC")
@@ -232,18 +236,17 @@ func (n *Node) lachesis(gossip bool) {
 				n.rpcJobs.decrement()
 			})
 		case <-n.controlTimer.tickCh:
+			n.logStats()
 			if gossip && n.gossipJobs.get() < 1 {
-				n.selectorLock.Lock()
-				peerAddr := n.peerSelector.Next().NetAddr
-				n.selectorLock.Unlock()
 				n.goFunc(func() {
 					n.gossipJobs.increment()
-					n.gossip(peerAddr, returnCh)
+					if err := n.gossip(returnCh); err != nil {
+						n.logger.WithError(err).Debug("node::lachesis(bool)::n.controlTimer.tickCh")
+					}
 					n.gossipJobs.decrement()
 				})
 				n.logger.Debug("Gossip")
 			}
-			n.logStats()
 			n.resetTimer()
 		case <-returnCh:
 			return
@@ -253,27 +256,31 @@ func (n *Node) lachesis(gossip bool) {
 	}
 }
 
-func (n *Node) processRPC(rpc *net.RPC) {
+func (n *Node) processRPC(rpc *peer.RPC) {
+	logger := n.logger.WithFields(logrus.Fields{"method": "processRPC",
+		"cmd": rpc.Command})
 	switch cmd := rpc.Command.(type) {
-	case *net.SyncRequest:
+	case *peer.SyncRequest:
 		n.processSyncRequest(rpc, cmd)
-	case *net.EagerSyncRequest:
+	case *peer.ForceSyncRequest:
 		n.processEagerSyncRequest(rpc, cmd)
-	case *net.FastForwardRequest:
+	case *peer.FastForwardRequest:
 		n.processFastForwardRequest(rpc, cmd)
 	default:
-		n.logger.WithField("cmd", rpc.Command).Error("Unexpected RPC command")
-		rpc.Respond(nil, fmt.Errorf("unexpected command"))
+		logger.Warn("unexpected RPC command")
+		// TODO: context.Background
+		rpc.SendResult(context.Background(), n.logger,
+			nil, fmt.Errorf("unexpected command"))
 	}
 }
 
-func (n *Node) processSyncRequest(rpc *net.RPC, cmd *net.SyncRequest) {
+func (n *Node) processSyncRequest(rpc *peer.RPC, cmd *peer.SyncRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from_id": cmd.FromID,
 		"known":   cmd.Known,
 	}).Debug("processSyncRequest(rpc net.RPC, cmd *net.SyncRequest)")
 
-	resp := &net.SyncResponse{
+	resp := &peer.SyncResponse{
 		FromID: n.id,
 	}
 	var respErr error
@@ -321,37 +328,52 @@ func (n *Node) processSyncRequest(rpc *net.RPC, cmd *net.SyncRequest) {
 		"error":      respErr,
 	}).Debug("SyncRequest Received")
 
-	rpc.Respond(resp, respErr)
+	// TODO: context.Background
+	rpc.SendResult(context.Background(), n.logger, resp, respErr)
 }
 
-func (n *Node) processEagerSyncRequest(rpc *net.RPC, cmd *net.EagerSyncRequest) {
-	n.logger.WithFields(logrus.Fields{
-		"from_id": cmd.FromID,
-		"events":  len(cmd.Events),
-	}).Debug("processEagerSyncRequest(rpc net.RPC, cmd *net.EagerSyncRequest)")
-
+func (n *Node) processEagerSyncRequest(rpc *peer.RPC, cmd *peer.ForceSyncRequest) {
 	success := true
-	n.coreLock.Lock()
-	err := n.sync(cmd.Events)
-	n.coreLock.Unlock()
+	participants, err := n.GetParticipants()
 	if err != nil {
 		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
+	p, ok := participants.ReadByID(cmd.FromID)
+	if !ok {
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
+		success = false
+	}
+	n.logger.WithFields(logrus.Fields{
+		"from":    p.NetAddr,
+		"from_id": cmd.FromID,
+		"events":  len(cmd.Events),
+	}).Debug("processEagerSyncRequest(rpc net.RPC, cmd *net.ForceSyncRequest)")
 
-	resp := &net.EagerSyncResponse{
+
+	resp := &peer.ForceSyncResponse{
 		FromID:  n.id,
 		Success: success,
 	}
-	rpc.Respond(resp, err)
+	// TODO: context.Background
+	rpc.SendResult(context.Background(), n.logger, resp, nil)
+
+	n.coreLock.Lock()
+	err = n.sync(&p, cmd.Events)
+	n.coreLock.Unlock()
+
+	if err != nil {
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
+		success = false
+	}
 }
 
-func (n *Node) processFastForwardRequest(rpc *net.RPC, cmd *net.FastForwardRequest) {
+func (n *Node) processFastForwardRequest(rpc *peer.RPC, cmd *peer.FastForwardRequest) {
 	n.logger.WithFields(logrus.Fields{
 		"from": cmd.FromID,
 	}).Debug("processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest)")
 
-	resp := &net.FastForwardResponse{
+	resp := &peer.FastForwardResponse{
 		FromID: n.id,
 	}
 	var respErr error
@@ -380,43 +402,47 @@ func (n *Node) processFastForwardRequest(rpc *net.RPC, cmd *net.FastForwardReque
 		"Events": len(resp.Frame.Events),
 		"Error":  respErr,
 	}).Debug("FastForwardRequest Received")
-	rpc.Respond(resp, respErr)
+	// TODO: context.Background
+	rpc.SendResult(context.Background(), n.logger, resp, respErr)
 }
 
 // This function is usually called in a go-routine and needs to inform the
 // calling routine (usually the lachesis routine) when it is time to exit the
 // Gossiping state and return.
-func (n *Node) gossip(peerAddr string, parentReturnCh chan struct{}) error {
+func (n *Node) gossip(parentReturnCh chan struct{}) error {
+
+	peer := n.peerSelector.Next()
+	if peer == nil {
+		return fmt.Errorf("can't select next peer")
+	}
 
 	// pull
-	syncLimit, otherKnownEvents, err := n.pull(peerAddr)
+	syncLimit, otherKnownEvents, err := n.pull(peer)
 	if err != nil {
 		return err
 	}
 
 	// check and handle syncLimit
 	if syncLimit {
-		n.logger.WithField("from", peerAddr).Debug("SyncLimit")
+		n.logger.WithField("from", peer.NetAddr).Debug("SyncLimit")
 		n.setState(CatchingUp)
 		parentReturnCh <- struct{}{}
 		return nil
 	}
 
 	// push
-	err = n.push(peerAddr, otherKnownEvents)
+	err = n.push(peer.NetAddr, otherKnownEvents)
 	if err != nil {
 		return err
 	}
 
 	// update peer selector
-	n.selectorLock.Lock()
-	n.peerSelector.UpdateLast(peerAddr)
-	n.selectorLock.Unlock()
+	n.peerSelector.UpdateLast(peer.NetAddr)
 
 	return nil
 }
 
-func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[uint64]int64, err error) {
+func (n *Node) pull(peer *peers.Peer) (syncLimit bool, otherKnownEvents map[uint64]int64, err error) {
 	// Compute Known
 	n.coreLock.Lock()
 	knownEvents := n.core.KnownEvents()
@@ -424,15 +450,15 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[uint6
 
 	// Send SyncRequest
 	start := time.Now()
-	resp, err := n.requestSync(peerAddr, knownEvents)
+	resp, err := n.requestSync(peer.NetAddr, knownEvents)
 	elapsed := time.Since(start)
-	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestSync(peerAddr, knownEvents)")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestSync(peer.NetAddr, knownEvents)")
 	// FIXIT: should we catch io.EOF error here and how we process it?
 	// 	if err == io.EOF {
 	// 		return false, nil, nil
 	// 	}
 	if err != nil {
-		n.logger.WithField("Error", err).Error("n.requestSync(peerAddr, knownEvents)")
+		n.logger.WithField("Error", err).Error("n.requestSync(peer.NetAddr, knownEvents)")
 		return resp.SyncLimit, nil, err
 	}
 	n.logger.WithFields(logrus.Fields{
@@ -449,10 +475,10 @@ func (n *Node) pull(peerAddr string) (syncLimit bool, otherKnownEvents map[uint6
 
 	// Add Events to poset and create new Head if necessary
 	n.coreLock.Lock()
-	err = n.sync(resp.Events)
+	err = n.sync(peer, resp.Events)
 	n.coreLock.Unlock()
 	if err != nil {
-		n.logger.WithField("error", err).Error("n.sync(resp.Events)")
+		n.logger.WithField("error", err).Error("n.sync(peer, resp.Events)")
 		return false, nil, err
 	}
 
@@ -490,7 +516,7 @@ func (n *Node) push(peerAddr string, knownEvents map[uint64]int64) error {
 			return err
 		}
 
-		// Create and Send EagerSyncRequest
+		// Create and Send ForceSyncRequest
 		start = time.Now()
 		n.logger.WithField("wireEvents", wireEvents).Debug("Sending n.requestEagerSync.wireEvents")
 		resp2, err := n.requestEagerSync(peerAddr, wireEvents)
@@ -503,7 +529,7 @@ func (n *Node) push(peerAddr string, knownEvents map[uint64]int64) error {
 		n.logger.WithFields(logrus.Fields{
 			"from_id": resp2.FromID,
 			"success": resp2.Success,
-		}).Debug("EagerSyncResponse")
+		}).Debug("ForceSyncResponse")
 	}
 
 	return nil
@@ -516,9 +542,7 @@ func (n *Node) fastForward() error {
 	n.waitRoutines()
 
 	// fastForwardRequest
-	n.selectorLock.Lock()
 	peer := n.peerSelector.Next()
-	n.selectorLock.Unlock()
 	start := time.Now()
 	resp, err := n.requestFastForward(peer.NetAddr)
 	elapsed := time.Since(start)
@@ -557,65 +581,41 @@ func (n *Node) fastForward() error {
 	return nil
 }
 
-func (n *Node) requestSync(target string, known map[uint64]int64) (net.SyncResponse, error) {
-
-	args := net.SyncRequest{
-		FromID: n.id,
-		Known:  known,
-	}
-
-	var out net.SyncResponse
-	err := n.trans.Sync(target, &args, &out)
-	// n.logger.WithField("out", out).Debug("requestSync(target string, known map[int]int)")
-	return out, err
-}
-
-func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (net.EagerSyncResponse, error) {
-	args := net.EagerSyncRequest{
-		FromID: n.id,
-		Events: events,
-	}
-
-	var out net.EagerSyncResponse
-	n.logger.WithFields(logrus.Fields{
-		"target": target,
-	}).Debug("requestEagerSync(target string, events []poset.WireEvent)")
-	err := n.trans.EagerSync(target, &args, &out)
+func (n *Node) requestSync(target string, known map[uint64]int64) (*peer.SyncResponse, error) {
+	args := &peer.SyncRequest{FromID: n.id, Known: known}
+	out := &peer.SyncResponse{}
+	err := n.trans.Sync(context.Background(), target, args, out)
 
 	return out, err
 }
 
-func (n *Node) requestFastForward(target string) (net.FastForwardResponse, error) {
-	n.logger.WithFields(logrus.Fields{
-		"target": target,
-	}).Debug("requestFastForward(target string) (net.FastForwardResponse, error)")
-
-	args := net.FastForwardRequest{
-		FromID: n.id,
-	}
-
-	var out net.FastForwardResponse
-	err := n.trans.FastForward(target, &args, &out)
+func (n *Node) requestEagerSync(target string, events []poset.WireEvent) (*peer.ForceSyncResponse, error) {
+	args := &peer.ForceSyncRequest{FromID: n.id, Events: events}
+	out := &peer.ForceSyncResponse{}
+	err := n.trans.ForceSync(context.Background(), target, args, out)
 
 	return out, err
 }
 
-func (n *Node) sync(events []poset.WireEvent) error {
+func (n *Node) requestFastForward(target string) (*peer.FastForwardResponse, error) {
+	args := &peer.FastForwardRequest{FromID: n.id}
+	out := &peer.FastForwardResponse{}
+	err := n.trans.FastForward(context.Background(), target, args, out)
+
+	return out, err
+}
+
+func (n *Node) sync(peer *peers.Peer, events []poset.WireEvent) error {
 	// Insert Events in Poset and create new Head if necessary
 	start := time.Now()
-	err := n.core.Sync(events)
+	err := n.core.Sync(peer, events)
 	elapsed := time.Since(start)
 	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.Sync(events)")
 	if err != nil {
-		return err
+		return fmt.Errorf("n.core.Sync(peer, events): %v", err)
 	}
 
-	// Run consensus methods
-	start = time.Now()
-	err = n.core.RunConsensus()
-	elapsed = time.Since(start)
-	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.core.RunConsensus()")
-	if err != nil {
+	if err := n.core.RunConsensus(); err != nil {
 		return err
 	}
 
@@ -623,6 +623,9 @@ func (n *Node) sync(events []poset.WireEvent) error {
 }
 
 func (n *Node) commit(block poset.Block) error {
+
+	n.coreLock.Lock()
+	defer n.coreLock.Unlock()
 
 	stateHash := []byte{0, 1, 2}
 	_, err := n.proxy.CommitBlock(block)
@@ -653,8 +656,6 @@ func (n *Node) commit(block poset.Block) error {
 		// multiple nodes can't read from the same client
 
 		block.StateHash = stateHash
-		n.coreLock.Lock()
-		defer n.coreLock.Unlock()
 		sig, err := n.core.SignBlock(block)
 		if err != nil {
 			return err
@@ -696,7 +697,9 @@ func (n *Node) Shutdown() {
 		// transport and store should only be closed once all concurrent operations
 		// are finished otherwise they will panic trying to use close objects
 		n.trans.Close()
-		n.core.poset.Store.Close()
+		if err := n.core.poset.Store.Close(); err != nil {
+			n.logger.WithError(err).Debug("node::Shutdown::n.core.poset.Store.Close()")
+		}
 	}
 }
 
@@ -762,13 +765,17 @@ func (n *Node) logStats() {
 		"t/s":                    stats["transactions_per_second"],
 		"rounds/s":               stats["rounds_per_second"],
 		"round_events":           stats["round_events"],
-		"id":                     stats["id"],
 		"state":                  stats["state"],
 		"z_gossipJobs":           n.gossipJobs.get(),
 		"z_rpcJobs":              n.rpcJobs.get(),
-		"addr":                   n.localAddr,
 		"pending_loaded_events":  n.GetPendingLoadedEvents(),
 		"last_round":             n.GetLastRound(),
+		// "addr" is already defined in Node.logger, see NewNode() function
+		// uncomment when needed
+		//		"addr":                   n.localAddr,
+		// "id" is duplicate of "this_id" in Node.logger, see NewNode() function
+		// uncomment when needed
+		//		"id":                     stats["id"],
 	}).Warn("logStats()")
 }
 
@@ -798,13 +805,13 @@ func (n *Node) GetLastEventFrom(participant string) (poset.EventHash, bool, erro
 
 // GetKnownEvents returns all known events
 func (n *Node) GetKnownEvents() map[uint64]int64 {
-	return n.core.poset.Store.KnownEvents()
+	return n.core.KnownEvents()
 }
 
-// GetEventBlocks returns all event blocks
-func (n *Node) GetEventBlocks() (map[uint64]int64, error) {
-	res := n.core.KnownEvents()
-	return res, nil
+// EventDiff returns events that n knows about and are not in 'known'
+func (n *Node) EventDiff(
+	known map[uint64]int64) (events []poset.Event, err error) {
+	return n.core.EventDiff(known)
 }
 
 // GetConsensusEvents returns all consensus events

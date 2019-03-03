@@ -216,7 +216,7 @@ func (b *Block) SetSignature(bs BlockSignature) error {
 	return nil
 }
 
-// Verify verifies a blocksignature is from the node that signeds
+// Verify verifies a blocksignature is from the node that signed
 func (b *Block) Verify(sig BlockSignature) (bool, error) {
 	signBytes, err := b.Body.Hash()
 	if err != nil {

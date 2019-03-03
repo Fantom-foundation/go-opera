@@ -14,7 +14,6 @@ import (
 
 // Network is a fake network.
 type Network struct {
-	rand  *rand.Rand
 	mtx   sync.Mutex
 	conns map[string]*Listener
 }
@@ -25,8 +24,7 @@ func NewNetwork(listeners ...*Listener) *Network {
 	for k := range listeners {
 		m[listeners[k].Address] = listeners[k]
 	}
-	return &Network{conns: m,
-		rand: rand.New(rand.NewSource(time.Now().UnixNano()))}
+	return &Network{conns: m}
 }
 
 // CreateListener returns fake listener for a specific address.
@@ -59,7 +57,7 @@ func (n *Network) CreateNetConn(network,
 
 	serverRead, clientWrite := io.Pipe()
 	clientRead, serverWrite := io.Pipe()
-	ownAddr := n.randomIPAddress() + ":" + n.randomPort()
+	ownAddr := n.RandomAddress()
 	server := &Conn{
 		LAddress: address,
 		RAddress: ownAddr,
@@ -85,16 +83,22 @@ func (n *Network) CreateNetConn(network,
 	return client, nil
 }
 
-func (n *Network) randomIPAddress() string {
+func (n *Network) randomIPAddress(gen *rand.Rand) string {
 	var octet []string
 	for i := 0; i < 4; i++ {
-		number := n.rand.Intn(255)
+		number := gen.Intn(255)
 		octet = append(octet, strconv.Itoa(number))
 	}
 
 	return strings.Join(octet, ".")
 }
 
-func (n *Network) randomPort() string {
-	return strconv.Itoa(n.rand.Intn(65534))
+func (n *Network) randomPort(gen *rand.Rand) string {
+	return strconv.Itoa(gen.Intn(65534))
+}
+
+// RandomAddress creates random network address in the format address:port.
+func (n *Network) RandomAddress() string {
+	gen := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return n.randomIPAddress(gen) + ":" + n.randomPort(gen)
 }

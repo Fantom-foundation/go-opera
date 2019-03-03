@@ -3,14 +3,16 @@ package lachesis
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
-	"github.com/Fantom-foundation/go-lachesis/src/net"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
+	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/service"
@@ -20,7 +22,7 @@ import (
 type Lachesis struct {
 	Config    *LachesisConfig
 	Node      *node.Node
-	Transport net.Transport
+	Transport peer.SyncPeer
 	Store     poset.Store
 	Peers     *peers.Peers
 	Service   *service.Service
@@ -36,20 +38,26 @@ func NewLachesis(config *LachesisConfig) *Lachesis {
 }
 
 func (l *Lachesis) initTransport() error {
-	transport, err := net.NewTCPTransport(
-		l.Config.BindAddr,
-		nil,
-		l.Config.MaxPool,
-		l.Config.NodeConfig.TCPTimeout,
-		l.Config.Logger,
-	)
+	createCliFu := func(target string,
+		timeout time.Duration) (peer.SyncClient, error) {
 
-	if err != nil {
-		return err
+		rpcCli, err := peer.NewRPCClient(
+			peer.TCP, target, time.Second, l.Config.ConnFunc)
+		if err != nil {
+			return nil, err
+		}
+
+		return peer.NewClient(rpcCli)
 	}
 
-	l.Transport = transport
-
+	producer := peer.NewProducer(
+		l.Config.MaxPool, l.Config.NodeConfig.TCPTimeout, createCliFu)
+	backend := peer.NewBackend(
+		peer.NewBackendConfig(), l.Config.Logger, net.Listen)
+	if err := backend.ListenAndServe(peer.TCP, l.Config.BindAddr); err != nil {
+		return err
+	}
+	l.Transport = peer.NewTransport(l.Config.Logger, producer, backend)
 	return nil
 }
 
@@ -92,7 +100,7 @@ func (l *Lachesis) initStore() (err error) {
 		}
 	}
 
-	if l.Store.NeedBoostrap() {
+	if l.Store.NeedBootstrap() {
 		l.Config.Logger.Debug("loaded store from existing database")
 	} else {
 		l.Config.Logger.Debug("created new store from blank database")
@@ -146,6 +154,10 @@ func (l *Lachesis) initNode() error {
 		"id":           nodeID,
 	}).Debug("PARTICIPANTS")
 
+	selectorArgs := node.SmartPeerSelectorCreationFnArgs{
+		LocalAddr:    l.Config.BindAddr,
+		GetFlagTable: nil,
+	}
 	l.Node = node.NewNode(
 		&l.Config.NodeConfig,
 		nodeID,
@@ -154,6 +166,9 @@ func (l *Lachesis) initNode() error {
 		l.Store,
 		l.Transport,
 		l.Config.Proxy,
+		node.NewSmartPeerSelectorWrapper,
+		selectorArgs,
+		l.Config.BindAddr,
 	)
 
 	if err := l.Node.Init(); err != nil {

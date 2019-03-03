@@ -11,66 +11,75 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func TestSocketProxyServer(t *testing.T) {
 	const (
 		timeout    = 2 * time.Second
 		errTimeout = "time is over"
-		addr       = "127.0.0.1:9990"
 	)
-	asserter := assert.New(t)
+	addr := utils.GetUnusedNetAddr(1, t)
+	assertO := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	txOrigin := []byte("the test transaction")
 
 	// Server
-	app, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
-	asserter.NoError(err)
+	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
+	assertO.NoError(err)
 
 	//  listens for a request
 	go func() {
 		select {
 		case tx := <-app.SubmitCh():
-			asserter.Equal(txOrigin, tx)
+			assertO.Equal(txOrigin, tx)
 		case <-time.After(timeout):
-			asserter.Fail(errTimeout)
+			assertO.Fail(errTimeout)
 		}
 	}()
 
 	// Client part connecting to RPC service and calling methods
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
-	asserter.NoError(err)
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
+	assertO.NoError(err)
 
 	node, err := NewDummyClient(lachesisProxy, nil, logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	err = node.SubmitTx(txOrigin)
-	asserter.NoError(err)
+	assertO.NoError(err)
 }
 
 func TestDummySocketClient(t *testing.T) {
 	const (
 		timeout = 2 * time.Second
-		addr    = "127.0.0.1:9992"
 	)
-	asserter := assert.New(t)
+	addr := utils.GetUnusedNetAddr(1, t)
+	assertO := assert.New(t)
 	logger := common.NewTestLogger(t)
 
 	// server
-	appProxy, err := proxy.NewGrpcAppProxy(addr, timeout, logger)
-	asserter.NoError(err)
-	defer appProxy.Close()
+	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
+	assertO.NoError(err)
+	defer func() {
+		if err := appProxy.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// client
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
-	asserter.NoError(err)
-	defer lachesisProxy.Close()
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
+	assertO.NoError(err)
+	defer func() {
+		if err := lachesisProxy.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	state := NewState(logger)
 
 	_, err = NewDummyClient(lachesisProxy, state, logger)
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	initialStateHash := state.stateHash
 	//create a few blocks
@@ -83,23 +92,23 @@ func TestDummySocketClient(t *testing.T) {
 
 	//commit first block and check that the client's statehash is correct
 	stateHash, err := appProxy.CommitBlock(blocks[0])
-	asserter.NoError(err)
+	assertO.NoError(err)
 
 	expectedStateHash := crypto.Keccak256(append([][]byte{initialStateHash}, blocks[0].Transactions()...)...)
 
-	asserter.Equal(expectedStateHash, stateHash)
+	assertO.Equal(expectedStateHash, stateHash)
 
 	snapshot, err := appProxy.GetSnapshot(blocks[0].Index())
-	asserter.NoError(err)
+	assertO.NoError(err)
 
-	asserter.Equal(expectedStateHash, snapshot)
+	assertO.Equal(expectedStateHash, snapshot)
 
 	//commit a few more blocks, then attempt to restore back to block 0 state
 	for i := 1; i < 5; i++ {
 		_, err := appProxy.CommitBlock(blocks[i])
-		asserter.NoError(err)
+		assertO.NoError(err)
 	}
 
 	err = appProxy.Restore(snapshot)
-	asserter.NoError(err)
+	assertO.NoError(err)
 }

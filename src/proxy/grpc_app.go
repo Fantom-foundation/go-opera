@@ -32,17 +32,17 @@ type GrpcAppProxy struct {
 	listener net.Listener
 	server   *grpc.Server
 
-	timeout      time.Duration
-	new_clients  chan ClientStream
-	askings      map[xid.ID]chan *internal.ToServer_Answer
-	askings_sync sync.RWMutex
+	timeout     time.Duration
+	newClients  chan ClientStream
+	askings     map[xid.ID]chan *internal.ToServer_Answer
+	askingsSync sync.RWMutex
 
 	event4server  chan []byte
 	event4clients chan *internal.ToClient
 }
 
 // NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps
-func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
+func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
 	var err error
 
 	if logger == nil {
@@ -51,16 +51,16 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 	}
 
 	p := &GrpcAppProxy{
-		logger:      logger,
-		timeout:     timeout,
-		new_clients: make(chan ClientStream, 100),
+		logger:     logger,
+		timeout:    timeout,
+		newClients: make(chan ClientStream, 100),
 		// TODO: make chans buffered?
 		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
 		event4server:  make(chan []byte),
 		event4clients: make(chan *internal.ToClient),
 	}
 
-	p.listener, err = net.Listen("tcp", bind_addr)
+	p.listener, err = net.Listen("tcp", bindAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -69,19 +69,24 @@ func NewGrpcAppProxy(bind_addr string, timeout time.Duration, logger *logrus.Log
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	internal.RegisterLachesisNodeServer(p.server, p)
 
-	go p.server.Serve(p.listener)
+	go func() {
+		if err := p.server.Serve(p.listener); err != nil {
+			logger.Fatal(err)
+		}
+	}()
 
-	go p.send_events4clients()
+	go p.sendEvents4clients()
 
 	return p, nil
 }
 
 func (p *GrpcAppProxy) Close() error {
 	p.server.Stop()
-	p.listener.Close()
+	//All listeners are closed by gRPC.Stop() function
+	//err := p.listener.Close()
 	close(p.event4server)
 	close(p.event4clients)
-	return nil
+	return nil //err
 }
 
 /*
@@ -91,7 +96,7 @@ func (p *GrpcAppProxy) Close() error {
 // Connect implements gRPC-server interface: LachesisNodeServer
 func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error {
 	// save client's stream for writing
-	p.new_clients <- stream
+	p.newClients <- stream
 	p.logger.Debugf("client connected")
 	// read from stream
 	for {
@@ -109,15 +114,13 @@ func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error
 			continue
 		}
 		if answer := req.GetAnswer(); answer != nil {
-			p.route_answer(answer)
+			p.routeAnswer(answer)
 			continue
 		}
 	}
-
-	return nil
 }
 
-func (p *GrpcAppProxy) send_events4clients() {
+func (p *GrpcAppProxy) sendEvents4clients() {
 	var (
 		err       error
 		connected []ClientStream
@@ -126,8 +129,8 @@ func (p *GrpcAppProxy) send_events4clients() {
 	)
 	for event := range p.event4clients {
 
-		for i := len(p.new_clients); i > 0; i-- {
-			stream = <-p.new_clients
+		for i := len(p.newClients); i > 0; i-- {
+			stream = <-p.newClients
 			connected = append(connected, stream)
 		}
 
@@ -164,39 +167,39 @@ func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	answer, ok := <-p.push_block(data)
+	answer, ok := <-p.pushBlock(data)
 	if !ok {
 		return nil, ErrNoAnswers
 	}
-	err_msg := answer.GetError()
-	if err_msg != "" {
-		return nil, errors.New(err_msg)
+	errMsg := answer.GetError()
+	if errMsg != "" {
+		return nil, errors.New(errMsg)
 	}
 	return answer.GetData(), nil
 }
 
 // GetSnapshot implements AppProxy interface method
 func (p *GrpcAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
-	answer, ok := <-p.push_query(blockIndex)
+	answer, ok := <-p.pushQuery(blockIndex)
 	if !ok {
 		return nil, ErrNoAnswers
 	}
-	err_msg := answer.GetError()
-	if err_msg != "" {
-		return nil, errors.New(err_msg)
+	errMsg := answer.GetError()
+	if errMsg != "" {
+		return nil, errors.New(errMsg)
 	}
 	return answer.GetData(), nil
 }
 
 // Restore implements AppProxy interface method
 func (p *GrpcAppProxy) Restore(snapshot []byte) error {
-	answer, ok := <-p.push_restore(snapshot)
+	answer, ok := <-p.pushRestore(snapshot)
 	if !ok {
 		return ErrNoAnswers
 	}
-	err_msg := answer.GetError()
-	if err_msg != "" {
-		return errors.New(err_msg)
+	errMsg := answer.GetError()
+	if errMsg != "" {
+		return errors.New(errMsg)
 	}
 	return nil
 }
@@ -205,20 +208,20 @@ func (p *GrpcAppProxy) Restore(snapshot []byte) error {
  * staff:
  */
 
-func (p *GrpcAppProxy) route_answer(hash *internal.ToServer_Answer) {
+func (p *GrpcAppProxy) routeAnswer(hash *internal.ToServer_Answer) {
 	uuid, err := xid.FromBytes(hash.GetUid())
 	if err != nil {
 		// TODO: log invalid uuid
 		return
 	}
-	p.askings_sync.RLock()
+	p.askingsSync.RLock()
 	if ch, ok := p.askings[uuid]; ok {
 		ch <- hash
 	}
-	p.askings_sync.RUnlock()
+	p.askingsSync.RUnlock()
 }
 
-func (p *GrpcAppProxy) push_block(block []byte) chan *internal.ToServer_Answer {
+func (p *GrpcAppProxy) pushBlock(block []byte) chan *internal.ToServer_Answer {
 	uuid := xid.New()
 	event := &internal.ToClient{
 		Event: &internal.ToClient_Block_{
@@ -233,7 +236,7 @@ func (p *GrpcAppProxy) push_block(block []byte) chan *internal.ToServer_Answer {
 	return answer
 }
 
-func (p *GrpcAppProxy) push_query(index int64) chan *internal.ToServer_Answer {
+func (p *GrpcAppProxy) pushQuery(index int64) chan *internal.ToServer_Answer {
 	uuid := xid.New()
 	event := &internal.ToClient{
 		Event: &internal.ToClient_Query_{
@@ -248,7 +251,7 @@ func (p *GrpcAppProxy) push_query(index int64) chan *internal.ToServer_Answer {
 	return answer
 }
 
-func (p *GrpcAppProxy) push_restore(snapshot []byte) chan *internal.ToServer_Answer {
+func (p *GrpcAppProxy) pushRestore(snapshot []byte) chan *internal.ToServer_Answer {
 	uuid := xid.New()
 	event := &internal.ToClient{
 		Event: &internal.ToClient_Restore_{
@@ -265,15 +268,15 @@ func (p *GrpcAppProxy) push_restore(snapshot []byte) chan *internal.ToServer_Ans
 
 func (p *GrpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Answer {
 	ch := make(chan *internal.ToServer_Answer)
-	p.askings_sync.Lock()
+	p.askingsSync.Lock()
 	p.askings[uuid] = ch
-	p.askings_sync.Unlock()
+	p.askingsSync.Unlock()
 	// timeout
 	go func() {
 		<-time.After(p.timeout)
-		p.askings_sync.Lock()
+		p.askingsSync.Lock()
 		delete(p.askings, uuid)
-		p.askings_sync.Unlock()
+		p.askingsSync.Unlock()
 		close(ch)
 	}()
 

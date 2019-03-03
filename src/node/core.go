@@ -24,7 +24,7 @@ const (
 
 var (
 	// ErrTooBigTx is returned when transaction size > MaxEventsPayloadSize
-	ErrTooBigTx = fmt.Errorf("Transaction too big")
+	ErrTooBigTx = fmt.Errorf("transaction too big")
 )
 
 // Core struct that controls the consensus, transaction, and communication
@@ -35,11 +35,8 @@ type Core struct {
 	hexID  string
 	poset  *poset.Poset
 
-	inDegrees map[string]uint64
-
 	participants *peers.Peers // [PubKey] => id
 	head         poset.EventHash
-	Seq          int64
 
 	transactionPool         [][]byte
 	internalTransactionPool []poset.InternalTransaction
@@ -64,24 +61,17 @@ func NewCore(id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	}
 	logEntry := logger.WithField("id", id)
 
-	inDegrees := make(map[string]uint64)
-	for pubKey := range participants.ByPubKey {
-		inDegrees[pubKey] = 0
-	}
-
 	p2 := poset.NewPoset(participants, store, commitCh, logEntry)
 	core := &Core{
 		id:                      id,
 		key:                     key,
 		poset:                   p2,
-		inDegrees:               inDegrees,
 		participants:            participants,
 		transactionPool:         [][]byte{},
 		internalTransactionPool: []poset.InternalTransaction{},
 		blockSignaturePool:      []poset.BlockSignature{},
 		logger:                  logEntry,
 		head:                    poset.EventHash{},
-		Seq:                     -1,
 	}
 
 	p2.SetCore(core)
@@ -116,30 +106,38 @@ func (c *Core) Head() poset.EventHash {
 	return c.head
 }
 
-// Heights returns map with heights for each participants
-func (c *Core) Heights() map[string]uint64 {
-	heights := make(map[string]uint64)
-	for pubKey := range c.participants.ByPubKey {
-		participantEvents, err := c.poset.Store.ParticipantEvents(pubKey, -1)
-		if err == nil {
-			heights[pubKey] = uint64(len(participantEvents))
-		} else {
-			heights[pubKey] = 0
-		}
+// Heights returns map with heights for each participant PubKeyHex
+func (c *Core) Heights() map[string]int64 {
+	heights := make(map[string]int64)
+	for _, peer := range c.participants.ToPeerSlice() {
+		heights[peer.PubKeyHex] = peer.Height
+	}
+	return heights
+}
+
+// Heights returns map with heights for each participant ID
+func (c *Core) HeightsByID() map[uint64]int64 {
+	heights := make(map[uint64]int64)
+	for _, peer := range c.participants.ToPeerSlice() {
+		heights[peer.ID] = peer.Height
 	}
 	return heights
 }
 
 // InDegrees returns all vertexes from other nodes that reference this top event block
-func (c *Core) InDegrees() map[string]uint64 {
-	return c.inDegrees
+func (c *Core) InDegrees() map[string]int64 {
+	inDegrees := make(map[string]int64)
+	for _, peer := range c.participants.ToPeerSlice() {
+		inDegrees[peer.PubKeyHex] = peer.InDegree
+	}
+	return inDegrees
 }
 
-// SetHeadAndSeq calculates and sets the current head for the chain
-func (c *Core) SetHeadAndSeq() error {
+// SetHeadAndHeight calculates and sets the current head and height for the chain
+func (c *Core) SetHeadAndHeight() error {
 
 	var head poset.EventHash
-	var seq int64
+	var height int64
 
 	last, isRoot, err := c.poset.Store.LastEventFrom(c.HexID())
 	if err != nil {
@@ -152,24 +150,24 @@ func (c *Core) SetHeadAndSeq() error {
 			return err
 		}
 		head.Set(root.SelfParent.Hash)
-		seq = root.SelfParent.Index
+		height = root.SelfParent.Index
 	} else {
 		lastEvent, err := c.GetEventBlock(last)
 		if err != nil {
 			return err
 		}
 		head = last
-		seq = lastEvent.Index()
+		height = lastEvent.Index()
 	}
 
 	c.head = head
-	c.Seq = seq
+	c.participants.SetHeightByPubKeyHex(c.HexID(), height)
 
 	c.logger.WithFields(logrus.Fields{
 		"core.head": c.head,
-		"core.Seq":  c.Seq,
+		"Height":    c.participants.GetHeightByPubKeyHex(c.HexID()),
 		"is_root":   isRoot,
-	}).Debugf("SetHeadAndSeq()")
+	}).Debugf("SetHeadAndHeight()")
 
 	return nil
 }
@@ -184,13 +182,15 @@ func (c *Core) Bootstrap() error {
 }
 
 func (c *Core) bootstrapInDegrees() {
-	for pubKey := range c.participants.ByPubKey {
-		c.inDegrees[pubKey] = 0
+	for _, pubKey := range c.participants.ToPubKeySlice() {
+		c.participants.SetInDegreeByPubKeyHex(pubKey, 0)
+	}
+	for _, pubKey := range c.participants.ToPubKeySlice() {
 		eventHash, _, err := c.poset.Store.LastEventFrom(pubKey)
 		if err != nil {
 			continue
 		}
-		for otherPubKey := range c.participants.ByPubKey {
+		for _, otherPubKey := range c.participants.ToPubKeySlice() {
 			if otherPubKey == pubKey {
 				continue
 			}
@@ -204,7 +204,7 @@ func (c *Core) bootstrapInDegrees() {
 					continue
 				}
 				if event.OtherParent() == eventHash {
-					c.inDegrees[pubKey]++
+					c.participants.IncInDegreeByPubKeyHex(pubKey)
 				}
 			}
 		}
@@ -239,20 +239,20 @@ func (c *Core) InsertEvent(event poset.Event, setWireInfo bool) error {
 
 	if event.GetCreator() == c.HexID() {
 		c.head = event.Hash()
-		c.Seq = event.Index()
+	} else {
+		c.participants.SetHeightByPubKeyHex(event.GetCreator(), event.Index())
 	}
-
-	c.inDegrees[event.GetCreator()] = 0
+	c.participants.SetInDegreeByPubKeyHex(event.GetCreator(), 0)
 
 	if otherEvent, err := c.poset.Store.GetEventBlock(event.OtherParent()); err == nil {
-		c.inDegrees[otherEvent.GetCreator()]++
+		c.participants.IncInDegreeByPubKeyHex(otherEvent.GetCreator())
 	}
 	return nil
 }
 
-// KnownEvents returns all known event blocks
+// KnownEvents returns map of last known event blocks per participant.ID
 func (c *Core) KnownEvents() map[uint64]int64 {
-	return c.poset.Store.KnownEvents()
+	return c.HeightsByID()
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -295,8 +295,8 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 	// compare this to our view of events and fill unknown with events that we know of
 	// and the other doesn't
 	for id, ct := range known {
-		peer := c.participants.ByID[id]
-		if peer == nil {
+		peer, ok := c.participants.ReadByID(id)
+		if !ok {
 			// unknown peer detected.
 			// TODO: we should handle this nicely
 			continue
@@ -312,11 +312,13 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 				return []poset.Event{}, err
 			}
 			c.logger.WithFields(logrus.Fields{
-				"event":      ev,
-				"creator":    ev.GetCreator(),
-				"selfParent": ev.SelfParent(),
-				"index":      ev.Index(),
-				"hex":        ev.Hash(),
+				"event":            ev,
+				"creator":          ev.GetCreator(),
+				"selfParent":       ev.SelfParent(),
+				"index":            ev.Index(),
+				"hex":              ev.Hash(),
+				"selfParentIndex":  ev.Message.SelfParentIndex,
+				"otherParentIndex": ev.Message.OtherParentIndex,
 			}).Debugf("Sending Unknown Event")
 			unknown = append(unknown, ev)
 		}
@@ -327,7 +329,7 @@ func (c *Core) EventDiff(known map[uint64]int64) (events []poset.Event, err erro
 }
 
 // Sync unknown events into our poset
-func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
+func (c *Core) Sync(peer *peers.Peer, unknownEvents []poset.WireEvent) error {
 
 	c.logger.WithFields(logrus.Fields{
 		"unknown_events":              len(unknownEvents),
@@ -338,7 +340,11 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 	}).Debug("Sync(unknownEventBlocks []poset.EventBlock)")
 
 	myKnownEvents := c.KnownEvents()
-	otherHead := poset.EventHash{}
+	otherHead, _, err := c.poset.Store.LastEventFrom(peer.PubKeyHex)
+	if err != nil {
+		c.logger.WithField("peer", peer).Errorf("c.poset.Store.LastEventFrom(peer.PubKeyHex)")
+		return err
+	}
 	// add unknown events
 	for k, we := range unknownEvents {
 		c.logger.WithFields(logrus.Fields{
@@ -346,7 +352,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 		}).Debug("unknownEvents")
 		ev, err := c.poset.ReadWireInfo(we)
 		if err != nil {
-			c.logger.WithField("EventBlock", we).Errorf("c.poset.ReadEventBlockInfo(we)")
+			c.logger.WithField("EventBlock", we).WithField("err", err).Errorf("c.poset.ReadWireInfo(we)")
 			return err
 
 		}
@@ -355,7 +361,7 @@ func (c *Core) Sync(unknownEvents []poset.WireEvent) error {
 			ev.SetRound(poset.RoundNIL)
 			ev.SetRoundReceived(poset.RoundNIL)
 			if err := c.InsertEvent(*ev, false); err != nil {
-				c.logger.Error("SYNC: INSERT ERR", err)
+				c.logger.Error("SYNC: INSERT ERR:", err)
 				return err
 			}
 		}
@@ -400,7 +406,7 @@ func (c *Core) FastForward(peer string, block poset.Block, frame poset.Frame) er
 		return err
 	}
 
-	err = c.SetHeadAndSeq()
+	err = c.SetHeadAndHeight()
 	if err != nil {
 		return err
 	}
@@ -476,7 +482,7 @@ func (c *Core) AddSelfEventBlock(otherHead poset.EventHash) error {
 	newHead := poset.NewEvent(batch,
 		c.internalTransactionPool,
 		c.blockSignaturePool,
-		poset.EventHashes{c.head, otherHead}, c.PubKey(), c.Seq+1, flagTable)
+		poset.EventHashes{c.head, otherHead}, c.PubKey(), c.participants.NextHeightByPubKeyHex(c.HexID()), flagTable)
 
 	if err := c.SignAndInsertSelfEvent(newHead); err != nil {
 		// put batch back to transactionPool
@@ -672,7 +678,7 @@ func (c *Core) GetConsensusTransactionsCount() uint64 {
 
 // GetLastCommittedRoundEventsCount count of events in last round
 func (c *Core) GetLastCommittedRoundEventsCount() int {
-	return c.poset.LastCommitedRoundEvents
+	return c.poset.LastCommittedRoundEvents
 }
 
 // GetLastBlockIndex retuns the latest block index

@@ -52,7 +52,7 @@ func DefaultConfig() *Config {
 }
 
 // TestConfig sets the test config for use with tests
-func TestConfig(t *testing.T) *Config {
+func TestConfig(t testing.TB) *Config {
 	config := DefaultConfig()
 	config.HeartbeatTimeout = time.Second * 1
 

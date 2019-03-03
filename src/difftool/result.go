@@ -19,7 +19,7 @@ type Diff struct {
 	RoundGap        int64 `json:",omitempty"`
 	FirstRoundIndex int64 `json:",omitempty"`
 
-	Descr string `json:"-"`
+	Description string `json:"-"`
 }
 
 // Result is a set of differences
@@ -51,9 +51,9 @@ func (d *Diff) ToString() string {
 	return string(raw)
 }
 
-// AddDescr appends description to the diff
-func (d *Diff) AddDescr(s string) {
-	d.Descr = d.Descr + s + "\n"
+// AddDescription appends description to the diff
+func (d *Diff) AddDescription(s string) {
+	d.Description = d.Description + s + "\n"
 }
 
 /*
@@ -76,8 +76,8 @@ func (r Result) ToString() string {
 	for _, diff := range r {
 		if !diff.IsEmpty() {
 			output = append(output, diff.ToString())
-			if diff.Descr != "" {
-				output = append(output, "\t"+diff.Descr)
+			if diff.Description != "" {
+				output = append(output, "\t"+diff.Description)
 			}
 		}
 	}

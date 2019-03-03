@@ -2,8 +2,6 @@ package peer
 
 import (
 	"time"
-
-	"github.com/Fantom-foundation/go-lachesis/src/net"
 )
 
 // RPC Methods.
@@ -16,13 +14,13 @@ const (
 // Lachesis implements Lachesis synchronization methods.
 type Lachesis struct {
 	done           chan struct{}
-	receiver       chan *net.RPC
+	receiver       chan *RPC
 	processTimeout time.Duration
 	receiveTimeout time.Duration
 }
 
 // NewLachesis creates new Lachesis RPC handler.
-func NewLachesis(done chan struct{}, receiver chan *net.RPC,
+func NewLachesis(done chan struct{}, receiver chan *RPC,
 	receiveTimeout, processTimeout time.Duration) *Lachesis {
 	return &Lachesis{
 		done:           done,
@@ -34,13 +32,13 @@ func NewLachesis(done chan struct{}, receiver chan *net.RPC,
 
 // Sync handles sync requests.
 func (r *Lachesis) Sync(
-	req *net.SyncRequest, resp *net.SyncResponse) error {
+	req *SyncRequest, resp *SyncResponse) error {
 	result, err := r.process(req)
 	if err != nil {
 		return err
 	}
 
-	item, ok := result.(*net.SyncResponse)
+	item, ok := result.(*SyncResponse)
 	if !ok {
 		return ErrBadResult
 	}
@@ -50,13 +48,13 @@ func (r *Lachesis) Sync(
 
 // ForceSync handles force sync requests.
 func (r *Lachesis) ForceSync(
-	req *net.EagerSyncRequest, resp *net.EagerSyncResponse) error {
+	req *ForceSyncRequest, resp *ForceSyncResponse) error {
 	result, err := r.process(req)
 	if err != nil {
 		return err
 	}
 
-	item, ok := result.(*net.EagerSyncResponse)
+	item, ok := result.(*ForceSyncResponse)
 	if !ok {
 		return ErrBadResult
 	}
@@ -66,13 +64,13 @@ func (r *Lachesis) ForceSync(
 
 // FastForward handles fast forward requests.
 func (r *Lachesis) FastForward(
-	req *net.FastForwardRequest, resp *net.FastForwardResponse) error {
+	req *FastForwardRequest, resp *FastForwardResponse) error {
 	result, err := r.process(req)
 	if err != nil {
 		return err
 	}
 
-	item, ok := result.(*net.FastForwardResponse)
+	item, ok := result.(*FastForwardResponse)
 	if !ok {
 		return ErrBadResult
 	}
@@ -80,9 +78,9 @@ func (r *Lachesis) FastForward(
 	return nil
 }
 
-func (r *Lachesis) send(req interface{}) *net.RPCResponse {
-	reply := make(chan *net.RPCResponse, 1) // Buffered.
-	ticket := &net.RPC{
+func (r *Lachesis) send(req interface{}) *RPCResponse {
+	reply := make(chan *RPCResponse, 1) // Buffered.
+	ticket := &RPC{
 		Command:  req,
 		RespChan: reply,
 	}
@@ -92,21 +90,21 @@ func (r *Lachesis) send(req interface{}) *net.RPCResponse {
 	select {
 	case r.receiver <- ticket:
 	case <-timer.C:
-		return &net.RPCResponse{Error: ErrReceiverIsBusy}
+		return &RPCResponse{Error: ErrReceiverIsBusy}
 	case <-r.done:
-		return &net.RPCResponse{Error: ErrTransportStopped}
+		return &RPCResponse{Error: ErrTransportStopped}
 	}
 
-	var result *net.RPCResponse
+	var result *RPCResponse
 
 	timer.Reset(r.processTimeout)
 
 	select {
 	case result = <-reply:
 	case <-timer.C:
-		result = &net.RPCResponse{Error: ErrProcessingTimeout}
+		result = &RPCResponse{Error: ErrProcessingTimeout}
 	case <-r.done:
-		return &net.RPCResponse{Error: ErrTransportStopped}
+		return &RPCResponse{Error: ErrTransportStopped}
 	}
 
 	return result

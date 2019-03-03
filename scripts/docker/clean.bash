@@ -2,17 +2,13 @@
 
 set -euo pipefail
 
-declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-declare -r parent_dir="${DIR%/*}"
-declare -r gparent_dir="${parent_dir%/*}"
+declare -xr DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -xr parent_dir="${DIR%/*}"
+declare -xr gparent_dir="${parent_dir%/*}"
 declare -r DOCKER_PID=/var/run/docker.pid
 
 . "${DIR%/*}/set_globals.bash"
-
-
-for dir in "$BUILD_DIR" "$DIR" "$parent_dir" "$gparent_dir"; do
-  rm -rf "$dir"/{nodes,peers.json,lachesis_d*}
-done
+. "${DIR%/*}/clean_dirs.bash"
 
 if [ ! -f "$DOCKER_PID" ] || [ ! $(pgrep --pidfile "$DOCKER_PID") ]; then
   exit 0
