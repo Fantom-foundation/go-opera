@@ -68,11 +68,11 @@ func newEventHashes(hash ...EventHash) EventHashes {
 
 // String returns human readable string representation.
 func (hh EventHashes) String() string {
-	arr := make([]string, 0, len(hh))
+	ss := make([]string, 0, len(hh))
 	for hash, _ := range hh {
-		arr = append(arr, hash.String())
+		ss = append(ss, hash.String())
 	}
-	return "[" + strings.Join(arr, ", ") + "]"
+	return "[" + strings.Join(ss, ", ") + "]"
 }
 
 // All returns whole index.

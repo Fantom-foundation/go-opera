@@ -50,7 +50,5 @@ func TestPosetRush(t *testing.T) {
 // PushEventSync takes event into processing. It's a sync version of Poset.PushEvent().
 // Event order doesn't matter.
 func (p *Poset) PushEventSync(e Event) {
-	initEventIdx(&e)
-
 	p.onNewEvent(&e)
 }

@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"sort"
 	"sync"
 )
 
@@ -68,8 +69,6 @@ func (p *Poset) Stop() {
 
 // PushEvent takes event into processing. Event order doesn't matter.
 func (p *Poset) PushEvent(e Event) {
-	initEventIdx(&e)
-
 	p.newEventsCh <- &e
 }
 
@@ -78,6 +77,13 @@ func (p *Poset) onNewEvent(e *Event) {
 	if p.store.HasEvent(e.Hash()) {
 		log.WithField("event", e).Warnf("Event had received already")
 		return
+	}
+
+	if e.parents == nil {
+		e.parents = make(map[EventHash]*Event, len(e.Parents))
+		for hash := range e.Parents {
+			e.parents[hash] = nil
+		}
 	}
 
 	nodes := newParentsValidator(e)
@@ -144,7 +150,8 @@ func (p *Poset) consensus(e *Event) {
 	// process matured frames where ClothoCandidates have become Clothos
 	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
-			p.makeBlock(n)
+			events := p.topologicalOrdered(n)
+			p.makeBlock(n, events)
 		}
 	}
 }
@@ -237,7 +244,7 @@ CLOTHO:
 			continue CLOTHO
 		}
 
-		timeOfC := timestampsByEvent{}
+		candidateTime := timestampsByEvent{}
 
 		// for later frames
 		for diff := uint64(1); diff <= (lastNum - frameNum); diff++ {
@@ -245,7 +252,7 @@ CLOTHO:
 			for r := range later.FlagTable.Roots().Each() {
 				if diff == 1 {
 					if frame.FlagTable.EventKnows(r, clothoCreator, clotho) {
-						timeOfC[r] = p.store.GetEvent(r).LamportTime
+						candidateTime[r] = p.store.GetEvent(r).LamportTime
 					}
 				} else {
 					// the set of root in prev frame that r can be happened-before with 2n/3 condition
@@ -254,7 +261,7 @@ CLOTHO:
 					// time reselection (algorithm 6 "Consensus Time Reselection" implementation)
 					counter := timeCounter{}
 					for r := range S.Each() {
-						if t, ok := timeOfC[r]; ok {
+						if t, ok := candidateTime[r]; ok {
 							counter.Add(t)
 						}
 					}
@@ -262,18 +269,19 @@ CLOTHO:
 					// votes for reselected time
 					K := eventsByNode{}
 					for r, n := range S.Each() {
-						if t, ok := timeOfC[r]; ok && t == T {
+						if t, ok := candidateTime[r]; ok && t == T {
 							K.AddOne(r, n)
 						}
 					}
 
 					if diff%3 > 0 && p.hasMajority(K) {
+						//log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
 						frame.SetAtropos(clotho, T)
 						has = true
 						continue CLOTHO
 					}
 
-					timeOfC[r] = T
+					candidateTime[r] = T
 				}
 			}
 		}
@@ -281,34 +289,52 @@ CLOTHO:
 	return has
 }
 
-func (p *Poset) makeBlock(frameNum uint64) {
-	/*
-		frame := p.frame(frameNum, false)
+// topologicalOrdered sorts events to chain with Atropos consensus time.
+func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
+	frame := p.frame(frameNum, false)
 
-		// NOTE: actually not every Clotho is Atropos, fix it
-		var orderedAtroposes Events
-		for clotho := range frame.ClothoCandidates.Each() {
-			sortedAtropos = append(atroposes, p.store.GetEvent(clotho))
-		}
-		sort.Sort(orderedAtroposes)
+	var atroposes Events
+	for atropos, consensusTime := range frame.Atroposes {
+		e := p.store.GetEvent(atropos)
+		e.consensusTime = consensusTime
+		atroposes = append(atroposes, e)
+	}
+	sort.Sort(atroposes)
 
-		for _, a := range orderedAtroposes {
+	already := EventHashes{}
+	for _, atropos := range atroposes {
+		ee := Events{}
+		p.collectParents(atropos, &ee, already)
+		sort.Sort(ee)
+		chain = append(chain, ee...)
+		chain = append(chain, atropos)
+	}
 
-		}
-	*/
+	return
 }
 
-/*
- * Utils:
- */
+// collectParents recursive collects Events of Atropos.
+func (p *Poset) collectParents(a *Event, res *Events, already EventHashes) {
+	for hash := range a.Parents {
+		if hash.IsZero() {
+			continue
+		}
+		if already.Contains(hash) {
+			continue
+		}
+		f, _ := p.FrameOfEvent(hash)
+		if _, ok := f.Atroposes[hash]; ok {
+			continue
+		}
 
-// initEventIdx initializes internal index of parents.
-func initEventIdx(e *Event) {
-	if e.parents != nil {
-		return
+		e := p.store.GetEvent(hash)
+		e.consensusTime = a.consensusTime
+		*res = append(*res, e)
+		already.Add(hash)
+		p.collectParents(e, res, already)
 	}
-	e.parents = make(map[EventHash]*Event, len(e.Parents))
-	for hash := range e.Parents {
-		e.parents[hash] = nil
-	}
+}
+
+// makeBlock makes main chain block from topological ordered events.
+func (p *Poset) makeBlock(frameNum uint64, ordered Events) {
 }
