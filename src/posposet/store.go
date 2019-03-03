@@ -19,6 +19,7 @@ type Store struct {
 	states kvdb.Database
 	events kvdb.Database
 	frames kvdb.Database
+	blocks kvdb.Database
 
 	balances state.Database
 }
@@ -45,6 +46,7 @@ func (s *Store) init() {
 	s.states = kvdb.NewTable(s.physicalDB, "state_")
 	s.events = kvdb.NewTable(s.physicalDB, "event_")
 	s.frames = kvdb.NewTable(s.physicalDB, "frame_")
+	s.blocks = kvdb.NewTable(s.physicalDB, "block_")
 
 	s.balances = state.NewDatabase(
 		kvdb.NewTable(s.physicalDB, "balance_"))
@@ -136,6 +138,17 @@ func (s *Store) SetFrame(f *Frame) {
 func (s *Store) GetFrame(n uint64) *Frame {
 	f, _ := s.get(s.frames, intToKey(n), &Frame{}).(*Frame)
 	return f
+}
+
+// SetBlock stores chain block.
+func (s *Store) SetBlock(b *Block) {
+	s.set(s.blocks, intToKey(b.Index), b)
+}
+
+// GetBlock returns stored block.
+func (s *Store) GetBlock(n uint64) *Block {
+	b, _ := s.get(s.blocks, intToKey(n), &Block{}).(*Block)
+	return b
 }
 
 // StateDB returns state database.

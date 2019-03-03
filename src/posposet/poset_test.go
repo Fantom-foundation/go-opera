@@ -6,30 +6,48 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPosetRush(t *testing.T) {
-	assert := assert.New(t)
+// TODO: test poset store/restore
 
+func TestPoset(t *testing.T) {
 	nodes, nodesEvents := GenEventsByNode(5, 99, 3)
-	p := FakePoset(nodes)
+
+	posets := make([]*Poset, len(nodes))
+	for i := 0; i < len(nodes); i++ {
+		posets[i] = FakePoset(nodes)
+	}
 
 	t.Run("Multiple start", func(t *testing.T) {
-		p.Stop()
-		p.Start()
-		p.Start()
+		posets[0].Stop()
+		posets[0].Start()
+		posets[0].Start()
 	})
 
-	t.Run("Unordered event stream", func(t *testing.T) {
-		// push events in reverse order
-		for _, events := range nodesEvents {
-			for i := len(events) - 1; i >= 0; i-- {
-				e := events[i]
-				p.PushEventSync(*e)
+	t.Run("Push unordered events", func(t *testing.T) {
+		// first all events from one node
+		for n := 0; n < len(nodes); n++ {
+			events := nodesEvents[nodes[n]]
+			for _, e := range events {
+				posets[n].PushEventSync(*e)
 			}
 		}
-		// check all events are in poset store
+		// second all events from others
+		for n := 0; n < len(nodes); n++ {
+			events := nodesEvents[nodes[n]]
+			for _, e := range events {
+				for i := 0; i < len(posets); i++ {
+					if i != n {
+						posets[i].PushEventSync(*e)
+					}
+				}
+			}
+		}
+	})
+
+	t.Run("All events in Store", func(t *testing.T) {
+		assert := assert.New(t)
 		for _, events := range nodesEvents {
 			for _, e0 := range events {
-				e1 := p.store.GetEvent(e0.Hash())
+				e1 := posets[0].store.GetEvent(e0.Hash())
 				if !assert.NotNil(e1, "Event is not in poset store") {
 					return
 				}
@@ -37,9 +55,27 @@ func TestPosetRush(t *testing.T) {
 		}
 	})
 
+	t.Run("Check consensus", func(t *testing.T) {
+		assert := assert.New(t)
+		for i := 0; i < len(posets)-1; i++ {
+			for j := i + 1; j < len(posets); j++ {
+				p0, p1 := posets[i], posets[j]
+				// compare blockchain
+				if !assert.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
+					return
+				}
+				for b := uint64(1); b <= p0.state.LastBlockN; b++ {
+					if !assert.Equal(p0.store.GetBlock(b), p1.store.GetBlock(b), "block") {
+						return
+					}
+				}
+			}
+		}
+	})
+
 	t.Run("Multiple stop", func(t *testing.T) {
-		p.Stop()
-		p.Stop()
+		posets[0].Stop()
+		posets[0].Stop()
 	})
 }
 

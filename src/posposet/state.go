@@ -9,6 +9,7 @@ import (
 // State is a current poset state.
 type State struct {
 	LastFinishedFrameN uint64
+	LastBlockN         uint64
 	Genesis            common.Hash
 	TotalCap           uint64
 }

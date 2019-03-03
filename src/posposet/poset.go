@@ -156,16 +156,17 @@ func (p *Poset) consensus(e *Event) {
 			events := p.topologicalOrdered(n)
 			next := p.frame(frame.Index+X, true) // NOTE: is it frame blank anyway?
 			next.SetBalances(p.applyTransactions(frame.Balances, events))
-			p.makeBlock(n, events)
 
 			p.state.LastFinishedFrameN = n
+			p.state.LastBlockN = p.makeBlock(events)
 			p.saveState()
-			// clean old frames
-			for i := range p.frames {
-				if i+X < p.state.LastFinishedFrameN {
-					delete(p.frames, i)
-				}
-			}
+		}
+	}
+
+	// clean old frames
+	for i := range p.frames {
+		if i+X < p.state.LastFinishedFrameN {
+			delete(p.frames, i)
 		}
 	}
 }
@@ -351,5 +352,12 @@ func (p *Poset) collectParents(a *Event, res *Events, already EventHashes) {
 }
 
 // makeBlock makes main chain block from topological ordered events.
-func (p *Poset) makeBlock(frameNum uint64, ordered Events) {
+func (p *Poset) makeBlock(ordered Events) uint64 {
+	b := &Block{
+		Index:  p.state.LastBlockN + 1,
+		Events: ordered,
+	}
+	p.store.SetBlock(b)
+	// TODO: notify external systems (through chan)
+	return b.Index
 }
