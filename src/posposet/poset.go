@@ -7,10 +7,9 @@ import (
 
 // Poset processes events to get consensus.
 type Poset struct {
-	store     *Store
-	state     *State
-	flagTable FlagTable
-	frames    map[uint64]*Frame
+	store  *Store
+	state  *State
+	frames map[uint64]*Frame
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}

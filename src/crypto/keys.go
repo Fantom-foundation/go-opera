@@ -14,7 +14,9 @@ func GenerateKey() common.PrivateKey {
 	if err != nil {
 		panic(err)
 	}
-	return common.PrivateKey{*key}
+	return common.PrivateKey{
+		PrivateKey: *key,
+	}
 }
 
 // GenerateECDSAKey generate ECDSA Key
