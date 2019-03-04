@@ -71,10 +71,10 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 // Delete removes key-value pair by key.
 func (w *BadgerDatabase) Delete(key []byte) error {
 	tx := w.db.NewTransaction(true)
+	defer tx.Discard()
 
 	err := tx.Delete(key)
 	if err != nil {
-		tx.Discard()
 		if err == badger.ErrKeyNotFound {
 			return nil
 		} else {
