@@ -42,7 +42,7 @@ func (ee eventsByFrame) String() string {
  * Poset's methods:
  */
 
-// FrameOfEvent returns frame number event is in.
+// FrameOfEvent returns unfinished frame where event is in.
 func (p *Poset) FrameOfEvent(event EventHash) (frame *Frame, isRoot bool) {
 	for _, n := range p.frameNumsDesc() {
 		frame := p.frame(n, false)

@@ -176,10 +176,15 @@ func (p *Poset) consensus(e *Event) {
 func (p *Poset) checkIfRoot(e *Event) *Frame {
 	//log.Debugf("----- %s", e)
 	knownRoots := eventsByFrame{}
-	minFrame := p.state.LastFinishedFrameN
+	minFrame := p.state.LastFinishedFrameN + 1
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
+			if frame == nil {
+				log.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
+				// NOTE: is it possible some participants got this event before parent outdated?
+				continue
+			}
 			if prev := p.store.GetEvent(parent); prev.Creator == e.Creator {
 				minFrame = frame.Index
 			}
@@ -193,7 +198,7 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 			knownRoots.Add(frame.Index, roots)
 		} else {
 			roots := rootZero(e.Creator)
-			knownRoots.Add(p.state.LastFinishedFrameN+1, roots)
+			knownRoots.Add(minFrame, roots)
 		}
 	}
 
