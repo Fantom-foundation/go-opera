@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"math/rand"
 	"testing"
 )
 
@@ -30,24 +29,4 @@ func TestEventHash(t *testing.T) {
 			}
 		}
 	})
-}
-
-/*
- * Utils:
- */
-
-func FakeEventHash() (h EventHash) {
-	_, err := rand.Read(h[:])
-	if err != nil {
-		panic(err)
-	}
-	return
-}
-
-func FakeEventHashes(n int) EventHashes {
-	res := EventHashes{}
-	for i := 0; i < n; i++ {
-		res.Add(FakeEventHash())
-	}
-	return res
 }

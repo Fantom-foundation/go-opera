@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand"
 	"sort"
 	"strings"
 
@@ -16,6 +17,9 @@ type (
 	// EventHash is a unique identificator of Event.
 	// It is a hash of Event.
 	EventHash common.Hash
+
+	// EventHashSlice is a sortable slice of EventHash.
+	EventHashSlice []EventHash
 
 	// EventHashes provides additional methods of EventHash index.
 	EventHashes map[EventHash]struct{}
@@ -76,8 +80,8 @@ func (hh EventHashes) String() string {
 }
 
 // All returns whole index.
-func (hh EventHashes) Slice() []EventHash {
-	arr := make([]EventHash, len(hh))
+func (hh EventHashes) Slice() EventHashSlice {
+	arr := make(EventHashSlice, len(hh))
 	i := 0
 	for h := range hh {
 		arr[i] = h
@@ -105,17 +109,17 @@ func (hh EventHashes) Contains(hash EventHash) bool {
 
 // EncodeRLP is a specialized encoder to encode index into array.
 func (hh EventHashes) EncodeRLP(w io.Writer) error {
-	var arr []EventHash
+	var arr EventHashSlice
 	for h := range hh {
 		arr = append(arr, h)
 	}
-	sort.Sort(forStableSigning(arr))
+	sort.Sort(arr)
 	return rlp.Encode(w, arr)
 }
 
 // DecodeRLP is a specialized decoder to decode index from array.
 func (hh *EventHashes) DecodeRLP(s *rlp.Stream) error {
-	var arr []EventHash
+	var arr EventHashSlice
 	err := s.Decode(&arr)
 	if err != nil {
 		return err
@@ -133,13 +137,31 @@ func (hh *EventHashes) DecodeRLP(s *rlp.Stream) error {
 }
 
 /*
- * Sorting:
+ * EventHashSlice's methods:
  */
 
-type forStableSigning []EventHash
-
-func (hh forStableSigning) Len() int      { return len(hh) }
-func (hh forStableSigning) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh forStableSigning) Less(i, j int) bool {
+func (hh EventHashSlice) Len() int      { return len(hh) }
+func (hh EventHashSlice) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
+func (hh EventHashSlice) Less(i, j int) bool {
 	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
+}
+
+/*
+ * Utils:
+ */
+
+func FakeEventHash() (h EventHash) {
+	_, err := rand.Read(h[:])
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func FakeEventHashes(n int) EventHashes {
+	res := EventHashes{}
+	for i := 0; i < n; i++ {
+		res.Add(FakeEventHash())
+	}
+	return res
 }
