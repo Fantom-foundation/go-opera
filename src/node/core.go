@@ -346,7 +346,7 @@ func (c *Core) Sync(peer *peers.Peer, unknownEvents []poset.WireEvent) error {
 		return err
 	}
 	// add unknown events
-	for k, we := range unknownEvents {
+	for _, we := range unknownEvents {
 		c.logger.WithFields(logrus.Fields{
 			"unknown_events": we,
 		}).Debug("unknownEvents")
@@ -366,8 +366,9 @@ func (c *Core) Sync(peer *peers.Peer, unknownEvents []poset.WireEvent) error {
 			}
 		}
 
-		// assume last event corresponds to other-head
-		if k == len(unknownEvents)-1 {
+		// assume events come in in topological order
+		// so the last event corresponds to other-head
+		if peer.PubKeyHex == ev.GetCreator() {
 			otherHead = ev.Hash()
 		}
 	}
