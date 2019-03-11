@@ -16,6 +16,7 @@ import (
 
 func BenchmarkRlp(b *testing.B) {
 	rand.Seed(1)
+
 	var e0 []*posposet.Event
 	for i := 0; i < b.N; i++ {
 		e0 = append(e0, randRlpEvent())
@@ -40,8 +41,8 @@ func BenchmarkRlp(b *testing.B) {
 
 func BenchmarkProto(b *testing.B) {
 	rand.Seed(1)
-	var e0 []*Event
 
+	var e0 []*Event
 	for i := 0; i < b.N; i++ {
 		e0 = append(e0, randProtoEvent())
 	}

@@ -8,8 +8,8 @@
 ### Result:
 
 ```
-BenchmarkRlp-4            300000              4973 ns/op            1825 B/op         33 allocs/op
-BenchmarkProto-4         1000000              2096 ns/op            1360 B/op         20 allocs/op
+BenchmarkRlp-4            200000              5571 ns/op            1888 B/op         35 allocs/op
+BenchmarkProto-4          500000              3636 ns/op            1424 B/op         22 allocs/op
 ```
 
 ![CPU prof output](./cpu_prof.svg)
