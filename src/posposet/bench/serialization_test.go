@@ -15,11 +15,15 @@ import (
 )
 
 func BenchmarkRlp(b *testing.B) {
-	e0 := randRlpEvent()
+	rand.Seed(1)
+	var e0 []*posposet.Event
+	for i := 0; i < b.N; i++ {
+		e0 = append(e0, randRlpEvent())
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		buf, err := rlp.EncodeToBytes(e0)
+		buf, err := rlp.EncodeToBytes(e0[i])
 		if err != nil {
 			b.Fatal(err)
 			break
@@ -35,11 +39,16 @@ func BenchmarkRlp(b *testing.B) {
 }
 
 func BenchmarkProto(b *testing.B) {
-	e0 := randProtoEvent()
+	rand.Seed(1)
+	var e0 []*Event
+
+	for i := 0; i < b.N; i++ {
+		e0 = append(e0, randProtoEvent())
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		buf, err := e0.ProtoMarshal()
+		buf, err := e0[i].ProtoMarshal()
 		if err != nil {
 			b.Fatal(err)
 			break
@@ -60,8 +69,8 @@ func randRlpEvent() *posposet.Event {
 	return &posposet.Event{
 		Index:                rand.Uint64(),
 		Creator:              creator,
-		Parents:              posposet.FakeEventHashes(2),
 		ExternalTransactions: randTxns(),
+		Parents:              posposet.FakeEventHashes(2),
 	}
 }
 
