@@ -84,12 +84,23 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			Atroposes:        timestampsByEvent{},
 			Balances:         p.frame(n-1, true).Balances,
 		}
-		f.save = p.saveFuncForFrame(f)
+		p.setFrameSaving(f)
 		p.frames[n] = f
 		f.save()
 	}
 
 	return f
+}
+
+// frameNumsAsc returns frame numbers sorted from first to last.
+func (p *Poset) frameNumsAsc() []uint64 {
+	// TODO: cache sorted
+	var nums []uint64
+	for n := range p.frames {
+		nums = append(nums, n)
+	}
+	sort.Sort(frameNums(nums))
+	return nums
 }
 
 // frameNumsDesc returns frame numbers sorted from last to first.
@@ -101,6 +112,17 @@ func (p *Poset) frameNumsDesc() []uint64 {
 	}
 	sort.Sort(sort.Reverse(frameNums(nums)))
 	return nums
+}
+
+// frameNumLast returns last frame number.
+func (p *Poset) frameNumLast() uint64 {
+	var max uint64
+	for n := range p.frames {
+		if max < n {
+			max = n
+		}
+	}
+	return max
 }
 
 /*

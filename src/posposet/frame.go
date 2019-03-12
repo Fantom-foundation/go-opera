@@ -19,20 +19,27 @@ type Frame struct {
 	save func()
 }
 
+// Save calls .save() if set.
+func (f *Frame) Save() {
+	if f.save != nil {
+		f.save()
+	}
+}
+
 // AddRootsOf appends known roots for event.
 func (f *Frame) AddRootsOf(event EventHash, roots eventsByNode) {
 	if f.FlagTable[event] == nil {
 		f.FlagTable[event] = eventsByNode{}
 	}
 	if f.FlagTable[event].Add(roots) {
-		f.save()
+		f.Save()
 	}
 }
 
 // AddClothoCandidate adds event into ClothoCandidates list.
 func (f *Frame) AddClothoCandidate(event EventHash, creator common.Address) {
 	if f.ClothoCandidates.AddOne(event, creator) {
-		f.save()
+		f.Save()
 	}
 }
 
@@ -42,7 +49,7 @@ func (f *Frame) SetAtropos(clotho EventHash, consensusTime Timestamp) {
 		return
 	}
 	f.Atroposes[clotho] = consensusTime
-	f.save()
+	f.Save()
 }
 
 // GetRootsOf returns known roots of event. For read only, please.
@@ -50,20 +57,22 @@ func (f *Frame) GetRootsOf(event EventHash) eventsByNode {
 	return f.FlagTable[event]
 }
 
-// SetBalances save PoS-balances state.
-func (f *Frame) SetBalances(balances common.Hash) {
+// SetBalances saves PoS-balances state.
+func (f *Frame) SetBalances(balances common.Hash) bool {
 	if f.Balances != balances {
 		f.Balances = balances
-		f.save()
+		f.Save()
+		return true
 	}
+	return false
 }
 
 /*
  * Poset's methods:
  */
 
-func (p *Poset) saveFuncForFrame(f *Frame) func() {
-	return func() {
+func (p *Poset) setFrameSaving(f *Frame) {
+	f.save = func() {
 		if f.Index > p.state.LastFinishedFrameN {
 			p.store.SetFrame(f)
 		} else {
