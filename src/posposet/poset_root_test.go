@@ -115,7 +115,7 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
 	nodes, _, names := ParseEvents(asciiScheme)
-	p := FakePoset(nodes)
+	p, _ := FakePoset(nodes)
 	// process events
 	for _, event := range names {
 		p.PushEventSync(*event)

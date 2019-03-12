@@ -8,9 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPosetSimpleAtropos(t *testing.T) {
-	// NOTE: Atroposes B1 and E1 don't look like Figure22 "An Example of time ordering of event blocks in OPERA chain"
-	testSpecialNamedAtropos(t, `
+// NOTE: Atroposes B1 and E1 don't look like Figure22 "An Example of time ordering of event blocks in OPERA chain"
+const atroposDAG = `
 a01     b01     c01
 ║       ║       ║
 a11 ─ ─ ╬ ─ ─ ─ ╣       d01
@@ -69,7 +68,15 @@ A65 ─ ─ ╬ ─ ─ ─ ╣║      ║      ║║
 ║       ║       ║       ║       ║
 ║       ║       ╠ ─ ─ ─ ╬ ─ ─ ─ E56
 ║       ║       ║       ║       ║
-`)
+`
+
+func TestPosetSimpleAtropos(t *testing.T) {
+	t.Run("Original poset", func(t *testing.T) {
+		testSpecialNamedAtropos(t, false, atroposDAG)
+	})
+	t.Run("Restored poset", func(t *testing.T) {
+		testSpecialNamedAtropos(t, true, atroposDAG)
+	})
 }
 
 /*
@@ -82,16 +89,25 @@ A65 ─ ─ ╬ ─ ─ ─ ╣║      ║      ║║
 // - 2nd number - index by node;
 // - 3rd number - frame where node should be in;
 // - last "+T" - means Atropos and its consensus time;
-func testSpecialNamedAtropos(t *testing.T, asciiScheme string) {
+func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string) {
 	assert := assert.New(t)
 	// init
 	nodes, _, names := ParseEvents(asciiScheme)
-	p := FakePoset(nodes)
+	p, store := FakePoset(nodes)
 	// process events
+	n := 0
 	for _, event := range names {
 		p.PushEventSync(*event)
+		n++
+		if tryRestoring && n == len(names)*2/3 {
+			ee := p.incompleteEvents
+			p = New(store)
+			for _, e := range ee {
+				p.PushEventSync(*e)
+			}
+		}
 	}
-	// check each
+	// check each event
 	for name, event := range names {
 		// check root
 		mustBeRoot := (name == strings.ToUpper(name))

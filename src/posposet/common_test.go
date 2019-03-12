@@ -92,7 +92,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
  */
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(nodes []common.Address) *Poset {
+func FakePoset(nodes []common.Address) (*Poset, *Store) {
 	balances := make(map[common.Address]uint64, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = uint64(1)
@@ -104,8 +104,8 @@ func FakePoset(nodes []common.Address) *Poset {
 		panic(err)
 	}
 
-	p := New(store)
-	return p
+	poset := New(store)
+	return poset, store
 }
 
 // ParseEvents parses events from ASCII-scheme.

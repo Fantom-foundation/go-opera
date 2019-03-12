@@ -16,15 +16,15 @@ a11 ─ ─ ╬ ─ ─ ─ ╣       d01
 ║       ║       ║       ║
 ║       ╠ ─ ─ ─ c11 ─ ─ ╣
 ║       ║       ║       ║       e01
-╠ ─ ─ ─ B12++ ─ ╣       ║       ║
+╠ ─ ─ ─ B12+  ─ ╣       ║       ║
 ║       ║       ║       ║       ║
-║       ║       ╠ ─ ─ ─ D12++ ─ ╣
+║       ║       ╠ ─ ─ ─ D12+  ─ ╣
 ║       ║       ║       ║       ║
-A22++ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ ╣       ║
+A22+  ─ ╫ ─ ─ ─ ╬ ─ ─ ─ ╣       ║
 ║       ║       ║       ║       ║
-╠ ─ ─ ─ ╫ ─ ─ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ E12++
+╠ ─ ─ ─ ╫ ─ ─ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ E12+
 ║       ║       ║       ║       ║
-╠ ─ ─ ─ ╫ ─ ─ ─ C22++ ─ ╣       ║
+╠ ─ ─ ─ ╫ ─ ─ ─ C22+  ─ ╣       ║
 ║       ║       ║       ║       ║
 ╠ ─ ─ ─ B23+  ─ ╣       ║       ║
 ║       ║       ║       ║       ║
@@ -64,12 +64,12 @@ A54 ─ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ ╣       ║
 // - 1st letter uppercase - node should be root;
 // - 2nd number - index by node;
 // - 3rd number - frame where node should be in;
-// - last "+" - single if ClothoCandidate, double if Clotho;
+// - last "+" - ClothoCandidate;
 func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
 	nodes, _, names := ParseEvents(asciiScheme)
-	p := FakePoset(nodes)
+	p, _ := FakePoset(nodes)
 	// process events
 	for _, event := range names {
 		p.PushEventSync(*event)
@@ -96,12 +96,5 @@ func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 		if !assert.Equal(mustBeCC, isCC, name+" is Clotho Candidate") {
 			break
 		}
-		// check Clotho
-		mustBeClotho := len(name) > 4 && name[3:5] == "++"
-		isClotho := isCC && frame.Index < (p.frames[p.frameNumsDesc()[0]].Index-1)
-		if !assert.Equal(mustBeClotho, isClotho, name+" is Clotho") {
-			break
-		}
-
 	}
 }

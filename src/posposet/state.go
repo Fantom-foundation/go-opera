@@ -34,8 +34,11 @@ func (p *Poset) bootstrap() {
 	for n := p.state.LastFinishedFrameN; true; n++ {
 		if f := p.store.GetFrame(n); f != nil {
 			p.frames[n] = f
-		} else {
+		} else if n > 0 {
 			break
 		}
 	}
+	// recalc in case there was a interrupted consensus
+	p.reconsensusFromFrame(p.state.LastFinishedFrameN + 1)
+
 }

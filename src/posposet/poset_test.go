@@ -6,14 +6,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: test poset store/restore
-
 func TestPoset(t *testing.T) {
 	nodes, nodesEvents := GenEventsByNode(5, 99, 3)
 
 	posets := make([]*Poset, len(nodes))
 	for i := 0; i < len(nodes); i++ {
-		posets[i] = FakePoset(nodes)
+		posets[i], _ = FakePoset(nodes)
 	}
 
 	t.Run("Multiple start", func(t *testing.T) {
