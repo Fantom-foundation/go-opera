@@ -151,15 +151,17 @@ func (p *Poset) consensus(e *Event) {
 
 	// process matured frames where ClothoCandidates have become Clothos
 	var ordered Events
+	lastFinished := p.state.LastFinishedFrameN
 	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
 			events := p.topologicalOrdered(n)
-
-			ordered = append(ordered, events...)
-
-			p.state.LastFinishedFrameN = n
 			p.state.LastBlockN = p.makeBlock(events)
 			p.saveState()
+
+			// TODO: fix it
+			lastFinished = n // NOTE: are every event of prev frame there in block? (No)
+
+			ordered = append(ordered, events...)
 		}
 	}
 
@@ -167,6 +169,12 @@ func (p *Poset) consensus(e *Event) {
 	next := p.frame(frame.Index+X, true)
 	if next.SetBalances(p.applyTransactions(frame.Balances, ordered)) {
 		p.reconsensusFromFrame(next.Index)
+	}
+
+	// save finished frames
+	if p.state.LastFinishedFrameN < lastFinished {
+		p.state.LastFinishedFrameN = lastFinished
+		p.saveState()
 	}
 
 	// clean old frames
