@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // TODO: make State internal
@@ -12,6 +13,29 @@ type State struct {
 	LastBlockN         uint64
 	Genesis            common.Hash
 	TotalCap           uint64
+}
+
+// ToWire converts to proto.Message.
+func (s *State) ToWire() *wire.State {
+	return &wire.State{
+		LastFinishedFrameN: s.LastFinishedFrameN,
+		LastBlockN:         s.LastBlockN,
+		Genesis:            s.Genesis.Bytes(),
+		TotalCap:           s.TotalCap,
+	}
+}
+
+// WireToState converts from wire.
+func WireToState(w *wire.State) *State {
+	if w == nil {
+		return nil
+	}
+	return &State{
+		LastFinishedFrameN: w.LastFinishedFrameN,
+		LastBlockN:         w.LastBlockN,
+		Genesis:            common.BytesToHash(w.Genesis),
+		TotalCap:           w.TotalCap,
+	}
 }
 
 /*

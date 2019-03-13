@@ -4,9 +4,11 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/badger"
+	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -119,14 +121,14 @@ func (s *Store) HasEvent(h EventHash) bool {
 // SetEvent stores event.
 func (s *Store) SetState(st *State) {
 	const key = "current"
-	s.set(s.states, []byte(key), st)
+	s.set1(s.states, []byte(key), st.ToWire())
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetState() *State {
 	const key = "current"
-	st, _ := s.get(s.states, []byte(key), &State{}).(*State)
-	return st
+	w, _ := s.get1(s.states, []byte(key), &wire.State{}).(*wire.State)
+	return WireToState(w)
 }
 
 // SetFrame stores event.
@@ -163,6 +165,35 @@ func (s *Store) StateDB(from common.Hash) *state.DB {
 /*
  * Utils:
  */
+
+func (s *Store) set1(table kvdb.Database, key []byte, val proto.Message) {
+	var pbf proto.Buffer
+	pbf.SetDeterministic(true)
+
+	if err := pbf.Marshal(val); err != nil {
+		panic(err)
+	}
+
+	if err := table.Put(key, pbf.Bytes()); err != nil {
+		panic(err)
+	}
+}
+
+func (s *Store) get1(table kvdb.Database, key []byte, to proto.Message) proto.Message {
+	buf, err := table.Get(key)
+	if err != nil {
+		panic(err)
+	}
+	if buf == nil {
+		return nil
+	}
+
+	err = proto.Unmarshal(buf, to)
+	if err != nil {
+		panic(err)
+	}
+	return to
+}
 
 func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
