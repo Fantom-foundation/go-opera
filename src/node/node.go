@@ -97,6 +97,7 @@ func NewNode(conf *Config,
 		rpcJobs:          0,
 		nodeState2:       newNodeState2(),
 		signalTERMch:     make(chan os.Signal, 1),
+		localAddr:        localAddr,
 	}
 
 	signal.Notify(node.signalTERMch, syscall.SIGTERM, os.Kill)
