@@ -14,6 +14,12 @@ func (a *Address) Bytes() []byte {
 	return (*Hash)(a).Bytes()
 }
 
+// BytesToAddress sets b to address.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToAddress(b []byte) Address {
+	return Address(BytesToHash(b))
+}
+
 // String returns human readable string representation.
 func (a *Address) String() string {
 	if name, ok := NodeNameDict[*a]; ok {

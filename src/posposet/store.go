@@ -101,12 +101,13 @@ func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
 
 // SetEvent stores event.
 func (s *Store) SetEvent(e *Event) {
-	s.set(s.events, e.Hash().Bytes(), e)
+	s.set1(s.events, e.Hash().Bytes(), e.ToWire())
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetEvent(h EventHash) *Event {
-	e, _ := s.get(s.events, h.Bytes(), &Event{}).(*Event)
+	w, _ := s.get1(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	e := WireToEvent(w)
 	if e != nil {
 		e.hash = h // fill cache
 	}

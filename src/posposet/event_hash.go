@@ -2,15 +2,14 @@ package posposet
 
 import (
 	"bytes"
-	"fmt"
-	"io"
 	"math/rand"
 	"sort"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 type (
@@ -35,7 +34,7 @@ var (
 
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) EventHash {
-	buf, err := rlp.EncodeToBytes(e)
+	buf, err := proto.Marshal(e.ToWire())
 	if err != nil {
 		panic(err)
 	}
@@ -45,6 +44,12 @@ func EventHashOf(e *Event) EventHash {
 // Bytes returns value as byte slice.
 func (hash EventHash) Bytes() []byte {
 	return (common.Hash)(hash).Bytes()
+}
+
+// BytesToEventHash sets b to EventHash.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToEventHash(b []byte) EventHash {
+	return EventHash(common.BytesToHash(b))
 }
 
 // String returns human readable string representation.
@@ -107,33 +112,35 @@ func (hh EventHashes) Contains(hash EventHash) bool {
 	return ok
 }
 
-// EncodeRLP is a specialized encoder to encode index into array.
-func (hh EventHashes) EncodeRLP(w io.Writer) error {
+// ToWire converts to simple slice.
+func (hh EventHashes) ToWire() [][]byte {
 	var arr EventHashSlice
 	for h := range hh {
 		arr = append(arr, h)
 	}
 	sort.Sort(arr)
-	return rlp.Encode(w, arr)
+
+	res := make([][]byte, len(arr))
+	for i, h := range arr {
+		res[i] = h.Bytes()
+	}
+
+	return res
 }
 
-// DecodeRLP is a specialized decoder to decode index from array.
-func (hh *EventHashes) DecodeRLP(s *rlp.Stream) error {
-	var arr EventHashSlice
-	err := s.Decode(&arr)
-	if err != nil {
-		return err
+// WireToEventHashes converts from simple slice.
+func WireToEventHashes(buf [][]byte) EventHashes {
+	if buf == nil {
+		return nil
 	}
 
-	res := EventHashes{}
-	for _, h := range arr {
-		if !res.Add(h) {
-			return fmt.Errorf("Double value is detected")
-		}
+	hh := EventHashes{}
+	for _, b := range buf {
+		h := BytesToEventHash(b)
+		hh.Add(h)
 	}
 
-	*hh = res
-	return nil
+	return hh
 }
 
 /*

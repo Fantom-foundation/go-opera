@@ -295,11 +295,16 @@ func FakeFuzzingEvents() (res []*Event) {
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := &Event{
-				Index:                uint64(c*len(parents) + p),
-				Creator:              creators[c],
-				Parents:              parents[p],
-				InternalTransactions: make([]InternalTransaction, 0, 0),
-				ExternalTransactions: make([][]byte, 0, 0),
+				Index:   uint64(c*len(parents) + p),
+				Creator: creators[c],
+				Parents: parents[p],
+				InternalTransactions: []*InternalTransaction{
+					&InternalTransaction{
+						Amount:   999,
+						Receiver: creators[c],
+					},
+				},
+				ExternalTransactions: nil,
 			}
 			res = append(res, e)
 		}

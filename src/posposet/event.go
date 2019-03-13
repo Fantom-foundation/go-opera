@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 /*
@@ -18,7 +19,7 @@ type Event struct {
 	Creator              common.Address
 	Parents              EventHashes
 	LamportTime          Timestamp
-	InternalTransactions []InternalTransaction
+	InternalTransactions []*InternalTransaction
 	ExternalTransactions [][]byte
 
 	hash          EventHash            // cache for .Hash()
@@ -37,6 +38,33 @@ func (e *Event) Hash() EventHash {
 // String returns string representation.
 func (e *Event) String() string {
 	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.LamportTime)
+}
+
+// ToWire converts to proto.Message.
+func (e *Event) ToWire() *wire.Event {
+	return &wire.Event{
+		Index:                e.Index,
+		Creator:              e.Creator.Bytes(),
+		Parents:              e.Parents.ToWire(),
+		LamportTime:          uint64(e.LamportTime),
+		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
+		ExternalTransactions: e.ExternalTransactions,
+	}
+}
+
+// WireToEvent converts from wire.
+func WireToEvent(w *wire.Event) *Event {
+	if w == nil {
+		return nil
+	}
+	return &Event{
+		Index:                w.Index,
+		Creator:              common.BytesToAddress(w.Creator),
+		Parents:              WireToEventHashes(w.Parents),
+		LamportTime:          Timestamp(w.LamportTime),
+		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
+		ExternalTransactions: w.ExternalTransactions,
+	}
 }
 
 /*
