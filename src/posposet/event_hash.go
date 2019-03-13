@@ -25,6 +25,7 @@ type (
 )
 
 var (
+	// ZeroEventHash is a hash of virtual initial event.
 	ZeroEventHash = EventHash{}
 )
 
@@ -89,13 +90,13 @@ func newEventHashes(hash ...EventHash) EventHashes {
 // String returns human readable string representation.
 func (hh EventHashes) String() string {
 	ss := make([]string, 0, len(hh))
-	for hash, _ := range hh {
-		ss = append(ss, hash.String())
+	for h := range hh {
+		ss = append(ss, h.String())
 	}
 	return "[" + strings.Join(ss, ", ") + "]"
 }
 
-// All returns whole index.
+// Slice returns whole index as slice.
 func (hh EventHashes) Slice() EventHashSlice {
 	arr := make(EventHashSlice, len(hh))
 	i := 0
@@ -183,6 +184,7 @@ func (hh EventHashSlice) Less(i, j int) bool {
  * Utils:
  */
 
+// FakeEventHash generates random fake event hash for testing purpose.
 func FakeEventHash() (h EventHash) {
 	_, err := rand.Read(h[:])
 	if err != nil {
@@ -191,6 +193,7 @@ func FakeEventHash() (h EventHash) {
 	return
 }
 
+// FakeEventHashes generates random fake event hashes for testing purpose.
 func FakeEventHashes(n int) EventHashes {
 	res := EventHashes{}
 	for i := 0; i < n; i++ {

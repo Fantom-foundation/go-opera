@@ -60,7 +60,7 @@ func (h Hash) String() string {
 	return h.Hex()
 }
 
-// String returns short string representation.
+// ShortString returns short string representation.
 func (h Hash) ShortString() string {
 	return hexutil.Encode(h[:3]) + "..."
 }
@@ -127,6 +127,7 @@ func (h Hash) Value() (driver.Value, error) {
  * Utils:
  */
 
+// FakeHash generates random fake hash for testing purpose.
 func FakeHash() (h Hash) {
 	_, err := rand.Read(h[:])
 	if err != nil {

@@ -37,7 +37,7 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 	}
 }
 
-func (p *Poset) hasMajority(frame *Frame, roots eventsByNode) bool {
+func (p *Poset) hasMajority(frame *Frame, roots EventsByNode) bool {
 	stake := p.newStakeCounter(frame,
 		p.state.TotalCap*2/3)
 	for node := range roots {
@@ -46,7 +46,7 @@ func (p *Poset) hasMajority(frame *Frame, roots eventsByNode) bool {
 	return stake.IsGoalAchieved()
 }
 
-func (p *Poset) hasTrust(frame *Frame, roots eventsByNode) bool {
+func (p *Poset) hasTrust(frame *Frame, roots EventsByNode) bool {
 	stake := p.newStakeCounter(frame,
 		p.state.TotalCap*1/3)
 	for node := range roots {

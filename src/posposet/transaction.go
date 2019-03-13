@@ -5,6 +5,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
+// InternalTransaction is for stake transfer.
 type InternalTransaction struct {
 	Amount   uint64
 	Receiver common.Address

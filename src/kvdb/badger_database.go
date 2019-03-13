@@ -77,9 +77,8 @@ func (w *BadgerDatabase) Delete(key []byte) error {
 	if err != nil {
 		if err == badger.ErrKeyNotFound {
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 
 	return tx.Commit(nil)

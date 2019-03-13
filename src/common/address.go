@@ -32,6 +32,7 @@ func (a *Address) String() string {
  * Utils:
  */
 
+// FakeAddress generates random fake address for testing purpose.
 func FakeAddress() Address {
 	return Address(FakeHash())
 }

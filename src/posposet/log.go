@@ -16,6 +16,7 @@ func init() {
 	log.SetLevel(logrus.DebugLevel)
 }
 
+// SetLogger sets logger for whole package.
 func SetLogger(custom *logrus.Logger) {
 	if custom == nil {
 		panic("Nil-logger set")

@@ -7,13 +7,13 @@ import (
 )
 
 // eventsByFrame maps frame num --> roots.
-type eventsByFrame map[uint64]eventsByNode
+type eventsByFrame map[uint64]EventsByNode
 
 // Add appends roots of frame.
-func (ee eventsByFrame) Add(frameN uint64, roots eventsByNode) {
+func (ee eventsByFrame) Add(frameN uint64, roots EventsByNode) {
 	dest := ee[frameN]
 	if dest == nil {
-		dest = eventsByNode{}
+		dest = EventsByNode{}
 	}
 	dest.Add(roots)
 	ee[frameN] = dest
@@ -80,8 +80,8 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 		f = &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
-			ClothoCandidates: eventsByNode{},
-			Atroposes:        timestampsByEvent{},
+			ClothoCandidates: EventsByNode{},
+			Atroposes:        TimestampsByEvent{},
 			Balances:         p.frame(n-1, true).Balances,
 		}
 		p.setFrameSaving(f)

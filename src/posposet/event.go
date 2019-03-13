@@ -71,6 +71,7 @@ func WireToEvent(w *wire.Event) *Event {
  * Events:
  */
 
+// Events is a ordered slice of events.
 type Events []*Event
 
 // String returns string representation.

@@ -13,8 +13,8 @@ import (
 type Frame struct {
 	Index            uint64
 	FlagTable        FlagTable
-	ClothoCandidates eventsByNode
-	Atroposes        timestampsByEvent
+	ClothoCandidates EventsByNode
+	Atroposes        TimestampsByEvent
 	Balances         common.Hash
 
 	save func()
@@ -28,9 +28,9 @@ func (f *Frame) Save() {
 }
 
 // AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event EventHash, roots eventsByNode) {
+func (f *Frame) AddRootsOf(event EventHash, roots EventsByNode) {
 	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = eventsByNode{}
+		f.FlagTable[event] = EventsByNode{}
 	}
 	if f.FlagTable[event].Add(roots) {
 		f.Save()
@@ -54,7 +54,7 @@ func (f *Frame) SetAtropos(clotho EventHash, consensusTime Timestamp) {
 }
 
 // GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event EventHash) eventsByNode {
+func (f *Frame) GetRootsOf(event EventHash) EventsByNode {
 	return f.FlagTable[event]
 }
 

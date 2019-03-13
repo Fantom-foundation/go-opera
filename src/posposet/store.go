@@ -25,7 +25,7 @@ type Store struct {
 	balances state.Database
 }
 
-// NewInmemStore creates store over memory map.
+// NewMemStore creates store over memory map.
 func NewMemStore() *Store {
 	s := &Store{
 		physicalDB: kvdb.NewMemDatabase(),
@@ -34,7 +34,7 @@ func NewMemStore() *Store {
 	return s
 }
 
-// NewInmemStore creates store over badger database.
+// NewBadgerStore creates store over badger database.
 func NewBadgerStore(db *badger.DB) *Store {
 	s := &Store{
 		physicalDB: kvdb.NewBadgerDatabase(db),
@@ -118,13 +118,13 @@ func (s *Store) HasEvent(h EventHash) bool {
 	return s.has(s.events, h.Bytes())
 }
 
-// SetEvent stores event.
+// SetState stores state.
 func (s *Store) SetState(st *State) {
 	const key = "current"
 	s.set(s.states, []byte(key), st.ToWire())
 }
 
-// GetEvent returns stored event.
+// GetState returns stored state.
 func (s *Store) GetState() *State {
 	const key = "current"
 	w, _ := s.get(s.states, []byte(key), &wire.State{}).(*wire.State)

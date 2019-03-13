@@ -5,13 +5,15 @@ import (
 )
 
 type (
+	// Timestamp is a logical time.
 	Timestamp uint64
 
-	timestampsByEvent map[EventHash]Timestamp
+	// TimestampsByEvent is a timestamps by event index.
+	TimestampsByEvent map[EventHash]Timestamp
 )
 
 // ToWire converts to simple slice.
-func (tt timestampsByEvent) ToWire() map[string]uint64 {
+func (tt TimestampsByEvent) ToWire() map[string]uint64 {
 	res := make(map[string]uint64, len(tt))
 
 	for e, t := range tt {
@@ -22,8 +24,8 @@ func (tt timestampsByEvent) ToWire() map[string]uint64 {
 }
 
 // WireToTimestampsByEvent converts from wire.
-func WireToTimestampsByEvent(arr map[string]uint64) timestampsByEvent {
-	res := make(timestampsByEvent, len(arr))
+func WireToTimestampsByEvent(arr map[string]uint64) TimestampsByEvent {
+	res := make(TimestampsByEvent, len(arr))
 
 	for hex, t := range arr {
 		hash := HexToEventHash(hex)
@@ -40,7 +42,7 @@ func WireToTimestampsByEvent(arr map[string]uint64) timestampsByEvent {
 type timeCounter map[Timestamp]uint
 
 func (c timeCounter) Add(t Timestamp) {
-	c[t] += 1
+	c[t]++
 }
 
 func (c timeCounter) MaxMin() Timestamp {

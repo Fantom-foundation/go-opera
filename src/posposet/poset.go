@@ -252,7 +252,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 			continue
 		}
 		// all roots from frame, reach the seen
-		roots := eventsByNode{}
+		roots := EventsByNode{}
 		for root, creator := range frame.FlagTable.Roots().Each() {
 			if prev.FlagTable.EventKnows(root, seenCreator, seen) {
 				roots.AddOne(root, creator)
@@ -279,7 +279,7 @@ CLOTHO:
 			continue CLOTHO
 		}
 
-		candidateTime := timestampsByEvent{}
+		candidateTime := TimestampsByEvent{}
 
 		// for later frames
 		for diff := uint64(1); diff <= (lastNum - frameNum); diff++ {
@@ -302,7 +302,7 @@ CLOTHO:
 					}
 					T := counter.MaxMin()
 					// votes for reselected time
-					K := eventsByNode{}
+					K := EventsByNode{}
 					for r, n := range S.Each() {
 						if t, ok := candidateTime[r]; ok && t == T {
 							K.AddOne(r, n)
@@ -395,7 +395,7 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
 		// extract events
-		for e, _ := range frame.FlagTable {
+		for e := range frame.FlagTable {
 			if !frame.FlagTable.IsRoot(e) {
 				all = append(all, p.store.GetEvent(e))
 			}
@@ -404,8 +404,8 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 		p.frames[n] = &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
-			ClothoCandidates: eventsByNode{},
-			Atroposes:        timestampsByEvent{},
+			ClothoCandidates: EventsByNode{},
+			Atroposes:        TimestampsByEvent{},
 			Balances:         frame.Balances,
 		}
 	}

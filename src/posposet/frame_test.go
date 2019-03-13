@@ -17,9 +17,9 @@ func TestFrameSerialization(t *testing.T) {
 	nodes, events := GenEventsByNode(4, 10, 3)
 
 	flagTable := FlagTable{}
-	cc := eventsByNode{}
+	cc := EventsByNode{}
 	for _, node := range nodes {
-		roots := eventsByNode{}
+		roots := EventsByNode{}
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
@@ -29,7 +29,7 @@ func TestFrameSerialization(t *testing.T) {
 		}
 	}
 
-	timestamps := timestampsByEvent{
+	timestamps := TimestampsByEvent{
 		FakeEventHash(): Timestamp(0),
 		FakeEventHash(): Timestamp(rand.Uint64()),
 	}
