@@ -134,13 +134,13 @@ func (s *Store) GetState() *State {
 
 // SetFrame stores event.
 func (s *Store) SetFrame(f *Frame) {
-	s.set(s.frames, intToKey(f.Index), f)
+	s.set1(s.frames, intToKey(f.Index), f.ToWire())
 }
 
 // GetFrame returns stored frame.
 func (s *Store) GetFrame(n uint64) *Frame {
-	f, _ := s.get(s.frames, intToKey(n), &Frame{}).(*Frame)
-	return f
+	w, _ := s.get1(s.frames, intToKey(n), &wire.Frame{}).(*wire.Frame)
+	return WireToFrame(w)
 }
 
 // SetBlock stores chain block.

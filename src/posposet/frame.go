@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // TODO: make Frame internal
@@ -65,6 +66,31 @@ func (f *Frame) SetBalances(balances common.Hash) bool {
 		return true
 	}
 	return false
+}
+
+// ToWire converts to proto.Message.
+func (f *Frame) ToWire() *wire.Frame {
+	return &wire.Frame{
+		Index:            f.Index,
+		FlagTable:        f.FlagTable.ToWire(),
+		ClothoCandidates: f.ClothoCandidates.ToWire(),
+		Atroposes:        f.Atroposes.ToWire(),
+		Balances:         f.Balances.Bytes(),
+	}
+}
+
+// WireToFrame converts from wire.
+func WireToFrame(w *wire.Frame) *Frame {
+	if w == nil {
+		return nil
+	}
+	return &Frame{
+		Index:            w.Index,
+		FlagTable:        WireToFlagTable(w.FlagTable),
+		ClothoCandidates: WireToEventsByNode(w.ClothoCandidates),
+		Atroposes:        WireToTimestampsByEvent(w.Atroposes),
+		Balances:         common.BytesToHash(w.Balances),
+	}
 }
 
 /*

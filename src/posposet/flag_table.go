@@ -2,11 +2,10 @@ package posposet
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // TODO: make FlagTable internal
@@ -22,18 +21,6 @@ type (
 	// Zero-hash is a self-parent root.
 	// ( event hash --> root creator --> root hashes )
 	FlagTable map[EventHash]eventsByNode
-
-	// storedEvent is an internal struct for serialization purpose.
-	storedEvent struct {
-		Creator common.Address
-		Hash    EventHash
-	}
-
-	// storedFlag is an internal struct for serialization purpose.
-	storedFlag struct {
-		Event EventHash
-		Roots eventsByNode
-	}
 )
 
 /*
@@ -70,30 +57,28 @@ func (ft FlagTable) EventKnows(e EventHash, node common.Address, event EventHash
 	return ft[e] != nil && ft[e].Contains(node, event)
 }
 
-// EncodeRLP is a specialized encoder to encode index into array.
-func (ft FlagTable) EncodeRLP(w io.Writer) error {
-	var arr []storedFlag
+// ToWire converts to simple slice.
+func (ft FlagTable) ToWire() []*wire.Flag {
+	var arr []*wire.Flag
 	for event, roots := range ft {
-		arr = append(arr, storedFlag{event, roots})
+		arr = append(arr, &wire.Flag{
+			Event: event.Bytes(),
+			Roots: roots.ToWire(),
+		})
 	}
-	return rlp.Encode(w, arr)
+	return arr
 }
 
-// DecodeRLP is a specialized decoder to decode index from array.
-func (ft *FlagTable) DecodeRLP(s *rlp.Stream) error {
-	var arr []storedFlag
-	err := s.Decode(&arr)
-	if err != nil {
-		return err
-	}
-
+// WireToFlagTable converts from wire.
+func WireToFlagTable(arr []*wire.Flag) FlagTable {
 	res := FlagTable{}
-	for _, f := range arr {
-		res[f.Event] = f.Roots
+
+	for _, w := range arr {
+		event := BytesToEventHash(w.Event)
+		res[event] = WireToEventsByNode(w.Roots)
 	}
 
-	*ft = res
-	return nil
+	return res
 }
 
 /*
@@ -149,37 +134,36 @@ func (ee eventsByNode) String() string {
 	return "byNode{" + strings.Join(ss, ", ") + "}"
 }
 
-// EncodeRLP is a specialized encoder to encode index into array.
-func (ee eventsByNode) EncodeRLP(w io.Writer) error {
-	var arr []storedEvent
+// ToWire converts to simple slice.
+func (ee eventsByNode) ToWire() []*wire.EventDescr {
+	var arr []*wire.EventDescr
 	for creator, hh := range ee {
 		for hash := range hh {
-			arr = append(arr, storedEvent{creator, hash})
+			arr = append(arr, &wire.EventDescr{
+				Creator: creator.Bytes(),
+				Hash:    hash.Bytes(),
+			})
 		}
 	}
-	return rlp.Encode(w, arr)
+	return arr
 }
 
-// DecodeRLP is a specialized decoder to decode index from array.
-func (ee *eventsByNode) DecodeRLP(s *rlp.Stream) error {
-	var arr []storedEvent
-	err := s.Decode(&arr)
-	if err != nil {
-		return err
-	}
-
+// WireToEventsByNode converts from wire.
+func WireToEventsByNode(arr []*wire.EventDescr) eventsByNode {
 	res := eventsByNode{}
-	for _, e := range arr {
-		if res[e.Creator] == nil {
-			res[e.Creator] = EventHashes{}
+
+	for _, w := range arr {
+		creator := common.BytesToAddress(w.Creator)
+		hash := BytesToEventHash(w.Hash)
+		if res[creator] == nil {
+			res[creator] = EventHashes{}
 		}
-		if !res[e.Creator].Add(e.Hash) {
-			return fmt.Errorf("Double value is detected")
+		if !res[creator].Add(hash) {
+			panic(fmt.Errorf("Double value is detected"))
 		}
 	}
 
-	*ee = res
-	return nil
+	return res
 }
 
 /*

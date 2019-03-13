@@ -52,6 +52,17 @@ func BytesToEventHash(b []byte) EventHash {
 	return EventHash(common.BytesToHash(b))
 }
 
+// HexToEventHash sets byte representation of s to hash.
+// If b is larger than len(h), b will be cropped from the left.
+func HexToEventHash(s string) EventHash {
+	return EventHash(common.HexToHash(s))
+}
+
+// Hex converts an event hash to a hex string.
+func (hash EventHash) Hex() string {
+	return common.Hash(hash).Hex()
+}
+
 // String returns human readable string representation.
 func (hash EventHash) String() string {
 	if name, ok := EventNameDict[hash]; ok {

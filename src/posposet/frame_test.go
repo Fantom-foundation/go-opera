@@ -4,10 +4,11 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 func TestFrameSerialization(t *testing.T) {
@@ -40,12 +41,14 @@ func TestFrameSerialization(t *testing.T) {
 		Atroposes:        timestamps,
 		Balances:         common.FakeHash(),
 	}
-	buf, err := rlp.EncodeToBytes(f0)
+	buf, err := proto.Marshal(f0.ToWire())
 	assert.NoError(err)
 
-	f1 := &Frame{}
-	err = rlp.DecodeBytes(buf, f1)
+	w := &wire.Frame{}
+	err = proto.Unmarshal(buf, w)
 	assert.NoError(err)
+
+	f1 := WireToFrame(w)
 
 	assert.EqualValues(f0, f1)
 }

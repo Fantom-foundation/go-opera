@@ -1,67 +1,36 @@
 package posposet
 
 import (
-	"io"
 	"math"
-
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
-
-/*
- * Timestamp:
- */
-
-type Timestamp uint64
-
-// EncodeRLP is a specialized encoder to encode Timestamp into array.
-func (t Timestamp) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, uint64(t))
-}
-
-// DecodeRLP is a specialized decoder to decode Timestamp from array.
-func (t *Timestamp) DecodeRLP(s *rlp.Stream) error {
-	return s.Decode((*uint64)(t))
-
-}
-
-/*
- * timestampsByEvent:
- */
 
 type (
-	timestampsByEvent map[EventHash]Timestamp
+	Timestamp uint64
 
-	// storedEventTime is an internal struct for specialization purpose.
-	storedEventTime struct {
-		E EventHash
-		T Timestamp
-	}
+	timestampsByEvent map[EventHash]Timestamp
 )
 
-// EncodeRLP is a specialized encoder to encode index into array.
-func (tt timestampsByEvent) EncodeRLP(w io.Writer) error {
-	var arr []storedEventTime
+// ToWire converts to simple slice.
+func (tt timestampsByEvent) ToWire() map[string]uint64 {
+	res := make(map[string]uint64, len(tt))
+
 	for e, t := range tt {
-		arr = append(arr, storedEventTime{e, t})
+		res[e.Hex()] = uint64(t)
 	}
-	return rlp.Encode(w, arr)
+
+	return res
 }
 
-// DecodeRLP is a specialized decoder to decode index from array.
-func (tt *timestampsByEvent) DecodeRLP(s *rlp.Stream) error {
-	var arr []storedEventTime
-	err := s.Decode(&arr)
-	if err != nil {
-		return err
-	}
-
+// WireToTimestampsByEvent converts from wire.
+func WireToTimestampsByEvent(arr map[string]uint64) timestampsByEvent {
 	res := make(timestampsByEvent, len(arr))
-	for _, pair := range arr {
-		res[pair.E] = pair.T
+
+	for hex, t := range arr {
+		hash := HexToEventHash(hex)
+		res[hash] = Timestamp(t)
 	}
 
-	*tt = res
-	return nil
+	return res
 }
 
 /*
