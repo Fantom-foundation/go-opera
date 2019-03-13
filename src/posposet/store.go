@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -101,12 +100,12 @@ func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
 
 // SetEvent stores event.
 func (s *Store) SetEvent(e *Event) {
-	s.set1(s.events, e.Hash().Bytes(), e.ToWire())
+	s.set(s.events, e.Hash().Bytes(), e.ToWire())
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetEvent(h EventHash) *Event {
-	w, _ := s.get1(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
 	e := WireToEvent(w)
 	if e != nil {
 		e.hash = h // fill cache
@@ -122,35 +121,35 @@ func (s *Store) HasEvent(h EventHash) bool {
 // SetEvent stores event.
 func (s *Store) SetState(st *State) {
 	const key = "current"
-	s.set1(s.states, []byte(key), st.ToWire())
+	s.set(s.states, []byte(key), st.ToWire())
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetState() *State {
 	const key = "current"
-	w, _ := s.get1(s.states, []byte(key), &wire.State{}).(*wire.State)
+	w, _ := s.get(s.states, []byte(key), &wire.State{}).(*wire.State)
 	return WireToState(w)
 }
 
 // SetFrame stores event.
 func (s *Store) SetFrame(f *Frame) {
-	s.set1(s.frames, intToKey(f.Index), f.ToWire())
+	s.set(s.frames, intToKey(f.Index), f.ToWire())
 }
 
 // GetFrame returns stored frame.
 func (s *Store) GetFrame(n uint64) *Frame {
-	w, _ := s.get1(s.frames, intToKey(n), &wire.Frame{}).(*wire.Frame)
+	w, _ := s.get(s.frames, intToKey(n), &wire.Frame{}).(*wire.Frame)
 	return WireToFrame(w)
 }
 
 // SetBlock stores chain block.
 func (s *Store) SetBlock(b *Block) {
-	s.set1(s.blocks, intToKey(b.Index), b.ToWire())
+	s.set(s.blocks, intToKey(b.Index), b.ToWire())
 }
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n uint64) *Block {
-	w, _ := s.get1(s.blocks, intToKey(n), &wire.Block{}).(*wire.Block)
+	w, _ := s.get(s.blocks, intToKey(n), &wire.Block{}).(*wire.Block)
 	return WireToBlock(w)
 }
 
@@ -167,7 +166,7 @@ func (s *Store) StateDB(from common.Hash) *state.DB {
  * Utils:
  */
 
-func (s *Store) set1(table kvdb.Database, key []byte, val proto.Message) {
+func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
 	pbf.SetDeterministic(true)
 
@@ -180,7 +179,7 @@ func (s *Store) set1(table kvdb.Database, key []byte, val proto.Message) {
 	}
 }
 
-func (s *Store) get1(table kvdb.Database, key []byte, to proto.Message) proto.Message {
+func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
 	buf, err := table.Get(key)
 	if err != nil {
 		panic(err)
@@ -190,34 +189,6 @@ func (s *Store) get1(table kvdb.Database, key []byte, to proto.Message) proto.Me
 	}
 
 	err = proto.Unmarshal(buf, to)
-	if err != nil {
-		panic(err)
-	}
-	return to
-}
-
-func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
-	buf, err := rlp.EncodeToBytes(val)
-	if err != nil {
-		panic(err)
-	}
-
-	err = table.Put(key, buf)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{} {
-	buf, err := table.Get(key)
-	if err != nil {
-		panic(err)
-	}
-	if buf == nil {
-		return nil
-	}
-
-	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
 		panic(err)
 	}
