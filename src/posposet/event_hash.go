@@ -120,20 +120,11 @@ func (hh EventHashes) ToWire() [][]byte {
 	}
 	sort.Sort(arr)
 
-	res := make([][]byte, len(arr))
-	for i, h := range arr {
-		res[i] = h.Bytes()
-	}
-
-	return res
+	return arr.ToWire()
 }
 
 // WireToEventHashes converts from simple slice.
 func WireToEventHashes(buf [][]byte) EventHashes {
-	if buf == nil {
-		return nil
-	}
-
 	hh := EventHashes{}
 	for _, b := range buf {
 		h := BytesToEventHash(b)
@@ -146,6 +137,30 @@ func WireToEventHashes(buf [][]byte) EventHashes {
 /*
  * EventHashSlice's methods:
  */
+
+// ToWire converts to simple slice.
+func (hh EventHashSlice) ToWire() [][]byte {
+	res := make([][]byte, len(hh))
+	for i, h := range hh {
+		res[i] = h.Bytes()
+	}
+
+	return res
+}
+
+// WireToEventHashSlice converts from simple slice.
+func WireToEventHashSlice(buf [][]byte) EventHashSlice {
+	if buf == nil {
+		return nil
+	}
+
+	hh := make(EventHashSlice, len(buf))
+	for i, b := range buf {
+		hh[i] = BytesToEventHash(b)
+	}
+
+	return hh
+}
 
 func (hh EventHashSlice) Len() int      { return len(hh) }
 func (hh EventHashSlice) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }

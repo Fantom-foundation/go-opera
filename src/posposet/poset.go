@@ -372,9 +372,14 @@ func (p *Poset) collectParents(a *Event, res *Events, already EventHashes) {
 
 // makeBlock makes main chain block from topological ordered events.
 func (p *Poset) makeBlock(ordered Events) uint64 {
+	events := make(EventHashSlice, len(ordered))
+	for i, e := range ordered {
+		events[i] = e.Hash()
+	}
+
 	b := &Block{
 		Index:  p.state.LastBlockN + 1,
-		Events: ordered,
+		Events: events,
 	}
 	p.store.SetBlock(b)
 	// TODO: notify external systems (through chan)

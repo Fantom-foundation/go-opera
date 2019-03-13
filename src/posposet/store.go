@@ -145,13 +145,13 @@ func (s *Store) GetFrame(n uint64) *Frame {
 
 // SetBlock stores chain block.
 func (s *Store) SetBlock(b *Block) {
-	s.set(s.blocks, intToKey(b.Index), b)
+	s.set1(s.blocks, intToKey(b.Index), b.ToWire())
 }
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n uint64) *Block {
-	b, _ := s.get(s.blocks, intToKey(n), &Block{}).(*Block)
-	return b
+	w, _ := s.get1(s.blocks, intToKey(n), &wire.Block{}).(*wire.Block)
+	return WireToBlock(w)
 }
 
 // StateDB returns state database.
