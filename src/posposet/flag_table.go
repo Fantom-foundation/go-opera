@@ -115,7 +115,7 @@ func (ee EventsByNode) Contains(node common.Address, event EventHash) bool {
 	return ee[node] != nil && ee[node].Contains(event)
 }
 
-// Add unions roots into one.
+// Each returns range of all events.
 func (ee EventsByNode) Each() map[EventHash]common.Address {
 	res := make(map[EventHash]common.Address)
 	for creator, events := range ee {
