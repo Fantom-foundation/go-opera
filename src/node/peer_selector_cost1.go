@@ -13,6 +13,7 @@ type FairPeerSelector struct {
 	last      string
 	localAddr string
 	peers     *peers.Peers
+	pals         map[string]bool
 }
 
 // FairPeerSelectorCreationFnArgs specifies which additional arguments are require to create a FairPeerSelector
@@ -26,6 +27,7 @@ func NewFairPeerSelector(participants *peers.Peers, args FairPeerSelectorCreatio
 	return &FairPeerSelector{
 		localAddr: args.LocalAddr,
 		peers:     participants,
+		pals:      make(map[string]bool),
 		// kPeerSize: args.KPeerSize,
 	}
 }
@@ -82,6 +84,10 @@ func (ps *FairPeerSelector) Next() *peers.Peer {
 			lastUsed = append(lastUsed, p)
 			continue
 		}
+		// skip peers we are alredy engaged with
+		if _, ok := ps.pals[p.NetAddr]; ok {
+			continue
+		}
 
 		cost := fairCostFunction(p)
 		if minCost > cost {
@@ -108,4 +114,22 @@ func (ps *FairPeerSelector) Next() *peers.Peer {
 	i := rand.Intn(len(selected))
 	selected[i].Used++
 	return selected[i]
+}
+
+// Indicate we are in communication with a peer
+// so it would be excluded from next peer selection
+func (ps *FairPeerSelector)Engage(peer string) {
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+	ps.pals[peer] = true
+}
+
+// Indicate we are not in communication with a peer
+// so it could be selected as a next peer
+func (ps *FairPeerSelector)Dismiss(peer string) {
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+	if _, ok := ps.pals[peer]; ok {
+		delete(ps.pals, peer)
+	}
 }

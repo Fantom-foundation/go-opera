@@ -16,6 +16,7 @@ type SmartPeerSelector struct {
 	localAddr    string
 	last         string
 	GetFlagTable GetFlagTableFn
+	pals         map[string]bool
 }
 
 // SmartPeerSelectorCreationFnArgs specifies which additional arguments are required to create a SmartPeerSelector
@@ -31,6 +32,7 @@ func NewSmartPeerSelector(participants *peers.Peers, args SmartPeerSelectorCreat
 		localAddr:    args.LocalAddr,
 		peers:        participants,
 		GetFlagTable: args.GetFlagTable,
+		pals:         make(map[string]bool),
 	}
 }
 
@@ -86,6 +88,10 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 			lastused = append(lastused, p)
 			continue
 		}
+		// skip peers we are alredy engaged with
+		if _, ok := ps.pals[p.NetAddr]; ok {
+			continue
+		}
 
 		if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
 			flagged[fCount] = p
@@ -119,4 +125,22 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 	i := rand.Intn(len(selected))
 	selected[i].Used++
 	return selected[i]
+}
+
+// Indicate we are in communication with a peer
+// so it would be excluded from next peer selection
+func (ps *SmartPeerSelector)Engage(peer string) {
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+	ps.pals[peer] = true
+}
+
+// Indicate we are not in communication with a peer
+// so it could be selected as a next peer
+func (ps *SmartPeerSelector)Dismiss(peer string) {
+	ps.peers.Lock()
+	defer ps.peers.Unlock()
+	if _, ok := ps.pals[peer]; ok {
+		delete(ps.pals, peer)
+	}
 }
