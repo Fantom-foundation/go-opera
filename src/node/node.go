@@ -275,7 +275,18 @@ func (n *Node) processRPC(rpc *peer.RPC) {
 }
 
 func (n *Node) processSyncRequest(rpc *peer.RPC, cmd *peer.SyncRequest) {
+	participants, err := n.GetParticipants()
+	if err != nil {
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
+	}
+	p, ok := participants.ReadByID(cmd.FromID)
+	if !ok {
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
+	}
+	n.peerSelector.Engage(p.NetAddr)
+
 	n.logger.WithFields(logrus.Fields{
+		"from":    p.NetAddr,
 		"from_id": cmd.FromID,
 		"known":   cmd.Known,
 	}).Debug("processSyncRequest(rpc net.RPC, cmd *net.SyncRequest)")
@@ -330,6 +341,8 @@ func (n *Node) processSyncRequest(rpc *peer.RPC, cmd *peer.SyncRequest) {
 
 	// TODO: context.Background
 	rpc.SendResult(context.Background(), n.logger, resp, respErr)
+
+	n.peerSelector.Dismiss(p.NetAddr)
 }
 
 func (n *Node) processEagerSyncRequest(rpc *peer.RPC, cmd *peer.ForceSyncRequest) {
@@ -344,12 +357,13 @@ func (n *Node) processEagerSyncRequest(rpc *peer.RPC, cmd *peer.ForceSyncRequest
 		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
+	n.peerSelector.Engage(p.NetAddr)
+
 	n.logger.WithFields(logrus.Fields{
 		"from":    p.NetAddr,
 		"from_id": cmd.FromID,
 		"events":  len(cmd.Events),
 	}).Debug("processEagerSyncRequest(rpc net.RPC, cmd *net.ForceSyncRequest)")
-
 
 	resp := &peer.ForceSyncResponse{
 		FromID:  n.id,
@@ -366,9 +380,20 @@ func (n *Node) processEagerSyncRequest(rpc *peer.RPC, cmd *peer.ForceSyncRequest
 		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
 		success = false
 	}
+	n.peerSelector.Dismiss(p.NetAddr)
 }
 
 func (n *Node) processFastForwardRequest(rpc *peer.RPC, cmd *peer.FastForwardRequest) {
+	participants, err := n.GetParticipants()
+	if err != nil {
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
+	}
+	p, ok := participants.ReadByID(cmd.FromID)
+	if !ok {
+		n.logger.WithField("error", err).Error("n.sync(cmd.Events)")
+	}
+	n.peerSelector.Engage(p.NetAddr)
+
 	n.logger.WithFields(logrus.Fields{
 		"from": cmd.FromID,
 	}).Debug("processFastForwardRequest(rpc net.RPC, cmd *net.FastForwardRequest)")
@@ -404,6 +429,8 @@ func (n *Node) processFastForwardRequest(rpc *peer.RPC, cmd *peer.FastForwardReq
 	}).Debug("FastForwardRequest Received")
 	// TODO: context.Background
 	rpc.SendResult(context.Background(), n.logger, resp, respErr)
+
+	n.peerSelector.Dismiss(p.NetAddr)
 }
 
 // This function is usually called in a go-routine and needs to inform the
