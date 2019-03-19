@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
@@ -40,7 +42,7 @@ type EventMessageLite struct {
 	RoundReceived    int64
 
 	ClothoProof [][]byte
-	// FlagTable []byte // FlagTable stores connection information
+	FlagTable []byte // FlagTable stores connection information
 }
 
 // EventLite small subset of event for debugging
@@ -48,6 +50,7 @@ type EventLite struct {
 	CreatorID            uint64
 	OtherParentCreatorID uint64
 	Message              EventMessageLite
+	LamportTimestamp     int64
 }
 
 // GetParticipantEventsLite returns all participants
@@ -82,6 +85,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 		liteEvent := EventLite{
 			CreatorID:            event.CreatorID(),
 			OtherParentCreatorID: event.OtherParentCreatorID(),
+			LamportTimestamp:     event.GetLamportTimestamp(),
 			Message: EventMessageLite{
 				Body: EventBodyLite{
 					Parents:      event.Message.Body.Parents,
@@ -92,6 +96,7 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 				Hash:             hash.String(),
 				Signature:        event.Message.Signature,
 				ClothoProof:      event.Message.ClothoProof,
+				FlagTable:        event.Message.FlagTable,
 				//Round:            event.Message.Round,
 				//RoundReceived:    event.Message.RoundReceived,
 				TopologicalIndex: event.Message.TopologicalIndex,
@@ -131,12 +136,98 @@ func (c *Core) PrintStat(logger *logrus.Entry) {
 // PrintStat prints debug stats
 func (n *Node) PrintStat() {
 	n.logger.Warn("*Node=", n.localAddr)
+
 	g := NewGraph(n)
+
 	encoder := json.NewEncoder(n.logger.Logger.Out)
 	encoder.SetIndent("", "  ")
+
 	res := g.GetInfosLite()
 	encoder.Encode(res)
+
 	n.core.PrintStat(n.logger)
+
+	file, err := os.Create(fmt.Sprintf("Node_%v.gv", n.localAddr))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintf(file, "digraph ANode { /* %v */\nrankdir=RL; ranksep=1.5;\n", n.localAddr)
+
+	fr := make(map[int64]map[string][]EventLite)
+	cr := make(map[string][]EventLite)
+	maxFrame := int64(0)
+	for _, events := range res.ParticipantEvents {
+		for _, le := range events {
+			if le.Message.Round > maxFrame {
+				maxFrame = le.Message.Round
+			}
+			fr[le.Message.Round] = make(map[string][]EventLite)
+			cr[le.Message.Body.Creator] = append(cr[le.Message.Body.Creator], le)
+		}
+	}
+
+	for _, events := range res.ParticipantEvents {
+		for _, le := range events {
+			fr[le.Message.Round][le.Message.Body.Creator] = append(fr[le.Message.Round][le.Message.Body.Creator], le)
+		}
+	}
+
+	fmt.Fprint(file, "layers = \"f0")
+	for i := int64(1); i <= maxFrame; i++ {
+		fmt.Fprintf(file, ":f%v", i)
+	}
+	fmt.Fprintln(file, "\";")
+
+
+	var keys []string
+	for k, _ := range cr {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var replacer = strings.NewReplacer(".", "_", ":", "_")
+
+	for _, creator := range keys {
+		lightEvents := cr[creator]
+		fmt.Fprintf(file, "subgraph cluster_%v { rank = same; ranksep = 2.5; ", replacer.Replace(creator))
+		for _, le := range lightEvents {
+			fmt.Fprintf(file, "v%v [shape=none,layer=\"f%v\" label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\"><TR><TD>r</TD><td>l</td><td>rr</td><td>ind</td><td>cr</td></TR><tr><td>%v</td><td>%v</td><td>%v</td><td>%v</td><td>%v</td></tr><tr><td colspan=\"5\">ft:",
+				le.Message.Hash, le.Message.Round, le.Message.Round, le.LamportTimestamp, le.Message.RoundReceived, le.Message.Body.Index, le.Message.Body.Creator )
+			ft := poset.NewFlagTable()
+			ft.Unmarshal(le.Message.FlagTable)
+			for k, v := range ft {
+				ev, err := n.core.poset.Store.GetEventBlock(k)
+				if err == nil {
+					peer, ok := n.core.poset.Participants.ReadByPubKey(ev.GetCreator())
+					if !ok {
+						panic(fmt.Sprintf("Peer %v not found", k))
+					}
+					fmt.Fprintf(file, " %v:%v", peer.NetAddr, v)
+				} else {
+					fmt.Fprintf(file, " ???:%v", v)
+				}
+			}
+
+			fmt.Fprintf(file, "</td></tr></TABLE>>];\n")
+			n.logger.Warnf("v%v r:%v rr:%v ind:%v cr:%v l:%v", le.Message.Hash, le.Message.Round, le.Message.RoundReceived, le.Message.Body.Index, le.Message.Body.Creator, le.LamportTimestamp )
+		}
+		fmt.Fprint(file, " }\n")
+	}
+
+	for _, events := range res.ParticipantEvents {
+		for _, le := range events {
+			var parent, otherParent poset.EventHash
+			parent.Set(le.Message.Body.Parents[0])
+			otherParent.Set(le.Message.Body.Parents[1])
+			if !parent.Zero() {
+				fmt.Fprintf(file, "v%v -> v%v;\n", le.Message.Hash, parent.String())
+			}
+			if !otherParent.Zero() {
+				fmt.Fprintf(file, "v%v -> v%v;\n", le.Message.Hash, otherParent.String())
+			}
+		}
+	}
+	fmt.Fprintln(file, "}\n")
+	file.Close()
 }
 
 // Register a print listener
