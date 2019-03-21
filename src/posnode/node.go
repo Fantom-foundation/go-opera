@@ -18,6 +18,8 @@ type Node struct {
 	consensus Consensus
 
 	service
+
+	gossip
 }
 
 // New creates node.

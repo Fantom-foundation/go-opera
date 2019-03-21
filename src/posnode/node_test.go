@@ -5,6 +5,7 @@ package posnode
 
 import (
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 
@@ -30,6 +31,9 @@ func TestNode(t *testing.T) {
 	listener := network.TcpListener("")
 	n.StartService(listener)
 	defer n.StopService()
-
 	t.Logf("node listen at %v", listener.Addr())
+
+	n.StartGossip(4)
+	defer n.StopGossip()
+	<-time.After(5 * time.Second)
 }
