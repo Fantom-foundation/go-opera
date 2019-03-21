@@ -42,15 +42,18 @@ func (n *Node) StopService() {
 // SyncEvents it remember their known events for future request
 // and returns unknown for they events.
 func (n *Node) SyncEvents(ctx context.Context, req *wire.KnownEvents) (*wire.KnownEvents, error) {
+	// TODO: implement it
 	return nil, nil
 }
 
 // GetEvent returns requested event.
 func (n *Node) GetEvent(ctx context.Context, req *wire.EventRequest) (*wire.Event, error) {
+	// TODO: implement it
 	return nil, nil
 }
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *wire.PeerRequest) (*wire.PeerInfo, error) {
+	// TODO: implement it
 	return nil, nil
 }

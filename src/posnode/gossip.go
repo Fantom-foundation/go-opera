@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 // gossip is a pool of gossiping processes.
@@ -14,10 +16,10 @@ type gossip struct {
 
 func (g *gossip) addTicket() {
 	g.Sync.Lock()
+	defer g.Sync.Unlock()
 	if g.Tickets != nil {
 		g.Tickets <- struct{}{}
 	}
-	g.Sync.Unlock()
 }
 
 // StartGossip starts gossiping.
@@ -35,9 +37,9 @@ func (n *Node) StartGossip(threads int) {
 // It should be called once.
 func (n *Node) StopGossip() {
 	n.gossip.Sync.Lock()
+	defer n.gossip.Sync.Unlock()
 	close(n.gossip.Tickets)
 	n.gossip.Tickets = nil
-	n.gossip.Sync.Unlock()
 }
 
 // gossiping is a infinity gossip process.
@@ -51,8 +53,11 @@ func (n *Node) gossiping() {
 }
 
 func (n *Node) gossipOnce() {
-	// TODO: implement it (select peer, connect, sync with peer, get new events)
+	// TODO: implement it (select peer, connect, sync with peer, get new events, n.CheckPeerIsKnown())
 	fmt.Println("gossip +")
 	<-time.After(time.Second / 2)
+
+	n.CheckPeerIsKnown(common.Address{}, common.Address{})
+
 	fmt.Println("gossip -")
 }

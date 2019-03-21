@@ -9,6 +9,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
+//TODO: make reusable connections pool
+
 // Dialer is a func for connecting to service.
 type Dialer func(context.Context, string) (net.Conn, error)
 

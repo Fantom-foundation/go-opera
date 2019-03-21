@@ -19,12 +19,15 @@ func TestNode(t *testing.T) {
 
 	consensus := NewMockConsensus(ctrl)
 
+	store := NewMemStore()
+
 	key, err := crypto.GenerateECDSAKey()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	n := New(key, consensus, nil) // TODO: network.FakeConnect instead of nil for tests.
+	// TODO: network.FakeConnect instead of nil for tests.
+	n := New(key, store, consensus, nil)
 	defer n.Shutdown()
 
 	// TODO: use network.FakeListener("") for tests.
@@ -32,6 +35,9 @@ func TestNode(t *testing.T) {
 	n.StartService(listener)
 	defer n.StopService()
 	t.Logf("node listen at %v", listener.Addr())
+
+	n.StartDiscovery()
+	defer n.StopDiscovery()
 
 	n.StartGossip(4)
 	defer n.StopGossip()
