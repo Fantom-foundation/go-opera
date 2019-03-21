@@ -10,12 +10,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
-func (n *Node) StartService(bindAddr string) {
-	listener, err := net.Listen("tcp", bindAddr)
-	if err != nil {
-		panic(err)
-	}
+type (
+	// Dialer is a func for connecting to service.
+	Dialer func(context.Context, string) (net.Conn, error)
+)
 
+// StartService starts node service.
+func (n *Node) StartService(listener net.Listener) {
 	n.server = grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
@@ -23,13 +24,32 @@ func (n *Node) StartService(bindAddr string) {
 
 	go func() {
 		if err := n.server.Serve(listener); err != nil {
-			panic(err)
+			// TODO: log error
 		}
 	}()
 }
 
+// StopService stops node service.
 func (n *Node) StopService() {
 	n.server.GracefulStop()
+}
+
+// ConnectTo connects to other node service.
+func (n *Node) ConnectTo(ctx context.Context, addr string) (wire.NodeClient, error) {
+	var (
+		conn *grpc.ClientConn
+		err  error
+	)
+	if n.dialer == nil {
+		conn, err = grpc.DialContext(ctx, addr)
+	} else {
+		conn, err = grpc.DialContext(ctx, addr, grpc.WithContextDialer(n.dialer))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return wire.NewNodeClient(conn), nil
 }
 
 /*

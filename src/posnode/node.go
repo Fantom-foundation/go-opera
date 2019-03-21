@@ -18,16 +18,18 @@ type Node struct {
 	consensus Consensus
 
 	server *grpc.Server
+	dialer Dialer
 }
 
 // New creates node.
-func New(key *ecdsa.PrivateKey, c Consensus) *Node {
+func New(key *ecdsa.PrivateKey, c Consensus, dialer Dialer) *Node {
 	return &Node{
 		ID:  common.BytesToHash(crypto.FromECDSAPub(&key.PublicKey)),
 		key: key,
 		pub: &key.PublicKey,
 
 		consensus: c,
+		dialer:    dialer,
 	}
 }
 
