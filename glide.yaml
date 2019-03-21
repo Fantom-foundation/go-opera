@@ -47,3 +47,5 @@ testImport:
   version: ^1.3.0
   subpackages:
   - assert
+- package: github.com/golang/mock
+  version: ^1.2.0
