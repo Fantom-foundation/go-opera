@@ -3,8 +3,6 @@ package posnode
 import (
 	"crypto/ecdsa"
 
-	"google.golang.org/grpc"
-
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
@@ -15,21 +13,23 @@ type Node struct {
 	key *ecdsa.PrivateKey
 	pub *ecdsa.PublicKey
 
+	peerDialer Dialer
+
 	consensus Consensus
 
-	server *grpc.Server
-	dialer Dialer
+	service
 }
 
 // New creates node.
-func New(key *ecdsa.PrivateKey, c Consensus, dialer Dialer) *Node {
+func New(key *ecdsa.PrivateKey, c Consensus, peerDialer Dialer) *Node {
 	return &Node{
 		ID:  common.BytesToHash(crypto.FromECDSAPub(&key.PublicKey)),
 		key: key,
 		pub: &key.PublicKey,
 
+		peerDialer: peerDialer,
+
 		consensus: c,
-		dialer:    dialer,
 	}
 }
 
