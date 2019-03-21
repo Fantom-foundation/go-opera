@@ -4,6 +4,7 @@ package posnode
 //go:generate mockgen -package=posnode -source=consensus.go -destination=mock_test.go Consensus
 
 import (
+	"crypto/ecdsa"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func TestNode(t *testing.T) {
 	}
 
 	// TODO: network.FakeConnect instead of nil for tests.
-	n := New(key, store, consensus, nil)
+	n := NewWithName(key, store, consensus, nil, "node001")
 	defer n.Shutdown()
 
 	// TODO: use network.FakeListener("") for tests.
@@ -42,4 +43,17 @@ func TestNode(t *testing.T) {
 	n.StartGossip(4)
 	defer n.StopGossip()
 	<-time.After(5 * time.Second)
+}
+
+/*
+ * Utils:
+ */
+
+// New creates node.
+// TODO: use common.NodeNameDict instead of name after PR #161
+func NewWithName(key *ecdsa.PrivateKey, s *Store, c Consensus, peerDialer Dialer, name string) *Node {
+	id := CalcNodeID(&key.PublicKey)
+	GetLogger(id, name)
+
+	return New(key, s, c, peerDialer)
 }

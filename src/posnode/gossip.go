@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -54,10 +53,10 @@ func (n *Node) gossiping() {
 
 func (n *Node) gossipOnce() {
 	// TODO: implement it (select peer, connect, sync with peer, get new events, n.CheckPeerIsKnown())
-	fmt.Println("gossip +")
-	<-time.After(time.Second / 2)
+	n.log().Debug("gossip +")
 
+	<-time.After(time.Second / 2)
 	n.CheckPeerIsKnown(common.Address{}, common.Address{})
 
-	fmt.Println("gossip -")
+	n.log().Debug("gossip -")
 }

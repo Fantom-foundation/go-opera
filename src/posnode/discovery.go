@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"fmt"
 	"math/rand"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -46,15 +45,15 @@ func (n *Node) StopDiscovery() {
 func (n *Node) CheckPeerIsKnown(source, id common.Address) {
 	// TODO: sync quickly check is ID unknown in fact?
 	if rand.Intn(100) < 50 {
-		fmt.Println("Peer is known")
+		n.log().Debug("Peer is known")
 	}
-	fmt.Println("Peer is unknown")
+	n.log().Debug("Peer is unknown")
 
 	select {
 	case n.discovery.tasks <- discoveryTask{source, id}:
 		break
 	default:
-		// TODO: log( discovery.tasks queue is full, so skipped )
+		n.log().Warn("discovery.tasks queue is full, so skipped")
 		break
 	}
 }
@@ -62,5 +61,5 @@ func (n *Node) CheckPeerIsKnown(source, id common.Address) {
 // AskPeerInfo gets peer info (network address, public key, etc).
 func (n *Node) AskPeerInfo(whom, id common.Address) {
 	// TODO: implement it (connect to whom, ask by GetPeerInfo(id), save address)
-	fmt.Println("Peer info ask")
+	n.log().Debug("peer info ask")
 }
