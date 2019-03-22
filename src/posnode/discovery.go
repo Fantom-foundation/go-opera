@@ -1,9 +1,12 @@
 package posnode
 
 import (
-	"math/rand"
+	"context"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/pkg/errors"
 )
 
 // discovery is a network discovery process.
@@ -13,7 +16,7 @@ type discovery struct {
 }
 
 type discoveryTask struct {
-	source  common.Address
+	source  string // NetAddr
 	unknown common.Address
 }
 
@@ -42,24 +45,59 @@ func (n *Node) StopDiscovery() {
 }
 
 // CheckPeerIsKnown checks peer is known otherwise makes discovery task.
-func (n *Node) CheckPeerIsKnown(source, id common.Address) {
-	// TODO: sync quickly check is ID unknown in fact?
-	if rand.Intn(100) < 50 {
-		n.log.Debug("Peer is known")
+func (n *Node) CheckPeerIsKnown(source string, id common.Address) {
+	// Find peer by its id in storage.
+	_, err := n.store.GetPeerInfo(id)
+	if err == nil {
+		// If peer found in storage skip.
+		return
 	}
-	n.log.Debug("Peer is unknown")
+
+	if errors.Cause(err) != kvdb.ErrKeyNotFound {
+		// Some unknown error with database, log and skip.
+		// TODO: log error.
+		return
+	}
 
 	select {
 	case n.discovery.tasks <- discoveryTask{source, id}:
-		break
 	default:
 		n.log.Warn("discovery.tasks queue is full, so skipped")
-		break
 	}
 }
 
 // AskPeerInfo gets peer info (network address, public key, etc).
-func (n *Node) AskPeerInfo(whom, id common.Address) {
-	// TODO: implement it (connect to whom, ask by GetPeerInfo(id), save address)
-	n.log.Debug("peer info ask")
+func (n *Node) AskPeerInfo(whom string, id common.Address) {
+	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
+	defer cancel()
+	cli, err := n.ConnectTo(ctx, whom)
+	if err != nil {
+		// TODO: redo task?
+		// TODO: log error.
+		return
+	}
+
+	peerInfo, err := requestPeerInfo(cli, id.Hex())
+	if err != nil {
+		// TODO: handle not found.
+		// TODO: log error.
+		return
+	}
+
+	peer := WireToPeer(peerInfo)
+	if err := n.store.SetPeer(peer); err != nil {
+		// TODO: log error.
+		return
+	}
+}
+
+// requestPeerInfo makes GetPeerInfo using NodeClient
+// with context which hash timeout.
+func requestPeerInfo(cli wire.NodeClient, id string) (*wire.PeerInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	defer cancel()
+	in := wire.PeerRequest{
+		PeerID: id,
+	}
+	return cli.GetPeerInfo(ctx, &in)
 }

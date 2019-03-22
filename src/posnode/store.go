@@ -3,6 +3,7 @@ package posnode
 import (
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
@@ -79,11 +80,11 @@ func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) error {
 	var pbf proto.Buffer
 
 	if err := pbf.Marshal(val); err != nil {
-		panic(err)
+		return errors.Wrap(err, "marshal")
 	}
 
 	if err := table.Put(key, pbf.Bytes()); err != nil {
-		panic(err)
+		return errors.Wrap(err, "put key")
 	}
 
 	return nil
@@ -92,14 +93,14 @@ func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) error {
 func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) error {
 	buf, err := table.Get(key)
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "get key")
 	}
 	if buf == nil {
 		return nil
 	}
 
 	if err = proto.Unmarshal(buf, to); err != nil {
-		panic(err)
+		return errors.Wrap(err, "unmarshal body")
 	}
 
 	return nil

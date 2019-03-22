@@ -56,6 +56,9 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 	err = w.db.View(func(txn *badger.Txn) error {
 		item, rerr := txn.Get(key)
 		if rerr != nil {
+			if rerr == badger.ErrKeyNotFound {
+				return ErrKeyNotFound
+			}
 			return rerr
 		}
 		res, rerr = item.ValueCopy(res)
