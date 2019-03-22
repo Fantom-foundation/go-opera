@@ -2,17 +2,17 @@ package posnode
 
 import (
 	"context"
-	"net"
 
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
+// client of node service.
 //TODO: make reusable connections pool
-
-// Dialer is a func for connecting to service.
-type Dialer func(context.Context, string) (net.Conn, error)
+type client struct {
+	opts []grpc.DialOption
+}
 
 // ConnectTo connects to other node service.
 func (n *Node) ConnectTo(ctx context.Context, addr string) (wire.NodeClient, error) {
@@ -20,11 +20,8 @@ func (n *Node) ConnectTo(ctx context.Context, addr string) (wire.NodeClient, err
 		conn *grpc.ClientConn
 		err  error
 	)
-	if n.peerDialer == nil {
-		conn, err = grpc.DialContext(ctx, addr)
-	} else {
-		conn, err = grpc.DialContext(ctx, addr, grpc.WithContextDialer(n.peerDialer))
-	}
+	// TODO: secure connection
+	conn, err = grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure())...)
 	if err != nil {
 		return nil, err
 	}

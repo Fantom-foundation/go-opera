@@ -3,8 +3,6 @@ package network
 import (
 	"context"
 	"net"
-
-	"google.golang.org/grpc"
 )
 
 // TcpListener returns TCP listener binded to addr.
@@ -15,11 +13,6 @@ func TcpListener(addr string) net.Listener {
 		panic(err)
 	}
 	return res
-}
-
-// TcpConnect returns TCP grpc connection.
-func TcpConnect(addr string) (*grpc.ClientConn, error) {
-	return grpc.Dial(addr)
 }
 
 // FakeListener returns fake listener binded to addr.
@@ -36,12 +29,8 @@ func FakeListener(addr string) net.Listener {
 	}
 }
 
-// FakeConnect returns fake grpc connection.
-func FakeConnect(addr string) (*grpc.ClientConn, error) {
-	return grpc.Dial(addr, grpc.WithContextDialer(fakeDial))
-}
-
-func fakeDial(ctx context.Context, addr string) (net.Conn, error) {
+// FakeDial returns fake connection.
+func FakeDial(ctx context.Context, addr string) (net.Conn, error) {
 	return &Conn{
 		remoteAddr: Addr(addr),
 	}, nil

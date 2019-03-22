@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
@@ -16,26 +17,25 @@ type Node struct {
 	pub   *ecdsa.PublicKey
 	store *Store
 
-	peerDialer Dialer
-
 	consensus Consensus
 
 	service
+	client
 	gossip
 	discovery
 }
 
 // New creates node.
-func New(key *ecdsa.PrivateKey, s *Store, c Consensus, peerDialer Dialer) *Node {
+func New(key *ecdsa.PrivateKey, s *Store, c Consensus, opts ...grpc.DialOption) *Node {
 	return &Node{
 		ID:    CalcNodeID(&key.PublicKey),
 		key:   key,
 		pub:   &key.PublicKey,
 		store: s,
 
-		peerDialer: peerDialer,
-
 		consensus: c,
+
+		client: client{opts},
 	}
 }
 

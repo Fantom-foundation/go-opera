@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
@@ -27,11 +28,11 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO: network.FakeConnect instead of nil for tests.
-	n := NewWithName(key, store, consensus, nil, "node001")
+	// TODO: add grpc.WithContextDialer(network.FakeDial) arg for tests
+	n := NewWithName("node001", key, store, consensus)
 	defer n.Shutdown()
 
-	// TODO: use network.FakeListener("") for tests.
+	// TODO: use network.FakeListener("") for tests
 	listener := network.TcpListener("")
 	n.StartService(listener)
 	defer n.StopService()
@@ -49,11 +50,11 @@ func TestNode(t *testing.T) {
  * Utils:
  */
 
-// New creates node.
+// New creates node for tests.
 // TODO: use common.NodeNameDict instead of name after PR #161
-func NewWithName(key *ecdsa.PrivateKey, s *Store, c Consensus, peerDialer Dialer, name string) *Node {
+func NewWithName(name string, key *ecdsa.PrivateKey, s *Store, c Consensus, opts ...grpc.DialOption) *Node {
 	id := CalcNodeID(&key.PublicKey)
 	GetLogger(id, name)
 
-	return New(key, s, c, peerDialer)
+	return New(key, s, c, opts...)
 }
