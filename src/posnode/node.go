@@ -12,12 +12,13 @@ import (
 
 // Node is a Lachesis node implementation.
 type Node struct {
-	ID    common.Address
-	key   *ecdsa.PrivateKey
-	pub   *ecdsa.PublicKey
-	store *Store
-
+	ID        common.Address
+	key       *ecdsa.PrivateKey
+	pub       *ecdsa.PublicKey
+	store     *Store
 	consensus Consensus
+	host      string
+	conf      Config
 
 	service
 	client
@@ -26,14 +27,15 @@ type Node struct {
 }
 
 // New creates node.
-func New(key *ecdsa.PrivateKey, s *Store, c Consensus, opts ...grpc.DialOption) *Node {
+func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...grpc.DialOption) *Node {
 	return &Node{
-		ID:    CalcNodeID(&key.PublicKey),
-		key:   key,
-		pub:   &key.PublicKey,
-		store: s,
-
+		ID:        CalcNodeID(&key.PublicKey),
+		key:       key,
+		pub:       &key.PublicKey,
+		store:     s,
 		consensus: c,
+		host:      host,
+		conf:      *conf,
 
 		client: client{opts},
 	}
@@ -49,7 +51,7 @@ func (n *Node) Shutdown() {
  */
 
 func (n *Node) log() *logrus.Entry {
-	return GetLogger(n.ID, "")
+	return GetLogger(n.ID, n.host)
 }
 
 func CalcNodeID(pub *ecdsa.PublicKey) common.Address {

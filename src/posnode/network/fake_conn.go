@@ -9,6 +9,7 @@ import (
 // Conn is a stream-oriented fake network connection.
 // Multiple goroutines may invoke methods on a Conn simultaneously.
 type Conn struct {
+	localAddr  net.Addr
 	remoteAddr net.Addr
 
 	input  *io.PipeReader
@@ -41,7 +42,7 @@ func (c *Conn) Close() error {
 
 // LocalAddr returns the local network address.
 func (c *Conn) LocalAddr() net.Addr {
-	return Addr(":fake")
+	return c.localAddr
 }
 
 // RemoteAddr returns the remote network address.

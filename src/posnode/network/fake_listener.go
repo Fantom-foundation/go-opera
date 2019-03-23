@@ -18,17 +18,21 @@ func NewListener(addr Addr) *Listener {
 	}
 }
 
-func (l *Listener) connect() (net.Conn, error) {
+func (l *Listener) connect(from string) (net.Conn, error) {
 	in1, out1 := io.Pipe()
 	in2, out2 := io.Pipe()
 
+	from = from + ":0"
+
 	conn1 := &Conn{
-		remoteAddr: Addr(":undefined"),
+		localAddr:  l.NetAddr,
+		remoteAddr: Addr(from),
 		input:      in1,
 		output:     out2,
 	}
 
 	conn2 := &Conn{
+		localAddr:  Addr(from),
 		remoteAddr: l.NetAddr,
 		input:      in2,
 		output:     out1,

@@ -4,7 +4,7 @@ package posnode
 //go:generate mockgen -package=posnode -source=consensus.go -destination=mock_test.go Consensus
 
 import (
-	"crypto/ecdsa"
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,20 +23,11 @@ func TestNode(t *testing.T) {
 
 	store := NewMemStore()
 
-	key, err := crypto.GenerateECDSAKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// TODO: add grpc.WithContextDialer(network.FakeDial) arg for tests
-	n := NewWithName("node001", key, store, consensus)
+	n := NewForTests("node001", store, consensus)
 	defer n.Shutdown()
 
-	// TODO: use network.FakeListener("") for tests
-	listener := network.TcpListener("")
-	n.StartService(listener)
+	n.StartServiceForTests()
 	defer n.StopService()
-	t.Logf("node listen at %v", listener.Addr())
 
 	n.StartDiscovery()
 	defer n.StopDiscovery()
@@ -51,10 +42,22 @@ func TestNode(t *testing.T) {
  */
 
 // New creates node for tests.
-// TODO: use common.NodeNameDict instead of name after PR #161
-func NewWithName(name string, key *ecdsa.PrivateKey, s *Store, c Consensus, opts ...grpc.DialOption) *Node {
-	id := CalcNodeID(&key.PublicKey)
-	GetLogger(id, name)
+func NewForTests(host string, s *Store, c Consensus) *Node {
+	key, err := crypto.GenerateECDSAKey()
+	if err != nil {
+		panic(err)
+	}
 
-	return New(key, s, c, opts...)
+	dialer := network.FakeDialer(host)
+	opts := grpc.WithContextDialer(dialer)
+
+	return New(host, key, s, c, DefaultConfig(), opts)
+}
+
+// StartServiceForTests starts node service.
+// It should be called once.
+func (n *Node) StartServiceForTests() {
+	bind := fmt.Sprintf("%s:%d", n.host, n.conf.Port)
+	listener := network.FakeListener(bind)
+	n.startService(listener)
 }

@@ -26,15 +26,17 @@ func FakeListener(addr string) net.Listener {
 	return res
 }
 
-// FakeDial returns fake connection.
-func FakeDial(_ context.Context, addr string) (net.Conn, error) {
-	listener := findListener(Addr(addr))
-	if listener == nil {
-		return nil, &net.AddrError{
-			Err:  "connection refused",
-			Addr: addr,
+// FakeDialer returns fake connection creator.
+func FakeDialer(from string) func(context.Context, string) (net.Conn, error) {
+	return func(_ context.Context, addr string) (net.Conn, error) {
+		listener := findListener(Addr(addr))
+		if listener == nil {
+			return nil, &net.AddrError{
+				Err:  "connection refused",
+				Addr: addr,
+			}
 		}
-	}
 
-	return listener.connect()
+		return listener.connect(from)
+	}
 }

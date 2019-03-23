@@ -2,11 +2,13 @@ package posnode
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net"
 
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
@@ -16,15 +18,22 @@ type service struct {
 
 // StartService starts node service.
 // It should be called once.
-func (n *Node) StartService(listener net.Listener) {
+func (n *Node) StartService() {
+	bind := fmt.Sprintf("%s:%d", n.host, n.conf.Port)
+	listener := network.TcpListener(bind)
+	n.startService(listener)
+}
+
+func (n *Node) startService(listener net.Listener) {
 	n.server = grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	wire.RegisterNodeServer(n.server, n)
 
+	n.log().Infof("service start at %v", listener.Addr())
 	go func() {
 		if err := n.server.Serve(listener); err != nil {
-			// TODO: log error
+			n.log().Infof("service stop (%v)", err)
 		}
 	}()
 }

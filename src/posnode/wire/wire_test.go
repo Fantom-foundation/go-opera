@@ -23,8 +23,9 @@ func TestGRPC(t *testing.T) {
 	})
 
 	t.Run("over Fake", func(t *testing.T) {
-		listener := network.FakeListener("")
-		testGRPC(t, listener, grpc.WithContextDialer(network.FakeDial))
+		listener := network.FakeListener("server.fake:55555")
+		dialer := network.FakeDialer("client.fake")
+		testGRPC(t, listener, grpc.WithContextDialer(dialer))
 	})
 }
 
@@ -36,16 +37,19 @@ func testGRPC(t *testing.T, listener net.Listener, opts ...grpc.DialOption) {
 	srv := NewMockNodeServer(ctrl)
 	srv.EXPECT().
 		SyncEvents(gomock.Any(), gomock.Any()).
-		Return(&KnownEvents{}, nil).
-		MinTimes(1)
+		DoAndReturn(func(ctx context.Context, req *KnownEvents) (*KnownEvents, error) {
+			t.Logf("connection from '%s' host", GrpcPeerHost(ctx))
+			return &KnownEvents{}, nil
+		}).
+		Times(1)
 	srv.EXPECT().
 		GetEvent(gomock.Any(), gomock.Any()).
 		Return(&Event{}, nil).
-		MinTimes(1)
+		Times(1)
 	srv.EXPECT().
 		GetPeerInfo(gomock.Any(), gomock.Any()).
 		Return(&PeerInfo{}, nil).
-		MinTimes(1)
+		Times(1)
 
 	// grpc server
 	server := grpc.NewServer(
@@ -58,7 +62,7 @@ func testGRPC(t *testing.T, listener net.Listener, opts ...grpc.DialOption) {
 
 	// grpc client
 	netAddr := listener.Addr().String()
-	t.Logf("connect address is %s", netAddr)
+	t.Logf("listen at '%s'", netAddr)
 	conn, err := grpc.DialContext(context.Background(), netAddr, append(opts, grpc.WithInsecure())...)
 	if err != nil {
 		t.Fatal(err)
