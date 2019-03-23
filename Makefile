@@ -40,7 +40,7 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' $(SH) -c "'$(CURDIR)/scripts/dist.sh'"
 
 test:
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | GOCACHE=off $(XARGS) $(GO) test -tags test -race -timeout 180s
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | $(XARGS) $(GO) test -count=1 -tags test -race -timeout 180s
 
 # clean up and generate protobuf files
 proto: clean
