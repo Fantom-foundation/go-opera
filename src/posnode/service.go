@@ -30,10 +30,10 @@ func (n *Node) startService(listener net.Listener) {
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	wire.RegisterNodeServer(n.server, n)
 
-	n.log().Infof("service start at %v", listener.Addr())
+	n.log.Infof("service start at %v", listener.Addr())
 	go func() {
 		if err := n.server.Serve(listener); err != nil {
-			n.log().Infof("service stop (%v)", err)
+			n.log.Infof("service stop (%v)", err)
 		}
 	}()
 }

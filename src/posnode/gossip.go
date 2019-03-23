@@ -53,10 +53,10 @@ func (n *Node) gossiping() {
 
 func (n *Node) gossipOnce() {
 	// TODO: implement it (select peer, connect, sync with peer, get new events, n.CheckPeerIsKnown())
-	n.log().Debug("gossip +")
+	n.log.Debug("gossip +")
 
 	<-time.After(time.Second / 2)
 	n.CheckPeerIsKnown(common.Address{}, common.Address{})
 
-	n.log().Debug("gossip -")
+	n.log.Debug("gossip -")
 }
