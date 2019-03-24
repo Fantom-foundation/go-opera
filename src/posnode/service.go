@@ -2,9 +2,9 @@ package posnode
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"net"
+	"strconv"
 
 	"google.golang.org/grpc"
 
@@ -19,7 +19,7 @@ type service struct {
 // StartService starts node service.
 // It should be called once.
 func (n *Node) StartService() {
-	bind := fmt.Sprintf("%s:%d", n.host, n.conf.Port)
+	bind := net.JoinHostPort(n.host, strconv.Itoa(n.conf.Port))
 	listener := network.TcpListener(bind)
 	n.startService(listener)
 }

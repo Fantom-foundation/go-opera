@@ -53,7 +53,6 @@ func (c *Conn) RemoteAddr() net.Addr {
 // SetDeadline sets the read and write deadlines associated
 // with the connection. It is equivalent to calling both
 // SetReadDeadline and SetWriteDeadline.
-//
 // It is not implemented.
 func (c *Conn) SetDeadline(t time.Time) error {
 	return nil

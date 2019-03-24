@@ -4,7 +4,8 @@ package posnode
 //go:generate mockgen -package=posnode -source=consensus.go -destination=mock_test.go Consensus
 
 import (
-	"fmt"
+	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -57,7 +58,7 @@ func NewForTests(host string, s *Store, c Consensus) *Node {
 // StartServiceForTests starts node service.
 // It should be called once.
 func (n *Node) StartServiceForTests() {
-	bind := fmt.Sprintf("%s:%d", n.host, n.conf.Port)
+	bind := net.JoinHostPort(n.host, strconv.Itoa(n.conf.Port))
 	listener := network.FakeListener(bind)
 	n.startService(listener)
 }

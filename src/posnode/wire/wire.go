@@ -9,20 +9,19 @@ package wire
 
 import (
 	"context"
-	"strings"
+	"net"
 
 	"google.golang.org/grpc/peer"
 )
 
 func GrpcPeerHost(ctx context.Context) string {
 	if p, ok := peer.FromContext(ctx); ok {
-		return removePort(p.Addr.String())
+		addr := p.Addr.String()
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			panic(err)
+		}
+		return host
 	}
 	panic("gRPC-peer network address is undefined")
-}
-
-func removePort(addr string) string {
-	ss := strings.Split(addr, ":")
-	ss = ss[:len(ss)-1]
-	return strings.Join(ss, ":")
 }
