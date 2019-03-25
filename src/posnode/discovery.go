@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
@@ -15,9 +16,14 @@ type discovery struct {
 	done  chan struct{}
 }
 
+// discoveryTask contains data required
+// for peer discovery, source is a node
+// from which we receive information
+// about unknown node, host is a host
+// address of source node.
 type discoveryTask struct {
-	source  string // NetAddr
-	unknown common.Address
+	source, unknown common.Address
+	host            string
 }
 
 // StartDiscovery starts single thread network discovery.
@@ -30,7 +36,7 @@ func (n *Node) StartDiscovery() {
 		for {
 			select {
 			case task := <-n.discovery.tasks:
-				n.AskPeerInfo(task.source, task.unknown)
+				n.AskPeerInfo(task.source, task.unknown, task.host)
 			case <-n.discovery.done:
 				return
 			}
@@ -45,7 +51,7 @@ func (n *Node) StopDiscovery() {
 }
 
 // CheckPeerIsKnown checks peer is known otherwise makes discovery task.
-func (n *Node) CheckPeerIsKnown(source string, id common.Address) {
+func (n *Node) CheckPeerIsKnown(source, id common.Address, host string) {
 	// Find peer by its id in storage.
 	_, err := n.store.GetPeerInfo(id)
 	if err == nil {
@@ -55,40 +61,57 @@ func (n *Node) CheckPeerIsKnown(source string, id common.Address) {
 
 	if errors.Cause(err) != kvdb.ErrKeyNotFound {
 		// Some unknown error with database, log and skip.
-		// TODO: log error.
+		n.log().Panic(errors.Wrap(err, "store get peer info"))
 		return
 	}
 
 	select {
-	case n.discovery.tasks <- discoveryTask{source, id}:
+	case n.discovery.tasks <- discoveryTask{
+		source:  source,
+		unknown: id,
+		host:    host,
+	}:
 	default:
 		n.log.Warn("discovery.tasks queue is full, so skipped")
 	}
 }
 
 // AskPeerInfo gets peer info (network address, public key, etc).
-func (n *Node) AskPeerInfo(whom string, id common.Address) {
+func (n *Node) AskPeerInfo(source, id common.Address, host string) {
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()
-	cli, err := n.ConnectTo(ctx, whom)
+	netAddr := netAddFromHostPort(host, n.defaultPort)
+	cli, err := n.ConnectTo(ctx, netAddr)
 	if err != nil {
-		// TODO: redo task?
-		// TODO: log error.
+		n.log().Error(errors.Wrapf(err, "connect to: %s", netAddr))
 		return
 	}
 
 	peerInfo, err := requestPeerInfo(cli, id.Hex())
 	if err != nil {
+		if errors.Cause(err) != kvdb.ErrKeyNotFound {
+			n.log().Error(errors.Wrapf(err, "request peer info: %s", netAddr))
+		}
 		// TODO: handle not found.
-		// TODO: log error.
 		return
 	}
 
 	peer := WireToPeer(peerInfo)
 	if err := n.store.SetPeer(peer); err != nil {
-		// TODO: log error.
+		// something bad with the database.
+		n.log().Panic(errors.Wrap(err, "set peer"))
 		return
 	}
+}
+
+// netAddFromHostPort allows gracefully combine host and port
+// combination.
+func netAddFromHostPort(host, port string) string {
+	if strings.HasPrefix(port, ":") {
+		return host + port
+	}
+
+	return host + ":" + port
 }
 
 // requestPeerInfo makes GetPeerInfo using NodeClient

@@ -69,14 +69,14 @@ func (n *Node) GetEvent(ctx context.Context, req *wire.EventRequest) (*wire.Even
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *wire.PeerRequest) (*wire.PeerInfo, error) {
-	address := common.HexToAddress(req.PeerID)
-	peerInfo, err := n.store.GetPeerInfo(address)
+	id := common.HexToAddress(req.PeerID)
+	peerInfo, err := n.store.GetPeerInfo(id)
 	if err != nil {
 		if errors.Cause(err) == kvdb.ErrKeyNotFound {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("peer not found: %s", req.PeerID))
 		}
 		// looks like critical error
-		n.log.Panic(errors.Wrap(err, "get peer info"))
+		n.log.Panic(errors.Wrapf(err, "get peer info: %s", id))
 
 	}
 	return peerInfo, nil

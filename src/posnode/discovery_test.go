@@ -1,128 +1,92 @@
 package posnode
 
 import (
+	"math"
 	"net"
+	"reflect"
 	"testing"
-	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/pkg/errors"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+
+	"github.com/golang/mock/gomock"
+	"google.golang.org/grpc"
 )
 
-func TestNodeCheckPeerIsKnown(t *testing.T) {
-	tt := []struct {
-		name           string
-		beforeFunc     func(*Store) error
-		shouldDiscover bool
-	}{
+func Test_Node_AskPeerInfo(t *testing.T) {
+	t.Log("with initialized node")
+	{
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		srv := NewMockNodeServer(ctrl)
+
+		server := grpc.NewServer(grpc.MaxRecvMsgSize(math.MaxInt32), grpc.MaxSendMsgSize(math.MaxInt32))
+		wire.RegisterNodeServer(server, srv)
+
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("failed to listen random port")
+		}
+		go server.Serve(listener)
+		defer server.Stop()
+
+		host, port, err := net.SplitHostPort(listener.Addr().String())
+		if err != nil {
+			t.Fatalf("failed to split host port: %s", listener.Addr())
+		}
+
+		store := NewMemStore()
+		key, err := crypto.GenerateECDSAKey()
+		if err != nil {
+			t.Fatalf("failed to generate ecdsa key: %v", err)
+		}
+
+		n := NewWithName("node001", key, store, nil)
+		n.defaultPort = port
+
+		t.Log("should insert peer")
 		{
-			name: "id known",
-			beforeFunc: func(store *Store) error {
-				key, err := crypto.GenerateECDSAKey()
-				if err != nil {
-					return errors.Wrap(err, "generate ecdsa key")
-				}
-				pubKey := key.PublicKey
-				id := "known"
-				netAddr := "8.8.8.8:8083"
+			peerInfo := wire.PeerInfo{
+				ID:      common.HexToAddress("unknown").Hex(),
+				PubKey:  []byte{},
+				NetAddr: "8.8.8.8:8083",
+			}
 
-				peer := Peer{
-					ID:      common.HexToAddress(id),
-					PubKey:  &pubKey,
-					NetAddr: netAddr,
-				}
+			srv.EXPECT().GetPeerInfo(gomock.Any(), gomock.Any()).Return(&peerInfo, nil)
+			n.AskPeerInfo(common.HexToAddress("known"), common.HexToAddress("unknown"), host)
 
-				if err := store.SetPeer(&peer); err != nil {
-					return errors.Wrap(err, "set peer")
-				}
-
-				return nil
-
-			},
-		},
-		{
-			name: "id unknown",
-			beforeFunc: func(store *Store) error {
-				return nil
-			},
-			shouldDiscover: true,
-		},
-	}
-
-	for _, tc := range tt {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			store := NewMemStore()
-			key, err := crypto.GenerateECDSAKey()
+			got, err := store.GetPeer(common.HexToAddress(peerInfo.ID))
 			if err != nil {
-				t.Fatalf("failed to generate ecdsa key: %v", err)
+				t.Fatalf("failed to get inserted peer: %v", err)
 			}
+			expect := WireToPeer(&peerInfo)
 
-			n := NewWithName("node001", key, store, nil)
-			n.discovery.tasks = make(chan discoveryTask)
-			defer close(n.discovery.tasks)
-
-			if err := tc.beforeFunc(store); err != nil {
-				t.Errorf("before func failed: %v", err)
+			if !reflect.DeepEqual(expect, got) {
+				t.Errorf("expected to insert peer: %+v got: %+v", expect, got)
 			}
-
-			go n.CheckPeerIsKnown("any", common.HexToAddress("known"))
-
-			if tc.shouldDiscover {
-				select {
-				case <-n.discovery.tasks:
-				case <-time.After(time.Second):
-					t.Error("expected to create discovery task")
-				}
-				return
-			}
-
-			if len(n.discovery.tasks) > 0 {
-				t.Error("unexpected discovery tasks")
-			}
-		})
+		}
 	}
 }
 
-func TestNodeAskPeerInfo(t *testing.T) {
+func Test_netAddFromHostPort(t *testing.T) {
 	tt := []struct {
-		name           string
-		beforeFunc     func(*Store) error
-		shouldDiscover bool
+		name       string
+		host, port string
+		expect     string
 	}{
 		{
-			name: "id known",
-			beforeFunc: func(store *Store) error {
-				key, err := crypto.GenerateECDSAKey()
-				if err != nil {
-					return errors.Wrap(err, "generate ecdsa key")
-				}
-				pubKey := key.PublicKey
-				id := "known"
-				netAddr := "8.8.8.8:8083"
-
-				peer := Peer{
-					ID:      common.HexToAddress(id),
-					PubKey:  &pubKey,
-					NetAddr: netAddr,
-				}
-
-				if err := store.SetPeer(&peer); err != nil {
-					return errors.Wrap(err, "set peer")
-				}
-
-				return nil
-
-			},
+			name:   "port 80",
+			host:   "127.0.0.1",
+			port:   "80",
+			expect: "127.0.0.1:80",
 		},
 		{
-			name: "id unknown",
-			beforeFunc: func(store *Store) error {
-				return nil
-			},
-			shouldDiscover: true,
+			name:   "port :80",
+			host:   "127.0.0.1",
+			port:   ":80",
+			expect: "127.0.0.1:80",
 		},
 	}
 
@@ -130,25 +94,11 @@ func TestNodeAskPeerInfo(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			store := NewMemStore()
-			key, err := crypto.GenerateECDSAKey()
-			if err != nil {
-				t.Fatalf("failed to generate ecdsa key: %v", err)
-			}
 
-			n := NewWithName("node001", key, store, nil)
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
-			if err != nil {
-				t.Fatalf("failed to start listener: %v", err)
+			got := netAddFromHostPort(tc.host, tc.port)
+			if got != tc.expect {
+				t.Errorf("expected result to be: %s got: %s", tc.expect, got)
 			}
-			go n.StartService(listener)
-			defer n.StopService()
-
-			if err := tc.beforeFunc(store); err != nil {
-				t.Errorf("before func failed: %v", err)
-			}
-
-			n.AskPeerInfo(listener.Addr().String(), common.HexToAddress("known"))
 		})
 	}
 }
