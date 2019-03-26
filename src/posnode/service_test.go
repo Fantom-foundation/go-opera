@@ -13,12 +13,20 @@ import (
 )
 
 func Test_Node_GetPeerInfo(t *testing.T) {
-	t.Log("with initialized node")
+	t.Log("with initialized node and cli")
 	{
 		store := NewMemStore()
 		n := NewForTests("server.fake", store, nil)
 		go n.StartServiceForTests()
 		defer n.StopService()
+
+		// connect client to the node.
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		cli, err := n.ConnectTo(ctx, "server.fake:55555")
+		if err != nil {
+			t.Fatalf("failed to connect to node with gRPC: %v", err)
+		}
 
 		t.Log("\ttest:0\tshould return info about existed peer")
 		{
@@ -39,19 +47,10 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 
 			store.SetPeer(&peer)
 
-			// connect client to the node.
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			cli, err := n.ConnectTo(ctx, "server.fake:55555")
-			if err != nil {
-				t.Fatalf("failed to connect to node with gRPC: %v", err)
-			}
-
 			// make request
 			in := wire.PeerRequest{
 				PeerID: id.Hex(),
 			}
-
 			got, err := cli.GetPeerInfo(ctx, &in)
 			if err != nil {
 				t.Fatalf("failed to make get peer info request: %v", err)
@@ -66,18 +65,9 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 
 		t.Log("\ttest:1\tshould return not found error")
 		{
-			// connect client to the node.
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			cli, err := n.ConnectTo(ctx, "server.fake:55555")
-			if err != nil {
-				t.Fatalf("failed to connect to node with gRPC: %v", err)
-			}
-
 			in := wire.PeerRequest{
 				PeerID: "unknown",
 			}
-
 			_, err = cli.GetPeerInfo(ctx, &in)
 			if err == nil {
 				t.Error("expected server to return error")
