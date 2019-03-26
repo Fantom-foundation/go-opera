@@ -56,7 +56,7 @@ func (n *Node) gossipOnce() {
 	n.log.Debug("gossip +")
 
 	<-time.After(time.Second / 2)
-	n.CheckPeerIsKnown(common.Address{}, common.Address{}, "host")
+	n.CheckPeerIsKnown(common.Address{}, common.Address{}, "server.fake")
 
 	n.log.Debug("gossip -")
 }

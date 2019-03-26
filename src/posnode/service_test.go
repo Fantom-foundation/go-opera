@@ -2,8 +2,7 @@ package posnode
 
 import (
 	"context"
-	"net"
-	"reflect"
+	reflect "reflect"
 	"testing"
 	"time"
 
@@ -13,21 +12,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestNodeGetPeerInfo(t *testing.T) {
+func Test_Node_GetPeerInfo(t *testing.T) {
 	t.Log("with initialized node")
 	{
 		store := NewMemStore()
-		key, err := crypto.GenerateECDSAKey()
-		if err != nil {
-			t.Fatalf("failed to generate ecdsa key: %v", err)
-		}
-
-		n := NewWithName("node001", key, store, nil)
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			t.Fatalf("failed to start listener: %v", err)
-		}
-		go n.StartService(listener)
+		n := NewForTests("server.fake", store, nil)
+		go n.StartServiceForTests()
 		defer n.StopService()
 
 		t.Log("\ttest:0\tshould return info about existed peer")
@@ -47,14 +37,12 @@ func TestNodeGetPeerInfo(t *testing.T) {
 				NetAddr: netAddr,
 			}
 
-			if err := store.SetPeer(&peer); err != nil {
-				t.Fatalf("failed to set peeer: %v", err)
-			}
+			store.SetPeer(&peer)
 
 			// connect client to the node.
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			cli, err := n.ConnectTo(ctx, listener.Addr().String())
+			cli, err := n.ConnectTo(ctx, "server.fake:55555")
 			if err != nil {
 				t.Fatalf("failed to connect to node with gRPC: %v", err)
 			}
@@ -66,7 +54,7 @@ func TestNodeGetPeerInfo(t *testing.T) {
 
 			got, err := cli.GetPeerInfo(ctx, &in)
 			if err != nil {
-				t.Fatalf("failed to make get peer infor request: %v", err)
+				t.Fatalf("failed to make get peer info request: %v", err)
 			}
 
 			// check result
@@ -81,7 +69,7 @@ func TestNodeGetPeerInfo(t *testing.T) {
 			// connect client to the node.
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			cli, err := n.ConnectTo(ctx, listener.Addr().String())
+			cli, err := n.ConnectTo(ctx, "server.fake:55555")
 			if err != nil {
 				t.Fatalf("failed to connect to node with gRPC: %v", err)
 			}

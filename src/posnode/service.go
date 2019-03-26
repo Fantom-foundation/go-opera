@@ -12,10 +12,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
-	"github.com/pkg/errors"
 )
 
 type service struct {
@@ -70,14 +68,12 @@ func (n *Node) GetEvent(ctx context.Context, req *wire.EventRequest) (*wire.Even
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *wire.PeerRequest) (*wire.PeerInfo, error) {
 	id := common.HexToAddress(req.PeerID)
-	peerInfo, err := n.store.GetPeerInfo(id)
-	if err != nil {
-		if errors.Cause(err) == kvdb.ErrKeyNotFound {
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("peer not found: %s", req.PeerID))
-		}
-		// looks like critical error
-		n.log.Panic(errors.Wrapf(err, "get peer info: %s", id))
-
+	peerInfo := n.store.GetPeerInfo(id)
+	// peerInfo == nil means that peer not found
+	// by given id
+	if peerInfo == nil {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("peer not found: %s", req.PeerID))
 	}
+
 	return peerInfo, nil
 }

@@ -2,10 +2,9 @@ package posnode
 
 import (
 	"context"
-	"strings"
+	"strconv"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 	"github.com/pkg/errors"
 )
@@ -53,15 +52,9 @@ func (n *Node) StopDiscovery() {
 // CheckPeerIsKnown checks peer is known otherwise makes discovery task.
 func (n *Node) CheckPeerIsKnown(source, id common.Address, host string) {
 	// Find peer by its id in storage.
-	_, err := n.store.GetPeerInfo(id)
-	if err == nil {
-		// If peer found in storage skip.
-		return
-	}
-
-	if errors.Cause(err) != kvdb.ErrKeyNotFound {
-		// Some unknown error with database, log and skip.
-		n.log().Panic(errors.Wrap(err, "store get peer info"))
+	peerInfo := n.store.GetPeerInfo(id)
+	if peerInfo != nil {
+		// If peer found in storage - skip.
 		return
 	}
 
@@ -80,38 +73,22 @@ func (n *Node) CheckPeerIsKnown(source, id common.Address, host string) {
 func (n *Node) AskPeerInfo(source, id common.Address, host string) {
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()
-	netAddr := netAddFromHostPort(host, n.defaultPort)
+	netAddr := host + ":" + strconv.Itoa(n.conf.Port)
 	cli, err := n.ConnectTo(ctx, netAddr)
 	if err != nil {
-		n.log().Error(errors.Wrapf(err, "connect to: %s", netAddr))
+		n.log.Error(errors.Wrapf(err, "connect to: %s", netAddr))
 		return
 	}
 
 	peerInfo, err := requestPeerInfo(cli, id.Hex())
 	if err != nil {
-		if errors.Cause(err) != kvdb.ErrKeyNotFound {
-			n.log().Error(errors.Wrapf(err, "request peer info: %s", netAddr))
-		}
+		n.log.Error(errors.Wrapf(err, "request peer info: %s", netAddr))
 		// TODO: handle not found.
 		return
 	}
 
 	peer := WireToPeer(peerInfo)
-	if err := n.store.SetPeer(peer); err != nil {
-		// something bad with the database.
-		n.log().Panic(errors.Wrap(err, "set peer"))
-		return
-	}
-}
-
-// netAddFromHostPort allows gracefully combine host and port
-// combination.
-func netAddFromHostPort(host, port string) string {
-	if strings.HasPrefix(port, ":") {
-		return host + port
-	}
-
-	return host + ":" + port
+	n.store.SetPeer(peer)
 }
 
 // requestPeerInfo makes GetPeerInfo using NodeClient

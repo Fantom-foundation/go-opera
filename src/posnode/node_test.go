@@ -24,7 +24,7 @@ func TestNode(t *testing.T) {
 
 	store := NewMemStore()
 
-	n := NewForTests("node001", store, consensus)
+	n := NewForTests("server.fake", store, consensus)
 	defer n.Shutdown()
 
 	n.StartServiceForTests()

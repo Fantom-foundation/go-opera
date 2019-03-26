@@ -70,7 +70,7 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 	if entry, ok := w.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
 	}
-	return nil, ErrKeyNotFound
+	return nil, nil
 }
 
 // Delete removes key-value pair by key.

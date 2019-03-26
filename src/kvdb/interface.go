@@ -1,12 +1,5 @@
 package kvdb
 
-import "errors"
-
-var (
-	// ErrKeyNotFound raises when key not found in database.
-	ErrKeyNotFound = errors.New("key not found")
-)
-
 // IdealBatchSize was determined empirically.
 // Code using batches should try to add this much data to the batch.
 const IdealBatchSize = 100 * 1024
