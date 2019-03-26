@@ -1,8 +1,5 @@
 package wire
 
-//NOTE: mockgen does not work properly out of GOPATH
-//go:generate mockgen -package=wire -source=service.pb.go -destination=mock_test.go NodeServer
-
 import (
 	"context"
 	"math"
