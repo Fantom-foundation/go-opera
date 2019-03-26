@@ -18,7 +18,7 @@ func Test_Node_AskPeerInfo(t *testing.T) {
 	{
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		srv := NewMockNodeServer(ctrl)
+		srv := wire.NewMockNodeServer(ctrl)
 
 		server := grpc.NewServer(grpc.MaxRecvMsgSize(math.MaxInt32), grpc.MaxSendMsgSize(math.MaxInt32))
 		wire.RegisterNodeServer(server, srv)

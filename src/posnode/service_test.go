@@ -17,7 +17,7 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 	{
 		store := NewMemStore()
 		n := NewForTests("server.fake", store, nil)
-		go n.StartServiceForTests()
+		n.StartServiceForTests()
 		defer n.StopService()
 
 		// connect client to the node.
@@ -28,7 +28,7 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 			t.Fatalf("failed to connect to node with gRPC: %v", err)
 		}
 
-		t.Log("\ttest:0\tshould return info about existed peer")
+		t.Log("\ttest:0\tshould return info about existng peer")
 		{
 			// initialize peer and insert it into the store.
 			key, err := crypto.GenerateECDSAKey()
@@ -60,6 +60,7 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 			expect := peer.ToWire()
 			if !reflect.DeepEqual(expect, got) {
 				t.Errorf("expected response to be: %+v, got: %+v", expect, got)
+				return
 			}
 		}
 

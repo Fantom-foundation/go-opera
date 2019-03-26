@@ -70,9 +70,9 @@ func (s *Store) GetPeer(id common.Address) *Peer {
 /*
  * Utils:
  */
+
 func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
-	pbf.SetDeterministic(true)
 
 	if err := pbf.Marshal(val); err != nil {
 		panic(err)
@@ -97,4 +97,12 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 		panic(err)
 	}
 	return to
+}
+
+func (s *Store) has(table kvdb.Database, key []byte) bool {
+	res, err := table.Has(key)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
