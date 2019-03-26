@@ -6,7 +6,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto/sha3"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 type hasher struct {
@@ -143,6 +142,8 @@ func (h *hasher) hashChildren(original node, db *Database) (node, node, error) {
 	}
 }
 
+const hashLen = len(common.Hash{})
+
 // store hashes the node n and if we have a storage layer specified, it writes
 // the key/value pair to it and tracks any node->child references as well as any
 // node->external trie references.
@@ -151,12 +152,15 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 	if _, isHash := n.(hashNode); n == nil || isHash {
 		return n, nil
 	}
-	// Generate the RLP encoding of the node
+	// Generate the encoding of the node
 	h.tmp.Reset()
-	if err := rlp.Encode(&h.tmp, n); err != nil {
+	if buf, err := EncodeToBytes(n); err == nil {
+		_, _ = h.tmp.Write(buf)
+	} else {
 		panic("encode error: " + err.Error())
 	}
-	if len(h.tmp) < 32 && !force {
+
+	if len(h.tmp) < hashLen && !force {
 		return n, nil // Nodes smaller than 32 bytes are stored inside their parent
 	}
 	// Larger nodes are replaced by their bytes and stored in the database.

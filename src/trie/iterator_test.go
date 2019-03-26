@@ -404,7 +404,8 @@ func testIteratorContinueAfterSeekError(t *testing.T, memoryOnly bool) {
 			t.Fatal(err)
 		}
 	}
-	barNodeHash := common.HexToHash("05041990364eb72fcb1127652ce40d8bab765f2bfe53225b1170d276cc101c2e")
+
+	barNodeHash := common.HexToHash("890d0afc63c1ceb4f363057c9a406e7acbaa7746bf8c1d87c8b24c10a72136a1")
 	var (
 		barNodeBlob []byte
 		barNodeObj  *cachedNode

@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 	"github.com/Fantom-foundation/go-lachesis/src/trie"
 )
 
@@ -268,18 +268,20 @@ func (s *DB) Suicide(addr common.Address) bool {
 // updateStateObject writes the given object to the trie.
 func (s *DB) updateStateObject(stateObject *stateObject) {
 	addr := stateObject.Address()
-	data, err := rlp.EncodeToBytes(stateObject)
+
+	data, err := proto.Marshal(stateObject.Data())
 	if err != nil {
-		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
+		panic(fmt.Errorf("can't encode object at %s: %v", addr.String(), err))
 	}
-	s.setError(s.trie.TryUpdate(addr[:], data))
+
+	s.setError(s.trie.TryUpdate(addr.Bytes(), data))
 }
 
 // deleteStateObject removes the given object from the state trie.
 func (s *DB) deleteStateObject(stateObject *stateObject) {
 	stateObject.deleted = true
 	addr := stateObject.Address()
-	s.setError(s.trie.TryDelete(addr[:]))
+	s.setError(s.trie.TryDelete(addr.Bytes()))
 }
 
 // Retrieve a state object given by the address. Returns nil if not found.
@@ -293,13 +295,13 @@ func (s *DB) getStateObject(addr common.Address) (stateObject *stateObject) {
 	}
 
 	// Load the object from the database.
-	enc, err := s.trie.TryGet(addr[:])
+	enc, err := s.trie.TryGet(addr.Bytes())
 	if len(enc) == 0 {
 		s.setError(err)
 		return nil
 	}
 	var data Account
-	if err := rlp.DecodeBytes(enc, &data); err != nil {
+	if err := proto.Unmarshal(enc, &data); err != nil {
 		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
@@ -507,11 +509,11 @@ func (s *DB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
 	// Write trie changes.
 	root, err = s.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
-		if err := rlp.DecodeBytes(leaf, &account); err != nil {
+		if err := proto.Unmarshal(leaf, &account); err != nil {
 			return nil
 		}
-		if account.Root != emptyState {
-			s.db.TrieDB().Reference(account.Root, parent)
+		if account.Root() != emptyState {
+			s.db.TrieDB().Reference(account.Root(), parent)
 		}
 		return nil
 	})
