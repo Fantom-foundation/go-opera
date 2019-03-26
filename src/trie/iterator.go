@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -174,7 +173,7 @@ func (it *nodeIterator) LeafProof() [][]byte {
 				node, _, _ := hasher.hashChildren(item.node, nil)
 				hashed, _ := hasher.store(node, nil, false)
 				if _, ok := hashed.(hashNode); ok || i == 0 {
-					enc, _ := rlp.EncodeToBytes(node)
+					enc, _ := EncodeToBytes(node)
 					proofs = append(proofs, enc)
 				}
 			}
