@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
-// TODO: 
-// Change to return err or panic later 
+// TODO:
+// Change to return err or panic later
 
 // if err != nil {
 // 	n.log().Error(err)
@@ -119,9 +119,13 @@ func (n *Node) gossipOnce() {
 }
 
 func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {
+	knownHeights, err := n.store.GetHeights()
+	if err != nil {
+		n.log().Error(err)
+	}
 
-	// Send known heights
-	unknownHeights, err := n.sendSyncEventsRequest(client, n.knownHeights)
+	// Send known heights -> get unknown
+	unknownHeights, err := n.sendSyncEventsRequest(client, knownHeights.Lasts)
 	if err != nil {
 		n.log().Error(err)
 	}
@@ -131,9 +135,9 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
-		if n.knownHeights[pID] < height {
-			for i := n.knownHeights[pID] + 1; i <= height; i++ {
-				
+		if knownHeights.Lasts[pID] < height {
+			for i := knownHeights.Lasts[pID] + 1; i <= height; i++ {
+
 				var req wire.EventRequest
 				req.PeerID = pID
 				req.Index = i
@@ -147,8 +151,13 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 				peers[address] = false
 			}
 
-			n.knownHeights[pID] = height
+			knownHeights.Lasts[pID] = height
 		}
+	}
+
+	err = n.store.SetHeights(knownHeights)
+	if err != nil {
+		n.log().Error(err)
 	}
 
 	return peers

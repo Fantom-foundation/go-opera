@@ -25,8 +25,6 @@ type Node struct {
 	discovery
 
 	connectedPeers map[common.Address]bool
-
-	knownHeights map[string]uint64 // [peerID]lastIndex // TODO: to store?
 }
 
 // New creates node.

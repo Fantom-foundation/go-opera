@@ -16,6 +16,7 @@ type Store struct {
 
 	peers        kvdb.Database
 	top10PeersID kvdb.Database
+	knownHeights kvdb.Database
 }
 
 // NewMemStore creates store over memory map.
@@ -39,12 +40,14 @@ func NewBadgerStore(db *badger.DB) *Store {
 func (s *Store) init() {
 	s.peers = kvdb.NewTable(s.physicalDB, "peer_")
 	s.top10PeersID = kvdb.NewTable(s.physicalDB, "top10PeersID_")
+	s.knownHeights = kvdb.NewTable(s.physicalDB, "knownHeights_")
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
 	s.peers = nil
 	s.top10PeersID = nil
+	s.knownHeights = nil
 	s.physicalDB.Close()
 }
 
@@ -85,6 +88,21 @@ func (s *Store) GetTopPeersID() (*[]common.Address, error) {
 	}
 
 	return &addresses, nil
+}
+
+// SetHeights stores known heights.
+func (s *Store) SetHeights(heights *wire.KnownEvents) error {
+	return s.set(s.knownHeights, []byte{0}, heights)
+}
+
+// GetHeights returns stored known heights.
+func (s *Store) GetHeights() (*wire.KnownEvents, error) {
+	var heights wire.KnownEvents
+	if err := s.get(s.peers, []byte{0}, &heights); err != nil {
+		return nil, err
+	}
+
+	return &heights, nil
 }
 
 // SetPeer stores peer.
