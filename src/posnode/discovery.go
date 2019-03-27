@@ -47,12 +47,15 @@ func (n *Node) StartDiscovery() {
 			select {
 			case task := <-n.discovery.tasks:
 				n.AskPeerInfo(task.source, task.unknown, task.host)
+				peerInfoAsked()
 			case <-n.discovery.done:
 				return
 			}
 		}
 	}()
 }
+
+var peerInfoAsked = func() {}
 
 // StopDiscovery stops network discovery.
 // It should be called once.
