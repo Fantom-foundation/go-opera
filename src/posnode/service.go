@@ -55,10 +55,7 @@ func (n *Node) StopService() {
 // SyncEvents it remember their known events for future request
 // and returns unknown for they events.
 func (n *Node) SyncEvents(ctx context.Context, req *wire.KnownEvents) (*wire.KnownEvents, error) {
-	knownHeights, err := n.store.GetHeights()
-	if err != nil {
-		n.log().Error(err)
-	}
+	knownHeights := n.store.GetHeights()
 
 	var result map[string]uint64
 
@@ -70,10 +67,7 @@ func (n *Node) SyncEvents(ctx context.Context, req *wire.KnownEvents) (*wire.Kno
 		}
 	}
 
-	err = n.store.SetHeights(knownHeights)
-	if err != nil {
-		n.log().Error(err)
-	}
+	n.store.SetHeights(knownHeights)
 
 	return &wire.KnownEvents{Lasts: result}, nil
 }

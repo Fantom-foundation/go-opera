@@ -52,11 +52,11 @@ func (s *Store) Close() {
 }
 
 // SetTopPeersID stores peers ID.
-func (s *Store) SetTopPeersID(ids []common.Address) error {
+func (s *Store) SetTopPeersID(ids []common.Address) {
 	length := len(ids)
 
 	if length > 10 {
-		return errors.New("Error: size of array more than 10")
+		panic(errors.New("Error: size of array more than 10"))
 	}
 
 	addresses := make([]string, length)
@@ -70,15 +70,12 @@ func (s *Store) SetTopPeersID(ids []common.Address) error {
 		ID: addresses,
 	}
 
-	return s.set(s.top10PeersID, []byte{0}, w)
+	s.set(s.top10PeersID, []byte{0}, w)
 }
 
 // GetTopPeersID returns stored peer.
-func (s *Store) GetTopPeersID() (*[]common.Address, error) {
-	var peersID wire.PeersID
-	if err := s.get(s.top10PeersID, []byte{0}, &peersID); err != nil {
-		return nil, err
-	}
+func (s *Store) GetTopPeersID() *[]common.Address {
+	peersID, _ := s.get(s.top10PeersID, []byte{0}, &wire.PeersID{}).(*wire.PeersID)
 
 	addresses := make([]common.Address, len(peersID.ID))
 
@@ -87,22 +84,18 @@ func (s *Store) GetTopPeersID() (*[]common.Address, error) {
 		addresses = append(addresses, common.HexToAddress(id))
 	}
 
-	return &addresses, nil
+	return &addresses
 }
 
 // SetHeights stores known heights.
-func (s *Store) SetHeights(heights *wire.KnownEvents) error {
-	return s.set(s.knownHeights, []byte{0}, heights)
+func (s *Store) SetHeights(heights *wire.KnownEvents) {
+	s.set(s.knownHeights, []byte{0}, heights)
 }
 
 // GetHeights returns stored known heights.
-func (s *Store) GetHeights() (*wire.KnownEvents, error) {
-	var heights wire.KnownEvents
-	if err := s.get(s.peers, []byte{0}, &heights); err != nil {
-		return nil, err
-	}
-
-	return &heights, nil
+func (s *Store) GetHeights() *wire.KnownEvents {
+	heights, _ := s.get(s.peers, []byte{0}, &wire.KnownEvents{}).(*wire.KnownEvents)
+	return heights
 }
 
 // SetPeer stores peer.

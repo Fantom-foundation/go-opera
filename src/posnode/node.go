@@ -25,7 +25,7 @@ type Node struct {
 	discovery
 
 	logger
-	
+
 	connectedPeers map[common.Address]bool
 }
 

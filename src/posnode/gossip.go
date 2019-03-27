@@ -63,13 +63,10 @@ func (n *Node) gossiping() {
 }
 
 func (n *Node) gossipOnce() {
-	n.log().Debug("gossip +")
+	n.logger.log.Debug("gossip +")
 
 	// Get top peers id
-	ids, err := n.store.GetTopPeersID()
-	if err != nil {
-		n.log().Error(err)
-	}
+	ids := n.store.GetTopPeersID()
 
 	if len(*ids) == 0 {
 		// TODO: add bootstrap func for Top10PeersID & them addresses
@@ -84,16 +81,16 @@ func (n *Node) gossipOnce() {
 	}
 
 	// Get peer
-	peer, err := n.store.GetPeer(selectedPeer)
-	if err != nil {
-		n.log().Error(err)
-	}
+	peer := n.store.GetPeer(selectedPeer)
 
 	// Connect
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	defer cancel()
+
 	var conn *grpc.ClientConn
-	conn, err = grpc.DialContext(context.Background(), peer.NetAddr, grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, peer.NetAddr, grpc.WithInsecure())
 	if err != nil {
-		n.log().Error(err)
+		n.logger.log.Error(err)
 	}
 	defer conn.Close()
 
@@ -109,7 +106,7 @@ func (n *Node) gossipOnce() {
 
 	// Check peers from events
 	for p := range peers {
-		n.CheckPeerIsKnown(n.ID, p, "server.fake")
+		n.CheckPeerIsKnown(n.ID, p, wire.GrpcPeerHost(ctx))
 	}
 
 	// Mark connection as close
@@ -119,15 +116,12 @@ func (n *Node) gossipOnce() {
 }
 
 func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {
-	knownHeights, err := n.store.GetHeights()
-	if err != nil {
-		n.log().Error(err)
-	}
+	knownHeights := n.store.GetHeights()
 
 	// Send known heights -> get unknown
 	unknownHeights, err := n.sendSyncEventsRequest(client, knownHeights.Lasts)
 	if err != nil {
-		n.log().Error(err)
+		n.logger.log.Error(err)
 	}
 
 	// Collect peers from each event
@@ -144,7 +138,7 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 
 				event, err := n.sendGetEventRequest(client, &req)
 				if err != nil {
-					n.log().Error(err)
+					n.logger.log.Error(err)
 				}
 
 				address := common.BytesToAddress(event.Creator)
@@ -155,10 +149,7 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 		}
 	}
 
-	err = n.store.SetHeights(knownHeights)
-	if err != nil {
-		n.log().Error(err)
-	}
+	n.store.SetHeights(knownHeights)
 
 	return peers
 }
@@ -166,7 +157,7 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 func (n *Node) sendSyncEventsRequest(client wire.NodeClient, knownHeights map[string]uint64) (*wire.KnownEvents, error) {
 	unknown, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: knownHeights})
 	if err != nil {
-		n.log().Error(err)
+		n.logger.log.Error(err)
 	}
 
 	return unknown, nil
@@ -175,7 +166,7 @@ func (n *Node) sendSyncEventsRequest(client wire.NodeClient, knownHeights map[st
 func (n *Node) sendGetEventRequest(client wire.NodeClient, req *wire.EventRequest) (*wire.Event, error) {
 	event, err := client.GetEvent(context.Background(), req)
 	if err != nil {
-		n.log().Error(err)
+		n.logger.log.Error(err)
 	}
 
 	return event, nil
