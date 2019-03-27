@@ -109,13 +109,13 @@ func (n *Node) gossipOnce() {
 
 	// Check peers from events
 	for p := range peers {
-		n.CheckPeerIsKnown(n.ID, p)
+		n.CheckPeerIsKnown(n.ID, p, "server.fake")
 	}
 
 	// Mark connection as close
 	n.connectedPeers[selectedPeer] = false
 
-	n.log().Debug("gossip -")
+	n.log.Debug("gossip -")
 }
 
 func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {

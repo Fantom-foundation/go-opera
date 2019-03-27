@@ -106,37 +106,33 @@ func (s *Store) GetHeights() (*wire.KnownEvents, error) {
 }
 
 // SetPeer stores peer.
-func (s *Store) SetPeer(peer *Peer) error {
+func (s *Store) SetPeer(peer *Peer) {
 	w := peer.ToWire()
-	return s.set(s.peers, peer.ID.Bytes(), w)
+	s.set(s.peers, peer.ID.Bytes(), w)
 }
 
 // GetPeerInfo returns stored peer info.
 // Result is a ready gRPC message.
-func (s *Store) GetPeerInfo(id common.Address) (*wire.PeerInfo, error) {
-	var peer wire.PeerInfo
-	if err := s.get(s.peers, id.Bytes(), &peer); err != nil {
-		return nil, err
-	}
-
-	return &peer, nil
+func (s *Store) GetPeerInfo(id common.Address) *wire.PeerInfo {
+	w, _ := s.get(s.peers, id.Bytes(), &wire.PeerInfo{}).(*wire.PeerInfo)
+	return w
 }
 
 // GetPeer returns stored peer.
-func (s *Store) GetPeer(id common.Address) (*Peer, error) {
-	w, err := s.GetPeerInfo(id)
-	if err != nil {
-		return nil, err
+func (s *Store) GetPeer(id common.Address) *Peer {
+	w := s.GetPeerInfo(id)
+	if w == nil {
+		return nil
 	}
 
-	return WireToPeer(w), nil
+	return WireToPeer(w)
 }
 
 /*
  * Utils:
  */
 
-func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) error {
+func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
 
 	if err := pbf.Marshal(val); err != nil {
@@ -146,11 +142,9 @@ func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) error {
 	if err := table.Put(key, pbf.Bytes()); err != nil {
 		panic(err)
 	}
-
-	return nil
 }
 
-func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) error {
+func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
 	buf, err := table.Get(key)
 	if err != nil {
 		panic(err)
@@ -159,9 +153,17 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) error {
 		return nil
 	}
 
-	if err = proto.Unmarshal(buf, to); err != nil {
+	err = proto.Unmarshal(buf, to)
+	if err != nil {
 		panic(err)
 	}
+	return to
+}
 
-	return nil
+func (s *Store) has(table kvdb.Database, key []byte) bool {
+	res, err := table.Has(key)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }

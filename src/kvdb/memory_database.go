@@ -1,7 +1,6 @@
 package kvdb
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -71,7 +70,7 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 	if entry, ok := w.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
 	}
-	return nil, errors.New("not found")
+	return nil, nil
 }
 
 // Delete removes key-value pair by key.

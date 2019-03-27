@@ -6,3 +6,24 @@ package wire
 //  go get -u github.com/golang/protobuf/protoc-gen-go
 
 //go:generate protoc --go_out=plugins=grpc:./ event.proto service.proto
+// NOTE: mockgen does not work properly out of GOPATH
+//go:generate mockgen -package=wire -source=service.pb.go -destination=mock.go NodeServer
+
+import (
+	"context"
+	"net"
+
+	"google.golang.org/grpc/peer"
+)
+
+func GrpcPeerHost(ctx context.Context) string {
+	if p, ok := peer.FromContext(ctx); ok {
+		addr := p.Addr.String()
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			panic(err)
+		}
+		return host
+	}
+	panic("gRPC-peer network address is undefined")
+}
