@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 	"strconv"
 	"testing"
 	"time"
@@ -29,6 +30,11 @@ func TestGossip(t *testing.T) {
 	peers1 := (*peers)[1:]
 	initPeers(node1, &peers1)
 
+	// Init data for node1
+	heights := map[string]uint64{}
+	heights[(*peers)[0].NetAddr] = 3
+	node1.store.SetHeights(&wire.KnownEvents{Lasts: heights})
+
 	node1.StartServiceForTests()
 	defer node1.StopService()
 
@@ -46,6 +52,11 @@ func TestGossip(t *testing.T) {
 	peers2 := (*peers)[:1]
 	initPeers(node2, &peers2)
 
+	// Init data for node2
+	heights = map[string]uint64{}
+	heights[(*peers)[1].NetAddr] = 5
+	node2.store.SetHeights(&wire.KnownEvents{Lasts: heights})
+
 	node2.StartServiceForTests()
 	defer node2.StopService()
 
@@ -53,6 +64,16 @@ func TestGossip(t *testing.T) {
 	defer node2.StopGossip()
 
 	<-time.After(3 * time.Second)
+
+	// Check
+	heights1 := node1.store.GetHeights()
+	heights2 := node2.store.GetHeights()
+
+	for pID, height := range (*heights1).Lasts {
+		if (*heights2).Lasts[pID] != height {
+			t.Fatal("Error: Incorrect gossip data")
+		}
+	}
 }
 
 func initPeers(node *Node, peers *[]Peer) {

@@ -68,13 +68,27 @@ func (n *Node) SyncEvents(ctx context.Context, req *wire.KnownEvents) (*wire.Kno
 		}
 	}
 
-	var result map[string]uint64
+	result := map[string]uint64{}
 
+	// Collect data about known peer from another node & add unknown peer to store
 	for pID, height := range req.Lasts {
-		if (*knownHeights).Lasts[pID] > height {
-			result[pID] = (*knownHeights).Lasts[pID]
-		} else if (*knownHeights).Lasts[pID] < height { // if equal -> do nothing
+		// Check data about known peer
+		if knownValue, ok := (*knownHeights).Lasts[pID]; ok {
+			if knownValue > height {
+				result[pID] = knownValue
+			} else if knownValue < height { // if equal -> do nothing
+				(*knownHeights).Lasts[pID] = height
+			}
+		} else {
+			// if unknown peer -> add to store
 			(*knownHeights).Lasts[pID] = height
+		}
+	}
+
+	// Collect unknown peers for another node
+	for pID, height := range (*knownHeights).Lasts {
+		if _, ok := req.Lasts[pID]; !ok {
+			result[pID] = height
 		}
 	}
 
