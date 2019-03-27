@@ -3,20 +3,10 @@ package posnode
 import (
 	"context"
 	"sync"
-	"time"
-
-	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
-
-// TODO:
-// Change to return err or panic later
-
-// if err != nil {
-// 	n.log().Error(err)
-// }
 
 // gossip is a pool of gossiping processes.
 type gossip struct {
@@ -63,19 +53,22 @@ func (n *Node) gossiping() {
 }
 
 func (n *Node) gossipOnce() {
-	n.logger.log.Debug("gossip +")
+	n.log.Debug("gossip +")
+
+	// Check top10PeersID exist
+	isExist := n.store.has(n.store.top10PeersID, []byte{0})
+	if !isExist {
+		n.store.SetTopPeersID([]common.Address{}) // TODO: Add data for prod.
+	}
 
 	// Get top peers id
 	ids := n.store.GetTopPeersID()
 
-	if len(*ids) == 0 {
-		// TODO: add bootstrap func for Top10PeersID & them addresses
-	}
-
 	// Check already connected nodes
 	var selectedPeer common.Address
 	for _, id := range *ids {
-		if !n.connectedPeers[id] {
+		// Check for unconnected peer & not self connected
+		if !n.connectedPeers[id] && n.ID != id {
 			selectedPeer = id
 		}
 	}
@@ -87,14 +80,13 @@ func (n *Node) gossipOnce() {
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
 	defer cancel()
 
-	var conn *grpc.ClientConn
-	conn, err := grpc.DialContext(ctx, peer.NetAddr, grpc.WithInsecure())
+	client, err := n.ConnectTo(ctx, peer.NetAddr)
 	if err != nil {
-		n.logger.log.Error(err)
+		n.log.Error(err)
+		return // if refused -> return without error
 	}
-	defer conn.Close()
 
-	client := wire.NewNodeClient(conn)
+	n.log.Debug("connect to ", peer.NetAddr)
 
 	// Mark peer as connected
 	n.connectedPeers[selectedPeer] = true
@@ -102,11 +94,9 @@ func (n *Node) gossipOnce() {
 	// Get events from peer
 	peers := n.syncWithPeer(client, peer)
 
-	<-time.After(time.Second / 2)
-
 	// Check peers from events
 	for p := range peers {
-		n.CheckPeerIsKnown(n.ID, p, wire.GrpcPeerHost(ctx))
+		n.CheckPeerIsKnown(peer.ID, p, peer.NetAddr)
 	}
 
 	// Mark connection as close
@@ -116,12 +106,22 @@ func (n *Node) gossipOnce() {
 }
 
 func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {
-	knownHeights := n.store.GetHeights()
+	// Check knownHeights exist
+	knownHeights := &wire.KnownEvents{Lasts: map[string]uint64{}}
+
+	isExist := n.store.has(n.store.knownHeights, []byte{0})
+	if isExist {
+		result := n.store.GetHeights()
+		if result != nil {
+			knownHeights = result
+		}
+	}
 
 	// Send known heights -> get unknown
-	unknownHeights, err := n.sendSyncEventsRequest(client, knownHeights.Lasts)
+	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: (*knownHeights).Lasts})
 	if err != nil {
-		n.logger.log.Error(err)
+		n.log.Error(err)
+		return map[common.Address]bool{} // if connection refused -> return empty map without error
 	}
 
 	// Collect peers from each event
@@ -129,45 +129,28 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
-		if knownHeights.Lasts[pID] < height {
-			for i := knownHeights.Lasts[pID] + 1; i <= height; i++ {
+		if (*knownHeights).Lasts[pID] < height {
+			for i := (*knownHeights).Lasts[pID] + 1; i <= height; i++ {
 
 				var req wire.EventRequest
 				req.PeerID = pID
 				req.Index = i
 
-				event, err := n.sendGetEventRequest(client, &req)
+				event, err := client.GetEvent(context.Background(), &req)
 				if err != nil {
-					n.logger.log.Error(err)
+					n.log.Error(err)
+					return map[common.Address]bool{} // if connection refused -> return empty map without error
 				}
 
 				address := common.BytesToAddress(event.Creator)
 				peers[address] = false
 			}
 
-			knownHeights.Lasts[pID] = height
+			(*knownHeights).Lasts[pID] = height
 		}
 	}
 
 	n.store.SetHeights(knownHeights)
 
 	return peers
-}
-
-func (n *Node) sendSyncEventsRequest(client wire.NodeClient, knownHeights map[string]uint64) (*wire.KnownEvents, error) {
-	unknown, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: knownHeights})
-	if err != nil {
-		n.logger.log.Error(err)
-	}
-
-	return unknown, nil
-}
-
-func (n *Node) sendGetEventRequest(client wire.NodeClient, req *wire.EventRequest) (*wire.Event, error) {
-	event, err := client.GetEvent(context.Background(), req)
-	if err != nil {
-		n.logger.log.Error(err)
-	}
-
-	return event, nil
 }

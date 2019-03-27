@@ -59,7 +59,7 @@ func (s *Store) SetTopPeersID(ids []common.Address) {
 		panic(errors.New("Error: size of array more than 10"))
 	}
 
-	addresses := make([]string, length)
+	addresses := []string{}
 
 	// TODO: too slow solution
 	for _, id := range ids {
@@ -77,7 +77,7 @@ func (s *Store) SetTopPeersID(ids []common.Address) {
 func (s *Store) GetTopPeersID() *[]common.Address {
 	peersID, _ := s.get(s.top10PeersID, []byte{0}, &wire.PeersID{}).(*wire.PeersID)
 
-	addresses := make([]common.Address, len(peersID.ID))
+	addresses := []common.Address{}
 
 	// TODO: too slow solution
 	for _, id := range peersID.ID {
@@ -94,7 +94,7 @@ func (s *Store) SetHeights(heights *wire.KnownEvents) {
 
 // GetHeights returns stored known heights.
 func (s *Store) GetHeights() *wire.KnownEvents {
-	heights, _ := s.get(s.peers, []byte{0}, &wire.KnownEvents{}).(*wire.KnownEvents)
+	heights, _ := s.get(s.knownHeights, []byte{0}, &wire.KnownEvents{}).(*wire.KnownEvents)
 	return heights
 }
 
