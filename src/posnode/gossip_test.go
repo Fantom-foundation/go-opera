@@ -30,12 +30,12 @@ func TestGossip(t *testing.T) {
 	defer node1.Shutdown()
 
 	// Init peer for node1
-	peers1 := (*peers)[1:]
-	initPeers(node1, &peers1)
+	peers1 := peers[1:]
+	initPeers(node1, peers1)
 
 	// Init data for node1
 	heights := map[string]uint64{}
-	heights[(*peers)[0].NetAddr] = 3
+	heights[peers[0].NetAddr] = 3
 	node1.store_SetHeights(&wire.KnownEvents{Lasts: heights})
 
 	node1.StartServiceForTests()
@@ -52,12 +52,12 @@ func TestGossip(t *testing.T) {
 	defer node2.Shutdown()
 
 	// Init peer for node2
-	peers2 := (*peers)[:1]
-	initPeers(node2, &peers2)
+	peers2 := peers[:1]
+	initPeers(node2, peers2)
 
 	// Init data for node2
 	heights = map[string]uint64{}
-	heights[(*peers)[1].NetAddr] = 5
+	heights[peers[1].NetAddr] = 5
 	node2.store_SetHeights(&wire.KnownEvents{Lasts: heights})
 
 	node2.StartServiceForTests()
@@ -72,18 +72,18 @@ func TestGossip(t *testing.T) {
 	heights1 := node1.store_GetHeights()
 	heights2 := node2.store_GetHeights()
 
-	for pID, height := range (*heights1).Lasts {
-		if (*heights2).Lasts[pID] != height {
+	for pID, height := range heights1.Lasts {
+		if heights2.Lasts[pID] != height {
 			t.Fatal("Error: Incorrect gossip data")
 		}
 	}
 }
 
-func initPeers(node *Node, peers *[]Peer) {
+func initPeers(node *Node, peers []*Peer) {
 	ids := []common.Address{}
 
-	for _, peer := range *peers {
-		node.store.SetPeer(&peer)
+	for _, peer := range peers {
+		node.store.SetPeer(peer)
 
 		ids = append(ids, peer.ID)
 	}
@@ -91,15 +91,15 @@ func initPeers(node *Node, peers *[]Peer) {
 	node.store.SetTopPeers(ids)
 }
 
-func generatePeers(count int) *[]Peer {
-	var peers []Peer
+func generatePeers(count int) []*Peer {
+	var peers []*Peer
 
 	for i := 0; i < count; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := key.PublicKey
 		netAddr := "server.fake" + strconv.Itoa(i) + ":55555"
 
-		peer := Peer{
+		peer := &Peer{
 			ID:      CalcNodeID(&pubKey),
 			PubKey:  &pubKey,
 			NetAddr: netAddr,
@@ -108,5 +108,5 @@ func generatePeers(count int) *[]Peer {
 		peers = append(peers, peer)
 	}
 
-	return &peers
+	return peers
 }
