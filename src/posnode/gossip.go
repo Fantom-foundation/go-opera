@@ -53,20 +53,11 @@ func (n *Node) gossiping() {
 }
 
 func (n *Node) gossipOnce() {
-	n.log.Debug("gossip +")
-
-	// Check top10PeersID exist
-	isExist := n.store.has(n.store.top10PeersID, []byte{0})
-	if !isExist {
-		n.store.SetTopPeersID([]common.Address{}) // TODO: Add data for prod.
-	}
-
-	// Get top peers id
-	ids := n.store.GetTopPeersID()
+	ids := n.store.GetTopPeers()
 
 	// Check already connected nodes
 	var selectedPeer common.Address
-	for _, id := range *ids {
+	for _, id := range ids {
 		// Check for unconnected peer & not self connected
 		if !n.connectedPeers.Load(id) && n.ID != id {
 			selectedPeer = id
@@ -109,21 +100,10 @@ func (n *Node) gossipOnce() {
 
 	// Mark connection as close
 	n.connectedPeers.Store(selectedPeer, false)
-
-	n.log.Debug("gossip -")
 }
 
 func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {
-	// Check knownHeights exist
-	knownHeights := &wire.KnownEvents{Lasts: map[string]uint64{}}
-
-	isExist := n.store.has(n.store.knownHeights, []byte{0})
-	if isExist {
-		result := n.store.GetHeights()
-		if result != nil {
-			knownHeights = result
-		}
-	}
+	knownHeights := n.store_GetHeights()
 
 	// Send known heights -> get unknown
 	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: (*knownHeights).Lasts})
@@ -158,7 +138,33 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 		}
 	}
 
-	n.store.SetHeights(knownHeights)
+	n.store_SetHeights(knownHeights)
 
 	return peers
+}
+
+// NOTE: temporary decision
+func (n *Node) store_GetHeights() *wire.KnownEvents {
+	res := &wire.KnownEvents{
+		Lasts: make(map[string]uint64),
+	}
+
+	for _, id := range n.store.GetKnownPeers() {
+		h := n.store.GetPeerHeight(id)
+		res.Lasts[id.Hex()] = h
+	}
+
+	return res
+}
+
+// NOTE: temporary decision
+func (n *Node) store_SetHeights(w *wire.KnownEvents) {
+	ids := make([]common.Address, 0)
+
+	for str, h := range w.Lasts {
+		id := common.HexToAddress(str)
+		ids = append(ids, id)
+		n.store.SetPeerHeight(id, h)
+	}
+	n.store.SetKnownPeers(ids)
 }

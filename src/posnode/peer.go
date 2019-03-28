@@ -34,6 +34,31 @@ func WireToPeer(w *wire.PeerInfo) *Peer {
 	}
 }
 
+func IDsToWire(ids []common.Address) *wire.PeersID {
+	w := &wire.PeersID{
+		IDs: make([]string, len(ids)),
+	}
+
+	for i, id := range ids {
+		w.IDs[i] = id.Hex()
+	}
+
+	return w
+}
+
+func WireToIDs(w *wire.PeersID) []common.Address {
+	if w == nil {
+		return nil
+	}
+
+	res := make([]common.Address, len(w.IDs))
+	for i, str := range w.IDs {
+		res[i] = common.HexToAddress(str)
+	}
+
+	return res
+}
+
 // Connected is a representation of node address collection.
 type Connected struct {
 	mx sync.RWMutex

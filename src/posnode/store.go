@@ -13,9 +13,10 @@ import (
 type Store struct {
 	physicalDB kvdb.Database
 
-	peers        kvdb.Database
-	top10PeersID kvdb.Database
-	knownHeights kvdb.Database
+	peers       kvdb.Database
+	topPeers    kvdb.Database
+	knownPeers  kvdb.Database
+	peerHeights kvdb.Database
 }
 
 // NewMemStore creates store over memory map.
@@ -38,63 +39,18 @@ func NewBadgerStore(db *badger.DB) *Store {
 
 func (s *Store) init() {
 	s.peers = kvdb.NewTable(s.physicalDB, "peer_")
-	s.top10PeersID = kvdb.NewTable(s.physicalDB, "top10PeersID_")
-	s.knownHeights = kvdb.NewTable(s.physicalDB, "knownHeights_")
+	s.topPeers = kvdb.NewTable(s.physicalDB, "top_peers_")
+	s.knownPeers = kvdb.NewTable(s.physicalDB, "known_peers_")
+	s.peerHeights = kvdb.NewTable(s.physicalDB, "peer_height_")
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
+	s.peerHeights = nil
+	s.knownPeers = nil
+	s.topPeers = nil
 	s.peers = nil
-	s.top10PeersID = nil
-	s.knownHeights = nil
 	s.physicalDB.Close()
-}
-
-// SetTopPeersID stores peers ID.
-func (s *Store) SetTopPeersID(ids []common.Address) {
-	length := len(ids)
-
-	if length > 10 {
-		panic("Error: size of array more than 10")
-	}
-
-	addresses := []string{}
-
-	// TODO: too slow solution
-	for _, id := range ids {
-		addresses = append(addresses, id.Hex())
-	}
-
-	w := &wire.PeersID{
-		IDs: addresses,
-	}
-
-	s.set(s.top10PeersID, []byte{0}, w)
-}
-
-// GetTopPeersID returns stored peer.
-func (s *Store) GetTopPeersID() *[]common.Address {
-	peersID, _ := s.get(s.top10PeersID, []byte{0}, &wire.PeersID{}).(*wire.PeersID)
-
-	addresses := []common.Address{}
-
-	// TODO: too slow solution
-	for _, id := range peersID.IDs {
-		addresses = append(addresses, common.HexToAddress(id))
-	}
-
-	return &addresses
-}
-
-// SetHeights stores known heights.
-func (s *Store) SetHeights(heights *wire.KnownEvents) {
-	s.set(s.knownHeights, []byte{0}, heights)
-}
-
-// GetHeights returns stored known heights.
-func (s *Store) GetHeights() *wire.KnownEvents {
-	heights, _ := s.get(s.knownHeights, []byte{0}, &wire.KnownEvents{}).(*wire.KnownEvents)
-	return heights
 }
 
 // SetPeer stores peer.
@@ -118,6 +74,54 @@ func (s *Store) GetPeer(id common.Address) *Peer {
 	}
 
 	return WireToPeer(w)
+}
+
+// SetTopPeers stores peers.top.
+func (s *Store) SetTopPeers(ids []common.Address) {
+	var key = []byte("current")
+	w := IDsToWire(ids)
+	s.set(s.topPeers, key, w)
+}
+
+// GetTopPeers returns peers.top.
+func (s *Store) GetTopPeers() []common.Address {
+	var key = []byte("current")
+	w, _ := s.get(s.topPeers, key, &wire.PeersID{}).(*wire.PeersID)
+	return WireToIDs(w)
+}
+
+// SetKnownPeers stores all peers ID.
+func (s *Store) SetKnownPeers(ids []common.Address) {
+	var key = []byte("current")
+	w := IDsToWire(ids)
+	s.set(s.knownPeers, key, w)
+}
+
+// GetKnownPeers returns all peers ID.
+func (s *Store) GetKnownPeers() []common.Address {
+	var key = []byte("current")
+	w, _ := s.get(s.knownPeers, key, &wire.PeersID{}).(*wire.PeersID)
+	return WireToIDs(w)
+}
+
+// SetPeerHeight stores last event index of peer.
+func (s *Store) SetPeerHeight(id common.Address, height uint64) {
+	if err := s.peerHeights.Put(id.Bytes(), intToBytes(height)); err != nil {
+		panic(err)
+	}
+}
+
+// GetPeerHeight returns last event index of peer.
+func (s *Store) GetPeerHeight(id common.Address) uint64 {
+	buf, err := s.peerHeights.Get(id.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	if buf == nil {
+		return 0
+	}
+
+	return bytesToInt(buf)
 }
 
 /*
@@ -156,6 +160,23 @@ func (s *Store) has(table kvdb.Database, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
 		panic(err)
+	}
+	return res
+}
+
+func intToBytes(n uint64) []byte {
+	var res [8]byte
+	for i := 0; i < len(res); i++ {
+		res[i] = byte(n)
+		n = n >> 8
+	}
+	return res[:]
+}
+
+func bytesToInt(b []byte) uint64 {
+	var res uint64
+	for i := 0; i < len(b); i++ {
+		res += uint64(b[i]) << uint(i*8)
 	}
 	return res
 }

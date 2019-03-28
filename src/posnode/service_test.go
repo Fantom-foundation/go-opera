@@ -2,14 +2,15 @@ package posnode
 
 import (
 	"context"
-	reflect "reflect"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
 func Test_Node_GetPeerInfo(t *testing.T) {
@@ -79,5 +80,6 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 				t.Errorf("expected return code to be: %d got: %d", codes.NotFound, s.Code())
 			}
 		}
+
 	}
 }
