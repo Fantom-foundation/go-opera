@@ -26,7 +26,7 @@ type Node struct {
 
 	logger
 
-	connectedPeers map[common.Address]bool
+	connectedPeers *Connected
 }
 
 // New creates node.
@@ -43,7 +43,7 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 		client: client{opts},
 		logger: newLogger(host),
 
-		connectedPeers: map[common.Address]bool{},
+		connectedPeers: NewConnected(),
 	}
 }
 

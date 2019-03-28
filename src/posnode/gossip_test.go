@@ -38,7 +38,7 @@ func TestGossip(t *testing.T) {
 	node1.StartServiceForTests()
 	defer node1.StopService()
 
-	node1.StartGossip(1)
+	node1.StartGossip(2)
 	defer node1.StopGossip()
 
 	// Node 2
@@ -60,7 +60,7 @@ func TestGossip(t *testing.T) {
 	node2.StartServiceForTests()
 	defer node2.StopService()
 
-	node2.StartGossip(1)
+	node2.StartGossip(2)
 	defer node2.StopGossip()
 
 	<-time.After(3 * time.Second)

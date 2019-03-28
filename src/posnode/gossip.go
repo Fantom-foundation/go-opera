@@ -68,9 +68,14 @@ func (n *Node) gossipOnce() {
 	var selectedPeer common.Address
 	for _, id := range *ids {
 		// Check for unconnected peer & not self connected
-		if !n.connectedPeers[id] && n.ID != id {
+		if !n.connectedPeers.Load(id) && n.ID != id {
 			selectedPeer = id
 		}
+	}
+
+	// If don't have free peer -> return without error
+	if (selectedPeer == common.Address{0}) {
+		return
 	}
 
 	// Get peer
@@ -89,7 +94,7 @@ func (n *Node) gossipOnce() {
 	n.log.Debug("connect to ", peer.NetAddr)
 
 	// Mark peer as connected
-	n.connectedPeers[selectedPeer] = true
+	n.connectedPeers.Store(selectedPeer, true)
 
 	// Get events from peer
 	peers := n.syncWithPeer(client, peer)
@@ -100,7 +105,7 @@ func (n *Node) gossipOnce() {
 	}
 
 	// Mark connection as close
-	n.connectedPeers[selectedPeer] = false
+	n.connectedPeers.Store(selectedPeer, false)
 
 	n.log.Debug("gossip -")
 }

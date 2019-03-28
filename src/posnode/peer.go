@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"crypto/ecdsa"
+	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
@@ -31,4 +32,35 @@ func WireToPeer(w *wire.PeerInfo) *Peer {
 		PubKey:  crypto.ToECDSAPub(w.PubKey),
 		NetAddr: w.NetAddr,
 	}
+}
+
+// Connected is a representation of node address collection.
+type Connected struct {
+	mx sync.RWMutex
+	m  map[common.Address]bool
+}
+
+// NewConnected create new Connected struct
+func NewConnected() *Connected {
+	return &Connected{
+		m: make(map[common.Address]bool),
+	}
+}
+
+// Load value about connected status by address
+func (c *Connected) Load(key common.Address) bool {
+	c.mx.RLock()
+	defer c.mx.RUnlock()
+
+	val, _ := c.m[key]
+
+	return val
+}
+
+// Store value about connected status by address
+func (c *Connected) Store(key common.Address, value bool) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+
+	c.m[key] = value
 }
