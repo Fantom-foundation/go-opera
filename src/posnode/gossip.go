@@ -1,10 +1,11 @@
 package posnode
 
 import (
+	"context"
 	"sync"
-	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
 // gossip is a pool of gossiping processes.
@@ -43,7 +44,7 @@ func (n *Node) StopGossip() {
 
 // gossiping is a infinity gossip process.
 func (n *Node) gossiping() {
-	for _ = range n.gossip.Tickets {
+	for range n.gossip.Tickets {
 		go func() {
 			defer n.gossip.addTicket()
 			n.gossipOnce()
@@ -52,11 +53,112 @@ func (n *Node) gossiping() {
 }
 
 func (n *Node) gossipOnce() {
-	// TODO: implement it (select peer, connect, sync with peer, get new events, n.CheckPeerIsKnown())
 	n.log.Debug("gossip +")
 
-	<-time.After(time.Second / 2)
-	n.CheckPeerIsKnown(common.Address{}, common.Address{}, "server.fake")
+	// Check top10PeersID exist
+	isExist := n.store.has(n.store.top10PeersID, []byte{0})
+	if !isExist {
+		n.store.SetTopPeersID([]common.Address{}) // TODO: Add data for prod.
+	}
+
+	// Get top peers id
+	ids := n.store.GetTopPeersID()
+
+	// Check already connected nodes
+	var selectedPeer common.Address
+	for _, id := range *ids {
+		// Check for unconnected peer & not self connected
+		if !n.connectedPeers.Load(id) && n.ID != id {
+			selectedPeer = id
+		}
+	}
+
+	// If don't have free peer -> return without error
+	if (selectedPeer == common.Address{0}) {
+		return
+	}
+
+	// Get peer
+	peer := n.store.GetPeer(selectedPeer)
+	if peer == nil {
+		return // If we have peer's ID but does not have a peer's data -> just return
+	}
+
+	// Connect
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	defer cancel()
+
+	client, err := n.ConnectTo(ctx, peer.NetAddr)
+	if err != nil {
+		n.log.Error(err)
+		return // if refused -> return without error
+	}
+
+	n.log.Debug("connect to ", peer.NetAddr)
+
+	// Mark peer as connected
+	n.connectedPeers.Store(selectedPeer, true)
+
+	// Get events from peer
+	peers := n.syncWithPeer(client, peer)
+
+	// Check peers from events
+	for p := range peers {
+		n.CheckPeerIsKnown(peer.ID, p, peer.NetAddr)
+	}
+
+	// Mark connection as close
+	n.connectedPeers.Store(selectedPeer, false)
 
 	n.log.Debug("gossip -")
+}
+
+func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {
+	// Check knownHeights exist
+	knownHeights := &wire.KnownEvents{Lasts: map[string]uint64{}}
+
+	isExist := n.store.has(n.store.knownHeights, []byte{0})
+	if isExist {
+		result := n.store.GetHeights()
+		if result != nil {
+			knownHeights = result
+		}
+	}
+
+	// Send known heights -> get unknown
+	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: (*knownHeights).Lasts})
+	if err != nil {
+		n.log.Error(err)
+		return map[common.Address]bool{} // if connection refused -> return empty map without error
+	}
+
+	// Collect peers from each event
+	var peers map[common.Address]bool
+
+	// Get unknown events by heights
+	for pID, height := range unknownHeights.Lasts {
+		if (*knownHeights).Lasts[pID] < height {
+			for i := (*knownHeights).Lasts[pID] + 1; i <= height; i++ {
+
+				var req wire.EventRequest
+				req.PeerID = pID
+				req.Index = i
+
+				event, err := client.GetEvent(context.Background(), &req)
+				if err != nil {
+					n.log.Error(err)
+					return map[common.Address]bool{} // if connection refused -> return empty map without error
+				}
+
+				address := common.BytesToAddress(event.Creator)
+				peers[address] = false
+			}
+
+			(*knownHeights).Lasts[pID] = height
+		}
+	}
+
+	n.store.SetHeights(knownHeights)
+
+	return peers
 }

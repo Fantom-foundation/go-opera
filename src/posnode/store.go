@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"github.com/dgraph-io/badger"
+	"github.com/go-errors/errors"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -13,7 +14,9 @@ import (
 type Store struct {
 	physicalDB kvdb.Database
 
-	peers kvdb.Database
+	peers        kvdb.Database
+	top10PeersID kvdb.Database
+	knownHeights kvdb.Database
 }
 
 // NewMemStore creates store over memory map.
@@ -36,12 +39,63 @@ func NewBadgerStore(db *badger.DB) *Store {
 
 func (s *Store) init() {
 	s.peers = kvdb.NewTable(s.physicalDB, "peer_")
+	s.top10PeersID = kvdb.NewTable(s.physicalDB, "top10PeersID_")
+	s.knownHeights = kvdb.NewTable(s.physicalDB, "knownHeights_")
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
 	s.peers = nil
+	s.top10PeersID = nil
+	s.knownHeights = nil
 	s.physicalDB.Close()
+}
+
+// SetTopPeersID stores peers ID.
+func (s *Store) SetTopPeersID(ids []common.Address) {
+	length := len(ids)
+
+	if length > 10 {
+		panic(errors.New("Error: size of array more than 10"))
+	}
+
+	addresses := []string{}
+
+	// TODO: too slow solution
+	for _, id := range ids {
+		addresses = append(addresses, id.Hex())
+	}
+
+	w := &wire.PeersID{
+		ID: addresses,
+	}
+
+	s.set(s.top10PeersID, []byte{0}, w)
+}
+
+// GetTopPeersID returns stored peer.
+func (s *Store) GetTopPeersID() *[]common.Address {
+	peersID, _ := s.get(s.top10PeersID, []byte{0}, &wire.PeersID{}).(*wire.PeersID)
+
+	addresses := []common.Address{}
+
+	// TODO: too slow solution
+	for _, id := range peersID.ID {
+		addresses = append(addresses, common.HexToAddress(id))
+	}
+
+	return &addresses
+}
+
+// SetHeights stores known heights.
+func (s *Store) SetHeights(heights *wire.KnownEvents) {
+	s.set(s.knownHeights, []byte{0}, heights)
+}
+
+// GetHeights returns stored known heights.
+func (s *Store) GetHeights() *wire.KnownEvents {
+	heights, _ := s.get(s.knownHeights, []byte{0}, &wire.KnownEvents{}).(*wire.KnownEvents)
+	return heights
 }
 
 // SetPeer stores peer.
