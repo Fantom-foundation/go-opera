@@ -26,5 +26,5 @@ message PeerRequest {
 message PeerInfo {
     string ID = 1;
     bytes PubKey = 2;
-    string NetAddr = 3;
+    string Host = 3;
 }

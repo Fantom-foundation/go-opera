@@ -81,7 +81,7 @@ func (n *Node) SetPeerHost(id common.Address, addr string) {
 	defer n.peers.sync.Unlock()
 
 	peer := n.store.GetPeer(id)
-	if peer != nil && peer.NetAddr == addr {
+	if peer != nil && peer.Host == addr {
 		return
 	}
 	if peer == nil {
@@ -90,7 +90,7 @@ func (n *Node) SetPeerHost(id common.Address, addr string) {
 		}
 	}
 
-	peer.NetAddr = addr
+	peer.Host = addr
 
 	// if already exists
 	for _, exist := range n.peers.top {

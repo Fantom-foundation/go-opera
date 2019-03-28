@@ -2,11 +2,11 @@ package posnode
 
 import (
 	"context"
-	"strconv"
+
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
-	"github.com/pkg/errors"
 )
 
 // discovery is a network discovery process.
@@ -73,16 +73,15 @@ func (n *Node) CheckPeerIsKnown(source, id common.Address, host string) {
 func (n *Node) AskPeerInfo(source, id common.Address, host string) {
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()
-	netAddr := host + ":" + strconv.Itoa(n.conf.Port)
-	cli, err := n.ConnectTo(ctx, netAddr)
+
+	cli, err := n.ConnectTo(ctx, host)
 	if err != nil {
-		n.log.Error(errors.Wrapf(err, "connect to: %s", netAddr))
 		return
 	}
 
 	peerInfo, err := requestPeerInfo(cli, id.Hex())
 	if err != nil {
-		n.log.Error(errors.Wrapf(err, "request peer info: %s", netAddr))
+		n.log.Error(errors.Wrapf(err, "request peer info"))
 		// TODO: handle not found.
 		return
 	}

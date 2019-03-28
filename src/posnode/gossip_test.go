@@ -12,13 +12,9 @@ import (
 )
 
 func TestGossip(t *testing.T) {
-
-	return // TODO: fix deadlock
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	// Generate test peers
 	peers := generatePeers(2)
 
 	// Node 1
@@ -26,13 +22,13 @@ func TestGossip(t *testing.T) {
 	store1 := NewMemStore()
 	store1.BootstrapPeers(peers[1:])
 
-	node1 := NewForTests("server.fake0", store1, consensus1)
+	node1 := NewForTests(peers[0].Host, store1, consensus1)
 	defer node1.Shutdown()
 
-	// Init data for node1
-	heights := map[string]uint64{}
-	heights[peers[0].NetAddr] = 3
-	node1.store_SetHeights(&wire.KnownEvents{Lasts: heights})
+	node1.store_SetHeights(&wire.KnownEvents{
+		Lasts: map[string]uint64{
+			peers[0].ID.Hex(): 3,
+		}})
 
 	node1.StartServiceForTests()
 	defer node1.StopService()
@@ -45,13 +41,14 @@ func TestGossip(t *testing.T) {
 	store2 := NewMemStore()
 	store2.BootstrapPeers(peers[:1])
 
-	node2 := NewForTests("server.fake1", store2, consensus2)
+	node2 := NewForTests(peers[1].Host, store2, consensus2)
 	defer node2.Shutdown()
 
 	// Init data for node2
-	heights = map[string]uint64{}
-	heights[peers[1].NetAddr] = 5
-	node2.store_SetHeights(&wire.KnownEvents{Lasts: heights})
+	node2.store_SetHeights(&wire.KnownEvents{
+		Lasts: map[string]uint64{
+			peers[1].ID.Hex(): 5,
+		}})
 
 	node2.StartServiceForTests()
 	defer node2.StopService()
@@ -59,7 +56,7 @@ func TestGossip(t *testing.T) {
 	node2.StartGossip(2)
 	defer node2.StopGossip()
 
-	<-time.After(3 * time.Second)
+	<-time.After(3 * time.Second) // TODO: refactor whole test and remove it
 
 	// Check
 	heights1 := node1.store_GetHeights()
@@ -77,13 +74,11 @@ func generatePeers(count int) []*Peer {
 
 	for i := 0; i < count; i++ {
 		key, _ := crypto.GenerateECDSAKey()
-		pubKey := key.PublicKey
-		netAddr := "server.fake" + strconv.Itoa(i) + ":55555"
 
 		peer := &Peer{
-			ID:      CalcNodeID(&pubKey),
-			PubKey:  &pubKey,
-			NetAddr: netAddr,
+			ID:     CalcNodeID(&key.PublicKey),
+			PubKey: &key.PublicKey,
+			Host:   "server.fake." + strconv.Itoa(i),
 		}
 
 		peers = append(peers, peer)

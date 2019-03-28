@@ -11,26 +11,26 @@ import (
 
 // Peer is a representation of other node.
 type Peer struct {
-	ID      common.Address
-	PubKey  *ecdsa.PublicKey
-	NetAddr string
+	ID     common.Address
+	PubKey *ecdsa.PublicKey
+	Host   string
 }
 
 // ToWire converts to protobuf message.
 func (p *Peer) ToWire() *wire.PeerInfo {
 	return &wire.PeerInfo{
-		ID:      p.ID.Hex(),
-		PubKey:  crypto.FromECDSAPub(p.PubKey),
-		NetAddr: p.NetAddr,
+		ID:     p.ID.Hex(),
+		PubKey: crypto.FromECDSAPub(p.PubKey),
+		Host:   p.Host,
 	}
 }
 
 // WireToPeer converts from protobuf message.
 func WireToPeer(w *wire.PeerInfo) *Peer {
 	return &Peer{
-		ID:      common.BytesToAddress(common.FromHex(w.ID)),
-		PubKey:  crypto.ToECDSAPub(w.PubKey),
-		NetAddr: w.NetAddr,
+		ID:     common.BytesToAddress(common.FromHex(w.ID)),
+		PubKey: crypto.ToECDSAPub(w.PubKey),
+		Host:   w.Host,
 	}
 }
 

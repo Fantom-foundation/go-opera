@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
@@ -25,16 +26,18 @@ type client struct {
 }
 
 // ConnectTo connects to other node service.
-func (n *Node) ConnectTo(ctx context.Context, addr string) (wire.NodeClient, error) {
+func (n *Node) ConnectTo(ctx context.Context, host string) (wire.NodeClient, error) {
 	var (
 		conn *grpc.ClientConn
 		err  error
 	)
 
+	addr := n.NetAddrOf(host)
 	n.log.Debugf("connect to %s", addr)
 	// TODO: secure connection
 	conn, err = grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure())...)
 	if err != nil {
+		n.log.Error(errors.Wrapf(err, "connect to: %s", addr))
 		return nil, err
 	}
 

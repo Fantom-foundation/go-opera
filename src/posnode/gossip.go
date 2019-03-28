@@ -65,7 +65,7 @@ func (n *Node) syncWithPeer() {
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
 	defer cancel()
 
-	client, err := n.ConnectTo(ctx, peer.NetAddr)
+	client, err := n.ConnectTo(ctx, peer.Host)
 	if err != nil {
 		n.log.Warn(err)
 		return
@@ -110,7 +110,7 @@ func (n *Node) syncWithPeer() {
 
 	// Check peers from events
 	for p := range peers {
-		n.CheckPeerIsKnown(peer.ID, p, peer.NetAddr)
+		n.CheckPeerIsKnown(peer.ID, p, peer.Host)
 	}
 }
 
