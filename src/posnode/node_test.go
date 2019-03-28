@@ -41,13 +41,11 @@ func ExampleNode(t *testing.T) {
 	n.StartGossip(4)
 	defer n.StopGossip()
 
-	// should make 4 calls for n.AskPeerInfo
-	for i := 0; i < 4; i++ {
-		select {
-		case <-peerInfoAsksChan:
-		case <-time.After(time.Second):
-			t.Errorf("should ask peer info count: %d", i)
-		}
+	// should make 1 fail call for n.AskPeerInfo
+	select {
+	case <-peerInfoAsksChan:
+	case <-time.After(time.Second):
+		t.Error("should ask peer info")
 	}
 }
 

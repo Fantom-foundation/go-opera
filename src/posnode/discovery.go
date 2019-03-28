@@ -93,6 +93,12 @@ func (n *Node) CheckPeerIsKnown(source, id hash.Peer, host string) {
 
 // AskPeerInfo gets peer info (network address, public key, etc).
 func (n *Node) AskPeerInfo(source, id hash.Peer, host string) {
+	// Check if should skip discovery.
+	discovery := n.store.GetDiscovery(source)
+	if shouldSkipDiscovery(discovery, host) {
+		return
+	}
+
 	// Prepare client to make request.
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()
@@ -107,7 +113,12 @@ func (n *Node) AskPeerInfo(source, id hash.Peer, host string) {
 	}
 
 	// Make request to get information about peer.
-	discovery := n.store.GetOrBuildDiscovery(source, host)
+	if discovery == nil {
+		discovery = &Discovery{
+			ID:   id,
+			Host: host,
+		}
+	}
 	peerInfo, err := requestPeerInfo(cli, id.Hex())
 	if err != nil {
 		// TODO: think more about what we should do when
