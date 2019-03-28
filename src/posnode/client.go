@@ -30,6 +30,8 @@ func (n *Node) ConnectTo(ctx context.Context, addr string) (wire.NodeClient, err
 		conn *grpc.ClientConn
 		err  error
 	)
+
+	n.log.Debugf("connect to %s", addr)
 	// TODO: secure connection
 	conn, err = grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure())...)
 	if err != nil {

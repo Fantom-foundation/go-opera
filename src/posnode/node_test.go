@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
@@ -16,7 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
-func TestNode(t *testing.T) {
+func ExampleNode(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -35,7 +34,6 @@ func TestNode(t *testing.T) {
 
 	n.StartGossip(4)
 	defer n.StopGossip()
-	<-time.After(5 * time.Second)
 }
 
 /*

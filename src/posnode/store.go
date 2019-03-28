@@ -76,6 +76,37 @@ func (s *Store) GetPeer(id common.Address) *Peer {
 	return WireToPeer(w)
 }
 
+// BootstrapPeers stores peer list.
+func (s *Store) BootstrapPeers(peers []*Peer) {
+	if len(peers) < 1 {
+		return
+	}
+
+	// save peers
+	batch := s.peers.NewBatch()
+	defer batch.Reset()
+
+	ids := make([]common.Address, len(peers))
+	for i, peer := range peers {
+		var pbf proto.Buffer
+		w := peer.ToWire()
+		if err := pbf.Marshal(w); err != nil {
+			panic(err)
+		}
+		if err := batch.Put(peer.ID.Bytes(), pbf.Bytes()); err != nil {
+			panic(err)
+		}
+		ids[i] = peer.ID
+	}
+
+	if err := batch.Write(); err != nil {
+		panic(err)
+	}
+
+	// add peers to top
+	s.SetTopPeers(ids)
+}
+
 // SetTopPeers stores peers.top.
 func (s *Store) SetTopPeers(ids []common.Address) {
 	var key = []byte("current")

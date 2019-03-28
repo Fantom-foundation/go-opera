@@ -47,33 +47,19 @@ func (n *Node) gossiping() {
 	for range n.gossip.Tickets {
 		go func() {
 			defer n.gossip.addTicket()
-			n.gossipOnce()
+			n.syncWithPeer()
 		}()
 	}
 }
 
-func (n *Node) gossipOnce() {
-	ids := n.store.GetTopPeers()
-
-	// Check already connected nodes
-	var selectedPeer common.Address
-	for _, id := range ids {
-		// Check for unconnected peer & not self connected
-		if !n.connectedPeers.Load(id) && n.ID != id {
-			selectedPeer = id
-		}
-	}
-
-	// If don't have free peer -> return without error
-	if (selectedPeer == common.Address{0}) {
+func (n *Node) syncWithPeer() {
+	peer := n.NextForGossip()
+	if peer == nil {
+		n.log.Warn("no candidate for gossip")
+		// TODO: wait for timeout here
 		return
 	}
-
-	// Get peer
-	peer := n.store.GetPeer(selectedPeer)
-	if peer == nil {
-		return // If we have peer's ID but does not have a peer's data -> just return
-	}
+	defer n.FreePeer(peer)
 
 	// Connect
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
@@ -81,35 +67,17 @@ func (n *Node) gossipOnce() {
 
 	client, err := n.ConnectTo(ctx, peer.NetAddr)
 	if err != nil {
-		n.log.Error(err)
-		return // if refused -> return without error
+		n.log.Warn(err)
+		return
 	}
 
-	n.log.Debug("connect to ", peer.NetAddr)
-
-	// Mark peer as connected
-	n.connectedPeers.Store(selectedPeer, true)
-
-	// Get events from peer
-	peers := n.syncWithPeer(client, peer)
-
-	// Check peers from events
-	for p := range peers {
-		n.CheckPeerIsKnown(peer.ID, p, peer.NetAddr)
-	}
-
-	// Mark connection as close
-	n.connectedPeers.Store(selectedPeer, false)
-}
-
-func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Address]bool {
 	knownHeights := n.store_GetHeights()
 
 	// Send known heights -> get unknown
-	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: (*knownHeights).Lasts})
+	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: knownHeights.Lasts})
 	if err != nil {
-		n.log.Error(err)
-		return map[common.Address]bool{} // if connection refused -> return empty map without error
+		n.log.Warn(err)
+		return
 	}
 
 	// Collect peers from each event
@@ -117,8 +85,8 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
-		if (*knownHeights).Lasts[pID] < height {
-			for i := (*knownHeights).Lasts[pID] + 1; i <= height; i++ {
+		if knownHeights.Lasts[pID] < height {
+			for i := knownHeights.Lasts[pID] + 1; i <= height; i++ {
 
 				var req wire.EventRequest
 				req.PeerID = pID
@@ -126,21 +94,24 @@ func (n *Node) syncWithPeer(client wire.NodeClient, peer *Peer) map[common.Addre
 
 				event, err := client.GetEvent(context.Background(), &req)
 				if err != nil {
-					n.log.Error(err)
-					return map[common.Address]bool{} // if connection refused -> return empty map without error
+					n.log.Warn(err)
+					return
 				}
 
 				address := common.BytesToAddress(event.Creator)
 				peers[address] = false
 			}
 
-			(*knownHeights).Lasts[pID] = height
+			knownHeights.Lasts[pID] = height
 		}
 	}
 
 	n.store_SetHeights(knownHeights)
 
-	return peers
+	// Check peers from events
+	for p := range peers {
+		n.CheckPeerIsKnown(peer.ID, p, peer.NetAddr)
+	}
 }
 
 // NOTE: temporary decision
@@ -167,4 +138,34 @@ func (n *Node) store_SetHeights(w *wire.KnownEvents) {
 		n.store.SetPeerHeight(id, h)
 	}
 	n.store.SetKnownPeers(ids)
+}
+
+/*
+ * evaluation function for gossip
+ */
+
+// gossipEvaluation implements sort.Interface.
+type gossipEvaluation Node
+
+// Len is the number of elements in the collection.
+func (n *gossipEvaluation) Len() int {
+	return len(n.peers.top)
+}
+
+// Swap swaps the elements with indexes i and j.
+func (n *gossipEvaluation) Swap(i, j int) {
+	n.peers.top[i], n.peers.top[j] = n.peers.top[j], n.peers.top[i]
+}
+
+// Less reports whether the element with
+// index i should sort before the element with index j.
+func (n *gossipEvaluation) Less(i, j int) bool {
+	a := n.store.GetPeer(n.peers.top[i])
+	b := n.store.GetPeer(n.peers.top[j])
+	if a == nil || b == nil {
+		panic("unsaved peer detected in node peers")
+	}
+
+	// TODO: implement a vs b comparing
+	return false
 }

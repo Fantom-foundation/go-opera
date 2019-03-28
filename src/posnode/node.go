@@ -21,12 +21,10 @@ type Node struct {
 
 	service
 	client
+	peers
 	gossip
 	discovery
-
 	logger
-
-	connectedPeers *Connected
 }
 
 // New creates node.
@@ -41,9 +39,8 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 		conf:      *conf,
 
 		client: client{opts},
+		peers:  initPeers(s),
 		logger: newLogger(host),
-
-		connectedPeers: NewConnected(),
 	}
 }
 
