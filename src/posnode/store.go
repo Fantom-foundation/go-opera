@@ -66,7 +66,7 @@ func (s *Store) SetTopPeersID(ids []common.Address) {
 	}
 
 	w := &wire.PeersID{
-		ID: addresses,
+		IDs: addresses,
 	}
 
 	s.set(s.top10PeersID, []byte{0}, w)
@@ -79,7 +79,7 @@ func (s *Store) GetTopPeersID() *[]common.Address {
 	addresses := []common.Address{}
 
 	// TODO: too slow solution
-	for _, id := range peersID.ID {
+	for _, id := range peersID.IDs {
 		addresses = append(addresses, common.HexToAddress(id))
 	}
 

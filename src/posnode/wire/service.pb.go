@@ -3,13 +3,12 @@
 
 package wire
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -17,14 +16,43 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
 type KnownEvents struct {
-	Lasts map[string]uint64 `protobuf:"bytes,1,rep,name=Lasts" json:"Lasts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	Lasts                map[string]uint64 `protobuf:"bytes,1,rep,name=Lasts,proto3" json:"Lasts,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
-func (m *KnownEvents) Reset()                    { *m = KnownEvents{} }
-func (m *KnownEvents) String() string            { return proto.CompactTextString(m) }
-func (*KnownEvents) ProtoMessage()               {}
-func (*KnownEvents) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (m *KnownEvents) Reset()         { *m = KnownEvents{} }
+func (m *KnownEvents) String() string { return proto.CompactTextString(m) }
+func (*KnownEvents) ProtoMessage()    {}
+func (*KnownEvents) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a0b84a42fa06f626, []int{0}
+}
+
+func (m *KnownEvents) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_KnownEvents.Unmarshal(m, b)
+}
+func (m *KnownEvents) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_KnownEvents.Marshal(b, m, deterministic)
+}
+func (m *KnownEvents) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_KnownEvents.Merge(m, src)
+}
+func (m *KnownEvents) XXX_Size() int {
+	return xxx_messageInfo_KnownEvents.Size(m)
+}
+func (m *KnownEvents) XXX_DiscardUnknown() {
+	xxx_messageInfo_KnownEvents.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_KnownEvents proto.InternalMessageInfo
 
 func (m *KnownEvents) GetLasts() map[string]uint64 {
 	if m != nil {
@@ -34,14 +62,37 @@ func (m *KnownEvents) GetLasts() map[string]uint64 {
 }
 
 type EventRequest struct {
-	PeerID string `protobuf:"bytes,1,opt,name=PeerID" json:"PeerID,omitempty"`
-	Index  uint64 `protobuf:"varint,2,opt,name=Index" json:"Index,omitempty"`
+	PeerID               string   `protobuf:"bytes,1,opt,name=PeerID,proto3" json:"PeerID,omitempty"`
+	Index                uint64   `protobuf:"varint,2,opt,name=Index,proto3" json:"Index,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *EventRequest) Reset()                    { *m = EventRequest{} }
-func (m *EventRequest) String() string            { return proto.CompactTextString(m) }
-func (*EventRequest) ProtoMessage()               {}
-func (*EventRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (m *EventRequest) Reset()         { *m = EventRequest{} }
+func (m *EventRequest) String() string { return proto.CompactTextString(m) }
+func (*EventRequest) ProtoMessage()    {}
+func (*EventRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a0b84a42fa06f626, []int{1}
+}
+
+func (m *EventRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_EventRequest.Unmarshal(m, b)
+}
+func (m *EventRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_EventRequest.Marshal(b, m, deterministic)
+}
+func (m *EventRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_EventRequest.Merge(m, src)
+}
+func (m *EventRequest) XXX_Size() int {
+	return xxx_messageInfo_EventRequest.Size(m)
+}
+func (m *EventRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_EventRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_EventRequest proto.InternalMessageInfo
 
 func (m *EventRequest) GetPeerID() string {
 	if m != nil {
@@ -58,13 +109,36 @@ func (m *EventRequest) GetIndex() uint64 {
 }
 
 type PeerRequest struct {
-	PeerID string `protobuf:"bytes,1,opt,name=PeerID" json:"PeerID,omitempty"`
+	PeerID               string   `protobuf:"bytes,1,opt,name=PeerID,proto3" json:"PeerID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PeerRequest) Reset()                    { *m = PeerRequest{} }
-func (m *PeerRequest) String() string            { return proto.CompactTextString(m) }
-func (*PeerRequest) ProtoMessage()               {}
-func (*PeerRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (m *PeerRequest) Reset()         { *m = PeerRequest{} }
+func (m *PeerRequest) String() string { return proto.CompactTextString(m) }
+func (*PeerRequest) ProtoMessage()    {}
+func (*PeerRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a0b84a42fa06f626, []int{2}
+}
+
+func (m *PeerRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PeerRequest.Unmarshal(m, b)
+}
+func (m *PeerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PeerRequest.Marshal(b, m, deterministic)
+}
+func (m *PeerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PeerRequest.Merge(m, src)
+}
+func (m *PeerRequest) XXX_Size() int {
+	return xxx_messageInfo_PeerRequest.Size(m)
+}
+func (m *PeerRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PeerRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PeerRequest proto.InternalMessageInfo
 
 func (m *PeerRequest) GetPeerID() string {
 	if m != nil {
@@ -74,15 +148,38 @@ func (m *PeerRequest) GetPeerID() string {
 }
 
 type PeerInfo struct {
-	ID      string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-	PubKey  []byte `protobuf:"bytes,2,opt,name=PubKey,proto3" json:"PubKey,omitempty"`
-	NetAddr string `protobuf:"bytes,3,opt,name=NetAddr" json:"NetAddr,omitempty"`
+	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	PubKey               []byte   `protobuf:"bytes,2,opt,name=PubKey,proto3" json:"PubKey,omitempty"`
+	NetAddr              string   `protobuf:"bytes,3,opt,name=NetAddr,proto3" json:"NetAddr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PeerInfo) Reset()                    { *m = PeerInfo{} }
-func (m *PeerInfo) String() string            { return proto.CompactTextString(m) }
-func (*PeerInfo) ProtoMessage()               {}
-func (*PeerInfo) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (m *PeerInfo) Reset()         { *m = PeerInfo{} }
+func (m *PeerInfo) String() string { return proto.CompactTextString(m) }
+func (*PeerInfo) ProtoMessage()    {}
+func (*PeerInfo) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a0b84a42fa06f626, []int{3}
+}
+
+func (m *PeerInfo) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PeerInfo.Unmarshal(m, b)
+}
+func (m *PeerInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PeerInfo.Marshal(b, m, deterministic)
+}
+func (m *PeerInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PeerInfo.Merge(m, src)
+}
+func (m *PeerInfo) XXX_Size() int {
+	return xxx_messageInfo_PeerInfo.Size(m)
+}
+func (m *PeerInfo) XXX_DiscardUnknown() {
+	xxx_messageInfo_PeerInfo.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PeerInfo proto.InternalMessageInfo
 
 func (m *PeerInfo) GetID() string {
 	if m != nil {
@@ -105,28 +202,37 @@ func (m *PeerInfo) GetNetAddr() string {
 	return ""
 }
 
-type PeersID struct {
-	ID []string `protobuf:"bytes,1,rep,name=ID" json:"ID,omitempty"`
-}
-
-func (m *PeersID) Reset()                    { *m = PeersID{} }
-func (m *PeersID) String() string            { return proto.CompactTextString(m) }
-func (*PeersID) ProtoMessage()               {}
-func (*PeersID) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
-
-func (m *PeersID) GetID() []string {
-	if m != nil {
-		return m.ID
-	}
-	return nil
-}
-
 func init() {
 	proto.RegisterType((*KnownEvents)(nil), "wire.KnownEvents")
+	proto.RegisterMapType((map[string]uint64)(nil), "wire.KnownEvents.LastsEntry")
 	proto.RegisterType((*EventRequest)(nil), "wire.EventRequest")
 	proto.RegisterType((*PeerRequest)(nil), "wire.PeerRequest")
 	proto.RegisterType((*PeerInfo)(nil), "wire.PeerInfo")
-	proto.RegisterType((*PeersID)(nil), "wire.PeersID")
+}
+
+func init() { proto.RegisterFile("service.proto", fileDescriptor_a0b84a42fa06f626) }
+
+var fileDescriptor_a0b84a42fa06f626 = []byte{
+	// 304 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x91, 0xcf, 0x4a, 0xf3, 0x40,
+	0x14, 0xc5, 0x3b, 0xe9, 0x9f, 0xaf, 0xdf, 0x9d, 0x5a, 0xf4, 0x22, 0x12, 0x82, 0x8b, 0x32, 0x20,
+	0x64, 0x63, 0x16, 0xd1, 0x45, 0x11, 0x37, 0x42, 0x4b, 0x09, 0x2d, 0x45, 0xe2, 0x13, 0xb4, 0xcd,
+	0x15, 0x8a, 0x32, 0xd1, 0xc9, 0x24, 0x35, 0xf8, 0x30, 0xbe, 0xaa, 0xcc, 0x24, 0x6d, 0x03, 0x5d,
+	0xb8, 0xbb, 0xe7, 0x77, 0xcf, 0x39, 0x24, 0x77, 0xe0, 0x2c, 0x23, 0x55, 0x6c, 0x37, 0x14, 0x7c,
+	0xa8, 0x54, 0xa7, 0xd8, 0xd9, 0x6d, 0x15, 0x79, 0x9c, 0x0a, 0x92, 0xba, 0x42, 0xe2, 0x1b, 0xf8,
+	0x5c, 0xa6, 0x3b, 0x39, 0x35, 0x2c, 0xc3, 0x10, 0xba, 0x8b, 0x55, 0xa6, 0x33, 0x97, 0x8d, 0xda,
+	0x3e, 0x0f, 0xaf, 0x03, 0x93, 0x08, 0x1a, 0x8e, 0xc0, 0xae, 0xa7, 0x52, 0xab, 0x32, 0xae, 0xac,
+	0xde, 0x18, 0xe0, 0x08, 0xf1, 0x1c, 0xda, 0x6f, 0x54, 0xba, 0x6c, 0xc4, 0xfc, 0xff, 0xb1, 0x19,
+	0xf1, 0x12, 0xba, 0xc5, 0xea, 0x3d, 0x27, 0xd7, 0x19, 0x31, 0xbf, 0x13, 0x57, 0xe2, 0xc1, 0x19,
+	0x33, 0xf1, 0x08, 0x03, 0xdb, 0x1a, 0xd3, 0x67, 0x4e, 0x99, 0xc6, 0x2b, 0xe8, 0x3d, 0x13, 0xa9,
+	0x68, 0x52, 0xc7, 0x6b, 0x65, 0x1a, 0x22, 0x99, 0xd0, 0xd7, 0xbe, 0xc1, 0x0a, 0x71, 0x03, 0xdc,
+	0xec, 0xff, 0x08, 0x8b, 0x05, 0xf4, 0xed, 0x24, 0x5f, 0x53, 0x1c, 0x82, 0x73, 0xd8, 0x3b, 0xd1,
+	0xc4, 0x66, 0xf2, 0xf5, 0x9c, 0x4a, 0xdb, 0x3c, 0x88, 0x6b, 0x85, 0x2e, 0xfc, 0x5b, 0x92, 0x7e,
+	0x4a, 0x12, 0xe5, 0xb6, 0xad, 0x79, 0x2f, 0xc3, 0x1f, 0x06, 0x9d, 0x65, 0x9a, 0x10, 0xde, 0x03,
+	0xbc, 0x94, 0x72, 0x53, 0xdf, 0xed, 0xe2, 0xe4, 0x50, 0xde, 0x29, 0x12, 0x2d, 0xbc, 0x85, 0xfe,
+	0x8c, 0xb4, 0x95, 0x88, 0x95, 0xa1, 0x79, 0x01, 0x8f, 0x37, 0x98, 0x68, 0x61, 0x08, 0x7c, 0x46,
+	0xfa, 0xf0, 0xf9, 0x75, 0x65, 0xe3, 0xaf, 0xbd, 0xe1, 0x11, 0x19, 0x8b, 0x68, 0xad, 0x7b, 0xf6,
+	0x61, 0xef, 0x7e, 0x03, 0x00, 0x00, 0xff, 0xff, 0xb3, 0x72, 0x56, 0x76, 0xfc, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -137,8 +243,9 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Node service
-
+// NodeClient is the client API for Node service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type NodeClient interface {
 	SyncEvents(ctx context.Context, in *KnownEvents, opts ...grpc.CallOption) (*KnownEvents, error)
 	GetEvent(ctx context.Context, in *EventRequest, opts ...grpc.CallOption) (*Event, error)
@@ -155,7 +262,7 @@ func NewNodeClient(cc *grpc.ClientConn) NodeClient {
 
 func (c *nodeClient) SyncEvents(ctx context.Context, in *KnownEvents, opts ...grpc.CallOption) (*KnownEvents, error) {
 	out := new(KnownEvents)
-	err := grpc.Invoke(ctx, "/wire.Node/SyncEvents", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/wire.Node/SyncEvents", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +271,7 @@ func (c *nodeClient) SyncEvents(ctx context.Context, in *KnownEvents, opts ...gr
 
 func (c *nodeClient) GetEvent(ctx context.Context, in *EventRequest, opts ...grpc.CallOption) (*Event, error) {
 	out := new(Event)
-	err := grpc.Invoke(ctx, "/wire.Node/GetEvent", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/wire.Node/GetEvent", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -173,15 +280,14 @@ func (c *nodeClient) GetEvent(ctx context.Context, in *EventRequest, opts ...grp
 
 func (c *nodeClient) GetPeerInfo(ctx context.Context, in *PeerRequest, opts ...grpc.CallOption) (*PeerInfo, error) {
 	out := new(PeerInfo)
-	err := grpc.Invoke(ctx, "/wire.Node/GetPeerInfo", in, out, c.cc, opts...)
+	err := c.cc.Invoke(ctx, "/wire.Node/GetPeerInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Node service
-
+// NodeServer is the server API for Node service.
 type NodeServer interface {
 	SyncEvents(context.Context, *KnownEvents) (*KnownEvents, error)
 	GetEvent(context.Context, *EventRequest) (*Event, error)
@@ -265,30 +371,4 @@ var _Node_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "service.proto",
-}
-
-func init() { proto.RegisterFile("service.proto", fileDescriptor1) }
-
-var fileDescriptor1 = []byte{
-	// 314 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x91, 0xcf, 0x4a, 0xf3, 0x40,
-	0x14, 0xc5, 0x9b, 0xa4, 0xff, 0xbe, 0x3b, 0xfd, 0x8a, 0x5e, 0x44, 0x62, 0x70, 0x51, 0x06, 0x84,
-	0x6e, 0xcc, 0x22, 0xba, 0x28, 0xe2, 0x46, 0x68, 0x29, 0xa1, 0xa5, 0x48, 0x7c, 0x82, 0xb6, 0xb9,
-	0x42, 0x51, 0x26, 0x3a, 0x33, 0x6d, 0x0d, 0x3e, 0x8c, 0xaf, 0x2a, 0x33, 0x49, 0xd3, 0x40, 0x17,
-	0xee, 0xe6, 0x9c, 0x7b, 0xce, 0x0f, 0x72, 0x02, 0xff, 0x15, 0xc9, 0xdd, 0x66, 0x4d, 0xe1, 0x87,
-	0xcc, 0x74, 0x86, 0xcd, 0xfd, 0x46, 0x52, 0xc0, 0x68, 0x47, 0x42, 0x17, 0x16, 0xff, 0x06, 0x36,
-	0x13, 0xd9, 0x5e, 0x4c, 0x8c, 0xa7, 0x30, 0x82, 0xd6, 0x7c, 0xa9, 0xb4, 0xf2, 0x9d, 0x81, 0x37,
-	0x64, 0xd1, 0x75, 0x68, 0x1a, 0x61, 0x2d, 0x11, 0xda, 0xf3, 0x44, 0x68, 0x99, 0x27, 0x45, 0x34,
-	0x18, 0x01, 0x1c, 0x4d, 0x3c, 0x03, 0xef, 0x8d, 0x72, 0xdf, 0x19, 0x38, 0xc3, 0x7f, 0x89, 0x79,
-	0xe2, 0x05, 0xb4, 0x76, 0xcb, 0xf7, 0x2d, 0xf9, 0xee, 0xc0, 0x19, 0x36, 0x93, 0x42, 0x3c, 0xb8,
-	0x23, 0x87, 0x3f, 0x42, 0xcf, 0x52, 0x13, 0xfa, 0xdc, 0x92, 0xd2, 0x78, 0x09, 0xed, 0x67, 0x22,
-	0x19, 0x8f, 0xcb, 0x7a, 0xa9, 0x0c, 0x21, 0x16, 0x29, 0x7d, 0x1d, 0x08, 0x56, 0xf0, 0x1b, 0x60,
-	0xe6, 0xfe, 0x47, 0x99, 0xcf, 0xa1, 0x6b, 0x5f, 0xe2, 0x35, 0xc3, 0x3e, 0xb8, 0xd5, 0xdd, 0x8d,
-	0xc7, 0xb6, 0xb3, 0x5d, 0xcd, 0x28, 0xb7, 0xe4, 0x5e, 0x52, 0x2a, 0xf4, 0xa1, 0xb3, 0x20, 0xfd,
-	0x94, 0xa6, 0xd2, 0xf7, 0x6c, 0xf8, 0x20, 0xf9, 0x15, 0x74, 0x0c, 0x4d, 0xc5, 0xe3, 0x0a, 0xe6,
-	0x15, 0xb0, 0xe8, 0xc7, 0x81, 0xe6, 0x22, 0x4b, 0x09, 0xef, 0x01, 0x5e, 0x72, 0xb1, 0x2e, 0x27,
-	0x3d, 0x3f, 0xd9, 0x30, 0x38, 0xb5, 0x78, 0x03, 0x6f, 0xa1, 0x3b, 0x25, 0x6d, 0x25, 0x62, 0x11,
-	0xa8, 0x8f, 0x13, 0xb0, 0x9a, 0xc7, 0x1b, 0x18, 0x01, 0x9b, 0x92, 0xae, 0xbe, 0xac, 0x44, 0xd6,
-	0x06, 0x09, 0xfa, 0x47, 0xcb, 0x44, 0x78, 0x63, 0xd5, 0xb6, 0xff, 0xfc, 0xee, 0x37, 0x00, 0x00,
-	0xff, 0xff, 0x38, 0xdb, 0xab, 0x0f, 0x17, 0x02, 0x00, 0x00,
 }

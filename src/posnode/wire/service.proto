@@ -28,7 +28,3 @@ message PeerInfo {
     bytes PubKey = 2;
     string NetAddr = 3;
 }
-
-message PeersID {
-    repeated string ID = 1;
-}

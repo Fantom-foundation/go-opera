@@ -5,7 +5,8 @@ package wire
 //  unzip protoc-3.6.1-linux-x86_64.zip -x readme.txt -d /usr/local/
 //  go get -u github.com/golang/protobuf/protoc-gen-go
 
-//go:generate protoc --go_out=plugins=grpc:./ event.proto service.proto
+//go:generate protoc --go_out=plugins=grpc:./ event.proto service.proto stored.proto
+
 // NOTE: mockgen does not work properly out of GOPATH
 //go:generate mockgen -package=wire -source=service.pb.go -destination=mock.go NodeServer
 

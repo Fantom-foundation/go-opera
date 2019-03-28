@@ -1,0 +1,6 @@
+syntax = "proto3";
+package wire;
+
+message PeersID {
+    repeated string IDs = 1;
+}
