@@ -2,7 +2,6 @@ package posnode
 
 import (
 	"github.com/dgraph-io/badger"
-	"github.com/go-errors/errors"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -56,7 +55,7 @@ func (s *Store) SetTopPeersID(ids []common.Address) {
 	length := len(ids)
 
 	if length > 10 {
-		panic(errors.New("Error: size of array more than 10"))
+		panic("Error: size of array more than 10")
 	}
 
 	addresses := []string{}
