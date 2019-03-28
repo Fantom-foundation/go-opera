@@ -80,6 +80,9 @@ func (n *Node) gossipOnce() {
 
 	// Get peer
 	peer := n.store.GetPeer(selectedPeer)
+	if peer == nil {
+		return // If we have peer's ID but does not have a peer's data -> just return
+	}
 
 	// Connect
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
