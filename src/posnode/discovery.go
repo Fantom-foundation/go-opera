@@ -86,6 +86,10 @@ func (n *Node) AskPeerInfo(source, id common.Address, host string) {
 		return
 	}
 
+	// TODO: check is it real host allowed connection?
+
+	n.SetPeerHost(id, peerInfo.Host)
+
 	peer := WireToPeer(peerInfo)
 	n.store.SetPeer(peer)
 }

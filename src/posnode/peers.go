@@ -74,14 +74,13 @@ func (n *Node) FreePeer(p *Peer) {
 	delete(n.peers.busy, p.ID)
 }
 
-// SetPeerHost saves peer's host.
-// TODO: rename addr/NetAddr to host
-func (n *Node) SetPeerHost(id common.Address, addr string) {
+// SetPeerHost saves peer's host for gossip purpose.
+func (n *Node) SetPeerHost(id common.Address, host string) {
 	n.peers.sync.Lock()
 	defer n.peers.sync.Unlock()
 
 	peer := n.store.GetPeer(id)
-	if peer != nil && peer.Host == addr {
+	if peer != nil && peer.Host == host {
 		return
 	}
 	if peer == nil {
@@ -90,7 +89,7 @@ func (n *Node) SetPeerHost(id common.Address, addr string) {
 		}
 	}
 
-	peer.Host = addr
+	peer.Host = host
 
 	// if already exists
 	for _, exist := range n.peers.top {
