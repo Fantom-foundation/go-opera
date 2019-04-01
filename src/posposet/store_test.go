@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 func TestMemStoreEvents(t *testing.T) {
@@ -12,8 +14,8 @@ func TestMemStoreEvents(t *testing.T) {
 	t.Run("NotExisting", func(t *testing.T) {
 		assert := assert.New(t)
 
-		hash := FakeEventHash()
-		e1 := store.GetEvent(hash)
+		h := hash.FakeEventHash()
+		e1 := store.GetEvent(h)
 		assert.Nil(e1)
 	})
 

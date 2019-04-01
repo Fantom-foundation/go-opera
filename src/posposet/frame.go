@@ -3,7 +3,7 @@ package posposet
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -15,7 +15,7 @@ type Frame struct {
 	FlagTable        FlagTable
 	ClothoCandidates EventsByNode
 	Atroposes        TimestampsByEvent
-	Balances         common.Hash
+	Balances         hash.Hash
 
 	save func()
 }
@@ -28,7 +28,7 @@ func (f *Frame) Save() {
 }
 
 // AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event EventHash, roots EventsByNode) {
+func (f *Frame) AddRootsOf(event hash.EventHash, roots EventsByNode) {
 	if f.FlagTable[event] == nil {
 		f.FlagTable[event] = EventsByNode{}
 	}
@@ -38,14 +38,14 @@ func (f *Frame) AddRootsOf(event EventHash, roots EventsByNode) {
 }
 
 // AddClothoCandidate adds event into ClothoCandidates list.
-func (f *Frame) AddClothoCandidate(event EventHash, creator common.Address) {
+func (f *Frame) AddClothoCandidate(event hash.EventHash, creator hash.Address) {
 	if f.ClothoCandidates.AddOne(event, creator) {
 		f.Save()
 	}
 }
 
 // SetAtropos makes Atropos from Clotho and consensus time.
-func (f *Frame) SetAtropos(clotho EventHash, consensusTime Timestamp) {
+func (f *Frame) SetAtropos(clotho hash.EventHash, consensusTime Timestamp) {
 	if t, ok := f.Atroposes[clotho]; ok && t == consensusTime {
 		return
 	}
@@ -54,12 +54,12 @@ func (f *Frame) SetAtropos(clotho EventHash, consensusTime Timestamp) {
 }
 
 // GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event EventHash) EventsByNode {
+func (f *Frame) GetRootsOf(event hash.EventHash) EventsByNode {
 	return f.FlagTable[event]
 }
 
 // SetBalances saves PoS-balances state.
-func (f *Frame) SetBalances(balances common.Hash) bool {
+func (f *Frame) SetBalances(balances hash.Hash) bool {
 	if f.Balances != balances {
 		f.Balances = balances
 		f.Save()
@@ -89,7 +89,7 @@ func WireToFrame(w *wire.Frame) *Frame {
 		FlagTable:        WireToFlagTable(w.FlagTable),
 		ClothoCandidates: WireToEventsByNode(w.ClothoCandidates),
 		Atroposes:        WireToTimestampsByEvent(w.Atroposes),
-		Balances:         common.BytesToHash(w.Balances),
+		Balances:         hash.BytesToHash(w.Balances),
 	}
 }
 

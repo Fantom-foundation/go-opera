@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/golang/protobuf/proto"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -16,19 +18,19 @@ import (
 // Event is a poset event.
 type Event struct {
 	Index                uint64
-	Creator              common.Address
-	Parents              EventHashes
+	Creator              hash.Address
+	Parents              hash.EventHashes
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions [][]byte
 
-	hash          EventHash            // cache for .Hash()
-	consensusTime Timestamp            // for internal purpose
-	parents       map[EventHash]*Event // for internal purpose
+	hash          hash.EventHash            // cache for .Hash()
+	consensusTime Timestamp                 // for internal purpose
+	parents       map[hash.EventHash]*Event // for internal purpose
 }
 
 // Hash calcs hash of event.
-func (e *Event) Hash() EventHash {
+func (e *Event) Hash() hash.EventHash {
 	if e.hash.IsZero() {
 		e.hash = EventHashOf(e)
 	}
@@ -59,8 +61,8 @@ func WireToEvent(w *wire.Event) *Event {
 	}
 	return &Event{
 		Index:                w.Index,
-		Creator:              common.BytesToAddress(w.Creator),
-		Parents:              WireToEventHashes(w.Parents),
+		Creator:              hash.BytesToAddress(w.Creator),
+		Parents:              hash.WireToEventHashes(w.Parents),
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
 		ExternalTransactions: w.ExternalTransactions,
@@ -97,12 +99,12 @@ func (ee Events) Less(i, j int) bool {
 // TODO: use Topological sort algorithm
 func (ee Events) ByParents() (res Events) {
 	unsorted := make(Events, len(ee))
-	exists := EventHashes{}
+	exists := hash.EventHashes{}
 	for i, e := range ee {
 		unsorted[i] = e
 		exists.Add(e.Hash())
 	}
-	ready := EventHashes{}
+	ready := hash.EventHashes{}
 	for len(unsorted) > 0 {
 	EVENTS:
 		for i, e := range unsorted {
@@ -121,4 +123,17 @@ func (ee Events) ByParents() (res Events) {
 	}
 
 	return
+}
+
+/*
+ * Utils:
+ */
+
+// EventHashOf calcs hash of event.
+func EventHashOf(e *Event) hash.EventHash {
+	buf, err := proto.Marshal(e.ToWire())
+	if err != nil {
+		panic(err)
+	}
+	return hash.EventHash(hash.Of(buf))
 }

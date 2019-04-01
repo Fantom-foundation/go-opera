@@ -1,14 +1,14 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // InternalTransaction is for stake transfer.
 type InternalTransaction struct {
 	Amount   uint64
-	Receiver common.Address
+	Receiver hash.Address
 }
 
 // InternalTransactionsToWire converts to wire.
@@ -36,7 +36,7 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
 	for i, w := range tt {
 		res[i] = &InternalTransaction{
 			Amount:   w.Amount,
-			Receiver: common.BytesToAddress(w.Receiver),
+			Receiver: hash.BytesToAddress(w.Receiver),
 		}
 	}
 
@@ -47,7 +47,7 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
  * Poset's methods:
  */
 
-func (p *Poset) applyTransactions(balances common.Hash, ordered Events) common.Hash {
+func (p *Poset) applyTransactions(balances hash.Hash, ordered Events) hash.Hash {
 	db := p.store.StateDB(balances)
 
 	for _, e := range ordered {

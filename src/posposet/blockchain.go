@@ -1,13 +1,14 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // Block is a chain block.
 type Block struct {
 	Index  uint64
-	Events EventHashSlice
+	Events hash.EventHashSlice
 }
 
 // ToWire converts to proto.Message.
@@ -25,6 +26,6 @@ func WireToBlock(w *wire.Block) *Block {
 	}
 	return &Block{
 		Index:  w.Index,
-		Events: WireToEventHashSlice(w.Events),
+		Events: hash.WireToEventHashSlice(w.Events),
 	}
 }

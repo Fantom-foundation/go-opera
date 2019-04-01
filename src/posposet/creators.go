@@ -1,7 +1,7 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 /*
@@ -11,17 +11,17 @@ import (
 // parentsValidator checks parent nodes rule.
 type parentsValidator struct {
 	event *Event
-	nodes map[common.Address]struct{}
+	nodes map[hash.Address]struct{}
 }
 
 func newParentsValidator(e *Event) *parentsValidator {
 	return &parentsValidator{
 		event: e,
-		nodes: make(map[common.Address]struct{}, len(e.Parents)),
+		nodes: make(map[hash.Address]struct{}, len(e.Parents)),
 	}
 }
 
-func (v *parentsValidator) IsParentUnique(node common.Address) bool {
+func (v *parentsValidator) IsParentUnique(node hash.Address) bool {
 	if _, ok := v.nodes[node]; ok {
 		log.Warnf("Event %s has double refer to node %s, so rejected",
 			v.event.Hash().String(),

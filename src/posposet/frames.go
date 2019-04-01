@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // eventsByFrame maps frame num --> roots.
@@ -43,7 +45,7 @@ func (ee eventsByFrame) String() string {
  */
 
 // FrameOfEvent returns unfinished frame where event is in.
-func (p *Poset) FrameOfEvent(event EventHash) (frame *Frame, isRoot bool) {
+func (p *Poset) FrameOfEvent(event hash.EventHash) (frame *Frame, isRoot bool) {
 	for _, n := range p.frameNumsDesc() {
 		frame := p.frame(n, false)
 		if knowns := frame.FlagTable[event]; knowns != nil {

@@ -1,11 +1,12 @@
 package trie
 
 import (
-	"hash"
+	std_hash "hash"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto/sha3"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
@@ -21,7 +22,7 @@ type hasher struct {
 // Read to get a variable amount of data from the hash state. Read is faster than Sum
 // because it doesn't copy the internal state, but also modifies the internal state.
 type keccakState interface {
-	hash.Hash
+	std_hash.Hash
 	Read([]byte) (int, error)
 }
 
@@ -167,7 +168,7 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 
 	if db != nil {
 		// We are pooling the trie nodes into an intermediate memory cache
-		hash_ := common.BytesToHash(bytes_)
+		hash_ := hash.BytesToHash(bytes_)
 
 		db.lock.Lock()
 		db.insert(hash_, h.tmp, n)

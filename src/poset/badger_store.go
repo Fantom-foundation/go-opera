@@ -7,6 +7,7 @@ import (
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/pos"
@@ -33,7 +34,7 @@ type BadgerStore struct {
 	needBootstrap bool
 
 	states    state.Database
-	stateRoot common.Hash
+	stateRoot hash.Hash
 }
 
 // NewBadgerStore creates a brand new Store with a new database
@@ -450,7 +451,7 @@ func (s *BadgerStore) StateDB() state.Database {
 }
 
 // StateRoot returns genesis state hash.
-func (s *BadgerStore) StateRoot() common.Hash {
+func (s *BadgerStore) StateRoot() hash.Hash {
 	return s.stateRoot
 }
 

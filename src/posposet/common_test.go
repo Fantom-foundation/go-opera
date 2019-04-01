@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 func TestParseEvents(t *testing.T) {
@@ -63,7 +63,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		return
 	}
 
-	index := make(map[EventHash]*Event)
+	index := make(map[hash.EventHash]*Event)
 	for _, nodeEvents := range events {
 		for _, e := range nodeEvents {
 			index[e.Hash()] = e
@@ -76,7 +76,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 			return
 		}
 		for _, pName := range parents {
-			hash := ZeroEventHash
+			hash := hash.ZeroEventHash
 			if pName != "" {
 				hash = names[pName].Hash()
 			}
@@ -92,8 +92,8 @@ a04 ╫ ─ ─ ╬  ╝║   ║
  */
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(nodes []common.Address) (*Poset, *Store) {
-	balances := make(map[common.Address]uint64, len(nodes))
+func FakePoset(nodes []hash.Address) (*Poset, *Store) {
+	balances := make(map[hash.Address]uint64, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = uint64(1)
 	}
@@ -115,9 +115,9 @@ func FakePoset(nodes []common.Address) (*Poset, *Store) {
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
 func ParseEvents(asciiScheme string) (
-	nodes []common.Address, events map[common.Address][]*Event, names map[string]*Event) {
+	nodes []hash.Address, events map[hash.Address][]*Event, names map[string]*Event) {
 	// init results
-	events = make(map[common.Address][]*Event)
+	events = make(map[hash.Address][]*Event)
 	names = make(map[string]*Event)
 	// read lines
 	for _, line := range strings.Split(strings.TrimSpace(asciiScheme), "\n") {
@@ -159,7 +159,7 @@ func ParseEvents(asciiScheme string) (
 		}
 		// make nodes if not enough
 		for i := len(nodes); i < (current - 1); i++ {
-			addr := common.FakeAddress()
+			addr := hash.FakeAddress()
 			nodes = append(nodes, addr)
 			events[addr] = nil
 		}
@@ -169,7 +169,7 @@ func ParseEvents(asciiScheme string) (
 			creator := nodes[nCreators[i]]
 			// find creator's parent
 			var (
-				parents = EventHashes{}
+				parents = hash.EventHashes{}
 				ltime   Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
@@ -177,7 +177,7 @@ func ParseEvents(asciiScheme string) (
 				parents.Add(parent.Hash())
 				ltime = parent.LamportTime
 			} else {
-				parents.Add(ZeroEventHash)
+				parents.Add(hash.ZeroEventHash)
 				ltime = 0
 			}
 			// find other parents
@@ -204,7 +204,7 @@ func ParseEvents(asciiScheme string) (
 			}
 			events[creator] = append(events[creator], e)
 			names[name] = e
-			EventNameDict[e.Hash()] = name
+			hash.EventNameDict[e.Hash()] = name
 		}
 	}
 
@@ -214,7 +214,7 @@ func ParseEvents(asciiScheme string) (
 			continue
 		}
 		name := ee[0].Hash().String()
-		common.NodeNameDict[node] = "node" + strings.ToUpper(name[0:1])
+		hash.NodeNameDict[node] = "node" + strings.ToUpper(name[0:1])
 	}
 
 	return
@@ -225,15 +225,15 @@ func ParseEvents(asciiScheme string) (
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 func GenEventsByNode(nodeCount, eventCount, parentCount int) (
-	nodes []common.Address, events map[common.Address][]*Event) {
+	nodes []hash.Address, events map[hash.Address][]*Event) {
 	// init results
-	nodes = make([]common.Address, nodeCount)
-	events = make(map[common.Address][]*Event, nodeCount)
+	nodes = make([]hash.Address, nodeCount)
+	events = make(map[hash.Address][]*Event, nodeCount)
 	// make and name nodes
 	for i := 0; i < nodeCount; i++ {
-		addr := common.FakeAddress()
+		addr := hash.FakeAddress()
 		nodes[i] = addr
-		common.NodeNameDict[addr] = "node" + string('A'+i)
+		hash.NodeNameDict[addr] = "node" + string('A'+i)
 	}
 	// make events
 	for i := 0; i < nodeCount*eventCount; i++ {
@@ -250,7 +250,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		// make
 		e := &Event{
 			Creator: creator,
-			Parents: EventHashes{},
+			Parents: hash.EventHashes{},
 		}
 		// first parent is a last creator's event or empty hash
 		if ee := events[creator]; len(ee) > 0 {
@@ -258,7 +258,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 			e.Parents.Add(parent.Hash())
 			e.LamportTime = parent.LamportTime + 1
 		} else {
-			e.Parents.Add(ZeroEventHash)
+			e.Parents.Add(hash.ZeroEventHash)
 			e.LamportTime = 1
 		}
 		// other parents are the lasts other's events
@@ -272,7 +272,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 			}
 		}
 		// save and name event
-		EventNameDict[e.Hash()] = fmt.Sprintf("%s%03d", string('a'+self), len(events[creator]))
+		hash.EventNameDict[e.Hash()] = fmt.Sprintf("%s%03d", string('a'+self), len(events[creator]))
 		events[creator] = append(events[creator], e)
 	}
 
@@ -281,16 +281,16 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 
 // FakeFuzzingEvents generates random independent events.
 func FakeFuzzingEvents() (res []*Event) {
-	creators := []common.Address{
-		common.Address{},
-		common.FakeAddress(),
-		common.FakeAddress(),
-		common.FakeAddress(),
+	creators := []hash.Address{
+		hash.Address{},
+		hash.FakeAddress(),
+		hash.FakeAddress(),
+		hash.FakeAddress(),
 	}
-	parents := []EventHashes{
-		FakeEventHashes(0),
-		FakeEventHashes(1),
-		FakeEventHashes(8),
+	parents := []hash.EventHashes{
+		hash.FakeEventHashes(0),
+		hash.FakeEventHashes(1),
+		hash.FakeEventHashes(8),
 	}
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {

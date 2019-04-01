@@ -2,6 +2,8 @@ package posposet
 
 import (
 	"math"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 type (
@@ -9,7 +11,7 @@ type (
 	Timestamp uint64
 
 	// TimestampsByEvent is a timestamps by event index.
-	TimestampsByEvent map[EventHash]Timestamp
+	TimestampsByEvent map[hash.EventHash]Timestamp
 )
 
 // ToWire converts to simple slice.
@@ -28,7 +30,7 @@ func WireToTimestampsByEvent(arr map[string]uint64) TimestampsByEvent {
 	res := make(TimestampsByEvent, len(arr))
 
 	for hex, t := range arr {
-		hash := HexToEventHash(hex)
+		hash := hash.HexToEventHash(hex)
 		res[hash] = Timestamp(t)
 	}
 

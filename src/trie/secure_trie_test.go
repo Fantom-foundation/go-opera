@@ -8,11 +8,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 func newEmptySecure() *SecureTrie {
-	trie, _ := NewSecure(common.Hash{}, NewDatabase(kvdb.NewMemDatabase()), 0)
+	trie, _ := NewSecure(hash.Hash{}, NewDatabase(kvdb.NewMemDatabase()), 0)
 	return trie
 }
 
@@ -21,7 +22,7 @@ func makeTestSecureTrie(t *testing.T) (*Database, *SecureTrie, map[string][]byte
 	// Create an empty trie
 	triedb := NewDatabase(kvdb.NewMemDatabase())
 
-	trie, _ := NewSecure(common.Hash{}, triedb, 0)
+	trie, _ := NewSecure(hash.Hash{}, triedb, 0)
 
 	// Fill it with some arbitrary data
 	content := make(map[string][]byte)
@@ -70,10 +71,10 @@ func TestSecureDelete(t *testing.T) {
 			trie.Delete([]byte(val.k))
 		}
 	}
-	hash := trie.Hash()
-	exp := common.HexToHash("29b235a58c3c25ab83010c327d5932bcf05324b7d6b1185e650798034783ca9d")
-	if hash != exp {
-		t.Errorf("expected %x got %x", exp, hash)
+	h := trie.Hash()
+	exp := hash.HexToHash("29b235a58c3c25ab83010c327d5932bcf05324b7d6b1185e650798034783ca9d")
+	if h != exp {
+		t.Errorf("expected %x got %x", exp, h)
 	}
 }
 

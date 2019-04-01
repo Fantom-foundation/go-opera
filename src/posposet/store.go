@@ -6,7 +6,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
@@ -63,7 +63,7 @@ func (s *Store) Close() {
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
+func (s *Store) ApplyGenesis(balances map[hash.Address]uint64) error {
 	st := s.GetState()
 	if st != nil {
 		return fmt.Errorf("Genesis has applied already")
@@ -78,9 +78,9 @@ func (s *Store) ApplyGenesis(balances map[common.Address]uint64) error {
 		TotalCap:           0,
 	}
 
-	genesis := s.StateDB(common.Hash{})
+	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
-		genesis.AddBalance(common.Address(addr), balance)
+		genesis.AddBalance(hash.Address(addr), balance)
 		st.TotalCap += balance
 	}
 
@@ -104,7 +104,7 @@ func (s *Store) SetEvent(e *Event) {
 }
 
 // GetEvent returns stored event.
-func (s *Store) GetEvent(h EventHash) *Event {
+func (s *Store) GetEvent(h hash.EventHash) *Event {
 	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
 	e := WireToEvent(w)
 	if e != nil {
@@ -114,7 +114,7 @@ func (s *Store) GetEvent(h EventHash) *Event {
 }
 
 // HasEvent returns true if event exists.
-func (s *Store) HasEvent(h EventHash) bool {
+func (s *Store) HasEvent(h hash.EventHash) bool {
 	return s.has(s.events, h.Bytes())
 }
 
@@ -154,7 +154,7 @@ func (s *Store) GetBlock(n uint64) *Block {
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from common.Hash) *state.DB {
+func (s *Store) StateDB(from hash.Hash) *state.DB {
 	db, err := state.New(from, s.balances)
 	if err != nil {
 		panic(err)

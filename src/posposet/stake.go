@@ -1,7 +1,7 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -12,7 +12,7 @@ type stakeCounter struct {
 	goal     uint64
 }
 
-func (s *stakeCounter) Count(node common.Address) {
+func (s *stakeCounter) Count(node hash.Address) {
 	if s.IsGoalAchieved() {
 		return // no sense to count further
 	}

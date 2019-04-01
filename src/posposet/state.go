@@ -1,7 +1,7 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -11,7 +11,7 @@ import (
 type State struct {
 	LastFinishedFrameN uint64
 	LastBlockN         uint64
-	Genesis            common.Hash
+	Genesis            hash.Hash
 	TotalCap           uint64
 }
 
@@ -33,7 +33,7 @@ func WireToState(w *wire.State) *State {
 	return &State{
 		LastFinishedFrameN: w.LastFinishedFrameN,
 		LastBlockN:         w.LastBlockN,
-		Genesis:            common.BytesToHash(w.Genesis),
+		Genesis:            hash.BytesToHash(w.Genesis),
 		TotalCap:           w.TotalCap,
 	}
 }

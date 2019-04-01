@@ -3,6 +3,8 @@ package posposet
 import (
 	"sort"
 	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // Poset processes events to get consensus.
@@ -15,7 +17,7 @@ type Poset struct {
 	processingDone chan struct{}
 
 	newEventsCh      chan *Event
-	incompleteEvents map[EventHash]*Event
+	incompleteEvents map[hash.EventHash]*Event
 }
 
 // New creates Poset instance.
@@ -27,7 +29,7 @@ func New(store *Store) *Poset {
 		frames: make(map[uint64]*Frame),
 
 		newEventsCh:      make(chan *Event, buffSize),
-		incompleteEvents: make(map[EventHash]*Event),
+		incompleteEvents: make(map[hash.EventHash]*Event),
 	}
 
 	p.bootstrap()
@@ -80,7 +82,7 @@ func (p *Poset) onNewEvent(e *Event) {
 	}
 
 	if e.parents == nil {
-		e.parents = make(map[EventHash]*Event, len(e.Parents))
+		e.parents = make(map[hash.EventHash]*Event, len(e.Parents))
 		for hash := range e.Parents {
 			e.parents[hash] = nil
 		}
@@ -336,7 +338,7 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 	}
 	sort.Sort(atroposes)
 
-	already := EventHashes{}
+	already := hash.EventHashes{}
 	for _, atropos := range atroposes {
 		ee := Events{}
 		p.collectParents(atropos, &ee, already)
@@ -349,7 +351,7 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 }
 
 // collectParents recursive collects Events of Atropos.
-func (p *Poset) collectParents(a *Event, res *Events, already EventHashes) {
+func (p *Poset) collectParents(a *Event, res *Events, already hash.EventHashes) {
 	for hash := range a.Parents {
 		if hash.IsZero() {
 			continue
@@ -372,7 +374,7 @@ func (p *Poset) collectParents(a *Event, res *Events, already EventHashes) {
 
 // makeBlock makes main chain block from topological ordered events.
 func (p *Poset) makeBlock(ordered Events) uint64 {
-	events := make(EventHashSlice, len(ordered))
+	events := make(hash.EventHashSlice, len(ordered))
 	for i, e := range ordered {
 		events[i] = e.Hash()
 	}

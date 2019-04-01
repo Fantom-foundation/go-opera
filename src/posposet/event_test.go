@@ -9,6 +9,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -69,7 +70,7 @@ func TestEventsByParents(t *testing.T) {
 	}
 
 	ordered := unordered.ByParents()
-	position := make(map[EventHash]int)
+	position := make(map[hash.EventHash]int)
 	for i, e := range ordered {
 		position[e.Hash()] = i
 	}
@@ -86,4 +87,31 @@ func TestEventsByParents(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestEventHash(t *testing.T) {
+	var (
+		events = FakeFuzzingEvents()
+		hashes = make([]hash.EventHash, len(events))
+	)
+
+	t.Run("Calculation", func(t *testing.T) {
+		for i, e := range events {
+			hashes[i] = e.Hash()
+		}
+	})
+
+	t.Run("Comparison", func(t *testing.T) {
+		for i, e := range events {
+			h := e.Hash()
+			if h != hashes[i] {
+				t.Fatal("Non-deterministic event hash detected")
+			}
+			for _, other := range hashes[i+1:] {
+				if h == other {
+					t.Fatal("Event hash сollision detected")
+				}
+			}
+		}
+	})
 }

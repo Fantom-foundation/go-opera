@@ -7,7 +7,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -23,15 +23,15 @@ func TestFrameSerialization(t *testing.T) {
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
-		flagTable[FakeEventHash()] = roots
+		flagTable[hash.FakeEventHash()] = roots
 		if node[0] > 256/2 {
 			cc.Add(roots)
 		}
 	}
 
 	timestamps := TimestampsByEvent{
-		FakeEventHash(): Timestamp(0),
-		FakeEventHash(): Timestamp(rand.Uint64()),
+		hash.FakeEventHash(): Timestamp(0),
+		hash.FakeEventHash(): Timestamp(rand.Uint64()),
 	}
 
 	f0 := &Frame{
@@ -39,7 +39,7 @@ func TestFrameSerialization(t *testing.T) {
 		FlagTable:        flagTable,
 		ClothoCandidates: cc,
 		Atroposes:        timestamps,
-		Balances:         common.FakeHash(),
+		Balances:         hash.FakeHash(),
 	}
 	buf, err := proto.Marshal(f0.ToWire())
 	assert.NoError(err)

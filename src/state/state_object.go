@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 // Storage
-type Storage map[common.Hash]common.Hash
+type Storage map[hash.Hash]hash.Hash
 
 func (self Storage) String() (str string) {
 	for key, value := range self {
@@ -38,8 +37,8 @@ func (s Storage) Copy() Storage {
 // Account values can be accessed and modified through the object.
 // Finally, call CommitTrie to write the modified storage trie into a database.
 type stateObject struct {
-	address  common.Address
-	addrHash common.Hash // hash of address of the account
+	address  hash.Address
+	addrHash hash.Hash // hash of address of the account
 	data     Account
 	db       *DB
 
@@ -72,15 +71,15 @@ func (s *stateObject) empty() bool {
 // These objects are stored in the main account trie.
 type Account struct {
 	Balance uint64
-	Root    common.Hash // merkle root of the storage trie
+	Root    hash.Hash // merkle root of the storage trie
 }
 
 // newObject creates a state object.
-func newObject(db *DB, address common.Address, data Account) *stateObject {
+func newObject(db *DB, address hash.Address, data Account) *stateObject {
 	return &stateObject{
 		db:            db,
 		address:       address,
-		addrHash:      crypto.Keccak256Hash(address[:]),
+		addrHash:      hash.Of(address[:]),
 		data:          data,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
@@ -114,7 +113,7 @@ func (s *stateObject) getTrie(db Database) Trie {
 		var err error
 		s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
 		if err != nil {
-			s.trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
+			s.trie, _ = db.OpenStorageTrie(s.addrHash, hash.Hash{})
 			s.setError(fmt.Errorf("can't create storage trie: %v", err))
 		}
 	}
@@ -122,7 +121,7 @@ func (s *stateObject) getTrie(db Database) Trie {
 }
 
 // GetState retrieves a value from the account storage trie.
-func (s *stateObject) GetState(db Database, key common.Hash) common.Hash {
+func (s *stateObject) GetState(db Database, key hash.Hash) hash.Hash {
 	// If we have a dirty value for this state entry, return it
 	value, dirty := s.dirtyStorage[key]
 	if dirty {
@@ -133,7 +132,7 @@ func (s *stateObject) GetState(db Database, key common.Hash) common.Hash {
 }
 
 // GetCommittedState retrieves a value from the committed account storage trie.
-func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Hash {
+func (s *stateObject) GetCommittedState(db Database, key hash.Hash) hash.Hash {
 	// If we have the original value cached, return that
 	value, cached := s.originStorage[key]
 	if cached {
@@ -143,7 +142,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 	enc, err := s.getTrie(db).TryGet(key[:])
 	if err != nil {
 		s.setError(err)
-		return common.Hash{}
+		return hash.Hash{}
 	}
 	if len(enc) > 0 {
 		_, content, _, err := rlp.Split(enc)
@@ -157,7 +156,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 }
 
 // SetState updates a value in account storage.
-func (s *stateObject) SetState(db Database, key, value common.Hash) {
+func (s *stateObject) SetState(db Database, key, value hash.Hash) {
 	// If the new value is the same as old, don't set
 	prev := s.GetState(db, key)
 	if prev == value {
@@ -172,7 +171,7 @@ func (s *stateObject) SetState(db Database, key, value common.Hash) {
 	s.setState(key, value)
 }
 
-func (s *stateObject) setState(key, value common.Hash) {
+func (s *stateObject) setState(key, value hash.Hash) {
 	s.dirtyStorage[key] = value
 }
 
@@ -188,7 +187,7 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		}
 		s.originStorage[key] = value
 
-		if (value == common.Hash{}) {
+		if (value == hash.Hash{}) {
 			s.setError(tr.TryDelete(key[:]))
 			continue
 		}
@@ -275,7 +274,7 @@ func (s *stateObject) deepCopy(db *DB) *stateObject {
  */
 
 // Returns the address of the contract/account.
-func (s *stateObject) Address() common.Address {
+func (s *stateObject) Address() hash.Address {
 	return s.address
 }
 

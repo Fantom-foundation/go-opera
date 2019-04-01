@@ -1,21 +1,16 @@
-package posposet
+package hash
 
 import (
 	"bytes"
 	"math/rand"
 	"sort"
 	"strings"
-
-	"github.com/golang/protobuf/proto"
-
-	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 type (
 	// EventHash is a unique identificator of Event.
 	// It is a hash of Event.
-	EventHash common.Hash
+	EventHash Hash
 
 	// EventHashSlice is a sortable slice of EventHash.
 	EventHashSlice []EventHash
@@ -33,57 +28,48 @@ var (
  * EventHash methods:
  */
 
-// EventHashOf calcs hash of event.
-func EventHashOf(e *Event) EventHash {
-	buf, err := proto.Marshal(e.ToWire())
-	if err != nil {
-		panic(err)
-	}
-	return EventHash(crypto.Keccak256Hash(buf))
-}
-
 // Bytes returns value as byte slice.
-func (hash EventHash) Bytes() []byte {
-	return (common.Hash)(hash).Bytes()
+func (h EventHash) Bytes() []byte {
+	return (Hash)(h).Bytes()
 }
 
 // BytesToEventHash sets b to EventHash.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToEventHash(b []byte) EventHash {
-	return EventHash(common.BytesToHash(b))
+	return EventHash(BytesToHash(b))
 }
 
 // HexToEventHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
 func HexToEventHash(s string) EventHash {
-	return EventHash(common.HexToHash(s))
+	return EventHash(HexToHash(s))
 }
 
 // Hex converts an event hash to a hex string.
-func (hash EventHash) Hex() string {
-	return common.Hash(hash).Hex()
+func (h EventHash) Hex() string {
+	return Hash(h).Hex()
 }
 
 // String returns human readable string representation.
-func (hash EventHash) String() string {
-	if name, ok := EventNameDict[hash]; ok {
+func (h EventHash) String() string {
+	if name, ok := EventNameDict[h]; ok {
 		return name
 	}
-	return (common.Hash)(hash).ShortString()
+	return (Hash)(h).ShortString()
 }
 
 // IsZero returns true if hash is empty.
-func (hash *EventHash) IsZero() bool {
-	return *hash == EventHash{}
+func (h *EventHash) IsZero() bool {
+	return *h == EventHash{}
 }
 
 /*
  * EventHashes methods:
  */
 
-func newEventHashes(hash ...EventHash) EventHashes {
+func NewEventHashes(h ...EventHash) EventHashes {
 	hh := EventHashes{}
-	hh.Add(hash...)
+	hh.Add(h...)
 	return hh
 }
 

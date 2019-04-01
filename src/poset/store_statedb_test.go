@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
@@ -22,7 +23,7 @@ func TestStateBalances(t *testing.T) {
 	}
 	store := NewInmemStore(participants, 3, pos.DefaultConfig())
 
-	roundStateDB := func(root common.Hash) *state.DB {
+	roundStateDB := func(root hash.Hash) *state.DB {
 		db, err := state.New(root, store.StateDB())
 		if err != nil {
 			t.Fatal(err)
@@ -31,7 +32,7 @@ func TestStateBalances(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(root common.Hash, addr common.Address, balance uint64) error {
+	checkBalance := func(root hash.Hash, addr hash.Address, balance uint64) error {
 		statedb := roundStateDB(root)
 		got := statedb.GetBalance(addr)
 		if got != balance {
@@ -42,9 +43,9 @@ func TestStateBalances(t *testing.T) {
 
 	var (
 		err                error
-		root, fork1, fork2 common.Hash
+		root, fork1, fork2 hash.Hash
 
-		aa = []common.Address{
+		aa = []hash.Address{
 			fakeAddress(0),
 			fakeAddress(1),
 			fakeAddress(2),
@@ -62,7 +63,7 @@ func TestStateBalances(t *testing.T) {
 
 	// root
 
-	statedb := roundStateDB(common.Hash{})
+	statedb := roundStateDB(hash.Hash{})
 	statedb.AddBalance(aa[0], 10)
 	root, err = statedb.Commit(true)
 	if err != nil {
@@ -148,7 +149,7 @@ func TestStateBalances(t *testing.T) {
  * Staff:
  */
 
-func fakeAddress(n int64) (h common.Address) {
+func fakeAddress(n int64) (h hash.Address) {
 	for i := 8; i >= 1; i-- {
 		h[i-1] = byte(n)
 		n = n >> 8

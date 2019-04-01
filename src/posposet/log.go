@@ -5,9 +5,6 @@ import (
 )
 
 var (
-	// EventNameDict is an optional dictionary to make events human readable in log.
-	EventNameDict = make(map[EventHash]string)
-	// logger
 	log *logrus.Logger
 )
 

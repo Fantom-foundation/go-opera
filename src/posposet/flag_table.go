@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -15,13 +15,13 @@ import (
 type (
 	// EventsByNode is a event hashes groupped by creator.
 	// ( creator --> event hashes )
-	EventsByNode map[common.Address]EventHashes
+	EventsByNode map[hash.Address]hash.EventHashes
 
 	// FlagTable stores the reachability of each event to the roots.
 	// It helps to select root without using path searching algorithms.
 	// Zero-hash is a self-parent root.
 	// ( event hash --> root creator --> root hashes )
-	FlagTable map[EventHash]EventsByNode
+	FlagTable map[hash.EventHash]EventsByNode
 )
 
 /*
@@ -29,7 +29,7 @@ type (
  */
 
 // IsRoot returns true if event is root.
-func (ft FlagTable) IsRoot(event EventHash) bool {
+func (ft FlagTable) IsRoot(event hash.EventHash) bool {
 	if knowns := ft[event]; knowns != nil {
 		for _, events := range knowns {
 			if events.Contains(event) {
@@ -54,7 +54,7 @@ func (ft FlagTable) Roots() EventsByNode {
 }
 
 // EventKnows return true if e knows event of node.
-func (ft FlagTable) EventKnows(e EventHash, node common.Address, event EventHash) bool {
+func (ft FlagTable) EventKnows(e hash.EventHash, node hash.Address, event hash.EventHash) bool {
 	return ft[e] != nil && ft[e].Contains(node, event)
 }
 
@@ -75,7 +75,7 @@ func WireToFlagTable(arr []*wire.Flag) FlagTable {
 	res := FlagTable{}
 
 	for _, w := range arr {
-		event := BytesToEventHash(w.Event)
+		event := hash.BytesToEventHash(w.Event)
 		res[event] = WireToEventsByNode(w.Roots)
 	}
 
@@ -90,7 +90,7 @@ func WireToFlagTable(arr []*wire.Flag) FlagTable {
 func (ee EventsByNode) Add(events EventsByNode) (changed bool) {
 	for creator, hashes := range events {
 		if ee[creator] == nil {
-			ee[creator] = EventHashes{}
+			ee[creator] = hash.EventHashes{}
 		}
 		if ee[creator].Add(hashes.Slice()...) {
 			changed = true
@@ -100,9 +100,9 @@ func (ee EventsByNode) Add(events EventsByNode) (changed bool) {
 }
 
 // AddOne appends one event.
-func (ee EventsByNode) AddOne(event EventHash, creator common.Address) (changed bool) {
+func (ee EventsByNode) AddOne(event hash.EventHash, creator hash.Address) (changed bool) {
 	if ee[creator] == nil {
-		ee[creator] = EventHashes{}
+		ee[creator] = hash.EventHashes{}
 	}
 	if ee[creator].Add(event) {
 		changed = true
@@ -111,13 +111,13 @@ func (ee EventsByNode) AddOne(event EventHash, creator common.Address) (changed 
 }
 
 // Contains returns true if event of node is in.
-func (ee EventsByNode) Contains(node common.Address, event EventHash) bool {
+func (ee EventsByNode) Contains(node hash.Address, event hash.EventHash) bool {
 	return ee[node] != nil && ee[node].Contains(event)
 }
 
 // Each returns range of all events.
-func (ee EventsByNode) Each() map[EventHash]common.Address {
-	res := make(map[EventHash]common.Address)
+func (ee EventsByNode) Each() map[hash.EventHash]hash.Address {
+	res := make(map[hash.EventHash]hash.Address)
 	for creator, events := range ee {
 		for e := range events {
 			res[e] = creator
@@ -154,12 +154,12 @@ func WireToEventsByNode(arr []*wire.EventDescr) EventsByNode {
 	res := EventsByNode{}
 
 	for _, w := range arr {
-		creator := common.BytesToAddress(w.Creator)
-		hash := BytesToEventHash(w.Hash)
+		creator := hash.BytesToAddress(w.Creator)
+		h := hash.BytesToEventHash(w.Hash)
 		if res[creator] == nil {
-			res[creator] = EventHashes{}
+			res[creator] = hash.EventHashes{}
 		}
-		if !res[creator].Add(hash) {
+		if !res[creator].Add(h) {
 			panic(fmt.Errorf("Double value is detected"))
 		}
 	}
@@ -172,15 +172,15 @@ func WireToEventsByNode(arr []*wire.EventDescr) EventsByNode {
  */
 
 // rootZero makes roots from single event.
-func rootZero(node common.Address) EventsByNode {
+func rootZero(node hash.Address) EventsByNode {
 	return EventsByNode{
-		node: newEventHashes(ZeroEventHash),
+		node: hash.NewEventHashes(hash.ZeroEventHash),
 	}
 }
 
 // rootFrom makes roots from single event.
 func rootFrom(e *Event) EventsByNode {
 	return EventsByNode{
-		e.Creator: newEventHashes(e.Hash()),
+		e.Creator: hash.NewEventHashes(e.Hash()),
 	}
 }
