@@ -176,19 +176,6 @@ func (s *Store) GetDiscovery(id hash.Peer) *Discovery {
 	return WireToDiscovery(w)
 }
 
-// GetOrBuildDiscovery returns stored peer.
-func (s *Store) GetOrBuildDiscovery(id hash.Peer, host string) *Discovery {
-	d := s.GetDiscovery(id)
-	if d == nil {
-		d = &Discovery{
-			ID: id,
-		}
-	}
-
-	d.Host = host
-	return d
-}
-
 // SetDiscovery returns stored discovery info.
 func (s *Store) SetDiscovery(discovery *Discovery) {
 	w := discovery.ToWire()

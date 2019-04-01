@@ -63,7 +63,7 @@ func NewForTests(host string, s *Store, c Consensus) *Node {
 	dialer := network.FakeDialer(host)
 	opts := grpc.WithContextDialer(dialer)
 
-	return New(host, key, s, c, DefaultConfig(), opts)
+	return New(host, key, s, c, DefaultConfig(), SetDialOpts(opts), SetDiscoveryMem)
 }
 
 // StartServiceForTests starts node service.

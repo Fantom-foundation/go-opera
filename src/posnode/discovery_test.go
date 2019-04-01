@@ -10,85 +10,137 @@ import (
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
 func Test_Node_AskPeerInfo(t *testing.T) {
-	t.Log("with initialized node")
-	{
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		srv := api.NewMockNodeServer(ctrl)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	srv := api.NewMockNodeServer(ctrl)
 
-		server := grpc.NewServer(grpc.MaxRecvMsgSize(math.MaxInt32), grpc.MaxSendMsgSize(math.MaxInt32))
-		api.RegisterNodeServer(server, srv)
+	server := grpc.NewServer(grpc.MaxRecvMsgSize(math.MaxInt32), grpc.MaxSendMsgSize(math.MaxInt32))
+	api.RegisterNodeServer(server, srv)
 
-		listener := network.FakeListener("server.fake:55555")
-		go server.Serve(listener)
-		defer server.Stop()
+	listener := network.FakeListener("server.fake:55555")
+	go server.Serve(listener)
+	defer server.Stop()
 
-		t.Log("\ttest:0\tshould add new peer and discovery")
-		{
-			store := NewMemStore()
-			n := NewForTests("any", store, nil)
+	t.Run("happy path", func(t *testing.T) {
+		store := NewMemStore()
+		n := NewForTests("any", store, nil)
 
-			id := hash.HexToPeer("unknown")
-			peerInfo := api.PeerInfo{
-				ID:     id.Hex(),
-				PubKey: []byte{},
-				Host:   "remote.server:55555",
-			}
-
-			srv.EXPECT().GetPeerInfo(gomock.Any(), gomock.Any()).Return(&peerInfo, nil)
-			source := hash.HexToPeer("known")
-			n.AskPeerInfo(source, id, "server.fake")
-
-			got := store.GetPeer(id)
-			expect := WireToPeer(&peerInfo)
-			if !reflect.DeepEqual(expect, got) {
-				t.Errorf("expected to insert peer: %+v got: %+v", expect, got)
-			}
-
-			discovery := store.GetDiscovery(source)
-			if discovery == nil {
-				t.Error("expected to add discovery")
-			}
-
-			if !discovery.Available {
-				t.Error("expected to set discover availability as available")
-			}
+		idKey, err := crypto.GenerateECDSAKey()
+		if err != nil {
+			t.Fatalf("failed to generate key")
 		}
 
-		t.Log("\ttest:1\tshould set discovery availability as unavailable")
-		{
-			store := NewMemStore()
-			n := NewForTests("any", store, nil)
+		idp := CalcNodeID(&idKey.PublicKey)
+		id := hash.HexToPeer(idp.Hex())
 
-			id := hash.HexToPeer("unknown")
-			discovery := Discovery{
-				ID:          id,
-				Host:        "bad.server",
-				LastRequest: time.Now().Truncate(time.Hour),
-				Available:   false,
-			}
-			store.SetDiscovery(&discovery)
-
-			source := hash.HexToPeer("known")
-			n.AskPeerInfo(source, id, "bad.server")
-
-			peer := store.GetPeer(id)
-			if peer != nil {
-				t.Error("sould not add peer")
-			}
-
-			newDiscovery := store.GetDiscovery(source)
-			if newDiscovery.Available {
-				t.Error("should set discovery availability as unavailable")
-			}
+		peerInfo := api.PeerInfo{
+			ID:     id.Hex(),
+			PubKey: common.FromECDSAPub(&idKey.PublicKey),
+			Host:   "remote.server:55555",
 		}
-	}
+
+		srv.EXPECT().GetPeerInfo(gomock.Any(), gomock.Any()).Return(&peerInfo, nil)
+
+		sourceKey, err := crypto.GenerateECDSAKey()
+		if err != nil {
+			t.Fatalf("failed to generate key")
+		}
+		sp := CalcNodeID(&sourceKey.PublicKey)
+		source := hash.HexToPeer(sp.Hex())
+
+		n.AskPeerInfo(source, id, "server.fake")
+
+		got := store.GetPeer(id)
+		expect := WireToPeer(&peerInfo)
+		if !reflect.DeepEqual(expect, got) {
+			t.Errorf("expected to insert peer: %+v got: %+v", expect, got)
+		}
+
+		discovery := n.discovery.store.GetDiscovery(source)
+		if discovery == nil {
+			t.Error("expected to add discovery")
+			return
+		}
+
+		if !discovery.Available {
+			t.Error("expected to set discover availability as available")
+		}
+	})
+
+	t.Run("should set unavailable", func(t *testing.T) {
+		store := NewMemStore()
+		n := NewForTests("any", store, nil)
+
+		id := hash.HexToPeer("unknown")
+		discovery := Discovery{
+			ID:          id,
+			Host:        "bad.server",
+			LastRequest: time.Now().Truncate(time.Hour),
+			Available:   false,
+		}
+		store.SetDiscovery(&discovery)
+
+		source := hash.HexToPeer("known")
+		n.AskPeerInfo(source, id, "bad.server")
+
+		peer := store.GetPeer(id)
+		if peer != nil {
+			t.Error("sould not add peer")
+		}
+
+		newDiscovery := store.GetDiscovery(source)
+		if newDiscovery.Available {
+			t.Error("should set discovery availability as unavailable")
+		}
+	})
+
+	t.Run("same id and source", func(t *testing.T) {
+		store := NewMemStore()
+		n := NewForTests("any", store, nil)
+
+		idKey, err := crypto.GenerateECDSAKey()
+		if err != nil {
+			t.Fatalf("failed to generate key")
+		}
+
+		idp := CalcNodeID(&idKey.PublicKey)
+		id := hash.HexToPeer(idp.Hex())
+
+		peerInfo := api.PeerInfo{
+			ID:     id.Hex(),
+			PubKey: common.FromECDSAPub(&idKey.PublicKey),
+			Host:   "remote.server:55555",
+		}
+
+		srv.EXPECT().GetPeerInfo(gomock.Any(), gomock.Any()).Return(&peerInfo, nil)
+		source := id
+
+		n.AskPeerInfo(source, id, "server.fake")
+
+		got := store.GetPeer(id)
+		expect := WireToPeer(&peerInfo)
+		if !reflect.DeepEqual(expect, got) {
+			t.Errorf("expected to insert peer: %+v got: %+v", expect, got)
+		}
+
+		discovery := n.discovery.store.GetDiscovery(source)
+		if discovery == nil {
+			t.Error("expected to add discovery")
+			return
+		}
+
+		if !discovery.Available {
+			t.Error("expected to set discover availability as available")
+		}
+	})
 }
 
 func Test_shouldSkipDiscovery(t *testing.T) {
