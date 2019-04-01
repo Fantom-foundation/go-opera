@@ -33,7 +33,7 @@ func WireToState(w *wire.State) *State {
 	return &State{
 		LastFinishedFrameN: w.LastFinishedFrameN,
 		LastBlockN:         w.LastBlockN,
-		Genesis:            hash.BytesToHash(w.Genesis),
+		Genesis:            hash.FromBytes(w.Genesis),
 		TotalCap:           w.TotalCap,
 	}
 }

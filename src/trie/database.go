@@ -161,7 +161,7 @@ func gatherChildren(n node, children *[]hash.Hash) {
 			gatherChildren(n[i], children)
 		}
 	case hashNode:
-		*children = append(*children, hash.BytesToHash(n))
+		*children = append(*children, hash.FromBytes(n))
 
 	case valueNode, nil:
 

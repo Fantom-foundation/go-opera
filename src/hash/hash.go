@@ -36,9 +36,9 @@ func Of(data ...[]byte) (hash Hash) {
 	return hash
 }
 
-// BytesToHash sets b to hash.
+// FromBytes converts bytes to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func BytesToHash(b []byte) Hash {
+func FromBytes(b []byte) Hash {
 	var h Hash
 	h.SetBytes(b)
 	return h
@@ -46,11 +46,11 @@ func BytesToHash(b []byte) Hash {
 
 // BigToHash sets byte representation of b to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
+func BigToHash(b *big.Int) Hash { return FromBytes(b.Bytes()) }
 
 // HexToHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func HexToHash(s string) Hash { return BytesToHash(common.FromHex(s)) }
+func HexToHash(s string) Hash { return FromBytes(common.FromHex(s)) }
 
 // Bytes gets the byte representation of the underlying hash.
 func (h Hash) Bytes() []byte { return h[:] }
@@ -101,7 +101,8 @@ func (h Hash) MarshalText() ([]byte, error) {
 	return hexutil.Bytes(h[:]).MarshalText()
 }
 
-// SetBytes sets the hash to the value of b.
+// SetBytes converts bytes to hash.
+// If b is larger than len(h), b will be cropped from the left.
 func (h *Hash) SetBytes(raw []byte) {
 	copy(h[:], raw)
 	for i := len(raw); i < len(h); i++ {

@@ -168,7 +168,7 @@ func (h *hasher) store(n node, db *Database, force bool) (node, error) {
 
 	if db != nil {
 		// We are pooling the trie nodes into an intermediate memory cache
-		hash_ := hash.BytesToHash(bytes_)
+		hash_ := hash.FromBytes(bytes_)
 
 		db.lock.Lock()
 		db.insert(hash_, h.tmp, n)

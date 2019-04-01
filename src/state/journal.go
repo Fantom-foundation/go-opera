@@ -11,21 +11,21 @@ type journalEntry interface {
 	revert(*DB)
 
 	// dirtied returns the address modified by this journal entry.
-	dirtied() *hash.Address
+	dirtied() *hash.Peer
 }
 
 // journal contains the list of state modifications applied since the last state
 // commit. These are tracked to be able to be reverted in case of an execution
 // exception or revertal request.
 type journal struct {
-	entries []journalEntry       // Current changes tracked by the journal
-	dirties map[hash.Address]int // Dirty accounts and the number of changes
+	entries []journalEntry    // Current changes tracked by the journal
+	dirties map[hash.Peer]int // Dirty accounts and the number of changes
 }
 
 // newJournal create a new initialized journal.
 func newJournal() *journal {
 	return &journal{
-		dirties: make(map[hash.Address]int),
+		dirties: make(map[hash.Peer]int),
 	}
 }
 
@@ -57,7 +57,7 @@ func (j *journal) revert(statedb *DB, snapshot int) {
 // dirty explicitly sets an address to dirty, even if the change entries would
 // otherwise suggest it as clean. This method is an ugly hack to handle the RIPEMD
 // precompile consensus exception.
-func (j *journal) dirty(addr hash.Address) {
+func (j *journal) dirty(addr hash.Peer) {
 	j.dirties[addr]++
 }
 
@@ -69,24 +69,24 @@ func (j *journal) length() int {
 type (
 	// Changes to the account trie.
 	createObjectChange struct {
-		account *hash.Address
+		account *hash.Peer
 	}
 	resetObjectChange struct {
 		prev *stateObject
 	}
 	suicideChange struct {
-		account     *hash.Address
+		account     *hash.Peer
 		prev        bool // whether account had already suicide
 		prevbalance uint64
 	}
 
 	// Changes to individual accounts.
 	balanceChange struct {
-		account *hash.Address
+		account *hash.Peer
 		prev    uint64
 	}
 	storageChange struct {
-		account       *hash.Address
+		account       *hash.Peer
 		key, prevalue hash.Hash
 	}
 
@@ -95,7 +95,7 @@ type (
 		hash hash.Hash
 	}
 	touchChange struct {
-		account *hash.Address
+		account *hash.Peer
 	}
 )
 
@@ -104,7 +104,7 @@ func (ch createObjectChange) revert(s *DB) {
 	delete(s.stateObjectsDirty, *ch.account)
 }
 
-func (ch createObjectChange) dirtied() *hash.Address {
+func (ch createObjectChange) dirtied() *hash.Peer {
 	return ch.account
 }
 
@@ -112,7 +112,7 @@ func (ch resetObjectChange) revert(s *DB) {
 	s.setStateObject(ch.prev)
 }
 
-func (ch resetObjectChange) dirtied() *hash.Address {
+func (ch resetObjectChange) dirtied() *hash.Peer {
 	return nil
 }
 
@@ -124,14 +124,14 @@ func (ch suicideChange) revert(s *DB) {
 	}
 }
 
-func (ch suicideChange) dirtied() *hash.Address {
+func (ch suicideChange) dirtied() *hash.Peer {
 	return ch.account
 }
 
 func (ch touchChange) revert(s *DB) {
 }
 
-func (ch touchChange) dirtied() *hash.Address {
+func (ch touchChange) dirtied() *hash.Peer {
 	return ch.account
 }
 
@@ -139,7 +139,7 @@ func (ch balanceChange) revert(s *DB) {
 	s.getStateObject(*ch.account).setBalance(ch.prev)
 }
 
-func (ch balanceChange) dirtied() *hash.Address {
+func (ch balanceChange) dirtied() *hash.Peer {
 	return ch.account
 }
 
@@ -147,7 +147,7 @@ func (ch storageChange) revert(s *DB) {
 	s.getStateObject(*ch.account).setState(ch.key, ch.prevalue)
 }
 
-func (ch storageChange) dirtied() *hash.Address {
+func (ch storageChange) dirtied() *hash.Peer {
 	return ch.account
 }
 
@@ -155,6 +155,6 @@ func (ch addPreimageChange) revert(s *DB) {
 	delete(s.preimages, ch.hash)
 }
 
-func (ch addPreimageChange) dirtied() *hash.Address {
+func (ch addPreimageChange) dirtied() *hash.Peer {
 	return nil
 }

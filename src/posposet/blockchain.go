@@ -8,7 +8,7 @@ import (
 // Block is a chain block.
 type Block struct {
 	Index  uint64
-	Events hash.EventHashSlice
+	Events hash.EventsSlice
 }
 
 // ToWire converts to proto.Message.

@@ -8,50 +8,50 @@ import (
 )
 
 type (
-	// EventHash is a unique identificator of Event.
+	// Event is a unique identificator of event.
 	// It is a hash of Event.
-	EventHash Hash
+	Event Hash
 
-	// EventHashSlice is a sortable slice of EventHash.
-	EventHashSlice []EventHash
+	// EventsSlice is a sortable slice of event hash.
+	EventsSlice []Event
 
-	// EventHashes provides additional methods of EventHash index.
-	EventHashes map[EventHash]struct{}
+	// Events provides additional methods of event hash index.
+	Events map[Event]struct{}
 )
 
 var (
-	// ZeroEventHash is a hash of virtual initial event.
-	ZeroEventHash = EventHash{}
+	// ZeroEvent is a hash of virtual initial event.
+	ZeroEvent = Event{}
 )
 
 /*
- * EventHash methods:
+ * Event methods:
  */
 
 // Bytes returns value as byte slice.
-func (h EventHash) Bytes() []byte {
+func (h Event) Bytes() []byte {
 	return (Hash)(h).Bytes()
 }
 
-// BytesToEventHash sets b to EventHash.
+// BytesToEventHash converts bytes to event hash.
 // If b is larger than len(h), b will be cropped from the left.
-func BytesToEventHash(b []byte) EventHash {
-	return EventHash(BytesToHash(b))
+func BytesToEventHash(b []byte) Event {
+	return Event(FromBytes(b))
 }
 
 // HexToEventHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func HexToEventHash(s string) EventHash {
-	return EventHash(HexToHash(s))
+func HexToEventHash(s string) Event {
+	return Event(HexToHash(s))
 }
 
 // Hex converts an event hash to a hex string.
-func (h EventHash) Hex() string {
+func (h Event) Hex() string {
 	return Hash(h).Hex()
 }
 
 // String returns human readable string representation.
-func (h EventHash) String() string {
+func (h Event) String() string {
 	if name, ok := EventNameDict[h]; ok {
 		return name
 	}
@@ -59,22 +59,23 @@ func (h EventHash) String() string {
 }
 
 // IsZero returns true if hash is empty.
-func (h *EventHash) IsZero() bool {
-	return *h == EventHash{}
+func (h *Event) IsZero() bool {
+	return *h == Event{}
 }
 
 /*
  * EventHashes methods:
  */
 
-func NewEventHashes(h ...EventHash) EventHashes {
-	hh := EventHashes{}
+// New Events makes event hash index.
+func NewEvents(h ...Event) Events {
+	hh := Events{}
 	hh.Add(h...)
 	return hh
 }
 
 // String returns human readable string representation.
-func (hh EventHashes) String() string {
+func (hh Events) String() string {
 	ss := make([]string, 0, len(hh))
 	for h := range hh {
 		ss = append(ss, h.String())
@@ -83,8 +84,8 @@ func (hh EventHashes) String() string {
 }
 
 // Slice returns whole index as slice.
-func (hh EventHashes) Slice() EventHashSlice {
-	arr := make(EventHashSlice, len(hh))
+func (hh Events) Slice() EventsSlice {
+	arr := make(EventsSlice, len(hh))
 	i := 0
 	for h := range hh {
 		arr[i] = h
@@ -94,7 +95,7 @@ func (hh EventHashes) Slice() EventHashSlice {
 }
 
 // Add appends hash to the index.
-func (hh EventHashes) Add(hash ...EventHash) (changed bool) {
+func (hh Events) Add(hash ...Event) (changed bool) {
 	for _, h := range hash {
 		if _, ok := hh[h]; !ok {
 			hh[h] = struct{}{}
@@ -105,14 +106,14 @@ func (hh EventHashes) Add(hash ...EventHash) (changed bool) {
 }
 
 // Contains returns true if hash is in.
-func (hh EventHashes) Contains(hash EventHash) bool {
+func (hh Events) Contains(hash Event) bool {
 	_, ok := hh[hash]
 	return ok
 }
 
 // ToWire converts to simple slice.
-func (hh EventHashes) ToWire() [][]byte {
-	var arr EventHashSlice
+func (hh Events) ToWire() [][]byte {
+	var arr EventsSlice
 	for h := range hh {
 		arr = append(arr, h)
 	}
@@ -122,8 +123,8 @@ func (hh EventHashes) ToWire() [][]byte {
 }
 
 // WireToEventHashes converts from simple slice.
-func WireToEventHashes(buf [][]byte) EventHashes {
-	hh := EventHashes{}
+func WireToEventHashes(buf [][]byte) Events {
+	hh := Events{}
 	for _, b := range buf {
 		h := BytesToEventHash(b)
 		hh.Add(h)
@@ -137,7 +138,7 @@ func WireToEventHashes(buf [][]byte) EventHashes {
  */
 
 // ToWire converts to simple slice.
-func (hh EventHashSlice) ToWire() [][]byte {
+func (hh EventsSlice) ToWire() [][]byte {
 	res := make([][]byte, len(hh))
 	for i, h := range hh {
 		res[i] = h.Bytes()
@@ -147,12 +148,12 @@ func (hh EventHashSlice) ToWire() [][]byte {
 }
 
 // WireToEventHashSlice converts from simple slice.
-func WireToEventHashSlice(buf [][]byte) EventHashSlice {
+func WireToEventHashSlice(buf [][]byte) EventsSlice {
 	if buf == nil {
 		return nil
 	}
 
-	hh := make(EventHashSlice, len(buf))
+	hh := make(EventsSlice, len(buf))
 	for i, b := range buf {
 		hh[i] = BytesToEventHash(b)
 	}
@@ -160,9 +161,9 @@ func WireToEventHashSlice(buf [][]byte) EventHashSlice {
 	return hh
 }
 
-func (hh EventHashSlice) Len() int      { return len(hh) }
-func (hh EventHashSlice) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh EventHashSlice) Less(i, j int) bool {
+func (hh EventsSlice) Len() int      { return len(hh) }
+func (hh EventsSlice) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
+func (hh EventsSlice) Less(i, j int) bool {
 	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
 }
 
@@ -170,8 +171,8 @@ func (hh EventHashSlice) Less(i, j int) bool {
  * Utils:
  */
 
-// FakeEventHash generates random fake event hash for testing purpose.
-func FakeEventHash() (h EventHash) {
+// FakeEvent generates random fake event hash for testing purpose.
+func FakeEvent() (h Event) {
 	_, err := rand.Read(h[:])
 	if err != nil {
 		panic(err)
@@ -179,11 +180,11 @@ func FakeEventHash() (h EventHash) {
 	return
 }
 
-// FakeEventHashes generates random fake event hashes for testing purpose.
-func FakeEventHashes(n int) EventHashes {
-	res := EventHashes{}
+// FakeEvents generates random fake event hashes for testing purpose.
+func FakeEvents(n int) Events {
+	res := Events{}
 	for i := 0; i < n; i++ {
-		res.Add(FakeEventHash())
+		res.Add(FakeEvent())
 	}
 	return res
 }

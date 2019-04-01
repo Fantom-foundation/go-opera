@@ -70,7 +70,7 @@ func TestEventsByParents(t *testing.T) {
 	}
 
 	ordered := unordered.ByParents()
-	position := make(map[hash.EventHash]int)
+	position := make(map[hash.Event]int)
 	for i, e := range ordered {
 		position[e.Hash()] = i
 	}
@@ -92,7 +92,7 @@ func TestEventsByParents(t *testing.T) {
 func TestEventHash(t *testing.T) {
 	var (
 		events = FakeFuzzingEvents()
-		hashes = make([]hash.EventHash, len(events))
+		hashes = make([]hash.Event, len(events))
 	)
 
 	t.Run("Calculation", func(t *testing.T) {

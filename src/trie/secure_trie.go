@@ -117,7 +117,7 @@ func (t *SecureTrie) GetKey(shaKey []byte) []byte {
 	if key, ok := t.getSecKeyCache()[string(shaKey)]; ok {
 		return key
 	}
-	key, _ := t.trie.db.preimage(hash.BytesToHash(shaKey))
+	key, _ := t.trie.db.preimage(hash.FromBytes(shaKey))
 	return key
 }
 
@@ -131,7 +131,7 @@ func (t *SecureTrie) Commit(onleaf LeafCallback) (root hash.Hash, err error) {
 	if len(t.getSecKeyCache()) > 0 {
 		t.trie.db.lock.Lock()
 		for hk, key := range t.secKeyCache {
-			t.trie.db.insertPreimage(hash.BytesToHash([]byte(hk)), key)
+			t.trie.db.insertPreimage(hash.FromBytes([]byte(hk)), key)
 		}
 		t.trie.db.lock.Unlock()
 

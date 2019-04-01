@@ -13,7 +13,7 @@ import (
 type Frame struct {
 	Index            uint64
 	FlagTable        FlagTable
-	ClothoCandidates EventsByNode
+	ClothoCandidates EventsByPeer
 	Atroposes        TimestampsByEvent
 	Balances         hash.Hash
 
@@ -28,9 +28,9 @@ func (f *Frame) Save() {
 }
 
 // AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event hash.EventHash, roots EventsByNode) {
+func (f *Frame) AddRootsOf(event hash.Event, roots EventsByPeer) {
 	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = EventsByNode{}
+		f.FlagTable[event] = EventsByPeer{}
 	}
 	if f.FlagTable[event].Add(roots) {
 		f.Save()
@@ -38,14 +38,14 @@ func (f *Frame) AddRootsOf(event hash.EventHash, roots EventsByNode) {
 }
 
 // AddClothoCandidate adds event into ClothoCandidates list.
-func (f *Frame) AddClothoCandidate(event hash.EventHash, creator hash.Address) {
+func (f *Frame) AddClothoCandidate(event hash.Event, creator hash.Peer) {
 	if f.ClothoCandidates.AddOne(event, creator) {
 		f.Save()
 	}
 }
 
 // SetAtropos makes Atropos from Clotho and consensus time.
-func (f *Frame) SetAtropos(clotho hash.EventHash, consensusTime Timestamp) {
+func (f *Frame) SetAtropos(clotho hash.Event, consensusTime Timestamp) {
 	if t, ok := f.Atroposes[clotho]; ok && t == consensusTime {
 		return
 	}
@@ -54,7 +54,7 @@ func (f *Frame) SetAtropos(clotho hash.EventHash, consensusTime Timestamp) {
 }
 
 // GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event hash.EventHash) EventsByNode {
+func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
 	return f.FlagTable[event]
 }
 
@@ -87,9 +87,9 @@ func WireToFrame(w *wire.Frame) *Frame {
 	return &Frame{
 		Index:            w.Index,
 		FlagTable:        WireToFlagTable(w.FlagTable),
-		ClothoCandidates: WireToEventsByNode(w.ClothoCandidates),
+		ClothoCandidates: WireToEventsByPeer(w.ClothoCandidates),
 		Atroposes:        WireToTimestampsByEvent(w.Atroposes),
-		Balances:         hash.BytesToHash(w.Balances),
+		Balances:         hash.FromBytes(w.Balances),
 	}
 }
 

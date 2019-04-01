@@ -8,7 +8,7 @@ import (
 // InternalTransaction is for stake transfer.
 type InternalTransaction struct {
 	Amount   uint64
-	Receiver hash.Address
+	Receiver hash.Peer
 }
 
 // InternalTransactionsToWire converts to wire.
@@ -36,7 +36,7 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
 	for i, w := range tt {
 		res[i] = &InternalTransaction{
 			Amount:   w.Amount,
-			Receiver: hash.BytesToAddress(w.Receiver),
+			Receiver: hash.BytesToPeer(w.Receiver),
 		}
 	}
 

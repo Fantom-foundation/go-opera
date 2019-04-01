@@ -14,7 +14,7 @@ func TestMemStoreEvents(t *testing.T) {
 	t.Run("NotExisting", func(t *testing.T) {
 		assert := assert.New(t)
 
-		h := hash.FakeEventHash()
+		h := hash.FakeEvent()
 		e1 := store.GetEvent(h)
 		assert.Nil(e1)
 	})

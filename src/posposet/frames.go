@@ -9,13 +9,13 @@ import (
 )
 
 // eventsByFrame maps frame num --> roots.
-type eventsByFrame map[uint64]EventsByNode
+type eventsByFrame map[uint64]EventsByPeer
 
 // Add appends roots of frame.
-func (ee eventsByFrame) Add(frameN uint64, roots EventsByNode) {
+func (ee eventsByFrame) Add(frameN uint64, roots EventsByPeer) {
 	dest := ee[frameN]
 	if dest == nil {
-		dest = EventsByNode{}
+		dest = EventsByPeer{}
 	}
 	dest.Add(roots)
 	ee[frameN] = dest
@@ -45,7 +45,7 @@ func (ee eventsByFrame) String() string {
  */
 
 // FrameOfEvent returns unfinished frame where event is in.
-func (p *Poset) FrameOfEvent(event hash.EventHash) (frame *Frame, isRoot bool) {
+func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 	for _, n := range p.frameNumsDesc() {
 		frame := p.frame(n, false)
 		if knowns := frame.FlagTable[event]; knowns != nil {
@@ -82,7 +82,7 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 		f = &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByNode{},
+			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
 			Balances:         p.frame(n-1, true).Balances,
 		}

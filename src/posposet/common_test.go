@@ -63,7 +63,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		return
 	}
 
-	index := make(map[hash.EventHash]*Event)
+	index := make(map[hash.Event]*Event)
 	for _, nodeEvents := range events {
 		for _, e := range nodeEvents {
 			index[e.Hash()] = e
@@ -76,7 +76,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 			return
 		}
 		for _, pName := range parents {
-			hash := hash.ZeroEventHash
+			hash := hash.ZeroEvent
 			if pName != "" {
 				hash = names[pName].Hash()
 			}
@@ -92,8 +92,8 @@ a04 ╫ ─ ─ ╬  ╝║   ║
  */
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(nodes []hash.Address) (*Poset, *Store) {
-	balances := make(map[hash.Address]uint64, len(nodes))
+func FakePoset(nodes []hash.Peer) (*Poset, *Store) {
+	balances := make(map[hash.Peer]uint64, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = uint64(1)
 	}
@@ -115,9 +115,9 @@ func FakePoset(nodes []hash.Address) (*Poset, *Store) {
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
 func ParseEvents(asciiScheme string) (
-	nodes []hash.Address, events map[hash.Address][]*Event, names map[string]*Event) {
+	nodes []hash.Peer, events map[hash.Peer][]*Event, names map[string]*Event) {
 	// init results
-	events = make(map[hash.Address][]*Event)
+	events = make(map[hash.Peer][]*Event)
 	names = make(map[string]*Event)
 	// read lines
 	for _, line := range strings.Split(strings.TrimSpace(asciiScheme), "\n") {
@@ -159,7 +159,7 @@ func ParseEvents(asciiScheme string) (
 		}
 		// make nodes if not enough
 		for i := len(nodes); i < (current - 1); i++ {
-			addr := hash.FakeAddress()
+			addr := hash.FakePeer()
 			nodes = append(nodes, addr)
 			events[addr] = nil
 		}
@@ -169,7 +169,7 @@ func ParseEvents(asciiScheme string) (
 			creator := nodes[nCreators[i]]
 			// find creator's parent
 			var (
-				parents = hash.EventHashes{}
+				parents = hash.Events{}
 				ltime   Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
@@ -177,7 +177,7 @@ func ParseEvents(asciiScheme string) (
 				parents.Add(parent.Hash())
 				ltime = parent.LamportTime
 			} else {
-				parents.Add(hash.ZeroEventHash)
+				parents.Add(hash.ZeroEvent)
 				ltime = 0
 			}
 			// find other parents
@@ -225,13 +225,13 @@ func ParseEvents(asciiScheme string) (
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 func GenEventsByNode(nodeCount, eventCount, parentCount int) (
-	nodes []hash.Address, events map[hash.Address][]*Event) {
+	nodes []hash.Peer, events map[hash.Peer][]*Event) {
 	// init results
-	nodes = make([]hash.Address, nodeCount)
-	events = make(map[hash.Address][]*Event, nodeCount)
+	nodes = make([]hash.Peer, nodeCount)
+	events = make(map[hash.Peer][]*Event, nodeCount)
 	// make and name nodes
 	for i := 0; i < nodeCount; i++ {
-		addr := hash.FakeAddress()
+		addr := hash.FakePeer()
 		nodes[i] = addr
 		hash.NodeNameDict[addr] = "node" + string('A'+i)
 	}
@@ -250,7 +250,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		// make
 		e := &Event{
 			Creator: creator,
-			Parents: hash.EventHashes{},
+			Parents: hash.Events{},
 		}
 		// first parent is a last creator's event or empty hash
 		if ee := events[creator]; len(ee) > 0 {
@@ -258,7 +258,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 			e.Parents.Add(parent.Hash())
 			e.LamportTime = parent.LamportTime + 1
 		} else {
-			e.Parents.Add(hash.ZeroEventHash)
+			e.Parents.Add(hash.ZeroEvent)
 			e.LamportTime = 1
 		}
 		// other parents are the lasts other's events
@@ -281,16 +281,16 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 
 // FakeFuzzingEvents generates random independent events.
 func FakeFuzzingEvents() (res []*Event) {
-	creators := []hash.Address{
-		hash.Address{},
-		hash.FakeAddress(),
-		hash.FakeAddress(),
-		hash.FakeAddress(),
+	creators := []hash.Peer{
+		hash.Peer{},
+		hash.FakePeer(),
+		hash.FakePeer(),
+		hash.FakePeer(),
 	}
-	parents := []hash.EventHashes{
-		hash.FakeEventHashes(0),
-		hash.FakeEventHashes(1),
-		hash.FakeEventHashes(8),
+	parents := []hash.Events{
+		hash.FakeEvents(0),
+		hash.FakeEvents(1),
+		hash.FakeEvents(8),
 	}
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {

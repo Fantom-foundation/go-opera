@@ -37,7 +37,7 @@ func (s Storage) Copy() Storage {
 // Account values can be accessed and modified through the object.
 // Finally, call CommitTrie to write the modified storage trie into a database.
 type stateObject struct {
-	address  hash.Address
+	address  hash.Peer
 	addrHash hash.Hash // hash of address of the account
 	data     Account
 	db       *DB
@@ -75,7 +75,7 @@ type Account struct {
 }
 
 // newObject creates a state object.
-func newObject(db *DB, address hash.Address, data Account) *stateObject {
+func newObject(db *DB, address hash.Peer, data Account) *stateObject {
 	return &stateObject{
 		db:            db,
 		address:       address,
@@ -274,7 +274,7 @@ func (s *stateObject) deepCopy(db *DB) *stateObject {
  */
 
 // Returns the address of the contract/account.
-func (s *stateObject) Address() hash.Address {
+func (s *stateObject) Address() hash.Peer {
 	return s.address
 }
 

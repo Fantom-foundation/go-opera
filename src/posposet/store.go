@@ -63,7 +63,7 @@ func (s *Store) Close() {
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(balances map[hash.Address]uint64) error {
+func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	st := s.GetState()
 	if st != nil {
 		return fmt.Errorf("Genesis has applied already")
@@ -80,7 +80,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Address]uint64) error {
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
-		genesis.AddBalance(hash.Address(addr), balance)
+		genesis.AddBalance(hash.Peer(addr), balance)
 		st.TotalCap += balance
 	}
 
@@ -104,7 +104,7 @@ func (s *Store) SetEvent(e *Event) {
 }
 
 // GetEvent returns stored event.
-func (s *Store) GetEvent(h hash.EventHash) *Event {
+func (s *Store) GetEvent(h hash.Event) *Event {
 	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
 	e := WireToEvent(w)
 	if e != nil {
@@ -114,7 +114,7 @@ func (s *Store) GetEvent(h hash.EventHash) *Event {
 }
 
 // HasEvent returns true if event exists.
-func (s *Store) HasEvent(h hash.EventHash) bool {
+func (s *Store) HasEvent(h hash.Event) bool {
 	return s.has(s.events, h.Bytes())
 }
 

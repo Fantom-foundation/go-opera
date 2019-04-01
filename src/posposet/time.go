@@ -11,7 +11,7 @@ type (
 	Timestamp uint64
 
 	// TimestampsByEvent is a timestamps by event index.
-	TimestampsByEvent map[hash.EventHash]Timestamp
+	TimestampsByEvent map[hash.Event]Timestamp
 )
 
 // ToWire converts to simple slice.

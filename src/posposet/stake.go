@@ -12,7 +12,7 @@ type stakeCounter struct {
 	goal     uint64
 }
 
-func (s *stakeCounter) Count(node hash.Address) {
+func (s *stakeCounter) Count(node hash.Peer) {
 	if s.IsGoalAchieved() {
 		return // no sense to count further
 	}
@@ -37,7 +37,7 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 	}
 }
 
-func (p *Poset) hasMajority(frame *Frame, roots EventsByNode) bool {
+func (p *Poset) hasMajority(frame *Frame, roots EventsByPeer) bool {
 	stake := p.newStakeCounter(frame,
 		p.state.TotalCap*2/3)
 	for node := range roots {
@@ -46,7 +46,7 @@ func (p *Poset) hasMajority(frame *Frame, roots EventsByNode) bool {
 	return stake.IsGoalAchieved()
 }
 
-func (p *Poset) hasTrust(frame *Frame, roots EventsByNode) bool {
+func (p *Poset) hasTrust(frame *Frame, roots EventsByPeer) bool {
 	stake := p.newStakeCounter(frame,
 		p.state.TotalCap*1/3)
 	for node := range roots {

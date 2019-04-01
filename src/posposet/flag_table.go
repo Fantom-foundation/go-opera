@@ -15,13 +15,13 @@ import (
 type (
 	// EventsByNode is a event hashes groupped by creator.
 	// ( creator --> event hashes )
-	EventsByNode map[hash.Address]hash.EventHashes
+	EventsByPeer map[hash.Peer]hash.Events
 
 	// FlagTable stores the reachability of each event to the roots.
 	// It helps to select root without using path searching algorithms.
 	// Zero-hash is a self-parent root.
 	// ( event hash --> root creator --> root hashes )
-	FlagTable map[hash.EventHash]EventsByNode
+	FlagTable map[hash.Event]EventsByPeer
 )
 
 /*
@@ -29,7 +29,7 @@ type (
  */
 
 // IsRoot returns true if event is root.
-func (ft FlagTable) IsRoot(event hash.EventHash) bool {
+func (ft FlagTable) IsRoot(event hash.Event) bool {
 	if knowns := ft[event]; knowns != nil {
 		for _, events := range knowns {
 			if events.Contains(event) {
@@ -41,8 +41,8 @@ func (ft FlagTable) IsRoot(event hash.EventHash) bool {
 }
 
 // Roots returns all roots by node.
-func (ft FlagTable) Roots() EventsByNode {
-	roots := EventsByNode{}
+func (ft FlagTable) Roots() EventsByPeer {
+	roots := EventsByPeer{}
 	for event, events := range ft {
 		for node, hashes := range events {
 			if hashes.Contains(event) {
@@ -54,7 +54,7 @@ func (ft FlagTable) Roots() EventsByNode {
 }
 
 // EventKnows return true if e knows event of node.
-func (ft FlagTable) EventKnows(e hash.EventHash, node hash.Address, event hash.EventHash) bool {
+func (ft FlagTable) EventKnows(e hash.Event, node hash.Peer, event hash.Event) bool {
 	return ft[e] != nil && ft[e].Contains(node, event)
 }
 
@@ -76,7 +76,7 @@ func WireToFlagTable(arr []*wire.Flag) FlagTable {
 
 	for _, w := range arr {
 		event := hash.BytesToEventHash(w.Event)
-		res[event] = WireToEventsByNode(w.Roots)
+		res[event] = WireToEventsByPeer(w.Roots)
 	}
 
 	return res
@@ -87,10 +87,10 @@ func WireToFlagTable(arr []*wire.Flag) FlagTable {
  */
 
 // Add unions events into one.
-func (ee EventsByNode) Add(events EventsByNode) (changed bool) {
+func (ee EventsByPeer) Add(events EventsByPeer) (changed bool) {
 	for creator, hashes := range events {
 		if ee[creator] == nil {
-			ee[creator] = hash.EventHashes{}
+			ee[creator] = hash.Events{}
 		}
 		if ee[creator].Add(hashes.Slice()...) {
 			changed = true
@@ -100,9 +100,9 @@ func (ee EventsByNode) Add(events EventsByNode) (changed bool) {
 }
 
 // AddOne appends one event.
-func (ee EventsByNode) AddOne(event hash.EventHash, creator hash.Address) (changed bool) {
+func (ee EventsByPeer) AddOne(event hash.Event, creator hash.Peer) (changed bool) {
 	if ee[creator] == nil {
-		ee[creator] = hash.EventHashes{}
+		ee[creator] = hash.Events{}
 	}
 	if ee[creator].Add(event) {
 		changed = true
@@ -111,13 +111,13 @@ func (ee EventsByNode) AddOne(event hash.EventHash, creator hash.Address) (chang
 }
 
 // Contains returns true if event of node is in.
-func (ee EventsByNode) Contains(node hash.Address, event hash.EventHash) bool {
+func (ee EventsByPeer) Contains(node hash.Peer, event hash.Event) bool {
 	return ee[node] != nil && ee[node].Contains(event)
 }
 
 // Each returns range of all events.
-func (ee EventsByNode) Each() map[hash.EventHash]hash.Address {
-	res := make(map[hash.EventHash]hash.Address)
+func (ee EventsByPeer) Each() map[hash.Event]hash.Peer {
+	res := make(map[hash.Event]hash.Peer)
 	for creator, events := range ee {
 		for e := range events {
 			res[e] = creator
@@ -127,7 +127,7 @@ func (ee EventsByNode) Each() map[hash.EventHash]hash.Address {
 }
 
 // String returns human readable string representation.
-func (ee EventsByNode) String() string {
+func (ee EventsByPeer) String() string {
 	var ss []string
 	for node, roots := range ee {
 		ss = append(ss, node.String()+":"+roots.String())
@@ -136,7 +136,7 @@ func (ee EventsByNode) String() string {
 }
 
 // ToWire converts to simple slice.
-func (ee EventsByNode) ToWire() []*wire.EventDescr {
+func (ee EventsByPeer) ToWire() []*wire.EventDescr {
 	var arr []*wire.EventDescr
 	for creator, hh := range ee {
 		for hash := range hh {
@@ -149,15 +149,15 @@ func (ee EventsByNode) ToWire() []*wire.EventDescr {
 	return arr
 }
 
-// WireToEventsByNode converts from wire.
-func WireToEventsByNode(arr []*wire.EventDescr) EventsByNode {
-	res := EventsByNode{}
+// WireToEventsByPeer converts from wire.
+func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
+	res := EventsByPeer{}
 
 	for _, w := range arr {
-		creator := hash.BytesToAddress(w.Creator)
+		creator := hash.BytesToPeer(w.Creator)
 		h := hash.BytesToEventHash(w.Hash)
 		if res[creator] == nil {
-			res[creator] = hash.EventHashes{}
+			res[creator] = hash.Events{}
 		}
 		if !res[creator].Add(h) {
 			panic(fmt.Errorf("Double value is detected"))
@@ -172,15 +172,15 @@ func WireToEventsByNode(arr []*wire.EventDescr) EventsByNode {
  */
 
 // rootZero makes roots from single event.
-func rootZero(node hash.Address) EventsByNode {
-	return EventsByNode{
-		node: hash.NewEventHashes(hash.ZeroEventHash),
+func rootZero(node hash.Peer) EventsByPeer {
+	return EventsByPeer{
+		node: hash.NewEvents(hash.ZeroEvent),
 	}
 }
 
 // rootFrom makes roots from single event.
-func rootFrom(e *Event) EventsByNode {
-	return EventsByNode{
-		e.Creator: hash.NewEventHashes(e.Hash()),
+func rootFrom(e *Event) EventsByPeer {
+	return EventsByPeer{
+		e.Creator: hash.NewEvents(e.Hash()),
 	}
 }

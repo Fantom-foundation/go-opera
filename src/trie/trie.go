@@ -393,7 +393,7 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 }
 
 func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
-	h := hash.BytesToHash(n)
+	h := hash.FromBytes(n)
 	if node := t.db.node(h, t.cachegen); node != nil {
 		return node, nil
 	}
@@ -409,7 +409,7 @@ func (t *Trie) Root() []byte { return t.Hash().Bytes() }
 func (t *Trie) Hash() hash.Hash {
 	h, cached, _ := t.hashRoot(nil, nil)
 	t.root = cached
-	return hash.BytesToHash(h.(hashNode))
+	return hash.FromBytes(h.(hashNode))
 }
 
 // Commit writes all nodes to the trie's memory database, tracking the internal
@@ -424,7 +424,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root hash.Hash, err error) {
 	}
 	t.root = cached
 	t.cachegen++
-	return hash.BytesToHash(h.(hashNode)), nil
+	return hash.FromBytes(h.(hashNode)), nil
 }
 
 func (t *Trie) hashRoot(db *Database, onleaf LeafCallback) (node, node, error) {

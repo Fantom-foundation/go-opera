@@ -50,11 +50,11 @@ func makeTestTrie(t *testing.T) (*Database, *Trie, map[string][]byte) {
 // content map.
 func checkTrieContents(t *testing.T, db *Database, root []byte, content map[string][]byte) {
 	// Check root availability and trie contents
-	trie, err := New(hash.BytesToHash(root), db)
+	trie, err := New(hash.FromBytes(root), db)
 	if err != nil {
 		t.Fatalf("failed to create trie at %x: %v", root, err)
 	}
-	if err := checkTrieConsistency(db, hash.BytesToHash(root)); err != nil {
+	if err := checkTrieConsistency(db, hash.FromBytes(root)); err != nil {
 		t.Fatalf("inconsistent trie at %x: %v", root, err)
 	}
 	for key, val := range content {

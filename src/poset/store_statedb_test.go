@@ -32,7 +32,7 @@ func TestStateBalances(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(root hash.Hash, addr hash.Address, balance uint64) error {
+	checkBalance := func(root hash.Hash, addr hash.Peer, balance uint64) error {
 		statedb := roundStateDB(root)
 		got := statedb.GetBalance(addr)
 		if got != balance {
@@ -45,7 +45,7 @@ func TestStateBalances(t *testing.T) {
 		err                error
 		root, fork1, fork2 hash.Hash
 
-		aa = []hash.Address{
+		aa = []hash.Peer{
 			fakeAddress(0),
 			fakeAddress(1),
 			fakeAddress(2),
@@ -149,7 +149,7 @@ func TestStateBalances(t *testing.T) {
  * Staff:
  */
 
-func fakeAddress(n int64) (h hash.Address) {
+func fakeAddress(n int64) (h hash.Peer) {
 	for i := 8; i >= 1; i-- {
 		h[i-1] = byte(n)
 		n = n >> 8

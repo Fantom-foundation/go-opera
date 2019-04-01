@@ -278,7 +278,7 @@ func (s *Sync) children(req *request, object node) ([]*request, error) {
 		// If the child references another node, resolve or schedule
 		if node, ok := (child.node).(hashNode); ok {
 			// Try to resolve the node from the local database
-			h := hash.BytesToHash(node)
+			h := hash.FromBytes(node)
 			if _, ok := s.membatch.batch[h]; ok {
 				continue
 			}

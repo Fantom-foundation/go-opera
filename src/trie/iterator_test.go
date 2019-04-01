@@ -109,7 +109,7 @@ func TestNodeIteratorCoverage(t *testing.T) {
 		}
 	}
 	for _, key := range db.diskdb.(*kvdb.MemDatabase).Keys() {
-		if _, ok := hashes[hash.BytesToHash(key)]; !ok {
+		if _, ok := hashes[hash.FromBytes(key)]; !ok {
 			t.Errorf("state entry not reported %x", key)
 		}
 	}

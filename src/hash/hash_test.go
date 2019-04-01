@@ -8,7 +8,7 @@ import (
 
 func TestBytesConversion(t *testing.T) {
 	bytes := []byte{5}
-	hash := BytesToHash(bytes)
+	hash := FromBytes(bytes)
 
 	var exp Hash
 	exp[0] = 5

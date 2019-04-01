@@ -17,21 +17,21 @@ func TestFrameSerialization(t *testing.T) {
 	nodes, events := GenEventsByNode(4, 10, 3)
 
 	flagTable := FlagTable{}
-	cc := EventsByNode{}
+	cc := EventsByPeer{}
 	for _, node := range nodes {
-		roots := EventsByNode{}
+		roots := EventsByPeer{}
 		for _, e := range events[node] {
 			roots[e.Creator] = e.Parents
 		}
-		flagTable[hash.FakeEventHash()] = roots
+		flagTable[hash.FakeEvent()] = roots
 		if node[0] > 256/2 {
 			cc.Add(roots)
 		}
 	}
 
 	timestamps := TimestampsByEvent{
-		hash.FakeEventHash(): Timestamp(0),
-		hash.FakeEventHash(): Timestamp(rand.Uint64()),
+		hash.FakeEvent(): Timestamp(0),
+		hash.FakeEvent(): Timestamp(rand.Uint64()),
 	}
 
 	f0 := &Frame{

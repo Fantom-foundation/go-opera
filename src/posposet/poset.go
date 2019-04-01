@@ -17,7 +17,7 @@ type Poset struct {
 	processingDone chan struct{}
 
 	newEventsCh      chan *Event
-	incompleteEvents map[hash.EventHash]*Event
+	incompleteEvents map[hash.Event]*Event
 }
 
 // New creates Poset instance.
@@ -29,7 +29,7 @@ func New(store *Store) *Poset {
 		frames: make(map[uint64]*Frame),
 
 		newEventsCh:      make(chan *Event, buffSize),
-		incompleteEvents: make(map[hash.EventHash]*Event),
+		incompleteEvents: make(map[hash.Event]*Event),
 	}
 
 	p.bootstrap()
@@ -82,7 +82,7 @@ func (p *Poset) onNewEvent(e *Event) {
 	}
 
 	if e.parents == nil {
-		e.parents = make(map[hash.EventHash]*Event, len(e.Parents))
+		e.parents = make(map[hash.Event]*Event, len(e.Parents))
 		for hash := range e.Parents {
 			e.parents[hash] = nil
 		}
@@ -254,7 +254,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 			continue
 		}
 		// all roots from frame, reach the seen
-		roots := EventsByNode{}
+		roots := EventsByPeer{}
 		for root, creator := range frame.FlagTable.Roots().Each() {
 			if prev.FlagTable.EventKnows(root, seenCreator, seen) {
 				roots.AddOne(root, creator)
@@ -304,7 +304,7 @@ CLOTHO:
 					}
 					T := counter.MaxMin()
 					// votes for reselected time
-					K := EventsByNode{}
+					K := EventsByPeer{}
 					for r, n := range S.Each() {
 						if t, ok := candidateTime[r]; ok && t == T {
 							K.AddOne(r, n)
@@ -338,7 +338,7 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 	}
 	sort.Sort(atroposes)
 
-	already := hash.EventHashes{}
+	already := hash.Events{}
 	for _, atropos := range atroposes {
 		ee := Events{}
 		p.collectParents(atropos, &ee, already)
@@ -351,7 +351,7 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 }
 
 // collectParents recursive collects Events of Atropos.
-func (p *Poset) collectParents(a *Event, res *Events, already hash.EventHashes) {
+func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 	for hash := range a.Parents {
 		if hash.IsZero() {
 			continue
@@ -374,7 +374,7 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.EventHashes) 
 
 // makeBlock makes main chain block from topological ordered events.
 func (p *Poset) makeBlock(ordered Events) uint64 {
-	events := make(hash.EventHashSlice, len(ordered))
+	events := make(hash.EventsSlice, len(ordered))
 	for i, e := range ordered {
 		events[i] = e.Hash()
 	}
@@ -406,7 +406,7 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 		p.frames[n] = &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByNode{},
+			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
 			Balances:         frame.Balances,
 		}

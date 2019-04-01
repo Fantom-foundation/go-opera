@@ -11,17 +11,17 @@ import (
 // parentsValidator checks parent nodes rule.
 type parentsValidator struct {
 	event *Event
-	nodes map[hash.Address]struct{}
+	nodes map[hash.Peer]struct{}
 }
 
 func newParentsValidator(e *Event) *parentsValidator {
 	return &parentsValidator{
 		event: e,
-		nodes: make(map[hash.Address]struct{}, len(e.Parents)),
+		nodes: make(map[hash.Peer]struct{}, len(e.Parents)),
 	}
 }
 
-func (v *parentsValidator) IsParentUnique(node hash.Address) bool {
+func (v *parentsValidator) IsParentUnique(node hash.Peer) bool {
 	if _, ok := v.nodes[node]; ok {
 		log.Warnf("Event %s has double refer to node %s, so rejected",
 			v.event.Hash().String(),

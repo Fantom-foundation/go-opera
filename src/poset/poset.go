@@ -1520,7 +1520,7 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (r
 		if err != nil {
 			return
 		}
-		prevState = hash.BytesToHash(prevFrame.StateHash)
+		prevState = hash.FromBytes(prevFrame.StateHash)
 	}
 
 	statedb, err := state.New(prevState, p.Store.StateDB())
@@ -1541,16 +1541,16 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (r
 					continue
 				}
 				p.logger.Debug("ApplyInternalTransaction", tx)
-				if statedb.GetBalance(hash.Address(sender)) < tx.Amount {
+				if statedb.GetBalance(hash.Peer(sender)) < tx.Amount {
 					p.logger.Warn("Balance is not enough", sender, tx.Amount)
 					continue
 				}
 				reciver := tx.Peer.Address()
-				statedb.SubBalance(hash.Address(sender), tx.Amount)
-				if !statedb.Exist(hash.Address(reciver)) {
-					statedb.CreateAccount(hash.Address(reciver))
+				statedb.SubBalance(hash.Peer(sender), tx.Amount)
+				if !statedb.Exist(hash.Peer(reciver)) {
+					statedb.CreateAccount(hash.Peer(reciver))
 				}
-				statedb.AddBalance(hash.Address(reciver), tx.Amount)
+				statedb.AddBalance(hash.Peer(reciver), tx.Amount)
 			}
 		}
 	}
