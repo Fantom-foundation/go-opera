@@ -4,7 +4,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
@@ -61,13 +61,13 @@ func (s *Store) SetPeer(peer *Peer) {
 
 // GetPeerInfo returns stored peer info.
 // Result is a ready gRPC message.
-func (s *Store) GetPeerInfo(id common.Address) *wire.PeerInfo {
+func (s *Store) GetPeerInfo(id hash.Peer) *wire.PeerInfo {
 	w, _ := s.get(s.peers, id.Bytes(), &wire.PeerInfo{}).(*wire.PeerInfo)
 	return w
 }
 
 // GetPeer returns stored peer.
-func (s *Store) GetPeer(id common.Address) *Peer {
+func (s *Store) GetPeer(id hash.Peer) *Peer {
 	w := s.GetPeerInfo(id)
 	if w == nil {
 		return nil
@@ -86,7 +86,7 @@ func (s *Store) BootstrapPeers(peers []*Peer) {
 	batch := s.peers.NewBatch()
 	defer batch.Reset()
 
-	ids := make([]common.Address, len(peers))
+	ids := make([]hash.Peer, len(peers))
 	for i, peer := range peers {
 		var pbf proto.Buffer
 		w := peer.ToWire()
@@ -108,42 +108,42 @@ func (s *Store) BootstrapPeers(peers []*Peer) {
 }
 
 // SetTopPeers stores peers.top.
-func (s *Store) SetTopPeers(ids []common.Address) {
+func (s *Store) SetTopPeers(ids []hash.Peer) {
 	var key = []byte("current")
 	w := IDsToWire(ids)
 	s.set(s.topPeers, key, w)
 }
 
 // GetTopPeers returns peers.top.
-func (s *Store) GetTopPeers() []common.Address {
+func (s *Store) GetTopPeers() []hash.Peer {
 	var key = []byte("current")
 	w, _ := s.get(s.topPeers, key, &wire.PeersID{}).(*wire.PeersID)
 	return WireToIDs(w)
 }
 
 // SetKnownPeers stores all peers ID.
-func (s *Store) SetKnownPeers(ids []common.Address) {
+func (s *Store) SetKnownPeers(ids []hash.Peer) {
 	var key = []byte("current")
 	w := IDsToWire(ids)
 	s.set(s.knownPeers, key, w)
 }
 
 // GetKnownPeers returns all peers ID.
-func (s *Store) GetKnownPeers() []common.Address {
+func (s *Store) GetKnownPeers() []hash.Peer {
 	var key = []byte("current")
 	w, _ := s.get(s.knownPeers, key, &wire.PeersID{}).(*wire.PeersID)
 	return WireToIDs(w)
 }
 
 // SetPeerHeight stores last event index of peer.
-func (s *Store) SetPeerHeight(id common.Address, height uint64) {
+func (s *Store) SetPeerHeight(id hash.Peer, height uint64) {
 	if err := s.peerHeights.Put(id.Bytes(), intToBytes(height)); err != nil {
 		panic(err)
 	}
 }
 
 // GetPeerHeight returns last event index of peer.
-func (s *Store) GetPeerHeight(id common.Address) uint64 {
+func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
 	buf, err := s.peerHeights.Get(id.Bytes())
 	if err != nil {
 		panic(err)

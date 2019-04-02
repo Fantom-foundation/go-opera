@@ -6,12 +6,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // Node is a Lachesis node implementation.
 type Node struct {
-	ID        common.Address
+	ID        hash.Peer
 	key       *ecdsa.PrivateKey
 	pub       *ecdsa.PublicKey
 	store     *Store
@@ -53,6 +53,6 @@ func (n *Node) Shutdown() {
 * Utils:
  */
 
-func CalcNodeID(pub *ecdsa.PublicKey) common.Address {
-	return common.BytesToAddress(crypto.FromECDSAPub(pub))
+func CalcNodeID(pub *ecdsa.PublicKey) hash.Peer {
+	return hash.Peer(hash.Of(common.FromECDSAPub(pub)))
 }

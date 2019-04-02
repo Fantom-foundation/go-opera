@@ -4,15 +4,15 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 const peersCount = 10
 
 // peers manages node peer list.
 type peers struct {
-	top       []common.Address
-	busy      map[common.Address]struct{}
+	top       []hash.Peer
+	busy      map[hash.Peer]struct{}
 	unordered bool
 
 	sync sync.Mutex
@@ -22,7 +22,7 @@ type peers struct {
 func initPeers(s *Store) peers {
 	pp := peers{
 		top:  s.GetTopPeers(),
-		busy: make(map[common.Address]struct{}),
+		busy: make(map[hash.Peer]struct{}),
 	}
 
 	pp.save = func() {
@@ -75,7 +75,7 @@ func (n *Node) FreePeer(p *Peer) {
 }
 
 // SetPeerHost saves peer's host for gossip purpose.
-func (n *Node) SetPeerHost(id common.Address, host string) {
+func (n *Node) SetPeerHost(id hash.Peer, host string) {
 	n.peers.sync.Lock()
 	defer n.peers.sync.Unlock()
 

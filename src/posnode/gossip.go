@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
@@ -81,7 +81,7 @@ func (n *Node) syncWithPeer() {
 	}
 
 	// Collect peers from each event
-	var peers map[common.Address]bool
+	var peers map[hash.Peer]bool
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
@@ -98,8 +98,8 @@ func (n *Node) syncWithPeer() {
 					return
 				}
 
-				address := common.BytesToAddress(event.Creator)
-				peers[address] = false
+				id := hash.BytesToPeer(event.Creator)
+				peers[id] = false
 			}
 
 			knownHeights.Lasts[pID] = height
@@ -130,10 +130,10 @@ func (n *Node) store_GetHeights() *wire.KnownEvents {
 
 // NOTE: temporary decision
 func (n *Node) store_SetHeights(w *wire.KnownEvents) {
-	ids := make([]common.Address, 0)
+	ids := make([]hash.Peer, 0)
 
 	for str, h := range w.Lasts {
-		id := common.HexToAddress(str)
+		id := hash.HexToPeer(str)
 		ids = append(ids, id)
 		n.store.SetPeerHeight(id, h)
 	}

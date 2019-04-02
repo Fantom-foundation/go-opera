@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
@@ -21,7 +21,7 @@ type discovery struct {
 // about unknown node, host is a host
 // address of source node.
 type discoveryTask struct {
-	source, unknown common.Address
+	source, unknown hash.Peer
 	host            string
 }
 
@@ -50,7 +50,7 @@ func (n *Node) StopDiscovery() {
 }
 
 // CheckPeerIsKnown checks peer is known otherwise makes discovery task.
-func (n *Node) CheckPeerIsKnown(source, id common.Address, host string) {
+func (n *Node) CheckPeerIsKnown(source, id hash.Peer, host string) {
 	// Find peer by its id in storage.
 	peerInfo := n.store.GetPeerInfo(id)
 	if peerInfo != nil {
@@ -70,7 +70,7 @@ func (n *Node) CheckPeerIsKnown(source, id common.Address, host string) {
 }
 
 // AskPeerInfo gets peer info (network address, public key, etc).
-func (n *Node) AskPeerInfo(source, id common.Address, host string) {
+func (n *Node) AskPeerInfo(source, id hash.Peer, host string) {
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()
 

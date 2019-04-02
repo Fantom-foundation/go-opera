@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
@@ -94,7 +94,7 @@ func (n *Node) GetEvent(ctx context.Context, req *wire.EventRequest) (*wire.Even
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *wire.PeerRequest) (*wire.PeerInfo, error) {
-	id := common.HexToAddress(req.PeerID)
+	id := hash.HexToPeer(req.PeerID)
 	peerInfo := n.store.GetPeerInfo(id)
 	// peerInfo == nil means that peer not found
 	// by given id

@@ -10,8 +10,8 @@ var (
 type Peer Hash
 
 // Bytes returns value as byte slice.
-func (a *Peer) Bytes() []byte {
-	return (*Hash)(a).Bytes()
+func (p *Peer) Bytes() []byte {
+	return (*Hash)(p).Bytes()
 }
 
 // BytesToPeer converts bytes to peer id.
@@ -20,12 +20,23 @@ func BytesToPeer(b []byte) Peer {
 	return Peer(FromBytes(b))
 }
 
+// Hex converts a hash to a hex string.
+func (p *Peer) Hex() string {
+	return (*Hash)(p).Hex()
+}
+
+// HexToPeer sets byte representation of s to peer id.
+// If b is larger than len(h), b will be cropped from the left.
+func HexToPeer(s string) Peer {
+	return Peer(HexToHash(s))
+}
+
 // String returns human readable string representation.
-func (a *Peer) String() string {
-	if name, ok := NodeNameDict[*a]; ok {
+func (p *Peer) String() string {
+	if name, ok := NodeNameDict[*p]; ok {
 		return name
 	}
-	return (*Hash)(a).ShortString()
+	return (*Hash)(p).ShortString()
 }
 
 /*

@@ -5,8 +5,7 @@
 package posnode
 
 import (
-	common "github.com/Fantom-foundation/go-lachesis/src/common"
-	wire "github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -35,41 +34,13 @@ func (m *MockConsensus) EXPECT() *MockConsensusMockRecorder {
 }
 
 // PushEvent mocks base method
-func (m *MockConsensus) PushEvent(e *wire.Event) {
+func (m *MockConsensus) PushEvent(arg0 hash.Event) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "PushEvent", e)
+	m.ctrl.Call(m, "PushEvent", arg0)
 }
 
 // PushEvent indicates an expected call of PushEvent
-func (mr *MockConsensusMockRecorder) PushEvent(e interface{}) *gomock.Call {
+func (mr *MockConsensusMockRecorder) PushEvent(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushEvent", reflect.TypeOf((*MockConsensus)(nil).PushEvent), e)
-}
-
-// GetEvent mocks base method
-func (m *MockConsensus) GetEvent(creator common.Address, index uint64) *wire.Event {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEvent", creator, index)
-	ret0, _ := ret[0].(*wire.Event)
-	return ret0
-}
-
-// GetEvent indicates an expected call of GetEvent
-func (mr *MockConsensusMockRecorder) GetEvent(creator, index interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEvent", reflect.TypeOf((*MockConsensus)(nil).GetEvent), creator, index)
-}
-
-// LastKnownEvent mocks base method
-func (m *MockConsensus) LastKnownEvent(creator common.Address) uint64 {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LastKnownEvent", creator)
-	ret0, _ := ret[0].(uint64)
-	return ret0
-}
-
-// LastKnownEvent indicates an expected call of LastKnownEvent
-func (mr *MockConsensusMockRecorder) LastKnownEvent(creator interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastKnownEvent", reflect.TypeOf((*MockConsensus)(nil).LastKnownEvent), creator)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushEvent", reflect.TypeOf((*MockConsensus)(nil).PushEvent), arg0)
 }
