@@ -3,7 +3,6 @@ package common
 import (
 	"crypto/sha256"
 	"database/sql/driver"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -59,6 +58,11 @@ func (h Hash) TerminalString() string {
 // doing full logging into a file.
 func (h Hash) String() string {
 	return h.Hex()
+}
+
+// ShortString returns short string representation.
+func (h Hash) ShortString() string {
+	return hexutil.Encode(h[:3]) + "..."
 }
 
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
@@ -119,15 +123,15 @@ func (h Hash) Value() (driver.Value, error) {
 	return h[:], nil
 }
 
-// UnprefixedHash allows marshaling a Hash without 0x prefix.
-type UnprefixedHash Hash
+/*
+ * Utils:
+ */
 
-// UnmarshalText decodes the hash from hex. The 0x prefix is optional.
-func (h *UnprefixedHash) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedHash", input, h[:])
-}
-
-// MarshalText encodes the hash as hex.
-func (h UnprefixedHash) MarshalText() ([]byte, error) {
-	return []byte(hex.EncodeToString(h[:])), nil
+// FakeHash generates random fake hash for testing purpose.
+func FakeHash() (h Hash) {
+	_, err := rand.Read(h[:])
+	if err != nil {
+		panic(err)
+	}
+	return
 }

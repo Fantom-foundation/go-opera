@@ -3,7 +3,7 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -44,5 +44,5 @@ type Store interface {
 	StorePath() string
 	// StateDB returns state database
 	StateDB() state.Database
-	StateRoot() common.Hash
+	StateRoot() hash.Hash
 }

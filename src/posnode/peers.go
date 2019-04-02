@@ -4,15 +4,15 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 const peersCount = 10
 
 // peers manages node peer list.
 type peers struct {
-	top       []common.Address
-	busy      map[common.Address]struct{}
+	top       []hash.Peer
+	busy      map[hash.Peer]struct{}
 	unordered bool
 
 	sync sync.Mutex
@@ -22,7 +22,7 @@ type peers struct {
 func initPeers(s *Store) peers {
 	pp := peers{
 		top:  s.GetTopPeers(),
-		busy: make(map[common.Address]struct{}),
+		busy: make(map[hash.Peer]struct{}),
 	}
 
 	pp.save = func() {
@@ -74,14 +74,13 @@ func (n *Node) FreePeer(p *Peer) {
 	delete(n.peers.busy, p.ID)
 }
 
-// SetPeerHost saves peer's host.
-// TODO: rename addr/NetAddr to host
-func (n *Node) SetPeerHost(id common.Address, addr string) {
+// SetPeerHost saves peer's host for gossip purpose.
+func (n *Node) SetPeerHost(id hash.Peer, host string) {
 	n.peers.sync.Lock()
 	defer n.peers.sync.Unlock()
 
 	peer := n.store.GetPeer(id)
-	if peer != nil && peer.Host == addr {
+	if peer != nil && peer.Host == host {
 		return
 	}
 	if peer == nil {
@@ -90,7 +89,7 @@ func (n *Node) SetPeerHost(id common.Address, addr string) {
 		}
 	}
 
-	peer.Host = addr
+	peer.Host = host
 
 	// if already exists
 	for _, exist := range n.peers.top {

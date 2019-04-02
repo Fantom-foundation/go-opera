@@ -10,7 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
@@ -87,7 +87,7 @@ func (c *Core) ID() uint64 {
 // PubKey returns the public key of this core
 func (c *Core) PubKey() []byte {
 	if c.pubKey == nil {
-		c.pubKey = crypto.FromECDSAPub(&c.key.PublicKey)
+		c.pubKey = common.FromECDSAPub(&c.key.PublicKey)
 	}
 	return c.pubKey
 }

@@ -12,8 +12,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
@@ -24,7 +24,7 @@ func init() {
 
 // Used for testing
 func newEmpty() *Trie {
-	trie, _ := New(common.Hash{}, NewDatabase(kvdb.NewMemDatabase()))
+	trie, _ := New(hash.Hash{}, NewDatabase(kvdb.NewMemDatabase()))
 	return trie
 }
 
@@ -32,7 +32,7 @@ func TestEmptyTrie(t *testing.T) {
 	var trie Trie
 	res := trie.Hash()
 	exp := emptyRoot
-	if res != common.Hash(exp) {
+	if res != hash.Hash(exp) {
 		t.Errorf("expected %x got %x", exp, res)
 	}
 }
@@ -48,7 +48,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestMissingRoot(t *testing.T) {
-	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"),
+	trie, err := New(hash.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"),
 		NewDatabase(kvdb.NewMemDatabase()))
 	if trie != nil {
 		t.Error("New returned non-nil trie for invalid root")
@@ -65,7 +65,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 	diskdb := kvdb.NewMemDatabase()
 	triedb := NewDatabase(diskdb)
 
-	trie, _ := New(common.Hash{}, triedb)
+	trie, _ := New(hash.Hash{}, triedb)
 	updateString(trie, "120000", "qwerqwerqwerqwerqwerqwerqwerqwer")
 	updateString(trie, "123456", "asdfasdfasdfasdfasdfasdfasdfasdf")
 	root, _ := trie.Commit(nil)
@@ -102,7 +102,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	hash := common.HexToHash("2db7571d4823d62e2897c63e29e8360954fa43808feba89e85470fe9b2c10f83")
+	hash := hash.HexToHash("2db7571d4823d62e2897c63e29e8360954fa43808feba89e85470fe9b2c10f83")
 
 	if memonly {
 		delete(triedb.dirties, hash)
@@ -147,7 +147,7 @@ func TestInsert(t *testing.T) {
 	updateString(trie, "dog", "puppy")
 	updateString(trie, "dogglesworth", "cat")
 
-	exp := common.HexToHash("e2310e8a1602e925553df6758ddd71feaf3e8cecedee87eb04c6ce496f68fe52")
+	exp := hash.HexToHash("e2310e8a1602e925553df6758ddd71feaf3e8cecedee87eb04c6ce496f68fe52")
 	root := trie.Hash()
 	if root != exp {
 		t.Errorf("exp %x got %x", exp, root)
@@ -156,7 +156,7 @@ func TestInsert(t *testing.T) {
 	trie = newEmpty()
 	updateString(trie, "A", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-	exp = common.HexToHash("b57a2c2e580634d1f28565817d4b90ea63521be9a2677fe94afa628bb5646946")
+	exp = hash.HexToHash("b57a2c2e580634d1f28565817d4b90ea63521be9a2677fe94afa628bb5646946")
 	root, err := trie.Commit(nil)
 	if err != nil {
 		t.Fatalf("commit error: %v", err)
@@ -213,10 +213,10 @@ func TestDelete(t *testing.T) {
 		}
 	}
 
-	hash := trie.Hash()
-	exp := common.HexToHash("8d7bf42c3e38c024b3e932fa8170bca210706a60a68d47d66411c1bb7bf4c891")
-	if hash != exp {
-		t.Errorf("expected %x got %x", exp, hash)
+	h := trie.Hash()
+	exp := hash.HexToHash("8d7bf42c3e38c024b3e932fa8170bca210706a60a68d47d66411c1bb7bf4c891")
+	if h != exp {
+		t.Errorf("expected %x got %x", exp, h)
 	}
 }
 
@@ -237,10 +237,10 @@ func TestEmptyValues(t *testing.T) {
 		updateString(trie, val.k, val.v)
 	}
 
-	hash := trie.Hash()
-	exp := common.HexToHash("8d7bf42c3e38c024b3e932fa8170bca210706a60a68d47d66411c1bb7bf4c891")
-	if hash != exp {
-		t.Errorf("expected %x got %x", exp, hash)
+	h := trie.Hash()
+	exp := hash.HexToHash("8d7bf42c3e38c024b3e932fa8170bca210706a60a68d47d66411c1bb7bf4c891")
+	if h != exp {
+		t.Errorf("expected %x got %x", exp, h)
 	}
 }
 
@@ -415,7 +415,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 func runRandTest(rt randTest) bool {
 	triedb := NewDatabase(kvdb.NewMemDatabase())
 
-	tr, _ := New(common.Hash{}, triedb)
+	tr, _ := New(hash.Hash{}, triedb)
 	values := make(map[string]string) // tracks content of the trie
 
 	for i, step := range rt {
@@ -449,7 +449,7 @@ func runRandTest(rt randTest) bool {
 			}
 			tr = newtr
 		case opItercheckhash:
-			checktr, _ := New(common.Hash{}, triedb)
+			checktr, _ := New(hash.Hash{}, triedb)
 			it := NewIterator(tr.NodeIterator(nil))
 			for it.Next() {
 				checktr.Update(it.Key, it.Value)

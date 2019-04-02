@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
@@ -23,7 +24,7 @@ func initInmemStore(cacheSize int) (*InmemStore, []pub) {
 	participants := peers.NewPeers()
 	for i := uint64(0); i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
-		pubKey := crypto.FromECDSAPub(&key.PublicKey)
+		pubKey := common.FromECDSAPub(&key.PublicKey)
 		peer := peers.NewPeer(fmt.Sprintf("0x%X", pubKey), "")
 		participantPubs = append(participantPubs,
 			pub{i, key, pubKey, peer.PubKeyHex})

@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // gossip is a pool of gossiping processes.
@@ -74,21 +74,21 @@ func (n *Node) syncWithPeer() {
 	knownHeights := n.store_GetHeights()
 
 	// Send known heights -> get unknown
-	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: knownHeights.Lasts})
+	unknownHeights, err := client.SyncEvents(context.Background(), &api.KnownEvents{Lasts: knownHeights.Lasts})
 	if err != nil {
 		n.log.Warn(err)
 		return
 	}
 
 	// Collect peers from each event
-	var peers map[common.Address]bool
+	var peers map[hash.Peer]bool
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
 		if knownHeights.Lasts[pID] < height {
 			for i := knownHeights.Lasts[pID] + 1; i <= height; i++ {
 
-				var req wire.EventRequest
+				var req api.EventRequest
 				req.PeerID = pID
 				req.Index = i
 
@@ -100,9 +100,9 @@ func (n *Node) syncWithPeer() {
 
 				// Add to store
 				n.store.SetEvent(event)
-
-				address := common.BytesToAddress(event.Creator)
-				peers[address] = false
+				
+				id := hash.BytesToPeer(event.Creator)
+				peers[id] = false
 			}
 
 			knownHeights.Lasts[pID] = height
@@ -118,8 +118,8 @@ func (n *Node) syncWithPeer() {
 }
 
 // NOTE: temporary decision
-func (n *Node) store_GetHeights() *wire.KnownEvents {
-	res := &wire.KnownEvents{
+func (n *Node) store_GetHeights() *api.KnownEvents {
+	res := &api.KnownEvents{
 		Lasts: make(map[string]uint64),
 	}
 
@@ -132,11 +132,11 @@ func (n *Node) store_GetHeights() *wire.KnownEvents {
 }
 
 // NOTE: temporary decision
-func (n *Node) store_SetHeights(w *wire.KnownEvents) {
-	ids := make([]common.Address, 0)
+func (n *Node) store_SetHeights(w *api.KnownEvents) {
+	ids := make([]hash.Peer, 0)
 
 	for str, h := range w.Lasts {
-		id := common.HexToAddress(str)
+		id := hash.HexToPeer(str)
 		ids = append(ids, id)
 		n.store.SetPeerHeight(id, h)
 	}

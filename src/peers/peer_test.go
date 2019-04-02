@@ -10,7 +10,8 @@ import (
 
 	"reflect"
 
-	scrypto "github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 func TestJSONPeers(t *testing.T) {
@@ -40,10 +41,10 @@ func TestJSONPeers(t *testing.T) {
 	keys := map[string]*ecdsa.PrivateKey{}
 	newPeers := NewPeers()
 	for i := 0; i < 3; i++ {
-		key, _ := scrypto.GenerateECDSAKey()
+		key, _ := crypto.GenerateECDSAKey()
 		peer := Peer{
 			NetAddr:   fmt.Sprintf("addr%d", i),
-			PubKeyHex: fmt.Sprintf("0x%X", scrypto.FromECDSAPub(&key.PublicKey)),
+			PubKeyHex: fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey)),
 		}
 		newPeers.AddPeer(&peer)
 		keys[peer.NetAddr] = key
@@ -79,7 +80,7 @@ func TestJSONPeers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		pubKey := scrypto.ToECDSAPub(pubKeyBytes)
+		pubKey := common.ToECDSAPub(pubKeyBytes)
 		if !reflect.DeepEqual(*pubKey, keys[peersSlice[i].NetAddr].PublicKey) {
 			t.Fatalf("peers[%d] PublicKey not parsed correctly", i)
 		}

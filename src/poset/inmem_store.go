@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/pos"
@@ -38,7 +39,7 @@ type InmemStore struct {
 	totConsensusEventsLocker sync.RWMutex
 
 	states    state.Database
-	stateRoot common.Hash
+	stateRoot hash.Hash
 }
 
 // NewInmemStore constructor
@@ -464,6 +465,6 @@ func (s *InmemStore) StateDB() state.Database {
 }
 
 // StateRoot returns genesis state hash.
-func (s *InmemStore) StateRoot() common.Hash {
+func (s *InmemStore) StateRoot() hash.Hash {
 	return s.stateRoot
 }

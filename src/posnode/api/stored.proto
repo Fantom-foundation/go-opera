@@ -1,5 +1,5 @@
 syntax = "proto3";
-package wire;
+package api;
 
 message PeersID {
     repeated string IDs = 1;

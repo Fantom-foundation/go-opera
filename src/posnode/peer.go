@@ -5,37 +5,37 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // Peer is a representation of other node.
 type Peer struct {
-	ID     common.Address
+	ID     hash.Peer
 	PubKey *ecdsa.PublicKey
 	Host   string
 }
 
 // ToWire converts to protobuf message.
-func (p *Peer) ToWire() *wire.PeerInfo {
-	return &wire.PeerInfo{
+func (p *Peer) ToWire() *api.PeerInfo {
+	return &api.PeerInfo{
 		ID:     p.ID.Hex(),
-		PubKey: crypto.FromECDSAPub(p.PubKey),
+		PubKey: common.FromECDSAPub(p.PubKey),
 		Host:   p.Host,
 	}
 }
 
 // WireToPeer converts from protobuf message.
-func WireToPeer(w *wire.PeerInfo) *Peer {
+func WireToPeer(w *api.PeerInfo) *Peer {
 	return &Peer{
-		ID:     common.BytesToAddress(common.FromHex(w.ID)),
-		PubKey: crypto.ToECDSAPub(w.PubKey),
+		ID:     hash.HexToPeer(w.ID),
+		PubKey: common.ToECDSAPub(w.PubKey),
 		Host:   w.Host,
 	}
 }
 
-func IDsToWire(ids []common.Address) *wire.PeersID {
-	w := &wire.PeersID{
+func IDsToWire(ids []hash.Peer) *api.PeersID {
+	w := &api.PeersID{
 		IDs: make([]string, len(ids)),
 	}
 
@@ -46,14 +46,14 @@ func IDsToWire(ids []common.Address) *wire.PeersID {
 	return w
 }
 
-func WireToIDs(w *wire.PeersID) []common.Address {
+func WireToIDs(w *api.PeersID) []hash.Peer {
 	if w == nil {
 		return nil
 	}
 
-	res := make([]common.Address, len(w.IDs))
+	res := make([]hash.Peer, len(w.IDs))
 	for i, str := range w.IDs {
-		res[i] = common.HexToAddress(str)
+		res[i] = hash.HexToPeer(str)
 	}
 
 	return res
@@ -62,18 +62,18 @@ func WireToIDs(w *wire.PeersID) []common.Address {
 // Connected is a representation of node address collection.
 type Connected struct {
 	mx sync.RWMutex
-	m  map[common.Address]bool
+	m  map[hash.Peer]bool
 }
 
 // NewConnected create new Connected struct
 func NewConnected() *Connected {
 	return &Connected{
-		m: make(map[common.Address]bool),
+		m: make(map[hash.Peer]bool),
 	}
 }
 
 // Load value about connected status by address
-func (c *Connected) Load(key common.Address) bool {
+func (c *Connected) Load(key hash.Peer) bool {
 	c.mx.RLock()
 	defer c.mx.RUnlock()
 
@@ -83,7 +83,7 @@ func (c *Connected) Load(key common.Address) bool {
 }
 
 // Store value about connected status by address
-func (c *Connected) Store(key common.Address, value bool) {
+func (c *Connected) Store(key hash.Peer, value bool) {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 

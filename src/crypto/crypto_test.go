@@ -8,6 +8,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 func TestPem(t *testing.T) {
@@ -61,7 +63,7 @@ func TestReadPem(t *testing.T) {
 	}
 
 	// Check that the resulting key is as expected
-	pub := fmt.Sprintf("0x%X", FromECDSAPub(&key.PublicKey))
+	pub := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
 	expectedPub := "0x046A347F0488ABC7D92E2208794E327ECA15B0C2B27018B2B5B89DD8CB736FD7CC38F37D2D10822530AD97359ACBD837A65C2CA62D44B0CE569BD222C2DABF268F"
 	if pub != expectedPub {
 		t.Fatalf("public key should be %s, not %s", expectedPub, pub)

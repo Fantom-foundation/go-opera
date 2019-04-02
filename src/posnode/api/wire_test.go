@@ -1,4 +1,4 @@
-package wire
+package api
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
@@ -41,7 +42,7 @@ func testGRPC(t *testing.T, listener net.Listener, opts ...grpc.DialOption) {
 		Times(1)
 	srv.EXPECT().
 		GetEvent(gomock.Any(), gomock.Any()).
-		Return(&Event{}, nil).
+		Return(&wire.Event{}, nil).
 		Times(1)
 	srv.EXPECT().
 		GetPeerInfo(gomock.Any(), gomock.Any()).

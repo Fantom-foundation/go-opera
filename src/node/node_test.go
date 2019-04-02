@@ -69,7 +69,7 @@ func initPeers(
 		adds = append(adds, addr)
 
 		ps.AddPeer(peers.NewPeer(
-			fmt.Sprintf("0x%X", crypto.FromECDSAPub(&keys[i].PublicKey)),
+			fmt.Sprintf("0x%X", common.FromECDSAPub(&keys[i].PublicKey)),
 			addr,
 		))
 	}
@@ -124,7 +124,7 @@ func createNode(t *testing.T, logger *logrus.Logger, config *Config,
 	app := dummy.NewInmemDummyApp(logger)
 
 	selectorArgs := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: localAddr,
+		LocalAddr:    localAddr,
 		GetFlagTable: nil,
 	}
 
@@ -261,7 +261,7 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 	prox := dummy.NewInmemDummyApp(logger)
 
 	selectorArgs := SmartPeerSelectorCreationFnArgs{
-		LocalAddr: p[0].NetAddr,
+		LocalAddr:    p[0].NetAddr,
 		GetFlagTable: nil,
 	}
 
@@ -807,7 +807,7 @@ func TestFastSync(t *testing.T) {
 	var let sync.Mutex
 	caught := false
 	logger := common.NewTestLogger(t)
-	
+
 	poolSize := 2
 	config := TestConfig(t)
 	backConfig := peer.NewBackendConfig()
