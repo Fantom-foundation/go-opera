@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 // Prove constructs a merkle proof for key. The result contains all encoded nodes
@@ -64,7 +63,7 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kvdb.Putter) error {
 			if fromLevel > 0 {
 				fromLevel--
 			} else {
-				enc, _ := rlp.EncodeToBytes(n)
+				enc, _ := EncodeToBytes(n)
 				if !ok {
 					hash = crypto.Keccak256(enc)
 				}

@@ -2,7 +2,6 @@ package trie
 
 import (
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 // secureKeyPrefix is the database key prefix used to store trie node preimages.
@@ -59,7 +57,7 @@ type Database struct {
 }
 
 // rawNode is a simple binary blob used to differentiate between collapsed trie
-// nodes and already encoded RLP binary blobs (while at the same time store them
+// nodes and already encoded protobuf binary blobs (while at the same time store them
 // in the same cache fields).
 type rawNode []byte
 
@@ -69,29 +67,16 @@ func (n rawNode) fstring(ind string) string     { panic("this should never end u
 
 // rawFullNode represents only the useful data content of a full node, with the
 // caches and flags stripped out to minimize its data storage. This type honors
-// the same RLP encoding as the original parent.
+// the same protobuf encoding as the original parent.
 type rawFullNode [17]node
 
 func (n rawFullNode) canUnload(uint16, uint16) bool { panic("this should never end up in a live trie") }
 func (n rawFullNode) cache() (hashNode, bool)       { panic("this should never end up in a live trie") }
 func (n rawFullNode) fstring(ind string) string     { panic("this should never end up in a live trie") }
 
-func (n rawFullNode) EncodeRLP(w io.Writer) error {
-	var nodes [17]node
-
-	for i, child := range n {
-		if child != nil {
-			nodes[i] = child
-		} else {
-			nodes[i] = nilValueNode
-		}
-	}
-	return rlp.Encode(w, nodes)
-}
-
 // rawShortNode represents only the useful data content of a short node, with the
 // caches and flags stripped out to minimize its data storage. This type honors
-// the same RLP encoding as the original parent.
+// the same protobuf encoding as the original parent.
 type rawShortNode struct {
 	Key []byte
 	Val node
@@ -104,7 +89,7 @@ func (n rawShortNode) fstring(ind string) string     { panic("this should never 
 // cachedNode is all the information we know about a single cached node in the
 // memory database write layer.
 type cachedNode struct {
-	node node   // Cached collapsed trie node, or raw rlp data
+	node node   // Cached collapsed trie node, or raw protobuf data
 	size uint16 // Byte size of the useful cached data
 
 	parents  uint32               // Number of live nodes referencing this one
@@ -114,13 +99,13 @@ type cachedNode struct {
 	flushNext hash.Hash // Next node in the flush-list
 }
 
-// rlp returns the raw rlp encoded blob of the cached node, either directly from
+// bytes returns the raw protobuf encoded blob of the cached node, either directly from
 // the cache, or by regenerating it from the collapsed node.
-func (n *cachedNode) rlp() []byte {
+func (n *cachedNode) bytes() []byte {
 	if node, ok := n.node.(rawNode); ok {
 		return node
 	}
-	blob, err := rlp.EncodeToBytes(n.node)
+	blob, err := EncodeToBytes(n.node)
 	if err != nil {
 		panic(err)
 	}
@@ -128,7 +113,7 @@ func (n *cachedNode) rlp() []byte {
 }
 
 // obj returns the decoded and expanded trie node, either directly from the cache,
-// or by regenerating it from the rlp encoded blob.
+// or by regenerating it from the protobuf encoded blob.
 func (n *cachedNode) obj(hash hash.Hash, cachegen uint16) node {
 	if node, ok := n.node.(rawNode); ok {
 		return mustDecodeNode(hash[:], node, cachegen)
@@ -368,7 +353,7 @@ func (db *Database) Node(hash hash.Hash) ([]byte, error) {
 	db.lock.RUnlock()
 
 	if dirty != nil {
-		return dirty.rlp(), nil
+		return dirty.bytes(), nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
 	enc, err := db.diskdb.Get(hash[:])
@@ -556,7 +541,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	for size > limit && oldest != (hash.Hash{}) {
 		// Fetch the oldest referenced node and push into the batch
 		node := db.dirties[oldest]
-		if err := batch.Put(oldest[:], node.rlp()); err != nil {
+		if err := batch.Put(oldest[:], node.bytes()); err != nil {
 			db.lock.RUnlock()
 			return err
 		}
@@ -690,7 +675,7 @@ func (db *Database) commit(hash hash.Hash, batch kvdb.Batch) error {
 			return err
 		}
 	}
-	if err := batch.Put(hash[:], node.rlp()); err != nil {
+	if err := batch.Put(hash[:], node.bytes()); err != nil {
 		return err
 	}
 	// If we've reached an optimal batch size, commit and start over

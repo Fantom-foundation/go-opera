@@ -71,8 +71,9 @@ func TestSecureDelete(t *testing.T) {
 			trie.Delete([]byte(val.k))
 		}
 	}
+
 	h := trie.Hash()
-	exp := hash.HexToHash("29b235a58c3c25ab83010c327d5932bcf05324b7d6b1185e650798034783ca9d")
+	exp := hash.HexToHash("d42f28391c76efa9d3868aae7d0bf7c7010527d93bd19bf23a0dd95b9b31c7a6")
 	if h != exp {
 		t.Errorf("expected %x got %x", exp, h)
 	}

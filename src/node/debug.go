@@ -5,8 +5,10 @@ package node
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/sirupsen/logrus"
@@ -22,7 +24,7 @@ type InfosLite struct {
 
 // EventBodyLite small subset of event body for debugging
 type EventBodyLite struct {
-	Parents      []string // hashes of the event's parents, self-parent first
+	Parents      [][]byte // hashes of the event's parents, self-parent first
 	Creator      string   // creator's public key
 	Index        int64    // index in the sequence of events created by Creator
 	Transactions [][]byte
@@ -33,18 +35,18 @@ type EventMessageLite struct {
 	Body             EventBodyLite
 	Signature        string // creator's digital signature of body
 	TopologicalIndex int64
-	Hex              string
+	Hash             string
 	Round            int64
 	RoundReceived    int64
 
-	ClothoProof []string
+	ClothoProof [][]byte
 	// FlagTable []byte // FlagTable stores connection information
 }
 
 // EventLite small subset of event for debugging
 type EventLite struct {
-	CreatorID            int64
-	OtherParentCreatorID int64
+	CreatorID            uint64
+	OtherParentCreatorID uint64
 	Message              EventMessageLite
 }
 
@@ -70,11 +72,12 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 			panic(err)
 		}
 
-		if peer, ok := peers.ReadByPubKey(event.Creator()); !ok {
-			panic(fmt.Sprintf("Creator %v not found", event.Creator()))
+		peer, ok := peers.ReadByPubKey(event.GetCreator())
+		if !ok {
+			panic(fmt.Sprintf("Creator %v not found", event.GetCreator()))
 		}
 
-		hash := event.Hex()
+		hash := event.Hash()
 
 		liteEvent := EventLite{
 			CreatorID:            event.CreatorID(),
@@ -86,17 +89,17 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 					Index:        event.Message.Body.Index,
 					Transactions: event.Message.Body.Transactions,
 				},
-				Hex:              event.Message.Hex,
+				Hash:             hash.String(),
 				Signature:        event.Message.Signature,
 				ClothoProof:      event.Message.ClothoProof,
-				Round:            event.Message.Round,
-				RoundReceived:    event.Message.RoundReceived,
+				//Round:            event.Message.Round,
+				//RoundReceived:    event.Message.RoundReceived,
 				TopologicalIndex: event.Message.TopologicalIndex,
 				// 				FlagTable: event.FlagTable,
 			},
 		}
 
-		res[g.Node.localAddr /*p.PubKeyHex*/][hash] = liteEvent
+		res[g.Node.localAddr /*p.PubKeyHex*/][hash.String()] = liteEvent
 	}
 
 	return res
@@ -114,6 +117,14 @@ func (g *Graph) GetInfosLite() InfosLite {
 // PrintStat prints debug stats
 func (c *Core) PrintStat(logger *logrus.Entry) {
 	logger.Warn("**core.HexID=", c.HexID())
+	logger.Warn("****Known events:")
+	for pidID, index := range c.KnownEvents() {
+		peer, ok := c.participants.ReadByID(uint64(pidID))
+		if ok {
+			logger.Warn("    index=", index, " peer=", peer.NetAddr,
+				" pubKeyHex=", peer.PubKeyHex)
+		}
+	}
 	c.poset.PrintStat(logger)
 }
 
@@ -130,9 +141,13 @@ func (n *Node) PrintStat() {
 
 // Register a print listener
 func (n *Node) Register() {
-	atexit.Register(func() {
+	var once sync.Once
+	onceBody := func() {
 		// You must build with debug tag to have PrintStat() defined
 		n.PrintStat()
+	}
+	atexit.Register(func() {
+		once.Do(onceBody)
 	})
 	// use the following way of exit to execute registered atexit handlers:
 	// import "github.com/tebeka/atexit"
