@@ -5,9 +5,10 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -60,21 +61,23 @@ func (s *Store) Close() {
 }
 
 // SetEvent stores event.
-func (s *Store) SetEvent(e *wire.Event) {
-	// TODO: Calc hash
-	hash := []byte{0}
-	s.set(s.events, hash, e)
+func (s *Store) SetEvent(e *inter.Event) {
+	s.set(s.events, e.Hash().Bytes(), e.ToWire())
 }
 
 // GetEvent returns stored event.
-func (s *Store) GetEvent(h []byte) *wire.Event {
-	w, _ := s.get(s.events, h, &wire.Event{}).(*wire.Event)
-	return w
+func (s *Store) GetEvent(h hash.Event) *inter.Event {
+	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	e := inter.WireToEvent(w)
+	if e != nil {
+		e.Hash() // fill cache
+	}
+	return e
 }
 
 // HasEvent returns true if event exists.
-func (s *Store) HasEvent(h []byte) bool {
-	return s.has(s.events, h)
+func (s *Store) HasEvent(h hash.Event) bool {
+	return s.has(s.events, h.Bytes())
 }
 
 // SetPeer stores peer.

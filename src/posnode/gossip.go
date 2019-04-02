@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -92,16 +93,17 @@ func (n *Node) syncWithPeer() {
 				req.PeerID = pID
 				req.Index = i
 
-				event, err := client.GetEvent(context.Background(), &req)
+				wireEvent, err := client.GetEvent(context.Background(), &req)
 				if err != nil {
 					n.log.Warn(err)
 					return
 				}
 
 				// Add to store
+				event := inter.WireToEvent(wireEvent)
 				n.store.SetEvent(event)
-				
-				id := hash.BytesToPeer(event.Creator)
+
+				id := hash.BytesToPeer(wireEvent.Creator)
 				peers[id] = false
 			}
 

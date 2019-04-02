@@ -95,10 +95,12 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 
 // GetEventByHash returns requested event by hash.
 func (n *Node) GetEventByHash(ctx context.Context, req *api.EventByHashRequest) (*wire.Event, error) {
+	eventHash := hash.BytesToEventHash(req.Hash)
 
-	event := n.store.GetEvent(req.Hash)
+	event := n.store.GetEvent(eventHash)
+	w := event.ToWire()
 
-	return event, nil
+	return w, nil
 }
 
 // GetPeerInfo returns requested peer info.
