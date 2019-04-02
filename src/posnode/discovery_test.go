@@ -2,7 +2,6 @@ package posnode
 
 import (
 	"math"
-
 	"reflect"
 	"testing"
 	"time"
@@ -139,6 +138,85 @@ func Test_Node_AskPeerInfo(t *testing.T) {
 
 		if !discovery.Available {
 			t.Error("expected to set discover availability as available")
+		}
+	})
+}
+
+func Test_Node_CheckPeerIsKnown(t *testing.T) {
+	store := NewMemStore()
+	n := NewForTests("any", store, nil)
+	n.discovery.tasks = make(chan discoveryTask, 1)
+
+	t.Run("peer exists", func(t *testing.T) {
+		idKey, err := crypto.GenerateECDSAKey()
+		if err != nil {
+			t.Fatalf("failed to generate key")
+		}
+
+		idp := CalcNodeID(&idKey.PublicKey)
+		id := hash.HexToPeer(idp.Hex())
+
+		peerInfo := api.PeerInfo{
+			ID:     id.Hex(),
+			PubKey: common.FromECDSAPub(&idKey.PublicKey),
+			Host:   "remote.server:55555",
+		}
+
+		n.store.SetPeer(WireToPeer(&peerInfo))
+
+		source := hash.HexToPeer("known")
+		n.CheckPeerIsKnown(source, id, "bad.server")
+		defer func() {
+			n.discovery.store.Clear()
+			n.discovery.tasks = make(chan discoveryTask, 1)
+		}()
+
+		if len(n.discovery.tasks) > 0 {
+			t.Error("should not add task")
+		}
+	})
+
+	t.Run("previous discovery", func(t *testing.T) {
+		idKey, err := crypto.GenerateECDSAKey()
+		if err != nil {
+			t.Fatalf("failed to generate key")
+		}
+
+		idp := CalcNodeID(&idKey.PublicKey)
+		id := hash.HexToPeer(idp.Hex())
+		source := hash.HexToPeer("known")
+
+		d := Discovery{
+			ID:          source,
+			Host:        "bad.server",
+			Available:   false,
+			LastRequest: time.Now(),
+		}
+		n.discovery.store.SetDiscovery(&d)
+
+		n.CheckPeerIsKnown(source, id, "bad.server")
+		defer func() {
+			n.discovery.store.Clear()
+			n.discovery.tasks = make(chan discoveryTask, 1)
+		}()
+
+		if len(n.discovery.tasks) > 0 {
+			t.Error("should not add task")
+		}
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		id := hash.HexToPeer("source")
+		source := hash.HexToPeer("known")
+
+		n.CheckPeerIsKnown(source, id, "bad.server")
+		defer func() {
+			n.discovery.store.Clear()
+			n.discovery.tasks = make(chan discoveryTask, 1)
+		}()
+
+		if len(n.discovery.tasks) != 1 {
+			t.Error("should add task")
 		}
 	})
 }

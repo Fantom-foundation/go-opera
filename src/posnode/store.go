@@ -14,7 +14,6 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	peers       kvdb.Database
-	discovery   kvdb.Database
 	topPeers    kvdb.Database
 	knownPeers  kvdb.Database
 	peerHeights kvdb.Database

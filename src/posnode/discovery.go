@@ -241,3 +241,10 @@ func (ds *discoveries) SetDiscoveryAvailability(d *Discovery, available bool) {
 	d.LastRequest = time.Now()
 	ds.SetDiscovery(d)
 }
+
+func (ds *discoveries) Clear() {
+	ds.Lock()
+	defer ds.Unlock()
+
+	ds.discoveries = make(map[string]*Discovery)
+}
