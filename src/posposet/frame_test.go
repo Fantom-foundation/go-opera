@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -30,8 +31,8 @@ func TestFrameSerialization(t *testing.T) {
 	}
 
 	timestamps := TimestampsByEvent{
-		hash.FakeEvent(): Timestamp(0),
-		hash.FakeEvent(): Timestamp(rand.Uint64()),
+		hash.FakeEvent(): inter.Timestamp(0),
+		hash.FakeEvent(): inter.Timestamp(rand.Uint64()),
 	}
 
 	f0 := &Frame{

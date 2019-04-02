@@ -5,12 +5,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestLamportTimeCounter(t *testing.T) {
 	assert := assert.New(t)
 
-	data := map[Timestamp][]Timestamp{
+	data := map[inter.Timestamp][]inter.Timestamp{
 		math.MaxUint64: {},
 		3:              {3},
 		10:             {9, 10, 10, 11},

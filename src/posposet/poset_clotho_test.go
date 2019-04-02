@@ -69,10 +69,11 @@ func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
 	nodes, _, names := ParseEvents(asciiScheme)
-	p, _ := FakePoset(nodes)
+	p, _, input := FakePoset(nodes)
 	// process events
 	for _, event := range names {
-		p.PushEventSync(*event)
+		input.SetEvent(event)
+		p.PushEventSync(event.Hash())
 	}
 	// check each
 	for name, event := range names {

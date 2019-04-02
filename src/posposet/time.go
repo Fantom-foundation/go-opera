@@ -4,14 +4,12 @@ import (
 	"math"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 type (
-	// Timestamp is a logical time.
-	Timestamp uint64
-
 	// TimestampsByEvent is a timestamps by event index.
-	TimestampsByEvent map[hash.Event]Timestamp
+	TimestampsByEvent map[hash.Event]inter.Timestamp
 )
 
 // ToWire converts to simple slice.
@@ -31,7 +29,7 @@ func WireToTimestampsByEvent(arr map[string]uint64) TimestampsByEvent {
 
 	for hex, t := range arr {
 		hash := hash.HexToEventHash(hex)
-		res[hash] = Timestamp(t)
+		res[hash] = inter.Timestamp(t)
 	}
 
 	return res
@@ -41,18 +39,18 @@ func WireToTimestampsByEvent(arr map[string]uint64) TimestampsByEvent {
  * timeCounter:
  */
 
-type timeCounter map[Timestamp]uint
+type timeCounter map[inter.Timestamp]uint
 
-func (c timeCounter) Add(t Timestamp) {
+func (c timeCounter) Add(t inter.Timestamp) {
 	c[t]++
 }
 
-func (c timeCounter) MaxMin() Timestamp {
-	var maxs []Timestamp
+func (c timeCounter) MaxMin() inter.Timestamp {
+	var maxs []inter.Timestamp
 	freq := uint(0)
 	for t, n := range c {
 		if n > freq {
-			maxs = []Timestamp{t}
+			maxs = []inter.Timestamp{t}
 			freq = n
 		}
 		if n == freq {
@@ -60,7 +58,7 @@ func (c timeCounter) MaxMin() Timestamp {
 		}
 	}
 
-	min := Timestamp(math.MaxUint64)
+	min := inter.Timestamp(math.MaxUint64)
 	for _, t := range maxs {
 		if min > t {
 			min = t
@@ -75,7 +73,7 @@ func (c timeCounter) MaxMin() Timestamp {
 
 type lamportTimeValidator struct {
 	event   *Event
-	maxTime Timestamp
+	maxTime inter.Timestamp
 }
 
 func newLamportTimeValidator(e *Event) *lamportTimeValidator {
@@ -85,7 +83,7 @@ func newLamportTimeValidator(e *Event) *lamportTimeValidator {
 	}
 }
 
-func (v *lamportTimeValidator) IsGreaterThan(time Timestamp) bool {
+func (v *lamportTimeValidator) IsGreaterThan(time inter.Timestamp) bool {
 	if v.event.LamportTime <= time {
 		log.Warnf("Event %s has lamport time %d. It isn't next of parents, so rejected",
 			v.event.Hash().String(),
@@ -108,6 +106,6 @@ func (v *lamportTimeValidator) IsSequential() bool {
 	return true
 }
 
-func (v *lamportTimeValidator) GetNext() Timestamp {
+func (v *lamportTimeValidator) GetNext() inter.Timestamp {
 	return v.maxTime + 1
 }

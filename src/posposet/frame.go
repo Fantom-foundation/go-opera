@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -45,7 +46,7 @@ func (f *Frame) AddClothoCandidate(event hash.Event, creator hash.Peer) {
 }
 
 // SetAtropos makes Atropos from Clotho and consensus time.
-func (f *Frame) SetAtropos(clotho hash.Event, consensusTime Timestamp) {
+func (f *Frame) SetAtropos(clotho hash.Event, consensusTime inter.Timestamp) {
 	if t, ok := f.Atroposes[clotho]; ok && t == consensusTime {
 		return
 	}

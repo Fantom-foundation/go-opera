@@ -11,24 +11,26 @@ import (
 type Poset struct {
 	store  *Store
 	state  *State
+	input  EventSource
 	frames map[uint64]*Frame
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
 
-	newEventsCh      chan *Event
+	newEventsCh      chan hash.Event
 	incompleteEvents map[hash.Event]*Event
 }
 
 // New creates Poset instance.
-func New(store *Store) *Poset {
+func New(store *Store, input EventSource) *Poset {
 	const buffSize = 10
 
 	p := &Poset{
 		store:  store,
+		input:  input,
 		frames: make(map[uint64]*Frame),
 
-		newEventsCh:      make(chan *Event, buffSize),
+		newEventsCh:      make(chan hash.Event, buffSize),
 		incompleteEvents: make(map[hash.Event]*Event),
 	}
 
@@ -52,7 +54,8 @@ func (p *Poset) Start() {
 				//log.Debug("Stop of events processing ...")
 				return
 			case e := <-p.newEventsCh:
-				p.onNewEvent(e)
+				event := p.GetEvent(e)
+				p.onNewEvent(event)
 			}
 		}
 	}()
@@ -69,14 +72,13 @@ func (p *Poset) Stop() {
 }
 
 // PushEvent takes event into processing. Event order doesn't matter.
-func (p *Poset) PushEvent(e Event) {
-	e.parents = nil
-	p.newEventsCh <- &e
+func (p *Poset) PushEvent(e hash.Event) {
+	p.newEventsCh <- e
 }
 
 // onNewEvent runs consensus calc from new event. It is not safe for concurrent use.
 func (p *Poset) onNewEvent(e *Event) {
-	if p.store.HasEvent(e.Hash()) {
+	if p.store.GetEventFrame(e.Hash()) != nil {
 		log.WithField("event", e).Warnf("Event had received already")
 		return
 	}
@@ -88,12 +90,13 @@ func (p *Poset) onNewEvent(e *Event) {
 		}
 	}
 
+	// TODO: move validation to level up for sync error
 	nodes := newParentsValidator(e)
 	ltime := newLamportTimeValidator(e)
 
 	// fill event's parents index or hold it as incompleted
-	for hash := range e.Parents {
-		if hash.IsZero() {
+	for pHash := range e.Parents {
+		if pHash.IsZero() {
 			// first event of node
 			if !nodes.IsParentUnique(e.Creator) {
 				return
@@ -103,15 +106,15 @@ func (p *Poset) onNewEvent(e *Event) {
 			}
 			continue
 		}
-		parent := e.parents[hash]
+		parent := e.parents[pHash]
 		if parent == nil {
-			parent = p.store.GetEvent(hash)
-			if parent == nil {
+			if p.store.GetEventFrame(pHash) == nil {
 				//log.WithField("event", e).Debug("Event's parent has not received yet")
 				p.incompleteEvents[e.Hash()] = e
 				return
 			}
-			e.parents[hash] = parent
+			parent = p.GetEvent(pHash)
+			e.parents[pHash] = parent
 		}
 		if !nodes.IsParentUnique(parent.Creator) {
 			return
@@ -128,7 +131,6 @@ func (p *Poset) onNewEvent(e *Event) {
 	}
 
 	// parents OK
-	p.store.SetEvent(e)
 	p.consensus(e)
 
 	// now child events may become complete, check it again
@@ -202,7 +204,7 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue
 			}
-			if prev := p.store.GetEvent(parent); prev.Creator == e.Creator {
+			if prev := p.GetEvent(parent); prev.Creator == e.Creator {
 				minFrame = frame.Index
 			}
 			roots := frame.GetRootsOf(parent)
@@ -231,9 +233,11 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		if p.hasMajority(f, roots) {
 			frame = p.frame(fnum+1, true)
 			frame.AddRootsOf(e.Hash(), rootFrom(e))
+			p.store.SetEventFrame(e.Hash(), frame.Index)
 			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
 			return frame
 		}
+		p.store.SetEventFrame(e.Hash(), frame.Index)
 	}
 	return nil
 }
@@ -289,7 +293,7 @@ CLOTHO:
 			for r := range later.FlagTable.Roots().Each() {
 				if diff == 1 {
 					if frame.FlagTable.EventKnows(r, clothoCreator, clotho) {
-						candidateTime[r] = p.store.GetEvent(r).LamportTime
+						candidateTime[r] = p.GetEvent(r).LamportTime
 					}
 				} else {
 					// the set of root in prev frame that r can be happened-before with 2n/3 condition
@@ -332,7 +336,7 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 
 	var atroposes Events
 	for atropos, consensusTime := range frame.Atroposes {
-		e := p.store.GetEvent(atropos)
+		e := p.GetEvent(atropos)
 		e.consensusTime = consensusTime
 		atroposes = append(atroposes, e)
 	}
@@ -364,7 +368,7 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 			continue
 		}
 
-		e := p.store.GetEvent(hash)
+		e := p.GetEvent(hash)
 		e.consensusTime = a.consensusTime
 		*res = append(*res, e)
 		already.Add(hash)
@@ -399,7 +403,7 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 		// extract events
 		for e := range frame.FlagTable {
 			if !frame.FlagTable.IsRoot(e) {
-				all = append(all, p.store.GetEvent(e))
+				all = append(all, p.GetEvent(e))
 			}
 		}
 		// and replace stale frame with blank

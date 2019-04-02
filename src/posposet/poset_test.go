@@ -4,14 +4,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 func TestPoset(t *testing.T) {
 	nodes, nodesEvents := GenEventsByNode(5, 99, 3)
 
 	posets := make([]*Poset, len(nodes))
+	inputs := make([]*EventStore, len(nodes))
 	for i := 0; i < len(nodes); i++ {
-		posets[i], _ = FakePoset(nodes)
+		posets[i], _, inputs[i] = FakePoset(nodes)
 	}
 
 	t.Run("Multiple start", func(t *testing.T) {
@@ -25,7 +28,8 @@ func TestPoset(t *testing.T) {
 		for n := 0; n < len(nodes); n++ {
 			events := nodesEvents[nodes[n]]
 			for _, e := range events {
-				posets[n].PushEventSync(*e)
+				inputs[n].SetEvent(&e.Event)
+				posets[n].PushEventSync(e.Hash())
 			}
 		}
 		// second all events from others
@@ -34,7 +38,8 @@ func TestPoset(t *testing.T) {
 			for _, e := range events {
 				for i := 0; i < len(posets); i++ {
 					if i != n {
-						posets[i].PushEventSync(*e)
+						inputs[i].SetEvent(&e.Event)
+						posets[i].PushEventSync(e.Hash())
 					}
 				}
 			}
@@ -45,8 +50,8 @@ func TestPoset(t *testing.T) {
 		assert := assert.New(t)
 		for _, events := range nodesEvents {
 			for _, e0 := range events {
-				e1 := posets[0].store.GetEvent(e0.Hash())
-				if !assert.NotNil(e1, "Event is not in poset store") {
+				frame := posets[0].store.GetEventFrame(e0.Hash())
+				if !assert.NotNil(frame, "Event is not in poset store") {
 					return
 				}
 			}
@@ -83,7 +88,7 @@ func TestPoset(t *testing.T) {
 
 // PushEventSync takes event into processing. It's a sync version of Poset.PushEvent().
 // Event order doesn't matter.
-func (p *Poset) PushEventSync(e Event) {
-	e.parents = nil
-	p.onNewEvent(&e)
+func (p *Poset) PushEventSync(e hash.Event) {
+	event := p.GetEvent(e)
+	p.onNewEvent(event)
 }

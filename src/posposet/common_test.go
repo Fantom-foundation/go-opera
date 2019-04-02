@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestParseEvents(t *testing.T) {
@@ -63,7 +64,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		return
 	}
 
-	index := make(map[hash.Event]*Event)
+	index := make(map[hash.Event]*inter.Event)
 	for _, nodeEvents := range events {
 		for _, e := range nodeEvents {
 			index[e.Hash()] = e
@@ -92,7 +93,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
  */
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(nodes []hash.Peer) (*Poset, *Store) {
+func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	balances := make(map[hash.Peer]uint64, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = uint64(1)
@@ -104,8 +105,10 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store) {
 		panic(err)
 	}
 
-	poset := New(store)
-	return poset, store
+	input := NewEventStore()
+
+	poset := New(store, input)
+	return poset, store, input
 }
 
 // ParseEvents parses events from ASCII-scheme.
@@ -115,10 +118,10 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store) {
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
 func ParseEvents(asciiScheme string) (
-	nodes []hash.Peer, events map[hash.Peer][]*Event, names map[string]*Event) {
+	nodes []hash.Peer, events map[hash.Peer][]*inter.Event, names map[string]*inter.Event) {
 	// init results
-	events = make(map[hash.Peer][]*Event)
-	names = make(map[string]*Event)
+	events = make(map[hash.Peer][]*inter.Event)
+	names = make(map[string]*inter.Event)
 	// read lines
 	for _, line := range strings.Split(strings.TrimSpace(asciiScheme), "\n") {
 		var (
@@ -170,7 +173,7 @@ func ParseEvents(asciiScheme string) (
 			// find creator's parent
 			var (
 				parents = hash.Events{}
-				ltime   Timestamp
+				ltime   inter.Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]
@@ -197,7 +200,7 @@ func ParseEvents(asciiScheme string) (
 				}
 			}
 			// save event
-			e := &Event{
+			e := &inter.Event{
 				Creator:     creator,
 				Parents:     parents,
 				LamportTime: ltime + 1,
@@ -248,7 +251,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 			}
 		}
 		// make
-		e := &Event{
+		e := inter.Event{
 			Creator: creator,
 			Parents: hash.Events{},
 		}
@@ -273,41 +276,8 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		}
 		// save and name event
 		hash.EventNameDict[e.Hash()] = fmt.Sprintf("%s%03d", string('a'+self), len(events[creator]))
-		events[creator] = append(events[creator], e)
+		events[creator] = append(events[creator], &Event{Event: e})
 	}
 
-	return
-}
-
-// FakeFuzzingEvents generates random independent events.
-func FakeFuzzingEvents() (res []*Event) {
-	creators := []hash.Peer{
-		hash.Peer{},
-		hash.FakePeer(),
-		hash.FakePeer(),
-		hash.FakePeer(),
-	}
-	parents := []hash.Events{
-		hash.FakeEvents(0),
-		hash.FakeEvents(1),
-		hash.FakeEvents(8),
-	}
-	for c := 0; c < len(creators); c++ {
-		for p := 0; p < len(parents); p++ {
-			e := &Event{
-				Index:   uint64(c*len(parents) + p),
-				Creator: creators[c],
-				Parents: parents[p],
-				InternalTransactions: []*InternalTransaction{
-					&InternalTransaction{
-						Amount:   999,
-						Receiver: creators[c],
-					},
-				},
-				ExternalTransactions: nil,
-			}
-			res = append(res, e)
-		}
-	}
 	return
 }

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 // NOTE: Atroposes B1 and E1 don't look like Figure22 "An Example of time ordering of event blocks in OPERA chain"
@@ -93,17 +95,19 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 	assert := assert.New(t)
 	// init
 	nodes, _, names := ParseEvents(asciiScheme)
-	p, store := FakePoset(nodes)
+	p, store, input := FakePoset(nodes)
 	// process events
 	n := 0
 	for _, event := range names {
-		p.PushEventSync(*event)
+		input.SetEvent(event)
+		p.PushEventSync(event.Hash())
 		n++
 		if tryRestoring && n == len(names)*2/3 {
 			ee := p.incompleteEvents
-			p = New(store)
+			p = New(store, input)
 			for _, e := range ee {
-				p.PushEventSync(*e)
+				input.SetEvent(&e.Event)
+				p.PushEventSync(e.Hash())
 			}
 		}
 	}
@@ -137,7 +141,7 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 		if !assert.NoError(err, "name the Atropos properly: <UpperCaseForRoot><Index><FrameN>+<ConsensusTime>") {
 			return
 		}
-		if !assert.Equal(Timestamp(expectedTime), consensusTime, "Atropos "+name+" consensus time") {
+		if !assert.Equal(inter.Timestamp(expectedTime), consensusTime, "Atropos "+name+" consensus time") {
 			break
 		}
 	}
