@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
@@ -139,8 +140,8 @@ func (l *Lachesis) initKey() error {
 func (l *Lachesis) initNode() error {
 	key := l.Config.Key
 
-	nodePub := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
-	n, ok := l.Peers.ReadByPubKey(nodePub)
+	nodePub := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
+	n, ok := l.Peers.ByPubKey[nodePub]
 
 	if !ok {
 		return fmt.Errorf("cannot find self pubkey in peers.json")

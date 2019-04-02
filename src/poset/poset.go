@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
@@ -1503,14 +1504,14 @@ func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 }
 
 // ApplyInternalTransactions calcs new PoS-state from prev round's state and returns its hash.
-func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (hash common.Hash, err error) {
+func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (res hash.Hash, err error) {
 	// TODO: set RoundNIL = 0, condition change to "round <= RoundNIL"
 	if round <= 0 {
 		err = fmt.Errorf("empty round is not allowed")
 		return
 	}
 
-	var prevState common.Hash
+	var prevState hash.Hash
 	if round == 1 {
 		prevState = p.Store.StateRoot()
 	} else {
@@ -1519,7 +1520,7 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (h
 		if err != nil {
 			return
 		}
-		prevState = common.BytesToHash(prevFrame.StateHash)
+		prevState = hash.FromBytes(prevFrame.StateHash)
 	}
 
 	statedb, err := state.New(prevState, p.Store.StateDB())
@@ -1540,21 +1541,21 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (h
 					continue
 				}
 				p.logger.Debug("ApplyInternalTransaction", tx)
-				if statedb.GetBalance(sender) < tx.Amount {
+				if statedb.GetBalance(hash.Peer(sender)) < tx.Amount {
 					p.logger.Warn("Balance is not enough", sender, tx.Amount)
 					continue
 				}
 				reciver := tx.Peer.Address()
-				statedb.SubBalance(sender, tx.Amount)
-				if !statedb.Exist(reciver) {
-					statedb.CreateAccount(reciver)
+				statedb.SubBalance(hash.Peer(sender), tx.Amount)
+				if !statedb.Exist(hash.Peer(reciver)) {
+					statedb.CreateAccount(hash.Peer(reciver))
 				}
-				statedb.AddBalance(reciver, tx.Amount)
+				statedb.AddBalance(hash.Peer(reciver), tx.Amount)
 			}
 		}
 	}
 
-	hash, err = statedb.Commit(true)
+	res, err = statedb.Commit(true)
 	return
 }
 

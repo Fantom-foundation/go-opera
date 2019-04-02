@@ -116,7 +116,7 @@ type TestNode struct {
 }
 
 func NewTestNode(key *ecdsa.PrivateKey) TestNode {
-	pub := crypto.FromECDSAPub(&key.PublicKey)
+	pub := common.FromECDSAPub(&key.PublicKey)
 	ID := common.Hash64(pub)
 	node := TestNode{
 		ID:     ID,
@@ -177,7 +177,7 @@ func initPosetNodes(n int) ([]TestNode, map[string]EventHash, *[]Event, *peers.P
 
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
-		pub := crypto.FromECDSAPub(&key.PublicKey)
+		pub := common.FromECDSAPub(&key.PublicKey)
 		pubHex := fmt.Sprintf("0x%X", pub)
 		participants.AddPeer(peers.NewPeer(pubHex, ""))
 		keys[pubHex] = key

@@ -82,8 +82,10 @@ func (w *MemDatabase) Delete(key []byte) error {
 	return nil
 }
 
-// Close does nothing.
-func (w *MemDatabase) Close() {}
+// Close leaves underlying database.
+func (w *MemDatabase) Close() {
+	w.db = nil
+}
 
 // NewBatch creates new batch.
 func (w *MemDatabase) NewBatch() Batch {

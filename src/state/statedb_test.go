@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
@@ -12,7 +12,7 @@ func TestStateDB(t *testing.T) {
 	mem := kvdb.NewMemDatabase()
 	store := NewDatabase(mem)
 
-	stateAt := func(point common.Hash) *DB {
+	stateAt := func(point hash.Hash) *DB {
 		db, err := New(point, store)
 		if err != nil {
 			t.Fatal(err)
@@ -21,7 +21,7 @@ func TestStateDB(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(point common.Hash, addr common.Address, balance uint64) error {
+	checkBalance := func(point hash.Hash, addr hash.Peer, balance uint64) error {
 		db := stateAt(point)
 		got := db.GetBalance(addr)
 		if got != balance {
@@ -32,12 +32,12 @@ func TestStateDB(t *testing.T) {
 
 	var (
 		err                error
-		root, fork1, fork2 common.Hash
+		root, fork1, fork2 hash.Hash
 
-		aa = []common.Address{
-			fakeAddress(0),
-			fakeAddress(1),
-			fakeAddress(2),
+		aa = []hash.Peer{
+			fakePeerHash(0),
+			fakePeerHash(1),
+			fakePeerHash(2),
 		}
 	)
 
@@ -52,7 +52,7 @@ func TestStateDB(t *testing.T) {
 
 	// root
 
-	db := stateAt(common.Hash{})
+	db := stateAt(hash.Hash{})
 	db.AddBalance(aa[0], 10)
 	root, err = db.Commit(true)
 	if err != nil {
@@ -138,7 +138,7 @@ func TestStateDB(t *testing.T) {
  * Staff:
  */
 
-func fakeAddress(n int64) (h common.Address) {
+func fakePeerHash(n int64) (h hash.Peer) {
 	for i := 8; i >= 1; i-- {
 		h[i-1] = byte(n)
 		n = n >> 8

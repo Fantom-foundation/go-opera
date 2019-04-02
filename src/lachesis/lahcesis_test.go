@@ -38,7 +38,7 @@ func initPeers(
 		adds = append(adds, addr)
 
 		ps.AddPeer(peers.NewPeer(
-			fmt.Sprintf("0x%X", crypto.FromECDSAPub(&keys[i].PublicKey)),
+			fmt.Sprintf("0x%X", common.FromECDSAPub(&keys[i].PublicKey)),
 			addr,
 		))
 	}
@@ -86,7 +86,7 @@ func runNode(t testing.TB, logger *logrus.Logger, config *node.Config,
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)
 	app := dummy.NewInmemDummyApp(logger)
 	selectorArgs := node.SmartPeerSelectorCreationFnArgs{
-		LocalAddr: localAddr,
+		LocalAddr:    localAddr,
 		GetFlagTable: nil,
 	}
 	node := node.NewNode(config, id, key, participants, db, trans, app, node.NewSmartPeerSelectorWrapper, selectorArgs, localAddr)
@@ -111,7 +111,7 @@ func TestGossip(t *testing.T) {
 	trans1 := createTransport(t, logger, backConfig, adds[0],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans1)
-	
+
 	trans2 := createTransport(t, logger, backConfig, adds[1],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans2)
@@ -119,23 +119,23 @@ func TestGossip(t *testing.T) {
 	trans3 := createTransport(t, logger, backConfig, adds[2],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans3)
-		
+
 	trans4 := createTransport(t, logger, backConfig, adds[3],
 		poolSize, createFu, network.CreateListener)
 	defer transportClose(t, trans4)
-		
+
 	node1 := runNode(t, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
-	
+
 	node2 := runNode(t, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
-	
+
 	node3 := runNode(t, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
-	
+
 	node4 := runNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
-	
+
 	nodes := []*node.Node{node1, node2, node3, node4}
-	
+
 	target := int64(1)
-	
+
 	err := gossip(nodes, target, true, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -581,14 +581,13 @@ func submitTransaction(n *node.Node, tx []byte) error {
 	return n.SubmitCh(tx)
 }
 
-
 func BenchmarkGossip(b *testing.B) {
 	logger := common.NewTestLogger(b)
 	config := node.TestConfig(b)
 	poolSize := 2
 	backConfig := peer.NewBackendConfig()
 	network, createFu := createNetwork()
-	
+
 	for n := 0; n < b.N; n++ {
 		keys, p, adds := initPeers(4, network)
 		ps := p.ToPeerSlice()
@@ -623,4 +622,3 @@ func BenchmarkGossip(b *testing.B) {
 		}
 	}
 }
-
