@@ -98,6 +98,9 @@ func (n *Node) syncWithPeer() {
 					return
 				}
 
+				// Add to store
+				n.store.SetEvent(event)
+
 				address := common.BytesToAddress(event.Creator)
 				peers[address] = false
 			}

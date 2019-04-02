@@ -17,6 +17,8 @@ type Store struct {
 	topPeers    kvdb.Database
 	knownPeers  kvdb.Database
 	peerHeights kvdb.Database
+
+	events kvdb.Database
 }
 
 // NewMemStore creates store over memory map.
@@ -42,6 +44,8 @@ func (s *Store) init() {
 	s.topPeers = kvdb.NewTable(s.physicalDB, "top_peers_")
 	s.knownPeers = kvdb.NewTable(s.physicalDB, "known_peers_")
 	s.peerHeights = kvdb.NewTable(s.physicalDB, "peer_height_")
+
+	s.events = kvdb.NewTable(s.physicalDB, "event_")
 }
 
 // Close leaves underlying database.
@@ -50,7 +54,26 @@ func (s *Store) Close() {
 	s.knownPeers = nil
 	s.topPeers = nil
 	s.peers = nil
+	s.events = nil
 	s.physicalDB.Close()
+}
+
+// SetEvent stores event.
+func (s *Store) SetEvent(e *wire.Event) {
+	// TODO: Calc hash
+	hash := []byte{0}
+	s.set(s.events, hash, e)
+}
+
+// GetEvent returns stored event.
+func (s *Store) GetEvent(h []byte) *wire.Event {
+	w, _ := s.get(s.events, h, &wire.Event{}).(*wire.Event)
+	return w
+}
+
+// HasEvent returns true if event exists.
+func (s *Store) HasEvent(h []byte) bool {
+	return s.has(s.events, h)
 }
 
 // SetPeer stores peer.

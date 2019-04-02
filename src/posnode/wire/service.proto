@@ -6,6 +6,7 @@ import "event.proto";
 service Node {
     rpc SyncEvents(KnownEvents) returns (KnownEvents) {}
     rpc GetEvent(EventRequest) returns (Event) {}
+    rpc GetEventByHash(EventByHashRequest) returns (Event) {}
     rpc GetPeerInfo(PeerRequest) returns (PeerInfo) {}
 }
 
@@ -17,6 +18,10 @@ message KnownEvents {
 message EventRequest {
     string PeerID = 1;
     uint64 Index = 2;
+}
+
+message EventByHashRequest {
+    bytes Hash = 1;
 }
 
 message PeerRequest {

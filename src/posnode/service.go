@@ -92,6 +92,14 @@ func (n *Node) GetEvent(ctx context.Context, req *wire.EventRequest) (*wire.Even
 	return nil, nil
 }
 
+// GetEventByHash returns requested event by hash.
+func (n *Node) GetEventByHash(ctx context.Context, req *wire.EventByHashRequest) (*wire.Event, error) {
+
+	event := n.store.GetEvent(req.Hash)
+
+	return event, nil
+}
+
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *wire.PeerRequest) (*wire.PeerInfo, error) {
 	id := common.HexToAddress(req.PeerID)
