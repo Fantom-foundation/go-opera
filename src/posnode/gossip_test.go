@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func TestGossip(t *testing.T) {
@@ -22,7 +22,7 @@ func TestGossip(t *testing.T) {
 	node1 := NewForTests(peers[0].Host, store1, nil)
 	defer node1.Shutdown()
 
-	node1.store_SetHeights(&wire.KnownEvents{
+	node1.store_SetHeights(&api.KnownEvents{
 		Lasts: map[string]uint64{
 			peers[0].ID.Hex(): 3,
 		}})
@@ -38,7 +38,7 @@ func TestGossip(t *testing.T) {
 	defer node2.Shutdown()
 
 	// Init data for node2
-	node2.store_SetHeights(&wire.KnownEvents{
+	node2.store_SetHeights(&api.KnownEvents{
 		Lasts: map[string]uint64{
 			peers[1].ID.Hex(): 5,
 		}})

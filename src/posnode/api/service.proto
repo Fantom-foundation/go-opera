@@ -1,11 +1,11 @@
 syntax = "proto3";
-package wire;
+package api;
 
-import "event.proto";
+import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/event.proto";
 
 service Node {
     rpc SyncEvents(KnownEvents) returns (KnownEvents) {}
-    rpc GetEvent(EventRequest) returns (Event) {}
+    rpc GetEvent(EventRequest) returns (wire.Event) {}
     rpc GetPeerInfo(PeerRequest) returns (PeerInfo) {}
 }
 

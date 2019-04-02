@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 const (
@@ -26,7 +26,7 @@ type client struct {
 }
 
 // ConnectTo connects to other node service.
-func (n *Node) ConnectTo(ctx context.Context, host string) (wire.NodeClient, error) {
+func (n *Node) ConnectTo(ctx context.Context, host string) (api.NodeClient, error) {
 	var (
 		conn *grpc.ClientConn
 		err  error
@@ -41,5 +41,5 @@ func (n *Node) ConnectTo(ctx context.Context, host string) (wire.NodeClient, err
 		return nil, err
 	}
 
-	return wire.NewNodeClient(conn), nil
+	return api.NewNodeClient(conn), nil
 }

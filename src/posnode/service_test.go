@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func Test_Node_GetPeerInfo(t *testing.T) {
@@ -48,7 +48,7 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 		store.SetPeer(&peer)
 
 		// make request
-		in := wire.PeerRequest{
+		in := api.PeerRequest{
 			PeerID: id.Hex(),
 		}
 		got, err := cli.GetPeerInfo(ctx, &in)
@@ -65,7 +65,7 @@ func Test_Node_GetPeerInfo(t *testing.T) {
 	})
 
 	t.Run("no existing peer", func(t *testing.T) {
-		in := wire.PeerRequest{
+		in := api.PeerRequest{
 			PeerID: "unknown",
 		}
 		_, err = cli.GetPeerInfo(ctx, &in)

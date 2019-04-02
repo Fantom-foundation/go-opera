@@ -6,7 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // Peer is a representation of other node.
@@ -17,8 +17,8 @@ type Peer struct {
 }
 
 // ToWire converts to protobuf message.
-func (p *Peer) ToWire() *wire.PeerInfo {
-	return &wire.PeerInfo{
+func (p *Peer) ToWire() *api.PeerInfo {
+	return &api.PeerInfo{
 		ID:     p.ID.Hex(),
 		PubKey: common.FromECDSAPub(p.PubKey),
 		Host:   p.Host,
@@ -26,7 +26,7 @@ func (p *Peer) ToWire() *wire.PeerInfo {
 }
 
 // WireToPeer converts from protobuf message.
-func WireToPeer(w *wire.PeerInfo) *Peer {
+func WireToPeer(w *api.PeerInfo) *Peer {
 	return &Peer{
 		ID:     hash.HexToPeer(w.ID),
 		PubKey: common.ToECDSAPub(w.PubKey),
@@ -34,8 +34,8 @@ func WireToPeer(w *wire.PeerInfo) *Peer {
 	}
 }
 
-func IDsToWire(ids []hash.Peer) *wire.PeersID {
-	w := &wire.PeersID{
+func IDsToWire(ids []hash.Peer) *api.PeersID {
+	w := &api.PeersID{
 		IDs: make([]string, len(ids)),
 	}
 
@@ -46,7 +46,7 @@ func IDsToWire(ids []hash.Peer) *wire.PeersID {
 	return w
 }
 
-func WireToIDs(w *wire.PeersID) []hash.Peer {
+func WireToIDs(w *api.PeersID) []hash.Peer {
 	if w == nil {
 		return nil
 	}

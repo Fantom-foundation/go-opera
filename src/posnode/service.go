@@ -12,8 +12,9 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
 type service struct {
@@ -32,7 +33,7 @@ func (n *Node) startService(listener net.Listener) {
 	n.server = grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
-	wire.RegisterNodeServer(n.server, n)
+	api.RegisterNodeServer(n.server, n)
 
 	n.log.Infof("service start at %v", listener.Addr())
 	go func() {
@@ -49,12 +50,12 @@ func (n *Node) StopService() {
 }
 
 /*
- * wire.NodeServer implementation:
+ * api.NodeServer implementation:
  */
 
 // SyncEvents it remember their known events for future request
 // and returns unknown for they events.
-func (n *Node) SyncEvents(ctx context.Context, req *wire.KnownEvents) (*wire.KnownEvents, error) {
+func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.KnownEvents, error) {
 	knownHeights := n.store_GetHeights()
 
 	result := map[string]uint64{}
@@ -83,17 +84,17 @@ func (n *Node) SyncEvents(ctx context.Context, req *wire.KnownEvents) (*wire.Kno
 
 	n.store_SetHeights(knownHeights)
 
-	return &wire.KnownEvents{Lasts: result}, nil
+	return &api.KnownEvents{Lasts: result}, nil
 }
 
 // GetEvent returns requested event.
-func (n *Node) GetEvent(ctx context.Context, req *wire.EventRequest) (*wire.Event, error) {
+func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event, error) {
 	// TODO: implement it
 	return nil, nil
 }
 
 // GetPeerInfo returns requested peer info.
-func (n *Node) GetPeerInfo(ctx context.Context, req *wire.PeerRequest) (*wire.PeerInfo, error) {
+func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.PeerInfo, error) {
 	id := hash.HexToPeer(req.PeerID)
 	peerInfo := n.store.GetPeerInfo(id)
 	// peerInfo == nil means that peer not found

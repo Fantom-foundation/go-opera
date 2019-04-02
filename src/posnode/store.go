@@ -6,7 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -61,8 +61,8 @@ func (s *Store) SetPeer(peer *Peer) {
 
 // GetPeerInfo returns stored peer info.
 // Result is a ready gRPC message.
-func (s *Store) GetPeerInfo(id hash.Peer) *wire.PeerInfo {
-	w, _ := s.get(s.peers, id.Bytes(), &wire.PeerInfo{}).(*wire.PeerInfo)
+func (s *Store) GetPeerInfo(id hash.Peer) *api.PeerInfo {
+	w, _ := s.get(s.peers, id.Bytes(), &api.PeerInfo{}).(*api.PeerInfo)
 	return w
 }
 
@@ -117,7 +117,7 @@ func (s *Store) SetTopPeers(ids []hash.Peer) {
 // GetTopPeers returns peers.top.
 func (s *Store) GetTopPeers() []hash.Peer {
 	var key = []byte("current")
-	w, _ := s.get(s.topPeers, key, &wire.PeersID{}).(*wire.PeersID)
+	w, _ := s.get(s.topPeers, key, &api.PeersID{}).(*api.PeersID)
 	return WireToIDs(w)
 }
 
@@ -131,7 +131,7 @@ func (s *Store) SetKnownPeers(ids []hash.Peer) {
 // GetKnownPeers returns all peers ID.
 func (s *Store) GetKnownPeers() []hash.Peer {
 	var key = []byte("current")
-	w, _ := s.get(s.knownPeers, key, &wire.PeersID{}).(*wire.PeersID)
+	w, _ := s.get(s.knownPeers, key, &api.PeersID{}).(*api.PeersID)
 	return WireToIDs(w)
 }
 

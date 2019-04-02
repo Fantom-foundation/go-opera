@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // discovery is a network discovery process.
@@ -96,10 +96,10 @@ func (n *Node) AskPeerInfo(source, id hash.Peer, host string) {
 
 // requestPeerInfo makes GetPeerInfo using NodeClient
 // with context which hash timeout.
-func requestPeerInfo(cli wire.NodeClient, id string) (*wire.PeerInfo, error) {
+func requestPeerInfo(cli api.NodeClient, id string) (*api.PeerInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
 	defer cancel()
-	in := wire.PeerRequest{
+	in := api.PeerRequest{
 		PeerID: id,
 	}
 	return cli.GetPeerInfo(ctx, &in)

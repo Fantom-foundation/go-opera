@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // gossip is a pool of gossiping processes.
@@ -74,7 +74,7 @@ func (n *Node) syncWithPeer() {
 	knownHeights := n.store_GetHeights()
 
 	// Send known heights -> get unknown
-	unknownHeights, err := client.SyncEvents(context.Background(), &wire.KnownEvents{Lasts: knownHeights.Lasts})
+	unknownHeights, err := client.SyncEvents(context.Background(), &api.KnownEvents{Lasts: knownHeights.Lasts})
 	if err != nil {
 		n.log.Warn(err)
 		return
@@ -88,7 +88,7 @@ func (n *Node) syncWithPeer() {
 		if knownHeights.Lasts[pID] < height {
 			for i := knownHeights.Lasts[pID] + 1; i <= height; i++ {
 
-				var req wire.EventRequest
+				var req api.EventRequest
 				req.PeerID = pID
 				req.Index = i
 
@@ -115,8 +115,8 @@ func (n *Node) syncWithPeer() {
 }
 
 // NOTE: temporary decision
-func (n *Node) store_GetHeights() *wire.KnownEvents {
-	res := &wire.KnownEvents{
+func (n *Node) store_GetHeights() *api.KnownEvents {
+	res := &api.KnownEvents{
 		Lasts: make(map[string]uint64),
 	}
 
@@ -129,7 +129,7 @@ func (n *Node) store_GetHeights() *wire.KnownEvents {
 }
 
 // NOTE: temporary decision
-func (n *Node) store_SetHeights(w *wire.KnownEvents) {
+func (n *Node) store_SetHeights(w *api.KnownEvents) {
 	ids := make([]hash.Peer, 0)
 
 	for str, h := range w.Lasts {

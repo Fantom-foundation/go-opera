@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/wire"
 )
 
 func Test_Node_AskPeerInfo(t *testing.T) {
@@ -21,12 +21,12 @@ func Test_Node_AskPeerInfo(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	srv := wire.NewMockNodeServer(ctrl)
+	srv := api.NewMockNodeServer(ctrl)
 
 	server := grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
-	wire.RegisterNodeServer(server, srv)
+	api.RegisterNodeServer(server, srv)
 
 	listener := network.FakeListener("server.fake:55555")
 	go server.Serve(listener)
@@ -40,7 +40,7 @@ func Test_Node_AskPeerInfo(t *testing.T) {
 		return
 	}
 	id := CalcNodeID(&key.PublicKey)
-	info := &wire.PeerInfo{
+	info := &api.PeerInfo{
 		ID:     id.Hex(),
 		PubKey: common.FromECDSAPub(&key.PublicKey),
 		Host:   "remote.server",
