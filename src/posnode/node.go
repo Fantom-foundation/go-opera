@@ -30,31 +30,8 @@ type Node struct {
 	logger
 }
 
-// SetDialOpts allows to reset grpc client dial options.
-func SetDialOpts(opts ...grpc.DialOption) Option {
-	return func(n *Node) {
-		n.client.opts = opts
-	}
-}
-
-// SetDiscoveryMem sets discovery storage as memory.
-func SetDiscoveryMem(n *Node) {
-	n.discovery.store = &memDiscovery{
-		RWMutex:     sync.RWMutex{},
-		discoveries: make(map[string]*Discovery),
-	}
-}
-
-// SetDiscoveryBadger sets discovery storage as badger.
-func SetDiscoveryBadger(n *Node) {
-	n.discovery.store = n.store
-}
-
-// Option allows to change Node behaviour.
-type Option func(*Node)
-
 // New creates node.
-func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...Option) *Node {
+func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...grpc.DialOption) *Node {
 	n := Node{
 		ID:        CalcNodeID(&key.PublicKey),
 		key:       key,
@@ -63,17 +40,16 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 		consensus: c,
 		host:      host,
 		conf:      *conf,
-
+		client:    client{opts},
 		discovery: discovery{
-			store: s,
+			store: &discoveries{
+				RWMutex:     sync.RWMutex{},
+				discoveries: make(map[string]*Discovery),
+			},
 		},
 
 		peers:  initPeers(s),
 		logger: newLogger(host),
-	}
-
-	for _, opt := range opts {
-		opt(&n)
 	}
 
 	// Add self into peers store

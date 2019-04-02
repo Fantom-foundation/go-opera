@@ -21,17 +21,11 @@ const (
 	waitOnDiscoveryFailure = 60 * 15 * time.Second
 )
 
-type discoveryStore interface {
-	GetDiscovery(id hash.Peer) *Discovery
-	SetDiscovery(discovery *Discovery)
-	SetDiscoveryAvailability(d *Discovery, available bool)
-}
-
 // discovery is a network discovery process.
 type discovery struct {
 	tasks chan discoveryTask
 	done  chan struct{}
-	store discoveryStore
+	store *discoveries
 }
 
 // discoveryTask contains data required
@@ -82,7 +76,7 @@ func (n *Node) CheckPeerIsKnown(source, id hash.Peer, host string) {
 	}
 
 	// Skip discovery if host was unavailable.
-	discovery := n.store.GetDiscovery(source)
+	discovery := n.discovery.store.GetDiscovery(source)
 	if shouldSkipDiscovery(discovery, host) {
 		return
 	}
@@ -101,7 +95,7 @@ func (n *Node) CheckPeerIsKnown(source, id hash.Peer, host string) {
 // AskPeerInfo gets peer info (network address, public key, etc).
 func (n *Node) AskPeerInfo(source, id hash.Peer, host string) {
 	// Check if should skip discovery.
-	discovery := n.store.GetDiscovery(source)
+	discovery := n.discovery.store.GetDiscovery(source)
 	if shouldSkipDiscovery(discovery, host) {
 		return
 	}
@@ -132,7 +126,7 @@ func (n *Node) AskPeerInfo(source, id hash.Peer, host string) {
 		// TODO: think more about what we should do when
 		// info about given id is not found by source.
 		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
-			n.store.SetDiscoveryAvailability(discovery, false)
+			n.discovery.store.SetDiscoveryAvailability(discovery, false)
 			n.log.Error(fmt.Sprintf("id: %s not found at host: %s with id: %s", id.Hex(), host, source.Hex()))
 			return
 		}
@@ -217,16 +211,16 @@ func WireToDiscovery(w *api.DiscoveryInfo) *Discovery {
 	}
 }
 
-type memDiscovery struct {
+type discoveries struct {
 	sync.RWMutex
 	discoveries map[string]*Discovery
 }
 
-func (m *memDiscovery) GetDiscovery(id hash.Peer) *Discovery {
-	m.RLock()
-	defer m.RUnlock()
+func (ds *discoveries) GetDiscovery(id hash.Peer) *Discovery {
+	ds.RLock()
+	defer ds.RUnlock()
 
-	for idHex, discovery := range m.discoveries {
+	for idHex, discovery := range ds.discoveries {
 		if idHex == id.Hex() {
 			return discovery
 		}
@@ -235,15 +229,15 @@ func (m *memDiscovery) GetDiscovery(id hash.Peer) *Discovery {
 	return nil
 }
 
-func (m *memDiscovery) SetDiscovery(discovery *Discovery) {
-	m.Lock()
-	defer m.Unlock()
+func (ds *discoveries) SetDiscovery(discovery *Discovery) {
+	ds.Lock()
+	defer ds.Unlock()
 
-	m.discoveries[discovery.ID.Hex()] = discovery
+	ds.discoveries[discovery.ID.Hex()] = discovery
 }
 
-func (m *memDiscovery) SetDiscoveryAvailability(d *Discovery, available bool) {
+func (ds *discoveries) SetDiscoveryAvailability(d *Discovery, available bool) {
 	d.Available = available
 	d.LastRequest = time.Now()
-	m.SetDiscovery(d)
+	ds.SetDiscovery(d)
 }

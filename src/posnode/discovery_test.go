@@ -86,7 +86,7 @@ func Test_Node_AskPeerInfo(t *testing.T) {
 			LastRequest: time.Now().Truncate(time.Hour),
 			Available:   false,
 		}
-		store.SetDiscovery(&discovery)
+		n.discovery.store.SetDiscovery(&discovery)
 
 		source := hash.HexToPeer("known")
 		n.AskPeerInfo(source, id, "bad.server")
@@ -96,7 +96,7 @@ func Test_Node_AskPeerInfo(t *testing.T) {
 			t.Error("sould not add peer")
 		}
 
-		newDiscovery := store.GetDiscovery(source)
+		newDiscovery := n.discovery.store.GetDiscovery(source)
 		if newDiscovery.Available {
 			t.Error("should set discovery availability as unavailable")
 		}

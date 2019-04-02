@@ -1,8 +1,6 @@
 package posnode
 
 import (
-	"time"
-
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
@@ -45,7 +43,6 @@ func (s *Store) init() {
 	s.topPeers = kvdb.NewTable(s.physicalDB, "top_peers_")
 	s.knownPeers = kvdb.NewTable(s.physicalDB, "known_peers_")
 	s.peerHeights = kvdb.NewTable(s.physicalDB, "peer_height_")
-	s.discovery = kvdb.NewTable(s.physicalDB, "discovery_")
 }
 
 // Close leaves underlying database.
@@ -54,7 +51,6 @@ func (s *Store) Close() {
 	s.knownPeers = nil
 	s.topPeers = nil
 	s.peers = nil
-	s.discovery = nil
 	s.physicalDB.Close()
 }
 
@@ -158,36 +154,6 @@ func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
 	}
 
 	return bytesToInt(buf)
-}
-
-// GetDiscoveryInfo returns stored discovery info.
-func (s *Store) GetDiscoveryInfo(id hash.Peer) *api.DiscoveryInfo {
-	w, _ := s.get(s.discovery, id.Bytes(), &api.DiscoveryInfo{}).(*api.DiscoveryInfo)
-	return w
-}
-
-// GetDiscovery returns stored discovery.
-func (s *Store) GetDiscovery(id hash.Peer) *Discovery {
-	w := s.GetDiscoveryInfo(id)
-	if w == nil {
-		return nil
-	}
-
-	return WireToDiscovery(w)
-}
-
-// SetDiscovery returns stored discovery info.
-func (s *Store) SetDiscovery(discovery *Discovery) {
-	w := discovery.ToWire()
-	s.set(s.discovery, discovery.ID.Bytes(), w)
-}
-
-// SetDiscoveryAvailability sets availability and
-// last request time.
-func (s *Store) SetDiscoveryAvailability(d *Discovery, available bool) {
-	d.Available = available
-	d.LastRequest = time.Now()
-	s.SetDiscovery(d)
 }
 
 /*
