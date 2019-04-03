@@ -2,34 +2,11 @@ package crypto
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
 	"math/big"
 	"strings"
 )
-
-// GenerateECDSAKey generate ECDSA Key
-func GenerateECDSAKey() (*ecdsa.PrivateKey, error) {
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-}
-
-// ToECDSAPub convert to ECDSA public key from bytes
-func ToECDSAPub(pub []byte) *ecdsa.PublicKey {
-	if len(pub) == 0 {
-		return nil
-	}
-	x, y := elliptic.Unmarshal(elliptic.P256(), pub)
-	return &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}
-}
-
-// FromECDSAPub create bytes from ECDSA public key
-func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
-	if pub == nil || pub.X == nil || pub.Y == nil {
-		return nil
-	}
-	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
-}
 
 // Sign signs with key
 func Sign(priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, err error) {

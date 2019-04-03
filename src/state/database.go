@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/trie"
 )
@@ -26,10 +26,10 @@ const (
 // Database wraps access to tries.
 type Database interface {
 	// OpenTrie opens the main account trie.
-	OpenTrie(root common.Hash) (Trie, error)
+	OpenTrie(root hash.Hash) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
-	OpenStorageTrie(addrHash, root common.Hash) (Trie, error)
+	OpenStorageTrie(addrHash, root hash.Hash) (Trie, error)
 
 	// CopyTrie returns an independent copy of the given trie.
 	CopyTrie(Trie) Trie
@@ -43,8 +43,8 @@ type Trie interface {
 	TryGet(key []byte) ([]byte, error)
 	TryUpdate(key, value []byte) error
 	TryDelete(key []byte) error
-	Commit(onleaf trie.LeafCallback) (common.Hash, error)
-	Hash() common.Hash
+	Commit(onleaf trie.LeafCallback) (hash.Hash, error)
+	Hash() hash.Hash
 	NodeIterator(startKey []byte) trie.NodeIterator
 	GetKey([]byte) []byte // TODO: remove this when SecureTrie is removed
 	Prove(key []byte, fromLevel uint, proofDb kvdb.Putter) error
@@ -76,7 +76,7 @@ type cachingDB struct {
 }
 
 // OpenTrie opens the main account trie.
-func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
+func (db *cachingDB) OpenTrie(root hash.Hash) (Trie, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -105,7 +105,7 @@ func (db *cachingDB) pushTrie(t *trie.SecureTrie) {
 }
 
 // OpenStorageTrie opens the storage trie of an account.
-func (db *cachingDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
+func (db *cachingDB) OpenStorageTrie(addrHash, root hash.Hash) (Trie, error) {
 	return trie.NewSecure(root, db.db, 0)
 }
 
@@ -132,7 +132,7 @@ type cachedTrie struct {
 	db *cachingDB
 }
 
-func (m cachedTrie) Commit(onleaf trie.LeafCallback) (common.Hash, error) {
+func (m cachedTrie) Commit(onleaf trie.LeafCallback) (hash.Hash, error) {
 	root, err := m.SecureTrie.Commit(onleaf)
 	if err == nil {
 		m.db.pushTrie(m.SecureTrie)

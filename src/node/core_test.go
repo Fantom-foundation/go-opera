@@ -25,7 +25,7 @@ func initCores(n int, t *testing.T) ([]*Core,
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateECDSAKey()
 		pubHex := fmt.Sprintf("0x%X",
-			crypto.FromECDSAPub(&key.PublicKey))
+			common.FromECDSAPub(&key.PublicKey))
 		peer := peers.NewPeer(pubHex, "")
 		participants.AddPeer(peer)
 		participantKeys[peer.ID] = key

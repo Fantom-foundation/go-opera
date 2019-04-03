@@ -1,0 +1,20 @@
+syntax = "proto3";
+package wire;
+
+message EventDescr {
+  bytes Creator = 1;
+  bytes Hash = 2;
+}
+
+message Flag {
+  bytes Event = 1;
+  repeated EventDescr Roots = 2;
+}
+
+message Frame {
+  uint64 Index = 1;
+  repeated Flag FlagTable = 2;
+  repeated EventDescr ClothoCandidates = 3;
+  map<string, uint64> Atroposes = 4;
+  bytes Balances = 5;
+}

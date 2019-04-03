@@ -1,5 +1,3 @@
-// +build test
-
 package poset
 
 // KnownEvents returns all known events

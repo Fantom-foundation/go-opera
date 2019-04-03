@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
@@ -44,10 +45,10 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 	for i := 0; i < count; i++ {
 		addr := network.RandomAddress()
 		key, _ := crypto.GenerateECDSAKey()
-		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
-		peer2 := peers.NewPeer(pubKey, addr)
-		participants.AddPeer(peer2)
-		keys[peer2] = key
+		pubKey := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
+		peer := peers.NewPeer(pubKey, addr)
+		participants.AddPeer(peer)
+		keys[peer] = key
 	}
 
 	nodes := make(NodeList, count)
@@ -63,7 +64,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 		transport := peer.NewTransport(logger, producer, backend)
 
 		selectorArgs := SmartPeerSelectorCreationFnArgs{
-			LocalAddr: peer2.NetAddr,
+			LocalAddr:    peer2.NetAddr,
 			GetFlagTable: nil,
 		}
 
@@ -78,7 +79,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 			NewSmartPeerSelectorWrapper,
 			selectorArgs,
 			peer2.NetAddr,
-			)
+		)
 		if err := n.Init(); err != nil {
 			logger.Fatal(err)
 		}

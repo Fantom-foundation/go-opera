@@ -1,7 +1,6 @@
 package kvdb
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -71,7 +70,7 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 	if entry, ok := w.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
 	}
-	return nil, errors.New("not found")
+	return nil, nil
 }
 
 // Delete removes key-value pair by key.
@@ -83,8 +82,10 @@ func (w *MemDatabase) Delete(key []byte) error {
 	return nil
 }
 
-// Close does nothing.
-func (w *MemDatabase) Close() {}
+// Close leaves underlying database.
+func (w *MemDatabase) Close() {
+	w.db = nil
+}
 
 // NewBatch creates new batch.
 func (w *MemDatabase) NewBatch() Batch {

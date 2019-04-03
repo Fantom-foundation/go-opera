@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
@@ -88,27 +89,27 @@ func TestNodeIteratorCoverage(t *testing.T) {
 	db, trie, _ := makeTestTrie(t)
 
 	// Gather all the node hashes found by the iterator
-	hashes := make(map[common.Hash]struct{})
+	hashes := make(map[hash.Hash]struct{})
 	for it := trie.NodeIterator(nil); it.Next(true); {
-		if it.Hash() != (common.Hash{}) {
+		if it.Hash() != (hash.Hash{}) {
 			hashes[it.Hash()] = struct{}{}
 		}
 	}
 	// Cross check the hashes and the database itself
-	for hash := range hashes {
-		if _, err := db.Node(hash); err != nil {
-			t.Errorf("failed to retrieve reported node %x: %v", hash, err)
+	for h := range hashes {
+		if _, err := db.Node(h); err != nil {
+			t.Errorf("failed to retrieve reported node %x: %v", h, err)
 		}
 	}
-	for hash, obj := range db.dirties {
-		if obj != nil && hash != (common.Hash{}) {
-			if _, ok := hashes[hash]; !ok {
-				t.Errorf("state entry not reported %x", hash)
+	for h, obj := range db.dirties {
+		if obj != nil && h != (hash.Hash{}) {
+			if _, ok := hashes[h]; !ok {
+				t.Errorf("state entry not reported %x", h)
 			}
 		}
 	}
 	for _, key := range db.diskdb.(*kvdb.MemDatabase).Keys() {
-		if _, ok := hashes[common.BytesToHash(key)]; !ok {
+		if _, ok := hashes[hash.FromBytes(key)]; !ok {
 			t.Errorf("state entry not reported %x", key)
 		}
 	}
@@ -291,7 +292,7 @@ func testIteratorContinueAfterError(t *testing.T, memoryOnly bool) {
 	diskdb := kvdb.NewMemDatabase()
 	triedb := NewDatabase(diskdb)
 
-	tr, _ := New(common.Hash{}, triedb)
+	tr, _ := New(hash.Hash{}, triedb)
 	for _, val := range testdata1 {
 		tr.Update([]byte(val.k), []byte(val.v))
 	}
@@ -309,7 +310,7 @@ func testIteratorContinueAfterError(t *testing.T, memoryOnly bool) {
 
 	var (
 		diskKeys [][]byte
-		memKeys  []common.Hash
+		memKeys  []hash.Hash
 	)
 	if memoryOnly {
 		memKeys = triedb.Nodes()
@@ -323,7 +324,7 @@ func testIteratorContinueAfterError(t *testing.T, memoryOnly bool) {
 		// Remove a random node from the database. It can't be the root node
 		// because that one is already loaded.
 		var (
-			rkey common.Hash
+			rkey hash.Hash
 			rval []byte
 			robj *cachedNode
 		)
@@ -390,7 +391,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memoryOnly bool) {
 	diskdb := kvdb.NewMemDatabase()
 	triedb := NewDatabase(diskdb)
 
-	ctr, _ := New(common.Hash{}, triedb)
+	ctr, _ := New(hash.Hash{}, triedb)
 	for _, val := range testdata1 {
 		ctr.Update([]byte(val.k), []byte(val.v))
 	}
@@ -405,7 +406,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memoryOnly bool) {
 		}
 	}
 
-	barNodeHash := common.HexToHash("890d0afc63c1ceb4f363057c9a406e7acbaa7746bf8c1d87c8b24c10a72136a1")
+	barNodeHash := hash.HexToHash("890d0afc63c1ceb4f363057c9a406e7acbaa7746bf8c1d87c8b24c10a72136a1")
 	var (
 		barNodeBlob []byte
 		barNodeObj  *cachedNode
