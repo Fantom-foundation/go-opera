@@ -199,7 +199,7 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil {
+			if frame == nil || frame.Index <= p.state.LastFinishedFrameN {
 				log.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue
