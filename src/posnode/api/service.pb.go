@@ -15,6 +15,7 @@ It has these top-level messages:
 	PeerRequest
 	PeerInfo
 	PeersID
+	DiscoveryInfo
 */
 package api
 

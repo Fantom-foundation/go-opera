@@ -33,3 +33,4 @@ message PeerInfo {
     bytes PubKey = 2;
     string Host = 3;
 }
+
