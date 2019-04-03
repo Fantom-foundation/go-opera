@@ -1,29 +1,19 @@
-package poset
+package state
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/state"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
-func TestStateBalances(t *testing.T) {
-	// inmem store
-	participants := peers.NewPeers()
-	for i := 0; i < 3; i++ {
-		key, _ := crypto.GenerateECDSAKey()
-		pubKey := fmt.Sprintf("0x%X", crypto.FromECDSAPub(&key.PublicKey))
-		p := peers.NewPeer(pubKey, fmt.Sprintf("addr%d", i))
-		participants.AddPeer(p)
-	}
-	store := NewInmemStore(participants, 3, pos.DefaultConfig())
+func TestStateDB(t *testing.T) {
+	mem := kvdb.NewMemDatabase()
+	store := NewDatabase(mem)
 
-	roundStateDB := func(root common.Hash) *state.DB {
-		db, err := state.New(root, store.StateDB())
+	stateAt := func(point common.Hash) *DB {
+		db, err := New(point, store)
 		if err != nil {
 			t.Fatal(err)
 			return nil
@@ -31,11 +21,11 @@ func TestStateBalances(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(root common.Hash, addr common.Address, balance uint64) error {
-		statedb := roundStateDB(root)
-		got := statedb.GetBalance(addr)
+	checkBalance := func(point common.Hash, addr common.Address, balance uint64) error {
+		db := stateAt(point)
+		got := db.GetBalance(addr)
 		if got != balance {
-			return fmt.Errorf("unexpected balance %d of %s at %s. %d expected", got, addr.String(), root.String(), balance)
+			return fmt.Errorf("unexpected balance %d of %s at %s. %d expected", got, addr.String(), point.String(), balance)
 		}
 		return nil
 	}
@@ -62,31 +52,31 @@ func TestStateBalances(t *testing.T) {
 
 	// root
 
-	statedb := roundStateDB(common.Hash{})
-	statedb.AddBalance(aa[0], 10)
-	root, err = statedb.Commit(true)
+	db := stateAt(common.Hash{})
+	db.AddBalance(aa[0], 10)
+	root, err = db.Commit(true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// fork 1
 
-	statedb = roundStateDB(root)
-	statedb.AddBalance(aa[1], 11)
-	fork1, err = statedb.Commit(true)
+	db = stateAt(root)
+	db.AddBalance(aa[1], 11)
+	fork1, err = db.Commit(true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if statedb.GetBalance(aa[1]) != 11 {
+	if db.GetBalance(aa[1]) != 11 {
 		t.Fatal("GetBalance() does not return actual before commit!")
 	}
 
 	// fork 2
 
-	statedb = roundStateDB(root)
-	statedb.AddBalance(aa[2], 12)
-	statedb.SubBalance(aa[0], 5)
-	fork2, err = statedb.Commit(true)
+	db = stateAt(root)
+	db.AddBalance(aa[2], 12)
+	db.SubBalance(aa[0], 5)
+	fork2, err = db.Commit(true)
 	if err != nil {
 		t.Fatal(err)
 	}

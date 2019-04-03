@@ -15,7 +15,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 func init() {
@@ -103,7 +102,8 @@ func testMissingNode(t *testing.T, memonly bool) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	hash := common.HexToHash("0xe1d943cc8f061a0c0b98162830b970395ac9315654824bf21b73b891365262f9")
+	hash := common.HexToHash("2db7571d4823d62e2897c63e29e8360954fa43808feba89e85470fe9b2c10f83")
+
 	if memonly {
 		delete(triedb.dirties, hash)
 	} else {
@@ -147,7 +147,7 @@ func TestInsert(t *testing.T) {
 	updateString(trie, "dog", "puppy")
 	updateString(trie, "dogglesworth", "cat")
 
-	exp := common.HexToHash("8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3")
+	exp := common.HexToHash("e2310e8a1602e925553df6758ddd71feaf3e8cecedee87eb04c6ce496f68fe52")
 	root := trie.Hash()
 	if root != exp {
 		t.Errorf("exp %x got %x", exp, root)
@@ -156,7 +156,7 @@ func TestInsert(t *testing.T) {
 	trie = newEmpty()
 	updateString(trie, "A", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
-	exp = common.HexToHash("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab")
+	exp = common.HexToHash("b57a2c2e580634d1f28565817d4b90ea63521be9a2677fe94afa628bb5646946")
 	root, err := trie.Commit(nil)
 	if err != nil {
 		t.Fatalf("commit error: %v", err)
@@ -214,7 +214,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	hash := trie.Hash()
-	exp := common.HexToHash("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84")
+	exp := common.HexToHash("8d7bf42c3e38c024b3e932fa8170bca210706a60a68d47d66411c1bb7bf4c891")
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
 	}
@@ -238,7 +238,7 @@ func TestEmptyValues(t *testing.T) {
 	}
 
 	hash := trie.Hash()
-	exp := common.HexToHash("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84")
+	exp := common.HexToHash("8d7bf42c3e38c024b3e932fa8170bca210706a60a68d47d66411c1bb7bf4c891")
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
 	}
@@ -561,11 +561,15 @@ func BenchmarkHash(b *testing.B) {
 	accounts := make([][]byte, len(addresses))
 	for i := 0; i < len(accounts); i++ {
 		var (
-			balance = random.Int63()
-			root    = emptyRoot
-			code    = crypto.Keccak256(nil)
+			key  = crypto.Keccak256(nil)
+			root = emptyRoot
 		)
-		accounts[i], _ = rlp.EncodeToBytes([]interface{}{balance, root, code})
+		accounts[i], _ = EncodeToBytes(&shortNode{
+			Key: key,
+			Val: &shortNode{
+				Key: root.Bytes(),
+			},
+		})
 	}
 	// Insert the accounts into the trie and hash it
 	trie := newEmpty()

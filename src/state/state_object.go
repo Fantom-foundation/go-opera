@@ -1,13 +1,9 @@
 package state
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/rlp"
 )
 
 // Storage
@@ -68,28 +64,16 @@ func (s *stateObject) empty() bool {
 	return s.data.Balance == 0
 }
 
-// Account is the PoS representation of accounts.
-// These objects are stored in the main account trie.
-type Account struct {
-	Balance uint64
-	Root    common.Hash // merkle root of the storage trie
-}
-
 // newObject creates a state object.
 func newObject(db *DB, address common.Address, data Account) *stateObject {
 	return &stateObject{
 		db:            db,
 		address:       address,
-		addrHash:      crypto.Keccak256Hash(address[:]),
+		addrHash:      common.BytesToHash(address.Bytes()), // crypto.Keccak256Hash(address.Bytes())
 		data:          data,
 		originStorage: make(Storage),
 		dirtyStorage:  make(Storage),
 	}
-}
-
-// EncodeRLP implements rlp.Encoder.
-func (s *stateObject) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, s.data)
 }
 
 // setError remembers the first non-nil error it is called with.
@@ -107,17 +91,12 @@ func (s *stateObject) touch() {
 	s.db.journal.append(touchChange{
 		account: &s.address,
 	})
-	if s.address == ripemd {
-		// Explicitly put it in the dirty-cache, which is otherwise generated from
-		// flattened journals.
-		s.db.journal.dirty(s.address)
-	}
 }
 
 func (s *stateObject) getTrie(db Database) Trie {
 	if s.trie == nil {
 		var err error
-		s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root)
+		s.trie, err = db.OpenStorageTrie(s.addrHash, s.data.Root())
 		if err != nil {
 			s.trie, _ = db.OpenStorageTrie(s.addrHash, common.Hash{})
 			s.setError(fmt.Errorf("can't create storage trie: %v", err))
@@ -145,17 +124,13 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		return value
 	}
 	// Otherwise load the value from the database
-	enc, err := s.getTrie(db).TryGet(key[:])
+	enc, err := s.getTrie(db).TryGet(key.Bytes())
 	if err != nil {
 		s.setError(err)
 		return common.Hash{}
 	}
 	if len(enc) > 0 {
-		_, content, _, err := rlp.Split(enc)
-		if err != nil {
-			s.setError(err)
-		}
-		value.SetBytes(content)
+		value.SetBytes(enc)
 	}
 	s.originStorage[key] = value
 	return value
@@ -194,12 +169,11 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		s.originStorage[key] = value
 
 		if (value == common.Hash{}) {
-			s.setError(tr.TryDelete(key[:]))
+			s.setError(tr.TryDelete(key.Bytes()))
 			continue
 		}
-		// Encoding []byte cannot fail, ok to ignore the error.
-		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
-		s.setError(tr.TryUpdate(key[:], v))
+
+		s.setError(tr.TryUpdate(key.Bytes(), value.Bytes())) // bytes.TrimLeft(value)?
 	}
 	return tr
 }
@@ -207,7 +181,7 @@ func (s *stateObject) updateTrie(db Database) Trie {
 // UpdateRoot sets the trie root to the current root hash of
 func (s *stateObject) updateRoot(db Database) {
 	s.updateTrie(db)
-	s.data.Root = s.trie.Hash()
+	s.data.SetRoot(s.trie.Hash())
 }
 
 // CommitTrie the storage trie of the object to db.
@@ -219,7 +193,7 @@ func (s *stateObject) CommitTrie(db Database) error {
 	}
 	root, err := s.trie.Commit(nil)
 	if err == nil {
-		s.data.Root = root
+		s.data.SetRoot(root)
 	}
 	return err
 }
@@ -289,9 +263,7 @@ func (s *stateObject) Balance() uint64 {
 	return s.data.Balance
 }
 
-// Value is never called, but must be present to allow stateObject to be used
-// as a vm.Account interface that also satisfies the vm.ContractRef
-// interface. Interfaces are awesome.
-func (s *stateObject) Value() int64 {
-	panic("Value on stateObject should never be called")
+// Data returns data.
+func (s *stateObject) Data() *Account {
+	return &s.data
 }
