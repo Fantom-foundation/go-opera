@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
@@ -26,6 +27,11 @@ func ExampleNode(t *testing.T) {
 	n := NewForTests("server.fake", store, consensus)
 	defer n.Shutdown()
 
+	peerInfoAsksChan := make(chan struct{})
+	peerInfoAsked = func() {
+		peerInfoAsksChan <- struct{}{}
+	}
+
 	n.StartServiceForTests()
 	defer n.StopService()
 
@@ -34,6 +40,13 @@ func ExampleNode(t *testing.T) {
 
 	n.StartGossip(4)
 	defer n.StopGossip()
+
+	// should make 1 fail call for n.AskPeerInfo
+	select {
+	case <-peerInfoAsksChan:
+	case <-time.After(time.Second):
+		t.Error("should ask peer info")
+	}
 }
 
 /*
