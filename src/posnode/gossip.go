@@ -82,7 +82,7 @@ func (n *Node) syncWithPeer() {
 	}
 
 	// Collect peers from each event
-	var peers map[hash.Peer]bool
+	peers := map[hash.Peer]bool{}
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
@@ -99,9 +99,12 @@ func (n *Node) syncWithPeer() {
 					return
 				}
 
-				// Add to store
+				// Add event to store
 				event := inter.WireToEvent(wireEvent)
 				n.store.SetEvent(event)
+
+				// Add hash to store
+				n.store.SetHash(&req, event.Hash())
 
 				id := hash.BytesToPeer(wireEvent.Creator)
 				peers[id] = false

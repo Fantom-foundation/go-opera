@@ -56,7 +56,7 @@ func (mr *MockNodeClientMockRecorder) SyncEvents(ctx, in interface{}, opts ...in
 }
 
 // GetEventByHash mocks base method
-func (m *MockNodeClient) GetEventByHash(ctx context.Context, in *EventByHashRequest, opts ...grpc.CallOption) (*wire.Event, error) {
+func (m *MockNodeClient) GetEventByHash(ctx context.Context, in *EventHash, opts ...grpc.CallOption) (*wire.Event, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
@@ -154,7 +154,7 @@ func (mr *MockNodeServerMockRecorder) SyncEvents(arg0, arg1 interface{}) *gomock
 }
 
 // GetEventByHash mocks base method
-func (m *MockNodeServer) GetEventByHash(arg0 context.Context, arg1 *EventByHashRequest) (*wire.Event, error) {
+func (m *MockNodeServer) GetEventByHash(arg0 context.Context, arg1 *EventHash) (*wire.Event, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByHash", arg0, arg1)
 	ret0, _ := ret[0].(*wire.Event)

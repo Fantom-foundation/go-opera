@@ -1,6 +1,8 @@
 package posnode
 
 import (
+	"strconv"
+
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
@@ -21,6 +23,7 @@ type Store struct {
 	peerHeights kvdb.Database
 
 	events kvdb.Database
+	hashes kvdb.Database
 }
 
 // NewMemStore creates store over memory map.
@@ -48,6 +51,7 @@ func (s *Store) init() {
 	s.peerHeights = kvdb.NewTable(s.physicalDB, "peer_height_")
 
 	s.events = kvdb.NewTable(s.physicalDB, "event_")
+	s.hashes = kvdb.NewTable(s.physicalDB, "hash_")
 }
 
 // Close leaves underlying database.
@@ -57,6 +61,7 @@ func (s *Store) Close() {
 	s.topPeers = nil
 	s.peers = nil
 	s.events = nil
+	s.hashes = nil
 	s.physicalDB.Close()
 }
 
@@ -66,13 +71,37 @@ func (s *Store) SetEvent(e *inter.Event) {
 }
 
 // GetEvent returns stored event.
-func (s *Store) GetEvent(h hash.Event) *inter.Event {
+func (s *Store) GetEvent(h *hash.Event) *inter.Event {
 	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
 	e := inter.WireToEvent(w)
 	if e != nil {
 		e.Hash() // fill cache
 	}
 	return e
+}
+
+// SetHash stores hash.
+func (s *Store) SetHash(key *api.EventRequest, hash hash.Event) {
+	eventHash := api.EventHash{}
+	eventHash.Hash = hash.Bytes()
+
+	bytes := []byte(key.PeerID + strconv.Itoa(int(key.Index)))
+
+	s.set(s.hashes, bytes, &eventHash)
+}
+
+// GetHash returns stored hash.
+func (s *Store) GetHash(key *api.EventRequest) *hash.Event {
+	bytes := []byte(key.PeerID + strconv.Itoa(int(key.Index)))
+
+	w, _ := s.get(s.hashes, bytes, &api.EventHash{}).(*api.EventHash)
+	if w == nil {
+		return nil
+	}
+
+	e := hash.BytesToEventHash(w.Hash)
+
+	return &e
 }
 
 // HasEvent returns true if event exists.
