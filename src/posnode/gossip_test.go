@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"crypto/ecdsa"
 	"strconv"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 func TestGossip(t *testing.T) {
 	assert := assert.New(t)
 
-	peers := generatePeers(2)
+	peers, keys := generatePeers(2)
 	events := inter.FakeFuzzingEvents()
 
 	// Node 1
@@ -31,7 +32,11 @@ func TestGossip(t *testing.T) {
 		}})
 
 	// Set base hash for event
+	events[0].Creator = peers[0].ID
 	node1.store.SetEventHash(peers[0].ID, 1, events[0].Hash())
+
+	// Sign event
+	sign(keys[0], events[0])
 
 	// Set base event
 	node1.store.SetEvent(events[0])
@@ -53,7 +58,11 @@ func TestGossip(t *testing.T) {
 		}})
 
 	// Set base hash for event
+	events[1].Creator = peers[1].ID
 	node2.store.SetEventHash(peers[1].ID, 1, events[1].Hash())
+
+	// Sign event
+	sign(keys[1], events[1])
 
 	// Set base event
 	node2.store.SetEvent(events[1])
@@ -85,8 +94,9 @@ func TestGossip(t *testing.T) {
 	assert.Equal(secondN1, secondN2, "second event from both nodes")
 }
 
-func generatePeers(count int) []*Peer {
+func generatePeers(count int) ([]*Peer, []*ecdsa.PrivateKey) {
 	var peers []*Peer
+	var keys []*ecdsa.PrivateKey
 
 	for i := 0; i < count; i++ {
 		key, _ := crypto.GenerateECDSAKey()
@@ -98,7 +108,22 @@ func generatePeers(count int) []*Peer {
 		}
 
 		peers = append(peers, peer)
+		keys = append(keys, key)
 	}
 
-	return peers
+	return peers, keys
+}
+
+func sign(priv *ecdsa.PrivateKey, event *inter.Event) error {
+	hash := event.Hash()
+
+	R, S, err := crypto.Sign(priv, hash.Bytes())
+	if err != nil {
+		return err
+	}
+
+	sig := crypto.EncodeSignature(R, S)
+	event.Sign = []byte(sig)
+
+	return err
 }
