@@ -2,11 +2,16 @@ package posnode
 
 import (
 	"crypto/ecdsa"
+	"time"
 
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+)
+
+const (
+	emitterTickInterval = time.Minute
 )
 
 // Node is a Lachesis node implementation.
@@ -22,6 +27,7 @@ type Node struct {
 	service
 	client
 	peers
+	emitter
 	gossip
 	discovery
 	logger
@@ -50,6 +56,7 @@ func (n *Node) Start() {
 	n.StartService()
 	n.StartDiscovery()
 	n.StartGossip(n.conf.GossipThreads)
+	n.StartEmit()
 }
 
 // Stop stops all node services.
@@ -57,6 +64,7 @@ func (n *Node) Stop() {
 	n.StopGossip()
 	n.StopDiscovery()
 	n.StopService()
+	n.StopEmit()
 }
 
 // CalcPeerID returns peer id from pub key.
@@ -67,4 +75,9 @@ func CalcPeerID(pub *ecdsa.PublicKey) hash.Peer {
 // CalcPeerInfoID returns peer id from pub key bytes.
 func CalcPeerInfoID(pub []byte) hash.Peer {
 	return hash.Peer(hash.Of(pub))
+}
+
+// ToPeer returns hash.Peer
+func (n *Node) ToPeer() hash.Peer {
+	return hash.Peer(hash.Of(common.FromECDSAPub(n.pub)))
 }

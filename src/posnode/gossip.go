@@ -67,7 +67,7 @@ func (n *Node) syncWithPeer() {
 	peer := n.NextForGossip()
 	if peer == nil {
 		n.log.Warn("no candidate for gossip")
-		select {} // for cpu rest
+		select {}
 		return
 	}
 	defer n.FreePeer(peer)
