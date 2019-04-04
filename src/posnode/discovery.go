@@ -70,7 +70,7 @@ func (n *Node) StopDiscovery() {
 // host because previous one request was failed.
 func (n *Node) CheckPeerIsKnown(source, id hash.Peer, host string) {
 	// Skip discovery if peer exists in storage.
-	peerInfo := n.store.GetPeerInfo(id)
+	peerInfo := n.store.GetWirePeer(id)
 	if peerInfo != nil {
 		return
 	}

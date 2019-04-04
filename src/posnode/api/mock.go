@@ -55,26 +55,6 @@ func (mr *MockNodeClientMockRecorder) SyncEvents(ctx, in interface{}, opts ...in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncEvents", reflect.TypeOf((*MockNodeClient)(nil).SyncEvents), varargs...)
 }
 
-// GetEventByHash mocks base method
-func (m *MockNodeClient) GetEventByHash(ctx context.Context, in *EventHash, opts ...grpc.CallOption) (*wire.Event, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, in}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetEventByHash", varargs...)
-	ret0, _ := ret[0].(*wire.Event)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetEventByHash indicates an expected call of GetEventByHash
-func (mr *MockNodeClientMockRecorder) GetEventByHash(ctx, in interface{}, opts ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByHash", reflect.TypeOf((*MockNodeClient)(nil).GetEventByHash), varargs...)
-}
-
 // GetEvent mocks base method
 func (m *MockNodeClient) GetEvent(ctx context.Context, in *EventRequest, opts ...grpc.CallOption) (*wire.Event, error) {
 	m.ctrl.T.Helper()
@@ -151,21 +131,6 @@ func (m *MockNodeServer) SyncEvents(arg0 context.Context, arg1 *KnownEvents) (*K
 func (mr *MockNodeServerMockRecorder) SyncEvents(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncEvents", reflect.TypeOf((*MockNodeServer)(nil).SyncEvents), arg0, arg1)
-}
-
-// GetEventByHash mocks base method
-func (m *MockNodeServer) GetEventByHash(arg0 context.Context, arg1 *EventHash) (*wire.Event, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventByHash", arg0, arg1)
-	ret0, _ := ret[0].(*wire.Event)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetEventByHash indicates an expected call of GetEventByHash
-func (mr *MockNodeServerMockRecorder) GetEventByHash(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByHash", reflect.TypeOf((*MockNodeServer)(nil).GetEventByHash), arg0, arg1)
 }
 
 // GetEvent mocks base method

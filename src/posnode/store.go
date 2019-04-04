@@ -1,8 +1,6 @@
 package posnode
 
 import (
-	"strconv"
-
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
@@ -70,37 +68,41 @@ func (s *Store) SetEvent(e *inter.Event) {
 	s.set(s.events, e.Hash().Bytes(), e.ToWire())
 }
 
-// GetEvent returns stored event.
-func (s *Store) GetEvent(h *hash.Event) *inter.Event {
+// GetWireEvent returns stored event.
+// Result is a ready gRPC message.
+func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
-	e := inter.WireToEvent(w)
-	if e != nil {
-		e.Hash() // fill cache
-	}
-	return e
+	return w
+}
+
+// GetEvent returns stored event.
+func (s *Store) GetEvent(h hash.Event) *inter.Event {
+	w := s.GetWireEvent(h)
+	return inter.WireToEvent(w)
 }
 
 // SetHash stores hash.
-func (s *Store) SetHash(key *api.EventRequest, hash hash.Event) {
-	eventHash := api.EventHash{}
-	eventHash.Hash = hash.Bytes()
+func (s *Store) SetEventHash(creator hash.Peer, index uint64, hash hash.Event) {
+	key := append(creator.Bytes(), intToBytes(index)...)
 
-	bytes := []byte(key.PeerID + strconv.Itoa(int(key.Index)))
-
-	s.set(s.hashes, bytes, &eventHash)
+	if err := s.hashes.Put(key, hash.Bytes()); err != nil {
+		panic(err)
+	}
 }
 
-// GetHash returns stored hash.
-func (s *Store) GetHash(key *api.EventRequest) *hash.Event {
-	bytes := []byte(key.PeerID + strconv.Itoa(int(key.Index)))
+// GetEventHash returns stored event hash.
+func (s *Store) GetEventHash(creator hash.Peer, index uint64) *hash.Event {
+	key := append(creator.Bytes(), intToBytes(index)...)
 
-	w, _ := s.get(s.hashes, bytes, &api.EventHash{}).(*api.EventHash)
-	if w == nil {
+	buf, err := s.hashes.Get(key)
+	if err != nil {
+		panic(err)
+	}
+	if buf == nil {
 		return nil
 	}
 
-	e := hash.BytesToEventHash(w.Hash)
-
+	e := hash.BytesToEventHash(buf)
 	return &e
 }
 
@@ -115,20 +117,16 @@ func (s *Store) SetPeer(peer *Peer) {
 	s.set(s.peers, peer.ID.Bytes(), w)
 }
 
-// GetPeerInfo returns stored peer info.
+// GetWirePeer returns stored peer info.
 // Result is a ready gRPC message.
-func (s *Store) GetPeerInfo(id hash.Peer) *api.PeerInfo {
+func (s *Store) GetWirePeer(id hash.Peer) *api.PeerInfo {
 	w, _ := s.get(s.peers, id.Bytes(), &api.PeerInfo{}).(*api.PeerInfo)
 	return w
 }
 
 // GetPeer returns stored peer.
 func (s *Store) GetPeer(id hash.Peer) *Peer {
-	w := s.GetPeerInfo(id)
-	if w == nil {
-		return nil
-	}
-
+	w := s.GetWirePeer(id)
 	return WireToPeer(w)
 }
 

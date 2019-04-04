@@ -2,7 +2,6 @@ package posnode
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -88,35 +87,31 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 
 // GetEvent returns requested event.
 func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event, error) {
-	hash := n.store.GetHash(req)
-	if hash == nil {
-		return nil, errors.New(fmt.Sprintf("Error: hash not found. PeerID: %s, Index: %d", req.PeerID, req.Index))
+	var eventHash hash.Event
+
+	if req.Hash != nil {
+		eventHash.SetBytes(req.Hash)
+	} else {
+		creator := hash.HexToPeer(req.PeerID)
+		h := n.store.GetEventHash(creator, req.Index)
+		if h == nil {
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("event not found: %s-%d", req.PeerID, req.Index))
+		}
+		eventHash = *h
 	}
 
-	event := n.store.GetEvent(hash)
+	event := n.store.GetWireEvent(eventHash)
 	if event == nil {
-		return nil, errors.New(fmt.Sprintf("Error: event not found. PeerID: %s, Index: %d", req.PeerID, req.Index))
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("event not found: %s", eventHash.Hex()))
 	}
 
-	w := event.ToWire()
-
-	return w, nil
-}
-
-// GetEventByHash returns requested event by hash.
-func (n *Node) GetEventByHash(ctx context.Context, req *api.EventHash) (*wire.Event, error) {
-	eventHash := hash.BytesToEventHash(req.Hash)
-
-	event := n.store.GetEvent(&eventHash)
-	w := event.ToWire()
-
-	return w, nil
+	return event, nil
 }
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.PeerInfo, error) {
 	id := hash.HexToPeer(req.PeerID)
-	peerInfo := n.store.GetPeerInfo(id)
+	peerInfo := n.store.GetWirePeer(id)
 	// peerInfo == nil means that peer not found
 	// by given id
 	if peerInfo == nil {

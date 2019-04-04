@@ -31,11 +31,7 @@ func TestGossip(t *testing.T) {
 		}})
 
 	// Set base hash for event
-	key1 := api.EventRequest{
-		PeerID: peers[0].ID.Hex(),
-		Index: 1,
-	}
-	node1.store.SetHash(&key1, events[0].Hash())
+	node1.store.SetEventHash(peers[0].ID, 1, events[0].Hash())
 
 	// Set base event
 	node1.store.SetEvent(events[0])
@@ -57,12 +53,8 @@ func TestGossip(t *testing.T) {
 		}})
 
 	// Set base hash for event
-	key2 := api.EventRequest{
-		PeerID: peers[1].ID.Hex(),
-		Index: 1,
-	}
-	node2.store.SetHash(&key2, events[1].Hash())
-	
+	node2.store.SetEventHash(peers[1].ID, 1, events[1].Hash())
+
 	// Set base event
 	node2.store.SetEvent(events[1])
 
@@ -81,14 +73,14 @@ func TestGossip(t *testing.T) {
 
 	// check events
 	hash1 := events[0].Hash()
-	firstN1 := node1.store.GetEvent(&hash1)
-	firstN2 := node2.store.GetEvent(&hash1)
+	firstN1 := node1.store.GetEvent(hash1)
+	firstN2 := node2.store.GetEvent(hash1)
 
 	assert.Equal(firstN1, firstN2, "first event from both nodes")
 
 	hash2 := events[1].Hash()
-	secondN1 := node1.store.GetEvent(&hash2)
-	secondN2 := node2.store.GetEvent(&hash2)
+	secondN1 := node1.store.GetEvent(hash2)
+	secondN2 := node2.store.GetEvent(hash2)
 
 	assert.Equal(secondN1, secondN2, "second event from both nodes")
 }

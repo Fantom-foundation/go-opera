@@ -26,6 +26,9 @@ func (p *Peer) ToWire() *api.PeerInfo {
 
 // WireToPeer converts from protobuf message.
 func WireToPeer(w *api.PeerInfo) *Peer {
+	if w == nil {
+		return nil
+	}
 	return &Peer{
 		ID:     hash.HexToPeer(w.ID),
 		PubKey: common.ToECDSAPub(w.PubKey),

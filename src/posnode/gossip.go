@@ -93,24 +93,22 @@ func (n *Node) syncWithPeer() {
 				req.PeerID = pID
 				req.Index = i
 
-				wireEvent, err := client.GetEvent(context.Background(), &req)
+				w, err := client.GetEvent(context.Background(), &req)
 				if err != nil {
 					n.log.Warn(err)
-					return
+					continue
 				}
 
-				// Add event to store
-				event := inter.WireToEvent(wireEvent)
+				event := inter.WireToEvent(w)
+				// TODO: check event sign
+
+				// add event to store
 				n.store.SetEvent(event)
+				n.store.SetEventHash(event.Creator, event.Index, event.Hash())
 
-				// Add hash to store
-				n.store.SetHash(&req, event.Hash())
-
-				id := hash.BytesToPeer(wireEvent.Creator)
-				peers[id] = false
+				peers[event.Creator] = false
+				knownHeights.Lasts[pID] = i
 			}
-
-			knownHeights.Lasts[pID] = height
 		}
 	}
 
