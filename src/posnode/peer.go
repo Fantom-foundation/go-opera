@@ -2,7 +2,6 @@ package posnode
 
 import (
 	"crypto/ecdsa"
-	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -57,35 +56,4 @@ func WireToIDs(w *api.PeersID) []hash.Peer {
 	}
 
 	return res
-}
-
-// Connected is a representation of node address collection.
-type Connected struct {
-	mx sync.RWMutex
-	m  map[hash.Peer]bool
-}
-
-// NewConnected create new Connected struct
-func NewConnected() *Connected {
-	return &Connected{
-		m: make(map[hash.Peer]bool),
-	}
-}
-
-// Load value about connected status by address
-func (c *Connected) Load(key hash.Peer) bool {
-	c.mx.RLock()
-	defer c.mx.RUnlock()
-
-	val, _ := c.m[key]
-
-	return val
-}
-
-// Store value about connected status by address
-func (c *Connected) Store(key hash.Peer, value bool) {
-	c.mx.Lock()
-	defer c.mx.Unlock()
-
-	c.m[key] = value
 }

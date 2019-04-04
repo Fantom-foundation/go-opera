@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -81,7 +82,7 @@ func (n *Node) syncWithPeer() {
 	}
 
 	// Collect peers from each event
-	var peers map[hash.Peer]bool
+	peers := map[hash.Peer]bool{}
 
 	// Get unknown events by heights
 	for pID, height := range unknownHeights.Lasts {
@@ -92,13 +93,20 @@ func (n *Node) syncWithPeer() {
 				req.PeerID = pID
 				req.Index = i
 
-				event, err := client.GetEvent(context.Background(), &req)
+				wireEvent, err := client.GetEvent(context.Background(), &req)
 				if err != nil {
 					n.log.Warn(err)
 					return
 				}
 
-				id := hash.BytesToPeer(event.Creator)
+				// Add event to store
+				event := inter.WireToEvent(wireEvent)
+				n.store.SetEvent(event)
+
+				// Add hash to store
+				n.store.SetHash(&req, event.Hash())
+
+				id := hash.BytesToPeer(wireEvent.Creator)
 				peers[id] = false
 			}
 

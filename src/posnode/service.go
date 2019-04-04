@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -82,15 +83,34 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 		}
 	}
 
-	n.store_SetHeights(knownHeights)
-
 	return &api.KnownEvents{Lasts: result}, nil
 }
 
 // GetEvent returns requested event.
 func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event, error) {
-	// TODO: implement it
-	return nil, nil
+	hash := n.store.GetHash(req)
+	if hash == nil {
+		return nil, errors.New(fmt.Sprintf("Error: hash not found. PeerID: %s, Index: %d", req.PeerID, req.Index))
+	}
+
+	event := n.store.GetEvent(hash)
+	if event == nil {
+		return nil, errors.New(fmt.Sprintf("Error: event not found. PeerID: %s, Index: %d", req.PeerID, req.Index))
+	}
+
+	w := event.ToWire()
+
+	return w, nil
+}
+
+// GetEventByHash returns requested event by hash.
+func (n *Node) GetEventByHash(ctx context.Context, req *api.EventHash) (*wire.Event, error) {
+	eventHash := hash.BytesToEventHash(req.Hash)
+
+	event := n.store.GetEvent(&eventHash)
+	w := event.ToWire()
+
+	return w, nil
 }
 
 // GetPeerInfo returns requested peer info.

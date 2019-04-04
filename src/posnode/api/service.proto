@@ -5,6 +5,7 @@ import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/event.proto";
 
 service Node {
     rpc SyncEvents(KnownEvents) returns (KnownEvents) {}
+    rpc GetEventByHash(EventHash) returns (wire.Event) {}
     rpc GetEvent(EventRequest) returns (wire.Event) {}
     rpc GetPeerInfo(PeerRequest) returns (PeerInfo) {}
 }
@@ -17,6 +18,10 @@ message KnownEvents {
 message EventRequest {
     string PeerID = 1;
     uint64 Index = 2;
+}
+
+message EventHash {
+    bytes Hash = 1;
 }
 
 message PeerRequest {

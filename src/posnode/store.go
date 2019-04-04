@@ -1,10 +1,14 @@
 package posnode
 
 import (
+	"strconv"
+
 	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
@@ -17,6 +21,9 @@ type Store struct {
 	topPeers    kvdb.Database
 	knownPeers  kvdb.Database
 	peerHeights kvdb.Database
+
+	events kvdb.Database
+	hashes kvdb.Database
 }
 
 // NewMemStore creates store over memory map.
@@ -42,6 +49,9 @@ func (s *Store) init() {
 	s.topPeers = kvdb.NewTable(s.physicalDB, "top_peers_")
 	s.knownPeers = kvdb.NewTable(s.physicalDB, "known_peers_")
 	s.peerHeights = kvdb.NewTable(s.physicalDB, "peer_height_")
+
+	s.events = kvdb.NewTable(s.physicalDB, "event_")
+	s.hashes = kvdb.NewTable(s.physicalDB, "hash_")
 }
 
 // Close leaves underlying database.
@@ -50,7 +60,53 @@ func (s *Store) Close() {
 	s.knownPeers = nil
 	s.topPeers = nil
 	s.peers = nil
+	s.events = nil
+	s.hashes = nil
 	s.physicalDB.Close()
+}
+
+// SetEvent stores event.
+func (s *Store) SetEvent(e *inter.Event) {
+	s.set(s.events, e.Hash().Bytes(), e.ToWire())
+}
+
+// GetEvent returns stored event.
+func (s *Store) GetEvent(h *hash.Event) *inter.Event {
+	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	e := inter.WireToEvent(w)
+	if e != nil {
+		e.Hash() // fill cache
+	}
+	return e
+}
+
+// SetHash stores hash.
+func (s *Store) SetHash(key *api.EventRequest, hash hash.Event) {
+	eventHash := api.EventHash{}
+	eventHash.Hash = hash.Bytes()
+
+	bytes := []byte(key.PeerID + strconv.Itoa(int(key.Index)))
+
+	s.set(s.hashes, bytes, &eventHash)
+}
+
+// GetHash returns stored hash.
+func (s *Store) GetHash(key *api.EventRequest) *hash.Event {
+	bytes := []byte(key.PeerID + strconv.Itoa(int(key.Index)))
+
+	w, _ := s.get(s.hashes, bytes, &api.EventHash{}).(*api.EventHash)
+	if w == nil {
+		return nil
+	}
+
+	e := hash.BytesToEventHash(w.Hash)
+
+	return &e
+}
+
+// HasEvent returns true if event exists.
+func (s *Store) HasEvent(h hash.Event) bool {
+	return s.has(s.events, h.Bytes())
 }
 
 // SetPeer stores peer.
