@@ -93,7 +93,21 @@ func (n *Node) syncWithPeer() {
 				req.PeerID = pID
 				req.Index = i
 
+				key := pID + string(i)
+
+				// Check event in queue before call GetEvent
+				if alreadyExist := n.checkQueue(key); alreadyExist {
+					continue
+				}
+
+				// Add record about event to queue before get it
+				n.addToQueue(key)
+
 				w, err := client.GetEvent(context.Background(), &req)
+
+				// Delete record about event from queue even if we get error
+				n.deleteFromQueue(key)
+
 				if err != nil {
 					n.log.Warn(err)
 					return
@@ -101,21 +115,12 @@ func (n *Node) syncWithPeer() {
 
 				event := inter.WireToEvent(w)
 
-				// Check event sign
-				peer := n.store.GetPeer(event.Creator)
-				if peer == nil {
+				if ok := n.processEvent(event); !ok {
 					return
 				}
-
-				isValid := event.Verify(peer.PubKey)
-				if !isValid {
-					return
-				}
-
-				// add event to store
-				n.store.SetEvent(event)
-				n.store.SetEventHash(event.Creator, event.Index, event.Hash())
-
+				
+				n.checkParents(client, event.Parents)
+				
 				peers[event.Creator] = false
 				knownHeights.Lasts[pID] = i
 			}
@@ -128,6 +133,60 @@ func (n *Node) syncWithPeer() {
 	for p := range peers {
 		n.CheckPeerIsKnown(peer.ID, p, peer.Host)
 	}
+}
+
+func (n *Node) checkParents(client api.NodeClient, parents hash.Events) {
+	for p := range parents {
+
+		// Check parent in store
+		if event := n.store.GetEvent(p); event == nil {
+
+			// Check event in queue before call GetEvent
+			if alreadyExist := n.checkParentQueue(p); alreadyExist {
+				continue
+			}
+
+			// Add record about event to queue before get it
+			n.addParentToQueue(p)
+
+			var req api.EventRequest
+			req.Hash = p.Bytes()
+
+			w, err := client.GetEvent(context.Background(), &req)
+
+			// Delete record about event from queue even if we get error
+			n.deleteParentFromQueue(p)
+
+			if err != nil {
+				n.log.Warn(err)
+				return
+			}
+
+			event := inter.WireToEvent(w)
+
+			n.processEvent(event)
+		}
+	}
+}
+
+// Check sign & add to store
+func (n *Node) processEvent(event *inter.Event) bool {
+	// Check event sign
+	peer := n.store.GetPeer(event.Creator)
+	if peer == nil {
+		return false
+	}
+
+	isValid := event.Verify(peer.PubKey)
+	if !isValid {
+		return false
+	}
+
+	// Add event to store
+	n.store.SetEvent(event)
+	n.store.SetEventHash(event.Creator, event.Index, event.Hash())
+
+	return true
 }
 
 // NOTE: temporary decision

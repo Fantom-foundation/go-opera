@@ -28,6 +28,8 @@ type Node struct {
 	gossip
 	discovery
 	logger
+	queue
+	parentQueue
 }
 
 // New creates node.
@@ -48,8 +50,10 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 			},
 		},
 
-		peers:  initPeers(s),
-		logger: newLogger(host),
+		peers:       initPeers(s),
+		logger:      newLogger(host),
+		queue:       initQueue(),
+		parentQueue: initParentQueue(),
 	}
 
 	// Add self into peers store
