@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
@@ -103,7 +102,12 @@ func (n *Node) syncWithPeer() {
 				event := inter.WireToEvent(w)
 
 				// Check event sign
-				isValid := n.verify(event)
+				peer := n.store.GetPeer(event.Creator)
+				if peer == nil {
+					return
+				}
+
+				isValid := event.Verify(peer.PubKey)
 				if !isValid {
 					return
 				}
@@ -124,19 +128,6 @@ func (n *Node) syncWithPeer() {
 	for p := range peers {
 		n.CheckPeerIsKnown(peer.ID, p, peer.Host)
 	}
-}
-
-func (n *Node) verify(event *inter.Event) bool {
-	peer := n.store.GetPeer(event.Creator)
-	if peer == nil {
-		return false
-	}
-
-	hash := event.Hash()
-
-	r, s, _ := crypto.DecodeSignature(string(event.Sign[:len(event.Sign)]))
-
-	return crypto.Verify(peer.PubKey, hash.Bytes(), r, s)
 }
 
 // NOTE: temporary decision

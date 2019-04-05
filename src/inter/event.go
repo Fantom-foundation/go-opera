@@ -1,10 +1,12 @@
 package inter
 
 import (
+	"crypto/ecdsa"
 	"fmt"
-
+	
 	"github.com/golang/protobuf/proto"
-
+	
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
@@ -24,6 +26,14 @@ type Event struct {
 	Sign                 []byte
 
 	hash hash.Event // cache for .Hash()
+}
+
+// Verify sign event
+func (e *Event) Verify(pubKey *ecdsa.PublicKey) bool {
+	hash := e.Hash()
+	r, s, _ := crypto.DecodeSignature(string(e.Sign))
+
+	return crypto.Verify(pubKey, hash.Bytes(), r, s)
 }
 
 // Hash calcs hash of event.
