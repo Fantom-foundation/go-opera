@@ -2,8 +2,6 @@ package api
 
 import (
 	"context"
-	"math"
-	"net"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -16,52 +14,43 @@ import (
 func TestGRPC(t *testing.T) {
 
 	t.Run("over TCP", func(t *testing.T) {
-		listener := network.TcpListener("")
-		testGRPC(t, listener)
+		testGRPC(t, "", false)
 	})
 
 	t.Run("over Fake", func(t *testing.T) {
-		listener := network.FakeListener("server.fake:55555")
 		dialer := network.FakeDialer("client.fake")
-		testGRPC(t, listener, grpc.WithContextDialer(dialer))
+		testGRPC(t, "server.fake:55555", true, grpc.WithContextDialer(dialer))
 	})
 }
 
-func testGRPC(t *testing.T, listener net.Listener, opts ...grpc.DialOption) {
+func testGRPC(t *testing.T, bind string, fake bool, opts ...grpc.DialOption) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	// service mock
-	srv := NewMockNodeServer(ctrl)
-	srv.EXPECT().
+	svc := NewMockNodeServer(ctrl)
+	svc.EXPECT().
 		SyncEvents(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, req *KnownEvents) (*KnownEvents, error) {
 			t.Logf("connection from '%s' host", GrpcPeerHost(ctx))
 			return &KnownEvents{}, nil
 		}).
 		Times(1)
-	srv.EXPECT().
+	svc.EXPECT().
 		GetEvent(gomock.Any(), gomock.Any()).
 		Return(&wire.Event{}, nil).
 		Times(1)
-	srv.EXPECT().
+	svc.EXPECT().
 		GetPeerInfo(gomock.Any(), gomock.Any()).
 		Return(&PeerInfo{}, nil).
 		Times(1)
 
 	// grpc server
-	server := grpc.NewServer(
-		grpc.MaxRecvMsgSize(math.MaxInt32),
-		grpc.MaxSendMsgSize(math.MaxInt32))
-	RegisterNodeServer(server, srv)
-
-	go server.Serve(listener)
+	server, addr := StartService(bind, svc, t.Logf, fake)
 	defer server.Stop()
 
 	// grpc client
-	netAddr := listener.Addr().String()
-	t.Logf("listen at '%s'", netAddr)
-	conn, err := grpc.DialContext(context.Background(), netAddr, append(opts, grpc.WithInsecure())...)
+	conn, err := grpc.DialContext(context.Background(), addr, append(opts, grpc.WithInsecure())...)
 	if err != nil {
 		t.Fatal(err)
 	}

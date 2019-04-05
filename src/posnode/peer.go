@@ -2,18 +2,29 @@ package posnode
 
 import (
 	"crypto/ecdsa"
+	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
-// Peer is a representation of other node.
-type Peer struct {
-	ID     hash.Peer
-	PubKey *ecdsa.PublicKey
-	Host   string
-}
+type (
+	// Peer is a representation of other node.
+	Peer struct {
+		ID     hash.Peer
+		PubKey *ecdsa.PublicKey
+		Host   string
+	}
+
+	// peerAttrs contains temporary attributes of peer.
+	peerAttrs struct {
+		Busy        bool
+		LastSuccess time.Time
+		LastFail    time.Time
+		LastHost    string
+	}
+)
 
 // ToWire converts to protobuf message.
 func (p *Peer) ToWire() *api.PeerInfo {
@@ -36,6 +47,7 @@ func WireToPeer(w *api.PeerInfo) *Peer {
 	}
 }
 
+// IDsToWire converts to protobuf message.
 func IDsToWire(ids []hash.Peer) *api.PeersID {
 	w := &api.PeersID{
 		IDs: make([]string, len(ids)),
@@ -48,6 +60,7 @@ func IDsToWire(ids []hash.Peer) *api.PeersID {
 	return w
 }
 
+// WireToIDs converts from protobuf message.
 func WireToIDs(w *api.PeersID) []hash.Peer {
 	if w == nil {
 		return nil

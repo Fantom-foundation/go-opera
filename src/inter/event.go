@@ -3,9 +3,9 @@ package inter
 import (
 	"crypto/ecdsa"
 	"fmt"
-	
+
 	"github.com/golang/protobuf/proto"
-	
+
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
@@ -23,15 +23,39 @@ type Event struct {
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions [][]byte
-	Sign                 []byte
+	Sign                 string
 
 	hash hash.Event // cache for .Hash()
 }
 
-// Verify sign event
-func (e *Event) Verify(pubKey *ecdsa.PublicKey) bool {
+// SignBy signs event by private key.
+func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
 	hash := e.Hash()
-	r, s, _ := crypto.DecodeSignature(string(e.Sign))
+
+	R, S, err := crypto.Sign(priv, hash.Bytes())
+	if err != nil {
+		return err
+	}
+
+	e.Sign = crypto.EncodeSignature(R, S)
+	return nil
+}
+
+// Verify sign event by public key.
+func (e *Event) Verify(pubKey *ecdsa.PublicKey) bool {
+	if pubKey == nil {
+		panic("cann't verify")
+	}
+
+	if e.Sign == "" {
+		return false
+	}
+
+	hash := e.Hash()
+	r, s, err := crypto.DecodeSignature(string(e.Sign))
+	if err != nil {
+		panic(err)
+	}
 
 	return crypto.Verify(pubKey, hash.Bytes(), r, s)
 }
@@ -85,7 +109,7 @@ func WireToEvent(w *wire.Event) *Event {
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) hash.Event {
 	w := e.ToWire()
-	w.Sign = nil
+	w.Sign = ""
 	buf, err := proto.Marshal(w)
 	if err != nil {
 		panic(err)

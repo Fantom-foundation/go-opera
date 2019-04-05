@@ -26,18 +26,15 @@ type client struct {
 }
 
 // ConnectTo connects to other node service.
-func (n *Node) ConnectTo(ctx context.Context, host string) (api.NodeClient, error) {
-	var (
-		conn *grpc.ClientConn
-		err  error
-	)
+func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, error) {
+	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
 
-	addr := n.NetAddrOf(host)
+	addr := n.NetAddrOf(peer.Host)
 	n.log.Debugf("connect to %s", addr)
 	// TODO: secure connection
-	conn, err = grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure())...)
+	conn, err := grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure())...)
 	if err != nil {
-		n.log.Error(errors.Wrapf(err, "connect to: %s", addr))
+		n.log.Warn(errors.Wrapf(err, "connect to: %s", addr))
 		return nil, err
 	}
 

@@ -13,5 +13,5 @@ message Event {
   uint64 LamportTime = 4;
   repeated InternalTransaction InternalTransactions = 5;
   repeated bytes ExternalTransactions = 6;
-  bytes Sign = 7;
+  string Sign = 7;
 }
