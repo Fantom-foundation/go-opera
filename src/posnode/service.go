@@ -3,18 +3,15 @@ package posnode
 import (
 	"context"
 	"fmt"
-	"math"
-	"net"
-	"strconv"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
 type service struct {
@@ -22,67 +19,44 @@ type service struct {
 }
 
 // StartService starts node service.
-// It should be called once.
 func (n *Node) StartService() {
-	bind := net.JoinHostPort(n.host, strconv.Itoa(n.conf.Port))
-	listener := network.TcpListener(bind)
-	n.startService(listener)
-}
+	if n.server != nil {
+		return
+	}
+	bind := n.NetAddrOf(n.host)
+	n.server, _ = api.StartService(bind, n, n.log.Infof, false)
 
-func (n *Node) startService(listener net.Listener) {
-	n.server = grpc.NewServer(
-		grpc.MaxRecvMsgSize(math.MaxInt32),
-		grpc.MaxSendMsgSize(math.MaxInt32))
-	api.RegisterNodeServer(n.server, n)
-
-	n.log.Infof("service start at %v", listener.Addr())
-	go func() {
-		if err := n.server.Serve(listener); err != nil {
-			n.log.Infof("service stop (%v)", err)
-		}
-	}()
 }
 
 // StopService stops node service.
-// It should be called once.
 func (n *Node) StopService() {
+	if n.server == nil {
+		return
+	}
 	n.server.GracefulStop()
+	n.server = nil
 }
 
 /*
  * api.NodeServer implementation:
  */
 
-// SyncEvents it remember their known events for future request
-// and returns unknown for they events.
+// SyncEvents returns their known event heights excluding heights from request.
 func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.KnownEvents, error) {
-	knownHeights := n.store_GetHeights()
+	known := n.knownEvents()
+	diff := PeersHeightsDiff(known.Lasts, req.Lasts)
 
-	result := map[string]uint64{}
+	// TODO: should we remember other node's knowns for future request?
+	// to_download := PeersHeightsDiff(req.Lasts, known)
 
-	// Collect data about known peer from another node & add unknown peer to store
-	for pID, height := range req.Lasts {
-		// Check data about known peer
-		if knownValue, ok := (*knownHeights).Lasts[pID]; ok {
-			if knownValue > height {
-				result[pID] = knownValue
-			} else if knownValue < height { // if equal -> do nothing
-				(*knownHeights).Lasts[pID] = height
-			}
-		} else {
-			// if unknown peer -> add to store
-			(*knownHeights).Lasts[pID] = height
-		}
-	}
+	// TODO: should we CheckPeerIsKnown() ?
+	/*for id := range req.Lasts {
+		source := ?
+		host := api.GrpcPeerHost(ctx)
+		n.CheckPeerIsKnown(source, id, host)
+	}*/
 
-	// Collect unknown peers for another node
-	for pID, height := range (*knownHeights).Lasts {
-		if _, ok := req.Lasts[pID]; !ok {
-			result[pID] = height
-		}
-	}
-
-	return &api.KnownEvents{Lasts: result}, nil
+	return &api.KnownEvents{Lasts: diff}, nil
 }
 
 // GetEvent returns requested event.
@@ -110,13 +84,39 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.PeerInfo, error) {
+	if req.PeerID == "" {
+		// it is a simple ping
+		return nil, nil
+	}
 	id := hash.HexToPeer(req.PeerID)
-	peerInfo := n.store.GetWirePeer(id)
-	// peerInfo == nil means that peer not found
-	// by given id
-	if peerInfo == nil {
+
+	if id == n.ID { // self
+		return &api.PeerInfo{
+			ID:     n.ID.Hex(),
+			PubKey: common.FromECDSAPub(n.pub),
+			Host:   n.host,
+		}, nil
+	}
+
+	info := n.store.GetWirePeer(id)
+	if info == nil {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("peer not found: %s", req.PeerID))
 	}
 
-	return peerInfo, nil
+	return info, nil
+}
+
+/*
+ * Utils:
+ */
+
+// PeersHeightsDiff returns all heights excluding excepts.
+func PeersHeightsDiff(all, excepts map[string]uint64) (res map[string]uint64) {
+	res = make(map[string]uint64, len(all))
+	for id, h0 := range all {
+		if h1, ok := excepts[id]; !ok || h1 < h0 {
+			res[id] = h0
+		}
+	}
+	return
 }

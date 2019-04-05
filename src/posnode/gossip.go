@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -11,22 +12,28 @@ import (
 
 // gossip is a pool of gossiping processes.
 type gossip struct {
-	Tickets chan struct{}
-	Sync    sync.Mutex
+	tickets chan struct{}
+
+	sync.Mutex
 }
 
 func (g *gossip) addTicket() {
-	g.Sync.Lock()
-	defer g.Sync.Unlock()
-	if g.Tickets != nil {
-		g.Tickets <- struct{}{}
+	g.Lock()
+	defer g.Unlock()
+	if g.tickets != nil {
+		g.tickets <- struct{}{}
 	}
 }
 
 // StartGossip starts gossiping.
-// It should be called once.
 func (n *Node) StartGossip(threads int) {
-	n.gossip.Tickets = make(chan struct{}, threads)
+	if n.gossip.tickets != nil {
+		return
+	}
+
+	n.initPeers()
+
+	n.gossip.tickets = make(chan struct{}, threads)
 	for i := 0; i < threads; i++ {
 		n.gossip.addTicket()
 	}
@@ -35,17 +42,16 @@ func (n *Node) StartGossip(threads int) {
 }
 
 // StopGossip stops gossiping.
-// It should be called once.
 func (n *Node) StopGossip() {
-	n.gossip.Sync.Lock()
-	defer n.gossip.Sync.Unlock()
-	close(n.gossip.Tickets)
-	n.gossip.Tickets = nil
+	n.gossip.Lock()
+	defer n.gossip.Unlock()
+	close(n.gossip.tickets)
+	n.gossip.tickets = nil
 }
 
 // gossiping is a infinity gossip process.
 func (n *Node) gossiping() {
-	for range n.gossip.Tickets {
+	for range n.gossip.tickets {
 		go func() {
 			defer n.gossip.addTicket()
 			n.syncWithPeer()
@@ -57,93 +63,87 @@ func (n *Node) syncWithPeer() {
 	peer := n.NextForGossip()
 	if peer == nil {
 		n.log.Warn("no candidate for gossip")
-		// TODO: wait for timeout here
+		select {} // for cpu rest
 		return
 	}
 	defer n.FreePeer(peer)
 
-	// Connect
+	client, err := n.ConnectTo(peer)
+	if err != nil {
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
 	defer cancel()
 
-	client, err := n.ConnectTo(ctx, peer.Host)
+	knownHeights := n.knownEvents()
+	unknownHeights, err := client.SyncEvents(ctx, knownHeights)
 	if err != nil {
-		n.log.Warn(err)
+		n.ConnectFail(peer, err)
 		return
 	}
+	n.ConnectOK(peer)
 
-	knownHeights := n.store_GetHeights()
+	peers2discovery := make(map[hash.Peer]struct{})
 
-	// Send known heights -> get unknown
-	unknownHeights, err := client.SyncEvents(context.Background(), &api.KnownEvents{Lasts: knownHeights.Lasts})
-	if err != nil {
-		n.log.Warn(err)
-		return
-	}
+	for hex, height := range unknownHeights.Lasts {
+		req := &api.EventRequest{
+			PeerID: hex,
+		}
+		creator := hash.HexToPeer(hex)
+		last := n.store.GetPeerHeight(creator)
+		for i := last + 1; i <= height; i++ {
+			req.Index = i
 
-	// Collect peers from each event
-	peers := map[hash.Peer]bool{}
-
-	// Get unknown events by heights
-	for pID, height := range unknownHeights.Lasts {
-		if knownHeights.Lasts[pID] < height {
-			for i := knownHeights.Lasts[pID] + 1; i <= height; i++ {
-
-				var req api.EventRequest
-				req.PeerID = pID
-				req.Index = i
-
-				w, err := client.GetEvent(context.Background(), &req)
-				if err != nil {
-					n.log.Warn(err)
-					continue
-				}
-
-				event := inter.WireToEvent(w)
-				// TODO: check event sign
-
-				// add event to store
-				n.store.SetEvent(event)
-				n.store.SetEventHash(event.Creator, event.Index, event.Hash())
-
-				peers[event.Creator] = false
-				knownHeights.Lasts[pID] = i
+			ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+			w, err := client.GetEvent(ctx, req)
+			cancel()
+			if err != nil {
+				n.ConnectFail(peer, err)
+				return
 			}
+
+			event := inter.WireToEvent(w)
+			// TODO: check event sign
+			if event.Creator != creator || event.Index != i {
+				n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
+				return
+			}
+			n.SaveNewEvent(event)
+			peers2discovery[creator] = struct{}{}
 		}
 	}
+	n.ConnectOK(peer)
 
-	n.store_SetHeights(knownHeights)
-
-	// Check peers from events
-	for p := range peers {
-		n.CheckPeerIsKnown(peer.ID, p, peer.Host)
+	// check peers from events
+	for p := range peers2discovery {
+		n.CheckPeerIsKnown(peer.ID, peer.Host, p)
 	}
 }
 
-// NOTE: temporary decision
-func (n *Node) store_GetHeights() *api.KnownEvents {
+// SaveNewEvent writes event to store and indexes.
+// Note: event should be last from its creator.
+func (n *Node) SaveNewEvent(e *inter.Event) {
+	n.store.SetEvent(e)
+	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
+	n.store.SetPeerHeight(e.Creator, e.Index)
+}
+
+// knownEventsReq makes request struct with event heights of top peers.
+func (n *Node) knownEvents() *api.KnownEvents {
+	peers := n.peers.Snapshot()
+	peers = append(peers, n.ID)
+
 	res := &api.KnownEvents{
-		Lasts: make(map[string]uint64),
+		Lasts: make(map[string]uint64, len(peers)),
 	}
 
-	for _, id := range n.store.GetKnownPeers() {
+	for _, id := range peers {
 		h := n.store.GetPeerHeight(id)
 		res.Lasts[id.Hex()] = h
 	}
 
 	return res
-}
-
-// NOTE: temporary decision
-func (n *Node) store_SetHeights(w *api.KnownEvents) {
-	ids := make([]hash.Peer, 0)
-
-	for str, h := range w.Lasts {
-		id := hash.HexToPeer(str)
-		ids = append(ids, id)
-		n.store.SetPeerHeight(id, h)
-	}
-	n.store.SetKnownPeers(ids)
 }
 
 /*
@@ -165,13 +165,22 @@ func (n *gossipEvaluation) Swap(i, j int) {
 
 // Less reports whether the element with
 // index i should sort before the element with index j.
+// TODO: test it
 func (n *gossipEvaluation) Less(i, j int) bool {
-	a := n.store.GetPeer(n.peers.top[i])
-	b := n.store.GetPeer(n.peers.top[j])
-	if a == nil || b == nil {
-		panic("unsaved peer detected in node peers")
+	a := n.peers.attrOf(n.peers.top[i])
+	b := n.peers.attrOf(n.peers.top[j])
+
+	if a.LastSuccess.After(a.LastFail) && !b.LastSuccess.After(b.LastFail) {
+		return true
 	}
 
-	// TODO: implement a vs b comparing
+	if a.LastSuccess.Before(b.LastSuccess) {
+		return true
+	}
+
+	if a.LastFail.After(b.LastFail) {
+		return true
+	}
+
 	return false
 }

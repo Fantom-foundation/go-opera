@@ -1,9 +1,11 @@
 package posnode
 
 import (
+	"net"
 	"strconv"
 )
 
+// Config is a set of nodes params.
 type Config struct {
 	// count of event's parents (includes self-parent)
 	EventParentsCount int
@@ -11,6 +13,7 @@ type Config struct {
 	Port int
 }
 
+// DefaultConfig returns default config.
 func DefaultConfig() *Config {
 	return &Config{
 		EventParentsCount: 3,
@@ -18,6 +21,8 @@ func DefaultConfig() *Config {
 	}
 }
 
+// NetAddrOf makes listen address from host and configured port.
 func (n *Node) NetAddrOf(host string) string {
-	return host + ":" + strconv.Itoa(n.conf.Port)
+	port := strconv.Itoa(n.conf.Port)
+	return net.JoinHostPort(host, port)
 }

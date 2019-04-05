@@ -4,15 +4,13 @@ package posnode
 //go:generate mockgen -package=posnode -source=consensus.go -destination=mock_test.go Consensus
 
 import (
-	"net"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
@@ -27,11 +25,6 @@ func ExampleNode(t *testing.T) {
 	n := NewForTests("server.fake", store, consensus)
 	defer n.Shutdown()
 
-	peerInfoAsksChan := make(chan struct{})
-	peerInfoAsked = func() {
-		peerInfoAsksChan <- struct{}{}
-	}
-
 	n.StartServiceForTests()
 	defer n.StopService()
 
@@ -41,12 +34,7 @@ func ExampleNode(t *testing.T) {
 	n.StartGossip(4)
 	defer n.StopGossip()
 
-	// should make 1 fail call for n.AskPeerInfo
-	select {
-	case <-peerInfoAsksChan:
-	case <-time.After(time.Second):
-		t.Error("should ask peer info")
-	}
+	select {}
 }
 
 /*
@@ -69,7 +57,9 @@ func NewForTests(host string, s *Store, c Consensus) *Node {
 // StartServiceForTests starts node service.
 // It should be called once.
 func (n *Node) StartServiceForTests() {
-	bind := net.JoinHostPort(n.host, strconv.Itoa(n.conf.Port))
-	listener := network.FakeListener(bind)
-	n.startService(listener)
+	if n.server != nil {
+		return
+	}
+	bind := n.NetAddrOf(n.host)
+	n.server, _ = api.StartService(bind, n, n.log.Infof, true)
 }

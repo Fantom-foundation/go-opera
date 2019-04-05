@@ -2,14 +2,11 @@ package posnode
 
 import (
 	"crypto/ecdsa"
-	"fmt"
-	"sync"
 
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // Node is a Lachesis node implementation.
@@ -33,7 +30,7 @@ type Node struct {
 // New creates node.
 func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...grpc.DialOption) *Node {
 	n := Node{
-		ID:        CalcNodeID(&key.PublicKey),
+		ID:        CalcPeerID(&key.PublicKey),
 		key:       key,
 		pub:       &key.PublicKey,
 		store:     s,
@@ -41,24 +38,8 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 		host:      host,
 		conf:      *conf,
 		client:    client{opts},
-		discovery: discovery{
-			store: &discoveries{
-				RWMutex:     sync.RWMutex{},
-				discoveries: make(map[string]*Discovery),
-			},
-		},
-
-		peers:  initPeers(s),
-		logger: newLogger(host),
+		logger:    newLogger(host),
 	}
-
-	// Add self into peers store
-	peerInfo := api.PeerInfo{
-		ID:     n.ID.Hex(),
-		PubKey: common.FromECDSAPub(n.pub),
-		Host:   fmt.Sprintf("%s:%d", host, conf.Port),
-	}
-	n.store.SetPeer(WireToPeer(&peerInfo))
 
 	return &n
 }
@@ -68,7 +49,12 @@ func (n *Node) Shutdown() {
 	n.log.Info("shutdown")
 }
 
-// CalcNodeID returns peer from pub key.
-func CalcNodeID(pub *ecdsa.PublicKey) hash.Peer {
-	return hash.Peer(hash.Of(common.FromECDSAPub(pub)))
+// CalcPeerID returns peer id from pub key.
+func CalcPeerID(pub *ecdsa.PublicKey) hash.Peer {
+	return CalcPeerInfoID(common.FromECDSAPub(pub))
+}
+
+// CalcPeerInfoID returns peer id from pub key bytes.
+func CalcPeerInfoID(pub []byte) hash.Peer {
+	return hash.Peer(hash.Of(pub))
 }

@@ -16,8 +16,7 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	peers       kvdb.Database
-	topPeers    kvdb.Database
-	knownPeers  kvdb.Database
+	peersTop    kvdb.Database
 	peerHeights kvdb.Database
 
 	events kvdb.Database
@@ -44,8 +43,7 @@ func NewBadgerStore(db *badger.DB) *Store {
 
 func (s *Store) init() {
 	s.peers = kvdb.NewTable(s.physicalDB, "peer_")
-	s.topPeers = kvdb.NewTable(s.physicalDB, "top_peers_")
-	s.knownPeers = kvdb.NewTable(s.physicalDB, "known_peers_")
+	s.peersTop = kvdb.NewTable(s.physicalDB, "top_peers_")
 	s.peerHeights = kvdb.NewTable(s.physicalDB, "peer_height_")
 
 	s.events = kvdb.NewTable(s.physicalDB, "event_")
@@ -55,8 +53,7 @@ func (s *Store) init() {
 // Close leaves underlying database.
 func (s *Store) Close() {
 	s.peerHeights = nil
-	s.knownPeers = nil
-	s.topPeers = nil
+	s.peersTop = nil
 	s.peers = nil
 	s.events = nil
 	s.hashes = nil
@@ -111,10 +108,15 @@ func (s *Store) HasEvent(h hash.Event) bool {
 	return s.has(s.events, h.Bytes())
 }
 
+// SetWirePeer stores peer info.
+func (s *Store) SetWirePeer(id hash.Peer, info *api.PeerInfo) {
+	s.set(s.peers, id.Bytes(), info)
+}
+
 // SetPeer stores peer.
 func (s *Store) SetPeer(peer *Peer) {
-	w := peer.ToWire()
-	s.set(s.peers, peer.ID.Bytes(), w)
+	info := peer.ToWire()
+	s.SetWirePeer(peer.ID, info)
 }
 
 // GetWirePeer returns stored peer info.
@@ -131,7 +133,7 @@ func (s *Store) GetPeer(id hash.Peer) *Peer {
 }
 
 // BootstrapPeers stores peer list.
-func (s *Store) BootstrapPeers(peers []*Peer) {
+func (s *Store) BootstrapPeers(peers ...*Peer) {
 	if len(peers) < 1 {
 		return
 	}
@@ -165,27 +167,13 @@ func (s *Store) BootstrapPeers(peers []*Peer) {
 func (s *Store) SetTopPeers(ids []hash.Peer) {
 	var key = []byte("current")
 	w := IDsToWire(ids)
-	s.set(s.topPeers, key, w)
+	s.set(s.peersTop, key, w)
 }
 
 // GetTopPeers returns peers.top.
 func (s *Store) GetTopPeers() []hash.Peer {
 	var key = []byte("current")
-	w, _ := s.get(s.topPeers, key, &api.PeersID{}).(*api.PeersID)
-	return WireToIDs(w)
-}
-
-// SetKnownPeers stores all peers ID.
-func (s *Store) SetKnownPeers(ids []hash.Peer) {
-	var key = []byte("current")
-	w := IDsToWire(ids)
-	s.set(s.knownPeers, key, w)
-}
-
-// GetKnownPeers returns all peers ID.
-func (s *Store) GetKnownPeers() []hash.Peer {
-	var key = []byte("current")
-	w, _ := s.get(s.knownPeers, key, &api.PeersID{}).(*api.PeersID)
+	w, _ := s.get(s.peersTop, key, &api.PeersID{}).(*api.PeersID)
 	return WireToIDs(w)
 }
 

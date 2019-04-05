@@ -1,104 +1,118 @@
 package posnode
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func TestGossip(t *testing.T) {
-	assert := assert.New(t)
-
-	peers := generatePeers(2)
-	events := inter.FakeFuzzingEvents()
-
-	// Node 1
+	// node 1
 	store1 := NewMemStore()
-	store1.BootstrapPeers(peers[1:])
-
-	node1 := NewForTests(peers[0].Host, store1, nil)
+	node1 := NewForTests("node1", store1, nil)
 	defer node1.Shutdown()
-
-	// Set base height
-	node1.store_SetHeights(&api.KnownEvents{
-		Lasts: map[string]uint64{
-			peers[0].ID.Hex(): 1,
-		}})
-
-	// Set base hash for event
-	node1.store.SetEventHash(peers[0].ID, 1, events[0].Hash())
-
-	// Set base event
-	node1.store.SetEvent(events[0])
-
 	node1.StartServiceForTests()
 	defer node1.StopService()
 
-	// Node 2
+	// node 2
 	store2 := NewMemStore()
-	store2.BootstrapPeers(peers[:1])
-
-	node2 := NewForTests(peers[1].Host, store2, nil)
+	node2 := NewForTests("node2", store2, nil)
 	defer node2.Shutdown()
-
-	// Set base height
-	node2.store_SetHeights(&api.KnownEvents{
-		Lasts: map[string]uint64{
-			peers[1].ID.Hex(): 1,
-		}})
-
-	// Set base hash for event
-	node2.store.SetEventHash(peers[1].ID, 1, events[1].Hash())
-
-	// Set base event
-	node2.store.SetEvent(events[1])
-
 	node2.StartServiceForTests()
-	defer node2.StopService()
+	defer node1.StopService()
 
-	// gossip
-	node1.syncWithPeer()
-	node2.syncWithPeer()
+	// connect nodes to each other
+	store1.BootstrapPeers(&Peer{
+		ID:     node2.ID,
+		PubKey: node2.pub,
+		Host:   node2.host,
+	})
+	node1.initPeers()
+	store2.BootstrapPeers(&Peer{
+		ID:     node1.ID,
+		PubKey: node1.pub,
+		Host:   node1.host,
+	})
+	node2.initPeers()
 
-	// check heights
-	heights1 := node1.store_GetHeights()
-	heights2 := node2.store_GetHeights()
+	// set events
+	// TODO: replace with self-generated events
+	node1.SaveNewEvent(&inter.Event{
+		Index:   1,
+		Creator: node1.ID,
+	})
+	node2.SaveNewEvent(&inter.Event{
+		Index:   1,
+		Creator: node2.ID,
+	})
 
-	assert.Equal(heights1, heights2, "heights after gossiping")
+	t.Run("before", func(t *testing.T) {
+		assert := assert.New(t)
 
-	// check events
-	hash1 := events[0].Hash()
-	firstN1 := node1.store.GetEvent(hash1)
-	firstN2 := node2.store.GetEvent(hash1)
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 1,
+				node2.ID.Hex(): 0,
+			},
+			node1.knownEvents().Lasts,
+			"node1 knows their event only")
 
-	assert.Equal(firstN1, firstN2, "first event from both nodes")
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 0,
+				node2.ID.Hex(): 1,
+			},
+			node2.knownEvents().Lasts,
+			"node2 knows their event only")
+	})
 
-	hash2 := events[1].Hash()
-	secondN1 := node1.store.GetEvent(hash2)
-	secondN2 := node2.store.GetEvent(hash2)
+	t.Run("after 1-2", func(t *testing.T) {
+		assert := assert.New(t)
+		node1.syncWithPeer()
 
-	assert.Equal(secondN1, secondN2, "second event from both nodes")
-}
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 1,
+				node2.ID.Hex(): 1,
+			},
+			node1.knownEvents().Lasts,
+			"node1 knows last event of node2")
 
-func generatePeers(count int) []*Peer {
-	var peers []*Peer
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 0,
+				node2.ID.Hex(): 1,
+			},
+			node2.knownEvents().Lasts,
+			"node2 still knows their event only")
 
-	for i := 0; i < count; i++ {
-		key, _ := crypto.GenerateECDSAKey()
+		e2 := node1.store.GetEventHash(node2.ID, 1)
+		assert.NotNil(e2, "event of node2 is in db")
+	})
 
-		peer := &Peer{
-			ID:     CalcNodeID(&key.PublicKey),
-			PubKey: &key.PublicKey,
-			Host:   "server.fake." + strconv.Itoa(i),
-		}
+	t.Run("after 2-1", func(t *testing.T) {
+		assert := assert.New(t)
+		node2.syncWithPeer()
 
-		peers = append(peers, peer)
-	}
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 1,
+				node2.ID.Hex(): 1,
+			},
+			node1.knownEvents().Lasts,
+			"node1 still knows event of node2")
 
-	return peers
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 1,
+				node2.ID.Hex(): 1,
+			},
+			node2.knownEvents().Lasts,
+			"node2 knows last event of node1")
+
+		e1 := node2.store.GetEventHash(node1.ID, 1)
+		assert.NotNil(e1, "event of node1 is in db")
+	})
 }
