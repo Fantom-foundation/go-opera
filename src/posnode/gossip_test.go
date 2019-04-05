@@ -39,14 +39,8 @@ func TestGossip(t *testing.T) {
 
 	// set events
 	// TODO: replace with self-generated events
-	node1.SaveNewEvent(&inter.Event{
-		Index:   1,
-		Creator: node1.ID,
-	})
-	node2.SaveNewEvent(&inter.Event{
-		Index:   1,
-		Creator: node2.ID,
-	})
+	genEvent(node1, 1)
+	genEvent(node2, 1)
 
 	t.Run("before", func(t *testing.T) {
 		assert := assert.New(t)
@@ -115,4 +109,22 @@ func TestGossip(t *testing.T) {
 		e1 := node2.store.GetEventHash(node1.ID, 1)
 		assert.NotNil(e1, "event of node1 is in db")
 	})
+
+}
+
+/*
+ * Utils:
+ */
+
+func genEvent(node *Node, index uint64) {
+	e := &inter.Event{
+		Index:   index,
+		Creator: node.ID,
+	}
+	err := e.SignBy(node.key)
+	if err != nil {
+		panic(err)
+	}
+
+	node.SaveNewEvent(e)
 }

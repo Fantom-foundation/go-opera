@@ -104,11 +104,22 @@ func (n *Node) syncWithPeer() {
 			}
 
 			event := inter.WireToEvent(w)
-			// TODO: check event sign
+
 			if event.Creator != creator || event.Index != i {
 				n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
 				return
 			}
+
+			// check event sign
+			signer := n.store.GetPeer(creator)
+			if signer == nil {
+				return
+			}
+			if !event.Verify(peer.PubKey) {
+				n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
+				return
+			}
+
 			n.SaveNewEvent(event)
 			peers2discovery[creator] = struct{}{}
 		}
