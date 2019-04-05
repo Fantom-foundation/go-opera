@@ -136,9 +136,6 @@ func (n *Node) syncWithPeer() {
 
 			n.SaveNewEvent(event)
 
-			// We should store height only for "main" event, not for parent
-			n.store.SetPeerHeight(event.Creator, event.Index)
-
 			n.checkParents(client, peer, event.Parents)
 
 			peers2discovery[creator] = struct{}{}
