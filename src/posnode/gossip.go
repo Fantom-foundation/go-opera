@@ -39,6 +39,8 @@ func (n *Node) StartGossip(threads int) {
 	}
 
 	go n.gossiping()
+
+	n.log.Info("gossip started")
 }
 
 // StopGossip stops gossiping.
@@ -47,6 +49,8 @@ func (n *Node) StopGossip() {
 	defer n.gossip.Unlock()
 	close(n.gossip.tickets)
 	n.gossip.tickets = nil
+
+	n.log.Info("gossip stopped")
 }
 
 // gossiping is a infinity gossip process.

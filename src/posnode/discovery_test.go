@@ -13,14 +13,12 @@ func TestDiscovery(t *testing.T) {
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
-	defer node1.Shutdown()
 	node1.StartServiceForTests()
 	defer node1.StopService()
 
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
-	defer node1.Shutdown()
 
 	// connect node2 to node1
 	store2.BootstrapPeers(&Peer{

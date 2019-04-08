@@ -11,6 +11,8 @@ type Config struct {
 	EventParentsCount int
 	// default service port
 	Port int
+
+	GossipThreads int
 }
 
 // DefaultConfig returns default config.
@@ -18,6 +20,8 @@ func DefaultConfig() *Config {
 	return &Config{
 		EventParentsCount: 3,
 		Port:              55555,
+
+		GossipThreads: 4,
 	}
 }
 

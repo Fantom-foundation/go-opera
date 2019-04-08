@@ -23,16 +23,9 @@ func ExampleNode(t *testing.T) {
 	store := NewMemStore()
 
 	n := NewForTests("server.fake", store, consensus)
-	defer n.Shutdown()
 
-	n.StartServiceForTests()
-	defer n.StopService()
-
-	n.StartDiscovery()
-	defer n.StopDiscovery()
-
-	n.StartGossip(4)
-	defer n.StopGossip()
+	n.Start()
+	defer n.Stop()
 
 	select {}
 }
@@ -55,11 +48,12 @@ func NewForTests(host string, s *Store, c Consensus) *Node {
 }
 
 // StartServiceForTests starts node service.
-// It should be called once.
 func (n *Node) StartServiceForTests() {
 	if n.server != nil {
 		return
 	}
 	bind := n.NetAddrOf(n.host)
 	n.server, _ = api.StartService(bind, n, n.log.Infof, true)
+
+	n.log.Info("service started")
 }

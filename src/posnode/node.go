@@ -28,6 +28,7 @@ type Node struct {
 }
 
 // New creates node.
+// It does not start any process.
 func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...grpc.DialOption) *Node {
 	n := Node{
 		ID:        CalcPeerID(&key.PublicKey),
@@ -44,9 +45,18 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 	return &n
 }
 
-// Shutdown stops node.
-func (n *Node) Shutdown() {
-	n.log.Info("shutdown")
+// Start starts all node services.
+func (n *Node) Start() {
+	n.StartService()
+	n.StartDiscovery()
+	n.StartGossip(n.conf.GossipThreads)
+}
+
+// Stop stops all node services.
+func (n *Node) Stop() {
+	n.StopGossip()
+	n.StopDiscovery()
+	n.StopService()
 }
 
 // CalcPeerID returns peer id from pub key.

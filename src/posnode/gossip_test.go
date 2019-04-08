@@ -12,16 +12,14 @@ func TestGossip(t *testing.T) {
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
-	defer node1.Shutdown()
 	node1.StartServiceForTests()
 	defer node1.StopService()
 
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
-	defer node2.Shutdown()
 	node2.StartServiceForTests()
-	defer node1.StopService()
+	defer node2.StopService()
 
 	// connect nodes to each other
 	store1.BootstrapPeers(&Peer{

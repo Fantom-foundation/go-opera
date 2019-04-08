@@ -53,12 +53,16 @@ func (n *Node) StartDiscovery() {
 			}
 		}
 	}()
+
+	n.log.Info("discovery started")
 }
 
 // StopDiscovery stops network discovery.
 func (n *Node) StopDiscovery() {
 	close(n.discovery.done)
 	n.discovery.done = nil
+
+	n.log.Info("discovery stopped")
 }
 
 // CheckPeerIsKnown queues peer checking for a late.
