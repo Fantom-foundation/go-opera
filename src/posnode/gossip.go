@@ -95,13 +95,13 @@ func (n *Node) syncWithPeer() {
 		for i := last + 1; i <= height; i++ {
 			key := hex + string(i)
 
-			// Check event in queue before call GetEvent
-			if alreadyExist := n.checkQueue(key); alreadyExist {
+			// Check event in downloads before call GetEvent
+			if alreadyExist := n.checkDownloads(key); alreadyExist {
 				continue
 			}
 
-			// Add record about event to queue before get it
-			n.addToQueue(key)
+			// Add record about event to downloads before get it
+			n.addToDownloads(key)
 
 			req.Index = i
 
@@ -109,8 +109,8 @@ func (n *Node) syncWithPeer() {
 			w, err := client.GetEvent(ctx, req)
 			cancel()
 
-			// Delete record about event from queue even if we get error
-			n.deleteFromQueue(key)
+			// Delete record about event from downloads even if we get error
+			n.deleteFromDownloads(key)
 
 			if err != nil {
 				n.ConnectFail(peer, err)
@@ -157,13 +157,13 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 			continue
 		}
 
-		// Check event in queue before call GetEvent
-		if alreadyExist := n.checkParentQueue(p); alreadyExist {
+		// Check event in downloads before call GetEvent
+		if alreadyExist := n.checkParentDownloads(p); alreadyExist {
 			continue
 		}
 
-		// Add record about event to queue before get it
-		n.addParentToQueue(p)
+		// Add record about event to downloads before get it
+		n.addParentToDownloads(p)
 
 		var req api.EventRequest
 		req.Hash = p.Bytes()
@@ -172,8 +172,8 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 		w, err := client.GetEvent(ctx, &req)
 		cancel()
 
-		// Delete record about event from queue even if we get error
-		n.deleteParentFromQueue(p)
+		// Delete record about event from downloads even if we get error
+		n.deleteParentFromDownloads(p)
 
 		if err != nil {
 			n.ConnectFail(peer, err)

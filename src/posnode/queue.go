@@ -6,82 +6,82 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-type queue struct {
+type downloads struct {
 	heights map[string]bool
 
-	sync sync.Mutex
+	sync.Mutex
 }
 
-type parentQueue struct {
+type parentDownloads struct {
 	hashes map[hash.Event]bool
 
-	sync sync.Mutex
+	sync.Mutex
 }
 
-func initQueue() queue {
-	return queue{
+func initDownloads() downloads {
+	return downloads{
 		heights: map[string]bool{},
 	}
 }
 
-func initParentQueue() parentQueue {
-	return parentQueue{
+func initParentDownloads() parentDownloads {
+	return parentDownloads{
 		hashes: map[hash.Event]bool{},
 	}
 }
 
-// Main Queue
+// Main Downloads
 
-// AddToQueue known peer height
-func (n *Node) addToQueue(key string) {
-	n.queue.sync.Lock()
-	defer n.queue.sync.Unlock()
+// addToDownloads known peer height
+func (n *Node) addToDownloads(key string) {
+	n.downloads.Lock()
+	defer n.downloads.Unlock()
 
-	n.queue.heights[key] = true
+	n.downloads.heights[key] = true
 }
 
-// DeleteFromQueue known peer height
-func (n *Node) deleteFromQueue(key string) {
-	n.queue.sync.Lock()
-	defer n.queue.sync.Unlock()
+// deleteFromDownloads known peer height
+func (n *Node) deleteFromDownloads(key string) {
+	n.downloads.Lock()
+	defer n.downloads.Unlock()
 
-	delete(n.queue.heights, key)
+	delete(n.downloads.heights, key)
 }
 
-// CheckQueue known peer height
-func (n *Node) checkQueue(key string) bool {
-	n.queue.sync.Lock()
-	defer n.queue.sync.Unlock()
+// checkDownloads known peer height
+func (n *Node) checkDownloads(key string) bool {
+	n.downloads.Lock()
+	defer n.downloads.Unlock()
 
-	_, ok := n.queue.heights[key]
+	_, ok := n.downloads.heights[key]
 
 	return ok
 }
 
-// Parent Queue
+// Parent Downloads
 
-// addParentToQueue add parent event hash to queue
-func (n *Node) addParentToQueue(key hash.Event) {
-	n.parentQueue.sync.Lock()
-	defer n.parentQueue.sync.Unlock()
+// addParentToDownloads add parent event hash to downloads
+func (n *Node) addParentToDownloads(key hash.Event) {
+	n.parentDownloads.Lock()
+	defer n.parentDownloads.Unlock()
 
-	n.parentQueue.hashes[key] = true
+	n.parentDownloads.hashes[key] = true
 }
 
-// deleteParentFromQueue delete parent event hash from queue
-func (n *Node) deleteParentFromQueue(key hash.Event) {
-	n.parentQueue.sync.Lock()
-	defer n.parentQueue.sync.Unlock()
+// deleteParentFromDownloads delete parent event hash from downloads
+func (n *Node) deleteParentFromDownloads(key hash.Event) {
+	n.parentDownloads.Lock()
+	defer n.parentDownloads.Unlock()
 
-	delete(n.parentQueue.hashes, key)
+	delete(n.parentDownloads.hashes, key)
 }
 
-// checkParentQueue check parent event hash in queue
-func (n *Node) checkParentQueue(key hash.Event) bool {
-	n.parentQueue.sync.Lock()
-	defer n.parentQueue.sync.Unlock()
+// checkParentDownloads check parent event hash in downloads
+func (n *Node) checkParentDownloads(key hash.Event) bool {
+	n.parentDownloads.Lock()
+	defer n.parentDownloads.Unlock()
 
-	_, ok := n.parentQueue.hashes[key]
+	_, ok := n.parentDownloads.hashes[key]
 
 	return ok
 }
