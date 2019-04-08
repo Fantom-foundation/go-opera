@@ -153,50 +153,51 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	for p := range parents {
 
 		// Check parent in store
-		if event := n.store.GetEvent(p); event == nil {
-
-			// Check event in queue before call GetEvent
-			if alreadyExist := n.checkParentQueue(p); alreadyExist {
-				continue
-			}
-
-			// Add record about event to queue before get it
-			n.addParentToQueue(p)
-
-			var req api.EventRequest
-			req.Hash = p.Bytes()
-
-			ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-			w, err := client.GetEvent(ctx, &req)
-			cancel()
-
-			// Delete record about event from queue even if we get error
-			n.deleteParentFromQueue(p)
-
-			if err != nil {
-				n.ConnectFail(peer, err)
-				return
-			}
-
-			event := inter.WireToEvent(w)
-
-			// Check event sign
-			peer := n.store.GetPeer(event.Creator)
-			if peer == nil {
-				return
-			}
-
-			if !event.Verify(peer.PubKey) {
-				n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
-				return
-			}
-
-			// Add event to store
-			n.store.SetEvent(event)
-			n.store.SetEventHash(event.Creator, event.Index, event.Hash())
-
-			// We don't need to store heights here
+		if n.store.GetEvent(p) != nil {
+			continue
 		}
+
+		// Check event in queue before call GetEvent
+		if alreadyExist := n.checkParentQueue(p); alreadyExist {
+			continue
+		}
+
+		// Add record about event to queue before get it
+		n.addParentToQueue(p)
+
+		var req api.EventRequest
+		req.Hash = p.Bytes()
+
+		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+		w, err := client.GetEvent(ctx, &req)
+		cancel()
+
+		// Delete record about event from queue even if we get error
+		n.deleteParentFromQueue(p)
+
+		if err != nil {
+			n.ConnectFail(peer, err)
+			return
+		}
+
+		event := inter.WireToEvent(w)
+
+		// Check event sign
+		peer := n.store.GetPeer(event.Creator)
+		if peer == nil {
+			return
+		}
+
+		if !event.Verify(peer.PubKey) {
+			n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
+			return
+		}
+
+		// Add event to store
+		n.store.SetEvent(event)
+		n.store.SetEventHash(event.Creator, event.Index, event.Hash())
+
+		// We don't need to store heights here
 	}
 }
 
