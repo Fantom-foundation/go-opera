@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
@@ -112,14 +113,118 @@ func TestGossip(t *testing.T) {
 
 }
 
+func TestMissingParents(t *testing.T) {
+	// node 1
+	store1 := NewMemStore()
+	node1 := NewForTests("node1", store1, nil)
+	defer node1.Shutdown()
+	node1.StartServiceForTests()
+	defer node1.StopService()
+
+	// node 2
+	store2 := NewMemStore()
+	node2 := NewForTests("node2", store2, nil)
+	defer node2.Shutdown()
+	node2.StartServiceForTests()
+	defer node1.StopService()
+
+	// connect nodes to each other
+	store1.BootstrapPeers(&Peer{
+		ID:     node2.ID,
+		PubKey: node2.pub,
+		Host:   node2.host,
+	})
+	node1.initPeers()
+
+	store2.BootstrapPeers(&Peer{
+		ID:     node1.ID,
+		PubKey: node1.pub,
+		Host:   node1.host,
+	})
+	node2.initPeers()
+
+	// Set events with parents for node 1
+	// Parent index -> index - 1
+	genEventWithParent(node1, 2)
+
+	t.Run("before", func(t *testing.T) {
+		assert := assert.New(t)
+
+		// Set PeerHeight for node2 with missing info about first event
+		node2.store.SetPeerHeight(node1.ID, 1)
+
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 2,
+				node2.ID.Hex(): 0,
+			},
+			node1.knownEvents().Lasts,
+			"node1 knows their event only")
+
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 1,
+				node2.ID.Hex(): 0,
+			},
+			node2.knownEvents().Lasts,
+			"node2 knows their event only")
+	})
+
+	t.Run("after 2-1", func(t *testing.T) {
+		assert := assert.New(t)
+		node2.syncWithPeer()
+
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 2,
+				node2.ID.Hex(): 0,
+			},
+			node1.knownEvents().Lasts,
+			"node1 still knows their event only")
+
+		assert.Equal(
+			map[string]uint64{
+				node1.ID.Hex(): 2,
+				node2.ID.Hex(): 0,
+			},
+			node2.knownEvents().Lasts,
+			"node2 knows last event of node1")
+
+		e1 := node2.store.GetEventHash(node1.ID, 1)
+		assert.NotNil(e1, "event of node1 is in db")
+
+		e2 := node2.store.GetEventHash(node1.ID, 2)
+		assert.NotNil(e2, "event of node1 is in db")
+	})
+}
+
 /*
  * Utils:
  */
 
-func genEvent(node *Node, index uint64) {
+func genEvent(node *Node, index uint64) *inter.Event {
 	e := &inter.Event{
 		Index:   index,
 		Creator: node.ID,
+	}
+	err := e.SignBy(node.key)
+	if err != nil {
+		panic(err)
+	}
+
+	node.SaveNewEvent(e)
+
+	return e
+}
+
+func genEventWithParent(node *Node, index uint64) {
+	parent := genEvent(node, index-1)
+	parentHash := parent.Hash()
+
+	e := &inter.Event{
+		Index:   index,
+		Creator: node.ID,
+		Parents: hash.NewEvents(parentHash),
 	}
 	err := e.SignBy(node.key)
 	if err != nil {
