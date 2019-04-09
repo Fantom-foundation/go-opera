@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-OPTIND=1         # Reset in case getopts has been used previously in the shell.
+declare -i OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
-declare debug=0
+declare -i debug=0
 declare args=
 declare -r DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -18,9 +18,9 @@ shift $((OPTIND-1))
 
 [ "${1:-}" = "--" ] && shift
 
-if [ "$debug" == "1" ]; then
+if [ "$debug" == '1' ]; then
   args="$args -d"
 fi
 
-"$DIR/multi_build.bash" $args
-"$DIR/multi_run.bash" $args
+"$DIR/multi_build.bash" "$args"
+"$DIR/multi_run.bash" "$args"

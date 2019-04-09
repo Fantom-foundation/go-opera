@@ -41,7 +41,7 @@ func (x Trilean) String() string {
 	return proto.EnumName(Trilean_name, int32(x))
 }
 func (Trilean) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_e574b400ef2f93db, []int{0}
+	return fileDescriptor_roundInfo_9c39341ea30fb524, []int{0}
 }
 
 type RoundEvent struct {
@@ -58,7 +58,7 @@ func (m *RoundEvent) Reset()         { *m = RoundEvent{} }
 func (m *RoundEvent) String() string { return proto.CompactTextString(m) }
 func (*RoundEvent) ProtoMessage()    {}
 func (*RoundEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_e574b400ef2f93db, []int{0}
+	return fileDescriptor_roundInfo_9c39341ea30fb524, []int{0}
 }
 func (m *RoundEvent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RoundEvent.Unmarshal(m, b)
@@ -118,7 +118,7 @@ func (m *RoundCreatedMessage) Reset()         { *m = RoundCreatedMessage{} }
 func (m *RoundCreatedMessage) String() string { return proto.CompactTextString(m) }
 func (*RoundCreatedMessage) ProtoMessage()    {}
 func (*RoundCreatedMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_e574b400ef2f93db, []int{1}
+	return fileDescriptor_roundInfo_9c39341ea30fb524, []int{1}
 }
 func (m *RoundCreatedMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RoundCreatedMessage.Unmarshal(m, b)
@@ -163,7 +163,7 @@ func (m *RoundReceived) Reset()         { *m = RoundReceived{} }
 func (m *RoundReceived) String() string { return proto.CompactTextString(m) }
 func (*RoundReceived) ProtoMessage()    {}
 func (*RoundReceived) Descriptor() ([]byte, []int) {
-	return fileDescriptor_roundInfo_e574b400ef2f93db, []int{2}
+	return fileDescriptor_roundInfo_9c39341ea30fb524, []int{2}
 }
 func (m *RoundReceived) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RoundReceived.Unmarshal(m, b)
@@ -198,9 +198,9 @@ func init() {
 	proto.RegisterEnum("poset.Trilean", Trilean_name, Trilean_value)
 }
 
-func init() { proto.RegisterFile("roundInfo.proto", fileDescriptor_roundInfo_e574b400ef2f93db) }
+func init() { proto.RegisterFile("roundInfo.proto", fileDescriptor_roundInfo_9c39341ea30fb524) }
 
-var fileDescriptor_roundInfo_e574b400ef2f93db = []byte{
+var fileDescriptor_roundInfo_9c39341ea30fb524 = []byte{
 	// 311 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x51, 0xdd, 0x4a, 0xc3, 0x30,
 	0x14, 0x36, 0xeb, 0xfe, 0x7a, 0xe6, 0x66, 0x8d, 0x20, 0x45, 0xbc, 0x18, 0x43, 0x5c, 0x11, 0xec,

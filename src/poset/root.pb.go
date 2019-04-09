@@ -33,7 +33,7 @@ func (m *RootEvent) Reset()         { *m = RootEvent{} }
 func (m *RootEvent) String() string { return proto.CompactTextString(m) }
 func (*RootEvent) ProtoMessage()    {}
 func (*RootEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_root_815ed4e607cafbbe, []int{0}
+	return fileDescriptor_root_aafe60fd6f68f2c8, []int{0}
 }
 func (m *RootEvent) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RootEvent.Unmarshal(m, b)
@@ -101,7 +101,7 @@ func (m *Root) Reset()         { *m = Root{} }
 func (m *Root) String() string { return proto.CompactTextString(m) }
 func (*Root) ProtoMessage()    {}
 func (*Root) Descriptor() ([]byte, []int) {
-	return fileDescriptor_root_815ed4e607cafbbe, []int{1}
+	return fileDescriptor_root_aafe60fd6f68f2c8, []int{1}
 }
 func (m *Root) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Root.Unmarshal(m, b)
@@ -148,9 +148,9 @@ func init() {
 	proto.RegisterMapType((map[string]*RootEvent)(nil), "poset.Root.OthersEntry")
 }
 
-func init() { proto.RegisterFile("root.proto", fileDescriptor_root_815ed4e607cafbbe) }
+func init() { proto.RegisterFile("root.proto", fileDescriptor_root_aafe60fd6f68f2c8) }
 
-var fileDescriptor_root_815ed4e607cafbbe = []byte{
+var fileDescriptor_root_aafe60fd6f68f2c8 = []byte{
 	// 267 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x90, 0xc1, 0x4a, 0xfb, 0x40,
 	0x10, 0xc6, 0xd9, 0x26, 0x29, 0x64, 0xf2, 0x3f, 0x84, 0xe1, 0x0f, 0x2e, 0xe2, 0x21, 0xf4, 0x20,

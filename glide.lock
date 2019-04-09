@@ -1,8 +1,8 @@
-hash: 7e4fbc56355e314b67d2c339dbee99345a9cb8c9cd466501ccb5fbe632220ae3
-updated: 2019-02-04T15:23:38.821605+11:00
+hash: e10850ed0b4c1c2325f20b05d225e16eff667f1fd26e238d28521a9b08ef07a5
+updated: 2019-04-09T17:30:11.590154+10:00
 imports:
 - name: github.com/allegro/bigcache
-  version: f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068
+  version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
   subpackages:
   - queue
 - name: github.com/AndreasBriese/bbloom
@@ -24,7 +24,7 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
 - name: github.com/golang/protobuf
-  version: aa810b61a9c79d51363740d207bb46cf8e620ed5
+  version: b5d812f8a3706043e23a9cd5babf2e5423744d30
   subpackages:
   - proto
   - ptypes
@@ -36,7 +36,7 @@ imports:
 - name: github.com/hashicorp/go-multierror
   version: 886a7fbe3eb1c874d46f623bfa70af45f425b3d1
 - name: github.com/hashicorp/golang-lru
-  version: 20f1fb78b0740ba8c3cb143a61e86ba5c8669768
+  version: 7087cb70de9f7a8bc0a10c375cb0d2280a8edf9c
   subpackages:
   - simplelru
 - name: github.com/hashicorp/hcl
@@ -68,7 +68,7 @@ imports:
 - name: github.com/rs/xid
   version: 15d26544def341f036c5f8dca987a4cbe575032c
 - name: github.com/sirupsen/logrus
-  version: e1e72e9de974bd926e5c56f83753fba2df402ce5
+  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
 - name: github.com/spf13/afero
   version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
@@ -82,15 +82,11 @@ imports:
 - name: github.com/spf13/pflag
   version: 082b515c9490f4eccc758469c3152b77d139f868
 - name: github.com/spf13/viper
-  version: 6d33b5a963d922d182c91e8a1c88d81fd150cfd4
+  version: 9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9
 - name: github.com/tebeka/atexit
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
-- name: golang.org/x/crypto
-  version: 45a5f77698d342a8c2ef8423abdf0ba6880b008a
-  subpackages:
-  - ssh/terminal
 - name: golang.org/x/net
   version: c44066c5c816ec500d459a2a324a753f78531ae0
   subpackages:
@@ -120,7 +116,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: a02b0774206b209466313a0b525d2c738fe407eb
+  version: 3507fb8e1a5ad030303c106fef3a47c9fdad16ad
   subpackages:
   - balancer
   - balancer/base
