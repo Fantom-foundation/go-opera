@@ -90,43 +90,32 @@ func (n *Node) syncWithPeer() {
 
 	peers2discovery := make(map[hash.Peer]struct{})
 
-	for hex, height := range unknownHeights.Lasts {
+	toDelete, toDownload := n.addToDownloads(&unknownHeights.Lasts)
+	defer n.deleteFromDownloads(toDelete)
+
+	for hex, height := range *toDownload {
 		req := &api.EventRequest{
 			PeerID: hex,
+			Index:  height,
 		}
+
 		creator := hash.HexToPeer(hex)
-		last := n.store.GetPeerHeight(creator)
-		for i := last + 1; i <= height; i++ {
-			req.Index = i
 
-			ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-			w, err := client.GetEvent(ctx, req)
-			cancel()
-			if err != nil {
-				n.ConnectFail(peer, err)
-				return
-			}
-
-			event := inter.WireToEvent(w)
-
-			if event.Creator != creator || event.Index != i {
-				n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
-				return
-			}
-
-			// check event sign
-			signer := n.store.GetPeer(creator)
-			if signer == nil {
-				return
-			}
-			if !event.Verify(peer.PubKey) {
-				n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
-				return
-			}
-
-			n.SaveNewEvent(event)
-			peers2discovery[creator] = struct{}{}
+		event := n.getEvent(client, peer, req)
+		if event == nil {
+			return
 		}
+
+		if event.Creator != creator || event.Index != height {
+			n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
+			return
+		}
+
+		n.SaveNewEvent(event)
+
+		n.checkParents(client, peer, &event.Parents)
+
+		peers2discovery[creator] = struct{}{}
 	}
 	n.ConnectOK(peer)
 
@@ -134,6 +123,54 @@ func (n *Node) syncWithPeer() {
 	for p := range peers2discovery {
 		n.CheckPeerIsKnown(peer.ID, peer.Host, p)
 	}
+}
+
+func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents *hash.Events) {
+	toDownload := n.addParentToDownloads(parents)
+	defer n.deleteParentFromDownloads(toDownload)
+
+	for p := range *toDownload {
+		var req api.EventRequest
+		req.Hash = p.Bytes()
+
+		event := n.getEvent(client, peer, &req)
+		if event == nil {
+			return
+		}
+
+		// Add event to store
+		n.store.SetEvent(event)
+		n.store.SetEventHash(event.Creator, event.Index, event.Hash())
+
+		// We don't need to store heights here
+	}
+}
+
+// Get event & check sign
+func (n *Node) getEvent(client api.NodeClient, peer *Peer, requets *api.EventRequest) *inter.Event {
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	w, err := client.GetEvent(ctx, requets)
+	cancel()
+
+	if err != nil {
+		n.ConnectFail(peer, err)
+		return nil
+	}
+
+	event := inter.WireToEvent(w)
+
+	// Check event sign
+	creator := n.store.GetPeer(event.Creator)
+	if creator == nil {
+		return nil
+	}
+
+	if !event.Verify(creator.PubKey) {
+		n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
+		return nil
+	}
+
+	return event
 }
 
 // SaveNewEvent writes event to store and indexes.
@@ -180,7 +217,6 @@ func (n *gossipEvaluation) Swap(i, j int) {
 
 // Less reports whether the element with
 // index i should sort before the element with index j.
-// TODO: test it
 func (n *gossipEvaluation) Less(i, j int) bool {
 	a := n.peers.attrOf(n.peers.top[i])
 	b := n.peers.attrOf(n.peers.top[j])
@@ -189,11 +225,13 @@ func (n *gossipEvaluation) Less(i, j int) bool {
 		return true
 	}
 
-	if a.LastSuccess.Before(b.LastSuccess) {
-		return true
+	if a.LastFail.After(a.LastSuccess) && b.LastFail.After(b.LastSuccess) {
+		if a.LastFail.Before(b.LastFail) {
+			return true
+		}
 	}
 
-	if a.LastFail.After(b.LastFail) {
+	if a.LastSuccess.After(b.LastSuccess) {
 		return true
 	}
 

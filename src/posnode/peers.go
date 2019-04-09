@@ -89,6 +89,8 @@ func (n *Node) ConnectFail(peer *Peer, err error) {
 	attr := n.peers.attrOf(peer.ID)
 	attr.LastFail = time.Now()
 	attr.LastHost = peer.Host
+
+	n.peers.unordered = true
 }
 
 // PeerReadyForReq returns false if peer is not ready for request.

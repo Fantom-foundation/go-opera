@@ -27,6 +27,8 @@ type Node struct {
 	gossip
 	discovery
 	logger
+	downloads
+	parentDownloads
 }
 
 // New creates node.
@@ -45,15 +47,17 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 	}
 
 	n := Node{
-		ID:        CalcPeerID(&key.PublicKey),
-		key:       key,
-		pub:       &key.PublicKey,
-		store:     s,
-		consensus: c,
-		host:      host,
-		conf:      *conf,
-		client:    client{opts},
-		logger:    newLogger(host),
+		ID:              CalcPeerID(&key.PublicKey),
+		key:             key,
+		pub:             &key.PublicKey,
+		store:           s,
+		consensus:       c,
+		host:            host,
+		conf:            *conf,
+		client:          client{opts},
+		logger:          newLogger(host),
+		downloads:       initDownloads(),
+		parentDownloads: initParentDownloads(),
 	}
 
 	return &n
