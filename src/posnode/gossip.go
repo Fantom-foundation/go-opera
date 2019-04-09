@@ -86,60 +86,32 @@ func (n *Node) syncWithPeer() {
 
 	peers2discovery := make(map[hash.Peer]struct{})
 
-	for hex, height := range unknownHeights.Lasts {
+	toDelete, toDownload := n.addToDownloads(&unknownHeights.Lasts)
+	defer n.deleteFromDownloads(toDelete)
+
+	for hex, height := range *toDownload {
 		req := &api.EventRequest{
 			PeerID: hex,
+			Index:  height,
 		}
+
 		creator := hash.HexToPeer(hex)
-		last := n.store.GetPeerHeight(creator)
-		for i := last + 1; i <= height; i++ {
-			key := hex + string(i)
 
-			// Check event in downloads before call GetEvent
-			if alreadyExist := n.checkDownloads(key); alreadyExist {
-				continue
-			}
-
-			// Add record about event to downloads before get it
-			n.addToDownloads(key)
-
-			req.Index = i
-
-			ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-			w, err := client.GetEvent(ctx, req)
-			cancel()
-
-			// Delete record about event from downloads even if we get error
-			n.deleteFromDownloads(key)
-
-			if err != nil {
-				n.ConnectFail(peer, err)
-				return
-			}
-
-			event := inter.WireToEvent(w)
-
-			if event.Creator != creator || event.Index != i {
-				n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
-				return
-			}
-
-			// check event sign
-			signer := n.store.GetPeer(creator)
-			if signer == nil {
-				return
-			}
-			if !event.Verify(peer.PubKey) {
-				n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
-				return
-			}
-
-			n.SaveNewEvent(event)
-
-			n.checkParents(client, peer, event.Parents)
-
-			peers2discovery[creator] = struct{}{}
+		event := n.getEvent(client, peer, req)
+		if event == nil {
+			return
 		}
+
+		if event.Creator != creator || event.Index != height {
+			n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
+			return
+		}
+
+		n.SaveNewEvent(event)
+
+		n.checkParents(client, peer, &event.Parents)
+
+		peers2discovery[creator] = struct{}{}
 	}
 	n.ConnectOK(peer)
 
@@ -149,47 +121,16 @@ func (n *Node) syncWithPeer() {
 	}
 }
 
-func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {
-	for p := range parents {
+func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents *hash.Events) {
+	toDownload := n.addParentToDownloads(parents)
+	defer n.deleteParentFromDownloads(toDownload)
 
-		// Check parent in store
-		if n.store.GetEvent(p) != nil {
-			continue
-		}
-
-		// Check event in downloads before call GetEvent
-		if alreadyExist := n.checkParentDownloads(p); alreadyExist {
-			continue
-		}
-
-		// Add record about event to downloads before get it
-		n.addParentToDownloads(p)
-
+	for p := range *toDownload {
 		var req api.EventRequest
 		req.Hash = p.Bytes()
 
-		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-		w, err := client.GetEvent(ctx, &req)
-		cancel()
-
-		// Delete record about event from downloads even if we get error
-		n.deleteParentFromDownloads(p)
-
-		if err != nil {
-			n.ConnectFail(peer, err)
-			return
-		}
-
-		event := inter.WireToEvent(w)
-
-		// Check event sign
-		peer := n.store.GetPeer(event.Creator)
-		if peer == nil {
-			return
-		}
-
-		if !event.Verify(peer.PubKey) {
-			n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
+		event := n.getEvent(client, peer, &req)
+		if event == nil {
 			return
 		}
 
@@ -199,6 +140,33 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 
 		// We don't need to store heights here
 	}
+}
+
+// Get event & check sign
+func (n *Node) getEvent(client api.NodeClient, peer *Peer, requets *api.EventRequest) *inter.Event {
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	w, err := client.GetEvent(ctx, requets)
+	cancel()
+
+	if err != nil {
+		n.ConnectFail(peer, err)
+		return nil
+	}
+
+	event := inter.WireToEvent(w)
+
+	// Check event sign
+	creator := n.store.GetPeer(event.Creator)
+	if creator == nil {
+		return nil
+	}
+
+	if !event.Verify(creator.PubKey) {
+		n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
+		return nil
+	}
+
+	return event
 }
 
 // SaveNewEvent writes event to store and indexes.
