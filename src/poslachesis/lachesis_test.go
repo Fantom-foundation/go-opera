@@ -1,0 +1,33 @@
+package lachesis
+
+import (
+	"testing"
+	"time"
+
+	"github.com/dgraph-io/badger"
+
+	"github.com/Fantom-foundation/go-lachesis/src/posnode"
+)
+
+func TestAll(t *testing.T) {
+	ll := LachesisNetworkRing(5, 1)
+
+	time.Sleep(2 * time.Second)
+
+	for _, l := range ll {
+		l.Stop()
+	}
+}
+
+/*
+ * Utils:
+ */
+
+// NewForTests makes lachesis node with fake network.
+// It does not start any process.
+func NewForTests(db *badger.DB, host string) *Lachesis {
+	l := New(db, host, nil, posnode.FakeClient(host))
+	l.Node = posnode.NewForTests(host, l.nodeStore, l.Consensus)
+
+	return l
+}
