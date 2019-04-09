@@ -6,7 +6,9 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
 // Node is a Lachesis node implementation.
@@ -30,6 +32,18 @@ type Node struct {
 // New creates node.
 // It does not start any process.
 func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...grpc.DialOption) *Node {
+	if key == nil {
+		var err error
+		key, err = crypto.GenerateECDSAKey()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if conf == nil {
+		conf = DefaultConfig()
+	}
+
 	n := Node{
 		ID:        CalcPeerID(&key.PublicKey),
 		key:       key,
@@ -43,6 +57,13 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 	}
 
 	return &n
+}
+
+// NewForTests creates node with fake network client.
+func NewForTests(host string, s *Store, c Consensus) *Node {
+	n := New(host, nil, s, c, nil, FakeClient(host))
+	n.service.listen = network.FakeListener
+	return n
 }
 
 // Start starts all node services.
@@ -59,6 +80,21 @@ func (n *Node) Stop() {
 	n.StopService()
 }
 
+// PubKey returns public key.
+func (n *Node) PubKey() *ecdsa.PublicKey {
+	pk := *n.pub
+	return &pk
+}
+
+// Host returns host.
+func (n *Node) Host() string {
+	return n.host
+}
+
+/*
+ * Utils:
+ */
+
 // CalcPeerID returns peer id from pub key.
 func CalcPeerID(pub *ecdsa.PublicKey) hash.Peer {
 	return CalcPeerInfoID(common.FromECDSAPub(pub))
@@ -67,4 +103,10 @@ func CalcPeerID(pub *ecdsa.PublicKey) hash.Peer {
 // CalcPeerInfoID returns peer id from pub key bytes.
 func CalcPeerInfoID(pub []byte) hash.Peer {
 	return hash.Peer(hash.Of(pub))
+}
+
+// FakeClient returns dialer for fake network.
+func FakeClient(host string) grpc.DialOption {
+	dialer := network.FakeDialer(host)
+	return grpc.WithContextDialer(dialer)
 }

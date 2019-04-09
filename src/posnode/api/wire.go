@@ -17,23 +17,19 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
-
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
+// ListenFunc returns addr listener.
+type ListenFunc func(addr string) net.Listener
+
 // StartService starts and returns gRPC server.
-func StartService(bind string, svc NodeServer, log func(string, ...interface{}), fake bool) (*grpc.Server, string) {
+func StartService(bind string, svc NodeServer, log func(string, ...interface{}), listen ListenFunc) (*grpc.Server, string) {
 	server := grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	RegisterNodeServer(server, svc)
 
-	var listener net.Listener
-	if !fake {
-		listener = network.TcpListener(bind)
-	} else {
-		listener = network.FakeListener(bind)
-	}
+	listener := listen(bind)
 
 	log("service start at %v", listener.Addr())
 	go func() {

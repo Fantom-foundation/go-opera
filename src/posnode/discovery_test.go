@@ -13,7 +13,7 @@ func TestDiscovery(t *testing.T) {
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
-	node1.StartServiceForTests()
+	node1.StartService()
 	defer node1.StopService()
 
 	// node 2

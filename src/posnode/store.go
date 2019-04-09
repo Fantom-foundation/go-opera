@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -23,22 +22,19 @@ type Store struct {
 	hashes kvdb.Database
 }
 
-// NewMemStore creates store over memory map.
-func NewMemStore() *Store {
+// NewStore creates store over key-value db.
+func NewStore(db kvdb.Database) *Store {
 	s := &Store{
-		physicalDB: kvdb.NewMemDatabase(),
+		physicalDB: db,
 	}
 	s.init()
 	return s
 }
 
-// NewBadgerStore creates store over badger database.
-func NewBadgerStore(db *badger.DB) *Store {
-	s := &Store{
-		physicalDB: kvdb.NewBadgerDatabase(db),
-	}
-	s.init()
-	return s
+// NewMemStore creates store over memory map.
+func NewMemStore() *Store {
+	db := kvdb.NewMemDatabase()
+	return NewStore(db)
 }
 
 func (s *Store) init() {

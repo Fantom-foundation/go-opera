@@ -15,7 +15,7 @@ func TestGetPeerInfo(t *testing.T) {
 	store := NewMemStore()
 	n := NewForTests("server.fake", store, nil)
 
-	n.StartServiceForTests()
+	n.StartService()
 	defer n.StopService()
 
 	cli, err := n.ConnectTo(&Peer{Host: "server.fake"})

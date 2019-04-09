@@ -12,10 +12,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
 type service struct {
 	server *grpc.Server
+
+	listen api.ListenFunc
 }
 
 // StartService starts node service.
@@ -23,8 +26,13 @@ func (n *Node) StartService() {
 	if n.server != nil {
 		return
 	}
+
+	if n.service.listen == nil {
+		n.service.listen = network.TcpListener
+	}
+
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n, n.log.Infof, false)
+	n.server, _ = api.StartService(bind, n, n.log.Infof, n.service.listen)
 
 	n.log.Info("service started")
 }

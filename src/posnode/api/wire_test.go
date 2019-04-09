@@ -14,16 +14,16 @@ import (
 func TestGRPC(t *testing.T) {
 
 	t.Run("over TCP", func(t *testing.T) {
-		testGRPC(t, "", false)
+		testGRPC(t, "", network.TcpListener)
 	})
 
 	t.Run("over Fake", func(t *testing.T) {
 		dialer := network.FakeDialer("client.fake")
-		testGRPC(t, "server.fake:55555", true, grpc.WithContextDialer(dialer))
+		testGRPC(t, "server.fake:55555", network.FakeListener, grpc.WithContextDialer(dialer))
 	})
 }
 
-func testGRPC(t *testing.T, bind string, fake bool, opts ...grpc.DialOption) {
+func testGRPC(t *testing.T, bind string, listen ListenFunc, opts ...grpc.DialOption) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -46,7 +46,7 @@ func testGRPC(t *testing.T, bind string, fake bool, opts ...grpc.DialOption) {
 		Times(1)
 
 	// grpc server
-	server, addr := StartService(bind, svc, t.Logf, fake)
+	server, addr := StartService(bind, svc, t.Logf, listen)
 	defer server.Stop()
 
 	// grpc client
