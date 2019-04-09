@@ -22,6 +22,7 @@ type Poset struct {
 }
 
 // New creates Poset instance.
+// It does not start any process.
 func New(store *Store, input EventSource) *Poset {
 	const buffSize = 10
 
@@ -34,7 +35,6 @@ func New(store *Store, input EventSource) *Poset {
 		incompleteEvents: make(map[hash.Event]*Event),
 	}
 
-	p.bootstrap()
 	return p
 }
 
@@ -43,6 +43,9 @@ func (p *Poset) Start() {
 	if p.processingDone != nil {
 		return
 	}
+
+	p.Bootstrap()
+
 	p.processingDone = make(chan struct{})
 	p.processingWg.Add(1)
 	go func() {

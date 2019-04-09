@@ -47,8 +47,11 @@ func (p *Poset) saveState() {
 	p.store.SetState(p.state)
 }
 
-// bootstrap restores current state from store.
-func (p *Poset) bootstrap() {
+// Bootstrap restores current state from store.
+func (p *Poset) Bootstrap() {
+	if p.state != nil {
+		return
+	}
 	// restore state
 	p.state = p.store.GetState()
 	if p.state == nil {
@@ -64,5 +67,4 @@ func (p *Poset) bootstrap() {
 	}
 	// recalc in case there was a interrupted consensus
 	p.reconsensusFromFrame(p.state.LastFinishedFrameN + 1)
-
 }
