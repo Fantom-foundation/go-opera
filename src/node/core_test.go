@@ -960,9 +960,6 @@ func TestCoreFastForward(t *testing.T) {
 		}
 
 		knownBy0 := cores[0].KnownEvents()
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		expectedKnown := map[uint64]int64{
 			common.Hash64(cores[0].pubKey): -1,
