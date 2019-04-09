@@ -198,6 +198,111 @@ func TestMissingParents(t *testing.T) {
 	})
 }
 
+func TestPeerPriority(t *testing.T) {
+	// Node
+	store1 := NewMemStore()
+	node1 := NewForTests("node1", store1, nil)
+	defer node1.Shutdown()
+	node1.StartServiceForTests()
+	defer node1.StopService()
+
+	// Peers
+	node2 := NewForTests("node2", store1, nil)
+	node3 := NewForTests("node3", store1, nil)
+
+	// init peer list
+	peer2 := &Peer{
+		ID:     node2.ID,
+		PubKey: node2.pub,
+		Host:   node2.host,
+	}
+
+	peer3 := &Peer{
+		ID:     node3.ID,
+		PubKey: node3.pub,
+		Host:   node3.host,
+	}
+
+	store1.BootstrapPeers(peer2)
+	node1.initPeers()
+
+	t.Run("First selection after bootstrap", func(t *testing.T) {
+		assert := assert.New(t)
+
+		peer := node1.NextForGossip()
+		node1.FreePeer(peer)
+
+		node1.ConnectOK(peer2)
+
+		assert.Equal(
+			peer2.Host,
+			peer.Host,
+			"node1 should select first top node without sort")
+	})
+
+	t.Run("Select last successful peer", func(t *testing.T) {
+		assert := assert.New(t)
+
+		// Add unknown peer for update top
+		node1.ConnectOK(peer3)
+
+		peer := node1.NextForGossip()
+		node1.FreePeer(peer)
+
+		assert.Equal(
+			peer3.Host,
+			peer.Host,
+			"node1 should select peer3 as first successful node to connect after sort")
+	})
+
+	t.Run("Select last but one successful peer", func(t *testing.T) {
+		assert := assert.New(t)
+
+		node1.ConnectFail(peer3, nil)
+
+		peer := node1.NextForGossip()
+		node1.FreePeer(peer)
+
+		assert.Equal(
+			peer2.Host,
+			peer.Host,
+			"node1 should select peer2 as last successful node to connect after sort")
+	})
+
+	t.Run("If all connection was failed -> select with earliest timestamp", func(t *testing.T) {
+		assert := assert.New(t)
+
+		// Clean previous data for current case.
+		node1.peers.attrs = make(map[hash.Peer]*peerAttrs)
+
+		node1.ConnectFail(peer2, nil)
+		node1.ConnectFail(peer3, nil)
+
+		peer := node1.NextForGossip()
+		node1.FreePeer(peer)
+
+		assert.Equal(
+			peer2.Host,
+			peer.Host,
+			"node1 should select peer2 as first failed node to connect after sort")
+	})
+
+	t.Run("If all connection was successfull -> select first in top without sort", func(t *testing.T) {
+		assert := assert.New(t)
+
+		node1.ConnectOK(peer2)
+		node1.ConnectOK(peer3)
+
+		peer := node1.NextForGossip()
+		node1.FreePeer(peer)
+
+		assert.Equal(
+			peer2.Host,
+			peer.Host,
+			"node1 should select peer2 as first not busy in top node to connect after sort")
+	})
+}
+
 /*
  * Utils:
  */
