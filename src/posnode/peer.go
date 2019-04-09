@@ -48,8 +48,8 @@ func WireToPeer(w *api.PeerInfo) *Peer {
 }
 
 // IDsToWire converts to protobuf message.
-func IDsToWire(ids []hash.Peer) *api.PeersID {
-	w := &api.PeersID{
+func IDsToWire(ids []hash.Peer) *api.PeerIDs {
+	w := &api.PeerIDs{
 		IDs: make([]string, len(ids)),
 	}
 
@@ -61,7 +61,7 @@ func IDsToWire(ids []hash.Peer) *api.PeersID {
 }
 
 // WireToIDs converts from protobuf message.
-func WireToIDs(w *api.PeersID) []hash.Peer {
+func WireToIDs(w *api.PeerIDs) []hash.Peer {
 	if w == nil {
 		return nil
 	}

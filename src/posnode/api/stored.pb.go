@@ -20,126 +20,56 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type PeersID struct {
+type PeerIDs struct {
 	IDs                  []string `protobuf:"bytes,1,rep,name=IDs,proto3" json:"IDs,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PeersID) Reset()         { *m = PeersID{} }
-func (m *PeersID) String() string { return proto.CompactTextString(m) }
-func (*PeersID) ProtoMessage()    {}
-func (*PeersID) Descriptor() ([]byte, []int) {
+func (m *PeerIDs) Reset()         { *m = PeerIDs{} }
+func (m *PeerIDs) String() string { return proto.CompactTextString(m) }
+func (*PeerIDs) ProtoMessage()    {}
+func (*PeerIDs) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c5219adf996163c1, []int{0}
 }
 
-func (m *PeersID) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_PeersID.Unmarshal(m, b)
+func (m *PeerIDs) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PeerIDs.Unmarshal(m, b)
 }
-func (m *PeersID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_PeersID.Marshal(b, m, deterministic)
+func (m *PeerIDs) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PeerIDs.Marshal(b, m, deterministic)
 }
-func (m *PeersID) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PeersID.Merge(m, src)
+func (m *PeerIDs) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PeerIDs.Merge(m, src)
 }
-func (m *PeersID) XXX_Size() int {
-	return xxx_messageInfo_PeersID.Size(m)
+func (m *PeerIDs) XXX_Size() int {
+	return xxx_messageInfo_PeerIDs.Size(m)
 }
-func (m *PeersID) XXX_DiscardUnknown() {
-	xxx_messageInfo_PeersID.DiscardUnknown(m)
+func (m *PeerIDs) XXX_DiscardUnknown() {
+	xxx_messageInfo_PeerIDs.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_PeersID proto.InternalMessageInfo
+var xxx_messageInfo_PeerIDs proto.InternalMessageInfo
 
-func (m *PeersID) GetIDs() []string {
+func (m *PeerIDs) GetIDs() []string {
 	if m != nil {
 		return m.IDs
 	}
 	return nil
 }
 
-type DiscoveryInfo struct {
-	ID                   string   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
-	Host                 string   `protobuf:"bytes,2,opt,name=Host,proto3" json:"Host,omitempty"`
-	LastRequest          int64    `protobuf:"varint,3,opt,name=LastRequest,proto3" json:"LastRequest,omitempty"`
-	Available            bool     `protobuf:"varint,4,opt,name=Available,proto3" json:"Available,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *DiscoveryInfo) Reset()         { *m = DiscoveryInfo{} }
-func (m *DiscoveryInfo) String() string { return proto.CompactTextString(m) }
-func (*DiscoveryInfo) ProtoMessage()    {}
-func (*DiscoveryInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c5219adf996163c1, []int{1}
-}
-
-func (m *DiscoveryInfo) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DiscoveryInfo.Unmarshal(m, b)
-}
-func (m *DiscoveryInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DiscoveryInfo.Marshal(b, m, deterministic)
-}
-func (m *DiscoveryInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DiscoveryInfo.Merge(m, src)
-}
-func (m *DiscoveryInfo) XXX_Size() int {
-	return xxx_messageInfo_DiscoveryInfo.Size(m)
-}
-func (m *DiscoveryInfo) XXX_DiscardUnknown() {
-	xxx_messageInfo_DiscoveryInfo.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DiscoveryInfo proto.InternalMessageInfo
-
-func (m *DiscoveryInfo) GetID() string {
-	if m != nil {
-		return m.ID
-	}
-	return ""
-}
-
-func (m *DiscoveryInfo) GetHost() string {
-	if m != nil {
-		return m.Host
-	}
-	return ""
-}
-
-func (m *DiscoveryInfo) GetLastRequest() int64 {
-	if m != nil {
-		return m.LastRequest
-	}
-	return 0
-}
-
-func (m *DiscoveryInfo) GetAvailable() bool {
-	if m != nil {
-		return m.Available
-	}
-	return false
-}
-
 func init() {
-	proto.RegisterType((*PeersID)(nil), "api.PeersID")
-	proto.RegisterType((*DiscoveryInfo)(nil), "api.DiscoveryInfo")
+	proto.RegisterType((*PeerIDs)(nil), "api.PeerIDs")
 }
 
 func init() { proto.RegisterFile("stored.proto", fileDescriptor_c5219adf996163c1) }
 
 var fileDescriptor_c5219adf996163c1 = []byte{
-	// 166 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0xce, 0xbf, 0xaa, 0xc2, 0x30,
-	0x14, 0x80, 0x71, 0xd2, 0x94, 0x7b, 0xed, 0xf1, 0x0f, 0x72, 0xa6, 0x80, 0x0e, 0xa1, 0x53, 0x26,
-	0x17, 0x9f, 0x40, 0xc8, 0x60, 0xc0, 0x41, 0xf2, 0x06, 0xa9, 0x1e, 0xa1, 0x50, 0x4c, 0xcd, 0x89,
-	0x05, 0xdf, 0x5e, 0xcc, 0xa2, 0xdb, 0xc7, 0x6f, 0xfa, 0x60, 0xc1, 0x39, 0x26, 0xba, 0xee, 0xc6,
-	0x14, 0x73, 0x44, 0x19, 0xc6, 0xbe, 0xdd, 0xc0, 0xff, 0x99, 0x28, 0xb1, 0xb3, 0xb8, 0x06, 0xe9,
-	0x2c, 0x2b, 0xa1, 0xa5, 0x69, 0xfc, 0x27, 0x5b, 0x86, 0xa5, 0xed, 0xf9, 0x12, 0x27, 0x4a, 0x2f,
-	0x77, 0xbf, 0x45, 0x5c, 0x41, 0xe5, 0xac, 0x12, 0x5a, 0x98, 0xc6, 0x57, 0xce, 0x22, 0x42, 0x7d,
-	0x8c, 0x9c, 0x55, 0x55, 0xa4, 0x34, 0x6a, 0x98, 0x9f, 0x02, 0x67, 0x4f, 0x8f, 0x27, 0x71, 0x56,
-	0x52, 0x0b, 0x23, 0xfd, 0x2f, 0xe1, 0x16, 0x9a, 0xc3, 0x14, 0xfa, 0x21, 0x74, 0x03, 0xa9, 0x5a,
-	0x0b, 0x33, 0xf3, 0x5f, 0xe8, 0xfe, 0xca, 0xdd, 0xfe, 0x1d, 0x00, 0x00, 0xff, 0xff, 0x3f, 0x05,
-	0x90, 0x56, 0xad, 0x00, 0x00, 0x00,
+	// 75 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x29, 0x2e, 0xc9, 0x2f,
+	0x4a, 0x4d, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x4e, 0x2c, 0xc8, 0x54, 0x92, 0xe6,
+	0x62, 0x0f, 0x48, 0x4d, 0x2d, 0xf2, 0x74, 0x29, 0x16, 0x12, 0xe0, 0x62, 0xf6, 0x74, 0x29, 0x96,
+	0x60, 0x54, 0x60, 0xd6, 0xe0, 0x0c, 0x02, 0x31, 0x93, 0xd8, 0xc0, 0x0a, 0x8d, 0x01, 0x01, 0x00,
+	0x00, 0xff, 0xff, 0x95, 0xd2, 0x54, 0x9f, 0x38, 0x00, 0x00, 0x00,
 }

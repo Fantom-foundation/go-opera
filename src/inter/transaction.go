@@ -20,7 +20,7 @@ func InternalTransactionsToWire(tt []*InternalTransaction) []*wire.InternalTrans
 	for i, t := range tt {
 		res[i] = &wire.InternalTransaction{
 			Amount:   t.Amount,
-			Receiver: t.Receiver.Bytes(),
+			Receiver: t.Receiver.Hex(),
 		}
 	}
 
@@ -36,7 +36,7 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
 	for i, w := range tt {
 		res[i] = &InternalTransaction{
 			Amount:   w.Amount,
-			Receiver: hash.BytesToPeer(w.Receiver),
+			Receiver: hash.HexToPeer(w.Receiver),
 		}
 	}
 

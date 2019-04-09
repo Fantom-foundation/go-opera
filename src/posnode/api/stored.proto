@@ -1,13 +1,6 @@
 syntax = "proto3";
 package api;
 
-message PeersID {
+message PeerIDs {
     repeated string IDs = 1;
-}
-
-message DiscoveryInfo {
-    string ID = 1;
-    string Host = 2;
-    int64 LastRequest = 3;
-    bool Available = 4;
 }

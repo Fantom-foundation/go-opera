@@ -169,7 +169,7 @@ func (s *Store) SetTopPeers(ids []hash.Peer) {
 // GetTopPeers returns peers.top.
 func (s *Store) GetTopPeers() []hash.Peer {
 	var key = []byte("current")
-	w, _ := s.get(s.peersTop, key, &api.PeersID{}).(*api.PeersID)
+	w, _ := s.get(s.peersTop, key, &api.PeerIDs{}).(*api.PeerIDs)
 	return WireToIDs(w)
 }
 

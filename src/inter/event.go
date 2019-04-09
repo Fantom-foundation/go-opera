@@ -77,7 +77,7 @@ func (e *Event) String() string {
 func (e *Event) ToWire() *wire.Event {
 	return &wire.Event{
 		Index:                e.Index,
-		Creator:              e.Creator.Bytes(),
+		Creator:              e.Creator.Hex(),
 		Parents:              e.Parents.ToWire(),
 		LamportTime:          uint64(e.LamportTime),
 		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
@@ -93,7 +93,7 @@ func WireToEvent(w *wire.Event) *Event {
 	}
 	return &Event{
 		Index:                w.Index,
-		Creator:              hash.BytesToPeer(w.Creator),
+		Creator:              hash.HexToPeer(w.Creator),
 		Parents:              hash.WireToEventHashes(w.Parents),
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
