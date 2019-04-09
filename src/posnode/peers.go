@@ -39,6 +39,8 @@ func (pp *peers) attrOf(id hash.Peer) *peerAttrs {
 }
 
 func (n *Node) initPeers() {
+	n.initDownloads()
+
 	if n.peers.top != nil {
 		return
 	}

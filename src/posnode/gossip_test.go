@@ -38,26 +38,26 @@ func TestGossip(t *testing.T) {
 
 	// set events
 	// TODO: replace with self-generated events
-	genEvent(node1, 1)
-	genEvent(node2, 1)
+	genEvents(node1, 1)
+	genEvents(node2, 1)
 
 	t.Run("before", func(t *testing.T) {
 		assert := assert.New(t)
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 1,
-				node2.ID.Hex(): 0,
+			map[hash.Peer]uint64{
+				node1.ID: 1,
+				node2.ID: 0,
 			},
-			node1.knownEvents().Lasts,
+			node1.knownEvents(),
 			"node1 knows their event only")
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 0,
-				node2.ID.Hex(): 1,
+			map[hash.Peer]uint64{
+				node1.ID: 0,
+				node2.ID: 1,
 			},
-			node2.knownEvents().Lasts,
+			node2.knownEvents(),
 			"node2 knows their event only")
 	})
 
@@ -66,19 +66,19 @@ func TestGossip(t *testing.T) {
 		node1.syncWithPeer()
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 1,
-				node2.ID.Hex(): 1,
+			map[hash.Peer]uint64{
+				node1.ID: 1,
+				node2.ID: 1,
 			},
-			node1.knownEvents().Lasts,
+			node1.knownEvents(),
 			"node1 knows last event of node2")
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 0,
-				node2.ID.Hex(): 1,
+			map[hash.Peer]uint64{
+				node1.ID: 0,
+				node2.ID: 1,
 			},
-			node2.knownEvents().Lasts,
+			node2.knownEvents(),
 			"node2 still knows their event only")
 
 		e2 := node1.store.GetEventHash(node2.ID, 1)
@@ -90,19 +90,19 @@ func TestGossip(t *testing.T) {
 		node2.syncWithPeer()
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 1,
-				node2.ID.Hex(): 1,
+			map[hash.Peer]uint64{
+				node1.ID: 1,
+				node2.ID: 1,
 			},
-			node1.knownEvents().Lasts,
+			node1.knownEvents(),
 			"node1 still knows event of node2")
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 1,
-				node2.ID.Hex(): 1,
+			map[hash.Peer]uint64{
+				node1.ID: 1,
+				node2.ID: 1,
 			},
-			node2.knownEvents().Lasts,
+			node2.knownEvents(),
 			"node2 knows last event of node1")
 
 		e1 := node2.store.GetEventHash(node1.ID, 1)
@@ -139,30 +139,25 @@ func TestMissingParents(t *testing.T) {
 	})
 	node2.initPeers()
 
-	// Set events with parents for node 1
-	// Parent index -> index - 1
-	genEventWithParent(node1, 2)
+	genEvents(node1, 2)
 
 	t.Run("before", func(t *testing.T) {
 		assert := assert.New(t)
 
-		// Set PeerHeight for node2 with missing info about first event
-		node2.store.SetPeerHeight(node1.ID, 1)
-
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 2,
-				node2.ID.Hex(): 0,
+			map[hash.Peer]uint64{
+				node1.ID: 2,
+				node2.ID: 0,
 			},
-			node1.knownEvents().Lasts,
+			node1.knownEvents(),
 			"node1 knows their event only")
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 1,
-				node2.ID.Hex(): 0,
+			map[hash.Peer]uint64{
+				node1.ID: 0,
+				node2.ID: 0,
 			},
-			node2.knownEvents().Lasts,
+			node2.knownEvents(),
 			"node2 knows their event only")
 	})
 
@@ -171,19 +166,19 @@ func TestMissingParents(t *testing.T) {
 		node2.syncWithPeer()
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 2,
-				node2.ID.Hex(): 0,
+			map[hash.Peer]uint64{
+				node1.ID: 2,
+				node2.ID: 0,
 			},
-			node1.knownEvents().Lasts,
+			node1.knownEvents(),
 			"node1 still knows their event only")
 
 		assert.Equal(
-			map[string]uint64{
-				node1.ID.Hex(): 2,
-				node2.ID.Hex(): 0,
+			map[hash.Peer]uint64{
+				node1.ID: 2,
+				node2.ID: 0,
 			},
-			node2.knownEvents().Lasts,
+			node2.knownEvents(),
 			"node2 knows last event of node1")
 
 		e1 := node2.store.GetEventHash(node1.ID, 1)
@@ -302,34 +297,25 @@ func TestPeerPriority(t *testing.T) {
  * Utils:
  */
 
-func genEvent(node *Node, index uint64) *inter.Event {
-	e := &inter.Event{
-		Index:   index,
-		Creator: node.ID,
+func genEvents(n *Node, count uint64) {
+	last := n.store.GetPeerHeight(n.ID)
+	for i := last + 1; i <= last+count; i++ {
+		e := &inter.Event{
+			Index:   i,
+			Creator: n.ID,
+			Parents: hash.Events{},
+		}
+		if i == 1 {
+			e.Parents.Add(hash.ZeroEvent)
+		} else {
+			e.Parents.Add(*n.store.GetEventHash(n.ID, i-1))
+		}
+
+		err := e.SignBy(n.key)
+		if err != nil {
+			panic(err)
+		}
+
+		n.saveNewEvent(e)
 	}
-	err := e.SignBy(node.key)
-	if err != nil {
-		panic(err)
-	}
-
-	node.SaveNewEvent(e)
-
-	return e
-}
-
-func genEventWithParent(node *Node, index uint64) {
-	parent := genEvent(node, index-1)
-	parentHash := parent.Hash()
-
-	e := &inter.Event{
-		Index:   index,
-		Creator: node.ID,
-		Parents: hash.NewEvents(parentHash),
-	}
-	err := e.SignBy(node.key)
-	if err != nil {
-		panic(err)
-	}
-
-	node.SaveNewEvent(e)
 }

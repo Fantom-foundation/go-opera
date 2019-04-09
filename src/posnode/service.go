@@ -54,8 +54,14 @@ func (n *Node) StopService() {
 
 // SyncEvents returns their known event heights excluding heights from request.
 func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.KnownEvents, error) {
-	known := n.knownEvents()
-	diff := PeersHeightsDiff(known.Lasts, req.Lasts)
+	knowns := n.knownEvents()
+
+	knownLasts := make(map[string]uint64, len(knowns))
+	for id, h := range knowns {
+		knownLasts[id.Hex()] = h
+	}
+
+	diff := PeersHeightsDiff(knownLasts, req.Lasts)
 
 	// TODO: should we remember other node's knowns for future request?
 	// to_download := PeersHeightsDiff(req.Lasts, known)
