@@ -3,18 +3,12 @@ package posnode
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
-)
-
-const (
-	// waitOnDiscoveryFailure is the how often discovery should try to request.
-	discoveryTimeout = 5 * time.Minute
 )
 
 type (
@@ -131,7 +125,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 
 // requestPeerInfo does GetPeerInfo request.
 func (n *Node) requestPeerInfo(client api.NodeClient, id *hash.Peer) (info *api.PeerInfo, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 	defer cancel()
 
 	req := api.PeerRequest{}

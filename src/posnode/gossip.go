@@ -136,7 +136,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) map[hash.Pe
 		req.Lasts[id.Hex()] = h
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 	defer cancel()
 
 	resp, err := client.SyncEvents(ctx, req)
@@ -156,7 +156,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) map[hash.Pe
 
 // downloadEvent downloads event.
 func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRequest) *inter.Event {
-	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 	w, err := client.GetEvent(ctx, req)
 	cancel()
 

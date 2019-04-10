@@ -29,7 +29,7 @@ func TestGetPeerInfo(t *testing.T) {
 		peer := FakePeer("unreachable")
 		store.SetPeer(peer)
 
-		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 		defer cancel()
 
 		got, err := cli.GetPeerInfo(ctx, &api.PeerRequest{
@@ -45,7 +45,7 @@ func TestGetPeerInfo(t *testing.T) {
 	t.Run("no existing peer", func(t *testing.T) {
 		assert := assert.New(t)
 
-		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 		defer cancel()
 
 		resp, err := cli.GetPeerInfo(ctx, &api.PeerRequest{

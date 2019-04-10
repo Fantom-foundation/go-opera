@@ -1,138 +1,85 @@
 package posnode
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestEmit(t *testing.T) {
-	t.Run("no transactions", func(t *testing.T) {
-		store := NewMemStore()
-		n := NewForTests("server.fake", store, nil)
+	// node 1
+	store1 := NewMemStore()
+	node1 := NewForTests("emitter1", store1, nil)
 
-		n.CreateEvent()
-	})
+	// node 2
+	store2 := NewMemStore()
+	node2 := NewForTests("emitter2", store2, nil)
 
-	t.Run("not enough events", func(t *testing.T) {
+	events := make([]*inter.Event, 3)
+
+	t.Run("no parent events", func(t *testing.T) {
 		assert := assert.New(t)
 
-		store := NewMemStore()
-		n := NewForTests("server.fake", store, nil)
+		tx := []byte("12345")
+		node1.AddTransaction(tx)
+		events[0] = node1.EmitEvent()
 
-		var buf bytes.Buffer
-		n.logger.log.Logger.Out = &buf
-		n.emitter.transactions = [][]byte{
-			[]byte{},
-		}
-		n.CreateEvent()
-
-		assert.Contains(buf.String(), "enough events")
+		assert.Equal(
+			uint64(1),
+			events[0].Index)
+		assert.Equal(
+			inter.Timestamp(1),
+			events[0].LamportTime)
+		assert.Equal(
+			hash.NewEvents(hash.ZeroEvent),
+			events[0].Parents)
+		assert.Equal(
+			[][]byte{tx},
+			events[0].ExternalTransactions)
 	})
 
 	t.Run("zero event", func(t *testing.T) {
 		assert := assert.New(t)
 
-		// node 1
-		store1 := NewMemStore()
-		node1 := NewForTests("node1", store1, nil)
-		node1.StartService()
-		defer node1.StopService()
-
-		// node 2
-		store2 := NewMemStore()
-		node2 := NewForTests("node2", store2, nil)
-		node2.conf.EventParentsCount = 2
-
-		// connect node2 to node1
+		// node2 got event0
 		store2.BootstrapPeers(node1.AsPeer())
 		node2.initPeers()
+		node2.saveNewEvent(events[0])
 
-		// create node 1 event
-		event := &inter.Event{
-			Index:                1,
-			Creator:              node1.ID,
-			LamportTime:          1,
-			ExternalTransactions: make([][]byte, 0),
-		}
-		if !assert.NoError(event.SignBy(node1.key)) {
-			return
-		}
+		events[1] = node2.EmitEvent()
 
-		node2.saveNewEvent(event)
-		node2.emitter.transactions = [][]byte{
-			[]byte{},
-		}
-
-		node2.CreateEvent()
-
-		index := store2.GetPeerHeight(node2.ID)
-		eventHash := store2.GetEventHash(node2.ID, index)
-		got := store2.GetEvent(*eventHash)
-
-		assert.Equal(int(got.LamportTime), 2)
-		assert.Equal(int(got.Index), 1)
-		assert.Equal(len(got.Parents), 2)
+		assert.Equal(
+			uint64(1),
+			events[1].Index)
+		assert.Equal(
+			inter.Timestamp(2),
+			events[1].LamportTime)
+		assert.Equal(
+			hash.NewEvents(hash.ZeroEvent, events[0].Hash()),
+			events[1].Parents)
 	})
 
 	t.Run("has self parent", func(t *testing.T) {
 		assert := assert.New(t)
 
-		// node 1
-		store1 := NewMemStore()
-		node1 := NewForTests("node01", store1, nil)
-		node1.StartService()
-		defer node1.StopService()
+		// node1 got event1
+		store1.BootstrapPeers(node2.AsPeer())
+		node1.initPeers()
+		node1.saveNewEvent(events[1])
 
-		// node 2
-		store2 := NewMemStore()
-		node2 := NewForTests("node02", store2, nil)
-		node2.conf.EventParentsCount = 2
+		events[2] = node1.EmitEvent()
 
-		// connect node2 to node1
-		store2.BootstrapPeers(node1.AsPeer())
-		node2.initPeers()
-
-		// create node 1 event
-		event1 := &inter.Event{
-			Index:                1,
-			Creator:              node1.ID,
-			LamportTime:          1,
-			ExternalTransactions: make([][]byte, 0),
-		}
-		if !assert.NoError(event1.SignBy(node1.key)) {
-			return
-		}
-
-		node2.saveNewEvent(event1)
-
-		// create node 2 event
-		event2 := &inter.Event{
-			Index:                1,
-			Creator:              node2.ID,
-			LamportTime:          1,
-			ExternalTransactions: make([][]byte, 0),
-		}
-		if !assert.NoError(event2.SignBy(node2.key)) {
-			return
-		}
-
-		node2.saveNewEvent(event2)
-
-		node2.emitter.transactions = [][]byte{
-			[]byte{},
-		}
-
-		node2.CreateEvent()
-
-		index := store2.GetPeerHeight(node2.ID)
-		eventHash := store2.GetEventHash(node2.ID, index)
-		got := store2.GetEvent(*eventHash)
-
-		assert.Equal(int(got.LamportTime), 2)
-		assert.Equal(int(got.Index), 2)
-		assert.Equal(len(got.Parents), 2)
+		assert.Equal(
+			uint64(2),
+			events[2].Index)
+		assert.Equal(
+			inter.Timestamp(3),
+			events[2].LamportTime)
+		assert.Equal(
+			hash.NewEvents(events[0].Hash(), events[1].Hash()),
+			events[2].Parents)
 	})
 }

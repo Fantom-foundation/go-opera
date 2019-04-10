@@ -3,16 +3,20 @@ package posnode
 import (
 	"net"
 	"strconv"
+	"time"
 )
 
 // Config is a set of nodes params.
 type Config struct {
-	// count of event's parents (includes self-parent)
-	EventParentsCount int
-	// default service port
-	Port int
+	EventParentsCount int // max count of event's parents (includes self-parent)
+	Port              int // default service port
 
-	GossipThreads int
+	GossipThreads    int           // count of gossiping goroutines
+	EmitInterval     time.Duration // event emission interval
+	DiscoveryTimeout time.Duration // how often discovery should try to request
+
+	ConnectTimeout time.Duration // how long dialer will for connection to be established
+	ClientTimeout  time.Duration // how long will gRPC client will wait for response
 }
 
 // DefaultConfig returns default config.
@@ -21,7 +25,12 @@ func DefaultConfig() *Config {
 		EventParentsCount: 3,
 		Port:              55555,
 
-		GossipThreads: 4,
+		GossipThreads:    4,
+		EmitInterval:     10 * time.Second,
+		DiscoveryTimeout: 5 * time.Minute,
+
+		ConnectTimeout: 15 * time.Second,
+		ClientTimeout:  15 * time.Second,
 	}
 }
 

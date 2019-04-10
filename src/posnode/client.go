@@ -2,21 +2,11 @@ package posnode
 
 import (
 	"context"
-	"time"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
-)
-
-const (
-	// clientTimeout defines how long will gRPC client will wait
-	// for response from the server.
-	clientTimeout = 15 * time.Second
-	// connectTimeout defines how long dialer will for connection
-	// to be established.
-	connectTimeout = 15 * time.Second
 )
 
 // client of node service.
@@ -27,7 +17,7 @@ type client struct {
 
 // ConnectTo connects to other node service.
 func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, error) {
-	ctx, _ := context.WithTimeout(context.Background(), connectTimeout)
+	ctx, _ := context.WithTimeout(context.Background(), n.conf.ConnectTimeout)
 
 	addr := n.NetAddrOf(peer.Host)
 	n.log.Debugf("connect to %s", addr)

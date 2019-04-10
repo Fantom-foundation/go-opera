@@ -2,7 +2,6 @@ package posnode
 
 import (
 	"crypto/ecdsa"
-	"time"
 
 	"google.golang.org/grpc"
 
@@ -10,10 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
-)
-
-const (
-	emitterTickInterval = time.Minute
 )
 
 // Node is a Lachesis node implementation.
@@ -78,15 +73,15 @@ func (n *Node) Start() {
 	n.StartService()
 	n.StartDiscovery()
 	n.StartGossip(n.conf.GossipThreads)
-	n.StartEmit()
+	n.StartEventEmission()
 }
 
 // Stop stops all node services.
 func (n *Node) Stop() {
+	n.StopEventEmission()
 	n.StopGossip()
 	n.StopDiscovery()
 	n.StopService()
-	n.StopEmit()
 }
 
 // PubKey returns public key.
@@ -98,6 +93,15 @@ func (n *Node) PubKey() *ecdsa.PublicKey {
 // Host returns host.
 func (n *Node) Host() string {
 	return n.host
+}
+
+// AsPeer returns nodes peer info.
+func (n *Node) AsPeer() *Peer {
+	return &Peer{
+		ID:     n.ID,
+		PubKey: n.pub,
+		Host:   n.host,
+	}
 }
 
 /*
@@ -118,13 +122,4 @@ func CalcPeerInfoID(pub []byte) hash.Peer {
 func FakeClient(host string) grpc.DialOption {
 	dialer := network.FakeDialer(host)
 	return grpc.WithContextDialer(dialer)
-}
-
-// AsPeer returns nodes peer info.
-func (n *Node) AsPeer() *Peer {
-	return &Peer{
-		ID:     n.ID,
-		PubKey: n.pub,
-		Host:   n.host,
-	}
 }

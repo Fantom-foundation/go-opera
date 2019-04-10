@@ -105,7 +105,7 @@ func (n *Node) PeerReadyForReq(id hash.Peer, host string) bool {
 
 	if attr.LastHost == host &&
 		attr.LastFail.After(attr.LastSuccess) &&
-		attr.LastFail.After(time.Now().Add(-discoveryTimeout)) {
+		attr.LastFail.After(time.Now().Add(-n.conf.DiscoveryTimeout)) {
 		return false
 	}
 
@@ -123,7 +123,7 @@ func (n *Node) PeerUnknown(id *hash.Peer) bool {
 	defer n.peers.RUnlock()
 
 	attr := n.peers.attrOf(*id)
-	if attr.LastSuccess.After(time.Now().Add(-discoveryTimeout)) {
+	if attr.LastSuccess.After(time.Now().Add(-n.conf.DiscoveryTimeout)) {
 		return false
 	}
 

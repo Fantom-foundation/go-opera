@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -10,31 +11,36 @@ import (
 
 // emitter creates events from external transactions.
 type emitter struct {
-	// protects transactions and counter.
-	sync.Mutex
-	// external transactions.
 	transactions [][]byte
+	done         chan struct{}
 
-	// done allows to stop emitting
-	done chan struct{}
+	sync.Mutex
 }
 
-// StartEmit build events on tick.
-func (n *Node) StartEmit() {
-	n.emitter.Mutex = sync.Mutex{}
-	// n.emitter.transactions = make([]transaction, 0)
+// StartEventEmission starts event emission.
+func (n *Node) StartEventEmission() {
+	if n.emitter.done != nil {
+		return
+	}
+	n.emitter.done = make(chan struct{})
 
 	go func() {
-		ticker := time.NewTicker(emitterTickInterval)
-		for range ticker.C {
-			n.CreateEvent()
+		ticker := time.NewTicker(n.conf.EmitInterval)
+		for {
+			select {
+			case <-ticker.C:
+				n.EmitEvent()
+			case <-n.emitter.done:
+				return
+			}
 		}
 	}()
 }
 
-// StopEmit stops emitter.
-func (n *Node) StopEmit() {
+// StopEventEmission stops event emission.
+func (n *Node) StopEventEmission() {
 	close(n.emitter.done)
+	n.emitter.done = nil
 }
 
 // AddTransaction adds transaction into the node.
@@ -45,104 +51,110 @@ func (n *Node) AddTransaction(t []byte) {
 	n.emitter.transactions = append(n.emitter.transactions, t)
 }
 
-// CreateEvent takes all transactions from buffer
-// builds event, connects it with given amount of
-// parents, sign and put it into the storage.
-func (n *Node) CreateEvent() {
+// EmitEvent takes all transactions from buffer builds event,
+// connects it with given amount of parents, sign and put it into the storage.
+// It returns emmited event for test purpose.
+func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	if len(n.emitter.transactions) == 0 {
-		return
+	var (
+		index        uint64
+		parents      hash.Events = hash.Events{}
+		lamportTime  inter.Timestamp
+		transactions [][]byte
+	)
+
+	// transactions buffer swap
+	transactions, n.emitter.transactions = n.emitter.transactions, nil
+
+	// ref nodes selection
+	refs := n.peers.Snapshot()
+	sort.Sort(n.emitterEvaluation(refs))
+	count := n.conf.EventParentsCount - 1
+	if len(refs) > count {
+		refs = refs[:count]
 	}
+	refs = append(refs, n.ID)
 
-	// Get transactions from buffer and clear it.
-	transactions := make([][]byte, len(n.emitter.transactions))
-	for i, t := range n.emitter.transactions {
-		transactions[i] = []byte(t)
-	}
-	n.emitter.transactions = make([][]byte, 0)
-
-	lastEvents := n.latestEvents()
-	if !enoughEvents(lastEvents, n.conf.EventParentsCount, n.ID.Hex()) {
-		n.log.Warn("node does not knew enough events to create new one")
-		return
-	}
-
-	llt := latestLamportTime(lastEvents)
-	parents := selectParents(lastEvents, n.conf.EventParentsCount, n.ID.Hex())
-
-	// Build event.
-	event := &inter.Event{
-		Index:                n.store.GetPeerHeight(n.ID) + 1,
-		Creator:              n.ID,
-		Parents:              parents,
-		LamportTime:          llt + 1,
-		ExternalTransactions: transactions,
-	}
-
-	if err := event.SignBy(n.key); err != nil {
-		panic(err)
-	}
-
-	n.saveNewEvent(event)
-}
-
-func (n *Node) latestEvents() []inter.Event {
-	heights := n.knownEvents()
-	events := make([]inter.Event, 0)
-	for creator, index := range heights {
-		if index == 0 {
-			continue
-		}
-		eventHash := n.store.GetEventHash(creator, index)
-		events = append(events, *n.store.GetEvent(*eventHash))
-	}
-
-	return events
-}
-
-func enoughEvents(events []inter.Event, count int, parentID string) bool {
-	i := 1
-	for _, event := range events {
-		if event.Creator.Hex() == parentID {
-			continue
-		}
-		i++
-	}
-
-	return i >= count
-}
-
-func selectParents(events []inter.Event, count int, parentID string) hash.Events {
-	var selfEvent *hash.Event
-	parents := make([]hash.Event, 0)
-	for _, event := range events {
-		if event.Creator.Hex() == parentID {
-			hash := event.Hash()
-			selfEvent = &hash
+	// last events of ref nodes
+	for _, ref := range refs {
+		h := n.store.GetPeerHeight(ref)
+		if h < 1 {
+			if ref == n.ID {
+				index = 1
+				parents.Add(hash.ZeroEvent)
+			}
 			continue
 		}
 
-		parents = append(parents, event.Hash())
-	}
+		if ref == n.ID {
+			index = h + 1
+		}
 
-	if selfEvent == nil {
-		parents = append(parents, hash.ZeroEvent)
-		return hash.NewEvents(parents...)
-	}
+		e := n.store.GetEventHash(ref, h)
+		if e == nil {
+			n.log.Errorf("no event hash for (%s,%d) in store", ref.String(), h)
+			continue
+		}
+		event := n.store.GetEvent(*e)
+		if event == nil {
+			n.log.Errorf("no event %s in store", e.String())
+			continue
+		}
 
-	parents = append(parents, *selfEvent)
-	return hash.NewEvents(parents...)
-}
-
-func latestLamportTime(events []inter.Event) inter.Timestamp {
-	var lamportTime inter.Timestamp
-	for _, event := range events {
+		parents.Add(*e)
 		if lamportTime < event.LamportTime {
 			lamportTime = event.LamportTime
 		}
 	}
 
-	return lamportTime
+	event := &inter.Event{
+		Index:                index,
+		Creator:              n.ID,
+		Parents:              parents,
+		LamportTime:          lamportTime + 1,
+		ExternalTransactions: transactions,
+	}
+	if err := event.SignBy(n.key); err != nil {
+		panic(err)
+	}
+
+	n.saveNewEvent(event)
+
+	return event
+}
+
+/*
+ * evaluation function for emitter
+ */
+
+func (n *Node) emitterEvaluation(peers []hash.Peer) *emitterEvaluation {
+	return &emitterEvaluation{
+		node:  n,
+		peers: peers,
+	}
+}
+
+// emitterEvaluation implements sort.Interface.
+type emitterEvaluation struct {
+	node  *Node
+	peers []hash.Peer
+}
+
+// Len is the number of elements in the collection.
+func (n *emitterEvaluation) Len() int {
+	return len(n.peers)
+}
+
+// Swap swaps the elements with indexes i and j.
+func (n *emitterEvaluation) Swap(i, j int) {
+	n.peers[i], n.peers[j] = n.peers[j], n.peers[i]
+}
+
+// Less reports whether the element with
+// index i should sort before the element with index j.
+func (n *emitterEvaluation) Less(i, j int) bool {
+	// TODO: implement it
+	return false
 }
