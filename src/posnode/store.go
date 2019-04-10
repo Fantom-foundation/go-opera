@@ -74,7 +74,7 @@ func (s *Store) GetEvent(h hash.Event) *inter.Event {
 	return inter.WireToEvent(w)
 }
 
-// SetHash stores hash.
+// SetEventHash stores hash.
 func (s *Store) SetEventHash(creator hash.Peer, index uint64, hash hash.Event) {
 	key := append(creator.Bytes(), intToBytes(index)...)
 
