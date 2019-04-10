@@ -22,7 +22,7 @@ fi
 
 # Clone the existing gh-pages for this repo into gh-pages/
 # Create a new empty branch if gh-pages doesn't exist yet (should only happen on first deploy)
-git clone ${REPO} ${OUT_DIR}
+git clone ${HTTPS_REPO} ${OUT_DIR}
 
 echo "Entering gh-pages output folder '${OUT_DIR}'"
 cd ${OUT_DIR}
@@ -53,6 +53,6 @@ git status
 git commit -m "Deploy to Github Pages from commit: ${SHA}"
 git status
 echo "Pushing changes to ${HTTPS_REPO} ${TARGET_BRANCH} from dir `pwd`"
-git push --set-upstream origin --repo ${HTTPS_REPO} ${TARGET_BRANCH}
+git push --set-upstream origin ${TARGET_BRANCH}
 
 echo "Done updating gh-pages\n"
