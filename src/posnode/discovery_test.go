@@ -21,11 +21,7 @@ func TestDiscovery(t *testing.T) {
 	node2 := NewForTests("node2", store2, nil)
 
 	// connect node2 to node1
-	store2.BootstrapPeers(&Peer{
-		ID:     node1.ID,
-		PubKey: node1.pub,
-		Host:   node1.host,
-	})
+	store2.BootstrapPeers(node1.AsPeer())
 	node2.initPeers()
 
 	t.Run("ask for unknown", func(t *testing.T) {
@@ -45,11 +41,7 @@ func TestDiscovery(t *testing.T) {
 		node2.AskPeerInfo(node1.ID, node1.host, &unknown)
 
 		peer := store2.GetPeer(unknown)
-		assert.Equal(&Peer{
-			ID:     node1.ID,
-			PubKey: node1.pub,
-			Host:   node1.host,
-		}, peer)
+		assert.Equal(node1.AsPeer(), peer)
 	})
 
 	t.Run("ask for known unreachable", func(t *testing.T) {

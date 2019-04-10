@@ -120,7 +120,11 @@ func FakeClient(host string) grpc.DialOption {
 	return grpc.WithContextDialer(dialer)
 }
 
-// ToPeer returns hash.Peer
-func (n *Node) ToPeer() hash.Peer {
-	return hash.Peer(hash.Of(common.FromECDSAPub(n.pub)))
+// AsPeer returns nodes peer info.
+func (n *Node) AsPeer() *Peer {
+	return &Peer{
+		ID:     n.ID,
+		PubKey: n.pub,
+		Host:   n.host,
+	}
 }

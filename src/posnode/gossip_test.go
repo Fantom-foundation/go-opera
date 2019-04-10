@@ -23,17 +23,9 @@ func TestGossip(t *testing.T) {
 	defer node2.StopService()
 
 	// connect nodes to each other
-	store1.BootstrapPeers(&Peer{
-		ID:     node2.ID,
-		PubKey: node2.pub,
-		Host:   node2.host,
-	})
+	store1.BootstrapPeers(node2.AsPeer())
 	node1.initPeers()
-	store2.BootstrapPeers(&Peer{
-		ID:     node1.ID,
-		PubKey: node1.pub,
-		Host:   node1.host,
-	})
+	store2.BootstrapPeers(node1.AsPeer())
 	node2.initPeers()
 
 	// set events
@@ -125,18 +117,10 @@ func TestMissingParents(t *testing.T) {
 	defer node1.StopService()
 
 	// connect nodes to each other
-	store1.BootstrapPeers(&Peer{
-		ID:     node2.ID,
-		PubKey: node2.pub,
-		Host:   node2.host,
-	})
+	store1.BootstrapPeers(node2.AsPeer())
 	node1.initPeers()
 
-	store2.BootstrapPeers(&Peer{
-		ID:     node1.ID,
-		PubKey: node1.pub,
-		Host:   node1.host,
-	})
+	store2.BootstrapPeers(node1.AsPeer())
 	node2.initPeers()
 
 	genEvents(node1, 2)

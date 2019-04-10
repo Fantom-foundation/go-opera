@@ -76,10 +76,9 @@ func (n *Node) CreateEvent() {
 	parents := selectParents(lastEvents, n.conf.EventParentsCount, n.ID.Hex())
 
 	// Build event.
-	creater := n.ToPeer()
 	event := inter.Event{
 		Index:                n.store.GetPeerHeight(n.ID) + 1,
-		Creator:              creater,
+		Creator:              n.ID,
 		Parents:              parents,
 		LamportTime:          llt + 1,
 		ExternalTransactions: transactions,

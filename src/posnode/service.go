@@ -8,7 +8,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
@@ -108,11 +107,8 @@ func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.Peer
 	id := hash.HexToPeer(req.PeerID)
 
 	if id == n.ID { // self
-		return &api.PeerInfo{
-			ID:     n.ID.Hex(),
-			PubKey: common.FromECDSAPub(n.pub),
-			Host:   n.host,
-		}, nil
+		info := n.AsPeer()
+		return info.ToWire(), nil
 	}
 
 	info := n.store.GetWirePeer(id)

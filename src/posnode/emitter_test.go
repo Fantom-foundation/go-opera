@@ -47,18 +47,13 @@ func TestEmit(t *testing.T) {
 		node2.conf.EventParentsCount = 2
 
 		// connect node2 to node1
-		store2.BootstrapPeers(&Peer{
-			ID:     node1.ID,
-			PubKey: node1.pub,
-			Host:   node1.host,
-		})
+		store2.BootstrapPeers(node1.AsPeer())
 		node2.initPeers()
 
 		// create node 1 event
-		creater1 := node1.ToPeer()
 		event := inter.Event{
 			Index:                1,
-			Creator:              creater1,
+			Creator:              node1.ID,
 			LamportTime:          1,
 			ExternalTransactions: make([][]byte, 0),
 		}
@@ -72,9 +67,8 @@ func TestEmit(t *testing.T) {
 
 		node2.CreateEvent()
 
-		creater2 := node2.ToPeer()
 		index := store2.GetPeerHeight(node2.ID)
-		eventHash := store2.GetEventHash(creater2, index)
+		eventHash := store2.GetEventHash(node2.ID, index)
 		got := store2.GetEvent(*eventHash)
 
 		assert.Equal(int(got.LamportTime), 2)
@@ -97,18 +91,13 @@ func TestEmit(t *testing.T) {
 		node2.conf.EventParentsCount = 2
 
 		// connect node2 to node1
-		store2.BootstrapPeers(&Peer{
-			ID:     node1.ID,
-			PubKey: node1.pub,
-			Host:   node1.host,
-		})
+		store2.BootstrapPeers(node1.AsPeer())
 		node2.initPeers()
 
 		// create node 1 event
-		creater1 := node1.ToPeer()
 		event1 := inter.Event{
 			Index:                1,
-			Creator:              creater1,
+			Creator:              node1.ID,
 			LamportTime:          1,
 			ExternalTransactions: make([][]byte, 0),
 		}
@@ -118,10 +107,9 @@ func TestEmit(t *testing.T) {
 		node2.saveNewEvent(&event1)
 
 		// create node 2 event
-		creater2 := node2.ToPeer()
 		event2 := inter.Event{
 			Index:                1,
-			Creator:              creater2,
+			Creator:              node2.ID,
 			LamportTime:          1,
 			ExternalTransactions: make([][]byte, 0),
 		}
@@ -135,9 +123,8 @@ func TestEmit(t *testing.T) {
 
 		node2.CreateEvent()
 
-		creater := node2.ToPeer()
 		index := store2.GetPeerHeight(node2.ID)
-		eventHash := store2.GetEventHash(creater, index)
+		eventHash := store2.GetEventHash(node2.ID, index)
 		got := store2.GetEvent(*eventHash)
 
 		assert.Equal(int(got.LamportTime), 2)
