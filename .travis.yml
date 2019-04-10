@@ -63,15 +63,8 @@ matrix:
           -ct $TRAVIS_COMMIT
           -ru $ROOT_URL
           -d $INPUT_DIR
+      after_success:
         - cd docs/
         - pip install -r requirements.txt
         - make html
-      deploy:
-        provider: pages
-        skip_cleanup: true
-        github_token: $GITHUB_TOKEN  # Set in the travis-ci.org settings page of your repository, as a secure variable
-        keep_history: true
-        local_dir: docs/_build/html
-        target_branch: gh-pages
-        on:
-          branch: feature/comment-extraction-doc-generation
+        - ./deploy.sh
