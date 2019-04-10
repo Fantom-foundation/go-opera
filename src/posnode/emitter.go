@@ -1,14 +1,11 @@
 package posnode
 
 import (
-	"crypto/ecdsa"
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/pkg/errors"
 )
 
 // emitter creates events from external transactions.
@@ -76,7 +73,7 @@ func (n *Node) CreateEvent() {
 	parents := selectParents(lastEvents, n.conf.EventParentsCount, n.ID.Hex())
 
 	// Build event.
-	event := inter.Event{
+	event := &inter.Event{
 		Index:                n.store.GetPeerHeight(n.ID) + 1,
 		Creator:              n.ID,
 		Parents:              parents,
@@ -84,15 +81,11 @@ func (n *Node) CreateEvent() {
 		ExternalTransactions: transactions,
 	}
 
-	// Sign event.
-	sign, err := sign(n.key, event.Hash().Bytes())
-	if err != nil {
-		n.log.Warn(errors.Wrap(err, "failed to sign event"))
-		return
+	if err := event.SignBy(n.key); err != nil {
+		panic(err)
 	}
 
-	event.Sign = sign
-	n.saveNewEvent(&event)
+	n.saveNewEvent(event)
 }
 
 func (n *Node) latestEvents() []inter.Event {
@@ -152,14 +145,4 @@ func latestLamportTime(events []inter.Event) inter.Timestamp {
 	}
 
 	return lamportTime
-}
-
-func sign(key *ecdsa.PrivateKey, hash []byte) (string, error) {
-	r, s, err := crypto.Sign(key, hash)
-	if err != nil {
-		return "", err
-	}
-
-	sig := crypto.EncodeSignature(r, s)
-	return sig, nil
 }

@@ -51,16 +51,17 @@ func TestEmit(t *testing.T) {
 		node2.initPeers()
 
 		// create node 1 event
-		event := inter.Event{
+		event := &inter.Event{
 			Index:                1,
 			Creator:              node1.ID,
 			LamportTime:          1,
 			ExternalTransactions: make([][]byte, 0),
 		}
+		if !assert.NoError(event.SignBy(node1.key)) {
+			return
+		}
 
-		sign, _ := sign(node1.key, event.Hash().Bytes())
-		event.Sign = sign
-		node2.saveNewEvent(&event)
+		node2.saveNewEvent(event)
 		node2.emitter.transactions = [][]byte{
 			[]byte{},
 		}
@@ -95,28 +96,31 @@ func TestEmit(t *testing.T) {
 		node2.initPeers()
 
 		// create node 1 event
-		event1 := inter.Event{
+		event1 := &inter.Event{
 			Index:                1,
 			Creator:              node1.ID,
 			LamportTime:          1,
 			ExternalTransactions: make([][]byte, 0),
 		}
+		if !assert.NoError(event1.SignBy(node1.key)) {
+			return
+		}
 
-		s1, _ := sign(node1.key, event1.Hash().Bytes())
-		event1.Sign = s1
-		node2.saveNewEvent(&event1)
+		node2.saveNewEvent(event1)
 
 		// create node 2 event
-		event2 := inter.Event{
+		event2 := &inter.Event{
 			Index:                1,
 			Creator:              node2.ID,
 			LamportTime:          1,
 			ExternalTransactions: make([][]byte, 0),
 		}
+		if !assert.NoError(event2.SignBy(node2.key)) {
+			return
+		}
 
-		s2, _ := sign(node2.key, event2.Hash().Bytes())
-		event2.Sign = s2
-		node2.saveNewEvent(&event2)
+		node2.saveNewEvent(event2)
+
 		node2.emitter.transactions = [][]byte{
 			[]byte{},
 		}
