@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
@@ -26,7 +28,7 @@ func TestSocketProxyServer(t *testing.T) {
 	txOrigin := []byte("the test transaction")
 
 	// Server
-	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
+	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger, network.FakeListener)
 	assertO.NoError(err)
 
 	//  listens for a request
@@ -40,7 +42,8 @@ func TestSocketProxyServer(t *testing.T) {
 	}()
 
 	// Client part connecting to RPC service and calling methods
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
+	dialer := network.FakeDialer("client.fake")
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger, grpc.WithContextDialer(dialer))
 	assertO.NoError(err)
 
 	node, err := NewDummyClient(lachesisProxy, nil, logger)
@@ -59,7 +62,7 @@ func TestDummySocketClient(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
 	// server
-	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
+	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger, network.FakeListener)
 	assertO.NoError(err)
 	defer func() {
 		if err := appProxy.Close(); err != nil {
@@ -68,7 +71,8 @@ func TestDummySocketClient(t *testing.T) {
 	}()
 
 	// client
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger)
+	dialer := network.FakeDialer("client.fake")
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr[0], logger, grpc.WithContextDialer(dialer))
 	assertO.NoError(err)
 	defer func() {
 		if err := lachesisProxy.Close(); err != nil {

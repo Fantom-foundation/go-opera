@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
 // Node is a Lachesis node implementation.

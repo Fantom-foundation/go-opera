@@ -18,6 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
@@ -42,12 +43,14 @@ type GrpcAppProxy struct {
 }
 
 // NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps
-func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
-	var err error
-
+func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logger, listen network.ListenFunc) (*GrpcAppProxy, error) {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+	}
+
+	if listen == nil {
+		listen = network.TcpListener
 	}
 
 	p := &GrpcAppProxy{
@@ -60,10 +63,8 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 		event4clients: make(chan *internal.ToClient),
 	}
 
-	p.listener, err = net.Listen("tcp", bindAddr)
-	if err != nil {
-		return nil, err
-	}
+	p.listener = listen(bindAddr)
+
 	p.server = grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))

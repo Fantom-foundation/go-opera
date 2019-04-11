@@ -5,14 +5,40 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func TestGrpcCalls(t *testing.T) {
+
+	t.Run("over TCP", func(t *testing.T) {
+		testGrpcCalls(t, network.TcpListener)
+	})
+
+	t.Run("over Fake", func(t *testing.T) {
+		dialer := network.FakeDialer("client.fake")
+		testGrpcCalls(t, network.FakeListener, grpc.WithContextDialer(dialer))
+	})
+}
+
+func TestGrpcReConnection(t *testing.T) {
+
+	t.Run("over TCP", func(t *testing.T) {
+		testGrpcReConnection(t, network.TcpListener)
+	})
+
+	t.Run("over Fake", func(t *testing.T) {
+		dialer := network.FakeDialer("client.fake")
+		testGrpcReConnection(t, network.FakeListener, grpc.WithContextDialer(dialer))
+	})
+}
+
+func testGrpcCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
 
 	const (
 		timeout    = 1 * time.Second
@@ -23,10 +49,10 @@ func TestGrpcCalls(t *testing.T) {
 
 	logger := common.NewTestLogger(t)
 
-	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
+	s, err := NewGrpcAppProxy(addr[0], timeout, logger, listen)
 	assert.NoError(t, err)
 
-	c, err := NewGrpcLachesisProxy(addr[0], logger)
+	c, err := NewGrpcLachesisProxy(addr[0], logger, opts...)
 	assert.NoError(t, err)
 
 	t.Run("#1 Send tx", func(t *testing.T) {
@@ -121,7 +147,7 @@ func TestGrpcCalls(t *testing.T) {
 
 }
 
-func TestGrpcReConnection(t *testing.T) {
+func testGrpcReConnection(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
 
 	const (
 		timeout    = 1 * time.Second
@@ -130,12 +156,12 @@ func TestGrpcReConnection(t *testing.T) {
 	addr := utils.GetUnusedNetAddr(1, t)
 	logger := common.NewTestLogger(t)
 
-	c, err := NewGrpcLachesisProxy(addr[0], logger)
+	c, err := NewGrpcLachesisProxy(addr[0], logger, opts...)
 	if assert.NoError(t, err) {
 		assert.NotNil(t, c)
 	}
 
-	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
+	s, err := NewGrpcAppProxy(addr[0], timeout, logger, listen)
 	assert.NoError(t, err)
 
 	checkConnAndStopServer := func(t *testing.T) {
@@ -158,7 +184,7 @@ func TestGrpcReConnection(t *testing.T) {
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
 
-	s, err = NewGrpcAppProxy(addr[0], timeout/2, logger)
+	s, err = NewGrpcAppProxy(addr[0], timeout/2, logger, listen)
 	assert.NoError(t, err)
 
 	<-time.After(timeout)

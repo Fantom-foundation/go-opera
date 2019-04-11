@@ -5,6 +5,9 @@ import (
 	"net"
 )
 
+// ListenFunc returns addr listener.
+type ListenFunc func(addr string) net.Listener
+
 // TcpListener returns TCP listener binded to addr.
 // Leave addr empty to get any free addr.
 func TcpListener(addr string) net.Listener {

@@ -10,14 +10,14 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
 )
 
 type service struct {
 	server *grpc.Server
 
-	listen api.ListenFunc
+	listen network.ListenFunc
 }
 
 // StartService starts node service.
