@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-OPTIND=1         # Reset in case getopts has been used previously in the shell.
+declare -i OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
 declare -xr DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 declare -xr parent_dir="${DIR%/*}"
@@ -23,7 +23,7 @@ declare -r entry="${entry:-main}" # you may use main_profile here to enable prof
 # Install deps
 "$DIR/docker/install_deps.bash"
 
-declare debug=0
+declare -i debug=0
 declare gc_flags=
 while getopts "d" opt; do
     case "$opt" in
@@ -37,18 +37,18 @@ shift $((OPTIND-1))
 [ "${1:-}" = "--" ] && shift
 
 # Use -tags="netgo multi" in bgo build below to build multu lachesis version for testing
-declare args="-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=$(git rev-parse HEAD)"
+declare ldflags="-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=$(git rev-parse HEAD)"
 if [ "$TARGET_OS" == "linux" ]; then
-  args="$args -linkmode external -extldflags -static"
+  ldflags="$ldflags -linkmode external -extldflags -static -s"
 fi
 
-if [ "$debug" == 0 ]; then
-  args="$args -s -w"
+if [ "$debug" == '0' ]; then
+  ldflags="$ldflags -w"
 else
   gc_flags="all=-N -l"
 fi
 
-env GOOS="$TARGET_OS" GOARCH=amd64 go build -tags="netgo multi" -ldflags "$args" -o lachesis_"$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$entry.go" || exit 1
+env GOOS="$TARGET_OS" GOARCH='amd64' go build -tags="netgo multi" -ldflags "$ldflags" -o lachesis_"$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$entry.go" || exit 1
 
 # Create peers.json and lachesis_data_dir if needed
 if [ ! -d "$DATAL_DIR/lachesis_data_dir" ]; then

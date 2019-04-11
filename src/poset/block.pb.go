@@ -31,7 +31,7 @@ func (m *BlockBody) Reset()         { *m = BlockBody{} }
 func (m *BlockBody) String() string { return proto.CompactTextString(m) }
 func (*BlockBody) ProtoMessage()    {}
 func (*BlockBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_block_508d5006735d6a13, []int{0}
+	return fileDescriptor_block_cabf43de7dcfc9b0, []int{0}
 }
 func (m *BlockBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockBody.Unmarshal(m, b)
@@ -84,7 +84,7 @@ func (m *WireBlockSignature) Reset()         { *m = WireBlockSignature{} }
 func (m *WireBlockSignature) String() string { return proto.CompactTextString(m) }
 func (*WireBlockSignature) ProtoMessage()    {}
 func (*WireBlockSignature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_block_508d5006735d6a13, []int{1}
+	return fileDescriptor_block_cabf43de7dcfc9b0, []int{1}
 }
 func (m *WireBlockSignature) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WireBlockSignature.Unmarshal(m, b)
@@ -135,7 +135,7 @@ func (m *Block) Reset()         { *m = Block{} }
 func (m *Block) String() string { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()    {}
 func (*Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_block_508d5006735d6a13, []int{2}
+	return fileDescriptor_block_cabf43de7dcfc9b0, []int{2}
 }
 func (m *Block) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Block.Unmarshal(m, b)
@@ -211,9 +211,9 @@ func init() {
 	proto.RegisterMapType((map[string]string)(nil), "poset.Block.SignaturesEntry")
 }
 
-func init() { proto.RegisterFile("block.proto", fileDescriptor_block_508d5006735d6a13) }
+func init() { proto.RegisterFile("block.proto", fileDescriptor_block_cabf43de7dcfc9b0) }
 
-var fileDescriptor_block_508d5006735d6a13 = []byte{
+var fileDescriptor_block_cabf43de7dcfc9b0 = []byte{
 	// 306 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0x41, 0x4b, 0xc3, 0x40,
 	0x10, 0x85, 0x49, 0xd2, 0x54, 0x32, 0xa9, 0x58, 0x16, 0x0f, 0x8b, 0xf4, 0x10, 0x42, 0x0f, 0x39,

@@ -42,7 +42,7 @@ func (x TransactionType) String() string {
 	return proto.EnumName(TransactionType_name, int32(x))
 }
 func (TransactionType) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_event_5aebafcbbd031977, []int{0}
+	return fileDescriptor_event_fee0cf4246e9fddb, []int{0}
 }
 
 type InternalTransaction struct {
@@ -58,7 +58,7 @@ func (m *InternalTransaction) Reset()         { *m = InternalTransaction{} }
 func (m *InternalTransaction) String() string { return proto.CompactTextString(m) }
 func (*InternalTransaction) ProtoMessage()    {}
 func (*InternalTransaction) Descriptor() ([]byte, []int) {
-	return fileDescriptor_event_5aebafcbbd031977, []int{0}
+	return fileDescriptor_event_fee0cf4246e9fddb, []int{0}
 }
 func (m *InternalTransaction) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InternalTransaction.Unmarshal(m, b)
@@ -112,7 +112,7 @@ func (m *BlockSignature) Reset()         { *m = BlockSignature{} }
 func (m *BlockSignature) String() string { return proto.CompactTextString(m) }
 func (*BlockSignature) ProtoMessage()    {}
 func (*BlockSignature) Descriptor() ([]byte, []int) {
-	return fileDescriptor_event_5aebafcbbd031977, []int{1}
+	return fileDescriptor_event_fee0cf4246e9fddb, []int{1}
 }
 func (m *BlockSignature) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BlockSignature.Unmarshal(m, b)
@@ -169,7 +169,7 @@ func (m *EventBody) Reset()         { *m = EventBody{} }
 func (m *EventBody) String() string { return proto.CompactTextString(m) }
 func (*EventBody) ProtoMessage()    {}
 func (*EventBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_event_5aebafcbbd031977, []int{2}
+	return fileDescriptor_event_fee0cf4246e9fddb, []int{2}
 }
 func (m *EventBody) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EventBody.Unmarshal(m, b)
@@ -251,7 +251,7 @@ func (m *EventMessage) Reset()         { *m = EventMessage{} }
 func (m *EventMessage) String() string { return proto.CompactTextString(m) }
 func (*EventMessage) ProtoMessage()    {}
 func (*EventMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_event_5aebafcbbd031977, []int{3}
+	return fileDescriptor_event_fee0cf4246e9fddb, []int{3}
 }
 func (m *EventMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EventMessage.Unmarshal(m, b)
@@ -349,9 +349,9 @@ func init() {
 	proto.RegisterEnum("poset.TransactionType", TransactionType_name, TransactionType_value)
 }
 
-func init() { proto.RegisterFile("event.proto", fileDescriptor_event_5aebafcbbd031977) }
+func init() { proto.RegisterFile("event.proto", fileDescriptor_event_fee0cf4246e9fddb) }
 
-var fileDescriptor_event_5aebafcbbd031977 = []byte{
+var fileDescriptor_event_fee0cf4246e9fddb = []byte{
 	// 530 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x93, 0x41, 0x6f, 0xda, 0x40,
 	0x10, 0x85, 0x6b, 0xe3, 0x90, 0x30, 0xb6, 0x82, 0xb5, 0xa5, 0x91, 0x15, 0x55, 0xaa, 0x85, 0x7a,

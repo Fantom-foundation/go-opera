@@ -29,7 +29,7 @@ func (m *FlagTableWrapper) Reset()         { *m = FlagTableWrapper{} }
 func (m *FlagTableWrapper) String() string { return proto.CompactTextString(m) }
 func (*FlagTableWrapper) ProtoMessage()    {}
 func (*FlagTableWrapper) Descriptor() ([]byte, []int) {
-	return fileDescriptor_flagTableWrapper_6bdf727374f70c89, []int{0}
+	return fileDescriptor_flagTableWrapper_28c501bd19fe312c, []int{0}
 }
 func (m *FlagTableWrapper) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_FlagTableWrapper.Unmarshal(m, b)
@@ -62,10 +62,10 @@ func init() {
 }
 
 func init() {
-	proto.RegisterFile("flagTableWrapper.proto", fileDescriptor_flagTableWrapper_6bdf727374f70c89)
+	proto.RegisterFile("flagTableWrapper.proto", fileDescriptor_flagTableWrapper_28c501bd19fe312c)
 }
 
-var fileDescriptor_flagTableWrapper_6bdf727374f70c89 = []byte{
+var fileDescriptor_flagTableWrapper_28c501bd19fe312c = []byte{
 	// 143 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4b, 0xcb, 0x49, 0x4c,
 	0x0f, 0x49, 0x4c, 0xca, 0x49, 0x0d, 0x2f, 0x4a, 0x2c, 0x28, 0x48, 0x2d, 0xd2, 0x2b, 0x28, 0xca,
