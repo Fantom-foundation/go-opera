@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	aproxy "github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/Fantom-foundation/go-lachesis/tester"
 	"github.com/sirupsen/logrus"
@@ -77,6 +78,7 @@ func runSingleLachesis(config *CLIConfig) error {
 			config.ProxyAddr,
 			config.Lachesis.NodeConfig.HeartbeatTimeout,
 			config.Lachesis.Logger,
+			network.TcpListener,
 		)
 
 		if err != nil {

@@ -42,7 +42,7 @@ type EventMessageLite struct {
 	RoundReceived    int64
 
 	ClothoProof [][]byte
-	FlagTable []byte // FlagTable stores connection information
+	FlagTable   []byte // FlagTable stores connection information
 }
 
 // EventLite small subset of event for debugging
@@ -93,10 +93,10 @@ func (g *Graph) GetParticipantEventsLite() map[string]map[string]EventLite {
 					Index:        event.Message.Body.Index,
 					Transactions: event.Message.Body.Transactions,
 				},
-				Hash:             hash.String(),
-				Signature:        event.Message.Signature,
-				ClothoProof:      event.Message.ClothoProof,
-				FlagTable:        event.Message.FlagTable,
+				Hash:        hash.String(),
+				Signature:   event.Message.Signature,
+				ClothoProof: event.Message.ClothoProof,
+				FlagTable:   event.Message.FlagTable,
 				//Round:            event.Message.Round,
 				//RoundReceived:    event.Message.RoundReceived,
 				TopologicalIndex: event.Message.TopologicalIndex,
@@ -178,7 +178,6 @@ func (n *Node) PrintStat() {
 	}
 	fmt.Fprintln(file, "\";")
 
-
 	var keys []string
 	for k, _ := range cr {
 		keys = append(keys, k)
@@ -191,7 +190,7 @@ func (n *Node) PrintStat() {
 		fmt.Fprintf(file, "subgraph cluster_%v { rank = same; ranksep = 2.5; ", replacer.Replace(creator))
 		for _, le := range lightEvents {
 			fmt.Fprintf(file, "v%v [shape=none,layer=\"f%v\" label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\"><TR><TD>r</TD><td>l</td><td>rr</td><td>ind</td><td>cr</td></TR><tr><td>%v</td><td>%v</td><td>%v</td><td>%v</td><td>%v</td></tr><tr><td colspan=\"5\">ft:",
-				le.Message.Hash, le.Message.Round, le.Message.Round, le.LamportTimestamp, le.Message.RoundReceived, le.Message.Body.Index, le.Message.Body.Creator )
+				le.Message.Hash, le.Message.Round, le.Message.Round, le.LamportTimestamp, le.Message.RoundReceived, le.Message.Body.Index, le.Message.Body.Creator)
 			ft := poset.NewFlagTable()
 			ft.Unmarshal(le.Message.FlagTable)
 			for k, v := range ft {
@@ -208,7 +207,7 @@ func (n *Node) PrintStat() {
 			}
 
 			fmt.Fprintf(file, "</td></tr></TABLE>>];\n")
-			n.logger.Warnf("v%v r:%v rr:%v ind:%v cr:%v l:%v", le.Message.Hash, le.Message.Round, le.Message.RoundReceived, le.Message.Body.Index, le.Message.Body.Creator, le.LamportTimestamp )
+			n.logger.Warnf("v%v r:%v rr:%v ind:%v cr:%v l:%v", le.Message.Hash, le.Message.Round, le.Message.RoundReceived, le.Message.Body.Index, le.Message.Body.Creator, le.LamportTimestamp)
 		}
 		fmt.Fprint(file, " }\n")
 	}

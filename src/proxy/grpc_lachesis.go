@@ -39,7 +39,7 @@ type GrpcLachesisProxy struct {
 }
 
 // NewGrpcLachesisProxy instantiates a LachesisProxy-interface connected to remote node
-func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisProxy, err error) {
+func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialOption) (p *GrpcLachesisProxy, err error) {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
@@ -57,8 +57,7 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger) (p *GrpcLachesisPr
 	}
 
 	p.conn, err = grpc.Dial(p.addr,
-		grpc.WithInsecure(),
-		grpc.WithBackoffMaxDelay(p.reconnTimeout))
+		append(opts, grpc.WithInsecure(), grpc.WithBackoffMaxDelay(p.reconnTimeout))...)
 	if err != nil {
 		return nil, err
 	}

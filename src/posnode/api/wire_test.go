@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
-	"github.com/Fantom-foundation/go-lachesis/src/posnode/network"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
 func TestGRPC(t *testing.T) {
@@ -23,7 +23,7 @@ func TestGRPC(t *testing.T) {
 	})
 }
 
-func testGRPC(t *testing.T, bind string, listen ListenFunc, opts ...grpc.DialOption) {
+func testGRPC(t *testing.T, bind string, listen network.ListenFunc, opts ...grpc.DialOption) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
@@ -26,7 +27,7 @@ func TestSocketProxyServer(t *testing.T) {
 	txOrigin := []byte("the test transaction")
 
 	// Server
-	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
+	app, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger, network.TcpListener)
 	assertO.NoError(err)
 
 	//  listens for a request
@@ -59,7 +60,7 @@ func TestDummySocketClient(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
 	// server
-	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger)
+	appProxy, err := proxy.NewGrpcAppProxy(addr[0], timeout, logger, network.TcpListener)
 	assertO.NoError(err)
 	defer func() {
 		if err := appProxy.Close(); err != nil {
