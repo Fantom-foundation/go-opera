@@ -27,11 +27,4 @@ Lachesis
    consensus.rst
    blockchain.rst
    fastsync.rst
-
-Extracted Comments
---------
-
-.. toctree::
-   :glob:
-
-   extracted-comments/**/*
+   extracted-comments.rst

@@ -46,16 +46,8 @@ ls -la
 git config user.name "Travis CI"
 git config user.email "travis@travis-ci.org"
 
-# Check for the ignore jekyll file
-if [! -f .nojeykyll]
-then
-    echo ".nojekyll already exists"
-else
-    echo "adding .nojekyll file"
-    touch .nojekyll
-    git add .nojekyll
-    git commit -m "added .nojekyll"
-fi
+echo "adding .nojekyll file"
+touch .nojekyll
 
 git add .
 git status
@@ -66,4 +58,4 @@ git status
 echo "Pushing changes to ${HTTPS_REPO} ${TARGET_BRANCH} from dir `pwd`"
 git push --set-upstream origin ${TARGET_BRANCH}
 
-echo "Done updating gh-pages\n"
+echo "Done updating gh-pages"
