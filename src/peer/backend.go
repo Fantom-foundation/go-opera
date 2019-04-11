@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
+	"github.com/hashicorp/go-multierror"
 )
 
 const (

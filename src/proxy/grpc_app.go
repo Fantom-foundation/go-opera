@@ -49,6 +49,10 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 		logger.Level = logrus.DebugLevel
 	}
 
+	if listen == nil {
+		listen = network.TcpListener
+	}
+
 	p := &GrpcAppProxy{
 		logger:     logger,
 		timeout:    timeout,

@@ -1,11 +1,11 @@
 package proxy
 
 import (
-	"google.golang.org/grpc"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/network"

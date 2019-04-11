@@ -129,7 +129,7 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 
 // Indicate we are in communication with a peer
 // so it would be excluded from next peer selection
-func (ps *SmartPeerSelector) Engage(peer string) {
+func (ps *SmartPeerSelector)Engage(peer string) {
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
 	ps.pals[peer] = true
@@ -137,7 +137,7 @@ func (ps *SmartPeerSelector) Engage(peer string) {
 
 // Indicate we are not in communication with a peer
 // so it could be selected as a next peer
-func (ps *SmartPeerSelector) Dismiss(peer string) {
+func (ps *SmartPeerSelector)Dismiss(peer string) {
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
 	if _, ok := ps.pals[peer]; ok {
