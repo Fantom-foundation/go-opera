@@ -42,7 +42,7 @@ type EventMessageLite struct {
 	RoundReceived    int64
 
 	ClothoProof [][]byte
-	FlagTable     []byte // FlagTable stores connection information
+	FlagTable []byte // FlagTable stores connection information
 }
 
 // EventLite small subset of event for debugging
