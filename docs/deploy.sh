@@ -46,6 +46,17 @@ ls -la
 git config user.name "Travis CI"
 git config user.email "travis@travis-ci.org"
 
+# Check for the ignore jekyll file
+if [! -f .nojeykyll]
+then
+    echo ".nojekyll already exists"
+else
+    echo "adding .nojekyll file"
+    touch .nojekyll
+    git add .nojekyll
+    git commit -m "added .nojekyll"
+fi
+
 git add .
 git status
 
