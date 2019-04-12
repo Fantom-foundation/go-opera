@@ -6,8 +6,7 @@ TARGET_BRANCH="gh-pages"
 
 REPO=$(git config remote.origin.url)
 SHA=$(git rev-parse --verify HEAD)
-GH_USER=dev10 # this needs to be replaced with a valid user id
-HTTPS_REPO=${REPO/https:\/\/github.com\//https://${GH_USER}:${GITHUB_TOKEN}@github.com/}
+HTTPS_REPO=${REPO/https:\/\/github.com\//https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/}
 OUT_DIR="cloned-gh-pages"
 
 echo "Repo: " ${REPO}
