@@ -22,6 +22,8 @@ type (
 		Busy        bool
 		LastSuccess time.Time
 		LastFail    time.Time
+		LastEvent   time.Time
+		LastUsed    time.Time
 		LastHost    string
 	}
 )

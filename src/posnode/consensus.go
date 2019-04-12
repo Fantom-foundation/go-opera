@@ -8,4 +8,6 @@ import (
 type Consensus interface {
 	// PushEvent takes event for processing.
 	PushEvent(hash.Event)
+	// GetBalance returns balance of peer.
+	GetBalance(hash.Peer) float64
 }

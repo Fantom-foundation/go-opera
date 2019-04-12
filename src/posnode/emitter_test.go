@@ -1,8 +1,11 @@
 package posnode
 
 import (
+	"sort"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -81,5 +84,80 @@ func TestEmit(t *testing.T) {
 		assert.Equal(
 			hash.NewEvents(events[0].Hash(), events[1].Hash()),
 			events[2].Parents)
+	})
+}
+
+func Test_emitterEvaluation(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	consensus := NewMockConsensus(ctrl)
+	store := NewMemStore()
+	node := NewForTests("server.fake", store, consensus)
+
+	peer1 := Peer{
+		ID:   hash.HexToPeer("1"),
+		Host: "host1",
+	}
+	peer2 := Peer{
+		ID:   hash.HexToPeer("2"),
+		Host: "host2",
+	}
+	peer3 := Peer{
+		ID:   hash.HexToPeer("3"),
+		Host: "host3",
+	}
+
+	store.BootstrapPeers(&peer1, &peer2, &peer3)
+	node.initPeers()
+	node.peers.attrs[peer1.ID] = &peerAttrs{}
+	node.peers.attrs[peer2.ID] = &peerAttrs{}
+	node.peers.attrs[peer3.ID] = &peerAttrs{}
+
+	t.Run("last used", func(t *testing.T) {
+		assert := assert.New(t)
+
+		consensus.EXPECT().GetBalance(gomock.Any()).Times(6)
+		node.peers.attrs[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
+		node.peers.attrs[peer2.ID].LastUsed = time.Now().Add(time.Hour)
+		node.peers.attrs[peer3.ID].LastUsed = time.Now()
+
+		e := node.emitterEvaluation(node.Snapshot())
+		sort.Sort(e)
+
+		assert.Equal(e.peers[0], peer3.ID)
+		assert.Equal(e.peers[1], peer2.ID)
+		assert.Equal(e.peers[2], peer1.ID)
+	})
+
+	t.Run("last event", func(t *testing.T) {
+		assert := assert.New(t)
+
+		consensus.EXPECT().GetBalance(gomock.Any()).Times(6)
+		node.peers.attrs[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
+		node.peers.attrs[peer2.ID].LastEvent = time.Now().Add(time.Hour)
+		node.peers.attrs[peer1.ID].LastEvent = time.Now()
+
+		e := node.emitterEvaluation(node.Snapshot())
+		sort.Sort(e)
+
+		assert.Equal(e.peers[0], peer3.ID)
+		assert.Equal(e.peers[1], peer2.ID)
+		assert.Equal(e.peers[2], peer1.ID)
+	})
+
+	t.Run("balance", func(t *testing.T) {
+		assert := assert.New(t)
+
+		consensus.EXPECT().GetBalance(peer1.ID).Return(float64(1)).Times(2)
+		consensus.EXPECT().GetBalance(peer2.ID).Return(float64(2)).Times(2)
+		consensus.EXPECT().GetBalance(peer3.ID).Return(float64(3)).Times(2)
+
+		e := node.emitterEvaluation(node.Snapshot())
+		sort.Sort(e)
+
+		assert.Equal(e.peers[0], peer3.ID)
+		assert.Equal(e.peers[1], peer2.ID)
+		assert.Equal(e.peers[2], peer1.ID)
 	})
 }
