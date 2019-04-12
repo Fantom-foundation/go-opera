@@ -10,48 +10,16 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
-
-/*******************************************************************************
-InternalTransactions
-*******************************************************************************/
-
-// NewInternalTransaction constructor
-func NewInternalTransaction(tType TransactionType, peer peers.Peer) InternalTransaction {
-	return InternalTransaction{
-		Type: tType,
-		Peer: &peer,
-	}
-}
-
-// ProtoMarshal marshal internal transaction to protobuff
-func (t *InternalTransaction) ProtoMarshal() ([]byte, error) {
-	var bf proto.Buffer
-	bf.SetDeterministic(true)
-	if err := bf.Marshal(t); err != nil {
-		return nil, err
-	}
-	return bf.Bytes(), nil
-}
-
-// ProtoUnmarshal unmarshal protobuff to internal transaction
-func (t *InternalTransaction) ProtoUnmarshal(data []byte) error {
-	return proto.Unmarshal(data, t)
-}
 
 /*******************************************************************************
 EventBody
 *******************************************************************************/
 
-// Equals equality check for internal transaction
-func (t *InternalTransaction) Equals(that *InternalTransaction) bool {
-	return t.Peer.Equals(that.Peer) &&
-		t.Type == that.Type
-}
-
 // InternalTransactionListEquals list equality check
-func InternalTransactionListEquals(this []*InternalTransaction, that []*InternalTransaction) bool {
+func InternalTransactionListEquals(this []*wire.InternalTransaction, that []*wire.InternalTransaction) bool {
 	if len(this) != len(that) {
 		return false
 	}
@@ -141,15 +109,15 @@ func (m *EventMessage) Equals(that *EventMessage) bool {
 // NewEvent creates new block event.
 func NewEvent(
 	transactions [][]byte,
-	internalTransactions []InternalTransaction,
+	internalTransactions []*wire.InternalTransaction,
 	blockSignatures []BlockSignature,
 	parents EventHashes, creator []byte, index int64,
 	ft FlagTable) Event {
 
-	internalTransactionPointers := make([]*InternalTransaction, len(internalTransactions))
-	for i, v := range internalTransactions {
-		internalTransactionPointers[i] = new(InternalTransaction)
-		*internalTransactionPointers[i] = v
+	internalTransactionPointers := make([]*wire.InternalTransaction, len(internalTransactions))
+	for i, t := range internalTransactions {
+		val := *t
+		internalTransactionPointers[i] = &val
 	}
 	blockSignaturePointers := make([]*BlockSignature, len(blockSignatures))
 	for i, v := range blockSignatures {
@@ -232,7 +200,7 @@ func (e *Event) Transactions() [][]byte {
 }
 
 // InternalTransactions returns all internal transactions in the event
-func (e *Event) InternalTransactions() []*InternalTransaction {
+func (e *Event) InternalTransactions() []*wire.InternalTransaction {
 	return e.Message.Body.InternalTransactions
 }
 
@@ -358,15 +326,10 @@ func (e *Event) WireBlockSignatures() []WireBlockSignature {
 
 // ToWire converts event to wire event
 func (e *Event) ToWire() WireEvent {
-
-	transactions := make([]InternalTransaction, len(e.Message.Body.InternalTransactions))
-	for i, v := range e.Message.Body.InternalTransactions {
-		transactions[i] = *v
-	}
 	return WireEvent{
 		Body: WireBody{
 			Transactions:         e.Message.Body.Transactions,
-			InternalTransactions: transactions,
+			InternalTransactions: inter.WireToInternalTransactions(e.Message.Body.InternalTransactions),
 			SelfParentIndex:      e.Message.SelfParentIndex,
 			OtherParentCreatorID: e.Message.OtherParentCreatorID,
 			OtherParentIndex:     e.Message.OtherParentIndex,
@@ -460,7 +423,7 @@ func (a ByLamportTimestamp) Less(i, j int) bool {
 // WireBody struct
 type WireBody struct {
 	Transactions         [][]byte
-	InternalTransactions []InternalTransaction
+	InternalTransactions []*inter.InternalTransaction
 	BlockSignatures      []WireBlockSignature
 
 	SelfParentIndex      int64

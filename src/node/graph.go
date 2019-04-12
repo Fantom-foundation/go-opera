@@ -1,6 +1,7 @@
 package node
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -71,7 +72,7 @@ func (g *Graph) GetParticipantEvents() map[string]map[poset.EventHash]poset.Even
 
 		// Create and save the first Event
 		initialEvent := poset.NewEvent([][]byte{},
-			[]poset.InternalTransaction{},
+			[]*wire.InternalTransaction{},
 			[]poset.BlockSignature{},
 			poset.EventHashes{}, []byte{}, 0, flagTable)
 

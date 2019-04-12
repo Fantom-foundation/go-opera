@@ -18,6 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
@@ -83,11 +84,16 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 
 func (p *GrpcAppProxy) Close() error {
 	p.server.Stop()
-	//All listeners are closed by gRPC.Stop() function
-	//err := p.listener.Close()
 	close(p.event4server)
 	close(p.event4clients)
-	return nil //err
+	return nil
+}
+
+func (p *GrpcAppProxy) ListenAddr() string {
+	if p.listener == nil {
+		return ""
+	}
+	return p.listener.Addr().String()
 }
 
 /*
@@ -158,7 +164,7 @@ func (p *GrpcAppProxy) SubmitCh() chan []byte {
 
 // SubmitCh implements AppProxy interface method
 // TODO: Incorrect implementation, just adding to the interface so long
-func (p *GrpcAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
+func (p *GrpcAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 	return nil
 }
 

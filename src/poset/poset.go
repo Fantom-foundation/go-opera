@@ -15,6 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
@@ -1537,15 +1538,12 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (r
 		sender := creator.Address()
 		if body := ev.Message.GetBody(); body != nil {
 			for _, tx := range body.GetInternalTransactions() {
-				if tx.GetType() != TransactionType_POS_TRANSFER {
-					continue
-				}
 				p.logger.Debug("ApplyInternalTransaction", tx)
 				if statedb.GetBalance(hash.Peer(sender)) < tx.Amount {
 					p.logger.Warn("Balance is not enough", sender, tx.Amount)
 					continue
 				}
-				reciver := tx.Peer.Address()
+				reciver := hash.HexToPeer(tx.Receiver)
 				statedb.SubBalance(hash.Peer(sender), tx.Amount)
 				if !statedb.Exist(hash.Peer(reciver)) {
 					statedb.CreateAccount(hash.Peer(reciver))
@@ -1832,11 +1830,6 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 		return nil, fmt.Errorf("flag table is null")
 	}
 
-	transactions := make([]*InternalTransaction, len(wevent.Body.InternalTransactions))
-	for i, v := range wevent.Body.InternalTransactions {
-		transactions[i] = new(InternalTransaction)
-		*transactions[i] = v
-	}
 	signatureValues := wevent.BlockSignatures(creatorBytes)
 	blockSignatures := make([]*BlockSignature, len(signatureValues))
 	for i, v := range signatureValues {
@@ -1845,7 +1838,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 	body := EventBody{
 		Transactions:         wevent.Body.Transactions,
-		InternalTransactions: transactions,
+		InternalTransactions: inter.InternalTransactionsToWire(wevent.Body.InternalTransactions),
 		Parents:              [][]byte{selfParent.Bytes(), otherParent.Bytes()},
 		Creator:              creatorBytes,
 		Index:                wevent.Body.Index,

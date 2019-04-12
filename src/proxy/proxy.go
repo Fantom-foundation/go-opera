@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
@@ -9,7 +10,7 @@ import (
 // with the application.
 type AppProxy interface {
 	SubmitCh() chan []byte
-	SubmitInternalCh() chan poset.InternalTransaction
+	SubmitInternalCh() chan inter.InternalTransaction
 	CommitBlock(block poset.Block) ([]byte, error)
 	GetSnapshot(blockIndex int64) ([]byte, error)
 	Restore(snapshot []byte) error

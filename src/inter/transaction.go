@@ -11,6 +11,22 @@ type InternalTransaction struct {
 	Receiver hash.Peer
 }
 
+// ToWire converts to wire.
+func (t *InternalTransaction) ToWire() *wire.InternalTransaction {
+	return &wire.InternalTransaction{
+		Amount:   t.Amount,
+		Receiver: t.Receiver.Hex(),
+	}
+}
+
+// WireToInternalTransaction converts from wire.
+func WireToInternalTransaction(w *wire.InternalTransaction) *InternalTransaction {
+	return &InternalTransaction{
+		Amount:   w.Amount,
+		Receiver: hash.HexToPeer(w.Receiver),
+	}
+}
+
 // InternalTransactionsToWire converts to wire.
 func InternalTransactionsToWire(tt []*InternalTransaction) []*wire.InternalTransaction {
 	if tt == nil {
@@ -18,10 +34,7 @@ func InternalTransactionsToWire(tt []*InternalTransaction) []*wire.InternalTrans
 	}
 	res := make([]*wire.InternalTransaction, len(tt))
 	for i, t := range tt {
-		res[i] = &wire.InternalTransaction{
-			Amount:   t.Amount,
-			Receiver: t.Receiver.Hex(),
-		}
+		res[i] = t.ToWire()
 	}
 
 	return res
@@ -34,10 +47,7 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
 	}
 	res := make([]*InternalTransaction, len(tt))
 	for i, w := range tt {
-		res[i] = &InternalTransaction{
-			Amount:   w.Amount,
-			Receiver: hash.HexToPeer(w.Receiver),
-		}
+		res[i] = WireToInternalTransaction(w)
 	}
 
 	return res
