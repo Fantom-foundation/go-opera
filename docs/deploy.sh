@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -e # Exit with nonzero exit code if anything fails
 
-SOURCE_BRANCH="feature/comment-extraction-doc-generation"
-#SOURCE_BRANCH="master"
+SOURCE_BRANCH="master"
 TARGET_BRANCH="gh-pages"
 
 REPO=`git config remote.origin.url`
 SHA=`git rev-parse --verify HEAD`
-GH_USER=dev10
+GH_USER=dev10 # this needs to be replaced with a valid user id
 HTTPS_REPO=${REPO/https:\/\/github.com\//https://${GH_USER}:${GITHUB_TOKEN}@github.com/}
 OUT_DIR="cloned-gh-pages"
 
