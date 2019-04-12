@@ -4,8 +4,8 @@ set -e # Exit with nonzero exit code if anything fails
 SOURCE_BRANCH="master"
 TARGET_BRANCH="gh-pages"
 
-REPO=`git config remote.origin.url`
-SHA=`git rev-parse --verify HEAD`
+REPO=$(git config remote.origin.url)
+SHA=$(git rev-parse --verify HEAD)
 GH_USER=dev10 # this needs to be replaced with a valid user id
 HTTPS_REPO=${REPO/https:\/\/github.com\//https://${GH_USER}:${GITHUB_TOKEN}@github.com/}
 OUT_DIR="cloned-gh-pages"
@@ -30,7 +30,7 @@ git checkout ${TARGET_BRANCH} || git checkout --orphan ${TARGET_BRANCH}
 # Clean out existing contents
 git rm -rf . || exit 0
 
-echo "currently in dir: " `pwd`
+echo "currently in dir: " $(pwd)
 ls -l
 git status
 
@@ -54,7 +54,7 @@ git status
 # Commit and push changes using $GITHUB_TOKEN
 git commit -m "Deploy to Github Pages from commit: ${SHA}"
 git status
-echo "Pushing changes to ${HTTPS_REPO} ${TARGET_BRANCH} from dir `pwd`"
+echo "Pushing changes to ${HTTPS_REPO} ${TARGET_BRANCH} from dir $(pwd)"
 git push --set-upstream origin ${TARGET_BRANCH}
 
 echo "Done updating gh-pages"
