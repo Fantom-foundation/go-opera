@@ -6,13 +6,24 @@ import (
 
 	"github.com/dgraph-io/badger"
 
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
 )
 
-func TestAll(t *testing.T) {
+func TestRing(t *testing.T) {
 	ll := LachesisNetworkRing(5, 1)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second)
+
+	for _, l := range ll {
+		l.Stop()
+	}
+}
+
+func TestStar(t *testing.T) {
+	ll := LachesisNetworkStar(5, 1)
+
+	time.Sleep(time.Second)
 
 	for _, l := range ll {
 		l.Stop()
@@ -26,8 +37,5 @@ func TestAll(t *testing.T) {
 // NewForTests makes lachesis node with fake network.
 // It does not start any process.
 func NewForTests(db *badger.DB, host string) *Lachesis {
-	l := New(db, host, nil, posnode.FakeClient(host))
-	l.Node = posnode.NewForTests(host, l.nodeStore, l.Consensus)
-
-	return l
+	return makeLachesis(db, host, nil, nil, network.FakeListener, posnode.FakeClient(host))
 }

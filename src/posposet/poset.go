@@ -19,6 +19,8 @@ type Poset struct {
 
 	newEventsCh      chan hash.Event
 	incompleteEvents map[hash.Event]*Event
+
+	NewBlockCh chan uint64
 }
 
 // New creates Poset instance.
@@ -164,6 +166,10 @@ func (p *Poset) consensus(e *Event) {
 			events := p.topologicalOrdered(n)
 			p.state.LastBlockN = p.makeBlock(events)
 			p.saveState()
+
+			if p.NewBlockCh != nil {
+				p.NewBlockCh <- p.state.LastBlockN
+			}
 
 			// TODO: fix it
 			lastFinished = n // NOTE: are every event of prev frame there in block? (No)

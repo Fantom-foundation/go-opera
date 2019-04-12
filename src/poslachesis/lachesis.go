@@ -8,33 +8,48 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
 // Lachesis is a lachesis node implementation.
 type Lachesis struct {
-	Consensus *posposet.Poset
-	Node      *posnode.Node
-
-	consensusStore *posposet.Store
+	host           string
+	conf           *Config
+	node           *posnode.Node
 	nodeStore      *posnode.Store
+	consensus      *posposet.Poset
+	consensusStore *posposet.Store
+
+	service
 }
 
 // New makes lachesis node.
 // It does not start any process.
-func New(db *badger.DB, host string, key *ecdsa.PrivateKey, opts ...grpc.DialOption) *Lachesis {
-	dbNode, dbPoset := makeStorages(db)
+func New(db *badger.DB, host string, key *ecdsa.PrivateKey, conf Config, opts ...grpc.DialOption) *Lachesis {
+	return makeLachesis(db, host, key, &conf, nil, opts...)
+}
 
-	c := posposet.New(dbPoset, dbNode)
-	n := posnode.New(host, key, dbNode, c, nil, opts...)
+func makeLachesis(db *badger.DB, host string, key *ecdsa.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
+	ndb, cdb := makeStorages(db)
+
+	if conf == nil {
+		conf = DefaultConfig()
+	}
+
+	c := posposet.New(cdb, ndb)
+	n := posnode.New(host, key, ndb, c, &conf.Node, listen, opts...)
 
 	return &Lachesis{
-		Consensus: c,
-		Node:      n,
+		host:           host,
+		conf:           conf,
+		node:           n,
+		nodeStore:      ndb,
+		consensus:      c,
+		consensusStore: cdb,
 
-		consensusStore: dbPoset,
-		nodeStore:      dbNode,
+		service: service{listen, nil},
 	}
 }
 
@@ -42,14 +57,16 @@ func New(db *badger.DB, host string, key *ecdsa.PrivateKey, opts ...grpc.DialOpt
 func (l *Lachesis) Start(genesis map[hash.Peer]uint64) {
 	l.init(genesis)
 
-	l.Consensus.Start()
-	l.Node.Start()
+	l.consensus.Start()
+	l.node.Start()
+	l.serviceStart()
 }
 
 // Stop stops whole lachesis node.
 func (l *Lachesis) Stop() {
-	l.Node.Stop()
-	l.Consensus.Stop()
+	l.serviceStop()
+	l.node.Stop()
+	l.consensus.Stop()
 }
 
 func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
