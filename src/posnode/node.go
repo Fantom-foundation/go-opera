@@ -33,7 +33,7 @@ type Node struct {
 
 // New creates node.
 // It does not start any process.
-func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, opts ...grpc.DialOption) *Node {
+func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
 	if key == nil {
 		var err error
 		key, err = crypto.GenerateECDSAKey()
@@ -54,18 +54,12 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 		consensus: c,
 		host:      host,
 		conf:      *conf,
+		service:   service{listen, nil},
 		client:    client{opts},
 		logger:    newLogger(host),
 	}
 
 	return &n
-}
-
-// NewForTests creates node with fake network client.
-func NewForTests(host string, s *Store, c Consensus) *Node {
-	n := New(host, nil, s, c, nil, FakeClient(host))
-	n.service.listen = network.FakeListener
-	return n
 }
 
 // Start starts all node services.

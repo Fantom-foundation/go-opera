@@ -15,9 +15,8 @@ import (
 )
 
 type service struct {
-	server *grpc.Server
-
 	listen network.ListenFunc
+	server *grpc.Server
 }
 
 // StartService starts node service.

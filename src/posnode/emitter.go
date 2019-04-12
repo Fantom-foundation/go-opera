@@ -11,7 +11,8 @@ import (
 
 // emitter creates events from external transactions.
 type emitter struct {
-	transactions [][]byte
+	internalTxns []*inter.InternalTransaction
+	externalTxns [][]byte
 	done         chan struct{}
 
 	sync.Mutex
@@ -43,12 +44,20 @@ func (n *Node) StopEventEmission() {
 	n.emitter.done = nil
 }
 
-// AddTransaction adds transaction into the node.
-func (n *Node) AddTransaction(t []byte) {
+// AddInternalTxn takes internal transaction for new event.
+func (n *Node) AddInternalTxn(tx inter.InternalTransaction) {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.emitter.transactions = append(n.emitter.transactions, t)
+	n.emitter.internalTxns = append(n.emitter.internalTxns, &tx)
+}
+
+// AddExternalTxn takes external transaction for new event.
+func (n *Node) AddExternalTxn(tx []byte) {
+	n.emitter.Lock()
+	defer n.emitter.Unlock()
+	// TODO: copy tx val?
+	n.emitter.externalTxns = append(n.emitter.externalTxns, tx)
 }
 
 // EmitEvent takes all transactions from buffer builds event,
@@ -62,11 +71,13 @@ func (n *Node) EmitEvent() *inter.Event {
 		index        uint64
 		parents      hash.Events = hash.Events{}
 		lamportTime  inter.Timestamp
-		transactions [][]byte
+		internalTxns []*inter.InternalTransaction
+		externalTxns [][]byte
 	)
 
 	// transactions buffer swap
-	transactions, n.emitter.transactions = n.emitter.transactions, nil
+	internalTxns, n.emitter.internalTxns = n.emitter.internalTxns, nil
+	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
 	// ref nodes selection
 	refs := n.peers.Snapshot()
@@ -114,7 +125,8 @@ func (n *Node) EmitEvent() *inter.Event {
 		Creator:              n.ID,
 		Parents:              parents,
 		LamportTime:          lamportTime + 1,
-		ExternalTransactions: transactions,
+		InternalTransactions: internalTxns,
+		ExternalTransactions: externalTxns,
 	}
 	if err := event.SignBy(n.key); err != nil {
 		panic(err)

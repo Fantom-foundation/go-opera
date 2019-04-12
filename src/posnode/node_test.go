@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
 func ExampleNode(t *testing.T) {
@@ -23,4 +25,9 @@ func ExampleNode(t *testing.T) {
 	defer n.Stop()
 
 	select {}
+}
+
+// NewForTests creates node with fake network client.
+func NewForTests(host string, s *Store, c Consensus) *Node {
+	return New(host, nil, s, c, nil, network.FakeListener, FakeClient(host))
 }

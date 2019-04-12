@@ -24,7 +24,7 @@ func TestEmit(t *testing.T) {
 		assert := assert.New(t)
 
 		tx := []byte("12345")
-		node1.AddTransaction(tx)
+		node1.AddExternalTxn(tx)
 		events[0] = node1.EmitEvent()
 
 		assert.Equal(
