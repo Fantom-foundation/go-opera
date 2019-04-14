@@ -115,6 +115,7 @@ func (n *Node) EmitEvent() *inter.Event {
 		}
 
 		parents.Add(*e)
+		n.UsedAsParent(ref)
 		if lamportTime < event.LamportTime {
 			lamportTime = event.LamportTime
 		}
@@ -155,18 +156,39 @@ type emitterEvaluation struct {
 }
 
 // Len is the number of elements in the collection.
-func (n *emitterEvaluation) Len() int {
-	return len(n.peers)
+func (e *emitterEvaluation) Len() int {
+	return len(e.peers)
 }
 
 // Swap swaps the elements with indexes i and j.
-func (n *emitterEvaluation) Swap(i, j int) {
-	n.peers[i], n.peers[j] = n.peers[j], n.peers[i]
+func (e *emitterEvaluation) Swap(i, j int) {
+	e.peers[i], e.peers[j] = e.peers[j], e.peers[i]
 }
 
 // Less reports whether the element with
 // index i should sort before the element with index j.
-func (n *emitterEvaluation) Less(i, j int) bool {
-	// TODO: implement it
-	return false
+func (e *emitterEvaluation) Less(i, j int) bool {
+	var weightI, weightJ int
+	attrI := e.node.peers.attrOf(e.peers[i])
+	attrJ := e.node.peers.attrOf(e.peers[j])
+
+	if attrI.LastUsed.Before(attrJ.LastUsed) {
+		weightI = weightI + 1
+		weightJ = weightJ - 1
+	}
+
+	if attrI.LastEvent.After(attrJ.LastEvent) {
+		weightI = weightI + 1
+		weightJ = weightJ - 1
+	}
+
+	balanceI := e.node.consensus.GetStakeOf(e.peers[i])
+	balanceJ := e.node.consensus.GetStakeOf(e.peers[j])
+
+	if balanceI > balanceJ {
+		weightI = weightI + 1
+		weightJ = weightJ - 1
+	}
+
+	return weightI > weightJ
 }

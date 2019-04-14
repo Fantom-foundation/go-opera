@@ -8,4 +8,6 @@ import (
 type Consensus interface {
 	// PushEvent takes event for processing.
 	PushEvent(hash.Event)
+	// GetStakeOf returns stake of peer.
+	GetStakeOf(hash.Peer) float64
 }

@@ -44,3 +44,17 @@ func (mr *MockConsensusMockRecorder) PushEvent(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushEvent", reflect.TypeOf((*MockConsensus)(nil).PushEvent), arg0)
 }
+
+// GetStakeOf mocks base method
+func (m *MockConsensus) GetStakeOf(arg0 hash.Peer) float64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStakeOf", arg0)
+	ret0, _ := ret[0].(float64)
+	return ret0
+}
+
+// GetStakeOf indicates an expected call of GetStakeOf
+func (mr *MockConsensusMockRecorder) GetStakeOf(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStakeOf", reflect.TypeOf((*MockConsensus)(nil).GetStakeOf), arg0)
+}
