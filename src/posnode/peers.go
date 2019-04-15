@@ -14,7 +14,8 @@ const peersCount = 10
 type peers struct {
 	top       []hash.Peer
 	unordered bool
-	attrs     map[hash.Peer]*peerAttrs
+	peers     map[hash.Peer]*peerAttr
+	hosts     map[string]*hostAttr
 
 	sync.RWMutex
 	save func()
@@ -29,13 +30,35 @@ func (pp *peers) Snapshot() []hash.Peer {
 	return res
 }
 
-func (pp *peers) attrOf(id hash.Peer) *peerAttrs {
-	attrs := pp.attrs[id]
-	if attrs == nil {
-		attrs = &peerAttrs{}
-		pp.attrs[id] = attrs
+func (pp *peers) attrByID(id hash.Peer) *peerAttr {
+	if id.IsEmpty() {
+		return nil
 	}
-	return attrs
+
+	attr := pp.peers[id]
+	if attr == nil {
+		attr = &peerAttr{
+			ID:   id,
+			Host: &hostAttr{},
+		}
+		pp.peers[id] = attr
+	}
+	return attr
+}
+
+func (pp *peers) attrByHost(host string) *hostAttr {
+	if host == "" {
+		return nil
+	}
+
+	attr := pp.hosts[host]
+	if attr == nil {
+		attr = &hostAttr{
+			Name: host,
+		}
+		pp.hosts[host] = attr
+	}
+	return attr
 }
 
 func (n *Node) initPeers() {
@@ -45,10 +68,12 @@ func (n *Node) initPeers() {
 		return
 	}
 	n.peers.top = n.store.GetTopPeers()
-	n.peers.attrs = make(map[hash.Peer]*peerAttrs)
 	n.peers.save = func() {
 		n.store.SetTopPeers(n.peers.top)
 	}
+
+	n.peers.peers = make(map[hash.Peer]*peerAttr)
+	n.peers.hosts = make(map[string]*hostAttr)
 }
 
 // UsedAsParent sets peer as previously used as
@@ -57,7 +82,7 @@ func (n *Node) UsedAsParent(id hash.Peer) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	attr := n.peers.attrOf(id)
+	attr := n.peers.attrByID(id)
 	attr.LastUsed = time.Now()
 }
 
@@ -67,92 +92,90 @@ func (n *Node) GotNewEvent(id hash.Peer) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	attr := n.peers.attrOf(id)
+	attr := n.peers.attrByID(id)
 	attr.LastEvent = time.Now()
 }
 
 // ConnectOK counts successful connections to peer.
-func (n *Node) ConnectOK(peer *Peer) {
+func (n *Node) ConnectOK(p *Peer) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	attr := n.peers.attrOf(peer.ID)
-	attr.LastSuccess = time.Now()
-	attr.LastHost = peer.Host
+	host := n.peers.attrByHost(p.Host)
+	host.LastSuccess = time.Now()
 
-	if peer.PubKey == nil {
+	peer := n.peers.attrByID(p.ID)
+	if peer == nil {
 		return
 	}
+	peer.Host = host
 
-	old := n.store.GetPeer(peer.ID)
-	if old != nil && old.Host == peer.Host {
+	stored := n.store.GetPeer(p.ID)
+	if stored == nil {
 		return
 	}
-	n.store.SetPeer(peer)
+	if stored.Host != p.Host {
+		stored.Host = p.Host
+		n.store.SetPeer(stored)
+	}
 
 	for _, exist := range n.peers.top {
-		if peer.ID == exist {
+		if p.ID == exist {
 			return
 		}
 	}
 
-	n.peers.top = append(n.peers.top, peer.ID)
+	n.peers.top = append(n.peers.top, p.ID)
 	n.peers.unordered = true
 	n.peers.save()
 }
 
 // ConnectFail counts unsuccessful connections to peer.
-func (n *Node) ConnectFail(peer *Peer, err error) {
+func (n *Node) ConnectFail(p *Peer, err error) {
 	n.log.Warn(err)
 
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	attr := n.peers.attrOf(peer.ID)
-	attr.LastFail = time.Now()
-	attr.LastHost = peer.Host
+	host := n.peers.attrByHost(p.Host)
+	host.LastFail = time.Now()
+
+	peer := n.peers.attrByID(p.ID)
+	if peer == nil {
+		return
+	}
+	peer.Host = host
 
 	n.peers.unordered = true
 }
 
 // PeerReadyForReq returns false if peer is not ready for request.
 // TODO: test it
-func (n *Node) PeerReadyForReq(id hash.Peer, host string) bool {
+func (n *Node) PeerReadyForReq(host string) bool {
 	n.peers.RLock()
 	defer n.peers.RUnlock()
 
-	attr := n.peers.attrOf(id)
+	attr := n.peers.attrByHost(host)
 
-	if attr.LastHost == host &&
-		attr.LastFail.After(attr.LastSuccess) &&
-		attr.LastFail.After(time.Now().Add(-n.conf.DiscoveryTimeout)) {
-		return false
-	}
-
-	return true
+	return attr != nil &&
+		(attr.LastFail.Before(attr.LastSuccess) ||
+			attr.LastFail.Before(time.Now().Add(-n.conf.DiscoveryTimeout)))
 }
 
 // PeerUnknown returns true if peer should be discovered.
-// TODO: test it
 func (n *Node) PeerUnknown(id *hash.Peer) bool {
-	if id == nil {
+	if id.IsEmpty() {
 		return true
 	}
 
 	n.peers.RLock()
 	defer n.peers.RUnlock()
 
-	attr := n.peers.attrOf(*id)
-	if attr.LastSuccess.After(time.Now().Add(-n.conf.DiscoveryTimeout)) {
-		return false
-	}
+	attr := n.peers.attrByID(*id).Host
 
-	peer := n.store.GetPeer(*id)
-	if peer == nil || peer.Host == "" || peer.PubKey == nil {
-		return true
-	}
-
-	return false
+	return attr == nil ||
+		(attr.LastSuccess.Before(time.Now().Add(-n.conf.DiscoveryTimeout)) &&
+			attr.LastFail.Before(time.Now().Add(-n.conf.DiscoveryTimeout)))
 }
 
 // NextForGossip returns the best candidate to gossip with and marks it as busy.
@@ -172,7 +195,7 @@ func (n *Node) NextForGossip() *Peer {
 		if len(n.peers.top) > peersCount {
 			tail := n.peers.top[peersCount:]
 			for _, id := range tail {
-				delete(n.peers.attrs, id)
+				delete(n.peers.peers, id)
 			}
 			n.peers.top = n.peers.top[:peersCount]
 			n.peers.save()
@@ -181,7 +204,7 @@ func (n *Node) NextForGossip() *Peer {
 
 	// return first no busy
 	for _, candidate := range n.peers.top {
-		attrs := n.peers.attrOf(candidate)
+		attrs := n.peers.attrByID(candidate)
 		if !attrs.Busy {
 			attrs.Busy = true
 			peer := n.store.GetPeer(candidate)
@@ -194,8 +217,12 @@ func (n *Node) NextForGossip() *Peer {
 
 // FreePeer marks peer as not busy.
 func (n *Node) FreePeer(p *Peer) {
+	if p == nil {
+		return
+	}
+
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	n.peers.attrOf(p.ID).Busy = false
+	n.peers.attrByID(p.ID).Busy = false
 }

@@ -111,7 +111,7 @@ func (n *Node) syncWithPeer() {
 
 	// check peers from events
 	for p := range peers2discovery {
-		n.CheckPeerIsKnown(peer.ID, peer.Host, p)
+		n.CheckPeerIsKnown(peer.ID, peer.Host, &p)
 	}
 }
 
@@ -233,8 +233,8 @@ func (n *gossipEvaluation) Swap(i, j int) {
 // Less reports whether the element with
 // index i should sort before the element with index j.
 func (n *gossipEvaluation) Less(i, j int) bool {
-	a := n.peers.attrOf(n.peers.top[i])
-	b := n.peers.attrOf(n.peers.top[j])
+	a := n.peers.attrByID(n.peers.top[i]).Host
+	b := n.peers.attrByID(n.peers.top[j]).Host
 
 	if a.LastSuccess.After(a.LastFail) && !b.LastSuccess.After(b.LastFail) {
 		return true

@@ -9,92 +9,86 @@ import (
 )
 
 func TestPeerReadyForReq(t *testing.T) {
-	// node 1
-	store1 := NewMemStore()
-	node1 := NewForTests("server1", store1, nil)
+	store := NewMemStore()
+	node := NewForTests("node0", store, nil)
+	node.initPeers()
 
-	// node 2
-	store2 := NewMemStore()
-	node2 := NewForTests("server2", store2, nil)
-
-	// node1 got event1
-	store1.BootstrapPeers(node2.AsPeer())
-	node1.initPeers()
-
-	t.Run("need host", func(t *testing.T) {
+	t.Run("new host", func(t *testing.T) {
 		assert := assert.New(t)
 
-		attr := node1.peers.attrOf(node2.ID)
-		attr.LastHost = "old_host"
-
-		assert.Equal(node1.PeerReadyForReq(node2.ID, "new_host"), true)
+		assert.True(node.PeerReadyForReq("new_host"))
 	})
 
 	t.Run("last success", func(t *testing.T) {
 		assert := assert.New(t)
 
-		attr := node1.peers.attrOf(node2.ID)
-		attr.LastHost = "old_host"
-		attr.LastFail = time.Now().Add(-time.Hour)
-		attr.LastSuccess = time.Now()
+		host := &hostAttr{
+			Name:        "success",
+			LastSuccess: time.Now(),
+			LastFail:    time.Now().Add(-node.conf.DiscoveryTimeout),
+		}
+		node.peers.hosts[host.Name] = host
 
-		assert.Equal(node1.PeerReadyForReq(node2.ID, "old_host"), true)
+		assert.True(node.PeerReadyForReq(host.Name))
 	})
 
 	t.Run("last fail timeouted", func(t *testing.T) {
 		assert := assert.New(t)
 
-		attr := node1.peers.attrOf(node2.ID)
-		attr.LastHost = "old_host"
-		attr.LastFail = time.Now().Add(-2 * node1.conf.DiscoveryTimeout)
-		attr.LastSuccess = time.Now().Add(-node1.conf.DiscoveryTimeout)
+		host := &hostAttr{
+			Name:        "fail",
+			LastSuccess: time.Now().Add(-node.conf.DiscoveryTimeout),
+			LastFail:    time.Now().Add(-2 * node.conf.DiscoveryTimeout),
+		}
+		node.peers.hosts[host.Name] = host
 
-		assert.Equal(node1.PeerReadyForReq(node2.ID, "old_host"), true)
+		assert.True(node.PeerReadyForReq(host.Name))
 	})
 }
 
 func TestPeerUnknown(t *testing.T) {
-	// node 1
-	store1 := NewMemStore()
-	node1 := NewForTests("server1", store1, nil)
-
-	// node 2
-	store2 := NewMemStore()
-	node2 := NewForTests("server2", store2, nil)
-
-	// node1 got event1
-	store1.BootstrapPeers(node2.AsPeer())
-	node1.initPeers()
+	store := NewMemStore()
+	node := NewForTests("node0", store, nil)
+	node.initPeers()
 
 	t.Run("last success", func(t *testing.T) {
 		assert := assert.New(t)
 
-		attr := node1.peers.attrOf(node2.ID)
-		attr.LastSuccess = time.Now().Truncate(2 * node1.conf.DiscoveryTimeout)
+		peer := &peerAttr{
+			ID: hash.FakePeer(),
+			Host: &hostAttr{
+				LastSuccess: time.Now().Truncate(node.conf.DiscoveryTimeout),
+			},
+		}
+		node.peers.peers[peer.ID] = peer
 
-		assert.Equal(node1.PeerUnknown(&node2.ID), false)
+		assert.False(node.PeerUnknown(&peer.ID))
 	})
 
 	t.Run("peer known", func(t *testing.T) {
 		assert := assert.New(t)
 
-		attr := node1.peers.attrOf(node2.ID)
-		attr.LastSuccess = time.Now()
+		peer := &peerAttr{
+			ID: hash.FakePeer(),
+			Host: &hostAttr{
+				LastSuccess: time.Now(),
+			},
+		}
+		node.peers.peers[peer.ID] = peer
 
-		assert.Equal(node1.PeerUnknown(&node2.ID), false)
+		assert.False(node.PeerUnknown(&peer.ID))
 	})
 
 	t.Run("peer unknown", func(t *testing.T) {
 		assert := assert.New(t)
 
-		unknown := hash.HexToPeer("unknown")
-
-		assert.Equal(node1.PeerUnknown(&unknown), true)
+		unknown := hash.FakePeer()
+		assert.True(node.PeerUnknown(&unknown))
 	})
 
 	t.Run("nil peer", func(t *testing.T) {
 		assert := assert.New(t)
 
-		assert.Equal(node1.PeerUnknown(nil), true)
+		assert.True(node.PeerUnknown(nil))
 	})
 }

@@ -60,12 +60,12 @@ func (n *Node) StopDiscovery() {
 }
 
 // CheckPeerIsKnown queues peer checking for a late.
-func (n *Node) CheckPeerIsKnown(source hash.Peer, host string, id hash.Peer) {
+func (n *Node) CheckPeerIsKnown(source hash.Peer, host string, id *hash.Peer) {
 	select {
 	case n.discovery.tasks <- discoveryTask{
 		source:  source,
 		host:    host,
-		unknown: &id,
+		unknown: id,
 	}:
 	default:
 		n.log.Warn("discovery.tasks queue is full, so skipped")
@@ -74,18 +74,14 @@ func (n *Node) CheckPeerIsKnown(source hash.Peer, host string, id hash.Peer) {
 
 // AskPeerInfo gets peer info (network address, public key, etc).
 func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
-	if !n.PeerReadyForReq(source, host) {
+	if !n.PeerReadyForReq(host) {
 		return
 	}
 	if !n.PeerUnknown(id) {
 		return
 	}
 
-	peer := n.store.GetPeer(source)
-	if peer == nil {
-		peer = &Peer{ID: source}
-	}
-	peer.Host = host
+	peer := &Peer{Host: host}
 
 	client, err := n.ConnectTo(peer)
 	if err != nil {
@@ -99,28 +95,31 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 		return
 	}
 
-	if id == nil {
-		n.ConnectOK(peer)
-		return
-	}
-
 	if info == nil {
-		n.log.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
-		n.ConnectOK(peer)
+		if id == nil {
+			n.ConnectFail(peer, fmt.Errorf("host %s knows nothing about self", host))
+		} else {
+			n.log.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
+			n.ConnectOK(peer)
+		}
 		return
 	}
 
-	got := CalcPeerInfoID(info.PubKey)
-	if got != *id {
+	if CalcPeerInfoID(info.PubKey) != hash.HexToPeer(info.ID) {
 		n.ConnectFail(peer, fmt.Errorf("bad PeerInfo response"))
 		return
 	}
+
+	if id != nil && source != *id {
+		n.ConnectOK(peer)
+		n.AskPeerInfo(*id, info.Host, nil)
+		return
+	}
+
+	info.Host = host
+	peer = WireToPeer(info)
+	n.store.SetWirePeer(peer.ID, info)
 	n.ConnectOK(peer)
-
-	info.ID = got.Hex()
-	n.store.SetWirePeer(*id, info)
-
-	n.AskPeerInfo(*id, info.Host, nil)
 }
 
 // requestPeerInfo does GetPeerInfo request.
@@ -137,6 +136,7 @@ func (n *Node) requestPeerInfo(client api.NodeClient, id *hash.Peer) (info *api.
 	if err == nil {
 		return
 	}
+
 	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 		info, err = nil, nil
 	}

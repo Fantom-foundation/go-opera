@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-func TestDiscovery(t *testing.T) {
+func TestDiscoveryPeer(t *testing.T) {
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
@@ -53,7 +54,7 @@ func TestDiscovery(t *testing.T) {
 		node2.AskPeerInfo(node1.ID, node1.host, &known.ID)
 
 		peer := store2.GetPeer(known.ID)
-		assert.Equal(known, peer)
+		assert.Nil(peer)
 	})
 
 	t.Run("ask for known invalid", func(t *testing.T) {
@@ -67,6 +68,39 @@ func TestDiscovery(t *testing.T) {
 		peer := store2.GetPeer(known.ID)
 		assert.Nil(peer)
 	})
+}
+
+func TestDiscoveryHost(t *testing.T) {
+	assert := assert.New(t)
+
+	// node 1
+	store1 := NewMemStore()
+	node1 := NewForTests("node1", store1, nil)
+	node1.StartService()
+	defer node1.StopService()
+	node1.initPeers()
+
+	// node 2
+	store2 := NewMemStore()
+	node2 := NewForTests("node2", store2, nil)
+	node2.StartService()
+	defer node2.StopService()
+	node2.StartDiscovery()
+	defer node2.StopDiscovery()
+
+	node1.AskPeerInfo(hash.EmptyPeer, node2.Host(), nil)
+
+	assert.Equal(
+		node2.ID,
+		node1.peers.Snapshot()[0])
+
+	select {
+	case <-nodeDiscoveryFinish(node2):
+	case <-time.After(time.Second):
+	}
+	assert.Equal(
+		node1.ID,
+		node2.peers.Snapshot()[0])
 }
 
 /*
@@ -92,4 +126,15 @@ func InvalidPeer(host string) *Peer {
 	peer := FakePeer(host)
 	peer.ID = hash.FakePeer()
 	return peer
+}
+
+func nodeDiscoveryFinish(n *Node) chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		for len(n.peers.Snapshot()) < 1 {
+			time.Sleep(time.Second / 4)
+		}
+		close(done)
+	}()
+	return done
 }

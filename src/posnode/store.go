@@ -138,8 +138,13 @@ func (s *Store) BootstrapPeers(peers ...*Peer) {
 	batch := s.peers.NewBatch()
 	defer batch.Reset()
 
-	ids := make([]hash.Peer, len(peers))
-	for i, peer := range peers {
+	ids := make([]hash.Peer, 0, len(peers))
+	for _, peer := range peers {
+		// skip empty
+		if peer == nil || peer.PubKey == nil || peer.ID.IsEmpty() || peer.Host == "" {
+			continue
+		}
+
 		var pbf proto.Buffer
 		w := peer.ToWire()
 		if err := pbf.Marshal(w); err != nil {
@@ -148,14 +153,13 @@ func (s *Store) BootstrapPeers(peers ...*Peer) {
 		if err := batch.Put(peer.ID.Bytes(), pbf.Bytes()); err != nil {
 			panic(err)
 		}
-		ids[i] = peer.ID
+		ids = append(ids, peer.ID)
 	}
 
 	if err := batch.Write(); err != nil {
 		panic(err)
 	}
 
-	// add peers to top
 	s.SetTopPeers(ids)
 }
 

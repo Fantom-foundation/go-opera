@@ -9,6 +9,9 @@ var (
 // It is a hash of peer's PubKey.
 type Peer Hash
 
+// EmptyPeer is empty peer identificator.
+var EmptyPeer = Peer{}
+
 // Bytes returns value as byte slice.
 func (p *Peer) Bytes() []byte {
 	return (*Hash)(p).Bytes()
@@ -37,6 +40,11 @@ func (p *Peer) String() string {
 		return name
 	}
 	return (*Hash)(p).ShortString()
+}
+
+// IsEmpty returns true if hash is empty.
+func (p *Peer) IsEmpty() bool {
+	return p == nil || *p == EmptyPeer
 }
 
 /*

@@ -17,14 +17,20 @@ type (
 		Host   string
 	}
 
-	// peerAttrs contains temporary attributes of peer.
-	peerAttrs struct {
-		Busy        bool
+	// hostAttr contains temporary attributes of host.
+	hostAttr struct {
+		Name        string
 		LastSuccess time.Time
 		LastFail    time.Time
-		LastEvent   time.Time
-		LastUsed    time.Time
-		LastHost    string
+	}
+
+	// peerAttr contains temporary attributes of peer.
+	peerAttr struct {
+		ID        hash.Peer
+		Busy      bool
+		LastEvent time.Time
+		LastUsed  time.Time
+		Host      *hostAttr
 	}
 )
 

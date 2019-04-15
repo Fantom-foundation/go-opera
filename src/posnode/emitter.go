@@ -169,8 +169,8 @@ func (e *emitterEvaluation) Swap(i, j int) {
 // index i should sort before the element with index j.
 func (e *emitterEvaluation) Less(i, j int) bool {
 	var weightI, weightJ int
-	attrI := e.node.peers.attrOf(e.peers[i])
-	attrJ := e.node.peers.attrOf(e.peers[j])
+	attrI := e.node.peers.attrByID(e.peers[i])
+	attrJ := e.node.peers.attrByID(e.peers[j])
 
 	if attrI.LastUsed.Before(attrJ.LastUsed) {
 		weightI = weightI + 1

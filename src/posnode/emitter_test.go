@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"crypto/ecdsa"
 	"sort"
 	"testing"
 	"time"
@@ -96,31 +97,34 @@ func Test_emitterEvaluation(t *testing.T) {
 	node := NewForTests("server.fake", store, consensus)
 
 	peer1 := Peer{
-		ID:   hash.HexToPeer("1"),
-		Host: "host1",
+		ID:     hash.HexToPeer("1"),
+		Host:   "host1",
+		PubKey: &ecdsa.PublicKey{},
 	}
 	peer2 := Peer{
-		ID:   hash.HexToPeer("2"),
-		Host: "host2",
+		ID:     hash.HexToPeer("2"),
+		Host:   "host2",
+		PubKey: &ecdsa.PublicKey{},
 	}
 	peer3 := Peer{
-		ID:   hash.HexToPeer("3"),
-		Host: "host3",
+		ID:     hash.HexToPeer("3"),
+		Host:   "host3",
+		PubKey: &ecdsa.PublicKey{},
 	}
 
 	store.BootstrapPeers(&peer1, &peer2, &peer3)
 	node.initPeers()
-	node.peers.attrs[peer1.ID] = &peerAttrs{}
-	node.peers.attrs[peer2.ID] = &peerAttrs{}
-	node.peers.attrs[peer3.ID] = &peerAttrs{}
+	node.peers.peers[peer1.ID] = &peerAttr{}
+	node.peers.peers[peer2.ID] = &peerAttr{}
+	node.peers.peers[peer3.ID] = &peerAttr{}
 
 	t.Run("last used", func(t *testing.T) {
 		assert := assert.New(t)
 
 		consensus.EXPECT().GetStakeOf(gomock.Any()).Times(6)
-		node.peers.attrs[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
-		node.peers.attrs[peer2.ID].LastUsed = time.Now().Add(time.Hour)
-		node.peers.attrs[peer3.ID].LastUsed = time.Now()
+		node.peers.peers[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
+		node.peers.peers[peer2.ID].LastUsed = time.Now().Add(time.Hour)
+		node.peers.peers[peer3.ID].LastUsed = time.Now()
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)
@@ -134,9 +138,9 @@ func Test_emitterEvaluation(t *testing.T) {
 		assert := assert.New(t)
 
 		consensus.EXPECT().GetStakeOf(gomock.Any()).Times(6)
-		node.peers.attrs[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
-		node.peers.attrs[peer2.ID].LastEvent = time.Now().Add(time.Hour)
-		node.peers.attrs[peer1.ID].LastEvent = time.Now()
+		node.peers.peers[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
+		node.peers.peers[peer2.ID].LastEvent = time.Now().Add(time.Hour)
+		node.peers.peers[peer1.ID].LastEvent = time.Now()
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)

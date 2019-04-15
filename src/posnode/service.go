@@ -52,6 +52,8 @@ func (n *Node) StopService() {
 
 // SyncEvents returns their known event heights excluding heights from request.
 func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.KnownEvents, error) {
+	n.checkClientHost(ctx)
+
 	knowns := n.knownEvents()
 
 	knownLasts := make(map[string]uint64, len(knowns))
@@ -76,6 +78,8 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 
 // GetEvent returns requested event.
 func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event, error) {
+	n.checkClientHost(ctx)
+
 	var eventHash hash.Event
 
 	if req.Hash != nil {
@@ -99,11 +103,15 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.PeerInfo, error) {
+	n.checkClientHost(ctx)
+
+	var id hash.Peer
+
 	if req.PeerID == "" {
-		// it is a simple ping
-		return nil, nil
+		id = n.ID
+	} else {
+		id = hash.HexToPeer(req.PeerID)
 	}
-	id := hash.HexToPeer(req.PeerID)
 
 	if id == n.ID { // self
 		info := n.AsPeer()
@@ -121,6 +129,12 @@ func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.Peer
 /*
  * Utils:
  */
+
+func (n *Node) checkClientHost(ctx context.Context) {
+	if from := api.GrpcPeerHost(ctx); from != "" {
+		n.CheckPeerIsKnown(hash.EmptyPeer, from, nil)
+	}
+}
 
 // PeersHeightsDiff returns all heights excluding excepts.
 func PeersHeightsDiff(all, excepts map[string]uint64) (res map[string]uint64) {
