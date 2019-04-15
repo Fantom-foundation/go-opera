@@ -105,7 +105,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 		return
 	}
 
-	if CalcPeerInfoID(info.PubKey) != hash.HexToPeer(info.ID) {
+	if hash.PeerOfPubkeyBytes(info.PubKey) != hash.HexToPeer(info.ID) {
 		n.ConnectFail(peer, fmt.Errorf("bad PeerInfo response"))
 		return
 	}

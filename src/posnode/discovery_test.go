@@ -115,7 +115,7 @@ func FakePeer(host string) *Peer {
 	}
 
 	return &Peer{
-		ID:     CalcPeerID(&key.PublicKey),
+		ID:     hash.PeerOfPubkey(&key.PublicKey),
 		PubKey: &key.PublicKey,
 		Host:   host,
 	}

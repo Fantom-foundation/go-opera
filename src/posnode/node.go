@@ -5,7 +5,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -47,7 +46,7 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 	}
 
 	n := Node{
-		ID:        CalcPeerID(&key.PublicKey),
+		ID:        hash.PeerOfPubkey(&key.PublicKey),
 		key:       key,
 		pub:       &key.PublicKey,
 		store:     s,
@@ -101,16 +100,6 @@ func (n *Node) AsPeer() *Peer {
 /*
  * Utils:
  */
-
-// CalcPeerID returns peer id from pub key.
-func CalcPeerID(pub *ecdsa.PublicKey) hash.Peer {
-	return CalcPeerInfoID(common.FromECDSAPub(pub))
-}
-
-// CalcPeerInfoID returns peer id from pub key bytes.
-func CalcPeerInfoID(pub []byte) hash.Peer {
-	return hash.Peer(hash.Of(pub))
-}
 
 // FakeClient returns dialer for fake network.
 func FakeClient(host string) grpc.DialOption {
