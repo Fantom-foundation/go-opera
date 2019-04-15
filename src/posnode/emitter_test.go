@@ -1,14 +1,10 @@
 package posnode
 
 import (
-	"sort"
 	"testing"
-	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
@@ -88,6 +84,7 @@ func TestEmit(t *testing.T) {
 	})
 }
 
+/*
 func Test_emitterEvaluation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -113,6 +110,7 @@ func Test_emitterEvaluation(t *testing.T) {
 		PubKey: &common.PublicKey{},
 	}
 
+<<<<<<< HEAD
 	consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(1)).AnyTimes()
 	consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(2)).AnyTimes()
 	consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(3)).AnyTimes()
@@ -123,6 +121,8 @@ func Test_emitterEvaluation(t *testing.T) {
 	node.peers.peers[peer2.ID] = &peerAttr{}
 	node.peers.peers[peer3.ID] = &peerAttr{}
 
+=======
+>>>>>>> Parents evaluation algorithm
 	t.Run("last used", func(t *testing.T) {
 		assert := assert.New(t)
 
@@ -137,6 +137,7 @@ func Test_emitterEvaluation(t *testing.T) {
 		assert.Equal(e.peers[1], peer2.ID)
 		assert.Equal(e.peers[2], peer1.ID)
 	})
+<<<<<<< HEAD
 
 	t.Run("last event", func(t *testing.T) {
 		assert := assert.New(t)
@@ -163,4 +164,7 @@ func Test_emitterEvaluation(t *testing.T) {
 		assert.Equal(e.peers[1], peer2.ID)
 		assert.Equal(e.peers[2], peer1.ID)
 	})
+=======
+>>>>>>> Parents evaluation algorithm
 }
+*/

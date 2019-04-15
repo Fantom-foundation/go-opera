@@ -76,26 +76,6 @@ func (n *Node) initPeers() {
 	n.peers.hosts = make(map[string]*hostAttr)
 }
 
-// UsedAsParent sets peer as previously used as
-// parent.
-func (n *Node) UsedAsParent(id hash.Peer) {
-	n.peers.Lock()
-	defer n.peers.Unlock()
-
-	attr := n.peers.attrByID(id)
-	attr.LastUsed = time.Now()
-}
-
-// GotNewEvent updates when new event received
-// for peer.
-func (n *Node) GotNewEvent(id hash.Peer) {
-	n.peers.Lock()
-	defer n.peers.Unlock()
-
-	attr := n.peers.attrByID(id)
-	attr.LastEvent = time.Now()
-}
-
 // ConnectOK counts successful connections to peer.
 func (n *Node) ConnectOK(p *Peer) {
 	n.peers.Lock()

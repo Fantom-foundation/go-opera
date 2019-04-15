@@ -2,6 +2,7 @@ package posnode
 
 //NOTE: mockgen does not work properly out of GOPATH
 //go:generate mockgen -package=posnode -source=consensus.go -destination=mock_test.go Consensus
+//go:generate mockgen -package=posnode -source=emitter.go -destination=emitter.mock_test.go Consensus
 
 import (
 	"testing"
