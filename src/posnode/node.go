@@ -1,10 +1,9 @@
 package posnode
 
 import (
-	"crypto/ecdsa"
-
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -13,8 +12,8 @@ import (
 // Node is a Lachesis node implementation.
 type Node struct {
 	ID        hash.Peer
-	key       *ecdsa.PrivateKey
-	pub       *ecdsa.PublicKey
+	key       *common.PrivateKey
+	pub       *common.PublicKey
 	store     *Store
 	consensus Consensus
 	host      string
@@ -32,13 +31,9 @@ type Node struct {
 
 // New creates node.
 // It does not start any process.
-func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
+func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
 	if key == nil {
-		var err error
-		key, err = crypto.GenerateECDSAKey()
-		if err != nil {
-			panic(err)
-		}
+		key = crypto.GenerateKey()
 	}
 
 	if conf == nil {
@@ -46,9 +41,9 @@ func New(host string, key *ecdsa.PrivateKey, s *Store, c Consensus, conf *Config
 	}
 
 	n := Node{
-		ID:        hash.PeerOfPubkey(&key.PublicKey),
+		ID:        hash.PeerOfPubkey(key.Public()),
 		key:       key,
-		pub:       &key.PublicKey,
+		pub:       key.Public(),
 		store:     s,
 		consensus: c,
 		host:      host,
@@ -78,7 +73,7 @@ func (n *Node) Stop() {
 }
 
 // PubKey returns public key.
-func (n *Node) PubKey() *ecdsa.PublicKey {
+func (n *Node) PubKey() *common.PublicKey {
 	pk := *n.pub
 	return &pk
 }

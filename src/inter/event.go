@@ -1,11 +1,11 @@
 package inter
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
@@ -29,10 +29,10 @@ type Event struct {
 }
 
 // SignBy signs event by private key.
-func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
+func (e *Event) SignBy(priv *common.PrivateKey) error {
 	hash := e.Hash()
 
-	R, S, err := crypto.Sign(priv, hash.Bytes())
+	R, S, err := priv.Sign(hash.Bytes())
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
 }
 
 // Verify sign event by public key.
-func (e *Event) Verify(pubKey *ecdsa.PublicKey) bool {
+func (e *Event) Verify(pubKey *common.PublicKey) bool {
 	if pubKey == nil {
 		panic("cann't verify")
 	}
@@ -57,7 +57,7 @@ func (e *Event) Verify(pubKey *ecdsa.PublicKey) bool {
 		panic(err)
 	}
 
-	return crypto.Verify(pubKey, hash.Bytes(), r, s)
+	return pubKey.Verify(hash.Bytes(), r, s)
 }
 
 // Hash calcs hash of event.

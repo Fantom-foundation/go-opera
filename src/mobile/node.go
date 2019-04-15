@@ -36,13 +36,9 @@ func New(privKey string,
 	}).Debug("New Mobile Node")
 
 	// Check private key
-	pemKey := &crypto.PemKey{}
-
-	key, err := pemKey.ReadKeyFromBuf([]byte(privKey))
-
+	key, err := crypto.PemToKey([]byte(privKey))
 	if err != nil {
 		exceptionHandler.OnException(fmt.Sprintf("Failed to read private key: %s", err))
-
 		return nil
 	}
 

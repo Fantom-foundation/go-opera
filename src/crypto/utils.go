@@ -9,11 +9,13 @@ import (
 )
 
 // Sign signs with key
+// NOTE: deprecated
 func Sign(priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	return ecdsa.Sign(rand.Reader, priv, hash)
 }
 
 // Verify verifies the signatures
+// NOTE: deprecated
 func Verify(pub *ecdsa.PublicKey, hash []byte, r, s *big.Int) bool {
 	return ecdsa.Verify(pub, hash, r, s)
 }

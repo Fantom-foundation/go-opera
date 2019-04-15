@@ -1,8 +1,6 @@
 package hash
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
@@ -35,9 +33,8 @@ func PeerOfPubkeyBytes(b []byte) Peer {
 }
 
 // PeerOfPubkey calcs peer id from pub key.
-func PeerOfPubkey(pub *ecdsa.PublicKey) Peer {
-	b := common.FromECDSAPub(pub)
-	return Peer(Of(b))
+func PeerOfPubkey(pub *common.PublicKey) Peer {
+	return Peer(Of(pub.Bytes()))
 }
 
 // Hex converts a hash to a hex string.

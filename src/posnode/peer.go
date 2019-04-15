@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"crypto/ecdsa"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -13,7 +12,7 @@ type (
 	// Peer is a representation of other node.
 	Peer struct {
 		ID     hash.Peer
-		PubKey *ecdsa.PublicKey
+		PubKey *common.PublicKey
 		Host   string
 	}
 
@@ -38,7 +37,7 @@ type (
 func (p *Peer) ToWire() *api.PeerInfo {
 	return &api.PeerInfo{
 		ID:     p.ID.Hex(),
-		PubKey: common.FromECDSAPub(p.PubKey),
+		PubKey: p.PubKey.Bytes(),
 		Host:   p.Host,
 	}
 }
@@ -50,7 +49,7 @@ func WireToPeer(w *api.PeerInfo) *Peer {
 	}
 	return &Peer{
 		ID:     hash.HexToPeer(w.ID),
-		PubKey: common.ToECDSAPub(w.PubKey),
+		PubKey: common.BytesToPubkey(w.PubKey),
 		Host:   w.Host,
 	}
 }

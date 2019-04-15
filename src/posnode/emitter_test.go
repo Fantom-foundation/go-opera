@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"crypto/ecdsa"
 	"sort"
 	"testing"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
@@ -99,17 +99,17 @@ func Test_emitterEvaluation(t *testing.T) {
 	peer1 := Peer{
 		ID:     hash.HexToPeer("1"),
 		Host:   "host1",
-		PubKey: &ecdsa.PublicKey{},
+		PubKey: &common.PublicKey{},
 	}
 	peer2 := Peer{
 		ID:     hash.HexToPeer("2"),
 		Host:   "host2",
-		PubKey: &ecdsa.PublicKey{},
+		PubKey: &common.PublicKey{},
 	}
 	peer3 := Peer{
 		ID:     hash.HexToPeer("3"),
 		Host:   "host3",
-		PubKey: &ecdsa.PublicKey{},
+		PubKey: &common.PublicKey{},
 	}
 
 	store.BootstrapPeers(&peer1, &peer2, &peer3)
