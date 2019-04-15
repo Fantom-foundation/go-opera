@@ -45,8 +45,10 @@ func (n *Node) StartGossip(threads int) {
 
 // StopGossip stops gossiping.
 func (n *Node) StopGossip() {
-	n.gossip.Lock()
-	defer n.gossip.Unlock()
+	if n.gossip.tickets == nil {
+		return
+	}
+
 	close(n.gossip.tickets)
 	n.gossip.tickets = nil
 

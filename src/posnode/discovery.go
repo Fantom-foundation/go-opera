@@ -36,13 +36,14 @@ func (n *Node) StartDiscovery() {
 
 	n.discovery.tasks = make(chan discoveryTask, 100) // magic buffer size.
 	n.discovery.done = make(chan struct{})
+	done := n.discovery.done
 
 	go func() {
 		for {
 			select {
 			case task := <-n.discovery.tasks:
 				n.AskPeerInfo(task.source, task.host, task.unknown)
-			case <-n.discovery.done:
+			case <-done:
 				return
 			}
 		}
@@ -53,6 +54,10 @@ func (n *Node) StartDiscovery() {
 
 // StopDiscovery stops network discovery.
 func (n *Node) StopDiscovery() {
+	if n.discovery.done == nil {
+		return
+	}
+
 	close(n.discovery.done)
 	n.discovery.done = nil
 

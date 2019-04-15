@@ -93,6 +93,7 @@ func Test_emitterEvaluation(t *testing.T) {
 	defer ctrl.Finish()
 
 	consensus := NewMockConsensus(ctrl)
+
 	store := NewMemStore()
 	node := NewForTests("server.fake", store, consensus)
 
@@ -112,6 +113,10 @@ func Test_emitterEvaluation(t *testing.T) {
 		PubKey: &common.PublicKey{},
 	}
 
+	consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(1)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(2)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(3)).AnyTimes()
+
 	store.BootstrapPeers(&peer1, &peer2, &peer3)
 	node.initPeers()
 	node.peers.peers[peer1.ID] = &peerAttr{}
@@ -121,7 +126,6 @@ func Test_emitterEvaluation(t *testing.T) {
 	t.Run("last used", func(t *testing.T) {
 		assert := assert.New(t)
 
-		consensus.EXPECT().GetStakeOf(gomock.Any()).Times(6)
 		node.peers.peers[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
 		node.peers.peers[peer2.ID].LastUsed = time.Now().Add(time.Hour)
 		node.peers.peers[peer3.ID].LastUsed = time.Now()
@@ -137,7 +141,6 @@ func Test_emitterEvaluation(t *testing.T) {
 	t.Run("last event", func(t *testing.T) {
 		assert := assert.New(t)
 
-		consensus.EXPECT().GetStakeOf(gomock.Any()).Times(6)
 		node.peers.peers[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
 		node.peers.peers[peer2.ID].LastEvent = time.Now().Add(time.Hour)
 		node.peers.peers[peer1.ID].LastEvent = time.Now()
@@ -152,10 +155,6 @@ func Test_emitterEvaluation(t *testing.T) {
 
 	t.Run("balance", func(t *testing.T) {
 		assert := assert.New(t)
-
-		consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(1)).Times(2)
-		consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(2)).Times(2)
-		consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(3)).Times(2)
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)

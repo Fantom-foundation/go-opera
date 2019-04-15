@@ -24,6 +24,7 @@ func (n *Node) StartEventEmission() {
 		return
 	}
 	n.emitter.done = make(chan struct{})
+	done := n.emitter.done
 
 	go func() {
 		ticker := time.NewTicker(n.conf.EmitInterval)
@@ -31,7 +32,7 @@ func (n *Node) StartEventEmission() {
 			select {
 			case <-ticker.C:
 				n.EmitEvent()
-			case <-n.emitter.done:
+			case <-done:
 				return
 			}
 		}
@@ -40,6 +41,10 @@ func (n *Node) StartEventEmission() {
 
 // StopEventEmission stops event emission.
 func (n *Node) StopEventEmission() {
+	if n.emitter.done == nil {
+		return
+	}
+
 	close(n.emitter.done)
 	n.emitter.done = nil
 }
