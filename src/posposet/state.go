@@ -68,3 +68,14 @@ func (p *Poset) Bootstrap() {
 	// recalc in case there was a interrupted consensus
 	p.reconsensusFromFrame(p.state.LastFinishedFrameN + 1)
 }
+
+func GenesisHash(balances map[hash.Peer]uint64) hash.Hash {
+	s := NewMemStore()
+	defer s.Close()
+
+	if err := s.ApplyGenesis(balances); err != nil {
+		panic(err)
+	}
+
+	return s.GetState().Genesis
+}

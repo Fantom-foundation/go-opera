@@ -65,13 +65,16 @@ func (s *Store) Close() {
 
 // ApplyGenesis stores initial state.
 func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
-	st := s.GetState()
-	if st != nil {
-		return fmt.Errorf("Genesis has applied already")
-	}
-
 	if balances == nil {
 		return fmt.Errorf("Balances shouldn't be nil")
+	}
+
+	st := s.GetState()
+	if st != nil {
+		if st.Genesis == GenesisHash(balances) {
+			return nil
+		}
+		return fmt.Errorf("Other genesis has applied already")
 	}
 
 	st = &State{
