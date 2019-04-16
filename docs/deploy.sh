@@ -10,7 +10,6 @@ HTTPS_REPO=${REPO/https:\/\/github.com\//https://${GITHUB_USER}:${GITHUB_TOKEN}@
 OUT_DIR="cloned-gh-pages"
 
 echo "Repo: " ${REPO}
-echo "HTTPS_REPO: " ${HTTPS_REPO}
 
 # Pull requests and commits to other branches shouldn't try to deploy, just build to verify
 if [[ ${TRAVIS_PULL_REQUEST} != "false" || ${TRAVIS_BRANCH} != ${SOURCE_BRANCH} ]]; then
@@ -53,7 +52,7 @@ git status
 # Commit and push changes using $GITHUB_TOKEN
 git commit -m "Deploy to Github Pages from commit: ${SHA}"
 git status
-echo "Pushing changes to ${HTTPS_REPO} ${TARGET_BRANCH} from dir $(pwd)"
+echo "Pushing changes to ${TARGET_BRANCH} from dir $(pwd)"
 git push --set-upstream origin ${TARGET_BRANCH}
 
 echo "Done updating gh-pages"
