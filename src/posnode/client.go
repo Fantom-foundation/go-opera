@@ -28,6 +28,7 @@ func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, context.CancelFunc, error)
 	conn, err := grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure())...)
 	if err != nil {
 		n.log.Warn(errors.Wrapf(err, "connect to: %s", addr))
+		ctxCancel()
 		return nil, nil, err
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
 )
 
+// Config of lachesis node.
 type Config struct {
 	Port int
 	Node posnode.Config

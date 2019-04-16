@@ -40,7 +40,7 @@ func (l *Lachesis) serviceStart() {
 			case num := <-l.consensus.NewBlockCh:
 				b := l.consensusStore.GetBlock(num)
 				block := l.toLegacyBlock(b)
-				app.CommitBlock(*block)
+				_, _ = app.CommitBlock(*block)
 			case <-done:
 				return
 			}

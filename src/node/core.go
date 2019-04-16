@@ -116,7 +116,7 @@ func (c *Core) Heights() map[string]int64 {
 	return heights
 }
 
-// Heights returns map with heights for each participant ID
+// HeightsByID returns map with heights for each participant ID
 func (c *Core) HeightsByID() map[uint64]int64 {
 	heights := make(map[uint64]int64)
 	for _, peer := range c.participants.ToPeerSlice() {

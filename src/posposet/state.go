@@ -69,6 +69,7 @@ func (p *Poset) Bootstrap() {
 	p.reconsensusFromFrame(p.state.LastFinishedFrameN + 1)
 }
 
+// GenesisHash calcs hash of genesis balances.
 func GenesisHash(balances map[hash.Peer]uint64) hash.Hash {
 	s := NewMemStore()
 	defer s.Close()

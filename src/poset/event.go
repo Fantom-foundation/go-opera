@@ -71,11 +71,11 @@ func (e *EventBody) ProtoUnmarshal(data []byte) error {
 
 // Hash returns hash of event body
 func (e *EventBody) Hash() (hash EventHash, err error) {
-	bytes_, err := e.ProtoMarshal()
+	buf, err := e.ProtoMarshal()
 	if err != nil {
 		return
 	}
-	return CalcEventHash(bytes_), nil
+	return CalcEventHash(buf), nil
 }
 
 /*******************************************************************************

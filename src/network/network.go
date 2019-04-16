@@ -8,9 +8,9 @@ import (
 // ListenFunc returns addr listener.
 type ListenFunc func(addr string) net.Listener
 
-// TcpListener returns TCP listener binded to addr.
+// TCPListener returns TCP listener binded to addr.
 // Leave addr empty to get any free addr.
-func TcpListener(addr string) net.Listener {
+func TCPListener(addr string) net.Listener {
 	res, err := net.Listen("tcp", addr)
 	if err != nil {
 		panic(err)

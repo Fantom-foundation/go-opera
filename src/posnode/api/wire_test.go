@@ -14,7 +14,7 @@ import (
 func TestGRPC(t *testing.T) {
 
 	t.Run("over TCP", func(t *testing.T) {
-		testGRPC(t, "", network.TcpListener)
+		testGRPC(t, "", network.TCPListener)
 	})
 
 	t.Run("over Fake", func(t *testing.T) {

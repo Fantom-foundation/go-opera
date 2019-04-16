@@ -73,7 +73,7 @@ func (h *Event) IsZero() bool {
  * EventHashes methods:
  */
 
-// New Events makes event hash index.
+// NewEvents makes event hash index.
 func NewEvents(h ...Event) Events {
 	hh := Events{}
 	hh.Add(h...)

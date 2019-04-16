@@ -15,7 +15,7 @@ import (
 
 func TestGrpcCalls(t *testing.T) {
 	t.Run("over TCP", func(t *testing.T) {
-		testGrpcCalls(t, network.TcpListener)
+		testGrpcCalls(t, network.TCPListener)
 	})
 
 	t.Run("over Fake", func(t *testing.T) {
@@ -26,7 +26,7 @@ func TestGrpcCalls(t *testing.T) {
 
 func TestGrpcReConnection(t *testing.T) {
 	t.Run("over TCP", func(t *testing.T) {
-		testGrpcReConnection(t, network.TcpListener)
+		testGrpcReConnection(t, network.TCPListener)
 	})
 
 	t.Run("over Fake", func(t *testing.T) {

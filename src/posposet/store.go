@@ -102,7 +102,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	return nil
 }
 
-// SetState stores frame num of event.
+// SetEventFrame stores frame num of event.
 func (s *Store) SetEventFrame(e hash.Event, frame uint64) {
 	key := e.Bytes()
 	val := intToBytes(frame)

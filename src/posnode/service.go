@@ -26,7 +26,7 @@ func (n *Node) StartService() {
 	}
 
 	if n.service.listen == nil {
-		n.service.listen = network.TcpListener
+		n.service.listen = network.TCPListener
 	}
 
 	bind := n.NetAddrOf(n.host)

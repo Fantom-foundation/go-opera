@@ -40,6 +40,7 @@ func StartService(bind string, svc NodeServer, log func(string, ...interface{}),
 	return server, listener.Addr().String()
 }
 
+// GrpcPeerHost extracts client's host from grpc context.
 func GrpcPeerHost(ctx context.Context) string {
 	if p, ok := peer.FromContext(ctx); ok {
 		addr := p.Addr.String()

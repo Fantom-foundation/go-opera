@@ -55,7 +55,7 @@ func main() {
 		return nil
 	}
 
-	app.Execute()
+	_ = app.Execute()
 }
 
 func parseFakeGen(s string) (num, total uint64, err error) {
