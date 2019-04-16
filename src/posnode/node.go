@@ -26,6 +26,7 @@ type Node struct {
 	gossip
 	downloads
 	discovery
+	builtin
 	logger
 }
 
