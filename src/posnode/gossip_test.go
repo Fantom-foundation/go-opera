@@ -55,7 +55,7 @@ func TestGossip(t *testing.T) {
 
 	t.Run("after 1-2", func(t *testing.T) {
 		assert := assert.New(t)
-		node1.syncWithPeer()
+		node1.syncWithPeer(node2.AsPeer())
 
 		assert.Equal(
 			map[hash.Peer]uint64{
@@ -79,7 +79,7 @@ func TestGossip(t *testing.T) {
 
 	t.Run("after 2-1", func(t *testing.T) {
 		assert := assert.New(t)
-		node2.syncWithPeer()
+		node2.syncWithPeer(node1.AsPeer())
 
 		assert.Equal(
 			map[hash.Peer]uint64{
@@ -147,7 +147,7 @@ func TestMissingParents(t *testing.T) {
 
 	t.Run("after 2-1", func(t *testing.T) {
 		assert := assert.New(t)
-		node2.syncWithPeer()
+		node2.syncWithPeer(node1.AsPeer())
 
 		assert.Equal(
 			map[hash.Peer]uint64{

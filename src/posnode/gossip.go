@@ -4,10 +4,15 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
+)
+
+const (
+	gossipIdle = time.Second * 5
 )
 
 // gossip is a pool of gossiping processes.
@@ -17,9 +22,10 @@ type gossip struct {
 	sync.Mutex
 }
 
-func (g *gossip) addTicket() {
+func (g *gossip) freeTicket() {
 	g.Lock()
 	defer g.Unlock()
+
 	if g.tickets != nil {
 		g.tickets <- struct{}{}
 	}
@@ -27,6 +33,9 @@ func (g *gossip) addTicket() {
 
 // StartGossip starts gossiping.
 func (n *Node) StartGossip(threads int) {
+	n.gossip.Lock()
+	defer n.gossip.Unlock()
+
 	if n.gossip.tickets != nil {
 		return
 	}
@@ -35,16 +44,19 @@ func (n *Node) StartGossip(threads int) {
 
 	n.gossip.tickets = make(chan struct{}, threads)
 	for i := 0; i < threads; i++ {
-		n.gossip.addTicket()
+		n.gossip.tickets <- struct{}{}
 	}
 
-	go n.gossiping()
+	go n.gossiping(n.gossip.tickets)
 
 	n.log.Info("gossip started")
 }
 
 // StopGossip stops gossiping.
 func (n *Node) StopGossip() {
+	n.gossip.Lock()
+	defer n.gossip.Unlock()
+
 	if n.gossip.tickets == nil {
 		return
 	}
@@ -56,24 +68,24 @@ func (n *Node) StopGossip() {
 }
 
 // gossiping is a infinity gossip process.
-func (n *Node) gossiping() {
-	for range n.gossip.tickets {
+func (n *Node) gossiping(tickets chan struct{}) {
+	for range tickets {
 		go func() {
-			defer n.gossip.addTicket()
-			n.syncWithPeer()
+			defer n.gossip.freeTicket()
+			peer := n.NextForGossip()
+			if peer != nil {
+				defer n.FreePeer(peer)
+				n.syncWithPeer(peer)
+			} else {
+				n.log.Warn("no candidate for gossip")
+			}
+			time.Sleep(gossipIdle)
 		}()
 	}
+
 }
 
-func (n *Node) syncWithPeer() {
-	peer := n.NextForGossip()
-	if peer == nil {
-		n.log.Warn("no candidate for gossip")
-		select {}
-		return
-	}
-	defer n.FreePeer(peer)
-
+func (n *Node) syncWithPeer(peer *Peer) {
 	client, err := n.ConnectTo(peer)
 	if err != nil {
 		return
