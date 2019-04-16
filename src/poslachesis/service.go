@@ -18,7 +18,7 @@ func (l *Lachesis) serviceStart() {
 	}
 	l.service.done = make(chan struct{})
 
-	go func() {
+	go func(done chan struct{}) {
 		app, err := proxy.NewGrpcAppProxy(
 			l.ListenAddr(),
 			l.conf.Node.ClientTimeout,
@@ -33,8 +33,6 @@ func (l *Lachesis) serviceStart() {
 
 		for {
 			select {
-			case <-l.service.done:
-				return
 			case tx := <-app.SubmitCh():
 				l.node.AddExternalTxn(tx)
 			case tx := <-app.SubmitInternalCh():
@@ -43,9 +41,11 @@ func (l *Lachesis) serviceStart() {
 				b := l.consensusStore.GetBlock(num)
 				block := l.toLegacyBlock(b)
 				app.CommitBlock(*block)
+			case <-done:
+				return
 			}
 		}
-	}()
+	}(l.service.done)
 }
 
 func (l *Lachesis) serviceStop() {

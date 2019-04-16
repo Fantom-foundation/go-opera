@@ -1,11 +1,10 @@
 package lachesis
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/dgraph-io/badger"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -27,11 +26,11 @@ type Lachesis struct {
 
 // New makes lachesis node.
 // It does not start any process.
-func New(db *badger.DB, host string, key *ecdsa.PrivateKey, conf Config, opts ...grpc.DialOption) *Lachesis {
-	return makeLachesis(db, host, key, &conf, nil, opts...)
+func New(db *badger.DB, host string, key *common.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
+	return makeLachesis(db, host, key, conf, nil, opts...)
 }
 
-func makeLachesis(db *badger.DB, host string, key *ecdsa.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
+func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
 	ndb, cdb := makeStorages(db)
 
 	if conf == nil {
@@ -69,6 +68,11 @@ func (l *Lachesis) Stop() {
 	l.consensus.Stop()
 }
 
+// AddPeers suggests hosts for network discovery.
+func (l *Lachesis) AddPeers(hosts ...string) {
+	l.node.AddBuiltInPeers(hosts...)
+}
+
 func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
 	if err := l.consensusStore.ApplyGenesis(genesis); err != nil {
 		panic(err)
@@ -81,18 +85,18 @@ func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
 
 func makeStorages(db *badger.DB) (*posnode.Store, *posposet.Store) {
 	var (
-		posetKVdb kvdb.Database
-		nodeKVdb  kvdb.Database
+		p kvdb.Database
+		n kvdb.Database
 	)
 	if db == nil {
-		posetKVdb = kvdb.NewMemDatabase()
-		nodeKVdb = kvdb.NewMemDatabase()
+		p = kvdb.NewMemDatabase()
+		n = kvdb.NewMemDatabase()
 	} else {
 		db := kvdb.NewBadgerDatabase(db)
-		posetKVdb = kvdb.NewTable(db, "p_")
-		nodeKVdb = kvdb.NewTable(db, "n_")
+		p = kvdb.NewTable(db, "p_")
+		n = kvdb.NewTable(db, "n_")
 	}
 
-	return posnode.NewStore(nodeKVdb),
-		posposet.NewStore(posetKVdb)
+	return posnode.NewStore(n),
+		posposet.NewStore(p)
 }
