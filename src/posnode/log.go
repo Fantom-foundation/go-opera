@@ -8,10 +8,13 @@ type logger struct {
 	log *logrus.Entry
 }
 
-func newLogger(node string) logger {
-	return logger{
-		log: log.WithField("node", node),
+func newLogger(node string) (r logger) {
+	if node != "" {
+		r.log = log.WithField("node", node)
+	} else {
+		r.log = logrus.NewEntry(log)
 	}
+	return
 }
 
 /*
