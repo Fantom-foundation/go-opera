@@ -99,11 +99,12 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 
 	peer := &Peer{Host: host}
 
-	client, err := n.ConnectTo(peer)
+	client, free, err := n.ConnectTo(peer)
 	if err != nil {
 		n.ConnectFail(peer, err)
 		return
 	}
+	defer free()
 
 	info, err := n.requestPeerInfo(client, id)
 	if err != nil {

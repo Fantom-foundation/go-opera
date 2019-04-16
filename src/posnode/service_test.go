@@ -18,10 +18,11 @@ func TestGetPeerInfo(t *testing.T) {
 	n.StartService()
 	defer n.StopService()
 
-	cli, err := n.ConnectTo(&Peer{Host: "server.fake"})
+	cli, free, err := n.ConnectTo(&Peer{Host: "server.fake"})
 	if !assert.NoError(t, err) {
 		return
 	}
+	defer free()
 
 	t.Run("existing peer", func(t *testing.T) {
 		assert := assert.New(t)
