@@ -10,8 +10,6 @@ import (
 )
 
 type (
-	CloseFunc func() error
-
 	// client of node service.
 	// TODO: make reusable connections pool
 
@@ -21,8 +19,8 @@ type (
 )
 
 // ConnectTo connects to other node service.
-func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, CloseFunc, error) {
-	ctx, _ := context.WithTimeout(context.Background(), n.conf.ConnectTimeout)
+func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, context.CancelFunc, error) {
+	ctx, ctxCancel := context.WithTimeout(context.Background(), n.conf.ConnectTimeout)
 
 	addr := n.NetAddrOf(peer.Host)
 	n.log.Debugf("connect to %s", addr)
@@ -33,5 +31,10 @@ func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, CloseFunc, error) {
 		return nil, nil, err
 	}
 
-	return api.NewNodeClient(conn), conn.Close, nil
+	free := func() {
+		_ = conn.Close()
+		ctxCancel()
+	}
+
+	return api.NewNodeClient(conn), free, nil
 }
