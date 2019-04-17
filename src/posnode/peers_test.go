@@ -60,7 +60,7 @@ func TestPeerUnknown(t *testing.T) {
 				LastSuccess: time.Now().Truncate(node.conf.DiscoveryTimeout),
 			},
 		}
-		node.peers.peers[peer.ID] = peer
+		node.peers.ids[peer.ID] = peer
 
 		assert.False(node.PeerUnknown(&peer.ID))
 	})
@@ -74,7 +74,7 @@ func TestPeerUnknown(t *testing.T) {
 				LastSuccess: time.Now(),
 			},
 		}
-		node.peers.peers[peer.ID] = peer
+		node.peers.ids[peer.ID] = peer
 
 		assert.False(node.PeerUnknown(&peer.ID))
 	})
@@ -90,5 +90,65 @@ func TestPeerUnknown(t *testing.T) {
 		assert := assert.New(t)
 
 		assert.True(node.PeerUnknown(nil))
+	})
+}
+
+func TestCleanPeers(t *testing.T) {
+	// peers
+	peer1 := NewForTests("node1", NewMemStore(), nil).AsPeer()
+	peer2 := NewForTests("node2", NewMemStore(), nil).AsPeer()
+
+	// node
+	store := NewMemStore()
+	node := NewForTests("node0", store, nil)
+	node.StartService()
+	defer node.StopService()
+
+	peers := []*Peer{peer1, peer2}
+
+	store.BootstrapPeers(peers...)
+	node.initPeers()
+
+	t.Run("leave hosts as is", func(t *testing.T) {
+		assert := assert.New(t)
+
+		node.conf.HostsCount = 2
+
+		node.PeerReadyForReq(peer1.Host)
+		node.PeerReadyForReq(peer2.Host)
+
+		node.cleanHosts()
+
+		assert.Equal(len(node.peers.hosts), len(peers))
+	})
+
+	t.Run("clean expired hosts", func(t *testing.T) {
+		assert := assert.New(t)
+
+		// We already have info about 2 hosts but limit is 1
+
+		node.conf.HostsCount = 1
+
+		// Clean all expired hosts
+		node.cleanHosts()
+
+		assert.Equal(len(node.peers.hosts), 0)
+	})
+
+	t.Run("clean extra hosts", func(t *testing.T) {
+		assert := assert.New(t)
+
+		node.conf.HostsCount = 1
+
+		node.PeerReadyForReq(peer1.Host)
+		node.PeerReadyForReq(peer2.Host)
+
+		node.ConnectOK(peer1)
+		node.ConnectOK(peer2)
+
+		// Clean extra
+		node.cleanHosts()
+
+		assert.Equal(len(node.peers.hosts), 1)
 	})
 }

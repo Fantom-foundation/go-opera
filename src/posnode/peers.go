@@ -8,13 +8,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-const peersCount = 10
-
 // peers manages node peer list.
 type peers struct {
 	top       []hash.Peer
 	unordered bool
-	peers     map[hash.Peer]*peerAttr
+	ids       map[hash.Peer]*peerAttr
 	hosts     map[string]*hostAttr
 
 	sync.RWMutex
@@ -35,13 +33,13 @@ func (pp *peers) attrByID(id hash.Peer) *peerAttr {
 		return nil
 	}
 
-	attr := pp.peers[id]
+	attr := pp.ids[id]
 	if attr == nil {
 		attr = &peerAttr{
 			ID:   id,
 			Host: &hostAttr{},
 		}
-		pp.peers[id] = attr
+		pp.ids[id] = attr
 	}
 	return attr
 }
@@ -72,8 +70,44 @@ func (n *Node) initPeers() {
 		n.store.SetTopPeers(n.peers.top)
 	}
 
-	n.peers.peers = make(map[hash.Peer]*peerAttr)
+	n.peers.ids = make(map[hash.Peer]*peerAttr)
 	n.peers.hosts = make(map[string]*hostAttr)
+}
+
+func (n *Node) cleanHosts() {
+	n.peers.Lock()
+	defer n.peers.Unlock()
+
+	lastTime := time.Now().Add(-n.conf.HostsCleanTimeout)
+
+	if len(n.peers.hosts) <= n.conf.HostsCount {
+		return
+	}
+
+	// TODO: Should we add peers.top condition here?
+
+	// Clean by last time
+	for _, h := range n.peers.hosts {
+		if h.LastFail.Before(lastTime) && h.LastSuccess.Before(lastTime) {
+			delete(n.peers.hosts, h.Name)
+		}
+	}
+
+	// Clean by count if needed
+	if len(n.peers.hosts) <= n.conf.HostsCount {
+		return
+	}
+
+	deleted := 0
+	tail := len(n.peers.hosts) - n.conf.HostsCount
+
+	for name := range n.peers.hosts {
+		if deleted != tail {
+			delete(n.peers.hosts, name)
+
+			deleted++
+		}
+	}
 }
 
 // UsedAsParent sets peer as previously used as
@@ -150,7 +184,6 @@ func (n *Node) ConnectFail(p *Peer, err error) {
 }
 
 // PeerReadyForReq returns false if peer is not ready for request.
-// TODO: test it
 func (n *Node) PeerReadyForReq(host string) bool {
 	n.peers.RLock()
 	defer n.peers.RUnlock()
@@ -192,12 +225,12 @@ func (n *Node) NextForGossip() *Peer {
 	if n.peers.unordered {
 		sort.Sort((*gossipEvaluation)(n))
 		n.peers.unordered = false
-		if len(n.peers.top) > peersCount {
-			tail := n.peers.top[peersCount:]
+		if len(n.peers.top) > n.conf.LimitPeersCount {
+			tail := n.peers.top[n.conf.LimitPeersCount:]
 			for _, id := range tail {
-				delete(n.peers.peers, id)
+				delete(n.peers.ids, id)
 			}
-			n.peers.top = n.peers.top[:peersCount]
+			n.peers.top = n.peers.top[:n.conf.LimitPeersCount]
 			n.peers.save()
 		}
 	}

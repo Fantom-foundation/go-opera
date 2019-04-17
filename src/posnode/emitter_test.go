@@ -119,16 +119,16 @@ func Test_emitterEvaluation(t *testing.T) {
 
 	store.BootstrapPeers(&peer1, &peer2, &peer3)
 	node.initPeers()
-	node.peers.peers[peer1.ID] = &peerAttr{}
-	node.peers.peers[peer2.ID] = &peerAttr{}
-	node.peers.peers[peer3.ID] = &peerAttr{}
+	node.peers.ids[peer1.ID] = &peerAttr{}
+	node.peers.ids[peer2.ID] = &peerAttr{}
+	node.peers.ids[peer3.ID] = &peerAttr{}
 
 	t.Run("last used", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.peers.peers[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
-		node.peers.peers[peer2.ID].LastUsed = time.Now().Add(time.Hour)
-		node.peers.peers[peer3.ID].LastUsed = time.Now()
+		node.peers.ids[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
+		node.peers.ids[peer2.ID].LastUsed = time.Now().Add(time.Hour)
+		node.peers.ids[peer3.ID].LastUsed = time.Now()
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)
@@ -141,9 +141,9 @@ func Test_emitterEvaluation(t *testing.T) {
 	t.Run("last event", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.peers.peers[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
-		node.peers.peers[peer2.ID].LastEvent = time.Now().Add(time.Hour)
-		node.peers.peers[peer1.ID].LastEvent = time.Now()
+		node.peers.ids[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
+		node.peers.ids[peer2.ID].LastEvent = time.Now().Add(time.Hour)
+		node.peers.ids[peer1.ID].LastEvent = time.Now()
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)
