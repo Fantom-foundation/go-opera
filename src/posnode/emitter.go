@@ -199,27 +199,28 @@ func (e *emitterEvaluation) Less(i, j int) bool {
 }
 
 func (e *emitterEvaluation) calculatePeerStake(peer hash.Peer) float64 {
+	// Get initial stake of peer.
+	stake := e.node.consensus.GetStakeOf(peer)
+	lastEvent := e.node.store.LastEvent(peer)
+	if lastEvent == nil {
+		return 0
+	}
+
 	for _, event := range e.previous {
 		// If event was used as parent previously its stake is zero.
-		if event.Creator == peer {
+		if event.Hash() == lastEvent.Hash() {
 			return 0
 		}
 	}
 
-	// Get initial stake of peer.
-	stake := e.node.consensus.GetStakeOf(peer)
-	event := e.node.store.LastEvent(peer)
-	if event == nil {
-		return stake
-	}
 	// Sum stake of events that was not used as parents previously.
-	for ev := range event.Parents {
+	for ev := range lastEvent.Parents {
 		if !containsEvent(e.previous, ev) {
 			event := e.node.store.GetEvent(ev)
 			if event == nil {
 				continue
 			}
-			stake = stake + e.node.consensus.GetStakeOf(event.Creator)
+			stake = stake + e.node.consensus.GetStakeOf(lastEvent.Creator)
 		}
 	}
 

@@ -113,6 +113,10 @@ func Test_emitterEvaluation(t *testing.T) {
 		PubKey: &common.PublicKey{},
 	}
 
+	consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(0.1)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(0.2)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(0.3)).AnyTimes()
+
 	store.BootstrapPeers(&peer1, &peer2, &peer3)
 	node.initPeers()
 	node.peers.peers[peer1.ID] = &peerAttr{}
@@ -121,10 +125,6 @@ func Test_emitterEvaluation(t *testing.T) {
 
 	t.Run("first round", func(t *testing.T) {
 		assert := assert.New(t)
-
-		consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(1)).AnyTimes()
-		consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(2)).AnyTimes()
-		consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(3)).AnyTimes()
 
 		p1ev1 := inter.Event{
 			Index:       1,
@@ -161,10 +161,6 @@ func Test_emitterEvaluation(t *testing.T) {
 
 	t.Run("second round", func(t *testing.T) {
 		assert := assert.New(t)
-
-		consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(1)).AnyTimes()
-		consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(2)).AnyTimes()
-		consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(3)).AnyTimes()
 
 		p3ev1 := store.LastEvent(peer3.ID)
 		p2ev1 := store.LastEvent(peer2.ID)
