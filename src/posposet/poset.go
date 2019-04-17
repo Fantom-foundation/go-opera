@@ -424,9 +424,6 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 			Balances:         frame.Balances,
 		}
 	}
-	if all == nil {
-		panic("`all`, of type `Events`, is `nil`")
-	}
 	// recalc consensus
 	for _, e := range all.ByParents() {
 		p.consensus(e)
