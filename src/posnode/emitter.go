@@ -71,6 +71,8 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
+	n.log.Debugf("emiting event")
+
 	var (
 		index        uint64
 		parents      hash.Events = hash.Events{}
@@ -138,6 +140,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	}
 
 	n.saveNewEvent(event)
+	n.log.Debugf("new event emited %s", event)
 
 	return event
 }

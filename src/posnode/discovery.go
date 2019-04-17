@@ -136,6 +136,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 	info.Host = host
 	peer = WireToPeer(info)
 	n.store.SetWirePeer(peer.ID, info)
+	n.log.Debugf("discovered new peer %s with host %s", info.ID, info.Host)
 	n.ConnectOK(peer)
 }
 
