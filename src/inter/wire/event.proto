@@ -3,15 +3,15 @@ package wire;
 
 message InternalTransaction {
   uint64 Amount = 1;
-  bytes Receiver = 2;
+  string Receiver = 2;
 }
 
 message Event {
   uint64 Index = 1;
-  bytes Creator = 2;
+  string Creator = 2;
   repeated bytes Parents = 3;
   uint64 LamportTime = 4;
   repeated InternalTransaction InternalTransactions = 5;
   repeated bytes ExternalTransactions = 6;
-  bytes Sign = 7;
+  string Sign = 7;
 }

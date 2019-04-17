@@ -77,6 +77,7 @@ func runSingleLachesis(config *CLIConfig) error {
 			config.ProxyAddr,
 			config.Lachesis.NodeConfig.HeartbeatTimeout,
 			config.Lachesis.Logger,
+			nil,
 		)
 
 		if err != nil {

@@ -1,5 +1,5 @@
-hash: e10850ed0b4c1c2325f20b05d225e16eff667f1fd26e238d28521a9b08ef07a5
-updated: 2019-04-09T17:30:11.590154+10:00
+hash: 7741fe6fe8e607cb7e949f8e5b3ad9de5f01a48c361a536741c44196a7b0db0b
+updated: 2019-04-17T14:44:39.437136045+10:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -23,6 +23,10 @@ imports:
   version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
+- name: github.com/golang/mock
+  version: 51421b967af1f557f93a59e0057aaf15ca02e29c
+  subpackages:
+  - gomock
 - name: github.com/golang/protobuf
   version: b5d812f8a3706043e23a9cd5babf2e5423744d30
   subpackages:
@@ -116,7 +120,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 3507fb8e1a5ad030303c106fef3a47c9fdad16ad
+  version: 236199dd5f8031d698fb64091194aecd1c3895b2
   subpackages:
   - balancer
   - balancer/base
@@ -131,6 +135,7 @@ imports:
   - grpclog
   - internal
   - internal/backoff
+  - internal/balancerload
   - internal/binarylog
   - internal/channelz
   - internal/envconfig

@@ -33,6 +33,12 @@ func (h Event) Bytes() []byte {
 	return (Hash)(h).Bytes()
 }
 
+// SetBytes converts bytes to event hash.
+// If b is larger than len(h), b will be cropped from the left.
+func (h *Event) SetBytes(raw []byte) {
+	(*Hash)(h).SetBytes(raw)
+}
+
 // BytesToEventHash converts bytes to event hash.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToEventHash(b []byte) Event {
@@ -67,7 +73,7 @@ func (h *Event) IsZero() bool {
  * EventHashes methods:
  */
 
-// New Events makes event hash index.
+// NewEvents makes event hash index.
 func NewEvents(h ...Event) Events {
 	hh := Events{}
 	hh.Add(h...)

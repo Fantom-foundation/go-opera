@@ -5,6 +5,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
@@ -21,9 +23,41 @@ type Event struct {
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions [][]byte
-	Sign                 []byte
+	Sign                 string
 
 	hash hash.Event // cache for .Hash()
+}
+
+// SignBy signs event by private key.
+func (e *Event) SignBy(priv *common.PrivateKey) error {
+	hash := e.Hash()
+
+	R, S, err := priv.Sign(hash.Bytes())
+	if err != nil {
+		return err
+	}
+
+	e.Sign = crypto.EncodeSignature(R, S)
+	return nil
+}
+
+// Verify sign event by public key.
+func (e *Event) Verify(pubKey *common.PublicKey) bool {
+	if pubKey == nil {
+		panic("cann't verify")
+	}
+
+	if e.Sign == "" {
+		return false
+	}
+
+	hash := e.Hash()
+	r, s, err := crypto.DecodeSignature(string(e.Sign))
+	if err != nil {
+		panic(err)
+	}
+
+	return pubKey.Verify(hash.Bytes(), r, s)
 }
 
 // Hash calcs hash of event.
@@ -43,7 +77,7 @@ func (e *Event) String() string {
 func (e *Event) ToWire() *wire.Event {
 	return &wire.Event{
 		Index:                e.Index,
-		Creator:              e.Creator.Bytes(),
+		Creator:              e.Creator.Hex(),
 		Parents:              e.Parents.ToWire(),
 		LamportTime:          uint64(e.LamportTime),
 		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
@@ -59,7 +93,7 @@ func WireToEvent(w *wire.Event) *Event {
 	}
 	return &Event{
 		Index:                w.Index,
-		Creator:              hash.BytesToPeer(w.Creator),
+		Creator:              hash.HexToPeer(w.Creator),
 		Parents:              hash.WireToEventHashes(w.Parents),
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
@@ -75,7 +109,7 @@ func WireToEvent(w *wire.Event) *Event {
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) hash.Event {
 	w := e.ToWire()
-	w.Sign = nil
+	w.Sign = ""
 	buf, err := proto.Marshal(w)
 	if err != nil {
 		panic(err)

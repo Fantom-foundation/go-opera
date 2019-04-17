@@ -5,29 +5,55 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func TestGrpcCalls(t *testing.T) {
+	t.Run("over TCP", func(t *testing.T) {
+		testGrpcCalls(t, network.TCPListener)
+	})
 
+	t.Run("over Fake", func(t *testing.T) {
+		dialer := network.FakeDialer("client.fake")
+		testGrpcCalls(t, network.FakeListener, grpc.WithContextDialer(dialer))
+	})
+}
+
+func TestGrpcReConnection(t *testing.T) {
+	t.Run("over TCP", func(t *testing.T) {
+		testGrpcReConnection(t, network.TCPListener)
+	})
+
+	t.Run("over Fake", func(t *testing.T) {
+		dialer := network.FakeDialer("client.fake")
+		testGrpcReConnection(t, network.FakeListener, grpc.WithContextDialer(dialer))
+	})
+}
+
+func testGrpcCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
 	const (
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
 	)
-
-	addr := utils.GetUnusedNetAddr(1, t)
+	var bind = "127.0.0.1:"
 
 	logger := common.NewTestLogger(t)
 
-	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
-	assert.NoError(t, err)
+	s, err := NewGrpcAppProxy(bind, timeout, logger, listen)
+	if !assert.NoError(t, err) {
+		return
+	}
+	bind = s.ListenAddr()
 
-	c, err := NewGrpcLachesisProxy(addr[0], logger)
-	assert.NoError(t, err)
+	c, err := NewGrpcLachesisProxy(bind, logger, opts...)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	t.Run("#1 Send tx", func(t *testing.T) {
 		assertO := assert.New(t)
@@ -45,72 +71,72 @@ func TestGrpcCalls(t *testing.T) {
 	})
 
 	t.Run("#2 Receive block", func(t *testing.T) {
-		assertO := assert.New(t)
+		assert := assert.New(t)
 		block := poset.Block{}
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.CommitCh():
-				assertO.Equal(block, event.Block)
+				assert.Equal(block, event.Block)
 				event.RespChan <- proto.CommitResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				assertO.Fail(errTimeout)
+				assert.Fail(errTimeout)
 			}
 		}()
 
 		answ, err := s.CommitBlock(block)
-		if assertO.NoError(err) {
-			assertO.Equal(gold, answ)
+		if assert.NoError(err) {
+			assert.Equal(gold, answ)
 		}
 	})
 
 	t.Run("#3 Receive snapshot query", func(t *testing.T) {
-		assertO := assert.New(t)
+		assert := assert.New(t)
 		index := int64(1)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.SnapshotRequestCh():
-				assertO.Equal(index, event.BlockIndex)
+				assert.Equal(index, event.BlockIndex)
 				event.RespChan <- proto.SnapshotResponse{
 					Snapshot: gold,
 					Error:    nil,
 				}
 			case <-time.After(timeout):
-				assertO.Fail(errTimeout)
+				assert.Fail(errTimeout)
 			}
 		}()
 
 		answ, err := s.GetSnapshot(index)
-		if assertO.NoError(err) {
-			assertO.Equal(gold, answ)
+		if assert.NoError(err) {
+			assert.Equal(gold, answ)
 		}
 	})
 
 	t.Run("#4 Receive restore command", func(t *testing.T) {
-		assertO := assert.New(t)
+		assert := assert.New(t)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.RestoreCh():
-				assertO.Equal(gold, event.Snapshot)
+				assert.Equal(gold, event.Snapshot)
 				event.RespChan <- proto.RestoreResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				assertO.Fail(errTimeout)
+				assert.Fail(errTimeout)
 			}
 		}()
 
 		err := s.Restore(gold)
-		assertO.NoError(err)
+		assert.NoError(err)
 	})
 
 	err = c.Close()
@@ -121,44 +147,50 @@ func TestGrpcCalls(t *testing.T) {
 
 }
 
-func TestGrpcReConnection(t *testing.T) {
-
+func testGrpcReConnection(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
 	const (
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
 	)
-	addr := utils.GetUnusedNetAddr(1, t)
+	var bind = "127.0.0.1:"
+
 	logger := common.NewTestLogger(t)
 
-	c, err := NewGrpcLachesisProxy(addr[0], logger)
-	if assert.NoError(t, err) {
-		assert.NotNil(t, c)
+	s, err := NewGrpcAppProxy(bind, timeout, logger, listen)
+	if !assert.NoError(t, err) {
+		return
+	}
+	bind = s.ListenAddr()
+
+	c, err := NewGrpcLachesisProxy(bind, logger, opts...)
+	if !assert.NoError(t, err) {
+		return
+	}
+	if !assert.NotNil(t, c) {
+		return
 	}
 
-	s, err := NewGrpcAppProxy(addr[0], timeout, logger)
-	assert.NoError(t, err)
-
 	checkConnAndStopServer := func(t *testing.T) {
-		assertO := assert.New(t)
+		assert := assert.New(t)
 		gold := []byte("123456")
 
 		err := c.SubmitTx(gold)
-		assertO.NoError(err)
+		assert.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			assertO.Equal(gold, tx)
+			assert.Equal(gold, tx)
 		case <-time.After(timeout):
-			assertO.Fail(errTimeout)
+			assert.Fail(errTimeout)
 		}
 
 		err = s.Close()
-		assertO.NoError(err)
+		assert.NoError(err)
 	}
 
 	t.Run("#1 Send tx after connection", checkConnAndStopServer)
 
-	s, err = NewGrpcAppProxy(addr[0], timeout/2, logger)
+	s, err = NewGrpcAppProxy(bind, timeout/2, logger, listen)
 	assert.NoError(t, err)
 
 	<-time.After(timeout)

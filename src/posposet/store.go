@@ -3,7 +3,6 @@ package posposet
 import (
 	"fmt"
 
-	"github.com/dgraph-io/badger"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -29,22 +28,19 @@ type Store struct {
 	balances state.Database
 }
 
-// NewMemStore creates store over memory map.
-func NewMemStore() *Store {
+// NewStore creates store over key-value db.
+func NewStore(db kvdb.Database) *Store {
 	s := &Store{
-		physicalDB: kvdb.NewMemDatabase(),
+		physicalDB: db,
 	}
 	s.init()
 	return s
 }
 
-// NewBadgerStore creates store over badger database.
-func NewBadgerStore(db *badger.DB) *Store {
-	s := &Store{
-		physicalDB: kvdb.NewBadgerDatabase(db),
-	}
-	s.init()
-	return s
+// NewMemStore creates store over memory map.
+func NewMemStore() *Store {
+	db := kvdb.NewMemDatabase()
+	return NewStore(db)
 }
 
 func (s *Store) init() {
@@ -69,13 +65,16 @@ func (s *Store) Close() {
 
 // ApplyGenesis stores initial state.
 func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
-	st := s.GetState()
-	if st != nil {
-		return fmt.Errorf("Genesis has applied already")
-	}
-
 	if balances == nil {
 		return fmt.Errorf("Balances shouldn't be nil")
+	}
+
+	st := s.GetState()
+	if st != nil {
+		if st.Genesis == GenesisHash(balances) {
+			return nil
+		}
+		return fmt.Errorf("Other genesis has applied already")
 	}
 
 	st = &State{
@@ -103,7 +102,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	return nil
 }
 
-// SetState stores frame num of event.
+// SetEventFrame stores frame num of event.
 func (s *Store) SetEventFrame(e hash.Event, frame uint64) {
 	key := e.Bytes()
 	val := intToBytes(frame)

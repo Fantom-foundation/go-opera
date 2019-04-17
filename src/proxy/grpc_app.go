@@ -18,36 +18,44 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
 var ErrNoAnswers = errors.New("no answers")
 
-type ClientStream internal.LachesisNode_ConnectServer
+type (
 
-//GrpcAppProxy implements the AppProxy interface
-type GrpcAppProxy struct {
-	logger   *logrus.Logger
-	listener net.Listener
-	server   *grpc.Server
+	// ClientStream  a shortcut for generated type.
+	ClientStream internal.LachesisNode_ConnectServer
 
-	timeout     time.Duration
-	newClients  chan ClientStream
-	askings     map[xid.ID]chan *internal.ToServer_Answer
-	askingsSync sync.RWMutex
+	//GrpcAppProxy implements the AppProxy interface.
+	GrpcAppProxy struct {
+		logger   *logrus.Logger
+		listener net.Listener
+		server   *grpc.Server
 
-	event4server  chan []byte
-	event4clients chan *internal.ToClient
-}
+		timeout     time.Duration
+		newClients  chan ClientStream
+		askings     map[xid.ID]chan *internal.ToServer_Answer
+		askingsSync sync.RWMutex
 
-// NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps
-func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logger) (*GrpcAppProxy, error) {
-	var err error
+		event4server  chan []byte
+		event4clients chan *internal.ToClient
+	}
+)
 
+// NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps.
+func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logger, listen network.ListenFunc) (*GrpcAppProxy, error) {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
+	}
+
+	if listen == nil {
+		listen = network.TCPListener
 	}
 
 	p := &GrpcAppProxy{
@@ -60,10 +68,8 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 		event4clients: make(chan *internal.ToClient),
 	}
 
-	p.listener, err = net.Listen("tcp", bindAddr)
-	if err != nil {
-		return nil, err
-	}
+	p.listener = listen(bindAddr)
+
 	p.server = grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
@@ -82,18 +88,24 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 
 func (p *GrpcAppProxy) Close() error {
 	p.server.Stop()
-	//All listeners are closed by gRPC.Stop() function
-	//err := p.listener.Close()
 	close(p.event4server)
 	close(p.event4clients)
-	return nil //err
+	return nil
+}
+
+// ListenAddr retuns listen address.
+func (p *GrpcAppProxy) ListenAddr() string {
+	if p.listener == nil {
+		return ""
+	}
+	return p.listener.Addr().String()
 }
 
 /*
  * network interface:
  */
 
-// Connect implements gRPC-server interface: LachesisNodeServer
+// Connect implements gRPC-server interface: LachesisNodeServer.
 func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error {
 	// save client's stream for writing
 	p.newClients <- stream
@@ -150,18 +162,18 @@ func (p *GrpcAppProxy) sendEvents4clients() {
  * inmem interface: AppProxy implementation
  */
 
-// SubmitCh implements AppProxy interface method
+// SubmitCh implements AppProxy interface method.
 func (p *GrpcAppProxy) SubmitCh() chan []byte {
 	return p.event4server
 }
 
-// SubmitCh implements AppProxy interface method
-// TODO: Incorrect implementation, just adding to the interface so long
-func (p *GrpcAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
+// SubmitInternalCh implements AppProxy interface method.
+// TODO: Incorrect implementation, just adding to the interface so long.
+func (p *GrpcAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 	return nil
 }
 
-// CommitBlock implements AppProxy interface method
+// CommitBlock implements AppProxy interface method.
 func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	data, err := block.ProtoMarshal()
 	if err != nil {
@@ -178,7 +190,7 @@ func (p *GrpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	return answer.GetData(), nil
 }
 
-// GetSnapshot implements AppProxy interface method
+// GetSnapshot implements AppProxy interface method.
 func (p *GrpcAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	answer, ok := <-p.pushQuery(blockIndex)
 	if !ok {
@@ -191,7 +203,7 @@ func (p *GrpcAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	return answer.GetData(), nil
 }
 
-// Restore implements AppProxy interface method
+// Restore implements AppProxy interface method.
 func (p *GrpcAppProxy) Restore(snapshot []byte) error {
 	answer, ok := <-p.pushRestore(snapshot)
 	if !ok {

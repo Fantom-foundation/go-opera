@@ -1,0 +1,6 @@
+syntax = "proto3";
+package api;
+
+message PeerIDs {
+    repeated string IDs = 1;
+}

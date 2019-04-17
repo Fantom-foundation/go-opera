@@ -13,6 +13,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
@@ -38,7 +40,7 @@ type Node struct {
 	proxy proxy.AppProxy
 
 	submitCh         chan []byte
-	submitInternalCh chan poset.InternalTransaction
+	submitInternalCh chan inter.InternalTransaction
 	commitCh         chan poset.Block
 	shutdownCh       chan struct{}
 	signalTERMch     chan os.Signal
@@ -198,7 +200,7 @@ func (n *Node) doBackgroundWork() {
 			n.resetTimer()
 		case t := <-n.submitInternalCh:
 			n.logger.Debug("Adding Internal Transaction")
-			n.addInternalTransaction(t)
+			n.addInternalTransaction(t.ToWire())
 			n.resetTimer()
 		case block := <-n.commitCh:
 			n.logger.WithFields(logrus.Fields{
@@ -699,10 +701,10 @@ func (n *Node) addTransaction(tx []byte) error {
 	return n.core.AddTransactions([][]byte{tx})
 }
 
-func (n *Node) addInternalTransaction(tx poset.InternalTransaction) {
+func (n *Node) addInternalTransaction(tx *wire.InternalTransaction) {
 	n.coreLock.Lock()
 	defer n.coreLock.Unlock()
-	n.core.AddInternalTransactions([]poset.InternalTransaction{tx})
+	n.core.AddInternalTransactions([]*wire.InternalTransaction{tx})
 }
 
 // Shutdown the node

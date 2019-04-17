@@ -19,9 +19,12 @@ type Poset struct {
 
 	newEventsCh      chan hash.Event
 	incompleteEvents map[hash.Event]*Event
+
+	NewBlockCh chan uint64
 }
 
 // New creates Poset instance.
+// It does not start any process.
 func New(store *Store, input EventSource) *Poset {
 	const buffSize = 10
 
@@ -34,7 +37,6 @@ func New(store *Store, input EventSource) *Poset {
 		incompleteEvents: make(map[hash.Event]*Event),
 	}
 
-	p.bootstrap()
 	return p
 }
 
@@ -43,6 +45,9 @@ func (p *Poset) Start() {
 	if p.processingDone != nil {
 		return
 	}
+
+	p.Bootstrap()
+
 	p.processingDone = make(chan struct{})
 	p.processingWg.Add(1)
 	go func() {
@@ -161,6 +166,10 @@ func (p *Poset) consensus(e *Event) {
 			events := p.topologicalOrdered(n)
 			p.state.LastBlockN = p.makeBlock(events)
 			p.saveState()
+
+			if p.NewBlockCh != nil {
+				p.NewBlockCh <- p.state.LastBlockN
+			}
 
 			// TODO: fix it
 			lastFinished = n // NOTE: are every event of prev frame there in block? (No)

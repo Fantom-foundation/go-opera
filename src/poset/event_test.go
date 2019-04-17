@@ -6,12 +6,14 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 func createDummyEventBody() EventBody {
 	body := EventBody{}
 	body.Transactions = [][]byte{[]byte("abc"), []byte("def")}
-	body.InternalTransactions = []*InternalTransaction{}
+	body.InternalTransactions = []*wire.InternalTransaction{}
 	body.Parents = [][]byte{[]byte("self"), []byte("other")}
 	body.Creator = []byte("public key")
 	body.BlockSignatures = []*BlockSignature{
@@ -117,14 +119,10 @@ func TestWireEvent(t *testing.T) {
 
 	event.SetWireInfo(1, 66, 2, 67)
 
-	internalTransactions := make([]InternalTransaction, len(event.Message.Body.InternalTransactions))
-	for i, v := range event.Message.Body.InternalTransactions {
-		internalTransactions[i] = *v
-	}
 	expectedWireEvent := WireEvent{
 		Body: WireBody{
 			Transactions:         event.Message.Body.Transactions,
-			InternalTransactions: internalTransactions,
+			InternalTransactions: inter.WireToInternalTransactions(event.Message.Body.InternalTransactions),
 			SelfParentIndex:      1,
 			OtherParentCreatorID: 66,
 			OtherParentIndex:     2,

@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
@@ -39,7 +40,7 @@ type Core struct {
 	head         poset.EventHash
 
 	transactionPool         [][]byte
-	internalTransactionPool []poset.InternalTransaction
+	internalTransactionPool []*wire.InternalTransaction
 	blockSignaturePool      []poset.BlockSignature
 
 	logger *logrus.Entry
@@ -68,7 +69,7 @@ func NewCore(id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
 		poset:                   p2,
 		participants:            participants,
 		transactionPool:         [][]byte{},
-		internalTransactionPool: []poset.InternalTransaction{},
+		internalTransactionPool: []*wire.InternalTransaction{},
 		blockSignaturePool:      []poset.BlockSignature{},
 		logger:                  logEntry,
 		head:                    poset.EventHash{},
@@ -115,7 +116,7 @@ func (c *Core) Heights() map[string]int64 {
 	return heights
 }
 
-// Heights returns map with heights for each participant ID
+// HeightsByID returns map with heights for each participant ID
 func (c *Core) HeightsByID() map[uint64]int64 {
 	heights := make(map[uint64]int64)
 	for _, peer := range c.participants.ToPeerSlice() {
@@ -499,7 +500,7 @@ func (c *Core) AddSelfEventBlock(otherHead poset.EventHash) error {
 	}).Debug("newHead := poset.NewEventBlock")
 
 	c.internalTransactionPoolLocker.Lock()
-	c.internalTransactionPool = []poset.InternalTransaction{}
+	c.internalTransactionPool = []*wire.InternalTransaction{}
 	c.internalTransactionPoolLocker.Unlock()
 
 	// retain c.blockSignaturePool until c.transactionPool is empty
@@ -600,7 +601,7 @@ func (c *Core) AddTransactions(txs [][]byte) error {
 }
 
 // AddInternalTransactions add internal transactions to the pending pool
-func (c *Core) AddInternalTransactions(txs []poset.InternalTransaction) {
+func (c *Core) AddInternalTransactions(txs []*wire.InternalTransaction) {
 	c.internalTransactionPoolLocker.Lock()
 	defer c.internalTransactionPoolLocker.Unlock()
 	c.internalTransactionPool = append(c.internalTransactionPool, txs...)

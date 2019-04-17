@@ -1,18 +1,6 @@
 syntax = "proto3";
 package poset;
-import "github.com/Fantom-foundation/go-lachesis/src/peers/peer.proto";
-
-enum TransactionType {
-  PEER_ADD = 0;
-  PEER_REMOVE = 1;
-  POS_TRANSFER = 2;
-}
-
-message InternalTransaction {
-  TransactionType Type = 1;
-  peers.Peer peer = 2;
-  uint64 Amount = 3;
-}
+import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/event.proto";
 
 message BlockSignature {
   bytes Validator = 1;
@@ -22,7 +10,7 @@ message BlockSignature {
 
 message EventBody {
   repeated bytes Transactions = 1;
-  repeated InternalTransaction InternalTransactions = 2;
+  repeated wire.InternalTransaction InternalTransactions = 2;
   repeated bytes Parents = 3;
   bytes Creator = 4;
   int64 Index = 5;

@@ -108,6 +108,8 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	input := NewEventStore()
 
 	poset := New(store, input)
+	poset.Bootstrap()
+
 	return poset, store, input
 }
 

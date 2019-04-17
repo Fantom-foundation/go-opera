@@ -38,6 +38,8 @@ import:
   - windows/svc/eventlog
 - package: google.golang.org/grpc
   version: ^1.19.1
+- package: github.com/golang/mock
+  version: ^1.2.0
 testImport:
 - package: github.com/davecgh/go-spew
   version: ^1.1.1

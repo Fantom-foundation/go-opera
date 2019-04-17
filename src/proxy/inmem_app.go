@@ -3,7 +3,7 @@ package proxy
 import (
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/peers"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -12,7 +12,7 @@ type InmemAppProxy struct {
 	logger           *logrus.Logger
 	handler          ProxyHandler
 	submitCh         chan []byte
-	submitInternalCh chan poset.InternalTransaction
+	submitInternalCh chan inter.InternalTransaction
 }
 
 // NewInmemAppProxy instantiates an InmemProxy from a set of handlers
@@ -26,7 +26,7 @@ func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProx
 		logger:           logger,
 		handler:          handler,
 		submitCh:         make(chan []byte),
-		submitInternalCh: make(chan poset.InternalTransaction),
+		submitInternalCh: make(chan inter.InternalTransaction),
 	}
 }
 
@@ -39,18 +39,8 @@ func (p *InmemAppProxy) SubmitCh() chan []byte {
 	return p.submitCh
 }
 
-// ProposePeerAdd propose to add a peer to the rest of the network
-func (p *InmemAppProxy) ProposePeerAdd(peer peers.Peer) {
-	p.submitInternalCh <- poset.NewInternalTransaction(poset.TransactionType_PEER_ADD, peer)
-}
-
-// ProposePeerRemove propose to remove a peer from the network
-func (p *InmemAppProxy) ProposePeerRemove(peer peers.Peer) {
-	p.submitInternalCh <- poset.NewInternalTransaction(poset.TransactionType_PEER_REMOVE, peer)
-}
-
 // SubmitInternalCh returns the channel of raw transactions
-func (p *InmemAppProxy) SubmitInternalCh() chan poset.InternalTransaction {
+func (p *InmemAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 	return p.submitInternalCh
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
@@ -187,7 +188,7 @@ func TestDBEventMethods(t *testing.T) {
 		for k := int64(0); k < testSize; k++ {
 			event := NewEvent(
 				[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
-				[]InternalTransaction{},
+				[]*wire.InternalTransaction{},
 				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 				make(EventHashes, 2),
 				p.pubKey,
@@ -290,7 +291,7 @@ func TestDBRoundMethods(t *testing.T) {
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
-			[]InternalTransaction{},
+			[]*wire.InternalTransaction{},
 			[]BlockSignature{},
 			make(EventHashes, 2),
 			p.pubKey,
@@ -435,7 +436,7 @@ func TestDBFrameMethods(t *testing.T) {
 	for id, p := range participants {
 		event := NewEvent(
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
-			[]InternalTransaction{},
+			[]*wire.InternalTransaction{},
 			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 			make(EventHashes, 2),
 			p.pubKey,
@@ -488,7 +489,7 @@ func TestBadgerEvents(t *testing.T) {
 		for k := int64(0); k < testSize; k++ {
 			event := NewEvent(
 				[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], k))},
-				[]InternalTransaction{},
+				[]*wire.InternalTransaction{},
 				[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 				make(EventHashes, 2),
 				p.pubKey,
@@ -572,7 +573,7 @@ func TestBadgerRounds(t *testing.T) {
 	events := make(map[string]Event)
 	for _, p := range participants {
 		event := NewEvent([][]byte{},
-			[]InternalTransaction{},
+			[]*wire.InternalTransaction{},
 			[]BlockSignature{},
 			make(EventHashes, 2),
 			p.pubKey,
@@ -693,7 +694,7 @@ func TestBadgerFrames(t *testing.T) {
 	for id, p := range participants {
 		event := NewEvent(
 			[][]byte{[]byte(fmt.Sprintf("%s_%d", p.hex[:5], 0))},
-			[]InternalTransaction{},
+			[]*wire.InternalTransaction{},
 			[]BlockSignature{{Validator: []byte("validator"), Index: 0, Signature: "r|s"}},
 			make(EventHashes, 2),
 			p.pubKey,

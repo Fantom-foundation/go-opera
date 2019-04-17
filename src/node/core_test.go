@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
@@ -46,7 +47,7 @@ func initCores(n int, t *testing.T) ([]*Core,
 
 		// Create and save the first Event
 		initialEvent := poset.NewEvent([][]byte(nil),
-			[]poset.InternalTransaction{},
+			[]*wire.InternalTransaction{},
 			nil,
 			poset.EventHashes{selfParent, poset.EventHash{}}, core.PubKey(), 0, flagTable)
 		err := core.SignAndInsertSelfEvent(initialEvent)
@@ -107,7 +108,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
 	event01ft, _ := event0.MergeFlagTable(event1ft)
 
 	event01 := poset.NewEvent([][]byte{},
-		[]poset.InternalTransaction{},
+		[]*wire.InternalTransaction{},
 		nil,
 		poset.EventHashes{index["e0"], index["e1"]}, // e0 and e1
 		cores[0].PubKey(), 1, event01ft)
@@ -125,7 +126,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
 	event20ft, _ := event2.MergeFlagTable(event01ft)
 
 	event20 := poset.NewEvent([][]byte{},
-		[]poset.InternalTransaction{},
+		[]*wire.InternalTransaction{},
 		nil,
 		poset.EventHashes{index["e2"], index["e01"]}, // e2 and e01
 		cores[2].PubKey(), 1, event20ft)
@@ -137,7 +138,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
 	event12ft, _ := event1.MergeFlagTable(event20ft)
 
 	event12 := poset.NewEvent([][]byte{},
-		[]poset.InternalTransaction{},
+		[]*wire.InternalTransaction{},
 		nil,
 		poset.EventHashes{index["e1"], index["e20"]}, // e1 and e20
 		cores[1].PubKey(), 1, event12ft)

@@ -30,6 +30,7 @@ nodes
 peers.json
 certs
 lachesis_*
+!*.go
 
 # Backup copies
 *~

@@ -17,6 +17,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/peer/fakenet"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
@@ -374,7 +376,7 @@ func TestAddTransaction(t *testing.T) {
 	}
 
 	// Add new Internal Tx
-	internalTx := poset.InternalTransaction{}
+	internalTx := &wire.InternalTransaction{}
 	node.addInternalTransaction(internalTx)
 
 	// Check internal tx pool
@@ -451,7 +453,7 @@ func TestDoBackgroundWork(t *testing.T) {
 	}
 
 	// Check submitInternalCh case
-	internalTx := poset.InternalTransaction{}
+	internalTx := inter.InternalTransaction{}
 	node.submitInternalCh <- internalTx
 
 	// Because of we need to wait to complete submitInternalCh.

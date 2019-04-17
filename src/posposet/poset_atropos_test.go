@@ -105,6 +105,7 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 		if tryRestoring && n == len(names)*2/3 {
 			ee := p.incompleteEvents
 			p = New(store, input)
+			p.Bootstrap()
 			for _, e := range ee {
 				input.SetEvent(&e.Event)
 				p.PushEventSync(e.Hash())

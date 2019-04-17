@@ -1,0 +1,32 @@
+syntax = "proto3";
+package api;
+
+import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/event.proto";
+
+service Node {
+    rpc SyncEvents(KnownEvents) returns (KnownEvents) {}
+    rpc GetEvent(EventRequest) returns (wire.Event) {}
+    rpc GetPeerInfo(PeerRequest) returns (PeerInfo) {}
+}
+
+
+message KnownEvents {
+    map<string,uint64> Lasts = 1;
+}
+
+message EventRequest {
+    string PeerID = 1;
+    uint64 Index = 2;
+    bytes Hash = 3;
+}
+
+message PeerRequest {
+    string PeerID = 1;
+}
+
+message PeerInfo {
+    string ID = 1;
+    bytes PubKey = 2;
+    string Host = 3;
+}
+
