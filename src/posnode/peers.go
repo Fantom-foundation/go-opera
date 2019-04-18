@@ -93,15 +93,13 @@ func (n *Node) cleanHosts() {
 		}
 	}
 
-	deleted := 0
-	tail := len(n.peers.hosts) - n.conf.HostsCount
-
+	toDelete := len(n.peers.hosts) - n.conf.HostsCount
 	for name := range n.peers.hosts {
-		if deleted != tail {
-			delete(n.peers.hosts, name)
-
-			deleted++
+		if toDelete < 1 {
+			break
 		}
+		delete(n.peers.hosts, name)
+		toDelete--
 	}
 }
 
