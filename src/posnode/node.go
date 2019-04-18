@@ -50,7 +50,7 @@ func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Confi
 		host:      host,
 		conf:      *conf,
 		service:   service{listen, nil},
-		client:    newClient(conf.ConnectTimeout, opts),
+		client:    client{opts: opts},
 		logger:    newLogger(host),
 	}
 

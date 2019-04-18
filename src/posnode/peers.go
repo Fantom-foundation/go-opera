@@ -63,6 +63,7 @@ func (pp *peers) attrByHost(host string) *hostAttr {
 
 func (n *Node) initPeers() {
 	n.initDownloads()
+	n.initClient()
 
 	if n.peers.top != nil {
 		return
