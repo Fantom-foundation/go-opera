@@ -126,13 +126,12 @@ func TestCleanPeers(t *testing.T) {
 		assert := assert.New(t)
 
 		// We already have info about 2 hosts but limit is 1
-
 		node.conf.HostsCount = 1
 
 		// Clean all expired hosts
 		node.cleanHosts()
 
-		assert.Equal(len(node.peers.hosts), 0)
+		assert.Equal(len(node.peers.hosts), 1)
 	})
 
 	t.Run("clean extra hosts", func(t *testing.T) {
@@ -149,6 +148,6 @@ func TestCleanPeers(t *testing.T) {
 		// Clean extra
 		node.cleanHosts()
 
-		assert.Equal(len(node.peers.hosts), 1)
+		assert.Equal(len(node.peers.hosts), 2)
 	})
 }

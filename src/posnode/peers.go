@@ -78,28 +78,22 @@ func (n *Node) cleanHosts() {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	lastTime := time.Now().Add(-n.conf.HostsCleanTimeout)
-
-	if len(n.peers.hosts) <= n.conf.HostsCount {
+	toDelete := len(n.peers.hosts) - n.conf.HostsCount
+	if toDelete < 1 {
 		return
 	}
 
 	// TODO: Should we add peers.top condition here?
-
-	// Clean by last time
+	lastTime := time.Now().Add(-n.conf.HostsCleanTimeout)
 	for _, h := range n.peers.hosts {
-		if h.LastFail.Before(lastTime) && h.LastSuccess.Before(lastTime) {
-			delete(n.peers.hosts, h.Name)
-		}
-	}
-
-	toDelete := len(n.peers.hosts) - n.conf.HostsCount
-	for name := range n.peers.hosts {
 		if toDelete < 1 {
 			break
 		}
-		delete(n.peers.hosts, name)
 		toDelete--
+
+		if h.LastFail.Before(lastTime) && h.LastSuccess.Before(lastTime) {
+			delete(n.peers.hosts, h.Name)
+		}
 	}
 }
 
