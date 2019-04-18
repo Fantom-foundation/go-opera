@@ -93,11 +93,6 @@ func (n *Node) cleanHosts() {
 		}
 	}
 
-	// Clean by count if needed
-	if len(n.peers.hosts) <= n.conf.HostsCount {
-		return
-	}
-
 	deleted := 0
 	tail := len(n.peers.hosts) - n.conf.HostsCount
 
