@@ -215,11 +215,17 @@ func (e *emitterEvaluation) calculatePeerStake(peer hash.Peer) float64 {
 
 	// Sum stake of events that was not used as parents previously.
 	for ev := range lastEvent.Parents {
+		event := e.node.store.GetEvent(ev)
+		if event == nil {
+			continue
+		}
+
+		// Ignore self event.
+		if event.Creator == peer {
+			continue
+		}
+
 		if !containsEvent(e.previous, ev) {
-			event := e.node.store.GetEvent(ev)
-			if event == nil {
-				continue
-			}
 			stake = stake + e.node.consensus.GetStakeOf(lastEvent.Creator)
 		}
 	}
