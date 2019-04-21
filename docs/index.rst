@@ -27,3 +27,4 @@ Lachesis
    consensus.rst
    blockchain.rst
    fastsync.rst
+   extracted-comments.rst

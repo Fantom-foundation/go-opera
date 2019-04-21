@@ -1,0 +1,4 @@
+# Ignore everything in this directory, files are generated from code comments
+*
+# Except this file
+!.gitignore
