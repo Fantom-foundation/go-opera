@@ -21,17 +21,18 @@ type (
 	// *grpc.ClientConn
 	connection struct {
 		*grpc.ClientConn
-		initiatedAt time.Time
+		addr   string
+		usedAt time.Time
 	}
 
 	// client of node service.
 	client struct {
 		sync.RWMutex
-		connections     map[string]*connection
-		connectTimeout  time.Duration
-		maxLifeDuration time.Duration
-		connWatchTicker *time.Ticker
-		opts            []grpc.DialOption
+		connections       map[string]*connection
+		connectTimeout    time.Duration
+		maxUnusedDuration time.Duration
+		connWatchTicker   *time.Ticker
+		opts              []grpc.DialOption
 	}
 )
 
@@ -42,13 +43,9 @@ func (n *Node) initClient() {
 
 	n.client.connections = make(map[string]*connection)
 	n.client.connectTimeout = n.conf.ConnectTimeout
-	n.client.maxLifeDuration = n.conf.ConnectionMaxDuration
+	n.client.maxUnusedDuration = n.conf.ConnectionMaxUnusedDuration
 	n.client.connWatchTicker = time.NewTicker(tickerInterval)
 	go n.client.watchConnections()
-}
-
-func (c *connection) shouldReconnect(lifeTime time.Duration) bool {
-	return c.initiatedAt.Add(lifeTime).Before(time.Now())
 }
 
 func (c *client) watchConnections() {
@@ -57,13 +54,14 @@ func (c *client) watchConnections() {
 		connections := c.connections
 		c.RUnlock()
 
-		for addr, conn := range connections {
-			if conn.GetState() != connectivity.Ready {
-				c.remove(addr)
-			}
+		for _, conn := range connections {
+			c.free(conn)
+			watchFreeCalled()
 		}
 	}
 }
+
+var watchFreeCalled = func() {}
 
 func (c *client) get(addr string) (*connection, error) {
 	c.RLock()
@@ -81,17 +79,22 @@ func (c *client) get(addr string) (*connection, error) {
 		return conn, nil
 	}
 
-	if conn.shouldReconnect(c.maxLifeDuration) {
-		c.remove(addr)
-		return c.get(addr)
+	c.Lock()
+	conn.usedAt = time.Now()
+	c.connections[addr] = conn
+	c.Unlock()
+	return conn, nil
+}
+
+func (c *client) free(conn *connection) {
+	if conn.unused(c.maxUnusedDuration) {
+		c.remove(conn.addr)
+		return
 	}
 
 	if conn.GetState() != connectivity.Ready {
-		c.remove(addr)
-		return c.get(addr)
+		c.remove(conn.addr)
 	}
-
-	return conn, nil
 }
 
 func (c *client) remove(addr string) {
@@ -113,8 +116,9 @@ func (c *client) newConn(addr string) (*connection, error) {
 	}
 
 	wraper := connection{
-		ClientConn:  conn,
-		initiatedAt: time.Now(),
+		ClientConn: conn,
+		usedAt:     time.Now(),
+		addr:       addr,
 	}
 
 	c.connections[addr] = &wraper
@@ -122,16 +126,24 @@ func (c *client) newConn(addr string) (*connection, error) {
 	return &wraper, nil
 }
 
+func (c *connection) unused(duration time.Duration) bool {
+	return c.usedAt.Add(duration).Before(time.Now())
+}
+
 // ConnectTo connects to other node service.
-func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, error) {
+func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, func(), error) {
 	addr := n.NetAddrOf(peer.Host)
 	n.log.Debugf("connect to %s", addr)
 
 	conn, err := n.client.get(addr)
 	if err != nil {
 		n.log.Warn(errors.Wrapf(err, "connect to: %s", addr))
-		return nil, err
+		return nil, nil, err
 	}
 
-	return api.NewNodeClient(conn.ClientConn), nil
+	free := func() {
+		n.client.free(conn)
+	}
+
+	return api.NewNodeClient(conn.ClientConn), free, nil
 }
