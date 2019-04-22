@@ -15,4 +15,4 @@ COPY --from=build /tmp/lachesis /
 
 EXPOSE 55555 55556
 
-ENTRYPOINT ["/lachesis"]
+ENTRYPOINT ["/lachesis/start"]
