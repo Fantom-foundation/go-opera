@@ -121,7 +121,6 @@ func (n *Node) EmitEvent() *inter.Event {
 		}
 
 		parents.Add(*e)
-		n.UsedAsParent(ref)
 		if lamportTime < event.LamportTime {
 			lamportTime = event.LamportTime
 		}
@@ -150,16 +149,38 @@ func (n *Node) EmitEvent() *inter.Event {
  */
 
 func (n *Node) emitterEvaluation(peers []hash.Peer) *emitterEvaluation {
-	return &emitterEvaluation{
-		node:  n,
-		peers: peers,
+	eval := emitterEvaluation{
+		node:     n,
+		peers:    peers,
+		previous: previousParents(n.store, n.ID),
 	}
+
+	return &eval
+}
+
+func previousParents(store *Store, peer hash.Peer) []*inter.Event {
+	event := store.LastEvent(peer)
+	if event == nil {
+		return nil
+	}
+
+	events := make([]*inter.Event, len(event.Parents))
+
+	var i int
+	for e := range event.Parents {
+		event := store.GetEvent(e)
+		events[i] = event
+		i++
+	}
+
+	return events
 }
 
 // emitterEvaluation implements sort.Interface.
 type emitterEvaluation struct {
-	node  *Node
-	peers []hash.Peer
+	node     *Node
+	previous []*inter.Event
+	peers    []hash.Peer
 }
 
 // Len is the number of elements in the collection.
@@ -175,10 +196,64 @@ func (e *emitterEvaluation) Swap(i, j int) {
 // Less reports whether the element with
 // index i should sort before the element with index j.
 func (e *emitterEvaluation) Less(i, j int) bool {
-	a := e.node.peers.attrByID(e.peers[i])
-	b := e.node.peers.attrByID(e.peers[j])
+	stakeI := e.calculatePeerStake(e.peers[i])
+	stakeJ := e.calculatePeerStake(e.peers[j])
 
-	return a.LastUsed.Before(b.LastUsed) ||
-		a.LastEvent.After(b.LastEvent) ||
-		e.node.consensus.GetStakeOf(e.peers[i]) < e.node.consensus.GetStakeOf(e.peers[j])
+	if stakeI == stakeJ {
+		lampotTimeI := e.calculateLamportTime(e.peers[i])
+		lampotTimeJ := e.calculateLamportTime(e.peers[j])
+		return lampotTimeI > lampotTimeJ
+	}
+
+	return stakeI > stakeJ
+}
+
+func (e *emitterEvaluation) calculateLamportTime(peer hash.Peer) uint64 {
+	lastEvent := e.node.store.LastEvent(peer)
+	return uint64(lastEvent.LamportTime)
+}
+
+func (e *emitterEvaluation) calculatePeerStake(peer hash.Peer) float64 {
+	// Get initial stake of peer.
+	stake := e.node.consensus.GetStakeOf(peer)
+	lastEvent := e.node.store.LastEvent(peer)
+	if lastEvent == nil {
+		return 0
+	}
+
+	for _, event := range e.previous {
+		// If event was used as parent previously its stake is zero.
+		if event.Hash() == lastEvent.Hash() {
+			return 0
+		}
+	}
+
+	// Sum stake of events that was not used as parents previously.
+	for ev := range lastEvent.Parents {
+		event := e.node.store.GetEvent(ev)
+		if event == nil {
+			continue
+		}
+
+		// Ignore self event.
+		if event.Creator == peer {
+			continue
+		}
+
+		if !containsEvent(e.previous, ev) {
+			stake = stake + e.node.consensus.GetStakeOf(lastEvent.Creator)
+		}
+	}
+
+	return stake
+}
+
+func containsEvent(prev []*inter.Event, e hash.Event) bool {
+	for _, event := range prev {
+		if event.Hash() == e {
+			return true
+		}
+	}
+
+	return false
 }

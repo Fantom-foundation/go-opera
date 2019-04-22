@@ -104,7 +104,6 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	defer n.unlockFreeHeights(toDownload)
 
 	for creator, interval := range toDownload {
-		n.GotNewEvent(creator)
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}

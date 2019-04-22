@@ -3,7 +3,6 @@ package posnode
 import (
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -93,6 +92,7 @@ func Test_emitterEvaluation(t *testing.T) {
 	defer ctrl.Finish()
 
 	consensus := NewMockConsensus(ctrl)
+	consensus.EXPECT().PushEvent(gomock.Any()).AnyTimes()
 
 	store := NewMemStore()
 	node := NewForTests("server.fake", store, consensus)
@@ -113,9 +113,9 @@ func Test_emitterEvaluation(t *testing.T) {
 		PubKey: &common.PublicKey{},
 	}
 
-	consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(1)).AnyTimes()
-	consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(2)).AnyTimes()
-	consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(3)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer1.ID).Return(float64(0.1)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer2.ID).Return(float64(0.2)).AnyTimes()
+	consensus.EXPECT().GetStakeOf(peer3.ID).Return(float64(0.3)).AnyTimes()
 
 	store.BootstrapPeers(&peer1, &peer2, &peer3)
 	node.initPeers()
@@ -123,12 +123,33 @@ func Test_emitterEvaluation(t *testing.T) {
 	node.peers.peers[peer2.ID] = &peerAttr{}
 	node.peers.peers[peer3.ID] = &peerAttr{}
 
-	t.Run("last used", func(t *testing.T) {
+	t.Run("first round", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.peers.peers[peer1.ID].LastUsed = time.Now().Add(2 * time.Hour)
-		node.peers.peers[peer2.ID].LastUsed = time.Now().Add(time.Hour)
-		node.peers.peers[peer3.ID].LastUsed = time.Now()
+		p1ev1 := inter.Event{
+			Index:       1,
+			Creator:     peer1.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent),
+			LamportTime: 1,
+		}
+
+		p2ev1 := inter.Event{
+			Index:       1,
+			Creator:     peer2.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent),
+			LamportTime: 1,
+		}
+
+		p3ev1 := inter.Event{
+			Index:       1,
+			Creator:     peer3.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent),
+			LamportTime: 1,
+		}
+
+		node.saveNewEvent(&p1ev1)
+		node.saveNewEvent(&p2ev1)
+		node.saveNewEvent(&p3ev1)
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)
@@ -138,12 +159,45 @@ func Test_emitterEvaluation(t *testing.T) {
 		assert.Equal(e.peers[2], peer1.ID)
 	})
 
-	t.Run("last event", func(t *testing.T) {
+	t.Run("second round", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.peers.peers[peer3.ID].LastEvent = time.Now().Add(2 * time.Hour)
-		node.peers.peers[peer2.ID].LastEvent = time.Now().Add(time.Hour)
-		node.peers.peers[peer1.ID].LastEvent = time.Now()
+		p3ev1 := store.LastEvent(peer3.ID)
+		p2ev1 := store.LastEvent(peer2.ID)
+
+		ev := inter.Event{
+			Index:       1,
+			Creator:     node.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent, p3ev1.Hash(), p2ev1.Hash()),
+			LamportTime: 2,
+		}
+
+		store.SetEvent(&ev)
+
+		p1ev2 := inter.Event{
+			Index:       2,
+			Creator:     peer1.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent, p3ev1.Hash(), p2ev1.Hash()),
+			LamportTime: 2,
+		}
+
+		p2ev2 := inter.Event{
+			Index:       2,
+			Creator:     peer2.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent, p3ev1.Hash(), p2ev1.Hash()),
+			LamportTime: 2,
+		}
+
+		p3ev2 := inter.Event{
+			Index:       2,
+			Creator:     peer3.ID,
+			Parents:     hash.NewEvents(hash.ZeroEvent, p3ev1.Hash(), p2ev1.Hash()),
+			LamportTime: 2,
+		}
+
+		node.saveNewEvent(&p1ev2)
+		node.saveNewEvent(&p2ev2)
+		node.saveNewEvent(&p3ev2)
 
 		e := node.emitterEvaluation(node.Snapshot())
 		sort.Sort(e)
@@ -153,14 +207,4 @@ func Test_emitterEvaluation(t *testing.T) {
 		assert.Equal(e.peers[2], peer1.ID)
 	})
 
-	t.Run("balance", func(t *testing.T) {
-		assert := assert.New(t)
-
-		e := node.emitterEvaluation(node.Snapshot())
-		sort.Sort(e)
-
-		assert.Equal(e.peers[0], peer3.ID)
-		assert.Equal(e.peers[1], peer2.ID)
-		assert.Equal(e.peers[2], peer1.ID)
-	})
 }
