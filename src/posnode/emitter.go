@@ -195,7 +195,19 @@ func (e *emitterEvaluation) Swap(i, j int) {
 func (e *emitterEvaluation) Less(i, j int) bool {
 	stakeI := e.calculatePeerStake(e.peers[i])
 	stakeJ := e.calculatePeerStake(e.peers[j])
+
+	if stakeI == stakeJ {
+		lampotTimeI := e.calculateLamportTime(e.peers[i])
+		lampotTimeJ := e.calculateLamportTime(e.peers[j])
+		return lampotTimeI > lampotTimeJ
+	}
+
 	return stakeI > stakeJ
+}
+
+func (e *emitterEvaluation) calculateLamportTime(peer hash.Peer) uint64 {
+	lastEvent := e.node.store.LastEvent(peer)
+	return uint64(lastEvent.LamportTime)
 }
 
 func (e *emitterEvaluation) calculatePeerStake(peer hash.Peer) float64 {
