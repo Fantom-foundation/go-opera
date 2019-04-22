@@ -2,22 +2,20 @@ package posnode
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 // TODO: find better solution
 // Temp data for client/server Interceptors
 var (
-	clientID = ""
-	key      = new(common.PrivateKey)
+	clientID  = ""
+	clientKey = new(common.PrivateKey)
 )
 
 type (
@@ -35,11 +33,11 @@ func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, func(), error) {
 
 	// Fill temp data for Interceptor
 	clientID = n.ID.Hex()
-	key = n.key
+	clientKey = n.key
 
 	addr := n.NetAddrOf(peer.Host)
 	n.log.Debugf("connect to %s", addr)
-	// TODO: secure connection
+
 	conn, err := grpc.DialContext(ctx, addr, append(n.client.opts, grpc.WithInsecure(), grpc.WithUnaryInterceptor(clientInterceptor), grpc.WithBlock())...)
 	if err != nil {
 		n.log.Warn(errors.Wrapf(err, "connect to: %s", addr))
@@ -55,23 +53,49 @@ func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, func(), error) {
 
 func clientInterceptor(ctx context.Context, method string, req interface{}, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	// Sign request
-	sign, pubKey := signRequest(req)
+	sign, pubKey := api.SignGRPCData(req, clientKey)
 
 	// Create new metadata for current request
-	md := metadata.Pairs("client_id", clientID, "client_sign", sign, "client_pub", pubKey)
+	md := metadata.Pairs("id", clientID, "sign", sign, "pub", pubKey)
 
 	// Append new metadata to context
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	return invoker(ctx, method, req, reply, cc, opts...)
-}
+	var trailer metadata.MD
+	opts = append(opts, grpc.Trailer(&trailer))
 
-func signRequest(req interface{}) (sign, pubKey string) {
-	b, _ := req.([]byte)
-	R, S, _ := key.Sign(b)
+	// Process request
+	err := invoker(ctx, method, req, reply, cc, opts...)
+	if err != nil {
+		return err
+	}
 
-	sign = crypto.EncodeSignature(R, S)
-	pubKey = fmt.Sprint(key.Public().Bytes())
+	// Get metadata from response
+	id, sign, pub, err := api.GetInfoFromMetadata(trailer)
+	if err != nil {
+		return err
+	}
 
-	return
+	// Extract common.Pubkey from string
+	key, err := common.StringToPubkey(pub)
+	if err != nil {
+		return err
+	}
+
+	// Validation ID
+	if ok := api.ValidateID(id, key); !ok {
+		return errors.New("ID is invalid")
+	}
+
+	// Check signature of response
+	isValid, err := api.CheckSignData(req, sign, key)
+	if err != nil {
+		return err
+	}
+
+	if !isValid {
+		return errors.New("Signature is invalid")
+	}
+
+	return nil
 }

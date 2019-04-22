@@ -1,6 +1,9 @@
 package common
 
 import (
+	"errors"
+	"strconv"
+	"strings"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -68,4 +71,20 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 		return nil
 	}
 	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+}
+
+// StringToPubkey extract PublicKey from format "[4 23 254 166 ...]" to common.PublicKey
+func StringToPubkey(pub string) (*PublicKey, error) {
+	var bb []byte
+	for _, ps := range strings.Split(strings.Trim(pub, "[]"), " ") {
+		pi, _ := strconv.Atoi(ps)
+		bb = append(bb, byte(pi))
+	}
+
+	key := BytesToPubkey(bb)
+	if key == nil {
+		return nil, errors.New("Pubkey is invalid")
+	}
+
+	return key, nil
 }

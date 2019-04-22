@@ -12,10 +12,10 @@ package api
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
 	"net"
-	"strconv"
-	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -27,6 +27,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
+)
+
+// TODO: we can extract this data from grpc.UnaryServerInfo but currently we have issue with circle depends. Resolve it latter.
+// Temp data for client/server Interceptors
+var (
+	ServerID  = ""
+	ServerKey = new(common.PrivateKey)
 )
 
 // StartService starts and returns gRPC server.
@@ -62,68 +69,42 @@ func GrpcPeerHost(ctx context.Context) string {
 	panic("gRPC-peer network address is undefined")
 }
 
-func serverInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	// Get metadata from context
-	id, sign, pub, err := getMetadata(ctx)
-	if err != nil {
-		return nil, err
-	}
+// SignGRPCData before send it
+func SignGRPCData(req interface{}, key *common.PrivateKey) (sign, pubKey string) {
+	b, _ := req.([]byte)
+	R, S, _ := key.Sign(b)
 
-	// Extract common.Pubkey from string
-	key, err := extractPubkey(pub)
-	if err != nil {
-		return nil, err
-	}
+	sign = crypto.EncodeSignature(R, S)
+	pubKey = fmt.Sprint(key.Public().Bytes())
 
-	// Validation ID
-	if ok := validateID(id, key); !ok {
-		return nil, status.Errorf(codes.Internal, "ID is invalid")
-	}
-
-	// Check signature of request
-	isValid, err := checkSignRequest(req, sign, key)
-	if err != nil {
-		return nil, err
-	}
-
-	if !isValid {
-		return nil, status.Errorf(codes.Internal, "Signature is invalid")
-	}
-
-	return handler(ctx, req)
+	return
 }
 
-func getMetadata(ctx context.Context) (rID, rSign, rPub string, err error) {
-	// Get metadata from context
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		err = status.Errorf(codes.InvalidArgument, "Retrieving metadata is failed")
-		return
-	}
-
+// GetInfoFromMetadata get info from request/response metadata
+func GetInfoFromMetadata(md metadata.MD) (rID, rSign, rPub string, err error) {
 	// Get ID from metadata
-	id, ok := md["client_id"]
+	id, ok := md["id"]
 	if !ok {
-		err = status.Errorf(codes.InvalidArgument, "client_id not found")
+		err = errors.New("id not found")
 		return
 	}
 
 	// Get signature from metadata
-	sign, ok := md["client_sign"]
+	sign, ok := md["sign"]
 	if !ok {
-		err = status.Errorf(codes.InvalidArgument, "client_sign not found")
+		err = errors.New("sign not found")
 		return
 	}
 
 	// Get public key from metadata
-	pub, ok := md["client_pub"]
+	pub, ok := md["pub"]
 	if !ok {
-		err = status.Errorf(codes.InvalidArgument, "client_pub not found")
+		err = errors.New("pub not found")
 		return
 	}
 
 	if id[0] == "" || sign[0] == "" || pub[0] == "" {
-		err = status.Errorf(codes.InvalidArgument, "Empty data")
+		err = errors.New("Empty data")
 		return
 	}
 
@@ -134,22 +115,8 @@ func getMetadata(ctx context.Context) (rID, rSign, rPub string, err error) {
 	return
 }
 
-func extractPubkey(pub string) (*common.PublicKey, error) {
-	var bb []byte
-	for _, ps := range strings.Split(strings.Trim(pub, "[]"), " ") {
-		pi, _ := strconv.Atoi(ps)
-		bb = append(bb, byte(pi))
-	}
-
-	key := common.BytesToPubkey(bb)
-	if key == nil {
-		return nil, status.Errorf(codes.Internal, "Pubkey is invalid")
-	}
-
-	return key, nil
-}
-
-func checkSignRequest(req interface{}, sign string, key *common.PublicKey) (bool, error) {
+// CheckSignData from response / request
+func CheckSignData(req interface{}, sign string, key *common.PublicKey) (bool, error) {
 	hash, _ := req.([]byte)
 	r, s, err := crypto.DecodeSignature(sign)
 	if err != nil {
@@ -159,7 +126,66 @@ func checkSignRequest(req interface{}, sign string, key *common.PublicKey) (bool
 	return key.Verify(hash, r, s), nil
 }
 
-func validateID(id string, key *common.PublicKey) bool {
+// ValidateID from response / request
+func ValidateID(id string, key *common.PublicKey) bool {
 	p := hash.PeerOfPubkey(key)
 	return p.Hex() == id
+}
+
+func serverInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	// Get metadata from context
+	id, sign, pub, err := getMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract common.Pubkey from string
+	key, err := common.StringToPubkey(pub)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validation ID
+	if ok := ValidateID(id, key); !ok {
+		return nil, status.Errorf(codes.Internal, "ID is invalid")
+	}
+
+	// Check signature of request
+	isValid, err := CheckSignData(req, sign, key)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isValid {
+		return nil, status.Errorf(codes.Internal, "Signature is invalid")
+	}
+
+	// Process request
+	resp, err := handler(ctx, req)
+
+	// Sign response
+	sign, pubKey := SignGRPCData(resp, ServerKey)
+
+	// Create new metadata for current response
+	md := metadata.Pairs("id", ServerID, "sign", sign, "pub", pubKey)
+	grpc.SetTrailer(ctx, md)
+
+	return resp, err
+}
+
+func getMetadata(ctx context.Context) (rID, rSign, rPub string, err error) {
+	// Get metadata from context
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		err = status.Errorf(codes.InvalidArgument, "Retrieving metadata is failed")
+		return
+	}
+
+	rID, rSign, rPub, err = GetInfoFromMetadata(md)
+	if err != nil {
+		err = status.Errorf(codes.InvalidArgument, err.Error())
+		return
+	}
+
+	return
 }
