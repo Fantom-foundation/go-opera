@@ -25,6 +25,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -63,7 +64,7 @@ func GrpcPeerHost(ctx context.Context) string {
 
 func serverInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	// Get metadata from context
-	_, sign, pub, err := getMetadata(ctx)
+	id, sign, pub, err := getMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -74,13 +75,18 @@ func serverInterceptor(ctx context.Context, req interface{}, info *grpc.UnarySer
 		return nil, err
 	}
 
+	// Validation ID
+	if ok := validateID(id, key); !ok {
+		return nil, status.Errorf(codes.Internal, "ID is invalid")
+	}
+
 	// Check signature of request
-	isInvalid, err := checkSignRequest(req, sign, key)
+	isValid, err := checkSignRequest(req, sign, key)
 	if err != nil {
 		return nil, err
 	}
 
-	if !isInvalid {
+	if !isValid {
 		return nil, status.Errorf(codes.Internal, "Signature is invalid")
 	}
 
@@ -96,7 +102,6 @@ func getMetadata(ctx context.Context) (rID, rSign, rPub string, err error) {
 	}
 
 	// Get ID from metadata
-	// Currently we check only exist status ID and don't use it as is.
 	id, ok := md["client_id"]
 	if !ok {
 		err = status.Errorf(codes.InvalidArgument, "client_id not found")
@@ -152,4 +157,9 @@ func checkSignRequest(req interface{}, sign string, key *common.PublicKey) (bool
 	}
 
 	return key.Verify(hash, r, s), nil
+}
+
+func validateID(id string, key *common.PublicKey) bool {
+	p := hash.PeerOfPubkey(key)
+	return p.Hex() == id
 }
