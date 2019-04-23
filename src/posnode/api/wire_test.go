@@ -7,6 +7,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
@@ -46,11 +48,17 @@ func testGRPC(t *testing.T, bind string, listen network.ListenFunc, opts ...grpc
 		Times(1)
 
 	// grpc server
-	server, addr := StartService(bind, svc, t.Logf, listen)
+	serverKey := crypto.GenerateKey()
+	serverID := hash.PeerOfPubkey(serverKey.Public())
+
+	server, addr := StartService(bind, serverID.Hex(), serverKey, svc, t.Logf, listen)
 	defer server.Stop()
 
 	// grpc client
-	conn, err := grpc.DialContext(context.Background(), addr, append(opts, grpc.WithInsecure())...)
+	clientKey := crypto.GenerateKey()
+	clientID := hash.PeerOfPubkey(clientKey.Public())
+
+	conn, err := grpc.DialContext(context.Background(), addr, append(opts, grpc.WithUnaryInterceptor(ClientInterceptor(clientID.Hex(), clientKey)), grpc.WithInsecure())...)
 	if err != nil {
 		t.Fatal(err)
 	}
