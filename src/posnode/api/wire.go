@@ -12,8 +12,8 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
-	"fmt"
 	"math"
 	"net"
 
@@ -70,12 +70,12 @@ func GrpcPeerHost(ctx context.Context) string {
 }
 
 // SignGRPCData before send it
-func SignGRPCData(req interface{}, key *common.PrivateKey) (sign, pubKey string) {
-	b, _ := req.([]byte)
+func SignGRPCData(data interface{}, key *common.PrivateKey) (sign, pubKey string) {
+	b, _ := data.([]byte)
 	R, S, _ := key.Sign(b)
 
 	sign = crypto.EncodeSignature(R, S)
-	pubKey = fmt.Sprint(key.Public().Bytes())
+	pubKey = base64.StdEncoding.EncodeToString(key.Public().Bytes())
 
 	return
 }
