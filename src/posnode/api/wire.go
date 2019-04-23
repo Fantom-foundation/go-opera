@@ -29,17 +29,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
-// TODO: we can extract this data from grpc.UnaryServerInfo but currently we have issue with circle depends. Resolve it latter.
-// Temp data for client/server Interceptors
-var (
-	ServerID  = ""
-	ServerKey = new(common.PrivateKey)
-)
-
 // StartService starts and returns gRPC server.
-func StartService(bind string, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (*grpc.Server, string) {
+func StartService(bind, serverID string, serverKey *common.PrivateKey, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (*grpc.Server, string) {
 	server := grpc.NewServer(
-		grpc.UnaryInterceptor(serverInterceptor),
+		grpc.UnaryInterceptor(serverInterceptor(serverID, serverKey)),
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	RegisterNodeServer(server, svc)
@@ -132,45 +125,47 @@ func ValidateID(id string, key *common.PublicKey) bool {
 	return p.Hex() == id
 }
 
-func serverInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	// Get metadata from context
-	id, sign, pub, err := getMetadata(ctx)
-	if err != nil {
-		return nil, err
+func serverInterceptor(serverID string, serverKey *common.PrivateKey) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// Get metadata from context
+		id, sign, pub, err := getMetadata(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// Extract common.Pubkey from string
+		key, err := common.StringToPubkey(pub)
+		if err != nil {
+			return nil, err
+		}
+
+		// Validation ID
+		if ok := ValidateID(id, key); !ok {
+			return nil, status.Errorf(codes.Internal, "ID is invalid")
+		}
+
+		// Check signature of request
+		isValid, err := CheckSignData(req, sign, key)
+		if err != nil {
+			return nil, err
+		}
+
+		if !isValid {
+			return nil, status.Errorf(codes.Internal, "Signature is invalid")
+		}
+
+		// Process request
+		resp, err := handler(ctx, req)
+
+		// Sign response
+		sign, pubKey := SignGRPCData(resp, serverKey)
+
+		// Create new metadata for current response
+		md := metadata.Pairs("id", serverID, "sign", sign, "pub", pubKey)
+		grpc.SetTrailer(ctx, md)
+
+		return resp, err
 	}
-
-	// Extract common.Pubkey from string
-	key, err := common.StringToPubkey(pub)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validation ID
-	if ok := ValidateID(id, key); !ok {
-		return nil, status.Errorf(codes.Internal, "ID is invalid")
-	}
-
-	// Check signature of request
-	isValid, err := CheckSignData(req, sign, key)
-	if err != nil {
-		return nil, err
-	}
-
-	if !isValid {
-		return nil, status.Errorf(codes.Internal, "Signature is invalid")
-	}
-
-	// Process request
-	resp, err := handler(ctx, req)
-
-	// Sign response
-	sign, pubKey := SignGRPCData(resp, ServerKey)
-
-	// Create new metadata for current response
-	md := metadata.Pairs("id", ServerID, "sign", sign, "pub", pubKey)
-	grpc.SetTrailer(ctx, md)
-
-	return resp, err
 }
 
 func getMetadata(ctx context.Context) (rID, rSign, rPub string, err error) {

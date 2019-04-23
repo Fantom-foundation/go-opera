@@ -29,12 +29,8 @@ func (n *Node) StartService() {
 		n.service.listen = network.TCPListener
 	}
 
-	// Fill temp data
-	api.ServerID = n.ID.Hex()
-	api.ServerKey = n.key
-
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n, n.log.Infof, n.service.listen)
+	n.server, _ = api.StartService(bind, n.ID.Hex(), n.key, n, n.log.Infof, n.service.listen)
 
 	n.log.Info("service started")
 }
