@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"sort"
 	"sync"
 	"time"
 
@@ -24,6 +23,8 @@ func (n *Node) StartEventEmission() {
 		return
 	}
 	n.emitter.done = make(chan struct{})
+
+	n.initParents()
 
 	go func(done chan struct{}) {
 		ticker := time.NewTicker(n.conf.EmitInterval)
@@ -74,63 +75,47 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.log.Debugf("emiting event")
 
 	var (
-		index        uint64
-		parents      hash.Events = hash.Events{}
-		lamportTime  inter.Timestamp
-		internalTxns []*inter.InternalTransaction
-		externalTxns [][]byte
+		index          uint64
+		parents        = hash.Events{}
+		maxLamportTime inter.Timestamp
+		internalTxns   []*inter.InternalTransaction
+		externalTxns   [][]byte
 	)
+
+	prev := n.LastEventOf(n.ID)
+	if prev != nil {
+		index = prev.Index + 1
+		maxLamportTime = prev.LamportTime
+		parents.Add(prev.Hash())
+	} else {
+		index = 1
+		parents.Add(hash.ZeroEvent)
+	}
+
+	for i := 1; i < n.conf.EventParentsCount; i++ {
+		p := n.popBestParent()
+		if p == nil {
+			break
+		}
+		if !parents.Add(*p) {
+			break
+		}
+
+		parent := n.store.GetEvent(*p)
+		if maxLamportTime < parent.LamportTime {
+			maxLamportTime = parent.LamportTime
+		}
+	}
 
 	// transactions buffer swap
 	internalTxns, n.emitter.internalTxns = n.emitter.internalTxns, nil
 	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
-	// ref nodes selection
-	refs := n.peers.Snapshot()
-	sort.Sort(n.emitterEvaluation(refs))
-	count := n.conf.EventParentsCount - 1
-	if len(refs) > count {
-		refs = refs[:count]
-	}
-	refs = append(refs, n.ID)
-
-	// last events of ref nodes
-	for _, ref := range refs {
-		h := n.store.GetPeerHeight(ref)
-		if h < 1 {
-			if ref == n.ID {
-				index = 1
-				parents.Add(hash.ZeroEvent)
-			}
-			continue
-		}
-
-		if ref == n.ID {
-			index = h + 1
-		}
-
-		e := n.store.GetEventHash(ref, h)
-		if e == nil {
-			n.log.Errorf("no event hash for (%s,%d) in store", ref.String(), h)
-			continue
-		}
-		event := n.store.GetEvent(*e)
-		if event == nil {
-			n.log.Errorf("no event %s in store", e.String())
-			continue
-		}
-
-		parents.Add(*e)
-		if lamportTime < event.LamportTime {
-			lamportTime = event.LamportTime
-		}
-	}
-
 	event := &inter.Event{
 		Index:                index,
 		Creator:              n.ID,
 		Parents:              parents,
-		LamportTime:          lamportTime + 1,
+		LamportTime:          maxLamportTime + 1,
 		InternalTransactions: internalTxns,
 		ExternalTransactions: externalTxns,
 	}
@@ -142,118 +127,4 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.log.Debugf("new event emited %s", event)
 
 	return event
-}
-
-/*
- * evaluation function for emitter
- */
-
-func (n *Node) emitterEvaluation(peers []hash.Peer) *emitterEvaluation {
-	eval := emitterEvaluation{
-		node:     n,
-		peers:    peers,
-		previous: previousParents(n.store, n.ID),
-	}
-
-	return &eval
-}
-
-func previousParents(store *Store, peer hash.Peer) []*inter.Event {
-	event := store.LastEvent(peer)
-	if event == nil {
-		return nil
-	}
-
-	events := make([]*inter.Event, len(event.Parents))
-
-	var i int
-	for e := range event.Parents {
-		event := store.GetEvent(e)
-		events[i] = event
-		i++
-	}
-
-	return events
-}
-
-// emitterEvaluation implements sort.Interface.
-type emitterEvaluation struct {
-	node     *Node
-	previous []*inter.Event
-	peers    []hash.Peer
-}
-
-// Len is the number of elements in the collection.
-func (e *emitterEvaluation) Len() int {
-	return len(e.peers)
-}
-
-// Swap swaps the elements with indexes i and j.
-func (e *emitterEvaluation) Swap(i, j int) {
-	e.peers[i], e.peers[j] = e.peers[j], e.peers[i]
-}
-
-// Less reports whether the element with
-// index i should sort before the element with index j.
-func (e *emitterEvaluation) Less(i, j int) bool {
-	stakeI := e.calculatePeerStake(e.peers[i])
-	stakeJ := e.calculatePeerStake(e.peers[j])
-
-	if stakeI == stakeJ {
-		lampotTimeI := e.calculateLamportTime(e.peers[i])
-		lampotTimeJ := e.calculateLamportTime(e.peers[j])
-		return lampotTimeI > lampotTimeJ
-	}
-
-	return stakeI > stakeJ
-}
-
-func (e *emitterEvaluation) calculateLamportTime(peer hash.Peer) uint64 {
-	lastEvent := e.node.store.LastEvent(peer)
-	return uint64(lastEvent.LamportTime)
-}
-
-func (e *emitterEvaluation) calculatePeerStake(peer hash.Peer) float64 {
-	// Get initial stake of peer.
-	stake := e.node.consensus.GetStakeOf(peer)
-	lastEvent := e.node.store.LastEvent(peer)
-	if lastEvent == nil {
-		return 0
-	}
-
-	for _, event := range e.previous {
-		// If event was used as parent previously its stake is zero.
-		if event.Hash() == lastEvent.Hash() {
-			return 0
-		}
-	}
-
-	// Sum stake of events that was not used as parents previously.
-	for ev := range lastEvent.Parents {
-		event := e.node.store.GetEvent(ev)
-		if event == nil {
-			continue
-		}
-
-		// Ignore self event.
-		if event.Creator == peer {
-			continue
-		}
-
-		if !containsEvent(e.previous, ev) {
-			stake = stake + e.node.consensus.GetStakeOf(lastEvent.Creator)
-		}
-	}
-
-	return stake
-}
-
-func containsEvent(prev []*inter.Event, e hash.Event) bool {
-	for _, event := range prev {
-		if event.Hash() == e {
-			return true
-		}
-	}
-
-	return false
 }

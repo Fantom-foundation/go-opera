@@ -211,6 +211,8 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	if n.consensus != nil {
 		n.consensus.PushEvent(e.Hash())
 	}
+
+	n.pushPotentialParent(e)
 }
 
 // knownEventsReq makes request struct with event heights of top peers.

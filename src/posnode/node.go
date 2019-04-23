@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -22,6 +23,7 @@ type Node struct {
 	service
 	client
 	peers
+	parents
 	emitter
 	gossip
 	downloads
@@ -91,6 +93,32 @@ func (n *Node) AsPeer() *Peer {
 		PubKey: n.pub,
 		Host:   n.host,
 	}
+}
+
+// LastEventOf returns last event of peer.
+func (n *Node) LastEventOf(peer hash.Peer) *inter.Event {
+	i := n.store.GetPeerHeight(peer)
+	if i == 0 {
+		return nil
+	}
+
+	return n.EventOf(peer, i)
+}
+
+// EventOf returns i-th event of peer.
+func (n *Node) EventOf(peer hash.Peer, i uint64) *inter.Event {
+	h := n.store.GetEventHash(peer, i)
+	if h == nil {
+		n.log.Errorf("no event hash for (%s,%d) in store", peer.String(), i)
+		return nil
+	}
+
+	e := n.store.GetEvent(*h)
+	if e == nil {
+		n.log.Errorf("no event %s in store", e.String())
+	}
+
+	return e
 }
 
 /*

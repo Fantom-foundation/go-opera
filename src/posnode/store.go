@@ -74,21 +74,6 @@ func (s *Store) GetEvent(h hash.Event) *inter.Event {
 	return inter.WireToEvent(w)
 }
 
-// LastEvent returns last event for peer.
-func (s *Store) LastEvent(peer hash.Peer) *inter.Event {
-	h := s.GetPeerHeight(peer)
-	if h == 0 {
-		return nil
-	}
-
-	e := s.GetEventHash(peer, h)
-	if e == nil {
-		return nil
-	}
-
-	return s.GetEvent(*e)
-}
-
 // SetEventHash stores hash.
 func (s *Store) SetEventHash(creator hash.Peer, index uint64, hash hash.Event) {
 	key := append(creator.Bytes(), intToBytes(index)...)
