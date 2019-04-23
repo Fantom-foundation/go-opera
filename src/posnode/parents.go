@@ -102,6 +102,7 @@ func (n *Node) popBestParent() *hash.Event {
 	var (
 		res *hash.Event
 		max float64
+		tmp hash.Event
 	)
 
 	for e, p := range n.parents.cache {
@@ -111,7 +112,7 @@ func (n *Node) popBestParent() *hash.Event {
 
 		val := n.parents.Sum(e)
 		if val > max {
-			res = &e
+			tmp, res = e, &tmp
 			max = val
 		}
 	}
