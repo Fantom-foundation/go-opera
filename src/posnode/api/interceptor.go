@@ -42,25 +42,10 @@ func ClientInterceptor(clientID string, clientKey *common.PrivateKey) grpc.Unary
 			return err
 		}
 
-		// Extract common.Pubkey from string
-		key, err := common.StringToPubkey(pub)
+		// Validate data
+		err = validateData(reply, id, sign, pub)
 		if err != nil {
 			return err
-		}
-
-		// Validation ID
-		if ok := validateID(id, key); !ok {
-			return errors.New("ID is invalid")
-		}
-
-		// Check signature of response
-		isValid, err := checkSignData(req, sign, key)
-		if err != nil {
-			return err
-		}
-
-		if !isValid {
-			return errors.New("Signature is invalid")
 		}
 
 		return nil
@@ -76,25 +61,10 @@ func serverInterceptor(serverID string, serverKey *common.PrivateKey) grpc.Unary
 			return nil, err
 		}
 
-		// Extract common.Pubkey from string
-		key, err := common.StringToPubkey(pub)
+		// Validate data
+		err = validateData(req, id, sign, pub)
 		if err != nil {
-			return nil, err
-		}
-
-		// Validation ID
-		if ok := validateID(id, key); !ok {
-			return nil, status.Errorf(codes.Internal, "ID is invalid")
-		}
-
-		// Check signature of request
-		isValid, err := checkSignData(req, sign, key)
-		if err != nil {
-			return nil, err
-		}
-
-		if !isValid {
-			return nil, status.Errorf(codes.Internal, "Signature is invalid")
+			return nil, status.Errorf(codes.InvalidArgument, err.Error())
 		}
 
 		// Process request
@@ -109,6 +79,31 @@ func serverInterceptor(serverID string, serverKey *common.PrivateKey) grpc.Unary
 
 		return resp, err
 	}
+}
+
+func validateData(data interface{}, id, sign, pub string) error {
+	// Extract common.Pubkey from string
+	key, err := common.StringToPubkey(pub)
+	if err != nil {
+		return err
+	}
+
+	// Validation ID
+	if ok := validateID(id, key); !ok {
+		return errors.New("ID is invalid")
+	}
+
+	// Check signature of request
+	isValid, err := checkSignData(data, sign, key)
+	if err != nil {
+		return err
+	}
+
+	if !isValid {
+		return errors.New("Signature is invalid")
+	}
+
+	return nil
 }
 
 // getMetadata from context
@@ -182,11 +177,11 @@ func signGRPCData(data interface{}, key *common.PrivateKey) (sign, pubKey string
 }
 
 // checkSignData from response / request
-func checkSignData(req interface{}, sign string, key *common.PublicKey) (bool, error) {
-	hash, _ := req.([]byte)
+func checkSignData(data interface{}, sign string, key *common.PublicKey) (bool, error) {
+	hash, _ := data.([]byte)
 	r, s, err := crypto.DecodeSignature(sign)
 	if err != nil {
-		return false, status.Errorf(codes.Internal, "Cannot decode signature")
+		return false, err
 	}
 
 	return key.Verify(hash, r, s), nil
