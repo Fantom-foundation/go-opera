@@ -76,7 +76,7 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 func StringToPubkey(pub string) (*PublicKey, error) {
 	bb, err := base64.StdEncoding.DecodeString(pub)
 	if err != nil {
-		return nil, errors.New("Decode Pubkey error")
+		return nil, err
 	}
 
 	key := BytesToPubkey(bb)

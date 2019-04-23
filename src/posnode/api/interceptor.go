@@ -93,7 +93,7 @@ func validateData(data interface{}, id, sign, pub string) error {
 		return errors.New("ID is invalid")
 	}
 
-	// Check signature of request
+	// Check signature of request / response
 	isValid, err := checkSignData(data, sign, key)
 	if err != nil {
 		return err
