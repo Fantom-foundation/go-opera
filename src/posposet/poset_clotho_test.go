@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestPosetSimpleClotho(t *testing.T) {
@@ -68,7 +70,7 @@ A54 ─ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ ╣       ║
 func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
-	nodes, _, names := ParseEvents(asciiScheme)
+	nodes, _, names := inter.ParseEvents(asciiScheme)
 	p, _, input := FakePoset(nodes)
 	// process events
 	for _, event := range names {
