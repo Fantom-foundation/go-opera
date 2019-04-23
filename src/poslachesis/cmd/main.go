@@ -5,18 +5,18 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Fantom-foundation/go-lachesis/src/poslachesis/cmd/commands"
+	"github.com/Fantom-foundation/go-lachesis/src/poslachesis/cmd/command"
 )
 
 func main() {
-	rootCmd := &cobra.Command{
+	app := &cobra.Command{
 		Use: os.Args[0],
 	}
 
-	rootCmd.AddCommand(commands.NewInternal())
-	rootCmd.AddCommand(commands.NewID())
-	rootCmd.AddCommand(commands.NewStake())
-	rootCmd.AddCommand(commands.NewStart())
+	app.AddCommand(command.NewInternal())
+	app.AddCommand(command.NewID())
+	app.AddCommand(command.NewStake())
+	app.AddCommand(command.NewStart())
 
-	rootCmd.Execute()
+	app.Execute()
 }
