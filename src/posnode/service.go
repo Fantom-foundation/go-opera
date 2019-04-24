@@ -21,6 +21,8 @@ type service struct {
 
 // StartService starts node service.
 func (n *Node) StartService() {
+	n.initClient()
+
 	if n.server != nil {
 		return
 	}
