@@ -128,6 +128,9 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	for p := range peers2discovery {
 		n.CheckPeerIsKnown(peer.ID, peer.Host, &p)
 	}
+
+	// Clean outdated data about peers.
+	n.cleanHosts()
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {

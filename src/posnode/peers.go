@@ -83,6 +83,11 @@ func (n *Node) cleanHosts() {
 		return
 	}
 
+	// If we're reached limit -> delete half of it.
+	if halfLimit := n.conf.HostsCount / 2; halfLimit > 0 {
+		toDelete = halfLimit
+	}
+
 	// TODO: Should we add peers.top condition here?
 	lastTime := time.Now().Add(-n.conf.HostsCleanTimeout)
 	for _, h := range n.peers.hosts {
