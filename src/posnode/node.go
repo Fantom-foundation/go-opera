@@ -21,7 +21,7 @@ type Node struct {
 	conf      Config
 
 	service
-	client
+	connPool
 	peers
 	parents
 	emitter
@@ -52,7 +52,7 @@ func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Confi
 		host:      host,
 		conf:      *conf,
 		service:   service{listen, nil},
-		client:    client{opts: opts},
+		connPool:  connPool{opts: opts},
 		logger:    newLogger(host),
 	}
 

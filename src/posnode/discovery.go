@@ -37,6 +37,7 @@ func (n *Node) StartDiscovery() {
 		return
 	}
 
+	n.initClient()
 	n.initPeers()
 
 	n.discovery.tasks = make(chan discoveryTask, 100) // magic buffer size.
@@ -99,7 +100,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 
 	peer := &Peer{Host: host}
 
-	client, free, err := n.ConnectTo(peer)
+	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
 		n.ConnectFail(peer, err)
 		return
@@ -108,6 +109,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 
 	info, err := n.requestPeerInfo(client, id)
 	if err != nil {
+		fail(err)
 		n.ConnectFail(peer, err)
 		return
 	}

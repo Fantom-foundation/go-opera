@@ -2,147 +2,171 @@ package posnode
 
 import (
 	"context"
+	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
-const (
-	tickerInterval = 30 * time.Second
-)
-
 type (
-	// connection is a wrapper for *grpc.ClientConn
+	// connection wraps grpc.ClientConn
 	connection struct {
 		*grpc.ClientConn
-		addr   string
-		usedAt time.Time
+		addr    string
+		created time.Time
+		used    int
 	}
 
-	// client of node service.
-	client struct {
+	// connPool is connections to peers.
+	connPool struct {
+		cache map[string]*connection
+		size  int
+
+		connectTimeout time.Duration
+		opts           []grpc.DialOption
+
 		sync.RWMutex
-		connections       map[string]*connection
-		connectTimeout    time.Duration
-		maxUnusedDuration time.Duration
-		connWatchTicker   *time.Ticker
-		opts              []grpc.DialOption
 	}
 )
 
 func (n *Node) initClient() {
-	if n.client.connections != nil {
+	if n.connPool.cache != nil {
+		return
+	}
+	n.connPool.size = peersCount * 2
+	n.connPool.cache = make(map[string]*connection, n.connPool.size)
+	n.connPool.connectTimeout = n.conf.ConnectTimeout
+}
+
+// ConnectTo connects to other node service.
+func (n *Node) ConnectTo(peer *Peer) (client api.NodeClient, free func(), fail func(error), err error) {
+	addr := n.NetAddrOf(peer.Host)
+	n.log.Debugf("connect to %s", addr)
+
+	c, err := n.connPool.Get(addr)
+	if err != nil {
+		err = errors.Wrapf(err, "connect to: %s", addr)
+		n.log.Warn(err)
 		return
 	}
 
-	n.client.connections = make(map[string]*connection)
-	n.client.connectTimeout = n.conf.ConnectTimeout
-	n.client.maxUnusedDuration = n.conf.ConnectionMaxUnusedDuration
-	n.client.connWatchTicker = time.NewTicker(tickerInterval)
-	go n.client.watchConnections()
-}
-
-func (c *client) watchConnections() {
-	for range c.connWatchTicker.C {
-		c.RLock()
-		connections := c.connections
-		c.RUnlock()
-
-		for _, conn := range connections {
-			c.free(conn)
-			watchFreeCalled()
-		}
+	// used should be decremented once
+	var released uint32
+	free = func() {
+		count := atomic.CompareAndSwapUint32(&released, 0, 1)
+		n.connPool.Release(c, count, nil)
 	}
+	fail = func(err error) {
+		count := atomic.CompareAndSwapUint32(&released, 0, 1)
+		n.connPool.Release(c, count, err)
+	}
+
+	client = api.NewNodeClient(c.ClientConn)
+
+	return
 }
 
-var watchFreeCalled = func() {}
+/*
+ * connectionPool utils:
+ */
 
-func (c *client) get(addr string) (*connection, error) {
-	c.RLock()
-	conn, exists := c.connections[addr]
-	c.RUnlock()
+func (cc *connPool) Get(addr string) (*connection, error) {
+	cc.Lock()
+	defer cc.Unlock()
 
-	if !exists {
-		c.Lock()
-		defer c.Unlock()
-		conn, err := c.newConn(addr)
+	conn := cc.cache[addr]
+	if conn == nil {
+		// make new
+		var err error
+		conn, err = cc.newConn(addr)
 		if err != nil {
-			return nil, errors.Wrap(err, "new connection")
+			return nil, err
 		}
+		cc.cache[addr] = conn
 
-		return conn, nil
+		if len(cc.cache) >= cc.size {
+			go cc.Clean()
+		}
 	}
 
-	c.Lock()
-	conn.usedAt = time.Now()
-	c.connections[addr] = conn
-	c.Unlock()
+	conn.used += 1
+
 	return conn, nil
 }
 
-func (c *client) free(conn *connection) {
-	if conn.unused(c.maxUnusedDuration) {
-		c.remove(conn.addr)
+func (cc *connPool) Release(c *connection, count bool, err error) {
+	cc.Lock()
+	defer cc.Unlock()
+
+	if count {
+		c.used -= 1
+	}
+
+	// try to close if error now or before
+	if cached := cc.cache[c.addr]; err != nil || c != cached {
+		if c == cached {
+			delete(cc.cache, c.addr)
+		}
+		if c.used < 1 {
+			c.Close()
+		}
+	}
+}
+
+func (cc *connPool) Clean() {
+	cc.Lock()
+	defer cc.Unlock()
+
+	if len(cc.cache) < cc.size {
 		return
 	}
 
-	if conn.GetState() != connectivity.Ready {
-		c.remove(conn.addr)
+	all := make([]*connection, 0, len(cc.cache))
+	for _, c := range cc.cache {
+		all = append(all, c)
+	}
+	sort.Sort(byCreation(all))
+	old := all[cc.size/2:]
+
+	for _, c := range old {
+		if cached := cc.cache[c.addr]; c == cached {
+			delete(cc.cache, c.addr)
+		}
 	}
 }
 
-func (c *client) remove(addr string) {
-	c.Lock()
-	defer c.Unlock()
-	conn := c.connections[addr]
-	conn.Close()
-	delete(c.connections, addr)
-}
-
-func (c *client) newConn(addr string) (*connection, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.connectTimeout)
+func (сс *connPool) newConn(addr string) (*connection, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), сс.connectTimeout)
 	defer cancel()
 
 	// TODO: secure connection
-	conn, err := grpc.DialContext(ctx, addr, append(c.opts, grpc.WithInsecure(), grpc.WithBlock())...)
+	conn, err := grpc.DialContext(ctx, addr, append(сс.opts, grpc.WithInsecure(), grpc.WithBlock())...)
 	if err != nil {
 		return nil, err
 	}
 
-	wraper := connection{
+	return &connection{
 		ClientConn: conn,
-		usedAt:     time.Now(),
 		addr:       addr,
-	}
-
-	c.connections[addr] = &wraper
-
-	return &wraper, nil
+		created:    time.Now(),
+	}, nil
 }
 
-func (c *connection) unused(duration time.Duration) bool {
-	return c.usedAt.Add(duration).Before(time.Now())
-}
+/*
+ * sorting:
+ */
 
-// ConnectTo connects to other node service.
-func (n *Node) ConnectTo(peer *Peer) (api.NodeClient, func(), error) {
-	addr := n.NetAddrOf(peer.Host)
-	n.log.Debugf("connect to %s", addr)
+type byCreation []*connection
 
-	conn, err := n.client.get(addr)
-	if err != nil {
-		n.log.Warn(errors.Wrapf(err, "connect to: %s", addr))
-		return nil, nil, err
-	}
+func (s byCreation) Len() int { return len(s) }
 
-	free := func() {
-		n.client.free(conn)
-	}
+func (s byCreation) Swap(i, j int) { s[i], s[j] = s[i], s[j] }
 
-	return api.NewNodeClient(conn.ClientConn), free, nil
+func (s byCreation) Less(i, j int) bool {
+	return s[i].created.Before(s[j].created)
 }

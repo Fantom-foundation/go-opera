@@ -15,9 +15,8 @@ type Config struct {
 	EmitInterval     time.Duration // event emission interval
 	DiscoveryTimeout time.Duration // how often discovery should try to request
 
-	ConnectTimeout              time.Duration // how long dialer will for connection to be established
-	ClientTimeout               time.Duration // how long will gRPC client will wait for response
-	ConnectionMaxUnusedDuration time.Duration // how much time wait until remove unused connection.
+	ConnectTimeout time.Duration // how long dialer will for connection to be established
+	ClientTimeout  time.Duration // how long will gRPC client will wait for response
 }
 
 // DefaultConfig returns default config.
@@ -30,9 +29,8 @@ func DefaultConfig() *Config {
 		EmitInterval:     10 * time.Second,
 		DiscoveryTimeout: 5 * time.Minute,
 
-		ConnectTimeout:              15 * time.Second,
-		ConnectionMaxUnusedDuration: 3 * time.Minute,
-		ClientTimeout:               15 * time.Second,
+		ConnectTimeout: 15 * time.Second,
+		ClientTimeout:  15 * time.Second,
 	}
 }
 

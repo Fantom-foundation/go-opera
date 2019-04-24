@@ -1,104 +1,71 @@
 package posnode
 
 import (
+	"context"
 	"testing"
-	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
-func Test_client_get(t *testing.T) {
-	node1 := NewForTests("example.server", nil, nil)
-	node1.StartService()
-	defer node1.StopService()
+func TestClient(t *testing.T) {
+	server := NewForTests("server.fake", nil, nil)
+	server.StartService()
+	defer server.StopService()
+	peer := server.AsPeer()
 
-	node := NewForTests("client.test", nil, nil)
+	node := NewForTests("client.fake", nil, nil)
 	node.initClient()
 
-	cli := &node.client
-	cli.connectTimeout = time.Millisecond * 500
+	ping := func(t *testing.T) (proto.Message, error) {
+		client, free, fail, err := node.ConnectTo(peer)
+		if !assert.NoError(t, err) {
+			return nil, err
+		}
+		defer free()
 
-	t.Run("new conn", func(t *testing.T) {
-		assert := assert.New(t)
+		ctx, cancel := context.WithTimeout(context.Background(), node.conf.ClientTimeout)
+		defer cancel()
 
-		conn, err := cli.get("example.server:55555")
-		assert.Nil(err)
-		assert.NotNil(conn)
-	})
+		resp, err := client.GetPeerInfo(ctx, &api.PeerRequest{})
+		if err != nil {
+			fail(err)
+		}
 
-	t.Run("conn exists", func(t *testing.T) {
-		assert := assert.New(t)
-
-		wrap := cli.connections["example.server:55555"]
-		conn, err := cli.get("example.server:55555")
-		assert.Nil(err)
-		assert.Equal(conn, wrap)
-	})
-
-}
-
-func Test_client_free(t *testing.T) {
-	node1 := NewForTests("example.server", nil, nil)
-	node1.StartService()
-	defer node1.StopService()
-
-	node := NewForTests("client.test", nil, nil)
-	node.initClient()
-
-	cli := &node.client
-	cli.connectTimeout = time.Millisecond * 500
-
-	t.Run("unused connection", func(t *testing.T) {
-		assert := assert.New(t)
-		conn, err := cli.get("example.server:55555")
-		assert.Nil(err)
-
-		wrap := cli.connections["example.server:55555"]
-		cli.maxUnusedDuration = time.Second
-		wrap.usedAt = time.Now().Add(-2 * time.Second)
-
-		cli.free(conn)
-		assert.Equal(0, len(cli.connections))
-	})
-}
-
-func Test_client_watchConnections(t *testing.T) {
-	node1 := NewForTests("example.server", nil, nil)
-	node1.StartService()
-	defer node1.StopService()
-
-	node := NewForTests("client.test", nil, nil)
-	tickChan := make(chan time.Time)
-	ticker := time.Ticker{
-		C: tickChan,
+		return resp, err
 	}
-	node.initClient()
 
-	cli := &node.client
-	cli.connWatchTicker = &ticker
-	cli.connectTimeout = time.Millisecond * 500
-
-	t.Run("clear unused on tick", func(t *testing.T) {
+	t.Run("1st-connection", func(t *testing.T) {
 		assert := assert.New(t)
-		conn, err := cli.get("example.server:55555")
-		assert.Nil(err)
 
-		cli.maxUnusedDuration = time.Second
-		conn.usedAt = time.Now().Add(-2 * time.Second)
-
-		watchFreeCalledChan := make(chan struct{})
-		watchFreeCalled = func() {
-			watchFreeCalledChan <- struct{}{}
-		}
-
-		tickChan <- time.Now()
-
-		select {
-		case <-watchFreeCalledChan:
-		case <-time.After(time.Second):
-			t.Error("expected to free connection")
-		}
-
-		assert.Equal(0, len(cli.connections))
+		resp, err := ping(t)
+		_ = assert.NoError(err) && assert.NotNil(resp)
 	})
+
+	t.Run("2nd-connection", func(t *testing.T) {
+		assert := assert.New(t)
+
+		resp, err := ping(t)
+		_ = assert.NoError(err) && assert.NotNil(resp)
+	})
+
+	t.Run("Re-connection 1", func(t *testing.T) {
+		assert := assert.New(t)
+
+		server.StopService()
+		server.StartService()
+		resp, err := ping(t)
+		_ = assert.Error(err) && assert.Nil(resp)
+	})
+
+	t.Run("Re-connection 2", func(t *testing.T) {
+		assert := assert.New(t)
+
+		resp, err := ping(t)
+		_ = assert.NoError(err) && assert.NotNil(resp)
+	})
+
+	// TODO: test the all situations.
 }
