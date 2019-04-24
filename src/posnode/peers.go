@@ -107,14 +107,9 @@ func (n *Node) ConnectOK(p *Peer) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	host := n.peers.attrByHost(p.Host)
-	host.LastSuccess = time.Now()
-
-	peer := n.peers.attrByID(p.ID)
-	if peer == nil {
+	if ok := n.updatePeerAttrs(p, true); !ok {
 		return
 	}
-	peer.Host = host
 
 	stored := n.store.GetPeer(p.ID)
 	if stored == nil {
@@ -143,14 +138,9 @@ func (n *Node) ConnectFail(p *Peer, err error) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	host := n.peers.attrByHost(p.Host)
-	host.LastFail = time.Now()
-
-	peer := n.peers.attrByID(p.ID)
-	if peer == nil {
+	if ok := n.updatePeerAttrs(p, false); !ok {
 		return
 	}
-	peer.Host = host
 
 	n.peers.unordered = true
 }
@@ -162,9 +152,10 @@ func (n *Node) PeerReadyForReq(host string) bool {
 
 	attr := n.peers.attrByHost(host)
 
+	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
+
 	return attr != nil &&
-		(attr.LastFail.Before(attr.LastSuccess) ||
-			attr.LastFail.Before(time.Now().Add(-n.conf.DiscoveryTimeout)))
+		(attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(timeout))
 }
 
 // PeerUnknown returns true if peer should be discovered.
@@ -178,9 +169,10 @@ func (n *Node) PeerUnknown(id *hash.Peer) bool {
 
 	attr := n.peers.attrByID(*id).Host
 
+	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
+
 	return attr == nil ||
-		(attr.LastSuccess.Before(time.Now().Add(-n.conf.DiscoveryTimeout)) &&
-			attr.LastFail.Before(time.Now().Add(-n.conf.DiscoveryTimeout)))
+		(attr.LastSuccess.Before(timeout) && attr.LastFail.Before(timeout))
 }
 
 // NextForGossip returns the best candidate to gossip with and marks it as busy.
@@ -230,4 +222,30 @@ func (n *Node) FreePeer(p *Peer) {
 	defer n.peers.Unlock()
 
 	n.peers.attrByID(p.ID).Busy = false
+}
+
+func (n *Node) updatePeerAttrs(p *Peer, isSuccess bool) bool {
+	if p == nil {
+		return false
+	}
+
+	host := n.peers.attrByHost(p.Host)
+	if host == nil {
+		return false
+	}
+
+	if isSuccess {
+		host.LastSuccess = time.Now()
+	} else {
+		host.LastFail = time.Now()
+	}
+
+	peer := n.peers.attrByID(p.ID)
+	if peer == nil {
+		return false
+	}
+
+	peer.Host = host
+
+	return true
 }
