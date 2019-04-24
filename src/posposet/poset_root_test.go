@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestPosetSimpleRoot(t *testing.T) {
@@ -114,7 +116,7 @@ A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
 func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
-	nodes, _, names := ParseEvents(asciiScheme)
+	nodes, _, names := inter.ParseEvents(asciiScheme)
 	p, _, input := FakePoset(nodes)
 	// process events
 	for _, event := range names {

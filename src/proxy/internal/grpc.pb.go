@@ -37,7 +37,7 @@ func (m *ToServer) Reset()         { *m = ToServer{} }
 func (m *ToServer) String() string { return proto.CompactTextString(m) }
 func (*ToServer) ProtoMessage()    {}
 func (*ToServer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{0}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{0}
 }
 func (m *ToServer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToServer.Unmarshal(m, b)
@@ -96,13 +96,13 @@ func (m *ToServer) GetAnswer() *ToServer_Answer {
 
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ToServer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToServer_OneofMarshaller, _ToServer_OneofUnmarshaller, _ToServer_OneofSizer, []interface{}{
+	return _ToServer_OneofMarshaler, _ToServer_OneofUnmarshaler, _ToServer_OneofSizer, []interface{}{
 		(*ToServer_Tx_)(nil),
 		(*ToServer_Answer_)(nil),
 	}
 }
 
-func _ToServer_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
+func _ToServer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	m := msg.(*ToServer)
 	// event
 	switch x := m.Event.(type) {
@@ -123,7 +123,7 @@ func _ToServer_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
 	return nil
 }
 
-func _ToServer_OneofUnmarshaller(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+func _ToServer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
 	m := msg.(*ToServer)
 	switch tag {
 	case 1: // event.tx
@@ -179,7 +179,7 @@ func (m *ToServer_Tx) Reset()         { *m = ToServer_Tx{} }
 func (m *ToServer_Tx) String() string { return proto.CompactTextString(m) }
 func (*ToServer_Tx) ProtoMessage()    {}
 func (*ToServer_Tx) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{0, 0}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{0, 0}
 }
 func (m *ToServer_Tx) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToServer_Tx.Unmarshal(m, b)
@@ -221,7 +221,7 @@ func (m *ToServer_Answer) Reset()         { *m = ToServer_Answer{} }
 func (m *ToServer_Answer) String() string { return proto.CompactTextString(m) }
 func (*ToServer_Answer) ProtoMessage()    {}
 func (*ToServer_Answer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{0, 1}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{0, 1}
 }
 func (m *ToServer_Answer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToServer_Answer.Unmarshal(m, b)
@@ -287,13 +287,13 @@ func (m *ToServer_Answer) GetError() string {
 
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ToServer_Answer) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToServer_Answer_OneofMarshaller, _ToServer_Answer_OneofUnmarshaller, _ToServer_Answer_OneofSizer, []interface{}{
+	return _ToServer_Answer_OneofMarshaler, _ToServer_Answer_OneofUnmarshaler, _ToServer_Answer_OneofSizer, []interface{}{
 		(*ToServer_Answer_Data)(nil),
 		(*ToServer_Answer_Error)(nil),
 	}
 }
 
-func _ToServer_Answer_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
+func _ToServer_Answer_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	m := msg.(*ToServer_Answer)
 	// payload
 	switch x := m.Payload.(type) {
@@ -310,7 +310,7 @@ func _ToServer_Answer_OneofMarshaller(msg proto.Message, b *proto.Buffer) error 
 	return nil
 }
 
-func _ToServer_Answer_OneofUnmarshaller(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+func _ToServer_Answer_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
 	m := msg.(*ToServer_Answer)
 	switch tag {
 	case 2: // payload.data
@@ -366,7 +366,7 @@ func (m *ToClient) Reset()         { *m = ToClient{} }
 func (m *ToClient) String() string { return proto.CompactTextString(m) }
 func (*ToClient) ProtoMessage()    {}
 func (*ToClient) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{1}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{1}
 }
 func (m *ToClient) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToClient.Unmarshal(m, b)
@@ -438,14 +438,14 @@ func (m *ToClient) GetRestore() *ToClient_Restore {
 
 // XXX_OneofFuncs is for the internal use of the proto package.
 func (*ToClient) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _ToClient_OneofMarshaller, _ToClient_OneofUnmarshaller, _ToClient_OneofSizer, []interface{}{
+	return _ToClient_OneofMarshaler, _ToClient_OneofUnmarshaler, _ToClient_OneofSizer, []interface{}{
 		(*ToClient_Block_)(nil),
 		(*ToClient_Query_)(nil),
 		(*ToClient_Restore_)(nil),
 	}
 }
 
-func _ToClient_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
+func _ToClient_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
 	m := msg.(*ToClient)
 	// event
 	switch x := m.Event.(type) {
@@ -471,7 +471,7 @@ func _ToClient_OneofMarshaller(msg proto.Message, b *proto.Buffer) error {
 	return nil
 }
 
-func _ToClient_OneofUnmarshaller(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+func _ToClient_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
 	m := msg.(*ToClient)
 	switch tag {
 	case 1: // event.block
@@ -541,7 +541,7 @@ func (m *ToClient_Block) Reset()         { *m = ToClient_Block{} }
 func (m *ToClient_Block) String() string { return proto.CompactTextString(m) }
 func (*ToClient_Block) ProtoMessage()    {}
 func (*ToClient_Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{1, 0}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{1, 0}
 }
 func (m *ToClient_Block) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToClient_Block.Unmarshal(m, b)
@@ -587,7 +587,7 @@ func (m *ToClient_Query) Reset()         { *m = ToClient_Query{} }
 func (m *ToClient_Query) String() string { return proto.CompactTextString(m) }
 func (*ToClient_Query) ProtoMessage()    {}
 func (*ToClient_Query) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{1, 1}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{1, 1}
 }
 func (m *ToClient_Query) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToClient_Query.Unmarshal(m, b)
@@ -633,7 +633,7 @@ func (m *ToClient_Restore) Reset()         { *m = ToClient_Restore{} }
 func (m *ToClient_Restore) String() string { return proto.CompactTextString(m) }
 func (*ToClient_Restore) ProtoMessage()    {}
 func (*ToClient_Restore) Descriptor() ([]byte, []int) {
-	return fileDescriptor_grpc_6d03d2ce4ea1edae, []int{1, 2}
+	return fileDescriptor_grpc_c48cc03bf7ed4014, []int{1, 2}
 }
 func (m *ToClient_Restore) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ToClient_Restore.Unmarshal(m, b)
@@ -781,9 +781,9 @@ var _LachesisNode_serviceDesc = grpc.ServiceDesc{
 	Metadata: "grpc.proto",
 }
 
-func init() { proto.RegisterFile("grpc.proto", fileDescriptor_grpc_6d03d2ce4ea1edae) }
+func init() { proto.RegisterFile("grpc.proto", fileDescriptor_grpc_c48cc03bf7ed4014) }
 
-var fileDescriptor_grpc_6d03d2ce4ea1edae = []byte{
+var fileDescriptor_grpc_c48cc03bf7ed4014 = []byte{
 	// 351 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xc1, 0x6e, 0xe2, 0x30,
 	0x10, 0x86, 0x93, 0xb0, 0x21, 0x30, 0x70, 0x58, 0x8d, 0x76, 0x57, 0xd9, 0x9c, 0x10, 0x97, 0x72,

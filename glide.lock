@@ -1,5 +1,5 @@
-hash: 2a673eb8fb8ae41ada4763fb66f0968b14b2a51df61928320295b90033eb6755
-updated: 2019-03-21T21:35:15.120403658+10:00
+hash: 7741fe6fe8e607cb7e949f8e5b3ad9de5f01a48c361a536741c44196a7b0db0b
+updated: 2019-04-17T14:44:39.437136045+10:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -23,6 +23,10 @@ imports:
   version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
 - name: github.com/fsnotify/fsnotify
   version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
+- name: github.com/golang/mock
+  version: 51421b967af1f557f93a59e0057aaf15ca02e29c
+  subpackages:
+  - gomock
 - name: github.com/golang/protobuf
   version: b5d812f8a3706043e23a9cd5babf2e5423744d30
   subpackages:
@@ -68,7 +72,7 @@ imports:
 - name: github.com/rs/xid
   version: 15d26544def341f036c5f8dca987a4cbe575032c
 - name: github.com/sirupsen/logrus
-  version: dae0fa8d5b0c810a8ab733fbd5510c7cae84eca4
+  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
 - name: github.com/spf13/afero
   version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
@@ -87,10 +91,6 @@ imports:
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
-- name: golang.org/x/crypto
-  version: 45a5f77698d342a8c2ef8423abdf0ba6880b008a
-  subpackages:
-  - ssh/terminal
 - name: golang.org/x/net
   version: c44066c5c816ec500d459a2a324a753f78531ae0
   subpackages:
@@ -120,7 +120,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 3507fb8e1a5ad030303c106fef3a47c9fdad16ad
+  version: 236199dd5f8031d698fb64091194aecd1c3895b2
   subpackages:
   - balancer
   - balancer/base
@@ -135,6 +135,7 @@ imports:
   - grpclog
   - internal
   - internal/backoff
+  - internal/balancerload
   - internal/binarylog
   - internal/channelz
   - internal/envconfig
@@ -167,5 +168,3 @@ testImports:
   version: ffdc059bfe9ce6a4e144ba849dbedead332c6053
   subpackages:
   - assert
-- name: github.com/golang/mock
-  version: 51421b967af1f557f93a59e0057aaf15ca02e29c

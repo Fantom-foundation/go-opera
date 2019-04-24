@@ -46,18 +46,21 @@ func (ee eventsByFrame) String() string {
 
 // FrameOfEvent returns unfinished frame where event is in.
 func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
-	for _, n := range p.frameNumsDesc() {
-		frame := p.frame(n, false)
-		if knowns := frame.FlagTable[event]; knowns != nil {
-			for _, events := range knowns {
-				if events.Contains(event) {
-					return frame, true
-				}
-			}
-			return frame, false
+	fnum := p.store.GetEventFrame(event)
+	if fnum == nil {
+		return
+	}
+
+	frame = p.frame(*fnum, false)
+	knowns := frame.FlagTable[event]
+	for _, events := range knowns {
+		if events.Contains(event) {
+			isRoot = true
+			return
 		}
 	}
-	return nil, false
+
+	return
 }
 
 // frame finds or creates frame.

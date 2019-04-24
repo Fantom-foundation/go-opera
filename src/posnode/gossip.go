@@ -104,7 +104,6 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	defer n.unlockFreeHeights(toDownload)
 
 	for creator, interval := range toDownload {
-		n.GotNewEvent(creator)
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
@@ -215,6 +214,8 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	if n.consensus != nil {
 		n.consensus.PushEvent(e.Hash())
 	}
+
+	n.pushPotentialParent(e)
 }
 
 // knownEventsReq makes request struct with event heights of top peers.

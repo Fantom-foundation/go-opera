@@ -726,10 +726,14 @@ func (n *Node) Shutdown() {
 
 		// transport and store should only be closed once all concurrent operations
 		// are finished otherwise they will panic trying to use close objects
-		n.trans.Close()
-		if err := n.core.poset.Store.Close(); err != nil {
-			n.logger.WithError(err).Debug("node::Shutdown::n.core.poset.Store.Close()")
-		}
+		defer func() {
+			if err := n.trans.Close(); err != nil {
+				n.logger.WithError(err).Debug("node::Shutdown::n.trans.Close()")
+			}
+			if err := n.core.poset.Store.Close(); err != nil {
+				n.logger.WithError(err).Debug("node::Shutdown::n.core.poset.Store.Close()")
+			}
+		}()
 	}
 }
 
