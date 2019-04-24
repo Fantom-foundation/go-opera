@@ -69,16 +69,19 @@ func ParseEvents(asciiScheme string) (
 			creator := nodes[nCreators[i]]
 			// find creator's parent
 			var (
-				parents = hash.Events{}
-				ltime   Timestamp
+				index      uint64
+				parents    = hash.Events{}
+				maxLamport Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]
+				index = parent.Index + 1
 				parents.Add(parent.Hash())
-				ltime = parent.LamportTime
+				maxLamport = parent.LamportTime
 			} else {
+				index = 1
 				parents.Add(hash.ZeroEvent)
-				ltime = 0
+				maxLamport = 0
 			}
 			// find other parents
 			for _, p := range nLinks[i] {
@@ -92,15 +95,16 @@ func ParseEvents(asciiScheme string) (
 				last := len(events[other]) - 1 + prev
 				parent := events[other][last]
 				parents.Add(parent.Hash())
-				if ltime < parent.LamportTime {
-					ltime = parent.LamportTime
+				if maxLamport < parent.LamportTime {
+					maxLamport = parent.LamportTime
 				}
 			}
 			// save event
 			e := &Event{
+				Index:       index,
 				Creator:     creator,
 				Parents:     parents,
-				LamportTime: ltime + 1,
+				LamportTime: maxLamport + 1,
 			}
 			events[creator] = append(events[creator], e)
 			names[name] = e

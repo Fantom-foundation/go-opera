@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -37,10 +36,6 @@ a02 ─ ╬ ─ ─ ╣     d01
 ║     ╠ ─ ─ ╫ ─ ─ d02
 ║     ║     ║     ║
 `, map[string]float64{"*": 1})
-
-	for h, e := range node.parents.cache {
-		fmt.Printf("====> %s: %+v (%f)\n", h, e, node.parents.Sum(h))
-	}
 
 	for n, expect := range []string{"c03", "d02", ""} {
 		parent := node.popBestParent()
