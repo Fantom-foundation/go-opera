@@ -168,7 +168,7 @@ type byCreation []*connection
 
 func (s byCreation) Len() int { return len(s) }
 
-func (s byCreation) Swap(i, j int) { s[i], s[j] = s[i], s[j] }
+func (s byCreation) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s byCreation) Less(i, j int) bool {
 	return s[i].created.Before(s[j].created)

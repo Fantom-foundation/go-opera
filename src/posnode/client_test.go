@@ -29,26 +29,26 @@ func TestClient(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), node.conf.ClientTimeout)
 		defer cancel()
 
-		resp, err := client.GetPeerInfo(ctx, &api.PeerRequest{})
+		pong, err := client.GetPeerInfo(ctx, &api.PeerRequest{})
 		if err != nil {
 			fail(err)
 		}
 
-		return resp, err
+		return pong, err
 	}
 
 	t.Run("1st-connection", func(t *testing.T) {
 		assert := assert.New(t)
 
-		resp, err := ping(t)
-		_ = assert.NoError(err) && assert.NotNil(resp)
+		pong, err := ping(t)
+		_ = assert.NoError(err) && assert.NotNil(pong)
 	})
 
 	t.Run("2nd-connection", func(t *testing.T) {
 		assert := assert.New(t)
 
-		resp, err := ping(t)
-		_ = assert.NoError(err) && assert.NotNil(resp)
+		pong, err := ping(t)
+		_ = assert.NoError(err) && assert.NotNil(pong)
 	})
 
 	t.Run("Re-connection 1", func(t *testing.T) {
@@ -56,15 +56,15 @@ func TestClient(t *testing.T) {
 
 		server.StopService()
 		server.StartService()
-		resp, err := ping(t)
-		_ = assert.Error(err) && assert.Nil(resp)
+		pong, err := ping(t)
+		_ = assert.Error(err) && assert.Nil(pong)
 	})
 
 	t.Run("Re-connection 2", func(t *testing.T) {
 		assert := assert.New(t)
 
-		resp, err := ping(t)
-		_ = assert.NoError(err) && assert.NotNil(resp)
+		pong, err := ping(t)
+		_ = assert.NoError(err) && assert.NotNil(pong)
 	})
 
 	// TODO: test the all situations.
