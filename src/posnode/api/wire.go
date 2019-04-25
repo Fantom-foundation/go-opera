@@ -18,12 +18,14 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
 // StartService starts and returns gRPC server.
-func StartService(bind string, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (*grpc.Server, string) {
+func StartService(bind, serverID string, serverKey *common.PrivateKey, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (*grpc.Server, string) {
 	server := grpc.NewServer(
+		grpc.UnaryInterceptor(serverInterceptor(serverID, serverKey)),
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	RegisterNodeServer(server, svc)

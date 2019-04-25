@@ -41,6 +41,10 @@ func (n *Node) initClient() {
 	n.connPool.size = peersCount * 2
 	n.connPool.cache = make(map[string]*connection, n.connPool.size)
 	n.connPool.connectTimeout = n.conf.ConnectTimeout
+
+	n.connPool.opts = append(n.connPool.opts,
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(api.ClientInterceptor(n.ID.Hex(), n.key)))
 }
 
 // ConnectTo connects to other node service.
@@ -144,8 +148,7 @@ func (сс *connPool) newConn(addr string) (*connection, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), сс.connectTimeout)
 	defer cancel()
 
-	// TODO: secure connection
-	conn, err := grpc.DialContext(ctx, addr, append(сс.opts, grpc.WithInsecure(), grpc.WithBlock())...)
+	conn, err := grpc.DialContext(ctx, addr, append(сс.opts, grpc.WithBlock())...)
 	if err != nil {
 		return nil, err
 	}

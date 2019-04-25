@@ -1,6 +1,8 @@
 package common
 
 import (
+	"errors"
+	"encoding/base64"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -68,4 +70,19 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 		return nil
 	}
 	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+}
+
+// StringToPubkey decode public key from base64 to common.PublicKey
+func StringToPubkey(pub string) (*PublicKey, error) {
+	bb, err := base64.StdEncoding.DecodeString(pub)
+	if err != nil {
+		return nil, err
+	}
+
+	key := BytesToPubkey(bb)
+	if key == nil {
+		return nil, errors.New("Pubkey is invalid")
+	}
+
+	return key, nil
 }
