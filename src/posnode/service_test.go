@@ -43,7 +43,7 @@ func TestGetPeerInfo(t *testing.T) {
 			return
 		}
 
-		assert.Equal(peer.ToWire(), got)
+		assert.Equal(peer, WireToPeer(got))
 	})
 
 	t.Run("no existing peer", func(t *testing.T) {

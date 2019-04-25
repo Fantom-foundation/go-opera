@@ -44,7 +44,7 @@ func (n *Node) initClient() {
 
 	n.connPool.opts = append(n.connPool.opts,
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(api.ClientInterceptor(n.ID.Hex(), n.key)))
+		grpc.WithUnaryInterceptor(api.ClientAuth(n.key)))
 }
 
 // ConnectTo connects to other node service.

@@ -14,15 +14,30 @@ func (t *InternalTransaction) Equals(t2 *InternalTransaction) bool {
 
 // ProtoMarshal marshal to protobuf.
 func (t *InternalTransaction) ProtoMarshal() ([]byte, error) {
-	var bf proto.Buffer
-	bf.SetDeterministic(true)
-	if err := bf.Marshal(t); err != nil {
+	var pbf proto.Buffer
+	pbf.SetDeterministic(true)
+	if err := pbf.Marshal(t); err != nil {
 		return nil, err
 	}
-	return bf.Bytes(), nil
+	return pbf.Bytes(), nil
 }
 
 // ProtoUnmarshal unmarshal from protobuf.
 func (t *InternalTransaction) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, t)
+}
+
+// ProtoMarshal marshal to protobuf.
+func (e *Event) ProtoMarshal() ([]byte, error) {
+	var pbf proto.Buffer
+	pbf.SetDeterministic(true)
+	if err := pbf.Marshal(e); err != nil {
+		return nil, err
+	}
+	return pbf.Bytes(), nil
+}
+
+// ProtoUnmarshal unmarshal from protobuf.
+func (e *Event) ProtoUnmarshal(data []byte) error {
+	return proto.Unmarshal(data, e)
 }

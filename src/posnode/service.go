@@ -30,7 +30,7 @@ func (n *Node) StartService() {
 	}
 
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n.ID.Hex(), n.key, n, n.log.Infof, n.service.listen)
+	n.server, _ = api.StartService(bind, n.key, n, n.log.Infof, n.service.listen)
 
 	n.log.Info("service started")
 }
