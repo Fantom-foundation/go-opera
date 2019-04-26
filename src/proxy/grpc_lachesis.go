@@ -14,6 +14,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
 )
 
 var (
@@ -33,7 +34,7 @@ type GrpcLachesisProxy struct {
 	shutdown        chan struct{}
 	reconnectTicket chan time.Time
 	conn            *grpc.ClientConn
-	client          proto.LachesisNodeClient
+	client          wire.LachesisNodeClient
 	stream          atomic.Value
 }
 
@@ -61,7 +62,7 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 		return nil, err
 	}
 
-	p.client = proto.NewLachesisNodeClient(p.conn)
+	p.client = wire.NewLachesisNodeClient(p.conn)
 
 	p.reconnectTicket <- time.Now()
 
@@ -96,9 +97,9 @@ func (p *GrpcLachesisProxy) RestoreCh() chan proto.RestoreRequest {
 
 // SubmitTx implements LachesisProxy interface method
 func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
-	r := &proto.ToServer{
-		Event: &proto.ToServer_Tx_{
-			Tx: &proto.ToServer_Tx{
+	r := &wire.ToServer{
+		Event: &wire.ToServer_Tx_{
+			Tx: &wire.ToServer_Tx{
 				Data: tx,
 			},
 		},
@@ -111,7 +112,7 @@ func (p *GrpcLachesisProxy) SubmitTx(tx []byte) error {
  * network:
  */
 
-func (p *GrpcLachesisProxy) sendToServer(data *proto.ToServer) (err error) {
+func (p *GrpcLachesisProxy) sendToServer(data *wire.ToServer) (err error) {
 	for {
 		err = p.streamSend(data)
 		if err == nil {
@@ -126,7 +127,7 @@ func (p *GrpcLachesisProxy) sendToServer(data *proto.ToServer) (err error) {
 	}
 }
 
-func (p *GrpcLachesisProxy) recvFromServer() (data *proto.ToClient, err error) {
+func (p *GrpcLachesisProxy) recvFromServer() (data *wire.ToClient, err error) {
 	for {
 		data, err = p.streamRecv()
 		if err == nil {
@@ -171,7 +172,7 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 		// see code below
 	}
 
-	var stream proto.LachesisNode_ConnectClient
+	var stream wire.LachesisNode_ConnectClient
 	stream, err = p.client.Connect(
 		context.TODO(),
 		grpc.MaxCallRecvMsgSize(math.MaxInt32),
@@ -189,7 +190,7 @@ func (p *GrpcLachesisProxy) reConnect() (err error) {
 
 func (p *GrpcLachesisProxy) listenEvents() {
 	var (
-		event *proto.ToClient
+		event *wire.ToClient
 		err   error
 		uuid  xid.ID
 	)
@@ -251,7 +252,7 @@ func (p *GrpcLachesisProxy) listenEvents() {
 func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitResponse {
 	respCh := make(chan proto.CommitResponse)
 	go func() {
-		var answer *proto.ToServer
+		var answer *wire.ToServer
 		resp, ok := <-respCh
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
@@ -266,7 +267,7 @@ func (p *GrpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitRe
 func (p *GrpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.SnapshotResponse {
 	respCh := make(chan proto.SnapshotResponse)
 	go func() {
-		var answer *proto.ToServer
+		var answer *wire.ToServer
 		resp, ok := <-respCh
 		if ok {
 			answer = newAnswer(uuid[:], resp.Snapshot, resp.Error)
@@ -281,7 +282,7 @@ func (p *GrpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.Snapsh
 func (p *GrpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.RestoreResponse {
 	respCh := make(chan proto.RestoreResponse)
 	go func() {
-		var answer *proto.ToServer
+		var answer *wire.ToServer
 		resp, ok := <-respCh
 		if ok {
 			answer = newAnswer(uuid[:], resp.StateHash, resp.Error)
@@ -293,24 +294,24 @@ func (p *GrpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.Restore
 	return respCh
 }
 
-func newAnswer(uuid []byte, data []byte, err error) *proto.ToServer {
+func newAnswer(uuid []byte, data []byte, err error) *wire.ToServer {
 	if err != nil {
-		return &proto.ToServer{
-			Event: &proto.ToServer_Answer_{
-				Answer: &proto.ToServer_Answer{
+		return &wire.ToServer{
+			Event: &wire.ToServer_Answer_{
+				Answer: &wire.ToServer_Answer{
 					Uid: uuid,
-					Payload: &proto.ToServer_Answer_Error{
+					Payload: &wire.ToServer_Answer_Error{
 						Error: err.Error(),
 					},
 				},
 			},
 		}
 	}
-	return &proto.ToServer{
-		Event: &proto.ToServer_Answer_{
-			Answer: &proto.ToServer_Answer{
+	return &wire.ToServer{
+		Event: &wire.ToServer_Answer_{
+			Answer: &wire.ToServer_Answer{
 				Uid: uuid,
-				Payload: &proto.ToServer_Answer_Data{
+				Payload: &wire.ToServer_Answer_Data{
 					Data: data,
 				},
 			},
@@ -318,38 +319,38 @@ func newAnswer(uuid []byte, data []byte, err error) *proto.ToServer {
 	}
 }
 
-func (p *GrpcLachesisProxy) streamSend(data *proto.ToServer) error {
+func (p *GrpcLachesisProxy) streamSend(data *wire.ToServer) error {
 	v := p.stream.Load()
 	if v == nil {
 		return ErrNeedReconnect
 	}
-	stream, ok := v.(proto.LachesisNode_ConnectClient)
+	stream, ok := v.(wire.LachesisNode_ConnectClient)
 	if !ok || stream == nil {
 		return ErrNeedReconnect
 	}
 	return stream.Send(data)
 }
 
-func (p *GrpcLachesisProxy) streamRecv() (*proto.ToClient, error) {
+func (p *GrpcLachesisProxy) streamRecv() (*wire.ToClient, error) {
 	v := p.stream.Load()
 	if v == nil {
 		return nil, ErrNeedReconnect
 	}
-	stream, ok := v.(proto.LachesisNode_ConnectClient)
+	stream, ok := v.(wire.LachesisNode_ConnectClient)
 	if !ok || stream == nil {
 		return nil, ErrNeedReconnect
 	}
 	return stream.Recv()
 }
 
-func (p *GrpcLachesisProxy) setStream(stream proto.LachesisNode_ConnectClient) {
+func (p *GrpcLachesisProxy) setStream(stream wire.LachesisNode_ConnectClient) {
 	p.stream.Store(stream)
 }
 
 func (p *GrpcLachesisProxy) closeStream() {
 	v := p.stream.Load()
 	if v != nil {
-		stream, ok := v.(proto.LachesisNode_ConnectClient)
+		stream, ok := v.(wire.LachesisNode_ConnectClient)
 		if ok && stream != nil {
 			if err := stream.CloseSend(); err != nil {
 				p.logger.Debug(err)

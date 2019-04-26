@@ -2,37 +2,44 @@ package command
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	empty "github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-// NewStake initialize stake command.
-func NewStake() *cobra.Command {
+var Stake *cobra.Command
+
+func init() {
+	Stake = prepareStake()
+}
+
+// newStake prepares stake command.
+func prepareStake() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "stake",
 		Short: "Prints node stake",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cli, err := proxy.NewManagementClient("localhost:55557")
-			if err != nil {
-				return errors.Wrap(err, "create client")
-			}
+	}
 
-			ctx, cancel := context.WithTimeout(context.Background(), connTimeout)
-			defer cancel()
+	var port int
+	cmd.Flags().IntVarP(&port, "port", "p", 55557, "lachesis management port")
 
-			req := empty.Empty{}
-			resp, err := cli.Stake(ctx, &req)
-			if err != nil {
-				return errors.Wrap(err, "get id")
-			}
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		client, err := newClient(port)
+		if err != nil {
+			return err
+		}
 
-			fmt.Println(resp.Value)
-			return nil
-		},
+		ctx, cancel := context.WithTimeout(context.Background(), connTimeout)
+		defer cancel()
+
+		req := empty.Empty{}
+		resp, err := client.Stake(ctx, &req)
+		if err != nil {
+			return err
+		}
+
+		cmd.Println(resp.Value)
+		return nil
 	}
 
 	return &cmd

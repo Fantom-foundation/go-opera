@@ -11,11 +11,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
 )
 
-const (
-	mClientConnTimeout = time.Second
+var (
+	// ErrConnTimeout returns when deadline exceeded
+	// for management server connection.
+	ErrConnTimeout = errors.New("node connection timeout")
 )
 
 // Node represents node.
@@ -29,14 +31,14 @@ type Consensus interface {
 	GetStakeOf(peer hash.Peer) float64
 }
 
-// ManagementServer handles managing commands.
-type ManagementServer struct {
+// ManagmentServer handles managing requests.
+type ManagmentServer struct {
 	Node
 	Consensus
 }
 
-// InternalTx pushes proto transaction into the node.
-func (s *ManagementServer) InternalTx(ctx context.Context, req *proto.InternalTxRequest) (*empty.Empty, error) {
+// InternalTx pushes proto transaction into the Node.
+func (s *ManagmentServer) InternalTx(ctx context.Context, req *wire.InternalTxRequest) (*empty.Empty, error) {
 	peer := hash.HexToPeer(req.Receiver)
 
 	tx := inter.InternalTransaction{
@@ -50,20 +52,20 @@ func (s *ManagementServer) InternalTx(ctx context.Context, req *proto.InternalTx
 	return &resp, nil
 }
 
-// Stake returns node stake.
-func (s *ManagementServer) Stake(ctx context.Context, _ *empty.Empty) (*proto.StakeResponse, error) {
+// Stake returns the Node stake.
+func (s *ManagmentServer) Stake(ctx context.Context, _ *empty.Empty) (*wire.StakeResponse, error) {
 	peer := s.Node.GetID()
-	resp := proto.StakeResponse{
-		Value: float32(s.Consensus.GetStakeOf(peer)),
+	resp := wire.StakeResponse{
+		Value: s.Consensus.GetStakeOf(peer),
 	}
 
 	return &resp, nil
 }
 
-// ID returns node id.
-func (s *ManagementServer) ID(ctx context.Context, _ *empty.Empty) (*proto.IDResponse, error) {
+// ID returns the Node id.
+func (s *ManagmentServer) ID(ctx context.Context, _ *empty.Empty) (*wire.IDResponse, error) {
 	peer := s.Node.GetID()
-	resp := proto.IDResponse{
+	resp := wire.IDResponse{
 		Id: peer.Hex(),
 	}
 
@@ -72,12 +74,12 @@ func (s *ManagementServer) ID(ctx context.Context, _ *empty.Empty) (*proto.IDRes
 
 // NewManagmentServer starts managment server.
 func NewManagmentServer(bindAddr string, n Node, c Consensus, listen network.ListenFunc) *grpc.Server {
-	srv := ManagementServer{
+	srv := ManagmentServer{
 		Node:      n,
 		Consensus: c,
 	}
 	s := grpc.NewServer()
-	proto.RegisterManagementServer(s, &srv)
+	wire.RegisterManagmentServer(s, &srv)
 
 	if listen == nil {
 		listen = network.TCPListener
@@ -93,16 +95,19 @@ func NewManagmentServer(bindAddr string, n Node, c Consensus, listen network.Lis
 	return s
 }
 
-// NewManagementClient returns client for lachesis management.
-func NewManagementClient(addr string) (proto.ManagementClient, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), mClientConnTimeout)
+// NewManagmentClient returns client for lachesis management.
+func NewManagmentClient(addr string) (wire.ManagmentClient, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		return nil, errors.Wrap(err, "deal context")
+		if errors.Cause(err) == context.DeadlineExceeded {
+			return nil, ErrConnTimeout
+		}
+		return nil, err
 	}
 
-	cli := proto.NewManagementClient(conn)
+	cli := wire.NewManagmentClient(conn)
 	return cli, nil
 }

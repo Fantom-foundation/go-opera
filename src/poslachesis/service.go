@@ -17,7 +17,7 @@ func (l *Lachesis) serviceStart() {
 		return
 	}
 	l.service.done = make(chan struct{})
-	done := make(chan struct{})
+	done := make(chan struct{}, 2)
 
 	go func() {
 		<-l.service.done

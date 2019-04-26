@@ -9,14 +9,19 @@ import (
 )
 
 func main() {
-	app := &cobra.Command{
+	app := prepareApp()
+	app.Execute()
+}
+
+func prepareApp() *cobra.Command {
+	app := cobra.Command{
 		Use: os.Args[0],
 	}
 
-	app.AddCommand(command.NewInternal())
-	app.AddCommand(command.NewID())
-	app.AddCommand(command.NewStake())
-	app.AddCommand(command.NewStart())
+	app.AddCommand(command.Start)
+	app.AddCommand(command.InternalTx)
+	app.AddCommand(command.ID)
+	app.AddCommand(command.Stake)
 
-	app.Execute()
+	return &app
 }

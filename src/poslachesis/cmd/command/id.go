@@ -2,43 +2,44 @@ package command
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	empty "github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-
-	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
-const (
-	connTimeout = 3 * time.Second
-)
+var ID *cobra.Command
 
-// NewID initialize id command.
-func NewID() *cobra.Command {
+func init() {
+	ID = prepareID()
+}
+
+// prepareID prepares id command.
+func prepareID() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "id",
 		Short: "Prints node id",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cli, err := proxy.NewManagementClient("localhost:55557")
-			if err != nil {
-				return errors.Wrap(err, "create client")
-			}
+	}
 
-			ctx, cancel := context.WithTimeout(context.Background(), connTimeout)
-			defer cancel()
+	var port int
+	cmd.Flags().IntVarP(&port, "port", "p", 55557, "lachesis management port")
 
-			req := empty.Empty{}
-			resp, err := cli.ID(ctx, &req)
-			if err != nil {
-				return errors.Wrap(err, "get id")
-			}
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		client, err := newClient(port)
+		if err != nil {
+			return err
+		}
 
-			fmt.Println(resp.Id)
-			return nil
-		},
+		ctx, cancel := context.WithTimeout(context.Background(), connTimeout)
+		defer cancel()
+
+		req := empty.Empty{}
+		resp, err := client.ID(ctx, &req)
+		if err != nil {
+			return err
+		}
+
+		cmd.Println(resp.Id)
+		return nil
 	}
 
 	return &cmd

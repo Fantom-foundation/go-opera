@@ -11,14 +11,20 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
+	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
-// NewStart initialize start command.
-func NewStart() *cobra.Command {
+var Start *cobra.Command
+
+func init() {
+	Start = prepareStart()
+}
+
+// prepareStart initialize start command.
+func prepareStart() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "start",
-		Short: "It runs lachesis node",
+		Short: "Starts lachesis node",
 	}
 
 	fakegen := cmd.Flags().String(

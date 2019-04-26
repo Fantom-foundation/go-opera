@@ -4,7 +4,7 @@ package proto;
 
 import "google/protobuf/empty.proto";
 
-service Management {
+service Managment {
   rpc ID(google.protobuf.Empty) returns (IDResponse) {}
   rpc Stake(google.protobuf.Empty) returns (StakeResponse) {}
   rpc InternalTx(InternalTxRequest) returns (google.protobuf.Empty) {}
@@ -15,7 +15,7 @@ message IDResponse {
 }
 
 message StakeResponse {
-  float value = 1;
+  double value = 1;
 }
 
 message InternalTxRequest{
