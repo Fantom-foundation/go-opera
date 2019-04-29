@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestGossip(t *testing.T) {
@@ -29,9 +28,8 @@ func TestGossip(t *testing.T) {
 	node2.initPeers()
 
 	// set events
-	// TODO: replace with self-generated events
-	genEvents(node1, 1)
-	genEvents(node2, 1)
+	node1.EmitEvent()
+	node2.EmitEvent()
 
 	t.Run("before", func(t *testing.T) {
 		assert := assert.New(t)
@@ -123,7 +121,8 @@ func TestMissingParents(t *testing.T) {
 	store2.BootstrapPeers(node1.AsPeer())
 	node2.initPeers()
 
-	genEvents(node1, 2)
+	node1.EmitEvent()
+	node1.EmitEvent()
 
 	t.Run("before", func(t *testing.T) {
 		assert := assert.New(t)
@@ -259,31 +258,4 @@ func TestPeerPriority(t *testing.T) {
 			peer,
 			"should select peer1 as first not busy in top peer")
 	})
-}
-
-/*
- * Utils:
- */
-
-func genEvents(n *Node, count uint64) {
-	last := n.store.GetPeerHeight(n.ID)
-	for i := last + 1; i <= last+count; i++ {
-		e := &inter.Event{
-			Index:   i,
-			Creator: n.ID,
-			Parents: hash.Events{},
-		}
-		if i == 1 {
-			e.Parents.Add(hash.ZeroEvent)
-		} else {
-			e.Parents.Add(*n.store.GetEventHash(n.ID, i-1))
-		}
-
-		err := e.SignBy(n.key)
-		if err != nil {
-			panic(err)
-		}
-
-		n.saveNewEvent(e)
-	}
 }
