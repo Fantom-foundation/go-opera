@@ -48,7 +48,7 @@ func StartService(bind string, key *common.PrivateKey, svc NodeServer, log func(
 func GrpcPeerHost(ctx context.Context) string {
 	p, ok := peer.FromContext(ctx)
 	if !ok {
-		panic("gRPC-peer network address is undefined")
+		panic("GrpcPeerHost should be called from gRPC handler only")
 	}
 
 	addr := p.Addr.String()
@@ -63,10 +63,22 @@ func GrpcPeerHost(ctx context.Context) string {
 func GrpcPeerID(ctx context.Context) hash.Peer {
 	id, ok := ctx.Value(peerID{}).(hash.Peer)
 	if !ok {
-		panic("gRPC-peer ID is undefined")
+		panic("GrpcPeerID should be called from gRPC handler only")
 	}
 
 	return id
 }
 
-// TODO: GrpcPeerID() analog for client-side
+// ServerPeerID makes context for gRPC call to get server-peer id.
+func ServerPeerID(parent context.Context) (id *hash.Peer, ctx context.Context) {
+	if parent == nil {
+		parent = context.Background()
+	}
+
+	id = &hash.Peer{}
+	ctx = context.WithValue(parent, peerID{}, func(x hash.Peer) {
+		*id = x
+	})
+
+	return
+}

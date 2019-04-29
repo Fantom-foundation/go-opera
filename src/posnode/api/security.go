@@ -17,6 +17,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+// peerID is a internal key for context.Value().
+type peerID struct{}
+
 // ClientAuth makes client-side interceptor for identification.
 func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 	pub := key.Public().Base64()
@@ -47,11 +50,14 @@ func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
+		if set, ok := ctx.Value(peerID{}).(func(hash.Peer)); ok {
+			serverID := hash.PeerOfPubkey(pub)
+			set(serverID)
+		}
+
 		return nil
 	}
 }
-
-type peerID struct{}
 
 // ServerAuth makes server-side interceptor for identification.
 func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
@@ -162,7 +168,7 @@ func hashOfData(data interface{}) hash.Hash {
 	return hash.Of(pbf.Bytes())
 }
 
-// isProtoEmpty return true if it is typed nil.
+// isProtoEmpty return true if it is typed nil (by protobuf sources).
 func isProtoEmpty(m *proto.Message) bool {
 	// Super-tricky - read pointer out of data word of interface value.
 	// Saves ~25ns over the equivalent:

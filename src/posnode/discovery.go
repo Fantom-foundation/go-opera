@@ -107,7 +107,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 	}
 	defer free()
 
-	info, err := n.requestPeerInfo(client, id)
+	source, info, err := n.requestPeerInfo(client, id)
 	if err != nil {
 		fail(err)
 		n.ConnectFail(peer, err)
@@ -143,19 +143,25 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 }
 
 // requestPeerInfo does GetPeerInfo request.
-func (n *Node) requestPeerInfo(client api.NodeClient, id *hash.Peer) (info *api.PeerInfo, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
-	defer cancel()
+func (n *Node) requestPeerInfo(client api.NodeClient, id *hash.Peer) (
+	source hash.Peer, info *api.PeerInfo, err error) {
 
 	req := api.PeerRequest{}
 	if id != nil {
 		req.PeerID = id.Hex()
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
+	defer cancel()
+
+	id, ctx = api.ServerPeerID(ctx)
+
 	info, err = client.GetPeerInfo(ctx, &req)
 	if err == nil {
 		return
 	}
+
+	source = *id
 
 	if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
 		info, err = nil, nil

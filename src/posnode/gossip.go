@@ -162,10 +162,16 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 	defer cancel()
 
+	id, ctx := api.ServerPeerID(ctx)
+
 	resp, err := client.SyncEvents(ctx, req)
 	if err != nil {
 		n.ConnectFail(peer, err)
 		return nil, err
+	}
+
+	if *id != peer.ID {
+		// TODO: skip or continue gossiping with peer id ?
 	}
 
 	res := make(map[hash.Peer]uint64, len(resp.Lasts))
@@ -182,11 +188,18 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 	defer cancel()
 
+	id, ctx := api.ServerPeerID(ctx)
+
 	w, err := client.GetEvent(ctx, req)
 	if err != nil {
 		n.ConnectFail(peer, err)
 		return nil, err
 	}
+
+	if *id != peer.ID {
+		// TODO: skip or continue gossiping with peer id ?
+	}
+
 	if w.Creator != req.PeerID || w.Index != req.Index {
 		n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
 		return nil, nil

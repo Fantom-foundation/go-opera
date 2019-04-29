@@ -29,9 +29,13 @@ func TestClient(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), node.conf.ClientTimeout)
 		defer cancel()
 
+		id, ctx := api.ServerPeerID(ctx)
+
 		pong, err := client.GetPeerInfo(ctx, &api.PeerRequest{})
 		if err != nil {
 			fail(err)
+		} else {
+			assert.Equal(t, server.ID, *id)
 		}
 
 		return pong, err

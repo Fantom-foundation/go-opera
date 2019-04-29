@@ -33,7 +33,7 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 
 	// keys
 	serverKey := crypto.GenerateKey()
-	//serverID := hash.PeerOfPubkey(serverKey.Public())
+	serverID := hash.PeerOfPubkey(serverKey.Public())
 	clientKey := crypto.GenerateKey()
 	clientID := hash.PeerOfPubkey(clientKey.Public())
 
@@ -68,7 +68,7 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 	server, addr := StartService(bind, serverKey, svc, t.Logf, listen)
 	defer server.Stop()
 
-	t.Run("authorized client", func(t *testing.T) {
+	t.Run("authorized", func(t *testing.T) {
 		assert := assert.New(t)
 
 		opts := append(opts,
@@ -82,25 +82,34 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		client := NewNodeClient(conn)
 
 		// SyncEvents() rpc
-		_, err = client.SyncEvents(context.Background(), &KnownEvents{})
+		id1, ctx := ServerPeerID(nil)
+		_, err = client.SyncEvents(ctx, &KnownEvents{})
 		if !assert.NoError(err) {
 			return
 		}
-		// TODO: got peer ID and compare with serverID
+		if !assert.Equal(serverID, *id1) {
+			return
+		}
 
 		// GetEvent() rpc
-		_, err = client.GetEvent(context.Background(), &EventRequest{})
+		id2, ctx := ServerPeerID(nil)
+		_, err = client.GetEvent(ctx, &EventRequest{})
 		if !assert.NoError(err) {
 			return
 		}
-		// TODO: got peer ID and compare with serverID
+		if !assert.Equal(serverID, *id2) {
+			return
+		}
 
 		// GetPeerInfo() rpc
-		_, err = client.GetPeerInfo(context.Background(), &PeerRequest{})
+		id3, ctx := ServerPeerID(nil)
+		_, err = client.GetPeerInfo(ctx, &PeerRequest{})
 		if !assert.NoError(err) {
 			return
 		}
-		// TODO: got peer ID and compare with serverID
+		if !assert.Equal(serverID, *id3) {
+			return
+		}
 	})
 
 	t.Run("unauthorized client", func(t *testing.T) {
@@ -116,20 +125,32 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		client := NewNodeClient(conn)
 
 		// SyncEvents() rpc
-		_, err = client.SyncEvents(context.Background(), &KnownEvents{})
+		id1, ctx := ServerPeerID(nil)
+		_, err = client.SyncEvents(ctx, &KnownEvents{})
 		if !assert.Error(err) {
+			return
+		}
+		if !assert.Equal(hash.EmptyPeer, *id1) {
 			return
 		}
 
 		// GetEvent() rpc
+		id2, ctx := ServerPeerID(nil)
 		_, err = client.GetEvent(context.Background(), &EventRequest{})
 		if !assert.Error(err) {
 			return
 		}
+		if !assert.Equal(hash.EmptyPeer, *id2) {
+			return
+		}
 
 		// GetPeerInfo() rpc
+		id3, ctx := ServerPeerID(nil)
 		_, err = client.GetPeerInfo(context.Background(), &PeerRequest{})
 		if !assert.Error(err) {
+			return
+		}
+		if !assert.Equal(hash.EmptyPeer, *id3) {
 			return
 		}
 	})
