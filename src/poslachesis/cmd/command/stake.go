@@ -21,7 +21,7 @@ func prepareStake() *cobra.Command {
 	}
 
 	var port int
-	cmd.Flags().IntVarP(&port, "port", "p", 55557, "lachesis management port")
+	cmd.Flags().IntVarP(&port, "port", "p", managementPort, "lachesis management port")
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		client, err := newClient(port)
@@ -29,7 +29,7 @@ func prepareStake() *cobra.Command {
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), connTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
 		defer cancel()
 
 		req := empty.Empty{}

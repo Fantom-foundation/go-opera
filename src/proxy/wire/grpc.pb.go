@@ -101,7 +101,7 @@ func (m *StakeResponse) GetValue() float64 {
 	return 0
 }
 
-type InternalTxRequest struct {
+type InternalTxnRequest struct {
 	Amount               uint64   `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
 	Receiver             string   `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -109,82 +109,43 @@ type InternalTxRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *InternalTxRequest) Reset()         { *m = InternalTxRequest{} }
-func (m *InternalTxRequest) String() string { return proto.CompactTextString(m) }
-func (*InternalTxRequest) ProtoMessage()    {}
-func (*InternalTxRequest) Descriptor() ([]byte, []int) {
+func (m *InternalTxnRequest) Reset()         { *m = InternalTxnRequest{} }
+func (m *InternalTxnRequest) String() string { return proto.CompactTextString(m) }
+func (*InternalTxnRequest) ProtoMessage()    {}
+func (*InternalTxnRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_bedfbfc9b54e5600, []int{2}
 }
 
-func (m *InternalTxRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_InternalTxRequest.Unmarshal(m, b)
+func (m *InternalTxnRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InternalTxnRequest.Unmarshal(m, b)
 }
-func (m *InternalTxRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_InternalTxRequest.Marshal(b, m, deterministic)
+func (m *InternalTxnRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InternalTxnRequest.Marshal(b, m, deterministic)
 }
-func (m *InternalTxRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InternalTxRequest.Merge(m, src)
+func (m *InternalTxnRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InternalTxnRequest.Merge(m, src)
 }
-func (m *InternalTxRequest) XXX_Size() int {
-	return xxx_messageInfo_InternalTxRequest.Size(m)
+func (m *InternalTxnRequest) XXX_Size() int {
+	return xxx_messageInfo_InternalTxnRequest.Size(m)
 }
-func (m *InternalTxRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_InternalTxRequest.DiscardUnknown(m)
+func (m *InternalTxnRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_InternalTxnRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_InternalTxRequest proto.InternalMessageInfo
+var xxx_messageInfo_InternalTxnRequest proto.InternalMessageInfo
 
-func (m *InternalTxRequest) GetAmount() uint64 {
+func (m *InternalTxnRequest) GetAmount() uint64 {
 	if m != nil {
 		return m.Amount
 	}
 	return 0
 }
 
-func (m *InternalTxRequest) GetReceiver() string {
+func (m *InternalTxnRequest) GetReceiver() string {
 	if m != nil {
 		return m.Receiver
 	}
 	return ""
-}
-
-type InternalTxResponse struct {
-	Value                float32  `protobuf:"fixed32,1,opt,name=value,proto3" json:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *InternalTxResponse) Reset()         { *m = InternalTxResponse{} }
-func (m *InternalTxResponse) String() string { return proto.CompactTextString(m) }
-func (*InternalTxResponse) ProtoMessage()    {}
-func (*InternalTxResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{3}
-}
-
-func (m *InternalTxResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_InternalTxResponse.Unmarshal(m, b)
-}
-func (m *InternalTxResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_InternalTxResponse.Marshal(b, m, deterministic)
-}
-func (m *InternalTxResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InternalTxResponse.Merge(m, src)
-}
-func (m *InternalTxResponse) XXX_Size() int {
-	return xxx_messageInfo_InternalTxResponse.Size(m)
-}
-func (m *InternalTxResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_InternalTxResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_InternalTxResponse proto.InternalMessageInfo
-
-func (m *InternalTxResponse) GetValue() float32 {
-	if m != nil {
-		return m.Value
-	}
-	return 0
 }
 
 type ToServer struct {
@@ -201,7 +162,7 @@ func (m *ToServer) Reset()         { *m = ToServer{} }
 func (m *ToServer) String() string { return proto.CompactTextString(m) }
 func (*ToServer) ProtoMessage()    {}
 func (*ToServer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{4}
+	return fileDescriptor_bedfbfc9b54e5600, []int{3}
 }
 
 func (m *ToServer) XXX_Unmarshal(b []byte) error {
@@ -278,7 +239,7 @@ func (m *ToServer_Tx) Reset()         { *m = ToServer_Tx{} }
 func (m *ToServer_Tx) String() string { return proto.CompactTextString(m) }
 func (*ToServer_Tx) ProtoMessage()    {}
 func (*ToServer_Tx) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{4, 0}
+	return fileDescriptor_bedfbfc9b54e5600, []int{3, 0}
 }
 
 func (m *ToServer_Tx) XXX_Unmarshal(b []byte) error {
@@ -321,7 +282,7 @@ func (m *ToServer_Answer) Reset()         { *m = ToServer_Answer{} }
 func (m *ToServer_Answer) String() string { return proto.CompactTextString(m) }
 func (*ToServer_Answer) ProtoMessage()    {}
 func (*ToServer_Answer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{4, 1}
+	return fileDescriptor_bedfbfc9b54e5600, []int{3, 1}
 }
 
 func (m *ToServer_Answer) XXX_Unmarshal(b []byte) error {
@@ -409,7 +370,7 @@ func (m *ToClient) Reset()         { *m = ToClient{} }
 func (m *ToClient) String() string { return proto.CompactTextString(m) }
 func (*ToClient) ProtoMessage()    {}
 func (*ToClient) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{5}
+	return fileDescriptor_bedfbfc9b54e5600, []int{4}
 }
 
 func (m *ToClient) XXX_Unmarshal(b []byte) error {
@@ -501,7 +462,7 @@ func (m *ToClient_Block) Reset()         { *m = ToClient_Block{} }
 func (m *ToClient_Block) String() string { return proto.CompactTextString(m) }
 func (*ToClient_Block) ProtoMessage()    {}
 func (*ToClient_Block) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{5, 0}
+	return fileDescriptor_bedfbfc9b54e5600, []int{4, 0}
 }
 
 func (m *ToClient_Block) XXX_Unmarshal(b []byte) error {
@@ -548,7 +509,7 @@ func (m *ToClient_Query) Reset()         { *m = ToClient_Query{} }
 func (m *ToClient_Query) String() string { return proto.CompactTextString(m) }
 func (*ToClient_Query) ProtoMessage()    {}
 func (*ToClient_Query) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{5, 1}
+	return fileDescriptor_bedfbfc9b54e5600, []int{4, 1}
 }
 
 func (m *ToClient_Query) XXX_Unmarshal(b []byte) error {
@@ -595,7 +556,7 @@ func (m *ToClient_Restore) Reset()         { *m = ToClient_Restore{} }
 func (m *ToClient_Restore) String() string { return proto.CompactTextString(m) }
 func (*ToClient_Restore) ProtoMessage()    {}
 func (*ToClient_Restore) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bedfbfc9b54e5600, []int{5, 2}
+	return fileDescriptor_bedfbfc9b54e5600, []int{4, 2}
 }
 
 func (m *ToClient_Restore) XXX_Unmarshal(b []byte) error {
@@ -633,8 +594,7 @@ func (m *ToClient_Restore) GetData() []byte {
 func init() {
 	proto.RegisterType((*IDResponse)(nil), "proto.IDResponse")
 	proto.RegisterType((*StakeResponse)(nil), "proto.StakeResponse")
-	proto.RegisterType((*InternalTxRequest)(nil), "proto.InternalTxRequest")
-	proto.RegisterType((*InternalTxResponse)(nil), "proto.InternalTxResponse")
+	proto.RegisterType((*InternalTxnRequest)(nil), "proto.InternalTxnRequest")
 	proto.RegisterType((*ToServer)(nil), "proto.ToServer")
 	proto.RegisterType((*ToServer_Tx)(nil), "proto.ToServer.Tx")
 	proto.RegisterType((*ToServer_Answer)(nil), "proto.ToServer.Answer")
@@ -647,40 +607,39 @@ func init() {
 func init() { proto.RegisterFile("grpc.proto", fileDescriptor_bedfbfc9b54e5600) }
 
 var fileDescriptor_bedfbfc9b54e5600 = []byte{
-	// 524 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0xd1, 0x6e, 0xda, 0x4a,
-	0x10, 0x86, 0x6d, 0x27, 0x86, 0x30, 0x70, 0x4e, 0x9a, 0x11, 0xa5, 0xc8, 0xed, 0x45, 0x65, 0xb5,
-	0x52, 0x54, 0x29, 0x26, 0x21, 0x17, 0xbd, 0x6d, 0x48, 0xaa, 0x82, 0xd4, 0x56, 0xea, 0xc2, 0x0b,
-	0x2c, 0x78, 0x4a, 0xad, 0x18, 0x2f, 0x59, 0xaf, 0xa9, 0x79, 0xb2, 0xaa, 0xaf, 0xd2, 0xa7, 0xa9,
-	0x76, 0xbd, 0x90, 0x94, 0x12, 0xa9, 0x57, 0xec, 0x30, 0xdf, 0xcc, 0xbf, 0xff, 0x78, 0x07, 0x60,
-	0x2e, 0x97, 0xb3, 0x68, 0x29, 0x85, 0x12, 0xe8, 0x9b, 0x9f, 0xe0, 0xf9, 0x5c, 0x88, 0x79, 0x4a,
-	0x3d, 0x13, 0x4d, 0x8b, 0xaf, 0x3d, 0x5a, 0x2c, 0xd5, 0xba, 0x62, 0xc2, 0x17, 0x00, 0xa3, 0x1b,
-	0x46, 0xf9, 0x52, 0x64, 0x39, 0xe1, 0xff, 0xe0, 0x25, 0x71, 0xd7, 0x7d, 0xe9, 0x9e, 0x36, 0x98,
-	0x97, 0xc4, 0xe1, 0x6b, 0xf8, 0x6f, 0xac, 0xf8, 0x2d, 0x6d, 0x81, 0x36, 0xf8, 0x2b, 0x9e, 0x16,
-	0x64, 0x18, 0x97, 0x55, 0x41, 0xf8, 0x01, 0x4e, 0x46, 0x99, 0x22, 0x99, 0xf1, 0x74, 0x52, 0x32,
-	0xba, 0x2b, 0x28, 0x57, 0xd8, 0x81, 0x1a, 0x5f, 0x88, 0x22, 0x53, 0x86, 0x3d, 0x64, 0x36, 0xc2,
-	0x00, 0x8e, 0x24, 0xcd, 0x28, 0x59, 0x91, 0xec, 0x7a, 0x46, 0x69, 0x1b, 0x87, 0x6f, 0x00, 0x1f,
-	0x36, 0xda, 0x27, 0xea, 0x6d, 0x44, 0x7f, 0xb9, 0x70, 0x34, 0x11, 0x63, 0x92, 0x2b, 0x92, 0xf8,
-	0x0a, 0x3c, 0x55, 0x9a, 0x7c, 0xb3, 0x8f, 0x95, 0xb5, 0x68, 0x93, 0x8c, 0x26, 0xe5, 0xd0, 0x61,
-	0x9e, 0x2a, 0xf1, 0x1c, 0x6a, 0x3c, 0xcb, 0xbf, 0x5b, 0xe1, 0x66, 0xbf, 0xb3, 0x4b, 0x5e, 0x99,
-	0xec, 0xd0, 0x61, 0x96, 0x0b, 0xba, 0xe0, 0x4d, 0x4a, 0x44, 0x38, 0x8c, 0xb9, 0xe2, 0xa6, 0x7f,
-	0x8b, 0x99, 0x73, 0x30, 0x86, 0x5a, 0x45, 0xe3, 0x13, 0x38, 0x28, 0xec, 0xd4, 0x5a, 0x4c, 0x1f,
-	0xb1, 0x6d, 0x79, 0xad, 0xd2, 0x1a, 0x3a, 0x55, 0x05, 0x76, 0xc0, 0x27, 0x29, 0x85, 0xec, 0x1e,
-	0x68, 0xd7, 0x43, 0x87, 0x55, 0xe1, 0xa0, 0x01, 0xf5, 0x25, 0x5f, 0xa7, 0x82, 0xc7, 0x83, 0x3a,
-	0xf8, 0xb4, 0xa2, 0x4c, 0x85, 0x3f, 0x3c, 0x6d, 0xee, 0x3a, 0x4d, 0x28, 0x53, 0x78, 0x06, 0xfe,
-	0x34, 0x15, 0xb3, 0x5b, 0xeb, 0xef, 0xe9, 0xf6, 0xd6, 0x55, 0x3e, 0x1a, 0xe8, 0xa4, 0xee, 0x67,
-	0x28, 0x8d, 0xdf, 0x15, 0x24, 0xd7, 0xd6, 0xe4, 0x5f, 0xf8, 0x17, 0x9d, 0xd4, 0xb8, 0xa1, 0xf0,
-	0x12, 0xea, 0x92, 0x72, 0x25, 0x24, 0x99, 0x8b, 0x35, 0xfb, 0xcf, 0x76, 0x0b, 0x58, 0x95, 0x1e,
-	0x3a, 0x6c, 0x43, 0x06, 0x67, 0xe0, 0x1b, 0xd5, 0x3d, 0xe6, 0xf1, 0xa1, 0x79, 0x3b, 0xac, 0x1e,
-	0xf8, 0x46, 0x75, 0xef, 0xac, 0xfc, 0x24, 0x8b, 0xa9, 0x34, 0xfc, 0x01, 0xab, 0x82, 0xa0, 0x07,
-	0x75, 0xab, 0xfa, 0x6f, 0x0a, 0xdb, 0xc9, 0xf5, 0x7f, 0xba, 0xd0, 0xf8, 0xc4, 0x33, 0x3e, 0x5f,
-	0xe8, 0xd1, 0x5d, 0x80, 0x37, 0xba, 0xc1, 0x4e, 0x54, 0xad, 0x40, 0xb4, 0x59, 0x81, 0xe8, 0xbd,
-	0x5e, 0x81, 0xe0, 0xc4, 0x3a, 0xbd, 0xdf, 0x80, 0xd0, 0xc1, 0xb7, 0xe0, 0x9b, 0x37, 0xff, 0x68,
-	0x55, 0xdb, 0x56, 0xfd, 0xb1, 0x19, 0xa1, 0x83, 0xef, 0x00, 0xee, 0x1f, 0x2f, 0x76, 0x37, 0xbd,
-	0x77, 0x17, 0x23, 0x78, 0xa4, 0x6f, 0xe8, 0xf4, 0xaf, 0xa0, 0xf5, 0x91, 0xcf, 0xbe, 0x51, 0x9e,
-	0xe4, 0x9f, 0x45, 0x4c, 0x78, 0x01, 0xf5, 0x6b, 0x91, 0x65, 0x34, 0x53, 0x78, 0xbc, 0xf3, 0x54,
-	0x83, 0xe3, 0x9d, 0xaf, 0x14, 0x3a, 0xa7, 0xee, 0xb9, 0x3b, 0xad, 0x99, 0x7f, 0x2f, 0x7f, 0x07,
-	0x00, 0x00, 0xff, 0xff, 0x9a, 0x0d, 0x5e, 0x40, 0x08, 0x04, 0x00, 0x00,
+	// 512 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xcf, 0x6e, 0xd3, 0x40,
+	0x10, 0xc6, 0x6d, 0xa7, 0x4e, 0xda, 0x49, 0xa0, 0x30, 0x0a, 0x21, 0x18, 0x0e, 0xc8, 0x02, 0xa9,
+	0x97, 0x3a, 0x6d, 0x7a, 0xe0, 0xdc, 0xb4, 0x48, 0x8e, 0x04, 0x48, 0x6c, 0xf2, 0x02, 0x9b, 0x78,
+	0x08, 0x56, 0x9d, 0xdd, 0x74, 0xbd, 0x0e, 0xce, 0x93, 0x71, 0xe1, 0x49, 0x78, 0x1a, 0xe4, 0xf5,
+	0x26, 0x94, 0xb4, 0x95, 0x38, 0x65, 0x27, 0xf3, 0x9b, 0x3f, 0xdf, 0xf8, 0x03, 0x58, 0xa8, 0xd5,
+	0x3c, 0x5a, 0x29, 0xa9, 0x25, 0xfa, 0xe6, 0x27, 0x78, 0xbd, 0x90, 0x72, 0x91, 0xd1, 0xc0, 0x44,
+	0xb3, 0xe2, 0xdb, 0x80, 0x96, 0x2b, 0xbd, 0xa9, 0x99, 0xf0, 0x0d, 0xc0, 0xf8, 0x9a, 0x51, 0xbe,
+	0x92, 0x22, 0x27, 0x7c, 0x0a, 0x5e, 0x9a, 0xf4, 0xdd, 0xb7, 0xee, 0xc9, 0x11, 0xf3, 0xd2, 0x24,
+	0x7c, 0x0f, 0x4f, 0x26, 0x9a, 0xdf, 0xd0, 0x0e, 0xe8, 0x82, 0xbf, 0xe6, 0x59, 0x41, 0x86, 0x71,
+	0x59, 0x1d, 0x84, 0x31, 0xe0, 0x58, 0x68, 0x52, 0x82, 0x67, 0xd3, 0x52, 0x30, 0xba, 0x2d, 0x28,
+	0xd7, 0xd8, 0x83, 0x26, 0x5f, 0xca, 0x42, 0x68, 0x03, 0x1f, 0x30, 0x1b, 0x61, 0x00, 0x87, 0x8a,
+	0xe6, 0x94, 0xae, 0x49, 0xf5, 0x3d, 0x33, 0x6a, 0x17, 0x87, 0xbf, 0x5d, 0x38, 0x9c, 0xca, 0x09,
+	0xa9, 0x35, 0x29, 0x7c, 0x07, 0x9e, 0x2e, 0x4d, 0x71, 0x7b, 0x88, 0xf5, 0xbe, 0xd1, 0x36, 0x19,
+	0x4d, 0xcb, 0xd8, 0x61, 0x9e, 0x2e, 0xf1, 0x0c, 0x9a, 0x5c, 0xe4, 0x3f, 0x6c, 0xb3, 0xf6, 0xb0,
+	0xb7, 0x4f, 0x5e, 0x9a, 0x6c, 0xec, 0x30, 0xcb, 0x05, 0x7d, 0xf0, 0xa6, 0x25, 0x22, 0x1c, 0x24,
+	0x5c, 0x73, 0xd3, 0xbf, 0xc3, 0xcc, 0x3b, 0x98, 0x40, 0xb3, 0xa6, 0xf1, 0x19, 0x34, 0x0a, 0x7b,
+	0x8a, 0x0e, 0xab, 0x9e, 0xd8, 0xb5, 0x7c, 0x35, 0xa5, 0x13, 0x3b, 0x75, 0x05, 0xf6, 0xc0, 0x27,
+	0xa5, 0xa4, 0xea, 0x37, 0x2a, 0x25, 0xb1, 0xc3, 0xea, 0x70, 0x74, 0x04, 0xad, 0x15, 0xdf, 0x64,
+	0x92, 0x27, 0xa3, 0x16, 0xf8, 0xb4, 0x26, 0xa1, 0xc3, 0x9f, 0x5e, 0x25, 0xee, 0x2a, 0x4b, 0x49,
+	0x68, 0x3c, 0x05, 0x7f, 0x96, 0xc9, 0xf9, 0x8d, 0xd5, 0xf7, 0x62, 0xb7, 0x75, 0x9d, 0x8f, 0x46,
+	0x55, 0xb2, 0xea, 0x67, 0xa8, 0x0a, 0xbf, 0x2d, 0x48, 0x6d, 0xac, 0xc8, 0x7b, 0xf8, 0xd7, 0x2a,
+	0x59, 0xe1, 0x86, 0xc2, 0x0b, 0x68, 0x29, 0xca, 0xb5, 0x54, 0x64, 0x16, 0x6b, 0x0f, 0x5f, 0xee,
+	0x17, 0xb0, 0x3a, 0x1d, 0x3b, 0x6c, 0x4b, 0x06, 0xa7, 0xe0, 0x9b, 0xa9, 0x0f, 0x88, 0xc7, 0xbb,
+	0xe2, 0xed, 0xb1, 0x06, 0xe0, 0x9b, 0xa9, 0x0f, 0xde, 0xca, 0x4f, 0x45, 0x42, 0xa5, 0xe1, 0x1b,
+	0xac, 0x0e, 0x82, 0x01, 0xb4, 0xec, 0xd4, 0xff, 0x9b, 0xb0, 0xbb, 0xdc, 0xf0, 0x97, 0x0b, 0xf0,
+	0x99, 0x0b, 0xbe, 0xa0, 0x65, 0x75, 0xbb, 0x73, 0xf0, 0xc6, 0xd7, 0xd8, 0x8b, 0x6a, 0x63, 0x47,
+	0x5b, 0x63, 0x47, 0x1f, 0x2b, 0x63, 0x07, 0xcf, 0xad, 0xd4, 0xbf, 0xbe, 0x0e, 0x1d, 0xfc, 0x00,
+	0xbe, 0x71, 0xf2, 0xa3, 0x55, 0x5d, 0x5b, 0xf5, 0x8f, 0xdf, 0x43, 0x07, 0x47, 0xd0, 0xbe, 0xe3,
+	0x6d, 0x7c, 0xb5, 0x6d, 0x7e, 0xcf, 0xef, 0xc1, 0x23, 0x9d, 0x43, 0x67, 0x78, 0x09, 0x9d, 0x4f,
+	0x7c, 0xfe, 0x9d, 0xf2, 0x34, 0xff, 0x22, 0x13, 0xc2, 0x73, 0x68, 0x5d, 0x49, 0x21, 0x68, 0xae,
+	0xf1, 0x78, 0xcf, 0xad, 0xc1, 0xf1, 0xde, 0x87, 0x0a, 0x9d, 0x13, 0xf7, 0xcc, 0x9d, 0x35, 0xcd,
+	0xbf, 0x17, 0x7f, 0x02, 0x00, 0x00, 0xff, 0xff, 0x76, 0x12, 0xd9, 0x41, 0xe0, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -691,130 +650,130 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// ManagmentClient is the client API for Managment service.
+// ManagementClient is the client API for Management service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type ManagmentClient interface {
+type ManagementClient interface {
 	ID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*IDResponse, error)
 	Stake(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StakeResponse, error)
-	InternalTx(ctx context.Context, in *InternalTxRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	InternalTxn(ctx context.Context, in *InternalTxnRequest, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
-type managmentClient struct {
+type managementClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewManagmentClient(cc *grpc.ClientConn) ManagmentClient {
-	return &managmentClient{cc}
+func NewManagementClient(cc *grpc.ClientConn) ManagementClient {
+	return &managementClient{cc}
 }
 
-func (c *managmentClient) ID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*IDResponse, error) {
+func (c *managementClient) ID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*IDResponse, error) {
 	out := new(IDResponse)
-	err := c.cc.Invoke(ctx, "/proto.Managment/ID", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.Management/ID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *managmentClient) Stake(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StakeResponse, error) {
+func (c *managementClient) Stake(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StakeResponse, error) {
 	out := new(StakeResponse)
-	err := c.cc.Invoke(ctx, "/proto.Managment/Stake", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.Management/Stake", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *managmentClient) InternalTx(ctx context.Context, in *InternalTxRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *managementClient) InternalTxn(ctx context.Context, in *InternalTxnRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	out := new(empty.Empty)
-	err := c.cc.Invoke(ctx, "/proto.Managment/InternalTx", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.Management/InternalTxn", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ManagmentServer is the server API for Managment service.
-type ManagmentServer interface {
+// ManagementServer is the server API for Management service.
+type ManagementServer interface {
 	ID(context.Context, *empty.Empty) (*IDResponse, error)
 	Stake(context.Context, *empty.Empty) (*StakeResponse, error)
-	InternalTx(context.Context, *InternalTxRequest) (*empty.Empty, error)
+	InternalTxn(context.Context, *InternalTxnRequest) (*empty.Empty, error)
 }
 
-func RegisterManagmentServer(s *grpc.Server, srv ManagmentServer) {
-	s.RegisterService(&_Managment_serviceDesc, srv)
+func RegisterManagementServer(s *grpc.Server, srv ManagementServer) {
+	s.RegisterService(&_Management_serviceDesc, srv)
 }
 
-func _Managment_ID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Management_ID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ManagmentServer).ID(ctx, in)
+		return srv.(ManagementServer).ID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Managment/ID",
+		FullMethod: "/proto.Management/ID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagmentServer).ID(ctx, req.(*empty.Empty))
+		return srv.(ManagementServer).ID(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Managment_Stake_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Management_Stake_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ManagmentServer).Stake(ctx, in)
+		return srv.(ManagementServer).Stake(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Managment/Stake",
+		FullMethod: "/proto.Management/Stake",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagmentServer).Stake(ctx, req.(*empty.Empty))
+		return srv.(ManagementServer).Stake(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Managment_InternalTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InternalTxRequest)
+func _Management_InternalTxn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InternalTxnRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ManagmentServer).InternalTx(ctx, in)
+		return srv.(ManagementServer).InternalTxn(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Managment/InternalTx",
+		FullMethod: "/proto.Management/InternalTxn",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagmentServer).InternalTx(ctx, req.(*InternalTxRequest))
+		return srv.(ManagementServer).InternalTxn(ctx, req.(*InternalTxnRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Managment_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.Managment",
-	HandlerType: (*ManagmentServer)(nil),
+var _Management_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.Management",
+	HandlerType: (*ManagementServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ID",
-			Handler:    _Managment_ID_Handler,
+			Handler:    _Management_ID_Handler,
 		},
 		{
 			MethodName: "Stake",
-			Handler:    _Managment_Stake_Handler,
+			Handler:    _Management_Stake_Handler,
 		},
 		{
-			MethodName: "InternalTx",
-			Handler:    _Managment_InternalTx_Handler,
+			MethodName: "InternalTxn",
+			Handler:    _Management_InternalTxn_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -26,7 +26,7 @@ func TestApp(t *testing.T) {
 	var out bytes.Buffer
 	app.SetOutput(&out)
 
-	t.Run("id command", func(t *testing.T) {
+	t.Run("id", func(t *testing.T) {
 		assert := assert.New(t)
 		mock.EXPECT().ID(gomock.Any(), gomock.Any()).Return(&wire.IDResponse{
 			Id: "id mock",
@@ -38,32 +38,26 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), "id mock")
 	})
 
-	t.Run("stake command", func(t *testing.T) {
+	t.Run("stake", func(t *testing.T) {
 		assert := assert.New(t)
 		mock.EXPECT().Stake(gomock.Any(), gomock.Any()).Return(&wire.StakeResponse{
 			Value: 0.0023,
 		}, nil)
 
-		app := prepareApp()
-		var out bytes.Buffer
-		app.SetOutput(&out)
 		app.SetArgs([]string{"stake"})
 		app.Execute()
 
 		assert.Contains(out.String(), "0.0023")
 	})
 
-	t.Run("internal_tx command", func(t *testing.T) {
+	t.Run("internal_txn", func(t *testing.T) {
 		assert := assert.New(t)
-		mock.EXPECT().InternalTx(gomock.Any(), &wire.InternalTxRequest{
+		mock.EXPECT().InternalTxn(gomock.Any(), &wire.InternalTxnRequest{
 			Amount:   2,
 			Receiver: "receiver",
 		}).Return(&empty.Empty{}, nil)
 
-		app := prepareApp()
-		var out bytes.Buffer
-		app.SetOutput(&out)
-		app.SetArgs([]string{"internal_tx", "--amount=2", "--to=receiver"})
+		app.SetArgs([]string{"internal_txn", "--amount=2", "--to=receiver"})
 		app.Execute()
 
 		assert.Contains(out.String(), "transaction has been added")

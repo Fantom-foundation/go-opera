@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -23,7 +24,7 @@ func TestManagementServer(t *testing.T) {
 	server := NewManagementServer("localhost:55557", node, consensus, nil)
 	defer server.Stop()
 
-	client, err := NewManagementClient("localhost:55557")
+	client, err := NewManagementClient("localhost:55557", 100*time.Millisecond)
 	if err != nil {
 		t.Fatalf("connect to server: %v", err)
 	}

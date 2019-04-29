@@ -96,8 +96,8 @@ func NewManagementServer(bindAddr string, n Node, c Consensus, listen network.Li
 }
 
 // NewManagementClient returns client for lachesis management.
-func NewManagementClient(addr string) (wire.ManagementClient, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func NewManagementClient(addr string, timeout time.Duration) (wire.ManagementClient, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure(), grpc.WithBlock())

@@ -26,7 +26,7 @@ func (l *Lachesis) serviceStart() {
 	}()
 
 	go func() {
-		s := proxy.NewManagmentServer(
+		s := proxy.NewManagementServer(
 			l.ManagementListenAddr(),
 			l.node,
 			l.consensus,

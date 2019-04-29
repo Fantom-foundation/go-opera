@@ -182,24 +182,24 @@ func (mr *MockManagementClientMockRecorder) Stake(ctx, in interface{}, opts ...i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stake", reflect.TypeOf((*MockManagementClient)(nil).Stake), varargs...)
 }
 
-// InternalTx mocks base method
-func (m *MockManagementClient) InternalTx(ctx context.Context, in *wire.InternalTxRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+// InternalTxn mocks base method
+func (m *MockManagementClient) InternalTxn(ctx context.Context, in *wire.InternalTxnRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, in}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
-	ret := m.ctrl.Call(m, "InternalTx", varargs...)
+	ret := m.ctrl.Call(m, "InternalTxn", varargs...)
 	ret0, _ := ret[0].(*empty.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InternalTx indicates an expected call of InternalTx
-func (mr *MockManagementClientMockRecorder) InternalTx(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+// InternalTxn indicates an expected call of InternalTxn
+func (mr *MockManagementClientMockRecorder) InternalTxn(ctx, in interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, in}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InternalTx", reflect.TypeOf((*MockManagementClient)(nil).InternalTx), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InternalTxn", reflect.TypeOf((*MockManagementClient)(nil).InternalTxn), varargs...)
 }
 
 // MockManagementServer is a mock of ManagementServer interface
@@ -255,19 +255,19 @@ func (mr *MockManagementServerMockRecorder) Stake(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stake", reflect.TypeOf((*MockManagementServer)(nil).Stake), arg0, arg1)
 }
 
-// InternalTx mocks base method
-func (m *MockManagementServer) InternalTx(arg0 context.Context, arg1 *wire.InternalTxRequest) (*empty.Empty, error) {
+// InternalTxn mocks base method
+func (m *MockManagementServer) InternalTxn(arg0 context.Context, arg1 *wire.InternalTxnRequest) (*empty.Empty, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InternalTx", arg0, arg1)
+	ret := m.ctrl.Call(m, "InternalTxn", arg0, arg1)
 	ret0, _ := ret[0].(*empty.Empty)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InternalTx indicates an expected call of InternalTx
-func (mr *MockManagementServerMockRecorder) InternalTx(arg0, arg1 interface{}) *gomock.Call {
+// InternalTxn indicates an expected call of InternalTxn
+func (mr *MockManagementServerMockRecorder) InternalTxn(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InternalTx", reflect.TypeOf((*MockManagementServer)(nil).InternalTx), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InternalTxn", reflect.TypeOf((*MockManagementServer)(nil).InternalTxn), arg0, arg1)
 }
 
 // MockLachesisNodeClient is a mock of LachesisNodeClient interface

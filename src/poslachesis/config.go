@@ -9,17 +9,17 @@ import (
 
 // Config of lachesis node.
 type Config struct {
-	Port           int
+	Port          int
 	ManagementPort int
-	Node           posnode.Config
+	Node          posnode.Config
 }
 
 // DefaultConfig returns lachesis default config.
 func DefaultConfig() *Config {
 	return &Config{
-		Port:           55556,
+		Port:          55556,
 		ManagementPort: 55557,
-		Node:           *posnode.DefaultConfig(),
+		Node:          *posnode.DefaultConfig(),
 	}
 }
 
