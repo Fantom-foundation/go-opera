@@ -1,7 +1,6 @@
 package posnode
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -86,7 +85,6 @@ func TestParentsSum(t *testing.T) {
 	t.Run("not found event in cache", func(t *testing.T) {
 		pp := &parents{
 			cache: make(map[hash.Event]*parent),
-			Mutex: sync.Mutex{},
 		}
 
 		assert.Equal(t, pp.Sum(testEvent), float64(0))
@@ -111,7 +109,6 @@ func TestParentsSum(t *testing.T) {
 					Value: 4,
 				},
 			},
-			Mutex: sync.Mutex{},
 		}
 
 		assert.Equal(t, pp.Sum(testEvent), float64(10))
@@ -124,7 +121,6 @@ func TestParentsDel(t *testing.T) {
 	t.Run("not found event", func(t *testing.T) {
 		pp := &parents{
 			cache: make(map[hash.Event]*parent),
-			Mutex: sync.Mutex{},
 		}
 
 		assert.NotPanics(t, func() {
@@ -144,7 +140,6 @@ func TestParentsDel(t *testing.T) {
 				eventsArr[1]: new(parent),
 				eventsArr[2]: new(parent),
 			},
-			Mutex: sync.Mutex{},
 		}
 
 		assert.NotPanics(t, func() {
@@ -175,7 +170,6 @@ func TestNodePopBestParent(t *testing.T) {
 		node := &Node{
 			parents: parents{
 				cache: make(map[hash.Event]*parent),
-				Mutex: sync.Mutex{},
 			},
 		}
 
@@ -200,7 +194,6 @@ func TestNodePopBestParent(t *testing.T) {
 						Value: float64(1),
 					},
 				},
-				Mutex: sync.Mutex{},
 			},
 		}
 
@@ -231,7 +224,6 @@ func TestNodePopBestParent(t *testing.T) {
 						Value: float64(123),
 					},
 				},
-				Mutex: sync.Mutex{},
 			},
 		}
 
