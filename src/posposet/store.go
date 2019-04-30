@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
+
+const cacheSize = 5000 // TODO: Move it to config later
 
 // Store is a poset persistent storage working over physical key-value database.
 // TODO: cache tables with LRU.
@@ -19,10 +22,16 @@ type Store struct {
 	// indexes:
 	event2frame kvdb.Database
 
+	event2frameCache *lru.Cache
+
 	// entities:
 	states kvdb.Database
 	frames kvdb.Database
 	blocks kvdb.Database
+
+	statesCache *lru.Cache
+	framesCache *lru.Cache
+	blocksCache *lru.Cache
 
 	// trie:
 	balances state.Database
@@ -34,6 +43,7 @@ func NewStore(db kvdb.Database) *Store {
 		physicalDB: db,
 	}
 	s.init()
+	s.initCache()
 	return s
 }
 
@@ -54,6 +64,30 @@ func (s *Store) init() {
 		kvdb.NewTable(s.physicalDB, "balance_"))
 }
 
+func (s *Store) initCache() {
+	event2frameCache, err := lru.New(cacheSize)
+	if err != nil {
+		panic(err)
+	}
+	statesCache, err := lru.New(cacheSize)
+	if err != nil {
+		panic(err)
+	}
+	framesCache, err := lru.New(cacheSize)
+	if err != nil {
+		panic(err)
+	}
+	blocksCache, err := lru.New(cacheSize)
+	if err != nil {
+		panic(err)
+	}
+
+	s.event2frameCache = event2frameCache
+	s.statesCache = statesCache
+	s.framesCache = framesCache
+	s.blocksCache = blocksCache
+}
+
 // Close leaves underlying database.
 func (s *Store) Close() {
 	s.balances = nil
@@ -61,6 +95,11 @@ func (s *Store) Close() {
 	s.states = nil
 	s.event2frame = nil
 	s.physicalDB.Close()
+
+	s.event2frameCache.Purge()
+	s.statesCache.Purge()
+	s.framesCache.Purge()
+	s.blocksCache.Purge()
 }
 
 // ApplyGenesis stores initial state.
@@ -109,10 +148,17 @@ func (s *Store) SetEventFrame(e hash.Event, frame uint64) {
 	if err := s.event2frame.Put(key, val); err != nil {
 		panic(err)
 	}
+
+	s.event2frameCache.Add(e, frame)
 }
 
 // GetEventFrame returns frame num of event.
 func (s *Store) GetEventFrame(e hash.Event) *uint64 {
+	if n, ok := s.event2frameCache.Get(e); ok {
+		num := n.(uint64)
+		return &num
+	}
+
 	key := e.Bytes()
 	buf, err := s.event2frame.Get(key)
 	if err != nil {
@@ -130,11 +176,18 @@ func (s *Store) GetEventFrame(e hash.Event) *uint64 {
 func (s *Store) SetState(st *State) {
 	const key = "current"
 	s.set(s.states, []byte(key), st.ToWire())
+
+	s.statesCache.Add(key, st)
 }
 
 // GetState returns stored state.
 func (s *Store) GetState() *State {
 	const key = "current"
+
+	if state, ok := s.statesCache.Get(key); ok {
+		return state.(*State)
+	}
+
 	w, _ := s.get(s.states, []byte(key), &wire.State{}).(*wire.State)
 	return WireToState(w)
 }
@@ -142,10 +195,16 @@ func (s *Store) GetState() *State {
 // SetFrame stores event.
 func (s *Store) SetFrame(f *Frame) {
 	s.set(s.frames, intToBytes(f.Index), f.ToWire())
+
+	s.framesCache.Add(f.Index, f)
 }
 
 // GetFrame returns stored frame.
 func (s *Store) GetFrame(n uint64) *Frame {
+	if f, ok := s.framesCache.Get(n); ok {
+		return f.(*Frame)
+	}
+
 	w, _ := s.get(s.frames, intToBytes(n), &wire.Frame{}).(*wire.Frame)
 	return WireToFrame(w)
 }
@@ -153,10 +212,16 @@ func (s *Store) GetFrame(n uint64) *Frame {
 // SetBlock stores chain block.
 func (s *Store) SetBlock(b *Block) {
 	s.set(s.blocks, intToBytes(b.Index), b.ToWire())
+
+	s.blocksCache.Add(b.Index, b)
 }
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n uint64) *Block {
+	if b, ok := s.blocksCache.Get(n); ok {
+		return b.(*Block)
+	}
+
 	w, _ := s.get(s.blocks, intToBytes(n), &wire.Block{}).(*wire.Block)
 	return WireToBlock(w)
 }
