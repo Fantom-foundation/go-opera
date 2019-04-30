@@ -5,27 +5,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
+	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/stretchr/testify/assert"
 )
 
-//go:generate mockgen -package=proxy-source=./grpc_management.go -destination=mock_test.go
+//go:generate mockgen -package=proxy -source=./ctrl_server.go -destination=mock_test.go
 
-func TestManagementServer(t *testing.T) {
+func TestCtrlAppProxy(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	node := NewMockNode(ctrl)
 	consensus := NewMockConsensus(ctrl)
 
-	server := NewManagementServer("localhost:55557", node, consensus, nil)
+	server := NewCtrlAppProxy("localhost:55557", node, consensus, nil)
 	defer server.Stop()
 
-	client, err := NewManagementClient("localhost:55557", 100*time.Millisecond)
+	client, err := NewCtrlClient("localhost:55557", 100*time.Millisecond)
 	if err != nil {
 		t.Fatalf("connect to server: %v", err)
 	}

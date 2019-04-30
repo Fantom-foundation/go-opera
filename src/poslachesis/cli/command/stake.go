@@ -3,7 +3,7 @@ package command
 import (
 	"context"
 
-	empty "github.com/golang/protobuf/ptypes/empty"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/spf13/cobra"
 )
 

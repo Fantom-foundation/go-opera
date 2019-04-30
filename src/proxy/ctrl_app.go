@@ -16,7 +16,7 @@ import (
 
 var (
 	// ErrConnTimeout returns when deadline exceeded
-	// for Management server connection.
+	// for Ctrl server connection.
 	ErrConnTimeout = errors.New("node connection timeout")
 )
 
@@ -31,14 +31,14 @@ type Consensus interface {
 	GetStakeOf(peer hash.Peer) float64
 }
 
-// ManagementServer handles managing requests.
-type ManagementServer struct {
+// CtrlAppProxy handles managing requests.
+type CtrlAppProxy struct {
 	Node
 	Consensus
 }
 
 // InternalTxn pushes internal transaction into the Node.
-func (s *ManagementServer) InternalTxn(ctx context.Context, req *wire.InternalTxnRequest) (*empty.Empty, error) {
+func (s *CtrlAppProxy) InternalTxn(ctx context.Context, req *wire.InternalTxnRequest) (*empty.Empty, error) {
 	peer := hash.HexToPeer(req.Receiver)
 
 	tx := inter.InternalTransaction{
@@ -53,7 +53,7 @@ func (s *ManagementServer) InternalTxn(ctx context.Context, req *wire.InternalTx
 }
 
 // Stake returns the Node stake.
-func (s *ManagementServer) Stake(ctx context.Context, _ *empty.Empty) (*wire.StakeResponse, error) {
+func (s *CtrlAppProxy) Stake(ctx context.Context, _ *empty.Empty) (*wire.StakeResponse, error) {
 	peer := s.Node.GetID()
 	resp := wire.StakeResponse{
 		Value: s.Consensus.GetStakeOf(peer),
@@ -63,7 +63,7 @@ func (s *ManagementServer) Stake(ctx context.Context, _ *empty.Empty) (*wire.Sta
 }
 
 // ID returns the Node id.
-func (s *ManagementServer) ID(ctx context.Context, _ *empty.Empty) (*wire.IDResponse, error) {
+func (s *CtrlAppProxy) ID(ctx context.Context, _ *empty.Empty) (*wire.IDResponse, error) {
 	peer := s.Node.GetID()
 	resp := wire.IDResponse{
 		Id: peer.Hex(),
@@ -72,14 +72,14 @@ func (s *ManagementServer) ID(ctx context.Context, _ *empty.Empty) (*wire.IDResp
 	return &resp, nil
 }
 
-// NewManagementServer starts Management server.
-func NewManagementServer(bindAddr string, n Node, c Consensus, listen network.ListenFunc) *grpc.Server {
-	srv := ManagementServer{
+// NewCtrlAppProxy starts Ctrl server.
+func NewCtrlAppProxy(bindAddr string, n Node, c Consensus, listen network.ListenFunc) *grpc.Server {
+	srv := CtrlAppProxy{
 		Node:      n,
 		Consensus: c,
 	}
 	s := grpc.NewServer()
-	wire.RegisterManagementServer(s, &srv)
+	wire.RegisterCtrlServer(s, &srv)
 
 	if listen == nil {
 		listen = network.TCPListener
@@ -95,8 +95,8 @@ func NewManagementServer(bindAddr string, n Node, c Consensus, listen network.Li
 	return s
 }
 
-// NewManagementClient returns client for lachesis management.
-func NewManagementClient(addr string, timeout time.Duration) (wire.ManagementClient, error) {
+// NewCtrlClient returns client for lachesis Ctrl.
+func NewCtrlClient(addr string, timeout time.Duration) (wire.CtrlClient, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -108,6 +108,6 @@ func NewManagementClient(addr string, timeout time.Duration) (wire.ManagementCli
 		return nil, err
 	}
 
-	cli := wire.NewManagementClient(conn)
+	cli := wire.NewCtrlClient(conn)
 	return cli, nil
 }

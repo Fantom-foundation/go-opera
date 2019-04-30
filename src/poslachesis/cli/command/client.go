@@ -13,8 +13,8 @@ const (
 	ctrlAddr      = "localhost:55557"
 )
 
-func newClient() (wire.ManagementClient, error) {
-	client, err := proxy.NewManagementClient(ctrlAddr, connTimeout)
+func newClient() (wire.CtrlClient, error) {
+	client, err := proxy.NewCtrlClient(ctrlAddr, connTimeout)
 	if err != nil {
 		return nil, err
 	}

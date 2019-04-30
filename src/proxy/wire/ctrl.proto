@@ -4,7 +4,7 @@ package wire;
 
 import "google/protobuf/empty.proto";
 
-service Management {
+service Ctrl {
   rpc ID(google.protobuf.Empty) returns (IDResponse) {}
   rpc Stake(google.protobuf.Empty) returns (StakeResponse) {}
   rpc InternalTxn(InternalTxnRequest) returns (google.protobuf.Empty) {}

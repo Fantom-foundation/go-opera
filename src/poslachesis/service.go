@@ -17,16 +17,10 @@ func (l *Lachesis) serviceStart() {
 		return
 	}
 	l.service.done = make(chan struct{})
-	done := make(chan struct{})
 
-	go func() {
-		<-l.service.done
-		close(done)
-	}()
-
-	go func() {
-		s := proxy.NewManagementServer(
-			l.ManagementListenAddr(),
+	go func(done chan struct{}) {
+		s := proxy.NewCtrlAppProxy(
+			l.CtrlListenAddr(),
 			l.node,
 			l.consensus,
 			l.service.listen,
@@ -36,9 +30,9 @@ func (l *Lachesis) serviceStart() {
 		case <-done:
 			s.Stop()
 		}
-	}()
+	}(l.service.done)
 
-	go func() {
+	go func(done chan struct{}) {
 		app, err := proxy.NewGrpcAppProxy(
 			l.ListenAddr(),
 			l.conf.Node.ClientTimeout,
@@ -65,7 +59,7 @@ func (l *Lachesis) serviceStart() {
 				return
 			}
 		}
-	}()
+	}(l.service.done)
 }
 
 func (l *Lachesis) serviceStop() {

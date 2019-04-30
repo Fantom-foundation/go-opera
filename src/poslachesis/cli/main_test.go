@@ -13,14 +13,14 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
 )
 
-//go:generate mockgen -package=main -source=../../proxy/wire/grpc.pb.go -destination=mock_test.go
+//go:generate mockgen -package=main -source=../../proxy/wire/ctrl.pb.go -destination=mock_test.go
 
 func TestApp(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mock := NewMockManagementServer(ctrl)
+	mock := NewMockCtrlServer(ctrl)
 
-	server := mockManagementServer(mock)
+	server := mockCtrlApp(mock)
 	defer server.Stop()
 
 	app := prepareApp()
@@ -66,9 +66,9 @@ func TestApp(t *testing.T) {
 
 }
 
-func mockManagementServer(srv wire.ManagementServer) *grpc.Server {
+func mockCtrlApp(srv wire.CtrlServer) *grpc.Server {
 	s := grpc.NewServer()
-	wire.RegisterManagementServer(s, srv)
+	wire.RegisterCtrlServer(s, srv)
 
 	listen := network.TCPListener
 	listener := listen("localhost:55557")
