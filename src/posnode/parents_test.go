@@ -150,6 +150,7 @@ func TestParentsDel(t *testing.T) {
 		assert.NotPanics(t, func() {
 			pp.Del(deletedEvent)
 		})
+		assert.NotContains(t, pp.cache, deletedEvent)
 	})
 
 	t.Run("not delete other events", func(t *testing.T) {
@@ -164,5 +165,78 @@ func TestParentsDel(t *testing.T) {
 		assert.NotPanics(t, func() {
 			pp.Del(deletedEvent)
 		})
+		assert.NotContains(t, pp.cache, deletedEvent)
+		assert.Contains(t, pp.cache, protectedEvent)
+	})
+}
+
+func TestNodePopBestParent(t *testing.T) {
+	t.Run("not found event", func(t *testing.T) {
+		node := &Node{
+			parents: parents{
+				cache: make(map[hash.Event]*parent),
+				Mutex: sync.Mutex{},
+			},
+		}
+
+		result := node.popBestParent()
+		assert.Nil(t, result)
+	})
+
+	t.Run("not the last parent with other parents", func(t *testing.T) {
+		event := hash.FakeEvent()
+		node := &Node{
+			parents: parents{
+				cache: map[hash.Event]*parent{
+					hash.FakeEvent(): {
+						Last: false,
+					},
+					event: {
+						Last:  true,
+						Value: float64(123),
+					},
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(1),
+					},
+				},
+				Mutex: sync.Mutex{},
+			},
+		}
+
+		result := node.popBestParent()
+		assert.EqualValues(t, result, &event)
+		assert.NotContains(t, node.parents.cache, event)
+	})
+
+	t.Run("first maximum return", func(t *testing.T) {
+		event := hash.FakeEvent()
+		node := &Node{
+			parents: parents{
+				cache: map[hash.Event]*parent{
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(1),
+					},
+					event: {
+						Last:  true,
+						Value: float64(123),
+					},
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(123),
+					},
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(123),
+					},
+				},
+				Mutex: sync.Mutex{},
+			},
+		}
+
+		result := node.popBestParent()
+		assert.EqualValues(t, result, &event)
+		assert.NotContains(t, node.parents.cache, event)
 	})
 }
