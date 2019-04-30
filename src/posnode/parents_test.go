@@ -109,7 +109,8 @@ func Test_parents_Sum(t *testing.T) {
 				Mutex sync.Mutex
 			}{
 				cache: make(map[hash.Event]*parent),
-				Mutex: sync.Mutex{}},
+				Mutex: sync.Mutex{},
+			},
 		},
 		{
 			name: "event with parents",
@@ -135,7 +136,8 @@ func Test_parents_Sum(t *testing.T) {
 						Value: 4,
 					},
 				},
-				Mutex: sync.Mutex{}},
+				Mutex: sync.Mutex{},
+			},
 			want: 10,
 		},
 	}
@@ -147,6 +149,89 @@ func Test_parents_Sum(t *testing.T) {
 			}
 			if got := pp.Sum(tt.args.e); got != tt.want {
 				t.Errorf("parents.Sum() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_parents_Del(t *testing.T) {
+	type fields struct {
+		cache map[hash.Event]*parent
+		Mutex sync.Mutex
+	}
+	type args struct {
+		e hash.Event
+	}
+
+	events := hash.FakeEvents(3)
+	eventsArr := events.Slice()
+	deletedEvent := hash.FakeEvent()
+	protectedEvent := hash.FakeEvent()
+
+	tests := []struct {
+		name            string
+		fields          fields
+		args            args
+		isDeletedEvents hash.EventsSlice
+		protectedEvents hash.EventsSlice
+	}{
+		{
+			name: "not found event",
+			args: struct{ e hash.Event }{
+				e: deletedEvent,
+			},
+			fields: struct {
+				cache map[hash.Event]*parent
+				Mutex sync.Mutex
+			}{
+				cache: map[hash.Event]*parent{
+					protectedEvent: nil,
+				},
+				Mutex: sync.Mutex{},
+			},
+			isDeletedEvents: []hash.Event{deletedEvent},
+			protectedEvents: []hash.Event{protectedEvent},
+		},
+		{
+			name: "event with parents",
+			args: struct{ e hash.Event }{
+				e: deletedEvent,
+			},
+			fields: struct {
+				cache map[hash.Event]*parent
+				Mutex sync.Mutex
+			}{
+				cache: map[hash.Event]*parent{
+					deletedEvent: {
+						Parents: events,
+					},
+					eventsArr[0]:   new(parent),
+					eventsArr[1]:   new(parent),
+					eventsArr[2]:   new(parent),
+					protectedEvent: new(parent),
+				},
+				Mutex: sync.Mutex{},
+			},
+			isDeletedEvents: append(eventsArr, deletedEvent),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pp := &parents{
+				cache: tt.fields.cache,
+				Mutex: tt.fields.Mutex,
+			}
+			pp.Del(tt.args.e)
+
+			for _, e := range tt.isDeletedEvents {
+				_, ok := pp.cache[e]
+				assert.False(t, ok, "event '%s' hasn't deleted", e.String())
+			}
+
+			for _, e := range tt.protectedEvents {
+				_, ok := pp.cache[e]
+				assert.True(t, ok, "protected event '%s' is deleted", e.String())
 			}
 		})
 	}
