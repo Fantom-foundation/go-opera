@@ -80,159 +80,89 @@ func prepareParents(n *Node, c *MockConsensus, schema string, stakes map[string]
 	}
 }
 
-func Test_parents_Sum(t *testing.T) {
-	type fields struct {
-		cache map[hash.Event]*parent
-		Mutex sync.Mutex
-	}
-	type args struct {
-		e hash.Event
-	}
-
-	events := hash.FakeEvents(3)
-	eventsArr := events.Slice()
+func TestParentsSum(t *testing.T) {
 	testEvent := hash.FakeEvent()
 
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   float64
-	}{
-		{
-			name: "not found event in cache",
-			args: struct{ e hash.Event }{
-				e: testEvent,
-			},
-			fields: struct {
-				cache map[hash.Event]*parent
-				Mutex sync.Mutex
-			}{
-				cache: make(map[hash.Event]*parent),
-				Mutex: sync.Mutex{},
-			},
-		},
-		{
-			name: "event with parents",
-			args: struct{ e hash.Event }{
-				e: testEvent,
-			},
-			fields: struct {
-				cache map[hash.Event]*parent
-				Mutex sync.Mutex
-			}{
-				cache: map[hash.Event]*parent{
-					testEvent: {
-						Value:   1,
-						Parents: events,
-					},
-					eventsArr[0]: {
-						Value: 2,
-					},
-					eventsArr[1]: {
-						Value: 3,
-					},
-					eventsArr[2]: {
-						Value: 4,
-					},
+	t.Run("not found event in cache", func(t *testing.T) {
+		pp := &parents{
+			cache: make(map[hash.Event]*parent),
+			Mutex: sync.Mutex{},
+		}
+
+		assert.Equal(t, pp.Sum(testEvent), float64(0))
+	})
+
+	t.Run("event with parents", func(t *testing.T) {
+		events := hash.FakeEvents(3)
+		eventsArr := events.Slice()
+		pp := &parents{
+			cache: map[hash.Event]*parent{
+				testEvent: {
+					Value:   1,
+					Parents: events,
 				},
-				Mutex: sync.Mutex{},
+				eventsArr[0]: {
+					Value: 2,
+				},
+				eventsArr[1]: {
+					Value: 3,
+				},
+				eventsArr[2]: {
+					Value: 4,
+				},
 			},
-			want: 10,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pp := &parents{
-				cache: tt.fields.cache,
-				Mutex: tt.fields.Mutex,
-			}
-			if got := pp.Sum(tt.args.e); got != tt.want {
-				t.Errorf("parents.Sum() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+			Mutex: sync.Mutex{},
+		}
+
+		assert.Equal(t, pp.Sum(testEvent), float64(10))
+	})
 }
 
-func Test_parents_Del(t *testing.T) {
-	type fields struct {
-		cache map[hash.Event]*parent
-		Mutex sync.Mutex
-	}
-	type args struct {
-		e hash.Event
-	}
-
-	events := hash.FakeEvents(3)
-	eventsArr := events.Slice()
+func TestParentsDel(t *testing.T) {
 	deletedEvent := hash.FakeEvent()
-	protectedEvent := hash.FakeEvent()
 
-	tests := []struct {
-		name            string
-		fields          fields
-		args            args
-		isDeletedEvents hash.EventsSlice
-		protectedEvents hash.EventsSlice
-	}{
-		{
-			name: "not found event",
-			args: struct{ e hash.Event }{
-				e: deletedEvent,
-			},
-			fields: struct {
-				cache map[hash.Event]*parent
-				Mutex sync.Mutex
-			}{
-				cache: map[hash.Event]*parent{
-					protectedEvent: nil,
-				},
-				Mutex: sync.Mutex{},
-			},
-			isDeletedEvents: []hash.Event{deletedEvent},
-			protectedEvents: []hash.Event{protectedEvent},
-		},
-		{
-			name: "event with parents",
-			args: struct{ e hash.Event }{
-				e: deletedEvent,
-			},
-			fields: struct {
-				cache map[hash.Event]*parent
-				Mutex sync.Mutex
-			}{
-				cache: map[hash.Event]*parent{
-					deletedEvent: {
-						Parents: events,
-					},
-					eventsArr[0]:   new(parent),
-					eventsArr[1]:   new(parent),
-					eventsArr[2]:   new(parent),
-					protectedEvent: new(parent),
-				},
-				Mutex: sync.Mutex{},
-			},
-			isDeletedEvents: append(eventsArr, deletedEvent),
-		},
-	}
+	t.Run("not found event", func(t *testing.T) {
+		pp := &parents{
+			cache: make(map[hash.Event]*parent),
+			Mutex: sync.Mutex{},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pp := &parents{
-				cache: tt.fields.cache,
-				Mutex: tt.fields.Mutex,
-			}
-			pp.Del(tt.args.e)
-
-			for _, e := range tt.isDeletedEvents {
-				_, ok := pp.cache[e]
-				assert.False(t, ok, "event '%s' hasn't deleted", e.String())
-			}
-
-			for _, e := range tt.protectedEvents {
-				_, ok := pp.cache[e]
-				assert.True(t, ok, "protected event '%s' is deleted", e.String())
-			}
+		assert.NotPanics(t, func() {
+			pp.Del(deletedEvent)
 		})
-	}
+	})
+
+	t.Run("event with parents", func(t *testing.T) {
+		events := hash.FakeEvents(3)
+		eventsArr := events.Slice()
+		pp := &parents{
+			cache: map[hash.Event]*parent{
+				deletedEvent: {
+					Parents: events,
+				},
+				eventsArr[0]: new(parent),
+				eventsArr[1]: new(parent),
+				eventsArr[2]: new(parent),
+			},
+			Mutex: sync.Mutex{},
+		}
+
+		assert.NotPanics(t, func() {
+			pp.Del(deletedEvent)
+		})
+	})
+
+	t.Run("not delete other events", func(t *testing.T) {
+		protectedEvent := hash.FakeEvent()
+		pp := &parents{
+			cache: map[hash.Event]*parent{
+				deletedEvent:   new(parent),
+				protectedEvent: new(parent),
+			},
+		}
+
+		assert.NotPanics(t, func() {
+			pp.Del(deletedEvent)
+		})
+	})
 }
