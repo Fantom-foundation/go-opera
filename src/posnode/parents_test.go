@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -76,5 +77,77 @@ func prepareParents(n *Node, c *MockConsensus, schema string, stakes map[string]
 	}
 	for _, e := range unordered.ByParents() {
 		n.saveNewEvent(e)
+	}
+}
+
+func Test_parents_Sum(t *testing.T) {
+	type fields struct {
+		cache map[hash.Event]*parent
+		Mutex sync.Mutex
+	}
+	type args struct {
+		e hash.Event
+	}
+
+	events := hash.FakeEvents(3)
+	eventsArr := events.Slice()
+	testEvent := hash.FakeEvent()
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   float64
+	}{
+		{
+			name: "not found event in cache",
+			args: struct{ e hash.Event }{
+				e: testEvent,
+			},
+			fields: struct {
+				cache map[hash.Event]*parent
+				Mutex sync.Mutex
+			}{
+				cache: make(map[hash.Event]*parent),
+				Mutex: sync.Mutex{}},
+		},
+		{
+			name: "event with parents",
+			args: struct{ e hash.Event }{
+				e: testEvent,
+			},
+			fields: struct {
+				cache map[hash.Event]*parent
+				Mutex sync.Mutex
+			}{
+				cache: map[hash.Event]*parent{
+					testEvent: {
+						Value:   1,
+						Parents: events,
+					},
+					eventsArr[0]: {
+						Value: 2,
+					},
+					eventsArr[1]: {
+						Value: 3,
+					},
+					eventsArr[2]: {
+						Value: 4,
+					},
+				},
+				Mutex: sync.Mutex{}},
+			want: 10,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pp := &parents{
+				cache: tt.fields.cache,
+				Mutex: tt.fields.Mutex,
+			}
+			if got := pp.Sum(tt.args.e); got != tt.want {
+				t.Errorf("parents.Sum() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
