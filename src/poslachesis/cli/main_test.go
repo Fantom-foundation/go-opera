@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/network"
-	wire "github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
-	gomock "github.com/golang/mock/gomock"
-	empty "github.com/golang/protobuf/ptypes/empty"
+	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
-	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc"
+
+	"github.com/Fantom-foundation/go-lachesis/src/network"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
 )
 
 //go:generate mockgen -package=main -source=../../proxy/wire/grpc.pb.go -destination=mock_test.go
@@ -57,7 +58,7 @@ func TestApp(t *testing.T) {
 			Receiver: "receiver",
 		}).Return(&empty.Empty{}, nil)
 
-		app.SetArgs([]string{"internal_txn", "--amount=2", "--to=receiver"})
+		app.SetArgs([]string{"internal_txn", "--amount=2", "--receiver=receiver"})
 		app.Execute()
 
 		assert.Contains(out.String(), "transaction has been added")

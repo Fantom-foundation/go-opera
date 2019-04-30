@@ -4,7 +4,7 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 ## Executables
 
-[`cmd/`](./cmd/) - contains cli (only for fakenet now):
+[`cli/`](./cli/) - contains cli (only for fakenet now):
 
   - run single node: `go run main.go`;
   - for args see `go run main.go --help`;

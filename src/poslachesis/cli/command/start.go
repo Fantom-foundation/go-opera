@@ -14,35 +14,27 @@ import (
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
-var Start *cobra.Command
+var Start = &cobra.Command{
+	Use:   "start",
+	Short: "Starts lachesis node",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fakegen, err := cmd.Flags().GetString("fakegen")
+		if err != nil {
+			return err
+		}
 
-func init() {
-	Start = prepareStart()
-}
-
-// prepareStart initialize start command.
-func prepareStart() *cobra.Command {
-	cmd := cobra.Command{
-		Use:   "start",
-		Short: "Starts lachesis node",
-	}
-
-	fakegen := cmd.Flags().String(
-		"fakegen", "1/1", "use N/T format to use N-th key from T genesis keys")
-	dbdir := cmd.Flags().String(
-		"db", "inmemory", "badger database dir")
-	hosts := cmd.Flags().StringSlice(
-		"peer", nil, "hosts of peers")
-
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
-		num, total, err := parseFakeGen(*fakegen)
+		num, total, err := parseFakeGen(fakegen)
 		if err != nil {
 			return err
 		}
 
 		var db *badger.DB
-		if *dbdir != "inmemory" {
-			db, err = ondiskDB(*dbdir)
+		dbdir, err := cmd.Flags().GetString("db")
+		if err != nil {
+			return err
+		}
+		if dbdir != "inmemory" {
+			db, err = ondiskDB(dbdir)
 			if err != nil {
 				return err
 			}
@@ -54,14 +46,22 @@ func prepareStart() *cobra.Command {
 		l.Start(net.Genesis)
 		defer l.Stop()
 
+		hosts, err := cmd.Flags().GetStringSlice("peer")
+		if err != nil {
+			return err
+		}
 		l.AddPeers(trim(hosts)...)
 
 		wait()
 
 		return nil
-	}
+	},
+}
 
-	return &cmd
+func init() {
+	Start.Flags().String("fakegen", "1/1", "use N/T format to use N-th key from T genesis keys")
+	Start.Flags().String("db", "inmemory", "badger database dir")
+	Start.Flags().StringSlice("peer", nil, "hosts of peers")
 }
 
 func parseFakeGen(s string) (num, total uint64, err error) {
@@ -95,15 +95,10 @@ func wait() {
 	<-done
 }
 
-func trim(ss *[]string) []string {
-	if ss == nil {
-		return nil
+func trim(ss []string) []string {
+	for i, s := range ss {
+		ss[i] = strings.TrimSpace(s)
 	}
 
-	res := *ss
-	for i, s := range res {
-		res[i] = strings.TrimSpace(s)
-	}
-
-	return res
+	return ss
 }

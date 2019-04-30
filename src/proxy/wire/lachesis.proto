@@ -1,27 +1,6 @@
 syntax = "proto3";
 
-package proto;
-
-import "google/protobuf/empty.proto";
-
-service Management {
-  rpc ID(google.protobuf.Empty) returns (IDResponse) {}
-  rpc Stake(google.protobuf.Empty) returns (StakeResponse) {}
-  rpc InternalTxn(InternalTxnRequest) returns (google.protobuf.Empty) {}
-}
-
-message IDResponse {
-  string id = 1;
-}
-
-message StakeResponse {
-  double value = 1;
-}
-
-message InternalTxnRequest{
-  uint64 amount = 1;
-  string receiver = 2;
-}
+package wire;
 
 service LachesisNode {
   rpc Connect(stream ToServer) returns (stream ToClient) {}

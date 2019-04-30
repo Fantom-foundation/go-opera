@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Fantom-foundation/go-lachesis/src/poslachesis/cmd/command"
+	"github.com/Fantom-foundation/go-lachesis/src/poslachesis/cli/command"
 )
 
 func main() {

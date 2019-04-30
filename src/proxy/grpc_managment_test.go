@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
-	gomock "github.com/golang/mock/gomock"
-	empty "github.com/golang/protobuf/ptypes/empty"
-	"github.com/stretchr/testify/assert"
 )
 
 //go:generate mockgen -package=proxy-source=./grpc_management.go -destination=mock_test.go
