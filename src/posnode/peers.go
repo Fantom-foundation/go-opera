@@ -8,13 +8,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-const peersCount = 10
-
 // peers manages node peer list.
 type peers struct {
 	top       []hash.Peer
 	unordered bool
-	peers     map[hash.Peer]*peerAttr
+	ids       map[hash.Peer]*peerAttr
 	hosts     map[string]*hostAttr
 
 	sync.RWMutex
@@ -35,13 +33,13 @@ func (pp *peers) attrByID(id hash.Peer) *peerAttr {
 		return nil
 	}
 
-	attr := pp.peers[id]
+	attr := pp.ids[id]
 	if attr == nil {
 		attr = &peerAttr{
 			ID:   id,
 			Host: &hostAttr{},
 		}
-		pp.peers[id] = attr
+		pp.ids[id] = attr
 	}
 	return attr
 }
@@ -73,8 +71,36 @@ func (n *Node) initPeers() {
 		n.store.SetTopPeers(n.peers.top)
 	}
 
-	n.peers.peers = make(map[hash.Peer]*peerAttr)
+	n.peers.ids = make(map[hash.Peer]*peerAttr)
 	n.peers.hosts = make(map[string]*hostAttr)
+}
+
+func (n *Node) cleanHosts() {
+	n.peers.Lock()
+	defer n.peers.Unlock()
+
+	toDelete := len(n.peers.hosts) - n.conf.HostsCount
+	if toDelete < 1 {
+		return
+	}
+
+	// If we're reached limit -> delete half of it.
+	if halfLimit := n.conf.HostsCount / 2; halfLimit > 0 {
+		toDelete = halfLimit
+	}
+
+	// TODO: Should we add peers.top condition here?
+	lastTime := time.Now().Add(-n.conf.HostsCleanTimeout)
+	for _, h := range n.peers.hosts {
+		if toDelete < 1 {
+			break
+		}
+		toDelete--
+
+		if h.LastFail.Before(lastTime) && h.LastSuccess.Before(lastTime) {
+			delete(n.peers.hosts, h.Name)
+		}
+	}
 }
 
 // ConnectOK counts successful connections to peer.
@@ -82,14 +108,9 @@ func (n *Node) ConnectOK(p *Peer) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	host := n.peers.attrByHost(p.Host)
-	host.LastSuccess = time.Now()
-
-	peer := n.peers.attrByID(p.ID)
-	if peer == nil {
+	if ok := n.updatePeerAttrs(p, true); !ok {
 		return
 	}
-	peer.Host = host
 
 	stored := n.store.GetPeer(p.ID)
 	if stored == nil {
@@ -118,29 +139,24 @@ func (n *Node) ConnectFail(p *Peer, err error) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	host := n.peers.attrByHost(p.Host)
-	host.LastFail = time.Now()
-
-	peer := n.peers.attrByID(p.ID)
-	if peer == nil {
+	if ok := n.updatePeerAttrs(p, false); !ok {
 		return
 	}
-	peer.Host = host
 
 	n.peers.unordered = true
 }
 
 // PeerReadyForReq returns false if peer is not ready for request.
-// TODO: test it
 func (n *Node) PeerReadyForReq(host string) bool {
 	n.peers.RLock()
 	defer n.peers.RUnlock()
 
 	attr := n.peers.attrByHost(host)
 
+	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
+
 	return attr != nil &&
-		(attr.LastFail.Before(attr.LastSuccess) ||
-			attr.LastFail.Before(time.Now().Add(-n.conf.DiscoveryTimeout)))
+		(attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(timeout))
 }
 
 // PeerUnknown returns true if peer should be discovered.
@@ -154,9 +170,10 @@ func (n *Node) PeerUnknown(id *hash.Peer) bool {
 
 	attr := n.peers.attrByID(*id).Host
 
+	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
+
 	return attr == nil ||
-		(attr.LastSuccess.Before(time.Now().Add(-n.conf.DiscoveryTimeout)) &&
-			attr.LastFail.Before(time.Now().Add(-n.conf.DiscoveryTimeout)))
+		(attr.LastSuccess.Before(timeout) && attr.LastFail.Before(timeout))
 }
 
 // NextForGossip returns the best candidate to gossip with and marks it as busy.
@@ -173,12 +190,12 @@ func (n *Node) NextForGossip() *Peer {
 	if n.peers.unordered {
 		sort.Sort((*gossipEvaluation)(n))
 		n.peers.unordered = false
-		if len(n.peers.top) > peersCount {
-			tail := n.peers.top[peersCount:]
+		if len(n.peers.top) > n.conf.LimitPeersCount {
+			tail := n.peers.top[n.conf.LimitPeersCount:]
 			for _, id := range tail {
-				delete(n.peers.peers, id)
+				delete(n.peers.ids, id)
 			}
-			n.peers.top = n.peers.top[:peersCount]
+			n.peers.top = n.peers.top[:n.conf.LimitPeersCount]
 			n.peers.save()
 		}
 	}
@@ -206,4 +223,30 @@ func (n *Node) FreePeer(p *Peer) {
 	defer n.peers.Unlock()
 
 	n.peers.attrByID(p.ID).Busy = false
+}
+
+func (n *Node) updatePeerAttrs(p *Peer, isSuccess bool) bool {
+	if p == nil {
+		return false
+	}
+
+	host := n.peers.attrByHost(p.Host)
+	if host == nil {
+		return false
+	}
+
+	if isSuccess {
+		host.LastSuccess = time.Now()
+	} else {
+		host.LastFail = time.Now()
+	}
+
+	peer := n.peers.attrByID(p.ID)
+	if peer == nil {
+		return false
+	}
+
+	peer.Host = host
+
+	return true
 }
