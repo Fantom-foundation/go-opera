@@ -121,6 +121,11 @@ func (n *Node) EventOf(peer hash.Peer, i uint64) *inter.Event {
 	return e
 }
 
+// GetID returns node id.
+func (n *Node) GetID() hash.Peer {
+	return n.ID
+}
+
 /*
  * Utils:
  */
