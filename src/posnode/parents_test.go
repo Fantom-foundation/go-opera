@@ -78,3 +78,157 @@ func prepareParents(n *Node, c *MockConsensus, schema string, stakes map[string]
 		n.saveNewEvent(e)
 	}
 }
+
+func TestParentsSum(t *testing.T) {
+	testEvent := hash.FakeEvent()
+
+	t.Run("not found event in cache", func(t *testing.T) {
+		pp := &parents{
+			cache: make(map[hash.Event]*parent),
+		}
+
+		assert.Equal(t, pp.Sum(testEvent), float64(0))
+	})
+
+	t.Run("event with parents", func(t *testing.T) {
+		events := hash.FakeEvents(3)
+		eventsArr := events.Slice()
+		pp := &parents{
+			cache: map[hash.Event]*parent{
+				testEvent: {
+					Value:   1,
+					Parents: events,
+				},
+				eventsArr[0]: {
+					Value: 2,
+				},
+				eventsArr[1]: {
+					Value: 3,
+				},
+				eventsArr[2]: {
+					Value: 4,
+				},
+			},
+		}
+
+		assert.Equal(t, pp.Sum(testEvent), float64(10))
+	})
+}
+
+func TestParentsDel(t *testing.T) {
+	deletedEvent := hash.FakeEvent()
+
+	t.Run("not found event", func(t *testing.T) {
+		pp := &parents{
+			cache: make(map[hash.Event]*parent),
+		}
+
+		assert.NotPanics(t, func() {
+			pp.Del(deletedEvent)
+		})
+	})
+
+	t.Run("event with parents", func(t *testing.T) {
+		events := hash.FakeEvents(3)
+		eventsArr := events.Slice()
+		pp := &parents{
+			cache: map[hash.Event]*parent{
+				deletedEvent: {
+					Parents: events,
+				},
+				eventsArr[0]: new(parent),
+				eventsArr[1]: new(parent),
+				eventsArr[2]: new(parent),
+			},
+		}
+
+		assert.NotPanics(t, func() {
+			pp.Del(deletedEvent)
+		})
+		assert.NotContains(t, pp.cache, deletedEvent)
+	})
+
+	t.Run("not delete other events", func(t *testing.T) {
+		protectedEvent := hash.FakeEvent()
+		pp := &parents{
+			cache: map[hash.Event]*parent{
+				deletedEvent:   new(parent),
+				protectedEvent: new(parent),
+			},
+		}
+
+		assert.NotPanics(t, func() {
+			pp.Del(deletedEvent)
+		})
+		assert.NotContains(t, pp.cache, deletedEvent)
+		assert.Contains(t, pp.cache, protectedEvent)
+	})
+}
+
+func TestNodePopBestParent(t *testing.T) {
+	t.Run("not found event", func(t *testing.T) {
+		node := &Node{
+			parents: parents{
+				cache: make(map[hash.Event]*parent),
+			},
+		}
+
+		result := node.popBestParent()
+		assert.Nil(t, result)
+	})
+
+	t.Run("not the last parent with other parents", func(t *testing.T) {
+		event := hash.FakeEvent()
+		node := &Node{
+			parents: parents{
+				cache: map[hash.Event]*parent{
+					hash.FakeEvent(): {
+						Last: false,
+					},
+					event: {
+						Last:  true,
+						Value: float64(123),
+					},
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(1),
+					},
+				},
+			},
+		}
+
+		result := node.popBestParent()
+		assert.EqualValues(t, result, &event)
+		assert.NotContains(t, node.parents.cache, event)
+	})
+
+	t.Run("first maximum return", func(t *testing.T) {
+		event := hash.FakeEvent()
+		node := &Node{
+			parents: parents{
+				cache: map[hash.Event]*parent{
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(1),
+					},
+					event: {
+						Last:  true,
+						Value: float64(123),
+					},
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(123),
+					},
+					hash.FakeEvent(): {
+						Last:  true,
+						Value: float64(123),
+					},
+				},
+			},
+		}
+
+		result := node.popBestParent()
+		assert.EqualValues(t, result, &event)
+		assert.NotContains(t, node.parents.cache, event)
+	})
+}
