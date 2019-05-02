@@ -38,7 +38,7 @@ func (n *Node) initClient() {
 	if n.connPool.cache != nil {
 		return
 	}
-	n.connPool.size = n.conf.LimitPeersCount * 2
+	n.connPool.size = n.conf.TopPeersCount * 2
 	n.connPool.cache = make(map[string]*connection, n.connPool.size)
 	n.connPool.connectTimeout = n.conf.ConnectTimeout
 

@@ -19,6 +19,22 @@ type peers struct {
 	save func()
 }
 
+func (n *Node) initPeers() {
+	n.initDownloads()
+	n.initClient()
+
+	if n.peers.top != nil {
+		return
+	}
+	n.peers.top = n.store.GetTopPeers()
+	n.peers.save = func() {
+		n.store.SetTopPeers(n.peers.top)
+	}
+
+	n.peers.ids = make(map[hash.Peer]*peerAttr, n.conf.TopPeersCount)
+	n.peers.hosts = make(map[string]*hostAttr, n.conf.TopPeersCount*4)
+}
+
 func (pp *peers) Snapshot() []hash.Peer {
 	pp.RLock()
 	defer pp.RUnlock()
@@ -59,47 +75,25 @@ func (pp *peers) attrByHost(host string) *hostAttr {
 	return attr
 }
 
-func (n *Node) initPeers() {
-	n.initDownloads()
-	n.initClient()
-
-	if n.peers.top != nil {
-		return
-	}
-	n.peers.top = n.store.GetTopPeers()
-	n.peers.save = func() {
-		n.store.SetTopPeers(n.peers.top)
-	}
-
-	n.peers.ids = make(map[hash.Peer]*peerAttr)
-	n.peers.hosts = make(map[string]*hostAttr)
-}
-
-func (n *Node) cleanHosts() {
+// trimHosts trims host attrs cache.
+// Args for easy tests.
+func (n *Node) trimHosts(fromLen, toLen int) {
 	n.peers.Lock()
 	defer n.peers.Unlock()
 
-	toDelete := len(n.peers.hosts) - n.conf.HostsCount
-	if toDelete < 1 {
+	if len(n.peers.hosts) < fromLen {
 		return
 	}
 
-	// If we're reached limit -> delete half of it.
-	if halfLimit := n.conf.HostsCount / 2; halfLimit > 0 {
-		toDelete = halfLimit
+	ordered := make([]*hostAttr, 0, len(n.peers.hosts))
+	for _, attr := range n.peers.hosts {
+		ordered = append(ordered, attr)
 	}
+	sort.Sort(hostsByTime(ordered))
 
-	// TODO: Should we add peers.top condition here?
-	lastTime := time.Now().Add(-n.conf.HostsCleanTimeout)
-	for _, h := range n.peers.hosts {
-		if toDelete < 1 {
-			break
-		}
-		toDelete--
-
-		if h.LastFail.Before(lastTime) && h.LastSuccess.Before(lastTime) {
-			delete(n.peers.hosts, h.Name)
-		}
+	tail2del := ordered[toLen:]
+	for _, h := range tail2del {
+		delete(n.peers.hosts, h.Name)
 	}
 }
 
@@ -190,12 +184,12 @@ func (n *Node) NextForGossip() *Peer {
 	if n.peers.unordered {
 		sort.Sort((*gossipEvaluation)(n))
 		n.peers.unordered = false
-		if len(n.peers.top) > n.conf.LimitPeersCount {
-			tail := n.peers.top[n.conf.LimitPeersCount:]
+		if len(n.peers.top) > n.conf.TopPeersCount {
+			tail := n.peers.top[n.conf.TopPeersCount:]
 			for _, id := range tail {
 				delete(n.peers.ids, id)
 			}
-			n.peers.top = n.peers.top[:n.conf.LimitPeersCount]
+			n.peers.top = n.peers.top[:n.conf.TopPeersCount]
 			n.peers.save()
 		}
 	}
@@ -249,4 +243,26 @@ func (n *Node) updatePeerAttrs(p *Peer, isSuccess bool) bool {
 	peer.Host = host
 
 	return true
+}
+
+/*
+ * hosts sorting:
+ */
+
+// hostsByTime is for sorting.
+type hostsByTime []*hostAttr
+
+// Len is the number of elements in the collection.
+func (hh hostsByTime) Len() int {
+	return len(hh)
+}
+
+// Swap swaps the elements with indexes i and j.
+func (hh hostsByTime) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
+
+// Less reports whether the element with
+// index i should sort before the element with index j.
+func (hh hostsByTime) Less(i, j int) bool {
+	return hh[i].LastSuccess.After(hh[j].LastSuccess) ||
+		hh[i].LastFail.Before(hh[j].LastFail)
 }

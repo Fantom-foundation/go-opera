@@ -93,6 +93,7 @@ func TestPeerUnknown(t *testing.T) {
 	})
 }
 
+// TODO: refactor tests
 func TestCleanPeers(t *testing.T) {
 	// peers
 	peer1 := NewForTests("node1", NewMemStore(), nil).AsPeer()
@@ -112,12 +113,10 @@ func TestCleanPeers(t *testing.T) {
 	t.Run("leave hosts as is", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.conf.HostsCount = 2
-
 		node.PeerReadyForReq(peer1.Host)
 		node.PeerReadyForReq(peer2.Host)
 
-		node.cleanHosts()
+		node.trimHosts(2, 2)
 
 		assert.Equal(len(node.peers.hosts), len(peers))
 	})
@@ -126,18 +125,14 @@ func TestCleanPeers(t *testing.T) {
 		assert := assert.New(t)
 
 		// We already have info about 2 hosts but limit is 1
-		node.conf.HostsCount = 1
-
 		// Clean all expired hosts
-		node.cleanHosts()
+		node.trimHosts(1, 1)
 
 		assert.Equal(len(node.peers.hosts), 1)
 	})
 
 	t.Run("clean extra hosts", func(t *testing.T) {
 		assert := assert.New(t)
-
-		node.conf.HostsCount = 1
 
 		node.PeerReadyForReq(peer1.Host)
 		node.PeerReadyForReq(peer2.Host)
@@ -146,8 +141,8 @@ func TestCleanPeers(t *testing.T) {
 		node.ConnectOK(peer2)
 
 		// Clean extra
-		node.cleanHosts()
+		node.trimHosts(1, 1)
 
-		assert.Equal(len(node.peers.hosts), 2)
+		assert.Equal(len(node.peers.hosts), 1)
 	})
 }

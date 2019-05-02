@@ -137,7 +137,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	}
 
 	// Clean outdated data about peers.
-	n.cleanHosts()
+	n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {
