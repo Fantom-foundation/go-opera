@@ -20,6 +20,7 @@ func TestDiscoveryPeer(t *testing.T) {
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
+	node2.conf.ConnectTimeout = time.Millisecond * 100
 
 	// connect node2 to node1
 	store2.BootstrapPeers(node1.AsPeer())

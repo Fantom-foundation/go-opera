@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 // Poset processes events to get consensus.
@@ -405,14 +406,14 @@ func (p *Poset) makeBlock(ordered Events) uint64 {
 // It is not safe for concurrent use.
 func (p *Poset) reconsensusFromFrame(start uint64) {
 	stop := p.frameNumLast()
-	var all Events
+	var all inter.Events
 	// foreach stale frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
 		// extract events
 		for e := range frame.FlagTable {
 			if !frame.FlagTable.IsRoot(e) {
-				all = append(all, p.GetEvent(e))
+				all = append(all, &p.GetEvent(e).Event)
 			}
 		}
 		// and replace stale frame with blank
@@ -424,12 +425,11 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 			Balances:         frame.Balances,
 		}
 	}
-	if all == nil {
-		panic("`all`, of type `Events`, is `nil`")
-	}
 	// recalc consensus
 	for _, e := range all.ByParents() {
-		p.consensus(e)
+		p.consensus(&Event{
+			Event: *e,
+		})
 	}
 	// foreach fresh frame
 	for n := start; n <= stop; n++ {

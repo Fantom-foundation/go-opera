@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/base64"
+	"errors"
 	"math/big"
 )
 
@@ -38,6 +40,12 @@ func (pub *PublicKey) Bytes() []byte {
 	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
 }
 
+// Base64 encodes public key to base64.
+func (pub *PublicKey) Base64() string {
+	buf := pub.Bytes()
+	return base64.StdEncoding.EncodeToString(buf)
+}
+
 // BytesToPubkey decodes public key from bytes.
 func BytesToPubkey(pub []byte) *PublicKey {
 	if len(pub) == 0 {
@@ -45,6 +53,21 @@ func BytesToPubkey(pub []byte) *PublicKey {
 	}
 	x, y := elliptic.Unmarshal(elliptic.P256(), pub)
 	return &PublicKey{Curve: elliptic.P256(), X: x, Y: y}
+}
+
+// Base64ToPubkey decodes public key from base64.
+func Base64ToPubkey(s string) (*PublicKey, error) {
+	buf, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+
+	key := BytesToPubkey(buf)
+	if key == nil {
+		return nil, errors.New("Pubkey is invalid")
+	}
+
+	return key, nil
 }
 
 /*
@@ -68,4 +91,20 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 		return nil
 	}
 	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+}
+
+// StringToPubkey decode public key from base64 to common.PublicKey
+// NOTE: deprecated
+func StringToPubkey(pub string) (*PublicKey, error) {
+	bb, err := base64.StdEncoding.DecodeString(pub)
+	if err != nil {
+		return nil, err
+	}
+
+	key := BytesToPubkey(bb)
+	if key == nil {
+		return nil, errors.New("Pubkey is invalid")
+	}
+
+	return key, nil
 }

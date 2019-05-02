@@ -94,7 +94,7 @@ func TestPosetSimpleAtropos(t *testing.T) {
 func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string) {
 	assert := assert.New(t)
 	// init
-	nodes, _, names := ParseEvents(asciiScheme)
+	nodes, _, names := inter.ParseEvents(asciiScheme)
 	p, store, input := FakePoset(nodes)
 	// process events
 	n := 0

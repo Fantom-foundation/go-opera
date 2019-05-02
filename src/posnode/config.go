@@ -17,6 +17,8 @@ type Config struct {
 
 	ConnectTimeout time.Duration // how long dialer will for connection to be established
 	ClientTimeout  time.Duration // how long will gRPC client will wait for response
+
+	TopPeersCount int // peers hot cache size
 }
 
 // DefaultConfig returns default config.
@@ -31,6 +33,8 @@ func DefaultConfig() *Config {
 
 		ConnectTimeout: 15 * time.Second,
 		ClientTimeout:  15 * time.Second,
+
+		TopPeersCount: 10,
 	}
 }
 

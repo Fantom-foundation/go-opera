@@ -14,11 +14,13 @@ import (
 func TestGetPeerInfo(t *testing.T) {
 	store := NewMemStore()
 	n := NewForTests("server.fake", store, nil)
-
 	n.StartService()
 	defer n.StopService()
 
-	cli, free, err := n.ConnectTo(&Peer{Host: "server.fake"})
+	c := NewForTests("client.fake", nil, nil)
+	c.initClient()
+
+	client, free, fail, err := c.ConnectTo(n.AsPeer())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -33,14 +35,15 @@ func TestGetPeerInfo(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 		defer cancel()
 
-		got, err := cli.GetPeerInfo(ctx, &api.PeerRequest{
+		got, err := client.GetPeerInfo(ctx, &api.PeerRequest{
 			PeerID: peer.ID.Hex(),
 		})
 		if !assert.NoError(err) {
+			fail(err)
 			return
 		}
 
-		assert.Equal(peer.ToWire(), got)
+		assert.Equal(peer, WireToPeer(got))
 	})
 
 	t.Run("no existing peer", func(t *testing.T) {
@@ -49,7 +52,7 @@ func TestGetPeerInfo(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 		defer cancel()
 
-		resp, err := cli.GetPeerInfo(ctx, &api.PeerRequest{
+		resp, err := client.GetPeerInfo(ctx, &api.PeerRequest{
 			PeerID: "unknown",
 		})
 
@@ -57,8 +60,10 @@ func TestGetPeerInfo(t *testing.T) {
 			return
 		}
 
-		if !assert.NotNil(err) {
+		if !assert.Error(err) {
 			return
+		} else {
+			fail(err)
 		}
 
 		s := status.Convert(err)

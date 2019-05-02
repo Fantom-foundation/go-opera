@@ -25,11 +25,9 @@ type (
 
 	// peerAttr contains temporary attributes of peer.
 	peerAttr struct {
-		ID        hash.Peer
-		Busy      bool
-		LastEvent time.Time
-		LastUsed  time.Time
-		Host      *hostAttr
+		ID   hash.Peer
+		Busy bool
+		Host *hostAttr
 	}
 )
 

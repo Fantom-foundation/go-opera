@@ -18,12 +18,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
 // StartService starts and returns gRPC server.
-func StartService(bind string, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (*grpc.Server, string) {
+func StartService(bind string, key *common.PrivateKey, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (
+	*grpc.Server, string) {
 	server := grpc.NewServer(
+		grpc.UnaryInterceptor(ServerAuth(key)),
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	RegisterNodeServer(server, svc)
@@ -42,13 +46,39 @@ func StartService(bind string, svc NodeServer, log func(string, ...interface{}),
 
 // GrpcPeerHost extracts client's host from grpc context.
 func GrpcPeerHost(ctx context.Context) string {
-	if p, ok := peer.FromContext(ctx); ok {
-		addr := p.Addr.String()
-		host, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			panic(err)
-		}
-		return host
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		panic("GrpcPeerHost should be called from gRPC handler only")
 	}
-	panic("gRPC-peer network address is undefined")
+
+	addr := p.Addr.String()
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		panic(err)
+	}
+	return host
+}
+
+// GrpcPeerID extracts client's ID from grpc context.
+func GrpcPeerID(ctx context.Context) hash.Peer {
+	id, ok := ctx.Value(peerID{}).(hash.Peer)
+	if !ok {
+		panic("GrpcPeerID should be called from gRPC handler only")
+	}
+
+	return id
+}
+
+// ServerPeerID makes context for gRPC call to get server-peer id.
+func ServerPeerID(parent context.Context) (id *hash.Peer, ctx context.Context) {
+	if parent == nil {
+		parent = context.Background()
+	}
+
+	id = &hash.Peer{}
+	ctx = context.WithValue(parent, peerID{}, func(x hash.Peer) {
+		*id = x
+	})
+
+	return
 }

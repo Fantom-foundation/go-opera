@@ -5,7 +5,7 @@ COPY . .
 
 RUN go get github.com/Masterminds/glide 
 
-RUN glide install && CGO_ENABLED=0 go build -ldflags "-s -w" -o /tmp/lachesis ./src/poslachesis/cmd
+RUN glide install && CGO_ENABLED=0 go build -ldflags "-s -w" -o /tmp/lachesis ./src/poslachesis/cli
 
 
 

@@ -86,13 +86,17 @@ func (n *Node) gossiping(tickets chan struct{}) {
 }
 
 func (n *Node) syncWithPeer(peer *Peer) {
-	client, free, err := n.ConnectTo(peer)
+	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
 		return
 	}
 	defer free()
 
-	unknowns := n.compareKnownEvents(client, peer)
+	unknowns, err := n.compareKnownEvents(client, peer)
+	if err != nil {
+		fail(err)
+		return
+	}
 	if unknowns == nil {
 		return
 	}
@@ -104,14 +108,17 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	defer n.unlockFreeHeights(toDownload)
 
 	for creator, interval := range toDownload {
-		n.GotNewEvent(creator)
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
 		for i := interval.from; i <= interval.to; i++ {
 			req.Index = i
 
-			event := n.downloadEvent(client, peer, req)
+			event, err := n.downloadEvent(client, peer, req)
+			if err != nil {
+				fail(err)
+				return
+			}
 			if event == nil {
 				return
 			}
@@ -128,6 +135,9 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	for p := range peers2discovery {
 		n.CheckPeerIsKnown(peer.ID, peer.Host, &p)
 	}
+
+	// Clean outdated data about peers.
+	n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {
@@ -142,7 +152,7 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	}
 }
 
-func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) map[hash.Peer]uint64 {
+func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.Peer]uint64, error) {
 	knowns := n.knownEvents()
 
 	req := &api.KnownEvents{
@@ -155,10 +165,16 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) map[hash.Pe
 	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 	defer cancel()
 
+	id, ctx := api.ServerPeerID(ctx)
+
 	resp, err := client.SyncEvents(ctx, req)
 	if err != nil {
 		n.ConnectFail(peer, err)
-		return nil
+		return nil, err
+	}
+
+	if *id != peer.ID {
+		// TODO: skip or continue gossiping with peer id ?
 	}
 
 	res := make(map[hash.Peer]uint64, len(resp.Lasts))
@@ -167,22 +183,29 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) map[hash.Pe
 	}
 
 	n.ConnectOK(peer)
-	return res
+	return res, nil
 }
 
 // downloadEvent downloads event.
-func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRequest) *inter.Event {
+func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRequest) (*inter.Event, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
-	w, err := client.GetEvent(ctx, req)
-	cancel()
+	defer cancel()
 
+	id, ctx := api.ServerPeerID(ctx)
+
+	w, err := client.GetEvent(ctx, req)
 	if err != nil {
 		n.ConnectFail(peer, err)
-		return nil
+		return nil, err
 	}
+
+	if *id != peer.ID {
+		// TODO: skip or continue gossiping with peer id ?
+	}
+
 	if w.Creator != req.PeerID || w.Index != req.Index {
 		n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
-		return nil
+		return nil, nil
 	}
 
 	event := inter.WireToEvent(w)
@@ -190,16 +213,17 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	// check event sign
 	creator := n.store.GetPeer(event.Creator)
 	if creator == nil {
-		return nil
+		return nil, nil
 	}
 	if !event.Verify(creator.PubKey) {
-		n.ConnectFail(peer, fmt.Errorf("falsity GetEvent() response"))
-		return nil
+		err = fmt.Errorf("falsity GetEvent() response")
+		n.ConnectFail(peer, err)
+		return nil, err
 	}
 
 	n.saveNewEvent(event)
 
-	return event
+	return event, nil
 }
 
 // saveNewEvent writes event to store, indexes and consensus.
@@ -212,6 +236,8 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	if n.consensus != nil {
 		n.consensus.PushEvent(e.Hash())
 	}
+
+	n.pushPotentialParent(e)
 }
 
 // knownEventsReq makes request struct with event heights of top peers.
