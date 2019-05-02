@@ -34,7 +34,11 @@ func TestApp(t *testing.T) {
 		}, nil)
 
 		app.SetArgs([]string{"id"})
-		app.Execute()
+
+		err := app.Execute()
+		if !assert.NoError(err) {
+			return
+		}
 
 		assert.Contains(out.String(), "id mock")
 	})
@@ -46,7 +50,11 @@ func TestApp(t *testing.T) {
 		}, nil)
 
 		app.SetArgs([]string{"stake"})
-		app.Execute()
+
+		err := app.Execute()
+		if !assert.NoError(err) {
+			return
+		}
 
 		assert.Contains(out.String(), "0.0023")
 	})
@@ -59,7 +67,11 @@ func TestApp(t *testing.T) {
 		}).Return(&empty.Empty{}, nil)
 
 		app.SetArgs([]string{"internal_txn", "--amount=2", "--receiver=receiver"})
-		app.Execute()
+
+		err := app.Execute()
+		if !assert.NoError(err) {
+			return
+		}
 
 		assert.Contains(out.String(), "transaction has been added")
 	})

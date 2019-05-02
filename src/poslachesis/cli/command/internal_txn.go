@@ -15,6 +15,13 @@ var InternalTxn = &cobra.Command{
 	Use:   "internal_txn",
 	Short: "Adds internal transaction",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := cmd.MarkFlagRequired("receiver"); err != nil {
+			return err
+		}
+		if err := cmd.MarkFlagRequired("amount"); err != nil {
+			return err
+		}
+
 		client, err := newClient()
 		if err != nil {
 			return err
@@ -45,8 +52,7 @@ var InternalTxn = &cobra.Command{
 }
 
 func init() {
+	// TODO: move to command scope
 	InternalTxn.Flags().String("receiver", "", "transaction receiver (required)")
 	InternalTxn.Flags().Uint64("amount", 0, "transaction amount (required)")
-	InternalTxn.MarkFlagRequired("receiver")
-	InternalTxn.MarkFlagRequired("amount")
 }

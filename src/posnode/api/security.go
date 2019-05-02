@@ -85,7 +85,9 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 
 		sign := signData(resp, key)
 		md := metadata.Pairs("sign", sign, "pub", pub)
-		grpc.SetTrailer(ctx, md)
+		if e := grpc.SetTrailer(ctx, md); e != nil {
+			panic(err)
+		}
 
 		return resp, err
 	}
@@ -143,7 +145,7 @@ func verifyData(data interface{}, sign string, pub *common.PublicKey) error {
 	}
 
 	if !pub.Verify(h.Bytes(), r, s) {
-		errors.New("invalid signature")
+		return errors.New("invalid signature")
 	}
 
 	return nil

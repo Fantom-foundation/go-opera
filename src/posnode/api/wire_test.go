@@ -82,8 +82,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		client := NewNodeClient(conn)
 
 		// SyncEvents() rpc
-		id1, ctx := ServerPeerID(nil)
-		_, err = client.SyncEvents(ctx, &KnownEvents{})
+		id1, ctx1 := ServerPeerID(nil)
+		_, err = client.SyncEvents(ctx1, &KnownEvents{})
 		if !assert.NoError(err) {
 			return
 		}
@@ -92,8 +92,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		}
 
 		// GetEvent() rpc
-		id2, ctx := ServerPeerID(nil)
-		_, err = client.GetEvent(ctx, &EventRequest{})
+		id2, ctx2 := ServerPeerID(nil)
+		_, err = client.GetEvent(ctx2, &EventRequest{})
 		if !assert.NoError(err) {
 			return
 		}
@@ -102,8 +102,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		}
 
 		// GetPeerInfo() rpc
-		id3, ctx := ServerPeerID(nil)
-		_, err = client.GetPeerInfo(ctx, &PeerRequest{})
+		id3, ctx3 := ServerPeerID(nil)
+		_, err = client.GetPeerInfo(ctx3, &PeerRequest{})
 		if !assert.NoError(err) {
 			return
 		}
@@ -125,8 +125,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		client := NewNodeClient(conn)
 
 		// SyncEvents() rpc
-		id1, ctx := ServerPeerID(nil)
-		_, err = client.SyncEvents(ctx, &KnownEvents{})
+		id1, ctx1 := ServerPeerID(nil)
+		_, err = client.SyncEvents(ctx1, &KnownEvents{})
 		if !assert.Error(err) {
 			return
 		}
@@ -135,8 +135,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		}
 
 		// GetEvent() rpc
-		id2, ctx := ServerPeerID(nil)
-		_, err = client.GetEvent(context.Background(), &EventRequest{})
+		id2, ctx2 := ServerPeerID(nil)
+		_, err = client.GetEvent(ctx2, &EventRequest{})
 		if !assert.Error(err) {
 			return
 		}
@@ -145,8 +145,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		}
 
 		// GetPeerInfo() rpc
-		id3, ctx := ServerPeerID(nil)
-		_, err = client.GetPeerInfo(context.Background(), &PeerRequest{})
+		id3, ctx3 := ServerPeerID(nil)
+		_, err = client.GetPeerInfo(ctx3, &PeerRequest{})
 		if !assert.Error(err) {
 			return
 		}

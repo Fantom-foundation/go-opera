@@ -10,7 +10,7 @@ import (
 
 func main() {
 	app := prepareApp()
-	app.Execute()
+	_ = app.Execute()
 }
 
 func prepareApp() *cobra.Command {
