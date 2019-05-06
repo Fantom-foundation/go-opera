@@ -34,6 +34,7 @@ func TestApp(t *testing.T) {
 		}, nil)
 
 		app.SetArgs([]string{"id"})
+		defer out.Reset()
 
 		err := app.Execute()
 		if !assert.NoError(err) {
@@ -50,6 +51,7 @@ func TestApp(t *testing.T) {
 		}, nil)
 
 		app.SetArgs([]string{"stake"})
+		defer out.Reset()
 
 		err := app.Execute()
 		if !assert.NoError(err) {
@@ -57,6 +59,20 @@ func TestApp(t *testing.T) {
 		}
 
 		assert.Contains(out.String(), "0.0023")
+	})
+
+	t.Run("internal_txn missing flags", func(t *testing.T) {
+		assert := assert.New(t)
+
+		app.SetArgs([]string{"internal_txn"})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.Error(err) {
+			return
+		}
+
+		assert.Contains(out.String(), "required flag(s) \"amount\", \"receiver\" not set")
 	})
 
 	t.Run("internal_txn", func(t *testing.T) {
@@ -67,6 +83,7 @@ func TestApp(t *testing.T) {
 		}).Return(&empty.Empty{}, nil)
 
 		app.SetArgs([]string{"internal_txn", "--amount=2", "--receiver=receiver"})
+		defer out.Reset()
 
 		err := app.Execute()
 		if !assert.NoError(err) {
@@ -75,15 +92,13 @@ func TestApp(t *testing.T) {
 
 		assert.Contains(out.String(), "transaction has been added")
 	})
-
 }
 
 func mockCtrlApp(srv wire.CtrlServer) *grpc.Server {
 	s := grpc.NewServer()
 	wire.RegisterCtrlServer(s, srv)
 
-	listen := network.TCPListener
-	listener := listen("localhost:55557")
+	listener := network.TCPListener("localhost:55557")
 
 	go func() {
 		if err := s.Serve(listener); err != nil {
