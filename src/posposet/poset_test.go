@@ -92,22 +92,3 @@ func (p *Poset) PushEventSync(e hash.Event) {
 	event := p.GetEvent(e)
 	p.onNewEvent(event)
 }
-
-func BenchmarkPoset(b *testing.B) {
-	b.StopTimer()
-
-	nodes, nodesEvents := GenEventsByNode(5, 2000, 3)
-	poset, _, input := FakePoset(nodes)
-
-	poset.Start()
-
-	b.StartTimer()
-	b.Run("Push unordered events", func(b *testing.B) {
-		for _, events := range nodesEvents {
-			for _, e := range events {
-				input.SetEvent(&e.Event)
-				poset.PushEventSync(e.Hash())
-			}
-		}
-	})
-}
