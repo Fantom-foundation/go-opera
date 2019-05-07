@@ -9,7 +9,7 @@ import (
 
 // Config of lachesis node.
 type Config struct {
-	Port     int
+	AppPort  int
 	CtrlPort int
 	Node     posnode.Config
 }
@@ -17,20 +17,20 @@ type Config struct {
 // DefaultConfig returns lachesis default config.
 func DefaultConfig() *Config {
 	return &Config{
-		Port:     55556,
+		AppPort:  55556,
 		CtrlPort: 55557,
 		Node:     *posnode.DefaultConfig(),
 	}
 }
 
-// ListenAddr returns listen address from host and configured port.
-func (l *Lachesis) ListenAddr() string {
-	port := strconv.Itoa(l.conf.Port)
+// AppListenAddr returns listen address for application connections.
+func (l *Lachesis) AppListenAddr() string {
+	port := strconv.Itoa(l.conf.AppPort)
 	return net.JoinHostPort(l.host, port)
 }
 
-// CtrlListenAddr returns listen address from host and configured port
+// CtrlListenAddr returns listen address for control connections.
 func (l *Lachesis) CtrlListenAddr() string {
 	port := strconv.Itoa(l.conf.CtrlPort)
-	return net.JoinHostPort("localhost", port)
+	return net.JoinHostPort(l.host, port)
 }

@@ -34,7 +34,7 @@ func (l *Lachesis) serviceStart() {
 
 	go func(done chan struct{}) {
 		app, err := proxy.NewGrpcAppProxy(
-			l.ListenAddr(),
+			l.AppListenAddr(),
 			l.conf.Node.ClientTimeout,
 			nil,
 			l.service.listen)

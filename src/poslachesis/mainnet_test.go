@@ -12,7 +12,7 @@ func LachesisNetworkRing(count int, balance uint64) []*Lachesis {
 		return nil
 	}
 
-	res, _ := makeNetwork(count, balance)
+	res, _ := makeNetwork("ring", count, balance)
 
 	// init peers ring
 	for i := 0; i < count; i++ {
@@ -33,7 +33,7 @@ func LachesisNetworkStar(count int, balance uint64) []*Lachesis {
 		return nil
 	}
 
-	res, _ := makeNetwork(count, balance)
+	res, _ := makeNetwork("star", count, balance)
 
 	// init peers star
 	for i := 1; i < count; i++ {
@@ -47,13 +47,13 @@ func LachesisNetworkStar(count int, balance uint64) []*Lachesis {
 	return res
 }
 
-func makeNetwork(count int, balance uint64) ([]*Lachesis, map[hash.Peer]uint64) {
+func makeNetwork(pref string, count int, balance uint64) ([]*Lachesis, map[hash.Peer]uint64) {
 	ll := make([]*Lachesis, count)
 	genesis := make(map[hash.Peer]uint64, count)
 
 	// create all
 	for i := 0; i < count; i++ {
-		host := fmt.Sprintf("node_%d", i)
+		host := fmt.Sprintf("%s_%d", pref, i)
 		lachesis := NewForTests(nil, host)
 		genesis[lachesis.node.ID] = balance
 
