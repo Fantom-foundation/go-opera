@@ -1,7 +1,7 @@
 package proxy
 
-//go:generate protoc --go_out=plugins=grpc:. ./wire/lachesis.proto
-//go:generate protoc --go_out=plugins=grpc,Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty:. ./wire/ctrl.proto
+//go:generate protoc --go_out=plugins=grpc:. ./internal/lachesis.proto
+//go:generate protoc --go_out=plugins=grpc,Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty:. ./internal/ctrl.proto
 // Install before go generate:
 //  wget https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protoc-3.6.1-linux-x86_64.zip
 //  unzip protoc-3.6.1-linux-x86_64.zip -x readme.txt -d /usr/local/
@@ -22,14 +22,14 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
 var ErrNoAnswers = errors.New("no answers")
 
 type (
 	// ClientStream  a shortcut for generated type.
-	ClientStream wire.LachesisNode_ConnectServer
+	ClientStream internal.LachesisNode_ConnectServer
 
 	//GrpcAppProxy implements the AppProxy interface.
 	GrpcAppProxy struct {
@@ -39,11 +39,11 @@ type (
 
 		timeout     time.Duration
 		newClients  chan ClientStream
-		askings     map[xid.ID]chan *wire.ToServer_Answer
+		askings     map[xid.ID]chan *internal.ToServer_Answer
 		askingsSync sync.RWMutex
 
 		event4server  chan []byte
-		event4clients chan *wire.ToClient
+		event4clients chan *internal.ToClient
 	}
 )
 
@@ -63,9 +63,9 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 		timeout:    timeout,
 		newClients: make(chan ClientStream, 100),
 		// TODO: make chans buffered?
-		askings:       make(map[xid.ID]chan *wire.ToServer_Answer),
+		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
 		event4server:  make(chan []byte),
-		event4clients: make(chan *wire.ToClient),
+		event4clients: make(chan *internal.ToClient),
 	}
 
 	p.listener = listen(bindAddr)
@@ -73,7 +73,7 @@ func NewGrpcAppProxy(bindAddr string, timeout time.Duration, logger *logrus.Logg
 	p.server = grpc.NewServer(
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
-	wire.RegisterLachesisNodeServer(p.server, p)
+	internal.RegisterLachesisNodeServer(p.server, p)
 
 	go func() {
 		if err := p.server.Serve(p.listener); err != nil {
@@ -106,7 +106,7 @@ func (p *GrpcAppProxy) ListenAddr() string {
  */
 
 // Connect implements gRPC-server interface: LachesisNodeServer.
-func (p *GrpcAppProxy) Connect(stream wire.LachesisNode_ConnectServer) error {
+func (p *GrpcAppProxy) Connect(stream internal.LachesisNode_ConnectServer) error {
 	// save client's stream for writing
 	p.newClients <- stream
 	p.logger.Debugf("client connected")
@@ -220,7 +220,7 @@ func (p *GrpcAppProxy) Restore(snapshot []byte) error {
  * staff:
  */
 
-func (p *GrpcAppProxy) routeAnswer(hash *wire.ToServer_Answer) {
+func (p *GrpcAppProxy) routeAnswer(hash *internal.ToServer_Answer) {
 	uuid, err := xid.FromBytes(hash.GetUid())
 	if err != nil {
 		// TODO: log invalid uuid
@@ -233,11 +233,11 @@ func (p *GrpcAppProxy) routeAnswer(hash *wire.ToServer_Answer) {
 	p.askingsSync.RUnlock()
 }
 
-func (p *GrpcAppProxy) pushBlock(block []byte) chan *wire.ToServer_Answer {
+func (p *GrpcAppProxy) pushBlock(block []byte) chan *internal.ToServer_Answer {
 	uuid := xid.New()
-	event := &wire.ToClient{
-		Event: &wire.ToClient_Block_{
-			Block: &wire.ToClient_Block{
+	event := &internal.ToClient{
+		Event: &internal.ToClient_Block_{
+			Block: &internal.ToClient_Block{
 				Uid:  uuid[:],
 				Data: block,
 			},
@@ -248,11 +248,11 @@ func (p *GrpcAppProxy) pushBlock(block []byte) chan *wire.ToServer_Answer {
 	return answer
 }
 
-func (p *GrpcAppProxy) pushQuery(index int64) chan *wire.ToServer_Answer {
+func (p *GrpcAppProxy) pushQuery(index int64) chan *internal.ToServer_Answer {
 	uuid := xid.New()
-	event := &wire.ToClient{
-		Event: &wire.ToClient_Query_{
-			Query: &wire.ToClient_Query{
+	event := &internal.ToClient{
+		Event: &internal.ToClient_Query_{
+			Query: &internal.ToClient_Query{
 				Uid:   uuid[:],
 				Index: index,
 			},
@@ -263,11 +263,11 @@ func (p *GrpcAppProxy) pushQuery(index int64) chan *wire.ToServer_Answer {
 	return answer
 }
 
-func (p *GrpcAppProxy) pushRestore(snapshot []byte) chan *wire.ToServer_Answer {
+func (p *GrpcAppProxy) pushRestore(snapshot []byte) chan *internal.ToServer_Answer {
 	uuid := xid.New()
-	event := &wire.ToClient{
-		Event: &wire.ToClient_Restore_{
-			Restore: &wire.ToClient_Restore{
+	event := &internal.ToClient{
+		Event: &internal.ToClient_Restore_{
+			Restore: &internal.ToClient_Restore{
 				Uid:  uuid[:],
 				Data: snapshot,
 			},
@@ -278,8 +278,8 @@ func (p *GrpcAppProxy) pushRestore(snapshot []byte) chan *wire.ToServer_Answer {
 	return answer
 }
 
-func (p *GrpcAppProxy) subscribe4answer(uuid xid.ID) chan *wire.ToServer_Answer {
-	ch := make(chan *wire.ToServer_Answer)
+func (p *GrpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Answer {
+	ch := make(chan *internal.ToServer_Answer)
 	p.askingsSync.Lock()
 	p.askings[uuid] = ch
 	p.askingsSync.Unlock()

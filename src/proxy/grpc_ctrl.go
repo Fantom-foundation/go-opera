@@ -12,7 +12,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
 var (
@@ -51,7 +51,7 @@ func NewGrpcCtrlProxy(bindAddr string, n Node, c Consensus, logger *logrus.Logge
 		server:    s,
 		listener:  listener,
 	}
-	wire.RegisterCtrlServer(p.server, &p)
+	internal.RegisterCtrlServer(p.server, &p)
 
 	go func() {
 		if err := p.server.Serve(p.listener); err != nil {
@@ -72,7 +72,7 @@ type GrpcCtrlProxy struct {
 }
 
 // InternalTxn pushes internal transaction into the Node.
-func (p *GrpcCtrlProxy) InternalTxn(ctx context.Context, req *wire.InternalTxnRequest) (*empty.Empty, error) {
+func (p *GrpcCtrlProxy) InternalTxn(ctx context.Context, req *internal.InternalTxnRequest) (*empty.Empty, error) {
 	peer := hash.HexToPeer(req.Receiver)
 
 	tx := inter.InternalTransaction{
@@ -87,9 +87,9 @@ func (p *GrpcCtrlProxy) InternalTxn(ctx context.Context, req *wire.InternalTxnRe
 }
 
 // Stake returns the Node stake.
-func (p *GrpcCtrlProxy) Stake(ctx context.Context, _ *empty.Empty) (*wire.StakeResponse, error) {
+func (p *GrpcCtrlProxy) Stake(ctx context.Context, _ *empty.Empty) (*internal.StakeResponse, error) {
 	peer := p.node.GetID()
-	resp := wire.StakeResponse{
+	resp := internal.StakeResponse{
 		Value: p.consensus.GetStakeOf(peer),
 	}
 
@@ -97,9 +97,9 @@ func (p *GrpcCtrlProxy) Stake(ctx context.Context, _ *empty.Empty) (*wire.StakeR
 }
 
 // ID returns the Node id.
-func (p *GrpcCtrlProxy) ID(ctx context.Context, _ *empty.Empty) (*wire.IDResponse, error) {
+func (p *GrpcCtrlProxy) ID(ctx context.Context, _ *empty.Empty) (*internal.IDResponse, error) {
 	peer := p.node.GetID()
-	resp := wire.IDResponse{
+	resp := internal.IDResponse{
 		Id: peer.Hex(),
 	}
 

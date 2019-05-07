@@ -4,21 +4,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 //go:generate mockgen -package=proxy -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy Node,Consensus
 
-func TestCtrlAppProxy(t *testing.T) {
+func TestGrpcCtrlProxy(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	node := NewMockNode(ctrl)
 	consensus := NewMockConsensus(ctrl)
 
-	ctrlProxy, _ := NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
+	ctrlProxy, err := NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
+	if err != nil {
+		t.Fatalf("prepare control proxy: %v", err)
+	}
 	defer ctrlProxy.Close()
 
 	cmdProxy, err := NewGrpcCmdProxy("localhost:55557", 100*time.Millisecond)

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package wire;
+package internal;
 
 import "google/protobuf/empty.proto";
 

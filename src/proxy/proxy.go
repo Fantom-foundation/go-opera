@@ -26,15 +26,14 @@ type LachesisProxy interface {
 }
 
 // CmdProxy provides an interface for sending
-// control commands to the node.
+// control cmd to the node.
 type CmdProxy interface {
 	GetID() (string, error)
 	GetStake() (float64, error)
 	SubmitInternalTxn(amount uint64, recevier string) error
 }
 
-// CtrlProxy provides interface for command to
-// communitace with the node.
+// CtrlProxy is a control proxy.
 type CtrlProxy interface {
 	Close() error
 }

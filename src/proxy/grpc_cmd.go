@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 
 // GrpcCmdProxy sends commands to remote node.
 type GrpcCmdProxy struct {
-	client wire.CtrlClient
+	client internal.CtrlClient
 }
 
 // GetID returns id of the node.
@@ -53,7 +53,7 @@ func (p *GrpcCmdProxy) SubmitInternalTxn(amount uint64, receiver string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	req := wire.InternalTxnRequest{
+	req := internal.InternalTxnRequest{
 		Amount:   amount,
 		Receiver: receiver,
 	}
@@ -78,7 +78,7 @@ func NewGrpcCmdProxy(addr string, timeout time.Duration) (CmdProxy, error) {
 		return nil, err
 	}
 
-	client := wire.NewCtrlClient(conn)
+	client := internal.NewCtrlClient(conn)
 	proxy := GrpcCmdProxy{
 		client: client,
 	}
