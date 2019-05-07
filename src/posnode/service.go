@@ -52,42 +52,41 @@ func (n *Node) StopService() {
 
 // SyncEvents returns their known event heights excluding heights from request.
 func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.KnownEvents, error) {
-	if api.GrpcPeerID(ctx) == hash.EmptyPeer {
+	source := api.GrpcPeerID(ctx)
+	if source.IsEmpty() {
 		return nil, status.Error(codes.Unauthenticated, "unknown peer")
 	}
 
-	n.checkClientHost(ctx)
+	// food for discovery
+	host := api.GrpcPeerHost(ctx)
+	n.CheckPeerIsKnown(source, host, nil)
+	for hex := range req.Lasts {
+		peer := hash.HexToPeer(hex)
+		n.CheckPeerIsKnown(source, host, &peer)
+	}
 
+	// response
 	knowns := n.knownEvents()
-
 	knownLasts := make(map[string]uint64, len(knowns))
 	for id, h := range knowns {
 		knownLasts[id.Hex()] = h
 	}
-
-	diff := PeersHeightsDiff(knownLasts, req.Lasts)
-
 	// TODO: should we remember other node's knowns for future request?
 	// to_download := PeersHeightsDiff(req.Lasts, known)
-
-	for id := range req.Lasts {
-		source := api.GrpcPeerID(ctx)
-		host := api.GrpcPeerHost(ctx)
-		peer := hash.HexToPeer(id)
-
-		n.CheckPeerIsKnown(source, host, &peer)
-	}
-
+	diff := PeersHeightsDiff(knownLasts, req.Lasts)
 	return &api.KnownEvents{Lasts: diff}, nil
 }
 
 // GetEvent returns requested event.
 func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event, error) {
-	if api.GrpcPeerID(ctx) == hash.EmptyPeer {
+	source := api.GrpcPeerID(ctx)
+	if source.IsEmpty() {
 		return nil, status.Error(codes.Unauthenticated, "unknown peer")
 	}
 
-	n.checkClientHost(ctx)
+	// food for discovery
+	host := api.GrpcPeerHost(ctx)
+	n.CheckPeerIsKnown(source, host, nil)
 
 	var eventHash hash.Event
 
@@ -112,11 +111,14 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.PeerInfo, error) {
-	if api.GrpcPeerID(ctx) == hash.EmptyPeer {
+	source := api.GrpcPeerID(ctx)
+	if source.IsEmpty() {
 		return nil, status.Error(codes.Unauthenticated, "unknown peer")
 	}
 
-	n.checkClientHost(ctx)
+	// food for discovery
+	host := api.GrpcPeerHost(ctx)
+	n.CheckPeerIsKnown(source, host, nil)
 
 	var id hash.Peer
 
@@ -142,12 +144,6 @@ func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.Peer
 /*
  * Utils:
  */
-
-func (n *Node) checkClientHost(ctx context.Context) {
-	if from := api.GrpcPeerHost(ctx); from != "" {
-		n.CheckPeerIsKnown(hash.EmptyPeer, from, nil)
-	}
-}
 
 // PeersHeightsDiff returns all heights excluding excepts.
 func PeersHeightsDiff(all, excepts map[string]uint64) (res map[string]uint64) {
