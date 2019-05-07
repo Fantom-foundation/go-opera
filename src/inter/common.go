@@ -3,7 +3,10 @@ package inter
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
@@ -119,6 +122,68 @@ func ParseEvents(asciiScheme string) (
 		}
 		name := ee[0].Hash().String()
 		hash.NodeNameDict[node] = "node" + strings.ToUpper(name[0:1])
+	}
+
+	return
+}
+
+type sortedNamesEvents struct {
+	names map[string]*Event
+	keys  []string
+}
+
+func (arr *sortedNamesEvents) Len() int {
+	if len(arr.keys) == 0 {
+		arr.keys = make([]string, 0, len(arr.names))
+		for key := range arr.names {
+			arr.keys = append(arr.keys, key)
+		}
+	}
+
+	return len(arr.keys)
+}
+
+func (arr *sortedNamesEvents) Less(i, j int) bool {
+	iEvent := arr.names[arr.keys[i]]
+	jEvent := arr.names[arr.keys[j]]
+
+	if iEvent == nil || jEvent == nil {
+		panic(errors.New("not set event"))
+	}
+
+	if iEvent.LamportTime == jEvent.LamportTime {
+		return strings.Compare(arr.keys[i], arr.keys[j]) == -1
+	}
+
+	return iEvent.LamportTime < jEvent.LamportTime
+}
+
+func (arr *sortedNamesEvents) Swap(i, j int) {
+	arr.keys[i], arr.keys[j] = arr.keys[j], arr.keys[i]
+}
+
+func CreateSchemaByEvents(names map[string]*Event) (asciiSchema string) {
+	events := &sortedNamesEvents{
+		names: names,
+	}
+	sort.Sort(events)
+
+	var schema [][][]string
+
+	var column Timestamp
+
+	for i := range events.keys {
+		for column < events.names[events.keys[i]].LamportTime {
+			schema = append(schema, [][]string{})
+			column++
+		}
+
+		lastItem := len(schema[column])
+		if lastItem != 0 {
+			lastItem--
+		}
+		schema[column][lastItem] = append(schema[column][lastItem],events.keys[i])
+
 	}
 
 	return

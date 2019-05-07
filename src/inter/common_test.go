@@ -83,3 +83,37 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		}
 	}
 }
+
+func TestCreateSchemaByEvents(t *testing.T) {
+
+	schema := `
+a00 b00   c00 d00
+║   ║     ║   ║
+a01 ║     ║   ║
+║   ╠  ─  c01 ║
+a02 ╣     ║   ║
+║   ║     ║   ║
+╠ ─ ╫ ─ ─ c02 ║
+║   b01  ╝║   ║
+║   ╠ ─ ─ ╫ ─ d01
+║   ║     ║   ║
+║   ║     ║   ║
+╠ ═ b02 ═ ╬   ╣
+║   ║     ║  ║║
+a03 ╣     ╠ ─ d02
+║║  ║     ║  ║║
+║║  ║     ║  ║╠ ─ e00
+║║  ║     ║   ║   ║
+a04 ╫ ─ ─ ╬  ╝║   ║
+║║  ║     ║   ║   ║
+║╚  ╫╩  ─ c03 ╣   ║
+║   ║     ║   ║   ║`
+
+	nodes, events, names := ParseEvents(schema)
+
+	println(nodes, events, names)
+
+	resultSchema := CreateSchemaByEvents(names)
+
+	println(resultSchema)
+}
