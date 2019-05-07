@@ -70,12 +70,13 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	// TODO: should we remember other node's knowns for future request?
 	// to_download := PeersHeightsDiff(req.Lasts, known)
 
-	// TODO: should we CheckPeerIsKnown() ?
-	/*for id := range req.Lasts {
-		source := ?
+	for id := range req.Lasts {
+		source := api.GrpcPeerID(ctx)
 		host := api.GrpcPeerHost(ctx)
-		n.CheckPeerIsKnown(source, id, host)
-	}*/
+		peer := hash.HexToPeer(id)
+
+		n.CheckPeerIsKnown(source, host, &peer)
+	}
 
 	return &api.KnownEvents{Lasts: diff}, nil
 }
