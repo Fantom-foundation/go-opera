@@ -1,31 +1,26 @@
 package command
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/spf13/cobra"
 )
 
+// ID prints id of the node.
 var ID = &cobra.Command{
 	Use:   "id",
 	Short: "Prints node id",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := newClient()
+		proxy, err := proxy.NewGrpcCmdProxy(ctrlAddr, connTimeout)
 		if err != nil {
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-		defer cancel()
-
-		req := empty.Empty{}
-		resp, err := client.ID(ctx, &req)
+		id, err := proxy.GetID()
 		if err != nil {
 			return err
 		}
 
-		cmd.Println(resp.Id)
+		cmd.Println(id)
 		return nil
 	},
 }

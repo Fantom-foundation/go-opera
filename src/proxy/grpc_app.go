@@ -28,7 +28,6 @@ import (
 var ErrNoAnswers = errors.New("no answers")
 
 type (
-
 	// ClientStream  a shortcut for generated type.
 	ClientStream wire.LachesisNode_ConnectServer
 

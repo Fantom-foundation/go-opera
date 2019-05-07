@@ -13,7 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
 )
 
-//go:generate mockgen -package=main -source=../../proxy/wire/ctrl.pb.go -destination=mock_test.go
+//go:generate mockgen -package=main -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy/wire CtrlServer
 
 func TestApp(t *testing.T) {
 	ctrl := gomock.NewController(t)

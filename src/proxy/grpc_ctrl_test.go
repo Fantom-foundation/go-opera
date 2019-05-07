@@ -1,19 +1,16 @@
 package proxy
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 )
 
-//go:generate mockgen -package=proxy -source=./ctrl_server.go -destination=mock_test.go
+//go:generate mockgen -package=proxy -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy Node,Consensus
 
 func TestCtrlAppProxy(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -21,12 +18,12 @@ func TestCtrlAppProxy(t *testing.T) {
 	node := NewMockNode(ctrl)
 	consensus := NewMockConsensus(ctrl)
 
-	server := NewCtrlAppProxy("localhost:55557", node, consensus, nil)
-	defer server.Stop()
+	ctrlProxy, _ := NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
+	defer ctrlProxy.Close()
 
-	client, err := NewCtrlClient("localhost:55557", 100*time.Millisecond)
+	cmdProxy, err := NewGrpcCmdProxy("localhost:55557", 100*time.Millisecond)
 	if err != nil {
-		t.Fatalf("connect to server: %v", err)
+		t.Fatalf("prepare command proxy: %v", err)
 	}
 
 	id := "0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf"
@@ -34,34 +31,28 @@ func TestCtrlAppProxy(t *testing.T) {
 
 	t.Run("id", func(t *testing.T) {
 		assert := assert.New(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		node.EXPECT().GetID().Return(peer)
-		resp, err := client.ID(ctx, &empty.Empty{})
+		got, err := cmdProxy.GetID()
 
 		assert.NoError(err)
-		assert.Equal(id, resp.Id)
+		assert.Equal(id, got)
 	})
 
 	t.Run("stake", func(t *testing.T) {
 		assert := assert.New(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		node.EXPECT().GetID().Return(peer)
 		consensus.EXPECT().GetStakeOf(peer).Return(0.0023)
 
-		resp, err := client.Stake(ctx, &empty.Empty{})
+		got, err := cmdProxy.GetStake()
 
 		assert.NoError(err)
-		assert.Equal(0.0023, resp.Value)
+		assert.Equal(0.0023, got)
 	})
 
 	t.Run("internal_txn", func(t *testing.T) {
 		assert := assert.New(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
 		tx := inter.InternalTransaction{
 			Amount:   2,
@@ -69,10 +60,7 @@ func TestCtrlAppProxy(t *testing.T) {
 		}
 		node.EXPECT().AddInternalTxn(tx)
 
-		_, err := client.InternalTxn(ctx, &wire.InternalTxnRequest{
-			Amount:   2,
-			Receiver: id,
-		})
+		err := cmdProxy.SubmitInternalTxn(2, id)
 
 		assert.NoError(err)
 	})
