@@ -85,18 +85,21 @@ func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
 
 func makeStorages(db *badger.DB) (*posnode.Store, *posposet.Store) {
 	var (
-		p kvdb.Database
-		n kvdb.Database
+		p      kvdb.Database
+		n      kvdb.Database
+		cached bool
 	)
 	if db == nil {
 		p = kvdb.NewMemDatabase()
 		n = kvdb.NewMemDatabase()
+		cached = false
 	} else {
 		db := kvdb.NewBadgerDatabase(db)
 		p = kvdb.NewTable(db, "p_")
 		n = kvdb.NewTable(db, "n_")
+		cached = true
 	}
 
 	return posnode.NewStore(n),
-		posposet.NewStore(p)
+		posposet.NewStore(p, cached)
 }

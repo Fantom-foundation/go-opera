@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package internal;
+
+import "google/protobuf/empty.proto";
+
+service Node {
+  rpc SelfID(google.protobuf.Empty) returns (ID) {}
+  rpc BalanceOf(ID) returns (Balance) {}
+  rpc SendTo(Transfer) returns (google.protobuf.Empty) {}
+}
+
+message ID {
+  string hex = 1;
+}
+
+message Balance {
+  uint64 amount = 1;
+}
+
+message Transfer{
+  uint64 amount = 1;
+  ID receiver = 2;
+}
+

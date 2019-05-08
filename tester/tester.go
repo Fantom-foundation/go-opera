@@ -19,7 +19,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	// pause before shooting test transactions
 	time.Sleep(time.Duration(delay) * time.Second)
 
-	proxies := make(map[uint64]*proxy.GrpcLachesisProxy)
+	proxies := make(map[uint64]proxy.LachesisProxy)
 	for _, participant := range participants {
 		node := p[participant.PubKeyHex]
 		if node.NetAddr == "" {
@@ -57,14 +57,12 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 	}
 
 	for _, lachesisProxy := range proxies {
-		if err := lachesisProxy.Close(); err != nil {
-			logger.Fatal(err)
-		}
+		lachesisProxy.Close()
 	}
 	fmt.Println("Pinging stopped after ", n, " iterations")
 }
 
-func transact(proxy *proxy.GrpcLachesisProxy, proxyAddr string, iteration uint64) (string, error) {
+func transact(proxy proxy.LachesisProxy, proxyAddr string, iteration uint64) (string, error) {
 
 	// Ethereum txns are ~108 bytes. Bitcoin txns are ~250 bytes.
 	// A good assumption is to make txns 120 bytes in size.

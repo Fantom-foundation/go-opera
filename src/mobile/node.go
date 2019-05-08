@@ -1,14 +1,16 @@
 package mobile
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/sirupsen/logrus"
 )
 
 // Node struct
@@ -42,7 +44,7 @@ func New(privKey string,
 		return nil
 	}
 
-	lachesisConfig.Key = key
+	lachesisConfig.Key = (*ecdsa.PrivateKey)(key)
 
 	// There should be at least two peers
 	if participants.Len() < 2 {

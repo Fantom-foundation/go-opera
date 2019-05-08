@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package wire;
+package internal;
 
-service LachesisNode {
+service Lachesis {
   rpc Connect(stream ToServer) returns (stream ToClient) {}
 }
 

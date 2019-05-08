@@ -7,22 +7,22 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-// InmemAppProxy implements the AppProxy interface natively
-type InmemAppProxy struct {
+// inmemAppProxy implements the AppProxy interface.
+type inmemAppProxy struct {
 	logger           *logrus.Logger
-	handler          ProxyHandler
+	handler          App
 	submitCh         chan []byte
 	submitInternalCh chan inter.InternalTransaction
 }
 
-// NewInmemAppProxy instantiates an InmemProxy from a set of handlers
-func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProxy {
+// NewInmemAppProxy instantiates an InmemProxy from a set of handlers.
+func NewInmemAppProxy(handler App, logger *logrus.Logger) AppProxy {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
 	}
 
-	return &InmemAppProxy{
+	return &inmemAppProxy{
 		logger:           logger,
 		handler:          handler,
 		submitCh:         make(chan []byte),
@@ -31,49 +31,47 @@ func NewInmemAppProxy(handler ProxyHandler, logger *logrus.Logger) *InmemAppProx
 }
 
 /*
- * inmem interface: AppProxy implementation
+ * AppProxy implementation:
  */
 
-// SubmitCh implements AppProxy interface method
-func (p *InmemAppProxy) SubmitCh() chan []byte {
+func (p *inmemAppProxy) Close() {
+}
+
+func (p *inmemAppProxy) SubmitCh() chan []byte {
 	return p.submitCh
 }
 
-// SubmitInternalCh returns the channel of raw transactions
-func (p *InmemAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
+func (p *inmemAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 	return p.submitInternalCh
 }
 
-// CommitBlock implements AppProxy interface method, calls handler
-func (p *InmemAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
+func (p *inmemAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	stateHash, err := p.handler.CommitHandler(block)
 	p.logger.WithFields(logrus.Fields{
 		"round_received": block.RoundReceived(),
 		"txs":            len(block.Transactions()),
 		"state_hash":     stateHash,
 		"err":            err,
-	}).Debug("InmemAppProxy.CommitBlock")
+	}).Debug("inmemAppProxy.CommitBlock")
 	return stateHash, err
 }
 
-// GetSnapshot implements AppProxy interface method, calls handler
-func (p *InmemAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
+func (p *inmemAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	snapshot, err := p.handler.SnapshotHandler(blockIndex)
 	p.logger.WithFields(logrus.Fields{
 		"block":    blockIndex,
 		"snapshot": snapshot,
 		"err":      err,
-	}).Debug("InmemAppProxy.GetSnapshot")
+	}).Debug("inmemAppProxy.GetSnapshot")
 	return snapshot, err
 }
 
-// Restore implements AppProxy interface method, calls handler
-func (p *InmemAppProxy) Restore(snapshot []byte) error {
+func (p *inmemAppProxy) Restore(snapshot []byte) error {
 	stateHash, err := p.handler.RestoreHandler(snapshot)
 	p.logger.WithFields(logrus.Fields{
 		"state_hash": stateHash,
 		"err":        err,
-	}).Debug("InmemAppProxy.Restore")
+	}).Debug("inmemAppProxy.Restore")
 	return err
 }
 
@@ -82,7 +80,7 @@ func (p *InmemAppProxy) Restore(snapshot []byte) error {
  */
 
 // SubmitTx is called by the App to submit a transaction to Lachesis
-func (p *InmemAppProxy) SubmitTx(tx []byte) {
+func (p *inmemAppProxy) SubmitTx(tx []byte) {
 	//have to make a copy, or the tx will be garbage collected and weird stuff
 	//happens in transaction pool
 	t := make([]byte, len(tx))

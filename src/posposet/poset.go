@@ -41,7 +41,7 @@ func New(store *Store, input EventSource) *Poset {
 	return p
 }
 
-// Start starts events processing. It is not safe for concurrent use.
+// Start starts events processing.
 func (p *Poset) Start() {
 	if p.processingDone != nil {
 		return
@@ -67,7 +67,7 @@ func (p *Poset) Start() {
 	}()
 }
 
-// Stop stops events processing. It is not safe for concurrent use.
+// Stop stops events processing.
 func (p *Poset) Stop() {
 	if p.processingDone == nil {
 		return

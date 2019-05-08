@@ -2,94 +2,114 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/network"
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
-//go:generate mockgen -package=main -source=../../proxy/wire/ctrl.pb.go -destination=mock_test.go
+//go:generate mockgen -package=main -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy Node,Consensus
 
 func TestApp(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mock := NewMockCtrlServer(ctrl)
+	node := NewMockNode(ctrl)
+	consensus := NewMockConsensus(ctrl)
 
-	server := mockCtrlApp(mock)
-	defer server.Stop()
+	ctrlProxy, _, err := proxy.NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
+	if err != nil {
+		t.Fatalf("failed to prepare ctrl proxy: %v", err)
+	}
+	defer ctrlProxy.Close()
 
 	app := prepareApp()
 	var out bytes.Buffer
 	app.SetOutput(&out)
 
+	peer := hash.FakePeer()
+
 	t.Run("id", func(t *testing.T) {
 		assert := assert.New(t)
-		mock.EXPECT().ID(gomock.Any(), gomock.Any()).Return(&wire.IDResponse{
-			Id: "id mock",
-		}, nil)
+		node.EXPECT().
+			GetID().
+			Return(peer)
 
 		app.SetArgs([]string{"id"})
+		defer out.Reset()
 
 		err := app.Execute()
 		if !assert.NoError(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "id mock")
+		assert.Contains(out.String(), peer.Hex())
 	})
 
-	t.Run("stake", func(t *testing.T) {
+	t.Run("balance", func(t *testing.T) {
 		assert := assert.New(t)
-		mock.EXPECT().Stake(gomock.Any(), gomock.Any()).Return(&wire.StakeResponse{
-			Value: 0.0023,
-		}, nil)
 
-		app.SetArgs([]string{"stake"})
+		amount := rand.Uint64()
+
+		node.EXPECT().
+			GetID().
+			Return(peer)
+		consensus.EXPECT().
+			GetBalanceOf(peer).
+			Return(amount)
+
+		app.SetArgs([]string{"balance"})
+		defer out.Reset()
 
 		err := app.Execute()
 		if !assert.NoError(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "0.0023")
+		assert.Contains(out.String(), fmt.Sprint(amount))
 	})
 
-	t.Run("internal_txn", func(t *testing.T) {
+	t.Run("transfer missing flags", func(t *testing.T) {
 		assert := assert.New(t)
-		mock.EXPECT().InternalTxn(gomock.Any(), &wire.InternalTxnRequest{
-			Amount:   2,
-			Receiver: "receiver",
-		}).Return(&empty.Empty{}, nil)
 
-		app.SetArgs([]string{"internal_txn", "--amount=2", "--receiver=receiver"})
+		app.SetArgs([]string{"transfer"})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.Error(err) {
+			return
+		}
+
+		assert.Contains(out.String(), "required flag(s) \"amount\", \"receiver\" not set")
+	})
+
+	t.Run("transfer", func(t *testing.T) {
+		assert := assert.New(t)
+
+		tx := inter.InternalTransaction{
+			Amount:   rand.Uint64(),
+			Receiver: peer,
+		}
+
+		node.EXPECT().
+			AddInternalTxn(tx)
+
+		app.SetArgs([]string{
+			"transfer",
+			fmt.Sprintf("--amount=%d", tx.Amount),
+			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
+		defer out.Reset()
 
 		err := app.Execute()
 		if !assert.NoError(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "transaction has been added")
+		assert.Contains(out.String(), "ok")
 	})
-
-}
-
-func mockCtrlApp(srv wire.CtrlServer) *grpc.Server {
-	s := grpc.NewServer()
-	wire.RegisterCtrlServer(s, srv)
-
-	listen := network.TCPListener
-	listener := listen("localhost:55557")
-
-	go func() {
-		if err := s.Serve(listener); err != nil {
-			panic(err)
-		}
-	}()
-
-	return s
 }

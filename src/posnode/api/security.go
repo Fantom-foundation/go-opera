@@ -157,7 +157,7 @@ func hashOfData(data interface{}) hash.Hash {
 		panic("data is not proto.Message")
 	}
 
-	if d == nil || isProtoEmpty(&d) {
+	if IsProtoEmpty(&d) {
 		return hash.Hash{}
 	}
 
@@ -170,10 +170,10 @@ func hashOfData(data interface{}) hash.Hash {
 	return hash.Of(pbf.Bytes())
 }
 
-// isProtoEmpty return true if it is typed nil (by protobuf sources).
-func isProtoEmpty(m *proto.Message) bool {
+// IsProtoEmpty return true if it is typed nil (by protobuf sources).
+func IsProtoEmpty(m *proto.Message) bool {
 	// Super-tricky - read pointer out of data word of interface value.
 	// Saves ~25ns over the equivalent:
 	// return valToPointer(reflect.ValueOf(*m))
-	return (*[2]unsafe.Pointer)(unsafe.Pointer(m))[1] == nil
+	return m == nil || (*[2]unsafe.Pointer)(unsafe.Pointer(m))[1] == nil
 }

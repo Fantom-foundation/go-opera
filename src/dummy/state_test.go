@@ -7,14 +7,14 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
-func TestProxyHandlerImplementation(t *testing.T) {
+func TestProxyAppImplementation(t *testing.T) {
 	logger := common.NewTestLogger(t)
 
 	state := interface{}(
 		NewState(logger))
 
-	_, ok := state.(proxy.ProxyHandler)
+	_, ok := state.(proxy.App)
 	if !ok {
-		t.Fatal("State does not implement ProxyHandler interface!")
+		t.Fatal("State does not implement proxy.App interface!")
 	}
 }
