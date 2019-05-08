@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -12,11 +11,6 @@ import (
 )
 
 func TestInmemAppCalls(t *testing.T) {
-	const (
-		timeout    = 1 * time.Second
-		errTimeout = "time is over"
-	)
-
 	logger := common.NewTestLogger(t)
 
 	ctrl := gomock.NewController(t)
