@@ -1,31 +1,26 @@
 package command
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/spf13/cobra"
 )
 
+// Stake prints stake of the node.
 var Stake = &cobra.Command{
 	Use:   "stake",
 	Short: "Prints node stake",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := newClient()
+		proxy, err := proxy.NewGrpcCmdProxy(ctrlAddr, connTimeout)
 		if err != nil {
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-		defer cancel()
-
-		req := empty.Empty{}
-		resp, err := client.Stake(ctx, &req)
+		stake, err := proxy.GetStake()
 		if err != nil {
 			return err
 		}
 
-		cmd.Println(resp.Value)
+		cmd.Println(stake)
 		return nil
 	},
 }

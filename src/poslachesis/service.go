@@ -19,17 +19,19 @@ func (l *Lachesis) serviceStart() {
 	l.service.done = make(chan struct{})
 
 	go func(done chan struct{}) {
-		s := proxy.NewCtrlAppProxy(
+		ctrl, err := proxy.NewGrpcCtrlProxy(
 			l.CtrlListenAddr(),
 			l.node,
 			l.consensus,
+			nil,
 			l.service.listen,
 		)
-
-		select {
-		case <-done:
-			s.Stop()
+		if err != nil {
+			panic(err)
 		}
+		defer ctrl.Close()
+
+		<-done
 	}(l.service.done)
 
 	go func(done chan struct{}) {
@@ -37,7 +39,8 @@ func (l *Lachesis) serviceStart() {
 			l.AppListenAddr(),
 			l.conf.Node.ClientTimeout,
 			nil,
-			l.service.listen)
+			l.service.listen,
+		)
 		if err != nil {
 			panic(err)
 		}

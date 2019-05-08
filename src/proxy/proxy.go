@@ -24,3 +24,16 @@ type LachesisProxy interface {
 	RestoreCh() chan proto.RestoreRequest
 	SubmitTx(tx []byte) error
 }
+
+// CmdProxy provides an interface for sending
+// control cmd to the node.
+type CmdProxy interface {
+	GetID() (string, error)
+	GetStake() (float64, error)
+	SubmitInternalTxn(amount uint64, recevier string) error
+}
+
+// CtrlProxy is a control proxy.
+type CtrlProxy interface {
+	Close() error
+}

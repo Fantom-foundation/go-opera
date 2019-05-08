@@ -1,27 +1,23 @@
 package command
 
 import (
-	"context"
-
-	"github.com/Fantom-foundation/go-lachesis/src/proxy/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/spf13/cobra"
 )
 
 const (
-	internalTxnAddedMsg = "Internal transaction has been added"
+	internalTxnAddedMsg = "internal transaction has been added"
 )
 
+// InternalTxn adds internal transaction into the node.
 var InternalTxn = &cobra.Command{
 	Use:   "internal_txn",
 	Short: "Adds internal transaction",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := newClient()
+		proxy, err := proxy.NewGrpcCmdProxy(ctrlAddr, connTimeout)
 		if err != nil {
 			return err
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
-		defer cancel()
 
 		amount, err := cmd.Flags().GetUint64("amount")
 		if err != nil {
@@ -31,11 +27,8 @@ var InternalTxn = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		req := wire.InternalTxnRequest{
-			Amount:   amount,
-			Receiver: receiver,
-		}
-		if _, err := client.InternalTxn(ctx, &req); err != nil {
+
+		if err := proxy.SubmitInternalTxn(amount, receiver); err != nil {
 			return err
 		}
 
