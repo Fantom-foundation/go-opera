@@ -124,17 +124,80 @@ func ParseEvents(asciiScheme string) (
 	return
 }
 
-func CreateSchemaByEvents(events map[string]*Event) (asciiSchema string) {
+type schemaEvents [][]string
 
-	schema := make(map[hash.Peer][]string)
+func (schema schemaEvents) insertColumn(after Timestamp) {
+}
 
-	for key, event := range events {
-		line := event.LamportTime - 1
-		for Timestamp(len(schema[event.Creator])) <= line {
-			schema[event.Creator] = append(schema[event.Creator], "")
+func (schema schemaEvents) insertRow(column, after Timestamp) {
+	after++
+	schema[column] = append(
+		schema[column][:after],
+		append([]string{""}, schema[column][after:]...)...)
+}
+
+func (schema schemaEvents) connect(from, to [2]Timestamp) {
+	if from[0] == to[0] {
+		start := from[1]
+		stop := to[1]
+		column := from[0]
+
+		if from[1] > to[1] {
+			start = to[1]
+			stop = from[1]
 		}
 
-		schema[event.Creator][line] = key
+		if stop-start == 1 {
+			schema.insertRow(from[0], start)
+			stop++
+		}
+
+		start++
+		for start < stop {
+			schema[column][start] = "║"
+			start++
+		}
+		return
+	}
+
+	println(123)
+}
+
+func CreateSchemaByEvents(events map[string]*Event) (asciiSchema string) {
+	eventsPos := make(map[hash.Event][2]Timestamp)
+	schema := make(schemaEvents, 0)
+	nodes := make(map[hash.Peer]Timestamp)
+
+	for key, event := range events {
+		column, ok := nodes[event.Creator]
+		if !ok {
+			schema = append(schema, []string{})
+			column = Timestamp(len(schema) - 1)
+			nodes[event.Creator] = column
+		}
+
+		row := event.LamportTime - 1
+		for Timestamp(len(schema[column])) <= row {
+			schema[column] = append(schema[column], "")
+		}
+
+		schema[column][row] = key
+		eventsPos[event.Hash()] = [2]Timestamp{column, row}
+	}
+
+	for key, event := range events {
+		println(key)
+
+		pos := eventsPos[event.Hash()]
+
+		for e := range event.Parents {
+			if e == hash.ZeroEvent {
+				continue
+			}
+
+			parentPos := eventsPos[e]
+			schema.connect(pos, parentPos)
+		}
 	}
 
 	return
