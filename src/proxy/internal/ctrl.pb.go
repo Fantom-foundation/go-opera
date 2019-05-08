@@ -4,13 +4,11 @@
 package internal
 
 import (
-	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	empty "github.com/golang/protobuf/ptypes/empty"
+	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -23,159 +21,159 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type IDResponse struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+type ID struct {
+	Hex                  string   `protobuf:"bytes,1,opt,name=hex,proto3" json:"hex,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *IDResponse) Reset()         { *m = IDResponse{} }
-func (m *IDResponse) String() string { return proto.CompactTextString(m) }
-func (*IDResponse) ProtoMessage()    {}
-func (*IDResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c9e6d567004e21b4, []int{0}
+func (m *ID) Reset()         { *m = ID{} }
+func (m *ID) String() string { return proto.CompactTextString(m) }
+func (*ID) ProtoMessage()    {}
+func (*ID) Descriptor() ([]byte, []int) {
+	return fileDescriptor_af4c68a24d38d4c7, []int{0}
 }
 
-func (m *IDResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_IDResponse.Unmarshal(m, b)
+func (m *ID) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ID.Unmarshal(m, b)
 }
-func (m *IDResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_IDResponse.Marshal(b, m, deterministic)
+func (m *ID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ID.Marshal(b, m, deterministic)
 }
-func (m *IDResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_IDResponse.Merge(m, src)
+func (m *ID) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ID.Merge(m, src)
 }
-func (m *IDResponse) XXX_Size() int {
-	return xxx_messageInfo_IDResponse.Size(m)
+func (m *ID) XXX_Size() int {
+	return xxx_messageInfo_ID.Size(m)
 }
-func (m *IDResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_IDResponse.DiscardUnknown(m)
+func (m *ID) XXX_DiscardUnknown() {
+	xxx_messageInfo_ID.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_IDResponse proto.InternalMessageInfo
+var xxx_messageInfo_ID proto.InternalMessageInfo
 
-func (m *IDResponse) GetId() string {
+func (m *ID) GetHex() string {
 	if m != nil {
-		return m.Id
+		return m.Hex
 	}
 	return ""
 }
 
-type StakeResponse struct {
-	Value                float64  `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *StakeResponse) Reset()         { *m = StakeResponse{} }
-func (m *StakeResponse) String() string { return proto.CompactTextString(m) }
-func (*StakeResponse) ProtoMessage()    {}
-func (*StakeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c9e6d567004e21b4, []int{1}
-}
-
-func (m *StakeResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_StakeResponse.Unmarshal(m, b)
-}
-func (m *StakeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_StakeResponse.Marshal(b, m, deterministic)
-}
-func (m *StakeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StakeResponse.Merge(m, src)
-}
-func (m *StakeResponse) XXX_Size() int {
-	return xxx_messageInfo_StakeResponse.Size(m)
-}
-func (m *StakeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_StakeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_StakeResponse proto.InternalMessageInfo
-
-func (m *StakeResponse) GetValue() float64 {
-	if m != nil {
-		return m.Value
-	}
-	return 0
-}
-
-type InternalTxnRequest struct {
+type Balance struct {
 	Amount               uint64   `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
-	Receiver             string   `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *InternalTxnRequest) Reset()         { *m = InternalTxnRequest{} }
-func (m *InternalTxnRequest) String() string { return proto.CompactTextString(m) }
-func (*InternalTxnRequest) ProtoMessage()    {}
-func (*InternalTxnRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c9e6d567004e21b4, []int{2}
+func (m *Balance) Reset()         { *m = Balance{} }
+func (m *Balance) String() string { return proto.CompactTextString(m) }
+func (*Balance) ProtoMessage()    {}
+func (*Balance) Descriptor() ([]byte, []int) {
+	return fileDescriptor_af4c68a24d38d4c7, []int{1}
 }
 
-func (m *InternalTxnRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_InternalTxnRequest.Unmarshal(m, b)
+func (m *Balance) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Balance.Unmarshal(m, b)
 }
-func (m *InternalTxnRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_InternalTxnRequest.Marshal(b, m, deterministic)
+func (m *Balance) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Balance.Marshal(b, m, deterministic)
 }
-func (m *InternalTxnRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_InternalTxnRequest.Merge(m, src)
+func (m *Balance) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Balance.Merge(m, src)
 }
-func (m *InternalTxnRequest) XXX_Size() int {
-	return xxx_messageInfo_InternalTxnRequest.Size(m)
+func (m *Balance) XXX_Size() int {
+	return xxx_messageInfo_Balance.Size(m)
 }
-func (m *InternalTxnRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_InternalTxnRequest.DiscardUnknown(m)
+func (m *Balance) XXX_DiscardUnknown() {
+	xxx_messageInfo_Balance.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_InternalTxnRequest proto.InternalMessageInfo
+var xxx_messageInfo_Balance proto.InternalMessageInfo
 
-func (m *InternalTxnRequest) GetAmount() uint64 {
+func (m *Balance) GetAmount() uint64 {
 	if m != nil {
 		return m.Amount
 	}
 	return 0
 }
 
-func (m *InternalTxnRequest) GetReceiver() string {
+type Transfer struct {
+	Amount               uint64   `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	Receiver             *ID      `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Transfer) Reset()         { *m = Transfer{} }
+func (m *Transfer) String() string { return proto.CompactTextString(m) }
+func (*Transfer) ProtoMessage()    {}
+func (*Transfer) Descriptor() ([]byte, []int) {
+	return fileDescriptor_af4c68a24d38d4c7, []int{2}
+}
+
+func (m *Transfer) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Transfer.Unmarshal(m, b)
+}
+func (m *Transfer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Transfer.Marshal(b, m, deterministic)
+}
+func (m *Transfer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Transfer.Merge(m, src)
+}
+func (m *Transfer) XXX_Size() int {
+	return xxx_messageInfo_Transfer.Size(m)
+}
+func (m *Transfer) XXX_DiscardUnknown() {
+	xxx_messageInfo_Transfer.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Transfer proto.InternalMessageInfo
+
+func (m *Transfer) GetAmount() uint64 {
+	if m != nil {
+		return m.Amount
+	}
+	return 0
+}
+
+func (m *Transfer) GetReceiver() *ID {
 	if m != nil {
 		return m.Receiver
 	}
-	return ""
+	return nil
 }
 
 func init() {
-	proto.RegisterType((*IDResponse)(nil), "internal.IDResponse")
-	proto.RegisterType((*StakeResponse)(nil), "internal.StakeResponse")
-	proto.RegisterType((*InternalTxnRequest)(nil), "internal.InternalTxnRequest")
+	proto.RegisterType((*ID)(nil), "internal.ID")
+	proto.RegisterType((*Balance)(nil), "internal.Balance")
+	proto.RegisterType((*Transfer)(nil), "internal.Transfer")
 }
 
-func init() { proto.RegisterFile("internal/ctrl.proto", fileDescriptor_c9e6d567004e21b4) }
+func init() { proto.RegisterFile("internal/ctrl.proto", fileDescriptor_af4c68a24d38d4c7) }
 
-var fileDescriptor_c9e6d567004e21b4 = []byte{
-	// 249 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x8f, 0x4f, 0x4b, 0xc3, 0x40,
-	0x10, 0xc5, 0x93, 0x90, 0x16, 0x1d, 0xf1, 0x0f, 0xa3, 0x94, 0x10, 0x3d, 0xc8, 0x82, 0xe0, 0x69,
-	0x23, 0x0a, 0xde, 0xc5, 0x0a, 0xe6, 0xba, 0xfa, 0x05, 0xd2, 0x76, 0x2c, 0xc1, 0xed, 0x6e, 0xdc,
-	0x4c, 0xaa, 0x7e, 0x2e, 0xbf, 0xa0, 0x64, 0xb7, 0x56, 0xa5, 0xf4, 0xf8, 0x1e, 0x6f, 0xde, 0xfc,
-	0x1e, 0x1c, 0xbe, 0xd7, 0x8e, 0x8a, 0x29, 0x3b, 0x2d, 0x1b, 0x67, 0xd9, 0x62, 0xda, 0x1b, 0xf9,
-	0xe9, 0xdc, 0xda, 0xb9, 0xa6, 0xc2, 0x7b, 0x93, 0xee, 0xa5, 0xa0, 0x45, 0xc3, 0x9f, 0x21, 0x22,
-	0xce, 0x00, 0xca, 0xb1, 0xa2, 0xb6, 0xb1, 0xa6, 0x25, 0x3c, 0x80, 0xa4, 0x9e, 0x65, 0xf1, 0x79,
-	0x7c, 0xb9, 0xab, 0x92, 0x7a, 0x26, 0x2e, 0x60, 0xff, 0x89, 0xab, 0x57, 0x5a, 0x07, 0x4e, 0x60,
-	0xb0, 0xac, 0x74, 0x47, 0x3e, 0x13, 0xab, 0x20, 0xc4, 0x23, 0x60, 0x69, 0x98, 0x9c, 0xa9, 0xf4,
-	0xf3, 0x87, 0x51, 0xf4, 0xd6, 0x51, 0xcb, 0x38, 0x82, 0x61, 0xb5, 0xb0, 0x9d, 0x61, 0x1f, 0x4e,
-	0xd5, 0x4a, 0x61, 0x0e, 0x3b, 0x8e, 0xa6, 0x54, 0x2f, 0xc9, 0x65, 0x89, 0x7f, 0xb5, 0xd6, 0xd7,
-	0x5f, 0x31, 0xa4, 0xf7, 0xec, 0x34, 0x5e, 0x41, 0x52, 0x8e, 0x71, 0x24, 0x03, 0xbb, 0xfc, 0x61,
-	0x97, 0x0f, 0x3d, 0x7b, 0x7e, 0x24, 0xfb, 0x65, 0xf2, 0x97, 0x5c, 0x44, 0x78, 0x0b, 0x03, 0xcf,
-	0xba, 0xf5, 0xe8, 0x38, 0x1c, 0xfd, 0x1b, 0x24, 0x22, 0xbc, 0x83, 0xbd, 0x3f, 0xf0, 0x98, 0xad,
-	0xaa, 0x37, 0xf6, 0xe4, 0x5b, 0x7a, 0x45, 0x34, 0x19, 0x7a, 0xe7, 0xe6, 0x3b, 0x00, 0x00, 0xff,
-	0xff, 0xb8, 0x2c, 0xd0, 0xf4, 0x81, 0x01, 0x00, 0x00,
+var fileDescriptor_af4c68a24d38d4c7 = []byte{
+	// 243 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x8f, 0xd1, 0x4a, 0xc3, 0x30,
+	0x14, 0x86, 0xdb, 0x39, 0x6a, 0x77, 0xf4, 0x42, 0x8f, 0x50, 0x46, 0xbc, 0x99, 0xb9, 0xea, 0x55,
+	0x2a, 0x13, 0x7c, 0x00, 0xa9, 0x17, 0x05, 0x51, 0xa8, 0x7b, 0x81, 0xac, 0x3b, 0x99, 0x83, 0x2c,
+	0x19, 0x31, 0x13, 0x7d, 0x1b, 0x1f, 0x55, 0xda, 0x35, 0x8e, 0x5d, 0xf4, 0x2e, 0xe7, 0xff, 0x7e,
+	0x72, 0xbe, 0x03, 0x37, 0x1b, 0xe3, 0xc9, 0x19, 0xa9, 0x8b, 0xc6, 0x3b, 0x2d, 0x76, 0xce, 0x7a,
+	0x8b, 0x69, 0x08, 0xd9, 0xed, 0xda, 0xda, 0xb5, 0xa6, 0xa2, 0xcb, 0x97, 0x7b, 0x55, 0xd0, 0x76,
+	0xe7, 0x7f, 0x0e, 0x35, 0x9e, 0xc1, 0xa8, 0x2a, 0xf1, 0x0a, 0xce, 0x3e, 0xe8, 0x7b, 0x1a, 0xcf,
+	0xe2, 0x7c, 0x52, 0xb7, 0x4f, 0x7e, 0x07, 0xe7, 0x4f, 0x52, 0x4b, 0xd3, 0x10, 0x66, 0x90, 0xc8,
+	0xad, 0xdd, 0x1b, 0xdf, 0xf1, 0x71, 0xdd, 0x4f, 0xfc, 0x05, 0xd2, 0x85, 0x93, 0xe6, 0x53, 0x91,
+	0x1b, 0xea, 0x60, 0x0e, 0xa9, 0xa3, 0x86, 0x36, 0x5f, 0xe4, 0xa6, 0xa3, 0x59, 0x9c, 0x5f, 0xcc,
+	0x2f, 0x45, 0x10, 0x13, 0x55, 0x59, 0xff, 0xd3, 0xf9, 0x6f, 0x0c, 0xe3, 0x57, 0xbb, 0x22, 0xbc,
+	0x87, 0xe4, 0x9d, 0xb4, 0xaa, 0x4a, 0xcc, 0xc4, 0xc1, 0x5c, 0x04, 0x73, 0xf1, 0xdc, 0x9a, 0xb3,
+	0x93, 0x2f, 0x78, 0x84, 0x02, 0x26, 0xbd, 0xeb, 0x9b, 0xc2, 0x13, 0xc8, 0xae, 0x8f, 0x53, 0x5f,
+	0xe1, 0x11, 0x3e, 0xb6, 0x1b, 0xcc, 0x6a, 0x61, 0x11, 0x8f, 0x38, 0x9c, 0xc2, 0x06, 0xb6, 0xf2,
+	0x68, 0x99, 0x74, 0xc9, 0xc3, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xca, 0xda, 0xd5, 0xc3, 0x70,
+	0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -186,144 +184,130 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// CtrlClient is the client API for Ctrl service.
+// NodeClient is the client API for Node service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type CtrlClient interface {
-	ID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*IDResponse, error)
-	Stake(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StakeResponse, error)
-	InternalTxn(ctx context.Context, in *InternalTxnRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+type NodeClient interface {
+	SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ID, error)
+	BalanceOf(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Balance, error)
+	SendTo(ctx context.Context, in *Transfer, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
-type ctrlClient struct {
+type nodeClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewCtrlClient(cc *grpc.ClientConn) CtrlClient {
-	return &ctrlClient{cc}
+func NewNodeClient(cc *grpc.ClientConn) NodeClient {
+	return &nodeClient{cc}
 }
 
-func (c *ctrlClient) ID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*IDResponse, error) {
-	out := new(IDResponse)
-	err := c.cc.Invoke(ctx, "/internal.Ctrl/ID", in, out, opts...)
+func (c *nodeClient) SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ID, error) {
+	out := new(ID)
+	err := c.cc.Invoke(ctx, "/internal.Node/SelfID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ctrlClient) Stake(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*StakeResponse, error) {
-	out := new(StakeResponse)
-	err := c.cc.Invoke(ctx, "/internal.Ctrl/Stake", in, out, opts...)
+func (c *nodeClient) BalanceOf(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Balance, error) {
+	out := new(Balance)
+	err := c.cc.Invoke(ctx, "/internal.Node/BalanceOf", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ctrlClient) InternalTxn(ctx context.Context, in *InternalTxnRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *nodeClient) SendTo(ctx context.Context, in *Transfer, opts ...grpc.CallOption) (*empty.Empty, error) {
 	out := new(empty.Empty)
-	err := c.cc.Invoke(ctx, "/internal.Ctrl/InternalTxn", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/internal.Node/SendTo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// CtrlServer is the server API for Ctrl service.
-type CtrlServer interface {
-	ID(context.Context, *empty.Empty) (*IDResponse, error)
-	Stake(context.Context, *empty.Empty) (*StakeResponse, error)
-	InternalTxn(context.Context, *InternalTxnRequest) (*empty.Empty, error)
+// NodeServer is the server API for Node service.
+type NodeServer interface {
+	SelfID(context.Context, *empty.Empty) (*ID, error)
+	BalanceOf(context.Context, *ID) (*Balance, error)
+	SendTo(context.Context, *Transfer) (*empty.Empty, error)
 }
 
-// UnimplementedCtrlServer can be embedded to have forward compatible implementations.
-type UnimplementedCtrlServer struct {
+func RegisterNodeServer(s *grpc.Server, srv NodeServer) {
+	s.RegisterService(&_Node_serviceDesc, srv)
 }
 
-func (*UnimplementedCtrlServer) ID(ctx context.Context, req *empty.Empty) (*IDResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ID not implemented")
-}
-func (*UnimplementedCtrlServer) Stake(ctx context.Context, req *empty.Empty) (*StakeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Stake not implemented")
-}
-func (*UnimplementedCtrlServer) InternalTxn(ctx context.Context, req *InternalTxnRequest) (*empty.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method InternalTxn not implemented")
-}
-
-func RegisterCtrlServer(s *grpc.Server, srv CtrlServer) {
-	s.RegisterService(&_Ctrl_serviceDesc, srv)
-}
-
-func _Ctrl_ID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Node_SelfID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CtrlServer).ID(ctx, in)
+		return srv.(NodeServer).SelfID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/internal.Ctrl/ID",
+		FullMethod: "/internal.Node/SelfID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CtrlServer).ID(ctx, req.(*empty.Empty))
+		return srv.(NodeServer).SelfID(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ctrl_Stake_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+func _Node_BalanceOf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CtrlServer).Stake(ctx, in)
+		return srv.(NodeServer).BalanceOf(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/internal.Ctrl/Stake",
+		FullMethod: "/internal.Node/BalanceOf",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CtrlServer).Stake(ctx, req.(*empty.Empty))
+		return srv.(NodeServer).BalanceOf(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ctrl_InternalTxn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InternalTxnRequest)
+func _Node_SendTo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Transfer)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CtrlServer).InternalTxn(ctx, in)
+		return srv.(NodeServer).SendTo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/internal.Ctrl/InternalTxn",
+		FullMethod: "/internal.Node/SendTo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CtrlServer).InternalTxn(ctx, req.(*InternalTxnRequest))
+		return srv.(NodeServer).SendTo(ctx, req.(*Transfer))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Ctrl_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "internal.Ctrl",
-	HandlerType: (*CtrlServer)(nil),
+var _Node_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "internal.Node",
+	HandlerType: (*NodeServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ID",
-			Handler:    _Ctrl_ID_Handler,
+			MethodName: "SelfID",
+			Handler:    _Node_SelfID_Handler,
 		},
 		{
-			MethodName: "Stake",
-			Handler:    _Ctrl_Stake_Handler,
+			MethodName: "BalanceOf",
+			Handler:    _Node_BalanceOf_Handler,
 		},
 		{
-			MethodName: "InternalTxn",
-			Handler:    _Ctrl_InternalTxn_Handler,
+			MethodName: "SendTo",
+			Handler:    _Node_SendTo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

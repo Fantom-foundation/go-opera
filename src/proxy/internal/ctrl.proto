@@ -4,22 +4,22 @@ package internal;
 
 import "google/protobuf/empty.proto";
 
-service Ctrl {
-  rpc ID(google.protobuf.Empty) returns (IDResponse) {}
-  rpc Stake(google.protobuf.Empty) returns (StakeResponse) {}
-  rpc InternalTxn(InternalTxnRequest) returns (google.protobuf.Empty) {}
+service Node {
+  rpc SelfID(google.protobuf.Empty) returns (ID) {}
+  rpc BalanceOf(ID) returns (Balance) {}
+  rpc SendTo(Transfer) returns (google.protobuf.Empty) {}
 }
 
-message IDResponse {
-  string id = 1;
+message ID {
+  string hex = 1;
 }
 
-message StakeResponse {
-  double value = 1;
-}
-
-message InternalTxnRequest{
+message Balance {
   uint64 amount = 1;
-  string receiver = 2;
+}
+
+message Transfer{
+  uint64 amount = 1;
+  ID receiver = 2;
 }
 

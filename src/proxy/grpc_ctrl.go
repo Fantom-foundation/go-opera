@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
@@ -15,25 +14,19 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
-var (
-	// ErrConnTimeout returns when deadline exceeded
-	// for Ctrl server connection.
-	ErrConnTimeout = errors.New("node connection timeout")
-)
+// grpcCtrlProxy implements CtrlProxy interface.
+type grpcCtrlProxy struct {
+	node      Node
+	consensus Consensus
 
-// Node representation.
-type Node interface {
-	GetID() hash.Peer
-	AddInternalTxn(inter.InternalTransaction)
-}
-
-// Consensus representation.
-type Consensus interface {
-	GetStakeOf(peer hash.Peer) float64
+	server   *grpc.Server
+	listener net.Listener
 }
 
 // NewGrpcCtrlProxy starts Ctrl proxy.
-func NewGrpcCtrlProxy(bindAddr string, n Node, c Consensus, logger *logrus.Logger, listen network.ListenFunc) (CtrlProxy, error) {
+func NewGrpcCtrlProxy(bind string, n Node, c Consensus, logger *logrus.Logger, listen network.ListenFunc) (
+	res CtrlProxy, addr string, err error) {
+
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel
@@ -42,16 +35,15 @@ func NewGrpcCtrlProxy(bindAddr string, n Node, c Consensus, logger *logrus.Logge
 	if listen == nil {
 		listen = network.TCPListener
 	}
-	listener := listen(bindAddr)
+	listener := listen(bind)
 
-	s := grpc.NewServer()
-	p := GrpcCtrlProxy{
+	p := &grpcCtrlProxy{
 		node:      n,
 		consensus: c,
-		server:    s,
+		server:    grpc.NewServer(),
 		listener:  listener,
 	}
-	internal.RegisterCtrlServer(p.server, &p)
+	internal.RegisterNodeServer(p.server, p)
 
 	go func() {
 		if err := p.server.Serve(p.listener); err != nil {
@@ -59,55 +51,53 @@ func NewGrpcCtrlProxy(bindAddr string, n Node, c Consensus, logger *logrus.Logge
 		}
 	}()
 
-	return &p, nil
+	return p, listener.Addr().String(), nil
 }
 
-// GrpcCtrlProxy handles managing requests.
-type GrpcCtrlProxy struct {
-	node      Node
-	consensus Consensus
+/*
+ * CtrlProxy implementation:
+ */
 
-	server   *grpc.Server
-	listener net.Listener
+// Close closes the proxy.
+func (p *grpcCtrlProxy) Close() {
+	p.server.Stop()
 }
 
-// InternalTxn pushes internal transaction into the Node.
-func (p *GrpcCtrlProxy) InternalTxn(ctx context.Context, req *internal.InternalTxnRequest) (*empty.Empty, error) {
-	peer := hash.HexToPeer(req.Receiver)
+//TODO: Set descr.
+func (p *grpcCtrlProxy) Set() {
 
+}
+
+/*
+ * internal.NodeServer implementation:
+ */
+
+// ID returns node id.
+func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.ID, error) {
+	id := p.node.GetID()
+
+	return &internal.ID{
+		Hex: id.Hex(),
+	}, nil
+}
+
+// BalanceOf returns balance of peer.
+func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
+	id := hash.HexToPeer(req.Hex)
+
+	return &internal.Balance{
+		Amount: p.consensus.GetBalanceOf(id),
+	}, nil
+}
+
+// SendTo makes stake transfer transaction.
+func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.Transfer) (*empty.Empty, error) {
 	tx := inter.InternalTransaction{
 		Amount:   req.Amount,
-		Receiver: peer,
+		Receiver: hash.HexToPeer(req.Receiver.Hex),
 	}
 
 	p.node.AddInternalTxn(tx)
 
-	resp := empty.Empty{}
-	return &resp, nil
-}
-
-// Stake returns the Node stake.
-func (p *GrpcCtrlProxy) Stake(ctx context.Context, _ *empty.Empty) (*internal.StakeResponse, error) {
-	peer := p.node.GetID()
-	resp := internal.StakeResponse{
-		Value: p.consensus.GetStakeOf(peer),
-	}
-
-	return &resp, nil
-}
-
-// ID returns the Node id.
-func (p *GrpcCtrlProxy) ID(ctx context.Context, _ *empty.Empty) (*internal.IDResponse, error) {
-	peer := p.node.GetID()
-	resp := internal.IDResponse{
-		Id: peer.Hex(),
-	}
-
-	return &resp, nil
-}
-
-// Close closes the proxy.
-func (p *GrpcCtrlProxy) Close() error {
-	p.server.Stop()
-	return nil
+	return &empty.Empty{}, nil
 }

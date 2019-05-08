@@ -27,11 +27,16 @@ func (s *stakeCounter) IsGoalAchieved() bool {
  * Poset's methods:
  */
 
-// GetStakeOf returns stake of peer.
-func (p *Poset) GetStakeOf(addr hash.Peer) float64 {
+// GetBalanceOf returns stake balance of peer.
+func (p *Poset) GetBalanceOf(addr hash.Peer) uint64 {
 	f := p.frame(p.state.LastFinishedFrameN, false)
 	db := p.store.StateDB(f.Balances)
-	balance := db.GetBalance(addr)
+	return db.GetBalance(addr)
+}
+
+// GetStakeOf returns stake of peer as fraction from one.
+func (p *Poset) GetStakeOf(addr hash.Peer) float64 {
+	balance := p.GetBalanceOf(addr)
 
 	return float64(balance) / float64(p.state.TotalCap)
 }

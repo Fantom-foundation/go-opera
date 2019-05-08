@@ -10,7 +10,7 @@ import (
 // app run in separate processes and communicate through proxy
 type DummyClient struct {
 	logger        *logrus.Logger
-	state         proxy.ProxyHandler
+	state         proxy.App
 	lachesisProxy proxy.LachesisProxy
 }
 
@@ -31,7 +31,7 @@ func NewDummySocketClient(addr string, logger *logrus.Logger) (*DummyClient, err
 }
 
 // NewDummyClient instantiates an implementation of the dummy app
-func NewDummyClient(lachesisProxy proxy.LachesisProxy, handler proxy.ProxyHandler, logger *logrus.Logger) (c *DummyClient, err error) {
+func NewDummyClient(lachesisProxy proxy.LachesisProxy, handler proxy.App, logger *logrus.Logger) (c *DummyClient, err error) {
 	// state := NewState(logger)
 
 	c = &DummyClient{

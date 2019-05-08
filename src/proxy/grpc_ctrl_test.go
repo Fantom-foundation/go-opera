@@ -1,71 +1,91 @@
 package proxy
 
 import (
+	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
-//go:generate mockgen -package=proxy -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy Node,Consensus
+func TestGrpcCtrlCalls(t *testing.T) {
+	t.Run("over TCP", func(t *testing.T) {
+		testGrpcCtrlCalls(t, network.TCPListener)
+	})
 
-func TestGrpcCtrlProxy(t *testing.T) {
+	t.Run("over Fake", func(t *testing.T) {
+		dialer := network.FakeDialer("client.fake")
+		testGrpcCtrlCalls(t, network.FakeListener, grpc.WithContextDialer(dialer))
+	})
+}
+
+func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+
 	node := NewMockNode(ctrl)
 	consensus := NewMockConsensus(ctrl)
+	peer := hash.FakePeer()
 
-	ctrlProxy, err := NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
-	if err != nil {
-		t.Fatalf("prepare control proxy: %v", err)
+	s, addr, err := NewGrpcCtrlProxy("127.0.0.1:", node, consensus, nil, nil)
+	if !assert.NoError(t, err) {
+		return
 	}
-	defer ctrlProxy.Close()
+	defer s.Close()
 
-	cmdProxy, err := NewGrpcCmdProxy("localhost:55557", 100*time.Millisecond)
-	if err != nil {
-		t.Fatalf("prepare command proxy: %v", err)
+	c, err := NewGrpcNodeProxy(addr, nil)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	id := "0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf"
-	peer := hash.HexToPeer(id)
+	defer c.Close()
 
 	t.Run("id", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.EXPECT().GetID().Return(peer)
-		got, err := cmdProxy.GetID()
+		node.EXPECT().
+			GetID().
+			Return(peer).
+			Times(1)
+
+		got, err := c.GetSelfID()
 
 		assert.NoError(err)
-		assert.Equal(id, got)
+		assert.Equal(peer, got)
 	})
 
 	t.Run("stake", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.EXPECT().GetID().Return(peer)
-		consensus.EXPECT().GetStakeOf(peer).Return(0.0023)
+		amount := rand.Uint64()
 
-		got, err := cmdProxy.GetStake()
+		consensus.EXPECT().
+			GetBalanceOf(peer).
+			Return(amount)
 
-		assert.NoError(err)
-		assert.Equal(0.0023, got)
+		got, err := c.GetBalanceOf(peer)
+		if !assert.NoError(err) {
+			return
+		}
+
+		assert.Equal(amount, got)
 	})
 
 	t.Run("internal_txn", func(t *testing.T) {
 		assert := assert.New(t)
 
 		tx := inter.InternalTransaction{
-			Amount:   2,
+			Amount:   rand.Uint64(),
 			Receiver: peer,
 		}
-		node.EXPECT().AddInternalTxn(tx)
+		node.EXPECT().
+			AddInternalTxn(tx)
 
-		err := cmdProxy.SubmitInternalTxn(2, id)
-
+		err := c.SendTo(tx.Amount, tx.Receiver)
 		assert.NoError(err)
 	})
 }
