@@ -73,7 +73,7 @@ func runSingleLachesis(config *CLIConfig) error {
 	}).Debug("RUN")
 
 	if !config.Standalone {
-		p, err := aproxy.NewGrpcAppProxy(
+		p, _, err := aproxy.NewGrpcAppProxy(
 			config.ProxyAddr,
 			config.Lachesis.NodeConfig.HeartbeatTimeout,
 			config.Lachesis.Logger,

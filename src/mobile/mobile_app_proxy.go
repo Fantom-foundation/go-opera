@@ -12,7 +12,7 @@ This type is not exported
 
 // mobileAppProxy object
 type mobileAppProxy struct {
-	*proxy.InmemAppProxy
+	proxy.AppProxy
 
 	commitHandler    CommitHandler
 	exceptionHandler ExceptionHandler
@@ -32,7 +32,7 @@ func newMobileAppProxy(
 		logger:           logger,
 	}
 
-	mobileApp.InmemAppProxy = proxy.NewInmemAppProxy(mobileApp, logger)
+	mobileApp.AppProxy = proxy.NewInmemAppProxy(mobileApp, logger)
 
 	return mobileApp
 }

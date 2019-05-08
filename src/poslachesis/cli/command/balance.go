@@ -18,7 +18,8 @@ var Balance = &cobra.Command{
 		defer proxy.Close()
 
 		var id hash.Peer
-		if hex, err := cmd.Flags().GetString("peer"); err != nil || hex == "self" {
+		hex, err := cmd.Flags().GetString("peer")
+		if err != nil || hex == "self" {
 			id, err = proxy.GetSelfID()
 		} else {
 			id = hash.HexToPeer(hex)
