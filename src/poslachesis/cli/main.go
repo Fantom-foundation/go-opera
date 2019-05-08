@@ -19,9 +19,9 @@ func prepareApp() *cobra.Command {
 	}
 
 	app.AddCommand(command.Start)
-	app.AddCommand(command.InternalTxn)
 	app.AddCommand(command.ID)
-	app.AddCommand(command.Stake)
+	app.AddCommand(command.Balance)
+	app.AddCommand(command.Transfer)
 
 	return &app
 }

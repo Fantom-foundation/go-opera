@@ -1,7 +1,6 @@
 package command
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 	"github.com/spf13/cobra"
 )
 
@@ -10,17 +9,22 @@ var ID = &cobra.Command{
 	Use:   "id",
 	Short: "Prints node id",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		proxy, err := proxy.NewGrpcCmdProxy(ctrlAddr, connTimeout)
+		proxy, err := makeCtrlProxy(cmd)
+		if err != nil {
+			return err
+		}
+		defer proxy.Close()
+
+		id, err := proxy.GetSelfID()
 		if err != nil {
 			return err
 		}
 
-		id, err := proxy.GetID()
-		if err != nil {
-			return err
-		}
-
-		cmd.Println(id)
+		cmd.Println(id.Hex())
 		return nil
 	},
+}
+
+func init() {
+	initCtrlProxy(ID)
 }

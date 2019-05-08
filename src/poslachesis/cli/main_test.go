@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -21,7 +22,7 @@ func TestApp(t *testing.T) {
 	node := NewMockNode(ctrl)
 	consensus := NewMockConsensus(ctrl)
 
-	ctrlProxy, err := proxy.NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
+	ctrlProxy, _, err := proxy.NewGrpcCtrlProxy("localhost:55557", node, consensus, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to prepare ctrl proxy: %v", err)
 	}
@@ -31,12 +32,13 @@ func TestApp(t *testing.T) {
 	var out bytes.Buffer
 	app.SetOutput(&out)
 
-	id := "0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf"
-	peer := hash.HexToPeer(id)
+	peer := hash.FakePeer()
 
 	t.Run("id", func(t *testing.T) {
 		assert := assert.New(t)
-		node.EXPECT().GetID().Return(peer)
+		node.EXPECT().
+			GetID().
+			Return(peer)
 
 		app.SetArgs([]string{"id"})
 		defer out.Reset()
@@ -46,16 +48,22 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		assert.Contains(out.String(), id)
+		assert.Contains(out.String(), peer.Hex())
 	})
 
-	t.Run("stake", func(t *testing.T) {
+	t.Run("balance", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.EXPECT().GetID().Return(peer)
-		consensus.EXPECT().GetStakeOf(peer).Return(0.0023)
+		amount := rand.Uint64()
 
-		app.SetArgs([]string{"stake"})
+		node.EXPECT().
+			GetID().
+			Return(peer)
+		consensus.EXPECT().
+			GetBalanceOf(peer).
+			Return(amount)
+
+		app.SetArgs([]string{"balance"})
 		defer out.Reset()
 
 		err := app.Execute()
@@ -63,13 +71,13 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		assert.Contains(out.String(), "0.0023")
+		assert.Contains(out.String(), fmt.Sprint(amount))
 	})
 
-	t.Run("internal_txn missing flags", func(t *testing.T) {
+	t.Run("transfer missing flags", func(t *testing.T) {
 		assert := assert.New(t)
 
-		app.SetArgs([]string{"internal_txn"})
+		app.SetArgs([]string{"transfer"})
 		defer out.Reset()
 
 		err := app.Execute()
@@ -80,16 +88,21 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), "required flag(s) \"amount\", \"receiver\" not set")
 	})
 
-	t.Run("internal_txn", func(t *testing.T) {
+	t.Run("transfer", func(t *testing.T) {
 		assert := assert.New(t)
 
 		tx := inter.InternalTransaction{
-			Amount:   2,
+			Amount:   rand.Uint64(),
 			Receiver: peer,
 		}
-		node.EXPECT().AddInternalTxn(tx)
 
-		app.SetArgs([]string{"internal_txn", "--amount=2", fmt.Sprintf("--receiver=%s", id)})
+		node.EXPECT().
+			AddInternalTxn(tx)
+
+		app.SetArgs([]string{
+			"transfer",
+			fmt.Sprintf("--amount=%d", tx.Amount),
+			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
 		defer out.Reset()
 
 		err := app.Execute()
@@ -97,6 +110,6 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		assert.Contains(out.String(), "transaction has been added")
+		assert.Contains(out.String(), "ok")
 	})
 }
