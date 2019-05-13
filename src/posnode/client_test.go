@@ -62,7 +62,7 @@ func TestClient(t *testing.T) {
 		server.StartService()
 		pong, err := ping(t)
 		// both results (err or not) are acceptable here
-		_ = assert.NotEqual((err == nil), api.IsProtoEmpty(&pong), "inconsistent result")
+		_ = assert.NotEqual(err == nil, api.IsProtoEmpty(&pong), "inconsistent result")
 	})
 
 	t.Run("Re-connection 2", func(t *testing.T) {

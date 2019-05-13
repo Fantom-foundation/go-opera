@@ -92,7 +92,6 @@ func BenchmarkFairSelectorNext(b *testing.B) {
 			p := fs1.Next()
 			if p == nil {
 				b.Fatal("No next peer")
-				break
 			}
 			fs1.UpdateLast(p.PubKeyHex)
 		}
@@ -103,7 +102,6 @@ func BenchmarkFairSelectorNext(b *testing.B) {
 			p := rnd.Next()
 			if p == nil {
 				b.Fatal("No next peer")
-				break
 			}
 			rnd.UpdateLast(p.PubKeyHex)
 		}

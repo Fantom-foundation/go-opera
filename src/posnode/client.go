@@ -144,11 +144,11 @@ func (cc *connPool) Clean() {
 	}
 }
 
-func (сс *connPool) newConn(addr string) (*connection, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), сс.connectTimeout)
+func (cc *connPool) newConn(addr string) (*connection, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), cc.connectTimeout)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, addr, append(сс.opts, grpc.WithBlock())...)
+	conn, err := grpc.DialContext(ctx, addr, append(cc.opts, grpc.WithBlock())...)
 	if err != nil {
 		return nil, err
 	}

@@ -120,7 +120,7 @@ func EventHashOf(e *Event) hash.Event {
 // FakeFuzzingEvents generates random independent events for test purpose.
 func FakeFuzzingEvents() (res []*Event) {
 	creators := []hash.Peer{
-		hash.Peer{},
+		{},
 		hash.FakePeer(),
 		hash.FakePeer(),
 		hash.FakePeer(),
@@ -137,7 +137,7 @@ func FakeFuzzingEvents() (res []*Event) {
 				Creator: creators[c],
 				Parents: parents[p],
 				InternalTransactions: []*InternalTransaction{
-					&InternalTransaction{
+					{
 						Amount:   999,
 						Receiver: creators[c],
 					},
