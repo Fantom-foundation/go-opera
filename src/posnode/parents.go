@@ -68,10 +68,6 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 		return
 	}
 
-	if e.Creator == n.ID {
-		return
-	}
-
 	if _, ok := n.parents.cache[e.Hash()]; ok {
 		return
 	}
@@ -89,7 +85,7 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 	}
 
 	prev := n.store.GetEventHash(e.Creator, e.Index-1)
-	if prev != nil {
+	if prev != nil && n.parents.cache[*prev] != nil {
 		n.parents.cache[*prev].Last = false
 	}
 }
