@@ -1,9 +1,13 @@
 package inter
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
@@ -124,19 +128,50 @@ func ParseEvents(asciiScheme string) (
 	return
 }
 
-type schemaEvents [][]string
+type asciiScheme struct {
+	graph [][]string
 
-func (schema schemaEvents) insertColumn(after Timestamp) {
+	nodes    map[hash.Peer]uint64
+	posNodes []hash.Peer
+
+	eventsPosition map[hash.Event][2]uint64
 }
 
-func (schema schemaEvents) insertRow(column, after Timestamp) {
+func (scheme *asciiScheme) Len() int {
+	return len(scheme.nodes)
+}
+
+func (scheme *asciiScheme) Less(i, j int) bool {
+	return bytes.Compare(scheme.posNodes[i].Bytes(), scheme.posNodes[j].Bytes()) == -1
+}
+
+func (scheme *asciiScheme) Swap(i, j int) {
+	scheme.nodes[scheme.posNodes[i]] = uint64(j)
+	scheme.nodes[scheme.posNodes[j]] = uint64(i)
+
+	scheme.posNodes[i], scheme.posNodes[j] = scheme.posNodes[j], scheme.posNodes[i]
+
+	scheme.graph[i], scheme.graph[j] = scheme.graph[j], scheme.graph[i]
+}
+
+func (scheme asciiScheme) insertColumn(after Timestamp) {
+}
+
+func (scheme *asciiScheme) insertRow(column, after uint64) {
 	after++
-	schema[column] = append(
-		schema[column][:after],
-		append([]string{""}, schema[column][after:]...)...)
+	scheme.graph[column] = append(
+		scheme.graph[column][:after],
+		append([]string{""}, scheme.graph[column][after:]...)...)
 }
 
-func (schema schemaEvents) connect(from, to [2]Timestamp) {
+func (scheme asciiScheme) EventsConnect(child, parent hash.Event) {
+	if parent == hash.ZeroEvent {
+		return
+	}
+
+	from := scheme.GetEventPosition(parent)
+	to := scheme.GetEventPosition(child)
+
 	if from[0] == to[0] {
 		start := from[1]
 		stop := to[1]
@@ -148,59 +183,78 @@ func (schema schemaEvents) connect(from, to [2]Timestamp) {
 		}
 
 		if stop-start == 1 {
-			schema.insertRow(from[0], start)
+			scheme.insertRow(from[0], start)
 			stop++
 		}
 
 		start++
 		for start < stop {
-			schema[column][start] = "║"
+			scheme.graph[column][start] = "║"
 			start++
 		}
 		return
 	}
 
-	println(123)
 }
 
-func CreateSchemaByEvents(events map[string]*Event) (asciiSchema string) {
-	eventsPos := make(map[hash.Event][2]Timestamp)
-	schema := make(schemaEvents, 0)
-	nodes := make(map[hash.Peer]Timestamp)
-
-	for key, event := range events {
-		column, ok := nodes[event.Creator]
-		if !ok {
-			schema = append(schema, []string{})
-			column = Timestamp(len(schema) - 1)
-			nodes[event.Creator] = column
-		}
-
-		row := event.LamportTime - 1
-		for Timestamp(len(schema[column])) <= row {
-			schema[column] = append(schema[column], "")
-		}
-
-		schema[column][row] = key
-		eventsPos[event.Hash()] = [2]Timestamp{column, row}
+func (scheme *asciiScheme) AddEvent(name string, event *Event) {
+	if len(name) == 0 {
+		name = "test"
+		// todo fix
 	}
 
+	column, ok := scheme.nodes[event.Creator]
+	if !ok {
+		scheme.graph = append(scheme.graph, []string{})
+		column = uint64(len(scheme.graph) - 1)
+		if scheme.nodes == nil {
+			scheme.nodes = make(map[hash.Peer]uint64)
+		}
+		scheme.nodes[event.Creator] = column
+		scheme.posNodes = append(scheme.posNodes, event.Creator)
+	}
+
+	row := uint64(event.LamportTime - 1)
+	for uint64(len(scheme.graph[column])) <= row {
+		scheme.graph[column] = append(scheme.graph[column], "")
+	}
+
+	scheme.graph[column][row] = name
+	if scheme.eventsPosition == nil {
+		scheme.eventsPosition = make(map[hash.Event][2]uint64)
+	}
+	scheme.eventsPosition[event.Hash()] = [2]uint64{column, row}
+}
+
+func (scheme *asciiScheme) GetEventPosition(event hash.Event) [2]uint64 {
+	position, ok := scheme.eventsPosition[event]
+	if !ok {
+		panic(errors.New("can't find event"))
+	}
+	return position
+}
+
+func (scheme *asciiScheme) String() string {
+	return ""
+}
+
+func CreateSchemaByEvents(events map[string]*Event) string {
+	scheme := new(asciiScheme)
+
 	for key, event := range events {
+		scheme.AddEvent(key, event)
+	}
+	sort.Sort(scheme)
+
+	for key, child := range events {
 		println(key)
 
-		pos := eventsPos[event.Hash()]
-
-		for e := range event.Parents {
-			if e == hash.ZeroEvent {
-				continue
-			}
-
-			parentPos := eventsPos[e]
-			schema.connect(pos, parentPos)
+		for parent := range child.Parents {
+			scheme.EventsConnect(child.Hash(), parent)
 		}
 	}
 
-	return
+	return scheme.String()
 }
 
 // GenEventsByNode generates random events for test purpose.
