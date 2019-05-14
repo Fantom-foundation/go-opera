@@ -115,7 +115,7 @@ func (n *Node) EventOf(peer hash.Peer, i uint64) *inter.Event {
 
 	e := n.store.GetEvent(*h)
 	if e == nil {
-		n.log.Errorf("no event %s in store", e.String())
+		n.log.Errorf("no event in store of %d", i)
 	}
 
 	return e

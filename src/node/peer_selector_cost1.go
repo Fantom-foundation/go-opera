@@ -13,7 +13,7 @@ type FairPeerSelector struct {
 	last      string
 	localAddr string
 	peers     *peers.Peers
-	pals         map[string]bool
+	pals      map[string]bool
 }
 
 // FairPeerSelectorCreationFnArgs specifies which additional arguments are require to create a FairPeerSelector
@@ -118,7 +118,7 @@ func (ps *FairPeerSelector) Next() *peers.Peer {
 
 // Indicate we are in communication with a peer
 // so it would be excluded from next peer selection
-func (ps *FairPeerSelector)Engage(peer string) {
+func (ps *FairPeerSelector) Engage(peer string) {
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
 	ps.pals[peer] = true
@@ -126,7 +126,7 @@ func (ps *FairPeerSelector)Engage(peer string) {
 
 // Indicate we are not in communication with a peer
 // so it could be selected as a next peer
-func (ps *FairPeerSelector)Dismiss(peer string) {
+func (ps *FairPeerSelector) Dismiss(peer string) {
 	ps.peers.Lock()
 	defer ps.peers.Unlock()
 	if _, ok := ps.pals[peer]; ok {

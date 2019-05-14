@@ -521,7 +521,7 @@ func (s *BadgerStore) dbSetEvents(events []Event) error {
 			}
 		}
 	}
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 func (s *BadgerStore) dbParticipantEvents(participant string, skip int64) (res EventHashes, err error) {
@@ -587,7 +587,7 @@ func (s *BadgerStore) dbSetRoots(roots map[string]Root) error {
 			return err
 		}
 	}
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 func (s *BadgerStore) dbGetRoot(participant string) (Root, error) {
@@ -663,7 +663,7 @@ func (s *BadgerStore) dbSetRoundCreated(index int64, round RoundCreated) error {
 		return err
 	}
 
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 func (s *BadgerStore) dbGetRoundReceived(index int64) (RoundReceived, error) {
@@ -708,7 +708,7 @@ func (s *BadgerStore) dbSetRoundReceived(index int64, round RoundReceived) error
 		return err
 	}
 
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 func (s *BadgerStore) dbGetParticipants() (*peers.Peers, error) {
@@ -748,7 +748,7 @@ func (s *BadgerStore) dbSetParticipants(participants *peers.Peers) error {
 			return err
 		}
 	}
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 func (s *BadgerStore) dbGetBlock(index int64) (Block, error) {
@@ -793,7 +793,7 @@ func (s *BadgerStore) dbSetBlock(block Block) error {
 		return err
 	}
 
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 func (s *BadgerStore) dbGetFrame(index int64) (Frame, error) {
@@ -838,7 +838,7 @@ func (s *BadgerStore) dbSetFrame(frame Frame) error {
 		return err
 	}
 
-	return tx.Commit(nil)
+	return tx.Commit()
 }
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

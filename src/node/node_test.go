@@ -638,7 +638,7 @@ func TestRequestFastForward(t *testing.T) {
 	frame := poset.Frame{
 		Round: 1,
 		Events: []*poset.EventMessage{
-			&poset.EventMessage{
+			{
 				Body: &poset.EventBody{
 					Transactions: [][]byte{
 						[]byte("test1"),

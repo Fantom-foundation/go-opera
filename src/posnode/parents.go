@@ -51,7 +51,7 @@ func (n *Node) initParents() {
 				Creator: e.Creator,
 				Parents: e.Parents,
 				Value:   val,
-				Last:    (i == to),
+				Last:    i == to,
 			}
 		}
 	}

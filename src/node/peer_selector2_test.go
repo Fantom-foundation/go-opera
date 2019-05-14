@@ -159,7 +159,6 @@ func BenchmarkSmartSelectorNext(b *testing.B) {
 			p := ss1.Next()
 			if p == nil {
 				b.Fatal("No next peer")
-				break
 			}
 			ss1.UpdateLast(p.PubKeyHex)
 		}
@@ -170,7 +169,6 @@ func BenchmarkSmartSelectorNext(b *testing.B) {
 			p := rnd.Next()
 			if p == nil {
 				b.Fatal("No next peer")
-				break
 			}
 			rnd.UpdateLast(p.PubKeyHex)
 		}

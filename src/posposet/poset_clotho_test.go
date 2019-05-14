@@ -80,7 +80,7 @@ func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 	// check each
 	for name, event := range names {
 		// check root
-		mustBeRoot := (name == strings.ToUpper(name))
+		mustBeRoot := name == strings.ToUpper(name)
 		frame, isRoot := p.FrameOfEvent(event.Hash())
 		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
 			break

@@ -115,7 +115,7 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 	// check each event
 	for name, event := range names {
 		// check root
-		mustBeRoot := (name == strings.ToUpper(name))
+		mustBeRoot := name == strings.ToUpper(name)
 		frame, isRoot := p.FrameOfEvent(event.Hash())
 		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
 			t.Log(event.String())
