@@ -95,6 +95,10 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 	if !n.PeerUnknown(id) {
 		return
 	}
+	// TODO: temporary decision to clear log output.
+	if id == nil {
+		return
+	}
 
 	n.log.Debugf("ask %s about peer %s", host, id)
 

@@ -90,7 +90,9 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 
 	prev := n.store.GetEventHash(e.Creator, e.Index-1)
 	if prev != nil {
-		n.parents.cache[*prev].Last = false
+		if _, ok := n.parents.cache[*prev]; ok {
+			n.parents.cache[*prev].Last = false
+		}
 	}
 }
 

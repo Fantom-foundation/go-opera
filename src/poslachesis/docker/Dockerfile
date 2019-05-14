@@ -13,6 +13,6 @@ FROM scratch as prod
 
 COPY --from=build /tmp/lachesis /
 
-EXPOSE 55555 55556
+EXPOSE 55555 55556 55557
 
 ENTRYPOINT ["/lachesis"]
