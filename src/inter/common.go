@@ -135,6 +135,8 @@ type asciiScheme struct {
 	posNodes []hash.Peer
 
 	eventsPosition map[hash.Event][2]uint64
+
+	lengthColumn uint64
 }
 
 func (scheme *asciiScheme) Len() int {
@@ -154,17 +156,72 @@ func (scheme *asciiScheme) Swap(i, j int) {
 	scheme.graph[i], scheme.graph[j] = scheme.graph[j], scheme.graph[i]
 }
 
-func (scheme asciiScheme) insertColumn(after Timestamp) {
-}
+func (scheme *asciiScheme) insertColumn(after uint64) {
+	if scheme.lengthColumn == 0 {
+		for column := 0; column < len(scheme.graph); column++ {
+			currentLengthColumn := uint64(len(scheme.graph[column]))
+			if currentLengthColumn > scheme.lengthColumn {
+				scheme.lengthColumn = currentLengthColumn
+			}
+		}
 
-func (scheme *asciiScheme) insertRow(column, after uint64) {
+		for column := 0; column < len(scheme.graph); column++ {
+			for uint64(len(scheme.graph[column])) < scheme.lengthColumn {
+				scheme.graph[column] = append(scheme.graph[column], "")
+			}
+		}
+	}
+
+	column := make([]string, scheme.lengthColumn)
+
+	if after >= uint64(len(scheme.graph)) {
+		for after >= uint64(len(scheme.graph)) {
+			scheme.graph = append(scheme.graph, column)
+		}
+		return
+	}
+
 	after++
-	scheme.graph[column] = append(
-		scheme.graph[column][:after],
-		append([]string{""}, scheme.graph[column][after:]...)...)
+	scheme.graph = append(
+		scheme.graph[:after],
+		append([][]string{column}, scheme.graph[after:]...)...)
 }
 
-func (scheme asciiScheme) EventsConnect(child, parent hash.Event) {
+func (scheme *asciiScheme) insertRow(after uint64) {
+	for key := range scheme.eventsPosition {
+		pos := scheme.eventsPosition[key]
+		if pos[1] <= after {
+			continue
+		}
+
+		pos[1]++
+		scheme.eventsPosition[key] = pos
+	}
+
+	after++
+	for column := 0; column < len(scheme.graph); column++ {
+		var symbol string
+		if after >= uint64(len(scheme.graph[column])) {
+			scheme.graph[column] = append(scheme.graph[column], symbol)
+			continue
+		}
+
+		symbol = scheme.graph[column][after-1]
+		switch symbol {
+		case "║", "╫", "╠", "╣":
+			symbol = "║"
+		default:
+			symbol = ""
+		}
+
+		scheme.graph[column] = append(
+			scheme.graph[column][:after],
+			append([]string{symbol}, scheme.graph[column][after:]...)...)
+	}
+
+}
+
+func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 	if parent == hash.ZeroEvent {
 		return
 	}
@@ -183,7 +240,7 @@ func (scheme asciiScheme) EventsConnect(child, parent hash.Event) {
 		}
 
 		if stop-start == 1 {
-			scheme.insertRow(from[0], start)
+			scheme.insertRow(start)
 			stop++
 		}
 
@@ -195,18 +252,22 @@ func (scheme asciiScheme) EventsConnect(child, parent hash.Event) {
 		return
 	}
 
+	print()
 }
 
 func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 	if len(name) == 0 {
-		name = "test"
-		// todo fix
+		name = event.Hash().String()
 	}
 
 	column, ok := scheme.nodes[event.Creator]
 	if !ok {
-		scheme.graph = append(scheme.graph, []string{})
-		column = uint64(len(scheme.graph) - 1)
+		var nextNodeAfter uint64
+		if uint64(len(scheme.graph)) != 0 {
+			nextNodeAfter = uint64(len(scheme.graph)) - 1
+		}
+		scheme.insertColumn(nextNodeAfter)
+		column = uint64(len(scheme.graph)) - 1
 		if scheme.nodes == nil {
 			scheme.nodes = make(map[hash.Peer]uint64)
 		}
@@ -216,7 +277,7 @@ func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 
 	row := uint64(event.LamportTime - 1)
 	for uint64(len(scheme.graph[column])) <= row {
-		scheme.graph[column] = append(scheme.graph[column], "")
+		scheme.insertRow(row)
 	}
 
 	scheme.graph[column][row] = name
