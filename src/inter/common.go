@@ -224,7 +224,12 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 		case "║", "╫", "╠", "╣":
 			symbol = "║"
 		default:
-			symbol = ""
+			switch scheme.graph[column][after] {
+			case "║", "╫", "╠", "╣":
+				symbol = "║"
+			default:
+				symbol = ""
+			}
 		}
 
 		scheme.graph[column] = append(
