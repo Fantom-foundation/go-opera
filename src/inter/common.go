@@ -148,6 +148,19 @@ func (scheme *asciiScheme) Less(i, j int) bool {
 }
 
 func (scheme *asciiScheme) Swap(i, j int) {
+	for key, pos := range scheme.eventsPosition {
+		switch pos[0] {
+		case uint64(i):
+			pos[0] = uint64(j)
+		case uint64(j):
+			pos[0] = uint64(i)
+		default:
+			continue
+		}
+
+		scheme.eventsPosition[key] = pos
+	}
+
 	scheme.nodes[scheme.posNodes[i]] = uint64(j)
 	scheme.nodes[scheme.posNodes[j]] = uint64(i)
 
