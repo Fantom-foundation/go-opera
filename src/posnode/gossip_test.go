@@ -293,6 +293,7 @@ func syncPartOfEvents(t *testing.T, client api.NodeClient, peer *Peer, node *Nod
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
+		// Leave first event as unsync.
 		for i := interval.from + 1; i <= interval.to; i++ {
 			req.Index = i
 
