@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func TestGossip(t *testing.T) {
@@ -123,13 +124,14 @@ func TestMissingParents(t *testing.T) {
 
 	node1.EmitEvent()
 	node1.EmitEvent()
+	node1.EmitEvent()
 
-	t.Run("before", func(t *testing.T) {
+	t.Run("before sync", func(t *testing.T) {
 		assert := assert.New(t)
 
 		assert.Equal(
 			map[hash.Peer]uint64{
-				node1.ID: 2,
+				node1.ID: 3,
 				node2.ID: 0,
 			},
 			node1.knownEvents(),
@@ -144,13 +146,24 @@ func TestMissingParents(t *testing.T) {
 			"node2 knows their event only")
 	})
 
-	t.Run("after 2-1", func(t *testing.T) {
+	t.Run("sync", func(t *testing.T) {
 		assert := assert.New(t)
-		node2.syncWithPeer(node1.AsPeer())
+
+		peer := node1.AsPeer()
+		client, _, _, err := node2.ConnectTo(peer)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Sync with node1 but get only half events
+		parents := syncPartOfEvents(t, client, peer, node2)
+
+		// Download missings
+		node2.checkParents(client, peer, parents)
 
 		assert.Equal(
 			map[hash.Peer]uint64{
-				node1.ID: 2,
+				node1.ID: 3,
 				node2.ID: 0,
 			},
 			node1.knownEvents(),
@@ -158,7 +171,7 @@ func TestMissingParents(t *testing.T) {
 
 		assert.Equal(
 			map[hash.Peer]uint64{
-				node1.ID: 2,
+				node1.ID: 3,
 				node2.ID: 0,
 			},
 			node2.knownEvents(),
@@ -169,6 +182,9 @@ func TestMissingParents(t *testing.T) {
 
 		e2 := node2.store.GetEventHash(node1.ID, 2)
 		assert.NotNil(e2, "event of node1 is in db")
+
+		e3 := node2.store.GetEventHash(node1.ID, 3)
+		assert.NotNil(e3, "event of node1 is in db")
 	})
 }
 
@@ -258,4 +274,39 @@ func TestPeerPriority(t *testing.T) {
 			peer,
 			"should select peer1 as first not busy in top peer")
 	})
+}
+
+func syncPartOfEvents(t *testing.T, client api.NodeClient, peer *Peer, node *Node) hash.Events {
+	unknowns, err := node.compareKnownEvents(client, peer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unknowns == nil {
+		t.Fatal("unknowns is nil")
+	}
+
+	toDownload := node.lockFreeHeights(unknowns)
+
+	parents := hash.Events{}
+
+	for creator, interval := range toDownload {
+		req := &api.EventRequest{
+			PeerID: creator.Hex(),
+		}
+		for i := interval.from + 1; i <= interval.to; i++ {
+			req.Index = i
+
+			event, err := node.downloadEvent(client, peer, req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if event == nil {
+				t.Fatal("event is nil")
+			}
+
+			parents.Add(event.Parents.Slice()...)
+		}
+	}
+
+	return parents
 }
