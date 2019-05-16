@@ -16,7 +16,7 @@ func (s *stakeCounter) Count(node hash.Peer) {
 	if s.IsGoalAchieved() {
 		return // no sense to count further
 	}
-	s.amount += s.balances.GetBalance(node)
+	s.amount += s.balances.VoteBalance(node)
 }
 
 func (s *stakeCounter) IsGoalAchieved() bool {
@@ -31,7 +31,7 @@ func (s *stakeCounter) IsGoalAchieved() bool {
 func (p *Poset) GetBalanceOf(addr hash.Peer) uint64 {
 	f := p.frame(p.state.LastFinishedFrameN, false)
 	db := p.store.StateDB(f.Balances)
-	return db.GetBalance(addr)
+	return db.VoteBalance(addr)
 }
 
 // GetStakeOf returns stake of peer as fraction from one.

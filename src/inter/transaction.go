@@ -7,23 +7,26 @@ import (
 
 // InternalTransaction is for stake transfer.
 type InternalTransaction struct {
-	Amount   uint64
-	Receiver hash.Peer
+	Amount     uint64
+	Receiver   hash.Peer
+	UntilBlock uint64
 }
 
 // ToWire converts to wire.
 func (t *InternalTransaction) ToWire() *wire.InternalTransaction {
 	return &wire.InternalTransaction{
-		Amount:   t.Amount,
-		Receiver: t.Receiver.Hex(),
+		Amount:     t.Amount,
+		Receiver:   t.Receiver.Hex(),
+		UntilBlock: t.UntilBlock,
 	}
 }
 
 // WireToInternalTransaction converts from wire.
 func WireToInternalTransaction(w *wire.InternalTransaction) *InternalTransaction {
 	return &InternalTransaction{
-		Amount:   w.Amount,
-		Receiver: hash.HexToPeer(w.Receiver),
+		Amount:     w.Amount,
+		Receiver:   hash.HexToPeer(w.Receiver),
+		UntilBlock: w.UntilBlock,
 	}
 }
 

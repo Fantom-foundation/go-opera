@@ -6,6 +6,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+type direction int
+
+const (
+	TO direction = iota
+	FROM
+)
+
 // Storage
 type Storage map[hash.Hash]hash.Hash
 
@@ -81,10 +88,6 @@ func (s *stateObject) setError(err error) {
 	if s.dbErr == nil {
 		s.dbErr = err
 	}
-}
-
-func (s *stateObject) markSuicided() {
-	s.suicided = true
 }
 
 func (s *stateObject) touch() {
@@ -210,7 +213,7 @@ func (s *stateObject) AddBalance(amount uint64) {
 
 		return
 	}
-	s.SetBalance(s.Balance() + amount)
+	s.SetBalance(s.data.Balance + amount)
 }
 
 // SubBalance removes amount from c's balance.
@@ -219,22 +222,153 @@ func (s *stateObject) SubBalance(amount uint64) {
 	if amount == 0 {
 		return
 	}
-	if s.Balance() < amount {
+	if s.data.Balance < amount {
 		panic("balance must be positive")
 	}
-	s.SetBalance(s.Balance() - amount)
+	s.SetBalance(s.data.Balance - amount)
 }
 
+// SetBalance sets balance amount.
 func (s *stateObject) SetBalance(amount uint64) {
 	s.db.journal.append(balanceChange{
 		account: &s.address,
 		prev:    s.data.Balance,
 	})
-	s.setBalance(amount)
+	s.data.Balance = amount
 }
 
-func (s *stateObject) setBalance(amount uint64) {
-	s.data.Balance = amount
+// DelegateTo writes data about delegation.
+func (s *stateObject) DelegateTo(addr hash.Peer, amount int64, until uint64) {
+	if addr == s.address || amount == 0 || until < 1 {
+		panic("Impossible delegation!")
+	}
+	// TODO: move this check to upper level
+	if amount > 0 && uint64(amount) >= s.FreeBalance() {
+		panic("Too many for delegate to!")
+	}
+	if amount < 0 && s.data.DelegatedFrom+uint64(-1*amount) >= 15*s.FreeBalance() {
+		panic("Too many for delegate from!")
+	}
+
+	s.db.journal.append(delegationChange{
+		account: &s.address,
+		addr:    addr,
+		amount:  amount,
+		until:   until,
+	})
+	s.delegateTo(addr, amount, until, false)
+}
+
+func (s *stateObject) delegateTo(addr hash.Peer, amount int64, until uint64, reverse bool) {
+	if s.data.DelegatingTo == nil {
+		s.data.DelegatingTo = make(map[string]*Borrow)
+	}
+	if s.data.DelegatingFrom == nil {
+		s.data.DelegatingFrom = make(map[string]*Borrow)
+	}
+
+	modify := func(delegating map[string]*Borrow, total *uint64, amount uint64) {
+		rec, ok := delegating[addr.Hex()]
+		if !ok {
+			rec = &Borrow{
+				Recs: make(map[uint64]uint64),
+			}
+			delegating[addr.Hex()] = rec
+		}
+
+		if !reverse {
+			rec.Recs[until] += amount
+			*total += amount
+		} else {
+			rec.Recs[until] -= amount
+			*total -= amount
+
+			if rec.Recs[until] == 0 {
+				delete(rec.Recs, until)
+			}
+			if len(rec.Recs) < 1 {
+				delete(delegating, addr.Hex())
+			}
+		}
+	}
+
+	if amount > 0 {
+		modify(s.data.DelegatingTo, &s.data.DelegatedTo, uint64(amount))
+	} else {
+		modify(s.data.DelegatingFrom, &s.data.DelegatedFrom, uint64(-1*amount))
+	}
+}
+
+// ExpireDelegations erases data about expired delegations.
+func (s *stateObject) ExpireDelegations(now uint64) {
+	s.db.journal.append(expirationChange{
+		account: &s.address,
+		deleted: s.removeDelegations(now),
+	})
+}
+
+func (s *stateObject) removeDelegations(now uint64) (deleted [2]map[string]map[uint64]uint64) {
+	modify := func(x direction, delegating map[string]*Borrow, total *uint64) {
+		deleted[x] = make(map[string]map[uint64]uint64)
+
+		for addr, rec := range delegating {
+			for until, amount := range rec.Recs {
+				if until > now {
+					continue
+				}
+				*total -= amount
+				delete(rec.Recs, until)
+
+				if deleted[x][addr] == nil {
+					deleted[x][addr] = make(map[uint64]uint64)
+				}
+				deleted[x][addr][until] = amount
+			}
+			if len(rec.Recs) < 1 {
+				delete(delegating, addr)
+			}
+		}
+	}
+
+	modify(TO, s.data.DelegatingTo, &s.data.DelegatedTo)
+	modify(FROM, s.data.DelegatingFrom, &s.data.DelegatedFrom)
+	return
+}
+
+func (s *stateObject) addDelegations(dd [2]map[string]map[uint64]uint64) {
+	modify := func(x direction, delegating map[string]*Borrow, total *uint64) {
+		for addr, rec := range dd[x] {
+			if delegating[addr] == nil {
+				delegating[addr] = &Borrow{
+					Recs: make(map[uint64]uint64),
+				}
+			}
+			for until, amount := range rec {
+				delegating[addr].Recs[until] = amount
+				*total += amount
+			}
+		}
+	}
+
+	modify(TO, s.data.DelegatingTo, &s.data.DelegatedTo)
+	modify(FROM, s.data.DelegatingFrom, &s.data.DelegatedFrom)
+}
+
+func (s *stateObject) GetDelegations() (dd [2]map[hash.Peer]uint64) {
+	get := func(x direction, delegating map[string]*Borrow) {
+		dd[x] = make(map[hash.Peer]uint64)
+
+		for addr, rec := range delegating {
+			h := hash.HexToPeer(addr)
+			for _, amount := range rec.Recs {
+				dd[x][h] += amount
+			}
+		}
+	}
+
+	get(TO, s.data.DelegatingTo)
+	get(FROM, s.data.DelegatingFrom)
+	return
 }
 
 func (s *stateObject) deepCopy(db *DB) *stateObject {
@@ -258,9 +392,14 @@ func (s *stateObject) Address() hash.Peer {
 	return s.address
 }
 
-// Balance returns balance.
-func (s *stateObject) Balance() uint64 {
-	return s.data.Balance
+// FreeBalance returns free balance.
+func (s *stateObject) FreeBalance() uint64 {
+	return s.data.Balance - s.data.DelegatedTo
+}
+
+// VoteBalance returns vote balance.
+func (s *stateObject) VoteBalance() uint64 {
+	return s.data.Balance + s.data.DelegatedFrom - s.data.DelegatedTo
 }
 
 // Data returns data.

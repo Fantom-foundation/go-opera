@@ -106,7 +106,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
-		genesis.AddBalance(hash.Peer(addr), balance)
+		genesis.SetBalance(hash.Peer(addr), balance)
 		st.TotalCap += balance
 	}
 

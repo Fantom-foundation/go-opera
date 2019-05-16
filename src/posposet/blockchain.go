@@ -29,3 +29,16 @@ func WireToBlock(w *wire.Block) *Block {
 		Events: hash.WireToEventHashSlice(w.Events),
 	}
 }
+
+// NewBlock makes main chain block from topological ordered events.
+func NewBlock(index uint64, ordered Events) *Block {
+	events := make(hash.EventsSlice, len(ordered))
+	for i, e := range ordered {
+		events[i] = e.Hash()
+	}
+
+	return &Block{
+		Index:  index,
+		Events: events,
+	}
+}

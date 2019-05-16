@@ -75,9 +75,9 @@ type (
 		prev *stateObject
 	}
 	suicideChange struct {
-		account     *hash.Peer
-		prev        bool // whether account had already suicide
-		prevbalance uint64
+		account  *hash.Peer
+		prev     bool // whether account had already suicide
+		prevData Account
 	}
 
 	// Changes to individual accounts.
@@ -88,6 +88,18 @@ type (
 	storageChange struct {
 		account       *hash.Peer
 		key, prevalue hash.Hash
+	}
+	delegationChange struct {
+		account *hash.Peer
+		addr    hash.Peer
+		amount  int64
+		until   uint64
+	}
+	expirationChange struct {
+		account           *hash.Peer
+		prevDelegatedTo   uint64
+		prevDelegatedFrom uint64
+		deleted           [2]map[string]map[uint64]uint64
 	}
 
 	// Changes to other state values.
@@ -120,7 +132,7 @@ func (ch suicideChange) revert(s *DB) {
 	obj := s.getStateObject(*ch.account)
 	if obj != nil {
 		obj.suicided = ch.prev
-		obj.setBalance(ch.prevbalance)
+		obj.data = ch.prevData
 	}
 }
 
@@ -136,7 +148,7 @@ func (ch touchChange) dirtied() *hash.Peer {
 }
 
 func (ch balanceChange) revert(s *DB) {
-	s.getStateObject(*ch.account).setBalance(ch.prev)
+	s.getStateObject(*ch.account).data.Balance = ch.prev
 }
 
 func (ch balanceChange) dirtied() *hash.Peer {
@@ -148,6 +160,22 @@ func (ch storageChange) revert(s *DB) {
 }
 
 func (ch storageChange) dirtied() *hash.Peer {
+	return ch.account
+}
+
+func (ch delegationChange) revert(s *DB) {
+	s.getStateObject(*ch.account).delegateTo(ch.addr, ch.amount, ch.until, true)
+}
+
+func (ch delegationChange) dirtied() *hash.Peer {
+	return ch.account
+}
+
+func (ch expirationChange) revert(s *DB) {
+	s.getStateObject(*ch.account).addDelegations(ch.deleted)
+}
+
+func (ch expirationChange) dirtied() *hash.Peer {
 	return ch.account
 }
 

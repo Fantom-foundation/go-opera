@@ -151,7 +151,7 @@ func (p *Poset) onNewEvent(e *Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *Event) {
-	const X = 3 // TODO: remove this magic number
+	const X = 3 // TODO: move this magic number to mainnet config
 
 	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
@@ -164,10 +164,12 @@ func (p *Poset) consensus(e *Event) {
 	lastFinished := p.state.LastFinishedFrameN
 	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
+			// make new block
 			events := p.topologicalOrdered(n)
-			p.state.LastBlockN = p.makeBlock(events)
+			block := NewBlock(p.state.LastBlockN+1, events)
+			p.store.SetBlock(block)
+			p.state.LastBlockN = block.Index
 			p.saveState()
-
 			if p.NewBlockCh != nil {
 				p.NewBlockCh <- p.state.LastBlockN
 			}
@@ -179,10 +181,17 @@ func (p *Poset) consensus(e *Event) {
 		}
 	}
 
-	// apply transactions
-	next := p.frame(frame.Index+X, true)
-	if next.SetBalances(p.applyTransactions(frame.Balances, ordered)) {
-		p.reconsensusFromFrame(next.Index)
+	// balances changes
+	applyAt := p.frame(frame.Index+X, true)
+	state := p.store.StateDB(frame.Balances)
+	applyTransactions(state, ordered)
+	applyRewards(state)
+	balances, err := state.Commit(true)
+	if err != nil {
+		panic(err)
+	}
+	if applyAt.SetBalances(balances) {
+		p.reconsensusFromFrame(applyAt.Index)
 	}
 
 	// save finished frames
@@ -384,22 +393,6 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 		already.Add(hash)
 		p.collectParents(e, res, already)
 	}
-}
-
-// makeBlock makes main chain block from topological ordered events.
-func (p *Poset) makeBlock(ordered Events) uint64 {
-	events := make(hash.EventsSlice, len(ordered))
-	for i, e := range ordered {
-		events[i] = e.Hash()
-	}
-
-	b := &Block{
-		Index:  p.state.LastBlockN + 1,
-		Events: events,
-	}
-	p.store.SetBlock(b)
-	// TODO: notify external systems (through chan)
-	return b.Index
 }
 
 // reconsensusFromFrame recalcs consensus of frames.
