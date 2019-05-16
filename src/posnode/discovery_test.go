@@ -30,7 +30,7 @@ func TestDiscoveryPeer(t *testing.T) {
 		assert := assert.New(t)
 
 		unknown := hash.FakePeer()
-		node2.AskPeerInfo(node1.ID, node1.host, &unknown)
+		node2.AskPeerInfo(node1.host, &unknown)
 
 		peer := store2.GetPeer(unknown)
 		assert.Nil(peer)
@@ -40,7 +40,7 @@ func TestDiscoveryPeer(t *testing.T) {
 		assert := assert.New(t)
 
 		unknown := node1.ID
-		node2.AskPeerInfo(node1.ID, node1.host, &unknown)
+		node2.AskPeerInfo(node1.host, &unknown)
 
 		peer := store2.GetPeer(unknown)
 		assert.Equal(node1.AsPeer(), peer)
@@ -52,7 +52,7 @@ func TestDiscoveryPeer(t *testing.T) {
 		known := FakePeer("unreachable")
 		store1.SetPeer(known)
 
-		node2.AskPeerInfo(node1.ID, node1.host, &known.ID)
+		node2.AskPeerInfo(node1.host, &known.ID)
 
 		peer := store2.GetPeer(known.ID)
 		assert.Nil(peer)
@@ -64,7 +64,7 @@ func TestDiscoveryPeer(t *testing.T) {
 		known := InvalidPeer("invalid")
 		store1.SetPeer(known)
 
-		node2.AskPeerInfo(node1.ID, node1.host, &known.ID)
+		node2.AskPeerInfo(node1.host, &known.ID)
 
 		peer := store2.GetPeer(known.ID)
 		assert.Nil(peer)
@@ -89,7 +89,7 @@ func TestDiscoveryHost(t *testing.T) {
 	node2.StartDiscovery()
 	defer node2.StopDiscovery()
 
-	node1.AskPeerInfo(hash.EmptyPeer, node2.Host(), nil)
+	node1.AskPeerInfo(node2.Host(), nil)
 
 	assert.Equal(
 		node2.ID,

@@ -133,7 +133,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 
 	// check peers from events
 	for p := range peers2discovery {
-		n.CheckPeerIsKnown(peer.ID, peer.Host, &p)
+		n.CheckPeerIsKnown(peer.Host, &p)
 	}
 
 	// Clean outdated data about peers.
@@ -144,7 +144,13 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	toDownload := n.lockNotDownloaded(parents)
 	defer n.unlockDownloaded(toDownload)
 
+	n.log.Debugf("check Parents")
+
 	for e := range toDownload {
+		if e == hash.ZeroEvent {
+			continue
+		}
+
 		var req api.EventRequest
 		req.Hash = e.Bytes()
 
@@ -193,6 +199,8 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 	id, ctx := api.ServerPeerID(ctx)
 
+	n.log.Debugf("download event")
+
 	w, err := client.GetEvent(ctx, req)
 	if err != nil {
 		n.ConnectFail(peer, err)
@@ -229,6 +237,8 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 // saveNewEvent writes event to store, indexes and consensus.
 // Note: event should be last from its creator.
 func (n *Node) saveNewEvent(e *inter.Event) {
+	n.log.Debugf("save new event")
+
 	n.store.SetEvent(e)
 	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
 	n.store.SetPeerHeight(e.Creator, e.Index)
