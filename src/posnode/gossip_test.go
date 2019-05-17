@@ -146,6 +146,7 @@ func TestMissingParents(t *testing.T) {
 			"node2 knows their event only")
 	})
 
+	// Note: we cannot use syncWithPeer here because we need custom iterator for missing some events.
 	t.Run("sync", func(t *testing.T) {
 		assert := assert.New(t)
 
@@ -154,9 +155,37 @@ func TestMissingParents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		
+		unknowns, err := node2.compareKnownEvents(client, peer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if unknowns == nil {
+			t.Fatal("unknowns is nil")
+		}
+
+		parents := hash.Events{}
 
 		// Sync with node1 but get only half events
-		parents := syncPartOfEvents(t, client, peer, node2)
+		for creator, height := range unknowns {
+			req := &api.EventRequest{
+				PeerID: creator.Hex(),
+			}
+			// Skipping the first event.
+			for i := uint64(2); i <= height; i++ {
+				req.Index = i
+
+				event, err := node2.downloadEvent(client, peer, req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if event == nil {
+					t.Fatal("event is nil")
+				}
+
+				parents.Add(event.Parents.Slice()...)
+			}
+		}
 
 		// Download missings
 		node2.checkParents(client, peer, parents)
@@ -274,40 +303,4 @@ func TestPeerPriority(t *testing.T) {
 			peer,
 			"should select peer1 as first not busy in top peer")
 	})
-}
-
-func syncPartOfEvents(t *testing.T, client api.NodeClient, peer *Peer, node *Node) hash.Events {
-	unknowns, err := node.compareKnownEvents(client, peer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if unknowns == nil {
-		t.Fatal("unknowns is nil")
-	}
-
-	toDownload := node.lockFreeHeights(unknowns)
-
-	parents := hash.Events{}
-
-	for creator, interval := range toDownload {
-		req := &api.EventRequest{
-			PeerID: creator.Hex(),
-		}
-		// Leave first event as unsync.
-		for i := interval.from + 1; i <= interval.to; i++ {
-			req.Index = i
-
-			event, err := node.downloadEvent(client, peer, req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if event == nil {
-				t.Fatal("event is nil")
-			}
-
-			parents.Add(event.Parents.Slice()...)
-		}
-	}
-
-	return parents
 }
