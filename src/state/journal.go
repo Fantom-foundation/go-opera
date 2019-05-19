@@ -96,10 +96,8 @@ type (
 		until   uint64
 	}
 	expirationChange struct {
-		account           *hash.Peer
-		prevDelegatedTo   uint64
-		prevDelegatedFrom uint64
-		deleted           [2]map[string]map[uint64]uint64
+		account *hash.Peer
+		deleted [2]map[string]map[uint64]uint64
 	}
 
 	// Changes to other state values.
