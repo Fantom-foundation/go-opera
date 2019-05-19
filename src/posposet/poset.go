@@ -185,7 +185,7 @@ func (p *Poset) consensus(e *Event) {
 	applyAt := p.frame(frame.Index+X, true)
 	state := p.store.StateDB(frame.Balances)
 	applyTransactions(state, ordered)
-	applyRewards(state)
+	applyRewards(state, ordered)
 	balances, err := state.Commit(true)
 	if err != nil {
 		panic(err)
@@ -240,23 +240,31 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		}
 	}
 
+	var (
+		frame  *Frame
+		isRoot bool
+	)
 	for _, fnum := range knownRoots.FrameNumsDesc() {
 		if fnum < minFrame {
-			continue
+			break
 		}
 		roots := knownRoots[fnum]
-		frame := p.frame(fnum, true)
+		frame = p.frame(fnum, true)
 		frame.AddRootsOf(e.Hash(), roots)
 		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
-		f := p.frame(fnum, false)
-		if p.hasMajority(f, roots) {
+		if isRoot = p.hasMajority(frame, roots); isRoot {
 			frame = p.frame(fnum+1, true)
-			frame.AddRootsOf(e.Hash(), rootFrom(e))
-			p.store.SetEventFrame(e.Hash(), frame.Index)
 			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
-			return frame
+			break
 		}
-		p.store.SetEventFrame(e.Hash(), frame.Index)
+	}
+	if !p.isEventValid(e, frame) {
+		return nil
+	}
+	p.store.SetEventFrame(e.Hash(), frame.Index)
+	if isRoot {
+		frame.AddRootsOf(e.Hash(), rootFrom(e))
+		return frame
 	}
 	return nil
 }
