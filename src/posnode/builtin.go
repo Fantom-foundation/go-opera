@@ -6,7 +6,6 @@ import (
 
 // builtin is a set of some built in data.
 type builtin struct {
-	last  int
 	hosts []string
 
 	sync.Mutex
@@ -18,6 +17,7 @@ func (n *Node) AddBuiltInPeers(hosts ...string) {
 	defer n.builtin.Unlock()
 
 	n.builtin.hosts = append(n.builtin.hosts, hosts...)
+
 	n.log.Debugf("built in peer hosts: %v", n.builtin.hosts)
 }
 
@@ -26,11 +26,11 @@ func (n *Node) NextBuiltInPeer() (host string) {
 	n.builtin.Lock()
 	defer n.builtin.Unlock()
 
-	if len(n.builtin.hosts) < 1 {
+	if len(n.builtin.hosts) == 0 {
 		return
 	}
 
-	host = n.builtin.hosts[n.builtin.last]
-	n.builtin.last = (n.builtin.last + 1) % len(n.builtin.hosts)
+	host = n.builtin.hosts[0]
+	n.builtin.hosts = n.builtin.hosts[1:]
 	return
 }
