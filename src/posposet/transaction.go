@@ -16,7 +16,7 @@ func (p *Poset) applyTransactions(balances hash.Hash, ordered Events) hash.Hash 
 		for _, tx := range e.InternalTransactions {
 			receiver := tx.Receiver
 			if db.GetBalance(sender) < tx.Amount {
-				log.Warnf("Cann't send %d from %s to %s: balance is not enough, skipped", tx.Amount, sender.String(), receiver.String())
+				log.Warnf("Cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
 				continue
 			}
 			if !db.Exist(receiver) {

@@ -153,12 +153,12 @@ func _ToServer_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.Event.(type) {
 	case *ToServer_Tx_:
 		s := proto.Size(x.Tx)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *ToServer_Answer_:
 		s := proto.Size(x.Answer)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:
@@ -339,11 +339,11 @@ func _ToServer_Answer_OneofSizer(msg proto.Message) (n int) {
 	// payload
 	switch x := m.Payload.(type) {
 	case *ToServer_Answer_Data:
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Data)))
 		n += len(x.Data)
 	case *ToServer_Answer_Error:
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Error)))
 		n += len(x.Error)
 	case nil:
@@ -512,17 +512,17 @@ func _ToClient_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.Event.(type) {
 	case *ToClient_Block_:
 		s := proto.Size(x.Block)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *ToClient_Query_:
 		s := proto.Size(x.Query)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *ToClient_Restore_:
 		s := proto.Size(x.Restore)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case nil:

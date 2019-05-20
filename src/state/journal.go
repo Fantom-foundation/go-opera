@@ -16,7 +16,7 @@ type journalEntry interface {
 
 // journal contains the list of state modifications applied since the last state
 // commit. These are tracked to be able to be reverted in case of an execution
-// exception or revertal request.
+// exception or revert all request.
 type journal struct {
 	entries []journalEntry    // Current changes tracked by the journal
 	dirties map[hash.Peer]int // Dirty accounts and the number of changes

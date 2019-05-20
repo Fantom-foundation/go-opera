@@ -40,8 +40,7 @@ func (ee Events) Len() int      { return len(ee) }
 func (ee Events) Swap(i, j int) { ee[i], ee[j] = ee[j], ee[i] }
 func (ee Events) Less(i, j int) bool {
 	a, b := ee[i], ee[j]
-	return false ||
-		(a.consensusTime < b.consensusTime) ||
-		(a.consensusTime == b.consensusTime && a.LamportTime < b.LamportTime) ||
-		(a.consensusTime == b.consensusTime && a.LamportTime == b.LamportTime && bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0)
+	return (a.consensusTime < b.consensusTime) ||
+		(a.consensusTime == b.consensusTime && (a.LamportTime < b.LamportTime ||
+			a.LamportTime == b.LamportTime && bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0))
 }

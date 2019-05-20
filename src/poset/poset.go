@@ -1201,14 +1201,14 @@ func (p *Poset) DecideRoundReceived() error {
 			}
 
 			fws := tr.Atropos()
-			// set of atropos that domniates x
+			// set of atropos that dominates x
 			var s []EventHash
 			for _, w := range fws {
-				domniates, err := p.dominated(w, x)
+				dominates, err := p.dominated(w, x)
 				if err != nil {
 					return err
 				}
-				if domniates {
+				if dominates {
 					s = append(s, w)
 				}
 			}
@@ -1729,7 +1729,7 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 // method call, the Poset should be in a state coherent with the 'tip' of the
 // Poset
 func (p *Poset) Bootstrap() error {
-	// Retreive the Events from the underlying DB. They come out in topological
+	// Retrieve the Events from the underlying DB. They come out in topological
 	// order
 	topologicalEvents, err := p.Store.TopologicalEvents()
 	if err != nil {
@@ -1776,7 +1776,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 
 	creator, ok := p.Participants.ReadByID(wevent.Body.CreatorID)
-	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
+	// TODO FIXIT: creator can be nil when wevent.Body.CreatorID == 0
 	if !ok {
 		return nil, fmt.Errorf("unknown wevent.Body.CreatorID=%v", wevent.Body.CreatorID)
 	}

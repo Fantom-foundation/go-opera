@@ -1,7 +1,7 @@
 package trie
 
 import (
-	std_hash "hash"
+	stdHash "hash"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -21,7 +21,7 @@ type hasher struct {
 // Read to get a variable amount of data from the hash state. Read is faster than Sum
 // because it doesn't copy the internal state, but also modifies the internal state.
 type keccakState interface {
-	std_hash.Hash
+	stdHash.Hash
 	Read([]byte) (int, error)
 }
 

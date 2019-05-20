@@ -244,7 +244,7 @@ func TestPeerPriority(t *testing.T) {
 			"should select peer1 as last failed peer")
 	})
 
-	t.Run("If all connection was successfull -> select first in top without sort", func(t *testing.T) {
+	t.Run("If all connection was successful -> select first in top without sort", func(t *testing.T) {
 		assert := assert.New(t)
 
 		node.ConnectOK(peer1)

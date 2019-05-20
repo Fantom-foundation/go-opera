@@ -9,11 +9,11 @@ var (
 	NodeNameDict = make(map[Peer]string)
 )
 
-// Peer is a unique peer identificator.
+// Peer is a unique peer identifier.
 // It is a hash of peer's PubKey.
 type Peer Hash
 
-// EmptyPeer is empty peer identificator.
+// EmptyPeer is empty peer identifier.
 var EmptyPeer = Peer{}
 
 // Bytes returns value as byte slice.

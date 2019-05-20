@@ -148,7 +148,9 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 		var req api.EventRequest
 		req.Hash = e.Bytes()
 
-		n.downloadEvent(client, peer, &req)
+		if _, err := n.downloadEvent(client, peer, &req); err != nil {
+			panic(err)
+		}
 	}
 }
 

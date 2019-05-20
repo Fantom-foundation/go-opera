@@ -57,7 +57,7 @@ func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, 
 		logger:     logger,
 		timeout:    timeout,
 		newClients: make(chan appStream, 100),
-		// TODO: make chans buffered?
+		// TODO: buffer channels?
 		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
 		event4server:  make(chan []byte),
 		event4clients: make(chan *internal.ToClient),

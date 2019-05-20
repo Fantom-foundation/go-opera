@@ -287,20 +287,20 @@ func _Node_OneofSizer(msg proto.Message) (n int) {
 	switch x := m.Kind.(type) {
 	case *Node_Short:
 		s := proto.Size(x.Short)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Node_Full:
 		s := proto.Size(x.Full)
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(s))
 		n += s
 	case *Node_Hash:
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Hash)))
 		n += len(x.Hash)
 	case *Node_Value:
-		n += 1 // tag and wire
+		n++ // tag and wire
 		n += proto.SizeVarint(uint64(len(x.Value)))
 		n += len(x.Value)
 	case nil:

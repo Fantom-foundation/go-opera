@@ -683,7 +683,7 @@ func (c *Core) GetLastCommittedRoundEventsCount() int {
 	return c.poset.LastCommittedRoundEvents
 }
 
-// GetLastBlockIndex retuns the latest block index
+// GetLastBlockIndex returns the latest block index
 func (c *Core) GetLastBlockIndex() int64 {
 	return c.poset.Store.LastBlockIndex()
 }

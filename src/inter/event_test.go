@@ -51,7 +51,7 @@ func TestEventHash(t *testing.T) {
 			}
 			for _, other := range hashes[i+1:] {
 				if h == other {
-					t.Fatal("Event hash сollision detected")
+					t.Fatal("Event hash collision detected")
 				}
 			}
 		}

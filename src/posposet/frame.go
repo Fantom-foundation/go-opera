@@ -103,7 +103,7 @@ func (p *Poset) setFrameSaving(f *Frame) {
 		if f.Index > p.state.LastFinishedFrameN {
 			p.store.SetFrame(f)
 		} else {
-			panic(fmt.Errorf("Frame %d is finished and should not be changed", f.Index))
+			panic(fmt.Errorf("frame %d is finished and should not be changed", f.Index))
 		}
 	}
 }

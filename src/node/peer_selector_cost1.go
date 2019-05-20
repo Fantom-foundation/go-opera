@@ -84,7 +84,7 @@ func (ps *FairPeerSelector) Next() *peers.Peer {
 			lastUsed = append(lastUsed, p)
 			continue
 		}
-		// skip peers we are alredy engaged with
+		// skip peers we are already engaged with
 		if _, ok := ps.pals[p.NetAddr]; ok {
 			continue
 		}

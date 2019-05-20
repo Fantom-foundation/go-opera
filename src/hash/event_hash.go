@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// Event is a unique identificator of event.
+	// Event is a unique identifier of event.
 	// It is a hash of Event.
 	Event Hash
 

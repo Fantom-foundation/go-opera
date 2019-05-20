@@ -31,9 +31,9 @@ func TestInmemAppCalls(t *testing.T) {
 			CommitHandler(block).
 			Return(gold, nil)
 
-		answ, err := s.CommitBlock(block)
+		answer, err := s.CommitBlock(block)
 		if assert.NoError(err) {
-			assert.Equal(gold, answ)
+			assert.Equal(gold, answer)
 		}
 	})
 
@@ -46,9 +46,9 @@ func TestInmemAppCalls(t *testing.T) {
 			SnapshotHandler(index).
 			Return(gold, nil)
 
-		answ, err := s.GetSnapshot(index)
+		answer, err := s.GetSnapshot(index)
 		if assert.NoError(err) {
-			assert.Equal(gold, answ)
+			assert.Equal(gold, answer)
 		}
 	})
 

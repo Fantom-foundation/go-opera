@@ -2359,7 +2359,7 @@ func TestBootstrap(t *testing.T) {
 	}()
 
 	// Now we want to create a new Poset based on the database of the previous
-	// Poset and see if we can boostrap it to the same state.
+	// Poset and see if we can bootstrap it to the same state.
 	recycledStore, err := LoadBadgerStore(cacheSize, badgerDir)
 	if err != nil {
 		t.Fatal(err)

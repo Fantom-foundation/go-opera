@@ -23,7 +23,7 @@ type App interface {
 	SnapshotHandler(blockIndex int64) (snapshot []byte, err error)
 
 	// RestoreHandler is called by Lachesis to restore the application
-	// to a specificstate.
+	// to a specific state.
 	RestoreHandler(snapshot []byte) (stateHash []byte, err error)
 }
 
