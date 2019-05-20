@@ -123,7 +123,7 @@ func (n *Node) EmitEvent() *inter.Event {
 		panic(err)
 	}
 
-	n.saveNewEvent(event)
+	n.saveNewEvent(event, false)
 	n.log.Debugf("new event emited %s", event)
 
 	return event

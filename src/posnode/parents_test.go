@@ -75,7 +75,7 @@ func prepareParents(n *Node, c *MockConsensus, schema string, stakes map[string]
 		unordered = append(unordered, e)
 	}
 	for _, e := range unordered.ByParents() {
-		n.saveNewEvent(e)
+		n.saveNewEvent(e, false)
 	}
 }
 

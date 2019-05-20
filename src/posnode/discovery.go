@@ -25,7 +25,6 @@ type (
 
 	// discoveryTask is a task to ask source by host for unknown peer.
 	discoveryTask struct {
-		source  hash.Peer
 		host    string
 		unknown *hash.Peer
 	}
@@ -48,10 +47,10 @@ func (n *Node) StartDiscovery() {
 		for {
 			select {
 			case task := <-n.discovery.tasks:
-				n.AskPeerInfo(task.source, task.host, task.unknown)
+				n.AskPeerInfo(task.host, task.unknown)
 			case <-time.After(discoveryIdle):
 				if host := n.NextBuiltInPeer(); host != "" {
-					n.AskPeerInfo(hash.EmptyPeer, host, nil)
+					n.AskPeerInfo(host, nil)
 				}
 			case <-done:
 				return
@@ -75,10 +74,9 @@ func (n *Node) StopDiscovery() {
 }
 
 // CheckPeerIsKnown queues peer checking for a late.
-func (n *Node) CheckPeerIsKnown(source hash.Peer, host string, id *hash.Peer) {
+func (n *Node) CheckPeerIsKnown(host string, id *hash.Peer) {
 	select {
 	case n.discovery.tasks <- discoveryTask{
-		source:  source,
 		host:    host,
 		unknown: id,
 	}:
@@ -88,7 +86,7 @@ func (n *Node) CheckPeerIsKnown(source hash.Peer, host string, id *hash.Peer) {
 }
 
 // AskPeerInfo gets peer info (network address, public key, etc).
-func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
+func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 	if !n.PeerReadyForReq(host) {
 		return
 	}
@@ -131,7 +129,7 @@ func (n *Node) AskPeerInfo(source hash.Peer, host string, id *hash.Peer) {
 
 	if id != nil && source != *id {
 		n.ConnectOK(peer)
-		n.AskPeerInfo(*id, info.Host, nil)
+		n.AskPeerInfo(info.Host, nil)
 		return
 	}
 
