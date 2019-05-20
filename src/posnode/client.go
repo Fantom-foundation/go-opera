@@ -117,9 +117,7 @@ func (cc *connPool) Release(c *connection, count bool, err error) {
 			delete(cc.cache, c.addr)
 		}
 		if c.used < 1 {
-			if err := c.Close(); err != nil {
-				panic(err)
-			}
+			_ = c.Close()
 		}
 	}
 }
