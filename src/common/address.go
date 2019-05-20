@@ -2,6 +2,7 @@ package common
 
 var (
 	// NodeNameDict is an optional dictionary to make node address human readable in log.
+	// TODO FIXIT: NodeNameDict is not populated.
 	NodeNameDict = make(map[Address]string)
 )
 
