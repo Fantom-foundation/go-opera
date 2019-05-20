@@ -287,7 +287,7 @@ We can observe a few interesting results.
 2.  Because C knows that A told the message to B, it has a rough order
     > of when the message was received. Before C and before B
 
-All we want to achieve is ordering. What the message was doesn’t matter,
+All we want to achieve is ordering. What the message was doesn't matter,
 we simply want to know when it was received. So let’s add another
 message.
 

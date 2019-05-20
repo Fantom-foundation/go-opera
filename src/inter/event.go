@@ -44,7 +44,7 @@ func (e *Event) SignBy(priv *common.PrivateKey) error {
 // Verify sign event by public key.
 func (e *Event) Verify(pubKey *common.PublicKey) bool {
 	if pubKey == nil {
-		panic("cann't verify")
+		panic("can't verify")
 	}
 
 	if e.Sign == "" {

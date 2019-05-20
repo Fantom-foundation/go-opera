@@ -88,14 +88,14 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 			lastused = append(lastused, p)
 			continue
 		}
-		// skip peers we are alredy engaged with
+		// skip peers we are already engaged with
 		if _, ok := ps.pals[p.NetAddr]; ok {
 			continue
 		}
 
 		if f, ok := flagTable[p.PubKeyHex]; ok && f == 1 {
 			flagged[fCount] = p
-			fCount += 1
+			fCount++
 			continue
 		}
 
@@ -104,7 +104,7 @@ func (ps *SmartPeerSelector) Next() *peers.Peer {
 			minUsedIdx = sCount
 		}
 		selected[sCount] = p
-		sCount += 1
+		sCount++
 	}
 
 	selected = selected[minUsedIdx:sCount]

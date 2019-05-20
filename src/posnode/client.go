@@ -98,7 +98,7 @@ func (cc *connPool) Get(addr string) (*connection, error) {
 		}
 	}
 
-	conn.used += 1
+	conn.used++
 
 	return conn, nil
 }
@@ -108,7 +108,7 @@ func (cc *connPool) Release(c *connection, count bool, err error) {
 	defer cc.Unlock()
 
 	if count {
-		c.used -= 1
+		c.used--
 	}
 
 	// try to close if error now or before
@@ -117,7 +117,9 @@ func (cc *connPool) Release(c *connection, count bool, err error) {
 			delete(cc.cache, c.addr)
 		}
 		if c.used < 1 {
-			c.Close()
+			if err := c.Close(); err != nil {
+				panic(err)
+			}
 		}
 	}
 }

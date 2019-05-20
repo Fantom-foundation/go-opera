@@ -88,7 +88,7 @@ func (s *Store) Close() {
 // ApplyGenesis stores initial state.
 func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	if balances == nil {
-		return fmt.Errorf("Balances shouldn't be nil")
+		return fmt.Errorf("balances shouldn't be nil")
 	}
 
 	st := s.GetState()
@@ -96,7 +96,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		if st.Genesis == GenesisHash(balances) {
 			return nil
 		}
-		return fmt.Errorf("Other genesis has applied already")
+		return fmt.Errorf("other genesis has applied already")
 	}
 
 	st = &State{
@@ -111,7 +111,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	}
 
 	if st.TotalCap < uint64(len(balances)) {
-		return fmt.Errorf("Balance shouldn't be zero")
+		return fmt.Errorf("balance shouldn't be zero")
 	}
 
 	var err error
@@ -160,7 +160,7 @@ func (s *Store) GetEventFrame(e hash.Event) *uint64 {
 }
 
 // SetState stores state.
-// State is seldom readed so no cache.
+// State is seldom read; so no cache.
 func (s *Store) SetState(st *State) {
 	const key = "current"
 	s.set(s.states, []byte(key), st.ToWire())
@@ -168,7 +168,7 @@ func (s *Store) SetState(st *State) {
 }
 
 // GetState returns stored state.
-// State is seldom readed so no cache.
+// State is seldom read; so no cache.
 func (s *Store) GetState() *State {
 	const key = "current"
 	w, _ := s.get(s.states, []byte(key), &wire.State{}).(*wire.State)
@@ -199,13 +199,13 @@ func (s *Store) GetFrame(n uint64) *Frame {
 }
 
 // SetBlock stores chain block.
-// State is seldom readed so no cache.
+// State is seldom read; so no cache.
 func (s *Store) SetBlock(b *Block) {
 	s.set(s.blocks, intToBytes(b.Index), b.ToWire())
 }
 
 // GetBlock returns stored block.
-// State is seldom readed so no cache.
+// State is seldom read; so no cache.
 func (s *Store) GetBlock(n uint64) *Block {
 	w, _ := s.get(s.blocks, intToBytes(n), &wire.Block{}).(*wire.Block)
 	return WireToBlock(w)
