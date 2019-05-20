@@ -18,6 +18,7 @@ func (n *Node) AddBuiltInPeers(hosts ...string) {
 	defer n.builtin.Unlock()
 
 	n.builtin.hosts = append(n.builtin.hosts, hosts...)
+
 	n.log.Debugf("built in peer hosts: %v", n.builtin.hosts)
 }
 
@@ -26,7 +27,7 @@ func (n *Node) NextBuiltInPeer() (host string) {
 	n.builtin.Lock()
 	defer n.builtin.Unlock()
 
-	if len(n.builtin.hosts) < 1 {
+	if len(n.builtin.hosts) == 0 {
 		return
 	}
 
