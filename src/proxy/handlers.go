@@ -31,6 +31,7 @@ type App interface {
 type Node interface {
 	GetID() hash.Peer
 	AddInternalTxn(inter.InternalTransaction)
+	GetInternalTxns() []*inter.InternalTransaction
 }
 
 // Consensus is a set of consensus handlers.

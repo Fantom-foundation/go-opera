@@ -10,7 +10,7 @@ import (
 
 func TestPeerReadyForReq(t *testing.T) {
 	store := NewMemStore()
-	node := NewForTests("node0", store, nil)
+	node := NewForTests("node01", store, nil)
 	node.initPeers()
 
 	t.Run("new host", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestPeerReadyForReq(t *testing.T) {
 
 func TestPeerUnknown(t *testing.T) {
 	store := NewMemStore()
-	node := NewForTests("node0", store, nil)
+	node := NewForTests("node02", store, nil)
 	node.initPeers()
 
 	t.Run("last success", func(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 // ID prints id of the node.
 var ID = &cobra.Command{
 	Use:   "id",
-	Short: "Prints node id",
+	Short: "Prints id of the node",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proxy, err := makeCtrlProxy(cmd)
 		if err != nil {

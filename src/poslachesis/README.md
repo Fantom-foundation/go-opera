@@ -6,9 +6,13 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 [`cli/`](./cli/) - contains cli (only for fakenet now):
 
-  - run single node: `go run main.go`;
-  - for args see `go run main.go --help`;
-  - build: `go build .`;
+  - build: `go build -o lachesis .`;
+  - for help use: `./lachesis -h`;
+  - run single node: `./lachesis start`;
+  - get id of the node: `./lachesis id`;
+  - get balance of the node: `./lachesis balance`;
+  - transfer balance: `./lachesis transfer --amount=1000 --receiver=nodeId`;
+	- Note: all pending transaction which is not yet put in an event block, will be displayed at `./lachesis balance` call;
 
 ## Docker
 

@@ -2,13 +2,16 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
@@ -63,13 +66,19 @@ func (p *grpcNodeProxy) GetSelfID() (hash.Peer, error) {
 
 	resp, err := p.client.SelfID(ctx, &empty.Empty{})
 	if err != nil {
-		return hash.EmptyPeer, err
+		return hash.EmptyPeer, unwrapGrpcErr(err)
 	}
 
 	return hash.HexToPeer(resp.Hex), nil
 }
 
-func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (uint64, error) {
+// Balance contains fields for balance response.
+type Balance struct {
+	Amount  uint64
+	Pending []inter.InternalTransaction
+}
+
+func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (*Balance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -77,13 +86,28 @@ func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (uint64, error) {
 		Hex: peer.Hex(),
 	})
 	if err != nil {
-		return 0, err
+		return nil, unwrapGrpcErr(err)
 	}
 
-	return resp.Amount, nil
+	b := Balance{
+		Amount: resp.Amount,
+	}
+
+	if len(resp.Pending) > 0 {
+		b.Pending = make([]inter.InternalTransaction, len(resp.Pending))
+	}
+
+	for i, tx := range resp.Pending {
+		b.Pending[i] = inter.InternalTransaction{
+			Amount:   tx.Amount,
+			Receiver: hash.HexToPeer(tx.Receiver.Hex),
+		}
+	}
+
+	return &b, nil
 }
 
-func (p *grpcNodeProxy) SendTo(amount uint64, receiver hash.Peer) error {
+func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -95,8 +119,13 @@ func (p *grpcNodeProxy) SendTo(amount uint64, receiver hash.Peer) error {
 	}
 
 	if _, err := p.client.SendTo(ctx, &req); err != nil {
-		return err
+		return unwrapGrpcErr(err)
 	}
 
 	return nil
+}
+
+func unwrapGrpcErr(err error) error {
+	st := status.Convert(err)
+	return errors.New(st.Message())
 }
