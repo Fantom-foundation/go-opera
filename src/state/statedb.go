@@ -251,7 +251,7 @@ func (s *DB) ExpireDelegations(addr hash.Peer, now uint64) {
 	stateObject.ExpireDelegations(now)
 }
 
-// GetDelegation returns delegation records.
+// GetDelegations returns delegation records.
 func (s *DB) GetDelegations(addr hash.Peer) [2]map[hash.Peer]uint64 {
 	stateObject := s.GetOrNewStateObject(addr)
 	return stateObject.GetDelegations()

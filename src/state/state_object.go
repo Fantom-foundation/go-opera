@@ -6,14 +6,17 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+// temporary solution for delegation dict
 type direction int
 
 const (
+	// TO delegation direction
 	TO direction = iota
+	// FROM delegation direction
 	FROM
 )
 
-// Storage
+// Storage of entries.
 type Storage map[hash.Hash]hash.Hash
 
 func (self Storage) String() (str string) {
