@@ -4,6 +4,7 @@ package wire;
 message InternalTransaction {
   uint64 Amount = 1;
   string Receiver = 2;
+  uint64 UntilBlock = 3;
 }
 
 message Event {

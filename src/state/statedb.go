@@ -135,11 +135,20 @@ func (s *DB) Empty(addr hash.Peer) bool {
 	return so == nil || so.empty()
 }
 
-// GetBalance returns the balance from the given address or 0 if object not found.
-func (s *DB) GetBalance(addr hash.Peer) uint64 {
+// FreeBalance returns the free balance from the given address or 0 if object not found.
+func (s *DB) FreeBalance(addr hash.Peer) uint64 {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.Balance()
+		return stateObject.FreeBalance()
+	}
+	return 0
+}
+
+// VoteBalance returns the vote balance from the given address or 0 if object not found.
+func (s *DB) VoteBalance(addr hash.Peer) uint64 {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.VoteBalance()
 	}
 	return 0
 }
@@ -209,36 +218,52 @@ func (s *DB) HasSuicided(addr hash.Peer) bool {
  * SETTERS
  */
 
-// AddBalance adds amount to the account associated with addr.
-func (s *DB) AddBalance(addr hash.Peer, amount uint64) {
-	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.AddBalance(amount)
-	}
-}
-
-// SubBalance subtracts amount from the account associated with addr.
-func (s *DB) SubBalance(addr hash.Peer, amount uint64) {
-	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.SubBalance(amount)
-	}
-}
-
 // SetBalance sets stateObject's balance by address.
 func (s *DB) SetBalance(addr hash.Peer, amount uint64) {
 	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.SetBalance(amount)
+	if stateObject == nil {
+		panic("stateObject is nil")
 	}
+	stateObject.SetBalance(amount)
+}
+
+// Transfer moves amount.
+func (s *DB) Transfer(from, to hash.Peer, amount uint64) {
+	f := s.GetOrNewStateObject(from)
+	t := s.GetOrNewStateObject(to)
+
+	f.SubBalance(amount)
+	t.AddBalance(amount)
+}
+
+// Delegate writes delegation records.
+func (s *DB) Delegate(from, to hash.Peer, amount, until uint64) {
+	f := s.GetOrNewStateObject(from)
+	t := s.GetOrNewStateObject(to)
+
+	f.DelegateTo(to, int64(amount), until)
+	t.DelegateTo(from, -1*int64(amount), until)
+}
+
+// ExpireDelegations erases data about expired delegations.
+func (s *DB) ExpireDelegations(addr hash.Peer, now uint64) {
+	stateObject := s.GetOrNewStateObject(addr)
+	stateObject.ExpireDelegations(now)
+}
+
+// GetDelegations returns delegation records.
+func (s *DB) GetDelegations(addr hash.Peer) [2]map[hash.Peer]uint64 {
+	stateObject := s.GetOrNewStateObject(addr)
+	return stateObject.GetDelegations()
 }
 
 // SetState sets stateObject's kv-state by address.
 func (s *DB) SetState(addr hash.Peer, key, value hash.Hash) {
 	stateObject := s.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.SetState(s.db, key, value)
+	if stateObject == nil {
+		panic("stateObject is nil")
 	}
+	stateObject.SetState(s.db, key, value)
 }
 
 // Suicide marks the given account as suicided.
@@ -251,12 +276,12 @@ func (s *DB) Suicide(addr hash.Peer) bool {
 		return false
 	}
 	s.journal.append(suicideChange{
-		account:     &addr,
-		prev:        stateObject.suicided,
-		prevbalance: stateObject.Balance(),
+		account:  &addr,
+		prev:     stateObject.suicided,
+		prevData: stateObject.data,
 	})
-	stateObject.markSuicided()
-	stateObject.data.Balance = 0
+	stateObject.suicided = true
+	stateObject.data = Account{}
 
 	return true
 }
@@ -351,7 +376,7 @@ func (s *DB) createObject(addr hash.Peer) (newobj, prev *stateObject) {
 func (s *DB) CreateAccount(addr hash.Peer) {
 	_new, prev := s.createObject(addr)
 	if prev != nil {
-		_new.setBalance(prev.data.Balance)
+		_new.data = prev.data
 	}
 }
 
@@ -439,11 +464,6 @@ func (s *DB) Finalise(deleteEmptyObjects bool) {
 	for addr := range s.journal.dirties {
 		stateObject, exist := s.stateObjects[addr]
 		if !exist {
-			// ripeMD is 'touched' at block 1714175, in tx 0x1237f737031e40bcde4a8b7e717b2d15e3ecadfe49bb1bbc71ee9deb09c6fcf2
-			// That tx goes out of gas, and although the notion of 'touched' does not exist there, the
-			// touch-event will still be recorded in the journal. Since ripeMD is a special snowflake,
-			// it will persist in the journal even though the journal is reverted. In this special circumstance,
-			// it may exist in `s.journal.dirties` but not in `s.stateObjects`.
 			// Thus, we can safely ignore it here
 			continue
 		}

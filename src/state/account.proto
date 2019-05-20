@@ -1,8 +1,15 @@
 syntax = "proto3";
 package state;
 
+message Borrow { 
+	map<uint64, uint64> Recs = 1;
+}
 
 message Account {
   uint64 Balance = 1;
   bytes  RawRoot = 2;
+  uint64 DelegatedFrom = 3;
+  map<string, Borrow> DelegatingFrom = 4;
+  uint64 DelegatedTo = 5;
+  map<string, Borrow> DelegatingTo = 6;
 }
