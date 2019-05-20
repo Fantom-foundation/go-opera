@@ -8,6 +8,13 @@ export RM?=rm
 export SED?=sed
 export SH?=sh
 export XARGS?=xargs
+ifeq ($(OS),Windows_NT)
+	export BROWSER?=start
+endif
+ifeq ($(shell uname -s),Darwin)
+	export BROWSER?=open
+endif
+export BROWSER?=sensible-browser
 export CGO_ENABLED=0
 
 SUBDIRS := src/.
@@ -55,6 +62,11 @@ dist:
 test:
 	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -count=1 -tags test -race -timeout 180s
 
+cover:
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -coverprofile=coverage.out -count=1 -tags test -race -timeout 180s || true
+	$(GO) tool cover -html=coverage.out -o coverage.html
+	$(BROWSER) coverage.html
+
 # clean up and generate protobuf files
 proto: clean
 
@@ -62,7 +74,7 @@ clean:
 	$(GLIDE) cc
 	$(RM) -rf vendor glide.lock
 
-.PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test
+.PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test cover
 
 # static pattern rule, expands into:
 # all clean : % : foo/.% bar/.%
