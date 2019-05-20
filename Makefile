@@ -53,13 +53,14 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' $(SH) -c "'$(CURDIR)/scripts/dist.sh'"
 
 test:
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | $(XARGS) $(GO) test -count=1 -tags test -race -timeout 180s
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -count=1 -tags test -race -timeout 180s
 
 # clean up and generate protobuf files
 proto: clean
 
 clean:
-	$(RM) -rf vendor
+	$(GLIDE) cc
+	$(RM) -rf vendor glide.lock
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test
 
