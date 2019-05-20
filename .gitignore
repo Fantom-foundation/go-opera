@@ -17,9 +17,18 @@ dist
 vendor
 glide.lock
 
+# patches and diff files
+*.patch
+*.diff
+
 # gomobile compilation output
 *.aar
 *.jar
+
+# archives
+*.tar.gz
+*.tgz
+*.zip
 
 # lachesis project specific
 scripts/certs
@@ -31,6 +40,10 @@ peers.json
 certs
 lachesis_*
 !*.go
+*.log
+*.graph
+*.gv
+*.finality
 
 # Backup copies
 *~
