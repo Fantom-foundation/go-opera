@@ -10,6 +10,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
@@ -30,9 +31,9 @@ func (n *Node) StartService() {
 	}
 
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n.key, n, n.log.Infof, n.service.listen)
+	n.server, _ = api.StartService(bind, n.key, n, logger.Log.Infof, n.service.listen)
 
-	n.log.Info("service started")
+	logger.Log.Info("service started")
 }
 
 // StopService stops node service.
@@ -43,7 +44,7 @@ func (n *Node) StopService() {
 	n.server.GracefulStop()
 	n.server = nil
 
-	n.log.Info("service stopped")
+	logger.Log.Info("service stopped")
 }
 
 /*

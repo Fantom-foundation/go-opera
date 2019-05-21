@@ -20,6 +20,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -48,13 +49,13 @@ func StartService(bind string, key *common.PrivateKey, svc NodeServer, log func(
 func GrpcPeerHost(ctx context.Context) string {
 	p, ok := peer.FromContext(ctx)
 	if !ok {
-		panic("GrpcPeerHost should be called from gRPC handler only")
+		logger.Log.Fatal("GrpcPeerHost should be called from gRPC handler only")
 	}
 
 	addr := p.Addr.String()
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 	return host
 }
@@ -63,7 +64,7 @@ func GrpcPeerHost(ctx context.Context) string {
 func GrpcPeerID(ctx context.Context) hash.Peer {
 	id, ok := ctx.Value(peerID{}).(hash.Peer)
 	if !ok {
-		panic("GrpcPeerID should be called from gRPC handler only")
+		logger.Log.Fatal("GrpcPeerID should be called from gRPC handler only")
 	}
 
 	return id

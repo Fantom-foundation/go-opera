@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 /*
@@ -23,7 +24,7 @@ func newParentsValidator(e *Event) *parentsValidator {
 
 func (v *parentsValidator) IsParentUnique(node hash.Peer) bool {
 	if _, ok := v.nodes[node]; ok {
-		log.Warnf("Event %s has double refer to node %s, so rejected",
+		logger.Log.Warnf("Event %s has double refer to node %s, so rejected",
 			v.event.Hash().String(),
 			node.String())
 		return false
@@ -35,7 +36,7 @@ func (v *parentsValidator) IsParentUnique(node hash.Peer) bool {
 
 func (v *parentsValidator) HasSelfParent() bool {
 	if _, ok := v.nodes[v.event.Creator]; !ok {
-		log.Warnf("Event %s has no refer to self-node %s, so rejected",
+		logger.Log.Warnf("Event %s has no refer to self-node %s, so rejected",
 			v.event.Hash().String(),
 			v.event.Creator.String())
 		return false

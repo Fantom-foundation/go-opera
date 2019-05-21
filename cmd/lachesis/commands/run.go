@@ -7,16 +7,14 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	aproxy "github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/Fantom-foundation/go-lachesis/tester"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 //NewRunCmd returns the command that starts a Lachesis node
@@ -31,7 +29,7 @@ func NewRunCmd() *cobra.Command {
 }
 
 func runSingleLachesis(config *CLIConfig) error {
-	config.Lachesis.Logger.Level = utils.GetLogLevel(config.Lachesis.LogLevel)
+	config.Lachesis.Logger.Level = lachesis.LogLevel(config.Lachesis.LogLevel)
 	config.Lachesis.NodeConfig.Logger = config.Lachesis.Logger
 	if config.Log2file {
 		f, err := os.OpenFile(fmt.Sprintf("lachesis_%v.log", config.Lachesis.BindAddr),

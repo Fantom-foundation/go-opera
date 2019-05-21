@@ -2,11 +2,13 @@ package lachesis
 
 import (
 	"github.com/dgraph-io/badger"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
@@ -37,8 +39,12 @@ func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Conf
 		conf = DefaultConfig()
 	}
 
-	c := posposet.New(cdb, ndb, conf.LogLevel)
-	n := posnode.New(host, key, ndb, c, &conf.Node, conf.LogLevel, listen, opts...)
+	l := logrus.StandardLogger()
+	l.SetLevel(logger.GetLevel(conf.LogLevel))
+	logger.SetLogger(l)
+
+	c := posposet.New(cdb, ndb)
+	n := posnode.New(host, key, ndb, c, &conf.Node, listen, opts...)
 
 	return &Lachesis{
 		host:           host,
@@ -75,7 +81,7 @@ func (l *Lachesis) AddPeers(hosts ...string) {
 
 func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
 	if err := l.consensusStore.ApplyGenesis(genesis); err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 }
 

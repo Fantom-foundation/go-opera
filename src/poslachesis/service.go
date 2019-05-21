@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
@@ -27,7 +28,7 @@ func (l *Lachesis) serviceStart() {
 			l.service.listen,
 		)
 		if err != nil {
-			panic(err)
+			logger.Log.Fatal(err)
 		}
 		defer ctrl.Close()
 
@@ -42,7 +43,7 @@ func (l *Lachesis) serviceStart() {
 			l.service.listen,
 		)
 		if err != nil {
-			panic(err)
+			logger.Log.Fatal(err)
 		}
 		defer app.Close()
 

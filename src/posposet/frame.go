@@ -3,6 +3,7 @@ package posposet
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -101,7 +102,7 @@ func (p *Poset) setFrameSaving(f *Frame) {
 		if f.Index > p.state.LastFinishedFrameN {
 			p.store.SetFrame(f)
 		} else {
-			log.Fatalf("frame %d is finished and should not be changed", f.Index)
+			logger.Log.Fatalf("frame %d is finished and should not be changed", f.Index)
 		}
 	}
 }

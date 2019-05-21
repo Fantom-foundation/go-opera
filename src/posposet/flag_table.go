@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -159,7 +160,7 @@ func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
 			res[creator] = hash.Events{}
 		}
 		if !res[creator].Add(h) {
-			log.Fatal("double value is detected")
+			logger.Log.Fatal("double value is detected")
 		}
 	}
 

@@ -3,6 +3,7 @@ package posposet
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 type EventSource interface {
@@ -23,7 +24,7 @@ func (p *Poset) HasEvent(h hash.Event) bool {
 func (p *Poset) GetEvent(h hash.Event) *Event {
 	e := p.input.GetEvent(h)
 	if e == nil {
-		log.Fatal("got unsaved event")
+		logger.Log.Fatal("got unsaved event")
 	}
 	return &Event{
 		Event: *e,

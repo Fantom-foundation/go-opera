@@ -9,5 +9,5 @@ import (
 
 // NewForTests creates node with fake network client.
 func NewForTests(host string, s *Store, c Consensus) *Node {
-	return New(host, nil, s, c, nil, "debug", network.FakeListener, FakeClient(host))
+	return New(host, nil, s, c, nil, network.FakeListener, FakeClient(host))
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 var (
@@ -58,7 +57,7 @@ func main() {
 
 func run(c *cli.Context) error {
 	logger := newLogger()
-	logger.Level = utils.GetLogLevel(c.String(LogLevelFlag.Name))
+	logger.Level = logLevel(c.String(LogLevelFlag.Name))
 
 	name := c.String(NameFlag.Name)
 	address := c.String(ProxyAddressFlag.Name)
@@ -111,4 +110,23 @@ func newLogger() *logrus.Logger {
 		&logrus.TextFormatter{},
 	))
 	return logger
+}
+
+func logLevel(l string) logrus.Level {
+	switch l {
+	case "debug":
+		return logrus.DebugLevel
+	case "info":
+		return logrus.InfoLevel
+	case "warn":
+		return logrus.WarnLevel
+	case "error":
+		return logrus.ErrorLevel
+	case "fatal":
+		return logrus.FatalLevel
+	case "panic":
+		return logrus.PanicLevel
+	default:
+		return logrus.DebugLevel
+	}
 }

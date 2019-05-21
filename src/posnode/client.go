@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -50,12 +51,12 @@ func (n *Node) initClient() {
 // ConnectTo connects to other node service.
 func (n *Node) ConnectTo(peer *Peer) (client api.NodeClient, free func(), fail func(error), err error) {
 	addr := n.NetAddrOf(peer.Host)
-	n.log.Debugf("connect to %s", addr)
+	logger.Log.Debugf("connect to %s", addr)
 
 	c, err := n.connPool.Get(addr)
 	if err != nil {
 		err = errors.Wrapf(err, "connect to: %s", addr)
-		n.log.Warn(err)
+		logger.Log.Warn(err)
 		return
 	}
 

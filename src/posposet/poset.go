@@ -4,11 +4,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // Poset processes events to get consensus.
@@ -29,7 +27,7 @@ type Poset struct {
 
 // New creates Poset instance.
 // It does not start any process.
-func New(store *Store, input EventSource, logLevel string) *Poset {
+func New(store *Store, input EventSource) *Poset {
 	const buffSize = 10
 
 	p := &Poset{
@@ -40,10 +38,6 @@ func New(store *Store, input EventSource, logLevel string) *Poset {
 		newEventsCh:      make(chan hash.Event, buffSize),
 		incompleteEvents: make(map[hash.Event]*Event),
 	}
-
-	log = logrus.StandardLogger()
-	log.SetLevel(utils.GetLogLevel(logLevel))
-	SetLogger(log)
 
 	return p
 }
@@ -92,7 +86,7 @@ func (p *Poset) PushEvent(e hash.Event) {
 // onNewEvent runs consensus calc from new event. It is not safe for concurrent use.
 func (p *Poset) onNewEvent(e *Event) {
 	if p.store.GetEventFrame(e.Hash()) != nil {
-		log.WithField("event", e).Warnf("Event had received already")
+		logger.Log.WithField("event", e).Warnf("Event had received already")
 		return
 	}
 
@@ -195,7 +189,7 @@ func (p *Poset) consensus(e *Event) {
 	applyRewards(state, ordered)
 	balances, err := state.Commit(true)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal(err)
 	}
 	if applyAt.SetBalances(balances) {
 		p.reconsensusFromFrame(applyAt.Index)
@@ -226,7 +220,7 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
 			if frame == nil || frame.Index <= p.state.LastFinishedFrameN {
-				log.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
+				logger.Log.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue
 			}

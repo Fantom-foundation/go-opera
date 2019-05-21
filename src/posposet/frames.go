@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // eventsByFrame maps frame num --> roots.
@@ -66,7 +67,7 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 	if n < p.state.LastFinishedFrameN && orCreate {
-		log.Fatalf("too old frame %d is requested", n)
+		logger.Log.Fatalf("too old frame %d is requested", n)
 	}
 	// return ephemeral
 	if n == 0 {

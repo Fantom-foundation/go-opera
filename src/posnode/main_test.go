@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 const (
@@ -14,7 +16,7 @@ const (
 // TestMain is for test mode settings
 func TestMain(m *testing.M) {
 	if noLogOutput {
-		log.Out = ioutil.Discard
+		logger.Log.Out = ioutil.Discard
 	}
 
 	os.Exit(m.Run())

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 type (
@@ -85,7 +86,7 @@ func newLamportTimeValidator(e *Event) *lamportTimeValidator {
 
 func (v *lamportTimeValidator) IsGreaterThan(time inter.Timestamp) bool {
 	if v.event.LamportTime <= time {
-		log.Warnf("Event %s has lamport time %d. It isn't next of parents, so rejected",
+		logger.Log.Warnf("Event %s has lamport time %d. It isn't next of parents, so rejected",
 			v.event.Hash().String(),
 			v.event.LamportTime)
 		return false
@@ -98,7 +99,7 @@ func (v *lamportTimeValidator) IsGreaterThan(time inter.Timestamp) bool {
 
 func (v *lamportTimeValidator) IsSequential() bool {
 	if v.event.LamportTime != v.maxTime+1 {
-		log.Warnf("Event %s has lamport time %d. It is too far from parents, so rejected",
+		logger.Log.Warnf("Event %s has lamport time %d. It is too far from parents, so rejected",
 			v.event.Hash().String(),
 			v.event.LamportTime)
 		return false

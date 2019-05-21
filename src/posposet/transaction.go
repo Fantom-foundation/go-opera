@@ -9,6 +9,7 @@ and the payment of all rewards.
 */
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -32,7 +33,7 @@ func applyTransactions(db *state.DB, ordered Events) {
 			receiver := tx.Receiver
 
 			if db.FreeBalance(sender) < tx.Amount {
-				log.Warnf("Cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
+				logger.Log.Warnf("Cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
 				continue
 			}
 

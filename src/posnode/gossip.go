@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -49,7 +50,7 @@ func (n *Node) StartGossip(threads int) {
 
 	go n.gossiping(n.gossip.tickets)
 
-	n.log.Info("gossip started")
+	logger.Log.Info("gossip started")
 }
 
 // StopGossip stops gossiping.
@@ -64,7 +65,7 @@ func (n *Node) StopGossip() {
 	close(n.gossip.tickets)
 	n.gossip.tickets = nil
 
-	n.log.Info("gossip stopped")
+	logger.Log.Info("gossip stopped")
 }
 
 // gossiping is a infinity gossip process.
@@ -77,7 +78,7 @@ func (n *Node) gossiping(tickets chan struct{}) {
 				defer n.FreePeer(peer)
 				n.syncWithPeer(peer)
 			} else {
-				n.log.Warn("no candidate for gossip")
+				logger.Log.Warn("no candidate for gossip")
 			}
 			time.Sleep(gossipIdle)
 		}()
@@ -144,7 +145,7 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	toDownload := n.lockNotDownloaded(parents)
 	defer n.unlockDownloaded(toDownload)
 
-	n.log.Info("check Parents")
+	logger.Log.Info("check Parents")
 
 	for e := range toDownload {
 		if e == hash.ZeroEvent {
@@ -156,11 +157,11 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 
 		event, err := n.downloadEvent(client, peer, &req)
 		if err != nil {
-			n.log.Warnf("download parent event error: %s", err.Error())
+			logger.Log.Warnf("download parent event error: %s", err.Error())
 		}
 
 		if event == nil {
-			n.log.Warn("download parent event error: Event is nil")
+			logger.Log.Warn("download parent event error: Event is nil")
 		}
 	}
 }
@@ -206,7 +207,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 	id, ctx := api.ServerPeerID(ctx)
 
-	n.log.Info("download event")
+	logger.Log.Info("download event")
 
 	w, err := client.GetEvent(ctx, req)
 	if err != nil {
@@ -252,7 +253,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 // Note: event should be last from its creator.
 // Note: we should not update Peer Height during save parent event.
 func (n *Node) saveNewEvent(e *inter.Event, isParent bool) {
-	n.log.Info("save new event")
+	logger.Log.Info("save new event")
 
 	n.store.SetEvent(e)
 	n.store.SetEventHash(e.Creator, e.Index, e.Hash())

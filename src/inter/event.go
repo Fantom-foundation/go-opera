@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 /*
@@ -44,7 +45,7 @@ func (e *Event) SignBy(priv *common.PrivateKey) error {
 // Verify sign event by public key.
 func (e *Event) Verify(pubKey *common.PublicKey) bool {
 	if pubKey == nil {
-		panic("can't verify")
+		logger.Log.Fatal("can't verify")
 	}
 
 	if e.Sign == "" {
@@ -54,7 +55,7 @@ func (e *Event) Verify(pubKey *common.PublicKey) bool {
 	hash := e.Hash()
 	r, s, err := crypto.DecodeSignature(string(e.Sign))
 	if err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 
 	return pubKey.Verify(hash.Bytes(), r, s)
@@ -112,7 +113,7 @@ func EventHashOf(e *Event) hash.Event {
 	w.Sign = ""
 	buf, err := proto.Marshal(w)
 	if err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 	return hash.Event(hash.Of(buf))
 }

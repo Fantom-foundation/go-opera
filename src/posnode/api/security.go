@@ -15,6 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // peerID is a internal key for context.Value().
@@ -86,7 +87,7 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 		sign := signData(resp, key)
 		md := metadata.Pairs("sign", sign, "pub", pub)
 		if e := grpc.SetTrailer(ctx, md); e != nil {
-			panic(err)
+			logger.Log.Fatal(err)
 		}
 
 		return resp, err
@@ -154,7 +155,7 @@ func verifyData(data interface{}, sign string, pub *common.PublicKey) error {
 func hashOfData(data interface{}) hash.Hash {
 	d, ok := data.(proto.Message)
 	if !ok {
-		panic("data is not proto.Message")
+		logger.Log.Fatal("data is not proto.Message")
 	}
 
 	if IsProtoEmpty(&d) {
@@ -164,7 +165,7 @@ func hashOfData(data interface{}) hash.Hash {
 	var pbf proto.Buffer
 	pbf.SetDeterministic(true)
 	if err := pbf.Marshal(d); err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 
 	return hash.Of(pbf.Bytes())

@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // Transfer makes a transaction for stake transfer.
@@ -44,9 +45,9 @@ func init() {
 	Transfer.Flags().Uint64("amount", 0, "transaction amount (required)")
 
 	if err := Transfer.MarkFlagRequired("receiver"); err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 	if err := Transfer.MarkFlagRequired("amount"); err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 }

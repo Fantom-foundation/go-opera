@@ -3,6 +3,8 @@ package network
 import (
 	"context"
 	"net"
+
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // ListenFunc returns addr listener.
@@ -13,7 +15,7 @@ type ListenFunc func(addr string) net.Listener
 func TCPListener(addr string) net.Listener {
 	res, err := net.Listen("tcp", addr)
 	if err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 	return res
 }
@@ -23,7 +25,7 @@ func TCPListener(addr string) net.Listener {
 func FakeListener(addr string) net.Listener {
 	res, err := listenFreeAddr(Addr(addr))
 	if err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 
 	return res

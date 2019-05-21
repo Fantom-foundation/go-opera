@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -29,12 +30,11 @@ type Node struct {
 	downloads
 	discovery
 	builtin
-	logger
 }
 
 // New creates node.
 // It does not start any process.
-func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Config, logLevel string, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
+func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
 	if key == nil {
 		key = crypto.GenerateKey()
 	}
@@ -53,7 +53,6 @@ func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Confi
 		conf:      *conf,
 		service:   service{listen, nil},
 		connPool:  connPool{opts: opts},
-		logger:    newLogger(host, logLevel),
 	}
 
 	return &n
@@ -109,13 +108,13 @@ func (n *Node) LastEventOf(peer hash.Peer) *inter.Event {
 func (n *Node) EventOf(peer hash.Peer, i uint64) *inter.Event {
 	h := n.store.GetEventHash(peer, i)
 	if h == nil {
-		n.log.Errorf("no event hash for (%s,%d) in store", peer.String(), i)
+		logger.Log.Errorf("no event hash for (%s,%d) in store", peer.String(), i)
 		return nil
 	}
 
 	e := n.store.GetEvent(*h)
 	if e == nil {
-		n.log.Errorf("no event in store of %d", i)
+		logger.Log.Errorf("no event in store of %d", i)
 	}
 
 	return e

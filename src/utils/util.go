@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"sync/atomic"
 	"testing"
-
-	"github.com/sirupsen/logrus"
 )
 
 var startBase uint32 = 12000
@@ -76,25 +74,4 @@ func FreePort(network string) (port uint16) {
 		}
 	}()
 	return uint16(l.Addr().(*net.TCPAddr).Port)
-}
-
-// GetLogLevel return logrus.Level by string.
-// Example: "debug" -> logrus.DebugLevel and etc.
-func GetLogLevel(l string) logrus.Level {
-	switch l {
-	case "debug":
-		return logrus.DebugLevel
-	case "info":
-		return logrus.InfoLevel
-	case "warn":
-		return logrus.WarnLevel
-	case "error":
-		return logrus.ErrorLevel
-	case "fatal":
-		return logrus.FatalLevel
-	case "panic":
-		return logrus.PanicLevel
-	default:
-		return logrus.DebugLevel
-	}
 }

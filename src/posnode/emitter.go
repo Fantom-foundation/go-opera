@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // emitter creates events from external transactions.
@@ -80,7 +81,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.log.Debugf("emiting event")
+	logger.Log.Debugf("emiting event")
 
 	var (
 		index          uint64
@@ -128,11 +129,11 @@ func (n *Node) EmitEvent() *inter.Event {
 		ExternalTransactions: externalTxns,
 	}
 	if err := event.SignBy(n.key); err != nil {
-		n.log.Fatal(err)
+		logger.Log.Fatal(err)
 	}
 
 	n.saveNewEvent(event, false)
-	n.log.Debugf("new event emited %s", event)
+	logger.Log.Debugf("new event emited %s", event)
 
 	return event
 }

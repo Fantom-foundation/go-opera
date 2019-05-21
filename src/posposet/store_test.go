@@ -84,7 +84,7 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store, cached bool)
 		panic(err)
 	}
 
-	poset := New(store, input, "debug")
+	poset := New(store, input)
 	poset.Bootstrap()
 
 	return poset

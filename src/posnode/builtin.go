@@ -2,6 +2,8 @@ package posnode
 
 import (
 	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // builtin is a set of some built in data.
@@ -19,7 +21,7 @@ func (n *Node) AddBuiltInPeers(hosts ...string) {
 
 	n.builtin.hosts = append(n.builtin.hosts, hosts...)
 
-	n.log.Debugf("built in peer hosts: %v", n.builtin.hosts)
+	logger.Log.Debugf("built in peer hosts: %v", n.builtin.hosts)
 }
 
 // NextBuiltInPeer returns next peer host or empty string.

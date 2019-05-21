@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // ParseEvents parses events from ASCII-scheme for test purpose.
@@ -47,7 +48,7 @@ func ParseEvents(asciiScheme string) (
 				break
 			default: // it is a event name
 				if _, ok := names[symbol]; ok {
-					panic(fmt.Errorf("event '%s' already exists", symbol))
+					logger.Log.Fatalf("event '%s' already exists", symbol)
 				}
 				nCreators = append(nCreators, current-1)
 				nNames = append(nNames, symbol)

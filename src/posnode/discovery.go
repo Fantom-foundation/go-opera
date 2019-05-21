@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -58,7 +59,7 @@ func (n *Node) StartDiscovery() {
 		}
 	}()
 
-	n.log.Info("discovery started")
+	logger.Log.Info("discovery started")
 }
 
 // StopDiscovery stops network discovery.
@@ -70,7 +71,7 @@ func (n *Node) StopDiscovery() {
 	close(n.discovery.done)
 	n.discovery.done = nil
 
-	n.log.Info("discovery stopped")
+	logger.Log.Info("discovery stopped")
 }
 
 // CheckPeerIsKnown queues peer checking for a late.
@@ -81,7 +82,7 @@ func (n *Node) CheckPeerIsKnown(host string, id *hash.Peer) {
 		unknown: id,
 	}:
 	default:
-		n.log.Warn("discovery.tasks queue is full, so skipped")
+		logger.Log.Warn("discovery.tasks queue is full, so skipped")
 	}
 }
 
@@ -94,7 +95,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 		return
 	}
 
-	n.log.Debugf("ask %s about peer %s", host, id)
+	logger.Log.Debugf("ask %s about peer %s", host, id)
 
 	peer := &Peer{Host: host}
 
@@ -116,7 +117,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 		if id == nil {
 			n.ConnectFail(peer, fmt.Errorf("host %s knows nothing about self", host))
 		} else {
-			n.log.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
+			logger.Log.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
 			n.ConnectOK(peer)
 		}
 		return
@@ -136,7 +137,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 	info.Host = host
 	peer = WireToPeer(info)
 	n.store.SetWirePeer(peer.ID, info)
-	n.log.Debugf("discovered new peer %s with host %s", info.ID, info.Host)
+	logger.Log.Debugf("discovered new peer %s with host %s", info.ID, info.Host)
 	n.ConnectOK(peer)
 }
 
