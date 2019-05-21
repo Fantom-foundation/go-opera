@@ -31,6 +31,8 @@ type (
 )
 
 // StartDiscovery starts single thread network discovery.
+// If there are no tasks for the discovery of unknown peers,
+// after idle time will try to discover one of builtin peers.
 func (n *Node) StartDiscovery() {
 	if n.discovery.done != nil {
 		return
@@ -49,9 +51,7 @@ func (n *Node) StartDiscovery() {
 			case task := <-n.discovery.tasks:
 				n.AskPeerInfo(task.host, task.unknown)
 			case <-time.After(discoveryIdle):
-				if host := n.NextBuiltInPeer(); host != "" {
-					n.AskPeerInfo(host, nil)
-				}
+				n.AskPeerInfo(n.NextBuiltInPeer(), nil)
 			case <-done:
 				return
 			}

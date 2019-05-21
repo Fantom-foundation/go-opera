@@ -2,6 +2,8 @@ package posnode
 
 import (
 	"sync"
+
+	"github.com/asaskevich/govalidator"
 )
 
 // builtin is a set of some built in data.
@@ -12,17 +14,23 @@ type builtin struct {
 	sync.Mutex
 }
 
-// AddBuiltInPeers appends host names to built in peer list.
+// AddBuiltInPeers checks in hosts and saves valid
+// ones for futher peer discovery.
 func (n *Node) AddBuiltInPeers(hosts ...string) {
 	n.builtin.Lock()
 	defer n.builtin.Unlock()
 
-	n.builtin.hosts = append(n.builtin.hosts, hosts...)
+	for _, host := range hosts {
+		if govalidator.IsHost(host) {
+			n.builtin.hosts = append(n.builtin.hosts, host)
+		}
+	}
 
 	n.log.Debugf("built in peer hosts: %v", n.builtin.hosts)
 }
 
-// NextBuiltInPeer returns next peer host or empty string.
+// NextBuiltInPeer infinitely returns one of the hosts
+// in the order.
 func (n *Node) NextBuiltInPeer() (host string) {
 	n.builtin.Lock()
 	defer n.builtin.Unlock()
