@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -131,12 +130,14 @@ func ParseEvents(asciiScheme string) (
 type asciiScheme struct {
 	graph [][]string
 
-	nodes    map[hash.Peer]uint64
-	posNodes []hash.Peer
+	nodes     map[hash.Peer]uint64
+	nodesName map[hash.Peer]rune
+	posNodes  []hash.Peer
 
 	eventsPosition map[hash.Event][2]uint64
 
 	lengthColumn uint64
+	nextNodeName rune
 }
 
 func (scheme *asciiScheme) Len() int {
@@ -169,22 +170,16 @@ func (scheme *asciiScheme) Swap(i, j int) {
 	scheme.graph[i], scheme.graph[j] = scheme.graph[j], scheme.graph[i]
 }
 
+// func (scheme *asciiScheme) calculateLengthColumn()  {
+// 	for column := 0; column < len(scheme.graph); column++ {
+// 		currentLengthColumn := uint64(len(scheme.graph[column]))
+// 		if currentLengthColumn > scheme.lengthColumn {
+// 			scheme.lengthColumn = currentLengthColumn
+// 		}
+// 	}
+// }
+
 func (scheme *asciiScheme) insertColumn(after uint64) {
-	if scheme.lengthColumn == 0 {
-		for column := 0; column < len(scheme.graph); column++ {
-			currentLengthColumn := uint64(len(scheme.graph[column]))
-			if currentLengthColumn > scheme.lengthColumn {
-				scheme.lengthColumn = currentLengthColumn
-			}
-		}
-
-		for column := 0; column < len(scheme.graph); column++ {
-			for uint64(len(scheme.graph[column])) < scheme.lengthColumn {
-				scheme.graph[column] = append(scheme.graph[column], "")
-			}
-		}
-	}
-
 	column := make([]string, scheme.lengthColumn)
 
 	if after >= uint64(len(scheme.graph)) {
@@ -236,7 +231,6 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 			scheme.graph[column][:after],
 			append([]string{symbol}, scheme.graph[column][after:]...)...)
 	}
-
 }
 
 func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
@@ -259,6 +253,7 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 
 		if stop-start == 1 {
 			scheme.insertRow(start)
+			scheme.lengthColumn++
 			stop++
 		}
 
@@ -270,14 +265,11 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 		return
 	}
 
-	print()
 }
 
-func (scheme *asciiScheme) AddEvent(name string, event *Event) {
-	if len(name) == 0 {
-		name = event.Hash().String()
-	}
+var firstNodeName = rune(97)
 
+func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 	column, ok := scheme.nodes[event.Creator]
 	if !ok {
 		var nextNodeAfter uint64
@@ -291,18 +283,32 @@ func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 		}
 		scheme.nodes[event.Creator] = column
 		scheme.posNodes = append(scheme.posNodes, event.Creator)
+
+		if scheme.nextNodeName == 0 {
+			scheme.nextNodeName = firstNodeName
+		}
+		if scheme.nodesName == nil {
+			scheme.nodesName = make(map[hash.Peer]rune)
+		}
+		scheme.nodesName[event.Creator] = scheme.nextNodeName
+		scheme.nextNodeName++
 	}
 
-	row := uint64(event.LamportTime - 1)
-	for uint64(len(scheme.graph[column])) <= row {
-		scheme.insertRow(row)
+	for uint64(len(scheme.graph[column])) <= scheme.lengthColumn {
+		scheme.insertRow(scheme.lengthColumn)
 	}
 
-	scheme.graph[column][row] = name
+	if len(name) == 0 {
+		name = fmt.Sprintf("%s%d", string(scheme.nodesName[event.Creator]), event.Index-1)
+	}
+
+	scheme.graph[column][scheme.lengthColumn] = name
 	if scheme.eventsPosition == nil {
 		scheme.eventsPosition = make(map[hash.Event][2]uint64)
 	}
-	scheme.eventsPosition[event.Hash()] = [2]uint64{column, row}
+	scheme.eventsPosition[event.Hash()] = [2]uint64{column, scheme.lengthColumn}
+
+	scheme.lengthColumn++
 }
 
 func (scheme *asciiScheme) GetEventPosition(event hash.Event) [2]uint64 {
@@ -317,19 +323,18 @@ func (scheme *asciiScheme) String() string {
 	return ""
 }
 
-func CreateSchemaByEvents(events map[string]*Event) string {
+func CreateSchemaByEvents(events Events) string {
+	events = events.ByParents()
+
 	scheme := new(asciiScheme)
 
-	for key, event := range events {
-		scheme.AddEvent(key, event)
-	}
-	sort.Sort(scheme)
-
-	for key, child := range events {
-		println(key)
-
-		for parent := range child.Parents {
-			scheme.EventsConnect(child.Hash(), parent)
+	for _, event := range events {
+		scheme.AddEvent("", event)
+		for parent := range event.Parents {
+			if parent == hash.ZeroEvent {
+				continue
+			}
+			scheme.EventsConnect(event.Hash(), parent)
 		}
 	}
 

@@ -119,168 +119,193 @@ func TestCreateSchemaByEvents(t *testing.T) {
 		dNodePeer := hash.HexToPeer("d")
 		eNodePeer := hash.HexToPeer("e")
 
-		events := make(map[string]*Event)
+		a00Hash := hash.HexToEventHash("a00")
+		a01Hash := hash.HexToEventHash("a01")
+		a02Hash := hash.HexToEventHash("a02")
+		a03Hash := hash.HexToEventHash("a03")
+		a04Hash := hash.HexToEventHash("a04")
 
-		events["a00"] = &Event{
-			Index:   1,
-			Creator: aNodePeer,
-			Parents: map[hash.Event]struct{}{
-				hash.ZeroEvent: {},
+		b00Hash := hash.HexToEventHash("b00")
+		b01Hash := hash.HexToEventHash("b01")
+		b02Hash := hash.HexToEventHash("b02")
+
+		c00Hash := hash.HexToEventHash("c00")
+		c01Hash := hash.HexToEventHash("c01")
+		c02Hash := hash.HexToEventHash("c02")
+		c03Hash := hash.HexToEventHash("c03")
+
+		d00Hash := hash.HexToEventHash("d00")
+		d01Hash := hash.HexToEventHash("d01")
+		d02Hash := hash.HexToEventHash("d02")
+
+		e00Hash := hash.HexToEventHash("e00")
+
+		events := Events{
+			&Event{
+				Index:   1,
+				Creator: aNodePeer,
+				Parents: map[hash.Event]struct{}{
+					hash.ZeroEvent: {},
+				},
+				LamportTime: 1,
+				hash:        a00Hash,
 			},
-			LamportTime: 1,
-			hash:        hash.FakeEvent(),
-		}
-		events["a01"] = &Event{
-			Index:   2,
-			Creator: aNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["a00"].Hash(): {},
+			&Event{
+				Index:   2,
+				Creator: aNodePeer,
+				Parents: map[hash.Event]struct{}{
+					a00Hash: {},
+				},
+				LamportTime: 2,
+				hash:        a01Hash,
 			},
-			LamportTime: 2,
-			hash:        hash.FakeEvent(),
-		}
-		events["b00"] = &Event{
-			Index:   1,
-			Creator: bNodePeer,
-			Parents: map[hash.Event]struct{}{
-				hash.ZeroEvent: {},
+			&Event{
+				Index:   3,
+				Creator: aNodePeer,
+				Parents: map[hash.Event]struct{}{
+					a01Hash: {},
+					b00Hash: {},
+				},
+				LamportTime: 3,
+				hash:        a02Hash,
 			},
-			LamportTime: 1,
-			hash:        hash.FakeEvent(),
-		}
-		events["a02"] = &Event{
-			Index:   3,
-			Creator: aNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["a01"].Hash(): {},
-				events["b00"].Hash(): {},
+			&Event{
+				Index:   4,
+				Creator: aNodePeer,
+				Parents: map[hash.Event]struct{}{
+					a02Hash: {},
+					b02Hash: {},
+				},
+				LamportTime: 6,
+				hash:        a03Hash,
 			},
-			LamportTime: 3,
-			hash:        hash.FakeEvent(),
-		}
-		events["c00"] = &Event{
-			Index:
-			1,
-			Creator: cNodePeer,
-			Parents: map[hash.Event]struct{}{
-				hash.ZeroEvent: {},
+			&Event{
+				Index:   5,
+				Creator: aNodePeer,
+				Parents: map[hash.Event]struct{}{
+					a03Hash: {},
+					c02Hash: {},
+					d01Hash: {},
+				},
+				LamportTime: 7,
+				hash:        a04Hash,
 			},
-			LamportTime: 1,
-			hash:        hash.FakeEvent(),
-		}
-		events["c01"] = &Event{
-			Index:   2,
-			Creator: cNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["c00"].Hash(): {},
-				events["b00"].Hash(): {},
+
+			&Event{
+				Index:   1,
+				Creator: bNodePeer,
+				Parents: map[hash.Event]struct{}{
+					hash.ZeroEvent: {},
+				},
+				LamportTime: 1,
+				hash:        b00Hash,
 			},
-			LamportTime: 2,
-			hash:        hash.FakeEvent(),
-		}
-		events["b01"] = &Event{
-			Index:   2,
-			Creator: bNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["b00"].Hash(): {},
-				events["c01"].Hash(): {},
+			&Event{
+				Index:   2,
+				Creator: bNodePeer,
+				Parents: map[hash.Event]struct{}{
+					b00Hash: {},
+					c01Hash: {},
+				},
+				LamportTime: 3,
+				hash:        b01Hash,
 			},
-			LamportTime: 3,
-			hash:        hash.FakeEvent(),
-		}
-		events["c02"] = &Event{
-			Index:   3,
-			Creator: cNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["c01"].Hash(): {},
-				events["a02"].Hash(): {},
+			&Event{
+				Index:   3,
+				Creator: bNodePeer,
+				Parents: map[hash.Event]struct{}{
+					b01Hash: {},
+					a02Hash: {},
+					c02Hash: {},
+					d01Hash: {},
+				},
+				LamportTime: 5,
+				hash:        b02Hash,
 			},
-			LamportTime: 4,
-			hash:        hash.FakeEvent(),
-		}
-		events["d00"] = &Event{
-			Index:   1,
-			Creator: dNodePeer,
-			Parents: map[hash.Event]struct{}{
-				hash.ZeroEvent: {},
+
+			&Event{
+				Index:
+				1,
+				Creator: cNodePeer,
+				Parents: map[hash.Event]struct{}{
+					hash.ZeroEvent: {},
+				},
+				LamportTime: 1,
+				hash:        c00Hash,
 			},
-			LamportTime: 1,
-			hash:        hash.FakeEvent(),
-		}
-		events["d01"] = &Event{
-			Index:   2,
-			Creator: dNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["d00"].Hash(): {},
-				events["b01"].Hash(): {},
+			&Event{
+				Index:   2,
+				Creator: cNodePeer,
+				Parents: map[hash.Event]struct{}{
+					c00Hash: {},
+					b00Hash: {},
+				},
+				LamportTime: 2,
+				hash:        c01Hash,
 			},
-			LamportTime: 4,
-			hash:        hash.FakeEvent(),
-		}
-		events["b02"] = &Event{
-			Index:   3,
-			Creator: bNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["b01"].Hash(): {},
-				events["a02"].Hash(): {},
-				events["c02"].Hash(): {},
-				events["d01"].Hash(): {},
+			&Event{
+				Index:   3,
+				Creator: cNodePeer,
+				Parents: map[hash.Event]struct{}{
+					c01Hash: {},
+					a02Hash: {},
+				},
+				LamportTime: 4,
+				hash:        c02Hash,
 			},
-			LamportTime: 5,
-			hash:        hash.FakeEvent(),
-		}
-		events["a03"] = &Event{
-			Index:   4,
-			Creator: aNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["a02"].Hash(): {},
-				events["b02"].Hash(): {},
+			&Event{
+				Index:   4,
+				Creator: cNodePeer,
+				Parents: map[hash.Event]struct{}{
+					c02Hash: {},
+					d02Hash: {},
+					a03Hash: {},
+					b01Hash: {},
+				},
+				LamportTime: 7,
+				hash:        c03Hash,
 			},
-			LamportTime: 6,
-			hash:        hash.FakeEvent(),
-		}
-		events["a04"] = &Event{
-			Index:   5,
-			Creator: aNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["a03"].Hash(): {},
-				events["c02"].Hash(): {},
-				events["d01"].Hash(): {},
+
+			&Event{
+				Index:   1,
+				Creator: dNodePeer,
+				Parents: map[hash.Event]struct{}{
+					hash.ZeroEvent: {},
+				},
+				LamportTime: 1,
+				hash:        d00Hash,
 			},
-			LamportTime: 7,
-			hash:        hash.FakeEvent(),
-		}
-		events["d02"] = &Event{
-			Index:   3,
-			Creator: dNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["d01"].Hash(): {},
-				events["c02"].Hash(): {},
+			&Event{
+				Index:   2,
+				Creator: dNodePeer,
+				Parents: map[hash.Event]struct{}{
+					d00Hash: {},
+					b01Hash: {},
+				},
+				LamportTime: 4,
+				hash:        d01Hash,
 			},
-			LamportTime: 5,
-			hash:        hash.FakeEvent(),
-		}
-		events["c03"] = &Event{
-			Index:   4,
-			Creator: cNodePeer,
-			Parents: map[hash.Event]struct{}{
-				events["c02"].Hash(): {},
-				events["d02"].Hash(): {},
-				events["a03"].Hash(): {},
-				events["b01"].Hash(): {},
+			&Event{
+				Index:   3,
+				Creator: dNodePeer,
+				Parents: map[hash.Event]struct{}{
+					d01Hash: {},
+					c02Hash: {},
+				},
+				LamportTime: 5,
+				hash:        d02Hash,
 			},
-			LamportTime: 7,
-			hash:        hash.FakeEvent(),
-		}
-		events["e00"] = &Event{
-			Index:   1,
-			Creator: eNodePeer,
-			Parents: map[hash.Event]struct{}{
-				hash.ZeroEvent:       {},
-				events["d02"].Hash(): {},
+
+			&Event{
+				Index:   1,
+				Creator: eNodePeer,
+				Parents: map[hash.Event]struct{}{
+					hash.ZeroEvent: {},
+					d02Hash:        {},
+				},
+				LamportTime: 6,
+				hash:        e00Hash,
 			},
-			LamportTime: 6,
-			hash:        hash.FakeEvent(),
 		}
 
 		/* endregion*/
