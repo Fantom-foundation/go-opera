@@ -15,8 +15,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	aproxy "github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/Fantom-foundation/go-lachesis/tester"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
+	"github.com/Fantom-foundation/go-lachesis/tester"
 )
 
 //NewRunCmd returns the command that starts a Lachesis node

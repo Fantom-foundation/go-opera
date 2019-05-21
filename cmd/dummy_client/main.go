@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	
+
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-	
+
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
