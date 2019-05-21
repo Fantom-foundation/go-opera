@@ -34,7 +34,7 @@ type Node struct {
 
 // New creates node.
 // It does not start any process.
-func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
+func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Config, logLevel string, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
 	if key == nil {
 		key = crypto.GenerateKey()
 	}
@@ -53,7 +53,7 @@ func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Confi
 		conf:      *conf,
 		service:   service{listen, nil},
 		connPool:  connPool{opts: opts},
-		logger:    newLogger(host),
+		logger:    newLogger(host, logLevel),
 	}
 
 	return &n

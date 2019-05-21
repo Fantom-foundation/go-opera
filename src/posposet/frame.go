@@ -1,8 +1,6 @@
 package posposet
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
@@ -103,7 +101,7 @@ func (p *Poset) setFrameSaving(f *Frame) {
 		if f.Index > p.state.LastFinishedFrameN {
 			p.store.SetFrame(f)
 		} else {
-			panic(fmt.Errorf("frame %d is finished and should not be changed", f.Index))
+			log.Fatalf("frame %d is finished and should not be changed", f.Index)
 		}
 	}
 }

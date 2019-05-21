@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -160,7 +159,7 @@ func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
 			res[creator] = hash.Events{}
 		}
 		if !res[creator].Add(h) {
-			panic(fmt.Errorf("double value is detected"))
+			log.Fatal("double value is detected")
 		}
 	}
 

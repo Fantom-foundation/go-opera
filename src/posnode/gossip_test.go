@@ -155,7 +155,7 @@ func TestMissingParents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		
+
 		unknowns, err := node2.compareKnownEvents(client, peer)
 		if err != nil {
 			t.Fatal(err)

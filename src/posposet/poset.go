@@ -4,8 +4,11 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 // Poset processes events to get consensus.
@@ -26,7 +29,7 @@ type Poset struct {
 
 // New creates Poset instance.
 // It does not start any process.
-func New(store *Store, input EventSource) *Poset {
+func New(store *Store, input EventSource, logLevel string) *Poset {
 	const buffSize = 10
 
 	p := &Poset{
@@ -37,6 +40,10 @@ func New(store *Store, input EventSource) *Poset {
 		newEventsCh:      make(chan hash.Event, buffSize),
 		incompleteEvents: make(map[hash.Event]*Event),
 	}
+
+	log = logrus.StandardLogger()
+	log.SetLevel(utils.GetLogLevel(logLevel))
+	SetLogger(log)
 
 	return p
 }
@@ -188,7 +195,7 @@ func (p *Poset) consensus(e *Event) {
 	applyRewards(state, ordered)
 	balances, err := state.Commit(true)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if applyAt.SetBalances(balances) {
 		p.reconsensusFromFrame(applyAt.Index)

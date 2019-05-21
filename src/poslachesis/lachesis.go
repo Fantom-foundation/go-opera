@@ -37,8 +37,8 @@ func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Conf
 		conf = DefaultConfig()
 	}
 
-	c := posposet.New(cdb, ndb)
-	n := posnode.New(host, key, ndb, c, &conf.Node, listen, opts...)
+	c := posposet.New(cdb, ndb, conf.LogLevel)
+	n := posnode.New(host, key, ndb, c, &conf.Node, conf.LogLevel, listen, opts...)
 
 	return &Lachesis{
 		host:           host,

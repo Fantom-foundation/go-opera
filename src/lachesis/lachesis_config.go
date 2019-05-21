@@ -15,6 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
 	"github.com/Fantom-foundation/go-lachesis/src/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 type LachesisConfig struct {
@@ -62,7 +63,7 @@ func NewDefaultConfig() *LachesisConfig {
 		TestDelay:   1,
 	}
 
-	config.Logger.Level = LogLevel(config.LogLevel)
+	config.Logger.Level = utils.GetLogLevel(config.LogLevel)
 	lachesis_log.NewLocal(config.Logger, config.LogLevel)
 	//config.Proxy = sproxy.NewInmemAppProxy(config.Logger)
 	//config.Proxy, _ = sproxy.NewSocketAppProxy("127.0.0.1:1338", "127.0.0.1:1339", 1*time.Second, config.Logger)
@@ -108,23 +109,4 @@ func HomeDir() string {
 		return usr.HomeDir
 	}
 	return ""
-}
-
-func LogLevel(l string) logrus.Level {
-	switch l {
-	case "debug":
-		return logrus.DebugLevel
-	case "info":
-		return logrus.InfoLevel
-	case "warn":
-		return logrus.WarnLevel
-	case "error":
-		return logrus.ErrorLevel
-	case "fatal":
-		return logrus.FatalLevel
-	case "panic":
-		return logrus.PanicLevel
-	default:
-		return logrus.DebugLevel
-	}
 }

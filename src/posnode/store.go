@@ -79,7 +79,7 @@ func (s *Store) SetEventHash(creator hash.Peer, index uint64, hash hash.Event) {
 	key := append(creator.Bytes(), intToBytes(index)...)
 
 	if err := s.hashes.Put(key, hash.Bytes()); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -89,7 +89,7 @@ func (s *Store) GetEventHash(creator hash.Peer, index uint64) *hash.Event {
 
 	buf, err := s.hashes.Get(key)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if buf == nil {
 		return nil
@@ -148,16 +148,16 @@ func (s *Store) BootstrapPeers(peers ...*Peer) {
 		var pbf proto.Buffer
 		w := peer.ToWire()
 		if err := pbf.Marshal(w); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		if err := batch.Put(peer.ID.Bytes(), pbf.Bytes()); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		ids = append(ids, peer.ID)
 	}
 
 	if err := batch.Write(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	s.SetTopPeers(ids)
@@ -180,7 +180,7 @@ func (s *Store) GetTopPeers() []hash.Peer {
 // SetPeerHeight stores last event index of peer.
 func (s *Store) SetPeerHeight(id hash.Peer, height uint64) {
 	if err := s.peerHeights.Put(id.Bytes(), intToBytes(height)); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -188,7 +188,7 @@ func (s *Store) SetPeerHeight(id hash.Peer, height uint64) {
 func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
 	buf, err := s.peerHeights.Get(id.Bytes())
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if buf == nil {
 		return 0
@@ -205,18 +205,18 @@ func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
 
 	if err := pbf.Marshal(val); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err := table.Put(key, pbf.Bytes()); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
 func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
 	buf, err := table.Get(key)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if buf == nil {
 		return nil
@@ -224,7 +224,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 
 	err = proto.Unmarshal(buf, to)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return to
 }
@@ -232,7 +232,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 func (s *Store) has(table kvdb.Database, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return res
 }

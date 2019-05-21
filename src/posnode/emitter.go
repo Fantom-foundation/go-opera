@@ -128,7 +128,7 @@ func (n *Node) EmitEvent() *inter.Event {
 		ExternalTransactions: externalTxns,
 	}
 	if err := event.SignBy(n.key); err != nil {
-		panic(err)
+		n.log.Fatal(err)
 	}
 
 	n.saveNewEvent(event, false)

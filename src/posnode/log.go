@@ -2,13 +2,17 @@ package posnode
 
 import (
 	"github.com/sirupsen/logrus"
+
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 type logger struct {
 	log *logrus.Entry
 }
 
-func newLogger(node string) (r logger) {
+func newLogger(node, logLevel string) (r logger) {
+	log.SetLevel(utils.GetLogLevel(logLevel))
+
 	if node != "" {
 		r.log = log.WithField("node", node)
 	} else {

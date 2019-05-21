@@ -12,9 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 //NewRunCmd returns the command that starts a Lachesis node
@@ -204,7 +206,7 @@ func loadConfig(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	config.Lachesis.Logger.Level = lachesis.LogLevel(config.Lachesis.LogLevel)
+	config.Lachesis.Logger.Level = utils.GetLogLevel(config.Lachesis.LogLevel)
 	config.Lachesis.NodeConfig.Logger = config.Lachesis.Logger
 
 	return nil

@@ -12,6 +12,7 @@ type Config struct {
 	AppPort  int
 	CtrlPort int
 	Node     posnode.Config
+	LogLevel string
 }
 
 // DefaultConfig returns lachesis default config.
@@ -20,6 +21,7 @@ func DefaultConfig() *Config {
 		AppPort:  55556,
 		CtrlPort: 55557,
 		Node:     *posnode.DefaultConfig(),
+		LogLevel: "debug",
 	}
 }
 
