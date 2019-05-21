@@ -89,3 +89,44 @@ func TestNoPrefixShortHexOddLength(t *testing.T) {
 		t.Errorf("Expected %x got %x", expected, result)
 	}
 }
+
+func TestHasHexPrefix(t *testing.T) {
+	if hasHexPrefix("") {
+		t.Errorf("Empty string should not have hex prefix!")
+	}
+	if hasHexPrefix("0х") || hasHexPrefix("0Х") {
+		t.Errorf("Cyrilic should not be in hex prefix!")
+	}
+}
+
+func TestHex2BytesFixed(t *testing.T) {
+	str := "AABBCCDD";
+	if !bytes.Equal([]byte{0xDD}, Hex2BytesFixed(str, 1)) {
+		t.Errorf("Expected 0xDD found: %v", Hex2BytesFixed(str, 1))
+	}
+	if !bytes.Equal([]byte{0xAA, 0xBB, 0xCC, 0xDD}, Hex2BytesFixed(str, 4)) {
+		t.Errorf("Expected 0x00AABBCCDD found: %v", Hex2BytesFixed(str, 4))
+	}
+	if !bytes.Equal([]byte{0, 0xAA, 0xBB, 0xCC, 0xDD}, Hex2BytesFixed(str, 5)) {
+		t.Errorf("Expected 0x00AABBCCDD found: %v", Hex2BytesFixed(str, 5))
+	}
+}
+
+func TestToHex(t *testing.T) {
+	// TODO FIXME: order of bytes in hex string is not specified
+	// need to expand this test to longer byte array once it's specified.
+	if "0xaa" != ToHex([]byte{0xaa}) {
+		t.Errorf("TestToHex failed, expected 0xaa found %v",
+			ToHex([]byte{0xaa}))
+	}
+}
+
+func TestToHexArray(t *testing.T) {
+	strs := ToHexArray([][]byte{{1, 2, 3}, {4, 5}})
+	if strs[0] != "0x010203" {
+		t.Errorf("First string expected to be '0x010203' but found '%v'", strs[0])
+	}
+	if strs[1] != "0x0405" {
+		t.Errorf("First string expected to be '0x0405' but found '%v'", strs[1])
+	}
+}
