@@ -31,6 +31,8 @@ type (
 )
 
 // StartDiscovery starts single thread network discovery.
+// If there are no tasks for the discovery of unknown peers,
+// after idle time will try to discover one of builtin peers.
 func (n *Node) StartDiscovery() {
 	if n.discovery.done != nil {
 		return

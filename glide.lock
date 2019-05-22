@@ -1,5 +1,5 @@
-hash: a2ada84d6a6d32fc8c06d00450f3aa05a8bcdf8cf6810155d1a6621561b2a59c
-updated: 2019-05-13T12:36:41.61854+10:00
+hash: 04e87a405513c12473e9f74298d76e1575e3b9822aa52094767c9876d8223642
+updated: 2019-05-21T12:00:33.897938+03:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -7,6 +7,8 @@ imports:
   - queue
 - name: github.com/AndreasBriese/bbloom
   version: e2d15f34fcf99d5dbb871c820ec73f710fca9815
+- name: github.com/asaskevich/govalidator
+  version: ccb8e960c48f04d6935e72476ae4a51028f9e22f
 - name: github.com/dgraph-io/badger
   version: deee8c7ae70bab412e4f10cfa068e0be61a8d0eb
   subpackages:
@@ -75,7 +77,7 @@ imports:
 - name: github.com/rs/xid
   version: 15d26544def341f036c5f8dca987a4cbe575032c
 - name: github.com/sirupsen/logrus
-  version: 8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f
+  version: 839c75faf7f98a33d445d181f3018b5c3409a45e
 - name: github.com/spf13/afero
   version: 588a75ec4f32903aa5e39a2619ba6a4631e28424
   subpackages:
@@ -83,7 +85,7 @@ imports:
 - name: github.com/spf13/cast
   version: 8c9545af88b134710ab1cd196795e7f2388358d7
 - name: github.com/spf13/cobra
-  version: ef82de70bb3f60c65fb8eebacbb2d122ef517385
+  version: 67fc4837d267bc9bfd6e47f77783fcc3dffc68de
 - name: github.com/spf13/jwalterweatherman
   version: 94f6ae3ed3bceceafa716478c5fbf8d29ca601a1
 - name: github.com/spf13/pflag

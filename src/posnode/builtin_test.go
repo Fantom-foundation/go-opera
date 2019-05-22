@@ -6,65 +6,50 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNodeNextBuiltInPeer(t *testing.T) {
-	tt := []struct {
-		name   string
-		hosts  []string
-		expect []string
+func TestNodeBuiltInPeer(t *testing.T) {
+	ttt := []struct {
+		name string
+		in   []string
+		out  []string
 	}{
 		{
-			name:  "empty",
-			hosts: make([]string, 0),
-			expect: []string{
+			name: "empty",
+			in:   []string{},
+			out: []string{
 				"",
 				"",
 			},
 		},
 		{
-			name: "once",
-			hosts: []string{
+			name: "non empty",
+			in: []string{
 				"194.54.152.2",
-				"194.54.152.3",
-				"194.54.152.4",
+				"lachesis-node-1",
+				"google.com",
 			},
-			expect: []string{
+			out: []string{
 				"194.54.152.2",
-				"194.54.152.3",
-				"194.54.152.4",
-			},
-		},
-		{
-			name: "twice",
-			hosts: []string{
+				"lachesis-node-1",
+				"google.com",
 				"194.54.152.2",
-				"194.54.152.3",
-				"194.54.152.4",
-			},
-			expect: []string{
-				"194.54.152.2",
-				"194.54.152.3",
-				"194.54.152.4",
-				"194.54.152.2",
-				"194.54.152.3",
-				"194.54.152.4",
+				"lachesis-node-1",
+				"google.com",
 			},
 		},
 	}
 
-	for _, tc := range tt {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert := assert.New(t)
+	for _, tt := range ttt {
+		t.Run(tt.name, func(t *testing.T) {
 
 			n := NewForTests("", nil, nil)
-			n.AddBuiltInPeers(tc.hosts...)
+			n.AddBuiltInPeers(tt.in...)
 
-			for i, expect := range tc.expect {
-				if !assert.Equal(expect, n.NextBuiltInPeer(), "item %d", i) {
+			for i, expect := range tt.out {
+				if !assert.Equalf(t, expect, n.NextBuiltInPeer(), "item %d", i) {
 					break
 				}
 			}
+
 		})
 	}
 }
