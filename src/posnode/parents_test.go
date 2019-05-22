@@ -1,6 +1,9 @@
 package posnode
 
 import (
+	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -10,66 +13,81 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-// TODO: it is a stub. Test the all situations.
-func TestParents(t *testing.T) {
-	assert := assert.New(t)
+func TestParentSelection(t *testing.T) {
+	testParentSelection(t, "empty", `
+`)
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	consensus := NewMockConsensus(ctrl)
+	testParentSelection(t, "single", `
+1:A1
+`)
 
-	store := NewMemStore()
-	node := NewForTests("n0", store, consensus)
-	node.initParents()
-
-	prepareParents(node, consensus, `
-a01   b01   c01
-║     ║     ║
-a02 ─ ╬ ─ ─ ╣     d01
-║     ║     ║     ║
-║     ╠ ─ ─ c02 ─ ╣
-║     ║     ║     ║
-╠ ─ ─ b02 ─ ╣     ║
-║     ║     ║     ║
-╠ ─ ─ ╬ ─ ─ c03   ║
-║     ║     ║     ║
-║     ╠ ─ ─ ╫ ─ ─ d02
-║     ║     ║     ║
-`, map[string]float64{"*": 1})
-
-	for n, expect := range []string{"c03", "d02", ""} {
-		parent := node.popBestParent()
-		if parent == nil {
-			assert.Equal("", expect, "step %d", n)
-			break
-		}
-		if !assert.Equal(expect, parent.String(), "step %d", n) {
-			break
-		}
-	}
+	testParentSelection(t, "simple", `
+1:a1   1:b1   1:c1
+║      ║      ║
+1:a2 ─ ╬ ─ ─  ╣      1:d1
+║      ║      ║      ║
+║      ╠ ─ ─  1:c2 ─ ╣
+║      ║      ║      ║
+╠ ─ ─  1:b2 ─ ╣      ║
+║      ║      ║      ║
+╠ ─ ─  ╬ ─ ─  1:C1   ║
+║      ║      ║      ║
+║      ╠ ─ ─  ╫ ─ ─  1:D2
+║      ║      ║      ║
+`)
 }
 
-func prepareParents(n *Node, c *MockConsensus, schema string, stakes map[string]float64) {
+// testParentSelection uses special event name format: <creator weight>:<uppercase if expected|lowercase><expected ordering num>
+func testParentSelection(t *testing.T, dsc, schema string) {
+	t.Run(dsc, func(t *testing.T) {
+		assert := assert.New(t)
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		consensus := NewMockConsensus(ctrl)
+
+		store := NewMemStore()
+		node := NewForTests(dsc, store, consensus)
+		node.initParents()
+
+		expected := parseEvents(node, consensus, schema)
+		for n, expect := range expected {
+			parent := node.popBestParent()
+			if !assert.NotNil(parent, "step %d", n) {
+				break
+			}
+			if !assert.Equal(expect, parent.String(), "step %d", n) {
+				break
+			}
+		}
+
+		assert.Nil(node.popBestParent(), "last step")
+
+	})
+}
+
+func parseEvents(n *Node, c *MockConsensus, schema string) (expected []string) {
+	_, _, events := inter.ParseEvents(schema)
+
+	weights := make(map[hash.Peer]float64)
+	for name, e := range events {
+		w, o := parseSpecName(name)
+		weights[e.Creator] = w
+		if o > 0 {
+			expected = append(expected, name)
+		}
+	}
+
 	c.EXPECT().
 		PushEvent(gomock.Any()).
 		AnyTimes()
-
 	c.EXPECT().
 		GetStakeOf(gomock.Any()).
 		DoAndReturn(func(p hash.Peer) float64 {
-
-			if stake, ok := stakes[p.String()]; ok {
-				return stake
-			}
-			if stake, ok := stakes["*"]; ok {
-				return stake
-			}
-			return float64(0)
-
+			return weights[p]
 		}).
 		AnyTimes()
 
-	_, _, events := inter.ParseEvents(schema)
 	unordered := make(inter.Events, 0, len(events))
 	for _, e := range events {
 		unordered = append(unordered, e)
@@ -77,158 +95,45 @@ func prepareParents(n *Node, c *MockConsensus, schema string, stakes map[string]
 	for _, e := range unordered.ByParents() {
 		n.saveNewEvent(e, false)
 	}
+
+	sort.Sort(byOrderNum(expected))
+	return
 }
 
-func TestParentsSum(t *testing.T) {
-	testEvent := hash.FakeEvent()
+func parseSpecName(name string) (weight float64, orderNum int64) {
+	ss := strings.Split(name, ":")
+	if len(ss) != 2 {
+		panic("invalid event name format")
+	}
 
-	t.Run("not found event in cache", func(t *testing.T) {
-		pp := &parents{
-			cache: make(map[hash.Event]*parent),
+	var err error
+
+	weight, err = strconv.ParseFloat(ss[0], 64)
+	if err != nil {
+		panic("invalid event name format (weight): " + err.Error())
+	}
+
+	if ss[1][0] == strings.ToUpper(ss[1])[0] {
+		orderNum, err = strconv.ParseInt(ss[1][1:], 10, 64)
+		if err != nil {
+			panic("invalid event name format (order num): " + err.Error())
 		}
+	} else {
+		orderNum = 0
+	}
 
-		assert.Equal(t, pp.Sum(testEvent), float64(0))
-	})
-
-	t.Run("event with parents", func(t *testing.T) {
-		events := hash.FakeEvents(3)
-		eventsArr := events.Slice()
-		pp := &parents{
-			cache: map[hash.Event]*parent{
-				testEvent: {
-					Value:   1,
-					Parents: events,
-				},
-				eventsArr[0]: {
-					Value: 2,
-				},
-				eventsArr[1]: {
-					Value: 3,
-				},
-				eventsArr[2]: {
-					Value: 4,
-				},
-			},
-		}
-
-		assert.Equal(t, pp.Sum(testEvent), float64(10))
-	})
+	return
 }
 
-func TestParentsDel(t *testing.T) {
-	deletedEvent := hash.FakeEvent()
+type byOrderNum []string
 
-	t.Run("not found event", func(t *testing.T) {
-		pp := &parents{
-			cache: make(map[hash.Event]*parent),
-		}
+func (ss byOrderNum) Len() int { return len(ss) }
 
-		assert.NotPanics(t, func() {
-			pp.Del(deletedEvent)
-		})
-	})
+func (ss byOrderNum) Swap(i, j int) { ss[i], ss[j] = ss[j], ss[i] }
 
-	t.Run("event with parents", func(t *testing.T) {
-		events := hash.FakeEvents(3)
-		eventsArr := events.Slice()
-		pp := &parents{
-			cache: map[hash.Event]*parent{
-				deletedEvent: {
-					Parents: events,
-				},
-				eventsArr[0]: new(parent),
-				eventsArr[1]: new(parent),
-				eventsArr[2]: new(parent),
-			},
-		}
+func (ss byOrderNum) Less(i, j int) bool {
+	_, a := parseSpecName(ss[i])
+	_, b := parseSpecName(ss[j])
 
-		assert.NotPanics(t, func() {
-			pp.Del(deletedEvent)
-		})
-		assert.NotContains(t, pp.cache, deletedEvent)
-	})
-
-	t.Run("not delete other events", func(t *testing.T) {
-		protectedEvent := hash.FakeEvent()
-		pp := &parents{
-			cache: map[hash.Event]*parent{
-				deletedEvent:   new(parent),
-				protectedEvent: new(parent),
-			},
-		}
-
-		assert.NotPanics(t, func() {
-			pp.Del(deletedEvent)
-		})
-		assert.NotContains(t, pp.cache, deletedEvent)
-		assert.Contains(t, pp.cache, protectedEvent)
-	})
-}
-
-func TestNodePopBestParent(t *testing.T) {
-	t.Run("not found event", func(t *testing.T) {
-		node := &Node{
-			parents: parents{
-				cache: make(map[hash.Event]*parent),
-			},
-		}
-
-		result := node.popBestParent()
-		assert.Nil(t, result)
-	})
-
-	t.Run("not the last parent with other parents", func(t *testing.T) {
-		event := hash.FakeEvent()
-		node := &Node{
-			parents: parents{
-				cache: map[hash.Event]*parent{
-					hash.FakeEvent(): {
-						Last: false,
-					},
-					event: {
-						Last:  true,
-						Value: float64(123),
-					},
-					hash.FakeEvent(): {
-						Last:  true,
-						Value: float64(1),
-					},
-				},
-			},
-		}
-
-		result := node.popBestParent()
-		assert.EqualValues(t, result, &event)
-		assert.NotContains(t, node.parents.cache, event)
-	})
-
-	t.Run("first maximum return", func(t *testing.T) {
-		event := hash.FakeEvent()
-		node := &Node{
-			parents: parents{
-				cache: map[hash.Event]*parent{
-					hash.FakeEvent(): {
-						Last:  true,
-						Value: float64(1),
-					},
-					event: {
-						Last:  true,
-						Value: float64(123),
-					},
-					hash.FakeEvent(): {
-						Last:  true,
-						Value: float64(123),
-					},
-					hash.FakeEvent(): {
-						Last:  true,
-						Value: float64(123),
-					},
-				},
-			},
-		}
-
-		result := node.popBestParent()
-		assert.EqualValues(t, result, &event)
-		assert.NotContains(t, node.parents.cache, event)
-	})
+	return a < b
 }

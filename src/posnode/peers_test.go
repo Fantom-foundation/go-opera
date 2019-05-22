@@ -101,7 +101,7 @@ func TestCleanPeers(t *testing.T) {
 
 	// node
 	store := NewMemStore()
-	node := NewForTests("node0", store, nil)
+	node := NewForTests("node", store, nil)
 	node.StartService()
 	defer node.StopService()
 
