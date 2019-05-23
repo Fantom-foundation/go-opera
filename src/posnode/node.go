@@ -1,12 +1,15 @@
 package posnode
 
 import (
+	"sync"
+
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -19,6 +22,8 @@ type Node struct {
 	consensus Consensus
 	host      string
 	conf      Config
+
+	onNewEvent func(*inter.Event)
 
 	service
 	connPool
@@ -56,7 +61,44 @@ func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Confi
 		logger:    newLogger(host),
 	}
 
+	orderThenSave := ordering.EventBuffer(
+		// process
+		n.saveNewEvent,
+		// drop
+		func(e *inter.Event, err error) {
+			n.log.Warn(err.Error() + ", so rejected")
+		},
+		// exists
+		func(h hash.Event) *inter.Event {
+			return n.store.GetEvent(h)
+		},
+	)
+	var save sync.Mutex
+
+	n.onNewEvent = func(e *inter.Event) {
+		// TODO: replace mutex with chan
+		save.Lock()
+		defer save.Unlock()
+		orderThenSave(e)
+	}
+
 	return &n
+}
+
+// saveNewEvent writes event to store, indexes and consensus.
+// It is not safe for concurrent use.
+func (n *Node) saveNewEvent(e *inter.Event) {
+	n.log.Debugf("save new event")
+
+	n.store.SetEvent(e)
+	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
+	n.store.SetPeerHeight(e.Creator, e.Index)
+
+	n.pushPotentialParent(e)
+
+	if n.consensus != nil {
+		n.consensus.PushEvent(e.Hash())
+	}
 }
 
 // Start starts all node services.

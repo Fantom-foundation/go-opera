@@ -47,7 +47,7 @@ func TestEmit(t *testing.T) {
 	t.Run("1st event", func(t *testing.T) {
 		assert := assert.New(t)
 		// node2 got event0
-		node2.saveNewEvent(events[0], false)
+		node2.onNewEvent(events[0])
 
 		events[1] = node2.EmitEvent()
 
@@ -65,7 +65,7 @@ func TestEmit(t *testing.T) {
 	t.Run("2nd event", func(t *testing.T) {
 		assert := assert.New(t)
 		// node1 got event1
-		node1.saveNewEvent(events[1], false)
+		node1.onNewEvent(events[1])
 
 		events[2] = node1.EmitEvent()
 
