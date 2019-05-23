@@ -28,7 +28,7 @@ func TestPoset(t *testing.T) {
 		for n := 0; n < len(nodes); n++ {
 			events := nodesEvents[nodes[n]]
 			for _, e := range events {
-				inputs[n].SetEvent(&e.Event)
+				inputs[n].SetEvent(e.Event)
 				posets[n].PushEventSync(e.Hash())
 			}
 		}
@@ -38,7 +38,7 @@ func TestPoset(t *testing.T) {
 			for _, e := range events {
 				for i := 0; i < len(posets); i++ {
 					if i != n {
-						inputs[i].SetEvent(&e.Event)
+						inputs[i].SetEvent(e.Event)
 						posets[i].PushEventSync(e.Hash())
 					}
 				}
@@ -86,9 +86,9 @@ func TestPoset(t *testing.T) {
  * Poset's test methods:
  */
 
-// PushEventSync takes event into processing. It's a sync version of Poset.PushEvent().
-// Event order doesn't matter.
+// PushEventSync takes event into processing.
+// It's a sync version of Poset.PushEvent().
 func (p *Poset) PushEventSync(e hash.Event) {
-	event := p.GetEvent(e)
+	event := p.input.GetEvent(e)
 	p.onNewEvent(event)
 }

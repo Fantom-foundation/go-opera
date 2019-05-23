@@ -26,6 +26,6 @@ func (p *Poset) GetEvent(h hash.Event) *Event {
 		panic("got unsaved event")
 	}
 	return &Event{
-		Event: *e,
+		Event: e,
 	}
 }

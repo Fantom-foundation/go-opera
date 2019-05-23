@@ -3,9 +3,11 @@ package posposet
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 )
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
+// Input event order doesn't matter.
 func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	balances := make(map[hash.Peer]uint64, len(nodes))
 	for _, addr := range nodes {
@@ -22,8 +24,32 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 
 	poset := New(store, input)
 	poset.Bootstrap()
+	MakeOrderedInput(poset)
 
 	return poset, store, input
+}
+
+// MakeOrderedInput wraps Poset.onNewEvent with ordering.EventBuffer.
+func MakeOrderedInput(p *Poset) {
+	orderThenConsensus := ordering.EventBuffer(
+		// process
+		p.consensus,
+		// drop
+		func(e *inter.Event, err error) {
+			log.Warn(err.Error() + ", so rejected")
+		},
+		// exists
+		func(h hash.Event) *inter.Event {
+			if p.store.GetEventFrame(h) == nil {
+				return nil
+			}
+			return p.input.GetEvent(h)
+		},
+	)
+	// event order doesn't matter now
+	p.onNewEvent = func(e *inter.Event) {
+		orderThenConsensus(e)
+	}
 }
 
 // GenEventsByNode generates random events for test purpose.
@@ -42,7 +68,7 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 	for h, from := range inters {
 		to := make([]*Event, len(from))
 		for i, e := range from {
-			to[i] = &Event{Event: *e}
+			to[i] = &Event{Event: e}
 		}
 		events[h] = to
 	}

@@ -15,12 +15,12 @@ func TestEventsSort(t *testing.T) {
 	assert := assert.New(t)
 
 	expected := Events{
-		&Event{consensusTime: 1, Event: inter.Event{LamportTime: 7}},
-		&Event{consensusTime: 1, Event: inter.Event{LamportTime: 8}},
-		&Event{consensusTime: 2, Event: inter.Event{LamportTime: 1}},
-		&Event{consensusTime: 3, Event: inter.Event{LamportTime: 0}},
-		&Event{consensusTime: 3, Event: inter.Event{LamportTime: 9}},
-		&Event{consensusTime: 4, Event: inter.Event{LamportTime: 1}},
+		&Event{consensusTime: 1, Event: &inter.Event{LamportTime: 7}},
+		&Event{consensusTime: 1, Event: &inter.Event{LamportTime: 8}},
+		&Event{consensusTime: 2, Event: &inter.Event{LamportTime: 1}},
+		&Event{consensusTime: 3, Event: &inter.Event{LamportTime: 0}},
+		&Event{consensusTime: 3, Event: &inter.Event{LamportTime: 9}},
+		&Event{consensusTime: 4, Event: &inter.Event{LamportTime: 1}},
 	}
 	n := len(expected)
 

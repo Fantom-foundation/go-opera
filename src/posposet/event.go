@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
@@ -14,10 +13,9 @@ import (
 
 // Event is a poset event for internal purpose.
 type Event struct {
-	inter.Event
+	*inter.Event
 
 	consensusTime inter.Timestamp
-	parents       map[hash.Event]*Event
 }
 
 /*
