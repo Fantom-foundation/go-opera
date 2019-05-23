@@ -9,6 +9,7 @@ import (
  */
 
 var (
+	// Log - global logger
 	Log *logrus.Logger
 )
 
