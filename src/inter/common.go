@@ -170,23 +170,53 @@ func (scheme *asciiScheme) Swap(i, j int) {
 	scheme.graph[i], scheme.graph[j] = scheme.graph[j], scheme.graph[i]
 }
 
-// func (scheme *asciiScheme) calculateLengthColumn()  {
-// 	for column := 0; column < len(scheme.graph); column++ {
-// 		currentLengthColumn := uint64(len(scheme.graph[column]))
-// 		if currentLengthColumn > scheme.lengthColumn {
-// 			scheme.lengthColumn = currentLengthColumn
-// 		}
-// 	}
-// }
+func (scheme *asciiScheme) increaseEventsPosition(after uint64, index int) {
+	for key := range scheme.eventsPosition {
+		pos := scheme.eventsPosition[key]
+		if pos[index] <= after {
+			continue
+		}
+
+		pos[index]++
+		scheme.eventsPosition[key] = pos
+	}
+}
 
 func (scheme *asciiScheme) insertColumn(after uint64) {
+	scheme.increaseEventsPosition(after, 0)
+
 	column := make([]string, scheme.lengthColumn)
 
 	if after >= uint64(len(scheme.graph)) {
+		lastColumn := len(scheme.graph) - 1
+		if lastColumn >= 0 {
+			for i := 0; i < len(column); i++ {
+				switch scheme.graph[lastColumn][i] {
+				case "╠", "╫", "╚", "╩":
+					column[i] = "-"
+				}
+			}
+		}
+
 		for after >= uint64(len(scheme.graph)) {
 			scheme.graph = append(scheme.graph, column)
 		}
 		return
+	}
+
+	for i := 0; i < len(column); i++ {
+		switch scheme.graph[after][i] {
+		case "╠", "╫", "╚", "╩", "-":
+			column[i] = "-"
+			continue
+		}
+
+		if after+1 != uint64(len(scheme.graph)) {
+			switch scheme.graph[after+1][i] {
+			case "╣", "╫", "╝", "╩", "-":
+				column[i] = "-"
+			}
+		}
 	}
 
 	after++
@@ -196,15 +226,7 @@ func (scheme *asciiScheme) insertColumn(after uint64) {
 }
 
 func (scheme *asciiScheme) insertRow(after uint64) {
-	for key := range scheme.eventsPosition {
-		pos := scheme.eventsPosition[key]
-		if pos[1] <= after {
-			continue
-		}
-
-		pos[1]++
-		scheme.eventsPosition[key] = pos
-	}
+	scheme.increaseEventsPosition(after, 1)
 
 	after++
 	for column := 0; column < len(scheme.graph); column++ {
@@ -238,8 +260,8 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 		return
 	}
 
-	from := scheme.GetEventPosition(parent)
-	to := scheme.GetEventPosition(child)
+	from := scheme.GetEventPosition(child)
+	to := scheme.GetEventPosition(parent)
 
 	if from[0] == to[0] {
 		start := from[1]
@@ -264,6 +286,26 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 		}
 		return
 	}
+
+	// start := from[0]
+	// stop := to[0]
+	// scheme.graph[to[0]][from[1]] = "╣"
+	// if from[0] > to[0] {
+	// 	start = to[0]
+	// 	stop = from[0]
+	// 	scheme.graph[to[0]][from[1]] = "╠"
+	// }
+	//
+	// if stop-start == 1 {
+	// 	scheme.insertColumn(start)
+	// 	stop++
+	// }
+	//
+	// start++
+	// for start != stop {
+	// 	scheme.graph[start][from[1]] = "-"
+	// 	start++
+	// }
 
 }
 
@@ -320,7 +362,54 @@ func (scheme *asciiScheme) GetEventPosition(event hash.Event) [2]uint64 {
 }
 
 func (scheme *asciiScheme) String() string {
-	return ""
+	var asciiScheme string
+
+	for column := 0; column < len(scheme.graph); column++ {
+		var currentLength int
+		for row := 0; row < len(scheme.graph[column]); row++ {
+			switch scheme.graph[column][row] {
+			case "╠", "╣", "╫", "║", "╝", "╩", "╚":
+				continue
+			default:
+				if currentLength < len(scheme.graph[column][row]) {
+					currentLength = len(scheme.graph[column][row])
+				}
+			}
+		}
+
+		if currentLength <= 1 {
+			continue
+		}
+
+		for i := 0; i < currentLength; i++ {
+			scheme.insertColumn(uint64(column))
+		}
+		for _, pos := range scheme.eventsPosition {
+			if pos[0] == uint64(column) {
+				for i := 1; i < currentLength; i++ {
+					scheme.graph[column+i][pos[1]] = "&"
+				}
+
+			}
+		}
+	}
+
+	for row := 0; row < int(scheme.lengthColumn); row++ {
+		for column := 0; column < len(scheme.graph); column++ {
+			if scheme.graph[column][row] == "&" {
+				continue
+			}
+			symbol := scheme.graph[column][row]
+			if len(symbol) == 0 {
+				symbol = " "
+			}
+
+			asciiScheme += symbol
+		}
+		asciiScheme += "\n"
+	}
+
+	return asciiScheme
 }
 
 func CreateSchemaByEvents(events Events) string {

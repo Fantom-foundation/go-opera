@@ -312,6 +312,8 @@ func TestCreateSchemaByEvents(t *testing.T) {
 
 		resultSchema := CreateSchemaByEvents(events)
 
+		println(resultSchema)
+
 		assert.EqualValues(t, resultSchema, "")
 	})
 }
