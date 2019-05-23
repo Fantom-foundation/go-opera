@@ -21,3 +21,9 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
   - build node docker image "pos-lachesis": `make`;
   - run network of N nodes: `n=N ./start.sh`;
   - drop network: `./stop.sh`;
+
+[`docker/blockade`](./docker/blockade) - contains utility for testing network failures using docker image:
+
+  - build node docker image "pos-lachesis-blockade" `make`;
+  - install blockade and add to "$PATH" `pip install blockade`;
+  - all commands and documentation for blockade available [`here`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);

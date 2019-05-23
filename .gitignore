@@ -37,3 +37,6 @@ lachesis_*
 *.bak
 
 .#*
+
+# Blockade temp data
+.blockade
