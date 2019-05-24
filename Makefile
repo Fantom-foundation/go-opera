@@ -60,7 +60,7 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' $(SH) -c "'$(CURDIR)/scripts/dist.sh'"
 
 test:
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -v -run "Test.*" -count=1 -tags test -race -timeout 180s
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -count=1 -tags test -race -timeout 180s
 
 cover:
 	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -coverprofile=coverage.out -count=1 -tags test -race -timeout 180s || true
