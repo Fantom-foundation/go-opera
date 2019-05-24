@@ -26,4 +26,5 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
   - build node docker image "pos-lachesis-blockade" `make`;
   - install blockade and add to "$PATH" `pip install blockade`;
+  - build new / re-config exist blockade.yaml `n=N ./blockade.sh`, where N - count of node;
   - all commands and documentation for blockade available [`here`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);
