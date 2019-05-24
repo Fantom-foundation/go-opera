@@ -19,7 +19,7 @@ func (n *Node) AddBuiltInPeers(hosts ...string) {
 
 	n.builtin.hosts = append(n.builtin.hosts, hosts...)
 
-	n.log.Debugf("built in peer hosts: %v", n.builtin.hosts)
+	n.Debugf("built in peer hosts: %v", n.builtin.hosts)
 }
 
 // NextBuiltInPeer returns one of builtin hosts.

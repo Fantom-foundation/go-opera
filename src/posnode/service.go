@@ -30,9 +30,9 @@ func (n *Node) StartService() {
 	}
 
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n.key, n, n.log.Infof, n.service.listen)
+	n.server, _ = api.StartService(bind, n.key, n, n.Infof, n.service.listen)
 
-	n.log.Info("service started")
+	n.Info("service started")
 }
 
 // StopService stops node service.
@@ -43,7 +43,7 @@ func (n *Node) StopService() {
 	n.server.GracefulStop()
 	n.server = nil
 
-	n.log.Info("service stopped")
+	n.Info("service stopped")
 }
 
 /*

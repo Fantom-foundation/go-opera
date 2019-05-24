@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // Poset processes events to get consensus.
@@ -22,6 +23,8 @@ type Poset struct {
 	incompleteEvents map[hash.Event]*Event
 
 	NewBlockCh chan uint64
+
+	logger.Instance
 }
 
 // New creates Poset instance.
@@ -36,6 +39,8 @@ func New(store *Store, input EventSource) *Poset {
 
 		newEventsCh:      make(chan hash.Event, buffSize),
 		incompleteEvents: make(map[hash.Event]*Event),
+
+		Instance: logger.MakeInstance(),
 	}
 
 	return p
@@ -188,7 +193,7 @@ func (p *Poset) consensus(e *Event) {
 	applyRewards(state, ordered)
 	balances, err := state.Commit(true)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if applyAt.SetBalances(balances) {
 		p.reconsensusFromFrame(applyAt.Index)

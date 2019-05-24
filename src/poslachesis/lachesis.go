@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
@@ -22,6 +23,8 @@ type Lachesis struct {
 	consensusStore *posposet.Store
 
 	service
+
+	logger.Instance
 }
 
 // New makes lachesis node.
@@ -49,6 +52,8 @@ func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Conf
 		consensusStore: cdb,
 
 		service: service{listen, nil},
+
+		Instance: logger.MakeInstance(),
 	}
 }
 
@@ -75,7 +80,7 @@ func (l *Lachesis) AddPeers(hosts ...string) {
 
 func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
 	if err := l.consensusStore.ApplyGenesis(genesis); err != nil {
-		panic(err)
+		l.Fatal(err)
 	}
 }
 

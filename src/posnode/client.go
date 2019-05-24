@@ -50,12 +50,12 @@ func (n *Node) initClient() {
 // ConnectTo connects to other node service.
 func (n *Node) ConnectTo(peer *Peer) (client api.NodeClient, free func(), fail func(error), err error) {
 	addr := n.NetAddrOf(peer.Host)
-	n.log.Debugf("connect to %s", addr)
+	n.Debugf("connect to %s", addr)
 
 	c, err := n.connPool.Get(addr)
 	if err != nil {
 		err = errors.Wrapf(err, "connect to: %s", addr)
-		n.log.Warn(err)
+		n.Warn(err)
 		return
 	}
 

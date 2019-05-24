@@ -128,7 +128,7 @@ func (n *Node) ConnectOK(p *Peer) {
 
 // ConnectFail counts unsuccessful connections to peer.
 func (n *Node) ConnectFail(p *Peer, err error) {
-	n.log.Warn(err)
+	n.Warn(err)
 
 	n.peers.Lock()
 	defer n.peers.Unlock()

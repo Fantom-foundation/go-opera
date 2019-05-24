@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -28,12 +29,15 @@ type Store struct {
 	event2frameCache *lru.Cache
 
 	balances state.Database // trie
+
+	logger.Instance
 }
 
 // NewStore creates store over key-value db.
 func NewStore(db kvdb.Database, cached bool) *Store {
 	s := &Store{
 		physicalDB: db,
+		Instance:   logger.MakeInstance(),
 	}
 
 	s.init()
@@ -64,7 +68,7 @@ func (s *Store) initCache() {
 	cache := func() *lru.Cache {
 		c, err := lru.New(cacheSize)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		return c
 	}
@@ -129,7 +133,7 @@ func (s *Store) SetEventFrame(e hash.Event, frame uint64) {
 	key := e.Bytes()
 	val := intToBytes(frame)
 	if err := s.event2frame.Put(key, val); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if s.event2frameCache != nil {
@@ -149,7 +153,7 @@ func (s *Store) GetEventFrame(e hash.Event) *uint64 {
 	key := e.Bytes()
 	buf, err := s.event2frame.Get(key)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if buf == nil {
 		return nil
@@ -215,7 +219,7 @@ func (s *Store) GetBlock(n uint64) *Block {
 func (s *Store) StateDB(from hash.Hash) *state.DB {
 	db, err := state.New(from, s.balances)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return db
 }
@@ -228,18 +232,18 @@ func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
 
 	if err := pbf.Marshal(val); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err := table.Put(key, pbf.Bytes()); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
 func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
 	buf, err := table.Get(key)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	if buf == nil {
 		return nil
@@ -247,7 +251,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 
 	err = proto.Unmarshal(buf, to)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return to
 }
@@ -255,7 +259,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 func (s *Store) has(table kvdb.Database, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return res
 }

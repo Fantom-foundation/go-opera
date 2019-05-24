@@ -27,7 +27,7 @@ func (l *Lachesis) serviceStart() {
 			l.service.listen,
 		)
 		if err != nil {
-			panic(err)
+			l.Fatal(err)
 		}
 		defer ctrl.Close()
 
@@ -42,7 +42,7 @@ func (l *Lachesis) serviceStart() {
 			l.service.listen,
 		)
 		if err != nil {
-			panic(err)
+			l.Fatal(err)
 		}
 		defer app.Close()
 

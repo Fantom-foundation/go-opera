@@ -80,7 +80,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.log.Debugf("emiting event")
+	n.Debugf("emiting event")
 
 	var (
 		index          uint64
@@ -128,11 +128,11 @@ func (n *Node) EmitEvent() *inter.Event {
 		ExternalTransactions: externalTxns,
 	}
 	if err := event.SignBy(n.key); err != nil {
-		panic(err)
+		n.Fatal(err)
 	}
 
 	n.saveNewEvent(event, false)
-	n.log.Debugf("new event emited %s", event)
+	n.Debugf("new event emited %s", event)
 
 	return event
 }

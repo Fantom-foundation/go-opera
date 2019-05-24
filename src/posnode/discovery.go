@@ -60,7 +60,7 @@ func (n *Node) StartDiscovery() {
 		}
 	}()
 
-	n.log.Info("discovery started")
+	n.Info("discovery started")
 }
 
 // StopDiscovery stops network discovery.
@@ -72,7 +72,7 @@ func (n *Node) StopDiscovery() {
 	close(n.discovery.done)
 	n.discovery.done = nil
 
-	n.log.Info("discovery stopped")
+	n.Info("discovery stopped")
 }
 
 // CheckPeerIsKnown queues peer checking for a late.
@@ -83,7 +83,7 @@ func (n *Node) CheckPeerIsKnown(host string, id *hash.Peer) {
 		unknown: id,
 	}:
 	default:
-		n.log.Warn("discovery.tasks queue is full, so skipped")
+		n.Warn("discovery.tasks queue is full, so skipped")
 	}
 }
 
@@ -96,7 +96,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 		return
 	}
 
-	n.log.Debugf("ask %s about peer %s", host, id)
+	n.Debugf("ask %s about peer %s", host, id)
 
 	peer := &Peer{Host: host}
 
@@ -118,7 +118,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 		if id == nil {
 			n.ConnectFail(peer, fmt.Errorf("host %s knows nothing about self", host))
 		} else {
-			n.log.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
+			n.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
 			n.ConnectOK(peer)
 		}
 		return
@@ -138,7 +138,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 	info.Host = host
 	peer = WireToPeer(info)
 	n.store.SetWirePeer(peer.ID, info)
-	n.log.Debugf("discovered new peer %s with host %s", info.ID, info.Host)
+	n.Debugf("discovered new peer %s with host %s", info.ID, info.Host)
 	n.ConnectOK(peer)
 }
 

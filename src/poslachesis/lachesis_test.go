@@ -37,5 +37,10 @@ func TestStar(t *testing.T) {
 // NewForTests makes lachesis node with fake network.
 // It does not start any process.
 func NewForTests(db *badger.DB, host string) *Lachesis {
-	return makeLachesis(db, host, nil, nil, network.FakeListener, posnode.FakeClient(host))
+	l := makeLachesis(db, host, nil, nil, network.FakeListener, posnode.FakeClient(host))
+	l.node.SetName(host)
+	l.nodeStore.SetName(host)
+	l.consensus.SetName(host)
+	l.consensusStore.SetName(host)
+	return l
 }
