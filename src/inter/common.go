@@ -185,6 +185,12 @@ func (scheme *asciiScheme) increaseEventsPosition(after uint64, index int) {
 func (scheme *asciiScheme) insertColumn(after uint64) {
 	scheme.increaseEventsPosition(after, 0)
 
+	for node, column := range scheme.nodes {
+		if column > after {
+			scheme.nodes[node] = column + 1
+		}
+	}
+
 	column := make([]string, scheme.lengthColumn)
 
 	if after >= uint64(len(scheme.graph)) {
@@ -287,25 +293,25 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 		return
 	}
 
-	// start := from[0]
-	// stop := to[0]
-	// scheme.graph[to[0]][from[1]] = "╣"
-	// if from[0] > to[0] {
-	// 	start = to[0]
-	// 	stop = from[0]
-	// 	scheme.graph[to[0]][from[1]] = "╠"
-	// }
-	//
-	// if stop-start == 1 {
-	// 	scheme.insertColumn(start)
-	// 	stop++
-	// }
-	//
-	// start++
-	// for start != stop {
-	// 	scheme.graph[start][from[1]] = "-"
-	// 	start++
-	// }
+	start := from[0]
+	stop := to[0]
+	scheme.graph[to[0]][from[1]] = "╣"
+	if from[0] > to[0] {
+		start = to[0]
+		stop = from[0]
+		scheme.graph[to[0]][from[1]] = "╠"
+	}
+
+	if stop-start == 1 {
+		scheme.insertColumn(start)
+		stop++
+	}
+
+	start++
+	for start != stop {
+		scheme.graph[start][from[1]] = "-"
+		start++
+	}
 
 }
 
@@ -361,7 +367,7 @@ func (scheme *asciiScheme) GetEventPosition(event hash.Event) [2]uint64 {
 	return position
 }
 
-func (scheme *asciiScheme) String() string {
+func (scheme asciiScheme) String() string {
 	var asciiScheme string
 
 	for column := 0; column < len(scheme.graph); column++ {
@@ -424,6 +430,7 @@ func CreateSchemaByEvents(events Events) string {
 				continue
 			}
 			scheme.EventsConnect(event.Hash(), parent)
+			println()
 		}
 	}
 
