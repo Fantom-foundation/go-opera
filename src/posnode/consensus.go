@@ -10,4 +10,7 @@ type Consensus interface {
 	PushEvent(hash.Event)
 	// GetStakeOf returns stake of peer as fraction from one.
 	GetStakeOf(hash.Peer) float64
+	// GetTransactionCount returns cound of transactions made
+	// by peer.
+	GetTransactionCount(hash.Peer) uint64
 }

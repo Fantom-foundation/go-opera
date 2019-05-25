@@ -50,19 +50,28 @@ func (n *Node) StopEventEmission() {
 }
 
 // AddInternalTxn takes internal transaction for new event.
-func (n *Node) AddInternalTxn(tx inter.InternalTransaction) {
+func (n *Node) AddInternalTxn(tx inter.InternalTransaction) hash.Transaction {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
+	tx.Index = n.transactionCount() + 1
+	tx.Sender = n.ID
+
 	n.emitter.internalTxns = append(n.emitter.internalTxns, &tx)
+	return tx.Hash()
 }
 
-// GetInternalTxns returns pending internal transactions.
-func (n *Node) GetInternalTxns() []*inter.InternalTransaction {
-	n.emitter.RLock()
-	defer n.emitter.RUnlock()
+// transactionCount returns count of internal transactions
+// made by the node. If there are no pending transactions
+// will ask concensus.
+func (n *Node) transactionCount() uint64 {
+	txs := n.emitter.internalTxns
+	if len(txs) > 0 {
+		last := txs[len(txs)-1]
+		return last.Index
+	}
 
-	return n.emitter.internalTxns
+	return n.consensus.GetTransactionCount(n.ID)
 }
 
 // AddExternalTxn takes external transaction for new event.

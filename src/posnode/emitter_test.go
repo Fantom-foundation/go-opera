@@ -3,11 +3,68 @@ package posnode
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
+
+func TestAddInternalTxn(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	consensus := NewMockConsensus(ctrl)
+
+	node := NewForTests("fake", nil, consensus)
+
+	t.Run("very 1st add", func(t *testing.T) {
+		assert := assert.New(t)
+
+		tx := inter.InternalTransaction{
+			Amount:   1000,
+			Receiver: node.ID,
+		}
+
+		consensus.EXPECT().
+			GetTransactionCount(node.ID).
+			Return(uint64(0))
+
+		h := node.AddInternalTxn(tx)
+
+		eTx := inter.InternalTransaction{
+			Index:    1,
+			Amount:   1000,
+			Receiver: node.ID,
+			Sender:   node.ID,
+		}
+
+		expect := eTx.Hash().Hex()
+
+		assert.Equal(expect, h.Hex())
+	})
+
+	t.Run("very 2nd add", func(t *testing.T) {
+		assert := assert.New(t)
+
+		tx := inter.InternalTransaction{
+			Amount:   1000,
+			Receiver: node.ID,
+		}
+
+		h := node.AddInternalTxn(tx)
+
+		eTx := inter.InternalTransaction{
+			Index:    2,
+			Amount:   1000,
+			Receiver: node.ID,
+			Sender:   node.ID,
+		}
+
+		expect := eTx.Hash().Hex()
+
+		assert.Equal(expect, h.Hex())
+	})
+}
 
 func TestEmit(t *testing.T) {
 	// node 1

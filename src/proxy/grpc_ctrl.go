@@ -76,48 +76,56 @@ func (p *grpcCtrlProxy) Set() {
  */
 
 // ID returns node id.
-func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.ID, error) {
+func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.NodeID, error) {
 	id := p.node.GetID()
 
-	return &internal.ID{
+	return &internal.NodeID{
 		Hex: id.Hex(),
 	}, nil
 }
 
 // BalanceOf returns balance of peer.
-func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
+func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.NodeID) (*internal.Balance, error) {
 	id := hash.HexToPeer(req.Hex)
 	b := internal.Balance{
 		Amount: p.consensus.GetBalanceOf(id),
 	}
 
-	// Return pending internal transactions if
-	// requesting balance of self node.
-	if id == p.node.GetID() {
-		txs := p.node.GetInternalTxns()
-
-		b.Pending = make([]*internal.Transfer, len(txs))
-
-		for i, tx := range txs {
-			b.Pending[i] = &internal.Transfer{
-				Amount: tx.Amount,
-				Receiver: &internal.ID{
-					Hex: tx.Receiver.Hex(),
-				},
-			}
-		}
-	}
-
 	return &b, nil
 }
 
+// Transaction returns infor about transaction.
+func (p *grpcCtrlProxy) Transaction(_ context.Context, req *internal.TransactionRequest) (*internal.TransactionResponse, error) {
+	h := hash.HexToTransactionHash(req.Hex)
+	tx := p.consensus.GetTransaction(h)
+
+	if tx == nil {
+		return nil, status.Error(codes.NotFound, "transaction not found")
+	}
+
+	return &internal.TransactionResponse{
+		Amount: tx.Amount,
+		Receiver: &internal.NodeID{
+			Hex: tx.Receiver.Hex(),
+		},
+		Sender: &internal.NodeID{
+			Hex: tx.Sender.Hex(),
+		},
+		Confirmed: tx.Confirmed,
+	}, nil
+}
+
 // SendTo makes stake transfer transaction.
-func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.Transfer) (*empty.Empty, error) {
+func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest) (*internal.TransferResponse, error) {
 	if req.Amount == 0 {
-		return nil, status.Error(codes.InvalidArgument, "cannot transfer zero amount")
+		return nil, status.Error(codes.InvalidArgument, "can not transfer zero amount")
 	}
 
 	id := p.node.GetID()
+	if id.Hex() == req.Receiver.Hex {
+		return nil, status.Error(codes.InvalidArgument, "can not transafer to yourself")
+	}
+
 	balance := p.consensus.GetBalanceOf(id)
 	if balance < req.Amount {
 		message := fmt.Sprintf(
@@ -133,7 +141,9 @@ func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.Transfer) (*empt
 		Receiver: hash.HexToPeer(req.Receiver.Hex),
 	}
 
-	p.node.AddInternalTxn(tx)
+	h := p.node.AddInternalTxn(tx)
 
-	return &empty.Empty{}, nil
+	return &internal.TransferResponse{
+		Hex: h.Hex(),
+	}, nil
 }

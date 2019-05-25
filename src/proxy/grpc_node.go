@@ -72,60 +72,62 @@ func (p *grpcNodeProxy) GetSelfID() (hash.Peer, error) {
 	return hash.HexToPeer(resp.Hex), nil
 }
 
-// Balance contains fields for balance response.
-type Balance struct {
-	Amount  uint64
-	Pending []inter.InternalTransaction
-}
-
-func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (*Balance, error) {
+func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	resp, err := p.client.BalanceOf(ctx, &internal.ID{
+	resp, err := p.client.BalanceOf(ctx, &internal.NodeID{
 		Hex: peer.Hex(),
 	})
 	if err != nil {
-		return nil, unwrapGrpcErr(err)
+		return 0, unwrapGrpcErr(err)
 	}
 
-	b := Balance{
-		Amount: resp.Amount,
-	}
-
-	if len(resp.Pending) > 0 {
-		b.Pending = make([]inter.InternalTransaction, len(resp.Pending))
-	}
-
-	for i, tx := range resp.Pending {
-		b.Pending[i] = inter.InternalTransaction{
-			Amount:   tx.Amount,
-			Receiver: hash.HexToPeer(tx.Receiver.Hex),
-		}
-	}
-
-	return &b, nil
+	return resp.Amount, nil
 }
 
-func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) error {
+func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) (hash.Transaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	req := internal.Transfer{
+	req := internal.TransferRequest{
 		Amount: amount,
-		Receiver: &internal.ID{
+		Receiver: &internal.NodeID{
 			Hex: receiver.Hex(),
 		},
 	}
 
-	if _, err := p.client.SendTo(ctx, &req); err != nil {
-		return unwrapGrpcErr(err)
+	resp, err := p.client.SendTo(ctx, &req)
+	if err != nil {
+		return hash.ZeroTransaction, unwrapGrpcErr(err)
 	}
 
-	return nil
+	return hash.HexToTransactionHash(resp.Hex), nil
+}
+
+func (p *grpcNodeProxy) GetTransaction(t hash.Transaction) (*inter.InternalTransaction, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
+	req := internal.TransactionRequest{
+		Hex: t.Hex(),
+	}
+
+	resp, err := p.client.Transaction(ctx, &req)
+	if err != nil {
+		return nil, unwrapGrpcErr(err)
+	}
+
+	return &inter.InternalTransaction{
+		Amount:    resp.Amount,
+		Confirmed: resp.Confirmed,
+		Receiver:  hash.HexToPeer(resp.Receiver.Hex),
+		Sender:    hash.HexToPeer(resp.Sender.Hex),
+	}, nil
 }
 
 func unwrapGrpcErr(err error) error {
 	st := status.Convert(err)
 	return errors.New(st.Message())
+
 }

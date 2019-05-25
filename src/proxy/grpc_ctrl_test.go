@@ -62,10 +62,6 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 
 		amount := rand.Uint64()
 
-		otherPeer := hash.FakePeer()
-		node.EXPECT().
-			GetID().
-			Return(otherPeer)
 		consensus.EXPECT().
 			GetBalanceOf(peer).
 			Return(amount)
@@ -75,10 +71,58 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			return
 		}
 
-		expect := &Balance{
-			Amount: amount,
-		}
+		expect := amount
 		assert.Equal(expect, got)
+	})
+
+	t.Run("transaction not found", func(t *testing.T) {
+		assert := assert.New(t)
+
+		amount := rand.Uint64()
+		sender := hash.FakePeer()
+		iTx := inter.InternalTransaction{
+			Index:    1,
+			Amount:   amount,
+			Receiver: peer,
+			Sender:   sender,
+		}
+
+		consensus.EXPECT().
+			GetTransaction(iTx.Hash()).
+			Return(nil)
+
+		_, err := c.GetTransaction(iTx.Hash())
+		assert.Error(err)
+	})
+
+	t.Run("transaction", func(t *testing.T) {
+		assert := assert.New(t)
+
+		amount := rand.Uint64()
+		sender := hash.FakePeer()
+		iTx := inter.InternalTransaction{
+			Index:    1,
+			Amount:   amount,
+			Receiver: peer,
+			Sender:   sender,
+		}
+
+		consensus.EXPECT().
+			GetTransaction(iTx.Hash()).
+			Return(&iTx)
+
+		got, err := c.GetTransaction(iTx.Hash())
+		if !assert.NoError(err) {
+			return
+		}
+
+		expect := Transaction{
+			Amount:   amount,
+			Receiver: peer,
+			Sender:   sender,
+		}
+
+		assertTransactions(assert, &expect, got)
 	})
 
 	t.Run("get balance of self", func(t *testing.T) {
@@ -86,34 +130,16 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 
 		amount := rand.Uint64()
 
-		node.EXPECT().
-			GetID().
-			Return(peer)
 		consensus.EXPECT().
 			GetBalanceOf(peer).
 			Return(amount)
-		otherPeer := hash.FakePeer()
-		interTxn := inter.InternalTransaction{
-			Amount:   20,
-			Receiver: otherPeer,
-		}
-		node.EXPECT().
-			GetInternalTxns().
-			Return([]*inter.InternalTransaction{
-				&interTxn,
-			})
 
 		got, err := c.GetBalanceOf(peer)
 		if !assert.NoError(err) {
 			return
 		}
 
-		expect := &Balance{
-			Amount: amount,
-			Pending: []inter.InternalTransaction{
-				interTxn,
-			},
-		}
+		expect := amount
 		assert.Equal(expect, got)
 	})
 
@@ -127,20 +153,21 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Receiver: peer,
 		}
 
+		sender := hash.FakePeer()
 		node.EXPECT().
 			GetID().
-			Return(peer)
+			Return(sender)
 		consensus.EXPECT().
-			GetBalanceOf(peer).
+			GetBalanceOf(sender).
 			Return(amount)
 		node.EXPECT().
 			AddInternalTxn(tx)
 
-		err := c.SendTo(tx.Receiver, tx.Amount)
+		_, err := c.SendTo(tx.Receiver, tx.Amount)
 		assert.NoError(err)
 	})
 
-	t.Run("send to insufficient", func(t *testing.T) {
+	t.Run("send to self", func(t *testing.T) {
 		assert := assert.New(t)
 
 		amount := rand.Uint64()
@@ -153,11 +180,30 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		node.EXPECT().
 			GetID().
 			Return(peer)
+
+		_, err := c.SendTo(tx.Receiver, tx.Amount)
+		assert.Error(err)
+	})
+
+	t.Run("send to insufficient", func(t *testing.T) {
+		assert := assert.New(t)
+
+		amount := rand.Uint64()
+
+		tx := inter.InternalTransaction{
+			Amount:   amount,
+			Receiver: peer,
+		}
+
+		sender := hash.FakePeer()
+		node.EXPECT().
+			GetID().
+			Return(sender)
 		consensus.EXPECT().
-			GetBalanceOf(peer).
+			GetBalanceOf(sender).
 			Return(amount - 1)
 
-		err := c.SendTo(tx.Receiver, tx.Amount)
+		_, err := c.SendTo(tx.Receiver, tx.Amount)
 		assert.Error(err)
 	})
 
@@ -169,7 +215,14 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Receiver: peer,
 		}
 
-		err := c.SendTo(tx.Receiver, tx.Amount)
+		_, err := c.SendTo(tx.Receiver, tx.Amount)
 		assert.Error(err)
 	})
+}
+
+func assertTransactions(assert *assert.Assertions, expect, got *Transaction) {
+	assert.Equal(expect.Amount, got.Amount)
+	assert.Equal(expect.Receiver.Hex(), got.Receiver.Hex())
+	assert.Equal(expect.Sender.Hex(), got.Sender.Hex())
+	assert.Equal(expect.Confirmed, got.Confirmed)
 }

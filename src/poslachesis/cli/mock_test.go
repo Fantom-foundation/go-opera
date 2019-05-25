@@ -30,8 +30,10 @@ func (_m *MockNode) EXPECT() *_MockNodeRecorder {
 	return _m.recorder
 }
 
-func (_m *MockNode) AddInternalTxn(_param0 inter.InternalTransaction) {
-	_m.ctrl.Call(_m, "AddInternalTxn", _param0)
+func (_m *MockNode) AddInternalTxn(_param0 inter.InternalTransaction) hash.Transaction {
+	ret := _m.ctrl.Call(_m, "AddInternalTxn", _param0)
+	ret0, _ := ret[0].(hash.Transaction)
+	return ret0
 }
 
 func (_mr *_MockNodeRecorder) AddInternalTxn(arg0 interface{}) *gomock.Call {
@@ -46,16 +48,6 @@ func (_m *MockNode) GetID() hash.Peer {
 
 func (_mr *_MockNodeRecorder) GetID() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetID")
-}
-
-func (_m *MockNode) GetInternalTxns() []*inter.InternalTransaction {
-	ret := _m.ctrl.Call(_m, "GetInternalTxns")
-	ret0, _ := ret[0].([]*inter.InternalTransaction)
-	return ret0
-}
-
-func (_mr *_MockNodeRecorder) GetInternalTxns() *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetInternalTxns")
 }
 
 // Mock of Consensus interface
@@ -87,4 +79,14 @@ func (_m *MockConsensus) GetBalanceOf(_param0 hash.Peer) uint64 {
 
 func (_mr *_MockConsensusRecorder) GetBalanceOf(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetBalanceOf", arg0)
+}
+
+func (_m *MockConsensus) GetTransaction(_param0 hash.Transaction) *inter.InternalTransaction {
+	ret := _m.ctrl.Call(_m, "GetTransaction", _param0)
+	ret0, _ := ret[0].(*inter.InternalTransaction)
+	return ret0
+}
+
+func (_mr *_MockConsensusRecorder) GetTransaction(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetTransaction", arg0)
 }

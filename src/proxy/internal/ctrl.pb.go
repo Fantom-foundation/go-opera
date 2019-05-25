@@ -25,39 +25,39 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type ID struct {
+type NodeID struct {
 	Hex                  string   `protobuf:"bytes,1,opt,name=hex,proto3" json:"hex,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ID) Reset()         { *m = ID{} }
-func (m *ID) String() string { return proto.CompactTextString(m) }
-func (*ID) ProtoMessage()    {}
-func (*ID) Descriptor() ([]byte, []int) {
+func (m *NodeID) Reset()         { *m = NodeID{} }
+func (m *NodeID) String() string { return proto.CompactTextString(m) }
+func (*NodeID) ProtoMessage()    {}
+func (*NodeID) Descriptor() ([]byte, []int) {
 	return fileDescriptor_af4c68a24d38d4c7, []int{0}
 }
 
-func (m *ID) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ID.Unmarshal(m, b)
+func (m *NodeID) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NodeID.Unmarshal(m, b)
 }
-func (m *ID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ID.Marshal(b, m, deterministic)
+func (m *NodeID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NodeID.Marshal(b, m, deterministic)
 }
-func (m *ID) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ID.Merge(m, src)
+func (m *NodeID) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NodeID.Merge(m, src)
 }
-func (m *ID) XXX_Size() int {
-	return xxx_messageInfo_ID.Size(m)
+func (m *NodeID) XXX_Size() int {
+	return xxx_messageInfo_NodeID.Size(m)
 }
-func (m *ID) XXX_DiscardUnknown() {
-	xxx_messageInfo_ID.DiscardUnknown(m)
+func (m *NodeID) XXX_DiscardUnknown() {
+	xxx_messageInfo_NodeID.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ID proto.InternalMessageInfo
+var xxx_messageInfo_NodeID proto.InternalMessageInfo
 
-func (m *ID) GetHex() string {
+func (m *NodeID) GetHex() string {
 	if m != nil {
 		return m.Hex
 	}
@@ -65,11 +65,10 @@ func (m *ID) GetHex() string {
 }
 
 type Balance struct {
-	Amount               uint64      `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
-	Pending              []*Transfer `protobuf:"bytes,2,rep,name=pending,proto3" json:"pending,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	Amount               uint64   `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Balance) Reset()         { *m = Balance{} }
@@ -104,87 +103,229 @@ func (m *Balance) GetAmount() uint64 {
 	return 0
 }
 
-func (m *Balance) GetPending() []*Transfer {
-	if m != nil {
-		return m.Pending
-	}
-	return nil
-}
-
-type Transfer struct {
+type TransferRequest struct {
 	Amount               uint64   `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
-	Receiver             *ID      `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	Receiver             *NodeID  `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *Transfer) Reset()         { *m = Transfer{} }
-func (m *Transfer) String() string { return proto.CompactTextString(m) }
-func (*Transfer) ProtoMessage()    {}
-func (*Transfer) Descriptor() ([]byte, []int) {
+func (m *TransferRequest) Reset()         { *m = TransferRequest{} }
+func (m *TransferRequest) String() string { return proto.CompactTextString(m) }
+func (*TransferRequest) ProtoMessage()    {}
+func (*TransferRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_af4c68a24d38d4c7, []int{2}
 }
 
-func (m *Transfer) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Transfer.Unmarshal(m, b)
+func (m *TransferRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TransferRequest.Unmarshal(m, b)
 }
-func (m *Transfer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Transfer.Marshal(b, m, deterministic)
+func (m *TransferRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TransferRequest.Marshal(b, m, deterministic)
 }
-func (m *Transfer) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Transfer.Merge(m, src)
+func (m *TransferRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TransferRequest.Merge(m, src)
 }
-func (m *Transfer) XXX_Size() int {
-	return xxx_messageInfo_Transfer.Size(m)
+func (m *TransferRequest) XXX_Size() int {
+	return xxx_messageInfo_TransferRequest.Size(m)
 }
-func (m *Transfer) XXX_DiscardUnknown() {
-	xxx_messageInfo_Transfer.DiscardUnknown(m)
+func (m *TransferRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TransferRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Transfer proto.InternalMessageInfo
+var xxx_messageInfo_TransferRequest proto.InternalMessageInfo
 
-func (m *Transfer) GetAmount() uint64 {
+func (m *TransferRequest) GetAmount() uint64 {
 	if m != nil {
 		return m.Amount
 	}
 	return 0
 }
 
-func (m *Transfer) GetReceiver() *ID {
+func (m *TransferRequest) GetReceiver() *NodeID {
 	if m != nil {
 		return m.Receiver
 	}
 	return nil
 }
 
+type TransferResponse struct {
+	Hex                  string   `protobuf:"bytes,1,opt,name=hex,proto3" json:"hex,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TransferResponse) Reset()         { *m = TransferResponse{} }
+func (m *TransferResponse) String() string { return proto.CompactTextString(m) }
+func (*TransferResponse) ProtoMessage()    {}
+func (*TransferResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_af4c68a24d38d4c7, []int{3}
+}
+
+func (m *TransferResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TransferResponse.Unmarshal(m, b)
+}
+func (m *TransferResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TransferResponse.Marshal(b, m, deterministic)
+}
+func (m *TransferResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TransferResponse.Merge(m, src)
+}
+func (m *TransferResponse) XXX_Size() int {
+	return xxx_messageInfo_TransferResponse.Size(m)
+}
+func (m *TransferResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TransferResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TransferResponse proto.InternalMessageInfo
+
+func (m *TransferResponse) GetHex() string {
+	if m != nil {
+		return m.Hex
+	}
+	return ""
+}
+
+type TransactionRequest struct {
+	Hex                  string   `protobuf:"bytes,1,opt,name=hex,proto3" json:"hex,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TransactionRequest) Reset()         { *m = TransactionRequest{} }
+func (m *TransactionRequest) String() string { return proto.CompactTextString(m) }
+func (*TransactionRequest) ProtoMessage()    {}
+func (*TransactionRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_af4c68a24d38d4c7, []int{4}
+}
+
+func (m *TransactionRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TransactionRequest.Unmarshal(m, b)
+}
+func (m *TransactionRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TransactionRequest.Marshal(b, m, deterministic)
+}
+func (m *TransactionRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TransactionRequest.Merge(m, src)
+}
+func (m *TransactionRequest) XXX_Size() int {
+	return xxx_messageInfo_TransactionRequest.Size(m)
+}
+func (m *TransactionRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_TransactionRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TransactionRequest proto.InternalMessageInfo
+
+func (m *TransactionRequest) GetHex() string {
+	if m != nil {
+		return m.Hex
+	}
+	return ""
+}
+
+type TransactionResponse struct {
+	Amount               uint64   `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	Receiver             *NodeID  `protobuf:"bytes,2,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	Sender               *NodeID  `protobuf:"bytes,3,opt,name=sender,proto3" json:"sender,omitempty"`
+	Confirmed            bool     `protobuf:"varint,4,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *TransactionResponse) Reset()         { *m = TransactionResponse{} }
+func (m *TransactionResponse) String() string { return proto.CompactTextString(m) }
+func (*TransactionResponse) ProtoMessage()    {}
+func (*TransactionResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_af4c68a24d38d4c7, []int{5}
+}
+
+func (m *TransactionResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TransactionResponse.Unmarshal(m, b)
+}
+func (m *TransactionResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TransactionResponse.Marshal(b, m, deterministic)
+}
+func (m *TransactionResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TransactionResponse.Merge(m, src)
+}
+func (m *TransactionResponse) XXX_Size() int {
+	return xxx_messageInfo_TransactionResponse.Size(m)
+}
+func (m *TransactionResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TransactionResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TransactionResponse proto.InternalMessageInfo
+
+func (m *TransactionResponse) GetAmount() uint64 {
+	if m != nil {
+		return m.Amount
+	}
+	return 0
+}
+
+func (m *TransactionResponse) GetReceiver() *NodeID {
+	if m != nil {
+		return m.Receiver
+	}
+	return nil
+}
+
+func (m *TransactionResponse) GetSender() *NodeID {
+	if m != nil {
+		return m.Sender
+	}
+	return nil
+}
+
+func (m *TransactionResponse) GetConfirmed() bool {
+	if m != nil {
+		return m.Confirmed
+	}
+	return false
+}
+
 func init() {
-	proto.RegisterType((*ID)(nil), "internal.ID")
+	proto.RegisterType((*NodeID)(nil), "internal.NodeID")
 	proto.RegisterType((*Balance)(nil), "internal.Balance")
-	proto.RegisterType((*Transfer)(nil), "internal.Transfer")
+	proto.RegisterType((*TransferRequest)(nil), "internal.TransferRequest")
+	proto.RegisterType((*TransferResponse)(nil), "internal.TransferResponse")
+	proto.RegisterType((*TransactionRequest)(nil), "internal.TransactionRequest")
+	proto.RegisterType((*TransactionResponse)(nil), "internal.TransactionResponse")
 }
 
 func init() { proto.RegisterFile("internal/ctrl.proto", fileDescriptor_af4c68a24d38d4c7) }
 
 var fileDescriptor_af4c68a24d38d4c7 = []byte{
-	// 260 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x8f, 0x41, 0x6b, 0x83, 0x40,
-	0x10, 0x85, 0xd5, 0x04, 0x63, 0x26, 0x3d, 0xb4, 0x53, 0x10, 0xb1, 0x17, 0xd9, 0x93, 0x87, 0xb2,
-	0x16, 0x0b, 0xfd, 0x01, 0xc5, 0x1e, 0x84, 0xd2, 0x80, 0xcd, 0x1f, 0x30, 0x3a, 0x5a, 0xc1, 0xec,
-	0xca, 0xd6, 0x94, 0xf6, 0xdf, 0xf4, 0xa7, 0x16, 0x8d, 0xdb, 0x10, 0x48, 0x6e, 0x33, 0xef, 0x3d,
-	0xde, 0xe3, 0x83, 0xdb, 0x46, 0xf4, 0xa4, 0x44, 0xde, 0x46, 0x45, 0xaf, 0x5a, 0xde, 0x29, 0xd9,
-	0x4b, 0x74, 0xb4, 0xe8, 0xdf, 0xd5, 0x52, 0xd6, 0x2d, 0x45, 0xa3, 0xbe, 0xdd, 0x57, 0x11, 0xed,
-	0xba, 0xfe, 0xe7, 0x10, 0x63, 0x2e, 0x58, 0x69, 0x82, 0xd7, 0x30, 0xfb, 0xa0, 0x6f, 0xcf, 0x0c,
-	0xcc, 0x70, 0x99, 0x0d, 0x27, 0x5b, 0xc3, 0xe2, 0x39, 0x6f, 0x73, 0x51, 0x10, 0xba, 0x60, 0xe7,
-	0x3b, 0xb9, 0x17, 0xfd, 0xe8, 0xcf, 0xb3, 0xe9, 0xc3, 0x7b, 0x58, 0x74, 0x24, 0xca, 0x46, 0xd4,
-	0x9e, 0x15, 0xcc, 0xc2, 0x55, 0x8c, 0x5c, 0x6f, 0xf2, 0x8d, 0xca, 0xc5, 0x67, 0x45, 0x2a, 0xd3,
-	0x11, 0xf6, 0x0a, 0x8e, 0x16, 0x2f, 0x36, 0x86, 0xe0, 0x28, 0x2a, 0xa8, 0xf9, 0x22, 0xe5, 0x59,
-	0x81, 0x19, 0xae, 0xe2, 0xab, 0x63, 0x65, 0x9a, 0x64, 0xff, 0x6e, 0xfc, 0x6b, 0xc2, 0xfc, 0x4d,
-	0x96, 0x84, 0x0f, 0x60, 0xbf, 0x53, 0x5b, 0xa5, 0x09, 0xba, 0xfc, 0xc0, 0xc9, 0x35, 0x27, 0x7f,
-	0x19, 0x38, 0xfd, 0x93, 0x0a, 0x66, 0x20, 0x87, 0xe5, 0x44, 0xb6, 0xae, 0xf0, 0xc4, 0xf4, 0x6f,
-	0x8e, 0xdf, 0x14, 0x61, 0x06, 0x3e, 0x0d, 0x0b, 0xa2, 0xdc, 0x48, 0x3c, 0xc3, 0xe7, 0x5f, 0x58,
-	0x65, 0xc6, 0xd6, 0x1e, 0x95, 0xc7, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc9, 0x5f, 0x56, 0xfa,
-	0x9e, 0x01, 0x00, 0x00,
+	// 340 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x91, 0xcd, 0x4a, 0xfb, 0x40,
+	0x14, 0xc5, 0x9b, 0xb6, 0xe4, 0xdf, 0xde, 0x2e, 0xfe, 0xf5, 0x16, 0x4a, 0x1c, 0x2b, 0xd4, 0x41,
+	0x24, 0x0b, 0x49, 0xa1, 0xfa, 0x02, 0x4a, 0x5d, 0x14, 0x44, 0x21, 0x16, 0x5c, 0xa7, 0xc9, 0x4d,
+	0x0d, 0xa4, 0x33, 0x75, 0x32, 0x15, 0x5d, 0xfa, 0x2c, 0xbe, 0xa8, 0xe4, 0xcb, 0xd8, 0xaf, 0x9d,
+	0xbb, 0xe4, 0x9c, 0x5f, 0xee, 0x3d, 0xb9, 0x07, 0x7a, 0x91, 0xd0, 0xa4, 0x84, 0x17, 0x8f, 0x7c,
+	0xad, 0x62, 0x67, 0xa5, 0xa4, 0x96, 0xd8, 0x2a, 0x45, 0x76, 0xb2, 0x90, 0x72, 0x11, 0xd3, 0x28,
+	0xd3, 0xe7, 0xeb, 0x70, 0x44, 0xcb, 0x95, 0xfe, 0xc8, 0x31, 0xce, 0xc0, 0x7c, 0x90, 0x01, 0x4d,
+	0x27, 0xd8, 0x85, 0xc6, 0x0b, 0xbd, 0x5b, 0xc6, 0xd0, 0xb0, 0xdb, 0x6e, 0xfa, 0xc8, 0xcf, 0xe0,
+	0xdf, 0xad, 0x17, 0x7b, 0xc2, 0x27, 0xec, 0x83, 0xe9, 0x2d, 0xe5, 0x5a, 0xe8, 0xcc, 0x6f, 0xba,
+	0xc5, 0x1b, 0x7f, 0x86, 0xff, 0x33, 0xe5, 0x89, 0x24, 0x24, 0xe5, 0xd2, 0xeb, 0x9a, 0x12, 0x7d,
+	0x08, 0xc5, 0x4b, 0x68, 0x29, 0xf2, 0x29, 0x7a, 0x23, 0x65, 0xd5, 0x87, 0x86, 0xdd, 0x19, 0x77,
+	0x9d, 0x32, 0xa3, 0x93, 0x67, 0x70, 0x7f, 0x08, 0x7e, 0x0e, 0xdd, 0x6a, 0x70, 0xb2, 0x92, 0x22,
+	0xa1, 0x3d, 0x09, 0x2f, 0x00, 0x33, 0xca, 0xf3, 0x75, 0x24, 0x45, 0x99, 0x60, 0x97, 0xfb, 0x32,
+	0xa0, 0xb7, 0x01, 0x16, 0x13, 0xff, 0x24, 0x2b, 0xda, 0x60, 0x26, 0x24, 0x02, 0x52, 0x56, 0xe3,
+	0x00, 0x5b, 0xf8, 0x38, 0x80, 0xb6, 0x2f, 0x45, 0x18, 0xa9, 0x25, 0x05, 0x56, 0x73, 0x68, 0xd8,
+	0x2d, 0xb7, 0x12, 0xc6, 0x9f, 0x75, 0x68, 0xa6, 0x1f, 0xe0, 0x35, 0x98, 0x4f, 0x14, 0x87, 0xd3,
+	0x09, 0xf6, 0x9d, 0xbc, 0x3c, 0xa7, 0x2c, 0xcf, 0xb9, 0x4b, 0xcb, 0x63, 0x3b, 0x2b, 0x78, 0x0d,
+	0xc7, 0xd0, 0x2e, 0xea, 0x7a, 0x0c, 0x71, 0x07, 0x60, 0x47, 0x95, 0x52, 0x60, 0xbc, 0x86, 0x37,
+	0xe9, 0x26, 0x11, 0xcc, 0x24, 0x1e, 0x57, 0xf6, 0x56, 0xa3, 0x8c, 0xed, 0xb3, 0xf2, 0x0b, 0xf2,
+	0x1a, 0xde, 0x43, 0xe7, 0xd7, 0x69, 0x71, 0xb0, 0x05, 0x6f, 0x54, 0xc3, 0x4e, 0x0f, 0xb8, 0xe5,
+	0xb4, 0xb9, 0x99, 0xfd, 0xe8, 0xd5, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff, 0xa9, 0x8d, 0xad, 0x50,
+	0xd4, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -199,9 +340,10 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type NodeClient interface {
-	SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ID, error)
-	BalanceOf(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Balance, error)
-	SendTo(ctx context.Context, in *Transfer, opts ...grpc.CallOption) (*empty.Empty, error)
+	SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*NodeID, error)
+	BalanceOf(ctx context.Context, in *NodeID, opts ...grpc.CallOption) (*Balance, error)
+	SendTo(ctx context.Context, in *TransferRequest, opts ...grpc.CallOption) (*TransferResponse, error)
+	Transaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionResponse, error)
 }
 
 type nodeClient struct {
@@ -212,8 +354,8 @@ func NewNodeClient(cc *grpc.ClientConn) NodeClient {
 	return &nodeClient{cc}
 }
 
-func (c *nodeClient) SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ID, error) {
-	out := new(ID)
+func (c *nodeClient) SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*NodeID, error) {
+	out := new(NodeID)
 	err := c.cc.Invoke(ctx, "/internal.Node/SelfID", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -221,7 +363,7 @@ func (c *nodeClient) SelfID(ctx context.Context, in *empty.Empty, opts ...grpc.C
 	return out, nil
 }
 
-func (c *nodeClient) BalanceOf(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Balance, error) {
+func (c *nodeClient) BalanceOf(ctx context.Context, in *NodeID, opts ...grpc.CallOption) (*Balance, error) {
 	out := new(Balance)
 	err := c.cc.Invoke(ctx, "/internal.Node/BalanceOf", in, out, opts...)
 	if err != nil {
@@ -230,9 +372,18 @@ func (c *nodeClient) BalanceOf(ctx context.Context, in *ID, opts ...grpc.CallOpt
 	return out, nil
 }
 
-func (c *nodeClient) SendTo(ctx context.Context, in *Transfer, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *nodeClient) SendTo(ctx context.Context, in *TransferRequest, opts ...grpc.CallOption) (*TransferResponse, error) {
+	out := new(TransferResponse)
 	err := c.cc.Invoke(ctx, "/internal.Node/SendTo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeClient) Transaction(ctx context.Context, in *TransactionRequest, opts ...grpc.CallOption) (*TransactionResponse, error) {
+	out := new(TransactionResponse)
+	err := c.cc.Invoke(ctx, "/internal.Node/Transaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -241,23 +392,27 @@ func (c *nodeClient) SendTo(ctx context.Context, in *Transfer, opts ...grpc.Call
 
 // NodeServer is the server API for Node service.
 type NodeServer interface {
-	SelfID(context.Context, *empty.Empty) (*ID, error)
-	BalanceOf(context.Context, *ID) (*Balance, error)
-	SendTo(context.Context, *Transfer) (*empty.Empty, error)
+	SelfID(context.Context, *empty.Empty) (*NodeID, error)
+	BalanceOf(context.Context, *NodeID) (*Balance, error)
+	SendTo(context.Context, *TransferRequest) (*TransferResponse, error)
+	Transaction(context.Context, *TransactionRequest) (*TransactionResponse, error)
 }
 
 // UnimplementedNodeServer can be embedded to have forward compatible implementations.
 type UnimplementedNodeServer struct {
 }
 
-func (*UnimplementedNodeServer) SelfID(ctx context.Context, req *empty.Empty) (*ID, error) {
+func (*UnimplementedNodeServer) SelfID(ctx context.Context, req *empty.Empty) (*NodeID, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SelfID not implemented")
 }
-func (*UnimplementedNodeServer) BalanceOf(ctx context.Context, req *ID) (*Balance, error) {
+func (*UnimplementedNodeServer) BalanceOf(ctx context.Context, req *NodeID) (*Balance, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BalanceOf not implemented")
 }
-func (*UnimplementedNodeServer) SendTo(ctx context.Context, req *Transfer) (*empty.Empty, error) {
+func (*UnimplementedNodeServer) SendTo(ctx context.Context, req *TransferRequest) (*TransferResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendTo not implemented")
+}
+func (*UnimplementedNodeServer) Transaction(ctx context.Context, req *TransactionRequest) (*TransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Transaction not implemented")
 }
 
 func RegisterNodeServer(s *grpc.Server, srv NodeServer) {
@@ -283,7 +438,7 @@ func _Node_SelfID_Handler(srv interface{}, ctx context.Context, dec func(interfa
 }
 
 func _Node_BalanceOf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ID)
+	in := new(NodeID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -295,13 +450,13 @@ func _Node_BalanceOf_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: "/internal.Node/BalanceOf",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServer).BalanceOf(ctx, req.(*ID))
+		return srv.(NodeServer).BalanceOf(ctx, req.(*NodeID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Node_SendTo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Transfer)
+	in := new(TransferRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -313,7 +468,25 @@ func _Node_SendTo_Handler(srv interface{}, ctx context.Context, dec func(interfa
 		FullMethod: "/internal.Node/SendTo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodeServer).SendTo(ctx, req.(*Transfer))
+		return srv.(NodeServer).SendTo(ctx, req.(*TransferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Node_Transaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).Transaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/internal.Node/Transaction",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).Transaction(ctx, req.(*TransactionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -333,6 +506,10 @@ var _Node_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendTo",
 			Handler:    _Node_SendTo_Handler,
+		},
+		{
+			MethodName: "Transaction",
+			Handler:    _Node_Transaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

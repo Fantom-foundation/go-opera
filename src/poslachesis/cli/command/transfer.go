@@ -27,12 +27,12 @@ var Transfer = &cobra.Command{
 		}
 		defer proxy.Close()
 
-		err = proxy.SendTo(receiver, amount)
+		h, err := proxy.SendTo(receiver, amount)
 		if err != nil {
 			return err
 		}
 
-		cmd.Println("ok")
+		cmd.Println(h.Hex())
 		return nil
 	},
 }

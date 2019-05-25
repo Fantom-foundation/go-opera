@@ -3,29 +3,58 @@ package inter
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/golang/protobuf/proto"
 )
 
 // InternalTransaction is for stake transfer.
 type InternalTransaction struct {
+	Index      uint64
 	Amount     uint64
-	Receiver   hash.Peer
 	UntilBlock uint64
+	Receiver   hash.Peer
+	Sender     hash.Peer
+
+	Confirmed bool
+
+	hash hash.Transaction // cache for .Hash()
+}
+
+// Hash calcs hash of event.
+func (tx *InternalTransaction) Hash() hash.Transaction {
+	if tx.hash.IsZero() {
+		tx.hash = TransactionHashOf(tx)
+	}
+	return tx.hash
+}
+
+// TransactionHashOf calcs hash of internal transaction.
+func TransactionHashOf(tx *InternalTransaction) hash.Transaction {
+	w := tx.ToWire()
+	buf, err := proto.Marshal(w)
+	if err != nil {
+		panic(err)
+	}
+	return hash.Transaction(hash.Of(buf))
 }
 
 // ToWire converts to wire.
-func (t *InternalTransaction) ToWire() *wire.InternalTransaction {
+func (tx *InternalTransaction) ToWire() *wire.InternalTransaction {
 	return &wire.InternalTransaction{
-		Amount:     t.Amount,
-		Receiver:   t.Receiver.Hex(),
-		UntilBlock: t.UntilBlock,
+		Index:      tx.Index,
+		Amount:     tx.Amount,
+		Receiver:   tx.Receiver.Hex(),
+		Sender:     tx.Sender.Hex(),
+		UntilBlock: tx.UntilBlock,
 	}
 }
 
 // WireToInternalTransaction converts from wire.
 func WireToInternalTransaction(w *wire.InternalTransaction) *InternalTransaction {
 	return &InternalTransaction{
+		Index:      w.Index,
 		Amount:     w.Amount,
 		Receiver:   hash.HexToPeer(w.Receiver),
+		Sender:     hash.HexToPeer(w.Sender),
 		UntilBlock: w.UntilBlock,
 	}
 }
