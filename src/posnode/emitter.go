@@ -50,7 +50,7 @@ func (n *Node) StopEventEmission() {
 }
 
 // AddInternalTxn takes internal transaction for new event.
-func (n *Node) AddInternalTxn(tx inter.InternalTransaction) hash.Transaction {
+func (n *Node) AddInternalTxn(tx inter.InternalTransaction) hash.InternalTransaction {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 

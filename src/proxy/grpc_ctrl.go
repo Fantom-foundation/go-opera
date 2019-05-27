@@ -95,8 +95,8 @@ func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.NodeID) (*int
 }
 
 // Transaction returns info about transaction.
-func (p *grpcCtrlProxy) Transaction(_ context.Context, req *internal.TransactionRequest) (*internal.TransactionResponse, error) {
-	h := hash.HexToTransactionHash(req.Hex)
+func (p *grpcCtrlProxy) TransactionInfo(_ context.Context, req *internal.TransactionRequest) (*internal.TransactionResponse, error) {
+	h := hash.HexToInternalTransactionHash(req.Hex)
 	tx := p.consensus.GetTransaction(h)
 
 	if tx == nil {

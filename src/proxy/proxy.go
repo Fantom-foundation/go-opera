@@ -57,9 +57,9 @@ type NodeProxy interface {
 	// GetBalanceOf returns stake balance of peer.
 	GetBalanceOf(hash.Peer) (uint64, error)
 	// SendTo makes stake transfer transaction.
-	SendTo(receiver hash.Peer, amount uint64) (hash.Transaction, error)
+	SendTo(receiver hash.Peer, amount uint64) (hash.InternalTransaction, error)
 	// GetTransaction returns information about transaction.
-	GetTransaction(hash.Transaction) (*inter.InternalTransaction, error)
+	GetTransaction(hash.InternalTransaction) (*inter.InternalTransaction, error)
 	// Close stops proxy.
 	Close()
 }

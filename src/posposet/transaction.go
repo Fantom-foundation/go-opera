@@ -15,7 +15,7 @@ import (
 )
 
 // GetTransaction returns transaction by hash.
-func (p *Poset) GetTransaction(h hash.Transaction) *inter.InternalTransaction {
+func (p *Poset) GetTransaction(h hash.InternalTransaction) *inter.InternalTransaction {
 	// TODO: implement. If transaction is not found return nil.
 	return &inter.InternalTransaction{}
 }

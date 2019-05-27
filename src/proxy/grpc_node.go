@@ -86,7 +86,7 @@ func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (uint64, error) {
 	return resp.Amount, nil
 }
 
-func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) (hash.Transaction, error) {
+func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) (hash.InternalTransaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -99,13 +99,13 @@ func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) (hash.Transact
 
 	resp, err := p.client.SendTo(ctx, &req)
 	if err != nil {
-		return hash.ZeroTransaction, unwrapGrpcErr(err)
+		return hash.ZeroInternalTransaction, unwrapGrpcErr(err)
 	}
 
-	return hash.HexToTransactionHash(resp.Hex), nil
+	return hash.HexToInternalTransactionHash(resp.Hex), nil
 }
 
-func (p *grpcNodeProxy) GetTransaction(t hash.Transaction) (*inter.InternalTransaction, error) {
+func (p *grpcNodeProxy) GetTransaction(t hash.InternalTransaction) (*inter.InternalTransaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -113,7 +113,7 @@ func (p *grpcNodeProxy) GetTransaction(t hash.Transaction) (*inter.InternalTrans
 		Hex: t.Hex(),
 	}
 
-	resp, err := p.client.Transaction(ctx, &req)
+	resp, err := p.client.TransactionInfo(ctx, &req)
 	if err != nil {
 		return nil, unwrapGrpcErr(err)
 	}

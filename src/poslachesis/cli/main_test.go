@@ -140,7 +140,7 @@ func TestApp(t *testing.T) {
 
 		hex := "0x00000"
 		consensus.EXPECT().
-			GetTransaction(hash.HexToTransactionHash(hex)).
+			GetTransaction(hash.HexToInternalTransactionHash(hex)).
 			Return(nil)
 
 		app.SetArgs([]string{

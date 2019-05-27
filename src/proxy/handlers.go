@@ -30,11 +30,11 @@ type App interface {
 // Node is a set of node handlers.
 type Node interface {
 	GetID() hash.Peer
-	AddInternalTxn(inter.InternalTransaction) hash.Transaction
+	AddInternalTxn(inter.InternalTransaction) hash.InternalTransaction
 }
 
 // Consensus is a set of consensus handlers.
 type Consensus interface {
 	GetBalanceOf(peer hash.Peer) uint64
-	GetTransaction(hash.Transaction) *inter.InternalTransaction
+	GetTransaction(hash.InternalTransaction) *inter.InternalTransaction
 }

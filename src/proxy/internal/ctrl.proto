@@ -8,7 +8,7 @@ service Node {
   rpc SelfID(google.protobuf.Empty) returns (NodeID) {}
   rpc BalanceOf(NodeID) returns (Balance) {}
   rpc SendTo(TransferRequest) returns (TransferResponse) {}
-  rpc Transaction(TransactionRequest) returns (TransactionResponse) {}
+  rpc TransactionInfo(TransactionRequest) returns (TransactionResponse) {}
 }
 
 message NodeID {

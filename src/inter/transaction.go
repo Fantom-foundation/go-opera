@@ -16,11 +16,11 @@ type InternalTransaction struct {
 
 	Confirmed bool
 
-	hash hash.Transaction // cache for .Hash()
+	hash hash.InternalTransaction // cache for .Hash()
 }
 
 // Hash calcs hash of event.
-func (tx *InternalTransaction) Hash() hash.Transaction {
+func (tx *InternalTransaction) Hash() hash.InternalTransaction {
 	if tx.hash.IsZero() {
 		tx.hash = TransactionHashOf(tx)
 	}
@@ -28,13 +28,13 @@ func (tx *InternalTransaction) Hash() hash.Transaction {
 }
 
 // TransactionHashOf calcs hash of internal transaction.
-func TransactionHashOf(tx *InternalTransaction) hash.Transaction {
+func TransactionHashOf(tx *InternalTransaction) hash.InternalTransaction {
 	w := tx.ToWire()
 	buf, err := proto.Marshal(w)
 	if err != nil {
 		panic(err)
 	}
-	return hash.Transaction(hash.Of(buf))
+	return hash.InternalTransaction(hash.Of(buf))
 }
 
 // ToWire converts to wire.

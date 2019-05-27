@@ -30,9 +30,9 @@ func (_m *MockNode) EXPECT() *_MockNodeRecorder {
 	return _m.recorder
 }
 
-func (_m *MockNode) AddInternalTxn(_param0 inter.InternalTransaction) hash.Transaction {
+func (_m *MockNode) AddInternalTxn(_param0 inter.InternalTransaction) hash.InternalTransaction {
 	ret := _m.ctrl.Call(_m, "AddInternalTxn", _param0)
-	ret0, _ := ret[0].(hash.Transaction)
+	ret0, _ := ret[0].(hash.InternalTransaction)
 	return ret0
 }
 
@@ -81,7 +81,7 @@ func (_mr *_MockConsensusRecorder) GetBalanceOf(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetBalanceOf", arg0)
 }
 
-func (_m *MockConsensus) GetTransaction(_param0 hash.Transaction) *inter.InternalTransaction {
+func (_m *MockConsensus) GetTransaction(_param0 hash.InternalTransaction) *inter.InternalTransaction {
 	ret := _m.ctrl.Call(_m, "GetTransaction", _param0)
 	ret0, _ := ret[0].(*inter.InternalTransaction)
 	return ret0
