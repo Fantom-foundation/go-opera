@@ -14,6 +14,7 @@ import (
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
+// Start starts lachesis node.
 var Start = &cobra.Command{
 	Use:   "start",
 	Short: "Starts lachesis node",

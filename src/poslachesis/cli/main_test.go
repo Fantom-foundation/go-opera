@@ -101,7 +101,7 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), expect)
 	})
 
-	t.Run("transaction missing flags", func(t *testing.T) {
+	t.Run("transaction not enough arguments", func(t *testing.T) {
 		assert := assert.New(t)
 
 		app.SetArgs([]string{
@@ -114,7 +114,25 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		assert.Contains(out.String(), "required flag(s) \"hex\" not set")
+		assert.Contains(out.String(), "not enough arguments")
+	})
+
+	t.Run("transaction too much arguments", func(t *testing.T) {
+		assert := assert.New(t)
+
+		app.SetArgs([]string{
+			"transaction",
+			"hex",
+			"other",
+		})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.Error(err) {
+			return
+		}
+
+		assert.Contains(out.String(), "too much arguments")
 	})
 
 	t.Run("transaction not found", func(t *testing.T) {
@@ -127,7 +145,7 @@ func TestApp(t *testing.T) {
 
 		app.SetArgs([]string{
 			"transaction",
-			fmt.Sprintf("--hex=%s", hex),
+			fmt.Sprintf("%s", hex),
 		})
 		defer out.Reset()
 
@@ -158,7 +176,7 @@ func TestApp(t *testing.T) {
 
 		app.SetArgs([]string{
 			"transaction",
-			fmt.Sprintf("--hex=%s", tx.Hash().Hex()),
+			fmt.Sprintf("%s", tx.Hash().Hex()),
 		})
 		defer out.Reset()
 

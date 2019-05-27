@@ -116,7 +116,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			return
 		}
 
-		expect := Transaction{
+		expect := inter.InternalTransaction{
 			Amount:   amount,
 			Receiver: peer,
 			Sender:   sender,
@@ -220,7 +220,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	})
 }
 
-func assertTransactions(assert *assert.Assertions, expect, got *Transaction) {
+func assertTransactions(assert *assert.Assertions, expect, got *inter.InternalTransaction) {
 	assert.Equal(expect.Amount, got.Amount)
 	assert.Equal(expect.Receiver.Hex(), got.Receiver.Hex())
 	assert.Equal(expect.Sender.Hex(), got.Sender.Hex())

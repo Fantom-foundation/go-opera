@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -8,14 +9,25 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+var (
+	// ErrTooMuchArguments returns when cmd receives
+	// too much arguments.
+	ErrTooMuchArguments = errors.New("too much arguments")
+	// ErrNotEnoughArguments returns when cmd receives
+	// not enough arguments.
+	ErrNotEnoughArguments = errors.New("not enough arguments")
+)
+
 // Transaction makes a transaction for stake transfer.
 var Transaction = &cobra.Command{
 	Use:   "transaction",
-	Short: "Transaction returns information amount tranation",
+	Short: "Transaction returns information about transaction passed as first argument",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		hex, err := cmd.Flags().GetString("hex")
-		if err != nil {
-			return err
+		if len(args) > 1 {
+			return ErrTooMuchArguments
+		}
+		if len(args) < 1 {
+			return ErrNotEnoughArguments
 		}
 
 		proxy, err := makeCtrlProxy(cmd)
@@ -24,7 +36,7 @@ var Transaction = &cobra.Command{
 		}
 		defer proxy.Close()
 
-		tx, err := proxy.GetTransaction(hash.HexToTransactionHash(hex))
+		tx, err := proxy.GetTransaction(hash.HexToTransactionHash(args[0]))
 		if err != nil {
 			return err
 		}
@@ -52,10 +64,4 @@ func confirmedToHuman(c bool) string {
 
 func init() {
 	initCtrlProxy(Transaction)
-
-	Transaction.Flags().String("hex", "", "transaction hex (required)")
-
-	if err := Transaction.MarkFlagRequired("hex"); err != nil {
-		panic(err)
-	}
 }
