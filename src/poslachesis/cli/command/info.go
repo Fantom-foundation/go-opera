@@ -36,7 +36,7 @@ var Info = &cobra.Command{
 		}
 		defer proxy.Close()
 
-		tx, err := proxy.GetInfo(hash.HexToInternalInfoHash(args[0]))
+		tx, err := proxy.GetTransaction(hash.HexToInternalTransactionHash(args[0]))
 		if err != nil {
 			return err
 		}
