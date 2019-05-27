@@ -5,13 +5,13 @@ package internal;
 import "google/protobuf/empty.proto";
 
 service Node {
-  rpc SelfID(google.protobuf.Empty) returns (NodeID) {}
-  rpc BalanceOf(NodeID) returns (Balance) {}
+  rpc SelfID(google.protobuf.Empty) returns (ID) {}
+  rpc BalanceOf(ID) returns (Balance) {}
   rpc SendTo(TransferRequest) returns (TransferResponse) {}
   rpc TransactionInfo(TransactionRequest) returns (TransactionResponse) {}
 }
 
-message NodeID {
+message ID {
   string hex = 1;
 }
 
@@ -21,7 +21,7 @@ message Balance {
 
 message TransferRequest{
   uint64 amount = 1;
-  NodeID receiver = 2;
+  ID receiver = 2;
 }
 
 message TransferResponse {
@@ -34,8 +34,8 @@ message TransactionRequest {
 
 message TransactionResponse {
   uint64 amount = 1;
-  NodeID receiver = 2;
-  NodeID sender = 3;
+  ID receiver = 2;
+  ID sender = 3;
   bool confirmed = 4;
 }
 

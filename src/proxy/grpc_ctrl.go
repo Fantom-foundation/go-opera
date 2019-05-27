@@ -76,16 +76,16 @@ func (p *grpcCtrlProxy) Set() {
  */
 
 // ID returns node id.
-func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.NodeID, error) {
+func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.ID, error) {
 	id := p.node.GetID()
 
-	return &internal.NodeID{
+	return &internal.ID{
 		Hex: id.Hex(),
 	}, nil
 }
 
 // BalanceOf returns balance of peer.
-func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.NodeID) (*internal.Balance, error) {
+func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
 	id := hash.HexToPeer(req.Hex)
 	b := internal.Balance{
 		Amount: p.consensus.GetBalanceOf(id),
@@ -105,10 +105,10 @@ func (p *grpcCtrlProxy) TransactionInfo(_ context.Context, req *internal.Transac
 
 	return &internal.TransactionResponse{
 		Amount: tx.Amount,
-		Receiver: &internal.NodeID{
+		Receiver: &internal.ID{
 			Hex: tx.Receiver.Hex(),
 		},
-		Sender: &internal.NodeID{
+		Sender: &internal.ID{
 			Hex: tx.Sender.Hex(),
 		},
 		Confirmed: tx.Confirmed,

@@ -18,10 +18,10 @@ var (
 	ErrNotEnoughArguments = errors.New("not enough arguments")
 )
 
-// Transaction makes a transaction for stake transfer.
-var Transaction = &cobra.Command{
-	Use:   "transaction",
-	Short: "Transaction returns information about transaction passed as first argument",
+// Info returns information about transaction.
+var Info = &cobra.Command{
+	Use:   "info",
+	Short: "Info returns information about transaction passed as first argument",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 1 {
 			return ErrTooMuchArguments
@@ -36,7 +36,7 @@ var Transaction = &cobra.Command{
 		}
 		defer proxy.Close()
 
-		tx, err := proxy.GetTransaction(hash.HexToInternalTransactionHash(args[0]))
+		tx, err := proxy.GetInfo(hash.HexToInternalInfoHash(args[0]))
 		if err != nil {
 			return err
 		}
@@ -63,5 +63,5 @@ func confirmedToHuman(c bool) string {
 }
 
 func init() {
-	initCtrlProxy(Transaction)
+	initCtrlProxy(Info)
 }

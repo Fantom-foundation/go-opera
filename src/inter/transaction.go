@@ -10,9 +10,9 @@ import (
 type InternalTransaction struct {
 	Index      uint64
 	Amount     uint64
-	UntilBlock uint64
 	Receiver   hash.Peer
 	Sender     hash.Peer
+	UntilBlock uint64
 
 	Confirmed bool
 

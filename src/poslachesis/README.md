@@ -46,10 +46,10 @@ Command returns hex of the transaction we have made.
 0xab92d4dff02c4dc9f52c298a6cef1e7b73c46215c2bb621d6decfe57c1c0af4b
 ```
 
-3. Check transaction status `transaction` command and previous hex of the transfer.
+3. Check transaction status `info` command and previous hex of the transfer.
 
 ```sh
-./lachesis transaction --hex=0xab92d4dff02c4dc9f52c298a6cef1e7b73c46215c2bb621d6decfe57c1c0af4b
+./lachesis info 0xab92d4dff02c4dc9f52c298a6cef1e7b73c46215c2bb621d6decfe57c1c0af4b
 ```
 
 Will output transaction information and its status. 

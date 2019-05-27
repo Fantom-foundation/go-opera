@@ -76,7 +76,7 @@ func (p *grpcNodeProxy) GetBalanceOf(peer hash.Peer) (uint64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	resp, err := p.client.BalanceOf(ctx, &internal.NodeID{
+	resp, err := p.client.BalanceOf(ctx, &internal.ID{
 		Hex: peer.Hex(),
 	})
 	if err != nil {
@@ -92,7 +92,7 @@ func (p *grpcNodeProxy) SendTo(receiver hash.Peer, amount uint64) (hash.Internal
 
 	req := internal.TransferRequest{
 		Amount: amount,
-		Receiver: &internal.NodeID{
+		Receiver: &internal.ID{
 			Hex: receiver.Hex(),
 		},
 	}

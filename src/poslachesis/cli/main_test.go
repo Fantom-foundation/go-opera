@@ -101,11 +101,11 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), expect)
 	})
 
-	t.Run("transaction not enough arguments", func(t *testing.T) {
+	t.Run("info not enough arguments", func(t *testing.T) {
 		assert := assert.New(t)
 
 		app.SetArgs([]string{
-			"transaction",
+			"info",
 		})
 		defer out.Reset()
 
@@ -117,11 +117,11 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), "not enough arguments")
 	})
 
-	t.Run("transaction too much arguments", func(t *testing.T) {
+	t.Run("info too much arguments", func(t *testing.T) {
 		assert := assert.New(t)
 
 		app.SetArgs([]string{
-			"transaction",
+			"info",
 			"hex",
 			"other",
 		})
@@ -135,7 +135,7 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), "too much arguments")
 	})
 
-	t.Run("transaction not found", func(t *testing.T) {
+	t.Run("info not found", func(t *testing.T) {
 		assert := assert.New(t)
 
 		hex := "0x00000"
@@ -144,7 +144,7 @@ func TestApp(t *testing.T) {
 			Return(nil)
 
 		app.SetArgs([]string{
-			"transaction",
+			"info",
 			fmt.Sprintf("%s", hex),
 		})
 		defer out.Reset()
@@ -157,7 +157,7 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), "transaction not found")
 	})
 
-	t.Run("transaction ok", func(t *testing.T) {
+	t.Run("info ok", func(t *testing.T) {
 		assert := assert.New(t)
 
 		sender := hash.FakePeer()
@@ -175,7 +175,7 @@ func TestApp(t *testing.T) {
 			Return(&tx)
 
 		app.SetArgs([]string{
-			"transaction",
+			"info",
 			fmt.Sprintf("%s", tx.Hash().Hex()),
 		})
 		defer out.Reset()
