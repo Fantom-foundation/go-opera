@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -234,6 +235,7 @@ func (scheme *asciiScheme) insertColumn(after uint64) {
 func (scheme *asciiScheme) insertRow(after uint64) {
 	scheme.increaseEventsPosition(after, 1)
 
+	connections := []string{"║", "╫", "╠", "╣"}
 	after++
 	for column := 0; column < len(scheme.graph); column++ {
 		var symbol string
@@ -242,17 +244,24 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 			continue
 		}
 
-		symbol = scheme.graph[column][after-1]
-		switch symbol {
-		case "║", "╫", "╠", "╣":
-			symbol = "║"
-		default:
-			switch scheme.graph[column][after] {
-			case "║", "╫", "╠", "╣":
-				symbol = "║"
-			default:
-				symbol = ""
-			}
+		symbol = "║"
+
+		lastSymbol := scheme.graph[column][after-1]
+		indexLastSymbol := -1
+		if len(lastSymbol) > 0 {
+			indexLastSymbol = sort.SearchStrings(connections, lastSymbol)
+		}
+
+		nextSymbol := scheme.graph[column][after]
+		indexNextSymbol := -1
+		if len(nextSymbol) > 0 {
+			indexNextSymbol = sort.SearchStrings(connections, nextSymbol)
+		}
+
+		if (indexLastSymbol != 0 && indexNextSymbol != 0) ||
+			(indexLastSymbol == 0 && indexNextSymbol != 0) ||
+			(indexLastSymbol != 0 && indexNextSymbol == 0) {
+			symbol = ""
 		}
 
 		scheme.graph[column] = append(
