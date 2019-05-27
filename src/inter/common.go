@@ -287,7 +287,22 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 
 		start++
 		for start < stop {
-			scheme.graph[column][start] = "║"
+			var connector string
+			switch scheme.graph[column][start] {
+			case "-":
+				connector = "╫"
+			case "":
+				connector = "║"
+			default:
+				start++
+				continue
+			}
+
+			if (int64(column-1) >= 0 && scheme.graph[column-1][start] == "-") ||
+				(column+1 < uint64(len(scheme.graph)) && scheme.graph[column+1][start] == "-") {
+				connector = "╫"
+			}
+			scheme.graph[column][start] = connector
 			start++
 		}
 		return
@@ -295,12 +310,29 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 
 	start := from[0]
 	stop := to[0]
-	scheme.graph[to[0]][from[1]] = "╣"
+
+	nodeConnector := "╣"
+	columnNodeConnector := from[1]
+
 	if from[0] > to[0] {
 		start = to[0]
 		stop = from[0]
-		scheme.graph[to[0]][from[1]] = "╠"
+		nodeConnector = "╠"
 	}
+
+	switch scheme.graph[to[0]][columnNodeConnector] {
+	case "╬":
+		nodeConnector = "╬"
+	case "╣":
+		if nodeConnector == "╠" {
+			nodeConnector = "╬"
+		}
+	case "╠":
+		if nodeConnector == "╣" {
+			nodeConnector = "╬"
+		}
+	}
+	scheme.graph[to[0]][columnNodeConnector] = nodeConnector
 
 	if stop-start == 1 {
 		scheme.insertColumn(start)
@@ -309,7 +341,11 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 
 	start++
 	for start != stop {
-		scheme.graph[start][from[1]] = "-"
+		connector := "-"
+		if scheme.graph[start][from[1]] == "║" {
+			connector = "╫"
+		}
+		scheme.graph[start][from[1]] = connector
 		start++
 	}
 
