@@ -145,7 +145,7 @@ func TestApp(t *testing.T) {
 
 		app.SetArgs([]string{
 			"info",
-			fmt.Sprintf("%s", hex),
+			hex,
 		})
 		defer out.Reset()
 
@@ -176,7 +176,7 @@ func TestApp(t *testing.T) {
 
 		app.SetArgs([]string{
 			"info",
-			fmt.Sprintf("%s", tx.Hash().Hex()),
+			tx.Hash().Hex(),
 		})
 		defer out.Reset()
 
