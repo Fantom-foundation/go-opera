@@ -1,7 +1,6 @@
 package inter
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -128,12 +127,12 @@ func ParseEvents(asciiScheme string) (
 	return
 }
 
+// asciiScheme helping type for create ascii scheme by events
 type asciiScheme struct {
 	graph [][]string
 
 	nodes     map[hash.Peer]uint64
 	nodesName map[hash.Peer]rune
-	posNodes  []hash.Peer
 
 	eventsPosition map[hash.Event][2]uint64
 
@@ -141,37 +140,10 @@ type asciiScheme struct {
 	nextNodeName rune
 }
 
-func (scheme *asciiScheme) Len() int {
-	return len(scheme.nodes)
-}
-
-func (scheme *asciiScheme) Less(i, j int) bool {
-	return bytes.Compare(scheme.posNodes[i].Bytes(), scheme.posNodes[j].Bytes()) == -1
-}
-
-func (scheme *asciiScheme) Swap(i, j int) {
-	for key, pos := range scheme.eventsPosition {
-		switch pos[0] {
-		case uint64(i):
-			pos[0] = uint64(j)
-		case uint64(j):
-			pos[0] = uint64(i)
-		default:
-			continue
-		}
-
-		scheme.eventsPosition[key] = pos
-	}
-
-	scheme.nodes[scheme.posNodes[i]] = uint64(j)
-	scheme.nodes[scheme.posNodes[j]] = uint64(i)
-
-	scheme.posNodes[i], scheme.posNodes[j] = scheme.posNodes[j], scheme.posNodes[i]
-
-	scheme.graph[i], scheme.graph[j] = scheme.graph[j], scheme.graph[i]
-}
-
-func (scheme *asciiScheme) increaseEventsPosition(after uint64, index int) {
+// increaseEventsPositions add offset for events positions after insert row or column.
+// For insert row 'index' must be 0.
+// For insert column 'index' must be 1.
+func (scheme *asciiScheme) increaseEventsPositions(after uint64, index int) {
 	for key := range scheme.eventsPosition {
 		pos := scheme.eventsPosition[key]
 		if pos[index] <= after {
@@ -183,8 +155,9 @@ func (scheme *asciiScheme) increaseEventsPosition(after uint64, index int) {
 	}
 }
 
+// insertColumn insert column after specific column ('after' parameter).
 func (scheme *asciiScheme) insertColumn(after uint64) {
-	scheme.increaseEventsPosition(after, 0)
+	scheme.increaseEventsPositions(after, 0)
 
 	for node, column := range scheme.nodes {
 		if column > after {
@@ -232,8 +205,9 @@ func (scheme *asciiScheme) insertColumn(after uint64) {
 		append([][]string{column}, scheme.graph[after:]...)...)
 }
 
+// insertRow insert row after specific row ('after' parameter).
 func (scheme *asciiScheme) insertRow(after uint64) {
-	scheme.increaseEventsPosition(after, 1)
+	scheme.increaseEventsPositions(after, 1)
 
 	connections := []string{"║", "╫", "╠", "╣"}
 	after++
@@ -270,13 +244,15 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 	}
 }
 
+// EventsConnect add communication from child to parent.
+// If parent is zero event, do nothing.
 func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 	if parent == hash.ZeroEvent {
 		return
 	}
 
-	from := scheme.GetEventPosition(child)
-	to := scheme.GetEventPosition(parent)
+	from := scheme.getEventPosition(child)
+	to := scheme.getEventPosition(parent)
 
 	if from[0] == to[0] {
 		start := from[1]
@@ -360,9 +336,18 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 
 }
 
-var firstNodeName = rune(97)
+// initial node name for generating ascii scheme by events (current value 'a')
+const firstNodeName = rune(97)
 
+// AddEvent register new event
+// If node of event isn't exist, node will create.
+// Parameter 'name' is optional (possible be empty). If 'name' is empty, name will generate beginning name node 'a' and
+// event index in node.
 func (scheme *asciiScheme) AddEvent(name string, event *Event) {
+	if event == nil {
+		panic(errors.Errorf("event '%s' must be set", name))
+	}
+
 	column, ok := scheme.nodes[event.Creator]
 	if !ok {
 		var nextNodeAfter uint64
@@ -375,7 +360,6 @@ func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 			scheme.nodes = make(map[hash.Peer]uint64)
 		}
 		scheme.nodes[event.Creator] = column
-		scheme.posNodes = append(scheme.posNodes, event.Creator)
 
 		if scheme.nextNodeName == 0 {
 			scheme.nextNodeName = firstNodeName
@@ -404,7 +388,8 @@ func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 	scheme.lengthColumn++
 }
 
-func (scheme *asciiScheme) GetEventPosition(event hash.Event) [2]uint64 {
+// getEventPosition return position event in ascii scheme
+func (scheme *asciiScheme) getEventPosition(event hash.Event) [2]uint64 {
 	position, ok := scheme.eventsPosition[event]
 	if !ok {
 		panic(errors.New("can't find event"))
@@ -412,7 +397,8 @@ func (scheme *asciiScheme) GetEventPosition(event hash.Event) [2]uint64 {
 	return position
 }
 
-func (scheme asciiScheme) String() string {
+// String return ascii scheme on means single string
+func (scheme *asciiScheme) String() string {
 	var asciiScheme string
 
 	for column := 0; column < len(scheme.graph); column++ {
@@ -463,6 +449,10 @@ func (scheme asciiScheme) String() string {
 	return asciiScheme
 }
 
+// CreateSchemaByEvents return ascii scheme by events with parents
+// Throw panic:
+// - event is nil;
+// - not correctly works type asciiScheme.
 func CreateSchemaByEvents(events Events) string {
 	events = events.ByParents()
 
@@ -475,7 +465,6 @@ func CreateSchemaByEvents(events Events) string {
 				continue
 			}
 			scheme.EventsConnect(event.Hash(), parent)
-			println()
 		}
 	}
 

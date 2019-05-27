@@ -85,7 +85,6 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 }
 
 func TestCreateSchemaByEvents(t *testing.T) {
-
 	t.Run(`Correct ascii scheme`, func(t *testing.T) {
 		/*
 			a00 b00   c00 d00
@@ -310,10 +309,10 @@ func TestCreateSchemaByEvents(t *testing.T) {
 
 		/* endregion*/
 
-		resultSchema := CreateSchemaByEvents(events)
+		assert.NotPanics(t, func() {
+			resultSchema := CreateSchemaByEvents(events)
 
-		println(resultSchema)
-
-		assert.EqualValues(t, resultSchema, "")
+			assert.EqualValues(t, resultSchema, "")
+		})
 	})
 }
