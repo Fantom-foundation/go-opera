@@ -16,6 +16,7 @@ message ID {
 
 message Balance {
   uint64 amount = 1;
+  repeated Transfer pending = 2;
 }
 
 message Transfer{

@@ -6,10 +6,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-// Transfer makes transaction to stake transfer.
+// Transfer makes a transaction for stake transfer.
 var Transfer = &cobra.Command{
 	Use:   "transfer",
-	Short: "Adds internal transaction",
+	Short: "Transfers a balance amount to given receiver",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		amount, err := cmd.Flags().GetUint64("amount")
 		if err != nil {
@@ -27,7 +27,7 @@ var Transfer = &cobra.Command{
 		}
 		defer proxy.Close()
 
-		err = proxy.SendTo(amount, receiver)
+		err = proxy.SendTo(receiver, amount)
 		if err != nil {
 			return err
 		}

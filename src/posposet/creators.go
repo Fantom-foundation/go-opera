@@ -2,11 +2,14 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 /*
  * Event's parents validator:
  */
+
+var log = logger.Get() // NOTE: will be removed in next PR
 
 // parentsValidator checks parent nodes rule.
 type parentsValidator struct {

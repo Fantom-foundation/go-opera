@@ -186,7 +186,7 @@ func (b *Block) ProtoMarshal() ([]byte, error) {
 	return bf.Bytes(), nil
 }
 
-// ProtoUnmarshal unamrshals protobuff into a block
+// ProtoUnmarshal marshals protobuf into a block
 func (b *Block) ProtoUnmarshal(data []byte) error {
 	return proto.Unmarshal(data, b)
 }

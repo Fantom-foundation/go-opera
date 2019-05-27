@@ -1201,14 +1201,14 @@ func (p *Poset) DecideRoundReceived() error {
 			}
 
 			fws := tr.Atropos()
-			// set of atropos that domniates x
+			// set of atropos that dominates x
 			var s []EventHash
 			for _, w := range fws {
-				domniates, err := p.dominated(w, x)
+				dominates, err := p.dominated(w, x)
 				if err != nil {
 					return err
 				}
-				if domniates {
+				if dominates {
 					s = append(s, w)
 				}
 			}
@@ -1539,16 +1539,13 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (r
 		if body := ev.Message.GetBody(); body != nil {
 			for _, tx := range body.GetInternalTransactions() {
 				p.logger.Debug("ApplyInternalTransaction", tx)
-				if statedb.GetBalance(hash.Peer(sender)) < tx.Amount {
+				if statedb.FreeBalance(hash.Peer(sender)) < tx.Amount {
 					p.logger.Warn("Balance is not enough", sender, tx.Amount)
 					continue
 				}
+
 				reciver := hash.HexToPeer(tx.Receiver)
-				statedb.SubBalance(hash.Peer(sender), tx.Amount)
-				if !statedb.Exist(hash.Peer(reciver)) {
-					statedb.CreateAccount(hash.Peer(reciver))
-				}
-				statedb.AddBalance(hash.Peer(reciver), tx.Amount)
+				statedb.Transfer(hash.Peer(sender), reciver, tx.Amount)
 			}
 		}
 	}
@@ -1729,7 +1726,7 @@ func (p *Poset) Reset(block Block, frame Frame) error {
 // method call, the Poset should be in a state coherent with the 'tip' of the
 // Poset
 func (p *Poset) Bootstrap() error {
-	// Retreive the Events from the underlying DB. They come out in topological
+	// Retrieve the Events from the underlying DB. They come out in topological
 	// order
 	topologicalEvents, err := p.Store.TopologicalEvents()
 	if err != nil {
@@ -1776,7 +1773,7 @@ func (p *Poset) ReadWireInfo(wevent WireEvent) (*Event, error) {
 	}
 
 	creator, ok := p.Participants.ReadByID(wevent.Body.CreatorID)
-	// FIXIT: creator can be nil when wevent.Body.CreatorID == 0
+	// TODO FIXIT: creator can be nil when wevent.Body.CreatorID == 0
 	if !ok {
 		return nil, fmt.Errorf("unknown wevent.Body.CreatorID=%v", wevent.Body.CreatorID)
 	}

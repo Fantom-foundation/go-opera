@@ -6,7 +6,7 @@ import (
 )
 
 func initCtrlProxy(cmd *cobra.Command) {
-	cmd.Flags().String("addr", "localhost:55557", "node net addr")
+	cmd.Flags().String("addr", "localhost:55557", "node control net addr")
 }
 
 func makeCtrlProxy(cmd *cobra.Command) (proxy.NodeProxy, error) {

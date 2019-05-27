@@ -1,147 +1,195 @@
 package state
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
-func TestStateDB(t *testing.T) {
+func TestBalanceState(t *testing.T) {
+	assert := assert.New(t)
+
+	var aa = []hash.Peer{
+		hash.FakePeer(),
+		hash.FakePeer(),
+		hash.FakePeer(),
+	}
+
 	mem := kvdb.NewMemDatabase()
 	store := NewDatabase(mem)
 
 	stateAt := func(point hash.Hash) *DB {
 		db, err := New(point, store)
-		if err != nil {
-			t.Fatal(err)
-			return nil
+		if !assert.NoError(err) {
+			t.FailNow()
 		}
 		return db
 	}
 
-	checkBalance := func(point hash.Hash, addr hash.Peer, balance uint64) error {
+	checkBalance := func(point hash.Hash, addr hash.Peer, balance uint64) {
 		db := stateAt(point)
-		got := db.GetBalance(addr)
-		if got != balance {
-			return fmt.Errorf("unexpected balance %d of %s at %s. %d expected", got, addr.String(), point.String(), balance)
+		got := db.FreeBalance(addr)
+		if !assert.Equalf(balance, got, "unexpected balance") {
+			t.FailNow()
 		}
-		return nil
 	}
 
-	var (
-		err                error
-		root, fork1, fork2 hash.Hash
-
-		aa = []hash.Peer{
-			fakePeerHash(0),
-			fakePeerHash(1),
-			fakePeerHash(2),
+	commit := func(db *DB) hash.Hash {
+		root, err := db.Commit(true)
+		if !assert.NoError(err) {
+			t.FailNow()
 		}
-	)
+		return root
+	}
 
 	// empty
-
 	for _, a := range aa {
-		err = checkBalance(root, a, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		checkBalance(hash.Hash{}, a, 0)
 	}
 
 	// root
-
 	db := stateAt(hash.Hash{})
-	db.AddBalance(aa[0], 10)
-	root, err = db.Commit(true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db.SetBalance(aa[0], 10)
+	db.SetBalance(aa[1], 10)
+	db.SetBalance(aa[2], 10)
+	root := commit(db)
+
+	checkBalance(root, aa[0], 10)
+	checkBalance(root, aa[1], 10)
+	checkBalance(root, aa[2], 10)
 
 	// fork 1
-
 	db = stateAt(root)
-	db.AddBalance(aa[1], 11)
-	fork1, err = db.Commit(true)
-	if err != nil {
-		t.Fatal(err)
+	db.Transfer(aa[0], aa[1], 1)
+	if !assert.Equalf(uint64(9), db.FreeBalance(aa[0]), "before commit") ||
+		!assert.Equalf(uint64(11), db.FreeBalance(aa[1]), "before commit") {
+		return
 	}
-	if db.GetBalance(aa[1]) != 11 {
-		t.Fatal("GetBalance() does not return actual before commit!")
-	}
+	fork1 := commit(db)
+
+	checkBalance(fork1, aa[0], 9)
+	checkBalance(fork1, aa[1], 11)
+	checkBalance(fork1, aa[2], 10)
 
 	// fork 2
-
 	db = stateAt(root)
-	db.AddBalance(aa[2], 12)
-	db.SubBalance(aa[0], 5)
-	fork2, err = db.Commit(true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db.Transfer(aa[0], aa[2], 5)
+	fork2 := commit(db)
 
-	// check root
-
-	err = checkBalance(root, aa[0], 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = checkBalance(root, aa[1], 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = checkBalance(root, aa[2], 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// check fork1
-
-	err = checkBalance(fork1, aa[0], 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = checkBalance(fork1, aa[1], 11)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = checkBalance(fork1, aa[2], 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// check fork2
-
-	err = checkBalance(fork2, aa[0], 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = checkBalance(fork2, aa[1], 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = checkBalance(fork2, aa[2], 12)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	checkBalance(fork2, aa[0], 5)
+	checkBalance(fork2, aa[1], 10)
+	checkBalance(fork2, aa[2], 15)
 }
 
-/*
- * Staff:
- */
+func TestDelegationState(t *testing.T) {
+	assert := assert.New(t)
 
-func fakePeerHash(n int64) (h hash.Peer) {
-	for i := 8; i >= 1; i-- {
-		h[i-1] = byte(n)
-		n = n >> 8
+	const __ uint64 = 0
+
+	var aa = []hash.Peer{
+		hash.FakePeer(),
+		hash.FakePeer(),
+		hash.FakePeer(),
 	}
-	return
+
+	mem := kvdb.NewMemDatabase()
+	store := NewDatabase(mem)
+
+	stateAt := func(point hash.Hash) *DB {
+		db, err := New(point, store)
+		if !assert.NoError(err) {
+			t.FailNow()
+		}
+		return db
+	}
+
+	check := func(x direction, point hash.Hash, addr hash.Peer, amount ...uint64) {
+		db := stateAt(point)
+
+		var j int
+		for j = range aa {
+			if aa[j] == addr {
+				break
+			}
+		}
+
+		var dir string
+		if x == TO {
+			dir = "-->"
+		} else {
+			dir = "<--"
+		}
+
+		for i, exp := range amount {
+			p := aa[i]
+			if p == addr {
+				continue
+			}
+			got := db.GetDelegations(addr)[x][p]
+			if !assert.Equalf(exp, got, "unexpected delegation amount: aa[%d] %s aa[%d]", j, dir, i) {
+				t.FailNow()
+			}
+		}
+	}
+
+	commit := func(db *DB) hash.Hash {
+		root, err := db.Commit(true)
+		if !assert.NoError(err) {
+			t.FailNow()
+		}
+		return root
+	}
+
+	// step 0
+	db := stateAt(hash.Hash{})
+	db.SetBalance(aa[0], 100)
+	db.SetBalance(aa[1], 100)
+	db.SetBalance(aa[2], 100)
+	root := commit(db)
+
+	// step 1
+	db = stateAt(root)
+	db.Delegate(aa[1], aa[0], 10, 1)
+	db.Delegate(aa[1], aa[2], 20, 1)
+	root = commit(db)
+
+	check(TO, root, aa[0], __, 00, 00)
+	check(TO, root, aa[1], 10, __, 20)
+	check(TO, root, aa[2], 00, 00, __)
+
+	check(FROM, root, aa[0], __, 10, 00)
+	check(FROM, root, aa[1], 00, __, 00)
+	check(FROM, root, aa[2], 00, 20, __)
+
+	// step 2
+	db = stateAt(root)
+	db.Delegate(aa[0], aa[1], 15, 2)
+	db.Delegate(aa[1], aa[2], 25, 2)
+	root = commit(db)
+
+	check(TO, root, aa[0], __, 15, 00)
+	check(TO, root, aa[1], 10, __, 45)
+	check(TO, root, aa[2], 00, 00, __)
+
+	check(FROM, root, aa[0], __, 10, 00)
+	check(FROM, root, aa[1], 15, __, 00)
+	check(FROM, root, aa[2], 00, 45, __)
+
+	// step 3
+	db = stateAt(root)
+	db.ExpireDelegations(aa[0], 1)
+	db.ExpireDelegations(aa[1], 1)
+	db.ExpireDelegations(aa[2], 1)
+	root = commit(db)
+
+	check(TO, root, aa[0], __, 15, 00)
+	check(TO, root, aa[1], 00, __, 25)
+	check(TO, root, aa[2], 00, 00, __)
+
+	check(FROM, root, aa[0], __, 00, 00)
+	check(FROM, root, aa[1], 15, __, 00)
+	check(FROM, root, aa[2], 00, 25, __)
 }

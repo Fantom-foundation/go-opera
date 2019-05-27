@@ -51,9 +51,9 @@ type Node struct {
 	syncRequests int
 	syncErrors   int
 
-	needBoostrap bool
-	gossipJobs   count64
-	rpcJobs      count64
+	needBootstrap bool
+	gossipJobs    count64
+	rpcJobs       count64
 }
 
 // NewNode create a new node struct
@@ -107,7 +107,7 @@ func NewNode(conf *Config,
 	node.logger.WithField("participants", participants).Debug("participants")
 	node.logger.WithField("pubKey", pubKey).Debug("pubKey")
 
-	node.needBoostrap = store.NeedBootstrap()
+	node.needBootstrap = store.NeedBootstrap()
 
 	// Initialize
 	node.setState(Gossiping)
@@ -123,7 +123,7 @@ func (n *Node) Init() error {
 	}
 	n.logger.WithField("peers", peerAddresses).Debug("Initialize Node")
 
-	if n.needBoostrap {
+	if n.needBootstrap {
 		n.logger.Debug("Bootstrap")
 		if err := n.core.Bootstrap(); err != nil {
 			return err
@@ -221,7 +221,7 @@ func (n *Node) doBackgroundWork() {
 
 // lachesis is interrupted when a gossip function, launched asynchronously, changes
 // the state from Gossiping to CatchingUp, or when the node is shutdown.
-// Otherwise, it processes RPC requests, periodicaly initiates gossip while there
+// Otherwise, it processes RPC requests, periodically initiates gossip while there
 // is something to gossip about, or waits.
 func (n *Node) lachesis(gossip bool) {
 	returnCh := make(chan struct{}, 100)

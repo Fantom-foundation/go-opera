@@ -44,13 +44,12 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	}
 	defer c.Close()
 
-	t.Run("id", func(t *testing.T) {
+	t.Run("get self id", func(t *testing.T) {
 		assert := assert.New(t)
 
 		node.EXPECT().
 			GetID().
-			Return(peer).
-			Times(1)
+			Return(peer)
 
 		got, err := c.GetSelfID()
 
@@ -58,11 +57,15 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		assert.Equal(peer, got)
 	})
 
-	t.Run("stake", func(t *testing.T) {
+	t.Run("get balance of", func(t *testing.T) {
 		assert := assert.New(t)
 
 		amount := rand.Uint64()
 
+		otherPeer := hash.FakePeer()
+		node.EXPECT().
+			GetID().
+			Return(otherPeer)
 		consensus.EXPECT().
 			GetBalanceOf(peer).
 			Return(amount)
@@ -72,20 +75,101 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			return
 		}
 
-		assert.Equal(amount, got)
+		expect := &Balance{
+			Amount: amount,
+		}
+		assert.Equal(expect, got)
 	})
 
-	t.Run("internal_txn", func(t *testing.T) {
+	t.Run("get balance of self", func(t *testing.T) {
 		assert := assert.New(t)
 
+		amount := rand.Uint64()
+
+		node.EXPECT().
+			GetID().
+			Return(peer)
+		consensus.EXPECT().
+			GetBalanceOf(peer).
+			Return(amount)
+		otherPeer := hash.FakePeer()
+		interTxn := inter.InternalTransaction{
+			Amount:   20,
+			Receiver: otherPeer,
+		}
+		node.EXPECT().
+			GetInternalTxns().
+			Return([]*inter.InternalTransaction{
+				&interTxn,
+			})
+
+		got, err := c.GetBalanceOf(peer)
+		if !assert.NoError(err) {
+			return
+		}
+
+		expect := &Balance{
+			Amount: amount,
+			Pending: []inter.InternalTransaction{
+				interTxn,
+			},
+		}
+		assert.Equal(expect, got)
+	})
+
+	t.Run("send to", func(t *testing.T) {
+		assert := assert.New(t)
+
+		amount := rand.Uint64()
+
 		tx := inter.InternalTransaction{
-			Amount:   rand.Uint64(),
+			Amount:   amount,
 			Receiver: peer,
 		}
+
+		node.EXPECT().
+			GetID().
+			Return(peer)
+		consensus.EXPECT().
+			GetBalanceOf(peer).
+			Return(amount)
 		node.EXPECT().
 			AddInternalTxn(tx)
 
-		err := c.SendTo(tx.Amount, tx.Receiver)
+		err := c.SendTo(tx.Receiver, tx.Amount)
 		assert.NoError(err)
+	})
+
+	t.Run("send to insufficient", func(t *testing.T) {
+		assert := assert.New(t)
+
+		amount := rand.Uint64()
+
+		tx := inter.InternalTransaction{
+			Amount:   amount,
+			Receiver: peer,
+		}
+
+		node.EXPECT().
+			GetID().
+			Return(peer)
+		consensus.EXPECT().
+			GetBalanceOf(peer).
+			Return(amount - 1)
+
+		err := c.SendTo(tx.Receiver, tx.Amount)
+		assert.Error(err)
+	})
+
+	t.Run("send to zero amount", func(t *testing.T) {
+		assert := assert.New(t)
+
+		tx := inter.InternalTransaction{
+			Amount:   0,
+			Receiver: peer,
+		}
+
+		err := c.SendTo(tx.Receiver, tx.Amount)
+		assert.Error(err)
 	})
 }

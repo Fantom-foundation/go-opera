@@ -30,9 +30,9 @@ func (n *Node) StartService() {
 	}
 
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n.key, n, n.log.Infof, n.service.listen)
+	n.server, _ = api.StartService(bind, n.key, n, n.Infof, n.service.listen)
 
-	n.log.Info("service started")
+	n.Info("service started")
 }
 
 // StopService stops node service.
@@ -43,7 +43,7 @@ func (n *Node) StopService() {
 	n.server.GracefulStop()
 	n.server = nil
 
-	n.log.Info("service stopped")
+	n.Info("service stopped")
 }
 
 /*
@@ -52,17 +52,16 @@ func (n *Node) StopService() {
 
 // SyncEvents returns their known event heights excluding heights from request.
 func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.KnownEvents, error) {
-	source := api.GrpcPeerID(ctx)
-	if source.IsEmpty() {
-		return nil, status.Error(codes.Unauthenticated, "unknown peer")
+	if err := checkSource(ctx); err != nil {
+		return nil, err
 	}
 
 	// food for discovery
 	host := api.GrpcPeerHost(ctx)
-	n.CheckPeerIsKnown(source, host, nil)
+	n.CheckPeerIsKnown(host, nil)
 	for hex := range req.Lasts {
 		peer := hash.HexToPeer(hex)
-		n.CheckPeerIsKnown(source, host, &peer)
+		n.CheckPeerIsKnown(host, &peer)
 	}
 
 	// response
@@ -79,14 +78,13 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 
 // GetEvent returns requested event.
 func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event, error) {
-	source := api.GrpcPeerID(ctx)
-	if source.IsEmpty() {
-		return nil, status.Error(codes.Unauthenticated, "unknown peer")
+	if err := checkSource(ctx); err != nil {
+		return nil, err
 	}
 
 	// food for discovery
 	host := api.GrpcPeerHost(ctx)
-	n.CheckPeerIsKnown(source, host, nil)
+	n.CheckPeerIsKnown(host, nil)
 
 	var eventHash hash.Event
 
@@ -111,14 +109,13 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 
 // GetPeerInfo returns requested peer info.
 func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.PeerInfo, error) {
-	source := api.GrpcPeerID(ctx)
-	if source.IsEmpty() {
-		return nil, status.Error(codes.Unauthenticated, "unknown peer")
+	if err := checkSource(ctx); err != nil {
+		return nil, err
 	}
 
 	// food for discovery
 	host := api.GrpcPeerHost(ctx)
-	n.CheckPeerIsKnown(source, host, nil)
+	n.CheckPeerIsKnown(host, nil)
 
 	var id hash.Peer
 
@@ -154,4 +151,12 @@ func PeersHeightsDiff(all, excepts map[string]uint64) (res map[string]uint64) {
 		}
 	}
 	return
+}
+
+func checkSource(ctx context.Context) error {
+	source := api.GrpcPeerID(ctx)
+	if source.IsEmpty() {
+		return status.Error(codes.Unauthenticated, "unknown peer")
+	}
+	return nil
 }

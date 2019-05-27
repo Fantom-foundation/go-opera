@@ -14,7 +14,7 @@ type emitter struct {
 	externalTxns [][]byte
 	done         chan struct{}
 
-	sync.Mutex
+	sync.RWMutex
 }
 
 // StartEventEmission starts event emission.
@@ -57,6 +57,14 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) {
 	n.emitter.internalTxns = append(n.emitter.internalTxns, &tx)
 }
 
+// GetInternalTxns returns pending internal transactions.
+func (n *Node) GetInternalTxns() []*inter.InternalTransaction {
+	n.emitter.RLock()
+	defer n.emitter.RUnlock()
+
+	return n.emitter.internalTxns
+}
+
 // AddExternalTxn takes external transaction for new event.
 func (n *Node) AddExternalTxn(tx []byte) {
 	n.emitter.Lock()
@@ -72,7 +80,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.log.Debugf("emiting event")
+	n.Debugf("emiting event")
 
 	var (
 		index          uint64
@@ -120,11 +128,11 @@ func (n *Node) EmitEvent() *inter.Event {
 		ExternalTransactions: externalTxns,
 	}
 	if err := event.SignBy(n.key); err != nil {
-		panic(err)
+		n.Fatal(err)
 	}
 
-	n.saveNewEvent(event)
-	n.log.Debugf("new event emited %s", event)
+	n.saveNewEvent(event, false)
+	n.Debugf("new event emited %s", event)
 
 	return event
 }

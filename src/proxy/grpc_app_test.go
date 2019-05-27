@@ -88,9 +88,9 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 			}
 		}()
 
-		answ, err := s.CommitBlock(block)
+		answer, err := s.CommitBlock(block)
 		if assert.NoError(err) {
-			assert.Equal(gold, answ)
+			assert.Equal(gold, answer)
 		}
 	})
 
@@ -112,9 +112,9 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 			}
 		}()
 
-		answ, err := s.GetSnapshot(index)
+		answer, err := s.GetSnapshot(index)
 		if assert.NoError(err) {
-			assert.Equal(gold, answ)
+			assert.Equal(gold, answer)
 		}
 	})
 

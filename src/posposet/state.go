@@ -55,7 +55,7 @@ func (p *Poset) Bootstrap() {
 	// restore state
 	p.state = p.store.GetState()
 	if p.state == nil {
-		panic("Apply genesis for store first")
+		log.Fatal("Apply genesis for store first")
 	}
 	// restore frames
 	for n := p.state.LastFinishedFrameN; true; n++ {
@@ -75,7 +75,7 @@ func GenesisHash(balances map[hash.Peer]uint64) hash.Hash {
 	defer s.Close()
 
 	if err := s.ApplyGenesis(balances); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return s.GetState().Genesis

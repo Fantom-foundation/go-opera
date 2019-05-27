@@ -66,7 +66,7 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 	if n < p.state.LastFinishedFrameN && orCreate {
-		panic(fmt.Errorf("Too old frame%d is requested", n))
+		log.Fatalf("too old frame %d is requested", n)
 	}
 	// return ephemeral
 	if n == 0 {

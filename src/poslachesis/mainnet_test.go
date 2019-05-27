@@ -21,7 +21,7 @@ func LachesisNetworkRing(count int, balance uint64) []*Lachesis {
 		j := (i + 1) % count
 		peer := res[j].node
 
-		node.CheckPeerIsKnown(hash.EmptyPeer, peer.Host(), nil)
+		node.CheckPeerIsKnown(peer.Host(), nil)
 	}
 
 	return res
@@ -41,7 +41,7 @@ func LachesisNetworkStar(count int, balance uint64) []*Lachesis {
 
 		peer := res[0].node
 
-		node.CheckPeerIsKnown(hash.EmptyPeer, peer.Host(), nil)
+		node.CheckPeerIsKnown(peer.Host(), nil)
 	}
 
 	return res

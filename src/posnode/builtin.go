@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-// builtin is a set of some built in data.
+// builtin is a set of built in peers to find network.
 type builtin struct {
 	last  int
 	hosts []string
@@ -12,21 +12,22 @@ type builtin struct {
 	sync.Mutex
 }
 
-// AddBuiltInPeers appends host names to built in peer list.
+// AddBuiltInPeers sets hosts for futher peer discovery.
 func (n *Node) AddBuiltInPeers(hosts ...string) {
 	n.builtin.Lock()
 	defer n.builtin.Unlock()
 
 	n.builtin.hosts = append(n.builtin.hosts, hosts...)
-	n.log.Debugf("built in peer hosts: %v", n.builtin.hosts)
+
+	n.Debugf("built in peer hosts: %v", n.builtin.hosts)
 }
 
-// NextBuiltInPeer returns next peer host or empty string.
+// NextBuiltInPeer returns one of builtin hosts.
 func (n *Node) NextBuiltInPeer() (host string) {
 	n.builtin.Lock()
 	defer n.builtin.Unlock()
 
-	if len(n.builtin.hosts) < 1 {
+	if len(n.builtin.hosts) == 0 {
 		return
 	}
 

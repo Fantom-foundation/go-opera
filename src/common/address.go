@@ -6,7 +6,7 @@ var (
 	NodeNameDict = make(map[Address]string)
 )
 
-// Address is a unique identificator of Node.
+// Address is a unique identifier of Node.
 // It is a hash of node's PubKey.
 type Address Hash
 

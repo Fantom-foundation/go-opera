@@ -39,7 +39,7 @@ process as your handler):
   }
   
   // Called when a new block is committed by Lachesis. This particular example 
-  // just computes the stateHash incrementaly with incoming blocks.
+  // just computes the stateHash incrementally with incoming blocks.
   func (h *Handler) CommitHandler(block poset.Block) (stateHash []byte, err error) {
   	hash := h.stateHash
   
@@ -124,8 +124,8 @@ Assuming there is a Lachesis node running with its proxy listening on
   	stateHash []byte
   }
   
-  // Called when a new block is comming. This particular example just computes 
-  // the stateHash incrementaly with incoming blocks
+  // Called when a new block is coming. This particular example just computes
+  // the stateHash incrementally with incoming blocks
   func (h *Handler) CommitHandler(block poset.Block) (stateHash []byte, err error) {
   	hash := h.stateHash
   

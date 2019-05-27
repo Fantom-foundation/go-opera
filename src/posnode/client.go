@@ -50,12 +50,12 @@ func (n *Node) initClient() {
 // ConnectTo connects to other node service.
 func (n *Node) ConnectTo(peer *Peer) (client api.NodeClient, free func(), fail func(error), err error) {
 	addr := n.NetAddrOf(peer.Host)
-	n.log.Debugf("connect to %s", addr)
+	n.Debugf("connect to %s", addr)
 
 	c, err := n.connPool.Get(addr)
 	if err != nil {
 		err = errors.Wrapf(err, "connect to: %s", addr)
-		n.log.Warn(err)
+		n.Warn(err)
 		return
 	}
 
@@ -98,7 +98,7 @@ func (cc *connPool) Get(addr string) (*connection, error) {
 		}
 	}
 
-	conn.used += 1
+	conn.used++
 
 	return conn, nil
 }
@@ -108,7 +108,7 @@ func (cc *connPool) Release(c *connection, count bool, err error) {
 	defer cc.Unlock()
 
 	if count {
-		c.used -= 1
+		c.used--
 	}
 
 	// try to close if error now or before
@@ -117,7 +117,7 @@ func (cc *connPool) Release(c *connection, count bool, err error) {
 			delete(cc.cache, c.addr)
 		}
 		if c.used < 1 {
-			c.Close()
+			_ = c.Close()
 		}
 	}
 }

@@ -325,7 +325,7 @@ Leader selection can be one of;
 
 -   VRF
 
--   Cryptographic Sortition
+-   Cryptographic Solution
 
 A leader runs the information exchange algorithm with tree-broadcast and
 consolidates all neighboring states. This creates a new event block that

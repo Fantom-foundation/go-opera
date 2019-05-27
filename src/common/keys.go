@@ -64,7 +64,7 @@ func Base64ToPubkey(s string) (*PublicKey, error) {
 
 	key := BytesToPubkey(buf)
 	if key == nil {
-		return nil, errors.New("Pubkey is invalid")
+		return nil, errors.New("pubkey is invalid")
 	}
 
 	return key, nil
@@ -103,7 +103,7 @@ func StringToPubkey(pub string) (*PublicKey, error) {
 
 	key := BytesToPubkey(bb)
 	if key == nil {
-		return nil, errors.New("Pubkey is invalid")
+		return nil, errors.New("pubkey is invalid")
 	}
 
 	return key, nil

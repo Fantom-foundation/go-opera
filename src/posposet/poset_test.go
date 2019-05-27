@@ -15,6 +15,8 @@ func TestPoset(t *testing.T) {
 	inputs := make([]*EventStore, len(nodes))
 	for i := 0; i < len(nodes); i++ {
 		posets[i], _, inputs[i] = FakePoset(nodes)
+		posets[i].SetName(nodes[i].String())
+		posets[i].store.SetName(nodes[i].String())
 	}
 
 	t.Run("Multiple start", func(t *testing.T) {
