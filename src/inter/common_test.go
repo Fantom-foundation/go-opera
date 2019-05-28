@@ -309,10 +309,12 @@ func TestCreateSchemaByEvents(t *testing.T) {
 
 		/* endregion*/
 
-		assert.NotPanics(t, func() {
+		// assert.NotPanics(t, func() {
 			resultSchema := CreateSchemaByEvents(events)
 
+			println(resultSchema)
+
 			assert.EqualValues(t, resultSchema, "")
-		})
+		// })
 	})
 }

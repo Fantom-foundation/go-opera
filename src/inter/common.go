@@ -207,7 +207,12 @@ func (scheme *asciiScheme) insertColumn(after uint64) {
 
 // insertRow insert row after specific row ('after' parameter).
 func (scheme *asciiScheme) insertRow(after uint64) {
+	if len(scheme.graph) == 0 {
+		return
+	}
+
 	scheme.increaseEventsPositions(after, 1)
+	scheme.lengthColumn++
 
 	connections := []string{"║", "╫", "╠", "╣"}
 	after++
@@ -266,7 +271,6 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 
 		if stop-start == 1 {
 			scheme.insertRow(start)
-			scheme.lengthColumn++
 			stop++
 		}
 
@@ -283,15 +287,31 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 				continue
 			}
 
-			if (int64(column-1) >= 0 && scheme.graph[column-1][start] == "-") ||
-				(column+1 < uint64(len(scheme.graph)) && scheme.graph[column+1][start] == "-") {
-				connector = "╫"
+			var leftSymbol, rightSymbol string
+			if int64(column-1) >= 0 {
+				leftSymbol = scheme.graph[column-1][start]
 			}
+			if column+1 < uint64(len(scheme.graph)) {
+				rightSymbol = scheme.graph[column+1][start]
+			}
+
+			if leftSymbol == "-" && rightSymbol == "-" {
+				connector = "╫"
+			} else if leftSymbol == "-" && rightSymbol != "-" {
+				connector = "╣"
+			} else if leftSymbol != "-" && rightSymbol == "-" {
+				connector = "╠"
+			}
+
 			scheme.graph[column][start] = connector
 			start++
 		}
 		return
 	}
+
+	scheme.insertRow(from[1])
+	from[1]++
+	// todo vertical line new row
 
 	start := from[0]
 	stop := to[0]
@@ -371,7 +391,9 @@ func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 		scheme.nextNodeName++
 	}
 
-	for uint64(len(scheme.graph[column])) <= scheme.lengthColumn {
+	currentLengthColumn := scheme.lengthColumn
+
+	for uint64(len(scheme.graph[column])) <= currentLengthColumn {
 		scheme.insertRow(scheme.lengthColumn)
 	}
 
@@ -379,13 +401,11 @@ func (scheme *asciiScheme) AddEvent(name string, event *Event) {
 		name = fmt.Sprintf("%s%d", string(scheme.nodesName[event.Creator]), event.Index-1)
 	}
 
-	scheme.graph[column][scheme.lengthColumn] = name
+	scheme.graph[column][currentLengthColumn] = name
 	if scheme.eventsPosition == nil {
 		scheme.eventsPosition = make(map[hash.Event][2]uint64)
 	}
-	scheme.eventsPosition[event.Hash()] = [2]uint64{column, scheme.lengthColumn}
-
-	scheme.lengthColumn++
+	scheme.eventsPosition[event.Hash()] = [2]uint64{column, currentLengthColumn}
 }
 
 // getEventPosition return position event in ascii scheme
