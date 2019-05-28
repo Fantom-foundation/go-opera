@@ -16,8 +16,19 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 ## Docker
 
-[`docker/`](./docker/) - contains docker scripts to try lachesis fakenet:
+[`docker/`](./docker/) - contains scripts to try lachesis fakenet with Docker:
 
-  - build node docker image "pos-lachesis": `make`;
+
+### for common purpose:
+
+  - build node docker image "pos-lachesis": `make build`;
   - run network of N nodes: `n=N ./start.sh`;
   - drop network: `./stop.sh`;
+
+
+### for testing network failures:
+
+  - build node docker image "pos-lachesis-blockade": `make build blockade`;
+  - install blockade and add it to "$PATH": `pip install blockade`;
+  - make blockade.yaml config: `n=N ./blockade.sh`;
+  - test lachesis network with blockade [`commands`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);
