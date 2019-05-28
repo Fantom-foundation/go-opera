@@ -15,6 +15,10 @@ var Transfer = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		index, err := cmd.Flags().GetUint64("amount")
+		if err != nil {
+			return err
+		}
 		hex, err := cmd.Flags().GetString("receiver")
 		if err != nil {
 			return err
@@ -27,12 +31,12 @@ var Transfer = &cobra.Command{
 		}
 		defer proxy.Close()
 
-		err = proxy.SendTo(receiver, amount)
+		h, err := proxy.SendTo(receiver, index, amount, 0)
 		if err != nil {
 			return err
 		}
 
-		cmd.Println("ok")
+		cmd.Println(h.Hex())
 		return nil
 	},
 }
@@ -42,11 +46,15 @@ func init() {
 
 	Transfer.Flags().String("receiver", "", "transaction receiver (required)")
 	Transfer.Flags().Uint64("amount", 0, "transaction amount (required)")
+	Transfer.Flags().Uint64("index", 0, "transaction nonce (required)")
 
 	if err := Transfer.MarkFlagRequired("receiver"); err != nil {
 		panic(err)
 	}
 	if err := Transfer.MarkFlagRequired("amount"); err != nil {
+		panic(err)
+	}
+	if err := Transfer.MarkFlagRequired("index"); err != nil {
 		panic(err)
 	}
 }

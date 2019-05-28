@@ -69,7 +69,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 func parseEvents(n *Node, c *MockConsensus, schema string) (expected []string) {
 	_, _, events := inter.ParseEvents(schema)
 
-	weights := make(map[hash.Peer]float64)
+	weights := make(map[hash.Peer]uint64)
 	for name, e := range events {
 		w, o := parseSpecName(name)
 		weights[e.Creator] = w
@@ -82,8 +82,8 @@ func parseEvents(n *Node, c *MockConsensus, schema string) (expected []string) {
 		PushEvent(gomock.Any()).
 		AnyTimes()
 	c.EXPECT().
-		GetStakeOf(gomock.Any()).
-		DoAndReturn(func(p hash.Peer) float64 {
+		StakeOf(gomock.Any()).
+		DoAndReturn(func(p hash.Peer) uint64 {
 			return weights[p]
 		}).
 		AnyTimes()
@@ -100,7 +100,7 @@ func parseEvents(n *Node, c *MockConsensus, schema string) (expected []string) {
 	return
 }
 
-func parseSpecName(name string) (weight float64, orderNum int64) {
+func parseSpecName(name string) (weight uint64, orderNum int64) {
 	ss := strings.Split(name, ":")
 	if len(ss) != 2 {
 		panic("invalid event name format")
@@ -108,7 +108,7 @@ func parseSpecName(name string) (weight float64, orderNum int64) {
 
 	var err error
 
-	weight, err = strconv.ParseFloat(ss[0], 64)
+	weight, err = strconv.ParseUint(ss[0], 10, 64)
 	if err != nil {
 		panic("invalid event name format (weight): " + err.Error())
 	}

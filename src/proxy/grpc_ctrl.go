@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -84,56 +83,48 @@ func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.ID,
 	}, nil
 }
 
-// BalanceOf returns balance of peer.
-func (p *grpcCtrlProxy) BalanceOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
+// StakeOf returns stake balance of peer.
+func (p *grpcCtrlProxy) StakeOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
 	id := hash.HexToPeer(req.Hex)
 	b := internal.Balance{
-		Amount: p.consensus.GetBalanceOf(id),
-	}
-
-	// Return pending internal transactions if
-	// requesting balance of self node.
-	if id == p.node.GetID() {
-		txs := p.node.GetInternalTxns()
-
-		b.Pending = make([]*internal.Transfer, len(txs))
-
-		for i, tx := range txs {
-			b.Pending[i] = &internal.Transfer{
-				Amount: tx.Amount,
-				Receiver: &internal.ID{
-					Hex: tx.Receiver.Hex(),
-				},
-			}
-		}
+		Amount: p.consensus.StakeOf(id),
 	}
 
 	return &b, nil
 }
 
+// Transaction returns info about transaction.
+func (p *grpcCtrlProxy) TransactionInfo(_ context.Context, req *internal.TransactionRequest) (*internal.TransactionResponse, error) {
+	h := hash.HexToTransactionHash(req.Hex)
+	tx := p.consensus.GetTransaction(h)
+
+	if tx == nil {
+		return nil, status.Error(codes.NotFound, "transaction not found")
+	}
+	// TODO: replace TransactionResponse with inter/wire.InternalTransaction
+	return &internal.TransactionResponse{
+		Nonce:  tx.Index,
+		Amount: tx.Amount,
+		Receiver: &internal.ID{
+			Hex: tx.Receiver.Hex(),
+		},
+		Until: tx.UntilBlock,
+	}, nil
+}
+
 // SendTo makes stake transfer transaction.
-func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.Transfer) (*empty.Empty, error) {
-	if req.Amount == 0 {
-		return nil, status.Error(codes.InvalidArgument, "cannot transfer zero amount")
-	}
-
-	id := p.node.GetID()
-	balance := p.consensus.GetBalanceOf(id)
-	if balance < req.Amount {
-		message := fmt.Sprintf(
-			"insufficient funds %d to transfer %d",
-			balance,
-			req.Amount,
-		)
-		return nil, status.Error(codes.InvalidArgument, message)
-	}
-
+// TODO: replace TransferRequest with inter/wire.InternalTransaction
+func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest) (*internal.TransferResponse, error) {
 	tx := inter.InternalTransaction{
-		Amount:   req.Amount,
-		Receiver: hash.HexToPeer(req.Receiver.Hex),
+		Index:      req.Nonce,
+		Amount:     req.Amount,
+		Receiver:   hash.HexToPeer(req.Receiver.Hex),
+		UntilBlock: req.Until,
 	}
 
-	p.node.AddInternalTxn(tx)
+	h, err := p.node.AddInternalTxn(tx)
 
-	return &empty.Empty{}, nil
+	return &internal.TransferResponse{
+		Hex: h.Hex(),
+	}, err
 }

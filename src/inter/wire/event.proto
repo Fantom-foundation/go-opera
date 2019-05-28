@@ -2,9 +2,10 @@ syntax = "proto3";
 package wire;
 
 message InternalTransaction {
-  uint64 Amount = 1;
-  string Receiver = 2;
-  uint64 UntilBlock = 3;
+  uint64 Index = 1;
+  uint64 Amount = 2;
+  string Receiver = 3;
+  uint64 UntilBlock = 4;
 }
 
 message Event {

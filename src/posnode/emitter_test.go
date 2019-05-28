@@ -3,11 +3,60 @@ package posnode
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
+
+func TestAddInternalTxn(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	consensus := NewMockConsensus(ctrl)
+	consensus.EXPECT().
+		StakeOf(gomock.Any()).
+		Return(uint64(2000)).
+		AnyTimes()
+
+	node := NewForTests("fake", nil, consensus)
+	peer := hash.FakePeer()
+
+	t.Run("very 1st add", func(t *testing.T) {
+		assert := assert.New(t)
+
+		tx := inter.InternalTransaction{
+			Index:    1,
+			Amount:   1000,
+			Receiver: peer,
+		}
+
+		_, err := node.AddInternalTxn(tx)
+		if !assert.NoError(err) {
+			return
+		}
+		// TODO: check when implemented
+		//assert.Equal(expect, h.Hex())
+	})
+
+	t.Run("very 2nd add", func(t *testing.T) {
+		assert := assert.New(t)
+
+		tx := inter.InternalTransaction{
+			Index:    2,
+			Amount:   1000,
+			Receiver: peer,
+		}
+
+		_, err := node.AddInternalTxn(tx)
+		if !assert.NoError(err) {
+			return
+		}
+		// TODO: check when implemented
+		//assert.Equal(expect, h.Hex())
+	})
+}
 
 func TestEmit(t *testing.T) {
 	// node 1

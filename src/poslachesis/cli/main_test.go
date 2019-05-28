@@ -59,13 +59,9 @@ func TestApp(t *testing.T) {
 
 		node.EXPECT().
 			GetID().
-			Return(peer).
-			Times(2)
-		node.EXPECT().
-			GetInternalTxns().
-			Return(nil)
+			Return(peer)
 		consensus.EXPECT().
-			GetBalanceOf(peer).
+			StakeOf(peer).
 			Return(amount)
 
 		app.SetArgs([]string{"balance"})
@@ -80,40 +76,6 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), expect)
 	})
 
-	t.Run("balance pending", func(t *testing.T) {
-		assert := assert.New(t)
-
-		amount := rand.Uint64()
-		otherPeer := hash.FakePeer()
-
-		node.EXPECT().
-			GetID().
-			Return(peer).
-			Times(2)
-		node.EXPECT().
-			GetInternalTxns().
-			Return([]*inter.InternalTransaction{
-				{
-					Amount:   amount,
-					Receiver: otherPeer,
-				},
-			})
-		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount)
-
-		app.SetArgs([]string{"balance"})
-		defer out.Reset()
-
-		err := app.Execute()
-		if !assert.NoError(err) {
-			return
-		}
-
-		expect := fmt.Sprintf("balance of %s == %d\npending transfer %d to %s", peer.Hex(), amount, amount, otherPeer.Hex())
-		assert.Contains(out.String(), expect)
-	})
-
 	t.Run("balance with peer flag", func(t *testing.T) {
 		assert := assert.New(t)
 
@@ -121,11 +83,8 @@ func TestApp(t *testing.T) {
 
 		otherPeer := hash.FakePeer()
 
-		node.EXPECT().
-			GetID().
-			Return(peer)
 		consensus.EXPECT().
-			GetBalanceOf(otherPeer).
+			StakeOf(otherPeer).
 			Return(amount)
 
 		app.SetArgs([]string{
@@ -142,6 +101,65 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), expect)
 	})
 
+	t.Run("info not found", func(t *testing.T) {
+		assert := assert.New(t)
+
+		hex := "0x00000"
+		consensus.EXPECT().
+			GetTransaction(hash.HexToTransactionHash(hex)).
+			Return(nil)
+
+		app.SetArgs([]string{
+			"info",
+			hex,
+		})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.Error(err) {
+			return
+		}
+
+		assert.Contains(out.String(), "transaction not found")
+	})
+
+	t.Run("info ok", func(t *testing.T) {
+		assert := assert.New(t)
+
+		h := hash.FakeTransaction()
+		amount := rand.Uint64()
+
+		tx := inter.InternalTransaction{
+			Index:    1,
+			Amount:   amount,
+			Receiver: peer,
+		}
+
+		consensus.EXPECT().
+			GetTransaction(h).
+			Return(&tx)
+
+		app.SetArgs([]string{
+			"info",
+			h.Hex(),
+		})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.NoError(err) {
+			return
+		}
+
+		assert.Contains(
+			out.String(),
+			fmt.Sprintf(
+				"transfer %d to %s",
+				tx.Amount,
+				tx.Receiver.Hex(),
+			),
+		)
+	})
+
 	t.Run("transfer missing flags", func(t *testing.T) {
 		assert := assert.New(t)
 
@@ -153,29 +171,28 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		assert.Contains(out.String(), "required flag(s) \"amount\", \"receiver\" not set")
+		assert.Contains(out.String(), "required flag(s) \"amount\", \"index\", \"receiver\" not set")
 	})
 
 	t.Run("transfer", func(t *testing.T) {
 		assert := assert.New(t)
 
 		amount := rand.Uint64()
+
+		h := hash.FakeTransaction()
 		tx := inter.InternalTransaction{
+			Index:    1,
 			Amount:   amount,
 			Receiver: peer,
 		}
 
 		node.EXPECT().
-			GetID().
-			Return(peer)
-		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount)
-		node.EXPECT().
-			AddInternalTxn(tx)
+			AddInternalTxn(gomock.Any()).
+			Return(h, nil)
 
 		app.SetArgs([]string{
 			"transfer",
+			fmt.Sprintf("--index=%d", tx.Index),
 			fmt.Sprintf("--amount=%d", tx.Amount),
 			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
 		defer out.Reset()
@@ -185,61 +202,7 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		assert.Contains(out.String(), "ok")
-	})
-
-	t.Run("transfer insufficient", func(t *testing.T) {
-		assert := assert.New(t)
-
-		amount := rand.Uint64()
-		tx := inter.InternalTransaction{
-			Amount:   amount,
-			Receiver: peer,
-		}
-
-		node.EXPECT().
-			GetID().
-			Return(peer)
-		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount - 1)
-
-		app.SetArgs([]string{
-			"transfer",
-			fmt.Sprintf("--amount=%d", tx.Amount),
-			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
-		defer out.Reset()
-
-		err := app.Execute()
-		if !assert.Error(err) {
-			return
-		}
-
-		got := fmt.Sprintf("insufficient funds %d to transfer %d", amount-1, amount)
-		assert.Contains(out.String(), got)
-	})
-
-	t.Run("transfer zero amount", func(t *testing.T) {
-		assert := assert.New(t)
-
-		tx := inter.InternalTransaction{
-			Amount:   0,
-			Receiver: peer,
-		}
-
-		app.SetArgs([]string{
-			"transfer",
-			fmt.Sprintf("--amount=%d", tx.Amount),
-			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
-		defer out.Reset()
-
-		err := app.Execute()
-		if !assert.Error(err) {
-			return
-		}
-
-		got := fmt.Sprintf("cannot transfer zero amount")
-		assert.Contains(out.String(), got)
+		assert.Contains(out.String(), h.Hex())
 	})
 
 }
