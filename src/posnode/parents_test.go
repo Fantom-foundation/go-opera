@@ -88,12 +88,8 @@ func parseEvents(n *Node, c *MockConsensus, schema string) (expected []string) {
 		}).
 		AnyTimes()
 
-	unordered := make(inter.Events, 0, len(events))
 	for _, e := range events {
-		unordered = append(unordered, e)
-	}
-	for _, e := range unordered.ByParents() {
-		n.saveNewEvent(e, false)
+		n.onNewEvent(e)
 	}
 
 	sort.Sort(byOrderNum(expected))

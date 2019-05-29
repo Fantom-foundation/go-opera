@@ -148,7 +148,7 @@ func (n *Node) EmitEvent() *inter.Event {
 		n.Fatal(err)
 	}
 
-	n.saveNewEvent(event, false)
+	n.onNewEvent(event)
 	n.Debugf("new event emited %s", event)
 
 	return event

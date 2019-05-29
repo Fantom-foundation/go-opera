@@ -19,8 +19,8 @@ type Poset struct {
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
 
-	newEventsCh      chan hash.Event
-	incompleteEvents map[hash.Event]*Event
+	newEventsCh chan hash.Event
+	onNewEvent  func(*inter.Event) // onNewEvent runs consensus calc from new event
 
 	NewBlockCh chan uint64
 
@@ -37,10 +37,17 @@ func New(store *Store, input EventSource) *Poset {
 		input:  input,
 		frames: make(map[uint64]*Frame),
 
-		newEventsCh:      make(chan hash.Event, buffSize),
-		incompleteEvents: make(map[hash.Event]*Event),
+		newEventsCh: make(chan hash.Event, buffSize),
 
 		Instance: logger.MakeInstance(),
+	}
+
+	// event order matter: parents first
+	p.onNewEvent = func(e *inter.Event) {
+		if e == nil {
+			panic("got unsaved event")
+		}
+		p.consensus(e)
 	}
 
 	return p
@@ -65,7 +72,7 @@ func (p *Poset) Start() {
 				//log.Debug("Stop of events processing ...")
 				return
 			case e := <-p.newEventsCh:
-				event := p.GetEvent(e)
+				event := p.input.GetEvent(e)
 				p.onNewEvent(event)
 			}
 		}
@@ -82,80 +89,18 @@ func (p *Poset) Stop() {
 	p.processingDone = nil
 }
 
-// PushEvent takes event into processing. Event order doesn't matter.
+// PushEvent takes event into processing.
+// Event order matter: parents first.
 func (p *Poset) PushEvent(e hash.Event) {
 	p.newEventsCh <- e
 }
 
-// onNewEvent runs consensus calc from new event. It is not safe for concurrent use.
-func (p *Poset) onNewEvent(e *Event) {
-	if p.store.GetEventFrame(e.Hash()) != nil {
-		log.WithField("event", e).Warnf("Event had received already")
-		return
-	}
-
-	if e.parents == nil {
-		e.parents = make(map[hash.Event]*Event, len(e.Parents))
-		for hash := range e.Parents {
-			e.parents[hash] = nil
-		}
-	}
-
-	// TODO: move validation to level up for sync error
-	nodes := newParentsValidator(e)
-	ltime := newLamportTimeValidator(e)
-
-	// fill event's parents index or hold it as incompleted
-	for pHash := range e.Parents {
-		if pHash.IsZero() {
-			// first event of node
-			if !nodes.IsParentUnique(e.Creator) {
-				return
-			}
-			if !ltime.IsGreaterThan(0) {
-				return
-			}
-			continue
-		}
-		parent := e.parents[pHash]
-		if parent == nil {
-			if p.store.GetEventFrame(pHash) == nil {
-				//log.WithField("event", e).Debug("Event's parent has not received yet")
-				p.incompleteEvents[e.Hash()] = e
-				return
-			}
-			parent = p.GetEvent(pHash)
-			e.parents[pHash] = parent
-		}
-		if !nodes.IsParentUnique(parent.Creator) {
-			return
-		}
-		if !ltime.IsGreaterThan(parent.LamportTime) {
-			return
-		}
-	}
-	if !nodes.HasSelfParent() {
-		return
-	}
-	if !ltime.IsSequential() {
-		return
-	}
-
-	// parents OK
-	p.consensus(e)
-
-	// now child events may become complete, check it again
-	for hash, child := range p.incompleteEvents {
-		if parent, ok := child.parents[e.Hash()]; ok && parent == nil {
-			child.parents[e.Hash()] = e
-			delete(p.incompleteEvents, hash)
-			p.onNewEvent(child)
-		}
-	}
-}
-
 // consensus is not safe for concurrent use.
-func (p *Poset) consensus(e *Event) {
+func (p *Poset) consensus(event *inter.Event) {
+	e := &Event{
+		Event: event,
+	}
+
 	const X = 3 // TODO: move this magic number to mainnet config
 
 	var frame *Frame
@@ -193,7 +138,7 @@ func (p *Poset) consensus(e *Event) {
 	applyRewards(state, ordered)
 	balances, err := state.Commit(true)
 	if err != nil {
-		log.Fatal(err)
+		p.Fatal(err)
 	}
 	if applyAt.SetBalances(balances) {
 		p.reconsensusFromFrame(applyAt.Index)
@@ -224,7 +169,7 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
 			if frame == nil || frame.Index <= p.state.LastFinishedFrameN {
-				log.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
+				p.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue
 			}
@@ -419,7 +364,7 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 		// extract events
 		for e := range frame.FlagTable {
 			if !frame.FlagTable.IsRoot(e) {
-				all = append(all, &p.GetEvent(e).Event)
+				all = append(all, p.GetEvent(e).Event)
 			}
 		}
 		// and replace stale frame with blank
@@ -433,9 +378,7 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 	}
 	// recalc consensus
 	for _, e := range all.ByParents() {
-		p.consensus(&Event{
-			Event: *e,
-		})
+		p.consensus(e)
 	}
 	// foreach fresh frame
 	for n := start; n <= stop; n++ {
