@@ -204,6 +204,7 @@ func (scheme *asciiScheme) insertColumn(after uint64) {
 		append([][]string{column}, scheme.graph[after:]...)...)
 }
 
+// const for search vertical connection in the current cursor position
 const verticalConnections = "║╫╠╣╝╚"
 
 // insertRow insert row after specific row ('after' parameter).

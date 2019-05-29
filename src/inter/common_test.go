@@ -342,7 +342,6 @@ a4 ║    ║ ║   ║
 
 	assert.NotPanics(t, func() {
 		resultSchema := CreateSchemaByEvents(events)
-		println(resultSchema)
 		assert.EqualValues(t, strings.Split(waitResult, "\n"), strings.Split(resultSchema, "\n"))
 	})
 }
@@ -663,9 +662,74 @@ func Test_asciiScheme_EventsConnect(t *testing.T) {
 
 		assert.Equal(t, uint64(4), scheme.lengthColumn)
 		assert.EqualValues(t, [][]string{
-			{"a0", "║","║", "╚"},
-			{"","","","-"},
-			{"", "", "b0","╝"},
+			{"a0", "║", "║", "╚"},
+			{"", "", "", "-"},
+			{"", "", "b0", "╝"},
+		}, scheme.graph)
+	})
+
+	t.Run("horizontal communication events with a round of intermediate event", func(t *testing.T) {
+		child := hash.FakeEvent()
+		parent := hash.FakeEvent()
+		scheme := &asciiScheme{
+			graph: [][]string{
+				{"a0", "", "a1", "", "", "a2"},
+				{"", "", "", "", "", "b0"},
+			},
+			eventsPosition: map[hash.Event][2]uint64{
+				hash.FakeEvent(): {0, 5},
+				child:            {1, 5},
+				parent:           {0, 2},
+			},
+			lengthColumn: 6,
+		}
+
+		assert.NotPanics(t, func() {
+			scheme.EventsConnect(child, parent)
+		})
+
+		assert.Equal(t, uint64(7), scheme.lengthColumn)
+		assert.EqualValues(t, [][]string{
+			{"a0", "", "a1", "", "", "a2", ""},
+			{"", "", "", "║", "║", "║", "╚"},
+			{"", "", "", "", "", "", "-"},
+			{"", "", "", "", "", "b0", "╝"},
+		}, scheme.graph)
+	})
+
+	t.Run("horizontal communication events with a round of intermediate event and other horizontal connectors", func(t *testing.T) {
+		child := hash.FakeEvent()
+		parent := hash.FakeEvent()
+		scheme := &asciiScheme{
+			graph: [][]string{
+				{"a0", "║", "a1", "║", "║", "a2", "", ""},
+				{"", "", "-", "", "", "", "", ""},
+				{"", "", "-", "", "b0", "║", "║", "b1"},
+				{"", "c0", "╣", "║", "║", "c1", "", ""},
+			},
+			eventsPosition: map[hash.Event][2]uint64{
+				hash.FakeEvent(): {0, 0},
+				parent:           {0, 2},
+				hash.FakeEvent(): {0, 5},
+				hash.FakeEvent(): {3, 1},
+				child:            {3, 5},
+				hash.FakeEvent(): {2, 4},
+				hash.FakeEvent(): {2, 7},
+			},
+			lengthColumn: 8,
+		}
+
+		assert.NotPanics(t, func() {
+			scheme.EventsConnect(child, parent)
+		})
+
+		assert.Equal(t, uint64(9), scheme.lengthColumn)
+		assert.EqualValues(t, [][]string{
+			{"a0", "║", "a1", "║", "║", "a2", "", "", ""},
+			{"", "", "", "║", "║", "║", "╚", "", ""},
+			{"", "", "-", "", "", "", "-", "", ""},
+			{"", "", "-", "", "b0", "║", "╫", "║", "b1"},
+			{"", "c0", "╣", "║", "║", "c1", "╝", "", ""},
 		}, scheme.graph)
 	})
 }
