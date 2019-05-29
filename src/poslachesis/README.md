@@ -24,9 +24,44 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 ## Sentry
 
-If you want to use Sentry for catch error, please use this [`link`](https://github.com/getsentry/onpremise).
-And include `--dsn` key for `./docker/start.sh`
+If you want to use Sentry, please use this [`link`](https://github.com/getsentry/onpremise) for setup your own copy.
+
+Don't forget include `--dsn` key to `./docker/start.sh`
 
 Example: `--dsn="http://64f6a4a7aaba4aa0a12fedd4d8f7aa61@localhost:9000/1"`
 
-Where: `--dsn="http://<sentry public key>@<host>:<port>/<project id>"`
+Where: `--dsn="http://<sentry public key>@<sentry host>:<port>/<project id>"`
+
+### Tips
+
+If you have an error about Sentry connection, check next steps:
+
+- `docker-compose.yml` should include `SENTRY_SECRET_KEY` which you should generate using link above.
+```
+  environment:
+SENTRY_SECRET_KEY: !!!SECRET_KEY!!!
+``` 
+
+- Try to use custom network for `docker-compose.yml`:
+```
+networks:
+  custom_network:
+    driver: bridge
+    name: lachesis // The name should be the same as for `pos-lachesis` and as for Sentry containers
+```
+
+- Don't forget add this network for each service:
+
+Example:
+```
+  worker:
+    <<: *defaults
+    command: run worker
+    networks:
+      custom_network:
+```
+
+- If you have empty Client DSN links, add next line to `config.yml`:
+```
+system.url-prefix: http://<sentry host>:<port>
+```
