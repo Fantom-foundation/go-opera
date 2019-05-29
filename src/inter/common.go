@@ -204,6 +204,8 @@ func (scheme *asciiScheme) insertColumn(after uint64) {
 		append([][]string{column}, scheme.graph[after:]...)...)
 }
 
+const verticalConnections = "║╫╠╣╝╚"
+
 // insertRow insert row after specific row ('after' parameter).
 func (scheme *asciiScheme) insertRow(after uint64) {
 	if len(scheme.graph) == 0 {
@@ -213,7 +215,6 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 	scheme.increaseEventsPositions(after, 1)
 	scheme.lengthColumn++
 
-	connections := "║╫╠╣╝╚"
 	after++
 	for column := 0; column < len(scheme.graph); column++ {
 		var symbol string
@@ -227,19 +228,27 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 		lastSymbol := scheme.graph[column][after-1]
 		indexLastSymbol := -1
 		if len(lastSymbol) > 0 {
-			indexLastSymbol = strings.Index(connections, lastSymbol)
+			indexLastSymbol = strings.Index(verticalConnections, lastSymbol)
 		}
 
 		nextSymbol := scheme.graph[column][after]
 		indexNextSymbol := -1
 		if len(nextSymbol) > 0 {
-			indexNextSymbol = strings.Index(connections, nextSymbol)
+			indexNextSymbol = strings.Index(verticalConnections, nextSymbol)
 		}
 
 		if (indexLastSymbol == -1 && indexNextSymbol != -1) ||
 			(indexLastSymbol != -1 && indexNextSymbol == -1) ||
 			(indexLastSymbol == -1 && indexNextSymbol == -1) {
 			symbol = ""
+		}
+
+		if lastSymbol == "╝" {
+			scheme.graph[column][after-1] = "╣"
+		}
+
+		if lastSymbol == "╚" {
+			scheme.graph[column][after-1] = "╠"
 		}
 
 		scheme.graph[column] = append(
@@ -258,7 +267,7 @@ func (scheme *asciiScheme) drawVerticalConnector(from, to [2]uint64) {
 		stop = from[1]
 	}
 
-	for start <= stop {
+	for start < stop {
 		var connector string
 		switch scheme.graph[column][start] {
 		case "-":
@@ -282,8 +291,8 @@ func (scheme *asciiScheme) drawVerticalConnector(from, to [2]uint64) {
 			rightSymbol = scheme.graph[column+1][start]
 		}
 
-		if (leftSymbol == "-" || leftSymbol == "╠" || leftSymbol == "╫") &&
-			(rightSymbol == "-" || rightSymbol == "╣" || rightSymbol == "╫") {
+		if (leftSymbol == "-" || leftSymbol == "╠" || leftSymbol == "╫" || leftSymbol == "╚") &&
+			(rightSymbol == "-" || rightSymbol == "╣" || rightSymbol == "╫" || rightSymbol == "╝") {
 			connector = "╫"
 		} else if leftSymbol == "-" && rightSymbol != "-" {
 			connector = "╣"
@@ -330,7 +339,6 @@ func (scheme *asciiScheme) drawHorizontalConnector(from, to [2]uint64) {
 func (scheme *asciiScheme) setVerticalConnector(column, row uint64, isLeft bool) {
 	nodeConnector := "╝"
 	if !isLeft {
-		// nodeConnector = "╠"
 		nodeConnector = "╚"
 	}
 
@@ -338,14 +346,27 @@ func (scheme *asciiScheme) setVerticalConnector(column, row uint64, isLeft bool)
 	case "╬":
 		nodeConnector = "╬"
 	case "╣":
-		if nodeConnector == "╠" {
+		if nodeConnector == "╚" {
 			nodeConnector = "╬"
 		}
 	case "╠":
-		if nodeConnector == "╣" {
+		if nodeConnector == "╝" {
 			nodeConnector = "╬"
 		}
 	}
+
+	if row+1 < uint64(len(scheme.graph[column])) &&
+		len(scheme.graph[column][row+1]) > 0 &&
+		strings.Index(verticalConnections, scheme.graph[column][row+1]) != -1 {
+		switch nodeConnector {
+		case "╝":
+			nodeConnector = "╣"
+		case "╚":
+			nodeConnector = "╠"
+
+		}
+	}
+
 	scheme.graph[column][row] = nodeConnector
 }
 
@@ -362,10 +383,10 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 	if from[0] == to[0] {
 		if int64(from[1]-to[1]) == 1 {
 			scheme.insertRow(to[1])
-			to[1]++
+			from[1]++
 		} else if int64(to[1]-from[1]) == 1 {
 			scheme.insertRow(from[1])
-			from[1]++
+			to[1]++
 		}
 
 		scheme.drawVerticalConnector(from, to)
