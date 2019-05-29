@@ -12,10 +12,10 @@ var (
 	ErrOneArgument = errors.New("expected exactly one argument")
 )
 
-// LogLevel sets logger loc level.
+// LogLevel sets logger log level.
 var LogLevel = &cobra.Command{
 	Use:   "log-level",
-	Short: "Log level sets log level of logger",
+	Short: "Sets logger log level",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proxy, err := makeCtrlProxy(cmd)
 		if err != nil {

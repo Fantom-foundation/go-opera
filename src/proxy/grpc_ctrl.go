@@ -130,7 +130,7 @@ func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest)
 	}, err
 }
 
-// SetLogLevel changes logger log level.
+// SetLogLevel sets logger log level.
 func (p *grpcCtrlProxy) SetLogLevel(_ context.Context, req *internal.LogLevel) (*empty.Empty, error) {
 	logger.SetLevel(req.Level)
 	return &empty.Empty{}, nil
