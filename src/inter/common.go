@@ -3,7 +3,6 @@ package inter
 import (
 	"fmt"
 	"math/rand"
-	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -214,7 +213,7 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 	scheme.increaseEventsPositions(after, 1)
 	scheme.lengthColumn++
 
-	connections := []string{"║", "╫", "╠", "╣"}
+	connections := "║╫╠╣╝╚"
 	after++
 	for column := 0; column < len(scheme.graph); column++ {
 		var symbol string
@@ -228,18 +227,18 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 		lastSymbol := scheme.graph[column][after-1]
 		indexLastSymbol := -1
 		if len(lastSymbol) > 0 {
-			indexLastSymbol = sort.SearchStrings(connections, lastSymbol)
+			indexLastSymbol = strings.Index(connections, lastSymbol)
 		}
 
 		nextSymbol := scheme.graph[column][after]
 		indexNextSymbol := -1
 		if len(nextSymbol) > 0 {
-			indexNextSymbol = sort.SearchStrings(connections, nextSymbol)
+			indexNextSymbol = strings.Index(connections, nextSymbol)
 		}
 
-		if (indexLastSymbol != 0 && indexNextSymbol != 0) ||
-			(indexLastSymbol == 0 && indexNextSymbol != 0) ||
-			(indexLastSymbol != 0 && indexNextSymbol == 0) {
+		if (indexLastSymbol == -1 && indexNextSymbol != -1) ||
+			(indexLastSymbol != -1 && indexNextSymbol == -1) ||
+			(indexLastSymbol == -1 && indexNextSymbol == -1) {
 			symbol = ""
 		}
 
@@ -249,95 +248,68 @@ func (scheme *asciiScheme) insertRow(after uint64) {
 	}
 }
 
-// EventsConnect add communication from child to parent.
-// If parent is zero event, do nothing.
-func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
-	if parent == hash.ZeroEvent {
-		return
+func (scheme *asciiScheme) drawVerticalConnector(from, to [2]uint64) {
+	start := from[1]
+	stop := to[1]
+	column := from[0]
+
+	if from[1] > to[1] {
+		start = to[1]
+		stop = from[1]
 	}
 
-	from := scheme.getEventPosition(child)
-	to := scheme.getEventPosition(parent)
-
-	if from[0] == to[0] {
-		start := from[1]
-		stop := to[1]
-		column := from[0]
-
-		if from[1] > to[1] {
-			start = to[1]
-			stop = from[1]
-		}
-
-		if stop-start == 1 {
-			scheme.insertRow(start)
-			stop++
-		}
-
-		start++
-		for start < stop {
-			var connector string
-			switch scheme.graph[column][start] {
-			case "-":
-				connector = "╫"
-			case "":
-				connector = "║"
-			default:
-				start++
-				continue
-			}
-
-			var leftSymbol, rightSymbol string
-			if int64(column-1) >= 0 {
-				leftSymbol = scheme.graph[column-1][start]
-			}
-			if column+1 < uint64(len(scheme.graph)) {
-				rightSymbol = scheme.graph[column+1][start]
-			}
-
-			if leftSymbol == "-" && rightSymbol == "-" {
-				connector = "╫"
-			} else if leftSymbol == "-" && rightSymbol != "-" {
-				connector = "╣"
-			} else if leftSymbol != "-" && rightSymbol == "-" {
-				connector = "╠"
-			}
-
-			scheme.graph[column][start] = connector
+	for start <= stop {
+		var connector string
+		switch scheme.graph[column][start] {
+		case "-":
+			connector = "╫"
+		case "":
+			connector = "║"
+		case "╝":
+			connector = "╣"
+		case "╚":
+			connector = "╠"
+		default:
 			start++
+			continue
 		}
-		return
+
+		var leftSymbol, rightSymbol string
+		if int64(column-1) >= 0 {
+			leftSymbol = scheme.graph[column-1][start]
+		}
+		if column+1 < uint64(len(scheme.graph)) {
+			rightSymbol = scheme.graph[column+1][start]
+		}
+
+		if (leftSymbol == "-" || leftSymbol == "╠" || leftSymbol == "╫") &&
+			(rightSymbol == "-" || rightSymbol == "╣" || rightSymbol == "╫") {
+			connector = "╫"
+		} else if leftSymbol == "-" && rightSymbol != "-" {
+			connector = "╣"
+		} else if leftSymbol != "-" && rightSymbol == "-" {
+			connector = "╠"
+		}
+
+		scheme.graph[column][start] = connector
+		start++
 	}
+}
 
-	scheme.insertRow(from[1])
-	from[1]++
-	// todo vertical line new row
-
+func (scheme *asciiScheme) drawHorizontalConnector(from, to [2]uint64) {
 	start := from[0]
 	stop := to[0]
 
-	nodeConnector := "╣"
-	columnNodeConnector := from[1]
+	isLeft := true
 
 	if from[0] > to[0] {
 		start = to[0]
 		stop = from[0]
-		nodeConnector = "╠"
+		isLeft = false
 	}
 
-	switch scheme.graph[to[0]][columnNodeConnector] {
-	case "╬":
-		nodeConnector = "╬"
-	case "╣":
-		if nodeConnector == "╠" {
-			nodeConnector = "╬"
-		}
-	case "╠":
-		if nodeConnector == "╣" {
-			nodeConnector = "╬"
-		}
-	}
-	scheme.graph[to[0]][columnNodeConnector] = nodeConnector
+	scheme.setVerticalConnector(to[0], from[1], isLeft)
+	scheme.setVerticalConnector(from[0], from[1], !isLeft)
 
 	if stop-start == 1 {
 		scheme.insertColumn(start)
@@ -353,7 +325,90 @@ func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
 		scheme.graph[start][from[1]] = connector
 		start++
 	}
+}
 
+func (scheme *asciiScheme) setVerticalConnector(column, row uint64, isLeft bool) {
+	nodeConnector := "╝"
+	if !isLeft {
+		// nodeConnector = "╠"
+		nodeConnector = "╚"
+	}
+
+	switch scheme.graph[column][row] {
+	case "╬":
+		nodeConnector = "╬"
+	case "╣":
+		if nodeConnector == "╠" {
+			nodeConnector = "╬"
+		}
+	case "╠":
+		if nodeConnector == "╣" {
+			nodeConnector = "╬"
+		}
+	}
+	scheme.graph[column][row] = nodeConnector
+}
+
+// EventsConnect add communication from child to parent.
+// If parent is zero event, do nothing.
+func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
+	if parent == hash.ZeroEvent {
+		return
+	}
+
+	from := scheme.getEventPosition(child)
+	to := scheme.getEventPosition(parent)
+
+	if from[0] == to[0] {
+		if int64(from[1]-to[1]) == 1 {
+			scheme.insertRow(to[1])
+			to[1]++
+		} else if int64(to[1]-from[1]) == 1 {
+			scheme.insertRow(from[1])
+			from[1]++
+		}
+
+		scheme.drawVerticalConnector(from, to)
+		return
+	}
+
+	scheme.insertRow(from[1])
+	from[1]++
+	connectorRow := from[1]
+
+	var isDrawFromVerticalCommunication bool
+
+	for event, pos := range scheme.eventsPosition {
+		if event == child {
+			continue
+		}
+
+		if to[0] == pos[0] && to[1] < pos[1] {
+			scheme.insertColumn(to[0])
+			from[0]++
+			to[0]++
+			scheme.drawVerticalConnector(to, [2]uint64{to[0], from[1]})
+			isDrawFromVerticalCommunication = true
+
+			if scheme.graph[to[0]][to[1]] == "╫" {
+				scheme.graph[to[0]][to[1]] = "-"
+				break
+			}
+
+			scheme.graph[to[0]][to[1]] = ""
+			break
+		}
+	}
+
+	scheme.drawHorizontalConnector(from, to)
+
+	if !isDrawFromVerticalCommunication {
+		to = scheme.getEventPosition(parent)
+		scheme.drawVerticalConnector([2]uint64{to[0], connectorRow}, [2]uint64{to[0], to[1] + 1})
+	}
+
+	from = scheme.getEventPosition(child)
+	scheme.drawVerticalConnector([2]uint64{from[0], connectorRow}, [2]uint64{from[0], connectorRow})
 }
 
 // initial node name for generating ascii scheme by events (current value 'a')
