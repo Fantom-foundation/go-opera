@@ -10,6 +10,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -110,7 +111,6 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		}
 
 		assert.Equal(expect, got)
-		//assertTransactions(assert, )
 	})
 
 	t.Run("get balance of self", func(t *testing.T) {
@@ -147,9 +147,12 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		assert.NoError(err)
 	})
 
-}
+	t.Run("set log level", func(t *testing.T) {
+		assert := assert.New(t)
 
-func assertTransactions(assert *assert.Assertions, expect, got *inter.InternalTransaction) {
-	assert.Equal(expect.Amount, got.Amount)
-	assert.Equal(expect.Receiver.Hex(), got.Receiver.Hex())
+		l := "info"
+		err := client.SetLogLevel(l)
+		assert.NoError(err)
+		assert.Equal(logger.Get().GetLevel(), logger.GetLevel(l))
+	})
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
@@ -127,4 +128,10 @@ func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest)
 	return &internal.TransferResponse{
 		Hex: h.Hex(),
 	}, err
+}
+
+// SetLogLevel changes logger log level.
+func (p *grpcCtrlProxy) SetLogLevel(_ context.Context, req *internal.LogLevel) (*empty.Empty, error) {
+	logger.SetLevel(req.Level)
+	return &empty.Empty{}, nil
 }
