@@ -21,3 +21,12 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
   - build node docker image "pos-lachesis": `make`;
   - run network of N nodes: `n=N ./start.sh`;
   - drop network: `./stop.sh`;
+
+## Sentry
+
+If you want to use Sentry for catch error, please use this [`link`](https://github.com/getsentry/onpremise).
+And include `--dsn` key for `./docker/start.sh`
+
+Example: `--dsn="http://64f6a4a7aaba4aa0a12fedd4d8f7aa61@localhost:9000/1"`
+
+Where: `--dsn="http://<sentry public key>@<host>:<port>/<project id>"`

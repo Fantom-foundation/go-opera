@@ -48,6 +48,8 @@ import:
   - metadata
   - peer
   - status
+- package: github.com/evalphobia/logrus_sentry
+  version: ^0.8.2
 testImport:
 - package: github.com/davecgh/go-spew
   version: ^1.1.1

@@ -2,7 +2,8 @@ package logger
 
 import (
 	"sync"
-
+	
+	"github.com/evalphobia/logrus_sentry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -10,6 +11,33 @@ var (
 	log  *logrus.Logger
 	once sync.Once
 )
+
+// SetDSN for sentry logger
+func SetDSN(value string) {
+		// If DSN is empty, we don't create new hook.
+		// Otherwise we'll the same error message for each new log.
+		if value == "" {
+			log.Warn("Sentry client DSN is empty")
+			return
+		}
+
+		hook, err := logrus_sentry.NewSentryHook(value, []logrus.Level{
+			logrus.PanicLevel,
+			logrus.FatalLevel,
+			logrus.ErrorLevel,
+			logrus.WarnLevel,
+			logrus.InfoLevel,
+			logrus.DebugLevel,
+			logrus.TraceLevel,
+		})
+
+		if err != nil {
+			log.Warn("Probably Sentry host is not running.", err)
+			return
+		}
+
+		log.Hooks.Add(hook)
+}
 
 // Init sets or creates logger instance.
 func Init(custom *logrus.Logger) {
