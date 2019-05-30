@@ -1,7 +1,6 @@
 package common
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -12,15 +11,11 @@ import (
 // map them into calls to testing.T.Log, so that you only see
 // the logging for failed tests.
 type testLoggerAdapter struct {
-	mu     sync.Mutex
 	t      testing.TB
 	prefix string
 }
 
 func (a *testLoggerAdapter) Write(d []byte) (int, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	if d[len(d)-1] == '\n' {
 		d = d[:len(d)-1]
 	}
@@ -29,7 +24,6 @@ func (a *testLoggerAdapter) Write(d []byte) (int, error) {
 		a.t.Log(l)
 		return len(l), nil
 	}
-
 	a.t.Log(string(d))
 	return len(d), nil
 }
