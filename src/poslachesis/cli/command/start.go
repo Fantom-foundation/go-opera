@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
@@ -19,6 +20,12 @@ var Start = &cobra.Command{
 	Use:   "start",
 	Short: "Starts lachesis node",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logLevel, err := cmd.Flags().GetString("log")
+		if err != nil {
+			return err
+		}
+		logger.GetLevel(logLevel)
+
 		fakegen, err := cmd.Flags().GetString("fakegen")
 		if err != nil {
 			return err
@@ -63,6 +70,7 @@ func init() {
 	Start.Flags().String("fakegen", "1/1", "use N/T format to use N-th key from T genesis keys")
 	Start.Flags().String("db", "inmemory", "badger database dir")
 	Start.Flags().StringSlice("peer", nil, "hosts of peers")
+	Start.Flags().String("log", "info", "log level")
 }
 
 func parseFakeGen(s string) (num, total uint64, err error) {

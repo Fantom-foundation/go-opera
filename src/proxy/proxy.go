@@ -60,6 +60,8 @@ type NodeProxy interface {
 	SendTo(receiver hash.Peer, index, amount, until uint64) (hash.Transaction, error)
 	// GetTransaction returns information about transaction.
 	GetTransaction(hash.Transaction) (*inter.InternalTransaction, error)
+	// SetLogLevel sets logger log level.
+	SetLogLevel(string) error
 	// Close stops proxy.
 	Close()
 }

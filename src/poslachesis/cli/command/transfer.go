@@ -15,7 +15,7 @@ var Transfer = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		index, err := cmd.Flags().GetUint64("amount")
+		index, err := cmd.Flags().GetUint64("index")
 		if err != nil {
 			return err
 		}

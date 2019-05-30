@@ -205,4 +205,36 @@ func TestApp(t *testing.T) {
 		assert.Contains(out.String(), h.Hex())
 	})
 
+	t.Run("log-level one argument", func(t *testing.T) {
+		assert := assert.New(t)
+
+		app.SetArgs([]string{
+			"log-level",
+		})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.Error(err) {
+			return
+		}
+
+		assert.Contains(out.String(), "expected exactly one argument")
+	})
+
+	t.Run("log-level ok", func(t *testing.T) {
+		assert := assert.New(t)
+
+		app.SetArgs([]string{
+			"log-level",
+			"info",
+		})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assert.NoError(err) {
+			return
+		}
+
+		assert.Contains(out.String(), "ok")
+	})
 }

@@ -50,3 +50,8 @@ func GetLevel(l string) logrus.Level {
 		return logrus.DebugLevel
 	}
 }
+
+// SetLevel sets logrus.Level.
+func SetLevel(l string) {
+	log.SetLevel(GetLevel(l))
+}

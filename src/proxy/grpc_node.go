@@ -128,6 +128,21 @@ func (p *grpcNodeProxy) GetTransaction(t hash.Transaction) (*inter.InternalTrans
 	}, nil
 }
 
+func (p *grpcNodeProxy) SetLogLevel(l string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
+	req := internal.LogLevel{
+		Level: l,
+	}
+
+	if _, err := p.client.SetLogLevel(ctx, &req); err != nil {
+		return unwrapGrpcErr(err)
+	}
+
+	return nil
+}
+
 func unwrapGrpcErr(err error) error {
 	st := status.Convert(err)
 	return errors.New(st.Message())
