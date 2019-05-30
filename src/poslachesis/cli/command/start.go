@@ -60,6 +60,12 @@ var Start = &cobra.Command{
 		}
 		l.AddPeers(trim(hosts)...)
 
+		dsn, err := cmd.Flags().GetString("dsn")
+		if err != nil {
+			return err
+		}
+		logger.SetDSN(dsn)
+
 		wait()
 
 		return nil
@@ -71,6 +77,7 @@ func init() {
 	Start.Flags().String("db", "inmemory", "badger database dir")
 	Start.Flags().StringSlice("peer", nil, "hosts of peers")
 	Start.Flags().String("log", "info", "log level")
+	Start.Flags().String("dsn", "", "Sentry client DSN")
 }
 
 func parseFakeGen(s string) (num, total uint64, err error) {
