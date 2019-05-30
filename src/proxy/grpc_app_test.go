@@ -159,7 +159,7 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	}
 	defer c.Close()
 
-	checkConn := func(t *testing.T) {
+	checkConn := func() {
 		assert := assert.New(t)
 		gold := []byte("123456")
 
@@ -168,13 +168,15 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 
 		select {
 		case tx := <-s.SubmitCh():
-			assert.Equal(gold, tx)
+			assert.EqualValues(gold, tx)
 		case <-time.After(timeout):
 			assert.Fail(errTimeout)
 		}
 	}
 
-	t.Run("#1 Send tx after connection", checkConn)
+	// #1 Send tx after connection"
+
+	checkConn()
 
 	s.Close()
 	s, _, err = NewGrpcAppProxy(addr, timeout/2, logger, listen)
@@ -184,7 +186,9 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	defer s.Close()
 
 	<-time.After(timeout)
-	t.Run("#2 Send tx after reconnection", checkConn)
+
+	// "#2 Send tx after reconnection"
+	checkConn()
 }
 
 // TODO: fix it
