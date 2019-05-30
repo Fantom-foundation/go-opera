@@ -64,7 +64,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 
 		select {
 		case tx := <-s.SubmitCh():
-			assert.Equal(gold, tx)
+			assert.EqualValues(gold, tx)
 		case <-time.After(timeout):
 			assert.Fail(errTimeout)
 		}
@@ -90,7 +90,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 
 		answer, err := s.CommitBlock(block)
 		if assert.NoError(err) {
-			assert.Equal(gold, answer)
+			assert.EqualValues(gold, answer)
 		}
 	})
 
@@ -114,7 +114,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 
 		answer, err := s.GetSnapshot(index)
 		if assert.NoError(err) {
-			assert.Equal(gold, answer)
+			assert.EqualValues(gold, answer)
 		}
 	})
 
