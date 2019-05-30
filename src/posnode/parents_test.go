@@ -50,7 +50,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		node := NewForTests(dsc, store, consensus)
 		node.initParents()
 
-		expected := parseEvents(node, consensus, schema)
+		expected := ASCIIschemeToDAG(node, consensus, schema)
 		for n, expect := range expected {
 			parent := node.popBestParent()
 			if !assert.NotNil(parent, "step %d", n) {
@@ -66,8 +66,8 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 	})
 }
 
-func parseEvents(n *Node, c *MockConsensus, schema string) (expected []string) {
-	_, _, events := inter.ParseEvents(schema)
+func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []string) {
+	_, _, events := inter.ASCIIschemeToDAG(schema)
 
 	weights := make(map[hash.Peer]uint64)
 	for name, e := range events {
