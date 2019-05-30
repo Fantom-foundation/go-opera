@@ -6,8 +6,9 @@ import "google/protobuf/empty.proto";
 
 service Node {
   rpc SelfID(google.protobuf.Empty) returns (ID) {}
-  rpc BalanceOf(ID) returns (Balance) {}
-  rpc SendTo(Transfer) returns (google.protobuf.Empty) {}
+  rpc StakeOf(ID) returns (Balance) {}
+  rpc SendTo(TransferRequest) returns (TransferResponse) {}
+  rpc TransactionInfo(TransactionRequest) returns (TransactionResponse) {}
 }
 
 message ID {
@@ -16,11 +17,27 @@ message ID {
 
 message Balance {
   uint64 amount = 1;
-  repeated Transfer pending = 2;
 }
 
-message Transfer{
-  uint64 amount = 1;
+message TransferRequest{
+  uint64 nonce = 1;
   ID receiver = 2;
+  uint64 amount = 3;
+  uint64 until = 4;
+}
+
+message TransferResponse {
+  string hex = 1;
+}
+
+message TransactionRequest {
+  string hex = 1;
+}
+
+message TransactionResponse {
+  uint64 nonce = 1;
+  ID receiver = 2;
+  uint64 amount = 3;
+  uint64 until = 4;
 }
 

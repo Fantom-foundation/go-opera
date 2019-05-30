@@ -103,13 +103,16 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 		p.PushEventSync(event.Hash())
 		n++
 		if tryRestoring && n == len(names)*2/3 {
-			ee := p.incompleteEvents
+			// recreate poset
 			p = New(store, input)
 			p.Bootstrap()
-			for _, e := range ee {
-				input.SetEvent(&e.Event)
+			MakeOrderedInput(p)
+			// push all events again
+			for _, e := range names {
+				input.SetEvent(e)
 				p.PushEventSync(e.Hash())
 			}
+			break
 		}
 	}
 	// check each event

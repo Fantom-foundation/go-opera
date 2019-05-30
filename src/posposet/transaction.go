@@ -9,8 +9,23 @@ and the payment of all rewards.
 */
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
+
+// GetTransaction returns transaction by hash.
+func (p *Poset) GetTransaction(h hash.Transaction) *inter.InternalTransaction {
+	// TODO: implement. If transaction is not found return nil.
+	return &inter.InternalTransaction{}
+}
+
+// GetTransactionCount returns transaction count for peer.
+func (p *Poset) GetTransactionCount(h hash.Peer) uint64 {
+	// TODO: implement.
+	return 0
+}
 
 // isEventValid validates event according to frame state.
 func (p *Poset) isEventValid(e *Event, f *Frame) bool {
@@ -32,7 +47,7 @@ func applyTransactions(db *state.DB, ordered Events) {
 			receiver := tx.Receiver
 
 			if db.FreeBalance(sender) < tx.Amount {
-				log.Warnf("Cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
+				logger.Get().Warnf("Cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
 				continue
 			}
 

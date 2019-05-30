@@ -11,7 +11,7 @@ type (
 	parent struct {
 		Creator hash.Peer
 		Parents hash.Events
-		Value   float64
+		Value   uint64
 		Last    bool
 	}
 
@@ -43,9 +43,9 @@ func (n *Node) initParents() {
 		}
 		for i := from; i <= to; i++ {
 			e := n.EventOf(peer, i)
-			val := float64(1)
+			val := uint64(1)
 			if n.consensus != nil {
-				val = n.consensus.GetStakeOf(e.Creator)
+				val = n.consensus.StakeOf(e.Creator)
 			}
 			n.parents.cache[e.Hash()] = &parent{
 				Creator: e.Creator,
@@ -72,9 +72,9 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 		return
 	}
 
-	val := float64(1)
+	val := uint64(1)
 	if n.consensus != nil {
-		val = n.consensus.GetStakeOf(e.Creator)
+		val = n.consensus.StakeOf(e.Creator)
 	}
 
 	n.parents.cache[e.Hash()] = &parent{
@@ -97,7 +97,7 @@ func (n *Node) popBestParent() *hash.Event {
 
 	var (
 		res *hash.Event
-		max float64
+		max uint64
 		tmp hash.Event
 	)
 
@@ -125,10 +125,10 @@ func (n *Node) popBestParent() *hash.Event {
  */
 
 // Sum returns sum of parent values.
-func (pp *parents) Sum(e hash.Event) float64 {
+func (pp *parents) Sum(e hash.Event) uint64 {
 	event, ok := pp.cache[e]
 	if !ok {
-		return float64(0)
+		return uint64(0)
 	}
 
 	res := event.Value

@@ -68,7 +68,7 @@ func benchmarkStore(b *testing.B, cached bool) {
 
 	for _, events := range nodesEvents {
 		for _, e := range events {
-			input.SetEvent(&e.Event)
+			input.SetEvent(e.Event)
 			poset.PushEventSync(e.Hash())
 		}
 	}

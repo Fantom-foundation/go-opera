@@ -23,9 +23,9 @@ func (p *Poset) HasEvent(h hash.Event) bool {
 func (p *Poset) GetEvent(h hash.Event) *Event {
 	e := p.input.GetEvent(h)
 	if e == nil {
-		log.Fatal("got unsaved event")
+		p.Fatal("got unsaved event")
 	}
 	return &Event{
-		Event: *e,
+		Event: e,
 	}
 }
