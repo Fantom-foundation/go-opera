@@ -2,17 +2,15 @@ package lachesis
 
 import (
 	"fmt"
-
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // LachesisNetworkRing starts lachesis network with initial ring topology.
-func LachesisNetworkRing(count int, balance uint64) []*Lachesis {
+func LachesisNetworkRing(count int) []*Lachesis {
 	if count < 1 {
 		return nil
 	}
 
-	res, _ := makeNetwork("ring", count, balance)
+	res := makeNetwork("ring", count)
 
 	// init peers ring
 	for i := 0; i < count; i++ {
@@ -28,12 +26,12 @@ func LachesisNetworkRing(count int, balance uint64) []*Lachesis {
 }
 
 // LachesisNetworkStar starts lachesis network with initial star topology.
-func LachesisNetworkStar(count int, balance uint64) []*Lachesis {
+func LachesisNetworkStar(count int) []*Lachesis {
 	if count < 1 {
 		return nil
 	}
 
-	res, _ := makeNetwork("star", count, balance)
+	res := makeNetwork("star", count)
 
 	// init peers star
 	for i := 1; i < count; i++ {
@@ -47,23 +45,24 @@ func LachesisNetworkStar(count int, balance uint64) []*Lachesis {
 	return res
 }
 
-func makeNetwork(pref string, count int, balance uint64) ([]*Lachesis, map[hash.Peer]uint64) {
+func makeNetwork(pref string, count int) []*Lachesis {
+	net, keys := FakeNet(count)
+
+	conf := DefaultConfig()
+	conf.Net = net
+
 	ll := make([]*Lachesis, count)
-	genesis := make(map[hash.Peer]uint64, count)
 
 	// create all
 	for i := 0; i < count; i++ {
 		host := fmt.Sprintf("%s_%d", pref, i)
-		lachesis := NewForTests(nil, host)
-		genesis[lachesis.node.ID] = balance
-
-		ll[i] = lachesis
+		ll[i] = NewForTests(nil, host, keys[i], conf)
 	}
 
 	// start all
 	for _, l := range ll {
-		l.Start(genesis)
+		l.Start()
 	}
 
-	return ll, genesis
+	return ll
 }

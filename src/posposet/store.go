@@ -97,7 +97,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 
 	st := s.GetState()
 	if st != nil {
-		if st.Genesis == GenesisHash(balances) {
+		if st.Genesis == genesisHash(balances) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")

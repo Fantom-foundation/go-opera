@@ -13,11 +13,11 @@ func TestFakeKeyGeneration(t *testing.T) {
 
 	prev := make([]*common.PrivateKey, 10)
 	for i := 0; i < len(prev); i++ {
-		prev[i] = GenerateFakeKey(uint64(i))
+		prev[i] = GenerateFakeKey(i)
 	}
 
 	for i := 0; i < len(prev); i++ {
-		again := GenerateFakeKey(uint64(i))
+		again := GenerateFakeKey(i)
 		if !assert.Equal(prev[i], again) {
 			return
 		}

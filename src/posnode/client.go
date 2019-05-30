@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -42,9 +43,14 @@ func (n *Node) initClient() {
 	n.connPool.cache = make(map[string]*connection, n.connPool.size)
 	n.connPool.connectTimeout = n.conf.ConnectTimeout
 
+	var genesis hash.Hash
+	if n.consensus != nil {
+		genesis = n.consensus.GetGenesisHash()
+	}
+
 	n.connPool.opts = append(n.connPool.opts,
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(api.ClientAuth(n.key)))
+		grpc.WithUnaryInterceptor(api.ClientAuth(n.key, genesis)))
 }
 
 // ConnectTo connects to other node service.

@@ -9,7 +9,7 @@ import (
 )
 
 // GenerateFakeKey creates fake private key.
-func GenerateFakeKey(n uint64) *common.PrivateKey {
+func GenerateFakeKey(n int) *common.PrivateKey {
 	reader := rand.New(rand.NewSource(int64(n)))
 	key, err := ecdsa.GenerateKey(elliptic.P256(), reader)
 	if err != nil {

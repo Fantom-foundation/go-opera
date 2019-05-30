@@ -8,7 +8,9 @@ import (
 )
 
 // Config of lachesis node.
+// TODO: move ports to Net?
 type Config struct {
+	Net      *Net
 	AppPort  int
 	CtrlPort int
 	Node     posnode.Config
@@ -17,6 +19,7 @@ type Config struct {
 // DefaultConfig returns lachesis default config.
 func DefaultConfig() *Config {
 	return &Config{
+		Net:      MainNet(),
 		AppPort:  55556,
 		CtrlPort: 55557,
 		Node:     *posnode.DefaultConfig(),

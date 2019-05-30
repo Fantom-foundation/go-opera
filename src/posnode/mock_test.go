@@ -58,3 +58,17 @@ func (mr *MockConsensusMockRecorder) StakeOf(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StakeOf", reflect.TypeOf((*MockConsensus)(nil).StakeOf), arg0)
 }
+
+// GetGenesisHash mocks base method
+func (m *MockConsensus) GetGenesisHash() hash.Hash {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetGenesisHash")
+	ret0, _ := ret[0].(hash.Hash)
+	return ret0
+}
+
+// GetGenesisHash indicates an expected call of GetGenesisHash
+func (mr *MockConsensusMockRecorder) GetGenesisHash() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisHash", reflect.TypeOf((*MockConsensus)(nil).GetGenesisHash))
+}

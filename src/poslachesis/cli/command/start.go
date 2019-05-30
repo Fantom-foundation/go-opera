@@ -10,7 +10,6 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/spf13/cobra"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
@@ -48,10 +47,12 @@ var Start = &cobra.Command{
 			}
 		}
 
-		net := lachesis.FakeNet(total)
+		net, keys := lachesis.FakeNet(total)
+		conf := lachesis.DefaultConfig()
+		conf.Net = net
 
-		l := lachesis.New(db, "", crypto.GenerateFakeKey(num), nil)
-		l.Start(net.Genesis)
+		l := lachesis.New(db, "", keys[num], conf)
+		l.Start()
 		defer l.Stop()
 
 		hosts, err := cmd.Flags().GetStringSlice("peer")
@@ -80,19 +81,22 @@ func init() {
 	Start.Flags().String("dsn", "", "Sentry client DSN")
 }
 
-func parseFakeGen(s string) (num, total uint64, err error) {
+func parseFakeGen(s string) (num, total int, err error) {
 	parts := strings.Split(s, "/")
 	if len(parts) != 2 {
 		err = fmt.Errorf("use %%d/%%d format")
 		return
 	}
 
-	num, err = strconv.ParseUint(parts[0], 10, 64)
+	num64, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
 		return
 	}
+	num = int(num64)
 
-	total, err = strconv.ParseUint(parts[1], 10, 64)
+	total64, err := strconv.ParseUint(parts[1], 10, 64)
+	total = int(total64)
+
 	return
 }
 

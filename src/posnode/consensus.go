@@ -10,4 +10,6 @@ type Consensus interface {
 	PushEvent(hash.Event)
 	// StakeOf returns stake of peer.
 	StakeOf(hash.Peer) uint64
+	// GetGenesisHash returns hash of genesis poset works with.
+	GetGenesisHash() hash.Hash
 }
