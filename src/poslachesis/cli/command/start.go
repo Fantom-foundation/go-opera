@@ -12,6 +12,8 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
 // Start starts lachesis node.
@@ -46,6 +48,8 @@ var Start = &cobra.Command{
 		l := lachesis.New(db, "", crypto.GenerateFakeKey(num), nil)
 		l.Start(net.Genesis)
 		defer l.Stop()
+
+		api.SetGenesisHash(posposet.GenesisHash(net.Genesis))
 
 		hosts, err := cmd.Flags().GetStringSlice("peer")
 		if err != nil {

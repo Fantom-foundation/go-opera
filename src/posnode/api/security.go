@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"sync"
 	"unsafe"
 
 	"github.com/golang/protobuf/proto"
@@ -21,6 +22,19 @@ import (
 // peerID is a internal key for context.Value().
 type peerID struct{}
 
+var (
+	genesis string
+	once    sync.Once
+)
+
+// SetGenesisHash for middleware checks.
+//TODO: Probably this is not best way. Perhaps we can create new 'security' package.
+func SetGenesisHash(value hash.Hash) {
+	once.Do(func() {
+		genesis = value.String()
+	})
+}
+
 // ClientAuth makes client-side interceptor for identification.
 func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 	pub := key.Public().Base64()
@@ -29,7 +43,7 @@ func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 		// request:
 
 		sign := signData(req, key)
-		md := metadata.Pairs("sign", sign, "pub", pub)
+		md := metadata.Pairs("sign", sign, "pub", pub, "genesis", genesis)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		var answer metadata.MD
@@ -41,7 +55,7 @@ func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 
 		// response:
 
-		sign, pub, err := readMetadata(answer)
+		sign, pub, gen, err := readMetadata(answer)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
@@ -49,6 +63,10 @@ func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 		err = verifyData(resp, sign, pub)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
+		}
+
+		if gen != genesis {
+			return status.Errorf(codes.Unauthenticated, "Server node have another genesis.")
 		}
 
 		if set, ok := ctx.Value(peerID{}).(func(hash.Peer)); ok {
@@ -67,7 +85,7 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// request:
 
-		clientSign, clientPub, err := parseContext(ctx)
+		clientSign, clientPub, clientGenesis, err := parseContext(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
 		}
@@ -75,6 +93,10 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 		err = verifyData(req, clientSign, clientPub)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
+		}
+
+		if clientGenesis != genesis {
+			return nil, status.Errorf(codes.Unauthenticated, "Client node have another genesis.")
 		}
 
 		clientID := hash.PeerOfPubkey(clientPub)
@@ -85,7 +107,7 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 		resp, err := handler(ctx, req)
 
 		sign := signData(resp, key)
-		md := metadata.Pairs("sign", sign, "pub", pub)
+		md := metadata.Pairs("sign", sign, "pub", pub, "genesis", genesis)
 		if err := grpc.SetTrailer(ctx, md); err != nil {
 			logger.Get().Fatal(err)
 		}
@@ -95,14 +117,14 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 }
 
 // parseContext reads fields from request/response context.
-func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err error) {
+func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, gen string, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err = errors.New("data should be signed")
 		return
 	}
 
-	sign, pub, err = readMetadata(md)
+	sign, pub, gen, err = readMetadata(md)
 	if err != nil {
 		return
 	}
@@ -111,7 +133,7 @@ func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err 
 }
 
 // readMetadata reads fields from metadata.
-func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error) {
+func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, gen string, err error) {
 	signs, ok := md["sign"]
 	if !ok || len(signs) < 1 {
 		err = errors.New("data should be signed: no sign")
@@ -125,6 +147,13 @@ func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error
 		return
 	}
 	pub, err = common.Base64ToPubkey(pubs[0])
+
+	gens, ok := md["genesis"]
+	if !ok || len(gens) < 1 {
+		err = errors.New("data should be signed: no genesis")
+		return
+	}
+	gen = gens[0]
 
 	return
 }

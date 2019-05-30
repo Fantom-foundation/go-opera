@@ -71,6 +71,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 	t.Run("authorized", func(t *testing.T) {
 		assert := assert.New(t)
 
+		SetGenesisHash(hash.FakeHash())
+
 		opts := append(opts,
 			grpc.WithInsecure(),
 			grpc.WithUnaryInterceptor(ClientAuth(clientKey)),
