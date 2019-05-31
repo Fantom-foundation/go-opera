@@ -27,7 +27,7 @@ func New(privKey string,
 	participants *peers.Peers,
 	commitHandler CommitHandler,
 	exceptionHandler ExceptionHandler,
-	config *MobileConfig) *Node {
+	config *Config) *Node {
 
 	lachesisConfig := lachesis.NewDefaultConfig()
 

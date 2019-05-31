@@ -84,17 +84,17 @@ func runNode(t testing.TB, logger *logrus.Logger, config *node.Config,
 	id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
 	trans peer.SyncPeer, localAddr string, run bool) *node.Node {
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)
-	app := dummy.NewInmemDummyApp(logger)
+	app := dummy.NewInmemApp(logger)
 	selectorArgs := node.SmartPeerSelectorCreationFnArgs{
 		LocalAddr:    localAddr,
 		GetFlagTable: nil,
 	}
-	node := node.NewNode(config, id, key, participants, db, trans, app, node.NewSmartPeerSelectorWrapper, selectorArgs, localAddr)
-	if err := node.Init(); err != nil {
+	node_ := node.NewNode(config, id, key, participants, db, trans, app, node.NewSmartPeerSelectorWrapper, selectorArgs, localAddr)
+	if err := node_.Init(); err != nil {
 		t.Fatal(err)
 	}
-	go node.Run(run)
-	return node
+	go node_.Run(run)
+	return node_
 }
 
 func TestGossip(t *testing.T) {
@@ -569,9 +569,9 @@ func makeRandomTransactions(nodes []*node.Node, quit chan struct{}) {
 				return
 			default:
 				n := rand.Intn(len(nodes))
-				node := nodes[n]
-				if err := submitTransaction(node, []byte(
-					fmt.Sprintf("node%d transaction %d", n, seq[n]))); err != nil {
+				node_ := nodes[n]
+				if err := submitTransaction(node_, []byte(
+					fmt.Sprintf("node_%d transaction %d", n, seq[n]))); err != nil {
 					panic(err)
 				}
 				seq[n] = seq[n] + 1
@@ -597,36 +597,38 @@ func BenchmarkGossip(b *testing.B) {
 	network, createFu := createNetwork()
 
 	for n := 0; n < b.N; n++ {
-		keys, p, adds := initPeers(4, network)
-		ps := p.ToPeerSlice()
+		func() {
+			keys, p, adds := initPeers(4, network)
+			ps := p.ToPeerSlice()
 
-		trans1 := createTransport(b, logger, backConfig, adds[0],
-			poolSize, createFu, network.CreateListener)
-		defer transportClose(b, trans1)
+			trans1 := createTransport(b, logger, backConfig, adds[0],
+				poolSize, createFu, network.CreateListener)
+			defer transportClose(b, trans1)
 
-		trans2 := createTransport(b, logger, backConfig, adds[1],
-			poolSize, createFu, network.CreateListener)
-		defer transportClose(b, trans2)
+			trans2 := createTransport(b, logger, backConfig, adds[1],
+				poolSize, createFu, network.CreateListener)
+			defer transportClose(b, trans2)
 
-		trans3 := createTransport(b, logger, backConfig, adds[2],
-			poolSize, createFu, network.CreateListener)
-		defer transportClose(b, trans3)
+			trans3 := createTransport(b, logger, backConfig, adds[2],
+				poolSize, createFu, network.CreateListener)
+			defer transportClose(b, trans3)
 
-		trans4 := createTransport(b, logger, backConfig, adds[3],
-			poolSize, createFu, network.CreateListener)
-		defer transportClose(b, trans4)
+			trans4 := createTransport(b, logger, backConfig, adds[3],
+				poolSize, createFu, network.CreateListener)
+			defer transportClose(b, trans4)
 
-		node1 := runNode(b, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
+			node1 := runNode(b, logger, config, ps[0].ID, keys[0], p, trans1, adds[0], true)
 
-		node2 := runNode(b, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
+			node2 := runNode(b, logger, config, ps[1].ID, keys[1], p, trans2, adds[1], true)
 
-		node3 := runNode(b, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
+			node3 := runNode(b, logger, config, ps[2].ID, keys[2], p, trans3, adds[2], true)
 
-		node4 := runNode(b, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
+			node4 := runNode(b, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 
-		nodes := []*node.Node{node1, node2, node3, node4}
-		if err := gossip(nodes, 50, true, 3*time.Second); err != nil {
-			b.Fatal(err)
-		}
+			nodes := []*node.Node{node1, node2, node3, node4}
+			if err := gossip(nodes, 50, true, 3*time.Second); err != nil {
+				b.Fatal(err)
+			}
+		}()
 	}
 }

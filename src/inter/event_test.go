@@ -11,21 +11,21 @@ import (
 )
 
 func TestEventSerialization(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	events := FakeFuzzingEvents()
 	for _, e0 := range events {
 		buf, err := proto.Marshal(e0.ToWire())
-		assert.NoError(err)
+		assertar.NoError(err)
 
 		w := &wire.Event{}
 		err = proto.Unmarshal(buf, w)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			break
 		}
 		e1 := WireToEvent(w)
 
-		if !assert.Equal(e0, e1) {
+		if !assertar.Equal(e0, e1) {
 			break
 		}
 	}

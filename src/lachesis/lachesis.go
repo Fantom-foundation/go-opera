@@ -20,7 +20,7 @@ import (
 
 // Lachesis struct
 type Lachesis struct {
-	Config    *LachesisConfig
+	Config    *Config
 	Node      *node.Node
 	Transport peer.SyncPeer
 	Store     poset.Store
@@ -29,7 +29,7 @@ type Lachesis struct {
 }
 
 // NewLachesis constructor
-func NewLachesis(config *LachesisConfig) *Lachesis {
+func NewLachesis(config *Config) *Lachesis {
 	engine := &Lachesis{
 		Config: config,
 	}

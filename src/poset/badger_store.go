@@ -531,9 +531,9 @@ func (s *BadgerStore) dbParticipantEvents(participant string, skip int64) (res E
 		item, errr := txn.Get(key)
 		for errr == nil {
 			errrr := item.Value(func(v []byte) error {
-				var hash EventHash
-				hash.Set(v)
-				res = append(res, hash)
+				var eventHash EventHash
+				eventHash.Set(v)
+				res = append(res, eventHash)
 				return nil
 			})
 			if errrr != nil {

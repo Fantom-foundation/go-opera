@@ -143,9 +143,9 @@ func (s *InmemStore) RootsBySelfParent() map[EventHash]Root {
 	if s.rootsBySelfParent == nil {
 		s.rootsBySelfParent = make(map[EventHash]Root)
 		for _, root := range s.rootsByParticipant {
-			var hash EventHash
-			hash.Set(root.SelfParent.Hash)
-			s.rootsBySelfParent[hash] = root
+			var eventHash EventHash
+			eventHash.Set(root.SelfParent.Hash)
+			s.rootsBySelfParent[eventHash] = root
 		}
 	}
 	return s.rootsBySelfParent

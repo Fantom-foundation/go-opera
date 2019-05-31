@@ -12,7 +12,7 @@ import (
 )
 
 func TestEventsSort(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	expected := Events{
 		&Event{consensusTime: 1, Event: &inter.Event{LamportTime: 7}},
@@ -33,7 +33,7 @@ func TestEventsSort(t *testing.T) {
 		}
 		sort.Sort(ordered)
 
-		if !assert.Equal(expected, ordered, fmt.Sprintf("perms: %v", perms)) {
+		if !assertar.Equal(expected, ordered, fmt.Sprintf("perms: %v", perms)) {
 			break
 		}
 	}

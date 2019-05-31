@@ -333,22 +333,22 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 
 // collectParents recursive collects Events of Atropos.
 func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
-	for hash := range a.Parents {
-		if hash.IsZero() {
+	for hash_ := range a.Parents {
+		if hash_.IsZero() {
 			continue
 		}
-		if already.Contains(hash) {
+		if already.Contains(hash_) {
 			continue
 		}
-		f, _ := p.FrameOfEvent(hash)
-		if _, ok := f.Atroposes[hash]; ok {
+		f, _ := p.FrameOfEvent(hash_)
+		if _, ok := f.Atroposes[hash_]; ok {
 			continue
 		}
 
-		e := p.GetEvent(hash)
+		e := p.GetEvent(hash_)
 		e.consensusTime = a.consensusTime
 		*res = append(*res, e)
-		already.Add(hash)
+		already.Add(hash_)
 		p.collectParents(e, res, already)
 	}
 }

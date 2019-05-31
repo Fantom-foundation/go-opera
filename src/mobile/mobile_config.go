@@ -1,7 +1,7 @@
 package mobile
 
-// MobileConfig stores all the configuration information for a mobile node
-type MobileConfig struct {
+// Config stores all the configuration information for a mobile node
+type Config struct {
 	Heartbeat  int    //heartbeat timeout in milliseconds
 	TCPTimeout int    //TCP timeout in milliseconds
 	MaxPool    int    //Max number of pooled connections
@@ -18,9 +18,9 @@ func NewMobileConfig(heartbeat int,
 	cacheSize int,
 	syncLimit int,
 	storeType string,
-	storePath string) *MobileConfig {
+	storePath string) *Config {
 
-	return &MobileConfig{
+	return &Config{
 		Heartbeat:  heartbeat,
 		TCPTimeout: tcpTimeout,
 		MaxPool:    maxPool,
@@ -31,9 +31,9 @@ func NewMobileConfig(heartbeat int,
 	}
 }
 
-// DefaultMobileConfig sets the default config
-func DefaultMobileConfig() *MobileConfig {
-	return &MobileConfig{
+// DefaultConfig sets the default config
+func DefaultConfig() *Config {
+	return &Config{
 		Heartbeat:  1000,
 		TCPTimeout: 1000,
 		MaxPool:    2,

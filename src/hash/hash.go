@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	// HashLength is the expected length of the hash
-	HashLength = sha256.Size
+	// Size is the expected length of the hash
+	Size = sha256.Size
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 )
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
-type Hash [HashLength]byte
+type Hash [Size]byte
 
 func Of(data ...[]byte) (hash Hash) {
 	d := sha3.NewKeccak256()
@@ -125,8 +125,8 @@ func (h *Hash) Scan(src interface{}) error {
 	if !ok {
 		return fmt.Errorf("can't scan %T into Hash", src)
 	}
-	if len(srcB) != HashLength {
-		return fmt.Errorf("can't scan []byte of len %d into Hash, want %d", len(srcB), HashLength)
+	if len(srcB) != Size {
+		return fmt.Errorf("can't scan []byte of len %d into Hash, want %d", len(srcB), Size)
 	}
 	copy(h[:], srcB)
 	return nil

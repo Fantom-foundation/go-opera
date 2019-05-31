@@ -8,13 +8,13 @@ import (
 
 //CLIConfig contains configuration for the Run command
 type CLIConfig struct {
-	Lachesis   lachesis.LachesisConfig `mapstructure:",squash"`
-	ProxyAddr  string                  `mapstructure:"proxy-listen"`
-	ClientAddr string                  `mapstructure:"client-connect"`
-	Standalone bool                    `mapstructure:"standalone"`
-	Log2file   bool                    `mapstructure:"log2file"`
-	Pidfile    string                  `mapstructure:"pidfile"`
-	Syslog     bool                    `mapstructure:"syslog"`
+	Lachesis   lachesis.Config `mapstructure:",squash"`
+	ProxyAddr  string          `mapstructure:"proxy-listen"`
+	ClientAddr string          `mapstructure:"client-connect"`
+	Standalone bool            `mapstructure:"standalone"`
+	Log2file   bool            `mapstructure:"log2file"`
+	Pidfile    string          `mapstructure:"pidfile"`
+	Syslog     bool            `mapstructure:"syslog"`
 }
 
 //NewDefaultCLIConfig creates a CLIConfig with default values

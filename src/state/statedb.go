@@ -428,8 +428,8 @@ func (s *DB) Copy() *DB {
 			state.stateObjectsDirty[addr] = struct{}{}
 		}
 	}
-	for hash, preimage := range s.preimages {
-		state.preimages[hash] = preimage
+	for hash_, preimage := range s.preimages {
+		state.preimages[hash_] = preimage
 	}
 	return state
 }

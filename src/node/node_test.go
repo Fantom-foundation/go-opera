@@ -123,7 +123,7 @@ func createNode(t *testing.T, logger *logrus.Logger, config *Config,
 	trans peer.SyncPeer, localAddr string, run bool) *Node {
 
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)
-	app := dummy.NewInmemDummyApp(logger)
+	app := dummy.NewInmemApp(logger)
 
 	selectorArgs := SmartPeerSelectorCreationFnArgs{
 		LocalAddr:    localAddr,
@@ -260,7 +260,7 @@ func recycleNode(oldNode *Node, logger *logrus.Logger, t *testing.T) *Node {
 		2, createFu, network.CreateListener)
 	defer transportClose(t, trans)
 
-	prox := dummy.NewInmemDummyApp(logger)
+	prox := dummy.NewInmemApp(logger)
 
 	selectorArgs := SmartPeerSelectorCreationFnArgs{
 		LocalAddr:    p[0].NetAddr,

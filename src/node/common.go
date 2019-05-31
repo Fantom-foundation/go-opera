@@ -19,11 +19,11 @@ import (
 
 const delay = 100 * time.Millisecond
 
-// NodeList is a list of connected nodes for tests purposes
-type NodeList map[*ecdsa.PrivateKey]*Node
+// ConnectedNodes is a list of connected nodes for tests purposes
+type ConnectedNodes map[*ecdsa.PrivateKey]*Node
 
-// NewNodeList makes, fills and runs NodeList instance
-func NewNodeList(count int, logger *logrus.Logger) NodeList {
+// NewNodeList makes, fills and runs ConnectedNodes instance
+func NewNodeList(count int, logger *logrus.Logger) ConnectedNodes {
 	config := DefaultConfig()
 	syncBackConfig := peer.NewBackendConfig()
 
@@ -46,12 +46,12 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 		addr := network.RandomAddress()
 		key, _ := crypto.GenerateECDSAKey()
 		pubKey := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
-		peer := peers.NewPeer(pubKey, addr)
-		participants.AddPeer(peer)
-		keys[peer] = key
+		createdPeer := peers.NewPeer(pubKey, addr)
+		participants.AddPeer(createdPeer)
+		keys[createdPeer] = key
 	}
 
-	nodes := make(NodeList, count)
+	nodes := make(ConnectedNodes, count)
 	for _, peer2 := range participants.ToPeerSlice() {
 		key := keys[peer2]
 
@@ -75,7 +75,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 			participants,
 			poset.NewInmemStore(participants, config.CacheSize, nil),
 			transport,
-			dummy.NewInmemDummyApp(logger),
+			dummy.NewInmemApp(logger),
 			NewSmartPeerSelectorWrapper,
 			selectorArgs,
 			peer2.NetAddr,
@@ -91,7 +91,7 @@ func NewNodeList(count int, logger *logrus.Logger) NodeList {
 }
 
 // Keys returns the all PrivateKeys slice
-func (n NodeList) Keys() []*ecdsa.PrivateKey {
+func (n ConnectedNodes) Keys() []*ecdsa.PrivateKey {
 	keys := make([]*ecdsa.PrivateKey, len(n))
 	i := 0
 	for key := range n {
@@ -102,7 +102,7 @@ func (n NodeList) Keys() []*ecdsa.PrivateKey {
 }
 
 // Values returns the all nodes slice
-func (n NodeList) Values() []*Node {
+func (n ConnectedNodes) Values() []*Node {
 	nodes := make([]*Node, len(n))
 	i := 0
 	for _, node := range n {
@@ -113,7 +113,7 @@ func (n NodeList) Values() []*Node {
 }
 
 // StartRandTxStream sends random txs to nodes until stop() called
-func (n NodeList) StartRandTxStream() (stop func()) {
+func (n ConnectedNodes) StartRandTxStream() (stop func()) {
 	stopCh := make(chan struct{})
 
 	stop = func() {
@@ -146,7 +146,7 @@ func (n NodeList) StartRandTxStream() (stop func()) {
 }
 
 // WaitForBlock waits until the target block has retrieved a state hash from the app
-func (n NodeList) WaitForBlock(target int64) {
+func (n ConnectedNodes) WaitForBlock(target int64) {
 LOOP:
 	for {
 		time.Sleep(delay)

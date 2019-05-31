@@ -15,10 +15,10 @@ func makeCtrlProxy(cmd *cobra.Command) (proxy.NodeProxy, error) {
 		return nil, err
 	}
 
-	proxy, err := proxy.NewGrpcNodeProxy(addr, nil)
+	grpcProxy, err := proxy.NewGrpcNodeProxy(addr, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return proxy, nil
+	return grpcProxy, nil
 }

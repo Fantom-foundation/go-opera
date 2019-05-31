@@ -11,7 +11,7 @@ import (
 )
 
 func TestASCIIschemeToDAG(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	nodes, events, names := ASCIIschemeToDAG(`
 a00 b00   c00 d00
@@ -55,10 +55,10 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		"e00": {"", "d02"},
 	}
 
-	if !assert.Equal(5, len(nodes), "node count") {
+	if !assertar.Equal(5, len(nodes), "node count") {
 		return
 	}
-	if !assert.Equal(len(expected), len(names), "event count") {
+	if !assertar.Equal(len(expected), len(names), "event count") {
 		return
 	}
 
@@ -71,15 +71,15 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 
 	for eName, e := range names {
 		parents := expected[eName]
-		if !assert.Equal(len(parents), len(e.Parents), "at event "+eName) {
+		if !assertar.Equal(len(parents), len(e.Parents), "at event "+eName) {
 			return
 		}
 		for _, pName := range parents {
-			hash := hash.ZeroEvent
+			zeroEvent := hash.ZeroEvent
 			if pName != "" {
-				hash = names[pName].Hash()
+				zeroEvent = names[pName].Hash()
 			}
-			if !e.Parents.Contains(hash) {
+			if !e.Parents.Contains(zeroEvent) {
 				t.Fatalf("%s has no parent %s", eName, pName)
 			}
 		}

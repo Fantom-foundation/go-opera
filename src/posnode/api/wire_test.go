@@ -72,7 +72,7 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 	defer server.Stop()
 
 	t.Run("authorized", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		opts := append(opts,
 			grpc.WithInsecure(),
@@ -87,36 +87,36 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		// SyncEvents() rpc
 		id1, ctx1 := ServerPeerID(nil)
 		_, err = client.SyncEvents(ctx1, &KnownEvents{})
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
-		if !assert.Equal(serverID, *id1) {
+		if !assertar.Equal(serverID, *id1) {
 			return
 		}
 
 		// GetEvent() rpc
 		id2, ctx2 := ServerPeerID(nil)
 		_, err = client.GetEvent(ctx2, &EventRequest{})
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
-		if !assert.Equal(serverID, *id2) {
+		if !assertar.Equal(serverID, *id2) {
 			return
 		}
 
 		// GetPeerInfo() rpc
 		id3, ctx3 := ServerPeerID(nil)
 		_, err = client.GetPeerInfo(ctx3, &PeerRequest{})
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
-		if !assert.Equal(serverID, *id3) {
+		if !assertar.Equal(serverID, *id3) {
 			return
 		}
 	})
 
 	t.Run("unauthorized client", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		opts := append(opts,
 			grpc.WithInsecure(),
@@ -130,30 +130,30 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		// SyncEvents() rpc
 		id1, ctx1 := ServerPeerID(nil)
 		_, err = client.SyncEvents(ctx1, &KnownEvents{})
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		}
-		if !assert.Equal(hash.EmptyPeer, *id1) {
+		if !assertar.Equal(hash.EmptyPeer, *id1) {
 			return
 		}
 
 		// GetEvent() rpc
 		id2, ctx2 := ServerPeerID(nil)
 		_, err = client.GetEvent(ctx2, &EventRequest{})
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		}
-		if !assert.Equal(hash.EmptyPeer, *id2) {
+		if !assertar.Equal(hash.EmptyPeer, *id2) {
 			return
 		}
 
 		// GetPeerInfo() rpc
 		id3, ctx3 := ServerPeerID(nil)
 		_, err = client.GetPeerInfo(ctx3, &PeerRequest{})
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		}
-		if !assert.Equal(hash.EmptyPeer, *id3) {
+		if !assertar.Equal(hash.EmptyPeer, *id3) {
 			return
 		}
 	})

@@ -108,12 +108,12 @@ func testIterativeSync(t *testing.T, batch int) {
 	queue := append([]hash.Hash{}, sched.Missing(batch)...)
 	for len(queue) > 0 {
 		results := make([]SyncResult, len(queue))
-		for i, hash := range queue {
-			data, err := srcDb.Node(hash)
+		for i, hash_ := range queue {
+			data, err := srcDb.Node(hash_)
 			if err != nil {
-				t.Fatalf("failed to retrieve node data for %x: %v", hash, err)
+				t.Fatalf("failed to retrieve node data for %x: %v", hash_, err)
 			}
-			results[i] = SyncResult{hash, data}
+			results[i] = SyncResult{hash_, data}
 		}
 		if _, index, err := sched.Process(results); err != nil {
 			t.Fatalf("failed to process result #%d: %v", index, err)
@@ -142,12 +142,12 @@ func TestIterativeDelayedSync(t *testing.T) {
 	for len(queue) > 0 {
 		// Sync only half of the scheduled nodes
 		results := make([]SyncResult, len(queue)/2+1)
-		for i, hash := range queue[:len(results)] {
-			data, err := srcDb.Node(hash)
+		for i, hash_ := range queue[:len(results)] {
+			data, err := srcDb.Node(hash_)
 			if err != nil {
-				t.Fatalf("failed to retrieve node data for %x: %v", hash, err)
+				t.Fatalf("failed to retrieve node data for %x: %v", hash_, err)
 			}
-			results[i] = SyncResult{hash, data}
+			results[i] = SyncResult{hash_, data}
 		}
 		if _, index, err := sched.Process(results); err != nil {
 			t.Fatalf("failed to process result #%d: %v", index, err)
@@ -177,18 +177,18 @@ func testIterativeRandomSync(t *testing.T, batch int) {
 	sched := NewSync(srcTrie.Hash(), diskdb, nil)
 
 	queue := make(map[hash.Hash]struct{})
-	for _, hash := range sched.Missing(batch) {
-		queue[hash] = struct{}{}
+	for _, hash_ := range sched.Missing(batch) {
+		queue[hash_] = struct{}{}
 	}
 	for len(queue) > 0 {
 		// Fetch all the queued nodes in a random order
 		results := make([]SyncResult, 0, len(queue))
-		for hash := range queue {
-			data, err := srcDb.Node(hash)
+		for hash_ := range queue {
+			data, err := srcDb.Node(hash_)
 			if err != nil {
-				t.Fatalf("failed to retrieve node data for %x: %v", hash, err)
+				t.Fatalf("failed to retrieve node data for %x: %v", hash_, err)
 			}
-			results = append(results, SyncResult{hash, data})
+			results = append(results, SyncResult{hash_, data})
 		}
 		// Feed the retrieved results back and queue new tasks
 		if _, index, err := sched.Process(results); err != nil {
@@ -198,8 +198,8 @@ func testIterativeRandomSync(t *testing.T, batch int) {
 			t.Fatalf("failed to commit data #%d: %v", index, err)
 		}
 		queue = make(map[hash.Hash]struct{})
-		for _, hash := range sched.Missing(batch) {
-			queue[hash] = struct{}{}
+		for _, hash_ := range sched.Missing(batch) {
+			queue[hash_] = struct{}{}
 		}
 	}
 	// Cross check that the two tries are in sync
@@ -218,18 +218,18 @@ func TestIterativeRandomDelayedSync(t *testing.T) {
 	sched := NewSync(srcTrie.Hash(), diskdb, nil)
 
 	queue := make(map[hash.Hash]struct{})
-	for _, hash := range sched.Missing(10000) {
-		queue[hash] = struct{}{}
+	for _, hash_ := range sched.Missing(10000) {
+		queue[hash_] = struct{}{}
 	}
 	for len(queue) > 0 {
 		// Sync only half of the scheduled nodes, even those in random order
 		results := make([]SyncResult, 0, len(queue)/2+1)
-		for hash := range queue {
-			data, err := srcDb.Node(hash)
+		for hash_ := range queue {
+			data, err := srcDb.Node(hash_)
 			if err != nil {
-				t.Fatalf("failed to retrieve node data for %x: %v", hash, err)
+				t.Fatalf("failed to retrieve node data for %x: %v", hash_, err)
 			}
-			results = append(results, SyncResult{hash, data})
+			results = append(results, SyncResult{hash_, data})
 
 			if len(results) >= cap(results) {
 				break
@@ -245,8 +245,8 @@ func TestIterativeRandomDelayedSync(t *testing.T) {
 		for _, result := range results {
 			delete(queue, result.Hash)
 		}
-		for _, hash := range sched.Missing(10000) {
-			queue[hash] = struct{}{}
+		for _, hash_ := range sched.Missing(10000) {
+			queue[hash_] = struct{}{}
 		}
 	}
 	// Cross check that the two tries are in sync
@@ -269,17 +269,17 @@ func TestDuplicateAvoidanceSync(t *testing.T) {
 
 	for len(queue) > 0 {
 		results := make([]SyncResult, len(queue))
-		for i, hash := range queue {
-			data, err := srcDb.Node(hash)
+		for i, hash_ := range queue {
+			data, err := srcDb.Node(hash_)
 			if err != nil {
-				t.Fatalf("failed to retrieve node data for %x: %v", hash, err)
+				t.Fatalf("failed to retrieve node data for %x: %v", hash_, err)
 			}
-			if _, ok := requested[hash]; ok {
-				t.Errorf("hash %x already requested once", hash)
+			if _, ok := requested[hash_]; ok {
+				t.Errorf("hash_ %x already requested once", hash_)
 			}
-			requested[hash] = struct{}{}
+			requested[hash_] = struct{}{}
 
-			results[i] = SyncResult{hash, data}
+			results[i] = SyncResult{hash_, data}
 		}
 		if _, index, err := sched.Process(results); err != nil {
 			t.Fatalf("failed to process result #%d: %v", index, err)
@@ -309,12 +309,12 @@ func TestIncompleteSync(t *testing.T) {
 	for len(queue) > 0 {
 		// Fetch a batch of trie nodes
 		results := make([]SyncResult, len(queue))
-		for i, hash := range queue {
-			data, err := srcDb.Node(hash)
+		for i, hash_ := range queue {
+			data, err := srcDb.Node(hash_)
 			if err != nil {
-				t.Fatalf("failed to retrieve node data for %x: %v", hash, err)
+				t.Fatalf("failed to retrieve node data for %x: %v", hash_, err)
 			}
-			results[i] = SyncResult{hash, data}
+			results[i] = SyncResult{hash_, data}
 		}
 		// Process each of the trie nodes
 		if _, index, err := sched.Process(results); err != nil {

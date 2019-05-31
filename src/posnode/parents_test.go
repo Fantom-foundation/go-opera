@@ -40,7 +40,7 @@ func TestParentSelection(t *testing.T) {
 // testParentSelection uses special event name format: <creator weight>:<uppercase if expected|lowercase><expected ordering num>
 func testParentSelection(t *testing.T, dsc, schema string) {
 	t.Run(dsc, func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -53,15 +53,15 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		expected := ASCIIschemeToDAG(node, consensus, schema)
 		for n, expect := range expected {
 			parent := node.popBestParent()
-			if !assert.NotNil(parent, "step %d", n) {
+			if !assertar.NotNil(parent, "step %d", n) {
 				break
 			}
-			if !assert.Equal(expect, parent.String(), "step %d", n) {
+			if !assertar.Equal(expect, parent.String(), "step %d", n) {
 				break
 			}
 		}
 
-		assert.Nil(node.popBestParent(), "last step")
+		assertar.Nil(node.popBestParent(), "last step")
 
 	})
 }

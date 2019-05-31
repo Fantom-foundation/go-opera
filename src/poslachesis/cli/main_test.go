@@ -35,7 +35,7 @@ func TestApp(t *testing.T) {
 	peer := hash.FakePeer()
 
 	t.Run("id", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.EXPECT().
 			GetID().
@@ -45,15 +45,15 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Contains(out.String(), peer.Hex())
+		assertar.Contains(out.String(), peer.Hex())
 	})
 
 	t.Run("balance", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		amount := rand.Uint64()
 
@@ -68,16 +68,16 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
 		expect := fmt.Sprintf("balance of %s == %d", peer.Hex(), amount)
-		assert.Contains(out.String(), expect)
+		assertar.Contains(out.String(), expect)
 	})
 
 	t.Run("balance with peer flag", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		amount := rand.Uint64()
 
@@ -93,16 +93,16 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
 		expect := fmt.Sprintf("balance of %s == %d", otherPeer.Hex(), amount)
-		assert.Contains(out.String(), expect)
+		assertar.Contains(out.String(), expect)
 	})
 
 	t.Run("info not found", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		hex := "0x00000"
 		consensus.EXPECT().
@@ -116,15 +116,15 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "transaction not found")
+		assertar.Contains(out.String(), "transaction not found")
 	})
 
 	t.Run("info ok", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		h := hash.FakeTransaction()
 		amount := rand.Uint64()
@@ -146,11 +146,11 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Contains(
+		assertar.Contains(
 			out.String(),
 			fmt.Sprintf(
 				"transfer %d to %s",
@@ -161,21 +161,21 @@ func TestApp(t *testing.T) {
 	})
 
 	t.Run("transfer missing flags", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		app.SetArgs([]string{"transfer"})
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "required flag(s) \"amount\", \"index\", \"receiver\" not set")
+		assertar.Contains(out.String(), "required flag(s) \"amount\", \"index\", \"receiver\" not set")
 	})
 
 	t.Run("transfer", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		amount := rand.Uint64()
 
@@ -198,15 +198,15 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Contains(out.String(), h.Hex())
+		assertar.Contains(out.String(), h.Hex())
 	})
 
 	t.Run("log-level one argument", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		app.SetArgs([]string{
 			"log-level",
@@ -214,15 +214,15 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "expected exactly one argument")
+		assertar.Contains(out.String(), "expected exactly one argument")
 	})
 
 	t.Run("log-level ok", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		app.SetArgs([]string{
 			"log-level",
@@ -231,10 +231,10 @@ func TestApp(t *testing.T) {
 		defer out.Reset()
 
 		err := app.Execute()
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Contains(out.String(), "ok")
+		assertar.Contains(out.String(), "ok")
 	})
 }

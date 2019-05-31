@@ -441,33 +441,33 @@ func (n *Node) processFastForwardRequest(rpc *peer.RPC, cmd *peer.FastForwardReq
 // Gossiping state and return.
 func (n *Node) gossip(parentReturnCh chan struct{}) error {
 
-	peer := n.peerSelector.Next()
-	if peer == nil {
-		return fmt.Errorf("can't select next peer")
+	selectedPeer := n.peerSelector.Next()
+	if selectedPeer == nil {
+		return fmt.Errorf("can't select next selectedPeer")
 	}
 
 	// pull
-	syncLimit, otherKnownEvents, err := n.pull(peer)
+	syncLimit, otherKnownEvents, err := n.pull(selectedPeer)
 	if err != nil {
 		return err
 	}
 
 	// check and handle syncLimit
 	if syncLimit {
-		n.logger.WithField("from", peer.NetAddr).Debug("SyncLimit")
+		n.logger.WithField("from", selectedPeer.NetAddr).Debug("SyncLimit")
 		n.setState(CatchingUp)
 		parentReturnCh <- struct{}{}
 		return nil
 	}
 
 	// push
-	err = n.push(peer.NetAddr, otherKnownEvents)
+	err = n.push(selectedPeer.NetAddr, otherKnownEvents)
 	if err != nil {
 		return err
 	}
 
-	// update peer selector
-	n.peerSelector.UpdateLast(peer.NetAddr)
+	// update selectedPeer selector
+	n.peerSelector.UpdateLast(selectedPeer.NetAddr)
 
 	return nil
 }
@@ -572,13 +572,13 @@ func (n *Node) fastForward() error {
 	n.waitRoutines()
 
 	// fastForwardRequest
-	peer := n.peerSelector.Next()
+	selectedPeer := n.peerSelector.Next()
 	start := time.Now()
-	resp, err := n.requestFastForward(peer.NetAddr)
+	resp, err := n.requestFastForward(selectedPeer.NetAddr)
 	elapsed := time.Since(start)
-	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestFastForward(peer.NetAddr)")
+	n.logger.WithField("Duration", elapsed.Nanoseconds()).Debug("n.requestFastForward(selectedPeer.NetAddr)")
 	if err != nil {
-		n.logger.WithField("Error", err).Error("n.requestFastForward(peer.NetAddr)")
+		n.logger.WithField("Error", err).Error("n.requestFastForward(selectedPeer.NetAddr)")
 		return err
 	}
 	n.logger.WithFields(logrus.Fields{
@@ -592,10 +592,10 @@ func (n *Node) fastForward() error {
 
 	// prepare core. ie: fresh poset
 	n.coreLock.Lock()
-	err = n.core.FastForward(peer.PubKeyHex, resp.Block, resp.Frame)
+	err = n.core.FastForward(selectedPeer.PubKeyHex, resp.Block, resp.Frame)
 	n.coreLock.Unlock()
 	if err != nil {
-		n.logger.WithField("Error", err).Error("n.core.FastForward(peer.PubKeyHex, resp.Block, resp.Frame)")
+		n.logger.WithField("Error", err).Error("n.core.FastForward(selectedPeer.PubKeyHex, resp.Block, resp.Frame)")
 		return err
 	}
 

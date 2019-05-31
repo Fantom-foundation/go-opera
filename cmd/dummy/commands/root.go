@@ -42,7 +42,7 @@ func runDummy(cmd *cobra.Command, args []string) error {
 	name := config.Name
 	address := config.ProxyAddr
 	//Create and run Dummy Socket Client
-	client, err := dummy.NewDummySocketClient(address, logger)
+	client, err := dummy.NewSocketClient(address, logger)
 	if err != nil {
 		return err
 	}

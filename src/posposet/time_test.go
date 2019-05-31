@@ -10,7 +10,7 @@ import (
 )
 
 func TestLamportTimeCounter(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	data := map[inter.Timestamp][]inter.Timestamp{
 		math.MaxUint64: {},
@@ -26,7 +26,7 @@ func TestLamportTimeCounter(t *testing.T) {
 		}
 
 		actual := counter.MaxMin()
-		if !assert.Equal(expected, actual, "max-min time") {
+		if !assertar.Equal(expected, actual, "max-min time") {
 			break
 		}
 	}

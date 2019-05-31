@@ -27,7 +27,7 @@ func TestGetPeerInfo(t *testing.T) {
 	defer free()
 
 	t.Run("existing peer", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		peer := FakePeer("unreachable")
 		store.SetPeer(peer)
@@ -38,16 +38,16 @@ func TestGetPeerInfo(t *testing.T) {
 		got, err := client.GetPeerInfo(ctx, &api.PeerRequest{
 			PeerID: peer.ID.Hex(),
 		})
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			fail(err)
 			return
 		}
 
-		assert.Equal(peer, WireToPeer(got))
+		assertar.Equal(peer, WireToPeer(got))
 	})
 
 	t.Run("no existing peer", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
 		defer cancel()
@@ -56,21 +56,21 @@ func TestGetPeerInfo(t *testing.T) {
 			PeerID: "unknown",
 		})
 
-		if !assert.Nil(resp) {
+		if !assertar.Nil(resp) {
 			return
 		}
 
-		if !assert.Error(err) {
+		if !assertar.Error(err) {
 			return
 		} else {
 			fail(err)
 		}
 
 		s := status.Convert(err)
-		if !assert.NotNil(s) {
+		if !assertar.NotNil(s) {
 			return
 		}
-		assert.Equal(codes.NotFound, s.Code())
+		assertar.Equal(codes.NotFound, s.Code())
 	})
 
 }

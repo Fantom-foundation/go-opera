@@ -57,17 +57,17 @@ func (t *Trie) Prove(key []byte, fromLevel uint, proofDb kvdb.Putter) error {
 		// if encoding doesn't work and we're not writing to any database.
 		n, _, _ = hasher.hashChildren(n, nil)
 		hn, _ := hasher.store(n, nil, false)
-		if hash, ok := hn.(hashNode); ok || i == 0 {
-			// If the node's database encoding is a hash (or is the
+		if hash_, ok := hn.(hashNode); ok || i == 0 {
+			// If the node's database encoding is a hash_ (or is the
 			// root node), it becomes a proof element.
 			if fromLevel > 0 {
 				fromLevel--
 			} else {
 				enc, _ := EncodeToBytes(n)
 				if !ok {
-					hash = crypto.Keccak256(enc)
+					hash_ = crypto.Keccak256(enc)
 				}
-				err := proofDb.Put(hash, enc)
+				err := proofDb.Put(hash_, enc)
 				if err != nil {
 					return err
 				}

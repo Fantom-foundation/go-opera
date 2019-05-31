@@ -114,7 +114,7 @@ A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
 // - 2nd number - index by node;
 // - 3rd number - frame where node should be in;
 func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 	// init
 	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme)
 	p, _, input := FakePoset(nodes)
@@ -128,15 +128,15 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 		// check root
 		mustBeRoot := name == strings.ToUpper(name)
 		frame, isRoot := p.FrameOfEvent(event.Hash())
-		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
+		if !assertar.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
 		}
 		// check frame
 		mustBeFrame, err := strconv.ParseUint(name[2:3], 10, 64)
-		if !assert.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
+		if !assertar.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
 			return
 		}
-		if !assert.Equal(mustBeFrame, frame.Index, "frame of "+name) {
+		if !assertar.Equal(mustBeFrame, frame.Index, "frame of "+name) {
 			break
 		}
 	}
