@@ -993,6 +993,7 @@ func TestBootstrapAllNodes(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
+	t.Skip()
 	logger := common.NewTestLogger(t)
 
 	config := TestConfig(t)
@@ -1044,6 +1045,7 @@ func TestShutdown(t *testing.T) {
 	// must be changed accordingly if PeerSelector is changed
 	nodes[1].peerSelector.Peers().ByID[nodes[1].id].Used = 2
 	nodes[1].peerSelector.Peers().ByID[nodes[2].id].Used = 2
+	nodes[1].peerSelector.Peers().ByID[nodes[3].id].Used = 2
 	nodes[1].peerSelector.Peers().ByID[nodes[0].id].Used = 1
 
 	err := nodes[1].gossip(nil)
