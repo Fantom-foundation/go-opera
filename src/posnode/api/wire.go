@@ -24,10 +24,10 @@ import (
 )
 
 // StartService starts and returns gRPC server.
-func StartService(bind string, key *common.PrivateKey, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (
+func StartService(bind string, key *common.PrivateKey, genesis hash.Hash, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (
 	*grpc.Server, string) {
 	server := grpc.NewServer(
-		grpc.UnaryInterceptor(ServerAuth(key)),
+		grpc.UnaryInterceptor(ServerAuth(key, genesis)),
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	RegisterNodeServer(server, svc)

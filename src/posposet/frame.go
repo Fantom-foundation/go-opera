@@ -101,7 +101,7 @@ func (p *Poset) setFrameSaving(f *Frame) {
 		if f.Index > p.state.LastFinishedFrameN {
 			p.store.SetFrame(f)
 		} else {
-			log.Fatalf("frame %d is finished and should not be changed", f.Index)
+			p.Fatalf("frame %d is finished and should not be changed", f.Index)
 		}
 	}
 }

@@ -70,7 +70,7 @@ A54 ─ ─ ╫ ─ ─ ─ ╬ ─ ─ ─ ╣       ║
 func testSpecialNamedClotho(t *testing.T, asciiScheme string) {
 	assert := assert.New(t)
 	// init
-	nodes, _, names := inter.ParseEvents(asciiScheme)
+	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme)
 	p, _, input := FakePoset(nodes)
 	// process events
 	for _, event := range names {

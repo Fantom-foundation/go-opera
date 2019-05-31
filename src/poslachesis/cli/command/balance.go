@@ -28,19 +28,12 @@ var Balance = &cobra.Command{
 			return err
 		}
 
-		balance, err := proxy.GetBalanceOf(id)
+		balance, err := proxy.StakeOf(id)
 		if err != nil {
 			return err
 		}
 
-		cmd.Printf("balance of %s == %d\n", id.Hex(), balance.Amount)
-
-		if len(balance.Pending) > 0 {
-			for _, txn := range balance.Pending {
-				cmd.Printf("pending transfer %d to %s\n", txn.Amount, txn.Receiver.Hex())
-			}
-		}
-
+		cmd.Printf("balance of %s == %d\n", id.Hex(), balance)
 		return nil
 	},
 }

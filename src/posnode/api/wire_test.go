@@ -14,6 +14,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
+// gen is an empty genesis hash.
+var gen hash.Hash
+
 func TestGRPC(t *testing.T) {
 
 	t.Run("over TCP", func(t *testing.T) {
@@ -65,7 +68,7 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		AnyTimes()
 
 	// server
-	server, addr := StartService(bind, serverKey, svc, t.Logf, listen)
+	server, addr := StartService(bind, serverKey, gen, svc, t.Logf, listen)
 	defer server.Stop()
 
 	t.Run("authorized", func(t *testing.T) {
@@ -73,7 +76,7 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 
 		opts := append(opts,
 			grpc.WithInsecure(),
-			grpc.WithUnaryInterceptor(ClientAuth(clientKey)),
+			grpc.WithUnaryInterceptor(ClientAuth(clientKey, gen)),
 		)
 		conn, err := grpc.DialContext(context.Background(), addr, opts...)
 		if err != nil {

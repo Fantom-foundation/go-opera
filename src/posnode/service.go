@@ -29,8 +29,13 @@ func (n *Node) StartService() {
 		n.service.listen = network.TCPListener
 	}
 
+	var genesis hash.Hash
+	if n.consensus != nil {
+		genesis = n.consensus.GetGenesisHash()
+	}
+
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n.key, n, n.Infof, n.service.listen)
+	n.server, _ = api.StartService(bind, n.key, genesis, n, n.Infof, n.service.listen)
 
 	n.Info("service started")
 }

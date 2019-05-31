@@ -1,5 +1,5 @@
-hash: 04e87a405513c12473e9f74298d76e1575e3b9822aa52094767c9876d8223642
-updated: 2019-05-21T12:00:33.897938+03:00
+hash: 076e8cbac17c2495812fc38454a11a303a6c95fca95d2b482dd53669c56871b2
+updated: 2019-05-28T12:06:15.426866979+07:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -7,8 +7,8 @@ imports:
   - queue
 - name: github.com/AndreasBriese/bbloom
   version: e2d15f34fcf99d5dbb871c820ec73f710fca9815
-- name: github.com/asaskevich/govalidator
-  version: ccb8e960c48f04d6935e72476ae4a51028f9e22f
+- name: github.com/certifi/gocertifi
+  version: d2eda712971317d7dd278bc2a52acda7e945f97e
 - name: github.com/dgraph-io/badger
   version: deee8c7ae70bab412e4f10cfa068e0be61a8d0eb
   subpackages:
@@ -21,12 +21,16 @@ imports:
   version: 6a90982ecee230ff6cba02d5bd386acc030be9d3
 - name: github.com/dustin/go-humanize
   version: 9f541cc9db5d55bce703bd99987c9d5cb8eea45e
+- name: github.com/evalphobia/logrus_sentry
+  version: ab0fa2ee9517a8e8c1de1c07e492e8164f852529
 - name: github.com/facebookgo/atomicfile
   version: 2de1f203e7d5e386a6833233882782932729f27e
 - name: github.com/facebookgo/pidfile
   version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
 - name: github.com/fsnotify/fsnotify
   version: 1485a34d5d5723fea214f5710708e19a831720e4
+- name: github.com/getsentry/raven-go
+  version: f04e7487e9a6b9d9837d52743fb5f40576c56411
 - name: github.com/golang/mock
   version: 9fa652df1129bef0e734c9cf9bf6dbae9ef3b9fa
   subpackages:
@@ -91,7 +95,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 24fa6976df40757dce6aea913e7b81ade90530e1
 - name: github.com/spf13/viper
-  version: 9e56dacc08fbbf8c9ee2dbc717553c758ce42bc9
+  version: b5bf975e5823809fb22c7644d008757f78a4259e
 - name: github.com/tebeka/atexit
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
 - name: github.com/urfave/cli
@@ -125,7 +129,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 25c4f928eaa6d96443009bd842389fb4fa48664e
+  version: 869adfc8d5a43efc0d05780ad109106f457f51e4
   subpackages:
   - balancer
   - balancer/base

@@ -5,7 +5,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -58,8 +57,8 @@ func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Conf
 }
 
 // Start inits and starts whole lachesis node.
-func (l *Lachesis) Start(genesis map[hash.Peer]uint64) {
-	l.init(genesis)
+func (l *Lachesis) Start() {
+	l.init()
 
 	l.consensus.Start()
 	l.node.Start()
@@ -78,8 +77,10 @@ func (l *Lachesis) AddPeers(hosts ...string) {
 	l.node.AddBuiltInPeers(hosts...)
 }
 
-func (l *Lachesis) init(genesis map[hash.Peer]uint64) {
-	if err := l.consensusStore.ApplyGenesis(genesis); err != nil {
+func (l *Lachesis) init() {
+	genesis := l.conf.Net.Genesis
+	err := l.consensusStore.ApplyGenesis(genesis)
+	if err != nil {
 		l.Fatal(err)
 	}
 }

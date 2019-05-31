@@ -22,6 +22,8 @@ func prepareApp() *cobra.Command {
 	app.AddCommand(command.ID)
 	app.AddCommand(command.Balance)
 	app.AddCommand(command.Transfer)
+	app.AddCommand(command.Info)
+	app.AddCommand(command.LogLevel)
 
 	return &app
 }

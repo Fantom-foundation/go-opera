@@ -218,12 +218,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 		// TODO: skip or continue gossiping with peer id ?
 	}
 
-	var isParent bool
-
-	// Note: during download parent event we have only eventHash but don't have it for general sync process.
-	if req.Hash != nil {
-		isParent = true
-	} else {
+	if req.Hash == nil {
 		if w.Creator != req.PeerID || w.Index != req.Index {
 			n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
 			return nil, nil
@@ -243,29 +238,9 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 		return nil, err
 	}
 
-	n.saveNewEvent(event, isParent)
+	n.onNewEvent(event)
 
 	return event, nil
-}
-
-// saveNewEvent writes event to store, indexes and consensus.
-// Note: event should be last from its creator.
-// Note: we should not update Peer Height during save parent event.
-func (n *Node) saveNewEvent(e *inter.Event, isParent bool) {
-	n.Info("save new event")
-
-	n.store.SetEvent(e)
-	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
-
-	if !isParent {
-		n.store.SetPeerHeight(e.Creator, e.Index)
-
-		n.pushPotentialParent(e)
-	}
-
-	if n.consensus != nil {
-		n.consensus.PushEvent(e.Hash())
-	}
 }
 
 // knownEventsReq makes request struct with event heights of top peers.

@@ -5,22 +5,24 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-// ParseEvents parses events from ASCII-scheme for test purpose.
+// ASCIIschemeToDAG parses events from ASCII-scheme for test purpose.
 // Use joiners ║ ╬ ╠ ╣ ╫ ╚ ╝ ╩ and optional fillers ─ ═ to draw ASCII-scheme.
 // Result:
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
-func ParseEvents(asciiScheme string) (
+func ASCIIschemeToDAG(scheme string) (
 	nodes []hash.Peer, events map[hash.Peer][]*Event, names map[string]*Event) {
 	// init results
 	events = make(map[hash.Peer][]*Event)
 	names = make(map[string]*Event)
 	// read lines
-	for _, line := range strings.Split(strings.TrimSpace(asciiScheme), "\n") {
+	for _, line := range strings.Split(strings.TrimSpace(scheme), "\n") {
 		var (
 			nNames    []string // event-N --> name
 			nCreators []int    // event-N --> creator
@@ -122,6 +124,450 @@ func ParseEvents(asciiScheme string) (
 	}
 
 	return
+}
+
+// asciiScheme helping type for create ascii scheme by events.
+// TODO: simplify by make asciiScheme.graph as table, not as strings.
+type asciiScheme struct {
+	graph [][]string
+
+	nodes     map[hash.Peer]uint64
+	nodesName map[hash.Peer]rune
+
+	eventsPosition map[hash.Event][2]uint64
+
+	lengthColumn uint64
+	nextNodeName rune
+}
+
+// increaseEventsPositions add offset for events positions after insert row or column.
+// For insert row 'index' must be 0.
+// For insert column 'index' must be 1.
+func (scheme *asciiScheme) increaseEventsPositions(after uint64, index int) {
+	for key := range scheme.eventsPosition {
+		pos := scheme.eventsPosition[key]
+		if pos[index] <= after {
+			continue
+		}
+
+		pos[index]++
+		scheme.eventsPosition[key] = pos
+	}
+}
+
+// insertColumn insert column after specific column ('after' parameter).
+func (scheme *asciiScheme) insertColumn(after uint64) {
+	scheme.increaseEventsPositions(after, 0)
+
+	for node, column := range scheme.nodes {
+		if column > after {
+			scheme.nodes[node] = column + 1
+		}
+	}
+
+	column := make([]string, scheme.lengthColumn)
+
+	if after >= uint64(len(scheme.graph)) {
+		lastColumn := len(scheme.graph) - 1
+		if lastColumn >= 0 {
+			for i := 0; i < len(column); i++ {
+				switch scheme.graph[lastColumn][i] {
+				case "╠", "╫", "╚", "╩":
+					column[i] = "-"
+				}
+			}
+		}
+
+		for after >= uint64(len(scheme.graph)) {
+			scheme.graph = append(scheme.graph, column)
+		}
+		return
+	}
+
+	for i := 0; i < len(column); i++ {
+		switch scheme.graph[after][i] {
+		case "╠", "╫", "╚", "╩", "-":
+			column[i] = "-"
+			continue
+		}
+
+		if after+1 != uint64(len(scheme.graph)) {
+			switch scheme.graph[after+1][i] {
+			case "╣", "╫", "╝", "╩", "-":
+				column[i] = "-"
+			}
+		}
+	}
+
+	after++
+	scheme.graph = append(
+		scheme.graph[:after],
+		append([][]string{column}, scheme.graph[after:]...)...)
+}
+
+// const for search vertical connection in the current cursor position
+const verticalConnections = "║╫╠╣╝╚"
+
+// insertRow insert row after specific row ('after' parameter).
+func (scheme *asciiScheme) insertRow(after uint64) {
+	if len(scheme.graph) == 0 {
+		return
+	}
+
+	scheme.increaseEventsPositions(after, 1)
+	scheme.lengthColumn++
+
+	after++
+	for column := 0; column < len(scheme.graph); column++ {
+		var symbol string
+		if after >= uint64(len(scheme.graph[column])) {
+			scheme.graph[column] = append(scheme.graph[column], symbol)
+			continue
+		}
+
+		symbol = "║"
+
+		lastSymbol := scheme.graph[column][after-1]
+		indexLastSymbol := -1
+		if len(lastSymbol) > 0 {
+			indexLastSymbol = strings.Index(verticalConnections, lastSymbol)
+		}
+
+		nextSymbol := scheme.graph[column][after]
+		indexNextSymbol := -1
+		if len(nextSymbol) > 0 {
+			indexNextSymbol = strings.Index(verticalConnections, nextSymbol)
+		}
+
+		if (indexLastSymbol == -1 && indexNextSymbol != -1) ||
+			(indexLastSymbol != -1 && indexNextSymbol == -1) ||
+			(indexLastSymbol == -1 && indexNextSymbol == -1) {
+			symbol = ""
+		}
+
+		if lastSymbol == "╝" {
+			scheme.graph[column][after-1] = "╣"
+		}
+
+		if lastSymbol == "╚" {
+			scheme.graph[column][after-1] = "╠"
+		}
+
+		scheme.graph[column] = append(
+			scheme.graph[column][:after],
+			append([]string{symbol}, scheme.graph[column][after:]...)...)
+	}
+}
+
+func (scheme *asciiScheme) drawVerticalConnector(from, to [2]uint64) {
+	start := from[1]
+	stop := to[1]
+	column := from[0]
+
+	if from[1] > to[1] {
+		start = to[1]
+		stop = from[1]
+	}
+
+	for start < stop {
+		var connector string
+		switch scheme.graph[column][start] {
+		case "-":
+			connector = "╫"
+		case "":
+			connector = "║"
+		case "╝":
+			connector = "╣"
+		case "╚":
+			connector = "╠"
+		default:
+			start++
+			continue
+		}
+
+		var leftSymbol, rightSymbol string
+		if int64(column-1) >= 0 {
+			leftSymbol = scheme.graph[column-1][start]
+		}
+		if column+1 < uint64(len(scheme.graph)) {
+			rightSymbol = scheme.graph[column+1][start]
+		}
+
+		if (leftSymbol == "-" || leftSymbol == "╠" || leftSymbol == "╫" || leftSymbol == "╚") &&
+			(rightSymbol == "-" || rightSymbol == "╣" || rightSymbol == "╫" || rightSymbol == "╝") {
+			connector = "╫"
+		} else if leftSymbol == "-" && rightSymbol != "-" {
+			connector = "╣"
+		} else if leftSymbol != "-" && rightSymbol == "-" {
+			connector = "╠"
+		}
+
+		scheme.graph[column][start] = connector
+		start++
+	}
+}
+
+func (scheme *asciiScheme) drawHorizontalConnector(from, to [2]uint64) {
+	start := from[0]
+	stop := to[0]
+
+	isLeft := true
+
+	if from[0] > to[0] {
+		start = to[0]
+		stop = from[0]
+		isLeft = false
+	}
+
+	scheme.setVerticalConnector(to[0], from[1], isLeft)
+	scheme.setVerticalConnector(from[0], from[1], !isLeft)
+
+	if stop-start == 1 {
+		scheme.insertColumn(start)
+		stop++
+	}
+
+	start++
+	for start != stop {
+		connector := "-"
+		if scheme.graph[start][from[1]] == "║" {
+			connector = "╫"
+		}
+		scheme.graph[start][from[1]] = connector
+		start++
+	}
+}
+
+func (scheme *asciiScheme) setVerticalConnector(column, row uint64, isLeft bool) {
+	nodeConnector := "╝"
+	if !isLeft {
+		nodeConnector = "╚"
+	}
+
+	switch scheme.graph[column][row] {
+	case "╬":
+		nodeConnector = "╬"
+	case "╣":
+		if nodeConnector == "╚" {
+			nodeConnector = "╬"
+		}
+	case "╠":
+		if nodeConnector == "╝" {
+			nodeConnector = "╬"
+		}
+	}
+
+	if row+1 < uint64(len(scheme.graph[column])) &&
+		len(scheme.graph[column][row+1]) > 0 &&
+		strings.Index(verticalConnections, scheme.graph[column][row+1]) != -1 {
+		switch nodeConnector {
+		case "╝":
+			nodeConnector = "╣"
+		case "╚":
+			nodeConnector = "╠"
+
+		}
+	}
+
+	scheme.graph[column][row] = nodeConnector
+}
+
+// EventsConnect add communication from child to parent.
+// If parent is zero event, do nothing.
+func (scheme *asciiScheme) EventsConnect(child, parent hash.Event) {
+	if parent == hash.ZeroEvent {
+		return
+	}
+
+	from := scheme.getEventPosition(child)
+	to := scheme.getEventPosition(parent)
+
+	if from[0] == to[0] {
+		if int64(from[1]-to[1]) == 1 {
+			scheme.insertRow(to[1])
+			from[1]++
+		} else if int64(to[1]-from[1]) == 1 {
+			scheme.insertRow(from[1])
+			to[1]++
+		}
+
+		scheme.drawVerticalConnector(from, to)
+		return
+	}
+
+	scheme.insertRow(from[1])
+	from[1]++
+	connectorRow := from[1]
+
+	var isDrawFromVerticalCommunication bool
+
+	for event, pos := range scheme.eventsPosition {
+		if event == child {
+			continue
+		}
+
+		if to[0] == pos[0] && to[1] < pos[1] {
+			scheme.insertColumn(to[0])
+			from[0]++
+			to[0]++
+			scheme.drawVerticalConnector(to, [2]uint64{to[0], from[1]})
+			isDrawFromVerticalCommunication = true
+
+			if scheme.graph[to[0]][to[1]] == "╫" {
+				scheme.graph[to[0]][to[1]] = "-"
+				break
+			}
+
+			scheme.graph[to[0]][to[1]] = ""
+			break
+		}
+	}
+
+	scheme.drawHorizontalConnector(from, to)
+
+	if !isDrawFromVerticalCommunication {
+		to = scheme.getEventPosition(parent)
+		scheme.drawVerticalConnector([2]uint64{to[0], connectorRow}, [2]uint64{to[0], to[1] + 1})
+	}
+
+	from = scheme.getEventPosition(child)
+	scheme.drawVerticalConnector([2]uint64{from[0], connectorRow}, [2]uint64{from[0], connectorRow})
+}
+
+// initial node name for generating ascii scheme by events (current value 'a')
+const firstNodeName = rune(97)
+
+// AddEvent register new event
+// If node of event isn't exist, node will create.
+// Parameter 'name' is optional (possible be empty). If 'name' is empty, name will generate beginning name node 'a' and
+// event index in node.
+func (scheme *asciiScheme) AddEvent(name string, event *Event) {
+	if event == nil {
+		panic(errors.Errorf("event '%s' must be set", name))
+	}
+
+	column, ok := scheme.nodes[event.Creator]
+	if !ok {
+		var nextNodeAfter uint64
+		if uint64(len(scheme.graph)) != 0 {
+			nextNodeAfter = uint64(len(scheme.graph)) - 1
+		}
+		scheme.insertColumn(nextNodeAfter)
+		column = uint64(len(scheme.graph)) - 1
+		if scheme.nodes == nil {
+			scheme.nodes = make(map[hash.Peer]uint64)
+		}
+		scheme.nodes[event.Creator] = column
+
+		if scheme.nextNodeName == 0 {
+			scheme.nextNodeName = firstNodeName
+		}
+		if scheme.nodesName == nil {
+			scheme.nodesName = make(map[hash.Peer]rune)
+		}
+		scheme.nodesName[event.Creator] = scheme.nextNodeName
+		scheme.nextNodeName++
+	}
+
+	currentLengthColumn := scheme.lengthColumn
+
+	for uint64(len(scheme.graph[column])) <= currentLengthColumn {
+		scheme.insertRow(scheme.lengthColumn)
+	}
+
+	if len(name) == 0 {
+		name = fmt.Sprintf("%s%d", string(scheme.nodesName[event.Creator]), event.Index-1)
+	}
+
+	scheme.graph[column][currentLengthColumn] = name
+	if scheme.eventsPosition == nil {
+		scheme.eventsPosition = make(map[hash.Event][2]uint64)
+	}
+	scheme.eventsPosition[event.Hash()] = [2]uint64{column, currentLengthColumn}
+}
+
+// getEventPosition return position event in ascii scheme
+func (scheme *asciiScheme) getEventPosition(event hash.Event) [2]uint64 {
+	position, ok := scheme.eventsPosition[event]
+	if !ok {
+		panic(errors.New("can't find event"))
+	}
+	return position
+}
+
+// String return ascii scheme on means single string
+func (scheme *asciiScheme) String() string {
+	var asciiScheme string
+
+	for column := 0; column < len(scheme.graph); column++ {
+		var currentLength int
+		for row := 0; row < len(scheme.graph[column]); row++ {
+			switch scheme.graph[column][row] {
+			case "╠", "╣", "╫", "║", "╝", "╩", "╚":
+				continue
+			default:
+				if currentLength < len(scheme.graph[column][row]) {
+					currentLength = len(scheme.graph[column][row])
+				}
+			}
+		}
+
+		if currentLength <= 1 {
+			continue
+		}
+
+		for i := 0; i < currentLength; i++ {
+			scheme.insertColumn(uint64(column))
+		}
+		for _, pos := range scheme.eventsPosition {
+			if pos[0] == uint64(column) {
+				for i := 1; i < currentLength; i++ {
+					scheme.graph[column+i][pos[1]] = "&"
+				}
+
+			}
+		}
+	}
+
+	for row := 0; row < int(scheme.lengthColumn); row++ {
+		for column := 0; column < len(scheme.graph); column++ {
+			if scheme.graph[column][row] == "&" {
+				continue
+			}
+			symbol := scheme.graph[column][row]
+			if len(symbol) == 0 {
+				symbol = " "
+			}
+
+			asciiScheme += symbol
+		}
+		asciiScheme += "\n"
+	}
+
+	return asciiScheme
+}
+
+// DAGtoASCIIcheme return ascii scheme by events with parents
+// Throw panic:
+// - event is nil;
+// - not correctly works type asciiScheme.
+// TODO: make result of DAGtoASCIIcheme a valid scheme for ASCIIschemeToDAG().
+func DAGtoASCIIcheme(events Events) string {
+	events = events.ByParents()
+
+	scheme := new(asciiScheme)
+
+	for _, event := range events {
+		scheme.AddEvent("", event)
+		for parent := range event.Parents {
+			if parent == hash.ZeroEvent {
+				continue
+			}
+			scheme.EventsConnect(event.Hash(), parent)
+		}
+	}
+
+	return scheme.String()
 }
 
 // GenEventsByNode generates random events for test purpose.

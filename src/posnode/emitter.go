@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 
 // emitter creates events from external transactions.
 type emitter struct {
-	internalTxns []*inter.InternalTransaction
+	internalTxns map[hash.Transaction]*inter.InternalTransaction
 	externalTxns [][]byte
 	done         chan struct{}
 
@@ -50,19 +51,30 @@ func (n *Node) StopEventEmission() {
 }
 
 // AddInternalTxn takes internal transaction for new event.
-func (n *Node) AddInternalTxn(tx inter.InternalTransaction) {
+func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, error) {
+	// TODO: make index and check idempotency of tx here
+	idx := hash.FakeTransaction()
+
+	if tx.Receiver == n.ID {
+		return hash.Transaction{}, fmt.Errorf("can not transafer to yourself")
+	}
+
+	if tx.Amount < 1 {
+		return hash.Transaction{}, fmt.Errorf("can not transfer zero amount")
+	}
+
+	if balance := n.consensus.StakeOf(n.ID); tx.Amount > balance {
+		return hash.Transaction{}, fmt.Errorf("insufficient funds %d to transfer %d", balance, tx.Amount)
+	}
+
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.emitter.internalTxns = append(n.emitter.internalTxns, &tx)
-}
-
-// GetInternalTxns returns pending internal transactions.
-func (n *Node) GetInternalTxns() []*inter.InternalTransaction {
-	n.emitter.RLock()
-	defer n.emitter.RUnlock()
-
-	return n.emitter.internalTxns
+	if n.emitter.internalTxns == nil {
+		n.emitter.internalTxns = make(map[hash.Transaction]*inter.InternalTransaction)
+	}
+	n.emitter.internalTxns[idx] = &tx
+	return idx, nil
 }
 
 // AddExternalTxn takes external transaction for new event.
@@ -116,7 +128,12 @@ func (n *Node) EmitEvent() *inter.Event {
 	}
 
 	// transactions buffer swap
-	internalTxns, n.emitter.internalTxns = n.emitter.internalTxns, nil
+	internalTxns = make([]*inter.InternalTransaction, 0, len(n.emitter.internalTxns))
+	for _, txn := range n.emitter.internalTxns {
+		internalTxns = append(internalTxns, txn)
+	}
+	n.emitter.internalTxns = nil
+
 	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
 	event := &inter.Event{
@@ -131,7 +148,7 @@ func (n *Node) EmitEvent() *inter.Event {
 		n.Fatal(err)
 	}
 
-	n.saveNewEvent(event, false)
+	n.onNewEvent(event)
 	n.Debugf("new event emited %s", event)
 
 	return event

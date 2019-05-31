@@ -22,14 +22,15 @@ import (
 type peerID struct{}
 
 // ClientAuth makes client-side interceptor for identification.
-func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
+func ClientAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryClientInterceptor {
 	pub := key.Public().Base64()
+	gen := genesis.Hex()
 
 	return func(ctx context.Context, method string, req interface{}, resp interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		// request:
 
-		sign := signData(req, key)
-		md := metadata.Pairs("sign", sign, "pub", pub)
+		servSign := signData(req, key)
+		md := metadata.Pairs("sign", servSign, "pub", pub, "genesis", gen)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		var answer metadata.MD
@@ -41,18 +42,22 @@ func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 
 		// response:
 
-		sign, pub, err := readMetadata(answer)
+		servSign, servPub, servGen, err := readMetadata(answer)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
-		err = verifyData(resp, sign, pub)
+		if servGen != gen {
+			return status.Errorf(codes.Unauthenticated, "peer's genesis does not match")
+		}
+
+		err = verifyData(resp, servSign, servPub)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
 		if set, ok := ctx.Value(peerID{}).(func(hash.Peer)); ok {
-			serverID := hash.PeerOfPubkey(pub)
+			serverID := hash.PeerOfPubkey(servPub)
 			set(serverID)
 		}
 
@@ -61,15 +66,20 @@ func ClientAuth(key *common.PrivateKey) grpc.UnaryClientInterceptor {
 }
 
 // ServerAuth makes server-side interceptor for identification.
-func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
+func ServerAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryServerInterceptor {
 	pub := base64.StdEncoding.EncodeToString(key.Public().Bytes())
+	gen := genesis.Hex()
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// request:
 
-		clientSign, clientPub, err := parseContext(ctx)
+		clientSign, clientPub, clientGen, err := parseContext(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
+		}
+
+		if clientGen != gen {
+			return nil, status.Errorf(codes.Unauthenticated, "peer's genesis does not match")
 		}
 
 		err = verifyData(req, clientSign, clientPub)
@@ -85,7 +95,7 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 		resp, err := handler(ctx, req)
 
 		sign := signData(resp, key)
-		md := metadata.Pairs("sign", sign, "pub", pub)
+		md := metadata.Pairs("sign", sign, "pub", pub, "genesis", gen)
 		if err := grpc.SetTrailer(ctx, md); err != nil {
 			logger.Get().Fatal(err)
 		}
@@ -95,14 +105,14 @@ func ServerAuth(key *common.PrivateKey) grpc.UnaryServerInterceptor {
 }
 
 // parseContext reads fields from request/response context.
-func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err error) {
+func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, gen string, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err = errors.New("data should be signed")
 		return
 	}
 
-	sign, pub, err = readMetadata(md)
+	sign, pub, gen, err = readMetadata(md)
 	if err != nil {
 		return
 	}
@@ -111,7 +121,7 @@ func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err 
 }
 
 // readMetadata reads fields from metadata.
-func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error) {
+func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, gen string, err error) {
 	signs, ok := md["sign"]
 	if !ok || len(signs) < 1 {
 		err = errors.New("data should be signed: no sign")
@@ -125,6 +135,13 @@ func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error
 		return
 	}
 	pub, err = common.Base64ToPubkey(pubs[0])
+
+	gens, ok := md["genesis"]
+	if !ok || len(gens) < 1 {
+		err = errors.New("data should be signed: no genesis")
+		return
+	}
+	gen = gens[0]
 
 	return
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
@@ -29,8 +30,13 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	defer ctrl.Finish()
 
 	node := NewMockNode(ctrl)
+	id := hash.FakePeer()
+	node.EXPECT().
+		GetID().
+		Return(id).
+		AnyTimes()
+
 	consensus := NewMockConsensus(ctrl)
-	peer := hash.FakePeer()
 
 	s, addr, err := NewGrpcCtrlProxy("127.0.0.1:", node, consensus, nil, nil)
 	if !assert.NoError(t, err) {
@@ -38,82 +44,89 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	}
 	defer s.Close()
 
-	c, err := NewGrpcNodeProxy(addr, nil)
+	client, err := NewGrpcNodeProxy(addr, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer c.Close()
+	defer client.Close()
+
+	peer := hash.FakePeer()
 
 	t.Run("get self id", func(t *testing.T) {
 		assert := assert.New(t)
 
-		node.EXPECT().
-			GetID().
-			Return(peer)
-
-		got, err := c.GetSelfID()
+		got, err := client.GetSelfID()
 
 		assert.NoError(err)
-		assert.Equal(peer, got)
+		assert.Equal(id, got)
 	})
 
 	t.Run("get balance of", func(t *testing.T) {
 		assert := assert.New(t)
 
-		amount := rand.Uint64()
+		expect := rand.Uint64()
 
-		otherPeer := hash.FakePeer()
-		node.EXPECT().
-			GetID().
-			Return(otherPeer)
 		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount)
+			StakeOf(peer).
+			Return(expect)
 
-		got, err := c.GetBalanceOf(peer)
+		got, err := client.StakeOf(peer)
 		if !assert.NoError(err) {
 			return
 		}
 
-		expect := &Balance{
-			Amount: amount,
+		assert.Equal(expect, got)
+	})
+
+	t.Run("transaction not found", func(t *testing.T) {
+		assert := assert.New(t)
+
+		h := hash.FakeTransaction()
+
+		consensus.EXPECT().
+			GetTransaction(h).
+			Return(nil)
+
+		_, err := client.GetTransaction(h)
+		assert.Error(err)
+	})
+
+	t.Run("transaction", func(t *testing.T) {
+		assert := assert.New(t)
+
+		h := hash.FakeTransaction()
+		expect := &inter.InternalTransaction{
+			Index:    1,
+			Amount:   rand.Uint64(),
+			Receiver: peer,
 		}
+
+		consensus.EXPECT().
+			GetTransaction(h).
+			Return(expect)
+
+		got, err := client.GetTransaction(h)
+		if !assert.NoError(err) {
+			return
+		}
+
 		assert.Equal(expect, got)
 	})
 
 	t.Run("get balance of self", func(t *testing.T) {
 		assert := assert.New(t)
 
-		amount := rand.Uint64()
+		expect := rand.Uint64()
 
-		node.EXPECT().
-			GetID().
-			Return(peer)
 		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount)
-		otherPeer := hash.FakePeer()
-		interTxn := inter.InternalTransaction{
-			Amount:   20,
-			Receiver: otherPeer,
-		}
-		node.EXPECT().
-			GetInternalTxns().
-			Return([]*inter.InternalTransaction{
-				&interTxn,
-			})
+			StakeOf(peer).
+			Return(expect)
 
-		got, err := c.GetBalanceOf(peer)
+		got, err := client.StakeOf(peer)
 		if !assert.NoError(err) {
 			return
 		}
 
-		expect := &Balance{
-			Amount: amount,
-			Pending: []inter.InternalTransaction{
-				interTxn,
-			},
-		}
 		assert.Equal(expect, got)
 	})
 
@@ -121,55 +134,25 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		assert := assert.New(t)
 
 		amount := rand.Uint64()
-
 		tx := inter.InternalTransaction{
+			Index:    1,
 			Amount:   amount,
 			Receiver: peer,
 		}
 
-		node.EXPECT().
-			GetID().
-			Return(peer)
-		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount)
 		node.EXPECT().
 			AddInternalTxn(tx)
 
-		err := c.SendTo(tx.Receiver, tx.Amount)
+		_, err := client.SendTo(tx.Receiver, tx.Index, tx.Amount, tx.UntilBlock)
 		assert.NoError(err)
 	})
 
-	t.Run("send to insufficient", func(t *testing.T) {
+	t.Run("set log level", func(t *testing.T) {
 		assert := assert.New(t)
 
-		amount := rand.Uint64()
-
-		tx := inter.InternalTransaction{
-			Amount:   amount,
-			Receiver: peer,
-		}
-
-		node.EXPECT().
-			GetID().
-			Return(peer)
-		consensus.EXPECT().
-			GetBalanceOf(peer).
-			Return(amount - 1)
-
-		err := c.SendTo(tx.Receiver, tx.Amount)
-		assert.Error(err)
-	})
-
-	t.Run("send to zero amount", func(t *testing.T) {
-		assert := assert.New(t)
-
-		tx := inter.InternalTransaction{
-			Amount:   0,
-			Receiver: peer,
-		}
-
-		err := c.SendTo(tx.Receiver, tx.Amount)
-		assert.Error(err)
+		l := "info"
+		err := client.SetLogLevel(l)
+		assert.NoError(err)
+		assert.Equal(logger.Get().GetLevel(), logger.GetLevel(l))
 	})
 }

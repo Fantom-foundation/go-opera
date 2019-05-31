@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -55,7 +56,7 @@ func (p *Poset) Bootstrap() {
 	// restore state
 	p.state = p.store.GetState()
 	if p.state == nil {
-		log.Fatal("Apply genesis for store first")
+		p.Fatal("Apply genesis for store first")
 	}
 	// restore frames
 	for n := p.state.LastFinishedFrameN; true; n++ {
@@ -69,13 +70,17 @@ func (p *Poset) Bootstrap() {
 	p.reconsensusFromFrame(p.state.LastFinishedFrameN + 1)
 }
 
+func (p *Poset) GetGenesisHash() hash.Hash {
+	return p.state.Genesis
+}
+
 // GenesisHash calcs hash of genesis balances.
-func GenesisHash(balances map[hash.Peer]uint64) hash.Hash {
+func genesisHash(balances map[hash.Peer]uint64) hash.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
 	if err := s.ApplyGenesis(balances); err != nil {
-		log.Fatal(err)
+		logger.Get().Fatal(err)
 	}
 
 	return s.GetState().Genesis
