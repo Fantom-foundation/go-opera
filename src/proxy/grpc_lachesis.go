@@ -49,7 +49,7 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 	p := &grpcLachesisProxy{
 		reconnTimeout:   2 * time.Second,
 		addr:            addr,
-		shutdown:        make(chan struct{}),
+		shutdown:        make(chan struct{}, 1),
 		reconnectTicket: make(chan time.Time, 1),
 		logger:          logger,
 		commitCh:        make(chan proto.Commit),
@@ -77,7 +77,16 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 }
 
 func (p *grpcLachesisProxy) Close() {
-	close(p.shutdown)
+	p.closeStream()
+	err := p.conn.Close()
+	close(p.commitCh)
+	close(p.queryCh)
+	close(p.restoreCh)
+	p.reconnectTicket <- zeroTime
+	p.shutdown <- struct{}{}
+	if err != nil {
+		p.logger.Error(err)
+	}
 }
 
 /*
@@ -162,15 +171,7 @@ func (p *grpcLachesisProxy) reConnect() (err error) {
 
 	select {
 	case <-p.shutdown:
-		p.closeStream()
-		err := p.conn.Close()
-		close(p.commitCh)
-		close(p.queryCh)
-		close(p.restoreCh)
-		p.reconnectTicket <- zeroTime
-		if err != nil {
-			return err
-		}
+		p.shutdown <- struct{}{}
 		return errConnShutdown
 	default:
 		// see code below

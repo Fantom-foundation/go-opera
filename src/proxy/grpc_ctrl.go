@@ -62,7 +62,7 @@ func NewGrpcCtrlProxy(bind string, n Node, c Consensus, logger *logrus.Logger, l
 
 // Close closes the proxy.
 func (p *grpcCtrlProxy) Close() {
-	p.server.Stop()
+	p.server.GracefulStop()
 }
 
 //TODO: Set descr.

@@ -157,7 +157,6 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	if !assert.NoError(t, err) {
 		return
 	}
-	defer c.Close()
 
 	checkConn := func() {
 		assert := assert.New(t)
@@ -178,12 +177,19 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 
 	checkConn()
 
+	c.Close()
 	s.Close()
 	s, _, err = NewGrpcAppProxy(addr, timeout/2, logger, listen)
 	if !assert.NoError(t, err) {
 		return
 	}
 	defer s.Close()
+
+	c, err = NewGrpcLachesisProxy(addr, logger, opts...)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer c.Close()
 
 	<-time.After(timeout)
 
