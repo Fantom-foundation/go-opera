@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 )
 
 // This can be used as the destination for a logger and it'll
@@ -30,9 +29,8 @@ func (a *testLoggerAdapter) Write(d []byte) (int, error) {
 
 // NewTestLogger constructor
 func NewTestLogger(t testing.TB) *logrus.Logger {
-	logger, _ := test.NewNullLogger()
-	// todo problem data race by a function call t.Log (testing.TB.Log)
-	// logger.Out = &testLoggerAdapter{t: t}
+	logger := logrus.New()
+	logger.Out = &testLoggerAdapter{t: t}
 	logger.Level = logrus.DebugLevel
 	return logger
 }
