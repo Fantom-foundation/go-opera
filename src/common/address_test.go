@@ -2,7 +2,6 @@ package common
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 )
 
@@ -13,7 +12,7 @@ var (
 
 func TestAddress(t *testing.T) {
 	address := FakeAddress()
-	str := fmt.Sprintf("%s", address.String())
+	str := address.String()
 	if len(str) != expected_address_len {
 		t.Errorf("Expected length of human readable address to be %d but got %d! - '%s'",
 			expected_address_len, len(str), str)
