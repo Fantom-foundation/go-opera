@@ -2,6 +2,7 @@ package inter
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -14,8 +15,10 @@ import (
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
 func ASCIIschemeToDAG(scheme string) (
-	nodes []hash.Peer, events map[hash.Peer][]*Event, names map[string]*Event) {
-	// init results
+	nodes []hash.Peer,
+	events map[hash.Peer][]*Event,
+	names map[string]*Event,
+) {
 	events = make(map[hash.Peer][]*Event)
 	names = make(map[string]*Event)
 	// read lines
@@ -23,41 +26,59 @@ func ASCIIschemeToDAG(scheme string) (
 		var (
 			nNames    []string // event-N --> name
 			nCreators []int    // event-N --> creator
-			nLinks    [][]int  // event-N --> parents+1 (negative if link to pre-last event)
+			nLinks    [][]int  // event-N --> n-parent ref (0 if not)
 		)
 		// parse line
-		current := 1
+		col := 0
 		for _, symbol := range strings.Split(strings.TrimSpace(line), " ") {
 			symbol = strings.TrimSpace(symbol)
 			switch symbol {
 			case "─", "═", "": // skip filler
-				current--
+				col--
 			case "╠", "║╠", "╠╫": // start new link array with current
-				nLinks = append(nLinks, []int{current})
+				refs := make([]int, col+1)
+				refs[col] = 1
+				nLinks = append(nLinks, refs)
 			case "║╚", "╚": // start new link array with prev
-				nLinks = append(nLinks, []int{-1 * current})
+				refs := make([]int, col+1)
+				refs[col] = 2
+				nLinks = append(nLinks, refs)
 			case "╣", "╣║", "╫╣", "╬": // append current to last link array
 				last := len(nLinks) - 1
-				nLinks[last] = append(nLinks[last], current)
+				nLinks[last] = append(nLinks[last], make([]int, col+1-len(nLinks[last]))...)
+				nLinks[last][col] = 1
 			case "╝║", "╝", "╩╫", "╫╩": // append prev to last link array
 				last := len(nLinks) - 1
-				nLinks[last] = append(nLinks[last], -1*current)
+				nLinks[last] = append(nLinks[last], make([]int, col+1-len(nLinks[last]))...)
+				nLinks[last][col] = 2
 			case "╫", "║", "║║": // don't mutate link array
 				break
-			default: // it is a event name
-				if _, ok := names[symbol]; ok {
-					panic(fmt.Errorf("event '%s' already exists", symbol))
-				}
-				nCreators = append(nCreators, current-1)
-				nNames = append(nNames, symbol)
-				if len(nLinks) < len(nNames) {
-					nLinks = append(nLinks, []int(nil))
+			default:
+				if strings.HasPrefix(symbol, "║") || strings.HasSuffix(symbol, "║") {
+					// it is a far ref
+					symbol = strings.Trim(symbol, "║")
+					_, err := strconv.ParseInt(symbol, 10, 64)
+					if err != nil {
+						panic(err)
+					}
+					// TODO: implement far refs
+				} else {
+					// it is a event name
+					if _, ok := names[symbol]; ok {
+						panic(fmt.Errorf("event '%s' already exists", symbol))
+					}
+					nCreators = append(nCreators, col)
+					nNames = append(nNames, symbol)
+					if len(nLinks) < len(nNames) {
+						refs := make([]int, col+1)
+						nLinks = append(nLinks, refs)
+					}
 				}
 			}
-			current++
+			col++
 		}
 		// make nodes if not enough
-		for i := len(nodes); i < (current - 1); i++ {
+		for i := len(nodes); i < (col); i++ {
 			addr := hash.FakePeer()
 			nodes = append(nodes, addr)
 			events[addr] = nil
@@ -83,15 +104,12 @@ func ASCIIschemeToDAG(scheme string) (
 				maxLamport = 0
 			}
 			// find other parents
-			for _, p := range nLinks[i] {
-				prev := 0
-				if p < 0 {
-					p *= -1
-					prev = -1
+			for i, ref := range nLinks[i] {
+				if ref < 1 {
+					continue
 				}
-				p = p - 1
-				other := nodes[p]
-				last := len(events[other]) - 1 + prev
+				other := nodes[i]
+				last := len(events[other]) - ref
 				parent := events[other][last]
 				parents.Add(parent.Hash())
 				if maxLamport < parent.LamportTime {
@@ -123,90 +141,40 @@ func ASCIIschemeToDAG(scheme string) (
 	return
 }
 
-type pos byte
-
-const (
-	none  pos = 0
-	pass      = iota
-	first     = iota
-	left      = iota
-	right     = iota
-	last      = iota
-)
-
-type schemeRow struct {
-	Name  string
-	Refs  []int
-	Self  int
-	First int
-	Last  int
-}
-
-func (row *schemeRow) Position(i int) pos {
-	if i < row.Self {
-		// left
-		if i < row.First {
-			return none
-		}
-		if i > row.First {
-			if row.Refs[i] > 0 {
-				return left
-			}
-			return pass
-		}
-		return first
-
-	} else {
-		// right
-		if i > row.Last {
-			return none
-		}
-		if i < row.Last {
-			if row.Refs[i] > 0 || i == row.Self {
-				return right
-			}
-			return pass
-		}
-		return last
-	}
-}
-
 // DAGtoASCIIcheme builds ASCII-scheme of events for debug purpose.
 func DAGtoASCIIcheme(events Events) (string, error) {
 	events = events.ByParents()
 
-	// step 1: events to scheme rows
 	var (
-		scheme []*schemeRow
+		scheme rows
 
 		processed     = make(map[hash.Event]*Event)
 		peerLastIndex = make(map[hash.Peer]uint64)
 		peerCols      = make(map[hash.Peer]int)
-		colWidth      int
 		ok            bool
 	)
 	for _, e := range events {
 		ehash := e.Hash()
-		row := &schemeRow{}
+		r := &row{}
 		// creator
-		if row.Self, ok = peerCols[e.Creator]; !ok {
-			row.Self = len(peerCols)
-			peerCols[e.Creator] = row.Self
+		if r.Self, ok = peerCols[e.Creator]; !ok {
+			r.Self = len(peerCols)
+			peerCols[e.Creator] = r.Self
 		}
 		// name
-		row.Name = hash.EventNameDict[ehash]
-		if len(row.Name) < 1 {
-			row.Name = hash.NodeNameDict[e.Creator]
-			if len(row.Name) < 1 {
-				row.Name = string('a' + row.Self)
+		r.Name = hash.EventNameDict[ehash]
+		if len(r.Name) < 1 {
+			r.Name = hash.NodeNameDict[e.Creator]
+			if len(r.Name) < 1 {
+				r.Name = string('a' + r.Self)
 			}
-			row.Name = fmt.Sprintf("%s%03d", row.Name, e.Index)
+			r.Name = fmt.Sprintf("%s%03d", r.Name, e.Index)
 		}
-		if colWidth < len(row.Name) {
-			colWidth = len(row.Name)
+		if w := len([]rune(r.Name)); scheme.ColWidth < w {
+			scheme.ColWidth = w
 		}
 		// parents
-		row.Refs = make([]int, len(peerCols))
+		r.Refs = make([]int, len(peerCols))
 		selfRefs := 0
 		for p := range e.Parents {
 			if p.IsZero() {
@@ -222,31 +190,100 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 				continue
 			}
 			refCol := peerCols[parent.Creator]
-			row.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Index + 1)
+			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Index + 1)
 		}
 		if selfRefs != 1 {
 			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
 		}
 		// first and last refs
-		row.First = len(row.Refs)
-		for i, ref := range row.Refs {
+		r.First = len(r.Refs)
+		for i, ref := range r.Refs {
 			if ref == 0 {
 				continue
 			}
-			if row.First > i {
-				row.First = i
+			if r.First > i {
+				r.First = i
 			}
-			if row.Last < i {
-				row.Last = i
+			if r.Last < i {
+				r.Last = i
 			}
 		}
 		// processed
-		scheme = append(scheme, row)
+		scheme.Add(r)
 		processed[ehash] = e
 		peerLastIndex[e.Creator] = e.Index
 	}
 
-	// step 2: scheme rows to strings
+	scheme.Optimize()
+
+	scheme.ColWidth += 3
+	return scheme.String(), nil
+}
+
+/*
+ * staff:
+ */
+
+type (
+	row struct {
+		Name  string
+		Refs  []int
+		Self  int
+		First int
+		Last  int
+	}
+
+	rows struct {
+		rows     []*row
+		ColWidth int
+	}
+
+	pos byte
+)
+
+const (
+	none  pos = 0
+	pass      = iota
+	first     = iota
+	left      = iota
+	right     = iota
+	last      = iota
+)
+
+func (r *row) Position(i int) pos {
+	if i < r.Self {
+		// left
+		if i < r.First {
+			return none
+		}
+		if i > r.First {
+			if r.Refs[i] > 0 {
+				return left
+			}
+			return pass
+		}
+		return first
+
+	} else {
+		// right
+		if i > r.Last {
+			return none
+		}
+		if i < r.Last {
+			if r.Refs[i] > 0 || i == r.Self {
+				return right
+			}
+			return pass
+		}
+		return last
+	}
+}
+
+func (rr *rows) Optimize() {
+	// TODO: implement rows reordering to minimize refs
+}
+
+func (rr *rows) String() string {
 	var (
 		res strings.Builder
 		out = func(s string) {
@@ -256,8 +293,7 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 			}
 		}
 	)
-	colWidth += 3
-	for _, row := range scheme {
+	for _, row := range rr.rows {
 
 		// 1st line:
 		for i, ref := range row.Refs {
@@ -270,7 +306,7 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 					s = "║║"
 				}
 			}
-			if ref > 2 {
+			if ref > 2 { // far ref
 				switch row.Position(i) {
 				case first, left:
 					s = fmt.Sprintf(" ║%d", ref)
@@ -278,7 +314,7 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 					s = fmt.Sprintf("%d║", ref)
 				}
 			}
-			out(s + nolink(colWidth-len([]rune(s))+2))
+			out(s + nolink(rr.ColWidth-len([]rune(s))+2))
 		}
 		out("\n")
 
@@ -286,7 +322,7 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 		for i, ref := range row.Refs {
 			if i == row.Self {
 				out(" " + row.Name)
-				tail := colWidth - len(row.Name) + 1
+				tail := rr.ColWidth - len([]rune(row.Name)) + 1
 				if row.Position(i) == right {
 					out(link(tail))
 				} else {
@@ -298,38 +334,41 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 			if ref > 1 {
 				switch row.Position(i) {
 				case first:
-					out(" ║╚" + link(colWidth-1))
+					out(" ║╚" + link(rr.ColWidth-1))
 				case last:
-					out("╝║" + nolink(colWidth))
+					out("╝║" + nolink(rr.ColWidth))
 				case left:
-					out(" ╫╩" + link(colWidth-1))
+					out(" ╫╩" + link(rr.ColWidth-1))
 				case right:
-					out("╩╫" + link(colWidth))
+					out("╩╫" + link(rr.ColWidth))
 				case pass:
-					out(" ╫" + link(colWidth))
+					out(" ╫" + link(rr.ColWidth))
 				default:
-					out(" ║" + nolink(colWidth))
+					out(" ║" + nolink(rr.ColWidth))
 				}
 			} else {
 				switch row.Position(i) {
 				case first:
-					out(" ╠" + link(colWidth))
+					out(" ╠" + link(rr.ColWidth))
 				case last:
-					out(" ╣" + nolink(colWidth))
+					out(" ╣" + nolink(rr.ColWidth))
 				case left, right:
-					out(" ╬" + link(colWidth))
+					out(" ╬" + link(rr.ColWidth))
 				case pass:
-					out(" ╫" + link(colWidth))
+					out(" ╫" + link(rr.ColWidth))
 				default:
-					out(" ║" + nolink(colWidth))
+					out(" ║" + nolink(rr.ColWidth))
 				}
 			}
 		}
 		out("\n")
 
 	}
+	return res.String()
+}
 
-	return res.String(), nil
+func (rr *rows) Add(r *row) {
+	rr.rows = append(rr.rows, r)
 }
 
 func nolink(n int) string {

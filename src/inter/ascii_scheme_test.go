@@ -4,14 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 func TestASCIIschemeToDAG(t *testing.T) {
 	assertar := assert.New(t)
 
-	nodes, events, names := ASCIIschemeToDAG(`
+	nodes, _, names := ASCIIschemeToDAG(`
 a00 b00   c00 d00
 ║   ║     ║   ║
 a01 ║     ║   ║
@@ -60,26 +58,23 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		return
 	}
 
-	index := make(map[hash.Event]*Event)
-	for _, nodeEvents := range events {
-		for _, e := range nodeEvents {
-			index[e.Hash()] = e
+	for n, e1 := range names {
+		parents0 := make(map[string]struct{}, len(expected[n]))
+		for _, s := range expected[n] {
+			parents0[s] = struct{}{}
 		}
-	}
 
-	for eName, e := range names {
-		parents := expected[eName]
-		if !assertar.Equal(len(parents), len(e.Parents), "at event "+eName) {
-			return
+		parents1 := make(map[string]struct{}, len(e1.Parents))
+		for s := range e1.Parents {
+			if s.IsZero() {
+				parents1[""] = struct{}{}
+			} else {
+				parents1[s.String()] = struct{}{}
+			}
 		}
-		for _, pName := range parents {
-			hash := hash.ZeroEvent
-			if pName != "" {
-				hash = names[pName].Hash()
-			}
-			if !e.Parents.Contains(hash) {
-				t.Fatalf("%s has no parent %s", eName, pName)
-			}
+
+		if !assertar.Equal(parents0, parents1, "at event "+n) {
+			return
 		}
 	}
 }
@@ -104,20 +99,20 @@ func TestDAGtoASCIIcheme(t *testing.T) {
 	}
 
 	for _, e0 := range src {
-		name := e0.Hash().String()
-		e1 := names[name]
+		n := e0.Hash().String()
+		e1 := names[n]
 
 		parents0 := make(map[string]struct{}, len(e0.Parents))
 		for p := range e0.Parents {
 			parents0[p.String()] = struct{}{}
 		}
 
-		parents1 := make(map[string]struct{})
+		parents1 := make(map[string]struct{}, len(e1.Parents))
 		for p := range e1.Parents {
 			parents1[p.String()] = struct{}{}
 		}
 
-		if !assertar.EqualValues(parents0, parents1, name) {
+		if !assertar.EqualValues(parents0, parents1, "at event "+n) {
 			return
 		}
 	}
