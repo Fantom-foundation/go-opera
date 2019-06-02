@@ -22,12 +22,15 @@ func ASCIIschemeToDAG(scheme string) (
 	events = make(map[hash.Peer][]*Event)
 	names = make(map[string]*Event)
 	// read lines
+	var prevFarRefs, curFarRefs map[int]int = nil, make(map[int]int)
 	for _, line := range strings.Split(strings.TrimSpace(scheme), "\n") {
 		var (
 			nNames    []string // event-N --> name
 			nCreators []int    // event-N --> creator
 			nLinks    [][]int  // event-N --> n-parent ref (0 if not)
 		)
+		prevFarRefs, curFarRefs = curFarRefs, make(map[int]int)
+
 		// parse line
 		col := 0
 		for _, symbol := range strings.Split(strings.TrimSpace(line), " ") {
@@ -41,7 +44,11 @@ func ASCIIschemeToDAG(scheme string) (
 				nLinks = append(nLinks, refs)
 			case "║╚", "╚": // start new link array with prev
 				refs := make([]int, col+1)
-				refs[col] = 2
+				if ref, ok := prevFarRefs[col]; ok {
+					refs[col] = ref
+				} else {
+					refs[col] = 2
+				}
 				nLinks = append(nLinks, refs)
 			case "╣", "╣║", "╫╣", "╬": // append current to last link array
 				last := len(nLinks) - 1
@@ -50,18 +57,22 @@ func ASCIIschemeToDAG(scheme string) (
 			case "╝║", "╝", "╩╫", "╫╩": // append prev to last link array
 				last := len(nLinks) - 1
 				nLinks[last] = append(nLinks[last], make([]int, col+1-len(nLinks[last]))...)
-				nLinks[last][col] = 2
+				if ref, ok := prevFarRefs[col]; ok {
+					nLinks[last][col] = ref
+				} else {
+					nLinks[last][col] = 2
+				}
 			case "╫", "║", "║║": // don't mutate link array
 				break
 			default:
 				if strings.HasPrefix(symbol, "║") || strings.HasSuffix(symbol, "║") {
 					// it is a far ref
 					symbol = strings.Trim(symbol, "║")
-					_, err := strconv.ParseInt(symbol, 10, 64)
+					ref, err := strconv.ParseInt(symbol, 10, 64)
 					if err != nil {
 						panic(err)
 					}
-					// TODO: implement far refs
+					curFarRefs[col] = int(ref)
 				} else {
 					// it is a event name
 					if _, ok := names[symbol]; ok {
