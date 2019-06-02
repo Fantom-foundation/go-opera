@@ -9,7 +9,7 @@ import (
 )
 
 func TestASCIIschemeToDAG(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	nodes, events, names := ASCIIschemeToDAG(`
 a00 b00   c00 d00
@@ -53,10 +53,10 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		"e00": {"", "d02"},
 	}
 
-	if !assert.Equal(5, len(nodes), "node count") {
+	if !assertar.Equal(5, len(nodes), "node count") {
 		return
 	}
-	if !assert.Equal(len(expected), len(names), "event count") {
+	if !assertar.Equal(len(expected), len(names), "event count") {
 		return
 	}
 
@@ -69,7 +69,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 
 	for eName, e := range names {
 		parents := expected[eName]
-		if !assert.Equal(len(parents), len(e.Parents), "at event "+eName) {
+		if !assertar.Equal(len(parents), len(e.Parents), "at event "+eName) {
 			return
 		}
 		for _, pName := range parents {
@@ -85,14 +85,40 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 }
 
 func TestDAGtoASCIIcheme(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	_, ee := GenEventsByNode(5, 10, 3)
+	src := delPeerIndex(ee)
 
-	scheme, err := DAGtoASCIIcheme(joinEvents(ee))
-	if !assert.NoError(err) {
+	scheme, err := DAGtoASCIIcheme(src)
+	if !assertar.NoError(err) {
+		return
+	}
+	t.Log(scheme)
+
+	_, _, names := ASCIIschemeToDAG(scheme)
+	got := delPeerIndex(ee)
+
+	if !assertar.Equal(len(src), len(got), "event count") {
 		return
 	}
 
-	t.Log(scheme)
+	for _, e0 := range src {
+		name := e0.Hash().String()
+		e1 := names[name]
+
+		parents0 := make(map[string]struct{}, len(e0.Parents))
+		for p := range e0.Parents {
+			parents0[p.String()] = struct{}{}
+		}
+
+		parents1 := make(map[string]struct{})
+		for p := range e1.Parents {
+			parents1[p.String()] = struct{}{}
+		}
+
+		if !assertar.EqualValues(parents0, parents1, name) {
+			return
+		}
+	}
 }

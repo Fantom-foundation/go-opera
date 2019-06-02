@@ -12,7 +12,9 @@ import (
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 func GenEventsByNode(nodeCount, eventCount, parentCount int) (
-	nodes []hash.Peer, events map[hash.Peer][]*Event) {
+	nodes []hash.Peer,
+	events map[hash.Peer][]*Event,
+) {
 	// init results
 	nodes = make([]hash.Peer, nodeCount)
 	events = make(map[hash.Peer][]*Event, nodeCount)
@@ -42,9 +44,11 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 		// first parent is a last creator's event or empty hash
 		if ee := events[creator]; len(ee) > 0 {
 			parent := ee[len(ee)-1]
+			e.Index = parent.Index + 1
 			e.Parents.Add(parent.Hash())
 			e.LamportTime = parent.LamportTime + 1
 		} else {
+			e.Index = 1
 			e.Parents.Add(hash.ZeroEvent)
 			e.LamportTime = 1
 		}
@@ -66,10 +70,9 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 	return
 }
 
-func joinEvents(events map[hash.Peer][]*Event) (res Events) {
+func delPeerIndex(events map[hash.Peer][]*Event) (res Events) {
 	for _, ee := range events {
 		res = append(res, ee...)
 	}
-
 	return
 }

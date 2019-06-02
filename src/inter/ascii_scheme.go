@@ -175,7 +175,7 @@ func (row *schemeRow) Position(i int) pos {
 func DAGtoASCIIcheme(events Events) (string, error) {
 	events = events.ByParents()
 
-	// Events to scheme rows
+	// step 1: events to scheme rows
 	var (
 		scheme []*schemeRow
 
@@ -198,9 +198,9 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 		if len(row.Name) < 1 {
 			row.Name = hash.NodeNameDict[e.Creator]
 			if len(row.Name) < 1 {
-				row.Name = string(int('a') + row.Self)
+				row.Name = string('a' + row.Self)
 			}
-			row.Name = fmt.Sprintf("%s%3d", row.Name, e.Index)
+			row.Name = fmt.Sprintf("%s%03d", row.Name, e.Index)
 		}
 		if colWidth < len(row.Name) {
 			colWidth = len(row.Name)
@@ -246,7 +246,7 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 		peerLastIndex[e.Creator] = e.Index
 	}
 
-	// Scheme rows to strings
+	// step 2: scheme rows to strings
 	var (
 		res strings.Builder
 		out = func(s string) {
@@ -256,32 +256,36 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 			}
 		}
 	)
-	colWidth += 4
+	colWidth += 3
 	for _, row := range scheme {
+
 		// 1st line:
 		for i, ref := range row.Refs {
-			if ref <= 1 {
-				out("║" + strings.Repeat(" ", colWidth))
-				continue
+			s := " ║"
+			if ref == 2 {
+				switch row.Position(i) {
+				case first, left:
+					s = " ║║"
+				case right, last:
+					s = "║║"
+				}
 			}
-			switch row.Position(i) {
-			case first, left:
-				s := fmt.Sprintf("║%d", ref)
-				out(s + nolink(colWidth-len(s)))
-			case right, last:
-				s := fmt.Sprintf("%d║", ref)
-				out(s + nolink(colWidth-len(s)))
-			default:
-				out("║" + nolink(colWidth))
+			if ref > 2 {
+				switch row.Position(i) {
+				case first, left:
+					s = fmt.Sprintf(" ║%d", ref)
+				case right, last:
+					s = fmt.Sprintf("%d║", ref)
+				}
 			}
+			out(s + nolink(colWidth-len([]rune(s))+2))
 		}
 		out("\n")
 
 		// 2nd line:
-		for i, _ := range row.Refs {
-
+		for i, ref := range row.Refs {
 			if i == row.Self {
-				out(row.Name)
+				out(" " + row.Name)
 				tail := colWidth - len(row.Name) + 1
 				if row.Position(i) == right {
 					out(link(tail))
@@ -291,23 +295,38 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 				continue
 			}
 
-			switch row.Position(i) {
-			case first:
-				out("╠" + link(colWidth))
-			case last:
-				out("╣" + nolink(colWidth))
-			case left, right:
-				out("╬" + link(colWidth))
-			case pass:
-				out("╫" + link(colWidth))
-			default:
-				out("║" + nolink(colWidth))
+			if ref > 1 {
+				switch row.Position(i) {
+				case first:
+					out(" ║╚" + link(colWidth-1))
+				case last:
+					out("╝║" + nolink(colWidth))
+				case left:
+					out(" ╫╩" + link(colWidth-1))
+				case right:
+					out("╩╫" + link(colWidth))
+				case pass:
+					out(" ╫" + link(colWidth))
+				default:
+					out(" ║" + nolink(colWidth))
+				}
+			} else {
+				switch row.Position(i) {
+				case first:
+					out(" ╠" + link(colWidth))
+				case last:
+					out(" ╣" + nolink(colWidth))
+				case left, right:
+					out(" ╬" + link(colWidth))
+				case pass:
+					out(" ╫" + link(colWidth))
+				default:
+					out(" ║" + nolink(colWidth))
+				}
 			}
 		}
 		out("\n")
 
-		// debug line:
-		//out(fmt.Sprintf("%+v\n", row))
 	}
 
 	return res.String(), nil
@@ -318,10 +337,15 @@ func nolink(n int) string {
 }
 
 func link(n int) string {
-	str := strings.Repeat(" -", n/2+1)
-	str = str[0:n]
-	if str[n-1:] != " " {
-		str = str[0:n-1] + " "
+	if n < 3 {
+		return strings.Repeat(" ", n)
 	}
+
+	str := strings.Repeat(" ─", (n-1)/2) + " "
+
+	if n%2 == 0 {
+		str = str + " "
+	}
+
 	return str
 }
