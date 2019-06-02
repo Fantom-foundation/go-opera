@@ -123,11 +123,205 @@ func ASCIIschemeToDAG(scheme string) (
 	return
 }
 
+type pos byte
+
+const (
+	none  pos = 0
+	pass      = iota
+	first     = iota
+	left      = iota
+	right     = iota
+	last      = iota
+)
+
+type schemeRow struct {
+	Name  string
+	Refs  []int
+	Self  int
+	First int
+	Last  int
+}
+
+func (row *schemeRow) Position(i int) pos {
+	if i < row.Self {
+		// left
+		if i < row.First {
+			return none
+		}
+		if i > row.First {
+			if row.Refs[i] > 0 {
+				return left
+			}
+			return pass
+		}
+		return first
+
+	} else {
+		// right
+		if i > row.Last {
+			return none
+		}
+		if i < row.Last {
+			if row.Refs[i] > 0 || i == row.Self {
+				return right
+			}
+			return pass
+		}
+		return last
+	}
+}
+
 // DAGtoASCIIcheme builds ASCII-scheme of events for debug purpose.
-func DAGtoASCIIcheme(events Events) string {
+func DAGtoASCIIcheme(events Events) (string, error) {
 	events = events.ByParents()
 
-	// TODO: implement it
+	// Events to scheme rows
+	var (
+		scheme []*schemeRow
 
-	return "is not implemented yet"
+		processed     = make(map[hash.Event]*Event)
+		peerLastIndex = make(map[hash.Peer]uint64)
+		peerCols      = make(map[hash.Peer]int)
+		colWidth      int
+		ok            bool
+	)
+	for _, e := range events {
+		ehash := e.Hash()
+		row := &schemeRow{}
+		// creator
+		if row.Self, ok = peerCols[e.Creator]; !ok {
+			row.Self = len(peerCols)
+			peerCols[e.Creator] = row.Self
+		}
+		// name
+		row.Name = hash.EventNameDict[ehash]
+		if len(row.Name) < 1 {
+			row.Name = hash.NodeNameDict[e.Creator]
+			if len(row.Name) < 1 {
+				row.Name = string(int('a') + row.Self)
+			}
+			row.Name = fmt.Sprintf("%s%3d", row.Name, e.Index)
+		}
+		if colWidth < len(row.Name) {
+			colWidth = len(row.Name)
+		}
+		// parents
+		row.Refs = make([]int, len(peerCols))
+		selfRefs := 0
+		for p := range e.Parents {
+			if p.IsZero() {
+				selfRefs++
+				continue
+			}
+			parent := processed[p]
+			if parent == nil {
+				return "", fmt.Errorf("parent %s of %s not found", p.String(), ehash.String())
+			}
+			if parent.Creator == e.Creator {
+				selfRefs++
+				continue
+			}
+			refCol := peerCols[parent.Creator]
+			row.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Index + 1)
+		}
+		if selfRefs != 1 {
+			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
+		}
+		// first and last refs
+		row.First = len(row.Refs)
+		for i, ref := range row.Refs {
+			if ref == 0 {
+				continue
+			}
+			if row.First > i {
+				row.First = i
+			}
+			if row.Last < i {
+				row.Last = i
+			}
+		}
+		// processed
+		scheme = append(scheme, row)
+		processed[ehash] = e
+		peerLastIndex[e.Creator] = e.Index
+	}
+
+	// Scheme rows to strings
+	var (
+		res strings.Builder
+		out = func(s string) {
+			_, err := res.WriteString(s)
+			if err != nil {
+				panic(err)
+			}
+		}
+	)
+	colWidth += 4
+	for _, row := range scheme {
+		// 1st line:
+		for i, ref := range row.Refs {
+			if ref <= 1 {
+				out("║" + strings.Repeat(" ", colWidth))
+				continue
+			}
+			switch row.Position(i) {
+			case first, left:
+				s := fmt.Sprintf("║%d", ref)
+				out(s + nolink(colWidth-len(s)))
+			case right, last:
+				s := fmt.Sprintf("%d║", ref)
+				out(s + nolink(colWidth-len(s)))
+			default:
+				out("║" + nolink(colWidth))
+			}
+		}
+		out("\n")
+
+		// 2nd line:
+		for i, _ := range row.Refs {
+
+			if i == row.Self {
+				out(row.Name)
+				tail := colWidth - len(row.Name) + 1
+				if row.Position(i) == right {
+					out(link(tail))
+				} else {
+					out(nolink(tail))
+				}
+				continue
+			}
+
+			switch row.Position(i) {
+			case first:
+				out("╠" + link(colWidth))
+			case last:
+				out("╣" + nolink(colWidth))
+			case left, right:
+				out("╬" + link(colWidth))
+			case pass:
+				out("╫" + link(colWidth))
+			default:
+				out("║" + nolink(colWidth))
+			}
+		}
+		out("\n")
+
+		// debug line:
+		//out(fmt.Sprintf("%+v\n", row))
+	}
+
+	return res.String(), nil
+}
+
+func nolink(n int) string {
+	return strings.Repeat(" ", n)
+}
+
+func link(n int) string {
+	str := strings.Repeat(" -", n/2+1)
+	str = str[0:n]
+	if str[n-1:] != " " {
+		str = str[0:n-1] + " "
+	}
+	return str
 }

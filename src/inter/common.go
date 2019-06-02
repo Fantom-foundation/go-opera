@@ -65,3 +65,11 @@ func GenEventsByNode(nodeCount, eventCount, parentCount int) (
 
 	return
 }
+
+func joinEvents(events map[hash.Peer][]*Event) (res Events) {
+	for _, ee := range events {
+		res = append(res, ee...)
+	}
+
+	return
+}

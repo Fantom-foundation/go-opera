@@ -85,5 +85,14 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 }
 
 func TestDAGtoASCIIcheme(t *testing.T) {
+	assert := assert.New(t)
 
+	_, ee := GenEventsByNode(5, 10, 3)
+
+	scheme, err := DAGtoASCIIcheme(joinEvents(ee))
+	if !assert.NoError(err) {
+		return
+	}
+
+	t.Log(scheme)
 }
