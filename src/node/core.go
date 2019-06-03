@@ -120,7 +120,7 @@ func (c *Core) Heights() map[string]int64 {
 func (c *Core) HeightsByID() map[uint64]int64 {
 	heights := make(map[uint64]int64)
 	for _, peer := range c.participants.ToPeerSlice() {
-		heights[peer.ID] = peer.Height
+		heights[peer.ID] = c.participants.GetHeightByPubKeyHex(peer.PubKeyHex)
 	}
 	return heights
 }
