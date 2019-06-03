@@ -17,15 +17,21 @@ else
 fi
 
 echo -e "\nBuild Sentry\n"
-> .env
-cp docker-compose.yml.example docker-compose.yml
-docker-compose build
+if test -f ".env"; then
+    echo ".env file already exist"
+else
+    > .env
+    cp docker-compose.yml.example docker-compose.yml
+    docker-compose build
+fi
 
 echo -e "\nGenerate private key\n"
-pKey=$(docker-compose run --rm web config generate-secret-key)
-
-echo "SENTRY_SECRET_KEY=$pKey" > .env
-# sed -i "s/  environment:/  environment:\n    SENTRY_SECRET_KEY: $pKey/" docker-compose.yml
+if grep -q SENTRY_SECRET_KEY ".env"; then
+    echo "SENTRY_SECRET_KEY already setup"
+else
+    pKey=$(docker-compose run --rm web config generate-secret-key)
+    echo "SENTRY_SECRET_KEY=$pKey" > .env
+fi
 
 echo -e "\nBuild Sentry database\n"
 docker-compose run --rm web upgrade
