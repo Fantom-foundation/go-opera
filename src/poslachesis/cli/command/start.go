@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
@@ -55,6 +56,10 @@ var Start = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		keyPath, err := cmd.Flags().GetString("key")
+		if err != nil {
+			return err
+		}
 		switch {
 		case strings.HasPrefix(netName, "fake:"):
 			num, total, err := parseFakeGen(strings.Split(netName, ":")[1])
@@ -64,15 +69,21 @@ var Start = &cobra.Command{
 			net, keys := lachesis.FakeNet(total)
 			conf.Net = net
 			key = keys[num]
-
 		case netName == "test":
 			conf.Net = lachesis.TestNet()
-			key = nil // TODO: read key
+			rKey, err := readKey(keyPath)
+			if err != nil {
+				return nil
+			}
+			key = rKey
 
 		case netName == "main":
 			conf.Net = lachesis.MainNet()
-			key = nil // TODO: read key
-
+			rKey, err := readKey(keyPath)
+			if err != nil {
+				return nil
+			}
+			key = rKey
 		default:
 			return fmt.Errorf("unknown network name: %s", netName)
 		}
@@ -102,7 +113,23 @@ func init() {
 	Start.Flags().String("db", "inmemory", "badger database dir")
 	Start.Flags().StringSlice("peer", nil, "hosts of peers")
 	Start.Flags().String("log", "info", "log level")
+	Start.Flags().String("key", "", "private pem key path")
 	Start.Flags().String("dsn", "", "Sentry client DSN")
+}
+
+func readKey(path string) (*common.PrivateKey, error) {
+	keyFile, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer keyFile.Close()
+
+	key, err := crypto.ReadPrivateKey(keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
 }
 
 func parseFakeGen(s string) (num, total int, err error) {
