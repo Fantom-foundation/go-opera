@@ -70,6 +70,8 @@ balance of 0xf2610eb8185d8120e0e71f0d5f1fc74e3b187646a6a0aee169ca242a6b599fc0 ==
 
 ## Sentry
 
-Go to `http://localhost:9000` for see logs from all running local nodes (by default).
+During first run, you'll get offer to create Sentry account for data management. Note that account exist only inside local copy Sentry and don't affect to sentry.io.
+
+After start up Sentry go to `http://localhost:9000` and sing in using your local account for see and management logs from all running local nodes (by default).
 All logs will be grouped and marked with color. (info - blue, warn - yellow, error - red).
-Each log include: env info, message about error, code line.
+Each log include: environment info, message about error, code line (in case error).
