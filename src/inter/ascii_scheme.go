@@ -21,8 +21,11 @@ func ASCIIschemeToDAG(scheme string) (
 ) {
 	events = make(map[hash.Peer][]*Event)
 	names = make(map[string]*Event)
+	var (
+		prevFarRefs map[int]int
+		curFarRefs  map[int]int = make(map[int]int)
+	)
 	// read lines
-	var prevFarRefs, curFarRefs map[int]int = nil, make(map[int]int)
 	for _, line := range strings.Split(strings.TrimSpace(scheme), "\n") {
 		var (
 			nNames    []string // event-N --> name
