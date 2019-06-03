@@ -10,6 +10,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/spf13/cobra"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
@@ -19,22 +20,20 @@ var Start = &cobra.Command{
 	Use:   "start",
 	Short: "Starts lachesis node",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// log
 		logLevel, err := cmd.Flags().GetString("log")
 		if err != nil {
 			return err
 		}
 		logger.GetLevel(logLevel)
 
-		fakegen, err := cmd.Flags().GetString("fakegen")
+		dsn, err := cmd.Flags().GetString("dsn")
 		if err != nil {
 			return err
 		}
+		logger.SetDSN(dsn)
 
-		num, total, err := parseFakeGen(fakegen)
-		if err != nil {
-			return err
-		}
-
+		// db
 		var db *badger.DB
 		dbdir, err := cmd.Flags().GetString("db")
 		if err != nil {
@@ -47,14 +46,39 @@ var Start = &cobra.Command{
 			}
 		}
 
-		net, keys := lachesis.FakeNet(total)
-		conf := lachesis.DefaultConfig()
-		conf.Net = net
-
-		if num >= len(keys) {
-			panic(fmt.Errorf("num too high, try --fakegen 1/2 instead of --fakegen %s", fakegen))
+		// network
+		var (
+			conf = lachesis.DefaultConfig()
+			key  *common.PrivateKey
+		)
+		netName, err := cmd.Flags().GetString("network")
+		if err != nil {
+			return err
 		}
-		l := lachesis.New(db, "", keys[num], conf)
+		switch {
+		case strings.HasPrefix(netName, "fake:"):
+			num, total, err := parseFakeGen(strings.Split(netName, ":")[1])
+			if err != nil {
+				return err
+			}
+			net, keys := lachesis.FakeNet(total)
+			conf.Net = net
+			key = keys[num]
+
+		case netName == "test":
+			conf.Net = lachesis.TestNet()
+			key = nil // TODO: read key
+
+		case netName == "main":
+			conf.Net = lachesis.MainNet()
+			key = nil // TODO: read key
+
+		default:
+			return fmt.Errorf("unknown network name: %s", netName)
+		}
+
+		// start
+		l := lachesis.New(db, "", key, conf)
 		l.Start()
 		defer l.Stop()
 
@@ -64,12 +88,6 @@ var Start = &cobra.Command{
 		}
 		l.AddPeers(trim(hosts)...)
 
-		dsn, err := cmd.Flags().GetString("dsn")
-		if err != nil {
-			return err
-		}
-		logger.SetDSN(dsn)
-
 		wait()
 
 		return nil
@@ -77,7 +95,10 @@ var Start = &cobra.Command{
 }
 
 func init() {
-	Start.Flags().String("fakegen", "1/2", "use N/T format to use N-th key from T genesis keys")
+	Start.Flags().String("network", "fake:1/1", `one of: 
+	- "fake:N/T" to use fakenet (N-th key from T genesis keys);
+	- "test" to use testnet;
+	- "main" to use mainnet;`)
 	Start.Flags().String("db", "inmemory", "badger database dir")
 	Start.Flags().StringSlice("peer", nil, "hosts of peers")
 	Start.Flags().String("log", "info", "log level")
@@ -95,10 +116,14 @@ func parseFakeGen(s string) (num, total int, err error) {
 	if err != nil {
 		return
 	}
-	num = int(num64)
+	num = int(num64) - 1
 
 	total64, err := strconv.ParseUint(parts[1], 10, 64)
 	total = int(total64)
+
+	if num64 < 1 || num64 > total64 {
+		err = fmt.Errorf("key-num should be in range from 1 to total : <key-num>/<total>")
+	}
 
 	return
 }

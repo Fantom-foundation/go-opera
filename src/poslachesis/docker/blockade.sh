@@ -23,7 +23,7 @@ do
   node_$i:
     image: pos-lachesis-blockade:latest
     container_name: node_$i
-    command: start --fakegen=$i/$n --db=/tmp --peer=node_$j
+    command: start --network=fake:$i/$n --db=/tmp --peer=node_$j
     expose:
       - "55555"
     deploy:
