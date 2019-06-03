@@ -17,6 +17,7 @@ else
 fi
 
 echo -e "\nBuild Sentry\n"
+> .env
 cp docker-compose.yml.example docker-compose.yml
 docker-compose build
 
