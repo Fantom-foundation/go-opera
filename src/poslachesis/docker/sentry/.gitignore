@@ -1,0 +1,4 @@
+.env
+.dsn
+docker-compose.yml
+config.yml

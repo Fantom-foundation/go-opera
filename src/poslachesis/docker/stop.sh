@@ -6,3 +6,6 @@ do
 done
 
 docker network rm lachesis
+
+# Close sentry
+cd sentry && docker-compose down && cd ..
