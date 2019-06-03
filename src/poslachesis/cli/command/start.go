@@ -51,6 +51,9 @@ var Start = &cobra.Command{
 		conf := lachesis.DefaultConfig()
 		conf.Net = net
 
+		if num >= len(keys) {
+			panic(fmt.Errorf("num too high, try --fakegen 1/2 instead of --fakegen %s", fakegen))
+		}
 		l := lachesis.New(db, "", keys[num], conf)
 		l.Start()
 		defer l.Stop()
@@ -74,7 +77,7 @@ var Start = &cobra.Command{
 }
 
 func init() {
-	Start.Flags().String("fakegen", "1/1", "use N/T format to use N-th key from T genesis keys")
+	Start.Flags().String("fakegen", "1/2", "use N/T format to use N-th key from T genesis keys")
 	Start.Flags().String("db", "inmemory", "badger database dir")
 	Start.Flags().StringSlice("peer", nil, "hosts of peers")
 	Start.Flags().String("log", "info", "log level")

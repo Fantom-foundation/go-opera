@@ -6,7 +6,9 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 [`cli/`](./cli/) - contains cli (only for fakenet now):
 
-  - build: `go build -o lachesis .`;
+  - build: 
+    - in root directory: `glide install`;
+    - in src/poslachesis/cli: `go build -o lachesis .`;
   - for help use: `./lachesis -h`;
   - run single node: `./lachesis start`;
 
@@ -24,7 +26,7 @@ balance of 0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf ==
 
 * Transfer some amount to another node using `transfer` command
 ```sh
-./lachesis transfer --amount=10000 --receiver=0xf2610eb8185d8120e0e71f0d5f1fc74e3b187646a6a0aee169ca242a6b599fc0
+./lachesis transfer --amount=10000 --index 0 --receiver=0xf2610eb8185d8120e0e71f0d5f1fc74e3b187646a6a0aee169ca242a6b599fc0
 ```
  returns hex of the outgoing transaction
 ```
