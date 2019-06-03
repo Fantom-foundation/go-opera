@@ -33,9 +33,9 @@ func TestGossip(t *testing.T) {
 	node2.EmitEvent()
 
 	t.Run("before", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 0,
@@ -43,7 +43,7 @@ func TestGossip(t *testing.T) {
 			node1.knownEvents(),
 			"node1 knows their event only")
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 0,
 				node2.ID: 1,
@@ -53,10 +53,10 @@ func TestGossip(t *testing.T) {
 	})
 
 	t.Run("after 1-2", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		node1.syncWithPeer(node2.AsPeer())
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 1,
@@ -64,7 +64,7 @@ func TestGossip(t *testing.T) {
 			node1.knownEvents(),
 			"node1 knows last event of node2")
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 0,
 				node2.ID: 1,
@@ -73,14 +73,14 @@ func TestGossip(t *testing.T) {
 			"node2 still knows their event only")
 
 		e2 := node1.store.GetEventHash(node2.ID, 1)
-		assert.NotNil(e2, "event of node2 is in db")
+		assertar.NotNil(e2, "event of node2 is in db")
 	})
 
 	t.Run("after 2-1", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		node2.syncWithPeer(node1.AsPeer())
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 1,
@@ -88,7 +88,7 @@ func TestGossip(t *testing.T) {
 			node1.knownEvents(),
 			"node1 still knows event of node2")
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 1,
@@ -97,7 +97,7 @@ func TestGossip(t *testing.T) {
 			"node2 knows last event of node1")
 
 		e1 := node2.store.GetEventHash(node1.ID, 1)
-		assert.NotNil(e1, "event of node1 is in db")
+		assertar.NotNil(e1, "event of node1 is in db")
 	})
 
 }
@@ -127,9 +127,9 @@ func TestMissingParents(t *testing.T) {
 	node1.EmitEvent()
 
 	t.Run("before sync", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 3,
 				node2.ID: 0,
@@ -137,7 +137,7 @@ func TestMissingParents(t *testing.T) {
 			node1.knownEvents(),
 			"node1 knows their event only")
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 0,
 				node2.ID: 0,
@@ -148,7 +148,7 @@ func TestMissingParents(t *testing.T) {
 
 	// Note: we cannot use syncWithPeer here because we need custom iterator for missing some events.
 	t.Run("sync", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		peer := node1.AsPeer()
 		client, _, _, err := node2.ConnectTo(peer)
@@ -190,7 +190,7 @@ func TestMissingParents(t *testing.T) {
 		// Download missings
 		node2.checkParents(client, peer, parents)
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 3,
 				node2.ID: 0,
@@ -198,7 +198,7 @@ func TestMissingParents(t *testing.T) {
 			node1.knownEvents(),
 			"node1 still knows their event only")
 
-		assert.Equal(
+		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 3,
 				node2.ID: 0,
@@ -207,13 +207,13 @@ func TestMissingParents(t *testing.T) {
 			"node2 knows last event of node1")
 
 		e1 := node2.store.GetEventHash(node1.ID, 1)
-		assert.NotNil(e1, "event of node1 is in db")
+		assertar.NotNil(e1, "event of node1 is in db")
 
 		e2 := node2.store.GetEventHash(node1.ID, 2)
-		assert.NotNil(e2, "event of node1 is in db")
+		assertar.NotNil(e2, "event of node1 is in db")
 
 		e3 := node2.store.GetEventHash(node1.ID, 3)
-		assert.NotNil(e3, "event of node1 is in db")
+		assertar.NotNil(e3, "event of node1 is in db")
 	})
 }
 
@@ -232,19 +232,19 @@ func TestPeerPriority(t *testing.T) {
 	node.initPeers()
 
 	t.Run("First selection after bootstrap", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		peer := node.NextForGossip()
 		defer node.FreePeer(peer)
 
-		assert.Equal(
+		assertar.Equal(
 			peer1.Host,
 			peer.Host,
 			"node1 should select first top node without sort")
 	})
 
 	t.Run("Select last successful peer", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.ConnectOK(peer1)
 		store.SetPeer(peer2)
@@ -253,28 +253,28 @@ func TestPeerPriority(t *testing.T) {
 		peer := node.NextForGossip()
 		defer node.FreePeer(peer)
 
-		assert.Equal(
+		assertar.Equal(
 			peer2,
 			peer,
 			"node1 should select peer2 as first successful peer")
 	})
 
 	t.Run("Select last but one successful peer", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.ConnectFail(peer2, nil)
 
 		peer := node.NextForGossip()
 		defer node.FreePeer(peer)
 
-		assert.Equal(
+		assertar.Equal(
 			peer1,
 			peer,
 			"should select peer1 as last successful peer")
 	})
 
 	t.Run("If all connection was failed -> select with earliest timestamp", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.ConnectOK(peer1)
 		node.ConnectFail(peer1, nil)
@@ -283,14 +283,14 @@ func TestPeerPriority(t *testing.T) {
 		peer := node.NextForGossip()
 		defer node.FreePeer(peer)
 
-		assert.Equal(
+		assertar.Equal(
 			peer1,
 			peer,
 			"should select peer1 as last failed peer")
 	})
 
 	t.Run("If all connection was successful -> select first in top without sort", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.ConnectOK(peer1)
 		node.ConnectOK(peer2)
@@ -298,7 +298,7 @@ func TestPeerPriority(t *testing.T) {
 		peer := node.NextForGossip()
 		defer node.FreePeer(peer)
 
-		assert.Equal(
+		assertar.Equal(
 			peer1,
 			peer,
 			"should select peer1 as first not busy in top peer")

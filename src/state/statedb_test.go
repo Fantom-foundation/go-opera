@@ -10,7 +10,7 @@ import (
 )
 
 func TestBalanceState(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	var aa = []hash.Peer{
 		hash.FakePeer(),
@@ -23,7 +23,7 @@ func TestBalanceState(t *testing.T) {
 
 	stateAt := func(point hash.Hash) *DB {
 		db, err := New(point, store)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			t.FailNow()
 		}
 		return db
@@ -32,14 +32,14 @@ func TestBalanceState(t *testing.T) {
 	checkBalance := func(point hash.Hash, addr hash.Peer, balance uint64) {
 		db := stateAt(point)
 		got := db.FreeBalance(addr)
-		if !assert.Equalf(balance, got, "unexpected balance") {
+		if !assertar.Equalf(balance, got, "unexpected balance") {
 			t.FailNow()
 		}
 	}
 
 	commit := func(db *DB) hash.Hash {
 		root, err := db.Commit(true)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			t.FailNow()
 		}
 		return root
@@ -64,8 +64,8 @@ func TestBalanceState(t *testing.T) {
 	// fork 1
 	db = stateAt(root)
 	db.Transfer(aa[0], aa[1], 1)
-	if !assert.Equalf(uint64(9), db.FreeBalance(aa[0]), "before commit") ||
-		!assert.Equalf(uint64(11), db.FreeBalance(aa[1]), "before commit") {
+	if !assertar.Equalf(uint64(9), db.FreeBalance(aa[0]), "before commit") ||
+		!assertar.Equalf(uint64(11), db.FreeBalance(aa[1]), "before commit") {
 		return
 	}
 	fork1 := commit(db)
@@ -85,7 +85,7 @@ func TestBalanceState(t *testing.T) {
 }
 
 func TestDelegationState(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	const __ uint64 = 0
 
@@ -100,7 +100,7 @@ func TestDelegationState(t *testing.T) {
 
 	stateAt := func(point hash.Hash) *DB {
 		db, err := New(point, store)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			t.FailNow()
 		}
 		return db
@@ -129,7 +129,7 @@ func TestDelegationState(t *testing.T) {
 				continue
 			}
 			got := db.GetDelegations(addr)[x][p]
-			if !assert.Equalf(exp, got, "unexpected delegation amount: aa[%d] %s aa[%d]", j, dir, i) {
+			if !assertar.Equalf(exp, got, "unexpected delegation amount: aa[%d] %s aa[%d]", j, dir, i) {
 				t.FailNow()
 			}
 		}
@@ -137,7 +137,7 @@ func TestDelegationState(t *testing.T) {
 
 	commit := func(db *DB) hash.Hash {
 		root, err := db.Commit(true)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			t.FailNow()
 		}
 		return root

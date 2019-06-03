@@ -56,87 +56,87 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 	defer c.Close()
 
 	t.Run("#1 Send tx", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		gold := []byte("123456")
 
 		err := c.SubmitTx(gold)
-		assert.NoError(err)
+		assertar.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			assert.Equal(gold, tx)
+			assertar.Equal(gold, tx)
 		case <-time.After(timeout):
-			assert.Fail(errTimeout)
+			assertar.Fail(errTimeout)
 		}
 	})
 
 	t.Run("#2 Receive block", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		block := poset.Block{}
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.CommitCh():
-				assert.Equal(block, event.Block)
+				assertar.Equal(block, event.Block)
 				event.RespChan <- proto.CommitResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				assert.Fail(errTimeout)
+				assertar.Fail(errTimeout)
 			}
 		}()
 
 		answer, err := s.CommitBlock(block)
-		if assert.NoError(err) {
-			assert.Equal(gold, answer)
+		if assertar.NoError(err) {
+			assertar.Equal(gold, answer)
 		}
 	})
 
 	t.Run("#3 Receive snapshot query", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		index := int64(1)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.SnapshotRequestCh():
-				assert.Equal(index, event.BlockIndex)
+				assertar.Equal(index, event.BlockIndex)
 				event.RespChan <- proto.SnapshotResponse{
 					Snapshot: gold,
 					Error:    nil,
 				}
 			case <-time.After(timeout):
-				assert.Fail(errTimeout)
+				assertar.Fail(errTimeout)
 			}
 		}()
 
 		answer, err := s.GetSnapshot(index)
-		if assert.NoError(err) {
-			assert.Equal(gold, answer)
+		if assertar.NoError(err) {
+			assertar.Equal(gold, answer)
 		}
 	})
 
 	t.Run("#4 Receive restore command", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		gold := []byte("123456")
 
 		go func() {
 			select {
 			case event := <-c.RestoreCh():
-				assert.Equal(gold, event.Snapshot)
+				assertar.Equal(gold, event.Snapshot)
 				event.RespChan <- proto.RestoreResponse{
 					StateHash: gold,
 					Error:     nil,
 				}
 			case <-time.After(timeout):
-				assert.Fail(errTimeout)
+				assertar.Fail(errTimeout)
 			}
 		}()
 
 		err := s.Restore(gold)
-		assert.NoError(err)
+		assertar.NoError(err)
 	})
 }
 
@@ -160,17 +160,17 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	defer c.Close()
 
 	checkConn := func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		gold := []byte("123456")
 
 		err := c.SubmitTx(gold)
-		assert.NoError(err)
+		assertar.NoError(err)
 
 		select {
 		case tx := <-s.SubmitCh():
-			assert.Equal(gold, tx)
+			assertar.Equal(gold, tx)
 		case <-time.After(timeout):
-			assert.Fail(errTimeout)
+			assertar.Fail(errTimeout)
 		}
 	}
 

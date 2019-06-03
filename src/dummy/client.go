@@ -6,35 +6,35 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
-// DummyClient is a implementation of the dummy app. Lachesis and the
+// Client is a implementation of the dummy app. Lachesis and the
 // app run in separate processes and communicate through proxy
-type DummyClient struct {
+type Client struct {
 	logger        *logrus.Logger
 	state         proxy.App
 	lachesisProxy proxy.LachesisProxy
 }
 
-// NewInmemDummyApp constructor
-func NewInmemDummyApp(logger *logrus.Logger) proxy.AppProxy {
+// NewInmemApp constructor
+func NewInmemApp(logger *logrus.Logger) proxy.AppProxy {
 	state := NewState(logger)
 	return proxy.NewInmemAppProxy(state, logger)
 }
 
-// NewDummySocketClient constructor
-func NewDummySocketClient(addr string, logger *logrus.Logger) (*DummyClient, error) {
+// NewSocketClient constructor
+func NewSocketClient(addr string, logger *logrus.Logger) (*Client, error) {
 	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewDummyClient(lachesisProxy, nil, logger)
+	return NewClient(lachesisProxy, nil, logger)
 }
 
-// NewDummyClient instantiates an implementation of the dummy app
-func NewDummyClient(lachesisProxy proxy.LachesisProxy, handler proxy.App, logger *logrus.Logger) (c *DummyClient, err error) {
+// NewClient instantiates an implementation of the dummy app
+func NewClient(lachesisProxy proxy.LachesisProxy, handler proxy.App, logger *logrus.Logger) (c *Client, err error) {
 	// state := NewState(logger)
 
-	c = &DummyClient{
+	c = &Client{
 		logger:        logger,
 		state:         handler,
 		lachesisProxy: lachesisProxy,
@@ -79,6 +79,6 @@ func NewDummyClient(lachesisProxy proxy.LachesisProxy, handler proxy.App, logger
 }
 
 // SubmitTx sends a transaction to node via proxy
-func (c *DummyClient) SubmitTx(tx []byte) error {
+func (c *Client) SubmitTx(tx []byte) error {
 	return c.lachesisProxy.SubmitTx(tx)
 }

@@ -42,34 +42,34 @@ func TestClient(t *testing.T) {
 	}
 
 	t.Run("1st-connection", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		pong, err := ping(t)
-		_ = assert.NoError(err) && assert.NotNil(pong)
+		_ = assertar.NoError(err) && assertar.NotNil(pong)
 	})
 
 	t.Run("2nd-connection", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		pong, err := ping(t)
-		_ = assert.NoError(err) && assert.NotNil(pong)
+		_ = assertar.NoError(err) && assertar.NotNil(pong)
 	})
 
 	t.Run("Re-connection 1", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		server.StopService()
 		server.StartService()
 		pong, err := ping(t)
 		// both results (err or not) are acceptable here
-		_ = assert.NotEqual(err == nil, api.IsProtoEmpty(&pong), "inconsistent result")
+		_ = assertar.NotEqual(err == nil, api.IsProtoEmpty(&pong), "inconsistent result")
 	})
 
 	t.Run("Re-connection 2", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		pong, err := ping(t)
-		_ = assert.NoError(err) && assert.NotNil(pong)
+		_ = assertar.NoError(err) && assertar.NotNil(pong)
 	})
 
 	// TODO: test the all situations.

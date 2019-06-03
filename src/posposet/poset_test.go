@@ -49,11 +49,11 @@ func TestPoset(t *testing.T) {
 	})
 
 	t.Run("All events in Store", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		for _, events := range nodesEvents {
 			for _, e0 := range events {
 				frame := posets[0].store.GetEventFrame(e0.Hash())
-				if !assert.NotNil(frame, "Event is not in poset store") {
+				if !assertar.NotNil(frame, "Event is not in poset store") {
 					return
 				}
 			}
@@ -61,16 +61,16 @@ func TestPoset(t *testing.T) {
 	})
 
 	t.Run("Check consensus", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		for i := 0; i < len(posets)-1; i++ {
 			for j := i + 1; j < len(posets); j++ {
 				p0, p1 := posets[i], posets[j]
 				// compare blockchain
-				if !assert.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
+				if !assertar.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
 					return
 				}
 				for b := uint64(1); b <= p0.state.LastBlockN; b++ {
-					if !assert.Equal(p0.store.GetBlock(b), p1.store.GetBlock(b), "block") {
+					if !assertar.Equal(p0.store.GetBlock(b), p1.store.GetBlock(b), "block") {
 						return
 					}
 				}

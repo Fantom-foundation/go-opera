@@ -13,7 +13,7 @@ import (
 )
 
 func Test_IntToBytes(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	for _, n1 := range []uint64{
 		0,
@@ -23,7 +23,7 @@ func Test_IntToBytes(t *testing.T) {
 	} {
 		b := intToBytes(n1)
 		n2 := bytesToInt(b)
-		assert.Equal(n1, n2)
+		assertar.Equal(n1, n2)
 	}
 }
 

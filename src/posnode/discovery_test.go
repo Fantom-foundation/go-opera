@@ -27,27 +27,27 @@ func TestDiscoveryPeer(t *testing.T) {
 	node2.initPeers()
 
 	t.Run("ask for unknown", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		unknown := hash.FakePeer()
 		node2.AskPeerInfo(node1.host, &unknown)
 
 		peer := store2.GetPeer(unknown)
-		assert.Nil(peer)
+		assertar.Nil(peer)
 	})
 
 	t.Run("ask for himself", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		unknown := node1.ID
 		node2.AskPeerInfo(node1.host, &unknown)
 
 		peer := store2.GetPeer(unknown)
-		assert.Equal(node1.AsPeer(), peer)
+		assertar.Equal(node1.AsPeer(), peer)
 	})
 
 	t.Run("ask for known unreachable", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		known := FakePeer("unreachable")
 		store1.SetPeer(known)
@@ -55,11 +55,11 @@ func TestDiscoveryPeer(t *testing.T) {
 		node2.AskPeerInfo(node1.host, &known.ID)
 
 		peer := store2.GetPeer(known.ID)
-		assert.Nil(peer)
+		assertar.Nil(peer)
 	})
 
 	t.Run("ask for known invalid", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		known := InvalidPeer("invalid")
 		store1.SetPeer(known)
@@ -67,12 +67,12 @@ func TestDiscoveryPeer(t *testing.T) {
 		node2.AskPeerInfo(node1.host, &known.ID)
 
 		peer := store2.GetPeer(known.ID)
-		assert.Nil(peer)
+		assertar.Nil(peer)
 	})
 }
 
 func TestDiscoveryHost(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	// node 1
 	store1 := NewMemStore()
@@ -91,7 +91,7 @@ func TestDiscoveryHost(t *testing.T) {
 
 	node1.AskPeerInfo(node2.Host(), nil)
 
-	assert.Equal(
+	assertar.Equal(
 		node2.ID,
 		node1.peers.Snapshot()[0])
 
@@ -99,7 +99,7 @@ func TestDiscoveryHost(t *testing.T) {
 	case <-nodeDiscoveryFinish(node2):
 	case <-time.After(time.Second):
 	}
-	assert.Equal(
+	assertar.Equal(
 		node1.ID,
 		node2.peers.Snapshot()[0])
 }

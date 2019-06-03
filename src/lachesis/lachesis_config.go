@@ -17,7 +17,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
-type LachesisConfig struct {
+type Config struct {
 	DataDir     string `mapstructure:"datadir"`
 	BindAddr    string `mapstructure:"listen"`
 	ServiceAddr string `mapstructure:"service-listen"`
@@ -41,8 +41,8 @@ type LachesisConfig struct {
 	TestDelay uint64 `mapstructure:"test_delay"`
 }
 
-func NewDefaultConfig() *LachesisConfig {
-	config := &LachesisConfig{
+func NewDefaultConfig() *Config {
+	config := &Config{
 		DataDir:     DefaultDataDir(),
 		BindAddr:    ":1337",
 		ServiceAddr: ":8000",
@@ -80,7 +80,7 @@ func DefaultBadgerDir() string {
 	return ""
 }
 
-func (c *LachesisConfig) BadgerDir() string {
+func (c *Config) BadgerDir() string {
 	return filepath.Join(c.DataDir, "badger_db")
 }
 

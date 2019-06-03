@@ -92,7 +92,7 @@ func TestPosetSimpleAtropos(t *testing.T) {
 // - 3rd number - frame where node should be in;
 // - last "+T" - means Atropos and its consensus time;
 func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 	// init
 	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme)
 	p, store, input := FakePoset(nodes)
@@ -120,32 +120,32 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 		// check root
 		mustBeRoot := name == strings.ToUpper(name)
 		frame, isRoot := p.FrameOfEvent(event.Hash())
-		if !assert.Equal(mustBeRoot, isRoot, name+" is root") {
+		if !assertar.Equal(mustBeRoot, isRoot, name+" is root") {
 			t.Log(event.String())
 			break
 		}
 		// check frame
 		mustBeFrame, err := strconv.ParseUint(name[2:3], 10, 64)
-		if !assert.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
+		if !assertar.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
 			return
 		}
-		if !assert.Equal(mustBeFrame, frame.Index, "frame of "+name) {
+		if !assertar.Equal(mustBeFrame, frame.Index, "frame of "+name) {
 			break
 		}
 		// check Atropos time
 		mustBeAtropos := len(name) > 4 && name[3:4] == "+"
 		consensusTime, isAtropos := frame.Atroposes[event.Hash()]
-		if !assert.Equal(mustBeAtropos, isAtropos, "Atropos "+name) {
+		if !assertar.Equal(mustBeAtropos, isAtropos, "Atropos "+name) {
 			break
 		}
 		if !isAtropos {
 			continue
 		}
 		expectedTime, err := strconv.ParseUint(name[4:5], 10, 64)
-		if !assert.NoError(err, "name the Atropos properly: <UpperCaseForRoot><Index><FrameN>+<ConsensusTime>") {
+		if !assertar.NoError(err, "name the Atropos properly: <UpperCaseForRoot><Index><FrameN>+<ConsensusTime>") {
 			return
 		}
-		if !assert.Equal(inter.Timestamp(expectedTime), consensusTime, "Atropos "+name+" consensus time") {
+		if !assertar.Equal(inter.Timestamp(expectedTime), consensusTime, "Atropos "+name+" consensus time") {
 			break
 		}
 	}

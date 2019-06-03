@@ -139,10 +139,10 @@ func (ee EventsByPeer) String() string {
 func (ee EventsByPeer) ToWire() []*wire.EventDescr {
 	var arr []*wire.EventDescr
 	for creator, hh := range ee {
-		for hash := range hh {
+		for hash_ := range hh {
 			arr = append(arr, &wire.EventDescr{
 				Creator: creator.Bytes(),
-				Hash:    hash.Bytes(),
+				Hash:    hash_.Bytes(),
 			})
 		}
 	}

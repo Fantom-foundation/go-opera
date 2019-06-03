@@ -9,7 +9,7 @@ import (
 )
 
 func TestFakeKeyGeneration(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 
 	prev := make([]*common.PrivateKey, 10)
 	for i := 0; i < len(prev); i++ {
@@ -18,7 +18,7 @@ func TestFakeKeyGeneration(t *testing.T) {
 
 	for i := 0; i < len(prev); i++ {
 		again := GenerateFakeKey(i)
-		if !assert.Equal(prev[i], again) {
+		if !assertar.Equal(prev[i], again) {
 			return
 		}
 	}

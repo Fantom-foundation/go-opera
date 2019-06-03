@@ -412,9 +412,9 @@ func (p *Poset) round2(x EventHash) (int64, error) {
 	*/
 	if sp := ex.SelfParent(); sp.Equal(root.SelfParent.Hash) {
 		// Root is authoritative EXCEPT if other-parent is not in the root
-		hash := ex.Hash()
+		hash_ := ex.Hash()
 		op := ex.OtherParent()
-		if other, ok := root.Others[hash.String()]; op.Zero() ||
+		if other, ok := root.Others[hash_.String()]; op.Zero() ||
 			(ok && op.Equal(other.Hash)) {
 
 			p.logger.Debug("p.round2(): return root.NextRound")
@@ -679,9 +679,9 @@ func (p *Poset) checkOtherParent(event Event) error {
 			if err != nil {
 				return err
 			}
-			hash := event.Hash()
+			eventHash := event.Hash()
 			otherParent := event.OtherParent()
-			other, ok := root.Others[hash.String()]
+			other, ok := root.Others[eventHash.String()]
 			if ok && otherParent.Equal(other.Hash) {
 				return nil
 			}
@@ -725,8 +725,8 @@ func (p *Poset) createOtherParentRootEvent(ev Event) (RootEvent, error) {
 	if err != nil {
 		return RootEvent{}, err
 	}
-	hash := ev.Hash()
-	if other, ok := root.Others[hash.String()]; ok && op.Equal(other.Hash) {
+	eventHash := ev.Hash()
+	if other, ok := root.Others[eventHash.String()]; ok && op.Equal(other.Hash) {
 		return *other, nil
 	}
 
@@ -792,8 +792,8 @@ func (p *Poset) createRoot(ev Event) (Root, error) {
 	}
 
 	if otherParentRootEvent != nil {
-		hash := ev.Hash()
-		root.Others[hash.String()] = otherParentRootEvent
+		eventHash := ev.Hash()
+		root.Others[eventHash.String()] = otherParentRootEvent
 	}
 
 	return root, nil
@@ -873,13 +873,13 @@ func (p *Poset) InsertEvent(event Event, setWireInfo bool) error {
 		if err != nil {
 			return err
 		}
-		hash := event.Hash()
+		eventHash := event.Hash()
 		p.logger.WithFields(logrus.Fields{
 			"event":      event,
 			"creator":    event.GetCreator(),
 			"selfParent": event.SelfParent(),
 			"index":      event.Index(),
-			"hex":        hash.String(),
+			"hex":        eventHash.String(),
 		}).Debugf("Invalid Event signature")
 
 		return fmt.Errorf("invalid Event signature")
@@ -934,9 +934,9 @@ func (p *Poset) DivideRounds() error {
 	p.undeterminedEventsLocker.RLock()
 	defer p.undeterminedEventsLocker.RUnlock()
 
-	for _, hash := range p.UndeterminedEvents {
+	for _, hash_ := range p.UndeterminedEvents {
 
-		ev, err := p.Store.GetEventBlock(hash)
+		ev, err := p.Store.GetEventBlock(hash_)
 		if err != nil {
 			return err
 		}
@@ -949,7 +949,7 @@ func (p *Poset) DivideRounds() error {
 		*/
 		if ev.GetRound() == RoundNIL {
 
-			roundNumber, err := p.round(hash)
+			roundNumber, err := p.round(hash_)
 			if err != nil {
 				return err
 			}
@@ -963,7 +963,7 @@ func (p *Poset) DivideRounds() error {
 			}
 
 			p.logger.WithFields(logrus.Fields{
-				"hash":         hash,
+				"hash_":        hash_,
 				"roundNumber":  roundNumber,
 				"roundCreated": roundCreated,
 			}).Debug("p.DivideRounds()")
@@ -986,11 +986,11 @@ func (p *Poset) DivideRounds() error {
 				roundCreated.Message.Queued = true
 			}
 
-			clotho, err := p.clotho(hash)
+			clotho, err := p.clotho(hash_)
 			if err != nil {
 				return err
 			}
-			roundCreated.AddEvent(hash, clotho)
+			roundCreated.AddEvent(hash_, clotho)
 
 			err = p.Store.SetRoundCreated(roundNumber, roundCreated)
 			if err != nil {
@@ -1035,7 +1035,7 @@ func (p *Poset) DivideRounds() error {
 		*/
 		if ev.GetLamportTimestamp() == LamportTimestampNIL {
 
-			lamportTimestamp, err := p.lamportTimestamp(hash)
+			lamportTimestamp, err := p.lamportTimestamp(hash_)
 			if err != nil {
 				return err
 			}
@@ -1392,9 +1392,9 @@ func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 
 	var events []Event
 	for _, eh := range round.Rounds {
-		var hash EventHash
-		hash.Set(eh)
-		e, err := p.Store.GetEventBlock(hash)
+		var eventHash EventHash
+		eventHash.Set(eh)
+		e, err := p.Store.GetEventBlock(eventHash)
 		if err != nil {
 			return Frame{}, err
 		}
@@ -1463,7 +1463,7 @@ func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 	treated := map[EventHash]bool{}
 	eventMessages := make([]*EventMessage, len(events))
 	for i, ev := range events {
-		hash := ev.Hash()
+		eventHash := ev.Hash()
 		otherParent := ev.OtherParent()
 		selfParent := ev.SelfParent()
 		treated[ev.Hash()] = true
@@ -1475,7 +1475,7 @@ func (p *Poset) MakeFrame(roundReceived int64) (Frame, error) {
 					if err != nil {
 						return Frame{}, err
 					}
-					roots[ev.GetCreator()].Others[hash.String()] = &other
+					roots[ev.GetCreator()].Others[eventHash.String()] = &other
 				}
 			}
 		}
@@ -1920,8 +1920,8 @@ func (p *Poset) GetPeerFlagTableOfRandomUndeterminedEvent() (map[string]int64, e
 
 	perm := rand.Perm(len(p.UndeterminedEvents))
 	for i := 0; i < len(perm); i++ {
-		hash := p.UndeterminedEvents[perm[i]]
-		ev, err := p.Store.GetEventBlock(hash)
+		hash_ := p.UndeterminedEvents[perm[i]]
+		ev, err := p.Store.GetEventBlock(hash_)
 		if err != nil {
 			continue
 		}

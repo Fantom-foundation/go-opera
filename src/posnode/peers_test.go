@@ -14,13 +14,13 @@ func TestPeerReadyForReq(t *testing.T) {
 	node.initPeers()
 
 	t.Run("new host", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
-		assert.True(node.PeerReadyForReq("new_host"))
+		assertar.True(node.PeerReadyForReq("new_host"))
 	})
 
 	t.Run("last success", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		host := &hostAttr{
 			Name:        "success",
@@ -29,11 +29,11 @@ func TestPeerReadyForReq(t *testing.T) {
 		}
 		node.peers.hosts[host.Name] = host
 
-		assert.True(node.PeerReadyForReq(host.Name))
+		assertar.True(node.PeerReadyForReq(host.Name))
 	})
 
 	t.Run("last fail timeouted", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		host := &hostAttr{
 			Name:        "fail",
@@ -42,7 +42,7 @@ func TestPeerReadyForReq(t *testing.T) {
 		}
 		node.peers.hosts[host.Name] = host
 
-		assert.True(node.PeerReadyForReq(host.Name))
+		assertar.True(node.PeerReadyForReq(host.Name))
 	})
 }
 
@@ -52,7 +52,7 @@ func TestPeerUnknown(t *testing.T) {
 	node.initPeers()
 
 	t.Run("last success", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		peer := &peerAttr{
 			ID: hash.FakePeer(),
@@ -62,11 +62,11 @@ func TestPeerUnknown(t *testing.T) {
 		}
 		node.peers.ids[peer.ID] = peer
 
-		assert.False(node.PeerUnknown(&peer.ID))
+		assertar.False(node.PeerUnknown(&peer.ID))
 	})
 
 	t.Run("peer known", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		peer := &peerAttr{
 			ID: hash.FakePeer(),
@@ -76,20 +76,20 @@ func TestPeerUnknown(t *testing.T) {
 		}
 		node.peers.ids[peer.ID] = peer
 
-		assert.False(node.PeerUnknown(&peer.ID))
+		assertar.False(node.PeerUnknown(&peer.ID))
 	})
 
 	t.Run("peer unknown", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		unknown := hash.FakePeer()
-		assert.True(node.PeerUnknown(&unknown))
+		assertar.True(node.PeerUnknown(&unknown))
 	})
 
 	t.Run("nil peer", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
-		assert.True(node.PeerUnknown(nil))
+		assertar.True(node.PeerUnknown(nil))
 	})
 }
 
@@ -111,28 +111,28 @@ func TestCleanPeers(t *testing.T) {
 	node.initPeers()
 
 	t.Run("leave hosts as is", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.PeerReadyForReq(peer1.Host)
 		node.PeerReadyForReq(peer2.Host)
 
 		node.trimHosts(2, 2)
 
-		assert.Equal(len(node.peers.hosts), len(peers))
+		assertar.Equal(len(node.peers.hosts), len(peers))
 	})
 
 	t.Run("clean expired hosts", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		// We already have info about 2 hosts but limit is 1
 		// Clean all expired hosts
 		node.trimHosts(1, 1)
 
-		assert.Equal(len(node.peers.hosts), 1)
+		assertar.Equal(len(node.peers.hosts), 1)
 	})
 
 	t.Run("clean extra hosts", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		node.PeerReadyForReq(peer1.Host)
 		node.PeerReadyForReq(peer2.Host)
@@ -143,6 +143,6 @@ func TestCleanPeers(t *testing.T) {
 		// Clean extra
 		node.trimHosts(1, 1)
 
-		assert.Equal(len(node.peers.hosts), 1)
+		assertar.Equal(len(node.peers.hosts), 1)
 	})
 }

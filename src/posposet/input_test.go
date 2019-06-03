@@ -92,25 +92,25 @@ func TestEventStore(t *testing.T) {
 	store := NewEventStore(nil, false)
 
 	t.Run("NotExisting", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		h := hash.FakeEvent()
 		e1 := store.GetEvent(h)
-		assert.Nil(e1)
+		assertar.Nil(e1)
 	})
 
 	t.Run("Events", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		events := inter.FakeFuzzingEvents()
 		for _, e0 := range events {
 			store.SetEvent(e0)
 			e1 := store.GetEvent(e0.Hash())
 
-			if !assert.Equal(e0.Hash(), e1.Hash()) {
+			if !assertar.Equal(e0.Hash(), e1.Hash()) {
 				break
 			}
-			if !assert.Equal(e0, e1) {
+			if !assertar.Equal(e0, e1) {
 				break
 			}
 		}

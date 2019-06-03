@@ -24,7 +24,7 @@ func TestAddInternalTxn(t *testing.T) {
 	peer := hash.FakePeer()
 
 	t.Run("very 1st add", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		tx := inter.InternalTransaction{
 			Index:    1,
@@ -33,15 +33,15 @@ func TestAddInternalTxn(t *testing.T) {
 		}
 
 		_, err := node.AddInternalTxn(tx)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 		// TODO: check when implemented
-		//assert.Equal(expect, h.Hex())
+		//assertar.Equal(expect, h.Hex())
 	})
 
 	t.Run("very 2nd add", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		tx := inter.InternalTransaction{
 			Index:    2,
@@ -50,7 +50,7 @@ func TestAddInternalTxn(t *testing.T) {
 		}
 
 		_, err := node.AddInternalTxn(tx)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 		// TODO: check when implemented
@@ -72,77 +72,77 @@ func TestEmit(t *testing.T) {
 	events := make([]*inter.Event, 4)
 
 	t.Run("very 1st event", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		// node1 has no candidates to parent
 		tx := []byte("12345")
 		node1.AddExternalTxn(tx)
 
 		events[0] = node1.EmitEvent()
 
-		assert.Equal(
+		assertar.Equal(
 			uint64(1),
 			events[0].Index)
-		assert.Equal(
+		assertar.Equal(
 			inter.Timestamp(1),
 			events[0].LamportTime)
-		assert.Equal(
+		assertar.Equal(
 			hash.NewEvents(hash.ZeroEvent),
 			events[0].Parents)
-		assert.Equal(
+		assertar.Equal(
 			[][]byte{tx},
 			events[0].ExternalTransactions)
 	})
 
 	t.Run("1st event", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		// node2 got event0
 		node2.onNewEvent(events[0])
 
 		events[1] = node2.EmitEvent()
 
-		assert.Equal(
+		assertar.Equal(
 			uint64(1),
 			events[1].Index)
-		assert.Equal(
+		assertar.Equal(
 			inter.Timestamp(2),
 			events[1].LamportTime)
-		assert.Equal(
+		assertar.Equal(
 			hash.NewEvents(hash.ZeroEvent, events[0].Hash()),
 			events[1].Parents)
 	})
 
 	t.Run("2nd event", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		// node1 got event1
 		node1.onNewEvent(events[1])
 
 		events[2] = node1.EmitEvent()
 
-		assert.Equal(
+		assertar.Equal(
 			uint64(2),
 			events[2].Index)
-		assert.Equal(
+		assertar.Equal(
 			inter.Timestamp(3),
 			events[2].LamportTime)
-		assert.Equal(
+		assertar.Equal(
 			hash.NewEvents(events[0].Hash(), events[1].Hash()),
 			events[2].Parents)
 	})
 
 	t.Run("3rd event", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 		// node1 has no new parents
 		// TODO: what about skip event creation?
 
 		events[3] = node1.EmitEvent()
 
-		assert.Equal(
+		assertar.Equal(
 			uint64(3),
 			events[3].Index)
-		assert.Equal(
+		assertar.Equal(
 			inter.Timestamp(4),
 			events[3].LamportTime)
-		assert.Equal(
+		assertar.Equal(
 			hash.NewEvents(events[2].Hash()),
 			events[3].Parents)
 	})

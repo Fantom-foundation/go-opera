@@ -102,12 +102,12 @@ func testMissingNode(t *testing.T, memonly bool) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	hash := hash.HexToHash("2db7571d4823d62e2897c63e29e8360954fa43808feba89e85470fe9b2c10f83")
+	hash_ := hash.HexToHash("2db7571d4823d62e2897c63e29e8360954fa43808feba89e85470fe9b2c10f83")
 
 	if memonly {
-		delete(triedb.dirties, hash)
+		delete(triedb.dirties, hash_)
 	} else {
-		err = diskdb.Delete(hash[:])
+		err = diskdb.Delete(hash_[:])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -273,12 +273,12 @@ func TestReplication(t *testing.T) {
 			t.Errorf("trie2 doesn't have %q => %q", kv.k, kv.v)
 		}
 	}
-	hash, err := trie2.Commit(nil)
+	trie2CommittedHash, err := trie2.Commit(nil)
 	if err != nil {
 		t.Fatalf("commit error: %v", err)
 	}
-	if hash != exp {
-		t.Errorf("root failure. expected %x got %x", exp, hash)
+	if trie2CommittedHash != exp {
+		t.Errorf("root failure. expected %x got %x", exp, trie2CommittedHash)
 	}
 
 	// perform some insertions on the new trie.
@@ -296,8 +296,8 @@ func TestReplication(t *testing.T) {
 	for _, val := range vals2 {
 		updateString(trie2, val.k, val.v)
 	}
-	if hash := trie2.Hash(); hash != exp {
-		t.Errorf("root failure. expected %x got %x", exp, hash)
+	if trie2Hash := trie2.Hash(); trie2Hash != exp {
+		t.Errorf("root failure. expected %x got %x", exp, trie2Hash)
 	}
 }
 
@@ -437,12 +437,12 @@ func runRandTest(rt randTest) bool {
 		case opHash:
 			tr.Hash()
 		case opReset:
-			hash, err := tr.Commit(nil)
+			hash_, err := tr.Commit(nil)
 			if err != nil {
 				rt[i].err = err
 				return false
 			}
-			newtr, err := New(hash, triedb)
+			newtr, err := New(hash_, triedb)
 			if err != nil {
 				rt[i].err = err
 				return false
@@ -455,7 +455,7 @@ func runRandTest(rt randTest) bool {
 				checktr.Update(it.Key, it.Value)
 			}
 			if tr.Hash() != checktr.Hash() {
-				rt[i].err = fmt.Errorf("hash mismatch in opItercheckhash")
+				rt[i].err = fmt.Errorf("hash_ mismatch in opItercheckhash")
 			}
 		case opCheckCacheInvariant:
 			rt[i].err = checkCacheInvariant(tr.root, nil, tr.cachegen, false, 0)

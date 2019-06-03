@@ -68,7 +68,7 @@ func run(c *cli.Context) error {
 	}).Debug("RUN")
 
 	//Create and run Dummy Socket Client
-	client, err := dummy.NewDummySocketClient(address, logger)
+	client, err := dummy.NewSocketClient(address, logger)
 	if err != nil {
 		return err
 	}

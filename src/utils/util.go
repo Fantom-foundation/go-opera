@@ -27,16 +27,21 @@ func GetUnusedNetAddr(n int, t testing.TB) []string {
 		if err != nil {
 			continue
 		}
-		defer func() {
-			if err := l.Close(); err != nil {
-				t.Fatal(err)
+		if res := func() []string {
+			defer func() {
+				if err := l.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}()
+			t.Logf("Unused port %s is chosen", addrStr)
+			addresses[idx] = addrStr
+			idx++
+			if idx == n {
+				return addresses
 			}
-		}()
-		t.Logf("Unused port %s is chosen", addrStr)
-		addresses[idx] = addrStr
-		idx++
-		if idx == n {
-			return addresses
+			return nil
+		}(); res != nil {
+			return res
 		}
 	}
 	t.Fatalf("No free port left!!!")

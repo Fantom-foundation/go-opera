@@ -13,7 +13,7 @@ import (
 )
 
 func TestFrameSerialization(t *testing.T) {
-	assert := assert.New(t)
+	assertar := assert.New(t)
 	// fake random data
 	nodes, events := GenEventsByNode(4, 10, 3)
 
@@ -43,13 +43,13 @@ func TestFrameSerialization(t *testing.T) {
 		Balances:         hash.FakeHash(),
 	}
 	buf, err := proto.Marshal(f0.ToWire())
-	assert.NoError(err)
+	assertar.NoError(err)
 
 	w := &wire.Frame{}
 	err = proto.Unmarshal(buf, w)
-	assert.NoError(err)
+	assertar.NoError(err)
 
 	f1 := WireToFrame(w)
 
-	assert.EqualValues(f0, f1)
+	assertar.EqualValues(f0, f1)
 }

@@ -28,8 +28,8 @@ func WireToTimestampsByEvent(arr map[string]uint64) TimestampsByEvent {
 	res := make(TimestampsByEvent, len(arr))
 
 	for hex, t := range arr {
-		hash := hash.HexToEventHash(hex)
-		res[hash] = inter.Timestamp(t)
+		hash_ := hash.HexToEventHash(hex)
+		res[hash_] = inter.Timestamp(t)
 	}
 
 	return res

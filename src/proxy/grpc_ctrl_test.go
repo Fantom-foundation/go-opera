@@ -53,16 +53,16 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	peer := hash.FakePeer()
 
 	t.Run("get self id", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		got, err := client.GetSelfID()
 
-		assert.NoError(err)
-		assert.Equal(id, got)
+		assertar.NoError(err)
+		assertar.Equal(id, got)
 	})
 
 	t.Run("get balance of", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		expect := rand.Uint64()
 
@@ -71,15 +71,15 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Return(expect)
 
 		got, err := client.StakeOf(peer)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Equal(expect, got)
+		assertar.Equal(expect, got)
 	})
 
 	t.Run("transaction not found", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		h := hash.FakeTransaction()
 
@@ -88,11 +88,11 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Return(nil)
 
 		_, err := client.GetTransaction(h)
-		assert.Error(err)
+		assertar.Error(err)
 	})
 
 	t.Run("transaction", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		h := hash.FakeTransaction()
 		expect := &inter.InternalTransaction{
@@ -106,15 +106,15 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Return(expect)
 
 		got, err := client.GetTransaction(h)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Equal(expect, got)
+		assertar.Equal(expect, got)
 	})
 
 	t.Run("get balance of self", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		expect := rand.Uint64()
 
@@ -123,15 +123,15 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Return(expect)
 
 		got, err := client.StakeOf(peer)
-		if !assert.NoError(err) {
+		if !assertar.NoError(err) {
 			return
 		}
 
-		assert.Equal(expect, got)
+		assertar.Equal(expect, got)
 	})
 
 	t.Run("send to", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		amount := rand.Uint64()
 		tx := inter.InternalTransaction{
@@ -144,15 +144,15 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			AddInternalTxn(tx)
 
 		_, err := client.SendTo(tx.Receiver, tx.Index, tx.Amount, tx.UntilBlock)
-		assert.NoError(err)
+		assertar.NoError(err)
 	})
 
 	t.Run("set log level", func(t *testing.T) {
-		assert := assert.New(t)
+		assertar := assert.New(t)
 
 		l := "info"
 		err := client.SetLogLevel(l)
-		assert.NoError(err)
-		assert.Equal(logger.Get().GetLevel(), logger.GetLevel(l))
+		assertar.NoError(err)
+		assertar.Equal(logger.Get().GetLevel(), logger.GetLevel(l))
 	})
 }

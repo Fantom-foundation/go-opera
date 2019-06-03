@@ -86,7 +86,7 @@ func runSingleLachesis(config *CLIConfig) error {
 		}
 		config.Lachesis.Proxy = p
 	} else {
-		p := dummy.NewInmemDummyApp(config.Lachesis.Logger)
+		p := dummy.NewInmemApp(config.Lachesis.Logger)
 		config.Lachesis.Proxy = p
 	}
 

@@ -77,10 +77,10 @@ func EventBuffer(
 		process(e.Event)
 
 		// now child events may become complete, check it again
-		for hash, child := range incompletes {
+		for hash_, child := range incompletes {
 			if parent, ok := child.parents[e.Hash()]; ok && parent == nil {
 				child.parents[e.Hash()] = e.Event
-				delete(incompletes, hash)
+				delete(incompletes, hash_)
 				onNewEvent(child)
 			}
 		}
@@ -96,8 +96,8 @@ func EventBuffer(
 			Event:   e,
 			parents: make(map[hash.Event]*inter.Event, len(e.Parents)),
 		}
-		for hash := range e.Parents {
-			w.parents[hash] = nil
+		for parentHash := range e.Parents {
+			w.parents[parentHash] = nil
 		}
 		onNewEvent(w)
 	}
