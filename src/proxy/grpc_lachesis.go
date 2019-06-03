@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -37,6 +38,8 @@ type grpcLachesisProxy struct {
 	conn            *grpc.ClientConn
 	client          internal.LachesisClient
 	stream          atomic.Value
+
+	wg sync.WaitGroup
 }
 
 // NewGrpcLachesisProxy initiates a LachesisProxy-interface connected to remote lachesis node.
@@ -71,22 +74,26 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 
 	p.reconnectTicket <- time.Now()
 
+	p.wg.Add(1)
 	go p.listenEvents()
 
 	return p, nil
 }
 
 func (p *grpcLachesisProxy) Close() {
+	p.shutdown <- struct{}{}
+
 	p.closeStream()
 	err := p.conn.Close()
 	close(p.commitCh)
 	close(p.queryCh)
 	close(p.restoreCh)
 	p.reconnectTicket <- zeroTime
-	p.shutdown <- struct{}{}
 	if err != nil {
 		p.logger.Error(err)
 	}
+
+	p.wg.Wait()
 }
 
 /*
@@ -195,12 +202,21 @@ func (p *grpcLachesisProxy) reConnect() (err error) {
 }
 
 func (p *grpcLachesisProxy) listenEvents() {
+	defer p.wg.Done()
+
 	var (
 		event *internal.ToClient
 		err   error
 		uuid  xid.ID
 	)
 	for {
+		select {
+		case <-p.shutdown:
+			p.shutdown <- struct{}{}
+			return
+		default:
+		}
+
 		event, err = p.recvFromServer()
 		if err != nil {
 			if err != io.EOF {
