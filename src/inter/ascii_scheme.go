@@ -265,8 +265,8 @@ const (
 )
 
 func (r *row) Position(i int) pos {
+	// if left
 	if i < r.Self {
-		// left
 		if i < r.First {
 			return none
 		}
@@ -277,20 +277,18 @@ func (r *row) Position(i int) pos {
 			return pass
 		}
 		return first
-
-	} else {
-		// right
-		if i > r.Last {
-			return none
-		}
-		if i < r.Last {
-			if r.Refs[i] > 0 || i == r.Self {
-				return right
-			}
-			return pass
-		}
-		return last
 	}
+	// else right
+	if i > r.Last {
+		return none
+	}
+	if i < r.Last {
+		if r.Refs[i] > 0 || i == r.Self {
+			return right
+		}
+		return pass
+	}
+	return last
 }
 
 func (rr *rows) Optimize() {
