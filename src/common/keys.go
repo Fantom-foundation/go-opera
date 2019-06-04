@@ -4,11 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
-	"io"
 	"math/big"
 )
 
@@ -28,25 +25,6 @@ func (key *PrivateKey) Public() *PublicKey {
 // Sign signs with key.
 func (key *PrivateKey) Sign(hash []byte) (r, s *big.Int, err error) {
 	return ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(key), hash)
-}
-
-// WriteTo writes key to writer.
-func (key *PrivateKey) WriteTo(w io.Writer) error {
-	b, err := x509.MarshalECPrivateKey((*ecdsa.PrivateKey)(key))
-	if err != nil {
-		return err
-	}
-
-	pemBlock := pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: b,
-	}
-
-	if err := pem.Encode(w, &pemBlock); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Verify verifies the signatures.
