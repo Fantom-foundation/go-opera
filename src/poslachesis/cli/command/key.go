@@ -22,6 +22,7 @@ var Key = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		defer file.Close()
 
 		key, err := crypto.GeneratePrivateKey()
 		if err != nil {
