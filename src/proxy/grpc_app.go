@@ -99,6 +99,7 @@ func (p *grpcAppProxy) Close() {
 	p.mu.Unlock()
 
 	p.shutdown <- struct{}{}
+
 	p.wg.Wait()
 
 	p.server.GracefulStop()
@@ -334,8 +335,12 @@ func (p *grpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Ans
 	p.askingsSync.Lock()
 	p.askings[uuid] = ch
 	p.askingsSync.Unlock()
+
 	// timeout
+	p.wg.Add(1)
 	go func() {
+		defer p.wg.Done()
+
 		<-time.After(p.timeout)
 		p.askingsSync.Lock()
 		delete(p.askings, uuid)
