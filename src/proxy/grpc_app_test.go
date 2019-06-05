@@ -145,26 +145,30 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"
 	)
+	assertar := assert.New(t)
 
 	logger := common.NewTestLogger(t)
 
 	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, logger, listen)
-	if !assert.NoError(t, err) {
+	if !assertar.NoError(err) {
 		return
 	}
 
 	c, err := NewGrpcLachesisProxy(addr, logger, opts...)
-	if !assert.NoError(t, err) {
+	if !assertar.NoError(err) {
 		return
 	}
 	defer c.Close()
 
 	checkConn := func(t *testing.T) {
 		assertar := assert.New(t)
+
 		gold := []byte("123456")
 
 		err := c.SubmitTx(gold)
-		assertar.NoError(err)
+		if !assertar.NoError(err) {
+			return
+		}
 
 		select {
 		case tx := <-s.SubmitCh():
@@ -178,7 +182,7 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 
 	s.Close()
 	s, _, err = NewGrpcAppProxy(addr, timeout/2, logger, listen)
-	if !assert.NoError(t, err) {
+	if !assertar.NoError(err) {
 		return
 	}
 	defer s.Close()

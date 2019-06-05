@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -18,25 +19,28 @@ import (
 )
 
 var (
-	zeroTime         = time.Date(0, time.January, 0, 0, 0, 0, 0, time.Local)
 	errNeedReconnect = errors.New("try to reconnect")
 	errConnShutdown  = errors.New("client disconnected")
 )
 
 // grpcLachesisProxy implements LachesisProxy interface.
 type grpcLachesisProxy struct {
-	logger    *logrus.Logger
+	addr   string
+	conn   *grpc.ClientConn
+	client internal.LachesisClient
+	stream atomic.Value
+
+	reconnTimeout   time.Duration
+	reconnectTicket chan time.Time
+
 	commitCh  chan proto.Commit
 	queryCh   chan proto.SnapshotRequest
 	restoreCh chan proto.RestoreRequest
 
-	reconnTimeout   time.Duration
-	addr            string
-	shutdown        chan struct{}
-	reconnectTicket chan time.Time
-	conn            *grpc.ClientConn
-	client          internal.LachesisClient
-	stream          atomic.Value
+	shutdown chan struct{}
+	wg       sync.WaitGroup
+
+	logger *logrus.Logger
 }
 
 // NewGrpcLachesisProxy initiates a LachesisProxy-interface connected to remote lachesis node.
@@ -47,14 +51,18 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 	}
 
 	p := &grpcLachesisProxy{
+		addr: addr,
+
 		reconnTimeout:   2 * time.Second,
-		addr:            addr,
-		shutdown:        make(chan struct{}),
 		reconnectTicket: make(chan time.Time, 1),
-		logger:          logger,
-		commitCh:        make(chan proto.Commit),
-		queryCh:         make(chan proto.SnapshotRequest),
-		restoreCh:       make(chan proto.RestoreRequest),
+
+		commitCh:  make(chan proto.Commit),
+		queryCh:   make(chan proto.SnapshotRequest),
+		restoreCh: make(chan proto.RestoreRequest),
+
+		shutdown: make(chan struct{}),
+
+		logger: logger,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
@@ -71,6 +79,7 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 
 	p.reconnectTicket <- time.Now()
 
+	p.wg.Add(1)
 	go p.listenEvents()
 
 	return p, nil
@@ -78,6 +87,19 @@ func NewGrpcLachesisProxy(addr string, logger *logrus.Logger, opts ...grpc.DialO
 
 func (p *grpcLachesisProxy) Close() {
 	close(p.shutdown)
+
+	p.closeStream()
+	err := p.conn.Close()
+	
+	close(p.commitCh)
+	close(p.queryCh)
+	close(p.restoreCh)
+
+	if err != nil {
+		p.logger.Error(err)
+	}
+
+	p.wg.Wait()
 }
 
 /*
@@ -150,30 +172,17 @@ func (p *grpcLachesisProxy) reConnect() (err error) {
 	disconnTime := time.Now()
 	connectTime := <-p.reconnectTicket
 
-	if connectTime == zeroTime {
-		p.reconnectTicket <- zeroTime
+	select {
+	case <-p.shutdown:
+		p.reconnectTicket <- connectTime
 		return errConnShutdown
+	default:
+		// see code below
 	}
 
 	if disconnTime.Before(connectTime) {
 		p.reconnectTicket <- connectTime
 		return nil
-	}
-
-	select {
-	case <-p.shutdown:
-		p.closeStream()
-		err := p.conn.Close()
-		close(p.commitCh)
-		close(p.queryCh)
-		close(p.restoreCh)
-		p.reconnectTicket <- zeroTime
-		if err != nil {
-			return err
-		}
-		return errConnShutdown
-	default:
-		// see code below
 	}
 
 	var stream internal.Lachesis_ConnectClient
@@ -194,12 +203,21 @@ func (p *grpcLachesisProxy) reConnect() (err error) {
 }
 
 func (p *grpcLachesisProxy) listenEvents() {
+	defer p.wg.Done()
+
 	var (
 		event *internal.ToClient
 		err   error
 		uuid  xid.ID
 	)
 	for {
+		select {
+		case <-p.shutdown:
+			return
+		default:
+			// see code below
+		}
+
 		event, err = p.recvFromServer()
 		if err != nil {
 			if err != io.EOF {
@@ -256,7 +274,10 @@ func (p *grpcLachesisProxy) listenEvents() {
 
 func (p *grpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitResponse {
 	respCh := make(chan proto.CommitResponse)
+	p.wg.Add(1)
 	go func() {
+		defer p.wg.Done()
+
 		var answer *internal.ToServer
 		resp, ok := <-respCh
 		if ok {
@@ -271,7 +292,10 @@ func (p *grpcLachesisProxy) newCommitResponseCh(uuid xid.ID) chan proto.CommitRe
 
 func (p *grpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.SnapshotResponse {
 	respCh := make(chan proto.SnapshotResponse)
+	p.wg.Add(1)
 	go func() {
+		defer p.wg.Done()
+
 		var answer *internal.ToServer
 		resp, ok := <-respCh
 		if ok {
@@ -286,7 +310,10 @@ func (p *grpcLachesisProxy) newSnapshotResponseCh(uuid xid.ID) chan proto.Snapsh
 
 func (p *grpcLachesisProxy) newRestoreResponseCh(uuid xid.ID) chan proto.RestoreResponse {
 	respCh := make(chan proto.RestoreResponse)
+	p.wg.Add(1)
 	go func() {
+		defer p.wg.Done()
+
 		var answer *internal.ToServer
 		resp, ok := <-respCh
 		if ok {

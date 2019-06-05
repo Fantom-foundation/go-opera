@@ -24,7 +24,7 @@ type (
 	// appStream  a shortcut for generated type.
 	appStream internal.Lachesis_ConnectServer
 
-	//grpcAppProxy implements the AppProxy interface.
+	// grpcAppProxy implements the AppProxy interface.
 	grpcAppProxy struct {
 		logger   *logrus.Logger
 		listener net.Listener
@@ -37,6 +37,9 @@ type (
 
 		event4server  chan []byte
 		event4clients chan *internal.ToClient
+
+		shutdown chan struct{}
+		wg       sync.WaitGroup
 	}
 )
 
@@ -59,8 +62,10 @@ func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, 
 		newClients: make(chan appStream, 100),
 		// TODO: buffer channels?
 		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
-		event4server:  make(chan []byte),
+		event4server:  make(chan []byte, 5),
 		event4clients: make(chan *internal.ToClient),
+
+		shutdown: make(chan struct{}),
 	}
 
 	p.listener = listen(bind)
@@ -70,12 +75,15 @@ func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, 
 		grpc.MaxSendMsgSize(math.MaxInt32))
 	internal.RegisterLachesisServer(p.server, p)
 
+	p.wg.Add(1)
 	go func() {
+		defer p.wg.Done()
 		if err := p.server.Serve(p.listener); err != nil {
 			logger.Fatal(err)
 		}
 	}()
 
+	p.wg.Add(1)
 	go p.sendEvents4clients()
 
 	return p, p.listener.Addr().String(), nil
@@ -83,8 +91,9 @@ func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, 
 
 func (p *grpcAppProxy) Close() {
 	p.server.Stop()
+	close(p.shutdown)
+	p.wg.Wait()
 	close(p.event4server)
-	close(p.event4clients)
 }
 
 /*
@@ -93,6 +102,8 @@ func (p *grpcAppProxy) Close() {
 
 // Connect implements gRPC-server interface: LachesisServer.
 func (p *grpcAppProxy) Connect(stream internal.Lachesis_ConnectServer) error {
+	p.wg.Add(1)
+	defer p.wg.Done()
 	// save client's stream for writing
 	p.newClients <- stream
 	p.logger.Debugf("client connected")
@@ -119,14 +130,17 @@ func (p *grpcAppProxy) Connect(stream internal.Lachesis_ConnectServer) error {
 }
 
 func (p *grpcAppProxy) sendEvents4clients() {
+	defer p.wg.Done()
+	defer close(p.event4clients)
+
 	var (
 		err       error
 		connected []appStream
 		alive     []appStream
 		stream    appStream
 	)
-	for event := range p.event4clients {
 
+	eventProcessFunc := func(event *internal.ToClient) {
 		for i := len(p.newClients); i > 0; i-- {
 			stream = <-p.newClients
 			connected = append(connected, stream)
@@ -141,6 +155,26 @@ func (p *grpcAppProxy) sendEvents4clients() {
 
 		connected = alive
 		alive = nil
+	}
+
+until_shutdown:
+	for {
+		select {
+		case event := <-p.event4clients:
+			eventProcessFunc(event)
+		case <-p.shutdown:
+			break until_shutdown
+		}
+	}
+
+until_empty:
+	for {
+		select {
+		case event := <-p.event4clients:
+			eventProcessFunc(event)
+		default:
+			break until_empty
+		}
 	}
 }
 
@@ -230,7 +264,9 @@ func (p *grpcAppProxy) pushBlock(block []byte) chan *internal.ToServer_Answer {
 		},
 	}
 	answer := p.subscribe4answer(uuid)
+
 	p.event4clients <- event
+
 	return answer
 }
 
@@ -245,7 +281,9 @@ func (p *grpcAppProxy) pushQuery(index int64) chan *internal.ToServer_Answer {
 		},
 	}
 	answer := p.subscribe4answer(uuid)
+
 	p.event4clients <- event
+
 	return answer
 }
 
@@ -260,17 +298,24 @@ func (p *grpcAppProxy) pushRestore(snapshot []byte) chan *internal.ToServer_Answ
 		},
 	}
 	answer := p.subscribe4answer(uuid)
+
 	p.event4clients <- event
+
 	return answer
 }
 
 func (p *grpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Answer {
 	ch := make(chan *internal.ToServer_Answer)
+
 	p.askingsSync.Lock()
 	p.askings[uuid] = ch
 	p.askingsSync.Unlock()
+
 	// timeout
+	p.wg.Add(1)
 	go func() {
+		defer p.wg.Done()
+
 		<-time.After(p.timeout)
 		p.askingsSync.Lock()
 		delete(p.askings, uuid)
