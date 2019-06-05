@@ -23,6 +23,56 @@ func TestFakeKeyGeneration(t *testing.T) {
 	}
 }
 
+func TestPrivateKeySignVerify(t *testing.T) {
+	assertar := assert.New(t)
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	msg := "J'aime mieux forger mon ame que la meubler"
+	msgBytes := []byte(msg)
+	msgHashBytes := Keccak256(msgBytes)
+
+	r, s, err := key.Sign(msgHashBytes)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	assertar.True(key.Public().Verify(msgHashBytes, r, s))
+}
+
+func TestPublicBytes(t *testing.T) {
+	assertar := assert.New(t)
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	public := key.Public()
+	bytes := public.Bytes()
+	rKey := BytesToPubKey(bytes)
+
+	assertar.Equal(public, rKey)
+}
+
+func TestPublicBase64(t *testing.T) {
+	assertar := assert.New(t)
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	public := key.Public()
+	base64 := public.Base64()
+	rKey, err := Base64ToPubKey(base64)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	assertar.Equal(public, rKey)
+}
+
 func TestKeyGenWriteRead(t *testing.T) {
 	assertar := assert.New(t)
 	key, err := GenerateKey()

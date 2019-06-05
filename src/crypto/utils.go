@@ -12,8 +12,8 @@ func EncodeSignature(r, s *big.Int) string {
 }
 
 // DecodeSignature decode signature from string
-func DecodeSignature(sig string) (r, s *big.Int, err error) {
-	values := strings.Split(sig, "|")
+func DecodeSignature(sign string) (r, s *big.Int, err error) {
+	values := strings.Split(sign, "|")
 	if len(values) != 2 {
 		return r, s, fmt.Errorf("wrong number of values in signature: got %d, want 2", len(values))
 	}
