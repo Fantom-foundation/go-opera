@@ -98,6 +98,10 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
 	n.store.SetPeerHeight(e.Creator, e.Index)
 
+	from, _ := n.store.IncreaseNonce(e.Creator, e.InternalTransactions)
+	n.store.SetBatchNonceEvent(from, e)
+	n.store.SetBatchNonceTx(from, e.Creator, e.InternalTransactions)
+
 	n.pushPotentialParent(e)
 
 	if n.consensus != nil {

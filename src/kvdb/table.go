@@ -1,5 +1,11 @@
 package kvdb
 
+import (
+	"reflect"
+)
+
+const tableTag = "table"
+
 type table struct {
 	db     Database
 	prefix string
@@ -11,6 +17,28 @@ func NewTable(db Database, prefix string) Database {
 	return &table{
 		db:     db,
 		prefix: prefix,
+	}
+}
+
+func MigrateTables(store interface{}, db Database, populate bool) {
+	s, ok := store.(interface {
+		Close()
+		Open()
+	})
+
+	if !ok {
+		return
+	}
+
+	value := reflect.ValueOf(s).Elem()
+	for i := 0; i < value.NumField(); i++ {
+		if tag := value.Type().Field(i).Tag.Get(tableTag); tag != "" && tag != "-" {
+			v := reflect.ValueOf(nil)
+			if populate {
+				v = reflect.ValueOf(NewTable(db, tag))
+			}
+			value.Field(i).Set(v)
+		}
 	}
 }
 

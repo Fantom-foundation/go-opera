@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -18,17 +17,17 @@ const cacheSize = 500 // TODO: Move it to config later
 // Store is a poset persistent storage working over physical key-value database.
 // TODO: cache tables with LRU.
 type Store struct {
-	physicalDB kvdb.Database
+	PhysicalDB kvdb.Database `store:"-"`
 
-	states      kvdb.Database
-	frames      kvdb.Database
-	blocks      kvdb.Database
-	event2frame kvdb.Database
+	States      kvdb.Database `table:"state_"`
+	Frames      kvdb.Database `table:"frame_"`
+	Blocks      kvdb.Database `table:"block_"`
+	Event2frame kvdb.Database `table:"event2frame_"`
 
 	framesCache      *lru.Cache
 	event2frameCache *lru.Cache
 
-	balances state.Database // trie
+	balances state.Database `store:"-"` // trie
 
 	logger.Instance
 }
@@ -36,11 +35,11 @@ type Store struct {
 // NewStore creates store over key-value db.
 func NewStore(db kvdb.Database, cached bool) *Store {
 	s := &Store{
-		physicalDB: db,
+		PhysicalDB: db,
 		Instance:   logger.MakeInstance(),
 	}
 
-	s.init()
+	s.Open()
 	if cached {
 		s.initCache()
 	}
@@ -52,16 +51,6 @@ func NewStore(db kvdb.Database, cached bool) *Store {
 func NewMemStore() *Store {
 	db := kvdb.NewMemDatabase()
 	return NewStore(db, false)
-}
-
-func (s *Store) init() {
-	s.states = kvdb.NewTable(s.physicalDB, "state_")
-	s.frames = kvdb.NewTable(s.physicalDB, "frame_")
-	s.blocks = kvdb.NewTable(s.physicalDB, "block_")
-	s.event2frame = kvdb.NewTable(s.physicalDB, "event2frame_")
-
-	s.balances = state.NewDatabase(
-		kvdb.NewTable(s.physicalDB, "balance_"))
 }
 
 func (s *Store) initCache() {
@@ -77,13 +66,18 @@ func (s *Store) initCache() {
 	s.event2frameCache = cache()
 }
 
+// Open populate underlying database.
+// Open() receiver type method satisfies an abstract database interface
+func (s *Store) Open() {
+	kvdb.MigrateTables(s, s.PhysicalDB, true)
+	s.balances = state.NewDatabase(kvdb.NewTable(s.PhysicalDB, "balance_"))
+}
+
 // Close leaves underlying database.
+// Close() receiver type method satisfies the abstract database interface
 func (s *Store) Close() {
-	s.event2frame = nil
-	s.balances = nil
-	s.frames = nil
-	s.states = nil
-	s.physicalDB.Close()
+	kvdb.MigrateTables(s, nil, false)
+	s.PhysicalDB.Close()
 
 	s.framesCache.Purge()
 	s.event2frameCache.Purge()
@@ -128,102 +122,6 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	return nil
 }
 
-// SetEventFrame stores frame num of event.
-func (s *Store) SetEventFrame(e hash.Event, frame uint64) {
-	key := e.Bytes()
-	val := intToBytes(frame)
-	if err := s.event2frame.Put(key, val); err != nil {
-		s.Fatal(err)
-	}
-
-	if s.event2frameCache != nil {
-		s.event2frameCache.Add(e, frame)
-	}
-}
-
-// GetEventFrame returns frame num of event.
-func (s *Store) GetEventFrame(e hash.Event) *uint64 {
-	if s.event2frameCache != nil {
-		if n, ok := s.event2frameCache.Get(e); ok {
-			num := n.(uint64)
-			return &num
-		}
-	}
-
-	key := e.Bytes()
-	buf, err := s.event2frame.Get(key)
-	if err != nil {
-		s.Fatal(err)
-	}
-	if buf == nil {
-		return nil
-	}
-
-	val := bytesToInt(buf)
-	return &val
-}
-
-// SetState stores state.
-// State is seldom read; so no cache.
-func (s *Store) SetState(st *State) {
-	const key = "current"
-	s.set(s.states, []byte(key), st.ToWire())
-
-}
-
-// GetState returns stored state.
-// State is seldom read; so no cache.
-func (s *Store) GetState() *State {
-	const key = "current"
-	w, _ := s.get(s.states, []byte(key), &wire.State{}).(*wire.State)
-	return WireToState(w)
-}
-
-// SetFrame stores event.
-func (s *Store) SetFrame(f *Frame) {
-	w := f.ToWire()
-	s.set(s.frames, intToBytes(f.Index), w)
-
-	if s.framesCache != nil {
-		s.framesCache.Add(f.Index, w)
-	}
-}
-
-// GetFrame returns stored frame.
-func (s *Store) GetFrame(n uint64) *Frame {
-	if s.framesCache != nil {
-		if f, ok := s.framesCache.Get(n); ok {
-			w := f.(*wire.Frame)
-			return WireToFrame(w)
-		}
-	}
-
-	w, _ := s.get(s.frames, intToBytes(n), &wire.Frame{}).(*wire.Frame)
-	return WireToFrame(w)
-}
-
-// SetBlock stores chain block.
-// State is seldom read; so no cache.
-func (s *Store) SetBlock(b *Block) {
-	s.set(s.blocks, intToBytes(b.Index), b.ToWire())
-}
-
-// GetBlock returns stored block.
-// State is seldom read; so no cache.
-func (s *Store) GetBlock(n uint64) *Block {
-	w, _ := s.get(s.blocks, intToBytes(n), &wire.Block{}).(*wire.Block)
-	return WireToBlock(w)
-}
-
-// StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) *state.DB {
-	db, err := state.New(from, s.balances)
-	if err != nil {
-		s.Fatal(err)
-	}
-	return db
-}
-
 /*
  * Utils:
  */
@@ -232,18 +130,18 @@ func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
 
 	if err := pbf.Marshal(val); err != nil {
-		s.Fatal(err)
+		panic(err)
 	}
 
 	if err := table.Put(key, pbf.Bytes()); err != nil {
-		s.Fatal(err)
+		panic(err)
 	}
 }
 
 func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
 	buf, err := table.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		panic(err)
 	}
 	if buf == nil {
 		return nil
@@ -251,7 +149,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 
 	err = proto.Unmarshal(buf, to)
 	if err != nil {
-		s.Fatal(err)
+		panic(err)
 	}
 	return to
 }
@@ -259,7 +157,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 func (s *Store) has(table kvdb.Database, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
-		s.Fatal(err)
+		panic(err)
 	}
 	return res
 }
