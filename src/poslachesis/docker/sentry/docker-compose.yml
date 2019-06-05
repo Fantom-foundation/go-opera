@@ -1,0 +1,84 @@
+# NOTE: This docker-compose.yml is meant to be just an example of how
+# you could accomplish this on your own. It is not intended to work in
+# all use-cases and must be adapted to fit your needs. This is merely
+# a guideline.
+
+# See docs.getsentry.com/on-premise/server/ for full
+# instructions
+
+version: '3.5'
+
+x-defaults: &defaults
+  image: sentry:9.1-onbuild
+  restart: unless-stopped
+  depends_on:
+    - redis
+    - postgres
+    - memcached
+    - smtp
+  env_file: .env
+  environment:
+    SENTRY_MEMCACHED_HOST: memcached
+    SENTRY_REDIS_HOST: redis
+    SENTRY_POSTGRES_HOST: postgres
+    SENTRY_EMAIL_HOST: smtp
+  volumes:
+    - sentry-data:/var/lib/sentry/files
+
+
+services:
+  smtp:
+    restart: unless-stopped
+    image: tianon/exim4
+    networks:
+      test:
+
+  memcached:
+    restart: unless-stopped
+    image: memcached:1.5-alpine
+    networks:
+      test:
+
+  redis:
+    restart: unless-stopped
+    image: redis:3.2-alpine
+    networks:
+      test:
+  
+  postgres:
+    restart: unless-stopped
+    image: postgres:9.5
+    volumes:
+      - sentry-postgres:/var/lib/postgresql/data
+    networks:
+      test:
+
+  web:
+    <<: *defaults
+    ports:
+      - '9000:9000'
+    networks:
+      test:
+
+  cron:
+    <<: *defaults
+    command: run cron
+    networks:
+      test:
+
+  worker:
+    <<: *defaults
+    command: run worker
+    networks:
+      test:
+
+volumes:
+    sentry-data:
+      external: true
+    sentry-postgres:
+      external: true
+
+networks:
+  test:
+    driver: bridge
+    name: lachesis
