@@ -1,7 +1,7 @@
 package hash
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 var (
@@ -33,7 +33,7 @@ func PeerOfPubkeyBytes(b []byte) Peer {
 }
 
 // PeerOfPubkey calcs peer id from pub key.
-func PeerOfPubkey(pub *common.PublicKey) Peer {
+func PeerOfPubkey(pub *crypto.PublicKey) Peer {
 	return Peer(Of(pub.Bytes()))
 }
 

@@ -5,7 +5,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -17,8 +16,8 @@ import (
 // Node is a Lachesis node implementation.
 type Node struct {
 	ID        hash.Peer
-	key       *common.PrivateKey
-	pub       *common.PublicKey
+	key       *crypto.PrivateKey
+	pub       *crypto.PublicKey
 	store     *Store
 	consensus Consensus
 	host      string
@@ -41,9 +40,13 @@ type Node struct {
 
 // New creates node.
 // It does not start any process.
-func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
+func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Node {
 	if key == nil {
-		key = crypto.GenerateKey()
+		nKey, err := crypto.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
+		key = nKey
 	}
 
 	if conf == nil {
@@ -122,7 +125,7 @@ func (n *Node) Stop() {
 }
 
 // PubKey returns public key.
-func (n *Node) PubKey() *common.PublicKey {
+func (n *Node) PubKey() *crypto.PublicKey {
 	pk := *n.pub
 	return &pk
 }

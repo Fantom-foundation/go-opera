@@ -2,7 +2,6 @@ package poset
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"reflect"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
@@ -192,17 +190,17 @@ func (b *Block) ProtoUnmarshal(data []byte) error {
 }
 
 // Sign the block for this node
-func (b *Block) Sign(privKey *ecdsa.PrivateKey) (bs BlockSignature, err error) {
+func (b *Block) Sign(privKey *crypto.PrivateKey) (bs BlockSignature, err error) {
 	signBytes, err := b.Body.Hash()
 	if err != nil {
 		return bs, err
 	}
-	R, S, err := crypto.Sign(privKey, signBytes)
+	R, S, err := privKey.Sign(signBytes)
 	if err != nil {
 		return bs, err
 	}
 	signature := BlockSignature{
-		Validator: common.FromECDSAPub(&privKey.PublicKey),
+		Validator: privKey.Public().Bytes(),
 		Index:     b.Index(),
 		Signature: crypto.EncodeSignature(R, S),
 	}
@@ -223,14 +221,13 @@ func (b *Block) Verify(sig BlockSignature) (bool, error) {
 		return false, err
 	}
 
-	pubKey := common.ToECDSAPub(sig.Validator)
-
+	pubKey := crypto.BytesToPubKey(sig.Validator)
 	r, s, err := crypto.DecodeSignature(sig.Signature)
 	if err != nil {
 		return false, err
 	}
 
-	return crypto.Verify(pubKey, signBytes, r, s), nil
+	return pubKey.Verify(signBytes, r, s), nil
 }
 
 // ListBytesEquals compares the equality of two lists

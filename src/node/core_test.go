@@ -1,7 +1,6 @@
 package node
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -15,18 +14,17 @@ import (
 )
 
 func initCores(n int, t *testing.T) ([]*Core,
-	map[uint64]*ecdsa.PrivateKey, map[string]poset.EventHash) {
+	map[uint64]*crypto.PrivateKey, map[string]poset.EventHash) {
 	cacheSize := 1000
 
 	var cores []*Core
 	index := make(map[string]poset.EventHash)
-	participantKeys := map[uint64]*ecdsa.PrivateKey{}
+	participantKeys := map[uint64]*crypto.PrivateKey{}
 
 	participants := peers.NewPeers()
 	for i := 0; i < n; i++ {
-		key, _ := crypto.GenerateECDSAKey()
-		pubHex := fmt.Sprintf("0x%X",
-			common.FromECDSAPub(&key.PublicKey))
+		key, _ := crypto.GenerateKey()
+		pubHex := fmt.Sprintf("0x%X", key.Public().Bytes())
 		peer := peers.NewPeer(pubHex, "")
 		participants.AddPeer(peer)
 		participantKeys[peer.ID] = key
@@ -78,7 +76,7 @@ e01 |   |
 e0  e1  e2
 0   1   2
 */
-func initPoset(t *testing.T, cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
+func initPoset(t *testing.T, cores []*Core, keys map[uint64]*crypto.PrivateKey,
 	index map[string]poset.EventHash, participant uint64) {
 	for i := uint64(0); i < uint64(len(cores)); i++ {
 		if i != participant {
@@ -148,7 +146,7 @@ func initPoset(t *testing.T, cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
 	}
 }
 
-func insertEvent(cores []*Core, keys map[uint64]*ecdsa.PrivateKey,
+func insertEvent(cores []*Core, keys map[uint64]*crypto.PrivateKey,
 	index map[string]poset.EventHash, event poset.Event, name string, participant uint64,
 	creator uint64) error {
 

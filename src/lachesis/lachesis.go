@@ -1,14 +1,13 @@
 package lachesis
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
@@ -111,9 +110,7 @@ func (l *Lachesis) initStore() (err error) {
 
 func (l *Lachesis) initKey() error {
 	if l.Config.Key == nil {
-		pemKey := crypto.NewPemKey(l.Config.DataDir)
-
-		privKey, err := pemKey.ReadKey()
+		privKey, err := readKey(l.Config.DataDir)
 
 		if err != nil {
 			l.Config.Logger.Warn("Cannot read private key from file", err)
@@ -126,9 +123,8 @@ func (l *Lachesis) initKey() error {
 				return err
 			}
 
-			pem, _ := crypto.ToPemKey(privKey)
-
-			l.Config.Logger.Info("Created a new key:", pem.PublicKey)
+			pem := fmt.Sprintf("0x%X", privKey.Public().Bytes())
+			l.Config.Logger.Info("Created a new key:", pem)
 		}
 
 		l.Config.Key = privKey
@@ -140,7 +136,7 @@ func (l *Lachesis) initKey() error {
 func (l *Lachesis) initNode() error {
 	key := l.Config.Key
 
-	nodePub := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
+	nodePub := fmt.Sprintf("0x%X", key.Public().Bytes())
 	n, ok := l.Peers.ByPubKey[nodePub]
 
 	if !ok {
@@ -228,24 +224,51 @@ func (l *Lachesis) Run() {
 }
 
 // Keygen generates a new key pair
-func Keygen(datadir string) (*ecdsa.PrivateKey, error) {
-	pemKey := crypto.NewPemKey(datadir)
-
-	_, err := pemKey.ReadKey()
+func Keygen(datadir string) (*crypto.PrivateKey, error) {
+	_, err := readKey(datadir)
 
 	if err == nil {
 		return nil, fmt.Errorf("another key already lives under %s", datadir)
 	}
 
-	privKey, err := crypto.GenerateECDSAKey()
-
+	privKey, err := crypto.GenerateKey()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := pemKey.WriteKey(privKey); err != nil {
+	if err := writeKey(datadir, privKey); err != nil {
 		return nil, err
 	}
 
 	return privKey, nil
+}
+
+const (
+	pemFile = "priv_key.pem"
+)
+
+func readKey(dataDir string) (*crypto.PrivateKey, error) {
+	keyFile, err := os.Open(dataDir + pemFile)
+	if err != nil {
+		return nil, err
+	}
+	privKey, err := crypto.ReadPemToKey(keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return privKey, nil
+}
+
+func writeKey(dataDir string, key *crypto.PrivateKey) error {
+	keyFile, err := os.Create(dataDir + pemFile)
+	if err != nil {
+		return err
+	}
+
+	if err := key.WriteTo(keyFile); err != nil {
+		return err
+	}
+
+	return nil
 }

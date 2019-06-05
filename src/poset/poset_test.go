@@ -2,7 +2,6 @@ package poset
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"fmt"
 	"os"
 	"reflect"
@@ -111,12 +110,12 @@ type TestNode struct {
 	ID     uint64
 	Pub    []byte
 	PubHex string
-	Key    *ecdsa.PrivateKey
+	Key    *crypto.PrivateKey
 	Events []Event
 }
 
-func NewTestNode(key *ecdsa.PrivateKey) TestNode {
-	pub := common.FromECDSAPub(&key.PublicKey)
+func NewTestNode(key *crypto.PrivateKey) TestNode {
+	pub := key.Public().Bytes()
 	ID := common.Hash64(pub)
 	node := TestNode{
 		ID:     ID,
@@ -172,12 +171,12 @@ func initPosetNodes(n int) ([]TestNode, map[string]EventHash, *[]Event, *peers.P
 		orderedEvents = &[]Event{}
 		nodes         = make([]TestNode, 0)
 		index         = make(map[string]EventHash)
-		keys          = make(map[string]*ecdsa.PrivateKey)
+		keys          = make(map[string]*crypto.PrivateKey)
 	)
 
 	for i := 0; i < n; i++ {
-		key, _ := crypto.GenerateECDSAKey()
-		pub := common.FromECDSAPub(&key.PublicKey)
+		key, _ := crypto.GenerateKey()
+		pub := key.Public().Bytes()
 		pubHex := fmt.Sprintf("0x%X", pub)
 		participants.AddPeer(peers.NewPeer(pubHex, ""))
 		keys[pubHex] = key
@@ -487,7 +486,7 @@ func TestFork(t *testing.T) {
 	participants := peers.NewPeers()
 
 	for i := 0; i < n; i++ {
-		key, _ := crypto.GenerateECDSAKey()
+		key, _ := crypto.GenerateKey()
 		node := NewTestNode(key)
 		nodes = append(nodes, node)
 		participants.AddPeer(peers.NewPeer(node.PubHex, ""))
@@ -1391,7 +1390,7 @@ func TestInsertEventsWithBlockSignatures(t *testing.T) {
 
 			// wrong validator
 			// Validator should be same as Event creator (node 0)
-			key, _ := crypto.GenerateECDSAKey()
+			key, _ := crypto.GenerateKey()
 			badNode := NewTestNode(key)
 			badNodeSig, _ := block.Sign(badNode.Key)
 

@@ -1,7 +1,6 @@
 package mobile
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -44,7 +43,7 @@ func New(privKey string,
 		return nil
 	}
 
-	lachesisConfig.Key = (*ecdsa.PrivateKey)(key)
+	lachesisConfig.Key = key
 
 	// There should be at least two peers
 	if participants.Len() < 2 {

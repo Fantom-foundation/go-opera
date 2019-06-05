@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
@@ -58,8 +57,8 @@ func TestMarshallBody(t *testing.T) {
 }
 
 func TestSignEvent(t *testing.T) {
-	privateKey, _ := crypto.GenerateECDSAKey()
-	publicKeyBytes := common.FromECDSAPub(&privateKey.PublicKey)
+	privateKey, _ := crypto.GenerateKey()
+	publicKeyBytes := privateKey.Public().Bytes()
 
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
@@ -79,8 +78,8 @@ func TestSignEvent(t *testing.T) {
 }
 
 func TestMarshallEvent(t *testing.T) {
-	privateKey, _ := crypto.GenerateECDSAKey()
-	publicKeyBytes := common.FromECDSAPub(&privateKey.PublicKey)
+	privateKey, _ := crypto.GenerateKey()
+	publicKeyBytes := privateKey.Public().Bytes()
 
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes
@@ -106,8 +105,8 @@ func TestMarshallEvent(t *testing.T) {
 }
 
 func TestWireEvent(t *testing.T) {
-	privateKey, _ := crypto.GenerateECDSAKey()
-	publicKeyBytes := common.FromECDSAPub(&privateKey.PublicKey)
+	privateKey, _ := crypto.GenerateKey()
+	publicKeyBytes := privateKey.Public().Bytes()
 
 	body := createDummyEventBody()
 	body.Creator = publicKeyBytes

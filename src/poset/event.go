@@ -2,13 +2,11 @@ package poset
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"fmt"
 	"reflect"
 
 	"github.com/golang/protobuf/proto"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
@@ -227,12 +225,12 @@ func (e *Event) IsLoaded() bool {
 }
 
 // Sign ecdsa sig
-func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
+func (e *Event) Sign(privKey *crypto.PrivateKey) error {
 	hash, err := e.Message.Body.Hash()
 	if err != nil {
 		return err
 	}
-	R, S, err := crypto.Sign(privKey, hash.Bytes())
+	R, S, err := privKey.Sign(hash.Bytes())
 	if err != nil {
 		return err
 	}
@@ -243,7 +241,7 @@ func (e *Event) Sign(privKey *ecdsa.PrivateKey) error {
 // Verify ecdsa sig
 func (e *Event) Verify() (bool, error) {
 	pubBytes := e.Message.Body.Creator
-	pubKey := common.ToECDSAPub(pubBytes)
+	pubKey := crypto.BytesToPubKey(pubBytes)
 
 	hash, err := e.Message.Body.Hash()
 	if err != nil {
@@ -255,7 +253,7 @@ func (e *Event) Verify() (bool, error) {
 		return false, err
 	}
 
-	return crypto.Verify(pubKey, hash.Bytes(), r, s), nil
+	return pubKey.Verify(hash.Bytes(), r, s), nil
 }
 
 // ProtoMarshal event to protobuff

@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 func TestSignBlock(t *testing.T) {
-	privateKey, _ := crypto.GenerateECDSAKey()
+	privateKey, _ := crypto.GenerateKey()
 
 	block := NewBlock(0, 1,
 		[]byte("framehash"),
@@ -34,8 +33,8 @@ func TestSignBlock(t *testing.T) {
 }
 
 func TestAppendSignature(t *testing.T) {
-	privateKey, _ := crypto.GenerateECDSAKey()
-	pubKeyBytes := common.FromECDSAPub(&privateKey.PublicKey)
+	privateKey, _ := crypto.GenerateKey()
+	pubKeyBytes := privateKey.Public().Bytes()
 
 	block := NewBlock(0, 1,
 		[]byte("framehash"),

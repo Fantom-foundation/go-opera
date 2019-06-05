@@ -5,7 +5,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
@@ -29,7 +28,7 @@ type Event struct {
 }
 
 // SignBy signs event by private key.
-func (e *Event) SignBy(priv *common.PrivateKey) error {
+func (e *Event) SignBy(priv *crypto.PrivateKey) error {
 	eventHash := e.Hash()
 
 	R, S, err := priv.Sign(eventHash.Bytes())
@@ -42,7 +41,7 @@ func (e *Event) SignBy(priv *common.PrivateKey) error {
 }
 
 // Verify sign event by public key.
-func (e *Event) Verify(pubKey *common.PublicKey) bool {
+func (e *Event) Verify(pubKey *crypto.PublicKey) bool {
 	if pubKey == nil {
 		log.Fatal("can't verify without key")
 	}

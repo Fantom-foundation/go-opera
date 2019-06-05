@@ -10,7 +10,6 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/spf13/cobra"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
@@ -50,7 +49,7 @@ var Start = &cobra.Command{
 		// network
 		var (
 			conf = lachesis.DefaultConfig()
-			key  *common.PrivateKey
+			key  *crypto.PrivateKey
 		)
 		netName, err := cmd.Flags().GetString("network")
 		if err != nil {
@@ -117,7 +116,7 @@ func init() {
 	Start.Flags().String("dsn", "", "Sentry client DSN")
 }
 
-func readKey(path string) (*common.PrivateKey, error) {
+func readKey(path string) (*crypto.PrivateKey, error) {
 	keyFile, err := os.Open(path)
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package lachesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
@@ -13,9 +12,9 @@ type Net struct {
 }
 
 // FakeNet generates fake net with n-nodes genesis.
-func FakeNet(n int) (*Net, []*common.PrivateKey) {
+func FakeNet(n int) (*Net, []*crypto.PrivateKey) {
 	genesis := make(map[hash.Peer]uint64, n)
-	keys := make([]*common.PrivateKey, n)
+	keys := make([]*crypto.PrivateKey, n)
 	for i := 0; i < n; i++ {
 		keys[i] = crypto.GenerateFakeKey(i)
 		id := hash.PeerOfPubkey(keys[i].Public())

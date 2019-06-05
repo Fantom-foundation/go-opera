@@ -35,9 +35,15 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 	defer ctrl.Finish()
 
 	// keys
-	serverKey := crypto.GenerateKey()
+	serverKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 	serverID := hash.PeerOfPubkey(serverKey.Public())
-	clientKey := crypto.GenerateKey()
+	clientKey, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
 	clientID := hash.PeerOfPubkey(clientKey.Public())
 
 	// service

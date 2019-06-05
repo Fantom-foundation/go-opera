@@ -18,13 +18,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
 
 // StartService starts and returns gRPC server.
-func StartService(bind string, key *common.PrivateKey, genesis hash.Hash, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (
+func StartService(bind string, key *crypto.PrivateKey, genesis hash.Hash, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (
 	*grpc.Server, string) {
 	server := grpc.NewServer(
 		grpc.UnaryInterceptor(ServerAuth(key, genesis)),

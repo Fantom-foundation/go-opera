@@ -1,7 +1,6 @@
 package lachesis
 
 import (
-	"crypto/ecdsa"
 	"net"
 	"os"
 	"os/user"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
@@ -31,7 +31,7 @@ type Config struct {
 
 	LoadPeers bool
 	Proxy     proxy.AppProxy
-	Key       *ecdsa.PrivateKey
+	Key       *crypto.PrivateKey
 	Logger    *logrus.Logger
 
 	ConnFunc peer.CreateNetConnFunc

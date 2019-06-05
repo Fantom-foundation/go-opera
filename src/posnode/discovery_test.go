@@ -110,7 +110,10 @@ func TestDiscoveryHost(t *testing.T) {
 
 // FakePeer returns fake peer info.
 func FakePeer(host string) *Peer {
-	key := crypto.GenerateKey()
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		panic(err)
+	}
 
 	return &Peer{
 		ID:     hash.PeerOfPubkey(key.Public()),

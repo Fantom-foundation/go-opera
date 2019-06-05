@@ -5,14 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 func TestFakeKeyGeneration(t *testing.T) {
 	assertar := assert.New(t)
 
-	prev := make([]*common.PrivateKey, 10)
+	prev := make([]*PrivateKey, 10)
 	for i := 0; i < len(prev); i++ {
 		prev[i] = GenerateFakeKey(i)
 	}
@@ -25,12 +23,15 @@ func TestFakeKeyGeneration(t *testing.T) {
 	}
 }
 
-func TestKey(t *testing.T) {
+func TestKeyGenWriteRead(t *testing.T) {
 	assertar := assert.New(t)
-	key := GenerateKey()
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
 
 	var buf bytes.Buffer
-	err := WriteKeyTo(&buf, key)
+	err = key.WriteTo(&buf)
 	if !assertar.NoError(err) {
 		return
 	}

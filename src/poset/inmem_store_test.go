@@ -1,19 +1,17 @@
 package poset
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
 
 type pub struct {
 	id      uint64
-	privKey *ecdsa.PrivateKey
+	privKey *crypto.PrivateKey
 	pubKey  []byte
 	hex     string
 }
@@ -23,8 +21,8 @@ func initInmemStore(cacheSize int) (*InmemStore, []pub) {
 	var participantPubs []pub
 	participants := peers.NewPeers()
 	for i := uint64(0); i < n; i++ {
-		key, _ := crypto.GenerateECDSAKey()
-		pubKey := common.FromECDSAPub(&key.PublicKey)
+		key, _ := crypto.GenerateKey()
+		pubKey := key.Public().Bytes()
 		peer := peers.NewPeer(fmt.Sprintf("0x%X", pubKey), "")
 		participantPubs = append(participantPubs,
 			pub{i, key, pubKey, peer.PubKeyHex})

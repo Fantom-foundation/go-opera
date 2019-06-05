@@ -2,7 +2,6 @@ package node
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
 	"os"
@@ -32,7 +31,7 @@ type TestData struct {
 	BackConfig *peer.BackendConfig
 	Network    *fakenet.Network
 	CreateFu   peer.CreateSyncClientFunc
-	Keys       []*ecdsa.PrivateKey
+	Keys       []*crypto.PrivateKey
 	Adds       []string
 	PeersSlice []*peers.Peer
 	Peers      *peers.Peers
@@ -57,21 +56,21 @@ func InitTestData(t *testing.T, peersCount int, poolSize int) *TestData {
 }
 
 func initPeers(
-	number int, network *fakenet.Network) ([]*ecdsa.PrivateKey, *peers.Peers, []string) {
+	number int, network *fakenet.Network) ([]*crypto.PrivateKey, *peers.Peers, []string) {
 
-	var keys []*ecdsa.PrivateKey
+	var keys []*crypto.PrivateKey
 	var adds []string
 
 	ps := peers.NewPeers()
 
 	for i := 0; i < number; i++ {
-		key, _ := crypto.GenerateECDSAKey()
+		key, _ := crypto.GenerateKey()
 		keys = append(keys, key)
 		addr := network.RandomAddress()
 		adds = append(adds, addr)
 
 		ps.AddPeer(peers.NewPeer(
-			fmt.Sprintf("0x%X", common.FromECDSAPub(&keys[i].PublicKey)),
+			fmt.Sprintf("0x%X", keys[i].Public().Bytes()),
 			addr,
 		))
 	}
@@ -119,7 +118,7 @@ func transportClose(t *testing.T, syncPeer peer.SyncPeer) {
 }
 
 func createNode(t *testing.T, logger *logrus.Logger, config *Config,
-	id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
+	id uint64, key *crypto.PrivateKey, participants *peers.Peers,
 	trans peer.SyncPeer, localAddr string, run bool) *Node {
 
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)

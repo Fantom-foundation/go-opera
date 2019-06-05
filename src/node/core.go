@@ -1,7 +1,6 @@
 package node
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"reflect"
 	"sort"
@@ -10,7 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
@@ -31,7 +30,7 @@ var (
 // Core struct that controls the consensus, transaction, and communication
 type Core struct {
 	id     uint64
-	key    *ecdsa.PrivateKey
+	key    *crypto.PrivateKey
 	pubKey []byte
 	hexID  string
 	poset  *poset.Poset
@@ -52,7 +51,7 @@ type Core struct {
 }
 
 // NewCore creates a new core struct
-func NewCore(id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
+func NewCore(id uint64, key *crypto.PrivateKey, participants *peers.Peers,
 	store poset.Store, commitCh chan poset.Block, logger *logrus.Logger) *Core {
 
 	if logger == nil {
@@ -88,7 +87,7 @@ func (c *Core) ID() uint64 {
 // PubKey returns the public key of this core
 func (c *Core) PubKey() []byte {
 	if c.pubKey == nil {
-		c.pubKey = common.FromECDSAPub(&c.key.PublicKey)
+		c.pubKey = c.key.Public().Bytes()
 	}
 	return c.pubKey
 }
