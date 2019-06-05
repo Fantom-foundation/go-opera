@@ -18,6 +18,9 @@ else
 fi
 
 echo -e "\nGenerate private key\n"
+if [ ! -f ".env" ]; then
+    > .env
+fi
 if grep -q SENTRY_SECRET_KEY ".env"; then
     echo "SENTRY_SECRET_KEY already setup"
 else
@@ -30,8 +33,8 @@ docker-compose run --rm web upgrade
 
 echo -e "\nGet network address\n"
 ip=$(docker network inspect lachesis | grep Gateway)
-ip=$(echo $ip | sed -e 's/"//g')
-ip=$(echo "${ip//"Gateway: "/}")
+ip=${ip//\"/}
+ip=${ip//"Gateway: "/}
 echo $ip
 
 echo -e "\nAssembly client DSN\n"

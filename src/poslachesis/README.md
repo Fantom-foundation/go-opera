@@ -63,17 +63,18 @@ balance of 0xf2610eb8185d8120e0e71f0d5f1fc74e3b187646a6a0aee169ca242a6b599fc0 ==
   - run network of x nodes: `N=x ./start.sh`;
   - drop network: `./stop.sh`;
 
+### the same with Sentry service:
+
+  - set `SENTRY=yes` before `./start.sh`;
+  - remove Sentry database: `.sentry/clean.sh`;
+
+During first run, you'll get offer to create Sentry-account. Note that account exist only inside local copy Sentry and don't affect to sentry.io.
+After start up go to `http://localhost:9000` and sign in using that Sentry-account to see and management logs from all running local nodes.
+Logs are grouped and marked with color (info - blue, warn - yellow, error - red).sentryEach log include: environment info, message about error, code line (in case error).
+
 ### for testing network failures:
 
   - build node docker image "pos-lachesis-blockade": `make build blockade`;
   - install blockade and add it to "$PATH": `pip install blockade`;
-  - make blockade.yaml config: `N=x ./blockade.sh`;
+  - make blockade.yaml config with x nodes: `N=x ./blockade.sh`;
   - test lachesis network with blockade [`commands`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);
-
-## Sentry
-
-During first run, you'll get offer to create Sentry account for data management. Note that account exist only inside local copy Sentry and don't affect to sentry.io.
-
-After start up Sentry go to `http://localhost:9000` and sign in using your local account for see and management logs from all running local nodes (by default).
-Logs are grouped and marked with color (info - blue, warn - yellow, error - red).
-Each log include: environment info, message about error, code line (in case error).
