@@ -24,13 +24,13 @@ type peerID struct{}
 // ClientAuth makes client-side interceptor for identification.
 func ClientAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryClientInterceptor {
 	pub := key.Public().Base64()
-	gen := genesis.Hex()
+	salt := genesis.Bytes()
 
 	return func(ctx context.Context, method string, req interface{}, resp interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		// request:
 
-		servSign := signData(req, key)
-		md := metadata.Pairs("sign", servSign, "pub", pub, "genesis", gen)
+		servSign := signData(req, key, salt)
+		md := metadata.Pairs("sign", servSign, "pub", pub)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		var answer metadata.MD
@@ -42,16 +42,12 @@ func ClientAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryClientInter
 
 		// response:
 
-		servSign, servPub, servGen, err := readMetadata(answer)
+		servSign, servPub, err := readMetadata(answer)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
-		if servGen != gen {
-			return status.Errorf(codes.Unauthenticated, "peer's genesis does not match")
-		}
-
-		err = verifyData(resp, servSign, servPub)
+		err = verifyData(resp, servSign, servPub, salt)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
@@ -68,21 +64,17 @@ func ClientAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryClientInter
 // ServerAuth makes server-side interceptor for identification.
 func ServerAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryServerInterceptor {
 	pub := base64.StdEncoding.EncodeToString(key.Public().Bytes())
-	gen := genesis.Hex()
+	salt := genesis.Bytes()
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// request:
 
-		clientSign, clientPub, clientGen, err := parseContext(ctx)
+		clientSign, clientPub, err := parseContext(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
-		if clientGen != gen {
-			return nil, status.Errorf(codes.Unauthenticated, "peer's genesis does not match")
-		}
-
-		err = verifyData(req, clientSign, clientPub)
+		err = verifyData(req, clientSign, clientPub, salt)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
 		}
@@ -94,8 +86,8 @@ func ServerAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryServerInter
 
 		resp, err := handler(ctx, req)
 
-		sign := signData(resp, key)
-		md := metadata.Pairs("sign", sign, "pub", pub, "genesis", gen)
+		sign := signData(resp, key, salt)
+		md := metadata.Pairs("sign", sign, "pub", pub)
 		if err := grpc.SetTrailer(ctx, md); err != nil {
 			logger.Get().Fatal(err)
 		}
@@ -105,14 +97,14 @@ func ServerAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryServerInter
 }
 
 // parseContext reads fields from request/response context.
-func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, gen string, err error) {
+func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err = errors.New("data should be signed")
 		return
 	}
 
-	sign, pub, gen, err = readMetadata(md)
+	sign, pub, err = readMetadata(md)
 	if err != nil {
 		return
 	}
@@ -121,7 +113,7 @@ func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, gen 
 }
 
 // readMetadata reads fields from metadata.
-func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, gen string, err error) {
+func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error) {
 	signs, ok := md["sign"]
 	if !ok || len(signs) < 1 {
 		err = errors.New("data should be signed: no sign")
@@ -136,34 +128,31 @@ func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, gen strin
 	}
 	pub, err = common.Base64ToPubkey(pubs[0])
 
-	gens, ok := md["genesis"]
-	if !ok || len(gens) < 1 {
-		err = errors.New("data should be signed: no genesis")
-		return
-	}
-	gen = gens[0]
-
 	return
 }
 
-func signData(data interface{}, key *common.PrivateKey) string {
+func signData(data interface{}, key *common.PrivateKey, salt []byte) string {
 	h := hashOfData(data)
 
-	R, S, _ := key.Sign(h.Bytes())
+	d := append(h.Bytes(), salt...)
+
+	R, S, _ := key.Sign(d)
 
 	return crypto.EncodeSignature(R, S)
 }
 
-func verifyData(data interface{}, sign string, pub *common.PublicKey) error {
+func verifyData(data interface{}, sign string, pub *common.PublicKey, salt []byte) error {
 	h := hashOfData(data)
+
+	d := append(h.Bytes(), salt...)
 
 	r, s, err := crypto.DecodeSignature(sign)
 	if err != nil {
 		return err
 	}
 
-	if !pub.Verify(h.Bytes(), r, s) {
-		return errors.New("invalid signature")
+	if !pub.Verify(d, r, s) {
+		return errors.New("signature is invalid or peer uses another genesis")
 	}
 
 	return nil
