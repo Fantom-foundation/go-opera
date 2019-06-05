@@ -7,9 +7,10 @@ import (
 	"math/rand"
 	"reflect"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
-	"github.com/Fantom-foundation/go-lachesis/src/crypto/sha3"
 )
 
 const (
@@ -25,7 +26,7 @@ var (
 type Hash [Size]byte
 
 func Of(data ...[]byte) (hash Hash) {
-	d := sha3.NewKeccak256()
+	d := sha3.NewLegacyKeccak256()
 	for _, b := range data {
 		_, err := d.Write(b)
 		if err != nil {
