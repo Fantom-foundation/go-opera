@@ -292,7 +292,37 @@ func (r *row) Position(i int) pos {
 }
 
 func (rr *rows) Optimize() {
-	// TODO: implement rows reordering to minimize refs
+	for iRow, row := range rr.rows {
+		for iRef, ref := range row.Refs {
+			// TODO: Can we safety wrap this by "for...loop"?
+			if ref > 2 {
+				row.Refs[iRef] = ref - 1
+
+				prev := iRow - 1
+
+				// Find event for swap
+				for {
+					if iRef == rr.rows[prev].Self {
+						break
+					}
+
+					prev--
+				}
+
+				// For fill empty space after swap (for graph)
+				for {
+					if len(rr.rows[prev].Refs) == len(rr.rows[iRow].Refs) {
+						break
+					}
+
+					rr.rows[prev].Refs = append(rr.rows[prev].Refs, 0)
+				}
+
+				// Swap with prev event
+				rr.rows[iRow], rr.rows[prev] = rr.rows[prev], rr.rows[iRow]
+			}
+		}
+	}
 }
 
 func (rr *rows) String() string {
