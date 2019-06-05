@@ -22,6 +22,15 @@ type (
 	PublicKey ecdsa.PublicKey
 )
 
+// GenerateKey creates new private key.
+func GenerateKey() (*PrivateKey, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	return (*PrivateKey)(key), nil
+}
+
 // Public returns public part of key.
 func (key *PrivateKey) Public() *PublicKey {
 	return (*PublicKey)(&key.PublicKey)
@@ -83,15 +92,6 @@ func Base64ToPubKey(s string) (*PublicKey, error) {
 	}
 
 	return key, nil
-}
-
-// GenerateKey creates new private key.
-func GenerateKey() (*PrivateKey, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, err
-	}
-	return (*PrivateKey)(key), nil
 }
 
 // ReadPemToKey reads PEM from reader and parses key.
