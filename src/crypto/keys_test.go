@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,4 +23,22 @@ func TestFakeKeyGeneration(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestKey(t *testing.T) {
+	assertar := assert.New(t)
+	key := GenerateKey()
+
+	var buf bytes.Buffer
+	err := WriteKeyTo(&buf, key)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	nKey, err := ReadPemToKey(&buf)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	assertar.Equal(key, nKey)
 }

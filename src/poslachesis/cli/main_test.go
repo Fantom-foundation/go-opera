@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -236,5 +237,26 @@ func TestApp(t *testing.T) {
 		}
 
 		assertar.Contains(out.String(), "ok")
+	})
+
+	t.Run("key ok", func(t *testing.T) {
+		assertar := assert.New(t)
+
+		app.SetArgs([]string{
+			"key",
+		})
+		defer out.Reset()
+
+		err := app.Execute()
+		if !assertar.NoError(err) {
+			return
+		}
+
+		err = os.Remove("./priv_key.pem")
+		if !assertar.NoError(err) {
+			return
+		}
+
+		assertar.Contains(out.String(), "priv_key.pem created")
 	})
 }
