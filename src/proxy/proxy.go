@@ -1,7 +1,7 @@
 package proxy
 
 //go:generate protoc --go_out=plugins=grpc:. ./internal/app.proto
-//go:generate protoc --go_out=plugins=grpc,Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty:. ./internal/ctrl.proto
+//go:generate protoc -I=../../../../.. -I=. --go_out=plugins=grpc,Mgoogle/protobuf/empty.proto=github.com/golang/protobuf/ptypes/empty:. ./internal/ctrl.proto
 // Install before go generate:
 //  wget https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protoc-3.6.1-linux-x86_64.zip
 //  unzip protoc-3.6.1-linux-x86_64.zip -x readme.txt -d /usr/local/
@@ -58,8 +58,8 @@ type NodeProxy interface {
 	StakeOf(hash.Peer) (uint64, error)
 	// SendTo makes stake transfer transaction.
 	SendTo(receiver hash.Peer, index, amount, until uint64) (hash.Transaction, error)
-	// GetTransaction returns information about transaction.
-	GetTransaction(hash.Transaction) (*inter.InternalTransaction, error)
+	// GetTxnInfo returns information about transaction.
+	GetTxnInfo(hash.Transaction) (*inter.InternalTransaction, *inter.Event, *inter.Block, error)
 	// SetLogLevel sets logger log level.
 	SetLogLevel(string) error
 	// Close stops proxy.

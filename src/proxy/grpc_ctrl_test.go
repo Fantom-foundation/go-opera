@@ -83,11 +83,11 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 
 		h := hash.FakeTransaction()
 
-		consensus.EXPECT().
-			GetTransaction(h).
-			Return(nil)
+		node.EXPECT().
+			GetInternalTxn(h).
+			Return(nil, nil)
 
-		_, err := client.GetTransaction(h)
+		_, _, _, err := client.GetTxnInfo(h)
 		assertar.Error(err)
 	})
 
@@ -95,22 +95,32 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		assertar := assert.New(t)
 
 		h := hash.FakeTransaction()
-		expect := &inter.InternalTransaction{
+		txn0 := &inter.InternalTransaction{
 			Index:    1,
 			Amount:   rand.Uint64(),
 			Receiver: peer,
 		}
+		event0 := &inter.Event{
+			Index:   1,
+			Creator: hash.FakePeer(),
+			Parents: hash.Events{},
+		}
+
+		node.EXPECT().
+			GetInternalTxn(h).
+			Return(txn0, event0)
 
 		consensus.EXPECT().
-			GetTransaction(h).
-			Return(expect)
+			GetEventBlock(event0.Hash()).
+			Return(nil)
 
-		got, err := client.GetTransaction(h)
+		txn1, event1, _, err := client.GetTxnInfo(h)
 		if !assertar.NoError(err) {
 			return
 		}
 
-		assertar.Equal(expect, got)
+		assertar.EqualValues(txn0, txn1)
+		assertar.EqualValues(event0.Hash(), event1.Hash())
 	})
 
 	t.Run("get balance of self", func(t *testing.T) {

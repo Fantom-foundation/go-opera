@@ -53,7 +53,7 @@ func TestApp(t *testing.T) {
 		assertar.Contains(out.String(), peer.Hex())
 	})
 
-	t.Run("balance", func(t *testing.T) {
+	t.Run("stake", func(t *testing.T) {
 		assertar := assert.New(t)
 
 		amount := rand.Uint64()
@@ -65,7 +65,7 @@ func TestApp(t *testing.T) {
 			StakeOf(peer).
 			Return(amount)
 
-		app.SetArgs([]string{"balance"})
+		app.SetArgs([]string{"stake"})
 		defer out.Reset()
 
 		err := app.Execute()
@@ -73,7 +73,7 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		expect := fmt.Sprintf("balance of %s == %d", peer.Hex(), amount)
+		expect := fmt.Sprintf("stake of %s == %d", peer.Hex(), amount)
 		assertar.Contains(out.String(), expect)
 	})
 
@@ -89,7 +89,7 @@ func TestApp(t *testing.T) {
 			Return(amount)
 
 		app.SetArgs([]string{
-			"balance",
+			"stake",
 			fmt.Sprintf("--peer=%s", otherPeer.Hex())})
 		defer out.Reset()
 
@@ -98,21 +98,21 @@ func TestApp(t *testing.T) {
 			return
 		}
 
-		expect := fmt.Sprintf("balance of %s == %d", otherPeer.Hex(), amount)
+		expect := fmt.Sprintf("stake of %s == %d", otherPeer.Hex(), amount)
 		assertar.Contains(out.String(), expect)
 	})
 
-	t.Run("info not found", func(t *testing.T) {
+	t.Run("txn not found", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		hex := "0x00000"
-		consensus.EXPECT().
-			GetTransaction(hash.HexToTransactionHash(hex)).
-			Return(nil)
+		h := hash.FakeTransaction()
+		node.EXPECT().
+			GetInternalTxn(h).
+			Return(nil, nil)
 
 		app.SetArgs([]string{
-			"info",
-			hex,
+			"txn",
+			h.Hex(),
 		})
 		defer out.Reset()
 
@@ -124,24 +124,24 @@ func TestApp(t *testing.T) {
 		assertar.Contains(out.String(), "transaction not found")
 	})
 
-	t.Run("info ok", func(t *testing.T) {
+	t.Run("txn found", func(t *testing.T) {
 		assertar := assert.New(t)
 
 		h := hash.FakeTransaction()
 		amount := rand.Uint64()
 
-		tx := inter.InternalTransaction{
+		txn := &inter.InternalTransaction{
 			Index:    1,
 			Amount:   amount,
 			Receiver: peer,
 		}
 
-		consensus.EXPECT().
-			GetTransaction(h).
-			Return(&tx)
+		node.EXPECT().
+			GetInternalTxn(h).
+			Return(txn, nil)
 
 		app.SetArgs([]string{
-			"info",
+			"txn",
 			h.Hex(),
 		})
 		defer out.Reset()
@@ -155,8 +155,8 @@ func TestApp(t *testing.T) {
 			out.String(),
 			fmt.Sprintf(
 				"transfer %d to %s",
-				tx.Amount,
-				tx.Receiver.Hex(),
+				txn.Amount,
+				txn.Receiver.Hex(),
 			),
 		)
 	})

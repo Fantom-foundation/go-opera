@@ -6,9 +6,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-// Balance prints stake balance of a peer.
-var Balance = &cobra.Command{
-	Use:   "balance",
+// Stake prints stake balance of a peer.
+var Stake = &cobra.Command{
+	Use:   "stake",
 	Short: "Prints stake balance of a peer",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proxy, err := makeCtrlProxy(cmd)
@@ -33,13 +33,13 @@ var Balance = &cobra.Command{
 			return err
 		}
 
-		cmd.Printf("balance of %s == %d\n", id.Hex(), balance)
+		cmd.Printf("stake of %s == %d\n", id.Hex(), balance)
 		return nil
 	},
 }
 
 func init() {
-	initCtrlProxy(Balance)
+	initCtrlProxy(Stake)
 
-	Balance.Flags().String("peer", "self", "peer ID")
+	Stake.Flags().String("peer", "self", "peer ID")
 }

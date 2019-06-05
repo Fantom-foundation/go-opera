@@ -1,9 +1,9 @@
 package lachesis
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
 
@@ -74,7 +74,7 @@ func (l *Lachesis) serviceStop() {
 }
 
 // TODO: it is temporary fake solution
-func (l *Lachesis) toLegacyBlock(b *posposet.Block) *poset.Block {
+func (l *Lachesis) toLegacyBlock(b *inter.Block) *poset.Block {
 	var txns [][]byte
 	for _, e := range b.Events {
 		event := l.nodeStore.GetEvent(e)

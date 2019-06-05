@@ -3,12 +3,13 @@ syntax = "proto3";
 package internal;
 
 import "google/protobuf/empty.proto";
+import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/wire.proto";
 
 service Node {
   rpc SelfID(google.protobuf.Empty) returns (ID) {}
   rpc StakeOf(ID) returns (Balance) {}
   rpc SendTo(TransferRequest) returns (TransferResponse) {}
-  rpc TransactionInfo(TransactionRequest) returns (TransactionResponse) {}
+  rpc GetTxnInfo(TransactionRequest) returns (TransactionResponse) {}
   rpc SetLogLevel(LogLevel) returns (google.protobuf.Empty) {}
 }
 
@@ -36,10 +37,9 @@ message TransactionRequest {
 }
 
 message TransactionResponse {
-  uint64 nonce = 1;
-  ID receiver = 2;
-  uint64 amount = 3;
-  uint64 until = 4;
+  wire.InternalTransaction txn = 1;
+  wire.Event event = 2;
+  wire.Block block = 3;   
 }
 
 message LogLevel {

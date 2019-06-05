@@ -97,12 +97,33 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	n.store.SetEvent(e)
 	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
 	n.store.SetPeerHeight(e.Creator, e.Index)
+	// NOTE: doubled txns from evil event could override existing index!
+	// TODO: decision
+	n.store.SetTxnsEvent(e.Hash(), e.Creator, e.InternalTransactions...)
 
 	n.pushPotentialParent(e)
 
 	if n.consensus != nil {
 		n.consensus.PushEvent(e.Hash())
 	}
+}
+
+// GetInternalTxn finds transaction ant its event if exists.
+func (n *Node) GetInternalTxn(idx hash.Transaction) (
+	txn *inter.InternalTransaction,
+	event *inter.Event,
+) {
+	txn = n.internalTxnMempool(idx)
+	if txn != nil {
+		return
+	}
+
+	event = n.store.GetTxnsEvent(idx)
+	if event != nil {
+		txn = event.FindInternalTxn(idx)
+	}
+
+	return
 }
 
 // Start starts all node services.
