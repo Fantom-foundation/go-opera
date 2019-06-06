@@ -7,9 +7,13 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
+	"github.com/fortytw2/leaktest"
 )
 
 func TestProducer(t *testing.T) {
+    ctx0, _ := context.WithTimeout(context.Background(), 30*time.Second)
+    defer leaktest.CheckContext(ctx0, t)()
+
 	ctx := context.Background()
 	target := "1:2"
 	limit := 2

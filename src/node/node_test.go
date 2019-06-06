@@ -23,6 +23,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/peer/fakenet"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/fortytw2/leaktest"
 )
 
 type TestData struct {
@@ -312,6 +313,8 @@ func checkGossip(nodes []*Node, fromBlock int64, t *testing.T) {
 }
 
 func TestCreateAndInitNode(t *testing.T) {
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
+
 	// Init data
 	data := InitTestData(t, 1, 2)
 
@@ -322,6 +325,9 @@ func TestCreateAndInitNode(t *testing.T) {
 
 	// Create & Init node
 	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node.conf.TestDelay) * time.Second)
 
 	// Check status
 	nodeState := node.getState()
@@ -350,6 +356,8 @@ func TestCreateAndInitNode(t *testing.T) {
 }
 
 func TestAddTransaction(t *testing.T) {
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
+
 	// Init data
 	data := InitTestData(t, 1, 2)
 
@@ -361,6 +369,9 @@ func TestAddTransaction(t *testing.T) {
 	// Create & Init node
 	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 	defer node.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node.conf.TestDelay) * time.Second)
 
 	// Add new Tx
 	message := "Test"
@@ -387,6 +398,8 @@ func TestAddTransaction(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	// Init data
 	data := InitTestData(t, 1, 2)
 
@@ -398,6 +411,9 @@ func TestCommit(t *testing.T) {
 	// Create & Init node
 	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 	defer node.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node.conf.TestDelay) * time.Second)
 
 	// Create block
 	block := poset.NewBlock(0, 1,
@@ -428,6 +444,8 @@ func TestCommit(t *testing.T) {
 }
 
 func TestDoBackgroundWork(t *testing.T) {
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	// Init data
 	data := InitTestData(t, 1, 2)
 
@@ -439,6 +457,9 @@ func TestDoBackgroundWork(t *testing.T) {
 	// Create & Init node
 	node := createNode(t, data.Logger, data.Config, data.PeersSlice[0].ID, data.Keys[0], data.Peers, trans, data.Adds[0], false)
 	defer node.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node.conf.TestDelay) * time.Second)
 
 	// Check submitCh case
 	message := "Test"
@@ -501,6 +522,8 @@ func TestDoBackgroundWork(t *testing.T) {
 }
 
 func TestSyncAndRequestSync(t *testing.T) {
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	// Init data
 	data := InitTestData(t, 2, 2)
 
@@ -519,6 +542,9 @@ func TestSyncAndRequestSync(t *testing.T) {
 
 	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node2.conf.TestDelay) * time.Second)
 
 	// Submit transaction for node
 	message := "Test"
@@ -560,6 +586,8 @@ func TestSyncAndRequestSync(t *testing.T) {
 }
 
 func TestRequestEagerSyncAndEventDiff(t *testing.T) {
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
+
 	// Init data
 	data := InitTestData(t, 2, 2)
 
@@ -578,6 +606,9 @@ func TestRequestEagerSyncAndEventDiff(t *testing.T) {
 
 	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node2.conf.TestDelay) * time.Second)
 
 	// Get known events
 	node1KnownEvents := node1.core.KnownEvents()
@@ -615,6 +646,8 @@ func TestRequestEagerSyncAndEventDiff(t *testing.T) {
 }
 
 func TestRequestFastForward(t *testing.T) {
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
+
 	// Init data
 	data := InitTestData(t, 2, 2)
 
@@ -633,6 +666,9 @@ func TestRequestFastForward(t *testing.T) {
 
 	node2 := createNode(t, data.Logger, data.Config, data.PeersSlice[1].ID, data.Keys[1], data.Peers, trans2, data.Adds[1], false)
 	defer node2.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node2.conf.TestDelay) * time.Second)
 
 	// Create frame
 	frame := poset.Frame{
@@ -741,6 +777,8 @@ func TestRequestFastForward(t *testing.T) {
 func TestFastForward(t *testing.T) {
 	t.Skip("Skip TestFastForward until block production is fixed")
 
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	data := InitTestData(t, 4, 2)
 
 	// Create transport
@@ -772,6 +810,9 @@ func TestFastForward(t *testing.T) {
 
 	node4 := createNode(t, data.Logger, data.Config, data.PeersSlice[3].ID, data.Keys[3], data.Peers, trans4, data.Adds[3], false)
 	defer node4.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node4.conf.TestDelay) * time.Second)
 
 	nodes := []*Node{node1, node2, node3, node4}
 
@@ -808,6 +849,9 @@ func TestFastForward(t *testing.T) {
 // TODO: Failed
 func TestFastSync(t *testing.T) {
 	t.Skip("Skip TestFastSync until block production is fixed")
+
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	var let sync.Mutex
 	caught := false
 	logger := common.NewTestLogger(t)
@@ -847,6 +891,9 @@ func TestFastSync(t *testing.T) {
 
 	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 	defer node4.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node4.conf.TestDelay) * time.Second)
 
 	nodes := []*Node{node1, node2, node3, node4}
 
@@ -913,6 +960,9 @@ func TestFastSync(t *testing.T) {
 // TODO: Failed
 func TestBootstrapAllNodes(t *testing.T) {
 	t.Skip("Skip TestBootstrapAllNodes until block production is fixed")
+
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	logger := common.NewTestLogger(t)
 
 	if err := os.RemoveAll("test_data"); err != nil {
@@ -961,6 +1011,9 @@ func TestBootstrapAllNodes(t *testing.T) {
 	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], true)
 	defer node4.Shutdown()
 
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node4.conf.TestDelay) * time.Second)
+
 	nodes := []*Node{node1, node2, node3, node4}
 
 	err := gossip(nodes, 10, false, 3*time.Second)
@@ -994,6 +1047,9 @@ func TestBootstrapAllNodes(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	t.Skip()
+
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	logger := common.NewTestLogger(t)
 
 	config := TestConfig(t)
@@ -1032,6 +1088,9 @@ func TestShutdown(t *testing.T) {
 
 	node4 := createNode(t, logger, config, ps[3].ID, keys[3], p, trans4, adds[3], false)
 	defer node4.Shutdown()
+
+	// pause to allow node.Run() to run actually
+	time.Sleep(time.Duration(node4.conf.TestDelay) * time.Second)
 
 	nodes := []*Node{node1, node2, node3, node4}
 
