@@ -56,7 +56,7 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 	idx := hash.FakeTransaction()
 
 	if tx.Receiver == n.ID {
-		return hash.Transaction{}, fmt.Errorf("can not transafer to yourself")
+		return hash.Transaction{}, fmt.Errorf("can not transfer to yourself")
 	}
 
 	if tx.Amount < 1 {
@@ -87,12 +87,12 @@ func (n *Node) AddExternalTxn(tx []byte) {
 
 // EmitEvent takes all transactions from buffer builds event,
 // connects it with given amount of parents, sign and put it into the storage.
-// It returns emmited event for test purpose.
+// It returns emitted event for test purpose.
 func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.Debugf("emiting event")
+	n.Debugf("emitting event")
 
 	var (
 		index          uint64
@@ -129,7 +129,9 @@ func (n *Node) EmitEvent() *inter.Event {
 
 	// transactions buffer swap
 	internalTxns = make([]*inter.InternalTransaction, 0, len(n.emitter.internalTxns))
-	for _, txn := range n.emitter.internalTxns {
+	for idx, txn := range n.emitter.internalTxns {
+		n.Debugf("event internal tx [%s] amount: %d from [%s] to [%s]",
+			idx.Hex(), txn.Amount, n.ID.Hex(), txn.Receiver.Hex())
 		internalTxns = append(internalTxns, txn)
 	}
 	n.emitter.internalTxns = nil
@@ -149,7 +151,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	}
 
 	n.onNewEvent(event)
-	n.Debugf("new event emited %s", event)
+	n.Debugf("new event emitted %s", event)
 
 	return event
 }
