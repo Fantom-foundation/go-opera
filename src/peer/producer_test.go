@@ -11,8 +11,7 @@ import (
 )
 
 func TestProducer(t *testing.T) {
-    ctx0, _ := context.WithTimeout(context.Background(), 30*time.Second)
-    defer leaktest.CheckContext(ctx0, t)()
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
 
 	ctx := context.Background()
 	target := "1:2"
