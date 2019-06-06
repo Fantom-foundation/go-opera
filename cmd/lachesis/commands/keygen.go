@@ -47,7 +47,7 @@ func keygen(cmd *cobra.Command, args []string) error {
 	if err == nil {
 		return fmt.Errorf("A key already lives under: %s", path.Dir(privKeyFile))
 	}
-	privFile, err := os.Open(privKeyFile)
+	privFile, err := os.Create(privKeyFile)
 	if err != nil {
 		return fmt.Errorf("open private key: %v", err)
 	}
@@ -61,7 +61,7 @@ func keygen(cmd *cobra.Command, args []string) error {
 	}
 	pub := fmt.Sprintf("0x%X", key.Public().Bytes())
 	if err := ioutil.WriteFile(pubKeyFile, []byte(pub), 0666); err != nil {
-		return fmt.Errorf("writing public key: %s", err)
+		return fmt.Errorf("writing public key: %v", err)
 	}
 	fmt.Printf("Your public key has been saved to: %s\n", pubKeyFile)
 	return nil
