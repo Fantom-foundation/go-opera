@@ -1,29 +1,27 @@
 #!/usr/bin/env bash
+cd $(dirname $0)
 
-declare -ri n="${n:-3}"
+. ./params.sh
+
 CONF=blockade.yaml
-
-limit_cpu=$(echo "scale=2; 1/$n" | bc)                                                                                                                                                                      
-limit_io=$(echo "500/$n" | bc)                                                                                                                                                                              
-limits="--cpus=${limit_cpu} --blkio-weight=${limit_io}"                                                                                                                                                     
-
 
 cat << HEADER > $CONF
 network:                                                                                                                                                                                                    
+  name: lachesis
   driver: udn                                                                                                                                                                                               
 
 containers:
 
 HEADER
 
-for i in $(seq $n)
+for i in $(seq $N)
 do
-    j=$((i % n + 1)) # ring
+    j=$((i % N + 1)) # ring
     cat << NODE >> $CONF
   node_$i:
     image: pos-lachesis-blockade:latest
     container_name: node_$i
-    command: start --network=fake:$i/$n --db=/tmp --peer=node_$j
+    command: start --network=fake:$i/$N --db=/tmp $DSN --peer=node_$j
     expose:
       - "55555"
     deploy:
@@ -34,3 +32,4 @@ do
 
 NODE
 done
+

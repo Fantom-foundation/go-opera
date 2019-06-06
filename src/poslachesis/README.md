@@ -60,56 +60,21 @@ balance of 0xf2610eb8185d8120e0e71f0d5f1fc74e3b187646a6a0aee169ca242a6b599fc0 ==
 ### for common purpose:
 
   - build node docker image "pos-lachesis": `make build`;
-  - run network of N nodes: `n=N ./start.sh`;
+  - run network of x nodes: `N=x ./start.sh`;
   - drop network: `./stop.sh`;
+
+### the same with Sentry service:
+
+  - set `SENTRY=yes` before `./start.sh`;
+  - remove Sentry database: `.sentry/clean.sh`;
+
+During first run, you'll get offer to create Sentry-account. Note that account exist only inside local copy Sentry and don't affect to sentry.io.
+After start up go to `http://localhost:9000` and sign in using that Sentry-account to see and management logs from all running local nodes.
+Logs are grouped and marked with color (info - blue, warn - yellow, error - red).sentryEach log include: environment info, message about error, code line (in case error).
 
 ### for testing network failures:
 
   - build node docker image "pos-lachesis-blockade": `make build blockade`;
   - install blockade and add it to "$PATH": `pip install blockade`;
-  - make blockade.yaml config: `n=N ./blockade.sh`;
+  - make blockade.yaml config with x nodes: `N=x ./blockade.sh`;
   - test lachesis network with blockade [`commands`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);
-
-## Sentry
-
-If you want to use Sentry, please use this [`link`](https://github.com/getsentry/onpremise) for setup your own copy.
-
-Don't forget include `--dsn` key to `./docker/start.sh`
-
-Example: `--dsn="http://64f6a4a7aaba4aa0a12fedd4d8f7aa61@localhost:9000/1"`
-
-where: `--dsn="http://<sentry public key>@<sentry host>:<port>/<project id>"`
-
-### tips
-
-If you have an error about Sentry connection, check next steps:
-
-  - `docker-compose.yml` should include `SENTRY_SECRET_KEY` which you should generate using link above.
-  ```
-  environment:
-    SENTRY_SECRET_KEY: !!!SECRET_KEY!!!
-  ``` 
-
-  - Try to use custom network for `docker-compose.yml`:
-  ```
-  networks:
-    custom_network:
-      driver: bridge
-      name: lachesis // The name should be the same as for `pos-lachesis` and as for Sentry containers
-  ```
-
-  - Don't forget add this network for each service:
-
-  Example:
-  ```
-  worker:
-    <<: *defaults
-    command: run worker
-    networks:
-      custom_network:
-  ```
-
-  - If you have empty Client DSN links, add next line to `config.yml`:
-  ```
-  system.url-prefix: http://<sentry host>:<port>
-  ```
