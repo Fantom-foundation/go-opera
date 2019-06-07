@@ -26,3 +26,15 @@ blockade-on:
 blockade-off:
 	blockade destroy
 
+
+
+.PHONY: prometheus
+
+prometheus:
+	docker build -f Dockerfile.prometheus -t prometheus .
+
+prometheus-on:
+	docker run --rm -d --net=lachesis -p 9090:9090 --name=prometheus prometheus 
+
+prometheus-off:
+	docker stop prometheus
