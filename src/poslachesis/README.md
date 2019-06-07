@@ -63,6 +63,10 @@ balance of 0xf2610eb8185d8120e0e71f0d5f1fc74e3b187646a6a0aee169ca242a6b599fc0 ==
   - run network of x nodes: `N=x ./start.sh`;
   - drop network: `./stop.sh`;
 
+### the same with Prometheus service:
+
+  - set `PROMETHEUS=yes` before `./start.sh`;
+
 ### the same with Sentry service:
 
   - set `SENTRY=yes` before `./start.sh`;
