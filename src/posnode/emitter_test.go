@@ -20,7 +20,7 @@ func TestAddInternalTxn(t *testing.T) {
 		Return(uint64(2000)).
 		AnyTimes()
 
-	node := NewForTests("fake", nil, consensus)
+	node := NewForTests("fake", NewMemStore(), consensus)
 	peer := hash.FakePeer()
 
 	t.Run("very 1st add", func(t *testing.T) {

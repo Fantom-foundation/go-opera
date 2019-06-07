@@ -68,6 +68,17 @@ func (e *Event) Hash() hash.Event {
 	return e.hash
 }
 
+// FindInternalTxn find transaction in event's internal transactions list.
+// TODO: use map
+func (e *Event) FindInternalTxn(idx hash.Transaction) *InternalTransaction {
+	for _, txn := range e.InternalTransactions {
+		if TransactionHashOf(e.Creator, txn.Index) == idx {
+			return txn
+		}
+	}
+	return nil
+}
+
 // String returns string representation.
 func (e *Event) String() string {
 	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.LamportTime)
@@ -75,6 +86,9 @@ func (e *Event) String() string {
 
 // ToWire converts to proto.Message.
 func (e *Event) ToWire() *wire.Event {
+	if e == nil {
+		return nil
+	}
 	return &wire.Event{
 		Index:                e.Index,
 		Creator:              e.Creator.Hex(),

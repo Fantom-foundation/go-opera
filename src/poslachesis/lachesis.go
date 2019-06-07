@@ -56,6 +56,14 @@ func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Conf
 	}
 }
 
+func (l *Lachesis) init() {
+	genesis := l.conf.Net.Genesis
+	err := l.consensusStore.ApplyGenesis(genesis)
+	if err != nil {
+		l.Fatal(err)
+	}
+}
+
 // Start inits and starts whole lachesis node.
 func (l *Lachesis) Start() {
 	l.init()
@@ -75,14 +83,6 @@ func (l *Lachesis) Stop() {
 // AddPeers suggests hosts for network discovery.
 func (l *Lachesis) AddPeers(hosts ...string) {
 	l.node.AddBuiltInPeers(hosts...)
-}
-
-func (l *Lachesis) init() {
-	genesis := l.conf.Net.Genesis
-	err := l.consensusStore.ApplyGenesis(genesis)
-	if err != nil {
-		l.Fatal(err)
-	}
 }
 
 /*

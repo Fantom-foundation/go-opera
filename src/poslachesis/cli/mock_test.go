@@ -63,6 +63,21 @@ func (mr *MockNodeMockRecorder) GetID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockNode)(nil).GetID))
 }
 
+// GetInternalTxn mocks base method
+func (m *MockNode) GetInternalTxn(arg0 hash.Transaction) (*inter.InternalTransaction, *inter.Event) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInternalTxn", arg0)
+	ret0, _ := ret[0].(*inter.InternalTransaction)
+	ret1, _ := ret[1].(*inter.Event)
+	return ret0, ret1
+}
+
+// GetInternalTxn indicates an expected call of GetInternalTxn
+func (mr *MockNodeMockRecorder) GetInternalTxn(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalTxn", reflect.TypeOf((*MockNode)(nil).GetInternalTxn), arg0)
+}
+
 // MockConsensus is a mock of Consensus interface
 type MockConsensus struct {
 	ctrl     *gomock.Controller
@@ -86,18 +101,18 @@ func (m *MockConsensus) EXPECT() *MockConsensusMockRecorder {
 	return m.recorder
 }
 
-// GetTransaction mocks base method
-func (m *MockConsensus) GetTransaction(arg0 hash.Transaction) *inter.InternalTransaction {
+// GetEventBlock mocks base method
+func (m *MockConsensus) GetEventBlock(arg0 hash.Event) *inter.Block {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransaction", arg0)
-	ret0, _ := ret[0].(*inter.InternalTransaction)
+	ret := m.ctrl.Call(m, "GetEventBlock", arg0)
+	ret0, _ := ret[0].(*inter.Block)
 	return ret0
 }
 
-// GetTransaction indicates an expected call of GetTransaction
-func (mr *MockConsensusMockRecorder) GetTransaction(arg0 interface{}) *gomock.Call {
+// GetEventBlock indicates an expected call of GetEventBlock
+func (mr *MockConsensusMockRecorder) GetEventBlock(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockConsensus)(nil).GetTransaction), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventBlock", reflect.TypeOf((*MockConsensus)(nil).GetEventBlock), arg0)
 }
 
 // StakeOf mocks base method

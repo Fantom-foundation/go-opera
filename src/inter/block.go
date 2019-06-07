@@ -1,8 +1,8 @@
-package posposet
+package inter
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // Block is a chain block.
@@ -12,10 +12,13 @@ type Block struct {
 }
 
 // ToWire converts to proto.Message.
-func (e *Block) ToWire() *wire.Block {
+func (b *Block) ToWire() *wire.Block {
+	if b == nil {
+		return nil
+	}
 	return &wire.Block{
-		Index:  e.Index,
-		Events: e.Events.ToWire(),
+		Index:  b.Index,
+		Events: b.Events.ToWire(),
 	}
 }
 

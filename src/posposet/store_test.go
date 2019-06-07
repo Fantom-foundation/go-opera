@@ -8,7 +8,9 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
@@ -21,8 +23,8 @@ func Test_IntToBytes(t *testing.T) {
 		0xFFFFFFFFFFFFFF,
 		47528346792,
 	} {
-		b := intToBytes(n1)
-		n2 := bytesToInt(b)
+		b := common.IntToBytes(n1)
+		n2 := common.BytesToInt(b)
 		assertar.Equal(n1, n2)
 	}
 }
@@ -58,17 +60,21 @@ func benchmarkStore(b *testing.B, cached bool) {
 	if err != nil {
 		panic(err)
 	}
-	input := NewEventStore(kvdb.NewBadgerDatabase(ondisk), cached)
-	store := NewStore(kvdb.NewBadgerDatabase(ondisk), cached)
+	defer ondisk.Close()
 
-	nodes, nodesEvents := GenEventsByNode(5, 100*b.N, 3)
+	input := NewEventStore(kvdb.NewBadgerDatabase(ondisk), cached)
+	defer input.Close()
+	store := NewStore(kvdb.NewBadgerDatabase(ondisk), cached)
+	defer input.Close()
+
+	nodes, events := inter.GenEventsByNode(5, 100*b.N, 3)
 	poset := benchPoset(nodes, input, store, cached)
 
 	b.ResetTimer()
 
-	for _, events := range nodesEvents {
-		for _, e := range events {
-			input.SetEvent(e.Event)
+	for _, ee := range events {
+		for _, e := range ee {
+			input.SetEvent(e)
 			poset.PushEventSync(e.Hash())
 		}
 	}

@@ -1,6 +1,7 @@
 package inter
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
@@ -15,6 +16,9 @@ type InternalTransaction struct {
 
 // ToWire converts to wire.
 func (tx *InternalTransaction) ToWire() *wire.InternalTransaction {
+	if tx == nil {
+		return nil
+	}
 	return &wire.InternalTransaction{
 		Index:      tx.Index,
 		Amount:     tx.Amount,
@@ -25,6 +29,9 @@ func (tx *InternalTransaction) ToWire() *wire.InternalTransaction {
 
 // WireToInternalTransaction converts from wire.
 func WireToInternalTransaction(w *wire.InternalTransaction) *InternalTransaction {
+	if w == nil {
+		return nil
+	}
 	return &InternalTransaction{
 		Index:      w.Index,
 		Amount:     w.Amount,
@@ -57,4 +64,14 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
 	}
 
 	return res
+}
+
+/*
+ * Utils:
+ */
+
+// TransactionHashOf calcs hash of transaction.
+func TransactionHashOf(sender hash.Peer, nonce uint64) hash.Transaction {
+	buf := append(sender.Bytes(), common.IntToBytes(nonce)...)
+	return hash.Transaction(hash.Of(buf))
 }

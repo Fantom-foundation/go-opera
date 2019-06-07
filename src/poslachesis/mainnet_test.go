@@ -2,6 +2,7 @@ package lachesis
 
 import (
 	"fmt"
+	"time"
 )
 
 // LachesisNetworkRing starts lachesis network with initial ring topology.
@@ -50,13 +51,14 @@ func makeNetwork(pref string, count int) []*Lachesis {
 
 	conf := DefaultConfig()
 	conf.Net = net
+	conf.Node.EmitInterval = 1 * time.Second
 
 	ll := make([]*Lachesis, count)
 
 	// create all
-	for i := 0; i < count; i++ {
+	for i, key := range keys {
 		host := fmt.Sprintf("%s_%d", pref, i)
-		ll[i] = NewForTests(nil, host, keys[i], conf)
+		ll[i] = NewForTests(nil, host, key, conf)
 	}
 
 	// start all

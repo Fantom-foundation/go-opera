@@ -6,10 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestPoset(t *testing.T) {
-	nodes, nodesEvents := GenEventsByNode(5, 99, 3)
+	nodes, events := inter.GenEventsByNode(5, 99, 3)
 
 	posets := make([]*Poset, len(nodes))
 	inputs := make([]*EventStore, len(nodes))
@@ -28,19 +29,19 @@ func TestPoset(t *testing.T) {
 	t.Run("Push unordered events", func(t *testing.T) {
 		// first all events from one node
 		for n := 0; n < len(nodes); n++ {
-			events := nodesEvents[nodes[n]]
-			for _, e := range events {
-				inputs[n].SetEvent(e.Event)
+			ee := events[nodes[n]]
+			for _, e := range ee {
+				inputs[n].SetEvent(e)
 				posets[n].PushEventSync(e.Hash())
 			}
 		}
 		// second all events from others
 		for n := 0; n < len(nodes); n++ {
-			events := nodesEvents[nodes[n]]
-			for _, e := range events {
+			ee := events[nodes[n]]
+			for _, e := range ee {
 				for i := 0; i < len(posets); i++ {
 					if i != n {
-						inputs[i].SetEvent(e.Event)
+						inputs[i].SetEvent(e)
 						posets[i].PushEventSync(e.Hash())
 					}
 				}
@@ -50,8 +51,8 @@ func TestPoset(t *testing.T) {
 
 	t.Run("All events in Store", func(t *testing.T) {
 		assertar := assert.New(t)
-		for _, events := range nodesEvents {
-			for _, e0 := range events {
+		for _, ee := range events {
+			for _, e0 := range ee {
 				frame := posets[0].store.GetEventFrame(e0.Hash())
 				if !assertar.NotNil(frame, "Event is not in poset store") {
 					return
@@ -63,8 +64,12 @@ func TestPoset(t *testing.T) {
 	t.Run("Check consensus", func(t *testing.T) {
 		assertar := assert.New(t)
 		for i := 0; i < len(posets)-1; i++ {
+			p0 := posets[i]
+			st := p0.store.GetState()
+			t.Logf("poset%d: frame %d, block %d", i, st.LastFinishedFrameN, st.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
-				p0, p1 := posets[i], posets[j]
+				p1 := posets[j]
+
 				// compare blockchain
 				if !assertar.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
 					return

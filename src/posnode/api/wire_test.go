@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
+	"github.com/fortytw2/leaktest"
 )
 
 // gen is an empty genesis hash.
@@ -31,6 +33,8 @@ func TestGRPC(t *testing.T) {
 }
 
 func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts ...grpc.DialOption) {
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

@@ -52,27 +52,3 @@ func MakeOrderedInput(p *Poset) {
 		orderThenConsensus(e)
 	}
 }
-
-// GenEventsByNode generates random events for test purpose.
-// Result:
-//   - nodes  is an array of node addresses;
-//   - events maps node address to array of its events;
-// It wraps inter.GenEventsByNode()
-func GenEventsByNode(nodeCount, eventCount, parentCount int) (
-	nodes []hash.Peer, events map[hash.Peer][]*Event) {
-
-	var inters map[hash.Peer][]*inter.Event
-
-	nodes, inters = inter.GenEventsByNode(nodeCount, eventCount, parentCount)
-	// wrap inter.Event into Event
-	events = make(map[hash.Peer][]*Event, len(inters))
-	for h, from := range inters {
-		to := make([]*Event, len(from))
-		for i, e := range from {
-			to[i] = &Event{Event: e}
-		}
-		events[h] = to
-	}
-
-	return
-}

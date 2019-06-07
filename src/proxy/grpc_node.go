@@ -107,7 +107,7 @@ func (p *grpcNodeProxy) SendTo(receiver hash.Peer, index, amount, until uint64) 
 	return hash.HexToTransactionHash(resp.Hex), nil
 }
 
-func (p *grpcNodeProxy) GetTransaction(t hash.Transaction) (*inter.InternalTransaction, error) {
+func (p *grpcNodeProxy) GetTxnInfo(t hash.Transaction) (*inter.InternalTransaction, *inter.Event, *inter.Block, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -115,17 +115,15 @@ func (p *grpcNodeProxy) GetTransaction(t hash.Transaction) (*inter.InternalTrans
 		Hex: t.Hex(),
 	}
 
-	resp, err := p.client.TransactionInfo(ctx, &req)
+	resp, err := p.client.GetTxnInfo(ctx, &req)
 	if err != nil {
-		return nil, unwrapGrpcErr(err)
+		return nil, nil, nil, unwrapGrpcErr(err)
 	}
 
-	return &inter.InternalTransaction{
-		Index:      resp.Nonce,
-		Amount:     resp.Amount,
-		Receiver:   hash.HexToPeer(resp.Receiver.Hex),
-		UntilBlock: resp.Until,
-	}, nil
+	return inter.WireToInternalTransaction(resp.Txn),
+		inter.WireToEvent(resp.Event),
+		inter.WireToBlock(resp.Block),
+		nil
 }
 
 func (p *grpcNodeProxy) SetLogLevel(l string) error {

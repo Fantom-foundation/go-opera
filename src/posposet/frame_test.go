@@ -15,7 +15,7 @@ import (
 func TestFrameSerialization(t *testing.T) {
 	assertar := assert.New(t)
 	// fake random data
-	nodes, events := GenEventsByNode(4, 10, 3)
+	nodes, events := inter.GenEventsByNode(4, 10, 3)
 
 	flagTable := FlagTable{}
 	cc := EventsByPeer{}
