@@ -15,10 +15,11 @@ func TestGetPeerInfo(t *testing.T) {
 	store := NewMemStore()
 	n := NewForTests("server.fake", store, nil)
 	n.StartService()
-	defer n.StopService()
+	defer n.Stop()
 
 	c := NewForTests("client.fake", nil, nil)
 	c.initClient()
+	defer c.Stop()
 
 	client, free, fail, err := c.ConnectTo(n.AsPeer())
 	if !assert.NoError(t, err) {

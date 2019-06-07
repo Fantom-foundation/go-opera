@@ -14,6 +14,7 @@ import (
 	"context"
 	"math"
 	"net"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
@@ -24,9 +25,19 @@ import (
 )
 
 // StartService starts and returns gRPC server.
-func StartService(bind string, key *common.PrivateKey, genesis hash.Hash, svc NodeServer, log func(string, ...interface{}), listen network.ListenFunc) (
-	*grpc.Server, string) {
-	server := grpc.NewServer(
+func StartService(
+	bind string,
+	key *common.PrivateKey,
+	genesis hash.Hash,
+	svc NodeServer,
+	log func(string, ...interface{}),
+	listen network.ListenFunc,
+) (
+	server *grpc.Server,
+	addr string,
+	stopAndWait func(),
+) {
+	server = grpc.NewServer(
 		grpc.UnaryInterceptor(ServerAuth(key, genesis)),
 		grpc.MaxRecvMsgSize(math.MaxInt32),
 		grpc.MaxSendMsgSize(math.MaxInt32))
@@ -35,13 +46,21 @@ func StartService(bind string, key *common.PrivateKey, genesis hash.Hash, svc No
 	listener := listen(bind)
 
 	log("service start at %v", listener.Addr())
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if err := server.Serve(listener); err != nil {
 			log("service stop (%v)", err)
 		}
 	}()
 
-	return server, listener.Addr().String()
+	stopAndWait = func() {
+		server.Stop()
+		wg.Wait()
+	}
+	addr = listener.Addr().String()
+	return
 }
 
 // GrpcPeerHost extracts client's host from grpc context.

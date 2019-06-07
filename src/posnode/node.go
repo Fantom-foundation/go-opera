@@ -59,7 +59,7 @@ func New(host string, key *common.PrivateKey, s *Store, c Consensus, conf *Confi
 		host:      host,
 		conf:      *conf,
 
-		service:  service{listen, nil},
+		service:  service{"", listen, nil},
 		connPool: connPool{opts: opts},
 
 		Instance: logger.MakeInstance(),
@@ -140,6 +140,8 @@ func (n *Node) Stop() {
 	n.StopGossip()
 	n.StopDiscovery()
 	n.StopService()
+
+	n.stopClient()
 }
 
 // PubKey returns public key.
