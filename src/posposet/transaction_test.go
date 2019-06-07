@@ -10,24 +10,25 @@ import (
 )
 
 func TestPosetTxn(t *testing.T) {
-	done := false
+	first := true
 	transfer := func(e *inter.Event, nodes []hash.Peer) {
-		if done {
+		if !first {
 			return
 		}
 		if e.Creator != nodes[0] {
 			return
 		}
+		first = false
+
 		e.InternalTransactions = append(e.InternalTransactions,
 			&inter.InternalTransaction{
 				Index:    0,
 				Amount:   1,
 				Receiver: nodes[1],
 			})
-		done = true
 	}
 
-	nodes, events := inter.GenEventsByNode(5, 10, 3, transfer)
+	nodes, events := inter.GenEventsByNode(5, 20, 3, transfer)
 
 	p, s, x := FakePoset(nodes)
 	assert.Equal(t,

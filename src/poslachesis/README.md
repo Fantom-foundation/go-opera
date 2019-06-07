@@ -5,7 +5,7 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 ## Executables
 
-[`cli/`](./cli/) - contains cli (only for fakenet now):
+[`cli/`](./cli/) - contains cli:
 
   - build: 
     - in root directory: `glide install`;
@@ -16,7 +16,7 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 ## Docker
 
-[`docker/`](./docker/) - contains scripts to try lachesis fakenet with Docker:
+[`docker/`](./docker/) - contains scripts to try lachesis (only for fakenet now) with Docker:
 
 ### for common purpose
 
@@ -100,8 +100,6 @@ stake of 0x322931dd144ae13865196dde4a0a9e8acff53e26a6dec249c595140e343c8054 == 9
 docker exec -ti pos-lachesis-node-2 /lachesis stake
 stake of 0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf == 1000500000
 
-docker exec -ti pos-lachesis-node-1 /lachesis stake --peer 0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf
+docker exec -ti pos-lachesis-node-3 /lachesis stake --peer 0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf
 stake of 0x70210aeeb6f7550d1a3f0e6e1bd41fc9b7c6122b5176ed7d7fe93847dac856cf == 1000050000
 ```
-
-**Note**: _stake changes void because of consensus algorithm error. Fix will be ready soon_

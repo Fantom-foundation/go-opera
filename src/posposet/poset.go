@@ -102,8 +102,6 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
-	const X = 3 // TODO: move this magic number to mainnet config
-
 	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
 		return
@@ -117,7 +115,7 @@ func (p *Poset) consensus(event *inter.Event) {
 	lastFinished := p.state.LastFinishedFrameN
 	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
-			p.Infof("consensus: make new block %d from frame %d", p.state.LastBlockN+1, n)
+			p.Debugf("consensus: make new block %d from frame %d", p.state.LastBlockN+1, n)
 			events := p.topologicalOrdered(n)
 			block := inter.NewBlock(p.state.LastBlockN+1, events)
 			p.store.SetEventsBlockNum(block.Index, events...)
@@ -136,8 +134,8 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	// balances changes
-	applyAt := p.frame(frame.Index+X, true)
-	state := p.store.StateDB(frame.Balances)
+	applyAt := p.frame(frame.Index+stateGap, true)
+	state := p.store.StateDB(applyAt.Balances)
 	p.applyTransactions(state, ordered)
 	p.applyRewards(state, ordered)
 	balances, err := state.Commit(true)
@@ -145,7 +143,7 @@ func (p *Poset) consensus(event *inter.Event) {
 		p.Fatal(err)
 	}
 	if applyAt.SetBalances(balances) {
-		p.Infof("STATE %s --> %s", frame.Balances.String(), balances.String())
+		p.Debugf("consensus: new state [%d]%s --> [%d]%s", frame.Index, frame.Balances.String(), applyAt.Index, balances.String())
 		p.reconsensusFromFrame(applyAt.Index, balances)
 	}
 
@@ -153,11 +151,12 @@ func (p *Poset) consensus(event *inter.Event) {
 	if p.state.LastFinishedFrameN < lastFinished {
 		p.state.LastFinishedFrameN = lastFinished
 		p.saveState()
+		p.Debugf("consensus: lastFinishedFrameN is %d", p.state.LastFinishedFrameN)
 	}
 
 	// clean old frames
 	for i := range p.frames {
-		if i+X < p.state.LastFinishedFrameN {
+		if i+stateGap < p.state.LastFinishedFrameN {
 			delete(p.frames, i)
 		}
 	}
@@ -167,7 +166,6 @@ func (p *Poset) consensus(event *inter.Event) {
 // and returns frame where event is root.
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) *Frame {
-	//log.Debugf("----- %s", e)
 	knownRoots := eventsByFrame{}
 	minFrame := p.state.LastFinishedFrameN + 1
 	for parent := range e.Parents {
@@ -380,17 +378,16 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
-			Balances:         frame.Balances, // newBalance,
+			Balances:         newBalance,
 		}
 	}
-	// recalc consensus
+	// recalc consensus (without frame saving)
 	for _, e := range all.ByParents() {
 		p.consensus(e)
 	}
-	// foreach fresh frame
+	// save fresh frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
-		// save fresh frame
 		p.setFrameSaving(frame)
 		frame.Save()
 	}
