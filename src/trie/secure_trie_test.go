@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fortytw2/leaktest"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/fortytw2/leaktest"
 )
 
 func newEmptySecure() *SecureTrie {
@@ -98,7 +99,7 @@ func TestSecureGetKey(t *testing.T) {
 }
 
 func TestSecureTrieConcurrency(t *testing.T) {
-    defer leaktest.CheckTimeout(t, time.Second)()
+	defer leaktest.CheckTimeout(t, time.Second)()
 
 	// Create an initial trie and copy if for concurrent access
 	_, trie, _ := makeTestSecureTrie(t)
