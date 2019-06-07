@@ -7,5 +7,3 @@ do
 done
 
 sentry/stop.sh
-
-#docker network rm lachesis
