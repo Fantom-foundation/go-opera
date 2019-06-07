@@ -20,7 +20,7 @@ func (s *Store) GetBlock(n uint64) *inter.Block {
 	return inter.WireToBlock(w)
 }
 
-// SetEventBlockNum stores num of block includes events.
+// SetEventsBlockNum stores num of block includes events.
 // TODO: use batch
 func (s *Store) SetEventsBlockNum(num uint64, ee ...*inter.Event) {
 	val := common.IntToBytes(num)

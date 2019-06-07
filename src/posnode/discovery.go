@@ -3,6 +3,7 @@ package posnode
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -21,6 +22,8 @@ type (
 	discovery struct {
 		tasks chan discoveryTask
 		done  chan struct{}
+
+		wg sync.WaitGroup
 	}
 
 	// discoveryTask is a task to ask source by host for unknown peer.
@@ -45,7 +48,9 @@ func (n *Node) StartDiscovery() {
 	n.discovery.done = make(chan struct{})
 	done := n.discovery.done
 
+	n.discovery.wg.Add(1)
 	go func() {
+		defer n.discovery.wg.Done()
 		for {
 			select {
 			case task := <-n.discovery.tasks:
@@ -71,6 +76,7 @@ func (n *Node) StopDiscovery() {
 
 	close(n.discovery.done)
 	n.discovery.done = nil
+	n.discovery.wg.Wait()
 
 	n.Info("discovery stopped")
 }
