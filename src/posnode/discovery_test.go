@@ -8,9 +8,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/fortytw2/leaktest"
 )
 
 func TestDiscoveryPeer(t *testing.T) {
+    defer leaktest.CheckTimeout(t, 30 * time.Second)()
+
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
@@ -72,6 +75,8 @@ func TestDiscoveryPeer(t *testing.T) {
 }
 
 func TestDiscoveryHost(t *testing.T) {
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	assertar := assert.New(t)
 
 	// node 1

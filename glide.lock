@@ -1,5 +1,5 @@
-hash: 076e8cbac17c2495812fc38454a11a303a6c95fca95d2b482dd53669c56871b2
-updated: 2019-05-28T12:06:15.426866979+07:00
+hash: ee74bf09239bf312c769f14353cdda5234e1a3c8795c46650180402728796973
+updated: 2019-06-05T14:05:33.563612048+10:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -27,6 +27,8 @@ imports:
   version: 2de1f203e7d5e386a6833233882782932729f27e
 - name: github.com/facebookgo/pidfile
   version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
+- name: github.com/fortytw2/leaktest
+  version: 4a188b4836680b25b689fe42fa7caba17fc5df1f
 - name: github.com/fsnotify/fsnotify
   version: 1485a34d5d5723fea214f5710708e19a831720e4
 - name: github.com/getsentry/raven-go
@@ -129,7 +131,7 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 869adfc8d5a43efc0d05780ad109106f457f51e4
+  version: 501c41df7f472c740d0674ff27122f3f48c80ce7
   subpackages:
   - balancer
   - balancer/base
