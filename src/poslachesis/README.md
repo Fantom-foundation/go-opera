@@ -31,7 +31,8 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
 During first run, you'll get offer to create Sentry-account. Note that account exist only inside local copy Sentry and don't affect to sentry.io.
 After start up go to `http://localhost:9000` and sign in using that Sentry-account to see and management logs from all running local nodes.
-Logs are grouped and marked with color (info - blue, warn - yellow, error - red).sentryEach log include: environment info, message about error, code line (in case error).
+Logs are grouped and marked with color (info - blue, warn - yellow, error - red).
+Each log include: environment info, message about error, code line (in case error).
 
 ### for testing network failures
 
