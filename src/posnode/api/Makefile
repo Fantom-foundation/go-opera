@@ -17,6 +17,6 @@ build:
 %.pb.go: %.proto
 	$(PROTOC) --proto_path=. -I "$(INTERWIRE)" --proto_path="$(GOPATH)/src" --go_out=plugins=grpc,import_path=internal:. $<
 
-app.pb.go: app.proto
+service.pb.go: service.proto
 
-ctrl.pb.go: ctrl.proto
+stored.pb.go: stored.proto

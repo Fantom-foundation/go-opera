@@ -1,6 +1,6 @@
 export GO?=go
 
-SUBDIRS := internal/.
+SUBDIRS := wire/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 

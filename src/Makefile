@@ -2,7 +2,7 @@ export GLIDE?=glide
 export GREP?=grep
 export SED?=sed
 export SH?=sh
-SUBDIRS := poset/. proxy/. peers/.
+SUBDIRS := inter/. peers/. poset/. posnode/. posposet/. proxy/. state/. trie/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 

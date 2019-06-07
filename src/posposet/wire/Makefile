@@ -3,7 +3,6 @@ export RM?=rm
 
 PROTOS:=$(wildcard *proto)
 PBGOS:=$(PROTOS:.proto=.pb.go)
-INTERWIRE:=../../inter/wire
 
 .PHONY: build clean proto
 
@@ -15,8 +14,9 @@ proto: $(PBGOS)
 build:
 
 %.pb.go: %.proto
-	$(PROTOC) --proto_path=. -I "$(INTERWIRE)" --proto_path="$(GOPATH)/src" --go_out=plugins=grpc,import_path=internal:. $<
+	$(PROTOC) --proto_path=. --proto_path="$(GOPATH)/src" --go_out=plugins=grpc,import_path=internal:. $<
 
-app.pb.go: app.proto
+frame.pb.go: frame.proto
 
-ctrl.pb.go: ctrl.proto
+state.pb.go: state.proto
+
