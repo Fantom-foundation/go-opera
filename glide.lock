@@ -1,5 +1,5 @@
-hash: ee74bf09239bf312c769f14353cdda5234e1a3c8795c46650180402728796973
-updated: 2019-06-05T14:05:33.563612048+10:00
+hash: 38fa9ae8028ba17dc2202bad1ecd1cc0780c52692acc62f1d0b95a97d615c581
+updated: 2019-06-07T13:41:39.764769+10:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -27,12 +27,10 @@ imports:
   version: 2de1f203e7d5e386a6833233882782932729f27e
 - name: github.com/facebookgo/pidfile
   version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
-- name: github.com/fortytw2/leaktest
-  version: 4a188b4836680b25b689fe42fa7caba17fc5df1f
 - name: github.com/fsnotify/fsnotify
   version: 1485a34d5d5723fea214f5710708e19a831720e4
 - name: github.com/getsentry/raven-go
-  version: f04e7487e9a6b9d9837d52743fb5f40576c56411
+  version: 9599e76ac913fac2da68ae09a59537ad212ba754
 - name: github.com/golang/mock
   version: 9fa652df1129bef0e734c9cf9bf6dbae9ef3b9fa
   subpackages:
@@ -75,7 +73,7 @@ imports:
 - name: github.com/mitchellh/mapstructure
   version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pelletier/go-toml
-  version: 728039f679cbcd4f6a54e080d2219a4c4928c546
+  version: dba45d427ff48cfb9bcf633db3a8e43b7364e261
 - name: github.com/pkg/errors
   version: ba968bfe8b2f7e042a574c888954fccecfa385b4
 - name: github.com/rifflock/lfshook
@@ -89,7 +87,7 @@ imports:
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: 8c9545af88b134710ab1cd196795e7f2388358d7
+  version: c01685bb8421cecb276fa517e91f757215f980b3
 - name: github.com/spf13/cobra
   version: 67fc4837d267bc9bfd6e47f77783fcc3dffc68de
 - name: github.com/spf13/jwalterweatherman
@@ -103,7 +101,7 @@ imports:
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: golang.org/x/net
-  version: a4d6f7feada510cc50e69a37b484cb0fdc6b7876
+  version: 1492cefac77f61bc789c00f41ead8f8d7307cd21
   subpackages:
   - context
   - http/httpguts
@@ -113,7 +111,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: a5b02f93d862f065920dd6a40dddc66b60d0dec4
+  version: 7fc4e5ec1444df20dd195ae7c3bbfcd7114d3faa
   subpackages:
   - unix
   - windows
@@ -127,7 +125,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: b515fa19cec88c32f305a962f34ae60068947aea
+  version: eb0b1bdb6ae60fcfc41b8d907b50dfb346112301
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
@@ -171,6 +169,8 @@ testImports:
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
   - spew
+- name: github.com/fortytw2/leaktest
+  version: 9a23578d06a26ec1b47bfc8965bf5e7011df8bd6
 - name: github.com/pmezard/go-difflib
   version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
   subpackages:
