@@ -4,38 +4,51 @@ import (
 	"sync/atomic"
 )
 
+// Counter hold an int64 value that can be incremented and decremented
 type Counter interface {
 	Metric
 
+	// Inc add gain to current value
 	Inc(int64)
+
+	// Dec subtract gain from current value
 	Dec(int64)
+
+	// Reset current value to default value or 0
 	Reset()
+
+	// Value return current value
 	Value() int64
+
+	// Copy make snapshot
 	Copy() Counter
 }
 
+// NewRegisteredCounter create and register a new Counter
 func NewRegisteredCounter(name string, r Registry) (Counter, error) {
 	return NewRegisteredPresetCounter(name, r, 0)
 }
 
+// NewRegisteredPresetCounter create and register a new Counter with default value
 func NewRegisteredPresetCounter(name string, r Registry, defaultValue int64) (Counter, error) {
-	c := NewCounter(defaultValue)
+	m := NewCounter(defaultValue)
 	if r == nil {
 		r = DefaultRegistry
 	}
 
-	err := r.Register(name, c)
+	err := r.Register(name, m)
 	if err != nil {
 		return nil, err
 	}
 
-	return c, nil
+	return m, nil
 }
 
+// NewCounter constructs a new Counter
 func NewCounter(defaultValue int64) Counter {
 	if !Enabled {
 		return &nilCounter{
-			Metric: &nilMetric{},
+			Metric: newStandardMetric(nil),
 		}
 	}
 
@@ -55,17 +68,17 @@ type standardCounter struct {
 
 func (c *standardCounter) Inc(i int64) {
 	atomic.AddInt64(&c.value, i)
-	c.updateModification()
+	c.Metric.updateModification()
 }
 
 func (c *standardCounter) Dec(i int64) {
 	atomic.AddInt64(&c.value, -i)
-	c.updateModification()
+	c.Metric.updateModification()
 }
 
 func (c *standardCounter) Reset() {
 	atomic.StoreInt64(&c.value, c.defaultValue)
-	c.updateModification()
+	c.Metric.updateModification()
 }
 
 func (c *standardCounter) Value() int64 {
@@ -84,11 +97,17 @@ type nilCounter struct {
 	Metric
 }
 
-func (*nilCounter) Inc(int64) {}
+func (c *nilCounter) Inc(int64) {
+	c.Metric.updateModification()
+}
 
-func (*nilCounter) Dec(int64) {}
+func (c *nilCounter) Dec(int64) {
+	c.Metric.updateModification()
+}
 
-func (*nilCounter) Reset() {}
+func (c *nilCounter) Reset() {
+	c.Metric.updateModification()
+}
 
 func (*nilCounter) Value() int64 {
 	return 0

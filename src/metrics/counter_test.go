@@ -13,7 +13,6 @@ func TestNewRegisteredCounter(t *testing.T) {
 	defer ctrl.Finish()
 
 	name := "test"
-
 	registry := NewMockRegistry(ctrl)
 
 	t.Run("with error", func(t *testing.T) {
@@ -33,6 +32,16 @@ func TestNewRegisteredCounter(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, resultCounter)
 	})
+
+	t.Run("registry isn't set", func(t *testing.T) {
+		DefaultRegistry = registry
+		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+
+		counter, err := NewRegisteredCounter(name, nil)
+
+		assert.NotNil(t, counter)
+		assert.NoError(t, err)
+	})
 }
 
 func TestNewRegisteredPresetCounter(t *testing.T) {
@@ -41,49 +50,48 @@ func TestNewRegisteredPresetCounter(t *testing.T) {
 
 	name := "test"
 
-	t.Run("without inMemoryRegistry", func(t *testing.T) {
-		resultCounter, err := NewRegisteredPresetCounter(name, nil, 0)
+	registry := NewMockRegistry(ctrl)
+
+	t.Run("without error", func(t *testing.T) {
+		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+
+		counter, err := NewRegisteredPresetCounter(name, registry, 0)
+
 		assert.NoError(t, err)
-
-		counterInRegistry := DefaultRegistry.Get(name)
-		assert.Equal(t, counterInRegistry, resultCounter)
+		assert.NotNil(t, counter)
 	})
 
-	t.Run("with inMemoryRegistry", func(t *testing.T) {
-		registry := NewMockRegistry(ctrl)
+	t.Run("with error", func(t *testing.T) {
+		registry.EXPECT().Register(name, gomock.Any()).Return(errors.New("test"))
 
-		t.Run("without error", func(t *testing.T) {
-			registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+		counter, err := NewRegisteredPresetCounter(name, registry, 0)
 
-			counter, err := NewRegisteredPresetCounter(name, registry, 0)
-
-			assert.NoError(t, err)
-			assert.NotNil(t, counter)
-		})
-
-		t.Run("with error", func(t *testing.T) {
-			registry.EXPECT().Register(name, gomock.Any()).Return(errors.New("test"))
-
-			counter, err := NewRegisteredPresetCounter(name, registry, 0)
-
-			assert.Error(t, err)
-			assert.Nil(t, counter)
-		})
-
-		t.Run("is set default value", func(t *testing.T) {
-			defaultValue := int64(123)
-			Enabled = true
-			registry.EXPECT().Register(name, gomock.Any()).Return(nil)
-
-			resultCounter, err := NewRegisteredPresetCounter(name, registry, defaultValue)
-
-			assert.NoError(t, err)
-			assert.NotNil(t, resultCounter)
-			assert.IsType(t, &standardCounter{}, resultCounter)
-			assert.Equal(t, defaultValue, resultCounter.(*standardCounter).defaultValue)
-		})
+		assert.Error(t, err)
+		assert.Nil(t, counter)
 	})
 
+	t.Run("is set default value", func(t *testing.T) {
+		defaultValue := int64(123)
+		Enabled = true
+		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+
+		resultCounter, err := NewRegisteredPresetCounter(name, registry, defaultValue)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resultCounter)
+		assert.IsType(t, &standardCounter{}, resultCounter)
+		assert.Equal(t, defaultValue, resultCounter.(*standardCounter).defaultValue)
+	})
+
+	t.Run("registry isn't set", func(t *testing.T) {
+		DefaultRegistry = registry
+		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+
+		counter, err := NewRegisteredPresetCounter(name, nil, 0)
+
+		assert.NotNil(t, counter)
+		assert.NoError(t, err)
+	})
 }
 
 func TestNewCounter(t *testing.T) {

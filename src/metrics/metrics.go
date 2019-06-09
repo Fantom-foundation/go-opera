@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	// Enabled flag for turn on/off metrics
 	Enabled = false
 )
 
@@ -31,10 +32,18 @@ func init() {
 	}
 }
 
+// Metric property measure with time attributes
 type Metric interface {
+	// CreationTime return creation time of object implemented Metric
 	CreationTime() time.Time
+
+	// LastModification return modification time (update after changing metric property)
 	LastModification() time.Time
+
+	// updateModification change modification time
 	updateModification()
+
+	// cope make snapshot
 	copy() Metric
 }
 

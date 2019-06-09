@@ -6,19 +6,30 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Registry management metrics
 type Registry interface {
+	// Register add new metric. If metric is exist, return error
 	Register(name string, metric Metric) error
+
+	// Unregister delete metric
 	Unregister(name string)
+
+	// UnregisterAll delete all metrics
 	UnregisterAll()
 
+	// Get the metric by name
 	Get(name string) Metric
+
+	// GetOrRegister getting existing metric or register new metric
 	GetOrRegister(name string, metric Metric) Metric
 }
 
 var (
+	// DefaultRegistry common in memory registry
 	DefaultRegistry = NewRegistry()
 )
 
+// NewRegistry constructs a new Registry
 func NewRegistry() Registry {
 	return &inMemoryRegistry{metrics: new(sync.Map)}
 }
