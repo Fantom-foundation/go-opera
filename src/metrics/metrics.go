@@ -7,11 +7,15 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 var (
 	// Enabled flag for turn on/off metrics
 	Enabled = false
+
+	log = logger.Get().WithField("module", "metrics")
 )
 
 const (

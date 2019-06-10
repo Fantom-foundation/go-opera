@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -15,32 +14,21 @@ func TestNewRegisteredGaugeFloat64(t *testing.T) {
 	name := "test"
 	registry := NewMockRegistry(ctrl)
 
-	t.Run("with error", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return(errors.New("test"))
+	t.Run("registry is set", func(t *testing.T) {
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		gauge, err := NewRegisteredGaugeFloat64(name, registry)
-
-		assert.Nil(t, gauge)
-		assert.Error(t, err)
-	})
-
-	t.Run("without error", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
-
-		gauge, err := NewRegisteredGaugeFloat64(name, registry)
+		gauge := NewRegisteredGaugeFloat64(name, registry)
 
 		assert.NotNil(t, gauge)
-		assert.NoError(t, err)
 	})
 
 	t.Run("registry isn't set", func(t *testing.T) {
 		DefaultRegistry = registry
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		gauge, err := NewRegisteredGaugeFloat64(name, nil)
+		gauge := NewRegisteredGaugeFloat64(name, nil)
 
 		assert.NotNil(t, gauge)
-		assert.NoError(t, err)
 	})
 }
 

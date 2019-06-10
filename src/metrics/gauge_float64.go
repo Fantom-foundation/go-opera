@@ -19,18 +19,15 @@ type GaugeFloat64 interface {
 }
 
 // NewRegisteredGaugeFloat64 create and register a new GaugeFloat64
-func NewRegisteredGaugeFloat64(name string, r Registry) (GaugeFloat64, error) {
+func NewRegisteredGaugeFloat64(name string, r Registry) GaugeFloat64 {
 	m := NewGaugeFloat64()
 	if r == nil {
 		r = DefaultRegistry
 	}
 
-	err := r.Register(name, m)
-	if err != nil {
-		return nil, err
-	}
+	r.Register(name, m)
 
-	return m, nil
+	return m
 }
 
 // NewGaugeFloat64 constructs a new GaugeFloat64

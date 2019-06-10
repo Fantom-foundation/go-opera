@@ -2,14 +2,16 @@ package metrics
 
 import (
 	"sync"
-
-	"github.com/pkg/errors"
 )
+
+type RegistryEachFunc func(name string, metric Metric)
 
 // Registry management metrics
 type Registry interface {
-	// Register add new metric. If metric is exist, return error
-	Register(name string, metric Metric) error
+	Each(f RegistryEachFunc)
+
+	// Register add new metric. If metric is exist, write Fatal error
+	Register(name string, metric Metric)
 
 	// Unregister delete metric
 	Unregister(name string)
@@ -38,14 +40,31 @@ type inMemoryRegistry struct {
 	metrics *sync.Map
 }
 
-func (r *inMemoryRegistry) Register(name string, metric Metric) error {
+func (r *inMemoryRegistry) Each(f RegistryEachFunc) {
+	r.metrics.Range(func(key, value interface{}) bool {
+		name, ok := key.(string)
+		if !ok {
+			log.Fatal("name must be string")
+		}
+
+		metric, ok := value.(Metric)
+		if !ok {
+			log.Fatal("metric is incorrect type: must be Metric type")
+		}
+
+		f(name, metric)
+
+		return true
+	})
+}
+
+func (r *inMemoryRegistry) Register(name string, metric Metric) {
 	_, ok := r.metrics.Load(name)
 	if ok {
-		return errors.Errorf("metric '%s' is exist", name)
+		log.Fatalf("metric '%s' is exist", name)
 	}
 
 	r.metrics.Store(name, metric)
-	return nil
 }
 
 func (r *inMemoryRegistry) Unregister(name string) {

@@ -2,12 +2,13 @@ package metrics
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-//go:generate mockgen -package=metrics -source=inMemoryRegistry.go -destination=registry_mock_test.go Registry
+//go:generate mockgen -package=metrics -source=registry.go -destination=registry_mock_test.go Registry
 
 func TestNewRegistry(t *testing.T) {
 	registry := NewRegistry()
@@ -25,9 +26,7 @@ func Test_registry_Register(t *testing.T) {
 	metric := newStandardMetric(nil)
 
 	t.Run("without error", func(t *testing.T) {
-		err := registry.Register(name, metric)
-
-		assert.NoError(t, err)
+		registry.Register(name, metric)
 
 		loadedMetric, ok := registry.metrics.Load(name)
 
@@ -36,9 +35,17 @@ func Test_registry_Register(t *testing.T) {
 	})
 
 	t.Run("with error", func(t *testing.T) {
-		err := registry.Register(name, metric)
+		registry.metrics.Store(name, metric)
+		defer registry.metrics.Delete(name)
 
-		assert.Error(t, err)
+		log.Logger.ExitFunc = func(i int) {
+			assert.Equal(t, 1, i)
+		}
+		defer func() {
+			log.Logger.ExitFunc = nil
+		}()
+
+		registry.Register(name, metric)
 	})
 }
 
@@ -142,4 +149,55 @@ func Test_registry_GetOrRegister(t *testing.T) {
 		assert.False(t, result == metric)
 		assert.True(t, result == existingMetric)
 	})
+}
+
+func Test_inMemoryRegistry_Each(t *testing.T) {
+	registryFunc := func() RegistryEachFunc { return func(name string, metric Metric) {} }
+	registry := &inMemoryRegistry{
+		metrics: new(sync.Map),
+	}
+	name := "test"
+	metric := newStandardMetric(nil)
+
+	t.Run("incorrect name type", func(t *testing.T) {
+		noSupportName := 0
+		registry.metrics.Store(noSupportName, metric)
+		defer registry.metrics.Delete(noSupportName)
+
+		log.Logger.ExitFunc = func(i int) {
+			assert.Equal(t, 1, i)
+		}
+		defer func() {
+			log.Logger.ExitFunc = nil
+		}()
+
+		registry.Each(registryFunc())
+	})
+
+	t.Run("incorrect metric type", func(t *testing.T) {
+		registry.metrics.Store(name, 0)
+		defer registry.metrics.Delete(name)
+
+		log.Logger.ExitFunc = func(i int) {
+			assert.Equal(t, 1, i)
+		}
+		defer func() {
+			log.Logger.ExitFunc = nil
+		}()
+
+		registry.Each(registryFunc())
+	})
+
+	t.Run("correct types", func(t *testing.T) {
+		registry.metrics.Store(name, metric)
+		defer registry.metrics.Delete(name)
+
+		counter := int32(0)
+		registry.Each(func(name string, metric Metric) {
+			atomic.AddInt32(&counter, 1)
+		})
+
+		assert.Equal(t, int32(1), counter)
+	})
+
 }

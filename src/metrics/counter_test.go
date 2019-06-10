@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -15,32 +14,21 @@ func TestNewRegisteredCounter(t *testing.T) {
 	name := "test"
 	registry := NewMockRegistry(ctrl)
 
-	t.Run("with error", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return(errors.New("test"))
+	t.Run("registry is set", func(t *testing.T) {
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		resultCounter, err := NewRegisteredCounter(name, registry)
+		resultCounter := NewRegisteredCounter(name, registry)
 
-		assert.Error(t, err)
-		assert.Nil(t, resultCounter)
-	})
-
-	t.Run("without error", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
-
-		resultCounter, err := NewRegisteredCounter(name, registry)
-
-		assert.NoError(t, err)
 		assert.NotNil(t, resultCounter)
 	})
 
 	t.Run("registry isn't set", func(t *testing.T) {
 		DefaultRegistry = registry
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		counter, err := NewRegisteredCounter(name, nil)
+		counter := NewRegisteredCounter(name, nil)
 
 		assert.NotNil(t, counter)
-		assert.NoError(t, err)
 	})
 }
 
@@ -52,32 +40,21 @@ func TestNewRegisteredPresetCounter(t *testing.T) {
 
 	registry := NewMockRegistry(ctrl)
 
-	t.Run("without error", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+	t.Run("registry is set", func(t *testing.T) {
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		counter, err := NewRegisteredPresetCounter(name, registry, 0)
+		counter := NewRegisteredPresetCounter(name, registry, 0)
 
-		assert.NoError(t, err)
 		assert.NotNil(t, counter)
-	})
-
-	t.Run("with error", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return(errors.New("test"))
-
-		counter, err := NewRegisteredPresetCounter(name, registry, 0)
-
-		assert.Error(t, err)
-		assert.Nil(t, counter)
 	})
 
 	t.Run("is set default value", func(t *testing.T) {
 		defaultValue := int64(123)
 		Enabled = true
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		resultCounter, err := NewRegisteredPresetCounter(name, registry, defaultValue)
+		resultCounter := NewRegisteredPresetCounter(name, registry, defaultValue)
 
-		assert.NoError(t, err)
 		assert.NotNil(t, resultCounter)
 		assert.IsType(t, &standardCounter{}, resultCounter)
 		assert.Equal(t, defaultValue, resultCounter.(*standardCounter).defaultValue)
@@ -85,12 +62,11 @@ func TestNewRegisteredPresetCounter(t *testing.T) {
 
 	t.Run("registry isn't set", func(t *testing.T) {
 		DefaultRegistry = registry
-		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
+		registry.EXPECT().Register(name, gomock.Any()).Return()
 
-		counter, err := NewRegisteredPresetCounter(name, nil, 0)
+		counter := NewRegisteredPresetCounter(name, nil, 0)
 
 		assert.NotNil(t, counter)
-		assert.NoError(t, err)
 	})
 }
 

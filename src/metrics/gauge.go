@@ -19,18 +19,15 @@ type Gauge interface {
 }
 
 // NewRegisteredGauge create and register a new Gauge
-func NewRegisteredGauge(name string, r Registry) (Gauge, error) {
+func NewRegisteredGauge(name string, r Registry) Gauge {
 	m := NewGauge()
 	if r == nil {
 		r = DefaultRegistry
 	}
 
-	err := r.Register(name, m)
-	if err != nil {
-		return nil, err
-	}
+	r.Register(name, m)
 
-	return m, nil
+	return m
 }
 
 // NewGauge constructs a new Gauge

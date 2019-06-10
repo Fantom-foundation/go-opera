@@ -25,23 +25,20 @@ type Counter interface {
 }
 
 // NewRegisteredCounter create and register a new Counter
-func NewRegisteredCounter(name string, r Registry) (Counter, error) {
+func NewRegisteredCounter(name string, r Registry) Counter {
 	return NewRegisteredPresetCounter(name, r, 0)
 }
 
 // NewRegisteredPresetCounter create and register a new Counter with default value
-func NewRegisteredPresetCounter(name string, r Registry, defaultValue int64) (Counter, error) {
+func NewRegisteredPresetCounter(name string, r Registry, defaultValue int64) Counter {
 	m := NewCounter(defaultValue)
 	if r == nil {
 		r = DefaultRegistry
 	}
 
-	err := r.Register(name, m)
-	if err != nil {
-		return nil, err
-	}
+	r.Register(name, m)
 
-	return m, nil
+	return m
 }
 
 // NewCounter constructs a new Counter
