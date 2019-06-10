@@ -13,6 +13,9 @@ import (
 var log = logger.Get().WithField("module", "prometheus")
 
 func Handler(registry metrics.Registry) http.Handler {
+	if registry == nil {
+		registry = metrics.DefaultRegistry
+	}
 	handler := promhttp.InstrumentMetricHandler(
 		prometheus.DefaultRegisterer, promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}))
 

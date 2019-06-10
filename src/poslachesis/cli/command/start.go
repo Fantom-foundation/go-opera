@@ -1,11 +1,14 @@
 package command
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dgraph-io/badger"
 	"github.com/spf13/cobra"
@@ -13,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
@@ -87,6 +91,32 @@ var Start = &cobra.Command{
 		default:
 			return fmt.Errorf("unknown network name: %s", netName)
 		}
+
+		log := logger.Get()
+
+		mux := http.NewServeMux()
+		mux.Handle("/metrics",prometheus.Handler(nil))
+		httpServer := http.Server{
+			Handler: mux,
+			Addr:    ":19090",
+		}
+		go func() {
+			log.Infof("http server start on %s", httpServer.Addr)
+			err := httpServer.ListenAndServe()
+			if err != nil && !(err.Error() == "http: Server closed") {
+				log.Error(err)
+			}
+		}()
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			err := httpServer.Shutdown(ctx)
+			if err != nil {
+				log.Error(err)
+			}
+			log.Infof("http server is stopped")
+		}()
 
 		// start
 		l := lachesis.New(db, "", key, conf)
