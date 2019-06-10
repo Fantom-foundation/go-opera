@@ -1,7 +1,0 @@
-syntax = "proto3";
-package wire;
-
-message Block {
-  uint64 Index = 1;
-  repeated bytes Events = 2;
-}

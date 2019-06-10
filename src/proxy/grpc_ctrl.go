@@ -94,22 +94,29 @@ func (p *grpcCtrlProxy) StakeOf(_ context.Context, req *internal.ID) (*internal.
 	return &b, nil
 }
 
-// Transaction returns info about transaction.
-func (p *grpcCtrlProxy) TransactionInfo(_ context.Context, req *internal.TransactionRequest) (*internal.TransactionResponse, error) {
+// GetTxnInfo returns info about transaction.
+func (p *grpcCtrlProxy) GetTxnInfo(_ context.Context, req *internal.TransactionRequest) (*internal.TransactionResponse, error) {
 	h := hash.HexToTransactionHash(req.Hex)
-	tx := p.consensus.GetTransaction(h)
 
-	if tx == nil {
+	var (
+		txn   *inter.InternalTransaction
+		event *inter.Event
+		block *inter.Block
+	)
+
+	txn, event = p.node.GetInternalTxn(h)
+	if txn == nil {
 		return nil, status.Error(codes.NotFound, "transaction not found")
 	}
-	// TODO: replace TransactionResponse with inter/wire.InternalTransaction
+
+	if event != nil {
+		block = p.consensus.GetEventBlock(event.Hash())
+	}
+
 	return &internal.TransactionResponse{
-		Nonce:  tx.Index,
-		Amount: tx.Amount,
-		Receiver: &internal.ID{
-			Hex: tx.Receiver.Hex(),
-		},
-		Until: tx.UntilBlock,
+		Txn:   txn.ToWire(),
+		Event: event.ToWire(),
+		Block: block.ToWire(),
 	}, nil
 }
 

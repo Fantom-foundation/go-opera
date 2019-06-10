@@ -9,23 +9,9 @@ and the payment of all rewards.
 */
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
-
-// GetTransaction returns transaction by hash.
-func (p *Poset) GetTransaction(h hash.Transaction) *inter.InternalTransaction {
-	// TODO: implement. If transaction is not found return nil.
-	return &inter.InternalTransaction{}
-}
-
-// GetTransactionCount returns transaction count for peer.
-func (p *Poset) GetTransactionCount(h hash.Peer) uint64 {
-	// TODO: implement.
-	return 0
-}
 
 // isEventValid validates event according to frame state.
 func (p *Poset) isEventValid(e *Event, f *Frame) bool {
@@ -40,14 +26,14 @@ func (p *Poset) isEventValid(e *Event, f *Frame) bool {
 // applyTransactions execs ordered txns on state.
 // TODO: fine of invalid txns
 // TODO: transaction fees
-func applyTransactions(db *state.DB, ordered Events) {
+func (p *Poset) applyTransactions(db *state.DB, ordered inter.Events) {
 	for _, e := range ordered {
 		sender := e.Creator
 		for _, tx := range e.InternalTransactions {
 			receiver := tx.Receiver
 
 			if db.FreeBalance(sender) < tx.Amount {
-				logger.Get().Warnf("Cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
+				p.Warnf("cannot send %d from %s to %s: balance is insufficient, skipped", tx.Amount, sender.String(), receiver.String())
 				continue
 			}
 
@@ -56,8 +42,10 @@ func applyTransactions(db *state.DB, ordered Events) {
 			}
 
 			if tx.UntilBlock == 0 {
+				p.Infof("transfer %d from %s to %s", tx.Amount, sender.String(), receiver.String())
 				db.Transfer(sender, receiver, tx.Amount)
 			} else {
+				p.Infof("delegate %d from %s to %s for %d", tx.Amount, sender.String(), receiver.String(), tx.UntilBlock)
 				db.Delegate(sender, receiver, tx.Amount, tx.UntilBlock)
 			}
 		}
@@ -65,6 +53,6 @@ func applyTransactions(db *state.DB, ordered Events) {
 }
 
 // applyRewards calcs block rewards.
-func applyRewards(db *state.DB, ordered Events) {
+func (p *Poset) applyRewards(db *state.DB, ordered inter.Events) {
 	// TODO: implement it
 }

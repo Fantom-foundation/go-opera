@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fortytw2/leaktest"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
@@ -36,6 +37,8 @@ func TestGrpcAppReconnect(t *testing.T) {
 }
 
 func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
+	defer leaktest.CheckTimeout(t, time.Second)()
+
 	const (
 		timeout    = 1 * time.Second
 		errTimeout = "time is over"

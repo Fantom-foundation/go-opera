@@ -11,11 +11,11 @@ var Transfer = &cobra.Command{
 	Use:   "transfer",
 	Short: "Transfers a balance amount to given receiver",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		amount, err := cmd.Flags().GetUint64("amount")
+		index, err := cmd.Flags().GetUint64("index")
 		if err != nil {
 			return err
 		}
-		index, err := cmd.Flags().GetUint64("index")
+		amount, err := cmd.Flags().GetUint64("amount")
 		if err != nil {
 			return err
 		}
@@ -44,17 +44,17 @@ var Transfer = &cobra.Command{
 func init() {
 	initCtrlProxy(Transfer)
 
+	Transfer.Flags().Uint64("index", 0, "transaction nonce (required)")
 	Transfer.Flags().String("receiver", "", "transaction receiver (required)")
 	Transfer.Flags().Uint64("amount", 0, "transaction amount (required)")
-	Transfer.Flags().Uint64("index", 0, "transaction nonce (required)")
 
+	if err := Transfer.MarkFlagRequired("index"); err != nil {
+		panic(err)
+	}
 	if err := Transfer.MarkFlagRequired("receiver"); err != nil {
 		panic(err)
 	}
 	if err := Transfer.MarkFlagRequired("amount"); err != nil {
-		panic(err)
-	}
-	if err := Transfer.MarkFlagRequired("index"); err != nil {
 		panic(err)
 	}
 }

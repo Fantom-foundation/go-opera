@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -15,13 +14,14 @@ import (
 )
 
 type service struct {
-	listen network.ListenFunc
-	server *grpc.Server
+	Addr       string
+	listen     network.ListenFunc
+	stopServer func()
 }
 
 // StartService starts node service.
 func (n *Node) StartService() {
-	if n.server != nil {
+	if n.stopServer != nil {
 		return
 	}
 
@@ -35,20 +35,16 @@ func (n *Node) StartService() {
 	}
 
 	bind := n.NetAddrOf(n.host)
-	n.server, _ = api.StartService(bind, n.key, genesis, n, n.Infof, n.service.listen)
-
-	n.Info("service started")
+	_, n.Addr, n.stopServer = api.StartService(bind, n.key, genesis, n, n.Infof, n.service.listen)
 }
 
 // StopService stops node service.
 func (n *Node) StopService() {
-	if n.server == nil {
+	if n.stopServer == nil {
 		return
 	}
-	n.server.GracefulStop()
-	n.server = nil
-
-	n.Info("service stopped")
+	n.stopServer()
+	n.stopServer = nil
 }
 
 /*

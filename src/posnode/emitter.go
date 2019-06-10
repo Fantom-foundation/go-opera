@@ -50,13 +50,21 @@ func (n *Node) StopEventEmission() {
 	n.emitter.done = nil
 }
 
+func (n *Node) internalTxnMempool(idx hash.Transaction) *inter.InternalTransaction {
+	n.emitter.RLock()
+	defer n.emitter.RUnlock()
+
+	// chck mempool
+	if n.emitter.internalTxns == nil {
+		return nil
+	}
+	return n.emitter.internalTxns[idx]
+}
+
 // AddInternalTxn takes internal transaction for new event.
 func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, error) {
-	// TODO: make index and check idempotency of tx here
-	idx := hash.FakeTransaction()
-
 	if tx.Receiver == n.ID {
-		return hash.Transaction{}, fmt.Errorf("can not transafer to yourself")
+		return hash.Transaction{}, fmt.Errorf("can not transfer to yourself")
 	}
 
 	if tx.Amount < 1 {
@@ -67,13 +75,25 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 		return hash.Transaction{}, fmt.Errorf("insufficient funds %d to transfer %d", balance, tx.Amount)
 	}
 
+	idx := inter.TransactionHashOf(n.ID, tx.Index)
+
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
 	if n.emitter.internalTxns == nil {
 		n.emitter.internalTxns = make(map[hash.Transaction]*inter.InternalTransaction)
 	}
+
+	if prev, ok := n.emitter.internalTxns[idx]; ok {
+		return idx, fmt.Errorf("the same txn is in mempool already: %+v", prev)
+	}
+
+	if e := n.store.GetTxnsEvent(idx); e != nil {
+		return idx, fmt.Errorf("the same txn already exists in event %d of %s", e.Index, e.Creator.String())
+	}
+
 	n.emitter.internalTxns[idx] = &tx
+
 	return idx, nil
 }
 
@@ -87,12 +107,12 @@ func (n *Node) AddExternalTxn(tx []byte) {
 
 // EmitEvent takes all transactions from buffer builds event,
 // connects it with given amount of parents, sign and put it into the storage.
-// It returns emmited event for test purpose.
+// It returns emitted event for test purpose.
 func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
-	n.Debugf("emiting event")
+	n.Debugf("emitting event")
 
 	var (
 		index          uint64
@@ -129,7 +149,9 @@ func (n *Node) EmitEvent() *inter.Event {
 
 	// transactions buffer swap
 	internalTxns = make([]*inter.InternalTransaction, 0, len(n.emitter.internalTxns))
-	for _, txn := range n.emitter.internalTxns {
+	for idx, txn := range n.emitter.internalTxns {
+		n.Debugf("event internal tx [%s] amount: %d from [%s] to [%s]",
+			idx.Hex(), txn.Amount, n.ID.Hex(), txn.Receiver.Hex())
 		internalTxns = append(internalTxns, txn)
 	}
 	n.emitter.internalTxns = nil
@@ -149,7 +171,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	}
 
 	n.onNewEvent(event)
-	n.Debugf("new event emited %s", event)
+	n.Infof("new event emitted %s", event)
 
 	return event
 }

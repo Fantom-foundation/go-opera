@@ -23,17 +23,13 @@ type nodeState2 struct {
 	wip  int
 
 	state        state
-	getStateChan chan state
-	setStateChan chan state
+	stateLock    sync.RWMutex
 }
 
 func newNodeState2() *nodeState2 {
 	ns := &nodeState2{
 		cond:         sync.NewCond(&sync.Mutex{}),
-		getStateChan: make(chan state),
-		setStateChan: make(chan state),
 	}
-	go ns.mtx()
 	return ns
 }
 
@@ -49,15 +45,6 @@ func (s state) String() string {
 		return "Stop"
 	default:
 		return "Unknown"
-	}
-}
-
-func (s *nodeState2) mtx() {
-	for {
-		select {
-		case s.state = <-s.setStateChan:
-		case s.getStateChan <- s.state:
-		}
 	}
 }
 
@@ -97,9 +84,13 @@ func (s *nodeState2) waitRoutines() {
 }
 
 func (s *nodeState2) getState() state {
-	return <-s.getStateChan
+	s.stateLock.RLock()
+	defer s.stateLock.RUnlock()
+	return s.state
 }
 
 func (s *nodeState2) setState(state state) {
-	s.setStateChan <- state
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
+	s.state = state
 }

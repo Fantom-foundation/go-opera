@@ -20,9 +20,9 @@ func prepareApp() *cobra.Command {
 
 	app.AddCommand(command.Start)
 	app.AddCommand(command.ID)
-	app.AddCommand(command.Balance)
+	app.AddCommand(command.Stake)
 	app.AddCommand(command.Transfer)
-	app.AddCommand(command.Info)
+	app.AddCommand(command.TxnInfo)
 	app.AddCommand(command.LogLevel)
 	app.AddCommand(command.Key)
 

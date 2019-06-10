@@ -97,26 +97,28 @@ func (p *Poset) PushEvent(e hash.Event) {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(event *inter.Event) {
+	p.Debugf("consensus: start %s", event.String())
 	e := &Event{
 		Event: event,
 	}
-
-	const X = 3 // TODO: move this magic number to mainnet config
 
 	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
 		return
 	}
+	p.Debugf("consensus: %s is root", event.String())
+
 	p.setClothoCandidates(e, frame)
 
 	// process matured frames where ClothoCandidates have become Clothos
-	var ordered Events
+	var ordered inter.Events
 	lastFinished := p.state.LastFinishedFrameN
 	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
-			// make new block
+			p.Debugf("consensus: make new block %d from frame %d", p.state.LastBlockN+1, n)
 			events := p.topologicalOrdered(n)
-			block := NewBlock(p.state.LastBlockN+1, events)
+			block := inter.NewBlock(p.state.LastBlockN+1, events)
+			p.store.SetEventsBlockNum(block.Index, events...)
 			p.store.SetBlock(block)
 			p.state.LastBlockN = block.Index
 			p.saveState()
@@ -132,27 +134,29 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	// balances changes
-	applyAt := p.frame(frame.Index+X, true)
-	state := p.store.StateDB(frame.Balances)
-	applyTransactions(state, ordered)
-	applyRewards(state, ordered)
+	applyAt := p.frame(frame.Index+stateGap, true)
+	state := p.store.StateDB(applyAt.Balances)
+	p.applyTransactions(state, ordered)
+	p.applyRewards(state, ordered)
 	balances, err := state.Commit(true)
 	if err != nil {
 		p.Fatal(err)
 	}
 	if applyAt.SetBalances(balances) {
-		p.reconsensusFromFrame(applyAt.Index)
+		p.Debugf("consensus: new state [%d]%s --> [%d]%s", frame.Index, frame.Balances.String(), applyAt.Index, balances.String())
+		p.reconsensusFromFrame(applyAt.Index, balances)
 	}
 
 	// save finished frames
 	if p.state.LastFinishedFrameN < lastFinished {
 		p.state.LastFinishedFrameN = lastFinished
 		p.saveState()
+		p.Debugf("consensus: lastFinishedFrameN is %d", p.state.LastFinishedFrameN)
 	}
 
 	// clean old frames
 	for i := range p.frames {
-		if i+X < p.state.LastFinishedFrameN {
+		if i+stateGap < p.state.LastFinishedFrameN {
 			delete(p.frames, i)
 		}
 	}
@@ -162,7 +166,6 @@ func (p *Poset) consensus(event *inter.Event) {
 // and returns frame where event is root.
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) *Frame {
-	//log.Debugf("----- %s", e)
 	knownRoots := eventsByFrame{}
 	minFrame := p.state.LastFinishedFrameN + 1
 	for parent := range e.Parents {
@@ -308,7 +311,7 @@ CLOTHO:
 }
 
 // topologicalOrdered sorts events to chain with Atropos consensus time.
-func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
+func (p *Poset) topologicalOrdered(frameNum uint64) (chain inter.Events) {
 	frame := p.frame(frameNum, false)
 
 	var atroposes Events
@@ -324,8 +327,10 @@ func (p *Poset) topologicalOrdered(frameNum uint64) (chain Events) {
 		ee := Events{}
 		p.collectParents(atropos, &ee, already)
 		sort.Sort(ee)
-		chain = append(chain, ee...)
-		chain = append(chain, atropos)
+		for _, e := range ee {
+			chain = append(chain, e.Event)
+		}
+		chain = append(chain, atropos.Event)
 	}
 
 	return
@@ -355,7 +360,7 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 
 // reconsensusFromFrame recalcs consensus of frames.
 // It is not safe for concurrent use.
-func (p *Poset) reconsensusFromFrame(start uint64) {
+func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	stop := p.frameNumLast()
 	var all inter.Events
 	// foreach stale frame
@@ -373,17 +378,16 @@ func (p *Poset) reconsensusFromFrame(start uint64) {
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
-			Balances:         frame.Balances,
+			Balances:         newBalance,
 		}
 	}
-	// recalc consensus
+	// recalc consensus (without frame saving)
 	for _, e := range all.ByParents() {
 		p.consensus(e)
 	}
-	// foreach fresh frame
+	// save fresh frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
-		// save fresh frame
 		p.setFrameSaving(frame)
 		frame.Save()
 	}

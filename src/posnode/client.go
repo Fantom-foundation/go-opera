@@ -36,6 +36,9 @@ type (
 )
 
 func (n *Node) initClient() {
+	n.connPool.Lock()
+	defer n.connPool.Unlock()
+
 	if n.connPool.cache != nil {
 		return
 	}
@@ -51,6 +54,21 @@ func (n *Node) initClient() {
 	n.connPool.opts = append(n.connPool.opts,
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(api.ClientAuth(n.key, genesis)))
+}
+
+func (n *Node) stopClient() {
+	n.connPool.Lock()
+	defer n.connPool.Unlock()
+
+	if n.connPool.cache == nil {
+		return
+	}
+
+	for _, c := range n.connPool.cache {
+		_ = c.Close()
+	}
+
+	n.connPool.cache = nil
 }
 
 // ConnectTo connects to other node service.
@@ -144,6 +162,7 @@ func (cc *connPool) Clean() {
 	old := all[cc.size/2:]
 
 	for _, c := range old {
+		_ = c.Close()
 		if cached := cc.cache[c.addr]; c == cached {
 			delete(cc.cache, c.addr)
 		}

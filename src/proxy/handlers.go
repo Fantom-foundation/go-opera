@@ -31,10 +31,11 @@ type App interface {
 type Node interface {
 	GetID() hash.Peer
 	AddInternalTxn(inter.InternalTransaction) (hash.Transaction, error)
+	GetInternalTxn(hash.Transaction) (*inter.InternalTransaction, *inter.Event)
 }
 
 // Consensus is a set of consensus handlers.
 type Consensus interface {
 	StakeOf(peer hash.Peer) uint64
-	GetTransaction(hash.Transaction) *inter.InternalTransaction
+	GetEventBlock(hash.Event) *inter.Block
 }

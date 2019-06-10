@@ -67,7 +67,8 @@ func (p *Poset) Bootstrap() {
 		}
 	}
 	// recalc in case there was a interrupted consensus
-	p.reconsensusFromFrame(p.state.LastFinishedFrameN + 1)
+	start := p.frame(p.state.LastFinishedFrameN, true)
+	p.reconsensusFromFrame(p.state.LastFinishedFrameN+1, start.Balances)
 }
 
 func (p *Poset) GetGenesisHash() hash.Hash {

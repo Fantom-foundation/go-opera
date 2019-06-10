@@ -8,19 +8,23 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/fortytw2/leaktest"
 )
 
 func TestDiscoveryPeer(t *testing.T) {
+	defer leaktest.CheckTimeout(t, time.Second)()
+
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
 	node1.StartService()
-	defer node1.StopService()
+	defer node1.Stop()
 
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
 	node2.conf.ConnectTimeout = time.Millisecond * 100
+	defer node2.Stop()
 
 	// connect node2 to node1
 	store2.BootstrapPeers(node1.AsPeer())
@@ -72,22 +76,23 @@ func TestDiscoveryPeer(t *testing.T) {
 }
 
 func TestDiscoveryHost(t *testing.T) {
+	defer leaktest.CheckTimeout(t, time.Second)()
+
 	assertar := assert.New(t)
 
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
 	node1.StartService()
-	defer node1.StopService()
 	node1.initPeers()
+	defer node1.Stop()
 
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
 	node2.StartService()
-	defer node2.StopService()
 	node2.StartDiscovery()
-	defer node2.StopDiscovery()
+	defer node2.Stop()
 
 	node1.AskPeerInfo(node2.Host(), nil)
 

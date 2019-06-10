@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/fortytw2/leaktest"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -31,6 +33,8 @@ func TestGRPC(t *testing.T) {
 }
 
 func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts ...grpc.DialOption) {
+	defer leaktest.CheckTimeout(t, time.Second)()
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -68,8 +72,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		AnyTimes()
 
 	// server
-	server, addr := StartService(bind, serverKey, gen, svc, t.Logf, listen)
-	defer server.Stop()
+	_, addr, stop := StartService(bind, serverKey, gen, svc, t.Logf, listen)
+	defer stop()
 
 	t.Run("authorized", func(t *testing.T) {
 		assertar := assert.New(t)
@@ -82,6 +86,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer conn.Close()
+
 		client := NewNodeClient(conn)
 
 		// SyncEvents() rpc
@@ -125,6 +131,8 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer conn.Close()
+
 		client := NewNodeClient(conn)
 
 		// SyncEvents() rpc

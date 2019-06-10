@@ -4,9 +4,13 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fortytw2/leaktest"
 )
 
 func TestChangeNodeState(t *testing.T) {
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	limit := 10
 
 	wg := sync.WaitGroup{}
@@ -45,6 +49,8 @@ func TestChangeNodeState(t *testing.T) {
 }
 
 func TestConcurrentGoFuncs(t *testing.T) {
+    defer leaktest.CheckTimeout(t, time.Second)()
+
 	ns := newNodeState2()
 
 	f := func() {
