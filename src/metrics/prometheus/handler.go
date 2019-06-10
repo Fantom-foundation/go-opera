@@ -12,6 +12,7 @@ import (
 
 var log = logger.Get().WithField("module", "prometheus")
 
+// Handler create net.http handler for http request from prometheus
 func Handler(registry metrics.Registry) http.Handler {
 	if registry == nil {
 		registry = metrics.DefaultRegistry

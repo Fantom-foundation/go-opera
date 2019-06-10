@@ -4,10 +4,12 @@ import (
 	"sync"
 )
 
+// RegistryEachFunc type for call back function Registry.Each
 type RegistryEachFunc func(name string, metric Metric)
 
 // Registry management metrics
 type Registry interface {
+	// Each iteration on all registered metrics
 	Each(f RegistryEachFunc)
 
 	// Register add new metric. If metric is exist, write Fatal error
