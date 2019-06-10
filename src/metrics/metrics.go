@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -31,7 +29,7 @@ func init() {
 		case "0", "false", "off":
 			Enabled = false
 		default:
-			panic(errors.Errorf("incorrect value in '%s'", envEnabled))
+			log.Errorf("incorrect value in '%s'", envEnabled)
 		}
 	}
 }
