@@ -156,7 +156,7 @@ func ASCIIschemeToDAG(scheme string) (
 }
 
 // DAGtoASCIIcheme builds ASCII-scheme of events for debug purpose.
-func DAGtoASCIIcheme(events Events) (string, error) {
+func DAGtoASCIIcheme(events Events, nodeCount int) (string, error) {
 	events = events.ByParents()
 
 	var (
@@ -188,7 +188,7 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 			scheme.ColWidth = w
 		}
 		// parents
-		r.Refs = make([]int, len(peerCols))
+		r.Refs = make([]int, nodeCount)
 		selfRefs := 0
 		for p := range e.Parents {
 			if p.IsZero() {

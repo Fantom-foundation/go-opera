@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"bufio"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -68,19 +70,12 @@ func TestPoset(t *testing.T) {
 				p0, p1 := posets[i], posets[j]
 				// compare blockchain
 				if !assertar.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
-					// posposet.Event -> inter.Event
-					src := inter.Events{}
-					for _, ee := range nodesEvents {
-						for _, e := range ee {
-							src = append(src, e.Event)
-						}
-					}
+					s0 := getASCIIByPoset(t, p0, nodesEvents, len(nodes))
+					s1 := getASCIIByPoset(t, p1, nodesEvents, len(nodes))
 
-					scheme, err := inter.DAGtoASCIIcheme(src)
-					if err != nil {
-						t.Fatal(err)
-					}
-					t.Log(scheme)
+					out := joinStrings(s0, s1)
+
+					t.Log(out)
 
 					return
 				}
@@ -109,4 +104,43 @@ func TestPoset(t *testing.T) {
 func (p *Poset) PushEventSync(e hash.Event) {
 	event := p.input.GetEvent(e)
 	p.onNewEvent(event)
+}
+
+func getASCIIByPoset(t *testing.T, poset *Poset, nodesEvents map[hash.Peer][]*Event, nodeCount int) string {
+	events := inter.Events{}
+	for _, ee := range nodesEvents {
+		for _, e := range ee {
+			e = poset.GetEvent(e.Hash())
+			events = append(events, e.Event)
+		}
+	}
+
+	scheme, err := inter.DAGtoASCIIcheme(events, nodeCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return scheme
+}
+
+// join side-by-side
+func joinStrings(str0, str1 string) string {
+	var ar0, ar1 []string
+
+	scanner := bufio.NewScanner(strings.NewReader(str0))
+	for scanner.Scan() {
+		ar0 = append(ar0, scanner.Text())
+	}
+
+	scanner = bufio.NewScanner(strings.NewReader(str1))
+	for scanner.Scan() {
+		ar1 = append(ar1, scanner.Text())
+	}
+
+	var res strings.Builder
+	for i, str := range ar0 {
+		res.WriteString("\n" + str + "\t\t" + ar1[i])
+	}
+
+	return res.String()
 }

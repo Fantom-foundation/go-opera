@@ -86,10 +86,10 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 func TestDAGtoASCIIcheme(t *testing.T) {
 	assertar := assert.New(t)
 
-	_, ee := GenEventsByNode(5, 10, 3)
+	nodes, ee := GenEventsByNode(5, 10, 3)
 	src := delPeerIndex(ee)
 
-	scheme, err := DAGtoASCIIcheme(src)
+	scheme, err := DAGtoASCIIcheme(src, len(nodes))
 	if !assertar.NoError(err) {
 		return
 	}
