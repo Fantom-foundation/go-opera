@@ -3,6 +3,7 @@ export DOCKER?=docker
 export GLIDE?=glide
 export GO?=go
 export GREP?=grep
+export MOCKGEN?=mockgen
 export PROTOC?=protoc
 export RM?=rm
 export SED?=sed
@@ -18,7 +19,7 @@ export BROWSER?=sensible-browser
 export CGO_ENABLED=0
 
 SUBDIRS := src/.
-TARGETS := build proto clean
+TARGETS := build proto clean buildtests
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 VENDOR_LDFLAG := --ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`"
 
@@ -59,7 +60,7 @@ build:
 dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' $(SH) -c "'$(CURDIR)/scripts/dist.sh'"
 
-test:
+test: buildtests
 	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -count=1 -tags test -race -timeout 180s
 
 cover:
@@ -74,7 +75,7 @@ clean:
 	$(GLIDE) cc
 	$(RM) -rf vendor glide.lock
 
-.PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test cover
+.PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test cover buildtests
 
 # static pattern rule, expands into:
 # all clean : % : foo/.% bar/.%

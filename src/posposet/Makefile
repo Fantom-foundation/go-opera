@@ -1,7 +1,7 @@
 export GO?=go
 
 SUBDIRS := wire/.
-TARGETS := build proto clean
+TARGETS := build proto clean buildtests
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) test

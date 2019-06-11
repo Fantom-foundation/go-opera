@@ -1,4 +1,5 @@
 export GO?=go
+export MOCKGEN?=mockgen
 
 SUBDIRS := internal/.
 TARGETS := build proto clean
@@ -19,3 +20,9 @@ $(SUBDIR_TARGETS) :
 
 test:
 	$(GO) test -race -cover -count=1 -timeout 45s
+
+buildtests: mock_test.go
+
+mock_test.go: handlers.go
+	$(MOCKGEN) -package=proxy -source=handlers.go -destination=mock_test.go App,Node,Consensus
+

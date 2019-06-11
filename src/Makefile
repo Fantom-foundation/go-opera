@@ -2,8 +2,8 @@ export GLIDE?=glide
 export GREP?=grep
 export SED?=sed
 export SH?=sh
-SUBDIRS := inter/. peers/. poset/. posnode/. posposet/. proxy/. state/. trie/.
-TARGETS := build proto clean
+SUBDIRS := inter/. peers/. poset/. poslachesis/. posnode/. posposet/. proxy/. state/. trie/.
+TARGETS := build proto clean buildtests
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
 TEST_SUBDIRS := $(shell $(GLIDE) novendor | $(GREP) -v -e "^\.$$" | $(SED) -e "s0^./00" -e "s0/...0/.0" )

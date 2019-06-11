@@ -6,29 +6,18 @@ PROTOS:=$(wildcard *proto)
 PBGOS:=$(PROTOS:.proto=.pb.go)
 INTERWIRE:=../inter/wire
 
-.PHONY: build clean proto test
+.PHONY: build clean proto test buildtests
 
 clean:
 	$(RM) -rf *.pb.go
 
-proto: $(PBGOS)
+proto: $(PROTOS)
+	$(PROTOC) --proto_path=. -I "$(INTERWIRE)" --proto_path="$(GOPATH)/src" --go_out=paths=source_relative:. $(PROTOS)
 
 build:
+
+buildtests:
 
 test:
 	$(GO) test -tags test -count=1 -race -cover -timeout 45s
 
-%.pb.go: %.proto
-	$(PROTOC) --proto_path=. -I "$(INTERWIRE)" --proto_path="$(GOPATH)/src" --go_out=paths=source_relative:. $<
-
-frame.pb.go: frame.proto
-
-flagTableWrapper.pb.go: flagTableWrapper.proto
-
-block.pb.go: block.proto
-
-root.pb.go: root.proto
-
-event.pb.go: event.proto
-
-roundInfo.pb.go: roundInfo.proto

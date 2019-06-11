@@ -5,7 +5,7 @@ export RM?=rm
 PROTOS:=$(wildcard *proto)
 PBGOS:=$(PROTOS:.proto=.pb.go)
 
-.PHONY: build clean proto test
+.PHONY: build clean proto test buildtests
 
 clean:
 	$(RM) -rf *.pb.go
@@ -13,6 +13,8 @@ clean:
 proto: $(PBGOS)
 
 build:
+
+buildtests:
 
 test:
 	$(GO) test -race -cover -timeout 45s

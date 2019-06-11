@@ -4,19 +4,14 @@ export RM?=rm
 PROTOS:=$(wildcard *proto)
 PBGOS:=$(PROTOS:.proto=.pb.go)
 
-.PHONY: build clean proto
+.PHONY: build clean proto buildtests
 
 clean:
 	$(RM) -rf *.pb.go
 
-proto: $(PBGOS)
+proto: $(PROTOS)
+	$(PROTOC) --proto_path=. --proto_path="$(GOPATH)/src" --go_out=plugins=grpc:. $(PROTOS)
 
 build:
 
-%.pb.go: %.proto
-	$(PROTOC) --proto_path=. --proto_path="$(GOPATH)/src" --go_out=plugins=grpc,import_path=internal:. $<
-
-frame.pb.go: frame.proto
-
-state.pb.go: state.proto
-
+buildtests:
