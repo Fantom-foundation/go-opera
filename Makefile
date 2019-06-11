@@ -71,7 +71,6 @@ cover:
 proto: clean
 
 clean:
-	$(GLIDE) cc
 	$(RM) -rf vendor glide.lock
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test cover
