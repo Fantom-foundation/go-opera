@@ -95,7 +95,7 @@ var Start = &cobra.Command{
 		log := logger.Get()
 
 		mux := http.NewServeMux()
-		mux.Handle("/metrics",prometheus.Handler(nil))
+		mux.Handle("/metrics", prometheus.Handler(nil))
 		httpServer := http.Server{
 			Handler: mux,
 			Addr:    ":19090",
@@ -145,6 +145,7 @@ func init() {
 	Start.Flags().String("log", "info", "log level")
 	Start.Flags().String("key", "", "private pem key path")
 	Start.Flags().String("dsn", "", "Sentry client DSN")
+	Start.Flags().Bool("metrics", true, "metrics turn on")
 }
 
 func readKey(path string) (*common.PrivateKey, error) {

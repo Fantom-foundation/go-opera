@@ -21,13 +21,25 @@ const (
 )
 
 func init() {
+	for _, arg := range os.Args {
+		flag := strings.TrimLeft(arg, "-")
+
+		if flag == "metrics" {
+			Enabled = true
+			log.Debug("metrics is enabled by flags")
+			return
+		}
+	}
+
 	isEnabled, ok := os.LookupEnv(envEnabled)
 	if ok {
 		switch strings.ToLower(isEnabled) {
 		case "1", "true", "on":
 			Enabled = true
+			log.Debug("metrics is enabled by environment")
 		case "0", "false", "off":
 			Enabled = false
+			log.Debug("metrics is disable by environment")
 		default:
 			log.Errorf("incorrect value in '%s'", envEnabled)
 		}

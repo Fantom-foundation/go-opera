@@ -25,6 +25,7 @@ func prepareApp() *cobra.Command {
 	app.AddCommand(command.TxnInfo)
 	app.AddCommand(command.LogLevel)
 	app.AddCommand(command.Key)
+	app.AddCommand(command.Metrics)
 
 	return &app
 }
