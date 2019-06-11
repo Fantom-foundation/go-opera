@@ -29,7 +29,7 @@ import:
 - package: github.com/sirupsen/logrus
   version: ^1.4.2
 - package: github.com/spf13/cobra
-  version: ^0.0.4
+  version: ^0.0.5
 - package: github.com/spf13/viper
   version: ^1.4.0
 - package: github.com/tebeka/atexit

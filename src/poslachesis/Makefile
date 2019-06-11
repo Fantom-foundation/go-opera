@@ -1,8 +1,7 @@
 export GO?=go
-export MOCKGEN?=mockgen
 
-SUBDIRS := internal/.
-TARGETS := build proto clean
+SUBDIRS := cli/.
+TARGETS := build proto clean buildtests
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) test
@@ -20,9 +19,3 @@ $(SUBDIR_TARGETS) :
 
 test:
 	$(GO) test -race -cover -count=1 -timeout 45s
-
-buildtests: mock_test.go
-
-mock_test.go: handlers.go
-	$(MOCKGEN) -package=proxy -source=handlers.go -destination=mock_test.go App,Node,Consensus
-

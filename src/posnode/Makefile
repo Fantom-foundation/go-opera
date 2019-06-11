@@ -1,11 +1,11 @@
 export GO?=go
 export MOCKGEN?=mockgen
 
-SUBDIRS := internal/.
+SUBDIRS := api/.
 TARGETS := build proto clean
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
-.PHONY: $(TARGETS) $(SUBDIR_TARGETS) test
+.PHONY: $(TARGETS) $(SUBDIR_TARGETS) test buildtests
 
 # static pattern rule, expands into:
 # all clean : % : foo/.% bar/.%
@@ -23,6 +23,7 @@ test:
 
 buildtests: mock_test.go
 
-mock_test.go: handlers.go
-	$(MOCKGEN) -package=proxy -source=handlers.go -destination=mock_test.go App,Node,Consensus
+mock_test.go: consensus.go
+	$(MOCKGEN) -package=posnode -source=consensus.go -destination=mock_test.go Consensus
+
 
