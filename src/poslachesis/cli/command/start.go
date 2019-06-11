@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	_ "github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
 	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
@@ -114,6 +115,7 @@ func init() {
 	Start.Flags().String("log", "info", "log level")
 	Start.Flags().String("key", "", "private pem key path")
 	Start.Flags().String("dsn", "", "Sentry client DSN")
+	Start.Flags().Bool("metrics", true, "metrics turn on")
 }
 
 func readKey(path string) (*crypto.PrivateKey, error) {

@@ -124,6 +124,8 @@ func (n *Node) ConnectOK(p *Peer) {
 	n.peers.top = append(n.peers.top, p.ID)
 	n.peers.unordered = true
 	n.peers.save()
+
+	countNodePeersTop.Inc(1)
 }
 
 // ConnectFail counts unsuccessful connections to peer.

@@ -1,5 +1,5 @@
-hash: 51b57f13d849d997cc17bbd6a46d421e5cafc05cb66b08e15aaefc5145e64648
-updated: 2019-06-11T20:22:28.589236734+10:00
+hash: 2c3d4e35b6d8fc3458a8634142f5660a3500b6412432c9351867f4ccc468043d
+updated: 2019-06-10T08:01:35.474316455+07:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -7,6 +7,10 @@ imports:
   - queue
 - name: github.com/AndreasBriese/bbloom
   version: e2d15f34fcf99d5dbb871c820ec73f710fca9815
+- name: github.com/beorn7/perks
+  version: 4b2b341e8d7715fae06375aa633dbb6e91b3fb46
+  subpackages:
+  - quantile
 - name: github.com/certifi/gocertifi
   version: d2eda712971317d7dd278bc2a52acda7e945f97e
 - name: github.com/dgraph-io/badger
@@ -70,12 +74,37 @@ imports:
   version: f55edac94c9bbba5d6182a4be46d86a2c9b5b50e
 - name: github.com/magiconair/properties
   version: de8848e004dd33dc07a2947b3d76f618a7fc7ef1
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c182affec369e30f25d3eb8cd8a478dee585ae7d
+  subpackages:
+  - pbutil
 - name: github.com/mitchellh/mapstructure
   version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pelletier/go-toml
   version: 728039f679cbcd4f6a54e080d2219a4c4928c546
 - name: github.com/pkg/errors
   version: ba968bfe8b2f7e042a574c888954fccecfa385b4
+- name: github.com/prometheus/client_golang
+  version: 2641b987480bca71fb39738eb8c8b0d577cb1d76
+  subpackages:
+  - prometheus
+  - prometheus/internal
+  - prometheus/promauto
+  - prometheus/promhttp
+- name: github.com/prometheus/client_model
+  version: fd36f4220a901265f90734c3183c5f0c91daa0b8
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: 17f5ca1748182ddf24fc33a5a7caaaf790a52fcc
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: 1de2bc567d78f4ff415fd103412f7e5ec9e8876b
+  subpackages:
+  - internal/fs
 - name: github.com/rifflock/lfshook
   version: b9218ef580f59a2e72dad1aa33d660150445d05a
 - name: github.com/rs/xid
