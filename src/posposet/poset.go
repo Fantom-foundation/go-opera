@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/pkg/errors"
 	"sort"
 	"sync"
 
@@ -22,7 +23,9 @@ type Poset struct {
 	newEventsCh chan hash.Event
 	onNewEvent  func(*inter.Event) // onNewEvent runs consensus calc from new event
 
-	NewBlockCh chan uint64
+	newBlockCh            chan uint64
+	newBlockCallbackMutex sync.RWMutex
+	newBlockCallback      func(blockNumber uint64)
 
 	logger.Instance
 }
@@ -38,6 +41,8 @@ func New(store *Store, input EventSource) *Poset {
 		frames: make(map[uint64]*Frame),
 
 		newEventsCh: make(chan hash.Event, buffSize),
+
+		newBlockCh: make(chan uint64, buffSize),
 
 		Instance: logger.MakeInstance(),
 	}
@@ -74,6 +79,13 @@ func (p *Poset) Start() {
 			case e := <-p.newEventsCh:
 				event := p.input.GetEvent(e)
 				p.onNewEvent(event)
+
+			case num := <-p.newBlockCh:
+				p.newBlockCallbackMutex.RLock()
+				if p.newBlockCallback != nil {
+					p.newBlockCallback(num)
+				}
+				p.newBlockCallbackMutex.RUnlock()
 			}
 		}
 	}()
@@ -93,6 +105,34 @@ func (p *Poset) Stop() {
 // Event order matter: parents first.
 func (p *Poset) PushEvent(e hash.Event) {
 	p.newEventsCh <- e
+}
+
+// RegisterNewBlockCallback registers a callback that is called when a new block arrives
+// Returns an error if the callback is already registered
+func (p *Poset) RegisterNewBlockCallback(callback func(blockNumber uint64)) error {
+	// TODO: Support multiple subscribers later
+	p.newBlockCallbackMutex.Lock()
+	defer p.newBlockCallbackMutex.Unlock()
+	if p.newBlockCallback != nil {
+		return errors.New("callback already registered")
+	}
+
+	p.newBlockCallback = callback
+	return nil
+}
+
+// UnregisterNewBlockCallback unregisters existing newBlockCallback
+// Returns an error if the callback is not registered
+func (p *Poset) UnregisterNewBlockCallback() error {
+	// TODO: Support multiple subscribers later
+	p.newBlockCallbackMutex.Lock()
+	defer p.newBlockCallbackMutex.Unlock()
+	if p.newBlockCallback == nil {
+		return errors.New("callback is not registered")
+	}
+
+	p.newBlockCallback = nil
+	return nil
 }
 
 // consensus is not safe for concurrent use.
@@ -122,8 +162,8 @@ func (p *Poset) consensus(event *inter.Event) {
 			p.store.SetBlock(block)
 			p.state.LastBlockN = block.Index
 			p.saveState()
-			if p.NewBlockCh != nil {
-				p.NewBlockCh <- p.state.LastBlockN
+			if p.newBlockCh != nil {
+				p.newBlockCh <- p.state.LastBlockN
 			}
 
 			// TODO: fix it

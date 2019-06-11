@@ -38,6 +38,7 @@ func TestPosetTxn(t *testing.T) {
 		uint64(1), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
 
+	p.Start()
 	for _, n := range nodes {
 		for _, e := range events[n] {
 			x.SetEvent(e)
@@ -54,5 +55,5 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t,
 		uint64(2), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
-
+	p.Stop()
 }

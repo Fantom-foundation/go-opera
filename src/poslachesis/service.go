@@ -46,7 +46,13 @@ func (l *Lachesis) serviceStart() {
 		}
 		defer app.Close()
 
-		l.consensus.NewBlockCh = make(chan uint64, 100)
+		if err := l.consensus.RegisterNewBlockCallback(func(blockNumber uint64) {
+			b := l.consensusStore.GetBlock(blockNumber)
+			block := l.toLegacyBlock(b)
+			_, _ = app.CommitBlock(*block)
+		}); err != nil {
+			l.Fatal("unable to register new block callback", err)
+		}
 
 		for {
 			select {
@@ -54,11 +60,8 @@ func (l *Lachesis) serviceStart() {
 				l.node.AddExternalTxn(tx)
 			case tx := <-app.SubmitInternalCh():
 				l.node.AddInternalTxn(tx)
-			case num := <-l.consensus.NewBlockCh:
-				b := l.consensusStore.GetBlock(num)
-				block := l.toLegacyBlock(b)
-				_, _ = app.CommitBlock(*block)
 			case <-done:
+				l.consensus.UnregisterNewBlockCallback()
 				return
 			}
 		}
