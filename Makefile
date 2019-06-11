@@ -68,6 +68,10 @@ cover:
 	$(GO) tool cover -html=coverage.out -o coverage.html
 	$(BROWSER) coverage.html
 
+coverage:
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -coverprofile=coverage.txt -covermode=atomic -count=1 -tags test -race -timeout 180s
+
+
 # clean up and generate protobuf files
 proto: clean
 
