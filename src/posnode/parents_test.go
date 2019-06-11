@@ -49,6 +49,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		store := NewMemStore()
 		node := NewForTests(dsc, store, consensus)
 		node.initParents()
+		defer node.Stop()
 
 		expected := ASCIIschemeToDAG(node, consensus, schema)
 		for n, expect := range expected {

@@ -13,11 +13,12 @@ import (
 func TestClient(t *testing.T) {
 	server := NewForTests("server.fake", nil, nil)
 	server.StartService()
-	defer server.StopService()
+	defer server.Stop()
 	peer := server.AsPeer()
 
 	node := NewForTests("client.fake", nil, nil)
 	node.initClient()
+	defer node.Stop()
 
 	ping := func(t *testing.T) (proto.Message, error) {
 		client, free, fail, err := node.ConnectTo(peer)

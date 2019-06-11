@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fortytw2/leaktest"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
-	"github.com/fortytw2/leaktest"
 )
 
 func TestGrpcAppCalls(t *testing.T) {
@@ -37,7 +37,7 @@ func TestGrpcAppReconnect(t *testing.T) {
 }
 
 func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
-    defer leaktest.CheckTimeout(t, time.Second)()
+	defer leaktest.CheckTimeout(t, time.Second)()
 
 	const (
 		timeout    = 1 * time.Second

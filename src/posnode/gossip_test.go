@@ -14,13 +14,13 @@ func TestGossip(t *testing.T) {
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
 	node1.StartService()
-	defer node1.StopService()
+	defer node1.Stop()
 
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
 	node2.StartService()
-	defer node2.StopService()
+	defer node2.Stop()
 
 	// connect nodes to each other
 	store1.BootstrapPeers(node2.AsPeer())
@@ -107,13 +107,13 @@ func TestMissingParents(t *testing.T) {
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
 	node1.StartService()
-	defer node1.StopService()
+	defer node1.Stop()
 
 	// node 2
 	store2 := NewMemStore()
 	node2 := NewForTests("node2", store2, nil)
 	node2.StartService()
-	defer node1.StopService()
+	defer node2.Stop()
 
 	// connect nodes to each other
 	store1.BootstrapPeers(node2.AsPeer())
@@ -226,7 +226,7 @@ func TestPeerPriority(t *testing.T) {
 	store := NewMemStore()
 	node := NewForTests("node0", store, nil)
 	node.StartService()
-	defer node.StopService()
+	defer node.Stop()
 
 	store.BootstrapPeers(peer1)
 	node.initPeers()

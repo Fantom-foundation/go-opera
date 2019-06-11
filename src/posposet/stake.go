@@ -5,6 +5,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
+// stateGap is a frame-delay to apply new balance.
+// TODO: move this magic number to mainnet config
+const stateGap = 3
+
 // stakeCounter is for PoS balances accumulator.
 type stakeCounter struct {
 	balances *state.DB
@@ -27,9 +31,9 @@ func (s *stakeCounter) IsGoalAchieved() bool {
  * Poset's methods:
  */
 
-// StakeOf returns stake balance of peer.
+// StakeOf returns last stake balance of peer.
 func (p *Poset) StakeOf(addr hash.Peer) uint64 {
-	f := p.frame(p.state.LastFinishedFrameN, false)
+	f := p.frame(p.state.LastFinishedFrameN+stateGap, true)
 	db := p.store.StateDB(f.Balances)
 	return db.VoteBalance(addr)
 }

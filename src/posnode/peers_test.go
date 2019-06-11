@@ -12,6 +12,7 @@ func TestPeerReadyForReq(t *testing.T) {
 	store := NewMemStore()
 	node := NewForTests("node01", store, nil)
 	node.initPeers()
+	defer node.Stop()
 
 	t.Run("new host", func(t *testing.T) {
 		assertar := assert.New(t)
@@ -50,6 +51,7 @@ func TestPeerUnknown(t *testing.T) {
 	store := NewMemStore()
 	node := NewForTests("node02", store, nil)
 	node.initPeers()
+	defer node.Stop()
 
 	t.Run("last success", func(t *testing.T) {
 		assertar := assert.New(t)
@@ -103,7 +105,7 @@ func TestCleanPeers(t *testing.T) {
 	store := NewMemStore()
 	node := NewForTests("node", store, nil)
 	node.StartService()
-	defer node.StopService()
+	defer node.Stop()
 
 	peers := []*Peer{peer1, peer2}
 

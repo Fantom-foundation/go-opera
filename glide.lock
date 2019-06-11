@@ -171,6 +171,8 @@ testImports:
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
   subpackages:
   - spew
+- name: github.com/fortytw2/leaktest
+  version: 9a23578d06a26ec1b47bfc8965bf5e7011df8bd6
 - name: github.com/pmezard/go-difflib
   version: 5d4384ee4fb2527b0a1256a821ebfc92f91efefc
   subpackages:
