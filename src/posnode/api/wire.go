@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
@@ -27,7 +27,7 @@ import (
 // StartService starts and returns gRPC server.
 func StartService(
 	bind string,
-	key *common.PrivateKey,
+	key *crypto.PrivateKey,
 	genesis hash.Hash,
 	svc NodeServer,
 	log func(string, ...interface{}),

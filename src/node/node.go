@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
@@ -59,7 +59,7 @@ type Node struct {
 // NewNode create a new node struct
 func NewNode(conf *Config,
 	id uint64,
-	key *ecdsa.PrivateKey,
+	key *crypto.PrivateKey,
 	participants *peers.Peers,
 	store poset.Store,
 	trans peer.SyncPeer,

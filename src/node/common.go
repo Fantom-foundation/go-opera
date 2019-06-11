@@ -1,14 +1,12 @@
 package node
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/dummy"
 	"github.com/Fantom-foundation/go-lachesis/src/peer"
@@ -20,7 +18,7 @@ import (
 const delay = 100 * time.Millisecond
 
 // ConnectedNodes is a list of connected nodes for tests purposes
-type ConnectedNodes map[*ecdsa.PrivateKey]*Node
+type ConnectedNodes map[*crypto.PrivateKey]*Node
 
 // NewNodeList makes, fills and runs ConnectedNodes instance
 func NewNodeList(count int, logger *logrus.Logger) ConnectedNodes {
@@ -41,11 +39,11 @@ func NewNodeList(count int, logger *logrus.Logger) ConnectedNodes {
 	}
 
 	participants := peers.NewPeers()
-	keys := make(map[*peers.Peer]*ecdsa.PrivateKey)
+	keys := make(map[*peers.Peer]*crypto.PrivateKey)
 	for i := 0; i < count; i++ {
 		addr := network.RandomAddress()
-		key, _ := crypto.GenerateECDSAKey()
-		pubKey := fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey))
+		key, _ := crypto.GenerateKey()
+		pubKey := fmt.Sprintf("0x%X", key.Public().Bytes())
 		createdPeer := peers.NewPeer(pubKey, addr)
 		participants.AddPeer(createdPeer)
 		keys[createdPeer] = key
@@ -91,8 +89,8 @@ func NewNodeList(count int, logger *logrus.Logger) ConnectedNodes {
 }
 
 // Keys returns the all PrivateKeys slice
-func (n ConnectedNodes) Keys() []*ecdsa.PrivateKey {
-	keys := make([]*ecdsa.PrivateKey, len(n))
+func (n ConnectedNodes) Keys() []*crypto.PrivateKey {
+	keys := make([]*crypto.PrivateKey, len(n))
 	i := 0
 	for key := range n {
 		keys[i] = key

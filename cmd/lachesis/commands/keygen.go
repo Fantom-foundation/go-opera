@@ -6,8 +6,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/spf13/cobra"
+
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 var (
@@ -35,28 +36,32 @@ func AddKeygenFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&pubKeyFile, "pub", defaultPublicKeyFile, "File where the public key will be written")
 }
 func keygen(cmd *cobra.Command, args []string) error {
-	pemDump, err := crypto.GeneratePemKey()
+	key, err := crypto.GenerateKey()
 	if err != nil {
-		return fmt.Errorf("error generating PemDump")
+		return fmt.Errorf("error generating private key")
 	}
 	if err := os.MkdirAll(path.Dir(privKeyFile), 0700); err != nil {
-		return fmt.Errorf("writing private key: %s", err)
+		return fmt.Errorf("writing private key: %v", err)
 	}
-
 	_, err = os.Stat(privKeyFile)
 	if err == nil {
 		return fmt.Errorf("A key already lives under: %s", path.Dir(privKeyFile))
 	}
-
-	if err := ioutil.WriteFile(privKeyFile, []byte(pemDump.PrivateKey), 0666); err != nil {
-		return fmt.Errorf("writing private key: %s", err)
+	privFile, err := os.Create(privKeyFile)
+	if err != nil {
+		return fmt.Errorf("open private key: %v", err)
+	}
+	if err := key.WriteTo(privFile); err != nil {
+		return fmt.Errorf("writing private key: %v", err)
 	}
 	fmt.Printf("Your private key has been saved to: %s\n", privKeyFile)
+
 	if err := os.MkdirAll(path.Dir(pubKeyFile), 0700); err != nil {
-		return fmt.Errorf("writing public key: %s", err)
+		return fmt.Errorf("writing public key: %v", err)
 	}
-	if err := ioutil.WriteFile(pubKeyFile, []byte(pemDump.PublicKey), 0666); err != nil {
-		return fmt.Errorf("writing public key: %s", err)
+	pub := fmt.Sprintf("0x%X", key.Public().Bytes())
+	if err := ioutil.WriteFile(pubKeyFile, []byte(pub), 0666); err != nil {
+		return fmt.Errorf("writing public key: %v", err)
 	}
 	fmt.Printf("Your public key has been saved to: %s\n", pubKeyFile)
 	return nil

@@ -3,7 +3,6 @@ package node
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 )
@@ -24,10 +23,10 @@ func clonePeers(src *peers.Peers) *peers.Peers {
 func fakePeers(n int) *peers.Peers {
 	participants := peers.NewPeers()
 	for i := 0; i < n; i++ {
-		key, _ := crypto.GenerateECDSAKey()
+		key, _ := crypto.GenerateKey()
 		peer := peers.Peer{
 			NetAddr:   fakeAddr(i),
-			PubKeyHex: fmt.Sprintf("0x%X", common.FromECDSAPub(&key.PublicKey)),
+			PubKeyHex: fmt.Sprintf("0x%X", key.Public().Bytes()),
 		}
 		participants.AddPeer(&peer)
 	}

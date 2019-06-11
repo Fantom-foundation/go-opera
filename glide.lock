@@ -1,5 +1,5 @@
-hash: 5993a5048fd1a87a438b222d5cf2749599a880cca00ce01f3c6ed2f223d32967
-updated: 2019-06-11T15:24:44.840487073+10:00
+hash: 51b57f13d849d997cc17bbd6a46d421e5cafc05cb66b08e15aaefc5145e64648
+updated: 2019-06-11T20:22:28.589236734+10:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -30,7 +30,7 @@ imports:
 - name: github.com/fsnotify/fsnotify
   version: 1485a34d5d5723fea214f5710708e19a831720e4
 - name: github.com/getsentry/raven-go
-  version: 9599e76ac913fac2da68ae09a59537ad212ba754
+  version: f04e7487e9a6b9d9837d52743fb5f40576c56411
 - name: github.com/golang/mock
   version: 9fa652df1129bef0e734c9cf9bf6dbae9ef3b9fa
   subpackages:
@@ -73,7 +73,7 @@ imports:
 - name: github.com/mitchellh/mapstructure
   version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pelletier/go-toml
-  version: dba45d427ff48cfb9bcf633db3a8e43b7364e261
+  version: 728039f679cbcd4f6a54e080d2219a4c4928c546
 - name: github.com/pkg/errors
   version: ba968bfe8b2f7e042a574c888954fccecfa385b4
 - name: github.com/rifflock/lfshook
@@ -87,7 +87,7 @@ imports:
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: c01685bb8421cecb276fa517e91f757215f980b3
+  version: 8c9545af88b134710ab1cd196795e7f2388358d7
 - name: github.com/spf13/cobra
   version: f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5
 - name: github.com/spf13/jwalterweatherman
@@ -100,8 +100,12 @@ imports:
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
+- name: golang.org/x/crypto
+  version: f99c8df09eb5bff426315721bfa5f16a99cad32c
+  subpackages:
+  - sha3
 - name: golang.org/x/net
-  version: 461777fb6f67e8cb9d70cda16573678d085a74cf
+  version: a4d6f7feada510cc50e69a37b484cb0fdc6b7876
   subpackages:
   - context
   - http/httpguts
@@ -111,8 +115,9 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: 93c9922d18aeb82498a065f07aec7ad7fa60dfb7
+  version: a5b02f93d862f065920dd6a40dddc66b60d0dec4
   subpackages:
+  - cpu
   - unix
   - windows
   - windows/registry
@@ -125,7 +130,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: eb0b1bdb6ae60fcfc41b8d907b50dfb346112301
+  version: b515fa19cec88c32f305a962f34ae60068947aea
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc

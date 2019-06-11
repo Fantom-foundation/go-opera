@@ -5,14 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
 func TestFakeKeyGeneration(t *testing.T) {
 	assertar := assert.New(t)
 
-	prev := make([]*common.PrivateKey, 10)
+	prev := make([]*PrivateKey, 10)
 	for i := 0; i < len(prev); i++ {
 		prev[i] = GenerateFakeKey(i)
 	}
@@ -25,12 +23,65 @@ func TestFakeKeyGeneration(t *testing.T) {
 	}
 }
 
-func TestKey(t *testing.T) {
+func TestPrivateKeySignVerify(t *testing.T) {
 	assertar := assert.New(t)
-	key := GenerateKey()
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	msg := "J'aime mieux forger mon ame que la meubler"
+	msgBytes := []byte(msg)
+	msgHashBytes := Keccak256(msgBytes)
+
+	r, s, err := key.Sign(msgHashBytes)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	assertar.True(key.Public().Verify(msgHashBytes, r, s))
+}
+
+func TestPublicBytes(t *testing.T) {
+	assertar := assert.New(t)
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	public := key.Public()
+	bytes := public.Bytes()
+	rKey := BytesToPubKey(bytes)
+
+	assertar.Equal(public, rKey)
+}
+
+func TestPublicBase64(t *testing.T) {
+	assertar := assert.New(t)
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	public := key.Public()
+	base64 := public.Base64()
+	rKey, err := Base64ToPubKey(base64)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	assertar.Equal(public, rKey)
+}
+
+func TestKeyGenWriteRead(t *testing.T) {
+	assertar := assert.New(t)
+	key, err := GenerateKey()
+	if !assertar.NoError(err) {
+		return
+	}
 
 	var buf bytes.Buffer
-	err := WriteKeyTo(&buf, key)
+	err = key.WriteTo(&buf)
 	if !assertar.NoError(err) {
 		return
 	}

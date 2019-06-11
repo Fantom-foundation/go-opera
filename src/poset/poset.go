@@ -1,7 +1,6 @@
 package poset
 
 import (
-	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/log"
@@ -805,7 +805,7 @@ func (p *Poset) SetWireInfo(event *Event) error {
 }
 
 // SetWireInfoAndSign set wire info for the event and sign
-func (p *Poset) SetWireInfoAndSign(event *Event, privKey *ecdsa.PrivateKey) error {
+func (p *Poset) SetWireInfoAndSign(event *Event, privKey *crypto.PrivateKey) error {
 	if err := p.setWireInfo(event); err != nil {
 		return err
 	}

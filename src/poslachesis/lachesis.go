@@ -4,7 +4,7 @@ import (
 	"github.com/dgraph-io/badger"
 	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -28,11 +28,11 @@ type Lachesis struct {
 
 // New makes lachesis node.
 // It does not start any process.
-func New(db *badger.DB, host string, key *common.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
+func New(db *badger.DB, host string, key *crypto.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
 	return makeLachesis(db, host, key, conf, nil, opts...)
 }
 
-func makeLachesis(db *badger.DB, host string, key *common.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
+func makeLachesis(db *badger.DB, host string, key *crypto.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
 	ndb, cdb := makeStorages(db)
 
 	if conf == nil {

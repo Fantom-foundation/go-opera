@@ -3,7 +3,7 @@ package posnode
 import (
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
@@ -12,7 +12,7 @@ type (
 	// Peer is a representation of other node.
 	Peer struct {
 		ID     hash.Peer
-		PubKey *common.PublicKey
+		PubKey *crypto.PublicKey
 		Host   string
 	}
 
@@ -47,7 +47,7 @@ func WireToPeer(w *api.PeerInfo) *Peer {
 	}
 	return &Peer{
 		ID:     hash.HexToPeer(w.ID),
-		PubKey: common.BytesToPubkey(w.PubKey),
+		PubKey: crypto.BytesToPubKey(w.PubKey),
 		Host:   w.Host,
 	}
 }

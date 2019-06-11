@@ -2,7 +2,6 @@ package lachesis
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -27,19 +26,19 @@ import (
 )
 
 func initPeers(
-	number int, network *fakenet.Network) ([]*ecdsa.PrivateKey, *peers.Peers, []string) {
-	var keys []*ecdsa.PrivateKey
+	number int, network *fakenet.Network) ([]*crypto.PrivateKey, *peers.Peers, []string) {
+	var keys []*crypto.PrivateKey
 	ps := peers.NewPeers()
 	var adds []string
 
 	for i := 0; i < number; i++ {
-		key, _ := crypto.GenerateECDSAKey()
+		key, _ := crypto.GenerateKey()
 		keys = append(keys, key)
 		addr := network.RandomAddress()
 		adds = append(adds, addr)
 
 		ps.AddPeer(peers.NewPeer(
-			fmt.Sprintf("0x%X", common.FromECDSAPub(&keys[i].PublicKey)),
+			fmt.Sprintf("0x%X", keys[i].Public().Bytes()),
 			addr,
 		))
 	}
@@ -82,7 +81,7 @@ func transportClose(t testing.TB, syncPeer peer.SyncPeer) {
 }
 
 func runNode(t testing.TB, logger *logrus.Logger, config *node.Config,
-	id uint64, key *ecdsa.PrivateKey, participants *peers.Peers,
+	id uint64, key *crypto.PrivateKey, participants *peers.Peers,
 	trans peer.SyncPeer, localAddr string, run bool) *node.Node {
 	db := poset.NewInmemStore(participants, config.CacheSize, nil)
 	app := dummy.NewInmemApp(logger)

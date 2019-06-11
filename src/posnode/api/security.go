@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
@@ -22,7 +21,7 @@ import (
 type peerID struct{}
 
 // ClientAuth makes client-side interceptor for identification.
-func ClientAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryClientInterceptor {
+func ClientAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryClientInterceptor {
 	pub := key.Public().Base64()
 	salt := genesis.Bytes()
 
@@ -62,7 +61,7 @@ func ClientAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryClientInter
 }
 
 // ServerAuth makes server-side interceptor for identification.
-func ServerAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryServerInterceptor {
+func ServerAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryServerInterceptor {
 	pub := base64.StdEncoding.EncodeToString(key.Public().Bytes())
 	salt := genesis.Bytes()
 
@@ -97,7 +96,7 @@ func ServerAuth(key *common.PrivateKey, genesis hash.Hash) grpc.UnaryServerInter
 }
 
 // parseContext reads fields from request/response context.
-func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err error) {
+func parseContext(ctx context.Context) (sign string, pub *crypto.PublicKey, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err = errors.New("data should be signed")
@@ -113,7 +112,7 @@ func parseContext(ctx context.Context) (sign string, pub *common.PublicKey, err 
 }
 
 // readMetadata reads fields from metadata.
-func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error) {
+func readMetadata(md metadata.MD) (sign string, pub *crypto.PublicKey, err error) {
 	signs, ok := md["sign"]
 	if !ok || len(signs) < 1 {
 		err = errors.New("data should be signed: no sign")
@@ -126,12 +125,12 @@ func readMetadata(md metadata.MD) (sign string, pub *common.PublicKey, err error
 		err = errors.New("data should be signed: no pub")
 		return
 	}
-	pub, err = common.Base64ToPubkey(pubs[0])
+	pub, err = crypto.Base64ToPubKey(pubs[0])
 
 	return
 }
 
-func signData(data interface{}, key *common.PrivateKey, salt []byte) string {
+func signData(data interface{}, key *crypto.PrivateKey, salt []byte) string {
 	h := hashOfData(data)
 
 	d := append(h.Bytes(), salt...)
@@ -141,7 +140,7 @@ func signData(data interface{}, key *common.PrivateKey, salt []byte) string {
 	return crypto.EncodeSignature(R, S)
 }
 
-func verifyData(data interface{}, sign string, pub *common.PublicKey, salt []byte) error {
+func verifyData(data interface{}, sign string, pub *crypto.PublicKey, salt []byte) error {
 	h := hashOfData(data)
 
 	d := append(h.Bytes(), salt...)

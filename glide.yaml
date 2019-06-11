@@ -50,6 +50,10 @@ import:
   - metadata
   - peer
   - status
+- package: golang.org/x/crypto
+  version: master
+  subpackages:
+  - sha3
 testImport:
 - package: github.com/davecgh/go-spew
   version: ^1.1.1

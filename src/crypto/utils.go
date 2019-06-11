@@ -1,24 +1,10 @@
 package crypto
 
 import (
-	"crypto/ecdsa"
-	"crypto/rand"
 	"fmt"
 	"math/big"
 	"strings"
 )
-
-// Sign signs with key
-// NOTE: deprecated
-func Sign(priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, err error) {
-	return ecdsa.Sign(rand.Reader, priv, hash)
-}
-
-// Verify verifies the signatures
-// NOTE: deprecated
-func Verify(pub *ecdsa.PublicKey, hash []byte, r, s *big.Int) bool {
-	return ecdsa.Verify(pub, hash, r, s)
-}
 
 // EncodeSignature string print
 func EncodeSignature(r, s *big.Int) string {
@@ -26,8 +12,8 @@ func EncodeSignature(r, s *big.Int) string {
 }
 
 // DecodeSignature decode signature from string
-func DecodeSignature(sig string) (r, s *big.Int, err error) {
-	values := strings.Split(sig, "|")
+func DecodeSignature(sign string) (r, s *big.Int, err error) {
+	values := strings.Split(sign, "|")
 	if len(values) != 2 {
 		return r, s, fmt.Errorf("wrong number of values in signature: got %d, want 2", len(values))
 	}
