@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 func TestPoset(t *testing.T) {
@@ -67,8 +68,23 @@ func TestPoset(t *testing.T) {
 				p0, p1 := posets[i], posets[j]
 				// compare blockchain
 				if !assertar.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
+					// posposet.Event -> inter.Event
+					src := inter.Events{}
+					for _, ee := range nodesEvents {
+						for _, e := range ee {
+							src = append(src, e.Event)
+						}
+					}
+
+					scheme, err := inter.DAGtoASCIIcheme(src)
+					if err != nil {
+						t.Fatal(err)
+					}
+					t.Log(scheme)
+
 					return
 				}
+
 				for b := uint64(1); b <= p0.state.LastBlockN; b++ {
 					if !assertar.Equal(p0.store.GetBlock(b), p1.store.GetBlock(b), "block") {
 						return
