@@ -61,15 +61,15 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' $(SH) -c "'$(CURDIR)/scripts/dist.sh'"
 
 test: buildtests
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -count=1 -tags test -race -timeout 180s
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -count=1 -tags test -race -timeout 600s
 
 cover:
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -coverprofile=coverage.out -count=1 -tags test -race -timeout 180s || true
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -coverprofile=coverage.out -count=1 -tags test -race -timeout 600s || true
 	$(GO) tool cover -html=coverage.out -o coverage.html
 	$(BROWSER) coverage.html
 
 coverage:
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -coverprofile=coverage.txt -covermode=atomic -count=1 -tags test -race -timeout 180s
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -coverprofile=coverage.txt -covermode=atomic -count=1 -tags test -timeout 600s
 
 
 # clean up and generate protobuf files
