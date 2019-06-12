@@ -8,6 +8,8 @@ export PROTOC?=protoc
 export RM?=rm
 export SED?=sed
 export SH?=sh
+export TESTCOUNT?=1
+export VERBOSE?=0
 export XARGS?=xargs
 ifeq ($(OS),Windows_NT)
 	export BROWSER?=start
@@ -61,7 +63,7 @@ dist:
 	@BUILD_TAGS='$(BUILD_TAGS)' $(SH) -c "'$(CURDIR)/scripts/dist.sh'"
 
 test: buildtests
-	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -count=1 -tags test -race -timeout 600s
+	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -count=$(TESTCOUNT) -v=$(VERBOSE) -tags test -race -timeout 600s
 
 cover:
 	$(GLIDE) novendor | $(GREP) -v -e "^\.$$" | CGO_ENABLED=1 $(XARGS) $(GO) test -run "Test.*" -coverprofile=coverage.out -count=1 -tags test -race -timeout 600s || true
