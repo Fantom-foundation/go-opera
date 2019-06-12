@@ -6,18 +6,18 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 func TestInmemAppCalls(t *testing.T) {
-	logger := common.NewTestLogger(t)
+	logger.SetTestMode(t)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	handler := NewMockApp(ctrl)
 
-	s := NewInmemAppProxy(handler, logger)
+	s := NewInmemAppProxy(handler)
 	defer s.Close()
 
 	t.Run("#2 Receive block", func(t *testing.T) {

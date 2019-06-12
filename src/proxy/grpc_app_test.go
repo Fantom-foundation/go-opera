@@ -8,13 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
 
 func TestGrpcAppCalls(t *testing.T) {
+	logger.SetTestMode(t)
+
 	t.Run("over TCP", func(t *testing.T) {
 		testGrpcAppCalls(t, network.TCPListener)
 	})
@@ -26,6 +28,8 @@ func TestGrpcAppCalls(t *testing.T) {
 }
 
 func TestGrpcAppReconnect(t *testing.T) {
+	logger.SetTestMode(t)
+
 	t.Run("over TCP", func(t *testing.T) {
 		testGrpcAppReconnect(t, network.TCPListener)
 	})
@@ -44,15 +48,13 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 		errTimeout = "time is over"
 	)
 
-	logger := common.NewTestLogger(t)
-
-	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, logger, listen)
+	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, listen)
 	if !assert.NoError(t, err) {
 		return
 	}
 	defer s.Close()
 
-	c, err := NewGrpcLachesisProxy(addr, logger, opts...)
+	c, err := NewGrpcLachesisProxy(addr, opts...)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -150,14 +152,12 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	)
 	assertar := assert.New(t)
 
-	logger := common.NewTestLogger(t)
-
-	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, logger, listen)
+	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, listen)
 	if !assertar.NoError(err) {
 		return
 	}
 
-	c, err := NewGrpcLachesisProxy(addr, logger, opts...)
+	c, err := NewGrpcLachesisProxy(addr, opts...)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -184,7 +184,7 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	t.Run("#1 Send tx after connection", checkConn)
 
 	s.Close()
-	s, _, err = NewGrpcAppProxy(addr, timeout/2, logger, listen)
+	s, _, err = NewGrpcAppProxy(addr, timeout/2, listen)
 	if !assertar.NoError(err) {
 		return
 	}

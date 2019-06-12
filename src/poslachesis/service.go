@@ -38,7 +38,6 @@ func (l *Lachesis) serviceStart() {
 		app, _, err := proxy.NewGrpcAppProxy(
 			l.AppListenAddr(),
 			l.conf.Node.ClientTimeout,
-			nil,
 			l.service.listen,
 		)
 		if err != nil {

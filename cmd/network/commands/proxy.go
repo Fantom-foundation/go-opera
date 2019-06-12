@@ -10,7 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -69,11 +68,7 @@ func connectProxy(cmd *cobra.Command, args []string) error {
 	babblePort := 1337
 	proxyServPortStr := strconv.Itoa(babblePort + (i * 10) + 1)
 
-	logger := logrus.New()
-
-	logger.Level = logrus.InfoLevel
-
-	appProxy, err := proxy.NewGrpcLachesisProxy("127.0.0.1:"+proxyServPortStr, logger)
+	appProxy, err := proxy.NewGrpcLachesisProxy("127.0.0.1:" + proxyServPortStr)
 	if err != nil {
 		panic(err)
 	}

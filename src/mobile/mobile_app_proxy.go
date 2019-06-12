@@ -32,7 +32,7 @@ func newMobileAppProxy(
 		logger:           logger,
 	}
 
-	mobileApp.AppProxy = proxy.NewInmemAppProxy(mobileApp, logger)
+	mobileApp.AppProxy = proxy.NewInmemAppProxy(mobileApp)
 
 	return mobileApp
 }

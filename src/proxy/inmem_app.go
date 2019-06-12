@@ -4,29 +4,27 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 // inmemAppProxy implements the AppProxy interface.
 type inmemAppProxy struct {
-	logger           *logrus.Logger
 	handler          App
 	submitCh         chan []byte
 	submitInternalCh chan inter.InternalTransaction
+
+	logger.Instance
 }
 
 // NewInmemAppProxy instantiates an InmemProxy from a set of handlers.
-func NewInmemAppProxy(handler App, logger *logrus.Logger) AppProxy {
-	if logger == nil {
-		logger = logrus.New()
-		logger.Level = logrus.DebugLevel
-	}
-
+func NewInmemAppProxy(handler App) AppProxy {
 	return &inmemAppProxy{
-		logger:           logger,
 		handler:          handler,
 		submitCh:         make(chan []byte),
 		submitInternalCh: make(chan inter.InternalTransaction),
+
+		Instance: logger.MakeInstance(),
 	}
 }
 
@@ -47,7 +45,7 @@ func (p *inmemAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 
 func (p *inmemAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 	stateHash, err := p.handler.CommitHandler(block)
-	p.logger.WithFields(logrus.Fields{
+	p.WithFields(logrus.Fields{
 		"round_received": block.RoundReceived(),
 		"txs":            len(block.Transactions()),
 		"state_hash":     stateHash,
@@ -58,7 +56,7 @@ func (p *inmemAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
 
 func (p *inmemAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	snapshot, err := p.handler.SnapshotHandler(blockIndex)
-	p.logger.WithFields(logrus.Fields{
+	p.WithFields(logrus.Fields{
 		"block":    blockIndex,
 		"snapshot": snapshot,
 		"err":      err,
@@ -68,7 +66,7 @@ func (p *inmemAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 
 func (p *inmemAppProxy) Restore(snapshot []byte) error {
 	stateHash, err := p.handler.RestoreHandler(snapshot)
-	p.logger.WithFields(logrus.Fields{
+	p.WithFields(logrus.Fields{
 		"state_hash": stateHash,
 		"err":        err,
 	}).Debug("inmemAppProxy.Restore")

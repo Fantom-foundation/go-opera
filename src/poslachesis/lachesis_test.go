@@ -7,11 +7,14 @@ import (
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
 )
 
 func TestRing(t *testing.T) {
+	logger.SetTestMode(t)
+
 	ll := LachesisNetworkRing(5)
 
 	time.Sleep(1 * time.Second)
@@ -24,6 +27,8 @@ func TestRing(t *testing.T) {
 }
 
 func TestStar(t *testing.T) {
+	logger.SetTestMode(t)
+
 	ll := LachesisNetworkStar(5)
 
 	time.Sleep(1 * time.Second)

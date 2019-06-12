@@ -15,6 +15,8 @@ import (
 )
 
 func TestGrpcCtrlCalls(t *testing.T) {
+	logger.SetTestMode(t)
+
 	t.Run("over TCP", func(t *testing.T) {
 		testGrpcCtrlCalls(t, network.TCPListener)
 	})
