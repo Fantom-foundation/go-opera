@@ -16,9 +16,9 @@ declare -ri n="${n:-3}"
 declare -r ip_start="${ip_start:-127.0.0.1}"
 declare -r subnet="${subnet:-16}"
 declare -r ip_range="$ip_start/$subnet"
-declare -r entry="${entry:-main}" # you may use main_profile here to enable profiling
+declare -r l_entry="${l_entry:-main}" # you may use main_profile here to enable profiling
 # e.g.
-# n=3 entry=main_profile BUILD_DIR="$PWD" ./scripts/multi.bash
+# n=3 l_entry=main_profile BUILD_DIR="$PWD" ./scripts/multi.bash
 
 # Install deps
 "$DIR/docker/install_deps.bash"
@@ -48,7 +48,7 @@ else
   gc_flags="all=-N -l"
 fi
 
-env GOOS="$TARGET_OS" GOARCH='amd64' go build -tags="netgo multi" -ldflags "$ldflags" -o lachesis_"$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$entry.go" || exit 1
+env GOOS="$TARGET_OS" GOARCH='amd64' go build -tags="netgo multi" -ldflags "$ldflags" -o "$BUILD_DIR/lachesis_$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$l_entry.go" || exit 1
 
 # Create peers.json and lachesis_data_dir if needed
 if [ ! -d "$DATAL_DIR/lachesis_data_dir" ]; then
