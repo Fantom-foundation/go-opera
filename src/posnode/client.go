@@ -96,6 +96,9 @@ func (n *Node) ConnectTo(peer *Peer) (client api.NodeClient, free func(), fail f
 
 	client = api.NewNodeClient(c.ClientConn)
 
+	// Count of connections (for metrics)
+	countConnections.Inc(1)
+
 	return
 }
 
@@ -144,6 +147,9 @@ func (cc *connPool) Release(c *connection, count bool, err error) {
 			_ = c.Close()
 		}
 	}
+
+	// Count of connections (for metrics)
+	countConnections.Dec(1)
 }
 
 func (cc *connPool) Clean() {
