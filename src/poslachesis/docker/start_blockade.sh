@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
 
-. ./params.sh
+. ./_params.sh
 
 CONF=blockade.yaml
 
 cat << HEADER > $CONF
 network:                                                                                                                                                                                                    
-  name: lachesis
   driver: udn                                                                                                                                                                                               
 
 containers:
-
 HEADER
 
 for i in $(seq $N)
@@ -20,16 +18,21 @@ do
     cat << NODE >> $CONF
   node_$i:
     image: pos-lachesis-blockade:latest
-    container_name: node_$i
-    command: start --network=fake:$i/$N --db=/tmp $DSN --peer=node_$j
+    container_name: ${NAME}-$i
+    command: start --network=fake:$i/$N --db=/tmp --peer=${NAME}-$j --metrics
     expose:
       - "55555"
     deploy:
       resources:
         limits:
-          cpus: ${limit_cpu}
-          blkio-weight: ${limit_io}
-
+          cpus: ${LIMIT_CPU}
+          blkio-weight: ${LIMIT_IO}
 NODE
 done
+
+blockade up
+
+NETWORK=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' ${NAME}-1)
+
+. ./_prometheus.sh
 
