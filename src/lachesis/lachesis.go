@@ -3,6 +3,7 @@ package lachesis
 import (
 	"fmt"
 	"net"
+	"path/filepath"
 	"os"
 	"time"
 
@@ -248,7 +249,7 @@ const (
 )
 
 func readKey(dataDir string) (*crypto.PrivateKey, error) {
-	keyFile, err := os.Open(dataDir + pemFile)
+	keyFile, err := os.Open(filepath.Join(dataDir, pemFile))
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +262,7 @@ func readKey(dataDir string) (*crypto.PrivateKey, error) {
 }
 
 func writeKey(dataDir string, key *crypto.PrivateKey) error {
-	keyFile, err := os.Create(dataDir + pemFile)
+	keyFile, err := os.Create(filepath.Join(dataDir, pemFile))
 	if err != nil {
 		return err
 	}
