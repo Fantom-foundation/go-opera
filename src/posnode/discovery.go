@@ -74,9 +74,10 @@ func (n *Node) StopDiscovery() {
 		return
 	}
 
+	n.discovery.done <- struct{}{}
+	n.discovery.wg.Wait()
 	close(n.discovery.done)
 	n.discovery.done = nil
-	n.discovery.wg.Wait()
 
 	n.Info("discovery stopped")
 }

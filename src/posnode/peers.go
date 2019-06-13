@@ -151,8 +151,8 @@ func (n *Node) PeerReadyForReq(host string) bool {
 
 	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
 
-	return attr != nil &&
-		(attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(timeout))
+	return attr == nil ||
+		((attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(timeout)) && attr.LastSuccess.Before(timeout))
 }
 
 // PeerUnknown returns true if peer should be discovered.
