@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -15,17 +14,14 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 // gen is an empty genesis hash.
 var gen hash.Hash
 
 func TestGRPC(t *testing.T) {
-	bind_addr := fmt.Sprintf("127.0.0.1:%d", utils.FreePort("tcp4"))
-
 	t.Run("over TCP", func(t *testing.T) {
-		testGRPC(t, bind_addr, "127.0.0.1", network.TCPListener)
+		testGRPC(t, "127.0.0.1:0", "127.0.0.1", network.TCPListener)
 	})
 
 	t.Run("over Fake", func(t *testing.T) {
