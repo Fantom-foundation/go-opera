@@ -1,28 +1,22 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
 
-. ./params.sh
+. ./_params.sh
 
-docker network create lachesis
+NETWORK=lachesis
+docker network create ${NETWORK}
 
-name=pos-lachesis-node
+. ./_sentry.sh
 
+echo -e "\nStart $N nodes:\n"
 for i in $(seq $N)
 do
     j=$((i % N + 1)) # ring
     docker run -d --rm \
-		${limits} --net=lachesis --name=$name-$i \
-		"pos-lachesis" \
-		--network=fake:$i/$N --db=/tmp --peer=$name-$j $DSN \
-		start
+	--net=${NETWORK} --name=${NAME}-$i \
+	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
+	"pos-lachesis" \
+	start --network=fake:$i/$N --peer=${NAME}-$j --db=/tmp ${SENTRY_DSN} --metrics
 done
 
-export name
-
-# Prometheus
-declare -rl PROMETHEUS="${PROMETHEUS:-no}"
-if [ "$PROMETHEUS" == "yes" ]; then
-    ./prometheus.sh && make prometheus && make prometheus-on
-fi
-
-# Note: We need to know IP of containers before start Prometheus.
+. ./_prometheus.sh
