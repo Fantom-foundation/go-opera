@@ -38,3 +38,25 @@ func TestEventsSort(t *testing.T) {
 		}
 	}
 }
+
+// EventsFromBlockNum returns events included info blocks (from num to last).
+func (p *Poset) EventsFromBlockNum(num uint64) inter.Events {
+	if num == 0 {
+		num = 1 // skip virtual block
+	}
+
+	events := make(inter.Events, 0)
+
+	for n := num; n < p.state.LastBlockN; n++ {
+		b := p.store.GetBlock(n)
+		if b == nil {
+			panic(n)
+		}
+		for _, h := range b.Events {
+			e := p.input.GetEvent(h)
+			events = append(events, e)
+		}
+	}
+
+	return events
+}
