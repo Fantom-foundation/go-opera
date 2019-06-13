@@ -7,7 +7,7 @@ aBFT Consensus platform for distributed applications.
 [![version](https://img.shields.io/github/tag/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
 )](https://github.com/Fantom-foundation/go-lachesis/releases/latest)  
 [![Build Status](https://img.shields.io/travis/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=travis)](https://travis-ci.org/Fantom-foundation/go-lachesis)  
-[![appveyor](https://img.shields.io/appveyor/ci/andrecronje/go-lachesis.svg?style=flat-square&logo=appveyor)](https://ci.appveyor.com/project/andrecronje/go-lachesis)  
+[![appveyor](https://img.shields.io/appveyor/ci/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=appveyor)](https://ci.appveyor.com/project/Fantom-foundation/go-lachesis)  
 [![license](https://img.shields.io/github/license/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](LICENSE.md)  
 [![libraries.io dependencies](https://img.shields.io/librariesio/github/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=librariesio)](https://libraries.io/github/Fantom-foundation/go-lachesis)  
 

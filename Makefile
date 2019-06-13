@@ -6,6 +6,7 @@ export GREP?=grep
 export MOCKGEN?=mockgen
 export PROTOC?=protoc
 export RM?=rm
+export RM_FLAGS?='-rf'
 export SED?=sed
 export SH?=sh
 export TESTCOUNT?=1
@@ -78,7 +79,7 @@ coverage:
 proto: clean
 
 clean:
-	$(RM) -rf vendor glide.lock
+	$(RM) $(RM_FLAGS) vendor glide.lock
 
 .PHONY: $(TARGETS) $(SUBDIR_TARGETS) vendor install dist test cover buildtests
 
