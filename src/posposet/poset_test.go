@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"bufio"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -70,15 +72,38 @@ func TestPoset(t *testing.T) {
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 
-				// compare blockchain
-				if !assertar.Equal(p0.state.LastBlockN, p1.state.LastBlockN, "blocks count") {
-					return
+				both := p0.state.LastBlockN
+				if both > p1.state.LastBlockN {
+					both = p1.state.LastBlockN
 				}
-				for b := uint64(1); b <= p0.state.LastBlockN; b++ {
+				var num uint64
+				for b := uint64(1); b <= both; b++ {
 					if !assertar.Equal(p0.store.GetBlock(b), p1.store.GetBlock(b), "block") {
-						return
+						num = b
+						break
 					}
 				}
+				if num == 0 {
+					return
+				}
+				// NOTE: inter.DAGtoASCIIcheme() does not accept events without parents,
+				// so it needs whole blocks
+				num = 1
+
+				scheme0, err := inter.DAGtoASCIIcheme(p0.EventsFromBlockNum(num))
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				scheme1, err := inter.DAGtoASCIIcheme(p1.EventsFromBlockNum(num))
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				DAGs := textColumns(scheme0, scheme1)
+				t.Log(DAGs)
+
+				return
 			}
 		}
 	})
@@ -98,4 +123,50 @@ func TestPoset(t *testing.T) {
 func (p *Poset) PushEventSync(e hash.Event) {
 	event := p.input.GetEvent(e)
 	p.onNewEvent(event)
+}
+
+// textColumns join side-by-side.
+func textColumns(texts ...string) string {
+	var (
+		columns = make([][]string, len(texts))
+		widthes = make([]int, len(texts))
+	)
+
+	for i, text := range texts {
+		scanner := bufio.NewScanner(strings.NewReader(text))
+		for scanner.Scan() {
+			line := scanner.Text()
+			columns[i] = append(columns[i], line)
+			if widthes[i] < len([]rune(line)) {
+				widthes[i] = len([]rune(line))
+			}
+		}
+	}
+
+	var (
+		res strings.Builder
+		j   int
+	)
+	for {
+		eof := true
+		for i := range columns {
+			var s string
+			if len(columns[i]) > j {
+				s = columns[i][j]
+				s = s + strings.Repeat(" ", widthes[i]-len([]rune(s)))
+				eof = false
+			} else {
+				s = strings.Repeat(" ", widthes[i])
+			}
+			res.WriteString(s)
+			res.WriteString("\t")
+		}
+		res.WriteString("\n")
+		j++
+		if eof {
+			break
+		}
+	}
+
+	return res.String()
 }
