@@ -96,7 +96,7 @@ func (n *Node) CheckPeerIsKnown(host string, id *hash.Peer) {
 
 // AskPeerInfo gets peer info (network address, public key, etc).
 func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
-	if !n.PeerReadyForReq(host) {
+	if !n.PeerReadyForReq(host, id.IsEmpty()) {
 		return
 	}
 	if !n.PeerUnknown(id) {

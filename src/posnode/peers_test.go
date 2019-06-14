@@ -17,7 +17,7 @@ func TestPeerReadyForReq(t *testing.T) {
 	t.Run("new host", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		assertar.True(node.PeerReadyForReq("new_host"))
+		assertar.True(node.PeerReadyForReq("new_host", false))
 	})
 
 	t.Run("last success", func(t *testing.T) {
@@ -30,7 +30,7 @@ func TestPeerReadyForReq(t *testing.T) {
 		}
 		node.peers.hosts[host.Name] = host
 
-		assertar.True(node.PeerReadyForReq(host.Name))
+		assertar.True(node.PeerReadyForReq(host.Name, false))
 	})
 
 	t.Run("last fail timeouted", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestPeerReadyForReq(t *testing.T) {
 		}
 		node.peers.hosts[host.Name] = host
 
-		assertar.True(node.PeerReadyForReq(host.Name))
+		assertar.True(node.PeerReadyForReq(host.Name, false))
 	})
 }
 
@@ -115,8 +115,8 @@ func TestCleanPeers(t *testing.T) {
 	t.Run("leave hosts as is", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		node.PeerReadyForReq(peer1.Host)
-		node.PeerReadyForReq(peer2.Host)
+		node.PeerReadyForReq(peer1.Host, false)
+		node.PeerReadyForReq(peer2.Host, false)
 
 		node.trimHosts(2, 2)
 
@@ -136,8 +136,8 @@ func TestCleanPeers(t *testing.T) {
 	t.Run("clean extra hosts", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		node.PeerReadyForReq(peer1.Host)
-		node.PeerReadyForReq(peer2.Host)
+		node.PeerReadyForReq(peer1.Host, false)
+		node.PeerReadyForReq(peer2.Host, false)
 
 		node.ConnectOK(peer1)
 		node.ConnectOK(peer2)
