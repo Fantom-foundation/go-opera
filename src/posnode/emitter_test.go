@@ -8,9 +8,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestAddInternalTxn(t *testing.T) {
+	logger.SetTestMode(t)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -59,6 +62,8 @@ func TestAddInternalTxn(t *testing.T) {
 }
 
 func TestEmit(t *testing.T) {
+	logger.SetTestMode(t)
+
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("emitter1", store1, nil)

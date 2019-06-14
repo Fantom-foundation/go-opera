@@ -17,12 +17,12 @@ type Client struct {
 // NewInmemApp constructor
 func NewInmemApp(logger *logrus.Logger) proxy.AppProxy {
 	state := NewState(logger)
-	return proxy.NewInmemAppProxy(state, logger)
+	return proxy.NewInmemAppProxy(state)
 }
 
 // NewSocketClient constructor
 func NewSocketClient(addr string, logger *logrus.Logger) (*Client, error) {
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr)
 	if err != nil {
 		return nil, err
 	}

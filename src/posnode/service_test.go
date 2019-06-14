@@ -8,10 +8,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func TestGetPeerInfo(t *testing.T) {
+	logger.SetTestMode(t)
+
 	store := NewMemStore()
 	n := NewForTests("server.fake", store, nil)
 	n.StartService()
@@ -73,5 +76,4 @@ func TestGetPeerInfo(t *testing.T) {
 		}
 		assertar.Equal(codes.NotFound, s.Code())
 	})
-
 }

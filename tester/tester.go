@@ -33,7 +33,7 @@ func PingNodesN(participants []*peers.Peer, p peers.PubKeyPeers, n uint64, delay
 			fmt.Printf("Unable to create port:\t\t\t%s (id=%d)\n", participant.NetAddr, node.ID)
 		}
 		addr := fmt.Sprintf("%s:%d", hostPort[0], port-3000 /*9000*/)
-		lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger)
+		lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr)
 		if err != nil {
 			fmt.Printf("error:\t\t\t%s\n", err.Error())
 			fmt.Printf("Failed to create WebsocketLachesisProxy:\t\t\t%s (id=%d)\n", participant.NetAddr, node.ID)

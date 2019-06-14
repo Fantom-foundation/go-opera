@@ -11,9 +11,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestParentSelection(t *testing.T) {
+	logger.SetTestMode(t)
+
 	testParentSelection(t, "empty", `
 `)
 

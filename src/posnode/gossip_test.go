@@ -6,10 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func TestGossip(t *testing.T) {
+	logger.SetTestMode(t)
+
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)
@@ -103,6 +106,8 @@ func TestGossip(t *testing.T) {
 }
 
 func TestMissingParents(t *testing.T) {
+	logger.SetTestMode(t)
+
 	// node 1
 	store1 := NewMemStore()
 	node1 := NewForTests("node1", store1, nil)

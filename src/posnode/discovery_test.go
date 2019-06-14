@@ -8,10 +8,13 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/fortytw2/leaktest"
 )
 
 func TestDiscoveryPeer(t *testing.T) {
+	logger.SetTestMode(t)
+
 	defer leaktest.CheckTimeout(t, time.Second)()
 
 	// node 1
@@ -76,6 +79,8 @@ func TestDiscoveryPeer(t *testing.T) {
 }
 
 func TestDiscoveryHost(t *testing.T) {
+	logger.SetTestMode(t)
+
 	defer leaktest.CheckTimeout(t, time.Second)()
 
 	assertar := assert.New(t)

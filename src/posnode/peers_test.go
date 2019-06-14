@@ -5,10 +5,13 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPeerReadyForReq(t *testing.T) {
+	logger.SetTestMode(t)
+
 	store := NewMemStore()
 	node := NewForTests("node01", store, nil)
 	node.initPeers()
@@ -48,6 +51,8 @@ func TestPeerReadyForReq(t *testing.T) {
 }
 
 func TestPeerUnknown(t *testing.T) {
+	logger.SetTestMode(t)
+
 	store := NewMemStore()
 	node := NewForTests("node02", store, nil)
 	node.initPeers()
@@ -97,6 +102,8 @@ func TestPeerUnknown(t *testing.T) {
 
 // TODO: refactor tests
 func TestCleanPeers(t *testing.T) {
+	logger.SetTestMode(t)
+
 	// peers
 	peer1 := NewForTests("node1", NewMemStore(), nil).AsPeer()
 	peer2 := NewForTests("node2", NewMemStore(), nil).AsPeer()
