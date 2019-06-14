@@ -22,7 +22,11 @@ Package assembles functionality of [network node](../posnode/) and [consensus](.
 
   - build node docker image "pos-lachesis": `make build`;
   - run network of x nodes: `N=x ./start.sh`;
-  - drop network: `./stop.sh`;
+  - stop network: `./stop.sh`;
+
+### the same with Prometheus service:
+
+  - set `PROMETHEUS=yes` before `./start.sh`;
 
 ### the same with Sentry service
 
@@ -38,7 +42,7 @@ Each log include: environment info, message about error, code line (in case erro
 
   - build node docker image "pos-lachesis-blockade": `make build blockade`;
   - install blockade and add it to "$PATH": `pip install blockade`;
-  - make blockade.yaml config with x nodes: `N=x ./blockade.sh`;
+  - use `./start_blockade.sh` instead normal `./start.sh`;
   - test lachesis network with blockade [`commands`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);
 
 

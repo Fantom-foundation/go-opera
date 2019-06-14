@@ -28,11 +28,11 @@ var Start = &cobra.Command{
 		}
 		logger.GetLevel(logLevel)
 
-		dsn, err := cmd.Flags().GetString("dsn")
+		sentry, err := cmd.Flags().GetString("sentry")
 		if err != nil {
 			return err
 		}
-		logger.SetDSN(dsn)
+		logger.SetDSN(sentry)
 
 		// db
 		var db *badger.DB
@@ -114,7 +114,7 @@ func init() {
 	Start.Flags().StringSlice("peer", nil, "hosts of peers")
 	Start.Flags().String("log", "info", "log level")
 	Start.Flags().String("key", "", "private pem key path")
-	Start.Flags().String("dsn", "", "Sentry client DSN")
+	Start.Flags().String("sentry", "", "Sentry client DSN")
 	Start.Flags().Bool("metrics", true, "metrics turn on")
 }
 

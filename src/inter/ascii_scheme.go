@@ -292,7 +292,41 @@ func (r *row) Position(i int) pos {
 }
 
 func (rr *rows) Optimize() {
-	// TODO: implement rows reordering to minimize refs
+	// TODO: fix it, see TestDAGtoASCIIcheme()
+	return
+
+	for iRow, row := range rr.rows {
+		for iRef, ref := range row.Refs {
+			// TODO: Can we decrease ref from 2 to 1 ?
+			if ref < 3 {
+				continue
+			}
+			row.Refs[iRef] = ref - 1
+
+			prev := iRow - 1
+
+			// find event for swap
+			for {
+				if iRef == rr.rows[prev].Self {
+					break
+				}
+
+				prev--
+			}
+
+			// for fill empty space after swap (for graph)
+			for {
+				if len(rr.rows[prev].Refs) == len(rr.rows[iRow].Refs) {
+					break
+				}
+
+				rr.rows[prev].Refs = append(rr.rows[prev].Refs, 0)
+			}
+
+			// swap with prev event
+			rr.rows[iRow], rr.rows[prev] = rr.rows[prev], rr.rows[iRow]
+		}
+	}
 }
 
 func (rr *rows) String() string {

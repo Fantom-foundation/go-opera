@@ -7,9 +7,7 @@ import (
 )
 
 func TestASCIIschemeToDAG(t *testing.T) {
-	assertar := assert.New(t)
-
-	nodes, _, names := ASCIIschemeToDAG(`
+	nodes, _, named := ASCIIschemeToDAG(`
 a00 b00   c00 d00
 ║   ║     ║   ║
 a01 ║     ║   ║
@@ -55,14 +53,20 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 		"e00": {"", "d02"},
 	}
 
-	if !assertar.Equal(5, len(nodes), "node count") {
+	if !assert.Equal(t, 5, len(nodes), "node count") {
 		return
 	}
-	if !assertar.Equal(len(expected), len(names), "event count") {
+	if !assert.Equal(t, len(expected), len(named), "event count") {
 		return
 	}
 
-	for n, e1 := range names {
+	checkParents(t, named, expected)
+}
+
+func checkParents(t *testing.T, named map[string]*Event, expected map[string][]string) {
+	assertar := assert.New(t)
+
+	for n, e1 := range named {
 		parents0 := make(map[string]struct{}, len(expected[n]))
 		for _, s := range expected[n] {
 			parents0[s] = struct{}{}
@@ -84,6 +88,47 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 }
 
 func TestDAGtoASCIIcheme(t *testing.T) {
+	scheme := `
+a00  b00   c00
+║    ║    ║║
+a01  ╣    ║║
+║    ║    ║║
+╠ ─  ╫ ─ ─ c01
+║    b01  ╝║
+║    ║     ║
+a02  ╬ ─ ─ ╣
+║    ║     ║
+║3   ║     ║
+║╚ ─ ╬ ─ ─ c02
+║    ║     ║
+`
+	expected := map[string][]string{
+		"a00": {""},
+		"a01": {"a00", "b00"},
+		"a02": {"a01", "b01", "c01"},
+		"b00": {""},
+		"b01": {"b00", "c00"},
+		"c00": {""},
+		"c01": {"c00", "a01"},
+		"c02": {"c01", "a00", "b01"},
+	}
+
+	// step 1: ASCII --> DAG
+	_, events, named := ASCIIschemeToDAG(scheme)
+	checkParents(t, named, expected)
+
+	// step 2: DAG --> ASCII
+	scheme, err := DAGtoASCIIcheme(delPeerIndex(events))
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	// step 3: ASCII --> DAG (again)
+	_, events, named = ASCIIschemeToDAG(scheme)
+	checkParents(t, named, expected)
+}
+
+func TestDAGtoASCIIchemeRand(t *testing.T) {
 	assertar := assert.New(t)
 
 	_, ee := GenEventsByNode(5, 10, 3)
@@ -93,7 +138,7 @@ func TestDAGtoASCIIcheme(t *testing.T) {
 	if !assertar.NoError(err) {
 		return
 	}
-	t.Log(scheme)
+	//t.Log(scheme)
 
 	_, _, names := ASCIIschemeToDAG(scheme)
 	got := delPeerIndex(ee)
@@ -106,18 +151,18 @@ func TestDAGtoASCIIcheme(t *testing.T) {
 		n := e0.Hash().String()
 		e1 := names[n]
 
-		parents0 := make(map[string]struct{}, len(e0.Parents))
-		for p := range e0.Parents {
-			parents0[p.String()] = struct{}{}
-		}
-
-		parents1 := make(map[string]struct{}, len(e1.Parents))
-		for p := range e1.Parents {
-			parents1[p.String()] = struct{}{}
-		}
-
+		parents0 := edges2text(e0)
+		parents1 := edges2text(e1)
 		if !assertar.EqualValues(parents0, parents1, "at event "+n) {
 			return
 		}
 	}
+}
+
+func edges2text(e *Event) map[string]struct{} {
+	res := make(map[string]struct{}, len(e.Parents))
+	for p := range e.Parents {
+		res[p.String()] = struct{}{}
+	}
+	return res
 }
