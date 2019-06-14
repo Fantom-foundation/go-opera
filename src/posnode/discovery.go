@@ -46,8 +46,8 @@ func (n *Node) StartDiscovery() {
 
 	n.discovery.tasks = make(chan discoveryTask, 100) // magic buffer size.
 	n.discovery.done = make(chan struct{})
-	done := n.discovery.done
 
+	done := n.discovery.done
 	n.discovery.wg.Add(1)
 	go func() {
 		defer n.discovery.wg.Done()

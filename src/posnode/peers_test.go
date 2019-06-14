@@ -30,7 +30,7 @@ func TestPeerReadyForReq(t *testing.T) {
 		}
 		node.peers.hosts[host.Name] = host
 
-		assertar.True(node.PeerReadyForReq(host.Name))
+		assertar.False(node.PeerReadyForReq(host.Name))
 	})
 
 	t.Run("last fail timeouted", func(t *testing.T) {
