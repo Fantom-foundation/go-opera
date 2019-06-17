@@ -142,7 +142,7 @@ func (n *Node) ConnectFail(p *Peer, err error) {
 	n.peers.unordered = true
 }
 
-// PeerReadyForReq returns false if peer is not ready for request.
+// PeerReadyForReq returns false if peer is not ready for discovery request.
 func (n *Node) PeerReadyForReq(host string) bool {
 	n.peers.RLock()
 	defer n.peers.RUnlock()
@@ -150,9 +150,11 @@ func (n *Node) PeerReadyForReq(host string) bool {
 	attr := n.peers.attrByHost(host)
 
 	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
+	errtimeout := time.Now().Add(-2 * n.conf.DiscoveryTimeout)
 
-	return attr != nil &&
-		(attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(timeout))
+	return attr == nil ||
+		((attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(errtimeout)) &&
+			attr.LastSuccess.Before(timeout))
 }
 
 // PeerUnknown returns true if peer should be discovered.

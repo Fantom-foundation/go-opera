@@ -8,17 +8,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"github.com/fortytw2/leaktest"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/fortytw2/leaktest"
 )
 
 func TestSocketProxyServer(t *testing.T) {
-    defer leaktest.CheckTimeout(t, time.Second)()
+	defer leaktest.CheckTimeout(t, time.Second)()
 
 	const (
 		timeout    = 2 * time.Second
@@ -26,10 +27,11 @@ func TestSocketProxyServer(t *testing.T) {
 	)
 
 	assertar := assert.New(t)
-	logger := common.NewTestLogger(t)
+	log := common.NewTestLogger(t)
 
 	// Server
-	app, addr, err := proxy.NewGrpcAppProxy("server.fake", timeout, logger, network.FakeListener)
+	logger.SetTestMode(t)
+	app, addr, err := proxy.NewGrpcAppProxy("server.fake", timeout, network.FakeListener)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -37,7 +39,7 @@ func TestSocketProxyServer(t *testing.T) {
 
 	// Client part connecting to RPC service and calling methods
 	dialer := network.FakeDialer("client.fake")
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger, grpc.WithContextDialer(dialer))
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, grpc.WithContextDialer(dialer))
 	if !assertar.NoError(err) {
 		return
 	}
@@ -58,7 +60,7 @@ func TestSocketProxyServer(t *testing.T) {
 		}
 	}()
 
-	node, err := NewClient(lachesisProxy, nil, logger)
+	node, err := NewClient(lachesisProxy, nil, log)
 	assertar.NoError(err)
 
 	err = node.SubmitTx(txOrigin)
@@ -68,16 +70,17 @@ func TestSocketProxyServer(t *testing.T) {
 }
 
 func TestDummySocketClient(t *testing.T) {
-    defer leaktest.CheckTimeout(t, time.Second)()
+	defer leaktest.CheckTimeout(t, time.Second)()
 
 	const (
 		timeout = 2 * time.Second
 	)
 	assertar := assert.New(t)
-	logger := common.NewTestLogger(t)
+	log := common.NewTestLogger(t)
 
 	// server
-	appProxy, addr, err := proxy.NewGrpcAppProxy("server.fake", timeout, logger, network.FakeListener)
+	logger.SetTestMode(t)
+	appProxy, addr, err := proxy.NewGrpcAppProxy("server.fake", timeout, network.FakeListener)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -85,15 +88,15 @@ func TestDummySocketClient(t *testing.T) {
 
 	// client
 	dialer := network.FakeDialer("client.fake")
-	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, logger, grpc.WithContextDialer(dialer))
+	lachesisProxy, err := proxy.NewGrpcLachesisProxy(addr, grpc.WithContextDialer(dialer))
 	if !assertar.NoError(err) {
 		return
 	}
 	defer lachesisProxy.Close()
 
-	state := NewState(logger)
+	state := NewState(log)
 
-	_, err = NewClient(lachesisProxy, state, logger)
+	_, err = NewClient(lachesisProxy, state, log)
 	assertar.NoError(err)
 
 	initialStateHash := state.stateHash

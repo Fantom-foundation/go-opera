@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
@@ -26,7 +26,6 @@ type (
 
 	// grpcAppProxy implements the AppProxy interface.
 	grpcAppProxy struct {
-		logger   *logrus.Logger
 		listener net.Listener
 		server   *grpc.Server
 
@@ -40,24 +39,20 @@ type (
 
 		shutdown chan struct{}
 		wg       sync.WaitGroup
+
+		logger.Instance
 	}
 )
 
 // NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps.
-func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, listen network.ListenFunc) (
+func NewGrpcAppProxy(bind string, timeout time.Duration, listen network.ListenFunc) (
 	res AppProxy, addr string, err error) {
-
-	if logger == nil {
-		logger = logrus.New()
-		logger.Level = logrus.DebugLevel
-	}
 
 	if listen == nil {
 		listen = network.TCPListener
 	}
 
 	p := &grpcAppProxy{
-		logger:     logger,
 		timeout:    timeout,
 		newClients: make(chan appStream, 100),
 		// TODO: buffer channels?
@@ -66,6 +61,8 @@ func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, 
 		event4clients: make(chan *internal.ToClient),
 
 		shutdown: make(chan struct{}),
+
+		Instance: logger.MakeInstance(),
 	}
 
 	p.listener = listen(bind)
@@ -79,7 +76,7 @@ func NewGrpcAppProxy(bind string, timeout time.Duration, logger *logrus.Logger, 
 	go func() {
 		defer p.wg.Done()
 		if err := p.server.Serve(p.listener); err != nil {
-			logger.Fatal(err)
+			p.Fatal(err)
 		}
 	}()
 
@@ -106,15 +103,15 @@ func (p *grpcAppProxy) Connect(stream internal.Lachesis_ConnectServer) error {
 	defer p.wg.Done()
 	// save client's stream for writing
 	p.newClients <- stream
-	p.logger.Debugf("client connected")
+	p.Debugf("client connected")
 	// read from stream
 	for {
 		req, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				p.logger.Debugf("client refused: %s", err)
+				p.Debugf("client refused: %s", err)
 			} else {
-				p.logger.Debugf("client disconnected well")
+				p.Debugf("client disconnected well")
 			}
 			return err
 		}

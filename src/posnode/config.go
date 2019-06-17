@@ -29,7 +29,7 @@ func DefaultConfig() *Config {
 
 		GossipThreads:    4,
 		EmitInterval:     10 * time.Second,
-		DiscoveryTimeout: 5 * time.Minute,
+		DiscoveryTimeout: 30 * time.Second,
 
 		ConnectTimeout: 15 * time.Second,
 		ClientTimeout:  15 * time.Second,

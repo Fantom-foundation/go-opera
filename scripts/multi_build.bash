@@ -48,7 +48,7 @@ else
   gc_flags="all=-N -l"
 fi
 
-env GOOS="$TARGET_OS" GOARCH="${GOARCH:-'amd64'}" go build -tags="netgo multi" -ldflags "$ldflags" -o "$BUILD_DIR/lachesis_$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$l_entry.go" || exit 1
+env GOOS="$TARGET_OS" GOARCH="${GOARCH:-amd64}" go build -tags="netgo multi" -ldflags "$ldflags" -o "$BUILD_DIR/lachesis_$TARGET_OS" -gcflags "$gc_flags" "$parent_dir/cmd/lachesis/$l_entry.go" || exit 1
 
 # Create peers.json and lachesis_data_dir if needed
 if [ ! -d "$DATAL_DIR/lachesis_data_dir" ]; then

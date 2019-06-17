@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"errors"
 	"sort"
 	"sync"
 
@@ -22,7 +23,9 @@ type Poset struct {
 	newEventsCh chan hash.Event
 	onNewEvent  func(*inter.Event) // onNewEvent runs consensus calc from new event
 
-	NewBlockCh chan uint64
+	newBlockCh   chan uint64
+	onNewBlockMu sync.RWMutex
+	onNewBlock   func(blockNumber uint64)
 
 	logger.Instance
 }
@@ -38,6 +41,8 @@ func New(store *Store, input EventSource) *Poset {
 		frames: make(map[uint64]*Frame),
 
 		newEventsCh: make(chan hash.Event, buffSize),
+
+		newBlockCh: make(chan uint64, buffSize),
 
 		Instance: logger.MakeInstance(),
 	}
@@ -74,6 +79,13 @@ func (p *Poset) Start() {
 			case e := <-p.newEventsCh:
 				event := p.input.GetEvent(e)
 				p.onNewEvent(event)
+
+			case num := <-p.newBlockCh:
+				p.onNewBlockMu.RLock()
+				if p.onNewBlock != nil {
+					p.onNewBlock(num)
+				}
+				p.onNewBlockMu.RUnlock()
 			}
 		}
 	}()
@@ -93,6 +105,20 @@ func (p *Poset) Stop() {
 // Event order matter: parents first.
 func (p *Poset) PushEvent(e hash.Event) {
 	p.newEventsCh <- e
+}
+
+// OnNewBlock sets (or replaces if override) a callback that is called on new block.
+// Returns an error if can not.
+func (p *Poset) OnNewBlock(callback func(blockNumber uint64), override bool) error {
+	// TODO: support multiple subscribers later
+	p.onNewBlockMu.Lock()
+	defer p.onNewBlockMu.Unlock()
+	if !override && p.onNewBlock != nil {
+		return errors.New("callback already registered")
+	}
+
+	p.onNewBlock = callback
+	return nil
 }
 
 // consensus is not safe for concurrent use.
@@ -122,8 +148,8 @@ func (p *Poset) consensus(event *inter.Event) {
 			p.store.SetBlock(block)
 			p.state.LastBlockN = block.Index
 			p.saveState()
-			if p.NewBlockCh != nil {
-				p.NewBlockCh <- p.state.LastBlockN
+			if p.newBlockCh != nil {
+				p.newBlockCh <- p.state.LastBlockN
 			}
 
 			// TODO: fix it

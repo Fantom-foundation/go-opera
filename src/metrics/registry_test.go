@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 //go:generate mockgen -package=metrics -source=registry.go -destination=registry_mock_test.go Registry
@@ -18,6 +20,8 @@ func TestNewRegistry(t *testing.T) {
 }
 
 func TestRegistryRegister(t *testing.T) {
+	logger.SetTestMode(t)
+
 	reg := newRegistry()
 	name := "test"
 	metric := newStandardMetric(nil)
@@ -47,6 +51,8 @@ func TestRegistryRegister(t *testing.T) {
 }
 
 func TestRegistryGet(t *testing.T) {
+	logger.SetTestMode(t)
+
 	reg := newRegistry()
 	name := "test"
 	metric := newStandardMetric(nil)
@@ -71,6 +77,8 @@ func TestRegistryGet(t *testing.T) {
 }
 
 func TestRegistryGetOrRegister(t *testing.T) {
+	logger.SetTestMode(t)
+
 	reg := newRegistry()
 	name := "test"
 	metric := newStandardMetric(nil)
@@ -108,6 +116,8 @@ func TestRegistryGetOrRegister(t *testing.T) {
 }
 
 func TestRegistryEach(t *testing.T) {
+	logger.SetTestMode(t)
+
 	reg := newRegistry()
 	name := "test"
 	metric := newStandardMetric(nil)
@@ -157,6 +167,8 @@ func TestRegistryEach(t *testing.T) {
 }
 
 func TestRegistryOnNew(t *testing.T) {
+	logger.SetTestMode(t)
+
 	exp := []Metric{
 		newStandardMetric(nil),
 		newStandardMetric(nil),

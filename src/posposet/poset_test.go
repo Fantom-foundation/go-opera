@@ -20,6 +20,7 @@ func TestPoset(t *testing.T) {
 		posets[i], _, inputs[i] = FakePoset(nodes)
 		posets[i].SetName(nodes[i].String())
 		posets[i].store.SetName(nodes[i].String())
+		posets[i].Start()
 	}
 
 	t.Run("Multiple start", func(t *testing.T) {
@@ -112,6 +113,10 @@ func TestPoset(t *testing.T) {
 		posets[0].Stop()
 		posets[0].Stop()
 	})
+
+	for i := 0; i < len(nodes); i++ {
+		posets[i].Stop()
+	}
 }
 
 /*

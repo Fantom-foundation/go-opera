@@ -7,10 +7,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
 func TestClient(t *testing.T) {
+	logger.SetTestMode(t)
+
 	server := NewForTests("server.fake", nil, nil)
 	server.StartService()
 	defer server.Stop()
