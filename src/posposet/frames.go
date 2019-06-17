@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
@@ -63,6 +65,11 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 	return
 }
 
+// frames errors
+var (
+	ErrIncorrectFrameKeyType = errors.New("incorrect type frames key")
+)
+
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 	if n < p.state.LastFinishedFrameN && orCreate {
@@ -75,35 +82,50 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			Balances: p.state.Genesis,
 		}
 	}
+
 	// return existing
-	f := p.frames[n]
-	if f == nil {
+	f, ok := p.frames.Load(n)
+	if !ok {
 		if !orCreate {
 			return nil
 		}
 		// create new frame
-		f = &Frame{
+		newFrame := &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
 			Balances:         p.frame(n-1, true).Balances,
 		}
-		p.setFrameSaving(f)
-		p.frames[n] = f
-		f.save()
+		p.setFrameSaving(newFrame)
+		p.frames.Store(n, newFrame)
+		newFrame.save()
+		return newFrame
 	}
 
-	return f
+	return f.(*Frame)
+}
+
+func (p *Poset) framesNums() []uint64 {
+	var nums []uint64
+
+	p.frames.Range(func(key, value interface{}) bool {
+		n, ok := key.(uint64)
+		if !ok {
+			p.Fatal(ErrIncorrectFrameKeyType)
+		}
+
+		nums = append(nums, n)
+		return true
+	})
+
+	return nums
 }
 
 // frameNumsAsc returns frame numbers sorted from first to last.
 func (p *Poset) frameNumsAsc() []uint64 {
 	// TODO: cache sorted
-	var nums []uint64
-	for n := range p.frames {
-		nums = append(nums, n)
-	}
+	nums := p.framesNums()
 	sort.Sort(frameNums(nums))
 	return nums
 }
@@ -111,10 +133,7 @@ func (p *Poset) frameNumsAsc() []uint64 {
 // frameNumsDesc returns frame numbers sorted from last to first.
 func (p *Poset) frameNumsDesc() []uint64 {
 	// TODO: cache sorted
-	var nums []uint64
-	for n := range p.frames {
-		nums = append(nums, n)
-	}
+	nums := p.framesNums()
 	sort.Sort(sort.Reverse(frameNums(nums)))
 	return nums
 }
@@ -122,12 +141,34 @@ func (p *Poset) frameNumsDesc() []uint64 {
 // frameNumLast returns last frame number.
 func (p *Poset) frameNumLast() uint64 {
 	var max uint64
-	for n := range p.frames {
+	p.frames.Range(func(key, value interface{}) bool {
+		n, ok := key.(uint64)
+		if !ok {
+			p.Fatal(ErrIncorrectFrameKeyType)
+		}
+
 		if max < n {
 			max = n
 		}
-	}
+
+		return true
+	})
+
 	return max
+}
+
+func (p *Poset) mustFrameLoad(key uint64) *Frame {
+	f, ok := p.frames.Load(key)
+	if !ok {
+		p.Fatal(errors.Errorf("frame[%d] doesn't exist", key))
+	}
+
+	frame, ok := f.(*Frame)
+	if !ok {
+		p.Fatal(errors.New("incorrect type frame"))
+	}
+
+	return frame
 }
 
 /*

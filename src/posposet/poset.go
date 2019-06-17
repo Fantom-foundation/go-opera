@@ -1,9 +1,10 @@
 package posposet
 
 import (
-	"errors"
 	"sort"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -15,7 +16,7 @@ type Poset struct {
 	store  *Store
 	state  *State
 	input  EventSource
-	frames map[uint64]*Frame
+	frames *sync.Map
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
@@ -38,7 +39,7 @@ func New(store *Store, input EventSource) *Poset {
 	p := &Poset{
 		store:  store,
 		input:  input,
-		frames: make(map[uint64]*Frame),
+		frames: new(sync.Map),
 
 		newEventsCh: make(chan hash.Event, buffSize),
 
@@ -70,11 +71,11 @@ func (p *Poset) Start() {
 	p.processingWg.Add(1)
 	go func() {
 		defer p.processingWg.Done()
-		//log.Debug("Start of events processing ...")
+		// log.Debug("Start of events processing ...")
 		for {
 			select {
 			case <-p.processingDone:
-				//log.Debug("Stop of events processing ...")
+				// log.Debug("Stop of events processing ...")
 				return
 			case e := <-p.newEventsCh:
 				event := p.input.GetEvent(e)
@@ -181,11 +182,18 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	// clean old frames
-	for i := range p.frames {
-		if i+stateGap < p.state.LastFinishedFrameN {
-			delete(p.frames, i)
+	p.frames.Range(func(key, value interface{}) bool {
+		i, ok := key.(uint64)
+		if !ok {
+			p.Fatal(ErrIncorrectFrameKeyType)
 		}
-	}
+
+		if i+stateGap < p.state.LastFinishedFrameN {
+			p.frames.Delete(key)
+		}
+
+		return true
+	})
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -230,10 +238,10 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		roots := knownRoots[fnum]
 		frame = p.frame(fnum, true)
 		frame.AddRootsOf(e.Hash(), roots)
-		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
+		// log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
 		if isRoot = p.hasMajority(frame, roots); isRoot {
 			frame = p.frame(fnum+1, true)
-			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
+			// log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
 			break
 		}
 	}
@@ -273,7 +281,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 		// check CC-condition
 		if p.hasTrust(frame, roots) {
 			prev.AddClothoCandidate(seen, seenCreator)
-			//log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
+			// log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
 		}
 	}
 }
@@ -322,7 +330,7 @@ CLOTHO:
 					}
 
 					if diff%3 > 0 && p.hasMajority(prev, K) {
-						//log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
+						// log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
 						frame.SetAtropos(clotho, T)
 						has = true
 						continue CLOTHO
@@ -385,13 +393,12 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 }
 
 // reconsensusFromFrame recalcs consensus of frames.
-// It is not safe for concurrent use.
 func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	stop := p.frameNumLast()
 	var all inter.Events
 	// foreach stale frame
 	for n := start; n <= stop; n++ {
-		frame := p.frames[n]
+		frame := p.mustFrameLoad(n)
 		// extract events
 		for e := range frame.FlagTable {
 			if !frame.FlagTable.IsRoot(e) {
@@ -399,13 +406,13 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 			}
 		}
 		// and replace stale frame with blank
-		p.frames[n] = &Frame{
+		p.frames.Store(n, &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
 			Balances:         newBalance,
-		}
+		})
 	}
 	// recalc consensus (without frame saving)
 	for _, e := range all.ByParents() {
@@ -413,7 +420,8 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	}
 	// save fresh frame
 	for n := start; n <= stop; n++ {
-		frame := p.frames[n]
+		frame := p.mustFrameLoad(n)
+
 		p.setFrameSaving(frame)
 		frame.Save()
 	}
