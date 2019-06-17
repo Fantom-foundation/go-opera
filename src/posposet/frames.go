@@ -181,7 +181,7 @@ func (p *Poset) frameNumsAsc() []uint64 {
 	}
 
 	p.numsAscSorted.RLock()
-	defer p.numsAscSorted.Unlock()
+	defer p.numsAscSorted.RUnlock()
 
 	if p.numsAscSorted.isSorted {
 		return p.numsAscSorted.slice
@@ -200,7 +200,7 @@ func (p *Poset) frameNumsDesc() []uint64 {
 	}
 
 	p.numsDescSorted.RLock()
-	defer p.numsDescSorted.Unlock()
+	defer p.numsDescSorted.RUnlock()
 
 	if p.numsDescSorted.isSorted {
 		return p.numsDescSorted.slice
