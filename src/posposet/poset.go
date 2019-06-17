@@ -18,6 +18,9 @@ type Poset struct {
 	input  EventSource
 	frames *sync.Map
 
+	numsAscSorted  *framesSorted
+	numsDescSorted *framesSorted
+
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
 
@@ -189,7 +192,7 @@ func (p *Poset) consensus(event *inter.Event) {
 		}
 
 		if i+stateGap < p.state.LastFinishedFrameN {
-			p.frames.Delete(key)
+			p.frameDelete(i)
 		}
 
 		return true
@@ -406,7 +409,7 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 			}
 		}
 		// and replace stale frame with blank
-		p.frames.Store(n, &Frame{
+		p.frameStore(n, &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},

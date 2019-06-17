@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -98,12 +99,41 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			Balances:         p.frame(n-1, true).Balances,
 		}
 		p.setFrameSaving(newFrame)
-		p.frames.Store(n, newFrame)
+		p.frameStore(n, newFrame)
 		newFrame.save()
 		return newFrame
 	}
 
 	return f.(*Frame)
+}
+
+func (p *Poset) frameStore(key uint64, frame *Frame) {
+	p.frames.Store(key, frame)
+	if p.numsAscSorted != nil {
+		p.numsAscSorted.Lock()
+		p.numsAscSorted.slice = nil
+		p.numsAscSorted.isSorted = false
+		p.numsAscSorted.Unlock()
+	}
+
+	if p.numsDescSorted != nil {
+		p.numsDescSorted.Lock()
+		p.numsDescSorted.slice = nil
+		p.numsDescSorted.isSorted = false
+		p.numsDescSorted.Unlock()
+	}
+}
+
+func (p *Poset) frameDelete(key uint64) {
+	p.frames.Delete(key)
+
+	if p.numsAscSorted != nil {
+		p.numsAscSorted.DeleteNum(key)
+	}
+
+	if p.numsDescSorted != nil {
+		p.numsDescSorted.DeleteNum(key)
+	}
 }
 
 func (p *Poset) framesNums() []uint64 {
@@ -122,20 +152,64 @@ func (p *Poset) framesNums() []uint64 {
 	return nums
 }
 
+type framesSorted struct {
+	sync.RWMutex
+	isSorted bool
+	slice    []uint64
+}
+
+func (nums *framesSorted) DeleteNum(n uint64) {
+	nums.Lock()
+	defer nums.Unlock()
+
+	copied := make([]uint64, len(nums.slice))
+	for _, v := range nums.slice {
+		if n == v {
+			continue
+		}
+
+		copied = append(copied, v)
+	}
+
+	nums.slice = copied
+}
+
 // frameNumsAsc returns frame numbers sorted from first to last.
 func (p *Poset) frameNumsAsc() []uint64 {
-	// TODO: cache sorted
-	nums := p.framesNums()
-	sort.Sort(frameNums(nums))
-	return nums
+	if p.numsAscSorted == nil {
+		p.numsAscSorted = new(framesSorted)
+	}
+
+	p.numsAscSorted.RLock()
+	defer p.numsAscSorted.Unlock()
+
+	if p.numsAscSorted.isSorted {
+		return p.numsAscSorted.slice
+	}
+
+	p.numsAscSorted.slice = p.framesNums()
+	sort.Sort(frameNums(p.numsAscSorted.slice))
+	p.numsAscSorted.isSorted = true
+	return p.numsAscSorted.slice
 }
 
 // frameNumsDesc returns frame numbers sorted from last to first.
 func (p *Poset) frameNumsDesc() []uint64 {
-	// TODO: cache sorted
-	nums := p.framesNums()
-	sort.Sort(sort.Reverse(frameNums(nums)))
-	return nums
+	if p.numsDescSorted == nil {
+		p.numsDescSorted = new(framesSorted)
+	}
+
+	p.numsDescSorted.RLock()
+	defer p.numsDescSorted.Unlock()
+
+	if p.numsDescSorted.isSorted {
+		return p.numsDescSorted.slice
+	}
+
+	p.numsDescSorted.slice = p.framesNums()
+	sort.Sort(sort.Reverse(frameNums(p.numsDescSorted.slice)))
+	p.numsDescSorted.isSorted = true
+	return p.numsDescSorted.slice
 }
 
 // frameNumLast returns last frame number.
