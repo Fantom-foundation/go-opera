@@ -58,6 +58,9 @@ build:
 	$(GO) build \
 		$(VENDOR_LDFLAG) \
 		-o build/network ./cmd/network/
+	$(GO) build \
+		$(VENDOR_LDFLAG) \
+		-o build/pos-lachesis ./src/poslachesis/cli
 
 # dist builds binaries for all platforms and packages them for distribution
 dist:
