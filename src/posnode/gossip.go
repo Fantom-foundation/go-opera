@@ -240,6 +240,8 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 	n.onNewEvent(event)
 
+	countDownloadedEvents.Inc(1)
+
 	return event, nil
 }
 

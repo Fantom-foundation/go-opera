@@ -1,5 +1,5 @@
-hash: 2c3d4e35b6d8fc3458a8634142f5660a3500b6412432c9351867f4ccc468043d
-updated: 2019-06-10T08:01:35.474316455+07:00
+hash: 3279d38591169dfda690b0c5b447f2bffbeca00c0d2d8d1b5a50fe1d9ee8f636
+updated: 2019-06-17T10:29:08.93669964+07:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -31,6 +31,8 @@ imports:
   version: 2de1f203e7d5e386a6833233882782932729f27e
 - name: github.com/facebookgo/pidfile
   version: f242e2999868dcd267a2b86e49ce1f9cf9e15b16
+- name: github.com/facebookgo/stack
+  version: 751773369052141c013c6e827a71e8f35c07879c
 - name: github.com/fsnotify/fsnotify
   version: 1485a34d5d5723fea214f5710708e19a831720e4
 - name: github.com/getsentry/raven-go
@@ -48,6 +50,8 @@ imports:
   - ptypes/duration
   - ptypes/empty
   - ptypes/timestamp
+- name: github.com/Gurpartap/logrus-stack
+  version: 89c00d8a28f43c567d92eb81a2945301a6a9fbb9
 - name: github.com/hashicorp/errwrap
   version: 8a6fb523712970c966eefc6b39ed2c5e74880354
 - name: github.com/hashicorp/go-multierror
@@ -89,7 +93,6 @@ imports:
   subpackages:
   - prometheus
   - prometheus/internal
-  - prometheus/promauto
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
   version: fd36f4220a901265f90734c3183c5f0c91daa0b8
@@ -130,7 +133,7 @@ imports:
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: golang.org/x/crypto
-  version: f99c8df09eb5bff426315721bfa5f16a99cad32c
+  version: 5c40567a22f818bd14a1ea7245dad9f8ef0691aa
   subpackages:
   - sha3
 - name: golang.org/x/net

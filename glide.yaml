@@ -56,6 +56,8 @@ import:
   - sha3
 - package: github.com/prometheus/client_golang
   version: ^0.9.4
+- package: github.com/Gurpartap/logrus-stack
+  version: master
 testImport:
 - package: github.com/davecgh/go-spew
   version: ^1.1.1

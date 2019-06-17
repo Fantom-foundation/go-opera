@@ -27,6 +27,12 @@ var (
 
 	// last fail discovery time (unix).
 	lastFailDiscoveryTime = metrics.RegisterGauge("last_fail_discovery_time", nil)
+
+	// count of downloaded events
+	countDownloadedEvents = metrics.RegisterCounter("count_downloaded_events", nil)
+
+	// count total events
+	countTotalEvents = metrics.RegisterCounter("count_total_events", nil)
 )
 
 func (n *Node) gossipSuccess(p *Peer) {
