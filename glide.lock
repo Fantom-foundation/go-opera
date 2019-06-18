@@ -1,5 +1,5 @@
-hash: 2c3d4e35b6d8fc3458a8634142f5660a3500b6412432c9351867f4ccc468043d
-updated: 2019-06-10T08:01:35.474316455+07:00
+hash: 944ff49dfde2eb4fb59089039c11034736c5fb77f3c43942f3d1cfcee21f397f
+updated: 2019-06-17T11:02:50.186914+07:00
 imports:
 - name: github.com/allegro/bigcache
   version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
@@ -89,7 +89,6 @@ imports:
   subpackages:
   - prometheus
   - prometheus/internal
-  - prometheus/promauto
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
   version: fd36f4220a901265f90734c3183c5f0c91daa0b8
@@ -102,7 +101,7 @@ imports:
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 1de2bc567d78f4ff415fd103412f7e5ec9e8876b
+  version: 90b65b6334013b0a1cfce27ce5c79feb7da2f77a
   subpackages:
   - internal/fs
 - name: github.com/rifflock/lfshook
@@ -129,8 +128,10 @@ imports:
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
+- name: go.etcd.io/bbolt
+  version: a0458a2b35708eef59eb5f620ceb3cd1c01a824d
 - name: golang.org/x/crypto
-  version: f99c8df09eb5bff426315721bfa5f16a99cad32c
+  version: 5c40567a22f818bd14a1ea7245dad9f8ef0691aa
   subpackages:
   - sha3
 - name: golang.org/x/net
