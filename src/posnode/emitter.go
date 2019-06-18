@@ -173,5 +173,8 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.onNewEvent(event)
 	n.Infof("new event emitted %s", event)
 
+	// Setup count of emitted events (for metrics)
+	countEmittedEvents.Inc(1)
+
 	return event
 }

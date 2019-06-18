@@ -108,7 +108,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 
 	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
-		n.ConnectFail(peer, err)
+		n.discoveryFail(peer, err)
 		return
 	}
 	defer free()
@@ -116,27 +116,27 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 	source, info, err := n.requestPeerInfo(client, id)
 	if err != nil {
 		fail(err)
-		n.ConnectFail(peer, err)
+		n.discoveryFail(peer, err)
 		return
 	}
 
 	if info == nil {
 		if id == nil {
-			n.ConnectFail(peer, fmt.Errorf("host %s knows nothing about self", host))
+			n.discoveryFail(peer, fmt.Errorf("host %s knows nothing about self", host))
 		} else {
 			n.Warnf("peer %s (%s) knows nothing about %s", source.String(), host, id.String())
-			n.ConnectOK(peer)
+			n.discoverySuccess(peer)
 		}
 		return
 	}
 
 	if hash.PeerOfPubkeyBytes(info.PubKey) != hash.HexToPeer(info.ID) {
-		n.ConnectFail(peer, fmt.Errorf("bad PeerInfo response"))
+		n.discoveryFail(peer, fmt.Errorf("bad PeerInfo response"))
 		return
 	}
 
 	if id != nil && source != *id {
-		n.ConnectOK(peer)
+		n.discoverySuccess(peer)
 		n.AskPeerInfo(info.Host, nil)
 		return
 	}
@@ -145,7 +145,7 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 	peer = WireToPeer(info)
 	n.store.SetWirePeer(peer.ID, info)
 	n.Debugf("discovered new peer %s with host %s", info.ID, info.Host)
-	n.ConnectOK(peer)
+	n.discoverySuccess(peer)
 }
 
 // requestPeerInfo does GetPeerInfo request.
@@ -173,4 +173,16 @@ func (n *Node) requestPeerInfo(client api.NodeClient, id *hash.Peer) (
 		info, err = nil, nil
 	}
 	return
+}
+
+func (n *Node) discoverySuccess(p *Peer) {
+	lastSuccessDiscoveryTime.Update(time.Now().Unix())
+
+	n.ConnectOK(p)
+}
+
+func (n *Node) discoveryFail(p *Peer, err error) {
+	lastFailDiscoveryTime.Update(time.Now().Unix())
+
+	n.ConnectFail(p, err)
 }

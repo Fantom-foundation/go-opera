@@ -127,7 +127,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 			parents.Add(event.Parents.Slice()...)
 		}
 	}
-	n.ConnectOK(peer)
+	n.gossipSuccess(peer)
 
 	n.checkParents(client, peer, parents)
 
@@ -182,7 +182,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 
 	resp, err := client.SyncEvents(ctx, req)
 	if err != nil {
-		n.ConnectFail(peer, err)
+		n.gossipFail(peer, err)
 		return nil, err
 	}
 
@@ -195,7 +195,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 		res[hash.HexToPeer(hex)] = h
 	}
 
-	n.ConnectOK(peer)
+	n.gossipSuccess(peer)
 	return res, nil
 }
 
@@ -210,7 +210,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 	w, err := client.GetEvent(ctx, req)
 	if err != nil {
-		n.ConnectFail(peer, err)
+		n.gossipFail(peer, err)
 		return nil, err
 	}
 
@@ -220,7 +220,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 	if req.Hash == nil {
 		if w.Creator != req.PeerID || w.Index != req.Index {
-			n.ConnectFail(peer, fmt.Errorf("bad GetEvent() response"))
+			n.gossipFail(peer, fmt.Errorf("bad GetEvent() response"))
 			return nil, nil
 		}
 	}
@@ -234,11 +234,13 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	}
 	if !event.Verify(creator.PubKey) {
 		err = fmt.Errorf("falsity GetEvent() response")
-		n.ConnectFail(peer, err)
+		n.gossipFail(peer, err)
 		return nil, err
 	}
 
 	n.onNewEvent(event)
+
+	countDownloadedEvents.Inc(1)
 
 	return event, nil
 }
@@ -255,6 +257,18 @@ func (n *Node) knownEvents() map[hash.Peer]uint64 {
 	}
 
 	return res
+}
+
+func (n *Node) gossipSuccess(p *Peer) {
+	lastSuccessGossipTime.Update(time.Now().Unix())
+
+	n.ConnectOK(p)
+}
+
+func (n *Node) gossipFail(p *Peer, err error) {
+	lastFailGossipTime.Update(time.Now().Unix())
+
+	n.ConnectFail(p, err)
 }
 
 /*

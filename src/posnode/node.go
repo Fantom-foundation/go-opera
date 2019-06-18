@@ -109,6 +109,8 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	if n.consensus != nil {
 		n.consensus.PushEvent(e.Hash())
 	}
+
+	countTotalEvents.Inc(1)
 }
 
 // GetInternalTxn finds transaction ant its event if exists.

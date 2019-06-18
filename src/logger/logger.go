@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/evalphobia/logrus_sentry"
+	"github.com/Gurpartap/logrus-stack"
 	"github.com/sirupsen/logrus"
 )
 
@@ -47,6 +48,8 @@ func Init(custom *logrus.Logger) {
 		} else {
 			log = logrus.StandardLogger()
 			log.SetLevel(logrus.DebugLevel)
+
+			log.Hooks.Add(logrus_stack.StandardHook())
 		}
 	})
 }
