@@ -3,15 +3,17 @@ package posposet
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/dgraph-io/badger"
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func Test_IntToBytes(t *testing.T) {
@@ -34,10 +36,14 @@ func Test_IntToBytes(t *testing.T) {
  */
 
 func BenchmarkStoreWithCache(b *testing.B) {
+	logger.SetTestMode(b)
+
 	benchmarkStore(b, true)
 }
 
 func BenchmarkNoCachedStore(b *testing.B) {
+	logger.SetTestMode(b)
+
 	benchmarkStore(b, false)
 }
 
@@ -52,19 +58,16 @@ func benchmarkStore(b *testing.B, cached bool) {
 		}
 	}()
 
-	opts := badger.DefaultOptions
-	opts.Dir = dir
-	opts.ValueDir = dir
-	opts.SyncWrites = false
-	ondisk, err := badger.Open(opts)
+	f := filepath.Join(dir, "lachesis.bolt")
+	ondisk, err := bbolt.Open(f, 0600, nil)
 	if err != nil {
 		panic(err)
 	}
 	defer ondisk.Close()
 
-	input := NewEventStore(kvdb.NewBadgerDatabase(ondisk), cached)
+	input := NewEventStore(kvdb.NewBoltDatabase(ondisk), cached)
 	defer input.Close()
-	store := NewStore(kvdb.NewBadgerDatabase(ondisk), cached)
+	store := NewStore(kvdb.NewBoltDatabase(ondisk), cached)
 	defer input.Close()
 
 	nodes, events := inter.GenEventsByNode(5, 100*b.N, 3)

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgraph-io/badger"
+	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
@@ -47,7 +47,7 @@ func TestStar(t *testing.T) {
 // NewForTests makes lachesis node with fake network.
 // It does not start any process.
 func NewForTests(
-	db *badger.DB,
+	db *bbolt.DB,
 	host string,
 	key *crypto.PrivateKey,
 	conf *Config,

@@ -1,7 +1,7 @@
 package lachesis
 
 import (
-	"github.com/dgraph-io/badger"
+	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
@@ -28,11 +28,11 @@ type Lachesis struct {
 
 // New makes lachesis node.
 // It does not start any process.
-func New(db *badger.DB, host string, key *crypto.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
+func New(db *bbolt.DB, host string, key *crypto.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
 	return makeLachesis(db, host, key, conf, nil, opts...)
 }
 
-func makeLachesis(db *badger.DB, host string, key *crypto.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
+func makeLachesis(db *bbolt.DB, host string, key *crypto.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
 	ndb, cdb := makeStorages(db)
 
 	if conf == nil {
@@ -89,7 +89,7 @@ func (l *Lachesis) AddPeers(hosts ...string) {
  * Utils:
  */
 
-func makeStorages(db *badger.DB) (*posnode.Store, *posposet.Store) {
+func makeStorages(db *bbolt.DB) (*posnode.Store, *posposet.Store) {
 	var (
 		p      kvdb.Database
 		n      kvdb.Database
@@ -100,7 +100,7 @@ func makeStorages(db *badger.DB) (*posnode.Store, *posposet.Store) {
 		n = kvdb.NewMemDatabase()
 		cached = false
 	} else {
-		db := kvdb.NewBadgerDatabase(db)
+		db := kvdb.NewBoltDatabase(db)
 		p = kvdb.NewTable(db, "p_")
 		n = kvdb.NewTable(db, "n_")
 		cached = true

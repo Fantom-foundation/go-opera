@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/dgraph-io/badger"
 	"github.com/spf13/cobra"
+	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	_ "github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
-	lachesis "github.com/Fantom-foundation/go-lachesis/src/poslachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
 // Start starts lachesis node.
@@ -35,7 +36,7 @@ var Start = &cobra.Command{
 		logger.SetDSN(sentry)
 
 		// db
-		var db *badger.DB
+		var db *bbolt.DB
 		dbdir, err := cmd.Flags().GetString("db")
 		if err != nil {
 			return err
@@ -101,6 +102,10 @@ var Start = &cobra.Command{
 
 		wait()
 
+		if err := db.Close(); err != nil {
+			return err
+		}
+
 		return nil
 	},
 }
@@ -156,13 +161,14 @@ func parseFakeGen(s string) (num, total int, err error) {
 	return
 }
 
-func ondiskDB(dir string) (*badger.DB, error) {
-	opts := badger.DefaultOptions
-	opts.Dir = dir
-	opts.ValueDir = dir
-	opts.SyncWrites = false
+func ondiskDB(dir string) (*bbolt.DB, error) {
+	if err := os.MkdirAll(dir, 0600); err != nil {
+		return nil, err
+	}
 
-	return badger.Open(opts)
+	f := filepath.Join(dir, "lachesis.bolt")
+
+	return bbolt.Open(f, 0600, nil)
 }
 
 func wait() {

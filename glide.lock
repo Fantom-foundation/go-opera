@@ -1,8 +1,8 @@
-hash: 3279d38591169dfda690b0c5b447f2bffbeca00c0d2d8d1b5a50fe1d9ee8f636
-updated: 2019-06-17T10:29:08.93669964+07:00
+hash: a0ee66a8c654bc9340ccaa0842b0714862b2d58e0b73975253396499e8306e1d
+updated: 2019-06-18T22:51:45.748547509+10:00
 imports:
 - name: github.com/allegro/bigcache
-  version: 84a0ff3f153cbd7e280a19029a864bb04b504e62
+  version: 0605c28b510103c549fb020d5fb50e1ad4093de8
   subpackages:
   - queue
 - name: github.com/AndreasBriese/bbloom
@@ -132,8 +132,10 @@ imports:
   version: 246bd1df1758fe9df5a88fc3e0f6e77271e97e55
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
+- name: go.etcd.io/bbolt
+  version: a0458a2b35708eef59eb5f620ceb3cd1c01a824d
 - name: golang.org/x/crypto
-  version: 5c40567a22f818bd14a1ea7245dad9f8ef0691aa
+  version: f99c8df09eb5bff426315721bfa5f16a99cad32c
   subpackages:
   - sha3
 - name: golang.org/x/net
