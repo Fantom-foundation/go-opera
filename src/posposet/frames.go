@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/pkg/errors"
+	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
@@ -65,14 +64,9 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 	return
 }
 
-// frames errors
-var (
-	ErrIncorrectFrameKeyType = errors.New("incorrect type frames key")
-)
-
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
-	if n < p.state.LastFinishedFrameN && orCreate {
+	if n < atomic.LoadUint64(&p.state.LastFinishedFrameN) && orCreate {
 		p.Fatalf("too old frame %d is requested", n)
 	}
 	// return ephemeral
@@ -84,59 +78,37 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 	}
 
 	// return existing
-	f, ok := p.frames.Load(n)
+	f, ok := p.frames[n]
 	if !ok {
 		if !orCreate {
 			return nil
 		}
 		// create new frame
-		newFrame := &Frame{
+		f = &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
 			Balances:         p.frame(n-1, true).Balances,
 		}
-		p.setFrameSaving(newFrame)
-		p.frames.Store(n, newFrame)
-		newFrame.save()
-		return newFrame
+		p.setFrameSaving(f)
+		p.frames[n] = f
+		f.save()
 	}
 
-	return f.(*Frame)
+	return f
 }
 
 // frameNumLast returns last frame number.
 func (p *Poset) frameNumLast() uint64 {
 	var max uint64
-	p.frames.Range(func(key, value interface{}) bool {
-		n, ok := key.(uint64)
-		if !ok {
-			p.Fatal(ErrIncorrectFrameKeyType)
-		}
-
+	for n := range p.frames {
 		if max < n {
 			max = n
 		}
 
-		return true
-	})
-
+	}
 	return max
-}
-
-func (p *Poset) mustFrameLoad(key uint64) *Frame {
-	f, ok := p.frames.Load(key)
-	if !ok {
-		p.Fatal(errors.Errorf("frame[%d] doesn't exist", key))
-	}
-
-	frame, ok := f.(*Frame)
-	if !ok {
-		p.Fatal(errors.New("incorrect type frame"))
-	}
-
-	return frame
 }
 
 /*

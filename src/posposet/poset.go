@@ -16,7 +16,7 @@ type Poset struct {
 	store  *Store
 	state  *State
 	input  EventSource
-	frames *sync.Map
+	frames map[uint64]*Frame
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
@@ -39,7 +39,7 @@ func New(store *Store, input EventSource) *Poset {
 	p := &Poset{
 		store:  store,
 		input:  input,
-		frames: new(sync.Map),
+		frames: make(map[uint64]*Frame),
 
 		newEventsCh: make(chan hash.Event, buffSize),
 
@@ -182,18 +182,11 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	// clean old frames
-	p.frames.Range(func(key, value interface{}) bool {
-		i, ok := key.(uint64)
-		if !ok {
-			p.Fatal(ErrIncorrectFrameKeyType)
-		}
-
+	for i := range p.frames {
 		if i+stateGap < p.state.LastFinishedFrameN {
-			p.frames.Delete(i)
+			delete(p.frames, i)
 		}
-
-		return true
-	})
+	}
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -398,7 +391,7 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	var all inter.Events
 	// foreach stale frame
 	for n := start; n <= stop; n++ {
-		frame := p.mustFrameLoad(n)
+		frame := p.frames[n]
 		// extract events
 		for e := range frame.FlagTable {
 			if !frame.FlagTable.IsRoot(e) {
@@ -406,13 +399,13 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 			}
 		}
 		// and replace stale frame with blank
-		p.frames.Store(n, &Frame{
+		p.frames[n] = &Frame{
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
 			Atroposes:        TimestampsByEvent{},
 			Balances:         newBalance,
-		})
+		}
 	}
 	// recalc consensus (without frame saving)
 	for _, e := range all.ByParents() {
@@ -420,7 +413,7 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	}
 	// save fresh frame
 	for n := start; n <= stop; n++ {
-		frame := p.mustFrameLoad(n)
+		frame := p.frames[n]
 
 		p.setFrameSaving(frame)
 		frame.Save()

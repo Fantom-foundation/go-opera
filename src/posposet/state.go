@@ -61,7 +61,7 @@ func (p *Poset) Bootstrap() {
 	// restore frames
 	for n := p.state.LastFinishedFrameN; true; n++ {
 		if f := p.store.GetFrame(n); f != nil {
-			p.frames.Store(n,f)
+			p.frames[n] = f
 		} else if n > 0 {
 			break
 		}
