@@ -68,6 +68,13 @@ func (p *Poset) frameFromStore(n uint64) *Frame {
 	if n < atomic.LoadUint64(&p.state.LastFinishedFrameN) {
 		p.Fatalf("too old frame %d is requested", n)
 	}
+	// return ephemeral
+	if n == 0 {
+		return &Frame{
+			Index:    0,
+			Balances: p.state.Genesis,
+		}
+	}
 
 	f := p.store.GetFrame(n)
 	if f == nil {
