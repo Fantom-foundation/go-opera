@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"sync/atomic"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
@@ -98,7 +100,7 @@ func WireToFrame(w *wire.Frame) *Frame {
 
 func (p *Poset) setFrameSaving(f *Frame) {
 	f.save = func() {
-		if f.Index > p.state.LastFinishedFrameN {
+		if f.Index > atomic.LoadUint64(&p.state.LastFinishedFrameN) {
 			p.store.SetFrame(f)
 		} else {
 			p.Fatalf("frame %d is finished and should not be changed", f.Index)

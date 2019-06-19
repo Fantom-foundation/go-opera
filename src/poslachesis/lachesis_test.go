@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func TestRing(t *testing.T) {
 
 	for _, l := range ll {
 		st := l.consensusStore.GetState()
-		t.Logf("%s: frame %d, block %d", l.node.Host(), st.LastFinishedFrameN, st.LastBlockN)
+		t.Logf("%s: frame %d, block %d", l.node.Host(), atomic.LoadUint64(&st.LastFinishedFrameN), st.LastBlockN)
 		l.Stop()
 	}
 }
@@ -35,7 +36,7 @@ func TestStar(t *testing.T) {
 
 	for _, l := range ll {
 		st := l.consensusStore.GetState()
-		t.Logf("%s: frame %d, block %d", l.node.Host(), st.LastFinishedFrameN, st.LastBlockN)
+		t.Logf("%s: frame %d, block %d", l.node.Host(), atomic.LoadUint64(&st.LastFinishedFrameN), st.LastBlockN)
 		l.Stop()
 	}
 }

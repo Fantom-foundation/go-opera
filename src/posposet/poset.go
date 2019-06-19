@@ -3,6 +3,7 @@ package posposet
 import (
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 
@@ -139,8 +140,8 @@ func (p *Poset) consensus(event *inter.Event) {
 
 	// process matured frames where ClothoCandidates have become Clothos
 	var ordered inter.Events
-	lastFinished := p.state.LastFinishedFrameN
-	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
+	lastFinished := atomic.LoadUint64(&p.state.LastFinishedFrameN)
+	for n := atomic.LoadUint64(&p.state.LastFinishedFrameN) + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
 			p.Debugf("consensus: make new block %d from frame %d", p.state.LastBlockN+1, n)
 			events := p.topologicalOrdered(n)
@@ -175,15 +176,15 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	// save finished frames
-	if p.state.LastFinishedFrameN < lastFinished {
-		p.state.LastFinishedFrameN = lastFinished
+	if atomic.LoadUint64(&p.state.LastFinishedFrameN) < lastFinished {
+		atomic.StoreUint64(&p.state.LastFinishedFrameN, lastFinished)
 		p.saveState()
-		p.Debugf("consensus: lastFinishedFrameN is %d", p.state.LastFinishedFrameN)
+		p.Debugf("consensus: lastFinishedFrameN is %d", atomic.LoadUint64(&p.state.LastFinishedFrameN))
 	}
 
 	// clean old frames
 	for i := range p.frames {
-		if i+stateGap < p.state.LastFinishedFrameN {
+		if i+stateGap < atomic.LoadUint64(&p.state.LastFinishedFrameN) {
 			delete(p.frames, i)
 		}
 	}
@@ -194,11 +195,11 @@ func (p *Poset) consensus(event *inter.Event) {
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) *Frame {
 	knownRoots := eventsByFrame{}
-	minFrame := p.state.LastFinishedFrameN + 1
+	minFrame := atomic.LoadUint64(&p.state.LastFinishedFrameN) + 1
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil || frame.Index <= p.state.LastFinishedFrameN {
+			if frame == nil || frame.Index <= atomic.LoadUint64(&p.state.LastFinishedFrameN) {
 				p.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue

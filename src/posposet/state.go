@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"sync/atomic"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
@@ -19,7 +21,7 @@ type State struct {
 // ToWire converts to proto.Message.
 func (s *State) ToWire() *wire.State {
 	return &wire.State{
-		LastFinishedFrameN: s.LastFinishedFrameN,
+		LastFinishedFrameN: atomic.LoadUint64(&s.LastFinishedFrameN),
 		LastBlockN:         s.LastBlockN,
 		Genesis:            s.Genesis.Bytes(),
 		TotalCap:           s.TotalCap,
@@ -32,7 +34,7 @@ func WireToState(w *wire.State) *State {
 		return nil
 	}
 	return &State{
-		LastFinishedFrameN: w.LastFinishedFrameN,
+		LastFinishedFrameN: atomic.LoadUint64(&w.LastFinishedFrameN),
 		LastBlockN:         w.LastBlockN,
 		Genesis:            hash.FromBytes(w.Genesis),
 		TotalCap:           w.TotalCap,
@@ -59,7 +61,7 @@ func (p *Poset) Bootstrap() {
 		p.Fatal("Apply genesis for store first")
 	}
 	// restore frames
-	for n := p.state.LastFinishedFrameN; true; n++ {
+	for n := atomic.LoadUint64(&p.state.LastFinishedFrameN); true; n++ {
 		if f := p.store.GetFrame(n); f != nil {
 			p.frames[n] = f
 		} else if n > 0 {
@@ -67,8 +69,8 @@ func (p *Poset) Bootstrap() {
 		}
 	}
 	// recalc in case there was a interrupted consensus
-	start := p.frame(p.state.LastFinishedFrameN, true)
-	p.reconsensusFromFrame(p.state.LastFinishedFrameN+1, start.Balances)
+	start := p.frame(atomic.LoadUint64(&p.state.LastFinishedFrameN), true)
+	p.reconsensusFromFrame(atomic.LoadUint64(&p.state.LastFinishedFrameN)+1, start.Balances)
 }
 
 func (p *Poset) GetGenesisHash() hash.Hash {

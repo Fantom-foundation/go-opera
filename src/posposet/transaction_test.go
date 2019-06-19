@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,7 +48,7 @@ func TestPosetTxn(t *testing.T) {
 	}
 
 	st := s.GetState()
-	t.Logf("poset: frame %d, block %d", st.LastFinishedFrameN, st.LastBlockN)
+	t.Logf("poset: frame %d, block %d", atomic.LoadUint64(&st.LastFinishedFrameN), st.LastBlockN)
 
 	assert.Equal(t,
 		uint64(0), p.StakeOf(nodes[0]),

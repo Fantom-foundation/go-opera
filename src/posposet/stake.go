@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"sync/atomic"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -33,7 +35,7 @@ func (s *stakeCounter) IsGoalAchieved() bool {
 
 // StakeOf returns last stake balance of peer.
 func (p *Poset) StakeOf(addr hash.Peer) uint64 {
-	f := p.frame(p.state.LastFinishedFrameN+stateGap, true)
+	f := p.frame(atomic.LoadUint64(&p.state.LastFinishedFrameN)+stateGap, true)
 	db := p.store.StateDB(f.Balances)
 	return db.VoteBalance(addr)
 }

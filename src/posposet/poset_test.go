@@ -3,6 +3,7 @@ package posposet
 import (
 	"bufio"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,7 +70,7 @@ func TestPoset(t *testing.T) {
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
 			st := p0.store.GetState()
-			t.Logf("poset%d: frame %d, block %d", i, st.LastFinishedFrameN, st.LastBlockN)
+			t.Logf("poset%d: frame %d, block %d", i, atomic.LoadUint64(&st.LastFinishedFrameN), st.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 
