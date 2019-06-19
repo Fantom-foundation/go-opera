@@ -102,8 +102,10 @@ var Start = &cobra.Command{
 
 		wait()
 
-		if err := db.Close(); err != nil {
-			return err
+		if db != nil {
+			if err := db.Close(); err != nil {
+				return err
+			}
 		}
 
 		return nil
