@@ -64,6 +64,19 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 	return
 }
 
+func (p *Poset) frameFromStore(n uint64) *Frame {
+	if n < atomic.LoadUint64(&p.state.LastFinishedFrameN) {
+		p.Fatalf("too old frame %d is requested", n)
+	}
+
+	f := p.store.GetFrame(n)
+	if f == nil {
+		return p.frameFromStore(n - 1)
+	}
+
+	return f
+}
+
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 	if n < atomic.LoadUint64(&p.state.LastFinishedFrameN) && orCreate {
