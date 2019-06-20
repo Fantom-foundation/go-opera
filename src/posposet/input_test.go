@@ -4,84 +4,72 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/hashicorp/golang-lru"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // EventStore is a poset event storage for test purpose.
 // It implements EventSource interface.
 type EventStore struct {
-	physicalDB  kvdb.Database
-	events      kvdb.Database
-	eventsCache *lru.Cache
+	physicalDB kvdb.Database
+
+	table struct {
+		Events  kvdb.Database `table:"event_"`
+		ExtTxns kvdb.Database `table:"exttxn_"`
+	}
+
+	logger.Instance
 }
 
 // NewEventStore creates store over memory map.
-func NewEventStore(db kvdb.Database, cached bool) *EventStore {
+func NewEventStore(db kvdb.Database) *EventStore {
 	if db == nil {
 		db = kvdb.NewMemDatabase()
 	}
 
 	s := &EventStore{
 		physicalDB: db,
-		events:     kvdb.NewTable(db, "event_"),
+		Instance:   logger.MakeInstance(),
 	}
 
-	if cached {
-		c, err := lru.New(cacheSize)
-		if err != nil {
-			panic(err)
-		}
-		s.eventsCache = c
-	}
+	kvdb.MigrateTables(&s.table, s.physicalDB)
 
 	return s
 }
 
 // Close leaves underlying database.
 func (s *EventStore) Close() {
-	if s.eventsCache != nil {
-		s.eventsCache.Purge()
-	}
-	s.events = nil
+	kvdb.MigrateTables(&s.table, nil)
 	s.physicalDB.Close()
 }
 
 // SetEvent stores event.
 func (s *EventStore) SetEvent(e *inter.Event) {
-	w := e.ToWire()
-	s.set(s.events, e.Hash().Bytes(), w)
-
-	if s.eventsCache != nil {
-		s.eventsCache.Add(e.Hash(), w)
-	}
+	w, wt := e.ToWire()
+	s.set(s.table.ExtTxns, e.Hash().Bytes(), wt.ExtTxnsValue)
+	s.set(s.table.Events, e.Hash().Bytes(), w)
 }
 
 // GetEvent returns stored event.
 func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
-	if s.eventsCache != nil {
-		if e, ok := s.eventsCache.Get(h); ok {
-			w := e.(*wire.Event)
-			return inter.WireToEvent(w)
-		}
+	w, _ := s.get(s.table.Events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	if w == nil {
+		return nil
 	}
+	wt, _ := s.get(s.table.ExtTxns, h.Bytes(), &wire.ExtTxns{}).(*wire.ExtTxns)
+	w.ExternalTransactions = &wire.Event_ExtTxnsValue{wt}
 
-	w, _ := s.get(s.events, h.Bytes(), &wire.Event{}).(*wire.Event)
 	return inter.WireToEvent(w)
 }
 
 // HasEvent returns true if event exists.
 func (s *EventStore) HasEvent(h hash.Event) bool {
-	if s.eventsCache.Contains(h) {
-		return true
-	}
-
-	return s.has(s.events, h.Bytes())
+	return s.has(s.table.Events, h.Bytes())
 }
 
 /*
@@ -89,7 +77,7 @@ func (s *EventStore) HasEvent(h hash.Event) bool {
  */
 
 func TestEventStore(t *testing.T) {
-	store := NewEventStore(nil, false)
+	store := NewEventStore(nil)
 
 	t.Run("NotExisting", func(t *testing.T) {
 		assertar := assert.New(t)

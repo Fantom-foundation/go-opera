@@ -65,7 +65,7 @@ func benchmarkStore(b *testing.B, cached bool) {
 	}
 	defer ondisk.Close()
 
-	input := NewEventStore(kvdb.NewBoltDatabase(ondisk), cached)
+	input := NewEventStore(kvdb.NewBoltDatabase(ondisk))
 	defer input.Close()
 	store := NewStore(kvdb.NewBoltDatabase(ondisk), cached)
 	defer input.Close()
