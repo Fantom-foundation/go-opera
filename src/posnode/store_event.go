@@ -8,7 +8,12 @@ import (
 
 // SetEvent stores event.
 func (s *Store) SetEvent(e *inter.Event) {
-	s.set(s.table.Events, e.Hash().Bytes(), e.ToWire())
+	key := e.Hash().Bytes()
+
+	w, wt := e.ToWire()
+
+	s.set(s.table.ExtTxns, key, wt.ExtTxnsValue)
+	s.set(s.table.Events, key, w)
 }
 
 // GetEvent returns stored event.
@@ -26,6 +31,11 @@ func (s *Store) HasEvent(h hash.Event) bool {
 // Result is a ready gRPC message.
 func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 	w, _ := s.get(s.table.Events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	if w == nil {
+		return w
+	}
+	wt, _ := s.get(s.table.ExtTxns, h.Bytes(), &wire.ExtTxns{}).(*wire.ExtTxns)
+	w.ExternalTransactions = &wire.Event_ExtTxnsValue{wt}
 	return w
 }
 
