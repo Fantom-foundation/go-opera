@@ -1,4 +1,5 @@
 matrix:
+  allow_failures: java
   include:
     - name: go test
       language: go
