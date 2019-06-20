@@ -13,6 +13,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	_ "github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
 	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
@@ -167,6 +168,10 @@ func ondiskDB(dir string) (*bbolt.DB, error) {
 	}
 
 	f := filepath.Join(dir, "lachesis.bolt")
+
+	// TODO: using for collect size of db file for metrics.
+	// Later we can add Size() method to Database interface or something like this.
+	metrics.DBFilePath = f
 
 	return bbolt.Open(f, 0600, nil)
 }

@@ -138,6 +138,9 @@ func (n *Node) syncWithPeer(peer *Peer) {
 
 	// Clean outdated data about peers.
 	n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
+
+	// TODO: Probably we should update info only after Batch store process.
+	n.store.updateSizeInfo()
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {

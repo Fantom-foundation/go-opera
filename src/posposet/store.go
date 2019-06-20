@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/golang-lru"
@@ -9,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -148,4 +150,20 @@ func (s *Store) has(table kvdb.Database, key []byte) bool {
 		s.Fatal(err)
 	}
 	return res
+}
+
+// Using for collect metrics data.
+// Collect cache size (in bytes) and capacity.
+func updateCacheInfo(cache *lru.Cache, metricSize, metricCap metrics.Gauge, i interface{}) {
+	if cacheSize != cache.Len() {
+		if metricCap.Value() == int64(cache.Len()) {
+			return
+		}
+
+		// TODO: do cache reflected value?
+		newSize := metricSize.Value() + int64(reflect.TypeOf(i).Size())
+		metricSize.Update(newSize)
+
+		metricCap.Update(int64(cache.Len()))
+	}
 }

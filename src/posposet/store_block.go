@@ -34,6 +34,14 @@ func (s *Store) SetEventsBlockNum(num uint64, ee ...*inter.Event) {
 
 		if s.cache.Event2Block != nil {
 			s.cache.Event2Block.Add(key, num)
+
+			// for metrics
+			updateCacheInfo(
+				s.cache.Event2Block,
+				event2BlockCacheSize,
+				event2BlockCacheCap,
+				num,
+			)
 		}
 	}
 }

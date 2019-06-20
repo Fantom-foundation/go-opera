@@ -31,4 +31,7 @@ var (
 
 	// count total events
 	countTotalEvents = metrics.RegisterCounter("count_total_events", nil)
+
+	// db file size for current time.
+	dbFileSize = metrics.RegisterGauge("db_file_size", nil)
 )

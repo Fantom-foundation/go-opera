@@ -1,10 +1,13 @@
 package posnode
 
 import (
+	"os"
+
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -93,6 +96,16 @@ func (s *Store) has(table kvdb.Database, key []byte) bool {
 		s.Fatal(err)
 	}
 	return res
+}
+
+// Update info about db file size. Only for metrics.
+func (s *Store) updateSizeInfo() {
+	fi, err := os.Stat(metrics.DBFilePath)
+	if err != nil {
+		s.Fatal(err)
+	}
+
+	dbFileSize.Update(fi.Size())
 }
 
 func intToBytes(n uint64) []byte {
