@@ -30,12 +30,20 @@ func (s *Store) HasEvent(h hash.Event) bool {
 // GetWireEvent returns stored event.
 // Result is a ready gRPC message.
 func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
-	w, _ := s.get(s.table.Events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	key := h.Bytes()
+	// TODO: look for w and wt in parallel ?
+	w, _ := s.get(s.table.Events, key, &wire.Event{}).(*wire.Event)
 	if w == nil {
 		return w
 	}
-	wt, _ := s.get(s.table.ExtTxns, h.Bytes(), &wire.ExtTxns{}).(*wire.ExtTxns)
-	w.ExternalTransactions = &wire.Event_ExtTxnsValue{wt}
+
+	wt, _ := s.get(s.table.ExtTxns, key, &wire.ExtTxns{}).(*wire.ExtTxns)
+	if wt != nil { // grpc magic
+		w.ExternalTransactions = &wire.Event_ExtTxnsValue{wt}
+	} else {
+		w.ExternalTransactions = nil
+	}
+
 	return w
 }
 
