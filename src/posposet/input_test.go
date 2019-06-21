@@ -62,7 +62,7 @@ func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
 		return nil
 	}
 	wt, _ := s.get(s.table.ExtTxns, h.Bytes(), &wire.ExtTxns{}).(*wire.ExtTxns)
-	w.ExternalTransactions = &wire.Event_ExtTxnsValue{wt}
+	w.ExternalTransactions = &wire.Event_ExtTxnsValue{ExtTxnsValue: wt}
 
 	return inter.WireToEvent(w)
 }

@@ -22,11 +22,13 @@ func (tt *ExtTxns) ToWire() (*wire.Event_ExtTxnsValue, *wire.Event_ExtTxnsHash) 
 	}
 
 	return &wire.Event_ExtTxnsValue{
-			&wire.ExtTxns{
+			ExtTxnsValue: &wire.ExtTxns{
 				List: tt.Value,
 			},
 		},
-		&wire.Event_ExtTxnsHash{h}
+		&wire.Event_ExtTxnsHash{
+			ExtTxnsHash: h,
+		}
 }
 
 // WireToExtTxns converts from wire.

@@ -39,7 +39,7 @@ func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 
 	wt, _ := s.get(s.table.ExtTxns, key, &wire.ExtTxns{}).(*wire.ExtTxns)
 	if wt != nil { // grpc magic
-		w.ExternalTransactions = &wire.Event_ExtTxnsValue{wt}
+		w.ExternalTransactions = &wire.Event_ExtTxnsValue{ExtTxnsValue: wt}
 	} else {
 		w.ExternalTransactions = nil
 	}
