@@ -7,6 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
+// ExtTxns is a slice or hash of external transactions.
 type ExtTxns struct {
 	Value [][]byte
 	Hash  *hash.Hash
