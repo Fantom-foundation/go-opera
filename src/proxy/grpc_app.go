@@ -45,9 +45,11 @@ type (
 )
 
 // NewGrpcAppProxy instantiates a joined AppProxy-interface listen to remote apps.
-func NewGrpcAppProxy(bind string, timeout time.Duration, listen network.ListenFunc) (
-	res AppProxy, addr string, err error) {
-
+func NewGrpcAppProxy(
+	bind string, timeout time.Duration, listen network.ListenFunc,
+) (
+	res AppProxy, addr string, err error,
+) {
 	if listen == nil {
 		listen = network.TCPListener
 	}
