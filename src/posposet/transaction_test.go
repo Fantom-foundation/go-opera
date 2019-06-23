@@ -47,7 +47,7 @@ func TestPosetTxn(t *testing.T) {
 	}
 
 	st := s.GetState()
-	t.Logf("poset: frame %d, block %d", st.LastFinishedFrameN, st.LastBlockN)
+	t.Logf("poset: frame %d, block %d", st.LastFinishedFrameN(), st.LastBlockN)
 
 	assert.Equal(t,
 		uint64(0), p.StakeOf(nodes[0]),

@@ -63,9 +63,8 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 	return
 }
 
-// frame finds or creates frame.
-func (p *Poset) frame(n uint64, orCreate bool) *Frame {
-	if n < p.state.LastFinishedFrameN && orCreate {
+func (p *Poset) frameFromStore(n uint64) *Frame {
+	if n < p.state.LastFinishedFrameN() {
 		p.Fatalf("too old frame %d is requested", n)
 	}
 	// return ephemeral
@@ -75,9 +74,31 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			Balances: p.state.Genesis,
 		}
 	}
-	// return existing
-	f := p.frames[n]
+
+	f := p.store.GetFrame(n)
 	if f == nil {
+		return p.frameFromStore(n - 1)
+	}
+
+	return f
+}
+
+// frame finds or creates frame.
+func (p *Poset) frame(n uint64, orCreate bool) *Frame {
+	if n < p.state.LastFinishedFrameN() && orCreate {
+		p.Fatalf("too old frame %d is requested", n)
+	}
+	// return ephemeral
+	if n == 0 {
+		return &Frame{
+			Index:    0,
+			Balances: p.state.Genesis,
+		}
+	}
+
+	// return existing
+	f, ok := p.frames[n]
+	if !ok {
 		if !orCreate {
 			return nil
 		}
@@ -97,28 +118,6 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 	return f
 }
 
-// frameNumsAsc returns frame numbers sorted from first to last.
-func (p *Poset) frameNumsAsc() []uint64 {
-	// TODO: cache sorted
-	var nums []uint64
-	for n := range p.frames {
-		nums = append(nums, n)
-	}
-	sort.Sort(frameNums(nums))
-	return nums
-}
-
-// frameNumsDesc returns frame numbers sorted from last to first.
-func (p *Poset) frameNumsDesc() []uint64 {
-	// TODO: cache sorted
-	var nums []uint64
-	for n := range p.frames {
-		nums = append(nums, n)
-	}
-	sort.Sort(sort.Reverse(frameNums(nums)))
-	return nums
-}
-
 // frameNumLast returns last frame number.
 func (p *Poset) frameNumLast() uint64 {
 	var max uint64
@@ -126,6 +125,7 @@ func (p *Poset) frameNumLast() uint64 {
 		if max < n {
 			max = n
 		}
+
 	}
 	return max
 }

@@ -86,7 +86,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	}
 
 	st = &State{
-		LastFinishedFrameN: 0,
+		lastFinishedFrameN: 0,
 		TotalCap:           0,
 	}
 
