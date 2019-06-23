@@ -13,6 +13,7 @@ matrix:
       before_install:
         - if ! command -v glide; then curl https://glide.sh/get | sh; fi
         - go get -v github.com/SamuelMarks/batch-ethkey
+        - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
         - make vendor
       addons:
