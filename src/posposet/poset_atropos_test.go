@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // NOTE: Atroposes B1 and E1 don't look like Figure22 "An Example of time ordering of event blocks in OPERA chain"
@@ -73,6 +74,8 @@ A65 ─ ─ ╬ ─ ─ ─ ╣║      ║      ║║
 `
 
 func TestPosetSimpleAtropos(t *testing.T) {
+	logger.SetTestMode(t)
+
 	t.Run("Original poset", func(t *testing.T) {
 		testSpecialNamedAtropos(t, false, atroposDAG)
 	})

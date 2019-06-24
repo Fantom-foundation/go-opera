@@ -8,9 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestPosetSimpleRoot(t *testing.T) {
+	logger.SetTestMode(t)
+
 	testSpecialNamedRoots(t, `
 a01   b01   c01
 ║     ║     ║
@@ -58,6 +61,8 @@ A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
 }
 
 func TestPosetFarRoot(t *testing.T) {
+	logger.SetTestMode(t)
+
 	testSpecialNamedRoots(t, `
 a01   b01   c01
 ║     ║     ║

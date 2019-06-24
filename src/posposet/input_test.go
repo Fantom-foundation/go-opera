@@ -11,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // EventStore is a poset event storage for test purpose.
@@ -89,6 +90,8 @@ func (s *EventStore) HasEvent(h hash.Event) bool {
  */
 
 func TestEventStore(t *testing.T) {
+	logger.SetTestMode(t)
+
 	store := NewEventStore(nil, false)
 
 	t.Run("NotExisting", func(t *testing.T) {

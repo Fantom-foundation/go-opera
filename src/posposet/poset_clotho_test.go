@@ -8,9 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestPosetSimpleClotho(t *testing.T) {
+	logger.SetTestMode(t)
+
 	testSpecialNamedClotho(t, `
 a01     b01     c01
 ║       ║       ║

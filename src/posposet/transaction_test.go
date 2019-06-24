@@ -7,9 +7,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestPosetTxn(t *testing.T) {
+	logger.SetTestMode(t)
+
 	first := true
 	transfer := func(e *inter.Event, nodes []hash.Peer) {
 		if !first {
