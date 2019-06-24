@@ -10,10 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
-/*
- * Event:
- */
-
 // Event is a poset event.
 type Event struct {
 	Index                uint64
@@ -21,7 +17,7 @@ type Event struct {
 	Parents              hash.Events
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
-	ExternalTransactions [][]byte
+	ExternalTransactions ExtTxns
 	Sign                 string
 
 	hash hash.Event // cache for .Hash()
@@ -84,19 +80,22 @@ func (e *Event) String() string {
 }
 
 // ToWire converts to proto.Message.
-func (e *Event) ToWire() *wire.Event {
+func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 	if e == nil {
-		return nil
+		return nil, nil
 	}
+
+	extTxns, extTxnsHash := e.ExternalTransactions.ToWire()
+
 	return &wire.Event{
 		Index:                e.Index,
 		Creator:              e.Creator.Hex(),
 		Parents:              e.Parents.ToWire(),
 		LamportTime:          uint64(e.LamportTime),
 		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
-		ExternalTransactions: e.ExternalTransactions,
+		ExternalTransactions: extTxnsHash,
 		Sign:                 e.Sign,
-	}
+	}, extTxns
 }
 
 // WireToEvent converts from wire.
@@ -110,7 +109,7 @@ func WireToEvent(w *wire.Event) *Event {
 		Parents:              hash.WireToEventHashes(w.Parents),
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
-		ExternalTransactions: w.ExternalTransactions,
+		ExternalTransactions: WireToExtTxns(w),
 		Sign:                 w.Sign,
 	}
 }
@@ -121,12 +120,14 @@ func WireToEvent(w *wire.Event) *Event {
 
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) hash.Event {
-	w := e.ToWire()
+	w, _ := e.ToWire()
 	w.Sign = ""
+
 	buf, err := proto.Marshal(w)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return hash.Event(hash.Of(buf))
 }
 
@@ -143,10 +144,18 @@ func FakeFuzzingEvents() (res []*Event) {
 		hash.FakeEvents(1),
 		hash.FakeEvents(8),
 	}
+	extTxns := [][][]byte{
+		nil,
+		[][]byte{
+			[]byte("fake external transaction 1"),
+			[]byte("fake external transaction 2"),
+		},
+	}
+	i := 0
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := &Event{
-				Index:   uint64(c*len(parents) + p),
+				Index:   uint64(p),
 				Creator: creators[c],
 				Parents: parents[p],
 				InternalTransactions: []*InternalTransaction{
@@ -155,9 +164,12 @@ func FakeFuzzingEvents() (res []*Event) {
 						Receiver: creators[c],
 					},
 				},
-				ExternalTransactions: nil,
+				ExternalTransactions: ExtTxns{
+					Value: extTxns[i%len(extTxns)],
+				},
 			}
 			res = append(res, e)
+			i++
 		}
 	}
 	return

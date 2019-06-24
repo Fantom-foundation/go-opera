@@ -33,7 +33,7 @@ func (s *stakeCounter) IsGoalAchieved() bool {
 
 // StakeOf returns last stake balance of peer.
 func (p *Poset) StakeOf(addr hash.Peer) uint64 {
-	f := p.frame(p.state.LastFinishedFrameN+stateGap, true)
+	f := p.frameFromStore(p.state.LastFinishedFrameN() + stateGap)
 	db := p.store.StateDB(f.Balances)
 	return db.VoteBalance(addr)
 }

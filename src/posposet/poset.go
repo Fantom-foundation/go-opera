@@ -1,9 +1,10 @@
 package posposet
 
 import (
-	"errors"
 	"sort"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -70,11 +71,11 @@ func (p *Poset) Start() {
 	p.processingWg.Add(1)
 	go func() {
 		defer p.processingWg.Done()
-		//log.Debug("Start of events processing ...")
+		// log.Debug("Start of events processing ...")
 		for {
 			select {
 			case <-p.processingDone:
-				//log.Debug("Stop of events processing ...")
+				// log.Debug("Stop of events processing ...")
 				return
 			case e := <-p.newEventsCh:
 				event := p.input.GetEvent(e)
@@ -138,8 +139,8 @@ func (p *Poset) consensus(event *inter.Event) {
 
 	// process matured frames where ClothoCandidates have become Clothos
 	var ordered inter.Events
-	lastFinished := p.state.LastFinishedFrameN
-	for n := p.state.LastFinishedFrameN + 1; n+3 <= frame.Index; n++ {
+	lastFinished := p.state.LastFinishedFrameN()
+	for n := p.state.LastFinishedFrameN() + 1; n+3 <= frame.Index; n++ {
 		if p.hasAtropos(n, frame.Index) {
 			p.Debugf("consensus: make new block %d from frame %d", p.state.LastBlockN+1, n)
 			events := p.topologicalOrdered(n)
@@ -174,15 +175,15 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	// save finished frames
-	if p.state.LastFinishedFrameN < lastFinished {
-		p.state.LastFinishedFrameN = lastFinished
+	if p.state.LastFinishedFrameN() < lastFinished {
+		p.state.LastFinishedFrame(lastFinished)
 		p.saveState()
-		p.Debugf("consensus: lastFinishedFrameN is %d", p.state.LastFinishedFrameN)
+		p.Debugf("consensus: lastFinishedFrameN is %d", p.state.LastFinishedFrameN())
 	}
 
 	// clean old frames
 	for i := range p.frames {
-		if i+stateGap < p.state.LastFinishedFrameN {
+		if i+stateGap < p.state.LastFinishedFrameN() {
 			delete(p.frames, i)
 		}
 	}
@@ -193,11 +194,11 @@ func (p *Poset) consensus(event *inter.Event) {
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) *Frame {
 	knownRoots := eventsByFrame{}
-	minFrame := p.state.LastFinishedFrameN + 1
+	minFrame := p.state.LastFinishedFrameN() + 1
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil || frame.Index <= p.state.LastFinishedFrameN {
+			if frame == nil || frame.Index <= p.state.LastFinishedFrameN() {
 				p.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue
@@ -230,10 +231,10 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		roots := knownRoots[fnum]
 		frame = p.frame(fnum, true)
 		frame.AddRootsOf(e.Hash(), roots)
-		//log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
+		// log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
 		if isRoot = p.hasMajority(frame, roots); isRoot {
 			frame = p.frame(fnum+1, true)
-			//log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
+			// log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
 			break
 		}
 	}
@@ -273,7 +274,7 @@ func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
 		// check CC-condition
 		if p.hasTrust(frame, roots) {
 			prev.AddClothoCandidate(seen, seenCreator)
-			//log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
+			// log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
 		}
 	}
 }
@@ -322,7 +323,7 @@ CLOTHO:
 					}
 
 					if diff%3 > 0 && p.hasMajority(prev, K) {
-						//log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
+						// log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
 						frame.SetAtropos(clotho, T)
 						has = true
 						continue CLOTHO
@@ -385,7 +386,6 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 }
 
 // reconsensusFromFrame recalcs consensus of frames.
-// It is not safe for concurrent use.
 func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	stop := p.frameNumLast()
 	var all inter.Events
@@ -414,6 +414,7 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	// save fresh frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
+
 		p.setFrameSaving(frame)
 		frame.Save()
 	}

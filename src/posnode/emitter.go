@@ -164,7 +164,9 @@ func (n *Node) EmitEvent() *inter.Event {
 		Parents:              parents,
 		LamportTime:          maxLamportTime + 1,
 		InternalTransactions: internalTxns,
-		ExternalTransactions: externalTxns,
+		ExternalTransactions: inter.ExtTxns{
+			Value: externalTxns,
+		},
 	}
 	if err := event.SignBy(n.key); err != nil {
 		n.Fatal(err)

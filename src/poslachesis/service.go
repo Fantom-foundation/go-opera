@@ -81,7 +81,7 @@ func (l *Lachesis) toLegacyBlock(b *inter.Block) *poset.Block {
 	var txns [][]byte
 	for _, e := range b.Events {
 		event := l.nodeStore.GetEvent(e)
-		txns = append(txns, event.ExternalTransactions...)
+		txns = append(txns, event.ExternalTransactions.Value...)
 	}
 	// NOTE: Signatures and Hashes are empty
 	return &poset.Block{

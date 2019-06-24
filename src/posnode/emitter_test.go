@@ -97,7 +97,7 @@ func TestEmit(t *testing.T) {
 			events[0].Parents)
 		assertar.Equal(
 			[][]byte{tx},
-			events[0].ExternalTransactions)
+			events[0].ExternalTransactions.Value)
 	})
 
 	t.Run("1st event", func(t *testing.T) {
