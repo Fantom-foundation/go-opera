@@ -13,6 +13,8 @@ matrix:
       before_install:
         - if ! command -v glide; then curl https://glide.sh/get | sh; fi
         - go get -v github.com/SamuelMarks/batch-ethkey
+        - go get -v github.com/golang/mock/mockgen
+        - go install github.com/golang/mock/mockgen
         - make vendor
       addons:
         apt:
@@ -50,14 +52,14 @@ matrix:
         - logshold='-1,-1,-1,5,0,0'
         - l_entry='main'
         - BUILD_DIR="$TRAVIS_BUILD_DIR"
-    - name: SonarQube automatic code reviewer
-      language: java
-      dist: trusty
-      addons:
-        sonarcloud:
-          organization: fantom-foundation
-      script:
-        - sonar-scanner
+#    - name: SonarQube automatic code reviewer
+#      language: java
+#      dist: trusty
+#      addons:
+#        sonarcloud:
+#          organization: fantom-foundation
+#      script:
+#        - sonar-scanner
     - name: Documentation generator
       language: python
       sudo: required

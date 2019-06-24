@@ -81,6 +81,7 @@ func (p *Poset) Bootstrap() {
 	p.reconsensusFromFrame(p.state.LastFinishedFrameN()+1, start.Balances)
 }
 
+// GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
 	return p.state.Genesis
 }

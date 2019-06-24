@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -32,18 +34,22 @@ func TestApp(t *testing.T) {
 	app := prepareApp()
 	var out bytes.Buffer
 	app.SetOutput(&out)
+	reset := func() {
+		сlearFlags(app)
+		out.Reset()
+	}
 
 	peer := hash.FakePeer()
 
 	t.Run("id", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		node.EXPECT().
 			GetID().
 			Return(peer)
 
 		app.SetArgs([]string{"id"})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -55,6 +61,7 @@ func TestApp(t *testing.T) {
 
 	t.Run("stake", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		amount := rand.Uint64()
 
@@ -66,7 +73,6 @@ func TestApp(t *testing.T) {
 			Return(amount)
 
 		app.SetArgs([]string{"stake"})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -79,6 +85,7 @@ func TestApp(t *testing.T) {
 
 	t.Run("balance with peer flag", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		amount := rand.Uint64()
 
@@ -91,7 +98,6 @@ func TestApp(t *testing.T) {
 		app.SetArgs([]string{
 			"stake",
 			fmt.Sprintf("--peer=%s", otherPeer.Hex())})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -104,6 +110,7 @@ func TestApp(t *testing.T) {
 
 	t.Run("txn not found", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		h := hash.FakeTransaction()
 		node.EXPECT().
@@ -114,7 +121,6 @@ func TestApp(t *testing.T) {
 			"txn",
 			h.Hex(),
 		})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.Error(err) {
@@ -126,6 +132,7 @@ func TestApp(t *testing.T) {
 
 	t.Run("txn found", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		h := hash.FakeTransaction()
 		amount := rand.Uint64()
@@ -144,7 +151,6 @@ func TestApp(t *testing.T) {
 			"txn",
 			h.Hex(),
 		})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -163,9 +169,9 @@ func TestApp(t *testing.T) {
 
 	t.Run("transfer missing flags", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		app.SetArgs([]string{"transfer"})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.Error(err) {
@@ -177,6 +183,7 @@ func TestApp(t *testing.T) {
 
 	t.Run("transfer", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		amount := rand.Uint64()
 
@@ -196,7 +203,6 @@ func TestApp(t *testing.T) {
 			fmt.Sprintf("--index=%d", tx.Index),
 			fmt.Sprintf("--amount=%d", tx.Amount),
 			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -208,11 +214,11 @@ func TestApp(t *testing.T) {
 
 	t.Run("log-level one argument", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		app.SetArgs([]string{
 			"log-level",
 		})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.Error(err) {
@@ -224,12 +230,12 @@ func TestApp(t *testing.T) {
 
 	t.Run("log-level ok", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		app.SetArgs([]string{
 			"log-level",
 			"info",
 		})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -241,11 +247,11 @@ func TestApp(t *testing.T) {
 
 	t.Run("key ok", func(t *testing.T) {
 		assertar := assert.New(t)
+		reset()
 
 		app.SetArgs([]string{
 			"key",
 		})
-		defer out.Reset()
 
 		err := app.Execute()
 		if !assertar.NoError(err) {
@@ -259,4 +265,17 @@ func TestApp(t *testing.T) {
 
 		assertar.Contains(out.String(), "priv_key.pem created")
 	})
+}
+
+func сlearFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		if err := f.Value.Set(f.DefValue); err != nil {
+			panic(err)
+		}
+		f.Changed = false
+	})
+
+	for _, sub := range cmd.Commands() {
+		сlearFlags(sub)
+	}
 }

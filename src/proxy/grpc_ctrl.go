@@ -27,9 +27,11 @@ type grpcCtrlProxy struct {
 }
 
 // NewGrpcCtrlProxy starts Ctrl proxy.
-func NewGrpcCtrlProxy(bind string, n Node, c Consensus, logger *logrus.Logger, listen network.ListenFunc) (
-	res CtrlProxy, addr string, err error) {
-
+func NewGrpcCtrlProxy(
+	bind string, n Node, c Consensus, logger *logrus.Logger, listen network.ListenFunc,
+) (
+	res CtrlProxy, addr string, err error,
+) {
 	if logger == nil {
 		logger = logrus.New()
 		logger.Level = logrus.DebugLevel

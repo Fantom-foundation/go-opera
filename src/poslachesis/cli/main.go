@@ -14,7 +14,7 @@ func main() {
 }
 
 func prepareApp() *cobra.Command {
-	app := cobra.Command{
+	app := &cobra.Command{
 		Use: os.Args[0],
 	}
 
@@ -27,5 +27,5 @@ func prepareApp() *cobra.Command {
 	app.AddCommand(command.Key)
 	app.AddCommand(command.Metrics)
 
-	return &app
+	return app
 }

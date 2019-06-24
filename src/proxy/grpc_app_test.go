@@ -44,7 +44,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 	defer leaktest.CheckTimeout(t, time.Second)()
 
 	const (
-		timeout    = 1 * time.Second
+		timeout    = 4 * time.Second
 		errTimeout = "time is over"
 	)
 
@@ -147,7 +147,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 
 func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.DialOption) {
 	const (
-		timeout    = 1 * time.Second
+		timeout    = 4 * time.Second
 		errTimeout = "time is over"
 	)
 	assertar := assert.New(t)

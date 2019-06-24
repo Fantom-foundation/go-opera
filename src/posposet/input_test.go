@@ -77,6 +77,8 @@ func (s *EventStore) HasEvent(h hash.Event) bool {
  */
 
 func TestEventStore(t *testing.T) {
+	logger.SetTestMode(t)
+
 	store := NewEventStore(nil)
 
 	t.Run("NotExisting", func(t *testing.T) {

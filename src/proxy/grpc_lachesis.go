@@ -85,16 +85,14 @@ func (p *grpcLachesisProxy) Close() {
 
 	p.closeStream()
 	err := p.conn.Close()
-
-	close(p.commitCh)
-	close(p.queryCh)
-	close(p.restoreCh)
-
 	if err != nil {
 		p.Error(err)
 	}
 
 	p.wg.Wait()
+	close(p.commitCh)
+	close(p.queryCh)
+	close(p.restoreCh)
 }
 
 /*
