@@ -52,14 +52,14 @@ matrix:
         - logshold='-1,-1,-1,5,0,0'
         - l_entry='main'
         - BUILD_DIR="$TRAVIS_BUILD_DIR"
-    - name: SonarQube automatic code reviewer
-      language: java
-      dist: trusty
-      addons:
-        sonarcloud:
-          organization: fantom-foundation
-      script:
-        - sonar-scanner
+#    - name: SonarQube automatic code reviewer
+#      language: java
+#      dist: trusty
+#      addons:
+#        sonarcloud:
+#          organization: fantom-foundation
+#      script:
+#        - sonar-scanner
     - name: Documentation generator
       language: python
       sudo: required
