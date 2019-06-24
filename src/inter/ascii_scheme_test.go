@@ -113,7 +113,7 @@ a02  ╬ ─ ─ ╣
 	t.Log(out)
 
 	// step 3: ASCII --> DAG (again)
-	_, events, named = ASCIIschemeToDAG(genScheme)
+	_, _, named = ASCIIschemeToDAG(genScheme)
 	checkParents(t, named, expected)
 }
 
@@ -170,7 +170,7 @@ c02 ─  ╩╫ ─ ─   ╣
 	t.Log(out)
 
 	// step 3: ASCII --> DAG (again)
-	_, events, named = ASCIIschemeToDAG(genScheme)
+	_, _, named = ASCIIschemeToDAG(genScheme)
 	checkParents(t, named, expected)
 }
 
@@ -225,7 +225,7 @@ a02 ─   ╬ ─ ─   ╣
 	t.Log(out)
 
 	// step 3: ASCII --> DAG (again)
-	_, events, named = ASCIIschemeToDAG(genScheme)
+	_, _, named = ASCIIschemeToDAG(genScheme)
 	checkParents(t, named, expected)
 }
 
