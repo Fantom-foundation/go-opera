@@ -88,6 +88,7 @@ func (n *Node) gossiping(tickets chan struct{}) {
 func (n *Node) syncWithPeer(peer *Peer) {
 	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
+		n.Error(err)
 		return
 	}
 	defer free()

@@ -17,15 +17,11 @@ type Store struct {
 		PeersTop    kvdb.Database `table:"top_peers_"`
 		PeerHeights kvdb.Database `table:"peer_height_"`
 
-		Events kvdb.Database `table:"event_"`
-		Hashes kvdb.Database `table:"hash_"`
+		Events  kvdb.Database `table:"event_"`
+		ExtTxns kvdb.Database `table:"ext_txn_"`
+		Hashes  kvdb.Database `table:"hash_"`
 
 		Txn2Event kvdb.Database `table:"txn2event_"`
-		/*
-			Nonce       kvdb.Database `table:"nonce_"`
-			NonceTxs    kvdb.Database `table:"nonce_tx_"`
-			NonceEvents kvdb.Database `table:"nonce_event_"`
-		*/
 	}
 
 	logger.Instance
