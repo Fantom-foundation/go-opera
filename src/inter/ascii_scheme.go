@@ -2,6 +2,7 @@ package inter
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -292,8 +293,9 @@ func (r *row) Position(i int) pos {
 }
 
 func (rr *rows) Optimize() {
-	// TODO: fix it, see TestDAGtoASCIIcheme()
-	return
+	re := regexp.MustCompile("[a-z]+")
+
+	var switchToNext bool
 
 	for iRow, row := range rr.rows {
 		for iRef, ref := range row.Refs {
@@ -301,9 +303,13 @@ func (rr *rows) Optimize() {
 			if ref < 3 {
 				continue
 			}
+
 			row.Refs[iRef] = ref - 1
 
 			prev := iRow - 1
+
+			// get current node name (a, b, c... etc.)
+			currNode := re.FindAllString(rr.rows[iRow].Name, 1)[0]
 
 			// find event for swap
 			for {
@@ -311,7 +317,35 @@ func (rr *rows) Optimize() {
 					break
 				}
 
+				// get prev node name (a, b, c... etc.)
+				prevNode := re.FindAllString(rr.rows[prev].Name, 1)[0]
+
+				if currNode == prevNode {
+					// Warning: Swap parents.
+					// Restore changes.
+					row.Refs[iRef] = ref
+					switchToNext = true
+					break
+				}
+
 				prev--
+			}
+
+			if switchToNext {
+				switchToNext = false
+				continue
+			}
+
+			// update refs for swapped event
+			if rr.rows[prev].Refs[rr.rows[iRow].Self] > 0 {
+				rr.rows[prev].Refs[rr.rows[iRow].Self]++
+			}
+
+			// Note: if swapped event now have refs more than before -> discard any changes for current and swapped event.
+			if rr.rows[prev].Refs[rr.rows[iRow].Self] > 2 {
+				rr.rows[prev].Refs[rr.rows[iRow].Self]--
+				row.Refs[iRef] = ref
+				continue
 			}
 
 			// for fill empty space after swap (for graph)
