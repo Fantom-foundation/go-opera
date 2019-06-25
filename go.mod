@@ -15,25 +15,27 @@ require (
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052
-	github.com/fsnotify/fsnotify v0.0.0-20190312181446-1485a34d5d57
+	github.com/fortytw2/leaktest v1.3.0
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/getsentry/raven-go v0.2.0
-	github.com/golang/mock v0.0.0-20190508161146-9fa652df1129
+	github.com/go-logfmt/logfmt v0.4.0 // indirect
+	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
 	github.com/hashicorp/errwrap v1.0.0
 	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/golang-lru v0.5.1
-	github.com/hashicorp/hcl v0.0.0-20190430135223-99e2f22d1c94
+	github.com/hashicorp/hcl v1.0.0
 	github.com/inconshreveable/mousetrap v1.0.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2
 	github.com/magiconair/properties v1.8.1
-	github.com/matttproud/golang_protobuf_extensions v0.0.0-20181231171920-c182affec369
+	github.com/matttproud/golang_protobuf_extensions v1.0.1
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pelletier/go-toml v1.4.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.4
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90
 	github.com/prometheus/common v0.4.1
-	github.com/prometheus/procfs v0.0.0-20190607153033-1de2bc567d78
+	github.com/prometheus/procfs v0.0.2
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/rs/xid v1.2.1
 	github.com/sirupsen/logrus v1.4.2
@@ -41,15 +43,18 @@ require (
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/jwalterweatherman v1.1.0
-	github.com/spf13/pflag v0.0.0-20181223182923-24fa6976df40
+	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.4.0
+	github.com/stretchr/testify v1.3.0
 	github.com/tebeka/atexit v0.1.0
 	github.com/urfave/cli v1.20.0
 	go.etcd.io/bbolt v1.3.3
-	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
-	golang.org/x/net v0.0.0-20190509222800-a4d6f7feada5
-	golang.org/x/sys v0.0.0-20190509141414-a5b02f93d862
+	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4
+	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
+	golang.org/x/sys v0.0.0-20190624142023-c5567b49c5d0
 	golang.org/x/text v0.3.2
+	golang.org/x/tools v0.0.0-20190624222133-a101b041ded4 // indirect
+	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190508193815-b515fa19cec8
 	google.golang.org/grpc v1.21.1
 	gopkg.in/yaml.v2 v2.2.2
