@@ -14,10 +14,6 @@ var (
 	Enabled = false
 
 	log = logger.Get().WithField("module", "metrics")
-
-	// DBFilePath using for collect db file size.
-	// TODO: Move to another place?
-	DBFilePath = ""
 )
 
 const (

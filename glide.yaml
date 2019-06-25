@@ -1,5 +1,7 @@
 package: github.com/Fantom-foundation/go-lachesis
 import:
+- package: github.com/fsnotify/fsnotify
+  version: ^1.4.7
 - package: github.com/allegro/bigcache
   version: ^1.2.0
 - package: github.com/dgraph-io/badger

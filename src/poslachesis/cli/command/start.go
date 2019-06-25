@@ -169,11 +169,12 @@ func ondiskDB(dir string) (*bbolt.DB, error) {
 
 	f := filepath.Join(dir, "lachesis.bolt")
 
-	// TODO: using for collect size of db file for metrics.
-	// Later we can add Size() method to Database interface or something like this.
-	metrics.DBFilePath = f
+	db, err := bbolt.Open(f, 0600, nil)
 
-	return bbolt.Open(f, 0600, nil)
+	// Note: create file before init new watcher
+	go metrics.NewFileWatcher("db_file_size", f)
+
+	return db, err
 }
 
 func wait() {
