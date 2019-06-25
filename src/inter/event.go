@@ -19,6 +19,9 @@ type Event struct {
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions ExtTxns
 	Sign                 string
+	CreatorSeq           int64
+	FirstSeq             []int64 // 0 <= FirstSeq[i] <= 9223372036854775807
+	LastSeq              []int64 // -1 <= LastSeq[i] <= 9223372036854775807
 
 	hash hash.Event // cache for .Hash()
 }
@@ -90,6 +93,7 @@ func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 	return &wire.Event{
 		Index:                e.Index,
 		Creator:              e.Creator.Hex(),
+		CreatorSeq:           e.CreatorSeq,
 		Parents:              e.Parents.ToWire(),
 		LamportTime:          uint64(e.LamportTime),
 		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
@@ -106,6 +110,7 @@ func WireToEvent(w *wire.Event) *Event {
 	return &Event{
 		Index:                w.Index,
 		Creator:              hash.HexToPeer(w.Creator),
+		CreatorSeq:           w.CreatorSeq,
 		Parents:              hash.WireToEventHashes(w.Parents),
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
@@ -153,11 +158,13 @@ func FakeFuzzingEvents() (res []*Event) {
 	}
 	i := 0
 	for c := 0; c < len(creators); c++ {
+		seq := int64(0)
 		for p := 0; p < len(parents); p++ {
 			e := &Event{
-				Index:   uint64(p),
-				Creator: creators[c],
-				Parents: parents[p],
+				Index:      uint64(p),
+				Creator:    creators[c],
+				CreatorSeq: seq,
+				Parents:    parents[p],
 				InternalTransactions: []*InternalTransaction{
 					{
 						Amount:   999,
@@ -170,6 +177,7 @@ func FakeFuzzingEvents() (res []*Event) {
 			}
 			res = append(res, e)
 			i++
+			seq++
 		}
 	}
 	return
