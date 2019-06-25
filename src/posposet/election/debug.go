@@ -1,12 +1,13 @@
 package election
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // may be used in tests to match election state
-func (el *Election) DebugStateHash() common.Hash {
+func (el *Election) DebugStateHash() hash.Hash {
 	hasher := sha3.New256()
 	for vid, vote := range el.votes {
 		hasher.Write(vid.fromRoot.Bytes())
@@ -16,5 +17,5 @@ func (el *Election) DebugStateHash() common.Hash {
 		hasher.Write(slot.Nodeid.Bytes())
 		hasher.Write(vote.seenRoot.Bytes())
 	}
-	return common.BytesToHash(hasher.Sum(nil))
+	return hash.FromBytes(hasher.Sum(nil))
 }

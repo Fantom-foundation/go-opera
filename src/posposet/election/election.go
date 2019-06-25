@@ -3,7 +3,7 @@ package election
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -38,11 +38,11 @@ type ElectionNode struct {
 }
 
 type RootHash struct {
-	common.Hash
+	hash.Event
 }
 
 type NodeId struct {
-	common.Hash
+	hash.Peer
 }
 
 // specifies a slot {nodeid, frame}. Normal nodes can have only one root with this pair.

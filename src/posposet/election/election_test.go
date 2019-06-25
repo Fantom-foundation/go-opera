@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 type fakeEdge struct {
@@ -36,9 +36,10 @@ func (h *RootHash) UnmarshalJSON(input []byte) error {
 		if err != nil {
 			return err
 		}
-		*h = RootHash{common.HexToHash(str)}
+		*h = RootHash{hash.HexToEventHash(str)}
+		hash.EventNameDict[h.Event] = str
 	} else {
-		return h.Hash.UnmarshalJSON(input)
+		return h.Event.UnmarshalJSON(input)
 	}
 	return nil
 }
@@ -51,9 +52,9 @@ func (h *NodeId) UnmarshalJSON(input []byte) error {
 		if err != nil {
 			return err
 		}
-		*h = NodeId{common.HexToHash(str)}
+		*h = NodeId{hash.HexToPeer(str)}
 	} else {
-		return h.Hash.UnmarshalJSON(input)
+		return h.Peer.UnmarshalJSON(input)
 	}
 	return nil
 }
