@@ -1,4 +1,7 @@
 syntax = "proto3";
+
+option go_package = "github.com/Fantom-foundation/go-lachesis/src/inter/wire";
+
 package wire;
 
 message InternalTransaction {

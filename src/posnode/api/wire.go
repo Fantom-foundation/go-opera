@@ -5,7 +5,7 @@ package api
 //  unzip protoc-3.6.1-linux-x86_64.zip -x readme.txt -d /usr/local/
 //  go get -u github.com/golang/protobuf/protoc-gen-go
 
-//go:generate protoc -I=../../../../../.. -I=. --go_out=plugins=grpc:./ service.proto stored.proto
+//go:generate protoc -I=../.. -I=. --go_out=plugins=grpc:./ service.proto stored.proto
 
 // NOTE: mockgen does not work properly out of GOPATH
 //go:generate mockgen -package=api -source=service.pb.go -destination=mock.go NodeServer

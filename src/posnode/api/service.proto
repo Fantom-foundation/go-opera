@@ -1,7 +1,7 @@
 syntax = "proto3";
 package api;
 
-import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/wire.proto";
+import "inter/wire/wire.proto";
 
 service Node {
     rpc SyncEvents(KnownEvents) returns (KnownEvents) {}
