@@ -1,6 +1,8 @@
 package hash
 
 import (
+	"math/big"
+
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
@@ -19,6 +21,11 @@ var EmptyPeer = Peer{}
 // Bytes returns value as byte slice.
 func (p *Peer) Bytes() []byte {
 	return (*Hash)(p).Bytes()
+}
+
+// Big converts a hash to a big integer.
+func (p *Peer) Big() *big.Int {
+	return (*Hash)(p).Big()
 }
 
 // BytesToPeer converts bytes to peer id.
@@ -54,6 +61,11 @@ func (p *Peer) String() string {
 		return name
 	}
 	return (*Hash)(p).ShortString()
+}
+
+// UnmarshalJSON parses a hash in hex syntax.
+func (p *Peer) UnmarshalJSON(input []byte) error {
+	return (*Hash)(p).UnmarshalJSON(input)
 }
 
 // IsEmpty returns true if hash is empty.

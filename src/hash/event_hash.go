@@ -2,6 +2,7 @@ package hash
 
 import (
 	"bytes"
+	"math/big"
 	"math/rand"
 	"sort"
 	"strings"
@@ -33,6 +34,11 @@ func (h Event) Bytes() []byte {
 	return (Hash)(h).Bytes()
 }
 
+// Big converts a hash to a big integer.
+func (h *Event) Big() *big.Int {
+	return (*Hash)(h).Big()
+}
+
 // SetBytes converts bytes to event hash.
 // If b is larger than len(h), b will be cropped from the left.
 func (h *Event) SetBytes(raw []byte) {
@@ -62,6 +68,11 @@ func (h Event) String() string {
 		return name
 	}
 	return (Hash)(h).ShortString()
+}
+
+// UnmarshalJSON parses a hash in hex syntax.
+func (h *Event) UnmarshalJSON(input []byte) error {
+	return (*Hash)(h).UnmarshalJSON(input)
 }
 
 // IsZero returns true if hash is empty.
