@@ -51,6 +51,6 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 	// take root with greatest stake
 	return &ElectionRes{
 		DecidedFrame:     el.frameToDecide,
-		DecidedSfWitness: famousRoots[0].root,
-	}, nil;
+		DecidedSfWitness: famousRoots[0].root.String(),
+	}, nil
 }

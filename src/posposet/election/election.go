@@ -69,7 +69,7 @@ type voteValue struct {
 
 type ElectionRes struct {
 	DecidedFrame     FrameHeight
-	DecidedSfWitness RootHash
+	DecidedSfWitness string // RootHash
 }
 
 func NewElection(
