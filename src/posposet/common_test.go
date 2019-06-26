@@ -32,21 +32,21 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 
 // MakeOrderedInput wraps Poset.onNewEvent with ordering.EventBuffer.
 func MakeOrderedInput(p *Poset) {
-	orderThenConsensus := ordering.EventBuffer(
-		// process
-		p.consensus,
-		// drop
-		func(e *inter.Event, err error) {
+	orderThenConsensus := ordering.EventBuffer(ordering.Callback{
+
+		Process: p.consensus,
+
+		Drop: func(e *inter.Event, err error) {
 			logger.Get().Warn(err.Error() + ", so rejected")
 		},
-		// exists
-		func(h hash.Event) *inter.Event {
+
+		Exists: func(h hash.Event) *inter.Event {
 			if p.store.GetEventFrame(h) == nil {
 				return nil
 			}
 			return p.input.GetEvent(h)
 		},
-	)
+	})
 	// event order doesn't matter now
 	p.onNewEvent = func(e *inter.Event) {
 		orderThenConsensus(e)
