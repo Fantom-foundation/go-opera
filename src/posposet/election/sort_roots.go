@@ -2,13 +2,14 @@ package election
 
 import (
 	"errors"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 	"sort"
 )
 
 type sortedRoot struct {
 	stakeAmount *big.Int
-	root        RootHash
+	root        hash.Event
 }
 type sortedRoots []sortedRoot
 
@@ -55,6 +56,6 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 	// take root with greatest stake
 	return &ElectionRes{
 		DecidedFrame:     el.frameToDecide,
-		DecidedSfWitness: famousRoots[0].root.String(),
+		DecidedSfWitness: famousRoots[0].root,
 	}, nil
 }

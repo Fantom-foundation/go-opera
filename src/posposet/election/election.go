@@ -1,9 +1,9 @@
 package election
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -21,7 +21,7 @@ type Election struct {
 	superMajority *big.Int // the quorum (should be 2/3n + 1)
 
 	// election state
-	decidedRoots map[NodeId]voteValue // decided roots at "frameToDecide"
+	decidedRoots map[hash.Peer]voteValue // decided roots at "frameToDecide"
 	votes        map[voteId]voteValue
 
 	// external world
@@ -33,42 +33,34 @@ type Election struct {
 type FrameHeight uint32
 
 type ElectionNode struct {
-	Nodeid      NodeId
+	Nodeid      hash.Peer
 	StakeAmount *big.Int
-}
-
-type RootHash struct {
-	hash.Event
-}
-
-type NodeId struct {
-	hash.Peer
 }
 
 // specifies a slot {nodeid, frame}. Normal nodes can have only one root with this pair.
 // Due to a fork, different roots may occupy the same slot
 type RootSlot struct {
-	Frame     FrameHeight
-	Nodeid    NodeId
+	Frame  FrameHeight
+	Nodeid hash.Peer
 }
 
 // @return hash of root B, if root A strongly sees root B.
 // Due to a fork, there may be many roots B with the same slot,
 // but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-type RootStronglySeeRootFn func(a RootHash, b RootSlot) *RootHash
+type RootStronglySeeRootFn func(a hash.Event, b RootSlot) *hash.Event
 
 type voteId struct {
-	fromRoot  RootHash
-	forNodeid NodeId
+	fromRoot  hash.Event
+	forNodeid hash.Peer
 }
 type voteValue struct {
 	yes      bool
-	seenRoot RootHash
+	seenRoot hash.Event
 }
 
 type ElectionRes struct {
 	DecidedFrame     FrameHeight
-	DecidedSfWitness string // RootHash
+	DecidedSfWitness hash.Event
 }
 
 func NewElection(
@@ -83,7 +75,7 @@ func NewElection(
 		totalStake:    totalStake,
 		superMajority: superMajority,
 		frameToDecide: frameToDecide,
-		decidedRoots:  make(map[NodeId]voteValue),
+		decidedRoots:  make(map[hash.Peer]voteValue),
 		votes:         make(map[voteId]voteValue),
 		stronglySee:   stronglySeeFn,
 		Instance:      logger.MakeInstance(),
@@ -94,12 +86,12 @@ func NewElection(
 func (el *Election) ResetElection(frameToDecide FrameHeight) {
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
-	el.decidedRoots = make(map[NodeId]voteValue)
+	el.decidedRoots = make(map[hash.Peer]voteValue)
 }
 
 // return root slots which are not within el.decidedRoots
-func (el *Election) notDecidedRoots() []NodeId {
-	notDecidedRoots := make([]NodeId, 0, len(el.nodes))
+func (el *Election) notDecidedRoots() []hash.Peer {
+	notDecidedRoots := make([]hash.Peer, 0, len(el.nodes))
 
 	for _, node := range el.nodes {
 		if _, ok := el.decidedRoots[node.Nodeid]; !ok {
@@ -113,17 +105,17 @@ func (el *Election) notDecidedRoots() []NodeId {
 }
 
 type weightedRoot struct {
-	root        RootHash
+	root        hash.Event
 	stakeAmount *big.Int
 }
 
 // @return all the roots which are strongly seen by the specified root at the specified frame
-func (el *Election) stronglySeenRoots(root RootHash, frame FrameHeight) []weightedRoot {
+func (el *Election) stronglySeenRoots(root hash.Event, frame FrameHeight) []weightedRoot {
 	seenRoots := make([]weightedRoot, 0, len(el.nodes))
 	for _, node := range el.nodes {
 		slot := RootSlot{
-			Frame:     frame,
-			Nodeid:    node.Nodeid,
+			Frame:  frame,
+			Nodeid: node.Nodeid,
 		}
 		seenRoot := el.stronglySee(root, slot)
 		if seenRoot != nil {
@@ -136,7 +128,7 @@ func (el *Election) stronglySeenRoots(root RootHash, frame FrameHeight) []weight
 	return seenRoots
 }
 
-type GetRootsFn func(slot RootSlot) []RootHash
+type GetRootsFn func(slot RootSlot) []hash.Event
 
 // The function is similar to ProcessRoot, but it fully re-processes the current voting.
 // This routine should be called after node startup, and after each decided frame.
@@ -145,8 +137,8 @@ func (el *Election) ProcessKnownRoots(maxKnownFrame FrameHeight, getRootsFn GetR
 	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
 		for _, node := range el.nodes {
 			slot := RootSlot{
-				Frame:     frame,
-				Nodeid:    node.Nodeid,
+				Frame:  frame,
+				Nodeid: node.Nodeid,
 			}
 			roots := getRootsFn(slot)
 			// if there's more than 1 root, then all of them are forks. it's fine

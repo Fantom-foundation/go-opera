@@ -9,14 +9,14 @@ import (
 )
 
 type fakeEdge struct {
-	from RootHash
+	from hash.Event
 	to   RootSlot
 }
 
 type fakeRoot struct {
-	Hash         RootHash
+	Hash         hash.Event
 	Slot         RootSlot
-	StronglySeen []RootHash
+	StronglySeen []hash.Event
 }
 
 type processRootTest struct {
@@ -26,37 +26,6 @@ type processRootTest struct {
 	Roots []fakeRoot
 
 	Answer *ElectionRes
-}
-
-// Allow short hashes for tests
-func (h *RootHash) UnmarshalJSON(input []byte) error {
-	if len(input) < 64 {
-		var str string
-		err := json.Unmarshal(input, &str)
-		if err != nil {
-			return err
-		}
-		*h = RootHash{hash.HexToEventHash(str)}
-		hash.EventNameDict[h.Event] = str
-	} else {
-		return h.Event.UnmarshalJSON(input)
-	}
-	return nil
-}
-
-// Allow short hashes for tests
-func (h *NodeId) UnmarshalJSON(input []byte) error {
-	if len(input) < 64 {
-		var str string
-		err := json.Unmarshal(input, &str)
-		if err != nil {
-			return err
-		}
-		*h = NodeId{hash.HexToPeer(str)}
-	} else {
-		return h.Peer.UnmarshalJSON(input)
-	}
-	return nil
 }
 
 func TestProcessRootTest(t *testing.T) {
@@ -474,8 +443,8 @@ func TestProcessRootTest(t *testing.T) {
 			t.Fatal(name, "Empty test")
 		}
 
-		vertices := make(map[RootHash]RootSlot)
-		edges := make(map[fakeEdge]RootHash)
+		vertices := make(map[hash.Event]RootSlot)
+		edges := make(map[fakeEdge]hash.Event)
 
 		for _, root := range test.Roots {
 			vertices[root.Hash] = root.Slot
@@ -491,10 +460,10 @@ func TestProcessRootTest(t *testing.T) {
 			}
 		}
 
-		stronglySeeFn := func(a RootHash, b RootSlot) *RootHash {
+		stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
 			edge := fakeEdge{
 				from: a,
-				to: b,
+				to:   b,
 			}
 			hashB, ok := edges[edge]
 			if ok {

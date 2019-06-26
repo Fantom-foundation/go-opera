@@ -1,12 +1,11 @@
 package election
 
 import (
+	"github.com/stretchr/testify/assert"
 	"math/big"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -16,6 +15,11 @@ import (
 type (
 	stakes map[string]*big.Int
 )
+
+type fakeElectionRes struct {
+	DecidedFrame     FrameHeight
+	DecidedSfWitness string
+}
 
 func TestProcessRoot(t *testing.T) {
 
@@ -45,8 +49,8 @@ a2_2  ╬ ─ ─ ╬ ─ ─ ╣
 
 	t.Run("4 uni decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&ElectionRes{
-				DecidedFrame:     0,
+			&fakeElectionRes{
+				DecidedFrame:  0,
 				DecidedSfWitness: "d0_0", // NOTE: but b0_0 in original
 			},
 			stakes{
@@ -72,8 +76,8 @@ a2_2  ╬ ─ ─ ╬ ─ ─ ╣
 
 	t.Run("4 uni missingRoot decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&ElectionRes{
-				DecidedFrame:     0,
+			&fakeElectionRes{
+				DecidedFrame:  0,
 				DecidedSfWitness: "c0_0", // NOTE: but a0_0 in original
 			},
 			stakes{
@@ -97,8 +101,8 @@ a2_2  ╬ ─ ─ ╣     ║
 
 	t.Run("4 differentStakes decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&ElectionRes{
-				DecidedFrame:     0,
+			&fakeElectionRes{
+				DecidedFrame:  0,
 				DecidedSfWitness: "b0_0", // NOTE: but a0_0 in original
 			},
 			stakes{
@@ -124,8 +128,8 @@ a1_1  ╬ ─ ─ ╣     ║
 
 	t.Run("4 differentStakes 5rounds decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&ElectionRes{
-				DecidedFrame:     0,
+			&fakeElectionRes{
+				DecidedFrame:  0,
 				DecidedSfWitness: "a0_0",
 			},
 			stakes{
@@ -169,7 +173,7 @@ a4_4  ╣     ║     ║
 
 func testProcessRoot(
 	t *testing.T,
-	expected *ElectionRes,
+	expected *fakeElectionRes,
 	stakes stakes,
 	dag string,
 ) {
@@ -182,7 +186,7 @@ func testProcessRoot(
 	nodes := make([]ElectionNode, 0, len(peers))
 	for _, peer := range peers {
 		n := ElectionNode{
-			Nodeid:      NodeId{peer},
+			Nodeid:      peer,
 			StakeAmount: stakes[peer.String()],
 		}
 		nodes = append(nodes, n)
@@ -194,16 +198,16 @@ func testProcessRoot(
 
 	// events:
 	events := make(map[hash.Event]*inter.Event)
-	vertices := make(map[RootHash]RootSlot)
-	edges := make(map[fakeEdge]RootHash)
+	vertices := make(map[hash.Event]RootSlot)
+	edges := make(map[fakeEdge]hash.Event)
 
 	for dsc, root := range named {
 		events[root.Hash()] = root
-		h := RootHash{root.Hash()}
+		h := root.Hash()
 
 		vertices[h] = RootSlot{
 			Frame:  frameOf(dsc),
-			Nodeid: NodeId{root.Creator},
+			Nodeid: root.Creator,
 		}
 	}
 
@@ -213,7 +217,7 @@ func testProcessRoot(
 			noPrev = true
 			dsc = strings.TrimPrefix(dsc, "+")
 		}
-		from := RootHash{root.Hash()}
+		from := root.Hash()
 		for sSeen := range root.Parents {
 			if sSeen.IsZero() {
 				continue
@@ -221,7 +225,7 @@ func testProcessRoot(
 			if p := events[sSeen]; p.Creator == root.Creator && noPrev {
 				continue
 			}
-			to := RootHash{sSeen}
+			to := sSeen
 			edge := fakeEdge{
 				from: from,
 				to:   vertices[to],
@@ -231,10 +235,10 @@ func testProcessRoot(
 	}
 
 	// election:
-	stronglySeeFn := func(a RootHash, b RootSlot) *RootHash {
+	stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
 		edge := fakeEdge{
 			from: a,
-			to: b,
+			to:   b,
 		}
 		hashB, ok := edges[edge]
 		if ok {
@@ -261,7 +265,7 @@ func testProcessRoot(
 			}
 			steps++
 
-			rootHash := RootHash{root.Hash()}
+			rootHash := root.Hash()
 			rootSlot, ok := vertices[rootHash]
 			if !ok {
 				t.Fatal("inconsistent vertices")
@@ -292,7 +296,13 @@ func testProcessRoot(
 
 	// checking:
 	// assertar.Equal(len(named), steps, "decision is made before last root") // NOTE: is not stable
-	assertar.Equal(expected, got)
+	if expected != nil {
+		assertar.NotNil(got)
+		assertar.Equal(expected.DecidedFrame, got.DecidedFrame)
+		assertar.Equal(expected.DecidedSfWitness, got.DecidedSfWitness.String())
+	} else {
+		assertar.Nil(got)
+	}
 }
 
 func get2of3(x *big.Int) *big.Int {

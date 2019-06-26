@@ -2,12 +2,13 @@ package election
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 )
 
 // calculate SfWitness votes only for the new root.
 // If this root sees that the current election is decided, then @return decided SfWitness
-func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*ElectionRes, error) {
+func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*ElectionRes, error) {
 	if len(el.decidedRoots) == len(el.nodes) {
 		// current election is already decided
 		return el.chooseSfWitness()
@@ -41,7 +42,7 @@ func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*Electi
 			noVotes := new(big.Int)
 
 			// calc number of "yes" and "no", weighted by node's stake
-			var subjectHash *RootHash
+			var subjectHash *hash.Event
 			for _, seenRoot := range seenRoots {
 				vid := voteId{
 					forNodeid: nodeIdSubject,
