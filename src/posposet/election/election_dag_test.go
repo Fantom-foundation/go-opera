@@ -111,9 +111,9 @@ a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
 a1_1  ╬ ─ ─ ╣     ║
 ║     ║     ║     ║
-║╚  ─ b1_1  ║     ║
+║╚  ─ +b1_1 ║     ║
 ║     ║     ║     ║
-║╚  ─ ╫ ─ ─ c1_1  ║
+║╚  ─ ╫ ─ ─ +c1_1 ║
 ║     ║     ║     ║
 ║╚  ─ ╫╩  ─ ╫╩  ─ d1_1
 ║     ║     ║     ║
@@ -138,7 +138,7 @@ a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
 a1_1  ╣     ║     ║
 ║     ║     ║     ║
-║     b1_1  ╬ ─ ─ ╣
+║     +b1_1 ╬ ─ ─ ╣
 ║     ║     ║     ║
 ║╚  ─ ╫ ─ ─ c1_1  ╣
 ║     ║     ║     ║
@@ -150,7 +150,7 @@ a2_2  ╣     ║     ║
 ║     ║     ║     ║
 ║╚  ─ ╫╩  ─ c2_2  ╣
 ║     ║     ║     ║
-║╚  ─ ╫╩ ─  ╫ ─ ─ d2_2
+║╚  ─ ╫╩ ─  ╫ ─ ─ +d2_2
 ║     ║     ║     ║
 a3_3  ╬ ─ ─ ╬ ─ ─ ╣
 ║     ║     ║     ║
@@ -193,10 +193,12 @@ func testProcessRoot(
 	//t.Logf("superMajority = %s", superMajority.String())
 
 	// events:
+	events := make(map[hash.Event]*inter.Event)
 	vertices := make(map[RootHash]RootSlot)
 	edges := make(map[fakeEdge]RootHash)
 
 	for dsc, root := range named {
+		events[root.Hash()] = root
 		h := RootHash{root.Hash()}
 
 		vertices[h] = RootSlot{
@@ -205,11 +207,21 @@ func testProcessRoot(
 		}
 	}
 
-	for _, root := range named {
+	for dsc, root := range named {
+		noPrev := false
+		if strings.HasPrefix(dsc, "+") {
+			noPrev = true
+			dsc = strings.TrimPrefix(dsc, "+")
+		}
+		from := RootHash{root.Hash()}
 		for sSeen := range root.Parents {
-			from := RootHash{root.Hash()}
+			if sSeen.IsZero() {
+				continue
+			}
+			if p := events[sSeen]; p.Creator == root.Creator && noPrev {
+				continue
+			}
 			to := RootHash{sSeen}
-
 			edge := fakeEdge{
 				from: from,
 				to:   vertices[to],
@@ -288,14 +300,10 @@ func testProcessRoot(
 
 func get2of3(x *big.Int) *big.Int {
 	res := new(big.Int)
-	mod := new(big.Int)
 	res.
 		Mul(x, big.NewInt(2)).
-		DivMod(res, big.NewInt(3), mod)
-
-	if mod.Cmp(big.NewInt(0)) > 0 {
-		res.Add(res, big.NewInt(1))
-	}
+		Div(res, big.NewInt(3)).
+		Add(res, big.NewInt(1))
 
 	return res
 }
