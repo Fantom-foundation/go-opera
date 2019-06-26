@@ -91,15 +91,15 @@ func TestDAGtoASCIIcheme(t *testing.T) {
 	scheme := `
 a00  b00   c00
 ║    ║    ║║
-a01  ╣    ║║
+a01══╣    ║║
 ║    ║    ║║
-╠ ─  ╫ ─ ─ c01
+╠═══─╫─════c01
 ║    b01  ╝║
 ║    ║     ║
-a02  ╬ ─ ─ ╣
+a02══╬═════╣
 ║    ║     ║
 ║3   ║     ║
-║╚ ─ ╬ ─ ─ c02
+║╚═══╬═════c02
 ║    ║     ║
 `
 	expected := map[string][]string{
