@@ -1,3 +1,4 @@
+//go:generate protoc --go_out=plugins=grpc:./ root.proto
 package poset
 
 import (
@@ -6,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"

@@ -1,3 +1,4 @@
+//go:generate protoc --go_out=plugins=grps:./ peer.proto
 package peers
 
 import (
