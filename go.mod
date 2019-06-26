@@ -48,9 +48,3 @@ require (
 	google.golang.org/genproto v0.0.0-20190508193815-b515fa19cec8 // indirect
 	google.golang.org/grpc v1.21.1
 )
-
-replace github.com/Fantom-foundation/go-lachesis/src => ./src
-
-replace github.com/Fantom-foundation/go-lachesis/src/proxy => ./src/proxy
-
-replace github.com/Fantom-foundation/go-lachesis/src/proxy/internal => ./src/proxy/internal
