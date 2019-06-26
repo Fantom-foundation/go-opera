@@ -36,10 +36,10 @@ func ASCIIschemeToDAG(scheme string) (
 
 		// parse line
 		col := 0
-		for _, symbol := range strings.Split(strings.TrimSpace(line), " ") {
+		for _, symbol := range strings.FieldsFunc(strings.TrimSpace(line), filler) {
 			symbol = strings.TrimSpace(symbol)
 			switch symbol {
-			case "─", "═", "": // skip filler
+			case "": // skip
 				col--
 			case "╠", "║╠", "╠╫": // start new link array with current
 				refs := make([]int, col+1)
@@ -234,6 +234,10 @@ func DAGtoASCIIcheme(events Events) (string, error) {
 	return scheme.String(), nil
 }
 
+func filler(r rune) bool {
+	return r == ' ' || r == '─' || r == '═'
+}
+
 /*
  * staff:
  */
@@ -384,11 +388,11 @@ func (rr *rows) String() string {
 				case last:
 					out("╝║" + nolink(rr.ColWidth))
 				case left:
-					out(" ╫╩" + link(rr.ColWidth-1))
+					out("─╫╩" + link(rr.ColWidth-1))
 				case right:
-					out("╩╫" + link(rr.ColWidth))
+					out("╩╫─" + link(rr.ColWidth))
 				case pass:
-					out(" ╫" + link(rr.ColWidth))
+					out("─╫─" + link(rr.ColWidth-1))
 				default:
 					out(" ║" + nolink(rr.ColWidth))
 				}
@@ -397,11 +401,11 @@ func (rr *rows) String() string {
 				case first:
 					out(" ╠" + link(rr.ColWidth))
 				case last:
-					out(" ╣" + nolink(rr.ColWidth))
+					out("═╣" + nolink(rr.ColWidth))
 				case left, right:
-					out(" ╬" + link(rr.ColWidth))
+					out("═╬" + link(rr.ColWidth))
 				case pass:
-					out(" ╫" + link(rr.ColWidth))
+					out("─╫─" + link(rr.ColWidth-1))
 				default:
 					out(" ║" + nolink(rr.ColWidth))
 				}
@@ -426,10 +430,10 @@ func link(n int) string {
 		return strings.Repeat(" ", n)
 	}
 
-	str := strings.Repeat(" ─", (n-1)/2) + " "
+	str := strings.Repeat("══", (n-1)/2) + "═"
 
 	if n%2 == 0 {
-		str = str + " "
+		str = str + "═"
 	}
 
 	return str
