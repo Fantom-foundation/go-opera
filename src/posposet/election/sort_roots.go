@@ -33,11 +33,19 @@ func (s sortedRoots) Less(i, j int) bool {
 func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 	famousRoots := make(sortedRoots, 0, len(el.nodes))
 	// fill famousRoots
-	for slot, vote := range el.decidedRoots {
+	for _, node := range el.nodes {
+		slot := RootSlot{
+			Frame: el.frameToDecide,
+			Nodeid: node.Nodeid,
+		}
+		vote, ok := el.decidedRoots[slot]
+		if !ok {
+			el.Fatal("called before all the roots are decided")
+		}
 		if vote.yes {
 			famousRoots = append(famousRoots, sortedRoot{
 				root:        vote.seenRoot,
-				stakeAmount: el.nodes[slot.nodeindex].StakeAmount,
+				stakeAmount: node.StakeAmount,
 			})
 		}
 	}

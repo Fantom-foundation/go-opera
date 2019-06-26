@@ -43,14 +43,13 @@ func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*Electi
 					forNodeid: rootSubject.Nodeid,
 					fromRoot:  seenRoot.root,
 				}
-				//println("_", seenRoot.stakeAmount.String(), vid.fromRoot.String(), vid.forNodeid.String())
+
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.seenRoot {
 						msg := "2 fork roots are strongly seen => more than 1/3n are Byzantine (%s != %s, election frame=%d, nodeid=%s)"
 						return nil, fmt.Errorf(msg, subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, rootSubject.Nodeid.String())
 					}
 
-					//println(seenRoot.stakeAmount.String())
 					if vote.yes {
 						subjectHash = &vote.seenRoot
 						yesVotes = yesVotes.Add(yesVotes, seenRoot.stakeAmount)
@@ -88,7 +87,6 @@ func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*Electi
 			forNodeid: rootSubject.Nodeid,
 		}
 		el.votes[vid] = vote
-		//println("save ", vid.fromRoot.String(), vid.forNodeid.String())
 	}
 
 	frameDecided := len(el.decidedRoots) == len(el.nodes)

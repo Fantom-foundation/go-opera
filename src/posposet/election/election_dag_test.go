@@ -234,10 +234,7 @@ func testProcessRoot(
 	stronglySeeFn := func(a RootHash, b RootSlot) *RootHash {
 		edge := fakeEdge{
 			from: a,
-			to: RootSlot{
-				Frame:  b.Frame,
-				Nodeid: b.Nodeid,
-			},
+			to: b,
 		}
 		hashB, ok := edges[edge]
 		if ok {

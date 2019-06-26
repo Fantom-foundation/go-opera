@@ -50,7 +50,6 @@ type NodeId struct {
 type RootSlot struct {
 	Frame     FrameHeight
 	Nodeid    NodeId
-	nodeindex int // local nodeid, used for optimization
 }
 
 // @return hash of root B, if root A strongly sees root B.
@@ -102,18 +101,17 @@ func (el *Election) ResetElection(frameToDecide FrameHeight) {
 func (el *Election) notDecidedRoots() []RootSlot {
 	notDecidedRoots := make([]RootSlot, 0, len(el.nodes))
 
-	for nodeindex, node := range el.nodes {
+	for _, node := range el.nodes {
 		slot := RootSlot{
 			Frame:     el.frameToDecide,
 			Nodeid:    node.Nodeid,
-			nodeindex: nodeindex,
 		}
 		if _, ok := el.decidedRoots[slot]; !ok {
 			notDecidedRoots = append(notDecidedRoots, slot)
 		}
 	}
 	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.nodes) { // sanity check
-		el.Fatal("Mismatch of roots in notDecidedRoots()")
+		el.Fatal("Mismatch of roots")
 	}
 	return notDecidedRoots
 }
@@ -126,17 +124,16 @@ type weightedRoot struct {
 // @return all the roots which are strongly seen by the specified root at the specified frame
 func (el *Election) stronglySeenRoots(root RootHash, frame FrameHeight) []weightedRoot {
 	seenRoots := make([]weightedRoot, 0, len(el.nodes))
-	for nodeindex, node := range el.nodes {
+	for _, node := range el.nodes {
 		slot := RootSlot{
 			Frame:     frame,
 			Nodeid:    node.Nodeid,
-			nodeindex: nodeindex,
 		}
 		seenRoot := el.stronglySee(root, slot)
 		if seenRoot != nil {
 			seenRoots = append(seenRoots, weightedRoot{
 				root:        *seenRoot,
-				stakeAmount: el.nodes[nodeindex].StakeAmount,
+				stakeAmount: node.StakeAmount,
 			})
 		}
 	}
@@ -150,11 +147,10 @@ type GetRootsFn func(slot RootSlot) []RootHash
 func (el *Election) ProcessKnownRoots(maxKnownFrame FrameHeight, getRootsFn GetRootsFn) (*ElectionRes, error) {
 	// iterate all the roots from lowest frame to highest, call ProcessRootVotes for each
 	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
-		for nodeindex, node := range el.nodes {
+		for _, node := range el.nodes {
 			slot := RootSlot{
 				Frame:     frame,
 				Nodeid:    node.Nodeid,
-				nodeindex: nodeindex,
 			}
 			roots := getRootsFn(slot)
 			// if there's more than 1 root, then all of them are forks. it's fine
