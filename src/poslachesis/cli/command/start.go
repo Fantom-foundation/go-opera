@@ -13,6 +13,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	_ "github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
 	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
@@ -42,10 +43,12 @@ var Start = &cobra.Command{
 			return err
 		}
 		if dbdir != "inmemory" {
-			db, err = ondiskDB(dbdir)
+			var stop func()
+			db, stop, err = openDB(dbdir)
 			if err != nil {
 				return err
 			}
+			defer stop()
 		}
 
 		// network
@@ -102,12 +105,6 @@ var Start = &cobra.Command{
 
 		wait()
 
-		if db != nil {
-			if err := db.Close(); err != nil {
-				return err
-			}
-		}
-
 		return nil
 	},
 }
@@ -163,14 +160,28 @@ func parseFakeGen(s string) (num, total int, err error) {
 	return
 }
 
-func ondiskDB(dir string) (*bbolt.DB, error) {
-	if err := os.MkdirAll(dir, 0600); err != nil {
-		return nil, err
+func openDB(dir string) (db *bbolt.DB, closeDB func(), err error) {
+	err = os.MkdirAll(dir, 0600)
+	if err != nil {
+		return
 	}
 
 	f := filepath.Join(dir, "lachesis.bolt")
+	db, err = bbolt.Open(f, 0600, nil)
+	if err != nil {
+		return
+	}
 
-	return bbolt.Open(f, 0600, nil)
+	stopWatcher := metrics.StartFileWatcher("db_file_size", f)
+
+	closeDB = func() {
+		stopWatcher()
+		if err := db.Close(); err != nil {
+			logger.Get().Error(err)
+		}
+	}
+
+	return
 }
 
 func wait() {

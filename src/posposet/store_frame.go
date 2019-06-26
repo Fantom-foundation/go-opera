@@ -14,6 +14,9 @@ func (s *Store) SetFrame(f *Frame) {
 
 	if s.cache.Frames != nil {
 		s.cache.Frames.Add(f.Index, w)
+
+		frameCacheCap.Update(int64(
+			s.cache.Frames.Len()))
 	}
 }
 
@@ -41,6 +44,9 @@ func (s *Store) SetEventFrame(e hash.Event, frame uint64) {
 
 	if s.cache.Event2Frame != nil {
 		s.cache.Event2Frame.Add(e, frame)
+
+		event2FrameCacheCap.Update(int64(
+			s.cache.Event2Frame.Len()))
 	}
 }
 

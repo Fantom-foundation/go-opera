@@ -1,11 +1,12 @@
 package election
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/big"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -34,15 +35,15 @@ func TestProcessRoot(t *testing.T) {
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
-a1_1  ╬ ─ ─ ╣     ║
+a1_1══╬═════╣     ║
 ║     ║     ║     ║
-║╚ ─  b1_1  ╣     ║
+║╚════b1_1══╣     ║
 ║     ║     ║     ║
-║     ║╚ ─  c1_1  ╣
+║     ║╚════c1_1══╣
 ║     ║     ║     ║
-║     ║╚  ─ ╫╩  ─ d1_1
+║     ║╚═══─╫╩════d1_1
 ║     ║     ║     ║
-a2_2  ╬ ─ ─ ╬ ─ ─ ╣
+a2_2══╬═════╬═════╣
 ║     ║     ║     ║
 `)
 	})
@@ -61,15 +62,15 @@ a2_2  ╬ ─ ─ ╬ ─ ─ ╣
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
-a1_1  ╬ ─ ─ ╣     ║
+a1_1══╬═════╣     ║
 ║     ║     ║     ║
-║     b1_1  ╬ ─ ─ ╣
+║     b1_1══╬═════╣
 ║     ║     ║     ║
-║     ║╚ ─  c1_1  ╣
+║     ║╚════c1_1══╣
 ║     ║     ║     ║
-║     ║╚  ─ ╫╩  ─ d1_1
+║     ║╚═══─╫╩════d1_1
 ║     ║     ║     ║
-a2_2  ╬ ─ ─ ╬ ─ ─ ╣
+a2_2══╬═════╬═════╣
 ║     ║     ║     ║
 `)
 	})
@@ -88,13 +89,13 @@ a2_2  ╬ ─ ─ ╬ ─ ─ ╣
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
-a1_1  ╬ ─ ─ ╣     ║
+a1_1══╬═════╣     ║
 ║     ║     ║     ║
-║╚ ─  b1_1  ╣     ║
+║╚════b1_1══╣     ║
 ║     ║     ║     ║
-║╚  ─ ╫╩ ─  c1_1  ║
+║╚═══─╫╩════c1_1  ║
 ║     ║     ║     ║
-a2_2  ╬ ─ ─ ╣     ║
+a2_2══╬═════╣     ║
 ║     ║     ║     ║
 `)
 	})
@@ -113,15 +114,15 @@ a2_2  ╬ ─ ─ ╣     ║
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
-a1_1  ╬ ─ ─ ╣     ║
+a1_1══╬═════╣     ║
 ║     ║     ║     ║
-║╚  ─ +b1_1 ║     ║
+║╚════+b1_1 ║     ║
 ║     ║     ║     ║
-║╚  ─ ╫ ─ ─ +c1_1 ║
+║╚═══─╫─════+c1_1 ║
 ║     ║     ║     ║
-║╚  ─ ╫╩  ─ ╫╩  ─ d1_1
+║╚═══─╫╩═══─╫╩════d1_1
 ║     ║     ║     ║
-╠ ─ ─ b2_2  ╬ ─ ─ ╣
+╠═════b2_2══╬═════╣
 ║     ║     ║     ║
 `)
 	})
@@ -140,31 +141,31 @@ a1_1  ╬ ─ ─ ╣     ║
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
-a1_1  ╣     ║     ║
+a1_1══╣     ║     ║
 ║     ║     ║     ║
-║     +b1_1 ╬ ─ ─ ╣
+║     +b1_1═╬═════╣
 ║     ║     ║     ║
-║╚  ─ ╫ ─ ─ c1_1  ╣
+║╚═══─╫─════c1_1══╣
 ║     ║     ║     ║
-║╚  ─ ╫ ─ ─ ╫╩  ─ d1_1
+║╚═══─╫─═══─╫╩════d1_1
 ║     ║     ║     ║
 a2_2  ╣     ║     ║
 ║     ║     ║     ║
-║╚  ─ b2_2  ╬ ─ ─ ╣
+║╚════b2_2══╬═════╣
 ║     ║     ║     ║
-║╚  ─ ╫╩  ─ c2_2  ╣
+║╚═══─╫╩════c2_2══╣
 ║     ║     ║     ║
-║╚  ─ ╫╩ ─  ╫ ─ ─ +d2_2
+║╚═══─╫╩═══─╫─════+d2_2
 ║     ║     ║     ║
-a3_3  ╬ ─ ─ ╬ ─ ─ ╣
+a3_3══╬═════╬═════╣
 ║     ║     ║     ║
-║╚  ─ b3_3  ╬ ─ ─ ╣
+║╚════b3_3══╬═════╣
 ║     ║     ║     ║
-║╚  ─ ╫╩  ─ c3_3  ╣
+║╚═══─╫╩════c3_3══╣
 ║     ║     ║     ║
-║╚  ─ ╫╩ ─  ╫╩  ─ d3_3
+║╚═══─╫╩═══─╫╩════d3_3
 ║     ║     ║     ║
-a4_4  ╣     ║     ║
+a4_4══╣     ║     ║
 ║     ║     ║     ║
 `)
 	})
@@ -257,9 +258,9 @@ func testProcessRoot(
 		processed = make(map[hash.Event]*inter.Event)
 		got       *ElectionRes
 	)
-	orderThenProcess := ordering.EventBuffer(
-		// process
-		func(root *inter.Event) {
+	orderThenProcess := ordering.EventBuffer(ordering.Callback{
+
+		Process: func(root *inter.Event) {
 			if got != nil {
 				return
 			}
@@ -276,15 +277,15 @@ func testProcessRoot(
 			}
 			processed[root.Hash()] = root
 		},
-		// drop
-		func(e *inter.Event, err error) {
+
+		Drop: func(e *inter.Event, err error) {
 			t.Fatal(e, err)
 		},
-		// exists
-		func(h hash.Event) *inter.Event {
+
+		Exists: func(h hash.Event) *inter.Event {
 			return processed[h]
 		},
-	)
+	})
 
 	// processing:
 	for _, root := range named {
