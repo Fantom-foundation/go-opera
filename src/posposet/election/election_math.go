@@ -20,12 +20,16 @@ func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*Electi
 	round := newRootSlot.Frame - el.frameToDecide
 
 	notDecidedRoots := el.notDecidedRoots()
-	for _, rootSubject := range notDecidedRoots {
+	for _, nodeIdSubject := range notDecidedRoots {
+		slotSubject := RootSlot{
+			Frame: el.frameToDecide,
+			Nodeid: nodeIdSubject,
+		}
 		vote := voteValue{}
 
 		if round == 1 {
 			// in initial round, vote "yes" if subject is strongly seen
-			seenRoot := el.stronglySee(newRoot, rootSubject)
+			seenRoot := el.stronglySee(newRoot, slotSubject)
 			vote.yes = seenRoot != nil
 			if seenRoot != nil {
 				vote.seenRoot = *seenRoot
@@ -40,14 +44,14 @@ func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*Electi
 			var subjectHash *RootHash
 			for _, seenRoot := range seenRoots {
 				vid := voteId{
-					forNodeid: rootSubject.Nodeid,
+					forNodeid: nodeIdSubject,
 					fromRoot:  seenRoot.root,
 				}
 
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.seenRoot {
 						msg := "2 fork roots are strongly seen => more than 1/3n are Byzantine (%s != %s, election frame=%d, nodeid=%s)"
-						return nil, fmt.Errorf(msg, subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, rootSubject.Nodeid.String())
+						return nil, fmt.Errorf(msg, subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, nodeIdSubject.String())
 					}
 
 					if vote.yes {
@@ -78,13 +82,13 @@ func (el *Election) ProcessRoot(newRoot RootHash, newRootSlot RootSlot) (*Electi
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
 			decided := yesVotes.Cmp(el.superMajority) >= 0 || noVotes.Cmp(el.superMajority) >= 0
 			if decided {
-				el.decidedRoots[rootSubject] = vote
+				el.decidedRoots[nodeIdSubject] = vote
 			}
 		}
 		// save vote for next rounds
 		vid := voteId{
 			fromRoot:  newRoot,
-			forNodeid: rootSubject.Nodeid,
+			forNodeid: slotSubject.Nodeid,
 		}
 		el.votes[vid] = vote
 	}

@@ -34,11 +34,7 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 	famousRoots := make(sortedRoots, 0, len(el.nodes))
 	// fill famousRoots
 	for _, node := range el.nodes {
-		slot := RootSlot{
-			Frame: el.frameToDecide,
-			Nodeid: node.Nodeid,
-		}
-		vote, ok := el.decidedRoots[slot]
+		vote, ok := el.decidedRoots[node.Nodeid]
 		if !ok {
 			el.Fatal("called before all the roots are decided")
 		}

@@ -13,8 +13,8 @@ func (el *Election) DebugStateHash() hash.Hash {
 		hasher.Write(vid.fromRoot.Bytes())
 		hasher.Write(vote.seenRoot.Bytes())
 	}
-	for slot, vote := range el.decidedRoots {
-		hasher.Write(slot.Nodeid.Bytes())
+	for nodeid, vote := range el.decidedRoots {
+		hasher.Write(nodeid.Bytes())
 		hasher.Write(vote.seenRoot.Bytes())
 	}
 	return hash.FromBytes(hasher.Sum(nil))

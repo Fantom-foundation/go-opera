@@ -21,7 +21,7 @@ type Election struct {
 	superMajority *big.Int // the quorum (should be 2/3n + 1)
 
 	// election state
-	decidedRoots map[RootSlot]voteValue
+	decidedRoots map[NodeId]voteValue // decided roots at "frameToDecide"
 	votes        map[voteId]voteValue
 
 	// external world
@@ -83,7 +83,7 @@ func NewElection(
 		totalStake:    totalStake,
 		superMajority: superMajority,
 		frameToDecide: frameToDecide,
-		decidedRoots:  make(map[RootSlot]voteValue),
+		decidedRoots:  make(map[NodeId]voteValue),
 		votes:         make(map[voteId]voteValue),
 		stronglySee:   stronglySeeFn,
 		Instance:      logger.MakeInstance(),
@@ -94,20 +94,16 @@ func NewElection(
 func (el *Election) ResetElection(frameToDecide FrameHeight) {
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
-	el.decidedRoots = make(map[RootSlot]voteValue)
+	el.decidedRoots = make(map[NodeId]voteValue)
 }
 
 // return root slots which are not within el.decidedRoots
-func (el *Election) notDecidedRoots() []RootSlot {
-	notDecidedRoots := make([]RootSlot, 0, len(el.nodes))
+func (el *Election) notDecidedRoots() []NodeId {
+	notDecidedRoots := make([]NodeId, 0, len(el.nodes))
 
 	for _, node := range el.nodes {
-		slot := RootSlot{
-			Frame:     el.frameToDecide,
-			Nodeid:    node.Nodeid,
-		}
-		if _, ok := el.decidedRoots[slot]; !ok {
-			notDecidedRoots = append(notDecidedRoots, slot)
+		if _, ok := el.decidedRoots[node.Nodeid]; !ok {
+			notDecidedRoots = append(notDecidedRoots, node.Nodeid)
 		}
 	}
 	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.nodes) { // sanity check
