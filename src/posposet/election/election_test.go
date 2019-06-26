@@ -3,6 +3,7 @@ package election
 import (
 	"encoding/json"
 	"math/big"
+	"math/rand"
 	"testing"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -480,7 +481,8 @@ func TestProcessRootTest(t *testing.T) {
 
 		election := NewElection(test.Nodes, totalStake, test.SuperMajority, 0, stronglySeeFn)
 
-		for i, root := range test.Roots {
+		ordered := fakeRoots(test.Roots).ByRand().BySeen()
+		for i, root := range ordered {
 			decided, err := election.ProcessRoot(root.Hash, root.Slot)
 			if err != nil {
 				t.Fatal(name, err)
@@ -499,4 +501,52 @@ func TestProcessRootTest(t *testing.T) {
 			}
 		}
 	}
+}
+
+/*
+ * root order:
+ */
+
+type fakeRoots []fakeRoot
+
+// ByParents returns unordered roots.
+func (ee fakeRoots) ByRand() (res fakeRoots) {
+	res = make(fakeRoots, len(ee))
+
+	mix := rand.Perm(len(ee))
+	for i, j := range mix {
+		res[i] = ee[j]
+	}
+
+	return
+}
+
+// ByParents returns roots ordered by seen dependency.
+// It is a copy of inter.Events.ByParents().
+func (ee fakeRoots) BySeen() (res fakeRoots) {
+	unsorted := make(fakeRoots, len(ee))
+	exists := hash.Events{}
+	for i, e := range ee {
+		unsorted[i] = e
+		exists.Add(e.Hash)
+	}
+	ready := hash.Events{}
+	for len(unsorted) > 0 {
+	EVENTS:
+		for i, e := range unsorted {
+
+			for _, p := range e.StronglySeen {
+				if exists.Contains(p) && !ready.Contains(p) {
+					continue EVENTS
+				}
+			}
+
+			res = append(res, e)
+			unsorted = append(unsorted[0:i], unsorted[i+1:]...)
+			ready.Add(e.Hash)
+			break
+		}
+	}
+
+	return
 }
