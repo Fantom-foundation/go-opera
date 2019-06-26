@@ -7,21 +7,26 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-// event is a inter.Event and data for ordering purpose.
-type event struct {
-	*inter.Event
+type (
+	// event is a inter.Event and data for ordering purpose.
+	event struct {
+		*inter.Event
 
-	parents map[hash.Event]*inter.Event
-}
+		parents map[hash.Event]*inter.Event
+	}
+
+	// Callback is a set of EventBuffer()'s args.
+	Callback struct {
+		Process func(*inter.Event)
+		Drop    func(*inter.Event, error)
+		Exists  func(hash.Event) *inter.Event
+	}
+)
 
 // EventBuffer validates, bufferizes and drops() or processes() pushed() event
 // if all their parents exists().
 // TODO: drop incomplete events by timeout.
-func EventBuffer(
-	process func(*inter.Event),
-	drop func(*inter.Event, error),
-	exists func(hash.Event) *inter.Event) (
-	push func(*inter.Event)) {
+func EventBuffer(callback Callback) (push func(*inter.Event)) {
 
 	var (
 		incompletes = make(map[hash.Event]*event)
@@ -37,18 +42,18 @@ func EventBuffer(
 			if pHash.IsZero() {
 				// first event of node
 				if err := reffs.AddUniqueParent(e.Creator); err != nil {
-					drop(e.Event, err)
+					callback.Drop(e.Event, err)
 					return
 				}
 				if err := time.AddParentTime(0); err != nil {
-					drop(e.Event, err)
+					callback.Drop(e.Event, err)
 					return
 				}
 				continue
 			}
 			parent := e.parents[pHash]
 			if parent == nil {
-				parent = exists(pHash)
+				parent = callback.Exists(pHash)
 				if parent == nil {
 					incompletes[e.Hash()] = e
 					return
@@ -56,25 +61,25 @@ func EventBuffer(
 				e.parents[pHash] = parent
 			}
 			if err := reffs.AddUniqueParent(parent.Creator); err != nil {
-				drop(e.Event, err)
+				callback.Drop(e.Event, err)
 				return
 			}
 			if err := time.AddParentTime(parent.LamportTime); err != nil {
-				drop(e.Event, err)
+				callback.Drop(e.Event, err)
 				return
 			}
 		}
 		if err := reffs.CheckSelfParent(); err != nil {
-			drop(e.Event, err)
+			callback.Drop(e.Event, err)
 			return
 		}
 		if err := time.CheckSequential(); err != nil {
-			drop(e.Event, err)
+			callback.Drop(e.Event, err)
 			return
 		}
 
 		// parents OK
-		process(e.Event)
+		callback.Process(e.Event)
 
 		// now child events may become complete, check it again
 		for hash_, child := range incompletes {
@@ -87,8 +92,8 @@ func EventBuffer(
 	}
 
 	push = func(e *inter.Event) {
-		if exists(e.Hash()) != nil {
-			drop(e, fmt.Errorf("event %s had received already", e.Hash().String()))
+		if callback.Exists(e.Hash()) != nil {
+			callback.Drop(e, fmt.Errorf("event %s had received already", e.Hash().String()))
 			return
 		}
 
