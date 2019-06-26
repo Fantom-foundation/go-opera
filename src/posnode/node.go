@@ -68,18 +68,18 @@ func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Confi
 		Instance: logger.MakeInstance(),
 	}
 
-	orderThenSave := ordering.EventBuffer(
-		// process
-		n.saveNewEvent,
-		// drop
-		func(e *inter.Event, err error) {
+	orderThenSave := ordering.EventBuffer(ordering.Callback{
+
+		Process: n.saveNewEvent,
+
+		Drop: func(e *inter.Event, err error) {
 			n.Warn(err.Error() + ", so rejected")
 		},
-		// exists
-		func(h hash.Event) *inter.Event {
+
+		Exists: func(h hash.Event) *inter.Event {
 			return n.store.GetEvent(h)
 		},
-	)
+	})
 
 	var save sync.Mutex
 	n.onNewEvent = func(e *inter.Event) {
