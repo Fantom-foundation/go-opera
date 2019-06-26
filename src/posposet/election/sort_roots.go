@@ -2,9 +2,10 @@ package election
 
 import (
 	"errors"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 	"sort"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 type sortedRoot struct {

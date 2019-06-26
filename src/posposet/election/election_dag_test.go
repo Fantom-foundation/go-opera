@@ -50,7 +50,7 @@ a2_2  ╬ ─ ─ ╬ ─ ─ ╣
 	t.Run("4 uni decided", func(t *testing.T) {
 		testProcessRoot(t,
 			&fakeElectionRes{
-				DecidedFrame:  0,
+				DecidedFrame:     0,
 				DecidedSfWitness: "d0_0", // NOTE: but b0_0 in original
 			},
 			stakes{
@@ -77,7 +77,7 @@ a2_2  ╬ ─ ─ ╬ ─ ─ ╣
 	t.Run("4 uni missingRoot decided", func(t *testing.T) {
 		testProcessRoot(t,
 			&fakeElectionRes{
-				DecidedFrame:  0,
+				DecidedFrame:     0,
 				DecidedSfWitness: "c0_0", // NOTE: but a0_0 in original
 			},
 			stakes{
@@ -102,7 +102,7 @@ a2_2  ╬ ─ ─ ╣     ║
 	t.Run("4 differentStakes decided", func(t *testing.T) {
 		testProcessRoot(t,
 			&fakeElectionRes{
-				DecidedFrame:  0,
+				DecidedFrame:     0,
 				DecidedSfWitness: "b0_0", // NOTE: but a0_0 in original
 			},
 			stakes{
@@ -129,7 +129,7 @@ a1_1  ╬ ─ ─ ╣     ║
 	t.Run("4 differentStakes 5rounds decided", func(t *testing.T) {
 		testProcessRoot(t,
 			&fakeElectionRes{
-				DecidedFrame:  0,
+				DecidedFrame:     0,
 				DecidedSfWitness: "a0_0",
 			},
 			stakes{

@@ -1,9 +1,9 @@
 package election
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 

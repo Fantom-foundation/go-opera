@@ -2,8 +2,9 @@ package election
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // calculate SfWitness votes only for the new root.
@@ -23,7 +24,7 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 	notDecidedRoots := el.notDecidedRoots()
 	for _, nodeIdSubject := range notDecidedRoots {
 		slotSubject := RootSlot{
-			Frame: el.frameToDecide,
+			Frame:  el.frameToDecide,
 			Nodeid: nodeIdSubject,
 		}
 		vote := voteValue{}
