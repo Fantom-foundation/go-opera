@@ -54,7 +54,7 @@ a2_2══╬═════╬═════╣
 `)
 	})
 
-	t.Run("4 uni decided", func(t *testing.T) {
+	t.Run("4 equalStakes", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
@@ -82,7 +82,7 @@ a2_2══╬═════╬═════╣
 `)
 	})
 
-	t.Run("4 uni missingRoot decided", func(t *testing.T) {
+	t.Run("4 equalStakes missingRoot", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
@@ -108,7 +108,7 @@ a2_2══╬═════╣     ║
 `)
 	})
 
-	t.Run("4 differentStakes decided", func(t *testing.T) {
+	t.Run("4 differentStakes", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
@@ -136,7 +136,7 @@ a1_1══╬═════╣     ║
 `)
 	})
 
-	t.Run("4 differentStakes 5rounds decided", func(t *testing.T) {
+	t.Run("4 differentStakes 4rounds", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
