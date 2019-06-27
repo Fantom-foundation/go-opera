@@ -18,6 +18,7 @@ type fakeRoot struct {
 	Hash         hash.Event
 	Slot         RootSlot
 	StronglySeen []hash.Event
+	Decisive     bool
 }
 
 type processRootTest struct {
@@ -169,7 +170,8 @@ func TestProcessRootTest(t *testing.T) {
 			{
 				"hash" : "a2",
 				"slot" : {"frame" : 2, "nodeid" : "a"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"]
+				"stronglySeen" : ["a1", "b1", "c1", "d1"],
+				"decisive" : true
 			}
 		],
 		"answer" : {
@@ -233,7 +235,8 @@ func TestProcessRootTest(t *testing.T) {
 			{
 				"hash" : "a2",
 				"slot" : {"frame" : 2, "nodeid" : "a"},
-				"stronglySeen" : ["a1", "b1", "c1"]
+				"stronglySeen" : ["a1", "b1", "c1"],
+				"decisive" : true
 			}
 		],
 		"answer" : {
@@ -307,7 +310,8 @@ func TestProcessRootTest(t *testing.T) {
 			{
 				"hash" : "b2",
 				"slot" : {"frame" : 2, "nodeid" : "b"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"]
+				"stronglySeen" : ["a1", "b1", "c1", "d1"],
+				"decisive" : true
 			}
 		],
 		"answer" : {
@@ -423,7 +427,8 @@ func TestProcessRootTest(t *testing.T) {
 			{
 				"hash" : "a4",
 				"slot" : {"frame" : 4, "nodeid" : "a"},
-				"stronglySeen" : ["a3", "b3"]
+				"stronglySeen" : ["a3", "b3"],
+				"decisive" : true
 			}
 		],
 		"answer" : {
@@ -444,6 +449,7 @@ func TestProcessRootTest(t *testing.T) {
 			t.Fatal(name, "Empty test")
 		}
 
+		// define stronglySeeFn
 		vertices := make(map[hash.Event]RootSlot)
 		edges := make(map[fakeEdge]hash.Event)
 
@@ -479,15 +485,17 @@ func TestProcessRootTest(t *testing.T) {
 			totalStake = totalStake.Add(totalStake, node.StakeAmount)
 		}
 
+		// run election
 		election := NewElection(test.Nodes, totalStake, test.SuperMajority, 0, stronglySeeFn)
 
 		ordered := fakeRoots(test.Roots).ByRand().BySeen()
-		for i, root := range ordered {
+		alreadyDecided := false
+		for _, root := range ordered {
 			decided, err := election.ProcessRoot(root.Hash, root.Slot)
 			if err != nil {
 				t.Fatal(name, err)
 			}
-			if i == len(test.Roots)-1 {
+			if root.Decisive || alreadyDecided {
 				// check refs
 				if (test.Answer == nil) != (decided == nil) {
 					t.Fatal(name, "expected ", test.Answer, "and calculated", decided)
@@ -496,6 +504,7 @@ func TestProcessRootTest(t *testing.T) {
 				if (test.Answer != nil) && (*decided != *test.Answer) {
 					t.Fatal(name, "expected ", test.Answer, "and calculated", decided)
 				}
+				alreadyDecided = true
 			} else if decided != nil {
 				t.Fatal(name, "decision is made before last root in the test, on root", root.Hash.String())
 			}
