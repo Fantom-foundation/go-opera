@@ -19,3 +19,48 @@ func (el *Election) DebugStateHash() hash.Hash {
 	}
 	return hash.FromBytes(hasher.Sum(nil))
 }
+
+// @param (optional) voters is roots to print votes for. May be nil
+// @return election summary in a human readable format
+func (el *Election) String(voters []hash.Event) string {
+	if voters == nil {
+		votersM := make(map[hash.Event]bool)
+		for vid, _ := range el.votes {
+			votersM[vid.fromRoot] = true
+		}
+		for voter, _ := range votersM {
+			voters = append(voters, voter)
+		}
+	}
+
+	info := "Every line contains votes from each root. y is yes, n is no. Upper case means 'decided'. '-' means that subject was decided already when root was processed.\n"
+	for _, root := range voters { // voter
+		info += root.String() + ": "
+		for _, forN := range el.nodes { // subject
+			vid := voteId{
+				fromRoot:  root,
+				forNodeid: forN.Nodeid,
+			}
+			vote, ok := el.votes[vid]
+			if !ok { // i.e. subject was decided when root processed
+				info += "-"
+				continue
+			}
+			if vote.yes {
+				if vote.decided {
+					info += "Y"
+				} else {
+					info += "y"
+				}
+			} else {
+				if vote.decided {
+					info += "N"
+				} else {
+					info += "n"
+				}
+			}
+		}
+		info += "\n"
+	}
+	return info
+}

@@ -54,6 +54,7 @@ type voteId struct {
 	forNodeid hash.Peer
 }
 type voteValue struct {
+	decided  bool
 	yes      bool
 	seenRoot hash.Event
 }

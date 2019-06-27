@@ -33,6 +33,7 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 			// in initial round, vote "yes" if subject is strongly seen
 			seenRoot := el.stronglySee(newRoot, slotSubject)
 			vote.yes = seenRoot != nil
+			vote.decided = false
 			if seenRoot != nil {
 				vote.seenRoot = *seenRoot
 			}
@@ -82,8 +83,8 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 
 			// If supermajority is seen, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-			decided := yesVotes.Cmp(el.superMajority) >= 0 || noVotes.Cmp(el.superMajority) >= 0
-			if decided {
+			vote.decided = yesVotes.Cmp(el.superMajority) >= 0 || noVotes.Cmp(el.superMajority) >= 0
+			if vote.decided {
 				el.decidedRoots[nodeIdSubject] = vote
 			}
 		}
