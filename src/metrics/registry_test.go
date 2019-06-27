@@ -9,8 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
-//go:generate mockgen -package=metrics -source=registry.go -destination=registry_mock_test.go Registry
-
 func TestNewRegistry(t *testing.T) {
 	reg := NewRegistry()
 

@@ -4,6 +4,7 @@
 //  go get -u github.com/golang/protobuf/protoc-gen-go
 
 //go:generate protoc -I=../.. -I=. --go_out=plugins=grpc:./ service.proto stored.proto
+//go:generate mockgen -package=api -self_package=github.com/Fantom-foundation/go-lachesis/src/posnode/api -destination=mock_service.go github.com/Fantom-foundation/go-lachesis/src/posnode/api NodeServer
 
 package api
 

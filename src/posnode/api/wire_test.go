@@ -1,6 +1,3 @@
-// NOTE: mockgen does not work properly out of GOPATH
-//go:generate mockgen -source=./service.pb.go -imports=wire=github.com/Fantom-foundation/go-lachesis/src/inter/wire,gomock=github.com/golang/mock/gomock,context=context,grpc=google.golang.org/grpc,reflect=reflect -destination=./mock.go NodeServer
-
 package api
 
 import (
