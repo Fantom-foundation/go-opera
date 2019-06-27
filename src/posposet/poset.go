@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"math"
 	"sort"
 	"sync"
 
@@ -28,13 +29,26 @@ type Poset struct {
 	onNewBlockMu sync.RWMutex
 	onNewBlock   func(blockNumber uint64)
 
+	firstDescendantsSeq []int64 // 0 <= firstDescendantsSeq[i] <= 9223372036854775807
+	lastAncestorsSeq    []int64 // -1 <= lastAncestorsSeq[i] <= 9223372036854775807
+	recentEvents        []hash.Event
+
 	logger.Instance
 }
 
 // New creates Poset instance.
 // It does not start any process.
-func New(store *Store, input EventSource) *Poset {
+func New(store *Store, input EventSource, membersNumber int) *Poset {
 	const buffSize = 10
+
+	firstDescendantsSeq := make([]int64, membersNumber)
+	lastAncestorsSeq := make([]int64, membersNumber)
+	recentEvents := make([]hash.Event, membersNumber)
+
+	for i := 0; i < membersNumber; i++ {
+		firstDescendantsSeq[i] = math.MaxInt32
+		lastAncestorsSeq[i] = -1
+	}
 
 	p := &Poset{
 		store:  store,
@@ -46,6 +60,10 @@ func New(store *Store, input EventSource) *Poset {
 		newBlockCh: make(chan uint64, buffSize),
 
 		Instance: logger.MakeInstance(),
+
+		firstDescendantsSeq: firstDescendantsSeq,
+		lastAncestorsSeq:    lastAncestorsSeq,
+		recentEvents:        recentEvents,
 	}
 
 	// event order matter: parents first
@@ -388,7 +406,7 @@ func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
 // reconsensusFromFrame recalcs consensus of frames.
 func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	stop := p.frameNumLast()
-	var all inter.Events
+	all := inter.Events{}
 	// foreach stale frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
@@ -408,9 +426,13 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 		}
 	}
 	// recalc consensus (without frame saving)
-	for _, e := range all.ByParents() {
-		p.consensus(e)
+	events := all.ByParents()
+	if len(events) != 0 {
+		for i := range events {
+			p.consensus(events[i])
+		}
 	}
+
 	// save fresh frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
@@ -418,4 +440,63 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 		p.setFrameSaving(frame)
 		frame.Save()
 	}
+}
+
+// sufficientCoherence calculates "sufficient coherence" between the events.
+// The event1.lastAncestorsSeq array remembers the sequence number of the last
+// event by each member that is an ancestor of event1. The array for
+// event2.FirstDescendantsSeq remembers the sequence number of the earliest
+// event by each member that is a descendant of event2. Compare the two arrays,
+// and find how many elements in the event1.lastAncestorsSeq array are greater
+// than or equal to the corresponding element of the event2.FirstDescendantsSeq
+// array. If there are more than 2n/3 such matches, then the event1 and event2
+// have achieved sufficient coherency.
+func (p *Poset) sufficientCoherence(event1, event2 *Event) bool {
+	if len(event1.LastAncestorsSeq) != len(event2.FirstDescendantsSeq) {
+		return false
+	}
+
+	counter := 0
+	for k := range event1.LastAncestorsSeq {
+		if event2.FirstDescendantsSeq[k] <= event1.LastAncestorsSeq[k] {
+			counter++
+		}
+	}
+
+	if counter >= len(event1.LastAncestorsSeq)*2/3 {
+		return true
+	}
+
+	return false
+}
+
+// procedure FillFirstLastEventSeq
+//event.FirstSeq = hashgraph.FirstSeq
+//event.FirstEvent = [nodes]Event
+//eventCreatorID = event.Creator.ID
+//
+//if event.SelfParent == NULL AND event.OtherParent == NULL
+//	event.LastEvent =  [nodes]Event
+//	event.LastSeq = [nodes]int
+//else if event.SelfParent == NULL
+//	event.LastEvent =  event.OtherParent.LastEvent
+//event.LastSeq = event.OtherParent.LastSeq
+//else if event.OtherParent == NULL
+//	event.LastEvent =  event.SelfParent.LastEvent
+//event.LastSeq = event.SelfParent.LastSeq
+//else
+//		event.lastEvent = event.SelfParent.LastEvent
+//           		event.LastSeq = event.SelfParent.LastSeq
+//            for i range numMembers
+//if event.LastSeq[i] >= event.OtherParent.LastSeq[i]
+//event.LastSeq[i] = event.OtherParent.LastSeq[i]
+//            		event.LastEvent[i] = event.OtherParent.LastEvent[i]
+//event.FirstEvent[eventCreatorID] = event
+//event.LastEvent[eventCreatorID] = event
+//event.LastSeq[eventCreatorID] = hashgraph.LastSeq[eventCreatorID]
+//event.FirstSeq[eventCreatorID] = hashgraph.LastSeq[eventCreatorID]
+func (p *Poset) fillEventSequences(event *Event) {
+	event.FirstDescendantsSeq = p.firstDescendantsSeq
+	event.FirstDescendants = p.recentEvents
+
 }

@@ -107,7 +107,7 @@ func testSpecialNamedAtropos(t *testing.T, tryRestoring bool, asciiScheme string
 		n++
 		if tryRestoring && n == len(names)*2/3 {
 			// recreate poset
-			p = New(store, input)
+			p = New(store, input, len(nodes))
 			p.Bootstrap()
 			MakeOrderedInput(p)
 			// push all events again
