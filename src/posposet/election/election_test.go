@@ -18,20 +18,14 @@ type fakeEdge struct {
 	to   RootSlot
 }
 
-type fakeRoot struct {
-	Hash         hash.Event
-	Slot         RootSlot
-	StronglySeen []hash.Event
-	Decisive     bool
-}
-
 type (
 	stakes map[string]*big.Int
 )
 
-type fakeElectionRes struct {
+type testExpected struct {
 	DecidedFrame     FrameHeight
 	DecidedSfWitness string
+	DecisiveRoots    map[string]bool
 }
 
 func TestProcessRoot(t *testing.T) {
@@ -62,9 +56,10 @@ a2_2══╬═════╬═════╣
 
 	t.Run("4 uni decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&fakeElectionRes{
+			&testExpected{
 				DecidedFrame:     0,
 				DecidedSfWitness: "c0_0",
+				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
 				"nodeA": big.NewInt(1),
@@ -89,9 +84,10 @@ a2_2══╬═════╬═════╣
 
 	t.Run("4 uni missingRoot decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&fakeElectionRes{
+			&testExpected{
 				DecidedFrame:     0,
 				DecidedSfWitness: "c0_0",
+				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
 				"nodeA": big.NewInt(1),
@@ -114,9 +110,10 @@ a2_2══╬═════╣     ║
 
 	t.Run("4 differentStakes decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&fakeElectionRes{
+			&testExpected{
 				DecidedFrame:     0,
 				DecidedSfWitness: "c0_0",
+				DecisiveRoots:    map[string]bool{"b2_2": true},
 			},
 			stakes{
 				"nodeA": big.NewInt(1000000000000000000),
@@ -141,9 +138,10 @@ a1_1══╬═════╣     ║
 
 	t.Run("4 differentStakes 5rounds decided", func(t *testing.T) {
 		testProcessRoot(t,
-			&fakeElectionRes{
+			&testExpected{
 				DecidedFrame:     0,
 				DecidedSfWitness: "b0_0",
+				DecisiveRoots:    map[string]bool{"a4_4": true},
 			},
 			stakes{
 				"nodeA": big.NewInt(4),
@@ -186,7 +184,7 @@ a4_4══╣     ║     ║
 
 func testProcessRoot(
 	t *testing.T,
-	expected *fakeElectionRes,
+	expected *testExpected,
 	stakes stakes,
 	dag string,
 ) {
@@ -247,7 +245,7 @@ func testProcessRoot(
 		}
 	}
 
-	// election:
+	// strongly see fn:
 	stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
 		edge := fakeEdge{
 			from: a,
@@ -265,29 +263,33 @@ func testProcessRoot(
 
 	// ordering:
 	var (
-		err       error
-		steps     = 0
 		processed = make(map[hash.Event]*inter.Event)
-		got       *ElectionRes
+		alreadyDecided = false
 	)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
 
 		Process: func(root *inter.Event) {
-			if got != nil {
-				return
-			}
-			steps++
-
 			rootHash := root.Hash()
 			rootSlot, ok := vertices[rootHash]
 			if !ok {
 				t.Fatal("inconsistent vertices")
 			}
-			got, err = election.ProcessRoot(rootHash, rootSlot)
+			got, err := election.ProcessRoot(rootHash, rootSlot)
 			if err != nil {
 				t.Fatal(err)
 			}
 			processed[root.Hash()] = root
+
+			// checking:
+			decisive := expected != nil && expected.DecisiveRoots[root.Hash().String()]
+			if decisive || alreadyDecided {
+				assertar.NotNil(got)
+				assertar.Equal(expected.DecidedFrame, got.DecidedFrame)
+				assertar.Equal(expected.DecidedSfWitness, got.DecidedSfWitness.String())
+				alreadyDecided = true
+			} else {
+				assertar.Nil(got)
+			}
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -302,19 +304,6 @@ func testProcessRoot(
 	// processing:
 	for _, root := range named {
 		orderThenProcess(root)
-		if got != nil {
-			break
-		}
-	}
-
-	// checking:
-	//assertar.Equal(len(named), steps, "decision is made before last root")
-	if expected != nil {
-		assertar.NotNil(got)
-		assertar.Equal(expected.DecidedFrame, got.DecidedFrame)
-		assertar.Equal(expected.DecidedSfWitness, got.DecidedSfWitness.String())
-	} else {
-		assertar.Nil(got)
 	}
 }
 
