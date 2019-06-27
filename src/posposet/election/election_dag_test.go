@@ -52,7 +52,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&fakeElectionRes{
 				DecidedFrame:     0,
-				DecidedSfWitness: "d0_0", // NOTE: but b0_0 in original
+				DecidedSfWitness: "c0_0",
 			},
 			stakes{
 				"nodeA": big.NewInt(1),
@@ -79,7 +79,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&fakeElectionRes{
 				DecidedFrame:     0,
-				DecidedSfWitness: "c0_0", // NOTE: but a0_0 in original
+				DecidedSfWitness: "c0_0",
 			},
 			stakes{
 				"nodeA": big.NewInt(1),
@@ -104,7 +104,7 @@ a2_2══╬═════╣     ║
 		testProcessRoot(t,
 			&fakeElectionRes{
 				DecidedFrame:     0,
-				DecidedSfWitness: "b0_0", // NOTE: but a0_0 in original
+				DecidedSfWitness: "c0_0",
 			},
 			stakes{
 				"nodeA": big.NewInt(1000000000000000000),
@@ -131,7 +131,7 @@ a1_1══╬═════╣     ║
 		testProcessRoot(t,
 			&fakeElectionRes{
 				DecidedFrame:     0,
-				DecidedSfWitness: "a0_0",
+				DecidedSfWitness: "b0_0",
 			},
 			stakes{
 				"nodeA": big.NewInt(4),

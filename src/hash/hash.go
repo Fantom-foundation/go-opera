@@ -138,8 +138,16 @@ func (h *Hash) Scan(src interface{}) error {
  */
 
 // FakeHash generates random fake hash for testing purpose.
-func FakeHash() (h Hash) {
-	_, err := rand.Read(h[:])
+func FakeHash(seed ...int64) (h Hash) {
+	randRead := rand.Read
+
+	if len(seed) > 0 {
+		src := rand.NewSource(seed[0])
+		rnd := rand.New(src)
+		randRead = rnd.Read
+	}
+
+	_, err := randRead(h[:])
 	if err != nil {
 		panic(err)
 	}

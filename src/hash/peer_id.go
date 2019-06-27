@@ -89,6 +89,6 @@ func (p *Peer) IsEmpty() bool {
  */
 
 // FakePeer generates random fake peer id for testing purpose.
-func FakePeer() Peer {
-	return Peer(FakeHash())
+func FakePeer(seed ...int64) Peer {
+	return Peer(FakeHash(seed...))
 }
