@@ -55,6 +55,38 @@ func makeTestSecureTrie(t *testing.T) (*Database, *SecureTrie, map[string][]byte
 	return triedb, trie, content
 }
 
+func TestSecureDb(t *testing.T) {
+	key := []byte("key")
+	val0 := []byte("data")
+
+	db := kvdb.NewMemDatabase()
+
+	trie, err := NewSecure(hash.Hash{}, NewDatabase(db), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	trie.Update(key, val0)
+	root, err := trie.Commit(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	trie, err = NewSecure(root, NewDatabase(db), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	val1, err := trie.TryGet(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(val0) != string(val1) {
+		t.Fatalf("expect: %s; got: %s", string(val0), string(val1))
+	}
+}
+
 func TestSecureDelete(t *testing.T) {
 	trie := newEmptySecure()
 	vals := []struct{ k, v string }{

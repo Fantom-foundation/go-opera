@@ -138,7 +138,17 @@ func (t *SecureTrie) Commit(onleaf LeafCallback) (root hash.Hash, err error) {
 		t.secKeyCache = make(map[string][]byte)
 	}
 	// Commit the trie to its intermediate node database
-	return t.trie.Commit(onleaf)
+	nodeHash, err := t.trie.Commit(onleaf)
+	if err != nil {
+		return hash.Hash{}, err
+	}
+	if t.trie.db.diskdb != nil {
+		err = t.trie.db.Commit(nodeHash, false)
+		if err != nil {
+			return hash.Hash{}, err
+		}
+	}
+	return nodeHash, nil
 }
 
 // Hash returns the root hash of SecureTrie. It does not write to the

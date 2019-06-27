@@ -653,8 +653,8 @@ func (db *Database) Commit(node hash.Hash, report bool) error {
 	if !report {
 		logger = log.Debug
 	}
-	logger("Persisted trie from memory database", "nodes", nodes-len(db.dirties)+int(db.flushnodes), "size", storage-db.dirtiesSize+db.flushsize, "time", time.Since(start)+db.flushtime,
-		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
+	logger("Persisted trie from memory database", " nodes: ", nodes-len(db.dirties)+int(db.flushnodes), "; size: ", storage-db.dirtiesSize+db.flushsize, "; time: ", time.Since(start)+db.flushtime,
+		"; gcnodes: ", db.gcnodes, "; gcsize: ", db.gcsize, "; gctime: ", db.gctime, "; livenodes: ", len(db.dirties), "; livesize: ", db.dirtiesSize)
 
 	// Reset the garbage collection statistics
 	db.gcnodes, db.gcsize, db.gctime = 0, 0, 0
