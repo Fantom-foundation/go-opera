@@ -51,7 +51,7 @@ func makeNetwork(pref string, count int) []*Lachesis {
 
 	conf := DefaultConfig()
 	conf.Net = net
-	conf.Node.EmitInterval = 1 * time.Second
+	conf.Node.MinEmitInterval = 1 * time.Second
 
 	ll := make([]*Lachesis, count)
 
