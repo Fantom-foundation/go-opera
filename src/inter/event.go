@@ -20,8 +20,10 @@ type Event struct {
 	ExternalTransactions ExtTxns
 	Sign                 string
 	CreatorSeq           int64
-	FirstSeq             []int64 // 0 <= FirstSeq[i] <= 9223372036854775807
-	LastSeq              []int64 // -1 <= LastSeq[i] <= 9223372036854775807
+	FirstDescendantsSeq  []int64 // 0 <= FirstDescendantsSeq[i] <= 9223372036854775807
+	LastAncestorsSeq     []int64 // -1 <= LastAncestorsSeq[i] <= 9223372036854775807
+	FirstDescendants     []hash.Event
+	LastAncestors        []hash.Event
 
 	hash hash.Event // cache for .Hash()
 }
