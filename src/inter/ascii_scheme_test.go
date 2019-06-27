@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 func TestASCIIschemeToDAG(t *testing.T) {
@@ -63,6 +65,150 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 	checkParents(t, named, expected)
 }
 
+func TestDAGtoASCIIschemeRand(t *testing.T) {
+	assertar := assert.New(t)
+
+	_, ee := GenEventsByNode(5, 10, 3)
+	src := delPeerIndex(ee)
+
+	scheme0, err := DAGtoASCIIscheme(src)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	_, _, names := ASCIIschemeToDAG(scheme0)
+	got := delPeerIndex(ee)
+
+	if !assertar.Equal(len(src), len(got), "event count") {
+		return
+	}
+
+	for _, e0 := range src {
+		n := e0.Hash().String()
+		e1 := names[n]
+
+		parents0 := edges2text(e0)
+		parents1 := edges2text(e1)
+		if assertar.EqualValues(parents0, parents1, "at event "+n) {
+			continue
+		}
+		// print info if not EqualValues:
+		scheme1, err := DAGtoASCIIscheme(got)
+		if !assertar.NoError(err) {
+			return
+		}
+		out := utils.TextColumns(scheme0, scheme1)
+		t.Log(out)
+		return
+	}
+}
+
+func TestDAGtoASCIIschemeOptimisation(t *testing.T) {
+
+	t.Run("Simple", func(t *testing.T) {
+		testDAGtoASCIIschemeOptimisation(t, `
+a00  b00   c00
+║    ║    ║║
+a01══╣    ║║
+║    ║    ║║
+╠═══─╫═════c01
+║    b01  ╝║
+║    ║     ║
+a02══╬═════╣
+║    ║     ║
+║3   ║     ║  // optimise this
+║╚═══╬═════c02
+║    ║     ║
+`, map[string][]string{
+			"a00": {""},
+			"a01": {"a00", "b00"},
+			"a02": {"a01", "b01", "c01"},
+			"b00": {""},
+			"b01": {"b00", "c00"},
+			"c00": {""},
+			"c01": {"c00", "a01"},
+			"c02": {"c01", "a00", "b01"},
+		})
+	})
+
+	t.Run("Regression", func(t *testing.T) {
+		testDAGtoASCIIschemeOptimisation(t, `
+c00    
+║       ║      
+║       a00    
+║       ║       ║      
+║       ║       b00    
+║       ║       ║      
+║       a01═════╣      
+║       ║       ║      
+c01═════╣       ║      
+║║      ║       ║      
+║╚═════─╫─══════b01    
+║║      ║       ║      
+║╚══════a02═════╣      
+║      3║       ║ // optimise this
+c02════╩╫─══════╣
+`, map[string][]string{
+			"a00": {""},
+			"a01": {"a00", "b00"},
+			"a02": {"a01", "b01", "c00"},
+			"b00": {""},
+			"b01": {"b00", "c00"},
+			"c00": {""},
+			"c01": {"c00", "a01"},
+			"c02": {"c01", "a00", "b01"},
+		})
+	})
+
+	t.Run("SwapParents", func(t *testing.T) {
+		testDAGtoASCIIschemeOptimisation(t, `
+a00    
+║       ║      
+║       b00    
+║       ║      
+a01═════╣      
+║       ║       ║      
+║       ║       c00    
+║       ║       ║      
+║       b01═════╣      
+║       ║       ║      
+a02═════╬═══════╣      
+║║      ║       ║      
+║╚═════─╫─══════c01    
+║3      ║       ║   // optimise this
+║╚══════╬═══════c02
+`, map[string][]string{
+			"a00": {""},
+			"a01": {"a00", "b00"},
+			"a02": {"a01", "b01", "c00"},
+			"b00": {""},
+			"b01": {"b00", "c00"},
+			"c00": {""},
+			"c01": {"c00", "a01"},
+			"c02": {"c01", "a00", "b01"},
+		})
+	})
+}
+
+func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[string][]string) {
+	// step 1: ASCII --> DAG
+	_, events, named := ASCIIschemeToDAG(origScheme)
+	checkParents(t, named, refs)
+
+	// step 2: DAG --> ASCII
+	genScheme, err := DAGtoASCIIscheme(delPeerIndex(events))
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	out := utils.TextColumns(origScheme, genScheme)
+	t.Log(out)
+
+	// step 3: ASCII --> DAG (again)
+	_, _, named = ASCIIschemeToDAG(genScheme)
+	checkParents(t, named, refs)
+}
+
 func checkParents(t *testing.T, named map[string]*Event, expected map[string][]string) {
 	assertar := assert.New(t)
 
@@ -82,78 +228,6 @@ func checkParents(t *testing.T, named map[string]*Event, expected map[string][]s
 		}
 
 		if !assertar.Equal(parents0, parents1, "at event "+n) {
-			return
-		}
-	}
-}
-
-func TestDAGtoASCIIcheme(t *testing.T) {
-	scheme := `
-a00  b00   c00
-║    ║    ║║
-a01══╣    ║║
-║    ║    ║║
-╠═══─╫═════c01
-║    b01  ╝║
-║    ║     ║
-a02══╬     ╣
-║    ║     ║
-║3   ║     ║
-║╚═══╬═════c02
-║    ║     ║
-`
-	expected := map[string][]string{
-		"a00": {""},
-		"a01": {"a00", "b00"},
-		"a02": {"a01", "b01", "c01"},
-		"b00": {""},
-		"b01": {"b00", "c00"},
-		"c00": {""},
-		"c01": {"c00", "a01"},
-		"c02": {"c01", "a00", "b01"},
-	}
-
-	// step 1: ASCII --> DAG
-	_, events, named := ASCIIschemeToDAG(scheme)
-	checkParents(t, named, expected)
-
-	// step 2: DAG --> ASCII
-	scheme, err := DAGtoASCIIcheme(delPeerIndex(events))
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	// step 3: ASCII --> DAG (again)
-	_, events, named = ASCIIschemeToDAG(scheme)
-	checkParents(t, named, expected)
-}
-
-func TestDAGtoASCIIchemeRand(t *testing.T) {
-	assertar := assert.New(t)
-
-	_, ee := GenEventsByNode(5, 10, 3)
-	src := delPeerIndex(ee)
-
-	scheme, err := DAGtoASCIIcheme(src)
-	if !assertar.NoError(err) {
-		return
-	}
-	//t.Log(scheme)
-
-	_, _, names := ASCIIschemeToDAG(scheme)
-	got := delPeerIndex(ee)
-
-	if !assertar.Equal(len(src), len(got), "event count") {
-		return
-	}
-
-	for _, e0 := range src {
-		n := e0.Hash().String()
-		e1 := names[n]
-
-		parents0 := edges2text(e0)
-		parents1 := edges2text(e1)
-		if !assertar.EqualValues(parents0, parents1, "at event "+n) {
 			return
 		}
 	}

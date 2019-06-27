@@ -38,6 +38,10 @@ func ASCIIschemeToDAG(scheme string) (
 		col := 0
 		for _, symbol := range strings.FieldsFunc(strings.TrimSpace(line), filler) {
 			symbol = strings.TrimSpace(symbol)
+			if strings.HasPrefix(symbol, "//") {
+				break // skip comments
+			}
+
 			switch symbol {
 			case "": // skip
 				col--
@@ -155,8 +159,8 @@ func ASCIIschemeToDAG(scheme string) (
 	return
 }
 
-// DAGtoASCIIcheme builds ASCII-scheme of events for debug purpose.
-func DAGtoASCIIcheme(events Events) (string, error) {
+// DAGtoASCIIscheme builds ASCII-scheme of events for debug purpose.
+func DAGtoASCIIscheme(events Events) (string, error) {
 	events = events.ByParents()
 
 	var (
@@ -296,31 +300,49 @@ func (r *row) Position(i int) pos {
 }
 
 func (rr *rows) Optimize() {
-	// TODO: fix it, see TestDAGtoASCIIcheme()
+	// TODO: fix than uncomment
+	// NOTE: see `go test -count=100 -run="TestDAGtoASCIIschemeRand" ./src/inter`
 	return
 
-	for iRow, row := range rr.rows {
+	for curr, row := range rr.rows {
+	REFS:
 		for iRef, ref := range row.Refs {
 			// TODO: Can we decrease ref from 2 to 1 ?
 			if ref < 3 {
-				continue
+				continue REFS
 			}
-			row.Refs[iRef] = ref - 1
 
-			prev := iRow - 1
-
-			// find event for swap
+			// find prev event for swap
+			prev := curr - 1
 			for {
-				if iRef == rr.rows[prev].Self {
+				if rr.rows[prev].Self == iRef {
 					break
+				}
+				// if the same parents
+				if rr.rows[curr].Self == rr.rows[prev].Self {
+					continue REFS
 				}
 
 				prev--
 			}
 
+			row.Refs[iRef] = ref - 1
+
+			// update refs for swapped event
+			if rr.rows[prev].Refs[rr.rows[curr].Self] > 0 {
+				rr.rows[prev].Refs[rr.rows[curr].Self]++
+			}
+
+			// Note: if swapped event now have refs more than before -> discard any changes for current and swapped event.
+			if rr.rows[prev].Refs[rr.rows[curr].Self] > 2 {
+				rr.rows[prev].Refs[rr.rows[curr].Self]--
+				row.Refs[iRef] = ref
+				continue
+			}
+
 			// for fill empty space after swap (for graph)
 			for {
-				if len(rr.rows[prev].Refs) == len(rr.rows[iRow].Refs) {
+				if len(rr.rows[prev].Refs) == len(rr.rows[curr].Refs) {
 					break
 				}
 
@@ -328,7 +350,7 @@ func (rr *rows) Optimize() {
 			}
 
 			// swap with prev event
-			rr.rows[iRow], rr.rows[prev] = rr.rows[prev], rr.rows[iRow]
+			rr.rows[curr], rr.rows[prev] = rr.rows[prev], rr.rows[curr]
 		}
 	}
 }
