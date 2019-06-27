@@ -11,11 +11,14 @@ import (
 
 // emitter creates events from external transactions.
 type emitter struct {
+	txMutex      sync.RWMutex
 	internalTxns map[hash.Transaction]*inter.InternalTransaction
 	externalTxns [][]byte
-	done         chan struct{}
 
-	sync.RWMutex
+	eventTimeGapMutex sync.RWMutex
+	eventTimeGap      time.Duration
+
+	done chan struct{}
 }
 
 // StartEventEmission starts event emission.
@@ -28,11 +31,14 @@ func (n *Node) StartEventEmission() {
 	n.initParents()
 
 	go func(done chan struct{}) {
-		ticker := time.NewTicker(n.conf.EmitInterval)
+		ticker := time.NewTicker(n.conf.MinEmitInterval)
 		for {
 			select {
 			case <-ticker.C:
-				n.EmitEvent()
+				n.increaseTimeGap()
+				if n.isReadyToEmit() {
+					n.EmitEvent()
+				}
 			case <-done:
 				return
 			}
@@ -51,8 +57,8 @@ func (n *Node) StopEventEmission() {
 }
 
 func (n *Node) internalTxnMempool(idx hash.Transaction) *inter.InternalTransaction {
-	n.emitter.RLock()
-	defer n.emitter.RUnlock()
+	n.emitter.txMutex.RLock()
+	defer n.emitter.txMutex.RUnlock()
 
 	// chck mempool
 	if n.emitter.internalTxns == nil {
@@ -77,8 +83,8 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 
 	idx := inter.TransactionHashOf(n.ID, tx.Index)
 
-	n.emitter.Lock()
-	defer n.emitter.Unlock()
+	n.emitter.txMutex.Lock()
+	defer n.emitter.txMutex.Unlock()
 
 	if n.emitter.internalTxns == nil {
 		n.emitter.internalTxns = make(map[hash.Transaction]*inter.InternalTransaction)
@@ -99,19 +105,44 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 
 // AddExternalTxn takes external transaction for new event.
 func (n *Node) AddExternalTxn(tx []byte) {
-	n.emitter.Lock()
-	defer n.emitter.Unlock()
+	n.emitter.txMutex.Lock()
+	defer n.emitter.txMutex.Unlock()
 	// TODO: copy tx val?
 	n.emitter.externalTxns = append(n.emitter.externalTxns, tx)
+}
+
+func (n *Node) increaseTimeGap() {
+	n.emitter.eventTimeGapMutex.Lock()
+	n.emitter.eventTimeGap += n.conf.MinEmitInterval
+	defer n.emitter.eventTimeGapMutex.Unlock()
+}
+
+func (n *Node) resetTimeGap() {
+	n.emitter.eventTimeGapMutex.Lock()
+	defer n.emitter.eventTimeGapMutex.Unlock()
+
+	n.emitter.eventTimeGap = 0
+}
+
+func (n *Node) isReadyToEmit() bool {
+	n.emitter.txMutex.RLock()
+	n.emitter.eventTimeGapMutex.RLock()
+	defer n.emitter.txMutex.RUnlock()
+	defer n.emitter.eventTimeGapMutex.RUnlock()
+
+	isReady := ((len(n.emitter.externalTxns) > 0 || len(n.emitter.internalTxns) > 0) &&
+		n.parentsLen() >= n.conf.EventParentsCount) || n.emitter.eventTimeGap >= n.conf.MaxEmitInterval
+
+	return isReady
 }
 
 // EmitEvent takes all transactions from buffer builds event,
 // connects it with given amount of parents, sign and put it into the storage.
 // It returns emitted event for test purpose.
 func (n *Node) EmitEvent() *inter.Event {
-	n.emitter.Lock()
-	defer n.emitter.Unlock()
-
+	n.emitter.txMutex.Lock()
+	defer n.emitter.txMutex.Unlock()
+	defer n.resetTimeGap()
 	n.Debugf("emitting event")
 
 	var (

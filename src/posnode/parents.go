@@ -18,7 +18,7 @@ type (
 	// parents is a potential parent events cache.
 	parents struct {
 		cache map[hash.Event]*parent
-		sync.Mutex
+		sync.RWMutex
 	}
 )
 
@@ -88,6 +88,13 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 	if prev != nil && n.parents.cache[*prev] != nil {
 		n.parents.cache[*prev].Last = false
 	}
+}
+
+func (n *Node) parentsLen() (pLen int) {
+	n.parents.RLock()
+	defer n.parents.RUnlock()
+	pLen = len(n.parents.cache)
+	return
 }
 
 // popBestParent returns best parent and marks it as used.
