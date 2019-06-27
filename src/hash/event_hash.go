@@ -2,7 +2,6 @@ package hash
 
 import (
 	"bytes"
-	"encoding/json"
 	"math/big"
 	"math/rand"
 	"sort"
@@ -69,21 +68,6 @@ func (h Event) String() string {
 		return name
 	}
 	return (Hash)(h).ShortString()
-}
-
-// UnmarshalJSON parses a hash in hex syntax.
-func (h *Event) UnmarshalJSON(input []byte) error {
-	if len(input) < 64 {
-		var str string
-		err := json.Unmarshal(input, &str)
-		if err != nil {
-			return err
-		}
-		*h = HexToEventHash(str)
-	} else {
-		return (*Hash)(h).UnmarshalJSON(input)
-	}
-	return nil
 }
 
 // IsZero returns true if hash is empty.

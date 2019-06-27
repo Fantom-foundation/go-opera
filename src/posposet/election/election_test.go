@@ -1,12 +1,16 @@
 package election
 
 import (
-	"encoding/json"
 	"math/big"
-	"math/rand"
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 )
 
 type fakeEdge struct {
@@ -21,541 +25,314 @@ type fakeRoot struct {
 	Decisive     bool
 }
 
-type processRootTest struct {
-	Nodes         []ElectionNode
-	SuperMajority *big.Int
+type (
+	stakes map[string]*big.Int
+)
 
-	Roots []fakeRoot
-
-	Answer *ElectionRes
+type fakeElectionRes struct {
+	DecidedFrame     FrameHeight
+	DecidedSfWitness string
 }
 
-func TestProcessRootTest(t *testing.T) {
-	testJson := `
-{
-    "TestProcessRoot_4_uni_notDecided" : {
-		"nodes" : [
-			{
-				"nodeid" : "a",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "b",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "c",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "d",
-				"stakeAmount" : 1
-			}
-		],
-		"superMajority" : 3,
-		"roots" : [
-			{
-				"hash" : "a0",
-				"slot" : {"frame" : 0, "nodeid" : "a"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "b0",
-				"slot" : {"frame" : 0, "nodeid" : "b"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "c0",
-				"slot" : {"frame" : 0, "nodeid" : "c"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "d0",
-				"slot" : {"frame" : 0, "nodeid" : "d"},
-				"stronglySeen" : []
-			},
+func TestProcessRoot(t *testing.T) {
 
-			{
-				"hash" : "a1",
-				"slot" : {"frame" : 1, "nodeid" : "a"},
-				"stronglySeen" : ["a0", "b0", "c0"]
-			},
-			{
-				"hash" : "b1",
-				"slot" : {"frame" : 1, "nodeid" : "b"},
-				"stronglySeen" : ["a0", "b0", "c0"]
-			},
-			{
-				"hash" : "c1",
-				"slot" : {"frame" : 1, "nodeid" : "c"},
-				"stronglySeen" : ["b0", "c0", "d0"]
-			},
-			{
-				"hash" : "d1",
-				"slot" : {"frame" : 1, "nodeid" : "d"},
-				"stronglySeen" : ["b0", "c0", "d0"]
-			},
+	t.Run("4 uni notDecided", func(t *testing.T) {
+		testProcessRoot(t,
+			nil,
+			stakes{
+				"nodeA": big.NewInt(1),
+				"nodeB": big.NewInt(1),
+				"nodeC": big.NewInt(1),
+				"nodeD": big.NewInt(1),
+			}, `
+a0_0  b0_0  c0_0  d0_0
+║     ║     ║     ║
+a1_1══╬═════╣     ║
+║     ║     ║     ║
+║╚════b1_1══╣     ║
+║     ║     ║     ║
+║     ║╚════c1_1══╣
+║     ║     ║     ║
+║     ║╚═══─╫╩════d1_1
+║     ║     ║     ║
+a2_2══╬═════╬═════╣
+║     ║     ║     ║
+`)
+	})
 
-			{
-				"hash" : "a2",
-				"slot" : {"frame" : 2, "nodeid" : "a"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"]
-			}
-		],
-		"answer" : null
-	},
-    "TestProcessRoot_4_uni_decided" : {
-		"nodes" : [
-			{
-				"nodeid" : "a",
-				"stakeAmount" : 1
+	t.Run("4 uni decided", func(t *testing.T) {
+		testProcessRoot(t,
+			&fakeElectionRes{
+				DecidedFrame:     0,
+				DecidedSfWitness: "c0_0",
 			},
-			{
-				"nodeid" : "b",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "c",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "d",
-				"stakeAmount" : 1
-			}
-		],
-		"superMajority" : 3,
-		"roots" : [
-			{
-				"hash" : "a0",
-				"slot" : {"frame" : 0, "nodeid" : "a"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "b0",
-				"slot" : {"frame" : 0, "nodeid" : "b"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "c0",
-				"slot" : {"frame" : 0, "nodeid" : "c"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "d0",
-				"slot" : {"frame" : 0, "nodeid" : "d"},
-				"stronglySeen" : []
-			},
+			stakes{
+				"nodeA": big.NewInt(1),
+				"nodeB": big.NewInt(1),
+				"nodeC": big.NewInt(1),
+				"nodeD": big.NewInt(1),
+			}, `
+a0_0  b0_0  c0_0  d0_0
+║     ║     ║     ║
+a1_1══╬═════╣     ║
+║     ║     ║     ║
+║     b1_1══╬═════╣
+║     ║     ║     ║
+║     ║╚════c1_1══╣
+║     ║     ║     ║
+║     ║╚═══─╫╩════d1_1
+║     ║     ║     ║
+a2_2══╬═════╬═════╣
+║     ║     ║     ║
+`)
+	})
 
-			{
-				"hash" : "a1",
-				"slot" : {"frame" : 1, "nodeid" : "a"},
-				"stronglySeen" : ["a0", "b0", "c0"]
+	t.Run("4 uni missingRoot decided", func(t *testing.T) {
+		testProcessRoot(t,
+			&fakeElectionRes{
+				DecidedFrame:     0,
+				DecidedSfWitness: "c0_0",
 			},
-			{
-				"hash" : "b1",
-				"slot" : {"frame" : 1, "nodeid" : "b"},
-				"stronglySeen" : ["b0", "c0", "d0"]
-			},
-			{
-				"hash" : "c1",
-				"slot" : {"frame" : 1, "nodeid" : "c"},
-				"stronglySeen" : ["b0", "c0", "d0"]
-			},
-			{
-				"hash" : "d1",
-				"slot" : {"frame" : 1, "nodeid" : "d"},
-				"stronglySeen" : ["b0", "c0", "d0"]
-			},
+			stakes{
+				"nodeA": big.NewInt(1),
+				"nodeB": big.NewInt(1),
+				"nodeC": big.NewInt(1),
+				"nodeD": big.NewInt(1),
+			}, `
+a0_0  b0_0  c0_0  d0_0
+║     ║     ║     ║
+a1_1══╬═════╣     ║
+║     ║     ║     ║
+║╚════b1_1══╣     ║
+║     ║     ║     ║
+║╚═══─╫╩════c1_1  ║
+║     ║     ║     ║
+a2_2══╬═════╣     ║
+║     ║     ║     ║
+`)
+	})
 
-			{
-				"hash" : "a2",
-				"slot" : {"frame" : 2, "nodeid" : "a"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"],
-				"decisive" : true
-			}
-		],
-		"answer" : {
-			"decidedFrame" : 0,
-			"decidedSfWitness" : "b0"
-		}
-	},
-    "TestProcessRoot_4_uni_missingRoot_decided" : {
-		"nodes" : [
-			{
-				"nodeid" : "a",
-				"stakeAmount" : 1
+	t.Run("4 differentStakes decided", func(t *testing.T) {
+		testProcessRoot(t,
+			&fakeElectionRes{
+				DecidedFrame:     0,
+				DecidedSfWitness: "c0_0",
 			},
-			{
-				"nodeid" : "b",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "c",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "d",
-				"stakeAmount" : 1
-			}
-		],
-		"superMajority" : 3,
-		"roots" : [
-			{
-				"hash" : "a0",
-				"slot" : {"frame" : 0, "nodeid" : "a"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "b0",
-				"slot" : {"frame" : 0, "nodeid" : "b"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "c0",
-				"slot" : {"frame" : 0, "nodeid" : "c"},
-				"stronglySeen" : []
-			},
+			stakes{
+				"nodeA": big.NewInt(1000000000000000000),
+				"nodeB": big.NewInt(1),
+				"nodeC": big.NewInt(1),
+				"nodeD": big.NewInt(1),
+			}, `
+a0_0  b0_0  c0_0  d0_0
+║     ║     ║     ║
+a1_1══╬═════╣     ║
+║     ║     ║     ║
+║╚════+b1_1 ║     ║
+║     ║     ║     ║
+║╚═══─╫─════+c1_1 ║
+║     ║     ║     ║
+║╚═══─╫╩═══─╫╩════d1_1
+║     ║     ║     ║
+╠═════b2_2══╬═════╣
+║     ║     ║     ║
+`)
+	})
 
-			{
-				"hash" : "a1",
-				"slot" : {"frame" : 1, "nodeid" : "a"},
-				"stronglySeen" : ["a0", "b0", "c0"]
+	t.Run("4 differentStakes 5rounds decided", func(t *testing.T) {
+		testProcessRoot(t,
+			&fakeElectionRes{
+				DecidedFrame:     0,
+				DecidedSfWitness: "b0_0",
 			},
-			{
-				"hash" : "b1",
-				"slot" : {"frame" : 1, "nodeid" : "b"},
-				"stronglySeen" : ["a0", "b0", "c0"]
-			},
-			{
-				"hash" : "c1",
-				"slot" : {"frame" : 1, "nodeid" : "c"},
-				"stronglySeen" : ["a0", "b0", "c0"]
-			},
+			stakes{
+				"nodeA": big.NewInt(4),
+				"nodeB": big.NewInt(2),
+				"nodeC": big.NewInt(1),
+				"nodeD": big.NewInt(1),
+			}, `
+a0_0  b0_0  c0_0  d0_0
+║     ║     ║     ║
+a1_1══╣     ║     ║
+║     ║     ║     ║
+║     +b1_1═╬═════╣
+║     ║     ║     ║
+║╚═══─╫─════c1_1══╣
+║     ║     ║     ║
+║╚═══─╫─═══─╫╩════d1_1
+║     ║     ║     ║
+a2_2  ╣     ║     ║
+║     ║     ║     ║
+║╚════b2_2══╬═════╣
+║     ║     ║     ║
+║╚═══─╫╩════c2_2══╣
+║     ║     ║     ║
+║╚═══─╫╩═══─╫─════+d2_2
+║     ║     ║     ║
+a3_3══╬═════╬═════╣
+║     ║     ║     ║
+║╚════b3_3══╬═════╣
+║     ║     ║     ║
+║╚═══─╫╩════c3_3══╣
+║     ║     ║     ║
+║╚═══─╫╩═══─╫╩════d3_3
+║     ║     ║     ║
+a4_4══╣     ║     ║
+║     ║     ║     ║
+`)
+	})
 
-			{
-				"hash" : "a2",
-				"slot" : {"frame" : 2, "nodeid" : "a"},
-				"stronglySeen" : ["a1", "b1", "c1"],
-				"decisive" : true
-			}
-		],
-		"answer" : {
-			"decidedFrame" : 0,
-			"decidedSfWitness" : "a0"
-		}
-	},
-    "TestProcessRoot_4_differentStakes_decided" : {
-		"nodes" : [
-			{
-				"nodeid" : "a",
-				"stakeAmount" : 100000000000000000000000000
-			},
-			{
-				"nodeid" : "b",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "c",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "d",
-				"stakeAmount" : 1
-			}
-		],
-		"superMajority" : 70000000000000000000000000,
-		"roots" : [
-			{
-				"hash" : "a0",
-				"slot" : {"frame" : 0, "nodeid" : "a"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "b0",
-				"slot" : {"frame" : 0, "nodeid" : "b"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "c0",
-				"slot" : {"frame" : 0, "nodeid" : "c"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "d0",
-				"slot" : {"frame" : 0, "nodeid" : "d"},
-				"stronglySeen" : []
-			},
-
-			{
-				"hash" : "a1",
-				"slot" : {"frame" : 1, "nodeid" : "a"},
-				"stronglySeen" : ["a0", "b0", "c0"]
-			},
-			{
-				"hash" : "b1",
-				"slot" : {"frame" : 1, "nodeid" : "b"},
-				"stronglySeen" : ["a0"]
-			},
-			{
-				"hash" : "c1",
-				"slot" : {"frame" : 1, "nodeid" : "c"},
-				"stronglySeen" : ["a0"]
-			},
-			{
-				"hash" : "d1",
-				"slot" : {"frame" : 1, "nodeid" : "d"},
-				"stronglySeen" : ["a0", "b0", "c0", "d0"]
-			},
-
-			{
-				"hash" : "b2",
-				"slot" : {"frame" : 2, "nodeid" : "b"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"],
-				"decisive" : true
-			}
-		],
-		"answer" : {
-			"decidedFrame" : 0,
-			"decidedSfWitness" : "a0"
-		}
-	},
-    "TestProcessRoot_4_differentStakes_5rounds_decided" : {
-		"nodes" : [
-			{
-				"nodeid" : "a",
-				"stakeAmount" : 4
-			},
-			{
-				"nodeid" : "b",
-				"stakeAmount" : 2
-			},
-			{
-				"nodeid" : "c",
-				"stakeAmount" : 1
-			},
-			{
-				"nodeid" : "d",
-				"stakeAmount" : 1
-			}
-		],
-		"superMajority" : 6,
-		"roots" : [
-			{
-				"hash" : "a0",
-				"slot" : {"frame" : 0, "nodeid" : "a"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "b0",
-				"slot" : {"frame" : 0, "nodeid" : "b"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "c0",
-				"slot" : {"frame" : 0, "nodeid" : "c"},
-				"stronglySeen" : []
-			},
-			{
-				"hash" : "d0",
-				"slot" : {"frame" : 0, "nodeid" : "d"},
-				"stronglySeen" : []
-			},
-
-			{
-				"hash" : "a1",
-				"slot" : {"frame" : 1, "nodeid" : "a"},
-				"stronglySeen" : ["a0", "b0"]
-			},
-			{
-				"hash" : "b1",
-				"slot" : {"frame" : 1, "nodeid" : "b"},
-				"stronglySeen" : ["a0", "c0", "d0"]
-			},
-			{
-				"hash" : "c1",
-				"slot" : {"frame" : 1, "nodeid" : "c"},
-				"stronglySeen" : ["a0", "c0", "d0"]
-			},
-			{
-				"hash" : "d1",
-				"slot" : {"frame" : 1, "nodeid" : "d"},
-				"stronglySeen" : ["a0", "c0", "d0"]
-			},
-
-			{
-				"hash" : "a2",
-				"slot" : {"frame" : 2, "nodeid" : "a"},
-				"stronglySeen" : ["a1", "b1"]
-			},
-			{
-				"hash" : "b2",
-				"slot" : {"frame" : 2, "nodeid" : "b"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"]
-			},
-			{
-				"hash" : "c2",
-				"slot" : {"frame" : 2, "nodeid" : "c"},
-				"stronglySeen" : ["a1", "b1", "c1", "d1"]
-			},
-			{
-				"hash" : "d2",
-				"slot" : {"frame" : 2, "nodeid" : "d"},
-				"stronglySeen" : ["a1", "b1"]
-			},
-
-			{
-				"hash" : "a3",
-				"slot" : {"frame" : 3, "nodeid" : "a"},
-				"stronglySeen" : ["a2", "b2", "c2", "d2"]
-			},
-			{
-				"hash" : "b3",
-				"slot" : {"frame" : 3, "nodeid" : "b"},
-				"stronglySeen" : ["a2", "b2", "c2", "d2"]
-			},
-			{
-				"hash" : "c3",
-				"slot" : {"frame" : 3, "nodeid" : "c"},
-				"stronglySeen" : ["a2", "b2", "c2", "d2"]
-			},
-			{
-				"hash" : "d3",
-				"slot" : {"frame" : 3, "nodeid" : "d"},
-				"stronglySeen" : ["a2", "b2", "c2", "d2"]
-			},
-
-			{
-				"hash" : "a4",
-				"slot" : {"frame" : 4, "nodeid" : "a"},
-				"stronglySeen" : ["a3", "b3"],
-				"decisive" : true
-			}
-		],
-		"answer" : {
-			"decidedFrame" : 0,
-			"decidedSfWitness" : "a0"
-		}
-	}
 }
-`
-	tests := make(map[string]processRootTest)
-	err := json.Unmarshal([]byte(testJson), &tests)
-	if err != nil {
-		t.Fatal(err)
+
+func testProcessRoot(
+	t *testing.T,
+	expected *fakeElectionRes,
+	stakes stakes,
+	dag string,
+) {
+	assertar := assert.New(t)
+
+	peers, _, named := inter.ASCIIschemeToDAG(dag)
+
+	// nodes:
+	totalStake := new(big.Int)
+	nodes := make([]ElectionNode, 0, len(peers))
+	for _, peer := range peers {
+		n := ElectionNode{
+			Nodeid:      peer,
+			StakeAmount: stakes[peer.String()],
+		}
+		nodes = append(nodes, n)
+		totalStake.Add(totalStake, n.StakeAmount)
 	}
 
-	for name, test := range tests {
-		if len(test.Roots) == 0 {
-			t.Fatal(name, "Empty test")
+	superMajority := get2of3(totalStake)
+	//t.Logf("superMajority = %s", superMajority.String())
+
+	// events:
+	events := make(map[hash.Event]*inter.Event)
+	vertices := make(map[hash.Event]RootSlot)
+	edges := make(map[fakeEdge]hash.Event)
+
+	for dsc, root := range named {
+		events[root.Hash()] = root
+		h := root.Hash()
+
+		vertices[h] = RootSlot{
+			Frame:  frameOf(dsc),
+			Nodeid: root.Creator,
 		}
+	}
 
-		// define stronglySeeFn
-		vertices := make(map[hash.Event]RootSlot)
-		edges := make(map[fakeEdge]hash.Event)
-
-		for _, root := range test.Roots {
-			vertices[root.Hash] = root.Slot
+	for dsc, root := range named {
+		noPrev := false
+		if strings.HasPrefix(dsc, "+") {
+			noPrev = true
+			dsc = strings.TrimPrefix(dsc, "+")
 		}
-
-		for _, root := range test.Roots {
-			for _, sSeen := range root.StronglySeen {
-				edge := fakeEdge{
-					from: root.Hash,
-					to:   vertices[sSeen],
-				}
-				edges[edge] = sSeen
+		from := root.Hash()
+		for sSeen := range root.Parents {
+			if sSeen.IsZero() {
+				continue
 			}
-		}
-
-		stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
+			if p := events[sSeen]; p.Creator == root.Creator && noPrev {
+				continue
+			}
+			to := sSeen
 			edge := fakeEdge{
-				from: a,
-				to:   b,
+				from: from,
+				to:   vertices[to],
 			}
-			hashB, ok := edges[edge]
-			if ok {
-				return &hashB
-			} else {
-				return nil
+			edges[edge] = to
+		}
+	}
+
+	// election:
+	stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
+		edge := fakeEdge{
+			from: a,
+			to:   b,
+		}
+		hashB, ok := edges[edge]
+		if ok {
+			return &hashB
+		} else {
+			return nil
+		}
+	}
+
+	election := NewElection(nodes, totalStake, superMajority, 0, stronglySeeFn)
+
+	// ordering:
+	var (
+		err       error
+		steps     = 0
+		processed = make(map[hash.Event]*inter.Event)
+		got       *ElectionRes
+	)
+	orderThenProcess := ordering.EventBuffer(ordering.Callback{
+
+		Process: func(root *inter.Event) {
+			if got != nil {
+				return
 			}
-		}
+			steps++
 
-		totalStake := new(big.Int)
-		for _, node := range test.Nodes {
-			totalStake = totalStake.Add(totalStake, node.StakeAmount)
-		}
-
-		// run election
-		election := NewElection(test.Nodes, totalStake, test.SuperMajority, 0, stronglySeeFn)
-
-		ordered := fakeRoots(test.Roots).ByRand().BySeen()
-		alreadyDecided := false
-		for _, root := range ordered {
-			decided, err := election.ProcessRoot(root.Hash, root.Slot)
+			rootHash := root.Hash()
+			rootSlot, ok := vertices[rootHash]
+			if !ok {
+				t.Fatal("inconsistent vertices")
+			}
+			got, err = election.ProcessRoot(rootHash, rootSlot)
 			if err != nil {
-				t.Fatal(name, err)
+				t.Fatal(err)
 			}
-			if root.Decisive || alreadyDecided {
-				// check refs
-				if (test.Answer == nil) != (decided == nil) {
-					t.Fatal(name, "expected ", test.Answer, "and calculated", decided)
-				}
-				// check values
-				if (test.Answer != nil) && (*decided != *test.Answer) {
-					t.Fatal(name, "expected ", test.Answer, "and calculated", decided)
-				}
-				alreadyDecided = true
-			} else if decided != nil {
-				t.Fatal(name, "decision is made before last root in the test, on root", root.Hash.String())
-			}
-		}
-	}
-}
+			processed[root.Hash()] = root
+		},
 
-/*
- * root order:
- */
+		Drop: func(e *inter.Event, err error) {
+			t.Fatal(e, err)
+		},
 
-type fakeRoots []fakeRoot
+		Exists: func(h hash.Event) *inter.Event {
+			return processed[h]
+		},
+	})
 
-// ByParents returns unordered roots.
-func (ee fakeRoots) ByRand() (res fakeRoots) {
-	res = make(fakeRoots, len(ee))
-
-	mix := rand.Perm(len(ee))
-	for i, j := range mix {
-		res[i] = ee[j]
-	}
-
-	return
-}
-
-// ByParents returns roots ordered by seen dependency.
-// It is a copy of inter.Events.ByParents().
-func (ee fakeRoots) BySeen() (res fakeRoots) {
-	unsorted := make(fakeRoots, len(ee))
-	exists := hash.Events{}
-	for i, e := range ee {
-		unsorted[i] = e
-		exists.Add(e.Hash)
-	}
-	ready := hash.Events{}
-	for len(unsorted) > 0 {
-	EVENTS:
-		for i, e := range unsorted {
-
-			for _, p := range e.StronglySeen {
-				if exists.Contains(p) && !ready.Contains(p) {
-					continue EVENTS
-				}
-			}
-
-			res = append(res, e)
-			unsorted = append(unsorted[0:i], unsorted[i+1:]...)
-			ready.Add(e.Hash)
+	// processing:
+	for _, root := range named {
+		orderThenProcess(root)
+		if got != nil {
 			break
 		}
 	}
 
-	return
+	// checking:
+	//assertar.Equal(len(named), steps, "decision is made before last root")
+	if expected != nil {
+		assertar.NotNil(got)
+		assertar.Equal(expected.DecidedFrame, got.DecidedFrame)
+		assertar.Equal(expected.DecidedSfWitness, got.DecidedSfWitness.String())
+	} else {
+		assertar.Nil(got)
+	}
+}
+
+func get2of3(x *big.Int) *big.Int {
+	res := new(big.Int)
+	res.
+		Mul(x, big.NewInt(2)).
+		Div(res, big.NewInt(3)).
+		Add(res, big.NewInt(1))
+
+	return res
+}
+
+func frameOf(dsc string) FrameHeight {
+	s := strings.Split(dsc, "_")[1]
+	h, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return FrameHeight(h)
 }

@@ -1,7 +1,6 @@
 package hash
 
 import (
-	"encoding/json"
 	"math/big"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
@@ -62,21 +61,6 @@ func (p *Peer) String() string {
 		return name
 	}
 	return (*Hash)(p).ShortString()
-}
-
-// UnmarshalJSON parses a hash in hex syntax.
-func (p *Peer) UnmarshalJSON(input []byte) error {
-	if len(input) < 64 {
-		var str string
-		err := json.Unmarshal(input, &str)
-		if err != nil {
-			return err
-		}
-		*p = HexToPeer(str)
-	} else {
-		return (*Hash)(p).UnmarshalJSON(input)
-	}
-	return nil
 }
 
 // IsEmpty returns true if hash is empty.
