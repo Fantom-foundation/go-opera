@@ -30,7 +30,7 @@ type testExpected struct {
 
 func TestProcessRoot(t *testing.T) {
 
-	t.Run("4 uni notDecided", func(t *testing.T) {
+	t.Run("4 equalStakes notDecided", func(t *testing.T) {
 		testProcessRoot(t,
 			nil,
 			stakes{
@@ -112,7 +112,7 @@ a2_2══╬═════╣     ║
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "c0_0",
+				DecidedSfWitness: "a0_0",
 				DecisiveRoots:    map[string]bool{"b2_2": true},
 			},
 			stakes{
@@ -140,7 +140,7 @@ a1_1══╬═════╣     ║
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "b0_0",
+				DecidedSfWitness: "a0_0",
 				DecisiveRoots:    map[string]bool{"a4_4": true},
 			},
 			stakes{

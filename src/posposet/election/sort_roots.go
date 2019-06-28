@@ -23,10 +23,11 @@ func (s sortedRoots) Swap(i, j int) {
 
 // compare by stake amount, root hash
 func (s sortedRoots) Less(i, j int) bool {
-	if s[i].stakeAmount.Cmp(s[j].stakeAmount) > 0 {
-		return true
+	cmp := s[i].stakeAmount.Cmp(s[j].stakeAmount)
+	if cmp == 0 {
+		return s[i].root.Big().Cmp(s[j].root.Big()) < 0
 	}
-	return s[i].root.Big().Cmp(s[j].root.Big()) < 0
+	return cmp > 0
 }
 
 // Chooses the famous witness with the greatest stake amount.
