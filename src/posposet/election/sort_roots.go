@@ -30,34 +30,34 @@ func (s sortedRoots) Less(i, j int) bool {
 	return cmp > 0
 }
 
-// Chooses the famous witness with the greatest stake amount.
+// Chooses the decided "yes" roots with the greatest stake amount.
 // This root serves as a "checkpoint" within DAG, as it's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
 // Other nodes will come to the same SfWitness not later than current highest frame + 2.
 func (el *Election) chooseSfWitness() (*ElectionRes, error) {
-	famousRoots := make(sortedRoots, 0, len(el.nodes))
-	// fill famousRoots
+	finalRoots := make(sortedRoots, 0, len(el.nodes))
+	// fill yesRoots
 	for _, node := range el.nodes {
 		vote, ok := el.decidedRoots[node.Nodeid]
 		if !ok {
 			el.Fatal("called before all the roots are decided")
 		}
 		if vote.yes {
-			famousRoots = append(famousRoots, sortedRoot{
+			finalRoots = append(finalRoots, sortedRoot{
 				root:        vote.seenRoot,
 				stakeAmount: node.StakeAmount,
 			})
 		}
 	}
-	if len(famousRoots) == 0 {
-		return nil, errors.New("All the roots aren't famous, which is possible only if more than 1/3n are Byzantine")
+	if len(finalRoots) == 0 {
+		return nil, errors.New("All the roots aren't decided as 'yes', which is possible only if more than 1/3n are Byzantine")
 	}
 
 	// sort by stake amount, root hash
-	sort.Sort(famousRoots)
+	sort.Sort(finalRoots)
 
 	// take root with greatest stake
 	return &ElectionRes{
 		DecidedFrame:     el.frameToDecide,
-		DecidedSfWitness: famousRoots[0].root,
+		DecidedSfWitness: finalRoots[0].root,
 	}, nil
 }
