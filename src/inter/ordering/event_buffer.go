@@ -2,10 +2,13 @@ package ordering
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
+
+const timeout = 2 * time.Hour
 
 type (
 	// event is a inter.Event and data for ordering purpose.
@@ -25,17 +28,17 @@ type (
 
 // EventBuffer validates, bufferizes and drops() or processes() pushed() event
 // if all their parents exists().
-// TODO: drop incomplete events by timeout.
 func EventBuffer(callback Callback) (push func(*inter.Event)) {
 
 	var (
 		incompletes = make(map[hash.Event]*event)
 		onNewEvent  func(e *event)
+		toDelete    = make(map[hash.Event]time.Time)
 	)
 
 	onNewEvent = func(e *event) {
 		reffs := newRefsValidator(e.Event)
-		time := newLamportTimeValidator(e.Event)
+		timeVal := newLamportTimeValidator(e.Event)
 
 		// fill event's parents index or hold it as incompleted
 		for pHash := range e.Parents {
@@ -45,7 +48,7 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 					callback.Drop(e.Event, err)
 					return
 				}
-				if err := time.AddParentTime(0); err != nil {
+				if err := timeVal.AddParentTime(0); err != nil {
 					callback.Drop(e.Event, err)
 					return
 				}
@@ -55,7 +58,9 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 			if parent == nil {
 				parent = callback.Exists(pHash)
 				if parent == nil {
-					incompletes[e.Hash()] = e
+					h := e.Hash()
+					incompletes[h] = e
+					toDelete[h] = time.Now().Add(timeout)
 					return
 				}
 				e.parents[pHash] = parent
@@ -64,7 +69,7 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 				callback.Drop(e.Event, err)
 				return
 			}
-			if err := time.AddParentTime(parent.LamportTime); err != nil {
+			if err := timeVal.AddParentTime(parent.LamportTime); err != nil {
 				callback.Drop(e.Event, err)
 				return
 			}
@@ -73,7 +78,7 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 			callback.Drop(e.Event, err)
 			return
 		}
-		if err := time.CheckSequential(); err != nil {
+		if err := timeVal.CheckSequential(); err != nil {
 			callback.Drop(e.Event, err)
 			return
 		}
@@ -86,8 +91,20 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 			if parent, ok := child.parents[e.Hash()]; ok && parent == nil {
 				child.parents[e.Hash()] = e.Event
 				delete(incompletes, hash_)
+				delete(toDelete, hash_)
 				onNewEvent(child)
 			}
+		}
+
+		// Delete by timeout
+		now := time.Now()
+		for hash_, t := range toDelete {
+			if now.Before(t) {
+				continue
+			}
+
+			delete(incompletes, hash_)
+			delete(toDelete, hash_)
 		}
 	}
 
