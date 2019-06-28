@@ -1,3 +1,4 @@
+//go:generate protoc --go_out=plugins=grpc:./ roundInfo.proto
 package poset
 
 import (

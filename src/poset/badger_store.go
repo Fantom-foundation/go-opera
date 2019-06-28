@@ -1,3 +1,4 @@
+//go:generate protoc -I=.. -I=. --go_out=plugins=grpc:./ block.proto frame.proto
 package poset
 
 import (

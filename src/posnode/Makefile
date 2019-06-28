@@ -24,6 +24,6 @@ test:
 buildtests: mock_test.go
 
 mock_test.go: consensus.go
-	$(MOCKGEN) -package=posnode -source=consensus.go -destination=mock_test.go Consensus
+	$(MOCKGEN) -package=posnode -self_package=github.com/Fantom-foundation/go-lachesis/src/posnode -destination=mock_consensus.go github.com/Fantom-foundation/go-lachesis/src/posnode Consensus
 
 

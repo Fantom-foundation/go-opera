@@ -19,4 +19,4 @@ build: mock.go
 buildtests: mock.go
 
 mock.go: service.pb.go
-	$(MOCKGEN) -package=api -source=service.pb.go -destination=mock.go NodeServer
+	$(MOCKGEN) -package=api -self_package=github.com/Fantom-foundation/go-lachesis/src/posnode/api -destination=mock_service.go github.com/Fantom-foundation/go-lachesis/src/posnode/api NodeServer

@@ -1,3 +1,4 @@
+//go:generate protoc -I=.. -I=. --go_out=plugins=grpc:./ event.proto
 package poset
 
 import (

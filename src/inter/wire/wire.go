@@ -1,6 +1,6 @@
 package wire
 
-//go:generate protoc --go_out=plugins=grpc:./ wire.proto
+//go:generate protoc --go_out=plugins=grpc,paths=source_relative:./ wire.proto
 
 import (
 	"github.com/golang/protobuf/proto"

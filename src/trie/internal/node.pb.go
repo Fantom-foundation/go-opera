@@ -18,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ShortNode struct {
 	Key                  []byte   `protobuf:"bytes,1,opt,name=Key,proto3" json:"Key,omitempty"`
@@ -206,108 +206,14 @@ func (m *Node) GetValue() []byte {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Node) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Node_OneofMarshaler, _Node_OneofUnmarshaler, _Node_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Node) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Node_Short)(nil),
 		(*Node_Full)(nil),
 		(*Node_Hash)(nil),
 		(*Node_Value)(nil),
 	}
-}
-
-func _Node_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Node)
-	// Kind
-	switch x := m.Kind.(type) {
-	case *Node_Short:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Short); err != nil {
-			return err
-		}
-	case *Node_Full:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Full); err != nil {
-			return err
-		}
-	case *Node_Hash:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		b.EncodeRawBytes(x.Hash)
-	case *Node_Value:
-		b.EncodeVarint(4<<3 | proto.WireBytes)
-		b.EncodeRawBytes(x.Value)
-	case nil:
-	default:
-		return fmt.Errorf("Node.Kind has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Node_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Node)
-	switch tag {
-	case 1: // Kind.Short
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(ShortNode)
-		err := b.DecodeMessage(msg)
-		m.Kind = &Node_Short{msg}
-		return true, err
-	case 2: // Kind.Full
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(FullNode)
-		err := b.DecodeMessage(msg)
-		m.Kind = &Node_Full{msg}
-		return true, err
-	case 3: // Kind.Hash
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeRawBytes(true)
-		m.Kind = &Node_Hash{x}
-		return true, err
-	case 4: // Kind.Value
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeRawBytes(true)
-		m.Kind = &Node_Value{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Node_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Node)
-	// Kind
-	switch x := m.Kind.(type) {
-	case *Node_Short:
-		s := proto.Size(x.Short)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Node_Full:
-		s := proto.Size(x.Full)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Node_Hash:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Hash)))
-		n += len(x.Hash)
-	case *Node_Value:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Value)))
-		n += len(x.Value)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 func init() {

@@ -1,6 +1,6 @@
 syntax = "proto3";
 package poset;
-import "github.com/Fantom-foundation/go-lachesis/src/inter/wire/wire.proto";
+import "inter/wire/wire.proto";
 
 message BlockSignature {
   bytes Validator = 1;

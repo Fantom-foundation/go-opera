@@ -24,5 +24,5 @@ test:
 buildtests: mock_test.go
 
 mock_test.go: handlers.go
-	$(MOCKGEN) -package=proxy -source=handlers.go -destination=mock_test.go App,Node,Consensus
+	$(MOCKGEN) -package=proxy -self_package=github.com/Fantom-foundation/go-lachesis/src/proxy -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy App,Node,Consensus
 

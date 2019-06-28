@@ -1,3 +1,4 @@
+//go:generate mockgen -package=main -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy Node,Consensus
 package main
 
 import (
@@ -16,8 +17,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
 )
-
-//go:generate mockgen -package=main -destination=mock_test.go github.com/Fantom-foundation/go-lachesis/src/proxy Node,Consensus
 
 func TestApp(t *testing.T) {
 	ctrl := gomock.NewController(t)
