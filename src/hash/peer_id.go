@@ -1,6 +1,8 @@
 package hash
 
 import (
+	"math/big"
+
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
@@ -19,6 +21,11 @@ var EmptyPeer = Peer{}
 // Bytes returns value as byte slice.
 func (p *Peer) Bytes() []byte {
 	return (*Hash)(p).Bytes()
+}
+
+// Big converts a hash to a big integer.
+func (p *Peer) Big() *big.Int {
+	return (*Hash)(p).Big()
 }
 
 // BytesToPeer converts bytes to peer id.
@@ -66,6 +73,6 @@ func (p *Peer) IsEmpty() bool {
  */
 
 // FakePeer generates random fake peer id for testing purpose.
-func FakePeer() Peer {
-	return Peer(FakeHash())
+func FakePeer(seed ...int64) Peer {
+	return Peer(FakeHash(seed...))
 }

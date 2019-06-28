@@ -97,7 +97,7 @@ func ASCIIschemeToDAG(scheme string) (
 		}
 		// make nodes if not enough
 		for i := len(nodes); i < (col); i++ {
-			addr := hash.FakePeer()
+			addr := hash.FakePeer(int64(i + 1))
 			nodes = append(nodes, addr)
 			events[addr] = nil
 		}

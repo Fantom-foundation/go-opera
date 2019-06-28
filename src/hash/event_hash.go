@@ -2,6 +2,7 @@ package hash
 
 import (
 	"bytes"
+	"math/big"
 	"math/rand"
 	"sort"
 	"strings"
@@ -31,6 +32,11 @@ var (
 // Bytes returns value as byte slice.
 func (h Event) Bytes() []byte {
 	return (Hash)(h).Bytes()
+}
+
+// Big converts a hash to a big integer.
+func (h *Event) Big() *big.Int {
+	return (*Hash)(h).Big()
 }
 
 // SetBytes converts bytes to event hash.
