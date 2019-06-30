@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 
@@ -70,7 +71,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 		select {
 		case tx := <-s.SubmitCh():
 			assertar.Equal(gold, tx)
-		case <-time.After(timeout):
+		case <-time.After(2 * timeout):
 			assertar.Fail(errTimeout)
 		}
 	})
@@ -88,7 +89,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 					StateHash: gold,
 					Error:     nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assertar.Fail(errTimeout)
 			}
 		}()
@@ -112,7 +113,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 					Snapshot: gold,
 					Error:    nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assertar.Fail(errTimeout)
 			}
 		}()
@@ -135,7 +136,7 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 					StateHash: gold,
 					Error:     nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assertar.Fail(errTimeout)
 			}
 		}()
@@ -176,7 +177,7 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 		select {
 		case tx := <-s.SubmitCh():
 			assertar.Equal(gold, tx)
-		case <-time.After(timeout):
+		case <-time.After(2 * timeout):
 			assertar.Fail(errTimeout)
 		}
 	}
@@ -184,7 +185,7 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	t.Run("#1 Send tx after connection", checkConn)
 
 	s.Close()
-	s, _, err = NewGrpcAppProxy(addr, timeout/2, listen)
+	s, _, err = NewGrpcAppProxy(addr, timeout, listen)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -194,24 +195,26 @@ func testGrpcAppReconnect(t *testing.T, listen network.ListenFunc, opts ...grpc.
 	t.Run("#2 Send tx after reconnection", checkConn)
 }
 
-// TODO: fix it
-/*
 func TestGrpcMaxMsgSize(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	const (
-		largeSize  = 100 * 1024 * 1024
+		largeSize  = 10 * 1024 * 1024
 		timeout    = 3 * time.Minute
 		errTimeout = "time is over"
 	)
 
-	logger := common.NewTestLogger(t)
+	logger.SetTestMode(t)
 
-	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, logger, network.TCPListener)
+	s, addr, err := NewGrpcAppProxy("127.0.0.1:", timeout, network.TCPListener)
 	if !assert.NoError(t, err) {
 		return
 	}
 	defer s.Close()
 
-	c, err := NewGrpcLachesisProxy(addr, logger)
+	c, err := NewGrpcLachesisProxy(addr)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -232,7 +235,7 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 		select {
 		case tx := <-s.SubmitCh():
 			assert.Equal(largeData, tx)
-		case <-time.After(timeout):
+		case <-time.After(2 * timeout):
 			assert.Fail(errTimeout)
 		}
 	})
@@ -251,12 +254,12 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 		go func() {
 			select {
 			case event := <-c.CommitCh():
-				assert.EqualValues(block, event.Block)
+				assert.Equal(block.Body.Transactions, event.Block.Body.Transactions)
 				event.RespChan <- proto.CommitResponse{
 					StateHash: hash,
 					Error:     nil,
 				}
-			case <-time.After(timeout):
+			case <-time.After(2 * timeout):
 				assert.Fail(errTimeout)
 			}
 		}()
@@ -267,4 +270,3 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 		}
 	})
 }
-*/

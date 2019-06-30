@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"errors"
 	"io"
 	"math"
@@ -24,6 +25,11 @@ type (
 	// appStream  a shortcut for generated type.
 	appStream internal.Lachesis_ConnectServer
 
+	asking struct {
+		ch     chan *internal.ToServer_Answer
+		cancel context.CancelFunc
+	}
+
 	// grpcAppProxy implements the AppProxy interface.
 	grpcAppProxy struct {
 		listener net.Listener
@@ -31,7 +37,7 @@ type (
 
 		timeout     time.Duration
 		newClients  chan appStream
-		askings     map[xid.ID]chan *internal.ToServer_Answer
+		askings     map[xid.ID]*asking
 		askingsSync sync.RWMutex
 
 		event4server  chan []byte
@@ -58,7 +64,7 @@ func NewGrpcAppProxy(
 		timeout:    timeout,
 		newClients: make(chan appStream, 100),
 		// TODO: buffer channels?
-		askings:       make(map[xid.ID]chan *internal.ToServer_Answer),
+		askings:       make(map[xid.ID]*asking),
 		event4server:  make(chan []byte, 5),
 		event4clients: make(chan *internal.ToClient),
 
@@ -246,8 +252,9 @@ func (p *grpcAppProxy) routeAnswer(hash *internal.ToServer_Answer) {
 		return
 	}
 	p.askingsSync.RLock()
-	if ch, ok := p.askings[uuid]; ok {
-		ch <- hash
+	if asking, ok := p.askings[uuid]; ok {
+		asking.ch <- hash
+		asking.cancel()
 	}
 	p.askingsSync.RUnlock()
 }
@@ -304,10 +311,15 @@ func (p *grpcAppProxy) pushRestore(snapshot []byte) chan *internal.ToServer_Answ
 }
 
 func (p *grpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Answer {
-	ch := make(chan *internal.ToServer_Answer)
+	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+
+	asking := &asking{
+		ch:     make(chan *internal.ToServer_Answer),
+		cancel: cancel,
+	}
 
 	p.askingsSync.Lock()
-	p.askings[uuid] = ch
+	p.askings[uuid] = asking
 	p.askingsSync.Unlock()
 
 	// timeout
@@ -315,12 +327,12 @@ func (p *grpcAppProxy) subscribe4answer(uuid xid.ID) chan *internal.ToServer_Ans
 	go func() {
 		defer p.wg.Done()
 
-		<-time.After(p.timeout)
+		<-ctx.Done()
 		p.askingsSync.Lock()
 		delete(p.askings, uuid)
 		p.askingsSync.Unlock()
-		close(ch)
+		close(asking.ch)
 	}()
 
-	return ch
+	return asking.ch
 }
