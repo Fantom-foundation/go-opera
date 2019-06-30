@@ -12,7 +12,8 @@ type Config struct {
 	Port              int // default service port
 
 	GossipThreads    int           // count of gossiping goroutines
-	EmitInterval     time.Duration // event emission interval
+	MinEmitInterval  time.Duration // minimum event emission interval
+	MaxEmitInterval  time.Duration // maximum event emission interval
 	DiscoveryTimeout time.Duration // how often discovery should try to request
 
 	ConnectTimeout time.Duration // how long dialer will for connection to be established
@@ -28,7 +29,8 @@ func DefaultConfig() *Config {
 		Port:              55555,
 
 		GossipThreads:    4,
-		EmitInterval:     10 * time.Second,
+		MinEmitInterval:  10 * time.Second,
+		MaxEmitInterval:  60 * time.Second,
 		DiscoveryTimeout: 30 * time.Second,
 
 		ConnectTimeout: 15 * time.Second,

@@ -18,7 +18,7 @@ type (
 	// parents is a potential parent events cache.
 	parents struct {
 		cache map[hash.Event]*parent
-		sync.Mutex
+		sync.RWMutex
 	}
 )
 
@@ -59,41 +59,47 @@ func (n *Node) initParents() {
 }
 
 // pushPotentialParent add event to parent events cache.
-// TODO: check events order, their parents should be pushed first ( see posposet/Poset.onNewEvent() ).
+// Parents should be pushed first ( see posposet/Poset.onNewEvent() ).
 func (n *Node) pushPotentialParent(e *inter.Event) {
-	n.parents.Lock()
-	defer n.parents.Unlock()
-
-	if n.parents.cache == nil {
-		return
-	}
-
-	if _, ok := n.parents.cache[e.Hash()]; ok {
-		return
-	}
-
 	val := uint64(1)
 	if n.consensus != nil {
 		val = n.consensus.StakeOf(e.Creator)
 	}
 
-	n.parents.cache[e.Hash()] = &parent{
+	n.parents.Push(e, val)
+}
+
+// Push adds parent to cache.
+func (pp *parents) Push(e *inter.Event, val uint64) {
+	pp.Lock()
+	defer pp.Unlock()
+
+	if pp.cache == nil {
+		return
+	}
+
+	if _, ok := pp.cache[e.Hash()]; ok {
+		return
+	}
+
+	for p := range e.Parents {
+		if prev, ok := pp.cache[p]; ok {
+			prev.Last = false
+		}
+	}
+
+	pp.cache[e.Hash()] = &parent{
 		Creator: e.Creator,
 		Parents: e.Parents,
 		Value:   val,
 		Last:    true,
 	}
-
-	prev := n.store.GetEventHash(e.Creator, e.Index-1)
-	if prev != nil && n.parents.cache[*prev] != nil {
-		n.parents.cache[*prev].Last = false
-	}
 }
 
-// popBestParent returns best parent and marks it as used.
-func (n *Node) popBestParent() *hash.Event {
-	n.parents.Lock()
-	defer n.parents.Unlock()
+// PopBest returns best parent and marks it as used.
+func (pp *parents) PopBest() *hash.Event {
+	pp.Lock()
+	defer pp.Unlock()
 
 	var (
 		res *hash.Event
@@ -101,12 +107,12 @@ func (n *Node) popBestParent() *hash.Event {
 		tmp hash.Event
 	)
 
-	for e, p := range n.parents.cache {
+	for e, p := range pp.cache {
 		if !p.Last {
 			continue
 		}
 
-		val := n.parents.Sum(e)
+		val := pp.sum(e)
 		if val > max {
 			tmp, res = e, &tmp
 			max = val
@@ -114,18 +120,36 @@ func (n *Node) popBestParent() *hash.Event {
 	}
 
 	if res != nil {
-		n.parents.Del(*res)
+		pp.del(*res)
 	}
 
 	return res
+}
+
+// Count of potential parents.
+func (pp *parents) Count() int {
+	pp.Lock()
+	defer pp.Unlock()
+
+	if pp.cache == nil {
+		return 0
+	}
+
+	n := 0
+	for _, p := range pp.cache {
+		if p.Last {
+			n++
+		}
+	}
+	return n
 }
 
 /*
  * parents utils:
  */
 
-// Sum returns sum of parent values.
-func (pp *parents) Sum(e hash.Event) uint64 {
+// sum returns sum of parent values.
+func (pp *parents) sum(e hash.Event) uint64 {
 	event, ok := pp.cache[e]
 	if !ok {
 		return uint64(0)
@@ -133,21 +157,21 @@ func (pp *parents) Sum(e hash.Event) uint64 {
 
 	res := event.Value
 	for p := range event.Parents {
-		res += pp.Sum(p)
+		res += pp.sum(p)
 	}
 
 	return res
 }
 
-// Del removes whole event tree.
-func (pp *parents) Del(e hash.Event) {
+// del removes whole event tree.
+func (pp *parents) del(e hash.Event) {
 	event, ok := pp.cache[e]
 	if !ok {
 		return
 	}
 
 	for p := range event.Parents {
-		pp.Del(p)
+		pp.del(p)
 	}
 
 	delete(pp.cache, e)

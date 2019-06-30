@@ -127,9 +127,9 @@ func TestMissingParents(t *testing.T) {
 	store2.BootstrapPeers(node1.AsPeer())
 	node2.initPeers()
 
-	node1.EmitEvent()
-	node1.EmitEvent()
-	node1.EmitEvent()
+	node1.emitEvent()
+	node1.emitEvent()
+	node1.emitEvent()
 
 	t.Run("before sync", func(t *testing.T) {
 		assertar := assert.New(t)

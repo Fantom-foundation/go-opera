@@ -123,7 +123,7 @@ func TestEmit(t *testing.T) {
 		// node1 got event1
 		node1.onNewEvent(events[1])
 
-		events[2] = node1.EmitEvent()
+		events[2] = node1.emitEvent()
 
 		assertar.Equal(
 			uint64(2),
@@ -141,7 +141,7 @@ func TestEmit(t *testing.T) {
 		// node1 has no new parents
 		// TODO: what about skip event creation?
 
-		events[3] = node1.EmitEvent()
+		events[3] = node1.emitEvent()
 
 		assertar.Equal(
 			uint64(3),

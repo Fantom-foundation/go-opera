@@ -56,7 +56,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 
 		expected := ASCIIschemeToDAG(node, consensus, schema)
 		for n, expect := range expected {
-			parent := node.popBestParent()
+			parent := node.parents.PopBest()
 			if !assertar.NotNil(parent, "step %d", n) {
 				break
 			}
@@ -65,7 +65,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 			}
 		}
 
-		assertar.Nil(node.popBestParent(), "last step")
+		assertar.Nil(node.parents.PopBest(), "last step")
 
 	})
 }

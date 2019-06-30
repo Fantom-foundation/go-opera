@@ -13,9 +13,10 @@ import (
 type emitter struct {
 	internalTxns map[hash.Transaction]*inter.InternalTransaction
 	externalTxns [][]byte
-	done         chan struct{}
 
+	last time.Time
 	sync.RWMutex
+	done chan struct{}
 }
 
 // StartEventEmission starts event emission.
@@ -28,7 +29,7 @@ func (n *Node) StartEventEmission() {
 	n.initParents()
 
 	go func(done chan struct{}) {
-		ticker := time.NewTicker(n.conf.EmitInterval)
+		ticker := time.NewTicker(n.conf.MinEmitInterval)
 		for {
 			select {
 			case <-ticker.C:
@@ -54,7 +55,6 @@ func (n *Node) internalTxnMempool(idx hash.Transaction) *inter.InternalTransacti
 	n.emitter.RLock()
 	defer n.emitter.RUnlock()
 
-	// chck mempool
 	if n.emitter.internalTxns == nil {
 		return nil
 	}
@@ -112,6 +112,19 @@ func (n *Node) EmitEvent() *inter.Event {
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
 
+	if time.Now().Add(-n.conf.MaxEmitInterval).Before(n.emitter.last) &&
+		n.parents.Count() < (n.conf.EventParentsCount-1) &&
+		len(n.emitter.externalTxns) < 1 &&
+		len(n.emitter.internalTxns) < 1 {
+		n.Debugf("nothing to emit")
+		return nil
+	}
+
+	return n.emitEvent()
+}
+
+// emitEvent with no checks.
+func (n *Node) emitEvent() *inter.Event {
 	n.Debugf("emitting event")
 
 	var (
@@ -133,7 +146,7 @@ func (n *Node) EmitEvent() *inter.Event {
 	}
 
 	for i := 1; i < n.conf.EventParentsCount; i++ {
-		p := n.popBestParent()
+		p := n.parents.PopBest()
 		if p == nil {
 			break
 		}
@@ -172,11 +185,11 @@ func (n *Node) EmitEvent() *inter.Event {
 		n.Fatal(err)
 	}
 
+	n.emitter.last = time.Now()
+	countEmittedEvents.Inc(1)
+
 	n.onNewEvent(event)
 	n.Infof("new event emitted %s", event)
-
-	// Setup count of emitted events (for metrics)
-	countEmittedEvents.Inc(1)
 
 	return event
 }
