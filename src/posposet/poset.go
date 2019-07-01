@@ -581,3 +581,34 @@ func (p *Poset) fillEventSequences(event *Event) {
 	event.LastAncestorsSeq[memberNumber] =
 		p.memberLastAncestorSeq(memberNumber)
 }
+
+func (p *Poset) fillFirstAncestors(event *Event) {
+	memberNumber, ok := p.findMemberNumber(event.Creator)
+	if !ok {
+		return
+	}
+
+	currentSeq := p.lastAncestorsSeq[memberNumber]
+
+	for _, h := range event.LastAncestors {
+		lastAncestor := p.GetEvent(h)
+
+		for lastAncestor != nil &&
+			!lastAncestor.FirstDescendants[memberNumber].IsZero() {
+			lastAncestor.FirstDescendantsSeq[memberNumber] = currentSeq
+			lastAncestor.FirstDescendants[memberNumber] = event.Hash()
+
+			parent, found := lastAncestor.SelfParent()
+			if !found {
+				break
+			}
+
+			if p.HasEvent(parent) {
+				lastAncestor = p.GetEvent(parent)
+				continue
+			}
+			break
+		}
+	}
+
+}
