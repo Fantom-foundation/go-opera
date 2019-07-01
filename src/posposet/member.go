@@ -4,6 +4,7 @@ import "github.com/Fantom-foundation/go-lachesis/src/crypto"
 
 // Member is a team member.
 type Member struct {
+	number    int
 	publicKey string // string in base64
 	stake     uint64 // In units
 }
@@ -34,4 +35,9 @@ func (m *Member) Stake() uint64 {
 // PublicKey gets a member public key.
 func (m *Member) PublicKey() string {
 	return m.publicKey
+}
+
+// Member gets a member number.
+func (m *Member) Number() int {
+	return m.number
 }

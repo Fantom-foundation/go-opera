@@ -29,9 +29,11 @@ type Poset struct {
 	onNewBlockMu sync.RWMutex
 	onNewBlock   func(blockNumber uint64)
 
-	firstDescendantsSeq []int64 // 0 <= firstDescendantsSeq[i] <= 9223372036854775807
-	lastAncestorsSeq    []int64 // -1 <= lastAncestorsSeq[i] <= 9223372036854775807
-	recentEvents        []hash.Event
+	firstDescendantsSeq []int64
+	lastAncestorsSeq    []int64
+	recentEvents        []hash.Event      // index is a member index.
+	membersByPears      map[hash.Peer]int // mapping creator id -> member num
+	members             []*Member
 
 	logger.Instance
 }
@@ -442,6 +444,36 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	}
 }
 
+func (p *Poset) findMemberNumber(creator hash.Peer) (int, bool) {
+	num, ok := p.membersByPears[creator]
+	if !ok {
+		return 0, false
+	}
+	return num, true
+}
+
+func (p *Poset) getMember(id int) (*Member, bool) {
+	if id >= len(p.members) {
+		return nil, false
+	}
+
+	return p.members[id], true
+}
+
+func (p *Poset) highestEventFromMember(member int) (hash.Event, error) {
+	if member >= len(p.recentEvents) {
+		return hash.Event{}, ErrInvalidMemberNum
+	}
+	return p.recentEvents[member], nil
+}
+
+func (p *Poset) memberLastAncestorSeq(member int) int64 {
+	if member >= len(p.lastAncestorsSeq) {
+		return -1 // default value to last ancestor sequence.
+	}
+	return p.lastAncestorsSeq[member]
+}
+
 // sufficientCoherence calculates "sufficient coherence" between the events.
 // The event1.lastAncestorsSeq array remembers the sequence number of the last
 // event by each member that is an ancestor of event1. The array for
@@ -470,33 +502,82 @@ func (p *Poset) sufficientCoherence(event1, event2 *Event) bool {
 	return false
 }
 
-// procedure FillFirstLastEventSeq
-//event.FirstSeq = hashgraph.FirstSeq
-//event.FirstEvent = [nodes]Event
-//eventCreatorID = event.Creator.ID
-//
-//if event.SelfParent == NULL AND event.OtherParent == NULL
-//	event.LastEvent =  [nodes]Event
-//	event.LastSeq = [nodes]int
-//else if event.SelfParent == NULL
-//	event.LastEvent =  event.OtherParent.LastEvent
-//event.LastSeq = event.OtherParent.LastSeq
-//else if event.OtherParent == NULL
-//	event.LastEvent =  event.SelfParent.LastEvent
-//event.LastSeq = event.SelfParent.LastSeq
-//else
-//		event.lastEvent = event.SelfParent.LastEvent
-//           		event.LastSeq = event.SelfParent.LastSeq
-//            for i range numMembers
-//if event.LastSeq[i] >= event.OtherParent.LastSeq[i]
-//event.LastSeq[i] = event.OtherParent.LastSeq[i]
-//            		event.LastEvent[i] = event.OtherParent.LastEvent[i]
-//event.FirstEvent[eventCreatorID] = event
-//event.LastEvent[eventCreatorID] = event
-//event.LastSeq[eventCreatorID] = hashgraph.LastSeq[eventCreatorID]
-//event.FirstSeq[eventCreatorID] = hashgraph.LastSeq[eventCreatorID]
 func (p *Poset) fillEventSequences(event *Event) {
+	memberNumber, ok := p.findMemberNumber(event.Creator)
+	if !ok {
+		return
+	}
+
+	var (
+		foundSelfParent  bool
+		foundOtherParent bool
+	)
+
+	getOtherParent := func() *Event {
+		// TODO: we need to determine the number of other parents in the future.
+		op := event.OtherParents()[0] // take a first other parent.
+		return p.GetEvent(op)
+	}
+
+	initLastAncestors := func() {
+		if len(event.LastAncestors) == len(p.members) {
+			return
+		}
+		event.LastAncestors = make([]hash.Event, len(p.members))
+	}
+
+	selfParent, found := event.SelfParent()
+	if found {
+		foundSelfParent = true
+	}
+
+	otherParents := event.OtherParents()
+	if otherParents.Len() > 0 {
+		foundOtherParent = true
+	}
+
+	if !foundSelfParent && !foundOtherParent {
+		event.LastAncestorsSeq = p.lastAncestorsSeq
+
+		highestEvent, err := p.highestEventFromMember(memberNumber)
+		if err != nil {
+			p.Fatal(err.Error())
+			return
+		}
+
+		initLastAncestors()
+		event.LastAncestors[memberNumber] = highestEvent
+	} else if !foundSelfParent {
+		parent := getOtherParent()
+		event.LastAncestors = parent.LastAncestors
+		event.LastAncestorsSeq = parent.LastAncestorsSeq
+	} else if !foundOtherParent {
+		parent := p.GetEvent(selfParent)
+		event.LastAncestors = parent.LastAncestors
+		event.LastAncestorsSeq = parent.LastAncestorsSeq
+	} else {
+		sp := p.GetEvent(selfParent)
+		event.LastAncestors = sp.LastAncestors
+		event.LastAncestorsSeq = sp.LastAncestorsSeq
+
+		otherParent := getOtherParent()
+
+		for i := 0; i < len(p.members); i++ {
+			if event.LastAncestorsSeq[i] >= otherParent.LastAncestorsSeq[i] {
+				event.LastAncestors[i] = otherParent.LastAncestors[i]
+				event.LastAncestorsSeq[i] = otherParent.LastAncestorsSeq[i]
+			}
+		}
+	}
+
 	event.FirstDescendantsSeq = p.firstDescendantsSeq
 	event.FirstDescendants = p.recentEvents
 
+	event.LastAncestors[memberNumber] = event.Hash()
+	event.FirstDescendants[memberNumber] = event.Hash()
+
+	event.FirstDescendantsSeq[memberNumber] =
+		p.memberLastAncestorSeq(memberNumber)
+	event.LastAncestorsSeq[memberNumber] =
+		p.memberLastAncestorSeq(memberNumber)
 }

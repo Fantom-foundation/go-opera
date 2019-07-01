@@ -1,7 +1,9 @@
 package inter
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/golang/protobuf/proto"
 
@@ -102,6 +104,33 @@ func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 		ExternalTransactions: extTxnsHash,
 		Sign:                 e.Sign,
 	}, extTxns
+}
+
+// SelfParent returns self parent from event. If it returns "false" then a self
+// parent is missing.
+func (e *Event) SelfParent() (hash.Event, bool) {
+	for parent := range e.Parents {
+		if bytes.Equal(e.Creator.Bytes(), parent.Bytes()) {
+			return parent, true
+		}
+	}
+
+	return hash.Event{}, false
+}
+
+// OtherParents returns "other parents" sorted slice.
+func (e *Event) OtherParents() hash.EventsSlice {
+	parents := e.Parents.Copy()
+
+	sp, ok := e.SelfParent()
+	if ok {
+		delete(parents, sp)
+	}
+
+	events := parents.Slice()
+	sort.Sort(events)
+
+	return events
 }
 
 // WireToEvent converts from wire.
