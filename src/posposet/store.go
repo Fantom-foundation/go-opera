@@ -24,6 +24,7 @@ type Store struct {
 		Blocks      kvdb.Database `table:"block_"`
 		Event2Frame kvdb.Database `table:"event2frame_"`
 		Event2Block kvdb.Database `table:"event2block_"`
+		Members     kvdb.Database `table:"member_"`
 		Balances    state.Database
 	}
 	cache struct {
