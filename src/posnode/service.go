@@ -66,7 +66,7 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	}
 
 	// response
-	superFrameIndex, knowns := n.knownEvents()
+	knowns := n.peersWithHeight(n.consensus.SuperFrame(req.SuperFrameIndex))
 	knownLasts := make(map[string]uint64, len(knowns))
 	for id, h := range knowns {
 		knownLasts[id.Hex()] = h
@@ -76,7 +76,7 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	diff := PeersHeightsDiff(knownLasts, req.Lasts)
 	return &api.KnownEvents{
 		Lasts:           diff,
-		SuperFrameIndex: superFrameIndex,
+		SuperFrameIndex: req.SuperFrameIndex,
 	}, nil
 }
 

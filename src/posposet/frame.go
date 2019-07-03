@@ -110,6 +110,11 @@ func (p *Poset) setFrameSaving(f *Frame) {
 
 func (p *Poset) LastSuperFrame() (uint64, []hash.Peer) {
 	n := atomic.LoadUint64(&p.state.SuperFrameN)
+
+	return n, p.SuperFrame(n)
+}
+
+func (p *Poset) SuperFrame(n uint64) []hash.Peer {
 	members := p.store.GetMembers(n).ToWire().Members
 
 	addrs := make([]hash.Peer, 0, len(members))
@@ -118,5 +123,5 @@ func (p *Poset) LastSuperFrame() (uint64, []hash.Peer) {
 		addrs = append(addrs, hash.BytesToPeer(member.Addr))
 	}
 
-	return n, addrs
+	return addrs
 }

@@ -15,4 +15,6 @@ type Consensus interface {
 	GetGenesisHash() hash.Hash
 	// returns super-frame and list of peers
 	LastSuperFrame() (uint64, []hash.Peer)
+	// returns list of peers for n super-frame
+	SuperFrame(n uint64) []hash.Peer
 }
