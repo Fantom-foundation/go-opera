@@ -1,8 +1,6 @@
 package election
 
 import (
-	"math/big"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -12,11 +10,11 @@ import (
 
 type Election struct {
 	// election params
-	frameToDecide FrameHeight
+	frameToDecide uint32
 
 	nodes         []ElectionNode
-	totalStake    *big.Int // the sum of stakes (n)
-	superMajority *big.Int // the quorum (should be 2/3n + 1)
+	totalStake    uint64 // the sum of stakes (n)
+	superMajority uint64 // the quorum (should be 2/3n + 1)
 
 	// election state
 	decidedRoots map[hash.Peer]voteValue // decided roots at "frameToDecide"
@@ -28,17 +26,15 @@ type Election struct {
 	logger.Instance
 }
 
-type FrameHeight uint32
-
 type ElectionNode struct {
 	Nodeid      hash.Peer
-	StakeAmount *big.Int
+	StakeAmount uint64
 }
 
 // specifies a slot {nodeid, frame}. Normal nodes can have only one root with this pair.
 // Due to a fork, different roots may occupy the same slot
 type RootSlot struct {
-	Frame  FrameHeight
+	Frame  uint32
 	Nodeid hash.Peer
 }
 
@@ -58,15 +54,15 @@ type voteValue struct {
 }
 
 type ElectionRes struct {
-	DecidedFrame     FrameHeight
+	DecidedFrame     uint32
 	DecidedSfWitness hash.Event
 }
 
 func NewElection(
 	nodes []ElectionNode,
-	totalStake *big.Int,
-	superMajority *big.Int,
-	frameToDecide FrameHeight,
+	totalStake uint64,
+	superMajority uint64,
+	frameToDecide uint32,
 	stronglySeeFn RootStronglySeeRootFn,
 ) *Election {
 	return &Election{
@@ -82,7 +78,7 @@ func NewElection(
 }
 
 // erase the current election state, prepare for new election frame
-func (el *Election) ResetElection(frameToDecide FrameHeight) {
+func (el *Election) ResetElection(frameToDecide uint32) {
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
 	el.decidedRoots = make(map[hash.Peer]voteValue)
@@ -105,11 +101,11 @@ func (el *Election) notDecidedRoots() []hash.Peer {
 
 type weightedRoot struct {
 	root        hash.Event
-	stakeAmount *big.Int
+	stakeAmount uint64
 }
 
 // @return all the roots which are strongly seen by the specified root at the specified frame
-func (el *Election) stronglySeenRoots(root hash.Event, frame FrameHeight) []weightedRoot {
+func (el *Election) stronglySeenRoots(root hash.Event, frame uint32) []weightedRoot {
 	seenRoots := make([]weightedRoot, 0, len(el.nodes))
 	for _, node := range el.nodes {
 		slot := RootSlot{
@@ -131,7 +127,7 @@ type GetRootsFn func(slot RootSlot) []hash.Event
 
 // The function is similar to ProcessRoot, but it fully re-processes the current voting.
 // This routine should be called after node startup, and after each decided frame.
-func (el *Election) ProcessKnownRoots(maxKnownFrame FrameHeight, getRootsFn GetRootsFn) (*ElectionRes, error) {
+func (el *Election) ProcessKnownRoots(maxKnownFrame uint32, getRootsFn GetRootsFn) (*ElectionRes, error) {
 	// iterate all the roots from lowest frame to highest, call ProcessRootVotes for each
 	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
 		for _, node := range el.nodes {

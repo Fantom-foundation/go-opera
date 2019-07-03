@@ -1,7 +1,6 @@
 package election
 
 import (
-	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,11 +18,11 @@ type fakeEdge struct {
 }
 
 type (
-	stakes map[string]*big.Int
+	stakes map[string]uint64
 )
 
 type testExpected struct {
-	DecidedFrame     FrameHeight
+	DecidedFrame     uint32
 	DecidedSfWitness string
 	DecisiveRoots    map[string]bool
 }
@@ -34,10 +33,10 @@ func TestProcessRoot(t *testing.T) {
 		testProcessRoot(t,
 			nil,
 			stakes{
-				"nodeA": big.NewInt(1),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -62,10 +61,10 @@ a2_2══╬═════╬═════╣
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(1),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -90,10 +89,10 @@ a2_2══╬═════╬═════╣
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(1),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -116,10 +115,10 @@ a2_2══╬═════╣     ║
 				DecisiveRoots:    map[string]bool{"b2_2": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(1000000000000000000),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1000000000000000000,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -144,10 +143,10 @@ a1_1══╬═════╣     ║
 				DecisiveRoots:    map[string]bool{"a4_4": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(4),
-				"nodeB": big.NewInt(2),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 4,
+				"nodeB": 2,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -193,15 +192,17 @@ func testProcessRoot(
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
 	// nodes:
-	totalStake := new(big.Int)
-	nodes := make([]ElectionNode, 0, len(peers))
+	var (
+		totalStake uint64
+		nodes      = make([]ElectionNode, 0, len(peers))
+	)
 	for _, peer := range peers {
 		n := ElectionNode{
 			Nodeid:      peer,
 			StakeAmount: stakes[peer.String()],
 		}
 		nodes = append(nodes, n)
-		totalStake.Add(totalStake, n.StakeAmount)
+		totalStake += n.StakeAmount
 	}
 
 	superMajority := get2of3(totalStake)
@@ -306,21 +307,15 @@ func testProcessRoot(
 	}
 }
 
-func get2of3(x *big.Int) *big.Int {
-	res := new(big.Int)
-	res.
-		Mul(x, big.NewInt(2)).
-		Div(res, big.NewInt(3)).
-		Add(res, big.NewInt(1))
-
-	return res
+func get2of3(x uint64) uint64 {
+	return x*2/3 + 1
 }
 
-func frameOf(dsc string) FrameHeight {
+func frameOf(dsc string) uint32 {
 	s := strings.Split(dsc, "_")[1]
-	h, err := strconv.ParseInt(s, 10, 64)
+	h, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		panic(err)
 	}
-	return FrameHeight(h)
+	return uint32(h)
 }

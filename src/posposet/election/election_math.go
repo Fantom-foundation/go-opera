@@ -2,7 +2,6 @@ package election
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
@@ -40,8 +39,10 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 		} else if round > 1 {
 			seenRoots := el.stronglySeenRoots(newRoot, newRootSlot.Frame-1)
 
-			yesVotes := new(big.Int)
-			noVotes := new(big.Int)
+			var (
+				yesVotes uint64
+				noVotes  uint64
+			)
 
 			// calc number of "yes" and "no", weighted by node's stake
 			var subjectHash *hash.Event
@@ -59,31 +60,31 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 
 					if vote.yes {
 						subjectHash = &vote.seenRoot
-						yesVotes = yesVotes.Add(yesVotes, seenRoot.stakeAmount)
+						yesVotes += seenRoot.stakeAmount
 					} else {
-						noVotes = noVotes.Add(noVotes, seenRoot.stakeAmount)
+						noVotes += seenRoot.stakeAmount
 					}
 				} else {
 					el.Fatal("Every root must vote for every not decided subject. Possibly roots are processed out of order, root=", newRoot.String())
 				}
 			}
 			// sanity checks
-			if new(big.Int).Add(yesVotes, noVotes).Cmp(el.superMajority) < 0 {
+			if (yesVotes + noVotes) < el.superMajority {
 				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.String())
 			}
-			if new(big.Int).Add(yesVotes, noVotes).Cmp(el.totalStake) > 0 {
+			if (yesVotes + noVotes) > el.totalStake {
 				el.Fatal("Root cannot see more than 100% of prev roots, root=", newRoot.String())
 			}
 
 			// vote as majority of votes
-			vote.yes = yesVotes.Cmp(noVotes) >= 0
+			vote.yes = yesVotes >= noVotes
 			if vote.yes && subjectHash != nil {
 				vote.seenRoot = *subjectHash
 			}
 
 			// If supermajority is seen, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-			vote.decided = yesVotes.Cmp(el.superMajority) >= 0 || noVotes.Cmp(el.superMajority) >= 0
+			vote.decided = yesVotes >= el.superMajority || noVotes >= el.superMajority
 			if vote.decided {
 				el.decidedRoots[nodeIdSubject] = vote
 			}

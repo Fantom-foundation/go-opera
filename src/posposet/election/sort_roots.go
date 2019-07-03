@@ -2,14 +2,13 @@ package election
 
 import (
 	"errors"
-	"math/big"
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 type sortedRoot struct {
-	stakeAmount *big.Int
+	stakeAmount uint64
 	root        hash.Event
 }
 type sortedRoots []sortedRoot
@@ -23,11 +22,10 @@ func (s sortedRoots) Swap(i, j int) {
 
 // compare by stake amount, root hash
 func (s sortedRoots) Less(i, j int) bool {
-	cmp := s[i].stakeAmount.Cmp(s[j].stakeAmount)
-	if cmp == 0 {
+	if s[i].stakeAmount == s[j].stakeAmount {
 		return s[i].root.Big().Cmp(s[j].root.Big()) < 0
 	}
-	return cmp > 0
+	return s[i].stakeAmount > s[j].stakeAmount
 }
 
 // Chooses the decided "yes" roots with the greatest stake amount.
