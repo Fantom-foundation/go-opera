@@ -15,3 +15,11 @@ func newSuperFrame() *superFrame {
 		members: make(map[hash.Peer]uint64),
 	}
 }
+
+func (f superFrame) sumOfStakes() uint64 {
+	sum := uint64(0)
+	for _, v := range f.members {
+		sum += v
+	}
+	return sum
+}
