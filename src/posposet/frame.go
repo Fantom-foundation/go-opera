@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"sync/atomic"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
@@ -104,4 +106,17 @@ func (p *Poset) setFrameSaving(f *Frame) {
 			p.Fatalf("frame %d is finished and should not be changed", f.Index)
 		}
 	}
+}
+
+func (p *Poset) LastSuperFrame() (uint64, []hash.Peer) {
+	n := atomic.LoadUint64(&p.state.SuperFrameN)
+	members := p.store.GetMembers(n).ToWire().Members
+
+	addrs := make([]hash.Peer, 0, len(members))
+
+	for _, member := range members {
+		addrs = append(addrs, hash.BytesToPeer(member.Addr))
+	}
+
+	return n, addrs
 }

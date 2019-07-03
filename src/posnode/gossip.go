@@ -248,7 +248,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 // knownEventsReq makes request struct with event heights of top peers.
 func (n *Node) knownEvents() map[hash.Peer]uint64 {
-	peers := n.peers.Snapshot()
+	_, peers := n.consensus.LastSuperFrame()
 	peers = append(peers, n.ID)
 
 	res := make(map[hash.Peer]uint64, len(peers))
