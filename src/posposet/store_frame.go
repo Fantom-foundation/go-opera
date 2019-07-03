@@ -7,6 +7,7 @@ import (
 )
 
 // SetFrame stores event.
+// TODO: (n + super-frame) key.
 func (s *Store) SetFrame(f *Frame) {
 	key := common.IntToBytes(f.Index)
 	w := f.ToWire()
@@ -21,6 +22,7 @@ func (s *Store) SetFrame(f *Frame) {
 }
 
 // GetFrame returns stored frame.
+// TODO: (n + super-frame) key.
 func (s *Store) GetFrame(n uint64) *Frame {
 	if s.cache.Frames != nil {
 		if f, ok := s.cache.Frames.Get(n); ok {

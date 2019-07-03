@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"sort"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -13,10 +12,10 @@ import (
 
 // Poset processes events to get consensus.
 type Poset struct {
-	store  *Store
-	state  *State
-	input  EventSource
-	frames map[uint64]*Frame
+	store *Store
+	input EventSource
+	state *State
+	superFrame
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
@@ -37,9 +36,10 @@ func New(store *Store, input EventSource) *Poset {
 	const buffSize = 10
 
 	p := &Poset{
-		store:  store,
-		input:  input,
-		frames: make(map[uint64]*Frame),
+		store: store,
+		input: input,
+
+		superFrame: *newSuperFrame(),
 
 		newEventsCh: make(chan hash.Event, buffSize),
 
@@ -135,6 +135,13 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 	p.Debugf("consensus: %s is root", event.String())
 
+	// TODO: fill structs for strongly-see
+
+	// TODO: try election to decide
+
+	// TODO: order events to block if decided
+
+	/* OLD :
 	p.setClothoCandidates(e, frame)
 
 	// process matured frames where ClothoCandidates have become Clothos
@@ -187,6 +194,7 @@ func (p *Poset) consensus(event *inter.Event) {
 			delete(p.frames, i)
 		}
 	}
+	*/
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -247,142 +255,6 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		return frame
 	}
 	return nil
-}
-
-// setClothoCandidates checks clotho-conditions for seen by new root.
-// It is not safe for concurrent use.
-func (p *Poset) setClothoCandidates(root *Event, frame *Frame) {
-	// check Clotho Candidates in previous frame
-	prev := p.frame(frame.Index-1, false)
-	// events from previous frame, reachable by root
-	for seen, seenCreator := range prev.FlagTable[root.Hash()].Each() {
-		// seen is CC already
-		if prev.ClothoCandidates.Contains(seenCreator, seen) {
-			continue
-		}
-		// seen is not root
-		if !prev.FlagTable.IsRoot(seen) {
-			continue
-		}
-		// all roots from frame, reach the seen
-		roots := EventsByPeer{}
-		for root, creator := range frame.FlagTable.Roots().Each() {
-			if prev.FlagTable.EventKnows(root, seenCreator, seen) {
-				roots.AddOne(root, creator)
-			}
-		}
-		// check CC-condition
-		if p.hasTrust(frame, roots) {
-			prev.AddClothoCandidate(seen, seenCreator)
-			// log.Debugf("CC: %s from %s", seen.String(), seenCreator.String())
-		}
-	}
-}
-
-// hasAtropos checks frame Clothos for Atropos condition.
-// It is not safe for concurrent use.
-// Algorithm 5 "Atropos Consensus Time Selection" implementation.
-func (p *Poset) hasAtropos(frameNum, lastNum uint64) bool {
-	var has = false
-	frame := p.frame(frameNum, false)
-CLOTHO:
-	for clotho, clothoCreator := range frame.ClothoCandidates.Each() {
-		if _, already := frame.Atroposes[clotho]; already {
-			has = true
-			continue CLOTHO
-		}
-
-		candidateTime := TimestampsByEvent{}
-
-		// for later frames
-		for diff := uint64(1); diff <= (lastNum - frameNum); diff++ {
-			later := p.frame(frameNum+diff, false)
-			for r := range later.FlagTable.Roots().Each() {
-				if diff == 1 {
-					if frame.FlagTable.EventKnows(r, clothoCreator, clotho) {
-						candidateTime[r] = p.GetEvent(r).LamportTime
-					}
-				} else {
-					// the set of root in prev frame that r can be happened-before with 2n/3 condition
-					prev := p.frame(later.Index-1, false)
-					S := prev.GetRootsOf(r)
-					// time reselection (algorithm 6 "Consensus Time Reselection" implementation)
-					counter := timeCounter{}
-					for r := range S.Each() {
-						if t, ok := candidateTime[r]; ok {
-							counter.Add(t)
-						}
-					}
-					T := counter.MaxMin()
-					// votes for reselected time
-					K := EventsByPeer{}
-					for r, n := range S.Each() {
-						if t, ok := candidateTime[r]; ok && t == T {
-							K.AddOne(r, n)
-						}
-					}
-
-					if diff%3 > 0 && p.hasMajority(prev, K) {
-						// log.Debugf("ATROPOS %s of frame %d", clotho.String(), frame.Index)
-						frame.SetAtropos(clotho, T)
-						has = true
-						continue CLOTHO
-					}
-
-					candidateTime[r] = T
-				}
-			}
-		}
-	}
-	return has
-}
-
-// topologicalOrdered sorts events to chain with Atropos consensus time.
-func (p *Poset) topologicalOrdered(frameNum uint64) (chain inter.Events) {
-	frame := p.frame(frameNum, false)
-
-	var atroposes Events
-	for atropos, consensusTime := range frame.Atroposes {
-		e := p.GetEvent(atropos)
-		e.consensusTime = consensusTime
-		atroposes = append(atroposes, e)
-	}
-	sort.Sort(atroposes)
-
-	already := hash.Events{}
-	for _, atropos := range atroposes {
-		ee := Events{}
-		p.collectParents(atropos, &ee, already)
-		sort.Sort(ee)
-		for _, e := range ee {
-			chain = append(chain, e.Event)
-		}
-		chain = append(chain, atropos.Event)
-	}
-
-	return
-}
-
-// collectParents recursive collects Events of Atropos.
-func (p *Poset) collectParents(a *Event, res *Events, already hash.Events) {
-	for hash_ := range a.Parents {
-		if hash_.IsZero() {
-			continue
-		}
-		if already.Contains(hash_) {
-			continue
-		}
-		f, _ := p.FrameOfEvent(hash_)
-		if _, ok := f.Atroposes[hash_]; ok {
-			continue
-		}
-
-		e := p.GetEvent(hash_)
-		e.consensusTime = a.consensusTime
-		*res = append(*res, e)
-		already.Add(hash_)
-		p.collectParents(e, res, already)
-	}
 }
 
 // reconsensusFromFrame recalcs consensus of frames.

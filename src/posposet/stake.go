@@ -48,18 +48,10 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 	}
 }
 
+// TODO: use superFrame.members
 func (p *Poset) hasMajority(frame *Frame, roots EventsByPeer) bool {
 	stake := p.newStakeCounter(frame,
 		p.state.TotalCap*2/3)
-	for node := range roots {
-		stake.Count(node)
-	}
-	return stake.IsGoalAchieved()
-}
-
-func (p *Poset) hasTrust(frame *Frame, roots EventsByPeer) bool {
-	stake := p.newStakeCounter(frame,
-		p.state.TotalCap*1/3)
 	for node := range roots {
 		stake.Count(node)
 	}
