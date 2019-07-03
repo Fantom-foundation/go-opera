@@ -1,10 +1,13 @@
 package posposet
 
 import (
+	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/golang-lru"
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
@@ -72,10 +75,43 @@ func (s *Store) Close() {
 	s.physicalDB.Close()
 }
 
+type sortingBalances struct {
+	Addrs    []hash.Peer
+	Balances []uint64
+}
+
+func (s *sortingBalances) Sort() error {
+	if len(s.Addrs) != len(s.Balances) {
+		return errors.New("the count of Addrs isn't equal to the count of Balances")
+	}
+
+	sort.Sort(s)
+	return nil
+}
+
+func (s *sortingBalances) Len() int {
+	return len(s.Addrs)
+}
+
+func (s *sortingBalances) Less(i, j int) bool {
+	if s.Balances[i] != s.Balances[j] {
+		return s.Balances[i] > s.Balances[j]
+	}
+
+	return bytes.Compare(s.Addrs[i].Bytes(), s.Addrs[j].Bytes()) < 0
+}
+
+func (s *sortingBalances) Swap(i, j int) {
+	s.Addrs[i], s.Addrs[j] = s.Addrs[j], s.Addrs[i]
+	s.Balances[i], s.Balances[j] = s.Balances[j], s.Balances[i]
+}
+
+const countPeerWithMaxBalance = 30
+
 // ApplyGenesis stores initial state.
 func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	if balances == nil {
-		return fmt.Errorf("balances shouldn't be nil")
+		return fmt.Errorf("sortingBalances shouldn't be nil")
 	}
 
 	st := s.GetState()
@@ -91,10 +127,18 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		TotalCap:           0,
 	}
 
+	sortBalances := &sortingBalances{
+		Addrs:    make([]hash.Peer, 0, len(balances)),
+		Balances: make([]uint64, 0, len(balances)),
+	}
+
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
 		genesis.SetBalance(hash.Peer(addr), balance)
 		st.TotalCap += balance
+
+		sortBalances.Addrs = append(sortBalances.Addrs, addr)
+		sortBalances.Balances = append(sortBalances.Balances, balance)
 	}
 
 	if st.TotalCap < uint64(len(balances)) {
@@ -108,6 +152,13 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 	}
 
 	s.SetState(st)
+
+	err = sortBalances.Sort()
+	if err != nil {
+		return err
+	}
+
+	s.SetMember(0, sortBalances.Addrs[:countPeerWithMaxBalance-1])
 	return nil
 }
 

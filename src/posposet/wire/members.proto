@@ -1,0 +1,6 @@
+syntax = "proto3";
+package wire;
+
+message Members {
+  repeated bytes Members = 1;
+}
