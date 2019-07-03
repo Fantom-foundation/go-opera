@@ -167,7 +167,7 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 }
 
 func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.Peer]uint64, error) {
-	knowns := n.knownEvents()
+	_, knowns := n.knownEvents()
 
 	req := &api.KnownEvents{
 		Lasts: make(map[string]uint64, len(knowns)),
@@ -247,8 +247,8 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 }
 
 // knownEventsReq makes request struct with event heights of top peers.
-func (n *Node) knownEvents() map[hash.Peer]uint64 {
-	_, peers := n.consensus.LastSuperFrame()
+func (n *Node) knownEvents() (uint64, map[hash.Peer]uint64) {
+	superFrameIndex, peers := n.consensus.LastSuperFrame()
 	peers = append(peers, n.ID)
 
 	res := make(map[hash.Peer]uint64, len(peers))
@@ -257,7 +257,7 @@ func (n *Node) knownEvents() map[hash.Peer]uint64 {
 		res[id] = h
 	}
 
-	return res
+	return superFrameIndex, res
 }
 
 func (n *Node) gossipSuccess(p *Peer) {

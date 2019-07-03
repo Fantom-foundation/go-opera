@@ -66,7 +66,7 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	}
 
 	// response
-	knowns := n.knownEvents()
+	superFrameIndex, knowns := n.knownEvents()
 	knownLasts := make(map[string]uint64, len(knowns))
 	for id, h := range knowns {
 		knownLasts[id.Hex()] = h
@@ -74,7 +74,10 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	// TODO: should we remember other node's knowns for future request?
 	// to_download := PeersHeightsDiff(req.Lasts, known)
 	diff := PeersHeightsDiff(knownLasts, req.Lasts)
-	return &api.KnownEvents{Lasts: diff}, nil
+	return &api.KnownEvents{
+		Lasts:           diff,
+		SuperFrameIndex: superFrameIndex,
+	}, nil
 }
 
 // GetEvent returns requested event.

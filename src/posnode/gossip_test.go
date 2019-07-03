@@ -38,20 +38,22 @@ func TestGossip(t *testing.T) {
 	t.Run("before", func(t *testing.T) {
 		assertar := assert.New(t)
 
+		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 0,
 			},
-			node1.knownEvents(),
+			events1,
 			"node1 knows their event only")
 
+		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 0,
 				node2.ID: 1,
 			},
-			node2.knownEvents(),
+			events2,
 			"node2 knows their event only")
 	})
 
@@ -59,20 +61,22 @@ func TestGossip(t *testing.T) {
 		assertar := assert.New(t)
 		node1.syncWithPeer(node2.AsPeer())
 
+		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 1,
 			},
-			node1.knownEvents(),
+			events1,
 			"node1 knows last event of node2")
 
+		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 0,
 				node2.ID: 1,
 			},
-			node2.knownEvents(),
+			events2,
 			"node2 still knows their event only")
 
 		e2 := node1.store.GetEventHash(node2.ID, 1)
@@ -83,20 +87,22 @@ func TestGossip(t *testing.T) {
 		assertar := assert.New(t)
 		node2.syncWithPeer(node1.AsPeer())
 
+		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 1,
 			},
-			node1.knownEvents(),
+			events1,
 			"node1 still knows event of node2")
 
+		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 1,
 				node2.ID: 1,
 			},
-			node2.knownEvents(),
+			events2,
 			"node2 knows last event of node1")
 
 		e1 := node2.store.GetEventHash(node1.ID, 1)
@@ -134,20 +140,22 @@ func TestMissingParents(t *testing.T) {
 	t.Run("before sync", func(t *testing.T) {
 		assertar := assert.New(t)
 
+		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 3,
 				node2.ID: 0,
 			},
-			node1.knownEvents(),
+			events1,
 			"node1 knows their event only")
 
+		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 0,
 				node2.ID: 0,
 			},
-			node2.knownEvents(),
+			events2,
 			"node2 knows their event only")
 	})
 
@@ -195,20 +203,22 @@ func TestMissingParents(t *testing.T) {
 		// Download missings
 		node2.checkParents(client, peer, parents)
 
+		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 3,
 				node2.ID: 0,
 			},
-			node1.knownEvents(),
+			events1,
 			"node1 still knows their event only")
 
+		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
 				node1.ID: 3,
 				node2.ID: 0,
 			},
-			node2.knownEvents(),
+			events2,
 			"node2 knows last event of node1")
 
 		e1 := node2.store.GetEventHash(node1.ID, 1)
