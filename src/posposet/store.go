@@ -24,6 +24,7 @@ type Store struct {
 		Blocks      kvdb.Database `table:"block_"`
 		Event2Frame kvdb.Database `table:"event2frame_"`
 		Event2Block kvdb.Database `table:"event2block_"`
+		Members     kvdb.Database `table:"member_"`
 		Balances    state.Database
 	}
 	cache struct {
@@ -90,14 +91,18 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		TotalCap:           0,
 	}
 
+	members0 := make(members, len(balances))
+
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
+		if balance == 0 {
+			return fmt.Errorf("balance shouldn't be zero")
+		}
+
 		genesis.SetBalance(hash.Peer(addr), balance)
 		st.TotalCap += balance
-	}
 
-	if st.TotalCap < uint64(len(balances)) {
-		return fmt.Errorf("balance shouldn't be zero")
+		members0.Add(addr, balance)
 	}
 
 	var err error
@@ -106,7 +111,10 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		return err
 	}
 
+	s.SetMembers(0, members0.Top())
+
 	s.SetState(st)
+
 	return nil
 }
 
