@@ -1,15 +1,16 @@
 package posposet
 
 import (
+	"fmt"
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // SetFrame stores event.
-// TODO: (n + super-frame) key.
-func (s *Store) SetFrame(f *Frame) {
-	key := common.IntToBytes(f.Index)
+func (s *Store) SetFrame(f *Frame, superFrameIndex uint64) {
+	key := []byte(fmt.Sprintf("%d_%d", superFrameIndex, f.Index))
+
 	w := f.ToWire()
 	s.set(s.table.Frames, key, w)
 
@@ -22,16 +23,16 @@ func (s *Store) SetFrame(f *Frame) {
 }
 
 // GetFrame returns stored frame.
-// TODO: (n + super-frame) key.
-func (s *Store) GetFrame(n uint64) *Frame {
+func (s *Store) GetFrame(n uint64, superFrameIndex uint64) *Frame {
+	key := []byte(fmt.Sprintf("%d_%d", superFrameIndex, n))
+
 	if s.cache.Frames != nil {
-		if f, ok := s.cache.Frames.Get(n); ok {
+		if f, ok := s.cache.Frames.Get(key); ok {
 			w := f.(*wire.Frame)
 			return WireToFrame(w)
 		}
 	}
 
-	key := common.IntToBytes(n)
 	w, _ := s.get(s.table.Frames, key, &wire.Frame{}).(*wire.Frame)
 	return WireToFrame(w)
 }
