@@ -16,6 +16,7 @@ type Poset struct {
 	input EventSource
 	*checkpoint
 	superFrame
+	stronglySeeing
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
@@ -39,7 +40,8 @@ func New(store *Store, input EventSource) *Poset {
 		store: store,
 		input: input,
 
-		superFrame: *newSuperFrame(),
+		superFrame:     *newSuperFrame(),
+		stronglySeeing: newStronglySeeing(),
 
 		newEventsCh: make(chan hash.Event, buffSize),
 
@@ -283,6 +285,7 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 	for _, e := range all.ByParents() {
 		p.consensus(e)
 	}
+
 	// save fresh frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]
