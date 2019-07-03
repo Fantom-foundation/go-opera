@@ -2,7 +2,7 @@ syntax = "proto3";
 package wire;
 
 
-message State {
+message Checkpoint {
   uint64 SuperFrameN = 1;
   uint64 LastFinishedFrameN = 2;
   uint64 LastBlockN = 3;

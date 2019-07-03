@@ -64,18 +64,18 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 }
 
 func (p *Poset) frameFromStore(n uint64) *Frame {
-	if n < p.state.LastFinishedFrameN() {
+	if n < p.LastFinishedFrameN() {
 		p.Fatalf("too old frame %d is requested", n)
 	}
 	// return ephemeral
 	if n == 0 {
 		return &Frame{
 			Index:    0,
-			Balances: p.state.Genesis,
+			Balances: p.Genesis,
 		}
 	}
 
-	f := p.store.GetFrame(n, p.state.SuperFrameN)
+	f := p.store.GetFrame(n, p.SuperFrameN)
 	if f == nil {
 		return p.frameFromStore(n - 1)
 	}
@@ -85,14 +85,14 @@ func (p *Poset) frameFromStore(n uint64) *Frame {
 
 // frame finds or creates frame.
 func (p *Poset) frame(n uint64, orCreate bool) *Frame {
-	if n < p.state.LastFinishedFrameN() && orCreate {
+	if n < p.LastFinishedFrameN() && orCreate {
 		p.Fatalf("too old frame %d is requested", n)
 	}
 	// return ephemeral
 	if n == 0 {
 		return &Frame{
 			Index:    0,
-			Balances: p.state.Genesis,
+			Balances: p.Genesis,
 		}
 	}
 

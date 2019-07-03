@@ -73,14 +73,14 @@ func TestPoset(t *testing.T) {
 		assertar := assert.New(t)
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
-			st := p0.store.GetState()
+			st := p0.store.GetCheckpoint()
 			t.Logf("poset%d: frame %d, block %d", i, st.LastFinishedFrameN(), st.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 
-				both := p0.state.LastBlockN
-				if both > p1.state.LastBlockN {
-					both = p1.state.LastBlockN
+				both := p0.LastBlockN
+				if both > p1.LastBlockN {
+					both = p1.LastBlockN
 				}
 				var num uint64
 				for b := uint64(1); b <= both; b++ {

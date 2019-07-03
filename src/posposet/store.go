@@ -19,7 +19,7 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		States      kvdb.Database `table:"state_"`
+		Checkpoint  kvdb.Database `table:"checkpoint_"`
 		Frames      kvdb.Database `table:"frame_"`
 		Blocks      kvdb.Database `table:"block_"`
 		Event2Frame kvdb.Database `table:"event2frame_"`
@@ -78,7 +78,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
-	st := s.GetState()
+	st := s.GetCheckpoint()
 	if st != nil {
 		if st.Genesis == genesisHash(balances) {
 			return nil
@@ -86,7 +86,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	st = &State{
+	st = &checkpoint{
 		lastFinishedFrameN: 0,
 		TotalCap:           0,
 	}
@@ -113,7 +113,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 
 	s.SetMembers(0, members0.Top())
 
-	s.SetState(st)
+	s.SetCheckpoint(st)
 
 	return nil
 }
