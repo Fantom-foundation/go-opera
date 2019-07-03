@@ -12,6 +12,7 @@ import (
 
 // State is a current poset state.
 type State struct {
+	SuperFrameN        uint64
 	lastFinishedFrameN uint64
 	LastBlockN         uint64
 	Genesis            hash.Hash
@@ -29,6 +30,7 @@ func (s *State) LastFinishedFrame(N uint64) {
 // ToWire converts to proto.Message.
 func (s *State) ToWire() *wire.State {
 	return &wire.State{
+		SuperFrameN:        s.SuperFrameN,
 		LastFinishedFrameN: s.LastFinishedFrameN(),
 		LastBlockN:         s.LastBlockN,
 		Genesis:            s.Genesis.Bytes(),
@@ -42,6 +44,7 @@ func WireToState(w *wire.State) *State {
 		return nil
 	}
 	return &State{
+		SuperFrameN:        w.SuperFrameN,
 		lastFinishedFrameN: w.LastFinishedFrameN,
 		LastBlockN:         w.LastBlockN,
 		Genesis:            hash.FromBytes(w.Genesis),
