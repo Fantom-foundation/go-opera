@@ -33,7 +33,7 @@ func (s *stakeCounter) IsGoalAchieved() bool {
 
 // StakeOf returns last stake balance of peer.
 func (p *Poset) StakeOf(addr hash.Peer) uint64 {
-	f := p.frameFromStore(p.state.LastFinishedFrameN() + stateGap)
+	f := p.frameFromStore(p.LastFinishedFrameN() + stateGap)
 	db := p.store.StateDB(f.Balances)
 	return db.VoteBalance(addr)
 }
@@ -51,7 +51,7 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 // TODO: use superFrame.members
 func (p *Poset) hasMajority(frame *Frame, roots EventsByPeer) bool {
 	stake := p.newStakeCounter(frame,
-		p.state.TotalCap*2/3)
+		p.TotalCap*2/3)
 	for node := range roots {
 		stake.Count(node)
 	}

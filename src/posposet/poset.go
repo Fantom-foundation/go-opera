@@ -14,7 +14,7 @@ import (
 type Poset struct {
 	store *Store
 	input EventSource
-	state *State
+	*State
 	superFrame
 
 	processingWg   sync.WaitGroup
@@ -202,11 +202,11 @@ func (p *Poset) consensus(event *inter.Event) {
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) *Frame {
 	knownRoots := eventsByFrame{}
-	minFrame := p.state.LastFinishedFrameN() + 1
+	minFrame := p.LastFinishedFrameN() + 1
 	for parent := range e.Parents {
 		if !parent.IsZero() {
 			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil || frame.Index <= p.state.LastFinishedFrameN() {
+			if frame == nil || frame.Index <= p.LastFinishedFrameN() {
 				p.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
 				// NOTE: is it possible some participants got this event before parent outdated?
 				continue

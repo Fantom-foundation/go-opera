@@ -78,9 +78,9 @@ func TestPoset(t *testing.T) {
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 
-				both := p0.state.LastBlockN
-				if both > p1.state.LastBlockN {
-					both = p1.state.LastBlockN
+				both := p0.LastBlockN
+				if both > p1.LastBlockN {
+					both = p1.LastBlockN
 				}
 				var num uint64
 				for b := uint64(1); b <= both; b++ {

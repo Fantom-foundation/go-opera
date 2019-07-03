@@ -58,21 +58,21 @@ func WireToState(w *wire.State) *State {
 
 // State saves current state.
 func (p *Poset) saveState() {
-	p.store.SetState(p.state)
+	p.store.SetState(p.State)
 }
 
 // Bootstrap restores current state from store.
 func (p *Poset) Bootstrap() {
-	if p.state != nil {
+	if p.State != nil {
 		return
 	}
 	// restore state
-	p.state = p.store.GetState()
-	if p.state == nil {
+	p.State = p.store.GetState()
+	if p.State == nil {
 		p.Fatal("Apply genesis for store first")
 	}
 	// restore frames
-	for n := p.state.LastFinishedFrameN(); true; n++ {
+	for n := p.LastFinishedFrameN(); true; n++ {
 		if f := p.store.GetFrame(n); f != nil {
 			p.frames[n] = f
 		} else if n > 0 {
@@ -80,13 +80,13 @@ func (p *Poset) Bootstrap() {
 		}
 	}
 	// recalc in case there was a interrupted consensus
-	start := p.frame(p.state.LastFinishedFrameN(), true)
-	p.reconsensusFromFrame(p.state.LastFinishedFrameN()+1, start.Balances)
+	start := p.frame(p.LastFinishedFrameN(), true)
+	p.reconsensusFromFrame(p.LastFinishedFrameN()+1, start.Balances)
 }
 
 // GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
-	return p.state.Genesis
+	return p.Genesis
 }
 
 // GenesisHash calcs hash of genesis balances.

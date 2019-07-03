@@ -47,7 +47,7 @@ func (p *Poset) EventsFromBlockNum(num uint64) inter.Events {
 
 	events := make(inter.Events, 0)
 
-	for n := num; n < p.state.LastBlockN; n++ {
+	for n := num; n < p.LastBlockN; n++ {
 		b := p.store.GetBlock(n)
 		if b == nil {
 			panic(n)
