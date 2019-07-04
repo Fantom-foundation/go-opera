@@ -8,13 +8,16 @@ import (
 // TODO implement&test coinRound
 //const coinRound = 10 // every 10th round is a round with pseudorandom votes
 
+type IdxFrame uint64
+type Amount uint64
+
 type Election struct {
 	// election params
-	frameToDecide uint32
+	frameToDecide IdxFrame
 
 	nodes         []ElectionNode
-	totalStake    uint64 // the sum of stakes (n)
-	superMajority uint64 // the quorum (should be 2/3n + 1)
+	totalStake    Amount // the sum of stakes (n)
+	superMajority Amount // the quorum (should be 2/3n + 1)
 
 	// election state
 	decidedRoots map[hash.Peer]voteValue // decided roots at "frameToDecide"
@@ -28,13 +31,13 @@ type Election struct {
 
 type ElectionNode struct {
 	Nodeid      hash.Peer
-	StakeAmount uint64
+	StakeAmount Amount
 }
 
 // specifies a slot {nodeid, frame}. Normal nodes can have only one root with this pair.
 // Due to a fork, different roots may occupy the same slot
 type RootSlot struct {
-	Frame  uint32
+	Frame  IdxFrame
 	Nodeid hash.Peer
 }
 
@@ -54,15 +57,15 @@ type voteValue struct {
 }
 
 type ElectionRes struct {
-	DecidedFrame     uint32
+	DecidedFrame     IdxFrame
 	DecidedSfWitness hash.Event
 }
 
 func NewElection(
 	nodes []ElectionNode,
-	totalStake uint64,
-	superMajority uint64,
-	frameToDecide uint32,
+	totalStake Amount,
+	superMajority Amount,
+	frameToDecide IdxFrame,
 	stronglySeeFn RootStronglySeeRootFn,
 ) *Election {
 	return &Election{
@@ -78,7 +81,7 @@ func NewElection(
 }
 
 // erase the current election state, prepare for new election frame
-func (el *Election) ResetElection(frameToDecide uint32) {
+func (el *Election) ResetElection(frameToDecide IdxFrame) {
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
 	el.decidedRoots = make(map[hash.Peer]voteValue)
@@ -101,11 +104,11 @@ func (el *Election) notDecidedRoots() []hash.Peer {
 
 type weightedRoot struct {
 	root        hash.Event
-	stakeAmount uint64
+	stakeAmount Amount
 }
 
 // @return all the roots which are strongly seen by the specified root at the specified frame
-func (el *Election) stronglySeenRoots(root hash.Event, frame uint32) []weightedRoot {
+func (el *Election) stronglySeenRoots(root hash.Event, frame IdxFrame) []weightedRoot {
 	seenRoots := make([]weightedRoot, 0, len(el.nodes))
 	for _, node := range el.nodes {
 		slot := RootSlot{
@@ -123,11 +126,11 @@ func (el *Election) stronglySeenRoots(root hash.Event, frame uint32) []weightedR
 	return seenRoots
 }
 
-type GetRootsFn func(slot RootSlot) []hash.Event
+type GetRootsFn func(slot RootSlot) hash.Events
 
 // The function is similar to ProcessRoot, but it fully re-processes the current voting.
 // This routine should be called after node startup, and after each decided frame.
-func (el *Election) ProcessKnownRoots(maxKnownFrame uint32, getRootsFn GetRootsFn) (*ElectionRes, error) {
+func (el *Election) ProcessKnownRoots(maxKnownFrame IdxFrame, getRootsFn GetRootsFn) (*ElectionRes, error) {
 	// iterate all the roots from lowest frame to highest, call ProcessRootVotes for each
 	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
 		for _, node := range el.nodes {
@@ -137,7 +140,7 @@ func (el *Election) ProcessKnownRoots(maxKnownFrame uint32, getRootsFn GetRootsF
 			}
 			roots := getRootsFn(slot)
 			// if there's more than 1 root, then all of them are forks. it's fine
-			for _, root := range roots {
+			for root := range roots {
 				decided, err := el.ProcessRoot(root, slot)
 				if decided != nil || err != nil {
 					return decided, err

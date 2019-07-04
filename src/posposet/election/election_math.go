@@ -40,8 +40,8 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 			seenRoots := el.stronglySeenRoots(newRoot, newRootSlot.Frame-1)
 
 			var (
-				yesVotes uint64
-				noVotes  uint64
+				yesVotes Amount
+				noVotes  Amount
 			)
 
 			// calc number of "yes" and "no", weighted by node's stake

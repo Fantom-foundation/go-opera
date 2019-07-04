@@ -18,11 +18,11 @@ type fakeEdge struct {
 }
 
 type (
-	stakes map[string]uint64
+	stakes map[string]Amount
 )
 
 type testExpected struct {
-	DecidedFrame     uint32
+	DecidedFrame     IdxFrame
 	DecidedSfWitness string
 	DecisiveRoots    map[string]bool
 }
@@ -193,7 +193,7 @@ func testProcessRoot(
 
 	// nodes:
 	var (
-		totalStake uint64
+		totalStake Amount
 		nodes      = make([]ElectionNode, 0, len(peers))
 	)
 	for _, peer := range peers {
@@ -307,15 +307,15 @@ func testProcessRoot(
 	}
 }
 
-func get2of3(x uint64) uint64 {
+func get2of3(x Amount) Amount {
 	return x*2/3 + 1
 }
 
-func frameOf(dsc string) uint32 {
+func frameOf(dsc string) IdxFrame {
 	s := strings.Split(dsc, "_")[1]
 	h, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		panic(err)
 	}
-	return uint32(h)
+	return IdxFrame(h)
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type sortedRoot struct {
-	stakeAmount uint64
+	stakeAmount Amount
 	root        hash.Event
 }
 type sortedRoots []sortedRoot
