@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -73,6 +74,7 @@ func (p *Poset) Bootstrap() {
 	}
 	// restore current super-frame
 	p.members = p.store.GetMembers(p.SuperFrameN)
+	p.election = election.NewElection(p.members, election.Amount(p.members.TotalStake()), election.Amount(p.getSuperMajority()), election.IdxFrame(p.checkpoint.lastFinishedFrameN+1), p.rootStronglySeeRoot)
 
 	// restore frames
 	for n := p.LastFinishedFrameN(); true; n++ {

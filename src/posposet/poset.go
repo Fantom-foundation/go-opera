@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -122,6 +123,32 @@ func (p *Poset) OnNewBlock(callback func(blockNumber uint64), override bool) err
 	return nil
 }
 
+func (p *Poset) getRoots(slot election.RootSlot) hash.Events {
+	frame, ok := p.frames[uint64(slot.Frame)]
+	if !ok {
+		return nil
+	}
+	roots, ok := frame.ClothoCandidates[slot.Addr]
+	if !ok {
+		return nil
+	}
+	return roots
+}
+
+// TODO @dagchain
+// @return hash of B if root A strongly sees some root B in the specified slot
+func (p *Poset) rootStronglySeeRoot(a hash.Event, bSlot election.RootSlot) *hash.Event {
+	// A doesn’t exist
+	//   return nil
+	// there’s no root B with {frame height B, node id B}
+	//   return nil
+	// for B := range roots{frame height B, node id B}
+	//   if A strongly sees B
+	//      return B.hash
+
+	return nil
+}
+
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(event *inter.Event) {
 	p.Debugf("consensus: start %s", event.String())
@@ -129,17 +156,40 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
+	// TODO: fill structs for strongly-see
+
 	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
 		return
 	}
 	p.Debugf("consensus: %s is root", event.String())
 
-	// TODO: fill structs for strongly-see
+	// process election for the new root
+	decided, err := p.election.ProcessRoot(event.Hash(), election.RootSlot{
+		Frame: election.IdxFrame(frame.Index),
+		Addr:  event.Creator,
+	})
+	if err != nil {
+		p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
+	}
+	if decided != nil {
+		// if we’re here, then this root has seen that lowest not decided frame is decided now
+		p.onFrameDecided(uint64(decided.DecidedFrame), decided.DecidedSfWitness)
 
-	// TODO: try election to decide
-
-	// TODO: order events to block if decided
+		// then call processKnownRoots until it returns nil -
+		// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
+		for {
+			decided, err := p.election.ProcessKnownRoots(election.IdxFrame(len(p.frames)-1), p.getRoots)
+			if err != nil {
+				p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
+			}
+			if decided != nil {
+				p.onFrameDecided(uint64(decided.DecidedFrame), decided.DecidedSfWitness)
+			} else {
+				break
+			}
+		}
+	}
 
 	/* OLD :
 	p.setClothoCandidates(e, frame)
@@ -195,6 +245,13 @@ func (p *Poset) consensus(event *inter.Event) {
 		}
 	}
 	*/
+}
+
+// TODO @dagchain seems like it's a handy abstranction to be called within consensus()
+// moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
+func (p *Poset) onFrameDecided(frameDecided uint64, decidedSfWitness hash.Event) {
+	p.lastFinishedFrameN = frameDecided
+	p.election.ResetElection(election.IdxFrame(p.lastFinishedFrameN) + 1)
 }
 
 // checkIfRoot checks root-conditions for new event

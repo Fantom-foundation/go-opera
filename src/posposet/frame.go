@@ -17,7 +17,7 @@ type Frame struct {
 	ClothoCandidates EventsByPeer
 	Atroposes        TimestampsByEvent
 
-	Balances         hash.Hash // TODO: move to super-frame
+	Balances hash.Hash // TODO: move to super-frame
 
 	save func()
 }
