@@ -48,10 +48,13 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 	}
 }
 
-func (p *Poset) hasMajority(frame *Frame, roots EventsByPeer) bool {
+func (p *Poset) getSuperMajority() uint64 {
 	// TODO: set to p.members.TotalStake() * 2 / 3 + 1 with TestPoset{Simple,Far}Root() tests.
-	majority := p.members.TotalStake() * 2 / 3 // + 1
-	stake := p.newStakeCounter(frame, majority)
+	return p.members.TotalStake() * 2 / 3
+}
+
+func (p *Poset) hasMajority(frame *Frame, roots EventsByPeer) bool {
+	stake := p.newStakeCounter(frame, p.getSuperMajority())
 	for node := range roots {
 		stake.Count(node)
 	}

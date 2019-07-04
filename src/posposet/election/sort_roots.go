@@ -8,8 +8,8 @@ import (
 )
 
 type sortedRoot struct {
-	stakeAmount Amount
-	root        hash.Event
+	stake Amount
+	root  hash.Event
 }
 type sortedRoots []sortedRoot
 
@@ -22,27 +22,27 @@ func (s sortedRoots) Swap(i, j int) {
 
 // compare by stake amount, root hash
 func (s sortedRoots) Less(i, j int) bool {
-	if s[i].stakeAmount == s[j].stakeAmount {
+	if s[i].stake == s[j].stake {
 		return s[i].root.Big().Cmp(s[j].root.Big()) < 0
 	}
-	return s[i].stakeAmount > s[j].stakeAmount
+	return s[i].stake > s[j].stake
 }
 
 // Chooses the decided "yes" roots with the greatest stake amount.
 // This root serves as a "checkpoint" within DAG, as it's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-// Other nodes will come to the same SfWitness not later than current highest frame + 2.
+// Other members will come to the same SfWitness not later than current highest frame + 2.
 func (el *Election) chooseSfWitness() (*ElectionRes, error) {
-	finalRoots := make(sortedRoots, 0, len(el.nodes))
+	finalRoots := make(sortedRoots, 0, len(el.members))
 	// fill yesRoots
-	for _, node := range el.nodes {
-		vote, ok := el.decidedRoots[node.Nodeid]
+	for _, member := range el.members {
+		vote, ok := el.decidedRoots[member.Addr]
 		if !ok {
 			el.Fatal("called before all the roots are decided")
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{
-				root:        vote.seenRoot,
-				stakeAmount: node.StakeAmount,
+				root:  vote.seenRoot,
+				stake: Amount(member.Stake),
 			})
 		}
 	}

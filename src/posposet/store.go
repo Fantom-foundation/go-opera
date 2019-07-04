@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/golang-lru"
@@ -92,7 +93,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		TotalCap:           0,
 	}
 
-	members0 := make(members, 0, len(balances))
+	mm := make(members.Members, 0, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
@@ -103,7 +104,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		genesis.SetBalance(hash.Peer(addr), balance)
 		cp.TotalCap += balance
 
-		members0.Add(addr, balance)
+		mm.Add(addr, balance)
 	}
 
 	var err error
@@ -112,7 +113,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		return err
 	}
 
-	s.SetMembers(cp.SuperFrameN, members0.Top())
+	s.SetMembers(cp.SuperFrameN, mm.Top())
 
 	s.SetCheckpoint(cp)
 

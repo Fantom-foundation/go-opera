@@ -3,6 +3,7 @@ package election
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 )
 
 // TODO implement&test coinRound
@@ -15,7 +16,7 @@ type Election struct {
 	// election params
 	frameToDecide IdxFrame
 
-	nodes         []ElectionNode
+	members       []members.Member
 	totalStake    Amount // the sum of stakes (n)
 	superMajority Amount // the quorum (should be 2/3n + 1)
 
@@ -29,16 +30,11 @@ type Election struct {
 	logger.Instance
 }
 
-type ElectionNode struct {
-	Nodeid      hash.Peer
-	StakeAmount Amount
-}
-
-// specifies a slot {nodeid, frame}. Normal nodes can have only one root with this pair.
+// specifies a slot {addr, frame}. Normal members can have only one root with this pair.
 // Due to a fork, different roots may occupy the same slot
 type RootSlot struct {
-	Frame  IdxFrame
-	Nodeid hash.Peer
+	Frame IdxFrame
+	Addr  hash.Peer
 }
 
 // @return hash of root B, if root A strongly sees root B.
@@ -48,7 +44,7 @@ type RootStronglySeeRootFn func(a hash.Event, b RootSlot) *hash.Event
 
 type voteId struct {
 	fromRoot  hash.Event
-	forNodeid hash.Peer
+	forMember hash.Peer
 }
 type voteValue struct {
 	decided  bool
@@ -62,14 +58,14 @@ type ElectionRes struct {
 }
 
 func NewElection(
-	nodes []ElectionNode,
+	members members.Members,
 	totalStake Amount,
 	superMajority Amount,
 	frameToDecide IdxFrame,
 	stronglySeeFn RootStronglySeeRootFn,
 ) *Election {
 	return &Election{
-		nodes:         nodes,
+		members:       members,
 		totalStake:    totalStake,
 		superMajority: superMajority,
 		frameToDecide: frameToDecide,
@@ -89,37 +85,37 @@ func (el *Election) ResetElection(frameToDecide IdxFrame) {
 
 // return root slots which are not within el.decidedRoots
 func (el *Election) notDecidedRoots() []hash.Peer {
-	notDecidedRoots := make([]hash.Peer, 0, len(el.nodes))
+	notDecidedRoots := make([]hash.Peer, 0, len(el.members))
 
-	for _, node := range el.nodes {
-		if _, ok := el.decidedRoots[node.Nodeid]; !ok {
-			notDecidedRoots = append(notDecidedRoots, node.Nodeid)
+	for _, member := range el.members {
+		if _, ok := el.decidedRoots[member.Addr]; !ok {
+			notDecidedRoots = append(notDecidedRoots, member.Addr)
 		}
 	}
-	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.nodes) { // sanity check
+	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.members) { // sanity check
 		el.Fatal("Mismatch of roots")
 	}
 	return notDecidedRoots
 }
 
 type weightedRoot struct {
-	root        hash.Event
-	stakeAmount Amount
+	root  hash.Event
+	stake Amount
 }
 
 // @return all the roots which are strongly seen by the specified root at the specified frame
 func (el *Election) stronglySeenRoots(root hash.Event, frame IdxFrame) []weightedRoot {
-	seenRoots := make([]weightedRoot, 0, len(el.nodes))
-	for _, node := range el.nodes {
+	seenRoots := make([]weightedRoot, 0, len(el.members))
+	for _, member := range el.members {
 		slot := RootSlot{
-			Frame:  frame,
-			Nodeid: node.Nodeid,
+			Frame: frame,
+			Addr:  member.Addr,
 		}
 		seenRoot := el.stronglySee(root, slot)
 		if seenRoot != nil {
 			seenRoots = append(seenRoots, weightedRoot{
-				root:        *seenRoot,
-				stakeAmount: node.StakeAmount,
+				root:  *seenRoot,
+				stake: Amount(member.Stake),
 			})
 		}
 	}
@@ -133,10 +129,10 @@ type GetRootsFn func(slot RootSlot) hash.Events
 func (el *Election) ProcessKnownRoots(maxKnownFrame IdxFrame, getRootsFn GetRootsFn) (*ElectionRes, error) {
 	// iterate all the roots from lowest frame to highest, call ProcessRootVotes for each
 	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
-		for _, node := range el.nodes {
+		for _, member := range el.members {
 			slot := RootSlot{
-				Frame:  frame,
-				Nodeid: node.Nodeid,
+				Frame: frame,
+				Addr:  member.Addr,
 			}
 			roots := getRootsFn(slot)
 			// if there's more than 1 root, then all of them are forks. it's fine

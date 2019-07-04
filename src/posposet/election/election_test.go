@@ -1,6 +1,7 @@
 package election
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 	"strconv"
 	"strings"
 	"testing"
@@ -191,21 +192,15 @@ func testProcessRoot(
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
-	// nodes:
+	// members:
 	var (
-		totalStake Amount
-		nodes      = make([]ElectionNode, 0, len(peers))
+		mm         = make(members.Members, 0, len(peers))
 	)
 	for _, peer := range peers {
-		n := ElectionNode{
-			Nodeid:      peer,
-			StakeAmount: stakes[peer.String()],
-		}
-		nodes = append(nodes, n)
-		totalStake += n.StakeAmount
+		mm.Add(peer, uint64(stakes[peer.String()]))
 	}
 
-	superMajority := get2of3(totalStake)
+	superMajority := get2of3(Amount(mm.TotalStake()))
 	//t.Logf("superMajority = %s", superMajority.String())
 
 	// events:
@@ -218,8 +213,8 @@ func testProcessRoot(
 		h := root.Hash()
 
 		vertices[h] = RootSlot{
-			Frame:  frameOf(dsc),
-			Nodeid: root.Creator,
+			Frame: frameOf(dsc),
+			Addr:  root.Creator,
 		}
 	}
 
@@ -259,7 +254,7 @@ func testProcessRoot(
 		}
 	}
 
-	election := NewElection(nodes, totalStake, superMajority, 0, stronglySeeFn)
+	election := NewElection(mm, Amount(mm.TotalStake()), superMajority, 0, stronglySeeFn)
 
 	// ordering:
 	var (
