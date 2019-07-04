@@ -16,6 +16,7 @@ require (
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/fortytw2/leaktest v1.3.0
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/golang/mock v1.3.1
