@@ -329,13 +329,7 @@ func (rr *rows) Optimize() {
 
 			row.Refs[iRef] = ref - 1
 
-			// TODO: rewrite
-			pMap := make(map[int]int, len(rr.rows[prev].Refs))
-			for k, v := range rr.rows[prev].Refs {
-				pMap[k] = v
-			}
-
-			if _, ok := pMap[rr.rows[curr].Self]; ok {
+			if len(rr.rows[prev].Refs)>rr.rows[curr].Self {
 				// update refs for swapped event (to current event only)
 				if rr.rows[prev].Refs[rr.rows[curr].Self] > 0 {
 					rr.rows[prev].Refs[rr.rows[curr].Self]++
