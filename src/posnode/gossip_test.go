@@ -3,6 +3,7 @@ package posnode
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -11,17 +12,24 @@ import (
 )
 
 func TestGossip(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	logger.SetTestMode(t)
 
 	// node 1
 	store1 := NewMemStore()
-	node1 := NewForTests("node1", store1, nil)
+	consensus1 := NewMockConsensus(ctrl)
+	node1 := NewForTests("node1", store1, consensus1)
+	consensus1.EXPECT().GetGenesisHash().Return((hash.Hash)(node1.ID)).Times(2)
 	node1.StartService()
 	defer node1.Stop()
 
 	// node 2
 	store2 := NewMemStore()
-	node2 := NewForTests("node2", store2, nil)
+	consensus2 := NewMockConsensus(ctrl)
+	node2 := NewForTests("node2", store2, consensus2)
+	consensus2.EXPECT().GetGenesisHash().Return((hash.Hash)(node2.ID)).Times(2)
 	node2.StartService()
 	defer node2.Stop()
 
@@ -32,12 +40,17 @@ func TestGossip(t *testing.T) {
 	node2.initPeers()
 
 	// set events
+	consensus1.EXPECT().StakeOf(node1.ID).Return(uint64(1))
+	consensus1.EXPECT().PushEvent(gomock.Any())
 	node1.EmitEvent()
+	consensus2.EXPECT().StakeOf(node2.ID).Return(uint64(1))
+	consensus2.EXPECT().PushEvent(gomock.Any())
 	node2.EmitEvent()
 
 	t.Run("before", func(t *testing.T) {
 		assertar := assert.New(t)
 
+		consensus1.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
 		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
@@ -47,6 +60,7 @@ func TestGossip(t *testing.T) {
 			events1,
 			"node1 knows their event only")
 
+		consensus2.EXPECT().LastSuperFrame().Return(uint64(0),[]hash.Peer{node1.ID, node2.ID})
 		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
@@ -59,6 +73,12 @@ func TestGossip(t *testing.T) {
 
 	t.Run("after 1-2", func(t *testing.T) {
 		assertar := assert.New(t)
+		consensus1.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID}).Times(2)
+		consensus1.EXPECT().StakeOf(gomock.Any()).Return(uint64(1))
+		consensus1.EXPECT().PushEvent(gomock.Any()).Return()
+		consensus2.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
+		consensus2.EXPECT().SuperFrame(uint64(0)).Return([]hash.Peer{node1.ID, node2.ID})
+
 		node1.syncWithPeer(node2.AsPeer())
 
 		_, events1 := node1.knownEvents()
@@ -85,6 +105,13 @@ func TestGossip(t *testing.T) {
 
 	t.Run("after 2-1", func(t *testing.T) {
 		assertar := assert.New(t)
+
+		consensus2.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID}).Times(2)
+		consensus2.EXPECT().StakeOf(gomock.Any()).Return(uint64(1))
+		consensus2.EXPECT().PushEvent(gomock.Any()).Return()
+		consensus1.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
+		consensus1.EXPECT().SuperFrame(uint64(0)).Return([]hash.Peer{node1.ID, node2.ID})
+
 		node2.syncWithPeer(node1.AsPeer())
 
 		_, events1 := node1.knownEvents()
@@ -112,17 +139,24 @@ func TestGossip(t *testing.T) {
 }
 
 func TestMissingParents(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	logger.SetTestMode(t)
 
 	// node 1
 	store1 := NewMemStore()
-	node1 := NewForTests("node1", store1, nil)
+	consensus1 := NewMockConsensus(ctrl)
+	node1 := NewForTests("node1", store1, consensus1)
+	consensus1.EXPECT().GetGenesisHash().Return((hash.Hash)(node1.ID)).Times(2)
 	node1.StartService()
 	defer node1.Stop()
 
 	// node 2
 	store2 := NewMemStore()
-	node2 := NewForTests("node2", store2, nil)
+	consensus2 := NewMockConsensus(ctrl)
+	node2 := NewForTests("node2", store2, consensus2)
+	consensus2.EXPECT().GetGenesisHash().Return((hash.Hash)(node2.ID)).Times(2)
 	node2.StartService()
 	defer node2.Stop()
 
@@ -133,6 +167,8 @@ func TestMissingParents(t *testing.T) {
 	store2.BootstrapPeers(node1.AsPeer())
 	node2.initPeers()
 
+	consensus1.EXPECT().StakeOf(node1.ID).Return(uint64(1)).Times(3)
+	consensus1.EXPECT().PushEvent(gomock.Any()).Times(3)
 	node1.emitEvent()
 	node1.emitEvent()
 	node1.emitEvent()
@@ -140,6 +176,7 @@ func TestMissingParents(t *testing.T) {
 	t.Run("before sync", func(t *testing.T) {
 		assertar := assert.New(t)
 
+		consensus1.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
 		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
@@ -149,6 +186,7 @@ func TestMissingParents(t *testing.T) {
 			events1,
 			"node1 knows their event only")
 
+		consensus2.EXPECT().LastSuperFrame().Return(uint64(0),[]hash.Peer{node1.ID, node2.ID})
 		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
@@ -168,6 +206,11 @@ func TestMissingParents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		consensus2.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
+		consensus2.EXPECT().StakeOf(gomock.Any()).Return(uint64(1))
+		consensus2.EXPECT().PushEvent(gomock.Any()).Return()
+		consensus1.EXPECT().SuperFrame(uint64(0)).Return([]hash.Peer{node1.ID, node2.ID})
 
 		unknowns, err := node2.compareKnownEvents(client, peer)
 		if err != nil {
@@ -201,8 +244,11 @@ func TestMissingParents(t *testing.T) {
 		}
 
 		// Download missings
+		consensus2.EXPECT().StakeOf(gomock.Any()).Return(uint64(1)).Times(2)
+		consensus2.EXPECT().PushEvent(gomock.Any()).Return().Times(2)
 		node2.checkParents(client, peer, parents)
 
+		consensus1.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
 		_, events1 := node1.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
@@ -212,6 +258,7 @@ func TestMissingParents(t *testing.T) {
 			events1,
 			"node1 still knows their event only")
 
+		consensus2.EXPECT().LastSuperFrame().Return(uint64(0), []hash.Peer{node1.ID, node2.ID})
 		_, events2 := node2.knownEvents()
 		assertar.Equal(
 			map[hash.Peer]uint64{
