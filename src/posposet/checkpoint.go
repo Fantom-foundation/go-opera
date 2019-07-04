@@ -1,11 +1,11 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 

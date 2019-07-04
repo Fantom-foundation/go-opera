@@ -2,7 +2,6 @@ package posposet
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/golang-lru"
@@ -10,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 

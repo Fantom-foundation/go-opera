@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -9,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 )
 
 // Poset processes events to get consensus.

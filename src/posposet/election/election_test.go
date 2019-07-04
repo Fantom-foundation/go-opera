@@ -1,7 +1,6 @@
 package election
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
 )
 
 type fakeEdge struct {
@@ -194,7 +194,7 @@ func testProcessRoot(
 
 	// members:
 	var (
-		mm         = make(members.Members, 0, len(peers))
+		mm = make(members.Members, 0, len(peers))
 	)
 	for _, peer := range peers {
 		mm.Add(peer, uint64(stakes[peer.String()]))
