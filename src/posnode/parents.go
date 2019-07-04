@@ -11,7 +11,7 @@ type (
 	parent struct {
 		Creator hash.Peer
 		Parents hash.Events
-		Value   uint64
+		Value   inter.Stake
 		Last    bool
 	}
 
@@ -43,7 +43,7 @@ func (n *Node) initParents() {
 		}
 		for i := from; i <= to; i++ {
 			e := n.EventOf(peer, i)
-			val := uint64(1)
+			val := inter.Stake(1)
 			if n.consensus != nil {
 				val = n.consensus.StakeOf(e.Creator)
 			}
@@ -61,7 +61,7 @@ func (n *Node) initParents() {
 // pushPotentialParent add event to parent events cache.
 // Parents should be pushed first ( see posposet/Poset.onNewEvent() ).
 func (n *Node) pushPotentialParent(e *inter.Event) {
-	val := uint64(1)
+	val := inter.Stake(1)
 	if n.consensus != nil {
 		val = n.consensus.StakeOf(e.Creator)
 	}
@@ -70,7 +70,7 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 }
 
 // Push adds parent to cache.
-func (pp *parents) Push(e *inter.Event, val uint64) {
+func (pp *parents) Push(e *inter.Event, val inter.Stake) {
 	pp.Lock()
 	defer pp.Unlock()
 
@@ -103,7 +103,7 @@ func (pp *parents) PopBest() *hash.Event {
 
 	var (
 		res *hash.Event
-		max uint64
+		max inter.Stake
 		tmp hash.Event
 	)
 
@@ -149,10 +149,10 @@ func (pp *parents) Count() int {
  */
 
 // sum returns sum of parent values.
-func (pp *parents) sum(e hash.Event) uint64 {
+func (pp *parents) sum(e hash.Event) inter.Stake {
 	event, ok := pp.cache[e]
 	if !ok {
-		return uint64(0)
+		return inter.Stake(0)
 	}
 
 	res := event.Value

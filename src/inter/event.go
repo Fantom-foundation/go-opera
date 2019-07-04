@@ -67,7 +67,7 @@ func (e *Event) Hash() hash.Event {
 // TODO: use map
 func (e *Event) FindInternalTxn(idx hash.Transaction) *InternalTransaction {
 	for _, txn := range e.InternalTransactions {
-		if TransactionHashOf(e.Creator, txn.Index) == idx {
+		if TransactionHashOf(e.Creator, txn.Nonce) == idx {
 			return txn
 		}
 	}

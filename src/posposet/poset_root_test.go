@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -141,7 +142,7 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 		if !assertar.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
 			return
 		}
-		if !assertar.Equal(mustBeFrame, frame.Index, "frame of "+name) {
+		if !assertar.Equal(idx.Frame(mustBeFrame), frame.Index, "frame of "+name) {
 			break
 		}
 	}

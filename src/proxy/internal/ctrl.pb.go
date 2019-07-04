@@ -4,14 +4,12 @@
 package internal
 
 import (
-	context "context"
 	fmt "fmt"
 	wire "github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	proto "github.com/golang/protobuf/proto"
 	empty "github.com/golang/protobuf/ptypes/empty"
+	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -24,7 +22,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type ID struct {
 	Hex                  string   `protobuf:"bytes,1,opt,name=hex,proto3" json:"hex,omitempty"`
@@ -461,26 +459,6 @@ type NodeServer interface {
 	SendTo(context.Context, *TransferRequest) (*TransferResponse, error)
 	GetTxnInfo(context.Context, *TransactionRequest) (*TransactionResponse, error)
 	SetLogLevel(context.Context, *LogLevel) (*empty.Empty, error)
-}
-
-// UnimplementedNodeServer can be embedded to have forward compatible implementations.
-type UnimplementedNodeServer struct {
-}
-
-func (*UnimplementedNodeServer) SelfID(ctx context.Context, req *empty.Empty) (*ID, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SelfID not implemented")
-}
-func (*UnimplementedNodeServer) StakeOf(ctx context.Context, req *ID) (*Balance, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StakeOf not implemented")
-}
-func (*UnimplementedNodeServer) SendTo(ctx context.Context, req *TransferRequest) (*TransferResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendTo not implemented")
-}
-func (*UnimplementedNodeServer) GetTxnInfo(ctx context.Context, req *TransactionRequest) (*TransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTxnInfo not implemented")
-}
-func (*UnimplementedNodeServer) SetLogLevel(ctx context.Context, req *LogLevel) (*empty.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetLogLevel not implemented")
 }
 
 func RegisterNodeServer(s *grpc.Server, srv NodeServer) {

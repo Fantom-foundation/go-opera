@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 )
 
@@ -72,7 +73,7 @@ func (p *grpcNodeProxy) GetSelfID() (hash.Peer, error) {
 	return hash.HexToPeer(resp.Hex), nil
 }
 
-func (p *grpcNodeProxy) StakeOf(peer hash.Peer) (uint64, error) {
+func (p *grpcNodeProxy) StakeOf(peer hash.Peer) (inter.Stake, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -80,13 +81,13 @@ func (p *grpcNodeProxy) StakeOf(peer hash.Peer) (uint64, error) {
 		Hex: peer.Hex(),
 	})
 	if err != nil {
-		return 0, unwrapGrpcErr(err)
+		return inter.Stake(0), unwrapGrpcErr(err)
 	}
 
-	return resp.Amount, nil
+	return inter.Stake(resp.Amount), nil
 }
 
-func (p *grpcNodeProxy) SendTo(receiver hash.Peer, index, amount, until uint64) (hash.Transaction, error) {
+func (p *grpcNodeProxy) SendTo(receiver hash.Peer, index idx.Txn, amount inter.Stake, until idx.Block) (hash.Transaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -94,9 +95,9 @@ func (p *grpcNodeProxy) SendTo(receiver hash.Peer, index, amount, until uint64) 
 		Receiver: &internal.ID{
 			Hex: receiver.Hex(),
 		},
-		Nonce:  index,
-		Amount: amount,
-		Until:  until,
+		Nonce:  uint64(index),
+		Amount: uint64(amount),
+		Until:  uint64(until),
 	}
 
 	resp, err := p.client.SendTo(ctx, &req)

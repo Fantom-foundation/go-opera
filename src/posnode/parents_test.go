@@ -73,7 +73,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []string) {
 	_, _, events := inter.ASCIIschemeToDAG(schema)
 
-	weights := make(map[hash.Peer]uint64)
+	weights := make(map[hash.Peer]inter.Stake)
 	for name, e := range events {
 		w, o := parseSpecName(name)
 		weights[e.Creator] = w
@@ -87,7 +87,7 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 		AnyTimes()
 	c.EXPECT().
 		StakeOf(gomock.Any()).
-		DoAndReturn(func(p hash.Peer) uint64 {
+		DoAndReturn(func(p hash.Peer) inter.Stake {
 			return weights[p]
 		}).
 		AnyTimes()
@@ -100,18 +100,17 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 	return
 }
 
-func parseSpecName(name string) (weight uint64, orderNum int64) {
+func parseSpecName(name string) (weight inter.Stake, orderNum int64) {
 	ss := strings.Split(name, ":")
 	if len(ss) != 2 {
 		panic("invalid event name format")
 	}
 
-	var err error
-
-	weight, err = strconv.ParseUint(ss[0], 10, 64)
+	w, err := strconv.ParseUint(ss[0], 10, 64)
 	if err != nil {
 		panic("invalid event name format (weight): " + err.Error())
 	}
+	weight = inter.Stake(w)
 
 	if ss[1][0] == strings.ToUpper(ss[1])[0] {
 		orderNum, err = strconv.ParseInt(ss[1][1:], 10, 64)

@@ -1,12 +1,6 @@
 syntax = "proto3";
 package wire;
 
-
-message Member {
-  bytes Addr = 1;
-  uint64 Stake = 2;
-}
-
 message Members {
-  repeated Member Members = 1;
+  map<string, uint64> All = 1;
 }

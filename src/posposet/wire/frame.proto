@@ -12,9 +12,8 @@ message Flag {
 }
 
 message Frame {
-  uint64 Index = 1;
+  uint32 Index = 1;
   repeated Flag FlagTable = 2;
-  repeated EventDescr ClothoCandidates = 3;
-  map<string, uint64> Atroposes = 4;
-  bytes Balances = 5;
+repeated EventDescr ClothoCandidates = 3;
+  bytes Balances = 4;
 }

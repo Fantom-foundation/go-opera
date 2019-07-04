@@ -7,6 +7,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+type (
+	// Stake amount.
+	Stake uint64
+)
+
 // GenEventsByNode generates random events for test purpose.
 // Result:
 //   - nodes  is an array of node addresses;

@@ -116,10 +116,10 @@ func (mr *MockConsensusMockRecorder) GetEventBlock(arg0 interface{}) *gomock.Cal
 }
 
 // StakeOf mocks base method
-func (m *MockConsensus) StakeOf(arg0 hash.Peer) uint64 {
+func (m *MockConsensus) StakeOf(arg0 hash.Peer) inter.Stake {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StakeOf", arg0)
-	ret0, _ := ret[0].(uint64)
+	ret0, _ := ret[0].(inter.Stake)
 	return ret0
 }
 

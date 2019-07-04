@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 // calculate SfWitness votes only for the new root.
 // If this root sees that the current election is decided, then @return decided SfWitness
 func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*ElectionRes, error) {
-	if len(el.decidedRoots) == len(el.nodes) {
+	if len(el.decidedRoots) == len(el.members) {
 		// current election is already decided
 		return el.chooseSfWitness()
 	}
@@ -20,11 +21,16 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 	}
 	round := newRootSlot.Frame - el.frameToDecide
 
+	var (
+		superMajority = el.members.Majority()
+		totalStake    = el.members.TotalStake()
+	)
+
 	notDecidedRoots := el.notDecidedRoots()
-	for _, nodeIdSubject := range notDecidedRoots {
+	for _, memberSubject := range notDecidedRoots {
 		slotSubject := RootSlot{
-			Frame:  el.frameToDecide,
-			Nodeid: nodeIdSubject,
+			Frame: el.frameToDecide,
+			Addr:  memberSubject,
 		}
 		vote := voteValue{}
 
@@ -40,39 +46,39 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 			seenRoots := el.stronglySeenRoots(newRoot, newRootSlot.Frame-1)
 
 			var (
-				yesVotes uint64
-				noVotes  uint64
+				yesVotes inter.Stake // TODO: yesVotes = el.members.NewCounter()
+				noVotes  inter.Stake // TODO: noVotes = el.members.NewCounter()
 			)
 
-			// calc number of "yes" and "no", weighted by node's stake
+			// calc number of "yes" and "no", weighted by member's stake
 			var subjectHash *hash.Event
 			for _, seenRoot := range seenRoots {
 				vid := voteId{
-					forNodeid: nodeIdSubject,
+					forMember: memberSubject,
 					fromRoot:  seenRoot.root,
 				}
 
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.seenRoot {
-						msg := "2 fork roots are strongly seen => more than 1/3n are Byzantine (%s != %s, election frame=%d, nodeid=%s)"
-						return nil, fmt.Errorf(msg, subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, nodeIdSubject.String())
+						msg := "2 fork roots are strongly seen => more than 1/3n are Byzantine (%s != %s, election frame=%d, member=%s)"
+						return nil, fmt.Errorf(msg, subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, memberSubject.String())
 					}
 
 					if vote.yes {
 						subjectHash = &vote.seenRoot
-						yesVotes += seenRoot.stakeAmount
+						yesVotes += seenRoot.stake
 					} else {
-						noVotes += seenRoot.stakeAmount
+						noVotes += seenRoot.stake
 					}
 				} else {
 					el.Fatal("Every root must vote for every not decided subject. Possibly roots are processed out of order, root=", newRoot.String())
 				}
 			}
 			// sanity checks
-			if (yesVotes + noVotes) < el.superMajority {
+			if (yesVotes + noVotes) < superMajority {
 				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.String())
 			}
-			if (yesVotes + noVotes) > el.totalStake {
+			if (yesVotes + noVotes) > totalStake {
 				el.Fatal("Root cannot see more than 100% of prev roots, root=", newRoot.String())
 			}
 
@@ -84,22 +90,23 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 
 			// If supermajority is seen, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-			vote.decided = yesVotes >= el.superMajority || noVotes >= el.superMajority
+			vote.decided = yesVotes >= superMajority || noVotes >= superMajority
 			if vote.decided {
-				el.decidedRoots[nodeIdSubject] = vote
+				el.decidedRoots[memberSubject] = vote
 			}
 		}
 		// save vote for next rounds
 		vid := voteId{
 			fromRoot:  newRoot,
-			forNodeid: slotSubject.Nodeid,
+			forMember: slotSubject.Addr,
 		}
 		el.votes[vid] = vote
 	}
 
-	frameDecided := len(el.decidedRoots) == len(el.nodes)
+	frameDecided := len(el.decidedRoots) == len(el.members)
 	if frameDecided {
 		return el.chooseSfWitness()
 	}
+
 	return nil, nil
 }
