@@ -95,14 +95,15 @@ func ASCIIschemeToDAG(scheme string) (
 			}
 			col++
 		}
-		// make nodes if not enough
-		for i := len(nodes); i < (col); i++ {
-			addr := hash.FakePeer(int64(i + 1))
-			nodes = append(nodes, addr)
-			events[addr] = nil
-		}
+
 		// create events
 		for i, name := range nNames {
+			// make node if don't exist
+			if len(nodes) <= nCreators[i] {
+				addr := hash.HexToPeer(name)
+				nodes = append(nodes, addr)
+				events[addr] = nil
+			}
 			// find creator
 			creator := nodes[nCreators[i]]
 			// find creator's parent
@@ -299,10 +300,10 @@ func (r *row) Position(i int) pos {
 	return last
 }
 
+// Note: after any changes below, run:
+// go test -count=100 -run="TestDAGtoASCIIschemeRand" ./src/inter
+// go test -count=1 -run="TestDAGtoASCIIschemeOptimisation" ./src/inter
 func (rr *rows) Optimize() {
-	// TODO: fix than uncomment
-	// NOTE: see `go test -count=100 -run="TestDAGtoASCIIschemeRand" ./src/inter`
-	return
 
 	for curr, row := range rr.rows {
 	REFS:
@@ -328,16 +329,81 @@ func (rr *rows) Optimize() {
 
 			row.Refs[iRef] = ref - 1
 
-			// update refs for swapped event
-			if rr.rows[prev].Refs[rr.rows[curr].Self] > 0 {
-				rr.rows[prev].Refs[rr.rows[curr].Self]++
+			// TODO: rewrite
+			pMap := make(map[int]int, len(rr.rows[prev].Refs))
+			for k, v := range rr.rows[prev].Refs {
+				pMap[k] = v
 			}
 
-			// Note: if swapped event now have refs more than before -> discard any changes for current and swapped event.
-			if rr.rows[prev].Refs[rr.rows[curr].Self] > 2 {
-				rr.rows[prev].Refs[rr.rows[curr].Self]--
-				row.Refs[iRef] = ref
-				continue
+			if _, ok := pMap[rr.rows[curr].Self]; ok {
+				// update refs for swapped event (to current event only)
+				if rr.rows[prev].Refs[rr.rows[curr].Self] > 0 {
+					rr.rows[prev].Refs[rr.rows[curr].Self]++
+				}
+
+				// Note: if swapped event now have refs more than before -> discard any changes for current and swapped event.
+				if rr.rows[prev].Refs[rr.rows[curr].Self] > 2 {
+					rr.rows[prev].Refs[rr.rows[curr].Self]--
+					row.Refs[iRef] = ref
+					continue
+				}
+			}
+
+			// TODO: check regression for prev event
+			iter := prev + 1
+			// check remaining refs for prev event (for events after prev but before curr)
+			for pRef, v := range rr.rows[prev].Refs {
+				if iter == curr {
+					break
+				}
+
+				// skip self or empty refs
+				if pRef == rr.rows[prev].Self || v == 0 {
+					continue
+				}
+
+				// Example:
+				//
+				// ╠═════╬════ d003  ║    prev: d003
+				// ║     ║     ║     ║    next: b004
+				// b004═─╫─════╣     ║    curr: e002
+				// ║     ║     ║3    ║
+				// ╠════─╫─═══─╫╩═══ e002
+
+				// if next event (after prev but before curr) have refs to prev -> discard swap prev and curr event.
+				for tK := range rr.rows[iter].Refs {
+					if tK == rr.rows[prev].Self {
+						row.Refs[iRef] = ref
+						continue REFS
+					}
+				}
+
+				// Example:
+				//
+				// ║     ╠═════╬════ d003  ║       // update remaining [d003] refs for successfully swap d003 <--> e002
+				// ║     ║     ║     ║     ║
+				// ╠═════╬════ c004  ║     ║       prev: d003
+				// ║     ║     ║     ║3    ║       next: c004
+				// ╠════─╫─═══─╫─═══─╫╩═══ e002    curr: e002
+
+				// update remaining refs for prev event (ref for curr event should be updated before)
+				for {
+					if pRef == rr.rows[iter].Self {
+						rr.rows[prev].Refs[pRef]++
+						// update current prev ref & reset iter for next prev ref
+						iter = prev + 1
+						break
+					}
+
+					if iter < curr {
+						iter++
+						continue
+					}
+
+					// reset iter for next prev ref
+					iter = prev + 1
+					break
+				}
 			}
 
 			// for fill empty space after swap (for graph)
@@ -351,6 +417,9 @@ func (rr *rows) Optimize() {
 
 			// swap with prev event
 			rr.rows[curr], rr.rows[prev] = rr.rows[prev], rr.rows[curr]
+
+			// update index for current event
+			curr = prev
 		}
 	}
 }
@@ -412,7 +481,7 @@ func (rr *rows) String() string {
 				case left:
 					out("─╫╩" + link(rr.ColWidth-1))
 				case right:
-					out("╩╫─" + link(rr.ColWidth))
+					out("╩╫─" + link(rr.ColWidth-1))
 				case pass:
 					out("─╫─" + link(rr.ColWidth-1))
 				default:
