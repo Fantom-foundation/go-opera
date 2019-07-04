@@ -108,12 +108,14 @@ func (p *Poset) setFrameSaving(f *Frame) {
 	}
 }
 
+// LastSuperFrame returns super-frame and list of peers
 func (p *Poset) LastSuperFrame() (uint64, []hash.Peer) {
 	n := atomic.LoadUint64(&p.state.SuperFrameN)
 
 	return n, p.SuperFrame(n)
 }
 
+// SuperFrame returns list of peers for n super-frame
 func (p *Poset) SuperFrame(n uint64) []hash.Peer {
 	members := p.store.GetMembers(n).ToWire().Members
 
