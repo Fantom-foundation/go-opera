@@ -38,6 +38,13 @@ func (mm members) Top() members {
 	return top
 }
 
+func (mm members) TotalStake() (sum uint64) {
+	for _, m := range mm {
+		sum += m.Stake
+	}
+	return
+}
+
 func (mm members) ToWire() *wire.Members {
 	w := &wire.Members{}
 

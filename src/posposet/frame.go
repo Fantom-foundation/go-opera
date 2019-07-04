@@ -14,7 +14,7 @@ type Frame struct {
 	FlagTable        FlagTable
 	ClothoCandidates EventsByPeer
 	Atroposes        TimestampsByEvent
-	Balances         hash.Hash
+	Balances         hash.Hash // TODO: move to super-frame
 
 	save func()
 }

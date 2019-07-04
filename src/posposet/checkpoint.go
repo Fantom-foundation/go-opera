@@ -71,6 +71,9 @@ func (p *Poset) Bootstrap() {
 	if p.checkpoint == nil {
 		p.Fatal("Apply genesis for store first")
 	}
+	// restore current super-frame
+	p.members = p.store.GetMembers(p.SuperFrameN)
+
 	// restore frames
 	for n := p.LastFinishedFrameN(); true; n++ {
 		if f := p.store.GetFrame(n, p.SuperFrameN); f != nil {
