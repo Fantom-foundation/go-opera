@@ -48,7 +48,7 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 	}
 }
 
-func (p Poset) superMajority() uint64 {
+func (p *Poset) superMajority() uint64 {
 	return p.superFrame.sumOfStakes()*2/3 + 1
 }
 
