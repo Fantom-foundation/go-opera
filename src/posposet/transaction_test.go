@@ -28,7 +28,7 @@ func TestPosetTxn(t *testing.T) {
 
 		e.InternalTransactions = append(e.InternalTransactions,
 			&inter.InternalTransaction{
-				Index:    0,
+				Nonce:    0,
 				Amount:   1,
 				Receiver: nodes[1],
 			})

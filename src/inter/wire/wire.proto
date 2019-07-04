@@ -5,7 +5,7 @@ option go_package = "github.com/Fantom-foundation/go-lachesis/src/inter/wire";
 package wire;
 
 message InternalTransaction {
-  uint64 Index = 1;
+  uint64 Nonce = 1;
   uint64 Amount = 2;
   string Receiver = 3;
   uint64 UntilBlock = 4;

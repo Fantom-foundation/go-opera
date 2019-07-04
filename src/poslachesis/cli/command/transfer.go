@@ -4,24 +4,35 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // Transfer makes a transaction for stake transfer.
 var Transfer = &cobra.Command{
 	Use:   "transfer",
 	Short: "Transfers a balance amount to given receiver",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		index, err := cmd.Flags().GetUint64("index")
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
+		var (
+			raw uint64
+			hex string
+		)
+
+		raw, err = cmd.Flags().GetUint64("index")
 		if err != nil {
-			return err
+			return
 		}
-		amount, err := cmd.Flags().GetUint64("amount")
+		index := idx.Txn(raw)
+
+		raw, err = cmd.Flags().GetUint64("amount")
 		if err != nil {
-			return err
+			return
 		}
-		hex, err := cmd.Flags().GetString("receiver")
+		amount := inter.Stake(raw)
+
+		hex, err = cmd.Flags().GetString("receiver")
 		if err != nil {
-			return err
+			return
 		}
 		receiver := hash.HexToPeer(hex)
 

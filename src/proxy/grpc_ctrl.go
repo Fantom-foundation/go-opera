@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
@@ -90,7 +91,7 @@ func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.ID,
 func (p *grpcCtrlProxy) StakeOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
 	id := hash.HexToPeer(req.Hex)
 	b := internal.Balance{
-		Amount: p.consensus.StakeOf(id),
+		Amount: uint64(p.consensus.StakeOf(id)),
 	}
 
 	return &b, nil
@@ -127,10 +128,10 @@ func (p *grpcCtrlProxy) GetTxnInfo(_ context.Context, req *internal.TransactionR
 // TODO: replace TransferRequest with inter/wire.InternalTransaction
 func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest) (*internal.TransferResponse, error) {
 	tx := inter.InternalTransaction{
-		Index:      req.Nonce,
-		Amount:     req.Amount,
+		Nonce:      idx.Txn(req.Nonce),
+		Amount:     inter.Stake(req.Amount),
 		Receiver:   hash.HexToPeer(req.Receiver.Hex),
-		UntilBlock: req.Until,
+		UntilBlock: idx.Block(req.Until),
 	}
 
 	h, err := p.node.AddInternalTxn(tx)

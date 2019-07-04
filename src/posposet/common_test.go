@@ -10,9 +10,9 @@ import (
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
 // Input event order doesn't matter.
 func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
-	balances := make(map[hash.Peer]uint64, len(nodes))
+	balances := make(map[hash.Peer]inter.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = uint64(1)
+		balances[addr] = inter.Stake(1)
 	}
 
 	store := NewMemStore()

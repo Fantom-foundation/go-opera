@@ -2,7 +2,7 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -10,11 +10,13 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index            uint64
-	FlagTable        FlagTable
+	Index     idx.Frame
+	FlagTable FlagTable
+
+	Balances hash.Hash // TODO: move to super-frame
+
+	// TODO @dagchain should be roots only
 	ClothoCandidates EventsByPeer
-	Atroposes        TimestampsByEvent
-	Balances         hash.Hash // TODO: move to super-frame
 
 	save func()
 }
@@ -36,25 +38,16 @@ func (f *Frame) AddRootsOf(event hash.Event, roots EventsByPeer) {
 	}
 }
 
+// GetRootsOf returns known roots of event. For read only, please.
+func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
+	return f.FlagTable[event]
+}
+
 // AddClothoCandidate adds event into ClothoCandidates list.
 func (f *Frame) AddClothoCandidate(event hash.Event, creator hash.Peer) {
 	if f.ClothoCandidates.AddOne(event, creator) {
 		f.Save()
 	}
-}
-
-// SetAtropos makes Atropos from Clotho and consensus time.
-func (f *Frame) SetAtropos(clotho hash.Event, consensusTime inter.Timestamp) {
-	if t, ok := f.Atroposes[clotho]; ok && t == consensusTime {
-		return
-	}
-	f.Atroposes[clotho] = consensusTime
-	f.Save()
-}
-
-// GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
-	return f.FlagTable[event]
 }
 
 // SetBalances saves PoS-balances state.
@@ -70,10 +63,9 @@ func (f *Frame) SetBalances(balances hash.Hash) bool {
 // ToWire converts to proto.Message.
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
-		Index:            f.Index,
+		Index:            uint32(f.Index),
 		FlagTable:        f.FlagTable.ToWire(),
 		ClothoCandidates: f.ClothoCandidates.ToWire(),
-		Atroposes:        f.Atroposes.ToWire(),
 		Balances:         f.Balances.Bytes(),
 	}
 }
@@ -84,10 +76,9 @@ func WireToFrame(w *wire.Frame) *Frame {
 		return nil
 	}
 	return &Frame{
-		Index:            w.Index,
+		Index:            idx.Frame(w.Index),
 		FlagTable:        WireToFlagTable(w.FlagTable),
 		ClothoCandidates: WireToEventsByPeer(w.ClothoCandidates),
-		Atroposes:        WireToTimestampsByEvent(w.Atroposes),
 		Balances:         hash.FromBytes(w.Balances),
 	}
 }

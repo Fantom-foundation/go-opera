@@ -6,6 +6,7 @@ package posnode
 
 import (
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
+	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -60,10 +61,10 @@ func (mr *MockConsensusMockRecorder) PushEvent(arg0 interface{}) *gomock.Call {
 }
 
 // StakeOf mocks base method
-func (m *MockConsensus) StakeOf(arg0 hash.Peer) uint64 {
+func (m *MockConsensus) StakeOf(arg0 hash.Peer) inter.Stake {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StakeOf", arg0)
-	ret0, _ := ret[0].(uint64)
+	ret0, _ := ret[0].(inter.Stake)
 	return ret0
 }
 

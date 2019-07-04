@@ -2,6 +2,7 @@ package lachesis
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy"
@@ -45,7 +46,7 @@ func (l *Lachesis) serviceStart() {
 		}
 		defer app.Close()
 
-		err = l.consensus.OnNewBlock(func(blockNumber uint64) {
+		err = l.consensus.OnNewBlock(func(blockNumber idx.Block) {
 			b := l.consensusStore.GetBlock(blockNumber)
 			block := l.toLegacyBlock(b)
 			_, _ = app.CommitBlock(*block)

@@ -75,7 +75,7 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 		return hash.Transaction{}, fmt.Errorf("insufficient funds %d to transfer %d", balance, tx.Amount)
 	}
 
-	idx := inter.TransactionHashOf(n.ID, tx.Index)
+	idx := inter.TransactionHashOf(n.ID, tx.Nonce)
 
 	n.emitter.Lock()
 	defer n.emitter.Unlock()

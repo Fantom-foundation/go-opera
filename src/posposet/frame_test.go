@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -30,16 +31,10 @@ func TestFrameSerialization(t *testing.T) {
 		}
 	}
 
-	timestamps := TimestampsByEvent{
-		hash.FakeEvent(): inter.Timestamp(0),
-		hash.FakeEvent(): inter.Timestamp(rand.Uint64()),
-	}
-
 	f0 := &Frame{
-		Index:            rand.Uint64(),
+		Index:            idx.Frame(rand.Uint64()),
 		FlagTable:        flagTable,
 		ClothoCandidates: cc,
-		Atroposes:        timestamps,
 		Balances:         hash.FakeHash(),
 	}
 	buf, err := proto.Marshal(f0.ToWire())

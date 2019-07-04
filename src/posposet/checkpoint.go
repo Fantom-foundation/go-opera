@@ -4,37 +4,40 @@ import (
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // checkpoint is for persistent storing.
 type checkpoint struct {
-	SuperFrameN        uint64
-	lastFinishedFrameN uint64
-	LastBlockN         uint64
+	SuperFrameN        idx.SuperFrame
+	lastFinishedFrameN idx.Frame
+	LastBlockN         idx.Block
 	Genesis            hash.Hash
-	TotalCap           uint64
+	TotalCap           inter.Stake
 }
 
 // LastFinishedFrameN is a getter of lastFinishedFrameN.
-func (cp *checkpoint) LastFinishedFrameN() uint64 {
-	return atomic.LoadUint64(&cp.lastFinishedFrameN)
+func (cp *checkpoint) LastFinishedFrameN() idx.Frame {
+	return idx.Frame(atomic.LoadUint32((*uint32)(&cp.lastFinishedFrameN)))
 }
 
 // LastFinishedFrame is a setter of lastFinishedFrameN.
-func (cp *checkpoint) LastFinishedFrame(N uint64) {
-	atomic.StoreUint64(&cp.lastFinishedFrameN, N)
+func (cp *checkpoint) LastFinishedFrame(N idx.Frame) {
+	atomic.StoreUint32((*uint32)(&cp.lastFinishedFrameN), uint32(N))
 }
 
 // ToWire converts to proto.Message.
 func (cp *checkpoint) ToWire() *wire.Checkpoint {
 	return &wire.Checkpoint{
-		SuperFrameN:        cp.SuperFrameN,
-		LastFinishedFrameN: cp.LastFinishedFrameN(),
-		LastBlockN:         cp.LastBlockN,
+		SuperFrameN:        uint64(cp.SuperFrameN),
+		LastFinishedFrameN: uint32(cp.LastFinishedFrameN()),
+		LastBlockN:         uint64(cp.LastBlockN),
 		Genesis:            cp.Genesis.Bytes(),
-		TotalCap:           cp.TotalCap,
+		TotalCap:           uint64(cp.TotalCap),
 	}
 }
 
@@ -44,11 +47,11 @@ func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 		return nil
 	}
 	return &checkpoint{
-		SuperFrameN:        w.SuperFrameN,
-		lastFinishedFrameN: w.LastFinishedFrameN,
-		LastBlockN:         w.LastBlockN,
+		SuperFrameN:        idx.SuperFrame(w.SuperFrameN),
+		lastFinishedFrameN: idx.Frame(w.LastFinishedFrameN),
+		LastBlockN:         idx.Block(w.LastBlockN),
 		Genesis:            hash.FromBytes(w.Genesis),
-		TotalCap:           w.TotalCap,
+		TotalCap:           inter.Stake(w.TotalCap),
 	}
 }
 
@@ -73,6 +76,7 @@ func (p *Poset) Bootstrap() {
 	}
 	// restore current super-frame
 	p.members = p.store.GetMembers(p.SuperFrameN)
+	p.election = election.NewElection(p.members, p.checkpoint.lastFinishedFrameN+1, p.rootStronglySeeRoot)
 
 	// restore frames
 	for n := p.LastFinishedFrameN(); true; n++ {
@@ -93,7 +97,7 @@ func (p *Poset) GetGenesisHash() hash.Hash {
 }
 
 // GenesisHash calcs hash of genesis balances.
-func genesisHash(balances map[hash.Peer]uint64) hash.Hash {
+func genesisHash(balances map[hash.Peer]inter.Stake) hash.Hash {
 	s := NewMemStore()
 	defer s.Close()
 

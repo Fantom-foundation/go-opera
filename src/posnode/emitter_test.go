@@ -20,7 +20,7 @@ func TestAddInternalTxn(t *testing.T) {
 	consensus := NewMockConsensus(ctrl)
 	consensus.EXPECT().
 		StakeOf(gomock.Any()).
-		Return(uint64(2000)).
+		Return(inter.Stake(2000)).
 		AnyTimes()
 
 	node := NewForTests("fake", NewMemStore(), consensus)
@@ -30,7 +30,7 @@ func TestAddInternalTxn(t *testing.T) {
 		assertar := assert.New(t)
 
 		tx := inter.InternalTransaction{
-			Index:    1,
+			Nonce:    1,
 			Amount:   1000,
 			Receiver: peer,
 		}
@@ -47,7 +47,7 @@ func TestAddInternalTxn(t *testing.T) {
 		assertar := assert.New(t)
 
 		tx := inter.InternalTransaction{
-			Index:    2,
+			Nonce:    2,
 			Amount:   1000,
 			Receiver: peer,
 		}

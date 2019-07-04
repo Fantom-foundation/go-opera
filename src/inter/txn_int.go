@@ -1,17 +1,17 @@
 package inter
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // InternalTransaction is for stake transfer.
 type InternalTransaction struct {
-	Index      uint64
-	Amount     uint64
+	Nonce      idx.Txn
+	Amount     Stake
 	Receiver   hash.Peer
-	UntilBlock uint64
+	UntilBlock idx.Block
 }
 
 // ToWire converts to wire.
@@ -20,10 +20,10 @@ func (tx *InternalTransaction) ToWire() *wire.InternalTransaction {
 		return nil
 	}
 	return &wire.InternalTransaction{
-		Index:      tx.Index,
-		Amount:     tx.Amount,
+		Nonce:      uint64(tx.Nonce),
+		Amount:     uint64(tx.Amount),
 		Receiver:   tx.Receiver.Hex(),
-		UntilBlock: tx.UntilBlock,
+		UntilBlock: uint64(tx.UntilBlock),
 	}
 }
 
@@ -33,10 +33,10 @@ func WireToInternalTransaction(w *wire.InternalTransaction) *InternalTransaction
 		return nil
 	}
 	return &InternalTransaction{
-		Index:      w.Index,
-		Amount:     w.Amount,
+		Nonce:      idx.Txn(w.Nonce),
+		Amount:     Stake(w.Amount),
 		Receiver:   hash.HexToPeer(w.Receiver),
-		UntilBlock: w.UntilBlock,
+		UntilBlock: idx.Block(w.UntilBlock),
 	}
 }
 
@@ -71,7 +71,7 @@ func WireToInternalTransactions(tt []*wire.InternalTransaction) []*InternalTrans
  */
 
 // TransactionHashOf calcs hash of transaction.
-func TransactionHashOf(sender hash.Peer, nonce uint64) hash.Transaction {
-	buf := append(sender.Bytes(), common.IntToBytes(nonce)...)
+func TransactionHashOf(sender hash.Peer, nonce idx.Txn) hash.Transaction {
+	buf := append(sender.Bytes(), nonce.Bytes()...)
 	return hash.Transaction(hash.Of(buf))
 }

@@ -20,65 +20,18 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type Member struct {
-	Addr                 []byte   `protobuf:"bytes,1,opt,name=Addr,proto3" json:"Addr,omitempty"`
-	Stake                uint64   `protobuf:"varint,2,opt,name=Stake,proto3" json:"Stake,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Member) Reset()         { *m = Member{} }
-func (m *Member) String() string { return proto.CompactTextString(m) }
-func (*Member) ProtoMessage()    {}
-func (*Member) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a130ba3d4c49b931, []int{0}
-}
-
-func (m *Member) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Member.Unmarshal(m, b)
-}
-func (m *Member) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Member.Marshal(b, m, deterministic)
-}
-func (m *Member) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Member.Merge(m, src)
-}
-func (m *Member) XXX_Size() int {
-	return xxx_messageInfo_Member.Size(m)
-}
-func (m *Member) XXX_DiscardUnknown() {
-	xxx_messageInfo_Member.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Member proto.InternalMessageInfo
-
-func (m *Member) GetAddr() []byte {
-	if m != nil {
-		return m.Addr
-	}
-	return nil
-}
-
-func (m *Member) GetStake() uint64 {
-	if m != nil {
-		return m.Stake
-	}
-	return 0
-}
-
 type Members struct {
-	Members              []*Member `protobuf:"bytes,1,rep,name=Members,proto3" json:"Members,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	All                  map[string]uint64 `protobuf:"bytes,1,rep,name=All,proto3" json:"All,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *Members) Reset()         { *m = Members{} }
 func (m *Members) String() string { return proto.CompactTextString(m) }
 func (*Members) ProtoMessage()    {}
 func (*Members) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a130ba3d4c49b931, []int{1}
+	return fileDescriptor_a130ba3d4c49b931, []int{0}
 }
 
 func (m *Members) XXX_Unmarshal(b []byte) error {
@@ -99,28 +52,29 @@ func (m *Members) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Members proto.InternalMessageInfo
 
-func (m *Members) GetMembers() []*Member {
+func (m *Members) GetAll() map[string]uint64 {
 	if m != nil {
-		return m.Members
+		return m.All
 	}
 	return nil
 }
 
 func init() {
-	proto.RegisterType((*Member)(nil), "wire.Member")
 	proto.RegisterType((*Members)(nil), "wire.Members")
+	proto.RegisterMapType((map[string]uint64)(nil), "wire.Members.AllEntry")
 }
 
 func init() { proto.RegisterFile("members.proto", fileDescriptor_a130ba3d4c49b931) }
 
 var fileDescriptor_a130ba3d4c49b931 = []byte{
-	// 119 bytes of a gzipped FileDescriptorProto
+	// 133 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcd, 0x4d, 0xcd, 0x4d,
 	0x4a, 0x2d, 0x2a, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xcf, 0x2c, 0x4a, 0x55,
-	0x32, 0xe2, 0x62, 0xf3, 0x05, 0x0b, 0x0b, 0x09, 0x71, 0xb1, 0x38, 0xa6, 0xa4, 0x14, 0x49, 0x30,
-	0x2a, 0x30, 0x6a, 0xf0, 0x04, 0x81, 0xd9, 0x42, 0x22, 0x5c, 0xac, 0xc1, 0x25, 0x89, 0xd9, 0xa9,
-	0x12, 0x4c, 0x0a, 0x8c, 0x1a, 0x2c, 0x41, 0x10, 0x8e, 0x92, 0x21, 0x17, 0x3b, 0x44, 0x4f, 0xb1,
-	0x90, 0x1a, 0x9c, 0x29, 0xc1, 0xa8, 0xc0, 0xac, 0xc1, 0x6d, 0xc4, 0xa3, 0x07, 0x32, 0x56, 0x0f,
-	0x22, 0x18, 0x04, 0x93, 0x4c, 0x62, 0x03, 0xdb, 0x69, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x43,
-	0x34, 0x23, 0x62, 0x84, 0x00, 0x00, 0x00,
+	0xca, 0xe6, 0x62, 0xf7, 0x85, 0x08, 0x0b, 0x69, 0x70, 0x31, 0x3b, 0xe6, 0xe4, 0x48, 0x30, 0x2a,
+	0x30, 0x6b, 0x70, 0x1b, 0x89, 0xe9, 0x81, 0xa4, 0xf5, 0xa0, 0x72, 0x7a, 0x8e, 0x39, 0x39, 0xae,
+	0x79, 0x25, 0x45, 0x95, 0x41, 0x20, 0x25, 0x52, 0x66, 0x5c, 0x1c, 0x30, 0x01, 0x21, 0x01, 0x2e,
+	0xe6, 0xec, 0xd4, 0x4a, 0x09, 0x46, 0x05, 0x46, 0x0d, 0xce, 0x20, 0x10, 0x53, 0x48, 0x84, 0x8b,
+	0xb5, 0x2c, 0x31, 0xa7, 0x34, 0x55, 0x82, 0x49, 0x81, 0x51, 0x83, 0x25, 0x08, 0xc2, 0xb1, 0x62,
+	0xb2, 0x60, 0x4c, 0x62, 0x03, 0xdb, 0x6c, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x0e, 0x0f, 0xd3,
+	0xf0, 0x8a, 0x00, 0x00, 0x00,
 }

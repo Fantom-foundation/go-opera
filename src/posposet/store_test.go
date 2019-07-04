@@ -84,9 +84,9 @@ func benchmarkStore(b *testing.B, cached bool) {
 }
 
 func benchPoset(nodes []hash.Peer, input EventSource, store *Store, cached bool) *Poset {
-	balances := make(map[hash.Peer]uint64, len(nodes))
+	balances := make(map[hash.Peer]inter.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = uint64(1)
+		balances[addr] = inter.Stake(1)
 	}
 
 	if err := store.ApplyGenesis(balances); err != nil {
