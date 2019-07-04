@@ -10,10 +10,13 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index            uint64
-	FlagTable        FlagTable
+	Index     uint64
+	FlagTable FlagTable
+
+	// TODO @dagchain should be roots only
 	ClothoCandidates EventsByPeer
 	Atroposes        TimestampsByEvent
+
 	Balances         hash.Hash // TODO: move to super-frame
 
 	save func()
