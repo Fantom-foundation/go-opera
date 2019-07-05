@@ -1,47 +1,16 @@
 package seeing
 
 import (
-	"bytes"
-	"sort"
-
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-// Event is a poset event for internal purpose.
+// Event is a seeing event for internal purpose.
 type Event struct {
 	*inter.Event
 
-	CreatorSeq          int64
-	FirstDescendantsSeq []int64 // 0 <= FirstDescendantsSeq[i] <= 9223372036854775807
-	LastAncestorsSeq    []int64 // -1 <= LastAncestorsSeq[i] <= 9223372036854775807
-	FirstDescendants    []hash.Event
-	LastAncestors       []hash.Event
-}
-
-// SelfParent returns self parent from event. If it returns "false" then a self
-// parent is missing.
-func (e *Event) SelfParent() (hash.Event, bool) {
-	for parent := range e.Parents {
-		if bytes.Equal(e.Creator.Bytes(), parent.Bytes()) {
-			return parent, true
-		}
-	}
-
-	return hash.Event{}, false
-}
-
-// OtherParents returns "other parents" sorted slice.
-func (e *Event) OtherParents() hash.EventsSlice {
-	parents := e.Parents.Copy()
-
-	sp, ok := e.SelfParent()
-	if ok {
-		delete(parents, sp)
-	}
-
-	events := parents.Slice()
-	sort.Sort(events)
-
-	return events
+	CreatorN int // node index
+	// by node indexes (event idx starts from 1, so 0 means "no one"):
+	LowestSees  []idx.Event // first events heights who sees it
+	HighestSeen []idx.Event // last events heights who is seen by it
 }
