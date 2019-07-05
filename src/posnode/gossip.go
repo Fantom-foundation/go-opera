@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -167,10 +168,11 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 }
 
 func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.Peer]uint64, error) {
-	knowns := n.knownEvents()
+	sf, knowns := n.knownEvents(0)
 
 	req := &api.KnownEvents{
-		Lasts: make(map[string]uint64, len(knowns)),
+		SuperFrameN: uint64(sf),
+		Lasts:       make(map[string]uint64, len(knowns)),
 	}
 	for id, h := range knowns {
 		req.Lasts[id.Hex()] = h
@@ -189,6 +191,25 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 
 	if *id != peer.ID {
 		// TODO: skip or continue gossiping with peer id ?
+	}
+
+	if resp.SuperFrameN != req.SuperFrameN {
+		err = fmt.Errorf("unexpected super-frame-index %d, expected %d", resp.SuperFrameN, req.SuperFrameN)
+		n.gossipFail(peer, err)
+		return nil, err
+	}
+
+	if req.SuperFrameN != 0 {
+		if len(resp.Lasts) != len(req.Lasts) {
+			err = fmt.Errorf("unexpected super-frame-members are different")
+			return nil, err
+		}
+		for member := range req.Lasts {
+			if _, ok := resp.Lasts[member]; !ok {
+				err = fmt.Errorf("unexpected super-frame-members are different")
+				return nil, err
+			}
+		}
 	}
 
 	res := make(map[hash.Peer]uint64, len(resp.Lasts))
@@ -246,9 +267,27 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	return event, nil
 }
 
-// knownEventsReq makes request struct with event heights of top peers.
-func (n *Node) knownEvents() map[hash.Peer]uint64 {
-	peers := n.peers.Snapshot()
+// knownEventsReq returns event heights of requested super-frame
+// (req == 0 means last super-frame).
+func (n *Node) knownEvents(req idx.SuperFrame) (idx.SuperFrame, map[hash.Peer]uint64) {
+	if n.consensus != nil {
+		var peers []hash.Peer
+		if req == 0 {
+			req, peers = n.consensus.LastSuperFrame()
+		} else {
+			peers = n.consensus.SuperFrame(req)
+		}
+		return req, n.peersWithHeight(peers)
+	}
+
+	if req != 0 {
+		return req, map[hash.Peer]uint64{}
+	}
+
+	return 0, n.peersWithHeight(n.peers.Snapshot())
+}
+
+func (n *Node) peersWithHeight(peers []hash.Peer) map[hash.Peer]uint64 {
 	peers = append(peers, n.ID)
 
 	res := make(map[hash.Peer]uint64, len(peers))

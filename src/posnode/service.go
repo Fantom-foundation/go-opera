@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
@@ -66,15 +67,17 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	}
 
 	// response
-	knowns := n.knownEvents()
+	sf, knowns := n.knownEvents(idx.SuperFrame(req.SuperFrameN))
+
 	knownLasts := make(map[string]uint64, len(knowns))
 	for id, h := range knowns {
 		knownLasts[id.Hex()] = h
 	}
-	// TODO: should we remember other node's knowns for future request?
-	// to_download := PeersHeightsDiff(req.Lasts, known)
-	diff := PeersHeightsDiff(knownLasts, req.Lasts)
-	return &api.KnownEvents{Lasts: diff}, nil
+
+	return &api.KnownEvents{
+		SuperFrameN: uint64(sf),
+		Lasts:       knownLasts,
+	}, nil
 }
 
 // GetEvent returns requested event.

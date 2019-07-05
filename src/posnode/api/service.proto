@@ -11,7 +11,8 @@ service Node {
 
 
 message KnownEvents {
-    map<string,uint64> Lasts = 1;
+    uint64 SuperFrameN = 1;
+    map<string,uint64> Lasts = 2;
 }
 
 message EventRequest {

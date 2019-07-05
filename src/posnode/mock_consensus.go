@@ -7,6 +7,7 @@ package posnode
 import (
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
+	idx "github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -48,6 +49,21 @@ func (mr *MockConsensusMockRecorder) GetGenesisHash() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisHash", reflect.TypeOf((*MockConsensus)(nil).GetGenesisHash))
 }
 
+// LastSuperFrame mocks base method
+func (m *MockConsensus) LastSuperFrame() (idx.SuperFrame, []hash.Peer) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LastSuperFrame")
+	ret0, _ := ret[0].(idx.SuperFrame)
+	ret1, _ := ret[1].([]hash.Peer)
+	return ret0, ret1
+}
+
+// LastSuperFrame indicates an expected call of LastSuperFrame
+func (mr *MockConsensusMockRecorder) LastSuperFrame() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastSuperFrame", reflect.TypeOf((*MockConsensus)(nil).LastSuperFrame))
+}
+
 // PushEvent mocks base method
 func (m *MockConsensus) PushEvent(arg0 hash.Event) {
 	m.ctrl.T.Helper()
@@ -72,4 +88,18 @@ func (m *MockConsensus) StakeOf(arg0 hash.Peer) inter.Stake {
 func (mr *MockConsensusMockRecorder) StakeOf(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StakeOf", reflect.TypeOf((*MockConsensus)(nil).StakeOf), arg0)
+}
+
+// SuperFrame mocks base method
+func (m *MockConsensus) SuperFrame(arg0 idx.SuperFrame) []hash.Peer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SuperFrame", arg0)
+	ret0, _ := ret[0].([]hash.Peer)
+	return ret0
+}
+
+// SuperFrame indicates an expected call of SuperFrame
+func (mr *MockConsensusMockRecorder) SuperFrame(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFrame", reflect.TypeOf((*MockConsensus)(nil).SuperFrame), arg0)
 }
