@@ -329,7 +329,7 @@ func (rr *rows) Optimize() {
 
 			row.Refs[iRef] = ref - 1
 
-			if len(rr.rows[prev].Refs)>rr.rows[curr].Self {
+			if len(rr.rows[prev].Refs) > rr.rows[curr].Self {
 				// update refs for swapped event (to current event only)
 				if rr.rows[prev].Refs[rr.rows[curr].Self] > 0 {
 					rr.rows[prev].Refs[rr.rows[curr].Self]++
@@ -343,7 +343,6 @@ func (rr *rows) Optimize() {
 				}
 			}
 
-			// TODO: check regression for prev event
 			iter := prev + 1
 			// check remaining refs for prev event (for events after prev but before curr)
 			for pRef, v := range rr.rows[prev].Refs {
@@ -384,6 +383,11 @@ func (rr *rows) Optimize() {
 				for {
 					if pRef == rr.rows[iter].Self {
 						rr.rows[prev].Refs[pRef]++
+
+						if rr.rows[prev].Refs[pRef] > 2 {
+							rr.rows[prev].Refs[pRef]--
+						}
+
 						// update current prev ref & reset iter for next prev ref
 						iter = prev + 1
 						break
