@@ -21,6 +21,7 @@ func (mm Members) NewCounter() *stakeCounter {
 
 func newStakeCounter(mm Members) *stakeCounter {
 	return &stakeCounter{
+		members:  mm,
 		majority: mm.Majority(),
 		already:  make(map[hash.Peer]struct{}),
 	}
