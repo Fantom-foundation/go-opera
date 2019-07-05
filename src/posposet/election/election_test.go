@@ -16,7 +16,7 @@ import (
 
 type fakeEdge struct {
 	from hash.Event
-	to   RootSlot
+	to   Slot
 }
 
 type (
@@ -203,14 +203,14 @@ func testProcessRoot(
 
 	// events:
 	events := make(map[hash.Event]*inter.Event)
-	vertices := make(map[hash.Event]RootSlot)
+	vertices := make(map[hash.Event]Slot)
 	edges := make(map[fakeEdge]hash.Event)
 
 	for dsc, root := range named {
 		events[root.Hash()] = root
 		h := root.Hash()
 
-		vertices[h] = RootSlot{
+		vertices[h] = Slot{
 			Frame: frameOf(dsc),
 			Addr:  root.Creator,
 		}
@@ -239,7 +239,7 @@ func testProcessRoot(
 	}
 
 	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
+	stronglySeeFn := func(a hash.Event, b Slot) *hash.Event {
 		edge := fakeEdge{
 			from: a,
 			to:   b,
@@ -267,7 +267,10 @@ func testProcessRoot(
 			if !ok {
 				t.Fatal("inconsistent vertices")
 			}
-			got, err := election.ProcessRoot(rootHash, rootSlot)
+			got, err := election.ProcessRoot(RootAndSlot{
+				Root: rootHash,
+				Slot: rootSlot,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}

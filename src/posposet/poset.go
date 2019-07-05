@@ -128,7 +128,7 @@ func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) 
 	return nil
 }
 
-func (p *Poset) getRoots(slot election.RootSlot) hash.Events {
+func (p *Poset) getRoots(slot election.Slot) hash.Events {
 	frame, ok := p.frames[slot.Frame]
 	if !ok {
 		return nil
@@ -141,8 +141,10 @@ func (p *Poset) getRoots(slot election.RootSlot) hash.Events {
 }
 
 // TODO @dagchain
-// @return hash of B if root A strongly sees some root B in the specified slot
-func (p *Poset) rootStronglySeeRoot(a hash.Event, bSlot election.RootSlot) *hash.Event {
+// @return hash of root B, if root A strongly sees root B.
+// Due to a fork, there may be many roots B with the same slot,
+// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
+func (p *Poset) rootStronglySeeRoot(a hash.Event, bSlot election.Slot) *hash.Event {
 	// A doesn’t exist
 	//   return nil
 	// there’s no root B with {frame height B, node id B}
@@ -169,9 +171,13 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 	p.Debugf("consensus: %s is root", event.String())
 	// process election for the new root
-	decided, err := p.election.ProcessRoot(event.Hash(), election.RootSlot{
+	slot := election.Slot{
 		Frame: frame.Index,
 		Addr:  event.Creator,
+	}
+	decided, err := p.election.ProcessRoot(election.RootAndSlot{
+		Root: event.Hash(),
+		Slot: slot,
 	})
 	if err != nil {
 		p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
