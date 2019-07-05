@@ -7,9 +7,10 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -74,7 +75,7 @@ func (s *Store) Close() {
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
+func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 	if balances == nil {
 		return fmt.Errorf("balances shouldn't be nil")
 	}
@@ -93,7 +94,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
 		TotalCap:           0,
 	}
 
-	mm := make(members.Members, 0, len(balances))
+	mm := make(internal.Members, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {

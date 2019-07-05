@@ -6,24 +6,25 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // eventsByFrame maps frame num --> roots.
-type eventsByFrame map[uint64]EventsByPeer
+type eventsByFrame map[idx.Frame]EventsByPeer
 
 // Add appends roots of frame.
-func (ee eventsByFrame) Add(frameN uint64, roots EventsByPeer) {
-	dest := ee[frameN]
+func (ee eventsByFrame) Add(n idx.Frame, roots EventsByPeer) {
+	dest := ee[n]
 	if dest == nil {
 		dest = EventsByPeer{}
 	}
 	dest.Add(roots)
-	ee[frameN] = dest
+	ee[n] = dest
 }
 
 // FrameNumsDesc returns sorted frame numbers.
-func (ee eventsByFrame) FrameNumsDesc() []uint64 {
-	var nums []uint64
+func (ee eventsByFrame) FrameNumsDesc() []idx.Frame {
+	var nums []idx.Frame
 	for n := range ee {
 		nums = append(nums, n)
 	}
@@ -63,7 +64,7 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
 	return
 }
 
-func (p *Poset) frameFromStore(n uint64) *Frame {
+func (p *Poset) frameFromStore(n idx.Frame) *Frame {
 	if n < p.LastFinishedFrameN() {
 		p.Fatalf("too old frame %d is requested", n)
 	}
@@ -84,7 +85,7 @@ func (p *Poset) frameFromStore(n uint64) *Frame {
 }
 
 // frame finds or creates frame.
-func (p *Poset) frame(n uint64, orCreate bool) *Frame {
+func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 	if n < p.LastFinishedFrameN() && orCreate {
 		p.Fatalf("too old frame %d is requested", n)
 	}
@@ -107,7 +108,6 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
-			Atroposes:        TimestampsByEvent{},
 			Balances:         p.frame(n-1, true).Balances,
 		}
 		p.setFrameSaving(f)
@@ -119,8 +119,8 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 }
 
 // frameNumLast returns last frame number.
-func (p *Poset) frameNumLast() uint64 {
-	var max uint64
+func (p *Poset) frameNumLast() idx.Frame {
+	var max idx.Frame
 	for n := range p.frames {
 		if max < n {
 			max = n
@@ -134,7 +134,7 @@ func (p *Poset) frameNumLast() uint64 {
  * Utils:
  */
 
-type frameNums []uint64
+type frameNums []idx.Frame
 
 func (p frameNums) Len() int           { return len(p) }
 func (p frameNums) Less(i, j int) bool { return p[i] < p[j] }

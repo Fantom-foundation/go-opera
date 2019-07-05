@@ -7,9 +7,14 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 )
+
+// stateGap is a frame-delay to apply new balance.
+// TODO: move this magic number to mainnet config
+const stateGap = 3
 
 // Poset processes events to get consensus.
 type Poset struct {
@@ -24,9 +29,9 @@ type Poset struct {
 	newEventsCh chan hash.Event
 	onNewEvent  func(*inter.Event) // onNewEvent runs consensus calc from new event
 
-	newBlockCh   chan uint64
+	newBlockCh   chan idx.Block
 	onNewBlockMu sync.RWMutex
-	onNewBlock   func(blockNumber uint64)
+	onNewBlock   func(num idx.Block)
 
 	logger.Instance
 }
@@ -44,7 +49,7 @@ func New(store *Store, input EventSource) *Poset {
 
 		newEventsCh: make(chan hash.Event, buffSize),
 
-		newBlockCh: make(chan uint64, buffSize),
+		newBlockCh: make(chan idx.Block, buffSize),
 
 		Instance: logger.MakeInstance(),
 	}
@@ -111,7 +116,7 @@ func (p *Poset) PushEvent(e hash.Event) {
 
 // OnNewBlock sets (or replaces if override) a callback that is called on new block.
 // Returns an error if can not.
-func (p *Poset) OnNewBlock(callback func(blockNumber uint64), override bool) error {
+func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) error {
 	// TODO: support multiple subscribers later
 	p.onNewBlockMu.Lock()
 	defer p.onNewBlockMu.Unlock()
@@ -124,7 +129,7 @@ func (p *Poset) OnNewBlock(callback func(blockNumber uint64), override bool) err
 }
 
 func (p *Poset) getRoots(slot election.RootSlot) hash.Events {
-	frame, ok := p.frames[uint64(slot.Frame)]
+	frame, ok := p.frames[slot.Frame]
 	if !ok {
 		return nil
 	}
@@ -163,28 +168,28 @@ func (p *Poset) consensus(event *inter.Event) {
 		return
 	}
 	p.Debugf("consensus: %s is root", event.String())
-
 	// process election for the new root
 	decided, err := p.election.ProcessRoot(event.Hash(), election.RootSlot{
-		Frame: election.IdxFrame(frame.Index),
+		Frame: frame.Index,
 		Addr:  event.Creator,
 	})
 	if err != nil {
 		p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
 	}
+
 	if decided != nil {
 		// if we’re here, then this root has seen that lowest not decided frame is decided now
-		p.onFrameDecided(uint64(decided.DecidedFrame), decided.DecidedSfWitness)
+		p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
 
 		// then call processKnownRoots until it returns nil -
 		// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
 		for {
-			decided, err := p.election.ProcessKnownRoots(election.IdxFrame(len(p.frames)-1), p.getRoots)
+			decided, err := p.election.ProcessKnownRoots(p.frameNumLast(), p.getRoots)
 			if err != nil {
 				p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
 			}
 			if decided != nil {
-				p.onFrameDecided(uint64(decided.DecidedFrame), decided.DecidedSfWitness)
+				p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
 			} else {
 				break
 			}
@@ -249,9 +254,9 @@ func (p *Poset) consensus(event *inter.Event) {
 
 // TODO @dagchain seems like it's a handy abstranction to be called within consensus()
 // moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
-func (p *Poset) onFrameDecided(frameDecided uint64, decidedSfWitness hash.Event) {
-	p.lastFinishedFrameN = frameDecided
-	p.election.ResetElection(election.IdxFrame(p.lastFinishedFrameN) + 1)
+func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
+	p.LastFinishedFrame(frameDecided)
+	p.election.ResetElection(p.lastFinishedFrameN + 1)
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -315,7 +320,7 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 }
 
 // reconsensusFromFrame recalcs consensus of frames.
-func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
+func (p *Poset) reconsensusFromFrame(start idx.Frame, newBalance hash.Hash) {
 	stop := p.frameNumLast()
 	var all inter.Events
 	// foreach stale frame
@@ -332,7 +337,6 @@ func (p *Poset) reconsensusFromFrame(start uint64, newBalance hash.Hash) {
 			Index:            n,
 			FlagTable:        FlagTable{},
 			ClothoCandidates: EventsByPeer{},
-			Atroposes:        TimestampsByEvent{},
 			Balances:         newBalance,
 		}
 	}

@@ -1,14 +1,15 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 type superFrame struct {
 	// state
-	frames  map[uint64]*Frame
-	members members.Members
+	frames  map[idx.Frame]*Frame
+	members internal.Members
 
 	// election votes
 	election *election.Election
@@ -16,8 +17,8 @@ type superFrame struct {
 
 func newSuperFrame() *superFrame {
 	return &superFrame{
-		frames:   make(map[uint64]*Frame),
-		members:  members.Members{},
+		frames:   make(map[idx.Frame]*Frame),
+		members:  internal.Members{},
 		election: nil,
 	}
 }

@@ -2,18 +2,15 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
-
-// stateGap is a frame-delay to apply new balance.
-// TODO: move this magic number to mainnet config
-const stateGap = 3
 
 // stakeCounter is for PoS balances accumulator.
 type stakeCounter struct {
 	balances *state.DB
-	amount   uint64
-	goal     uint64
+	amount   inter.Stake
+	goal     inter.Stake
 }
 
 func (s *stakeCounter) Count(node hash.Peer) {
@@ -24,7 +21,7 @@ func (s *stakeCounter) Count(node hash.Peer) {
 }
 
 func (s *stakeCounter) IsGoalAchieved() bool {
-	return s.amount > s.goal
+	return s.amount >= s.goal
 }
 
 /*
@@ -32,13 +29,13 @@ func (s *stakeCounter) IsGoalAchieved() bool {
  */
 
 // StakeOf returns last stake balance of peer.
-func (p *Poset) StakeOf(addr hash.Peer) uint64 {
+func (p *Poset) StakeOf(addr hash.Peer) inter.Stake {
 	f := p.frameFromStore(p.LastFinishedFrameN() + stateGap)
 	db := p.store.StateDB(f.Balances)
 	return db.VoteBalance(addr)
 }
 
-func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
+func (p *Poset) newStakeCounter(frame *Frame, goal inter.Stake) *stakeCounter {
 	db := p.store.StateDB(frame.Balances)
 
 	return &stakeCounter{
@@ -48,11 +45,12 @@ func (p *Poset) newStakeCounter(frame *Frame, goal uint64) *stakeCounter {
 	}
 }
 
-func (p *Poset) getSuperMajority() uint64 {
-	// TODO: set to p.members.TotalStake() * 2 / 3 + 1 with TestPoset{Simple,Far}Root() tests.
-	return p.members.TotalStake() * 2 / 3
+// NOTE: deprecated, use members
+func (p *Poset) getSuperMajority() inter.Stake {
+	return p.TotalCap*2/3 + 1
 }
 
+// NOTE: deprecated, use members
 func (p *Poset) hasMajority(frame *Frame, roots EventsByPeer) bool {
 	stake := p.newStakeCounter(frame, p.getSuperMajority())
 	for node := range roots {

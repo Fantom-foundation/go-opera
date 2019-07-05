@@ -11,7 +11,7 @@ func (s *Store) SetTxnsEvent(e hash.Event, sender hash.Peer, txns ...*inter.Inte
 	defer batch.Reset()
 
 	for _, txn := range txns {
-		idx := inter.TransactionHashOf(sender, txn.Index)
+		idx := inter.TransactionHashOf(sender, txn.Nonce)
 		if err := batch.Put(idx.Bytes(), e.Bytes()); err != nil {
 			s.Fatal(err)
 		}

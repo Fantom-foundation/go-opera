@@ -9,8 +9,9 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/members"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 type fakeEdge struct {
@@ -19,11 +20,11 @@ type fakeEdge struct {
 }
 
 type (
-	stakes map[string]Amount
+	stakes map[string]inter.Stake
 )
 
 type testExpected struct {
-	DecidedFrame     IdxFrame
+	DecidedFrame     idx.Frame
 	DecidedSfWitness string
 	DecisiveRoots    map[string]bool
 }
@@ -194,14 +195,11 @@ func testProcessRoot(
 
 	// members:
 	var (
-		mm = make(members.Members, 0, len(peers))
+		mm = make(internal.Members, len(peers))
 	)
 	for _, peer := range peers {
-		mm.Add(peer, uint64(stakes[peer.String()]))
+		mm.Add(peer, stakes[peer.String()])
 	}
-
-	superMajority := get2of3(Amount(mm.TotalStake()))
-	//t.Logf("superMajority = %s", superMajority.String())
 
 	// events:
 	events := make(map[hash.Event]*inter.Event)
@@ -254,7 +252,7 @@ func testProcessRoot(
 		}
 	}
 
-	election := NewElection(mm, Amount(mm.TotalStake()), superMajority, 0, stronglySeeFn)
+	election := NewElection(mm, 0, stronglySeeFn)
 
 	// ordering:
 	var (
@@ -302,15 +300,11 @@ func testProcessRoot(
 	}
 }
 
-func get2of3(x Amount) Amount {
-	return x*2/3 + 1
-}
-
-func frameOf(dsc string) IdxFrame {
+func frameOf(dsc string) idx.Frame {
 	s := strings.Split(dsc, "_")[1]
 	h, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		panic(err)
 	}
-	return IdxFrame(h)
+	return idx.Frame(h)
 }

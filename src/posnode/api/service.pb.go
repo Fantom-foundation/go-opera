@@ -4,13 +4,11 @@
 package api
 
 import (
-	context "context"
 	fmt "fmt"
 	wire "github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	proto "github.com/golang/protobuf/proto"
+	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -23,7 +21,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type KnownEvents struct {
 	Lasts                map[string]uint64 `protobuf:"bytes,1,rep,name=Lasts,proto3" json:"Lasts,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
@@ -304,20 +302,6 @@ type NodeServer interface {
 	SyncEvents(context.Context, *KnownEvents) (*KnownEvents, error)
 	GetEvent(context.Context, *EventRequest) (*wire.Event, error)
 	GetPeerInfo(context.Context, *PeerRequest) (*PeerInfo, error)
-}
-
-// UnimplementedNodeServer can be embedded to have forward compatible implementations.
-type UnimplementedNodeServer struct {
-}
-
-func (*UnimplementedNodeServer) SyncEvents(ctx context.Context, req *KnownEvents) (*KnownEvents, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SyncEvents not implemented")
-}
-func (*UnimplementedNodeServer) GetEvent(ctx context.Context, req *EventRequest) (*wire.Event, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEvent not implemented")
-}
-func (*UnimplementedNodeServer) GetPeerInfo(ctx context.Context, req *PeerRequest) (*PeerInfo, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPeerInfo not implemented")
 }
 
 func RegisterNodeServer(s *grpc.Server, srv NodeServer) {

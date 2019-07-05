@@ -11,6 +11,8 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/trie"
 )
 
@@ -136,21 +138,21 @@ func (s *DB) Empty(addr hash.Peer) bool {
 }
 
 // FreeBalance returns the free balance from the given address or 0 if object not found.
-func (s *DB) FreeBalance(addr hash.Peer) uint64 {
+func (s *DB) FreeBalance(addr hash.Peer) inter.Stake {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.FreeBalance()
+		return inter.Stake(stateObject.FreeBalance())
 	}
-	return 0
+	return inter.Stake(0)
 }
 
 // VoteBalance returns the vote balance from the given address or 0 if object not found.
-func (s *DB) VoteBalance(addr hash.Peer) uint64 {
+func (s *DB) VoteBalance(addr hash.Peer) inter.Stake {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.VoteBalance()
+		return inter.Stake(stateObject.VoteBalance())
 	}
-	return 0
+	return inter.Stake(0)
 }
 
 // GetState retrieves a value from the given account's storage trie.
@@ -219,30 +221,30 @@ func (s *DB) HasSuicided(addr hash.Peer) bool {
  */
 
 // SetBalance sets stateObject's balance by address.
-func (s *DB) SetBalance(addr hash.Peer, amount uint64) {
+func (s *DB) SetBalance(addr hash.Peer, amount inter.Stake) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject == nil {
 		panic("stateObject is nil")
 	}
-	stateObject.SetBalance(amount)
+	stateObject.SetBalance(uint64(amount))
 }
 
 // Transfer moves amount.
-func (s *DB) Transfer(from, to hash.Peer, amount uint64) {
+func (s *DB) Transfer(from, to hash.Peer, amount inter.Stake) {
 	f := s.GetOrNewStateObject(from)
 	t := s.GetOrNewStateObject(to)
 
-	f.SubBalance(amount)
-	t.AddBalance(amount)
+	f.SubBalance(uint64(amount))
+	t.AddBalance(uint64(amount))
 }
 
 // Delegate writes delegation records.
-func (s *DB) Delegate(from, to hash.Peer, amount, until uint64) {
+func (s *DB) Delegate(from, to hash.Peer, amount inter.Stake, until idx.Block) {
 	f := s.GetOrNewStateObject(from)
 	t := s.GetOrNewStateObject(to)
 
-	f.DelegateTo(to, int64(amount), until)
-	t.DelegateTo(from, -1*int64(amount), until)
+	f.DelegateTo(to, int64(amount), uint64(until))
+	t.DelegateTo(from, -1*int64(amount), uint64(until))
 }
 
 // ExpireDelegations erases data about expired delegations.

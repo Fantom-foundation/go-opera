@@ -5,10 +5,11 @@ import (
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 type sortedRoot struct {
-	stake Amount
+	stake inter.Stake
 	root  hash.Event
 }
 type sortedRoots []sortedRoot
@@ -34,15 +35,15 @@ func (s sortedRoots) Less(i, j int) bool {
 func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 	finalRoots := make(sortedRoots, 0, len(el.members))
 	// fill yesRoots
-	for _, member := range el.members {
-		vote, ok := el.decidedRoots[member.Addr]
+	for member, stake := range el.members {
+		vote, ok := el.decidedRoots[member]
 		if !ok {
 			el.Fatal("called before all the roots are decided")
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{
 				root:  vote.seenRoot,
-				stake: Amount(member.Stake),
+				stake: stake,
 			})
 		}
 	}

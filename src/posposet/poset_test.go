@@ -7,6 +7,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
@@ -82,8 +83,8 @@ func TestPoset(t *testing.T) {
 				if both > p1.LastBlockN {
 					both = p1.LastBlockN
 				}
-				var num uint64
-				for b := uint64(1); b <= both; b++ {
+				var num idx.Block
+				for b := idx.Block(1); b <= both; b++ {
 					if !assertar.Equal(p0.store.GetBlock(b), p1.store.GetBlock(b), "block") {
 						num = b
 						break

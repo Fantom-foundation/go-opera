@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 // calculate SfWitness votes only for the new root.
@@ -19,6 +20,11 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 		return nil, nil
 	}
 	round := newRootSlot.Frame - el.frameToDecide
+
+	var (
+		superMajority = el.members.Majority()
+		totalStake    = el.members.TotalStake()
+	)
 
 	notDecidedRoots := el.notDecidedRoots()
 	for _, memberSubject := range notDecidedRoots {
@@ -40,8 +46,8 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 			seenRoots := el.stronglySeenRoots(newRoot, newRootSlot.Frame-1)
 
 			var (
-				yesVotes Amount
-				noVotes  Amount
+				yesVotes inter.Stake // TODO: yesVotes = el.members.NewCounter()
+				noVotes  inter.Stake // TODO: noVotes = el.members.NewCounter()
 			)
 
 			// calc number of "yes" and "no", weighted by member's stake
@@ -69,10 +75,10 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 				}
 			}
 			// sanity checks
-			if (yesVotes + noVotes) < el.superMajority {
+			if (yesVotes + noVotes) < superMajority {
 				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.String())
 			}
-			if (yesVotes + noVotes) > el.totalStake {
+			if (yesVotes + noVotes) > totalStake {
 				el.Fatal("Root cannot see more than 100% of prev roots, root=", newRoot.String())
 			}
 
@@ -84,7 +90,7 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 
 			// If supermajority is seen, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-			vote.decided = yesVotes >= el.superMajority || noVotes >= el.superMajority
+			vote.decided = yesVotes >= superMajority || noVotes >= superMajority
 			if vote.decided {
 				el.decidedRoots[memberSubject] = vote
 			}
@@ -103,5 +109,6 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 	if frameDecided {
 		return el.chooseSfWitness()
 	}
+
 	return nil, nil
 }

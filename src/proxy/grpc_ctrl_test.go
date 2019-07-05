@@ -66,7 +66,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	t.Run("get balance of", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		expect := rand.Uint64()
+		expect := inter.Stake(rand.Uint64())
 
 		consensus.EXPECT().
 			StakeOf(peer).
@@ -98,8 +98,8 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 
 		h := hash.FakeTransaction()
 		txn0 := &inter.InternalTransaction{
-			Index:    1,
-			Amount:   rand.Uint64(),
+			Nonce:    1,
+			Amount:   inter.Stake(rand.Uint64()),
 			Receiver: peer,
 		}
 		event0 := &inter.Event{
@@ -128,7 +128,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	t.Run("get balance of self", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		expect := rand.Uint64()
+		expect := inter.Stake(rand.Uint64())
 
 		consensus.EXPECT().
 			StakeOf(peer).
@@ -145,9 +145,9 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	t.Run("send to", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		amount := rand.Uint64()
+		amount := inter.Stake(rand.Uint64())
 		tx := inter.InternalTransaction{
-			Index:    1,
+			Nonce:    1,
 			Amount:   amount,
 			Receiver: peer,
 		}
@@ -155,7 +155,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		node.EXPECT().
 			AddInternalTxn(tx)
 
-		_, err := client.SendTo(tx.Receiver, tx.Index, tx.Amount, tx.UntilBlock)
+		_, err := client.SendTo(tx.Receiver, tx.Nonce, tx.Amount, tx.UntilBlock)
 		assertar.NoError(err)
 	})
 

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 func TestEventsSort(t *testing.T) {
@@ -40,7 +41,7 @@ func TestEventsSort(t *testing.T) {
 }
 
 // EventsFromBlockNum returns events included info blocks (from num to last).
-func (p *Poset) EventsFromBlockNum(num uint64) inter.Events {
+func (p *Poset) EventsFromBlockNum(num idx.Block) inter.Events {
 	if num == 0 {
 		num = 1 // skip virtual block
 	}
