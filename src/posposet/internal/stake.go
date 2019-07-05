@@ -21,8 +21,11 @@ func (mm Members) NewCounter() *stakeCounter {
 
 func newStakeCounter(mm Members) *stakeCounter {
 	return &stakeCounter{
+		members:  mm,
 		majority: mm.Majority(),
 		already:  make(map[hash.Peer]struct{}),
+		sum:      0,
+		dirtySum: 0,
 	}
 }
 
@@ -41,4 +44,8 @@ func (s *stakeCounter) Count(node hash.Peer) bool {
 
 func (s *stakeCounter) HasMajority() bool {
 	return s.sum >= s.majority
+}
+
+func (s *stakeCounter) Sum() inter.Stake {
+	return s.sum
 }
