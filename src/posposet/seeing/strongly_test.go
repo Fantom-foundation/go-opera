@@ -1,6 +1,9 @@
 package seeing
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,38 +11,66 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 func TestStronglySeen(t *testing.T) {
-	testStronglySeen(t, `
-a0_0  b0_0  c0_0  d0_0
-║     ║     ║     ║
-a1_1══╬═════╣     ║
-║     ║     ║     ║
-║╚════b1_1══╣     ║
-║     ║     ║     ║
-║     ║╚════c1_1══╣
-║     ║     ║     ║
-║     ║╚═══─╫╩════d1_1
-║     ║     ║     ║
-a2_2══╬═════╬═════╣
-║     ║     ║     ║
+
+	t.Run("step 3", func(t *testing.T) {
+		testStronglySeen(t, `
+a0_1(3)  b0_1     c0_1
+║        ║        ║
+╠═══════ b1_2     ║
+║        ║        ║
+║        ╠═══════ c1_3
+║        ║        ║
 `)
+	})
+
+	t.Run("step 4", func(t *testing.T) {
+		testStronglySeen(t, `
+a0_1(3)  b0_1     c0_1
+║        ║        ║
+╠═══════ b1_2     ║
+║        ║        ║
+║        ╠═══════ c1_3
+║        ║        ║
+║        b2_4 ════╣
+║        ║        ║
+`)
+	})
+
+	t.Run("step 5", func(t *testing.T) {
+		// TODO: a0_1 (3) changed to (5) - fix it
+		testStronglySeen(t, `
+a0_1(5)  b0_1(5)  c0_1(5)
+║        ║        ║
+╠═══════ b1_2(5)  ║
+║        ║        ║
+║        ╠═══════ c1_3(5)
+║        ║        ║
+║        b2_4 ════╣
+║        ║        ║
+a1_5 ════╣        ║
+║        ║        ║
+`)
+	})
+
 }
 
 func testStronglySeen(t *testing.T, dag string) {
+	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	peers, named := inter.GenEventsByNode(4, 10, 3)
-	//peers, _, named := inter.ASCIIschemeToDAG(dag) // NOTE: stub
+	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
-	mm := make(internal.Members, len(peers))
+	members := make(internal.Members, len(peers))
 	for _, peer := range peers {
-		mm.Add(peer, inter.Stake(1))
+		members.Add(peer, inter.Stake(1))
 	}
 
-	ss := New(mm)
+	ss := New(members)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -58,13 +89,47 @@ func testStronglySeen(t *testing.T, dag string) {
 		},
 	})
 
-	for _, ee := range named {
-		for _, e := range ee {
-			orderThenProcess(e)
-		}
+	// push
+	for _, e := range named {
+		orderThenProcess(e)
 	}
 
-	ss.Reset(mm)
+	// check
+	for dsc, ev := range named {
+		_, bylevel := decode(dsc)
+		for dsc, by := range named {
+			level, _ := decode(dsc)
 
-	assertar.NotNil(ss) // NOTE: stub
+			if !assertar.Equal(
+				bylevel > 0 && bylevel <= level,
+				ss.See(by.Hash(), ev.Hash()),
+				fmt.Sprintf("%s strongly seen by %s", ev.Hash().String(), by.Hash().String()),
+			) {
+				return
+			}
+		}
+	}
+}
+
+func decode(dsc string) (level, bylevel int64) {
+	var err error
+
+	s := strings.Split(dsc, "_")
+	s = strings.Split(s[1], "(")
+
+	level, err = strconv.ParseInt(s[0], 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(s) < 2 {
+		return
+	}
+
+	bylevel, err = strconv.ParseInt(strings.TrimRight(s[1], ")"), 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return
 }
