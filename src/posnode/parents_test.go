@@ -33,7 +33,7 @@ func TestParentSelection(t *testing.T) {
 ║      ║      ║      ║
 ╠ ─ ─  1:b2 ─ ╣      ║
 ║      ║      ║      ║
-╠ ─ ─  ╬ ─ ─  1:C1   ║
+╠ ─ ─  ╬ ─ ─  1:c3   ║
 ║      ║      ║      ║
 ║      ╠ ─ ─  ╫ ─ ─  1:D2
 ║      ║      ║      ║
@@ -60,7 +60,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 			if !assertar.NotNil(parent, "step %d", n) {
 				break
 			}
-			if !assertar.Equal(expect, parent.String(), "step %d", n) {
+			if !assertar.Equal(expect, parent.String(), "step %d of %v", n, expected) {
 				break
 			}
 		}
