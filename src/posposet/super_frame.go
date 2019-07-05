@@ -4,6 +4,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
 )
 
 type superFrame struct {
@@ -13,6 +14,8 @@ type superFrame struct {
 
 	// election votes
 	election *election.Election
+
+	seeing *Strongly
 }
 
 func newSuperFrame() *superFrame {

@@ -1,4 +1,4 @@
-package posposet
+package seeing
 
 import "github.com/pkg/errors"
 

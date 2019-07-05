@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
 )
 
 // stateGap is a frame-delay to apply new balance.
@@ -22,7 +23,6 @@ type Poset struct {
 	input EventSource
 	*checkpoint
 	superFrame
-	stronglySeeing
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
