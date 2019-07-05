@@ -55,7 +55,7 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 
 		// memorize parents
 		for parent := range event.Parents {
-			stack.Push(parent)
+			stack = stack.Push(parent)
 		}
 	}
 
