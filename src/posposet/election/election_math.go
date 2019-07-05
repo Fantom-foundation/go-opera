@@ -88,6 +88,8 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 			if vote.decided {
 				el.decidedRoots[memberSubject] = vote
 			}
+		} else {
+			continue // we shouldn't be here, we checked it above the loop
 		}
 		// save vote for next rounds
 		vid := voteId{
