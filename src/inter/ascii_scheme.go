@@ -329,23 +329,21 @@ func (rr *rows) Optimize() {
 
 			row.Refs[iRef] = ref - 1
 
+			// update refs for swapped event (to current event only)
 			if len(rr.rows[prev].Refs) > rr.rows[curr].Self {
-				// update refs for swapped event (to current event only)
-				if rr.rows[prev].Refs[rr.rows[curr].Self] > 0 {
-					rr.rows[prev].Refs[rr.rows[curr].Self]++
+				// if regression or empty ref
+				if rr.rows[prev].Refs[rr.rows[curr].Self] != 1 {
+					row.Refs[iRef] = ref
+					continue REFS
 				}
 
-				// Note: if swapped event now have refs more than before -> discard any changes for current and swapped event.
-				if rr.rows[prev].Refs[rr.rows[curr].Self] > 2 {
-					rr.rows[prev].Refs[rr.rows[curr].Self]--
-					row.Refs[iRef] = ref
-					continue
-				}
+				rr.rows[prev].Refs[rr.rows[curr].Self]++
 			}
 
 			iter := prev + 1
-			// check remaining refs for prev event (for events after prev but before curr)
+			// update remaining refs for prev event (for events after prev but before curr)
 			for pRef, v := range rr.rows[prev].Refs {
+				// Note: ref to curr event already updated above.
 				if iter == curr {
 					break
 				}
@@ -355,38 +353,18 @@ func (rr *rows) Optimize() {
 					continue
 				}
 
-				// Example:
-				//
-				// ╠═════╬════ d003  ║    prev: d003
-				// ║     ║     ║     ║    next: b004
-				// b004═─╫─════╣     ║    curr: e002
-				// ║     ║     ║3    ║
-				// ╠════─╫─═══─╫╩═══ e002
-
 				// if next event (after prev but before curr) have refs to prev -> discard swap prev and curr event.
-				for tK := range rr.rows[iter].Refs {
-					if tK == rr.rows[prev].Self {
+				for nRef := range rr.rows[iter].Refs {
+					if nRef == rr.rows[prev].Self {
 						row.Refs[iRef] = ref
 						continue REFS
 					}
 				}
 
-				// Example:
-				//
-				// ║     ╠═════╬════ d003  ║       // update remaining [d003] refs for successfully swap d003 <--> e002
-				// ║     ║     ║     ║     ║
-				// ╠═════╬════ c004  ║     ║       prev: d003
-				// ║     ║     ║     ║3    ║       next: c004
-				// ╠════─╫─═══─╫─═══─╫╩═══ e002    curr: e002
-
-				// update remaining refs for prev event (ref for curr event should be updated before)
+				// update remaining refs
 				for {
-					if pRef == rr.rows[iter].Self {
+					if pRef == rr.rows[iter].Self && rr.rows[prev].Refs[pRef] < 2 {
 						rr.rows[prev].Refs[pRef]++
-
-						if rr.rows[prev].Refs[pRef] > 2 {
-							rr.rows[prev].Refs[pRef]--
-						}
 
 						// update current prev ref & reset iter for next prev ref
 						iter = prev + 1
