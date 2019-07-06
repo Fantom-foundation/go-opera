@@ -32,15 +32,20 @@ type (
 	// @return hash of root B, if root A strongly sees root B.
 	// Due to a fork, there may be many roots B with the same slot,
 	// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-	RootStronglySeeRootFn func(a hash.Event, b RootSlot) *hash.Event
-)
+	RootStronglySeeRootFn func(a hash.Event, b Slot) *hash.Event
 
-// specifies a slot {addr, frame}. Normal members can have only one root with this pair.
-// Due to a fork, different roots may occupy the same slot
-type RootSlot struct {
-	Frame idx.Frame
-	Addr  hash.Peer
-}
+	// specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
+	// Due to a fork, different roots may occupy the same slot
+	Slot struct {
+		Frame idx.Frame
+		Addr  hash.Peer
+	}
+
+	RootAndSlot struct {
+		Root hash.Event
+		Slot Slot
+	}
+)
 
 type voteId struct {
 	fromRoot  hash.Event
@@ -96,31 +101,26 @@ func (el *Election) notDecidedRoots() []hash.Peer {
 	return notDecidedRoots
 }
 
-type weightedRoot struct {
-	root  hash.Event
-	stake inter.Stake
-}
-
 // @return all the roots which are strongly seen by the specified root at the specified frame
-func (el *Election) stronglySeenRoots(root hash.Event, frame idx.Frame) []weightedRoot {
-	seenRoots := make([]weightedRoot, 0, len(el.members))
-	for member, stake := range el.members {
-		slot := RootSlot{
+func (el *Election) stronglySeenRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
+	seenRoots := make([]RootAndSlot, 0, len(el.members))
+	for member := range el.members {
+		slot := Slot{
 			Frame: frame,
 			Addr:  member,
 		}
 		seenRoot := el.stronglySee(root, slot)
 		if seenRoot != nil {
-			seenRoots = append(seenRoots, weightedRoot{
-				root:  *seenRoot,
-				stake: stake,
+			seenRoots = append(seenRoots, RootAndSlot{
+				Root: *seenRoot,
+				Slot: slot,
 			})
 		}
 	}
 	return seenRoots
 }
 
-type GetRootsFn func(slot RootSlot) hash.Events
+type GetRootsFn func(slot Slot) hash.Events
 
 // The function is similar to ProcessRoot, but it fully re-processes the current voting.
 // This routine should be called after node startup, and after each decided frame.
@@ -128,14 +128,17 @@ func (el *Election) ProcessKnownRoots(maxKnownFrame idx.Frame, getRootsFn GetRoo
 	// iterate all the roots from lowest frame to highest, call ProcessRootVotes for each
 	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
 		for member := range el.members {
-			slot := RootSlot{
+			slot := Slot{
 				Frame: frame,
 				Addr:  member,
 			}
 			roots := getRootsFn(slot)
 			// if there's more than 1 root, then all of them are forks. it's fine
 			for root := range roots {
-				decided, err := el.ProcessRoot(root, slot)
+				decided, err := el.ProcessRoot(RootAndSlot{
+					Root: root,
+					Slot: slot,
+				})
 				if decided != nil || err != nil {
 					return decided, err
 				}
