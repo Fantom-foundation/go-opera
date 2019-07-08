@@ -32,7 +32,7 @@ type (
 	// @return hash of root B, if root A strongly sees root B.
 	// Due to a fork, there may be many roots B with the same slot,
 	// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-	RootStronglySeeRootFn func(a hash.Event, b Slot) *hash.Event
+	RootStronglySeeRootFn func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event
 
 	// specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
@@ -62,25 +62,25 @@ type ElectionRes struct {
 	DecidedSfWitness hash.Event
 }
 
-func NewElection(
+func New(
 	members internal.Members,
 	frameToDecide idx.Frame,
 	stronglySeeFn RootStronglySeeRootFn,
 ) *Election {
-	return &Election{
-		members:       members,
-		frameToDecide: frameToDecide,
-		stronglySee:   stronglySeeFn,
-
-		decidedRoots: make(map[hash.Peer]voteValue),
-		votes:        make(map[voteId]voteValue),
+	el := &Election{
+		stronglySee: stronglySeeFn,
 
 		Instance: logger.MakeInstance(),
 	}
+
+	el.Reset(members, frameToDecide)
+
+	return el
 }
 
 // erase the current election state, prepare for new election frame
-func (el *Election) ResetElection(frameToDecide idx.Frame) {
+func (el *Election) Reset(members internal.Members, frameToDecide idx.Frame) {
+	el.members = members
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
 	el.decidedRoots = make(map[hash.Peer]voteValue)
@@ -109,7 +109,7 @@ func (el *Election) stronglySeenRoots(root hash.Event, frame idx.Frame) []RootAn
 			Frame: frame,
 			Addr:  member,
 		}
-		seenRoot := el.stronglySee(root, slot)
+		seenRoot := el.stronglySee(root, member, frame)
 		if seenRoot != nil {
 			seenRoots = append(seenRoots, RootAndSlot{
 				Root: *seenRoot,
