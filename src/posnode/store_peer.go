@@ -4,6 +4,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -81,14 +82,14 @@ func (s *Store) GetTopPeers() []hash.Peer {
 }
 
 // SetPeerHeight stores last event index of peer.
-func (s *Store) SetPeerHeight(id hash.Peer, height uint64) {
-	if err := s.table.PeerHeights.Put(id.Bytes(), intToBytes(height)); err != nil {
+func (s *Store) SetPeerHeight(id hash.Peer, height idx.Event) {
+	if err := s.table.PeerHeights.Put(id.Bytes(), height.Bytes()); err != nil {
 		s.Fatal(err)
 	}
 }
 
 // GetPeerHeight returns last event index of peer.
-func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
+func (s *Store) GetPeerHeight(id hash.Peer) idx.Event {
 	buf, err := s.table.PeerHeights.Get(id.Bytes())
 	if err != nil {
 		s.Fatal(err)
@@ -97,5 +98,5 @@ func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
 		return 0
 	}
 
-	return bytesToInt(buf)
+	return idx.BytesToEvent(buf)
 }

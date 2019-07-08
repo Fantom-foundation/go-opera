@@ -114,7 +114,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 			PeerID: creator.Hex(),
 		}
 		for i := interval.from; i <= interval.to; i++ {
-			req.Index = i
+			req.Index = uint64(i)
 
 			event, err := n.downloadEvent(client, peer, req)
 			if err != nil {
@@ -167,7 +167,7 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	}
 }
 
-func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.Peer]uint64, error) {
+func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.Peer]idx.Event, error) {
 	sf, knowns := n.knownEvents(0)
 
 	req := &api.KnownEvents{
@@ -175,7 +175,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 		Lasts:       make(map[string]uint64, len(knowns)),
 	}
 	for id, h := range knowns {
-		req.Lasts[id.Hex()] = h
+		req.Lasts[id.Hex()] = uint64(h)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
@@ -212,7 +212,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 		}
 	}
 
-	res := make(map[hash.Peer]uint64, len(resp.Lasts))
+	res := make(map[hash.Peer]idx.Event, len(resp.Lasts))
 	for hex, h := range PeersHeightsDiff(resp.Lasts, req.Lasts) {
 		res[hash.HexToPeer(hex)] = h
 	}
@@ -269,7 +269,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 // knownEventsReq returns event heights of requested super-frame
 // (req == 0 means last super-frame).
-func (n *Node) knownEvents(req idx.SuperFrame) (idx.SuperFrame, map[hash.Peer]uint64) {
+func (n *Node) knownEvents(req idx.SuperFrame) (idx.SuperFrame, map[hash.Peer]idx.Event) {
 	if n.consensus != nil {
 		var peers []hash.Peer
 		if req == 0 {
@@ -281,16 +281,16 @@ func (n *Node) knownEvents(req idx.SuperFrame) (idx.SuperFrame, map[hash.Peer]ui
 	}
 
 	if req != 0 {
-		return req, map[hash.Peer]uint64{}
+		return req, map[hash.Peer]idx.Event{}
 	}
 
 	return 0, n.peersWithHeight(n.peers.Snapshot())
 }
 
-func (n *Node) peersWithHeight(peers []hash.Peer) map[hash.Peer]uint64 {
+func (n *Node) peersWithHeight(peers []hash.Peer) map[hash.Peer]idx.Event {
 	peers = append(peers, n.ID)
 
-	res := make(map[hash.Peer]uint64, len(peers))
+	res := make(map[hash.Peer]idx.Event, len(peers))
 	for _, id := range peers {
 		h := n.store.GetPeerHeight(id)
 		res[id] = h

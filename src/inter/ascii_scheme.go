@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // ASCIIschemeToDAG parses events from ASCII-scheme for test purpose.
@@ -107,7 +108,7 @@ func ASCIIschemeToDAG(scheme string) (
 			creator := nodes[nCreators[i]]
 			// find creator's parent
 			var (
-				index      uint64
+				index      idx.Event
 				parents    = hash.Events{}
 				maxLamport Timestamp
 			)
@@ -167,7 +168,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		scheme rows
 
 		processed     = make(map[hash.Event]*Event)
-		peerLastIndex = make(map[hash.Peer]uint64)
+		peerLastIndex = make(map[hash.Peer]idx.Event)
 		peerCols      = make(map[hash.Peer]int)
 		ok            bool
 	)

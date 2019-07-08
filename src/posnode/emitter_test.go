@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -87,7 +88,7 @@ func TestEmit(t *testing.T) {
 		events[0] = node1.EmitEvent()
 
 		assertar.Equal(
-			uint64(1),
+			idx.Event(1),
 			events[0].Index)
 		assertar.Equal(
 			inter.Timestamp(1),
@@ -108,7 +109,7 @@ func TestEmit(t *testing.T) {
 		events[1] = node2.EmitEvent()
 
 		assertar.Equal(
-			uint64(1),
+			idx.Event(1),
 			events[1].Index)
 		assertar.Equal(
 			inter.Timestamp(2),
@@ -126,7 +127,7 @@ func TestEmit(t *testing.T) {
 		events[2] = node1.emitEvent()
 
 		assertar.Equal(
-			uint64(2),
+			idx.Event(2),
 			events[2].Index)
 		assertar.Equal(
 			inter.Timestamp(3),
@@ -144,7 +145,7 @@ func TestEmit(t *testing.T) {
 		events[3] = node1.emitEvent()
 
 		assertar.Equal(
-			uint64(3),
+			idx.Event(3),
 			events[3].Index)
 		assertar.Equal(
 			inter.Timestamp(4),

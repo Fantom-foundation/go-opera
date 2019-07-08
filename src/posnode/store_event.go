@@ -3,6 +3,7 @@ package posnode
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
@@ -48,8 +49,9 @@ func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 }
 
 // SetEventHash stores hash.
-func (s *Store) SetEventHash(creator hash.Peer, index uint64, hash hash.Event) {
-	key := append(creator.Bytes(), intToBytes(index)...)
+func (s *Store) SetEventHash(creator hash.Peer, index idx.Event, hash hash.Event) {
+
+	key := append(creator.Bytes(), index.Bytes()...)
 
 	if err := s.table.Hashes.Put(key, hash.Bytes()); err != nil {
 		s.Fatal(err)
@@ -57,8 +59,8 @@ func (s *Store) SetEventHash(creator hash.Peer, index uint64, hash hash.Event) {
 }
 
 // GetEventHash returns stored event hash.
-func (s *Store) GetEventHash(creator hash.Peer, index uint64) *hash.Event {
-	key := append(creator.Bytes(), intToBytes(index)...)
+func (s *Store) GetEventHash(creator hash.Peer, index idx.Event) *hash.Event {
+	key := append(creator.Bytes(), index.Bytes()...)
 
 	buf, err := s.table.Hashes.Get(key)
 	if err != nil {

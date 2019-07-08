@@ -102,15 +102,15 @@ func (ss *Strongly) setNodes(e *Event) {
 
 func (ss *Strongly) fillEventRefs(e *Event) {
 	// seen by himself
-	e.LowestSees[e.MemberN] = idx.Event(e.Index) // TODO: change e.Index type to idx.Event
-	e.HighestSeen[e.MemberN] = idx.Event(e.Index)
+	e.LowestSees[e.MemberN] = e.Index
+	e.HighestSeen[e.MemberN] = e.Index
 
 	for p := range e.Parents {
 		if p.IsZero() {
 			continue
 		}
 		parent := ss.events[p]
-		ss.updateAllLowestSees(parent, e.MemberN, idx.Event(e.Index))
+		ss.updateAllLowestSees(parent, e.MemberN, e.Index)
 		ss.updateAllHighestSeen(e, parent)
 	}
 }
@@ -148,7 +148,7 @@ func (ss *Strongly) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 	if e.LowestSees[node] == 0 ||
 		e.LowestSees[node] > ref ||
-		(node == e.MemberN && e.LowestSees[node] <= idx.Event(e.Index)) { // TODO: change e.Index type to idx.Event
+		(node == e.MemberN && e.LowestSees[node] <= e.Index) {
 		e.LowestSees[node] = ref
 		return true
 	}
@@ -174,5 +174,5 @@ func (ss *Strongly) sufficientCoherence(event1, event2 *Event) bool {
 		}
 	}
 
-	return counter.HasMajority()
+	return counter.HasQuorum()
 }

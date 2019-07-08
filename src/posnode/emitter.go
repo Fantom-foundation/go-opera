@@ -7,6 +7,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // emitter creates events from external transactions.
@@ -128,7 +129,7 @@ func (n *Node) emitEvent() *inter.Event {
 	n.Debugf("emitting event")
 
 	var (
-		index          uint64
+		index          idx.Event
 		parents        = hash.Events{}
 		maxLamportTime inter.Timestamp
 		internalTxns   []*inter.InternalTransaction

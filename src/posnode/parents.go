@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
@@ -23,7 +24,7 @@ type (
 )
 
 func (n *Node) initParents() {
-	const loadDeep uint64 = 10
+	const loadDeep idx.Event = 10
 
 	n.parents.Lock()
 	defer n.parents.Unlock()
@@ -37,7 +38,7 @@ func (n *Node) initParents() {
 	// load some parents from store
 	for _, peer := range n.peers.Snapshot() {
 		to := n.store.GetPeerHeight(peer)
-		from := uint64(1)
+		from := idx.Event(1)
 		if (from + loadDeep) <= to {
 			from -= loadDeep
 		}

@@ -15,12 +15,32 @@ type (
 	Block uint64
 )
 
+func (e Event) Bytes() []byte {
+	return common.IntToBytes(uint64(e))
+}
+
 func (t Txn) Bytes() []byte {
 	return common.IntToBytes(uint64(t))
 }
 
 func (b Block) Bytes() []byte {
 	return common.IntToBytes(uint64(b))
+}
+
+func BytesToEvent(b []byte) Event {
+	var res Event
+	for i := 0; i < len(b); i++ {
+		res += Event(b[i]) << uint(i*8)
+	}
+	return res
+}
+
+func BytesToTxn(b []byte) Txn {
+	var res Txn
+	for i := 0; i < len(b); i++ {
+		res += Txn(b[i]) << uint(i*8)
+	}
+	return res
 }
 
 func BytesToBlock(b []byte) Block {
