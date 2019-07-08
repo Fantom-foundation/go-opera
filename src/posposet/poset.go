@@ -187,6 +187,8 @@ func (p *Poset) consensus(event *inter.Event) {
 		// if we’re here, then this root has seen that lowest not decided frame is decided now
 		p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
 
+		frame := decided.DecidedFrame
+
 		// then call processKnownRoots until it returns nil -
 		// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
 		for {
@@ -195,11 +197,14 @@ func (p *Poset) consensus(event *inter.Event) {
 				p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
 			}
 			if decided != nil {
+				frame = decided.DecidedFrame
 				p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
 			} else {
 				break
 			}
 		}
+
+		p.store.SetConfirmedEvent(event.Hash(), frame)
 	}
 
 	/* OLD :
@@ -357,4 +362,12 @@ func (p *Poset) reconsensusFromFrame(start idx.Frame, newBalance hash.Hash) {
 		p.setFrameSaving(frame)
 		frame.Save()
 	}
+}
+
+// Note: should be used by dfsSubgraph() as filter (from PR #264)
+func (p *Poset) isNotApproved(h hash.Event) bool {
+	if res := p.store.GetConfirmedEvent(h); res == 0 {
+		return true
+	}
+	return false
 }
