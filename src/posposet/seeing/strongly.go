@@ -13,6 +13,7 @@ type Strongly struct {
 	members internal.Members
 	nodes   map[hash.Peer]int
 	events  map[hash.Event]*Event
+	roots   []map[idx.Frame][]*Event
 
 	logger.Instance
 }
@@ -32,16 +33,38 @@ func (ss *Strongly) Reset(mm internal.Members) {
 	ss.members = mm
 	ss.nodes = make(map[hash.Peer]int)
 	ss.events = make(map[hash.Event]*Event)
+
+	ss.roots = make([]map[idx.Frame][]*Event, len(mm))
+	for i := range ss.roots {
+		ss.roots[i] = make(map[idx.Frame][]*Event)
+	}
 }
 
-func (ss *Strongly) See(who, whom hash.Event) bool {
-	a := ss.events[who]
-	b := ss.events[whom]
+func (ss *Strongly) See(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
+	var (
+		memberN int
+		ok      bool
+	)
+	if memberN, ok = ss.nodes[b]; !ok {
+		return nil
+	}
 
-	return ss.sufficientCoherence(a, b)
+	if f < 1 {
+		panic("sanity check: Frame idx starts from 1")
+	}
+
+	event1 := ss.events[a]
+	for _, event2 := range ss.roots[memberN][f] {
+		if ss.sufficientCoherence(event1, event2) {
+			res := event2.Hash()
+			return &res
+		}
+	}
+
+	return nil
 }
 
-func (ss *Strongly) Add(e *inter.Event) {
+func (ss *Strongly) Add(e *inter.Event, f idx.Frame) {
 	// sanity check
 	if _, ok := ss.events[e.Hash()]; ok {
 		ss.Fatalf("event %s already exists", e.Hash().String())
@@ -57,27 +80,31 @@ func (ss *Strongly) Add(e *inter.Event) {
 	ss.setNodes(event)
 	ss.fillEventRefs(event)
 	ss.events[e.Hash()] = event
+
+	if f != 0 {
+		ss.roots[event.MemberN][f] = append(ss.roots[event.MemberN][f], event)
+	}
 }
 
 func (ss *Strongly) setNodes(e *Event) {
 	var ok bool
-	if e.CreatorN, ok = ss.nodes[e.Creator]; !ok {
-		e.CreatorN = len(ss.nodes)
-		ss.nodes[e.Creator] = e.CreatorN
+	if e.MemberN, ok = ss.nodes[e.Creator]; !ok {
+		e.MemberN = len(ss.nodes)
+		ss.nodes[e.Creator] = e.MemberN
 	}
 }
 
 func (ss *Strongly) fillEventRefs(e *Event) {
 	// seen by himself
-	e.LowestSees[e.CreatorN] = idx.Event(e.Index) // TODO: change e.Index type to idx.Event
-	e.HighestSeen[e.CreatorN] = idx.Event(e.Index)
+	e.LowestSees[e.MemberN] = idx.Event(e.Index) // TODO: change e.Index type to idx.Event
+	e.HighestSeen[e.MemberN] = idx.Event(e.Index)
 
 	for p := range e.Parents {
 		if p.IsZero() {
 			continue
 		}
 		parent := ss.events[p]
-		ss.updateAllLowestSees(parent, e.CreatorN, idx.Event(e.Index))
+		ss.updateAllLowestSees(parent, e.MemberN, idx.Event(e.Index))
 		ss.updateAllHighestSeen(e, parent)
 	}
 }
@@ -115,7 +142,7 @@ func (ss *Strongly) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 	if e.LowestSees[node] == 0 ||
 		e.LowestSees[node] > ref ||
-		(node == e.CreatorN && e.LowestSees[node] <= idx.Event(e.Index)) { // TODO: change e.Index type to idx.Event
+		(node == e.MemberN && e.LowestSees[node] <= idx.Event(e.Index)) { // TODO: change e.Index type to idx.Event
 		e.LowestSees[node] = ref
 		return true
 	}

@@ -32,7 +32,7 @@ type (
 	// @return hash of root B, if root A strongly sees root B.
 	// Due to a fork, there may be many roots B with the same slot,
 	// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-	RootStronglySeeRootFn func(a hash.Event, b RootSlot) *hash.Event
+	RootStronglySeeRootFn func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event
 )
 
 // specifies a slot {addr, frame}. Normal members can have only one root with this pair.
@@ -105,11 +105,7 @@ type weightedRoot struct {
 func (el *Election) stronglySeenRoots(root hash.Event, frame idx.Frame) []weightedRoot {
 	seenRoots := make([]weightedRoot, 0, len(el.members))
 	for member, stake := range el.members {
-		slot := RootSlot{
-			Frame: frame,
-			Addr:  member,
-		}
-		seenRoot := el.stronglySee(root, slot)
+		seenRoot := el.stronglySee(root, member, frame)
 		if seenRoot != nil {
 			seenRoots = append(seenRoots, weightedRoot{
 				root:  *seenRoot,

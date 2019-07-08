@@ -239,10 +239,13 @@ func testProcessRoot(
 	}
 
 	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
+	stronglySeeFn := func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
-			to:   b,
+			to: RootSlot{
+				Addr:  b,
+				Frame: f,
+			},
 		}
 		hashB, ok := edges[edge]
 		if ok {

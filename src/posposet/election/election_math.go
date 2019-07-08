@@ -28,15 +28,11 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 
 	notDecidedRoots := el.notDecidedRoots()
 	for _, memberSubject := range notDecidedRoots {
-		slotSubject := RootSlot{
-			Frame: el.frameToDecide,
-			Addr:  memberSubject,
-		}
 		vote := voteValue{}
 
 		if round == 1 {
 			// in initial round, vote "yes" if subject is strongly seen
-			seenRoot := el.stronglySee(newRoot, slotSubject)
+			seenRoot := el.stronglySee(newRoot, memberSubject, el.frameToDecide)
 			vote.yes = seenRoot != nil
 			vote.decided = false
 			if seenRoot != nil {
@@ -98,7 +94,7 @@ func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*Elec
 		// save vote for next rounds
 		vid := voteId{
 			fromRoot:  newRoot,
-			forMember: slotSubject.Addr,
+			forMember: memberSubject,
 		}
 		el.votes[vid] = vote
 	}

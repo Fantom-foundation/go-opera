@@ -9,7 +9,7 @@ import (
 type Event struct {
 	*inter.Event
 
-	CreatorN int // node index
+	MemberN int // creator index
 	// by node indexes (event idx starts from 1, so 0 means "no one"):
 	LowestSees  []idx.Event // first events heights who sees it
 	HighestSeen []idx.Event // last events heights who is seen by it
