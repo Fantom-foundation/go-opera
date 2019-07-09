@@ -132,7 +132,7 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 		return nil
 	}
 	roots := hash.Events{}
-	for root := range frame.FlagTable.Roots().Each() {
+	for root := range frame.FlagTable.Roots()[slot.Addr] {
 		roots.Add(root)
 	}
 	return roots
