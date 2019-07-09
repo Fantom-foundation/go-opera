@@ -309,7 +309,11 @@ func (p *Poset) checkIfRoot(e *Event) *Frame {
 		frame = p.frame(fnum, true)
 		frame.AddRootsOf(e.Hash(), roots)
 		// log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
-		if isRoot = p.hasMajority(frame, roots); isRoot {
+		counter := p.members.NewCounter()
+		for n := range roots {
+			counter.Count(n)
+		}
+		if isRoot = counter.HasQuorum(); isRoot {
 			frame = p.frame(fnum+1, true)
 			// log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
 			break
