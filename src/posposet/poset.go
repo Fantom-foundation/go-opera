@@ -127,13 +127,13 @@ func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) 
 }
 
 func (p *Poset) getRoots(slot election.Slot) hash.Events {
-	frame, ok := p.frames[slot.Frame]
-	if !ok {
+	frame := p.frame(slot.Frame, false)
+	if frame == nil {
 		return nil
 	}
-	roots, ok := frame.ClothoCandidates[slot.Addr]
-	if !ok {
-		return nil
+	roots := hash.Events{}
+	for root := range frame.FlagTable.Roots().Each() {
+		roots.Add(root)
 	}
 	return roots
 }
@@ -345,10 +345,9 @@ func (p *Poset) reconsensusFromFrame(start idx.Frame, newBalance hash.Hash) {
 		}
 		// and replace stale frame with blank
 		p.frames[n] = &Frame{
-			Index:            n,
-			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByPeer{},
-			Balances:         newBalance,
+			Index:     n,
+			FlagTable: FlagTable{},
+			Balances:  newBalance,
 		}
 	}
 	// recalc consensus (without frame saving)

@@ -105,10 +105,9 @@ func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:            n,
-			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByPeer{},
-			Balances:         p.frame(n-1, true).Balances,
+			Index:     n,
+			FlagTable: FlagTable{},
+			Balances:  p.frame(n-1, true).Balances,
 		}
 		p.setFrameSaving(f)
 		p.frames[n] = f

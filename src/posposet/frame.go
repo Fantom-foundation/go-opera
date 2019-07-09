@@ -17,9 +17,6 @@ type Frame struct {
 
 	Balances hash.Hash // TODO: move to super-frame
 
-	// TODO @dagchain should be roots only
-	ClothoCandidates EventsByPeer
-
 	save func()
 }
 
@@ -45,13 +42,6 @@ func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
 	return f.FlagTable[event]
 }
 
-// AddClothoCandidate adds event into ClothoCandidates list.
-func (f *Frame) AddClothoCandidate(event hash.Event, creator hash.Peer) {
-	if f.ClothoCandidates.AddOne(event, creator) {
-		f.Save()
-	}
-}
-
 // SetBalances saves PoS-balances state.
 func (f *Frame) SetBalances(balances hash.Hash) bool {
 	if f.Balances != balances {
@@ -65,10 +55,9 @@ func (f *Frame) SetBalances(balances hash.Hash) bool {
 // ToWire converts to proto.Message.
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
-		Index:            uint32(f.Index),
-		FlagTable:        f.FlagTable.ToWire(),
-		ClothoCandidates: f.ClothoCandidates.ToWire(),
-		Balances:         f.Balances.Bytes(),
+		Index:     uint32(f.Index),
+		FlagTable: f.FlagTable.ToWire(),
+		Balances:  f.Balances.Bytes(),
 	}
 }
 
@@ -78,10 +67,9 @@ func WireToFrame(w *wire.Frame) *Frame {
 		return nil
 	}
 	return &Frame{
-		Index:            idx.Frame(w.Index),
-		FlagTable:        WireToFlagTable(w.FlagTable),
-		ClothoCandidates: WireToEventsByPeer(w.ClothoCandidates),
-		Balances:         hash.FromBytes(w.Balances),
+		Index:     idx.Frame(w.Index),
+		FlagTable: WireToFlagTable(w.FlagTable),
+		Balances:  hash.FromBytes(w.Balances),
 	}
 }
 
