@@ -304,7 +304,7 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 			}
 			// if a see enough roots, then I become a root too
 			if sSeenCounter.HasQuorum() {
-				frameI = f
+				frameI = f + 1
 				isRoot = true
 				break
 			}
