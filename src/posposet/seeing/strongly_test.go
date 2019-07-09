@@ -42,9 +42,8 @@ a0_1(3)  b0_1     c0_1
 	})
 
 	t.Run("step 5", func(t *testing.T) {
-		// TODO: a0_1 (3) changed to (5) - fix it
 		testStronglySeen(t, `
-a0_1(5)  b0_1(5)  c0_1(5)
+a0_1(3)  b0_1(5)  c0_1(5)
 ║        ║        ║
 ╠═══════ b1_2(5)  ║
 ║        ║        ║
@@ -59,6 +58,9 @@ a1_5 ════╣        ║
 
 }
 
+// testStronglySeen uses event name agreement:
+//  "<name>_<level>[(by-level)]",
+// where by-level means that event is strongly seen by all event with level >= by-level.
 func testStronglySeen(t *testing.T, dag string) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
@@ -102,7 +104,6 @@ func testStronglySeen(t *testing.T, dag string) {
 
 			who := ss.events[by.Hash()]
 			whom := ss.events[ev.Hash()]
-
 			if !assertar.Equal(
 				bylevel > 0 && bylevel <= level,
 				ss.sufficientCoherence(who, whom),

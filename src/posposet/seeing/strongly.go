@@ -147,8 +147,7 @@ func (ss *Strongly) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 
 func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 	if e.LowestSees[node] == 0 ||
-		e.LowestSees[node] > ref ||
-		(node == e.MemberN && e.LowestSees[node] <= e.Index) {
+		e.LowestSees[node] > ref {
 		e.LowestSees[node] = ref
 		return true
 	}
