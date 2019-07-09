@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -12,8 +13,8 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index     idx.Frame
-	FlagTable FlagTable
+	Index idx.Frame
+	Roots map[hash.Peer][]hash.Event
 
 	Balances hash.Hash // TODO: move to super-frame
 
@@ -28,18 +29,9 @@ func (f *Frame) Save() {
 }
 
 // AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event hash.Event, roots EventsByPeer) {
-	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = EventsByPeer{}
-	}
-	if f.FlagTable[event].Add(roots) {
-		f.Save()
-	}
-}
-
-// GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
-	return f.FlagTable[event]
+func (f *Frame) AddRoot(event *Event) {
+	f.Roots[event.Creator] = append(f.Roots[event.Creator], event)
+	f.Save() // TODO do we need to call it?
 }
 
 // SetBalances saves PoS-balances state.
@@ -56,7 +48,7 @@ func (f *Frame) SetBalances(balances hash.Hash) bool {
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
 		Index:     uint32(f.Index),
-		FlagTable: f.FlagTable.ToWire(),
+		FlagTable: f.FlagTable.ToWire(), // TODO
 		Balances:  f.Balances.Bytes(),
 	}
 }
@@ -68,7 +60,7 @@ func WireToFrame(w *wire.Frame) *Frame {
 	}
 	return &Frame{
 		Index:     idx.Frame(w.Index),
-		FlagTable: WireToFlagTable(w.FlagTable),
+		FlagTable: WireToFlagTable(w.FlagTable), // TODO
 		Balances:  hash.FromBytes(w.Balances),
 	}
 }

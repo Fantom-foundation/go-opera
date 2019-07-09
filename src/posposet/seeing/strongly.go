@@ -13,7 +13,6 @@ type Strongly struct {
 	members internal.Members
 	nodes   map[hash.Peer]int
 	events  map[hash.Event]*Event
-	roots   []map[idx.Frame][]*Event
 
 	logger.Instance
 }
@@ -33,44 +32,9 @@ func (ss *Strongly) Reset(mm internal.Members) {
 	ss.members = mm
 	ss.nodes = make(map[hash.Peer]int)
 	ss.events = make(map[hash.Event]*Event)
-
-	ss.roots = make([]map[idx.Frame][]*Event, len(mm))
-	for i := range ss.roots {
-		ss.roots[i] = make(map[idx.Frame][]*Event)
-	}
 }
 
-// See hash of root B, if root A strongly sees root B.
-// Due to a fork, there may be many roots B with the same slot,
-// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (ss *Strongly) See(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
-	var (
-		memberN int
-		ok      bool
-	)
-	if memberN, ok = ss.nodes[b]; !ok {
-		return nil
-	}
-
-	if f < 1 {
-		panic("sanity check: Frame idx starts from 1")
-	}
-
-	event1, ok := ss.events[a]
-	if !ok {
-		return nil
-	}
-	for _, event2 := range ss.roots[memberN][f] {
-		if ss.sufficientCoherence(event1, event2) {
-			res := event2.Hash()
-			return &res
-		}
-	}
-
-	return nil
-}
-
-func (ss *Strongly) Add(e *inter.Event, f idx.Frame) {
+func (ss *Strongly) Add(e *inter.Event) {
 	// sanity check
 	if _, ok := ss.events[e.Hash()]; ok {
 		ss.Fatalf("event %s already exists", e.Hash().String())
@@ -86,10 +50,6 @@ func (ss *Strongly) Add(e *inter.Event, f idx.Frame) {
 	ss.setNodes(event)
 	ss.fillEventRefs(event)
 	ss.events[e.Hash()] = event
-
-	if f != 0 {
-		ss.roots[event.MemberN][f] = append(ss.roots[event.MemberN][f], event)
-	}
 }
 
 func (ss *Strongly) setNodes(e *Event) {
@@ -154,21 +114,32 @@ func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 	return false
 }
 
-// sufficientCoherence calculates "sufficient coherence" between the events.
-// The event1.HighestSeen array remembers the sequence number of the last
-// event by each member that is an ancestor of event1. The array for
-// event2.LowestSees remembers the sequence number of the earliest
-// event by each member that is a descendant of event2. Compare the two arrays,
-// and find how many elements in the event1.HighestSeen array are greater
-// than or equal to the corresponding element of the event2.LowestSees
-// array. If there are more than 2n/3 such matches, then the event1 and event2
+// See() calculates "sufficient coherence" between the events.
+// The A.HighestSeen array remembers the sequence number of the last
+// event by each member that is an ancestor of A. The array for
+// B.LowestSees remembers the sequence number of the earliest
+// event by each member that is a descendant of B. Compare the two arrays,
+// and find how many elements in the A.HighestSeen array are greater
+// than or equal to the corresponding element of the B.LowestSees
+// array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
-func (ss *Strongly) sufficientCoherence(event1, event2 *Event) bool {
+func (ss *Strongly) See(aHash, bHash hash.Event) bool {
 	counter := ss.members.NewCounter()
 
+	// get events by hash
+	a, ok := ss.events[aHash]
+	if !ok {
+		return false
+	}
+	b, ok := ss.events[bHash]
+	if !ok {
+		return false
+	}
+
+	// calculate strongly seeing using the indexes
 	for m := range ss.members {
 		n := ss.nodes[m]
-		if event2.LowestSees[n] <= event1.HighestSeen[n] && event2.LowestSees[n] != 0 {
+		if b.LowestSees[n] <= a.HighestSeen[n] && b.LowestSees[n] != 0 {
 			counter.Count(m)
 		}
 	}

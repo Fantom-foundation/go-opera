@@ -132,7 +132,7 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 		return nil
 	}
 	roots := hash.Events{}
-	for root := range frame.FlagTable.Roots()[slot.Addr] {
+	for _, root := range frame.Roots[slot.Addr] {
 		roots.Add(root)
 	}
 	return roots
@@ -143,13 +143,16 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 // Due to a fork, there may be many roots B with the same slot,
 // but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
 func (p *Poset) rootStronglySeeRoot(a hash.Event, bSlot election.Slot) *hash.Event {
-	// A doesn’t exist
-	//   return nil
-	// there’s no root B with {frame height B, node id B}
-	//   return nil
-	// for B := range roots{frame height B, node id B}
-	//   if A strongly sees B
-	//      return B.hash
+	bFrame, ok := p.frames[bSlot.Frame]
+	if !ok { // not known frame for B
+		return nil
+	}
+
+	for _, b := range bFrame.Roots[bSlot.Addr] {
+		if p.strongly.See(a, b) {
+			return &b
+		}
+	}
 
 	return nil
 }
@@ -161,12 +164,12 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
+	p.strongly.Add(event)
 	var frame *Frame
-	if frame = p.checkIfRoot(e); frame == nil {
-		p.strongly.Add(event, 0)
+	var isRoot bool
+	if frame, isRoot = p.checkIfRoot(e); !isRoot {
 		return
 	}
-	p.strongly.Add(event, frame.Index)
 
 	p.Debugf("consensus: %s is root", event.String())
 	// process election for the new root
@@ -269,65 +272,55 @@ func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Eve
 // checkIfRoot checks root-conditions for new event
 // and returns frame where event is root.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfRoot(e *Event) *Frame {
-	knownRoots := eventsByFrame{}
-	minFrame := p.LastFinishedFrameN() + 1
-	for parent := range e.Parents {
-		if !parent.IsZero() {
-			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil || frame.Index <= p.LastFinishedFrameN() { // TODO @dagchain should be root, even it's an old frame, because future roots will depend on prev. roots
-				p.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
-				// NOTE: is it possible some participants got this event before parent outdated?
-				continue
-			}
-			if prev := p.GetEvent(parent); prev.Creator == e.Creator {
-				minFrame = frame.Index
-			}
-			roots := frame.GetRootsOf(parent)
-			knownRoots.Add(frame.Index, roots)
-			if !isRoot || frame.Index <= minFrame {
-				continue
-			}
-			frame = p.frame(frame.Index-1, false)
-			roots = frame.GetRootsOf(parent)
-			knownRoots.Add(frame.Index, roots)
-		} else {
-			roots := rootZero(e.Creator)
-			knownRoots.Add(minFrame, roots)
-		}
-	}
+func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
+	var frameI idx.Frame
+	isRoot := false
+	if len(e.Parents) == 0 {
+		// special case for first events in an SF
+		frameI = idx.Frame(1)
+		isRoot = true
+	} else {
 
-	var (
-		frame  *Frame
-		isRoot bool
-	)
-	for _, fnum := range knownRoots.FrameNumsDesc() {
-		if fnum < minFrame {
-			break
+		maxParentsFrame := idx.Frame(0)
+
+		for parent := range e.Parents {
+			pFrame := p.FrameOfEvent(parent).Index
+			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
+				maxParentsFrame = pFrame
+			}
 		}
-		roots := knownRoots[fnum]
-		frame = p.frame(fnum, true)
-		frame.AddRootsOf(e.Hash(), roots)
-		// log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
-		counter := p.members.NewCounter()
-		for n := range roots {
-			counter.Count(n)
+
+		// TODO store isRoot, frameHeight within inter.Event. Check not for every frame within this range,
+		//  but check only for a specified frame, and only if event.isRoot was true.
+		for f := p.frameNumLast(); f >= maxParentsFrame; f-- {
+			sSeenCounter := p.members.NewCounter()
+			for member, memberRoots := range p.frames[f].Roots {
+				for _, root := range memberRoots {
+					if p.strongly.See(e.Hash(), root) {
+						sSeenCounter.Count(member)
+					}
+				}
+			}
+			if sSeenCounter.HasQuorum() {
+				frameI = f
+				isRoot = true
+				break
+			}
 		}
-		if isRoot = counter.HasQuorum(); isRoot {
-			frame = p.frame(fnum+1, true)
-			// log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
-			break
+
+		if !isRoot {
+			frameI = maxParentsFrame
 		}
 	}
+	frame := p.frames[frameI]
 	if !p.isEventValid(e, frame) {
-		return nil
+		return nil, false
 	}
 	p.store.SetEventFrame(e.Hash(), frame.Index)
 	if isRoot {
-		frame.AddRootsOf(e.Hash(), rootFrom(e))
-		return frame
+		frame.AddRoot(e)
 	}
-	return nil
+	return frame, isRoot
 }
 
 // reconsensusFromFrame recalcs consensus of frames.

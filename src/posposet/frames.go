@@ -46,22 +46,13 @@ func (ee eventsByFrame) String() string {
  */
 
 // FrameOfEvent returns unfinished frame where event is in.
-func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
+func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
 	fnum := p.store.GetEventFrame(event)
 	if fnum == nil {
 		return
 	}
 
-	frame = p.frame(*fnum, false)
-	knowns := frame.FlagTable[event]
-	for _, events := range knowns {
-		if events.Contains(event) {
-			isRoot = true
-			return
-		}
-	}
-
-	return
+	return p.frame(*fnum, false)
 }
 
 func (p *Poset) frameFromStore(n idx.Frame) *Frame {
@@ -105,9 +96,9 @@ func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:     n,
-			FlagTable: FlagTable{},
-			Balances:  p.frame(n-1, true).Balances,
+			Index:    n,
+			Balances: p.frame(n-1, true).Balances,
+			Roots:    map[hash.Peer][]hash.Event{},
 		}
 		p.setFrameSaving(f)
 		p.frames[n] = f
