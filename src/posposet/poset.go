@@ -45,8 +45,6 @@ func New(store *Store, input EventSource) *Poset {
 		store: store,
 		input: input,
 
-		superFrame: *newSuperFrame(),
-
 		newEventsCh: make(chan hash.Event, buffSize),
 
 		newBlockCh: make(chan idx.Block, buffSize),
@@ -163,18 +161,20 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
-	// TODO: fill structs for strongly-see
-
 	var frame *Frame
 	if frame = p.checkIfRoot(e); frame == nil {
+		p.strongly.Add(event, 0)
 		return
 	}
+	p.strongly.Add(event, frame.Index)
+
 	p.Debugf("consensus: %s is root", event.String())
 	// process election for the new root
 	slot := election.Slot{
 		Frame: frame.Index,
 		Addr:  event.Creator,
 	}
+
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		Root: event.Hash(),
 		Slot: slot,
@@ -267,7 +267,8 @@ func (p *Poset) consensus(event *inter.Event) {
 // moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
 func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
 	p.LastFinishedFrame(frameDecided)
-	p.election.ResetElection(p.lastFinishedFrameN + 1)
+	p.election.Reset(p.members, p.lastFinishedFrameN+1)
+	p.strongly.Reset(p.members)
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -355,6 +356,7 @@ func (p *Poset) reconsensusFromFrame(start idx.Frame, newBalance hash.Hash) {
 	for _, e := range all.ByParents() {
 		p.consensus(e)
 	}
+
 	// save fresh frame
 	for n := start; n <= stop; n++ {
 		frame := p.frames[n]

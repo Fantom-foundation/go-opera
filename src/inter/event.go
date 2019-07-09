@@ -7,12 +7,13 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // Event is a poset event.
 type Event struct {
-	Index                uint64
+	Index                idx.Event
 	Creator              hash.Peer
 	Parents              hash.Events
 	LamportTime          Timestamp
@@ -88,7 +89,7 @@ func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 	extTxns, extTxnsHash := e.ExternalTransactions.ToWire()
 
 	return &wire.Event{
-		Index:                e.Index,
+		Index:                uint64(e.Index),
 		Creator:              e.Creator.Hex(),
 		Parents:              e.Parents.ToWire(),
 		LamportTime:          uint64(e.LamportTime),
@@ -104,7 +105,7 @@ func WireToEvent(w *wire.Event) *Event {
 		return nil
 	}
 	return &Event{
-		Index:                w.Index,
+		Index:                idx.Event(w.Index),
 		Creator:              hash.HexToPeer(w.Creator),
 		Parents:              hash.WireToEventHashes(w.Parents),
 		LamportTime:          Timestamp(w.LamportTime),
@@ -155,7 +156,7 @@ func FakeFuzzingEvents() (res []*Event) {
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := &Event{
-				Index:   uint64(p),
+				Index:   idx.Event(p),
 				Creator: creators[c],
 				Parents: parents[p],
 				InternalTransactions: []*InternalTransaction{

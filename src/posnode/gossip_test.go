@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
@@ -40,7 +41,7 @@ func TestGossip(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 1,
 				node2.ID: 0,
 			},
@@ -49,7 +50,7 @@ func TestGossip(t *testing.T) {
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 0,
 				node2.ID: 1,
 			},
@@ -64,7 +65,7 @@ func TestGossip(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 1,
 				node2.ID: 1,
 			},
@@ -73,7 +74,7 @@ func TestGossip(t *testing.T) {
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 0,
 				node2.ID: 1,
 			},
@@ -91,7 +92,7 @@ func TestGossip(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 1,
 				node2.ID: 1,
 			},
@@ -100,7 +101,7 @@ func TestGossip(t *testing.T) {
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 1,
 				node2.ID: 1,
 			},
@@ -144,7 +145,7 @@ func TestMissingParents(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 3,
 				node2.ID: 0,
 			},
@@ -153,7 +154,7 @@ func TestMissingParents(t *testing.T) {
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 0,
 				node2.ID: 0,
 			},
@@ -181,14 +182,14 @@ func TestMissingParents(t *testing.T) {
 
 		parents := hash.Events{}
 
-		// Sync with node1 but get only half events
+		// sync with node1 but get only half events
 		for creator, height := range unknowns {
 			req := &api.EventRequest{
 				PeerID: creator.Hex(),
 			}
-			// Skipping the first event.
-			for i := uint64(2); i <= height; i++ {
-				req.Index = i
+			// skipping the first event.
+			for i := idx.Event(2); i <= height; i++ {
+				req.Index = uint64(i)
 
 				event, err := node2.downloadEvent(client, peer, req)
 				if err != nil {
@@ -202,12 +203,12 @@ func TestMissingParents(t *testing.T) {
 			}
 		}
 
-		// Download missings
+		// download missings
 		node2.checkParents(client, peer, parents)
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 3,
 				node2.ID: 0,
 			},
@@ -216,7 +217,7 @@ func TestMissingParents(t *testing.T) {
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]uint64{
+			map[hash.Peer]idx.Event{
 				node1.ID: 3,
 				node2.ID: 0,
 			},

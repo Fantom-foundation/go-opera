@@ -239,10 +239,13 @@ func testProcessRoot(
 	}
 
 	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b Slot) *hash.Event {
+	stronglySeeFn := func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
-			to:   b,
+			to: Slot{
+				Addr:  b,
+				Frame: f,
+			},
 		}
 		hashB, ok := edges[edge]
 		if ok {
@@ -252,7 +255,7 @@ func testProcessRoot(
 		}
 	}
 
-	election := NewElection(mm, 0, stronglySeeFn)
+	election := New(mm, 0, stronglySeeFn)
 
 	// ordering:
 	var (

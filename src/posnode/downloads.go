@@ -4,17 +4,18 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
 	downloads struct {
-		heights    map[hash.Peer]uint64
+		heights    map[hash.Peer]idx.Event
 		hashes     hash.Events
 		sync.Mutex // TODO: split to separates for heights and hashes
 	}
 
 	interval struct {
-		from, to uint64
+		from, to idx.Event
 	}
 )
 
@@ -22,12 +23,12 @@ func (n *Node) initDownloads() {
 	if n.downloads.heights != nil {
 		return
 	}
-	n.downloads.heights = make(map[hash.Peer]uint64)
+	n.downloads.heights = make(map[hash.Peer]idx.Event)
 	n.downloads.hashes = hash.Events{}
 }
 
 // lockFreeHeights returns start indexes of height free intervals and reserves their.
-func (n *Node) lockFreeHeights(want map[hash.Peer]uint64) map[hash.Peer]interval {
+func (n *Node) lockFreeHeights(want map[hash.Peer]idx.Event) map[hash.Peer]interval {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 

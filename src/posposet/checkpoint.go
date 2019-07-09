@@ -7,7 +7,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -75,17 +74,8 @@ func (p *Poset) Bootstrap() {
 		p.Fatal("Apply genesis for store first")
 	}
 	// restore current super-frame
-	p.members = p.store.GetMembers(p.SuperFrameN)
-	p.election = election.NewElection(p.members, p.checkpoint.lastFinishedFrameN+1, p.rootStronglySeeRoot)
+	p.initSuperFrame()
 
-	// restore frames
-	for n := p.LastFinishedFrameN(); true; n++ {
-		if f := p.store.GetFrame(n, p.SuperFrameN); f != nil {
-			p.frames[n] = f
-		} else if n > 0 {
-			break
-		}
-	}
 	// recalc in case there was a interrupted consensus
 	start := p.frame(p.LastFinishedFrameN(), true)
 	p.reconsensusFromFrame(p.LastFinishedFrameN()+1, start.Balances)

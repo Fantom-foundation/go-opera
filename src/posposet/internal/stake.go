@@ -10,9 +10,8 @@ type stakeCounter struct {
 	members Members
 	already map[hash.Peer]struct{}
 
-	majority inter.Stake
-	sum      inter.Stake
-	dirtySum inter.Stake
+	quorum inter.Stake
+	sum    inter.Stake
 }
 
 func (mm Members) NewCounter() *stakeCounter {
@@ -21,29 +20,25 @@ func (mm Members) NewCounter() *stakeCounter {
 
 func newStakeCounter(mm Members) *stakeCounter {
 	return &stakeCounter{
-		members:  mm,
-		majority: mm.Majority(),
-		already:  make(map[hash.Peer]struct{}),
-		sum:      0,
-		dirtySum: 0,
+		members: mm,
+		quorum:  mm.Quorum(),
+		already: make(map[hash.Peer]struct{}),
+		sum:     0,
 	}
 }
 
 func (s *stakeCounter) Count(node hash.Peer) bool {
-	stake := s.members.StakeOf(node)
-	s.dirtySum += stake
-
 	if _, ok := s.already[node]; ok {
 		return false
 	}
 	s.already[node] = struct{}{}
 
-	s.sum += stake
+	s.sum += s.members.StakeOf(node)
 	return true
 }
 
-func (s *stakeCounter) HasMajority() bool {
-	return s.sum >= s.majority
+func (s *stakeCounter) HasQuorum() bool {
+	return s.sum >= s.quorum
 }
 
 func (s *stakeCounter) Sum() inter.Stake {

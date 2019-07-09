@@ -22,15 +22,11 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 
 	notDecidedRoots := el.notDecidedRoots()
 	for _, memberSubject := range notDecidedRoots {
-		slotSubject := Slot{
-			Frame: el.frameToDecide,
-			Addr:  memberSubject,
-		}
 		vote := voteValue{}
 
 		if round == 1 {
 			// in initial round, vote "yes" if subject is strongly seen
-			seenRoot := el.stronglySee(newRoot.Root, slotSubject)
+			seenRoot := el.stronglySee(newRoot.Root, memberSubject, el.frameToDecide)
 			vote.yes = seenRoot != nil
 			vote.decided = false
 			if seenRoot != nil {
@@ -75,7 +71,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 				}
 			}
 			// sanity checks
-			if !allVotes.HasMajority() {
+			if !allVotes.HasQuorum() {
 				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.Root.String(), " ", allVotes.Sum())
 			}
 
@@ -87,7 +83,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 
 			// If supermajority is seen, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-			vote.decided = yesVotes.HasMajority() || noVotes.HasMajority()
+			vote.decided = yesVotes.HasQuorum() || noVotes.HasQuorum()
 			if vote.decided {
 				el.decidedRoots[memberSubject] = vote
 			}
@@ -97,7 +93,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 		// save vote for next rounds
 		vid := voteId{
 			fromRoot:  newRoot.Root,
-			forMember: slotSubject.Addr,
+			forMember: memberSubject,
 		}
 		el.votes[vid] = vote
 	}

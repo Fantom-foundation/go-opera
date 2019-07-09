@@ -13,7 +13,7 @@ import (
 )
 
 func TestPosetSimpleRoot(t *testing.T) {
-	logger.SetTestMode(t)
+	//logger.SetTestMode(t)
 
 	testSpecialNamedRoots(t, `
 a01   b01   c01

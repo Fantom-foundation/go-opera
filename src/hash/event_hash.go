@@ -86,6 +86,16 @@ func NewEvents(h ...Event) Events {
 	return hh
 }
 
+// Copy copies events to a new structure.
+func (hh Events) Copy() Events {
+	ee := make(Events, len(hh))
+	for k, v := range hh {
+		ee[k] = v
+	}
+
+	return ee
+}
+
 // String returns human readable string representation.
 func (hh Events) String() string {
 	ss := make([]string, 0, len(hh))

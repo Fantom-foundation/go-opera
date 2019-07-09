@@ -40,7 +40,7 @@ func (mm Members) Top() Members {
 	return res
 }
 
-func (mm Members) Majority() inter.Stake {
+func (mm Members) Quorum() inter.Stake {
 	return mm.TotalStake()*2/3 + 1
 }
 

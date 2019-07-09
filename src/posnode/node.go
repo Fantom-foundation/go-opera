@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -180,7 +181,7 @@ func (n *Node) LastEventOf(peer hash.Peer) *inter.Event {
 }
 
 // EventOf returns i-th event of peer.
-func (n *Node) EventOf(peer hash.Peer, i uint64) *inter.Event {
+func (n *Node) EventOf(peer hash.Peer, i idx.Event) *inter.Event {
 	h := n.store.GetEventHash(peer, i)
 	if h == nil {
 		n.Errorf("no event hash for (%s,%d) in store", peer.String(), i)
