@@ -290,9 +290,21 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 			}
 		}
 
+		selfParentFrame := idx.Frame(0)
+		if len(e.Parents) > 0 {
+			selfParent := e.Parents[0]
+			selfParentFrame = p.FrameOfEvent(selfParent).Index
+		}
+
+		// minPossibleFrame = max(selfParentFrame + 1, maxParentsFrame)
+		minPossibleRootFrame := selfParentFrame + 1
+		if minPossibleRootFrame < maxParentsFrame {
+			minPossibleRootFrame = maxParentsFrame
+		}
+
 		// TODO store isRoot, frameHeight within inter.Event. Check not for every frame within this range,
 		//  but check only for a specified frame, and only if event.isRoot was true.
-		for f := p.frameNumLast(); f > maxParentsFrame; f-- {
+		for f := p.frameNumLast(); f >= minPossibleRootFrame; f-- {
 			// counter of all the seen roots on f
 			sSeenCounter := p.members.NewCounter()
 			for member, memberRoots := range p.frames[f].Roots {
