@@ -275,12 +275,12 @@ func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Eve
 func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 	var frameI idx.Frame
 	isRoot := false
-	if len(e.Parents) == 0 {
+	if e.Index == 0 {
 		// special case for first events in an SF
 		frameI = idx.Frame(1)
 		isRoot = true
 	} else {
-
+		// calc maxParentsFrame, i.e. max(parent's frame height)
 		maxParentsFrame := idx.Frame(0)
 
 		for parent := range e.Parents {
@@ -292,7 +292,8 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 
 		// TODO store isRoot, frameHeight within inter.Event. Check not for every frame within this range,
 		//  but check only for a specified frame, and only if event.isRoot was true.
-		for f := p.frameNumLast(); f >= maxParentsFrame; f-- {
+		for f := p.frameNumLast(); f > maxParentsFrame; f-- {
+			// counter of all the seen roots on f
 			sSeenCounter := p.members.NewCounter()
 			for member, memberRoots := range p.frames[f].Roots {
 				for _, root := range memberRoots {
@@ -301,6 +302,7 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 					}
 				}
 			}
+			// if a see enough roots, then I become a root too
 			if sSeenCounter.HasQuorum() {
 				frameI = f
 				isRoot = true
@@ -312,6 +314,8 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 			frameI = maxParentsFrame
 		}
 	}
+	// save in DB the {e, frame, isRoot}
+	// TODO is it done correctly?
 	frame := p.frames[frameI]
 	if !p.isEventValid(e, frame) {
 		return nil, false
