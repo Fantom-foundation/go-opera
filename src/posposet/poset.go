@@ -282,7 +282,6 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 	} else {
 		// calc maxParentsFrame, i.e. max(parent's frame height)
 		maxParentsFrame := idx.Frame(0)
-
 		for parent := range e.Parents {
 			pFrame := p.FrameOfEvent(parent).Index
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
@@ -296,34 +295,25 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 			selfParentFrame = p.FrameOfEvent(selfParent).Index
 		}
 
-		// minPossibleFrame = max(selfParentFrame + 1, maxParentsFrame)
-		minPossibleRootFrame := selfParentFrame + 1
-		if minPossibleRootFrame < maxParentsFrame {
-			minPossibleRootFrame = maxParentsFrame
-		}
+		// TODO store isRoot, frameHeight within inter.Event. Check only if event.isRoot was true.
 
-		// TODO store isRoot, frameHeight within inter.Event. Check not for every frame within this range,
-		//  but check only for a specified frame, and only if event.isRoot was true.
-		for f := p.frameNumLast(); f >= minPossibleRootFrame; f-- {
-			// counter of all the seen roots on f
-			sSeenCounter := p.members.NewCounter()
-			for member, memberRoots := range p.frames[f].Roots {
-				for _, root := range memberRoots {
-					if p.strongly.See(e.Hash(), root) {
-						sSeenCounter.Count(member)
-					}
+		// counter of all the seen roots on maxParentsFrame
+		sSeenCounter := p.members.NewCounter()
+		for member, memberRoots := range p.frames[maxParentsFrame].Roots {
+			for _, root := range memberRoots {
+				if p.strongly.See(e.Hash(), root) {
+					sSeenCounter.Count(member)
 				}
 			}
-			// if a see enough roots, then I become a root too
-			if sSeenCounter.HasQuorum() {
-				frameI = f + 1
-				isRoot = true
-				break
-			}
 		}
-
-		if !isRoot {
+		if sSeenCounter.HasQuorum() {
+			// if I see enough roots, then I become a root too
+			frameI = maxParentsFrame + 1
+			isRoot = true
+		} else {
+			// I see enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
 			frameI = maxParentsFrame
+			isRoot = maxParentsFrame > selfParentFrame
 		}
 	}
 	// save in DB the {e, frame, isRoot}
