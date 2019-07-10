@@ -159,7 +159,7 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
-	p.strongly.Add(event)
+	p.strongly.Cache(event)
 
 	frame, isRoot := p.checkIfRoot(e)
 	if !isRoot {

@@ -79,7 +79,7 @@ func testStronglySeen(t *testing.T, dag string) {
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			ss.Add(e)
+			ss.Cache(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {

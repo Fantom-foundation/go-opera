@@ -34,7 +34,8 @@ func (ss *Strongly) Reset(mm internal.Members) {
 	ss.events = make(map[hash.Event]*Event)
 }
 
-func (ss *Strongly) Add(e *inter.Event) {
+// Cache event for Strongly.See.
+func (ss *Strongly) Cache(e *inter.Event) {
 	// sanity check
 	if _, ok := ss.events[e.Hash()]; ok {
 		ss.Fatalf("event %s already exists", e.Hash().String())

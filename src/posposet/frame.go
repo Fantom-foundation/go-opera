@@ -27,7 +27,7 @@ func (f *Frame) Save() {
 	}
 }
 
-// AddRootsOf appends known roots for event.
+// AddRoot appends root-event into frame.
 func (f *Frame) AddRoot(e *Event) {
 	changed := f.Events.AddOne(e.Hash(), e.Creator)
 	changed = f.Roots.AddOne(e.Hash(), e.Creator) || changed
@@ -36,7 +36,7 @@ func (f *Frame) AddRoot(e *Event) {
 	}
 }
 
-// AddEventOf appends known roots for event.
+// AddEvent appends event into frame.
 func (f *Frame) AddEvent(e *Event) {
 	if f.Events.AddOne(e.Hash(), e.Creator) {
 		f.Save()
