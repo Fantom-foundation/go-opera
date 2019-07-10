@@ -275,7 +275,7 @@ func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Eve
 func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 	var frameI idx.Frame
 	isRoot := false
-	if e.Index == 0 {
+	if len(e.Parents) == 0 {
 		// special case for first events in an SF
 		frameI = idx.Frame(1)
 		isRoot = true
