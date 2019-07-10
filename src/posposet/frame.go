@@ -12,9 +12,9 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index     idx.Frame
-	FlagTable FlagTable
-
+	Index    idx.Frame
+	Events   EventsByPeer
+	Roots    EventsByPeer
 	Balances hash.Hash // TODO: move to super-frame
 
 	save func()
@@ -28,18 +28,19 @@ func (f *Frame) Save() {
 }
 
 // AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event hash.Event, roots EventsByPeer) {
-	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = EventsByPeer{}
-	}
-	if f.FlagTable[event].Add(roots) {
+func (f *Frame) AddRoot(e *Event) {
+	changed := f.Events.AddOne(e.Hash(), e.Creator)
+	changed = f.Roots.AddOne(e.Hash(), e.Creator) || changed
+	if changed {
 		f.Save()
 	}
 }
 
-// GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
-	return f.FlagTable[event]
+// AddEventOf appends known roots for event.
+func (f *Frame) AddEvent(e *Event) {
+	if f.Events.AddOne(e.Hash(), e.Creator) {
+		f.Save()
+	}
 }
 
 // SetBalances saves PoS-balances state.
@@ -55,9 +56,8 @@ func (f *Frame) SetBalances(balances hash.Hash) bool {
 // ToWire converts to proto.Message.
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
-		Index:     uint32(f.Index),
-		FlagTable: f.FlagTable.ToWire(),
-		Balances:  f.Balances.Bytes(),
+		Index:    uint32(f.Index),
+		Balances: f.Balances.Bytes(),
 	}
 }
 
@@ -67,9 +67,8 @@ func WireToFrame(w *wire.Frame) *Frame {
 		return nil
 	}
 	return &Frame{
-		Index:     idx.Frame(w.Index),
-		FlagTable: WireToFlagTable(w.FlagTable),
-		Balances:  hash.FromBytes(w.Balances),
+		Index:    idx.Frame(w.Index),
+		Balances: hash.FromBytes(w.Balances),
 	}
 }
 

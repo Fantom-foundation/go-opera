@@ -9,104 +9,67 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	//"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestPosetSimpleRoot(t *testing.T) {
-	//logger.SetTestMode(t)
-
 	testSpecialNamedRoots(t, `
-a01   b01   c01
-║     ║     ║
-a11 ─ ╬ ─ ─ ╣     d01
+A101  B101  C101  D101  // 1
 ║     ║     ║     ║
-║     ╠ ─ ─ c11 ─ ╣
-║     ║     ║     ║     e01
-╠ ─ ─ B12 ─ ╣     ║     ║
-║     ║     ║     ║     ║
-║     ║     ╠ ─ ─ D12 ─ ╣
-║     ║     ║     ║     ║
-A22 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
-║     ║     ║     ║     ║
-╠ ─ ─ ╫ ─ ─ ╫ ─ ─ ╬ ─ ─ E12
-║     ║     ║     ║     ║
-╠ ─ ─ ╫ ─ ─ C22 ─ ╣     ║
-║     ║     ║     ║     ║
-╠ ─ ─ B23 ─ ╣     ║     ║
-║     ║     ║     ║     ║
-║     ║     ╠ ─ ─ D23 ─ ╣
-║     ║     ║     ║     ║
-║     ╠ ─ ─ ╫ ─ ─ ╬ ─ ─ E23
-║     ║     ║     ║     ║
-A33 ─ ╬ ─ ─ ╣     ║     ║
-║     ║     ║     ║     ║
-║     ╠ ─ ─ C33   ║     ║
-║     ║     ║     ║     ║
-╠ ─ ─ b33 ─ ╣     ║     ║
-║     ║     ║     ║     ║
-a43 ─ ╬ ─ ─ ╣     ║     ║
-║     ║     ║     ║     ║
-║     ╠ ─ ─ C44 ─ ╣     ║
-║     ║     ║     ║     ║
-╠ ─ ─ B44 ─ ╣     ║     ║
-║     ║     ║     ║     ║
-║     ║     ╠ ─ ─ D34 ─ ╣
-║     ║     ║     ║     ║
-A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
-║     ║     ║     ║     ║
-╠ ─ ─ ╫ ─ ─ c54 ─ ╣     ║
-║     ║     ║     ║     ║
-║     ║     ╠ ─ ─ ╬ ─ ─ E34
-║     ║     ║     ║     ║
-`)
-}
-
-func TestPosetFarRoot(t *testing.T) {
-	logger.SetTestMode(t)
-
-	testSpecialNamedRoots(t, `
-a01   b01   c01
-║     ║     ║
-a11 ─ ╬ ─ ─ ╣     d01
+║     ╠─────╫──── d102
 ║     ║     ║     ║
-║     ╠ ─ ─ c11 ─ ╣
+║     b102 ─╫─────╣
 ║     ║     ║     ║
-╠ ─ ─ B12 ─ ╣     ║
+║     ╠─────╫──── d103
+a102 ─╣     ║     ║
 ║     ║     ║     ║
-║     ╠ ─ ─ ╬ ─ ─ D12
+║     b103 ─╣     ║
 ║     ║     ║     ║
-A22 ─ ╫ ─ ─ ╬ ─ ─ ╣
+║     ╠─────╫──── d104
 ║     ║     ║     ║
-╠ ─ ─ ╫ ─ ─ C22 ─ ╣
+║     ╠──── c102  ║
 ║     ║     ║     ║
-╠ ─ ─ B23 ─ ╣     ║
+║     b104 ─╫─────╣
+║     ║     ║     ║     // 2
+╠─────╫─────╫──── D205
 ║     ║     ║     ║
-║     ╠ ─ ─ ╬ ─ ─ D23
+A203 ─╫─────╫─────╣
 ║     ║     ║     ║
-A33 ─ ╬ ─ ─ ╣     ║
+a204 ─╫─────╣     ║
 ║     ║     ║     ║
-║     ╠ ─ ─ C33   ║
+║     B205 ─╫─────╣
 ║     ║     ║     ║
-╠ ─ ─ b33 ─ ╣     ║
+║     ╠─────╫──── d206
+a205 ─╣     ║     ║
 ║     ║     ║     ║
-a43 ─ ╬ ─ ─ ╣     ║
+╠─────╫──── C203  ║
 ║     ║     ║     ║
-║     ╠ ─ ─ C44 ─ ╣
-║     ║     ║     ║     ║
-║     ║     ╠ ─ ─ ╬ ─ ─ E04
-║     ║     ║     ║     ║
-╠ ─ ─ B44 ─ ╣     ║     ║
-║     ║     ║     ║     ║
-╠ ─ ─ ╫ ─ ─ ╬ ─ ─ D34   ║
-║     ║     ║     ║     ║
-A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
-║     ║     ║     ║     ║
-╠ ─ ─ ╫ ─ ─ c54 ─ ╣     ║
-║     ║     ║     ║     ║
-║     ╠ ─ ─ ╫ ─ ─ ╬ ─ ─ E15
-║     ║     ║     ║     ║
-║     ║     ╠ ─ ─ ╬ ─ ─ e25
-║     ║     ║     ║     ║
+╠─────╫─────╫──── d207
+║     ║     ║     ║
+╠──── b206  ║     ║
+║     ║     ║     ║     // 3
+║     B307 ─╫─────╣
+║     ║     ║     ║
+A306 ─╣     ║     ║
+║     ╠─────╫──── D308
+║     ║     ║     ║
+║     ║     ╠──── d309
+╠──── b308  ║     ║
+║     ║     ║     ║
+╠──── b309  ║     ║
+║     ║     C304 ─╣
+a307 ─╣     ║     ║
+║     ║     ║     ║
+║     b310 ─╫─────╣
+║     ║     ║     ║
+a308 ─╣     ║     ║
+║     ╠─────╫──── d310
+║     ║     ║     ║
+╠──── b311  ║     ║     // 4
+║     ║     ╠──── D411
+║     ║     ║     ║
+║     B412 ─╫─────╣
+║     ║     ║     ║
 `)
 }
 
@@ -115,11 +78,12 @@ A54 ─ ╫ ─ ─ ╬ ─ ─ ╣     ║
  */
 
 // testSpecialNamedRoots is a general test of root selection.
-// Node name means:
-// - 1st letter uppercase - node should be root;
-// - 2nd number - index by node;
-// - 3rd number - frame where node should be in;
+// Event name means:
+// - 1st letter uppercase - event should be root;
+// - 2nd number - frame where event should be in;
+// - other numbers - index by node (optional);
 func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
+	//logger.SetTestMode(t)
 	assertar := assert.New(t)
 	// init
 	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme)
@@ -131,19 +95,27 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	}
 	// check each
 	for name, event := range names {
+		mustBeFrame, mustBeRoot := parseEvent(name)
 		// check root
-		mustBeRoot := name == strings.ToUpper(name)
-		frame, isRoot := p.FrameOfEvent(event.Hash())
+		frame := p.FrameOfEvent(event.Hash())
+		isRoot := frame.Roots.Contains(event.Creator, event.Hash())
 		if !assertar.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
 		}
 		// check frame
-		mustBeFrame, err := strconv.ParseUint(name[2:3], 10, 64)
-		if !assertar.NoError(err, "name the nodes properly: <UpperCaseForRoot><Index><FrameN>") {
-			return
-		}
 		if !assertar.Equal(idx.Frame(mustBeFrame), frame.Index, "frame of "+name) {
 			break
 		}
 	}
+}
+
+func parseEvent(name string) (frameN idx.Frame, isRoot bool) {
+	n, err := strconv.ParseUint(name[1:2], 10, 64)
+	if err != nil {
+		panic(err.Error() + ". Name event " + name + " properly: <UpperCaseForRoot><FrameN><Index>")
+	}
+	frameN = idx.Frame(n)
+
+	isRoot = name == strings.ToUpper(name)
+	return
 }

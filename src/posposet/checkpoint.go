@@ -78,7 +78,42 @@ func (p *Poset) Bootstrap() {
 
 	// recalc in case there was a interrupted consensus
 	start := p.frame(p.LastFinishedFrameN(), true)
-	p.reconsensusFromFrame(p.LastFinishedFrameN()+1, start.Balances)
+	p.reloadFromFrame(p.LastFinishedFrameN()+1, start.Balances)
+}
+
+// reloadFromFrame reconsensus events from non-finished frames.
+func (p *Poset) reloadFromFrame(start idx.Frame, newBalance hash.Hash) {
+	// TODO: implement it
+	/*	stop := p.frameNumLast()
+		var all inter.Events
+		// foreach stale frame
+		for n := start; n <= stop; n++ {
+			frame := p.frames[n]
+			// extract events
+			for e := range frame.Events.Each() {
+				all = append(all, p.input.GetEvent(e))
+			}
+			// and replace stale frame with blank
+			p.frames[n] = &Frame{
+				Index:    n,
+				Events:   EventsByPeer{},
+				Roots:    EventsByPeer{},
+				Balances: newBalance,
+			}
+		}
+		// recalc consensus (without frame saving)
+		for _, e := range all.ByParents() {
+			p.consensus(e)
+		}
+
+		// save fresh frame
+		for n := start; n <= stop; n++ {
+			frame := p.frames[n]
+
+			p.setFrameSaving(frame)
+			frame.Save()
+		}
+	*/
 }
 
 // GetGenesisHash is a genesis getter.

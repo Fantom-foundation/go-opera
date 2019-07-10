@@ -79,7 +79,7 @@ func testStronglySeen(t *testing.T, dag string) {
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			ss.Add(e, 1)
+			ss.Add(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -102,12 +102,12 @@ func testStronglySeen(t *testing.T, dag string) {
 		for dsc, by := range named {
 			level, _ := decode(dsc)
 
-			who := ss.events[by.Hash()]
-			whom := ss.events[ev.Hash()]
+			who := by.Hash()
+			whom := ev.Hash()
 			if !assertar.Equal(
 				bylevel > 0 && bylevel <= level,
-				ss.sufficientCoherence(who, whom),
-				fmt.Sprintf("%s strongly sees %s", who.Hash().String(), whom.Hash().String()),
+				ss.See(who, whom),
+				fmt.Sprintf("%s strongly sees %s", who.String(), whom.String()),
 			) {
 				return
 			}

@@ -12,7 +12,7 @@ import (
 
 func TestPosetTxn(t *testing.T) {
 	// TODO: fix
-	t.Skip("")
+	t.Skip("todo")
 
 	logger.SetTestMode(t)
 
