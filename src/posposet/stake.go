@@ -7,7 +7,8 @@ import (
 
 // StakeOf returns last stake balance of peer.
 func (p *Poset) StakeOf(addr hash.Peer) inter.Stake {
-	f := p.frameFromStore(p.LastFinishedFrameN() + stateGap)
+	// TODO: implement
+	f := p.frameFromStore(0)
 	db := p.store.StateDB(f.Balances)
 	return db.VoteBalance(addr)
 }

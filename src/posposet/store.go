@@ -90,7 +90,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 
 	cp = &checkpoint{
 		SuperFrameN:        0,
-		lastFinishedFrameN: 0,
+		LastDecidedFrameN: 0,
 		TotalCap:           0,
 	}
 

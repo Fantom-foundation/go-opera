@@ -47,7 +47,7 @@ func (ee eventsByFrame) String() string {
 
 // FrameOfEvent returns unfinished frame where event is in.
 func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
-	for i := p.LastFinishedFrameN(); true; i++ {
+	for i := idx.Frame(1); true; i++ {
 		frame = p.frame(i, false)
 		if frame == nil {
 			return
@@ -63,10 +63,6 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
 }
 
 func (p *Poset) frameFromStore(n idx.Frame) *Frame {
-	if n < p.LastFinishedFrameN() {
-		p.Fatalf("too old frame %d is requested", n)
-	}
-	// return ephemeral
 	if n == 0 {
 		return &Frame{
 			Index:    0,
@@ -84,15 +80,10 @@ func (p *Poset) frameFromStore(n idx.Frame) *Frame {
 
 // frame finds or creates frame.
 func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
-	if n < p.LastFinishedFrameN() && orCreate {
-		p.Fatalf("too old frame %d is requested", n)
-	}
 	// return ephemeral
 	if n == 0 {
 		return &Frame{
 			Index:    0,
-			Events:   EventsByPeer{},
-			Roots:    EventsByPeer{},
 			Balances: p.Genesis,
 		}
 	}

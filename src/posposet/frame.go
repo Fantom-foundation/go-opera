@@ -78,11 +78,7 @@ func WireToFrame(w *wire.Frame) *Frame {
 
 func (p *Poset) setFrameSaving(f *Frame) {
 	f.save = func() {
-		if f.Index > p.LastFinishedFrameN() {
-			p.store.SetFrame(f, p.SuperFrameN)
-		} else {
-			p.Fatalf("frame %d is finished and should not be changed", f.Index)
-		}
+		p.store.SetFrame(f, p.SuperFrameN)
 	}
 }
 

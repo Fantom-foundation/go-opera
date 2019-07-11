@@ -12,10 +12,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 )
 
-// stateGap is a frame-delay to apply new balance.
-// TODO: move this magic number to mainnet config
-const stateGap = 3
-
 // Poset processes events to get consensus.
 type Poset struct {
 	store *Store
@@ -148,8 +144,6 @@ func (p *Poset) consensus(event *inter.Event) {
 		return
 	}
 
-	return // TODO: remove when election is properly worked
-
 	p.Debugf("consensus: %s is root", event.String())
 	// process election for the new root
 	slot := election.Slot{
@@ -243,8 +237,8 @@ func (p *Poset) consensus(event *inter.Event) {
 // TODO @dagchain seems like it's a handy abstranction to be called within consensus()
 // moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
 func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
-	p.LastFinishedFrame(frameDecided)
-	p.election.Reset(p.members, p.lastFinishedFrameN+1)
+	p.LastDecidedFrameN = frameDecided
+	p.election.Reset(p.members, frameDecided+1)
 }
 
 // checkIfRoot checks root-conditions for new event

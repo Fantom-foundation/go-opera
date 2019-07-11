@@ -139,7 +139,10 @@ func (ss *Strongly) See(aHash, bHash hash.Event) bool {
 
 	// calculate strongly seeing using the indexes
 	for m := range ss.members {
-		n := ss.nodes[m]
+		n, ok := ss.nodes[m]
+		if !ok {
+			continue
+		}
 		if b.LowestSees[n] <= a.HighestSeen[n] && b.LowestSees[n] != 0 {
 			counter.Count(m)
 		}
