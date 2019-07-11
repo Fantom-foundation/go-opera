@@ -226,7 +226,7 @@ func testProcessRoot(
 			if sSeen.IsZero() {
 				continue
 			}
-			if p := events[sSeen]; p.Creator == root.Creator && noPrev {
+			if sSeen == root.SelfParent && noPrev {
 				continue
 			}
 			to := sSeen
