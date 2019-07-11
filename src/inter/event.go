@@ -15,6 +15,7 @@ import (
 type Event struct {
 	Index                idx.Event
 	Creator              hash.Peer
+	SelfParent           hash.Event
 	Parents              hash.Events
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
@@ -91,7 +92,7 @@ func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 	return &wire.Event{
 		Index:                uint64(e.Index),
 		Creator:              e.Creator.Hex(),
-		Parents:              e.Parents.ToWire(),
+		Parents:              e.Parents.ToWire(e.SelfParent),
 		LamportTime:          uint64(e.LamportTime),
 		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
 		ExternalTransactions: extTxnsHash,
@@ -104,10 +105,12 @@ func WireToEvent(w *wire.Event) *Event {
 	if w == nil {
 		return nil
 	}
+	self, all := hash.WireToEventHashes(w.Parents)
 	return &Event{
 		Index:                idx.Event(w.Index),
 		Creator:              hash.HexToPeer(w.Creator),
-		Parents:              hash.WireToEventHashes(w.Parents),
+		SelfParent:           self,
+		Parents:              all,
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
 		ExternalTransactions: WireToExtTxns(w),
@@ -141,8 +144,8 @@ func FakeFuzzingEvents() (res []*Event) {
 		hash.FakePeer(),
 	}
 	parents := []hash.Events{
-		hash.FakeEvents(0),
 		hash.FakeEvents(1),
+		hash.FakeEvents(2),
 		hash.FakeEvents(8),
 	}
 	extTxns := [][][]byte{
@@ -169,6 +172,12 @@ func FakeFuzzingEvents() (res []*Event) {
 					Value: extTxns[i%len(extTxns)],
 				},
 			}
+
+			for p := range e.Parents {
+				e.SelfParent = p
+				break
+			}
+
 			res = append(res, e)
 			i++
 		}
