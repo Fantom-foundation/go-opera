@@ -130,6 +130,7 @@ func (n *Node) emitEvent() *inter.Event {
 
 	var (
 		index          idx.Event
+		selfParent     = hash.Event{}
 		parents        = hash.Events{}
 		maxLamportTime inter.Timestamp
 		internalTxns   []*inter.InternalTransaction
@@ -140,9 +141,11 @@ func (n *Node) emitEvent() *inter.Event {
 	if prev != nil {
 		index = prev.Index + 1
 		maxLamportTime = prev.LamportTime
+		selfParent = prev.Hash()
 		parents.Add(prev.Hash())
 	} else {
 		index = 1
+		selfParent = hash.ZeroEvent
 		parents.Add(hash.ZeroEvent)
 	}
 
@@ -175,6 +178,7 @@ func (n *Node) emitEvent() *inter.Event {
 	event := &inter.Event{
 		Index:                index,
 		Creator:              n.ID,
+		SelfParent:           selfParent,
 		Parents:              parents,
 		LamportTime:          maxLamportTime + 1,
 		InternalTransactions: internalTxns,
