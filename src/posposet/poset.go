@@ -258,13 +258,12 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 		selfParentFrame := idx.Frame(0)
 
 		for parent := range e.Parents {
-			pEvent := p.GetEvent(parent)
 			pFrame := p.FrameOfEvent(parent).Index
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
 				maxParentsFrame = pFrame
 			}
 
-			if pEvent.Creator == e.Creator {
+			if parent == e.SelfParent {
 				selfParentFrame = pFrame
 			}
 		}
