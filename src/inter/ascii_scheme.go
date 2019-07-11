@@ -109,12 +109,14 @@ func ASCIIschemeToDAG(scheme string) (
 			// find creator's parent
 			var (
 				index      idx.Event
+				selfParent = hash.Event{}
 				parents    = hash.Events{}
 				maxLamport Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]
 				index = parent.Index + 1
+				selfParent = parent.Hash()
 				parents.Add(parent.Hash())
 				maxLamport = parent.LamportTime
 			} else {
@@ -139,6 +141,7 @@ func ASCIIschemeToDAG(scheme string) (
 			e := &Event{
 				Index:       index,
 				Creator:     creator,
+				SelfParent:  selfParent,
 				Parents:     parents,
 				LamportTime: maxLamport + 1,
 			}
