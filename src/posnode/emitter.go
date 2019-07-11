@@ -130,7 +130,7 @@ func (n *Node) emitEvent() *inter.Event {
 
 	var (
 		index          idx.Event
-		selfParent     = hash.Event{}
+		selfParent     hash.Event
 		parents        = hash.Events{}
 		maxLamportTime inter.Timestamp
 		internalTxns   []*inter.InternalTransaction
