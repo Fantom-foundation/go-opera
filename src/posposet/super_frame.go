@@ -22,7 +22,7 @@ type superFrame struct {
 func (p *Poset) initSuperFrame() {
 	p.members = p.store.GetMembers(p.SuperFrameN)
 	p.strongly = seeing.New(p.members)
-	p.election = election.New(p.members, p.checkpoint.lastFinishedFrameN+1, p.stronglySee)
+	p.election = election.New(p.members, p.checkpoint.lastFinishedFrameN+1, p.rootStronglySeeRoot)
 
 	// restore frames
 	p.frames = make(map[idx.Frame]*Frame)
@@ -35,15 +35,18 @@ func (p *Poset) initSuperFrame() {
 	}
 }
 
-func (p *Poset) stronglySee(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
-	frame := p.frame(f, false)
-	if frame == nil {
+// rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.
+// Due to a fork, there may be many roots B with the same slot,
+// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
+func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Frame) *hash.Event {
+	frame, ok := p.frames[bFrame]
+	if !ok { // not known frame for B
 		return nil
 	}
 
-	for r := range frame.Events[b] {
-		if p.strongly.See(a, r) {
-			return &r
+	for b := range frame.Roots[bNode] {
+		if p.strongly.See(a, b) {
+			return &b
 		}
 	}
 

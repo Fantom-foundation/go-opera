@@ -134,24 +134,6 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 	return frame.Roots[slot.Addr].Copy()
 }
 
-// rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.
-// Due to a fork, there may be many roots B with the same slot,
-// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootStronglySeeRoot(a hash.Event, bSlot election.Slot) *hash.Event {
-	bFrame, ok := p.frames[bSlot.Frame]
-	if !ok { // not known frame for B
-		return nil
-	}
-
-	for b := range bFrame.Roots[bSlot.Addr] {
-		if p.strongly.See(a, b) {
-			return &b
-		}
-	}
-
-	return nil
-}
-
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(event *inter.Event) {
 	p.Debugf("consensus: start %s", event.String())
@@ -166,7 +148,7 @@ func (p *Poset) consensus(event *inter.Event) {
 		return
 	}
 
-	//return // TODO: remove when election is properly worked
+	return // TODO: remove when election is properly worked
 
 	p.Debugf("consensus: %s is root", event.String())
 	// process election for the new root
@@ -263,7 +245,6 @@ func (p *Poset) consensus(event *inter.Event) {
 func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
 	p.LastFinishedFrame(frameDecided)
 	p.election.Reset(p.members, p.lastFinishedFrameN+1)
-	p.strongly.Reset(p.members)
 }
 
 // checkIfRoot checks root-conditions for new event
