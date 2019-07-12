@@ -162,10 +162,8 @@ func (p *Poset) consensus(event *inter.Event) {
 		Addr:  event.Creator,
 	}
 
-	eventHash := event.Hash()
-
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
-		Root: eventHash,
+		Root: event.Hash(),
 		Slot: slot,
 	})
 	if err != nil {
@@ -174,7 +172,7 @@ func (p *Poset) consensus(event *inter.Event) {
 
 	if decided != nil {
 		// if we’re here, then this root has seen that lowest not decided frame is decided now
-		p.onFrameDecided(eventHash, decided.DecidedFrame, decided.DecidedSfWitness)
+		p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
 
 		// then call processKnownRoots until it returns nil -
 		// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
@@ -184,7 +182,7 @@ func (p *Poset) consensus(event *inter.Event) {
 				p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
 			}
 			if decided != nil {
-				p.onFrameDecided(eventHash, decided.DecidedFrame, decided.DecidedSfWitness)
+				p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
 			} else {
 				break
 			}
@@ -249,11 +247,11 @@ func (p *Poset) consensus(event *inter.Event) {
 
 // TODO @dagchain seems like it's a handy abstranction to be called within consensus()
 // moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
-func (p *Poset) onFrameDecided(eventHash hash.Event, frameDecided idx.Frame, decidedSfWitness hash.Event) {
+func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
 	p.LastDecidedFrameN = frameDecided
 	p.election.Reset(p.members, frameDecided+1)
 
-	eventsToConfirm, err := p.dfsSubgraph(eventHash, p.isNotConfirmed)
+	eventsToConfirm, err := p.dfsSubgraph(decidedSfWitness, p.isNotConfirmed)
 	if err != nil {
 		p.Fatal(err)
 	}
