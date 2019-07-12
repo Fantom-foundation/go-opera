@@ -234,11 +234,31 @@ func (p *Poset) consensus(event *inter.Event) {
 	*/
 }
 
-// TODO @dagchain seems like it's a handy abstranction to be called within consensus()
-// moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
-func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
-	p.LastDecidedFrameN = frameDecided
-	p.election.Reset(p.members, frameDecided+1)
+// onFrameDecided moves LastDecidedFrameN to frame.
+// It includes: moving current decided frame, txs ordering and execution, superframe sealing.
+func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
+	p.LastDecidedFrameN = frame
+	p.election.Reset(p.members, frame+1)
+
+	unordered, err := p.dfsSubgraph(sfWitness, p.isNotConfirmed)
+	if err != nil {
+		p.Fatal(err)
+	}
+
+	// ordering
+	if len(unordered) == 0 {
+		return
+	}
+
+	orderedEvents := p.fareOrdering(unordered)
+
+	// confirm event
+	for _, event := range orderedEvents {
+		p.store.SetConfirmedEvent(event.Hash(), frame)
+	}
+
+	// TODO: apply tx
+
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -298,4 +318,12 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 		frame.AddEvent(e)
 	}
 	return frame, isRoot
+}
+
+// Note: should be used by dfsSubgraph() as filter
+func (p *Poset) isNotConfirmed(event *inter.Event) bool {
+	if res := p.store.GetConfirmedEvent(event.Hash()); res == 0 {
+		return true
+	}
+	return false
 }

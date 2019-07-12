@@ -12,6 +12,7 @@ import (
 type checkpoint struct {
 	SuperFrameN       idx.SuperFrame
 	LastDecidedFrameN idx.Frame
+	LastConsensusTime inter.Timestamp
 	LastBlockN        idx.Block
 	Genesis           hash.Hash
 	TotalCap          inter.Stake

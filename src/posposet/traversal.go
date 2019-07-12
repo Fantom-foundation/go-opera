@@ -18,7 +18,7 @@ func (s eventsStack) Pop() (eventsStack, *hash.Event) {
 	if l == 0 {
 		return s, nil
 	}
-	return  s[:l-1], &s[l-1]
+	return s[:l-1], &s[l-1]
 }
 
 type eventFilterFn func(event *inter.Event) bool
@@ -31,7 +31,7 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 	visited := make(map[hash.Event]bool)
 	stack := make(eventsStack, 0, len(p.members))
 
-	for pwalk := &head; pwalk != nil; stack, pwalk = stack.Pop() {
+	for pwalk := &head; pwalk != nil && *pwalk != hash.ZeroEvent; stack, pwalk = stack.Pop() {
 		// ensure visited once
 		walk := *pwalk
 		if visited[walk] {

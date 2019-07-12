@@ -21,13 +21,14 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		Checkpoint  kvdb.Database `table:"checkpoint_"`
-		Frames      kvdb.Database `table:"frame_"`
-		Blocks      kvdb.Database `table:"block_"`
-		Event2Frame kvdb.Database `table:"event2frame_"`
-		Event2Block kvdb.Database `table:"event2block_"`
-		Members     kvdb.Database `table:"member_"`
-		Balances    state.Database
+		Checkpoint     kvdb.Database `table:"checkpoint_"`
+		Frames         kvdb.Database `table:"frame_"`
+		Blocks         kvdb.Database `table:"block_"`
+		Event2Frame    kvdb.Database `table:"event2frame_"`
+		Event2Block    kvdb.Database `table:"event2block_"`
+		Members        kvdb.Database `table:"member_"`
+		ConfirmedEvent kvdb.Database `table:"confirmed_"`
+		Balances       state.Database
 	}
 	cache struct {
 		Frames      *lru.Cache `cache:"-"`
@@ -89,9 +90,9 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 	}
 
 	cp = &checkpoint{
-		SuperFrameN:        0,
+		SuperFrameN:       0,
 		LastDecidedFrameN: 0,
-		TotalCap:           0,
+		TotalCap:          0,
 	}
 
 	mm := make(internal.Members, len(balances))
