@@ -18,7 +18,7 @@ func (s eventsStack) Pop() (eventsStack, *hash.Event) {
 	if l == 0 {
 		return s, nil
 	}
-	return  s[:l-1], &s[l-1]
+	return s[:l-1], &s[l-1]
 }
 
 type eventFilterFn func(event *inter.Event) bool

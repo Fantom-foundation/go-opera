@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -10,11 +11,20 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 // stateGap is a frame-delay to apply new balance.
 // TODO: move this magic number to mainnet config
 const stateGap = 3
+
+// TODO: move it?
+// using for fare ordering
+var (
+	prevConsensusTimestamp inter.Timestamp
+	genesisTimestamp inter.Timestamp = 1562816974
+	nodeCount = internal.MembersCount / 3
+)
 
 // Poset processes events to get consensus.
 type Poset struct {
@@ -175,8 +185,10 @@ func (p *Poset) consensus(event *inter.Event) {
 		Addr:  event.Creator,
 	}
 
+	eventHash := event.Hash()
+
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
-		Root: event.Hash(),
+		Root: eventHash,
 		Slot: slot,
 	})
 	if err != nil {
@@ -185,9 +197,7 @@ func (p *Poset) consensus(event *inter.Event) {
 
 	if decided != nil {
 		// if we’re here, then this root has seen that lowest not decided frame is decided now
-		p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
-
-		frame := decided.DecidedFrame
+		p.onFrameDecided(eventHash, decided.DecidedFrame, decided.DecidedSfWitness)
 
 		// then call processKnownRoots until it returns nil -
 		// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
@@ -197,14 +207,11 @@ func (p *Poset) consensus(event *inter.Event) {
 				p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
 			}
 			if decided != nil {
-				frame = decided.DecidedFrame
-				p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
+				p.onFrameDecided(eventHash, decided.DecidedFrame, decided.DecidedSfWitness)
 			} else {
 				break
 			}
 		}
-
-		p.store.SetConfirmedEvent(event.Hash(), frame)
 	}
 
 	/* OLD :
@@ -265,10 +272,26 @@ func (p *Poset) consensus(event *inter.Event) {
 
 // TODO @dagchain seems like it's a handy abstranction to be called within consensus()
 // moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
-func (p *Poset) onFrameDecided(frameDecided idx.Frame, decidedSfWitness hash.Event) {
+func (p *Poset) onFrameDecided(eventHash hash.Event, frameDecided idx.Frame, decidedSfWitness hash.Event) {
 	p.LastFinishedFrame(frameDecided)
 	p.election.Reset(p.members, p.lastFinishedFrameN+1)
 	p.strongly.Reset(p.members)
+
+	eventsToConfirm, err := p.dfsSubgraph(eventHash, p.isNotConfirmed)
+	if err != nil {
+		p.Fatal(err)
+	}
+
+	// ordering
+	orderedEvents := p.fareOrdering(eventsToConfirm)
+
+	// confirm event
+	for _, event := range orderedEvents {
+		p.store.SetConfirmedEvent(event.Hash(), frameDecided)
+	}
+
+	// TODO: apply tx
+
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -366,10 +389,94 @@ func (p *Poset) reconsensusFromFrame(start idx.Frame, newBalance hash.Hash) {
 	}
 }
 
-// Note: should be used by dfsSubgraph() as filter (from PR #264)
-func (p *Poset) isNotApproved(h hash.Event) bool {
-	if res := p.store.GetConfirmedEvent(h); res == 0 {
+// Note: should be used by dfsSubgraph() as filter
+func (p *Poset) isNotConfirmed(event *inter.Event) bool {
+	if res := p.store.GetConfirmedEvent(event.Hash()); res == 0 {
 		return true
 	}
 	return false
+}
+
+func (p *Poset) fareOrdering(unordered inter.Events) Events {
+
+	// 1. Select latest events from each node with greatest lamport timestamp
+	var latestEvents map[hash.Peer]*inter.Event
+	for _, event := range unordered {
+		if _, ok := latestEvents[event.Creator]; !ok {
+			latestEvents[event.Creator] = event
+			continue
+		}
+
+		if event.LamportTime > latestEvents[event.Creator].LamportTime {
+			latestEvents[event.Creator] = event
+		}
+	}
+
+	// 2. Sort by lamport
+	var selectedEvents []*inter.Event
+	for _, event := range latestEvents {
+		selectedEvents = append(selectedEvents, event)
+	}
+
+	sort.Slice(selectedEvents, func(i, j int) bool {
+		return selectedEvents[i].LamportTime < selectedEvents[j].LamportTime
+	})
+
+	// 3. Get Stake from each creator
+	var stakes map[hash.Peer]inter.Stake
+	var jointStake inter.Stake
+	for _, event := range selectedEvents {
+		stake := p.StakeOf(event.Creator)
+
+		stakes[event.Creator] = stake
+		jointStake += stake
+	}
+
+	halfStake := jointStake / 2
+
+	// 4. Calculate weighted median
+	var selectedEventsMap map[hash.Peer]*inter.Event
+	for _, event := range selectedEvents {
+		selectedEventsMap[event.Creator] = event
+	}
+
+	var currStake inter.Stake
+	var median *inter.Event
+	for node, stake := range stakes {
+		if currStake < halfStake {
+			currStake += stake
+			continue
+		}
+
+		median = selectedEventsMap[node]
+	}
+
+	var orderedEvents Events
+
+	var startConsensusTime inter.Timestamp
+	for _, event := range unordered {
+		// 5. Calculate time ratio & time offset
+		if prevConsensusTimestamp == 0 {
+			startConsensusTime = genesisTimestamp + 1
+		} else {
+			startConsensusTime = prevConsensusTimestamp + 1
+		}
+
+		timeRatio := (median.LamportTime - startConsensusTime) / (selectedEvents[len(selectedEvents)-1].LamportTime - selectedEvents[0].LamportTime)
+		if timeRatio <= 0 {
+			timeRatio = 1
+		}
+
+		timeOffset := startConsensusTime - selectedEvents[0].LamportTime*timeRatio
+
+		// 6. Calculate consensus timestamp
+		consensusTimestamp := event.LamportTime*timeRatio + timeOffset
+		prevConsensusTimestamp = consensusTimestamp
+
+		orderedEvents = append(orderedEvents, &Event{event, consensusTimestamp})
+	}
+
+	sort.Sort(orderedEvents)
+
+	return orderedEvents
 }
