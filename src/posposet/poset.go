@@ -22,8 +22,8 @@ const stateGap = 3
 // using for fare ordering
 var (
 	prevConsensusTimestamp inter.Timestamp
-	genesisTimestamp inter.Timestamp = 1562816974
-	nodeCount = internal.MembersCount / 3
+	genesisTimestamp       inter.Timestamp = 1562816974
+	nodeCount                              = internal.MembersCount / 3
 )
 
 // Poset processes events to get consensus.
@@ -400,7 +400,7 @@ func (p *Poset) isNotConfirmed(event *inter.Event) bool {
 func (p *Poset) fareOrdering(unordered inter.Events) Events {
 
 	// 1. Select latest events from each node with greatest lamport timestamp
-	var latestEvents map[hash.Peer]*inter.Event
+	latestEvents := map[hash.Peer]*inter.Event{}
 	for _, event := range unordered {
 		if _, ok := latestEvents[event.Creator]; !ok {
 			latestEvents[event.Creator] = event
@@ -422,8 +422,10 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 		return selectedEvents[i].LamportTime < selectedEvents[j].LamportTime
 	})
 
+	selectedEvents = selectedEvents[:nodeCount-1]
+
 	// 3. Get Stake from each creator
-	var stakes map[hash.Peer]inter.Stake
+	stakes := map[hash.Peer]inter.Stake{}
 	var jointStake inter.Stake
 	for _, event := range selectedEvents {
 		stake := p.StakeOf(event.Creator)
