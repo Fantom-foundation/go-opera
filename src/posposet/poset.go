@@ -449,6 +449,7 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 		}
 
 		median = selectedEventsMap[node]
+		break
 	}
 
 	var orderedEvents Events
