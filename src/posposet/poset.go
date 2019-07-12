@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"math"
 	"sort"
 	"sync"
 
@@ -258,6 +259,10 @@ func (p *Poset) onFrameDecided(eventHash hash.Event, frameDecided idx.Frame, dec
 	}
 
 	// ordering
+	if len(eventsToConfirm) == 0 {
+		return
+	}
+
 	orderedEvents := p.fareOrdering(eventsToConfirm)
 
 	// confirm event
@@ -361,7 +366,9 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 		return selectedEvents[i].LamportTime < selectedEvents[j].LamportTime
 	})
 
-	selectedEvents = selectedEvents[:nodeCount-1]
+	if len(selectedEvents) > nodeCount {
+		selectedEvents = selectedEvents[:nodeCount-1]
+	}
 
 	// 3. Get Stake from each creator
 	stakes := map[hash.Peer]inter.Stake{}
@@ -393,9 +400,13 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 		break
 	}
 
-	var orderedEvents Events
+	highestTimestamp := selectedEvents[len(selectedEvents)-1].LamportTime
+	lowerTimestamp := selectedEvents[0].LamportTime
 
+	var orderedEvents Events
 	var startConsensusTime inter.Timestamp
+	var timeRatio inter.Timestamp
+
 	for _, event := range unordered {
 		// 5. Calculate time ratio & time offset
 		if prevConsensusTimestamp == 0 {
@@ -404,12 +415,17 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 			startConsensusTime = prevConsensusTimestamp + 1
 		}
 
-		timeRatio := (median.LamportTime - startConsensusTime) / (selectedEvents[len(selectedEvents)-1].LamportTime - selectedEvents[0].LamportTime)
-		if timeRatio <= 0 {
+		if highestTimestamp == lowerTimestamp {
+			startConsensusTime = inter.Timestamp(math.Max(float64(startConsensusTime), float64(event.LamportTime)))
 			timeRatio = 1
+		} else {
+			timeRatio = (median.LamportTime - startConsensusTime) / (highestTimestamp - lowerTimestamp)
+			if timeRatio <= 0 {
+				timeRatio = 1
+			}
 		}
 
-		timeOffset := startConsensusTime - selectedEvents[0].LamportTime*timeRatio
+		timeOffset := startConsensusTime - lowerTimestamp*timeRatio
 
 		// 6. Calculate consensus timestamp
 		consensusTimestamp := event.LamportTime*timeRatio + timeOffset
