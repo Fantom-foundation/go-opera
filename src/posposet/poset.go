@@ -1,7 +1,7 @@
 package posposet
 
 import (
-	"math"
+	"bytes"
 	"sort"
 	"sync"
 
@@ -361,7 +361,13 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 	}
 
 	sort.Slice(selectedEvents, func(i, j int) bool {
-		return selectedEvents[i].LamportTime < selectedEvents[j].LamportTime
+		a, b := selectedEvents[i], selectedEvents[j]
+
+		if a.LamportTime != b.LamportTime {
+			return a.LamportTime < b.LamportTime
+		}
+
+		return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
 	})
 
 	if len(selectedEvents) > nodeCount {
@@ -409,10 +415,10 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 			prevConsensusTimestamp = genesisTimestamp
 		}
 
-		frameTimePeriod := math.Max(float64(median.LamportTime-prevConsensusTimestamp), 1)
-		frameLamportPeriod := math.Max(float64(highestTimestamp-lowestTimestamp-1), 1)
+		frameTimePeriod := inter.MaxTimestamp(median.LamportTime-prevConsensusTimestamp, 1)
+		frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp-1, 1)
 
-		timeRatio := inter.Timestamp(math.Max(float64(frameTimePeriod/frameLamportPeriod), 1))
+		timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)
 
 		lowestConsensusTime := prevConsensusTimestamp + timeRatio
 		timeOffset := lowestConsensusTime - lowestTimestamp*timeRatio
