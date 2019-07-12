@@ -401,31 +401,23 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 	}
 
 	highestTimestamp := selectedEvents[len(selectedEvents)-1].LamportTime
-	lowerTimestamp := selectedEvents[0].LamportTime
+	lowestTimestamp := selectedEvents[0].LamportTime
 
 	var orderedEvents Events
-	var startConsensusTime inter.Timestamp
-	var timeRatio inter.Timestamp
 
 	for _, event := range unordered {
 		// 5. Calculate time ratio & time offset
 		if prevConsensusTimestamp == 0 {
-			startConsensusTime = genesisTimestamp + 1
-		} else {
-			startConsensusTime = prevConsensusTimestamp + 1
+			prevConsensusTimestamp = genesisTimestamp
 		}
 
-		if highestTimestamp == lowerTimestamp {
-			startConsensusTime = inter.Timestamp(math.Max(float64(startConsensusTime), float64(event.LamportTime)))
-			timeRatio = 1
-		} else {
-			timeRatio = (median.LamportTime - startConsensusTime) / (highestTimestamp - lowerTimestamp)
-			if timeRatio <= 0 {
-				timeRatio = 1
-			}
-		}
+		frameTimePeriod := math.Max(float64(median.LamportTime-prevConsensusTimestamp), 1)
+		frameLamportPeriod := math.Max(float64(highestTimestamp-lowestTimestamp-1), 1)
 
-		timeOffset := startConsensusTime - lowerTimestamp*timeRatio
+		timeRatio := inter.Timestamp(math.Max(float64(frameTimePeriod/frameLamportPeriod), 1))
+
+		lowestConsensusTime := prevConsensusTimestamp + timeRatio
+		timeOffset := lowestConsensusTime - lowestTimestamp*timeRatio
 
 		// 6. Calculate consensus timestamp
 		consensusTimestamp := event.LamportTime*timeRatio + timeOffset
