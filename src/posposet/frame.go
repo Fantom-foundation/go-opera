@@ -12,13 +12,10 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index     idx.Frame
-	FlagTable FlagTable
-
+	Index    idx.Frame
+	Events   EventsByPeer
+	Roots    EventsByPeer
 	Balances hash.Hash // TODO: move to super-frame
-
-	// TODO @dagchain should be roots only
-	ClothoCandidates EventsByPeer
 
 	save func()
 }
@@ -30,24 +27,18 @@ func (f *Frame) Save() {
 	}
 }
 
-// AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event hash.Event, roots EventsByPeer) {
-	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = EventsByPeer{}
-	}
-	if f.FlagTable[event].Add(roots) {
+// AddRoot appends root-event into frame.
+func (f *Frame) AddRoot(e *Event) {
+	changed := f.Events.AddOne(e.Hash(), e.Creator)
+	changed = f.Roots.AddOne(e.Hash(), e.Creator) || changed
+	if changed {
 		f.Save()
 	}
 }
 
-// GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
-	return f.FlagTable[event]
-}
-
-// AddClothoCandidate adds event into ClothoCandidates list.
-func (f *Frame) AddClothoCandidate(event hash.Event, creator hash.Peer) {
-	if f.ClothoCandidates.AddOne(event, creator) {
+// AddEvent appends event into frame.
+func (f *Frame) AddEvent(e *Event) {
+	if f.Events.AddOne(e.Hash(), e.Creator) {
 		f.Save()
 	}
 }
@@ -65,10 +56,8 @@ func (f *Frame) SetBalances(balances hash.Hash) bool {
 // ToWire converts to proto.Message.
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
-		Index:            uint32(f.Index),
-		FlagTable:        f.FlagTable.ToWire(),
-		ClothoCandidates: f.ClothoCandidates.ToWire(),
-		Balances:         f.Balances.Bytes(),
+		Index:    uint32(f.Index),
+		Balances: f.Balances.Bytes(),
 	}
 }
 
@@ -78,10 +67,8 @@ func WireToFrame(w *wire.Frame) *Frame {
 		return nil
 	}
 	return &Frame{
-		Index:            idx.Frame(w.Index),
-		FlagTable:        WireToFlagTable(w.FlagTable),
-		ClothoCandidates: WireToEventsByPeer(w.ClothoCandidates),
-		Balances:         hash.FromBytes(w.Balances),
+		Index:    idx.Frame(w.Index),
+		Balances: hash.FromBytes(w.Balances),
 	}
 }
 
@@ -91,11 +78,7 @@ func WireToFrame(w *wire.Frame) *Frame {
 
 func (p *Poset) setFrameSaving(f *Frame) {
 	f.save = func() {
-		if f.Index > p.LastFinishedFrameN() {
-			p.store.SetFrame(f, p.SuperFrameN)
-		} else {
-			p.Fatalf("frame %d is finished and should not be changed", f.Index)
-		}
+		p.store.SetFrame(f, p.SuperFrameN)
 	}
 }
 

@@ -14,10 +14,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
-// stateGap is a frame-delay to apply new balance.
-// TODO: move this magic number to mainnet config
-const stateGap = 3
-
 // TODO: move it?
 // using for fare ordering
 var (
@@ -137,31 +133,11 @@ func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) 
 }
 
 func (p *Poset) getRoots(slot election.Slot) hash.Events {
-	frame, ok := p.frames[slot.Frame]
-	if !ok {
+	frame := p.frame(slot.Frame, false)
+	if frame == nil {
 		return nil
 	}
-	roots, ok := frame.ClothoCandidates[slot.Addr]
-	if !ok {
-		return nil
-	}
-	return roots
-}
-
-// TODO @dagchain
-// @return hash of root B, if root A strongly sees root B.
-// Due to a fork, there may be many roots B with the same slot,
-// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootStronglySeeRoot(a hash.Event, bSlot election.Slot) *hash.Event {
-	// A doesn’t exist
-	//   return nil
-	// there’s no root B with {frame height B, node id B}
-	//   return nil
-	// for B := range roots{frame height B, node id B}
-	//   if A strongly sees B
-	//      return B.hash
-
-	return nil
+	return frame.Roots[slot.Addr].Copy()
 }
 
 // consensus is not safe for concurrent use.
@@ -171,12 +147,12 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
-	var frame *Frame
-	if frame = p.checkIfRoot(e); frame == nil {
-		p.strongly.Add(event, 0)
+	p.strongly.Cache(event)
+
+	frame, isRoot := p.checkIfRoot(e)
+	if !isRoot {
 		return
 	}
-	p.strongly.Add(event, frame.Index)
 
 	p.Debugf("consensus: %s is root", event.String())
 	// process election for the new root
@@ -273,9 +249,8 @@ func (p *Poset) consensus(event *inter.Event) {
 // TODO @dagchain seems like it's a handy abstranction to be called within consensus()
 // moves state from frameDecided-1 to frameDecided. It includes: moving current decided frame, txs ordering and execution, superframe sealing
 func (p *Poset) onFrameDecided(eventHash hash.Event, frameDecided idx.Frame, decidedSfWitness hash.Event) {
-	p.LastFinishedFrame(frameDecided)
-	p.election.Reset(p.members, p.lastFinishedFrameN+1)
-	p.strongly.Reset(p.members)
+	p.LastDecidedFrameN = frameDecided
+	p.election.Reset(p.members, frameDecided+1)
 
 	eventsToConfirm, err := p.dfsSubgraph(eventHash, p.isNotConfirmed)
 	if err != nil {
@@ -297,96 +272,60 @@ func (p *Poset) onFrameDecided(eventHash hash.Event, frameDecided idx.Frame, dec
 // checkIfRoot checks root-conditions for new event
 // and returns frame where event is root.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfRoot(e *Event) *Frame {
-	knownRoots := eventsByFrame{}
-	minFrame := p.LastFinishedFrameN() + 1
-	for parent := range e.Parents {
-		if !parent.IsZero() {
-			frame, isRoot := p.FrameOfEvent(parent)
-			if frame == nil || frame.Index <= p.LastFinishedFrameN() { // TODO @dagchain should be root, even it's an old frame, because future roots will depend on prev. roots
-				p.Warnf("Parent %s of %s is too old. Skipped", parent.String(), e.String())
-				// NOTE: is it possible some participants got this event before parent outdated?
-				continue
-			}
-			if prev := p.GetEvent(parent); prev.Creator == e.Creator {
-				minFrame = frame.Index
-			}
-			roots := frame.GetRootsOf(parent)
-			knownRoots.Add(frame.Index, roots)
-			if !isRoot || frame.Index <= minFrame {
-				continue
-			}
-			frame = p.frame(frame.Index-1, false)
-			roots = frame.GetRootsOf(parent)
-			knownRoots.Add(frame.Index, roots)
-		} else {
-			roots := rootZero(e.Creator)
-			knownRoots.Add(minFrame, roots)
-		}
-	}
+func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
+	var frameI idx.Frame
+	isRoot := false
 
-	var (
-		frame  *Frame
-		isRoot bool
-	)
-	for _, fnum := range knownRoots.FrameNumsDesc() {
-		if fnum < minFrame {
-			break
+	if e.Index == 1 {
+		// special case for first events in an SF
+		frameI = idx.Frame(1)
+		isRoot = true
+	} else {
+		// calc maxParentsFrame, i.e. max(parent's frame height)
+		maxParentsFrame := idx.Frame(0)
+		selfParentFrame := idx.Frame(0)
+
+		for parent := range e.Parents {
+			pFrame := p.FrameOfEvent(parent).Index
+			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
+				maxParentsFrame = pFrame
+			}
+
+			if parent == e.SelfParent {
+				selfParentFrame = pFrame
+			}
 		}
-		roots := knownRoots[fnum]
-		frame = p.frame(fnum, true)
-		frame.AddRootsOf(e.Hash(), roots)
-		// log.Debugf(" %s knows %s at frame %d", e.Hash().String(), roots.String(), frame.Index)
-		if isRoot = p.hasMajority(frame, roots); isRoot {
-			frame = p.frame(fnum+1, true)
-			// log.Debugf(" %s is root of frame %d", e.Hash().String(), frame.Index)
-			break
+
+		// TODO store isRoot, frameHeight within inter.Event. Check only if event.isRoot was true.
+
+		// counter of all the seen roots on maxParentsFrame
+		sSeenCounter := p.members.NewCounter()
+		for member, memberRoots := range p.frames[maxParentsFrame].Roots {
+			for root := range memberRoots {
+				if p.strongly.See(e.Hash(), root) {
+					sSeenCounter.Count(member)
+				}
+			}
+		}
+		if sSeenCounter.HasQuorum() {
+			// if I see enough roots, then I become a root too
+			frameI = maxParentsFrame + 1
+			isRoot = true
+		} else {
+			// I see enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
+			frameI = maxParentsFrame
+			isRoot = maxParentsFrame > selfParentFrame
 		}
 	}
-	if !p.isEventValid(e, frame) {
-		return nil
-	}
+	// save in DB the {e, frame, isRoot}
+	frame := p.frame(frameI, true)
 	p.store.SetEventFrame(e.Hash(), frame.Index)
 	if isRoot {
-		frame.AddRootsOf(e.Hash(), rootFrom(e))
-		return frame
+		frame.AddRoot(e)
+	} else {
+		frame.AddEvent(e)
 	}
-	return nil
-}
-
-// reconsensusFromFrame recalcs consensus of frames.
-func (p *Poset) reconsensusFromFrame(start idx.Frame, newBalance hash.Hash) {
-	stop := p.frameNumLast()
-	var all inter.Events
-	// foreach stale frame
-	for n := start; n <= stop; n++ {
-		frame := p.frames[n]
-		// extract events
-		for e := range frame.FlagTable {
-			if !frame.FlagTable.IsRoot(e) {
-				all = append(all, p.GetEvent(e).Event)
-			}
-		}
-		// and replace stale frame with blank
-		p.frames[n] = &Frame{
-			Index:            n,
-			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByPeer{},
-			Balances:         newBalance,
-		}
-	}
-	// recalc consensus (without frame saving)
-	for _, e := range all.ByParents() {
-		p.consensus(e)
-	}
-
-	// save fresh frame
-	for n := start; n <= stop; n++ {
-		frame := p.frames[n]
-
-		p.setFrameSaving(frame)
-		frame.Save()
-	}
+	return frame, isRoot
 }
 
 // Note: should be used by dfsSubgraph() as filter

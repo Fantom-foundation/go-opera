@@ -56,10 +56,12 @@ func GenEventsByNode(
 		if ee := events[creator]; len(ee) > 0 {
 			parent := ee[len(ee)-1]
 			e.Index = parent.Index + 1
+			e.SelfParent = parent.Hash()
 			e.Parents.Add(parent.Hash())
 			e.LamportTime = parent.LamportTime + 1
 		} else {
 			e.Index = 1
+			e.SelfParent = hash.ZeroEvent
 			e.Parents.Add(hash.ZeroEvent)
 			e.LamportTime = 1
 		}

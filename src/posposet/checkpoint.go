@@ -1,8 +1,6 @@
 package posposet
 
 import (
-	"sync/atomic"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -12,28 +10,18 @@ import (
 
 // checkpoint is for persistent storing.
 type checkpoint struct {
-	SuperFrameN        idx.SuperFrame
-	lastFinishedFrameN idx.Frame
-	LastBlockN         idx.Block
-	Genesis            hash.Hash
-	TotalCap           inter.Stake
-}
-
-// LastFinishedFrameN is a getter of lastFinishedFrameN.
-func (cp *checkpoint) LastFinishedFrameN() idx.Frame {
-	return idx.Frame(atomic.LoadUint32((*uint32)(&cp.lastFinishedFrameN)))
-}
-
-// LastFinishedFrame is a setter of lastFinishedFrameN.
-func (cp *checkpoint) LastFinishedFrame(N idx.Frame) {
-	atomic.StoreUint32((*uint32)(&cp.lastFinishedFrameN), uint32(N))
+	SuperFrameN       idx.SuperFrame
+	LastDecidedFrameN idx.Frame
+	LastBlockN        idx.Block
+	Genesis           hash.Hash
+	TotalCap          inter.Stake
 }
 
 // ToWire converts to proto.Message.
 func (cp *checkpoint) ToWire() *wire.Checkpoint {
 	return &wire.Checkpoint{
 		SuperFrameN:        uint64(cp.SuperFrameN),
-		LastFinishedFrameN: uint32(cp.LastFinishedFrameN()),
+		LastFinishedFrameN: uint32(cp.LastDecidedFrameN),
 		LastBlockN:         uint64(cp.LastBlockN),
 		Genesis:            cp.Genesis.Bytes(),
 		TotalCap:           uint64(cp.TotalCap),
@@ -46,11 +34,11 @@ func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 		return nil
 	}
 	return &checkpoint{
-		SuperFrameN:        idx.SuperFrame(w.SuperFrameN),
-		lastFinishedFrameN: idx.Frame(w.LastFinishedFrameN),
-		LastBlockN:         idx.Block(w.LastBlockN),
-		Genesis:            hash.FromBytes(w.Genesis),
-		TotalCap:           inter.Stake(w.TotalCap),
+		SuperFrameN:       idx.SuperFrame(w.SuperFrameN),
+		LastDecidedFrameN: idx.Frame(w.LastFinishedFrameN),
+		LastBlockN:        idx.Block(w.LastBlockN),
+		Genesis:           hash.FromBytes(w.Genesis),
+		TotalCap:          inter.Stake(w.TotalCap),
 	}
 }
 
@@ -76,9 +64,7 @@ func (p *Poset) Bootstrap() {
 	// restore current super-frame
 	p.initSuperFrame()
 
-	// recalc in case there was a interrupted consensus
-	start := p.frame(p.LastFinishedFrameN(), true)
-	p.reconsensusFromFrame(p.LastFinishedFrameN()+1, start.Balances)
+	// TODO: reload some datas
 }
 
 // GetGenesisHash is a genesis getter.

@@ -28,7 +28,7 @@ func (ee eventsByFrame) FrameNumsDesc() []idx.Frame {
 	for n := range ee {
 		nums = append(nums, n)
 	}
-	sort.Sort(sort.Reverse(frameNums(nums)))
+	sort.Sort(sort.Reverse(orderedFrames(nums)))
 	return nums
 }
 
@@ -46,29 +46,23 @@ func (ee eventsByFrame) String() string {
  */
 
 // FrameOfEvent returns unfinished frame where event is in.
-func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
-	fnum := p.store.GetEventFrame(event)
-	if fnum == nil {
-		return
-	}
-
-	frame = p.frame(*fnum, false)
-	knowns := frame.FlagTable[event]
-	for _, events := range knowns {
-		if events.Contains(event) {
-			isRoot = true
+func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
+	for i := idx.Frame(1); true; i++ {
+		frame = p.frame(i, false)
+		if frame == nil {
 			return
+		}
+		for e := range frame.Events.Each() {
+			if e == event {
+				return frame
+			}
 		}
 	}
 
-	return
+	return nil
 }
 
 func (p *Poset) frameFromStore(n idx.Frame) *Frame {
-	if n < p.LastFinishedFrameN() {
-		p.Fatalf("too old frame %d is requested", n)
-	}
-	// return ephemeral
 	if n == 0 {
 		return &Frame{
 			Index:    0,
@@ -86,9 +80,6 @@ func (p *Poset) frameFromStore(n idx.Frame) *Frame {
 
 // frame finds or creates frame.
 func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
-	if n < p.LastFinishedFrameN() && orCreate {
-		p.Fatalf("too old frame %d is requested", n)
-	}
 	// return ephemeral
 	if n == 0 {
 		return &Frame{
@@ -105,10 +96,10 @@ func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:            n,
-			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByPeer{},
-			Balances:         p.frame(n-1, true).Balances,
+			Index:    n,
+			Events:   EventsByPeer{},
+			Roots:    EventsByPeer{},
+			Balances: p.frame(n-1, true).Balances,
 		}
 		p.setFrameSaving(f)
 		p.frames[n] = f
@@ -131,11 +122,42 @@ func (p *Poset) frameNumLast() idx.Frame {
 }
 
 /*
- * Utils:
+ * orderedFrames:
  */
 
-type frameNums []idx.Frame
+type orderedFrames []idx.Frame
 
-func (p frameNums) Len() int           { return len(p) }
-func (p frameNums) Less(i, j int) bool { return p[i] < p[j] }
-func (p frameNums) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (ff orderedFrames) Len() int           { return len(ff) }
+func (ff orderedFrames) Less(i, j int) bool { return ff[i] < ff[j] }
+func (ff orderedFrames) Swap(i, j int)      { ff[i], ff[j] = ff[j], ff[i] }
+
+/*
+ * uniqueFrames:
+ */
+
+type uniqueFrames map[idx.Frame]struct{}
+
+func (ff *uniqueFrames) Add(n idx.Frame) {
+	(*ff)[n] = struct{}{}
+
+}
+
+func (ff uniqueFrames) Asc() orderedFrames {
+	res := make(orderedFrames, 0, len(ff))
+	for n := range ff {
+		res = append(res, n)
+	}
+
+	sort.Sort(res)
+	return res
+}
+
+func (ff uniqueFrames) Desc() orderedFrames {
+	res := make(orderedFrames, 0, len(ff))
+	for n := range ff {
+		res = append(res, n)
+	}
+
+	sort.Sort(sort.Reverse(res))
+	return res
+}

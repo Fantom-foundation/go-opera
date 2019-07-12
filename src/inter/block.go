@@ -9,7 +9,7 @@ import (
 // Block is a chain block.
 type Block struct {
 	Index  idx.Block
-	Events hash.EventsSlice
+	Events hash.OrderedEvents
 }
 
 // ToWire converts to proto.Message.
@@ -30,13 +30,13 @@ func WireToBlock(w *wire.Block) *Block {
 	}
 	return &Block{
 		Index:  idx.Block(w.Index),
-		Events: hash.WireToEventHashSlice(w.Events),
+		Events: hash.WireToOrderedEvents(w.Events),
 	}
 }
 
 // NewBlock makes main chain block from topological ordered events.
 func NewBlock(index idx.Block, ordered Events) *Block {
-	events := make(hash.EventsSlice, len(ordered))
+	events := make(hash.OrderedEvents, len(ordered))
 	for i, e := range ordered {
 		events[i] = e.Hash()
 	}
