@@ -416,7 +416,7 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 		}
 
 		frameTimePeriod := inter.MaxTimestamp(median.LamportTime-prevConsensusTimestamp, 1)
-		frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp-1, 1)
+		frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp, 1)
 
 		timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)
 
