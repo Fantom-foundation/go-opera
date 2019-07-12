@@ -437,7 +437,7 @@ func (p *Poset) fareOrdering(unordered inter.Events) Events {
 	halfStake := jointStake / 2
 
 	// 4. Calculate weighted median
-	var selectedEventsMap map[hash.Peer]*inter.Event
+	selectedEventsMap := map[hash.Peer]*inter.Event{}
 	for _, event := range selectedEvents {
 		selectedEventsMap[event.Creator] = event
 	}
