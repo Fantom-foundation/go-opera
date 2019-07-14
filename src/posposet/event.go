@@ -42,3 +42,12 @@ func (ee Events) Less(i, j int) bool {
 		(a.consensusTime == b.consensusTime && (a.LamportTime < b.LamportTime ||
 			a.LamportTime == b.LamportTime && bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0))
 }
+
+func (ee Events) UnWrap() inter.Events {
+	res := make(inter.Events, len(ee))
+	for i, e := range ee {
+		res[i] = e.Event
+	}
+
+	return res
+}

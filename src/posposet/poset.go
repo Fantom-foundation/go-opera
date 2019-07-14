@@ -145,15 +145,13 @@ func (p *Poset) consensus(event *inter.Event) {
 	}
 
 	p.Debugf("consensus: %s is root", event.String())
-	// process election for the new root
-	slot := election.Slot{
-		Frame: frame.Index,
-		Addr:  event.Creator,
-	}
 
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		Root: event.Hash(),
-		Slot: slot,
+		Slot: election.Slot{
+			Frame: frame.Index,
+			Addr:  event.Creator,
+		},
 	})
 	if err != nil {
 		p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
@@ -178,60 +176,6 @@ func (p *Poset) consensus(event *inter.Event) {
 		}
 	}
 
-	/* OLD :
-	p.setClothoCandidates(e, frame)
-
-	// process matured frames where ClothoCandidates have become Clothos
-	var ordered inter.Events
-	lastFinished := p.state.LastFinishedFrameN()
-	for n := p.state.LastFinishedFrameN() + 1; n+3 <= frame.Index; n++ {
-		if p.hasAtropos(n, frame.Index) {
-			p.Debugf("consensus: make new block %d from frame %d", p.state.LastBlockN+1, n)
-			events := p.topologicalOrdered(n)
-			block := inter.NewBlock(p.state.LastBlockN+1, events)
-			p.store.SetEventsBlockNum(block.Index, events...)
-			p.store.SetBlock(block)
-			p.state.LastBlockN = block.Index
-			p.saveState()
-			if p.newBlockCh != nil {
-				p.newBlockCh <- p.state.LastBlockN
-			}
-
-			// TODO: fix it
-			lastFinished = n // NOTE: are every event of prev frame there in block? (No)
-
-			ordered = append(ordered, events...)
-		}
-	}
-
-	// balances changes
-	applyAt := p.frame(frame.Index+stateGap, true)
-	state := p.store.StateDB(applyAt.Balances)
-	p.applyTransactions(state, ordered)
-	p.applyRewards(state, ordered)
-	balances, err := state.Commit(true)
-	if err != nil {
-		p.Fatal(err)
-	}
-	if applyAt.SetBalances(balances) {
-		p.Debugf("consensus: new state [%d]%s --> [%d]%s", frame.Index, frame.Balances.String(), applyAt.Index, balances.String())
-		p.reconsensusFromFrame(applyAt.Index, balances)
-	}
-
-	// save finished frames
-	if p.state.LastFinishedFrameN() < lastFinished {
-		p.state.LastFinishedFrame(lastFinished)
-		p.saveState()
-		p.Debugf("consensus: lastFinishedFrameN is %d", p.state.LastFinishedFrameN())
-	}
-
-	// clean old frames
-	for i := range p.frames {
-		if i+stateGap < p.state.LastFinishedFrameN() {
-			delete(p.frames, i)
-		}
-	}
-	*/
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
@@ -240,7 +184,13 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.LastDecidedFrameN = frame
 	p.election.Reset(p.members, frame+1)
 
-	unordered, err := p.dfsSubgraph(sfWitness, p.isNotConfirmed)
+	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
+		by := p.store.GetEventConfirmedBy(event.Hash())
+		if by.IsZero() {
+			p.store.SetEventConfirmedBy(event.Hash(), sfWitness)
+		}
+		return by.IsZero() || by == sfWitness
+	})
 	if err != nil {
 		p.Fatal(err)
 	}
@@ -249,16 +199,32 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	if len(unordered) == 0 {
 		return
 	}
+	ordered := p.fareOrdering(unordered)
 
-	orderedEvents := p.fareOrdering(unordered)
-
-	// confirm event
-	for _, event := range orderedEvents {
-		p.store.SetConfirmedEvent(event.Hash(), frame)
+	// block generation
+	block := inter.NewBlock(p.checkpoint.LastBlockN+1, ordered.UnWrap())
+	p.store.SetEventsBlockNum(block.Index, ordered...)
+	p.store.SetBlock(block)
+	p.checkpoint.LastBlockN = block.Index
+	p.saveCheckpoint()
+	if p.newBlockCh != nil {
+		p.newBlockCh <- p.checkpoint.LastBlockN
 	}
 
-	// TODO: apply tx
-
+	// balances changes
+	/*
+		state := p.store.StateDB(applyAt.Balances)
+		p.applyTransactions(state, ordered)
+		p.applyRewards(state, ordered)
+		balances, err := state.Commit(true)
+		if err != nil {
+			p.Fatal(err)
+		}
+		if applyAt.SetBalances(balances) {
+			p.Debugf("consensus: new state [%d]%s --> [%d]%s", frame.Index, frame.Balances.String(), applyAt.Index, balances.String())
+			p.reconsensusFromFrame(applyAt.Index, balances)
+		}
+	*/
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -318,12 +284,4 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 		frame.AddEvent(e)
 	}
 	return frame, isRoot
-}
-
-// Note: should be used by dfsSubgraph() as filter
-func (p *Poset) isNotConfirmed(event *inter.Event) bool {
-	if res := p.store.GetConfirmedEvent(event.Hash()); res == 0 {
-		return true
-	}
-	return false
 }

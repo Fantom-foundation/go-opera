@@ -20,7 +20,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 
 // SetEventsBlockNum stores num of block includes events.
 // TODO: use batch
-func (s *Store) SetEventsBlockNum(num idx.Block, ee ...*inter.Event) {
+func (s *Store) SetEventsBlockNum(num idx.Block, ee ...*Event) {
 	val := num.Bytes()
 
 	for _, e := range ee {

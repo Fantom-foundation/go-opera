@@ -39,11 +39,10 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 		}
 		visited[walk] = true
 
-		// get event
-		if !p.input.HasEvent(walk) {
+		event := p.input.GetEvent(walk)
+		if event == nil {
 			return nil, errors.New("event wasn't found " + walk.String())
 		}
-		event := p.input.GetEvent(walk)
 
 		// filter
 		if !filter(event) {
