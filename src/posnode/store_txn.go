@@ -32,7 +32,7 @@ func (s *Store) GetTxnsEvent(idx hash.Transaction) *inter.Event {
 		return nil
 	}
 
-	e := hash.BytesToEventHash(buf)
+	e := hash.BytesToEvent(buf)
 
 	return s.GetEvent(e)
 }

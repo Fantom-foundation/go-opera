@@ -70,6 +70,6 @@ func (s *Store) GetEventHash(creator hash.Peer, index idx.Event) *hash.Event {
 		return nil
 	}
 
-	e := hash.BytesToEventHash(buf)
+	e := hash.BytesToEvent(buf)
 	return &e
 }

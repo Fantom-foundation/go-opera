@@ -45,9 +45,9 @@ func (h *Event) SetBytes(raw []byte) {
 	(*Hash)(h).SetBytes(raw)
 }
 
-// BytesToEventHash converts bytes to event hash.
+// BytesToEvent converts bytes to event hash.
 // If b is larger than len(h), b will be cropped from the left.
-func BytesToEventHash(b []byte) Event {
+func BytesToEvent(b []byte) Event {
 	return Event(FromBytes(b))
 }
 
@@ -161,12 +161,12 @@ func (hh Events) ToWire(self Event) [][]byte {
 // WireToEventHashes converts from simple slice.
 func WireToEventHashes(buf [][]byte) (first Event, all Events) {
 	if len(buf) > 0 {
-		first = BytesToEventHash(buf[0])
+		first = BytesToEvent(buf[0])
 	}
 
 	all = Events{}
 	for _, b := range buf {
-		h := BytesToEventHash(b)
+		h := BytesToEvent(b)
 		all.Add(h)
 	}
 
@@ -195,7 +195,7 @@ func WireToOrderedEvents(buf [][]byte) OrderedEvents {
 
 	hh := make(OrderedEvents, len(buf))
 	for i, b := range buf {
-		hh[i] = BytesToEventHash(b)
+		hh[i] = BytesToEvent(b)
 	}
 
 	return hh

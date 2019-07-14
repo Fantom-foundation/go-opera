@@ -89,7 +89,7 @@ func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
 
 	for _, w := range arr {
 		creator := hash.BytesToPeer(w.Creator)
-		h := hash.BytesToEventHash(w.Hash)
+		h := hash.BytesToEvent(w.Hash)
 		if res[creator] == nil {
 			res[creator] = hash.Events{}
 		}
