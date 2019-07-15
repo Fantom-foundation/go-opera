@@ -1,6 +1,8 @@
 package posposet
 
 import (
+	"sync/atomic"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -8,12 +10,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 type superFrame struct {
 	// state
-	frames  map[idx.Frame]*Frame
-	members internal.Members
+	balances hash.Hash
+	members  internal.Members
+
+	frames map[idx.Frame]*Frame
 
 	// election votes
 	election *election.Election
@@ -21,8 +26,28 @@ type superFrame struct {
 	strongly *seeing.Strongly
 }
 
+func (sf *superFrame) ToWire() *wire.SuperFrame {
+	return &wire.SuperFrame{
+		Balances: sf.balances.Bytes(),
+		Members:  sf.members.ToWire(),
+	}
+}
+
+func WireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
+	if w == nil {
+		return
+	}
+
+	sf = &superFrame{
+		balances: hash.FromBytes(w.Balances),
+		members:  internal.WireToMembers(w.Members),
+	}
+
+	return
+}
+
 func (p *Poset) initSuperFrame() {
-	p.members = p.store.GetMembers(p.SuperFrameN)
+	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
 
 	p.strongly = seeing.New(p.members)
 	p.frames = make(map[idx.Frame]*Frame)
@@ -47,16 +72,39 @@ func (p *Poset) initSuperFrame() {
 			},
 		})
 
-		for _, ee := range frame.Events {
-			for e := range ee {
-				event := p.GetEvent(e)
-				orderThenCache(event.Event)
+		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
+			for _, ee := range src {
+				for e := range ee {
+					event := p.GetEvent(e)
+					orderThenCache(event.Event)
+				}
 			}
 		}
 
 	}
 
 	p.election = election.New(p.members, p.LastDecidedFrameN+1, p.rootStronglySeeRoot)
+}
+
+// SuperFrame returns list of peers for n super-frame.
+// If req==0 returns last.
+func (p *Poset) SuperFramePeers(req idx.SuperFrame) (n idx.SuperFrame, members []hash.Peer) {
+	if req == idx.SuperFrame(0) {
+		n = idx.SuperFrame(atomic.LoadUint64((*uint64)(&p.SuperFrameN)))
+	} else {
+		n = req
+	}
+
+	sf := p.store.GetSuperFrame(n)
+	if sf == nil {
+		p.Fatalf("super-frame %d not found", n)
+	}
+
+	for m := range sf.members {
+		members = append(members, m)
+	}
+
+	return
 }
 
 // rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.

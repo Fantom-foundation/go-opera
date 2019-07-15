@@ -52,9 +52,11 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
 		if frame == nil {
 			return
 		}
-		for e := range frame.Events.Each() {
-			if e == event {
-				return frame
+		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
+			for e := range src.Each() {
+				if e == event {
+					return frame
+				}
 			}
 		}
 	}
@@ -65,8 +67,7 @@ func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
 func (p *Poset) frameFromStore(n idx.Frame) *Frame {
 	if n == 0 {
 		return &Frame{
-			Index:    0,
-			Balances: p.Genesis,
+			Index: 0,
 		}
 	}
 
@@ -83,8 +84,7 @@ func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 	// return ephemeral
 	if n == 0 {
 		return &Frame{
-			Index:    0,
-			Balances: p.Genesis,
+			Index: 0,
 		}
 	}
 
@@ -96,10 +96,9 @@ func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:    n,
-			Events:   EventsByPeer{},
-			Roots:    EventsByPeer{},
-			Balances: p.frame(n-1, true).Balances,
+			Index:  n,
+			Events: EventsByPeer{},
+			Roots:  EventsByPeer{},
 		}
 		p.setFrameSaving(f)
 		p.frames[n] = f

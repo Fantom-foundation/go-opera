@@ -7,7 +7,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
@@ -27,9 +26,8 @@ func TestFrameSerialization(t *testing.T) {
 	}
 
 	f0 := &Frame{
-		Index:    idx.Frame(rand.Uint64()),
-		Roots:    roots,
-		Balances: hash.FakeHash(),
+		Index: idx.Frame(rand.Uint64()),
+		Roots: roots,
 	}
 	buf, err := proto.Marshal(f0.ToWire())
 	assertar.NoError(err)

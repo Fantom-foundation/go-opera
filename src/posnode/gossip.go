@@ -272,11 +272,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 func (n *Node) knownEvents(req idx.SuperFrame) (idx.SuperFrame, map[hash.Peer]idx.Event) {
 	if n.consensus != nil {
 		var peers []hash.Peer
-		if req == 0 {
-			req, peers = n.consensus.LastSuperFrame()
-		} else {
-			peers = n.consensus.SuperFrame(req)
-		}
+		req, peers = n.consensus.SuperFramePeers(req)
 		return req, n.peersWithHeight(peers)
 	}
 

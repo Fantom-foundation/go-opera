@@ -26,7 +26,7 @@ type Store struct {
 		Blocks         kvdb.Database `table:"block_"`
 		Event2Frame    kvdb.Database `table:"event2frame_"`
 		Event2Block    kvdb.Database `table:"event2block_"`
-		Members        kvdb.Database `table:"member_"`
+		SuperFrames    kvdb.Database `table:"sframe_"`
 		ConfirmedEvent kvdb.Database `table:"confirmed_"`
 		Balances       state.Database
 	}
@@ -115,7 +115,10 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 		return err
 	}
 
-	s.SetMembers(cp.SuperFrameN, mm.Top())
+	s.SetSuperFrame(cp.SuperFrameN, &superFrame{
+		balances: cp.Genesis,
+		members:  mm.Top(),
+	})
 
 	s.SetCheckpoint(cp)
 

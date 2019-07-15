@@ -6,14 +6,8 @@ message EventDescr {
   bytes Hash = 2;
 }
 
-message Flag {
-  bytes Event = 1;
-  repeated EventDescr Roots = 2;
-}
-
 message Frame {
   uint32 Index = 1;
-  repeated Flag FlagTable = 2;
-repeated EventDescr ClothoCandidates = 3;
-  bytes Balances = 4;
+  repeated EventDescr Events = 2;
+  repeated EventDescr Roots = 3;
 }
