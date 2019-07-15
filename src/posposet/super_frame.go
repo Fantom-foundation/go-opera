@@ -24,7 +24,7 @@ type superFrame struct {
 func (p *Poset) initSuperFrame() {
 	p.members = p.store.GetMembers(p.SuperFrameN)
 
-	p.strongly = seeing.New(p.members)
+	p.strongly = seeing.New(p.members.NewCounter)
 	p.frames = make(map[idx.Frame]*Frame)
 	for n := idx.Frame(1); true; n++ {
 		frame := p.store.GetFrame(n, p.SuperFrameN)

@@ -8,29 +8,33 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
+const (
+	nodeCount = 512
+)
+
 // Strongly is a datas to detect strongly-see condition.
 type Strongly struct {
-	members internal.Members
-	nodes   map[hash.Peer]int
-	events  map[hash.Event]*Event
+	newCounter internal.StakeCounterProvider
+	nodes      map[hash.Peer]int
+	events     map[hash.Event]*Event
 
 	logger.Instance
 }
 
 // New creates Strongly instance.
-func New(mm internal.Members) *Strongly {
+func New(c internal.StakeCounterProvider) *Strongly {
 	ss := &Strongly{
-		Instance: logger.MakeInstance(),
+		newCounter: c,
+		Instance:   logger.MakeInstance(),
 	}
-	ss.Reset(mm)
+	ss.Reset()
 
 	return ss
 }
 
 // Reset resets buffers.
-func (ss *Strongly) Reset(mm internal.Members) {
-	ss.members = mm
-	ss.nodes = make(map[hash.Peer]int)
+func (ss *Strongly) Reset() {
+	ss.nodes = make(map[hash.Peer]int, nodeCount)
 	ss.events = make(map[hash.Event]*Event)
 }
 
@@ -43,9 +47,7 @@ func (ss *Strongly) Cache(e *inter.Event) {
 	}
 
 	event := &Event{
-		Event:       e,
-		LowestSees:  make([]idx.Event, len(ss.members)),
-		HighestSeen: make([]idx.Event, len(ss.members)),
+		Event: e,
 	}
 
 	ss.setNodes(event)
@@ -62,6 +64,9 @@ func (ss *Strongly) setNodes(e *Event) {
 }
 
 func (ss *Strongly) fillEventRefs(e *Event) {
+	e.LowestSees = make([]idx.Event, e.MemberN+1, nodeCount)
+	e.HighestSeen = make([]idx.Event, e.MemberN+1, nodeCount)
+
 	// seen by himself
 	e.LowestSees[e.MemberN] = e.Index
 	e.HighestSeen[e.MemberN] = e.Index
@@ -78,7 +83,7 @@ func (ss *Strongly) fillEventRefs(e *Event) {
 
 func (ss *Strongly) updateAllHighestSeen(e, parent *Event) {
 	for i, n := range parent.HighestSeen {
-		if e.HighestSeen[i] < n {
+		if getRef(&e.HighestSeen, i) < n {
 			e.HighestSeen[i] = n
 		}
 	}
@@ -107,8 +112,8 @@ func (ss *Strongly) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 }
 
 func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
-	if e.LowestSees[node] == 0 ||
-		e.LowestSees[node] > ref {
+	curr := getRef(&e.LowestSees, node)
+	if curr == 0 || curr > ref {
 		e.LowestSees[node] = ref
 		return true
 	}
@@ -125,8 +130,6 @@ func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
 func (ss *Strongly) See(aHash, bHash hash.Event) bool {
-	counter := ss.members.NewCounter()
-
 	// get events by hash
 	a, ok := ss.events[aHash]
 	if !ok {
@@ -137,16 +140,35 @@ func (ss *Strongly) See(aHash, bHash hash.Event) bool {
 		return false
 	}
 
+	yes := ss.newCounter()
+	no := ss.newCounter()
+
 	// calculate strongly seeing using the indexes
-	for m := range ss.members {
-		n, ok := ss.nodes[m]
-		if !ok {
-			continue
+	for m, n := range ss.nodes {
+		bLowestSees := getRef(&b.LowestSees, n)
+		aHighestSeen := getRef(&a.HighestSeen, n)
+		if bLowestSees <= aHighestSeen && bLowestSees != 0 {
+			yes.Count(m)
+		} else {
+			no.Count(m)
 		}
-		if b.LowestSees[n] <= a.HighestSeen[n] && b.LowestSees[n] != 0 {
-			counter.Count(m)
+
+		if yes.HasQuorum() {
+			return true
+		}
+
+		if no.HasQuorum() {
+			return false
 		}
 	}
 
-	return counter.HasQuorum()
+	return false
+}
+
+func getRef(rr *[]idx.Event, i int) idx.Event {
+	n := len(*rr)
+	if n <= i {
+		*rr = append(*rr, make([]idx.Event, i-n+1)...)
+	}
+	return (*rr)[i]
 }
