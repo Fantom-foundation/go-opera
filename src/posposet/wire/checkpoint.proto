@@ -8,4 +8,5 @@ message Checkpoint {
   uint64 LastBlockN = 3;
   bytes  Genesis = 4;
   uint64 TotalCap = 5;
+  uint64 LastConsensusTime = 6;
 }

@@ -199,10 +199,10 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	if len(unordered) == 0 {
 		return
 	}
-	ordered := p.fareOrdering(unordered)
+	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
 	// block generation
-	block := inter.NewBlock(p.checkpoint.LastBlockN+1, ordered.UnWrap())
+	block := inter.NewBlock(p.checkpoint.LastBlockN+1, ordered)
 	p.store.SetEventsBlockNum(block.Index, ordered...)
 	p.store.SetBlock(block)
 	p.checkpoint.LastBlockN = block.Index

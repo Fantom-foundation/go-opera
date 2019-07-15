@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
@@ -17,6 +18,9 @@ type Frame struct {
 	Roots    EventsByPeer
 	Balances hash.Hash // TODO: move to super-frame
 
+	timeOffset inter.Timestamp
+	timeRatio  inter.Timestamp
+
 	save func()
 }
 
@@ -25,6 +29,18 @@ func (f *Frame) Save() {
 	if f.save != nil {
 		f.save()
 	}
+}
+
+// GetConsensusTimestamp calc consensus timestamp for given event.
+func (f *Frame) GetConsensusTimestamp(e *Event) inter.Timestamp {
+	return e.LamportTime*f.timeRatio + f.timeOffset
+}
+
+// SetTimes set new timeOffset and new TimeRatio.
+func (f *Frame) SetTimes(offset, ratio inter.Timestamp) {
+	f.timeOffset = offset
+	f.timeRatio = ratio
+	f.Save()
 }
 
 // AddRoot appends root-event into frame.
@@ -56,8 +72,10 @@ func (f *Frame) SetBalances(balances hash.Hash) bool {
 // ToWire converts to proto.Message.
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
-		Index:    uint32(f.Index),
-		Balances: f.Balances.Bytes(),
+		Index:      uint32(f.Index),
+		Balances:   f.Balances.Bytes(),
+		TimeOffset: uint64(f.timeOffset),
+		TimeRatio:  uint64(f.timeRatio),
 	}
 }
 
@@ -67,8 +85,10 @@ func WireToFrame(w *wire.Frame) *Frame {
 		return nil
 	}
 	return &Frame{
-		Index:    idx.Frame(w.Index),
-		Balances: hash.FromBytes(w.Balances),
+		Index:      idx.Frame(w.Index),
+		Balances:   hash.FromBytes(w.Balances),
+		timeOffset: inter.Timestamp(w.TimeOffset),
+		timeRatio:  inter.Timestamp(w.TimeRatio),
 	}
 }
 
