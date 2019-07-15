@@ -47,20 +47,25 @@ func (ss *Strongly) Cache(e *inter.Event) {
 	}
 
 	event := &Event{
-		Event: e,
+		Event:   e,
+		MemberN: ss.nodeIndex(e.Creator),
 	}
 
-	ss.setNodes(event)
 	ss.fillEventRefs(event)
 	ss.events[e.Hash()] = event
 }
 
-func (ss *Strongly) setNodes(e *Event) {
-	var ok bool
-	if e.MemberN, ok = ss.nodes[e.Creator]; !ok {
-		e.MemberN = len(ss.nodes)
-		ss.nodes[e.Creator] = e.MemberN
+func (ss *Strongly) nodeIndex(n hash.Peer) int {
+	var (
+		index int
+		ok    bool
+	)
+	if index, ok = ss.nodes[n]; !ok {
+		index = len(ss.nodes)
+		ss.nodes[n] = index
 	}
+
+	return index
 }
 
 func (ss *Strongly) fillEventRefs(e *Event) {
