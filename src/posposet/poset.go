@@ -212,19 +212,16 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	}
 
 	// balances changes
-	/*
-		state := p.store.StateDB(applyAt.Balances)
-		p.applyTransactions(state, ordered)
-		p.applyRewards(state, ordered)
-		balances, err := state.Commit(true)
-		if err != nil {
-			p.Fatal(err)
-		}
-		if applyAt.SetBalances(balances) {
-			p.Debugf("consensus: new state [%d]%s --> [%d]%s", frame.Index, frame.Balances.String(), applyAt.Index, balances.String())
-			p.reconsensusFromFrame(applyAt.Index, balances)
-		}
-	*/
+
+	state := p.store.StateDB(p.superFrame.balances)
+	p.applyTransactions(state, ordered, p.nextMembers)
+	p.applyRewards(state, ordered, p.nextMembers)
+	p.nextMembers = p.nextMembers.Top()
+	balances, err := state.Commit(true)
+	if err != nil {
+		p.Fatal(err)
+	}
+	p.superFrame.balances = balances
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -254,7 +251,7 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 			}
 		}
 
-		// TODO store isRoot, frameHeight within inter.Event. Check only if event.isRoot was true.
+		// TODO: store isRoot, frameHeight within inter.Event. Check only if event.isRoot was true.
 
 		// counter of all the seen roots on maxParentsFrame
 		sSeenCounter := p.members.NewCounter()

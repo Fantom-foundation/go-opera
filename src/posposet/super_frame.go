@@ -14,11 +14,10 @@ import (
 )
 
 type superFrame struct {
-	// state
-	balances hash.Hash
-	members  internal.Members
-
-	frames map[idx.Frame]*Frame
+	frames      map[idx.Frame]*Frame
+	balances    hash.Hash
+	members     internal.Members
+	nextMembers internal.Members
 
 	// election votes
 	election *election.Election
