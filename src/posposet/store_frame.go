@@ -28,7 +28,7 @@ func (s *Store) GetFrame(n idx.Frame, sf idx.SuperFrame) *Frame {
 	key := []byte(fmt.Sprintf("%d_%d", sf, n))
 
 	if s.cache.Frames != nil {
-		if f, ok := s.cache.Frames.Get(key); ok {
+		if f, ok := s.cache.Frames.Get(n); ok {
 			w := f.(*wire.Frame)
 			return WireToFrame(w)
 		}
