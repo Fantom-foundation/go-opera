@@ -49,21 +49,6 @@ func (mr *MockConsensusMockRecorder) GetGenesisHash() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisHash", reflect.TypeOf((*MockConsensus)(nil).GetGenesisHash))
 }
 
-// LastSuperFrame mocks base method
-func (m *MockConsensus) LastSuperFrame() (idx.SuperFrame, []hash.Peer) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LastSuperFrame")
-	ret0, _ := ret[0].(idx.SuperFrame)
-	ret1, _ := ret[1].([]hash.Peer)
-	return ret0, ret1
-}
-
-// LastSuperFrame indicates an expected call of LastSuperFrame
-func (mr *MockConsensusMockRecorder) LastSuperFrame() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastSuperFrame", reflect.TypeOf((*MockConsensus)(nil).LastSuperFrame))
-}
-
 // PushEvent mocks base method
 func (m *MockConsensus) PushEvent(arg0 hash.Event) {
 	m.ctrl.T.Helper()
@@ -90,16 +75,17 @@ func (mr *MockConsensusMockRecorder) StakeOf(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StakeOf", reflect.TypeOf((*MockConsensus)(nil).StakeOf), arg0)
 }
 
-// SuperFrame mocks base method
-func (m *MockConsensus) SuperFrame(arg0 idx.SuperFrame) []hash.Peer {
+// SuperFramePeers mocks base method
+func (m *MockConsensus) SuperFramePeers(arg0 idx.SuperFrame) (idx.SuperFrame, []hash.Peer) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SuperFrame", arg0)
-	ret0, _ := ret[0].([]hash.Peer)
-	return ret0
+	ret := m.ctrl.Call(m, "SuperFramePeers", arg0)
+	ret0, _ := ret[0].(idx.SuperFrame)
+	ret1, _ := ret[1].([]hash.Peer)
+	return ret0, ret1
 }
 
-// SuperFrame indicates an expected call of SuperFrame
-func (mr *MockConsensusMockRecorder) SuperFrame(arg0 interface{}) *gomock.Call {
+// SuperFramePeers indicates an expected call of SuperFramePeers
+func (mr *MockConsensusMockRecorder) SuperFramePeers(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFrame", reflect.TypeOf((*MockConsensus)(nil).SuperFrame), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFramePeers", reflect.TypeOf((*MockConsensus)(nil).SuperFramePeers), arg0)
 }

@@ -15,8 +15,6 @@ type Consensus interface {
 	StakeOf(hash.Peer) inter.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
 	GetGenesisHash() hash.Hash
-	// LastSuperFrame returns super-frame and list of peers
-	LastSuperFrame() (idx.SuperFrame, []hash.Peer)
-	// SuperFrame returns list of peers for n super-frame
-	SuperFrame(n idx.SuperFrame) []hash.Peer
+	// SuperFrame returns list of peers for n super-frame. If req==0 returns last.
+	SuperFramePeers(req idx.SuperFrame) (idx.SuperFrame, []hash.Peer)
 }

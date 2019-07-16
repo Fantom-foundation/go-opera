@@ -1,6 +1,0 @@
-syntax = "proto3";
-package wire;
-
-message Members {
-  map<string, uint64> All = 1;
-}

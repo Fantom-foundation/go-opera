@@ -6,16 +6,10 @@ message EventDescr {
   bytes Hash = 2;
 }
 
-message Flag {
-  bytes Event = 1;
-  repeated EventDescr Roots = 2;
-}
-
 message Frame {
   uint32 Index = 1;
-  repeated Flag FlagTable = 2;
-  repeated EventDescr ClothoCandidates = 3;
-  bytes Balances = 4;
-  uint64 timeOffset = 5;
-  uint64 timeRatio = 6;
+  repeated EventDescr Events = 2;
+  repeated EventDescr Roots = 3;
+  uint64 timeOffset = 4;
+  uint64 timeRatio = 5;
 }

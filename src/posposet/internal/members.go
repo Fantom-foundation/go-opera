@@ -5,7 +5,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 const MembersCount = 30
@@ -55,25 +54,23 @@ func (mm Members) StakeOf(n hash.Peer) inter.Stake {
 	return mm[n]
 }
 
-func (mm Members) ToWire() *wire.Members {
-	w := &wire.Members{
-		All: make(map[string]uint64),
-	}
+func (mm Members) ToWire() map[string]uint64 {
+	w := make(map[string]uint64)
 
 	for n, s := range mm {
-		w.All[n.Hex()] = uint64(s)
+		w[n.Hex()] = uint64(s)
 	}
 
 	return w
 }
 
-func WireToMembers(w *wire.Members) Members {
+func WireToMembers(w map[string]uint64) Members {
 	if w == nil {
 		return nil
 	}
 
-	mm := make(Members, len(w.All))
-	for hex, amount := range w.All {
+	mm := make(Members, len(w))
+	for hex, amount := range w {
 		addr := hash.HexToPeer(hex)
 		mm[addr] = inter.Stake(amount)
 	}
