@@ -72,7 +72,7 @@ func testStronglySeen(t *testing.T, dag string) {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	ss := New(members)
+	ss := New(members.NewCounter)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -392,7 +392,7 @@ func TestStronglySeenRandom(t *testing.T) {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	ss := New(members)
+	ss := New(members.NewCounter)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -439,7 +439,7 @@ func codegen4StronglySeenStability() {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	ss := New(members)
+	ss := New(members.NewCounter)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{

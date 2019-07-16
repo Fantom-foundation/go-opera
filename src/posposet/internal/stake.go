@@ -5,21 +5,26 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-// stakeCounter counts stakes.
-type stakeCounter struct {
-	members Members
-	already map[hash.Peer]struct{}
+type (
+	// StakeCounterProvider providers stake counter.
+	StakeCounterProvider func() *StakeCounter
 
-	quorum inter.Stake
-	sum    inter.Stake
-}
+	// StakeCounter counts stakes.
+	StakeCounter struct {
+		members Members
+		already map[hash.Peer]struct{}
 
-func (mm Members) NewCounter() *stakeCounter {
+		quorum inter.Stake
+		sum    inter.Stake
+	}
+)
+
+func (mm Members) NewCounter() *StakeCounter {
 	return newStakeCounter(mm)
 }
 
-func newStakeCounter(mm Members) *stakeCounter {
-	return &stakeCounter{
+func newStakeCounter(mm Members) *StakeCounter {
+	return &StakeCounter{
 		members: mm,
 		quorum:  mm.Quorum(),
 		already: make(map[hash.Peer]struct{}),
@@ -27,7 +32,7 @@ func newStakeCounter(mm Members) *stakeCounter {
 	}
 }
 
-func (s *stakeCounter) Count(node hash.Peer) bool {
+func (s *StakeCounter) Count(node hash.Peer) bool {
 	if _, ok := s.already[node]; ok {
 		return false
 	}
@@ -37,10 +42,10 @@ func (s *stakeCounter) Count(node hash.Peer) bool {
 	return true
 }
 
-func (s *stakeCounter) HasQuorum() bool {
+func (s *StakeCounter) HasQuorum() bool {
 	return s.sum >= s.quorum
 }
 
-func (s *stakeCounter) Sum() inter.Stake {
+func (s *StakeCounter) Sum() inter.Stake {
 	return s.sum
 }
