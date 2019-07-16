@@ -14,6 +14,8 @@ message Flag {
 message Frame {
   uint32 Index = 1;
   repeated Flag FlagTable = 2;
-repeated EventDescr ClothoCandidates = 3;
+  repeated EventDescr ClothoCandidates = 3;
   bytes Balances = 4;
+  uint64 timeOffset = 5;
+  uint64 timeRatio = 6;
 }

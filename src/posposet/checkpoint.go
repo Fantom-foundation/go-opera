@@ -26,10 +26,11 @@ func (cp *checkpoint) ToWire() *wire.Checkpoint {
 		LastBlockN:         uint64(cp.LastBlockN),
 		Genesis:            cp.Genesis.Bytes(),
 		TotalCap:           uint64(cp.TotalCap),
+		LastConsensusTime:  uint64(cp.LastConsensusTime),
 	}
 }
 
-// WireToState converts from wire.
+// WireToCheckpoint converts from wire.
 func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 	if w == nil {
 		return nil
@@ -40,6 +41,7 @@ func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 		LastBlockN:        idx.Block(w.LastBlockN),
 		Genesis:           hash.FromBytes(w.Genesis),
 		TotalCap:          inter.Stake(w.TotalCap),
+		LastConsensusTime: inter.Timestamp(w.LastConsensusTime),
 	}
 }
 
