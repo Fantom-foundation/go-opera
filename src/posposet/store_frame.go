@@ -10,13 +10,13 @@ import (
 
 // SetFrame stores event.
 func (s *Store) SetFrame(f *Frame, sf idx.SuperFrame) {
-	key := []byte(fmt.Sprintf("%d_%d", sf, f.Index))
+	key := fmt.Sprintf("%d_%d", sf, f.Index)
 
 	w := f.ToWire()
-	s.set(s.table.Frames, key, w)
+	s.set(s.table.Frames, []byte(key), w)
 
 	if s.cache.Frames != nil {
-		s.cache.Frames.Add(f.Index, w)
+		s.cache.Frames.Add(key, w)
 
 		frameCacheCap.Update(int64(
 			s.cache.Frames.Len()))
@@ -25,7 +25,7 @@ func (s *Store) SetFrame(f *Frame, sf idx.SuperFrame) {
 
 // GetFrame returns stored frame.
 func (s *Store) GetFrame(n idx.Frame, sf idx.SuperFrame) *Frame {
-	key := []byte(fmt.Sprintf("%d_%d", sf, n))
+	key := fmt.Sprintf("%d_%d", sf, n)
 
 	if s.cache.Frames != nil {
 		if f, ok := s.cache.Frames.Get(key); ok {
@@ -34,7 +34,7 @@ func (s *Store) GetFrame(n idx.Frame, sf idx.SuperFrame) *Frame {
 		}
 	}
 
-	w, _ := s.get(s.table.Frames, key, &wire.Frame{}).(*wire.Frame)
+	w, _ := s.get(s.table.Frames, []byte(key), &wire.Frame{}).(*wire.Frame)
 	return WireToFrame(w)
 }
 
