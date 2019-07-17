@@ -4,18 +4,13 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
 	downloads struct {
-		heights    map[hash.Peer]idx.Event
+		heights    heights
 		hashes     hash.Events
 		sync.Mutex // TODO: split to separates for heights and hashes
-	}
-
-	interval struct {
-		from, to idx.Event
 	}
 )
 
@@ -23,41 +18,44 @@ func (n *Node) initDownloads() {
 	if n.downloads.heights != nil {
 		return
 	}
-	n.downloads.heights = make(map[hash.Peer]idx.Event)
+	n.downloads.heights = make(heights)
 	n.downloads.hashes = hash.Events{}
 }
 
 // lockFreeHeights returns start indexes of height free intervals and reserves their.
-func (n *Node) lockFreeHeights(want map[hash.Peer]idx.Event) map[hash.Peer]interval {
+func (n *Node) lockFreeHeights(wants heights) heights {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 
-	res := make(map[hash.Peer]interval, len(want))
+	res := make(heights, len(wants))
 
-	for creator, height := range want {
+	for creator, want := range wants {
 		locked := n.downloads.heights[creator]
-		if locked == 0 {
-			locked = n.store.GetPeerHeight(creator)
+		if locked.to == 0 {
+			locked.to = n.store.GetPeerHeight(creator)
 		}
-		if height <= locked {
+		if want.to <= locked.to {
 			continue
 		}
 
-		res[creator] = interval{locked + 1, height}
-		n.downloads.heights[creator] = height
+		res[creator] = interval{
+			from: max(locked.to+1, want.from),
+			to:   want.to,
+		}
+		n.downloads.heights[creator] = want
 	}
 
 	return res
 }
 
 // unlockFreeHeights known peer height.
-func (n *Node) unlockFreeHeights(hh map[hash.Peer]interval) {
+func (n *Node) unlockFreeHeights(hh heights) {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 
 	for creator, interval := range hh {
 		locked := n.downloads.heights[creator]
-		if locked <= interval.to {
+		if locked.to <= interval.to {
 			delete(n.downloads.heights, creator)
 		}
 	}

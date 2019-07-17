@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
@@ -41,18 +40,18 @@ func TestGossip(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 1,
-				node2.ID: 0,
+			heights{
+				node1.ID: interval{to: 1},
+				node2.ID: interval{to: 0},
 			},
 			events1,
 			"node1 knows their event only")
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 0,
-				node2.ID: 1,
+			heights{
+				node1.ID: interval{to: 0},
+				node2.ID: interval{to: 1},
 			},
 			events2,
 			"node2 knows their event only")
@@ -65,18 +64,18 @@ func TestGossip(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 1,
-				node2.ID: 1,
+			heights{
+				node1.ID: interval{to: 1},
+				node2.ID: interval{to: 1},
 			},
 			events1,
 			"node1 knows last event of node2")
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 0,
-				node2.ID: 1,
+			heights{
+				node1.ID: interval{to: 0},
+				node2.ID: interval{to: 1},
 			},
 			events2,
 			"node2 still knows their event only")
@@ -92,18 +91,18 @@ func TestGossip(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 1,
-				node2.ID: 1,
+			heights{
+				node1.ID: interval{to: 1},
+				node2.ID: interval{to: 1},
 			},
 			events1,
 			"node1 still knows event of node2")
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 1,
-				node2.ID: 1,
+			heights{
+				node1.ID: interval{to: 1},
+				node2.ID: interval{to: 1},
 			},
 			events2,
 			"node2 knows last event of node1")
@@ -145,18 +144,18 @@ func TestMissingParents(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 3,
-				node2.ID: 0,
+			heights{
+				node1.ID: interval{to: 3},
+				node2.ID: interval{to: 0},
 			},
 			events1,
 			"node1 knows their event only")
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 0,
-				node2.ID: 0,
+			heights{
+				node1.ID: interval{to: 0},
+				node2.ID: interval{to: 0},
 			},
 			events2,
 			"node2 knows their event only")
@@ -188,7 +187,7 @@ func TestMissingParents(t *testing.T) {
 				PeerID: creator.Hex(),
 			}
 			// skipping the first event.
-			for i := idx.Event(2); i <= height; i++ {
+			for i := height.from + 1; i <= height.to; i++ {
 				req.Index = uint64(i)
 
 				event, err := node2.downloadEvent(client, peer, req)
@@ -208,18 +207,18 @@ func TestMissingParents(t *testing.T) {
 
 		_, events1 := node1.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 3,
-				node2.ID: 0,
+			heights{
+				node1.ID: interval{to: 3},
+				node2.ID: interval{to: 0},
 			},
 			events1,
 			"node1 still knows their event only")
 
 		_, events2 := node2.knownEvents(0)
 		assertar.Equal(
-			map[hash.Peer]idx.Event{
-				node1.ID: 3,
-				node2.ID: 0,
+			heights{
+				node1.ID: interval{to: 3},
+				node2.ID: interval{to: 0},
 			},
 			events2,
 			"node2 knows last event of node1")

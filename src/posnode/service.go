@@ -69,14 +69,9 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	// response
 	sf, knowns := n.knownEvents(idx.SuperFrame(req.SuperFrameN))
 
-	knownLasts := make(map[string]uint64, len(knowns))
-	for id, h := range knowns {
-		knownLasts[id.Hex()] = uint64(h)
-	}
-
 	return &api.KnownEvents{
 		SuperFrameN: uint64(sf),
-		Lasts:       knownLasts,
+		Lasts:       knowns.ToWire(),
 	}, nil
 }
 
@@ -145,17 +140,6 @@ func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.Peer
 /*
  * Utils:
  */
-
-// PeersHeightsDiff returns all heights excluding excepts.
-func PeersHeightsDiff(all, excepts map[string]uint64) (res map[string]idx.Event) {
-	res = make(map[string]idx.Event, len(all))
-	for id, h0 := range all {
-		if h1, ok := excepts[id]; !ok || h1 < h0 {
-			res[id] = idx.Event(h0)
-		}
-	}
-	return
-}
 
 func checkSource(ctx context.Context) error {
 	source := api.GrpcPeerID(ctx)
