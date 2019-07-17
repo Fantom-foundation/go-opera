@@ -41,14 +41,10 @@ func TestEventsSort(t *testing.T) {
 }
 
 // EventsFromBlockNum returns events included info blocks (from num to last).
-func (p *Poset) EventsFromBlockNum(num idx.Block) inter.Events {
-	if num == 0 {
-		num = 1 // skip virtual block
-	}
-
+func (p *Poset) EventsTillBlock(num idx.Block) inter.Events {
 	events := make(inter.Events, 0)
 
-	for n := num; n < p.LastBlockN; n++ {
+	for n := idx.Block(1); n <= num; n++ {
 		b := p.store.GetBlock(n)
 		if b == nil {
 			panic(n)

@@ -184,6 +184,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.LastDecidedFrameN = frame
 	p.election.Reset(p.members, frame+1)
 
+	p.Debugf("dfsSubgraph from %s", sfWitness.String())
 	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
 		by := p.store.GetEventConfirmedBy(event.Hash())
 		if by.IsZero() {
@@ -203,6 +204,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 
 	// block generation
 	block := inter.NewBlock(p.checkpoint.LastBlockN+1, ordered)
+	p.Debugf("block%d ordered: %s", block.Index, block.Events.String())
 	p.store.SetEventsBlockNum(block.Index, ordered...)
 	p.store.SetBlock(block)
 	p.checkpoint.LastBlockN = block.Index

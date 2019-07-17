@@ -177,6 +177,25 @@ func WireToEventHashes(buf [][]byte) (first Event, all Events) {
  * OrderedEvents methods:
  */
 
+func (hh OrderedEvents) String() string {
+	buf := &strings.Builder{}
+
+	out := func(s string) {
+		if _, err := buf.WriteString(s); err != nil {
+			panic(err)
+		}
+	}
+
+	out("[")
+	for _, h := range hh {
+		out(h.String())
+		out(", ")
+	}
+	out("]")
+
+	return buf.String()
+}
+
 // ToWire converts to simple slice.
 func (hh OrderedEvents) ToWire() [][]byte {
 	res := make([][]byte, len(hh))
