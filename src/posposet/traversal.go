@@ -23,15 +23,14 @@ func (s eventsStack) Pop() (eventsStack, *hash.Event) {
 
 type eventFilterFn func(event *inter.Event) bool
 
-// Depth First Search
-// @return all the event which are seen by head, and accepted by a filter
+// dfsSubgraph returns all the event which are seen by head, and accepted by a filter
 func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Events, err error) {
 	res = make(inter.Events, 0, 1024)
 
 	visited := make(map[hash.Event]bool)
 	stack := make(eventsStack, 0, len(p.members))
 
-	for pwalk := &head; pwalk != nil && *pwalk != hash.ZeroEvent; stack, pwalk = stack.Pop() {
+	for pwalk := &head; pwalk != nil; stack, pwalk = stack.Pop() {
 		// ensure visited once
 		walk := *pwalk
 		if visited[walk] {
@@ -54,7 +53,9 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 
 		// memorize parents
 		for parent := range event.Parents {
-			stack = stack.Push(parent)
+			if !parent.IsZero() {
+				stack = stack.Push(parent)
+			}
 		}
 	}
 
