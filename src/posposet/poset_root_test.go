@@ -307,12 +307,12 @@ func codegen4PosetRandomRoot() {
 	for _, e := range dag {
 		frame := p.FrameOfEvent(e.Hash())
 		_, isRoot := frame.Roots[e.Creator][e.Hash()]
-		oldName := hash.EventNameDict[e.Hash()]
+		oldName := hash.GetEventName(e.Hash())
 		newName := fmt.Sprintf("%s%d.%02d", oldName[0:1], frame.Index, e.Index)
 		if isRoot {
 			newName = strings.ToUpper(newName[0:1]) + newName[1:]
 		}
-		hash.EventNameDict[e.Hash()] = newName
+		hash.SetEventName(e.Hash(), newName)
 	}
 
 	fmt.Println(inter.DAGtoASCIIscheme(dag))
