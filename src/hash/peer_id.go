@@ -6,11 +6,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
-var (
-	// NodeNameDict is an optional dictionary to make node address human readable in log.
-	NodeNameDict = make(map[Peer]string)
-)
-
 // Peer is a unique peer identifier.
 // It is a hash of peer's PubKey.
 type Peer Hash
@@ -57,7 +52,7 @@ func HexToPeer(s string) Peer {
 
 // String returns human readable string representation.
 func (p *Peer) String() string {
-	if name, ok := NodeNameDict[*p]; ok {
+	if name := GetNodeName(*p); len(name) > 0 {
 		return name
 	}
 	return (*Hash)(p).ShortString()

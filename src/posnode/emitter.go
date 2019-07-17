@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,8 +127,6 @@ func (n *Node) EmitEvent() *inter.Event {
 
 // emitEvent with no checks.
 func (n *Node) emitEvent() *inter.Event {
-	n.Debugf("emitting event")
-
 	var (
 		index          idx.Event
 		selfParent     hash.Event
@@ -190,6 +189,9 @@ func (n *Node) emitEvent() *inter.Event {
 		n.Fatal(err)
 	}
 
+	// set event name for debug
+	n.nameEventForDebug(event)
+
 	n.emitter.last = time.Now()
 	countEmittedEvents.Inc(1)
 
@@ -197,4 +199,16 @@ func (n *Node) emitEvent() *inter.Event {
 	n.Infof("new event emitted %s", event)
 
 	return event
+}
+
+func (n *Node) nameEventForDebug(e *inter.Event) {
+	name := []rune(hash.GetNodeName(n.ID))
+	if len(name) < 1 {
+		return
+	}
+
+	name = name[len(name)-1:]
+	hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d",
+		strings.ToLower(string(name)),
+		e.Index))
 }

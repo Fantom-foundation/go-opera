@@ -147,7 +147,7 @@ func ASCIIschemeToDAG(scheme string) (
 			}
 			events[creator] = append(events[creator], e)
 			names[name] = e
-			hash.EventNameDict[e.Hash()] = name
+			hash.SetEventName(e.Hash(), name)
 		}
 	}
 
@@ -156,8 +156,8 @@ func ASCIIschemeToDAG(scheme string) (
 		if len(ee) < 1 {
 			continue
 		}
-		name := ee[0].Hash().String()
-		hash.NodeNameDict[node] = "node" + strings.ToUpper(name[0:1])
+		name := []rune(ee[0].Hash().String())
+		hash.SetNodeName(node, "node"+strings.ToUpper(string(name[0:1])))
 	}
 
 	return
@@ -184,9 +184,9 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			peerCols[e.Creator] = r.Self
 		}
 		// name
-		r.Name = hash.EventNameDict[ehash]
+		r.Name = hash.GetEventName(ehash)
 		if len(r.Name) < 1 {
-			r.Name = hash.NodeNameDict[e.Creator]
+			r.Name = hash.GetNodeName(e.Creator)
 			if len(r.Name) < 1 {
 				r.Name = string('a' + r.Self)
 			}

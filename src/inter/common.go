@@ -32,7 +32,7 @@ func GenEventsByNode(
 	for i := 0; i < nodeCount; i++ {
 		addr := hash.FakePeer()
 		nodes[i] = addr
-		hash.NodeNameDict[addr] = "node" + string('A'+i)
+		hash.SetNodeName(addr, "node"+string('A'+i))
 	}
 	// make events
 	for i := 0; i < nodeCount*eventCount; i++ {
@@ -80,7 +80,7 @@ func GenEventsByNode(
 			mod(e, nodes)
 		}
 		// save and name event
-		hash.EventNameDict[e.Hash()] = fmt.Sprintf("%s%03d", string('a'+self), len(events[creator]))
+		hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d", string('a'+self), len(events[creator])))
 		events[creator] = append(events[creator], e)
 	}
 

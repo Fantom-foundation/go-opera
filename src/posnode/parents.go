@@ -59,9 +59,13 @@ func (n *Node) initParents() {
 
 }
 
-// pushPotentialParent add event to parent events cache.
+// pushPotentialParent adds event to parent events cache except self-events.
 // Parents should be pushed first ( see posposet/Poset.onNewEvent() ).
 func (n *Node) pushPotentialParent(e *inter.Event) {
+	if e.Creator == n.ID {
+		return
+	}
+
 	val := inter.Stake(1)
 	if n.consensus != nil {
 		val = n.consensus.StakeOf(e.Creator)

@@ -64,7 +64,7 @@ func (h Event) Hex() string {
 
 // String returns human readable string representation.
 func (h Event) String() string {
-	if name, ok := EventNameDict[h]; ok {
+	if name := GetEventName(h); len(name) > 0 {
 		return name
 	}
 	return (Hash)(h).ShortString()
@@ -188,8 +188,7 @@ func (hh OrderedEvents) String() string {
 
 	out("[")
 	for _, h := range hh {
-		out(h.String())
-		out(", ")
+		out(h.String() + ", ")
 	}
 	out("]")
 

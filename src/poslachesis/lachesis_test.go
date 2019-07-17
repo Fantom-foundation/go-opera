@@ -7,6 +7,7 @@ import (
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
@@ -17,7 +18,11 @@ func TestRing(t *testing.T) {
 
 	ll := LachesisNetworkRing(5)
 
-	time.Sleep(1 * time.Second)
+	if !testing.Short() {
+		time.Sleep(60 * time.Second)
+	} else {
+		time.Sleep(1 * time.Second)
+	}
 
 	for _, l := range ll {
 		cp := l.consensusStore.GetCheckpoint()
@@ -31,7 +36,11 @@ func TestStar(t *testing.T) {
 
 	ll := LachesisNetworkStar(5)
 
-	time.Sleep(1 * time.Second)
+	if !testing.Short() {
+		time.Sleep(60 * time.Second)
+	} else {
+		time.Sleep(1 * time.Second)
+	}
 
 	for _, l := range ll {
 		cp := l.consensusStore.GetCheckpoint()
@@ -54,6 +63,7 @@ func NewForTests(
 ) *Lachesis {
 	l := makeLachesis(db, host, key, conf, network.FakeListener, posnode.FakeClient(host))
 
+	hash.SetNodeName(l.node.ID, host)
 	l.node.SetName(host)
 	l.nodeStore.SetName(host)
 	l.consensus.SetName(host)
