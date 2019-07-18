@@ -3,13 +3,12 @@ package posposet
 import (
 	"fmt"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // SetFrame stores event.
-func (s *Store) SetFrame(f *Frame, sf idx.SuperFrame) {
+func (s *Store) SetFrame(sf idx.SuperFrame, f *Frame) {
 	key := fmt.Sprintf("%d_%d", sf, f.Index)
 
 	w := f.ToWire()
@@ -24,7 +23,7 @@ func (s *Store) SetFrame(f *Frame, sf idx.SuperFrame) {
 }
 
 // GetFrame returns stored frame.
-func (s *Store) GetFrame(n idx.Frame, sf idx.SuperFrame) *Frame {
+func (s *Store) GetFrame(sf idx.SuperFrame, n idx.Frame) *Frame {
 	key := fmt.Sprintf("%d_%d", sf, n)
 
 	if s.cache.Frames != nil {
@@ -38,8 +37,10 @@ func (s *Store) GetFrame(n idx.Frame, sf idx.SuperFrame) *Frame {
 	return WireToFrame(w)
 }
 
+// TODO: remove later
+/*
 // SetEventFrame stores frame num of event.
-func (s *Store) SetEventFrame(e hash.Event, frame idx.Frame) {
+func (s *Store) SetEventFrame(sf idx.SuperFrame, e hash.Event, frame idx.Frame) {
 	key := e.Bytes()
 	val := frame.Bytes()
 	if err := s.table.Event2Frame.Put(key, val); err != nil {
@@ -75,3 +76,4 @@ func (s *Store) GetEventFrame(e hash.Event) *idx.Frame {
 	val := idx.BytesToFrame(buf)
 	return &val
 }
+*/

@@ -137,8 +137,6 @@ func (p *Poset) consensus(event *inter.Event) {
 		Event: event,
 	}
 
-	p.strongly.Cache(event)
-
 	frame, isRoot := p.checkIfRoot(e)
 	if !isRoot {
 		return
@@ -154,25 +152,33 @@ func (p *Poset) consensus(event *inter.Event) {
 		},
 	})
 	if err != nil {
-		p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
+		// if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
+		p.Fatal("Election error", err)
+	}
+	if decided == nil {
+		return
 	}
 
-	if decided != nil {
-		// if we’re here, then this root has seen that lowest not decided frame is decided now
-		p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
+	// if we’re here, then this root has seen that lowest not decided frame is decided now
+	p.onFrameDecided(decided.Frame, decided.SfWitness)
+	if p.superFrameSealed(decided.SfWitness) {
+		return
+	}
 
-		// then call processKnownRoots until it returns nil -
-		// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
-		for {
-			decided, err := p.election.ProcessKnownRoots(p.frameNumLast(), p.getRoots)
-			if err != nil {
-				p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
-			}
-			if decided != nil {
-				p.onFrameDecided(decided.DecidedFrame, decided.DecidedSfWitness)
-			} else {
-				break
-			}
+	// then call processKnownRoots until it returns nil -
+	// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
+	for {
+		decided, err := p.election.ProcessKnownRoots(p.frameNumLast(), p.getRoots)
+		if err != nil {
+			p.Fatal("Election error", err) // if we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically
+		}
+		if decided == nil {
+			break
+		}
+
+		p.onFrameDecided(decided.Frame, decided.SfWitness)
+		if p.superFrameSealed(decided.SfWitness) {
+			return
 		}
 	}
 
@@ -226,14 +232,27 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.superFrame.balances = balances
 }
 
+func (p *Poset) superFrameSealed(sfWitness hash.Event) bool {
+	p.sfWitnessCount += 1
+	if p.sfWitnessCount < SuperFrameLen {
+		return false
+	}
+	return false // TODO: remove
+
+	p.nextSuperFrame()
+	p.saveCheckpoint() // commit
+
+	return true
+}
+
 // checkIfRoot checks root-conditions for new event
 // and returns frame where event is root.
 // It is not safe for concurrent use.
-func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
-	var frameI idx.Frame
-	isRoot := false
+func (p *Poset) checkIfRoot(e *Event) (frame *Frame, isRoot bool) {
+	p.strongly.Cache(e.Event)
 
-	if e.Index == 1 {
+	var frameI idx.Frame
+	if e.Seq == 1 {
 		// special case for first events in an SF
 		frameI = idx.Frame(1)
 		isRoot = true
@@ -275,12 +294,12 @@ func (p *Poset) checkIfRoot(e *Event) (*Frame, bool) {
 		}
 	}
 	// save in DB the {e, frame, isRoot}
-	frame := p.frame(frameI, true)
-	p.store.SetEventFrame(e.Hash(), frame.Index)
+	frame = p.frame(frameI, true)
 	if isRoot {
 		frame.AddRoot(e)
 	} else {
 		frame.AddEvent(e)
 	}
-	return frame, isRoot
+
+	return
 }

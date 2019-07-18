@@ -308,7 +308,7 @@ func codegen4PosetRandomRoot() {
 		frame := p.FrameOfEvent(e.Hash())
 		_, isRoot := frame.Roots[e.Creator][e.Hash()]
 		oldName := hash.GetEventName(e.Hash())
-		newName := fmt.Sprintf("%s%d.%02d", oldName[0:1], frame.Index, e.Index)
+		newName := fmt.Sprintf("%s%d.%02d", oldName[0:1], frame.Index, e.Seq)
 		if isRoot {
 			newName = strings.ToUpper(newName[0:1]) + newName[1:]
 		}

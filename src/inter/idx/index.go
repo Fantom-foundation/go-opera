@@ -5,6 +5,9 @@ import (
 )
 
 type (
+	// SuperFrame numeration.
+	SuperFrame uint64
+
 	// Event numeration.
 	Event uint64
 
@@ -14,6 +17,10 @@ type (
 	// Block numeration.
 	Block uint64
 )
+
+func (sf SuperFrame) Bytes() []byte {
+	return common.IntToBytes(uint64(sf))
+}
 
 func (e Event) Bytes() []byte {
 	return common.IntToBytes(uint64(e))

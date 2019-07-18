@@ -71,7 +71,7 @@ func (p *Poset) frameFromStore(n idx.Frame) *Frame {
 		}
 	}
 
-	f := p.store.GetFrame(n, p.SuperFrameN)
+	f := p.store.GetFrame(p.SuperFrameN, n)
 	if f == nil {
 		return p.frameFromStore(n - 1)
 	}

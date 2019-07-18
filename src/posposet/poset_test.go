@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 
@@ -55,20 +54,6 @@ func TestPoset(t *testing.T) {
 				for _, e := range ee {
 					inputs[i].SetEvent(e)
 					posets[i].PushEventSync(e.Hash())
-				}
-			}
-		}
-	})
-
-	t.Run("All events in Store", func(t *testing.T) {
-		assertar := assert.New(t)
-		for i := 0; i < posetCount; i++ {
-			for _, ee := range events {
-				for _, e := range ee {
-					frame := posets[i].store.GetEventFrame(e.Hash())
-					if !assertar.NotNil(frame, "Poset%d: event %s is not in poset store", i, e.Hash()) {
-						return
-					}
 				}
 			}
 		}
@@ -129,15 +114,4 @@ func TestPoset(t *testing.T) {
 	for i := 0; i < posetCount; i++ {
 		posets[i].Stop()
 	}
-}
-
-/*
- * Poset's test methods:
- */
-
-// PushEventSync takes event into processing.
-// It's a sync version of Poset.PushEvent().
-func (p *Poset) PushEventSync(e hash.Event) {
-	event := p.input.GetEvent(e)
-	p.onNewEvent(event)
 }

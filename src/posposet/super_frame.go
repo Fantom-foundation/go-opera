@@ -13,11 +13,14 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
+const SuperFrameLen int = 100
+
 type superFrame struct {
-	frames      map[idx.Frame]*Frame
-	balances    hash.Hash
-	members     internal.Members
-	nextMembers internal.Members
+	sfWitnessCount int
+	frames         map[idx.Frame]*Frame
+	balances       hash.Hash
+	members        internal.Members
+	nextMembers    internal.Members
 
 	// election votes
 	election *election.Election
@@ -51,7 +54,7 @@ func (p *Poset) initSuperFrame() {
 	p.strongly = seeing.New(p.members.NewCounter)
 	p.frames = make(map[idx.Frame]*Frame)
 	for n := idx.Frame(1); true; n++ {
-		frame := p.store.GetFrame(n, p.SuperFrameN)
+		frame := p.store.GetFrame(p.SuperFrameN, n)
 		if frame == nil {
 			break
 		}
@@ -83,6 +86,15 @@ func (p *Poset) initSuperFrame() {
 	}
 
 	p.election = election.New(p.members, p.LastDecidedFrameN+1, p.rootStronglySeeRoot)
+}
+
+func (p *Poset) nextSuperFrame() {
+	p.sfWitnessCount = 0
+	p.members = p.nextMembers
+	p.nextMembers = internal.Members{}
+	p.SuperFrameN += 1
+
+	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
 }
 
 // SuperFrame returns list of peers for n super-frame.

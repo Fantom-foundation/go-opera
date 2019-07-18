@@ -84,6 +84,6 @@ func WireToFrame(w *wire.Frame) *Frame {
 
 func (p *Poset) setFrameSaving(f *Frame) {
 	f.save = func() {
-		p.store.SetFrame(f, p.SuperFrameN)
+		p.store.SetFrame(p.SuperFrameN, f)
 	}
 }

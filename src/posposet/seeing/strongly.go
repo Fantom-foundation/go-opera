@@ -73,15 +73,15 @@ func (ss *Strongly) fillEventRefs(e *Event) {
 	e.HighestSeen = make([]idx.Event, e.MemberN+1, nodeCount)
 
 	// seen by himself
-	e.LowestSees[e.MemberN] = e.Index
-	e.HighestSeen[e.MemberN] = e.Index
+	e.LowestSees[e.MemberN] = e.Seq
+	e.HighestSeen[e.MemberN] = e.Seq
 
 	for p := range e.Parents {
 		if p.IsZero() {
 			continue
 		}
 		parent := ss.events[p]
-		ss.updateAllLowestSees(parent, e.MemberN, e.Index)
+		ss.updateAllLowestSees(parent, e.MemberN, e.Seq)
 		ss.updateAllHighestSeen(e, parent)
 	}
 }
