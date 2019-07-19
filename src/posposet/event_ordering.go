@@ -77,8 +77,8 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 	var currStake inter.Stake
 	var median *inter.Event
 	for node, stake := range stakes {
+		currStake += stake
 		if currStake < halfStake {
-			currStake += stake
 			continue
 		}
 
@@ -94,11 +94,7 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 		p.LastConsensusTime = genesisTimestamp
 	}
 
-	lastTime := genesisTimestamp
-	if median != nil {
-		lastTime = median.LamportTime - p.LastConsensusTime
-	}
-	frameTimePeriod := inter.MaxTimestamp(lastTime, 1)
+	frameTimePeriod := inter.MaxTimestamp(median.LamportTime-p.LastConsensusTime, 1)
 	frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp, 1)
 
 	timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)
