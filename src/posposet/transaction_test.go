@@ -53,7 +53,7 @@ func TestPosetTxn(t *testing.T) {
 	}
 
 	st := s.GetCheckpoint()
-	t.Logf("poset: frame %d, block %d", st.LastDecidedFrameN, st.LastBlockN)
+	t.Logf("poset: SFrame %d, Block %d", st.SuperFrameN, st.LastBlockN)
 
 	assert.Equal(t,
 		uint64(0), p.StakeOf(nodes[0]),

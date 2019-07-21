@@ -187,7 +187,6 @@ func (p *Poset) consensus(event *inter.Event) {
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, superframe sealing.
 func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
-	p.LastDecidedFrameN = frame
 	p.election.Reset(p.members, frame+1)
 
 	p.Debugf("dfsSubgraph from %s", sfWitness.String())

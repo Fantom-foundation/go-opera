@@ -64,11 +64,11 @@ func TestPoset(t *testing.T) {
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
 			st0 := p0.store.GetCheckpoint()
-			t.Logf("Compare poset%d: frame %d, block %d", i, st0.LastDecidedFrameN, st0.LastBlockN)
+			t.Logf("Compare poset%d: SFrame %d, Block %d", i, st0.SuperFrameN, st0.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 				st1 := p1.store.GetCheckpoint()
-				t.Logf("with poset%d: frame %d, block %d", j, st1.LastDecidedFrameN, st1.LastBlockN)
+				t.Logf("with poset%d: SFrame %d, Block %d", j, st1.SuperFrameN, st1.LastBlockN)
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {
