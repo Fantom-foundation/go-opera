@@ -65,9 +65,7 @@ func (p *Poset) Bootstrap() {
 		p.Fatal("Apply genesis for store first")
 	}
 	// restore current super-frame
-	p.initSuperFrame()
-
-	// TODO: reload some datas
+	p.loadSuperFrame()
 }
 
 // GetGenesisHash is a genesis getter.

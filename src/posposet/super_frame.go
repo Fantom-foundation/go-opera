@@ -4,16 +4,18 @@ import (
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
-const SuperFrameLen int = 100
+const (
+	SuperFrameLen int = 100
+
+	firstFrame = idx.Frame(1)
+)
 
 type superFrame struct {
 	sfWitnessCount int
@@ -48,52 +50,43 @@ func WireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 	return
 }
 
-func (p *Poset) initSuperFrame() {
+func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
 
 	p.strongly = seeing.New(p.members.NewCounter)
+	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
+	p.nextMembers = internal.Members{}
 	p.frames = make(map[idx.Frame]*Frame)
-	for n := idx.Frame(1); true; n++ {
+
+	// events reprocessing
+	toReload := hash.Events{}
+	for n := firstFrame; true; n++ {
 		frame := p.store.GetFrame(p.SuperFrameN, n)
 		if frame == nil {
 			break
 		}
-		p.frames[n] = frame
-
-		cached := make(map[hash.Event]*inter.Event)
-		orderThenCache := ordering.EventBuffer(ordering.Callback{
-			Process: func(e *inter.Event) {
-				p.strongly.Cache(e)
-				cached[e.Hash()] = e
-			},
-			Drop: func(e *inter.Event, err error) {
-				p.Fatal(err)
-			},
-			Exists: func(e hash.Event) *inter.Event {
-				return cached[e]
-			},
-		})
-
 		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
 			for _, ee := range src {
-				for e := range ee {
-					event := p.GetEvent(e)
-					orderThenCache(event.Event)
-				}
+				toReload.Add(ee.Slice()...)
 			}
 		}
-
 	}
 
-	p.election = election.New(p.members, p.LastDecidedFrameN+1, p.rootStronglySeeRoot)
+	for e := range toReload {
+		p.PushEvent(e)
+	}
 }
 
 func (p *Poset) nextSuperFrame() {
-	p.sfWitnessCount = 0
 	p.members = p.nextMembers
 	p.nextMembers = internal.Members{}
-	p.SuperFrameN += 1
 
+	p.frames = make(map[idx.Frame]*Frame)
+
+	p.strongly.Reset()
+	p.election.Reset(p.members, firstFrame)
+
+	p.SuperFrameN += 1
 	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
 }
 

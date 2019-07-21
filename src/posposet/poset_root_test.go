@@ -262,6 +262,7 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 		input.SetEvent(event)
 		p.PushEventSync(event.Hash())
 	}
+
 	// check each
 	for name, event := range names {
 		mustBeFrame, mustBeRoot := decode(name)
