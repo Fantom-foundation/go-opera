@@ -19,6 +19,8 @@ type Poset struct {
 	*checkpoint
 	superFrame
 
+	Genesis hash.Hash
+
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
 

@@ -12,6 +12,9 @@ func (s *Store) SetSuperFrame(n idx.SuperFrame, sf *superFrame) {
 
 // GetMembers returns stored super-frame.
 func (s *Store) GetSuperFrame(n idx.SuperFrame) *superFrame {
-	w := s.get(s.table.SuperFrames, n.Bytes(), &wire.SuperFrame{}).(*wire.SuperFrame)
+	w, exists := s.get(s.table.SuperFrames, n.Bytes(), &wire.SuperFrame{}).(*wire.SuperFrame)
+	if !exists {
+		return nil
+	}
 	return WireToSuperFrame(w)
 }

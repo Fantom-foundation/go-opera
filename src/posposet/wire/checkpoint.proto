@@ -5,7 +5,6 @@ package wire;
 message Checkpoint {
   uint64 SuperFrameN = 1;
   uint64 LastBlockN = 2;
-  bytes  Genesis = 3;
-  uint64 TotalCap = 4;
-  uint64 LastConsensusTime = 5;
+  uint64 TotalCap = 3;
+  uint64 LastConsensusTime = 4;
 }

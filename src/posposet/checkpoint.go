@@ -12,7 +12,6 @@ import (
 type checkpoint struct {
 	SuperFrameN       idx.SuperFrame
 	LastBlockN        idx.Block
-	Genesis           hash.Hash
 	TotalCap          inter.Stake
 	LastConsensusTime inter.Timestamp
 }
@@ -22,7 +21,6 @@ func (cp *checkpoint) ToWire() *wire.Checkpoint {
 	return &wire.Checkpoint{
 		SuperFrameN:       uint64(cp.SuperFrameN),
 		LastBlockN:        uint64(cp.LastBlockN),
-		Genesis:           cp.Genesis.Bytes(),
 		TotalCap:          uint64(cp.TotalCap),
 		LastConsensusTime: uint64(cp.LastConsensusTime),
 	}
@@ -36,7 +34,6 @@ func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 	return &checkpoint{
 		SuperFrameN:       idx.SuperFrame(w.SuperFrameN),
 		LastBlockN:        idx.Block(w.LastBlockN),
-		Genesis:           hash.FromBytes(w.Genesis),
 		TotalCap:          inter.Stake(w.TotalCap),
 		LastConsensusTime: inter.Timestamp(w.LastConsensusTime),
 	}
@@ -61,6 +58,10 @@ func (p *Poset) Bootstrap() {
 	if p.checkpoint == nil {
 		p.Fatal("Apply genesis for store first")
 	}
+
+	// restore genesis
+	p.Genesis = p.store.GetSuperFrame(0).balances
+
 	// restore current super-frame
 	p.loadSuperFrame()
 }
@@ -79,5 +80,5 @@ func genesisHash(balances map[hash.Peer]inter.Stake) hash.Hash {
 		logger.Get().Fatal(err)
 	}
 
-	return s.GetCheckpoint().Genesis
+	return s.GetSuperFrame(0).balances
 }

@@ -81,20 +81,22 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
-	cp := s.GetCheckpoint()
-	if cp != nil {
-		if cp.Genesis == genesisHash(balances) {
+	sf0 := s.GetSuperFrame(0)
+	if sf0 != nil {
+		if sf0.balances == genesisHash(balances) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	cp = &checkpoint{
+	sf := &superFrame{}
+
+	cp := &checkpoint{
 		SuperFrameN: 0,
 		TotalCap:    0,
 	}
 
-	mm := make(internal.Members, len(balances))
+	sf.members = make(internal.Members, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
@@ -105,20 +107,17 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 		genesis.SetBalance(hash.Peer(addr), balance)
 		cp.TotalCap += balance
 
-		mm.Add(addr, balance)
+		sf.members.Add(addr, balance)
 	}
+	sf.members = sf.members.Top()
 
 	var err error
-	cp.Genesis, err = genesis.Commit(true)
+	sf.balances, err = genesis.Commit(true)
 	if err != nil {
 		return err
 	}
 
-	s.SetSuperFrame(cp.SuperFrameN, &superFrame{
-		balances: cp.Genesis,
-		members:  mm.Top(),
-	})
-
+	s.SetSuperFrame(cp.SuperFrameN, sf)
 	s.SetCheckpoint(cp)
 
 	return nil
