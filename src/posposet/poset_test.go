@@ -15,17 +15,26 @@ import (
 func TestPoset(t *testing.T) {
 	logger.SetTestMode(t)
 
-	const posetCount = 3
+	const posetCount = 3 // last will be restored
 
 	nodes, events := inter.GenEventsByNode(5, 99, 3)
 
-	posets := make([]*Poset, posetCount)
-	inputs := make([]*EventStore, posetCount)
-	for i := 0; i < posetCount; i++ {
-		posets[i], _, inputs[i] = FakePoset(nodes)
-		posets[i].SetName(nodes[i].String())
-		posets[i].store.SetName(nodes[i].String())
-		posets[i].Start()
+	posets := make([]*Poset, 0, posetCount)
+	inputs := make([]*EventStore, 0, posetCount)
+
+	makePoset := func(i int) *Store {
+		poset, store, input := FakePoset(nodes)
+		n := i % len(nodes)
+		poset.SetName(nodes[n].String())
+		store.SetName(nodes[n].String())
+		poset.Start()
+		posets = append(posets, poset)
+		inputs = append(inputs, input)
+		return store
+	}
+
+	for i := 0; i < posetCount-1; i++ {
+		_ = makePoset(i)
 	}
 
 	t.Run("Multiple start", func(t *testing.T) {
@@ -36,7 +45,7 @@ func TestPoset(t *testing.T) {
 
 	t.Run("Push unordered events", func(t *testing.T) {
 		// first all events from one node
-		for i := 0; i < posetCount; i++ {
+		for i := 0; i < len(posets); i++ {
 			n := i % len(nodes)
 			ee := events[nodes[n]]
 			for _, e := range ee {
@@ -45,7 +54,7 @@ func TestPoset(t *testing.T) {
 			}
 		}
 		// second all events from others
-		for i := 0; i < posetCount; i++ {
+		for i := 0; i < len(posets); i++ {
 			for n := range nodes {
 				if n == i%len(nodes) {
 					continue
@@ -56,6 +65,36 @@ func TestPoset(t *testing.T) {
 					posets[i].PushEventSync(e.Hash())
 				}
 			}
+		}
+	})
+
+	t.Run("Restore", func(t *testing.T) {
+		i := posetCount - 1
+		store := makePoset(i)
+
+		all := inter.Events{}
+		for n := range nodes {
+			ee := events[nodes[n]]
+			for _, e := range ee {
+				all = append(all, e)
+			}
+		}
+
+		for x, e := range all {
+			if x == len(all)/2 {
+				// restore
+				posets[i].Stop()
+				restored := New(store, inputs[i])
+				n := i % len(nodes)
+				restored.SetName("restored_" + nodes[n].String())
+				store.SetName("restored_" + nodes[n].String())
+				restored.Bootstrap()
+				MakeOrderedInput(restored)
+				posets[i] = restored
+			}
+
+			inputs[i].SetEvent(e)
+			posets[i].PushEventSync(e.Hash())
 		}
 	})
 
@@ -111,7 +150,7 @@ func TestPoset(t *testing.T) {
 		posets[0].Stop()
 	})
 
-	for i := 0; i < posetCount; i++ {
+	for i := 0; i < len(posets); i++ {
 		posets[i].Stop()
 	}
 }
