@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	SuperFrameLen int = 20 // TODO: =100 for real life
+	SuperFrameLen int = 100
 
 	firstFrame = idx.Frame(1)
 )
