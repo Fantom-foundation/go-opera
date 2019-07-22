@@ -99,8 +99,8 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	n.Debugf("save new event")
 
 	n.store.SetEvent(e)
-	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
-	n.store.SetPeerHeight(e.Creator, e.Index)
+	n.store.SetEventHash(e.Creator, e.SfNum, e.Seq, e.Hash())
+	n.store.SetPeerHeight(e.Creator, e.SfNum, e.Seq)
 	// NOTE: doubled txns from evil event could override existing index!
 	// TODO: decision
 	n.store.SetTxnsEvent(e.Hash(), e.Creator, e.InternalTransactions...)
@@ -171,20 +171,20 @@ func (n *Node) AsPeer() *Peer {
 }
 
 // LastEventOf returns last event of peer.
-func (n *Node) LastEventOf(peer hash.Peer) *inter.Event {
-	i := n.store.GetPeerHeight(peer)
+func (n *Node) LastEventOf(peer hash.Peer, sf idx.SuperFrame) *inter.Event {
+	i := n.store.GetPeerHeight(peer, sf)
 	if i == 0 {
 		return nil
 	}
 
-	return n.EventOf(peer, i)
+	return n.EventOf(peer, sf, i)
 }
 
 // EventOf returns i-th event of peer.
-func (n *Node) EventOf(peer hash.Peer, i idx.Event) *inter.Event {
-	h := n.store.GetEventHash(peer, i)
+func (n *Node) EventOf(peer hash.Peer, sf idx.SuperFrame, i idx.Event) *inter.Event {
+	h := n.store.GetEventHash(peer, sf, i)
 	if h == nil {
-		n.Errorf("no event hash for (%s,%d) in store", peer.String(), i)
+		n.Errorf("no event hash for (%s,%d-%d) in store", peer.String(), sf, i)
 		return nil
 	}
 

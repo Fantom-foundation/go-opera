@@ -32,18 +32,19 @@ func (n *Node) initParents() {
 	if n.parents.cache != nil {
 		return
 	}
-
 	n.parents.cache = make(map[hash.Event]*parent)
+
+	sf := n.superFrame()
 
 	// load some parents from store
 	for _, peer := range n.peers.Snapshot() {
-		to := n.store.GetPeerHeight(peer)
+		to := n.store.GetPeerHeight(peer, sf)
 		from := idx.Event(1)
 		if (from + loadDeep) <= to {
 			from -= loadDeep
 		}
 		for i := from; i <= to; i++ {
-			e := n.EventOf(peer, i)
+			e := n.EventOf(peer, sf, i)
 			val := inter.Stake(1)
 			if n.consensus != nil {
 				val = n.consensus.StakeOf(e.Creator)

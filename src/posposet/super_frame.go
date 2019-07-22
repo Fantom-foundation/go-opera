@@ -90,15 +90,13 @@ func (p *Poset) nextSuperFrame() {
 	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
 }
 
-// SuperFrame returns list of peers for n super-frame.
-// If req==0 returns last.
-func (p *Poset) SuperFramePeers(req idx.SuperFrame) (n idx.SuperFrame, members []hash.Peer) {
-	if req == idx.SuperFrame(0) {
-		n = idx.SuperFrame(atomic.LoadUint64((*uint64)(&p.SuperFrameN)))
-	} else {
-		n = req
-	}
+// CurrentSuperFrame returns current SuperFrameN to 3rd party.
+func (p *Poset) CurrentSuperFrameN() idx.SuperFrame {
+	return idx.SuperFrame(atomic.LoadUint64((*uint64)(&p.SuperFrameN)))
+}
 
+// SuperFrameMembers returns members of n super-frame.
+func (p *Poset) SuperFrameMembers(n idx.SuperFrame) (members []hash.Peer) {
 	sf := p.store.GetSuperFrame(n)
 	if sf == nil {
 		p.Fatalf("super-frame %d not found", n)

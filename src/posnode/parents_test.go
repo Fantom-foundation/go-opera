@@ -11,6 +11,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -48,6 +49,10 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		consensus := NewMockConsensus(ctrl)
+		consensus.EXPECT().
+			CurrentSuperFrameN().
+			Return(idx.SuperFrame(1)).
+			AnyTimes()
 
 		store := NewMemStore()
 		node := NewForTests(dsc, store, consensus)

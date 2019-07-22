@@ -103,7 +103,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Receiver: peer,
 		}
 		event0 := &inter.Event{
-			Index:      1,
+			Seq:        1,
 			Creator:    hash.FakePeer(),
 			SelfParent: hash.ZeroEvent,
 			Parents:    hash.Events{hash.ZeroEvent: struct{}{}},

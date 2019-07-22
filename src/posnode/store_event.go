@@ -49,9 +49,10 @@ func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 }
 
 // SetEventHash stores hash.
-func (s *Store) SetEventHash(creator hash.Peer, index idx.Event, hash hash.Event) {
+func (s *Store) SetEventHash(creator hash.Peer, sf idx.SuperFrame, seq idx.Event, hash hash.Event) {
 
-	key := append(creator.Bytes(), index.Bytes()...)
+	key := append(creator.Bytes(), sf.Bytes()...)
+	key = append(key, seq.Bytes()...)
 
 	if err := s.table.Hashes.Put(key, hash.Bytes()); err != nil {
 		s.Fatal(err)
@@ -59,8 +60,9 @@ func (s *Store) SetEventHash(creator hash.Peer, index idx.Event, hash hash.Event
 }
 
 // GetEventHash returns stored event hash.
-func (s *Store) GetEventHash(creator hash.Peer, index idx.Event) *hash.Event {
-	key := append(creator.Bytes(), index.Bytes()...)
+func (s *Store) GetEventHash(creator hash.Peer, sf idx.SuperFrame, seq idx.Event) *hash.Event {
+	key := append(creator.Bytes(), sf.Bytes()...)
+	key = append(key, seq.Bytes()...)
 
 	buf, err := s.table.Hashes.Get(key)
 	if err != nil {

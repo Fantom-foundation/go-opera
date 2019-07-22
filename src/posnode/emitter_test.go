@@ -89,7 +89,7 @@ func TestEmit(t *testing.T) {
 
 		assertar.Equal(
 			idx.Event(1),
-			events[0].Index)
+			events[0].Seq)
 		assertar.Equal(
 			inter.Timestamp(1),
 			events[0].LamportTime)
@@ -110,7 +110,7 @@ func TestEmit(t *testing.T) {
 
 		assertar.Equal(
 			idx.Event(1),
-			events[1].Index)
+			events[1].Seq)
 		assertar.Equal(
 			inter.Timestamp(2),
 			events[1].LamportTime)
@@ -128,7 +128,7 @@ func TestEmit(t *testing.T) {
 
 		assertar.Equal(
 			idx.Event(2),
-			events[2].Index)
+			events[2].Seq)
 		assertar.Equal(
 			inter.Timestamp(3),
 			events[2].LamportTime)
@@ -146,7 +146,7 @@ func TestEmit(t *testing.T) {
 
 		assertar.Equal(
 			idx.Event(3),
-			events[3].Index)
+			events[3].Seq)
 		assertar.Equal(
 			inter.Timestamp(4),
 			events[3].LamportTime)

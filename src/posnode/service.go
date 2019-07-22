@@ -67,10 +67,10 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	}
 
 	// response
-	sf, knowns := n.knownEvents(idx.SuperFrame(req.SuperFrameN))
+	knowns := n.knownEvents(idx.SuperFrame(req.SuperFrameN))
 
 	return &api.KnownEvents{
-		SuperFrameN: uint64(sf),
+		SuperFrameN: req.SuperFrameN,
 		Lasts:       knowns.ToWire(),
 	}, nil
 }
@@ -91,9 +91,9 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 		eventHash.SetBytes(req.Hash)
 	} else {
 		creator := hash.HexToPeer(req.PeerID)
-		h := n.store.GetEventHash(creator, idx.Event(req.Index))
+		h := n.store.GetEventHash(creator, idx.SuperFrame(req.SuperFrameN), idx.Event(req.Seq))
 		if h == nil {
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("event not found: %s-%d", req.PeerID, req.Index))
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("event not found: %s-%d-%d", req.PeerID, req.SuperFrameN, req.Seq))
 		}
 		eventHash = *h
 	}

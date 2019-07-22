@@ -35,6 +35,20 @@ func (m *MockConsensus) EXPECT() *MockConsensusMockRecorder {
 	return m.recorder
 }
 
+// CurrentSuperFrameN mocks base method
+func (m *MockConsensus) CurrentSuperFrameN() idx.SuperFrame {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CurrentSuperFrameN")
+	ret0, _ := ret[0].(idx.SuperFrame)
+	return ret0
+}
+
+// CurrentSuperFrameN indicates an expected call of CurrentSuperFrameN
+func (mr *MockConsensusMockRecorder) CurrentSuperFrameN() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentSuperFrameN", reflect.TypeOf((*MockConsensus)(nil).CurrentSuperFrameN))
+}
+
 // GetGenesisHash mocks base method
 func (m *MockConsensus) GetGenesisHash() hash.Hash {
 	m.ctrl.T.Helper()
@@ -75,17 +89,16 @@ func (mr *MockConsensusMockRecorder) StakeOf(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StakeOf", reflect.TypeOf((*MockConsensus)(nil).StakeOf), arg0)
 }
 
-// SuperFramePeers mocks base method
-func (m *MockConsensus) SuperFramePeers(arg0 idx.SuperFrame) (idx.SuperFrame, []hash.Peer) {
+// SuperFrameMembers mocks base method
+func (m *MockConsensus) SuperFrameMembers(arg0 idx.SuperFrame) []hash.Peer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SuperFramePeers", arg0)
-	ret0, _ := ret[0].(idx.SuperFrame)
-	ret1, _ := ret[1].([]hash.Peer)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "SuperFrameMembers", arg0)
+	ret0, _ := ret[0].([]hash.Peer)
+	return ret0
 }
 
-// SuperFramePeers indicates an expected call of SuperFramePeers
-func (mr *MockConsensusMockRecorder) SuperFramePeers(arg0 interface{}) *gomock.Call {
+// SuperFrameMembers indicates an expected call of SuperFrameMembers
+func (mr *MockConsensusMockRecorder) SuperFrameMembers(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFramePeers", reflect.TypeOf((*MockConsensus)(nil).SuperFramePeers), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFrameMembers", reflect.TypeOf((*MockConsensus)(nil).SuperFrameMembers), arg0)
 }

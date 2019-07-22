@@ -82,15 +82,19 @@ func (s *Store) GetTopPeers() []hash.Peer {
 }
 
 // SetPeerHeight stores last event index of peer.
-func (s *Store) SetPeerHeight(id hash.Peer, height idx.Event) {
-	if err := s.table.PeerHeights.Put(id.Bytes(), height.Bytes()); err != nil {
+func (s *Store) SetPeerHeight(id hash.Peer, sf idx.SuperFrame, height idx.Event) {
+	key := append(id.Bytes(), sf.Bytes()...)
+
+	if err := s.table.PeerHeights.Put(key, height.Bytes()); err != nil {
 		s.Fatal(err)
 	}
 }
 
 // GetPeerHeight returns last event index of peer.
-func (s *Store) GetPeerHeight(id hash.Peer) idx.Event {
-	buf, err := s.table.PeerHeights.Get(id.Bytes())
+func (s *Store) GetPeerHeight(id hash.Peer, sf idx.SuperFrame) idx.Event {
+	key := append(id.Bytes(), sf.Bytes()...)
+
+	buf, err := s.table.PeerHeights.Get(key)
 	if err != nil {
 		s.Fatal(err)
 	}
