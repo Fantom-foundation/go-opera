@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	SuperFrameLen int = 100
+	SuperFrameLen int = 20 // TODO: =100 for real life
 
 	firstFrame = idx.Frame(1)
 )
@@ -55,10 +55,10 @@ func (p *Poset) loadSuperFrame() {
 
 	p.strongly = seeing.New(p.members.NewCounter)
 	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
-	p.nextMembers = internal.Members{}
 	p.frames = make(map[idx.Frame]*Frame)
 
 	// events reprocessing
+	p.nextMembers = p.members.Top()
 	toReload := hash.Events{}
 	for n := firstFrame; true; n++ {
 		frame := p.store.GetFrame(p.SuperFrameN, n)
@@ -79,7 +79,7 @@ func (p *Poset) loadSuperFrame() {
 
 func (p *Poset) nextSuperFrame() {
 	p.members = p.nextMembers
-	p.nextMembers = internal.Members{}
+	p.nextMembers = p.members.Top()
 
 	p.frames = make(map[idx.Frame]*Frame)
 

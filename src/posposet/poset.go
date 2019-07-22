@@ -134,6 +134,10 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(event *inter.Event) {
+	if event.SfNum != p.SuperFrameN {
+		return
+	}
+
 	p.Debugf("consensus: start %s", event.String())
 	e := &Event{
 		Event: event,
@@ -238,7 +242,6 @@ func (p *Poset) superFrameSealed(sfWitness hash.Event) bool {
 	if p.sfWitnessCount < SuperFrameLen {
 		return false
 	}
-	return false // TODO: remove
 
 	p.nextSuperFrame()
 	p.saveCheckpoint() // commit
