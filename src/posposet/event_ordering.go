@@ -69,21 +69,17 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 	halfStake := jointStake / 2
 
 	// 4. Calculate weighted median
-	selectedEventsMap := map[hash.Peer]*inter.Event{}
-	for _, event := range selectedEvents {
-		selectedEventsMap[event.Creator] = event
-	}
-
 	var currStake inter.Stake
 	var median *inter.Event
-	for node, stake := range stakes {
+	for _, event := range selectedEvents {
+		currStake += stakes[event.Creator]
 		if currStake < halfStake {
-			currStake += stake
 			continue
 		}
 
-		median = selectedEventsMap[node]
-		break
+		if median == nil {
+			median = event
+		}
 	}
 
 	highestTimestamp := selectedEvents[len(selectedEvents)-1].LamportTime
