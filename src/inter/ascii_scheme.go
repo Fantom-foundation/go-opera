@@ -115,7 +115,7 @@ func ASCIIschemeToDAG(scheme string) (
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]
-				index = parent.Index + 1
+				index = parent.Seq + 1
 				selfParent = parent.Hash()
 				parents.Add(parent.Hash())
 				maxLamport = parent.LamportTime
@@ -139,7 +139,7 @@ func ASCIIschemeToDAG(scheme string) (
 			}
 			// save event
 			e := &Event{
-				Index:       index,
+				Seq:       index,
 				Creator:     creator,
 				SelfParent:  selfParent,
 				Parents:     parents,
@@ -190,7 +190,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			if len(r.Name) < 1 {
 				r.Name = string('a' + r.Self)
 			}
-			r.Name = fmt.Sprintf("%s%03d", r.Name, e.Index)
+			r.Name = fmt.Sprintf("%s%03d", r.Name, e.Seq)
 		}
 		if w := len([]rune(r.Name)); scheme.ColWidth < w {
 			scheme.ColWidth = w
@@ -212,7 +212,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 				continue
 			}
 			refCol := peerCols[parent.Creator]
-			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Index + 1)
+			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
 		}
 		if selfRefs != 1 {
 			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
@@ -233,7 +233,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		// processed
 		scheme.Add(r)
 		processed[ehash] = e
-		peerLastIndex[e.Creator] = e.Index
+		peerLastIndex[e.Creator] = e.Seq
 	}
 
 	scheme.Optimize()

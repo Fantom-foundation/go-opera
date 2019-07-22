@@ -91,7 +91,7 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 	}
 
 	if e := n.store.GetTxnsEvent(idx); e != nil {
-		return idx, fmt.Errorf("the same txn already exists in event %d of %s", e.Index, e.Creator.String())
+		return idx, fmt.Errorf("the same txn already exists in event %s of %s", e.Hash().String(), e.Creator.String())
 	}
 
 	n.emitter.internalTxns[idx] = &tx
@@ -128,7 +128,8 @@ func (n *Node) EmitEvent() *inter.Event {
 // emitEvent with no checks.
 func (n *Node) emitEvent() *inter.Event {
 	var (
-		index          idx.Event
+		sf             = n.superFrame()
+		seq            idx.Event
 		selfParent     hash.Event
 		parents        = hash.Events{}
 		maxLamportTime inter.Timestamp
@@ -136,14 +137,14 @@ func (n *Node) emitEvent() *inter.Event {
 		externalTxns   [][]byte
 	)
 
-	prev := n.LastEventOf(n.ID)
+	prev := n.LastEventOf(n.ID, sf)
 	if prev != nil {
-		index = prev.Index + 1
+		seq = prev.Seq + 1
 		maxLamportTime = prev.LamportTime
 		selfParent = prev.Hash()
 		parents.Add(prev.Hash())
 	} else {
-		index = 1
+		seq = 1
 		selfParent = hash.ZeroEvent
 		parents.Add(hash.ZeroEvent)
 	}
@@ -163,6 +164,7 @@ func (n *Node) emitEvent() *inter.Event {
 		}
 	}
 
+	// TODO: don't use txns if event has no chance to be in block
 	// transactions buffer swap
 	internalTxns = make([]*inter.InternalTransaction, 0, len(n.emitter.internalTxns))
 	for idx, txn := range n.emitter.internalTxns {
@@ -175,7 +177,8 @@ func (n *Node) emitEvent() *inter.Event {
 	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
 	event := &inter.Event{
-		Index:                index,
+		SfNum:                sf,
+		Seq:                  seq,
 		Creator:              n.ID,
 		SelfParent:           selfParent,
 		Parents:              parents,
@@ -210,5 +213,5 @@ func (n *Node) nameEventForDebug(e *inter.Event) {
 	name = name[len(name)-1:]
 	hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d",
 		strings.ToLower(string(name)),
-		e.Index))
+		e.Seq))
 }

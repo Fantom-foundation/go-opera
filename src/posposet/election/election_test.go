@@ -283,8 +283,8 @@ func testProcessRoot(
 			decisive := expected != nil && expected.DecisiveRoots[root.Hash().String()]
 			if decisive || alreadyDecided {
 				assertar.NotNil(got)
-				assertar.Equal(expected.DecidedFrame, got.DecidedFrame)
-				assertar.Equal(expected.DecidedSfWitness, got.DecidedSfWitness.String())
+				assertar.Equal(expected.DecidedFrame, got.Frame)
+				assertar.Equal(expected.DecidedSfWitness, got.SfWitness.String())
 				alreadyDecided = true
 			} else {
 				assertar.Nil(got)

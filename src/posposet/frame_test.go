@@ -13,7 +13,6 @@ import (
 )
 
 func TestFrameSerialization(t *testing.T) {
-	t.Skip("TODO: no frames in DB, indexes only")
 	assertar := assert.New(t)
 	// fake random data
 	nodes, events := inter.GenEventsByNode(4, 10, 3)
@@ -26,8 +25,9 @@ func TestFrameSerialization(t *testing.T) {
 	}
 
 	f0 := &Frame{
-		Index: idx.Frame(rand.Uint64()),
-		Roots: roots,
+		Index:  idx.Frame(rand.Uint64()),
+		Events: EventsByPeer{},
+		Roots:  roots,
 	}
 	buf, err := proto.Marshal(f0.ToWire())
 	assertar.NoError(err)

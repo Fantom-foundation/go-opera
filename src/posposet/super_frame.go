@@ -4,20 +4,25 @@ import (
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
+const (
+	SuperFrameLen int = 20 // TODO: =100 for real life
+
+	firstFrame = idx.Frame(1)
+)
+
 type superFrame struct {
-	frames      map[idx.Frame]*Frame
-	balances    hash.Hash
-	members     internal.Members
-	nextMembers internal.Members
+	sfWitnessCount int
+	frames         map[idx.Frame]*Frame
+	balances       hash.Hash
+	members        internal.Members
+	nextMembers    internal.Members
 
 	// election votes
 	election *election.Election
@@ -45,55 +50,53 @@ func WireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 	return
 }
 
-func (p *Poset) initSuperFrame() {
+func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
 
 	p.strongly = seeing.New(p.members.NewCounter)
+	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
 	p.frames = make(map[idx.Frame]*Frame)
-	for n := idx.Frame(1); true; n++ {
-		frame := p.store.GetFrame(n, p.SuperFrameN)
+
+	// events reprocessing
+	p.nextMembers = p.members.Top()
+	toReload := hash.Events{}
+	for n := firstFrame; true; n++ {
+		frame := p.store.GetFrame(p.SuperFrameN, n)
 		if frame == nil {
 			break
 		}
-		p.frames[n] = frame
-
-		cached := make(map[hash.Event]*inter.Event)
-		orderThenCache := ordering.EventBuffer(ordering.Callback{
-			Process: func(e *inter.Event) {
-				p.strongly.Cache(e)
-				cached[e.Hash()] = e
-			},
-			Drop: func(e *inter.Event, err error) {
-				p.Fatal(err)
-			},
-			Exists: func(e hash.Event) *inter.Event {
-				return cached[e]
-			},
-		})
-
 		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
 			for _, ee := range src {
-				for e := range ee {
-					event := p.GetEvent(e)
-					orderThenCache(event.Event)
-				}
+				toReload.Add(ee.Slice()...)
 			}
 		}
-
 	}
 
-	p.election = election.New(p.members, p.LastDecidedFrameN+1, p.rootStronglySeeRoot)
+	for e := range toReload {
+		p.PushEvent(e)
+	}
 }
 
-// SuperFrame returns list of peers for n super-frame.
-// If req==0 returns last.
-func (p *Poset) SuperFramePeers(req idx.SuperFrame) (n idx.SuperFrame, members []hash.Peer) {
-	if req == idx.SuperFrame(0) {
-		n = idx.SuperFrame(atomic.LoadUint64((*uint64)(&p.SuperFrameN)))
-	} else {
-		n = req
-	}
+func (p *Poset) nextSuperFrame() {
+	p.members = p.nextMembers
+	p.nextMembers = p.members.Top()
 
+	p.frames = make(map[idx.Frame]*Frame)
+
+	p.strongly.Reset()
+	p.election.Reset(p.members, firstFrame)
+
+	p.SuperFrameN += 1
+	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
+}
+
+// CurrentSuperFrame returns current SuperFrameN to 3rd party.
+func (p *Poset) CurrentSuperFrameN() idx.SuperFrame {
+	return idx.SuperFrame(atomic.LoadUint64((*uint64)(&p.SuperFrameN)))
+}
+
+// SuperFrameMembers returns members of n super-frame.
+func (p *Poset) SuperFrameMembers(n idx.SuperFrame) (members []hash.Peer) {
 	sf := p.store.GetSuperFrame(n)
 	if sf == nil {
 		p.Fatalf("super-frame %d not found", n)

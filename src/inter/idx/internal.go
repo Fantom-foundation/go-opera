@@ -5,16 +5,9 @@ import (
 )
 
 type (
-	// SuperFrame numeration.
-	SuperFrame uint64
-
 	// Frame numeration.
 	Frame uint32
 )
-
-func (sf SuperFrame) Bytes() []byte {
-	return common.IntToBytes(uint64(sf))
-}
 
 func (f Frame) Bytes() []byte {
 	return common.IntToBytes(uint64(f))

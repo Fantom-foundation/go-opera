@@ -46,11 +46,11 @@ func (ee eventsByFrame) String() string {
  */
 
 // FrameOfEvent returns unfinished frame where event is in.
-func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame) {
+func (p *Poset) FrameOfEvent(event hash.Event) *Frame {
 	for i := idx.Frame(1); true; i++ {
-		frame = p.frame(i, false)
+		frame := p.frame(i, false)
 		if frame == nil {
-			return
+			return nil
 		}
 		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
 			for e := range src.Each() {
@@ -71,7 +71,7 @@ func (p *Poset) frameFromStore(n idx.Frame) *Frame {
 		}
 	}
 
-	f := p.store.GetFrame(n, p.SuperFrameN)
+	f := p.store.GetFrame(p.SuperFrameN, n)
 	if f == nil {
 		return p.frameFromStore(n - 1)
 	}

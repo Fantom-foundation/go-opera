@@ -11,22 +11,18 @@ import (
 // checkpoint is for persistent storing.
 type checkpoint struct {
 	SuperFrameN       idx.SuperFrame
-	LastDecidedFrameN idx.Frame
-	LastConsensusTime inter.Timestamp
 	LastBlockN        idx.Block
-	Genesis           hash.Hash
 	TotalCap          inter.Stake
+	LastConsensusTime inter.Timestamp
 }
 
 // ToWire converts to proto.Message.
 func (cp *checkpoint) ToWire() *wire.Checkpoint {
 	return &wire.Checkpoint{
-		SuperFrameN:        uint64(cp.SuperFrameN),
-		LastFinishedFrameN: uint32(cp.LastDecidedFrameN),
-		LastBlockN:         uint64(cp.LastBlockN),
-		Genesis:            cp.Genesis.Bytes(),
-		TotalCap:           uint64(cp.TotalCap),
-		LastConsensusTime:  uint64(cp.LastConsensusTime),
+		SuperFrameN:       uint64(cp.SuperFrameN),
+		LastBlockN:        uint64(cp.LastBlockN),
+		TotalCap:          uint64(cp.TotalCap),
+		LastConsensusTime: uint64(cp.LastConsensusTime),
 	}
 }
 
@@ -37,9 +33,7 @@ func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 	}
 	return &checkpoint{
 		SuperFrameN:       idx.SuperFrame(w.SuperFrameN),
-		LastDecidedFrameN: idx.Frame(w.LastFinishedFrameN),
 		LastBlockN:        idx.Block(w.LastBlockN),
-		Genesis:           hash.FromBytes(w.Genesis),
 		TotalCap:          inter.Stake(w.TotalCap),
 		LastConsensusTime: inter.Timestamp(w.LastConsensusTime),
 	}
@@ -64,10 +58,12 @@ func (p *Poset) Bootstrap() {
 	if p.checkpoint == nil {
 		p.Fatal("Apply genesis for store first")
 	}
-	// restore current super-frame
-	p.initSuperFrame()
 
-	// TODO: reload some datas
+	// restore genesis
+	p.Genesis = p.store.GetSuperFrame(0).balances
+
+	// restore current super-frame
+	p.loadSuperFrame()
 }
 
 // GetGenesisHash is a genesis getter.
@@ -84,5 +80,5 @@ func genesisHash(balances map[hash.Peer]inter.Stake) hash.Hash {
 		logger.Get().Fatal(err)
 	}
 
-	return s.GetCheckpoint().Genesis
+	return s.GetSuperFrame(0).balances
 }

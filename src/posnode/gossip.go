@@ -95,7 +95,9 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	defer free()
 
 	n.Debugf("gossip with peer %s", peer.ID.String())
-	unknowns, err := n.compareKnownEvents(client, peer)
+
+	sf := n.superFrame()
+	unknowns, err := n.compareKnownEvents(client, peer, sf)
 	if err != nil {
 		fail(err)
 		return
@@ -107,15 +109,15 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	peers2discovery := make(map[hash.Peer]struct{})
 	parents := hash.Events{}
 
-	toDownload := n.lockFreeHeights(unknowns)
-	defer n.unlockFreeHeights(toDownload)
+	toDownload := n.lockFreeHeights(sf, unknowns)
+	defer n.unlockFreeHeights(sf, toDownload)
 
 	for creator, interval := range toDownload {
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
 		for i := interval.from; i <= interval.to; i++ {
-			req.Index = uint64(i)
+			req.Seq = uint64(i)
 
 			event, err := n.downloadEvent(client, peer, req)
 			if err != nil {
@@ -168,10 +170,10 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	}
 }
 
-func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (heights, error) {
-	sf, knowns := n.knownEvents(0)
+func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer, sf idx.SuperFrame) (heights, error) {
+	knowns := n.knownEvents(sf)
 
-	n.Debugf("%s knows %v", n.ID.String(), knowns)
+	n.Debugf("%s knows %v at SF%d", n.ID.String(), knowns, sf)
 
 	req := &api.KnownEvents{
 		SuperFrameN: uint64(sf),
@@ -242,7 +244,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	}
 
 	if req.Hash == nil {
-		if w.Creator != req.PeerID || w.Index != req.Index {
+		if w.Creator != req.PeerID || w.Seq != req.Seq {
 			n.gossipFail(peer, fmt.Errorf("bad GetEvent() response"))
 			return nil, nil
 		}
@@ -269,28 +271,29 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	return event, nil
 }
 
-// knownEventsReq returns event heights of requested super-frame
-// (req == 0 means last super-frame).
-func (n *Node) knownEvents(req idx.SuperFrame) (idx.SuperFrame, heights) {
-	if n.consensus != nil {
-		var peers []hash.Peer
-		req, peers = n.consensus.SuperFramePeers(req)
-		return req, n.peersWithHeight(peers)
+// knownEventsReq returns event heights of requested super-frame.
+func (n *Node) knownEvents(sf idx.SuperFrame) heights {
+	if sf > n.superFrame() {
+		return heights{}
 	}
 
-	if req != 0 {
-		return req, heights{}
+	var peers []hash.Peer
+
+	if n.consensus == nil {
+		peers = n.peers.Snapshot()
+	} else {
+		peers = n.consensus.SuperFrameMembers(sf)
 	}
 
-	return 0, n.peersWithHeight(n.peers.Snapshot())
+	return n.peersWithHeight(sf, peers)
 }
 
-func (n *Node) peersWithHeight(peers []hash.Peer) heights {
+func (n *Node) peersWithHeight(sf idx.SuperFrame, peers []hash.Peer) heights {
 	peers = append(peers, n.ID)
 
 	res := make(heights, len(peers))
 	for _, id := range peers {
-		h := n.store.GetPeerHeight(id)
+		h := n.store.GetPeerHeight(id, sf)
 		res[id] = interval{to: h}
 	}
 

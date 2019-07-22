@@ -17,8 +17,9 @@ message KnownEvents {
 
 message EventRequest {
     string PeerID = 1;
-    uint64 Index = 2;
-    bytes Hash = 3;
+    uint64 SuperFrameN = 2;
+    uint64 Seq = 3;
+    bytes Hash = 4;
 }
 
 message PeerRequest {

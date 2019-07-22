@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 
@@ -60,30 +59,16 @@ func TestPoset(t *testing.T) {
 		}
 	})
 
-	t.Run("All events in Store", func(t *testing.T) {
-		assertar := assert.New(t)
-		for i := 0; i < posetCount; i++ {
-			for _, ee := range events {
-				for _, e := range ee {
-					frame := posets[i].store.GetEventFrame(e.Hash())
-					if !assertar.NotNil(frame, "Poset%d: event %s is not in poset store", i, e.Hash()) {
-						return
-					}
-				}
-			}
-		}
-	})
-
 	t.Run("Check consensus", func(t *testing.T) {
 		assertar := assert.New(t)
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
 			st0 := p0.store.GetCheckpoint()
-			t.Logf("Compare poset%d: frame %d, block %d", i, st0.LastDecidedFrameN, st0.LastBlockN)
+			t.Logf("Compare poset%d: SFrame %d, Block %d", i, st0.SuperFrameN, st0.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 				st1 := p1.store.GetCheckpoint()
-				t.Logf("with poset%d: frame %d, block %d", j, st1.LastDecidedFrameN, st1.LastBlockN)
+				t.Logf("with poset%d: SFrame %d, Block %d", j, st1.SuperFrameN, st1.LastBlockN)
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {
@@ -129,15 +114,4 @@ func TestPoset(t *testing.T) {
 	for i := 0; i < posetCount; i++ {
 		posets[i].Stop()
 	}
-}
-
-/*
- * Poset's test methods:
- */
-
-// PushEventSync takes event into processing.
-// It's a sync version of Poset.PushEvent().
-func (p *Poset) PushEventSync(e hash.Event) {
-	event := p.input.GetEvent(e)
-	p.onNewEvent(event)
 }

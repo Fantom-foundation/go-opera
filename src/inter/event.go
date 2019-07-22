@@ -13,7 +13,8 @@ import (
 
 // Event is a poset event.
 type Event struct {
-	Index                idx.Event
+	SfNum                idx.SuperFrame
+	Seq                  idx.Event
 	Creator              hash.Peer
 	SelfParent           hash.Event
 	Parents              hash.Events
@@ -90,7 +91,8 @@ func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 	extTxns, extTxnsHash := e.ExternalTransactions.ToWire()
 
 	return &wire.Event{
-		Index:                uint64(e.Index),
+		SfNum:                uint64(e.SfNum),
+		Seq:                  uint64(e.Seq),
 		Creator:              e.Creator.Hex(),
 		Parents:              e.Parents.ToWire(e.SelfParent),
 		LamportTime:          uint64(e.LamportTime),
@@ -107,7 +109,8 @@ func WireToEvent(w *wire.Event) *Event {
 	}
 	self, all := hash.WireToEventHashes(w.Parents)
 	return &Event{
-		Index:                idx.Event(w.Index),
+		SfNum:                idx.SuperFrame(w.SfNum),
+		Seq:                  idx.Event(w.Seq),
 		Creator:              hash.HexToPeer(w.Creator),
 		SelfParent:           self,
 		Parents:              all,
@@ -159,7 +162,7 @@ func FakeFuzzingEvents() (res []*Event) {
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := &Event{
-				Index:   idx.Event(p),
+				Seq:     idx.Event(p),
 				Creator: creators[c],
 				Parents: parents[p],
 				InternalTransactions: []*InternalTransaction{
