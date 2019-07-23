@@ -92,7 +92,6 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	discovery := func(peers2discovery map[hash.Peer]struct{}) {
 		// check peers from events
 		for p := range peers2discovery {
-			n.Infof("peers2discovery %s", p.String())
 			n.CheckPeerIsKnown(peer.Host, &p)
 		}
 
