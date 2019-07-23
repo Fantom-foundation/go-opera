@@ -152,7 +152,7 @@ func (n *Node) PeerReadyForReq(host string) bool {
 	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
 	errtimeout := time.Now().Add(-2 * n.conf.DiscoveryTimeout)
 
-	return attr == nil ||
+	return attr != nil ||
 		((attr.LastFail.Before(attr.LastSuccess) || attr.LastFail.Before(errtimeout)) &&
 			attr.LastSuccess.Before(timeout))
 }

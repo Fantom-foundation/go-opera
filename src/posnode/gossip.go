@@ -87,6 +87,21 @@ func (n *Node) gossiping(tickets chan struct{}) {
 }
 
 func (n *Node) syncWithPeer(peer *Peer) {
+	peers2discovery := make(map[hash.Peer]struct{})
+
+	discovery := func(peers2discovery map[hash.Peer]struct{}) {
+		// check peers from events
+		for p := range peers2discovery {
+			n.Infof("peers2discovery %s", p.String())
+			n.CheckPeerIsKnown(peer.Host, &p)
+		}
+
+		// Clean outdated data about peers.
+		n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
+	}
+
+	defer discovery(peers2discovery)
+
 	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
 		n.Error(err)
@@ -106,7 +121,6 @@ func (n *Node) syncWithPeer(peer *Peer) {
 		return
 	}
 
-	peers2discovery := make(map[hash.Peer]struct{})
 	parents := hash.Events{}
 
 	toDownload := n.lockFreeHeights(sf, unknowns)
@@ -116,6 +130,9 @@ func (n *Node) syncWithPeer(peer *Peer) {
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
+
+		peers2discovery[creator] = struct{}{}
+
 		for i := interval.from; i <= interval.to; i++ {
 			req.Seq = uint64(i)
 
@@ -128,21 +145,12 @@ func (n *Node) syncWithPeer(peer *Peer) {
 				return
 			}
 
-			peers2discovery[creator] = struct{}{}
 			parents.Add(event.Parents.Slice()...)
 		}
 	}
 	n.gossipSuccess(peer)
 
 	n.checkParents(client, peer, parents)
-
-	// check peers from events
-	for p := range peers2discovery {
-		n.CheckPeerIsKnown(peer.Host, &p)
-	}
-
-	// Clean outdated data about peers.
-	n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {
@@ -251,6 +259,20 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	}
 
 	event := inter.WireToEvent(w)
+
+	// check that event creator is super frame member
+	isKnownMember := false
+	members := n.consensus.SuperFrameMembers(n.superFrame())
+	for _, m := range members {
+		if event.Creator == m {
+			isKnownMember = true
+			break
+		}
+	}
+	if !isKnownMember {
+		err = fmt.Errorf("falsity GetEvent() response")
+		return nil, err
+	}
 
 	// check event sign
 	creator := n.store.GetPeer(event.Creator)
