@@ -4,7 +4,9 @@ import (
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
@@ -12,7 +14,7 @@ import (
 )
 
 const (
-	SuperFrameLen int = 20 // TODO: =100 for real life
+	SuperFrameLen int = 100
 
 	firstFrame = idx.Frame(1)
 )
@@ -52,28 +54,53 @@ func WireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 
 func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
-
+	p.nextMembers = p.members.Top()
 	p.strongly = seeing.New(p.members.NewCounter)
 	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
 	p.frames = make(map[idx.Frame]*Frame)
 
 	// events reprocessing
-	p.nextMembers = p.members.Top()
-	toReload := hash.Events{}
-	for n := firstFrame; true; n++ {
-		frame := p.store.GetFrame(p.SuperFrameN, n)
-		if frame == nil {
-			break
-		}
-		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
-			for _, ee := range src {
-				toReload.Add(ee.Slice()...)
+	toReprocess := hash.Events{}
+	orderThenReprocess := ordering.EventBuffer(ordering.Callback{
+		Process: func(e *inter.Event) {
+			p.consensus(e)
+			delete(toReprocess, e.Hash())
+		},
+
+		Drop: func(e *inter.Event, err error) {
+			p.Fatal(err.Error() + ", so rejected")
+		},
+
+		Exists: func(h hash.Event) *inter.Event {
+			if toReprocess.Contains(h) {
+				return nil
+			}
+			return p.input.GetEvent(h)
+		},
+	})
+
+	for _, f := range []func(e hash.Event){
+		func(e hash.Event) { // save event list first
+			toReprocess.Add(e)
+		},
+		func(e hash.Event) { // then process events
+			orderThenReprocess(p.input.GetEvent(e))
+		},
+	} {
+		// all events from frames of SF
+		for n := firstFrame; true; n++ {
+			frame := p.store.GetFrame(p.SuperFrameN, n)
+			if frame == nil {
+				break
+			}
+			for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
+				for _, ee := range src {
+					for e := range ee {
+						f(e)
+					}
+				}
 			}
 		}
-	}
-
-	for e := range toReload {
-		p.PushEvent(e)
 	}
 }
 
