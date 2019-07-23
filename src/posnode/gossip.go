@@ -87,6 +87,16 @@ func (n *Node) gossiping(tickets chan struct{}) {
 }
 
 func (n *Node) syncWithPeer(peer *Peer) {
+	peers2discovery := make(map[hash.Peer]struct{})
+	defer func() {
+		// check peers from events
+		for p := range peers2discovery {
+			n.CheckPeerIsKnown(peer.Host, &p)
+		}
+		// clean outdated data about peers
+		n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
+	}()
+
 	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
 		n.Error(err)
@@ -106,7 +116,6 @@ func (n *Node) syncWithPeer(peer *Peer) {
 		return
 	}
 
-	peers2discovery := make(map[hash.Peer]struct{})
 	parents := hash.Events{}
 
 	toDownload := n.lockFreeHeights(sf, unknowns)
@@ -116,6 +125,9 @@ func (n *Node) syncWithPeer(peer *Peer) {
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
+
+		peers2discovery[creator] = struct{}{}
+
 		for i := interval.from; i <= interval.to; i++ {
 			req.Seq = uint64(i)
 
@@ -128,21 +140,12 @@ func (n *Node) syncWithPeer(peer *Peer) {
 				return
 			}
 
-			peers2discovery[creator] = struct{}{}
 			parents.Add(event.Parents.Slice()...)
 		}
 	}
 	n.gossipSuccess(peer)
 
 	n.checkParents(client, peer, parents)
-
-	// check peers from events
-	for p := range peers2discovery {
-		n.CheckPeerIsKnown(peer.Host, &p)
-	}
-
-	// Clean outdated data about peers.
-	n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {
