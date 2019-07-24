@@ -37,7 +37,12 @@ func (key *PrivateKey) Public() *PublicKey {
 }
 
 // Sign signs with key.
-func (key *PrivateKey) Sign(hash []byte) (r, s *big.Int, err error) {
+func (key *PrivateKey) Sign(hash []byte) ([]byte, error) {
+	return Sign(hash, key)
+}
+
+// Deprecated. Sign signs with key. Unrecoverable.
+func (key *PrivateKey) SignRaw(hash []byte) (r, s *big.Int, err error) {
 	return ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(key), hash)
 }
 
@@ -51,8 +56,8 @@ func (key *PrivateKey) WriteTo(w io.Writer) error {
 	return pem.Encode(w, block)
 }
 
-// Verify verifies the signatures.
-func (pub *PublicKey) Verify(hash []byte, r, s *big.Int) bool {
+// Deprecated. Verify verifies the signatures.
+func (pub *PublicKey) VerifyRaw(hash []byte, r, s *big.Int) bool {
 	return ecdsa.Verify((*ecdsa.PublicKey)(pub), hash, r, s)
 }
 
