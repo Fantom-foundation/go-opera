@@ -57,7 +57,7 @@ func TestProof(t *testing.T) {
 			}
 			val, _, err := VerifyProof(root, kv.k, proof)
 			if err != nil {
-				t.Fatalf("prover %d: failed to verify proof for key %x: %v\nraw proof: %x", i, kv.k, err, proof)
+				t.Fatalf("prover %d: failed to verify proof for key %x: %v\nraw proof: %v", i, kv.k, err, proof)
 			}
 			if !bytes.Equal(val, kv.v) {
 				t.Fatalf("prover %d: verified value mismatch for key %x: have %x, want %x", i, kv.k, val, kv.v)
@@ -79,7 +79,7 @@ func TestOneElementProof(t *testing.T) {
 		}
 		val, _, err := VerifyProof(trie.Hash(), []byte("k"), proof)
 		if err != nil {
-			t.Fatalf("prover %d: failed to verify proof: %v\nraw proof: %x", i, err, proof)
+			t.Fatalf("prover %d: failed to verify proof: %v\nraw proof: %v", i, err, proof)
 		}
 		if !bytes.Equal(val, []byte("v")) {
 			t.Fatalf("prover %d: verified value mismatch: have %x, want 'k'", i, val)
@@ -137,7 +137,7 @@ func TestMissingKeyProof(t *testing.T) {
 		}
 		val, _, err := VerifyProof(trie.Hash(), []byte(key), proof)
 		if err != nil {
-			t.Fatalf("test %d: failed to verify proof: %v\nraw proof: %x", i, err, proof)
+			t.Fatalf("test %d: failed to verify proof: %v\nraw proof: %v", i, err, proof)
 		}
 		if val != nil {
 			t.Fatalf("test %d: verified value mismatch: have %x, want nil", i, val)
