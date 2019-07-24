@@ -24,7 +24,7 @@ type (
 
 // GenerateKey creates new private key.
 func GenerateKey() (*PrivateKey, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, err := ecdsa.GenerateKey(S256(), rand.Reader)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (pub *PublicKey) Bytes() []byte {
 	if pub == nil || pub.X == nil || pub.Y == nil {
 		return nil
 	}
-	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+	return elliptic.Marshal(S256(), pub.X, pub.Y)
 }
 
 // Base64 encodes public key to base64.
@@ -80,8 +80,8 @@ func BytesToPubKey(pub []byte) *PublicKey {
 	if len(pub) == 0 {
 		return nil
 	}
-	x, y := elliptic.Unmarshal(elliptic.P256(), pub)
-	return &PublicKey{Curve: elliptic.P256(), X: x, Y: y}
+	x, y := elliptic.Unmarshal(S256(), pub)
+	return &PublicKey{Curve: S256(), X: x, Y: y}
 }
 
 // Base64ToPubKey decodes public key from base64.

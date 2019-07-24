@@ -2,8 +2,6 @@ package hash
 
 import (
 	"math/big"
-
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 )
 
 // Peer is a unique peer identifier.
@@ -27,16 +25,6 @@ func (p *Peer) Big() *big.Int {
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToPeer(b []byte) Peer {
 	return Peer(FromBytes(b))
-}
-
-// PeerOfPubkeyBytes calcs peer id from pub key bytes.
-func PeerOfPubkeyBytes(b []byte) Peer {
-	return Peer(Of(b))
-}
-
-// PeerOfPubkey calcs peer id from pub key.
-func PeerOfPubkey(pub *crypto.PublicKey) Peer {
-	return Peer(Of(pub.Bytes()))
 }
 
 // Hex converts a hash to a hex string.

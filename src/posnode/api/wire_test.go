@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"testing"
 	"time"
 
@@ -42,12 +43,12 @@ func testGRPC(t *testing.T, bind, from string, listen network.ListenFunc, opts .
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverID := hash.PeerOfPubkey(serverKey.Public())
+	serverID := cryptoaddr.AddressOf(serverKey.Public())
 	clientKey, err := crypto.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
-	clientID := hash.PeerOfPubkey(clientKey.Public())
+	clientID := cryptoaddr.AddressOf(clientKey.Public())
 
 	// service
 	svc := NewMockNodeServer(ctrl)

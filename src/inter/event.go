@@ -6,6 +6,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
@@ -21,7 +22,7 @@ type Event struct {
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions ExtTxns
-	Sign                 string
+	Sign                 []byte
 
 	hash hash.Event // cache for .Hash()
 }
@@ -30,32 +31,18 @@ type Event struct {
 func (e *Event) SignBy(priv *crypto.PrivateKey) error {
 	eventHash := e.Hash()
 
-	R, S, err := priv.Sign(eventHash.Bytes())
+	sig, err := priv.Sign(eventHash.Bytes())
 	if err != nil {
 		return err
 	}
 
-	e.Sign = crypto.EncodeSignature(R, S)
+	e.Sign = sig
 	return nil
 }
 
 // Verify sign event by public key.
-func (e *Event) Verify(pubKey *crypto.PublicKey) bool {
-	if pubKey == nil {
-		log.Fatal("can't verify without key")
-	}
-
-	if e.Sign == "" {
-		return false
-	}
-
-	eventHash := e.Hash()
-	r, s, err := crypto.DecodeSignature(string(e.Sign))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return pubKey.Verify(eventHash.Bytes(), r, s)
+func (e *Event) VerifySignature() bool {
+	return cryptoaddr.VerifySignature(e.Creator, hash.Hash(e.Hash()), e.Sign)
 }
 
 // Hash calcs hash of event.
@@ -128,7 +115,7 @@ func WireToEvent(w *wire.Event) *Event {
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) hash.Event {
 	w, _ := e.ToWire()
-	w.Sign = ""
+	w.Sign = []byte{}
 
 	buf, err := proto.Marshal(w)
 	if err != nil {

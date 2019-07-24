@@ -10,5 +10,5 @@ import (
 // AddressOf calculates hash of the PublicKey.
 func AddressOf(pk *crypto.PublicKey) hash.Peer {
 	bytes := (*btcec.PublicKey)(pk).SerializeUncompressed()
-	return hash.Peer(crypto.Keccak256Hash(bytes))
+	return hash.BytesToPeer(crypto.Keccak256(bytes))
 }

@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -18,7 +19,6 @@ import (
 type Node struct {
 	ID        hash.Peer
 	key       *crypto.PrivateKey
-	pub       *crypto.PublicKey
 	store     *Store
 	consensus Consensus
 	host      string
@@ -55,9 +55,8 @@ func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Confi
 	}
 
 	n := Node{
-		ID:        hash.PeerOfPubkey(key.Public()),
+		ID:        cryptoaddr.AddressOf(key.Public()),
 		key:       key,
-		pub:       key.Public(),
 		store:     s,
 		consensus: c,
 		host:      host,
@@ -150,12 +149,6 @@ func (n *Node) Stop() {
 	n.stopClient()
 }
 
-// PubKey returns public key.
-func (n *Node) PubKey() *crypto.PublicKey {
-	pk := *n.pub
-	return &pk
-}
-
 // Host returns host.
 func (n *Node) Host() string {
 	return n.host
@@ -165,7 +158,6 @@ func (n *Node) Host() string {
 func (n *Node) AsPeer() *Peer {
 	return &Peer{
 		ID:     n.ID,
-		PubKey: n.pub,
 		Host:   n.host,
 	}
 }

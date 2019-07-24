@@ -256,11 +256,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	event := inter.WireToEvent(w)
 
 	// check event sign
-	creator := n.store.GetPeer(event.Creator)
-	if creator == nil {
-		return nil, nil
-	}
-	if !event.Verify(creator.PubKey) {
+	if !event.VerifySignature() {
 		err = fmt.Errorf("falsity GetEvent() response")
 		n.gossipFail(peer, err)
 		return nil, err
