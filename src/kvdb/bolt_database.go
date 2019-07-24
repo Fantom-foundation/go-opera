@@ -6,20 +6,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
-const defaultBucketName = "lachesis"
-
-// BoltDatabase is a kvbd.Database wrapper of *bbolt.DB
+// BoltDatabase is a kvbd.Database wrapper of *bbolt.DB.
 type BoltDatabase struct {
-	db   *bbolt.DB
-	main []byte
+	db     *bbolt.DB
+	bucket []byte
 }
 
-// NewBoltDatabase wraps *bbolt.DB
-func NewBoltDatabase(db *bbolt.DB) *BoltDatabase {
-	bucketName := []byte(defaultBucketName)
-
+func newBoltDatabase(db *bbolt.DB, bucket []byte) *BoltDatabase {
 	err := db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(bucketName)
+		_, err := tx.CreateBucketIfNotExists(bucket)
 		return err
 	})
 	if err != nil {
@@ -27,19 +22,29 @@ func NewBoltDatabase(db *bbolt.DB) *BoltDatabase {
 	}
 
 	return &BoltDatabase{
-		db:   db,
-		main: bucketName,
+		db:     db,
+		bucket: bucket,
 	}
+}
+
+// NewBoltDatabase wraps *bbolt.DB.
+func NewBoltDatabase(db *bbolt.DB) *BoltDatabase {
+	return newBoltDatabase(db, []byte("default"))
 }
 
 /*
  * Database interface implementation
  */
 
+// NewTable returns a Database object that prefixes all keys with a given prefix.
+func (w *BoltDatabase) NewTable(prefix []byte) Database {
+	return newBoltDatabase(w.db, prefix)
+}
+
 // Put puts key-value pair into batch.
 func (w *BoltDatabase) Put(key []byte, value []byte) error {
 	return w.db.Update(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(w.main)
+		bucket := tx.Bucket(w.bucket)
 
 		return bucket.Put(key, value)
 	})
@@ -48,7 +53,7 @@ func (w *BoltDatabase) Put(key []byte, value []byte) error {
 // Has checks if key is in the db.
 func (w *BoltDatabase) Has(key []byte) (exists bool, err error) {
 	err = w.db.View(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(w.main)
+		bucket := tx.Bucket(w.bucket)
 		exists = bucket.Get(key) != nil
 
 		return nil
@@ -60,7 +65,7 @@ func (w *BoltDatabase) Has(key []byte) (exists bool, err error) {
 // Get returns key-value pair by key.
 func (w *BoltDatabase) Get(key []byte) (val []byte, err error) {
 	err = w.db.View(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(w.main)
+		bucket := tx.Bucket(w.bucket)
 		val = common.CopyBytes(bucket.Get(key))
 
 		return nil
@@ -72,7 +77,7 @@ func (w *BoltDatabase) Get(key []byte) (val []byte, err error) {
 // Delete removes key-value pair by key.
 func (w *BoltDatabase) Delete(key []byte) error {
 	return w.db.Update(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(w.main)
+		bucket := tx.Bucket(w.bucket)
 
 		return bucket.Delete(key)
 	})
@@ -116,7 +121,7 @@ func (b *boltBatch) Delete(key []byte) error {
 // Write writes batch into db.
 func (b *boltBatch) Write() error {
 	return b.wrapper.db.Update(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket(b.wrapper.main)
+		bucket := tx.Bucket(b.wrapper.bucket)
 
 		for _, kv := range b.writes {
 			var err error

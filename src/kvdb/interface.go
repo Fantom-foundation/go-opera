@@ -16,6 +16,7 @@ type Deleter interface {
 
 // Database wraps all database operations. All methods are safe for concurrent use.
 type Database interface {
+	NewTable(prefix []byte) Database
 	Putter
 	Deleter
 	Get(key []byte) ([]byte, error)
