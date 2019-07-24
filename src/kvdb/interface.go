@@ -21,6 +21,7 @@ type Database interface {
 	Deleter
 	Get(key []byte) ([]byte, error)
 	Has(key []byte) (bool, error)
+	ForEach(prefix []byte, do func(key, val []byte)) error
 	Close()
 	NewBatch() Batch
 }

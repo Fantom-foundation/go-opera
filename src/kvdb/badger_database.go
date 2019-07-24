@@ -83,6 +83,31 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 	return
 }
 
+// ForEach scans key-value pair by key prefix.
+func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte)) error {
+	prefix = append(w.prefix, prefix...)
+
+	err := w.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			err := item.Value(func(v []byte) error {
+				do(k, v)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return err
+}
+
 // Delete removes key-value pair by key.
 func (w *BadgerDatabase) Delete(key []byte) error {
 	key = append(w.prefix, key...)

@@ -1,6 +1,7 @@
 package kvdb
 
 import (
+	"bytes"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -68,6 +69,21 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 		return common.CopyBytes(entry), nil
 	}
 	return nil, nil
+}
+
+// ForEach scans key-value pair by key prefix.
+func (w *MemDatabase) ForEach(prefix []byte, do func(key, val []byte)) error {
+	w.lock.RLock()
+	defer w.lock.RUnlock()
+
+	for k, val := range w.db {
+		key := []byte(k)
+		if bytes.HasPrefix(key, prefix) {
+			do(key, val)
+		}
+	}
+
+	return nil
 }
 
 // Delete removes key-value pair by key.

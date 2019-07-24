@@ -1,6 +1,8 @@
 package kvdb
 
 import (
+	"bytes"
+
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -72,6 +74,19 @@ func (w *BoltDatabase) Get(key []byte) (val []byte, err error) {
 	})
 
 	return
+}
+
+// ForEach scans key-value pair by key prefix.
+func (w *BoltDatabase) ForEach(prefix []byte, do func(key, val []byte)) error {
+	err := w.db.View(func(tx *bbolt.Tx) error {
+		c := tx.Bucket(w.bucket).Cursor()
+		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
+			do(k, v)
+		}
+		return nil
+	})
+
+	return err
 }
 
 // Delete removes key-value pair by key.
