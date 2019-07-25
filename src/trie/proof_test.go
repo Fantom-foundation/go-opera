@@ -74,7 +74,7 @@ func TestOneElementProof(t *testing.T) {
 		if proof == nil {
 			t.Fatalf("prover %d: nil proof", i)
 		}
-		if proof.Len() != 1 {
+		if dbLen(proof) != 1 {
 			t.Errorf("prover %d: proof should have one element", i)
 		}
 		val, _, err := VerifyProof(trie.Hash(), []byte("k"), proof)
@@ -96,7 +96,8 @@ func TestBadProof(t *testing.T) {
 			if proof == nil {
 				t.Fatalf("prover %d: nil proof", i)
 			}
-			key := proof.Keys()[mrand.Intn(proof.Len())]
+			keys := dbKeys(proof)
+			key := keys[mrand.Intn(len(keys))]
 			val, err := proof.Get(key)
 			if err != nil {
 				t.Fatal(err)
@@ -132,7 +133,7 @@ func TestMissingKeyProof(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if proof.Len() != 1 {
+		if dbLen(proof) != 1 {
 			t.Errorf("test %d: proof should have one element", i)
 		}
 		val, _, err := VerifyProof(trie.Hash(), []byte(key), proof)
@@ -171,7 +172,7 @@ func BenchmarkProve(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if len(proofs.Keys()) == 0 {
+		if dbLen(proofs) == 0 {
 			b.Fatalf("zero length proof for %x", kv.k)
 		}
 	}

@@ -181,27 +181,3 @@ func (b *memBatch) Reset() {
 	b.writes = b.writes[:0]
 	b.size = 0
 }
-
-/*
- * for debug:
- */
-
-// Keys returns slice of keys in the db.
-func (w *MemDatabase) Keys() [][]byte {
-	w.lock.RLock()
-	defer w.lock.RUnlock()
-
-	keys := [][]byte{}
-	for key := range w.db {
-		keys = append(keys, []byte(key))
-	}
-	return keys
-}
-
-// Len returns count of key-values pairs in the db.
-func (w *MemDatabase) Len() int {
-	w.lock.RLock()
-	defer w.lock.RUnlock()
-
-	return len(w.db)
-}

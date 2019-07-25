@@ -776,3 +776,25 @@ func (db *Database) accumulate(hash hash.Hash, reachable map[hash.Hash]struct{})
 	}
 }
 */
+
+func dbKeys(db kvdb.Database) [][]byte {
+	var res [][]byte
+
+	db.ForEach([]byte{}, func(k, v []byte) bool {
+		res = append(res, k)
+		return true
+	})
+
+	return res
+}
+
+func dbLen(db kvdb.Database) int {
+	var res int
+
+	db.ForEach([]byte{}, func(k, v []byte) bool {
+		res++
+		return true
+	})
+
+	return res
+}
