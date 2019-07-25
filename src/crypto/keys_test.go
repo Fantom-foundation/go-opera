@@ -86,7 +86,7 @@ func TestKeyGenWriteRead(t *testing.T) {
 		return
 	}
 
-	nKey, err := ReadPemToKey(&buf)
+	nKey, err := ReadKey(&buf)
 	if !assertar.NoError(err) {
 		return
 	}
