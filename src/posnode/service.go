@@ -26,6 +26,8 @@ func (n *Node) StartService() {
 		return
 	}
 
+	n.initSuperFrame()
+
 	if n.service.listen == nil {
 		n.service.listen = network.TCPListener
 	}

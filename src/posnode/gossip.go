@@ -41,6 +41,7 @@ func (n *Node) StartGossip(threads int) {
 		return
 	}
 
+	n.initSuperFrame()
 	n.initPeers()
 
 	n.gossip.tickets = make(chan struct{}, threads)
@@ -106,7 +107,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 
 	n.Debugf("gossip with peer %s", peer.ID.String())
 
-	sf := n.superFrame()
+	sf := n.currentSuperFrame()
 	unknowns, err := n.compareKnownEvents(client, peer, sf)
 	if err != nil {
 		fail(err)
@@ -276,7 +277,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 
 // knownEventsReq returns event heights of requested super-frame.
 func (n *Node) knownEvents(sf idx.SuperFrame) heights {
-	if sf > n.superFrame() {
+	if sf > n.currentSuperFrame() {
 		return heights{}
 	}
 

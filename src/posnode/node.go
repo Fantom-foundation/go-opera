@@ -28,6 +28,7 @@ type Node struct {
 
 	service
 	connPool
+	superFrame
 	peers
 	parents
 	emitter

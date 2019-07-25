@@ -24,6 +24,8 @@ type (
 )
 
 func (n *Node) initParents() {
+	n.initSuperFrame()
+
 	const loadDeep idx.Event = 10
 
 	n.parents.Lock()
@@ -34,7 +36,7 @@ func (n *Node) initParents() {
 	}
 	n.parents.cache = make(map[hash.Event]*parent)
 
-	sf := n.superFrame()
+	sf := n.currentSuperFrame()
 
 	// load some parents from store
 	for _, peer := range n.peers.Snapshot() {

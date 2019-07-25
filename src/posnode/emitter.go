@@ -128,7 +128,7 @@ func (n *Node) EmitEvent() *inter.Event {
 // emitEvent with no checks.
 func (n *Node) emitEvent() *inter.Event {
 	var (
-		sf             = n.superFrame()
+		sf             = n.currentSuperFrame()
 		seq            idx.Event
 		selfParent     hash.Event
 		parents        = hash.Events{}
