@@ -7,6 +7,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
+var (
+	// NOTE: key collisions are possible
+	separator = []byte("::")
+)
+
 // MemDatabase is a kvbd.Database wrapper of map[string][]byte
 // Do not use for any production it does not get persisted
 type MemDatabase struct {
@@ -29,11 +34,16 @@ func NewMemDatabase() *MemDatabase {
 
 // NewTable returns a Database object that prefixes all keys with a given prefix.
 func (w *MemDatabase) NewTable(prefix []byte) Database {
+	p0 := common.CopyBytes(w.prefix)
 	return &MemDatabase{
 		db:     w.db,
-		prefix: prefix,
+		prefix: append(append(p0, []byte("-")...), prefix...),
 		lock:   w.lock,
 	}
+}
+
+func (w *MemDatabase) fullKey(key []byte) []byte {
+	return append(append(w.prefix, separator...), key...)
 }
 
 // Put puts key-value pair into db.
@@ -41,7 +51,7 @@ func (w *MemDatabase) Put(key []byte, value []byte) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	key = append(w.prefix, key...)
+	key = w.fullKey(key)
 
 	w.db[string(key)] = common.CopyBytes(value)
 	return nil
@@ -52,7 +62,7 @@ func (w *MemDatabase) Has(key []byte) (bool, error) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
 
-	key = append(w.prefix, key...)
+	key = w.fullKey(key)
 
 	_, ok := w.db[string(key)]
 	return ok, nil
@@ -63,7 +73,7 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
 
-	key = append(w.prefix, key...)
+	key = w.fullKey(key)
 
 	if entry, ok := w.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
@@ -72,14 +82,19 @@ func (w *MemDatabase) Get(key []byte) ([]byte, error) {
 }
 
 // ForEach scans key-value pair by key prefix.
-func (w *MemDatabase) ForEach(prefix []byte, do func(key, val []byte)) error {
+func (w *MemDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
 	w.lock.RLock()
 	defer w.lock.RUnlock()
 
+	prefix = w.fullKey(prefix)
+
 	for k, val := range w.db {
-		key := []byte(k)
+		key := common.CopyBytes([]byte(k))
 		if bytes.HasPrefix(key, prefix) {
-			do(key, val)
+			key = key[len(w.prefix)+len(separator):]
+			if !do(key, val) {
+				break
+			}
 		}
 	}
 
@@ -91,7 +106,7 @@ func (w *MemDatabase) Delete(key []byte) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	key = append(w.prefix, key...)
+	key = w.fullKey(key)
 
 	delete(w.db, string(key))
 	return nil
@@ -125,7 +140,7 @@ type memBatch struct {
 
 // Put puts key-value pair into batch.
 func (b *memBatch) Put(key, value []byte) error {
-	key = append(b.db.prefix, key...)
+	key = b.db.fullKey(key)
 
 	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
 	b.size += len(value)
@@ -134,7 +149,7 @@ func (b *memBatch) Put(key, value []byte) error {
 
 // Delete removes key-value pair from batch by key.
 func (b *memBatch) Delete(key []byte) error {
-	key = append(b.db.prefix, key...)
+	key = b.db.fullKey(key)
 
 	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
 	b.size++

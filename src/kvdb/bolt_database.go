@@ -77,11 +77,13 @@ func (w *BoltDatabase) Get(key []byte) (val []byte, err error) {
 }
 
 // ForEach scans key-value pair by key prefix.
-func (w *BoltDatabase) ForEach(prefix []byte, do func(key, val []byte)) error {
+func (w *BoltDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
 	err := w.db.View(func(tx *bbolt.Tx) error {
 		c := tx.Bucket(w.bucket).Cursor()
 		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
-			do(k, v)
+			if !do(k, v) {
+				return nil
+			}
 		}
 		return nil
 	})
