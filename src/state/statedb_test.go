@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
@@ -29,7 +30,7 @@ func TestBalanceState(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(point hash.Hash, addr hash.Peer, balance uint64) {
+	checkBalance := func(point hash.Hash, addr hash.Peer, balance inter.Stake) {
 		db := stateAt(point)
 		got := db.FreeBalance(addr)
 		if !assertar.Equalf(balance, got, "unexpected balance") {
@@ -64,8 +65,8 @@ func TestBalanceState(t *testing.T) {
 	// fork 1
 	db = stateAt(root)
 	db.Transfer(aa[0], aa[1], 1)
-	if !assertar.Equalf(uint64(9), db.FreeBalance(aa[0]), "before commit") ||
-		!assertar.Equalf(uint64(11), db.FreeBalance(aa[1]), "before commit") {
+	if !assertar.Equalf(inter.Stake(9), db.FreeBalance(aa[0]), "before commit") ||
+		!assertar.Equalf(inter.Stake(11), db.FreeBalance(aa[1]), "before commit") {
 		return
 	}
 	fork1 := commit(db)
@@ -192,4 +193,52 @@ func TestDelegationState(t *testing.T) {
 	check(FROM, root, aa[0], __, 00, 00)
 	check(FROM, root, aa[1], 15, __, 00)
 	check(FROM, root, aa[2], 00, 25, __)
+}
+
+func TestIdempotency(t *testing.T) {
+	assertar := assert.New(t)
+
+	mem := kvdb.NewMemDatabase()
+	store := NewDatabase(mem)
+
+	stateAt := func(point hash.Hash) *DB {
+		db, err := New(point, store)
+		if !assertar.NoError(err) {
+			t.FailNow()
+		}
+		return db
+	}
+
+	checkBalance := func(point hash.Hash, addr hash.Peer, balance inter.Stake) {
+		db := stateAt(point)
+		got := db.FreeBalance(addr)
+		if !assertar.Equalf(balance, got, "unexpected balance") {
+			t.FailNow()
+		}
+	}
+
+	commit := func(db *DB) hash.Hash {
+		root, err := db.Commit(true)
+		if !assertar.NoError(err) {
+			t.FailNow()
+		}
+		return root
+	}
+
+	aa := hash.FakePeer()
+
+	db := stateAt(hash.Hash{})
+	db.SetBalance(aa, 10)
+	root1 := commit(db)
+
+	db = stateAt(hash.Hash{})
+	db.SetBalance(aa, 10)
+	root2 := commit(db)
+
+	if !assertar.Equal(root1, root2) {
+		return
+	}
+
+	checkBalance(root1, aa, 10)
+	checkBalance(root2, aa, 10)
 }

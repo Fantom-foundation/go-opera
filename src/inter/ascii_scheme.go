@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // ASCIIschemeToDAG parses events from ASCII-scheme for test purpose.
@@ -14,7 +15,10 @@ import (
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
-func ASCIIschemeToDAG(scheme string) (
+func ASCIIschemeToDAG(
+	scheme string,
+	mods ...func(*Event, []hash.Peer),
+) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*Event,
 	names map[string]*Event,
@@ -108,13 +112,15 @@ func ASCIIschemeToDAG(scheme string) (
 			creator := nodes[nCreators[i]]
 			// find creator's parent
 			var (
-				index      uint64
+				index      idx.Event
+				selfParent = hash.Event{}
 				parents    = hash.Events{}
 				maxLamport Timestamp
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]
-				index = parent.Index + 1
+				index = parent.Seq + 1
+				selfParent = parent.Hash()
 				parents.Add(parent.Hash())
 				maxLamport = parent.LamportTime
 			} else {
@@ -135,16 +141,22 @@ func ASCIIschemeToDAG(scheme string) (
 					maxLamport = parent.LamportTime
 				}
 			}
-			// save event
+			// new event
 			e := &Event{
-				Index:       index,
+				Seq:         index,
 				Creator:     creator,
+				SelfParent:  selfParent,
 				Parents:     parents,
 				LamportTime: maxLamport + 1,
 			}
+			// apply mods
+			for _, mod := range mods {
+				mod(e, nodes)
+			}
+			// save event
 			events[creator] = append(events[creator], e)
 			names[name] = e
-			hash.EventNameDict[e.Hash()] = name
+			hash.SetEventName(e.Hash(), name)
 		}
 	}
 
@@ -153,8 +165,8 @@ func ASCIIschemeToDAG(scheme string) (
 		if len(ee) < 1 {
 			continue
 		}
-		name := ee[0].Hash().String()
-		hash.NodeNameDict[node] = "node" + strings.ToUpper(name[0:1])
+		name := []rune(ee[0].Hash().String())
+		hash.SetNodeName(node, "node"+strings.ToUpper(string(name[0:1])))
 	}
 
 	return
@@ -168,7 +180,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		scheme rows
 
 		processed     = make(map[hash.Event]*Event)
-		peerLastIndex = make(map[hash.Peer]uint64)
+		peerLastIndex = make(map[hash.Peer]idx.Event)
 		peerCols      = make(map[hash.Peer]int)
 		ok            bool
 	)
@@ -181,13 +193,13 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			peerCols[e.Creator] = r.Self
 		}
 		// name
-		r.Name = hash.EventNameDict[ehash]
+		r.Name = hash.GetEventName(ehash)
 		if len(r.Name) < 1 {
-			r.Name = hash.NodeNameDict[e.Creator]
+			r.Name = hash.GetNodeName(e.Creator)
 			if len(r.Name) < 1 {
 				r.Name = string('a' + r.Self)
 			}
-			r.Name = fmt.Sprintf("%s%03d", r.Name, e.Index)
+			r.Name = fmt.Sprintf("%s%03d", r.Name, e.Seq)
 		}
 		if w := len([]rune(r.Name)); scheme.ColWidth < w {
 			scheme.ColWidth = w
@@ -209,7 +221,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 				continue
 			}
 			refCol := peerCols[parent.Creator]
-			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Index + 1)
+			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
 		}
 		if selfRefs != 1 {
 			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
@@ -230,7 +242,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		// processed
 		scheme.Add(r)
 		processed[ehash] = e
-		peerLastIndex[e.Creator] = e.Index
+		peerLastIndex[e.Creator] = e.Seq
 	}
 
 	scheme.Optimize()

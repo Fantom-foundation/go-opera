@@ -2,15 +2,15 @@ package election
 
 import (
 	"errors"
-	"math/big"
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 type sortedRoot struct {
-	stakeAmount *big.Int
-	root        hash.Event
+	stake inter.Stake
+	root  hash.Event
 }
 type sortedRoots []sortedRoot
 
@@ -23,28 +23,27 @@ func (s sortedRoots) Swap(i, j int) {
 
 // compare by stake amount, root hash
 func (s sortedRoots) Less(i, j int) bool {
-	cmp := s[i].stakeAmount.Cmp(s[j].stakeAmount)
-	if cmp == 0 {
-		return s[i].root.Big().Cmp(s[j].root.Big()) < 0
+	if s[i].stake != s[j].stake {
+		return s[i].stake > s[j].stake
 	}
-	return cmp > 0
+	return s[i].root.Big().Cmp(s[j].root.Big()) < 0
 }
 
 // Chooses the decided "yes" roots with the greatest stake amount.
 // This root serves as a "checkpoint" within DAG, as it's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-// Other nodes will come to the same SfWitness not later than current highest frame + 2.
+// Other members will come to the same SfWitness not later than current highest frame + 2.
 func (el *Election) chooseSfWitness() (*ElectionRes, error) {
-	finalRoots := make(sortedRoots, 0, len(el.nodes))
+	finalRoots := make(sortedRoots, 0, len(el.members))
 	// fill yesRoots
-	for _, node := range el.nodes {
-		vote, ok := el.decidedRoots[node.Nodeid]
+	for member, stake := range el.members {
+		vote, ok := el.decidedRoots[member]
 		if !ok {
 			el.Fatal("called before all the roots are decided")
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{
-				root:        vote.seenRoot,
-				stakeAmount: node.StakeAmount,
+				root:  vote.seenRoot,
+				stake: stake,
 			})
 		}
 	}
@@ -57,7 +56,7 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 
 	// take root with greatest stake
 	return &ElectionRes{
-		DecidedFrame:     el.frameToDecide,
-		DecidedSfWitness: finalRoots[0].root,
+		Frame:     el.frameToDecide,
+		SfWitness: finalRoots[0].root,
 	}, nil
 }

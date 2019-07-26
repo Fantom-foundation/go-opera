@@ -2,13 +2,14 @@ package inter
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // Block is a chain block.
 type Block struct {
-	Index  uint64
-	Events hash.EventsSlice
+	Index  idx.Block
+	Events hash.OrderedEvents
 }
 
 // ToWire converts to proto.Message.
@@ -17,7 +18,7 @@ func (b *Block) ToWire() *wire.Block {
 		return nil
 	}
 	return &wire.Block{
-		Index:  b.Index,
+		Index:  uint64(b.Index),
 		Events: b.Events.ToWire(),
 	}
 }
@@ -28,14 +29,14 @@ func WireToBlock(w *wire.Block) *Block {
 		return nil
 	}
 	return &Block{
-		Index:  w.Index,
-		Events: hash.WireToEventHashSlice(w.Events),
+		Index:  idx.Block(w.Index),
+		Events: hash.WireToOrderedEvents(w.Events),
 	}
 }
 
 // NewBlock makes main chain block from topological ordered events.
-func NewBlock(index uint64, ordered Events) *Block {
-	events := make(hash.EventsSlice, len(ordered))
+func NewBlock(index idx.Block, ordered Events) *Block {
+	events := make(hash.OrderedEvents, len(ordered))
 	for i, e := range ordered {
 		events[i] = e.Hash()
 	}

@@ -62,7 +62,7 @@ func TestApp(t *testing.T) {
 		assertar := assert.New(t)
 		reset()
 
-		amount := rand.Uint64()
+		amount := inter.Stake(rand.Uint64())
 
 		node.EXPECT().
 			GetID().
@@ -86,7 +86,7 @@ func TestApp(t *testing.T) {
 		assertar := assert.New(t)
 		reset()
 
-		amount := rand.Uint64()
+		amount := inter.Stake(rand.Uint64())
 
 		otherPeer := hash.FakePeer()
 
@@ -134,10 +134,10 @@ func TestApp(t *testing.T) {
 		reset()
 
 		h := hash.FakeTransaction()
-		amount := rand.Uint64()
+		amount := inter.Stake(rand.Uint64())
 
 		txn := &inter.InternalTransaction{
-			Index:    1,
+			Nonce:    1,
 			Amount:   amount,
 			Receiver: peer,
 		}
@@ -184,11 +184,11 @@ func TestApp(t *testing.T) {
 		assertar := assert.New(t)
 		reset()
 
-		amount := rand.Uint64()
+		amount := inter.Stake(rand.Uint64())
 
 		h := hash.FakeTransaction()
 		tx := inter.InternalTransaction{
-			Index:    1,
+			Nonce:    1,
 			Amount:   amount,
 			Receiver: peer,
 		}
@@ -199,7 +199,7 @@ func TestApp(t *testing.T) {
 
 		app.SetArgs([]string{
 			"transfer",
-			fmt.Sprintf("--index=%d", tx.Index),
+			fmt.Sprintf("--index=%d", tx.Nonce),
 			fmt.Sprintf("--amount=%d", tx.Amount),
 			fmt.Sprintf("--receiver=%s", tx.Receiver.Hex())})
 

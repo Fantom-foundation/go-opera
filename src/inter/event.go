@@ -6,19 +6,23 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // Event is a poset event.
 type Event struct {
-	Index                uint64
+	SfNum                idx.SuperFrame
+	Seq                  idx.Event
 	Creator              hash.Peer
+	SelfParent           hash.Event
 	Parents              hash.Events
 	LamportTime          Timestamp
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions ExtTxns
-	Sign                 string
+	Sign                 []byte
 
 	hash hash.Event // cache for .Hash()
 }
@@ -27,32 +31,18 @@ type Event struct {
 func (e *Event) SignBy(priv *crypto.PrivateKey) error {
 	eventHash := e.Hash()
 
-	R, S, err := priv.Sign(eventHash.Bytes())
+	sig, err := priv.Sign(eventHash.Bytes())
 	if err != nil {
 		return err
 	}
 
-	e.Sign = crypto.EncodeSignature(R, S)
+	e.Sign = sig
 	return nil
 }
 
 // Verify sign event by public key.
-func (e *Event) Verify(pubKey *crypto.PublicKey) bool {
-	if pubKey == nil {
-		log.Fatal("can't verify without key")
-	}
-
-	if e.Sign == "" {
-		return false
-	}
-
-	eventHash := e.Hash()
-	r, s, err := crypto.DecodeSignature(string(e.Sign))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return pubKey.Verify(eventHash.Bytes(), r, s)
+func (e *Event) VerifySignature() bool {
+	return cryptoaddr.VerifySignature(e.Creator, hash.Hash(e.Hash()), e.Sign)
 }
 
 // Hash calcs hash of event.
@@ -67,7 +57,7 @@ func (e *Event) Hash() hash.Event {
 // TODO: use map
 func (e *Event) FindInternalTxn(idx hash.Transaction) *InternalTransaction {
 	for _, txn := range e.InternalTransactions {
-		if TransactionHashOf(e.Creator, txn.Index) == idx {
+		if TransactionHashOf(e.Creator, txn.Nonce) == idx {
 			return txn
 		}
 	}
@@ -88,9 +78,10 @@ func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
 	extTxns, extTxnsHash := e.ExternalTransactions.ToWire()
 
 	return &wire.Event{
-		Index:                e.Index,
+		SfNum:                uint64(e.SfNum),
+		Seq:                  uint64(e.Seq),
 		Creator:              e.Creator.Hex(),
-		Parents:              e.Parents.ToWire(),
+		Parents:              e.Parents.ToWire(e.SelfParent),
 		LamportTime:          uint64(e.LamportTime),
 		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
 		ExternalTransactions: extTxnsHash,
@@ -103,10 +94,13 @@ func WireToEvent(w *wire.Event) *Event {
 	if w == nil {
 		return nil
 	}
+	self, all := hash.WireToEventHashes(w.Parents)
 	return &Event{
-		Index:                w.Index,
+		SfNum:                idx.SuperFrame(w.SfNum),
+		Seq:                  idx.Event(w.Seq),
 		Creator:              hash.HexToPeer(w.Creator),
-		Parents:              hash.WireToEventHashes(w.Parents),
+		SelfParent:           self,
+		Parents:              all,
 		LamportTime:          Timestamp(w.LamportTime),
 		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
 		ExternalTransactions: WireToExtTxns(w),
@@ -121,7 +115,7 @@ func WireToEvent(w *wire.Event) *Event {
 // EventHashOf calcs hash of event.
 func EventHashOf(e *Event) hash.Event {
 	w, _ := e.ToWire()
-	w.Sign = ""
+	w.Sign = []byte{}
 
 	buf, err := proto.Marshal(w)
 	if err != nil {
@@ -140,8 +134,8 @@ func FakeFuzzingEvents() (res []*Event) {
 		hash.FakePeer(),
 	}
 	parents := []hash.Events{
-		hash.FakeEvents(0),
 		hash.FakeEvents(1),
+		hash.FakeEvents(2),
 		hash.FakeEvents(8),
 	}
 	extTxns := [][][]byte{
@@ -155,7 +149,7 @@ func FakeFuzzingEvents() (res []*Event) {
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := &Event{
-				Index:   uint64(p),
+				Seq:     idx.Event(p),
 				Creator: creators[c],
 				Parents: parents[p],
 				InternalTransactions: []*InternalTransaction{
@@ -168,6 +162,12 @@ func FakeFuzzingEvents() (res []*Event) {
 					Value: extTxns[i%len(extTxns)],
 				},
 			}
+
+			for p := range e.Parents {
+				e.SelfParent = p
+				break
+			}
+
 			res = append(res, e)
 			i++
 		}

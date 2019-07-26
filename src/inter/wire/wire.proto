@@ -5,7 +5,7 @@ option go_package = "github.com/Fantom-foundation/go-lachesis/src/inter/wire";
 package wire;
 
 message InternalTransaction {
-  uint64 Index = 1;
+  uint64 Nonce = 1;
   uint64 Amount = 2;
   string Receiver = 3;
   uint64 UntilBlock = 4;
@@ -16,16 +16,17 @@ message ExtTxns {
 }
 
 message Event {
-  uint64 Index = 1;
-  string Creator = 2;
-  repeated bytes Parents = 3;
-  uint64 LamportTime = 4;
-  repeated InternalTransaction InternalTransactions = 5;
+  uint64 SfNum = 1;	
+  uint64 Seq = 2;
+  string Creator = 3;
+  repeated bytes Parents = 4;
+  uint64 LamportTime = 5;
+  repeated InternalTransaction InternalTransactions = 6;
   oneof ExternalTransactions {
-    ExtTxns ExtTxnsValue = 6;
-    bytes ExtTxnsHash = 7;
+    ExtTxns ExtTxnsValue = 7;
+    bytes ExtTxnsHash = 8;
   }
-  string Sign = 8;
+  bytes Sign = 9;
 }
 
 message Block {

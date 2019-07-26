@@ -5,13 +5,14 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
 	parent struct {
 		Creator hash.Peer
 		Parents hash.Events
-		Value   uint64
+		Value   inter.Stake
 		Last    bool
 	}
 
@@ -23,45 +24,52 @@ type (
 )
 
 func (n *Node) initParents() {
-	const loadDeep uint64 = 10
+	n.initLasts()
 
+	sf := n.currentSuperFrame()
+	if n.parents.cache == nil {
+		n.loadPotentialParents(sf)
+	}
+}
+
+func (n *Node) loadPotentialParents(sf idx.SuperFrame) {
 	n.parents.Lock()
 	defer n.parents.Unlock()
 
-	if n.parents.cache != nil {
-		return
-	}
-
 	n.parents.cache = make(map[hash.Event]*parent)
 
-	// load some parents from store
-	for _, peer := range n.peers.Snapshot() {
-		to := n.store.GetPeerHeight(peer)
-		from := uint64(1)
-		if (from + loadDeep) <= to {
-			from -= loadDeep
-		}
-		for i := from; i <= to; i++ {
-			e := n.EventOf(peer, i)
-			val := uint64(1)
+	for peer, height := range n.superFrame.lasts {
+		for i := idx.Event(1); i <= height; i++ {
+			e := n.EventOf(peer, sf, i)
+			val := inter.Stake(1)
 			if n.consensus != nil {
 				val = n.consensus.StakeOf(e.Creator)
 			}
+			// faster than n.parents.Push()
 			n.parents.cache[e.Hash()] = &parent{
 				Creator: e.Creator,
 				Parents: e.Parents,
 				Value:   val,
-				Last:    i == to,
+				Last:    i == height,
 			}
 		}
 	}
 
 }
 
-// pushPotentialParent add event to parent events cache.
+// pushPotentialParent adds event to parent events cache except self-events.
 // Parents should be pushed first ( see posposet/Poset.onNewEvent() ).
 func (n *Node) pushPotentialParent(e *inter.Event) {
-	val := uint64(1)
+	if e.Creator == n.ID {
+		return
+	}
+
+	sf := n.currentSuperFrame()
+	if e.SfNum != sf {
+		return
+	}
+
+	val := inter.Stake(1)
 	if n.consensus != nil {
 		val = n.consensus.StakeOf(e.Creator)
 	}
@@ -70,7 +78,7 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 }
 
 // Push adds parent to cache.
-func (pp *parents) Push(e *inter.Event, val uint64) {
+func (pp *parents) Push(e *inter.Event, val inter.Stake) {
 	pp.Lock()
 	defer pp.Unlock()
 
@@ -103,7 +111,7 @@ func (pp *parents) PopBest() *hash.Event {
 
 	var (
 		res *hash.Event
-		max uint64
+		max inter.Stake
 		tmp hash.Event
 	)
 
@@ -149,10 +157,10 @@ func (pp *parents) Count() int {
  */
 
 // sum returns sum of parent values.
-func (pp *parents) sum(e hash.Event) uint64 {
+func (pp *parents) sum(e hash.Event) inter.Stake {
 	event, ok := pp.cache[e]
 	if !ok {
-		return uint64(0)
+		return inter.Stake(0)
 	}
 
 	res := event.Value

@@ -58,7 +58,7 @@ func makeNetwork(pref string, count int) []*Lachesis {
 
 	// create all
 	for i, key := range keys {
-		host := fmt.Sprintf("%s_%d", pref, i)
+		host := fmt.Sprintf("%s%s", pref, string('A'+i))
 		ll[i] = NewForTests(nil, host, key, conf)
 	}
 

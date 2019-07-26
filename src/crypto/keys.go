@@ -4,14 +4,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
+
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 type (
@@ -24,7 +24,7 @@ type (
 
 // GenerateKey creates new private key.
 func GenerateKey() (*PrivateKey, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, err := ecdsa.GenerateKey(S256(), rand.Reader)
 	if err != nil {
 		return nil, err
 	}
@@ -37,22 +37,33 @@ func (key *PrivateKey) Public() *PublicKey {
 }
 
 // Sign signs with key.
-func (key *PrivateKey) Sign(hash []byte) (r, s *big.Int, err error) {
+func (key *PrivateKey) Sign(hash []byte) ([]byte, error) {
+	return Sign(hash, key)
+}
+
+// SignRaw signs with key. Unrecoverable.
+// NOTE: deprecated.
+func (key *PrivateKey) SignRaw(hash []byte) (r, s *big.Int, err error) {
 	return ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(key), hash)
 }
 
-// WriteTo writes key to writer in PEM.
+// WriteTo writes key to writer in ETH format.
 func (key *PrivateKey) WriteTo(w io.Writer) error {
-	block, err := keyToPemBlock(key)
-	if err != nil {
-		return err
-	}
-
-	return pem.Encode(w, block)
+	_, err := w.Write(key.Bytes())
+	return err
 }
 
-// Verify verifies the signatures.
-func (pub *PublicKey) Verify(hash []byte, r, s *big.Int) bool {
+// Bytes (ETH format) exports a private key into a binary dump.
+func (key *PrivateKey) Bytes() []byte {
+	if key == nil {
+		return nil
+	}
+	return utils.PaddedBigBytes(key.D, key.Params().BitSize/8)
+}
+
+// VerifyRaw verifies the signatures.
+// NOTE: deprecated.
+func (pub *PublicKey) VerifyRaw(hash []byte, r, s *big.Int) bool {
 	return ecdsa.Verify((*ecdsa.PublicKey)(pub), hash, r, s)
 }
 
@@ -61,7 +72,7 @@ func (pub *PublicKey) Bytes() []byte {
 	if pub == nil || pub.X == nil || pub.Y == nil {
 		return nil
 	}
-	return elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+	return elliptic.Marshal(S256(), pub.X, pub.Y)
 }
 
 // Base64 encodes public key to base64.
@@ -75,8 +86,8 @@ func BytesToPubKey(pub []byte) *PublicKey {
 	if len(pub) == 0 {
 		return nil
 	}
-	x, y := elliptic.Unmarshal(elliptic.P256(), pub)
-	return &PublicKey{Curve: elliptic.P256(), X: x, Y: y}
+	x, y := elliptic.Unmarshal(S256(), pub)
+	return &PublicKey{Curve: S256(), X: x, Y: y}
 }
 
 // Base64ToPubKey decodes public key from base64.
@@ -94,51 +105,38 @@ func Base64ToPubKey(s string) (*PublicKey, error) {
 	return key, nil
 }
 
-// ReadPemToKey reads PEM from reader and parses key.
-func ReadPemToKey(r io.Reader) (*PrivateKey, error) {
+// ReadKey reads from reader and parses key.
+func ReadKey(r io.Reader) (*PrivateKey, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
-	return PemToKey(data)
+	return new(PrivateKey).SetBytes(data, true)
 }
 
-// PemToKey parses key from PEM.
-func PemToKey(b []byte) (*PrivateKey, error) {
-	if len(b) == 0 {
-		return nil, nil
+// SetBytes (ETH format) creates a private key with the given D value. The strict parameter
+// controls whether the key's length should be enforced at the curve size or
+// it can also accept legacy encodings (0 prefixes).
+func (key *PrivateKey) SetBytes(d []byte, strict bool) (*PrivateKey, error) {
+	key.PublicKey.Curve = S256()
+	if strict && 8*len(d) != key.Params().BitSize {
+		return nil, fmt.Errorf("invalid length, need %d bits", key.Params().BitSize)
+	}
+	key.D = new(big.Int).SetBytes(d)
+
+	// The priv.D must < N
+	if key.D.Cmp(secp256k1N) >= 0 {
+		return nil, fmt.Errorf("invalid private key, >=N")
+	}
+	// The priv.D must not be zero or negative.
+	if key.D.Sign() <= 0 {
+		return nil, fmt.Errorf("invalid private key, zero or negative")
 	}
 
-	block, _ := pem.Decode(b)
-	if block == nil {
-		return nil, fmt.Errorf("error decoding PEM block from data")
+	key.PublicKey.X, key.PublicKey.Y = key.PublicKey.Curve.ScalarBaseMult(d)
+	if key.PublicKey.X == nil {
+		return nil, errors.New("invalid private key")
 	}
-
-	key, err := x509.ParseECPrivateKey(block.Bytes)
-	return (*PrivateKey)(key), err
-}
-
-// KeyToPem encodes key to PEM.
-func KeyToPem(key *PrivateKey) ([]byte, error) {
-	block, err := keyToPemBlock(key)
-	if err != nil {
-		return nil, err
-	}
-
-	return pem.EncodeToMemory(block), nil
-}
-
-func keyToPemBlock(key *PrivateKey) (*pem.Block, error) {
-	b, err := x509.MarshalECPrivateKey((*ecdsa.PrivateKey)(key))
-	if err != nil {
-		return nil, err
-	}
-
-	block := pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: b,
-	}
-
-	return &block, nil
+	return key, nil
 }

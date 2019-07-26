@@ -8,79 +8,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
-// TODO: make FlagTable internal
-// TODO: make EventsByNode internal
-// TODO: cache PoS-stake at FlagTable
+// TODO: make EventsByPeer internal
 
 type (
 	// EventsByNode is a event hashes grouped by creator.
 	// ( creator --> event hashes )
 	EventsByPeer map[hash.Peer]hash.Events
-
-	// FlagTable stores the reachability of each event to the roots.
-	// It helps to select root without using path searching algorithms.
-	// Zero-hash is a self-parent root.
-	// ( event hash --> root creator --> root hashes )
-	FlagTable map[hash.Event]EventsByPeer
 )
-
-/*
- * FlagTable's methods:
- */
-
-// IsRoot returns true if event is root.
-func (ft FlagTable) IsRoot(event hash.Event) bool {
-	if knowns := ft[event]; knowns != nil {
-		for _, events := range knowns {
-			if events.Contains(event) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// Roots returns all roots by node.
-func (ft FlagTable) Roots() EventsByPeer {
-	roots := EventsByPeer{}
-	for event, events := range ft {
-		for node, hashes := range events {
-			if hashes.Contains(event) {
-				roots.AddOne(event, node)
-			}
-		}
-	}
-	return roots
-}
-
-// EventKnows return true if e knows event of node.
-func (ft FlagTable) EventKnows(e hash.Event, node hash.Peer, event hash.Event) bool {
-	return ft[e] != nil && ft[e].Contains(node, event)
-}
-
-// ToWire converts to simple slice.
-func (ft FlagTable) ToWire() []*wire.Flag {
-	var arr []*wire.Flag
-	for event, roots := range ft {
-		arr = append(arr, &wire.Flag{
-			Event: event.Bytes(),
-			Roots: roots.ToWire(),
-		})
-	}
-	return arr
-}
-
-// WireToFlagTable converts from wire.
-func WireToFlagTable(arr []*wire.Flag) FlagTable {
-	res := FlagTable{}
-
-	for _, w := range arr {
-		event := hash.BytesToEventHash(w.Event)
-		res[event] = WireToEventsByPeer(w.Roots)
-	}
-
-	return res
-}
 
 /*
  * eventsByNode's methods:
@@ -155,7 +89,7 @@ func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
 
 	for _, w := range arr {
 		creator := hash.BytesToPeer(w.Creator)
-		h := hash.BytesToEventHash(w.Hash)
+		h := hash.BytesToEvent(w.Hash)
 		if res[creator] == nil {
 			res[creator] = hash.Events{}
 		}

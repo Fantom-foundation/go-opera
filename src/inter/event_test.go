@@ -1,6 +1,7 @@
 package inter
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -14,21 +15,25 @@ func TestEventSerialization(t *testing.T) {
 	assertar := assert.New(t)
 
 	events := FakeFuzzingEvents()
-	for _, e0 := range events {
+	for i, e0 := range events {
+		dsc := fmt.Sprintf("iter#%d", i)
+
 		w, tt := e0.ToWire()
 		w.ExternalTransactions = tt
 		buf, err := proto.Marshal(w)
-		assertar.NoError(err)
+		if !assertar.NoError(err, dsc) {
+			break
+		}
 
 		w = &wire.Event{}
 		err = proto.Unmarshal(buf, w)
-		if !assertar.NoError(err) {
+		if !assertar.NoError(err, dsc) {
 			break
 		}
 		e1 := WireToEvent(w)
 
-		if !assertar.EqualValues(e0.ExternalTransactions, e1.ExternalTransactions) ||
-			!assertar.EqualValues(e0, e1) {
+		if !assertar.EqualValues(e0.ExternalTransactions, e1.ExternalTransactions, dsc) ||
+			!assertar.EqualValues(e0, e1, dsc) {
 			break
 		}
 	}

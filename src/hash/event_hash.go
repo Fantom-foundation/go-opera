@@ -13,8 +13,8 @@ type (
 	// It is a hash of Event.
 	Event Hash
 
-	// EventsSlice is a sortable slice of event hash.
-	EventsSlice []Event
+	// OrderedEvents is a sortable slice of event hash.
+	OrderedEvents []Event
 
 	// Events provides additional methods of event hash index.
 	Events map[Event]struct{}
@@ -45,9 +45,9 @@ func (h *Event) SetBytes(raw []byte) {
 	(*Hash)(h).SetBytes(raw)
 }
 
-// BytesToEventHash converts bytes to event hash.
+// BytesToEvent converts bytes to event hash.
 // If b is larger than len(h), b will be cropped from the left.
-func BytesToEventHash(b []byte) Event {
+func BytesToEvent(b []byte) Event {
 	return Event(FromBytes(b))
 }
 
@@ -64,7 +64,7 @@ func (h Event) Hex() string {
 
 // String returns human readable string representation.
 func (h Event) String() string {
-	if name, ok := EventNameDict[h]; ok {
+	if name := GetEventName(h); len(name) > 0 {
 		return name
 	}
 	return (Hash)(h).ShortString()
@@ -76,7 +76,7 @@ func (h *Event) IsZero() bool {
 }
 
 /*
- * EventHashes methods:
+ * Events methods:
  */
 
 // NewEvents makes event hash index.
@@ -84,6 +84,16 @@ func NewEvents(h ...Event) Events {
 	hh := Events{}
 	hh.Add(h...)
 	return hh
+}
+
+// Copy copies events to a new structure.
+func (hh Events) Copy() Events {
+	ee := make(Events, len(hh))
+	for k, v := range hh {
+		ee[k] = v
+	}
+
+	return ee
 }
 
 // String returns human readable string representation.
@@ -96,8 +106,8 @@ func (hh Events) String() string {
 }
 
 // Slice returns whole index as slice.
-func (hh Events) Slice() EventsSlice {
-	arr := make(EventsSlice, len(hh))
+func (hh Events) Slice() OrderedEvents {
+	arr := make(OrderedEvents, len(hh))
 	i := 0
 	for h := range hh {
 		arr[i] = h
@@ -124,33 +134,69 @@ func (hh Events) Contains(hash Event) bool {
 }
 
 // ToWire converts to simple slice.
-func (hh Events) ToWire() [][]byte {
-	var arr EventsSlice
-	for h := range hh {
-		arr = append(arr, h)
-	}
-	sort.Sort(arr)
+func (hh Events) ToWire(self Event) [][]byte {
+	var (
+		head OrderedEvents
+		tail OrderedEvents
+	)
 
-	return arr.ToWire()
+	for h := range hh {
+		if h == self {
+			head = append(head, h)
+		} else {
+			tail = append(tail, h)
+		}
+	}
+
+	if len(head) != 1 {
+		panic("there is no 1 self-parent in Events")
+	}
+
+	sort.Sort(tail)
+
+	all := append(head, tail...)
+	return all.ToWire()
 }
 
 // WireToEventHashes converts from simple slice.
-func WireToEventHashes(buf [][]byte) Events {
-	hh := Events{}
-	for _, b := range buf {
-		h := BytesToEventHash(b)
-		hh.Add(h)
+func WireToEventHashes(buf [][]byte) (first Event, all Events) {
+	if len(buf) > 0 {
+		first = BytesToEvent(buf[0])
 	}
 
-	return hh
+	all = Events{}
+	for _, b := range buf {
+		h := BytesToEvent(b)
+		all.Add(h)
+	}
+
+	return
 }
 
 /*
- * EventHashSlice's methods:
+ * OrderedEvents methods:
  */
 
+func (hh OrderedEvents) String() string {
+	buf := &strings.Builder{}
+
+	out := func(s string) {
+		if _, err := buf.WriteString(s); err != nil {
+			panic(err)
+		}
+	}
+
+	out("[")
+	for _, h := range hh {
+		out(h.String() + ", ")
+	}
+	out("]")
+
+	return buf.String()
+}
+
 // ToWire converts to simple slice.
-func (hh EventsSlice) ToWire() [][]byte {
+func (hh OrderedEvents) ToWire() [][]byte {
 	res := make([][]byte, len(hh))
 	for i, h := range hh {
 		res[i] = h.Bytes()
@@ -159,23 +205,23 @@ func (hh EventsSlice) ToWire() [][]byte {
 	return res
 }
 
-// WireToEventHashSlice converts from simple slice.
-func WireToEventHashSlice(buf [][]byte) EventsSlice {
+// WireToOrderedEvents converts from simple slice.
+func WireToOrderedEvents(buf [][]byte) OrderedEvents {
 	if buf == nil {
 		return nil
 	}
 
-	hh := make(EventsSlice, len(buf))
+	hh := make(OrderedEvents, len(buf))
 	for i, b := range buf {
-		hh[i] = BytesToEventHash(b)
+		hh[i] = BytesToEvent(b)
 	}
 
 	return hh
 }
 
-func (hh EventsSlice) Len() int      { return len(hh) }
-func (hh EventsSlice) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
-func (hh EventsSlice) Less(i, j int) bool {
+func (hh OrderedEvents) Len() int      { return len(hh) }
+func (hh OrderedEvents) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
+func (hh OrderedEvents) Less(i, j int) bool {
 	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
 }
 

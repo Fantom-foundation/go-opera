@@ -231,11 +231,11 @@ func (e *Event) Sign(privKey *crypto.PrivateKey) error {
 	if err != nil {
 		return err
 	}
-	R, S, err := privKey.Sign(hash.Bytes())
+	R, S, err := privKey.SignRaw(hash.Bytes())
 	if err != nil {
 		return err
 	}
-	e.Message.Signature = crypto.EncodeSignature(R, S)
+	e.Message.Signature = crypto.RawEncodeSignature(R, S)
 	return err
 }
 
@@ -249,12 +249,12 @@ func (e *Event) Verify() (bool, error) {
 		return false, err
 	}
 
-	r, s, err := crypto.DecodeSignature(e.Message.Signature)
+	r, s, err := crypto.RawDecodeSignature(e.Message.Signature)
 	if err != nil {
 		return false, err
 	}
 
-	return pubKey.Verify(hash.Bytes(), r, s), nil
+	return pubKey.VerifyRaw(hash.Bytes(), r, s), nil
 }
 
 // ProtoMarshal event to protobuff
@@ -410,8 +410,8 @@ func (a ByLamportTimestamp) Less(i, j int) bool {
 		return it < jt
 	}
 
-	wsi, _, _ := crypto.DecodeSignature(a[i].Message.Signature)
-	wsj, _, _ := crypto.DecodeSignature(a[j].Message.Signature)
+	wsi, _, _ := crypto.RawDecodeSignature(a[i].Message.Signature)
+	wsj, _, _ := crypto.RawDecodeSignature(a[j].Message.Signature)
 	return wsi.Cmp(wsj) < 0
 }
 

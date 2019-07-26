@@ -1,29 +1,27 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 // SetBlock stores chain block.
 func (s *Store) SetBlock(b *inter.Block) {
-	key := common.IntToBytes(b.Index)
-	s.set(s.table.Blocks, key, b.ToWire())
+	s.set(s.table.Blocks, b.Index.Bytes(), b.ToWire())
 }
 
 // GetBlock returns stored block.
-func (s *Store) GetBlock(n uint64) *inter.Block {
-	key := common.IntToBytes(n)
-	w, _ := s.get(s.table.Blocks, key, &wire.Block{}).(*wire.Block)
+func (s *Store) GetBlock(n idx.Block) *inter.Block {
+	w, _ := s.get(s.table.Blocks, n.Bytes(), &wire.Block{}).(*wire.Block)
 	return inter.WireToBlock(w)
 }
 
 // SetEventsBlockNum stores num of block includes events.
 // TODO: use batch
-func (s *Store) SetEventsBlockNum(num uint64, ee ...*inter.Event) {
-	val := common.IntToBytes(num)
+func (s *Store) SetEventsBlockNum(num idx.Block, ee ...*inter.Event) {
+	val := num.Bytes()
 
 	for _, e := range ee {
 		key := e.Hash()
@@ -42,10 +40,10 @@ func (s *Store) SetEventsBlockNum(num uint64, ee ...*inter.Event) {
 }
 
 // GetEventBlockNum returns num of block includes event.
-func (s *Store) GetEventBlockNum(e hash.Event) *uint64 {
+func (s *Store) GetEventBlockNum(e hash.Event) *idx.Block {
 	if s.cache.Event2Block != nil {
 		if n, ok := s.cache.Event2Block.Get(e); ok {
-			num := n.(uint64)
+			num := n.(idx.Block)
 			return &num
 		}
 	}
@@ -59,6 +57,6 @@ func (s *Store) GetEventBlockNum(e hash.Event) *uint64 {
 		return nil
 	}
 
-	val := common.BytesToInt(buf)
+	val := idx.BytesToBlock(buf)
 	return &val
 }

@@ -1,7 +1,6 @@
 package election
 
 import (
-	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,20 +9,22 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 type fakeEdge struct {
 	from hash.Event
-	to   RootSlot
+	to   Slot
 }
 
 type (
-	stakes map[string]*big.Int
+	stakes map[string]inter.Stake
 )
 
 type testExpected struct {
-	DecidedFrame     FrameHeight
+	DecidedFrame     idx.Frame
 	DecidedSfWitness string
 	DecisiveRoots    map[string]bool
 }
@@ -34,10 +35,10 @@ func TestProcessRoot(t *testing.T) {
 		testProcessRoot(t,
 			nil,
 			stakes{
-				"nodeA": big.NewInt(1),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -58,14 +59,14 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "d0_0",
+				DecidedSfWitness: "b0_0",
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(1),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -86,14 +87,14 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "c0_0",
+				DecidedSfWitness: "b0_0",
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(1),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -116,10 +117,10 @@ a2_2══╬═════╣     ║
 				DecisiveRoots:    map[string]bool{"b2_2": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(1000000000000000000),
-				"nodeB": big.NewInt(1),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 1000000000000000000,
+				"nodeB": 1,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -144,10 +145,10 @@ a1_1══╬═════╣     ║
 				DecisiveRoots:    map[string]bool{"a4_4": true},
 			},
 			stakes{
-				"nodeA": big.NewInt(4),
-				"nodeB": big.NewInt(2),
-				"nodeC": big.NewInt(1),
-				"nodeD": big.NewInt(1),
+				"nodeA": 4,
+				"nodeB": 2,
+				"nodeC": 1,
+				"nodeD": 1,
 			}, `
 a0_0  b0_0  c0_0  d0_0
 ║     ║     ║     ║
@@ -192,33 +193,26 @@ func testProcessRoot(
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
-	// nodes:
-	totalStake := new(big.Int)
-	nodes := make([]ElectionNode, 0, len(peers))
+	// members:
+	var (
+		mm = make(internal.Members, len(peers))
+	)
 	for _, peer := range peers {
-		n := ElectionNode{
-			Nodeid:      peer,
-			StakeAmount: stakes[peer.String()],
-		}
-		nodes = append(nodes, n)
-		totalStake.Add(totalStake, n.StakeAmount)
+		mm.Add(peer, stakes[peer.String()])
 	}
-
-	superMajority := get2of3(totalStake)
-	//t.Logf("superMajority = %s", superMajority.String())
 
 	// events:
 	events := make(map[hash.Event]*inter.Event)
-	vertices := make(map[hash.Event]RootSlot)
+	vertices := make(map[hash.Event]Slot)
 	edges := make(map[fakeEdge]hash.Event)
 
 	for dsc, root := range named {
 		events[root.Hash()] = root
 		h := root.Hash()
 
-		vertices[h] = RootSlot{
-			Frame:  frameOf(dsc),
-			Nodeid: root.Creator,
+		vertices[h] = Slot{
+			Frame: frameOf(dsc),
+			Addr:  root.Creator,
 		}
 	}
 
@@ -232,7 +226,7 @@ func testProcessRoot(
 			if sSeen.IsZero() {
 				continue
 			}
-			if p := events[sSeen]; p.Creator == root.Creator && noPrev {
+			if sSeen == root.SelfParent && noPrev {
 				continue
 			}
 			to := sSeen
@@ -245,10 +239,13 @@ func testProcessRoot(
 	}
 
 	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b RootSlot) *hash.Event {
+	stronglySeeFn := func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
-			to:   b,
+			to: Slot{
+				Addr:  b,
+				Frame: f,
+			},
 		}
 		hashB, ok := edges[edge]
 		if ok {
@@ -258,7 +255,7 @@ func testProcessRoot(
 		}
 	}
 
-	election := NewElection(nodes, totalStake, superMajority, 0, stronglySeeFn)
+	election := New(mm, 0, stronglySeeFn)
 
 	// ordering:
 	var (
@@ -273,7 +270,10 @@ func testProcessRoot(
 			if !ok {
 				t.Fatal("inconsistent vertices")
 			}
-			got, err := election.ProcessRoot(rootHash, rootSlot)
+			got, err := election.ProcessRoot(RootAndSlot{
+				Root: rootHash,
+				Slot: rootSlot,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -283,8 +283,8 @@ func testProcessRoot(
 			decisive := expected != nil && expected.DecisiveRoots[root.Hash().String()]
 			if decisive || alreadyDecided {
 				assertar.NotNil(got)
-				assertar.Equal(expected.DecidedFrame, got.DecidedFrame)
-				assertar.Equal(expected.DecidedSfWitness, got.DecidedSfWitness.String())
+				assertar.Equal(expected.DecidedFrame, got.Frame)
+				assertar.Equal(expected.DecidedSfWitness, got.SfWitness.String())
 				alreadyDecided = true
 			} else {
 				assertar.Nil(got)
@@ -306,21 +306,11 @@ func testProcessRoot(
 	}
 }
 
-func get2of3(x *big.Int) *big.Int {
-	res := new(big.Int)
-	res.
-		Mul(x, big.NewInt(2)).
-		Div(res, big.NewInt(3)).
-		Add(res, big.NewInt(1))
-
-	return res
-}
-
-func frameOf(dsc string) FrameHeight {
+func frameOf(dsc string) idx.Frame {
 	s := strings.Split(dsc, "_")[1]
-	h, err := strconv.ParseInt(s, 10, 64)
+	h, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		panic(err)
 	}
-	return FrameHeight(h)
+	return idx.Frame(h)
 }

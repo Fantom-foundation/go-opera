@@ -49,6 +49,10 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 					callback.Drop(e.Event, err)
 					return
 				}
+				if e.SelfParent != pHash {
+					callback.Drop(e.Event, fmt.Errorf("invalid SelfParent"))
+					return
+				}
 				if err := ltime.AddParentTime(0); err != nil {
 					callback.Drop(e.Event, err)
 					return
@@ -67,6 +71,10 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 			}
 			if err := reffs.AddUniqueParent(parent.Creator); err != nil {
 				callback.Drop(e.Event, err)
+				return
+			}
+			if parent.Creator == e.Creator && e.SelfParent != pHash {
+				callback.Drop(e.Event, fmt.Errorf("invalid SelfParent"))
 				return
 			}
 			if err := ltime.AddParentTime(parent.LamportTime); err != nil {

@@ -15,18 +15,18 @@ func (s *Store) StateDB(from hash.Hash) *state.DB {
 	return db
 }
 
-// SetState stores state.
-// State is seldom read; so no cache.
-func (s *Store) SetState(st *State) {
+// SetCheckpoint save checkpoint.
+// Checkpoint is seldom read; so no cache.
+func (s *Store) SetCheckpoint(cp *checkpoint) {
 	const key = "current"
-	s.set(s.table.States, []byte(key), st.ToWire())
+	s.set(s.table.Checkpoint, []byte(key), cp.ToWire())
 
 }
 
-// GetState returns stored state.
+// GetCheckpoint returns stored checkpoint.
 // State is seldom read; so no cache.
-func (s *Store) GetState() *State {
+func (s *Store) GetCheckpoint() *checkpoint {
 	const key = "current"
-	w, _ := s.get(s.table.States, []byte(key), &wire.State{}).(*wire.State)
-	return WireToState(w)
+	w, _ := s.get(s.table.Checkpoint, []byte(key), &wire.Checkpoint{}).(*wire.Checkpoint)
+	return wireToCheckpoint(w)
 }

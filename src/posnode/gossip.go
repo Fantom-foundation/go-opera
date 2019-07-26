@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -20,6 +21,36 @@ type gossip struct {
 	tickets chan struct{}
 
 	sync.Mutex
+	wg sync.WaitGroup
+}
+
+func (g *gossip) initTickets(threads int) bool {
+	g.Lock()
+	defer g.Unlock()
+
+	if g.tickets != nil {
+		return false
+	}
+
+	g.tickets = make(chan struct{}, threads)
+	for i := 0; i < threads; i++ {
+		g.tickets <- struct{}{}
+	}
+	return true
+}
+
+func (g *gossip) closeTickets() bool {
+	g.Lock()
+	defer g.Unlock()
+
+	if g.tickets == nil {
+		return false
+	}
+
+	close(g.tickets)
+	g.tickets = nil
+
+	return true
 }
 
 func (g *gossip) freeTicket() {
@@ -33,19 +64,12 @@ func (g *gossip) freeTicket() {
 
 // StartGossip starts gossiping.
 func (n *Node) StartGossip(threads int) {
-	n.gossip.Lock()
-	defer n.gossip.Unlock()
-
-	if n.gossip.tickets != nil {
+	if !n.gossip.initTickets(threads) {
 		return
 	}
 
+	n.initLasts()
 	n.initPeers()
-
-	n.gossip.tickets = make(chan struct{}, threads)
-	for i := 0; i < threads; i++ {
-		n.gossip.tickets <- struct{}{}
-	}
 
 	go n.gossiping(n.gossip.tickets)
 
@@ -54,38 +78,46 @@ func (n *Node) StartGossip(threads int) {
 
 // StopGossip stops gossiping.
 func (n *Node) StopGossip() {
-	n.gossip.Lock()
-	defer n.gossip.Unlock()
-
-	if n.gossip.tickets == nil {
+	if !n.gossip.closeTickets() {
 		return
 	}
-
-	close(n.gossip.tickets)
-	n.gossip.tickets = nil
-
+	n.gossip.wg.Wait()
 	n.Info("gossip stopped")
 }
 
 // gossiping is a infinity gossip process.
 func (n *Node) gossiping(tickets chan struct{}) {
+
 	for range tickets {
+		n.gossip.wg.Add(1)
 		go func() {
+			defer n.gossip.wg.Done()
 			defer n.gossip.freeTicket()
+
 			peer := n.NextForGossip()
-			if peer != nil {
-				defer n.FreePeer(peer)
-				n.syncWithPeer(peer)
-			} else {
+			if peer == nil {
 				n.Warn("no candidate for gossip")
+				time.Sleep(gossipIdle)
+				return
 			}
-			time.Sleep(gossipIdle)
+			defer n.FreePeer(peer)
+
+			n.syncWithPeer(peer)
 		}()
 	}
-
 }
 
 func (n *Node) syncWithPeer(peer *Peer) {
+	peers2discovery := make(map[hash.Peer]struct{})
+	defer func() {
+		// check peers from events
+		for p := range peers2discovery {
+			n.CheckPeerIsKnown(peer.Host, &p)
+		}
+		// clean outdated data about peers
+		n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
+	}()
+
 	client, free, fail, err := n.ConnectTo(peer)
 	if err != nil {
 		n.Error(err)
@@ -93,7 +125,10 @@ func (n *Node) syncWithPeer(peer *Peer) {
 	}
 	defer free()
 
-	unknowns, err := n.compareKnownEvents(client, peer)
+	n.Debugf("gossip with peer %s", peer.ID.String())
+
+	sf := n.currentSuperFrame()
+	unknowns, err := n.compareKnownEvents(client, peer, sf)
 	if err != nil {
 		fail(err)
 		return
@@ -102,18 +137,20 @@ func (n *Node) syncWithPeer(peer *Peer) {
 		return
 	}
 
-	peers2discovery := make(map[hash.Peer]struct{})
 	parents := hash.Events{}
 
-	toDownload := n.lockFreeHeights(unknowns)
-	defer n.unlockFreeHeights(toDownload)
+	toDownload := n.lockFreeHeights(sf, unknowns)
+	defer n.unlockFreeHeights(sf, toDownload)
 
 	for creator, interval := range toDownload {
 		req := &api.EventRequest{
 			PeerID: creator.Hex(),
 		}
+
+		peers2discovery[creator] = struct{}{}
+
 		for i := interval.from; i <= interval.to; i++ {
-			req.Index = i
+			req.Seq = uint64(i)
 
 			event, err := n.downloadEvent(client, peer, req)
 			if err != nil {
@@ -124,21 +161,12 @@ func (n *Node) syncWithPeer(peer *Peer) {
 				return
 			}
 
-			peers2discovery[creator] = struct{}{}
 			parents.Add(event.Parents.Slice()...)
 		}
 	}
 	n.gossipSuccess(peer)
 
 	n.checkParents(client, peer, parents)
-
-	// check peers from events
-	for p := range peers2discovery {
-		n.CheckPeerIsKnown(peer.Host, &p)
-	}
-
-	// Clean outdated data about peers.
-	n.trimHosts(n.conf.TopPeersCount*4, n.conf.TopPeersCount*3)
 }
 
 func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Events) {
@@ -166,14 +194,14 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	}
 }
 
-func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.Peer]uint64, error) {
-	knowns := n.knownEvents()
+func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer, sf idx.SuperFrame) (heights, error) {
+	knowns := n.knownEvents(sf)
+
+	n.Debugf("%s knows %v at SF%d", n.ID.String(), knowns, sf)
 
 	req := &api.KnownEvents{
-		Lasts: make(map[string]uint64, len(knowns)),
-	}
-	for id, h := range knowns {
-		req.Lasts[id.Hex()] = h
+		SuperFrameN: uint64(sf),
+		Lasts:       knowns.ToWire(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), n.conf.ClientTimeout)
@@ -191,12 +219,33 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer) (map[hash.P
 		// TODO: skip or continue gossiping with peer id ?
 	}
 
-	res := make(map[hash.Peer]uint64, len(resp.Lasts))
-	for hex, h := range PeersHeightsDiff(resp.Lasts, req.Lasts) {
-		res[hash.HexToPeer(hex)] = h
+	n.Debugf("%s knows %v", peer.ID.String(), resp.Lasts)
+
+	if resp.SuperFrameN != req.SuperFrameN {
+		err = fmt.Errorf("unexpected super-frame-index %d, expected %d", resp.SuperFrameN, req.SuperFrameN)
+		n.gossipFail(peer, err)
+		return nil, err
 	}
 
-	n.gossipSuccess(peer)
+	if req.SuperFrameN != 0 {
+		if len(resp.Lasts) != len(req.Lasts) {
+			err = fmt.Errorf("unexpected super-frame-members are different")
+			return nil, err
+		}
+		for member := range req.Lasts {
+			if _, ok := resp.Lasts[member]; !ok {
+				err = fmt.Errorf("unexpected super-frame-members are different")
+				return nil, err
+			}
+		}
+	}
+
+	lasts := wireToHeights(resp.Lasts)
+
+	res := lasts.Exclude(knowns)
+
+	n.Debugf("DIFF %s between %s and %s", res.String(), peer.ID.String(), n.ID.String())
+
 	return res, nil
 }
 
@@ -206,8 +255,6 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	defer cancel()
 
 	id, ctx := api.ServerPeerID(ctx)
-
-	n.Info("download event")
 
 	w, err := client.GetEvent(ctx, req)
 	if err != nil {
@@ -220,7 +267,7 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	}
 
 	if req.Hash == nil {
-		if w.Creator != req.PeerID || w.Index != req.Index {
+		if w.Creator != req.PeerID || w.Seq != req.Seq {
 			n.gossipFail(peer, fmt.Errorf("bad GetEvent() response"))
 			return nil, nil
 		}
@@ -229,15 +276,12 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	event := inter.WireToEvent(w)
 
 	// check event sign
-	creator := n.store.GetPeer(event.Creator)
-	if creator == nil {
-		return nil, nil
-	}
-	if !event.Verify(creator.PubKey) {
+	if !event.VerifySignature() {
 		err = fmt.Errorf("falsity GetEvent() response")
 		n.gossipFail(peer, err)
 		return nil, err
 	}
+	n.Infof("downloaded event %s", event.Hash().String())
 
 	n.onNewEvent(event)
 
@@ -246,15 +290,30 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 	return event, nil
 }
 
-// knownEventsReq makes request struct with event heights of top peers.
-func (n *Node) knownEvents() map[hash.Peer]uint64 {
-	peers := n.peers.Snapshot()
+// knownEventsReq returns event heights of requested super-frame.
+func (n *Node) knownEvents(sf idx.SuperFrame) heights {
+	if sf > n.currentSuperFrame() {
+		return heights{}
+	}
+
+	var peers []hash.Peer
+
+	if n.consensus == nil {
+		peers = n.peers.Snapshot()
+	} else {
+		peers = n.consensus.SuperFrameMembers(sf)
+	}
+
+	return n.peersWithHeight(sf, peers)
+}
+
+func (n *Node) peersWithHeight(sf idx.SuperFrame, peers []hash.Peer) heights {
 	peers = append(peers, n.ID)
 
-	res := make(map[hash.Peer]uint64, len(peers))
+	res := make(heights, len(peers))
 	for _, id := range peers {
-		h := n.store.GetPeerHeight(id)
-		res[id] = h
+		h := n.store.GetPeerHeight(id, sf)
+		res[id] = interval{to: h}
 	}
 
 	return res

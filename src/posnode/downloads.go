@@ -4,17 +4,14 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
 	downloads struct {
-		heights    map[hash.Peer]uint64
+		heights    map[idx.SuperFrame]heights // TODO: clean old SuperFrame
 		hashes     hash.Events
 		sync.Mutex // TODO: split to separates for heights and hashes
-	}
-
-	interval struct {
-		from, to uint64
 	}
 )
 
@@ -22,42 +19,53 @@ func (n *Node) initDownloads() {
 	if n.downloads.heights != nil {
 		return
 	}
-	n.downloads.heights = make(map[hash.Peer]uint64)
+	n.downloads.heights = make(map[idx.SuperFrame]heights)
 	n.downloads.hashes = hash.Events{}
 }
 
 // lockFreeHeights returns start indexes of height free intervals and reserves their.
-func (n *Node) lockFreeHeights(want map[hash.Peer]uint64) map[hash.Peer]interval {
+func (n *Node) lockFreeHeights(sf idx.SuperFrame, wants heights) heights {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 
-	res := make(map[hash.Peer]interval, len(want))
+	if _, ok := n.downloads.heights[sf]; !ok {
+		n.downloads.heights[sf] = make(heights)
+	}
 
-	for creator, height := range want {
-		locked := n.downloads.heights[creator]
-		if locked == 0 {
-			locked = n.store.GetPeerHeight(creator)
+	res := make(heights, len(wants))
+
+	for creator, want := range wants {
+		locked := n.downloads.heights[sf][creator]
+		if locked.to == 0 {
+			locked.to = n.store.GetPeerHeight(creator, sf)
 		}
-		if height <= locked {
+		if want.to <= locked.to {
 			continue
 		}
 
-		res[creator] = interval{locked + 1, height}
-		n.downloads.heights[creator] = height
+		res[creator] = interval{
+			from: max(locked.to+1, want.from),
+			to:   want.to,
+		}
+		n.downloads.heights[sf][creator] = want
 	}
 
 	return res
 }
 
 // unlockFreeHeights known peer height.
-func (n *Node) unlockFreeHeights(hh map[hash.Peer]interval) {
+func (n *Node) unlockFreeHeights(sf idx.SuperFrame, hh heights) {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 
+	if _, ok := n.downloads.heights[sf]; !ok {
+		return
+	}
+
 	for creator, interval := range hh {
-		locked := n.downloads.heights[creator]
-		if locked <= interval.to {
-			delete(n.downloads.heights, creator)
+		locked := n.downloads.heights[sf][creator]
+		if locked.to <= interval.to {
+			delete(n.downloads.heights[sf], creator)
 		}
 	}
 }

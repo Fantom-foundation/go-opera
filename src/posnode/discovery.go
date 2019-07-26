@@ -130,11 +130,6 @@ func (n *Node) AskPeerInfo(host string, id *hash.Peer) {
 		return
 	}
 
-	if hash.PeerOfPubkeyBytes(info.PubKey) != hash.HexToPeer(info.ID) {
-		n.discoveryFail(peer, fmt.Errorf("bad PeerInfo response"))
-		return
-	}
-
 	if id != nil && source != *id {
 		n.discoverySuccess(peer)
 		n.AskPeerInfo(info.Host, nil)

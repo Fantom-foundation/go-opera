@@ -1,98 +1,35 @@
 package posposet
 
 import (
-	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-// eventsByFrame maps frame num --> roots.
-type eventsByFrame map[uint64]EventsByPeer
-
-// Add appends roots of frame.
-func (ee eventsByFrame) Add(frameN uint64, roots EventsByPeer) {
-	dest := ee[frameN]
-	if dest == nil {
-		dest = EventsByPeer{}
-	}
-	dest.Add(roots)
-	ee[frameN] = dest
-}
-
-// FrameNumsDesc returns sorted frame numbers.
-func (ee eventsByFrame) FrameNumsDesc() []uint64 {
-	var nums []uint64
-	for n := range ee {
-		nums = append(nums, n)
-	}
-	sort.Sort(sort.Reverse(frameNums(nums)))
-	return nums
-}
-
-// String returns human readable string representation.
-func (ee eventsByFrame) String() string {
-	var ss []string
-	for frame, roots := range ee {
-		ss = append(ss, fmt.Sprintf("%d: %s", frame, roots.String()))
-	}
-	return "byFrame{" + strings.Join(ss, ", ") + "}"
-}
-
-/*
- * Poset's methods:
- */
-
 // FrameOfEvent returns unfinished frame where event is in.
-func (p *Poset) FrameOfEvent(event hash.Event) (frame *Frame, isRoot bool) {
-	fnum := p.store.GetEventFrame(event)
-	if fnum == nil {
-		return
-	}
-
-	frame = p.frame(*fnum, false)
-	knowns := frame.FlagTable[event]
-	for _, events := range knowns {
-		if events.Contains(event) {
-			isRoot = true
-			return
+func (p *Poset) FrameOfEvent(event hash.Event) *Frame {
+	for i := idx.Frame(1); true; i++ {
+		frame := p.frame(i, false)
+		if frame == nil {
+			return nil
+		}
+		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
+			for e := range src.Each() {
+				if e == event {
+					return frame
+				}
+			}
 		}
 	}
 
-	return
-}
-
-func (p *Poset) frameFromStore(n uint64) *Frame {
-	if n < p.state.LastFinishedFrameN() {
-		p.Fatalf("too old frame %d is requested", n)
-	}
-	// return ephemeral
-	if n == 0 {
-		return &Frame{
-			Index:    0,
-			Balances: p.state.Genesis,
-		}
-	}
-
-	f := p.store.GetFrame(n)
-	if f == nil {
-		return p.frameFromStore(n - 1)
-	}
-
-	return f
+	return nil
 }
 
 // frame finds or creates frame.
-func (p *Poset) frame(n uint64, orCreate bool) *Frame {
-	if n < p.state.LastFinishedFrameN() && orCreate {
-		p.Fatalf("too old frame %d is requested", n)
-	}
+func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 	// return ephemeral
 	if n == 0 {
 		return &Frame{
-			Index:    0,
-			Balances: p.state.Genesis,
+			Index: 0,
 		}
 	}
 
@@ -104,11 +41,9 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:            n,
-			FlagTable:        FlagTable{},
-			ClothoCandidates: EventsByPeer{},
-			Atroposes:        TimestampsByEvent{},
-			Balances:         p.frame(n-1, true).Balances,
+			Index:  n,
+			Events: EventsByPeer{},
+			Roots:  EventsByPeer{},
 		}
 		p.setFrameSaving(f)
 		p.frames[n] = f
@@ -119,8 +54,8 @@ func (p *Poset) frame(n uint64, orCreate bool) *Frame {
 }
 
 // frameNumLast returns last frame number.
-func (p *Poset) frameNumLast() uint64 {
-	var max uint64
+func (p *Poset) frameNumLast() idx.Frame {
+	var max idx.Frame
 	for n := range p.frames {
 		if max < n {
 			max = n
@@ -129,13 +64,3 @@ func (p *Poset) frameNumLast() uint64 {
 	}
 	return max
 }
-
-/*
- * Utils:
- */
-
-type frameNums []uint64
-
-func (p frameNums) Len() int           { return len(p) }
-func (p frameNums) Less(i, j int) bool { return p[i] < p[j] }
-func (p frameNums) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }

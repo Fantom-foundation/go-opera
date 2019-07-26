@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
@@ -24,6 +25,8 @@ func (n *Node) StartService() {
 	if n.stopServer != nil {
 		return
 	}
+
+	n.initLasts()
 
 	if n.service.listen == nil {
 		n.service.listen = network.TCPListener
@@ -66,15 +69,12 @@ func (n *Node) SyncEvents(ctx context.Context, req *api.KnownEvents) (*api.Known
 	}
 
 	// response
-	knowns := n.knownEvents()
-	knownLasts := make(map[string]uint64, len(knowns))
-	for id, h := range knowns {
-		knownLasts[id.Hex()] = h
-	}
-	// TODO: should we remember other node's knowns for future request?
-	// to_download := PeersHeightsDiff(req.Lasts, known)
-	diff := PeersHeightsDiff(knownLasts, req.Lasts)
-	return &api.KnownEvents{Lasts: diff}, nil
+	knowns := n.knownEvents(idx.SuperFrame(req.SuperFrameN))
+
+	return &api.KnownEvents{
+		SuperFrameN: req.SuperFrameN,
+		Lasts:       knowns.ToWire(),
+	}, nil
 }
 
 // GetEvent returns requested event.
@@ -93,9 +93,9 @@ func (n *Node) GetEvent(ctx context.Context, req *api.EventRequest) (*wire.Event
 		eventHash.SetBytes(req.Hash)
 	} else {
 		creator := hash.HexToPeer(req.PeerID)
-		h := n.store.GetEventHash(creator, req.Index)
+		h := n.store.GetEventHash(creator, idx.SuperFrame(req.SuperFrameN), idx.Event(req.Seq))
 		if h == nil {
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("event not found: %s-%d", req.PeerID, req.Index))
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("event not found: %s-%d-%d", req.PeerID, req.SuperFrameN, req.Seq))
 		}
 		eventHash = *h
 	}
@@ -142,17 +142,6 @@ func (n *Node) GetPeerInfo(ctx context.Context, req *api.PeerRequest) (*api.Peer
 /*
  * Utils:
  */
-
-// PeersHeightsDiff returns all heights excluding excepts.
-func PeersHeightsDiff(all, excepts map[string]uint64) (res map[string]uint64) {
-	res = make(map[string]uint64, len(all))
-	for id, h0 := range all {
-		if h1, ok := excepts[id]; !ok || h1 < h0 {
-			res[id] = h0
-		}
-	}
-	return
-}
 
 func checkSource(ctx context.Context) error {
 	source := api.GrpcPeerID(ctx)

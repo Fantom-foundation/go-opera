@@ -25,7 +25,7 @@ func TestPosetTxn(t *testing.T) {
 
 		e.InternalTransactions = append(e.InternalTransactions,
 			&inter.InternalTransaction{
-				Index:    0,
+				Nonce:    0,
 				Amount:   1,
 				Receiver: nodes[1],
 			})
@@ -35,10 +35,10 @@ func TestPosetTxn(t *testing.T) {
 
 	p, s, x := FakePoset(nodes)
 	assert.Equal(t,
-		uint64(1), p.StakeOf(nodes[0]),
+		inter.Stake(1), p.StakeOf(nodes[0]),
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		uint64(1), p.StakeOf(nodes[1]),
+		inter.Stake(1), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
 
 	p.Start()
@@ -49,14 +49,18 @@ func TestPosetTxn(t *testing.T) {
 		}
 	}
 
-	st := s.GetState()
-	t.Logf("poset: frame %d, block %d", st.LastFinishedFrameN(), st.LastBlockN)
+	// force SF commit
+	p.nextSuperFrame()
+
+	st := s.GetCheckpoint()
+	t.Logf("poset: SFrame %d, Block %d", st.SuperFrameN, st.LastBlockN)
 
 	assert.Equal(t,
-		uint64(0), p.StakeOf(nodes[0]),
+		inter.Stake(0), p.StakeOf(nodes[0]),
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		uint64(2), p.StakeOf(nodes[1]),
+		inter.Stake(2), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
+
 	p.Stop()
 }

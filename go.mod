@@ -6,6 +6,7 @@ require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
 	github.com/Gurpartap/logrus-stack v0.0.0-20170710170904-89c00d8a28f4
 	github.com/allegro/bigcache v1.2.1
+	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8
 	github.com/certifi/gocertifi v0.0.0-20190506164543-d2eda7129713 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger v0.0.0-20190308055650-deee8c7ae70b

@@ -2,11 +2,13 @@ package posnode
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // emitter creates events from external transactions.
@@ -17,6 +19,7 @@ type emitter struct {
 	last time.Time
 	sync.RWMutex
 	done chan struct{}
+	wg   sync.WaitGroup
 }
 
 // StartEventEmission starts event emission.
@@ -28,7 +31,10 @@ func (n *Node) StartEventEmission() {
 
 	n.initParents()
 
-	go func(done chan struct{}) {
+	done := n.emitter.done
+	n.emitter.wg.Add(1)
+	go func() {
+		defer n.emitter.wg.Done()
 		ticker := time.NewTicker(n.conf.MinEmitInterval)
 		for {
 			select {
@@ -38,7 +44,7 @@ func (n *Node) StartEventEmission() {
 				return
 			}
 		}
-	}(n.emitter.done)
+	}()
 }
 
 // StopEventEmission stops event emission.
@@ -49,6 +55,7 @@ func (n *Node) StopEventEmission() {
 
 	close(n.emitter.done)
 	n.emitter.done = nil
+	n.emitter.wg.Wait()
 }
 
 func (n *Node) internalTxnMempool(idx hash.Transaction) *inter.InternalTransaction {
@@ -75,7 +82,7 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 		return hash.Transaction{}, fmt.Errorf("insufficient funds %d to transfer %d", balance, tx.Amount)
 	}
 
-	idx := inter.TransactionHashOf(n.ID, tx.Index)
+	idx := inter.TransactionHashOf(n.ID, tx.Nonce)
 
 	n.emitter.Lock()
 	defer n.emitter.Unlock()
@@ -89,7 +96,7 @@ func (n *Node) AddInternalTxn(tx inter.InternalTransaction) (hash.Transaction, e
 	}
 
 	if e := n.store.GetTxnsEvent(idx); e != nil {
-		return idx, fmt.Errorf("the same txn already exists in event %d of %s", e.Index, e.Creator.String())
+		return idx, fmt.Errorf("the same txn already exists in event %s of %s", e.Hash().String(), e.Creator.String())
 	}
 
 	n.emitter.internalTxns[idx] = &tx
@@ -125,23 +132,25 @@ func (n *Node) EmitEvent() *inter.Event {
 
 // emitEvent with no checks.
 func (n *Node) emitEvent() *inter.Event {
-	n.Debugf("emitting event")
-
 	var (
-		index          uint64
+		sf             = n.currentSuperFrame()
+		seq            idx.Event
+		selfParent     hash.Event
 		parents        = hash.Events{}
 		maxLamportTime inter.Timestamp
 		internalTxns   []*inter.InternalTransaction
 		externalTxns   [][]byte
 	)
 
-	prev := n.LastEventOf(n.ID)
+	prev := n.LastEventOf(n.ID, sf)
 	if prev != nil {
-		index = prev.Index + 1
+		seq = prev.Seq + 1
 		maxLamportTime = prev.LamportTime
+		selfParent = prev.Hash()
 		parents.Add(prev.Hash())
 	} else {
-		index = 1
+		seq = 1
+		selfParent = hash.ZeroEvent
 		parents.Add(hash.ZeroEvent)
 	}
 
@@ -160,6 +169,7 @@ func (n *Node) emitEvent() *inter.Event {
 		}
 	}
 
+	// TODO: don't use txns if event has no chance to be in block
 	// transactions buffer swap
 	internalTxns = make([]*inter.InternalTransaction, 0, len(n.emitter.internalTxns))
 	for idx, txn := range n.emitter.internalTxns {
@@ -172,8 +182,10 @@ func (n *Node) emitEvent() *inter.Event {
 	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
 	event := &inter.Event{
-		Index:                index,
+		SfNum:                sf,
+		Seq:                  seq,
 		Creator:              n.ID,
+		SelfParent:           selfParent,
 		Parents:              parents,
 		LamportTime:          maxLamportTime + 1,
 		InternalTransactions: internalTxns,
@@ -185,6 +197,9 @@ func (n *Node) emitEvent() *inter.Event {
 		n.Fatal(err)
 	}
 
+	// set event name for debug
+	n.nameEventForDebug(event)
+
 	n.emitter.last = time.Now()
 	countEmittedEvents.Inc(1)
 
@@ -192,4 +207,16 @@ func (n *Node) emitEvent() *inter.Event {
 	n.Infof("new event emitted %s", event)
 
 	return event
+}
+
+func (n *Node) nameEventForDebug(e *inter.Event) {
+	name := []rune(hash.GetNodeName(n.ID))
+	if len(name) < 1 {
+		return
+	}
+
+	name = name[len(name)-1:]
+	hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d",
+		strings.ToLower(string(name)),
+		e.Seq))
 }

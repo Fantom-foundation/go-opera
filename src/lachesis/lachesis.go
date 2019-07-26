@@ -253,7 +253,7 @@ func readKey(dataDir string) (*crypto.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	privKey, err := crypto.ReadPemToKey(keyFile)
+	privKey, err := crypto.ReadKey(keyFile)
 	if err != nil {
 		return nil, err
 	}

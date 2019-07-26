@@ -67,7 +67,7 @@ func TestMigrateCaches(t *testing.T) {
 	}
 
 	MigrateCaches(&s.cache, func() interface{} {
-		return &table{}
+		return NewMemDatabase()
 	})
 
 	if !assertar.Nil(s.cache.C0) ||

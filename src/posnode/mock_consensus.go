@@ -6,6 +6,8 @@ package posnode
 
 import (
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
+	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
+	idx "github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -31,6 +33,20 @@ func NewMockConsensus(ctrl *gomock.Controller) *MockConsensus {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockConsensus) EXPECT() *MockConsensusMockRecorder {
 	return m.recorder
+}
+
+// CurrentSuperFrameN mocks base method
+func (m *MockConsensus) CurrentSuperFrameN() idx.SuperFrame {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CurrentSuperFrameN")
+	ret0, _ := ret[0].(idx.SuperFrame)
+	return ret0
+}
+
+// CurrentSuperFrameN indicates an expected call of CurrentSuperFrameN
+func (mr *MockConsensusMockRecorder) CurrentSuperFrameN() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentSuperFrameN", reflect.TypeOf((*MockConsensus)(nil).CurrentSuperFrameN))
 }
 
 // GetGenesisHash mocks base method
@@ -60,10 +76,10 @@ func (mr *MockConsensusMockRecorder) PushEvent(arg0 interface{}) *gomock.Call {
 }
 
 // StakeOf mocks base method
-func (m *MockConsensus) StakeOf(arg0 hash.Peer) uint64 {
+func (m *MockConsensus) StakeOf(arg0 hash.Peer) inter.Stake {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StakeOf", arg0)
-	ret0, _ := ret[0].(uint64)
+	ret0, _ := ret[0].(inter.Stake)
 	return ret0
 }
 
@@ -71,4 +87,18 @@ func (m *MockConsensus) StakeOf(arg0 hash.Peer) uint64 {
 func (mr *MockConsensusMockRecorder) StakeOf(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StakeOf", reflect.TypeOf((*MockConsensus)(nil).StakeOf), arg0)
+}
+
+// SuperFrameMembers mocks base method
+func (m *MockConsensus) SuperFrameMembers(arg0 idx.SuperFrame) []hash.Peer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SuperFrameMembers", arg0)
+	ret0, _ := ret[0].([]hash.Peer)
+	return ret0
+}
+
+// SuperFrameMembers indicates an expected call of SuperFrameMembers
+func (mr *MockConsensusMockRecorder) SuperFrameMembers(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFrameMembers", reflect.TypeOf((*MockConsensus)(nil).SuperFrameMembers), arg0)
 }

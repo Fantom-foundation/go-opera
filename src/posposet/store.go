@@ -7,8 +7,10 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -19,12 +21,14 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		States      kvdb.Database `table:"state_"`
-		Frames      kvdb.Database `table:"frame_"`
-		Blocks      kvdb.Database `table:"block_"`
-		Event2Frame kvdb.Database `table:"event2frame_"`
-		Event2Block kvdb.Database `table:"event2block_"`
-		Balances    state.Database
+		Checkpoint     kvdb.Database `table:"checkpoint_"`
+		Frames         kvdb.Database `table:"frame_"`
+		Blocks         kvdb.Database `table:"block_"`
+		Event2Frame    kvdb.Database `table:"event2frame_"`
+		Event2Block    kvdb.Database `table:"event2block_"`
+		SuperFrames    kvdb.Database `table:"sframe_"`
+		ConfirmedEvent kvdb.Database `table:"confirmed_"`
+		Balances       state.Database
 	}
 	cache struct {
 		Frames      *lru.Cache `cache:"-"`
@@ -43,7 +47,8 @@ func NewStore(db kvdb.Database, cached bool) *Store {
 	}
 
 	kvdb.MigrateTables(&s.table, s.physicalDB)
-	s.table.Balances = state.NewDatabase(kvdb.NewTable(s.physicalDB, "balance_"))
+	s.table.Balances = state.NewDatabase(
+		s.physicalDB.NewTable([]byte("balance_")))
 
 	if cached {
 		kvdb.MigrateCaches(&s.cache, func() interface{} {
@@ -72,41 +77,50 @@ func (s *Store) Close() {
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(balances map[hash.Peer]uint64) error {
+func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 	if balances == nil {
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
-	st := s.GetState()
-	if st != nil {
-		if st.Genesis == genesisHash(balances) {
+	sf0 := s.GetSuperFrame(0)
+	if sf0 != nil {
+		if sf0.balances == genesisHash(balances) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	st = &State{
-		lastFinishedFrameN: 0,
-		TotalCap:           0,
+	sf := &superFrame{}
+
+	cp := &checkpoint{
+		SuperFrameN: 0,
+		TotalCap:    0,
 	}
+
+	sf.members = make(internal.Members, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
-		genesis.SetBalance(hash.Peer(addr), balance)
-		st.TotalCap += balance
-	}
+		if balance == 0 {
+			return fmt.Errorf("balance shouldn't be zero")
+		}
 
-	if st.TotalCap < uint64(len(balances)) {
-		return fmt.Errorf("balance shouldn't be zero")
+		genesis.SetBalance(hash.Peer(addr), balance)
+		cp.TotalCap += balance
+
+		sf.members.Add(addr, balance)
 	}
+	sf.members = sf.members.Top()
 
 	var err error
-	st.Genesis, err = genesis.Commit(true)
+	sf.balances, err = genesis.Commit(true)
 	if err != nil {
 		return err
 	}
 
-	s.SetState(st)
+	s.SetSuperFrame(cp.SuperFrameN, sf)
+	s.SetCheckpoint(cp)
+
 	return nil
 }
 

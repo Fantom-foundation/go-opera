@@ -36,6 +36,6 @@ type Node interface {
 
 // Consensus is a set of consensus handlers.
 type Consensus interface {
-	StakeOf(peer hash.Peer) uint64
+	StakeOf(peer hash.Peer) inter.Stake
 	GetEventBlock(hash.Event) *inter.Block
 }

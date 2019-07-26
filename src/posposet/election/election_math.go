@@ -2,103 +2,106 @@ package election
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // calculate SfWitness votes only for the new root.
 // If this root sees that the current election is decided, then @return decided SfWitness
-func (el *Election) ProcessRoot(newRoot hash.Event, newRootSlot RootSlot) (*ElectionRes, error) {
-	if len(el.decidedRoots) == len(el.nodes) {
+func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
+	if len(el.decidedRoots) == len(el.members) {
 		// current election is already decided
 		return el.chooseSfWitness()
 	}
 
-	if newRootSlot.Frame <= el.frameToDecide {
+	if newRoot.Slot.Frame <= el.frameToDecide {
 		// too old root, out of interest for current election
 		return nil, nil
 	}
-	round := newRootSlot.Frame - el.frameToDecide
+	round := newRoot.Slot.Frame - el.frameToDecide
 
 	notDecidedRoots := el.notDecidedRoots()
-	for _, nodeIdSubject := range notDecidedRoots {
-		slotSubject := RootSlot{
-			Frame:  el.frameToDecide,
-			Nodeid: nodeIdSubject,
-		}
+	for _, memberSubject := range notDecidedRoots {
 		vote := voteValue{}
 
 		if round == 1 {
 			// in initial round, vote "yes" if subject is strongly seen
-			seenRoot := el.stronglySee(newRoot, slotSubject)
+			seenRoot := el.stronglySee(newRoot.Root, memberSubject, el.frameToDecide)
 			vote.yes = seenRoot != nil
 			vote.decided = false
 			if seenRoot != nil {
 				vote.seenRoot = *seenRoot
 			}
 		} else if round > 1 {
-			seenRoots := el.stronglySeenRoots(newRoot, newRootSlot.Frame-1)
+			sSeenRoots := el.stronglySeenRoots(newRoot.Root, newRoot.Slot.Frame-1)
 
-			yesVotes := new(big.Int)
-			noVotes := new(big.Int)
+			var (
+				yesVotes = el.members.NewCounter()
+				noVotes  = el.members.NewCounter()
+				allVotes = el.members.NewCounter()
+			)
 
-			// calc number of "yes" and "no", weighted by node's stake
+			// calc number of "yes" and "no", weighted by member's stake
 			var subjectHash *hash.Event
-			for _, seenRoot := range seenRoots {
+			for _, sSeenRoot := range sSeenRoots {
 				vid := voteId{
-					forNodeid: nodeIdSubject,
-					fromRoot:  seenRoot.root,
+					forMember: memberSubject,
+					fromRoot:  sSeenRoot.Root,
 				}
 
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.seenRoot {
-						msg := "2 fork roots are strongly seen => more than 1/3n are Byzantine (%s != %s, election frame=%d, nodeid=%s)"
-						return nil, fmt.Errorf(msg, subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, nodeIdSubject.String())
+						return nil, fmt.Errorf("2 fork roots are strongly seen => more than 1/3n are Byzantine (%s != %s, election frame=%d, member=%s)",
+							subjectHash.String(), vote.seenRoot.String(), el.frameToDecide, memberSubject.String())
 					}
 
 					if vote.yes {
 						subjectHash = &vote.seenRoot
-						yesVotes = yesVotes.Add(yesVotes, seenRoot.stakeAmount)
+						yesVotes.Count(sSeenRoot.Slot.Addr)
 					} else {
-						noVotes = noVotes.Add(noVotes, seenRoot.stakeAmount)
+						noVotes.Count(sSeenRoot.Slot.Addr)
+					}
+					if !allVotes.Count(sSeenRoot.Slot.Addr) {
+						// it shouldn't be possible to get here, because we've taken 1 root from every node above
+						return nil, fmt.Errorf("2 fork roots are strongly seen => more than 1/3n are Byzantine (%s, election frame=%d, member=%s)",
+							subjectHash.String(), el.frameToDecide, memberSubject.String())
 					}
 				} else {
-					el.Fatal("Every root must vote for every not decided subject. Possibly roots are processed out of order, root=", newRoot.String())
+					el.Fatal("Every root must vote for every not decided subject. Possibly roots are processed out of order, root=", newRoot.Root.String())
 				}
 			}
 			// sanity checks
-			if new(big.Int).Add(yesVotes, noVotes).Cmp(el.superMajority) < 0 {
-				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.String())
-			}
-			if new(big.Int).Add(yesVotes, noVotes).Cmp(el.totalStake) > 0 {
-				el.Fatal("Root cannot see more than 100% of prev roots, root=", newRoot.String())
+			if !allVotes.HasQuorum() {
+				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.Root.String(), " ", allVotes.Sum())
 			}
 
 			// vote as majority of votes
-			vote.yes = yesVotes.Cmp(noVotes) >= 0
+			vote.yes = yesVotes.Sum() >= noVotes.Sum()
 			if vote.yes && subjectHash != nil {
 				vote.seenRoot = *subjectHash
 			}
 
 			// If supermajority is seen, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-			vote.decided = yesVotes.Cmp(el.superMajority) >= 0 || noVotes.Cmp(el.superMajority) >= 0
+			vote.decided = yesVotes.HasQuorum() || noVotes.HasQuorum()
 			if vote.decided {
-				el.decidedRoots[nodeIdSubject] = vote
+				el.decidedRoots[memberSubject] = vote
 			}
+		} else {
+			continue // we shouldn't be here, we checked it above the loop
 		}
 		// save vote for next rounds
 		vid := voteId{
-			fromRoot:  newRoot,
-			forNodeid: slotSubject.Nodeid,
+			fromRoot:  newRoot.Root,
+			forMember: memberSubject,
 		}
 		el.votes[vid] = vote
 	}
 
-	frameDecided := len(el.decidedRoots) == len(el.nodes)
+	frameDecided := len(el.decidedRoots) == len(el.members)
 	if frameDecided {
 		return el.chooseSfWitness()
 	}
+
 	return nil, nil
 }

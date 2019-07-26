@@ -4,6 +4,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode/api"
 )
 
@@ -20,7 +21,7 @@ func (s *Store) BootstrapPeers(peers ...*Peer) {
 	ids := make([]hash.Peer, 0, len(peers))
 	for _, peer := range peers {
 		// skip empty
-		if peer == nil || peer.PubKey == nil || peer.ID.IsEmpty() || peer.Host == "" {
+		if peer == nil || peer.ID.IsEmpty() || peer.Host == "" {
 			continue
 		}
 
@@ -81,15 +82,19 @@ func (s *Store) GetTopPeers() []hash.Peer {
 }
 
 // SetPeerHeight stores last event index of peer.
-func (s *Store) SetPeerHeight(id hash.Peer, height uint64) {
-	if err := s.table.PeerHeights.Put(id.Bytes(), intToBytes(height)); err != nil {
+func (s *Store) SetPeerHeight(id hash.Peer, sf idx.SuperFrame, height idx.Event) {
+	key := append(sf.Bytes(), id.Bytes()...)
+
+	if err := s.table.PeerHeights.Put(key, height.Bytes()); err != nil {
 		s.Fatal(err)
 	}
 }
 
 // GetPeerHeight returns last event index of peer.
-func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
-	buf, err := s.table.PeerHeights.Get(id.Bytes())
+func (s *Store) GetPeerHeight(id hash.Peer, sf idx.SuperFrame) idx.Event {
+	key := append(sf.Bytes(), id.Bytes()...)
+
+	buf, err := s.table.PeerHeights.Get(key)
 	if err != nil {
 		s.Fatal(err)
 	}
@@ -97,5 +102,23 @@ func (s *Store) GetPeerHeight(id hash.Peer) uint64 {
 		return 0
 	}
 
-	return bytesToInt(buf)
+	return idx.BytesToEvent(buf)
+}
+
+// GetAllPeerHeight returns last event index of all peers.
+func (s *Store) GetAllPeerHeight(sf idx.SuperFrame) map[hash.Peer]idx.Event {
+	res := make(map[hash.Peer]idx.Event)
+
+	prefix := sf.Bytes()
+	err := s.table.PeerHeights.ForEach(prefix, func(k, v []byte) bool {
+		peer := hash.BytesToPeer(k[len(prefix):])
+		height := idx.BytesToEvent(v)
+		res[peer] = height
+		return true
+	})
+	if err != nil {
+		s.Fatal(err)
+	}
+
+	return res
 }

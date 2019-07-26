@@ -11,13 +11,15 @@ service Node {
 
 
 message KnownEvents {
-    map<string,uint64> Lasts = 1;
+    uint64 SuperFrameN = 1;
+    map<string,uint64> Lasts = 2;
 }
 
 message EventRequest {
     string PeerID = 1;
-    uint64 Index = 2;
-    bytes Hash = 3;
+    uint64 SuperFrameN = 2;
+    uint64 Seq = 3;
+    bytes Hash = 4;
 }
 
 message PeerRequest {
@@ -26,7 +28,6 @@ message PeerRequest {
 
 message PeerInfo {
     string ID = 1;
-    bytes PubKey = 2;
-    string Host = 3;
+    string Host = 2;
 }
 

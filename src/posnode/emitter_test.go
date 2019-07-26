@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -20,7 +21,7 @@ func TestAddInternalTxn(t *testing.T) {
 	consensus := NewMockConsensus(ctrl)
 	consensus.EXPECT().
 		StakeOf(gomock.Any()).
-		Return(uint64(2000)).
+		Return(inter.Stake(2000)).
 		AnyTimes()
 
 	node := NewForTests("fake", NewMemStore(), consensus)
@@ -30,7 +31,7 @@ func TestAddInternalTxn(t *testing.T) {
 		assertar := assert.New(t)
 
 		tx := inter.InternalTransaction{
-			Index:    1,
+			Nonce:    1,
 			Amount:   1000,
 			Receiver: peer,
 		}
@@ -47,7 +48,7 @@ func TestAddInternalTxn(t *testing.T) {
 		assertar := assert.New(t)
 
 		tx := inter.InternalTransaction{
-			Index:    2,
+			Nonce:    2,
 			Amount:   1000,
 			Receiver: peer,
 		}
@@ -87,8 +88,8 @@ func TestEmit(t *testing.T) {
 		events[0] = node1.EmitEvent()
 
 		assertar.Equal(
-			uint64(1),
-			events[0].Index)
+			idx.Event(1),
+			events[0].Seq)
 		assertar.Equal(
 			inter.Timestamp(1),
 			events[0].LamportTime)
@@ -108,8 +109,8 @@ func TestEmit(t *testing.T) {
 		events[1] = node2.EmitEvent()
 
 		assertar.Equal(
-			uint64(1),
-			events[1].Index)
+			idx.Event(1),
+			events[1].Seq)
 		assertar.Equal(
 			inter.Timestamp(2),
 			events[1].LamportTime)
@@ -126,8 +127,8 @@ func TestEmit(t *testing.T) {
 		events[2] = node1.emitEvent()
 
 		assertar.Equal(
-			uint64(2),
-			events[2].Index)
+			idx.Event(2),
+			events[2].Seq)
 		assertar.Equal(
 			inter.Timestamp(3),
 			events[2].LamportTime)
@@ -144,8 +145,8 @@ func TestEmit(t *testing.T) {
 		events[3] = node1.emitEvent()
 
 		assertar.Equal(
-			uint64(3),
-			events[3].Index)
+			idx.Event(3),
+			events[3].Seq)
 		assertar.Equal(
 			inter.Timestamp(4),
 			events[3].LamportTime)

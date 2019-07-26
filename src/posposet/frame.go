@@ -1,8 +1,8 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -10,11 +10,12 @@ import (
 
 // Frame is a consensus tables for frame.
 type Frame struct {
-	Index            uint64
-	FlagTable        FlagTable
-	ClothoCandidates EventsByPeer
-	Atroposes        TimestampsByEvent
-	Balances         hash.Hash
+	Index  idx.Frame
+	Events EventsByPeer
+	Roots  EventsByPeer
+
+	timeOffset inter.Timestamp
+	timeRatio  inter.Timestamp
 
 	save func()
 }
@@ -26,55 +27,40 @@ func (f *Frame) Save() {
 	}
 }
 
-// AddRootsOf appends known roots for event.
-func (f *Frame) AddRootsOf(event hash.Event, roots EventsByPeer) {
-	if f.FlagTable[event] == nil {
-		f.FlagTable[event] = EventsByPeer{}
-	}
-	if f.FlagTable[event].Add(roots) {
-		f.Save()
-	}
+// GetConsensusTimestamp calc consensus timestamp for given event.
+func (f *Frame) GetConsensusTimestamp(e *Event) inter.Timestamp {
+	return e.LamportTime*f.timeRatio + f.timeOffset
 }
 
-// AddClothoCandidate adds event into ClothoCandidates list.
-func (f *Frame) AddClothoCandidate(event hash.Event, creator hash.Peer) {
-	if f.ClothoCandidates.AddOne(event, creator) {
-		f.Save()
-	}
-}
-
-// SetAtropos makes Atropos from Clotho and consensus time.
-func (f *Frame) SetAtropos(clotho hash.Event, consensusTime inter.Timestamp) {
-	if t, ok := f.Atroposes[clotho]; ok && t == consensusTime {
-		return
-	}
-	f.Atroposes[clotho] = consensusTime
+// SetTimes set new timeOffset and new TimeRatio.
+func (f *Frame) SetTimes(offset, ratio inter.Timestamp) {
+	f.timeOffset = offset
+	f.timeRatio = ratio
 	f.Save()
 }
 
-// GetRootsOf returns known roots of event. For read only, please.
-func (f *Frame) GetRootsOf(event hash.Event) EventsByPeer {
-	return f.FlagTable[event]
+// AddRoot appends root-event into frame.
+func (f *Frame) AddRoot(e *Event) {
+	if f.Roots.AddOne(e.Hash(), e.Creator) {
+		f.Save()
+	}
 }
 
-// SetBalances saves PoS-balances state.
-func (f *Frame) SetBalances(balances hash.Hash) bool {
-	if f.Balances != balances {
-		f.Balances = balances
+// AddEvent appends event into frame.
+func (f *Frame) AddEvent(e *Event) {
+	if f.Events.AddOne(e.Hash(), e.Creator) {
 		f.Save()
-		return true
 	}
-	return false
 }
 
 // ToWire converts to proto.Message.
 func (f *Frame) ToWire() *wire.Frame {
 	return &wire.Frame{
-		Index:            f.Index,
-		FlagTable:        f.FlagTable.ToWire(),
-		ClothoCandidates: f.ClothoCandidates.ToWire(),
-		Atroposes:        f.Atroposes.ToWire(),
-		Balances:         f.Balances.Bytes(),
+		Index:      uint32(f.Index),
+		Events:     f.Events.ToWire(),
+		Roots:      f.Roots.ToWire(),
+		TimeOffset: uint64(f.timeOffset),
+		TimeRatio:  uint64(f.timeRatio),
 	}
 }
 
@@ -84,11 +70,11 @@ func WireToFrame(w *wire.Frame) *Frame {
 		return nil
 	}
 	return &Frame{
-		Index:            w.Index,
-		FlagTable:        WireToFlagTable(w.FlagTable),
-		ClothoCandidates: WireToEventsByPeer(w.ClothoCandidates),
-		Atroposes:        WireToTimestampsByEvent(w.Atroposes),
-		Balances:         hash.FromBytes(w.Balances),
+		Index:      idx.Frame(w.Index),
+		Events:     WireToEventsByPeer(w.Events),
+		Roots:      WireToEventsByPeer(w.Roots),
+		timeOffset: inter.Timestamp(w.TimeOffset),
+		timeRatio:  inter.Timestamp(w.TimeRatio),
 	}
 }
 
@@ -98,10 +84,6 @@ func WireToFrame(w *wire.Frame) *Frame {
 
 func (p *Poset) setFrameSaving(f *Frame) {
 	f.save = func() {
-		if f.Index > p.state.LastFinishedFrameN() {
-			p.store.SetFrame(f)
-		} else {
-			p.Fatalf("frame %d is finished and should not be changed", f.Index)
-		}
+		p.store.SetFrame(p.SuperFrameN, f)
 	}
 }

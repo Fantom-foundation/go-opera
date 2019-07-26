@@ -50,3 +50,5 @@ lachesis_*
 *.bak
 
 .#*
+
+**/coverage.txt

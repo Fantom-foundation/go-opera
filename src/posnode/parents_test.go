@@ -11,6 +11,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -48,6 +49,13 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		consensus := NewMockConsensus(ctrl)
+		consensus.EXPECT().
+			CurrentSuperFrameN().
+			Return(idx.SuperFrame(1)).
+			AnyTimes()
+		consensus.EXPECT().
+			PushEvent(gomock.Any()).
+			AnyTimes()
 
 		store := NewMemStore()
 		node := NewForTests(dsc, store, consensus)
@@ -55,6 +63,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		defer node.Stop()
 
 		expected := ASCIIschemeToDAG(node, consensus, schema)
+
 		for n, expect := range expected {
 			parent := node.parents.PopBest()
 			if !assertar.NotNil(parent, "step %d", n) {
@@ -71,9 +80,11 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 }
 
 func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []string) {
-	_, _, events := inter.ASCIIschemeToDAG(schema)
+	_, _, events := inter.ASCIIschemeToDAG(schema, func(e *inter.Event, nn []hash.Peer) {
+		e.SfNum = c.CurrentSuperFrameN()
+	})
 
-	weights := make(map[hash.Peer]uint64)
+	weights := make(map[hash.Peer]inter.Stake)
 	for name, e := range events {
 		w, o := parseSpecName(name)
 		weights[e.Creator] = w
@@ -83,11 +94,8 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 	}
 
 	c.EXPECT().
-		PushEvent(gomock.Any()).
-		AnyTimes()
-	c.EXPECT().
 		StakeOf(gomock.Any()).
-		DoAndReturn(func(p hash.Peer) uint64 {
+		DoAndReturn(func(p hash.Peer) inter.Stake {
 			return weights[p]
 		}).
 		AnyTimes()
@@ -100,18 +108,17 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 	return
 }
 
-func parseSpecName(name string) (weight uint64, orderNum int64) {
+func parseSpecName(name string) (weight inter.Stake, orderNum int64) {
 	ss := strings.Split(name, ":")
 	if len(ss) != 2 {
 		panic("invalid event name format")
 	}
 
-	var err error
-
-	weight, err = strconv.ParseUint(ss[0], 10, 64)
+	w, err := strconv.ParseUint(ss[0], 10, 64)
 	if err != nil {
 		panic("invalid event name format (weight): " + err.Error())
 	}
+	weight = inter.Stake(w)
 
 	if ss[1][0] == strings.ToUpper(ss[1])[0] {
 		orderNum, err = strconv.ParseInt(ss[1][1:], 10, 64)

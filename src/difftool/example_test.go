@@ -1,7 +1,6 @@
 package difftool
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
+/*
 // Example illustrates nodes comparing.
 func Example() {
 	logger := logrus.New()
@@ -37,6 +37,7 @@ func Example() {
 	// Output:
 	// all good
 }
+*/
 
 func TestNodeDiff(t *testing.T) {
 	t.Skip("Skip TestNodeDiff until block production is fixed")

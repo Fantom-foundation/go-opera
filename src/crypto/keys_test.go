@@ -34,12 +34,12 @@ func TestPrivateKeySignVerify(t *testing.T) {
 	msgBytes := []byte(msg)
 	msgHashBytes := Keccak256(msgBytes)
 
-	r, s, err := key.Sign(msgHashBytes)
+	r, s, err := key.SignRaw(msgHashBytes)
 	if !assertar.NoError(err) {
 		return
 	}
 
-	assertar.True(key.Public().Verify(msgHashBytes, r, s))
+	assertar.True(key.Public().VerifyRaw(msgHashBytes, r, s))
 }
 
 func TestPublicBytes(t *testing.T) {
@@ -86,7 +86,7 @@ func TestKeyGenWriteRead(t *testing.T) {
 		return
 	}
 
-	nKey, err := ReadPemToKey(&buf)
+	nKey, err := ReadKey(&buf)
 	if !assertar.NoError(err) {
 		return
 	}

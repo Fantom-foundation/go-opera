@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -8,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
@@ -17,7 +19,6 @@ import (
 type Node struct {
 	ID        hash.Peer
 	key       *crypto.PrivateKey
-	pub       *crypto.PublicKey
 	store     *Store
 	consensus Consensus
 	host      string
@@ -27,6 +28,7 @@ type Node struct {
 
 	service
 	connPool
+	superFrame
 	peers
 	parents
 	emitter
@@ -54,9 +56,8 @@ func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Confi
 	}
 
 	n := Node{
-		ID:        hash.PeerOfPubkey(key.Public()),
+		ID:        cryptoaddr.AddressOf(key.Public()),
 		key:       key,
-		pub:       key.Public(),
 		store:     s,
 		consensus: c,
 		host:      host,
@@ -98,12 +99,13 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	n.Debugf("save new event")
 
 	n.store.SetEvent(e)
-	n.store.SetEventHash(e.Creator, e.Index, e.Hash())
-	n.store.SetPeerHeight(e.Creator, e.Index)
+	n.store.SetEventHash(e.Creator, e.SfNum, e.Seq, e.Hash())
 	// NOTE: doubled txns from evil event could override existing index!
 	// TODO: decision
 	n.store.SetTxnsEvent(e.Hash(), e.Creator, e.InternalTransactions...)
 
+	n.store.SetPeerHeight(e.Creator, e.SfNum, e.Seq)
+	n.setLast(e)
 	n.pushPotentialParent(e)
 
 	if n.consensus != nil {
@@ -149,12 +151,6 @@ func (n *Node) Stop() {
 	n.stopClient()
 }
 
-// PubKey returns public key.
-func (n *Node) PubKey() *crypto.PublicKey {
-	pk := *n.pub
-	return &pk
-}
-
 // Host returns host.
 func (n *Node) Host() string {
 	return n.host
@@ -164,26 +160,25 @@ func (n *Node) Host() string {
 func (n *Node) AsPeer() *Peer {
 	return &Peer{
 		ID:     n.ID,
-		PubKey: n.pub,
 		Host:   n.host,
 	}
 }
 
 // LastEventOf returns last event of peer.
-func (n *Node) LastEventOf(peer hash.Peer) *inter.Event {
-	i := n.store.GetPeerHeight(peer)
+func (n *Node) LastEventOf(peer hash.Peer, sf idx.SuperFrame) *inter.Event {
+	i := n.store.GetPeerHeight(peer, sf)
 	if i == 0 {
 		return nil
 	}
 
-	return n.EventOf(peer, i)
+	return n.EventOf(peer, sf, i)
 }
 
 // EventOf returns i-th event of peer.
-func (n *Node) EventOf(peer hash.Peer, i uint64) *inter.Event {
-	h := n.store.GetEventHash(peer, i)
+func (n *Node) EventOf(peer hash.Peer, sf idx.SuperFrame, i idx.Event) *inter.Event {
+	h := n.store.GetEventHash(peer, sf, i)
 	if h == nil {
-		n.Errorf("no event hash for (%s,%d) in store", peer.String(), i)
+		n.Errorf("no event hash for (%s,%d-%d) in store", peer.String(), sf, i)
 		return nil
 	}
 
