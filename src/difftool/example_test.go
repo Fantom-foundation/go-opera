@@ -11,8 +11,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
-// Example illustrates nodes comparing.
-func Example() {
+// deprecated_Example illustrates nodes comparing.
+func deprecated_Example() {
+	return // NOTE: deprecated
 	logger := logrus.New()
 	logger.Level = logrus.FatalLevel
 
