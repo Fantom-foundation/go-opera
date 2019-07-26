@@ -1,3 +1,5 @@
+// +build nacl js !cgo
+
 package crypto
 
 import (
@@ -9,10 +11,15 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 )
 
-var (
-	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
-	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
-)
+// Ecrecover returns the uncompressed public key that created the given signature.
+func Ecrecover(hash, sig []byte) ([]byte, error) {
+	pub, err := SigToPub(hash, sig)
+	if err != nil {
+		return nil, err
+	}
+	bytes := (*btcec.PublicKey)(pub).SerializeUncompressed()
+	return bytes, err
+}
 
 // SigToPub returns the public key that created the given signature.
 func SigToPub(hash, sig []byte) (*PublicKey, error) {
