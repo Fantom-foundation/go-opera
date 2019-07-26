@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"testing"
 	"time"
 
@@ -126,8 +127,7 @@ func FakePeer(host string) *Peer {
 	}
 
 	return &Peer{
-		ID:     hash.PeerOfPubkey(key.Public()),
-		PubKey: key.Public(),
+		ID:     cryptoaddr.AddressOf(key.Public()),
 		Host:   host,
 	}
 }

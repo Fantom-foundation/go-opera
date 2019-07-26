@@ -5,7 +5,7 @@ import:
 - package: github.com/allegro/bigcache
   version: ^1.2.0
 - package: github.com/dgraph-io/badger
-  version: v2.0.0-rc.2
+  version: deee8c7ae70b
 - package: github.com/evalphobia/logrus_sentry
   version: ^0.8.2
 - package: github.com/facebookgo/pidfile
@@ -52,6 +52,8 @@ import:
   - metadata
   - peer
   - status
+- package: github.com/btcsuite/btcd
+  version: c26ffa870fd8
 - package: golang.org/x/crypto
   version: master
   subpackages:

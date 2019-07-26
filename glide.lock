@@ -1,5 +1,5 @@
-hash: a0ee66a8c654bc9340ccaa0842b0714862b2d58e0b73975253396499e8306e1d
-updated: 2019-06-18T22:51:45.748547509+10:00
+hash: cb61e490db5de04f1b5fc5a0781619f2cb5aa02a754053cea8fb43d50885d1f9
+updated: 2019-07-26T12:49:10.047773342+10:00
 imports:
 - name: github.com/allegro/bigcache
   version: 0605c28b510103c549fb020d5fb50e1ad4093de8
@@ -11,6 +11,10 @@ imports:
   version: 4b2b341e8d7715fae06375aa633dbb6e91b3fb46
   subpackages:
   - quantile
+- name: github.com/btcsuite/btcd
+  version: c26ffa870fd817666a857af1bf6498fabba1ffe3
+  subpackages:
+  - btcec
 - name: github.com/certifi/gocertifi
   version: d2eda712971317d7dd278bc2a52acda7e945f97e
 - name: github.com/dgraph-io/badger
@@ -34,15 +38,15 @@ imports:
 - name: github.com/facebookgo/stack
   version: 751773369052141c013c6e827a71e8f35c07879c
 - name: github.com/fsnotify/fsnotify
-  version: 1485a34d5d5723fea214f5710708e19a831720e4
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/getsentry/raven-go
-  version: f04e7487e9a6b9d9837d52743fb5f40576c56411
+  version: 5c24d5110e0e198d9ae16f1f3465366085001d92
 - name: github.com/golang/mock
   version: 9fa652df1129bef0e734c9cf9bf6dbae9ef3b9fa
   subpackages:
   - gomock
 - name: github.com/golang/protobuf
-  version: b5d812f8a3706043e23a9cd5babf2e5423744d30
+  version: 6c65a5562fc06764971b7c5d05c76c75e84bdbf7
   subpackages:
   - proto
   - ptypes
@@ -61,7 +65,7 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/hashicorp/hcl
-  version: 99e2f22d1c94b272184d97dd9d252866409100ab
+  version: cf7d376da96d9cecec7c7483cec2735efe54a410
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -85,7 +89,7 @@ imports:
 - name: github.com/mitchellh/mapstructure
   version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
 - name: github.com/pelletier/go-toml
-  version: 728039f679cbcd4f6a54e080d2219a4c4928c546
+  version: 84da2c4a25c585816f2c4211b699228d111d18ab
 - name: github.com/pkg/errors
   version: ba968bfe8b2f7e042a574c888954fccecfa385b4
 - name: github.com/prometheus/client_golang
@@ -99,15 +103,16 @@ imports:
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: 17f5ca1748182ddf24fc33a5a7caaaf790a52fcc
+  version: 33bc620f956eb70fbb8355e87df6a97891657ed5
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 1de2bc567d78f4ff415fd103412f7e5ec9e8876b
+  version: 8f55e607908ea781ad9d08521730d73e047d9ac4
   subpackages:
   - internal/fs
+  - internal/util
 - name: github.com/rifflock/lfshook
   version: b9218ef580f59a2e72dad1aa33d660150445d05a
 - name: github.com/rs/xid
@@ -119,7 +124,7 @@ imports:
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: 8c9545af88b134710ab1cd196795e7f2388358d7
+  version: c01685bb8421cecb276fa517e91f757215f980b3
 - name: github.com/spf13/cobra
   version: f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5
 - name: github.com/spf13/jwalterweatherman
@@ -135,11 +140,11 @@ imports:
 - name: go.etcd.io/bbolt
   version: a0458a2b35708eef59eb5f620ceb3cd1c01a824d
 - name: golang.org/x/crypto
-  version: f99c8df09eb5bff426315721bfa5f16a99cad32c
+  version: 4def268fd1a49955bfb3dda92fe3db4f924f2285
   subpackages:
   - sha3
 - name: golang.org/x/net
-  version: a4d6f7feada510cc50e69a37b484cb0fdc6b7876
+  version: ca1201d0de80cfde86cb01aea620983605dfe99b
   subpackages:
   - context
   - http/httpguts
@@ -149,7 +154,7 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/sys
-  version: a5b02f93d862f065920dd6a40dddc66b60d0dec4
+  version: 94b544f455efde7a614f75a3e43a2a65bce93113
   subpackages:
   - cpu
   - unix
@@ -164,11 +169,11 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: b515fa19cec88c32f305a962f34ae60068947aea
+  version: c506a9f9061087022822e8da603a52fc387115a8
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 501c41df7f472c740d0674ff27122f3f48c80ce7
+  version: 045159ad57f3781d409358e3ade910a018c16b30
   subpackages:
   - balancer
   - balancer/base
@@ -198,6 +203,7 @@ imports:
   - resolver
   - resolver/dns
   - resolver/passthrough
+  - serviceconfig
   - stats
   - status
   - tap

@@ -26,7 +26,7 @@ message Event {
     ExtTxns ExtTxnsValue = 7;
     bytes ExtTxnsHash = 8;
   }
-  string Sign = 9;
+  bytes Sign = 9;
 }
 
 message Block {

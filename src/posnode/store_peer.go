@@ -21,7 +21,7 @@ func (s *Store) BootstrapPeers(peers ...*Peer) {
 	ids := make([]hash.Peer, 0, len(peers))
 	for _, peer := range peers {
 		// skip empty
-		if peer == nil || peer.PubKey == nil || peer.ID.IsEmpty() || peer.Host == "" {
+		if peer == nil || peer.ID.IsEmpty() || peer.Host == "" {
 			continue
 		}
 

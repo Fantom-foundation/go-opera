@@ -129,7 +129,7 @@ func readKey(path string) (*crypto.PrivateKey, error) {
 	}
 	defer keyFile.Close()
 
-	key, err := crypto.ReadPemToKey(keyFile)
+	key, err := crypto.ReadKey(keyFile)
 	if err != nil {
 		return nil, err
 	}

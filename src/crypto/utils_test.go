@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSignatureEncoding(t *testing.T) {
+func TestRawSignatureEncoding(t *testing.T) {
 	assertar := assert.New(t)
 	key, err := GenerateKey()
 	if !assertar.NoError(err) {
@@ -17,13 +17,13 @@ func TestSignatureEncoding(t *testing.T) {
 	msgBytes := []byte(msg)
 	msgHashBytes := Keccak256(msgBytes)
 
-	r, s, err := key.Sign(msgHashBytes)
+	r, s, err := key.SignRaw(msgHashBytes)
 	if !assertar.NoError(err) {
 		return
 	}
 
-	encodedSig := EncodeSignature(r, s)
-	dR, dS, err := DecodeSignature(encodedSig)
+	encodedSig := RawEncodeSignature(r, s)
+	dR, dS, err := RawDecodeSignature(encodedSig)
 	if !assertar.NoError(err) {
 		t.Logf("r: %#v", r)
 		t.Logf("s: %#v", s)

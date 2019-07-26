@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"unsafe"
 
 	"github.com/golang/protobuf/proto"
@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -22,14 +23,14 @@ type peerID struct{}
 
 // ClientAuth makes client-side interceptor for identification.
 func ClientAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryClientInterceptor {
-	pub := key.Public().Base64()
+	addr := cryptoaddr.AddressOf(key.Public())
 	salt := genesis.Bytes()
 
 	return func(ctx context.Context, method string, req interface{}, resp interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		// request:
 
 		servSign := signData(req, key, salt)
-		md := metadata.Pairs("sign", servSign, "pub", pub)
+		md := metadata.Pairs("sign", common.Bytes2Hex(servSign), "addr", addr.Hex())
 		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		var answer metadata.MD
@@ -41,19 +42,18 @@ func ClientAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryClientInter
 
 		// response:
 
-		servSign, servPub, err := readMetadata(answer)
+		servSig, servAddr, err := readMetadata(answer)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
-		err = verifyData(resp, servSign, servPub, salt)
+		err = verifyData(resp, servSig, servAddr, salt)
 		if err != nil {
 			return status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
 		if set, ok := ctx.Value(peerID{}).(func(hash.Peer)); ok {
-			serverID := hash.PeerOfPubkey(servPub)
-			set(serverID)
+			set(servAddr)
 		}
 
 		return nil
@@ -62,31 +62,30 @@ func ClientAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryClientInter
 
 // ServerAuth makes server-side interceptor for identification.
 func ServerAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryServerInterceptor {
-	pub := base64.StdEncoding.EncodeToString(key.Public().Bytes())
+	addr := cryptoaddr.AddressOf(key.Public())
 	salt := genesis.Bytes()
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		// request:
 
-		clientSign, clientPub, err := parseContext(ctx)
+		clientSign, clientAddr, err := parseContext(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
-		err = verifyData(req, clientSign, clientPub, salt)
+		err = verifyData(req, clientSign, clientAddr, salt)
 		if err != nil {
 			return nil, status.Errorf(codes.Unauthenticated, err.Error())
 		}
 
-		clientID := hash.PeerOfPubkey(clientPub)
-		ctx = context.WithValue(ctx, peerID{}, clientID)
+		ctx = context.WithValue(ctx, peerID{}, clientAddr)
 
 		// response:
 
 		resp, err := handler(ctx, req)
 
-		sign := signData(resp, key, salt)
-		md := metadata.Pairs("sign", sign, "pub", pub)
+		sig := signData(resp, key, salt)
+		md := metadata.Pairs("sign", common.Bytes2Hex(sig), "addr", addr.Hex())
 		if err := grpc.SetTrailer(ctx, md); err != nil {
 			logger.Get().Fatal(err)
 		}
@@ -96,14 +95,14 @@ func ServerAuth(key *crypto.PrivateKey, genesis hash.Hash) grpc.UnaryServerInter
 }
 
 // parseContext reads fields from request/response context.
-func parseContext(ctx context.Context) (sign string, pub *crypto.PublicKey, err error) {
+func parseContext(ctx context.Context) (sig []byte, addr hash.Peer, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		err = errors.New("data should be signed")
 		return
 	}
 
-	sign, pub, err = readMetadata(md)
+	sig, addr, err = readMetadata(md)
 	if err != nil {
 		return
 	}
@@ -112,45 +111,40 @@ func parseContext(ctx context.Context) (sign string, pub *crypto.PublicKey, err 
 }
 
 // readMetadata reads fields from metadata.
-func readMetadata(md metadata.MD) (sign string, pub *crypto.PublicKey, err error) {
+func readMetadata(md metadata.MD) (sig []byte, addr hash.Peer, err error) {
 	signs, ok := md["sign"]
 	if !ok || len(signs) < 1 {
 		err = errors.New("data should be signed: no sign")
 		return
 	}
-	sign = signs[0]
+	sig = common.Hex2Bytes(signs[0])
 
-	pubs, ok := md["pub"]
-	if !ok || len(pubs) < 1 {
-		err = errors.New("data should be signed: no pub")
+	addrs, ok := md["addr"]
+	if !ok || len(addrs) < 1 {
+		err = errors.New("data should be signed: no addr")
 		return
 	}
-	pub, err = crypto.Base64ToPubKey(pubs[0])
+	addr = hash.HexToPeer(addrs[0])
 
 	return
 }
 
-func signData(data interface{}, key *crypto.PrivateKey, salt []byte) string {
+func signData(data interface{}, key *crypto.PrivateKey, salt []byte) []byte {
 	h := hashOfData(data)
 
-	d := append(h.Bytes(), salt...)
+	salted := crypto.Keccak256(append(h.Bytes(), salt...))
 
-	R, S, _ := key.Sign(d)
+	sig, _ := key.Sign(salted)
 
-	return crypto.EncodeSignature(R, S)
+	return sig
 }
 
-func verifyData(data interface{}, sign string, pub *crypto.PublicKey, salt []byte) error {
+func verifyData(data interface{}, sig []byte, addr hash.Peer, salt []byte) error {
 	h := hashOfData(data)
 
-	d := append(h.Bytes(), salt...)
+	salted := hash.FromBytes(crypto.Keccak256(append(h.Bytes(), salt...)))
 
-	r, s, err := crypto.DecodeSignature(sign)
-	if err != nil {
-		return err
-	}
-
-	if !pub.Verify(d, r, s) {
+	if !cryptoaddr.VerifySignature(addr, salted, sig) {
 		return errors.New("signature is invalid or peer uses another genesis")
 	}
 

@@ -196,14 +196,14 @@ func (b *Block) Sign(privKey *crypto.PrivateKey) (bs BlockSignature, err error) 
 	if err != nil {
 		return bs, err
 	}
-	R, S, err := privKey.Sign(signBytes)
+	R, S, err := privKey.SignRaw(signBytes)
 	if err != nil {
 		return bs, err
 	}
 	signature := BlockSignature{
 		Validator: privKey.Public().Bytes(),
 		Index:     b.Index(),
-		Signature: crypto.EncodeSignature(R, S),
+		Signature: crypto.RawEncodeSignature(R, S),
 	}
 
 	return signature, nil
@@ -223,12 +223,12 @@ func (b *Block) Verify(sig BlockSignature) (bool, error) {
 	}
 
 	pubKey := crypto.BytesToPubKey(sig.Validator)
-	r, s, err := crypto.DecodeSignature(sig.Signature)
+	r, s, err := crypto.RawDecodeSignature(sig.Signature)
 	if err != nil {
 		return false, err
 	}
 
-	return pubKey.Verify(signBytes, r, s), nil
+	return pubKey.VerifyRaw(signBytes, r, s), nil
 }
 
 // ListBytesEquals compares the equality of two lists

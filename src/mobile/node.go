@@ -21,7 +21,7 @@ type Node struct {
 }
 
 // New initializes Node struct
-func New(privKey string,
+func New(privKey []byte,
 	nodeAddr string,
 	participants *peers.Peers,
 	commitHandler CommitHandler,
@@ -37,7 +37,7 @@ func New(privKey string,
 	}).Debug("New Mobile Node")
 
 	// Check private key
-	key, err := crypto.PemToKey([]byte(privKey))
+	key, err := new(crypto.PrivateKey).SetBytes(privKey, true)
 	if err != nil {
 		exceptionHandler.OnException(fmt.Sprintf("Failed to read private key: %s", err))
 		return nil
