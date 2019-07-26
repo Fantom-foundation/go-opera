@@ -1,49 +1,9 @@
 package posposet
 
 import (
-	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
-
-// eventsByFrame maps frame num --> roots.
-type eventsByFrame map[idx.Frame]EventsByPeer
-
-// Add appends roots of frame.
-func (ee eventsByFrame) Add(n idx.Frame, roots EventsByPeer) {
-	dest := ee[n]
-	if dest == nil {
-		dest = EventsByPeer{}
-	}
-	dest.Add(roots)
-	ee[n] = dest
-}
-
-// FrameNumsDesc returns sorted frame numbers.
-func (ee eventsByFrame) FrameNumsDesc() []idx.Frame {
-	var nums []idx.Frame
-	for n := range ee {
-		nums = append(nums, n)
-	}
-	sort.Sort(sort.Reverse(orderedFrames(nums)))
-	return nums
-}
-
-// String returns human readable string representation.
-func (ee eventsByFrame) String() string {
-	var ss []string
-	for frame, roots := range ee {
-		ss = append(ss, fmt.Sprintf("%d: %s", frame, roots.String()))
-	}
-	return "byFrame{" + strings.Join(ss, ", ") + "}"
-}
-
-/*
- * Poset's methods:
- */
 
 // FrameOfEvent returns unfinished frame where event is in.
 func (p *Poset) FrameOfEvent(event hash.Event) *Frame {
@@ -62,21 +22,6 @@ func (p *Poset) FrameOfEvent(event hash.Event) *Frame {
 	}
 
 	return nil
-}
-
-func (p *Poset) frameFromStore(n idx.Frame) *Frame {
-	if n == 0 {
-		return &Frame{
-			Index: 0,
-		}
-	}
-
-	f := p.store.GetFrame(p.SuperFrameN, n)
-	if f == nil {
-		return p.frameFromStore(n - 1)
-	}
-
-	return f
 }
 
 // frame finds or creates frame.
@@ -118,45 +63,4 @@ func (p *Poset) frameNumLast() idx.Frame {
 
 	}
 	return max
-}
-
-/*
- * orderedFrames:
- */
-
-type orderedFrames []idx.Frame
-
-func (ff orderedFrames) Len() int           { return len(ff) }
-func (ff orderedFrames) Less(i, j int) bool { return ff[i] < ff[j] }
-func (ff orderedFrames) Swap(i, j int)      { ff[i], ff[j] = ff[j], ff[i] }
-
-/*
- * uniqueFrames:
- */
-
-type uniqueFrames map[idx.Frame]struct{}
-
-func (ff *uniqueFrames) Add(n idx.Frame) {
-	(*ff)[n] = struct{}{}
-
-}
-
-func (ff uniqueFrames) Asc() orderedFrames {
-	res := make(orderedFrames, 0, len(ff))
-	for n := range ff {
-		res = append(res, n)
-	}
-
-	sort.Sort(res)
-	return res
-}
-
-func (ff uniqueFrames) Desc() orderedFrames {
-	res := make(orderedFrames, 0, len(ff))
-	for n := range ff {
-		res = append(res, n)
-	}
-
-	sort.Sort(sort.Reverse(res))
-	return res
 }

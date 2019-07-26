@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,9 +9,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-
-	//"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 func TestPosetClassicRoots(t *testing.T) {
@@ -290,6 +286,8 @@ func decode(name string) (frameN idx.Frame, isRoot bool) {
 	return
 }
 
+/*
+// codegen4PosetRandomRoot is for test data generation.
 func codegen4PosetRandomRoot() {
 	nodes, events := inter.GenEventsByNode(4, 20, 2)
 
@@ -318,3 +316,4 @@ func codegen4PosetRandomRoot() {
 
 	fmt.Println(inter.DAGtoASCIIscheme(dag))
 }
+*/

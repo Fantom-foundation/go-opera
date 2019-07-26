@@ -78,13 +78,6 @@ func (hh heights) Exclude(excepts heights) heights {
 	return diff
 }
 
-func min(a, b idx.Event) idx.Event {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func max(a, b idx.Event) idx.Event {
 	if a > b {
 		return a

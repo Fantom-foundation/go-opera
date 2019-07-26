@@ -431,6 +431,8 @@ func TestStronglySeenRandom(t *testing.T) {
 	}
 }
 
+/*
+// codegen4StronglySeenStability is for test data generation.
 func codegen4StronglySeenStability() {
 	peers, events := inter.GenEventsByNode(4, 20, 2)
 
@@ -487,3 +489,4 @@ func codegen4StronglySeenStability() {
 	}
 	fmt.Printf("}\n")
 }
+*/
