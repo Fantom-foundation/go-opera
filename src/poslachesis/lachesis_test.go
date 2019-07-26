@@ -19,7 +19,7 @@ func TestRing(t *testing.T) {
 	ll := LachesisNetworkRing(5)
 
 	if !testing.Short() {
-		time.Sleep(60 * time.Second)
+		time.Sleep(10 * time.Second)
 	} else {
 		time.Sleep(1 * time.Second)
 	}
@@ -37,7 +37,7 @@ func TestStar(t *testing.T) {
 	ll := LachesisNetworkStar(5)
 
 	if !testing.Short() {
-		time.Sleep(60 * time.Second)
+		time.Sleep(10 * time.Second)
 	} else {
 		time.Sleep(1 * time.Second)
 	}

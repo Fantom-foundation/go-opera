@@ -21,6 +21,36 @@ type gossip struct {
 	tickets chan struct{}
 
 	sync.Mutex
+	wg sync.WaitGroup
+}
+
+func (g *gossip) initTickets(threads int) bool {
+	g.Lock()
+	defer g.Unlock()
+
+	if g.tickets != nil {
+		return false
+	}
+
+	g.tickets = make(chan struct{}, threads)
+	for i := 0; i < threads; i++ {
+		g.tickets <- struct{}{}
+	}
+	return true
+}
+
+func (g *gossip) closeTickets() bool {
+	g.Lock()
+	defer g.Unlock()
+
+	if g.tickets == nil {
+		return false
+	}
+
+	close(g.tickets)
+	g.tickets = nil
+
+	return true
 }
 
 func (g *gossip) freeTicket() {
@@ -34,20 +64,12 @@ func (g *gossip) freeTicket() {
 
 // StartGossip starts gossiping.
 func (n *Node) StartGossip(threads int) {
-	n.gossip.Lock()
-	defer n.gossip.Unlock()
-
-	if n.gossip.tickets != nil {
+	if !n.gossip.initTickets(threads) {
 		return
 	}
 
 	n.initLasts()
 	n.initPeers()
-
-	n.gossip.tickets = make(chan struct{}, threads)
-	for i := 0; i < threads; i++ {
-		n.gossip.tickets <- struct{}{}
-	}
 
 	go n.gossiping(n.gossip.tickets)
 
@@ -56,35 +78,33 @@ func (n *Node) StartGossip(threads int) {
 
 // StopGossip stops gossiping.
 func (n *Node) StopGossip() {
-	n.gossip.Lock()
-	defer n.gossip.Unlock()
-
-	if n.gossip.tickets == nil {
+	if !n.gossip.closeTickets() {
 		return
 	}
-
-	close(n.gossip.tickets)
-	n.gossip.tickets = nil
-
+	n.gossip.wg.Wait()
 	n.Info("gossip stopped")
 }
 
 // gossiping is a infinity gossip process.
 func (n *Node) gossiping(tickets chan struct{}) {
+
 	for range tickets {
+		n.gossip.wg.Add(1)
 		go func() {
+			defer n.gossip.wg.Done()
 			defer n.gossip.freeTicket()
+
 			peer := n.NextForGossip()
-			if peer != nil {
-				defer n.FreePeer(peer)
-				n.syncWithPeer(peer)
-			} else {
+			if peer == nil {
 				n.Warn("no candidate for gossip")
+				time.Sleep(gossipIdle)
+				return
 			}
-			time.Sleep(gossipIdle)
+			defer n.FreePeer(peer)
+
+			n.syncWithPeer(peer)
 		}()
 	}
-
 }
 
 func (n *Node) syncWithPeer(peer *Peer) {
