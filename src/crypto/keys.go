@@ -41,7 +41,8 @@ func (key *PrivateKey) Sign(hash []byte) ([]byte, error) {
 	return Sign(hash, key)
 }
 
-// Deprecated. Sign signs with key. Unrecoverable.
+// SignRaw signs with key. Unrecoverable.
+// NOTE: deprecated.
 func (key *PrivateKey) SignRaw(hash []byte) (r, s *big.Int, err error) {
 	return ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(key), hash)
 }
@@ -53,14 +54,15 @@ func (key *PrivateKey) WriteTo(w io.Writer) error {
 }
 
 // Bytes (ETH format) exports a private key into a binary dump.
-func (priv *PrivateKey) Bytes() []byte {
-	if priv == nil {
+func (key *PrivateKey) Bytes() []byte {
+	if key == nil {
 		return nil
 	}
-	return utils.PaddedBigBytes(priv.D, priv.Params().BitSize/8)
+	return utils.PaddedBigBytes(key.D, key.Params().BitSize/8)
 }
 
-// Deprecated. Verify verifies the signatures.
+// VerifyRaw verifies the signatures.
+// NOTE: deprecated.
 func (pub *PublicKey) VerifyRaw(hash []byte, r, s *big.Int) bool {
 	return ecdsa.Verify((*ecdsa.PublicKey)(pub), hash, r, s)
 }
@@ -116,25 +118,25 @@ func ReadKey(r io.Reader) (*PrivateKey, error) {
 // SetBytes (ETH format) creates a private key with the given D value. The strict parameter
 // controls whether the key's length should be enforced at the curve size or
 // it can also accept legacy encodings (0 prefixes).
-func (priv *PrivateKey) SetBytes(d []byte, strict bool) (*PrivateKey, error) {
-	priv.PublicKey.Curve = S256()
-	if strict && 8*len(d) != priv.Params().BitSize {
-		return nil, fmt.Errorf("invalid length, need %d bits", priv.Params().BitSize)
+func (key *PrivateKey) SetBytes(d []byte, strict bool) (*PrivateKey, error) {
+	key.PublicKey.Curve = S256()
+	if strict && 8*len(d) != key.Params().BitSize {
+		return nil, fmt.Errorf("invalid length, need %d bits", key.Params().BitSize)
 	}
-	priv.D = new(big.Int).SetBytes(d)
+	key.D = new(big.Int).SetBytes(d)
 
 	// The priv.D must < N
-	if priv.D.Cmp(secp256k1N) >= 0 {
+	if key.D.Cmp(secp256k1N) >= 0 {
 		return nil, fmt.Errorf("invalid private key, >=N")
 	}
 	// The priv.D must not be zero or negative.
-	if priv.D.Sign() <= 0 {
+	if key.D.Sign() <= 0 {
 		return nil, fmt.Errorf("invalid private key, zero or negative")
 	}
 
-	priv.PublicKey.X, priv.PublicKey.Y = priv.PublicKey.Curve.ScalarBaseMult(d)
-	if priv.PublicKey.X == nil {
+	key.PublicKey.X, key.PublicKey.Y = key.PublicKey.Curve.ScalarBaseMult(d)
+	if key.PublicKey.X == nil {
 		return nil, errors.New("invalid private key")
 	}
-	return priv, nil
+	return key, nil
 }

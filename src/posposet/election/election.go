@@ -12,6 +12,7 @@ import (
 //const coinRound = 10 // every 10th round is a round with pseudorandom votes
 
 type (
+	// Election cached data of election algorithm.
 	Election struct {
 		// election params
 		frameToDecide idx.Frame
@@ -29,18 +30,19 @@ type (
 		logger.Instance
 	}
 
-	// @return hash of root B, if root A strongly sees root B.
+	// RootStronglySeeRootFn returns hash of root B, if root A strongly sees root B.
 	// Due to a fork, there may be many roots B with the same slot,
 	// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
 	RootStronglySeeRootFn func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event
 
-	// specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
+	// Slot specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
 	Slot struct {
 		Frame idx.Frame
 		Addr  hash.Peer
 	}
 
+	// RootAndSlot specifies concrete root of slot.
 	RootAndSlot struct {
 		Root hash.Event
 		Slot Slot

@@ -26,8 +26,8 @@ func (cp *checkpoint) ToWire() *wire.Checkpoint {
 	}
 }
 
-// WireToCheckpoint converts from wire.
-func WireToCheckpoint(w *wire.Checkpoint) *checkpoint {
+// wireToCheckpoint converts from wire.
+func wireToCheckpoint(w *wire.Checkpoint) *checkpoint {
 	if w == nil {
 		return nil
 	}

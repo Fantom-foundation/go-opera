@@ -6,12 +6,14 @@ import (
 	"strings"
 )
 
-// Deprecated. RawEncodeSignature string print
+// RawEncodeSignature encodes signature to string.
+// NOTE: deprecated.
 func RawEncodeSignature(r, s *big.Int) string {
 	return fmt.Sprintf("%s|%s", r.Text(36), s.Text(36))
 }
 
-// Deprecated. RawEncodeSignature decode signature from string
+// RawDecodeSignature decodes signature from string.
+// NOTE: deprecated.
 func RawDecodeSignature(sign string) (r, s *big.Int, err error) {
 	values := strings.Split(sign, "|")
 	if len(values) != 2 {

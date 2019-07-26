@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// SuperFrameLen is a count of FW per super-frame.
 	SuperFrameLen int = 100
 
 	firstFrame = idx.Frame(1)
@@ -32,6 +33,7 @@ type superFrame struct {
 	strongly *seeing.Strongly
 }
 
+// ToWire converts to protobuf message.
 func (sf *superFrame) ToWire() *wire.SuperFrame {
 	return &wire.SuperFrame{
 		Balances: sf.balances.Bytes(),
@@ -39,7 +41,8 @@ func (sf *superFrame) ToWire() *wire.SuperFrame {
 	}
 }
 
-func WireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
+// wireToSuperFrame converts from protobuf message.
+func wireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 	if w == nil {
 		return
 	}
@@ -113,11 +116,11 @@ func (p *Poset) nextSuperFrame() {
 	p.strongly.Reset()
 	p.election.Reset(p.members, firstFrame)
 
-	p.SuperFrameN += 1
+	p.SuperFrameN++
 	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
 }
 
-// CurrentSuperFrame returns current SuperFrameN to 3rd party.
+// CurrentSuperFrameN returns current super-frame num to 3rd party.
 func (p *Poset) CurrentSuperFrameN() idx.SuperFrame {
 	return idx.SuperFrame(atomic.LoadUint64((*uint64)(&p.SuperFrameN)))
 }

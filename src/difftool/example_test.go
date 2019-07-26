@@ -1,7 +1,6 @@
 package difftool
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,9 +10,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/node"
 )
 
-// deprecated_Example illustrates nodes comparing.
-func deprecated_Example() {
-	return // NOTE: deprecated
+/*
+// Example illustrates nodes comparing.
+func Example() {
 	logger := logrus.New()
 	logger.Level = logrus.FatalLevel
 
@@ -38,6 +37,7 @@ func deprecated_Example() {
 	// Output:
 	// all good
 }
+*/
 
 func TestNodeDiff(t *testing.T) {
 	t.Skip("Skip TestNodeDiff until block production is fixed")

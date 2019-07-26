@@ -43,6 +43,7 @@ func (ee Events) Less(i, j int) bool {
 			a.LamportTime == b.LamportTime && bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0))
 }
 
+// UnWrap extracts inter.Event.
 func (ee Events) UnWrap() inter.Events {
 	res := make(inter.Events, len(ee))
 	for i, e := range ee {

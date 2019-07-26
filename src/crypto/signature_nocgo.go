@@ -54,7 +54,7 @@ func Sign(hashToSign []byte, prv *PrivateKey) ([]byte, error) {
 	return sig, nil
 }
 
-// VerifySignature_pk checks that the given public key created signature over hash.
+// VerifySignature checks that the given public key created signature over hash.
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
 // The signature should have the 64 byte [R || S] format.
 func VerifySignature(pubkey, signedHash, signature []byte) bool {

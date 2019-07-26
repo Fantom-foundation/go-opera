@@ -238,7 +238,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 }
 
 func (p *Poset) superFrameSealed(sfWitness hash.Event) bool {
-	p.sfWitnessCount += 1
+	p.sfWitnessCount++
 	if p.sfWitnessCount < SuperFrameLen {
 		return false
 	}

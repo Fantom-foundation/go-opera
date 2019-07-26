@@ -28,5 +28,5 @@ func (s *Store) SetCheckpoint(cp *checkpoint) {
 func (s *Store) GetCheckpoint() *checkpoint {
 	const key = "current"
 	w, _ := s.get(s.table.Checkpoint, []byte(key), &wire.Checkpoint{}).(*wire.Checkpoint)
-	return WireToCheckpoint(w)
+	return wireToCheckpoint(w)
 }

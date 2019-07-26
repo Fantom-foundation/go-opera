@@ -51,8 +51,8 @@ func (hh heights) ToWire() map[string]uint64 {
 	return w
 }
 
-// WireToHeights only interval.to.
-func WireToHeights(w map[string]uint64) heights {
+// wireToHeights only interval.to.
+func wireToHeights(w map[string]uint64) heights {
 	res := make(heights, len(w))
 	for hex, h := range w {
 		id := hash.HexToPeer(hex)

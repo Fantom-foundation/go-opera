@@ -240,7 +240,7 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer, sf idx.Supe
 		}
 	}
 
-	lasts := WireToHeights(resp.Lasts)
+	lasts := wireToHeights(resp.Lasts)
 
 	res := lasts.Exclude(knowns)
 

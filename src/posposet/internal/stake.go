@@ -19,6 +19,7 @@ type (
 	}
 )
 
+// NewCounter constructor.
 func (mm Members) NewCounter() *StakeCounter {
 	return newStakeCounter(mm)
 }
@@ -32,6 +33,7 @@ func newStakeCounter(mm Members) *StakeCounter {
 	}
 }
 
+// Count member and return true if it hadn't counted before.
 func (s *StakeCounter) Count(node hash.Peer) bool {
 	if _, ok := s.already[node]; ok {
 		return false
@@ -42,10 +44,12 @@ func (s *StakeCounter) Count(node hash.Peer) bool {
 	return true
 }
 
+// HasQuorum achieved.
 func (s *StakeCounter) HasQuorum() bool {
 	return s.sum >= s.quorum
 }
 
+// Sum of counted stakes.
 func (s *StakeCounter) Sum() inter.Stake {
 	return s.sum
 }
