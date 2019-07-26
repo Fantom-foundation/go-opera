@@ -18,44 +18,40 @@ type (
 
 	// parents is a potential parent events cache.
 	parents struct {
+		sfNum idx.SuperFrame
 		cache map[hash.Event]*parent
 		sync.RWMutex
 	}
 )
 
 func (n *Node) initParents() {
-	n.initSuperFrame()
+	n.initLasts()
 
-	const loadDeep idx.Event = 10
+	sf := n.currentSuperFrame()
+	if n.parents.cache == nil {
+		n.loadPotentialParents(sf)
+	}
+}
 
+func (n *Node) loadPotentialParents(sf idx.SuperFrame) {
 	n.parents.Lock()
 	defer n.parents.Unlock()
 
-	if n.parents.cache != nil {
-		return
-	}
 	n.parents.cache = make(map[hash.Event]*parent)
 
-	sf := n.currentSuperFrame()
-
-	// load some parents from store
-	for _, peer := range n.peers.Snapshot() {
-		to := n.store.GetPeerHeight(peer, sf)
-		from := idx.Event(1)
-		if (from + loadDeep) <= to {
-			from -= loadDeep
-		}
-		for i := from; i <= to; i++ {
+	for peer, height := range n.superFrame.lasts {
+		for i := idx.Event(1); i <= height; i++ {
 			e := n.EventOf(peer, sf, i)
 			val := inter.Stake(1)
 			if n.consensus != nil {
 				val = n.consensus.StakeOf(e.Creator)
 			}
+			// faster than n.parents.Push()
 			n.parents.cache[e.Hash()] = &parent{
 				Creator: e.Creator,
 				Parents: e.Parents,
 				Value:   val,
-				Last:    i == to,
+				Last:    i == height,
 			}
 		}
 	}
@@ -66,6 +62,11 @@ func (n *Node) initParents() {
 // Parents should be pushed first ( see posposet/Poset.onNewEvent() ).
 func (n *Node) pushPotentialParent(e *inter.Event) {
 	if e.Creator == n.ID {
+		return
+	}
+
+	sf := n.currentSuperFrame()
+	if e.SfNum != sf {
 		return
 	}
 

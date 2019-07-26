@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
@@ -15,13 +16,12 @@ type superFrame struct {
 	sync.RWMutex
 }
 
-func (n *Node) initSuperFrame() {
-	if n.superFrame.lasts != nil {
-		return
+func (n *Node) initLasts() {
+	sf := n.currentSuperFrame()
+	if n.superFrame.lasts == nil {
+		n.loadLasts(sf)
 	}
 
-	n.superFrame.Num = n.currentSuperFrame()
-	n.superFrame.lasts = n.store.GetAllPeerHeight(n.superFrame.Num)
 }
 
 func (n *Node) currentSuperFrame() idx.SuperFrame {
@@ -34,14 +34,31 @@ func (n *Node) currentSuperFrame() idx.SuperFrame {
 		return n.superFrame.Num
 	}
 
+	n.switchToSF(sf)
+	return sf
+}
+
+func (n *Node) switchToSF(sf idx.SuperFrame) {
 	n.superFrame.Lock()
 	defer n.superFrame.Unlock()
 
 	n.superFrame.Num = sf
 
-	// reset all
+	n.loadLasts(sf)
+	n.loadPotentialParents(sf)
+}
 
-	n.superFrame.lasts = make(map[hash.Peer]idx.Event)
+func (n *Node) loadLasts(sf idx.SuperFrame) {
+	n.superFrame.lasts = n.store.GetAllPeerHeight(sf)
+}
 
-	return sf
+func (n *Node) setLast(e *inter.Event) {
+	n.superFrame.Lock()
+	defer n.superFrame.Unlock()
+
+	sf := n.currentSuperFrame()
+
+	if e.SfNum == sf {
+		n.superFrame.lasts[e.Creator] = e.Seq
+	}
 }

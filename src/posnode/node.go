@@ -101,11 +101,12 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 
 	n.store.SetEvent(e)
 	n.store.SetEventHash(e.Creator, e.SfNum, e.Seq, e.Hash())
-	n.store.SetPeerHeight(e.Creator, e.SfNum, e.Seq)
 	// NOTE: doubled txns from evil event could override existing index!
 	// TODO: decision
 	n.store.SetTxnsEvent(e.Hash(), e.Creator, e.InternalTransactions...)
 
+	n.store.SetPeerHeight(e.Creator, e.SfNum, e.Seq)
+	n.setLast(e)
 	n.pushPotentialParent(e)
 
 	if n.consensus != nil {

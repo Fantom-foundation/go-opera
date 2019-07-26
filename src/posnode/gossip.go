@@ -41,7 +41,7 @@ func (n *Node) StartGossip(threads int) {
 		return
 	}
 
-	n.initSuperFrame()
+	n.initLasts()
 	n.initPeers()
 
 	n.gossip.tickets = make(chan struct{}, threads)
