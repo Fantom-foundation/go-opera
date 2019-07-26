@@ -64,7 +64,7 @@ func TestForEach(t *testing.T) {
 					"":  len(prefix0) + len(prefix1),
 				} {
 					got := 0
-					t.ForEach([]byte(pref), func(key, val []byte) bool {
+					err := t.ForEach([]byte(pref), func(key, val []byte) bool {
 						got++
 						return assertar.Equal(
 							testData[string(key)],
@@ -72,6 +72,10 @@ func TestForEach(t *testing.T) {
 							name+": "+string(key),
 						)
 					})
+
+					if !assertar.NoError(err) {
+						return
+					}
 
 					if !assertar.Equal(count, got) {
 						return
