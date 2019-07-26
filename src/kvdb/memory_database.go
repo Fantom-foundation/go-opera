@@ -34,16 +34,17 @@ func NewMemDatabase() *MemDatabase {
 
 // NewTable returns a Database object that prefixes all keys with a given prefix.
 func (w *MemDatabase) NewTable(prefix []byte) Database {
-	p0 := common.CopyBytes(w.prefix)
+	base := common.CopyBytes(w.prefix)
 	return &MemDatabase{
 		db:     w.db,
-		prefix: append(append(p0, []byte("-")...), prefix...),
+		prefix: append(append(base, []byte("-")...), prefix...),
 		lock:   w.lock,
 	}
 }
 
 func (w *MemDatabase) fullKey(key []byte) []byte {
-	return append(append(w.prefix, separator...), key...)
+	base := common.CopyBytes(w.prefix)
+	return append(append(base, separator...), key...)
 }
 
 // Put puts key-value pair into db.

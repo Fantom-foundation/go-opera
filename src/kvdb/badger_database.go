@@ -29,15 +29,16 @@ func NewBadgerDatabase(db *badger.DB) *BadgerDatabase {
 
 // NewTable returns a Database object that prefixes all keys with a given prefix.
 func (w *BadgerDatabase) NewTable(prefix []byte) Database {
-	p0 := common.CopyBytes(w.prefix)
+	base := common.CopyBytes(w.prefix)
 	return &BadgerDatabase{
 		db:     w.db,
-		prefix: append(append(p0, []byte("-")...), prefix...),
+		prefix: append(append(base, []byte("-")...), prefix...),
 	}
 }
 
 func (w *BadgerDatabase) fullKey(key []byte) []byte {
-	return append(append(w.prefix, separator...), key...)
+	base := common.CopyBytes(w.prefix)
+	return append(append(base, separator...), key...)
 }
 
 // Put puts key-value pair into db.
