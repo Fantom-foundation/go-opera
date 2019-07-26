@@ -149,12 +149,11 @@ func (n *Node) PeerReadyForReq(host string) bool {
 
 	attr := n.peers.attrByHost(host)
 
-	//timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
+	timeout := time.Now().Add(-n.conf.DiscoveryTimeout)
 	errtimeout := time.Now().Add(-2 * n.conf.DiscoveryTimeout)
 
 	return attr == nil ||
-		(!attr.LastFail.After(attr.LastSuccess) || attr.LastFail.Before(errtimeout))
-	// TODO: restore discovery throttling with '&& attr.LastSuccess.Before(timeout))'
+		(!attr.LastFail.After(attr.LastSuccess) || attr.LastFail.Before(errtimeout)) && attr.LastSuccess.Before(timeout)
 }
 
 // PeerUnknown returns true if peer should be discovered.

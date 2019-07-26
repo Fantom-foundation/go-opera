@@ -225,7 +225,6 @@ func (n *Node) compareKnownEvents(client api.NodeClient, peer *Peer, sf idx.Supe
 
 	n.Debugf("DIFF %s between %s and %s", res.String(), peer.ID.String(), n.ID.String())
 
-	n.gossipSuccess(peer)
 	return res, nil
 }
 
