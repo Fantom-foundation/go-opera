@@ -19,6 +19,7 @@ type emitter struct {
 	last time.Time
 	sync.RWMutex
 	done chan struct{}
+	wg   sync.WaitGroup
 }
 
 // StartEventEmission starts event emission.
@@ -30,7 +31,10 @@ func (n *Node) StartEventEmission() {
 
 	n.initParents()
 
-	go func(done chan struct{}) {
+	done := n.emitter.done
+	n.emitter.wg.Add(1)
+	go func() {
+		defer n.emitter.wg.Done()
 		ticker := time.NewTicker(n.conf.MinEmitInterval)
 		for {
 			select {
@@ -40,7 +44,7 @@ func (n *Node) StartEventEmission() {
 				return
 			}
 		}
-	}(n.emitter.done)
+	}()
 }
 
 // StopEventEmission stops event emission.
@@ -51,6 +55,7 @@ func (n *Node) StopEventEmission() {
 
 	close(n.emitter.done)
 	n.emitter.done = nil
+	n.emitter.wg.Wait()
 }
 
 func (n *Node) internalTxnMempool(idx hash.Transaction) *inter.InternalTransaction {
