@@ -95,8 +95,8 @@ func NewInmemStore(participants *peers.Peers, cacheSize int, posConf *pos.Config
 		lastBlock:              -1,
 		lastConsensusEvents:    map[string]EventHash{},
 		states: state.NewDatabase(
-			kvdb.NewTable(
-				kvdb.NewMemDatabase(), statePrefix)),
+			kvdb.NewMemDatabase().
+				NewTable([]byte(statePrefix))),
 	}
 
 	participants.OnNewPeer(func(peer *peers.Peer) {

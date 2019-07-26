@@ -101,8 +101,8 @@ func makeStorages(db *bbolt.DB) (*posnode.Store, *posposet.Store) {
 		cached = false
 	} else {
 		db := kvdb.NewBoltDatabase(db)
-		p = kvdb.NewTable(db, "p_")
-		n = kvdb.NewTable(db, "n_")
+		p = db.NewTable([]byte("p_"))
+		n = db.NewTable([]byte("n_"))
 		cached = true
 	}
 

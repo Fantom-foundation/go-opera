@@ -12,7 +12,7 @@ func MigrateTables(s interface{}, db Database) {
 			field := value.Field(i)
 			var val reflect.Value
 			if db != nil {
-				table := NewTable(db, prefix)
+				table := db.NewTable([]byte(prefix))
 				val = reflect.ValueOf(table)
 			} else {
 				val = reflect.Zero(field.Type())

@@ -16,10 +16,12 @@ type Deleter interface {
 
 // Database wraps all database operations. All methods are safe for concurrent use.
 type Database interface {
+	NewTable(prefix []byte) Database
 	Putter
 	Deleter
 	Get(key []byte) ([]byte, error)
 	Has(key []byte) (bool, error)
+	ForEach(prefix []byte, do func(key, val []byte) bool) error
 	Close()
 	NewBatch() Batch
 }

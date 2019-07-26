@@ -53,6 +53,9 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 			CurrentSuperFrameN().
 			Return(idx.SuperFrame(1)).
 			AnyTimes()
+		consensus.EXPECT().
+			PushEvent(gomock.Any()).
+			AnyTimes()
 
 		store := NewMemStore()
 		node := NewForTests(dsc, store, consensus)
@@ -60,6 +63,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 		defer node.Stop()
 
 		expected := ASCIIschemeToDAG(node, consensus, schema)
+
 		for n, expect := range expected {
 			parent := node.parents.PopBest()
 			if !assertar.NotNil(parent, "step %d", n) {
@@ -76,7 +80,9 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 }
 
 func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []string) {
-	_, _, events := inter.ASCIIschemeToDAG(schema)
+	_, _, events := inter.ASCIIschemeToDAG(schema, func(e *inter.Event, nn []hash.Peer) {
+		e.SfNum = c.CurrentSuperFrameN()
+	})
 
 	weights := make(map[hash.Peer]inter.Stake)
 	for name, e := range events {
@@ -87,9 +93,6 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 		}
 	}
 
-	c.EXPECT().
-		PushEvent(gomock.Any()).
-		AnyTimes()
 	c.EXPECT().
 		StakeOf(gomock.Any()).
 		DoAndReturn(func(p hash.Peer) inter.Stake {

@@ -15,7 +15,10 @@ import (
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
-func ASCIIschemeToDAG(scheme string) (
+func ASCIIschemeToDAG(
+	scheme string,
+	mods ...func(*Event, []hash.Peer),
+) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*Event,
 	names map[string]*Event,
@@ -137,14 +140,19 @@ func ASCIIschemeToDAG(scheme string) (
 					maxLamport = parent.LamportTime
 				}
 			}
-			// save event
+			// new event
 			e := &Event{
-				Seq:       index,
+				Seq:         index,
 				Creator:     creator,
 				SelfParent:  selfParent,
 				Parents:     parents,
 				LamportTime: maxLamport + 1,
 			}
+			// apply mods
+			for _, mod := range mods {
+				mod(e, nodes)
+			}
+			// save event
 			events[creator] = append(events[creator], e)
 			names[name] = e
 			hash.SetEventName(e.Hash(), name)

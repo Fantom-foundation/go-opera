@@ -20,10 +20,3 @@ type Consensus interface {
 	// SuperFrameMembers returns members of n super-frame.
 	SuperFrameMembers(n idx.SuperFrame) []hash.Peer
 }
-
-func (n *Node) superFrame() idx.SuperFrame {
-	if n.consensus == nil {
-		return idx.SuperFrame(0)
-	}
-	return n.consensus.CurrentSuperFrameN()
-}

@@ -26,6 +26,8 @@ func (n *Node) StartService() {
 		return
 	}
 
+	n.initLasts()
+
 	if n.service.listen == nil {
 		n.service.listen = network.TCPListener
 	}

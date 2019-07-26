@@ -83,7 +83,7 @@ func (s *Store) GetTopPeers() []hash.Peer {
 
 // SetPeerHeight stores last event index of peer.
 func (s *Store) SetPeerHeight(id hash.Peer, sf idx.SuperFrame, height idx.Event) {
-	key := append(id.Bytes(), sf.Bytes()...)
+	key := append(sf.Bytes(), id.Bytes()...)
 
 	if err := s.table.PeerHeights.Put(key, height.Bytes()); err != nil {
 		s.Fatal(err)
@@ -92,7 +92,7 @@ func (s *Store) SetPeerHeight(id hash.Peer, sf idx.SuperFrame, height idx.Event)
 
 // GetPeerHeight returns last event index of peer.
 func (s *Store) GetPeerHeight(id hash.Peer, sf idx.SuperFrame) idx.Event {
-	key := append(id.Bytes(), sf.Bytes()...)
+	key := append(sf.Bytes(), id.Bytes()...)
 
 	buf, err := s.table.PeerHeights.Get(key)
 	if err != nil {
@@ -103,4 +103,22 @@ func (s *Store) GetPeerHeight(id hash.Peer, sf idx.SuperFrame) idx.Event {
 	}
 
 	return idx.BytesToEvent(buf)
+}
+
+// GetAllPeerHeight returns last event index of all peers.
+func (s *Store) GetAllPeerHeight(sf idx.SuperFrame) map[hash.Peer]idx.Event {
+	res := make(map[hash.Peer]idx.Event)
+
+	prefix := sf.Bytes()
+	err := s.table.PeerHeights.ForEach(prefix, func(k, v []byte) bool {
+		peer := hash.BytesToPeer(k[len(prefix):])
+		height := idx.BytesToEvent(v)
+		res[peer] = height
+		return true
+	})
+	if err != nil {
+		s.Fatal(err)
+	}
+
+	return res
 }

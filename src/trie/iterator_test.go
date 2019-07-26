@@ -108,7 +108,7 @@ func TestNodeIteratorCoverage(t *testing.T) {
 			}
 		}
 	}
-	for _, key := range db.diskdb.(*kvdb.MemDatabase).Keys() {
+	for _, key := range dbKeys(db.diskdb) {
 		if _, ok := hashes[hash.FromBytes(key)]; !ok {
 			t.Errorf("state entry not reported %x", key)
 		}
@@ -315,7 +315,7 @@ func testIteratorContinueAfterError(t *testing.T, memoryOnly bool) {
 	if memoryOnly {
 		memKeys = triedb.Nodes()
 	} else {
-		diskKeys = diskdb.Keys()
+		diskKeys = dbKeys(diskdb)
 	}
 	for i := 0; i < 20; i++ {
 		// Create trie that will load all nodes from DB.

@@ -47,7 +47,8 @@ func NewStore(db kvdb.Database, cached bool) *Store {
 	}
 
 	kvdb.MigrateTables(&s.table, s.physicalDB)
-	s.table.Balances = state.NewDatabase(kvdb.NewTable(s.physicalDB, "balance_"))
+	s.table.Balances = state.NewDatabase(
+		s.physicalDB.NewTable([]byte("balance_")))
 
 	if cached {
 		kvdb.MigrateCaches(&s.cache, func() interface{} {
