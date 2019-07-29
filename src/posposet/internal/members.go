@@ -20,18 +20,22 @@ type (
 func (mm *Members) Add(addr hash.Peer, stake inter.Stake) {
 	(*mm)[addr] = stake
 }
-
-// Top gets top subset.
-func (mm Members) Top() Members {
-	top := make(members, 0, len(mm))
+func (mm Members) sortedArray() members {
+	array := make(members, 0, len(mm))
 	for n, s := range mm {
-		top = append(top, member{
+		array = append(array, member{
 			Addr:  n,
 			Stake: s,
 		})
 	}
+	sort.Sort(array)
+	return array
+}
 
-	sort.Sort(top)
+// Top gets top subset.
+func (mm Members) Top() Members {
+	top := mm.sortedArray()
+
 	if len(top) > MembersCount {
 		top = top[:MembersCount]
 	}
@@ -44,13 +48,11 @@ func (mm Members) Top() Members {
 	return res
 }
 
-// Non-deterministic total order of members.
+// Deterministic total order of members.
 func (mm Members) Idxs() map[hash.Peer]idx.Member {
 	idxs := make(map[hash.Peer]idx.Member, len(mm))
-	i := idx.Member(0)
-	for m := range mm {
-		idxs[m] = i
-		i += 1
+	for i, m := range mm.sortedArray() {
+		idxs[m.Addr] = idx.Member(i)
 	}
 	return idxs
 }
