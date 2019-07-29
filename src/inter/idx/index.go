@@ -55,6 +55,15 @@ func BytesToEvent(b []byte) Event {
 	return res
 }
 
+// BytesToMember converts bytes to member index.
+func BytesToMember(b []byte) Member {
+	var res Member
+	for i := 0; i < len(b); i++ {
+		res += Member(b[i]) << uint(i*8)
+	}
+	return res
+}
+
 // BytesToTxn converts bytes to transaction index.
 func BytesToTxn(b []byte) Txn {
 	var res Txn

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -41,6 +42,17 @@ func (mm Members) Top() Members {
 	}
 
 	return res
+}
+
+// Non-deterministic total order of members.
+func (mm Members) Idxs() map[hash.Peer]idx.Member {
+	idxs := make(map[hash.Peer]idx.Member, len(mm))
+	i := idx.Member(0)
+	for m := range mm {
+		idxs[m] = i
+		i += 1
+	}
+	return idxs
 }
 
 // Quorum limit of members.

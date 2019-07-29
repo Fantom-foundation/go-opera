@@ -2,7 +2,6 @@ package vectorindex
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"strconv"
 	"strings"
 	"testing"
@@ -68,14 +67,12 @@ func testStronglySeen(t *testing.T, dag string) {
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
-	membersIdx := make(map[hash.Peer]idx.Member, len(peers))
 	members := make(internal.Members, len(peers))
-	for i, peer := range peers {
+	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
-		membersIdx[peer] = idx.Member(i)
 	}
 
-	vi := New(members.NewCounter, membersIdx)
+	vi := New(members.NewCounter, members.Idxs())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -390,14 +387,12 @@ func TestStronglySeenRandom(t *testing.T) {
 	}
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
-	membersIdx := make(map[hash.Peer]idx.Member, len(peers))
 	members := make(internal.Members, len(peers))
-	for i, peer := range peers {
+	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
-		membersIdx[peer] = idx.Member(i)
 	}
 
-	vi := New(members.NewCounter, membersIdx)
+	vi := New(members.NewCounter, members.Idxs())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
