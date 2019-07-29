@@ -1,4 +1,4 @@
-package seeing
+package vectorindex
 
 import (
 	"fmt"
@@ -72,14 +72,14 @@ func testStronglySeen(t *testing.T, dag string) {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	ss := New(members.NewCounter)
+	vi := New(members.NewCounter)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			ss.Cache(e)
+			vi.Cache(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -106,7 +106,7 @@ func testStronglySeen(t *testing.T, dag string) {
 			whom := ev.Hash()
 			if !assertar.Equal(
 				bylevel > 0 && bylevel <= level,
-				ss.See(who, whom),
+				vi.StronglySee(who, whom),
 				fmt.Sprintf("%s strongly sees %s", who.String(), whom.String()),
 			) {
 				return
@@ -392,14 +392,14 @@ func TestStronglySeenRandom(t *testing.T) {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	ss := New(members.NewCounter)
+	vi := New(members.NewCounter)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			ss.Cache(e)
+			vi.Cache(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -422,7 +422,7 @@ func TestStronglySeenRandom(t *testing.T) {
 			_, expect := relations[e1name][e2name]
 			if !assertar.Equal(
 				expect,
-				ss.See(e1.Hash(), e2.Hash()),
+				vi.StronglySee(e1.Hash(), e2.Hash()),
 				fmt.Sprintf("%s strongly sees %s", e1.Hash(), e2.Hash()),
 			) {
 				return
@@ -448,7 +448,7 @@ func codegen4StronglySeenStability() {
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			ss.Cache(e)
+			vi.Cache(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -480,7 +480,7 @@ func codegen4StronglySeenStability() {
 	for _, e1 := range dag {
 		sees := fmt.Sprintf("\"%s\": map[string]struct{}{", e1.Hash())
 		for _, e2 := range dag {
-			if ss.See(e1.Hash(), e2.Hash()) {
+			if vi.See(e1.Hash(), e2.Hash()) {
 				sees = sees + fmt.Sprintf("\"%s\":{},", e2.Hash())
 			}
 		}

@@ -1,4 +1,4 @@
-package seeing
+package vectorindex
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"

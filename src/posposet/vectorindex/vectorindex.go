@@ -1,4 +1,4 @@
-package seeing
+package vectorindex
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -12,8 +12,8 @@ const (
 	nodeCount = 512
 )
 
-// Strongly is a datas to detect strongly-see condition.
-type Strongly struct {
+// Vindex is a data to detect strongly-see condition, calculate median timestamp, detect forks.
+type Vindex struct {
 	newCounter internal.StakeCounterProvider
 	nodes      map[hash.Peer]int
 	events     map[hash.Event]*Event
@@ -21,54 +21,54 @@ type Strongly struct {
 	logger.Instance
 }
 
-// New creates Strongly instance.
-func New(c internal.StakeCounterProvider) *Strongly {
-	ss := &Strongly{
+// New creates Vindex instance.
+func New(c internal.StakeCounterProvider) *Vindex {
+	vi := &Vindex{
 		newCounter: c,
 		Instance:   logger.MakeInstance(),
 	}
-	ss.Reset()
+	vi.Reset()
 
-	return ss
+	return vi
 }
 
 // Reset resets buffers.
-func (ss *Strongly) Reset() {
-	ss.nodes = make(map[hash.Peer]int, nodeCount)
-	ss.events = make(map[hash.Event]*Event)
+func (vi *Vindex) Reset() {
+	vi.nodes = make(map[hash.Peer]int, nodeCount)
+	vi.events = make(map[hash.Event]*Event)
 }
 
-// Cache event for Strongly.See.
-func (ss *Strongly) Cache(e *inter.Event) {
+// Cache event for Vindex.See.
+func (vi *Vindex) Cache(e *inter.Event) {
 	// sanity check
-	if _, ok := ss.events[e.Hash()]; ok {
-		ss.Fatalf("event %s already exists", e.Hash().String())
+	if _, ok := vi.events[e.Hash()]; ok {
+		vi.Fatalf("event %s already exists", e.Hash().String())
 		return
 	}
 
 	event := &Event{
 		Event:   e,
-		MemberN: ss.nodeIndex(e.Creator),
+		MemberN: vi.nodeIndex(e.Creator),
 	}
 
-	ss.fillEventRefs(event)
-	ss.events[e.Hash()] = event
+	vi.fillEventRefs(event)
+	vi.events[e.Hash()] = event
 }
 
-func (ss *Strongly) nodeIndex(n hash.Peer) int {
+func (vi *Vindex) nodeIndex(n hash.Peer) int {
 	var (
 		index int
 		ok    bool
 	)
-	if index, ok = ss.nodes[n]; !ok {
-		index = len(ss.nodes)
-		ss.nodes[n] = index
+	if index, ok = vi.nodes[n]; !ok {
+		index = len(vi.nodes)
+		vi.nodes[n] = index
 	}
 
 	return index
 }
 
-func (ss *Strongly) fillEventRefs(e *Event) {
+func (vi *Vindex) fillEventRefs(e *Event) {
 	e.LowestSees = make([]idx.Event, e.MemberN+1, nodeCount)
 	e.HighestSeen = make([]idx.Event, e.MemberN+1, nodeCount)
 
@@ -80,13 +80,13 @@ func (ss *Strongly) fillEventRefs(e *Event) {
 		if p.IsZero() {
 			continue
 		}
-		parent := ss.events[p]
-		ss.updateAllLowestSees(parent, e.MemberN, e.Seq)
-		ss.updateAllHighestSeen(e, parent)
+		parent := vi.events[p]
+		vi.updateAllLowestSees(parent, e.MemberN, e.Seq)
+		vi.updateAllHighestSeen(e, parent)
 	}
 }
 
-func (ss *Strongly) updateAllHighestSeen(e, parent *Event) {
+func (vi *Vindex) updateAllHighestSeen(e, parent *Event) {
 	for i, n := range parent.HighestSeen {
 		if getRef(&e.HighestSeen, i) < n {
 			e.HighestSeen[i] = n
@@ -94,7 +94,7 @@ func (ss *Strongly) updateAllHighestSeen(e, parent *Event) {
 	}
 }
 
-func (ss *Strongly) updateAllLowestSees(e *Event, node int, ref idx.Event) {
+func (vi *Vindex) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 	toUpdate := []*Event{e}
 	for {
 		var next []*Event
@@ -104,7 +104,7 @@ func (ss *Strongly) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 			}
 			for p := range event.Parents {
 				if !p.IsZero() {
-					next = append(next, ss.events[p])
+					next = append(next, vi.events[p])
 				}
 			}
 		}
@@ -125,7 +125,7 @@ func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 	return false
 }
 
-// See calculates "sufficient coherence" between the events.
+// StronglySee calculates "sufficient coherence" between the events.
 // The A.HighestSeen array remembers the sequence number of the last
 // event by each member that is an ancestor of A. The array for
 // B.LowestSees remembers the sequence number of the earliest
@@ -134,22 +134,22 @@ func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
 // than or equal to the corresponding element of the B.LowestSees
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
-func (ss *Strongly) See(aHash, bHash hash.Event) bool {
+func (vi *Vindex) StronglySee(aHash, bHash hash.Event) bool {
 	// get events by hash
-	a, ok := ss.events[aHash]
+	a, ok := vi.events[aHash]
 	if !ok {
 		return false
 	}
-	b, ok := ss.events[bHash]
+	b, ok := vi.events[bHash]
 	if !ok {
 		return false
 	}
 
-	yes := ss.newCounter()
-	no := ss.newCounter()
+	yes := vi.newCounter()
+	no := vi.newCounter()
 
 	// calculate strongly seeing using the indexes
-	for m, n := range ss.nodes {
+	for m, n := range vi.nodes {
 		bLowestSees := getRef(&b.LowestSees, n)
 		aHighestSeen := getRef(&a.HighestSeen, n)
 		if bLowestSees <= aHighestSeen && bLowestSees != 0 {

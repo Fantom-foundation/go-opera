@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/vectorindex"
 	"sync/atomic"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -9,7 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/seeing"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
@@ -30,7 +30,7 @@ type superFrame struct {
 	// election votes
 	election *election.Election
 
-	strongly *seeing.Strongly
+	vi *vectorindex.Vindex
 }
 
 // ToWire converts to protobuf message.
@@ -58,7 +58,7 @@ func wireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
 	p.nextMembers = p.members.Top()
-	p.strongly = seeing.New(p.members.NewCounter)
+	p.vi = vectorindex.New(p.members.NewCounter)
 	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
 	p.frames = make(map[idx.Frame]*Frame)
 
@@ -113,7 +113,7 @@ func (p *Poset) nextSuperFrame() {
 
 	p.frames = make(map[idx.Frame]*Frame)
 
-	p.strongly.Reset()
+	p.vi.Reset()
 	p.election.Reset(p.members, firstFrame)
 
 	p.SuperFrameN++
@@ -149,7 +149,7 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Fr
 	}
 
 	for b := range frame.Roots[bNode] {
-		if p.strongly.See(a, b) {
+		if p.vi.StronglySee(a, b) {
 			return &b
 		}
 	}
