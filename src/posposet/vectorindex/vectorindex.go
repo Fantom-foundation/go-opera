@@ -11,14 +11,14 @@ import (
 // Vindex is a data to detect strongly-see condition, calculate median timestamp, detect forks.
 type Vindex struct {
 	newCounter internal.StakeCounterProvider
-	memberIdxs  map[hash.Peer]int
+	memberIdxs  map[hash.Peer]idx.Member
 	events     map[hash.Event]*Event
 
 	logger.Instance
 }
 
 // New creates Vindex instance.
-func New(c internal.StakeCounterProvider, memberIdx map[hash.Peer]int) *Vindex {
+func New(c internal.StakeCounterProvider, memberIdx map[hash.Peer]idx.Member) *Vindex {
 	vi := &Vindex{
 		newCounter: c,
 		Instance:   logger.MakeInstance(),
@@ -29,7 +29,7 @@ func New(c internal.StakeCounterProvider, memberIdx map[hash.Peer]int) *Vindex {
 }
 
 // Reset resets buffers.
-func (vi *Vindex) Reset(memberIdx map[hash.Peer]int) {
+func (vi *Vindex) Reset(memberIdx map[hash.Peer]idx.Member) {
 	vi.memberIdxs = memberIdx
 	vi.events = make(map[hash.Event]*Event)
 }
@@ -44,24 +44,11 @@ func (vi *Vindex) Cache(e *inter.Event) {
 
 	event := &Event{
 		Event:   e,
-		MemberIdx: vi.nodeIndex(e.Creator),
+		MemberIdx: vi.memberIdxs[e.Creator],
 	}
 
 	vi.fillEventRefs(event)
 	vi.events[e.Hash()] = event
-}
-
-func (vi *Vindex) nodeIndex(n hash.Peer) int {
-	var (
-		index int
-		ok    bool
-	)
-	if index, ok = vi.memberIdxs[n]; !ok {
-		index = len(vi.memberIdxs)
-		vi.memberIdxs[n] = index
-	}
-
-	return index
 }
 
 func (vi *Vindex) fillEventRefs(e *Event) {
@@ -92,12 +79,12 @@ func (vi *Vindex) updateAllHighestBefore(e, parent *Event) {
 	}
 }
 
-func (vi *Vindex) updateAllLowestAfter(e *Event, node int, ref idx.Event) {
+func (vi *Vindex) updateAllLowestAfter(e *Event, member idx.Member, ref idx.Event) {
 	toUpdate := []*Event{e}
 	for {
 		var next []*Event
 		for _, event := range toUpdate {
-			if !setLowestAfterIfMin(event, node, ref) {
+			if !setLowestAfterIfMin(event, member, ref) {
 				continue
 			}
 			for p := range event.Parents {
@@ -114,10 +101,10 @@ func (vi *Vindex) updateAllLowestAfter(e *Event, node int, ref idx.Event) {
 	}
 }
 
-func setLowestAfterIfMin(e *Event, node int, ref idx.Event) bool {
-	curr := e.LowestAfter[node].Seq
+func setLowestAfterIfMin(e *Event, member idx.Member, ref idx.Event) bool {
+	curr := e.LowestAfter[member].Seq
 	if curr == 0 || curr > ref {
-		e.LowestAfter[node].Seq = ref
+		e.LowestAfter[member].Seq = ref
 		return true
 	}
 	return false

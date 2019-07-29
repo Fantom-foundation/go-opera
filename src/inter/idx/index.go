@@ -11,6 +11,9 @@ type (
 	// Event numeration.
 	Event uint64
 
+	// Member numeration.
+	Member uint64
+
 	// Txn numeration.
 	Txn uint64
 
@@ -26,6 +29,11 @@ func (sf SuperFrame) Bytes() []byte {
 // Bytes gets the byte representation of the index.
 func (e Event) Bytes() []byte {
 	return common.IntToBytes(uint64(e))
+}
+
+// Bytes gets the byte representation of the index.
+func (m Member) Bytes() []byte {
+	return common.IntToBytes(uint64(m))
 }
 
 // Bytes gets the byte representation of the index.
