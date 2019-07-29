@@ -1,16 +1,27 @@
 package vectorindex
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
+
+type LowestAfter struct {
+	Seq idx.Event
+}
+
+type HighestBefore struct {
+	Seq         idx.Event
+	Id          hash.Event
+	ClaimedTime inter.Timestamp
+}
 
 // Event is a seeing event for internal purpose.
 type Event struct {
 	*inter.Event
 
-	MemberN int // creator index
-	// by node indexes (event idx starts from 1, so 0 means "no one"):
-	LowestSees  []idx.Event // first events heights who sees it
-	HighestSeen []idx.Event // last events heights who is seen by it
+	MemberIdx int // creator index
+	// by node indexes (event idx starts from 1, so 0 means "no one" or "fork"):
+	LowestAfter   []LowestAfter   // first events heights who sees it
+	HighestBefore []HighestBefore // last events heights who is seen by it
 }

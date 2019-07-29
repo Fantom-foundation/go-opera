@@ -67,12 +67,14 @@ func testStronglySeen(t *testing.T, dag string) {
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
+	membersIdx := make(map[hash.Peer]int, len(peers))
 	members := make(internal.Members, len(peers))
-	for _, peer := range peers {
+	for i, peer := range peers {
 		members.Add(peer, inter.Stake(1))
+		membersIdx[peer] = i
 	}
 
-	vi := New(members.NewCounter)
+	vi := New(members.NewCounter, membersIdx)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -387,12 +389,14 @@ func TestStronglySeenRandom(t *testing.T) {
 	}
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
+	membersIdx := make(map[hash.Peer]int, len(peers))
 	members := make(internal.Members, len(peers))
-	for _, peer := range peers {
+	for i, peer := range peers {
 		members.Add(peer, inter.Stake(1))
+		membersIdx[peer] = i
 	}
 
-	vi := New(members.NewCounter)
+	vi := New(members.NewCounter, membersIdx)
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{

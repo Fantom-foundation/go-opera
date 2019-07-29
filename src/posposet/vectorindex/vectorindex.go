@@ -8,33 +8,29 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
-const (
-	nodeCount = 512
-)
-
 // Vindex is a data to detect strongly-see condition, calculate median timestamp, detect forks.
 type Vindex struct {
 	newCounter internal.StakeCounterProvider
-	nodes      map[hash.Peer]int
+	memberIdxs  map[hash.Peer]int
 	events     map[hash.Event]*Event
 
 	logger.Instance
 }
 
 // New creates Vindex instance.
-func New(c internal.StakeCounterProvider) *Vindex {
+func New(c internal.StakeCounterProvider, memberIdx map[hash.Peer]int) *Vindex {
 	vi := &Vindex{
 		newCounter: c,
 		Instance:   logger.MakeInstance(),
 	}
-	vi.Reset()
+	vi.Reset(memberIdx)
 
 	return vi
 }
 
 // Reset resets buffers.
-func (vi *Vindex) Reset() {
-	vi.nodes = make(map[hash.Peer]int, nodeCount)
+func (vi *Vindex) Reset(memberIdx map[hash.Peer]int) {
+	vi.memberIdxs = memberIdx
 	vi.events = make(map[hash.Event]*Event)
 }
 
@@ -48,7 +44,7 @@ func (vi *Vindex) Cache(e *inter.Event) {
 
 	event := &Event{
 		Event:   e,
-		MemberN: vi.nodeIndex(e.Creator),
+		MemberIdx: vi.nodeIndex(e.Creator),
 	}
 
 	vi.fillEventRefs(event)
@@ -60,46 +56,48 @@ func (vi *Vindex) nodeIndex(n hash.Peer) int {
 		index int
 		ok    bool
 	)
-	if index, ok = vi.nodes[n]; !ok {
-		index = len(vi.nodes)
-		vi.nodes[n] = index
+	if index, ok = vi.memberIdxs[n]; !ok {
+		index = len(vi.memberIdxs)
+		vi.memberIdxs[n] = index
 	}
 
 	return index
 }
 
 func (vi *Vindex) fillEventRefs(e *Event) {
-	e.LowestSees = make([]idx.Event, e.MemberN+1, nodeCount)
-	e.HighestSeen = make([]idx.Event, e.MemberN+1, nodeCount)
+	e.LowestAfter = make([]LowestAfter, len(vi.memberIdxs))
+	e.HighestBefore = make([]HighestBefore, len(vi.memberIdxs))
 
 	// seen by himself
-	e.LowestSees[e.MemberN] = e.Seq
-	e.HighestSeen[e.MemberN] = e.Seq
+	e.LowestAfter[e.MemberIdx].Seq = e.Seq
+	e.HighestBefore[e.MemberIdx].Seq = e.Seq
+	e.HighestBefore[e.MemberIdx].Id = e.Hash()
+	//e.HighestBefore[e.MemberIdx].ClaimedTime = e.ClaimedTime
 
 	for p := range e.Parents {
 		if p.IsZero() {
 			continue
 		}
 		parent := vi.events[p]
-		vi.updateAllLowestSees(parent, e.MemberN, e.Seq)
-		vi.updateAllHighestSeen(e, parent)
+		vi.updateAllLowestAfter(parent, e.MemberIdx, e.Seq)
+		vi.updateAllHighestBefore(e, parent)
 	}
 }
 
-func (vi *Vindex) updateAllHighestSeen(e, parent *Event) {
-	for i, n := range parent.HighestSeen {
-		if getRef(&e.HighestSeen, i) < n {
-			e.HighestSeen[i] = n
+func (vi *Vindex) updateAllHighestBefore(e, parent *Event) {
+	for i, n := range parent.HighestBefore {
+		if e.HighestBefore[i].Seq < n.Seq {
+			e.HighestBefore[i] = n
 		}
 	}
 }
 
-func (vi *Vindex) updateAllLowestSees(e *Event, node int, ref idx.Event) {
+func (vi *Vindex) updateAllLowestAfter(e *Event, node int, ref idx.Event) {
 	toUpdate := []*Event{e}
 	for {
 		var next []*Event
 		for _, event := range toUpdate {
-			if !setLowestSeesIfMin(event, node, ref) {
+			if !setLowestAfterIfMin(event, node, ref) {
 				continue
 			}
 			for p := range event.Parents {
@@ -116,22 +114,22 @@ func (vi *Vindex) updateAllLowestSees(e *Event, node int, ref idx.Event) {
 	}
 }
 
-func setLowestSeesIfMin(e *Event, node int, ref idx.Event) bool {
-	curr := getRef(&e.LowestSees, node)
+func setLowestAfterIfMin(e *Event, node int, ref idx.Event) bool {
+	curr := e.LowestAfter[node].Seq
 	if curr == 0 || curr > ref {
-		e.LowestSees[node] = ref
+		e.LowestAfter[node].Seq = ref
 		return true
 	}
 	return false
 }
 
 // StronglySee calculates "sufficient coherence" between the events.
-// The A.HighestSeen array remembers the sequence number of the last
+// The A.HighestBefore array remembers the sequence number of the last
 // event by each member that is an ancestor of A. The array for
-// B.LowestSees remembers the sequence number of the earliest
+// B.LowestAfter remembers the sequence number of the earliest
 // event by each member that is a descendant of B. Compare the two arrays,
-// and find how many elements in the A.HighestSeen array are greater
-// than or equal to the corresponding element of the B.LowestSees
+// and find how many elements in the A.HighestBefore array are greater
+// than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
 func (vi *Vindex) StronglySee(aHash, bHash hash.Event) bool {
@@ -149,10 +147,10 @@ func (vi *Vindex) StronglySee(aHash, bHash hash.Event) bool {
 	no := vi.newCounter()
 
 	// calculate strongly seeing using the indexes
-	for m, n := range vi.nodes {
-		bLowestSees := getRef(&b.LowestSees, n)
-		aHighestSeen := getRef(&a.HighestSeen, n)
-		if bLowestSees <= aHighestSeen && bLowestSees != 0 {
+	for m, n := range vi.memberIdxs {
+		bLowestAfter := b.LowestAfter[n]
+		aHighestBefore := a.HighestBefore[n]
+		if bLowestAfter.Seq <= aHighestBefore.Seq && bLowestAfter.Seq != 0 {
 			yes.Count(m)
 		} else {
 			no.Count(m)
@@ -168,12 +166,4 @@ func (vi *Vindex) StronglySee(aHash, bHash hash.Event) bool {
 	}
 
 	return false
-}
-
-func getRef(rr *[]idx.Event, i int) idx.Event {
-	n := len(*rr)
-	if n <= i {
-		*rr = append(*rr, make([]idx.Event, i-n+1)...)
-	}
-	return (*rr)[i]
 }
