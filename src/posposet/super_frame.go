@@ -58,7 +58,7 @@ func wireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
 	p.nextMembers = p.members.Top()
-	p.vi = vectorindex.New(p.members.NewCounter, p.members.Idxs())
+	p.vi = vectorindex.New(p.members)
 	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
 	p.frames = make(map[idx.Frame]*Frame)
 
@@ -113,7 +113,7 @@ func (p *Poset) nextSuperFrame() {
 
 	p.frames = make(map[idx.Frame]*Frame)
 
-	p.vi.Reset(p.members.Idxs())
+	p.vi.Reset()
 	p.election.Reset(p.members, firstFrame)
 
 	p.SuperFrameN++

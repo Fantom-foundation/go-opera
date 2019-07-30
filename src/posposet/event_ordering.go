@@ -56,41 +56,15 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 		selectedEvents = selectedEvents[:nodeCount-1]
 	}
 
-	// 3. Get Stake from each creator
-	stakes := map[hash.Peer]inter.Stake{}
-	var jointStake inter.Stake
-	for _, event := range selectedEvents {
-		stake := p.StakeOf(event.Creator)
+	highestTimestamp := selectedEvents[len(selectedEvents)-1].LamportTime // TODO .ClaimedTime
+	lowestTimestamp := selectedEvents[0].LamportTime                      // TODO .ClaimedTime
 
-		stakes[event.Creator] = stake
-		jointStake += stake
-	}
-
-	halfStake := jointStake / 2
-
-	// 4. Calculate weighted median
-	var currStake inter.Stake
-	var median *inter.Event
-	for _, event := range selectedEvents {
-		currStake += stakes[event.Creator]
-		if currStake < halfStake {
-			continue
-		}
-
-		if median == nil {
-			median = event
-		}
-	}
-
-	highestTimestamp := selectedEvents[len(selectedEvents)-1].LamportTime
-	lowestTimestamp := selectedEvents[0].LamportTime
-
-	// 5. Calculate time ratio & time offset
+	// 3. Calculate time ratio & time offset
 	if p.LastConsensusTime == 0 {
 		p.LastConsensusTime = genesisTimestamp
 	}
 
-	frameTimePeriod := inter.MaxTimestamp(median.LamportTime-p.LastConsensusTime, 1)
+	frameTimePeriod := inter.MaxTimestamp(p.vi.MedianTime(sfWitness)-p.LastConsensusTime, 1)
 	frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp, 1)
 
 	timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)
@@ -98,10 +72,10 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 	lowestConsensusTime := p.LastConsensusTime + timeRatio
 	timeOffset := lowestConsensusTime - lowestTimestamp*timeRatio
 
-	// 6. Calculate consensus timestamp
+	// 4. Calculate consensus timestamp
 	p.LastConsensusTime = p.input.GetEvent(sfWitness).LamportTime*timeRatio + timeOffset
 
-	// 7. Save new timeRatio & timeOffset to frame
+	// 5. Save new timeRatio & timeOffset to frame
 	p.frames[frame].SetTimes(timeOffset, timeRatio)
 
 	return sortEvents(unordered)
