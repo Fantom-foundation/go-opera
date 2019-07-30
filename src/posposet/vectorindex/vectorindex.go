@@ -43,69 +43,69 @@ func (vi *Vindex) Add(e *inter.Event) {
 	}
 
 	event := &Event{
-		Event:     e,
-		MemberIdx: vi.memberIdxs[e.Creator],
+		Event:      e,
+		CreatorIdx: vi.memberIdxs[e.Creator],
 	}
 
-	vi.fillEventRefs(event)
+	vi.fillEventVectors(event)
 	vi.events[e.Hash()] = event
 }
 
-func (vi *Vindex) fillEventRefs(e *Event) {
+func (vi *Vindex) fillEventVectors(e *Event) {
 	e.LowestAfter = make([]LowestAfter, len(vi.memberIdxs))
 	e.HighestBefore = make([]HighestBefore, len(vi.memberIdxs))
 
 	// seen by himself
-	e.LowestAfter[e.MemberIdx].Seq = e.Seq
-	e.HighestBefore[e.MemberIdx].Seq = e.Seq
-	e.HighestBefore[e.MemberIdx].Id = e.Hash()
-	e.HighestBefore[e.MemberIdx].ClaimedTime = e.LamportTime // TODO .ClaimedTime
+	e.LowestAfter[e.CreatorIdx].Seq = e.Seq
+	e.HighestBefore[e.CreatorIdx].Seq = e.Seq
+	e.HighestBefore[e.CreatorIdx].Id = e.Hash()
+	e.HighestBefore[e.CreatorIdx].ClaimedTime = e.LamportTime // TODO .ClaimedTime
 
+	// pre-load parents into RAM for quick access
+	eParents := make([]*Event, 0, len(e.Parents))
 	for p := range e.Parents {
 		if p.IsZero() {
 			continue
 		}
-		parent := vi.events[p]
-		vi.updateAllLowestAfter(parent, e.MemberIdx, e.Seq)
-		vi.updateAllHighestBefore(e, parent)
+		eParents = append(eParents, vi.events[p])
 	}
-}
 
-func (vi *Vindex) updateAllHighestBefore(e, parent *Event) {
-	for i, n := range parent.HighestBefore {
-		if e.HighestBefore[i].Seq < n.Seq {
-			e.HighestBefore[i] = n
-		}
-	}
-}
-
-func (vi *Vindex) updateAllLowestAfter(e *Event, member idx.Member, ref idx.Event) {
-	toUpdate := []*Event{e}
-	for {
-		var next []*Event
-		for _, event := range toUpdate {
-			if !setLowestAfterIfMin(event, member, ref) {
+	for _, p := range eParents {
+		// calculate HighestBefore vector. Detect forks for a case when parent does see a fork
+		for i, high := range p.HighestBefore {
+			if e.HighestBefore[i].IsForkSeen {
 				continue
 			}
-			for p := range event.Parents {
-				if !p.IsZero() {
-					next = append(next, vi.events[p])
-				}
+			if high.IsForkSeen || e.HighestBefore[i].Seq < high.Seq {
+				e.HighestBefore[i] = high
 			}
 		}
+	}
 
-		if len(next) == 0 {
-			break
+	for _, p := range eParents {
+		// we could just pass e.Hash() instead of the outer, but e isn't written yet
+		err := vi.dfsSubgraph(p.Hash(), func(walk *Event) bool {
+			if walk.LowestAfter[e.CreatorIdx].Seq != 0 {
+				return false
+			}
+			// 'walk' is first time seen by e.Creator
+
+			// Detect forks for a case when fork is seen only seen if we combine parents
+			for _, p := range eParents {
+				// p sees events older than 'walk', but p doesn't see p
+				if p.HighestBefore[walk.CreatorIdx].Seq >= walk.Seq && walk.LowestAfter[p.CreatorIdx].Seq == 0 {
+					e.HighestBefore[walk.CreatorIdx].IsForkSeen = true
+					e.HighestBefore[walk.CreatorIdx].Seq = 0
+				}
+			}
+
+			// calculate LowestAfter vector
+			walk.LowestAfter[e.CreatorIdx].Seq = e.Seq
+			return true
+		})
+
+		if err != nil {
+			vi.Fatalf("Vindex: error during dfxSubgraph %v", err)
 		}
-		toUpdate = next
 	}
-}
-
-func setLowestAfterIfMin(e *Event, member idx.Member, ref idx.Event) bool {
-	curr := e.LowestAfter[member].Seq
-	if curr == 0 || curr > ref {
-		e.LowestAfter[member].Seq = ref
-		return true
-	}
-	return false
 }

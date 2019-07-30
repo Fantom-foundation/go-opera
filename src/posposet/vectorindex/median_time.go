@@ -52,7 +52,7 @@ func (vi *Vindex) MedianTime(id hash.Event) inter.Timestamp {
 
 	// sanity check
 	if currStake < halfStake || currStake > totalStake {
-		vi.Fatalf("median wasn't calculated correctly (median=%d, currStake=%d, totalStake=%d, len(highests)=%d, id=%s)", median, currStake, totalStake, len(highests), id.String())
+		vi.Fatalf("Vindex: median wasn't calculated correctly (median=%d, currStake=%d, totalStake=%d, len(highests)=%d, id=%s)", median, currStake, totalStake, len(highests), id.String())
 	}
 
 	return median

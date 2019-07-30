@@ -11,6 +11,7 @@ type LowestAfter struct {
 }
 
 type HighestBefore struct {
+	IsForkSeen  bool
 	Seq         idx.Event
 	Id          hash.Event
 	ClaimedTime inter.Timestamp
@@ -20,7 +21,7 @@ type HighestBefore struct {
 type Event struct {
 	*inter.Event // TODO should be EventHeader
 
-	MemberIdx idx.Member // creator index
+	CreatorIdx idx.Member // creator index
 	// by node indexes (event idx starts from 1, so 0 means "no one" or "fork"):
 	LowestAfter   []LowestAfter   // first events heights who sees it
 	HighestBefore []HighestBefore // last events heights who is seen by it
