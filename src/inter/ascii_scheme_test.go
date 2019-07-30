@@ -292,7 +292,7 @@ func checkParents(t *testing.T, named map[string]*Event, expected map[string][]s
 		}
 
 		parents1 := make(map[string]struct{}, len(e1.Parents))
-		for s := range e1.Parents {
+		for _, s := range e1.Parents {
 			if s.IsZero() {
 				parents1[""] = struct{}{}
 			} else {
@@ -308,7 +308,7 @@ func checkParents(t *testing.T, named map[string]*Event, expected map[string][]s
 
 func edges2text(e *Event) map[string]struct{} {
 	res := make(map[string]struct{}, len(e.Parents))
-	for p := range e.Parents {
+	for _, p := range e.Parents {
 		res[p.String()] = struct{}{}
 	}
 	return res

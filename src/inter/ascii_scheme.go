@@ -113,16 +113,14 @@ func ASCIIschemeToDAG(
 			// find creator's parent
 			var (
 				index      idx.Event
-				selfParent = hash.Event{}
 				parents    = hash.Events{}
-				maxLamport Timestamp
+				maxLamport idx.Lamport
 			)
 			if last := len(events[creator]) - 1; last >= 0 {
 				parent := events[creator][last]
 				index = parent.Seq + 1
-				selfParent = parent.Hash()
 				parents.Add(parent.Hash())
-				maxLamport = parent.LamportTime
+				maxLamport = parent.Lamport
 			} else {
 				index = 1
 				parents.Add(hash.ZeroEvent)
@@ -137,17 +135,20 @@ func ASCIIschemeToDAG(
 				last := len(events[other]) - ref
 				parent := events[other][last]
 				parents.Add(parent.Hash())
-				if maxLamport < parent.LamportTime {
-					maxLamport = parent.LamportTime
+				if maxLamport < parent.Lamport {
+					maxLamport = parent.Lamport
 				}
 			}
 			// new event
 			e := &Event{
-				Seq:         index,
-				Creator:     creator,
-				SelfParent:  selfParent,
-				Parents:     parents,
-				LamportTime: maxLamport + 1,
+				EventHeader: EventHeader{
+					EventHeaderData: EventHeaderData{
+						Seq:         index,
+						Creator:     creator,
+						Parents:     parents,
+						Lamport: maxLamport + 1,
+					},
+				},
 			}
 			// apply mods
 			for _, mod := range mods {
@@ -207,11 +208,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		// parents
 		r.Refs = make([]int, len(peerCols))
 		selfRefs := 0
-		for p := range e.Parents {
-			if p.IsZero() {
-				selfRefs++
-				continue
-			}
+		for _, p := range e.Parents {
 			parent := processed[p]
 			if parent == nil {
 				return "", fmt.Errorf("parent %s of %s not found", p.String(), ehash.String())
@@ -223,7 +220,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			refCol := peerCols[parent.Creator]
 			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
 		}
-		if selfRefs != 1 {
+		if (e.Seq == 0 && selfRefs != 0) || (e.Seq > 0 && selfRefs != 1) {
 			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
 		}
 		// first and last refs

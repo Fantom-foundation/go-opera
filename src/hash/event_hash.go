@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"math/big"
 	"math/rand"
-	"sort"
 	"strings"
 )
 
@@ -16,8 +15,11 @@ type (
 	// OrderedEvents is a sortable slice of event hash.
 	OrderedEvents []Event
 
-	// Events provides additional methods of event hash index.
-	Events map[Event]struct{}
+	// OrderedEvents is a not sortable slice of event hash.
+	Events []Event
+
+	// EventsSet provides additional methods of event hash index.
+	EventsSet map[Event]struct{}
 )
 
 var (
@@ -76,6 +78,64 @@ func (h *Event) IsZero() bool {
 }
 
 /*
+ * EventsSet methods:
+ */
+
+// NewEventsSet makes event hash index.
+func NewEventsSet(h ...Event) EventsSet {
+	hh := EventsSet{}
+	hh.Add(h...)
+	return hh
+}
+
+// Copy copies events to a new structure.
+func (hh EventsSet) Copy() EventsSet {
+	ee := make(EventsSet, len(hh))
+	for k, v := range hh {
+		ee[k] = v
+	}
+
+	return ee
+}
+
+// String returns human readable string representation.
+func (hh EventsSet) String() string {
+	ss := make([]string, 0, len(hh))
+	for h := range hh {
+		ss = append(ss, h.String())
+	}
+	return "[" + strings.Join(ss, ", ") + "]"
+}
+
+// Slice returns whole index as slice.
+func (hh EventsSet) Slice() Events {
+	arr := make(Events, len(hh))
+	i := 0
+	for h := range hh {
+		arr[i] = h
+		i++
+	}
+	return arr
+}
+
+// Add appends hash to the index.
+func (hh EventsSet) Add(hash ...Event) (changed bool) {
+	for _, h := range hash {
+		if _, ok := hh[h]; !ok {
+			hh[h] = struct{}{}
+			changed = true
+		}
+	}
+	return
+}
+
+// Contains returns true if hash is in.
+func (hh EventsSet) Contains(hash Event) bool {
+	_, ok := hh[hash]
+	return ok
+}
+
+/*
  * Events methods:
  */
 
@@ -99,7 +159,7 @@ func (hh Events) Copy() Events {
 // String returns human readable string representation.
 func (hh Events) String() string {
 	ss := make([]string, 0, len(hh))
-	for h := range hh {
+	for _, h := range hh {
 		ss = append(ss, h.String())
 	}
 	return "[" + strings.Join(ss, ", ") + "]"
@@ -109,7 +169,7 @@ func (hh Events) String() string {
 func (hh Events) Slice() OrderedEvents {
 	arr := make(OrderedEvents, len(hh))
 	i := 0
-	for h := range hh {
+	for _, h := range hh {
 		arr[i] = h
 		i++
 	}
@@ -117,60 +177,8 @@ func (hh Events) Slice() OrderedEvents {
 }
 
 // Add appends hash to the index.
-func (hh Events) Add(hash ...Event) (changed bool) {
-	for _, h := range hash {
-		if _, ok := hh[h]; !ok {
-			hh[h] = struct{}{}
-			changed = true
-		}
-	}
-	return
-}
-
-// Contains returns true if hash is in.
-func (hh Events) Contains(hash Event) bool {
-	_, ok := hh[hash]
-	return ok
-}
-
-// ToWire converts to simple slice.
-func (hh Events) ToWire(self Event) [][]byte {
-	var (
-		head OrderedEvents
-		tail OrderedEvents
-	)
-
-	for h := range hh {
-		if h == self {
-			head = append(head, h)
-		} else {
-			tail = append(tail, h)
-		}
-	}
-
-	if len(head) != 1 {
-		panic("there is no 1 self-parent in Events")
-	}
-
-	sort.Sort(tail)
-
-	all := append(head, tail...)
-	return all.ToWire()
-}
-
-// WireToEventHashes converts from simple slice.
-func WireToEventHashes(buf [][]byte) (first Event, all Events) {
-	if len(buf) > 0 {
-		first = BytesToEvent(buf[0])
-	}
-
-	all = Events{}
-	for _, b := range buf {
-		h := BytesToEvent(b)
-		all.Add(h)
-	}
-
-	return
+func (hh Events) Add(hash ...Event) {
+	hh = append(hh, hash...)
 }
 
 /*

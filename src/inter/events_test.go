@@ -20,7 +20,7 @@ func TestEventsByParents(t *testing.T) {
 	}
 
 	for i, e := range ordered {
-		for p := range e.Parents {
+		for _, p := range e.Parents {
 			pos, ok := position[p]
 			if !ok {
 				continue
