@@ -79,7 +79,7 @@ func testStronglySeen(t *testing.T, dag string) {
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			vi.Cache(e)
+			vi.Add(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -399,7 +399,7 @@ func TestStronglySeenRandom(t *testing.T) {
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			vi.Cache(e)
+			vi.Add(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {

@@ -253,7 +253,7 @@ func (p *Poset) superFrameSealed(sfWitness hash.Event) bool {
 // and returns frame where event is root.
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) (frame *Frame, isRoot bool) {
-	p.vi.Cache(e.Event)
+	p.vi.Add(e.Event)
 
 	var frameI idx.Frame
 	if e.Seq == 1 {

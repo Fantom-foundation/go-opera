@@ -11,7 +11,7 @@ import (
 // Vindex is a data to detect strongly-see condition, calculate median timestamp, detect forks.
 type Vindex struct {
 	newCounter internal.StakeCounterProvider
-	memberIdxs  map[hash.Peer]idx.Member
+	memberIdxs map[hash.Peer]idx.Member
 	events     map[hash.Event]*Event
 
 	logger.Instance
@@ -34,8 +34,8 @@ func (vi *Vindex) Reset(memberIdx map[hash.Peer]idx.Member) {
 	vi.events = make(map[hash.Event]*Event)
 }
 
-// Cache event for Vindex.See.
-func (vi *Vindex) Cache(e *inter.Event) {
+// Calculate vector clocks for the event.
+func (vi *Vindex) Add(e *inter.Event) {
 	// sanity check
 	if _, ok := vi.events[e.Hash()]; ok {
 		vi.Fatalf("event %s already exists", e.Hash().String())
@@ -43,7 +43,7 @@ func (vi *Vindex) Cache(e *inter.Event) {
 	}
 
 	event := &Event{
-		Event:   e,
+		Event:     e,
 		MemberIdx: vi.memberIdxs[e.Creator],
 	}
 
@@ -119,13 +119,13 @@ func setLowestAfterIfMin(e *Event, member idx.Member, ref idx.Event) bool {
 // than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
-func (vi *Vindex) StronglySee(aHash, bHash hash.Event) bool {
+func (vi *Vindex) StronglySee(aId, bId hash.Event) bool {
 	// get events by hash
-	a, ok := vi.events[aHash]
+	a, ok := vi.events[aId]
 	if !ok {
 		return false
 	}
-	b, ok := vi.events[bHash]
+	b, ok := vi.events[bId]
 	if !ok {
 		return false
 	}
