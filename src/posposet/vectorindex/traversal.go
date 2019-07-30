@@ -28,10 +28,8 @@ func (vi *Vindex) dfsSubgraph(head hash.Event, callback eventCallbackFn) error {
 		}
 
 		// memorize parents
-		for parent := range event.Parents {
-			if !parent.IsZero() {
-				stack.Push(parent)
-			}
+		for _, parent := range event.Parents {
+			stack.Push(parent)
 		}
 	}
 

@@ -136,7 +136,7 @@ func (el *Election) ProcessKnownRoots(maxKnownFrame idx.Frame, getRootsFn GetRoo
 			}
 			roots := getRootsFn(slot)
 			// if there's more than 1 root, then all of them are forks. it's fine
-			for root := range roots {
+			for _, root := range roots {
 				decided, err := el.ProcessRoot(RootAndSlot{
 					Root: root,
 					Slot: slot,

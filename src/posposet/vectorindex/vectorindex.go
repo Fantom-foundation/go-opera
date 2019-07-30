@@ -59,14 +59,11 @@ func (vi *Vindex) fillEventVectors(e *Event) {
 	e.LowestAfter[e.CreatorIdx].Seq = e.Seq
 	e.HighestBefore[e.CreatorIdx].Seq = e.Seq
 	e.HighestBefore[e.CreatorIdx].Id = e.Hash()
-	e.HighestBefore[e.CreatorIdx].ClaimedTime = e.LamportTime // TODO .ClaimedTime
+	e.HighestBefore[e.CreatorIdx].ClaimedTime = e.ClaimedTime // TODO .ClaimedTime
 
 	// pre-load parents into RAM for quick access
 	eParents := make([]*Event, 0, len(e.Parents))
-	for p := range e.Parents {
-		if p.IsZero() {
-			continue
-		}
+	for _, p := range e.Parents {
 		eParents = append(eParents, vi.events[p])
 	}
 

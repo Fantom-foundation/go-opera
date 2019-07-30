@@ -13,7 +13,7 @@ import (
 type (
 	// EventsByNode is a event hashes grouped by creator.
 	// ( creator --> event hashes )
-	EventsByPeer map[hash.Peer]hash.Events
+	EventsByPeer map[hash.Peer]hash.EventsSet
 )
 
 /*
@@ -24,7 +24,7 @@ type (
 func (ee EventsByPeer) Add(events EventsByPeer) (changed bool) {
 	for creator, hashes := range events {
 		if ee[creator] == nil {
-			ee[creator] = hash.Events{}
+			ee[creator] = hash.EventsSet{}
 		}
 		if ee[creator].Add(hashes.Slice()...) {
 			changed = true
@@ -36,7 +36,7 @@ func (ee EventsByPeer) Add(events EventsByPeer) (changed bool) {
 // AddOne appends one event.
 func (ee EventsByPeer) AddOne(event hash.Event, creator hash.Peer) (changed bool) {
 	if ee[creator] == nil {
-		ee[creator] = hash.Events{}
+		ee[creator] = hash.EventsSet{}
 	}
 	if ee[creator].Add(event) {
 		changed = true
@@ -91,7 +91,7 @@ func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
 		creator := hash.BytesToPeer(w.Creator)
 		h := hash.BytesToEvent(w.Hash)
 		if res[creator] == nil {
-			res[creator] = hash.Events{}
+			res[creator] = hash.EventsSet{}
 		}
 		if !res[creator].Add(h) {
 			logger.Get().Fatal("double value is detected")
@@ -99,22 +99,4 @@ func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
 	}
 
 	return res
-}
-
-/*
- * Utils:
- */
-
-// rootZero makes roots from single event.
-func rootZero(node hash.Peer) EventsByPeer {
-	return EventsByPeer{
-		node: hash.NewEvents(hash.ZeroEvent),
-	}
-}
-
-// rootFrom makes roots from single event.
-func rootFrom(e *Event) EventsByPeer {
-	return EventsByPeer{
-		e.Creator: hash.NewEvents(e.Hash()),
-	}
 }

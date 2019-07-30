@@ -222,11 +222,8 @@ func testProcessRoot(
 			noPrev = true
 		}
 		from := root.Hash()
-		for sSeen := range root.Parents {
-			if sSeen.IsZero() {
-				continue
-			}
-			if sSeen == root.SelfParent && noPrev {
+		for _, sSeen := range root.Parents {
+			if root.SelfParent() != nil && sSeen == *root.SelfParent() && noPrev {
 				continue
 			}
 			to := sSeen

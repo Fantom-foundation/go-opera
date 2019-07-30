@@ -165,15 +165,13 @@ func (hh Events) String() string {
 	return "[" + strings.Join(ss, ", ") + "]"
 }
 
-// Slice returns whole index as slice.
-func (hh Events) Slice() OrderedEvents {
-	arr := make(OrderedEvents, len(hh))
-	i := 0
+// Set returns whole index as a EventsSet.
+func (hh Events) Set() EventsSet {
+	set := make(EventsSet, len(hh))
 	for _, h := range hh {
-		arr[i] = h
-		i++
+		set[h] = struct{}{}
 	}
-	return arr
+	return set
 }
 
 // Add appends hash to the index.

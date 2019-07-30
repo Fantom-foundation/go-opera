@@ -21,8 +21,8 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 		sort.Slice(events, func(i, j int) bool {
 			a, b := events[i], events[j]
 
-			if a.LamportTime != b.LamportTime {
-				return a.LamportTime < b.LamportTime
+			if a.Lamport != b.Lamport {
+				return a.Lamport < b.Lamport
 			}
 
 			return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
@@ -39,7 +39,7 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 			continue
 		}
 
-		if event.LamportTime > latestEvents[event.Creator].LamportTime {
+		if event.Lamport > latestEvents[event.Creator].Lamport {
 			latestEvents[event.Creator] = event
 		}
 	}
@@ -56,8 +56,8 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 		selectedEvents = selectedEvents[:nodeCount-1]
 	}
 
-	highestTimestamp := selectedEvents[len(selectedEvents)-1].LamportTime // TODO .ClaimedTime
-	lowestTimestamp := selectedEvents[0].LamportTime                      // TODO .ClaimedTime
+	highestTimestamp := selectedEvents[len(selectedEvents)-1].ClaimedTime
+	lowestTimestamp := selectedEvents[0].ClaimedTime
 
 	// 3. Calculate time ratio & time offset
 	if p.LastConsensusTime == 0 {
@@ -73,7 +73,7 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 	timeOffset := lowestConsensusTime - lowestTimestamp*timeRatio
 
 	// 4. Calculate consensus timestamp
-	p.LastConsensusTime = p.input.GetEvent(sfWitness).LamportTime*timeRatio + timeOffset
+	p.LastConsensusTime = inter.Timestamp(p.input.GetEvent(sfWitness).Lamport)*timeRatio + timeOffset
 
 	// 5. Save new timeRatio & timeOffset to frame
 	p.frames[frame].SetTimes(timeOffset, timeRatio)

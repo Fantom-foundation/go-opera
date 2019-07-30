@@ -20,7 +20,7 @@ func TestFrameSerialization(t *testing.T) {
 	roots := EventsByPeer{}
 	for _, node := range nodes {
 		for _, e := range events[node] {
-			roots[e.Creator] = e.Parents
+			roots[e.Creator] = e.Parents.Set()
 		}
 	}
 

@@ -129,12 +129,12 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 	if frame == nil {
 		return nil
 	}
-	return frame.Roots[slot.Addr].Copy()
+	return frame.Roots[slot.Addr].Copy().Slice()
 }
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(event *inter.Event) {
-	if event.SfNum != p.SuperFrameN {
+	if event.Epoch != p.SuperFrameN {
 		return
 	}
 
@@ -256,7 +256,7 @@ func (p *Poset) checkIfRoot(e *Event) (frame *Frame, isRoot bool) {
 	p.vi.Add(e.Event)
 
 	var frameI idx.Frame
-	if e.Seq == 1 {
+	if  e.SelfParent() == nil {
 		// special case for first events in an SF
 		frameI = idx.Frame(1)
 		isRoot = true
@@ -265,13 +265,13 @@ func (p *Poset) checkIfRoot(e *Event) (frame *Frame, isRoot bool) {
 		maxParentsFrame := idx.Frame(0)
 		selfParentFrame := idx.Frame(0)
 
-		for parent := range e.Parents {
+		for _, parent := range e.Parents {
 			pFrame := p.FrameOfEvent(parent).Index
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
 				maxParentsFrame = pFrame
 			}
 
-			if parent == e.SelfParent {
+			if parent == *e.SelfParent() {
 				selfParentFrame = pFrame
 			}
 		}

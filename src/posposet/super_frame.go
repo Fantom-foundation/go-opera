@@ -63,7 +63,7 @@ func (p *Poset) loadSuperFrame() {
 	p.frames = make(map[idx.Frame]*Frame)
 
 	// events reprocessing
-	toReprocess := hash.Events{}
+	toReprocess := hash.EventsSet{}
 	orderThenReprocess := ordering.EventBuffer(ordering.Callback{
 		Process: func(e *inter.Event) {
 			p.consensus(e)

@@ -29,7 +29,7 @@ func (f *Frame) Save() {
 
 // GetConsensusTimestamp calc consensus timestamp for given event.
 func (f *Frame) GetConsensusTimestamp(e *Event) inter.Timestamp {
-	return e.LamportTime*f.timeRatio + f.timeOffset
+	return inter.Timestamp(e.Lamport)*f.timeRatio + f.timeOffset
 }
 
 // SetTimes set new timeOffset and new TimeRatio.

@@ -39,10 +39,8 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 		res = append(res, event)
 
 		// memorize parents
-		for parent := range event.Parents {
-			if !parent.IsZero() {
-				stack.Push(parent)
-			}
+		for _, parent := range event.Parents {
+			stack.Push(parent)
 		}
 	}
 
