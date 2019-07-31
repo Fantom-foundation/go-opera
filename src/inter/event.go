@@ -2,8 +2,6 @@ package inter
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/common"
-
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -22,7 +20,8 @@ type EventHeaderData struct {
 
 	Creator hash.Peer // TODO common.Address
 
-	Parents hash.Events
+	GenesisHash *hash.Hash
+	Parents     hash.Events
 
 	GasLeft uint64
 	GasUsed uint64
@@ -31,7 +30,7 @@ type EventHeaderData struct {
 	ClaimedTime Timestamp
 	MedianTime  Timestamp
 
-	TxHash common.Hash
+	TxHash hash.Hash
 
 	Extra []byte
 }
@@ -70,13 +69,6 @@ func (e EventHeader) SelfParentEqualTo(hash hash.Event) bool {
 		return false
 	}
 	return *e.SelfParent() == hash
-}
-
-func (e EventHeader) GenesisHash() *hash.Event {
-	if e.Seq > 1 || len(e.Parents) == 0 {
-		return nil
-	}
-	return &e.Parents[0]
 }
 
 type Event struct {
