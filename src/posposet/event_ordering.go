@@ -12,7 +12,6 @@ import (
 
 const (
 	nodeCount                        = internal.MembersCount / 3
-	genesisTimestamp inter.Timestamp = 1562816974
 )
 
 func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered inter.Events) inter.Events {
@@ -61,10 +60,10 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 
 	// 3. Calculate time ratio & time offset
 	if p.LastConsensusTime == 0 {
-		p.LastConsensusTime = genesisTimestamp
+		p.LastConsensusTime = p.genesis.time
 	}
 
-	frameTimePeriod := inter.MaxTimestamp(p.vi.MedianTime(sfWitness, genesisTimestamp)-p.LastConsensusTime, 1)
+	frameTimePeriod := inter.MaxTimestamp(p.vi.MedianTime(sfWitness, p.genesis.time)-p.LastConsensusTime, 1)
 	frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp, 1)
 
 	timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)

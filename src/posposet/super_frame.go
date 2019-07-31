@@ -20,7 +20,25 @@ const (
 	firstFrame = idx.Frame(1)
 )
 
+// state of previous Epoch
+type genesisState struct {
+	epoch         idx.SuperFrame
+	time          inter.Timestamp // consensus time of the last fiWitness
+	lastFiWitness hash.Event
+	stateHash     hash.Hash // hash of txs state. TBD
+}
+
+func (g *genesisState) Hash() hash.Hash {
+	// TODO
+	/*hasher := sha3.New256()
+	rlp.Encode(hasher, g)
+	return hash.Hash(hasher.Sum(nil))*/
+	return hash.Hash{}
+}
+
 type superFrame struct {
+	genesis genesisState
+
 	sfWitnessCount int
 	frames         map[idx.Frame]*Frame
 	balances       hash.Hash
@@ -107,15 +125,24 @@ func (p *Poset) loadSuperFrame() {
 	}
 }
 
-func (p *Poset) nextSuperFrame() {
+func (p *Poset) nextEpoch(fiWitness hash.Event) {
+	// new genesis state
+	p.genesis.time = p.LastConsensusTime
+	p.genesis.epoch = p.SuperFrameN
+	p.genesis.lastFiWitness = fiWitness
+	p.genesis.stateHash = p.superFrame.balances
+
+	// new members list
 	p.members = p.nextMembers
 	p.nextMembers = p.members.Top()
 
+	// reset internal epoch state
 	p.frames = make(map[idx.Frame]*Frame)
 
 	p.vi.Reset()
 	p.election.Reset(p.members, firstFrame)
 
+	// set new epoch
 	p.SuperFrameN++
 	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
 }

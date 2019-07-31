@@ -237,13 +237,13 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.superFrame.balances = balances
 }
 
-func (p *Poset) superFrameSealed(sfWitness hash.Event) bool {
+func (p *Poset) superFrameSealed(fiWitness hash.Event) bool {
 	p.sfWitnessCount++
 	if p.sfWitnessCount < SuperFrameLen {
 		return false
 	}
 
-	p.nextSuperFrame()
+	p.nextEpoch(fiWitness)
 	p.saveCheckpoint() // commit
 
 	return true
