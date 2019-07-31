@@ -79,9 +79,7 @@ type Event struct {
 
 // SignBy signs event by private key.
 func (e *Event) SignBy(priv *crypto.PrivateKey) error {
-	eventHash := e.Hash()
-
-	sig, err := priv.Sign(eventHash.Bytes())
+	sig, err := priv.Sign(e.HashToSign().Bytes())
 	if err != nil {
 		return err
 	}
@@ -92,7 +90,7 @@ func (e *Event) SignBy(priv *crypto.PrivateKey) error {
 
 // Verify sign event by public key.
 func (e *Event) VerifySignature() bool {
-	return cryptoaddr.VerifySignature(e.Creator, hash.Hash(e.Hash()), e.Sig)
+	return cryptoaddr.VerifySignature(e.Creator, e.HashToSign(), e.Sig)
 }
 
 // Hash calcs hash of event.
