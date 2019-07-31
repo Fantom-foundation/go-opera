@@ -11,7 +11,7 @@ import (
 // Frame is a consensus tables for frame.
 type Frame struct {
 	Index  idx.Frame
-	Events EventsByPeer
+	Events EventsByPeer // TODO erase this index
 	Roots  EventsByPeer
 
 	timeOffset inter.Timestamp
@@ -39,17 +39,16 @@ func (f *Frame) SetTimes(offset, ratio inter.Timestamp) {
 	f.Save()
 }
 
-// AddRoot appends root-event into frame.
-func (f *Frame) AddRoot(e *Event) {
-	if f.Roots.AddOne(e.Hash(), e.Creator) {
-		f.Save()
-	}
-}
-
 // AddEvent appends event into frame.
 func (f *Frame) AddEvent(e *Event) {
-	if f.Events.AddOne(e.Hash(), e.Creator) {
-		f.Save()
+	if e.IsRoot {
+		if f.Roots.AddOne(e.Hash(), e.Creator) {
+			f.Save()
+		}
+	} else {
+		if f.Events.AddOne(e.Hash(), e.Creator) {
+			f.Save()
+		}
 	}
 }
 

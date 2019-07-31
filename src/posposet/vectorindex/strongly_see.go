@@ -15,13 +15,13 @@ import (
 // have achieved sufficient coherency.
 func (vi *Vindex) StronglySee(aId, bId hash.Event) bool {
 	// get events by hash
-	a, ok := vi.events[aId]
-	if !ok {
+	a := vi.GetEvent(aId)
+	if a == nil {
 		vi.Error("Vindex: event A wasn't found " + aId.String())
 		return false
 	}
-	b, ok := vi.events[bId]
-	if !ok {
+	b := vi.GetEvent(bId)
+	if b == nil {
 		vi.Error("Vindex: event B wasn't found " + bId.String())
 		return false
 	}

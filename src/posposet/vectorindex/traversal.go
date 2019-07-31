@@ -16,8 +16,8 @@ func (vi *Vindex) dfsSubgraph(head hash.Event, callback eventCallbackFn) error {
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
 		walk := *pwalk
 
-		event, ok := vi.events[walk]
-		if !ok {
+		event := vi.GetEvent(walk)
+		if event == nil {
 			return errors.New("event wasn't found " + walk.String())
 		}
 

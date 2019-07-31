@@ -12,7 +12,8 @@ import (
 type Vindex struct {
 	members    internal.Members
 	memberIdxs map[hash.Peer]idx.Member
-	events     map[hash.Event]*Event
+	events     map[hash.Event]*Event // TODO should be DB + cache
+	tempEvents map[hash.Event]*Event // RAM only, used for not connected events
 
 	logger.Instance
 }
@@ -32,23 +33,50 @@ func New(members internal.Members) *Vindex {
 // Reset resets buffers.
 func (vi *Vindex) Reset() {
 	vi.events = make(map[hash.Event]*Event)
+	vi.tempEvents = make(map[hash.Event]*Event)
 }
 
 // Calculate vector clocks for the event.
-func (vi *Vindex) Add(e *inter.Event) {
-	// sanity check
-	if _, ok := vi.events[e.Hash()]; ok {
-		vi.Fatalf("event %s already exists", e.Hash().String())
-		return
-	}
-
+func (vi *Vindex) calcVectors(e *inter.Event) *Event {
 	event := &Event{
 		Event:      e,
 		CreatorIdx: vi.memberIdxs[e.Creator],
 	}
 
 	vi.fillEventVectors(event)
+	return event
+}
+
+// Calculate vector clocks for the event and save into DB.
+func (vi *Vindex) Add(e *inter.Event) {
+	// sanity check
+	if vi.GetEvent(e.Hash()) != nil {
+		vi.Fatalf("event %s already exists", e.Hash().String())
+	}
+	event := vi.calcVectors(e)
 	vi.events[e.Hash()] = event
+}
+
+// Calculate vector clocks for the event and save into RAM.
+func (vi *Vindex) AddAsTemporary(e *inter.Event) {
+	event := vi.calcVectors(e)
+	vi.tempEvents[e.Hash()] = event
+}
+
+func (vi *Vindex) CopyTemporaryToDb(id hash.Event) {
+	vi.events[id] = vi.tempEvents[id]
+}
+
+func (vi *Vindex) EraseTemporary(id hash.Event) {
+	delete(vi.tempEvents, id)
+}
+
+func (vi *Vindex) GetEvent(id hash.Event) *Event {
+	event := vi.events[id]
+	if event == nil {
+		return vi.tempEvents[id]
+	}
+	return event
 }
 
 func (vi *Vindex) fillEventVectors(e *Event) {
@@ -64,7 +92,7 @@ func (vi *Vindex) fillEventVectors(e *Event) {
 	// pre-load parents into RAM for quick access
 	eParents := make([]*Event, 0, len(e.Parents))
 	for _, p := range e.Parents {
-		eParents = append(eParents, vi.events[p])
+		eParents = append(eParents, vi.GetEvent(p))
 	}
 
 	for _, p := range eParents {
