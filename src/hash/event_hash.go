@@ -15,8 +15,10 @@ type (
 	// OrderedEvents is a sortable slice of event hash.
 	OrderedEvents []Event
 
-	// OrderedEvents is a not sortable slice of event hash.
+	// OrderedEvents is a slice of event hash.
 	Events []Event
+
+	EventsStack []Event
 
 	// EventsSet provides additional methods of event hash index.
 	EventsSet map[Event]struct{}
@@ -139,7 +141,7 @@ func (hh EventsSet) Contains(hash Event) bool {
  * Events methods:
  */
 
-// NewEvents makes event hash index.
+// NewEvents makes event hash slice.
 func NewEvents(h ...Event) Events {
 	hh := Events{}
 	hh.Add(h...)
@@ -174,9 +176,29 @@ func (hh Events) Set() EventsSet {
 	return set
 }
 
-// Add appends hash to the index.
-func (hh Events) Add(hash ...Event) {
-	hh = append(hh, hash...)
+// Add appends hash to the slice.
+func (hh *Events) Add(hash ...Event) {
+	*hh = append(*hh, hash...)
+}
+
+/*
+ * EventsStack methods:
+ */
+
+func (s *EventsStack) Push(v Event) {
+	*s = append(*s, v)
+}
+
+func (s *EventsStack) Pop() *Event {
+	l := len(*s)
+	if l == 0 {
+		return nil
+	}
+
+	res := &(*s)[l-1]
+	*s = (*s)[:l-1]
+
+	return res
 }
 
 /*
