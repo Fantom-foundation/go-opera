@@ -49,8 +49,8 @@ func TestPosetTxn(t *testing.T) {
 		}
 	}
 
-	// force SF commit
-	p.nextSuperFrame()
+	// force Epoch commit
+	p.nextEpoch(hash.ZeroEvent)
 
 	st := s.GetCheckpoint()
 	t.Logf("poset: SFrame %d, Block %d", st.SuperFrameN, st.LastBlockN)

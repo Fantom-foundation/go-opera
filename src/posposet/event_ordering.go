@@ -7,75 +7,40 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
-const (
-	nodeCount                        = internal.MembersCount / 3
-)
-
-func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered inter.Events) inter.Events {
+func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered inter.Events) inter.Events {
 	// sort by lamport timestamp & hash
-	sortEvents := func(events []*inter.Event) []*inter.Event {
-		sort.Slice(events, func(i, j int) bool {
-			a, b := events[i], events[j]
+	sort.Slice(unordered, func(i, j int) bool {
+		a, b := unordered[i], unordered[j]
 
-			if a.Lamport != b.Lamport {
-				return a.Lamport < b.Lamport
-			}
-
-			return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
-		})
-
-		return events
-	}
-
-	// 1. Select latest events from each node with greatest lamport timestamp
-	latestEvents := map[hash.Peer]*inter.Event{}
-	for _, event := range unordered {
-		if _, ok := latestEvents[event.Creator]; !ok {
-			latestEvents[event.Creator] = event
-			continue
+		if a.Lamport != b.Lamport {
+			return a.Lamport < b.Lamport
 		}
 
-		if event.Lamport > latestEvents[event.Creator].Lamport {
-			latestEvents[event.Creator] = event
-		}
-	}
+		return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
+	})
+	ordered := unordered
 
-	// 2. Sort by lamport
-	var selectedEvents []*inter.Event
-	for _, event := range latestEvents {
-		selectedEvents = append(selectedEvents, event)
-	}
+	// calculate difference between highest and lowest period
+	highestLamport := ordered[len(ordered)-1].Lamport
+	lowestLamport := ordered[0].Lamport
+	frameLamportPeriod := idx.MaxLamport(highestLamport-lowestLamport, 1)
 
-	selectedEvents = sortEvents(selectedEvents)
+	// calculate difference between fiWitness's median time and previous fiWitness's consensus time (almost the same as previous median time)
+	frameTimePeriod := inter.MaxTimestamp(p.GetEvent(fiWitness).MedianTime-p.LastConsensusTime, 1)
 
-	if len(selectedEvents) > nodeCount {
-		selectedEvents = selectedEvents[:nodeCount-1]
-	}
-
-	highestTimestamp := selectedEvents[len(selectedEvents)-1].ClaimedTime
-	lowestTimestamp := selectedEvents[0].ClaimedTime
-
-	// 3. Calculate time ratio & time offset
-	if p.LastConsensusTime == 0 {
-		p.LastConsensusTime = p.genesis.time
-	}
-
-	frameTimePeriod := inter.MaxTimestamp(p.vi.MedianTime(sfWitness, p.genesis.time)-p.LastConsensusTime, 1)
-	frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp, 1)
-
-	timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)
+	// Calculate time ratio & time offset
+	timeRatio := inter.MaxTimestamp(frameTimePeriod/inter.Timestamp(frameLamportPeriod), 1)
 
 	lowestConsensusTime := p.LastConsensusTime + timeRatio
-	timeOffset := lowestConsensusTime - lowestTimestamp*timeRatio
+	timeOffset := lowestConsensusTime - inter.Timestamp(lowestLamport)*timeRatio
 
-	// 4. Calculate consensus timestamp
-	p.LastConsensusTime = inter.Timestamp(p.input.GetEvent(sfWitness).Lamport)*timeRatio + timeOffset
+	// Calculate consensus timestamp of an event with highestLamport (it's always fiWitness)
+	p.LastConsensusTime = inter.Timestamp(highestLamport)*timeRatio + timeOffset
 
-	// 5. Save new timeRatio & timeOffset to frame
+	// Save new timeRatio & timeOffset to frame
 	p.frames[frame].SetTimes(timeOffset, timeRatio)
 
-	return sortEvents(unordered)
+	return ordered
 }

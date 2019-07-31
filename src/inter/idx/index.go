@@ -98,3 +98,11 @@ func BytesToLamport(b []byte) Lamport {
 	}
 	return res
 }
+
+// MaxLamport return max value
+func MaxLamport(x, y Lamport) Lamport {
+	if x > y {
+		return x
+	}
+	return y
+}

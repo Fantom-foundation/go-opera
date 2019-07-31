@@ -60,7 +60,8 @@ func (p *Poset) Bootstrap() {
 	}
 
 	// restore genesis
-	p.Genesis = p.store.GetSuperFrame(0).balances
+	// TODO store & restore genesis object (p.genesis)
+	//p.genesis = p.store.GetSuperFrame(0).balances
 
 	// restore current super-frame
 	p.loadSuperFrame()
@@ -68,7 +69,7 @@ func (p *Poset) Bootstrap() {
 
 // GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
-	return p.Genesis
+	return p.genesis.Hash()
 }
 
 // GenesisHash calcs hash of genesis balances.
