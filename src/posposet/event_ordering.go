@@ -64,7 +64,7 @@ func (p *Poset) fareOrdering(frame idx.Frame, sfWitness hash.Event, unordered in
 		p.LastConsensusTime = genesisTimestamp
 	}
 
-	frameTimePeriod := inter.MaxTimestamp(p.vi.MedianTime(sfWitness)-p.LastConsensusTime, 1)
+	frameTimePeriod := inter.MaxTimestamp(p.vi.MedianTime(sfWitness, genesisTimestamp)-p.LastConsensusTime, 1)
 	frameLamportPeriod := inter.MaxTimestamp(highestTimestamp-lowestTimestamp, 1)
 
 	timeRatio := inter.MaxTimestamp(frameTimePeriod/frameLamportPeriod, 1)

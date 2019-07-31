@@ -14,7 +14,7 @@ type medianTimeIndex struct {
 }
 
 // MedianTime calculates weighted median of claimed time within highest seen events.
-func (vi *Vindex) MedianTime(id hash.Event) inter.Timestamp {
+func (vi *Vindex) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Timestamp {
 	// get event by hash
 	event, ok := vi.events[id]
 	if !ok {
@@ -22,14 +22,27 @@ func (vi *Vindex) MedianTime(id hash.Event) inter.Timestamp {
 		return 0
 	}
 
-	// convert []HighestBefore -> []medianTimeIndex
+	honestTotalStake := inter.Stake(0) // isn't equal to members.TotalStake(), because doesn't count cheaters
 	highests := make([]medianTimeIndex, 0, len(event.HighestBefore))
+	// convert []HighestBefore -> []medianTimeIndex
 	for creator, n := range vi.memberIdxs {
-		highests = append(highests, medianTimeIndex{
-			stake:       vi.members[creator],
-			claimedTime: event.HighestBefore[n].ClaimedTime,
-		})
+		highest := medianTimeIndex{}
+		highest.stake = vi.members[creator]
+		highest.claimedTime = event.HighestBefore[n].ClaimedTime
+
+		// edge cases
+		if event.HighestBefore[n].IsForkSeen {
+			// cheaters don't influence medianTime
+			highest.stake = 0
+		} else if event.HighestBefore[n].Seq == 0 {
+			// if no event was seen from this node, then use genesisTime
+			highest.claimedTime = genesisTime
+		}
+
+		highests = append(highests, highest)
+		honestTotalStake += highest.stake
 	}
+	// it's technically possible totalStake == 0 (all members are cheaters)
 
 	// sort by claimed time (partial order is enough here, because we need only claimedTime)
 	sort.Slice(highests, func(i, j int) bool {
@@ -38,8 +51,7 @@ func (vi *Vindex) MedianTime(id hash.Event) inter.Timestamp {
 	})
 
 	// Calculate weighted median
-	totalStake := vi.members.TotalStake()
-	halfStake := totalStake / 2
+	halfStake := honestTotalStake / 2
 	var currStake inter.Stake
 	var median inter.Timestamp
 	for _, highest := range highests {
@@ -51,8 +63,8 @@ func (vi *Vindex) MedianTime(id hash.Event) inter.Timestamp {
 	}
 
 	// sanity check
-	if currStake < halfStake || currStake > totalStake {
-		vi.Fatalf("Vindex: median wasn't calculated correctly (median=%d, currStake=%d, totalStake=%d, len(highests)=%d, id=%s)", median, currStake, totalStake, len(highests), id.String())
+	if currStake < halfStake || currStake > honestTotalStake {
+		vi.Fatalf("Vindex: median wasn't calculated correctly (median=%d, currStake=%d, totalStake=%d, len(highests)=%d, id=%s)", median, currStake, honestTotalStake, len(highests), id.String())
 	}
 
 	return median
