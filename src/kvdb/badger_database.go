@@ -156,6 +156,10 @@ func (w *BadgerDatabase) NewBatch() Batch {
  * Batch
  */
 
+type kv struct {
+	k, v []byte
+}
+
 // badgerBatch is a batch structure.
 type badgerBatch struct {
 	db     *BadgerDatabase
@@ -167,8 +171,8 @@ type badgerBatch struct {
 func (b *badgerBatch) Put(key, value []byte) error {
 	key = b.db.fullKey(key)
 
-	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
-	b.size += len(value)
+	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
+	b.size += len(value) + len(key)
 	return nil
 }
 
@@ -176,8 +180,8 @@ func (b *badgerBatch) Put(key, value []byte) error {
 func (b *badgerBatch) Delete(key []byte) error {
 	key = b.db.fullKey(key)
 
-	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
-	b.size++
+	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
+	b.size += len(key)
 	return nil
 }
 
@@ -188,7 +192,7 @@ func (b *badgerBatch) Write() error {
 
 	var err error
 	for _, kv := range b.writes {
-		if kv.del {
+		if kv.v == nil {
 			err = tx.Delete(kv.k)
 		} else {
 			err = tx.Set(kv.k, kv.v)

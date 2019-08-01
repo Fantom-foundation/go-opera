@@ -8,6 +8,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
+var (
+	// NOTE: key collisions are possible
+	separator = []byte("::")
+)
+
 // BoltDatabase is a kvbd.Database wrapper of *bbolt.DB.
 type BoltDatabase struct {
 	db     *bbolt.DB
@@ -123,15 +128,15 @@ type boltBatch struct {
 
 // Put puts key-value pair into batch.
 func (b *boltBatch) Put(key, value []byte) error {
-	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
-	b.size += len(value)
+	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
+	b.size += len(value) + len(key)
 	return nil
 }
 
 // Delete removes key-value pair from batch by key.
 func (b *boltBatch) Delete(key []byte) error {
-	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
-	b.size++
+	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
+	b.size += len(key)
 	return nil
 }
 
@@ -142,7 +147,7 @@ func (b *boltBatch) Write() error {
 
 		for _, kv := range b.writes {
 			var err error
-			if kv.del {
+			if kv.v == nil {
 				err = bucket.Delete(kv.k)
 			} else {
 				err = bucket.Put(kv.k, kv.v)
