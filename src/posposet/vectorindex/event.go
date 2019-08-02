@@ -17,9 +17,9 @@ type HighestBefore struct {
 	ClaimedTime inter.Timestamp
 }
 
-// Event is a seeing event for internal purpose.
+// Event is an event wrapper for internal purpose.
 type Event struct {
-	*inter.Event // TODO should be EventHeader
+	*inter.EventHeaderData
 
 	CreatorIdx idx.Member // creator index
 	// by node indexes (event idx starts from 1, so 0 means "no one" or "fork"):

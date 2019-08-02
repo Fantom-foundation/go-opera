@@ -2,6 +2,7 @@ package vectorindex
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"strconv"
 	"strings"
 	"testing"
@@ -72,7 +73,7 @@ func testStronglySeen(t *testing.T, dag string) {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	vi := New(members)
+	vi := New(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -392,7 +393,7 @@ func TestStronglySeenRandom(t *testing.T) {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	vi := New(members)
+	vi := New(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{

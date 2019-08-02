@@ -76,7 +76,7 @@ func wireToSuperFrame(w *wire.SuperFrame) (sf *superFrame) {
 func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
 	p.nextMembers = p.members.Top()
-	p.vi = vectorindex.New(p.members)
+	p.vi = vectorindex.New(p.members, p.store.table.VectorIndex)
 	p.election = election.New(p.members, firstFrame, p.rootStronglySeeRoot)
 	p.frames = make(map[idx.Frame]*Frame)
 
@@ -139,7 +139,7 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	// reset internal epoch state
 	p.frames = make(map[idx.Frame]*Frame)
 
-	p.vi.Reset()
+	p.vi.Reset(p.store.table.VectorIndex) // TODO is this DB pruned after new epoch?
 	p.election.Reset(p.members, firstFrame)
 
 	// set new epoch

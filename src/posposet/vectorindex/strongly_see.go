@@ -33,6 +33,7 @@ func (vi *Vindex) StronglySee(aId, bId hash.Event) bool {
 	for creator, n := range vi.memberIdxs {
 		bLowestAfter := b.LowestAfter[n]
 		aHighestBefore := a.HighestBefore[n]
+
 		if bLowestAfter.Seq <= aHighestBefore.Seq && bLowestAfter.Seq != 0 {
 			yes.Count(creator)
 		} else {

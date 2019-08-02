@@ -25,6 +25,7 @@ type Store struct {
 		Event2Block    kvdb.Database `table:"event2block_"`
 		SuperFrames    kvdb.Database `table:"sframe_"`
 		ConfirmedEvent kvdb.Database `table:"confirmed_"`
+		VectorIndex    kvdb.Database `table:"vectors_"`
 		Balances       state.Database
 	}
 

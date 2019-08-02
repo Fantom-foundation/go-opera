@@ -4,6 +4,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
@@ -12,35 +13,36 @@ import (
 type Vindex struct {
 	members    internal.Members
 	memberIdxs map[hash.Peer]idx.Member
-	events     map[hash.Event]*Event // TODO should be DB + cache
+
+	eventsDb   kvdb.Database
 	tempEvents map[hash.Event]*Event // RAM only, used for not connected events
 
 	logger.Instance
 }
 
 // New creates Vindex instance.
-func New(members internal.Members) *Vindex {
+func New(members internal.Members, eventsDb kvdb.Database) *Vindex {
 	vi := &Vindex{
 		members:    members,
 		memberIdxs: members.Idxs(),
 		Instance:   logger.MakeInstance(),
 	}
-	vi.Reset()
+	vi.Reset(eventsDb)
 
 	return vi
 }
 
 // Reset resets buffers.
-func (vi *Vindex) Reset() {
-	vi.events = make(map[hash.Event]*Event)
+func (vi *Vindex) Reset(eventsDb kvdb.Database) {
+	vi.eventsDb = eventsDb
 	vi.tempEvents = make(map[hash.Event]*Event)
 }
 
 // Calculate vector clocks for the event.
 func (vi *Vindex) calcVectors(e *inter.Event) *Event {
 	event := &Event{
-		Event:      e,
-		CreatorIdx: vi.memberIdxs[e.Creator],
+		EventHeaderData: &e.EventHeaderData,
+		CreatorIdx:      vi.memberIdxs[e.Creator],
 	}
 
 	vi.fillEventVectors(event)
@@ -54,7 +56,7 @@ func (vi *Vindex) Add(e *inter.Event) {
 		vi.Fatalf("event %s already exists", e.Hash().String())
 	}
 	event := vi.calcVectors(e)
-	vi.events[e.Hash()] = event
+	vi.SetEvent(event)
 }
 
 // Calculate vector clocks for the event and save into RAM.
@@ -64,19 +66,11 @@ func (vi *Vindex) AddAsTemporary(e *inter.Event) {
 }
 
 func (vi *Vindex) CopyTemporaryToDb(id hash.Event) {
-	vi.events[id] = vi.tempEvents[id]
+	vi.SetEvent(vi.tempEvents[id])
 }
 
 func (vi *Vindex) EraseTemporary(id hash.Event) {
 	delete(vi.tempEvents, id)
-}
-
-func (vi *Vindex) GetEvent(id hash.Event) *Event {
-	event := vi.events[id]
-	if event == nil {
-		return vi.tempEvents[id]
-	}
-	return event
 }
 
 func (vi *Vindex) fillEventVectors(e *Event) {
@@ -126,11 +120,12 @@ func (vi *Vindex) fillEventVectors(e *Event) {
 
 			// calculate LowestAfter vector
 			walk.LowestAfter[e.CreatorIdx].Seq = e.Seq
+			vi.SetEvent(walk)
 			return true
 		})
 
 		if err != nil {
-			vi.Fatalf("Vindex: error during dfxSubgraph %v", err)
+			vi.Fatalf("Vindex: error during dfsSubgraph %v", err)
 		}
 	}
 }
