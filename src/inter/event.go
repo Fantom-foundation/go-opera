@@ -7,6 +7,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 type EventHeaderData struct {
@@ -33,38 +35,36 @@ type EventHeaderData struct {
 	TxHash hash.Hash
 
 	Extra []byte
+
+	hash hash.Event `rlp:"-"` // cache for .Hash()
 }
 
 type EventHeader struct {
 	EventHeaderData
 
 	Sig []byte
-
-	hash hash.Event // cache for .Hash()
 }
 
-func (e EventHeader) HashToSign() hash.Hash {
-	// TODO
-	/*hasher := sha3.New256()
+func (e *EventHeaderData) HashToSign() hash.Hash {
+	hasher := sha3.New256()
 	err := rlp.Encode(hasher, []interface{}{
-		"Fantom signed event header", e.EventHeaderData)
+		"Fantom signed event header",
+		e,
 	})
 	if err != nil {
 		panic("can't encode: " + err.Error())
 	}
-	// return 32 bytes hash
-	return hash.Hash(hasher.Sum(nil))*/
-	return hash.Hash{}
+	return hash.FromBytes(hasher.Sum(nil))
 }
 
-func (e EventHeader) SelfParent() *hash.Event {
+func (e *EventHeaderData) SelfParent() *hash.Event {
 	if e.Seq <= 1 || len(e.Parents) == 0 {
 		return nil
 	}
 	return &e.Parents[0]
 }
 
-func (e EventHeader) SelfParentEqualTo(hash hash.Event) bool {
+func (e *EventHeaderData) SelfParentEqualTo(hash hash.Event) bool {
 	if e.SelfParent() == nil {
 		return false
 	}
@@ -94,16 +94,15 @@ func (e *Event) VerifySignature() bool {
 }
 
 // Hash calcs hash of event.
-func (e *Event) Hash() hash.Event {
+func (e *EventHeaderData) Hash() hash.Event {
 	if e.hash.IsZero() {
-		// TODO
-		/*hasher := sha3.New256()
-		err := rlp.Encode(hasher, e.EventHeaderData)
+		hasher := sha3.New256()
+		err := rlp.Encode(hasher, e)
 		if err != nil {
 			panic("can't encode: " + err.Error())
 		}
-		// return  epoch | lamport | 24 bytes hash
-		e.hash = hash.NewEvent(e.Epoch, e.Lamport, hasher.Sum(nil))*/
+		// TODO return  epoch | lamport | 24 bytes hash
+		e.hash = hash.BytesToEvent(hasher.Sum(nil))
 	}
 	return e.hash
 }

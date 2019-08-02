@@ -123,7 +123,6 @@ func ASCIIschemeToDAG(
 				maxLamport = parent.Lamport
 			} else {
 				index = 1
-				parents.Add(hash.ZeroEvent)
 				maxLamport = 0
 			}
 			// find other parents
