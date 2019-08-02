@@ -97,7 +97,9 @@ func ASCIIschemeToDAG(
 					}
 				}
 			}
-			col++
+			if symbol != "╚" && symbol != "╝" {
+				col++
+			}
 		}
 
 		// create events
@@ -206,26 +208,21 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		}
 		// parents
 		r.Refs = make([]int, len(peerCols))
-		selfRefs := 0
 		for p := range e.Parents {
 			if p.IsZero() {
-				selfRefs++
 				continue
 			}
 			parent := processed[p]
 			if parent == nil {
 				return "", fmt.Errorf("parent %s of %s not found", p.String(), ehash.String())
 			}
-			if parent.Creator == e.Creator {
-				selfRefs++
+			if parent.Creator == e.Creator && (e.Seq - parent.Seq) == 1 {
 				continue
 			}
 			refCol := peerCols[parent.Creator]
 			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
 		}
-		if selfRefs != 1 {
-			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
-		}
+
 		// first and last refs
 		r.First = len(r.Refs)
 		for i, ref := range r.Refs {
@@ -449,13 +446,26 @@ func (rr *rows) String() string {
 
 		// 2nd line:
 		for i, ref := range row.Refs {
-			if i == row.Self {
+			if i == row.Self && ref == 0 {
 				out(" " + row.Name)
 				tail := rr.ColWidth - len([]rune(row.Name)) + 1
 				if row.Position(i) == right {
 					out(link(tail))
 				} else {
 					out(nolink(tail))
+				}
+				continue
+			}
+
+			if i == row.Self && ref > 1 {
+				tail := rr.ColWidth - len([]rune(row.Name)) + 1
+				switch row.Position(i) {
+				case first:
+					out(row.Name + " ╝" + link(tail-1))
+				case last:
+					out("╚ " + row.Name + nolink(tail-1))
+				default:
+					out(" " + row.Name)
 				}
 				continue
 			}

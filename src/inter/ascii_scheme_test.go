@@ -261,6 +261,32 @@ a004══╬═════╣     ║     ║     // optimise this
 			"d003": {"b003", "c003", "d002"},
 		})
 	})
+
+	t.Run("Fork", func(t *testing.T) {
+		testDAGtoASCIIschemeOptimisation(t, `
+a00  b00   c00
+║    ║    ║║
+a01══╣    ║║
+║    ║    ║║
+╠═══─╫═════c01
+║    b01  ╝║
+║    ║     ║
+a02══╬═════╣
+║    ║     ║
+║    ║     ║
+║    ║   ╚ c02
+║    ║     ║
+`, map[string][]string{
+			"a00": {""},
+			"a01": {"a00", "b00"},
+			"a02": {"a01", "b01", "c01"},
+			"b00": {""},
+			"b01": {"b00", "c00"},
+			"c00": {""},
+			"c01": {"c00", "a01"},
+			"c02": {"c00", "c01"},
+		})
+	})
 }
 
 func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[string][]string) {

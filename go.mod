@@ -12,6 +12,7 @@ require (
 	github.com/dgraph-io/badger v0.0.0-20190308055650-deee8c7ae70b
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
+	github.com/ethereum/go-ethereum v1.9.1
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
