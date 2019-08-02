@@ -17,7 +17,8 @@ import (
 //   - names  maps human readable name to the event;
 func ASCIIschemeToDAG(
 	scheme string,
-	mods ...func(*Event, []hash.Peer),
+	buildEvent func(*Event) *Event,
+	onNewEvent func(*Event),
 ) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*Event,
@@ -139,24 +140,25 @@ func ASCIIschemeToDAG(
 				}
 			}
 			// new event
-			e := &Event{
-				EventHeader: EventHeader{
-					EventHeaderData: EventHeaderData{
-						Seq:         index,
-						Creator:     creator,
-						Parents:     parents,
-						Lamport: maxLamport + 1,
-					},
-				},
+			e := NewEvent()
+			e.Seq = index
+			e.Creator = creator
+			e.Parents = parents
+			e.Lamport = maxLamport + 1
+			// buildEvent callback
+			if buildEvent != nil {
+				e = buildEvent(e)
 			}
-			// apply mods
-			for _, mod := range mods {
-				mod(e, nodes)
-			}
+			// calc hash of the event, after it's fully built
+			e.RecacheHash()
 			// save event
 			events[creator] = append(events[creator], e)
 			names[name] = e
 			hash.SetEventName(e.Hash(), name)
+			// callback
+			if onNewEvent != nil {
+				onNewEvent(e)
+			}
 		}
 	}
 
@@ -219,7 +221,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			refCol := peerCols[parent.Creator]
 			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
 		}
-		if (e.Seq == 0 && selfRefs != 0) || (e.Seq > 0 && selfRefs != 1) {
+		if (e.Seq <= 1 && selfRefs != 0) || (e.Seq > 1 && selfRefs != 1) {
 			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
 		}
 		// first and last refs

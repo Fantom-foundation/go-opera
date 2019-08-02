@@ -1,19 +1,18 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"go.etcd.io/bbolt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
-
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_IntToBytes(t *testing.T) {
@@ -70,17 +69,20 @@ func benchmarkStore(b *testing.B, cached bool) {
 	store := NewStore(kvdb.NewBoltDatabase(ondisk))
 	defer input.Close()
 
-	nodes, events := inter.GenEventsByNode(5, 100*b.N, 3)
-	poset := benchPoset(nodes, input, store, cached)
+	nodes := inter.GenNodes(5)
+
+	p := benchPoset(nodes, input, store, cached)
+
+	buildEvent := func(e *inter.Event) *inter.Event {
+		return p.Prepare(e)
+	}
+	onNewEvent := func(e *inter.Event) {
+		input.SetEvent(e)
+		p.PushEventSync(e.Hash())
+	}
 
 	b.ResetTimer()
-
-	for _, ee := range events {
-		for _, e := range ee {
-			input.SetEvent(e)
-			poset.PushEventSync(e.Hash())
-		}
-	}
+	_ = inter.GenEventsByNode(nodes, 100*b.N, 3, buildEvent, onNewEvent)
 }
 
 func benchPoset(nodes []hash.Peer, input EventSource, store *Store, cached bool) *Poset {

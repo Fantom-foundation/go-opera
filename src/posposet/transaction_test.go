@@ -13,25 +13,7 @@ import (
 func TestPosetTxn(t *testing.T) {
 	logger.SetTestMode(t)
 
-	first := true
-	transfer := func(e *inter.Event, nodes []hash.Peer) {
-		if !first {
-			return
-		}
-		if e.Creator != nodes[0] {
-			return
-		}
-		first = false
-
-		e.InternalTransactions = append(e.InternalTransactions,
-			&inter.InternalTransaction{
-				Nonce:    0,
-				Amount:   1,
-				Receiver: nodes[1],
-			})
-	}
-
-	nodes, events := inter.GenEventsByNode(5, 20, 3, transfer)
+	nodes := inter.GenNodes(5)
 
 	p, s, x := FakePoset(nodes)
 	assert.Equal(t,
@@ -41,13 +23,28 @@ func TestPosetTxn(t *testing.T) {
 		inter.Stake(1), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
 
-	p.Start()
-	for _, n := range nodes {
-		for _, e := range events[n] {
-			x.SetEvent(e)
-			p.PushEventSync(e.Hash())
+	first := true
+	buildEvent := func(e *inter.Event) *inter.Event {
+		e = p.Prepare(e)
+		if first && e.Creator == nodes[0] {
+			first = false
+
+			e.InternalTransactions = append(e.InternalTransactions,
+				&inter.InternalTransaction{
+					Nonce:    0,
+					Amount:   1,
+					Receiver: nodes[1],
+				})
 		}
+		return e
 	}
+	onNewEvent := func(e *inter.Event) {
+		x.SetEvent(e)
+		p.PushEventSync(e.Hash())
+	}
+
+	p.Start()
+	_ = inter.GenEventsByNode(nodes, 20, 3, buildEvent, onNewEvent)
 
 	// force Epoch commit
 	p.nextEpoch(hash.ZeroEvent)

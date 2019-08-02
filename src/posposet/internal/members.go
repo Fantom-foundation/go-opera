@@ -2,6 +2,8 @@ package internal
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/ethereum/go-ethereum/rlp"
+	"io"
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -75,28 +77,31 @@ func (mm Members) StakeOf(n hash.Peer) inter.Stake {
 	return mm[n]
 }
 
-// ToWire converts to protobuf message.
-func (mm Members) ToWire() map[string]uint64 {
-	w := make(map[string]uint64)
-
-	for n, s := range mm {
-		w[n.Hex()] = uint64(s)
+func (mm Members) EncodeRLP(w io.Writer) error {
+	var arr []member
+	for addr, stake := range mm {
+		arr = append(arr, member{
+			Addr:  addr,
+			Stake: stake,
+		})
 	}
-
-	return w
+	return rlp.Encode(w, arr)
 }
 
-// WireToMembers converts from protobuf message.
-func WireToMembers(w map[string]uint64) Members {
-	if w == nil {
-		return nil
+func (pp *Members) DecodeRLP(s *rlp.Stream) error {
+	if *pp == nil {
+		*pp = Members{}
+	}
+	mm := *pp
+
+	var arr []member
+	if err := s.Decode(&arr); err != nil {
+		return err
 	}
 
-	mm := make(Members, len(w))
-	for hex, amount := range w {
-		addr := hash.HexToPeer(hex)
-		mm[addr] = inter.Stake(amount)
+	for _, w := range arr {
+		mm[w.Addr] = w.Stake
 	}
 
-	return mm
+	return nil
 }

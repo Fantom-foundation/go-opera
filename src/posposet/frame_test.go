@@ -1,21 +1,19 @@
 package posposet
 
 import (
-	"math/rand"
-	"testing"
-
-	"github.com/golang/protobuf/proto"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
+	"math/rand"
+	"testing"
 )
 
 func TestFrameSerialization(t *testing.T) {
 	assertar := assert.New(t)
 	// fake random data
-	nodes, events := inter.GenEventsByNode(4, 10, 3)
+	nodes := inter.GenNodes(4)
+	events := inter.GenEventsByNode(nodes, 10, 3, nil, nil)
 
 	roots := EventsByPeer{}
 	for _, node := range nodes {
@@ -25,18 +23,17 @@ func TestFrameSerialization(t *testing.T) {
 	}
 
 	f0 := &Frame{
-		Index:  idx.Frame(rand.Uint64()),
-		Events: EventsByPeer{},
-		Roots:  roots,
+		Index:      idx.Frame(rand.Uint64()),
+		Roots:      roots,
+		TimeOffset: 3,
+		TimeRatio:  1,
 	}
-	buf, err := proto.Marshal(f0.ToWire())
+	buf, err := rlp.EncodeToBytes(f0)
 	assertar.NoError(err)
 
-	w := &wire.Frame{}
-	err = proto.Unmarshal(buf, w)
+	f1 := &Frame{}
+	err = rlp.DecodeBytes(buf, f1)
 	assertar.NoError(err)
-
-	f1 := WireToFrame(w)
 
 	assertar.EqualValues(f0, f1)
 }

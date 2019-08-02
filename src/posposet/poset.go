@@ -131,13 +131,15 @@ func (p *Poset) getRoots(slot election.Slot) hash.Events {
 }
 
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
-func (p *Poset) Prepare(e *inter.Event) {
+func (p *Poset) Prepare(e *inter.Event) *inter.Event {
+	id := e.Hash() // remember, because we change event here
 	p.vi.AddAsTemporary(e)
-	defer p.vi.EraseTemporary(e.Hash())
+	defer p.vi.EraseTemporary(id)
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
-	e.MedianTime = p.vi.MedianTime(e.Hash(), p.genesis.time)
+	e.MedianTime = p.vi.MedianTime(id, p.Genesis.Time)
 	e.GasLeft = 0 // TODO
+	return e
 }
 
 // checks consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
@@ -154,7 +156,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
 	}
 	// check median timestamp
-	medianTime := p.vi.MedianTime(e.Hash(), p.genesis.time)
+	medianTime := p.vi.MedianTime(e.Hash(), p.Genesis.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
@@ -233,7 +235,7 @@ func (p *Poset) consensus(e *inter.Event) {
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, superframe sealing.
 func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
-	p.election.Reset(p.members, frame+1)
+	p.election.Reset(p.Members, frame+1)
 
 	p.Debugf("dfsSubgraph from %s", sfWitness.String())
 	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
@@ -266,20 +268,20 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 
 	// balances changes
 
-	state := p.store.StateDB(p.superFrame.balances)
-	p.applyTransactions(state, ordered, p.nextMembers)
-	p.applyRewards(state, ordered, p.nextMembers)
-	p.nextMembers = p.nextMembers.Top()
+	state := p.store.StateDB(p.superFrame.Balances)
+	p.applyTransactions(state, ordered, p.NextMembers)
+	p.applyRewards(state, ordered, p.NextMembers)
+	p.NextMembers = p.NextMembers.Top()
 	balances, err := state.Commit(true)
 	if err != nil {
 		p.Fatal(err)
 	}
-	p.superFrame.balances = balances
+	p.superFrame.Balances = balances
 }
 
 func (p *Poset) superFrameSealed(fiWitness hash.Event) bool {
-	p.sfWitnessCount++
-	if p.sfWitnessCount < SuperFrameLen {
+	p.SfWitnessCount += 1
+	if p.SfWitnessCount < SuperFrameLen {
 		return false
 	}
 
@@ -314,7 +316,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		}
 
 		// counter of all the seen roots on maxParentsFrame
-		sSeenCounter := p.members.NewCounter()
+		sSeenCounter := p.Members.NewCounter()
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			for member, memberRoots := range p.frames[maxParentsFrame].Roots {

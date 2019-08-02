@@ -1,15 +1,12 @@
 package posposet
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestPoset(t *testing.T) {
@@ -17,7 +14,7 @@ func TestPoset(t *testing.T) {
 
 	const posetCount = 3 // last will be restored
 
-	nodes, events := inter.GenEventsByNode(5, 99, 3)
+	nodes := inter.GenNodes(5)
 
 	posets := make([]*Poset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
@@ -37,6 +34,16 @@ func TestPoset(t *testing.T) {
 		_ = makePoset(i)
 	}
 
+	// create events on poset0
+	buildEvent := func(e *inter.Event) *inter.Event {
+		return posets[0].Prepare(e)
+	}
+	onNewEvent := func(e *inter.Event) {
+		inputs[0].SetEvent(e)
+		posets[0].PushEventSync(e.Hash())
+	}
+	events := inter.GenEventsByNode(nodes, 99, 3, buildEvent, onNewEvent)
+
 	t.Run("Multiple start", func(t *testing.T) {
 		posets[0].Stop()
 		posets[0].Start()
@@ -45,7 +52,7 @@ func TestPoset(t *testing.T) {
 
 	t.Run("Push unordered events", func(t *testing.T) {
 		// first all events from one node
-		for i := 0; i < len(posets); i++ {
+		for i := 1; i < len(posets); i++ {
 			n := i % len(nodes)
 			ee := events[nodes[n]]
 			for _, e := range ee {
@@ -54,7 +61,7 @@ func TestPoset(t *testing.T) {
 			}
 		}
 		// second all events from others
-		for i := 0; i < len(posets); i++ {
+		for i := 1; i < len(posets); i++ {
 			for n := range nodes {
 				if n == i%len(nodes) {
 					continue

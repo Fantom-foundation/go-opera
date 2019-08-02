@@ -66,7 +66,7 @@ func testStronglySeen(t *testing.T, dag string) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag)
+	peers, _, named := inter.ASCIIschemeToDAG(dag, nil, nil)
 
 	members := make(internal.Members, len(peers))
 	for _, peer := range peers {
@@ -387,7 +387,7 @@ func TestStronglySeenRandom(t *testing.T) {
 		"d019": map[string]struct{}{"a000": {}, "a001": {}, "a002": {}, "a003": {}, "a004": {}, "a005": {}, "a006": {}, "a007": {}, "a008": {}, "a009": {}, "a010": {}, "a011": {}, "a012": {}, "a013": {}, "a014": {}, "a015": {}, "a016": {}, "a017": {}, "a018": {}, "a019": {}, "b000": {}, "b001": {}, "b002": {}, "b003": {}, "b004": {}, "b005": {}, "b006": {}, "b007": {}, "b008": {}, "b009": {}, "b010": {}, "b011": {}, "b012": {}, "b013": {}, "b014": {}, "b015": {}, "b016": {}, "b017": {}, "b018": {}, "c000": {}, "c001": {}, "c002": {}, "c003": {}, "c004": {}, "c005": {}, "c006": {}, "c007": {}, "c008": {}, "c009": {}, "c010": {}, "c011": {}, "c012": {}, "c013": {}, "c014": {}, "c015": {}, "c016": {}, "c017": {}, "c018": {}, "d000": {}, "d001": {}, "d002": {}, "d003": {}, "d004": {}, "d005": {}, "d006": {}, "d007": {}, "d008": {}, "d009": {}, "d010": {}, "d011": {}, "d012": {}, "d013": {}, "d014": {}, "d015": {}, "d016": {}, "d017": {}, "d018": {}},
 	}
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag)
+	peers, _, named := inter.ASCIIschemeToDAG(dag, nil, nil)
 	members := make(internal.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))

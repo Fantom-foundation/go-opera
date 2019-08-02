@@ -6,7 +6,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
@@ -36,13 +35,19 @@ type EventHeaderData struct {
 
 	Extra []byte
 
-	hash hash.Event `rlp:"-"` // cache for .Hash()
+	hash *hash.Event `rlp:"-"` // cache for .Hash()
 }
 
 type EventHeader struct {
 	EventHeaderData
 
 	Sig []byte
+}
+
+type Event struct {
+	EventHeader
+	InternalTransactions []*InternalTransaction
+	ExternalTransactions ExtTxns
 }
 
 func (e *EventHeaderData) HashToSign() hash.Hash {
@@ -71,12 +76,6 @@ func (e *EventHeaderData) SelfParentEqualTo(hash hash.Event) bool {
 	return *e.SelfParent() == hash
 }
 
-type Event struct {
-	EventHeader
-	InternalTransactions []*InternalTransaction
-	ExternalTransactions ExtTxns
-}
-
 // SignBy signs event by private key.
 func (e *Event) SignBy(priv *crypto.PrivateKey) error {
 	sig, err := priv.Sign(e.HashToSign().Bytes())
@@ -93,18 +92,28 @@ func (e *Event) VerifySignature() bool {
 	return cryptoaddr.VerifySignature(e.Creator, e.HashToSign(), e.Sig)
 }
 
-// Hash calcs hash of event.
-func (e *EventHeaderData) Hash() hash.Event {
-	if e.hash.IsZero() {
-		hasher := sha3.New256()
-		err := rlp.Encode(hasher, e)
-		if err != nil {
-			panic("can't encode: " + err.Error())
-		}
-		// TODO return  epoch | lamport | 24 bytes hash
-		e.hash = hash.BytesToEvent(hasher.Sum(nil))
+// Hash calcs hash of event (not cached).
+func (e *EventHeaderData) CalcHash() hash.Event {
+	hasher := sha3.New256()
+	err := rlp.Encode(hasher, e)
+	if err != nil {
+		panic("can't encode: " + err.Error())
 	}
-	return e.hash
+	// TODO return  epoch | lamport | 24 bytes hash
+	return hash.BytesToEvent(hasher.Sum(nil))
+}
+
+func (e *EventHeaderData) RecacheHash() {
+	e.hash = &hash.Event{}
+	*e.hash = e.CalcHash() // TODO must be atomic
+}
+
+// Hash calcs hash of event (cached).
+func (e *EventHeaderData) Hash() hash.Event {
+	if e.hash == nil {
+		e.RecacheHash() // TODO must be atomic
+	}
+	return *e.hash
 }
 
 // FindInternalTxn find transaction in event's internal transactions list.
@@ -118,21 +127,23 @@ func (e *Event) FindInternalTxn(idx hash.Transaction) *InternalTransaction {
 	return nil
 }
 
+// constructs empty event
+func NewEvent() *Event {
+	return &Event{
+		EventHeader: EventHeader{
+			EventHeaderData: EventHeaderData{
+				Extra: []byte{},
+			},
+			Sig: []byte{},
+		},
+		InternalTransactions: []*InternalTransaction{},
+		ExternalTransactions: ExtTxns{},
+	}
+}
+
 // String returns string representation.
 func (e *Event) String() string {
 	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.Lamport)
-}
-
-// TODO erase
-// ToWire converts to proto.Message.
-func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
-	return nil, nil
-}
-
-// TODO erase
-// WireToEvent converts from wire.
-func WireToEvent(w *wire.Event) *Event {
-	return nil
 }
 
 /*
@@ -153,7 +164,7 @@ func FakeFuzzingEvents() (res []*Event) {
 		hash.FakeEvents(8),
 	}
 	extTxns := [][][]byte{
-		nil,
+		[][]byte{},
 		[][]byte{
 			[]byte("fake external transaction 1"),
 			[]byte("fake external transaction 2"),
@@ -162,23 +173,20 @@ func FakeFuzzingEvents() (res []*Event) {
 	i := 0
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
-			e := &Event{
-				EventHeader: EventHeader{
-					EventHeaderData: EventHeaderData{
-						Seq:     idx.Event(p),
-						Creator: creators[c],
-						Parents: parents[p],
-					},
+			e := NewEvent()
+			e.Seq = idx.Event(p)
+			e.Creator = creators[c]
+			e.Parents = parents[p]
+			e.Extra = []byte{}
+			e.Sig = []byte{}
+			e.InternalTransactions = []*InternalTransaction{
+				{
+					Amount:   999,
+					Receiver: creators[c],
 				},
-				InternalTransactions: []*InternalTransaction{
-					{
-						Amount:   999,
-						Receiver: creators[c],
-					},
-				},
-				ExternalTransactions: ExtTxns{
-					Value: extTxns[i%len(extTxns)],
-				},
+			}
+			e.ExternalTransactions = ExtTxns{
+				Value: extTxns[i%len(extTxns)],
 			}
 
 			res = append(res, e)

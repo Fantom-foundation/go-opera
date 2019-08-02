@@ -1,14 +1,13 @@
 package posposet
 
 import (
+	"github.com/ethereum/go-ethereum/rlp"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -19,8 +18,7 @@ type EventStore struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		Events  kvdb.Database `table:"event_"`
-		ExtTxns kvdb.Database `table:"exttxn_"`
+		Events kvdb.Database `table:"event_"`
 	}
 
 	logger.Instance
@@ -50,21 +48,17 @@ func (s *EventStore) Close() {
 
 // SetEvent stores event.
 func (s *EventStore) SetEvent(e *inter.Event) {
-	w, wt := e.ToWire()
-	s.set(s.table.ExtTxns, e.Hash().Bytes(), wt.ExtTxnsValue)
-	s.set(s.table.Events, e.Hash().Bytes(), w)
+	s.set(s.table.Events, e.Hash().Bytes(), e)
 }
 
 // GetEvent returns stored event.
 func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
-	w, _ := s.get(s.table.Events, h.Bytes(), &wire.Event{}).(*wire.Event)
+	w, _ := s.get(s.table.Events, h.Bytes(), &inter.Event{}).(*inter.Event)
 	if w == nil {
 		return nil
 	}
-	wt, _ := s.get(s.table.ExtTxns, h.Bytes(), &wire.ExtTxns{}).(*wire.ExtTxns)
-	w.ExternalTransactions = &wire.Event_ExtTxnsValue{ExtTxnsValue: wt}
 
-	return inter.WireToEvent(w)
+	return w
 }
 
 // HasEvent returns true if event exists.
@@ -113,31 +107,29 @@ func TestEventStore(t *testing.T) {
  * Utils:
  */
 
-func (s *EventStore) set(table kvdb.Database, key []byte, val proto.Message) {
-	var pbf proto.Buffer
-	pbf.SetDeterministic(true)
-
-	if err := pbf.Marshal(val); err != nil {
-		panic(err)
+func (s *EventStore) set(table kvdb.Database, key []byte, val interface{}) {
+	buf, err := rlp.EncodeToBytes(val)
+	if err != nil {
+		s.Fatal(err)
 	}
 
-	if err := table.Put(key, pbf.Bytes()); err != nil {
-		panic(err)
+	if err := table.Put(key, buf); err != nil {
+		s.Fatal(err)
 	}
 }
 
-func (s *EventStore) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
+func (s *EventStore) get(table kvdb.Database, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
-		panic(err)
+		s.Fatal(err)
 	}
 	if buf == nil {
 		return nil
 	}
 
-	err = proto.Unmarshal(buf, to)
+	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
-		panic(err)
+		s.Fatal(err)
 	}
 	return to
 }

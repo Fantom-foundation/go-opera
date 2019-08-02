@@ -7,18 +7,9 @@ import (
 
 // FrameOfEvent returns unfinished frame where event is in.
 func (p *Poset) FrameOfEvent(event hash.Event) *Frame {
-	for i := idx.Frame(1); true; i++ {
-		frame := p.frame(i, false)
-		if frame == nil {
-			return nil
-		}
-		for _, src := range []EventsByPeer{frame.Events, frame.Roots} {
-			for e := range src.Each() {
-				if e == event {
-					return frame
-				}
-			}
-		}
+	e := p.GetEvent(event)
+	if e != nil && e.Epoch == p.SuperFrameN {
+		return p.frames[e.Frame]
 	}
 
 	return nil
@@ -41,9 +32,8 @@ func (p *Poset) frame(n idx.Frame, orCreate bool) *Frame {
 		}
 		// create new frame
 		f = &Frame{
-			Index:  n,
-			Events: EventsByPeer{},
-			Roots:  EventsByPeer{},
+			Index: n,
+			Roots: EventsByPeer{},
 		}
 		p.setFrameSaving(f)
 		p.frames[n] = f

@@ -5,7 +5,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // checkpoint is for persistent storing.
@@ -14,29 +13,6 @@ type checkpoint struct {
 	LastBlockN        idx.Block
 	TotalCap          inter.Stake
 	LastConsensusTime inter.Timestamp
-}
-
-// ToWire converts to proto.Message.
-func (cp *checkpoint) ToWire() *wire.Checkpoint {
-	return &wire.Checkpoint{
-		SuperFrameN:       uint64(cp.SuperFrameN),
-		LastBlockN:        uint64(cp.LastBlockN),
-		TotalCap:          uint64(cp.TotalCap),
-		LastConsensusTime: uint64(cp.LastConsensusTime),
-	}
-}
-
-// wireToCheckpoint converts from wire.
-func wireToCheckpoint(w *wire.Checkpoint) *checkpoint {
-	if w == nil {
-		return nil
-	}
-	return &checkpoint{
-		SuperFrameN:       idx.SuperFrame(w.SuperFrameN),
-		LastBlockN:        idx.Block(w.LastBlockN),
-		TotalCap:          inter.Stake(w.TotalCap),
-		LastConsensusTime: inter.Timestamp(w.LastConsensusTime),
-	}
 }
 
 /*
@@ -69,7 +45,7 @@ func (p *Poset) Bootstrap() {
 
 // GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
-	return p.genesis.Hash()
+	return p.Genesis.Hash()
 }
 
 // GenesisHash calcs hash of genesis balances.
@@ -81,5 +57,5 @@ func genesisHash(balances map[hash.Peer]inter.Stake) hash.Hash {
 		logger.Get().Fatal(err)
 	}
 
-	return s.GetSuperFrame(0).balances
+	return s.GetSuperFrame(0).Balances
 }

@@ -2,8 +2,7 @@ package posposet
 
 import (
 	"fmt"
-
-	"github.com/golang/protobuf/proto"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -66,7 +65,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 
 	sf0 := s.GetSuperFrame(0)
 	if sf0 != nil {
-		if sf0.balances == genesisHash(balances) {
+		if sf0.Balances == genesisHash(balances) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
@@ -79,7 +78,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 		TotalCap:    0,
 	}
 
-	sf.members = make(internal.Members, len(balances))
+	sf.Members = make(internal.Members, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {
@@ -90,12 +89,13 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 		genesis.SetBalance(hash.Peer(addr), balance)
 		cp.TotalCap += balance
 
-		sf.members.Add(addr, balance)
+		sf.Members.Add(addr, balance)
 	}
-	sf.members = sf.members.Top()
+	sf.Members = sf.Members.Top()
+	sf.NextMembers = sf.Members.Top()
 
 	var err error
-	sf.balances, err = genesis.Commit(true)
+	sf.Balances, err = genesis.Commit(true)
 	if err != nil {
 		return err
 	}
@@ -110,19 +110,18 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
  * Utils:
  */
 
-func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
-	var pbf proto.Buffer
-
-	if err := pbf.Marshal(val); err != nil {
+func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
+	buf, err := rlp.EncodeToBytes(val)
+	if err != nil {
 		s.Fatal(err)
 	}
 
-	if err := table.Put(key, pbf.Bytes()); err != nil {
+	if err := table.Put(key, buf); err != nil {
 		s.Fatal(err)
 	}
 }
 
-func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Message {
+func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
 		s.Fatal(err)
@@ -131,7 +130,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to proto.Message) proto.Mes
 		return nil
 	}
 
-	err = proto.Unmarshal(buf, to)
+	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
 		s.Fatal(err)
 	}
