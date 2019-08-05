@@ -7,7 +7,7 @@ import (
 
 // FrameOfEvent returns unfinished frame where event is in.
 func (p *Poset) FrameOfEvent(event hash.Event) *Frame {
-	e := p.GetEvent(event)
+	e := p.GetEventHeader(event)
 	if e != nil && e.Epoch == p.SuperFrameN {
 		return p.frames[e.Frame]
 	}

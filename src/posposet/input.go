@@ -8,6 +8,7 @@ import (
 type EventSource interface {
 	HasEvent(hash.Event) bool
 	GetEvent(hash.Event) *inter.Event
+	GetEventHeader(hash.Event) *inter.EventHeaderData
 }
 
 /*
@@ -28,4 +29,14 @@ func (p *Poset) GetEvent(h hash.Event) *Event {
 	return &Event{
 		Event: e,
 	}
+}
+
+// TODO store headers separately
+// GetEventHeader returns event header.
+func (p *Poset) GetEventHeader(h hash.Event) *inter.EventHeaderData {
+	event := p.GetEvent(h)
+	if event == nil {
+		return nil
+	}
+	return &event.EventHeaderData
 }
