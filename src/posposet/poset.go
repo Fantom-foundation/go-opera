@@ -253,7 +253,7 @@ func (p *Poset) superFrameSealed(sfWitness hash.Event) bool {
 // and returns frame where event is root.
 // It is not safe for concurrent use.
 func (p *Poset) checkIfRoot(e *Event) (frame *Frame, isRoot bool) {
-	p.strongly.Cache(e.Event)
+	p.events.Add(e.Event)
 
 	var frameI idx.Frame
 	if e.Seq == 1 {
@@ -282,7 +282,7 @@ func (p *Poset) checkIfRoot(e *Event) (frame *Frame, isRoot bool) {
 		sSeenCounter := p.members.NewCounter()
 		for member, memberRoots := range p.frames[maxParentsFrame].Roots {
 			for root := range memberRoots {
-				if p.strongly.See(e.Hash(), root) {
+				if p.events.StronglySee(e.Hash(), root) {
 					sSeenCounter.Count(member)
 				}
 			}

@@ -11,6 +11,9 @@ type (
 	// Event numeration.
 	Event uint64
 
+	// Member numeration.
+	Member uint64
+
 	// Txn numeration.
 	Txn uint64
 
@@ -29,6 +32,11 @@ func (e Event) Bytes() []byte {
 }
 
 // Bytes gets the byte representation of the index.
+func (m Member) Bytes() []byte {
+	return common.IntToBytes(uint64(m))
+}
+
+// Bytes gets the byte representation of the index.
 func (t Txn) Bytes() []byte {
 	return common.IntToBytes(uint64(t))
 }
@@ -43,6 +51,15 @@ func BytesToEvent(b []byte) Event {
 	var res Event
 	for i := 0; i < len(b); i++ {
 		res += Event(b[i]) << uint(i*8)
+	}
+	return res
+}
+
+// BytesToMember converts bytes to member index.
+func BytesToMember(b []byte) Member {
+	var res Member
+	for i := 0; i < len(b); i++ {
+		res += Member(b[i]) << uint(i*8)
 	}
 	return res
 }

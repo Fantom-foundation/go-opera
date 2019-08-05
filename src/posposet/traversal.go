@@ -2,28 +2,11 @@ package posposet
 
 import (
 	"errors"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
-
-type eventsStack []hash.Event
-
-func (s *eventsStack) Push(v hash.Event) {
-	*s = append(*s, v)
-}
-
-func (s *eventsStack) Pop() *hash.Event {
-	l := len(*s)
-	if l == 0 {
-		return nil
-	}
-
-	res := &(*s)[l-1]
-	*s = (*s)[:l-1]
-
-	return res
-}
 
 type eventFilterFn func(event *inter.Event) bool
 
@@ -32,7 +15,7 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 	res = make(inter.Events, 0, 1024)
 
 	visited := make(map[hash.Event]bool)
-	stack := make(eventsStack, 0, len(p.members))
+	stack := make(utils.EventHashesStack, 0, len(p.members))
 
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
 		// ensure visited once
