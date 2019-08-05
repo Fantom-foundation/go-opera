@@ -239,11 +239,11 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 
 	p.Debugf("dfsSubgraph from %s", sfWitness.String())
 	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
-		by := p.store.GetEventConfirmedBy(event.Hash())
-		if by.IsZero() {
-			p.store.SetEventConfirmedBy(event.Hash(), sfWitness)
+		decidedFrame := p.store.GetEventConfirmedOn(event.Hash())
+		if decidedFrame == 0 {
+			p.store.SetEventConfirmedOn(event.Hash(), frame)
 		}
-		return by.IsZero() || by == sfWitness
+		return decidedFrame == 0
 	})
 	if err != nil {
 		p.Fatal(err)

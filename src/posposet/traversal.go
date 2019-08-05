@@ -12,16 +12,10 @@ type eventFilterFn func(event *inter.Event) bool
 func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Events, err error) {
 	res = make(inter.Events, 0, 1024)
 
-	visited := make(map[hash.Event]bool)
 	stack := make(hash.EventsStack, 0, len(p.Members))
 
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
-		// ensure visited once
 		walk := *pwalk
-		if visited[walk] {
-			continue
-		}
-		visited[walk] = true
 
 		event := p.input.GetEvent(walk)
 		if event == nil {
