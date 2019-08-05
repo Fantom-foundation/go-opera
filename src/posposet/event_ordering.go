@@ -28,7 +28,11 @@ func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered in
 	frameLamportPeriod := idx.MaxLamport(highestLamport-lowestLamport, 1)
 
 	// calculate difference between fiWitness's median time and previous fiWitness's consensus time (almost the same as previous median time)
-	frameTimePeriod := inter.MaxTimestamp(p.GetEvent(fiWitness).MedianTime-p.LastConsensusTime, 1)
+	nowMedianTime := p.GetEvent(fiWitness).MedianTime
+	frameTimePeriod := inter.MaxTimestamp(nowMedianTime-p.LastConsensusTime, 1)
+	if p.LastConsensusTime > nowMedianTime {
+		frameTimePeriod = 1
+	}
 
 	// Calculate time ratio & time offset
 	timeRatio := inter.MaxTimestamp(frameTimePeriod/inter.Timestamp(frameLamportPeriod), 1)
@@ -40,7 +44,10 @@ func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered in
 	p.LastConsensusTime = inter.Timestamp(highestLamport)*timeRatio + timeOffset
 
 	// Save new timeRatio & timeOffset to frame
-	p.frames[frame].SetTimes(timeOffset, timeRatio)
+	p.store.SetFrameInfo(p.SuperFrameN, frame, &FrameInfo{
+		TimeOffset: timeOffset,
+		TimeRatio:  timeRatio,
+	})
 
 	return ordered
 }

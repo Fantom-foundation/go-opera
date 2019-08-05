@@ -1,10 +1,16 @@
 package posposet
 
 import (
+	"time"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+)
+
+var (
+	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
@@ -16,7 +22,7 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	}
 
 	store := NewMemStore()
-	err := store.ApplyGenesis(balances)
+	err := store.ApplyGenesis(balances, genesisTestTime)
 	if err != nil {
 		panic(err)
 	}

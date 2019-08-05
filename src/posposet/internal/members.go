@@ -20,8 +20,13 @@ type (
 
 // Add appends item.
 func (mm *Members) Add(addr hash.Peer, stake inter.Stake) {
-	(*mm)[addr] = stake
+	if stake != 0 {
+		(*mm)[addr] = stake
+	} else {
+		delete((*mm), addr)
+	}
 }
+
 func (mm Members) sortedArray() members {
 	array := make(members, 0, len(mm))
 	for n, s := range mm {

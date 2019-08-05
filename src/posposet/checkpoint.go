@@ -4,17 +4,21 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/vectorindex"
 )
 
 // checkpoint is for persistent storing.
 type checkpoint struct {
+	// fields can change only after a frame is decided
 	SuperFrameN       idx.SuperFrame
+	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
 	TotalCap          inter.Stake
 	LastConsensusTime inter.Timestamp
 	NextMembers       internal.Members
+	Balances          hash.Hash
 }
 
 /*
@@ -39,21 +43,14 @@ func (p *Poset) Bootstrap() {
 
 	// restore current super-frame
 	p.loadSuperFrame()
+	p.vi = vectorindex.New(p.Members, p.store.epochTable.VectorIndex)
+	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootStronglySeeRoot)
+
+	// events reprocessing
+	p.handleElection(nil)
 }
 
 // GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
 	return p.Genesis.Hash()
-}
-
-// GenesisHash calcs hash of genesis balances.
-func genesisHash(balances map[hash.Peer]inter.Stake) hash.Hash {
-	s := NewMemStore()
-	defer s.Close()
-
-	if err := s.ApplyGenesis(balances); err != nil {
-		logger.Get().Fatal(err)
-	}
-
-	return s.GetSuperFrame(0).Balances
 }

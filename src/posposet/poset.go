@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/vectorindex"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -18,6 +19,9 @@ type Poset struct {
 	input EventSource
 	*checkpoint
 	superFrame
+
+	election *election.Election
+	vi       *vectorindex.Vindex
 
 	processingWg   sync.WaitGroup
 	processingDone chan struct{}
@@ -122,16 +126,13 @@ func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) 
 	return nil
 }
 
-func (p *Poset) getRoots(slot election.Slot) hash.Events {
-	frame := p.frame(slot.Frame, false)
-	if frame == nil {
+// fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
+// returns nil if event should be dropped
+func (p *Poset) Prepare(e *inter.Event) *inter.Event {
+	if e.Epoch != p.SuperFrameN {
+		p.Infof("consensus: %s is too old/too new", e.String())
 		return nil
 	}
-	return frame.Roots[slot.Addr].Copy().Slice()
-}
-
-// fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
-func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	id := e.Hash() // remember, because we change event here
 	p.vi.AddAsTemporary(e)
 	defer p.vi.EraseTemporary(id)
@@ -164,47 +165,36 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 
 	// save in DB the {vectorindex, e}
 	p.vi.CopyTemporaryToDb(e.Hash())
-	frame := p.frame(frameIdx, true)
-	frame.AddEvent(&Event{
-		Event: e,
-	})
+	if e.IsRoot {
+		p.store.AddRoot(e)
+	}
 	return nil
 }
 
 // calculates fiWitness election for the root, calls p.onFrameDecided if election was decided
-func (p *Poset) processElection(root *inter.Event) {
-	if !root.IsRoot {
-		return
-	}
-	p.Debugf("consensus: %s is root", root.String())
+func (p *Poset) handleElection(root *inter.Event) {
+	if root != nil { // if root is nil, then just bootstrap election
+		if !root.IsRoot {
+			return
+		}
+		p.Debugf("consensus: %s is root", root.String())
 
-	decided, err := p.election.ProcessRoot(election.RootAndSlot{
-		Root: root.Hash(),
-		Slot: election.Slot{
-			Frame: root.Frame,
-			Addr:  root.Creator,
-		},
-	})
-	if err != nil {
-		p.Fatal("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically", err)
-	}
-	if decided == nil {
-		return
-	}
+		decided := p.processRoot(root.Frame, root.Creator, root.Hash())
+		if decided == nil {
+			return
+		}
 
-	// if we’re here, then this root has seen that lowest not decided frame is decided now
-	p.onFrameDecided(decided.Frame, decided.SfWitness)
-	if p.superFrameSealed(decided.SfWitness) {
-		return
+		// if we’re here, then this root has seen that lowest not decided frame is decided now
+		p.onFrameDecided(decided.Frame, decided.SfWitness)
+		if p.superFrameSealed(decided.SfWitness) {
+			return
+		}
 	}
 
 	// then call processKnownRoots until it returns nil -
 	// it’s needed because new elections may already have enough votes, because we process elections from lowest to highest
 	for {
-		decided, err := p.election.ProcessKnownRoots(p.frameNumLast(), p.getRoots)
-		if err != nil {
-			p.Fatal("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically", err)
-		}
+		decided := p.processKnownRoots()
 		if decided == nil {
 			break
 		}
@@ -215,10 +205,48 @@ func (p *Poset) processElection(root *inter.Event) {
 		}
 	}
 }
+func (p *Poset) processRoot(f idx.Frame, from hash.Peer, id hash.Event) (decided *election.ElectionRes) {
+	decided, err := p.election.ProcessRoot(election.RootAndSlot{
+		Root: id,
+		Slot: election.Slot{
+			Frame: f,
+			Addr:  from,
+		},
+	})
+	if err != nil {
+		p.Fatal("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically ", err)
+	}
+	return decided
+}
+
+// The function is similar to processRoot, but it fully re-processes the current voting.
+// This routine should be called after node startup, and after each decided frame.
+func (p *Poset) processKnownRoots() *election.ElectionRes {
+	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
+	var roots []election.RootAndSlot
+	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from hash.Peer, id hash.Event) bool {
+		roots = append(roots, election.RootAndSlot{
+			Root: id,
+			Slot: election.Slot{
+				Frame: f,
+				Addr:  from,
+			},
+		})
+		return true
+	})
+	for _, root := range roots {
+		decided := p.processRoot(root.Slot.Frame, root.Slot.Addr, root.Root)
+		if decided != nil {
+			return decided
+		}
+	}
+	return nil
+}
 
 // consensus is not safe for concurrent use.
 func (p *Poset) consensus(e *inter.Event) {
 	if e.Epoch != p.SuperFrameN {
+		p.Infof("consensus: %s is too old/too new", e.String())
 		return
 	}
 	p.Debugf("consensus: start %s", e.String())
@@ -229,13 +257,14 @@ func (p *Poset) consensus(e *inter.Event) {
 		return
 	}
 
-	p.processElection(e)
+	p.handleElection(e)
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, superframe sealing.
 func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.election.Reset(p.Members, frame+1)
+	p.LastDecidedFrame = frame
 
 	p.Debugf("dfsSubgraph from %s", sfWitness.String())
 	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
@@ -251,7 +280,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 
 	// ordering
 	if len(unordered) == 0 {
-		return
+		p.Fatal("Frame is decided with no events. It isn't possible.")
 	}
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
@@ -261,14 +290,13 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.store.SetEventsBlockNum(block.Index, ordered...)
 	p.store.SetBlock(block)
 	p.checkpoint.LastBlockN = block.Index
-	p.saveCheckpoint()
 	if p.newBlockCh != nil {
 		p.newBlockCh <- p.checkpoint.LastBlockN
 	}
 
 	// balances changes
 
-	state := p.store.StateDB(p.superFrame.Balances)
+	state := p.store.StateDB(p.checkpoint.Balances)
 	p.applyTransactions(state, ordered, p.NextMembers)
 	p.applyRewards(state, ordered, p.NextMembers)
 	p.NextMembers = p.NextMembers.Top()
@@ -276,19 +304,31 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	if err != nil {
 		p.Fatal(err)
 	}
-	p.superFrame.Balances = balances
+	p.checkpoint.Balances = balances
+
+	p.saveCheckpoint()
 }
 
 func (p *Poset) superFrameSealed(fiWitness hash.Event) bool {
-	p.SfWitnessCount += 1
-	if p.SfWitnessCount < SuperFrameLen {
+	if p.LastDecidedFrame < SuperFrameLen {
 		return false
 	}
 
 	p.nextEpoch(fiWitness)
-	p.saveCheckpoint() // commit
 
 	return true
+}
+
+func (p *Poset) getFrameRoots(f idx.Frame) EventsByPeer {
+	frameRoots := EventsByPeer{}
+	p.store.ForEachRoot(f, func(f idx.Frame, from hash.Peer, id hash.Event) bool {
+		if f > f {
+			return false
+		}
+		frameRoots.AddOne(id, from)
+		return true
+	})
+	return frameRoots
 }
 
 // checkIfRoot checks root-conditions for new event
@@ -305,7 +345,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		selfParentFrame := idx.Frame(0)
 
 		for _, parent := range e.Parents {
-			pFrame := p.FrameOfEvent(parent).Index
+			pFrame := p.GetEventHeader(parent).Frame
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
 				maxParentsFrame = pFrame
 			}
@@ -319,10 +359,10 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		sSeenCounter := p.Members.NewCounter()
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
-			for member, memberRoots := range p.frames[maxParentsFrame].Roots {
-				for root := range memberRoots {
+			for creator, roots := range p.getFrameRoots(maxParentsFrame) {
+				for root := range roots {
 					if p.vi.StronglySee(e.Hash(), root) {
-						sSeenCounter.Count(member)
+						sSeenCounter.Count(creator)
 					}
 				}
 			}

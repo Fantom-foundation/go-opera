@@ -256,6 +256,7 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	p, _, input := FakePoset(nodes)
 
 	buildEvent := func(e *inter.Event) *inter.Event {
+		e.Epoch = 1
 		return p.Prepare(e)
 	}
 	onNewEvent := func(e *inter.Event) {
@@ -270,13 +271,16 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	for name, event := range names {
 		mustBeFrame, mustBeRoot := decode(name)
 		// check root
-		frame := p.FrameOfEvent(event.Hash())
-		isRoot := frame.Roots.Contains(event.Creator, event.Hash())
+		frame := p.GetEventHeader(event.Hash()).Frame
+		isRoot := p.store.IsRoot(frame, event.Creator, event.Hash())
 		if !assertar.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
 		}
+		if !assertar.Equal(mustBeRoot, event.IsRoot, name+" is root") {
+			break
+		}
 		// check frame
-		if !assertar.Equal(idx.Frame(mustBeFrame), frame.Index, "frame of "+name) {
+		if !assertar.Equal(idx.Frame(mustBeFrame), frame, "frame of "+name) {
 			break
 		}
 	}

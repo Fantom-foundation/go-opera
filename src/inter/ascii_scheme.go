@@ -149,6 +149,9 @@ func ASCIIschemeToDAG(
 			if buildEvent != nil {
 				e = buildEvent(e)
 			}
+			if e == nil {
+				continue
+			}
 			// calc hash of the event, after it's fully built
 			e.RecacheHash()
 			// save event
