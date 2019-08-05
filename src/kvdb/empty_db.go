@@ -31,6 +31,10 @@ func (w *EmptyDb) ForEach(prefix []byte, do func(key, val []byte) bool) error {
 	return nil
 }
 
+func (w *EmptyDb) ForEachFrom(start []byte, do func(key, val []byte) bool) error {
+	return nil
+}
+
 func (w *EmptyDb) Delete(key []byte) error {
 	return nil
 }

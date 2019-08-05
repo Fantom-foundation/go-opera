@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestForEach2(t *testing.T) {
+func TestCacheWrapper(t *testing.T) {
 	tries := 15            // number of test iterations
 	opsPerIter := 0x200    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
@@ -165,7 +165,7 @@ func TestForEach2(t *testing.T) {
 			expectPairs := []kv{}
 			testForEach := func(db Database, first bool) {
 				got := 0
-				assertar.NoError(db.ForEach(prefix, func(key, val []byte) bool {
+				assertar.NoError(db.ForEachFrom(prefix, func(key, val []byte) bool {
 					assertar.NotEqual(got, stopAfter) // check that return true/false works here
 
 					if first {

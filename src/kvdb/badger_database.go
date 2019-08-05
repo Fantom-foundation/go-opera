@@ -1,8 +1,8 @@
 package kvdb
 
 import (
+	"bytes"
 	"fmt"
-
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -93,15 +93,14 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 	return
 }
 
-// ForEach scans key-value pair by key prefix.
-func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
-	prefix = w.fullKey(prefix)
-
+// ForEachFrom scans key-value pair by key lexicographically.
+func (w *BadgerDatabase) ForEachFrom(start []byte, do func(key, val []byte) bool) error {
+	start = w.fullKey(start)
 	err := w.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+		for it.Seek(start); it.ValidForPrefix(w.prefix); it.Next() {
 			item := it.Item()
 			k := item.Key()
 			k = k[len(w.prefix)+len(separator):]
@@ -119,6 +118,18 @@ func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) e
 			}
 		}
 		return nil
+	})
+
+	return err
+}
+
+// ForEach scans key-value pair by key prefix.
+func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
+	err := w.ForEachFrom(prefix, func(key, val []byte) bool {
+		if !bytes.HasPrefix(key, prefix) {
+			return false
+		}
+		return do(key, val)
 	})
 
 	return err

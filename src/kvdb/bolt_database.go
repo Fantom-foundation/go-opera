@@ -2,7 +2,6 @@ package kvdb
 
 import (
 	"bytes"
-
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -83,9 +82,21 @@ func (w *BoltDatabase) Get(key []byte) (val []byte, err error) {
 
 // ForEach scans key-value pair by key prefix.
 func (w *BoltDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
+	err := w.ForEachFrom(prefix, func(key, val []byte) bool {
+		if !bytes.HasPrefix(key, prefix) {
+			return false
+		}
+		return do(key, val)
+	})
+
+	return err
+}
+
+// ForEachFrom scans key-value pair by key lexicographically.
+func (w *BoltDatabase) ForEachFrom(start []byte, do func(key, val []byte) bool) error {
 	err := w.db.View(func(tx *bbolt.Tx) error {
 		c := tx.Bucket(w.bucket).Cursor()
-		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
+		for k, v := c.Seek(start); k != nil; k, v = c.Next() {
 			if !do(k, v) {
 				return nil
 			}

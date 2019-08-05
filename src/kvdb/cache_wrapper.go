@@ -137,12 +137,12 @@ func castToPair(node *rbt.Node) (key, val []byte) {
 	return key, val
 }
 
-// ForEach scans key-value pair by key prefix in lexicographic order. Looks in cache first, then - in DB.
-func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) error {
+// ForEach scans key-value pair by key in lexicographic order. Looks in cache first, then - in DB.
+func (w *CacheWrapper) ForEachFrom(start []byte, do func(key, val []byte) bool) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	prefix = w.fullKey(prefix)
+	start = w.fullKey(start)
 	globalCont := true // if false, stop iterating both parent and tree
 
 	// call 'do' if pair qualifies
@@ -151,13 +151,13 @@ func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) err
 		if !globalCont {
 			return false, prevKey
 		}
-		// check that prefixed. stop iterating tree if it is
-		if !bytes.HasPrefix(key, prefix) {
-			return false, prevKey
-		}
 		// check that val != nil (it means it's removed in tree). move to next tree's key if it is
 		if val == nil {
 			return true, key
+		}
+		// check that from my table. stop iterating tree if it isn't
+		if !bytes.HasPrefix(key, w.prefix) {
+			return false, prevKey
 		}
 		// check that parent's key is bigger than prev returned key. move to next key if it is
 		if prevKey == nil || bytes.Compare(key, prevKey) > 0 {
@@ -169,7 +169,7 @@ func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) err
 	}
 
 	// read first pair from tree
-	treeNode, treeOk := w.modified.Ceiling(string(prefix)) // not strict >=
+	treeNode, treeOk := w.modified.Ceiling(string(start)) // not strict >=
 	treeKey, treeVal := castToPair(treeNode)
 	var prevKey []byte
 
@@ -177,7 +177,6 @@ func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) err
 		// until key from the tree is <= parents's key, use tree's key (because it has priority over parent pairs)
 		for treeOk && (parentKey == nil || bytes.Compare(treeKey, parentKey) <= 0) {
 			// it's not possible that treeKey isn't bigger than prevKey
-			// treeKey may be not prefixed
 			// treeVal may be nil (i.e. deleted)
 			treeOk, prevKey = doIfSuitable(treeKey, treeVal, prevKey)
 			if !treeOk {
@@ -192,7 +191,6 @@ func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) err
 		// try to use parents's key
 
 		// it's possible that parentKey is smaller than prevKey
-		// parentKey is prefixed
 		// parentVal cannot be nil
 		// parentKey may be deleted in tree (so we shouldn't use it). but it'll be checked anyway by comparing with prevKey
 		var cont bool
@@ -200,7 +198,7 @@ func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) err
 		return cont
 	}
 	// read values from both parent and tree. tree has priority over parent
-	err := w.parent.ForEach(prefix, step)
+	err := w.parent.ForEachFrom(start, step)
 	if err != nil {
 		return err
 	}
@@ -210,6 +208,18 @@ func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) err
 	}
 
 	return nil
+}
+
+// ForEach scans key-value pair by key prefix.
+func (w *CacheWrapper) ForEach(prefix []byte, do func(key, val []byte) bool) error {
+	err := w.ForEachFrom(prefix, func(key, val []byte) bool {
+		if !bytes.HasPrefix(key, prefix) {
+			return false
+		}
+		return do(key, val)
+	})
+
+	return err
 }
 
 // Delete removes key-value pair by key. In parent DB, key won't be deleted until .Flush() is called.
