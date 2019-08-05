@@ -42,7 +42,6 @@ type superFrame struct {
 	SfWitnessCount uint
 	Balances       hash.Hash
 	Members        internal.Members
-	NextMembers    internal.Members
 
 	frames map[idx.Frame]*Frame `rlp:"-"`
 
@@ -54,7 +53,6 @@ type superFrame struct {
 
 func (p *Poset) loadSuperFrame() {
 	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
-	p.NextMembers = p.Members.Top()
 	p.vi = vectorindex.New(p.Members, p.store.table.VectorIndex)
 	p.election = election.New(p.Members, firstFrame, p.rootStronglySeeRoot)
 	p.frames = make(map[idx.Frame]*Frame)

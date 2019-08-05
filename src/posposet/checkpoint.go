@@ -5,6 +5,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 // checkpoint is for persistent storing.
@@ -13,6 +14,7 @@ type checkpoint struct {
 	LastBlockN        idx.Block
 	TotalCap          inter.Stake
 	LastConsensusTime inter.Timestamp
+	NextMembers       internal.Members
 }
 
 /*
@@ -34,10 +36,6 @@ func (p *Poset) Bootstrap() {
 	if p.checkpoint == nil {
 		p.Fatal("Apply genesis for store first")
 	}
-
-	// restore genesis
-	// TODO store & restore genesis object (p.genesis)
-	//p.genesis = p.store.GetSuperFrame(0).balances
 
 	// restore current super-frame
 	p.loadSuperFrame()

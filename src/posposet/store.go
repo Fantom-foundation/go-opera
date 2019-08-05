@@ -92,7 +92,6 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake) error {
 		sf.Members.Add(addr, balance)
 	}
 	sf.Members = sf.Members.Top()
-	sf.NextMembers = sf.Members.Top()
 
 	var err error
 	sf.Balances, err = genesis.Commit(true)
