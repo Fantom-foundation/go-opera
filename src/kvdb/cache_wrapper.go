@@ -17,7 +17,8 @@ type CacheWrapper struct {
 	parent Database
 	prefix []byte
 
-	modified *rbt.Tree // modified, comparing to parent, pairs. deleted values are nil
+	modified       *rbt.Tree // modified, comparing to parent, pairs. deleted values are nil
+	sizeEstimation *int
 
 	lock *sync.Mutex // we have no guarantees that rbt.Tree works with concurrent reads, so we can't use MutexRW
 }
@@ -25,9 +26,10 @@ type CacheWrapper struct {
 // NewCacheWrapper wraps parent. All the writes into the cache won't be written in parent until .Flush() is called.
 func NewCacheWrapper(parent Database) *CacheWrapper {
 	return &CacheWrapper{
-		parent:   parent,
-		modified: rbt.NewWithStringComparator(),
-		lock:     new(sync.Mutex),
+		parent:         parent,
+		modified:       rbt.NewWithStringComparator(),
+		lock:           new(sync.Mutex),
+		sizeEstimation: new(int),
 	}
 }
 
@@ -39,10 +41,11 @@ func NewCacheWrapper(parent Database) *CacheWrapper {
 func (w *CacheWrapper) NewTableFlushable(prefix []byte) FlushableDatabase {
 	base := common.CopyBytes(w.prefix)
 	return &CacheWrapper{
-		parent:   w.parent,
-		modified: w.modified,
-		prefix:   append(append(base, []byte("-")...), prefix...),
-		lock:     w.lock,
+		parent:         w.parent,
+		modified:       w.modified,
+		prefix:         append(append(base, []byte("-")...), prefix...),
+		lock:           w.lock,
+		sizeEstimation: w.sizeEstimation,
 	}
 }
 
@@ -65,13 +68,14 @@ func (w *CacheWrapper) Put(key []byte, value []byte) error {
 }
 
 func (w *CacheWrapper) put(key []byte, value []byte) error {
-	if value == nil {
-		return errors.New("CacheWrapper: value is nil")
+	if value == nil || key == nil {
+		return errors.New("CacheWrapper: key or value is nil")
 	}
 
 	key = w.fullKey(key)
 
 	w.modified.Put(string(key), common.CopyBytes(value))
+	*w.sizeEstimation += len(key) + len(value)
 	return nil
 }
 
@@ -236,6 +240,7 @@ func (w *CacheWrapper) delete(key []byte) error {
 	key = w.fullKey(key)
 
 	w.modified.Put(string(key), nil)
+	*w.sizeEstimation += len(key) // it should be (len(key) - len(old value)), but we'd need to read old value
 	return nil
 }
 
@@ -244,11 +249,13 @@ func (w *CacheWrapper) ClearNotFlushed() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.modified.Clear()
+	*w.sizeEstimation = 0
 }
 
 // Close leaves underlying database.
 func (w *CacheWrapper) Close() {
 	w.modified = nil
+	w.sizeEstimation = nil
 	w.parent.Close()
 }
 
@@ -260,6 +267,11 @@ func (w *CacheWrapper) NewBatch() Batch {
 // Num of not flushed keys, including deleted keys.
 func (w *CacheWrapper) NotFlushedPairs() int {
 	return w.modified.Size()
+}
+
+// Estimation of not flushed data, including deleted keys.
+func (w *CacheWrapper) NotFlushedSizeEst() int {
+	return *w.sizeEstimation
 }
 
 // Flushes current cache into parent DB.
@@ -289,6 +301,7 @@ func (w *CacheWrapper) Flush() error {
 		}
 	}
 	w.modified.Clear()
+	*w.sizeEstimation = 0
 
 	return batch.Write()
 }

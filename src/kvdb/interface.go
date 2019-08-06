@@ -31,6 +31,7 @@ type FlushableDatabase interface {
 	NewTableFlushable(prefix []byte) FlushableDatabase
 	Database
 	NotFlushedPairs() int
+	NotFlushedSizeEst() int
 	Flush() error
 	ClearNotFlushed()
 }
