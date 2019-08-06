@@ -26,7 +26,6 @@ func TestPosetTxn(t *testing.T) {
 
 	buildEvent := func(e *inter.Event) *inter.Event {
 		e.Epoch = 1
-		e = p.Prepare(e)
 		if e.Seq == 1 && e.Creator == nodes[0] {
 			e.InternalTransactions = append(e.InternalTransactions,
 				&inter.InternalTransaction{
@@ -35,6 +34,7 @@ func TestPosetTxn(t *testing.T) {
 					Receiver: nodes[1],
 				})
 		}
+		e = p.Prepare(e)
 		return e
 	}
 	onNewEvent := func(e *inter.Event) {
@@ -43,7 +43,7 @@ func TestPosetTxn(t *testing.T) {
 	}
 
 	p.Start()
-	_ = inter.GenEventsByNode(nodes, 20, 3, buildEvent, onNewEvent)
+	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen - 1), 3, buildEvent, onNewEvent)
 
 	assert.Equal(t, idx.SuperFrame(0), p.Genesis.Epoch)
 	assert.Equal(t, hash.ZeroEvent, p.Genesis.LastFiWitness)

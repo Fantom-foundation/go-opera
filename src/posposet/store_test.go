@@ -137,8 +137,8 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 	}
 
 	poset := New(store, input)
-	poset.newBlockCh = nil
 	poset.Bootstrap()
+	poset.Start()
 
 	return poset
 }

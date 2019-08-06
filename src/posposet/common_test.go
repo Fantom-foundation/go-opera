@@ -32,6 +32,7 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	poset := New(store, input)
 	poset.Bootstrap()
 	MakeOrderedInput(poset)
+	poset.Start()
 
 	return poset, store, input
 }
