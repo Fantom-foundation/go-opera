@@ -62,7 +62,7 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.store.pruneTempDb()
 
 	// reset election & vectorindex
-	p.vi.Reset(p.store.epochTable.VectorIndex) // this DB is pruned after .pruneTempDb()
+	p.vi.Reset(p.Members, p.store.epochTable.VectorIndex) // this DB is pruned after .pruneTempDb()
 	p.election.Reset(p.Members, firstFrame)
 	p.LastDecidedFrame = 0
 

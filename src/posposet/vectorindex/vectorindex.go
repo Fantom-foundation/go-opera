@@ -21,21 +21,21 @@ type Vindex struct {
 }
 
 // New creates Vindex instance.
-func New(members internal.Members, eventsDb kvdb.Database) *Vindex {
+func New(members internal.Members, db kvdb.Database) *Vindex {
 	vi := &Vindex{
-		members:    members,
-		memberIdxs: members.Idxs(),
-		Instance:   logger.MakeInstance(),
+		Instance: logger.MakeInstance(),
 	}
-	vi.Reset(eventsDb)
+	vi.Reset(members, db)
 
 	return vi
 }
 
 // Reset resets buffers.
-func (vi *Vindex) Reset(eventsDb kvdb.Database) {
-	vi.eventsDb = eventsDb
+func (vi *Vindex) Reset(members internal.Members, db kvdb.Database) {
+	vi.eventsDb = db
 	vi.tempEvents = make(map[hash.Event]*Event)
+	vi.members = members
+	vi.memberIdxs = members.Idxs()
 }
 
 // Calculate vector clocks for the event.
