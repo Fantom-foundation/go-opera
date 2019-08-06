@@ -4,7 +4,6 @@ import (
 	"testing"
 )
 
-
 func TestStoreErr(t *testing.T) {
 	E := NewStoreErr("test", KeyNotFound, "0")
 	if E.Error() != "test, 0, Not Found" {

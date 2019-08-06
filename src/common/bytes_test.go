@@ -102,7 +102,7 @@ func TestHasHexPrefix(t *testing.T) {
 }
 
 func TestHex2BytesFixed(t *testing.T) {
-	str := "AABBCCDD";
+	str := "AABBCCDD"
 	if !bytes.Equal([]byte{0xDD}, Hex2BytesFixed(str, 1)) {
 		t.Errorf("Expected 0xDD found: %v", Hex2BytesFixed(str, 1))
 	}
