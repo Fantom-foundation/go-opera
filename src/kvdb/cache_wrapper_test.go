@@ -49,20 +49,20 @@ func TestCacheWrapper(t *testing.T) {
 		},
 	}
 
-	flushableDbsTables := [][]FlushableDatabase{
+	flushableDbsTables := [][]Database{
 		{
 			flushableDbs["cache-over-bbolt"],
-			flushableDbs["cache-over-bbolt"].NewTableFlushable([]byte{0, 1}),
-			flushableDbs["cache-over-bbolt"].NewTableFlushable([]byte{0}),
-			flushableDbs["cache-over-bbolt"].NewTableFlushable([]byte{0}).NewTableFlushable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
-			flushableDbs["cache-over-bbolt"].NewTableFlushable([]byte{0}).NewTableFlushable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
+			flushableDbs["cache-over-bbolt"].NewTable([]byte{0, 1}),
+			flushableDbs["cache-over-bbolt"].NewTable([]byte{0}),
+			flushableDbs["cache-over-bbolt"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
+			flushableDbs["cache-over-bbolt"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
 		},
 		{
 			flushableDbs["cache-over-memory"],
-			flushableDbs["cache-over-memory"].NewTableFlushable([]byte{0, 1}),
-			flushableDbs["cache-over-memory"].NewTableFlushable([]byte{0}),
-			flushableDbs["cache-over-memory"].NewTableFlushable([]byte{0}).NewTableFlushable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
-			flushableDbs["cache-over-memory"].NewTableFlushable([]byte{0}).NewTableFlushable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
+			flushableDbs["cache-over-memory"].NewTable([]byte{0, 1}),
+			flushableDbs["cache-over-memory"].NewTable([]byte{0}),
+			flushableDbs["cache-over-memory"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
+			flushableDbs["cache-over-memory"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
 		},
 	}
 

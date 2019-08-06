@@ -10,7 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common"
 )
 
-// CacheWrapper is a kvdb.Database wrapper around any BatchedDatabase.
+// CacheWrapper is a kvdb.Database wrapper around any Database.
 // On reading, it looks in memory cache first. If not found, it looks in a parent DB.
 // On writing, it writes only in cache. To flush the cache into parent DB, call Flush().
 type CacheWrapper struct {
@@ -37,8 +37,8 @@ func NewCacheWrapper(parent Database) *CacheWrapper {
  * Database interface implementation
  */
 
-// NewTableFlushable returns a Database object that prefixes all keys with a given prefix.
-func (w *CacheWrapper) NewTableFlushable(prefix []byte) FlushableDatabase {
+// NewTable returns a Database object that prefixes all keys with a given prefix.
+func (w *CacheWrapper) NewTable(prefix []byte) Database {
 	base := common.CopyBytes(w.prefix)
 	return &CacheWrapper{
 		parent:         w.parent,
@@ -47,11 +47,6 @@ func (w *CacheWrapper) NewTableFlushable(prefix []byte) FlushableDatabase {
 		lock:           w.lock,
 		sizeEstimation: w.sizeEstimation,
 	}
-}
-
-// NewTable returns a Database object that prefixes all keys with a given prefix.
-func (w *CacheWrapper) NewTable(prefix []byte) Database {
-	return w.NewTableFlushable(prefix)
 }
 
 // prefixed key
