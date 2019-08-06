@@ -40,6 +40,7 @@ func ASCIIschemeToDAG(
 
 		// parse line
 		col := 0
+		prev := 0
 		for _, symbol := range strings.FieldsFunc(strings.TrimSpace(line), filler) {
 			symbol = strings.TrimSpace(symbol)
 			if strings.HasPrefix(symbol, "//") {
@@ -99,6 +100,8 @@ func ASCIIschemeToDAG(
 			}
 			if symbol != "╚" && symbol != "╝" {
 				col++
+			} else {
+				prev++
 			}
 		}
 
@@ -119,7 +122,7 @@ func ASCIIschemeToDAG(
 				parents    = hash.Events{}
 				maxLamport Timestamp
 			)
-			if last := len(events[creator]) - 1; last >= 0 {
+			if last := len(events[creator]) - prev - 1; last >= 0 {
 				parent := events[creator][last]
 				index = parent.Seq + 1
 				selfParent = parent.Hash()
@@ -178,6 +181,14 @@ func ASCIIschemeToDAG(
 func DAGtoASCIIscheme(events Events) (string, error) {
 	events = events.ByParents()
 
+	// detect and return info about case like this: c0 - c1 - c2 - c5 - c4.
+	// needed to fix ASCII link events (fix swapped links)
+	// TODO: bad solution
+	swapped := findSwappedParents(events)
+
+	// [creator][seq] if count of unique seq > 1 -> fork
+	var seqCount = make(map[hash.Peer]map[idx.Event]int)
+
 	var (
 		scheme rows
 
@@ -187,6 +198,17 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		ok            bool
 	)
 	for _, e := range events {
+		// TODO: bad solution
+		// find the same Seq
+		if _, ok1 := seqCount[e.Creator]; !ok1 {
+			seqCount[e.Creator] = map[idx.Event]int{}
+		}
+		if _, ok2 := seqCount[e.Creator][e.Seq]; !ok2 {
+			seqCount[e.Creator][e.Seq] = 1
+		} else {
+			seqCount[e.Creator][e.Seq]++
+		}
+
 		ehash := e.Hash()
 		r := &row{}
 		// creator
@@ -208,19 +230,30 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		}
 		// parents
 		r.Refs = make([]int, len(peerCols))
+		selfRefs := 0
 		for p := range e.Parents {
 			if p.IsZero() {
+				selfRefs++
 				continue
 			}
 			parent := processed[p]
 			if parent == nil {
 				return "", fmt.Errorf("parent %s of %s not found", p.String(), ehash.String())
 			}
-			if parent.Creator == e.Creator && (e.Seq - parent.Seq) == 1 {
-				continue
+			if parent.Creator == e.Creator {
+				selfRefs++
+
+				if seqCount[e.Creator][e.Seq] == 1 {
+					continue
+				}
 			}
+
 			refCol := peerCols[parent.Creator]
 			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
+		}
+
+		if selfRefs != 1 {
+			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
 		}
 
 		// first and last refs
@@ -239,7 +272,13 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		// processed
 		scheme.Add(r)
 		processed[ehash] = e
-		peerLastIndex[e.Creator] = e.Seq
+
+		// TODO: bad solution
+		if peerLastIndex[e.Creator] == e.Seq && !swapped[e.Creator] {
+			peerLastIndex[e.Creator] = e.Seq + 1
+		} else {
+			peerLastIndex[e.Creator] = e.Seq
+		}
 	}
 
 	scheme.Optimize()
@@ -311,7 +350,7 @@ func (r *row) Position(i int) pos {
 
 // Note: after any changes below, run:
 // go test -count=100 -run="TestDAGtoASCIIschemeRand" ./src/inter
-// go test -count=1 -run="TestDAGtoASCIIschemeOptimisation" ./src/inter
+// go test -count=100 -run="TestDAGtoASCIIschemeOptimisation" ./src/inter
 func (rr *rows) Optimize() {
 
 	for curr, row := range rr.rows {
@@ -465,7 +504,7 @@ func (rr *rows) String() string {
 				case last:
 					out("╚ " + row.Name + nolink(tail-1))
 				default:
-					out(" " + row.Name)
+					out("╚ " + row.Name + link(tail-1))
 				}
 				continue
 			}
@@ -526,4 +565,31 @@ func link(n int) string {
 	}
 
 	return str
+}
+
+// Note: detect and return info about swapped parents 
+// like this case: c0 - c1 - c2 - c5 - c4 where c5, c4 have the same parent [c2]
+func findSwappedParents(events Events) map[hash.Peer]bool {
+	var evs = make(map[hash.Peer]idx.Event)
+	var prevs = make(map[hash.Peer]int)
+	var swapped = make(map[hash.Peer]bool)
+	for i, e := range events {
+		if _, ok := evs[e.Creator]; !ok {
+			evs[e.Creator] = e.Seq
+			prevs[e.Creator] = i
+			continue
+		}
+		if evs[e.Creator] == e.Seq {
+			pName := hash.GetEventName(events[prevs[e.Creator]].Hash())
+			cName := hash.GetEventName(events[i].Hash())
+			if pName > cName {
+				swapped[e.Creator] = true
+				break
+			}
+		} else {
+			evs[e.Creator] = e.Seq
+			prevs[e.Creator] = i
+		}
+	}
+	return swapped
 }
