@@ -134,8 +134,8 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
-	p.vi.AddAsTemporary(e)
-	defer p.vi.EraseTemporary(id)
+	p.vi.Add(e)
+	defer p.vi.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
 	e.MedianTime = p.vi.MedianTime(id, p.Genesis.Time)
@@ -145,8 +145,8 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 
 // checks consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
-	p.vi.AddAsTemporary(e)
-	defer p.vi.EraseTemporary(e.Hash())
+	p.vi.Add(e)
+	defer p.vi.DropNotFlushed()
 
 	// check frame & isRoot
 	frameIdx, isRoot := p.calcFrameIdx(e, true)
@@ -164,7 +164,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	// TODO check e.GasLeft
 
 	// save in DB the {vectorindex, e}
-	p.vi.CopyTemporaryToDb(e.Hash())
+	p.vi.Flush()
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}

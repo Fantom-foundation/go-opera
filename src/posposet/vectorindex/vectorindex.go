@@ -14,8 +14,7 @@ type Vindex struct {
 	members    internal.Members
 	memberIdxs map[hash.Peer]idx.Member
 
-	eventsDb   kvdb.Database
-	tempEvents map[hash.Event]*Event // RAM only, used for not connected events
+	eventsDb      kvdb.FlushableDatabase
 
 	logger.Instance
 }
@@ -32,8 +31,7 @@ func New(members internal.Members, db kvdb.Database) *Vindex {
 
 // Reset resets buffers.
 func (vi *Vindex) Reset(members internal.Members, db kvdb.Database) {
-	vi.eventsDb = db
-	vi.tempEvents = make(map[hash.Event]*Event)
+	vi.eventsDb = kvdb.NewCacheWrapper(db) // we use wrapper to be able to drop failed events by dropping cache
 	vi.members = members
 	vi.memberIdxs = members.Idxs()
 }
@@ -59,18 +57,16 @@ func (vi *Vindex) Add(e *inter.Event) {
 	vi.SetEvent(event)
 }
 
-// Calculate vector clocks for the event and save into RAM.
-func (vi *Vindex) AddAsTemporary(e *inter.Event) {
-	event := vi.calcVectors(e)
-	vi.tempEvents[e.Hash()] = event
+// Writes vector clocks into DB. Call it if event has connected.
+func (vi *Vindex) Flush() {
+	if err := vi.eventsDb.Flush(); err != nil {
+		vi.Fatal(err)
+	}
 }
 
-func (vi *Vindex) CopyTemporaryToDb(id hash.Event) {
-	vi.SetEvent(vi.tempEvents[id])
-}
-
-func (vi *Vindex) EraseTemporary(id hash.Event) {
-	delete(vi.tempEvents, id)
+// Drop not connected clocks. Call it if event has failed.
+func (vi *Vindex) DropNotFlushed() {
+	vi.eventsDb.ClearNotFlushed()
 }
 
 func (vi *Vindex) fillEventVectors(e *Event) {

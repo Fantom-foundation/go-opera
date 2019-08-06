@@ -7,22 +7,19 @@ import (
 )
 
 func (vi *Vindex) GetEvent(id hash.Event) *Event {
-	event := vi.tempEvents[id]
-	if event == nil {
-		key := id.Bytes()
-		buf, err := vi.eventsDb.Get(key)
-		if err != nil {
-			vi.Fatal(err)
-		}
-		if buf == nil {
-			return nil
-		}
+	key := id.Bytes()
+	buf, err := vi.eventsDb.Get(key)
+	if err != nil {
+		vi.Fatal(err)
+	}
+	if buf == nil {
+		return nil
+	}
 
-		event = &Event{}
-		err = rlp.DecodeBytes(buf, event)
-		if err != nil {
-			vi.Fatal(err)
-		}
+	event := &Event{}
+	err = rlp.DecodeBytes(buf, event)
+	if err != nil {
+		vi.Fatal(err)
 	}
 	return event
 }
