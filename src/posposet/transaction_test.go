@@ -24,13 +24,10 @@ func TestPosetTxn(t *testing.T) {
 		inter.Stake(1), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
 
-	first := true
 	buildEvent := func(e *inter.Event) *inter.Event {
 		e.Epoch = 1
 		e = p.Prepare(e)
-		if first && e.Creator == nodes[0] {
-			first = false
-
+		if e.Seq == 1 && e.Creator == nodes[0] {
 			e.InternalTransactions = append(e.InternalTransactions,
 				&inter.InternalTransaction{
 					Nonce:    0,
