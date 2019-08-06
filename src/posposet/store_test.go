@@ -97,13 +97,10 @@ func benchmarkStore(b *testing.B) {
 	// run test with random DAG, N + 1 epochs long
 	b.ResetTimer()
 	maxEpoch := idx.SuperFrame(b.N) + 1
-	first := true
 	for epoch := idx.SuperFrame(1); epoch <= maxEpoch; epoch++ {
 		buildEvent := func(e *inter.Event) *inter.Event {
-			if first && e.Creator == nodes[0] {
+			if e.Seq == 1 && e.Creator == nodes[0] {
 				// move stake from node0 to node1, to test that it doesn't break anything
-				first = false
-
 				e.InternalTransactions = append(e.InternalTransactions,
 					&inter.InternalTransaction{
 						Nonce:    0,

@@ -133,6 +133,10 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		p.Infof("consensus: %s is too old/too new", e.String())
 		return nil
 	}
+	if _, ok := p.Members[e.Creator]; !ok {
+		p.Warnf("consensus: %s isn't member", e.Creator.String())
+		return nil
+	}
 	id := e.Hash() // remember, because we change event here
 	p.vi.Add(e)
 	defer p.vi.DropNotFlushed()
@@ -145,6 +149,10 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 
 // checks consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
+	if _, ok := p.Members[e.Creator]; !ok {
+		return errors.Errorf("consensus: %s isn't member", e.Creator.String())
+	}
+
 	p.vi.Add(e)
 	defer p.vi.DropNotFlushed()
 
