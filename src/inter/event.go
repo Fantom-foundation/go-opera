@@ -2,55 +2,118 @@ package inter
 
 import (
 	"fmt"
-
-	"github.com/golang/protobuf/proto"
-
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
+	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
-// Event is a poset event.
+type EventHeaderData struct {
+	Version uint32
+
+	Epoch idx.SuperFrame
+	Seq   idx.Event
+
+	Frame  idx.Frame
+	IsRoot bool
+
+	Creator hash.Peer // TODO common.Address
+
+	GenesisHash hash.Hash
+	Parents     hash.Events
+
+	GasLeft uint64
+	GasUsed uint64
+
+	Lamport     idx.Lamport
+	ClaimedTime Timestamp
+	MedianTime  Timestamp
+
+	TxHash hash.Hash
+
+	Extra []byte
+
+	hash *hash.Event `rlp:"-"` // cache for .Hash()
+}
+
+type EventHeader struct {
+	EventHeaderData
+
+	Sig []byte
+}
+
 type Event struct {
-	SfNum                idx.SuperFrame
-	Seq                  idx.Event
-	Creator              hash.Peer
-	SelfParent           hash.Event
-	Parents              hash.Events
-	LamportTime          Timestamp
+	EventHeader
 	InternalTransactions []*InternalTransaction
 	ExternalTransactions ExtTxns
-	Sign                 []byte
+}
 
-	hash hash.Event // cache for .Hash()
+func (e *EventHeaderData) HashToSign() hash.Hash {
+	hasher := sha3.New256()
+	err := rlp.Encode(hasher, []interface{}{
+		"Fantom signed event header",
+		e,
+	})
+	if err != nil {
+		panic("can't encode: " + err.Error())
+	}
+	return hash.FromBytes(hasher.Sum(nil))
+}
+
+func (e *EventHeaderData) SelfParent() *hash.Event {
+	if e.Seq <= 1 || len(e.Parents) == 0 {
+		return nil
+	}
+	return &e.Parents[0]
+}
+
+func (e *EventHeaderData) SelfParentEqualTo(hash hash.Event) bool {
+	if e.SelfParent() == nil {
+		return false
+	}
+	return *e.SelfParent() == hash
 }
 
 // SignBy signs event by private key.
 func (e *Event) SignBy(priv *crypto.PrivateKey) error {
-	eventHash := e.Hash()
-
-	sig, err := priv.Sign(eventHash.Bytes())
+	sig, err := priv.Sign(e.HashToSign().Bytes())
 	if err != nil {
 		return err
 	}
 
-	e.Sign = sig
+	e.Sig = sig
 	return nil
 }
 
 // Verify sign event by public key.
 func (e *Event) VerifySignature() bool {
-	return cryptoaddr.VerifySignature(e.Creator, hash.Hash(e.Hash()), e.Sign)
+	return cryptoaddr.VerifySignature(e.Creator, e.HashToSign(), e.Sig)
 }
 
-// Hash calcs hash of event.
-func (e *Event) Hash() hash.Event {
-	if e.hash.IsZero() {
-		e.hash = EventHashOf(e)
+// Hash calcs hash of event (not cached).
+func (e *EventHeaderData) CalcHash() hash.Event {
+	hasher := sha3.New256()
+	err := rlp.Encode(hasher, e)
+	if err != nil {
+		panic("can't encode: " + err.Error())
 	}
-	return e.hash
+	// TODO return  epoch | lamport | 24 bytes hash
+	return hash.BytesToEvent(hasher.Sum(nil))
+}
+
+func (e *EventHeaderData) RecacheHash() {
+	e.hash = &hash.Event{}
+	*e.hash = e.CalcHash() // TODO must be atomic
+}
+
+// Hash calcs hash of event (cached).
+func (e *EventHeaderData) Hash() hash.Event {
+	if e.hash == nil {
+		e.RecacheHash() // TODO must be atomic
+	}
+	return *e.hash
 }
 
 // FindInternalTxn find transaction in event's internal transactions list.
@@ -64,66 +127,28 @@ func (e *Event) FindInternalTxn(idx hash.Transaction) *InternalTransaction {
 	return nil
 }
 
+// constructs empty event
+func NewEvent() *Event {
+	return &Event{
+		EventHeader: EventHeader{
+			EventHeaderData: EventHeaderData{
+				Extra: []byte{},
+			},
+			Sig: []byte{},
+		},
+		InternalTransactions: []*InternalTransaction{},
+		ExternalTransactions: ExtTxns{},
+	}
+}
+
 // String returns string representation.
 func (e *Event) String() string {
-	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.LamportTime)
-}
-
-// ToWire converts to proto.Message.
-func (e *Event) ToWire() (*wire.Event, *wire.Event_ExtTxnsValue) {
-	if e == nil {
-		return nil, nil
-	}
-
-	extTxns, extTxnsHash := e.ExternalTransactions.ToWire()
-
-	return &wire.Event{
-		SfNum:                uint64(e.SfNum),
-		Seq:                  uint64(e.Seq),
-		Creator:              e.Creator.Hex(),
-		Parents:              e.Parents.ToWire(e.SelfParent),
-		LamportTime:          uint64(e.LamportTime),
-		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
-		ExternalTransactions: extTxnsHash,
-		Sign:                 e.Sign,
-	}, extTxns
-}
-
-// WireToEvent converts from wire.
-func WireToEvent(w *wire.Event) *Event {
-	if w == nil {
-		return nil
-	}
-	self, all := hash.WireToEventHashes(w.Parents)
-	return &Event{
-		SfNum:                idx.SuperFrame(w.SfNum),
-		Seq:                  idx.Event(w.Seq),
-		Creator:              hash.HexToPeer(w.Creator),
-		SelfParent:           self,
-		Parents:              all,
-		LamportTime:          Timestamp(w.LamportTime),
-		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
-		ExternalTransactions: WireToExtTxns(w),
-		Sign:                 w.Sign,
-	}
+	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.Lamport)
 }
 
 /*
  * Utils:
  */
-
-// EventHashOf calcs hash of event.
-func EventHashOf(e *Event) hash.Event {
-	w, _ := e.ToWire()
-	w.Sign = []byte{}
-
-	buf, err := proto.Marshal(w)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return hash.Event(hash.Of(buf))
-}
 
 // FakeFuzzingEvents generates random independent events for test purpose.
 func FakeFuzzingEvents() (res []*Event) {
@@ -139,7 +164,7 @@ func FakeFuzzingEvents() (res []*Event) {
 		hash.FakeEvents(8),
 	}
 	extTxns := [][][]byte{
-		nil,
+		[][]byte{},
 		[][]byte{
 			[]byte("fake external transaction 1"),
 			[]byte("fake external transaction 2"),
@@ -148,24 +173,20 @@ func FakeFuzzingEvents() (res []*Event) {
 	i := 0
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
-			e := &Event{
-				Seq:     idx.Event(p),
-				Creator: creators[c],
-				Parents: parents[p],
-				InternalTransactions: []*InternalTransaction{
-					{
-						Amount:   999,
-						Receiver: creators[c],
-					},
-				},
-				ExternalTransactions: ExtTxns{
-					Value: extTxns[i%len(extTxns)],
+			e := NewEvent()
+			e.Seq = idx.Event(p)
+			e.Creator = creators[c]
+			e.Parents = parents[p]
+			e.Extra = []byte{}
+			e.Sig = []byte{}
+			e.InternalTransactions = []*InternalTransaction{
+				{
+					Amount:   999,
+					Receiver: creators[c],
 				},
 			}
-
-			for p := range e.Parents {
-				e.SelfParent = p
-				break
+			e.ExternalTransactions = ExtTxns{
+				Value: extTxns[i%len(extTxns)],
 			}
 
 			res = append(res, e)

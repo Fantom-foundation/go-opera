@@ -15,7 +15,7 @@ import (
 )
 
 // isEventValid validates event according to frame state.
-func (p *Poset) isEventValid(e *Event, f *Frame) bool {
+func (p *Poset) isEventValid(e *Event, fInfo *FrameInfo) bool {
 	// NOTE: issue
 	//  a) if e.txns change f.Balances we will need to reconsensus all (but we need );
 	//  b) if e.txns dont change f.Balances we will get invalid sequence for valid events;

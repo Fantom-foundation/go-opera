@@ -1,10 +1,16 @@
 package posposet
 
 import (
+	"time"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+)
+
+var (
+	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
@@ -16,7 +22,7 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	}
 
 	store := NewMemStore()
-	err := store.ApplyGenesis(balances)
+	err := store.ApplyGenesis(balances, genesisTestTime)
 	if err != nil {
 		panic(err)
 	}
@@ -26,6 +32,7 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 	poset := New(store, input)
 	poset.Bootstrap()
 	MakeOrderedInput(poset)
+	poset.Start()
 
 	return poset, store, input
 }
@@ -33,7 +40,7 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 // MakeOrderedInput wraps Poset.onNewEvent with ordering.EventBuffer.
 // For tests only.
 func MakeOrderedInput(p *Poset) {
-	processed := make(hash.Events) // NOTE: mem leak, so for tests only.
+	processed := make(hash.EventsSet) // NOTE: mem leak, so for tests only.
 
 	orderThenConsensus := ordering.EventBuffer(ordering.Callback{
 

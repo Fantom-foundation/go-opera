@@ -4,34 +4,28 @@ import (
 	"errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
-// eventCallbackFn returns false to prevent walking to parents.
-type eventCallbackFn func(e *event) bool
-
 // dfsSubgraph returns all the event which are seen by head, and accepted by a filter
-func (vi *Index) dfsSubgraph(head hash.Event, callback eventCallbackFn) error {
-	stack := make(utils.EventHashesStack, 0, len(vi.members))
+func (vi *Index) dfsSubgraph(head hash.Event, walk func(*event) (godeeper bool)) error {
+	stack := make(hash.EventsStack, 0, len(vi.members))
 
-	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
-		walk := *pwalk
+	for next := &head; next != nil; next = stack.Pop() {
+		curr := *next
 
-		event, ok := vi.events[walk]
-		if !ok {
-			return errors.New("event wasn't found " + walk.String())
+		event := vi.GetEvent(curr)
+		if event == nil {
+			return errors.New("event wasn't found " + curr.String())
 		}
 
 		// filter
-		if !callback(event) {
+		if !walk(event) {
 			continue
 		}
 
 		// memorize parents
-		for parent := range event.Parents {
-			if !parent.IsZero() {
-				stack.Push(parent)
-			}
+		for _, parent := range event.Parents {
+			stack.Push(parent)
 		}
 	}
 

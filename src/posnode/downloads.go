@@ -10,7 +10,7 @@ import (
 type (
 	downloads struct {
 		heights    map[idx.SuperFrame]heights // TODO: clean old SuperFrame
-		hashes     hash.Events
+		hashes     hash.EventsSet
 		sync.Mutex // TODO: split to separates for heights and hashes
 	}
 )
@@ -20,7 +20,7 @@ func (n *Node) initDownloads() {
 		return
 	}
 	n.downloads.heights = make(map[idx.SuperFrame]heights)
-	n.downloads.hashes = hash.Events{}
+	n.downloads.hashes = hash.EventsSet{}
 }
 
 // lockFreeHeights returns start indexes of height free intervals and reserves their.
@@ -75,9 +75,13 @@ func (n *Node) lockNotDownloaded(events hash.Events) hash.Events {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 
-	res := hash.Events{}
+	var res hash.Events
 
-	for e := range events {
+	for _, e := range events {
+		if e.IsZero() {
+			continue
+		}
+
 		if n.store.GetEvent(e) != nil {
 			continue
 		}
@@ -87,7 +91,7 @@ func (n *Node) lockNotDownloaded(events hash.Events) hash.Events {
 		}
 
 		n.downloads.hashes.Add(e)
-		res.Add(e)
+		res = append(res, e)
 	}
 
 	return res
@@ -98,7 +102,10 @@ func (n *Node) unlockDownloaded(events hash.Events) {
 	n.downloads.Lock()
 	defer n.downloads.Unlock()
 
-	for e := range events {
+	for _, e := range events {
+		if e.IsZero() {
+			continue
+		}
 		delete(n.downloads.hashes, e)
 	}
 }

@@ -2,8 +2,6 @@ package posposet
 
 import (
 	"errors"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
@@ -14,16 +12,10 @@ type eventFilterFn func(event *inter.Event) bool
 func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Events, err error) {
 	res = make(inter.Events, 0, 1024)
 
-	visited := make(map[hash.Event]bool)
-	stack := make(utils.EventHashesStack, 0, len(p.members))
+	stack := make(hash.EventsStack, 0, len(p.Members))
 
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
-		// ensure visited once
 		walk := *pwalk
-		if visited[walk] {
-			continue
-		}
-		visited[walk] = true
 
 		event := p.input.GetEvent(walk)
 		if event == nil {
@@ -39,10 +31,8 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Ev
 		res = append(res, event)
 
 		// memorize parents
-		for parent := range event.Parents {
-			if !parent.IsZero() {
-				stack.Push(parent)
-			}
+		for _, parent := range event.Parents {
+			stack.Push(parent)
 		}
 	}
 

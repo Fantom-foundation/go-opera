@@ -1,11 +1,12 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/ethereum/go-ethereum/rlp"
+	"io"
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
 )
 
 // TODO: make EventsByPeer internal
@@ -13,7 +14,7 @@ import (
 type (
 	// EventsByNode is a event hashes grouped by creator.
 	// ( creator --> event hashes )
-	EventsByPeer map[hash.Peer]hash.Events
+	EventsByPeer map[hash.Peer]hash.EventsSet
 )
 
 /*
@@ -24,7 +25,7 @@ type (
 func (ee EventsByPeer) Add(events EventsByPeer) (changed bool) {
 	for creator, hashes := range events {
 		if ee[creator] == nil {
-			ee[creator] = hash.Events{}
+			ee[creator] = hash.EventsSet{}
 		}
 		if ee[creator].Add(hashes.Slice()...) {
 			changed = true
@@ -36,7 +37,7 @@ func (ee EventsByPeer) Add(events EventsByPeer) (changed bool) {
 // AddOne appends one event.
 func (ee EventsByPeer) AddOne(event hash.Event, creator hash.Peer) (changed bool) {
 	if ee[creator] == nil {
-		ee[creator] = hash.Events{}
+		ee[creator] = hash.EventsSet{}
 	}
 	if ee[creator].Add(event) {
 		changed = true
@@ -69,52 +70,43 @@ func (ee EventsByPeer) String() string {
 	return "byNode{" + strings.Join(ss, ", ") + "}"
 }
 
-// ToWire converts to simple slice.
-func (ee EventsByPeer) ToWire() []*wire.EventDescr {
-	var arr []*wire.EventDescr
+type eventDescr struct {
+	Creator hash.Peer
+	Hash    hash.Event
+}
+
+func (ee EventsByPeer) EncodeRLP(w io.Writer) error {
+	var arr []eventDescr
 	for creator, hh := range ee {
 		for hash_ := range hh {
-			arr = append(arr, &wire.EventDescr{
-				Creator: creator.Bytes(),
-				Hash:    hash_.Bytes(),
+			arr = append(arr, eventDescr{
+				Creator: creator,
+				Hash:    hash_,
 			})
 		}
 	}
-	return arr
+	return rlp.Encode(w, arr)
 }
 
-// WireToEventsByPeer converts from wire.
-func WireToEventsByPeer(arr []*wire.EventDescr) EventsByPeer {
-	res := EventsByPeer{}
+func (pp *EventsByPeer) DecodeRLP(s *rlp.Stream) error {
+	if *pp == nil {
+		*pp = EventsByPeer{}
+	}
+	ee := *pp
+
+	var arr []eventDescr
+	if err := s.Decode(&arr); err != nil {
+		return err
+	}
 
 	for _, w := range arr {
-		creator := hash.BytesToPeer(w.Creator)
-		h := hash.BytesToEvent(w.Hash)
-		if res[creator] == nil {
-			res[creator] = hash.Events{}
+		if ee[w.Creator] == nil {
+			ee[w.Creator] = hash.EventsSet{}
 		}
-		if !res[creator].Add(h) {
+		if !ee[w.Creator].Add(w.Hash) {
 			logger.Get().Fatal("double value is detected")
 		}
 	}
 
-	return res
-}
-
-/*
- * Utils:
- */
-
-// rootZero makes roots from single event.
-func rootZero(node hash.Peer) EventsByPeer {
-	return EventsByPeer{
-		node: hash.NewEvents(hash.ZeroEvent),
-	}
-}
-
-// rootFrom makes roots from single event.
-func rootFrom(e *Event) EventsByPeer {
-	return EventsByPeer{
-		e.Creator: hash.NewEvents(e.Hash()),
-	}
+	return nil
 }

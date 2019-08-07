@@ -16,24 +16,39 @@ type (
 // Result:
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
-func GenEventsByNode(
+func GenNodes(
 	nodeCount int,
-	eventCount int,
-	parentCount int,
-	mods ...func(*Event, []hash.Peer),
 ) (
 	nodes []hash.Peer,
-	events map[hash.Peer][]*Event,
 ) {
 	// init results
 	nodes = make([]hash.Peer, nodeCount)
-	events = make(map[hash.Peer][]*Event, nodeCount)
 	// make and name nodes
 	for i := 0; i < nodeCount; i++ {
 		addr := hash.FakePeer()
 		nodes[i] = addr
 		hash.SetNodeName(addr, "node"+string('A'+i))
 	}
+
+	return
+}
+
+// GenEventsByNode generates random events for test purpose.
+// Result:
+//   - nodes  is an array of node addresses;
+//   - events maps node address to array of its events;
+func GenEventsByNode(
+	nodes []hash.Peer,
+	eventCount int,
+	parentCount int,
+	buildEvent func(*Event) *Event,
+	onNewEvent func(*Event),
+) (
+	events map[hash.Peer][]*Event,
+) {
+	// init results
+	nodeCount := len(nodes)
+	events = make(map[hash.Peer][]*Event, nodeCount)
 	// make events
 	for i := 0; i < nodeCount*eventCount; i++ {
 		// seq parent
@@ -49,39 +64,49 @@ func GenEventsByNode(
 		parents = parents[:parentCount-1]
 		// make
 		e := &Event{
-			Creator: creator,
-			Parents: hash.Events{},
+			EventHeader: EventHeader{
+				EventHeaderData: EventHeaderData{
+					Creator: creator,
+					Parents: hash.Events{},
+				},
+			},
 		}
 		// first parent is a last creator's event or empty hash
 		if ee := events[creator]; len(ee) > 0 {
 			parent := ee[len(ee)-1]
 			e.Seq = parent.Seq + 1
-			e.SelfParent = parent.Hash()
 			e.Parents.Add(parent.Hash())
-			e.LamportTime = parent.LamportTime + 1
+			e.Lamport = parent.Lamport + 1
 		} else {
 			e.Seq = 1
-			e.SelfParent = hash.ZeroEvent
-			e.Parents.Add(hash.ZeroEvent)
-			e.LamportTime = 1
+			e.Lamport = 1
 		}
 		// other parents are the lasts other's events
 		for _, other := range parents {
 			if ee := events[nodes[other]]; len(ee) > 0 {
 				parent := ee[len(ee)-1]
 				e.Parents.Add(parent.Hash())
-				if e.LamportTime <= parent.LamportTime {
-					e.LamportTime = parent.LamportTime + 1
+				if e.Lamport <= parent.Lamport {
+					e.Lamport = parent.Lamport + 1
 				}
 			}
 		}
-		// apply mods
-		for _, mod := range mods {
-			mod(e, nodes)
+		// buildEvent callback
+		if buildEvent != nil {
+			e = buildEvent(e)
 		}
+		if e == nil {
+			continue
+		}
+		// calc hash of the event, after it's fully built
+		e.RecacheHash()
 		// save and name event
 		hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d", string('a'+self), len(events[creator])))
 		events[creator] = append(events[creator], e)
+		// callback
+		if onNewEvent != nil {
+			onNewEvent(e)
+		}
 	}
 
 	return

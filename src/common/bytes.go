@@ -124,22 +124,3 @@ func LeftPadBytes(slice []byte, l int) []byte {
 
 	return padded
 }
-
-// IntToBytes converts uint64 to bytes.
-func IntToBytes(n uint64) []byte {
-	var res [8]byte
-	for i := 0; i < len(res); i++ {
-		res[i] = byte(n)
-		n = n >> 8
-	}
-	return res[:]
-}
-
-// BytesToInt converts uint64 from bytes.
-func BytesToInt(b []byte) uint64 {
-	var res uint64
-	for i := 0; i < len(b); i++ {
-		res += uint64(b[i]) << uint(i*8)
-	}
-	return res
-}

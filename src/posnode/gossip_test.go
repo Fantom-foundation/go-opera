@@ -203,7 +203,7 @@ func TestMissingParents(t *testing.T) {
 					t.Fatal("event is nil")
 				}
 
-				parents.Add(event.Parents.Slice()...)
+				parents.Add(event.Parents...)
 			}
 		}
 

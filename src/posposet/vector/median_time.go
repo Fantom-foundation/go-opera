@@ -16,8 +16,8 @@ type medianTimeIndex struct {
 // MedianTime calculates weighted median of claimed time within highest seen events.
 func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Timestamp {
 	// get event by hash
-	event, ok := vi.events[id]
-	if !ok {
+	event := vi.GetEvent(id)
+	if event == nil {
 		vi.Error("vector.Index: event wasn't found " + id.String())
 		return 0
 	}

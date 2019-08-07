@@ -7,8 +7,8 @@ type (
 
 // MaxTimestamp return max value
 func MaxTimestamp(x, y Timestamp) Timestamp {
-    if x > y {
-        return x
-    }
-    return y
+	if x > y {
+		return x
+	}
+	return y
 }

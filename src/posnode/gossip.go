@@ -161,7 +161,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 				return
 			}
 
-			parents.Add(event.Parents.Slice()...)
+			parents.Add(event.Parents...)
 		}
 	}
 	n.gossipSuccess(peer)
@@ -175,7 +175,7 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 
 	n.Info("check parents")
 
-	for e := range toDownload {
+	for _, e := range toDownload {
 		if e == hash.ZeroEvent {
 			continue
 		}

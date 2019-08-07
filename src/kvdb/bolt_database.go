@@ -2,10 +2,14 @@ package kvdb
 
 import (
 	"bytes"
-
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
+)
+
+var (
+	// NOTE: key collisions are possible
+	separator = []byte("::")
 )
 
 // BoltDatabase is a kvbd.Database wrapper of *bbolt.DB.
@@ -78,9 +82,21 @@ func (w *BoltDatabase) Get(key []byte) (val []byte, err error) {
 
 // ForEach scans key-value pair by key prefix.
 func (w *BoltDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
+	err := w.ForEachFrom(prefix, func(key, val []byte) bool {
+		if !bytes.HasPrefix(key, prefix) {
+			return false
+		}
+		return do(key, val)
+	})
+
+	return err
+}
+
+// ForEachFrom scans key-value pair by key lexicographically.
+func (w *BoltDatabase) ForEachFrom(start []byte, do func(key, val []byte) bool) error {
 	err := w.db.View(func(tx *bbolt.Tx) error {
 		c := tx.Bucket(w.bucket).Cursor()
-		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
+		for k, v := c.Seek(start); k != nil; k, v = c.Next() {
 			if !do(k, v) {
 				return nil
 			}
@@ -123,15 +139,15 @@ type boltBatch struct {
 
 // Put puts key-value pair into batch.
 func (b *boltBatch) Put(key, value []byte) error {
-	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
-	b.size += len(value)
+	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
+	b.size += len(value) + len(key)
 	return nil
 }
 
 // Delete removes key-value pair from batch by key.
 func (b *boltBatch) Delete(key []byte) error {
-	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
-	b.size++
+	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
+	b.size += len(key)
 	return nil
 }
 
@@ -142,7 +158,7 @@ func (b *boltBatch) Write() error {
 
 		for _, kv := range b.writes {
 			var err error
-			if kv.del {
+			if kv.v == nil {
 				err = bucket.Delete(kv.k)
 			} else {
 				err = bucket.Put(kv.k, kv.v)

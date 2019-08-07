@@ -121,32 +121,3 @@ func (el *Election) stronglySeenRoots(root hash.Event, frame idx.Frame) []RootAn
 	}
 	return seenRoots
 }
-
-type GetRootsFn func(slot Slot) hash.Events
-
-// The function is similar to ProcessRoot, but it fully re-processes the current voting.
-// This routine should be called after node startup, and after each decided frame.
-func (el *Election) ProcessKnownRoots(maxKnownFrame idx.Frame, getRootsFn GetRootsFn) (*ElectionRes, error) {
-	// iterate all the roots from lowest frame to highest, call ProcessRootVotes for each
-	for frame := el.frameToDecide + 1; frame <= maxKnownFrame; frame++ {
-		for member := range el.members {
-			slot := Slot{
-				Frame: frame,
-				Addr:  member,
-			}
-			roots := getRootsFn(slot)
-			// if there's more than 1 root, then all of them are forks. it's fine
-			for root := range roots {
-				decided, err := el.ProcessRoot(RootAndSlot{
-					Root: root,
-					Slot: slot,
-				})
-				if decided != nil || err != nil {
-					return decided, err
-				}
-			}
-		}
-	}
-
-	return nil, nil
-}
