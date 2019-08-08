@@ -181,14 +181,6 @@ func ASCIIschemeToDAG(
 func DAGtoASCIIscheme(events Events) (string, error) {
 	events = events.ByParents()
 
-	// detect and return info about case like this: c0 - c1 - c2 - c5 - c4.
-	// needed to fix ASCII link events (fix swapped links)
-	// TODO: bad solution
-	swapped := findSwappedParents(events)
-
-	// [creator][seq] if count of unique seq > 1 -> fork
-	var seqCount = make(map[hash.Peer]map[idx.Event]int)
-
 	var (
 		scheme rows
 
@@ -196,14 +188,15 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		peerLastIndex = make(map[hash.Peer]idx.Event)
 		peerCols      = make(map[hash.Peer]int)
 		ok            bool
+
+		seqCount = make(map[hash.Peer]map[idx.Event]int)
 	)
 	for _, e := range events {
-		// TODO: bad solution
-		// find the same Seq
-		if _, ok1 := seqCount[e.Creator]; !ok1 {
+		// if count of unique seq > 1 -> fork
+		if _, exist := seqCount[e.Creator]; !exist {
 			seqCount[e.Creator] = map[idx.Event]int{}
 		}
-		if _, ok2 := seqCount[e.Creator][e.Seq]; !ok2 {
+		if _, exist := seqCount[e.Creator][e.Seq]; !exist {
 			seqCount[e.Creator][e.Seq] = 1
 		} else {
 			seqCount[e.Creator][e.Seq]++
@@ -248,8 +241,15 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 				}
 			}
 
+			var shift idx.Event
+			if parent.Creator == e.Creator {
+				shift = 1
+			} else {
+				shift = idx.Event(seqCount[parent.Creator][parent.Seq])
+			}
+
 			refCol := peerCols[parent.Creator]
-			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
+			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + shift)
 		}
 
 		if selfRefs != 1 {
@@ -273,15 +273,10 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		scheme.Add(r)
 		processed[ehash] = e
 
-		// TODO: bad solution
-		if peerLastIndex[e.Creator] == e.Seq && !swapped[e.Creator] {
-			peerLastIndex[e.Creator] = e.Seq + 1
-		} else {
-			peerLastIndex[e.Creator] = e.Seq
-		}
+		peerLastIndex[e.Creator] = e.Seq
 	}
 
-	scheme.Optimize()
+	//scheme.Optimize()
 
 	scheme.ColWidth += 3
 	return scheme.String(), nil
@@ -565,31 +560,4 @@ func link(n int) string {
 	}
 
 	return str
-}
-
-// Note: detect and return info about swapped parents 
-// like this case: c0 - c1 - c2 - c5 - c4 where c5, c4 have the same parent [c2]
-func findSwappedParents(events Events) map[hash.Peer]bool {
-	var evs = make(map[hash.Peer]idx.Event)
-	var prevs = make(map[hash.Peer]int)
-	var swapped = make(map[hash.Peer]bool)
-	for i, e := range events {
-		if _, ok := evs[e.Creator]; !ok {
-			evs[e.Creator] = e.Seq
-			prevs[e.Creator] = i
-			continue
-		}
-		if evs[e.Creator] == e.Seq {
-			pName := hash.GetEventName(events[prevs[e.Creator]].Hash())
-			cName := hash.GetEventName(events[i].Hash())
-			if pName > cName {
-				swapped[e.Creator] = true
-				break
-			}
-		} else {
-			evs[e.Creator] = e.Seq
-			prevs[e.Creator] = i
-		}
-	}
-	return swapped
 }
