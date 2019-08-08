@@ -105,7 +105,7 @@ func ASCIIschemeToDAG(
 		for i, name := range nNames {
 			// make node if don't exist
 			if len(nodes) <= nCreators[i] {
-				addr := hash.HexToPeer(name)
+				addr := hash.Peer(hash.Of([]byte(name)))
 				nodes = append(nodes, addr)
 				events[addr] = nil
 			}
