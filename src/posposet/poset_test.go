@@ -12,7 +12,7 @@ import (
 func TestPoset(t *testing.T) {
 	logger.SetTestMode(t)
 
-	const posetCount = 3 // last will be restored
+	const posetCount = 3
 
 	nodes := inter.GenNodes(5)
 
@@ -43,7 +43,7 @@ func TestPoset(t *testing.T) {
 		inputs[0].SetEvent(e)
 		posets[0].PushEventSync(e.Hash())
 	}
-	events := inter.GenEventsByNode(nodes, int(SuperFrameLen - 1), 3, buildEvent, onNewEvent)
+	unordered := inter.GenEventsByNode(nodes, int(SuperFrameLen)-1, 3, buildEvent, onNewEvent)
 
 	t.Run("Multiple start", func(t *testing.T) {
 		posets[0].Stop()
@@ -55,8 +55,11 @@ func TestPoset(t *testing.T) {
 		// first all events from one node
 		for i := 1; i < len(posets); i++ {
 			n := i % len(nodes)
-			ee := events[nodes[n]]
+			ee := unordered[nodes[n]]
 			for _, e := range ee {
+				if e.Epoch != 1 {
+					continue
+				}
 				inputs[i].SetEvent(e)
 				posets[i].PushEventSync(e.Hash())
 			}
@@ -67,42 +70,15 @@ func TestPoset(t *testing.T) {
 				if n == i%len(nodes) {
 					continue
 				}
-				ee := events[nodes[n]]
+				ee := unordered[nodes[n]]
 				for _, e := range ee {
+					if e.Epoch != 1 {
+						continue
+					}
 					inputs[i].SetEvent(e)
 					posets[i].PushEventSync(e.Hash())
 				}
 			}
-		}
-	})
-
-	t.Run("Restore", func(t *testing.T) {
-		i := posetCount - 1
-		store := makePoset(i)
-
-		all := inter.Events{}
-		for n := range nodes {
-			ee := events[nodes[n]]
-			for _, e := range ee {
-				all = append(all, e)
-			}
-		}
-
-		for x, e := range all {
-			if x == len(all)/2 {
-				// restore
-				posets[i].Stop()
-				restored := New(store, inputs[i])
-				n := i % len(nodes)
-				restored.SetName("restored_" + nodes[n].String())
-				store.SetName("restored_" + nodes[n].String())
-				restored.Bootstrap()
-				MakeOrderedInput(restored)
-				posets[i] = restored
-			}
-
-			inputs[i].SetEvent(e)
-			posets[i].PushEventSync(e.Hash())
 		}
 	})
 
@@ -116,6 +92,10 @@ func TestPoset(t *testing.T) {
 				p1 := posets[j]
 				st1 := p1.store.GetCheckpoint()
 				t.Logf("with poset%d: SFrame %d, Block %d", j, st1.SuperFrameN, st1.LastBlockN)
+
+				// compare state on p0/p1
+				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
+				assertar.Equal(posets[j].superFrame, posets[i].superFrame)
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {
