@@ -36,11 +36,11 @@ func ASCIIschemeToDAG(
 			nCreators []int    // event-N --> creator
 			nLinks    [][]int  // event-N --> n-parent ref (0 if not)
 		)
+		prevRef := 0
 		prevFarRefs, curFarRefs = curFarRefs, make(map[int]int)
 
 		// parse line
 		col := 0
-		prev := 0
 		for _, symbol := range strings.FieldsFunc(strings.TrimSpace(line), filler) {
 			symbol = strings.TrimSpace(symbol)
 			if strings.HasPrefix(symbol, "//") {
@@ -98,14 +98,15 @@ func ASCIIschemeToDAG(
 					}
 				}
 			}
+			// do not mark it as new column. Did it on next step.
 			if symbol != "╚" && symbol != "╝" {
 				col++
 			} else {
 				// for link with fork
 				if ref, ok := prevFarRefs[col]; ok {
-					prev = ref - 1
+					prevRef = ref - 1
 				} else {
-					prev = 1
+					prevRef = 1
 				}
 			}
 		}
@@ -127,7 +128,7 @@ func ASCIIschemeToDAG(
 				parents    = hash.Events{}
 				maxLamport Timestamp
 			)
-			if last := len(events[creator]) - prev - 1; last >= 0 {
+			if last := len(events[creator]) - prevRef - 1; last >= 0 {
 				parent := events[creator][last]
 				index = parent.Seq + 1
 				selfParent = parent.Hash()
@@ -250,6 +251,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			if parent.Creator == e.Creator {
 				selfRefs++
 
+				// if more then 1 -> fork. Don't skip refs filling.
 				if seqCount[e.Creator][e.Seq] == 1 {
 					continue
 				}

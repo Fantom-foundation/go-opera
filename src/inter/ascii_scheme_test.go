@@ -362,8 +362,8 @@ func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[
 	t.Log(out)
 
 	// step 3: ASCII --> DAG (again)
-	// _, _, named = ASCIIschemeToDAG(genScheme)
-	// checkParents(t, named, refs)
+	_, _, named = ASCIIschemeToDAG(genScheme)
+	checkParents(t, named, refs)
 }
 
 func checkParents(t *testing.T, named map[string]*Event, expected map[string][]string) {
