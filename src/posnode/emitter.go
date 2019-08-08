@@ -176,31 +176,29 @@ func (n *Node) emitEvent() *inter.Event {
 
 	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
-	event := &inter.Event{
-		EventHeader: inter.EventHeader{
-			EventHeaderData: inter.EventHeaderData{
-				Epoch:   sf,
-				Seq:     seq,
-				Creator: n.ID,
-				Parents: parents,
-				Lamport: maxLamport + 1,
-			},
-		},
-		InternalTransactions: internalTxns,
-		ExternalTransactions: inter.ExtTxns{
-			Value: externalTxns,
-		},
+	event := inter.NewEvent()
+	event.Epoch = sf
+	event.Seq = seq
+	event.Creator = n.ID
+	event.Parents = parents
+	event.Lamport = maxLamport + 1
+	event.InternalTransactions = internalTxns
+	event.ExternalTransactions = inter.ExtTxns{
+		Value: externalTxns,
 	}
-	if err := event.SignBy(n.key); err != nil {
-		n.Fatal(err)
-	}
-
 	// set consensus fields
 	if n.consensus != nil {
 		event = n.consensus.Prepare(event)
 		if event == nil {
 			n.Warn("dropped event while emitting")
+			return nil
 		}
+	}
+	// calc hash after event is fully built
+	event.RecacheHash()
+	// sign
+	if err := event.SignBy(n.key); err != nil {
+		n.Fatal(err)
 	}
 
 	// set event name for debug
