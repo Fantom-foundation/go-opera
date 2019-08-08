@@ -36,6 +36,7 @@ func ASCIIschemeToDAG(
 			nCreators []int    // event-N --> creator
 			nLinks    [][]int  // event-N --> n-parent ref (0 if not)
 		)
+		prevRef := 0
 		prevFarRefs, curFarRefs = curFarRefs, make(map[int]int)
 
 		// parse line
@@ -97,7 +98,17 @@ func ASCIIschemeToDAG(
 					}
 				}
 			}
-			col++
+			// do not mark it as new column. Did it on next step.
+			if symbol != "╚" && symbol != "╝" {
+				col++
+			} else {
+				// for link with fork
+				if ref, ok := prevFarRefs[col]; ok {
+					prevRef = ref - 1
+				} else {
+					prevRef = 1
+				}
+			}
 		}
 
 		// create events
@@ -117,7 +128,7 @@ func ASCIIschemeToDAG(
 				parents    = hash.Events{}
 				maxLamport Timestamp
 			)
-			if last := len(events[creator]) - 1; last >= 0 {
+			if last := len(events[creator]) - prevRef - 1; last >= 0 {
 				parent := events[creator][last]
 				index = parent.Seq + 1
 				selfParent = parent.Hash()
@@ -179,12 +190,33 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 	var (
 		scheme rows
 
-		processed     = make(map[hash.Event]*Event)
-		peerLastIndex = make(map[hash.Peer]idx.Event)
-		peerCols      = make(map[hash.Peer]int)
-		ok            bool
+		processed = make(map[hash.Event]*Event)
+		peerCols  = make(map[hash.Peer]int)
+		ok        bool
+
+		eventIndex       = make(map[hash.Peer]map[hash.Event]int)
+		creatorLastIndex = make(map[hash.Peer]int)
+
+		seqCount = make(map[hash.Peer]map[idx.Event]int)
 	)
 	for _, e := range events {
+		// if count of unique seq > 1 -> fork
+		if _, exist := seqCount[e.Creator]; !exist {
+			seqCount[e.Creator] = map[idx.Event]int{}
+			eventIndex[e.Creator] = map[hash.Event]int{}
+		}
+		if _, exist := seqCount[e.Creator][e.Seq]; !exist {
+			seqCount[e.Creator][e.Seq] = 1
+		} else {
+			seqCount[e.Creator][e.Seq]++
+		}
+
+		if _, exist := creatorLastIndex[e.Creator]; !exist {
+			creatorLastIndex[e.Creator] = 0
+		} else {
+			creatorLastIndex[e.Creator]++
+		}
+		
 		ehash := e.Hash()
 		r := &row{}
 		// creator
@@ -218,14 +250,27 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			}
 			if parent.Creator == e.Creator {
 				selfRefs++
-				continue
+
+				// if more then 1 -> fork. Don't skip refs filling.
+				if seqCount[e.Creator][e.Seq] == 1 {
+					continue
+				}
 			}
+
 			refCol := peerCols[parent.Creator]
-			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + 1)
+
+			var shift int
+			if parent.Creator != e.Creator {
+				shift = 1
+			}
+
+			r.Refs[refCol] = creatorLastIndex[parent.Creator] - eventIndex[parent.Creator][parent.Hash()] + shift
 		}
+
 		if selfRefs != 1 {
 			return "", fmt.Errorf("self-parents count of %s is %d", ehash, selfRefs)
 		}
+
 		// first and last refs
 		r.First = len(r.Refs)
 		for i, ref := range r.Refs {
@@ -242,7 +287,8 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		// processed
 		scheme.Add(r)
 		processed[ehash] = e
-		peerLastIndex[e.Creator] = e.Seq
+
+		eventIndex[e.Creator][ehash] = creatorLastIndex[e.Creator]
 	}
 
 	scheme.Optimize()
@@ -314,7 +360,7 @@ func (r *row) Position(i int) pos {
 
 // Note: after any changes below, run:
 // go test -count=100 -run="TestDAGtoASCIIschemeRand" ./src/inter
-// go test -count=1 -run="TestDAGtoASCIIschemeOptimisation" ./src/inter
+// go test -count=100 -run="TestDAGtoASCIIschemeOptimisation" ./src/inter
 func (rr *rows) Optimize() {
 
 	for curr, row := range rr.rows {
@@ -449,13 +495,26 @@ func (rr *rows) String() string {
 
 		// 2nd line:
 		for i, ref := range row.Refs {
-			if i == row.Self {
+			if i == row.Self && ref == 0 {
 				out(" " + row.Name)
 				tail := rr.ColWidth - len([]rune(row.Name)) + 1
 				if row.Position(i) == right {
 					out(link(tail))
 				} else {
 					out(nolink(tail))
+				}
+				continue
+			}
+
+			if i == row.Self && ref > 1 {
+				tail := rr.ColWidth - len([]rune(row.Name))
+				switch row.Position(i) {
+				case first:
+					out(row.Name + " ╝" + link(tail))
+				case last:
+					out("╚ " + row.Name + nolink(tail))
+				default:
+					out("╚ " + row.Name + link(tail))
 				}
 				continue
 			}
