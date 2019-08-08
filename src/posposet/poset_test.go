@@ -36,6 +36,7 @@ func TestPoset(t *testing.T) {
 
 	// create events on poset0
 	buildEvent := func(e *inter.Event) *inter.Event {
+		e.Epoch = 1
 		return posets[0].Prepare(e)
 	}
 	onNewEvent := func(e *inter.Event) {
