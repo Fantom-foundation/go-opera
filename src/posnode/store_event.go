@@ -11,15 +11,15 @@ import (
 func (s *Store) SetEvent(e *inter.Event) {
 	key := e.Hash().Bytes()
 
-	w := e.ToWire()
-
-	s.set(s.table.Events, key, w)
+	s.set_rlp(s.table.Events, key, e)
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetEvent(h hash.Event) *inter.Event {
-	w := s.GetWireEvent(h)
-	return inter.WireToEvent(w)
+	key := h.Bytes()
+
+	w, _ := s.get_rlp(s.table.Events, key, &inter.Event{}).(*inter.Event)
+	return w
 }
 
 // TODO store separately
@@ -38,14 +38,12 @@ func (s *Store) HasEvent(h hash.Event) bool {
 }
 
 func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
-	key := h.Bytes()
-
-	w, _ := s.get(s.table.Events, key, &wire.Event{}).(*wire.Event)
-	if w == nil {
-		return w
+	e := s.GetEvent(h)
+	if e == nil {
+		return nil
 	}
 
-	return w
+	return e.ToWire()
 }
 
 // SetEventHash stores hash.

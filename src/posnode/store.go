@@ -1,6 +1,7 @@
 package posnode
 
 import (
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
@@ -53,6 +54,33 @@ func (s *Store) Close() {
 /*
  * Utils:
  */
+
+func (s *Store) set_rlp(table kvdb.Database, key []byte, val interface{}) {
+	buf, err := rlp.EncodeToBytes(val)
+	if err != nil {
+		s.Fatal(err)
+	}
+
+	if err := table.Put(key, buf); err != nil {
+		s.Fatal(err)
+	}
+}
+
+func (s *Store) get_rlp(table kvdb.Database, key []byte, to interface{}) interface{} {
+	buf, err := table.Get(key)
+	if err != nil {
+		s.Fatal(err)
+	}
+	if buf == nil {
+		return nil
+	}
+
+	err = rlp.DecodeBytes(buf, to)
+	if err != nil {
+		s.Fatal(err)
+	}
+	return to
+}
 
 func (s *Store) set(table kvdb.Database, key []byte, val proto.Message) {
 	var pbf proto.Buffer
