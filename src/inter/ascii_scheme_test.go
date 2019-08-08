@@ -278,7 +278,7 @@ func TestDAGtoASCIIFork(t *testing.T) {
         ║║      ║       ║
         ║╚═════─╫─═════ b01
        ║║       ║       ║
-       ╚ c02═══─╫─══════╣
+       ╚ c02═══─╫─══════╣ // fork
         ║║      ║       ║
         ║╚═════ a02═════╣
         ║       ║       ║
@@ -286,7 +286,7 @@ func TestDAGtoASCIIFork(t *testing.T) {
         ║║      ║       ║
         ║╚═════─╫─═════ b02
        ║║       ║       ║
-       ╚ c04═══─╫─══════╣
+       ╚ c04═══─╫─══════╣ // fork
         ║║      ║       ║
         ║╚═════ a03═════╣
 	`, map[string][]string{
@@ -323,11 +323,11 @@ func TestDAGtoASCIIFork(t *testing.T) {
         ║3      ║       ║
         ║╚═════─╫─═════ a01
         ║      3║       ║
-        ║      ╚ c01════╣
+        ║      ╚ c01════╣ // fork
         ║║      ║       ║
         ║╚══════╬══════ a02
         ║      3║       ║
-        ║      ╚ c03════╣
+        ║      ╚ c03════╣ // fork
         ║       ║       ║
         ╠═══════╬══════ a03
 	`, map[string][]string{

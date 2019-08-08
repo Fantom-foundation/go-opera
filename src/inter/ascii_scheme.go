@@ -507,14 +507,14 @@ func (rr *rows) String() string {
 			}
 
 			if i == row.Self && ref > 1 {
-				tail := rr.ColWidth - len([]rune(row.Name)) + 1
+				tail := rr.ColWidth - len([]rune(row.Name))
 				switch row.Position(i) {
 				case first:
-					out(row.Name + " ╝" + link(tail-1))
+					out(row.Name + " ╝" + link(tail))
 				case last:
-					out("╚ " + row.Name + nolink(tail-1))
+					out("╚ " + row.Name + nolink(tail))
 				default:
-					out("╚ " + row.Name + link(tail-1))
+					out("╚ " + row.Name + link(tail))
 				}
 				continue
 			}
