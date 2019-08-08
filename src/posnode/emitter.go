@@ -148,7 +148,6 @@ func (n *Node) emitEvent() *inter.Event {
 		parents = append(parents, prev.Hash())
 	} else {
 		seq = 1
-		parents = append(parents, hash.ZeroEvent)
 	}
 
 	for i := 1; i < n.conf.EventParentsCount; i++ {

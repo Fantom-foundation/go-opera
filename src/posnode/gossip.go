@@ -176,10 +176,6 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 	n.Info("check parents")
 
 	for _, e := range toDownload {
-		if e == hash.ZeroEvent {
-			continue
-		}
-
 		var req api.EventRequest
 		req.Hash = e.Bytes()
 

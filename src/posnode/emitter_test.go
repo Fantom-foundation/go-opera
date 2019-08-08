@@ -94,8 +94,8 @@ func TestEmit(t *testing.T) {
 			idx.Lamport(1),
 			events[0].Lamport)
 		assertar.Equal(
-			hash.NewEvents(hash.ZeroEvent),
-			events[0].Parents)
+			0,
+			len(events[0].Parents))
 		assertar.Equal(
 			[][]byte{tx},
 			events[0].ExternalTransactions.Value)
@@ -115,7 +115,7 @@ func TestEmit(t *testing.T) {
 			idx.Lamport(2),
 			events[1].Lamport)
 		assertar.Equal(
-			hash.NewEvents(hash.ZeroEvent, events[0].Hash()),
+			hash.NewEvents(events[0].Hash()),
 			events[1].Parents)
 	})
 
