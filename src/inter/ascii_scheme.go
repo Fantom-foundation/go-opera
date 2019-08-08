@@ -101,7 +101,12 @@ func ASCIIschemeToDAG(
 			if symbol != "╚" && symbol != "╝" {
 				col++
 			} else {
-				prev++
+				// for link with fork
+				if ref, ok := prevFarRefs[col]; ok {
+					prev = ref - 1
+				} else {
+					prev = 1
+				}
 			}
 		}
 
@@ -184,10 +189,12 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 	var (
 		scheme rows
 
-		processed     = make(map[hash.Event]*Event)
-		peerLastIndex = make(map[hash.Peer]idx.Event)
-		peerCols      = make(map[hash.Peer]int)
-		ok            bool
+		processed = make(map[hash.Event]*Event)
+		peerCols  = make(map[hash.Peer]int)
+		ok        bool
+
+		eventIndex       = make(map[hash.Peer]map[hash.Event]int)
+		creatorLastIndex = make(map[hash.Peer]int)
 
 		seqCount = make(map[hash.Peer]map[idx.Event]int)
 	)
@@ -195,6 +202,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		// if count of unique seq > 1 -> fork
 		if _, exist := seqCount[e.Creator]; !exist {
 			seqCount[e.Creator] = map[idx.Event]int{}
+			eventIndex[e.Creator] = map[hash.Event]int{}
 		}
 		if _, exist := seqCount[e.Creator][e.Seq]; !exist {
 			seqCount[e.Creator][e.Seq] = 1
@@ -202,6 +210,12 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			seqCount[e.Creator][e.Seq]++
 		}
 
+		if _, exist := creatorLastIndex[e.Creator]; !exist {
+			creatorLastIndex[e.Creator] = 0
+		} else {
+			creatorLastIndex[e.Creator]++
+		}
+		
 		ehash := e.Hash()
 		r := &row{}
 		// creator
@@ -241,15 +255,14 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 				}
 			}
 
-			var shift idx.Event
-			if parent.Creator == e.Creator {
+			refCol := peerCols[parent.Creator]
+
+			var shift int
+			if parent.Creator != e.Creator {
 				shift = 1
-			} else {
-				shift = idx.Event(seqCount[parent.Creator][parent.Seq])
 			}
 
-			refCol := peerCols[parent.Creator]
-			r.Refs[refCol] = int(peerLastIndex[parent.Creator] - parent.Seq + shift)
+			r.Refs[refCol] = creatorLastIndex[parent.Creator] - eventIndex[parent.Creator][parent.Hash()] + shift
 		}
 
 		if selfRefs != 1 {
@@ -273,10 +286,10 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		scheme.Add(r)
 		processed[ehash] = e
 
-		peerLastIndex[e.Creator] = e.Seq
+		eventIndex[e.Creator][ehash] = creatorLastIndex[e.Creator]
 	}
 
-	//scheme.Optimize()
+	scheme.Optimize()
 
 	scheme.ColWidth += 3
 	return scheme.String(), nil
