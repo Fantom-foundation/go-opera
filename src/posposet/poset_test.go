@@ -51,6 +51,7 @@ func TestPoset(t *testing.T) {
 		posets[0].Start()
 	})
 
+	pushedAll := false
 	t.Run("Push unordered events", func(t *testing.T) {
 		// first all events from one node
 		for i := 1; i < len(posets); i++ {
@@ -80,6 +81,7 @@ func TestPoset(t *testing.T) {
 				}
 			}
 		}
+		pushedAll = true
 	})
 
 	t.Run("Check consensus", func(t *testing.T) {
@@ -94,8 +96,10 @@ func TestPoset(t *testing.T) {
 				t.Logf("with poset%d: SFrame %d, Block %d", j, st1.SuperFrameN, st1.LastBlockN)
 
 				// compare state on p0/p1
-				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-				assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+				if pushedAll {
+					assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
+					assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+				}
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {
