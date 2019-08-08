@@ -69,7 +69,7 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 				callback.Drop(e.Event, err)
 				return
 			}
-			if parent.Creator == e.Creator && !e.SelfParentEqualTo(pHash) {
+			if parent.Creator == e.Creator && !e.IsSelfParent(pHash) {
 				callback.Drop(e.Event, fmt.Errorf("invalid SelfParent"))
 				return
 			}

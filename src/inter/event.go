@@ -69,7 +69,7 @@ func (e *EventHeaderData) SelfParent() *hash.Event {
 	return &e.Parents[0]
 }
 
-func (e *EventHeaderData) SelfParentEqualTo(hash hash.Event) bool {
+func (e *EventHeaderData) IsSelfParent(hash hash.Event) bool {
 	if e.SelfParent() == nil {
 		return false
 	}

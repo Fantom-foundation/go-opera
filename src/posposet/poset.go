@@ -358,7 +358,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 				maxParentsFrame = pFrame
 			}
 
-			if parent == *e.SelfParent() {
+			if e.IsSelfParent(parent) {
 				selfParentFrame = pFrame
 			}
 		}
