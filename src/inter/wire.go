@@ -1,10 +1,8 @@
 package inter
 
 import (
-	"fmt"
+	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
@@ -14,17 +12,12 @@ func (e *Event) ToWire() *wire.Event {
 		return nil
 	}
 
-	extTxns := e.ExternalTransactions.ToWire()
-
+	buf, err := rlp.EncodeToBytes(e)
+	if err != nil {
+		return nil
+	}
 	return &wire.Event{
-		SfNum:                uint64(e.Epoch),
-		Seq:                  uint64(e.Seq),
-		Creator:              e.Creator.Hex(),
-		Parents:              e.Parents.ToWire(),
-		LamportTime:          uint64(e.Lamport),
-		InternalTransactions: InternalTransactionsToWire(e.InternalTransactions),
-		ExternalTransactions: extTxns,
-		Sign:                 e.Sig,
+		RlpEncoded: buf,
 	}
 }
 
@@ -33,72 +26,84 @@ func WireToEvent(w *wire.Event) *Event {
 	if w == nil {
 		return nil
 	}
-	return &Event{
-		EventHeader: EventHeader{
-			EventHeaderData: EventHeaderData{
-				Epoch:   idx.SuperFrame(w.SfNum),
-				Seq:     idx.Event(w.Seq),
-				Creator: hash.HexToPeer(w.Creator),
-				Parents: hash.WireToEvents(w.Parents),
-				Lamport: idx.Lamport(w.LamportTime),
-			},
-			Sig: w.Sign,
-		},
-		InternalTransactions: WireToInternalTransactions(w.InternalTransactions),
-		ExternalTransactions: WireToExtTxns(w),
+
+	e := &Event{}
+	err := rlp.DecodeBytes(w.RlpEncoded, e)
+	if err != nil {
+		return nil
 	}
+	return e
 }
 
 // ToWire converts to proto.Message.
-func (tt *ExtTxns) ToWire() *wire.Event_ExtTxnsValue {
-	return &wire.Event_ExtTxnsValue{
-		ExtTxnsValue: &wire.ExtTxns{
-			List: tt.Value,
-		},
+func (b *Block) ToWire() *wire.Block {
+	if b == nil {
+		return nil
+	}
+
+	buf, err := rlp.EncodeToBytes(b)
+	if err != nil {
+		return nil
+	}
+	return &wire.Block{
+		RlpEncoded: buf,
+	}
+}
+
+// WireToBlock converts from wire.
+func WireToBlock(w *wire.Block) *Block {
+	if w == nil {
+		return nil
+	}
+
+	b := &Block{}
+	err := rlp.DecodeBytes(w.RlpEncoded, b)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// ToWire converts to proto.Message.
+func (tt *ExtTxns) ToWire() *wire.ExtTxns {
+	buf, err := rlp.EncodeToBytes(tt)
+	if err != nil {
+		return nil
+	}
+	return &wire.ExtTxns{
+		RlpEncoded: buf,
 	}
 }
 
 // WireToExtTxns converts from wire.
-func WireToExtTxns(w *wire.Event) ExtTxns {
-	switch x := w.ExternalTransactions.(type) {
-	case *wire.Event_ExtTxnsValue:
-		if val := w.GetExtTxnsValue(); val != nil {
-			return ExtTxns{
-				Value: val.List,
-			}
-		}
-		return ExtTxns{}
-	case nil:
-		return ExtTxns{}
-	default:
-		panic(fmt.Errorf("Event.ExternalTransactions has unexpected type %T", x))
+func WireToExtTxns(w *wire.Event) *ExtTxns {
+	tt := &ExtTxns{}
+	err := rlp.DecodeBytes(w.RlpEncoded, tt)
+	if err != nil {
+		return nil
 	}
+	return tt
 }
 
 // ToWire converts to wire.
 func (tx *InternalTransaction) ToWire() *wire.InternalTransaction {
-	if tx == nil {
+	buf, err := rlp.EncodeToBytes(tx)
+	if err != nil {
 		return nil
 	}
 	return &wire.InternalTransaction{
-		Nonce:      uint64(tx.Nonce),
-		Amount:     uint64(tx.Amount),
-		Receiver:   tx.Receiver.Hex(),
-		UntilBlock: uint64(tx.UntilBlock),
+		RlpEncoded: buf,
 	}
 }
 
 // WireToInternalTransaction converts from wire.
 func WireToInternalTransaction(w *wire.InternalTransaction) *InternalTransaction {
-	if w == nil {
+	tx := &InternalTransaction{}
+	err := rlp.DecodeBytes(w.RlpEncoded, tx)
+	if err != nil {
 		return nil
 	}
-	return &InternalTransaction{
-		Nonce:      idx.Txn(w.Nonce),
-		Amount:     Stake(w.Amount),
-		Receiver:   hash.HexToPeer(w.Receiver),
-		UntilBlock: idx.Block(w.UntilBlock),
-	}
+	return tx
 }
 
 // InternalTransactionsToWire converts to wire.

@@ -27,8 +27,6 @@ func (s *Store) HasEvent(h hash.Event) bool {
 	return s.has(s.table.Events, h.Bytes())
 }
 
-// GetWireEvent returns stored event.
-// Result is a ready gRPC message.
 func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 	key := h.Bytes()
 
