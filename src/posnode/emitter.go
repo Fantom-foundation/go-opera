@@ -195,6 +195,14 @@ func (n *Node) emitEvent() *inter.Event {
 		n.Fatal(err)
 	}
 
+	// set consensus fields
+	if n.consensus != nil {
+		event = n.consensus.Prepare(event)
+		if event == nil {
+			n.Warn("dropped event while emitting")
+		}
+	}
+
 	// set event name for debug
 	n.nameEventForDebug(event)
 

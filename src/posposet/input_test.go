@@ -64,12 +64,11 @@ func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
 // TODO store separately
 // GetEventHeader returns stored event header.
 func (s *EventStore) GetEventHeader(h hash.Event) *inter.EventHeaderData {
-	w, _ := s.get(s.table.Events, h.Bytes(), &inter.Event{}).(*inter.Event)
-	if w == nil {
+	e := s.GetEvent(h)
+	if e == nil {
 		return nil
 	}
-
-	return &w.EventHeaderData
+	return &e.EventHeaderData
 }
 
 // HasEvent returns true if event exists.

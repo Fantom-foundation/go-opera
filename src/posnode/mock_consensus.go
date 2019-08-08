@@ -49,6 +49,12 @@ func (mr *MockConsensusMockRecorder) CurrentSuperFrameN() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentSuperFrameN", reflect.TypeOf((*MockConsensus)(nil).CurrentSuperFrameN))
 }
 
+// Prepare mocks base method
+func (m *MockConsensus) Prepare(e *inter.Event) *inter.Event {
+	m.ctrl.T.Helper()
+	return e
+}
+
 // GetGenesisHash mocks base method
 func (m *MockConsensus) GetGenesisHash() hash.Hash {
 	m.ctrl.T.Helper()

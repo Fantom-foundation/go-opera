@@ -116,7 +116,7 @@ func (p *grpcCtrlProxy) GetTxnInfo(_ context.Context, req *internal.TransactionR
 		block = p.consensus.GetEventBlock(event.Hash())
 	}
 
-	e, _ := event.ToWire()
+	e := event.ToWire()
 	return &internal.TransactionResponse{
 		Txn:   txn.ToWire(),
 		Event: e,

@@ -23,7 +23,7 @@ func InternalTransactionListEquals(this []*wire.InternalTransaction, that []*wir
 		return false
 	}
 	for i, v := range this {
-		if !v.Equals(that[i]) {
+		if bytes.Compare(v.RlpEncoded, that[i].RlpEncoded) != 0 {
 			return false
 		}
 	}

@@ -81,7 +81,11 @@ func (vi *Index) fillEventVectors(e *event) {
 	// pre-load parents into RAM for quick access
 	eParents := make([]*event, 0, len(e.Parents))
 	for _, p := range e.Parents {
-		eParents = append(eParents, vi.GetEvent(p))
+		parent := vi.GetEvent(p)
+		if parent == nil {
+			vi.Fatalf("vindex: event %s wasn't found", p.String())
+		}
+		eParents = append(eParents, parent)
 	}
 
 	for _, p := range eParents {

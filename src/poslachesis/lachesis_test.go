@@ -1,10 +1,9 @@
 package lachesis
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"testing"
 	"time"
-
-	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -56,12 +55,12 @@ func TestStar(t *testing.T) {
 // NewForTests makes lachesis node with fake network.
 // It does not start any process.
 func NewForTests(
-	db *bbolt.DB,
+	newDb func() kvdb.Database,
 	host string,
 	key *crypto.PrivateKey,
 	conf *Config,
 ) *Lachesis {
-	l := makeLachesis(db, host, key, conf, network.FakeListener, posnode.FakeClient(host))
+	l := makeLachesis(newDb, host, key, conf, network.FakeListener, posnode.FakeClient(host))
 
 	hash.SetNodeName(l.node.ID, host)
 	l.node.SetName(host)

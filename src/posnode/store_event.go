@@ -22,6 +22,16 @@ func (s *Store) GetEvent(h hash.Event) *inter.Event {
 	return inter.WireToEvent(w)
 }
 
+// TODO store separately
+// GetEventHeader returns stored event header.
+func (s *Store) GetEventHeader(h hash.Event) *inter.EventHeaderData {
+	e := s.GetEvent(h)
+	if e == nil {
+		return nil
+	}
+	return &e.EventHeaderData
+}
+
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
 	return s.has(s.table.Events, h.Bytes())

@@ -1537,14 +1537,18 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (r
 		}
 		sender := creator.Address()
 		if body := ev.Message.GetBody(); body != nil {
-			for _, tx := range body.GetInternalTransactions() {
+			for _, wtx := range body.GetInternalTransactions() {
+				tx := inter.WireToInternalTransaction(wtx)
+				if tx == nil {
+					continue
+				}
 				p.logger.Debug("ApplyInternalTransaction", tx)
 				if statedb.FreeBalance(hash.Peer(sender)) < inter.Stake(tx.Amount) {
 					p.logger.Warn("Balance is not enough", sender, tx.Amount)
 					continue
 				}
 
-				reciver := hash.HexToPeer(tx.Receiver)
+				reciver := tx.Receiver
 				statedb.Transfer(hash.Peer(sender), reciver, inter.Stake(tx.Amount))
 			}
 		}
