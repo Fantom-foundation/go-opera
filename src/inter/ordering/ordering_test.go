@@ -9,7 +9,7 @@ import (
 
 func TestEventBuffer(t *testing.T) {
 	nodes := inter.GenNodes(5)
-	events := inter.GenEventsByNode(nodes, 10, 3, nil, nil)
+	events := inter.GenEventsByNode(nodes, 10, 3, nil, nil, nil)
 	processed := make(map[hash.Event]*inter.Event)
 
 	push := EventBuffer(Callback{

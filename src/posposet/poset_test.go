@@ -43,7 +43,7 @@ func TestPoset(t *testing.T) {
 		inputs[0].SetEvent(e)
 		posets[0].PushEventSync(e.Hash())
 	}
-	unordered := inter.GenEventsByNode(nodes, int(SuperFrameLen)-1, 3, buildEvent, onNewEvent)
+	unordered := inter.GenEventsByNode(nodes, int(SuperFrameLen)-1, 3, buildEvent, onNewEvent, nil)
 
 	t.Run("Multiple start", func(t *testing.T) {
 		posets[0].Stop()

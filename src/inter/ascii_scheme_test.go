@@ -69,7 +69,7 @@ func TestDAGtoASCIIschemeRand(t *testing.T) {
 	assertar := assert.New(t)
 
 	nodes := GenNodes(5)
-	ee := GenEventsByNode(nodes, 10, 3, nil, nil)
+	ee := GenEventsByNode(nodes, 10, 3, nil, nil, nil)
 	src := delPeerIndex(ee)
 
 	scheme0, err := DAGtoASCIIscheme(src)

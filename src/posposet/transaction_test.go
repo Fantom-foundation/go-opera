@@ -43,7 +43,7 @@ func TestPosetTxn(t *testing.T) {
 	}
 
 	p.Start()
-	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen - 1), 3, buildEvent, onNewEvent)
+	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen - 1), 3, buildEvent, onNewEvent, nil)
 
 	assert.Equal(t, idx.SuperFrame(0), p.Genesis.Epoch)
 	assert.Equal(t, hash.ZeroEvent, p.Genesis.LastFiWitness)

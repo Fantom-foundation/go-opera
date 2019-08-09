@@ -5,6 +5,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"testing"
 )
 
@@ -47,7 +48,8 @@ func TestRestore(t *testing.T) {
 
 			ordered = append(ordered, e)
 		}
-		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen)*3, 3, buildEvent, onNewEvent)
+		r := rand.New(rand.NewSource(int64((epoch))))
+		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen)*3, 3, buildEvent, onNewEvent, r)
 	}
 
 	t.Run("Restore", func(t *testing.T) {

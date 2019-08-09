@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go.etcd.io/bbolt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -120,7 +121,8 @@ func benchmarkStore(b *testing.B) {
 			}
 		}
 
-		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen*3), 3, buildEvent, onNewEvent)
+		r := rand.New(rand.NewSource(int64((epoch))))
+		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen*3), 3, buildEvent, onNewEvent, r)
 	}
 
 	flushAll()

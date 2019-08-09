@@ -300,7 +300,7 @@ func decode(name string) (frameN idx.Frame, isRoot bool) {
 /*
 // codegen4PosetRandomRoot is for test data generation.
 func codegen4PosetRandomRoot() {
-	nodes, events := inter.GenEventsByNode(4, 20, 2)
+	nodes, events := inter.GenEventsByNode(4, 20, 2, nil)
 
 	p, _, input := FakePoset(nodes)
 	// process events
