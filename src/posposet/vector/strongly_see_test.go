@@ -494,6 +494,9 @@ func TestRandomForksSanity(t *testing.T) {
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
 	events := inter.GenEventsByCheaters(nodes, cheaters, 300, 4, 30, nil, onNewEvent, nil)
 
+	vi.Flush()
+	vi.DropNotFlushed() // don't drop anything, because everything is flushed
+
 	// quick sanity check. all the nodes should see that cheaters have a fork, and honest nodes don't have forks
 	assertar := assert.New(t)
 	idxs := members.Idxs()
@@ -617,6 +620,11 @@ func TestRandomForks(t *testing.T) {
 						assertar.Equal(idx.Event(0), high.Seq, cheater.String() + "_" + e.Creator.String())
 					}
 				}
+			}
+
+			vi.DropNotFlushed() // drops everything
+			for _, e := range processed {
+				assertar.Nil(vi.GetEvent(e.Hash()))
 			}
 		})
 	}
