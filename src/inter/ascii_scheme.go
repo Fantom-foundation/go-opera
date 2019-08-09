@@ -146,6 +146,10 @@ func ASCIIschemeToDAG(
 				}
 				other := nodes[i]
 				last := len(events[other]) - ref
+				// fork first event -> Don't add any parents.
+				if last < 0 {
+					break
+				}
 				parent := events[other][last]
 				parents.Add(parent.Hash())
 				if maxLamport < parent.LamportTime {
