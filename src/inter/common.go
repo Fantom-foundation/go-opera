@@ -12,10 +12,9 @@ type (
 	Stake uint64
 )
 
-// GenEventsByNode generates random events for test purpose.
+// GenNodes generates nodes.
 // Result:
 //   - nodes  is an array of node addresses;
-//   - events maps node address to array of its events;
 func GenNodes(
 	nodeCount int,
 ) (
@@ -33,28 +32,39 @@ func GenNodes(
 	return
 }
 
-// GenEventsByNode generates random events for test purpose.
+// GenEventsByCheaters generates random events with forks for test purpose.
 // Result:
-//   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
-func GenEventsByNode(
+func GenEventsByCheaters(
 	nodes []hash.Peer,
+	cheatersArr []hash.Peer,
 	eventCount int,
 	parentCount int,
+	forksCount int,
 	buildEvent func(*Event) *Event,
 	onNewEvent func(*Event),
+	r *rand.Rand,
 ) (
 	events map[hash.Peer][]*Event,
 ) {
+	if r == nil {
+		// fixed seed
+		r = rand.New(rand.NewSource(0))
+	}
 	// init results
 	nodeCount := len(nodes)
 	events = make(map[hash.Peer][]*Event, nodeCount)
+	cheaters := map[hash.Peer]int{}
+	for _, cheater := range cheatersArr {
+		cheaters[cheater] = 0
+	}
+
 	// make events
 	for i := 0; i < nodeCount*eventCount; i++ {
 		// seq parent
 		self := i % nodeCount
 		creator := nodes[self]
-		parents := rand.Perm(nodeCount)
+		parents := r.Perm(nodeCount)
 		for j, n := range parents {
 			if n == self {
 				parents = append(parents[0:j], parents[j+1:]...)
@@ -72,14 +82,31 @@ func GenEventsByNode(
 			},
 		}
 		// first parent is a last creator's event or empty hash
+		var parent *Event
 		if ee := events[creator]; len(ee) > 0 {
-			parent := ee[len(ee)-1]
+			parent = ee[len(ee)-1]
+
+			// may insert fork
+			forksAlready, isCheater := cheaters[creator]
+			forkPossible := len(ee) > 1
+			forkLimitOk := forksAlready < forksCount
+			forkFlipped := r.Intn(eventCount) <= forksCount || i < (nodeCount - 1)*eventCount
+			if isCheater && forkPossible && forkLimitOk && forkFlipped {
+				parent = ee[r.Intn(len(ee)-1)]
+				if r.Intn(len(ee)) == 0 {
+					parent = nil
+				}
+				//e.Extra = bigendian.Int32ToBytes(uint32(i)) // make hash for each unique, because for forks we may have the same events
+				cheaters[creator] += 1
+			}
+		}
+		if parent == nil {
+			e.Seq = 1
+			e.Lamport = 1
+		} else {
 			e.Seq = parent.Seq + 1
 			e.Parents.Add(parent.Hash())
 			e.Lamport = parent.Lamport + 1
-		} else {
-			e.Seq = 1
-			e.Lamport = 1
 		}
 		// other parents are the lasts other's events
 		for _, other := range parents {
@@ -110,6 +137,22 @@ func GenEventsByNode(
 	}
 
 	return
+}
+
+// GenEventsByNode generates random events for test purpose.
+// Result:
+//   - events maps node address to array of its events;
+func GenEventsByNode(
+	nodes []hash.Peer,
+	eventCount int,
+	parentCount int,
+	buildEvent func(*Event) *Event,
+	onNewEvent func(*Event),
+	r *rand.Rand,
+) (
+	events map[hash.Peer][]*Event,
+) {
+	return GenEventsByCheaters(nodes, []hash.Peer{}, eventCount, parentCount, 0, buildEvent, onNewEvent, r)
 }
 
 func delPeerIndex(events map[hash.Peer][]*Event) (res Events) {
