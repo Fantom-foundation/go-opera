@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
@@ -81,6 +82,22 @@ func TestRestore(t *testing.T) {
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
 			assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+
+			// check heads
+			if e.Seq <= 1 || e.Epoch != posets[i].SuperFrameN {
+				continue
+			}
+			prevEvent := ordered[x-1].Hash()
+			assertar.True(posets[i].store.IsHead(e.Hash()), e.Hash().String()) // it's the one the heads, because it's just connected
+			for _, p := range e.Parents {
+				if p == prevEvent {
+					prevEvent = hash.ZeroEvent // not head anymore
+				}
+				assertar.False(posets[i].store.IsHead(p), p.String()) // not head anymore
+			}
+			if !prevEvent.IsZero() {
+				assertar.True(posets[i].store.IsHead(prevEvent), prevEvent.String())
+			}
 		}
 	})
 

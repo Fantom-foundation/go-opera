@@ -29,6 +29,7 @@ type Store struct {
 	}
 
 	epochTable struct {
+		Heads       kvdb.Database `table:"heads_"`
 		Roots       kvdb.Database `table:"roots_"`
 		VectorIndex kvdb.Database `table:"vectors_"`
 	}
