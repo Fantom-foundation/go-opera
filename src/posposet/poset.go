@@ -183,6 +183,8 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		}
 	}
 	p.store.AddHead(e.Hash())
+	// set member's last event. we don't care about forks, because this index is used only for emitter
+	p.store.SetLastEvent(e.Creator, e.Hash())
 
 	return nil
 }
