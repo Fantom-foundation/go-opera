@@ -131,6 +131,17 @@ func (hh EventsSet) Add(hash ...Event) (changed bool) {
 	return
 }
 
+// Erase erase hash from the index.
+func (hh EventsSet) Erase(hash ...Event) (changed bool) {
+	for _, h := range hash {
+		if _, ok := hh[h]; ok {
+			delete(hh, h)
+			changed = true
+		}
+	}
+	return
+}
+
 // Contains returns true if hash is in.
 func (hh EventsSet) Contains(hash Event) bool {
 	_, ok := hh[hash]

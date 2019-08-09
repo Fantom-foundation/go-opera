@@ -30,7 +30,7 @@ func (s *Store) IsHead(id hash.Event) bool {
 	return ok
 }
 
-func (s *Store) GetHeads() []hash.Event {
+func (s *Store) GetHeads() hash.Events {
 	prefix := []byte{}
 	res := []hash.Event{}
 	err := s.epochTable.Heads.ForEach(prefix, func(key, _ []byte) bool {

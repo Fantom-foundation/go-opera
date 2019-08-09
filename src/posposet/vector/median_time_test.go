@@ -120,7 +120,7 @@ func TestMedianTime(t *testing.T) {
 			EventHeaderData: &inter.NewEvent().EventHeaderData,
 		}
 		// member indexes are sorted by stake amount
-		e.HighestBefore = []highestBefore{
+		e.HighestBefore = []HighestBefore{
 			{
 				Seq:         0,
 				ClaimedTime: 100,
@@ -151,7 +151,7 @@ func TestMedianTime(t *testing.T) {
 			EventHeaderData: &inter.NewEvent().EventHeaderData,
 		}
 		// member indexes are sorted by stake amount
-		e.HighestBefore = []highestBefore{
+		e.HighestBefore = []HighestBefore{
 			{
 				Seq:         0,
 				ClaimedTime: 100,
@@ -184,7 +184,7 @@ func TestMedianTime(t *testing.T) {
 			EventHeaderData: &inter.NewEvent().EventHeaderData,
 		}
 		// member indexes are sorted by stake amount
-		e.HighestBefore = []highestBefore{
+		e.HighestBefore = []HighestBefore{
 			{
 				Seq:         1,
 				ClaimedTime: 11,
