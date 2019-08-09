@@ -264,6 +264,90 @@ a004══╬═════╣     ║     ║     // optimise this
 	})
 }
 
+func TestDAGtoASCIIFork(t *testing.T) {
+	t.Run("Case: 1", func(t *testing.T) {
+		testDAGtoASCIIschemeOptimisation(t, `
+        c00
+        ║       ║
+        ║       a00
+        ║       ║       ║
+        ║       ║       b00
+        ║       ║       ║
+        ║       a01═════╣
+        ║       ║       ║
+        c01═════╣       ║
+        ║║      ║       ║
+        ║╚═════─╫─═════ b01
+       ║║       ║       ║
+       ╚ c02═══─╫─══════╣ // fork
+        ║║      ║       ║
+        ║╚═════ a02═════╣
+        ║       ║       ║
+        c03═════╣       ║
+        ║║      ║       ║
+        ║╚═════─╫─═════ b02
+       ║║       ║       ║
+       ╚ c04═══─╫─══════╣ // fork
+        ║║      ║       ║
+        ║╚═════ a03═════╣
+	`, map[string][]string{
+			"a00": {""},
+			"a01": {"a00", "b00"},
+			"a02": {"a01", "b01", "c01"},
+			"a03": {"c03", "a02", "b02"},
+			"b00": {""},
+			"b01": {"b00", "c00"},
+			"b02": {"b01", "c02"},
+			"c00": {""},
+			"c01": {"c00", "a01"},
+			"c02": {"c00", "b01"},
+			"c03": {"c02", "a02"},
+			"c04": {"c02", "b02"},
+		})
+	})
+
+	t.Run("Case: 2", func(t *testing.T) {
+		testDAGtoASCIIschemeOptimisation(t, `
+        b00
+        ║       ║
+        ║       c00
+        ║       ║
+        b01═════╣
+        ║       ║
+        ╠══════ c02
+        ║       ║
+        b02═════╣
+        ║       ║
+        ╠══════ c04
+        ║       ║       ║
+        ║       ║       a00
+        ║3      ║       ║
+        ║╚═════─╫─═════ a01
+        ║      3║       ║
+        ║      ╚ c01════╣ // fork
+        ║║      ║       ║
+        ║╚══════╬══════ a02
+        ║      3║       ║
+        ║      ╚ c03════╣ // fork
+        ║       ║       ║
+        ╠═══════╬══════ a03
+	`, map[string][]string{
+			"a00": {""},
+			"a01": {"a00", "b00"},
+			"a02": {"a01", "b01", "c01"},
+			"a03": {"c03", "a02", "b02"},
+			"b00": {""},
+			"b01": {"b00", "c00"},
+			"b02": {"b01", "c02"},
+			"c00": {""},
+			"c01": {"c00", "a01"},
+			"c02": {"c00", "b01"},
+			"c03": {"c02", "a02"},
+			"c04": {"c02", "b02"},
+		})
+	})
+}
+
 func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[string][]string) {
 	// step 1: ASCII --> DAG
 	_, events, named := ASCIIschemeToDAG(origScheme, nil, nil)
