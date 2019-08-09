@@ -502,7 +502,7 @@ func TestRandomForksSanity(t *testing.T) {
 	idxs := members.Idxs()
 	for _, node := range nodes {
 		ee := events[node]
-		highestBefore := vi.GetEvent(ee[len(ee) - 1].Hash()).HighestBefore
+		highestBefore := vi.GetEvent(ee[len(ee)-1].Hash()).HighestBefore
 		for n, cheater := range nodes {
 			high := highestBefore[idxs[cheater]]
 			isCheater := n < len(cheaters)
@@ -517,68 +517,68 @@ func TestRandomForksSanity(t *testing.T) {
 }
 
 func TestRandomForks(t *testing.T) {
-	for i, test := range []struct{
-		nodesNum int
+	for i, test := range []struct {
+		nodesNum    int
 		cheatersNum int
-		eventsNum int
-		forksNum int
-		parentsNum int
-	} {
+		eventsNum   int
+		forksNum    int
+		parentsNum  int
+	}{
 		{
-			nodesNum: 1,
-			parentsNum : 1,
-			cheatersNum : 1,
-			eventsNum : 10,
-			forksNum: 3,
+			nodesNum:    1,
+			parentsNum:  1,
+			cheatersNum: 1,
+			eventsNum:   10,
+			forksNum:    3,
 		},
 		{
-			nodesNum: 2,
-			parentsNum : 1,
-			cheatersNum : 1,
-			eventsNum : 10,
-			forksNum: 3,
+			nodesNum:    2,
+			parentsNum:  1,
+			cheatersNum: 1,
+			eventsNum:   10,
+			forksNum:    3,
 		},
 		{
-			nodesNum: 2,
-			parentsNum : 2,
-			cheatersNum : 2,
-			eventsNum : 10,
-			forksNum: 3,
+			nodesNum:    2,
+			parentsNum:  2,
+			cheatersNum: 2,
+			eventsNum:   10,
+			forksNum:    3,
 		},
 		{
-			nodesNum: 10,
-			parentsNum : 4,
-			cheatersNum : 1,
-			eventsNum : 10,
-			forksNum: 3,
+			nodesNum:    10,
+			parentsNum:  4,
+			cheatersNum: 1,
+			eventsNum:   10,
+			forksNum:    3,
 		},
 		{
-			nodesNum: 10,
-			parentsNum : 4,
-			cheatersNum : 10,
-			eventsNum : 10,
-			forksNum: 3,
+			nodesNum:    10,
+			parentsNum:  4,
+			cheatersNum: 10,
+			eventsNum:   10,
+			forksNum:    3,
 		},
 		{
-			nodesNum: 20,
-			parentsNum : 4,
-			cheatersNum : 10,
-			eventsNum : 5,
-			forksNum: 2,
+			nodesNum:    20,
+			parentsNum:  4,
+			cheatersNum: 10,
+			eventsNum:   5,
+			forksNum:    2,
 		},
 		{
-			nodesNum: 40,
-			parentsNum : 4,
-			cheatersNum : 10,
-			eventsNum : 3,
-			forksNum: 1,
+			nodesNum:    40,
+			parentsNum:  4,
+			cheatersNum: 10,
+			eventsNum:   3,
+			forksNum:    1,
 		},
 		{
-			nodesNum: 5,
-			parentsNum : 4,
-			cheatersNum : 2,
-			eventsNum : 30,
-			forksNum: 30,
+			nodesNum:    5,
+			parentsNum:  4,
+			cheatersNum: 2,
+			eventsNum:   30,
+			forksNum:    30,
 		},
 	} {
 		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) {
@@ -615,9 +615,9 @@ func TestRandomForks(t *testing.T) {
 				for _, cheater := range nodes {
 					expectedCheater := expectedCheaters[cheater]
 					high := highestBefore[idxs[cheater]]
-					assertar.Equal(expectedCheater, high.IsForkSeen, cheater.String() + "_" + e.Creator.String())
+					assertar.Equal(expectedCheater, high.IsForkSeen, cheater.String()+"_"+e.Creator.String())
 					if expectedCheater {
-						assertar.Equal(idx.Event(0), high.Seq, cheater.String() + "_" + e.Creator.String())
+						assertar.Equal(idx.Event(0), high.Seq, cheater.String()+"_"+e.Creator.String())
 					}
 				}
 			}
