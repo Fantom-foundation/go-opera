@@ -145,6 +145,9 @@ func ASCIIschemeToDAG(
 				other := nodes[i]
 				last := len(events[other]) - ref
 				parent := events[other][last]
+				if parents.Set().Contains(parent.Hash()) {
+					continue
+				}
 				parents.Add(parent.Hash())
 				if maxLamport < parent.Lamport {
 					maxLamport = parent.Lamport
@@ -156,6 +159,7 @@ func ASCIIschemeToDAG(
 			e.Creator = creator
 			e.Parents = parents
 			e.Lamport = maxLamport + 1
+			e.Extra = []byte(name)
 			// buildEvent callback
 			if buildEvent != nil {
 				e = buildEvent(e)
@@ -182,7 +186,11 @@ func ASCIIschemeToDAG(
 			continue
 		}
 		name := []rune(ee[0].Hash().String())
-		hash.SetNodeName(node, "node"+strings.ToUpper(string(name[0:1])))
+		if strings.HasPrefix(string(name), "node") {
+			hash.SetNodeName(node, "node"+strings.ToUpper(string(name[4:5])))
+		} else {
+			hash.SetNodeName(node, "node"+strings.ToUpper(string(name[0:1])))
+		}
 	}
 
 	return
