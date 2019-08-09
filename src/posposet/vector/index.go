@@ -101,6 +101,14 @@ func (vi *Index) fillEventVectors(e *event) {
 	}
 
 	for _, p := range eParents {
+		// self-fork detection
+		if p.HighestBefore[e.CreatorIdx].Seq >= e.Seq {
+			e.HighestBefore[e.CreatorIdx].IsForkSeen = true
+			e.HighestBefore[e.CreatorIdx].Seq = 0
+		}
+	}
+
+	for _, headP := range eParents {
 		// we could just pass e.Hash() instead of the outer, but e isn't written yet
 		walk := func(w *event) (godeeper bool) {
 			godeeper = w.LowestAfter[e.CreatorIdx].Seq == 0
@@ -108,10 +116,9 @@ func (vi *Index) fillEventVectors(e *event) {
 				return
 			}
 			// 'walk' is first time seen by e.Creator
-
 			// Detect forks for a case when fork is seen only seen if we combine parents
 			for _, p := range eParents {
-				// p sees events older than 'walk', but p doesn't see p
+				// p sees events older than 'walk', but p doesn't see 'walk'
 				if p.HighestBefore[w.CreatorIdx].Seq >= w.Seq && w.LowestAfter[p.CreatorIdx].Seq == 0 {
 					e.HighestBefore[w.CreatorIdx].IsForkSeen = true
 					e.HighestBefore[w.CreatorIdx].Seq = 0
@@ -125,7 +132,7 @@ func (vi *Index) fillEventVectors(e *event) {
 			return
 		}
 
-		err := vi.dfsSubgraph(p.Hash(), walk)
+		err := vi.dfsSubgraph(headP.Hash(), walk)
 		if err != nil {
 			vi.Fatalf("vector.Index: error during dfxSubgraph %v", err)
 		}
