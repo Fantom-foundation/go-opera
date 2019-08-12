@@ -27,7 +27,7 @@ func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) 
 
 	strategy.Init(selfParent)
 
-	for i := 0; i < max && len(headsSet) > 0; i++ {
+	for ; len(res) < max && len(headsSet) > 0; {
 		best := strategy.Find(headsSet.Slice())
 		res = append(res, best)
 		headsSet.Erase(best)
