@@ -102,12 +102,10 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 			Amount:   inter.Stake(rand.Uint64()),
 			Receiver: peer,
 		}
-		event0 := &inter.Event{
-			Seq:        1,
-			Creator:    hash.FakePeer(),
-			SelfParent: hash.ZeroEvent,
-			Parents:    hash.Events{hash.ZeroEvent: struct{}{}},
-		}
+		event0 := inter.NewEvent()
+		event0.Seq = 1
+		event0.Creator = hash.FakePeer()
+		event0.Parents = hash.Events{hash.ZeroEvent}
 
 		node.EXPECT().
 			GetInternalTxn(h).

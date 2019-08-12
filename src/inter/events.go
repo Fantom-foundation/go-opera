@@ -22,17 +22,17 @@ func (ee Events) String() string {
 // TODO: use Topological sort algorithm
 func (ee Events) ByParents() (res Events) {
 	unsorted := make(Events, len(ee))
-	exists := hash.Events{}
+	exists := hash.EventsSet{}
 	for i, e := range ee {
 		unsorted[i] = e
 		exists.Add(e.Hash())
 	}
-	ready := hash.Events{}
+	ready := hash.EventsSet{}
 	for len(unsorted) > 0 {
 	EVENTS:
 		for i, e := range unsorted {
 
-			for p := range e.Parents {
+			for _, p := range e.Parents {
 				if exists.Contains(p) && !ready.Contains(p) {
 					continue EVENTS
 				}

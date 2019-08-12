@@ -2,6 +2,8 @@ package vector
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
@@ -65,14 +68,14 @@ func testStronglySeen(t *testing.T, dag string) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag)
+	peers, _, named := inter.ASCIIschemeToDAG(dag, nil, nil)
 
 	members := make(internal.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	vi := NewIndex(members)
+	vi := NewIndex(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -80,6 +83,7 @@ func testStronglySeen(t *testing.T, dag string) {
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
 			vi.Add(e)
+			vi.Flush()
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -386,13 +390,13 @@ func TestStronglySeenRandom(t *testing.T) {
 		"d019": map[string]struct{}{"a000": {}, "a001": {}, "a002": {}, "a003": {}, "a004": {}, "a005": {}, "a006": {}, "a007": {}, "a008": {}, "a009": {}, "a010": {}, "a011": {}, "a012": {}, "a013": {}, "a014": {}, "a015": {}, "a016": {}, "a017": {}, "a018": {}, "a019": {}, "b000": {}, "b001": {}, "b002": {}, "b003": {}, "b004": {}, "b005": {}, "b006": {}, "b007": {}, "b008": {}, "b009": {}, "b010": {}, "b011": {}, "b012": {}, "b013": {}, "b014": {}, "b015": {}, "b016": {}, "b017": {}, "b018": {}, "c000": {}, "c001": {}, "c002": {}, "c003": {}, "c004": {}, "c005": {}, "c006": {}, "c007": {}, "c008": {}, "c009": {}, "c010": {}, "c011": {}, "c012": {}, "c013": {}, "c014": {}, "c015": {}, "c016": {}, "c017": {}, "c018": {}, "d000": {}, "d001": {}, "d002": {}, "d003": {}, "d004": {}, "d005": {}, "d006": {}, "d007": {}, "d008": {}, "d009": {}, "d010": {}, "d011": {}, "d012": {}, "d013": {}, "d014": {}, "d015": {}, "d016": {}, "d017": {}, "d018": {}},
 	}
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag)
+	peers, _, named := inter.ASCIIschemeToDAG(dag, nil, nil)
 	members := make(internal.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
 	}
 
-	vi := NewIndex(members)
+	vi := NewIndex(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
@@ -400,6 +404,7 @@ func TestStronglySeenRandom(t *testing.T) {
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
 			vi.Add(e)
+			vi.Flush()
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -431,24 +436,218 @@ func TestStronglySeenRandom(t *testing.T) {
 	}
 }
 
+type eventSlot struct {
+	seq     idx.Event
+	creator hash.Peer
+}
+
+// naive implementation of fork detection, O(n)
+func test_forksSeen(vi *Index, head hash.Event) (cheaters map[hash.Peer]bool, err error) {
+	cheaters = map[hash.Peer]bool{}
+	visited := hash.EventsSet{}
+	seen := map[eventSlot]int{}
+	err = vi.dfsSubgraph(head, func(e *event) (godeeper bool) {
+		// ensure visited once
+		if visited.Contains(e.Hash()) {
+			return false
+		}
+		visited.Add(e.Hash())
+
+		slot := eventSlot{
+			seq:     e.Seq,
+			creator: e.Creator,
+		}
+		seen[slot] += 1
+		return true
+	})
+	for s, count := range seen {
+		if count > 1 {
+			cheaters[s.creator] = true
+		}
+	}
+	return cheaters, err
+}
+
+func TestRandomForksSanity(t *testing.T) {
+	nodes := inter.GenNodes(8)
+	cheaters := []hash.Peer{nodes[0], nodes[1], nodes[2]}
+
+	members := make(internal.Members, len(nodes))
+	for _, peer := range nodes {
+		members.Add(peer, inter.Stake(1))
+	}
+
+	members.Add(cheaters[0], inter.Stake(2))
+	members.Add(nodes[3], inter.Stake(2))
+	members.Add(nodes[4], inter.Stake(3))
+
+	vi := NewIndex(members, kvdb.NewMemDatabase())
+
+	processed := make(map[hash.Event]*inter.Event)
+	onNewEvent := func(e *inter.Event) {
+		if _, ok := processed[e.Hash()]; ok {
+			return
+		}
+		processed[e.Hash()] = e
+		vi.Add(e)
+	}
+	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
+	events := inter.GenEventsByCheaters(nodes, cheaters, 300, 4, 30, nil, onNewEvent, nil)
+
+	vi.Flush()
+	vi.DropNotFlushed() // don't drop anything, because everything is flushed
+
+	// quick sanity check. all the nodes should see that cheaters have a fork, and honest nodes don't have forks
+	assertar := assert.New(t)
+	idxs := members.Idxs()
+	for _, node := range nodes {
+		ee := events[node]
+		highestBefore := vi.GetEvent(ee[len(ee)-1].Hash()).HighestBefore
+		for n, cheater := range nodes {
+			high := highestBefore[idxs[cheater]]
+			isCheater := n < len(cheaters)
+			assertar.Equal(isCheater, high.IsForkSeen, cheater.String())
+			if isCheater {
+				assertar.Equal(idx.Event(0), high.Seq, cheater.String())
+			} else {
+				assertar.NotEqual(idx.Event(0), high.Seq, cheater.String())
+			}
+		}
+	}
+}
+
+func TestRandomForks(t *testing.T) {
+	for i, test := range []struct {
+		nodesNum    int
+		cheatersNum int
+		eventsNum   int
+		forksNum    int
+		parentsNum  int
+	}{
+		{
+			nodesNum:    1,
+			parentsNum:  1,
+			cheatersNum: 1,
+			eventsNum:   10,
+			forksNum:    3,
+		},
+		{
+			nodesNum:    2,
+			parentsNum:  1,
+			cheatersNum: 1,
+			eventsNum:   10,
+			forksNum:    3,
+		},
+		{
+			nodesNum:    2,
+			parentsNum:  2,
+			cheatersNum: 2,
+			eventsNum:   10,
+			forksNum:    3,
+		},
+		{
+			nodesNum:    10,
+			parentsNum:  4,
+			cheatersNum: 1,
+			eventsNum:   10,
+			forksNum:    3,
+		},
+		{
+			nodesNum:    10,
+			parentsNum:  4,
+			cheatersNum: 10,
+			eventsNum:   10,
+			forksNum:    3,
+		},
+		{
+			nodesNum:    20,
+			parentsNum:  4,
+			cheatersNum: 10,
+			eventsNum:   5,
+			forksNum:    2,
+		},
+		{
+			nodesNum:    40,
+			parentsNum:  4,
+			cheatersNum: 10,
+			eventsNum:   3,
+			forksNum:    1,
+		},
+		{
+			nodesNum:    5,
+			parentsNum:  4,
+			cheatersNum: 2,
+			eventsNum:   30,
+			forksNum:    30,
+		},
+	} {
+		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) {
+			r := rand.New(rand.NewSource(int64(i)))
+
+			nodes := inter.GenNodes(test.nodesNum)
+			cheaters := nodes[:test.cheatersNum]
+
+			members := make(internal.Members, len(nodes))
+			for _, peer := range nodes {
+				members.Add(peer, inter.Stake(1))
+			}
+
+			vi := NewIndex(members, kvdb.NewMemDatabase())
+
+			processed := make(map[hash.Event]*inter.Event)
+			onNewEvent := func(e *inter.Event) {
+				if _, ok := processed[e.Hash()]; ok {
+					return
+				}
+				processed[e.Hash()] = e
+				vi.Add(e)
+			}
+			_ = inter.GenEventsByCheaters(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, nil, onNewEvent, r)
+
+			assertar := assert.New(t)
+			idxs := members.Idxs()
+			// check that fork seeing is identical to naive version
+			for _, e := range processed {
+				highestBefore := vi.GetEvent(e.Hash()).HighestBefore
+				expectedCheaters, err := test_forksSeen(vi, e.Hash())
+				assertar.NoError(err)
+
+				for _, cheater := range nodes {
+					expectedCheater := expectedCheaters[cheater]
+					high := highestBefore[idxs[cheater]]
+					assertar.Equal(expectedCheater, high.IsForkSeen, cheater.String()+"_"+e.Creator.String())
+					if expectedCheater {
+						assertar.Equal(idx.Event(0), high.Seq, cheater.String()+"_"+e.Creator.String())
+					}
+				}
+			}
+
+			vi.DropNotFlushed() // drops everything
+			for _, e := range processed {
+				assertar.Nil(vi.GetEvent(e.Hash()))
+			}
+		})
+	}
+}
+
 /*
 // codegen4StronglySeenStability is for test data generation.
 func codegen4StronglySeenStability() {
-	peers, events := inter.GenEventsByNode(4, 20, 2)
+	peers := inter.GenNodes(4)
+	events := inter.GenEventsByNode(peers, 20, 2, nil, nil, nil)
 
 	members := make(internal.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
 	}
-
-	ss := New(members.NewCounter)
+	vi := NewIndex(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{
 
 		Process: func(e *inter.Event) {
 			processed[e.Hash()] = e
-			vi.Cache(e)
+			vi.Add(e)
 		},
 
 		Drop: func(e *inter.Event, err error) {
@@ -480,7 +679,7 @@ func codegen4StronglySeenStability() {
 	for _, e1 := range dag {
 		sees := fmt.Sprintf("\"%s\": map[string]struct{}{", e1.Hash())
 		for _, e2 := range dag {
-			if vi.See(e1.Hash(), e2.Hash()) {
+			if vi.StronglySee(e1.Hash(), e2.Hash()) {
 				sees = sees + fmt.Sprintf("\"%s\":{},", e2.Hash())
 			}
 		}

@@ -250,26 +250,37 @@ func TestPosetRandomRoots(t *testing.T) {
 func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	//logger.SetTestMode(t)
 	assertar := assert.New(t)
-	// init
-	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme)
+	// read nodes
+	nodes, _, _ := inter.ASCIIschemeToDAG(asciiScheme, nil, nil)
+	// init poset
 	p, _, input := FakePoset(nodes)
-	// process events
-	for _, event := range names {
-		input.SetEvent(event)
-		p.PushEventSync(event.Hash())
+
+	buildEvent := func(e *inter.Event) *inter.Event {
+		e.Epoch = 1
+		return p.Prepare(e)
 	}
+	onNewEvent := func(e *inter.Event) {
+		input.SetEvent(e)
+		p.PushEventSync(e.Hash())
+	}
+
+	// process events
+	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme, buildEvent, onNewEvent)
 
 	// check each
 	for name, event := range names {
 		mustBeFrame, mustBeRoot := decode(name)
 		// check root
-		frame := p.FrameOfEvent(event.Hash())
-		isRoot := frame.Roots.Contains(event.Creator, event.Hash())
+		frame := p.GetEventHeader(event.Hash()).Frame
+		isRoot := p.store.IsRoot(frame, event.Creator, event.Hash())
 		if !assertar.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
 		}
+		if !assertar.Equal(mustBeRoot, event.IsRoot, name+" is root") {
+			break
+		}
 		// check frame
-		if !assertar.Equal(idx.Frame(mustBeFrame), frame.Index, "frame of "+name) {
+		if !assertar.Equal(idx.Frame(mustBeFrame), frame, "frame of "+name) {
 			break
 		}
 	}
@@ -289,7 +300,7 @@ func decode(name string) (frameN idx.Frame, isRoot bool) {
 /*
 // codegen4PosetRandomRoot is for test data generation.
 func codegen4PosetRandomRoot() {
-	nodes, events := inter.GenEventsByNode(4, 20, 2)
+	nodes, events := inter.GenEventsByNode(4, 20, 2, nil)
 
 	p, _, input := FakePoset(nodes)
 	// process events

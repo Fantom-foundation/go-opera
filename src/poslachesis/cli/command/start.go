@@ -12,6 +12,7 @@ import (
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	_ "github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
@@ -37,18 +38,21 @@ var Start = &cobra.Command{
 		logger.SetDSN(sentry)
 
 		// db
-		var db *bbolt.DB
+		var db func() kvdb.Database
 		dbdir, err := cmd.Flags().GetString("db")
 		if err != nil {
 			return err
 		}
 		if dbdir != "inmemory" {
-			var stop func()
-			db, stop, err = openDB(dbdir)
+			bdb, stop, err := openDB(dbdir)
 			if err != nil {
 				return err
 			}
 			defer stop()
+
+			db = func() kvdb.Database {
+				return kvdb.NewBoltDatabase(bdb)
+			}
 		}
 
 		// network

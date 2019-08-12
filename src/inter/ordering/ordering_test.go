@@ -8,7 +8,8 @@ import (
 )
 
 func TestEventBuffer(t *testing.T) {
-	_, events := inter.GenEventsByNode(5, 10, 3)
+	nodes := inter.GenNodes(5)
+	events := inter.GenEventsByNode(nodes, 10, 3, nil, nil, nil)
 	processed := make(map[hash.Event]*inter.Event)
 
 	push := EventBuffer(Callback{
@@ -18,10 +19,7 @@ func TestEventBuffer(t *testing.T) {
 				t.Fatalf("%s already processed", e.String())
 				return
 			}
-			for _, p := range e.Parents.Slice() {
-				if p.IsZero() {
-					continue
-				}
+			for _, p := range e.Parents {
 				if _, ok := processed[p]; !ok {
 					t.Fatalf("got %s before parent %s", e.String(), p.String())
 					return

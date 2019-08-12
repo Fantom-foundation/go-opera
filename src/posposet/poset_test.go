@@ -1,23 +1,20 @@
 package posposet
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestPoset(t *testing.T) {
 	logger.SetTestMode(t)
 
-	const posetCount = 3 // last will be restored
+	const posetCount = 3
 
-	nodes, events := inter.GenEventsByNode(5, 99, 3)
+	nodes := inter.GenNodes(5)
 
 	posets := make([]*Poset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
@@ -37,65 +34,54 @@ func TestPoset(t *testing.T) {
 		_ = makePoset(i)
 	}
 
+	// create events on poset0
+	buildEvent := func(e *inter.Event) *inter.Event {
+		e.Epoch = 1
+		return posets[0].Prepare(e)
+	}
+	onNewEvent := func(e *inter.Event) {
+		inputs[0].SetEvent(e)
+		posets[0].PushEventSync(e.Hash())
+	}
+	unordered := inter.GenEventsByNode(nodes, int(SuperFrameLen)-1, 3, buildEvent, onNewEvent, nil)
+
 	t.Run("Multiple start", func(t *testing.T) {
 		posets[0].Stop()
 		posets[0].Start()
 		posets[0].Start()
 	})
 
+	pushedAll := false
 	t.Run("Push unordered events", func(t *testing.T) {
 		// first all events from one node
-		for i := 0; i < len(posets); i++ {
+		for i := 1; i < len(posets); i++ {
 			n := i % len(nodes)
-			ee := events[nodes[n]]
+			ee := unordered[nodes[n]]
 			for _, e := range ee {
+				if e.Epoch != 1 {
+					continue
+				}
 				inputs[i].SetEvent(e)
 				posets[i].PushEventSync(e.Hash())
 			}
 		}
 		// second all events from others
-		for i := 0; i < len(posets); i++ {
+		for i := 1; i < len(posets); i++ {
 			for n := range nodes {
 				if n == i%len(nodes) {
 					continue
 				}
-				ee := events[nodes[n]]
+				ee := unordered[nodes[n]]
 				for _, e := range ee {
+					if e.Epoch != 1 {
+						continue
+					}
 					inputs[i].SetEvent(e)
 					posets[i].PushEventSync(e.Hash())
 				}
 			}
 		}
-	})
-
-	t.Run("Restore", func(t *testing.T) {
-		i := posetCount - 1
-		store := makePoset(i)
-
-		all := inter.Events{}
-		for n := range nodes {
-			ee := events[nodes[n]]
-			for _, e := range ee {
-				all = append(all, e)
-			}
-		}
-
-		for x, e := range all {
-			if x == len(all)/2 {
-				// restore
-				posets[i].Stop()
-				restored := New(store, inputs[i])
-				n := i % len(nodes)
-				restored.SetName("restored_" + nodes[n].String())
-				store.SetName("restored_" + nodes[n].String())
-				restored.Bootstrap()
-				MakeOrderedInput(restored)
-				posets[i] = restored
-			}
-
-			inputs[i].SetEvent(e)
-			posets[i].PushEventSync(e.Hash())
-		}
+		pushedAll = true
 	})
 
 	t.Run("Check consensus", func(t *testing.T) {
@@ -108,6 +94,12 @@ func TestPoset(t *testing.T) {
 				p1 := posets[j]
 				st1 := p1.store.GetCheckpoint()
 				t.Logf("with poset%d: SFrame %d, Block %d", j, st1.SuperFrameN, st1.LastBlockN)
+
+				// compare state on p0/p1
+				if pushedAll {
+					assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
+					assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+				}
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {

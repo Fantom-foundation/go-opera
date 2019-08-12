@@ -1,7 +1,6 @@
 package lachesis
 
 import (
-	"go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
@@ -28,12 +27,12 @@ type Lachesis struct {
 
 // New makes lachesis node.
 // It does not start any process.
-func New(db *bbolt.DB, host string, key *crypto.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
-	return makeLachesis(db, host, key, conf, nil, opts...)
+func New(newDb func() kvdb.Database, host string, key *crypto.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
+	return makeLachesis(newDb, host, key, conf, nil, opts...)
 }
 
-func makeLachesis(db *bbolt.DB, host string, key *crypto.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
-	ndb, cdb := makeStorages(db)
+func makeLachesis(newDb func() kvdb.Database, host string, key *crypto.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
+	ndb, cdb := makeStorages(newDb)
 
 	if conf == nil {
 		conf = DefaultConfig()
@@ -58,7 +57,7 @@ func makeLachesis(db *bbolt.DB, host string, key *crypto.PrivateKey, conf *Confi
 
 func (l *Lachesis) init() {
 	genesis := l.conf.Net.Genesis
-	err := l.consensusStore.ApplyGenesis(genesis)
+	err := l.consensusStore.ApplyGenesis(genesis, 0)
 	if err != nil {
 		l.Fatal(err)
 	}
@@ -89,23 +88,23 @@ func (l *Lachesis) AddPeers(hosts ...string) {
  * Utils:
  */
 
-func makeStorages(db *bbolt.DB) (*posnode.Store, *posposet.Store) {
+func makeStorages(newDb func() kvdb.Database) (*posnode.Store, *posposet.Store) {
 	var (
-		p      kvdb.Database
-		n      kvdb.Database
-		cached bool
+		p kvdb.Database
+		n kvdb.Database
 	)
-	if db == nil {
+	if newDb == nil {
 		p = kvdb.NewMemDatabase()
 		n = kvdb.NewMemDatabase()
-		cached = false
+		newDb = func() kvdb.Database {
+			return kvdb.NewMemDatabase()
+		}
 	} else {
-		db := kvdb.NewBoltDatabase(db)
+		db := newDb()
 		p = db.NewTable([]byte("p_"))
 		n = db.NewTable([]byte("n_"))
-		cached = true
 	}
 
 	return posnode.NewStore(n),
-		posposet.NewStore(p, cached)
+		posposet.NewStore(p, newDb)
 }

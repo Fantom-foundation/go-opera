@@ -1,8 +1,9 @@
 package posnode
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 
 	"google.golang.org/grpc"
 
@@ -99,12 +100,12 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	n.Debugf("save new event")
 
 	n.store.SetEvent(e)
-	n.store.SetEventHash(e.Creator, e.SfNum, e.Seq, e.Hash())
+	n.store.SetEventHash(e.Creator, e.Epoch, e.Seq, e.Hash())
 	// NOTE: doubled txns from evil event could override existing index!
 	// TODO: decision
 	n.store.SetTxnsEvent(e.Hash(), e.Creator, e.InternalTransactions...)
 
-	n.store.SetPeerHeight(e.Creator, e.SfNum, e.Seq)
+	n.store.SetPeerHeight(e.Creator, e.Epoch, e.Seq)
 	n.setLast(e)
 	n.pushPotentialParent(e)
 
@@ -159,8 +160,8 @@ func (n *Node) Host() string {
 // AsPeer returns nodes peer info.
 func (n *Node) AsPeer() *Peer {
 	return &Peer{
-		ID:     n.ID,
-		Host:   n.host,
+		ID:   n.ID,
+		Host: n.host,
 	}
 }
 

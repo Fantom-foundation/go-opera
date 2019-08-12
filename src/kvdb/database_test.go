@@ -1,6 +1,7 @@
 package kvdb
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -23,16 +24,21 @@ func TestForEach(t *testing.T) {
 	}
 	testData := join(prefix0, prefix1)
 
-	bbolt, freeBbolt := bboltDB()
-	defer freeBbolt()
+	bbolt1, freeBbolt1 := bboltDB("1")
+	defer freeBbolt1()
 
-	badger, freeBadger := badgerDB()
-	defer freeBadger()
+	bbolt2, freeBbolt2 := bboltDB("2")
+	defer freeBbolt2()
+
+	badger1, freeBadger1 := badgerDB("1")
+	defer freeBadger1()
 
 	for name, db := range map[string]Database{
-		"memory": NewMemDatabase(),
-		"bbolt":  NewBoltDatabase(bbolt),
-		"badger": NewBadgerDatabase(badger),
+		"memory":                       NewMemDatabase(),
+		"bbolt":                        NewBoltDatabase(bbolt1),
+		"badger":                       NewBadgerDatabase(badger1),
+		"cache-over-bbolt":             NewCacheWrapper(NewBoltDatabase(bbolt2)),
+		"cache-over-cache-over-memory": NewCacheWrapper(NewCacheWrapper(NewMemDatabase())),
 	} {
 		t.Run(name, func(t *testing.T) {
 			assertar := assert.New(t)
@@ -64,7 +70,13 @@ func TestForEach(t *testing.T) {
 					"":  len(prefix0) + len(prefix1),
 				} {
 					got := 0
+					var prevKey []byte
 					err := t.ForEach([]byte(pref), func(key, val []byte) bool {
+						if prevKey == nil {
+							prevKey = key
+						} else {
+							assertar.Equal(1, bytes.Compare(key, prevKey))
+						}
 						got++
 						return assertar.Equal(
 							testData[string(key)],
@@ -97,8 +109,8 @@ func join(aa ...map[string][]byte) map[string][]byte {
 	return res
 }
 
-func bboltDB() (db *bbolt.DB, free func()) {
-	dir, err := ioutil.TempDir("", "kvdb")
+func bboltDB(dir string) (db *bbolt.DB, free func()) {
+	dir, err := ioutil.TempDir("", "kvdb" + dir)
 	if err != nil {
 		panic(err)
 	}
@@ -116,8 +128,8 @@ func bboltDB() (db *bbolt.DB, free func()) {
 	return
 }
 
-func badgerDB() (db *badger.DB, free func()) {
-	dir, err := ioutil.TempDir("", "kvdb")
+func badgerDB(dir string) (db *badger.DB, free func()) {
+	dir, err := ioutil.TempDir("", "kvdb" + dir)
 	if err != nil {
 		panic(err)
 	}

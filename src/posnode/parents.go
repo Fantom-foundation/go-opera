@@ -65,7 +65,7 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 	}
 
 	sf := n.currentSuperFrame()
-	if e.SfNum != sf {
+	if e.Epoch != sf {
 		return
 	}
 
@@ -90,7 +90,8 @@ func (pp *parents) Push(e *inter.Event, val inter.Stake) {
 		return
 	}
 
-	for p := range e.Parents {
+	for i := 1; i < len(e.Parents); i++ {
+		p := e.Parents[i]
 		if prev, ok := pp.cache[p]; ok {
 			prev.Last = false
 		}
@@ -164,7 +165,7 @@ func (pp *parents) sum(e hash.Event) inter.Stake {
 	}
 
 	res := event.Value
-	for p := range event.Parents {
+	for _, p := range event.Parents {
 		res += pp.sum(p)
 	}
 
@@ -178,7 +179,7 @@ func (pp *parents) del(e hash.Event) {
 		return
 	}
 
-	for p := range event.Parents {
+	for _, p := range event.Parents {
 		pp.del(p)
 	}
 

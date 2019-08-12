@@ -68,6 +68,8 @@ import:
   version: ^1.9.1
 - package: gopkg.in/urfave/cli.v1
   version: ^1.20.0
+- package: github.com/emirpasic/gods
+  version: ~1.12.0
 testImport:
 - package: github.com/davecgh/go-spew
   version: ^1.1.1

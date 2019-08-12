@@ -11,9 +11,8 @@ import (
 func (s *Store) SetEvent(e *inter.Event) {
 	key := e.Hash().Bytes()
 
-	w, wt := e.ToWire()
+	w := e.ToWire()
 
-	s.set(s.table.ExtTxns, key, wt.ExtTxnsValue)
 	s.set(s.table.Events, key, w)
 }
 
@@ -32,17 +31,9 @@ func (s *Store) HasEvent(h hash.Event) bool {
 // Result is a ready gRPC message.
 func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
 	key := h.Bytes()
-	// TODO: look for w and wt in parallel ?
 	w, _ := s.get(s.table.Events, key, &wire.Event{}).(*wire.Event)
 	if w == nil {
 		return w
-	}
-
-	wt, _ := s.get(s.table.ExtTxns, key, &wire.ExtTxns{}).(*wire.ExtTxns)
-	if wt != nil { // grpc magic
-		w.ExternalTransactions = &wire.Event_ExtTxnsValue{ExtTxnsValue: wt}
-	} else {
-		w.ExternalTransactions = nil
 	}
 
 	return w

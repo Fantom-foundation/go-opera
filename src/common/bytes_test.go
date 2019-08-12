@@ -2,6 +2,8 @@ package common
 
 import (
 	"bytes"
+	"github.com/Fantom-foundation/go-lachesis/src/common/bigendian"
+	"github.com/Fantom-foundation/go-lachesis/src/common/littleendian"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,7 +102,7 @@ func TestHasHexPrefix(t *testing.T) {
 }
 
 func TestHex2BytesFixed(t *testing.T) {
-	str := "AABBCCDD";
+	str := "AABBCCDD"
 	if !bytes.Equal([]byte{0xDD}, Hex2BytesFixed(str, 1)) {
 		t.Errorf("Expected 0xDD found: %v", Hex2BytesFixed(str, 1))
 	}
@@ -128,5 +130,46 @@ func TestToHexArray(t *testing.T) {
 	}
 	if strs[1] != "0x0405" {
 		t.Errorf("First string expected to be '0x0405' but found '%v'", strs[1])
+	}
+}
+
+func Test_IntToBytes(t *testing.T) {
+	assertar := assert.New(t)
+
+	for _, n1 := range []uint64{
+		0,
+		9,
+		0xF000000000000000,
+		0x000000000000000F,
+		0xFFFFFFFFFFFFFFFF,
+		47528346792,
+	} {
+		{
+			b := bigendian.Int64ToBytes(n1)
+			n2 := bigendian.BytesToInt64(b)
+			assertar.Equal(n1, n2)
+		}
+		{
+			b := littleendian.Int64ToBytes(n1)
+			n2 := littleendian.BytesToInt64(b)
+			assertar.Equal(n1, n2)
+		}
+	}
+	for _, n1 := range []uint32{
+		0,
+		9,
+		0xFFFFFFFF,
+		475283467,
+	} {
+		{
+			b := bigendian.Int32ToBytes(n1)
+			n2 := bigendian.BytesToInt32(b)
+			assertar.Equal(n1, n2)
+		}
+		{
+			b := littleendian.Int32ToBytes(n1)
+			n2 := littleendian.BytesToInt32(b)
+			assertar.Equal(n1, n2)
+		}
 	}
 }

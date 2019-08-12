@@ -1,8 +1,8 @@
 package kvdb
 
 import (
+	"bytes"
 	"fmt"
-
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -93,15 +93,14 @@ func (w *BadgerDatabase) Get(key []byte) (res []byte, err error) {
 	return
 }
 
-// ForEach scans key-value pair by key prefix.
-func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
-	prefix = w.fullKey(prefix)
-
+// ForEachFrom scans key-value pair by key lexicographically.
+func (w *BadgerDatabase) ForEachFrom(start []byte, do func(key, val []byte) bool) error {
+	start = w.fullKey(start)
 	err := w.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+		for it.Seek(start); it.ValidForPrefix(w.prefix); it.Next() {
 			item := it.Item()
 			k := item.Key()
 			k = k[len(w.prefix)+len(separator):]
@@ -119,6 +118,18 @@ func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) e
 			}
 		}
 		return nil
+	})
+
+	return err
+}
+
+// ForEach scans key-value pair by key prefix.
+func (w *BadgerDatabase) ForEach(prefix []byte, do func(key, val []byte) bool) error {
+	err := w.ForEachFrom(prefix, func(key, val []byte) bool {
+		if !bytes.HasPrefix(key, prefix) {
+			return false
+		}
+		return do(key, val)
 	})
 
 	return err
@@ -156,6 +167,10 @@ func (w *BadgerDatabase) NewBatch() Batch {
  * Batch
  */
 
+type kv struct {
+	k, v []byte
+}
+
 // badgerBatch is a batch structure.
 type badgerBatch struct {
 	db     *BadgerDatabase
@@ -167,8 +182,8 @@ type badgerBatch struct {
 func (b *badgerBatch) Put(key, value []byte) error {
 	key = b.db.fullKey(key)
 
-	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value), false})
-	b.size += len(value)
+	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
+	b.size += len(value) + len(key)
 	return nil
 }
 
@@ -176,8 +191,8 @@ func (b *badgerBatch) Put(key, value []byte) error {
 func (b *badgerBatch) Delete(key []byte) error {
 	key = b.db.fullKey(key)
 
-	b.writes = append(b.writes, kv{common.CopyBytes(key), nil, true})
-	b.size++
+	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
+	b.size += len(key)
 	return nil
 }
 
@@ -188,7 +203,7 @@ func (b *badgerBatch) Write() error {
 
 	var err error
 	for _, kv := range b.writes {
-		if kv.del {
+		if kv.v == nil {
 			err = tx.Delete(kv.k)
 		} else {
 			err = tx.Set(kv.k, kv.v)

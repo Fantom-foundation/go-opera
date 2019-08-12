@@ -91,11 +91,11 @@ func TestEmit(t *testing.T) {
 			idx.Event(1),
 			events[0].Seq)
 		assertar.Equal(
-			inter.Timestamp(1),
-			events[0].LamportTime)
+			idx.Lamport(1),
+			events[0].Lamport)
 		assertar.Equal(
-			hash.NewEvents(hash.ZeroEvent),
-			events[0].Parents)
+			0,
+			len(events[0].Parents))
 		assertar.Equal(
 			[][]byte{tx},
 			events[0].ExternalTransactions.Value)
@@ -112,10 +112,10 @@ func TestEmit(t *testing.T) {
 			idx.Event(1),
 			events[1].Seq)
 		assertar.Equal(
-			inter.Timestamp(2),
-			events[1].LamportTime)
+			idx.Lamport(2),
+			events[1].Lamport)
 		assertar.Equal(
-			hash.NewEvents(hash.ZeroEvent, events[0].Hash()),
+			hash.NewEvents(events[0].Hash()),
 			events[1].Parents)
 	})
 
@@ -130,8 +130,8 @@ func TestEmit(t *testing.T) {
 			idx.Event(2),
 			events[2].Seq)
 		assertar.Equal(
-			inter.Timestamp(3),
-			events[2].LamportTime)
+			idx.Lamport(3),
+			events[2].Lamport)
 		assertar.Equal(
 			hash.NewEvents(events[0].Hash(), events[1].Hash()),
 			events[2].Parents)
@@ -148,8 +148,8 @@ func TestEmit(t *testing.T) {
 			idx.Event(3),
 			events[3].Seq)
 		assertar.Equal(
-			inter.Timestamp(4),
-			events[3].LamportTime)
+			idx.Lamport(4),
+			events[3].Lamport)
 		assertar.Equal(
 			hash.NewEvents(events[2].Hash()),
 			events[3].Parents)

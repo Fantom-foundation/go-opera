@@ -15,6 +15,8 @@ type Consensus interface {
 	StakeOf(hash.Peer) inter.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
 	GetGenesisHash() hash.Hash
+	// Sets consensus fields. Returns nil if event should be dropped.
+	Prepare(e *inter.Event) *inter.Event
 	// CurrentSuperFrame returns current SuperFrameN.
 	CurrentSuperFrameN() idx.SuperFrame
 	// SuperFrameMembers returns members of n super-frame.

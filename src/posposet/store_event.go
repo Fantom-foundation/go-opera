@@ -2,19 +2,20 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-// SetEventConfirmedBy stores confirmed event hash.
-func (s *Store) SetEventConfirmedBy(e, by hash.Event) {
+// SetEventConfirmedOn stores confirmed event hash.
+func (s *Store) SetEventConfirmedOn(e hash.Event, on idx.Frame) {
 	key := e.Bytes()
 
-	if err := s.table.ConfirmedEvent.Put(key, by.Bytes()); err != nil {
+	if err := s.table.ConfirmedEvent.Put(key, on.Bytes()); err != nil {
 		s.Fatal(err)
 	}
 }
 
-// GetEventConfirmedBy returns confirmed event hash.
-func (s *Store) GetEventConfirmedBy(e hash.Event) hash.Event {
+// GetEventConfirmedOn returns confirmed event hash.
+func (s *Store) GetEventConfirmedOn(e hash.Event) idx.Frame {
 	key := e.Bytes()
 
 	buf, err := s.table.ConfirmedEvent.Get(key)
@@ -22,8 +23,8 @@ func (s *Store) GetEventConfirmedBy(e hash.Event) hash.Event {
 		s.Fatal(err)
 	}
 	if buf == nil {
-		return hash.ZeroEvent
+		return 0
 	}
 
-	return hash.BytesToEvent(buf)
+	return idx.BytesToFrame(buf)
 }

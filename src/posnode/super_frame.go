@@ -58,7 +58,7 @@ func (n *Node) setLast(e *inter.Event) {
 
 	sf := n.currentSuperFrame()
 
-	if e.SfNum == sf {
+	if e.Epoch == sf {
 		n.superFrame.lasts[e.Creator] = e.Seq
 	}
 }

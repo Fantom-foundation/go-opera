@@ -2,6 +2,7 @@ package posnode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -161,7 +162,7 @@ func (n *Node) syncWithPeer(peer *Peer) {
 				return
 			}
 
-			parents.Add(event.Parents.Slice()...)
+			parents.Add(event.Parents...)
 		}
 	}
 	n.gossipSuccess(peer)
@@ -175,11 +176,7 @@ func (n *Node) checkParents(client api.NodeClient, peer *Peer, parents hash.Even
 
 	n.Info("check parents")
 
-	for e := range toDownload {
-		if e == hash.ZeroEvent {
-			continue
-		}
-
+	for _, e := range toDownload {
 		var req api.EventRequest
 		req.Hash = e.Bytes()
 
@@ -266,14 +263,17 @@ func (n *Node) downloadEvent(client api.NodeClient, peer *Peer, req *api.EventRe
 		// TODO: skip or continue gossiping with peer id ?
 	}
 
+	event := inter.WireToEvent(w)
+	if event == nil {
+		return nil, errors.New("event decerialization failed")
+	}
+
 	if req.Hash == nil {
-		if w.Creator != req.PeerID || w.Seq != req.Seq {
+		if event.Creator != hash.HexToPeer(req.PeerID) || event.Seq != idx.Event(req.Seq) {
 			n.gossipFail(peer, fmt.Errorf("bad GetEvent() response"))
 			return nil, nil
 		}
 	}
-
-	event := inter.WireToEvent(w)
 
 	// check event sign
 	if !event.VerifySignature() {

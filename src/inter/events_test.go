@@ -7,7 +7,8 @@ import (
 )
 
 func TestEventsByParents(t *testing.T) {
-	_, events := GenEventsByNode(5, 10, 3)
+	nodes := GenNodes(5)
+	events := GenEventsByNode(nodes, 10, 3, nil, nil, nil)
 	var unordered Events
 	for _, ee := range events {
 		unordered = append(unordered, ee...)
@@ -20,7 +21,7 @@ func TestEventsByParents(t *testing.T) {
 	}
 
 	for i, e := range ordered {
-		for p := range e.Parents {
+		for _, p := range e.Parents {
 			pos, ok := position[p]
 			if !ok {
 				continue

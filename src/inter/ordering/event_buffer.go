@@ -42,23 +42,19 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 		ltime := newLamportTimeValidator(e.Event)
 
 		// fill event's parents index or hold it as incompleted
-		for pHash := range e.Parents {
-			if pHash.IsZero() {
-				// first event of node
-				if err := reffs.AddUniqueParent(e.Creator); err != nil {
-					callback.Drop(e.Event, err)
-					return
-				}
-				if e.SelfParent != pHash {
-					callback.Drop(e.Event, fmt.Errorf("invalid SelfParent"))
-					return
-				}
-				if err := ltime.AddParentTime(0); err != nil {
-					callback.Drop(e.Event, err)
-					return
-				}
-				continue
+		if e.SelfParent() == nil {
+			// first event of node
+			if err := reffs.AddUniqueParent(e.Creator); err != nil {
+				callback.Drop(e.Event, err)
+				return
 			}
+			if err := ltime.AddParentTime(0); err != nil {
+				callback.Drop(e.Event, err)
+				return
+			}
+		}
+
+		for _, pHash := range e.Parents {
 			parent := e.parents[pHash]
 			if parent == nil {
 				parent = callback.Exists(pHash)
@@ -73,11 +69,11 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 				callback.Drop(e.Event, err)
 				return
 			}
-			if parent.Creator == e.Creator && e.SelfParent != pHash {
+			if parent.Creator == e.Creator && !e.IsSelfParent(pHash) {
 				callback.Drop(e.Event, fmt.Errorf("invalid SelfParent"))
 				return
 			}
-			if err := ltime.AddParentTime(parent.LamportTime); err != nil {
+			if err := ltime.AddParentTime(parent.Lamport); err != nil {
 				callback.Drop(e.Event, err)
 				return
 			}
@@ -116,7 +112,7 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 			parents: make(map[hash.Event]*inter.Event, len(e.Parents)),
 			expired: time.Now().Add(expiration),
 		}
-		for parentHash := range e.Parents {
+		for _, parentHash := range e.Parents {
 			w.parents[parentHash] = nil
 		}
 		onNewEvent(w)

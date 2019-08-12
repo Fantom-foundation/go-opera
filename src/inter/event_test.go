@@ -2,13 +2,12 @@ package inter
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/rlp"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
 func TestEventSerialization(t *testing.T) {
@@ -18,19 +17,17 @@ func TestEventSerialization(t *testing.T) {
 	for i, e0 := range events {
 		dsc := fmt.Sprintf("iter#%d", i)
 
-		w, tt := e0.ToWire()
-		w.ExternalTransactions = tt
-		buf, err := proto.Marshal(w)
+		e0.ExternalTransactions.Value = [][]byte{{0}, {1}}
+		buf, err := rlp.EncodeToBytes(e0)
 		if !assertar.NoError(err, dsc) {
 			break
 		}
 
-		w = &wire.Event{}
-		err = proto.Unmarshal(buf, w)
+		e1 := &Event{}
+		err = rlp.DecodeBytes(buf, e1)
 		if !assertar.NoError(err, dsc) {
 			break
 		}
-		e1 := WireToEvent(w)
 
 		if !assertar.EqualValues(e0.ExternalTransactions, e1.ExternalTransactions, dsc) ||
 			!assertar.EqualValues(e0, e1, dsc) {
@@ -48,15 +45,6 @@ func TestEventHash(t *testing.T) {
 	t.Run("Calculation", func(t *testing.T) {
 		for i, e := range events {
 			hashes[i] = e.Hash()
-		}
-	})
-
-	t.Run("Hash instead of ExternalTransactions", func(t *testing.T) {
-		for _, e := range events {
-			h := hash.Of(e.ExternalTransactions.Value...)
-			e.ExternalTransactions.Hash = &h
-			e.ExternalTransactions.Value = nil
-			e.hash = hash.ZeroEvent // drop cache
 		}
 	})
 

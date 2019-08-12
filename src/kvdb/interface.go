@@ -21,9 +21,18 @@ type Database interface {
 	Deleter
 	Get(key []byte) ([]byte, error)
 	Has(key []byte) (bool, error)
+	ForEachFrom(start []byte, do func(key, val []byte) bool) error
 	ForEach(prefix []byte, do func(key, val []byte) bool) error
 	Close()
 	NewBatch() Batch
+}
+
+type FlushableDatabase interface {
+	Database
+	NotFlushedPairs() int
+	NotFlushedSizeEst() int
+	Flush() error
+	ClearNotFlushed()
 }
 
 // Batch is a write-only database that commits changes to its host database

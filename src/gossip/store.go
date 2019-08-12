@@ -12,10 +12,9 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		Peers   kvdb.Database `table:"peer_"`
-		Events  kvdb.Database `table:"event_"`
-		ExtTxns kvdb.Database `table:"ext_txn_"`
-		Hashes  kvdb.Database `table:"hash_"`
+		Peers  kvdb.Database `table:"peer_"`
+		Events kvdb.Database `table:"event_"`
+		Hashes kvdb.Database `table:"hash_"`
 	}
 
 	logger.Instance

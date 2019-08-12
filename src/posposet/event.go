@@ -1,10 +1,10 @@
 package posposet
 
 import (
-	"bytes"
 	"strings"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 /*
@@ -14,8 +14,6 @@ import (
 // Event is a poset event for internal purpose.
 type Event struct {
 	*inter.Event
-
-	consensusTime inter.Timestamp
 }
 
 /*
@@ -34,15 +32,6 @@ func (ee Events) String() string {
 	return strings.Join(ss, " ")
 }
 
-func (ee Events) Len() int      { return len(ee) }
-func (ee Events) Swap(i, j int) { ee[i], ee[j] = ee[j], ee[i] }
-func (ee Events) Less(i, j int) bool {
-	a, b := ee[i], ee[j]
-	return (a.consensusTime < b.consensusTime) ||
-		(a.consensusTime == b.consensusTime && (a.LamportTime < b.LamportTime ||
-			a.LamportTime == b.LamportTime && bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0))
-}
-
 // UnWrap extracts inter.Event.
 func (ee Events) UnWrap() inter.Events {
 	res := make(inter.Events, len(ee))
@@ -51,4 +40,22 @@ func (ee Events) UnWrap() inter.Events {
 	}
 
 	return res
+}
+
+// EventsFromBlockNum returns events included info blocks (from num to last).
+func (p *Poset) EventsTillBlock(num idx.Block) inter.Events {
+	events := make(inter.Events, 0)
+
+	for n := idx.Block(1); n <= num; n++ {
+		b := p.store.GetBlock(n)
+		if b == nil {
+			panic(n)
+		}
+		for _, h := range b.Events {
+			e := p.input.GetEvent(h)
+			events = append(events, e)
+		}
+	}
+
+	return events
 }

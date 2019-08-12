@@ -34,25 +34,25 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 ║   ║     ║  3║   ║
 ║   b03 ─ ╫  ╝║   ║
 ║   ║     ║   ║   ║
-`)
+`, nil, nil)
 	expected := map[string][]string{
-		"a00": {""},
+		"a00": {},
 		"a01": {"a00"},
 		"a02": {"a01", "b00"},
 		"a03": {"a02", "b02"},
 		"a04": {"a03", "c02", "d01"},
-		"b00": {""},
+		"b00": {},
 		"b01": {"b00", "c01"},
 		"b02": {"b01", "a02", "c02", "d01"},
 		"b03": {"b02", "d00"},
-		"c00": {""},
+		"c00": {},
 		"c01": {"c00", "b00"},
 		"c02": {"c01", "a02"},
 		"c03": {"c02", "a03", "b01", "d02"},
-		"d00": {""},
+		"d00": {},
 		"d01": {"d00", "b01"},
 		"d02": {"d01", "c02"},
-		"e00": {"", "d02"},
+		"e00": {"d02"},
 	}
 
 	if !assert.Equal(t, 5, len(nodes), "node count") {
@@ -68,7 +68,8 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 func TestDAGtoASCIIschemeRand(t *testing.T) {
 	assertar := assert.New(t)
 
-	_, ee := GenEventsByNode(5, 10, 3)
+	nodes := GenNodes(5)
+	ee := GenEventsByNode(nodes, 10, 3, nil, nil, nil)
 	src := delPeerIndex(ee)
 
 	scheme0, err := DAGtoASCIIscheme(src)
@@ -76,7 +77,7 @@ func TestDAGtoASCIIschemeRand(t *testing.T) {
 		return
 	}
 
-	_, _, names := ASCIIschemeToDAG(scheme0)
+	_, _, names := ASCIIschemeToDAG(scheme0, nil, nil)
 	got := delPeerIndex(ee)
 
 	if !assertar.Equal(len(src), len(got), "event count") {
@@ -120,12 +121,12 @@ a02══╬═════╣
 ║╚═══╬═════c02
 ║    ║     ║
 `, map[string][]string{
-			"a00": {""},
+			"a00": {},
 			"a01": {"a00", "b00"},
 			"a02": {"a01", "b01", "c01"},
-			"b00": {""},
+			"b00": {},
 			"b01": {"b00", "c00"},
-			"c00": {""},
+			"c00": {},
 			"c01": {"c00", "a01"},
 			"c02": {"c01", "a00", "b01"},
 		})
@@ -149,12 +150,12 @@ c01═════╣       ║
 ║      3║       ║ // optimise this
 c02════╩╫─══════╣
 `, map[string][]string{
-			"a00": {""},
+			"a00": {},
 			"a01": {"a00", "b00"},
 			"a02": {"a01", "b01", "c00"},
-			"b00": {""},
+			"b00": {},
 			"b01": {"b00", "c00"},
-			"c00": {""},
+			"c00": {},
 			"c01": {"c00", "a01"},
 			"c02": {"c01", "a00", "b01"},
 		})
@@ -178,12 +179,12 @@ a02═════╬═══════╣
 ║3      ║       ║   // optimise this
 ║╚══════╬═══════c02
 `, map[string][]string{
-			"a00": {""},
+			"a00": {},
 			"a01": {"a00", "b00"},
 			"a02": {"a01", "b01", "c00"},
-			"b00": {""},
+			"b00": {},
 			"b01": {"b00", "c00"},
-			"c00": {""},
+			"c00": {},
 			"c01": {"c00", "a01"},
 			"c02": {"c01", "a00", "b01"},
 		})
@@ -237,25 +238,25 @@ a004══╬═════╣     ║     ║     // optimise this
        
 
 `, map[string][]string{
-			"a000": {""},
+			"a000": {},
 			"a001": {"a000", "b000", "c000"},
 			"a002": {"a001", "c001", "d001"},
 			"a003": {"a002", "b002", "c002"},
 			"a004": {"a003", "b004", "c004"},
-			"b000": {""},
+			"b000": {},
 			"b001": {"b000", "c000", "d000"},
 			"b002": {"b001", "c001", "d001"},
 			"b003": {"b002", "c002", "d002"},
 			"b004": {"a003", "b003", "d003"},
-			"c000": {"", "b000"},
+			"c000": {"b000"},
 			"c001": {"a001", "c000", "e000"},
 			"c002": {"a002", "c001", "e001"},
 			"c003": {"a003", "b003", "c002"},
 			"c004": {"a003", "b004", "c003"},
-			"d000": {"", "a000"},
+			"d000": {"a000"},
 			"d001": {"a001", "d000", "e000"},
 			"d002": {"c002", "d001", "e001"},
-			"e000": {"", "a000", "b000"},
+			"e000": {"a000", "b000"},
 			"e001": {"b001", "c001", "e000"},
 			"e002": {"a002", "d001", "e001"},
 			"d003": {"b003", "c003", "d002"},
@@ -380,7 +381,7 @@ func TestDAGtoASCIIFork(t *testing.T) {
 
 func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[string][]string) {
 	// step 1: ASCII --> DAG
-	_, events, named := ASCIIschemeToDAG(origScheme)
+	_, events, named := ASCIIschemeToDAG(origScheme, nil, nil)
 	checkParents(t, named, refs)
 
 	// step 2: DAG --> ASCII
@@ -393,7 +394,7 @@ func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[
 	t.Log(out)
 
 	// step 3: ASCII --> DAG (again)
-	_, _, named = ASCIIschemeToDAG(genScheme)
+	_, _, named = ASCIIschemeToDAG(genScheme, nil, nil)
 	checkParents(t, named, refs)
 }
 
@@ -407,12 +408,8 @@ func checkParents(t *testing.T, named map[string]*Event, expected map[string][]s
 		}
 
 		parents1 := make(map[string]struct{}, len(e1.Parents))
-		for s := range e1.Parents {
-			if s.IsZero() {
-				parents1[""] = struct{}{}
-			} else {
-				parents1[s.String()] = struct{}{}
-			}
+		for _, s := range e1.Parents {
+			parents1[s.String()] = struct{}{}
 		}
 
 		if !assertar.Equal(parents0, parents1, "at event "+n) {
@@ -423,7 +420,7 @@ func checkParents(t *testing.T, named map[string]*Event, expected map[string][]s
 
 func edges2text(e *Event) map[string]struct{} {
 	res := make(map[string]struct{}, len(e.Parents))
-	for p := range e.Parents {
+	for _, p := range e.Parents {
 		res[p.String()] = struct{}{}
 	}
 	return res

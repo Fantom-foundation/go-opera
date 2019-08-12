@@ -4,39 +4,21 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/wire"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet/vector"
 )
 
 // checkpoint is for persistent storing.
 type checkpoint struct {
+	// fields can change only after a frame is decided
 	SuperFrameN       idx.SuperFrame
+	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
 	TotalCap          inter.Stake
 	LastConsensusTime inter.Timestamp
-}
-
-// ToWire converts to proto.Message.
-func (cp *checkpoint) ToWire() *wire.Checkpoint {
-	return &wire.Checkpoint{
-		SuperFrameN:       uint64(cp.SuperFrameN),
-		LastBlockN:        uint64(cp.LastBlockN),
-		TotalCap:          uint64(cp.TotalCap),
-		LastConsensusTime: uint64(cp.LastConsensusTime),
-	}
-}
-
-// wireToCheckpoint converts from wire.
-func wireToCheckpoint(w *wire.Checkpoint) *checkpoint {
-	if w == nil {
-		return nil
-	}
-	return &checkpoint{
-		SuperFrameN:       idx.SuperFrame(w.SuperFrameN),
-		LastBlockN:        idx.Block(w.LastBlockN),
-		TotalCap:          inter.Stake(w.TotalCap),
-		LastConsensusTime: inter.Timestamp(w.LastConsensusTime),
-	}
+	NextMembers       internal.Members
+	Balances          hash.Hash
 }
 
 /*
@@ -59,26 +41,16 @@ func (p *Poset) Bootstrap() {
 		p.Fatal("Apply genesis for store first")
 	}
 
-	// restore genesis
-	p.Genesis = p.store.GetSuperFrame(0).balances
-
 	// restore current super-frame
 	p.loadSuperFrame()
+	p.events = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex)
+	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootStronglySeeRoot)
+
+	// events reprocessing
+	p.handleElection(nil)
 }
 
 // GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
-	return p.Genesis
-}
-
-// GenesisHash calcs hash of genesis balances.
-func genesisHash(balances map[hash.Peer]inter.Stake) hash.Hash {
-	s := NewMemStore()
-	defer s.Close()
-
-	if err := s.ApplyGenesis(balances); err != nil {
-		logger.Get().Fatal(err)
-	}
-
-	return s.GetSuperFrame(0).balances
+	return p.Genesis.Hash()
 }

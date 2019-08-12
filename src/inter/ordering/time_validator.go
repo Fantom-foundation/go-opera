@@ -2,13 +2,14 @@ package ordering
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 type lamportTimeValidator struct {
 	event   *inter.Event
-	maxTime inter.Timestamp
+	maxTime idx.Lamport
 }
 
 func newLamportTimeValidator(e *inter.Event) *lamportTimeValidator {
@@ -18,11 +19,11 @@ func newLamportTimeValidator(e *inter.Event) *lamportTimeValidator {
 	}
 }
 
-func (v *lamportTimeValidator) AddParentTime(time inter.Timestamp) error {
-	if v.event.LamportTime <= time {
+func (v *lamportTimeValidator) AddParentTime(time idx.Lamport) error {
+	if v.event.Lamport <= time {
 		return fmt.Errorf("event %s has lamport time %d. It isn't next of parents",
 			v.event.Hash().String(),
-			v.event.LamportTime)
+			v.event.Lamport)
 	}
 	if v.maxTime < time {
 		v.maxTime = time
@@ -31,10 +32,10 @@ func (v *lamportTimeValidator) AddParentTime(time inter.Timestamp) error {
 }
 
 func (v *lamportTimeValidator) CheckSequential() error {
-	if v.event.LamportTime != v.maxTime+1 {
+	if v.event.Lamport != v.maxTime+1 {
 		return fmt.Errorf("event %s has lamport time %d. It is too far from parents",
 			v.event.Hash().String(),
-			v.event.LamportTime)
+			v.event.Lamport)
 	}
 	return nil
 }

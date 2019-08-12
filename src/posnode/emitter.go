@@ -133,25 +133,21 @@ func (n *Node) EmitEvent() *inter.Event {
 // emitEvent with no checks.
 func (n *Node) emitEvent() *inter.Event {
 	var (
-		sf             = n.currentSuperFrame()
-		seq            idx.Event
-		selfParent     hash.Event
-		parents        = hash.Events{}
-		maxLamportTime inter.Timestamp
-		internalTxns   []*inter.InternalTransaction
-		externalTxns   [][]byte
+		sf           = n.currentSuperFrame()
+		seq          idx.Event
+		parents      hash.Events
+		maxLamport   idx.Lamport
+		internalTxns []*inter.InternalTransaction
+		externalTxns [][]byte
 	)
 
 	prev := n.LastEventOf(n.ID, sf)
 	if prev != nil {
 		seq = prev.Seq + 1
-		maxLamportTime = prev.LamportTime
-		selfParent = prev.Hash()
-		parents.Add(prev.Hash())
+		maxLamport = prev.Lamport
+		parents = append(parents, prev.Hash())
 	} else {
 		seq = 1
-		selfParent = hash.ZeroEvent
-		parents.Add(hash.ZeroEvent)
 	}
 
 	for i := 1; i < n.conf.EventParentsCount; i++ {
@@ -159,13 +155,12 @@ func (n *Node) emitEvent() *inter.Event {
 		if p == nil {
 			break
 		}
-		if !parents.Add(*p) {
-			break
-		}
+
+		parents = append(parents, *p)
 
 		parent := n.store.GetEvent(*p)
-		if maxLamportTime < parent.LamportTime {
-			maxLamportTime = parent.LamportTime
+		if maxLamport < parent.Lamport {
+			maxLamport = parent.Lamport
 		}
 	}
 
@@ -181,18 +176,27 @@ func (n *Node) emitEvent() *inter.Event {
 
 	externalTxns, n.emitter.externalTxns = n.emitter.externalTxns, nil
 
-	event := &inter.Event{
-		SfNum:                sf,
-		Seq:                  seq,
-		Creator:              n.ID,
-		SelfParent:           selfParent,
-		Parents:              parents,
-		LamportTime:          maxLamportTime + 1,
-		InternalTransactions: internalTxns,
-		ExternalTransactions: inter.ExtTxns{
-			Value: externalTxns,
-		},
+	event := inter.NewEvent()
+	event.Epoch = sf
+	event.Seq = seq
+	event.Creator = n.ID
+	event.Parents = parents
+	event.Lamport = maxLamport + 1
+	event.InternalTransactions = internalTxns
+	event.ExternalTransactions = inter.ExtTxns{
+		Value: externalTxns,
 	}
+	// set consensus fields
+	if n.consensus != nil {
+		event = n.consensus.Prepare(event)
+		if event == nil {
+			n.Warn("dropped event while emitting")
+			return nil
+		}
+	}
+	// calc hash after event is fully built
+	event.RecacheHash()
+	// sign
 	if err := event.SignBy(n.key); err != nil {
 		n.Fatal(err)
 	}

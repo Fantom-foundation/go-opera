@@ -11,16 +11,25 @@ import (
 func (s *Store) SetEvent(e *inter.Event) {
 	key := e.Hash().Bytes()
 
-	w, wt := e.ToWire()
-
-	s.set(s.table.ExtTxns, key, wt.ExtTxnsValue)
-	s.set(s.table.Events, key, w)
+	s.set_rlp(s.table.Events, key, e)
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetEvent(h hash.Event) *inter.Event {
-	w := s.GetWireEvent(h)
-	return inter.WireToEvent(w)
+	key := h.Bytes()
+
+	w, _ := s.get_rlp(s.table.Events, key, &inter.Event{}).(*inter.Event)
+	return w
+}
+
+// TODO store separately
+// GetEventHeader returns stored event header.
+func (s *Store) GetEventHeader(h hash.Event) *inter.EventHeaderData {
+	e := s.GetEvent(h)
+	if e == nil {
+		return nil
+	}
+	return &e.EventHeaderData
 }
 
 // HasEvent returns true if event exists.
@@ -28,24 +37,13 @@ func (s *Store) HasEvent(h hash.Event) bool {
 	return s.has(s.table.Events, h.Bytes())
 }
 
-// GetWireEvent returns stored event.
-// Result is a ready gRPC message.
 func (s *Store) GetWireEvent(h hash.Event) *wire.Event {
-	key := h.Bytes()
-	// TODO: look for w and wt in parallel ?
-	w, _ := s.get(s.table.Events, key, &wire.Event{}).(*wire.Event)
-	if w == nil {
-		return w
+	e := s.GetEvent(h)
+	if e == nil {
+		return nil
 	}
 
-	wt, _ := s.get(s.table.ExtTxns, key, &wire.ExtTxns{}).(*wire.ExtTxns)
-	if wt != nil { // grpc magic
-		w.ExternalTransactions = &wire.Event_ExtTxnsValue{ExtTxnsValue: wt}
-	} else {
-		w.ExternalTransactions = nil
-	}
-
-	return w
+	return e.ToWire()
 }
 
 // SetEventHash stores hash.
