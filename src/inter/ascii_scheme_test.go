@@ -264,7 +264,7 @@ a004══╬═════╣     ║     ║     // optimise this
 }
 
 func TestDAGtoASCIIFork(t *testing.T) {
-	t.Run("Case: 1", func(t *testing.T) {
+	t.Run("Case: Multiple forks", func(t *testing.T) {
 		testDAGtoASCIIschemeOptimisation(t, `
         c00
         ║       ║
@@ -305,7 +305,7 @@ func TestDAGtoASCIIFork(t *testing.T) {
 		})
 	})
 
-	t.Run("Case: 2", func(t *testing.T) {
+	t.Run("Case: Mixed events with forks.", func(t *testing.T) {
 		testDAGtoASCIIschemeOptimisation(t, `
         b00
         ║       ║
@@ -343,6 +343,37 @@ func TestDAGtoASCIIFork(t *testing.T) {
 			"c02": {"c00", "b01"},
 			"c03": {"c02", "a02"},
 			"c04": {"c02", "b02"},
+		})
+	})
+
+	t.Run("Case: Fork the very first event.", func(t *testing.T) {
+		// TODO: Currently we have issue with hash collision and this test case will be failed.
+		// Remove Skip() after merge additional fix from "try-new-event" branch.
+		t.Skip()
+
+		testDAGtoASCIIschemeOptimisation(t, `
+        a00     b00
+        ║       ║   
+       ╚ a10    ╠═════════c00           // fork (a10)
+	    ║       ║          ║
+        ║╚═════─╫─════════─╫─═══════d00
+	   ║║       ║          ║         ║
+       ╚ a01════╬══════════╬═════════╣
+	    ║       ║          ║         ║
+        ║╚═════─╫─════════─╫─═══════d01
+        ║       ║          ║         ║
+        ║       ║          ║         ║ 
+        ║       ║          ║         ║ 
+        a02════─╫─════════─╫─════════╣
+	`, map[string][]string{
+			"a00": {""},
+			"a10": {""},
+			"a01": {"a00", "d00"},
+			"a02": {"a01", "d01"},
+			"b00": {""},
+			"c00": {"", "b00"},
+			"d00": {"", "a00"},
+			"d01": {"d00", "a10"},
 		})
 	})
 }
