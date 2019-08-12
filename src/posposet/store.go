@@ -84,7 +84,7 @@ func calcFirstGenesisHash(balances map[hash.Peer]inter.Stake, time inter.Timesta
 	if err := s.ApplyGenesis(balances, time); err != nil {
 		logger.Get().Fatal(err)
 	}
-	return s.GetSuperFrame(firstEpoch).PrevEpoch.Hash()
+	return s.GetGenesis().PrevEpoch.Hash()
 }
 
 // ApplyGenesis stores initial state.
@@ -93,7 +93,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
-	sf1 := s.GetSuperFrame(firstEpoch)
+	sf1 := s.GetGenesis()
 	if sf1 != nil {
 		if sf1.PrevEpoch.Hash() == calcFirstGenesisHash(balances, time) {
 			return nil
@@ -104,8 +104,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 	sf := &superFrame{}
 
 	cp := &checkpoint{
-		SuperFrameN: firstEpoch,
-		TotalCap:    0,
+		TotalCap: 0,
 	}
 
 	sf.Members = make(internal.Members, len(balances))
@@ -131,12 +130,14 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 	}
 
 	// genesis object
-	sf.PrevEpoch.Epoch = cp.SuperFrameN - 1
+	sf.SuperFrameN = firstEpoch
+	sf.PrevEpoch.Epoch = sf.SuperFrameN - 1
 	sf.PrevEpoch.StateHash = cp.Balances
 	sf.PrevEpoch.Time = time
 	cp.LastConsensusTime = sf.PrevEpoch.Time
 
-	s.SetSuperFrame(cp.SuperFrameN, sf)
+	s.SetGenesis(sf)
+	s.SetSuperFrame(sf)
 	s.SetCheckpoint(cp)
 
 	return nil

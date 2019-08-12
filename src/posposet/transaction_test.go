@@ -43,7 +43,9 @@ func TestPosetTxn(t *testing.T) {
 	}
 
 	p.Start()
-	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen - 1), 3, buildEvent, onNewEvent, nil)
+	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen-1), 3, buildEvent, onNewEvent, nil)
+
+	assert.Equal(t, p.PrevEpoch.Hash(), s.GetGenesis().PrevEpoch.Hash())
 
 	assert.Equal(t, idx.SuperFrame(0), p.PrevEpoch.Epoch)
 	assert.Equal(t, hash.ZeroEvent, p.PrevEpoch.LastFiWitness)
@@ -79,7 +81,8 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, inter.Stake(2), p.NextMembers[nodes[1]])
 
 	st := s.GetCheckpoint()
-	t.Logf("poset: SFrame %d, Block %d", st.SuperFrameN, st.LastBlockN)
+	ep := s.GetSuperFrame()
+	t.Logf("poset: SFrame %d, Block %d", ep.SuperFrameN, st.LastBlockN)
 
 	assert.Equal(t,
 		inter.Stake(0), p.StakeOf(nodes[0]),

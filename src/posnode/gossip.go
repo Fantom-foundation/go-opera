@@ -301,7 +301,7 @@ func (n *Node) knownEvents(sf idx.SuperFrame) heights {
 	if n.consensus == nil {
 		peers = n.peers.Snapshot()
 	} else {
-		peers = n.consensus.SuperFrameMembers(sf)
+		peers = n.consensus.SuperFrameMembers()
 	}
 
 	return n.peersWithHeight(sf, peers)

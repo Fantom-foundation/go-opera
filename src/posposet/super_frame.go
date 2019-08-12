@@ -39,12 +39,13 @@ func (g *GenesisState) Hash() hash.Hash {
 type superFrame struct {
 	// stored values
 	// these values change only after a change of epoch
-	PrevEpoch GenesisState
-	Members   internal.Members
+	SuperFrameN idx.SuperFrame
+	PrevEpoch   GenesisState
+	Members     internal.Members
 }
 
 func (p *Poset) loadSuperFrame() {
-	p.superFrame = *p.store.GetSuperFrame(p.SuperFrameN)
+	p.superFrame = *p.store.GetSuperFrame()
 }
 
 func (p *Poset) nextEpoch(fiWitness hash.Event) {
@@ -70,7 +71,7 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.SuperFrameN++
 
 	// commit
-	p.store.SetSuperFrame(p.SuperFrameN, &p.superFrame)
+	p.store.SetSuperFrame(&p.superFrame)
 	p.saveCheckpoint()
 }
 
@@ -79,18 +80,18 @@ func (p *Poset) CurrentSuperFrameN() idx.SuperFrame {
 	return idx.SuperFrame(atomic.LoadUint32((*uint32)(&p.SuperFrameN)))
 }
 
-// SuperFrameMembers returns members of n super-frame.
-func (p *Poset) SuperFrameMembers(n idx.SuperFrame) (members []hash.Peer) {
-	sf := p.store.GetSuperFrame(n)
+// SuperFrameMembers returns members of current super-frame.
+func (p *Poset) SuperFrameMembers() (members []hash.Peer) {
+	sf := p.store.GetSuperFrame()
 	if sf == nil {
-		p.Fatalf("super-frame %d not found", n)
+		p.Fatal("super-frame not found")
 	}
 
 	for m := range sf.Members {
 		members = append(members, m)
 	}
 
-	return
+	return members
 }
 
 // rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.
@@ -119,7 +120,7 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Fr
 
 // GetGenesisHash is a genesis getter.
 func (p *Poset) GetGenesisHash() hash.Hash {
-	epoch := p.store.GetSuperFrame(firstEpoch)
+	epoch := p.store.GetGenesis()
 	if epoch == nil {
 		p.Fatal("no genesis found")
 	}

@@ -12,7 +12,6 @@ import (
 // checkpoint is for persistent storing.
 type checkpoint struct {
 	// fields can change only after a frame is decided
-	SuperFrameN       idx.SuperFrame
 	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
 	TotalCap          inter.Stake
