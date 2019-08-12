@@ -21,8 +21,8 @@ type EventHeaderData struct {
 
 	Creator hash.Peer // TODO common.Address
 
-	GenesisHash hash.Hash
-	Parents     hash.Events
+	PrevEpochHash hash.Hash
+	Parents       hash.Events
 
 	GasLeft uint64
 	GasUsed uint64
