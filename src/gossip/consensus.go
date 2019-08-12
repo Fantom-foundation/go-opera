@@ -21,5 +21,5 @@ type Consensus interface {
 	// CurrentSuperFrame returns current SuperFrameN.
 	CurrentSuperFrameN() idx.SuperFrame
 	// SuperFrameMembers returns members of n super-frame.
-	SuperFrameMembers(n idx.SuperFrame) []hash.Peer
+	SuperFrameMembers() []hash.Peer
 }

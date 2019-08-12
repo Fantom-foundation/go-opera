@@ -31,12 +31,7 @@ func (p *Poset) GetEvent(h hash.Event) *Event {
 	}
 }
 
-// TODO store headers separately
 // GetEventHeader returns event header.
 func (p *Poset) GetEventHeader(h hash.Event) *inter.EventHeaderData {
-	event := p.GetEvent(h)
-	if event == nil {
-		return nil
-	}
-	return &event.EventHeaderData
+	return p.input.GetEventHeader(h)
 }
