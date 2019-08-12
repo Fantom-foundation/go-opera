@@ -4,17 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	_ "github.com/Fantom-foundation/go-lachesis/src/metrics/prometheus"
 	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
@@ -38,21 +34,9 @@ var Start = &cobra.Command{
 		logger.SetDSN(sentry)
 
 		// db
-		var db func() kvdb.Database
-		dbdir, err := cmd.Flags().GetString("db")
+		makeDb, err := dbProducer(cmd)
 		if err != nil {
 			return err
-		}
-		if dbdir != "inmemory" {
-			bdb, stop, err := openDB(dbdir)
-			if err != nil {
-				return err
-			}
-			defer stop()
-
-			db = func() kvdb.Database {
-				return kvdb.NewBoltDatabase(bdb)
-			}
 		}
 
 		// network
@@ -97,7 +81,7 @@ var Start = &cobra.Command{
 		}
 
 		// start
-		l := lachesis.New(db, "", key, conf)
+		l := lachesis.New(makeDb, "", key, conf)
 		l.Start()
 		defer l.Stop()
 
@@ -159,30 +143,6 @@ func parseFakeGen(s string) (num, total int, err error) {
 
 	if num64 < 1 || num64 > total64 {
 		err = fmt.Errorf("key-num should be in range from 1 to total : <key-num>/<total>")
-	}
-
-	return
-}
-
-func openDB(dir string) (db *bbolt.DB, closeDB func(), err error) {
-	err = os.MkdirAll(dir, 0600)
-	if err != nil {
-		return
-	}
-
-	f := filepath.Join(dir, "lachesis.bolt")
-	db, err = bbolt.Open(f, 0600, nil)
-	if err != nil {
-		return
-	}
-
-	stopWatcher := metrics.StartFileWatcher("db_file_size", f)
-
-	closeDB = func() {
-		stopWatcher()
-		if err := db.Close(); err != nil {
-			logger.Get().Error(err)
-		}
 	}
 
 	return

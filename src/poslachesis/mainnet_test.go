@@ -59,7 +59,7 @@ func makeNetwork(pref string, count int) []*Lachesis {
 	// create all
 	for i, key := range keys {
 		host := fmt.Sprintf("%s%s", pref, string('A'+i))
-		ll[i] = NewForTests(nil, host, key, conf)
+		ll[i] = NewForTests(memDbProducer, host, key, conf)
 	}
 
 	// start all

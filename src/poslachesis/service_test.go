@@ -10,7 +10,7 @@ import (
 func TestService(t *testing.T) {
 	logger.SetTestMode(t)
 
-	l := NewForTests(nil, "server.fake", nil, nil)
+	l := NewForTests(memDbProducer, "server.fake", nil, nil)
 	l.serviceStart()
 	defer l.serviceStop()
 

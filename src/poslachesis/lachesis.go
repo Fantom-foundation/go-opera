@@ -11,6 +11,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
+// DbProducer makes db.
+type DbProducer func(name string) kvdb.Database
+
 // Lachesis is a lachesis node implementation.
 type Lachesis struct {
 	host           string
@@ -27,11 +30,24 @@ type Lachesis struct {
 
 // New makes lachesis node.
 // It does not start any process.
-func New(newDb func() kvdb.Database, host string, key *crypto.PrivateKey, conf *Config, opts ...grpc.DialOption) *Lachesis {
+func New(
+	newDb DbProducer,
+	host string,
+	key *crypto.PrivateKey,
+	conf *Config,
+	opts ...grpc.DialOption,
+) *Lachesis {
 	return makeLachesis(newDb, host, key, conf, nil, opts...)
 }
 
-func makeLachesis(newDb func() kvdb.Database, host string, key *crypto.PrivateKey, conf *Config, listen network.ListenFunc, opts ...grpc.DialOption) *Lachesis {
+func makeLachesis(
+	newDb DbProducer,
+	host string,
+	key *crypto.PrivateKey,
+	conf *Config,
+	listen network.ListenFunc,
+	opts ...grpc.DialOption,
+) *Lachesis {
 	ndb, cdb := makeStorages(newDb)
 
 	if conf == nil {
@@ -88,22 +104,11 @@ func (l *Lachesis) AddPeers(hosts ...string) {
  * Utils:
  */
 
-func makeStorages(newDb func() kvdb.Database) (*posnode.Store, *posposet.Store) {
-	var (
-		p kvdb.Database
-		n kvdb.Database
-	)
-	if newDb == nil {
-		p = kvdb.NewMemDatabase()
-		n = kvdb.NewMemDatabase()
-		newDb = func() kvdb.Database {
-			return kvdb.NewMemDatabase()
-		}
-	} else {
-		db := newDb()
-		p = db.NewTable([]byte("p_"))
-		n = db.NewTable([]byte("n_"))
-	}
+func makeStorages(newDb DbProducer) (*posnode.Store, *posposet.Store) {
+	db := newDb("lachesis")
+
+	p := db.NewTable([]byte("p_"))
+	n := db.NewTable([]byte("n_"))
 
 	return posnode.NewStore(n),
 		posposet.NewStore(p, newDb)
