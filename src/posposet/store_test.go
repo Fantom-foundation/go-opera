@@ -2,12 +2,13 @@ package posposet
 
 import (
 	"fmt"
-	"go.etcd.io/bbolt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -43,41 +44,39 @@ func benchmarkStore(b *testing.B) {
 	if err != nil {
 		panic(err)
 	}
+	defer os.Remove(pathDb)
 	defer db.Close()
 
-	dbWrapper := kvdb.NewCacheWrapper(kvdb.NewBoltDatabase(db))
+	historyCache := kvdb.NewCacheWrapper(kvdb.NewBoltDatabase(db, nil, nil))
 
-	// epoch DB
-	prevTemp := 1
-	var prevTempDb *bbolt.DB
-	var prevTempDbWrapper *kvdb.CacheWrapper
-	newTempDb := func() kvdb.Database {
-		// close prev temp DB
-		if prevTempDb != nil {
-			err := prevTempDb.Close()
-			if err != nil {
-				b.Fatal(err)
-			}
-			prevTempDb = nil
-		}
-		// open new one
-		pathTemp := filepath.Join(dir, fmt.Sprintf("lachesis.%d.tmp.bolt", prevTemp))
-		prevTempDb, err = bbolt.Open(pathTemp, 0600, nil)
+	var (
+		tempCount int
+		tempCache *kvdb.CacheWrapper
+	)
+	newTempDb := func(name string) kvdb.Database {
+		pathTemp := filepath.Join(dir, fmt.Sprintf("lachesis.%d.tmp.bolt", tempCount))
+		tempDb, err := bbolt.Open(pathTemp, 0600, nil)
 		if err != nil {
 			panic(err)
 		}
 		// counter
-		prevTemp += 1
+		tempCount++
 
-		prevTempDbWrapper = kvdb.NewCacheWrapper(kvdb.NewBoltDatabase(prevTempDb))
-		return prevTempDbWrapper
+		tempCache = kvdb.NewCacheWrapper(
+			kvdb.NewBoltDatabase(
+				tempDb,
+				tempDb.Close,
+				func() error {
+					return os.Remove(pathTemp)
+				}))
+		return tempCache
 	}
 
-	input := NewEventStore(dbWrapper)
+	input := NewEventStore(historyCache)
 	defer input.Close()
 
-	store := NewStore(dbWrapper, newTempDb)
-	defer input.Close()
+	store := NewStore(historyCache, newTempDb)
+	defer store.Close()
 
 	nodes := inter.GenNodes(5)
 
@@ -85,11 +84,11 @@ func benchmarkStore(b *testing.B) {
 
 	// flushes both epoch DB and history DB
 	flushAll := func() {
-		err := dbWrapper.Flush()
+		err := historyCache.Flush()
 		if err != nil {
 			b.Fatal(err)
 		}
-		err = prevTempDbWrapper.Flush()
+		err = tempCache.Flush()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -116,7 +115,7 @@ func benchmarkStore(b *testing.B) {
 			input.SetEvent(e)
 			p.PushEventSync(e.Hash())
 
-			if (dbWrapper.NotFlushedSizeEst() + prevTempDbWrapper.NotFlushedSizeEst()) >= 1024*1024 {
+			if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
 				flushAll()
 			}
 		}

@@ -33,31 +33,30 @@ type Store struct {
 		VectorIndex kvdb.Database `table:"vectors_"`
 	}
 
-	newTempDb func() kvdb.Database
+	newTempDb func(name string) kvdb.Database
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.Database, newTempDb func() kvdb.Database) *Store {
+func NewStore(db kvdb.Database, newTempDb func(name string) kvdb.Database) *Store {
 	s := &Store{
 		historyDB: db,
-		tempDb:    newTempDb(),
 		newTempDb: newTempDb,
 		Instance:  logger.MakeInstance(),
 	}
 
 	kvdb.MigrateTables(&s.table, s.historyDB)
-	kvdb.MigrateTables(&s.epochTable, s.tempDb)
 	s.table.Balances = state.NewDatabase(
 		s.historyDB.NewTable([]byte("balance_")))
+	s.pruneTempDb()
 
 	return s
 }
 
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
-	return NewStore(kvdb.NewMemDatabase(), func() kvdb.Database {
+	return NewStore(kvdb.NewMemDatabase(), func(name string) kvdb.Database {
 		return kvdb.NewMemDatabase()
 	})
 }
@@ -68,11 +67,17 @@ func (s *Store) Close() {
 	kvdb.MigrateTables(&s.epochTable, nil)
 	s.historyDB.Close()
 	s.tempDb.Close()
+	s.tempDb.Drop()
 }
 
 func (s *Store) pruneTempDb() {
-	s.tempDb.Close()
-	s.tempDb = s.newTempDb()
+	kvdb.MigrateTables(&s.epochTable, nil)
+	if s.tempDb != nil {
+		s.tempDb.Close()
+		s.tempDb.Drop()
+	}
+
+	s.tempDb = s.newTempDb("epoch")
 	kvdb.MigrateTables(&s.epochTable, s.tempDb)
 }
 

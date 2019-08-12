@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/rlp"
@@ -34,6 +35,10 @@ func (g *GenesisState) Hash() hash.Hash {
 		panic(err)
 	}
 	return hash.FromBytes(hasher.Sum(nil))
+}
+
+func (g *GenesisState) EpochName() string {
+	return fmt.Sprintf("epoch%d", g.Epoch)
 }
 
 type superFrame struct {
