@@ -55,7 +55,7 @@ func NewBadgerStore(participants *peers.Peers, cacheSize int, path string, posCo
 		db:           handle,
 		path:         path,
 		states: state.NewDatabase(
-			kvdb.NewBadgerDatabase(handle).
+			kvdb.NewBadgerDatabase(handle, nil, nil).
 				NewTable([]byte(statePrefix))),
 	}
 	if err := store.dbSetParticipants(participants); err != nil {
@@ -94,7 +94,7 @@ func LoadBadgerStore(cacheSize int, path string) (*BadgerStore, error) {
 		path:          path,
 		needBootstrap: true,
 		states: state.NewDatabase(
-			kvdb.NewBadgerDatabase(handle).
+			kvdb.NewBadgerDatabase(handle, nil, nil).
 				NewTable([]byte(statePrefix))),
 	}
 

@@ -24,20 +24,20 @@ func TestForEach(t *testing.T) {
 	}
 	testData := join(prefix0, prefix1)
 
-	bbolt1, freeBbolt1 := bboltDB("1")
-	defer freeBbolt1()
+	bbolt1, dropBbolt1 := bboltDB("1")
+	defer dropBbolt1()
 
-	bbolt2, freeBbolt2 := bboltDB("2")
-	defer freeBbolt2()
+	bbolt2, dropBbolt2 := bboltDB("2")
+	defer dropBbolt2()
 
-	badger1, freeBadger1 := badgerDB("1")
-	defer freeBadger1()
+	badger1, dropBadger1 := badgerDB("1")
+	defer dropBadger1()
 
 	for name, db := range map[string]Database{
 		"memory":                       NewMemDatabase(),
-		"bbolt":                        NewBoltDatabase(bbolt1),
-		"badger":                       NewBadgerDatabase(badger1),
-		"cache-over-bbolt":             NewCacheWrapper(NewBoltDatabase(bbolt2)),
+		"bbolt":                        NewBoltDatabase(bbolt1, nil, nil),
+		"badger":                       NewBadgerDatabase(badger1, nil, nil),
+		"cache-over-bbolt":             NewCacheWrapper(NewBoltDatabase(bbolt2, nil, nil)),
 		"cache-over-cache-over-memory": NewCacheWrapper(NewCacheWrapper(NewMemDatabase())),
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -109,8 +109,8 @@ func join(aa ...map[string][]byte) map[string][]byte {
 	return res
 }
 
-func bboltDB(dir string) (db *bbolt.DB, free func()) {
-	dir, err := ioutil.TempDir("", "kvdb" + dir)
+func bboltDB(dir string) (db *bbolt.DB, drop func()) {
+	dir, err := ioutil.TempDir("", "kvdb"+dir)
 	if err != nil {
 		panic(err)
 	}
@@ -121,15 +121,16 @@ func bboltDB(dir string) (db *bbolt.DB, free func()) {
 		panic(err)
 	}
 
-	free = func() {
+	drop = func() {
+		_ = db.Close()
 		_ = os.RemoveAll(dir)
 	}
 
 	return
 }
 
-func badgerDB(dir string) (db *badger.DB, free func()) {
-	dir, err := ioutil.TempDir("", "kvdb" + dir)
+func badgerDB(dir string) (db *badger.DB, drop func()) {
+	dir, err := ioutil.TempDir("", "kvdb"+dir)
 	if err != nil {
 		panic(err)
 	}
@@ -143,7 +144,8 @@ func badgerDB(dir string) (db *badger.DB, free func()) {
 		panic(err)
 	}
 
-	free = func() {
+	drop = func() {
+		_ = db.Close()
 		_ = os.RemoveAll(dir)
 	}
 

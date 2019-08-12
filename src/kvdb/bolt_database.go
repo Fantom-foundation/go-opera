@@ -2,6 +2,7 @@ package kvdb
 
 import (
 	"bytes"
+
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -16,6 +17,9 @@ var (
 type BoltDatabase struct {
 	db     *bbolt.DB
 	bucket []byte
+
+	onClose func() error
+	onDrop  func() error
 }
 
 func newBoltDatabase(db *bbolt.DB, bucket []byte) *BoltDatabase {
@@ -34,8 +38,11 @@ func newBoltDatabase(db *bbolt.DB, bucket []byte) *BoltDatabase {
 }
 
 // NewBoltDatabase wraps *bbolt.DB.
-func NewBoltDatabase(db *bbolt.DB) *BoltDatabase {
-	return newBoltDatabase(db, []byte("default"))
+func NewBoltDatabase(db *bbolt.DB, close, drop func() error) *BoltDatabase {
+	res := newBoltDatabase(db, []byte("default"))
+	res.onClose = close
+	res.onDrop = drop
+	return res
 }
 
 /*
@@ -119,6 +126,25 @@ func (w *BoltDatabase) Delete(key []byte) error {
 // Close leaves underlying database.
 func (w *BoltDatabase) Close() {
 	w.db = nil
+	if w.onClose == nil {
+		return
+	}
+	if err := w.onClose; err != nil {
+		panic(err)
+	}
+}
+
+// Drop whole database.
+func (w *BoltDatabase) Drop() {
+	if w.db != nil {
+		panic("Close database first!")
+	}
+	if w.onDrop == nil {
+		return
+	}
+	if err := w.onDrop; err != nil {
+		panic(err)
+	}
 }
 
 // NewBatch creates new batch.

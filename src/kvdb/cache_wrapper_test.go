@@ -1,10 +1,11 @@
 package kvdb
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common"
 	"math/big"
 	"math/rand"
 	"testing"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -15,20 +16,20 @@ func TestCacheWrapper(t *testing.T) {
 	dictSize := opsPerIter // number of different words
 
 	// open raw databases
-	bbolt1, freeBbolt1 := bboltDB("1")
-	defer freeBbolt1()
+	bbolt1, dropBbolt1 := bboltDB("1")
+	defer dropBbolt1()
 
-	bbolt2, freeBbolt2 := bboltDB("2")
-	defer freeBbolt2()
+	bbolt2, dropBbolt2 := bboltDB("2")
+	defer dropBbolt2()
 
 	// create wrappers
 	dbs := map[string]Database{
-		"bbolt":  NewBoltDatabase(bbolt1),
+		"bbolt":  NewBoltDatabase(bbolt1, nil, nil),
 		"memory": NewMemDatabase(),
 	}
 
 	flushableDbs := map[string]FlushableDatabase{
-		"cache-over-bbolt":  NewCacheWrapper(NewBoltDatabase(bbolt2)),
+		"cache-over-bbolt":  NewCacheWrapper(NewBoltDatabase(bbolt2, nil, nil)),
 		"cache-over-memory": NewCacheWrapper(NewMemDatabase()),
 	}
 
