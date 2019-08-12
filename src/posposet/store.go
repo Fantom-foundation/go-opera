@@ -84,7 +84,7 @@ func calcFirstGenesisHash(balances map[hash.Peer]inter.Stake, time inter.Timesta
 	if err := s.ApplyGenesis(balances, time); err != nil {
 		logger.Get().Fatal(err)
 	}
-	return s.GetSuperFrame(firstEpoch).Genesis.Hash()
+	return s.GetSuperFrame(firstEpoch).PrevEpoch.Hash()
 }
 
 // ApplyGenesis stores initial state.
@@ -95,7 +95,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 
 	sf1 := s.GetSuperFrame(firstEpoch)
 	if sf1 != nil {
-		if sf1.Genesis.Hash() == calcFirstGenesisHash(balances, time) {
+		if sf1.PrevEpoch.Hash() == calcFirstGenesisHash(balances, time) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
@@ -131,10 +131,10 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 	}
 
 	// genesis object
-	sf.Genesis.Epoch = cp.SuperFrameN - 1
-	sf.Genesis.StateHash = cp.Balances
-	sf.Genesis.Time = time
-	cp.LastConsensusTime = sf.Genesis.Time
+	sf.PrevEpoch.Epoch = cp.SuperFrameN - 1
+	sf.PrevEpoch.StateHash = cp.Balances
+	sf.PrevEpoch.Time = time
+	cp.LastConsensusTime = sf.PrevEpoch.Time
 
 	s.SetSuperFrame(cp.SuperFrameN, sf)
 	s.SetCheckpoint(cp)

@@ -49,8 +49,3 @@ func (p *Poset) Bootstrap() {
 	// events reprocessing
 	p.handleElection(nil)
 }
-
-// GetGenesisHash is a genesis getter.
-func (p *Poset) GetGenesisHash() hash.Hash {
-	return p.Genesis.Hash()
-}
