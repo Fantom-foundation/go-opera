@@ -1,15 +1,16 @@
 package posposet
 
 import (
+	"math/rand"
+	"sort"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/vector"
-	"math/rand"
-	"sort"
 )
 
 type SearchStrategy interface {
-	Init(myLast *hash.Event)
+	Init(selfParent *hash.Event)
 	Find(heads hash.Events) hash.Event
 }
 
