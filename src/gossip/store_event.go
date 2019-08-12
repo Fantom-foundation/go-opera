@@ -5,14 +5,18 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-// TODO store separately
-// GetEventHeader returns stored event header.
-func (s *Store) GetEventHeader(h hash.Event) *inter.EventHeaderData {
-	e := s.GetEvent(h)
-	if e == nil {
-		return nil
+// DeleteEvent deletes event.
+func (s *Store) DeleteEvent(id hash.Event) {
+	key := id.Bytes()
+
+	err := s.table.Events.Delete(key)
+	if err != nil {
+		s.Fatal(err)
 	}
-	return &e.EventHeaderData
+	err = s.table.Headers.Delete(key)
+	if err != nil {
+		s.Fatal(err)
+	}
 }
 
 // SetEvent stores event.
@@ -32,8 +36,8 @@ func (s *Store) GetEventHeader(h hash.Event) *inter.EventHeaderData {
 }
 
 // GetEvent returns stored event.
-func (s *Store) GetEvent(h hash.Event) *inter.Event {
-	key := h.Bytes()
+func (s *Store) GetEvent(id hash.Event) *inter.Event {
+	key := id.Bytes()
 
 	w, _ := s.get(s.table.Events, key, &inter.Event{}).(*inter.Event)
 	return w

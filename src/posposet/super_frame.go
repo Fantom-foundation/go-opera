@@ -26,7 +26,7 @@ type GenesisState struct {
 	Epoch         idx.SuperFrame
 	Time          inter.Timestamp // consensus time of the last fiWitness
 	LastFiWitness hash.Event
-	StateHash     hash.Hash // hash of txs state. TBD
+	StateHash     hash.Hash // hash of txs state
 }
 
 func (g *GenesisState) Hash() hash.Hash {
