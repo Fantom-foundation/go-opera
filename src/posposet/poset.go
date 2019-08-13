@@ -58,7 +58,7 @@ func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) 
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if e.Epoch != p.SuperFrameN {
-		p.Infof("consensus: %s is too old/too new", e.String())
+		p.Infof("consensus: %s is too old/too new, %d != %d", e.String(), e.Epoch, p.SuperFrameN)
 		return nil
 	}
 	if _, ok := p.Members[e.Creator]; !ok {
