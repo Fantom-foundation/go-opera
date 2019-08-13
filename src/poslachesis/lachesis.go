@@ -83,7 +83,6 @@ func (l *Lachesis) init() {
 func (l *Lachesis) Start() {
 	l.init()
 
-	l.consensus.Start()
 	l.node.Start()
 	l.serviceStart()
 }
@@ -92,7 +91,6 @@ func (l *Lachesis) Start() {
 func (l *Lachesis) Stop() {
 	l.serviceStop()
 	l.node.Stop()
-	l.consensus.Stop()
 }
 
 // AddPeers suggests hosts for network discovery.

@@ -113,7 +113,7 @@ func benchmarkStore(b *testing.B) {
 		}
 		onNewEvent := func(e *inter.Event) {
 			input.SetEvent(e)
-			p.PushEventSync(e.Hash())
+			_ = p.ProcessEvent(e)
 
 			if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
 				flushAll()
@@ -139,7 +139,6 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 
 	poset := New(store, input)
 	poset.Bootstrap()
-	poset.Start()
 
 	return poset
 }

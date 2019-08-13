@@ -12,6 +12,7 @@ import (
 
 func TestRestore(t *testing.T) {
 	logger.SetTestMode(t)
+	assertar := assert.New(t)
 
 	const posetCount = 3 // 2 last will be restored
 	const epochs = idx.SuperFrame(2)
@@ -26,8 +27,7 @@ func TestRestore(t *testing.T) {
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
-		poset.Start()
-		posets = append(posets, poset)
+		posets = append(posets, poset.Poset)
 		inputs = append(inputs, input)
 		return store
 	}
@@ -45,7 +45,7 @@ func TestRestore(t *testing.T) {
 		}
 		onNewEvent := func(e *inter.Event) {
 			inputs[0].SetEvent(e)
-			posets[0].PushEventSync(e.Hash())
+			assertar.NoError(posets[0].ProcessEvent(e))
 
 			ordered = append(ordered, e)
 		}
@@ -54,7 +54,6 @@ func TestRestore(t *testing.T) {
 	}
 
 	t.Run("Restore", func(t *testing.T) {
-		assertar := assert.New(t)
 
 		i := posetCount - 1
 		j := posetCount - 2
@@ -64,21 +63,19 @@ func TestRestore(t *testing.T) {
 		for x, e := range ordered {
 			if (x < len(ordered)/4) || x%20 == 0 {
 				// restore
-				posets[i].Stop()
 				restored := New(store, inputs[i])
 				n := i % len(nodes)
 				restored.SetName("restored_" + nodes[n].String())
 				store.SetName("restored_" + nodes[n].String())
 				restored.Bootstrap()
 				posets[i] = restored
-				posets[i].Start()
 			}
 			// push on restore i, and non-restored j
 			inputs[i].SetEvent(e)
-			posets[i].consensus(e)
+			assertar.NoError(posets[i].ProcessEvent(e))
 
 			inputs[j].SetEvent(e)
-			posets[j].consensus(e)
+			assertar.NoError(posets[j].ProcessEvent(e))
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
 			assertar.Equal(posets[j].superFrame, posets[i].superFrame)
@@ -102,8 +99,4 @@ func TestRestore(t *testing.T) {
 			assertar.Equal(e.Hash(), *posets[i].store.GetLastEvent(e.Creator))
 		}
 	})
-
-	for i := 0; i < len(posets); i++ {
-		posets[i].Stop()
-	}
 }

@@ -110,7 +110,7 @@ func (n *Node) saveNewEvent(e *inter.Event) error {
 	n.pushPotentialParent(e)
 
 	if n.consensus != nil {
-		n.consensus.PushEvent(e.Hash())
+		_ = n.consensus.ProcessEvent(e)
 	}
 
 	countTotalEvents.Inc(1)

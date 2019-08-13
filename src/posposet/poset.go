@@ -1,8 +1,6 @@
 package posposet
 
 import (
-	"sync"
-
 	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -23,14 +21,6 @@ type Poset struct {
 	election *election.Election
 	events   *vector.Index
 
-	processingWg   sync.WaitGroup
-	processingDone chan struct{}
-
-	newEventsCh chan hash.Event
-	onNewEvent  func(*inter.Event) // onNewEvent runs consensus calc from new event
-
-	newBlockCh   chan idx.Block
-	onNewBlockMu sync.RWMutex
 	onNewBlock   func(num idx.Block)
 
 	logger.Instance
@@ -45,79 +35,17 @@ func New(store *Store, input EventSource) *Poset {
 		store: store,
 		input: input,
 
-		newEventsCh: make(chan hash.Event, buffSize),
-
-		newBlockCh: make(chan idx.Block, buffSize),
-
 		Instance: logger.MakeInstance(),
-	}
-
-	// event order matter: parents first
-	p.onNewEvent = func(e *inter.Event) {
-		if e == nil {
-			panic("got unsaved event")
-		}
-		p.consensus(e)
 	}
 
 	return p
 }
 
-// Start starts events processing.
-func (p *Poset) Start() {
-	if p.processingDone != nil {
-		return
-	}
-
-	p.Bootstrap()
-
-	p.processingDone = make(chan struct{})
-	p.processingWg.Add(1)
-	go func() {
-		defer p.processingWg.Done()
-		// log.Debug("Start of events processing ...")
-		for {
-			select {
-			case <-p.processingDone:
-				// log.Debug("Stop of events processing ...")
-				return
-			case e := <-p.newEventsCh:
-				event := p.input.GetEvent(e)
-				p.onNewEvent(event)
-
-			case num := <-p.newBlockCh:
-				p.onNewBlockMu.RLock()
-				if p.onNewBlock != nil {
-					p.onNewBlock(num)
-				}
-				p.onNewBlockMu.RUnlock()
-			}
-		}
-	}()
-}
-
-// Stop stops events processing.
-func (p *Poset) Stop() {
-	if p.processingDone == nil {
-		return
-	}
-	close(p.processingDone)
-	p.processingWg.Wait()
-	p.processingDone = nil
-}
-
-// PushEvent takes event into processing.
-// Event order matter: parents first.
-func (p *Poset) PushEvent(e hash.Event) {
-	p.newEventsCh <- e
-}
-
 // OnNewBlock sets (or replaces if override) a callback that is called on new block.
 // Returns an error if can not.
+// OnNewBlock is not safe for concurrent use.
 func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) error {
 	// TODO: support multiple subscribers later
-	p.onNewBlockMu.Lock()
-	defer p.onNewBlockMu.Unlock()
 	if !override && p.onNewBlock != nil {
 		return errors.New("callback already registered")
 	}
@@ -261,8 +189,10 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 	return nil
 }
 
-// consensus is not safe for concurrent use.
-func (p *Poset) consensus(e *inter.Event) error {
+// ProcessEvent takes event into processing.
+// Event order matter: parents first.
+// ProcessEvent is not safe for concurrent use.
+func (p *Poset) ProcessEvent(e *inter.Event) error {
 	if e.Epoch != p.SuperFrameN {
 		p.Infof("consensus: %s is too old/too new", e.String())
 		return nil
@@ -308,8 +238,8 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.store.SetEventsBlockNum(block.Index, ordered...)
 	p.store.SetBlock(block)
 	p.checkpoint.LastBlockN = block.Index
-	if p.newBlockCh != nil {
-		p.newBlockCh <- p.checkpoint.LastBlockN
+	if p.onNewBlock != nil {
+		p.onNewBlock(p.checkpoint.LastBlockN)
 	}
 
 	// balances changes

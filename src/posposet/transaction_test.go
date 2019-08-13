@@ -39,10 +39,9 @@ func TestPosetTxn(t *testing.T) {
 	}
 	onNewEvent := func(e *inter.Event) {
 		x.SetEvent(e)
-		p.PushEventSync(e.Hash())
+		assert.NoError(t, p.ProcessEvent(e))
 	}
 
-	p.Start()
 	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen-1), 3, buildEvent, onNewEvent, nil)
 
 	assert.Equal(t, p.PrevEpoch.Hash(), s.GetGenesis().PrevEpoch.Hash())
@@ -90,6 +89,4 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t,
 		inter.Stake(2), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
-
-	p.Stop()
 }

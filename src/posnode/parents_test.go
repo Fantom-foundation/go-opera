@@ -54,7 +54,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 			Return(idx.SuperFrame(1)).
 			AnyTimes()
 		consensus.EXPECT().
-			PushEvent(gomock.Any()).
+			ProcessEvent(gomock.Any()).
 			AnyTimes()
 
 		store := NewMemStore()

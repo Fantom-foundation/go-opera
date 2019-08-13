@@ -69,16 +69,17 @@ func (mr *MockConsensusMockRecorder) GetGenesisHash() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisHash", reflect.TypeOf((*MockConsensus)(nil).GetGenesisHash))
 }
 
-// PushEvent mocks base method
-func (m *MockConsensus) PushEvent(arg0 hash.Event) {
+// ProcessEvent mocks base method
+func (m *MockConsensus) ProcessEvent(arg0 *inter.Event) error {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "PushEvent", arg0)
+	return nil
 }
 
-// PushEvent indicates an expected call of PushEvent
-func (mr *MockConsensusMockRecorder) PushEvent(arg0 interface{}) *gomock.Call {
+// ProcessEvent indicates an expected call of ProcessEvent
+func (mr *MockConsensusMockRecorder) ProcessEvent(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushEvent", reflect.TypeOf((*MockConsensus)(nil).PushEvent), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessEvent", reflect.TypeOf((*MockConsensus)(nil).ProcessEvent), arg0)
 }
 
 // StakeOf mocks base method

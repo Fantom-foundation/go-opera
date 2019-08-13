@@ -10,7 +10,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestSeeingStrategy(t *testing.T) {
@@ -61,7 +60,7 @@ a2.1 ──╣      ║      ║      ║
 // - "." - separator;
 // - stage - makes ;
 func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[string]string) {
-	logger.SetTestMode(t)
+	//logger.SetTestMode(t)
 	assertar := assert.New(t)
 
 	// decode is a event name parser
@@ -92,7 +91,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		t.Logf("Stage %d:", stage)
 		for _, e := range ee {
 			input.SetEvent(e)
-			p.PushEventSync(e.Hash())
+			p.PushToBuffer(e)
 		}
 
 		for _, node := range nodes {

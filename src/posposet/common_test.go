@@ -13,9 +13,19 @@ var (
 	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
+type BufferedPoset struct {
+	*Poset
+
+	bufferPush ordering.PushEventFn
+}
+
+func (p *BufferedPoset) PushToBuffer(e *inter.Event) {
+	p.bufferPush(e, "")
+}
+
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
 // Input event order doesn't matter.
-func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
+func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
 	balances := make(map[hash.Peer]inter.Stake, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = inter.Stake(1)
@@ -31,22 +41,25 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 
 	poset := New(store, input)
 	poset.Bootstrap()
-	MakeOrderedInput(poset)
-	poset.Start()
 
-	return poset, store, input
+	buffered := &BufferedPoset{
+		Poset: poset,
+		bufferPush: MakeOrderedInput(poset),
+	}
+
+	return buffered, store, input
 }
 
 // MakeOrderedInput wraps Poset.onNewEvent with ordering.EventBuffer.
 // For tests only.
-func MakeOrderedInput(p *Poset) {
+func MakeOrderedInput(p *Poset) ordering.PushEventFn {
 	processed := make(hash.EventsSet) // NOTE: mem leak, so for tests only.
 
 	orderThenConsensus, _ := ordering.EventBuffer(ordering.Callback{
 
 		Process: func(event *inter.Event) error {
 			processed.Add(event.Hash())
-			return p.consensus(event)
+			return p.ProcessEvent(event)
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
@@ -60,17 +73,7 @@ func MakeOrderedInput(p *Poset) {
 			return nil
 		},
 	})
-	// event order doesn't matter now
-	p.onNewEvent = func(e *inter.Event) {
-		orderThenConsensus(e, "")
-	}
-}
-
-// PushEventSync takes event into processing.
-// It's a sync version of Poset.PushEvent().
-func (p *Poset) PushEventSync(e hash.Event) {
-	event := p.input.GetEvent(e)
-	p.onNewEvent(event)
+	return orderThenConsensus
 }
 
 // ASCIIschemeToDAG wrap inter.ASCIIschemeToDAG() to prepare events properly.
@@ -93,7 +96,10 @@ func ASCIIschemeToDAG(
 		e.RecacheHash()
 
 		input.SetEvent(e)
-		p.PushEventSync(e.Hash())
+		err := p.ProcessEvent(e)
+		if err != nil {
+			p.Fatal(err)
+		}
 
 		return e
 	}

@@ -10,7 +10,7 @@ import (
 // Consensus is a consensus interface.
 type Consensus interface {
 	// PushEvent takes event for processing.
-	PushEvent(hash.Event)
+	ProcessEvent(e *inter.Event) error
 	// StakeOf returns stake of peer.
 	StakeOf(hash.Peer) inter.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
