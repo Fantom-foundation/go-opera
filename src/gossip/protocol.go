@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -27,22 +26,23 @@ const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a prot
 
 // protocol message codes
 const (
-	// Protocol messages belonging to fantom/62
+	// Protocol messages belonging to eth/62
 	StatusMsg = 0x00
+	TxMsg = 0x02
 
-	NewEventHashesMsg = 0x01
-	NewEventsMsg      = 0x02
+	// Protocol messages belonging to fantom/62
 
-	TxMsg = 0x03
+	NewEventHashesMsg = 0xf1
+	NewEventsMsg      = 0xf2
 
-	GetEventHeadersMsg = 0x04
-	EventHeadersMsg    = 0x05
+	GetEventHeadersMsg = 0xf4
+	EventHeadersMsg    = 0xf5
 
-	GetEventsMsg = 0x06
-	EventsMsg    = 0x07
+	GetEventsMsg = 0xf6
+	EventsMsg    = 0xf7
 
-	GetEventBodiesMsg = 0x08
-	EventBodiesMsg    = 0x09
+	GetEventBodiesMsg = 0xf8
+	EventBodiesMsg    = 0xf9
 )
 
 type errCode int
@@ -93,7 +93,6 @@ type txPool interface {
 type statusData struct {
 	ProtocolVersion uint32
 	NetworkId       uint64
-	NumOfEvents     idx.Event
-	Epoch           idx.SuperFrame
+	Progress        PeerProgress
 	Genesis         hash.Hash
 }
