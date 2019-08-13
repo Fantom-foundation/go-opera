@@ -303,6 +303,7 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Has
 	go func() {
 		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
 			ProtocolVersion: uint32(p.version),
+			Progress:        progress,
 			NetworkId:       network,
 			Genesis:         genesis,
 		})
