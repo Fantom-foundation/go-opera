@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned events, headers or node data.
-	estHeaderRlpSize  = 500             // Approximate size of an RLP encoded event header
+	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned events, or other data.
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
@@ -314,9 +313,14 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 		rawEvents := make([]rlp.RawValue, 0, len(requests))
+		size := 0
 		for _, id := range requests {
 			if e := pm.store.GetEventRLP(id); e != nil {
 				rawEvents = append(rawEvents, e)
+				size += len(e)
+			}
+			if size > softResponseLimit {
+				break
 			}
 		}
 		if len(rawEvents) != 0 {
