@@ -16,11 +16,11 @@ type SearchStrategy interface {
 
 // max is max num of parents to link with (including self-parent)
 // returns set of parents to link, len(res) <= max
-func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) []hash.Event {
+func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) hash.Events {
 	headsSet := p.store.GetHeads().Set()
 	selfParent := p.store.GetLastEvent(me)
 
-	res := make([]hash.Event, 0, max)
+	res := make(hash.Events, 0, max)
 	if selfParent != nil {
 		res = append(res, *selfParent)
 		headsSet.Erase(*selfParent)
@@ -28,7 +28,7 @@ func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) 
 
 	strategy.Init(selfParent)
 
-	for ; len(res) < max && len(headsSet) > 0; {
+	for len(res) < max && len(headsSet) > 0 {
 		best := strategy.Find(headsSet.Slice())
 		res = append(res, best)
 		headsSet.Erase(best)
@@ -37,8 +37,8 @@ func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) 
 	return res
 }
 
-/**
-    SeeingStrategy
+/*
+ * SeeingStrategy
  */
 
 type SeeingStrategy struct {
@@ -99,8 +99,8 @@ func (st *SeeingStrategy) Find(heads hash.Events) hash.Event {
 	return scores[0].event
 }
 
-/**
-    RandomStrategy
+/*
+ * RandomStrategy
  */
 
 type RandomStrategy struct {

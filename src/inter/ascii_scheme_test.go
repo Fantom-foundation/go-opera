@@ -34,7 +34,7 @@ a04 ╫ ─ ─ ╬  ╝║   ║
 ║   ║     ║  3║   ║
 ║   b03 ─ ╫  ╝║   ║
 ║   ║     ║   ║   ║
-`, nil, nil)
+`)
 	expected := map[string][]string{
 		"a00": {},
 		"a01": {"a00"},
@@ -77,7 +77,7 @@ func TestDAGtoASCIIschemeRand(t *testing.T) {
 		return
 	}
 
-	_, _, names := ASCIIschemeToDAG(scheme0, nil, nil)
+	_, _, names := ASCIIschemeToDAG(scheme0)
 	got := delPeerIndex(ee)
 
 	if !assertar.Equal(len(src), len(got), "event count") {
@@ -291,14 +291,14 @@ func TestDAGtoASCIIFork(t *testing.T) {
         ║║      ║       ║
         ║╚═════ a03═════╣
 	`, map[string][]string{
-			"a00": {""},
+			"a00": {},
 			"a01": {"a00", "b00"},
 			"a02": {"a01", "b01", "c01"},
 			"a03": {"c03", "a02", "b02"},
-			"b00": {""},
+			"b00": {},
 			"b01": {"b00", "c00"},
 			"b02": {"b01", "c02"},
-			"c00": {""},
+			"c00": {},
 			"c01": {"c00", "a01"},
 			"c02": {"c00", "b01"},
 			"c03": {"c02", "a02"},
@@ -332,14 +332,14 @@ func TestDAGtoASCIIFork(t *testing.T) {
         ║       ║       ║
         ╠═══════╬══════ a03
 	`, map[string][]string{
-			"a00": {""},
+			"a00": {},
 			"a01": {"a00", "b00"},
 			"a02": {"a01", "b01", "c01"},
 			"a03": {"c03", "a02", "b02"},
-			"b00": {""},
+			"b00": {},
 			"b01": {"b00", "c00"},
 			"b02": {"b01", "c02"},
-			"c00": {""},
+			"c00": {},
 			"c01": {"c00", "a01"},
 			"c02": {"c00", "b01"},
 			"c03": {"c02", "a02"},
@@ -381,7 +381,7 @@ func TestDAGtoASCIIFork(t *testing.T) {
 
 func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[string][]string) {
 	// step 1: ASCII --> DAG
-	_, events, named := ASCIIschemeToDAG(origScheme, nil, nil)
+	_, events, named := ASCIIschemeToDAG(origScheme)
 	checkParents(t, named, refs)
 
 	// step 2: DAG --> ASCII
@@ -394,7 +394,7 @@ func testDAGtoASCIIschemeOptimisation(t *testing.T, origScheme string, refs map[
 	t.Log(out)
 
 	// step 3: ASCII --> DAG (again)
-	_, _, named = ASCIIschemeToDAG(genScheme, nil, nil)
+	_, _, named = ASCIIschemeToDAG(genScheme)
 	checkParents(t, named, refs)
 }
 

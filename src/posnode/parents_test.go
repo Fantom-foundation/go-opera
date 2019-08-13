@@ -81,11 +81,10 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 
 func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []string) {
 	_, _, events := inter.ASCIIschemeToDAG(schema,
-		func(e *inter.Event) *inter.Event {
+		func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = c.CurrentSuperFrameN()
 			return e
-		},
-		nil)
+		})
 
 	weights := make(map[hash.Peer]inter.Stake)
 	for name, e := range events {

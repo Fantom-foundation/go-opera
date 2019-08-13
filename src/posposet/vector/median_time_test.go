@@ -1,29 +1,30 @@
 package vector
 
 import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func testMedianTime(t *testing.T, dag string, weights []inter.Stake, claimedTimes map[string]inter.Timestamp, medianTimes map[string]inter.Timestamp, genesis inter.Timestamp) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	buildEvent := func(e *inter.Event) *inter.Event {
-		name := string(e.Extra)
+	ordered := []*inter.Event{}
+
+	buildEvent := func(e *inter.Event, name string) *inter.Event {
 		e.ClaimedTime = claimedTimes[name]
+		e.RecacheHash()
+		ordered = append(ordered, e)
 		return e
 	}
-	processed := []*inter.Event{}
-	onNewEvent := func(e *inter.Event) {
-		processed = append(processed, e)
-	}
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag, buildEvent, onNewEvent)
+	peers, _, named := inter.ASCIIschemeToDAG(dag, buildEvent)
 
 	members := make(internal.Members, len(peers))
 	for i, peer := range peers {
@@ -33,7 +34,7 @@ func testMedianTime(t *testing.T, dag string, weights []inter.Stake, claimedTime
 	vi := NewIndex(members, kvdb.NewMemDatabase())
 
 	// push
-	for _, e := range processed {
+	for _, e := range ordered {
 		vi.Add(e)
 		vi.Flush()
 	}
