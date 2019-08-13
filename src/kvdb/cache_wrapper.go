@@ -251,14 +251,12 @@ func (w *CacheWrapper) ClearNotFlushed() {
 func (w *CacheWrapper) Close() {
 	w.modified = nil
 	w.sizeEstimation = nil
-	w.parent = nil
+	w.parent.Close()
 }
 
 // Drop whole database.
 func (w *CacheWrapper) Drop() {
-	if w.parent != nil {
-		panic("Close database first!")
-	}
+	w.parent.Drop()
 }
 
 // NewBatch creates new batch.
