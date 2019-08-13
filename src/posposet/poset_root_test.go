@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
@@ -19,7 +18,7 @@ A1.01  B1.01  C1.01  D1.01  // 1
 ║      ║      ║      ║
 ║      b1.02 ─╫──────╣
 ║      ║      ║      ║
-║      ╠──────╫──── d1.03
+║      ╠──────╫───── d1.03
 a1.02 ─╣      ║      ║
 ║      ║      ║      ║
 ║      b1.03 ─╣      ║
@@ -250,22 +249,26 @@ func TestPosetRandomRoots(t *testing.T) {
 func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	//logger.SetTestMode(t)
 	assertar := assert.New(t)
-	// read nodes
-	nodes, _, _ := inter.ASCIIschemeToDAG(asciiScheme, nil, nil)
-	// init poset
-	p, _, input := FakePoset(nodes)
 
-	buildEvent := func(e *inter.Event) *inter.Event {
-		e.Epoch = 1
-		return p.Prepare(e)
+	// decode is a event name parser
+	decode := func(name string) (frameN idx.Frame, isRoot bool) {
+		n, err := strconv.ParseUint(strings.Split(name, ".")[0][1:2], 10, 64)
+		if err != nil {
+			panic(err.Error() + ". Name event " + name + " properly: <UpperCaseForRoot><FrameN><Index>")
+		}
+		frameN = idx.Frame(n)
+
+		isRoot = name == strings.ToUpper(name)
+		return
 	}
-	onNewEvent := func(e *inter.Event) {
+
+	nodes, _, names := ASCIIschemeToDAG(asciiScheme, nil, nil)
+
+	p, _, input := FakePoset(nodes)
+	for _, e := range names {
 		input.SetEvent(e)
 		p.PushEventSync(e.Hash())
 	}
-
-	// process events
-	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme, buildEvent, onNewEvent)
 
 	// check each
 	for name, event := range names {
@@ -284,17 +287,6 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 			break
 		}
 	}
-}
-
-func decode(name string) (frameN idx.Frame, isRoot bool) {
-	n, err := strconv.ParseUint(strings.Split(name, ".")[0][1:2], 10, 64)
-	if err != nil {
-		panic(err.Error() + ". Name event " + name + " properly: <UpperCaseForRoot><FrameN><Index>")
-	}
-	frameN = idx.Frame(n)
-
-	isRoot = name == strings.ToUpper(name)
-	return
 }
 
 /*

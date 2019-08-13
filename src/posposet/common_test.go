@@ -72,3 +72,40 @@ func (p *Poset) PushEventSync(e hash.Event) {
 	event := p.input.GetEvent(e)
 	p.onNewEvent(event)
 }
+
+// ASCIIschemeToDAG wrap inter.ASCIIschemeToDAG() to prepare events properly.
+func ASCIIschemeToDAG(
+	scheme string,
+	buildEvent func(*inter.Event) *inter.Event,
+	onNewEvent func(*inter.Event),
+) (
+	nodes []hash.Peer,
+	events map[hash.Peer][]*inter.Event,
+	names map[string]*inter.Event,
+) {
+	// get nodes only
+	nodes, _, _ = inter.ASCIIschemeToDAG(scheme, nil, nil)
+	// init poset
+	p, _, input := FakePoset(nodes)
+
+	buildEvent1 := func(e *inter.Event) *inter.Event {
+		e.Epoch = p.CurrentSuperFrameN()
+		e = p.Prepare(e)
+		if buildEvent != nil {
+			e = buildEvent(e)
+		}
+		return e
+	}
+	onNewEvent1 := func(e *inter.Event) {
+		input.SetEvent(e)
+		p.PushEventSync(e.Hash())
+		if onNewEvent != nil {
+			onNewEvent(e)
+		}
+	}
+
+	// process events
+	nodes, events, names = inter.ASCIIschemeToDAG(scheme, buildEvent1, onNewEvent1)
+
+	return
+}
