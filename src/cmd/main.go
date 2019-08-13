@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
@@ -215,25 +213,4 @@ func makeStorages(db *bbolt.DB) (*gossip.Store, *posposet.Store) {
 
 	return gossip.NewStore(n),
 		posposet.NewStore(p, cached)
-}
-
-func openDB(dir string) (db *bbolt.DB, closeDB func(), err error) {
-	err = os.MkdirAll(dir, 0600)
-	if err != nil {
-		return
-	}
-
-	f := filepath.Join(dir, "lachesis.bolt")
-	db, err = bbolt.Open(f, 0600, nil)
-	if err != nil {
-		return
-	}
-
-	closeDB = func() {
-		if err := db.Close(); err != nil {
-			logger.Get().Error(err)
-		}
-	}
-
-	return
 }

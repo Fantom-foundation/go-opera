@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/rlp"
@@ -36,6 +37,10 @@ func (g *GenesisState) Hash() hash.Hash {
 	return hash.FromBytes(hasher.Sum(nil))
 }
 
+func (g *GenesisState) EpochName() string {
+	return fmt.Sprintf("epoch%d", g.Epoch)
+}
+
 type superFrame struct {
 	// stored values
 	// these values change only after a change of epoch
@@ -60,7 +65,7 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.NextMembers = p.Members.Top()
 
 	// reset internal epoch DB
-	p.store.pruneTempDb()
+	p.store.recreateTempDb()
 
 	// reset election & vectorindex
 	p.events.Reset(p.Members, p.store.epochTable.VectorIndex) // this DB is pruned after .pruneTempDb()

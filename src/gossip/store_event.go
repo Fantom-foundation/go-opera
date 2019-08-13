@@ -7,6 +7,16 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/wire"
 )
 
+// TODO store separately
+// GetEventHeader returns stored event header.
+func (s *Store) GetEventHeader(h hash.Event) *inter.EventHeaderData {
+	e := s.GetEvent(h)
+	if e == nil {
+		return nil
+	}
+	return &e.EventHeaderData
+}
+
 // SetEvent stores event.
 func (s *Store) SetEvent(e *inter.Event) {
 	key := e.Hash().Bytes()

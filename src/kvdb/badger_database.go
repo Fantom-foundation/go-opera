@@ -3,6 +3,7 @@ package kvdb
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/dgraph-io/badger"
 
 	"github.com/Fantom-foundation/go-lachesis/src/common"
@@ -14,12 +15,17 @@ var errEnough = fmt.Errorf("enough")
 type BadgerDatabase struct {
 	db     *badger.DB
 	prefix []byte
+
+	onClose func() error
+	onDrop  func() error
 }
 
 // NewBadgerDatabase wraps *badger.DB
-func NewBadgerDatabase(db *badger.DB) *BadgerDatabase {
+func NewBadgerDatabase(db *badger.DB, close, drop func() error) *BadgerDatabase {
 	return &BadgerDatabase{
-		db: db,
+		db:      db,
+		onClose: close,
+		onDrop:  drop,
 	}
 }
 
@@ -156,6 +162,25 @@ func (w *BadgerDatabase) Delete(key []byte) error {
 // Close leaves underlying database.
 func (w *BadgerDatabase) Close() {
 	w.db = nil
+	if w.onClose == nil {
+		return
+	}
+	if err := w.onClose; err != nil {
+		panic(err)
+	}
+}
+
+// Drop whole database.
+func (w *BadgerDatabase) Drop() {
+	if w.db != nil {
+		panic("Close database first!")
+	}
+	if w.onDrop == nil {
+		return
+	}
+	if err := w.onDrop; err != nil {
+		panic(err)
+	}
 }
 
 // NewBatch creates new batch.

@@ -1,12 +1,12 @@
 package lachesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"testing"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/posnode"
@@ -57,7 +57,7 @@ func TestStar(t *testing.T) {
 // NewForTests makes lachesis node with fake network.
 // It does not start any process.
 func NewForTests(
-	newDb func() kvdb.Database,
+	newDb DbProducer,
 	host string,
 	key *crypto.PrivateKey,
 	conf *Config,
@@ -71,4 +71,8 @@ func NewForTests(
 	l.consensusStore.SetName(host)
 
 	return l
+}
+
+func memDbProducer(name string) kvdb.Database {
+	return kvdb.NewMemDatabase()
 }

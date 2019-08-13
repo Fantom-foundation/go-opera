@@ -24,6 +24,7 @@ type Database interface {
 	ForEachFrom(start []byte, do func(key, val []byte) bool) error
 	ForEach(prefix []byte, do func(key, val []byte) bool) error
 	Close()
+	Drop()
 	NewBatch() Batch
 }
 

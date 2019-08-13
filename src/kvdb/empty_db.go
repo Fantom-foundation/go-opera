@@ -41,6 +41,8 @@ func (w *EmptyDb) Delete(key []byte) error {
 
 func (w *EmptyDb) Close() {}
 
+func (w *EmptyDb) Drop() {}
+
 func (w *EmptyDb) NewBatch() Batch {
 	return &emptyBatch{}
 }

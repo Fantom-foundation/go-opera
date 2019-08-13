@@ -254,6 +254,11 @@ func (w *CacheWrapper) Close() {
 	w.parent.Close()
 }
 
+// Drop whole database.
+func (w *CacheWrapper) Drop() {
+	w.parent.Drop()
+}
+
 // NewBatch creates new batch.
 func (w *CacheWrapper) NewBatch() Batch {
 	return &cacheBatch{db: w}
