@@ -171,11 +171,21 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	}
 	// TODO check e.GasLeft
 
-	// save in DB the {vectorindex, e}
+	// save in DB the {vectorindex, e, heads}
 	p.events.Flush()
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}
+	// move heads
+	for _, parent := range e.Parents {
+		if p.store.IsHead(parent) {
+			p.store.EraseHead(parent)
+		}
+	}
+	p.store.AddHead(e.Hash())
+	// set member's last event. we don't care about forks, because this index is used only for emitter
+	p.store.SetLastEvent(e.Creator, e.Hash())
+
 	return nil
 }
 

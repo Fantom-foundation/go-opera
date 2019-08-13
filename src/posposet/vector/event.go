@@ -11,7 +11,7 @@ type (
 		Seq idx.Event
 	}
 
-	highestBefore struct {
+	HighestBefore struct {
 		IsForkSeen  bool
 		Seq         idx.Event
 		ID          hash.Event
@@ -25,6 +25,6 @@ type (
 		CreatorIdx idx.Member // creator index
 		// by node indexes (event idx starts from 1, so 0 means "no one" or "fork"):
 		LowestAfter   []lowestAfter   // first events heights who sees it
-		HighestBefore []highestBefore // last events heights who is seen by it
+		HighestBefore []HighestBefore // last events heights who is seen by it
 	}
 )

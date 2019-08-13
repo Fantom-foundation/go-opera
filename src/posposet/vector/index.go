@@ -70,7 +70,7 @@ func (vi *Index) DropNotFlushed() {
 
 func (vi *Index) fillEventVectors(e *event) {
 	e.LowestAfter = make([]lowestAfter, len(vi.memberIdxs))
-	e.HighestBefore = make([]highestBefore, len(vi.memberIdxs))
+	e.HighestBefore = make([]HighestBefore, len(vi.memberIdxs))
 
 	// seen by himself
 	e.LowestAfter[e.CreatorIdx].Seq = e.Seq
