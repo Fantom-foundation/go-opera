@@ -262,7 +262,7 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 		return
 	}
 
-	nodes, _, names := ASCIIschemeToDAG(asciiScheme, nil, nil)
+	nodes, _, names := ASCIIschemeToDAG(asciiScheme)
 
 	p, _, input := FakePoset(nodes)
 	for _, e := range names {

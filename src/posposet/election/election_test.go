@@ -191,7 +191,7 @@ func testProcessRoot(
 ) {
 	assertar := assert.New(t)
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag, nil, nil)
+	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
 	// members:
 	var (

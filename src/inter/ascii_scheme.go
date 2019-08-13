@@ -17,8 +17,7 @@ import (
 //   - names  maps human readable name to the event;
 func ASCIIschemeToDAG(
 	scheme string,
-	buildEvent func(*Event) *Event,
-	onNewEvent func(*Event),
+	mods ...func(e *Event, name string) *Event,
 ) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*Event,
@@ -112,7 +111,7 @@ func ASCIIschemeToDAG(
 			}
 		}
 
-		// create events
+	CREATE_EVENTS:
 		for i, name := range nNames {
 			// make node if don't exist
 			if len(nodes) <= nCreators[i] {
@@ -164,12 +163,13 @@ func ASCIIschemeToDAG(
 			e.Parents = parents
 			e.Lamport = maxLamport + 1
 			e.Extra = []byte(name)
-			// buildEvent callback
-			if buildEvent != nil {
-				e = buildEvent(e)
-			}
-			if e == nil {
-				continue
+			// mod callbacks
+			for _, mod := range mods {
+				e = mod(e, name)
+				if e == nil {
+					continue CREATE_EVENTS
+				}
+
 			}
 			// calc hash of the event, after it's fully built
 			e.RecacheHash()
@@ -177,10 +177,6 @@ func ASCIIschemeToDAG(
 			events[creator] = append(events[creator], e)
 			names[name] = e
 			hash.SetEventName(e.Hash(), name)
-			// callback
-			if onNewEvent != nil {
-				onNewEvent(e)
-			}
 		}
 	}
 
@@ -233,7 +229,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		} else {
 			creatorLastIndex[e.Creator]++
 		}
-		
+
 		ehash := e.Hash()
 		r := &row{}
 		// creator

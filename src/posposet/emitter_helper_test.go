@@ -74,7 +74,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return
 	}
 
-	nodes, _, names := ASCIIschemeToDAG(asciiScheme, nil, nil)
+	nodes, _, names := ASCIIschemeToDAG(asciiScheme)
 
 	// divide events by stage
 	var stages [][]*inter.Event
@@ -99,7 +99,6 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 			strategy := p.NewSeeingStrategy()
 			parents := p.FindBestParents(node, 5, strategy)
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
-			//continue
 			if !assertar.Equal(
 				exp[stage][node.String()],
 				parentsToString(parents),
