@@ -262,20 +262,20 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 }
 
 // consensus is not safe for concurrent use.
-func (p *Poset) consensus(e *inter.Event) {
+func (p *Poset) consensus(e *inter.Event) error {
 	if e.Epoch != p.SuperFrameN {
 		p.Infof("consensus: %s is too old/too new", e.String())
-		return
+		return nil
 	}
 	p.Debugf("consensus: start %s", e.String())
 
 	err := p.checkAndSaveEvent(e)
 	if err != nil {
-		p.Warn(err)
-		return
+		return err
 	}
 
 	p.handleElection(e)
+	return nil
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.

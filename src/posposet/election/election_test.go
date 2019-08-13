@@ -259,9 +259,9 @@ func testProcessRoot(
 		processed      = make(map[hash.Event]*inter.Event)
 		alreadyDecided = false
 	)
-	orderThenProcess := ordering.EventBuffer(ordering.Callback{
+	orderThenProcess, _ := ordering.EventBuffer(ordering.Callback{
 
-		Process: func(root *inter.Event) {
+		Process: func(root *inter.Event) error {
 			rootHash := root.Hash()
 			rootSlot, ok := vertices[rootHash]
 			if !ok {
@@ -286,9 +286,10 @@ func testProcessRoot(
 			} else {
 				assertar.Nil(got)
 			}
+			return nil
 		},
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			t.Fatal(e, err)
 		},
 
@@ -299,7 +300,7 @@ func testProcessRoot(
 
 	// processing:
 	for _, root := range named {
-		orderThenProcess(root)
+		orderThenProcess(root, "")
 	}
 }
 

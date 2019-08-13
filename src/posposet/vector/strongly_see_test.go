@@ -79,15 +79,16 @@ func testStronglySeen(t *testing.T, dag string) {
 	vi := NewIndex(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
-	orderThenProcess := ordering.EventBuffer(ordering.Callback{
+	orderThenProcess, _ := ordering.EventBuffer(ordering.Callback{
 
-		Process: func(e *inter.Event) {
+		Process: func(e *inter.Event) error {
 			processed[e.Hash()] = e
 			vi.Add(e)
 			vi.Flush()
+			return nil
 		},
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			t.Fatal(e, err)
 		},
 
@@ -98,7 +99,7 @@ func testStronglySeen(t *testing.T, dag string) {
 
 	// push
 	for _, e := range named {
-		orderThenProcess(e)
+		orderThenProcess(e, "")
 	}
 
 	// check
@@ -400,15 +401,16 @@ func TestStronglySeenRandom(t *testing.T) {
 	vi := NewIndex(members, kvdb.NewMemDatabase())
 
 	processed := make(map[hash.Event]*inter.Event)
-	orderThenProcess := ordering.EventBuffer(ordering.Callback{
+	orderThenProcess, _ := ordering.EventBuffer(ordering.Callback{
 
-		Process: func(e *inter.Event) {
+		Process: func(e *inter.Event) error {
 			processed[e.Hash()] = e
 			vi.Add(e)
 			vi.Flush()
+			return nil
 		},
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			t.Fatal(e, err)
 		},
 
@@ -419,7 +421,7 @@ func TestStronglySeenRandom(t *testing.T) {
 
 	// push
 	for _, e := range named {
-		orderThenProcess(e)
+		orderThenProcess(e, "")
 	}
 
 	// check

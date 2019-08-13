@@ -42,14 +42,14 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 func MakeOrderedInput(p *Poset) {
 	processed := make(hash.EventsSet) // NOTE: mem leak, so for tests only.
 
-	orderThenConsensus := ordering.EventBuffer(ordering.Callback{
+	orderThenConsensus, _ := ordering.EventBuffer(ordering.Callback{
 
-		Process: func(event *inter.Event) {
-			p.consensus(event)
+		Process: func(event *inter.Event) error {
 			processed.Add(event.Hash())
+			return p.consensus(event)
 		},
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			logger.Get().Warn(err.Error() + ", so rejected")
 		},
 
@@ -62,7 +62,7 @@ func MakeOrderedInput(p *Poset) {
 	})
 	// event order doesn't matter now
 	p.onNewEvent = func(e *inter.Event) {
-		orderThenConsensus(e)
+		orderThenConsensus(e, "")
 	}
 }
 

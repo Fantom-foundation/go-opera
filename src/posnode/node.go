@@ -70,11 +70,11 @@ func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Confi
 		Instance: logger.MakeInstance(),
 	}
 
-	orderThenSave := ordering.EventBuffer(ordering.Callback{
+	orderThenSave, _ := ordering.EventBuffer(ordering.Callback{
 
 		Process: n.saveNewEvent,
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			n.Warn(err.Error() + ", so rejected")
 		},
 
@@ -88,7 +88,7 @@ func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Confi
 		// TODO: replace mutex with chan
 		save.Lock()
 		defer save.Unlock()
-		orderThenSave(e)
+		orderThenSave(e, "")
 	}
 
 	return &n
@@ -96,7 +96,7 @@ func New(host string, key *crypto.PrivateKey, s *Store, c Consensus, conf *Confi
 
 // saveNewEvent writes event to store, indexes and consensus.
 // It is not safe for concurrent use.
-func (n *Node) saveNewEvent(e *inter.Event) {
+func (n *Node) saveNewEvent(e *inter.Event) error {
 	n.Debugf("save new event")
 
 	n.store.SetEvent(e)
@@ -114,6 +114,7 @@ func (n *Node) saveNewEvent(e *inter.Event) {
 	}
 
 	countTotalEvents.Inc(1)
+	return nil
 }
 
 // GetInternalTxn finds transaction ant its event if exists.
