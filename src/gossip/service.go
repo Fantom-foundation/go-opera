@@ -138,7 +138,7 @@ func NewService(eventMux *event.TypeMux, config *Config, s *Store, engine Consen
 	}
 
 	var err error
-	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.Dag.DagID, svc.eventMux, nil, svc.pushEvent, svc.isEventDownloaded, engine)
+	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.Dag.DagID, svc.eventMux, nil, svc.pushEvent, svc.isEventDownloaded, s, engine)
 
 	return svc, err
 }

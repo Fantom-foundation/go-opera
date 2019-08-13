@@ -24,7 +24,7 @@ var testAccount, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6
 func TestStatusMsgErrors62(t *testing.T) { testStatusMsgErrors(t, fantom62) }
 
 func testStatusMsgErrors(t *testing.T, protocol int) {
-	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil)
+	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)
 	var (
 		genesis  = pm.engine.GetGenesisHash()
 		progress = PeerProgress{
@@ -82,7 +82,7 @@ func TestRecvTransactions62(t *testing.T) { testRecvTransactions(t, fantom62) }
 
 func testRecvTransactions(t *testing.T, protocol int) {
 	txAdded := make(chan []*types.Transaction)
-	pm, _ := newTestProtocolManagerMust(t, 5, 5, txAdded)
+	pm, _ := newTestProtocolManagerMust(t, 5, 5, txAdded, nil)
 	pm.acceptTxs = 1 // mark synced to accept transactions
 	p, _ := newTestPeer("peer", protocol, pm, true)
 	defer pm.Stop()
@@ -108,7 +108,7 @@ func testRecvTransactions(t *testing.T, protocol int) {
 func TestSendTransactions62(t *testing.T) { testSendTransactions(t, fantom62) }
 
 func testSendTransactions(t *testing.T, protocol int) {
-	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil)
+	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)
 	defer pm.Stop()
 
 	// Fill the pool with big transactions.

@@ -28,7 +28,7 @@ var (
 
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of events already known from each node
-func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.Transaction) (*ProtocolManager, *Store, error) {
+func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.Transaction, onNewEvent func(e *inter.Event)) (*ProtocolManager, *Store, error) {
 	var (
 		evmux = new(event.TypeMux)
 		db    = NewMemStore()
@@ -61,11 +61,14 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		e.Epoch = 1
 		return engine.Prepare(e)
 	}
-	onNewEvent := func(e *inter.Event) {
+	_onNewEvent := func(e *inter.Event) {
 		svc.pushEvent(e, "")
+		if onNewEvent != nil {
+			onNewEvent(e)
+		}
 	}
 
-	inter.GenEventsByNode(nodes, eventsNum, 3, buildEvent, onNewEvent, nil)
+	inter.GenEventsByNode(nodes, eventsNum, 3, buildEvent, _onNewEvent, nil)
 
 	pm := svc.pm
 	pm.txpool = &testTxPool{added: newtx}
@@ -76,8 +79,8 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 // newTestProtocolManagerMust creates a new protocol manager for testing purposes,
 // with the given number of events already known from each peer. In case of an error, the constructor force-
 // fails the test.
-func newTestProtocolManagerMust(t *testing.T, nodes int, events int, newtx chan<- []*types.Transaction) (*ProtocolManager, *Store) {
-	pm, db, err := newTestProtocolManager(nodes, events, newtx)
+func newTestProtocolManagerMust(t *testing.T, nodes int, events int, newtx chan<- []*types.Transaction, onNewEvent func(e *inter.Event)) (*ProtocolManager, *Store) {
+	pm, db, err := newTestProtocolManager(nodes, events, newtx, onNewEvent)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
