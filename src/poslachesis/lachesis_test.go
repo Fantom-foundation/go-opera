@@ -25,7 +25,8 @@ func TestRing(t *testing.T) {
 
 	for _, l := range ll {
 		cp := l.consensusStore.GetCheckpoint()
-		t.Logf("%s: SFrame %d, Block %d", l.node.Host(), cp.SuperFrameN, cp.LastBlockN)
+		ep := l.consensusStore.GetSuperFrame()
+		t.Logf("%s: SFrame %d, Block %d", l.node.Host(), ep.SuperFrameN, cp.LastBlockN)
 		l.Stop()
 	}
 }
@@ -43,7 +44,8 @@ func TestStar(t *testing.T) {
 
 	for _, l := range ll {
 		cp := l.consensusStore.GetCheckpoint()
-		t.Logf("%s: SFrame %d, Block %d", l.node.Host(), cp.SuperFrameN, cp.LastBlockN)
+		ep := l.consensusStore.GetSuperFrame()
+		t.Logf("%s: SFrame %d, Block %d", l.node.Host(), ep.SuperFrameN, cp.LastBlockN)
 		l.Stop()
 	}
 }

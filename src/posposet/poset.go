@@ -142,7 +142,7 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	defer p.events.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
-	e.MedianTime = p.events.MedianTime(id, p.Genesis.Time)
+	e.MedianTime = p.events.MedianTime(id, p.PrevEpoch.Time)
 	e.GasLeft = 0 // TODO
 	return e
 }
@@ -165,7 +165,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
 	}
 	// check median timestamp
-	medianTime := p.events.MedianTime(e.Hash(), p.Genesis.Time)
+	medianTime := p.events.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}

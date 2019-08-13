@@ -96,15 +96,15 @@ func (mr *MockConsensusMockRecorder) StakeOf(arg0 interface{}) *gomock.Call {
 }
 
 // SuperFrameMembers mocks base method
-func (m *MockConsensus) SuperFrameMembers(arg0 idx.SuperFrame) []hash.Peer {
+func (m *MockConsensus) SuperFrameMembers() []hash.Peer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SuperFrameMembers", arg0)
+	ret := m.ctrl.Call(m, "SuperFrameMembers")
 	ret0, _ := ret[0].([]hash.Peer)
 	return ret0
 }
 
 // SuperFrameMembers indicates an expected call of SuperFrameMembers
-func (mr *MockConsensusMockRecorder) SuperFrameMembers(arg0 interface{}) *gomock.Call {
+func (mr *MockConsensusMockRecorder) SuperFrameMembers() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFrameMembers", reflect.TypeOf((*MockConsensus)(nil).SuperFrameMembers), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuperFrameMembers", reflect.TypeOf((*MockConsensus)(nil).SuperFrameMembers))
 }
