@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -60,6 +61,7 @@ type ProtocolManager struct {
 
 	fetcher *fetcher.Fetcher
 
+	store  *Store
 	engine Consensus
 
 	emittedEventsSub *event.TypeMuxSubscription
@@ -77,12 +79,13 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(config params.DagConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, pushEvent ordering.PushEventFn, isEventKnown ordering.IsBufferedFn, engine Consensus) (*ProtocolManager, error) {
+func NewProtocolManager(config params.DagConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, pushEvent ordering.PushEventFn, isEventKnown ordering.IsBufferedFn, s *Store, engine Consensus) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
 		eventMux:    mux,
 		txpool:      txpool,
+		store:       s,
 		engine:      engine,
 		peers:       newPeerSet(),
 		newPeerCh:   make(chan *peer),
@@ -304,13 +307,26 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 
+	case msg.Code == GetEventsMsg:
+		var requests []hash.Event
+		if err := msg.Decode(&requests); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+
+		rawEvents := make([]rlp.RawValue, 0, len(requests))
+		for _, id := range requests {
+			if e := pm.store.GetEventRLP(id); e != nil {
+				rawEvents = append(rawEvents, e)
+			}
+		}
+		if len(rawEvents) != 0 {
+			_ = p.SendEventsRLP(rawEvents)
+		}
+
 	case msg.Code == GetEventHeadersMsg:
 		return errResp(ErrExtraStatusMsg, "not supported yet")
 
 	case msg.Code == EventHeadersMsg:
-		return errResp(ErrExtraStatusMsg, "not supported yet")
-
-	case msg.Code == GetEventsMsg:
 		return errResp(ErrExtraStatusMsg, "not supported yet")
 
 	case msg.Code == EventsMsg:

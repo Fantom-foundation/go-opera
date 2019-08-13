@@ -3,6 +3,7 @@ package gossip
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // DeleteEvent deletes event.
@@ -41,6 +42,17 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 
 	w, _ := s.get(s.table.Events, key, &inter.Event{}).(*inter.Event)
 	return w
+}
+
+// GetEventRLP returns stored event. Serialized.
+func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
+	key := id.Bytes()
+
+	data, err := s.table.Events.Get(key)
+	if err != nil {
+		s.Fatal(err)
+	}
+	return data
 }
 
 // HasEvent returns true if event exists.
