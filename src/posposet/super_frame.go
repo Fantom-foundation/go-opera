@@ -64,7 +64,7 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.NextMembers = p.Members.Top()
 
 	// reset internal epoch DB
-	p.store.pruneTempDb()
+	p.store.recreateTempDb()
 
 	// reset election & vectorindex
 	p.events.Reset(p.Members, p.store.epochTable.VectorIndex) // this DB is pruned after .pruneTempDb()

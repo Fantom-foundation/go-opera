@@ -49,7 +49,7 @@ func NewStore(db kvdb.Database, newTempDb func(name string) kvdb.Database) *Stor
 	kvdb.MigrateTables(&s.table, s.historyDB)
 	s.table.Balances = state.NewDatabase(
 		s.historyDB.NewTable([]byte("balance_")))
-	s.pruneTempDb()
+	s.recreateTempDb()
 
 	return s
 }
@@ -70,7 +70,7 @@ func (s *Store) Close() {
 	s.tempDb.Drop()
 }
 
-func (s *Store) pruneTempDb() {
+func (s *Store) recreateTempDb() {
 	kvdb.MigrateTables(&s.epochTable, nil)
 	if s.tempDb != nil {
 		s.tempDb.Close()
