@@ -8,11 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/node"
-	"go.etcd.io/bbolt"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
@@ -112,7 +110,7 @@ var (
 func init() {
 	overrideParams()
 
-	app.Action = lachesis
+	app.Action = actionLachesis
 	app.HideVersion = true // we have a command to print the version
 	app.Commands = []cli.Command{
 		dumpConfigCommand,
@@ -137,28 +135,17 @@ func main() {
 	}
 }
 
-// lachesis is the main entry point into the system if no special subcommand is ran.
+// actionLachesis is the main entry point into the system if no special subcommand is ran.
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
-func lachesis(ctx *cli.Context) error {
+func actionLachesis(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 
 	cfg := makeNodeConfig(ctx)
 
-	var db *bbolt.DB
-	if cfg.DataDir != "inmemory" {
-		var stop func()
-		var err error
-		db, stop, err = openDB(cfg.DataDir)
-		if err != nil {
-			return err
-		}
-		defer stop()
-	}
-
-	node := makeFullNode(cfg, db)
+	node := makeFullNode(cfg)
 	defer node.Close()
 
 	utils.StartNode(node)
@@ -166,11 +153,10 @@ func lachesis(ctx *cli.Context) error {
 	return nil
 }
 
-func makeFullNode(cfg *node.Config, db *bbolt.DB) *node.Node {
-	// Create BD.
-	gdb, cdb := makeStorages(db)
+func makeFullNode(cfg *node.Config) *node.Node {
+	makeDb := dbProducer(cfg.DataDir)
+	gdb, cdb := makeStorages(makeDb)
 
-	// Create consensus.
 	concensus := posposet.New(cdb, gdb)
 
 	// Create and register a gossip network service. This is done through the definition
@@ -192,25 +178,4 @@ func makeFullNode(cfg *node.Config, db *bbolt.DB) *node.Node {
 	}
 
 	return stack
-}
-
-func makeStorages(db *bbolt.DB) (*gossip.Store, *posposet.Store) {
-	var (
-		p      kvdb.Database
-		n      kvdb.Database
-		cached bool
-	)
-	if db == nil {
-		p = kvdb.NewMemDatabase()
-		n = kvdb.NewMemDatabase()
-		cached = false
-	} else {
-		db := kvdb.NewBoltDatabase(db)
-		p = db.NewTable([]byte("p_"))
-		n = db.NewTable([]byte("n_"))
-		cached = true
-	}
-
-	return gossip.NewStore(n),
-		posposet.NewStore(p, cached)
 }
