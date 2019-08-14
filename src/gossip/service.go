@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"math/rand"
 	"sync"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
