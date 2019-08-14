@@ -14,6 +14,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/dgraph-io/badger v0.0.0-20190308055650-deee8c7ae70b
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
+	github.com/docker/docker v1.13.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/elastic/gosigar v0.10.4 // indirect
