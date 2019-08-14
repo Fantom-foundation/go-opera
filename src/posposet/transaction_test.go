@@ -25,25 +25,25 @@ func TestPosetTxn(t *testing.T) {
 		pos.Stake(1), p.StakeOf(nodes[1]),
 		"balance of %s", nodes[1].String())
 
-	buildEvent := func(e *inter.Event) *inter.Event {
-		e.Epoch = 1
-		if e.Seq == 1 && e.Creator == nodes[0] {
-			e.InternalTransactions = append(e.InternalTransactions,
-				&inter.InternalTransaction{
-					Nonce:    0,
-					Amount:   1,
-					Receiver: nodes[1],
-				})
-		}
-		e = p.Prepare(e)
-		return e
-	}
-	onNewEvent := func(e *inter.Event) {
-		x.SetEvent(e)
-		assert.NoError(t, p.ProcessEvent(e))
-	}
-
-	_ = inter.GenEventsByNode(nodes, int(SuperFrameLen-1), 3, buildEvent, onNewEvent, nil)
+	_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen-1), 3, nil, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			x.SetEvent(e)
+			assert.NoError(t, p.ProcessEvent(e))
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = 1
+			if e.Seq == 1 && e.Creator == nodes[0] {
+				e.InternalTransactions = append(e.InternalTransactions,
+					&inter.InternalTransaction{
+						Nonce:    0,
+						Amount:   1,
+						Receiver: nodes[1],
+					})
+			}
+			e = p.Prepare(e)
+			return e
+		},
+	})
 
 	assert.Equal(t, p.PrevEpoch.Hash(), s.GetGenesis().PrevEpoch.Hash())
 

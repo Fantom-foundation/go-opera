@@ -15,16 +15,16 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	ordered := []*inter.Event{}
-
-	buildEvent := func(e *inter.Event, name string) *inter.Event {
-		e.ClaimedTime = claimedTimes[name]
-		e.RecacheHash()
-		ordered = append(ordered, e)
-		return e
-	}
-
-	peers, _, named := inter.ASCIIschemeToDAG(dag, buildEvent)
+	ordered := make([]*inter.Event, 0)
+	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.ClaimedTime = claimedTimes[name]
+			return e
+		},
+		Process: func(e *inter.Event, name string) {
+			ordered = append(ordered, e)
+		},
+	})
 
 	members := make(pos.Members, len(peers))
 	for i, peer := range peers {

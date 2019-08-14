@@ -99,30 +99,30 @@ func benchmarkStore(b *testing.B) {
 	b.ResetTimer()
 	maxEpoch := idx.SuperFrame(b.N) + 1
 	for epoch := idx.SuperFrame(1); epoch <= maxEpoch; epoch++ {
-		buildEvent := func(e *inter.Event) *inter.Event {
-			if e.Seq == 1 && e.Creator == nodes[0] {
-				// move stake from node0 to node1, to test that it doesn't break anything
-				e.InternalTransactions = append(e.InternalTransactions,
-					&inter.InternalTransaction{
-						Nonce:    0,
-						Amount:   1,
-						Receiver: nodes[1],
-					})
-			}
-			e.Epoch = epoch
-			return p.Prepare(e)
-		}
-		onNewEvent := func(e *inter.Event) {
-			input.SetEvent(e)
-			_ = p.ProcessEvent(e)
-
-			if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
-				flushAll()
-			}
-		}
-
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen*3), 3, buildEvent, onNewEvent, r)
+		_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen*3), 3, r, inter.ForEachEvent{
+			Process: func(e *inter.Event, name string) {
+				input.SetEvent(e)
+				_ = p.ProcessEvent(e)
+
+				if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
+					flushAll()
+				}
+			},
+			Build: func(e *inter.Event, name string) *inter.Event {
+				if e.Seq == 1 && e.Creator == nodes[0] {
+					// move stake from node0 to node1, to test that it doesn't break anything
+					e.InternalTransactions = append(e.InternalTransactions,
+						&inter.InternalTransaction{
+							Nonce:    0,
+							Amount:   1,
+							Receiver: nodes[1],
+						})
+				}
+				e.Epoch = epoch
+				return p.Prepare(e)
+			},
+		})
 	}
 
 	flushAll()

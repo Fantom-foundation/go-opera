@@ -39,18 +39,19 @@ func TestRestore(t *testing.T) {
 	// create events on poset0
 	var ordered []*inter.Event
 	for epoch := idx.SuperFrame(1); epoch <= epochs; epoch++ {
-		buildEvent := func(e *inter.Event) *inter.Event {
-			e.Epoch = epoch
-			return posets[0].Prepare(e)
-		}
-		onNewEvent := func(e *inter.Event) {
-			inputs[0].SetEvent(e)
-			assertar.NoError(posets[0].ProcessEvent(e))
-
-			ordered = append(ordered, e)
-		}
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen)*3, 3, buildEvent, onNewEvent, r)
+		_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen)*3, 3, r, inter.ForEachEvent{
+			Process: func(e *inter.Event, name string) {
+				inputs[0].SetEvent(e)
+				assertar.NoError(posets[0].ProcessEvent(e))
+
+				ordered = append(ordered, e)
+			},
+			Build: func(e *inter.Event, name string) *inter.Event {
+				e.Epoch = epoch
+				return posets[0].Prepare(e)
+			},
+		})
 	}
 
 	t.Run("Restore", func(t *testing.T) {

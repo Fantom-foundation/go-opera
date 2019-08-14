@@ -77,10 +77,9 @@ func MakeOrderedInput(p *Poset) ordering.PushEventFn {
 	return orderThenConsensus
 }
 
-// ASCIIschemeToDAG wrap inter.ASCIIschemeToDAG() to prepare events properly.
+// ASCIIschemeToDAG wrap inter.ASCIIschemeForEach() to prepare events properly.
 func ASCIIschemeToDAG(
 	scheme string,
-	mods ...func(e *inter.Event, name string) *inter.Event,
 ) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*inter.Event,
@@ -91,24 +90,22 @@ func ASCIIschemeToDAG(
 	// init poset
 	p, _, input := FakePoset(nodes)
 
-	buildEvent := func(e *inter.Event, name string) *inter.Event {
-		e.Epoch = p.CurrentSuperFrameN()
-		e = p.Prepare(e)
-		e.RecacheHash()
-
-		input.SetEvent(e)
-		err := p.ProcessEvent(e)
-		if err != nil {
-			p.Fatal(err)
-		}
-
-		return e
-	}
-
-	mods = append(mods, buildEvent)
-
 	// process events
-	nodes, events, names = inter.ASCIIschemeToDAG(scheme, mods...)
+	nodes, events, names = inter.ASCIIschemeForEach(scheme, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			input.SetEvent(e)
+			err := p.ProcessEvent(e)
+			if err != nil {
+				p.Fatal(err)
+			}
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = p.CurrentSuperFrameN()
+			e = p.Prepare(e)
+
+			return e
+		},
+	})
 
 	return
 }

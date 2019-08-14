@@ -35,15 +35,16 @@ func TestPoset(t *testing.T) {
 	}
 
 	// create events on poset0
-	buildEvent := func(e *inter.Event) *inter.Event {
-		e.Epoch = 1
-		return posets[0].Prepare(e)
-	}
-	onNewEvent := func(e *inter.Event) {
-		inputs[0].SetEvent(e)
-		assertar.NoError(posets[0].ProcessEvent(e))
-	}
-	unordered := inter.GenEventsByNode(nodes, int(SuperFrameLen)-1, 3, buildEvent, onNewEvent, nil)
+	unordered := inter.ForEachRandEvent(nodes, int(SuperFrameLen)-1, 3, nil, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			inputs[0].SetEvent(e)
+			assertar.NoError(posets[0].ProcessEvent(e))
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = 1
+			return posets[0].Prepare(e)
+		},
+	})
 
 	pushedAll := false
 	t.Run("Push unordered events", func(t *testing.T) {
