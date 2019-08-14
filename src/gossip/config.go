@@ -1,15 +1,14 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
-	"github.com/ethereum/go-ethereum/miner"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/params"
 )
 
@@ -28,17 +27,14 @@ type Config struct {
 	NoPrefetch bool // Whether to disable prefetching and only load state on demand
 
 	// Database options
-	SkipBcVersionCheck bool `toml:"-"`
-	DatabaseHandles    int  `toml:"-"`
-	DatabaseCache      int
-	DatabaseFreezer    string
+	SkipDagVersionCheck bool `toml:"-"`
+	DatabaseHandles     int  `toml:"-"`
+	DatabaseCache       int
+	DatabaseFreezer     string
 
 	TrieCleanCache int
 	TrieDirtyCache int
 	TrieTimeout    time.Duration
-
-	// Mining options
-	Miner miner.Config
 
 	// Dag options
 	Dag params.DagConfig
