@@ -1,4 +1,4 @@
-package sim
+package internal
 
 import (
 	"context"
@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 )
 
 type topology func(net *simulations.Network, nodes []enode.ID)
@@ -43,9 +42,8 @@ func testSim(t *testing.T, connect topology) {
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
 		"gossip": func(ctx *adapters.ServiceContext) (node.Service, error) {
-			s := gossip.NewMemStore()
-			gs := gossip.NewService(s, nil)
-			return gs, nil
+			g := NewIntegration(ctx.Config)
+			return g, nil
 		},
 	}
 	registerGossip.Do(func() {
