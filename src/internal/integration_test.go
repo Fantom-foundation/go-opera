@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 )
 
 type topology func(net *simulations.Network, nodes []enode.ID)
@@ -39,10 +39,13 @@ func testSim(t *testing.T, connect topology) {
 		log.LvlTrace,
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
+	// fake net
+	net, keys := lachesis.FakeNet(count)
+
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
 		"gossip": func(ctx *adapters.ServiceContext) (node.Service, error) {
-			g := NewIntegration(ctx.Config)
+			g := NewIntegration(ctx.Config, net)
 			return g, nil
 		},
 	}
@@ -62,12 +65,11 @@ func testSim(t *testing.T, connect topology) {
 	// create and start nodes
 	nodes := make([]enode.ID, count)
 	for i := 0; i < count; i++ {
-		n := i + 1
-		key := crypto.GenerateFakeKey(n)
+		key := keys[i]
 		id := enode.PubkeyToIDV4(&key.PublicKey)
 		config := &adapters.NodeConfig{
 			ID:         id,
-			Name:       fmt.Sprintf("Node-%d", n),
+			Name:       fmt.Sprintf("Node-%d", i),
 			PrivateKey: (*ecdsa.PrivateKey)(key),
 			Services:   serviceNames(services),
 		}
