@@ -20,6 +20,6 @@ type Consensus interface {
 	Prepare(e *inter.Event) *inter.Event
 	// CurrentSuperFrame returns current SuperFrameN.
 	CurrentSuperFrameN() idx.SuperFrame
-	// SuperFrameMembers returns members of n super-frame.
-	SuperFrameMembers(n idx.SuperFrame) []hash.Peer
+	// SuperFrameMembers returns members of current super-frame.
+	SuperFrameMembers() []hash.Peer
 }
