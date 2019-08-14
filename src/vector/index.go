@@ -4,14 +4,14 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 // Index is a data to detect strongly-see condition, calculate median timestamp, detect forks.
 type Index struct {
-	members    internal.Members
+	members    pos.Members
 	memberIdxs map[hash.Peer]idx.Member
 	eventsDb   kvdb.FlushableDatabase
 
@@ -19,7 +19,7 @@ type Index struct {
 }
 
 // NewIndex creates Index instance.
-func NewIndex(members internal.Members, db kvdb.Database) *Index {
+func NewIndex(members pos.Members, db kvdb.Database) *Index {
 	vi := &Index{
 		Instance: logger.MakeInstance(),
 	}
@@ -29,7 +29,7 @@ func NewIndex(members internal.Members, db kvdb.Database) *Index {
 }
 
 // Reset resets buffers.
-func (vi *Index) Reset(members internal.Members, db kvdb.Database) {
+func (vi *Index) Reset(members pos.Members, db kvdb.Database) {
 	// we use wrapper to be able to drop failed events by dropping cache
 	vi.eventsDb = kvdb.NewCacheWrapper(db)
 	vi.members = members

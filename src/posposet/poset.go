@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/vector"
+	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
 // Poset processes events to get consensus.
@@ -19,9 +19,9 @@ type Poset struct {
 	superFrame
 
 	election *election.Election
-	events   *vector.Index
+	seeVec   *vector.Index
 
-	onNewBlock   func(num idx.Block)
+	onNewBlock func(num idx.Block)
 
 	logger.Instance
 }
@@ -39,6 +39,14 @@ func New(store *Store, input EventSource) *Poset {
 	}
 
 	return p
+}
+
+func (p *Poset) GetVectorIndex() *vector.Index {
+	return p.seeVec
+}
+
+func (p *Poset) GetHeads() hash.Events {
+	return p.store.GetHeads()
 }
 
 // OnNewBlock sets (or replaces if override) a callback that is called on new block.
@@ -66,11 +74,11 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
-	p.events.Add(e)
-	defer p.events.DropNotFlushed()
+	p.seeVec.Add(e)
+	defer p.seeVec.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
-	e.MedianTime = p.events.MedianTime(id, p.PrevEpoch.Time)
+	e.MedianTime = p.seeVec.MedianTime(id, p.PrevEpoch.Time)
 	e.GasLeft = 0 // TODO
 	return e
 }
@@ -81,8 +89,8 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("consensus: %s isn't member", e.Creator.String())
 	}
 
-	p.events.Add(e)
-	defer p.events.DropNotFlushed()
+	p.seeVec.Add(e)
+	defer p.seeVec.DropNotFlushed()
 
 	// check frame & isRoot
 	frameIdx, isRoot := p.calcFrameIdx(e, true)
@@ -93,14 +101,14 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
 	}
 	// check median timestamp
-	medianTime := p.events.MedianTime(e.Hash(), p.PrevEpoch.Time)
+	medianTime := p.seeVec.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
 	// TODO check e.GasLeft
 
 	// save in DB the {vectorindex, e, heads}
-	p.events.Flush()
+	p.seeVec.Flush()
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}
@@ -111,8 +119,6 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		}
 	}
 	p.store.AddHead(e.Hash())
-	// set member's last event. we don't care about forks, because this index is used only for emitter
-	p.store.SetLastEvent(e.Creator, e.Hash())
 
 	return nil
 }
@@ -309,7 +315,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			for creator, roots := range p.getFrameRoots(maxParentsFrame) {
 				for root := range roots {
-					if p.events.StronglySee(e.Hash(), root) {
+					if p.seeVec.StronglySee(e.Hash(), root) {
 						sSeenCounter.Count(creator)
 					}
 				}

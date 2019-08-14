@@ -7,16 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 func TestStronglySeenClassic(t *testing.T) {
@@ -71,7 +70,7 @@ func testStronglySeen(t *testing.T, dag string) {
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
 
-	members := make(internal.Members, len(peers))
+	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
 	}
@@ -393,7 +392,7 @@ func TestStronglySeenRandom(t *testing.T) {
 	}
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag)
-	members := make(internal.Members, len(peers))
+	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
 	}
@@ -475,7 +474,7 @@ func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
 	cheaters := []hash.Peer{nodes[0], nodes[1], nodes[2]}
 
-	members := make(internal.Members, len(nodes))
+	members := make(pos.Members, len(nodes))
 	for _, peer := range nodes {
 		members.Add(peer, inter.Stake(1))
 	}
@@ -590,7 +589,7 @@ func TestRandomForks(t *testing.T) {
 			nodes := inter.GenNodes(test.nodesNum)
 			cheaters := nodes[:test.cheatersNum]
 
-			members := make(internal.Members, len(nodes))
+			members := make(pos.Members, len(nodes))
 			for _, peer := range nodes {
 				members.Add(peer, inter.Stake(1))
 			}
@@ -639,7 +638,7 @@ func codegen4StronglySeenStability() {
 	peers := inter.GenNodes(4)
 	events := inter.GenEventsByNode(peers, 20, 2, nil, nil, nil)
 
-	members := make(internal.Members, len(peers))
+	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, inter.Stake(1))
 	}

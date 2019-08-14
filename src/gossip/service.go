@@ -88,12 +88,12 @@ func NewService(config *Config, mux *event.TypeMux, store *Store, engine Consens
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(config, downloader.FullSync, config.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }
 
-func (s *Service) makeEmitter(allowAggressive bool) *Emitter {
+func (s *Service) makeEmitter() *Emitter {
 	return NewEmitter(s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
 		// svc.engineMu is locked here
 
@@ -161,7 +161,7 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 	s.pm.Start(srv.MaxPeers)
 
-	s.emitter = s.makeEmitter(true)
+	s.emitter = s.makeEmitter()
 
 	return nil
 }

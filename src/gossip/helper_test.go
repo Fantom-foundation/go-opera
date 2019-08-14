@@ -48,8 +48,8 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	engine := posposet.New(engineStore, store)
 	engine.Bootstrap()
 
-	config := DefaultConfig
-	pm, err := NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
+	config := &DefaultConfig
+	pm, err := NewProtocolManager(config, downloader.FullSync, config.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
 	if err != nil {
 		return nil, nil, err
 	}

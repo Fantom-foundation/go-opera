@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/ancestor"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
 //go:generate gencodec -type Config -formats toml -out gen_config.go
@@ -93,9 +93,18 @@ func (em *Emitter) createEvent() *inter.Event {
 		maxLamport idx.Lamport
 	)
 
-	posposet := em.engine.(*posposet.Poset) // TODO move FindBestParents from posposet
+	seeVec := em.engine.GetVectorIndex()
 
-	selfParent, parents := posposet.FindBestParents(em.me, em.config.Dag.MaxParents, posposet.NewSeeingStrategy())
+	var strategy ancestor.SearchStrategy
+	if seeVec != nil {
+		strategy = ancestor.NewSeeingStrategy(seeVec)
+	} else {
+		strategy = ancestor.NewRandomStrategy(nil)
+	}
+
+	heads := em.engine.GetHeads()
+	selfParent := em.store.GetLastEvent(em.me)
+	_, parents = ancestor.FindBestParents(em.config.Dag.MaxParents, heads, selfParent, strategy)
 
 	for _, p := range parents {
 		parent := em.store.GetEventHeader(p)

@@ -21,7 +21,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
-	"github.com/Fantom-foundation/go-lachesis/src/params"
 )
 
 const (
@@ -44,6 +43,8 @@ func errResp(code errCode, format string, v ...interface{}) error {
 }
 
 type ProtocolManager struct {
+	config *Config
+
 	networkID uint64
 
 	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
@@ -79,9 +80,10 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(config params.DagConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
+func NewProtocolManager(config *Config, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
+		config:      config,
 		networkID:   networkID,
 		mux:         mux,
 		txpool:      txpool,
@@ -449,7 +451,9 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.emittedEventsSub.Chan() {
 		if ev, ok := obj.Data.(*inter.Event); ok {
-			pm.BroadcastEvent(ev, true)  // No one knows the event, so be aggressive
+			if pm.config.ForcedBroadcast {
+				pm.BroadcastEvent(ev, true) // No one knows the event, so be aggressive
+			}
 			pm.BroadcastEvent(ev, false) // Only then announce to the rest
 		}
 	}

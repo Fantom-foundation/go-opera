@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 func testMedianTime(t *testing.T, dag string, weights []inter.Stake, claimedTimes map[string]inter.Timestamp, medianTimes map[string]inter.Timestamp, genesis inter.Timestamp) {
@@ -26,7 +26,7 @@ func testMedianTime(t *testing.T, dag string, weights []inter.Stake, claimedTime
 
 	peers, _, named := inter.ASCIIschemeToDAG(dag, buildEvent)
 
-	members := make(internal.Members, len(peers))
+	members := make(pos.Members, len(peers))
 	for i, peer := range peers {
 		members.Add(peer, weights[i])
 	}
@@ -106,7 +106,7 @@ func TestMedianTimeAscii(t *testing.T) {
 
 func TestMedianTime(t *testing.T) {
 	peers := inter.GenNodes(5)
-	members := make(internal.Members, len(peers))
+	members := make(pos.Members, len(peers))
 
 	weights := []inter.Stake{5, 4, 3, 2, 1}
 	for i, peer := range peers {

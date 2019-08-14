@@ -5,9 +5,9 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 
 	"github.com/ethereum/go-ethereum/rlp"
@@ -29,7 +29,6 @@ type Store struct {
 	}
 
 	epochTable struct {
-		Tips        kvdb.Database `table:"tips_"`
 		Heads       kvdb.Database `table:"heads_"`
 		Roots       kvdb.Database `table:"roots_"`
 		VectorIndex kvdb.Database `table:"vectors_"`
@@ -114,7 +113,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 		TotalCap: 0,
 	}
 
-	sf.Members = make(internal.Members, len(balances))
+	sf.Members = make(pos.Members, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {

@@ -95,8 +95,6 @@ func TestRestore(t *testing.T) {
 			if !prevEvent.IsZero() {
 				assertar.True(posets[i].store.IsHead(prevEvent), prevEvent.String())
 			}
-			// check tips
-			assertar.Equal(e.Hash(), *posets[i].store.GetLastEvent(e.Creator))
 		}
 	})
 }

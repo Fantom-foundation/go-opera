@@ -1,4 +1,4 @@
-package posposet
+package ancestor
 
 import (
 	"math/rand"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/vector"
+	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
 type SearchStrategy interface {
@@ -16,22 +16,20 @@ type SearchStrategy interface {
 
 // max is max num of parents to link with (including self-parent)
 // returns set of parents to link, len(res) <= max
-func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) (selfParent *hash.Event, parents hash.Events) {
-	headsSet := p.store.GetHeads().Set()
-	selfParent = p.store.GetLastEvent(me)
-
-	parents = make(hash.Events, 0, max)
+func FindBestParents(max int, options hash.Events, selfParent *hash.Event, strategy SearchStrategy) (*hash.Event, hash.Events) {
+	optionsSet := options.Set()
+	parents := make(hash.Events, 0, max)
 	if selfParent != nil {
 		parents = append(parents, *selfParent)
-		headsSet.Erase(*selfParent)
+		optionsSet.Erase(*selfParent)
 	}
 
 	strategy.Init(selfParent)
 
-	for len(parents) < max && len(headsSet) > 0 {
-		best := strategy.Find(headsSet.Slice())
+	for len(parents) < max && len(optionsSet) > 0 {
+		best := strategy.Find(optionsSet.Slice())
 		parents = append(parents, best)
-		headsSet.Erase(best)
+		optionsSet.Erase(best)
 	}
 
 	return selfParent, parents
@@ -42,8 +40,14 @@ func (p *Poset) FindBestParents(me hash.Peer, max int, strategy SearchStrategy) 
  */
 
 type SeeingStrategy struct {
-	vi       *vector.Index
+	seeVec   *vector.Index
 	template []vector.HighestBefore
+}
+
+func NewSeeingStrategy(seeVec *vector.Index) *SeeingStrategy {
+	return &SeeingStrategy{
+		seeVec: seeVec,
+	}
 }
 
 type eventScore struct {
@@ -52,27 +56,21 @@ type eventScore struct {
 	vec   []vector.HighestBefore
 }
 
-func (p *Poset) NewSeeingStrategy() *SeeingStrategy {
-	return &SeeingStrategy{
-		vi: p.events,
-	}
-}
-
 func (st *SeeingStrategy) Init(selfParent *hash.Event) {
 	if selfParent != nil {
 		// we start searching by comparing with self-parent
-		st.template = st.vi.GetEvent(*selfParent).HighestBefore
+		st.template = st.seeVec.GetEvent(*selfParent).HighestBefore
 	}
 }
 
-func (st *SeeingStrategy) Find(heads hash.Events) hash.Event {
+func (st *SeeingStrategy) Find(options hash.Events) hash.Event {
 	scores := make([]eventScore, 0, 100)
 
-	// estimate score of each head as number of members it sees higher than provided template
-	for i, id := range heads {
+	// estimate score of each option as number of members it sees higher than provided template
+	for i, id := range options {
 		score := eventScore{}
 		score.event = id
-		score.vec = st.vi.GetEvent(id).HighestBefore
+		score.vec = st.seeVec.GetEvent(id).HighestBefore
 		if st.template == nil {
 			st.template = make([]vector.HighestBefore, len(score.vec)) // nothing sees
 		}
@@ -107,7 +105,10 @@ type RandomStrategy struct {
 	r *rand.Rand
 }
 
-func (p *Poset) NewRandomStrategy(r *rand.Rand) *RandomStrategy {
+func NewRandomStrategy(r *rand.Rand) *RandomStrategy {
+	if r == nil {
+		r = rand.New(rand.NewSource(0))
+	}
 	return &RandomStrategy{
 		r: r,
 	}

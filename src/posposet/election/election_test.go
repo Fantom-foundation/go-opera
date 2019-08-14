@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 type fakeEdge struct {
@@ -195,7 +195,7 @@ func testProcessRoot(
 
 	// members:
 	var (
-		mm = make(internal.Members, len(peers))
+		mm = make(pos.Members, len(peers))
 	)
 	for _, peer := range peers {
 		mm.Add(peer, stakes[peer.String()])

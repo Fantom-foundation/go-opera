@@ -122,6 +122,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	config := DefaultConfig
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
+	config.ForcedBroadcast = allowAggressive
 
 	var (
 		evmux = new(event.TypeMux)
@@ -165,7 +166,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	// start emitter
 	svc.privateKey = privateKey
 	svc.me = me
-	svc.emitter = svc.makeEmitter(allowAggressive)
+	svc.emitter = svc.makeEmitter()
 
 	emittedEvents := make([]*inter.Event, 0)
 	for i := 0; i < broadcastExpected; i++ {

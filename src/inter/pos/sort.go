@@ -1,4 +1,4 @@
-package internal
+package pos
 
 import (
 	"bytes"

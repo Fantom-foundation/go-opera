@@ -4,8 +4,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 // TODO implement&test coinRound
@@ -17,7 +17,7 @@ type (
 		// election params
 		frameToDecide idx.Frame
 
-		members    internal.Members
+		members    pos.Members
 		totalStake inter.Stake // the sum of stakes (n)
 
 		// election state
@@ -65,7 +65,7 @@ type ElectionRes struct {
 }
 
 func New(
-	members internal.Members,
+	members pos.Members,
 	frameToDecide idx.Frame,
 	stronglySeeFn RootStronglySeeRootFn,
 ) *Election {
@@ -81,7 +81,7 @@ func New(
 }
 
 // erase the current election state, prepare for new election frame
-func (el *Election) Reset(members internal.Members, frameToDecide idx.Frame) {
+func (el *Election) Reset(members pos.Members, frameToDecide idx.Frame) {
 	el.members = members
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)

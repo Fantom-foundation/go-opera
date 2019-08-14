@@ -23,8 +23,9 @@ type Config struct {
 	NetworkId uint64 // Network ID to use for selecting peers to connect to
 	SyncMode  downloader.SyncMode
 
-	NoPruning  bool // Whether to disable pruning and flush everything to disk
-	NoPrefetch bool // Whether to disable prefetching and only load state on demand
+	NoPruning       bool // Whether to disable pruning and flush everything to disk
+	NoPrefetch      bool // Whether to disable prefetching and only load state on demand
+	ForcedBroadcast bool
 
 	// Database options
 	SkipDagVersionCheck bool `toml:"-"`
@@ -69,5 +70,6 @@ var DefaultConfig = Config{
 		MinEmitInterval: 1 * time.Second,
 		MaxEmitInterval: 10 * time.Second,
 	},
-	Dag: params.DefaultDagConfig,
+	ForcedBroadcast: true,
+	Dag:             params.DefaultDagConfig,
 }

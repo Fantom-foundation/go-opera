@@ -14,6 +14,7 @@ type Store struct {
 		Peers   kvdb.Database `table:"peer_"`
 		Events  kvdb.Database `table:"event_"`
 		Headers kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
+		Tips    kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
 	}
 
 	logger.Instance
@@ -78,23 +79,6 @@ func (s *Store) has(table kvdb.Database, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
 		s.Fatal(err)
-	}
-	return res
-}
-
-func intToBytes(n uint64) []byte {
-	var res [8]byte
-	for i := 0; i < len(res); i++ {
-		res[i] = byte(n)
-		n = n >> 8
-	}
-	return res[:]
-}
-
-func bytesToInt(b []byte) uint64 {
-	var res uint64
-	for i := 0; i < len(b); i++ {
-		res += uint64(b[i]) << uint(i*8)
 	}
 	return res
 }

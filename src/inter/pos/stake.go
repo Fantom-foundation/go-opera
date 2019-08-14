@@ -1,4 +1,4 @@
-package internal
+package pos
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
