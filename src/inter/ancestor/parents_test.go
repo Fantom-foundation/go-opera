@@ -1,11 +1,19 @@
 package ancestor
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
 func TestSeeingStrategy(t *testing.T) {
@@ -57,7 +65,7 @@ a2.1 ──╣      ║      ║      ║
 // - stage - makes ;
 func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[string]string) {
 	logger.SetTestMode(t)
-	/*assertar := assert.New(t)
+	assertar := assert.New(t)
 
 	// decode is a event name parser
 	decode := func(name string) (stage int) {
@@ -69,7 +77,13 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return
 	}
 
-	nodes, _, names := inter.ASCIIschemeToDAG(asciiScheme)
+	ordered := make([]*inter.Event, 0)
+	nodes, _, _ := inter.ASCIIschemeForEach(asciiScheme, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			ordered = append(ordered, e)
+		},
+	})
+
 	members := make(pos.Members, len(nodes))
 	for _, peer := range nodes {
 		members.Add(peer, 1)
@@ -77,9 +91,15 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 
 	vecSee := vector.NewIndex(members, kvdb.NewMemDatabase())
 
+	// build vector index
+	for _, e := range ordered {
+		vecSee.Add(e)
+	}
+
 	// divide events by stage
 	var stages [][]*inter.Event
-	for name, e := range names {
+	for _, e := range ordered {
+		name := string(e.Extra)
 		stage := decode(name)
 		for i := len(stages); i <= stage; i++ {
 			stages = append(stages, nil)
@@ -87,15 +107,36 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		stages[stage] = append(stages[stage], e)
 	}
 
+	heads := hash.EventsSet{}
+	tips := map[hash.Peer]*hash.Event{}
+	// check
 	for stage, ee := range stages {
 		t.Logf("Stage %d:", stage)
 
+		// build heads/tips
+		for _, e := range ee {
+			for _, p := range e.Parents {
+				if heads.Contains(p) {
+					heads.Erase(p)
+				}
+			}
+			heads.Add(e.Hash())
+			id := e.Hash()
+			tips[e.Creator] = &id
+		}
+
 		for _, node := range nodes {
+			selfParent := tips[node]
+
 			strategy := NewSeeingStrategy(vecSee)
-			selfParent, parents := FindBestParents(node, 5, strategy)
-			assertar.NotNil(selfParent) // TODO make testcase with first event in an epoch, i.e. with no self-parent
+
+			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
+
 			if selfParent != nil {
 				assertar.Equal(parents[0], *selfParent)
+				assertar.Equal(*selfParent_, *selfParent)
+			} else {
+				assertar.Nil(selfParent_)
 			}
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
 			if !assertar.Equal(
@@ -108,7 +149,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		}
 	}
 
-	assertar.NoError(nil)*/
+	assertar.NoError(nil)
 }
 
 func parentsToString(pp hash.Events) string {
