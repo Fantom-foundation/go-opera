@@ -23,11 +23,16 @@ func (hook *StoreAwareEngine) ProcessEvent(e *inter.Event) error {
 	}
 	// set member's last event. we don't care about forks, because this index is used only for emitter
 	hook.store.SetLastEvent(e.Creator, e.Hash())
-	return err
-}
 
-func (hook *StoreAwareEngine) GetHeads() hash.Events {
-	return hook.engine.GetHeads()
+	// track events with no descendants, i.e. heads
+	for _, parent := range e.Parents {
+		if hook.store.IsHead(parent) {
+			hook.store.EraseHead(parent)
+		}
+	}
+	hook.store.AddHead(e.Hash())
+
+	return err
 }
 
 func (hook *StoreAwareEngine) GetVectorIndex() *vector.Index {

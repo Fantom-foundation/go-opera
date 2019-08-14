@@ -18,8 +18,6 @@ type Consensus interface {
 	StakeOf(hash.Peer) pos.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
 	GetGenesisHash() hash.Hash
-	// GetHeads returns a list of events which don't have any descendants
-	GetHeads() hash.Events
 	// GetVectorIndex returns internal vector clock if exists
 	GetVectorIndex() *vector.Index
 	// Sets consensus fields. Returns nil if event should be dropped.

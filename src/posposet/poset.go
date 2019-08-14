@@ -29,8 +29,6 @@ type Poset struct {
 // New creates Poset instance.
 // It does not start any process.
 func New(store *Store, input EventSource) *Poset {
-	const buffSize = 10
-
 	p := &Poset{
 		store: store,
 		input: input,
@@ -43,10 +41,6 @@ func New(store *Store, input EventSource) *Poset {
 
 func (p *Poset) GetVectorIndex() *vector.Index {
 	return p.seeVec
-}
-
-func (p *Poset) GetHeads() hash.Events {
-	return p.store.GetHeads()
 }
 
 // OnNewBlock sets (or replaces if override) a callback that is called on new block.
@@ -112,13 +106,6 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}
-	// move heads
-	for _, parent := range e.Parents {
-		if p.store.IsHead(parent) {
-			p.store.EraseHead(parent)
-		}
-	}
-	p.store.AddHead(e.Hash())
 
 	return nil
 }

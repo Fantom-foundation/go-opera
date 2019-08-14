@@ -29,7 +29,7 @@ type Emitter struct {
 
 	config *Config
 
-	me         hash.Peer
+	myAddr     hash.Peer
 	privateKey *crypto.PrivateKey
 
 	onEmitted func(e *inter.Event)
@@ -43,7 +43,7 @@ func NewEmitter(config *Config, me hash.Peer, privateKey *crypto.PrivateKey, eng
 		config:     config,
 		onEmitted:  onEmitted,
 		store:      store,
-		me:         me,
+		myAddr:     me,
 		privateKey: privateKey,
 		engine:     engine,
 		engineMu:   engineMu,
@@ -102,8 +102,8 @@ func (em *Emitter) createEvent() *inter.Event {
 		strategy = ancestor.NewRandomStrategy(nil)
 	}
 
-	heads := em.engine.GetHeads()
-	selfParent := em.store.GetLastEvent(em.me)
+	heads := em.store.GetHeads() // events with no descendants
+	selfParent := em.store.GetLastEvent(em.myAddr)
 	_, parents = ancestor.FindBestParents(em.config.Dag.MaxParents, heads, selfParent, strategy)
 
 	for _, p := range parents {
@@ -121,7 +121,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	event := inter.NewEvent()
 	event.Epoch = epoch
 	event.Seq = seq
-	event.Creator = em.me
+	event.Creator = em.myAddr
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	// set consensus fields
@@ -164,7 +164,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 }
 
 func (em *Emitter) nameEventForDebug(e *inter.Event) {
-	name := []rune(hash.GetNodeName(em.me))
+	name := []rune(hash.GetNodeName(em.myAddr))
 	if len(name) < 1 {
 		return
 	}

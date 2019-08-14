@@ -15,6 +15,7 @@ type Store struct {
 		Events  kvdb.Database `table:"event_"`
 		Headers kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
 		Tips    kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
+		Heads   kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
 	}
 
 	logger.Instance

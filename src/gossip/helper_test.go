@@ -55,22 +55,22 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	buildEvent := func(e *inter.Event) *inter.Event {
-		e.Epoch = 1
-		return engine.Prepare(e)
-	}
-	_onNewEvent := func(e *inter.Event) {
-		store.SetEvent(e)
-		err = engine.ProcessEvent(e)
-		if err != nil {
-			panic(err)
-		}
-		if onNewEvent != nil {
-			onNewEvent(e)
-		}
-	}
-
-	inter.GenEventsByNode(nodes, eventsNum, 3, buildEvent, _onNewEvent, nil)
+	inter.ForEachRandEvent(nodes, eventsNum, 3, nil, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			store.SetEvent(e)
+			err = engine.ProcessEvent(e)
+			if err != nil {
+				panic(err)
+			}
+			if onNewEvent != nil {
+				onNewEvent(e)
+			}
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = 1
+			return engine.Prepare(e)
+		},
+	})
 
 	pm.Start(1000)
 	return pm, store, nil
