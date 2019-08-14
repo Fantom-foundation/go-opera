@@ -30,7 +30,7 @@ func TestBalanceState(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(point hash.Hash, addr hash.Peer, balance inter.Stake) {
+	checkBalance := func(point hash.Hash, addr hash.Peer, balance pos.Stake) {
 		db := stateAt(point)
 		got := db.FreeBalance(addr)
 		if !assertar.Equalf(balance, got, "unexpected balance") {
@@ -65,8 +65,8 @@ func TestBalanceState(t *testing.T) {
 	// fork 1
 	db = stateAt(root)
 	db.Transfer(aa[0], aa[1], 1)
-	if !assertar.Equalf(inter.Stake(9), db.FreeBalance(aa[0]), "before commit") ||
-		!assertar.Equalf(inter.Stake(11), db.FreeBalance(aa[1]), "before commit") {
+	if !assertar.Equalf(pos.Stake(9), db.FreeBalance(aa[0]), "before commit") ||
+		!assertar.Equalf(pos.Stake(11), db.FreeBalance(aa[1]), "before commit") {
 		return
 	}
 	fork1 := commit(db)
@@ -209,7 +209,7 @@ func TestIdempotency(t *testing.T) {
 		return db
 	}
 
-	checkBalance := func(point hash.Hash, addr hash.Peer, balance inter.Stake) {
+	checkBalance := func(point hash.Hash, addr hash.Peer, balance pos.Stake) {
 		db := stateAt(point)
 		got := db.FreeBalance(addr)
 		if !assertar.Equalf(balance, got, "unexpected balance") {

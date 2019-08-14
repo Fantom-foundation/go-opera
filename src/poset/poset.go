@@ -1543,13 +1543,13 @@ func (p *Poset) ApplyInternalTransactions(round int64, orderedEvents []Event) (r
 					continue
 				}
 				p.logger.Debug("ApplyInternalTransaction", tx)
-				if statedb.FreeBalance(hash.Peer(sender)) < inter.Stake(tx.Amount) {
+				if statedb.FreeBalance(hash.Peer(sender)) < pos.Stake(tx.Amount) {
 					p.logger.Warn("Balance is not enough", sender, tx.Amount)
 					continue
 				}
 
 				reciver := tx.Receiver
-				statedb.Transfer(hash.Peer(sender), reciver, inter.Stake(tx.Amount))
+				statedb.Transfer(hash.Peer(sender), reciver, pos.Stake(tx.Amount))
 			}
 		}
 	}

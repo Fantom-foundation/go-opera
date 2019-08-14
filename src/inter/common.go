@@ -7,11 +7,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-type (
-	// Stake amount.
-	Stake uint64
-)
-
 // GenNodes generates nodes.
 // Result:
 //   - nodes  is an array of node addresses;

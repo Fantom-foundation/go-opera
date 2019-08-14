@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -26,9 +27,9 @@ func (p *BufferedPoset) PushToBuffer(e *inter.Event) {
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
 // Input event order doesn't matter.
 func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
-	balances := make(map[hash.Peer]inter.Stake, len(nodes))
+	balances := make(map[hash.Peer]pos.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = inter.Stake(1)
+		balances[addr] = pos.Stake(1)
 	}
 
 	store := NewMemStore()
@@ -43,7 +44,7 @@ func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
 	poset.Bootstrap()
 
 	buffered := &BufferedPoset{
-		Poset: poset,
+		Poset:      poset,
 		bufferPush: MakeOrderedInput(poset),
 	}
 

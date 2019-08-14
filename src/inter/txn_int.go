@@ -3,12 +3,13 @@ package inter
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 // InternalTransaction is for stake transfer.
 type InternalTransaction struct {
 	Nonce      idx.Txn
-	Amount     Stake
+	Amount     pos.Stake
 	Receiver   hash.Peer
 	UntilBlock idx.Block
 }

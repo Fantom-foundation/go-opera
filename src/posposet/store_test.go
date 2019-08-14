@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -128,9 +129,9 @@ func benchmarkStore(b *testing.B) {
 }
 
 func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
-	balances := make(map[hash.Peer]inter.Stake, len(nodes))
+	balances := make(map[hash.Peer]pos.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = inter.Stake(1)
+		balances[addr] = pos.Stake(1)
 	}
 
 	if err := store.ApplyGenesis(balances, genesisTestTime); err != nil {

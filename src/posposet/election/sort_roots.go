@@ -5,11 +5,11 @@ import (
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 type sortedRoot struct {
-	stake inter.Stake
+	stake pos.Stake
 	root  hash.Event
 }
 type sortedRoots []sortedRoot

@@ -86,7 +86,7 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 			return e
 		})
 
-	weights := make(map[hash.Peer]inter.Stake)
+	weights := make(map[hash.Peer]pos.Stake)
 	for name, e := range events {
 		w, o := parseSpecName(name)
 		weights[e.Creator] = w
@@ -97,7 +97,7 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 
 	c.EXPECT().
 		StakeOf(gomock.Any()).
-		DoAndReturn(func(p hash.Peer) inter.Stake {
+		DoAndReturn(func(p hash.Peer) pos.Stake {
 			return weights[p]
 		}).
 		AnyTimes()
@@ -110,7 +110,7 @@ func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []stri
 	return
 }
 
-func parseSpecName(name string) (weight inter.Stake, orderNum int64) {
+func parseSpecName(name string) (weight pos.Stake, orderNum int64) {
 	ss := strings.Split(name, ":")
 	if len(ss) != 2 {
 		panic("invalid event name format")
@@ -120,7 +120,7 @@ func parseSpecName(name string) (weight inter.Stake, orderNum int64) {
 	if err != nil {
 		panic("invalid event name format (weight): " + err.Error())
 	}
-	weight = inter.Stake(w)
+	weight = pos.Stake(w)
 
 	if ss[1][0] == strings.ToUpper(ss[1])[0] {
 		orderNum, err = strconv.ParseInt(ss[1][1:], 10, 64)

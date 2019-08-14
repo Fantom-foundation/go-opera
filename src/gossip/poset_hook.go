@@ -4,6 +4,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
@@ -33,7 +34,7 @@ func (hook *StoreAwareEngine) GetVectorIndex() *vector.Index {
 	return hook.engine.GetVectorIndex()
 }
 
-func (hook *StoreAwareEngine) StakeOf(addr hash.Peer) inter.Stake {
+func (hook *StoreAwareEngine) StakeOf(addr hash.Peer) pos.Stake {
 	return hook.engine.StakeOf(addr)
 }
 

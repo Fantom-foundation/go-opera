@@ -62,7 +62,7 @@ func TestApp(t *testing.T) {
 		assertar := assert.New(t)
 		reset()
 
-		amount := inter.Stake(rand.Uint64())
+		amount := pos.Stake(rand.Uint64())
 
 		node.EXPECT().
 			GetID().
@@ -86,7 +86,7 @@ func TestApp(t *testing.T) {
 		assertar := assert.New(t)
 		reset()
 
-		amount := inter.Stake(rand.Uint64())
+		amount := pos.Stake(rand.Uint64())
 
 		otherPeer := hash.FakePeer()
 
@@ -134,7 +134,7 @@ func TestApp(t *testing.T) {
 		reset()
 
 		h := hash.FakeTransaction()
-		amount := inter.Stake(rand.Uint64())
+		amount := pos.Stake(rand.Uint64())
 
 		txn := &inter.InternalTransaction{
 			Nonce:    1,
@@ -184,7 +184,7 @@ func TestApp(t *testing.T) {
 		assertar := assert.New(t)
 		reset()
 
-		amount := inter.Stake(rand.Uint64())
+		amount := pos.Stake(rand.Uint64())
 
 		h := hash.FakeTransaction()
 		tx := inter.InternalTransaction{

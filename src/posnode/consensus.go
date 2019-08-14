@@ -12,7 +12,7 @@ type Consensus interface {
 	// PushEvent takes event for processing.
 	ProcessEvent(e *inter.Event) error
 	// StakeOf returns stake of peer.
-	StakeOf(hash.Peer) inter.Stake
+	StakeOf(hash.Peer) pos.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
 	GetGenesisHash() hash.Hash
 	// Sets consensus fields. Returns nil if event should be dropped.

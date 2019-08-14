@@ -14,7 +14,7 @@ type checkpoint struct {
 	// fields can change only after a frame is decided
 	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
-	TotalCap          inter.Stake
+	TotalCap          pos.Stake
 	LastConsensusTime inter.Timestamp
 	NextMembers       pos.Members
 	Balances          hash.Hash

@@ -21,7 +21,7 @@ func TestAddInternalTxn(t *testing.T) {
 	consensus := NewMockConsensus(ctrl)
 	consensus.EXPECT().
 		StakeOf(gomock.Any()).
-		Return(inter.Stake(2000)).
+		Return(pos.Stake(2000)).
 		AnyTimes()
 
 	node := NewForTests("fake", NewMemStore(), consensus)

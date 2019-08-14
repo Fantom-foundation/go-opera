@@ -2,7 +2,6 @@ package election
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
@@ -18,7 +17,7 @@ type (
 		frameToDecide idx.Frame
 
 		members    pos.Members
-		totalStake inter.Stake // the sum of stakes (n)
+		totalStake pos.Stake // the sum of stakes (n)
 
 		// election state
 		decidedRoots map[hash.Peer]voteValue // decided roots at "frameToDecide"

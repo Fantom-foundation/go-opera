@@ -28,7 +28,7 @@ var Transfer = &cobra.Command{
 		if err != nil {
 			return
 		}
-		amount := inter.Stake(raw)
+		amount := pos.Stake(raw)
 
 		hex, err = cmd.Flags().GetString("receiver")
 		if err != nil {

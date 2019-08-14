@@ -327,19 +327,19 @@ type (
 		ColWidth int
 	}
 
-	pos byte
+	position byte
 )
 
 const (
-	none  pos = 0
-	pass      = iota
-	first     = iota
-	left      = iota
-	right     = iota
-	last      = iota
+	none  position = 0
+	pass           = iota
+	first          = iota
+	left           = iota
+	right          = iota
+	last           = iota
 )
 
-func (r *row) Position(i int) pos {
+func (r *row) Position(i int) position {
 	// if left
 	if i < r.Self {
 		if i < r.First {

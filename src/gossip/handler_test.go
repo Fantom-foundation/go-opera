@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
@@ -133,9 +134,9 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	me := cryptoaddr.AddressOf(privateKey.Public())
 
 	nodes := []hash.Peer{me}
-	balances := make(map[hash.Peer]inter.Stake, len(nodes))
+	balances := make(map[hash.Peer]pos.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = inter.Stake(1)
+		balances[addr] = pos.Stake(1)
 	}
 
 	engineStore := posposet.NewMemStore()

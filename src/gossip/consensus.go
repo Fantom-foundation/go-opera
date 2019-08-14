@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
@@ -14,7 +15,7 @@ type Consensus interface {
 	// PushEvent takes event for processing.
 	ProcessEvent(e *inter.Event) error
 	// StakeOf returns stake of peer.
-	StakeOf(hash.Peer) inter.Stake
+	StakeOf(hash.Peer) pos.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
 	GetGenesisHash() hash.Hash
 	// GetHeads returns a list of events which don't have any descendants

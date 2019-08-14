@@ -12,7 +12,7 @@ type (
 	parent struct {
 		Creator hash.Peer
 		Parents hash.Events
-		Value   inter.Stake
+		Value   pos.Stake
 		Last    bool
 	}
 
@@ -41,7 +41,7 @@ func (n *Node) loadPotentialParents(sf idx.SuperFrame) {
 	for peer, height := range n.superFrame.lasts {
 		for i := idx.Event(1); i <= height; i++ {
 			e := n.EventOf(peer, sf, i)
-			val := inter.Stake(1)
+			val := pos.Stake(1)
 			if n.consensus != nil {
 				val = n.consensus.StakeOf(e.Creator)
 			}
@@ -69,7 +69,7 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 		return
 	}
 
-	val := inter.Stake(1)
+	val := pos.Stake(1)
 	if n.consensus != nil {
 		val = n.consensus.StakeOf(e.Creator)
 	}
@@ -78,7 +78,7 @@ func (n *Node) pushPotentialParent(e *inter.Event) {
 }
 
 // Push adds parent to cache.
-func (pp *parents) Push(e *inter.Event, val inter.Stake) {
+func (pp *parents) Push(e *inter.Event, val pos.Stake) {
 	pp.Lock()
 	defer pp.Unlock()
 
@@ -112,7 +112,7 @@ func (pp *parents) PopBest() *hash.Event {
 
 	var (
 		res *hash.Event
-		max inter.Stake
+		max pos.Stake
 		tmp hash.Event
 	)
 
@@ -158,10 +158,10 @@ func (pp *parents) Count() int {
  */
 
 // sum returns sum of parent values.
-func (pp *parents) sum(e hash.Event) inter.Stake {
+func (pp *parents) sum(e hash.Event) pos.Stake {
 	event, ok := pp.cache[e]
 	if !ok {
-		return inter.Stake(0)
+		return pos.Stake(0)
 	}
 
 	res := event.Value

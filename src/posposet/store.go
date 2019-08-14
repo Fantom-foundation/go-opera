@@ -83,7 +83,7 @@ func (s *Store) recreateTempDb() {
 }
 
 // calcFirstGenesisHash calcs hash of genesis balances.
-func calcFirstGenesisHash(balances map[hash.Peer]inter.Stake, time inter.Timestamp) hash.Hash {
+func calcFirstGenesisHash(balances map[hash.Peer]pos.Stake, time inter.Timestamp) hash.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
@@ -94,7 +94,7 @@ func calcFirstGenesisHash(balances map[hash.Peer]inter.Stake, time inter.Timesta
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Timestamp) error {
+func (s *Store) ApplyGenesis(balances map[hash.Peer]pos.Stake, time inter.Timestamp) error {
 	if balances == nil {
 		return fmt.Errorf("balances shouldn't be nil")
 	}

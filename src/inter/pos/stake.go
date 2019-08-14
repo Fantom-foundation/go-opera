@@ -2,7 +2,11 @@ package pos
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+)
+
+type (
+	// Stake amount.
+	Stake uint64
 )
 
 type (
@@ -14,8 +18,8 @@ type (
 		members Members
 		already map[hash.Peer]struct{}
 
-		quorum inter.Stake
-		sum    inter.Stake
+		quorum Stake
+		sum    Stake
 	}
 )
 
@@ -50,6 +54,6 @@ func (s *StakeCounter) HasQuorum() bool {
 }
 
 // Sum of counted stakes.
-func (s *StakeCounter) Sum() inter.Stake {
+func (s *StakeCounter) Sum() Stake {
 	return s.sum
 }

@@ -20,7 +20,7 @@ type fakeEdge struct {
 }
 
 type (
-	stakes map[string]inter.Stake
+	stakes map[string]pos.Stake
 )
 
 type testExpected struct {

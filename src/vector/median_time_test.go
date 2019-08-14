@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
-func testMedianTime(t *testing.T, dag string, weights []inter.Stake, claimedTimes map[string]inter.Timestamp, medianTimes map[string]inter.Timestamp, genesis inter.Timestamp) {
+func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes map[string]inter.Timestamp, medianTimes map[string]inter.Timestamp, genesis inter.Timestamp) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
@@ -73,7 +73,7 @@ func TestMedianTimeAscii(t *testing.T) {
  ╠═════════════════════════nodeC002
 `
 
-	weights := []inter.Stake{3, 4, 2, 1}
+	weights := []pos.Stake{3, 4, 2, 1}
 	genesisTime := inter.Timestamp(1)
 	claimedTimes := map[string]inter.Timestamp{
 		"nodeA001": inter.Timestamp(111),
@@ -108,7 +108,7 @@ func TestMedianTime(t *testing.T) {
 	peers := inter.GenNodes(5)
 	members := make(pos.Members, len(peers))
 
-	weights := []inter.Stake{5, 4, 3, 2, 1}
+	weights := []pos.Stake{5, 4, 3, 2, 1}
 	for i, peer := range peers {
 		members.Add(peer, weights[i])
 	}
