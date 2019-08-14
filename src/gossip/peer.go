@@ -435,7 +435,7 @@ func (ps *peerSet) PeersWithoutEvent(hash hash.Event) []*peer {
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if !p.knownEvents.Contains(hash) {
+		if !p.knownEvents.Contains(hash) { // TODO do not include peers whose epoch is higher than event's epoch
 			list = append(list, p)
 		}
 	}

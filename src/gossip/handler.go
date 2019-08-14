@@ -112,8 +112,8 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 				return err
 			}
 
-			// If the event is indeed in out own graph, announce it
-			pm.BroadcastEvent(e, false)
+			// If the event is indeed in our own graph, announce it
+			pm.BroadcastEvent(e, false) // TODO do not announce if it's "initial events download"
 			return nil
 		},
 
