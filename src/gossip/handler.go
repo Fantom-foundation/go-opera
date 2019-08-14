@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -60,8 +60,9 @@ type ProtocolManager struct {
 
 	fetcher *fetcher.Fetcher
 
-	store  *Store
-	engine Consensus
+	store    *Store
+	engine   Consensus
+	engineMu *sync.RWMutex
 
 	emittedEventsSub *event.TypeMuxSubscription
 
@@ -78,24 +79,71 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(config params.DagConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, pushEvent ordering.PushEventFn, isEventKnown ordering.IsBufferedFn, s *Store, engine Consensus) (*ProtocolManager, error) {
+func NewProtocolManager(config params.DagConfig, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
-	manager := &ProtocolManager{
+	pm := &ProtocolManager{
 		networkID:   networkID,
 		eventMux:    mux,
 		txpool:      txpool,
 		store:       s,
 		engine:      engine,
 		peers:       newPeerSet(),
+		engineMu:    engineMu,
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
 	}
 
-	manager.fetcher = fetcher.New(pushEvent, isEventKnown, manager.removePeer)
+	pm.fetcher = pm.makeFetcher()
 
-	return manager, nil
+	return pm, nil
+}
+
+func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
+	// build EventBuffer
+	pushInBuffer, isEventBuffered := ordering.EventBuffer(ordering.Callback{
+		Process: func(e *inter.Event) error {
+			log.Info("New event", "hash", e.Hash())
+
+			pm.store.SetEvent(e)
+			err := pm.engine.ProcessEvent(e)
+			if err != nil {
+				return err
+			}
+
+			// If the event is indeed in out own graph, announce it
+			pm.BroadcastEvent(e, false)
+			return nil
+		},
+
+		Drop: func(e *inter.Event, peer string, err error) {
+			log.Warn("Event rejected", "err", err)
+			pm.store.DeleteEvent(e.Hash())
+			pm.removePeer(peer)
+		},
+
+		Exists: func(id hash.Event) *inter.Event {
+			return pm.store.GetEvent(id)
+		},
+	})
+	pushEvent := func(e *inter.Event, peer string) {
+		pm.engineMu.Lock()
+		defer pm.engineMu.Unlock()
+
+		pushInBuffer(e, peer)
+	}
+	isEventDownloaded := func(id hash.Event) bool {
+		pm.engineMu.RLock()
+		defer pm.engineMu.RUnlock()
+
+		if isEventBuffered(id) {
+			return true
+		}
+		return pm.store.HasEvent(id)
+	}
+
+	return fetcher.New(pushEvent, isEventDownloaded, pm.removePeer)
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {

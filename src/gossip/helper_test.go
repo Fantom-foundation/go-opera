@@ -3,6 +3,7 @@ package gossip
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"github.com/ethereum/go-ethereum/eth/downloader"
 	"math/big"
 	"sort"
 	"sync"
@@ -31,7 +32,7 @@ var (
 func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.Transaction, onNewEvent func(e *inter.Event)) (*ProtocolManager, *Store, error) {
 	var (
 		evmux = new(event.TypeMux)
-		db    = NewMemStore()
+		store = NewMemStore()
 	)
 
 	nodes := inter.GenNodes(nodesNum)
@@ -40,19 +41,19 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		balances[addr] = inter.Stake(1)
 	}
 
-	store := posposet.NewMemStore()
-	err := store.ApplyGenesis(balances, 0)
+	engineStore := posposet.NewMemStore()
+	err := engineStore.ApplyGenesis(balances, 0)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	engine := posposet.New(store, db)
+	engine := posposet.New(engineStore, store)
 	engine.Bootstrap()
 
 	config := &Config{}
-	config.Dag.DagID = 1
+	config.NetworkId = 1
 
-	svc, err := NewService(evmux, config, db, engine)
+	pm, err := NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, evmux, &testTxPool{added: newtx}, new(sync.RWMutex), store, engine)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -62,7 +63,11 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return engine.Prepare(e)
 	}
 	_onNewEvent := func(e *inter.Event) {
-		svc.pushEvent(e, "")
+		store.SetEvent(e)
+		err = engine.ProcessEvent(e)
+		if err != nil {
+			panic(err)
+		}
 		if onNewEvent != nil {
 			onNewEvent(e)
 		}
@@ -70,10 +75,8 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 
 	inter.GenEventsByNode(nodes, eventsNum, 3, buildEvent, _onNewEvent, nil)
 
-	pm := svc.pm
-	pm.txpool = &testTxPool{added: newtx}
 	pm.Start(1000)
-	return pm, db, nil
+	return pm, store, nil
 }
 
 // newTestProtocolManagerMust creates a new protocol manager for testing purposes,

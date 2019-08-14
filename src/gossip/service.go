@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -19,8 +18,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -47,13 +44,9 @@ type Service struct {
 	privateKey *crypto.PrivateKey
 
 	// application
-	s      *Store
-	engine Consensus
-
-	pushEvent         ordering.PushEventFn
-	isEventDownloaded ordering.IsBufferedFn
-
-	consensusMu *sync.RWMutex
+	s        *Store
+	engine   Consensus
+	engineMu *sync.RWMutex
 
 	eventMux *event.TypeMux
 
@@ -76,7 +69,7 @@ func NewService(eventMux *event.TypeMux, config *Config, s *Store, engine Consen
 		engine: engine,
 		Pinger: &PingAPI{},
 
-		consensusMu: new(sync.RWMutex),
+		engineMu: new(sync.RWMutex),
 
 		eventMux: eventMux,
 
@@ -87,58 +80,8 @@ func NewService(eventMux *event.TypeMux, config *Config, s *Store, engine Consen
 
 	svc.serverPool = newServerPool(s.table.Peers, svc.done, &svc.wg, trustedNodes)
 
-	// build EventBuffer
-	pushInBuffer, isEventBuffered := ordering.EventBuffer(ordering.Callback{
-		Process: func(e *inter.Event) error {
-			log.Info("New event", "hash", e.Hash())
-
-			svc.s.SetEvent(e)
-			err := svc.engine.ProcessEvent(e)
-			if err != nil {
-				return err
-			}
-
-			// If the event is indeed in out own graph, announce it
-			if svc.pm != nil {
-				if e.Creator == svc.me {
-					// if I'm a creator, then propagate aggressively
-					svc.pm.BroadcastEvent(e, true)
-				}
-				svc.pm.BroadcastEvent(e, false)
-			}
-			return nil
-		},
-
-		Drop: func(e *inter.Event, peer string, err error) {
-			log.Warn("Event rejected", "err", err)
-			svc.s.DeleteEvent(e.Hash())
-			if svc.pm != nil {
-				svc.pm.removePeer(peer)
-			}
-		},
-
-		Exists: func(id hash.Event) *inter.Event {
-			return s.GetEvent(id)
-		},
-	})
-	svc.pushEvent = func(e *inter.Event, peer string) {
-		svc.consensusMu.Lock()
-		defer svc.consensusMu.Unlock()
-
-		pushInBuffer(e, peer)
-	}
-	svc.isEventDownloaded = func(id hash.Event) bool {
-		svc.consensusMu.RLock()
-		defer svc.consensusMu.RUnlock()
-
-		if isEventBuffered(id) {
-			return true
-		}
-		return s.HasEvent(id)
-	}
-
 	var err error
-	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.Dag.DagID, svc.eventMux, nil, svc.pushEvent, svc.isEventDownloaded, s, engine)
+	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, svc.eventMux, nil, svc.engineMu, s, engine)
 
 	return svc, err
 }
