@@ -96,7 +96,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 
 		for _, node := range nodes {
 			strategy := p.NewSeeingStrategy()
-			parents := p.FindBestParents(node, 5, strategy)
+			_, parents := p.FindBestParents(node, 5, strategy)
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
 			if !assertar.Equal(
 				exp[stage][node.String()],
