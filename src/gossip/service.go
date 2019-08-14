@@ -15,10 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -50,7 +50,7 @@ type Service struct {
 	engineMu *sync.RWMutex
 	emitter  *Emitter
 
-	eventMux *event.TypeMux
+	mux *event.TypeMux
 
 	// application protocol
 	Pinger *PingAPI
@@ -59,7 +59,12 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(config *Config, eventMux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
+func NewService(config *Config, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
+	engine = &StoreAwareEngine{
+		engine: engine,
+		store:  store,
+	}
+
 	svc := &Service{
 		config: config,
 
@@ -73,7 +78,7 @@ func NewService(config *Config, eventMux *event.TypeMux, store *Store, engine Co
 
 		engineMu: new(sync.RWMutex),
 
-		eventMux: eventMux,
+		mux: mux,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -83,7 +88,7 @@ func NewService(config *Config, eventMux *event.TypeMux, store *Store, engine Co
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, svc.eventMux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }
@@ -92,16 +97,15 @@ func (s *Service) makeEmitter(allowAggressive bool) *Emitter {
 	return NewEmitter(s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
 		// svc.engineMu is locked here
 
-		s.store.SetEvent(emitted)
 		err := s.engine.ProcessEvent(emitted)
 		if err != nil {
-			s.Fatalf("Self event connection failed: %s", err.Error())
+			s.Fatalf("Self-event connection failed: %s", err.Error())
 		}
 
-		if allowAggressive {
-			s.pm.BroadcastEvent(emitted, true) // no one knows the event, so be aggressive
+		err = s.pm.mux.Post(emitted) // PM listens and will broadcast it
+		if err != nil {
+			s.Fatalf("Failed to post self-event: %s", err.Error())
 		}
-		s.pm.BroadcastEvent(emitted, false)
 	})
 }
 

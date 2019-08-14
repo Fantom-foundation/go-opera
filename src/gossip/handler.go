@@ -54,9 +54,9 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
-	eventMux *event.TypeMux
-	txsCh    chan core.NewTxsEvent
-	txsSub   event.Subscription
+	mux    *event.TypeMux
+	txsCh  chan core.NewTxsEvent
+	txsSub event.Subscription
 
 	fetcher *fetcher.Fetcher
 
@@ -83,7 +83,7 @@ func NewProtocolManager(config params.DagConfig, mode downloader.SyncMode, netwo
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		networkID:   networkID,
-		eventMux:    mux,
+		mux:         mux,
 		txpool:      txpool,
 		store:       s,
 		engine:      engine,
@@ -106,7 +106,6 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		Process: func(e *inter.Event) error {
 			log.Info("New event", "hash", e.Hash())
 
-			pm.store.SetEvent(e)
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
 				return err
@@ -207,7 +206,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	go pm.txBroadcastLoop()
 
 	// broadcast mined events
-	pm.emittedEventsSub = pm.eventMux.Subscribe(&inter.Event{})
+	pm.emittedEventsSub = pm.mux.Subscribe(&inter.Event{})
 	go pm.emittedBroadcastLoop()
 
 	// start sync handlers
@@ -450,7 +449,7 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.emittedEventsSub.Chan() {
 		if ev, ok := obj.Data.(*inter.Event); ok {
-			pm.BroadcastEvent(ev, true)  // First propagate event to peers
+			pm.BroadcastEvent(ev, true)  // No one knows the event, so be aggressive
 			pm.BroadcastEvent(ev, false) // Only then announce to the rest
 		}
 	}
