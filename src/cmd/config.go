@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -53,9 +53,6 @@ func makeNodeConfig(ctx *cli.Context) *node.Config {
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg)
 
-	// TODO: move to defaults
-	cfg.P2P.DiscoveryV5 = true
-
 	return &cfg
 }
 
@@ -66,6 +63,7 @@ func defaultNodeConfig() node.Config {
 	cfg.HTTPModules = append(cfg.HTTPModules, "lachesis")
 	cfg.WSModules = append(cfg.WSModules, "lachesis")
 	cfg.IPCPath = "lachesis.ipc"
+	cfg.P2P.DiscoveryV5 = true
 	return cfg
 }
 

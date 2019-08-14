@@ -36,6 +36,9 @@ type Config struct {
 	TrieDirtyCache int
 	TrieTimeout    time.Duration
 
+	// Emitter options
+	Emitter EmitterConfig
+
 	// Dag options
 	Dag params.DagConfig
 
@@ -59,4 +62,12 @@ type Config struct {
 
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap *big.Int `toml:",omitempty"`
+}
+
+var DefaultConfig = Config{
+	Emitter: EmitterConfig{
+		MinEmitInterval: 1 * time.Second,
+		MaxEmitInterval: 10 * time.Second,
+	},
+	Dag: params.DefaultDagConfig,
 }

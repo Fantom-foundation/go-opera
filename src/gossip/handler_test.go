@@ -1,14 +1,20 @@
 package gossip
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
 // Tests that events can be retrieved from a remote graph based on user queries.
@@ -79,6 +85,144 @@ func testGetEvents(t *testing.T, protocol int) {
 		}
 		if t.Failed() {
 			return
+		}
+	}
+}
+
+func TestBroadcastEvent(t *testing.T) {
+	var tests = []struct {
+		totalPeers        int
+		broadcastExpected int
+		allowAggressive   bool
+	}{
+		{1, 1, true},
+		{1, 1, false},
+		{2, 2, true},
+		{3, 3, true},
+		{4, 4, true},
+		{5, 4, false},
+		{9, 4, false},
+		{12, 4, false},
+		{16, 4, false},
+		{26, 5, false},
+		{100, 10, false},
+	}
+	for _, test := range tests {
+		testBroadcastEvent(t, test.totalPeers, test.broadcastExpected, test.allowAggressive)
+	}
+}
+
+func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAggressive bool) {
+	if allowAggressive && totalPeers > minBroadcastPeers {
+		t.Error("Wrong testcase: allowAggressive must be false if totalPeers > minBroadcastPeers (because we'll broadcast only to a subset)")
+	}
+
+	assertar := assert.New(t)
+
+	config := DefaultConfig
+	config.Emitter.MinEmitInterval = 10 * time.Millisecond
+	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
+
+	var (
+		evmux = new(event.TypeMux)
+		store = NewMemStore()
+	)
+
+	privateKey := crypto.GenerateFakeKey(0)
+	me := cryptoaddr.AddressOf(privateKey.Public())
+
+	nodes := []hash.Peer{me}
+	balances := make(map[hash.Peer]inter.Stake, len(nodes))
+	for _, addr := range nodes {
+		balances[addr] = inter.Stake(1)
+	}
+
+	engineStore := posposet.NewMemStore()
+	assertar.NoError(engineStore.ApplyGenesis(balances, 0))
+
+	engine := posposet.New(engineStore, store)
+	engine.Bootstrap()
+
+	svc, err := NewService(&config, evmux, store, engine)
+	assertar.NoError(err)
+
+	// start PM
+	pm := svc.pm
+	pm.Start(1000)
+	defer pm.Stop()
+
+	// create peers
+	var peers []*testPeer
+	for i := 0; i < totalPeers; i++ {
+		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), fantom62, pm, true)
+		defer peer.close()
+		peers = append(peers, peer)
+	}
+	for pm.peers.Len() < totalPeers { // wait until all the peers are registered
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// start emitter
+	svc.privateKey = privateKey
+	svc.me = me
+	svc.emitter = svc.makeEmitter(allowAggressive)
+
+	emittedEvents := make([]*inter.Event, 0)
+	for i := 0; i < broadcastExpected; i++ {
+		emitted := svc.emitter.EmitEvent()
+		emittedEvents = append(emittedEvents, emitted)
+		// check it's broadcasted just after emitting
+		for _, peer := range peers {
+			if allowAggressive {
+				assertar.NoError(p2p.ExpectMsg(peer.app, EventsMsg, []*inter.Event{emitted})) // aggressive
+			} else {
+				assertar.NoError(p2p.ExpectMsg(peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()})) // announce
+			}
+			if t.Failed() {
+				return
+			}
+		}
+		// broadcast doesn't send to peers who are known to know this event
+		assertar.Equal(0, pm.BroadcastEvent(emitted, false))
+	}
+
+	// fresh new peer
+	newPeer, _ := newTestPeer(fmt.Sprintf("peer %d", totalPeers), fantom62, pm, true)
+	defer newPeer.close()
+	for pm.peers.Len() < totalPeers+1 { // wait until the new peer is registered
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// create new event, but send it from new peer
+	{
+		emitted := svc.emitter.createEvent()
+		assertar.NoError(p2p.Send(newPeer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()})) // announce
+		// now PM should request it
+		assertar.NoError(p2p.ExpectMsg(newPeer.app, GetEventsMsg, []hash.Event{emitted.Hash()})) // request
+		if t.Failed() {
+			return
+		}
+		// send it to PM
+		assertar.NoError(p2p.Send(newPeer.app, EventsMsg, []*inter.Event{emitted}))
+		// PM should broadcast it to all other peer except newPeer, non-aggressively
+		for _, peer := range peers {
+			assertar.NoError(p2p.ExpectMsg(peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()}))
+			if t.Failed() {
+				return
+			}
+			assertar.True(svc.store.HasEvent(emitted.Hash()))
+		}
+		emittedEvents = append(emittedEvents, emitted)
+	}
+
+	// peers request the event. check it at the end, so we known that nothing was sent before
+	for _, emitted := range emittedEvents {
+		for _, peer := range append(peers, newPeer) {
+			assertar.NoError(p2p.Send(peer.app, GetEventsMsg, []hash.Event{emitted.Hash()})) // request
+			assertar.NoError(p2p.ExpectMsg(peer.app, EventsMsg, []*inter.Event{emitted}))    // response
+			if t.Failed() {
+				return
+			}
 		}
 	}
 }

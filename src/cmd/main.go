@@ -179,7 +179,7 @@ func makeFullNode(cfg *node.Config, db *bbolt.DB) *node.Node {
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	constructor := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(new(event.TypeMux), &gossip.Config{}, gdb, concensus)
+		return gossip.NewService(&gossip.DefaultConfig, new(event.TypeMux), gdb, concensus)
 	}
 
 	// Create node.

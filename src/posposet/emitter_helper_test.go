@@ -96,7 +96,11 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 
 		for _, node := range nodes {
 			strategy := p.NewSeeingStrategy()
-			_, parents := p.FindBestParents(node, 5, strategy)
+			selfParent, parents := p.FindBestParents(node, 5, strategy)
+			assertar.NotNil(selfParent) // TODO make testcase with first event in an epoch, i.e. with no self-parent
+			if selfParent != nil {
+				assertar.Equal(parents[0], *selfParent)
+			}
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
 			if !assertar.Equal(
 				exp[stage][node.String()],

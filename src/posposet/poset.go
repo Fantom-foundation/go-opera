@@ -62,7 +62,7 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		return nil
 	}
 	if _, ok := p.Members[e.Creator]; !ok {
-		p.Warnf("consensus: %s isn't member", e.Creator.String())
+		p.Warnf("consensus: %s isn't a member", e.Creator.String())
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here

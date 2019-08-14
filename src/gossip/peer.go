@@ -225,7 +225,7 @@ func (p *peer) AsyncSendNewEventHash(event *inter.Event) {
 }
 
 // SendNewEvent propagates an entire event to a remote peer.
-func (p *peer) SendNewEvents(events []*inter.Event) error {
+func (p *peer) SendEvents(events []*inter.Event) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
 		p.knownEvents.Add(event.Hash())
@@ -233,7 +233,18 @@ func (p *peer) SendNewEvents(events []*inter.Event) error {
 			p.knownEvents.Pop()
 		}
 	}
-	return p2p.Send(p.rw, NewEventsMsg, events)
+	return p2p.Send(p.rw, EventsMsg, events)
+}
+
+func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
+	// Mark all the event hash as known, but ensure we don't overflow our limits
+	for _, id := range ids {
+		p.knownEvents.Add(id)
+		for p.knownEvents.Cardinality() >= maxKnownEvents {
+			p.knownEvents.Pop()
+		}
+	}
+	return p2p.Send(p.rw, EventsMsg, events)
 }
 
 // AsyncSendNewEvent queues an entire event for propagation to a remote peer. If
@@ -255,17 +266,6 @@ func (p *peer) AsyncSendNewEvent(event *inter.Event) {
 /*func (p *peer) SendEventHeaders(headers []*types.Header) error {
 	return p2p.Send(p.rw, EventHeadersMsg, headers)
 }*/
-
-// SendEventBodies sends a batch of event contents to the remote peer.
-func (p *peer) SendEvents(events []*inter.Event) error {
-	return p2p.Send(p.rw, EventsMsg, events)
-}
-
-// SendEventBodiesRLP sends a batch of event contents to the remote peer from
-// an already RLP encoded format.
-func (p *peer) SendEventsRLP(events []rlp.RawValue) error {
-	return p2p.Send(p.rw, EventsMsg, events)
-}
 
 /*// RequestOneHeader is a wrapper around the header query functions to fetch a
 // single header. It is used solely by the fetcher.

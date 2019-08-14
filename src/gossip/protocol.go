@@ -28,21 +28,20 @@ const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a prot
 const (
 	// Protocol messages belonging to eth/62
 	StatusMsg = 0x00
-	TxMsg = 0x02
+	TxMsg     = 0x02
 
 	// Protocol messages belonging to fantom/62
 
 	NewEventHashesMsg = 0xf1
-	NewEventsMsg      = 0xf2
 
-	GetEventHeadersMsg = 0xf4
-	EventHeadersMsg    = 0xf5
+	GetEventHeadersMsg = 0xf2
+	EventHeadersMsg    = 0xf3
 
-	GetEventsMsg = 0xf6
-	EventsMsg    = 0xf7
+	GetEventsMsg = 0xf4
+	EventsMsg    = 0xf5
 
-	GetEventBodiesMsg = 0xf8
-	EventBodiesMsg    = 0xf9
+	GetEventBodiesMsg = 0xf6
+	EventBodiesMsg    = 0xf7
 )
 
 type errCode int

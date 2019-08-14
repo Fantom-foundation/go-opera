@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"math/rand"
 	"sync"
 	"time"
@@ -44,9 +45,10 @@ type Service struct {
 	privateKey *crypto.PrivateKey
 
 	// application
-	s        *Store
+	store    *Store
 	engine   Consensus
 	engineMu *sync.RWMutex
+	emitter  *Emitter
 
 	eventMux *event.TypeMux
 
@@ -57,7 +59,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(eventMux *event.TypeMux, config *Config, s *Store, engine Consensus) (*Service, error) {
+func NewService(config *Config, eventMux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
 	svc := &Service{
 		config: config,
 
@@ -65,7 +67,7 @@ func NewService(eventMux *event.TypeMux, config *Config, s *Store, engine Consen
 
 		Name: fmt.Sprintf("Node-%d", rand.Int()),
 
-		s:      s,
+		store:  store,
 		engine: engine,
 		Pinger: &PingAPI{},
 
@@ -78,12 +80,29 @@ func NewService(eventMux *event.TypeMux, config *Config, s *Store, engine Consen
 
 	trustedNodes := []string{}
 
-	svc.serverPool = newServerPool(s.table.Peers, svc.done, &svc.wg, trustedNodes)
+	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, svc.eventMux, nil, svc.engineMu, s, engine)
+	svc.pm, err = NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, svc.eventMux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
+}
+
+func (s *Service) makeEmitter(allowAggressive bool) *Emitter {
+	return NewEmitter(s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
+		// svc.engineMu is locked here
+
+		s.store.SetEvent(emitted)
+		err := s.engine.ProcessEvent(emitted)
+		if err != nil {
+			s.Fatalf("Self event connection failed: %s", err.Error())
+		}
+
+		if allowAggressive {
+			s.pm.BroadcastEvent(emitted, true) // no one knows the event, so be aggressive
+		}
+		s.pm.BroadcastEvent(emitted, false)
+	})
 }
 
 // Protocols returns protocols the service can communicate on.
@@ -137,6 +156,8 @@ func (s *Service) Start(srv *p2p.Server) error {
 	s.me = cryptoaddr.AddressOf(s.privateKey.Public())
 
 	s.pm.Start(srv.MaxPeers)
+
+	s.emitter = s.makeEmitter(true)
 
 	return nil
 }

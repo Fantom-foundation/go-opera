@@ -323,7 +323,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// Schedule all the unknown hashes for retrieval
 		_ = pm.fetcher.Notify(p.id, announces, time.Now(), p.RequestEvents)
 
-	case msg.Code == NewEventsMsg:
+	case msg.Code == EventsMsg:
 		var events []*inter.Event
 		if err := msg.Decode(&events); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -361,10 +361,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 		rawEvents := make([]rlp.RawValue, 0, len(requests))
+		ids := make([]hash.Event, 0, len(requests))
 		size := 0
 		for _, id := range requests {
 			if e := pm.store.GetEventRLP(id); e != nil {
 				rawEvents = append(rawEvents, e)
+				ids = append(ids, id)
 				size += len(e)
 			}
 			if size > softResponseLimit {
@@ -372,16 +374,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			}
 		}
 		if len(rawEvents) != 0 {
-			_ = p.SendEventsRLP(rawEvents)
+			_ = p.SendEventsRLP(rawEvents, ids)
 		}
 
 	case msg.Code == GetEventHeadersMsg:
 		return errResp(ErrExtraStatusMsg, "not supported yet")
 
 	case msg.Code == EventHeadersMsg:
-		return errResp(ErrExtraStatusMsg, "not supported yet")
-
-	case msg.Code == EventsMsg:
 		return errResp(ErrExtraStatusMsg, "not supported yet")
 
 	case msg.Code == GetEventBodiesMsg:
@@ -398,7 +397,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 // BroadcastEvent will either propagate a event to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
-func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) {
+func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) int {
 	id := event.Hash()
 	peers := pm.peers.PeersWithoutEvent(id)
 
@@ -417,13 +416,14 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) {
 			peer.AsyncSendNewEvent(event)
 		}
 		log.Trace("Propagated event", "hash", id, "recipients", len(transfer))
-		return
+		return transferLen
 	}
 	// Announce it
 	for _, peer := range peers {
 		peer.AsyncSendNewEventHash(event)
 	}
 	log.Trace("Announced event", "hash", id, "recipients", len(peers))
+	return len(peers)
 }
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to

@@ -3,16 +3,14 @@ package gossip
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"math/big"
-	"sort"
 	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -50,10 +48,8 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	engine := posposet.New(engineStore, store)
 	engine.Bootstrap()
 
-	config := &Config{}
-	config.NetworkId = 1
-
-	pm, err := NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, evmux, &testTxPool{added: newtx}, new(sync.RWMutex), store, engine)
+	config := DefaultConfig
+	pm, err := NewProtocolManager(config.Dag, downloader.FullSync, config.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,48 +84,6 @@ func newTestProtocolManagerMust(t *testing.T, nodes int, events int, newtx chan<
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
 	return pm, db
-}
-
-// testTxPool is a fake, helper transaction pool for testing purposes
-type testTxPool struct {
-	txFeed event.Feed
-	pool   []*types.Transaction        // Collection of all transactions
-	added  chan<- []*types.Transaction // Notification channel for new transactions
-
-	lock sync.RWMutex // Protects the transaction pool
-}
-
-// AddRemotes appends a batch of transactions to the pool, and notifies any
-// listeners if the addition channel is non nil
-func (p *testTxPool) AddRemotes(txs []*types.Transaction) []error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	p.pool = append(p.pool, txs...)
-	if p.added != nil {
-		p.added <- txs
-	}
-	return make([]error, len(txs))
-}
-
-// Pending returns all the transactions known to the pool
-func (p *testTxPool) Pending() (map[common.Address]types.Transactions, error) {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-
-	batches := make(map[common.Address]types.Transactions)
-	for _, tx := range p.pool {
-		from, _ := types.Sender(types.HomesteadSigner{}, tx)
-		batches[from] = append(batches[from], tx)
-	}
-	for _, batch := range batches {
-		sort.Sort(types.TxByNonce(batch))
-	}
-	return batches, nil
-}
-
-func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
-	return p.txFeed.Subscribe(ch)
 }
 
 // newTestTransaction create a new dummy transaction.
@@ -186,7 +140,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 func (p *testPeer) handshake(t *testing.T, progress PeerProgress, genesis hash.Hash) {
 	msg := &statusData{
 		ProtocolVersion: uint32(p.version),
-		NetworkId:       1,
+		NetworkId:       DefaultConfig.NetworkId,
 		Progress:        progress,
 		Genesis:         genesis,
 	}
