@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"math/big"
 	"time"
 
@@ -8,7 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"github.com/Fantom-foundation/go-lachesis/src/params"
 )
 
@@ -17,11 +19,10 @@ import (
 type Config struct {
 	// The genesis object, which is inserted if the database is empty.
 	// If nil, the Fantom main net genesis is used.
-	Genesis hash.Hash `toml:",omitempty"`
+	Genesis *genesis.Config `toml:",omitempty"`
 
 	// Protocol options
-	NetworkId uint64 // Network ID to use for selecting peers to connect to
-	SyncMode  downloader.SyncMode
+	SyncMode downloader.SyncMode
 
 	NoPruning       bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch      bool // Whether to disable prefetching and only load state on demand
@@ -65,11 +66,33 @@ type Config struct {
 	RPCGasCap *big.Int `toml:",omitempty"`
 }
 
-var DefaultConfig = Config{
-	Emitter: EmitterConfig{
-		MinEmitInterval: 1 * time.Second,
-		MaxEmitInterval: 10 * time.Second,
-	},
-	ForcedBroadcast: true,
-	Dag:             params.DefaultDagConfig,
+func MainNet() *Config {
+	return &Config{
+		Genesis: genesis.MainNet(),
+		Emitter: EmitterConfig{
+			MinEmitInterval: 1 * time.Second,
+			MaxEmitInterval: 10 * time.Second,
+		},
+		ForcedBroadcast: true,
+		Dag:             params.DefaultDagConfig,
+	}
+}
+
+func TestNet() *Config {
+	config := MainNet()
+	config.Genesis = genesis.TestNet()
+	return config
+}
+
+func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
+	config := MainNet()
+	g, nodes, keys := genesis.FakeNet(n)
+	config.Genesis = g
+	return config, nodes, keys
+}
+
+func EmptyFakeNet() *Config {
+	config := MainNet()
+	config.Genesis = genesis.EmptyFakeNet()
+	return config
 }

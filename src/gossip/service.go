@@ -90,7 +90,7 @@ func NewService(config *Config, mux *event.TypeMux, store *Store, engine Consens
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config, downloader.FullSync, config.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }

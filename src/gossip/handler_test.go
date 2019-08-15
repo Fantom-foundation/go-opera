@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"testing"
 	"time"
 
@@ -11,11 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
@@ -121,7 +117,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	config := DefaultConfig
+	config, nodes, keys := FakeNet(1)
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
 	config.ForcedBroadcast = allowAggressive
@@ -131,24 +127,16 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 		store = NewMemStore()
 	)
 
-	privateKey := crypto.GenerateFakeKey(0)
-	me := cryptoaddr.AddressOf(privateKey.Public())
-
-	nodes := []hash.Peer{me}
-	balances := make(map[hash.Peer]pos.Stake, len(nodes))
-	for _, addr := range nodes {
-		balances[addr] = pos.Stake(1)
-	}
+	privateKey := keys[0]
+	me := nodes[0]
 
 	engineStore := posposet.NewMemStore()
-	assertar.NoError(engineStore.ApplyGenesis(&genesis.Config{
-		Balances:balances,
-	}))
+	assertar.NoError(engineStore.ApplyGenesis(config.Genesis))
 
 	engine := posposet.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	svc, err := NewService(&config, evmux, store, engine)
+	svc, err := NewService(config, evmux, store, engine)
 	assertar.NoError(err)
 
 	// start PM

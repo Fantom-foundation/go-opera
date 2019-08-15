@@ -51,11 +51,11 @@ func (s *Store) ApplyGenesis(config *genesis.Config) error {
 	sf.Members = sf.Members.Top()
 	cp.NextMembers = sf.Members.Copy()
 
-	// hash of NetworkID
+	// hash of NetworkId
 	dummyFiWitness := inter.NewEvent()
 	dummyFiWitness.Epoch = 0
 	dummyFiWitness.Lamport = 1
-	dummyFiWitness.Extra = bigendian.Int64ToBytes(config.NetworkID)
+	dummyFiWitness.Extra = bigendian.Int64ToBytes(config.NetworkId)
 
 	// genesis object
 	sf.SuperFrameN = firstEpoch

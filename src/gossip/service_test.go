@@ -18,7 +18,7 @@ func TestServicePing(t *testing.T) {
 
 	db := NewMemStore()
 
-	svc, err := NewService(&DefaultConfig, new(event.TypeMux), db, nil)
+	svc, err := NewService(EmptyFakeNet(), new(event.TypeMux), db, nil)
 	assertar.NoError(err)
 
 	tests := []struct {

@@ -16,11 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-)
-
-var (
-	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
+	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 )
 
 type topology func(net *simulations.Network, nodes []enode.ID)
@@ -44,7 +40,7 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	gen, keys := FakeNet(count)
+	gen, _, keys := gossip.FakeNet(count)
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
