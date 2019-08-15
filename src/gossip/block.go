@@ -33,8 +33,8 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash hash.Hash, members po
 				db.Delegate(sender, receiver, tx.Amount, tx.UntilBlock)
 			}
 
-			members.Add(sender, db.VoteBalance(sender))
-			members.Add(receiver, db.VoteBalance(receiver))
+			members.Set(sender, db.VoteBalance(sender))
+			members.Set(receiver, db.VoteBalance(receiver))
 		}
 	}
 	stateHash, err := db.Commit(true)

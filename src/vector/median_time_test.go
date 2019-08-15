@@ -28,7 +28,7 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 
 	members := make(pos.Members, len(peers))
 	for i, peer := range peers {
-		members.Add(peer, weights[i])
+		members.Set(peer, weights[i])
 	}
 
 	vi := NewIndex(members, kvdb.NewMemDatabase())
@@ -110,7 +110,7 @@ func TestMedianTime(t *testing.T) {
 
 	weights := []pos.Stake{5, 4, 3, 2, 1}
 	for i, peer := range peers {
-		members.Add(peer, weights[i])
+		members.Set(peer, weights[i])
 	}
 
 	vi := NewIndex(members, kvdb.NewMemDatabase())

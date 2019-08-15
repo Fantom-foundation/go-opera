@@ -198,7 +198,7 @@ func testProcessRoot(
 		mm = make(pos.Members, len(peers))
 	)
 	for _, peer := range peers {
-		mm.Add(peer, stakes[peer.String()])
+		mm.Set(peer, stakes[peer.String()])
 	}
 
 	// events:

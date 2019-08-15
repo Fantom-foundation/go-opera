@@ -101,8 +101,8 @@ func benchmarkStore(b *testing.B) {
 			e := input.GetEvent(id)
 			if e.Seq == 1 && e.Creator == nodes[0] {
 				// move stake from node0 to node1
-				members.Add(nodes[0], 0)
-				members.Add(nodes[1], 2)
+				members.Set(nodes[0], 0)
+				members.Set(nodes[1], 2)
 			}
 		}
 		return stateHash, members

@@ -46,7 +46,7 @@ func (s *Store) ApplyGenesis(config *genesis.Config) error {
 			return fmt.Errorf("balance shouldn't be zero")
 		}
 
-		sf.Members.Add(addr, balance)
+		sf.Members.Set(addr, balance)
 	}
 	sf.Members = sf.Members.Top()
 	cp.NextMembers = sf.Members.Copy()

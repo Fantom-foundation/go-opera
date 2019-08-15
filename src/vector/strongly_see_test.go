@@ -72,7 +72,7 @@ func testStronglySeen(t *testing.T, dag string) {
 
 	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
-		members.Add(peer, pos.Stake(1))
+		members.Set(peer, pos.Stake(1))
 	}
 
 	vi := NewIndex(members, kvdb.NewMemDatabase())
@@ -400,7 +400,7 @@ func TestStronglySeenRandom(t *testing.T) {
 
 	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
-		members.Add(peer, pos.Stake(1))
+		members.Set(peer, pos.Stake(1))
 	}
 
 	vi := NewIndex(members, kvdb.NewMemDatabase())
@@ -464,12 +464,12 @@ func TestRandomForksSanity(t *testing.T) {
 
 	members := make(pos.Members, len(nodes))
 	for _, peer := range nodes {
-		members.Add(peer, pos.Stake(1))
+		members.Set(peer, pos.Stake(1))
 	}
 
-	members.Add(cheaters[0], pos.Stake(2))
-	members.Add(nodes[3], pos.Stake(2))
-	members.Add(nodes[4], pos.Stake(3))
+	members.Set(cheaters[0], pos.Stake(2))
+	members.Set(nodes[3], pos.Stake(2))
+	members.Set(nodes[4], pos.Stake(3))
 
 	vi := NewIndex(members, kvdb.NewMemDatabase())
 
@@ -580,7 +580,7 @@ func TestRandomForks(t *testing.T) {
 
 			members := make(pos.Members, len(nodes))
 			for _, peer := range nodes {
-				members.Add(peer, pos.Stake(1))
+				members.Set(peer, pos.Stake(1))
 			}
 
 			vi := NewIndex(members, kvdb.NewMemDatabase())
@@ -630,7 +630,7 @@ func codegen4StronglySeenStability() {
 
 	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
-		members.Add(peer, pos.Stake(1))
+		members.Set(peer, pos.Stake(1))
 	}
 	vi := NewIndex(members, kvdb.NewMemDatabase())
 

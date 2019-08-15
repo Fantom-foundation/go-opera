@@ -18,8 +18,8 @@ type (
 	Members map[hash.Peer]Stake
 )
 
-// Add appends item.
-func (mm *Members) Add(addr hash.Peer, stake Stake) {
+// Set appends item.
+func (mm *Members) Set(addr hash.Peer, stake Stake) {
 	if stake != 0 {
 		(*mm)[addr] = stake
 	} else {
@@ -49,7 +49,7 @@ func (mm Members) Top() Members {
 
 	res := make(Members)
 	for _, m := range top {
-		res.Add(m.Addr, m.Stake)
+		res.Set(m.Addr, m.Stake)
 	}
 
 	return res
@@ -59,7 +59,7 @@ func (mm Members) Top() Members {
 func (mm Members) Copy() Members {
 	res := make(Members)
 	for addr, stake := range mm {
-		res.Add(addr, stake)
+		res.Set(addr, stake)
 	}
 	return res
 }
