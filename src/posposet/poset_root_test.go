@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
@@ -246,7 +247,7 @@ func TestPosetRandomRoots(t *testing.T) {
 // - 2nd number - frame where event should be in;
 // - "." - separator;
 // - tail - makes name unique;
-func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
+func testSpecialNamedRoots(t *testing.T, scheme string) {
 	//logger.SetTestMode(t)
 	assertar := assert.New(t)
 
@@ -262,13 +263,25 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 		return
 	}
 
-	nodes, _, names := ASCIIschemeToDAG(asciiScheme)
-
+	// get nodes only
+	nodes, _, _ := inter.ASCIIschemeToDAG(scheme)
+	// init poset
 	p, _, input := FakePoset(nodes)
-	for _, e := range names {
-		input.SetEvent(e)
-		p.PushToBuffer(e)
-	}
+
+	// process events
+	_, _, names := inter.ASCIIschemeForEach(scheme, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			input.SetEvent(e)
+			assertar.NoError(
+				p.ProcessEvent(e))
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = p.CurrentSuperFrameN()
+			e = p.Prepare(e)
+
+			return e
+		},
+	})
 
 	// check each
 	for name, event := range names {
