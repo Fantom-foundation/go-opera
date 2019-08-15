@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -18,11 +19,24 @@ var (
 type BufferedPoset struct {
 	*Poset
 
+	blocks map[idx.Block]*inter.Block
+
 	bufferPush ordering.PushEventFn
 }
 
 func (p *BufferedPoset) PushToBuffer(e *inter.Event) {
 	p.bufferPush(e, "")
+}
+
+func (p *BufferedPoset) EventsTillBlock(until idx.Block) hash.Events {
+	res := make(hash.Events, 0)
+	for i := idx.Block(1); i <= until; i++ {
+		if p.blocks[i] == nil {
+			break
+		}
+		res = append(res, p.blocks[i].Events...)
+	}
+	return res
 }
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
@@ -50,6 +64,14 @@ func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
 	buffered := &BufferedPoset{
 		Poset:      poset,
 		bufferPush: MakeOrderedInput(poset),
+	}
+	// track block events
+	buffered.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+		if buffered.blocks == nil {
+			buffered.blocks = map[idx.Block]*inter.Block{}
+		}
+		buffered.blocks[block.Index] = block
+		return stateHash, members
 	}
 
 	return buffered, store, input

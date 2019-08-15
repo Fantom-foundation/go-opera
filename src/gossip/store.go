@@ -16,6 +16,7 @@ type Store struct {
 	table struct {
 		Peers    kvdb.Database `table:"peer_"`
 		Events   kvdb.Database `table:"event_"`
+		Blocks   kvdb.Database `table:"block_"`
 		Balances state.Database
 		Headers  kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
 		Tips     kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped

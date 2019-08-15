@@ -4,7 +4,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -80,6 +79,7 @@ func TestPoset(t *testing.T) {
 	})
 
 	t.Run("Check consensus", func(t *testing.T) {
+
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
 			st0 := p0.store.GetCheckpoint()
@@ -101,33 +101,13 @@ func TestPoset(t *testing.T) {
 					both = p1.LastBlockN
 				}
 
-				var failAt idx.Block
 				for b := idx.Block(1); b <= both; b++ {
 					if !assertar.Equal(
-						p0.store.GetBlock(b).Events, p1.store.GetBlock(b).Events,
+						p0.blocks[b].Events, p1.blocks[b].Events,
 						"block %d", b) {
-						failAt = b
 						break
 					}
 				}
-				if failAt == 0 {
-					continue
-				}
-
-				scheme0, err := inter.DAGtoASCIIscheme(p0.EventsTillBlock(failAt))
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				scheme1, err := inter.DAGtoASCIIscheme(p1.EventsTillBlock(failAt))
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				DAGs := utils.TextColumns(scheme0, scheme1)
-				t.Log(DAGs)
-
-				return
 			}
 		}
 	})
