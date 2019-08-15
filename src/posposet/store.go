@@ -5,9 +5,9 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 
 	"github.com/ethereum/go-ethereum/rlp"
@@ -29,8 +29,6 @@ type Store struct {
 	}
 
 	epochTable struct {
-		Tips        kvdb.Database `table:"tips_"`
-		Heads       kvdb.Database `table:"heads_"`
 		Roots       kvdb.Database `table:"roots_"`
 		VectorIndex kvdb.Database `table:"vectors_"`
 	}
@@ -84,7 +82,7 @@ func (s *Store) recreateTempDb() {
 }
 
 // calcFirstGenesisHash calcs hash of genesis balances.
-func calcFirstGenesisHash(balances map[hash.Peer]inter.Stake, time inter.Timestamp) hash.Hash {
+func calcFirstGenesisHash(balances map[hash.Peer]pos.Stake, time inter.Timestamp) hash.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
@@ -95,7 +93,7 @@ func calcFirstGenesisHash(balances map[hash.Peer]inter.Stake, time inter.Timesta
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Timestamp) error {
+func (s *Store) ApplyGenesis(balances map[hash.Peer]pos.Stake, time inter.Timestamp) error {
 	if balances == nil {
 		return fmt.Errorf("balances shouldn't be nil")
 	}
@@ -114,7 +112,7 @@ func (s *Store) ApplyGenesis(balances map[hash.Peer]inter.Stake, time inter.Time
 		TotalCap: 0,
 	}
 
-	sf.Members = make(internal.Members, len(balances))
+	sf.Members = make(pos.Members, len(balances))
 
 	genesis := s.StateDB(hash.Hash{})
 	for addr, balance := range balances {

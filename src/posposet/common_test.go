@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -13,12 +14,22 @@ var (
 	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
+type BufferedPoset struct {
+	*Poset
+
+	bufferPush ordering.PushEventFn
+}
+
+func (p *BufferedPoset) PushToBuffer(e *inter.Event) {
+	p.bufferPush(e, "")
+}
+
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
 // Input event order doesn't matter.
-func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
-	balances := make(map[hash.Peer]inter.Stake, len(nodes))
+func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
+	balances := make(map[hash.Peer]pos.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = inter.Stake(1)
+		balances[addr] = pos.Stake(1)
 	}
 
 	store := NewMemStore()
@@ -31,25 +42,28 @@ func FakePoset(nodes []hash.Peer) (*Poset, *Store, *EventStore) {
 
 	poset := New(store, input)
 	poset.Bootstrap()
-	MakeOrderedInput(poset)
-	poset.Start()
 
-	return poset, store, input
+	buffered := &BufferedPoset{
+		Poset:      poset,
+		bufferPush: MakeOrderedInput(poset),
+	}
+
+	return buffered, store, input
 }
 
 // MakeOrderedInput wraps Poset.onNewEvent with ordering.EventBuffer.
 // For tests only.
-func MakeOrderedInput(p *Poset) {
+func MakeOrderedInput(p *Poset) ordering.PushEventFn {
 	processed := make(hash.EventsSet) // NOTE: mem leak, so for tests only.
 
-	orderThenConsensus := ordering.EventBuffer(ordering.Callback{
+	orderThenConsensus, _ := ordering.EventBuffer(ordering.Callback{
 
-		Process: func(event *inter.Event) {
-			p.consensus(event)
+		Process: func(event *inter.Event) error {
 			processed.Add(event.Hash())
+			return p.ProcessEvent(event)
 		},
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			logger.Get().Warn(err.Error() + ", so rejected")
 		},
 
@@ -60,23 +74,12 @@ func MakeOrderedInput(p *Poset) {
 			return nil
 		},
 	})
-	// event order doesn't matter now
-	p.onNewEvent = func(e *inter.Event) {
-		orderThenConsensus(e)
-	}
+	return orderThenConsensus
 }
 
-// PushEventSync takes event into processing.
-// It's a sync version of Poset.PushEvent().
-func (p *Poset) PushEventSync(e hash.Event) {
-	event := p.input.GetEvent(e)
-	p.onNewEvent(event)
-}
-
-// ASCIIschemeToDAG wrap inter.ASCIIschemeToDAG() to prepare events properly.
+// ASCIIschemeToDAG wrap inter.ASCIIschemeForEach() to prepare events properly.
 func ASCIIschemeToDAG(
 	scheme string,
-	mods ...func(e *inter.Event, name string) *inter.Event,
 ) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*inter.Event,
@@ -87,21 +90,22 @@ func ASCIIschemeToDAG(
 	// init poset
 	p, _, input := FakePoset(nodes)
 
-	buildEvent := func(e *inter.Event, name string) *inter.Event {
-		e.Epoch = p.CurrentSuperFrameN()
-		e = p.Prepare(e)
-		e.RecacheHash()
-
-		input.SetEvent(e)
-		p.PushEventSync(e.Hash())
-
-		return e
-	}
-
-	mods = append(mods, buildEvent)
-
 	// process events
-	nodes, events, names = inter.ASCIIschemeToDAG(scheme, mods...)
+	nodes, events, names = inter.ASCIIschemeForEach(scheme, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			input.SetEvent(e)
+			err := p.ProcessEvent(e)
+			if err != nil {
+				p.Fatal(err)
+			}
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = p.CurrentSuperFrameN()
+			e = p.Prepare(e)
+
+			return e
+		},
+	})
 
 	return
 }

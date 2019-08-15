@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 // Transfer makes a transaction for stake transfer.
@@ -28,7 +28,7 @@ var Transfer = &cobra.Command{
 		if err != nil {
 			return
 		}
-		amount := inter.Stake(raw)
+		amount := pos.Stake(raw)
 
 		hex, err = cmd.Flags().GetString("receiver")
 		if err != nil {

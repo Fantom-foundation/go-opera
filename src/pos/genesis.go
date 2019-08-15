@@ -2,7 +2,7 @@ package pos
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/peers"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
@@ -19,7 +19,7 @@ func FakeGenesis(participants *peers.Peers, conf *Config, db state.Database) (ha
 
 	for _, p := range participants.ToPeerSlice() {
 		addr := hash.Peer(p.Address())
-		statedb.SetBalance(addr, inter.Stake(balance))
+		statedb.SetBalance(addr, pos.Stake(balance))
 	}
 	return statedb.Commit(true)
 }

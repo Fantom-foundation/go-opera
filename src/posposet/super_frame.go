@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/rlp"
@@ -10,7 +11,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 const (
@@ -26,7 +26,7 @@ type GenesisState struct {
 	Epoch         idx.SuperFrame
 	Time          inter.Timestamp // consensus time of the last fiWitness
 	LastFiWitness hash.Event
-	StateHash     hash.Hash // hash of txs state. TBD
+	StateHash     hash.Hash // hash of txs state
 }
 
 func (g *GenesisState) Hash() hash.Hash {
@@ -46,7 +46,7 @@ type superFrame struct {
 	// these values change only after a change of epoch
 	SuperFrameN idx.SuperFrame
 	PrevEpoch   GenesisState
-	Members     internal.Members
+	Members     pos.Members
 }
 
 func (p *Poset) loadSuperFrame() {
@@ -68,7 +68,7 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.store.recreateTempDb()
 
 	// reset election & vectorindex
-	p.events.Reset(p.Members, p.store.epochTable.VectorIndex) // this DB is pruned after .pruneTempDb()
+	p.seeVec.Reset(p.Members, p.store.epochTable.VectorIndex) // this DB is pruned after .pruneTempDb()
 	p.election.Reset(p.Members, firstFrame)
 	p.LastDecidedFrame = 0
 
@@ -115,7 +115,7 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Fr
 		return true
 	})
 	for _, b := range bRoots {
-		if p.events.StronglySee(a, b) {
+		if p.seeVec.StronglySee(a, b) {
 			return &b
 		}
 	}

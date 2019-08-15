@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -21,7 +22,7 @@ func TestAddInternalTxn(t *testing.T) {
 	consensus := NewMockConsensus(ctrl)
 	consensus.EXPECT().
 		StakeOf(gomock.Any()).
-		Return(inter.Stake(2000)).
+		Return(pos.Stake(2000)).
 		AnyTimes()
 
 	node := NewForTests("fake", NewMemStore(), consensus)

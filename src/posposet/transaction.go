@@ -10,7 +10,7 @@ and the payment of all rewards.
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
@@ -27,7 +27,7 @@ func (p *Poset) isEventValid(e *Event, fInfo *FrameInfo) bool {
 // applyTransactions execs ordered txns on state.
 // TODO: fine of invalid txns
 // TODO: transaction fees
-func (p *Poset) applyTransactions(db *state.DB, ordered inter.Events, members internal.Members) {
+func (p *Poset) applyTransactions(db *state.DB, ordered inter.Events, members pos.Members) {
 	for _, e := range ordered {
 		sender := e.Creator
 		for _, tx := range e.InternalTransactions {
@@ -57,6 +57,6 @@ func (p *Poset) applyTransactions(db *state.DB, ordered inter.Events, members in
 }
 
 // applyRewards calcs block rewards.
-func (p *Poset) applyRewards(db *state.DB, ordered inter.Events, members internal.Members) {
+func (p *Poset) applyRewards(db *state.DB, ordered inter.Events, members pos.Members) {
 	// TODO: implement it
 }

@@ -11,8 +11,8 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/trie"
 )
 
@@ -138,21 +138,21 @@ func (s *DB) Empty(addr hash.Peer) bool {
 }
 
 // FreeBalance returns the free balance from the given address or 0 if object not found.
-func (s *DB) FreeBalance(addr hash.Peer) inter.Stake {
+func (s *DB) FreeBalance(addr hash.Peer) pos.Stake {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return inter.Stake(stateObject.FreeBalance())
+		return pos.Stake(stateObject.FreeBalance())
 	}
-	return inter.Stake(0)
+	return pos.Stake(0)
 }
 
 // VoteBalance returns the vote balance from the given address or 0 if object not found.
-func (s *DB) VoteBalance(addr hash.Peer) inter.Stake {
+func (s *DB) VoteBalance(addr hash.Peer) pos.Stake {
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
-		return inter.Stake(stateObject.VoteBalance())
+		return pos.Stake(stateObject.VoteBalance())
 	}
-	return inter.Stake(0)
+	return pos.Stake(0)
 }
 
 // GetState retrieves a value from the given account's storage trie.
@@ -221,7 +221,7 @@ func (s *DB) HasSuicided(addr hash.Peer) bool {
  */
 
 // SetBalance sets stateObject's balance by address.
-func (s *DB) SetBalance(addr hash.Peer, amount inter.Stake) {
+func (s *DB) SetBalance(addr hash.Peer, amount pos.Stake) {
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject == nil {
 		panic("stateObject is nil")
@@ -230,7 +230,7 @@ func (s *DB) SetBalance(addr hash.Peer, amount inter.Stake) {
 }
 
 // Transfer moves amount.
-func (s *DB) Transfer(from, to hash.Peer, amount inter.Stake) {
+func (s *DB) Transfer(from, to hash.Peer, amount pos.Stake) {
 	f := s.GetOrNewStateObject(from)
 	t := s.GetOrNewStateObject(to)
 
@@ -239,7 +239,7 @@ func (s *DB) Transfer(from, to hash.Peer, amount inter.Stake) {
 }
 
 // Delegate writes delegation records.
-func (s *DB) Delegate(from, to hash.Peer, amount inter.Stake, until idx.Block) {
+func (s *DB) Delegate(from, to hash.Peer, amount pos.Stake, until idx.Block) {
 	f := s.GetOrNewStateObject(from)
 	t := s.GetOrNewStateObject(to)
 

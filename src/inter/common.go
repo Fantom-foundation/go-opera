@@ -7,11 +7,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-type (
-	// Stake amount.
-	Stake uint64
-)
-
 // GenNodes generates nodes.
 // Result:
 //   - nodes  is an array of node addresses;
@@ -32,18 +27,17 @@ func GenNodes(
 	return
 }
 
-// GenEventsByCheaters generates random events with forks for test purpose.
+// GenRandForks generates random events with forks for test purpose.
 // Result:
 //   - events maps node address to array of its events;
-func GenEventsByCheaters(
+func ForEachRandFork(
 	nodes []hash.Peer,
 	cheatersArr []hash.Peer,
 	eventCount int,
 	parentCount int,
 	forksCount int,
-	buildEvent func(*Event) *Event,
-	onNewEvent func(*Event),
 	r *rand.Rand,
+	callback ForEachEvent,
 ) (
 	events map[hash.Peer][]*Event,
 ) {
@@ -90,7 +84,7 @@ func GenEventsByCheaters(
 			forksAlready, isCheater := cheaters[creator]
 			forkPossible := len(ee) > 1
 			forkLimitOk := forksAlready < forksCount
-			forkFlipped := r.Intn(eventCount) <= forksCount || i < (nodeCount - 1)*eventCount
+			forkFlipped := r.Intn(eventCount) <= forksCount || i < (nodeCount-1)*eventCount
 			if isCheater && forkPossible && forkLimitOk && forkFlipped {
 				parent = ee[r.Intn(len(ee)-1)]
 				if r.Intn(len(ee)) == 0 {
@@ -118,9 +112,10 @@ func GenEventsByCheaters(
 				}
 			}
 		}
+		name := fmt.Sprintf("%s%03d", string('a'+self), len(events[creator]))
 		// buildEvent callback
-		if buildEvent != nil {
-			e = buildEvent(e)
+		if callback.Build != nil {
+			e = callback.Build(e, name)
 		}
 		if e == nil {
 			continue
@@ -131,28 +126,38 @@ func GenEventsByCheaters(
 		hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d", string('a'+self), len(events[creator])))
 		events[creator] = append(events[creator], e)
 		// callback
-		if onNewEvent != nil {
-			onNewEvent(e)
+		if callback.Process != nil {
+			callback.Process(e, name)
 		}
 	}
 
 	return
 }
 
-// GenEventsByNode generates random events for test purpose.
+// ForEachRandEvent generates random events for test purpose.
 // Result:
 //   - events maps node address to array of its events;
-func GenEventsByNode(
+func ForEachRandEvent(
 	nodes []hash.Peer,
 	eventCount int,
 	parentCount int,
-	buildEvent func(*Event) *Event,
-	onNewEvent func(*Event),
+	r *rand.Rand,
+	callback ForEachEvent,
+) (
+	events map[hash.Peer][]*Event,
+) {
+	return ForEachRandFork(nodes, []hash.Peer{}, eventCount, parentCount, 0, r, callback)
+}
+
+func GenRandEvents(
+	nodes []hash.Peer,
+	eventCount int,
+	parentCount int,
 	r *rand.Rand,
 ) (
 	events map[hash.Peer][]*Event,
 ) {
-	return GenEventsByCheaters(nodes, []hash.Peer{}, eventCount, parentCount, 0, buildEvent, onNewEvent, r)
+	return ForEachRandEvent(nodes, eventCount, parentCount, r, ForEachEvent{})
 }
 
 func delPeerIndex(events map[hash.Peer][]*Event) (res Events) {

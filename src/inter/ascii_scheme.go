@@ -9,15 +9,20 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
+type ForEachEvent struct {
+	Process func(e *Event, name string)
+	Build   func(e *Event, name string) *Event
+}
+
 // ASCIIschemeToDAG parses events from ASCII-scheme for test purpose.
 // Use joiners ║ ╬ ╠ ╣ ╫ ╚ ╝ ╩ and optional fillers ─ ═ to draw ASCII-scheme.
 // Result:
 //   - nodes  is an array of node addresses;
 //   - events maps node address to array of its events;
 //   - names  maps human readable name to the event;
-func ASCIIschemeToDAG(
+func ASCIIschemeForEach(
 	scheme string,
-	mods ...func(e *Event, name string) *Event,
+	callback ForEachEvent,
 ) (
 	nodes []hash.Peer,
 	events map[hash.Peer][]*Event,
@@ -111,7 +116,6 @@ func ASCIIschemeToDAG(
 			}
 		}
 
-	CREATE_EVENTS:
 		for i, name := range nNames {
 			// make node if don't exist
 			if len(nodes) <= nCreators[i] {
@@ -163,13 +167,12 @@ func ASCIIschemeToDAG(
 			e.Parents = parents
 			e.Lamport = maxLamport + 1
 			e.Extra = []byte(name)
-			// mod callbacks
-			for _, mod := range mods {
-				e = mod(e, name)
-				if e == nil {
-					continue CREATE_EVENTS
-				}
-
+			// buildEvent callback
+			if callback.Build != nil {
+				e = callback.Build(e, name)
+			}
+			if e == nil {
+				continue
 			}
 			// calc hash of the event, after it's fully built
 			e.RecacheHash()
@@ -177,6 +180,10 @@ func ASCIIschemeToDAG(
 			events[creator] = append(events[creator], e)
 			names[name] = e
 			hash.SetEventName(e.Hash(), name)
+			// callback
+			if callback.Process != nil {
+				callback.Process(e, name)
+			}
 		}
 	}
 
@@ -194,6 +201,16 @@ func ASCIIschemeToDAG(
 	}
 
 	return
+}
+
+func ASCIIschemeToDAG(
+	scheme string,
+) (
+	nodes []hash.Peer,
+	events map[hash.Peer][]*Event,
+	names map[string]*Event,
+) {
+	return ASCIIschemeForEach(scheme, ForEachEvent{})
 }
 
 // DAGtoASCIIscheme builds ASCII-scheme of events for debug purpose.
@@ -327,19 +344,19 @@ type (
 		ColWidth int
 	}
 
-	pos byte
+	position byte
 )
 
 const (
-	none  pos = 0
-	pass      = iota
-	first     = iota
-	left      = iota
-	right     = iota
-	last      = iota
+	none  position = 0
+	pass           = iota
+	first          = iota
+	left           = iota
+	right          = iota
+	last           = iota
 )
 
-func (r *row) Position(i int) pos {
+func (r *row) Position(i int) position {
 	// if left
 	if i < r.Self {
 		if i < r.First {

@@ -1,8 +1,6 @@
 package posposet
 
 import (
-	"sync"
-
 	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -10,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/vector"
+	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
 // Poset processes events to get consensus.
@@ -21,17 +19,9 @@ type Poset struct {
 	superFrame
 
 	election *election.Election
-	events   *vector.Index
+	seeVec   *vector.Index
 
-	processingWg   sync.WaitGroup
-	processingDone chan struct{}
-
-	newEventsCh chan hash.Event
-	onNewEvent  func(*inter.Event) // onNewEvent runs consensus calc from new event
-
-	newBlockCh   chan idx.Block
-	onNewBlockMu sync.RWMutex
-	onNewBlock   func(num idx.Block)
+	onNewBlock func(num idx.Block)
 
 	logger.Instance
 }
@@ -39,85 +29,25 @@ type Poset struct {
 // New creates Poset instance.
 // It does not start any process.
 func New(store *Store, input EventSource) *Poset {
-	const buffSize = 10
-
 	p := &Poset{
 		store: store,
 		input: input,
 
-		newEventsCh: make(chan hash.Event, buffSize),
-
-		newBlockCh: make(chan idx.Block, buffSize),
-
 		Instance: logger.MakeInstance(),
-	}
-
-	// event order matter: parents first
-	p.onNewEvent = func(e *inter.Event) {
-		if e == nil {
-			panic("got unsaved event")
-		}
-		p.consensus(e)
 	}
 
 	return p
 }
 
-// Start starts events processing.
-func (p *Poset) Start() {
-	if p.processingDone != nil {
-		return
-	}
-
-	p.Bootstrap()
-
-	p.processingDone = make(chan struct{})
-	p.processingWg.Add(1)
-	go func() {
-		defer p.processingWg.Done()
-		// log.Debug("Start of events processing ...")
-		for {
-			select {
-			case <-p.processingDone:
-				// log.Debug("Stop of events processing ...")
-				return
-			case e := <-p.newEventsCh:
-				event := p.input.GetEvent(e)
-				p.onNewEvent(event)
-
-			case num := <-p.newBlockCh:
-				p.onNewBlockMu.RLock()
-				if p.onNewBlock != nil {
-					p.onNewBlock(num)
-				}
-				p.onNewBlockMu.RUnlock()
-			}
-		}
-	}()
-}
-
-// Stop stops events processing.
-func (p *Poset) Stop() {
-	if p.processingDone == nil {
-		return
-	}
-	close(p.processingDone)
-	p.processingWg.Wait()
-	p.processingDone = nil
-}
-
-// PushEvent takes event into processing.
-// Event order matter: parents first.
-func (p *Poset) PushEvent(e hash.Event) {
-	p.newEventsCh <- e
+func (p *Poset) GetVectorIndex() *vector.Index {
+	return p.seeVec
 }
 
 // OnNewBlock sets (or replaces if override) a callback that is called on new block.
 // Returns an error if can not.
+// OnNewBlock is not safe for concurrent use.
 func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) error {
 	// TODO: support multiple subscribers later
-	p.onNewBlockMu.Lock()
-	defer p.onNewBlockMu.Unlock()
 	if !override && p.onNewBlock != nil {
 		return errors.New("callback already registered")
 	}
@@ -130,19 +60,19 @@ func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) 
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if e.Epoch != p.SuperFrameN {
-		p.Infof("consensus: %s is too old/too new", e.String())
+		p.Infof("consensus: %s is too old/too new, %d != %d", e.String(), e.Epoch, p.SuperFrameN)
 		return nil
 	}
 	if _, ok := p.Members[e.Creator]; !ok {
-		p.Warnf("consensus: %s isn't member", e.Creator.String())
+		p.Warnf("consensus: %s isn't a member", e.Creator.String())
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
-	p.events.Add(e)
-	defer p.events.DropNotFlushed()
+	p.seeVec.Add(e)
+	defer p.seeVec.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
-	e.MedianTime = p.events.MedianTime(id, p.PrevEpoch.Time)
+	e.MedianTime = p.seeVec.MedianTime(id, p.PrevEpoch.Time)
 	e.GasLeft = 0 // TODO
 	return e
 }
@@ -153,8 +83,8 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("consensus: %s isn't member", e.Creator.String())
 	}
 
-	p.events.Add(e)
-	defer p.events.DropNotFlushed()
+	p.seeVec.Add(e)
+	defer p.seeVec.DropNotFlushed()
 
 	// check frame & isRoot
 	frameIdx, isRoot := p.calcFrameIdx(e, true)
@@ -165,26 +95,17 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
 	}
 	// check median timestamp
-	medianTime := p.events.MedianTime(e.Hash(), p.PrevEpoch.Time)
+	medianTime := p.seeVec.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
 	// TODO check e.GasLeft
 
 	// save in DB the {vectorindex, e, heads}
-	p.events.Flush()
+	p.seeVec.Flush()
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}
-	// move heads
-	for _, parent := range e.Parents {
-		if p.store.IsHead(parent) {
-			p.store.EraseHead(parent)
-		}
-	}
-	p.store.AddHead(e.Hash())
-	// set member's last event. we don't care about forks, because this index is used only for emitter
-	p.store.SetLastEvent(e.Creator, e.Hash())
 
 	return nil
 }
@@ -261,21 +182,23 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 	return nil
 }
 
-// consensus is not safe for concurrent use.
-func (p *Poset) consensus(e *inter.Event) {
+// ProcessEvent takes event into processing.
+// Event order matter: parents first.
+// ProcessEvent is not safe for concurrent use.
+func (p *Poset) ProcessEvent(e *inter.Event) error {
 	if e.Epoch != p.SuperFrameN {
 		p.Infof("consensus: %s is too old/too new", e.String())
-		return
+		return nil
 	}
 	p.Debugf("consensus: start %s", e.String())
 
 	err := p.checkAndSaveEvent(e)
 	if err != nil {
-		p.Warn(err)
-		return
+		return err
 	}
 
 	p.handleElection(e)
+	return nil
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
@@ -308,8 +231,8 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.store.SetEventsBlockNum(block.Index, ordered...)
 	p.store.SetBlock(block)
 	p.checkpoint.LastBlockN = block.Index
-	if p.newBlockCh != nil {
-		p.newBlockCh <- p.checkpoint.LastBlockN
+	if p.onNewBlock != nil {
+		p.onNewBlock(p.checkpoint.LastBlockN)
 	}
 
 	// balances changes
@@ -379,7 +302,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			for creator, roots := range p.getFrameRoots(maxParentsFrame) {
 				for root := range roots {
-					if p.events.StronglySee(e.Hash(), root) {
+					if p.seeVec.StronglySee(e.Hash(), root) {
 						sSeenCounter.Count(creator)
 					}
 				}

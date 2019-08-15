@@ -267,7 +267,7 @@ func testSpecialNamedRoots(t *testing.T, asciiScheme string) {
 	p, _, input := FakePoset(nodes)
 	for _, e := range names {
 		input.SetEvent(e)
-		p.PushEventSync(e.Hash())
+		p.PushToBuffer(e)
 	}
 
 	// check each

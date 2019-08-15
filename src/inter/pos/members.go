@@ -1,4 +1,4 @@
-package internal
+package pos
 
 import (
 	"io"
@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
@@ -16,11 +15,11 @@ const MembersCount = 30
 
 type (
 	// Members of super-frame with stake.
-	Members map[hash.Peer]inter.Stake
+	Members map[hash.Peer]Stake
 )
 
 // Add appends item.
-func (mm *Members) Add(addr hash.Peer, stake inter.Stake) {
+func (mm *Members) Add(addr hash.Peer, stake Stake) {
 	if stake != 0 {
 		(*mm)[addr] = stake
 	} else {
@@ -66,12 +65,12 @@ func (mm Members) Idxs() map[hash.Peer]idx.Member {
 }
 
 // Quorum limit of members.
-func (mm Members) Quorum() inter.Stake {
+func (mm Members) Quorum() Stake {
 	return mm.TotalStake()*2/3 + 1
 }
 
 // TotalStake of members.
-func (mm Members) TotalStake() (sum inter.Stake) {
+func (mm Members) TotalStake() (sum Stake) {
 	for _, s := range mm {
 		sum += s
 	}
@@ -79,7 +78,7 @@ func (mm Members) TotalStake() (sum inter.Stake) {
 }
 
 // StakeOf member.
-func (mm Members) StakeOf(n hash.Peer) inter.Stake {
+func (mm Members) StakeOf(n hash.Peer) Stake {
 	return mm[n]
 }
 

@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
 )
 
 type fakeEdge struct {
@@ -20,7 +20,7 @@ type fakeEdge struct {
 }
 
 type (
-	stakes map[string]inter.Stake
+	stakes map[string]pos.Stake
 )
 
 type testExpected struct {
@@ -195,7 +195,7 @@ func testProcessRoot(
 
 	// members:
 	var (
-		mm = make(internal.Members, len(peers))
+		mm = make(pos.Members, len(peers))
 	)
 	for _, peer := range peers {
 		mm.Add(peer, stakes[peer.String()])
@@ -259,9 +259,9 @@ func testProcessRoot(
 		processed      = make(map[hash.Event]*inter.Event)
 		alreadyDecided = false
 	)
-	orderThenProcess := ordering.EventBuffer(ordering.Callback{
+	orderThenProcess, _ := ordering.EventBuffer(ordering.Callback{
 
-		Process: func(root *inter.Event) {
+		Process: func(root *inter.Event) error {
 			rootHash := root.Hash()
 			rootSlot, ok := vertices[rootHash]
 			if !ok {
@@ -286,9 +286,10 @@ func testProcessRoot(
 			} else {
 				assertar.Nil(got)
 			}
+			return nil
 		},
 
-		Drop: func(e *inter.Event, err error) {
+		Drop: func(e *inter.Event, peer string, err error) {
 			t.Fatal(e, err)
 		},
 
@@ -299,7 +300,7 @@ func testProcessRoot(
 
 	// processing:
 	for _, root := range named {
-		orderThenProcess(root)
+		orderThenProcess(root, "")
 	}
 }
 

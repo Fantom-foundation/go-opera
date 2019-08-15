@@ -4,9 +4,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/internal"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/vector"
+	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
 // checkpoint is for persistent storing.
@@ -14,9 +14,9 @@ type checkpoint struct {
 	// fields can change only after a frame is decided
 	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
-	TotalCap          inter.Stake
+	TotalCap          pos.Stake
 	LastConsensusTime inter.Timestamp
-	NextMembers       internal.Members
+	NextMembers       pos.Members
 	Balances          hash.Hash
 }
 
@@ -42,7 +42,7 @@ func (p *Poset) Bootstrap() {
 
 	// restore current super-frame
 	p.loadSuperFrame()
-	p.events = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex)
+	p.seeVec = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex)
 	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootStronglySeeRoot)
 
 	// events reprocessing

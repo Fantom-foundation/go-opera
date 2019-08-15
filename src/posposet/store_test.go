@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -98,39 +99,39 @@ func benchmarkStore(b *testing.B) {
 	b.ResetTimer()
 	maxEpoch := idx.SuperFrame(b.N) + 1
 	for epoch := idx.SuperFrame(1); epoch <= maxEpoch; epoch++ {
-		buildEvent := func(e *inter.Event) *inter.Event {
-			if e.Seq == 1 && e.Creator == nodes[0] {
-				// move stake from node0 to node1, to test that it doesn't break anything
-				e.InternalTransactions = append(e.InternalTransactions,
-					&inter.InternalTransaction{
-						Nonce:    0,
-						Amount:   1,
-						Receiver: nodes[1],
-					})
-			}
-			e.Epoch = epoch
-			return p.Prepare(e)
-		}
-		onNewEvent := func(e *inter.Event) {
-			input.SetEvent(e)
-			p.PushEventSync(e.Hash())
-
-			if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
-				flushAll()
-			}
-		}
-
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen*3), 3, buildEvent, onNewEvent, r)
+		_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen*3), 3, r, inter.ForEachEvent{
+			Process: func(e *inter.Event, name string) {
+				input.SetEvent(e)
+				_ = p.ProcessEvent(e)
+
+				if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
+					flushAll()
+				}
+			},
+			Build: func(e *inter.Event, name string) *inter.Event {
+				if e.Seq == 1 && e.Creator == nodes[0] {
+					// move stake from node0 to node1, to test that it doesn't break anything
+					e.InternalTransactions = append(e.InternalTransactions,
+						&inter.InternalTransaction{
+							Nonce:    0,
+							Amount:   1,
+							Receiver: nodes[1],
+						})
+				}
+				e.Epoch = epoch
+				return p.Prepare(e)
+			},
+		})
 	}
 
 	flushAll()
 }
 
 func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
-	balances := make(map[hash.Peer]inter.Stake, len(nodes))
+	balances := make(map[hash.Peer]pos.Stake, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = inter.Stake(1)
+		balances[addr] = pos.Stake(1)
 	}
 
 	if err := store.ApplyGenesis(balances, genesisTestTime); err != nil {
@@ -139,7 +140,6 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 
 	poset := New(store, input)
 	poset.Bootstrap()
-	poset.Start()
 
 	return poset
 }

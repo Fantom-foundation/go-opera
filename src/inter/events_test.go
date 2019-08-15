@@ -8,7 +8,7 @@ import (
 
 func TestEventsByParents(t *testing.T) {
 	nodes := GenNodes(5)
-	events := GenEventsByNode(nodes, 10, 3, nil, nil, nil)
+	events := GenRandEvents(nodes, 10, 3, nil)
 	var unordered Events
 	for _, ee := range events {
 		unordered = append(unordered, ee...)

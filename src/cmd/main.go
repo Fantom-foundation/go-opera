@@ -7,8 +7,9 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
@@ -158,13 +159,14 @@ func makeFullNode(cfg *node.Config) *node.Node {
 	gdb, cdb := makeStorages(makeDb)
 
 	concensus := posposet.New(cdb, gdb)
+	concensus.Bootstrap()
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
-	constructor := func(context *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(gdb, concensus), nil
+	constructor := func(ctx *node.ServiceContext) (node.Service, error) {
+		return gossip.NewService(&gossip.DefaultConfig, new(event.TypeMux), gdb, concensus)
 	}
 
 	// Create node.

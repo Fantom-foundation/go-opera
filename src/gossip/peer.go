@@ -3,17 +3,18 @@ package gossip
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/les/flowcontrol"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 var (
@@ -23,341 +24,349 @@ var (
 )
 
 const (
-	maxRequestErrors  = 20 // number of invalid requests tolerated (makes the protocol less brittle but still avoids spam)
-	maxResponseErrors = 50 // number of invalid responses tolerated (makes the protocol less brittle but still avoids spam)
+	maxKnownTxs    = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownEvents = 1024  // Maximum event hashes to keep in the known list (prevent DOS)
+
+	// maxQueuedTxs is the maximum number of transaction lists to queue up before
+	// dropping broadcasts. This is a sensitive number as a transaction list might
+	// contain a single transaction, or thousands.
+	maxQueuedTxs = 128
+
+	// maxQueuedProps is the maximum number of event propagations to queue up before
+	// dropping broadcasts. There's not much point in queueing stale events, so a few
+	// that might cover uncles should be enough.
+	maxQueuedProps = 4
+
+	// maxQueuedAnns is the maximum number of event announcements to queue up before
+	// dropping broadcasts. Similarly to event propagations, there's no point to queue
+	// above some healthy uncle limit, so use that.
+	maxQueuedAnns = 4
+
+	handshakeTimeout = 5 * time.Second
 )
 
-// capacity limitation for parameter updates
-const (
-	allowedUpdateBytes = 100000                // initial/maximum allowed update size
-	allowedUpdateRate  = time.Millisecond * 10 // time constant for recharging one byte of allowance
-)
+// PeerInfo represents a short summary of the sub-protocol metadata known
+// about a connected peer.
+type PeerInfo struct {
+	Version     int            `json:"version"` // protocol version negotiated
+	Epoch       idx.SuperFrame `json:"epoch"`
+	NumOfEvents idx.Event      `json:"numOfEvents"`
+}
 
-const (
-	freezeTimeBase    = time.Millisecond * 700 // fixed component of client freeze time
-	freezeTimeRandom  = time.Millisecond * 600 // random component of client freeze time
-	freezeCheckPeriod = time.Millisecond * 100 // buffer value recheck period after initial freeze time has elapsed
-)
-
-// if the total encoded size of a sent transaction batch is over txSizeCostLimit
-// per transaction then the request cost is calculated as proportional to the
-// encoded size instead of the transaction count
-const txSizeCostLimit = 0x4000
+type PeerProgress struct {
+	Epoch       idx.SuperFrame
+	NumOfEvents idx.Event
+}
 
 type peer struct {
+	id string
+
 	*p2p.Peer
 	rw p2p.MsgReadWriter
 
-	version int    // Protocol version negotiated
-	network uint64 // Network ID being on
-
-	// Checkpoint relative fields
-	checkpoint       params.TrustedCheckpoint
-	checkpointNumber uint64
-
-	id string
+	version  int         // Protocol version negotiated
+	syncDrop *time.Timer // Timed connection dropper if sync progress isn't validated in time
 
 	lock sync.RWMutex
 
-	sendQueue *execQueue
+	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
+	knownEvents mapset.Set                // Set of event hashes known to be known by this peer
+	queuedTxs   chan []*types.Transaction // Queue of transactions to broadcast to the peer
+	queuedProps chan *inter.Event         // Queue of events to broadcast to the peer
+	queuedAnns  chan *inter.Event         // Queue of events to announce to the peer
+	term        chan struct{}             // Termination channel to stop the broadcaster
 
-	errCh chan error
-	// responseLock ensures that responses are queued in the same order as
-	// RequestProcessed is called
-	responseLock  sync.Mutex
-	responseCount uint64
-	invalidCount  uint32
-
-	poolEntry      *poolEntry
-	responseErrors int
-	updateCounter  uint64
-	updateTime     mclock.AbsTime
-	frozen         uint32 // 1 if client is in frozen state
-
-	fcClient *flowcontrol.ClientNode // nil if the peer is server only
-	fcServer *flowcontrol.ServerNode // nil if the peer is client only
+	progress PeerProgress
 }
 
-func newPeer(version int, network uint64, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
+func (a *PeerProgress) Less(b PeerProgress) bool {
+	if a.Epoch < b.Epoch {
+		return true
+	}
+	return a.Epoch == b.Epoch && a.NumOfEvents < b.NumOfEvents
+}
+
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	return &peer{
-		Peer:    p,
-		rw:      rw,
-		version: version,
-		network: network,
-		id:      fmt.Sprintf("%x", p.ID().Bytes()),
-		errCh:   make(chan error, 1),
+		Peer:        p,
+		rw:          rw,
+		version:     version,
+		id:          fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		knownTxs:    mapset.NewSet(),
+		knownEvents: mapset.NewSet(),
+		queuedTxs:   make(chan []*types.Transaction, maxQueuedTxs),
+		queuedProps: make(chan *inter.Event, maxQueuedProps),
+		queuedAnns:  make(chan *inter.Event, maxQueuedAnns),
+		term:        make(chan struct{}),
 	}
 }
 
-// rejectUpdate returns true if a parameter update has to be rejected because
-// the size and/or rate of updates exceed the capacity limitation
-func (p *peer) rejectUpdate(size uint64) bool {
-	now := mclock.Now()
-	if p.updateCounter == 0 {
-		p.updateTime = now
-	} else {
-		dt := now - p.updateTime
-		r := uint64(dt / mclock.AbsTime(allowedUpdateRate))
-		if p.updateCounter > r {
-			p.updateCounter -= r
-			p.updateTime += mclock.AbsTime(allowedUpdateRate * time.Duration(r))
-		} else {
-			p.updateCounter = 0
-			p.updateTime = now
-		}
-	}
-	p.updateCounter += size
-	return p.updateCounter > allowedUpdateBytes
-}
-
-// freezeClient temporarily puts the client in a frozen state which means all
-// unprocessed and subsequent requests are dropped. Unfreezing happens automatically
-// after a short time if the client's buffer value is at least in the slightly positive
-// region. The client is also notified about being frozen/unfrozen with a Stop/Resume
-// message.
-func (p *peer) freezeClient() {
-	if atomic.SwapUint32(&p.frozen, 1) != 0 {
-		return
-	}
-	go func() {
-		p.SendStop()
-		time.Sleep(freezeTimeBase + time.Duration(rand.Int63n(int64(freezeTimeRandom))))
-		for {
-			bufValue, bufLimit := p.fcClient.BufferStatus()
-			if bufLimit == 0 {
+// broadcast is a write loop that multiplexes event propagations, announcements
+// and transaction broadcasts into the remote peer. The goal is to have an async
+// writer that does not lock up node internals.
+func (p *peer) broadcast() {
+	for {
+		select {
+		case txs := <-p.queuedTxs:
+			if err := p.SendTransactions(txs); err != nil {
 				return
 			}
-			if bufValue <= bufLimit/8 {
-				time.Sleep(freezeCheckPeriod)
-			} else {
-				atomic.StoreUint32(&p.frozen, 0)
-				p.SendResume(bufValue)
-				break
+			p.Log().Trace("Broadcast transactions", "count", len(txs))
+
+		case event := <-p.queuedProps:
+			if err := p.SendEvents([]*inter.Event{event}); err != nil {
+				return
 			}
+			p.Log().Trace("Propagated event", "seq", event.Seq, "hash", event.Hash())
+
+		case event := <-p.queuedAnns:
+			if err := p.SendNewEventHashes([]hash.Event{event.Hash()}); err != nil {
+				return
+			}
+			p.Log().Trace("Announced event", "seq", event.Seq, "hash", event.Hash())
+
+		case <-p.term:
+			return
 		}
-	}()
-}
-
-// freezeServer processes Stop/Resume messages from the given server
-func (p *peer) freezeServer(frozen bool) {
-	var f uint32
-	if frozen {
-		f = 1
-	}
-	if atomic.SwapUint32(&p.frozen, f) != f && frozen {
-		p.sendQueue.clear()
 	}
 }
 
-// isFrozen returns true if the client is frozen or the server has put our
-// client in frozen state
-func (p *peer) isFrozen() bool {
-	return atomic.LoadUint32(&p.frozen) != 0
+// close signals the broadcast goroutine to terminate.
+func (p *peer) close() {
+	close(p.term)
 }
 
-func (p *peer) canQueue() bool {
-	return p.sendQueue.canQueue() && !p.isFrozen()
-}
-
-func (p *peer) queueSend(f func()) {
-	p.sendQueue.queue(f)
-}
-
-// waitBefore implements distPeer interface
-func (p *peer) waitBefore(maxCost uint64) (time.Duration, float64) {
-	return p.fcServer.CanSend(maxCost)
-}
-
-func sendRequest(w p2p.MsgWriter, msgcode, reqID, cost uint64, data interface{}) error {
-	type req struct {
-		ReqID uint64
-		Data  interface{}
+// Info gathers and returns a collection of metadata known about a peer.
+func (p *peer) Info() *PeerInfo {
+	return &PeerInfo{
+		Version:     p.version,
+		Epoch:       p.progress.Epoch,
+		NumOfEvents: p.progress.NumOfEvents,
 	}
-	return p2p.Send(w, msgcode, req{reqID, data})
 }
 
-// reply struct represents a reply with the actual data already RLP encoded and
-// only the bv (buffer value) missing. This allows the serving mechanism to
-// calculate the bv value which depends on the data size before sending the reply.
-type reply struct {
-	w              p2p.MsgWriter
-	msgcode, reqID uint64
-	data           rlp.RawValue
-}
-
-// send sends the reply with the calculated buffer value
-func (r *reply) send(bv uint64) error {
-	type resp struct {
-		ReqID, BV uint64
-		Data      rlp.RawValue
+// MarkEvent marks a event as known for the peer, ensuring that the event will
+// never be propagated to this particular peer.
+func (p *peer) MarkEvent(hash hash.Event) {
+	// If we reached the memory allowance, drop a previously known event hash
+	for p.knownEvents.Cardinality() >= maxKnownEvents {
+		p.knownEvents.Pop()
 	}
-	return p2p.Send(r.w, r.msgcode, resp{r.reqID, bv, r.data})
+	p.knownEvents.Add(hash)
 }
 
-// size returns the RLP encoded size of the message data
-func (r *reply) size() uint32 {
-	return uint32(len(r.data))
-}
-
-// SendStop notifies the client about being in frozen state
-func (p *peer) SendStop() error {
-	return p2p.Send(p.rw, StopMsg, struct{}{})
-}
-
-// SendResume notifies the client about getting out of frozen state
-func (p *peer) SendResume(bv uint64) error {
-	return p2p.Send(p.rw, ResumeMsg, bv)
-}
-
-// ReplyCode creates a reply with a batch of arbitrary internal data, corresponding to the
-// hashes requested.
-func (p *peer) ReplyCode(reqID uint64, codes [][]byte) *reply {
-	data, _ := rlp.EncodeToBytes(codes)
-	return &reply{p.rw, CodeMsg, reqID, data}
-}
-
-type keyValueEntry struct {
-	Key   string
-	Value rlp.RawValue
-}
-type keyValueList []keyValueEntry
-type keyValueMap map[string]rlp.RawValue
-
-func (l keyValueList) add(key string, val interface{}) keyValueList {
-	var entry keyValueEntry
-	entry.Key = key
-	if val == nil {
-		val = uint64(0)
+// MarkTransaction marks a transaction as known for the peer, ensuring that it
+// will never be propagated to this particular peer.
+func (p *peer) MarkTransaction(hash common.Hash) {
+	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Cardinality() >= maxKnownTxs {
+		p.knownTxs.Pop()
 	}
-	enc, err := rlp.EncodeToBytes(val)
-	if err == nil {
-		entry.Value = enc
-	}
-	return append(l, entry)
+	p.knownTxs.Add(hash)
 }
 
-func (l keyValueList) decode() (keyValueMap, uint64) {
-	m := make(keyValueMap)
-	var size uint64
-	for _, entry := range l {
-		m[entry.Key] = entry.Value
-		size += uint64(len(entry.Key)) + uint64(len(entry.Value)) + 8
+// SendTransactions sends transactions to the peer and includes the hashes
+// in its transaction hash set for future reference.
+func (p *peer) SendTransactions(txs types.Transactions) error {
+	// Mark all the transactions as known, but ensure we don't overflow our limits
+	for _, tx := range txs {
+		p.knownTxs.Add(tx.Hash())
 	}
-	return m, size
+	for p.knownTxs.Cardinality() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
+	return p2p.Send(p.rw, TxMsg, txs)
 }
 
-func (m keyValueMap) get(key string, val interface{}) error {
-	enc, ok := m[key]
-	if !ok {
-		return errResp(ErrMissingKey, "%s", key)
+// AsyncSendTransactions queues list of transactions propagation to a remote
+// peer. If the peer's broadcast queue is full, the event is silently dropped.
+func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
+	select {
+	case p.queuedTxs <- txs:
+		// Mark all the transactions as known, but ensure we don't overflow our limits
+		for _, tx := range txs {
+			p.knownTxs.Add(tx.Hash())
+		}
+		for p.knownTxs.Cardinality() >= maxKnownTxs {
+			p.knownTxs.Pop()
+		}
+	default:
+		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
 	}
-	if val == nil {
-		return nil
-	}
-	return rlp.DecodeBytes(enc, val)
 }
 
-func (p *peer) sendReceiveHandshake(sendList keyValueList) (keyValueList, error) {
+// SendNewEventHashes announces the availability of a number of events through
+// a hash notification.
+func (p *peer) SendNewEventHashes(hashes []hash.Event) error {
+	// Mark all the event hashes as known, but ensure we don't overflow our limits
+	for _, hash := range hashes {
+		p.knownEvents.Add(hash)
+	}
+	for p.knownEvents.Cardinality() >= maxKnownEvents {
+		p.knownEvents.Pop()
+	}
+	return p2p.Send(p.rw, NewEventHashesMsg, hashes)
+}
+
+// AsyncSendNewEventHash queues the availability of a event for propagation to a
+// remote peer. If the peer's broadcast queue is full, the event is silently
+// dropped.
+func (p *peer) AsyncSendNewEventHash(event *inter.Event) {
+	select {
+	case p.queuedAnns <- event:
+		// Mark all the event hash as known, but ensure we don't overflow our limits
+		p.knownEvents.Add(event.Hash())
+		for p.knownEvents.Cardinality() >= maxKnownEvents {
+			p.knownEvents.Pop()
+		}
+	default:
+		p.Log().Debug("Dropping event announcement", "seq", event.Seq, "hash", event.Hash())
+	}
+}
+
+// SendNewEvent propagates an entire event to a remote peer.
+func (p *peer) SendEvents(events []*inter.Event) error {
+	// Mark all the event hash as known, but ensure we don't overflow our limits
+	for _, event := range events {
+		p.knownEvents.Add(event.Hash())
+		for p.knownEvents.Cardinality() >= maxKnownEvents {
+			p.knownEvents.Pop()
+		}
+	}
+	return p2p.Send(p.rw, EventsMsg, events)
+}
+
+func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
+	// Mark all the event hash as known, but ensure we don't overflow our limits
+	for _, id := range ids {
+		p.knownEvents.Add(id)
+		for p.knownEvents.Cardinality() >= maxKnownEvents {
+			p.knownEvents.Pop()
+		}
+	}
+	return p2p.Send(p.rw, EventsMsg, events)
+}
+
+// AsyncSendNewEvent queues an entire event for propagation to a remote peer. If
+// the peer's broadcast queue is full, the event is silently dropped.
+func (p *peer) AsyncSendNewEvent(event *inter.Event) {
+	select {
+	case p.queuedProps <- event:
+		// Mark all the event hash as known, but ensure we don't overflow our limits
+		p.knownEvents.Add(event.Hash())
+		for p.knownEvents.Cardinality() >= maxKnownEvents {
+			p.knownEvents.Pop()
+		}
+	default:
+		p.Log().Debug("Dropping event propagation", "seq", event.Seq, "hash", event.Hash())
+	}
+}
+
+// SendEventHeaders sends a batch of event headers to the remote peer.
+/*func (p *peer) SendEventHeaders(headers []*types.Header) error {
+	return p2p.Send(p.rw, EventHeadersMsg, headers)
+}*/
+
+/*// RequestOneHeader is a wrapper around the header query functions to fetch a
+// single header. It is used solely by the fetcher.
+func (p *peer) RequestOneHeader(hash common.Hash) error {
+	p.Log().Debug("Fetching single header", "hash", hash)
+	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Hash: hash}, Amount: uint64(1), Skip: uint64(0), Reverse: false})
+}
+
+// RequestHeadersByHash fetches a batch of events' headers corresponding to the
+// specified header query, based on the hash of an origin event.
+func (p *peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool) error {
+	p.Log().Debug("Fetching batch of headers", "count", amount, "fromhash", origin, "skip", skip, "reverse", reverse)
+	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Hash: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
+}
+
+// RequestHeadersByNumber fetches a batch of events' headers corresponding to the
+// specified header query, based on the number of an origin event.
+func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool) error {
+	p.Log().Debug("Fetching batch of headers", "count", amount, "fromnum", origin, "skip", skip, "reverse", reverse)
+	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Number: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
+}*/
+
+func (p *peer) RequestEvents(ids []hash.Event) error {
+	p.Log().Debug("Fetching batch of events", "count", len(ids))
+	return p2p.Send(p.rw, GetEventsMsg, ids)
+}
+
+// Handshake executes the protocol handshake, negotiating version number,
+// network IDs, difficulties, head and genesis object.
+func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Hash) error {
 	// Send out own handshake in a new thread
-	errc := make(chan error, 1)
+	errc := make(chan error, 2)
+	var status statusData // safe to read after two values have been received from errc
+
 	go func() {
-		errc <- p2p.Send(p.rw, StatusMsg, sendList)
+		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
+			ProtocolVersion: uint32(p.version),
+			Progress:        progress,
+			NetworkId:       network,
+			Genesis:         genesis,
+		})
 	}()
-	// In the mean time retrieve the remote status message
+	go func() {
+		errc <- p.readStatus(network, &status, genesis)
+	}()
+	timeout := time.NewTimer(handshakeTimeout)
+	defer timeout.Stop()
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errc:
+			if err != nil {
+				return err
+			}
+		case <-timeout.C:
+			return p2p.DiscReadTimeout
+		}
+	}
+	p.progress = progress
+	return nil
+}
+
+func (p *peer) readStatus(network uint64, status *statusData, genesis hash.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if msg.Code != StatusMsg {
-		return nil, errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, StatusMsg)
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, StatusMsg)
 	}
-	if msg.Size > ProtocolMaxMsgSize {
-		return nil, errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
+	if msg.Size > protocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
-	// Decode the handshake
-	var recvList keyValueList
-	if err := msg.Decode(&recvList); err != nil {
-		return nil, errResp(ErrDecode, "msg %v: %v", msg, err)
+	// Decode the handshake and make sure everything matches
+	if err := msg.Decode(&status); err != nil {
+		return errResp(ErrDecode, "msg %v: %v", msg, err)
 	}
-	if err := <-errc; err != nil {
-		return nil, err
+	if status.Genesis != genesis {
+		return errResp(ErrGenesisMismatch, "%x (!= %x)", status.Genesis[:8], genesis[:8])
 	}
-	return recvList, nil
-}
-
-// Handshake executes the lachesis protocol handshake, negotiating version number,
-// network IDs and genesis blocks.
-func (p *peer) Handshake(genesis common.Hash, server *Service) error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-
-	var send keyValueList
-	send = send.add("protocolVersion", uint64(p.version))
-	send = send.add("networkId", p.network)
-	send = send.add("genesisHash", genesis)
-	if server != nil {
-		// TODO: handshake data from server
+	if status.NetworkId != network {
+		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
 	}
-
-	recvList, err := p.sendReceiveHandshake(send)
-	if err != nil {
-		return err
+	if int(status.ProtocolVersion) != p.version {
+		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", status.ProtocolVersion, p.version)
 	}
-	recv, size := recvList.decode()
-	if p.rejectUpdate(size) {
-		return errResp(ErrRequestRejected, "")
-	}
-
-	var (
-		rVersion uint64
-		rNetwork uint64
-		rGenesis common.Hash
-	)
-
-	if err := recv.get("protocolVersion", &rVersion); err != nil {
-		return err
-	}
-	if err := recv.get("networkId", &rNetwork); err != nil {
-		return err
-	}
-	if err := recv.get("genesisHash", &rGenesis); err != nil {
-		return err
-	}
-
-	if rGenesis != genesis {
-		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", rGenesis[:8], genesis[:8])
-	}
-	if rNetwork != p.network {
-		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", rNetwork, p.network)
-	}
-	if int(rVersion) != p.version {
-		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", rVersion, p.version)
-	}
-
 	return nil
 }
 
 // String implements fmt.Stringer.
 func (p *peer) String() string {
 	return fmt.Sprintf("Peer %s [%s]", p.id,
-		fmt.Sprintf("lachesis/%d", p.version),
+		fmt.Sprintf("fantom/%2d", p.version),
 	)
 }
 
-// peerSetNotify is a callback interface to notify services about added or
-// removed peers
-type peerSetNotify interface {
-	registerPeer(*peer)
-	unregisterPeer(*peer)
-}
-
 // peerSet represents the collection of active peers currently participating in
-// the Light Ethereum sub-protocol.
+// the sub-protocol.
 type peerSet struct {
-	peers      map[string]*peer
-	lock       sync.RWMutex
-	notifyList []peerSetNotify
-	closed     bool
+	peers  map[string]*peer
+	lock   sync.RWMutex
+	closed bool
 }
 
 // newPeerSet creates a new peer set to track the active participants.
@@ -367,81 +376,39 @@ func newPeerSet() *peerSet {
 	}
 }
 
-// notify adds a service to be notified about added or removed peers
-func (ps *peerSet) notify(n peerSetNotify) {
-	ps.lock.Lock()
-	ps.notifyList = append(ps.notifyList, n)
-	peers := make([]*peer, 0, len(ps.peers))
-	for _, p := range ps.peers {
-		peers = append(peers, p)
-	}
-	ps.lock.Unlock()
-
-	for _, p := range peers {
-		n.registerPeer(p)
-	}
-}
-
 // Register injects a new peer into the working set, or returns an error if the
-// peer is already known.
+// peer is already known. If a new peer it registered, its broadcast loop is also
+// started.
 func (ps *peerSet) Register(p *peer) error {
 	ps.lock.Lock()
+	defer ps.lock.Unlock()
+
 	if ps.closed {
-		ps.lock.Unlock()
 		return errClosed
 	}
 	if _, ok := ps.peers[p.id]; ok {
-		ps.lock.Unlock()
 		return errAlreadyRegistered
 	}
 	ps.peers[p.id] = p
-	p.sendQueue = newExecQueue(100)
-	peers := make([]peerSetNotify, len(ps.notifyList))
-	copy(peers, ps.notifyList)
-	ps.lock.Unlock()
+	go p.broadcast()
 
-	for _, n := range peers {
-		n.registerPeer(p)
-	}
 	return nil
 }
 
 // Unregister removes a remote peer from the active set, disabling any further
-// actions to/from that particular entity. It also initiates disconnection at the networking layer.
+// actions to/from that particular entity.
 func (ps *peerSet) Unregister(id string) error {
 	ps.lock.Lock()
-	if p, ok := ps.peers[id]; !ok {
-		ps.lock.Unlock()
+	defer ps.lock.Unlock()
+
+	p, ok := ps.peers[id]
+	if !ok {
 		return errNotRegistered
-	} else {
-		delete(ps.peers, id)
-		peers := make([]peerSetNotify, len(ps.notifyList))
-		copy(peers, ps.notifyList)
-		ps.lock.Unlock()
-
-		for _, n := range peers {
-			n.unregisterPeer(p)
-		}
-
-		p.sendQueue.quit()
-		p.Peer.Disconnect(p2p.DiscUselessPeer)
-
-		return nil
 	}
-}
+	delete(ps.peers, id)
+	p.close()
 
-// AllPeerIDs returns a list of all registered peer IDs
-func (ps *peerSet) AllPeerIDs() []string {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	res := make([]string, len(ps.peers))
-	idx := 0
-	for id := range ps.peers {
-		res[idx] = id
-		idx++
-	}
-	return res
+	return nil
 }
 
 // Peer retrieves the registered peer with the given id.
@@ -460,18 +427,51 @@ func (ps *peerSet) Len() int {
 	return len(ps.peers)
 }
 
-// AllPeers returns all peers in a list
-func (ps *peerSet) AllPeers() []*peer {
+// PeersWithoutEvent retrieves a list of peers that do not have a given event in
+// their set of known hashes.
+func (ps *peerSet) PeersWithoutEvent(hash hash.Event) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
-	list := make([]*peer, len(ps.peers))
-	i := 0
-	for _, peer := range ps.peers {
-		list[i] = peer
-		i++
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		if !p.knownEvents.Contains(hash) { // TODO do not include peers whose epoch is higher than event's epoch
+			list = append(list, p)
+		}
 	}
 	return list
+}
+
+// PeersWithoutTx retrieves a list of peers that do not have a given transaction
+// in their set of known hashes.
+func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		if !p.knownTxs.Contains(hash) {
+			list = append(list, p)
+		}
+	}
+	return list
+}
+
+// BestPeer retrieves the known peer with the currently highest total difficulty.
+func (ps *peerSet) BestPeer() *peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	var (
+		bestPeer     *peer
+		bestProgress PeerProgress
+	)
+	for _, p := range ps.peers {
+		if bestProgress.Less(p.progress) {
+			bestPeer, bestProgress = p, p.progress
+		}
+	}
+	return bestPeer
 }
 
 // Close disconnects all peers.

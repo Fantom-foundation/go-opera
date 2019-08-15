@@ -5,11 +5,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 // Handy index for the MedianTime() func
 type medianTimeIndex struct {
-	stake       inter.Stake
+	stake       pos.Stake
 	claimedTime inter.Timestamp
 }
 
@@ -22,7 +23,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 		return 0
 	}
 
-	honestTotalStake := inter.Stake(0) // isn't equal to members.TotalStake(), because doesn't count cheaters
+	honestTotalStake := pos.Stake(0) // isn't equal to members.TotalStake(), because doesn't count cheaters
 	highests := make([]medianTimeIndex, 0, len(event.HighestBefore))
 	// convert []HighestBefore -> []medianTimeIndex
 	for creator, n := range vi.memberIdxs {
@@ -52,7 +53,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 
 	// Calculate weighted median
 	halfStake := honestTotalStake / 2
-	var currStake inter.Stake
+	var currStake pos.Stake
 	var median inter.Timestamp
 	for _, highest := range highests {
 		currStake += highest.stake

@@ -5,14 +5,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 // Consensus is a consensus interface.
 type Consensus interface {
 	// PushEvent takes event for processing.
-	PushEvent(hash.Event)
+	ProcessEvent(e *inter.Event) error
 	// StakeOf returns stake of peer.
-	StakeOf(hash.Peer) inter.Stake
+	StakeOf(hash.Peer) pos.Stake
 	// GetGenesisHash returns hash of genesis poset works with.
 	GetGenesisHash() hash.Hash
 	// Sets consensus fields. Returns nil if event should be dropped.

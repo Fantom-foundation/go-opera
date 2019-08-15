@@ -1,7 +1,6 @@
 package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
@@ -12,6 +11,7 @@ import (
 
 func TestRestore(t *testing.T) {
 	logger.SetTestMode(t)
+	assertar := assert.New(t)
 
 	const posetCount = 3 // 2 last will be restored
 	const epochs = idx.SuperFrame(2)
@@ -26,8 +26,7 @@ func TestRestore(t *testing.T) {
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
-		poset.Start()
-		posets = append(posets, poset)
+		posets = append(posets, poset.Poset)
 		inputs = append(inputs, input)
 		return store
 	}
@@ -39,22 +38,22 @@ func TestRestore(t *testing.T) {
 	// create events on poset0
 	var ordered []*inter.Event
 	for epoch := idx.SuperFrame(1); epoch <= epochs; epoch++ {
-		buildEvent := func(e *inter.Event) *inter.Event {
-			e.Epoch = epoch
-			return posets[0].Prepare(e)
-		}
-		onNewEvent := func(e *inter.Event) {
-			inputs[0].SetEvent(e)
-			posets[0].PushEventSync(e.Hash())
-
-			ordered = append(ordered, e)
-		}
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.GenEventsByNode(nodes, int(SuperFrameLen)*3, 3, buildEvent, onNewEvent, r)
+		_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen)*3, 3, r, inter.ForEachEvent{
+			Process: func(e *inter.Event, name string) {
+				inputs[0].SetEvent(e)
+				assertar.NoError(posets[0].ProcessEvent(e))
+
+				ordered = append(ordered, e)
+			},
+			Build: func(e *inter.Event, name string) *inter.Event {
+				e.Epoch = epoch
+				return posets[0].Prepare(e)
+			},
+		})
 	}
 
 	t.Run("Restore", func(t *testing.T) {
-		assertar := assert.New(t)
 
 		i := posetCount - 1
 		j := posetCount - 2
@@ -64,46 +63,22 @@ func TestRestore(t *testing.T) {
 		for x, e := range ordered {
 			if (x < len(ordered)/4) || x%20 == 0 {
 				// restore
-				posets[i].Stop()
 				restored := New(store, inputs[i])
 				n := i % len(nodes)
 				restored.SetName("restored_" + nodes[n].String())
 				store.SetName("restored_" + nodes[n].String())
 				restored.Bootstrap()
 				posets[i] = restored
-				posets[i].Start()
 			}
 			// push on restore i, and non-restored j
 			inputs[i].SetEvent(e)
-			posets[i].consensus(e)
+			assertar.NoError(posets[i].ProcessEvent(e))
 
 			inputs[j].SetEvent(e)
-			posets[j].consensus(e)
+			assertar.NoError(posets[j].ProcessEvent(e))
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
 			assertar.Equal(posets[j].superFrame, posets[i].superFrame)
-
-			// check heads
-			if e.Seq <= 1 || e.Epoch != posets[i].SuperFrameN {
-				continue
-			}
-			prevEvent := ordered[x-1].Hash()
-			assertar.True(posets[i].store.IsHead(e.Hash()), e.Hash().String()) // it's the one the heads, because it's just connected
-			for _, p := range e.Parents {
-				if p == prevEvent {
-					prevEvent = hash.ZeroEvent // not head anymore
-				}
-				assertar.False(posets[i].store.IsHead(p), p.String()) // not head anymore
-			}
-			if !prevEvent.IsZero() {
-				assertar.True(posets[i].store.IsHead(prevEvent), prevEvent.String())
-			}
-			// check tips
-			assertar.Equal(e.Hash(), *posets[i].store.GetLastEvent(e.Creator))
 		}
 	})
-
-	for i := 0; i < len(posets); i++ {
-		posets[i].Stop()
-	}
 }

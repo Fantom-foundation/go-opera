@@ -7,13 +7,14 @@ import (
 	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
+	"github.com/Fantom-foundation/go-lachesis/src/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	"github.com/Fantom-foundation/go-lachesis/src/poslachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/posposet"
 )
 
-func makeStorages(makeDb lachesis.DbProducer) (*gossip.Store, *posposet.Store) {
+func makeStorages(makeDb internal.DbProducer) (*gossip.Store, *posposet.Store) {
 	db := makeDb("lachesis")
 
 	g := db.NewTable([]byte("g_"))
@@ -23,7 +24,7 @@ func makeStorages(makeDb lachesis.DbProducer) (*gossip.Store, *posposet.Store) {
 		posposet.NewStore(p, makeDb)
 }
 
-func dbProducer(dbdir string) lachesis.DbProducer {
+func dbProducer(dbdir string) internal.DbProducer {
 	if dbdir == "inmemory" {
 		return func(name string) kvdb.Database {
 			return kvdb.NewMemDatabase()

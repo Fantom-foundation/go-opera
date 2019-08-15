@@ -15,29 +15,33 @@ type (
 	event struct {
 		*inter.Event
 
+		peer    string
 		parents map[hash.Event]*inter.Event
 		expired time.Time
 	}
 
 	// Callback is a set of EventBuffer()'s args.
 	Callback struct {
-		Process func(*inter.Event)
-		Drop    func(*inter.Event, error)
+		Process func(e *inter.Event) error
+		Drop    func(e *inter.Event, peer string, err error)
 		Exists  func(hash.Event) *inter.Event
 	}
 )
 
+type IsBufferedFn func(hash.Event) bool
+type PushEventFn func(e *inter.Event, peer string)
+
 // EventBuffer validates, bufferizes and drops() or processes() pushed() event
 // if all their parents exists().
-func EventBuffer(callback Callback) (push func(*inter.Event)) {
+func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) {
 
 	var (
 		incompletes = make(map[hash.Event]*event)
 		lastGC      = time.Now()
-		onNewEvent  func(e *event)
+		onNewEvent  func(e *event, peer string)
 	)
 
-	onNewEvent = func(e *event) {
+	onNewEvent = func(e *event, peer string) {
 		reffs := newRefsValidator(e.Event)
 		ltime := newLamportTimeValidator(e.Event)
 
@@ -45,11 +49,11 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 		if e.SelfParent() == nil {
 			// first event of node
 			if err := reffs.AddUniqueParent(e.Creator); err != nil {
-				callback.Drop(e.Event, err)
+				callback.Drop(e.Event, peer, err)
 				return
 			}
 			if err := ltime.AddParentTime(0); err != nil {
-				callback.Drop(e.Event, err)
+				callback.Drop(e.Event, peer, err)
 				return
 			}
 		}
@@ -66,56 +70,61 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 				e.parents[pHash] = parent
 			}
 			if err := reffs.AddUniqueParent(parent.Creator); err != nil {
-				callback.Drop(e.Event, err)
+				callback.Drop(e.Event, peer, err)
 				return
 			}
 			if parent.Creator == e.Creator && !e.IsSelfParent(pHash) {
-				callback.Drop(e.Event, fmt.Errorf("invalid SelfParent"))
+				callback.Drop(e.Event, peer, fmt.Errorf("invalid SelfParent"))
 				return
 			}
 			if err := ltime.AddParentTime(parent.Lamport); err != nil {
-				callback.Drop(e.Event, err)
+				callback.Drop(e.Event, peer, err)
 				return
 			}
 		}
 		if err := reffs.CheckSelfParent(); err != nil {
-			callback.Drop(e.Event, err)
+			callback.Drop(e.Event, peer, err)
 			return
 		}
 		if err := ltime.CheckSequential(); err != nil {
-			callback.Drop(e.Event, err)
+			callback.Drop(e.Event, peer, err)
 			return
 		}
 
 		// parents OK
-		callback.Process(e.Event)
+		err := callback.Process(e.Event)
+		if err != nil {
+			callback.Drop(e.Event, peer, err)
+			return
+		}
 
 		// now child events may become complete, check it again
 		for hash_, child := range incompletes {
 			if parent, ok := child.parents[e.Hash()]; ok && parent == nil {
 				child.parents[e.Hash()] = e.Event
 				delete(incompletes, hash_)
-				onNewEvent(child)
+				onNewEvent(child, child.peer)
 			}
 		}
 
 	}
 
-	push = func(e *inter.Event) {
+	push = func(e *inter.Event, peer string) {
 		if callback.Exists(e.Hash()) != nil {
-			callback.Drop(e, fmt.Errorf("event %s had received already", e.Hash().String()))
+			callback.Drop(e, peer, fmt.Errorf("event %s had received already", e.Hash().String()))
 			return
 		}
 
 		w := &event{
 			Event:   e,
+			peer:    peer,
 			parents: make(map[hash.Event]*inter.Event, len(e.Parents)),
 			expired: time.Now().Add(expiration),
 		}
 		for _, parentHash := range e.Parents {
 			w.parents[parentHash] = nil
 		}
-		onNewEvent(w)
+		onNewEvent(w, peer)
 
 		// GC
 		if time.Now().Add(-expiration / 4).Before(lastGC) {
@@ -128,6 +137,11 @@ func EventBuffer(callback Callback) (push func(*inter.Event)) {
 				delete(incompletes, h)
 			}
 		}
+	}
+
+	downloaded = func(id hash.Event) bool {
+		_, ok := incompletes[id]
+		return ok
 	}
 
 	return

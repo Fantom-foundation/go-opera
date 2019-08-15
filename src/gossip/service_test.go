@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -17,7 +18,8 @@ func TestServicePing(t *testing.T) {
 
 	db := NewMemStore()
 
-	svc := NewService(db, nil)
+	svc, err := NewService(&DefaultConfig, new(event.TypeMux), db, nil)
+	assertar.NoError(err)
 
 	tests := []struct {
 		reqCode     uint64

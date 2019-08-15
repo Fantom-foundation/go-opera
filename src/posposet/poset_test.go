@@ -11,12 +11,13 @@ import (
 
 func TestPoset(t *testing.T) {
 	logger.SetTestMode(t)
+	assertar := assert.New(t)
 
 	const posetCount = 3
 
 	nodes := inter.GenNodes(5)
 
-	posets := make([]*Poset, 0, posetCount)
+	posets := make([]*BufferedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
 
 	makePoset := func(i int) *Store {
@@ -24,7 +25,6 @@ func TestPoset(t *testing.T) {
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
-		poset.Start()
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
 		return store
@@ -35,20 +35,15 @@ func TestPoset(t *testing.T) {
 	}
 
 	// create events on poset0
-	buildEvent := func(e *inter.Event) *inter.Event {
-		e.Epoch = 1
-		return posets[0].Prepare(e)
-	}
-	onNewEvent := func(e *inter.Event) {
-		inputs[0].SetEvent(e)
-		posets[0].PushEventSync(e.Hash())
-	}
-	unordered := inter.GenEventsByNode(nodes, int(SuperFrameLen)-1, 3, buildEvent, onNewEvent, nil)
-
-	t.Run("Multiple start", func(t *testing.T) {
-		posets[0].Stop()
-		posets[0].Start()
-		posets[0].Start()
+	unordered := inter.ForEachRandEvent(nodes, int(SuperFrameLen)-1, 3, nil, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			inputs[0].SetEvent(e)
+			assertar.NoError(posets[0].ProcessEvent(e))
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = 1
+			return posets[0].Prepare(e)
+		},
 	})
 
 	pushedAll := false
@@ -62,7 +57,7 @@ func TestPoset(t *testing.T) {
 					continue
 				}
 				inputs[i].SetEvent(e)
-				posets[i].PushEventSync(e.Hash())
+				posets[i].PushToBuffer(e)
 			}
 		}
 		// second all events from others
@@ -77,7 +72,7 @@ func TestPoset(t *testing.T) {
 						continue
 					}
 					inputs[i].SetEvent(e)
-					posets[i].PushEventSync(e.Hash())
+					posets[i].PushToBuffer(e)
 				}
 			}
 		}
@@ -85,7 +80,6 @@ func TestPoset(t *testing.T) {
 	})
 
 	t.Run("Check consensus", func(t *testing.T) {
-		assertar := assert.New(t)
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
 			st0 := p0.store.GetCheckpoint()
@@ -137,13 +131,4 @@ func TestPoset(t *testing.T) {
 			}
 		}
 	})
-
-	t.Run("Multiple stop", func(t *testing.T) {
-		posets[0].Stop()
-		posets[0].Stop()
-	})
-
-	for i := 0; i < len(posets); i++ {
-		posets[i].Stop()
-	}
 }

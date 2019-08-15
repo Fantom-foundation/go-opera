@@ -13,6 +13,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
@@ -129,7 +130,7 @@ func (p *grpcCtrlProxy) GetTxnInfo(_ context.Context, req *internal.TransactionR
 func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest) (*internal.TransferResponse, error) {
 	tx := inter.InternalTransaction{
 		Nonce:      idx.Txn(req.Nonce),
-		Amount:     inter.Stake(req.Amount),
+		Amount:     pos.Stake(req.Amount),
 		Receiver:   hash.HexToPeer(req.Receiver.Hex),
 		UntilBlock: idx.Block(req.Until),
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
 )
@@ -66,7 +67,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	t.Run("get balance of", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		expect := inter.Stake(rand.Uint64())
+		expect := pos.Stake(rand.Uint64())
 
 		consensus.EXPECT().
 			StakeOf(peer).
@@ -99,7 +100,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 		h := hash.FakeTransaction()
 		txn0 := &inter.InternalTransaction{
 			Nonce:    1,
-			Amount:   inter.Stake(rand.Uint64()),
+			Amount:   pos.Stake(rand.Uint64()),
 			Receiver: peer,
 		}
 		event0 := inter.NewEvent()
@@ -127,7 +128,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	t.Run("get balance of self", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		expect := inter.Stake(rand.Uint64())
+		expect := pos.Stake(rand.Uint64())
 
 		consensus.EXPECT().
 			StakeOf(peer).
@@ -144,7 +145,7 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 	t.Run("send to", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		amount := inter.Stake(rand.Uint64())
+		amount := pos.Stake(rand.Uint64())
 		tx := inter.InternalTransaction{
 			Nonce:    1,
 			Amount:   amount,

@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
@@ -56,9 +57,9 @@ type NodeProxy interface {
 	// GetSelfID returns node id.
 	GetSelfID() (hash.Peer, error)
 	// StakeOf returns stake balance of peer.
-	StakeOf(hash.Peer) (inter.Stake, error)
+	StakeOf(hash.Peer) (pos.Stake, error)
 	// SendTo makes stake transfer transaction.
-	SendTo(receiver hash.Peer, index idx.Txn, amount inter.Stake, until idx.Block) (hash.Transaction, error)
+	SendTo(receiver hash.Peer, index idx.Txn, amount pos.Stake, until idx.Block) (hash.Transaction, error)
 	// GetTxnInfo returns information about transaction.
 	GetTxnInfo(hash.Transaction) (*inter.InternalTransaction, *inter.Event, *inter.Block, error)
 	// SetLogLevel sets logger log level.

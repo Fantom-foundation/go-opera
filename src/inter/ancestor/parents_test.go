@@ -1,4 +1,4 @@
-package posposet
+package ancestor
 
 import (
 	"sort"
@@ -10,7 +10,10 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
 func TestSeeingStrategy(t *testing.T) {
@@ -74,11 +77,29 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return
 	}
 
-	nodes, _, names := ASCIIschemeToDAG(asciiScheme)
+	ordered := make([]*inter.Event, 0)
+	nodes, _, _ := inter.ASCIIschemeForEach(asciiScheme, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			ordered = append(ordered, e)
+		},
+	})
+
+	members := make(pos.Members, len(nodes))
+	for _, peer := range nodes {
+		members.Add(peer, 1)
+	}
+
+	vecSee := vector.NewIndex(members, kvdb.NewMemDatabase())
+
+	// build vector index
+	for _, e := range ordered {
+		vecSee.Add(e)
+	}
 
 	// divide events by stage
 	var stages [][]*inter.Event
-	for name, e := range names {
+	for _, e := range ordered {
+		name := string(e.Extra)
 		stage := decode(name)
 		for i := len(stages); i <= stage; i++ {
 			stages = append(stages, nil)
@@ -86,18 +107,37 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		stages[stage] = append(stages[stage], e)
 	}
 
-	p, _, input := FakePoset(nodes)
-
+	heads := hash.EventsSet{}
+	tips := map[hash.Peer]*hash.Event{}
+	// check
 	for stage, ee := range stages {
 		t.Logf("Stage %d:", stage)
+
+		// build heads/tips
 		for _, e := range ee {
-			input.SetEvent(e)
-			p.PushEventSync(e.Hash())
+			for _, p := range e.Parents {
+				if heads.Contains(p) {
+					heads.Erase(p)
+				}
+			}
+			heads.Add(e.Hash())
+			id := e.Hash()
+			tips[e.Creator] = &id
 		}
 
 		for _, node := range nodes {
-			strategy := p.NewSeeingStrategy()
-			parents := p.FindBestParents(node, 5, strategy)
+			selfParent := tips[node]
+
+			strategy := NewSeeingStrategy(vecSee)
+
+			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
+
+			if selfParent != nil {
+				assertar.Equal(parents[0], *selfParent)
+				assertar.Equal(*selfParent_, *selfParent)
+			} else {
+				assertar.Nil(selfParent_)
+			}
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
 			if !assertar.Equal(
 				exp[stage][node.String()],

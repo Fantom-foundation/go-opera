@@ -1,16 +1,15 @@
-package internal
+package pos
 
 import (
 	"bytes"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 type (
 	member struct {
 		Addr  hash.Peer
-		Stake inter.Stake
+		Stake Stake
 	}
 
 	members []member

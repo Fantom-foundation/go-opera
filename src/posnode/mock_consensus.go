@@ -8,6 +8,7 @@ import (
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
 	idx "github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	pos "github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -49,12 +50,6 @@ func (mr *MockConsensusMockRecorder) CurrentSuperFrameN() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentSuperFrameN", reflect.TypeOf((*MockConsensus)(nil).CurrentSuperFrameN))
 }
 
-// Prepare mocks base method
-func (m *MockConsensus) Prepare(e *inter.Event) *inter.Event {
-	m.ctrl.T.Helper()
-	return e
-}
-
 // GetGenesisHash mocks base method
 func (m *MockConsensus) GetGenesisHash() hash.Hash {
 	m.ctrl.T.Helper()
@@ -69,23 +64,39 @@ func (mr *MockConsensusMockRecorder) GetGenesisHash() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGenesisHash", reflect.TypeOf((*MockConsensus)(nil).GetGenesisHash))
 }
 
-// PushEvent mocks base method
-func (m *MockConsensus) PushEvent(arg0 hash.Event) {
+// Prepare mocks base method
+func (m *MockConsensus) Prepare(arg0 *inter.Event) *inter.Event {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "PushEvent", arg0)
+	ret := m.ctrl.Call(m, "Prepare", arg0)
+	ret0, _ := ret[0].(*inter.Event)
+	return ret0
 }
 
-// PushEvent indicates an expected call of PushEvent
-func (mr *MockConsensusMockRecorder) PushEvent(arg0 interface{}) *gomock.Call {
+// Prepare indicates an expected call of Prepare
+func (mr *MockConsensusMockRecorder) Prepare(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushEvent", reflect.TypeOf((*MockConsensus)(nil).PushEvent), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Prepare", reflect.TypeOf((*MockConsensus)(nil).Prepare), arg0)
+}
+
+// ProcessEvent mocks base method
+func (m *MockConsensus) ProcessEvent(arg0 *inter.Event) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProcessEvent", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ProcessEvent indicates an expected call of ProcessEvent
+func (mr *MockConsensusMockRecorder) ProcessEvent(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessEvent", reflect.TypeOf((*MockConsensus)(nil).ProcessEvent), arg0)
 }
 
 // StakeOf mocks base method
-func (m *MockConsensus) StakeOf(arg0 hash.Peer) inter.Stake {
+func (m *MockConsensus) StakeOf(arg0 hash.Peer) pos.Stake {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StakeOf", arg0)
-	ret0, _ := ret[0].(inter.Stake)
+	ret0, _ := ret[0].(pos.Stake)
 	return ret0
 }
 

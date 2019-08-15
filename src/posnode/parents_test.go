@@ -12,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -54,7 +55,7 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 			Return(idx.SuperFrame(1)).
 			AnyTimes()
 		consensus.EXPECT().
-			PushEvent(gomock.Any()).
+			ProcessEvent(gomock.Any()).
 			AnyTimes()
 
 		store := NewMemStore()
@@ -80,37 +81,35 @@ func testParentSelection(t *testing.T, dsc, schema string) {
 }
 
 func ASCIIschemeToDAG(n *Node, c *MockConsensus, schema string) (expected []string) {
-	_, _, events := inter.ASCIIschemeToDAG(schema,
-		func(e *inter.Event, name string) *inter.Event {
-			e.Epoch = c.CurrentSuperFrameN()
-			return e
-		})
-
-	weights := make(map[hash.Peer]inter.Stake)
-	for name, e := range events {
-		w, o := parseSpecName(name)
-		weights[e.Creator] = w
-		if o > 0 {
-			expected = append(expected, name)
-		}
-	}
+	weights := make(map[hash.Peer]pos.Stake)
 
 	c.EXPECT().
 		StakeOf(gomock.Any()).
-		DoAndReturn(func(p hash.Peer) inter.Stake {
+		DoAndReturn(func(p hash.Peer) pos.Stake {
 			return weights[p]
 		}).
 		AnyTimes()
 
-	for _, e := range events {
-		n.onNewEvent(e)
-	}
+	inter.ASCIIschemeForEach(schema, inter.ForEachEvent{
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = c.CurrentSuperFrameN()
+			return e
+		},
+		Process: func(e *inter.Event, name string) {
+			w, o := parseSpecName(name)
+			weights[e.Creator] = w
+			if o > 0 {
+				expected = append(expected, name)
+			}
+			n.onNewEvent(e)
+		},
+	})
 
 	sort.Sort(byOrderNum(expected))
 	return
 }
 
-func parseSpecName(name string) (weight inter.Stake, orderNum int64) {
+func parseSpecName(name string) (weight pos.Stake, orderNum int64) {
 	ss := strings.Split(name, ":")
 	if len(ss) != 2 {
 		panic("invalid event name format")
@@ -120,7 +119,7 @@ func parseSpecName(name string) (weight inter.Stake, orderNum int64) {
 	if err != nil {
 		panic("invalid event name format (weight): " + err.Error())
 	}
-	weight = inter.Stake(w)
+	weight = pos.Stake(w)
 
 	if ss[1][0] == strings.ToUpper(ss[1])[0] {
 		orderNum, err = strconv.ParseInt(ss[1][1:], 10, 64)

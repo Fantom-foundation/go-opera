@@ -3,6 +3,7 @@ package proxy
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -36,6 +37,6 @@ type Node interface {
 
 // Consensus is a set of consensus handlers.
 type Consensus interface {
-	StakeOf(peer hash.Peer) inter.Stake
+	StakeOf(peer hash.Peer) pos.Stake
 	GetEventBlock(hash.Event) *inter.Block
 }
