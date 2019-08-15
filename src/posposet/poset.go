@@ -195,7 +195,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.LastDecidedFrame = frame
 
 	p.Debugf("dfsSubgraph from %s", sfWitness.String())
-	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
+	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(event.Hash())
 		if decidedFrame == 0 {
 			p.store.SetEventConfirmedOn(event.Hash(), frame)

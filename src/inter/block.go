@@ -16,12 +16,7 @@ type Block struct {
 }
 
 // NewBlock makes block from topological ordered events.
-func NewBlock(index idx.Block, time Timestamp, ordered Events) *Block {
-	events := make(hash.Events, len(ordered))
-	for i, e := range ordered {
-		events[i] = e.Hash()
-	}
-
+func NewBlock(index idx.Block, time Timestamp, events hash.Events) *Block {
 	return &Block{
 		Index:  index,
 		Time:   time,

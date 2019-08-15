@@ -6,18 +6,18 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-type eventFilterFn func(event *inter.Event) bool
+type eventFilterFn func(event *inter.EventHeaderData) bool
 
 // dfsSubgraph returns all the event which are seen by head, and accepted by a filter
-func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res inter.Events, err error) {
-	res = make(inter.Events, 0, 1024)
+func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res []*inter.EventHeaderData, err error) {
+	res = make([]*inter.EventHeaderData, 0, 1024)
 
 	stack := make(hash.EventsStack, 0, len(p.Members))
 
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
 		walk := *pwalk
 
-		event := p.input.GetEvent(walk)
+		event := p.input.GetEventHeader(walk)
 		if event == nil {
 			return nil, errors.New("event wasn't found " + walk.String())
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered inter.Events) inter.Events {
+func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered []*inter.EventHeaderData) hash.Events {
 	// sort by lamport timestamp & hash
 	sort.Slice(unordered, func(i, j int) bool {
 		a, b := unordered[i], unordered[j]
@@ -28,7 +28,7 @@ func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered in
 	frameLamportPeriod := idx.MaxLamport(highestLamport-lowestLamport, 1)
 
 	// calculate difference between fiWitness's median time and previous fiWitness's consensus time (almost the same as previous median time)
-	nowMedianTime := p.GetEvent(fiWitness).MedianTime
+	nowMedianTime := p.GetEventHeader(fiWitness).MedianTime
 	frameTimePeriod := inter.MaxTimestamp(nowMedianTime-p.LastConsensusTime, 1)
 	if p.LastConsensusTime > nowMedianTime {
 		frameTimePeriod = 1
@@ -49,5 +49,9 @@ func (p *Poset) fareOrdering(frame idx.Frame, fiWitness hash.Event, unordered in
 		TimeRatio:  timeRatio,
 	})
 
-	return ordered
+	ids := make(hash.Events, len(ordered))
+	for i, e := range ordered {
+		ids[i] = e.Hash()
+	}
+	return ids
 }
