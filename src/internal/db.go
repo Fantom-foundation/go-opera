@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/metrics"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 // DbProducer makes db.

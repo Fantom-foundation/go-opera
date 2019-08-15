@@ -7,7 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet/election"
+	"github.com/Fantom-foundation/go-lachesis/src/poset/election"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 

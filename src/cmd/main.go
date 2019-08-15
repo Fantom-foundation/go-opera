@@ -12,7 +12,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 const (

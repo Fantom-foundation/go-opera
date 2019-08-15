@@ -17,7 +17,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 var (
