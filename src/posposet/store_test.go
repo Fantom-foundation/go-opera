@@ -16,7 +16,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 /*
@@ -40,44 +39,36 @@ func benchmarkStore(b *testing.B) {
 		}
 	}()
 
-	// open history DB
-	pathDb := filepath.Join(dir, "lachesis.bolt")
-	db, err := bbolt.Open(pathDb, 0600, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(pathDb)
-	defer db.Close()
-
-	historyCache := kvdb.NewCacheWrapper(kvdb.NewBoltDatabase(db, nil, nil))
-
 	var (
-		tempCount int
-		tempCache *kvdb.CacheWrapper
+		epochCache *kvdb.CacheWrapper
 	)
-	newTempDb := func(name string) kvdb.Database {
-		pathTemp := filepath.Join(dir, fmt.Sprintf("lachesis.%d.tmp.bolt", tempCount))
-		tempDb, err := bbolt.Open(pathTemp, 0600, nil)
+	newDb := func(name string) kvdb.Database {
+		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s.bolt", name))
+		db, err := bbolt.Open(path, 0600, nil)
 		if err != nil {
 			panic(err)
 		}
-		// counter
-		tempCount++
 
-		tempCache = kvdb.NewCacheWrapper(
+		cache := kvdb.NewCacheWrapper(
 			kvdb.NewBoltDatabase(
-				tempDb,
-				tempDb.Close,
+				db,
+				nil,
 				func() error {
-					return os.Remove(pathTemp)
+					return os.Remove(path)
 				}))
-		return tempCache
+		if name == "epoch" {
+			epochCache = cache
+		}
+		return cache
 	}
+
+	// open history DB
+	historyCache := kvdb.NewCacheWrapper(newDb("main"))
 
 	input := NewEventStore(historyCache)
 	defer input.Close()
 
-	store := NewStore(historyCache, newTempDb)
+	store := NewStore(historyCache, newDb)
 	defer store.Close()
 
 	nodes := inter.GenNodes(5)
@@ -90,7 +81,7 @@ func benchmarkStore(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		err = tempCache.Flush()
+		err = epochCache.Flush()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -118,7 +109,7 @@ func benchmarkStore(b *testing.B) {
 				input.SetEvent(e)
 				_ = p.ProcessEvent(e)
 
-				if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
+				if (historyCache.NotFlushedSizeEst() + epochCache.NotFlushedSizeEst()) >= 1024*1024 {
 					flushAll()
 				}
 			},

@@ -129,7 +129,7 @@ func (w *BoltDatabase) Close() {
 	if w.onClose == nil {
 		return
 	}
-	if err := w.onClose; err != nil {
+	if err := w.onClose(); err != nil {
 		panic(err)
 	}
 }
@@ -142,7 +142,7 @@ func (w *BoltDatabase) Drop() {
 	if w.onDrop == nil {
 		return
 	}
-	if err := w.onDrop; err != nil {
+	if err := w.onDrop(); err != nil {
 		panic(err)
 	}
 }
