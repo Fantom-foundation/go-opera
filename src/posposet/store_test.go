@@ -10,12 +10,13 @@ import (
 
 	"go.etcd.io/bbolt"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 /*
@@ -39,44 +40,36 @@ func benchmarkStore(b *testing.B) {
 		}
 	}()
 
-	// open history DB
-	pathDb := filepath.Join(dir, "lachesis.bolt")
-	db, err := bbolt.Open(pathDb, 0600, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(pathDb)
-	defer db.Close()
-
-	historyCache := kvdb.NewCacheWrapper(kvdb.NewBoltDatabase(db, nil, nil))
-
 	var (
-		tempCount int
-		tempCache *kvdb.CacheWrapper
+		epochCache *kvdb.CacheWrapper
 	)
-	newTempDb := func(name string) kvdb.Database {
-		pathTemp := filepath.Join(dir, fmt.Sprintf("lachesis.%d.tmp.bolt", tempCount))
-		tempDb, err := bbolt.Open(pathTemp, 0600, nil)
+	newDb := func(name string) kvdb.Database {
+		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s.bolt", name))
+		db, err := bbolt.Open(path, 0600, nil)
 		if err != nil {
 			panic(err)
 		}
-		// counter
-		tempCount++
 
-		tempCache = kvdb.NewCacheWrapper(
+		cache := kvdb.NewCacheWrapper(
 			kvdb.NewBoltDatabase(
-				tempDb,
-				tempDb.Close,
+				db,
+				nil,
 				func() error {
-					return os.Remove(pathTemp)
+					return os.Remove(path)
 				}))
-		return tempCache
+		if name == "epoch" {
+			epochCache = cache
+		}
+		return cache
 	}
+
+	// open history DB
+	historyCache := kvdb.NewCacheWrapper(newDb("main"))
 
 	input := NewEventStore(historyCache)
 	defer input.Close()
 
-	store := NewStore(historyCache, newTempDb)
+	store := NewStore(historyCache, newDb)
 	defer store.Close()
 
 	nodes := inter.GenNodes(5)
@@ -89,10 +82,19 @@ func benchmarkStore(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		err = tempCache.Flush()
+		err = epochCache.Flush()
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+
+	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+		if block.Index == 1 {
+			// move stake from node0 to node1
+			members.Set(nodes[0], 0)
+			members.Set(nodes[1], 2)
+		}
+		return stateHash, members
 	}
 
 	// run test with random DAG, N + 1 epochs long
@@ -105,20 +107,11 @@ func benchmarkStore(b *testing.B) {
 				input.SetEvent(e)
 				_ = p.ProcessEvent(e)
 
-				if (historyCache.NotFlushedSizeEst() + tempCache.NotFlushedSizeEst()) >= 1024*1024 {
+				if (historyCache.NotFlushedSizeEst() + epochCache.NotFlushedSizeEst()) >= 1024*1024 {
 					flushAll()
 				}
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
-				if e.Seq == 1 && e.Creator == nodes[0] {
-					// move stake from node0 to node1, to test that it doesn't break anything
-					e.InternalTransactions = append(e.InternalTransactions,
-						&inter.InternalTransaction{
-							Nonce:    0,
-							Amount:   1,
-							Receiver: nodes[1],
-						})
-				}
 				e.Epoch = epoch
 				return p.Prepare(e)
 			},
@@ -134,12 +127,16 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 		balances[addr] = pos.Stake(1)
 	}
 
-	if err := store.ApplyGenesis(balances, genesisTestTime); err != nil {
+	err := store.ApplyGenesis(&genesis.Config{
+		Balances: balances,
+		Time:     genesisTestTime,
+	})
+	if err != nil {
 		panic(err)
 	}
 
 	poset := New(store, input)
-	poset.Bootstrap()
+	poset.Bootstrap(nil)
 
 	return poset
 }

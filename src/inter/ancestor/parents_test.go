@@ -86,7 +86,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 
 	members := make(pos.Members, len(nodes))
 	for _, peer := range nodes {
-		members.Add(peer, 1)
+		members.Set(peer, 1)
 	}
 
 	vecSee := vector.NewIndex(members, kvdb.NewMemDatabase())

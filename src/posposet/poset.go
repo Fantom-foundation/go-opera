@@ -21,7 +21,7 @@ type Poset struct {
 	election *election.Election
 	seeVec   *vector.Index
 
-	onNewBlock func(num idx.Block)
+	applyBlock inter.ApplyBlockFn
 
 	logger.Instance
 }
@@ -41,19 +41,6 @@ func New(store *Store, input EventSource) *Poset {
 
 func (p *Poset) GetVectorIndex() *vector.Index {
 	return p.seeVec
-}
-
-// OnNewBlock sets (or replaces if override) a callback that is called on new block.
-// Returns an error if can not.
-// OnNewBlock is not safe for concurrent use.
-func (p *Poset) OnNewBlock(callback func(blockNumber idx.Block), override bool) error {
-	// TODO: support multiple subscribers later
-	if !override && p.onNewBlock != nil {
-		return errors.New("callback already registered")
-	}
-
-	p.onNewBlock = callback
-	return nil
 }
 
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
@@ -208,7 +195,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.LastDecidedFrame = frame
 
 	p.Debugf("dfsSubgraph from %s", sfWitness.String())
-	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.Event) bool {
+	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(event.Hash())
 		if decidedFrame == 0 {
 			p.store.SetEventConfirmedOn(event.Hash(), frame)
@@ -226,26 +213,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
 	// block generation
-	block := inter.NewBlock(p.checkpoint.LastBlockN+1, ordered)
-	p.Debugf("block%d ordered: %s", block.Index, block.Events.String())
-	p.store.SetEventsBlockNum(block.Index, ordered...)
-	p.store.SetBlock(block)
-	p.checkpoint.LastBlockN = block.Index
-	if p.onNewBlock != nil {
-		p.onNewBlock(p.checkpoint.LastBlockN)
+	p.checkpoint.LastBlockN += 1
+	if p.applyBlock != nil {
+		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered)
+		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
 	}
-
-	// balances changes
-
-	state := p.store.StateDB(p.checkpoint.Balances)
-	p.applyTransactions(state, ordered, p.NextMembers)
-	p.applyRewards(state, ordered, p.NextMembers)
 	p.NextMembers = p.NextMembers.Top()
-	balances, err := state.Commit(true)
-	if err != nil {
-		p.Fatal(err)
-	}
-	p.checkpoint.Balances = balances
 
 	p.saveCheckpoint()
 }

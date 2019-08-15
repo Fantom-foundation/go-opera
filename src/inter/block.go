@@ -3,23 +3,23 @@ package inter
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
-// Block is a chain block.
+type ApplyBlockFn func(block *Block, stateHash hash.Hash, members pos.Members) (newStateHash hash.Hash, mewMembers pos.Members)
+
+// Block is a "chain" block.
 type Block struct {
 	Index  idx.Block
-	Events hash.OrderedEvents
+	Time   Timestamp
+	Events hash.Events
 }
 
-// NewBlock makes main chain block from topological ordered events.
-func NewBlock(index idx.Block, ordered Events) *Block {
-	events := make(hash.OrderedEvents, len(ordered))
-	for i, e := range ordered {
-		events[i] = e.Hash()
-	}
-
+// NewBlock makes block from topological ordered events.
+func NewBlock(index idx.Block, time Timestamp, events hash.Events) *Block {
 	return &Block{
 		Index:  index,
+		Time:   time,
 		Events: events,
 	}
 }

@@ -1,8 +1,11 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/state"
+
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -11,11 +14,13 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		Peers   kvdb.Database `table:"peer_"`
-		Events  kvdb.Database `table:"event_"`
-		Headers kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
-		Tips    kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
-		Heads   kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
+		Peers    kvdb.Database `table:"peer_"`
+		Events   kvdb.Database `table:"event_"`
+		Blocks   kvdb.Database `table:"block_"`
+		Balances state.Database
+		Headers  kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
+		Tips     kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
+		Heads    kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
 	}
 
 	logger.Instance
@@ -29,6 +34,8 @@ func NewStore(db kvdb.Database) *Store {
 	}
 
 	kvdb.MigrateTables(&s.table, s.physicalDB)
+	s.table.Balances = state.NewDatabase(
+		s.physicalDB.NewTable([]byte("balance_")))
 
 	return s
 }
@@ -43,6 +50,15 @@ func NewMemStore() *Store {
 func (s *Store) Close() {
 	kvdb.MigrateTables(&s.table, nil)
 	s.physicalDB.Close()
+}
+
+// StateDB returns state database.
+func (s *Store) StateDB(from hash.Hash) *state.DB {
+	db, err := state.New(from, s.table.Balances)
+	if err != nil {
+		s.Fatal(err)
+	}
+	return db
 }
 
 /*

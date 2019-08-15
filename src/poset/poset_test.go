@@ -2356,7 +2356,7 @@ func TestBootstrap(t *testing.T) {
 	}
 
 	// Initialize a first Poset with a DB backend
-	// Add events and run consensus methods on it
+	// Set events and run consensus methods on it
 	p, _ := initConsensusPoset(true, t)
 	if err := p.DivideRounds(); err != nil {
 		t.Fatal(err)

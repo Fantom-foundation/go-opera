@@ -125,12 +125,10 @@ func (em *Emitter) createEvent() *inter.Event {
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	// set consensus fields
-	if em.engine != nil {
-		event = em.engine.Prepare(event)
-		if event == nil {
-			log.Warn("dropped event while emitting")
-			return nil
-		}
+	event = em.engine.Prepare(event)
+	if event == nil {
+		log.Warn("dropped event while emitting")
+		return nil
 	}
 	// calc hash after event is fully built
 	event.RecacheHash()

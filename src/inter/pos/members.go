@@ -18,8 +18,8 @@ type (
 	Members map[hash.Peer]Stake
 )
 
-// Add appends item.
-func (mm *Members) Add(addr hash.Peer, stake Stake) {
+// Set appends item.
+func (mm *Members) Set(addr hash.Peer, stake Stake) {
 	if stake != 0 {
 		(*mm)[addr] = stake
 	} else {
@@ -49,9 +49,18 @@ func (mm Members) Top() Members {
 
 	res := make(Members)
 	for _, m := range top {
-		res.Add(m.Addr, m.Stake)
+		res.Set(m.Addr, m.Stake)
 	}
 
+	return res
+}
+
+// Copy constructs a copy.
+func (mm Members) Copy() Members {
+	res := make(Members)
+	for addr, stake := range mm {
+		res.Set(addr, stake)
+	}
 	return res
 }
 
@@ -83,14 +92,7 @@ func (mm Members) StakeOf(n hash.Peer) Stake {
 }
 
 func (mm Members) EncodeRLP(w io.Writer) error {
-	var arr []member
-	for addr, stake := range mm {
-		arr = append(arr, member{
-			Addr:  addr,
-			Stake: stake,
-		})
-	}
-	return rlp.Encode(w, arr)
+	return rlp.Encode(w, mm.sortedArray())
 }
 
 func (pp *Members) DecodeRLP(s *rlp.Stream) error {
