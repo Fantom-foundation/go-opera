@@ -2,7 +2,6 @@ package posposet
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -11,6 +10,8 @@ import (
 
 	"go.etcd.io/bbolt"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -88,13 +89,10 @@ func benchmarkStore(b *testing.B) {
 	}
 
 	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
-		for _, id := range block.Events {
-			e := input.GetEvent(id)
-			if e.Seq == 1 && e.Creator == nodes[0] {
-				// move stake from node0 to node1
-				members.Set(nodes[0], 0)
-				members.Set(nodes[1], 2)
-			}
+		if block.Index == 1 {
+			// move stake from node0 to node1
+			members.Set(nodes[0], 0)
+			members.Set(nodes[1], 2)
 		}
 		return stateHash, members
 	}

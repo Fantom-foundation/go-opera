@@ -70,6 +70,9 @@ func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
 		if buffered.blocks == nil {
 			buffered.blocks = map[idx.Block]*inter.Block{}
 		}
+		if buffered.blocks[block.Index] != nil {
+			buffered.Fatal("created block twice")
+		}
 		buffered.blocks[block.Index] = block
 		return stateHash, members
 	}

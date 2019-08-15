@@ -26,13 +26,10 @@ func TestPosetTxn(t *testing.T) {
 		"balance of %s", nodes[1].String())
 
 	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
-		for _, id := range block.Events {
-			e := x.GetEvent(id)
-			if e.Seq == 1 && e.Creator == nodes[0] {
-				// move stake from node0 to node1
-				members.Set(nodes[0], 0)
-				members.Set(nodes[1], 2)
-			}
+		if block.Index == 1 {
+			// move stake from node0 to node1
+			members.Set(nodes[0], 0)
+			members.Set(nodes[1], 2)
 		}
 		return stateHash, members
 	}
