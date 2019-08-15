@@ -19,7 +19,7 @@ func TestRestore(t *testing.T) {
 
 	nodes := inter.GenNodes(5)
 
-	posets := make([]*Poset, 0, posetCount)
+	posets := make([]*ExtendedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
 
 	makePoset := func(i int) *Store {
@@ -69,7 +69,7 @@ func TestRestore(t *testing.T) {
 				restored.SetName("restored_" + nodes[n].String())
 				store.SetName("restored_" + nodes[n].String())
 				restored.Bootstrap(nil)
-				posets[i] = restored
+				posets[i] = &ExtendedPoset{Poset: restored}
 			}
 			// push on restore i, and non-restored j
 			inputs[i].SetEvent(e)

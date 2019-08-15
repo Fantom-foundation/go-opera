@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -16,7 +17,7 @@ func TestPoset(t *testing.T) {
 	const posetCount = 3
 	nodes := inter.GenNodes(5)
 
-	posets := make([]*Poset, 0, posetCount)
+	posets := make([]*ExtendedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
 	for i := 0; i < posetCount-1; i++ {
 		poset, store, input := FakePoset(nodes)
@@ -73,15 +74,15 @@ func TestPoset(t *testing.T) {
 				if both > p1.LastBlockN {
 					both = p1.LastBlockN
 				}
-				/*
-					for b := idx.Block(1); b <= both; b++ {
-						if !assertar.Equal(
-							p0.blocks[b].Events, p1.blocks[b].Events,
-							"block %d", b) {
-							break
-						}
+
+				for b := idx.Block(1); b <= both; b++ {
+					if !assertar.Equal(
+						p0.blocks[b].Events, p1.blocks[b].Events,
+						"block %d", b) {
+						break
 					}
-				*/
+				}
+
 			}
 		}
 	})
