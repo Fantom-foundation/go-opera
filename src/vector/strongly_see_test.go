@@ -12,7 +12,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
@@ -68,8 +67,7 @@ func testStronglySeen(t *testing.T, dag string) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag)
-
+	peers, _, _ := inter.ASCIIschemeToDAG(dag)
 	members := make(pos.Members, len(peers))
 	for _, peer := range peers {
 		members.Add(peer, pos.Stake(1))
@@ -77,29 +75,12 @@ func testStronglySeen(t *testing.T, dag string) {
 
 	vi := NewIndex(members, kvdb.NewMemDatabase())
 
-	processed := make(map[hash.Event]*inter.Event)
-	orderThenProcess, _ := ordering.EventBuffer(ordering.Callback{
-
-		Process: func(e *inter.Event) error {
-			processed[e.Hash()] = e
+	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
 			vi.Add(e)
 			vi.Flush()
-			return nil
-		},
-
-		Drop: func(e *inter.Event, peer string, err error) {
-			t.Fatal(e, err)
-		},
-
-		Exists: func(h hash.Event) *inter.Event {
-			return processed[h]
 		},
 	})
-
-	// push
-	for _, e := range named {
-		orderThenProcess(e, "")
-	}
 
 	// check
 	for dsc, ev := range named {
