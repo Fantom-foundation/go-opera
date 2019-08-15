@@ -1,12 +1,13 @@
 package posposet
 
 import (
+	"math/rand"
+	"testing"
+
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/stretchr/testify/assert"
-	"math/rand"
-	"testing"
 )
 
 func TestRestore(t *testing.T) {
@@ -26,7 +27,7 @@ func TestRestore(t *testing.T) {
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
-		posets = append(posets, poset.Poset)
+		posets = append(posets, poset)
 		inputs = append(inputs, input)
 		return store
 	}

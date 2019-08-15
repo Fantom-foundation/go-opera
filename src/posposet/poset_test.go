@@ -1,12 +1,13 @@
 package posposet
 
 import (
+	"testing"
+
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestPoset(t *testing.T) {
@@ -14,31 +15,28 @@ func TestPoset(t *testing.T) {
 	assertar := assert.New(t)
 
 	const posetCount = 3
-
 	nodes := inter.GenNodes(5)
 
-	posets := make([]*BufferedPoset, 0, posetCount)
+	posets := make([]*Poset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
-
-	makePoset := func(i int) *Store {
+	for i := 0; i < posetCount-1; i++ {
 		poset, store, input := FakePoset(nodes)
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
-		return store
-	}
-
-	for i := 0; i < posetCount-1; i++ {
-		_ = makePoset(i)
 	}
 
 	// create events on poset0
-	unordered := inter.ForEachRandEvent(nodes, int(SuperFrameLen)-1, 3, nil, inter.ForEachEvent{
+	var ordered inter.Events
+	inter.ForEachRandEvent(nodes, int(SuperFrameLen)-1, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
+			ordered = append(ordered, e)
+
 			inputs[0].SetEvent(e)
-			assertar.NoError(posets[0].ProcessEvent(e))
+			assertar.NoError(
+				posets[0].ProcessEvent(e))
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
@@ -46,38 +44,16 @@ func TestPoset(t *testing.T) {
 		},
 	})
 
-	pushedAll := false
-	t.Run("Push unordered events", func(t *testing.T) {
-		// first all events from one node
-		for i := 1; i < len(posets); i++ {
-			n := i % len(nodes)
-			ee := unordered[nodes[n]]
-			for _, e := range ee {
-				if e.Epoch != 1 {
-					continue
-				}
-				inputs[i].SetEvent(e)
-				posets[i].PushToBuffer(e)
+	for i := 1; i < len(posets); i++ {
+		ee := reorder(ordered)
+		for _, e := range ee {
+			if e.Epoch != 1 {
+				continue
 			}
+			inputs[i].SetEvent(e)
+			posets[i].ProcessEvent(e)
 		}
-		// second all events from others
-		for i := 1; i < len(posets); i++ {
-			for n := range nodes {
-				if n == i%len(nodes) {
-					continue
-				}
-				ee := unordered[nodes[n]]
-				for _, e := range ee {
-					if e.Epoch != 1 {
-						continue
-					}
-					inputs[i].SetEvent(e)
-					posets[i].PushToBuffer(e)
-				}
-			}
-		}
-		pushedAll = true
-	})
+	}
 
 	t.Run("Check consensus", func(t *testing.T) {
 		for i := 0; i < len(posets)-1; i++ {
@@ -90,11 +66,8 @@ func TestPoset(t *testing.T) {
 				st1 := p1.store.GetCheckpoint()
 				t.Logf("with poset%d: SFrame %d, Block %d", j, ep0.SuperFrameN, st1.LastBlockN)
 
-				// compare state on p0/p1
-				if pushedAll {
-					assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-					assertar.Equal(posets[j].superFrame, posets[i].superFrame)
-				}
+				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
+				assertar.Equal(posets[j].superFrame, posets[i].superFrame)
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {
