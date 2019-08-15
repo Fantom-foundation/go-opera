@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -117,10 +118,10 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	config, nodes, keys := FakeNet(1)
+	config, nodes, keys := lachesis.FakeNet(1)
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
-	config.ForcedBroadcast = allowAggressive
+	config.Gossip.ForcedBroadcast = allowAggressive
 
 	var (
 		evmux = new(event.TypeMux)

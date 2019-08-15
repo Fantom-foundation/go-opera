@@ -19,6 +19,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -29,7 +30,7 @@ const (
 
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
-	config *Config
+	config *lachesis.Net
 
 	wg   sync.WaitGroup
 	done chan struct{}
@@ -59,7 +60,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(config *Config, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
+func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
 	engine = &StoreAwareEngine{
 		engine: engine,
 		store:  store,

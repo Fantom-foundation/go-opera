@@ -5,10 +5,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-func NewIntegration(cfg *adapters.NodeConfig, config *gossip.Config) *gossip.Service {
+func NewIntegration(cfg *adapters.NodeConfig, config *lachesis.Net) *gossip.Service {
 	makeDb := dbProducer(cfg.DataDir)
 	gdb, cdb := makeStorages(makeDb)
 

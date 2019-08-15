@@ -17,6 +17,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -33,7 +34,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		store = NewMemStore()
 	)
 
-	config, nodes, _ := FakeNet(nodesNum)
+	config, nodes, _ := lachesis.FakeNet(nodesNum)
 
 	engineStore := posposet.NewMemStore()
 	err := engineStore.ApplyGenesis(config.Genesis)
@@ -135,7 +136,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 func (p *testPeer) handshake(t *testing.T, progress PeerProgress, genesis hash.Hash) {
 	msg := &statusData{
 		ProtocolVersion: uint32(p.version),
-		NetworkId:       EmptyFakeNet().Genesis.NetworkId,
+		NetworkId:       lachesis.EmptyFakeNet().Genesis.NetworkId,
 		Progress:        progress,
 		Genesis:         genesis,
 	}

@@ -9,7 +9,6 @@ import (
 )
 
 type Config struct {
-	Name      string
 	NetworkId uint64
 	Balances  map[hash.Peer]pos.Stake
 	StateHash hash.Hash
@@ -28,7 +27,6 @@ func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
 	}
 
 	return &Config{
-		Name:      "fake",
 		NetworkId: 3,
 		Balances:  balances,
 	}, ids, keys
@@ -37,7 +35,6 @@ func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
 // FakeNet generates fake net with n-nodes genesis.
 func EmptyFakeNet() (*Config) {
 	return &Config{
-		Name:      "fake",
 		NetworkId: 3,
 	}
 }
@@ -45,7 +42,6 @@ func EmptyFakeNet() (*Config) {
 // MainNet returns builtin genesis keys of mainnet.
 func MainNet() *Config {
 	return &Config{
-		Name:      "main",
 		NetworkId: 1,
 		Balances: map[hash.Peer]pos.Stake{
 			// TODO: fill with official keys and balances.
@@ -56,7 +52,6 @@ func MainNet() *Config {
 // TestNet returns builtin genesis keys of testnet.
 func TestNet() *Config {
 	return &Config{
-		Name:      "test",
 		NetworkId: 2,
 		Balances: map[hash.Peer]pos.Stake{
 			// TODO: fill with official keys and balances.
