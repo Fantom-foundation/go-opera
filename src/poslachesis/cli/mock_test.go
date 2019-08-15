@@ -7,6 +7,7 @@ package main
 import (
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
+	pos "github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
