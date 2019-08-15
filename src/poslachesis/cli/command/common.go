@@ -31,16 +31,16 @@ func makeCtrlProxy(cmd *cobra.Command) (proxy.NodeProxy, error) {
 	return grpcProxy, nil
 }
 
-func dbProducer(cmd *cobra.Command) (lachesis.DbProducer, error) {
+func dbProducer(cmd *cobra.Command) lachesis.DbProducer {
 	dbdir, err := cmd.Flags().GetString("db")
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	if dbdir == "inmemory" {
 		return func(name string) kvdb.Database {
 			return kvdb.NewMemDatabase()
-		}, nil
+		}
 	}
 
 	return func(name string) kvdb.Database {
@@ -50,7 +50,7 @@ func dbProducer(cmd *cobra.Command) (lachesis.DbProducer, error) {
 		}
 
 		return kvdb.NewBoltDatabase(bdb, close, drop)
-	}, nil
+	}
 
 }
 

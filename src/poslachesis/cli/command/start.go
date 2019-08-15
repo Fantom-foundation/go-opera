@@ -33,11 +33,7 @@ var Start = &cobra.Command{
 		}
 		logger.SetDSN(sentry)
 
-		// db
-		makeDb, err := dbProducer(cmd)
-		if err != nil {
-			return err
-		}
+		makeDb := dbProducer(cmd)
 
 		// network
 		var (
