@@ -67,7 +67,7 @@ func TestRestore(t *testing.T) {
 				n := i % len(nodes)
 				restored.SetName("restored_" + nodes[n].String())
 				store.SetName("restored_" + nodes[n].String())
-				restored.Bootstrap()
+				restored.Bootstrap(nil)
 				posets[i] = restored
 			}
 			// push on restore i, and non-restored j

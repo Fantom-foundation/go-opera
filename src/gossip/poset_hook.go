@@ -16,10 +16,12 @@ type StoreAwareEngine struct {
 // not safe for concurrent use
 func (hook *StoreAwareEngine) ProcessEvent(e *inter.Event) error {
 	hook.store.SetEvent(e)
-	err := hook.engine.ProcessEvent(e)
-	if err != nil { // TODO make it possible to write only on success
-		hook.store.DeleteEvent(e.Hash())
-		return err
+	if hook.engine != nil {
+		err := hook.engine.ProcessEvent(e)
+		if err != nil { // TODO make it possible to write only on success
+			hook.store.DeleteEvent(e.Hash())
+			return err
+		}
 	}
 	// set member's last event. we don't care about forks, because this index is used only for emitter
 	hook.store.SetLastEvent(e.Creator, e.Hash())
@@ -32,29 +34,47 @@ func (hook *StoreAwareEngine) ProcessEvent(e *inter.Event) error {
 	}
 	hook.store.AddHead(e.Hash())
 
-	return err
+	return nil
 }
 
 func (hook *StoreAwareEngine) GetVectorIndex() *vector.Index {
+	if hook.engine == nil {
+		return nil
+	}
 	return hook.engine.GetVectorIndex()
 }
 
-func (hook *StoreAwareEngine) StakeOf(addr hash.Peer) pos.Stake {
-	return hook.engine.StakeOf(addr)
-}
-
 func (hook *StoreAwareEngine) GetGenesisHash() hash.Hash {
+	if hook.engine == nil {
+		return hash.Hash{}
+	}
 	return hook.engine.GetGenesisHash()
 }
 
 func (hook *StoreAwareEngine) Prepare(e *inter.Event) *inter.Event {
+	if hook.engine == nil {
+		return e
+	}
 	return hook.engine.Prepare(e)
 }
 
 func (hook *StoreAwareEngine) CurrentSuperFrameN() idx.SuperFrame {
+	if hook.engine == nil {
+		return 1
+	}
 	return hook.engine.CurrentSuperFrameN()
 }
 
-func (hook *StoreAwareEngine) SuperFrameMembers() []hash.Peer {
-	return hook.engine.SuperFrameMembers()
+func (hook *StoreAwareEngine) GetMembers() pos.Members {
+	if hook.engine == nil {
+		return pos.Members{}
+	}
+	return hook.engine.GetMembers()
+}
+
+func (hook *StoreAwareEngine) Bootstrap(fn inter.ApplyBlockFn) {
+	if hook.engine == nil {
+		return
+	}
+	hook.engine.Bootstrap(fn)
 }

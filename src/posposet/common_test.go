@@ -1,6 +1,7 @@
 package posposet
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -33,7 +34,10 @@ func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
 	}
 
 	store := NewMemStore()
-	err := store.ApplyGenesis(balances, genesisTestTime)
+	err := store.ApplyGenesis(&genesis.Config{
+		Balances: balances,
+		Time:     genesisTestTime,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -41,7 +45,7 @@ func FakePoset(nodes []hash.Peer) (*BufferedPoset, *Store, *EventStore) {
 	input := NewEventStore(nil)
 
 	poset := New(store, input)
-	poset.Bootstrap()
+	poset.Bootstrap(nil)
 
 	buffered := &BufferedPoset{
 		Poset:      poset,

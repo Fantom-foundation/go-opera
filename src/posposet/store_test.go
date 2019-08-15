@@ -2,6 +2,7 @@ package posposet
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -95,6 +96,18 @@ func benchmarkStore(b *testing.B) {
 		}
 	}
 
+	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+		for _, id := range block.Events {
+			e := input.GetEvent(id)
+			if e.Seq == 1 && e.Creator == nodes[0] {
+				// move stake from node0 to node1
+				members.Add(nodes[0], 0)
+				members.Add(nodes[1], 2)
+			}
+		}
+		return stateHash, members
+	}
+
 	// run test with random DAG, N + 1 epochs long
 	b.ResetTimer()
 	maxEpoch := idx.SuperFrame(b.N) + 1
@@ -110,15 +123,6 @@ func benchmarkStore(b *testing.B) {
 				}
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
-				if e.Seq == 1 && e.Creator == nodes[0] {
-					// move stake from node0 to node1, to test that it doesn't break anything
-					e.InternalTransactions = append(e.InternalTransactions,
-						&inter.InternalTransaction{
-							Nonce:    0,
-							Amount:   1,
-							Receiver: nodes[1],
-						})
-				}
 				e.Epoch = epoch
 				return p.Prepare(e)
 			},
@@ -134,12 +138,16 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 		balances[addr] = pos.Stake(1)
 	}
 
-	if err := store.ApplyGenesis(balances, genesisTestTime); err != nil {
+	err := store.ApplyGenesis(&genesis.Config{
+		Balances: balances,
+		Time:     genesisTestTime,
+	})
+	if err != nil {
 		panic(err)
 	}
 
 	poset := New(store, input)
-	poset.Bootstrap()
+	poset.Bootstrap(nil)
 
 	return poset
 }

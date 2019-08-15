@@ -55,6 +55,15 @@ func (mm Members) Top() Members {
 	return res
 }
 
+// Copy constructs a copy.
+func (mm Members) Copy() Members {
+	res := make(Members)
+	for addr, stake := range mm {
+		res.Add(addr, stake)
+	}
+	return res
+}
+
 // Idxs gets deterministic total order of members.
 func (mm Members) Idxs() map[hash.Peer]idx.Member {
 	idxs := make(map[hash.Peer]idx.Member, len(mm))
@@ -83,14 +92,7 @@ func (mm Members) StakeOf(n hash.Peer) Stake {
 }
 
 func (mm Members) EncodeRLP(w io.Writer) error {
-	var arr []member
-	for addr, stake := range mm {
-		arr = append(arr, member{
-			Addr:  addr,
-			Stake: stake,
-		})
-	}
-	return rlp.Encode(w, arr)
+	return rlp.Encode(w, mm.sortedArray())
 }
 
 func (pp *Members) DecodeRLP(s *rlp.Stream) error {

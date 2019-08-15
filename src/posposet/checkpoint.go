@@ -14,10 +14,9 @@ type checkpoint struct {
 	// fields can change only after a frame is decided
 	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
-	TotalCap          pos.Stake
 	LastConsensusTime inter.Timestamp
 	NextMembers       pos.Members
-	Balances          hash.Hash
+	StateHash         hash.Hash
 }
 
 /*
@@ -30,10 +29,13 @@ func (p *Poset) saveCheckpoint() {
 }
 
 // Bootstrap restores checkpoint from store.
-func (p *Poset) Bootstrap() {
+func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 	if p.checkpoint != nil {
 		return
 	}
+	// block handler must be set before p.handleElection
+	p.applyBlock = applyBlock
+
 	// restore checkpoint
 	p.checkpoint = p.store.GetCheckpoint()
 	if p.checkpoint == nil {

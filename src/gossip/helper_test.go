@@ -3,6 +3,7 @@ package gossip
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"math/big"
 	"sync"
 	"testing"
@@ -41,13 +42,15 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	}
 
 	engineStore := posposet.NewMemStore()
-	err := engineStore.ApplyGenesis(balances, 0)
+	err := engineStore.ApplyGenesis(&genesis.Config{
+		Balances: balances,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	engine := posposet.New(engineStore, store)
-	engine.Bootstrap()
+	engine.Bootstrap(nil)
 
 	config := &DefaultConfig
 	pm, err := NewProtocolManager(config, downloader.FullSync, config.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)

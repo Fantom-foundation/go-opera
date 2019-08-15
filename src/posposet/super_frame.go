@@ -58,11 +58,11 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.PrevEpoch.Time = p.LastConsensusTime
 	p.PrevEpoch.Epoch = p.SuperFrameN
 	p.PrevEpoch.LastFiWitness = fiWitness
-	p.PrevEpoch.StateHash = p.checkpoint.Balances
+	p.PrevEpoch.StateHash = p.checkpoint.StateHash
 
 	// new members list
-	p.Members = p.NextMembers
-	p.NextMembers = p.Members.Top()
+	p.Members = p.NextMembers.Top()
+	p.NextMembers = p.Members.Copy()
 
 	// reset internal epoch DB
 	p.store.recreateTempDb()
@@ -86,17 +86,8 @@ func (p *Poset) CurrentSuperFrameN() idx.SuperFrame {
 }
 
 // SuperFrameMembers returns members of current super-frame.
-func (p *Poset) SuperFrameMembers() (members []hash.Peer) {
-	sf := p.store.GetSuperFrame()
-	if sf == nil {
-		p.Fatal("super-frame not found")
-	}
-
-	for m := range sf.Members {
-		members = append(members, m)
-	}
-
-	return members
+func (p *Poset) GetMembers() pos.Members {
+	return p.Members.Copy()
 }
 
 // rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.

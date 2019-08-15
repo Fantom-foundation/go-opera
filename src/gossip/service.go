@@ -83,6 +83,8 @@ func NewService(config *Config, mux *event.TypeMux, store *Store, engine Consens
 		Instance: logger.MakeInstance(),
 	}
 
+	engine.Bootstrap(svc.ApplyBlock)
+
 	trustedNodes := []string{}
 
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
@@ -138,9 +140,7 @@ func (s *Service) APIs() []rpc.API {
 func (s *Service) Start(srv *p2p.Server) error {
 
 	var genesis hash.Hash
-	if s.engine != nil {
-		genesis = s.engine.GetGenesisHash()
-	}
+	genesis = s.engine.GetGenesisHash()
 	s.Topics = []discv5.Topic{
 		discv5.Topic("lachesis@" + genesis.Hex()),
 	}

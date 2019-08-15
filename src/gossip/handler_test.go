@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"testing"
 	"time"
 
@@ -140,10 +141,12 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	}
 
 	engineStore := posposet.NewMemStore()
-	assertar.NoError(engineStore.ApplyGenesis(balances, 0))
+	assertar.NoError(engineStore.ApplyGenesis(&genesis.Config{
+		Balances:balances,
+	}))
 
 	engine := posposet.New(engineStore, store)
-	engine.Bootstrap()
+	engine.Bootstrap(nil)
 
 	svc, err := NewService(&config, evmux, store, engine)
 	assertar.NoError(err)
