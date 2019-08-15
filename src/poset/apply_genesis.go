@@ -3,7 +3,7 @@ package posposet
 import (
 	"fmt"
 	"github.com/Fantom-foundation/go-lachesis/src/common/bigendian"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
