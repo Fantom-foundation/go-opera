@@ -10,6 +10,7 @@ require (
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015 // indirect
 	github.com/btcsuite/btcd v0.0.0-20190629003639-c26ffa870fd8
 	github.com/certifi/gocertifi v0.0.0-20190506164543-d2eda7129713 // indirect
+	github.com/cespare/cp v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.7.1
 	github.com/dgraph-io/badger v0.0.0-20190308055650-deee8c7ae70b
@@ -33,7 +34,6 @@ require (
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.3.1
 	github.com/graph-gophers/graphql-go v0.0.0-20190724201507-010347b5f9e6 // indirect
-	github.com/hashicorp/go-multierror v1.0.0
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/howeyc/fsnotify v0.9.0 // indirect
 	github.com/huin/goupnp v1.0.0 // indirect
@@ -41,6 +41,7 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.1 // indirect
 	github.com/karalabe/usb v0.0.0-20190703133951-9be757f914c0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
@@ -69,7 +70,6 @@ require (
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/tebeka/atexit v0.1.0
 	github.com/tyler-smith/go-bip39 v1.0.0 // indirect
 	github.com/urfave/cli v1.20.0
 	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208 // indirect
@@ -78,10 +78,9 @@ require (
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 	golang.org/x/sys v0.0.0-20190624142023-c5567b49c5d0
 	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20190624222133-a101b041ded4 // indirect
-	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190508193815-b515fa19cec8 // indirect
 	google.golang.org/grpc v1.21.1
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20190709231704-1e4459ed25ff // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
