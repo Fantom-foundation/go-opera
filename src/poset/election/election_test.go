@@ -2,7 +2,6 @@ package election
 
 import (
 	"math/rand"
-	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -254,6 +253,13 @@ func testProcessRoot(
 			return nil
 		}
 	}
+
+	// re-order events randomly, preserving parents order
+	unordered := make(inter.Events, len(ordered))
+	for i, j := range rand.Perm(len(ordered)) {
+		unordered[i] = ordered[j]
+	}
+	ordered = unordered.ByParents()
 
 	election := New(mm, 0, stronglySeeFn)
 
