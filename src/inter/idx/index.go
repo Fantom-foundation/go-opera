@@ -22,6 +22,9 @@ type (
 
 	// Frame numeration.
 	Frame uint32
+
+	// Pack numeration.
+	Pack uint32
 )
 
 // Bytes gets the byte representation of the index.
@@ -47,6 +50,11 @@ func (b Block) Bytes() []byte {
 // Bytes gets the byte representation of the index.
 func (l Lamport) Bytes() []byte {
 	return bigendian.Int32ToBytes(uint32(l))
+}
+
+// Bytes gets the byte representation of the index.
+func (p Pack) Bytes() []byte {
+	return bigendian.Int32ToBytes(uint32(p))
 }
 
 // Bytes gets the byte representation of the index.
@@ -77,6 +85,11 @@ func BytesToLamport(b []byte) Lamport {
 // BytesToFrame converts bytes to block index.
 func BytesToFrame(b []byte) Frame {
 	return Frame(bigendian.BytesToInt32(b))
+}
+
+// BytesToPack converts bytes to block index.
+func BytesToPack(b []byte) Pack {
+	return Pack(bigendian.BytesToInt32(b))
 }
 
 // MaxLamport return max value

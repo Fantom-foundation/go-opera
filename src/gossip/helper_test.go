@@ -121,30 +121,38 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 	// Execute any implicitly requested handshakes and return
 	if shake {
 		var (
-			genesis  = pm.engine.GetGenesisHash()
-			progress = PeerProgress{
-				Epoch: pm.engine.CurrentSuperFrameN(),
+			genesis       = pm.engine.GetGenesisHash()
+			blockI, block = pm.engine.LastBlock()
+			myProgress    = &PeerProgress{
+				Epoch:       pm.engine.CurrentSuperFrameN(),
+				NumOfBlocks: blockI,
+				LastBlock:   block,
 			}
 		)
-		tp.handshake(nil, progress, genesis)
+		tp.handshake(nil, myProgress, genesis)
 	}
 	return tp, errc
 }
 
 // handshake simulates a trivial handshake that expects the same state from the
 // remote side as we are simulating locally.
-func (p *testPeer) handshake(t *testing.T, progress PeerProgress, genesis hash.Hash) {
-	msg := &statusData{
+func (p *testPeer) handshake(t *testing.T, progress *PeerProgress, genesis hash.Hash) {
+	msg := &ethStatusData{
 		ProtocolVersion: uint32(p.version),
 		NetworkId:       lachesis.EmptyFakeNet().Genesis.NetworkId,
-		Progress:        progress,
 		Genesis:         genesis,
 	}
-	if err := p2p.ExpectMsg(p.app, StatusMsg, msg); err != nil {
+	if err := p2p.ExpectMsg(p.app, EthStatusMsg, msg); err != nil {
 		t.Fatalf("status recv: %v", err)
 	}
-	if err := p2p.Send(p.app, StatusMsg, msg); err != nil {
+	if err := p2p.Send(p.app, EthStatusMsg, msg); err != nil {
 		t.Fatalf("status send: %v", err)
+	}
+	if err := p2p.ExpectMsg(p.app, ProgressMsg, progress); err != nil {
+		t.Fatalf("progress recv: %v", err)
+	}
+	if err := p2p.Send(p.app, ProgressMsg, progress); err != nil {
+		t.Fatalf("progress send: %v", err)
 	}
 }
 

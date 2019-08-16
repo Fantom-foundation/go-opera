@@ -65,6 +65,13 @@ func (hook *StoreAwareEngine) CurrentSuperFrameN() idx.SuperFrame {
 	return hook.engine.CurrentSuperFrameN()
 }
 
+func (hook *StoreAwareEngine) LastBlock() (idx.Block, hash.Event) {
+	if hook.engine == nil {
+		return idx.Block(1), hash.ZeroEvent
+	}
+	return hook.engine.LastBlock()
+}
+
 func (hook *StoreAwareEngine) GetMembers() pos.Members {
 	if hook.engine == nil {
 		return pos.Members{}

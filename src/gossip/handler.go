@@ -258,10 +258,12 @@ func (pm *ProtocolManager) handle(p *peer) error {
 
 	// Execute the handshake
 	var (
-		genesis    = pm.engine.GetGenesisHash()
-		myProgress = PeerProgress{
+		genesis       = pm.engine.GetGenesisHash()
+		blockI, block = pm.engine.LastBlock()
+		myProgress    = PeerProgress{
 			Epoch:       pm.engine.CurrentSuperFrameN(),
-			NumOfEvents: idx.Event(0), // TODO
+			NumOfBlocks: blockI,
+			LastBlock:   block,
 		}
 	)
 	if err := p.Handshake(pm.networkID, myProgress, genesis); err != nil {
@@ -310,9 +312,19 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	// Handle the message depending on its contents
 	switch {
-	case msg.Code == StatusMsg:
+	case msg.Code == EthStatusMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
+
+	case msg.Code == ProgressMsg:
+		var progress PeerProgress
+		if err := msg.Decode(&progress); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		p.progress = progress
+		if p.progress.Epoch == pm.engine.CurrentSuperFrameN() {
+			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
+		}
 
 	case msg.Code == NewEventHashesMsg:
 		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
@@ -342,7 +354,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 		_ = pm.fetcher.Enqueue(p.id, events)
 
-	case msg.Code == TxMsg:
+	case msg.Code == EvmTxMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
 		if atomic.LoadUint32(&pm.synced) == 0 {
 			break

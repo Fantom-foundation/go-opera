@@ -168,8 +168,7 @@ func makeFullNode(cfg *node.Config) *node.Node {
 	// individual implementations' support for such operations.
 
 	constructor := func(ctx *node.ServiceContext) (node.Service, error) {
-		cfg := lachesis.TestNet()
-		return gossip.NewService(cfg, new(event.TypeMux), gdb, engine)
+		return gossip.NewService(lachesis.TestNet(), new(event.TypeMux), gdb, engine)
 	}
 
 	// Create node.

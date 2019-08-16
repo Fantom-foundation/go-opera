@@ -43,6 +43,10 @@ func (p *Poset) GetVectorIndex() *vector.Index {
 	return p.seeVec
 }
 
+func (p *Poset) LastBlock() (idx.Block, hash.Event) {
+	return p.LastBlockN, p.LastFiWitness
+}
+
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
@@ -213,6 +217,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
 	// block generation
+	p.checkpoint.LastFiWitness = sfWitness
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
 		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered)

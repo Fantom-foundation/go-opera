@@ -48,12 +48,7 @@ const (
 type PeerInfo struct {
 	Version     int            `json:"version"` // protocol version negotiated
 	Epoch       idx.SuperFrame `json:"epoch"`
-	NumOfEvents idx.Event      `json:"numOfEvents"`
-}
-
-type PeerProgress struct {
-	Epoch       idx.SuperFrame
-	NumOfEvents idx.Event
+	NumOfBlocks idx.Block      `json:"blocks"`
 }
 
 type peer struct {
@@ -78,10 +73,13 @@ type peer struct {
 }
 
 func (a *PeerProgress) Less(b PeerProgress) bool {
-	if a.Epoch < b.Epoch {
-		return true
+	if a.Epoch != b.Epoch {
+		return a.Epoch < b.Epoch
 	}
-	return a.Epoch == b.Epoch && a.NumOfEvents < b.NumOfEvents
+	if a.NumOfBlocks != b.NumOfBlocks {
+		return a.NumOfBlocks < b.NumOfBlocks
+	}
+	return a.NumOfPacks < b.NumOfPacks
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
@@ -139,7 +137,7 @@ func (p *peer) Info() *PeerInfo {
 	return &PeerInfo{
 		Version:     p.version,
 		Epoch:       p.progress.Epoch,
-		NumOfEvents: p.progress.NumOfEvents,
+		NumOfBlocks: p.progress.NumOfBlocks,
 	}
 }
 
@@ -173,7 +171,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	for p.knownTxs.Cardinality() >= maxKnownTxs {
 		p.knownTxs.Pop()
 	}
-	return p2p.Send(p.rw, TxMsg, txs)
+	return p2p.Send(p.rw, EvmTxMsg, txs)
 }
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
@@ -300,18 +298,23 @@ func (p *peer) RequestEvents(ids []hash.Event) error {
 func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
-	var status statusData // safe to read after two values have been received from errc
+	var status ethStatusData // safe to read after two values have been received from errc
 
 	go func() {
-		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
+		// send both EthStatusMsg and ProgressMsg, eth62 clients will understand only status
+		err := p2p.Send(p.rw, EthStatusMsg, &ethStatusData{
 			ProtocolVersion: uint32(p.version),
-			Progress:        progress,
 			NetworkId:       network,
 			Genesis:         genesis,
 		})
+		if err != nil {
+			errc <- err
+		}
+		errc <- p2p.Send(p.rw, ProgressMsg, progress)
 	}()
 	go func() {
 		errc <- p.readStatus(network, &status, genesis)
+		// do not expect ProgressMsg here, because eth62 clients won't send it
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
@@ -325,17 +328,16 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Has
 			return p2p.DiscReadTimeout
 		}
 	}
-	p.progress = progress
 	return nil
 }
 
-func (p *peer) readStatus(network uint64, status *statusData, genesis hash.Hash) (err error) {
+func (p *peer) readStatus(network uint64, status *ethStatusData, genesis hash.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
 	}
-	if msg.Code != StatusMsg {
-		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, StatusMsg)
+	if msg.Code != EthStatusMsg {
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, EthStatusMsg)
 	}
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)

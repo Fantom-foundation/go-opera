@@ -14,6 +14,7 @@ type checkpoint struct {
 	// fields can change only after a frame is decided
 	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
+	LastFiWitness     hash.Event
 	LastConsensusTime inter.Timestamp
 	NextMembers       pos.Members
 	StateHash         hash.Hash

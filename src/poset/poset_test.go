@@ -77,7 +77,7 @@ func TestPoset(t *testing.T) {
 
 				for b := idx.Block(1); b <= both; b++ {
 					if !assertar.Equal(
-						p0.blocks[b].Events, p1.blocks[b].Events,
+						p0.blocks[b], p1.blocks[b],
 						"block %d", b) {
 						break
 					}

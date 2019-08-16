@@ -2,10 +2,12 @@ package gossip
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"math/big"
 )
 
 // Constants to match up protocol versions and messages
@@ -27,10 +29,12 @@ const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a prot
 // protocol message codes
 const (
 	// Protocol messages belonging to eth/62
-	StatusMsg = 0x00
-	TxMsg     = 0x02
+	EthStatusMsg = 0x00
+	EvmTxMsg     = 0x02
 
 	// Protocol messages belonging to fantom/62
+
+	ProgressMsg = 0xf0
 
 	NewEventHashesMsg = 0xf1
 
@@ -88,10 +92,18 @@ type txPool interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 }
 
-// statusData is the network packet for the status message.
-type statusData struct {
-	ProtocolVersion uint32
-	NetworkId       uint64
-	Progress        PeerProgress
-	Genesis         hash.Hash
+// ethStatusData is the network packet for the status message. It's used for compatibility with some ETH wallets.
+type ethStatusData struct {
+	ProtocolVersion   uint32
+	NetworkId         uint64
+	DummyTD           *big.Int
+	DummyCurrentBlock hash.Hash
+	Genesis           hash.Hash
+}
+
+type PeerProgress struct {
+	Epoch       idx.SuperFrame
+	NumOfBlocks idx.Block
+	NumOfPacks  idx.Pack
+	LastBlock   hash.Event
 }
