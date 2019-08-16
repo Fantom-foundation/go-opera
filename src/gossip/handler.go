@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned events, or other data.
+	softResponseLimitSize = 2 * 1024 * 1024 // Target maximum size of returned events, or other data.
+	softLimitItems        = 4096            // Target maximum number of events or transactions to request/response
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
@@ -387,7 +388,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				ids = append(ids, id)
 				size += len(e)
 			}
-			if size > softResponseLimit {
+			if size > softResponseLimitSize || len(ids) > softLimitItems {
 				break
 			}
 		}
@@ -447,6 +448,10 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) i
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
+	if len(txs) > softLimitItems {
+		txs = txs[:softLimitItems]
+	}
+
 	var txset = make(map[*peer]types.Transactions)
 
 	// Broadcast transactions to a batch of peers not knowing about it
