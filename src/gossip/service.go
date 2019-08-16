@@ -2,18 +2,14 @@ package gossip
 
 import (
 	"fmt"
-	"math/rand"
-	"sync"
-	"time"
-
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/rand"
+	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
@@ -21,11 +17,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-)
-
-const (
-	PingMsg uint64 = iota
-	PongMsg
 )
 
 // Service implements go-ethereum/node.Service interface.
@@ -54,8 +45,7 @@ type Service struct {
 	mux *event.TypeMux
 
 	// application protocol
-	Pinger *PingAPI
-	pm     *ProtocolManager
+	pm *ProtocolManager
 
 	logger.Instance
 }
@@ -75,7 +65,6 @@ func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine C
 
 		store:  store,
 		engine: engine,
-		Pinger: &PingAPI{},
 
 		engineMu: new(sync.RWMutex),
 
@@ -114,27 +103,17 @@ func (s *Service) makeEmitter() *Emitter {
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-
 	protos := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, vsn := range ProtocolVersions {
 		protos[i] = s.pm.makeProtocol(vsn)
 		protos[i].Attributes = []enr.Entry{s.currentEnr()}
 	}
-
-	protos = append(protos, s.makePingProtocol(1))
 	return protos
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "ping",
-			Version:   "1.0",
-			Service:   s.Pinger,
-			Public:    true,
-		},
-	}
+	return []rpc.API{}
 }
 
 // Start method invoked when the node is ready to start the service.
@@ -173,92 +152,4 @@ func (s *Service) Stop() error {
 	s.pm.Stop()
 	s.wg.Wait()
 	return nil
-}
-
-func (s *Service) makePingProtocol(version uint) p2p.Protocol {
-	return p2p.Protocol{
-		Name:    "ping",
-		Version: 1,
-		Length:  10,
-		NodeInfo: func() interface{} {
-			return struct{}{}
-		},
-		PeerInfo: func(id enode.ID) interface{} {
-			return struct{}{}
-		},
-		Run: func(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
-			select {
-			case <-s.done:
-				return p2p.DiscQuitting
-			default:
-				s.wg.Add(1)
-				defer s.wg.Done()
-				return s.handlePing(peer, rw)
-			}
-		},
-	}
-}
-
-func (s *Service) handlePing(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
-	errc := make(chan error)
-
-	go func() {
-		errc <- func() error {
-
-			msg, err := rw.ReadMsg()
-			if err != nil {
-				return err
-			}
-
-			if msg.Code != PingMsg {
-				_ = msg.Discard()
-				return errResp(ErrInvalidMsgCode, "ping expected")
-			}
-
-			var req string
-			err = msg.Decode(&req)
-			if err != nil {
-				return err
-			}
-
-			resp := s.Pinger.Hi(req)
-
-			size, r, err := rlp.EncodeToReader(&resp)
-			if err != nil {
-				return err
-			}
-
-			err = rw.WriteMsg(p2p.Msg{
-				Code:    PongMsg,
-				Size:    uint32(size),
-				Payload: r})
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}()
-	}()
-
-	timeout := time.NewTimer(time.Second)
-	defer timeout.Stop()
-
-	select {
-	case err := <-errc:
-		if err != nil {
-			return err
-		}
-	case <-timeout.C:
-		return p2p.DiscReadTimeout
-	}
-
-	return nil
-}
-
-// PingAPI:
-
-type PingAPI struct{}
-
-func (a *PingAPI) Hi(name string) string {
-	return fmt.Sprintf("Hello, %s!", name)
 }
