@@ -6,6 +6,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"time"
+)
+
+var (
+	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
 type Config struct {
@@ -29,6 +34,7 @@ func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
 	return &Config{
 		NetworkId: 3,
 		Balances:  balances,
+		Time:      genesisTestTime,
 	}, ids, keys
 }
 
@@ -36,6 +42,7 @@ func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
 func EmptyFakeNet() (*Config) {
 	return &Config{
 		NetworkId: 3,
+		Time:      genesisTestTime,
 	}
 }
 
@@ -43,6 +50,7 @@ func EmptyFakeNet() (*Config) {
 func MainNet() *Config {
 	return &Config{
 		NetworkId: 1,
+		Time:      genesisTestTime,
 		Balances: map[hash.Peer]pos.Stake{
 			// TODO: fill with official keys and balances.
 		},
@@ -53,6 +61,7 @@ func MainNet() *Config {
 func TestNet() *Config {
 	return &Config{
 		NetworkId: 2,
+		Time:      genesisTestTime,
 		Balances: map[hash.Peer]pos.Stake{
 			// TODO: fill with official keys and balances.
 		},
