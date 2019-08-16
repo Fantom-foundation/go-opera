@@ -1,17 +1,18 @@
 package election
 
 import (
+	"math/rand"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 type fakeEdge struct {
@@ -191,7 +192,43 @@ func testProcessRoot(
 ) {
 	assertar := assert.New(t)
 
-	peers, _, named := inter.ASCIIschemeToDAG(dag)
+	// events:
+	ordered := make(inter.Events, 0)
+	events := make(map[hash.Event]*inter.Event)
+	vertices := make(map[hash.Event]Slot)
+	edges := make(map[fakeEdge]hash.Event)
+
+	peers, _, _ := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+		Process: func(root *inter.Event, name string) {
+			// store all the events
+			ordered = append(ordered, root)
+
+			events[root.Hash()] = root
+
+			vertices[root.Hash()] = Slot{
+				Frame: frameOf(name),
+				Addr:  root.Creator,
+			}
+
+			// build edges to be able to fake strongly see fn
+			noPrev := false
+			if strings.HasPrefix(name, "+") {
+				noPrev = true
+			}
+			from := root.Hash()
+			for _, sSeen := range root.Parents {
+				if root.IsSelfParent(sSeen) && noPrev {
+					continue
+				}
+				to := sSeen
+				edge := fakeEdge{
+					from: from,
+					to:   vertices[to],
+				}
+				edges[edge] = to
+			}
+		},
+	})
 
 	// members:
 	var (
@@ -199,40 +236,6 @@ func testProcessRoot(
 	)
 	for _, peer := range peers {
 		mm.Set(peer, stakes[peer.String()])
-	}
-
-	// events:
-	events := make(map[hash.Event]*inter.Event)
-	vertices := make(map[hash.Event]Slot)
-	edges := make(map[fakeEdge]hash.Event)
-
-	for dsc, root := range named {
-		events[root.Hash()] = root
-		h := root.Hash()
-
-		vertices[h] = Slot{
-			Frame: frameOf(dsc),
-			Addr:  root.Creator,
-		}
-	}
-
-	for dsc, root := range named {
-		noPrev := false
-		if strings.HasPrefix(dsc, "+") {
-			noPrev = true
-		}
-		from := root.Hash()
-		for _, sSeen := range root.Parents {
-			if root.SelfParent() != nil && sSeen == *root.SelfParent() && noPrev {
-				continue
-			}
-			to := sSeen
-			edge := fakeEdge{
-				from: from,
-				to:   vertices[to],
-			}
-			edges[edge] = to
-		}
 	}
 
 	// strongly see fn:
@@ -254,53 +257,32 @@ func testProcessRoot(
 
 	election := New(mm, 0, stronglySeeFn)
 
-	// ordering:
-	var (
-		processed      = make(map[hash.Event]*inter.Event)
-		alreadyDecided = false
-	)
-	orderThenProcess, _ := ordering.EventBuffer(ordering.Callback{
-
-		Process: func(root *inter.Event) error {
-			rootHash := root.Hash()
-			rootSlot, ok := vertices[rootHash]
-			if !ok {
-				t.Fatal("inconsistent vertices")
-			}
-			got, err := election.ProcessRoot(RootAndSlot{
-				Root: rootHash,
-				Slot: rootSlot,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			processed[root.Hash()] = root
-
-			// checking:
-			decisive := expected != nil && expected.DecisiveRoots[root.Hash().String()]
-			if decisive || alreadyDecided {
-				assertar.NotNil(got)
-				assertar.Equal(expected.DecidedFrame, got.Frame)
-				assertar.Equal(expected.DecidedSfWitness, got.SfWitness.String())
-				alreadyDecided = true
-			} else {
-				assertar.Nil(got)
-			}
-			return nil
-		},
-
-		Drop: func(e *inter.Event, peer string, err error) {
-			t.Fatal(e, err)
-		},
-
-		Exists: func(h hash.Event) *inter.Event {
-			return processed[h]
-		},
-	})
-
 	// processing:
-	for _, root := range named {
-		orderThenProcess(root, "")
+	var alreadyDecided bool
+	for _, root := range ordered {
+		rootHash := root.Hash()
+		rootSlot, ok := vertices[rootHash]
+		if !ok {
+			t.Fatal("inconsistent vertices")
+		}
+		got, err := election.ProcessRoot(RootAndSlot{
+			Root: rootHash,
+			Slot: rootSlot,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// checking:
+		decisive := expected != nil && expected.DecisiveRoots[root.Hash().String()]
+		if decisive || alreadyDecided {
+			assertar.NotNil(got)
+			assertar.Equal(expected.DecidedFrame, got.Frame)
+			assertar.Equal(expected.DecidedSfWitness, got.SfWitness.String())
+			alreadyDecided = true
+		} else {
+			assertar.Nil(got)
+		}
 	}
 }
 
