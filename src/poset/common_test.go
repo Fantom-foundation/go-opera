@@ -52,13 +52,13 @@ func FakePoset(nodes []hash.Peer) (*ExtendedPoset, *Store, *EventStore) {
 	input := NewEventStore(nil)
 
 	poset := New(store, input)
-	poset.Bootstrap(nil)
 
 	extended := &ExtendedPoset{
 		Poset: poset,
 	}
-	// track block events
-	extended.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+
+	extended.Bootstrap(func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+		// track block events
 		if extended.blocks == nil {
 			extended.blocks = map[idx.Block]*inter.Block{}
 		}
@@ -67,17 +67,15 @@ func FakePoset(nodes []hash.Peer) (*ExtendedPoset, *Store, *EventStore) {
 		}
 		extended.blocks[block.Index] = block
 		return stateHash, members
-	}
+	})
 
 	return extended, store, input
 }
 
 func reorder(events inter.Events) inter.Events {
-	count := len(events)
-	unordered := make(inter.Events, count)
-	pos := rand.Perm(count)
-	for i := 0; i < count; i++ {
-		unordered[pos[i]] = events[i]
+	unordered := make(inter.Events, len(events))
+	for i, j := range rand.Perm(len(events)) {
+		unordered[j] = events[i]
 	}
 
 	reordered := unordered.ByParents()

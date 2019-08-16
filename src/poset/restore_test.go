@@ -68,8 +68,8 @@ func TestRestore(t *testing.T) {
 				n := i % len(nodes)
 				restored.SetName("restored_" + nodes[n].String())
 				store.SetName("restored_" + nodes[n].String())
-				restored.Bootstrap(nil)
-				posets[i] = &ExtendedPoset{Poset: restored}
+				restored.Bootstrap(posets[i].applyBlock)
+				posets[i].Poset = restored
 			}
 			// push on restore i, and non-restored j
 			inputs[i].SetEvent(e)
@@ -80,6 +80,18 @@ func TestRestore(t *testing.T) {
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
 			assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+		}
+
+		// check that blocks are identical
+		assertar.Equal(len(posets[i].blocks), len(posets[j].blocks))
+		assertar.Equal(len(posets[i].blocks), int(epochs)*int(SuperFrameLen))
+		assertar.Equal(len(posets[i].blocks), int(posets[i].LastBlockN))
+		for blockI := idx.Block(1); blockI <= idx.Block(len(posets[i].blocks)); blockI++ {
+			assertar.NotNil(posets[i].blocks[blockI])
+			if t.Failed() {
+				return
+			}
+			assertar.Equal(posets[i].blocks[blockI], posets[j].blocks[blockI])
 		}
 	})
 }
