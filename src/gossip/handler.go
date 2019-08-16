@@ -48,8 +48,8 @@ type ProtocolManager struct {
 
 	networkID uint64
 
-	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
-	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
+	fastSync uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
+	synced   uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
 	txpool   txPool
 	maxPeers int
@@ -115,7 +115,9 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 			}
 
 			// If the event is indeed in our own graph, announce it
-			pm.BroadcastEvent(e, false) // TODO do not announce if it's "initial events download"
+			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
+				pm.BroadcastEvent(e, false)
+			}
 			return nil
 		},
 
@@ -313,6 +315,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 
 	case msg.Code == NewEventHashesMsg:
+		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
+		if atomic.LoadUint32(&pm.synced) == 0 {
+			break
+		}
 		var announces []hash.Event
 		if err := msg.Decode(&announces); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
@@ -337,8 +343,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		_ = pm.fetcher.Enqueue(p.id, events)
 
 	case msg.Code == TxMsg:
-		// Transactions arrived, make sure we have a valid and fresh chain to handle them
-		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+		// Transactions arrived, make sure we have a valid and fresh graph to handle them
+		if atomic.LoadUint32(&pm.synced) == 0 {
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool

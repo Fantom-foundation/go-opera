@@ -84,7 +84,7 @@ func TestRecvTransactions62(t *testing.T) { testRecvTransactions(t, fantom62) }
 func testRecvTransactions(t *testing.T, protocol int) {
 	txAdded := make(chan []*types.Transaction)
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, txAdded, nil)
-	pm.acceptTxs = 1 // mark synced to accept transactions
+	pm.synced = 1 // mark synced to accept transactions
 	p, _ := newTestPeer("peer", protocol, pm, true)
 	defer pm.Stop()
 	defer p.close()
