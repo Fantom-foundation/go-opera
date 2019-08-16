@@ -29,6 +29,9 @@ var (
 // dropPeerFn is a callback type for dropping a peer detected as malicious.
 type dropPeerFn func(peer string)
 
+// isInteresedFn returns true if event may be requested.
+type isInterestedFn func(id hash.Event) bool
+
 // eventsRequesterFn is a callback type for sending a event retrieval request.
 type eventsRequesterFn func([]hash.Event) error
 
@@ -65,7 +68,7 @@ type Fetcher struct {
 	inject chan *inject
 
 	pushEvent    ordering.PushEventFn
-	isEventKnown ordering.IsBufferedFn
+	isInterested isInterestedFn
 	dropPeer     dropPeerFn
 
 	quit chan struct{}
@@ -77,7 +80,7 @@ type Fetcher struct {
 }
 
 // New creates a event fetcher to retrieve events based on hash announcements.
-func New(pushEvent ordering.PushEventFn, isEventKnown ordering.IsBufferedFn, dropPeer dropPeerFn) *Fetcher {
+func New(pushEvent ordering.PushEventFn, isInterested isInterestedFn, dropPeer dropPeerFn) *Fetcher {
 	return &Fetcher{
 		notify:       make(chan *announcesBatch),
 		inject:       make(chan *inject),
@@ -86,7 +89,7 @@ func New(pushEvent ordering.PushEventFn, isEventKnown ordering.IsBufferedFn, dro
 		announced:    make(map[hash.Event][]*oneAnnounce),
 		fetching:     make(map[hash.Event]*oneAnnounce),
 		pushEvent:    pushEvent,
-		isEventKnown: isEventKnown,
+		isInterested: isInterested,
 		dropPeer:     dropPeer,
 	}
 }
@@ -188,7 +191,7 @@ func (f *Fetcher) loop() {
 				if _, ok := f.fetching[id]; ok {
 					continue
 				}
-				if !f.isEventKnown(id) {
+				if f.isInterested(id) {
 					unknown = append(unknown, id)
 				}
 				f.announced[id] = append(f.announced[id], &oneAnnounce{
@@ -214,7 +217,7 @@ func (f *Fetcher) loop() {
 			for _, e := range op.events {
 				// fetch unknown parents
 				for _, p := range e.Parents {
-					if !f.isEventKnown(p) {
+					if f.isInterested(p) {
 						unknownParents.Add(p)
 					}
 				}
@@ -239,7 +242,7 @@ func (f *Fetcher) loop() {
 					f.forgetHash(hash)
 
 					// If the event still didn't arrive, queue for fetching
-					if !f.isEventKnown(hash) {
+					if f.isInterested(hash) {
 						request[announce.batch.peer] = append(request[announce.batch.peer], hash)
 						f.fetching[hash] = announce
 					}

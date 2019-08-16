@@ -72,6 +72,13 @@ type peer struct {
 	progress PeerProgress
 }
 
+func (p *PeerProgress) InterestedIn(eventEpoch idx.SuperFrame) bool {
+	if p.Epoch == 0 || eventEpoch == 0 {
+		return false
+	}
+	return eventEpoch == p.Epoch || eventEpoch == p.Epoch+1
+}
+
 func (a *PeerProgress) Less(b PeerProgress) bool {
 	if a.Epoch != b.Epoch {
 		return a.Epoch < b.Epoch
@@ -439,7 +446,7 @@ func (ps *peerSet) PeersWithoutEvent(hash hash.Event) []*peer {
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if !p.knownEvents.Contains(hash) { // TODO do not include peers whose epoch is higher than event's epoch
+		if p.progress.InterestedIn(hash.Epoch()) && !p.knownEvents.Contains(hash) {
 			list = append(list, p)
 		}
 	}

@@ -136,17 +136,22 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 
 		pushInBuffer(e, peer)
 	}
-	isEventDownloaded := func(id hash.Event) bool {
+	isEventInterested := func(id hash.Event) bool {
+		// short circuit if from another epoch
+		if id.Epoch() != pm.engine.CurrentSuperFrameN() {
+			return false
+		}
+
 		pm.engineMu.RLock()
 		defer pm.engineMu.RUnlock()
 
 		if isEventBuffered(id) {
-			return true
+			return false
 		}
-		return pm.store.HasEvent(id)
+		return !pm.store.HasEvent(id)
 	}
 
-	return fetcher.New(pushEvent, isEventDownloaded, pm.removePeer)
+	return fetcher.New(pushEvent, isEventInterested, pm.removePeer)
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
@@ -351,7 +356,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		for _, event := range events {
 			p.MarkEvent(event.Hash())
 		}
-
 		_ = pm.fetcher.Enqueue(p.id, events, time.Now(), p.RequestEvents)
 
 	case msg.Code == EvmTxMsg:
