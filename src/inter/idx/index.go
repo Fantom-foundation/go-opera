@@ -62,6 +62,11 @@ func (f Frame) Bytes() []byte {
 	return bigendian.Int32ToBytes(uint32(f))
 }
 
+// BytesToEpoch converts bytes to epoch index.
+func BytesToEpoch(b []byte) SuperFrame {
+	return SuperFrame(bigendian.BytesToInt32(b))
+}
+
 // BytesToEvent converts bytes to event index.
 func BytesToEvent(b []byte) Event {
 	return Event(bigendian.BytesToInt32(b))

@@ -99,19 +99,22 @@ func (e *EventHeaderData) CalcHash() hash.Event {
 	if err != nil {
 		panic("can't encode: " + err.Error())
 	}
-	// TODO return  epoch | lamport | 24 bytes hash
-	return hash.BytesToEvent(hasher.Sum(nil))
+	// return 24 bytes hash | epoch | lamport
+	id := hash.BytesToEvent(hasher.Sum(nil))
+	copy(id[0:4], e.Epoch.Bytes())
+	copy(id[4:8], e.Lamport.Bytes())
+	return id
 }
 
 func (e *EventHeaderData) RecacheHash() {
-	e.hash = &hash.Event{}
-	*e.hash = e.CalcHash() // TODO must be atomic
+	id := e.CalcHash()
+	e.hash = &id // TODO must be atomic
 }
 
 // Hash calcs hash of event (cached).
 func (e *EventHeaderData) Hash() hash.Event {
-	if e.hash == nil {
-		e.RecacheHash() // TODO must be atomic
+	if e.hash == nil { // TODO must be atomic
+		e.RecacheHash()
 	}
 	return *e.hash
 }
