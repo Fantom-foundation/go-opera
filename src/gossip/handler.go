@@ -3,6 +3,7 @@ package gossip
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,10 +34,6 @@ const (
 
 	// minimim number of peers to broadcast new events to
 	minBroadcastPeers = 4
-)
-
-var (
-	syncChallengeTimeout = 15 * time.Second // Time allowance for a node to reply to the sync progress challenge
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -122,8 +119,10 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
-			log.Warn("Event rejected", "err", err)
-			pm.removePeer(peer)
+			if !strings.Contains(err.Error(), "#fine") {
+				log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+				pm.removePeer(peer)
+			}
 		},
 
 		Exists: func(id hash.Event) *inter.Event {

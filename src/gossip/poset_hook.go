@@ -15,6 +15,9 @@ type StoreAwareEngine struct {
 
 // not safe for concurrent use
 func (hook *StoreAwareEngine) ProcessEvent(e *inter.Event) error {
+	if hook.store.HasEvent(e.Hash()) { // sanity check
+		hook.store.Fatalf("ProcessEvent: event is already processed %s", e.Hash().String())
+	}
 	hook.store.SetEvent(e)
 	if hook.engine != nil {
 		err := hook.engine.ProcessEvent(e)

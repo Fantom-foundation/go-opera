@@ -111,7 +111,7 @@ func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) 
 
 	push = func(e *inter.Event, peer string) {
 		if callback.Exists(e.Hash()) != nil {
-			callback.Drop(e, peer, fmt.Errorf("event %s had received already", e.Hash().String()))
+			callback.Drop(e, peer, fmt.Errorf("event %s is connected already #fine", e.Hash().String()))
 			return
 		}
 

@@ -178,8 +178,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) error {
 	if e.Epoch != p.SuperFrameN {
-		p.Infof("consensus: %s is too old/too new", e.String())
-		return nil
+		return errors.New("consensus: event is too old/too new #fine")
 	}
 	p.Debugf("consensus: start %s", e.String())
 
