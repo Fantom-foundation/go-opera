@@ -17,6 +17,9 @@ const (
 	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
 	fetchTimeout  = 5 * time.Second        // Maximum allotted time to return an explicitly requested event
 	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
+
+	maxInjectBatch   = 100  // Maximum number of events in an inject batch (batch is divided if exceeded)
+	maxAnnounceBatch = 1000 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
 )
 
 var (
@@ -103,34 +106,50 @@ func (f *Fetcher) Stop() {
 // Notify announces the fetcher of the potential availability of a new event in
 // the network.
 func (f *Fetcher) Notify(peer string, hashes []hash.Event, time time.Time, fetchEvents eventsRequesterFn) error {
-	events := &announcesBatch{
-		hashes:      hashes,
-		time:        time,
-		peer:        peer,
-		fetchEvents: fetchEvents,
+	// divide big batch into smaller ones
+	for start := 0; start < len(hashes); start += maxAnnounceBatch {
+		end := len(hashes)
+		if end > start+maxAnnounceBatch {
+			end = start + maxAnnounceBatch
+		}
+		op := &announcesBatch{
+			hashes:      hashes[start:end],
+			time:        time,
+			peer:        peer,
+			fetchEvents: fetchEvents,
+		}
+		select {
+		case f.notify <- op:
+			continue
+		case <-f.quit:
+			return errTerminated
+		}
 	}
-	select {
-	case f.notify <- events:
-		return nil
-	case <-f.quit:
-		return errTerminated
-	}
+	return nil
 }
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
 func (f *Fetcher) Enqueue(peer string, events []*inter.Event, time time.Time, fetchEvents eventsRequesterFn) error {
-	op := &inject{
-		events:      events,
-		time:        time,
-		peer:        peer,
-		fetchEvents: fetchEvents,
+	// divide big batch into smaller ones
+	for start := 0; start < len(events); start += maxInjectBatch {
+		end := len(events)
+		if end > start+maxInjectBatch {
+			end = start + maxInjectBatch
+		}
+		op := &inject{
+			events:      events[start:end],
+			time:        time,
+			peer:        peer,
+			fetchEvents: fetchEvents,
+		}
+		select {
+		case f.inject <- op:
+			continue
+		case <-f.quit:
+			return errTerminated
+		}
 	}
-	select {
-	case f.inject <- op:
-		return nil
-	case <-f.quit:
-		return errTerminated
-	}
+	return nil
 }
 
 // Loop is the main fetcher loop, checking and processing various notification
