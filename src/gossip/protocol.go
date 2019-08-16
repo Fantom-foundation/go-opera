@@ -20,7 +20,7 @@ const protocolName = "fantom"
 var ProtocolVersions = []uint{fantom62}
 
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
-var protocolLengths = map[uint]uint64{fantom62: 8}
+var protocolLengths = map[uint]uint64{fantom62: EventBodiesMsg + 1}
 
 const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
