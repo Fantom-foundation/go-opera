@@ -185,14 +185,16 @@ func (f *Fetcher) loop() {
 				break
 			}
 
+			first := len(f.announced) == 0
+
 			// Schedule all the unknown hashes for retrieval
-			unknown := make([]hash.Event, 0, len(notification.hashes))
+			interested := make([]hash.Event, 0, len(notification.hashes))
 			for i, id := range notification.hashes {
 				if _, ok := f.fetching[id]; ok {
 					continue
 				}
 				if f.isInterested(id) {
-					unknown = append(unknown, id)
+					interested = append(interested, id)
 				}
 				f.announced[id] = append(f.announced[id], &oneAnnounce{
 					batch: notification,
@@ -200,13 +202,13 @@ func (f *Fetcher) loop() {
 				})
 			}
 
-			err := notification.fetchEvents(unknown)
+			err := notification.fetchEvents(interested)
 			if err != nil {
 				log.Error("Events request error", "peer", notification.peer, "err", err)
 			}
 
 			f.announces[notification.peer] = count
-			if len(f.announced) == 1 {
+			if first && len(f.announced) > 0 {
 				f.rescheduleFetch(fetchTimer)
 			}
 
