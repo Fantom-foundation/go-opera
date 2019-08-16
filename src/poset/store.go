@@ -1,48 +1,108 @@
-// +build !debug
-
-package poset
+package posposet
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/peers"
-	"github.com/Fantom-foundation/go-lachesis/src/state"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// Store provides an interface for persistent and non-persistent stores
-// to store key lachesis consensus information on a node.
-type Store interface {
-	TopologicalEvents() ([]Event, error) // returns event in topological order
-	CacheSize() int
-	Participants() (*peers.Peers, error)
-	RootsBySelfParent() map[EventHash]Root
-	RootsByParticipant() map[string]Root
-	GetEventBlock(EventHash) (Event, error)
-	SetEvent(Event) error
-	ParticipantEvents(string, int64) (EventHashes, error)
-	ParticipantEvent(string, int64) (EventHash, error)
-	LastEventFrom(string) (EventHash, bool, error)
-	LastConsensusEventFrom(string) (EventHash, bool, error)
-	ConsensusEvents() EventHashes
-	ConsensusEventsCount() int64
-	AddConsensusEvent(Event) error
-	GetRoundCreated(int64) (RoundCreated, error)
-	SetRoundCreated(int64, RoundCreated) error
-	GetRoundReceived(int64) (RoundReceived, error)
-	SetRoundReceived(int64, RoundReceived) error
-	LastRound() int64
-	RoundClothos(int64) EventHashes
-	RoundEvents(int64) int
-	GetRoot(string) (Root, error)
-	GetBlock(int64) (Block, error)
-	SetBlock(Block) error
-	LastBlockIndex() int64
-	GetFrame(int64) (Frame, error)
-	SetFrame(Frame) error
-	Reset(map[string]Root) error
-	Close() error
-	NeedBootstrap() bool // Was the store loaded from existing db
-	StorePath() string
-	// StateDB returns state database
-	StateDB() state.Database
-	StateRoot() hash.Hash
+// Store is a poset persistent storage working over physical key-value database.
+type Store struct {
+	historyDB kvdb.Database
+	epochDb   kvdb.Database
+
+	table struct {
+		Checkpoint     kvdb.Database `table:"checkpoint_"`
+		Event2Block    kvdb.Database `table:"event2block_"`
+		SuperFrames    kvdb.Database `table:"sframe_"`
+		ConfirmedEvent kvdb.Database `table:"confirmed_"`
+		FrameInfos     kvdb.Database `table:"frameinfo_"`
+	}
+
+	epochTable struct {
+		Roots       kvdb.Database `table:"roots_"`
+		VectorIndex kvdb.Database `table:"vectors_"`
+	}
+
+	newEpochDb func(name string) kvdb.Database
+
+	logger.Instance
+}
+
+// NewStore creates store over key-value db.
+func NewStore(db kvdb.Database, newEpochDb func(name string) kvdb.Database) *Store {
+	s := &Store{
+		historyDB:  db,
+		epochDb:    newEpochDb("epoch"),
+		newEpochDb: newEpochDb,
+		Instance:   logger.MakeInstance(),
+	}
+
+	kvdb.MigrateTables(&s.table, s.historyDB)
+	kvdb.MigrateTables(&s.epochTable, s.epochDb)
+
+	return s
+}
+
+// NewMemStore creates store over memory map.
+func NewMemStore() *Store {
+	return NewStore(kvdb.NewMemDatabase(), func(name string) kvdb.Database {
+		return kvdb.NewMemDatabase()
+	})
+}
+
+// Close leaves underlying database.
+func (s *Store) Close() {
+	kvdb.MigrateTables(&s.table, nil)
+	kvdb.MigrateTables(&s.epochTable, nil)
+	s.historyDB.Close()
+	s.epochDb.Close()
+}
+
+func (s *Store) recreateEpochDb() {
+	if s.epochDb != nil {
+		s.epochDb.Close()
+		s.epochDb.Drop()
+	}
+	s.epochDb = s.newEpochDb("epoch")
+	kvdb.MigrateTables(&s.epochTable, s.epochDb)
+}
+
+/*
+ * Utils:
+ */
+
+func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
+	buf, err := rlp.EncodeToBytes(val)
+	if err != nil {
+		s.Fatal(err)
+	}
+
+	if err := table.Put(key, buf); err != nil {
+		s.Fatal(err)
+	}
+}
+
+func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{} {
+	buf, err := table.Get(key)
+	if err != nil {
+		s.Fatal(err)
+	}
+	if buf == nil {
+		return nil
+	}
+
+	err = rlp.DecodeBytes(buf, to)
+	if err != nil {
+		s.Fatal(err)
+	}
+	return to
+}
+
+func (s *Store) has(table kvdb.Database, key []byte) bool {
+	res, err := table.Has(key)
+	if err != nil {
+		s.Fatal(err)
+	}
+	return res
 }

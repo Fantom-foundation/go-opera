@@ -1,23 +1,21 @@
 export GO?=go
-export PROTOC?=protoc
-export RM?=rm
 
-PROTOS:=$(wildcard *proto)
-PBGOS:=$(PROTOS:.proto=.pb.go)
-INTERWIRE:=../inter/wire
+SUBDIRS := wire/.
+TARGETS := build proto clean buildtests
+SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
 
-.PHONY: build clean proto test buildtests
+.PHONY: $(TARGETS) $(SUBDIR_TARGETS) test
 
-clean:
-	$(RM) -rf *.pb.go
+# static pattern rule, expands into:
+# all clean : % : foo/.% bar/.%
+$(TARGETS) : % : $(addsuffix %,$(SUBDIRS))
 
-proto: $(PROTOS)
-	$(PROTOC) --proto_path=. -I "$(INTERWIRE)" --proto_path="$(GOPATH)/src" --go_out=paths=source_relative:. $(PROTOS)
-
-build:
-
-buildtests:
+# here, for foo/.all:
+#   $(@D) is foo
+#   $(@F) is .all, with leading period
+#   $(@F:.%=%) is just all
+$(SUBDIR_TARGETS) :
+	@$(MAKE) -C $(@D) $(@F:.%=%)
 
 test:
-	$(GO) test -tags test -count=1 -race -cover -timeout 45s
-
+	$(GO) test -race -cover -count=1 -timeout 45s

@@ -3,7 +3,6 @@ package gossip
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/genesis"
 	"math/big"
 	"sync"
 	"testing"
@@ -18,8 +17,8 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/posposet"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 var (
@@ -35,16 +34,10 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		store = NewMemStore()
 	)
 
-	nodes := inter.GenNodes(nodesNum)
-	balances := make(map[hash.Peer]pos.Stake, len(nodes))
-	for _, addr := range nodes {
-		balances[addr] = pos.Stake(1)
-	}
+	config, nodes, _ := lachesis.FakeNet(nodesNum)
 
 	engineStore := posposet.NewMemStore()
-	err := engineStore.ApplyGenesis(&genesis.Config{
-		Balances: balances,
-	})
+	err := engineStore.ApplyGenesis(config.Genesis)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -52,8 +45,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	engine := posposet.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	config := &DefaultConfig
-	pm, err := NewProtocolManager(config, downloader.FullSync, config.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
+	pm, err := NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -144,7 +136,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 func (p *testPeer) handshake(t *testing.T, progress PeerProgress, genesis hash.Hash) {
 	msg := &statusData{
 		ProtocolVersion: uint32(p.version),
-		NetworkId:       DefaultConfig.NetworkId,
+		NetworkId:       lachesis.EmptyFakeNet().Genesis.NetworkId,
 		Progress:        progress,
 		Genesis:         genesis,
 	}

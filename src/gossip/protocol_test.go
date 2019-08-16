@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 func init() {
@@ -30,7 +31,7 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 		progress = PeerProgress{
 			Epoch: pm.engine.CurrentSuperFrameN(),
 		}
-		networkId = DefaultConfig.NetworkId
+		networkId = lachesis.EmptyFakeNet().Genesis.NetworkId
 	)
 	defer pm.Stop()
 

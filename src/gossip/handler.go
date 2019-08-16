@@ -21,6 +21,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 const (
@@ -43,7 +44,7 @@ func errResp(code errCode, format string, v ...interface{}) error {
 }
 
 type ProtocolManager struct {
-	config *Config
+	config *lachesis.Net
 
 	networkID uint64
 
@@ -80,7 +81,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(config *Config, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
+func NewProtocolManager(config *lachesis.Net, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:      config,
@@ -451,7 +452,7 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.emittedEventsSub.Chan() {
 		if ev, ok := obj.Data.(*inter.Event); ok {
-			if pm.config.ForcedBroadcast {
+			if pm.config.Gossip.ForcedBroadcast {
 				pm.BroadcastEvent(ev, true) // No one knows the event, so be aggressive
 			}
 			pm.BroadcastEvent(ev, false) // Only then announce to the rest

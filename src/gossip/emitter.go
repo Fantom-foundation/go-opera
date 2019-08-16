@@ -13,21 +13,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ancestor"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
-
-//go:generate gencodec -type Config -formats toml -out gen_config.go
-
-type EmitterConfig struct {
-	MinEmitInterval time.Duration // minimum event emission interval
-	MaxEmitInterval time.Duration // maximum event emission interval
-}
 
 type Emitter struct {
 	store    *Store
 	engine   Consensus
 	engineMu *sync.RWMutex
 
-	config *Config
+	config *lachesis.Net
 
 	myAddr     hash.Peer
 	privateKey *crypto.PrivateKey
@@ -38,7 +32,7 @@ type Emitter struct {
 	wg   sync.WaitGroup
 }
 
-func NewEmitter(config *Config, me hash.Peer, privateKey *crypto.PrivateKey, engineMu *sync.RWMutex, store *Store, engine Consensus, onEmitted func(e *inter.Event)) *Emitter {
+func NewEmitter(config *lachesis.Net, me hash.Peer, privateKey *crypto.PrivateKey, engineMu *sync.RWMutex, store *Store, engine Consensus, onEmitted func(e *inter.Event)) *Emitter {
 	return &Emitter{
 		config:     config,
 		onEmitted:  onEmitted,

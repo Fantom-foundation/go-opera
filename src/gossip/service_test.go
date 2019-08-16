@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 func TestServicePing(t *testing.T) {
@@ -18,7 +20,7 @@ func TestServicePing(t *testing.T) {
 
 	db := NewMemStore()
 
-	svc, err := NewService(&DefaultConfig, new(event.TypeMux), db, nil)
+	svc, err := NewService(lachesis.EmptyFakeNet(), new(event.TypeMux), db, nil)
 	assertar.NoError(err)
 
 	tests := []struct {

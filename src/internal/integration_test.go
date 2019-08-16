@@ -10,17 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
-
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-)
-
-var (
-	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
 type topology func(net *simulations.Network, nodes []enode.ID)
@@ -44,12 +39,12 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	gen, keys := FakeNet(count)
+	net, _, keys := lachesis.FakeNet(count)
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
 		"gossip": func(ctx *adapters.ServiceContext) (node.Service, error) {
-			g := NewIntegration(ctx.Config, gen)
+			g := NewIntegration(ctx.Config, net)
 			return g, nil
 		},
 	}
