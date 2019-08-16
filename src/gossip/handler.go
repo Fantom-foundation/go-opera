@@ -3,7 +3,6 @@ package gossip
 import (
 	"fmt"
 	"math"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -415,14 +414,14 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) i
 		}
 		transfer := peers[:transferLen]
 		for _, peer := range transfer {
-			peer.AsyncSendNewEvent(event)
+			peer.AsyncSendEvents(inter.Events{event})
 		}
 		log.Trace("Propagated event", "hash", id, "recipients", len(transfer))
 		return transferLen
 	}
 	// Announce it
 	for _, peer := range peers {
-		peer.AsyncSendNewEventHash(event)
+		peer.AsyncSendNewEventHashes(hash.Events{event.Hash()})
 	}
 	log.Trace("Announced event", "hash", id, "recipients", len(peers))
 	return len(peers)

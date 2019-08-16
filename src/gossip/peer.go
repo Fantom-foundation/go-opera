@@ -33,14 +33,12 @@ const (
 	maxQueuedTxs = 128
 
 	// maxQueuedProps is the maximum number of event propagations to queue up before
-	// dropping broadcasts. There's not much point in queueing stale events, so a few
-	// that might cover uncles should be enough.
-	maxQueuedProps = 4
+	// dropping broadcasts.
+	maxQueuedProps = 128
 
 	// maxQueuedAnns is the maximum number of event announcements to queue up before
-	// dropping broadcasts. Similarly to event propagations, there's no point to queue
-	// above some healthy uncle limit, so use that.
-	maxQueuedAnns = 4
+	// dropping broadcasts.
+	maxQueuedAnns = 128
 
 	handshakeTimeout = 5 * time.Second
 )
@@ -72,8 +70,8 @@ type peer struct {
 	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
 	knownEvents mapset.Set                // Set of event hashes known to be known by this peer
 	queuedTxs   chan []*types.Transaction // Queue of transactions to broadcast to the peer
-	queuedProps chan *inter.Event         // Queue of events to broadcast to the peer
-	queuedAnns  chan *inter.Event         // Queue of events to announce to the peer
+	queuedProps chan inter.Events         // Queue of events to broadcast to the peer
+	queuedAnns  chan hash.Events          // Queue of events to announce to the peer
 	term        chan struct{}             // Termination channel to stop the broadcaster
 
 	progress PeerProgress
@@ -95,8 +93,8 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		knownTxs:    mapset.NewSet(),
 		knownEvents: mapset.NewSet(),
 		queuedTxs:   make(chan []*types.Transaction, maxQueuedTxs),
-		queuedProps: make(chan *inter.Event, maxQueuedProps),
-		queuedAnns:  make(chan *inter.Event, maxQueuedAnns),
+		queuedProps: make(chan inter.Events, maxQueuedProps),
+		queuedAnns:  make(chan hash.Events, maxQueuedAnns),
 		term:        make(chan struct{}),
 	}
 }
@@ -113,17 +111,17 @@ func (p *peer) broadcast() {
 			}
 			p.Log().Trace("Broadcast transactions", "count", len(txs))
 
-		case event := <-p.queuedProps:
-			if err := p.SendEvents([]*inter.Event{event}); err != nil {
+		case events := <-p.queuedProps:
+			if err := p.SendEvents(events); err != nil {
 				return
 			}
-			p.Log().Trace("Propagated event", "seq", event.Seq, "hash", event.Hash())
+			p.Log().Trace("Propagated events", "count", len(events))
 
-		case event := <-p.queuedAnns:
-			if err := p.SendNewEventHashes([]hash.Event{event.Hash()}); err != nil {
+		case ids := <-p.queuedAnns:
+			if err := p.SendNewEventHashes(ids); err != nil {
 				return
 			}
-			p.Log().Trace("Announced event", "seq", event.Seq, "hash", event.Hash())
+			p.Log().Trace("Announced events", "count", len(ids))
 
 		case <-p.term:
 			return
@@ -211,21 +209,23 @@ func (p *peer) SendNewEventHashes(hashes []hash.Event) error {
 // AsyncSendNewEventHash queues the availability of a event for propagation to a
 // remote peer. If the peer's broadcast queue is full, the event is silently
 // dropped.
-func (p *peer) AsyncSendNewEventHash(event *inter.Event) {
+func (p *peer) AsyncSendNewEventHashes(ids hash.Events) {
 	select {
-	case p.queuedAnns <- event:
+	case p.queuedAnns <- ids:
 		// Mark all the event hash as known, but ensure we don't overflow our limits
-		p.knownEvents.Add(event.Hash())
+		for _, id := range ids {
+			p.knownEvents.Add(id)
+		}
 		for p.knownEvents.Cardinality() >= maxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	default:
-		p.Log().Debug("Dropping event announcement", "seq", event.Seq, "hash", event.Hash())
+		p.Log().Debug("Dropping event announcement", "count", len(ids))
 	}
 }
 
 // SendNewEvent propagates an entire event to a remote peer.
-func (p *peer) SendEvents(events []*inter.Event) error {
+func (p *peer) SendEvents(events inter.Events) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
 		p.knownEvents.Add(event.Hash())
@@ -247,18 +247,20 @@ func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	return p2p.Send(p.rw, EventsMsg, events)
 }
 
-// AsyncSendNewEvent queues an entire event for propagation to a remote peer. If
+// AsyncSendEvents queues an entire event for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendNewEvent(event *inter.Event) {
+func (p *peer) AsyncSendEvents(events inter.Events) {
 	select {
-	case p.queuedProps <- event:
+	case p.queuedProps <- events:
 		// Mark all the event hash as known, but ensure we don't overflow our limits
-		p.knownEvents.Add(event.Hash())
+		for _, event := range events {
+			p.knownEvents.Add(event.Hash())
+		}
 		for p.knownEvents.Cardinality() >= maxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	default:
-		p.Log().Debug("Dropping event propagation", "seq", event.Seq, "hash", event.Hash())
+		p.Log().Debug("Dropping event propagation", "count", len(events))
 	}
 }
 
