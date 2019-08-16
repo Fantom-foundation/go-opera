@@ -3,6 +3,7 @@ package gossip
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -121,7 +122,6 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 
 		Drop: func(e *inter.Event, peer string, err error) {
 			log.Warn("Event rejected", "err", err)
-			pm.store.DeleteEvent(e.Hash())
 			pm.removePeer(peer)
 		},
 
