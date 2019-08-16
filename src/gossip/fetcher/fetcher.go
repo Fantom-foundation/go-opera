@@ -16,7 +16,7 @@ const (
 	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced event is explicitly requested
 	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
 	fetchTimeout  = 5 * time.Second        // Maximum allotted time to return an explicitly requested event
-	hashLimit     = 2048                   // Maximum number of unique events a peer may have announced
+	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
 )
 
 var (
@@ -31,8 +31,12 @@ type eventsRequesterFn func([]hash.Event) error
 
 // inject represents a schedules import operation.
 type inject struct {
-	peer   string
-	events []*inter.Event
+	events []*inter.Event // Incoming events
+	time   time.Time      // Timestamp when received
+
+	peer string // Identifier of the peer which sent events
+
+	fetchEvents eventsRequesterFn
 }
 
 // announces is the hash notification of the availability of new events in the
@@ -114,10 +118,12 @@ func (f *Fetcher) Notify(peer string, hashes []hash.Event, time time.Time, fetch
 }
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
-func (f *Fetcher) Enqueue(peer string, events []*inter.Event) error {
+func (f *Fetcher) Enqueue(peer string, events []*inter.Event, time time.Time, fetchEvents eventsRequesterFn) error {
 	op := &inject{
-		peer:   peer,
-		events: events,
+		events:      events,
+		time:        time,
+		peer:        peer,
+		fetchEvents: fetchEvents,
 	}
 	select {
 	case f.inject <- op:
@@ -184,10 +190,23 @@ func (f *Fetcher) loop() {
 
 		case op := <-f.inject:
 			// A direct event insertion was requested, try and fill any pending gaps
+			unknownParents := make(hash.Events, 0, len(op.events))
 			propBroadcastInMeter.Update(1)
 			for _, e := range op.events {
+				// fetch unknown parents
+				for _, p := range e.Parents {
+					if !f.isEventKnown(p) {
+						unknownParents.Add(p)
+					}
+				}
+
 				f.pushEvent(e, op.peer)
 				f.forgetHash(e.Hash())
+			}
+
+			if len(unknownParents) != 0 {
+				log.Trace("Fetching events by parents", "peer", op.peer, "count", len(unknownParents))
+				_ = f.Notify(op.peer, unknownParents, op.time, op.fetchEvents)
 			}
 
 		case <-fetchTimer.C:

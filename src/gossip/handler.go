@@ -351,7 +351,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			p.MarkEvent(event.Hash())
 		}
 
-		_ = pm.fetcher.Enqueue(p.id, events)
+		_ = pm.fetcher.Enqueue(p.id, events, time.Now(), p.RequestEvents)
 
 	case msg.Code == EvmTxMsg:
 		// Transactions arrived, make sure we have a valid and fresh graph to handle them
