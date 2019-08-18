@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 // SetCheckpoint save checkpoint.
 // Checkpoint is seldom read; so no cache.

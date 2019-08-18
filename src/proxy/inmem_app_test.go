@@ -6,8 +6,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 func TestInmemAppCalls(t *testing.T) {
@@ -22,9 +22,7 @@ func TestInmemAppCalls(t *testing.T) {
 
 	t.Run("#2 Receive block", func(t *testing.T) {
 		assertar := assert.New(t)
-		block := poset.Block{
-			Body: &poset.BlockBody{},
-		}
+		block := inter.Block{}
 		gold := []byte("123456")
 
 		handler.EXPECT().

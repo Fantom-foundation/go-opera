@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"

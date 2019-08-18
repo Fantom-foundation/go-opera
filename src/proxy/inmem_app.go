@@ -5,7 +5,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 // inmemAppProxy implements the AppProxy interface.
@@ -43,13 +42,11 @@ func (p *inmemAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 	return p.submitInternalCh
 }
 
-func (p *inmemAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
+func (p *inmemAppProxy) CommitBlock(block inter.Block) ([]byte, error) {
 	stateHash, err := p.handler.CommitHandler(block)
 	p.WithFields(logrus.Fields{
-		"round_received": block.RoundReceived(),
-		"txs":            len(block.Transactions()),
-		"state_hash":     stateHash,
-		"err":            err,
+		"state_hash": stateHash,
+		"err":        err,
 	}).Debug("inmemAppProxy.CommitBlock")
 	return stateHash, err
 }
