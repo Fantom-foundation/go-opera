@@ -1,18 +1,27 @@
-FROM golang:1.12 as build
-
-WORKDIR /go/src/github.com/Fantom-foundation/go-lachesis
+FROM golang:1.12-alpine as builder                                                                                                                                                                          
+                                                                                                                                                                                                            
+RUN apk add --no-cache make gcc musl-dev linux-headers git                                                                                                                                                  
+                                                                                                                                                                                                            
+WORKDIR /go/go-lachesis
 COPY . .
 
-RUN go get github.com/Masterminds/glide 
+RUN go mod download
 
-RUN glide install && CGO_ENABLED=0 go build -ldflags "-s -w" -o /tmp/lachesis ./src/poslachesis/cli
+RUN export GIT_COMMIT=$(git rev-list -1 HEAD) && \
+    export GIT_DATE=$(git log -1 --date=short --pretty=format:%ct) && \
+    export CGO_ENABLED=1 && \
+    go build -ldflags "-s -w -X main.gitCommit=$GIT_COMMIT -X main.gitDate=$GIT_DATE" \
+    -o /tmp/lachesis \
+    ./src/cmd
 
 
 
-FROM scratch as prod
+FROM alpine:latest                                                                                                                                                                                          
+                                                                                                                                                                                                            
+RUN apk add --no-cache ca-certificates                                                                                                                                                                      
 
-COPY --from=build /tmp/lachesis /
+COPY --from=builder /tmp/lachesis /
 
-EXPOSE 55555 55556 55557
+EXPOSE 8545 8546 30303 30303/udp                                                                                                                                                                            
 
 ENTRYPOINT ["/lachesis"]

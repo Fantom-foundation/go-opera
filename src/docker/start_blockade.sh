@@ -17,7 +17,7 @@ do
     j=$((i % N + 1)) # ring
     cat << NODE >> $CONF
   node_$i:
-    image: pos-lachesis-blockade:latest
+    image: lachesis:latest
     container_name: ${NAME}-$i
     command: start --network=fake:$i/$N --db=/tmp --peer=${NAME}-$j --metrics
     expose:
