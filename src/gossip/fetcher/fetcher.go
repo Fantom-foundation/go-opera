@@ -18,8 +18,15 @@ const (
 	fetchTimeout  = 5 * time.Second        // Maximum allotted time to return an explicitly requested event
 	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
 
-	maxInjectBatch   = 100  // Maximum number of events in an inject batch (batch is divided if exceeded)
-	maxAnnounceBatch = 1000 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
+	maxInjectBatch   = 8  // Maximum number of events in an inject batch (batch is divided if exceeded)
+	maxAnnounceBatch = 16 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
+
+	// maxQueuedInjects is the maximum number of inject batches to queue up before
+	// dropping incoming events.
+	maxQueuedInjects = 64
+	// maxQueuedAnns is the maximum number of announce batches to queue up before
+	// dropping incoming hashes.
+	maxQueuedAnns = 64
 )
 
 var (
@@ -82,8 +89,8 @@ type Fetcher struct {
 // New creates a event fetcher to retrieve events based on hash announcements.
 func New(pushEvent ordering.PushEventFn, isInterested isInterestedFn, dropPeer dropPeerFn) *Fetcher {
 	return &Fetcher{
-		notify:       make(chan *announcesBatch),
-		inject:       make(chan *inject),
+		notify:       make(chan *announcesBatch, maxQueuedAnns),
+		inject:       make(chan *inject, maxQueuedInjects),
 		quit:         make(chan struct{}),
 		announces:    make(map[string]int),
 		announced:    make(map[hash.Event][]*oneAnnounce),
@@ -201,14 +208,16 @@ func (f *Fetcher) loop() {
 					i:     i,
 				})
 			}
+			f.announces[notification.peer] = count
 
-			err := notification.fetchEvents(interested)
-			if err != nil {
-				log.Error("Events request error", "peer", notification.peer, "err", err)
+			if len(interested) != 0 {
+				err := notification.fetchEvents(interested)
+				if err != nil {
+					log.Error("Events request error", "peer", notification.peer, "err", err)
+				}
 			}
 
-			f.announces[notification.peer] = count
-			if first && len(f.announced) > 0 {
+			if first && len(f.announced) != 0 {
 				f.rescheduleFetch(fetchTimer)
 			}
 

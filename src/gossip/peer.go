@@ -296,8 +296,19 @@ func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, rever
 }*/
 
 func (p *peer) RequestEvents(ids []hash.Event) error {
-	p.Log().Debug("Fetching batch of events", "count", len(ids))
-	return p2p.Send(p.rw, GetEventsMsg, ids)
+	// divide big batch into smaller ones
+	for start := 0; start < len(ids); start += softLimitItems {
+		end := len(ids)
+		if end > start+softLimitItems {
+			end = start + softLimitItems
+		}
+		p.Log().Debug("Fetching batch of events", "count", len(ids[start:end]))
+		err := p2p.Send(p.rw, GetEventsMsg, ids[start:end])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Handshake executes the protocol handshake, negotiating version number,

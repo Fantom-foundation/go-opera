@@ -27,7 +27,8 @@ import (
 
 const (
 	softResponseLimitSize = 2 * 1024 * 1024 // Target maximum size of returned events, or other data.
-	softLimitItems        = 4096            // Target maximum number of events or transactions to request/response
+	softLimitItems        = 128             // Target maximum number of events or transactions to request/response
+	hardLimitItems        = 256             // Maximum number of events or transactions to request/response
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
@@ -39,6 +40,16 @@ const (
 
 func errResp(code errCode, format string, v ...interface{}) error {
 	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
+}
+
+func checkLenLimits(size int, v interface{}) error {
+	if size <= 0 {
+		return errResp(ErrEmptyMessage, "%v", v)
+	}
+	if size > hardLimitItems {
+		return errResp(ErrMsgTooLarge, "%v", v)
+	}
+	return nil
 }
 
 type ProtocolManager struct {
@@ -340,6 +351,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&announces); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
+		if err := checkLenLimits(len(announces), announces); err != nil {
+			return err
+		}
 		// Mark the hashes as present at the remote node
 		for _, id := range announces {
 			p.MarkEvent(id)
@@ -352,9 +366,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&events); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
+		if err := checkLenLimits(len(events), events); err != nil {
+			return err
+		}
 		// Mark the hashes as present at the remote node
-		for _, event := range events {
-			p.MarkEvent(event.Hash())
+		for _, e := range events {
+			p.MarkEvent(e.Hash())
 		}
 		_ = pm.fetcher.Enqueue(p.id, events, time.Now(), p.RequestEvents)
 
@@ -381,6 +398,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		var requests []hash.Event
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(requests), requests); err != nil {
+			return err
 		}
 
 		rawEvents := make([]rlp.RawValue, 0, len(requests))
