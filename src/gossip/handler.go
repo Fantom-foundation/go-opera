@@ -69,13 +69,15 @@ type ProtocolManager struct {
 	txsCh  chan core.NewTxsEvent
 	txsSub event.Subscription
 
-	fetcher *fetcher.Fetcher
+	fetcher         *fetcher.Fetcher
+	isEventBuffered ordering.IsBufferedFn
 
 	store    *Store
 	engine   Consensus
 	engineMu *sync.RWMutex
 
 	emittedEventsSub *event.TypeMuxSubscription
+	newPacksSub      *event.TypeMuxSubscription
 
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
@@ -141,28 +143,36 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 			return pm.store.GetEvent(id)
 		},
 	})
+	pm.isEventBuffered = isEventBuffered
 	pushEvent := func(e *inter.Event, peer string) {
 		pm.engineMu.Lock()
 		defer pm.engineMu.Unlock()
 
 		pushInBuffer(e, peer)
 	}
-	isEventInterested := func(id hash.Event) bool {
-		// short circuit if from another epoch
-		if id.Epoch() != pm.engine.CurrentSuperFrameN() {
-			return false
-		}
 
-		pm.engineMu.RLock()
-		defer pm.engineMu.RUnlock()
+	return fetcher.New(pushEvent, pm.filterInterestedEvents, pm.removePeer)
+}
 
-		if isEventBuffered(id) {
-			return false
-		}
-		return !pm.store.HasEvent(id)
+func (pm *ProtocolManager) filterInterestedEvents(ids hash.Events) hash.Events {
+	if len(ids) == 0 {
+		return ids
 	}
+	pm.engineMu.RLock()
+	defer pm.engineMu.RUnlock()
+	epoch := pm.engine.CurrentSuperFrameN()
 
-	return fetcher.New(pushEvent, isEventInterested, pm.removePeer)
+	interested := make(hash.Events, 0, len(ids))
+	for _, id := range ids {
+		if id.Epoch() != epoch {
+			continue
+		}
+		if pm.isEventBuffered(id) || pm.store.HasEvent(id) {
+			continue
+		}
+		interested.Add(id)
+	}
+	return interested
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
@@ -227,7 +237,9 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 
 	// broadcast mined events
 	pm.emittedEventsSub = pm.mux.Subscribe(&inter.Event{})
+	pm.newPacksSub = pm.mux.Subscribe(idx.Pack(0))
 	go pm.emittedBroadcastLoop()
+	go pm.progressBroadcastLoop()
 
 	// start sync handlers
 	go pm.syncer()
@@ -263,6 +275,15 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 	return newPeer(pv, p, rw)
 }
 
+func (pm *ProtocolManager) myProgress() PeerProgress {
+	blockI, block := pm.engine.LastBlock()
+	return PeerProgress{
+		Epoch:       pm.engine.CurrentSuperFrameN(),
+		NumOfBlocks: blockI,
+		LastBlock:   block,
+	}
+}
+
 // handle is the callback invoked to manage the life cycle of a peer. When
 // this function terminates, the peer is disconnected.
 func (pm *ProtocolManager) handle(p *peer) error {
@@ -274,13 +295,8 @@ func (pm *ProtocolManager) handle(p *peer) error {
 
 	// Execute the handshake
 	var (
-		genesis       = pm.engine.GetGenesisHash()
-		blockI, block = pm.engine.LastBlock()
-		myProgress    = PeerProgress{
-			Epoch:       pm.engine.CurrentSuperFrameN(),
-			NumOfBlocks: blockI,
-			LastBlock:   block,
-		}
+		genesis    = pm.engine.GetGenesisHash()
+		myProgress = pm.myProgress()
 	)
 	if err := p.Handshake(pm.networkID, myProgress, genesis); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
@@ -347,7 +363,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if atomic.LoadUint32(&pm.synced) == 0 {
 			break
 		}
-		var announces []hash.Event
+		var announces hash.Events
 		if err := msg.Decode(&announces); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
@@ -395,7 +411,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		pm.txpool.AddRemotes(txs)
 
 	case msg.Code == GetEventsMsg:
-		var requests []hash.Event
+		var requests hash.Events
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
@@ -404,7 +420,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 		rawEvents := make([]rlp.RawValue, 0, len(requests))
-		ids := make([]hash.Event, 0, len(requests))
+		ids := make(hash.Events, 0, len(requests))
 		size := 0
 		for _, id := range requests {
 			if e := pm.store.GetEventRLP(id); e != nil {
@@ -412,7 +428,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				ids = append(ids, id)
 				size += len(e)
 			}
-			if size > softResponseLimitSize || len(ids) > softLimitItems {
+			if size >= softResponseLimitSize {
 				break
 			}
 		}
@@ -501,6 +517,22 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 				pm.BroadcastEvent(ev, true) // No one knows the event, so be aggressive
 			}
 			pm.BroadcastEvent(ev, false) // Only then announce to the rest
+		}
+	}
+}
+
+// Progress broadcast loop
+func (pm *ProtocolManager) progressBroadcastLoop() {
+	// automatically stops if unsubscribe
+	for obj := range pm.newPacksSub.Chan() {
+		if _, ok := obj.Data.(idx.Pack); ok {
+			progress := pm.myProgress()
+			for _, peer := range pm.peers.List() {
+				err := peer.SendProgress(progress)
+				if err != nil {
+					log.Error("Failed to send progress status", "peer", peer.id)
+				}
+			}
 		}
 	}
 }

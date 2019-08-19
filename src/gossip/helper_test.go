@@ -138,9 +138,11 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 // remote side as we are simulating locally.
 func (p *testPeer) handshake(t *testing.T, progress *PeerProgress, genesis hash.Hash) {
 	msg := &ethStatusData{
-		ProtocolVersion: uint32(p.version),
-		NetworkId:       lachesis.EmptyFakeNet().Genesis.NetworkId,
-		Genesis:         genesis,
+		ProtocolVersion:   uint32(p.version),
+		NetworkId:         lachesis.EmptyFakeNet().Genesis.NetworkId,
+		Genesis:           genesis,
+		DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
+		DummyCurrentBlock: hash.Hash(progress.LastBlock),
 	}
 	if err := p2p.ExpectMsg(p.app, EthStatusMsg, msg); err != nil {
 		t.Fatalf("status recv: %v", err)

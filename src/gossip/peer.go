@@ -3,6 +3,7 @@ package gossip
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -295,7 +296,7 @@ func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, rever
 	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Number: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
 }*/
 
-func (p *peer) RequestEvents(ids []hash.Event) error {
+func (p *peer) RequestEvents(ids hash.Events) error {
 	// divide big batch into smaller ones
 	for start := 0; start < len(ids); start += softLimitItems {
 		end := len(ids)
@@ -321,14 +322,16 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Has
 	go func() {
 		// send both EthStatusMsg and ProgressMsg, eth62 clients will understand only status
 		err := p2p.Send(p.rw, EthStatusMsg, &ethStatusData{
-			ProtocolVersion: uint32(p.version),
-			NetworkId:       network,
-			Genesis:         genesis,
+			ProtocolVersion:   uint32(p.version),
+			NetworkId:         network,
+			Genesis:           genesis,
+			DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
+			DummyCurrentBlock: hash.Hash(progress.LastBlock),
 		})
 		if err != nil {
 			errc <- err
 		}
-		errc <- p2p.Send(p.rw, ProgressMsg, progress)
+		errc <- p.SendProgress(progress)
 	}()
 	go func() {
 		errc <- p.readStatus(network, &status, genesis)
@@ -347,6 +350,10 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Has
 		}
 	}
 	return nil
+}
+
+func (p *peer) SendProgress(progress PeerProgress) error {
+	return p2p.Send(p.rw, ProgressMsg, progress)
 }
 
 func (p *peer) readStatus(network uint64, status *ethStatusData, genesis hash.Hash) (err error) {
@@ -452,14 +459,23 @@ func (ps *peerSet) Len() int {
 // PeersWithoutEvent retrieves a list of peers that do not have a given event in
 // their set of known hashes.
 func (ps *peerSet) PeersWithoutEvent(hash hash.Event) []*peer {
+	list := ps.List()
+	filteredList := make([]*peer, 0, len(list))
+	for _, p := range list {
+		if p.progress.InterestedIn(hash.Epoch()) && !p.knownEvents.Contains(hash) {
+			filteredList = append(filteredList, p)
+		}
+	}
+	return filteredList
+}
+
+func (ps *peerSet) List() []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if p.progress.InterestedIn(hash.Epoch()) && !p.knownEvents.Contains(hash) {
-			list = append(list, p)
-		}
+		list = append(list, p)
 	}
 	return list
 }
