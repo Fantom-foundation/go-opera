@@ -205,7 +205,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 			if t.Failed() {
 				return
 			}
-			assertar.True(svc.store.HasEvent(emitted.Hash()))
+			assertar.True(svc.store.HasEvent(emitted.Hash()), emitted.Hash().String())
 		}
 		emittedEvents = append(emittedEvents, emitted)
 	}

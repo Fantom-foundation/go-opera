@@ -104,8 +104,8 @@ type ethStatusData struct {
 }
 
 type PeerProgress struct {
-	Epoch       idx.SuperFrame
-	NumOfBlocks idx.Block
-	NumOfPacks  idx.Pack
-	LastBlock   hash.Event
+	Epoch        idx.SuperFrame
+	NumOfBlocks  idx.Block
+	LastPackInfo PackInfo
+	LastBlock    hash.Event
 }

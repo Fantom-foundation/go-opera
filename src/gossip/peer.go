@@ -87,7 +87,7 @@ func (a *PeerProgress) Less(b PeerProgress) bool {
 	if a.NumOfBlocks != b.NumOfBlocks {
 		return a.NumOfBlocks < b.NumOfBlocks
 	}
-	return a.NumOfPacks < b.NumOfPacks
+	return a.LastPackInfo.Index < b.LastPackInfo.Index
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {

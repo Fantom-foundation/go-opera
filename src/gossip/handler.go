@@ -278,9 +278,10 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 func (pm *ProtocolManager) myProgress() PeerProgress {
 	blockI, block := pm.engine.LastBlock()
 	return PeerProgress{
-		Epoch:       pm.engine.CurrentSuperFrameN(),
-		NumOfBlocks: blockI,
-		LastBlock:   block,
+		Epoch:        pm.engine.CurrentSuperFrameN(),
+		NumOfBlocks:  blockI,
+		LastBlock:    block,
+		LastPackInfo: pm.store.GetPackInfo(pm.engine.CurrentSuperFrameN(), pm.store.GetPacksNum()-1),
 	}
 }
 
@@ -352,6 +353,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		var progress PeerProgress
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if len(progress.LastPackInfo.Heads) > hardLimitItems {
+			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
 		p.progress = progress
 		if p.progress.Epoch == pm.engine.CurrentSuperFrameN() {

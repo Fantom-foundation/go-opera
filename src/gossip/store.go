@@ -14,13 +14,16 @@ type Store struct {
 	physicalDB kvdb.Database
 
 	table struct {
-		Peers    kvdb.Database `table:"peer_"`
-		Events   kvdb.Database `table:"event_"`
-		Blocks   kvdb.Database `table:"block_"`
-		Balances state.Database
-		Headers  kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
-		Tips     kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
-		Heads    kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
+		Peers     kvdb.Database `table:"peer_"`
+		Events    kvdb.Database `table:"event_"`
+		Blocks    kvdb.Database `table:"block_"`
+		PackInfos kvdb.Database `table:"packinfo_"`
+		Packs     kvdb.Database `table:"pack_"`
+		Balances  state.Database
+		PacksNum  kvdb.Database `table:"packs_num_"`
+		Headers   kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
+		Tips      kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
+		Heads     kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
 	}
 
 	logger.Instance

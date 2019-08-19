@@ -124,9 +124,10 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 			genesis       = pm.engine.GetGenesisHash()
 			blockI, block = pm.engine.LastBlock()
 			myProgress    = &PeerProgress{
-				Epoch:       pm.engine.CurrentSuperFrameN(),
-				NumOfBlocks: blockI,
-				LastBlock:   block,
+				Epoch:        pm.engine.CurrentSuperFrameN(),
+				NumOfBlocks:  blockI,
+				LastBlock:    block,
+				LastPackInfo: pm.store.GetPackInfo(pm.engine.CurrentSuperFrameN(), pm.store.GetPacksNum() - 1),
 			}
 		)
 		tp.handshake(nil, myProgress, genesis)
