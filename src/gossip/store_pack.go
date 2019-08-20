@@ -67,8 +67,8 @@ func (s *Store) GetPack(epoch idx.SuperFrame, idx idx.Pack) hash.Events {
 	return res
 }
 
-func (s *Store) GetPacksNum() idx.Pack {
-	b, err := s.table.PacksNum.Get([]byte("current"))
+func (s *Store) GetPacksNum(epoch idx.SuperFrame) idx.Pack {
+	b, err := s.table.PacksNum.Get(epoch.Bytes())
 	if err != nil {
 		s.Fatal(err)
 	}
@@ -78,8 +78,8 @@ func (s *Store) GetPacksNum() idx.Pack {
 	return idx.BytesToPack(b)
 }
 
-func (s *Store) SetPacksNum(num idx.Pack) {
-	err := s.table.PacksNum.Put([]byte("current"), num.Bytes())
+func (s *Store) SetPacksNum(epoch idx.SuperFrame, num idx.Pack) {
+	err := s.table.PacksNum.Put(epoch.Bytes(), num.Bytes())
 	if err != nil {
 		s.Fatal(err)
 	}

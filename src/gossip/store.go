@@ -19,8 +19,8 @@ type Store struct {
 		Blocks    kvdb.Database `table:"block_"`
 		PackInfos kvdb.Database `table:"packinfo_"`
 		Packs     kvdb.Database `table:"pack_"`
-		Balances  state.Database
 		PacksNum  kvdb.Database `table:"packs_num_"`
+		Balances  state.Database
 		Headers   kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
 		Tips      kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
 		Heads     kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
