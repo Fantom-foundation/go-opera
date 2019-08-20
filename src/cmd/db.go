@@ -10,16 +10,17 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/metrics"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-func makeStorages(makeDb internal.DbProducer) (*gossip.Store, *poset.Store) {
+func makeStorages(makeDb internal.DbProducer) (*gossip.Store, *posposet.Store) {
 	db := makeDb("lachesis")
 
 	g := db.NewTable([]byte("g_"))
 	p := db.NewTable([]byte("p_"))
 
 	return gossip.NewStore(g),
-		poset.NewStore(p, makeDb)
+		posposet.NewStore(p, makeDb)
 }
 
 func dbProducer(dbdir string) internal.DbProducer {
