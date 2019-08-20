@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 var (
@@ -41,7 +41,7 @@ func FakePoset(nodes []hash.Peer) (*ExtendedPoset, *Store, *EventStore) {
 	}
 
 	store := NewMemStore()
-	err := store.ApplyGenesis(&genesis.Config{
+	err := store.ApplyGenesis(&lachesis.Genesis{
 		Balances: balances,
 		Time:     genesisTestTime,
 	})
