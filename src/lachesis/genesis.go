@@ -1,27 +1,27 @@
-package genesis
+package lachesis
 
 import (
+	"time"
+
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"time"
 )
 
 var (
 	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
-type Config struct {
-	NetworkId uint64
+type Genesis struct {
 	Balances  map[hash.Peer]pos.Stake
 	StateHash hash.Hash
 	Time      inter.Timestamp
 }
 
-// FakeNet generates fake net with n-nodes genesis.
-func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
+// FakeGenesis generates fake genesis with n-nodes.
+func FakeGenesis(n int) (Genesis, []hash.Peer, []*crypto.PrivateKey) {
 	balances := make(map[hash.Peer]pos.Stake, n)
 	keys := make([]*crypto.PrivateKey, n)
 	ids := make([]hash.Peer, n)
@@ -31,37 +31,26 @@ func FakeNet(n int) (*Config, []hash.Peer, []*crypto.PrivateKey) {
 		balances[ids[i]] = 1000000000
 	}
 
-	return &Config{
-		NetworkId: 3,
-		Balances:  balances,
-		Time:      genesisTestTime,
+	return Genesis{
+		Balances: balances,
+		Time:     genesisTestTime,
 	}, ids, keys
 }
 
-// FakeNet generates fake net with n-nodes genesis.
-func EmptyFakeNet() (*Config) {
-	return &Config{
-		NetworkId: 3,
-		Time:      genesisTestTime,
-	}
-}
-
-// MainNet returns builtin genesis keys of mainnet.
-func MainNet() *Config {
-	return &Config{
-		NetworkId: 1,
-		Time:      genesisTestTime,
+// MainGenesis returns builtin genesis keys of mainnet.
+func MainGenesis() Genesis {
+	return Genesis{
+		Time:     genesisTestTime,
 		Balances: map[hash.Peer]pos.Stake{
 			// TODO: fill with official keys and balances.
 		},
 	}
 }
 
-// TestNet returns builtin genesis keys of testnet.
-func TestNet() *Config {
-	return &Config{
-		NetworkId: 2,
-		Time:      genesisTestTime,
+// TestGenesis returns builtin genesis keys of testnet.
+func TestGenesis() Genesis {
+	return Genesis{
+		Time:     genesisTestTime,
 		Balances: map[hash.Peer]pos.Stake{
 			// TODO: fill with official keys and balances.
 		},

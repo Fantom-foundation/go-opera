@@ -1,44 +1,35 @@
 package lachesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/cfg_emitter"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/cfg_gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
-	"math/big"
-	"time"
+
+	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+const (
+	MainNetworkId uint64 = 1
+	TestNetworkId uint64 = 2
+	FakeNetworkId uint64 = 3
+)
+
+// DagConfig of DAG.
 type DagConfig struct {
 	MaxParents int `json:"maxParents"`
 }
 
-// Net describes lachesis net.
-type Net struct {
-	Name    string
-	Genesis *genesis.Config
+// Config describes lachesis net.
+type Config struct {
+	Name      string
+	NetworkId uint64
 
-	// Gossip options
-	Gossip *cfg_gossip.Config
-
-	// Emitter options
-	Emitter *cfg_emitter.Config
+	Genesis Genesis
 
 	// Graph options
-	Dag *DagConfig
-
-	// Database options
-	SkipDagVersionCheck bool `toml:"-"`
-	DatabaseHandles     int  `toml:"-"`
-	DatabaseCache       int
-	DatabaseFreezer     string
-
-	TrieCleanCache int
-	TrieDirtyCache int
-	TrieTimeout    time.Duration
+	Dag DagConfig
 
 	// Transaction pool options
 	TxPool core.TxPoolConfig
@@ -62,36 +53,31 @@ type Net struct {
 	RPCGasCap *big.Int `toml:",omitempty"`
 }
 
-func MainNet() *Net {
-	return &Net{
-		Genesis: genesis.MainNet(),
-		Gossip: &cfg_gossip.Config{
-			ForcedBroadcast: true,
-		},
-		Emitter: &cfg_emitter.Config{
-			MinEmitInterval: 1 * time.Second,
-			MaxEmitInterval: 60 * time.Second,
-		},
-		Dag: &DagConfig{3},
+func MainNetConfig() Config {
+	return Config{
+		Name:      "main",
+		NetworkId: MainNetworkId,
+		Genesis:   MainGenesis(),
+		Dag:       DagConfig{3},
 	}
 }
 
-func TestNet() *Net {
-	config := MainNet()
-	config.Genesis = genesis.TestNet()
-	config.Emitter.MaxEmitInterval = 3 * time.Second
-	return config
+func TestNetConfig() Config {
+	return Config{
+		Name:      "test",
+		NetworkId: TestNetworkId,
+		Genesis:   TestGenesis(),
+		Dag:       DagConfig{3},
+	}
 }
 
-func EmptyFakeNet() *Net {
-	config := TestNet()
-	config.Genesis = genesis.EmptyFakeNet()
-	return config
-}
+func FakeNetConfig(n int) (Config, []hash.Peer, []*crypto.PrivateKey) {
+	g, nodes, keys := FakeGenesis(n)
 
-func FakeNet(n int) (*Net, []hash.Peer, []*crypto.PrivateKey) {
-	config := EmptyFakeNet()
-	g, nodes, keys := genesis.FakeNet(n)
-	config.Genesis = g
-	return config, nodes, keys
+	return Config{
+		Name:      "fake",
+		NetworkId: FakeNetworkId,
+		Genesis:   g,
+		Dag:       DagConfig{3},
+	}, nodes, keys
 }
