@@ -118,10 +118,11 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	config, nodes, keys := lachesis.FakeNet(1)
+	network, nodes, keys := lachesis.FakeNetConfig(1)
+	config := DefaultConfig(network)
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
-	config.Gossip.ForcedBroadcast = allowAggressive
+	config.ForcedBroadcast = allowAggressive
 
 	var (
 		evmux = new(event.TypeMux)
@@ -132,7 +133,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	me := nodes[0]
 
 	engineStore := posposet.NewMemStore()
-	assertar.NoError(engineStore.ApplyGenesis(config.Genesis))
+	assertar.NoError(engineStore.ApplyGenesis(&network.Genesis))
 
 	engine := posposet.New(engineStore, store)
 	engine.Bootstrap(nil)

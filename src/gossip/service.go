@@ -19,7 +19,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -30,7 +29,7 @@ const (
 
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
-	config *lachesis.Net
+	config Config
 
 	wg   sync.WaitGroup
 	done chan struct{}
@@ -60,7 +59,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
+func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
 	engine = &StoreAwareEngine{
 		engine: engine,
 		store:  store,
@@ -91,25 +90,34 @@ func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine C
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(&config, downloader.FullSync, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
-		// svc.engineMu is locked here
+	return NewEmitter(
+		&s.config.Net.Dag,
+		&s.config.Emitter,
+		s.me,
+		s.privateKey,
+		s.engineMu,
+		s.store,
+		s.engine,
+		func(emitted *inter.Event) {
+			// svc.engineMu is locked here
 
-		err := s.engine.ProcessEvent(emitted)
-		if err != nil {
-			s.Fatalf("Self-event connection failed: %s", err.Error())
-		}
+			err := s.engine.ProcessEvent(emitted)
+			if err != nil {
+				s.Fatalf("Self-event connection failed: %s", err.Error())
+			}
 
-		err = s.pm.mux.Post(emitted) // PM listens and will broadcast it
-		if err != nil {
-			s.Fatalf("Failed to post self-event: %s", err.Error())
-		}
-	})
+			err = s.pm.mux.Post(emitted) // PM listens and will broadcast it
+			if err != nil {
+				s.Fatalf("Failed to post self-event: %s", err.Error())
+			}
+		},
+	)
 }
 
 // Protocols returns protocols the service can communicate on.

@@ -34,10 +34,11 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		store = NewMemStore()
 	)
 
-	config, nodes, _ := lachesis.FakeNet(nodesNum)
+	network, nodes, _ := lachesis.FakeNetConfig(nodesNum)
+	config := DefaultConfig(network)
 
 	engineStore := posposet.NewMemStore()
-	err := engineStore.ApplyGenesis(config.Genesis)
+	err := engineStore.ApplyGenesis(&network.Genesis)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -45,7 +46,15 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	engine := posposet.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	pm, err := NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
+	pm, err := NewProtocolManager(
+		&config,
+		downloader.FullSync,
+		evmux,
+		&dummyTxPool{added: newtx},
+		new(sync.RWMutex),
+		store,
+		engine,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -136,7 +145,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 func (p *testPeer) handshake(t *testing.T, progress PeerProgress, genesis hash.Hash) {
 	msg := &statusData{
 		ProtocolVersion: uint32(p.version),
-		NetworkId:       lachesis.EmptyFakeNet().Genesis.NetworkId,
+		NetworkId:       lachesis.FakeNetworkId,
 		Progress:        progress,
 		Genesis:         genesis,
 	}

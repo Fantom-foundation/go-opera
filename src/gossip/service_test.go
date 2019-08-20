@@ -20,7 +20,8 @@ func TestServicePing(t *testing.T) {
 
 	db := NewMemStore()
 
-	svc, err := NewService(lachesis.EmptyFakeNet(), new(event.TypeMux), db, nil)
+	network, _, _ := lachesis.FakeNetConfig(0)
+	svc, err := NewService(DefaultConfig(network), new(event.TypeMux), db, nil)
 	assertar.NoError(err)
 
 	tests := []struct {

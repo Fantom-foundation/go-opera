@@ -21,7 +21,8 @@ type Emitter struct {
 	engine   Consensus
 	engineMu *sync.RWMutex
 
-	config *lachesis.Net
+	dag    *lachesis.DagConfig
+	config *EmitterConfig
 
 	myAddr     hash.Peer
 	privateKey *crypto.PrivateKey
@@ -32,8 +33,18 @@ type Emitter struct {
 	wg   sync.WaitGroup
 }
 
-func NewEmitter(config *lachesis.Net, me hash.Peer, privateKey *crypto.PrivateKey, engineMu *sync.RWMutex, store *Store, engine Consensus, onEmitted func(e *inter.Event)) *Emitter {
+func NewEmitter(
+	dag *lachesis.DagConfig,
+	config *EmitterConfig,
+	me hash.Peer,
+	privateKey *crypto.PrivateKey,
+	engineMu *sync.RWMutex,
+	store *Store,
+	engine Consensus,
+	onEmitted func(e *inter.Event),
+) *Emitter {
 	return &Emitter{
+		dag:        dag,
 		config:     config,
 		onEmitted:  onEmitted,
 		store:      store,
@@ -55,7 +66,7 @@ func (em *Emitter) StartEventEmission() {
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(em.config.Emitter.MinEmitInterval)
+		ticker := time.NewTicker(em.config.MinEmitInterval)
 		for {
 			select {
 			case <-ticker.C:
@@ -98,7 +109,7 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	heads := em.store.GetHeads() // events with no descendants
 	selfParent := em.store.GetLastEvent(em.myAddr)
-	_, parents = ancestor.FindBestParents(em.config.Dag.MaxParents, heads, selfParent, strategy)
+	_, parents = ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
 
 	for _, p := range parents {
 		parent := em.store.GetEventHeader(p)

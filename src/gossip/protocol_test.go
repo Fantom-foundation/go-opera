@@ -31,7 +31,7 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 		progress = PeerProgress{
 			Epoch: pm.engine.CurrentSuperFrameN(),
 		}
-		networkId = lachesis.EmptyFakeNet().Genesis.NetworkId
+		networkId = lachesis.FakeNetworkId
 	)
 	defer pm.Stop()
 
