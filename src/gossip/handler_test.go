@@ -131,10 +131,10 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	privateKey := keys[0]
 	me := nodes[0]
 
-	engineStore := posposet.NewMemStore()
+	engineStore := poset.NewMemStore()
 	assertar.NoError(engineStore.ApplyGenesis(config.Genesis))
 
-	engine := posposet.New(engineStore, store)
+	engine := poset.New(engineStore, store)
 	engine.Bootstrap(nil)
 
 	svc, err := NewService(config, evmux, store, engine)

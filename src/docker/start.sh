@@ -15,7 +15,7 @@ do
     docker run -d --rm \
 	--net=${NETWORK} --name=${NAME}-$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
-	"pos-lachesis" \
+	"lachesis" \
 	start --network=fake:$i/$N --peer=${NAME}-$j --db=/tmp ${SENTRY_DSN} --metrics
 done
 

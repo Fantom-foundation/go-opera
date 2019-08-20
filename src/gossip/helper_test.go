@@ -36,13 +36,13 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 
 	config, nodes, _ := lachesis.FakeNet(nodesNum)
 
-	engineStore := posposet.NewMemStore()
+	engineStore := poset.NewMemStore()
 	err := engineStore.ApplyGenesis(config.Genesis)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	engine := posposet.New(engineStore, store)
+	engine := poset.New(engineStore, store)
 	engine.Bootstrap(nil)
 
 	pm, err := NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)

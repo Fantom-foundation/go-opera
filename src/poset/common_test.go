@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 import (
 	"math/rand"

@@ -9,9 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
 
@@ -78,7 +79,9 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 
 	t.Run("#2 Receive block", func(t *testing.T) {
 		assertar := assert.New(t)
-		block := poset.Block{}
+		block := inter.Block{
+			Events: hash.Events{},
+		}
 		gold := []byte("123456")
 
 		go func() {
@@ -242,19 +245,15 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 
 	t.Run("#2 Receive large block", func(t *testing.T) {
 		assert := assert.New(t)
-		block := poset.Block{
-			Body: &poset.BlockBody{
-				Transactions: [][]byte{
-					largeData,
-				},
-			},
+		block := inter.Block{
+			Events: hash.Events{},
 		}
 		hash := largeData[:largeSize/10]
 
 		go func() {
 			select {
 			case event := <-c.CommitCh():
-				assert.Equal(block.Body.Transactions, event.Block.Body.Transactions)
+				assert.Equal(block, event.Block)
 				event.RespChan <- proto.CommitResponse{
 					StateHash: hash,
 					Error:     nil,

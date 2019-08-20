@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 import (
 	"github.com/ethereum/go-ethereum/rlp"

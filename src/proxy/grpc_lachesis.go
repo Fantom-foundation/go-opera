@@ -13,7 +13,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
@@ -222,15 +221,14 @@ func (p *grpcLachesisProxy) listenEvents() {
 		}
 		// block commit event
 		if b := event.GetBlock(); b != nil {
-			var pb poset.Block
-			err = pb.ProtoUnmarshal(b.Data)
+			pb, err := proto.UnmarshalBlock(b.Data)
 			if err != nil {
 				continue
 			}
 			uuid, err = xid.FromBytes(b.Uid)
 			if err == nil {
 				p.commitCh <- proto.Commit{
-					Block:    pb,
+					Block:    *pb,
 					RespChan: p.newCommitResponseCh(uuid),
 				}
 			}

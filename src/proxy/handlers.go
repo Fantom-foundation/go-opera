@@ -4,7 +4,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 /*
@@ -17,7 +16,7 @@ application.
 type App interface {
 	// CommitHandler is called when Lachesis commits a block to the DAG. It returns
 	// the state hash resulting from applying the block's transactions to the state.
-	CommitHandler(block poset.Block) (stateHash []byte, err error)
+	CommitHandler(block inter.Block) (stateHash []byte, err error)
 
 	// SnapshotHandler is called by Lachesis to retrieve a snapshot
 	// corresponding to a particular block.

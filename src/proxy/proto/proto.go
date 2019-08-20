@@ -1,6 +1,6 @@
 package proto
 
-import "github.com/Fantom-foundation/go-lachesis/src/poset"
+import "github.com/Fantom-foundation/go-lachesis/src/inter"
 
 type StateHash struct {
 	Hash []byte
@@ -14,7 +14,7 @@ type CommitResponse struct {
 
 // Commit provides a response mechanism.
 type Commit struct {
-	Block    poset.Block
+	Block    inter.Block
 	RespChan chan<- CommitResponse
 }
 

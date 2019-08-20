@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 // SetGenesis stores first super-frame.
 func (s *Store) SetGenesis(sf *superFrame) {

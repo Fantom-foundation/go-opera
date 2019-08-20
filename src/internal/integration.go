@@ -18,7 +18,7 @@ func NewIntegration(cfg *adapters.NodeConfig, config *lachesis.Net) *gossip.Serv
 		panic(err)
 	}
 
-	c := posposet.New(cdb, gdb)
+	c := poset.New(cdb, gdb)
 
 	svc, err := gossip.NewService(config, new(event.TypeMux), gdb, c)
 	if err != nil {
