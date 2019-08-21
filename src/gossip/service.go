@@ -2,14 +2,14 @@ package gossip
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/eth/downloader"
+	"math/rand"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rpc"
-	"math/rand"
-	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
@@ -80,7 +80,7 @@ func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine C
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(config, config.Genesis.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }
@@ -91,6 +91,9 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	if s.store.HasEvent(e.Hash()) { // sanity check
 		s.store.Fatalf("ProcessEvent: event is already processed %s", e.Hash().String())
 	}
+
+	oldEpoch := realEngine.CurrentSuperFrameN()
+
 	s.store.SetEvent(e)
 	if realEngine != nil {
 		err := realEngine.ProcessEvent(e)
@@ -111,6 +114,12 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	s.store.AddHead(e.Hash())
 
 	s.packs_onNewEvent(e)
+
+	newEpoch := realEngine.CurrentSuperFrameN()
+	if newEpoch != oldEpoch {
+		s.mux.Post(newEpoch)
+		s.mux.Post(s.store.GetPacksNumOrDefault(newEpoch))
+	}
 
 	return nil
 }

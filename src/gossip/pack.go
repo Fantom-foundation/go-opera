@@ -20,17 +20,18 @@ const (
 
 func (s *Service) packs_onNewEvent(e *inter.Event) {
 	epoch := s.engine.CurrentSuperFrameN()
-	packIdx := s.store.GetPacksNum(epoch)
-	packInfo := s.store.GetPackInfo(s.engine.CurrentSuperFrameN(), packIdx)
+	packIdx := s.store.GetPacksNumOrDefault(epoch)
+	packInfo := s.store.GetPackInfoOrDefault(s.engine.CurrentSuperFrameN(), packIdx)
 
 	s.store.AddToPack(epoch, packIdx, e.Hash())
 
+	packInfo.Index = packIdx
 	packInfo.NumOfEvents += 1
 	packInfo.Size += uint32(len(s.store.GetEventRLP(e.Hash()))) // TODO optimize (no need to do DB access)
 	if packInfo.NumOfEvents >= maxPackEventsNum || packInfo.Size >= maxPackSize {
 		// pin the s.store.GetHeads()
 		packInfo.Heads = s.store.GetHeads()
-		s.store.SetPacksNum(epoch, packIdx + 1)
+		s.store.SetPacksNum(epoch, packIdx+1)
 
 		_ = s.mux.Post(packIdx + 1) // notify about new pack
 	}

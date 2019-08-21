@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -45,7 +44,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	engine := poset.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	pm, err := NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
+	pm, err := NewProtocolManager(config, config.Genesis.NetworkId, evmux, &dummyTxPool{added: newtx}, new(sync.RWMutex), store, engine)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -123,11 +122,12 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 		var (
 			genesis       = pm.engine.GetGenesisHash()
 			blockI, block = pm.engine.LastBlock()
+			epoch         = pm.engine.CurrentSuperFrameN()
 			myProgress    = &PeerProgress{
-				Epoch:        pm.engine.CurrentSuperFrameN(),
+				Epoch:        epoch,
 				NumOfBlocks:  blockI,
 				LastBlock:    block,
-				LastPackInfo: pm.store.GetPackInfo(pm.engine.CurrentSuperFrameN(), pm.store.GetPacksNum() - 1),
+				LastPackInfo: pm.store.GetPackInfoOrDefault(epoch, pm.store.GetPacksNumOrDefault(epoch)-1),
 			}
 		)
 		tp.handshake(nil, myProgress, genesis)

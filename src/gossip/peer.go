@@ -253,6 +253,14 @@ func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	return p2p.Send(p.rw, EventsMsg, events)
 }
 
+func (p *peer) SendPackInfosRLP(packInfos *packInfosDataRLP) error {
+	return p2p.Send(p.rw, PackInfosMsg, packInfos)
+}
+
+func (p *peer) SendPack(pack *packData) error {
+	return p2p.Send(p.rw, PackMsg, pack)
+}
+
 // AsyncSendEvents queues an entire event for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
 func (p *peer) AsyncSendEvents(events inter.Events) {
@@ -310,6 +318,20 @@ func (p *peer) RequestEvents(ids hash.Events) error {
 		}
 	}
 	return nil
+}
+
+func (p *peer) RequestPackInfos(epoch idx.SuperFrame, indexes []idx.Pack) error {
+	return p2p.Send(p.rw, GetPackInfosMsg, getPackInfosData{
+		Epoch:   epoch,
+		Indexes: indexes,
+	})
+}
+
+func (p *peer) RequestPack(epoch idx.SuperFrame, index idx.Pack) error {
+	return p2p.Send(p.rw, GetPackMsg, getPackData{
+		Epoch: epoch,
+		Index: index,
+	})
 }
 
 // Handshake executes the protocol handshake, negotiating version number,
@@ -459,14 +481,16 @@ func (ps *peerSet) Len() int {
 // PeersWithoutEvent retrieves a list of peers that do not have a given event in
 // their set of known hashes.
 func (ps *peerSet) PeersWithoutEvent(hash hash.Event) []*peer {
-	list := ps.List()
-	filteredList := make([]*peer, 0, len(list))
-	for _, p := range list {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
 		if p.progress.InterestedIn(hash.Epoch()) && !p.knownEvents.Contains(hash) {
-			filteredList = append(filteredList, p)
+			list = append(list, p)
 		}
 	}
-	return filteredList
+	return list
 }
 
 func (ps *peerSet) List() []*peer {

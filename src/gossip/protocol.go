@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rlp"
 	"math/big"
 )
 
@@ -22,7 +23,7 @@ const protocolName = "fantom"
 var ProtocolVersions = []uint{fantom62}
 
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
-var protocolLengths = map[uint]uint64{fantom62: EventBodiesMsg + 1}
+var protocolLengths = map[uint]uint64{fantom62: PackMsg + 1}
 
 const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
@@ -38,14 +39,14 @@ const (
 
 	NewEventHashesMsg = 0xf1
 
-	GetEventHeadersMsg = 0xf2
-	EventHeadersMsg    = 0xf3
+	GetEventsMsg = 0xf2
+	EventsMsg    = 0xf3
 
-	GetEventsMsg = 0xf4
-	EventsMsg    = 0xf5
+	GetPackInfosMsg = 0xf4
+	PackInfosMsg    = 0xf5
 
-	GetEventBodiesMsg = 0xf6
-	EventBodiesMsg    = 0xf7
+	GetPackMsg = 0xf6
+	PackMsg    = 0xf7
 )
 
 type errCode int
@@ -108,4 +109,32 @@ type PeerProgress struct {
 	NumOfBlocks  idx.Block
 	LastPackInfo PackInfo
 	LastBlock    hash.Event
+}
+
+type packInfosData struct {
+	Epoch           idx.SuperFrame
+	TotalNumOfPacks idx.Pack // in specified epoch
+	Infos           []PackInfo
+}
+
+type packInfosDataRLP struct {
+	Epoch           idx.SuperFrame
+	TotalNumOfPacks idx.Pack // in specified epoch
+	RawInfos        []rlp.RawValue
+}
+
+type getPackInfosData struct {
+	Epoch   idx.SuperFrame
+	Indexes []idx.Pack
+}
+
+type getPackData struct {
+	Epoch idx.SuperFrame
+	Index idx.Pack
+}
+
+type packData struct {
+	Epoch idx.SuperFrame
+	Index idx.Pack
+	Ids   hash.Events
 }

@@ -15,7 +15,7 @@ import (
 const (
 	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced event is explicitly requested
 	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
-	fetchTimeout  = 10 * time.Second       // Maximum allotted time to return an explicitly requested event
+	fetchTimeout  = 10 * time.Second       // Maximum allowed time to return an explicitly requested event
 	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
 
 	maxInjectBatch   = 8  // Maximum number of events in an inject batch (batch is divided if exceeded)
@@ -33,14 +33,14 @@ var (
 	errTerminated = errors.New("terminated")
 )
 
-// dropPeerFn is a callback type for dropping a peer detected as malicious.
-type dropPeerFn func(peer string)
+// DropPeerFn is a callback type for dropping a peer detected as malicious.
+type DropPeerFn func(peer string)
 
-// isInteresedFn returns true if event may be requested.
-type filterInterestedFn func(ids hash.Events) hash.Events
+// FilterInterestedFn returns only event which may be requested.
+type FilterInterestedFn func(ids hash.Events) hash.Events
 
-// eventsRequesterFn is a callback type for sending a event retrieval request.
-type eventsRequesterFn func(hash.Events) error
+// EventsRequesterFn is a callback type for sending a event retrieval request.
+type EventsRequesterFn func(hash.Events) error
 
 // inject represents a schedules import operation.
 type inject struct {
@@ -49,7 +49,7 @@ type inject struct {
 
 	peer string // Identifier of the peer which sent events
 
-	fetchEvents eventsRequesterFn
+	fetchEvents EventsRequesterFn
 }
 
 // announces is the hash notification of the availability of new events in the
@@ -60,7 +60,7 @@ type announcesBatch struct {
 
 	peer string // Identifier of the peer originating the notification
 
-	fetchEvents eventsRequesterFn
+	fetchEvents EventsRequesterFn
 }
 type oneAnnounce struct {
 	batch *announcesBatch
@@ -73,12 +73,12 @@ type Fetcher struct {
 	// Various event channels
 	notify chan *announcesBatch
 	inject chan *inject
+	quit   chan struct{}
 
+	// Callbacks
 	pushEvent        ordering.PushEventFn
-	filterInterested filterInterestedFn
-	dropPeer         dropPeerFn
-
-	quit chan struct{}
+	onlyInterested FilterInterestedFn
+	dropPeer         DropPeerFn
 
 	// Announce states
 	announces map[string]int                // Per peer announce counts to prevent memory exhaustion
@@ -87,7 +87,7 @@ type Fetcher struct {
 }
 
 // New creates a event fetcher to retrieve events based on hash announcements.
-func New(pushEvent ordering.PushEventFn, filterInterested filterInterestedFn, dropPeer dropPeerFn) *Fetcher {
+func New(pushEvent ordering.PushEventFn, onlyInterested FilterInterestedFn, dropPeer DropPeerFn) *Fetcher {
 	return &Fetcher{
 		notify:           make(chan *announcesBatch, maxQueuedAnns),
 		inject:           make(chan *inject, maxQueuedInjects),
@@ -96,7 +96,7 @@ func New(pushEvent ordering.PushEventFn, filterInterested filterInterestedFn, dr
 		announced:        make(map[hash.Event][]*oneAnnounce),
 		fetching:         make(map[hash.Event]*oneAnnounce),
 		pushEvent:        pushEvent,
-		filterInterested: filterInterested,
+		onlyInterested: onlyInterested,
 		dropPeer:         dropPeer,
 	}
 }
@@ -113,11 +113,15 @@ func (f *Fetcher) Stop() {
 	close(f.quit)
 }
 
+func (f *Fetcher) Overloaded() bool {
+	return len(f.inject) > maxQueuedInjects/2 || len(f.notify) > maxQueuedAnns/2
+}
+
 // Notify announces the fetcher of the potential availability of a new event in
 // the network.
-func (f *Fetcher) Notify(peer string, hashes hash.Events, time time.Time, fetchEvents eventsRequesterFn) error {
+func (f *Fetcher) Notify(peer string, hashes hash.Events, time time.Time, fetchEvents EventsRequesterFn) error {
 	// Filter this goroutine to unload the fetcher
-	hashes = f.filterInterested(hashes)
+	hashes = f.onlyInterested(hashes)
 
 	// divide big batch into smaller ones
 	for start := 0; start < len(hashes); start += maxAnnounceBatch {
@@ -142,7 +146,7 @@ func (f *Fetcher) Notify(peer string, hashes hash.Events, time time.Time, fetchE
 }
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
-func (f *Fetcher) Enqueue(peer string, events []*inter.Event, time time.Time, fetchEvents eventsRequesterFn) error {
+func (f *Fetcher) Enqueue(peer string, events []*inter.Event, time time.Time, fetchEvents EventsRequesterFn) error {
 	// divide big batch into smaller ones
 	for start := 0; start < len(events); start += maxInjectBatch {
 		end := len(events)
@@ -206,7 +210,7 @@ func (f *Fetcher) loop() {
 				interested.Add(id)
 			}
 			// assume hashes are already filtered
-			// interested = f.filterInterested(interested)
+			// interested = f.onlyInterested(interested)
 
 			// Fetch interested hashes
 			for i, id := range interested {
@@ -246,7 +250,7 @@ func (f *Fetcher) loop() {
 				f.forgetHash(e.Hash())
 			}
 			// filter after we pushed - this way, we won't request the events from op.events
-			unknownParents = f.filterInterested(unknownParents)
+			unknownParents = f.onlyInterested(unknownParents)
 
 			if len(unknownParents) != 0 {
 				log.Trace("Fetching events by parents", "peer", op.peer, "count", len(unknownParents))
@@ -264,7 +268,7 @@ func (f *Fetcher) loop() {
 					f.forgetHash(e)
 
 					// If the event still didn't arrive, queue for fetching
-					isInterested := len(f.filterInterested(hash.Events{e})) != 0
+					isInterested := len(f.onlyInterested(hash.Events{e})) != 0
 					if isInterested {
 						request[announce.batch.peer] = append(request[announce.batch.peer], e)
 						f.fetching[e] = announce
