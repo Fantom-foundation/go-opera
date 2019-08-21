@@ -260,7 +260,7 @@ func (d *PeerPacksDownloader) tryToSync() {
 		return
 	}
 
-	index, requestFull, syncedUp := d.buildRequest()
+	index, requestFull, syncedUp := d.binarySearchReq()
 	if syncedUp {
 		// even if we're synced up, in a case we're stalled, try to download a not pinned pack after the timeout
 		stalled := time.Since(d.prevRequest) > forceSyncPeriod
@@ -312,7 +312,7 @@ func (d *PeerPacksDownloader) timedRequestPackInfo(index idx.Pack) {
 
 // Finds lowest not known pack, such that previous pack is known or doesn't exist
 // If not found, returns next pack index to request
-func (d *PeerPacksDownloader) buildRequest() (requestIndex idx.Pack, requestFull bool, syncedUp bool) {
+func (d *PeerPacksDownloader) binarySearchReq() (requestIndex idx.Pack, requestFull bool, syncedUp bool) {
 	it := d.packInfos.Iterator()
 	var prevIdx *idx.Pack
 
