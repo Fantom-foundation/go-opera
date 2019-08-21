@@ -259,7 +259,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		selfParentFrame := idx.Frame(0)
 
 		for _, parent := range e.Parents {
-			pFrame := p.GetEventHeader(parent).Frame
+			pFrame := p.GetEventHeader(p.SuperFrameN, parent).Frame
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
 				maxParentsFrame = pFrame
 			}

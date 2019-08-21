@@ -287,7 +287,7 @@ func testSpecialNamedRoots(t *testing.T, scheme string) {
 	for name, event := range names {
 		mustBeFrame, mustBeRoot := decode(name)
 		// check root
-		frame := p.GetEventHeader(event.Hash()).Frame
+		frame := p.GetEventHeader(p.SuperFrameN, event.Hash()).Frame
 		isRoot := p.store.IsRoot(frame, event.Creator, event.Hash())
 		if !assertar.Equal(mustBeRoot, isRoot, name+" is root") {
 			break
