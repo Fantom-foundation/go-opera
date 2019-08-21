@@ -19,20 +19,20 @@ func (hook *StoreAwareEngine) ProcessEvent(e *inter.Event) error {
 	if hook.engine != nil {
 		err := hook.engine.ProcessEvent(e)
 		if err != nil { // TODO make it possible to write only on success
-			hook.store.DeleteEvent(e.Hash())
+			hook.store.DeleteEvent(e.Epoch, e.Hash())
 			return err
 		}
 	}
 	// set member's last event. we don't care about forks, because this index is used only for emitter
-	hook.store.SetLastEvent(e.Creator, e.Hash())
+	hook.store.SetLastEvent(e.Epoch, e.Creator, e.Hash())
 
 	// track events with no descendants, i.e. heads
 	for _, parent := range e.Parents {
-		if hook.store.IsHead(parent) {
-			hook.store.EraseHead(parent)
+		if hook.store.IsHead(e.Epoch, parent) {
+			hook.store.DelHead(e.Epoch, parent)
 		}
 	}
-	hook.store.AddHead(e.Hash())
+	hook.store.AddHead(e.Epoch, e.Hash())
 
 	return nil
 }

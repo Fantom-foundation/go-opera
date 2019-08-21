@@ -104,12 +104,12 @@ func (em *Emitter) createEvent() *inter.Event {
 		strategy = ancestor.NewRandomStrategy(nil)
 	}
 
-	heads := em.store.GetHeads() // events with no descendants
-	selfParent := em.store.GetLastEvent(em.myAddr)
+	heads := em.store.GetHeads(epoch) // events with no descendants
+	selfParent := em.store.GetLastEvent(epoch, em.myAddr)
 	_, parents = ancestor.FindBestParents(em.config.Dag.MaxParents, heads, selfParent, strategy)
 
 	for _, p := range parents {
-		parent := em.store.GetEventHeader(p)
+		parent := em.store.GetEventHeader(epoch, p)
 		if maxLamport < parent.Lamport {
 			maxLamport = parent.Lamport
 		}
@@ -117,7 +117,7 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	seq = 1
 	if selfParent != nil {
-		seq = em.store.GetEventHeader(*selfParent).Seq + 1
+		seq = em.store.GetEventHeader(epoch, *selfParent).Seq + 1
 	}
 
 	event := inter.NewEvent()
