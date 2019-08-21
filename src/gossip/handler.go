@@ -81,7 +81,19 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(config *lachesis.Net, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
+func NewProtocolManager(
+	config *lachesis.Net,
+	mode downloader.SyncMode,
+	networkID uint64,
+	mux *event.TypeMux,
+	txpool txPool,
+	engineMu *sync.RWMutex,
+	s *Store,
+	engine Consensus,
+) (
+	*ProtocolManager,
+	error,
+) {
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:      config,
@@ -129,12 +141,14 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 			return pm.store.GetEvent(id)
 		},
 	})
+
 	pushEvent := func(e *inter.Event, peer string) {
 		pm.engineMu.Lock()
 		defer pm.engineMu.Unlock()
 
 		pushInBuffer(e, peer)
 	}
+
 	isEventDownloaded := func(id hash.Event) bool {
 		pm.engineMu.RLock()
 		defer pm.engineMu.RUnlock()

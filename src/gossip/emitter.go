@@ -32,7 +32,15 @@ type Emitter struct {
 	wg   sync.WaitGroup
 }
 
-func NewEmitter(config *lachesis.Net, me hash.Peer, privateKey *crypto.PrivateKey, engineMu *sync.RWMutex, store *Store, engine Consensus, onEmitted func(e *inter.Event)) *Emitter {
+func NewEmitter(
+	config *lachesis.Net,
+	me hash.Peer,
+	privateKey *crypto.PrivateKey,
+	engineMu *sync.RWMutex,
+	store *Store,
+	engine Consensus,
+	onEmitted func(e *inter.Event),
+) *Emitter {
 	return &Emitter{
 		config:     config,
 		onEmitted:  onEmitted,
@@ -78,7 +86,7 @@ func (em *Emitter) StopEventEmission() {
 	em.wg.Wait()
 }
 
-// not safe for concurrent use
+// createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
 	var (
 		epoch      = em.engine.CurrentSuperFrameN()
