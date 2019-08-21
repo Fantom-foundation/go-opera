@@ -25,6 +25,7 @@ type Emitter struct {
 
 	myAddr     hash.Peer
 	privateKey *crypto.PrivateKey
+	prevEpoch  idx.SuperFrame
 
 	onEmitted func(e *inter.Event)
 
@@ -94,6 +95,11 @@ func (em *Emitter) createEvent() *inter.Event {
 		parents    hash.Events
 		maxLamport idx.Lamport
 	)
+
+	// clean tmp db
+	if em.prevEpoch < epoch {
+		em.store.delEpochStore(epoch - 1)
+	}
 
 	seeVec := em.engine.GetVectorIndex()
 
