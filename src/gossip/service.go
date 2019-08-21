@@ -117,6 +117,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 	newEpoch := realEngine.CurrentSuperFrameN()
 	if newEpoch != oldEpoch {
+		s.packs_onNewEpoch(oldEpoch, newEpoch)
 		s.mux.Post(newEpoch)
 		s.mux.Post(s.store.GetPacksNumOrDefault(newEpoch))
 	}

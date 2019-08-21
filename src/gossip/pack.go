@@ -20,6 +20,7 @@ const (
 
 func (s *Service) packs_onNewEvent(e *inter.Event) {
 	epoch := s.engine.CurrentSuperFrameN()
+	// due to default values, we don't need to explicitly set values at a start of an epoch
 	packIdx := s.store.GetPacksNumOrDefault(epoch)
 	packInfo := s.store.GetPackInfoOrDefault(s.engine.CurrentSuperFrameN(), packIdx)
 
@@ -36,4 +37,17 @@ func (s *Service) packs_onNewEvent(e *inter.Event) {
 		_ = s.mux.Post(packIdx + 1) // notify about new pack
 	}
 	s.store.SetPackInfo(epoch, packIdx, packInfo)
+}
+
+func (s *Service) packs_onNewEpoch(oldEpoch, newEpoch idx.SuperFrame) {
+	// pin the last pack
+	packIdx := s.store.GetPacksNumOrDefault(oldEpoch)
+	packInfo := s.store.GetPackInfoOrDefault(s.engine.CurrentSuperFrameN(), packIdx)
+
+	packInfo.Heads = s.store.GetHeads()
+	s.store.SetPackInfo(oldEpoch, packIdx, packInfo)
+
+	s.store.SetPacksNum(oldEpoch, packIdx+1) // the last pack is always not pinned, so create not pinned one
+
+	_ = s.mux.Post(packIdx + 1)
 }
