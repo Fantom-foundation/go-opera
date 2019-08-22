@@ -256,7 +256,7 @@ func (d *PeerPacksDownloader) loop() {
 }
 
 func (d *PeerPacksDownloader) tryToSync() {
-	if d.fetcher.Overloaded() {
+	if d.fetcher.OverloadedPeer(d.peer.Id) {
 		return
 	}
 
