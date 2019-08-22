@@ -3,12 +3,13 @@ package poset
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type EventSource interface {
 	HasEvent(hash.Event) bool
 	GetEvent(hash.Event) *inter.Event
-	GetEventHeader(hash.Event) *inter.EventHeaderData
+	GetEventHeader(idx.SuperFrame, hash.Event) *inter.EventHeaderData
 }
 
 /*
@@ -32,6 +33,6 @@ func (p *Poset) GetEvent(h hash.Event) *Event {
 }
 
 // GetEventHeader returns event header.
-func (p *Poset) GetEventHeader(h hash.Event) *inter.EventHeaderData {
-	return p.input.GetEventHeader(h)
+func (p *Poset) GetEventHeader(epoch idx.SuperFrame, h hash.Event) *inter.EventHeaderData {
+	return p.input.GetEventHeader(epoch, h)
 }

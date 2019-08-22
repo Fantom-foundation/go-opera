@@ -11,6 +11,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
+var (
+	ErrOutdatedEvent = errors.New("consensus: event is too old/too new")
+)
+
 // Poset processes events to get consensus.
 type Poset struct {
 	store *Store
@@ -41,6 +45,10 @@ func New(store *Store, input EventSource) *Poset {
 
 func (p *Poset) GetVectorIndex() *vector.Index {
 	return p.seeVec
+}
+
+func (p *Poset) LastBlock() (idx.Block, hash.Event) {
+	return p.LastBlockN, p.LastFiWitness
 }
 
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
@@ -174,8 +182,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) error {
 	if e.Epoch != p.SuperFrameN {
-		p.Infof("consensus: %s is too old/too new", e.String())
-		return nil
+		return ErrOutdatedEvent
 	}
 	p.Debugf("consensus: start %s", e.String())
 
@@ -213,6 +220,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
 	// block generation
+	p.checkpoint.LastFiWitness = sfWitness
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
 		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered)
@@ -259,7 +267,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		selfParentFrame := idx.Frame(0)
 
 		for _, parent := range e.Parents {
-			pFrame := p.GetEventHeader(parent).Frame
+			pFrame := p.GetEventHeader(p.SuperFrameN, parent).Frame
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
 				maxParentsFrame = pFrame
 			}

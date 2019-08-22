@@ -1,41 +1,51 @@
 package gossip
 
 import (
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/state"
-
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	physicalDB kvdb.Database
+	persistentDB kvdb.Database
 
 	table struct {
-		Peers    kvdb.Database `table:"peer_"`
-		Events   kvdb.Database `table:"event_"`
-		Blocks   kvdb.Database `table:"block_"`
+		Peers     kvdb.Database `table:"peer_"`
+		Events    kvdb.Database `table:"event_"`
+		Blocks    kvdb.Database `table:"block_"`
+		PackInfos kvdb.Database `table:"packinfo_"`
+		Packs     kvdb.Database `table:"pack_"`
+		PacksNum  kvdb.Database `table:"packs_num_"`
+
+		TmpDbs kvdb.Database `table:"tmpdbs_"`
+
 		Balances state.Database
-		Headers  kvdb.Database `table:"header_"` // TODO should be temporary, epoch-scoped
-		Tips     kvdb.Database `table:"tips_"`   // TODO should be temporary, epoch-scoped
-		Heads    kvdb.Database `table:"heads_"`  // TODO should be temporary, epoch-scoped
 	}
+
+	tmpDbs
+
+	makeDb func(name string) kvdb.Database
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.Database) *Store {
+func NewStore(db kvdb.Database, makeDb func(name string) kvdb.Database) *Store {
 	s := &Store{
-		physicalDB: db,
-		Instance:   logger.MakeInstance(),
+		persistentDB: db,
+		makeDb:       makeDb,
+		Instance:     logger.MakeInstance(),
 	}
 
-	kvdb.MigrateTables(&s.table, s.physicalDB)
+	kvdb.MigrateTables(&s.table, s.persistentDB)
 	s.table.Balances = state.NewDatabase(
-		s.physicalDB.NewTable([]byte("balance_")))
+		s.persistentDB.NewTable([]byte("balance_")))
+
+	s.initTmpDbs()
 
 	return s
 }
@@ -43,13 +53,15 @@ func NewStore(db kvdb.Database) *Store {
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
 	db := kvdb.NewMemDatabase()
-	return NewStore(db)
+	return NewStore(db, func(name string) kvdb.Database {
+		return kvdb.NewMemDatabase()
+	})
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
 	kvdb.MigrateTables(&s.table, nil)
-	s.physicalDB.Close()
+	s.persistentDB.Close()
 }
 
 // StateDB returns state database.

@@ -1,13 +1,15 @@
 package poset
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -61,9 +63,9 @@ func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
 	return w
 }
 
-// TODO store separately
 // GetEventHeader returns stored event header.
-func (s *EventStore) GetEventHeader(h hash.Event) *inter.EventHeaderData {
+// Note: fake epoch partition.
+func (s *EventStore) GetEventHeader(_ idx.SuperFrame, h hash.Event) *inter.EventHeaderData {
 	e := s.GetEvent(h)
 	if e == nil {
 		return nil

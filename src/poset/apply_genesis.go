@@ -62,6 +62,7 @@ func (s *Store) ApplyGenesis(g *lachesis.Genesis) error {
 	sf.PrevEpoch.LastFiWitness = dummyFiWitness.Hash()
 	sf.PrevEpoch.Time = g.Time
 	cp.LastConsensusTime = sf.PrevEpoch.Time
+	cp.LastFiWitness = dummyFiWitness.Hash()
 
 	s.SetGenesis(sf)
 	s.SetSuperFrame(sf)

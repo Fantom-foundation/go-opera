@@ -26,6 +26,7 @@ type Emitter struct {
 
 	myAddr     hash.Peer
 	privateKey *crypto.PrivateKey
+	prevEpoch  idx.SuperFrame
 
 	onEmitted func(e *inter.Event)
 
@@ -34,8 +35,7 @@ type Emitter struct {
 }
 
 func NewEmitter(
-	dag *lachesis.DagConfig,
-	config *EmitterConfig,
+	config *Config,
 	me hash.Peer,
 	privateKey *crypto.PrivateKey,
 	engineMu *sync.RWMutex,
@@ -44,8 +44,8 @@ func NewEmitter(
 	onEmitted func(e *inter.Event),
 ) *Emitter {
 	return &Emitter{
-		dag:        dag,
-		config:     config,
+		dag:        &config.Net.Dag,
+		config:     &config.Emitter,
 		onEmitted:  onEmitted,
 		store:      store,
 		myAddr:     me,
@@ -89,7 +89,7 @@ func (em *Emitter) StopEventEmission() {
 	em.wg.Wait()
 }
 
-// not safe for concurrent use
+// createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
 	var (
 		epoch      = em.engine.CurrentSuperFrameN()
@@ -97,6 +97,11 @@ func (em *Emitter) createEvent() *inter.Event {
 		parents    hash.Events
 		maxLamport idx.Lamport
 	)
+
+	// clean tmp db
+	if em.prevEpoch < epoch {
+		em.store.delEpochStore(epoch - 1)
+	}
 
 	seeVec := em.engine.GetVectorIndex()
 
@@ -107,12 +112,12 @@ func (em *Emitter) createEvent() *inter.Event {
 		strategy = ancestor.NewRandomStrategy(nil)
 	}
 
-	heads := em.store.GetHeads() // events with no descendants
-	selfParent := em.store.GetLastEvent(em.myAddr)
+	heads := em.store.GetHeads(epoch) // events with no descendants
+	selfParent := em.store.GetLastEvent(epoch, em.myAddr)
 	_, parents = ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
 
 	for _, p := range parents {
-		parent := em.store.GetEventHeader(p)
+		parent := em.store.GetEventHeader(epoch, p)
 		if maxLamport < parent.Lamport {
 			maxLamport = parent.Lamport
 		}
@@ -120,7 +125,7 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	seq = 1
 	if selfParent != nil {
-		seq = em.store.GetEventHeader(*selfParent).Seq + 1
+		seq = em.store.GetEventHeader(epoch, *selfParent).Seq + 1
 	}
 
 	event := inter.NewEvent()

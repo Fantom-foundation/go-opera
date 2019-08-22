@@ -21,7 +21,7 @@ func makeStorages(makeDb DbProducer) (*gossip.Store, *poset.Store) {
 	g := db.NewTable([]byte("g_"))
 	p := db.NewTable([]byte("p_"))
 
-	return gossip.NewStore(g),
+	return gossip.NewStore(g, makeDb),
 		poset.NewStore(p, makeDb)
 }
 

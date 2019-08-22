@@ -80,6 +80,10 @@ func TestRestore(t *testing.T) {
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
 			assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+			// check LastFiWitness and Head() method
+			if posets[i].checkpoint.LastBlockN != 0 {
+				assertar.Equal(posets[i].checkpoint.LastFiWitness, posets[j].blocks[idx.Block(len(posets[j].blocks))].Head(), "fiWitness must be last event in block")
+			}
 		}
 
 		// check that blocks are identical

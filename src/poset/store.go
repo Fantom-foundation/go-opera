@@ -8,10 +8,8 @@ import (
 
 // Store is a poset persistent storage working over physical key-value database.
 type Store struct {
-	historyDB kvdb.Database
-	epochDb   kvdb.Database
-
-	table struct {
+	persistentDB kvdb.Database
+	table        struct {
 		Checkpoint     kvdb.Database `table:"checkpoint_"`
 		Event2Block    kvdb.Database `table:"event2block_"`
 		SuperFrames    kvdb.Database `table:"sframe_"`
@@ -19,26 +17,27 @@ type Store struct {
 		FrameInfos     kvdb.Database `table:"frameinfo_"`
 	}
 
+	epochDb    kvdb.Database
 	epochTable struct {
 		Roots       kvdb.Database `table:"roots_"`
 		VectorIndex kvdb.Database `table:"vectors_"`
 	}
 
-	newEpochDb func(name string) kvdb.Database
+	makeDb func(name string) kvdb.Database
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.Database, newEpochDb func(name string) kvdb.Database) *Store {
+func NewStore(db kvdb.Database, makeDb func(name string) kvdb.Database) *Store {
 	s := &Store{
-		historyDB:  db,
-		epochDb:    newEpochDb("epoch"),
-		newEpochDb: newEpochDb,
-		Instance:   logger.MakeInstance(),
+		persistentDB: db,
+		epochDb:      makeDb("epoch"),
+		makeDb:       makeDb,
+		Instance:     logger.MakeInstance(),
 	}
 
-	kvdb.MigrateTables(&s.table, s.historyDB)
+	kvdb.MigrateTables(&s.table, s.persistentDB)
 	kvdb.MigrateTables(&s.epochTable, s.epochDb)
 
 	return s
@@ -55,7 +54,7 @@ func NewMemStore() *Store {
 func (s *Store) Close() {
 	kvdb.MigrateTables(&s.table, nil)
 	kvdb.MigrateTables(&s.epochTable, nil)
-	s.historyDB.Close()
+	s.persistentDB.Close()
 	s.epochDb.Close()
 }
 
@@ -64,7 +63,7 @@ func (s *Store) recreateEpochDb() {
 		s.epochDb.Close()
 		s.epochDb.Drop()
 	}
-	s.epochDb = s.newEpochDb("epoch")
+	s.epochDb = s.makeDb("epoch")
 	kvdb.MigrateTables(&s.epochTable, s.epochDb)
 }
 

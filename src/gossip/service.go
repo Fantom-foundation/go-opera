@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
-	"time"
 
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
@@ -20,11 +16,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-)
-
-const (
-	PingMsg uint64 = iota
-	PongMsg
 )
 
 // Service implements go-ethereum/node.Service interface.
@@ -53,18 +44,12 @@ type Service struct {
 	mux *event.TypeMux
 
 	// application protocol
-	Pinger *PingAPI
-	pm     *ProtocolManager
+	pm *ProtocolManager
 
 	logger.Instance
 }
 
 func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
-	engine = &StoreAwareEngine{
-		engine: engine,
-		store:  store,
-	}
-
 	svc := &Service{
 		config: config,
 
@@ -72,9 +57,7 @@ func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensu
 
 		Name: fmt.Sprintf("Node-%d", rand.Int()),
 
-		store:  store,
-		engine: engine,
-		Pinger: &PingAPI{},
+		store: store,
 
 		engineMu: new(sync.RWMutex),
 
@@ -83,6 +66,12 @@ func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensu
 		Instance: logger.MakeInstance(),
 	}
 
+	engine = &HookedEngine{
+		engine:       engine,
+		processEvent: svc.processEvent,
+	}
+	svc.engine = engine
+
 	engine.Bootstrap(svc.ApplyBlock)
 
 	trustedNodes := []string{}
@@ -90,59 +79,81 @@ func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensu
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(&config, downloader.FullSync, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(&config, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }
 
+func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
+	// s.engineMu is locked here
+
+	if s.store.HasEvent(e.Hash()) { // sanity check
+		s.store.Fatalf("ProcessEvent: event is already processed %s", e.Hash().String())
+	}
+
+	oldEpoch := realEngine.CurrentSuperFrameN()
+
+	s.store.SetEvent(e)
+	if realEngine != nil {
+		err := realEngine.ProcessEvent(e)
+		if err != nil { // TODO make it possible to write only on success
+			s.store.DeleteEvent(e.Epoch, e.Hash())
+			return err
+		}
+	}
+	// set member's last event. we don't care about forks, because this index is used only for emitter
+	s.store.SetLastEvent(e.Epoch, e.Creator, e.Hash())
+
+	// track events with no descendants, i.e. heads
+	for _, parent := range e.Parents {
+		if s.store.IsHead(e.Epoch, parent) {
+			s.store.DelHead(e.Epoch, parent)
+		}
+	}
+	s.store.AddHead(e.Epoch, e.Hash())
+
+	s.packs_onNewEvent(e)
+
+	newEpoch := realEngine.CurrentSuperFrameN()
+	if newEpoch != oldEpoch {
+		s.packs_onNewEpoch(oldEpoch, newEpoch)
+		s.mux.Post(newEpoch)
+		s.mux.Post(s.store.GetPacksNumOrDefault(newEpoch))
+	}
+
+	return nil
+}
+
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(
-		&s.config.Net.Dag,
-		&s.config.Emitter,
-		s.me,
-		s.privateKey,
-		s.engineMu,
-		s.store,
-		s.engine,
-		func(emitted *inter.Event) {
-			// svc.engineMu is locked here
+	return NewEmitter(&s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
+		// s.engineMu is locked here
 
-			err := s.engine.ProcessEvent(emitted)
-			if err != nil {
-				s.Fatalf("Self-event connection failed: %s", err.Error())
-			}
+		err := s.engine.ProcessEvent(emitted)
+		if err != nil {
+			s.Fatalf("Self-event connection failed: %s", err.Error())
+		}
 
-			err = s.pm.mux.Post(emitted) // PM listens and will broadcast it
-			if err != nil {
-				s.Fatalf("Failed to post self-event: %s", err.Error())
-			}
-		},
+		err = s.pm.mux.Post(emitted) // PM listens and will broadcast it
+		if err != nil {
+			s.Fatalf("Failed to post self-event: %s", err.Error())
+		}
+	},
 	)
 }
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-
 	protos := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, vsn := range ProtocolVersions {
 		protos[i] = s.pm.makeProtocol(vsn)
 		protos[i].Attributes = []enr.Entry{s.currentEnr()}
 	}
-
-	protos = append(protos, s.makePingProtocol(1))
 	return protos
 }
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "ping",
-			Version:   "1.0",
-			Service:   s.Pinger,
-			Public:    true,
-		},
-	}
+	return []rpc.API{}
 }
 
 // Start method invoked when the node is ready to start the service.
@@ -181,92 +192,4 @@ func (s *Service) Stop() error {
 	s.pm.Stop()
 	s.wg.Wait()
 	return nil
-}
-
-func (s *Service) makePingProtocol(version uint) p2p.Protocol {
-	return p2p.Protocol{
-		Name:    "ping",
-		Version: 1,
-		Length:  10,
-		NodeInfo: func() interface{} {
-			return struct{}{}
-		},
-		PeerInfo: func(id enode.ID) interface{} {
-			return struct{}{}
-		},
-		Run: func(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
-			select {
-			case <-s.done:
-				return p2p.DiscQuitting
-			default:
-				s.wg.Add(1)
-				defer s.wg.Done()
-				return s.handlePing(peer, rw)
-			}
-		},
-	}
-}
-
-func (s *Service) handlePing(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
-	errc := make(chan error)
-
-	go func() {
-		errc <- func() error {
-
-			msg, err := rw.ReadMsg()
-			if err != nil {
-				return err
-			}
-
-			if msg.Code != PingMsg {
-				_ = msg.Discard()
-				return errResp(ErrInvalidMsgCode, "ping expected")
-			}
-
-			var req string
-			err = msg.Decode(&req)
-			if err != nil {
-				return err
-			}
-
-			resp := s.Pinger.Hi(req)
-
-			size, r, err := rlp.EncodeToReader(&resp)
-			if err != nil {
-				return err
-			}
-
-			err = rw.WriteMsg(p2p.Msg{
-				Code:    PongMsg,
-				Size:    uint32(size),
-				Payload: r})
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}()
-	}()
-
-	timeout := time.NewTimer(time.Second)
-	defer timeout.Stop()
-
-	select {
-	case err := <-errc:
-		if err != nil {
-			return err
-		}
-	case <-timeout.C:
-		return p2p.DiscReadTimeout
-	}
-
-	return nil
-}
-
-// PingAPI:
-
-type PingAPI struct{}
-
-func (a *PingAPI) Hi(name string) string {
-	return fmt.Sprintf("Hello, %s!", name)
 }

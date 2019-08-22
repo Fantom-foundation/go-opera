@@ -144,6 +144,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	// start PM
 	pm := svc.pm
 	pm.Start(1000)
+	pm.synced = 1
 	defer pm.Stop()
 
 	// create peers
@@ -205,7 +206,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 			if t.Failed() {
 				return
 			}
-			assertar.True(svc.store.HasEvent(emitted.Hash()))
+			assertar.True(svc.store.HasEvent(emitted.Hash()), emitted.Hash().String())
 		}
 		emittedEvents = append(emittedEvents, emitted)
 	}
