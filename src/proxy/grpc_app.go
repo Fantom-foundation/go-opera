@@ -15,8 +15,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/network"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
 
 var errNoAnswers = errors.New("no answers")
@@ -199,8 +199,8 @@ func (p *grpcAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 }
 
 // CommitBlock implements AppProxy interface method.
-func (p *grpcAppProxy) CommitBlock(block poset.Block) ([]byte, error) {
-	data, err := block.ProtoMarshal()
+func (p *grpcAppProxy) CommitBlock(block inter.Block) ([]byte, error) {
+	data, err := proto.MarshalBlock(&block)
 	if err != nil {
 		return nil, err
 	}

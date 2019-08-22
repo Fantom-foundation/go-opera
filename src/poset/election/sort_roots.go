@@ -26,7 +26,7 @@ func (s sortedRoots) Less(i, j int) bool {
 	if s[i].stake != s[j].stake {
 		return s[i].stake > s[j].stake
 	}
-	return s[i].root.Big().Cmp(s[j].root.Big()) < 0
+	return s[i].root.Big().Cmp(s[j].root.Big()) > 0
 }
 
 // Chooses the decided "yes" roots with the greatest stake amount.

@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
@@ -18,11 +17,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-)
-
-const (
-	PingMsg uint64 = iota
-	PongMsg
 )
 
 // Service implements go-ethereum/node.Service interface.
@@ -57,11 +51,6 @@ type Service struct {
 }
 
 func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
-	engine = &StoreAwareEngine{
-		engine: engine,
-		store:  store,
-	}
-
 	svc := &Service{
 		config: config,
 
@@ -69,8 +58,7 @@ func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine C
 
 		Name: fmt.Sprintf("Node-%d", rand.Int()),
 
-		store:  store,
-		engine: engine,
+		store: store,
 
 		engineMu: new(sync.RWMutex),
 
@@ -79,6 +67,12 @@ func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine C
 		Instance: logger.MakeInstance(),
 	}
 
+	engine = &HookedEngine{
+		engine:       engine,
+		processEvent: svc.processEvent,
+	}
+	svc.engine = engine
+
 	engine.Bootstrap(svc.ApplyBlock)
 
 	trustedNodes := []string{}
@@ -86,14 +80,54 @@ func NewService(config *lachesis.Net, mux *event.TypeMux, store *Store, engine C
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	var err error
-	svc.pm, err = NewProtocolManager(config, downloader.FullSync, config.Genesis.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(config, config.Genesis.NetworkId, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
 
 	return svc, err
 }
 
+func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
+	// s.engineMu is locked here
+
+	if s.store.HasEvent(e.Hash()) { // sanity check
+		s.store.Fatalf("ProcessEvent: event is already processed %s", e.Hash().String())
+	}
+
+	oldEpoch := realEngine.CurrentSuperFrameN()
+
+	s.store.SetEvent(e)
+	if realEngine != nil {
+		err := realEngine.ProcessEvent(e)
+		if err != nil { // TODO make it possible to write only on success
+			s.store.DeleteEvent(e.Epoch, e.Hash())
+			return err
+		}
+	}
+	// set member's last event. we don't care about forks, because this index is used only for emitter
+	s.store.SetLastEvent(e.Epoch, e.Creator, e.Hash())
+
+	// track events with no descendants, i.e. heads
+	for _, parent := range e.Parents {
+		if s.store.IsHead(e.Epoch, parent) {
+			s.store.DelHead(e.Epoch, parent)
+		}
+	}
+	s.store.AddHead(e.Epoch, e.Hash())
+
+	s.packs_onNewEvent(e)
+
+	newEpoch := realEngine.CurrentSuperFrameN()
+	if newEpoch != oldEpoch {
+		s.packs_onNewEpoch(oldEpoch, newEpoch)
+		s.mux.Post(newEpoch)
+		s.mux.Post(s.store.GetPacksNumOrDefault(newEpoch))
+	}
+
+	return nil
+}
+
 func (s *Service) makeEmitter() *Emitter {
 	return NewEmitter(s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
-		// svc.engineMu is locked here
+		// s.engineMu is locked here
 
 		err := s.engine.ProcessEvent(emitted)
 		if err != nil {
@@ -109,13 +143,11 @@ func (s *Service) makeEmitter() *Emitter {
 
 // Protocols returns protocols the service can communicate on.
 func (s *Service) Protocols() []p2p.Protocol {
-
 	protos := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, vsn := range ProtocolVersions {
 		protos[i] = s.pm.makeProtocol(vsn)
 		protos[i].Attributes = []enr.Entry{s.currentEnr()}
 	}
-
 	return protos
 }
 

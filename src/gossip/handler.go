@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -18,14 +17,18 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/ordering"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/packs_downloader"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 const (
-	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned events, or other data.
+	softResponseLimitSize = 2 * 1024 * 1024    // Target maximum size of returned events, or other data.
+	softLimitItems        = 500                // Target maximum number of events or transactions to request/response
+	hardLimitItems        = softLimitItems * 2 // Maximum number of events or transactions to request/response
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
@@ -35,12 +38,18 @@ const (
 	minBroadcastPeers = 4
 )
 
-var (
-	syncChallengeTimeout = 15 * time.Second // Time allowance for a node to reply to the sync progress challenge
-)
-
 func errResp(code errCode, format string, v ...interface{}) error {
 	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
+}
+
+func checkLenLimits(size int, v interface{}) error {
+	if size <= 0 {
+		return errResp(ErrEmptyMessage, "%v", v)
+	}
+	if size > hardLimitItems {
+		return errResp(ErrMsgTooLarge, "%v", v)
+	}
+	return nil
 }
 
 type ProtocolManager struct {
@@ -48,8 +57,8 @@ type ProtocolManager struct {
 
 	networkID uint64
 
-	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
-	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
+	fastSync uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
+	synced   uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
 	txpool   txPool
 	maxPeers int
@@ -60,13 +69,17 @@ type ProtocolManager struct {
 	txsCh  chan core.NewTxsEvent
 	txsSub event.Subscription
 
-	fetcher *fetcher.Fetcher
+	downloader      *packs_downloader.PacksDownloader
+	fetcher         *fetcher.Fetcher
+	isEventBuffered ordering.IsBufferedFn
 
 	store    *Store
 	engine   Consensus
 	engineMu *sync.RWMutex
 
 	emittedEventsSub *event.TypeMuxSubscription
+	newPacksSub      *event.TypeMuxSubscription
+	newEpochsSub     *event.TypeMuxSubscription
 
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
@@ -83,7 +96,6 @@ type ProtocolManager struct {
 // with the Fantom network.
 func NewProtocolManager(
 	config *lachesis.Net,
-	mode downloader.SyncMode,
 	networkID uint64,
 	mux *event.TypeMux,
 	txpool txPool,
@@ -111,29 +123,33 @@ func NewProtocolManager(
 	}
 
 	pm.fetcher = pm.makeFetcher()
+	pm.downloader = packs_downloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
 
 	return pm, nil
 }
 
 func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
-	// build EventBuffer
 	pushInBuffer, isEventBuffered := ordering.EventBuffer(ordering.Callback{
+
 		Process: func(e *inter.Event) error {
 			log.Info("New event", "hash", e.Hash())
-
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
 				return err
 			}
-
 			// If the event is indeed in our own graph, announce it
-			pm.BroadcastEvent(e, false) // TODO do not announce if it's "initial events download"
+			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
+				pm.BroadcastEvent(e, false)
+			}
 			return nil
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
-			log.Warn("Event rejected", "err", err)
-			pm.store.DeleteEvent(e.Epoch, e.Hash())
+			log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+			if err == poset.ErrOutdatedEvent ||
+				err == ordering.ErrAlreadyConnectedEvent {
+				return
+			}
 			pm.removePeer(peer)
 		},
 
@@ -142,6 +158,8 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		},
 	})
 
+	pm.isEventBuffered = isEventBuffered
+
 	pushEvent := func(e *inter.Event, peer string) {
 		pm.engineMu.Lock()
 		defer pm.engineMu.Unlock()
@@ -149,17 +167,45 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		pushInBuffer(e, peer)
 	}
 
-	isEventDownloaded := func(id hash.Event) bool {
-		pm.engineMu.RLock()
-		defer pm.engineMu.RUnlock()
+	return fetcher.New(pushEvent, pm.onlyInterestedEvents, pm.removePeer)
+}
 
-		if isEventBuffered(id) {
-			return true
-		}
-		return pm.store.HasEvent(id)
+func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
+	if len(ids) == 0 {
+		return ids
 	}
+	pm.engineMu.RLock()
+	defer pm.engineMu.RUnlock()
 
-	return fetcher.New(pushEvent, isEventDownloaded, pm.removePeer)
+	notConnected := make(hash.Events, 0, len(ids))
+	for _, id := range ids {
+		if pm.store.HasEvent(id) {
+			continue
+		}
+		notConnected.Add(id)
+	}
+	return notConnected
+}
+
+func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
+	if len(ids) == 0 {
+		return ids
+	}
+	pm.engineMu.RLock()
+	defer pm.engineMu.RUnlock()
+	epoch := pm.engine.CurrentSuperFrameN()
+
+	interested := make(hash.Events, 0, len(ids))
+	for _, id := range ids {
+		if id.Epoch() != epoch {
+			continue
+		}
+		if pm.isEventBuffered(id) || pm.store.HasEvent(id) {
+			continue
+		}
+		interested.Add(id)
+	}
+	return interested
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
@@ -204,7 +250,7 @@ func (pm *ProtocolManager) removePeer(id string) {
 	log.Debug("Removing peer", "peer", id)
 
 	// Unregister the peer from the downloader and peer set
-	//pm.downloader.UnregisterPeer(id)
+	_ = pm.downloader.UnregisterPeer(id)
 	if err := pm.peers.Unregister(id); err != nil {
 		log.Error("Peer removal failed", "peer", id, "err", err)
 	}
@@ -224,7 +270,14 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 
 	// broadcast mined events
 	pm.emittedEventsSub = pm.mux.Subscribe(&inter.Event{})
+	// broadcast packs
+	pm.newPacksSub = pm.mux.Subscribe(idx.Pack(0))
+	// epoch changes
+	pm.newEpochsSub = pm.mux.Subscribe(idx.SuperFrame(0))
+
 	go pm.emittedBroadcastLoop()
+	go pm.progressBroadcastLoop()
+	go pm.onNewEpochLoop()
 
 	// start sync handlers
 	go pm.syncer()
@@ -236,6 +289,8 @@ func (pm *ProtocolManager) Stop() {
 
 	pm.txsSub.Unsubscribe()           // quits txBroadcastLoop
 	pm.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
+	pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
+	pm.newEpochsSub.Unsubscribe()     // quits onNewEpochLoop
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -260,6 +315,17 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 	return newPeer(pv, p, rw)
 }
 
+func (pm *ProtocolManager) myProgress() PeerProgress {
+	blockI, block := pm.engine.LastBlock()
+	epoch := pm.engine.CurrentSuperFrameN()
+	return PeerProgress{
+		Epoch:        epoch,
+		NumOfBlocks:  blockI,
+		LastBlock:    block,
+		LastPackInfo: pm.store.GetPackInfoOrDefault(epoch, pm.store.GetPacksNumOrDefault(epoch)-1),
+	}
+}
+
 // handle is the callback invoked to manage the life cycle of a peer. When
 // this function terminates, the peer is disconnected.
 func (pm *ProtocolManager) handle(p *peer) error {
@@ -272,10 +338,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	// Execute the handshake
 	var (
 		genesis    = pm.engine.GetGenesisHash()
-		myProgress = PeerProgress{
-			Epoch:       pm.engine.CurrentSuperFrameN(),
-			NumOfEvents: idx.Event(0), // TODO
-		}
+		myProgress = pm.myProgress()
 	)
 	if err := p.Handshake(pm.networkID, myProgress, genesis); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
@@ -291,10 +354,6 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	defer pm.removePeer(p.id)
 
-	// Register the peer in the downloader. If the downloader considers it banned, we disconnect
-	/*if err := pm.downloader.RegisterPeer(p.id, p.version, p); err != nil {
-		return err
-	}*/
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
 	pm.syncTransactions(p)
@@ -321,16 +380,55 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
+	myEpoch := pm.engine.CurrentSuperFrameN()
+	peerDwnlr := pm.downloader.Peer(p.id)
+
 	// Handle the message depending on its contents
 	switch {
-	case msg.Code == StatusMsg:
+	case msg.Code == EthStatusMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 
+	case msg.Code == ProgressMsg:
+		var progress PeerProgress
+		if err := msg.Decode(&progress); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if len(progress.LastPackInfo.Heads) > hardLimitItems {
+			return errResp(ErrMsgTooLarge, "%v", msg)
+		}
+		p.progress = progress
+		if p.progress.Epoch == myEpoch {
+			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
+		}
+
+		// notify downloader about new peer's epoch
+		_ = pm.downloader.RegisterPeer(packs_downloader.Peer{
+			Id:               p.id,
+			Epoch:            p.progress.Epoch,
+			RequestPack:      p.RequestPack,
+			RequestPackInfos: p.RequestPackInfos,
+		}, myEpoch)
+		peerDwnlr = pm.downloader.Peer(p.id)
+
+		if peerDwnlr != nil && progress.LastPackInfo.Index > 0 {
+			_ = peerDwnlr.NotifyPackInfo(p.progress.Epoch, progress.LastPackInfo.Index, progress.LastPackInfo.Heads, time.Now())
+		}
+
 	case msg.Code == NewEventHashesMsg:
-		var announces []hash.Event
+		if pm.fetcher.Overloaded() {
+			break
+		}
+		// Fresh events arrived, make sure we have a valid and fresh graph to handle them
+		if atomic.LoadUint32(&pm.synced) == 0 {
+			break
+		}
+		var announces hash.Events
 		if err := msg.Decode(&announces); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(announces), announces); err != nil {
+			return err
 		}
 		// Mark the hashes as present at the remote node
 		for _, id := range announces {
@@ -340,20 +438,25 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		_ = pm.fetcher.Notify(p.id, announces, time.Now(), p.RequestEvents)
 
 	case msg.Code == EventsMsg:
+		if pm.fetcher.Overloaded() {
+			break
+		}
 		var events []*inter.Event
 		if err := msg.Decode(&events); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		// Mark the hashes as present at the remote node
-		for _, event := range events {
-			p.MarkEvent(event.Hash())
+		if err := checkLenLimits(len(events), events); err != nil {
+			return err
 		}
+		// Mark the hashes as present at the remote node
+		for _, e := range events {
+			p.MarkEvent(e.Hash())
+		}
+		_ = pm.fetcher.Enqueue(p.id, events, time.Now(), p.RequestEvents)
 
-		_ = pm.fetcher.Enqueue(p.id, events)
-
-	case msg.Code == TxMsg:
-		// Transactions arrived, make sure we have a valid and fresh chain to handle them
-		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+	case msg.Code == EvmTxMsg:
+		// Transactions arrived, make sure we have a valid and fresh graph to handle them
+		if atomic.LoadUint32(&pm.synced) == 0 {
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -371,21 +474,24 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		pm.txpool.AddRemotes(txs)
 
 	case msg.Code == GetEventsMsg:
-		var requests []hash.Event
+		var requests hash.Events
 		if err := msg.Decode(&requests); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
+		if err := checkLenLimits(len(requests), requests); err != nil {
+			return err
+		}
 
 		rawEvents := make([]rlp.RawValue, 0, len(requests))
-		ids := make([]hash.Event, 0, len(requests))
+		ids := make(hash.Events, 0, len(requests))
 		size := 0
 		for _, id := range requests {
-			if e := pm.store.GetEventRLP(id); e != nil {
-				rawEvents = append(rawEvents, e)
+			if raw := pm.store.GetEventRLP(id); raw != nil {
+				rawEvents = append(rawEvents, raw)
 				ids = append(ids, id)
-				size += len(e)
+				size += len(raw)
 			}
-			if size > softResponseLimit {
+			if size >= softResponseLimitSize {
 				break
 			}
 		}
@@ -393,17 +499,121 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			_ = p.SendEventsRLP(rawEvents, ids)
 		}
 
-	case msg.Code == GetEventHeadersMsg:
-		return errResp(ErrExtraStatusMsg, "not supported yet")
+	case msg.Code == GetPackInfosMsg:
+		var request getPackInfosData
+		if err := msg.Decode(&request); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(request.Indexes), request); err != nil {
+			return err
+		}
 
-	case msg.Code == EventHeadersMsg:
-		return errResp(ErrExtraStatusMsg, "not supported yet")
+		packsNum, ok := pm.store.GetPacksNum(request.Epoch)
+		if !ok {
+			// no packs in the requested epoch
+			break
+		}
 
-	case msg.Code == GetEventBodiesMsg:
-		return errResp(ErrExtraStatusMsg, "not supported yet")
+		rawPackInfos := make([]rlp.RawValue, 0, len(request.Indexes))
+		size := 0
+		for _, index := range request.Indexes {
+			if index >= packsNum {
+				// return only pinned and existing packs
+				continue
+			}
 
-	case msg.Code == EventBodiesMsg:
-		return errResp(ErrExtraStatusMsg, "not supported yet")
+			if raw := pm.store.GetPackInfoRLP(request.Epoch, index); raw != nil {
+				rawPackInfos = append(rawPackInfos, raw)
+				size += len(raw)
+			}
+			if size >= softResponseLimitSize {
+				break
+			}
+		}
+		if len(rawPackInfos) != 0 {
+			_ = p.SendPackInfosRLP(&packInfosDataRLP{
+				Epoch:           request.Epoch,
+				TotalNumOfPacks: packsNum,
+				RawInfos:        rawPackInfos,
+			})
+		}
+
+	case msg.Code == GetPackMsg:
+		var request getPackData
+		if err := msg.Decode(&request); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+
+		if request.Epoch > myEpoch {
+			// short circuit if future epoch
+			break
+		}
+
+		ids := make(hash.Events, 0, softLimitItems)
+		for i, id := range pm.store.GetPack(request.Epoch, request.Index) {
+			ids = append(ids, id)
+			if i >= softLimitItems {
+				break
+			}
+		}
+		if len(ids) != 0 {
+			_ = p.SendPack(&packData{
+				Epoch: request.Epoch,
+				Index: request.Index,
+				Ids:   ids,
+			})
+		}
+
+	case msg.Code == PackInfosMsg:
+		if peerDwnlr == nil {
+			break
+		}
+
+		var infos packInfosData
+		if err := msg.Decode(&infos); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(infos.Infos), infos); err != nil {
+			return err
+		}
+
+		// notify about number of packs this peer has
+		_ = peerDwnlr.NotifyPacksNum(infos.Epoch, infos.TotalNumOfPacks)
+
+		for _, info := range infos.Infos {
+			if len(info.Heads) == 0 {
+				return errResp(ErrDecode, "%v: %v", msg, err)
+			}
+			// TODO check len(info.Heads) <= len(members)^2, squire because of possible forks
+			// Mark the hashes as present at the remote node
+			for _, id := range info.Heads {
+				p.MarkEvent(id)
+			}
+			// Notify downloader about new packInfo
+			_ = peerDwnlr.NotifyPackInfo(infos.Epoch, info.Index, info.Heads, time.Now())
+		}
+
+	case msg.Code == PackMsg:
+		if peerDwnlr == nil {
+			break
+		}
+
+		var pack packData
+		if err := msg.Decode(&pack); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		if err := checkLenLimits(len(pack.Ids), pack); err != nil {
+			return err
+		}
+		if len(pack.Ids) == 0 {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+		// Mark the hashes as present at the remote node
+		for _, id := range pack.Ids {
+			p.MarkEvent(id)
+		}
+		// Notify downloader about new pack
+		_ = peerDwnlr.NotifyPack(pack.Epoch, pack.Index, pack.Ids, time.Now(), p.RequestEvents)
 
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
@@ -429,14 +639,14 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) i
 		}
 		transfer := peers[:transferLen]
 		for _, peer := range transfer {
-			peer.AsyncSendNewEvent(event)
+			peer.AsyncSendEvents(inter.Events{event})
 		}
 		log.Trace("Propagated event", "hash", id, "recipients", len(transfer))
 		return transferLen
 	}
 	// Announce it
 	for _, peer := range peers {
-		peer.AsyncSendNewEventHash(event)
+		peer.AsyncSendNewEventHashes(hash.Events{event.Hash()})
 	}
 	log.Trace("Announced event", "hash", id, "recipients", len(peers))
 	return len(peers)
@@ -445,6 +655,10 @@ func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) i
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
+	if len(txs) > softLimitItems {
+		txs = txs[:softLimitItems]
+	}
+
 	var txset = make(map[*peer]types.Transactions)
 
 	// Broadcast transactions to a batch of peers not knowing about it
@@ -474,11 +688,43 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 	}
 }
 
+// Progress broadcast loop
+func (pm *ProtocolManager) progressBroadcastLoop() {
+	// automatically stops if unsubscribe
+	prevProgress := pm.myProgress()
+	for obj := range pm.newPacksSub.Chan() {
+		if _, ok := obj.Data.(idx.Pack); ok {
+			// broadcast my new progress, but not recent one,
+			// so others could receive all the events before this node announces the pack
+			for _, peer := range pm.peers.List() {
+				err := peer.SendProgress(prevProgress)
+				if err != nil {
+					log.Error("Failed to send progress status", "peer", peer.id)
+				}
+			}
+			prevProgress = pm.myProgress()
+		}
+	}
+}
+
+func (pm *ProtocolManager) onNewEpochLoop() {
+	// automatically stops if unsubscribe
+	for obj := range pm.newPacksSub.Chan() {
+		if _, ok := obj.Data.(idx.SuperFrame); ok {
+			myEpoch := pm.engine.CurrentSuperFrameN()
+			peerEpoch := func(peer string) idx.SuperFrame {
+				return pm.peers.Peer(peer).progress.Epoch
+			}
+			pm.downloader.OnNewEpoch(myEpoch, peerEpoch)
+		}
+	}
+}
+
 func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {
-		case event := <-pm.txsCh:
-			pm.BroadcastTxs(event.Txs)
+		case notify := <-pm.txsCh:
+			pm.BroadcastTxs(notify.Txs)
 
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():

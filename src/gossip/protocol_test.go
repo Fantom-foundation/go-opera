@@ -27,10 +27,7 @@ func TestStatusMsgErrors62(t *testing.T) { testStatusMsgErrors(t, fantom62) }
 func testStatusMsgErrors(t *testing.T, protocol int) {
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)
 	var (
-		genesis  = pm.engine.GetGenesisHash()
-		progress = PeerProgress{
-			Epoch: pm.engine.CurrentSuperFrameN(),
-		}
+		genesis   = pm.engine.GetGenesisHash()
 		networkId = lachesis.EmptyFakeNet().Genesis.NetworkId
 	)
 	defer pm.Stop()
@@ -41,19 +38,19 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 		wantError error
 	}{
 		{
-			code: TxMsg, data: []interface{}{},
+			code: EvmTxMsg, data: []interface{}{},
 			wantError: errResp(ErrNoStatusMsg, "first msg has code 2 (!= 0)"),
 		},
 		{
-			code: StatusMsg, data: statusData{10, networkId, progress, genesis},
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: 10, NetworkId: networkId, Genesis: genesis},
 			wantError: errResp(ErrProtocolVersionMismatch, "10 (!= %d)", protocol),
 		},
 		{
-			code: StatusMsg, data: statusData{uint32(protocol), 999, progress, genesis},
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkId: 999, Genesis: genesis},
 			wantError: errResp(ErrNetworkIdMismatch, "999 (!= %d)", networkId),
 		},
 		{
-			code: StatusMsg, data: statusData{uint32(protocol), networkId, progress, hash.Hash{3}},
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkId: networkId, Genesis: hash.Hash{3}},
 			wantError: errResp(ErrGenesisMismatch, "0300000000000000 (!= %x)", genesis.Bytes()[:8]),
 		},
 	}
@@ -84,13 +81,13 @@ func TestRecvTransactions62(t *testing.T) { testRecvTransactions(t, fantom62) }
 func testRecvTransactions(t *testing.T, protocol int) {
 	txAdded := make(chan []*types.Transaction)
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, txAdded, nil)
-	pm.acceptTxs = 1 // mark synced to accept transactions
+	pm.synced = 1 // mark synced to accept transactions
 	p, _ := newTestPeer("peer", protocol, pm, true)
 	defer pm.Stop()
 	defer p.close()
 
 	tx := newTestTransaction(testAccount, 0, 0)
-	if err := p2p.Send(p.app, TxMsg, []interface{}{tx}); err != nil {
+	if err := p2p.Send(p.app, EvmTxMsg, []interface{}{tx}); err != nil {
 		t.Fatalf("send error: %v", err)
 	}
 	select {
@@ -134,7 +131,7 @@ func testSendTransactions(t *testing.T, protocol int) {
 			msg, err := p.app.ReadMsg()
 			if err != nil {
 				t.Errorf("%v: read error: %v", p.Peer, err)
-			} else if msg.Code != TxMsg {
+			} else if msg.Code != EvmTxMsg {
 				t.Errorf("%v: got code %d, want TxMsg", p.Peer, msg.Code)
 			}
 			if err := msg.Decode(&txs); err != nil {

@@ -23,7 +23,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 	"github.com/Fantom-foundation/go-lachesis/src/proxy/proto"
 )
 
@@ -37,7 +36,7 @@ type AppProxy interface {
 	SubmitCh() chan []byte
 	// SubmitInternalCh returns the channel of stake transactions.
 	SubmitInternalCh() chan inter.InternalTransaction
-	CommitBlock(block poset.Block) ([]byte, error)
+	CommitBlock(block inter.Block) ([]byte, error)
 	GetSnapshot(blockIndex int64) ([]byte, error)
 	Restore(snapshot []byte) error
 	Close()

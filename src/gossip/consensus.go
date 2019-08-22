@@ -18,6 +18,8 @@ type Consensus interface {
 	GetVectorIndex() *vector.Index
 	// Sets consensus fields. Returns nil if event should be dropped.
 	Prepare(e *inter.Event) *inter.Event
+	// LastBlock returns current block.
+	LastBlock() (idx.Block, hash.Event)
 	// CurrentSuperFrame returns current SuperFrameN.
 	CurrentSuperFrameN() idx.SuperFrame
 	// GetMembers returns members of current super-frame.

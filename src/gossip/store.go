@@ -12,13 +12,18 @@ import (
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
 	persistentDB kvdb.Database
-	table        struct {
-		Peers    kvdb.Database `table:"peer_"`
-		Events   kvdb.Database `table:"event_"`
-		Blocks   kvdb.Database `table:"block_"`
-		Balances state.Database
+
+	table struct {
+		Peers     kvdb.Database `table:"peer_"`
+		Events    kvdb.Database `table:"event_"`
+		Blocks    kvdb.Database `table:"block_"`
+		PackInfos kvdb.Database `table:"packinfo_"`
+		Packs     kvdb.Database `table:"pack_"`
+		PacksNum  kvdb.Database `table:"packs_num_"`
 
 		TmpDbs kvdb.Database `table:"tmpdbs_"`
+
+		Balances state.Database
 	}
 
 	tmpDbs

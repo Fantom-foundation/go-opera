@@ -1,6 +1,7 @@
 package ordering
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,6 +10,10 @@ import (
 )
 
 const expiration = 1 * time.Hour
+
+var (
+	ErrAlreadyConnectedEvent = errors.New("event is connected already")
+)
 
 type (
 	// event is a inter.Event and data for ordering purpose.
@@ -111,7 +116,7 @@ func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) 
 
 	push = func(e *inter.Event, peer string) {
 		if callback.Exists(e.Hash()) != nil {
-			callback.Drop(e, peer, fmt.Errorf("event %s had received already", e.Hash().String()))
+			callback.Drop(e, peer, ErrAlreadyConnectedEvent)
 			return
 		}
 

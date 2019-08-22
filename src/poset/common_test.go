@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 import (
 	"math/rand"
@@ -54,14 +54,12 @@ func FakePoset(nodes []hash.Peer) (*ExtendedPoset, *Store, *EventStore) {
 	poset := New(store, input)
 
 	extended := &ExtendedPoset{
-		Poset: poset,
+		Poset:  poset,
+		blocks: map[idx.Block]*inter.Block{},
 	}
 
 	extended.Bootstrap(func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
 		// track block events
-		if extended.blocks == nil {
-			extended.blocks = map[idx.Block]*inter.Block{}
-		}
 		if extended.blocks[block.Index] != nil {
 			extended.Fatal("created block twice")
 		}

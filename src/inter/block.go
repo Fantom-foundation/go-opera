@@ -15,6 +15,13 @@ type Block struct {
 	Events hash.Events
 }
 
+func (b *Block) Head() hash.Event {
+	if len(b.Events) == 0 {
+		return hash.ZeroEvent
+	}
+	return b.Events[len(b.Events)-1] // fiWitness is always a last event
+}
+
 // NewBlock makes block from topological ordered events.
 func NewBlock(index idx.Block, time Timestamp, events hash.Events) *Block {
 	return &Block{

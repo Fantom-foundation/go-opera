@@ -2,9 +2,13 @@ package hash
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"strings"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
@@ -66,12 +70,23 @@ func (h Event) Hex() string {
 	return Hash(h).Hex()
 }
 
+// Lamport returns [4:9] bytes, which store event's Lamport.
+func (h Event) Lamport() idx.Lamport {
+	return idx.BytesToLamport(h[4:8])
+}
+
+// Epoch returns [0:4] bytes, which store event's Epoch.
+func (h Event) Epoch() idx.SuperFrame {
+	return idx.BytesToEpoch(h[0:4])
+}
+
 // String returns human readable string representation.
 func (h Event) String() string {
 	if name := GetEventName(h); len(name) > 0 {
 		return name
 	}
-	return (Hash)(h).ShortString()
+	// last bytes, because first are occupied by epoch and lamport
+	return fmt.Sprintf("%d:%d:%s...", h.Epoch(), h.Lamport(), hexutil.Encode(h[29:32]))
 }
 
 // IsZero returns true if hash is empty.

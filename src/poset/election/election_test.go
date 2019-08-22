@@ -59,7 +59,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "d0_0",
+				DecidedSfWitness: "b0_0",
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -87,7 +87,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "c0_0",
+				DecidedSfWitness: "b0_0",
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{

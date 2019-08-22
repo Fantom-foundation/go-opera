@@ -15,14 +15,14 @@ import (
 // DbProducer makes db.
 type DbProducer func(name string) kvdb.Database
 
-func makeStorages(makeDb DbProducer) (*gossip.Store, *posposet.Store) {
+func makeStorages(makeDb DbProducer) (*gossip.Store, *poset.Store) {
 	db := makeDb("lachesis")
 
 	g := db.NewTable([]byte("g_"))
 	p := db.NewTable([]byte("p_"))
 
 	return gossip.NewStore(g, makeDb),
-		posposet.NewStore(p, makeDb)
+		poset.NewStore(p, makeDb)
 }
 
 func dbProducer(dbdir string) DbProducer {

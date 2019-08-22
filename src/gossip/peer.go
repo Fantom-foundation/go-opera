@@ -3,6 +3,7 @@ package gossip
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -24,8 +25,8 @@ var (
 )
 
 const (
-	maxKnownTxs    = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
-	maxKnownEvents = 1024  // Maximum event hashes to keep in the known list (prevent DOS)
+	maxKnownTxs    = 24576 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownEvents = 16384 // Maximum event hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
@@ -33,14 +34,12 @@ const (
 	maxQueuedTxs = 128
 
 	// maxQueuedProps is the maximum number of event propagations to queue up before
-	// dropping broadcasts. There's not much point in queueing stale events, so a few
-	// that might cover uncles should be enough.
-	maxQueuedProps = 4
+	// dropping broadcasts.
+	maxQueuedProps = 128
 
 	// maxQueuedAnns is the maximum number of event announcements to queue up before
-	// dropping broadcasts. Similarly to event propagations, there's no point to queue
-	// above some healthy uncle limit, so use that.
-	maxQueuedAnns = 4
+	// dropping broadcasts.
+	maxQueuedAnns = 128
 
 	handshakeTimeout = 5 * time.Second
 )
@@ -50,12 +49,7 @@ const (
 type PeerInfo struct {
 	Version     int            `json:"version"` // protocol version negotiated
 	Epoch       idx.SuperFrame `json:"epoch"`
-	NumOfEvents idx.Event      `json:"numOfEvents"`
-}
-
-type PeerProgress struct {
-	Epoch       idx.SuperFrame
-	NumOfEvents idx.Event
+	NumOfBlocks idx.Block      `json:"blocks"`
 }
 
 type peer struct {
@@ -72,18 +66,28 @@ type peer struct {
 	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
 	knownEvents mapset.Set                // Set of event hashes known to be known by this peer
 	queuedTxs   chan []*types.Transaction // Queue of transactions to broadcast to the peer
-	queuedProps chan *inter.Event         // Queue of events to broadcast to the peer
-	queuedAnns  chan *inter.Event         // Queue of events to announce to the peer
+	queuedProps chan inter.Events         // Queue of events to broadcast to the peer
+	queuedAnns  chan hash.Events          // Queue of events to announce to the peer
 	term        chan struct{}             // Termination channel to stop the broadcaster
 
 	progress PeerProgress
 }
 
-func (a *PeerProgress) Less(b PeerProgress) bool {
-	if a.Epoch < b.Epoch {
-		return true
+func (p *PeerProgress) InterestedIn(eventEpoch idx.SuperFrame) bool {
+	if p.Epoch == 0 || eventEpoch == 0 {
+		return false
 	}
-	return a.Epoch == b.Epoch && a.NumOfEvents < b.NumOfEvents
+	return eventEpoch == p.Epoch || eventEpoch == p.Epoch+1
+}
+
+func (a *PeerProgress) Less(b PeerProgress) bool {
+	if a.Epoch != b.Epoch {
+		return a.Epoch < b.Epoch
+	}
+	if a.NumOfBlocks != b.NumOfBlocks {
+		return a.NumOfBlocks < b.NumOfBlocks
+	}
+	return a.LastPackInfo.Index < b.LastPackInfo.Index
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
@@ -95,8 +99,8 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		knownTxs:    mapset.NewSet(),
 		knownEvents: mapset.NewSet(),
 		queuedTxs:   make(chan []*types.Transaction, maxQueuedTxs),
-		queuedProps: make(chan *inter.Event, maxQueuedProps),
-		queuedAnns:  make(chan *inter.Event, maxQueuedAnns),
+		queuedProps: make(chan inter.Events, maxQueuedProps),
+		queuedAnns:  make(chan hash.Events, maxQueuedAnns),
 		term:        make(chan struct{}),
 	}
 }
@@ -113,17 +117,17 @@ func (p *peer) broadcast() {
 			}
 			p.Log().Trace("Broadcast transactions", "count", len(txs))
 
-		case event := <-p.queuedProps:
-			if err := p.SendEvents([]*inter.Event{event}); err != nil {
+		case events := <-p.queuedProps:
+			if err := p.SendEvents(events); err != nil {
 				return
 			}
-			p.Log().Trace("Propagated event", "seq", event.Seq, "hash", event.Hash())
+			p.Log().Trace("Propagated events", "count", len(events))
 
-		case event := <-p.queuedAnns:
-			if err := p.SendNewEventHashes([]hash.Event{event.Hash()}); err != nil {
+		case ids := <-p.queuedAnns:
+			if err := p.SendNewEventHashes(ids); err != nil {
 				return
 			}
-			p.Log().Trace("Announced event", "seq", event.Seq, "hash", event.Hash())
+			p.Log().Trace("Announced events", "count", len(ids))
 
 		case <-p.term:
 			return
@@ -141,7 +145,7 @@ func (p *peer) Info() *PeerInfo {
 	return &PeerInfo{
 		Version:     p.version,
 		Epoch:       p.progress.Epoch,
-		NumOfEvents: p.progress.NumOfEvents,
+		NumOfBlocks: p.progress.NumOfBlocks,
 	}
 }
 
@@ -175,7 +179,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	for p.knownTxs.Cardinality() >= maxKnownTxs {
 		p.knownTxs.Pop()
 	}
-	return p2p.Send(p.rw, TxMsg, txs)
+	return p2p.Send(p.rw, EvmTxMsg, txs)
 }
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
@@ -211,21 +215,23 @@ func (p *peer) SendNewEventHashes(hashes []hash.Event) error {
 // AsyncSendNewEventHash queues the availability of a event for propagation to a
 // remote peer. If the peer's broadcast queue is full, the event is silently
 // dropped.
-func (p *peer) AsyncSendNewEventHash(event *inter.Event) {
+func (p *peer) AsyncSendNewEventHashes(ids hash.Events) {
 	select {
-	case p.queuedAnns <- event:
+	case p.queuedAnns <- ids:
 		// Mark all the event hash as known, but ensure we don't overflow our limits
-		p.knownEvents.Add(event.Hash())
+		for _, id := range ids {
+			p.knownEvents.Add(id)
+		}
 		for p.knownEvents.Cardinality() >= maxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	default:
-		p.Log().Debug("Dropping event announcement", "seq", event.Seq, "hash", event.Hash())
+		p.Log().Debug("Dropping event announcement", "count", len(ids))
 	}
 }
 
 // SendNewEvent propagates an entire event to a remote peer.
-func (p *peer) SendEvents(events []*inter.Event) error {
+func (p *peer) SendEvents(events inter.Events) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
 		p.knownEvents.Add(event.Hash())
@@ -247,18 +253,28 @@ func (p *peer) SendEventsRLP(events []rlp.RawValue, ids []hash.Event) error {
 	return p2p.Send(p.rw, EventsMsg, events)
 }
 
-// AsyncSendNewEvent queues an entire event for propagation to a remote peer. If
+func (p *peer) SendPackInfosRLP(packInfos *packInfosDataRLP) error {
+	return p2p.Send(p.rw, PackInfosMsg, packInfos)
+}
+
+func (p *peer) SendPack(pack *packData) error {
+	return p2p.Send(p.rw, PackMsg, pack)
+}
+
+// AsyncSendEvents queues an entire event for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendNewEvent(event *inter.Event) {
+func (p *peer) AsyncSendEvents(events inter.Events) {
 	select {
-	case p.queuedProps <- event:
+	case p.queuedProps <- events:
 		// Mark all the event hash as known, but ensure we don't overflow our limits
-		p.knownEvents.Add(event.Hash())
+		for _, event := range events {
+			p.knownEvents.Add(event.Hash())
+		}
 		for p.knownEvents.Cardinality() >= maxKnownEvents {
 			p.knownEvents.Pop()
 		}
 	default:
-		p.Log().Debug("Dropping event propagation", "seq", event.Seq, "hash", event.Hash())
+		p.Log().Debug("Dropping event propagation", "count", len(events))
 	}
 }
 
@@ -288,9 +304,34 @@ func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, rever
 	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Number: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
 }*/
 
-func (p *peer) RequestEvents(ids []hash.Event) error {
-	p.Log().Debug("Fetching batch of events", "count", len(ids))
-	return p2p.Send(p.rw, GetEventsMsg, ids)
+func (p *peer) RequestEvents(ids hash.Events) error {
+	// divide big batch into smaller ones
+	for start := 0; start < len(ids); start += softLimitItems {
+		end := len(ids)
+		if end > start+softLimitItems {
+			end = start + softLimitItems
+		}
+		p.Log().Debug("Fetching batch of events", "count", len(ids[start:end]))
+		err := p2p.Send(p.rw, GetEventsMsg, ids[start:end])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *peer) RequestPackInfos(epoch idx.SuperFrame, indexes []idx.Pack) error {
+	return p2p.Send(p.rw, GetPackInfosMsg, getPackInfosData{
+		Epoch:   epoch,
+		Indexes: indexes,
+	})
+}
+
+func (p *peer) RequestPack(epoch idx.SuperFrame, index idx.Pack) error {
+	return p2p.Send(p.rw, GetPackMsg, getPackData{
+		Epoch: epoch,
+		Index: index,
+	})
 }
 
 // Handshake executes the protocol handshake, negotiating version number,
@@ -298,18 +339,25 @@ func (p *peer) RequestEvents(ids []hash.Event) error {
 func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
-	var status statusData // safe to read after two values have been received from errc
+	var status ethStatusData // safe to read after two values have been received from errc
 
 	go func() {
-		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
-			ProtocolVersion: uint32(p.version),
-			Progress:        progress,
-			NetworkId:       network,
-			Genesis:         genesis,
+		// send both EthStatusMsg and ProgressMsg, eth62 clients will understand only status
+		err := p2p.Send(p.rw, EthStatusMsg, &ethStatusData{
+			ProtocolVersion:   uint32(p.version),
+			NetworkId:         network,
+			Genesis:           genesis,
+			DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
+			DummyCurrentBlock: hash.Hash(progress.LastBlock),
 		})
+		if err != nil {
+			errc <- err
+		}
+		errc <- p.SendProgress(progress)
 	}()
 	go func() {
 		errc <- p.readStatus(network, &status, genesis)
+		// do not expect ProgressMsg here, because eth62 clients won't send it
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
@@ -323,17 +371,20 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Has
 			return p2p.DiscReadTimeout
 		}
 	}
-	p.progress = progress
 	return nil
 }
 
-func (p *peer) readStatus(network uint64, status *statusData, genesis hash.Hash) (err error) {
+func (p *peer) SendProgress(progress PeerProgress) error {
+	return p2p.Send(p.rw, ProgressMsg, progress)
+}
+
+func (p *peer) readStatus(network uint64, status *ethStatusData, genesis hash.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
 	}
-	if msg.Code != StatusMsg {
-		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, StatusMsg)
+	if msg.Code != EthStatusMsg {
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, EthStatusMsg)
 	}
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
@@ -435,9 +486,20 @@ func (ps *peerSet) PeersWithoutEvent(hash hash.Event) []*peer {
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if !p.knownEvents.Contains(hash) { // TODO do not include peers whose epoch is higher than event's epoch
+		if p.progress.InterestedIn(hash.Epoch()) && !p.knownEvents.Contains(hash) {
 			list = append(list, p)
 		}
+	}
+	return list
+}
+
+func (ps *peerSet) List() []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		list = append(list, p)
 	}
 	return list
 }

@@ -1,4 +1,4 @@
-package posposet
+package poset
 
 import (
 	"fmt"
@@ -64,6 +64,7 @@ func (s *Store) ApplyGenesis(config *genesis.Config) error {
 	sf.PrevEpoch.LastFiWitness = dummyFiWitness.Hash()
 	sf.PrevEpoch.Time = config.Time
 	cp.LastConsensusTime = sf.PrevEpoch.Time
+	cp.LastFiWitness = dummyFiWitness.Hash()
 
 	s.SetGenesis(sf)
 	s.SetSuperFrame(sf)

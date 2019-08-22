@@ -5,12 +5,12 @@
 package proxy
 
 import (
+	reflect "reflect"
+
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
 	pos "github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	poset "github.com/Fantom-foundation/go-lachesis/src/poset"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
 // MockApp is a mock of App interface
@@ -37,7 +37,7 @@ func (m *MockApp) EXPECT() *MockAppMockRecorder {
 }
 
 // CommitHandler mocks base method
-func (m *MockApp) CommitHandler(arg0 poset.Block) ([]byte, error) {
+func (m *MockApp) CommitHandler(arg0 inter.Block) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CommitHandler", arg0)
 	ret0, _ := ret[0].([]byte)
