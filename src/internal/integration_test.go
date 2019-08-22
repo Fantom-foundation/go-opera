@@ -39,12 +39,12 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	net, _, keys := lachesis.FakeNet(count)
+	network, _, keys := lachesis.FakeNetConfig(count)
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
 		"gossip": func(ctx *adapters.ServiceContext) (node.Service, error) {
-			g := NewIntegration(ctx.Config, net)
+			g := NewIntegration(ctx.Config, network)
 			return g, nil
 		},
 	}
@@ -57,7 +57,7 @@ func testSim(t *testing.T, connect topology) {
 	adapter = adapters.NewSimAdapter(services)
 
 	// create network
-	network := simulations.NewNetwork(adapter, &simulations.NetworkConfig{
+	sim := simulations.NewNetwork(adapter, &simulations.NetworkConfig{
 		DefaultService: serviceNames(services)[0],
 	})
 
@@ -73,7 +73,7 @@ func testSim(t *testing.T, connect topology) {
 			Services:   serviceNames(services),
 		}
 
-		_, err := network.NewNodeWithConfig(config)
+		_, err := sim.NewNodeWithConfig(config)
 		if err != nil {
 			panic(err)
 		}
@@ -81,15 +81,15 @@ func testSim(t *testing.T, connect topology) {
 		nodes[i] = id
 	}
 
-	network.StartAll()
-	defer network.Shutdown()
+	sim.StartAll()
+	defer sim.Shutdown()
 
-	connect(network, nodes)
+	connect(sim, nodes)
 
 	// start
 	srv := &http.Server{
 		Addr:    ":8888",
-		Handler: simulations.NewServer(network),
+		Handler: simulations.NewServer(sim),
 	}
 	go func() {
 		log.Info("starting simulation server on 0.0.0.0:8888...")

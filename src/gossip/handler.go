@@ -21,7 +21,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 const (
@@ -44,9 +43,7 @@ func errResp(code errCode, format string, v ...interface{}) error {
 }
 
 type ProtocolManager struct {
-	config *lachesis.Net
-
-	networkID uint64
+	config *Config
 
 	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
@@ -81,11 +78,10 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
 // with the Fantom network.
-func NewProtocolManager(config *lachesis.Net, mode downloader.SyncMode, networkID uint64, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
+func NewProtocolManager(config *Config, mode downloader.SyncMode, mux *event.TypeMux, txpool txPool, engineMu *sync.RWMutex, s *Store, engine Consensus) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:      config,
-		networkID:   networkID,
 		mux:         mux,
 		txpool:      txpool,
 		store:       s,
@@ -263,7 +259,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 			NumOfEvents: idx.Event(0), // TODO
 		}
 	)
-	if err := p.Handshake(pm.networkID, myProgress, genesis); err != nil {
+	if err := p.Handshake(pm.config.Net.NetworkId, myProgress, genesis); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
@@ -452,7 +448,7 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.emittedEventsSub.Chan() {
 		if ev, ok := obj.Data.(*inter.Event); ok {
-			if pm.config.Gossip.ForcedBroadcast {
+			if pm.config.ForcedBroadcast {
 				pm.BroadcastEvent(ev, true) // No one knows the event, so be aggressive
 			}
 			pm.BroadcastEvent(ev, false) // Only then announce to the rest
@@ -486,7 +482,7 @@ type NodeInfo struct {
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	return &NodeInfo{
-		Network: pm.networkID,
+		Network: pm.config.Net.NetworkId,
 		Genesis: pm.engine.GetGenesisHash(),
 		Epoch:   pm.engine.CurrentSuperFrameN(),
 	}

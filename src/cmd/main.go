@@ -12,7 +12,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -145,9 +144,7 @@ func actionLachesis(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 
-	cfg := makeNodeConfig(ctx)
-
-	node := makeFullNode(cfg)
+	node := makeFullNode(ctx)
 	defer node.Close()
 
 	utils.StartNode(node)
@@ -155,8 +152,12 @@ func actionLachesis(ctx *cli.Context) error {
 	return nil
 }
 
-func makeFullNode(cfg *node.Config) *node.Node {
-	makeDb := dbProducer(cfg.DataDir)
+func makeFullNode(ctx *cli.Context) *node.Node {
+	nodeCfg := makeNodeConfig(ctx)
+	networkCfg := makeLachesisConfig(ctx)
+	gossipCfg := makeGossipConfig(ctx, networkCfg)
+
+	makeDb := dbProducer(nodeCfg.DataDir)
 	gdb, cdb := makeStorages(makeDb)
 
 	// Create consensus.
@@ -166,19 +167,17 @@ func makeFullNode(cfg *node.Config) *node.Node {
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
-
-	constructor := func(ctx *node.ServiceContext) (node.Service, error) {
-		cfg := lachesis.TestNet()
-		return gossip.NewService(cfg, new(event.TypeMux), gdb, engine)
+	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
+		return gossip.NewService(gossipCfg, new(event.TypeMux), gdb, engine)
 	}
 
 	// Create node.
-	stack, err := node.New(cfg)
+	stack, err := node.New(nodeCfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
-	if err := stack.Register(constructor); err != nil {
+	if err := stack.Register(gossipService); err != nil {
 		log.Fatalf("Failed to register service: %v", err)
 	}
 

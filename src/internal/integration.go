@@ -9,16 +9,18 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-func NewIntegration(cfg *adapters.NodeConfig, config *lachesis.Net) *gossip.Service {
+func NewIntegration(cfg *adapters.NodeConfig, network lachesis.Config) *gossip.Service {
 	makeDb := dbProducer(cfg.DataDir)
 	gdb, cdb := makeStorages(makeDb)
 
-	err := cdb.ApplyGenesis(config.Genesis)
+	err := cdb.ApplyGenesis(&network.Genesis)
 	if err != nil {
 		panic(err)
 	}
 
 	c := poset.New(cdb, gdb)
+
+	config := gossip.DefaultConfig(network)
 
 	svc, err := gossip.NewService(config, new(event.TypeMux), gdb, c)
 	if err != nil {

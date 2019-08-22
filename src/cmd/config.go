@@ -11,6 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Fantom-foundation/go-lachesis/src/gossip"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 var (
@@ -45,6 +48,19 @@ var tomlSettings = toml.Config{
 		}
 		return fmt.Errorf("field '%s' is not defined in %s%s", field, rt.String(), link)
 	},
+}
+
+func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
+	cfg, _, _ := lachesis.FakeNetConfig(0)
+	// TODO: apply flags
+	return cfg
+}
+
+func makeGossipConfig(ctx *cli.Context, network lachesis.Config) gossip.Config {
+	cfg := gossip.DefaultConfig(network)
+	// TODO: apply flags
+
+	return cfg
 }
 
 func makeNodeConfig(ctx *cli.Context) *node.Config {

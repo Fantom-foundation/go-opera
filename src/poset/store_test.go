@@ -15,7 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -127,7 +127,7 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 		balances[addr] = pos.Stake(1)
 	}
 
-	err := store.ApplyGenesis(&genesis.Config{
+	err := store.ApplyGenesis(&lachesis.Genesis{
 		Balances: balances,
 		Time:     genesisTestTime,
 	})
