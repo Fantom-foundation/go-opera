@@ -18,7 +18,7 @@ const (
 	gatherSlack     = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
 
 	// Maximum number of stored packs per peer.
-	// Shouldn't be high, because we do binary search, so stored packs are O(log_2(total packs))
+	// Shouldn't be high, because we do binary search, so stored packs are O(log_2(total packs)) + PeerProgress broadcasts
 	maxPeerPacks = 128
 	// Maximum number of parallel full pack requests to a peer
 	maxFetchingFullPacks = 2
@@ -240,7 +240,7 @@ func (d *PeerPacksDownloader) loop() {
 			// DO NOT erase from d.fetchingFull!
 			// We should erase only when we'll actually connect all the events form this pack, i.e. when pack's heads are known.
 			// It'll be done in sweepKnown()
-			// Instead, we'll rapidly re-request the same pack until we connect events.
+			// Otherwise, we'll rapidly re-request the same pack until we connect events.
 			// DO NOT: delete(d.fetchingFull, pack.index)
 
 			err := d.fetcher.Notify(d.peer.Id, pack.ids, pack.time, pack.fetchEvents)
