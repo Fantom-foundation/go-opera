@@ -182,6 +182,7 @@ func (s *Service) Start(srv *p2p.Server) error {
 	s.pm.Start(srv.MaxPeers)
 
 	s.emitter = s.makeEmitter()
+	s.emitter.StartEventEmission()
 
 	return nil
 }

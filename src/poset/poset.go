@@ -157,24 +157,12 @@ func (p *Poset) processRoot(f idx.Frame, from hash.Peer, id hash.Event) (decided
 // This routine should be called after node startup, and after each decided frame.
 func (p *Poset) processKnownRoots() *election.ElectionRes {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
-	var roots []election.RootAndSlot
-	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from hash.Peer, id hash.Event) bool {
-		roots = append(roots, election.RootAndSlot{
-			Root: id,
-			Slot: election.Slot{
-				Frame: f,
-				Addr:  from,
-			},
-		})
-		return true
+	var decided *election.ElectionRes
+	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from hash.Peer, root hash.Event) bool {
+		decided = p.processRoot(f, from, root)
+		return decided == nil
 	})
-	for _, root := range roots {
-		decided := p.processRoot(root.Slot.Frame, root.Slot.Addr, root.Root)
-		if decided != nil {
-			return decided
-		}
-	}
-	return nil
+	return decided
 }
 
 // ProcessEvent takes event into processing.
@@ -241,18 +229,6 @@ func (p *Poset) superFrameSealed(fiWitness hash.Event) bool {
 	return true
 }
 
-func (p *Poset) getFrameRoots(f idx.Frame) EventsByPeer {
-	frameRoots := EventsByPeer{}
-	p.store.ForEachRoot(f, func(f idx.Frame, from hash.Peer, id hash.Event) bool {
-		if f > f {
-			return false
-		}
-		frameRoots.AddOne(id, from)
-		return true
-	})
-	return frameRoots
-}
-
 // calcFrameIdx checks root-conditions for new event
 // and returns frame where event is root.
 // It is not safe for concurrent use.
@@ -281,13 +257,12 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		sSeenCounter := p.Members.NewCounter()
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
-			for creator, roots := range p.getFrameRoots(maxParentsFrame) {
-				for root := range roots {
-					if p.seeVec.StronglySee(e.Hash(), root) {
-						sSeenCounter.Count(creator)
-					}
+			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from hash.Peer, root hash.Event) bool {
+				if p.seeVec.StronglySee(e.Hash(), root) {
+					sSeenCounter.Count(from)
 				}
-			}
+				return !sSeenCounter.HasQuorum()
+			})
 		}
 		if sSeenCounter.HasQuorum() {
 			// if I see enough roots, then I become a root too

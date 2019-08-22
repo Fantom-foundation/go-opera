@@ -94,7 +94,7 @@ func (p *Poset) GetMembers() pos.Members {
 // Due to a fork, there may be many roots B with the same slot,
 // but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
 func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Frame) *hash.Event {
-	var bRoots hash.Events
+	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from hash.Peer, b hash.Event) bool {
 		if f != bFrame {
 			p.Fatal()
@@ -102,16 +102,14 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Fr
 		if from != bNode {
 			p.Fatal()
 		}
-		bRoots.Add(hash.BytesToEvent(b.Bytes()))
+		if p.seeVec.StronglySee(a, b) {
+			bHash = &b
+			return false
+		}
 		return true
 	})
-	for _, b := range bRoots {
-		if p.seeVec.StronglySee(a, b) {
-			return &b
-		}
-	}
 
-	return nil
+	return bHash
 }
 
 // GetGenesisHash is a genesis getter.

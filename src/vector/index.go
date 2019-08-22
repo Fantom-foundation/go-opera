@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -13,13 +14,13 @@ import (
 type Index struct {
 	members    pos.Members
 	memberIdxs map[hash.Peer]idx.Member
-	eventsDb   kvdb.FlushableDatabase
+	eventsDb   kvdb.FlushableKeyValueStore
 
 	logger.Instance
 }
 
 // NewIndex creates Index instance.
-func NewIndex(members pos.Members, db kvdb.Database) *Index {
+func NewIndex(members pos.Members, db kvdb.KeyValueStore) *Index {
 	vi := &Index{
 		Instance: logger.MakeInstance(),
 	}
@@ -29,9 +30,9 @@ func NewIndex(members pos.Members, db kvdb.Database) *Index {
 }
 
 // Reset resets buffers.
-func (vi *Index) Reset(members pos.Members, db kvdb.Database) {
+func (vi *Index) Reset(members pos.Members, db kvdb.KeyValueStore) {
 	// we use wrapper to be able to drop failed events by dropping cache
-	vi.eventsDb = kvdb.NewCacheWrapper(db)
+	vi.eventsDb = flushable.New(db)
 	vi.members = members
 	vi.memberIdxs = members.Idxs()
 }

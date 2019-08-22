@@ -1,49 +1,53 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/state"
 )
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	persistentDB kvdb.Database
+	persistentDB kvdb.KeyValueStore
 
 	table struct {
-		Peers     kvdb.Database `table:"peer_"`
-		Events    kvdb.Database `table:"event_"`
-		Blocks    kvdb.Database `table:"block_"`
-		PackInfos kvdb.Database `table:"packinfo_"`
-		Packs     kvdb.Database `table:"pack_"`
-		PacksNum  kvdb.Database `table:"packs_num_"`
+		Peers     kvdb.KeyValueStore `table:"peer_"`
+		Events    kvdb.KeyValueStore `table:"event_"`
+		Blocks    kvdb.KeyValueStore `table:"block_"`
+		PackInfos kvdb.KeyValueStore `table:"packinfo_"`
+		Packs     kvdb.KeyValueStore `table:"pack_"`
+		PacksNum  kvdb.KeyValueStore `table:"packs_num_"`
 
-		TmpDbs kvdb.Database `table:"tmpdbs_"`
+		TmpDbs kvdb.KeyValueStore `table:"tmpdbs_"`
 
 		Balances state.Database
 	}
 
 	tmpDbs
 
-	makeDb func(name string) kvdb.Database
+	makeDb func(name string) kvdb.KeyValueStore
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.Database, makeDb func(name string) kvdb.Database) *Store {
+func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
 	s := &Store{
 		persistentDB: db,
 		makeDb:       makeDb,
 		Instance:     logger.MakeInstance(),
 	}
 
-	kvdb.MigrateTables(&s.table, s.persistentDB)
-	s.table.Balances = state.NewDatabase(
-		s.persistentDB.NewTable([]byte("balance_")))
+	table.MigrateTables(&s.table, s.persistentDB)
+	balancesTable := table.New(s.persistentDB, []byte("balance_"))
+	s.table.Balances = state.NewDatabase(rawdb.NewDatabase(balancesTable))
 
 	s.initTmpDbs()
 
@@ -51,22 +55,23 @@ func NewStore(db kvdb.Database, makeDb func(name string) kvdb.Database) *Store {
 }
 
 // NewMemStore creates store over memory map.
-func NewMemStore() *Store {
-	db := kvdb.NewMemDatabase()
-	return NewStore(db, func(name string) kvdb.Database {
-		return kvdb.NewMemDatabase()
+func
+NewMemStore() *Store {
+	db := memorydb.New()
+	return NewStore(db, func(name string) kvdb.KeyValueStore {
+		return memorydb.New()
 	})
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
-	kvdb.MigrateTables(&s.table, nil)
+	table.MigrateTables(&s.table, nil)
 	s.persistentDB.Close()
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) *state.DB {
-	db, err := state.New(from, s.table.Balances)
+func (s *Store) StateDB(from hash.Hash) *state.StateDB {
+	db, err := state.New(common.Hash(from), s.table.Balances)
 	if err != nil {
 		s.Fatal(err)
 	}
@@ -77,7 +82,7 @@ func (s *Store) StateDB(from hash.Hash) *state.DB {
  * Utils:
  */
 
-func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
+func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		s.Fatal(err)
@@ -88,7 +93,7 @@ func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
 	}
 }
 
-func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{} {
+func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
 		s.Fatal(err)
@@ -104,7 +109,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{}
 	return to
 }
 
-func (s *Store) has(table kvdb.Database, key []byte) bool {
+func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
 		s.Fatal(err)

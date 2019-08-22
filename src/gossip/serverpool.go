@@ -97,7 +97,7 @@ type registerReq struct {
 // known nodes. It received discovered nodes, stores statistics about
 // known nodes and takes care of always having enough good quality servers connected.
 type serverPool struct {
-	db     kvdb.Database
+	db     kvdb.KeyValueStore
 	dbKey  []byte
 	server *p2p.Server
 	quit   chan struct{}
@@ -125,7 +125,7 @@ type serverPool struct {
 }
 
 // newServerPool creates a new serverPool instance
-func newServerPool(db kvdb.Database, quit chan struct{}, wg *sync.WaitGroup, trustedNodes []string) *serverPool {
+func newServerPool(db kvdb.KeyValueStore, quit chan struct{}, wg *sync.WaitGroup, trustedNodes []string) *serverPool {
 	pool := &serverPool{
 		db:           db,
 		quit:         quit,

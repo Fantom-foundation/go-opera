@@ -1,7 +1,13 @@
-package kvdb
+package table
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,7 +18,25 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-func TestForEach(t *testing.T) {
+func tempLevelDB(name string) *leveldb.Database {
+	dir, err := ioutil.TempDir("", "flushable-test"+name)
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory: %v", err))
+	}
+
+	drop := func() error {
+		_ = os.RemoveAll(dir)
+		return nil
+	}
+
+	diskdb, err := leveldb.New(dir, 16, 0, "", nil, drop)
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary database: %v", err))
+	}
+	return diskdb
+}
+
+func TestTable(t *testing.T) {
 	prefix0 := map[string][]byte{
 		"00": []byte{0},
 		"01": []byte{0, 1},
@@ -24,31 +48,30 @@ func TestForEach(t *testing.T) {
 	}
 	testData := join(prefix0, prefix1)
 
-	bbolt1, dropBbolt1 := bboltDB("1")
-	defer dropBbolt1()
+	// open raw databases
+	leveldb1 := tempLevelDB("1")
+	defer leveldb1.Drop()
+	defer leveldb1.Close()
 
-	bbolt2, dropBbolt2 := bboltDB("2")
-	defer dropBbolt2()
+	leveldb2 := tempLevelDB("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
 
-	badger1, dropBadger1 := badgerDB("1")
-	defer dropBadger1()
-
-	for name, db := range map[string]Database{
-		"memory":                       NewMemDatabase(),
-		"bbolt":                        NewBoltDatabase(bbolt1, nil, nil),
-		"badger":                       NewBadgerDatabase(badger1, nil, nil),
-		"cache-over-bbolt":             NewCacheWrapper(NewBoltDatabase(bbolt2, nil, nil)),
-		"cache-over-cache-over-memory": NewCacheWrapper(NewCacheWrapper(NewMemDatabase())),
+	for name, db := range map[string]kvdb.KeyValueStore{
+		"memory":                       memorydb.New(),
+		"leveldb":                      leveldb1,
+		"cache-over-leveldb":           flushable.New(leveldb2),
+		"cache-over-cache-over-memory": flushable.New(memorydb.New()),
 	} {
 		t.Run(name, func(t *testing.T) {
 			assertar := assert.New(t)
 
 			// tables
-			t1 := db.NewTable([]byte("t1"))
-			tables := map[string]Database{
+			t1 := New(db, []byte("t1"))
+			tables := map[string]kvdb.KeyValueStore{
 				"/t1":   t1,
 				"/t1/x": t1.NewTable([]byte("x")),
-				"/t2":   db.NewTable([]byte("t2")),
+				"/t2":   New(db, []byte("t2")),
 			}
 
 			// write
@@ -71,23 +94,27 @@ func TestForEach(t *testing.T) {
 				} {
 					got := 0
 					var prevKey []byte
-					err := t.ForEach([]byte(pref), func(key, val []byte) bool {
+
+					it := t.NewIteratorWithPrefix([]byte(pref))
+					for it.Next() {
 						if prevKey == nil {
-							prevKey = key
+							prevKey = common.CopyBytes(it.Key())
 						} else {
-							assertar.Equal(1, bytes.Compare(key, prevKey))
+							assertar.Equal(1, bytes.Compare(it.Key(), prevKey))
 						}
 						got++
-						return assertar.Equal(
-							testData[string(key)],
-							val,
-							name+": "+string(key),
+						assertar.Equal(
+							testData[string(it.Key())],
+							it.Value(),
+							name+": "+string(it.Key()),
 						)
-					})
+					}
 
-					if !assertar.NoError(err) {
+					if !assertar.NoError(it.Error()) {
 						return
 					}
+
+					it.Release()
 
 					if !assertar.Equal(count, got) {
 						return

@@ -5,21 +5,22 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 )
 
 type (
 	epochStore struct {
-		Headers kvdb.Database `table:"header_"`
-		Tips    kvdb.Database `table:"tips_"`
-		Heads   kvdb.Database `table:"heads_"`
+		Headers kvdb.KeyValueStore `table:"header_"`
+		Tips    kvdb.KeyValueStore `table:"tips_"`
+		Heads   kvdb.KeyValueStore `table:"heads_"`
 	}
 )
 
 // getEpochStore is not safe for concurrent use.
 func (s *Store) getEpochStore(epoch idx.SuperFrame) *epochStore {
-	tables := s.getTmpDb("epoch", uint64(epoch), func(db kvdb.Database) interface{} {
+	tables := s.getTmpDb("epoch", uint64(epoch), func(db kvdb.KeyValueStore) interface{} {
 		es := &epochStore{}
-		kvdb.MigrateTables(es, db)
+		table.MigrateTables(es, db)
 		return es
 	})
 	if tables == nil {

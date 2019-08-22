@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"go.etcd.io/bbolt"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -41,22 +41,25 @@ func benchmarkStore(b *testing.B) {
 	}()
 
 	var (
-		epochCache *kvdb.CacheWrapper
+		epochCache kvdb.FlushableKeyValueStore
 	)
-	newDb := func(name string) kvdb.Database {
-		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s.bolt", name))
-		db, err := bbolt.Open(path, 0600, nil)
+	newDb := func(name string) kvdb.KeyValueStore {
+		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s", name))
+
+		ldb, err := leveldb.New(
+			path,
+			16,
+			0,
+			"",
+			nil,
+			func() error {
+				return os.RemoveAll(path)
+			})
 		if err != nil {
 			panic(err)
 		}
 
-		cache := kvdb.NewCacheWrapper(
-			kvdb.NewBoltDatabase(
-				db,
-				nil,
-				func() error {
-					return os.Remove(path)
-				}))
+		cache := flushable.New(ldb)
 		if name == "epoch" {
 			epochCache = cache
 		}
@@ -64,7 +67,7 @@ func benchmarkStore(b *testing.B) {
 	}
 
 	// open history DB
-	historyCache := kvdb.NewCacheWrapper(newDb("main"))
+	historyCache := flushable.New(newDb("main"))
 
 	input := NewEventStore(historyCache)
 	defer input.Close()

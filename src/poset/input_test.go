@@ -4,32 +4,33 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/rlp"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // EventStore is a poset event storage for test purpose.
 // It implements EventSource interface.
 type EventStore struct {
-	physicalDB kvdb.Database
+	physicalDB kvdb.KeyValueStore
 
 	table struct {
-		Events kvdb.Database `table:"event_"`
+		Events kvdb.KeyValueStore `table:"event_"`
 	}
 
 	logger.Instance
 }
 
 // NewEventStore creates store over memory map.
-func NewEventStore(db kvdb.Database) *EventStore {
+func NewEventStore(db kvdb.KeyValueStore) *EventStore {
 	if db == nil {
-		db = kvdb.NewMemDatabase()
+		db = memorydb.New()
 	}
 
 	s := &EventStore{
@@ -37,14 +38,14 @@ func NewEventStore(db kvdb.Database) *EventStore {
 		Instance:   logger.MakeInstance(),
 	}
 
-	kvdb.MigrateTables(&s.table, s.physicalDB)
+	table.MigrateTables(&s.table, s.physicalDB)
 
 	return s
 }
 
 // Close leaves underlying database.
 func (s *EventStore) Close() {
-	kvdb.MigrateTables(&s.table, nil)
+	table.MigrateTables(&s.table, nil)
 	s.physicalDB.Close()
 }
 
@@ -119,7 +120,7 @@ func TestEventStore(t *testing.T) {
  * Utils:
  */
 
-func (s *EventStore) set(table kvdb.Database, key []byte, val interface{}) {
+func (s *EventStore) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		s.Fatal(err)
@@ -130,7 +131,7 @@ func (s *EventStore) set(table kvdb.Database, key []byte, val interface{}) {
 	}
 }
 
-func (s *EventStore) get(table kvdb.Database, key []byte, to interface{}) interface{} {
+func (s *EventStore) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
 		s.Fatal(err)
@@ -146,7 +147,7 @@ func (s *EventStore) get(table kvdb.Database, key []byte, to interface{}) interf
 	return to
 }
 
-func (s *EventStore) has(table kvdb.Database, key []byte) bool {
+func (s *EventStore) has(table kvdb.KeyValueStore, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
 		panic(err)

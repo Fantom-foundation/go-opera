@@ -38,8 +38,10 @@ const (
 	eventIdSize = 32
 )
 
-func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from hash.Peer, id hash.Event) bool) {
-	err := s.epochTable.Roots.ForEachFrom(f.Bytes(), func(key, _ []byte) bool {
+func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from hash.Peer, root hash.Event) bool) {
+	it := s.epochTable.Roots.NewIteratorWithStart(f.Bytes())
+	for it.Next() {
+		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIdSize {
 			s.Fatalf("Roots table: Incorrect key len %d", len(key))
 		}
@@ -50,17 +52,22 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from hash.Peer, id
 			s.Fatalf("Roots table: frame %d < %d", actualF, f)
 		}
 
-		return do(actualF, actualCreator, actualId)
-	})
-	if err != nil {
-		s.Fatal(err)
+		if !do(actualF, actualCreator, actualId) {
+			break
+		}
 	}
+	if it.Error() != nil {
+		s.Fatal(it.Error())
+	}
+	it.Release()
 }
 
 func (s *Store) ForEachRootFrom(f idx.Frame, from hash.Peer, do func(f idx.Frame, from hash.Peer, id hash.Event) bool) {
 	prefix := append(f.Bytes(), from.Bytes()...)
 
-	err := s.epochTable.Roots.ForEach(prefix, func(key, _ []byte) bool {
+	it := s.epochTable.Roots.NewIteratorWithPrefix(prefix)
+	for it.Next() {
+		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIdSize {
 			s.Fatalf("Roots table: Incorrect key len %d", len(key))
 		}
@@ -74,9 +81,12 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from hash.Peer, do func(f idx.Frame
 			s.Fatalf("Roots table: creator %s != %s", actualCreator.String(), from.String())
 		}
 
-		return do(actualF, actualCreator, actualId)
-	})
-	if err != nil {
-		s.Fatal(err)
+		if !do(actualF, actualCreator, actualId) {
+			break
+		}
 	}
+	if it.Error() != nil {
+		s.Fatal(it.Error())
+	}
+	it.Release()
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
@@ -89,7 +89,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		members.Set(peer, 1)
 	}
 
-	vecSee := vector.NewIndex(members, kvdb.NewMemDatabase())
+	vecSee := vector.NewIndex(members, memorydb.New())
 
 	// build vector index
 	for _, e := range ordered {

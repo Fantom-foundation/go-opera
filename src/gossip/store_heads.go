@@ -46,21 +46,23 @@ func (s *Store) IsHead(epoch idx.SuperFrame, id hash.Event) bool {
 	return ok
 }
 
-// GetHeads returns all the events with no descendants.
+// GetHeads returns all the events with no descendants
 func (s *Store) GetHeads(epoch idx.SuperFrame) hash.Events {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil
 	}
 
-	prefix := []byte{}
-	res := []hash.Event{}
-	err := es.Heads.ForEach(prefix, func(key, _ []byte) bool {
-		res = append(res, hash.BytesToEvent(key))
-		return true
-	})
-	if err != nil {
-		s.Fatal(err)
+	res := make(hash.Events, 0, 100)
+
+	it := es.Heads.NewIterator()
+	for it.Next() {
+		res.Add(hash.BytesToEvent(it.Key()))
 	}
+	if it.Error() != nil {
+		s.Fatal(it.Error())
+	}
+	it.Release()
+
 	return res
 }

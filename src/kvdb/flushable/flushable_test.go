@@ -1,69 +1,93 @@
-package kvdb
+package flushable
 
 import (
+	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"io/ioutil"
 	"math/big"
 	"math/rand"
+	"os"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
-
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 )
 
-func TestCacheWrapper(t *testing.T) {
-	tries := 15            // number of test iterations
-	opsPerIter := 0x200    // max number of put/delete ops per iteration
+func tempLevelDB(name string) *leveldb.Database {
+	dir, err := ioutil.TempDir("", "flushable-test"+name)
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory: %v", err))
+	}
+
+	drop := func() error {
+		_ = os.RemoveAll(dir)
+		return nil
+	}
+
+	diskdb, err := leveldb.New(dir, 16, 0, "", nil, drop)
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary database: %v", err))
+	}
+	return diskdb
+}
+
+func TestFlushable(t *testing.T) {
+	tries := 60            // number of test iterations
+	opsPerIter := 0x140    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
 
 	// open raw databases
-	bbolt1, dropBbolt1 := bboltDB("1")
-	defer dropBbolt1()
+	leveldb1 := tempLevelDB("1")
+	defer leveldb1.Drop()
+	defer leveldb1.Close()
 
-	bbolt2, dropBbolt2 := bboltDB("2")
-	defer dropBbolt2()
+	leveldb2 := tempLevelDB("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
 
 	// create wrappers
-	dbs := map[string]Database{
-		"bbolt":  NewBoltDatabase(bbolt1, nil, nil),
-		"memory": NewMemDatabase(),
+	dbs := map[string]kvdb.KeyValueStore{
+		"leveldb": leveldb1,
+		"memory":  memorydb.New(),
 	}
 
-	flushableDbs := map[string]FlushableDatabase{
-		"cache-over-bbolt":  NewCacheWrapper(NewBoltDatabase(bbolt2, nil, nil)),
-		"cache-over-memory": NewCacheWrapper(NewMemDatabase()),
+	flushableDbs := map[string]*Flushable{
+		"cache-over-leveldb": New(leveldb2),
+		"cache-over-memory":  New(memorydb.New()),
 	}
 
-	dbsTables := [][]Database{
+	baseLdb := table.New(dbs["leveldb"], []byte{})
+	baseMem := table.New(dbs["memory"], []byte{})
+	dbsTables := [][]ethdb.KeyValueStore{
 		{
-			dbs["bbolt"],
-			dbs["bbolt"].NewTable([]byte{0, 1}),
-			dbs["bbolt"].NewTable([]byte{0}),
-			dbs["bbolt"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
-			dbs["bbolt"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
+			dbs["leveldb"],
+			baseLdb.NewTable([]byte{0, 1}),
+			baseLdb.NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffff")),
 		},
 		{
 			dbs["memory"],
-			dbs["memory"].NewTable([]byte{0, 1}),
-			dbs["memory"].NewTable([]byte{0}),
-			dbs["memory"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
-			dbs["memory"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
+			baseMem.NewTable([]byte{0, 1}),
+			baseMem.NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffff")),
 		},
 	}
 
-	flushableDbsTables := [][]Database{
+	baseLdb = table.New(flushableDbs["cache-over-leveldb"], []byte{})
+	baseMem = table.New(flushableDbs["cache-over-memory"], []byte{})
+	flushableDbsTables := [][]kvdb.KeyValueStore{
 		{
-			flushableDbs["cache-over-bbolt"],
-			flushableDbs["cache-over-bbolt"].NewTable([]byte{0, 1}),
-			flushableDbs["cache-over-bbolt"].NewTable([]byte{0}),
-			flushableDbs["cache-over-bbolt"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
-			flushableDbs["cache-over-bbolt"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
+			flushableDbs["cache-over-leveldb"],
+			baseLdb.NewTable([]byte{0, 1}),
+			baseLdb.NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffff")),
 		},
 		{
 			flushableDbs["cache-over-memory"],
-			flushableDbs["cache-over-memory"].NewTable([]byte{0, 1}),
-			flushableDbs["cache-over-memory"].NewTable([]byte{0}),
-			flushableDbs["cache-over-memory"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffe")),
-			flushableDbs["cache-over-memory"].NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffff")),
+			baseMem.NewTable([]byte{0, 1}),
+			baseMem.NewTable([]byte{0}).NewTable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffff")),
 		},
 	}
 
@@ -100,7 +124,7 @@ func TestCacheWrapper(t *testing.T) {
 		// random pet/delete operations
 		putDeleteRandom := func() {
 			for j := 0; j < tablesNum; j++ {
-				var batches []Batch
+				var batches []ethdb.Batch
 				for i := 0; i < groupsNum; i++ {
 					batches = append(batches, dbsTables[i][j].NewBatch())
 					batches = append(batches, flushableDbsTables[i][j].NewBatch())
@@ -158,31 +182,43 @@ func TestCacheWrapper(t *testing.T) {
 		// try to ForEach random prefix
 		prefix := prefixes[try%len(prefixes)]
 		if try == 1 {
-			prefix = []byte{0, 0, 0, 0, 0, 0}
+			prefix = []byte{0, 0, 0, 0, 0, 0} // not existing prefix
 		}
-		stopAfter := 1 + r.Intn(len(dict))
 
 		for j := 0; j < tablesNum; j++ {
 			expectPairs := []kv{}
-			testForEach := func(db Database, first bool) {
-				got := 0
-				assertar.NoError(db.ForEachFrom(prefix, func(key, val []byte) bool {
-					assertar.NotEqual(got, stopAfter) // check that return true/false works here
+			testForEach := func(db ethdb.KeyValueStore, first bool) {
+				var it ethdb.Iterator
+				if try%3 == 0 {
+					it = db.NewIterator()
+				} else if try%3 == 1 {
+					it = db.NewIteratorWithPrefix(prefix)
+				} else {
+					it = db.NewIteratorWithStart(prefix)
+				}
 
+				got := 0
+				for ; it.Next(); got++ {
 					if first {
 						expectPairs = append(expectPairs, kv{
-							k: key,
-							v: val,
+							k: common.CopyBytes(it.Key()),
+							v: common.CopyBytes(it.Value()),
 						})
 					} else {
-						assertar.NotEqual(got, len(expectPairs)) // check that we've for the same num of values
-						assertar.Equal(key, expectPairs[got].k)
-						assertar.Equal(val, expectPairs[got].v)
+						assertar.NotEqual(got, len(expectPairs), try) // check that we've for the same num of values
+						if t.Failed() {
+							return
+						}
+						assertar.Equal(expectPairs[got].k, it.Key(), try)
+						assertar.Equal(expectPairs[got].v, it.Value(), try)
 					}
+				}
 
-					got += 1
-					return got < stopAfter
-				}))
+				if !assertar.NoError(it.Error()) {
+					return
+				}
+
+				it.Release()
 
 				assertar.Equal(got, len(expectPairs)) // check that we've got the same num of pairs
 			}
@@ -190,7 +226,13 @@ func TestCacheWrapper(t *testing.T) {
 			// check that all groups return the same result
 			for i := 0; i < groupsNum; i++ {
 				testForEach(dbsTables[i][j], i == 0)
+				if t.Failed() {
+					return
+				}
 				testForEach(flushableDbsTables[i][j], false)
+				if t.Failed() {
+					return
+				}
 			}
 		}
 

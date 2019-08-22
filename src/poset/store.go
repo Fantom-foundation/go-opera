@@ -2,34 +2,36 @@ package poset
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Store is a poset persistent storage working over physical key-value database.
 type Store struct {
-	persistentDB kvdb.Database
+	persistentDB kvdb.KeyValueStore
 	table        struct {
-		Checkpoint     kvdb.Database `table:"checkpoint_"`
-		Event2Block    kvdb.Database `table:"event2block_"`
-		SuperFrames    kvdb.Database `table:"sframe_"`
-		ConfirmedEvent kvdb.Database `table:"confirmed_"`
-		FrameInfos     kvdb.Database `table:"frameinfo_"`
+		Checkpoint     kvdb.KeyValueStore `table:"checkpoint_"`
+		Event2Block    kvdb.KeyValueStore `table:"event2block_"`
+		SuperFrames    kvdb.KeyValueStore `table:"sframe_"`
+		ConfirmedEvent kvdb.KeyValueStore `table:"confirmed_"`
+		FrameInfos     kvdb.KeyValueStore `table:"frameinfo_"`
 	}
 
-	epochDb    kvdb.Database
+	epochDb    kvdb.KeyValueStore
 	epochTable struct {
-		Roots       kvdb.Database `table:"roots_"`
-		VectorIndex kvdb.Database `table:"vectors_"`
+		Roots       kvdb.KeyValueStore `table:"roots_"`
+		VectorIndex kvdb.KeyValueStore `table:"vectors_"`
 	}
 
-	makeDb func(name string) kvdb.Database
+	makeDb func(name string) kvdb.KeyValueStore
 
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.Database, makeDb func(name string) kvdb.Database) *Store {
+func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
 	s := &Store{
 		persistentDB: db,
 		epochDb:      makeDb("epoch"),
@@ -37,41 +39,50 @@ func NewStore(db kvdb.Database, makeDb func(name string) kvdb.Database) *Store {
 		Instance:     logger.MakeInstance(),
 	}
 
-	kvdb.MigrateTables(&s.table, s.persistentDB)
-	kvdb.MigrateTables(&s.epochTable, s.epochDb)
+	table.MigrateTables(&s.table, s.persistentDB)
+	table.MigrateTables(&s.epochTable, s.epochDb)
 
 	return s
 }
 
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
-	return NewStore(kvdb.NewMemDatabase(), func(name string) kvdb.Database {
-		return kvdb.NewMemDatabase()
+	return NewStore(memorydb.New(), func(name string) kvdb.KeyValueStore {
+		return memorydb.New()
 	})
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
-	kvdb.MigrateTables(&s.table, nil)
-	kvdb.MigrateTables(&s.epochTable, nil)
-	s.persistentDB.Close()
-	s.epochDb.Close()
+	table.MigrateTables(&s.table, nil)
+	table.MigrateTables(&s.epochTable, nil)
+	err := s.persistentDB.Close()
+	if err != nil {
+		s.Fatal(err)
+	}
+	err = s.epochDb.Close()
+	if err != nil {
+		s.Fatal(err)
+	}
 }
 
 func (s *Store) recreateEpochDb() {
 	if s.epochDb != nil {
-		s.epochDb.Close()
+		err := s.epochDb.Close()
+		if err != nil {
+			s.Fatal(err)
+		}
 		s.epochDb.Drop()
 	}
 	s.epochDb = s.makeDb("epoch")
-	kvdb.MigrateTables(&s.epochTable, s.epochDb)
+	table.MigrateTables(&s.epochTable, s.epochDb)
 }
 
 /*
  * Utils:
  */
 
-func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
+func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		s.Fatal(err)
@@ -82,7 +93,7 @@ func (s *Store) set(table kvdb.Database, key []byte, val interface{}) {
 	}
 }
 
-func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{} {
+func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
 		s.Fatal(err)
@@ -98,7 +109,7 @@ func (s *Store) get(table kvdb.Database, key []byte, to interface{}) interface{}
 	return to
 }
 
-func (s *Store) has(table kvdb.Database, key []byte) bool {
+func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
 		s.Fatal(err)
