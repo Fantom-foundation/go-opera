@@ -1,14 +1,16 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
+
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // Constants to match up protocol versions and messages
@@ -90,9 +92,9 @@ type txPool interface {
 	// The slice should be modifiable by the caller.
 	Pending() (map[common.Address]types.Transactions, error)
 
-	// SubscribeNewTxsEvent should return an event subscription of
-	// NewTxsEvent and send events to the given channel.
-	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
+	// SubscribeNewTxsNotify should return an event subscription of
+	// NewTxsNotify and send events to the given channel.
+	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) event.Subscription
 }
 
 // ethStatusData is the network packet for the status message. It's used for compatibility with some ETH wallets.

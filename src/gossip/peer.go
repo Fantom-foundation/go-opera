@@ -279,7 +279,7 @@ func (p *peer) AsyncSendEvents(events inter.Events) {
 }
 
 // SendEventHeaders sends a batch of event headers to the remote peer.
-/*func (p *peer) SendEventHeaders(headers []*types.Header) error {
+/*func (p *peer) SendEventHeaders(headers []*EvmHeader) error {
 	return p2p.Send(p.rw, EventHeadersMsg, headers)
 }*/
 

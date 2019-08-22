@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
@@ -125,7 +124,6 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	config.ForcedBroadcast = allowAggressive
 
 	var (
-		evmux = new(event.TypeMux)
 		store = NewMemStore()
 	)
 
@@ -133,12 +131,12 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	me := nodes[0]
 
 	engineStore := poset.NewMemStore()
-	assertar.NoError(engineStore.ApplyGenesis(&network.Genesis))
+	assertar.NoError(engineStore.ApplyGenesis(&network.Genesis, hash.Event{}, hash.Hash{}))
 
 	engine := poset.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	svc, err := NewService(config, evmux, store, engine)
+	svc, err := NewService(config, store, engine)
 	assertar.NoError(err)
 
 	// start PM

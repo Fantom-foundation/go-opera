@@ -130,7 +130,7 @@ func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
 		balances[addr] = pos.Stake(1)
 	}
 
-	err := store.ApplyGenesis(&lachesis.Genesis{
+	err := store.ApplyGenesis(&genesis.Genesis{
 		Balances: balances,
 		Time:     genesisTestTime,
 	})

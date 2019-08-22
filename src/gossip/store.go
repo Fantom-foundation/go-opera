@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -27,7 +28,8 @@ type Store struct {
 
 		TmpDbs kvdb.KeyValueStore `table:"tmpdbs_"`
 
-		Balances state.Database
+		Evm      ethdb.Database
+		EvmState state.Database
 	}
 
 	tmpDbs
@@ -46,8 +48,10 @@ func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore
 	}
 
 	table.MigrateTables(&s.table, s.persistentDB)
-	balancesTable := table.New(s.persistentDB, []byte("balance_"))
-	s.table.Balances = state.NewDatabase(rawdb.NewDatabase(balancesTable))
+
+	evmTable := table.New(s.persistentDB, []byte("evm_"))
+	s.table.Evm = rawdb.NewDatabase(evmTable)
+	s.table.EvmState = state.NewDatabase(s.table.Evm)
 
 	s.initTmpDbs()
 
@@ -55,8 +59,7 @@ func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore
 }
 
 // NewMemStore creates store over memory map.
-func
-NewMemStore() *Store {
+func NewMemStore() *Store {
 	db := memorydb.New()
 	return NewStore(db, func(name string) kvdb.KeyValueStore {
 		return memorydb.New()
@@ -71,7 +74,7 @@ func (s *Store) Close() {
 
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) *state.StateDB {
-	db, err := state.New(common.Hash(from), s.table.Balances)
+	db, err := state.New(common.Hash(from), s.table.EvmState)
 	if err != nil {
 		s.Fatal(err)
 	}

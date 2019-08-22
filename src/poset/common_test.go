@@ -41,7 +41,7 @@ func FakePoset(nodes []hash.Peer) (*ExtendedPoset, *Store, *EventStore) {
 	}
 
 	store := NewMemStore()
-	err := store.ApplyGenesis(&lachesis.Genesis{
+	err := store.ApplyGenesis(&genesis.Genesis{
 		Balances: balances,
 		Time:     genesisTestTime,
 	})

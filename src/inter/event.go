@@ -6,6 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
@@ -46,8 +47,7 @@ type EventHeader struct {
 
 type Event struct {
 	EventHeader
-	InternalTransactions []*InternalTransaction
-	ExternalTransactions ExtTxns
+	Transactions types.Transactions
 }
 
 func (e *EventHeaderData) HashToSign() hash.Hash {
@@ -119,17 +119,6 @@ func (e *EventHeaderData) Hash() hash.Event {
 	return *e.hash
 }
 
-// FindInternalTxn find transaction in event's internal transactions list.
-// TODO: use map
-func (e *Event) FindInternalTxn(idx hash.Transaction) *InternalTransaction {
-	for _, txn := range e.InternalTransactions {
-		if TransactionHashOf(e.Creator, txn.Nonce) == idx {
-			return txn
-		}
-	}
-	return nil
-}
-
 // constructs empty event
 func NewEvent() *Event {
 	return &Event{
@@ -139,8 +128,7 @@ func NewEvent() *Event {
 			},
 			Sig: []byte{},
 		},
-		InternalTransactions: []*InternalTransaction{},
-		ExternalTransactions: ExtTxns{},
+		Transactions: types.Transactions{},
 	}
 }
 
@@ -166,13 +154,6 @@ func FakeFuzzingEvents() (res []*Event) {
 		hash.FakeEvents(2),
 		hash.FakeEvents(8),
 	}
-	extTxns := [][][]byte{
-		[][]byte{},
-		[][]byte{
-			[]byte("fake external transaction 1"),
-			[]byte("fake external transaction 2"),
-		},
-	}
 	i := 0
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
@@ -182,15 +163,6 @@ func FakeFuzzingEvents() (res []*Event) {
 			e.Parents = parents[p]
 			e.Extra = []byte{}
 			e.Sig = []byte{}
-			e.InternalTransactions = []*InternalTransaction{
-				{
-					Amount:   999,
-					Receiver: creators[c],
-				},
-			}
-			e.ExternalTransactions = ExtTxns{
-				Value: extTxns[i%len(extTxns)],
-			}
 
 			res = append(res, e)
 			i++

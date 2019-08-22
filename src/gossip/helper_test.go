@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
@@ -29,7 +28,6 @@ var (
 // with the given number of events already known from each node
 func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.Transaction, onNewEvent func(e *inter.Event)) (*ProtocolManager, *Store, error) {
 	var (
-		evmux = new(event.TypeMux)
 		store = NewMemStore()
 	)
 
@@ -37,7 +35,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 	config := DefaultConfig(network)
 
 	engineStore := poset.NewMemStore()
-	err := engineStore.ApplyGenesis(&network.Genesis)
+	err := engineStore.ApplyGenesis(&network.Genesis, hash.Event{}, hash.Hash{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -47,7 +45,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 
 	pm, err := NewProtocolManager(
 		&config,
-		evmux,
+		nil,
 		&dummyTxPool{added: newtx},
 		new(sync.RWMutex),
 		store,

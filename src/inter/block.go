@@ -4,6 +4,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type ApplyBlockFn func(block *Block, stateHash hash.Hash, members pos.Members) (newStateHash hash.Hash, mewMembers pos.Members)
@@ -13,9 +14,14 @@ type Block struct {
 	Index  idx.Block
 	Time   Timestamp
 	Events hash.Events
+
+	PrevHash hash.Event
+
+	Root    hash.Hash
+	Creator common.Address
 }
 
-func (b *Block) Head() hash.Event {
+func (b *Block) Hash() hash.Event {
 	if len(b.Events) == 0 {
 		return hash.ZeroEvent
 	}

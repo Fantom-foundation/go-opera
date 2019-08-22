@@ -1,12 +1,13 @@
 package lachesis
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
@@ -26,13 +27,13 @@ type Config struct {
 	Name      string
 	NetworkId uint64
 
-	Genesis Genesis
+	Genesis genesis.Genesis
 
 	// Graph options
 	Dag DagConfig
 
 	// Transaction pool options
-	TxPool core.TxPoolConfig
+	TxPool evm_core.TxPoolConfig
 
 	// Gas Price Oracle options
 	GPO gasprice.Config
@@ -57,8 +58,9 @@ func MainNetConfig() Config {
 	return Config{
 		Name:      "main",
 		NetworkId: MainNetworkId,
-		Genesis:   MainGenesis(),
+		Genesis:   genesis.MainGenesis(),
 		Dag:       DagConfig{3},
+		TxPool:    evm_core.DefaultTxPoolConfig,
 	}
 }
 
@@ -66,18 +68,20 @@ func TestNetConfig() Config {
 	return Config{
 		Name:      "test",
 		NetworkId: TestNetworkId,
-		Genesis:   TestGenesis(),
+		Genesis:   genesis.TestGenesis(),
 		Dag:       DagConfig{3},
+		TxPool:    evm_core.DefaultTxPoolConfig,
 	}
 }
 
 func FakeNetConfig(n int) (Config, []hash.Peer, []*crypto.PrivateKey) {
-	g, nodes, keys := FakeGenesis(n)
+	g, nodes, keys := genesis.FakeGenesis(n)
 
 	return Config{
 		Name:      "fake",
 		NetworkId: FakeNetworkId,
 		Genesis:   g,
 		Dag:       DagConfig{3},
+		TxPool:    evm_core.DefaultTxPoolConfig,
 	}, nodes, keys
 }
