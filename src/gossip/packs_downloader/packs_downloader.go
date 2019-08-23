@@ -59,7 +59,7 @@ func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.SuperFrame) error 
 		return nil
 	}
 
-	log.Trace("Registering sync peer", "peer", peer, "epoch", myEpoch)
+	log.Trace("Registering sync peer", "peer", peer.Id, "epoch", myEpoch)
 	d.peers[peer.Id] = newPeer(peer, myEpoch, d.fetcher, d.onlyNotConnected, d.dropPeer)
 	d.peers[peer.Id].Start()
 
@@ -67,6 +67,9 @@ func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.SuperFrame) error 
 }
 
 func (d *PacksDownloader) OnNewEpoch(myEpoch idx.SuperFrame, peerEpoch func(string) idx.SuperFrame) {
+	d.peersMu.Lock()
+	defer d.peersMu.Unlock()
+
 	newPeers := make(map[string]*PeerPacksDownloader)
 
 	for peerId, peerDwnld := range d.peers {

@@ -18,8 +18,7 @@ const (
 	maxPackEventsNum = softLimitItems
 )
 
-func (s *Service) packs_onNewEvent(e *inter.Event) {
-	epoch := s.engine.CurrentSuperFrameN()
+func (s *Service) packs_onNewEvent(e *inter.Event, epoch idx.SuperFrame) {
 	// due to default values, we don't need to explicitly set values at a start of an epoch
 	packIdx := s.store.GetPacksNumOrDefault(epoch)
 	packInfo := s.store.GetPackInfoOrDefault(s.engine.CurrentSuperFrameN(), packIdx)
