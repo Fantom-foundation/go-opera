@@ -91,17 +91,16 @@ func (em *Emitter) StopEventEmission() {
 
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
+	if em.engine.GetMembers()[em.myAddr] == 0 {
+		return nil
+	}
+
 	var (
 		epoch      = em.engine.CurrentSuperFrameN()
 		seq        idx.Event
 		parents    hash.Events
 		maxLamport idx.Lamport
 	)
-
-	// clean tmp db
-	if em.prevEpoch < epoch {
-		em.store.delEpochStore(epoch - 1)
-	}
 
 	seeVec := em.engine.GetVectorIndex()
 

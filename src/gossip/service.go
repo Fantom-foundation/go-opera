@@ -91,7 +91,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		s.store.Fatalf("ProcessEvent: event is already processed %s", e.Hash().String())
 	}
 
-	oldEpoch := realEngine.CurrentSuperFrameN()
+	oldEpoch := e.Epoch
 
 	s.store.SetEvent(e)
 	if realEngine != nil {
@@ -112,13 +112,13 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 	s.store.AddHead(e.Epoch, e.Hash())
 
-	s.packs_onNewEvent(e)
+	s.packs_onNewEvent(e, e.Epoch)
 
 	newEpoch := realEngine.CurrentSuperFrameN()
 	if newEpoch != oldEpoch {
 		s.packs_onNewEpoch(oldEpoch, newEpoch)
+		s.store.delEpochStore(oldEpoch)
 		s.mux.Post(newEpoch)
-		s.mux.Post(s.store.GetPacksNumOrDefault(newEpoch))
 	}
 
 	return nil

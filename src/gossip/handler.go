@@ -140,11 +140,11 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
-			log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 			if err == poset.ErrOutdatedEvent ||
 				err == ordering.ErrAlreadyConnectedEvent {
 				return
 			}
+			log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 			pm.removePeer(peer)
 		},
 
@@ -577,7 +577,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 		for _, info := range infos.Infos {
 			if len(info.Heads) == 0 {
-				return errResp(ErrDecode, "%v: %v", msg, err)
+				return errResp(ErrEmptyMessage, "%v", msg)
 			}
 			// TODO check len(info.Heads) <= len(members)^2, squire because of possible forks
 			// Mark the hashes as present at the remote node
@@ -704,11 +704,15 @@ func (pm *ProtocolManager) progressBroadcastLoop() {
 
 func (pm *ProtocolManager) onNewEpochLoop() {
 	// automatically stops if unsubscribe
-	for obj := range pm.newPacksSub.Chan() {
+	for obj := range pm.newEpochsSub.Chan() {
 		if _, ok := obj.Data.(idx.SuperFrame); ok {
 			myEpoch := pm.engine.CurrentSuperFrameN()
 			peerEpoch := func(peer string) idx.SuperFrame {
-				return pm.peers.Peer(peer).progress.Epoch
+				p := pm.peers.Peer(peer)
+				if p == nil {
+					return 0
+				}
+				return p.progress.Epoch
 			}
 			pm.downloader.OnNewEpoch(myEpoch, peerEpoch)
 		}
