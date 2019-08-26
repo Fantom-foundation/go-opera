@@ -3,19 +3,20 @@ package table
 import (
 	"bytes"
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/common"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/dgraph-io/badger"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
+
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 )
 
 func tempLevelDB(name string) *leveldb.Database {

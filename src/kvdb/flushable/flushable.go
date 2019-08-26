@@ -3,13 +3,13 @@ package flushable
 import (
 	"bytes"
 	"errors"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"sync"
 
 	rbt "github.com/emirpasic/gods/trees/redblacktree"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
 var (

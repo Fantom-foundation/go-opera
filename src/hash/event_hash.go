@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
