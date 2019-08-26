@@ -392,8 +392,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if len(progress.LastPackInfo.Heads) > hardLimitItems {
 			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
-		p.progress = progress
-		if p.progress.Epoch == myEpoch {
+		p.SetProgress(progress)
+		if progress.Epoch == myEpoch {
 			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
 		}
 
