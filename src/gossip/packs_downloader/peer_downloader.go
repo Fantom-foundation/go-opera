@@ -42,28 +42,28 @@ type onlyNotConnectedFn func(ids hash.Events) hash.Events
 type dropPeerFn func(peer string)
 
 // request pack info from the peer
-type packInfoRequesterFn func(epoch idx.SuperFrame, indexes []idx.Pack) error
+type packInfoRequesterFn func(epoch idx.Epoch, indexes []idx.Pack) error
 
 // request full pack from the peer
-type packRequesterFn func(epoch idx.SuperFrame, index idx.Pack) error
+type packRequesterFn func(epoch idx.Epoch, index idx.Pack) error
 
 type packsNumData struct {
-	epoch    idx.SuperFrame // in the specified epoch
-	packsNum idx.Pack       // there's this number of packs
+	epoch    idx.Epoch // in the specified epoch
+	packsNum idx.Pack  // there's this number of packs
 }
 
 type packInfoData struct {
-	epoch idx.SuperFrame // the epoch where pack is located
-	index idx.Pack       // the seq number of the pack
-	heads hash.Events    // Hashes of the pack heads
-	time  time.Time      // Timestamp of the announcement
+	epoch idx.Epoch   // the epoch where pack is located
+	index idx.Pack    // the seq number of the pack
+	heads hash.Events // Hashes of the pack heads
+	time  time.Time   // Timestamp of the announcement
 }
 
 type packData struct {
-	epoch idx.SuperFrame // the epoch where pack is located
-	index idx.Pack       // the seq number of the pack
-	ids   hash.Events    // Event hashes which form the pack
-	time  time.Time      // Timestamp of the announcement
+	epoch idx.Epoch   // the epoch where pack is located
+	index idx.Pack    // the seq number of the pack
+	ids   hash.Events // Event hashes which form the pack
+	time  time.Time   // Timestamp of the announcement
 
 	fetchEvents fetcher.EventsRequesterFn
 }
@@ -84,8 +84,8 @@ type PeerPacksDownloader struct {
 	onlyNotConnected onlyNotConnectedFn
 
 	// Announce states
-	myEpoch idx.SuperFrame // the epoch where where we're syncing
-	peer    Peer           // the peer we're syncing with
+	myEpoch idx.Epoch // the epoch where where we're syncing
+	peer    Peer      // the peer we're syncing with
 
 	packsNum     idx.Pack               // total num of packs the peer has (not all of them are requested!)
 	packInfos    *tree.Map              // the short descriptors of received peer's packs
@@ -95,7 +95,7 @@ type PeerPacksDownloader struct {
 }
 
 // New creates a packs fetcher to retrieve events based on pack announcements. Works only with 1 peer.
-func newPeer(peer Peer, myEpoch idx.SuperFrame, fetcher *fetcher.Fetcher, onlyNotConnected onlyNotConnectedFn, dropPeer dropPeerFn) *PeerPacksDownloader {
+func newPeer(peer Peer, myEpoch idx.Epoch, fetcher *fetcher.Fetcher, onlyNotConnected onlyNotConnectedFn, dropPeer dropPeerFn) *PeerPacksDownloader {
 	return &PeerPacksDownloader{
 		notifyInfo:       make(chan *packInfoData, maxQueuedInfos),
 		notifyPacksNum:   make(chan *packsNumData, maxQueuedInfos),
@@ -126,7 +126,7 @@ func (d *PeerPacksDownloader) Stop() {
 
 // Notify announces the fetcher of the potential availability of a new event in
 // the network.
-func (d *PeerPacksDownloader) NotifyPackInfo(epoch idx.SuperFrame, index idx.Pack, heads hash.Events, time time.Time) error {
+func (d *PeerPacksDownloader) NotifyPackInfo(epoch idx.Epoch, index idx.Pack, heads hash.Events, time time.Time) error {
 	if d.myEpoch != epoch {
 		return nil // Short circuit if from another epoch
 	}
@@ -145,7 +145,7 @@ func (d *PeerPacksDownloader) NotifyPackInfo(epoch idx.SuperFrame, index idx.Pac
 	}
 }
 
-func (d *PeerPacksDownloader) NotifyPacksNum(epoch idx.SuperFrame, packsNum idx.Pack) error {
+func (d *PeerPacksDownloader) NotifyPacksNum(epoch idx.Epoch, packsNum idx.Pack) error {
 	if d.myEpoch != epoch {
 		return nil // Short circuit if from another epoch
 	}
@@ -163,7 +163,7 @@ func (d *PeerPacksDownloader) NotifyPacksNum(epoch idx.SuperFrame, packsNum idx.
 }
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
-func (d *PeerPacksDownloader) NotifyPack(epoch idx.SuperFrame, index idx.Pack, ids hash.Events, time time.Time, fetchEvents fetcher.EventsRequesterFn) error {
+func (d *PeerPacksDownloader) NotifyPack(epoch idx.Epoch, index idx.Pack, ids hash.Events, time time.Time, fetchEvents fetcher.EventsRequesterFn) error {
 	if d.myEpoch != epoch {
 		return nil // Short circuit if from another epoch
 	}

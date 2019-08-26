@@ -12,7 +12,7 @@ type Store struct {
 	table        struct {
 		Checkpoint     kvdb.Database `table:"checkpoint_"`
 		Event2Block    kvdb.Database `table:"event2block_"`
-		SuperFrames    kvdb.Database `table:"sframe_"`
+		Epochs         kvdb.Database `table:"sframe_"`
 		ConfirmedEvent kvdb.Database `table:"confirmed_"`
 		FrameInfos     kvdb.Database `table:"frameinfo_"`
 	}

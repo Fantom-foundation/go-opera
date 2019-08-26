@@ -38,7 +38,7 @@ func New(fetcher *fetcher.Fetcher, onlyNotConnected onlyNotConnectedFn, dropPeer
 
 type Peer struct {
 	Id    string
-	Epoch idx.SuperFrame
+	Epoch idx.Epoch
 
 	RequestPackInfos packInfoRequesterFn
 	RequestPack      packRequesterFn
@@ -46,7 +46,7 @@ type Peer struct {
 
 // RegisterPeer injects a new download peer into the set of block source to be
 // used for fetching hashes and blocks from.
-func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.SuperFrame) error {
+func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.Epoch) error {
 	if peer.Epoch < myEpoch {
 		// this peer is useless for syncing
 		return d.UnregisterPeer(peer.Id)
@@ -66,7 +66,7 @@ func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.SuperFrame) error 
 	return nil
 }
 
-func (d *PacksDownloader) OnNewEpoch(myEpoch idx.SuperFrame, peerEpoch func(string) idx.SuperFrame) {
+func (d *PacksDownloader) OnNewEpoch(myEpoch idx.Epoch, peerEpoch func(string) idx.Epoch) {
 	d.peersMu.Lock()
 	defer d.peersMu.Unlock()
 

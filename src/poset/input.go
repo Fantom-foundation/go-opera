@@ -9,7 +9,7 @@ import (
 type EventSource interface {
 	HasEvent(hash.Event) bool
 	GetEvent(hash.Event) *inter.Event
-	GetEventHeader(idx.SuperFrame, hash.Event) *inter.EventHeaderData
+	GetEventHeader(idx.Epoch, hash.Event) *inter.EventHeaderData
 }
 
 /*
@@ -33,6 +33,6 @@ func (p *Poset) GetEvent(h hash.Event) *Event {
 }
 
 // GetEventHeader returns event header.
-func (p *Poset) GetEventHeader(epoch idx.SuperFrame, h hash.Event) *inter.EventHeaderData {
+func (p *Poset) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeaderData {
 	return p.input.GetEventHeader(epoch, h)
 }

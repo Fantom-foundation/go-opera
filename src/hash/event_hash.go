@@ -76,7 +76,7 @@ func (h Event) Lamport() idx.Lamport {
 }
 
 // Epoch returns [0:4] bytes, which store event's Epoch.
-func (h Event) Epoch() idx.SuperFrame {
+func (h Event) Epoch() idx.Epoch {
 	return idx.BytesToEpoch(h[0:4])
 }
 

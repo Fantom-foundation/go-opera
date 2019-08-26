@@ -30,7 +30,7 @@ func TestPoset(t *testing.T) {
 
 	// create events on poset0
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(SuperFrameLen)-1, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, int(EpochLen)-1, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 
@@ -60,15 +60,15 @@ func TestPoset(t *testing.T) {
 		for i := 0; i < len(posets)-1; i++ {
 			p0 := posets[i]
 			st0 := p0.store.GetCheckpoint()
-			ep0 := p0.store.GetSuperFrame()
-			t.Logf("Compare poset%d: SFrame %d, Block %d", i, ep0.SuperFrameN, st0.LastBlockN)
+			ep0 := p0.store.GetEpoch()
+			t.Logf("Compare poset%d: SFrame %d, Block %d", i, ep0.EpochN, st0.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 				st1 := p1.store.GetCheckpoint()
-				t.Logf("with poset%d: SFrame %d, Block %d", j, ep0.SuperFrameN, st1.LastBlockN)
+				t.Logf("with poset%d: SFrame %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
 
 				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-				assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+				assertar.Equal(posets[j].epoch, posets[i].epoch)
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {

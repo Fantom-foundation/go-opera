@@ -20,8 +20,8 @@ type Consensus interface {
 	Prepare(e *inter.Event) *inter.Event
 	// LastBlock returns current block.
 	LastBlock() (idx.Block, hash.Event)
-	// CurrentSuperFrame returns current SuperFrameN.
-	CurrentSuperFrameN() idx.SuperFrame
+	// CurrentEpoch returns current EpochN.
+	CurrentEpochN() idx.Epoch
 	// GetMembers returns members of current super-frame.
 	GetMembers() pos.Members
 

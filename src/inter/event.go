@@ -13,7 +13,7 @@ import (
 type EventHeaderData struct {
 	Version uint32
 
-	Epoch idx.SuperFrame
+	Epoch idx.Epoch
 	Seq   idx.Event
 
 	Frame  idx.Frame

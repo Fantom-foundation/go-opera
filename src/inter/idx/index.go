@@ -5,8 +5,8 @@ import (
 )
 
 type (
-	// SuperFrame numeration.
-	SuperFrame uint32
+	// Epoch numeration.
+	Epoch uint32
 
 	// Event numeration.
 	Event uint32
@@ -28,7 +28,7 @@ type (
 )
 
 // Bytes gets the byte representation of the index.
-func (sf SuperFrame) Bytes() []byte {
+func (sf Epoch) Bytes() []byte {
 	return bigendian.Int32ToBytes(uint32(sf))
 }
 
@@ -63,8 +63,8 @@ func (f Frame) Bytes() []byte {
 }
 
 // BytesToEpoch converts bytes to epoch index.
-func BytesToEpoch(b []byte) SuperFrame {
-	return SuperFrame(bigendian.BytesToInt32(b))
+func BytesToEpoch(b []byte) Epoch {
+	return Epoch(bigendian.BytesToInt32(b))
 }
 
 // BytesToEvent converts bytes to event index.

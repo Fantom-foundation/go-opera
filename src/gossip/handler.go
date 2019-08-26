@@ -188,7 +188,7 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 	}
 	pm.engineMu.RLock()
 	defer pm.engineMu.RUnlock()
-	epoch := pm.engine.CurrentSuperFrameN()
+	epoch := pm.engine.CurrentEpochN()
 
 	interested := make(hash.Events, 0, len(ids))
 	for _, id := range ids {
@@ -268,7 +268,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// broadcast packs
 	pm.newPacksSub = pm.mux.Subscribe(idx.Pack(0))
 	// epoch changes
-	pm.newEpochsSub = pm.mux.Subscribe(idx.SuperFrame(0))
+	pm.newEpochsSub = pm.mux.Subscribe(idx.Epoch(0))
 
 	go pm.emittedBroadcastLoop()
 	go pm.progressBroadcastLoop()
@@ -312,7 +312,7 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 
 func (pm *ProtocolManager) myProgress() PeerProgress {
 	blockI, block := pm.engine.LastBlock()
-	epoch := pm.engine.CurrentSuperFrameN()
+	epoch := pm.engine.CurrentEpochN()
 	return PeerProgress{
 		Epoch:        epoch,
 		NumOfBlocks:  blockI,
@@ -375,7 +375,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
-	myEpoch := pm.engine.CurrentSuperFrameN()
+	myEpoch := pm.engine.CurrentEpochN()
 	peerDwnlr := pm.downloader.Peer(p.id)
 
 	// Handle the message depending on its contents
@@ -705,9 +705,9 @@ func (pm *ProtocolManager) progressBroadcastLoop() {
 func (pm *ProtocolManager) onNewEpochLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.newEpochsSub.Chan() {
-		if _, ok := obj.Data.(idx.SuperFrame); ok {
-			myEpoch := pm.engine.CurrentSuperFrameN()
-			peerEpoch := func(peer string) idx.SuperFrame {
+		if _, ok := obj.Data.(idx.Epoch); ok {
+			myEpoch := pm.engine.CurrentEpochN()
+			peerEpoch := func(peer string) idx.Epoch {
 				p := pm.peers.Peer(peer)
 				if p == nil {
 					return 0
@@ -737,7 +737,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 type NodeInfo struct {
 	Network     uint64    `json:"network"` // network ID
 	Genesis     hash.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
-	Epoch       idx.SuperFrame
+	Epoch       idx.Epoch
 	NumOfEvents idx.Event
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
 }
@@ -747,6 +747,6 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	return &NodeInfo{
 		Network: pm.config.Net.NetworkId,
 		Genesis: pm.engine.GetGenesisHash(),
-		Epoch:   pm.engine.CurrentSuperFrameN(),
+		Epoch:   pm.engine.CurrentEpochN(),
 	}
 }

@@ -19,10 +19,10 @@ func TestPosetTxn(t *testing.T) {
 
 	p, s, x := FakePoset(nodes)
 	assert.Equal(t,
-		pos.Stake(1), p.superFrame.Members[nodes[0]],
+		pos.Stake(1), p.epoch.Members[nodes[0]],
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		pos.Stake(1), p.superFrame.Members[nodes[1]],
+		pos.Stake(1), p.epoch.Members[nodes[1]],
 		"balance of %s", nodes[1].String())
 
 	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
@@ -34,7 +34,7 @@ func TestPosetTxn(t *testing.T) {
 		return stateHash, members
 	}
 
-	_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen-1), 3, nil, inter.ForEachEvent{
+	_ = inter.ForEachRandEvent(nodes, int(EpochLen-1), 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			x.SetEvent(e)
 			assert.NoError(t, p.ProcessEvent(e))
@@ -48,7 +48,7 @@ func TestPosetTxn(t *testing.T) {
 
 	assert.Equal(t, p.PrevEpoch.Hash(), s.GetGenesis().PrevEpoch.Hash())
 
-	assert.Equal(t, idx.SuperFrame(0), p.PrevEpoch.Epoch)
+	assert.Equal(t, idx.Epoch(0), p.PrevEpoch.Epoch)
 	assert.Equal(t, genesisTestTime, p.PrevEpoch.Time)
 
 	assert.Equal(t, pos.Stake(5), p.Members.TotalStake())
@@ -65,7 +65,7 @@ func TestPosetTxn(t *testing.T) {
 	// force Epoch commit
 	p.nextEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"))
 
-	assert.Equal(t, idx.SuperFrame(1), p.PrevEpoch.Epoch)
+	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
 	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastFiWitness)
 	assert.NotEqual(t, genesisTestTime, p.PrevEpoch.Time)
 
@@ -81,6 +81,6 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, pos.Stake(2), p.NextMembers[nodes[1]])
 
 	st := s.GetCheckpoint()
-	ep := s.GetSuperFrame()
-	t.Logf("poset: SFrame %d, Block %d", ep.SuperFrameN, st.LastBlockN)
+	ep := s.GetEpoch()
+	t.Logf("poset: SFrame %d, Block %d", ep.EpochN, st.LastBlockN)
 }

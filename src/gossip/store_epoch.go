@@ -16,7 +16,7 @@ type (
 )
 
 // getEpochStore is not safe for concurrent use.
-func (s *Store) getEpochStore(epoch idx.SuperFrame) *epochStore {
+func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
 	tables := s.getTmpDb("epoch", uint64(epoch), func(db kvdb.Database) interface{} {
 		es := &epochStore{}
 		kvdb.MigrateTables(es, db)
@@ -30,11 +30,11 @@ func (s *Store) getEpochStore(epoch idx.SuperFrame) *epochStore {
 }
 
 // delEpochStore is not safe for concurrent use.
-func (s *Store) delEpochStore(epoch idx.SuperFrame) {
+func (s *Store) delEpochStore(epoch idx.Epoch) {
 	s.delTmpDb("epoch", uint64(epoch))
 }
 
-func (s *Store) SetLastEvent(epoch idx.SuperFrame, from hash.Peer, id hash.Event) {
+func (s *Store) SetLastEvent(epoch idx.Epoch, from hash.Peer, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -46,7 +46,7 @@ func (s *Store) SetLastEvent(epoch idx.SuperFrame, from hash.Peer, id hash.Event
 	}
 }
 
-func (s *Store) GetLastEvent(epoch idx.SuperFrame, from hash.Peer) *hash.Event {
+func (s *Store) GetLastEvent(epoch idx.Epoch, from hash.Peer) *hash.Event {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil
@@ -65,7 +65,7 @@ func (s *Store) GetLastEvent(epoch idx.SuperFrame, from hash.Peer) *hash.Event {
 }
 
 // SetEventHeader returns stored event header.
-func (s *Store) SetEventHeader(epoch idx.SuperFrame, h hash.Event, e *inter.EventHeaderData) {
+func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHeaderData) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -77,7 +77,7 @@ func (s *Store) SetEventHeader(epoch idx.SuperFrame, h hash.Event, e *inter.Even
 }
 
 // GetEventHeader returns stored event header.
-func (s *Store) GetEventHeader(epoch idx.SuperFrame, h hash.Event) *inter.EventHeaderData {
+func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeaderData {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil
@@ -90,7 +90,7 @@ func (s *Store) GetEventHeader(epoch idx.SuperFrame, h hash.Event) *inter.EventH
 }
 
 // DelEventHeader removes stored event header.
-func (s *Store) DelEventHeader(epoch idx.SuperFrame, h hash.Event) {
+func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return

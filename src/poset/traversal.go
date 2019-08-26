@@ -18,7 +18,7 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res []*inter
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
 		walk := *pwalk
 
-		event := p.input.GetEventHeader(p.SuperFrameN, walk)
+		event := p.input.GetEventHeader(p.EpochN, walk)
 		if event == nil {
 			return nil, errors.New("event wasn't found " + walk.String())
 		}

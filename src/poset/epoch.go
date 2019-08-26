@@ -14,16 +14,16 @@ import (
 )
 
 const (
-	// SuperFrameLen is a count of FW per super-frame.
-	SuperFrameLen idx.Frame = 100
+	// EpochLen is a count of FW per super-frame.
+	EpochLen idx.Frame = 100
 
 	firstFrame = idx.Frame(1)
-	firstEpoch = idx.SuperFrame(1)
+	firstEpoch = idx.Epoch(1)
 )
 
 // state of previous Epoch
 type GenesisState struct {
-	Epoch         idx.SuperFrame
+	Epoch         idx.Epoch
 	Time          inter.Timestamp // consensus time of the last fiWitness
 	LastFiWitness hash.Event
 	StateHash     hash.Hash // hash of txs state
@@ -41,22 +41,22 @@ func (g *GenesisState) EpochName() string {
 	return fmt.Sprintf("epoch%d", g.Epoch)
 }
 
-type superFrame struct {
+type epoch struct {
 	// stored values
 	// these values change only after a change of epoch
-	SuperFrameN idx.SuperFrame
-	PrevEpoch   GenesisState
-	Members     pos.Members
+	EpochN    idx.Epoch
+	PrevEpoch GenesisState
+	Members   pos.Members
 }
 
-func (p *Poset) loadSuperFrame() {
-	p.superFrame = *p.store.GetSuperFrame()
+func (p *Poset) loadEpoch() {
+	p.epoch = *p.store.GetEpoch()
 }
 
 func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	// new PrevEpoch state
 	p.PrevEpoch.Time = p.LastConsensusTime
-	p.PrevEpoch.Epoch = p.SuperFrameN
+	p.PrevEpoch.Epoch = p.EpochN
 	p.PrevEpoch.LastFiWitness = fiWitness
 	p.PrevEpoch.StateHash = p.checkpoint.StateHash
 
@@ -73,19 +73,19 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.LastDecidedFrame = 0
 
 	// move to new epoch
-	p.SuperFrameN++
+	p.EpochN++
 
 	// commit
-	p.store.SetSuperFrame(&p.superFrame)
+	p.store.SetEpoch(&p.epoch)
 	p.saveCheckpoint()
 }
 
-// CurrentSuperFrameN returns current super-frame num to 3rd party.
-func (p *Poset) CurrentSuperFrameN() idx.SuperFrame {
-	return idx.SuperFrame(atomic.LoadUint32((*uint32)(&p.SuperFrameN)))
+// CurrentEpochN returns current super-frame num to 3rd party.
+func (p *Poset) CurrentEpochN() idx.Epoch {
+	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
 }
 
-// SuperFrameMembers returns members of current super-frame.
+// EpochMembers returns members of current super-frame.
 func (p *Poset) GetMembers() pos.Members {
 	return p.Members.Copy()
 }

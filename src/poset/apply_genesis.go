@@ -36,7 +36,7 @@ func (s *Store) ApplyGenesis(g *lachesis.Genesis) error {
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	sf := &superFrame{}
+	sf := &epoch{}
 	cp := &checkpoint{}
 
 	sf.Members = make(pos.Members, len(g.Balances))
@@ -56,8 +56,8 @@ func (s *Store) ApplyGenesis(g *lachesis.Genesis) error {
 	dummyFiWitness.Lamport = 1
 
 	// genesis object
-	sf.SuperFrameN = firstEpoch
-	sf.PrevEpoch.Epoch = sf.SuperFrameN - 1
+	sf.EpochN = firstEpoch
+	sf.PrevEpoch.Epoch = sf.EpochN - 1
 	sf.PrevEpoch.StateHash = cp.StateHash
 	sf.PrevEpoch.LastFiWitness = dummyFiWitness.Hash()
 	sf.PrevEpoch.Time = g.Time
@@ -65,7 +65,7 @@ func (s *Store) ApplyGenesis(g *lachesis.Genesis) error {
 	cp.LastFiWitness = dummyFiWitness.Hash()
 
 	s.SetGenesis(sf)
-	s.SetSuperFrame(sf)
+	s.SetEpoch(sf)
 	s.SetCheckpoint(cp)
 
 	return nil

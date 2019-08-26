@@ -40,11 +40,11 @@ func (hook *HookedEngine) Prepare(e *inter.Event) *inter.Event {
 	return hook.engine.Prepare(e)
 }
 
-func (hook *HookedEngine) CurrentSuperFrameN() idx.SuperFrame {
+func (hook *HookedEngine) CurrentEpochN() idx.Epoch {
 	if hook.engine == nil {
 		return 1
 	}
-	return hook.engine.CurrentSuperFrameN()
+	return hook.engine.CurrentEpochN()
 }
 
 func (hook *HookedEngine) LastBlock() (idx.Block, hash.Event) {

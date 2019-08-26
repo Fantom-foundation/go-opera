@@ -20,7 +20,7 @@ type Poset struct {
 	store *Store
 	input EventSource
 	*checkpoint
-	superFrame
+	epoch
 
 	election *election.Election
 	seeVec   *vector.Index
@@ -54,8 +54,8 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
-	if e.Epoch != p.SuperFrameN {
-		p.Infof("consensus: %s is too old/too new, %d != %d", e.String(), e.Epoch, p.SuperFrameN)
+	if e.Epoch != p.EpochN {
+		p.Infof("consensus: %s is too old/too new, %d != %d", e.String(), e.Epoch, p.EpochN)
 		return nil
 	}
 	if _, ok := p.Members[e.Creator]; !ok {
@@ -120,7 +120,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 
 		// if we’re here, then this root has seen that lowest not decided frame is decided now
 		p.onFrameDecided(decided.Frame, decided.SfWitness)
-		if p.superFrameSealed(decided.SfWitness) {
+		if p.epochSealed(decided.SfWitness) {
 			return
 		}
 	}
@@ -134,7 +134,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 
 		p.onFrameDecided(decided.Frame, decided.SfWitness)
-		if p.superFrameSealed(decided.SfWitness) {
+		if p.epochSealed(decided.SfWitness) {
 			return
 		}
 	}
@@ -181,7 +181,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // Event order matter: parents first.
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) error {
-	if e.Epoch != p.SuperFrameN {
+	if e.Epoch != p.EpochN {
 		return ErrOutdatedEvent
 	}
 	p.Debugf("consensus: start %s", e.String())
@@ -196,7 +196,7 @@ func (p *Poset) ProcessEvent(e *inter.Event) error {
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
-// It includes: moving current decided frame, txs ordering and execution, superframe sealing.
+// It includes: moving current decided frame, txs ordering and execution, epoch sealing.
 func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.election.Reset(p.Members, frame+1)
 	p.LastDecidedFrame = frame
@@ -231,8 +231,8 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.saveCheckpoint()
 }
 
-func (p *Poset) superFrameSealed(fiWitness hash.Event) bool {
-	if p.LastDecidedFrame < SuperFrameLen {
+func (p *Poset) epochSealed(fiWitness hash.Event) bool {
+	if p.LastDecidedFrame < EpochLen {
 		return false
 	}
 
@@ -267,7 +267,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		selfParentFrame := idx.Frame(0)
 
 		for _, parent := range e.Parents {
-			pFrame := p.GetEventHeader(p.SuperFrameN, parent).Frame
+			pFrame := p.GetEventHeader(p.EpochN, parent).Frame
 			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
 				maxParentsFrame = pFrame
 			}

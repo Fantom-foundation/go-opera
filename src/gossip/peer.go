@@ -47,9 +47,9 @@ const (
 // PeerInfo represents a short summary of the sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version     int            `json:"version"` // protocol version negotiated
-	Epoch       idx.SuperFrame `json:"epoch"`
-	NumOfBlocks idx.Block      `json:"blocks"`
+	Version     int       `json:"version"` // protocol version negotiated
+	Epoch       idx.Epoch `json:"epoch"`
+	NumOfBlocks idx.Block `json:"blocks"`
 }
 
 type peer struct {
@@ -73,7 +73,7 @@ type peer struct {
 	progress PeerProgress
 }
 
-func (p *PeerProgress) InterestedIn(eventEpoch idx.SuperFrame) bool {
+func (p *PeerProgress) InterestedIn(eventEpoch idx.Epoch) bool {
 	if p.Epoch == 0 || eventEpoch == 0 {
 		return false
 	}
@@ -320,14 +320,14 @@ func (p *peer) RequestEvents(ids hash.Events) error {
 	return nil
 }
 
-func (p *peer) RequestPackInfos(epoch idx.SuperFrame, indexes []idx.Pack) error {
+func (p *peer) RequestPackInfos(epoch idx.Epoch, indexes []idx.Pack) error {
 	return p2p.Send(p.rw, GetPackInfosMsg, getPackInfosData{
 		Epoch:   epoch,
 		Indexes: indexes,
 	})
 }
 
-func (p *peer) RequestPack(epoch idx.SuperFrame, index idx.Pack) error {
+func (p *peer) RequestPack(epoch idx.Epoch, index idx.Pack) error {
 	return p2p.Send(p.rw, GetPackMsg, getPackData{
 		Epoch: epoch,
 		Index: index,
