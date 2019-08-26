@@ -297,7 +297,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Fantom protocol")
 
-	pm.txsSub.Unsubscribe()           // quits txBroadcastLoop
+	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 	if pm.notifier != nil {
 		pm.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
 		pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
