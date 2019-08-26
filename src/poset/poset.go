@@ -209,12 +209,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
 	// block generation
-	p.checkpoint.LastFiWitness = sfWitness
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered)
+		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastFiWitness)
 		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
 	}
+	p.checkpoint.LastFiWitness = sfWitness
 	p.NextMembers = p.NextMembers.Top()
 
 	p.saveCheckpoint()

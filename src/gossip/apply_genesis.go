@@ -28,7 +28,7 @@ func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Ev
 
 	evmBlock, err := evm_core.ApplyGenesis(s.table.Evm, genesis, genesisHashFn)
 
-	block := inter.NewBlock(0, genesis.Time, hash.Events{hash.Event(evmBlock.Hash)})
+	block := inter.NewBlock(0, genesis.Time, hash.Events{hash.Event(evmBlock.Hash)}, hash.Event{})
 	block.Root = evmBlock.Root
 	block.Creator = evmBlock.Coinbase
 	s.SetBlock(block)

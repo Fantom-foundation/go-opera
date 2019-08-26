@@ -30,10 +30,11 @@ func (b *Block) Hash() hash.Event {
 }
 
 // NewBlock makes block from topological ordered events.
-func NewBlock(index idx.Block, time Timestamp, events hash.Events) *Block {
+func NewBlock(index idx.Block, time Timestamp, events hash.Events, prevHash hash.Event) *Block {
 	return &Block{
-		Index:  index,
-		Time:   time,
-		Events: events,
+		Index:    index,
+		Time:     time,
+		Events:   events,
+		PrevHash: prevHash,
 	}
 }
