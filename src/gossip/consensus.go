@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -13,7 +15,7 @@ type Consensus interface {
 	// PushEvent takes event for processing.
 	ProcessEvent(e *inter.Event) error
 	// GetGenesisHash returns hash of genesis poset works with.
-	GetGenesisHash() hash.Hash
+	GetGenesisHash() common.Hash
 	// GetVectorIndex returns internal vector clock if exists
 	GetVectorIndex() *vector.Index
 	// Sets consensus fields. Returns nil if event should be dropped.

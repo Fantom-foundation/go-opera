@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
@@ -13,10 +15,10 @@ import (
 func GenNodes(
 	nodeCount int,
 ) (
-	nodes []hash.Peer,
+	nodes []common.Address,
 ) {
 	// init results
-	nodes = make([]hash.Peer, nodeCount)
+	nodes = make([]common.Address, nodeCount)
 	// make and name nodes
 	for i := 0; i < nodeCount; i++ {
 		addr := hash.FakePeer()
@@ -31,15 +33,15 @@ func GenNodes(
 // Result:
 //   - events maps node address to array of its events;
 func ForEachRandFork(
-	nodes []hash.Peer,
-	cheatersArr []hash.Peer,
+	nodes []common.Address,
+	cheatersArr []common.Address,
 	eventCount int,
 	parentCount int,
 	forksCount int,
 	r *rand.Rand,
 	callback ForEachEvent,
 ) (
-	events map[hash.Peer][]*Event,
+	events map[common.Address][]*Event,
 ) {
 	if r == nil {
 		// fixed seed
@@ -47,8 +49,8 @@ func ForEachRandFork(
 	}
 	// init results
 	nodeCount := len(nodes)
-	events = make(map[hash.Peer][]*Event, nodeCount)
-	cheaters := map[hash.Peer]int{}
+	events = make(map[common.Address][]*Event, nodeCount)
+	cheaters := map[common.Address]int{}
 	for _, cheater := range cheatersArr {
 		cheaters[cheater] = 0
 	}
@@ -138,29 +140,29 @@ func ForEachRandFork(
 // Result:
 //   - events maps node address to array of its events;
 func ForEachRandEvent(
-	nodes []hash.Peer,
+	nodes []common.Address,
 	eventCount int,
 	parentCount int,
 	r *rand.Rand,
 	callback ForEachEvent,
 ) (
-	events map[hash.Peer][]*Event,
+	events map[common.Address][]*Event,
 ) {
-	return ForEachRandFork(nodes, []hash.Peer{}, eventCount, parentCount, 0, r, callback)
+	return ForEachRandFork(nodes, []common.Address{}, eventCount, parentCount, 0, r, callback)
 }
 
 func GenRandEvents(
-	nodes []hash.Peer,
+	nodes []common.Address,
 	eventCount int,
 	parentCount int,
 	r *rand.Rand,
 ) (
-	events map[hash.Peer][]*Event,
+	events map[common.Address][]*Event,
 ) {
 	return ForEachRandEvent(nodes, eventCount, parentCount, r, ForEachEvent{})
 }
 
-func delPeerIndex(events map[hash.Peer][]*Event) (res Events) {
+func delPeerIndex(events map[common.Address][]*Event) (res Events) {
 	for _, ee := range events {
 		res = append(res, ee...)
 	}

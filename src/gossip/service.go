@@ -1,23 +1,23 @@
 package gossip
 
 import (
+	"crypto/ecdsa"
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/ethereum/go-ethereum/params"
 	"math/rand"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -59,8 +59,8 @@ type Service struct {
 	serverPool *serverPool
 
 	// my identity
-	me         hash.Peer
-	privateKey *crypto.PrivateKey
+	me         common.Address
+	privateKey *ecdsa.PrivateKey
 
 	// application
 	store    *Store
@@ -191,7 +191,7 @@ func (s *Service) APIs() []rpc.API {
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start(srv *p2p.Server) error {
 
-	var genesis hash.Hash
+	var genesis common.Hash
 	genesis = s.engine.GetGenesisHash()
 	s.Topics = []discv5.Topic{
 		discv5.Topic("lachesis@" + genesis.Hex()),
@@ -208,8 +208,8 @@ func (s *Service) Start(srv *p2p.Server) error {
 			}()
 		}
 	}
-	s.privateKey = (*crypto.PrivateKey)(srv.PrivateKey)
-	s.me = cryptoaddr.AddressOf(s.privateKey.Public())
+	s.privateKey = srv.PrivateKey
+	s.me = crypto.PubkeyToAddress(s.privateKey.PublicKey)
 
 	s.pm.Start(srv.MaxPeers)
 

@@ -40,7 +40,7 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	network, _, keys := lachesis.FakeNetConfig(count)
+	network := lachesis.FakeNetConfig(count)
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
@@ -64,8 +64,9 @@ func testSim(t *testing.T, connect topology) {
 
 	// create and start nodes
 	nodes := make([]enode.ID, count)
+	addrs := network.Genesis.Alloc.Addresses()
 	for i := 0; i < count; i++ {
-		key := keys[i]
+		key := network.Genesis.Alloc[addrs[i]].PrivateKey
 		id := enode.PubkeyToIDV4(&key.PublicKey)
 		config := &adapters.NodeConfig{
 			ID:         id,

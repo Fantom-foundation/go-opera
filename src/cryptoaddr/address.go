@@ -2,13 +2,13 @@ package cryptoaddr
 
 import (
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // AddressOf calculates hash of the PublicKey.
-func AddressOf(pk *crypto.PublicKey) hash.Peer {
+func AddressOf(pk *crypto.PublicKey) common.Address {
 	bytes := (*btcec.PublicKey)(pk).SerializeUncompressed()
-	return hash.BytesToPeer(crypto.Keccak256(bytes))
+	return common.BytesToAddress(crypto.Keccak256(bytes))
 }

@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -26,9 +28,9 @@ func (hook *HookedEngine) GetVectorIndex() *vector.Index {
 	return hook.engine.GetVectorIndex()
 }
 
-func (hook *HookedEngine) GetGenesisHash() hash.Hash {
+func (hook *HookedEngine) GetGenesisHash() common.Hash {
 	if hook.engine == nil {
-		return hash.Hash{}
+		return common.Hash{}
 	}
 	return hook.engine.GetGenesisHash()
 }

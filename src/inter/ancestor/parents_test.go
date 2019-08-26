@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -13,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
@@ -108,7 +110,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 	}
 
 	heads := hash.EventsSet{}
-	tips := map[hash.Peer]*hash.Event{}
+	tips := map[common.Address]*hash.Event{}
 	// check
 	for stage, ee := range stages {
 		t.Logf("Stage %d:", stage)
@@ -140,9 +142,9 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 			}
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
 			if !assertar.Equal(
-				exp[stage][node.String()],
+				exp[stage][utils.NameOf(node)],
 				parentsToString(parents),
-				"stage %d, %s", stage, node.String(),
+				"stage %d, %s", stage, utils.NameOf(node),
 			) {
 				return
 			}

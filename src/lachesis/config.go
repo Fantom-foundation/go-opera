@@ -1,14 +1,12 @@
 package lachesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
 const (
@@ -74,8 +72,8 @@ func TestNetConfig() Config {
 	}
 }
 
-func FakeNetConfig(n int) (Config, []hash.Peer, []*crypto.PrivateKey) {
-	g, nodes, keys := genesis.FakeGenesis(n)
+func FakeNetConfig(n int) Config {
+	g := genesis.FakeGenesis(n)
 
 	return Config{
 		Name:      "fake",
@@ -83,5 +81,5 @@ func FakeNetConfig(n int) (Config, []hash.Peer, []*crypto.PrivateKey) {
 		Genesis:   g,
 		Dag:       DagConfig{3},
 		TxPool:    evm_core.DefaultTxPoolConfig,
-	}, nodes, keys
+	}
 }

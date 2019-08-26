@@ -1,14 +1,15 @@
 package gossip
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ancestor"
@@ -24,8 +25,8 @@ type Emitter struct {
 	dag    *lachesis.DagConfig
 	config *EmitterConfig
 
-	myAddr     hash.Peer
-	privateKey *crypto.PrivateKey
+	myAddr     common.Address
+	privateKey *ecdsa.PrivateKey
 	prevEpoch  idx.SuperFrame
 
 	onEmitted func(e *inter.Event)
@@ -36,8 +37,8 @@ type Emitter struct {
 
 func NewEmitter(
 	config *Config,
-	me hash.Peer,
-	privateKey *crypto.PrivateKey,
+	me common.Address,
+	privateKey *ecdsa.PrivateKey,
 	engineMu *sync.RWMutex,
 	store *Store,
 	engine Consensus,

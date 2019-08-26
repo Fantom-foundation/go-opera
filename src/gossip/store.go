@@ -1,15 +1,14 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -73,7 +72,7 @@ func (s *Store) Close() {
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from hash.Hash) *state.StateDB {
+func (s *Store) StateDB(from common.Hash) *state.StateDB {
 	db, err := state.New(common.Hash(from), s.table.EvmState)
 	if err != nil {
 		s.Fatal(err)

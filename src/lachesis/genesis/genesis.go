@@ -1,17 +1,15 @@
 package genesis
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 var (
@@ -33,7 +31,15 @@ type Account struct {
 	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
 	Balance    *big.Int                    `json:"balance" gencodec:"required"`
 	Nonce      uint64                      `json:"nonce,omitempty"`
-	PrivateKey []byte                      `json:"secretKey,omitempty"` // for tests
+	PrivateKey *ecdsa.PrivateKey
+}
+
+func (ga Accounts) Addresses() []common.Address {
+	res := make([]common.Address, 0, len(ga))
+	for addr, _ := range ga {
+		res = append(res, addr)
+	}
+	return res
 }
 
 func (ga *Accounts) UnmarshalJSON(data []byte) error {
@@ -49,20 +55,19 @@ func (ga *Accounts) UnmarshalJSON(data []byte) error {
 }
 
 // FakeGenesis generates fake genesis with n-nodes.
-func FakeGenesis(n int) (Genesis, []hash.Peer, []*crypto.PrivateKey) {
-	balances := make(map[hash.Peer]pos.Stake, n)
-	keys := make([]*crypto.PrivateKey, n)
-	ids := make([]hash.Peer, n)
+func FakeGenesis(n int) Genesis {
+	accounts := make(Accounts, n)
+
 	for i := 0; i < n; i++ {
-		keys[i] = crypto.GenerateFakeKey(i)
-		ids[i] = cryptoaddr.AddressOf(keys[i].Public())
-		balances[ids[i]] = 1000000000
+		key, _ := crypto.GenerateKey()
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		accounts[addr] = Account{Balance: big.NewInt(100000), PrivateKey: key}
 	}
 
 	return Genesis{
-		//Alloc:  balances,
-		Time: genesisTestTime,
-	}, ids, keys
+		Alloc: accounts,
+		Time:  genesisTestTime,
+	}
 }
 
 // MainNet returns builtin genesis keys of mainnet.

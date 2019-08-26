@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -336,7 +336,7 @@ func (p *peer) RequestPack(epoch idx.SuperFrame, index idx.Pack) error {
 
 // Handshake executes the protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis object.
-func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Hash) error {
+func (p *peer) Handshake(network uint64, progress PeerProgress, genesis common.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 	var status ethStatusData // safe to read after two values have been received from errc
@@ -348,7 +348,7 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis hash.Has
 			NetworkId:         network,
 			Genesis:           genesis,
 			DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
-			DummyCurrentBlock: hash.Hash(progress.LastBlock),
+			DummyCurrentBlock: common.Hash(progress.LastBlock),
 		})
 		if err != nil {
 			errc <- err
@@ -378,7 +378,7 @@ func (p *peer) SendProgress(progress PeerProgress) error {
 	return p2p.Send(p.rw, ProgressMsg, progress)
 }
 
-func (p *peer) readStatus(network uint64, status *ethStatusData, genesis hash.Hash) (err error) {
+func (p *peer) readStatus(network uint64, status *ethStatusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err

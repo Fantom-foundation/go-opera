@@ -3,13 +3,15 @@ package poset
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
 // calcFirstGenesisHash calcs hash of genesis balances.
-func calcFirstGenesisHash(g *genesis.Genesis, genesisFiWitness hash.Event, stateHash hash.Hash) hash.Hash {
+func calcFirstGenesisHash(g *genesis.Genesis, genesisFiWitness hash.Event, stateHash common.Hash) common.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
@@ -19,7 +21,7 @@ func calcFirstGenesisHash(g *genesis.Genesis, genesisFiWitness hash.Event, state
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, stateHash hash.Hash) error {
+func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, stateHash common.Hash) error {
 	if g == nil {
 		return fmt.Errorf("config shouldn't be nil")
 	}
@@ -41,13 +43,13 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 	}
 
 	sf.Members = make(pos.Members, len(g.Alloc))
-	/*for addr, account := range g.Alloc {
-		if account == 0 {
+	for addr, account := range g.Alloc {
+		if account.Balance.Sign() <= 0 {
 			return fmt.Errorf("balance shouldn't be zero")
 		}
 
-		sf.Members.Set(addr, account.Balance) TODO
-	}*/
+		sf.Members.Set(addr, pos.Stake(account.Balance.Uint64()))
+	}
 	sf.Members = sf.Members.Top()
 	cp.NextMembers = sf.Members.Copy()
 

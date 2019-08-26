@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -409,12 +410,12 @@ func TestStronglySeenRandom(t *testing.T) {
 
 type eventSlot struct {
 	seq     idx.Event
-	creator hash.Peer
+	creator common.Address
 }
 
 // naive implementation of fork detection, O(n)
-func test_forksSeen(vi *Index, head hash.Event) (cheaters map[hash.Peer]bool, err error) {
-	cheaters = map[hash.Peer]bool{}
+func test_forksSeen(vi *Index, head hash.Event) (cheaters map[common.Address]bool, err error) {
+	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	seen := map[eventSlot]int{}
 	err = vi.dfsSubgraph(head, func(e *event) (godeeper bool) {
@@ -441,7 +442,7 @@ func test_forksSeen(vi *Index, head hash.Event) (cheaters map[hash.Peer]bool, er
 
 func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
-	cheaters := []hash.Peer{nodes[0], nodes[1], nodes[2]}
+	cheaters := []common.Address{nodes[0], nodes[1], nodes[2]}
 
 	members := make(pos.Members, len(nodes))
 	for _, peer := range nodes {

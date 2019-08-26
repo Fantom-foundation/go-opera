@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -297,9 +298,11 @@ func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Fantom protocol")
 
 	pm.txsSub.Unsubscribe()           // quits txBroadcastLoop
-	pm.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
-	pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
-	pm.newEpochsSub.Unsubscribe()     // quits onNewEpochLoop
+	if pm.notifier != nil {
+		pm.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
+		pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
+		pm.newEpochsSub.Unsubscribe()     // quits onNewEpochLoop
+	}
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -734,6 +737,11 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 				}
 				return p.progress.Epoch
 			}
+			for _, peer := range pm.peers.List() {
+				if peer.progress.Epoch == myEpoch {
+					atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
+				}
+			}
 			pm.downloader.OnNewEpoch(myEpoch, peerEpoch)
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
@@ -758,8 +766,8 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 // NodeInfo represents a short summary of the sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network     uint64    `json:"network"` // network ID
-	Genesis     hash.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
+	Network     uint64      `json:"network"` // network ID
+	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
 	Epoch       idx.SuperFrame
 	NumOfEvents idx.Event
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules

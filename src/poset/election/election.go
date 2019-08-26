@@ -1,6 +1,8 @@
 package election
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
@@ -20,7 +22,7 @@ type (
 		totalStake pos.Stake // the sum of stakes (n)
 
 		// election state
-		decidedRoots map[hash.Peer]voteValue // decided roots at "frameToDecide"
+		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"
 		votes        map[voteId]voteValue
 
 		// external world
@@ -32,13 +34,13 @@ type (
 	// RootStronglySeeRootFn returns hash of root B, if root A strongly sees root B.
 	// Due to a fork, there may be many roots B with the same slot,
 	// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-	RootStronglySeeRootFn func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event
+	RootStronglySeeRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
 
 	// Slot specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
 	Slot struct {
 		Frame idx.Frame
-		Addr  hash.Peer
+		Addr  common.Address
 	}
 
 	// RootAndSlot specifies concrete root of slot.
@@ -50,7 +52,7 @@ type (
 
 type voteId struct {
 	fromRoot  hash.Event
-	forMember hash.Peer
+	forMember common.Address
 }
 type voteValue struct {
 	decided  bool
@@ -84,12 +86,12 @@ func (el *Election) Reset(members pos.Members, frameToDecide idx.Frame) {
 	el.members = members
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
-	el.decidedRoots = make(map[hash.Peer]voteValue)
+	el.decidedRoots = make(map[common.Address]voteValue)
 }
 
 // return root slots which are not within el.decidedRoots
-func (el *Election) notDecidedRoots() []hash.Peer {
-	notDecidedRoots := make([]hash.Peer, 0, len(el.members))
+func (el *Election) notDecidedRoots() []common.Address {
+	notDecidedRoots := make([]common.Address, 0, len(el.members))
 
 	for member := range el.members {
 		if _, ok := el.decidedRoots[member]; !ok {

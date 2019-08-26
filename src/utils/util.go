@@ -7,6 +7,11 @@ import (
 	"strconv"
 	"sync/atomic"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 var startBase uint32 = 12000
@@ -111,4 +116,14 @@ func PaddedBigBytes(bigint *big.Int, n int) []byte {
 	ret := make([]byte, n)
 	ReadBits(bigint, ret)
 	return ret
+}
+
+// String returns human readable string representation.
+func NameOf(p common.Address) string {
+	if name := hash.GetNodeName(p); len(name) > 0 {
+		return name
+	}
+
+	h := p.Hash()
+	return hexutil.Encode(h[:3]) + "..."
 }

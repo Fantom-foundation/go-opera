@@ -2,20 +2,23 @@ package poset
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -91,7 +94,7 @@ func benchmarkStore(b *testing.B) {
 		}
 	}
 
-	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+	p.applyBlock = func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
 		if block.Index == 1 {
 			// move stake from node0 to node1
 			members.Set(nodes[0], 0)
@@ -124,16 +127,16 @@ func benchmarkStore(b *testing.B) {
 	flushAll()
 }
 
-func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
-	balances := make(map[hash.Peer]pos.Stake, len(nodes))
+func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset {
+	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = pos.Stake(1)
+		balances[addr] = genesis.Account{Balance: big.NewInt(1)}
 	}
 
 	err := store.ApplyGenesis(&genesis.Genesis{
-		Balances: balances,
-		Time:     genesisTestTime,
-	})
+		Alloc: balances,
+		Time:  genesisTestTime,
+	}, hash.Event{}, common.Hash{})
 	if err != nil {
 		panic(err)
 	}

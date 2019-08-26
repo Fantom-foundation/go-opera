@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -62,19 +63,19 @@ func (p *grpcNodeProxy) Close() {
 	_ = p.conn.Close()
 }
 
-func (p *grpcNodeProxy) GetSelfID() (hash.Peer, error) {
+func (p *grpcNodeProxy) GetSelfID() (common.Address, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
 	resp, err := p.client.SelfID(ctx, &empty.Empty{})
 	if err != nil {
-		return hash.EmptyPeer, unwrapGrpcErr(err)
+		return common.Address{}, unwrapGrpcErr(err)
 	}
 
-	return hash.HexToPeer(resp.Hex), nil
+	return common.HexToAddress(resp.Hex), nil
 }
 
-func (p *grpcNodeProxy) StakeOf(peer hash.Peer) (pos.Stake, error) {
+func (p *grpcNodeProxy) StakeOf(peer common.Address) (pos.Stake, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
@@ -88,7 +89,7 @@ func (p *grpcNodeProxy) StakeOf(peer hash.Peer) (pos.Stake, error) {
 	return pos.Stake(resp.Amount), nil
 }
 
-func (p *grpcNodeProxy) SendTo(receiver hash.Peer, index idx.Txn, amount pos.Stake, until idx.Block) (hash.Transaction, error) {
+func (p *grpcNodeProxy) SendTo(receiver common.Address, index idx.Txn, amount pos.Stake, until idx.Block) (hash.Transaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 

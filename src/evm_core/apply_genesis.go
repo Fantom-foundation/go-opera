@@ -27,23 +27,23 @@ func (e *GenesisMismatchError) Error() string {
 
 // ApplyGenesis writes or updates the genesis block in db.
 // Returns genesis FiWitness hash, StateHash
-func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn func(*EvmHeader) common.Hash) (common.Hash, common.Hash, error) {
+func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn func(*EvmHeader) common.Hash) (*EvmBlock, error) {
 	if genesis == nil {
-		return common.Hash{}, common.Hash{}, ErrNoGenesis
+		return nil, ErrNoGenesis
 	}
 	b := genesisToBlock(nil, genesis, genesisHashFn)
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		// Just commit the new block if there is no stored genesis block.
 		log.Info("Writing genesis state")
-		block, err := genesisWrite(db, genesis, genesisHashFn)
+		_, err := genesisWrite(db, genesis, genesisHashFn)
 		if err != nil {
-			return block.Hash, block.Root, err
+			return b, err
 		}
-		return block.Hash, block.Root, nil
+		return b, nil
 	} else if b.Hash != stored {
 		// Check whether the genesis block is already written.
-		return b.Hash, b.Root, &GenesisMismatchError{stored, b.Hash}
+		return b, &GenesisMismatchError{stored, b.Hash}
 	}
 
 	// We have the genesis block in database(perhaps in ancient database)
@@ -52,11 +52,11 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn fun
 	if _, err := state.New(header.Root, state.NewDatabaseWithCache(db, 0)); err != nil {
 		_, err := genesisWrite(db, genesis, genesisHashFn)
 		if err != nil {
-			return b.Hash, b.Root, err
+			return b, err
 		}
-		return b.Hash, b.Root, nil
+		return b, nil
 	}
-	return b.Hash, b.Root, nil
+	return b, nil
 }
 
 // genesisToBlock creates the genesis block and writes state of a genesis specification

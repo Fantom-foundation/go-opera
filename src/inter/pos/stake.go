@@ -1,7 +1,7 @@
 package pos
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type (
@@ -16,7 +16,7 @@ type (
 	// StakeCounter counts stakes.
 	StakeCounter struct {
 		members Members
-		already map[hash.Peer]struct{}
+		already map[common.Address]struct{}
 
 		quorum Stake
 		sum    Stake
@@ -32,13 +32,13 @@ func newStakeCounter(mm Members) *StakeCounter {
 	return &StakeCounter{
 		members: mm,
 		quorum:  mm.Quorum(),
-		already: make(map[hash.Peer]struct{}),
+		already: make(map[common.Address]struct{}),
 		sum:     0,
 	}
 }
 
 // Count member and return true if it hadn't counted before.
-func (s *StakeCounter) Count(node hash.Peer) bool {
+func (s *StakeCounter) Count(node common.Address) bool {
 	if _, ok := s.already[node]; ok {
 		return false
 	}

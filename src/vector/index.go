@@ -1,7 +1,8 @@
 package vector
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
@@ -13,7 +14,7 @@ import (
 // Index is a data to detect strongly-see condition, calculate median timestamp, detect forks.
 type Index struct {
 	members    pos.Members
-	memberIdxs map[hash.Peer]idx.Member
+	memberIdxs map[common.Address]idx.Member
 	eventsDb   kvdb.FlushableKeyValueStore
 
 	logger.Instance

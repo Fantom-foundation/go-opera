@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -90,7 +91,7 @@ func (p *grpcCtrlProxy) SelfID(_ context.Context, _ *empty.Empty) (*internal.ID,
 
 // StakeOf returns stake balance of peer.
 func (p *grpcCtrlProxy) StakeOf(_ context.Context, req *internal.ID) (*internal.Balance, error) {
-	id := hash.HexToPeer(req.Hex)
+	id := common.HexToAddress(req.Hex)
 	b := internal.Balance{
 		Amount: uint64(p.consensus.StakeOf(id)),
 	}
@@ -131,7 +132,7 @@ func (p *grpcCtrlProxy) SendTo(_ context.Context, req *internal.TransferRequest)
 	tx := inter.InternalTransaction{
 		Nonce:      idx.Txn(req.Nonce),
 		Amount:     pos.Stake(req.Amount),
-		Receiver:   hash.HexToPeer(req.Receiver.Hex),
+		Receiver:   common.HexToAddress(req.Receiver.Hex),
 		UntilBlock: idx.Block(req.Until),
 	}
 

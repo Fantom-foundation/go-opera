@@ -3,12 +3,12 @@ package pos
 import (
 	"bytes"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type (
 	member struct {
-		Addr  hash.Peer
+		Addr  common.Address
 		Stake Stake
 	}
 

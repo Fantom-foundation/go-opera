@@ -10,6 +10,7 @@ import (
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
 	pos "github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -120,10 +121,10 @@ func (mr *MockNodeMockRecorder) AddInternalTxn(arg0 interface{}) *gomock.Call {
 }
 
 // GetID mocks base method
-func (m *MockNode) GetID() hash.Peer {
+func (m *MockNode) GetID() common.Address {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetID")
-	ret0, _ := ret[0].(hash.Peer)
+	ret0, _ := ret[0].(common.Address)
 	return ret0
 }
 
@@ -186,7 +187,7 @@ func (mr *MockConsensusMockRecorder) GetEventBlock(arg0 interface{}) *gomock.Cal
 }
 
 // StakeOf mocks base method
-func (m *MockConsensus) StakeOf(arg0 hash.Peer) pos.Stake {
+func (m *MockConsensus) StakeOf(arg0 common.Address) pos.Stake {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StakeOf", arg0)
 	ret0, _ := ret[0].(pos.Stake)

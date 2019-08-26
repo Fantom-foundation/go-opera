@@ -7,6 +7,9 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/Fantom-foundation/go-lachesis/src/common/hexutil"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
@@ -14,7 +17,7 @@ import (
 type (
 	// Event is a unique identifier of event.
 	// It is a hash of Event.
-	Event Hash
+	Event common.Hash
 
 	// OrderedEvents is a sortable slice of event hash.
 	OrderedEvents []Event
@@ -39,18 +42,18 @@ var (
 
 // Bytes returns value as byte slice.
 func (h Event) Bytes() []byte {
-	return (Hash)(h).Bytes()
+	return (common.Hash)(h).Bytes()
 }
 
 // Big converts a hash to a big integer.
 func (h *Event) Big() *big.Int {
-	return (*Hash)(h).Big()
+	return (*common.Hash)(h).Big()
 }
 
 // SetBytes converts bytes to event hash.
 // If b is larger than len(h), b will be cropped from the left.
 func (h *Event) SetBytes(raw []byte) {
-	(*Hash)(h).SetBytes(raw)
+	(*common.Hash)(h).SetBytes(raw)
 }
 
 // BytesToEvent converts bytes to event hash.
@@ -59,15 +62,23 @@ func BytesToEvent(b []byte) Event {
 	return Event(FromBytes(b))
 }
 
+// FromBytes converts bytes to hash.
+// If b is larger than len(h), b will be cropped from the left.
+func FromBytes(b []byte) common.Hash {
+	var h common.Hash
+	h.SetBytes(b)
+	return h
+}
+
 // HexToEventHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
 func HexToEventHash(s string) Event {
-	return Event(HexToHash(s))
+	return Event(common.HexToHash(s))
 }
 
 // Hex converts an event hash to a hex string.
 func (h Event) Hex() string {
-	return Hash(h).Hex()
+	return common.Hash(h).Hex()
 }
 
 // Lamport returns [4:9] bytes, which store event's Lamport.
@@ -279,6 +290,18 @@ func (hh OrderedEvents) Less(i, j int) bool {
 	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
 }
 
+func Of(data ...[]byte) (hash common.Hash) {
+	d := sha3.NewLegacyKeccak256()
+	for _, b := range data {
+		_, err := d.Write(b)
+		if err != nil {
+			panic(err)
+		}
+	}
+	d.Sum(hash[:0])
+	return hash
+}
+
 /*
  * Utils:
  */
@@ -299,4 +322,9 @@ func FakeEvents(n int) Events {
 		res.Add(FakeEvent())
 	}
 	return res
+}
+
+// FakePeer generates random fake peer id for testing purpose.
+func FakePeer(seed ...int64) common.Address {
+	return common.Address(common.BytesToAddress(FakeHash(seed...).Bytes()))
 }

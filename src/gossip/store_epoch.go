@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -35,7 +37,7 @@ func (s *Store) delEpochStore(epoch idx.SuperFrame) {
 	s.delTmpDb("epoch", uint64(epoch))
 }
 
-func (s *Store) SetLastEvent(epoch idx.SuperFrame, from hash.Peer, id hash.Event) {
+func (s *Store) SetLastEvent(epoch idx.SuperFrame, from common.Address, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -47,7 +49,7 @@ func (s *Store) SetLastEvent(epoch idx.SuperFrame, from hash.Peer, id hash.Event
 	}
 }
 
-func (s *Store) GetLastEvent(epoch idx.SuperFrame, from hash.Peer) *hash.Event {
+func (s *Store) GetLastEvent(epoch idx.SuperFrame, from common.Address) *hash.Event {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil

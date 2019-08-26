@@ -37,7 +37,7 @@ func (r *EvmStateReader) GetBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
 
 func (r *EvmStateReader) getBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
 	block := r.store.GetBlock(idx.Block(n))
-	if block.Hash() != hash.Event(h) {
+	if block == nil || block.Hash() != hash.Event(h) {
 		return nil
 	}
 
@@ -46,18 +46,22 @@ func (r *EvmStateReader) getBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
 		EvmHeader:    *evm_header,
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
-	for _, id := range block.Events {
-		e := r.store.GetEvent(id)
-		if e == nil {
-			log.Fatal("Event wasn't found", "e", id.String())
-		}
+	if n != 0 {
+		for _, id := range block.Events {
+			e := r.store.GetEvent(id)
+			if e == nil {
+				log.Fatal("Event wasn't found ", "e=", id.String())
+			}
 
-		evm_block.Transactions = append(evm_block.Transactions, e.Transactions...)
+			evm_block.Transactions = append(evm_block.Transactions, e.Transactions...)
+		}
+	} else {
+		evm_block.Transactions = make(types.Transactions, 0) // genesis block
 	}
 	return evm_block
 
 }
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
-	return r.store.StateDB(hash.Hash(root)), nil
+	return r.store.StateDB(root), nil
 }

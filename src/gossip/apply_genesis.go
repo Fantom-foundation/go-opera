@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
-func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Event, genesisEvmState hash.Hash, err error) {
+func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Event, genesisEvmState common.Hash, err error) {
 	genesisHashFn := func(header *evm_core.EvmHeader) common.Hash {
 		dummyFiWitness := inter.NewEvent()
 		// for nice-looking ID
@@ -20,11 +20,18 @@ func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Ev
 		// actual data hashed
 		dummyFiWitness.Extra = genesis.ExtraData
 		dummyFiWitness.ClaimedTime = header.Time
-		dummyFiWitness.TxHash = hash.Hash(header.Root)
+		dummyFiWitness.TxHash = header.Root
 		//dummyFiWitness.Creator = header.Coinbase TODO
+
 		return common.Hash(dummyFiWitness.Hash())
 	}
 
-	genesisHash, rootHash, err := evm_core.ApplyGenesis(s.table.Evm, genesis, genesisHashFn)
-	return hash.Event(genesisHash), hash.Hash(rootHash), err
+	evmBlock, err := evm_core.ApplyGenesis(s.table.Evm, genesis, genesisHashFn)
+
+	block := inter.NewBlock(0, genesis.Time, hash.Events{hash.Event(evmBlock.Hash)})
+	block.Root = evmBlock.Root
+	block.Creator = evmBlock.Coinbase
+	s.SetBlock(block)
+
+	return block.Hash(), block.Root, err
 }

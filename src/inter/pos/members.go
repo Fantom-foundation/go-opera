@@ -4,9 +4,9 @@ import (
 	"io"
 	"sort"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
@@ -15,11 +15,11 @@ const MembersCount = 30
 
 type (
 	// Members of super-frame with stake.
-	Members map[hash.Peer]Stake
+	Members map[common.Address]Stake
 )
 
 // Set appends item.
-func (mm *Members) Set(addr hash.Peer, stake Stake) {
+func (mm *Members) Set(addr common.Address, stake Stake) {
 	if stake != 0 {
 		(*mm)[addr] = stake
 	} else {
@@ -65,8 +65,8 @@ func (mm Members) Copy() Members {
 }
 
 // Idxs gets deterministic total order of members.
-func (mm Members) Idxs() map[hash.Peer]idx.Member {
-	idxs := make(map[hash.Peer]idx.Member, len(mm))
+func (mm Members) Idxs() map[common.Address]idx.Member {
+	idxs := make(map[common.Address]idx.Member, len(mm))
 	for i, m := range mm.sortedArray() {
 		idxs[m.Addr] = idx.Member(i)
 	}
@@ -87,7 +87,7 @@ func (mm Members) TotalStake() (sum Stake) {
 }
 
 // StakeOf member.
-func (mm Members) StakeOf(n hash.Peer) Stake {
+func (mm Members) StakeOf(n common.Address) Stake {
 	return mm[n]
 }
 

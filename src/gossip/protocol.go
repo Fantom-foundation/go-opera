@@ -102,8 +102,8 @@ type ethStatusData struct {
 	ProtocolVersion   uint32
 	NetworkId         uint64
 	DummyTD           *big.Int
-	DummyCurrentBlock hash.Hash
-	Genesis           hash.Hash
+	DummyCurrentBlock common.Hash
+	Genesis           common.Hash
 }
 
 type PeerProgress struct {

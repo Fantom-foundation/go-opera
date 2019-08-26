@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
@@ -24,11 +26,11 @@ func ASCIIschemeForEach(
 	scheme string,
 	callback ForEachEvent,
 ) (
-	nodes []hash.Peer,
-	events map[hash.Peer][]*Event,
+	nodes []common.Address,
+	events map[common.Address][]*Event,
 	names map[string]*Event,
 ) {
-	events = make(map[hash.Peer][]*Event)
+	events = make(map[common.Address][]*Event)
 	names = make(map[string]*Event)
 	var (
 		prevFarRefs map[int]int
@@ -119,7 +121,7 @@ func ASCIIschemeForEach(
 		for i, name := range nNames {
 			// make node if don't exist
 			if len(nodes) <= nCreators[i] {
-				addr := hash.Peer(hash.Of([]byte(name)))
+				addr := common.BytesToAddress(hash.Of([]byte(name)).Bytes())
 				nodes = append(nodes, addr)
 				events[addr] = nil
 			}
@@ -206,8 +208,8 @@ func ASCIIschemeForEach(
 func ASCIIschemeToDAG(
 	scheme string,
 ) (
-	nodes []hash.Peer,
-	events map[hash.Peer][]*Event,
+	nodes []common.Address,
+	events map[common.Address][]*Event,
 	names map[string]*Event,
 ) {
 	return ASCIIschemeForEach(scheme, ForEachEvent{})
@@ -221,13 +223,13 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		scheme rows
 
 		processed = make(map[hash.Event]*Event)
-		peerCols  = make(map[hash.Peer]int)
+		peerCols  = make(map[common.Address]int)
 		ok        bool
 
-		eventIndex       = make(map[hash.Peer]map[hash.Event]int)
-		creatorLastIndex = make(map[hash.Peer]int)
+		eventIndex       = make(map[common.Address]map[hash.Event]int)
+		creatorLastIndex = make(map[common.Address]int)
 
-		seqCount = make(map[hash.Peer]map[idx.Event]int)
+		seqCount = make(map[common.Address]map[idx.Event]int)
 	)
 	for _, e := range events {
 		// if count of unique seq > 1 -> fork

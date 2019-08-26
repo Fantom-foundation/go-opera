@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -139,7 +140,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 	}
 }
-func (p *Poset) processRoot(f idx.Frame, from hash.Peer, id hash.Event) (decided *election.ElectionRes) {
+func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.ElectionRes) {
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		Root: id,
 		Slot: election.Slot{
@@ -158,7 +159,7 @@ func (p *Poset) processRoot(f idx.Frame, from hash.Peer, id hash.Event) (decided
 func (p *Poset) processKnownRoots() *election.ElectionRes {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
 	var decided *election.ElectionRes
-	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from hash.Peer, root hash.Event) bool {
+	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
 		decided = p.processRoot(f, from, root)
 		return decided == nil
 	})
@@ -257,7 +258,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		sSeenCounter := p.Members.NewCounter()
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
-			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from hash.Peer, root hash.Event) bool {
+			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
 				if p.seeVec.StronglySee(e.Hash(), root) {
 					sSeenCounter.Count(from)
 				}

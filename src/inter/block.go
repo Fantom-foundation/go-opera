@@ -1,13 +1,14 @@
 package inter
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/ethereum/go-ethereum/common"
 )
 
-type ApplyBlockFn func(block *Block, stateHash hash.Hash, members pos.Members) (newStateHash hash.Hash, mewMembers pos.Members)
+type ApplyBlockFn func(block *Block, stateHash common.Hash, members pos.Members) (newStateHash common.Hash, mewMembers pos.Members)
 
 // Block is a "chain" block.
 type Block struct {
@@ -17,7 +18,7 @@ type Block struct {
 
 	PrevHash hash.Event
 
-	Root    hash.Hash
+	Root    common.Hash
 	Creator common.Address
 }
 
