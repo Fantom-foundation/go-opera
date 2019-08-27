@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -139,7 +140,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 	}
 }
-func (p *Poset) processRoot(f idx.Frame, from hash.Peer, id hash.Event) (decided *election.ElectionRes) {
+func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.ElectionRes) {
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		Root: id,
 		Slot: election.Slot{
@@ -157,24 +158,12 @@ func (p *Poset) processRoot(f idx.Frame, from hash.Peer, id hash.Event) (decided
 // This routine should be called after node startup, and after each decided frame.
 func (p *Poset) processKnownRoots() *election.ElectionRes {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
-	var roots []election.RootAndSlot
-	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from hash.Peer, id hash.Event) bool {
-		roots = append(roots, election.RootAndSlot{
-			Root: id,
-			Slot: election.Slot{
-				Frame: f,
-				Addr:  from,
-			},
-		})
-		return true
+	var decided *election.ElectionRes
+	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
+		decided = p.processRoot(f, from, root)
+		return decided == nil
 	})
-	for _, root := range roots {
-		decided := p.processRoot(root.Slot.Frame, root.Slot.Addr, root.Root)
-		if decided != nil {
-			return decided
-		}
-	}
-	return nil
+	return decided
 }
 
 // ProcessEvent takes event into processing.
@@ -220,12 +209,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 
 	// block generation
-	p.checkpoint.LastFiWitness = sfWitness
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered)
+		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastFiWitness)
 		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
 	}
+	p.checkpoint.LastFiWitness = sfWitness
 	p.NextMembers = p.NextMembers.Top()
 
 	p.saveCheckpoint()
@@ -239,18 +228,6 @@ func (p *Poset) superFrameSealed(fiWitness hash.Event) bool {
 	p.nextEpoch(fiWitness)
 
 	return true
-}
-
-func (p *Poset) getFrameRoots(f idx.Frame) EventsByPeer {
-	frameRoots := EventsByPeer{}
-	p.store.ForEachRoot(f, func(f idx.Frame, from hash.Peer, id hash.Event) bool {
-		if f > f {
-			return false
-		}
-		frameRoots.AddOne(id, from)
-		return true
-	})
-	return frameRoots
 }
 
 // calcFrameIdx checks root-conditions for new event
@@ -281,13 +258,12 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		sSeenCounter := p.Members.NewCounter()
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
-			for creator, roots := range p.getFrameRoots(maxParentsFrame) {
-				for root := range roots {
-					if p.seeVec.StronglySee(e.Hash(), root) {
-						sSeenCounter.Count(creator)
-					}
+			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
+				if p.seeVec.StronglySee(e.Hash(), root) {
+					sSeenCounter.Count(from)
 				}
-			}
+				return !sSeenCounter.HasQuorum()
+			})
 		}
 		if sSeenCounter.HasQuorum() {
 			// if I see enough roots, then I become a root too

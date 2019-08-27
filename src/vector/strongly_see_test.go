@@ -7,13 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -73,7 +74,7 @@ func testStronglySeen(t *testing.T, dag string) {
 		members.Set(peer, pos.Stake(1))
 	}
 
-	vi := NewIndex(members, kvdb.NewMemDatabase())
+	vi := NewIndex(members, memorydb.New())
 
 	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
@@ -384,7 +385,7 @@ func TestStronglySeenRandom(t *testing.T) {
 		members.Set(peer, pos.Stake(1))
 	}
 
-	vi := NewIndex(members, kvdb.NewMemDatabase())
+	vi := NewIndex(members, memorydb.New())
 
 	// push
 	for _, e := range ordered {
@@ -409,12 +410,12 @@ func TestStronglySeenRandom(t *testing.T) {
 
 type eventSlot struct {
 	seq     idx.Event
-	creator hash.Peer
+	creator common.Address
 }
 
 // naive implementation of fork detection, O(n)
-func test_forksSeen(vi *Index, head hash.Event) (cheaters map[hash.Peer]bool, err error) {
-	cheaters = map[hash.Peer]bool{}
+func test_forksSeen(vi *Index, head hash.Event) (cheaters map[common.Address]bool, err error) {
+	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	seen := map[eventSlot]int{}
 	err = vi.dfsSubgraph(head, func(e *event) (godeeper bool) {
@@ -441,7 +442,7 @@ func test_forksSeen(vi *Index, head hash.Event) (cheaters map[hash.Peer]bool, er
 
 func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
-	cheaters := []hash.Peer{nodes[0], nodes[1], nodes[2]}
+	cheaters := []common.Address{nodes[0], nodes[1], nodes[2]}
 
 	members := make(pos.Members, len(nodes))
 	for _, peer := range nodes {
@@ -452,7 +453,7 @@ func TestRandomForksSanity(t *testing.T) {
 	members.Set(nodes[3], pos.Stake(2))
 	members.Set(nodes[4], pos.Stake(3))
 
-	vi := NewIndex(members, kvdb.NewMemDatabase())
+	vi := NewIndex(members, memorydb.New())
 
 	processed := make(map[hash.Event]*inter.Event)
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
@@ -564,7 +565,7 @@ func TestRandomForks(t *testing.T) {
 				members.Set(peer, pos.Stake(1))
 			}
 
-			vi := NewIndex(members, kvdb.NewMemDatabase())
+			vi := NewIndex(members, memorydb.New())
 
 			processed := make(map[hash.Event]*inter.Event)
 			_ = inter.ForEachRandFork(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, r, inter.ForEachEvent{
@@ -613,7 +614,7 @@ func codegen4StronglySeenStability() {
 	for _, peer := range peers {
 		members.Set(peer, pos.Stake(1))
 	}
-	vi := NewIndex(members, kvdb.NewMemDatabase())
+	vi := NewIndex(members, memorydb.New())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{

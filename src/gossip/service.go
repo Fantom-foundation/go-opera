@@ -1,22 +1,49 @@
 package gossip
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/cryptoaddr"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
+
+type ServiceFeed struct {
+	newEpoch        event.Feed
+	newPack         event.Feed
+	newEmittedEvent event.Feed
+	newBlockF       event.Feed
+	scope           event.SubscriptionScope
+}
+
+func (f *ServiceFeed) SubscribeNewEpoch(ch chan<- idx.SuperFrame) event.Subscription {
+	return f.scope.Track(f.newEpoch.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) event.Subscription {
+	return f.scope.Track(f.newPack.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evm_core.ChainHeadNotify) event.Subscription {
+	return f.scope.Track(f.newBlockF.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) event.Subscription {
+	return f.scope.Track(f.newEmittedEvent.Subscribe(ch))
+}
 
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
@@ -32,8 +59,8 @@ type Service struct {
 	serverPool *serverPool
 
 	// my identity
-	me         hash.Peer
-	privateKey *crypto.PrivateKey
+	me         common.Address
+	privateKey *ecdsa.PrivateKey
 
 	// application
 	store    *Store
@@ -41,7 +68,7 @@ type Service struct {
 	engineMu *sync.RWMutex
 	emitter  *Emitter
 
-	mux *event.TypeMux
+	feed ServiceFeed
 
 	// application protocol
 	pm *ProtocolManager
@@ -49,7 +76,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensus) (*Service, error) {
+func NewService(config Config, store *Store, engine Consensus) (*Service, error) {
 	svc := &Service{
 		config: config,
 
@@ -60,8 +87,6 @@ func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensu
 		store: store,
 
 		engineMu: new(sync.RWMutex),
-
-		mux: mux,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -78,8 +103,15 @@ func NewService(config Config, mux *event.TypeMux, store *Store, engine Consensu
 
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
+	pool := evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, &EvmStateReader{
+		ServiceFeed: &svc.feed,
+		engineMu:    svc.engineMu,
+		engine:      svc.engine,
+		store:       svc.store,
+	})
+
 	var err error
-	svc.pm, err = NewProtocolManager(&config, svc.mux, &dummyTxPool{}, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(&config, &svc.feed, pool, svc.engineMu, store, engine)
 
 	return svc, err
 }
@@ -118,7 +150,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	if newEpoch != oldEpoch {
 		s.packs_onNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
-		s.mux.Post(newEpoch)
+		s.feed.newEpoch.Send(newEpoch)
 	}
 
 	return nil
@@ -133,7 +165,7 @@ func (s *Service) makeEmitter() *Emitter {
 			s.Fatalf("Self-event connection failed: %s", err.Error())
 		}
 
-		err = s.pm.mux.Post(emitted) // PM listens and will broadcast it
+		s.feed.newEmittedEvent.Send(emitted) // PM listens and will broadcast it
 		if err != nil {
 			s.Fatalf("Failed to post self-event: %s", err.Error())
 		}
@@ -159,7 +191,7 @@ func (s *Service) APIs() []rpc.API {
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start(srv *p2p.Server) error {
 
-	var genesis hash.Hash
+	var genesis common.Hash
 	genesis = s.engine.GetGenesisHash()
 	s.Topics = []discv5.Topic{
 		discv5.Topic("lachesis@" + genesis.Hex()),
@@ -176,8 +208,8 @@ func (s *Service) Start(srv *p2p.Server) error {
 			}()
 		}
 	}
-	s.privateKey = (*crypto.PrivateKey)(srv.PrivateKey)
-	s.me = cryptoaddr.AddressOf(s.privateKey.Public())
+	s.privateKey = srv.PrivateKey
+	s.me = crypto.PubkeyToAddress(s.privateKey.PublicKey)
 
 	s.pm.Start(srv.MaxPeers)
 
@@ -191,5 +223,6 @@ func (s *Service) Stop() error {
 	fmt.Println("Service stopping...")
 	s.pm.Stop()
 	s.wg.Wait()
+	s.feed.scope.Close()
 	return nil
 }

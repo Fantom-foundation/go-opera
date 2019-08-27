@@ -1,6 +1,8 @@
 package proxy
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
@@ -29,13 +31,13 @@ type App interface {
 
 // Node is a set of node handlers.
 type Node interface {
-	GetID() hash.Peer
+	GetID() common.Address
 	AddInternalTxn(inter.InternalTransaction) (hash.Transaction, error)
 	GetInternalTxn(hash.Transaction) (*inter.InternalTransaction, *inter.Event)
 }
 
 // Consensus is a set of consensus handlers.
 type Consensus interface {
-	StakeOf(peer hash.Peer) pos.Stake
+	StakeOf(peer common.Address) pos.Stake
 	GetEventBlock(hash.Event) *inter.Block
 }

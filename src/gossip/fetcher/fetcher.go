@@ -282,7 +282,7 @@ func (f *Fetcher) loop() {
 
 			// Forget arrived events.
 			// It's possible to get here only if event arrived out-of-fetcher, via another channel.
-			// Also may be possible if we pushed already downloaded event into fetcher.
+			// Also may be possible after a change of an epoch.
 			notArrivedM := notArrived.Set()
 			for _, e := range all {
 				if !notArrivedM.Contains(e) {

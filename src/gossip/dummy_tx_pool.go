@@ -1,11 +1,11 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 )
@@ -48,6 +48,6 @@ func (p *dummyTxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return batches, nil
 }
 
-func (p *dummyTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
+func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evm_core.NewTxsNotify) event.Subscription {
 	return p.txFeed.Subscribe(ch)
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
@@ -29,15 +28,14 @@ var (
 // with the given number of events already known from each node
 func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.Transaction, onNewEvent func(e *inter.Event)) (*ProtocolManager, *Store, error) {
 	var (
-		evmux = new(event.TypeMux)
 		store = NewMemStore()
 	)
 
-	network, nodes, _ := lachesis.FakeNetConfig(nodesNum)
+	network := lachesis.FakeNetConfig(nodesNum)
 	config := DefaultConfig(network)
 
 	engineStore := poset.NewMemStore()
-	err := engineStore.ApplyGenesis(&network.Genesis)
+	err := engineStore.ApplyGenesis(&network.Genesis, hash.Event{}, common.Hash{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -47,7 +45,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 
 	pm, err := NewProtocolManager(
 		&config,
-		evmux,
+		nil,
 		&dummyTxPool{added: newtx},
 		new(sync.RWMutex),
 		store,
@@ -57,7 +55,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	inter.ForEachRandEvent(nodes, eventsNum, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(network.Genesis.Alloc.Addresses(), eventsNum, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			store.SetEvent(e)
 			err = engine.ProcessEvent(e)
@@ -145,13 +143,13 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 
 // handshake simulates a trivial handshake that expects the same state from the
 // remote side as we are simulating locally.
-func (p *testPeer) handshake(t *testing.T, progress *PeerProgress, genesis hash.Hash) {
+func (p *testPeer) handshake(t *testing.T, progress *PeerProgress, genesis common.Hash) {
 	msg := &ethStatusData{
 		ProtocolVersion:   uint32(p.version),
 		NetworkId:         lachesis.FakeNetworkId,
 		Genesis:           genesis,
 		DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
-		DummyCurrentBlock: hash.Hash(progress.LastBlock),
+		DummyCurrentBlock: common.Hash(progress.LastBlock),
 	}
 	if err := p2p.ExpectMsg(p.app, EthStatusMsg, msg); err != nil {
 		t.Fatalf("status recv: %v", err)

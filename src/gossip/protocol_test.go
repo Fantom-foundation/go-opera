@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
@@ -50,7 +49,7 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 			wantError: errResp(ErrNetworkIdMismatch, "999 (!= %d)", networkId),
 		},
 		{
-			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkId: networkId, Genesis: hash.Hash{3}},
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkId: networkId, Genesis: common.Hash{3}},
 			wantError: errResp(ErrGenesisMismatch, "0300000000000000 (!= %x)", genesis.Bytes()[:8]),
 		},
 	}
@@ -98,7 +97,7 @@ func testRecvTransactions(t *testing.T, protocol int) {
 			t.Errorf("added wrong tx hash: got %v, want %v", added[0].Hash(), tx.Hash())
 		}
 	case <-time.After(2 * time.Second):
-		t.Errorf("no NewTxsEvent received within 2 seconds")
+		t.Errorf("no NewTxsNotify received within 2 seconds")
 	}
 }
 

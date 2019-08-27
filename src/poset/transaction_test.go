@@ -3,6 +3,7 @@ package poset
 import (
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -25,7 +26,7 @@ func TestPosetTxn(t *testing.T) {
 		pos.Stake(1), p.superFrame.Members[nodes[1]],
 		"balance of %s", nodes[1].String())
 
-	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+	p.applyBlock = func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
 		if block.Index == 1 {
 			// move stake from node0 to node1
 			members.Set(nodes[0], 0)

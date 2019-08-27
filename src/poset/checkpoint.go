@@ -1,6 +1,8 @@
 package poset
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -17,7 +19,7 @@ type checkpoint struct {
 	LastFiWitness     hash.Event
 	LastConsensusTime inter.Timestamp
 	NextMembers       pos.Members
-	StateHash         hash.Hash
+	StateHash         common.Hash
 }
 
 /*

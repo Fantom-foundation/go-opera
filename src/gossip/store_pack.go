@@ -69,17 +69,18 @@ func (s *Store) GetPack(epoch idx.SuperFrame, idx idx.Pack) hash.Events {
 
 	res := make(hash.Events, 0, hardLimitItems)
 
-	err := s.table.Packs.ForEach(prefix.Bytes(), func(key, _ []byte) bool {
-		if len(key) != epochSize+packSize+eventIdSize {
-			s.Fatalf("packs table: Incorrect key len %d", len(key))
+	it := s.table.Packs.NewIteratorWithPrefix(prefix.Bytes())
+	for it.Next() {
+		if len(it.Key()) != epochSize+packSize+eventIdSize {
+			s.Fatalf("packs table: Incorrect key len %d", len(it.Key()))
 		}
-		res.Add(hash.BytesToEvent(key[epochSize+packSize:]))
-
-		return true
-	})
-	if err != nil {
-		s.Fatal(err)
+		res.Add(hash.BytesToEvent(it.Key()[epochSize+packSize:]))
 	}
+	if it.Error() != nil {
+		s.Fatal(it.Error())
+	}
+	it.Release()
+
 	if len(res) == 0 {
 		return nil
 	}

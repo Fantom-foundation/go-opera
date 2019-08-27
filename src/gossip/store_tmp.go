@@ -10,7 +10,7 @@ import (
 
 type (
 	tmpDb struct {
-		Db     kvdb.Database
+		Db     kvdb.KeyValueStore
 		Tables interface{}
 	}
 
@@ -25,19 +25,20 @@ type (
 func (s *Store) initTmpDbs() {
 	s.tmpDbs.min = make(map[string]uint64)
 	s.tmpDbs.seq = make(map[string]map[uint64]tmpDb)
+
 	// load mins
-	prefix := []byte{}
-	err := s.table.TmpDbs.ForEach(prefix, func(key, buf []byte) bool {
-		min := bigendian.BytesToInt64(buf)
-		s.tmpDbs.min[string(key)] = min
-		return true
-	})
-	if err != nil {
-		s.Fatal(err)
+	it := s.table.TmpDbs.NewIterator()
+	for it.Next() {
+		min := bigendian.BytesToInt64(it.Value())
+		s.tmpDbs.min[string(it.Key())] = min
 	}
+	if it.Error() != nil {
+		s.Fatal(it.Error())
+	}
+	it.Release()
 }
 
-func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.Database) interface{}) interface{} {
+func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueStore) interface{}) interface{} {
 	s.tmpDbs.Lock()
 	defer s.tmpDbs.Unlock()
 

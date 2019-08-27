@@ -33,7 +33,7 @@ func (s *Service) packs_onNewEvent(e *inter.Event, epoch idx.SuperFrame) {
 		packInfo.Heads = s.store.GetHeads(epoch)
 		s.store.SetPacksNum(epoch, packIdx+1)
 
-		_ = s.mux.Post(packIdx + 1) // notify about new pack
+		_ = s.feed.newPack.Send(packIdx + 1) // notify about new pack
 	}
 	s.store.SetPackInfo(epoch, packIdx, packInfo)
 }
@@ -48,5 +48,5 @@ func (s *Service) packs_onNewEpoch(oldEpoch, newEpoch idx.SuperFrame) {
 
 	s.store.SetPacksNum(oldEpoch, packIdx+1) // the last pack is always not pinned, so create not pinned one
 
-	_ = s.mux.Post(packIdx + 1)
+	_ = s.feed.newPack.Send(packIdx + 1)
 }

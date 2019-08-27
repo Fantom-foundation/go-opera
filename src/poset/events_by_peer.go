@@ -1,12 +1,14 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/ethereum/go-ethereum/rlp"
 	"io"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // TODO: make EventsByPeer internal
@@ -14,7 +16,7 @@ import (
 type (
 	// EventsByNode is a event hashes grouped by creator.
 	// ( creator --> event hashes )
-	EventsByPeer map[hash.Peer]hash.EventsSet
+	EventsByPeer map[common.Address]hash.EventsSet
 )
 
 /*
@@ -35,7 +37,7 @@ func (ee EventsByPeer) Add(events EventsByPeer) (changed bool) {
 }
 
 // AddOne appends one event.
-func (ee EventsByPeer) AddOne(event hash.Event, creator hash.Peer) (changed bool) {
+func (ee EventsByPeer) AddOne(event hash.Event, creator common.Address) (changed bool) {
 	if ee[creator] == nil {
 		ee[creator] = hash.EventsSet{}
 	}
@@ -46,13 +48,13 @@ func (ee EventsByPeer) AddOne(event hash.Event, creator hash.Peer) (changed bool
 }
 
 // Contains returns true if event of node is in.
-func (ee EventsByPeer) Contains(node hash.Peer, event hash.Event) bool {
+func (ee EventsByPeer) Contains(node common.Address, event hash.Event) bool {
 	return ee[node] != nil && ee[node].Contains(event)
 }
 
 // Each returns range of all events.
-func (ee EventsByPeer) Each() map[hash.Event]hash.Peer {
-	res := make(map[hash.Event]hash.Peer)
+func (ee EventsByPeer) Each() map[hash.Event]common.Address {
+	res := make(map[hash.Event]common.Address)
 	for creator, events := range ee {
 		for e := range events {
 			res[e] = creator
@@ -71,7 +73,7 @@ func (ee EventsByPeer) String() string {
 }
 
 type eventDescr struct {
-	Creator hash.Peer
+	Creator common.Address
 	Hash    hash.Event
 }
 

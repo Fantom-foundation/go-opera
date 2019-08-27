@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
@@ -118,27 +117,29 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	network, nodes, keys := lachesis.FakeNetConfig(1)
+	network := lachesis.FakeNetConfig(1)
 	config := DefaultConfig(network)
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
 	config.ForcedBroadcast = allowAggressive
 
+	me := network.Genesis.Alloc.Addresses()[0]
+	privateKey := network.Genesis.Alloc[me].PrivateKey
+
 	var (
-		evmux = new(event.TypeMux)
-		store = NewMemStore()
+		store       = NewMemStore()
+		engineStore = poset.NewMemStore()
 	)
 
-	privateKey := keys[0]
-	me := nodes[0]
+	genesisFiWitness, genesisEvmState, err := store.ApplyGenesis(&network.Genesis)
+	assertar.NoError(err)
 
-	engineStore := poset.NewMemStore()
-	assertar.NoError(engineStore.ApplyGenesis(&network.Genesis))
+	assertar.NoError(engineStore.ApplyGenesis(&network.Genesis, genesisFiWitness, genesisEvmState))
 
 	engine := poset.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	svc, err := NewService(config, evmux, store, engine)
+	svc, err := NewService(config, store, engine)
 	assertar.NoError(err)
 
 	// start PM

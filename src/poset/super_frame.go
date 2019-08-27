@@ -2,15 +2,16 @@ package poset
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 const (
@@ -26,10 +27,10 @@ type GenesisState struct {
 	Epoch         idx.SuperFrame
 	Time          inter.Timestamp // consensus time of the last fiWitness
 	LastFiWitness hash.Event
-	StateHash     hash.Hash // hash of txs state
+	StateHash     common.Hash // hash of txs state
 }
 
-func (g *GenesisState) Hash() hash.Hash {
+func (g *GenesisState) Hash() common.Hash {
 	hasher := sha3.New256()
 	if err := rlp.Encode(hasher, g); err != nil {
 		panic(err)
@@ -93,29 +94,27 @@ func (p *Poset) GetMembers() pos.Members {
 // rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.
 // Due to a fork, there may be many roots B with the same slot,
 // but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode hash.Peer, bFrame idx.Frame) *hash.Event {
-	var bRoots hash.Events
-	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from hash.Peer, b hash.Event) bool {
+func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {
+	var bHash *hash.Event
+	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from common.Address, b hash.Event) bool {
 		if f != bFrame {
 			p.Fatal()
 		}
 		if from != bNode {
 			p.Fatal()
 		}
-		bRoots.Add(hash.BytesToEvent(b.Bytes()))
+		if p.seeVec.StronglySee(a, b) {
+			bHash = &b
+			return false
+		}
 		return true
 	})
-	for _, b := range bRoots {
-		if p.seeVec.StronglySee(a, b) {
-			return &b
-		}
-	}
 
-	return nil
+	return bHash
 }
 
 // GetGenesisHash is a genesis getter.
-func (p *Poset) GetGenesisHash() hash.Hash {
+func (p *Poset) GetGenesisHash() common.Hash {
 	epoch := p.store.GetGenesis()
 	if epoch == nil {
 		p.Fatal("no genesis found")

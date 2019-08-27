@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/packs_downloader"
@@ -29,7 +30,7 @@ const (
 	softLimitItems        = 500                // Target maximum number of events or transactions to request/response
 	hardLimitItems        = softLimitItems * 2 // Maximum number of events or transactions to request/response
 
-	// txChanSize is the size of channel listening to NewTxsEvent.
+	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
 
@@ -51,6 +52,12 @@ func checkLenLimits(size int, v interface{}) error {
 	return nil
 }
 
+type dagNotifier interface {
+	SubscribeNewEpoch(ch chan<- idx.SuperFrame) event.Subscription
+	SubscribeNewPack(ch chan<- idx.Pack) event.Subscription
+	SubscribeNewEmitted(ch chan<- *inter.Event) event.Subscription
+}
+
 type ProtocolManager struct {
 	config *Config
 
@@ -62,8 +69,7 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
-	mux    *event.TypeMux
-	txsCh  chan core.NewTxsEvent
+	txsCh  chan evm_core.NewTxsNotify
 	txsSub event.Subscription
 
 	downloader      *packs_downloader.PacksDownloader
@@ -74,9 +80,13 @@ type ProtocolManager struct {
 	engine   Consensus
 	engineMu *sync.RWMutex
 
-	emittedEventsSub *event.TypeMuxSubscription
-	newPacksSub      *event.TypeMuxSubscription
-	newEpochsSub     *event.TypeMuxSubscription
+	notifier         dagNotifier
+	emittedEventsCh  chan *inter.Event
+	emittedEventsSub event.Subscription
+	newPacksCh       chan idx.Pack
+	newPacksSub      event.Subscription
+	newEpochsCh      chan idx.SuperFrame
+	newEpochsSub     event.Subscription
 
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
@@ -93,7 +103,7 @@ type ProtocolManager struct {
 // with the Fantom network.
 func NewProtocolManager(
 	config *Config,
-	mux *event.TypeMux,
+	notifier dagNotifier,
 	txpool txPool,
 	engineMu *sync.RWMutex,
 	s *Store,
@@ -105,7 +115,7 @@ func NewProtocolManager(
 	// Create the protocol manager with the base fields
 	pm := &ProtocolManager{
 		config:      config,
-		mux:         mux,
+		notifier:    notifier,
 		txpool:      txpool,
 		store:       s,
 		engine:      engine,
@@ -259,16 +269,21 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	// broadcast transactions
-	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
-	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
+	pm.txsCh = make(chan evm_core.NewTxsNotify, txChanSize)
+	pm.txsSub = pm.txpool.SubscribeNewTxsNotify(pm.txsCh)
 	go pm.txBroadcastLoop()
 
-	// broadcast mined events
-	pm.emittedEventsSub = pm.mux.Subscribe(&inter.Event{})
-	// broadcast packs
-	pm.newPacksSub = pm.mux.Subscribe(idx.Pack(0))
-	// epoch changes
-	pm.newEpochsSub = pm.mux.Subscribe(idx.SuperFrame(0))
+	if pm.notifier != nil {
+		// broadcast mined events
+		pm.emittedEventsCh = make(chan *inter.Event, 4)
+		pm.emittedEventsSub = pm.notifier.SubscribeNewEmitted(pm.emittedEventsCh)
+		// broadcast packs
+		pm.newPacksCh = make(chan idx.Pack, 4)
+		pm.newPacksSub = pm.notifier.SubscribeNewPack(pm.newPacksCh)
+		// epoch changes
+		pm.newEpochsCh = make(chan idx.SuperFrame, 4)
+		pm.newEpochsSub = pm.notifier.SubscribeNewEpoch(pm.newEpochsCh)
+	}
 
 	go pm.emittedBroadcastLoop()
 	go pm.progressBroadcastLoop()
@@ -282,10 +297,12 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Fantom protocol")
 
-	pm.txsSub.Unsubscribe()           // quits txBroadcastLoop
-	pm.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
-	pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
-	pm.newEpochsSub.Unsubscribe()     // quits onNewEpochLoop
+	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
+	if pm.notifier != nil {
+		pm.emittedEventsSub.Unsubscribe() // quits eventBroadcastLoop
+		pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
+		pm.newEpochsSub.Unsubscribe()     // quits onNewEpochLoop
+	}
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -672,13 +689,16 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 
 // Mined broadcast loop
 func (pm *ProtocolManager) emittedBroadcastLoop() {
-	// automatically stops if unsubscribe
-	for obj := range pm.emittedEventsSub.Chan() {
-		if ev, ok := obj.Data.(*inter.Event); ok {
+	for {
+		select {
+		case emitted := <-pm.emittedEventsCh:
 			if pm.config.ForcedBroadcast {
-				pm.BroadcastEvent(ev, true) // No one knows the event, so be aggressive
+				pm.BroadcastEvent(emitted, true) // No one knows the event, so be aggressive
 			}
-			pm.BroadcastEvent(ev, false) // Only then announce to the rest
+			pm.BroadcastEvent(emitted, false) // Only then announce to the rest
+		// Err() channel will be closed when unsubscribing.
+		case <-pm.txsSub.Err():
+			return
 		}
 	}
 }
@@ -687,8 +707,9 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 func (pm *ProtocolManager) progressBroadcastLoop() {
 	// automatically stops if unsubscribe
 	prevProgress := pm.myProgress()
-	for obj := range pm.newPacksSub.Chan() {
-		if _, ok := obj.Data.(idx.Pack); ok {
+	for {
+		select {
+		case _ = <-pm.newPacksCh:
 			// broadcast my new progress, but not recent one,
 			// so others could receive all the events before this node announces the pack
 			for _, peer := range pm.peers.List() {
@@ -698,15 +719,17 @@ func (pm *ProtocolManager) progressBroadcastLoop() {
 				}
 			}
 			prevProgress = pm.myProgress()
+		// Err() channel will be closed when unsubscribing.
+		case <-pm.txsSub.Err():
+			return
 		}
 	}
 }
 
 func (pm *ProtocolManager) onNewEpochLoop() {
-	// automatically stops if unsubscribe
-	for obj := range pm.newEpochsSub.Chan() {
-		if _, ok := obj.Data.(idx.SuperFrame); ok {
-			myEpoch := pm.engine.CurrentSuperFrameN()
+	for {
+		select {
+		case myEpoch := <-pm.newEpochsCh:
 			peerEpoch := func(peer string) idx.SuperFrame {
 				p := pm.peers.Peer(peer)
 				if p == nil {
@@ -714,7 +737,15 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 				}
 				return p.progress.Epoch
 			}
+			for _, peer := range pm.peers.List() {
+				if peer.progress.Epoch == myEpoch {
+					atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
+				}
+			}
 			pm.downloader.OnNewEpoch(myEpoch, peerEpoch)
+		// Err() channel will be closed when unsubscribing.
+		case <-pm.txsSub.Err():
+			return
 		}
 	}
 }
@@ -735,8 +766,8 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 // NodeInfo represents a short summary of the sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network     uint64    `json:"network"` // network ID
-	Genesis     hash.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
+	Network     uint64      `json:"network"` // network ID
+	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
 	Epoch       idx.SuperFrame
 	NumOfEvents idx.Event
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules

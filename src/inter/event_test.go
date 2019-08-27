@@ -2,9 +2,9 @@ package inter
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/rlp"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -17,7 +17,6 @@ func TestEventSerialization(t *testing.T) {
 	for i, e0 := range events {
 		dsc := fmt.Sprintf("iter#%d", i)
 
-		e0.ExternalTransactions.Value = [][]byte{{0}, {1}}
 		buf, err := rlp.EncodeToBytes(e0)
 		if !assertar.NoError(err, dsc) {
 			break
@@ -29,8 +28,7 @@ func TestEventSerialization(t *testing.T) {
 			break
 		}
 
-		if !assertar.EqualValues(e0.ExternalTransactions, e1.ExternalTransactions, dsc) ||
-			!assertar.EqualValues(e0, e1, dsc) {
+		if !assertar.Equal(e0.EventHeader, e1.EventHeader, dsc) {
 			break
 		}
 	}

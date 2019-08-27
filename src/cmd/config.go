@@ -51,7 +51,7 @@ var tomlSettings = toml.Config{
 }
 
 func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
-	cfg, _, _ := lachesis.FakeNetConfig(0)
+	cfg := lachesis.FakeNetConfig(0)
 	// TODO: apply flags
 	return cfg
 }

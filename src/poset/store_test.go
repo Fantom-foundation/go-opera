@@ -2,20 +2,23 @@ package poset
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"go.etcd.io/bbolt"
+	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -41,22 +44,25 @@ func benchmarkStore(b *testing.B) {
 	}()
 
 	var (
-		epochCache *kvdb.CacheWrapper
+		epochCache kvdb.FlushableKeyValueStore
 	)
-	newDb := func(name string) kvdb.Database {
-		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s.bolt", name))
-		db, err := bbolt.Open(path, 0600, nil)
+	newDb := func(name string) kvdb.KeyValueStore {
+		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s", name))
+
+		ldb, err := leveldb.New(
+			path,
+			16,
+			0,
+			"",
+			nil,
+			func() error {
+				return os.RemoveAll(path)
+			})
 		if err != nil {
 			panic(err)
 		}
 
-		cache := kvdb.NewCacheWrapper(
-			kvdb.NewBoltDatabase(
-				db,
-				nil,
-				func() error {
-					return os.Remove(path)
-				}))
+		cache := flushable.New(ldb)
 		if name == "epoch" {
 			epochCache = cache
 		}
@@ -64,7 +70,7 @@ func benchmarkStore(b *testing.B) {
 	}
 
 	// open history DB
-	historyCache := kvdb.NewCacheWrapper(newDb("main"))
+	historyCache := flushable.New(newDb("main"))
 
 	input := NewEventStore(historyCache)
 	defer input.Close()
@@ -88,7 +94,7 @@ func benchmarkStore(b *testing.B) {
 		}
 	}
 
-	p.applyBlock = func(block *inter.Block, stateHash hash.Hash, members pos.Members) (hash.Hash, pos.Members) {
+	p.applyBlock = func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
 		if block.Index == 1 {
 			// move stake from node0 to node1
 			members.Set(nodes[0], 0)
@@ -121,16 +127,16 @@ func benchmarkStore(b *testing.B) {
 	flushAll()
 }
 
-func benchPoset(nodes []hash.Peer, input EventSource, store *Store) *Poset {
-	balances := make(map[hash.Peer]pos.Stake, len(nodes))
+func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset {
+	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = pos.Stake(1)
+		balances[addr] = genesis.Account{Balance: big.NewInt(1)}
 	}
 
-	err := store.ApplyGenesis(&lachesis.Genesis{
-		Balances: balances,
-		Time:     genesisTestTime,
-	})
+	err := store.ApplyGenesis(&genesis.Genesis{
+		Alloc: balances,
+		Time:  genesisTestTime,
+	}, hash.Event{}, common.Hash{})
 	if err != nil {
 		panic(err)
 	}

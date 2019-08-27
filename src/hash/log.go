@@ -2,6 +2,8 @@ package hash
 
 import (
 	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -9,14 +11,14 @@ var (
 	eventNameDictMu sync.RWMutex
 
 	// nodeNameDict is an optional dictionary to make node address human readable in log.
-	nodeNameDict = make(map[Peer]string)
+	nodeNameDict = make(map[common.Address]string)
 
 	// eventNameDict is an optional dictionary to make events human readable in log.
 	eventNameDict = make(map[Event]string)
 )
 
 // SetNodeName sets an optional human readable alias of node address in log.
-func SetNodeName(n Peer, name string) {
+func SetNodeName(n common.Address, name string) {
 	nodeNameDictMu.Lock()
 	defer nodeNameDictMu.Unlock()
 
@@ -32,7 +34,7 @@ func SetEventName(e Event, name string) {
 }
 
 // GetNodeName gets an optional human readable alias of node address.
-func GetNodeName(n Peer) string {
+func GetNodeName(n common.Address) string {
 	nodeNameDictMu.RLock()
 	defer nodeNameDictMu.RUnlock()
 

@@ -19,6 +19,8 @@ Ctrl	 <===> (NodeProxy     ==grpc/inmem==> CtrlProxy) <===> LachesisNode
 import (
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -54,11 +56,11 @@ type LachesisProxy interface {
 // NodeProxy is an interface for remote node controlling.
 type NodeProxy interface {
 	// GetSelfID returns node id.
-	GetSelfID() (hash.Peer, error)
+	GetSelfID() (common.Address, error)
 	// StakeOf returns stake balance of peer.
-	StakeOf(hash.Peer) (pos.Stake, error)
+	StakeOf(common.Address) (pos.Stake, error)
 	// SendTo makes stake transfer transaction.
-	SendTo(receiver hash.Peer, index idx.Txn, amount pos.Stake, until idx.Block) (hash.Transaction, error)
+	SendTo(receiver common.Address, index idx.Txn, amount pos.Stake, until idx.Block) (hash.Transaction, error)
 	// GetTxnInfo returns information about transaction.
 	GetTxnInfo(hash.Transaction) (*inter.InternalTransaction, *inter.Event, *inter.Block, error)
 	// SetLogLevel sets logger log level.

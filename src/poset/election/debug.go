@@ -3,11 +3,13 @@ package election
 import (
 	"golang.org/x/crypto/sha3"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
 // may be used in tests to match election state
-func (el *Election) DebugStateHash() hash.Hash {
+func (el *Election) DebugStateHash() common.Hash {
 	hasher := sha3.New256()
 	write := func(bb []byte) {
 		if _, err := hasher.Write(bb); err != nil {

@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 type fakeEdge struct {
@@ -59,7 +61,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "b0_0",
+				DecidedSfWitness: "c0_0",
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -87,7 +89,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:     0,
-				DecidedSfWitness: "b0_0",
+				DecidedSfWitness: "c0_0",
 				DecisiveRoots:    map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -234,11 +236,11 @@ func testProcessRoot(
 		mm = make(pos.Members, len(peers))
 	)
 	for _, peer := range peers {
-		mm.Set(peer, stakes[peer.String()])
+		mm.Set(peer, stakes[utils.NameOf(peer)])
 	}
 
 	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b hash.Peer, f idx.Frame) *hash.Event {
+	stronglySeeFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
 			to: Slot{

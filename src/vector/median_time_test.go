@@ -7,7 +7,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -31,7 +31,7 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		members.Set(peer, weights[i])
 	}
 
-	vi := NewIndex(members, kvdb.NewMemDatabase())
+	vi := NewIndex(members, memorydb.New())
 
 	// push
 	for _, e := range ordered {
@@ -113,7 +113,7 @@ func TestMedianTime(t *testing.T) {
 		members.Set(peer, weights[i])
 	}
 
-	vi := NewIndex(members, kvdb.NewMemDatabase())
+	vi := NewIndex(members, memorydb.New())
 
 	assertar := assert.New(t)
 	{ // seq=0
