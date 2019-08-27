@@ -143,7 +143,10 @@ func actionLachesis(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 
-	node := makeFullNode(ctx)
+	node, err := makeFullNode(ctx)
+	if err != nil {
+		return err
+	}
 	defer node.Close()
 
 	utils.StartNode(node)
@@ -151,7 +154,7 @@ func actionLachesis(ctx *cli.Context) error {
 	return nil
 }
 
-func makeFullNode(ctx *cli.Context) *node.Node {
+func makeFullNode(ctx *cli.Context) (*node.Node, error) {
 	nodeCfg := makeNodeConfig(ctx)
 	networkCfg := makeLachesisConfig(ctx)
 	gossipCfg := makeGossipConfig(ctx, networkCfg)
@@ -190,5 +193,5 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		log.Fatalf("Failed to register service: %v", err)
 	}
 
-	return stack
+	return stack, nil
 }
