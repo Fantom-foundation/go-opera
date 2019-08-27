@@ -97,7 +97,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 
 	var (
-		epoch      = em.engine.CurrentEpochN()
+		epoch      = em.engine.GetEpoch()
 		seq        idx.Event
 		parents    hash.Events
 		maxLamport idx.Lamport

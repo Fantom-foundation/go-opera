@@ -23,7 +23,7 @@ type Consensus interface {
 	// LastBlock returns current block.
 	LastBlock() (idx.Block, hash.Event)
 	// CurrentEpoch returns current EpochN.
-	CurrentEpochN() idx.Epoch
+	GetEpoch() idx.Epoch
 	// GetMembers returns members of current super-frame.
 	GetMembers() pos.Members
 

@@ -276,7 +276,7 @@ func testSpecialNamedRoots(t *testing.T, scheme string) {
 				p.ProcessEvent(e))
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
-			e.Epoch = p.CurrentEpochN()
+			e.Epoch = p.GetEpoch()
 			e = p.Prepare(e)
 
 			return e
