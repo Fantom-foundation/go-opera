@@ -27,7 +27,7 @@ type Emitter struct {
 
 	myAddr     common.Address
 	privateKey *ecdsa.PrivateKey
-	prevEpoch  idx.SuperFrame
+	prevEpoch  idx.Epoch
 
 	onEmitted func(e *inter.Event)
 
@@ -97,7 +97,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 
 	var (
-		epoch      = em.engine.CurrentSuperFrameN()
+		epoch      = em.engine.CurrentEpochN()
 		seq        idx.Event
 		parents    hash.Events
 		maxLamport idx.Lamport

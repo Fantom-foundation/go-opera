@@ -37,7 +37,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	sf := &superFrame{}
+	sf := &epoch{}
 	cp := &checkpoint{
 		StateHash: stateHash,
 	}
@@ -54,8 +54,8 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 	cp.NextMembers = sf.Members.Copy()
 
 	// genesis object
-	sf.SuperFrameN = firstEpoch
-	sf.PrevEpoch.Epoch = sf.SuperFrameN - 1
+	sf.EpochN = firstEpoch
+	sf.PrevEpoch.Epoch = sf.EpochN - 1
 	sf.PrevEpoch.StateHash = cp.StateHash
 	sf.PrevEpoch.LastFiWitness = genesisFiWitness
 	sf.PrevEpoch.Time = g.Time
@@ -63,7 +63,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 	cp.LastFiWitness = genesisFiWitness
 
 	s.SetGenesis(sf)
-	s.SetSuperFrame(sf)
+	s.SetEpoch(sf)
 	s.SetCheckpoint(cp)
 
 	return nil

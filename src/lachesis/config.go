@@ -80,6 +80,12 @@ func FakeNetConfig(n int) Config {
 		NetworkId: FakeNetworkId,
 		Genesis:   g,
 		Dag:       DagConfig{3},
-		TxPool:    evm_core.DefaultTxPoolConfig,
+		TxPool:    fakeTxPoolConfig(),
 	}
+}
+
+func fakeTxPoolConfig() evm_core.TxPoolConfig {
+	cfg := evm_core.DefaultTxPoolConfig
+	cfg.Journal = ""
+	return cfg
 }

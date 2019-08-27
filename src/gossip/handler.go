@@ -53,7 +53,7 @@ func checkLenLimits(size int, v interface{}) error {
 }
 
 type dagNotifier interface {
-	SubscribeNewEpoch(ch chan<- idx.SuperFrame) event.Subscription
+	SubscribeNewEpoch(ch chan<- idx.Epoch) event.Subscription
 	SubscribeNewPack(ch chan<- idx.Pack) event.Subscription
 	SubscribeNewEmitted(ch chan<- *inter.Event) event.Subscription
 }
@@ -85,7 +85,7 @@ type ProtocolManager struct {
 	emittedEventsSub event.Subscription
 	newPacksCh       chan idx.Pack
 	newPacksSub      event.Subscription
-	newEpochsCh      chan idx.SuperFrame
+	newEpochsCh      chan idx.Epoch
 	newEpochsSub     event.Subscription
 
 	// channels for fetcher, syncer, txsyncLoop
@@ -198,7 +198,7 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 	}
 	pm.engineMu.RLock()
 	defer pm.engineMu.RUnlock()
-	epoch := pm.engine.CurrentSuperFrameN()
+	epoch := pm.engine.CurrentEpochN()
 
 	interested := make(hash.Events, 0, len(ids))
 	for _, id := range ids {
@@ -281,7 +281,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 		pm.newPacksCh = make(chan idx.Pack, 4)
 		pm.newPacksSub = pm.notifier.SubscribeNewPack(pm.newPacksCh)
 		// epoch changes
-		pm.newEpochsCh = make(chan idx.SuperFrame, 4)
+		pm.newEpochsCh = make(chan idx.Epoch, 4)
 		pm.newEpochsSub = pm.notifier.SubscribeNewEpoch(pm.newEpochsCh)
 	}
 
@@ -329,7 +329,7 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 
 func (pm *ProtocolManager) myProgress() PeerProgress {
 	blockI, block := pm.engine.LastBlock()
-	epoch := pm.engine.CurrentSuperFrameN()
+	epoch := pm.engine.CurrentEpochN()
 	return PeerProgress{
 		Epoch:        epoch,
 		NumOfBlocks:  blockI,
@@ -392,7 +392,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
-	myEpoch := pm.engine.CurrentSuperFrameN()
+	myEpoch := pm.engine.CurrentEpochN()
 	peerDwnlr := pm.downloader.Peer(p.id)
 
 	// Handle the message depending on its contents
@@ -409,8 +409,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if len(progress.LastPackInfo.Heads) > hardLimitItems {
 			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
-		p.progress = progress
-		if p.progress.Epoch == myEpoch {
+		p.SetProgress(progress)
+		if progress.Epoch == myEpoch {
 			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
 		}
 
@@ -730,7 +730,7 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 	for {
 		select {
 		case myEpoch := <-pm.newEpochsCh:
-			peerEpoch := func(peer string) idx.SuperFrame {
+			peerEpoch := func(peer string) idx.Epoch {
 				p := pm.peers.Peer(peer)
 				if p == nil {
 					return 0
@@ -768,7 +768,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 type NodeInfo struct {
 	Network     uint64      `json:"network"` // network ID
 	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
-	Epoch       idx.SuperFrame
+	Epoch       idx.Epoch
 	NumOfEvents idx.Event
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
 }
@@ -778,6 +778,6 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	return &NodeInfo{
 		Network: pm.config.Net.NetworkId,
 		Genesis: pm.engine.GetGenesisHash(),
-		Epoch:   pm.engine.CurrentSuperFrameN(),
+		Epoch:   pm.engine.CurrentEpochN(),
 	}
 }

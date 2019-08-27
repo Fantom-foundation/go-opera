@@ -107,36 +107,36 @@ type ethStatusData struct {
 }
 
 type PeerProgress struct {
-	Epoch        idx.SuperFrame
+	Epoch        idx.Epoch
 	NumOfBlocks  idx.Block
 	LastPackInfo PackInfo
 	LastBlock    hash.Event
 }
 
 type packInfosData struct {
-	Epoch           idx.SuperFrame
+	Epoch           idx.Epoch
 	TotalNumOfPacks idx.Pack // in specified epoch
 	Infos           []PackInfo
 }
 
 type packInfosDataRLP struct {
-	Epoch           idx.SuperFrame
+	Epoch           idx.Epoch
 	TotalNumOfPacks idx.Pack // in specified epoch
 	RawInfos        []rlp.RawValue
 }
 
 type getPackInfosData struct {
-	Epoch   idx.SuperFrame
+	Epoch   idx.Epoch
 	Indexes []idx.Pack
 }
 
 type getPackData struct {
-	Epoch idx.SuperFrame
+	Epoch idx.Epoch
 	Index idx.Pack
 }
 
 type packData struct {
-	Epoch idx.SuperFrame
+	Epoch idx.Epoch
 	Index idx.Pack
 	Ids   hash.Events
 }

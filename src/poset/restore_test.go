@@ -15,7 +15,7 @@ func TestRestore(t *testing.T) {
 	assertar := assert.New(t)
 
 	const posetCount = 3 // 2 last will be restored
-	const epochs = idx.SuperFrame(2)
+	const epochs = idx.Epoch(2)
 
 	nodes := inter.GenNodes(5)
 
@@ -38,9 +38,9 @@ func TestRestore(t *testing.T) {
 
 	// create events on poset0
 	var ordered []*inter.Event
-	for epoch := idx.SuperFrame(1); epoch <= epochs; epoch++ {
+	for epoch := idx.Epoch(1); epoch <= epochs; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(SuperFrameLen)*3, 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(EpochLen)*3, 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[0].SetEvent(e)
 				assertar.NoError(posets[0].ProcessEvent(e))
@@ -79,7 +79,7 @@ func TestRestore(t *testing.T) {
 			assertar.NoError(posets[j].ProcessEvent(e))
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-			assertar.Equal(posets[j].superFrame, posets[i].superFrame)
+			assertar.Equal(posets[j].epoch, posets[i].epoch)
 			// check LastFiWitness and Head() method
 			if posets[i].checkpoint.LastBlockN != 0 {
 				assertar.Equal(posets[i].checkpoint.LastFiWitness, posets[j].blocks[idx.Block(len(posets[j].blocks))].Hash(), "fiWitness must be last event in block")
@@ -88,7 +88,7 @@ func TestRestore(t *testing.T) {
 
 		// check that blocks are identical
 		assertar.Equal(len(posets[i].blocks), len(posets[j].blocks))
-		assertar.Equal(len(posets[i].blocks), int(epochs)*int(SuperFrameLen))
+		assertar.Equal(len(posets[i].blocks), int(epochs)*int(EpochLen))
 		assertar.Equal(len(posets[i].blocks), int(posets[i].LastBlockN))
 		for blockI := idx.Block(1); blockI <= idx.Block(len(posets[i].blocks)); blockI++ {
 			assertar.NotNil(posets[i].blocks[blockI])

@@ -16,7 +16,7 @@ func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Ev
 		dummyFiWitness := inter.NewEvent()
 		// for nice-looking ID
 		dummyFiWitness.Epoch = 0
-		dummyFiWitness.Lamport = idx.Lamport(poset.SuperFrameLen)
+		dummyFiWitness.Lamport = idx.Lamport(poset.EpochLen)
 		// actual data hashed
 		dummyFiWitness.Extra = genesis.ExtraData
 		dummyFiWitness.ClaimedTime = header.Time

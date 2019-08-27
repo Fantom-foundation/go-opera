@@ -13,7 +13,7 @@ const (
 	eventIdSize = 32
 )
 
-func (s *Store) GetPackInfo(epoch idx.SuperFrame, idx idx.Pack) *PackInfo {
+func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 	key := bytes.Buffer{}
 	key.Write(epoch.Bytes())
 	key.Write(idx.Bytes())
@@ -23,7 +23,7 @@ func (s *Store) GetPackInfo(epoch idx.SuperFrame, idx idx.Pack) *PackInfo {
 }
 
 // returns default value if not found
-func (s *Store) GetPackInfoOrDefault(epoch idx.SuperFrame, idx idx.Pack) PackInfo {
+func (s *Store) GetPackInfoOrDefault(epoch idx.Epoch, idx idx.Pack) PackInfo {
 	packInfo := s.GetPackInfo(epoch, idx)
 	if packInfo == nil {
 		return PackInfo{
@@ -33,7 +33,7 @@ func (s *Store) GetPackInfoOrDefault(epoch idx.SuperFrame, idx idx.Pack) PackInf
 	return *packInfo
 }
 
-func (s *Store) GetPackInfoRLP(epoch idx.SuperFrame, idx idx.Pack) rlp.RawValue {
+func (s *Store) GetPackInfoRLP(epoch idx.Epoch, idx idx.Pack) rlp.RawValue {
 	key := bytes.Buffer{}
 	key.Write(epoch.Bytes())
 	key.Write(idx.Bytes())
@@ -42,7 +42,7 @@ func (s *Store) GetPackInfoRLP(epoch idx.SuperFrame, idx idx.Pack) rlp.RawValue 
 	return w
 }
 
-func (s *Store) SetPackInfo(epoch idx.SuperFrame, idx idx.Pack, value PackInfo) {
+func (s *Store) SetPackInfo(epoch idx.Epoch, idx idx.Pack, value PackInfo) {
 	key := bytes.Buffer{}
 	key.Write(epoch.Bytes())
 	key.Write(idx.Bytes())
@@ -50,7 +50,7 @@ func (s *Store) SetPackInfo(epoch idx.SuperFrame, idx idx.Pack, value PackInfo) 
 	s.set(s.table.PackInfos, key.Bytes(), value)
 }
 
-func (s *Store) AddToPack(epoch idx.SuperFrame, idx idx.Pack, e hash.Event) {
+func (s *Store) AddToPack(epoch idx.Epoch, idx idx.Pack, e hash.Event) {
 	key := bytes.Buffer{}
 	key.Write(epoch.Bytes())
 	key.Write(idx.Bytes())
@@ -62,7 +62,7 @@ func (s *Store) AddToPack(epoch idx.SuperFrame, idx idx.Pack, e hash.Event) {
 	}
 }
 
-func (s *Store) GetPack(epoch idx.SuperFrame, idx idx.Pack) hash.Events {
+func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 	prefix := bytes.Buffer{}
 	prefix.Write(epoch.Bytes())
 	prefix.Write(idx.Bytes())
@@ -87,7 +87,7 @@ func (s *Store) GetPack(epoch idx.SuperFrame, idx idx.Pack) hash.Events {
 	return res
 }
 
-func (s *Store) GetPacksNum(epoch idx.SuperFrame) (idx.Pack, bool) {
+func (s *Store) GetPacksNum(epoch idx.Epoch) (idx.Pack, bool) {
 	b, err := s.table.PacksNum.Get(epoch.Bytes())
 	if err != nil {
 		s.Fatal(err)
@@ -98,7 +98,7 @@ func (s *Store) GetPacksNum(epoch idx.SuperFrame) (idx.Pack, bool) {
 	return idx.BytesToPack(b), true
 }
 
-func (s *Store) GetPacksNumOrDefault(epoch idx.SuperFrame) idx.Pack {
+func (s *Store) GetPacksNumOrDefault(epoch idx.Epoch) idx.Pack {
 	num, ok := s.GetPacksNum(epoch)
 	if !ok {
 		return 1
@@ -106,7 +106,7 @@ func (s *Store) GetPacksNumOrDefault(epoch idx.SuperFrame) idx.Pack {
 	return num
 }
 
-func (s *Store) SetPacksNum(epoch idx.SuperFrame, num idx.Pack) {
+func (s *Store) SetPacksNum(epoch idx.Epoch, num idx.Pack) {
 	err := s.table.PacksNum.Put(epoch.Bytes(), num.Bytes())
 	if err != nil {
 		s.Fatal(err)

@@ -14,7 +14,7 @@ type Store struct {
 	table        struct {
 		Checkpoint     kvdb.KeyValueStore `table:"checkpoint_"`
 		Event2Block    kvdb.KeyValueStore `table:"event2block_"`
-		SuperFrames    kvdb.KeyValueStore `table:"sframe_"`
+		Epochs         kvdb.KeyValueStore `table:"epoch_"`
 		ConfirmedEvent kvdb.KeyValueStore `table:"confirmed_"`
 		FrameInfos     kvdb.KeyValueStore `table:"frameinfo_"`
 	}

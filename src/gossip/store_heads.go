@@ -5,7 +5,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-func (s *Store) DelHead(epoch idx.SuperFrame, id hash.Event) {
+func (s *Store) DelHead(epoch idx.Epoch, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -18,7 +18,7 @@ func (s *Store) DelHead(epoch idx.SuperFrame, id hash.Event) {
 	}
 }
 
-func (s *Store) AddHead(epoch idx.SuperFrame, id hash.Event) {
+func (s *Store) AddHead(epoch idx.Epoch, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -31,7 +31,7 @@ func (s *Store) AddHead(epoch idx.SuperFrame, id hash.Event) {
 	}
 }
 
-func (s *Store) IsHead(epoch idx.SuperFrame, id hash.Event) bool {
+func (s *Store) IsHead(epoch idx.Epoch, id hash.Event) bool {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return false
@@ -47,7 +47,7 @@ func (s *Store) IsHead(epoch idx.SuperFrame, id hash.Event) bool {
 }
 
 // GetHeads returns all the events with no descendants
-func (s *Store) GetHeads(epoch idx.SuperFrame) hash.Events {
+func (s *Store) GetHeads(epoch idx.Epoch) hash.Events {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil

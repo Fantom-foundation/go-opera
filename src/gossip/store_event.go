@@ -9,7 +9,7 @@ import (
 )
 
 // DeleteEvent deletes event.
-func (s *Store) DeleteEvent(epoch idx.SuperFrame, id hash.Event) {
+func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 	key := id.Bytes()
 
 	err := s.table.Events.Delete(key)

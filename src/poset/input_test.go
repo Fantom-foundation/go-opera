@@ -66,7 +66,7 @@ func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
 
 // GetEventHeader returns stored event header.
 // Note: fake epoch partition.
-func (s *EventStore) GetEventHeader(_ idx.SuperFrame, h hash.Event) *inter.EventHeaderData {
+func (s *EventStore) GetEventHeader(_ idx.Epoch, h hash.Event) *inter.EventHeaderData {
 	e := s.GetEvent(h)
 	if e == nil {
 		return nil
