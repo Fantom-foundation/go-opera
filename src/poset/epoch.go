@@ -81,8 +81,8 @@ func (p *Poset) nextEpoch(fiWitness hash.Event) {
 	p.saveCheckpoint()
 }
 
-// CurrentEpochN returns current super-frame num to 3rd party.
-func (p *Poset) CurrentEpochN() idx.Epoch {
+// GetEpoch returns current super-frame num to 3rd party.
+func (p *Poset) GetEpoch() idx.Epoch {
 	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
 }
 
