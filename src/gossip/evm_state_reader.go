@@ -1,14 +1,16 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"log"
-	"sync"
+	"github.com/ethereum/go-ethereum/log"
+
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type EvmStateReader struct {
@@ -19,47 +21,81 @@ type EvmStateReader struct {
 	store *Store
 }
 
+func (s *Service) GetEvmStateReader() *EvmStateReader {
+	return &EvmStateReader{
+		ServiceFeed: &s.feed,
+		engineMu:    s.engineMu,
+		engine:      s.engine,
+		store:       s.store,
+	}
+}
+
 func (r *EvmStateReader) CurrentBlock() *evm_core.EvmBlock {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
 	n, h := r.engine.LastBlock()
-	return r.getBlock(common.Hash(h), uint64(n))
+	return r.getBlock(hash.Event(h), idx.Block(n), n != 0)
+}
+
+func (r *EvmStateReader) GetHeader(h common.Hash, n uint64) *evm_core.EvmHeader {
+	return r.GetDagHeader(hash.Event(h), idx.Block(n))
 }
 
 func (r *EvmStateReader) GetBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
+	return r.GetDagBlock(hash.Event(h), idx.Block(n))
+}
+
+func (r *EvmStateReader) GetDagHeader(h hash.Event, n idx.Block) *evm_core.EvmHeader {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
-	return r.getBlock(common.Hash(h), uint64(n))
-
+	return &r.getBlock(h, n, false).EvmHeader
 }
 
-func (r *EvmStateReader) getBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
-	block := r.store.GetBlock(idx.Block(n))
+func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evm_core.EvmBlock {
+	r.engineMu.RLock()
+	defer r.engineMu.RUnlock()
+
+	return r.getBlock(h, n, n != 0)
+}
+
+func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_core.EvmBlock {
+	block := r.store.GetBlock(n)
 	if block == nil || block.Hash() != hash.Event(h) {
 		return nil
 	}
 
-	evm_header := evm_core.ToEvmHeader(block)
-	evm_block := &evm_core.EvmBlock{
-		EvmHeader:    *evm_header,
-		Transactions: make(types.Transactions, 0, len(block.Events)*10),
+	evmHeader := evm_core.ToEvmHeader(block)
+	evmBlock := &evm_core.EvmBlock{
+		EvmHeader: *evmHeader,
 	}
-	if n != 0 {
+
+	if readTxs {
+		evmBlock.Transactions = make(types.Transactions, 0, len(block.Events)*10)
+		txCount := uint(0)
+		skipCount := 0
 		for _, id := range block.Events {
 			e := r.store.GetEvent(id)
 			if e == nil {
-				log.Fatal("Event wasn't found ", "e=", id.String())
+				log.Crit("Event wasn't found", "e", id.String())
+				continue
 			}
 
-			evm_block.Transactions = append(evm_block.Transactions, e.Transactions...)
+			// appends txs except skipped ones
+			for _, tx := range e.Transactions {
+				if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
+					skipCount++
+				} else {
+					evmBlock.Transactions = append(evmBlock.Transactions, tx)
+				}
+				txCount++
+			}
 		}
 	} else {
-		evm_block.Transactions = make(types.Transactions, 0) // genesis block
+		evmBlock.Transactions = make(types.Transactions, 0, 0)
 	}
-	return evm_block
-
+	return evmBlock
 }
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {

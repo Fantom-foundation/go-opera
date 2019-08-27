@@ -80,7 +80,8 @@ func testGrpcAppCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dial
 	t.Run("#2 Receive block", func(t *testing.T) {
 		assertar := assert.New(t)
 		block := inter.Block{
-			Events: hash.Events{},
+			Events:     hash.Events{},
+			SkippedTxs: []uint{},
 		}
 		gold := []byte("123456")
 
@@ -247,6 +248,7 @@ func TestGrpcMaxMsgSize(t *testing.T) {
 		assert := assert.New(t)
 		block := inter.Block{
 			Events: hash.Events{},
+			SkippedTxs: []uint{},
 		}
 		hash := largeData[:largeSize/10]
 

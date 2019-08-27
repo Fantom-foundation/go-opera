@@ -25,7 +25,7 @@ type ServiceFeed struct {
 	newEpoch        event.Feed
 	newPack         event.Feed
 	newEmittedEvent event.Feed
-	newBlockF       event.Feed
+	newBlock        event.Feed
 	scope           event.SubscriptionScope
 }
 
@@ -38,7 +38,7 @@ func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) event.Subscription {
 }
 
 func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evm_core.ChainHeadNotify) event.Subscription {
-	return f.scope.Track(f.newBlockF.Subscribe(ch))
+	return f.scope.Track(f.newBlock.Subscribe(ch))
 }
 
 func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) event.Subscription {
@@ -67,6 +67,7 @@ type Service struct {
 	engine   Consensus
 	engineMu *sync.RWMutex
 	emitter  *Emitter
+	txpool   txPool
 
 	feed ServiceFeed
 
@@ -103,15 +104,10 @@ func NewService(config Config, store *Store, engine Consensus) (*Service, error)
 
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
-	pool := evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, &EvmStateReader{
-		ServiceFeed: &svc.feed,
-		engineMu:    svc.engineMu,
-		engine:      svc.engine,
-		store:       svc.store,
-	})
+	svc.txpool = evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, svc.GetEvmStateReader())
 
 	var err error
-	svc.pm, err = NewProtocolManager(&config, &svc.feed, pool, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, engine)
 
 	return svc, err
 }
@@ -157,7 +153,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(&s.config, s.me, s.privateKey, s.engineMu, s.store, s.engine, func(emitted *inter.Event) {
+	return NewEmitter(&s.config, s.me, s.privateKey, s.engineMu, s.store, s.txpool, s.engine, func(emitted *inter.Event) {
 		// s.engineMu is locked here
 
 		err := s.engine.ProcessEvent(emitted)

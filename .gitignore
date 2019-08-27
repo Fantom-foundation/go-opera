@@ -5,6 +5,9 @@
 # Go prof output
 *.prof
 
+# Test files
+*.rlp
+
 # Go test output
 */*.test
 */*.out

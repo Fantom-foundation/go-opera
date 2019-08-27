@@ -3,6 +3,7 @@ package genesis
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"math/big"
 	"time"
 
@@ -61,7 +62,7 @@ func FakeGenesis(n int) Genesis {
 	for i := 0; i < n; i++ {
 		key, _ := crypto.GenerateKey()
 		addr := crypto.PubkeyToAddress(key.PublicKey)
-		accounts[addr] = Account{Balance: big.NewInt(100000), PrivateKey: key}
+		accounts[addr] = Account{Balance: pos.StakeToBalance(1000000), PrivateKey: key}
 	}
 
 	return Genesis{

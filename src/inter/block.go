@@ -12,9 +12,10 @@ type ApplyBlockFn func(block *Block, stateHash common.Hash, members pos.Members)
 
 // Block is a "chain" block.
 type Block struct {
-	Index  idx.Block
-	Time   Timestamp
-	Events hash.Events
+	Index      idx.Block
+	Time       Timestamp
+	Events     hash.Events
+	SkippedTxs []uint // indexes of skipped txs, starting from first tx of first event, ending with last tx of last event
 
 	PrevHash hash.Event
 
@@ -32,9 +33,10 @@ func (b *Block) Hash() hash.Event {
 // NewBlock makes block from topological ordered events.
 func NewBlock(index idx.Block, time Timestamp, events hash.Events, prevHash hash.Event) *Block {
 	return &Block{
-		Index:    index,
-		Time:     time,
-		Events:   events,
-		PrevHash: prevHash,
+		Index:      index,
+		Time:       time,
+		Events:     events,
+		PrevHash:   prevHash,
+		SkippedTxs: make([]uint, 0),
 	}
 }

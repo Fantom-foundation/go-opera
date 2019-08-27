@@ -1,8 +1,6 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
-	"math/big"
 	"math/rand"
 	"time"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
 var (
@@ -40,7 +39,7 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = genesis.Account{Balance: big.NewInt(1)}
+		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
 	store := NewMemStore()

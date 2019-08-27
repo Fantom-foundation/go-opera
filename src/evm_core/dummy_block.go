@@ -1,6 +1,7 @@
 package evm_core
 
 import (
+	"math"
 	"math/big"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -32,6 +33,7 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 		Number:     big.NewInt(int64(block.Index)),
 		Time:       block.Time,
 		Coinbase:   block.Creator,
+		GasLimit:   math.MaxUint64,
 	}
 }
 
@@ -49,6 +51,7 @@ func (b *EvmBlock) Header() *EvmHeader {
 	return &EvmHeader{
 		Hash:       b.Hash,
 		ParentHash: b.ParentHash,
+		Root:       b.Root,
 		GasLimit:   b.GasLimit,
 		gasUsed:    b.gasUsed,
 		Number:     new(big.Int).Set(b.Number),

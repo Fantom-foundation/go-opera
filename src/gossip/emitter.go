@@ -30,6 +30,7 @@ type Emitter struct {
 	prevEpoch  idx.Epoch
 
 	onEmitted func(e *inter.Event)
+	txpool    txPool
 
 	done chan struct{}
 	wg   sync.WaitGroup
@@ -41,6 +42,7 @@ func NewEmitter(
 	privateKey *ecdsa.PrivateKey,
 	engineMu *sync.RWMutex,
 	store *Store,
+	txpool txPool,
 	engine Consensus,
 	onEmitted func(e *inter.Event),
 ) *Emitter {
@@ -51,6 +53,7 @@ func NewEmitter(
 		store:      store,
 		myAddr:     me,
 		privateKey: privateKey,
+		txpool:     txpool,
 		engine:     engine,
 		engineMu:   engineMu,
 	}
@@ -92,7 +95,7 @@ func (em *Emitter) StopEventEmission() {
 
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
-	if em.engine.GetMembers()[em.myAddr] == 0 {
+	if _, ok := em.engine.GetMembers()[em.myAddr]; !ok {
 		return nil
 	}
 
@@ -134,6 +137,16 @@ func (em *Emitter) createEvent() *inter.Event {
 	event.Creator = em.myAddr
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
+
+	poolTxs, err := em.txpool.Pending()
+	if err != nil {
+		log.Error("Tx pool transactions fetching error", "err", err)
+		return nil
+	}
+	for _, txs := range poolTxs {
+		event.Transactions = append(event.Transactions, txs...)
+	}
+
 	// set consensus fields
 	event = em.engine.Prepare(event)
 	if event == nil {

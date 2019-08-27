@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 	"net/http"
 	"os"
@@ -71,7 +70,7 @@ func testSim(t *testing.T, connect topology) {
 		config := &adapters.NodeConfig{
 			ID:         id,
 			Name:       fmt.Sprintf("Node-%d", i),
-			PrivateKey: (*ecdsa.PrivateKey)(key),
+			PrivateKey: key,
 			Services:   serviceNames(services),
 		}
 

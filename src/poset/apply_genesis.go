@@ -44,11 +44,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 
 	sf.Members = make(pos.Members, len(g.Alloc))
 	for addr, account := range g.Alloc {
-		if account.Balance.Sign() <= 0 {
-			return fmt.Errorf("balance shouldn't be zero")
-		}
-
-		sf.Members.Set(addr, pos.Stake(account.Balance.Uint64()))
+		sf.Members.Set(addr, pos.BalanceToStake(account.Balance))
 	}
 	sf.Members = sf.Members.Top()
 	cp.NextMembers = sf.Members.Copy()
