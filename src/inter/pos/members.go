@@ -14,7 +14,7 @@ import (
 const MembersCount = 30
 
 type (
-	// Members of super-frame with stake.
+	// Members of epoch with stake.
 	Members map[common.Address]Stake
 )
 

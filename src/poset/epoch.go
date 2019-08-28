@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	// EpochLen is a count of FW per super-frame.
+	// EpochLen is a count of FW per epoch.
 	EpochLen idx.Frame = 100
 
 	firstFrame = idx.Frame(1)
@@ -86,7 +86,7 @@ func (p *Poset) GetEpoch() idx.Epoch {
 	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
 }
 
-// EpochMembers returns members of current super-frame.
+// EpochMembers returns members of current epoch.
 func (p *Poset) GetMembers() pos.Members {
 	return p.Members.Copy()
 }

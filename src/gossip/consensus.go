@@ -24,7 +24,7 @@ type Consensus interface {
 	LastBlock() (idx.Block, hash.Event)
 	// CurrentEpoch returns current EpochN.
 	GetEpoch() idx.Epoch
-	// GetMembers returns members of current super-frame.
+	// GetMembers returns members of current epoch.
 	GetMembers() pos.Members
 
 	// Bootstrap must be called (once) before calling other methods
