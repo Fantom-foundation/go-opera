@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -73,6 +74,8 @@ type Service struct {
 	// application protocol
 	pm *ProtocolManager
 
+	EthAPI *EthAPIBackend
+
 	logger.Instance
 }
 
@@ -112,6 +115,8 @@ func NewService(config Config, store *Store, engine Consensus) (*Service, error)
 
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, pool, svc.engineMu, store, engine)
+
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, nil}
 
 	return svc, err
 }
@@ -185,7 +190,11 @@ func (s *Service) Protocols() []p2p.Protocol {
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	return []rpc.API{}
+	apis := ethapi.GetAPIs(s.EthAPI)
+
+	// TODO: apis = append(apis, <custom_api>)
+
+	return apis
 }
 
 // Start method invoked when the node is ready to start the service.
