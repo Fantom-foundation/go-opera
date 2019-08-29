@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -64,6 +65,7 @@ type Service struct {
 	privateKey *ecdsa.PrivateKey
 
 	// application
+	node     *node.ServiceContext
 	store    *Store
 	engine   Consensus
 	engineMu *sync.RWMutex
@@ -79,7 +81,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(config Config, store *Store, engine Consensus) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Consensus) (*Service, error) {
 	svc := &Service{
 		config: config,
 
@@ -87,6 +89,7 @@ func NewService(config Config, store *Store, engine Consensus) (*Service, error)
 
 		Name: fmt.Sprintf("Node-%d", rand.Int()),
 
+		node:  ctx,
 		store: store,
 
 		engineMu: new(sync.RWMutex),

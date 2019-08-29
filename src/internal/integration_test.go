@@ -45,7 +45,7 @@ func testSim(t *testing.T, connect topology) {
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
 		"gossip": func(ctx *adapters.ServiceContext) (node.Service, error) {
-			g := NewIntegration(ctx.Config, network)
+			g := NewIntegration(ctx, network)
 			return g, nil
 		},
 	}

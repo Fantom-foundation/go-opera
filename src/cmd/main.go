@@ -155,7 +155,8 @@ func actionLachesis(ctx *cli.Context) error {
 }
 
 func makeFullNode(ctx *cli.Context) (*node.Node, error) {
-	nodeCfg := makeNodeConfig(ctx)
+	stack, nodeCfg := makeConfigNode(ctx)
+
 	networkCfg := makeLachesisConfig(ctx)
 	gossipCfg := makeGossipConfig(ctx, networkCfg)
 
@@ -180,13 +181,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, error) {
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(gossipCfg, gdb, engine)
-	}
-
-	// Create node.
-	stack, err := node.New(nodeCfg)
-	if err != nil {
-		utils.Fatalf("Failed to create the protocol stack: %v", err)
+		return gossip.NewService(ctx, gossipCfg, gdb, engine)
 	}
 
 	if err := stack.Register(gossipService); err != nil {
@@ -194,4 +189,14 @@ func makeFullNode(ctx *cli.Context) (*node.Node, error) {
 	}
 
 	return stack, nil
+}
+
+func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
+	cfg := makeNodeConfig(ctx)
+	stack, err := node.New(cfg)
+	if err != nil {
+		utils.Fatalf("Failed to create the protocol stack: %v", err)
+	}
+
+	return stack, cfg
 }
