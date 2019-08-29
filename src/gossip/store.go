@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/no_key_is_err"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -48,7 +49,7 @@ func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore
 
 	table.MigrateTables(&s.table, s.persistentDB)
 
-	evmTable := table.New(s.persistentDB, []byte("evm_"))
+	evmTable := no_key_is_err.Wrap(table.New(s.persistentDB, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabase(s.table.Evm)
 

@@ -128,7 +128,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 		var (
 			genesis       = pm.engine.GetGenesisHash()
 			blockI, block = pm.engine.LastBlock()
-			epoch         = pm.engine.CurrentEpochN()
+			epoch         = pm.engine.GetEpoch()
 			myProgress    = &PeerProgress{
 				Epoch:        epoch,
 				NumOfBlocks:  blockI,

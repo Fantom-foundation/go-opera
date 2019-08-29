@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sort"
 
@@ -190,7 +189,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, error) {
 	}
 
 	if err := stack.Register(gossipService); err != nil {
-		log.Fatalf("Failed to register service: %v", err)
+		utils.Fatalf("Failed to register service: %v", err)
 	}
 
 	return stack, nil

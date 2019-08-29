@@ -42,11 +42,11 @@ func (hook *HookedEngine) Prepare(e *inter.Event) *inter.Event {
 	return hook.engine.Prepare(e)
 }
 
-func (hook *HookedEngine) CurrentEpochN() idx.Epoch {
+func (hook *HookedEngine) GetEpoch() idx.Epoch {
 	if hook.engine == nil {
 		return 1
 	}
-	return hook.engine.CurrentEpochN()
+	return hook.engine.GetEpoch()
 }
 
 func (hook *HookedEngine) LastBlock() (idx.Block, hash.Event) {

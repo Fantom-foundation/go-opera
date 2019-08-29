@@ -198,7 +198,7 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 	}
 	pm.engineMu.RLock()
 	defer pm.engineMu.RUnlock()
-	epoch := pm.engine.CurrentEpochN()
+	epoch := pm.engine.GetEpoch()
 
 	interested := make(hash.Events, 0, len(ids))
 	for _, id := range ids {
@@ -329,7 +329,7 @@ func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 
 func (pm *ProtocolManager) myProgress() PeerProgress {
 	blockI, block := pm.engine.LastBlock()
-	epoch := pm.engine.CurrentEpochN()
+	epoch := pm.engine.GetEpoch()
 	return PeerProgress{
 		Epoch:        epoch,
 		NumOfBlocks:  blockI,
@@ -392,7 +392,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
-	myEpoch := pm.engine.CurrentEpochN()
+	myEpoch := pm.engine.GetEpoch()
 	peerDwnlr := pm.downloader.Peer(p.id)
 
 	// Handle the message depending on its contents
@@ -778,6 +778,6 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	return &NodeInfo{
 		Network: pm.config.Net.NetworkId,
 		Genesis: pm.engine.GetGenesisHash(),
-		Epoch:   pm.engine.CurrentEpochN(),
+		Epoch:   pm.engine.GetEpoch(),
 	}
 }

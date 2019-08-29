@@ -2,10 +2,7 @@ package poset
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"io/ioutil"
-	"math/big"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -13,12 +10,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -130,7 +129,7 @@ func benchmarkStore(b *testing.B) {
 func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset {
 	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = genesis.Account{Balance: big.NewInt(1)}
+		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
 	err := store.ApplyGenesis(&genesis.Genesis{

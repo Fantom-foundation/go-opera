@@ -2,6 +2,8 @@ package pos
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 )
 
 type (
@@ -22,6 +24,24 @@ type (
 		sum    Stake
 	}
 )
+
+var (
+	balanceToStakeRatio = new(big.Int).Exp(big.NewInt(10), big.NewInt(12), nil) // 10^12
+)
+
+func BalanceToStake(balance *big.Int) Stake {
+	stakeBig := new(big.Int).Div(balance, balanceToStakeRatio)
+	if stakeBig.Sign() < 0 || stakeBig.BitLen() >= 64 {
+		log.Error("Too big stake amount!", "balance", balance.String())
+		return 0
+	}
+	return Stake(stakeBig.Uint64())
+}
+
+// Warning: for tests only!
+func StakeToBalance(stake Stake) *big.Int {
+	return new(big.Int).Mul(big.NewInt(int64(stake)), balanceToStakeRatio)
+}
 
 // NewCounter constructor.
 func (mm Members) NewCounter() *StakeCounter {
