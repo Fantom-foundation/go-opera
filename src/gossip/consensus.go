@@ -22,9 +22,9 @@ type Consensus interface {
 	Prepare(e *inter.Event) *inter.Event
 	// LastBlock returns current block.
 	LastBlock() (idx.Block, hash.Event)
-	// GetEpoch returns current EpochN.
+	// GetEpoch returns current epoch num.
 	GetEpoch() idx.Epoch
-	// GetMembers returns members of current super-frame.
+	// GetMembers returns members of current epoch.
 	GetMembers() pos.Members
 
 	// Bootstrap must be called (once) before calling other methods

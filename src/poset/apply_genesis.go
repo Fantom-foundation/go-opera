@@ -29,37 +29,36 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
-	sf1 := s.GetGenesis()
-	if sf1 != nil {
-		if sf1.PrevEpoch.Hash() == calcFirstGenesisHash(g, genesisFiWitness, stateHash) {
+	if exist := s.GetGenesis(); exist != nil {
+		if exist.PrevEpoch.Hash() == calcFirstGenesisHash(g, genesisFiWitness, stateHash) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	sf := &epoch{}
+	e := &epoch{}
 	cp := &checkpoint{
 		StateHash: stateHash,
 	}
 
-	sf.Members = make(pos.Members, len(g.Alloc))
+	e.Members = make(pos.Members, len(g.Alloc))
 	for addr, account := range g.Alloc {
-		sf.Members.Set(addr, pos.BalanceToStake(account.Balance))
+		e.Members.Set(addr, pos.BalanceToStake(account.Balance))
 	}
-	sf.Members = sf.Members.Top()
-	cp.NextMembers = sf.Members.Copy()
+	e.Members = e.Members.Top()
+	cp.NextMembers = e.Members.Copy()
 
 	// genesis object
-	sf.EpochN = firstEpoch
-	sf.PrevEpoch.Epoch = sf.EpochN - 1
-	sf.PrevEpoch.StateHash = cp.StateHash
-	sf.PrevEpoch.LastFiWitness = genesisFiWitness
-	sf.PrevEpoch.Time = g.Time
-	cp.LastConsensusTime = sf.PrevEpoch.Time
+	e.EpochN = firstEpoch
+	e.PrevEpoch.Epoch = e.EpochN - 1
+	e.PrevEpoch.StateHash = cp.StateHash
+	e.PrevEpoch.LastFiWitness = genesisFiWitness
+	e.PrevEpoch.Time = g.Time
+	cp.LastConsensusTime = e.PrevEpoch.Time
 	cp.LastFiWitness = genesisFiWitness
 
-	s.SetGenesis(sf)
-	s.SetEpoch(sf)
+	s.SetGenesis(e)
+	s.SetEpoch(e)
 	s.SetCheckpoint(cp)
 
 	return nil

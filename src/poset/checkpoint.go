@@ -45,7 +45,7 @@ func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 		p.Fatal("Apply genesis for store first")
 	}
 
-	// restore current super-frame
+	// restore current epoch
 	p.loadEpoch()
 	p.seeVec = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex)
 	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootStronglySeeRoot)

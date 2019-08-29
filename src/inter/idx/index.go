@@ -28,8 +28,8 @@ type (
 )
 
 // Bytes gets the byte representation of the index.
-func (sf Epoch) Bytes() []byte {
-	return bigendian.Int32ToBytes(uint32(sf))
+func (e Epoch) Bytes() []byte {
+	return bigendian.Int32ToBytes(uint32(e))
 }
 
 // Bytes gets the byte representation of the index.

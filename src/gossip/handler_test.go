@@ -171,9 +171,15 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 		// check it's broadcasted just after emitting
 		for _, peer := range peers {
 			if allowAggressive {
-				assertar.NoError(p2p.ExpectMsg(peer.app, EventsMsg, []*inter.Event{emitted})) // aggressive
+				// aggressive
+				assertar.NoError(
+					ExpectMsgOneOf(2, // NOTE: because GetPackInfosMsg could be received first
+						peer.app, EventsMsg, []*inter.Event{emitted}))
 			} else {
-				assertar.NoError(p2p.ExpectMsg(peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()})) // announce
+				// announce
+				assertar.NoError(
+					ExpectMsgOneOf(2, // NOTE: because GetPackInfosMsg could be received first
+						peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()}))
 			}
 			if t.Failed() {
 				return

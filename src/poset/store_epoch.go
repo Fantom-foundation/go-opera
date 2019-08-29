@@ -1,27 +1,27 @@
 package poset
 
-// SetGenesis stores first super-frame.
-func (s *Store) SetGenesis(sf *epoch) {
-	s.setEpoch([]byte("genesis"), sf)
+// SetGenesis stores first epoch.
+func (s *Store) SetGenesis(e *epoch) {
+	s.setEpoch([]byte("genesis"), e)
 }
 
-// GetGenesis returns stored first super-frame.
+// GetGenesis returns stored first epoch.
 func (s *Store) GetGenesis() *epoch {
 	return s.getEpoch([]byte("genesis"))
 }
 
-// SetEpoch stores super-frame.
-func (s *Store) SetEpoch(sf *epoch) {
-	s.setEpoch([]byte("current"), sf)
+// SetEpoch stores epoch.
+func (s *Store) SetEpoch(e *epoch) {
+	s.setEpoch([]byte("current"), e)
 }
 
-// GetEpoch returns stored super-frame.
+// GetEpoch returns stored epoch.
 func (s *Store) GetEpoch() *epoch {
 	return s.getEpoch([]byte("current"))
 }
 
-func (s *Store) setEpoch(key []byte, sf *epoch) {
-	s.set(s.table.Epochs, key, sf)
+func (s *Store) setEpoch(key []byte, e *epoch) {
+	s.set(s.table.Epochs, key, e)
 }
 
 func (s *Store) getEpoch(key []byte) *epoch {
