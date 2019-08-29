@@ -53,10 +53,12 @@ func openDb(dir, name string) (
 
 	f := filepath.Join(dir, name+"-ldb")
 
-	stopWatcher := metrics.StartFileWatcher(name+"_db_file_size", f)
+	var stopWatcher func()
 
 	onClose := func() error {
-		stopWatcher()
+		if stopWatcher != nil {
+			stopWatcher()
+		}
 		return nil
 	}
 	onDrop := func() error {
@@ -67,6 +69,8 @@ func openDb(dir, name string) (
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
+
+	stopWatcher = metrics.StartFileWatcher(name+"_db_file_size", f)
 
 	return
 }

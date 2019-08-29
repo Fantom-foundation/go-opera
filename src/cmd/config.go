@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -48,6 +50,26 @@ var tomlSettings = toml.Config{
 		}
 		return fmt.Errorf("field '%s' is not defined in %s%s", field, rt.String(), link)
 	},
+}
+
+type config struct {
+	Node     node.Config
+	Lachesis gossip.Config
+}
+
+func loadConfig(file string, cfg *config) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = tomlSettings.NewDecoder(bufio.NewReader(f)).Decode(cfg)
+	// Add file name to errors that have a line number.
+	if _, ok := err.(*toml.LineError); ok {
+		err = errors.New(file + ", " + err.Error())
+	}
+	return err
 }
 
 func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
