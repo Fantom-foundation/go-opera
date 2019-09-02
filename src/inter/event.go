@@ -3,6 +3,7 @@ package inter
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -39,7 +40,8 @@ type EventHeaderData struct {
 
 	Extra []byte
 
-	hash *hash.Event `rlp:"-"` // cache for .Hash()
+	// caches
+	hash atomic.Value
 }
 
 type EventHeader struct {
@@ -62,7 +64,7 @@ func (e *EventHeaderData) HashToSign() common.Hash {
 	if err != nil {
 		panic("can't encode: " + err.Error())
 	}
-	return hash.FromBytes(hasher.Sum(nil))
+	return common.BytesToHash(hasher.Sum(nil))
 }
 
 func (e *EventHeaderData) SelfParent() *hash.Event {
@@ -113,17 +115,18 @@ func (e *EventHeaderData) CalcHash() hash.Event {
 	return id
 }
 
-func (e *EventHeaderData) RecacheHash() {
+func (e *EventHeaderData) RecacheHash() hash.Event {
 	id := e.CalcHash()
-	e.hash = &id // TODO must be atomic
+	e.hash.Store(id)
+	return id
 }
 
 // Hash calcs hash of event (cached).
 func (e *EventHeaderData) Hash() hash.Event {
-	if e.hash == nil { // TODO must be atomic
-		e.RecacheHash()
+	if cached := e.hash.Load(); cached != nil {
+		return cached.(hash.Event)
 	}
-	return *e.hash
+	return e.RecacheHash()
 }
 
 // constructs empty event
