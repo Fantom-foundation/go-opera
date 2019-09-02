@@ -71,7 +71,9 @@ func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 		}
 		return b.svc.blockchain.GetHeaderByNumber(uint64(number)), nil
 	*/
-	return nil, ErrNotImplemented
+	return &types.Header{
+		Number: big.NewInt(0),
+	}, nil // ErrNotImplemented
 }
 
 func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {

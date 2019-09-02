@@ -232,7 +232,6 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
-	fmt.Println("Service stopping...")
 	s.pm.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()

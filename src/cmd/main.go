@@ -111,6 +111,7 @@ var (
 		utils.GpoPercentileFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
+		utils.MinerEtherbaseFlag, // for event emission
 		configFileFlag,
 	}
 

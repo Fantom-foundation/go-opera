@@ -57,7 +57,7 @@ func exec(t *testing.T, args ...string) *testcli {
 			if i < len(args)-1 {
 				tt.Datadir = args[i+1]
 			}
-		case arg == "-etherbase" || arg == "--etherbase":
+		case arg == "-miner.etherbase" || arg == "--miner.etherbase":
 			if i < len(args)-1 {
 				tt.Etherbase = args[i+1]
 			}
