@@ -28,8 +28,8 @@ type EventHeaderData struct {
 	PrevEpochHash common.Hash
 	Parents       hash.Events
 
-	GasLeft uint64
-	GasUsed uint64
+	GasPowerLeft uint64
+	GasPowerUsed uint64
 
 	Lamport     idx.Lamport
 	ClaimedTime Timestamp

@@ -52,7 +52,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 	return p.LastBlockN, p.LastFiWitness
 }
 
-// fills consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
+// fills consensus-related fields: Frame, IsRoot, MedianTimestamp
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if e.Epoch != p.EpochN {
@@ -69,11 +69,10 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
 	e.MedianTime = p.seeVec.MedianTime(id, p.PrevEpoch.Time)
-	e.GasLeft = 0 // TODO
 	return e
 }
 
-// checks consensus-related fields: Frame, IsRoot, MedianTimestamp, GasLeft
+// checks consensus-related fields: Frame, IsRoot, MedianTimestamp
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if _, ok := p.Members[e.Creator]; !ok {
 		return errors.Errorf("consensus: %s isn't member", e.Creator.String())
@@ -95,7 +94,6 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
-	// TODO check e.GasLeft
 
 	// save in DB the {vectorindex, e, heads}
 	p.seeVec.Flush()
