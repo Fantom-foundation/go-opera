@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
@@ -94,7 +94,7 @@ type txPool interface {
 
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.
-	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) event.Subscription
+	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) notify.Subscription
 }
 
 // ethStatusData is the network packet for the status message. It's used for compatibility with some ETH wallets.

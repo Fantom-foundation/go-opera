@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -53,9 +53,9 @@ func checkLenLimits(size int, v interface{}) error {
 }
 
 type dagNotifier interface {
-	SubscribeNewEpoch(ch chan<- idx.Epoch) event.Subscription
-	SubscribeNewPack(ch chan<- idx.Pack) event.Subscription
-	SubscribeNewEmitted(ch chan<- *inter.Event) event.Subscription
+	SubscribeNewEpoch(ch chan<- idx.Epoch) notify.Subscription
+	SubscribeNewPack(ch chan<- idx.Pack) notify.Subscription
+	SubscribeNewEmitted(ch chan<- *inter.Event) notify.Subscription
 }
 
 type ProtocolManager struct {
@@ -70,7 +70,7 @@ type ProtocolManager struct {
 	peers *peerSet
 
 	txsCh  chan evm_core.NewTxsNotify
-	txsSub event.Subscription
+	txsSub notify.Subscription
 
 	downloader      *packs_downloader.PacksDownloader
 	fetcher         *fetcher.Fetcher
@@ -82,11 +82,11 @@ type ProtocolManager struct {
 
 	notifier         dagNotifier
 	emittedEventsCh  chan *inter.Event
-	emittedEventsSub event.Subscription
+	emittedEventsSub notify.Subscription
 	newPacksCh       chan idx.Pack
-	newPacksSub      event.Subscription
+	newPacksSub      notify.Subscription
 	newEpochsCh      chan idx.Epoch
-	newEpochsSub     event.Subscription
+	newEpochsSub     notify.Subscription
 
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
