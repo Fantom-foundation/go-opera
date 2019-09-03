@@ -42,6 +42,7 @@ type EventHeaderData struct {
 
 	// caches
 	hash atomic.Value
+	size atomic.Value
 }
 
 type EventHeader struct {
@@ -53,6 +54,24 @@ type EventHeader struct {
 type Event struct {
 	EventHeader
 	Transactions types.Transactions
+}
+
+// constructs empty event
+func NewEvent() *Event {
+	return &Event{
+		EventHeader: EventHeader{
+			EventHeaderData: EventHeaderData{
+				Extra: []byte{},
+			},
+			Sig: []byte{},
+		},
+		Transactions: types.Transactions{},
+	}
+}
+
+// String returns string representation.
+func (e *Event) String() string {
+	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.Lamport)
 }
 
 func (e *EventHeaderData) HashToSign() common.Hash {
@@ -101,6 +120,10 @@ func (e *Event) VerifySignature() bool {
 	return crypto.PubkeyToAddress(*pk) == e.Creator
 }
 
+/*
+ * Event ID (hash):
+ */
+
 // Hash calcs hash of event (not cached).
 func (e *EventHeaderData) CalcHash() hash.Event {
 	hasher := sha3.New256()
@@ -129,22 +152,34 @@ func (e *EventHeaderData) Hash() hash.Event {
 	return e.RecacheHash()
 }
 
-// constructs empty event
-func NewEvent() *Event {
-	return &Event{
-		EventHeader: EventHeader{
-			EventHeaderData: EventHeaderData{
-				Extra: []byte{},
-			},
-			Sig: []byte{},
-		},
-		Transactions: types.Transactions{},
-	}
+/*
+ * Event size:
+ */
+
+type writeCounter int
+
+func (c *writeCounter) Write(b []byte) (int, error) {
+	*c += writeCounter(len(b))
+	return len(b), nil
 }
 
-// String returns string representation.
-func (e *Event) String() string {
-	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.Lamport)
+func (e *Event) CalcSize() int {
+	c := writeCounter(0)
+	_ = rlp.Encode(&c, e)
+	return int(c)
+}
+
+func (e *Event) RecacheSize() int {
+	size := e.CalcSize()
+	e.size.Store(size)
+	return size
+}
+
+func (e *Event) Size() int {
+	if cached := e.size.Load(); cached != nil {
+		return cached.(int)
+	}
+	return e.RecacheSize()
 }
 
 /*
