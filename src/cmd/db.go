@@ -11,7 +11,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
-	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -70,7 +69,8 @@ func openDb(dir, name string) (
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
 
-	stopWatcher = metrics.StartFileWatcher(name+"_db_file_size", f)
+	// TODO: dir watcher instead of file watcher needed.
+	//stopWatcher = metrics.StartFileWatcher(name+"_db_file_size", f)
 
 	return
 }
