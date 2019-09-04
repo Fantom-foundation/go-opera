@@ -109,17 +109,19 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
-	pool := evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, &EvmStateReader{
+	stateReader := &EvmStateReader{
 		ServiceFeed: &svc.feed,
 		engineMu:    svc.engineMu,
 		engine:      svc.engine,
 		store:       svc.store,
-	})
+	}
+
+	pool := evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, pool, svc.engineMu, store, engine)
 
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, nil}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
 
 	return svc, err
 }
@@ -195,7 +197,12 @@ func (s *Service) Protocols() []p2p.Protocol {
 func (s *Service) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.EthAPI)
 
-	// TODO: apis = append(apis, <custom_api>)
+	apis = append(apis, rpc.API{
+		Namespace: "eth",
+		Version:   "1.0",
+		Service:   NewPublicEthereumAPI(s),
+		Public:    true,
+	})
 
 	return apis
 }

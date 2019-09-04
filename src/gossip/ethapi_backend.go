@@ -5,13 +5,12 @@ import (
 	"errors"
 	"math/big"
 
+	//	"github.com/ethereum/go-ethereum/core/rawdb"
+	//	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-
-	//	"github.com/ethereum/go-ethereum/core/rawdb"
-	//	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -21,6 +20,8 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 )
 
 var ErrNotImplemented = errors.New("method is not implemented yet")
@@ -29,6 +30,7 @@ var ErrNotImplemented = errors.New("method is not implemented yet")
 type EthAPIBackend struct {
 	extRPCEnabled bool
 	svc           *Service
+	state         *EvmStateReader
 	gpo           *gasprice.Oracle
 }
 
@@ -42,11 +44,13 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 }
 
 func (b *EthAPIBackend) CurrentBlock() *types.Block {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.blockchain.CurrentBlock()
-	*/
-	return nil
+	blk := b.state.CurrentBlock()
+	return types.NewBlock(
+		convertHeader(&blk.EvmHeader),
+		blk.Transactions,
+		nil,
+		nil,
+	)
 }
 
 func (b *EthAPIBackend) SetHead(number uint64) {
@@ -58,22 +62,21 @@ func (b *EthAPIBackend) SetHead(number uint64) {
 }
 
 func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		// Pending block is only known by the miner
-		if number == rpc.PendingBlockNumber {
-			block := b.svc.miner.PendingBlock()
-			return block.Header(), nil
-		}
-		// Otherwise resolve and return the block
-		if number == rpc.LatestBlockNumber {
-			return b.svc.blockchain.CurrentBlock().Header(), nil
-		}
-		return b.svc.blockchain.GetHeaderByNumber(uint64(number)), nil
-	*/
-	return &types.Header{
-		Number: big.NewInt(0),
-	}, nil // ErrNotImplemented
+	// Pending block is only known by the miner
+	if number == rpc.PendingBlockNumber {
+		return nil, nil
+	}
+
+	// Otherwise resolve and return the block
+	var blk *evm_core.EvmBlock
+	if number == rpc.LatestBlockNumber {
+		blk = b.state.CurrentBlock()
+	} else {
+		n := uint64(number.Int64())
+		blk = b.state.GetBlock(common.Hash{}, n)
+	}
+
+	return convertHeader(&blk.EvmHeader), nil
 }
 
 func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
@@ -85,20 +88,25 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 }
 
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		// Pending block is only known by the miner
-		if number == rpc.PendingBlockNumber {
-			block := b.svc.miner.PendingBlock()
-			return block, nil
-		}
-		// Otherwise resolve and return the block
-		if number == rpc.LatestBlockNumber {
-			return b.svc.blockchain.CurrentBlock(), nil
-		}
-		return b.svc.blockchain.GetBlockByNumber(uint64(number)), nil
-	*/
-	return nil, ErrNotImplemented
+	// Pending block is only known by the miner
+	if number == rpc.PendingBlockNumber {
+		return nil, nil
+	}
+	// Otherwise resolve and return the block
+	var blk *evm_core.EvmBlock
+	if number == rpc.LatestBlockNumber {
+		blk = b.state.CurrentBlock()
+	} else {
+		n := uint64(number.Int64())
+		blk = b.state.GetBlock(common.Hash{}, n)
+	}
+
+	return types.NewBlock(
+		convertHeader(&blk.EvmHeader),
+		blk.Transactions,
+		nil,
+		nil,
+	), nil
 }
 
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
@@ -372,4 +380,20 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 			go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.svc.bloomRequests)
 		}
 	*/
+}
+
+/*
+ * utils:
+ */
+
+func convertHeader(h *evm_core.EvmHeader) *types.Header {
+	// NOTE: incomplete conversion
+	return &types.Header{
+		Number:     h.Number,
+		Coinbase:   h.Coinbase,
+		GasLimit:   h.GasLimit,
+		Root:       h.Root,
+		ParentHash: h.ParentHash,
+		Time:       uint64(h.Time.Unix()),
+	}
 }
