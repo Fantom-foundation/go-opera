@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -23,7 +24,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 const (
@@ -151,7 +151,7 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
-			if err == poset.ErrOutdatedEvent ||
+			if err == epoch_check.ErrNotRecent ||
 				err == ordering.ErrAlreadyConnectedEvent {
 				return
 			}

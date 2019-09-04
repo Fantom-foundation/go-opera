@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
@@ -10,10 +11,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/poset/election"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
-)
-
-var (
-	ErrOutdatedEvent = errors.New("consensus: event is too old/too new")
 )
 
 // Poset processes events to get consensus.
@@ -75,7 +72,7 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 // checks consensus-related fields: Frame, IsRoot, MedianTimestamp
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if _, ok := p.Members[e.Creator]; !ok {
-		return errors.Errorf("consensus: %s isn't member", e.Creator.String())
+		return epoch_check.ErrAuth
 	}
 
 	p.seeVec.Add(e)
@@ -169,7 +166,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) error {
 	if e.Epoch != p.EpochN {
-		return ErrOutdatedEvent
+		return epoch_check.ErrNotRecent
 	}
 	p.Debugf("consensus: start %s", e.String())
 

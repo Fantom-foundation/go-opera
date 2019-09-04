@@ -18,15 +18,15 @@ const (
 	fetchTimeout  = 10 * time.Second       // Maximum allowed time to return an explicitly requested event
 	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
 
-	maxInjectBatch   = 8  // Maximum number of events in an inject batch (batch is divided if exceeded)
+	maxInjectBatch   = 4  // Maximum number of events in an inject batch (batch is divided if exceeded)
 	maxAnnounceBatch = 16 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
 
 	// maxQueuedInjects is the maximum number of inject batches to queue up before
 	// dropping incoming events.
-	maxQueuedInjects = 64
+	maxQueuedInjects = 128
 	// maxQueuedAnns is the maximum number of announce batches to queue up before
 	// dropping incoming hashes.
-	maxQueuedAnns = 64
+	maxQueuedAnns = 128
 )
 
 var (
