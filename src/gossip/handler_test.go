@@ -139,7 +139,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	engine := poset.New(engineStore, store)
 	engine.Bootstrap(nil)
 
-	svc, err := NewService(config, store, engine)
+	svc, err := NewService(nil, config, store, engine)
 	assertar.NoError(err)
 
 	// start PM

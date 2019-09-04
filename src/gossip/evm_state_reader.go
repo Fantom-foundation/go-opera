@@ -1,14 +1,16 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"log"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"log"
-	"sync"
+
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type EvmStateReader struct {
@@ -31,13 +33,15 @@ func (r *EvmStateReader) GetBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
-	return r.getBlock(common.Hash(h), uint64(n))
-
+	return r.getBlock(h, n)
 }
 
 func (r *EvmStateReader) getBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
 	block := r.store.GetBlock(idx.Block(n))
-	if block == nil || block.Hash() != hash.Event(h) {
+	if block == nil {
+		return nil
+	}
+	if (h != common.Hash{}) && (block.Hash() != hash.Event(h)) {
 		return nil
 	}
 
