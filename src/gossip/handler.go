@@ -22,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -596,7 +597,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			if len(info.Heads) == 0 {
 				return errResp(ErrEmptyMessage, "%v", msg)
 			}
-			// TODO check len(info.Heads) <= len(members)^2, squire because of possible forks
+			if len(info.Heads) > pos.MembersCount*pos.MembersCount { // squire because of possible forks
+				return errResp(ErrMsgTooLarge, "%v", msg)
+			}
 			// Mark the hashes as present at the remote node
 			for _, id := range info.Heads {
 				p.MarkEvent(id)

@@ -27,7 +27,7 @@ func (s *Service) packs_onNewEvent(e *inter.Event, epoch idx.Epoch) {
 
 	packInfo.Index = packIdx
 	packInfo.NumOfEvents += 1
-	packInfo.Size += uint32(len(s.store.GetEventRLP(e.Hash()))) // TODO optimize (no need to do DB access)
+	packInfo.Size += uint32(e.Size())
 	if packInfo.NumOfEvents >= maxPackEventsNum || packInfo.Size >= maxPackSize {
 		// pin the s.store.GetHeads()
 		packInfo.Heads = s.store.GetHeads(epoch)

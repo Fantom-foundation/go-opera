@@ -78,7 +78,7 @@ func (vi *Index) fillEventVectors(e *event) {
 	e.LowestAfter[e.CreatorIdx].Seq = e.Seq
 	e.HighestBefore[e.CreatorIdx].Seq = e.Seq
 	e.HighestBefore[e.CreatorIdx].ID = e.Hash()
-	e.HighestBefore[e.CreatorIdx].ClaimedTime = e.ClaimedTime // TODO .ClaimedTime
+	e.HighestBefore[e.CreatorIdx].ClaimedTime = e.ClaimedTime
 
 	// pre-load parents into RAM for quick access
 	eParents := make([]*event, 0, len(e.Parents))
