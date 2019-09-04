@@ -34,7 +34,7 @@ func TestAccountListEmpty(t *testing.T) {
 func TestAccountList(t *testing.T) {
 	datadir := tmpDatadirWithKeystore(t)
 	cli := exec(t, "account", "list", "--datadir", datadir)
-	defer cli.ExpectExit()
+
 	if runtime.GOOS == "windows" {
 		cli.Expect(`
 Account #0: {7ef5a6135f1fd6a02593eedc869c6d41d934aef8} keystore://{{.Datadir}}\keystore\UTC--2016-03-22T12-57-55.920751759Z--7ef5a6135f1fd6a02593eedc869c6d41d934aef8
@@ -48,11 +48,13 @@ Account #1: {f466859ead1932d743d622cb74fc058882e8648a} keystore://{{.Datadir}}/k
 Account #2: {289d485d9771714cce91d3393d764e1311907acc} keystore://{{.Datadir}}/keystore/zzz
 `)
 	}
+
+	cli.ExpectExit()
 }
 
 func TestAccountNew(t *testing.T) {
 	cli := exec(t, "account", "new", "--lightkdf")
-	defer cli.ExpectExit()
+
 	cli.Expect(`
 Your new account is locked with a password. Please give a password. Do not forget this password.
 !! Unsupported terminal, password will be echoed.
@@ -70,11 +72,13 @@ Path of the secret key file: .*UTC--.+--[0-9a-f]{40}
 - You must BACKUP your key file! Without the key, it's impossible to access account funds!
 - You must REMEMBER your password! Without the password, it's impossible to decrypt the key!
 `)
+
+	cli.ExpectExit()
 }
 
 func TestAccountNewBadRepeat(t *testing.T) {
 	cli := exec(t, "account", "new", "--lightkdf")
-	defer cli.ExpectExit()
+
 	cli.Expect(`
 Your new account is locked with a password. Please give a password. Do not forget this password.
 !! Unsupported terminal, password will be echoed.
@@ -82,6 +86,7 @@ Passphrase: {{.InputLine "something"}}
 Repeat passphrase: {{.InputLine "something else"}}
 Fatal: Passphrases do not match
 `)
+	cli.ExpectExit()
 }
 
 func TestAccountUpdate(t *testing.T) {
@@ -102,7 +107,7 @@ Repeat passphrase: {{.InputLine "foobar2"}}
 
 func TestWalletImport(t *testing.T) {
 	cli := exec(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
-	defer cli.ExpectExit()
+
 	cli.Expect(`
 !! Unsupported terminal, password will be echoed.
 Passphrase: {{.InputLine "foo"}}
@@ -113,16 +118,19 @@ Address: {d4584b5f6229b7be90727b0fc8c6b91bb427821f}
 	if len(files) != 1 {
 		t.Errorf("expected one key file in keystore directory, found %d files (error: %v)", len(files), err)
 	}
+
+	cli.ExpectExit()
 }
 
 func TestWalletImportBadPassword(t *testing.T) {
 	cli := exec(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
-	defer cli.ExpectExit()
+
 	cli.Expect(`
 !! Unsupported terminal, password will be echoed.
 Passphrase: {{.InputLine "wrong"}}
 Fatal: could not decrypt key with given passphrase
 `)
+	cli.ExpectExit()
 }
 
 func TestUnlockFlag(t *testing.T) {
@@ -131,6 +139,7 @@ func TestUnlockFlag(t *testing.T) {
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
 		"js", "testdata/empty.js")
+
 	cli.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
@@ -154,7 +163,7 @@ func TestUnlockFlagWrongPassword(t *testing.T) {
 	cli := exec(t,
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
-	defer cli.ExpectExit()
+
 	cli.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
@@ -165,6 +174,7 @@ Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 3/3
 Passphrase: {{.InputLine "wrong3"}}
 Fatal: Failed to unlock account f466859ead1932d743d622cb74fc058882e8648a (could not decrypt key with given passphrase)
 `)
+	cli.ExpectExit()
 }
 
 // https://github.com/ethereum/go-ethereum/issues/1785
@@ -174,6 +184,7 @@ func TestUnlockFlagMultiIndex(t *testing.T) {
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--unlock", "0,2",
 		"js", "testdata/empty.js")
+
 	cli.Expect(`
 Unlocking account 0 | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
@@ -201,6 +212,7 @@ func TestUnlockFlagPasswordFile(t *testing.T) {
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--password", "testdata/passwords.txt", "--unlock", "0,2",
 		"js", "testdata/empty.js")
+
 	cli.ExpectExit()
 
 	wantMessages := []string{
@@ -220,10 +232,11 @@ func TestUnlockFlagPasswordFileWrongPassword(t *testing.T) {
 	cli := exec(t,
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--password", "testdata/wrong-passwords.txt", "--unlock", "0,2")
-	defer cli.ExpectExit()
+
 	cli.Expect(`
 Fatal: Failed to unlock account 0 (could not decrypt key with given passphrase)
 `)
+	cli.ExpectExit()
 }
 
 func TestUnlockFlagAmbiguous(t *testing.T) {
@@ -232,7 +245,6 @@ func TestUnlockFlagAmbiguous(t *testing.T) {
 		"--keystore", store, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
 		"js", "testdata/empty.js")
-	defer cli.ExpectExit()
 
 	// Helper for the expect template, returns absolute keystore path.
 	cli.SetTemplateFunc("keypath", func(file string) string {
@@ -269,7 +281,6 @@ func TestUnlockFlagAmbiguousWrongPassword(t *testing.T) {
 	cli := exec(t,
 		"--keystore", store, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
-	defer cli.ExpectExit()
 
 	// Helper for the expect template, returns absolute keystore path.
 	cli.SetTemplateFunc("keypath", func(file string) string {

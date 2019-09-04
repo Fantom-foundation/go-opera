@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/cmd/cmdtest"
 )
@@ -23,12 +25,19 @@ type testcli struct {
 	*cmdtest.TestCmd
 
 	// template variables for expect
-	Datadir   string
-	Etherbase string
+	Datadir  string
+	Coinbase string
+}
+
+func (tt *testcli) readConfig() {
+	cfg := defaultNodeConfig()
+	cfg.DataDir = tt.Datadir
+	addr := crypto.PubkeyToAddress(cfg.NodeKey().PublicKey)
+	tt.Coinbase = strings.ToLower(addr.String())
 }
 
 func init() {
-	// Run the app if we've been exec'd as "glachesis-test" in runGeth.
+	// Run the app if we've been exec'd as "glachesis-test" in exec().
 	reexec.Register("glachesis-test", func() {
 		if err := app.Run(os.Args); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -51,23 +60,24 @@ func TestMain(m *testing.M) {
 func exec(t *testing.T, args ...string) *testcli {
 	tt := &testcli{}
 	tt.TestCmd = cmdtest.NewTestCmd(t, tt)
-	for i, arg := range args {
-		switch {
-		case arg == "-datadir" || arg == "--datadir":
-			if i < len(args)-1 {
-				tt.Datadir = args[i+1]
-			}
-		case arg == "-miner.etherbase" || arg == "--miner.etherbase":
-			if i < len(args)-1 {
-				tt.Etherbase = args[i+1]
+
+	if len(args) < 1 || args[0] != "attach" {
+		// make datadir
+		for i, arg := range args {
+			switch {
+			case arg == "-datadir" || arg == "--datadir":
+				if i < len(args)-1 {
+					tt.Datadir = args[i+1]
+				}
 			}
 		}
-	}
-	if tt.Datadir == "" {
-		tt.Datadir = tmpdir(t)
+		if tt.Datadir == "" {
+			tt.Datadir = tmpdir(t)
+			args = append([]string{"-datadir", tt.Datadir}, args...)
+		}
+
+		// Remove the temporary datadir.
 		tt.Cleanup = func() { os.RemoveAll(tt.Datadir) }
-		args = append([]string{"-datadir", tt.Datadir}, args...)
-		// Remove the temporary datadir if something fails below.
 		defer func() {
 			if t.Failed() {
 				tt.Cleanup()
@@ -78,6 +88,9 @@ func exec(t *testing.T, args ...string) *testcli {
 	// Boot "glachesis". This actually runs the test binary but the TestMain
 	// function will prevent any tests from running.
 	tt.Run("glachesis-test", args...)
+
+	// Read the generated key
+	tt.readConfig()
 
 	return tt
 }
