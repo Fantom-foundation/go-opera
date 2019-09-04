@@ -98,8 +98,8 @@ func defaultNodeConfig() node.Config {
 	cfg := NodeDefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
-	cfg.HTTPModules = append(cfg.HTTPModules, "lachesis")
-	cfg.WSModules = append(cfg.WSModules, "lachesis")
+	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "web3")
+	cfg.WSModules = append(cfg.WSModules, "eth", "web3")
 	cfg.IPCPath = "lachesis.ipc"
 	cfg.P2P.DiscoveryV5 = true
 	return cfg
