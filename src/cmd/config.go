@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -50,6 +52,26 @@ var tomlSettings = toml.Config{
 	},
 }
 
+type config struct {
+	Node     node.Config
+	Lachesis gossip.Config
+}
+
+func loadConfig(file string, cfg *config) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	err = tomlSettings.NewDecoder(bufio.NewReader(f)).Decode(cfg)
+	// Add file name to errors that have a line number.
+	if _, ok := err.(*toml.LineError); ok {
+		err = errors.New(file + ", " + err.Error())
+	}
+	return err
+}
+
 func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
 	cfg := lachesis.FakeNetConfig(0)
 	// TODO: apply flags
@@ -76,8 +98,8 @@ func defaultNodeConfig() node.Config {
 	cfg := NodeDefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
-	cfg.HTTPModules = append(cfg.HTTPModules, "lachesis")
-	cfg.WSModules = append(cfg.WSModules, "lachesis")
+	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "web3")
+	cfg.WSModules = append(cfg.WSModules, "eth", "web3")
 	cfg.IPCPath = "lachesis.ipc"
 	cfg.P2P.DiscoveryV5 = true
 	return cfg

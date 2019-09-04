@@ -4,9 +4,10 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 type EvmHeader struct {

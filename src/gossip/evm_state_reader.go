@@ -62,7 +62,10 @@ func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evm_core.EvmBlo
 
 func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_core.EvmBlock {
 	block := r.store.GetBlock(n)
-	if block == nil || block.Hash() != hash.Event(h) {
+	if block == nil {
+		return nil
+	}
+	if (h != hash.Event{}) && (h != block.Hash()) {
 		return nil
 	}
 

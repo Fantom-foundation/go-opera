@@ -4,12 +4,22 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
+	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
+	"github.com/Fantom-foundation/go-lachesis/src/internal/debug"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -103,26 +113,83 @@ var (
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 	}
+
+	rpcFlags = []cli.Flag{
+		utils.RPCEnabledFlag,
+		utils.RPCListenAddrFlag,
+		utils.RPCPortFlag,
+		utils.RPCCORSDomainFlag,
+		utils.RPCVirtualHostsFlag,
+		utils.GraphQLEnabledFlag,
+		utils.GraphQLListenAddrFlag,
+		utils.GraphQLPortFlag,
+		utils.GraphQLCORSDomainFlag,
+		utils.GraphQLVirtualHostsFlag,
+		utils.RPCApiFlag,
+		utils.WSEnabledFlag,
+		utils.WSListenAddrFlag,
+		utils.WSPortFlag,
+		utils.WSApiFlag,
+		utils.WSAllowedOriginsFlag,
+		utils.IPCDisabledFlag,
+		utils.IPCPathFlag,
+		utils.InsecureUnlockAllowedFlag,
+		utils.RPCGlobalGasCap,
+	}
+
+	metricsFlags = []cli.Flag{
+		utils.MetricsEnabledFlag,
+		utils.MetricsEnabledExpensiveFlag,
+		utils.MetricsEnableInfluxDBFlag,
+		utils.MetricsInfluxDBEndpointFlag,
+		utils.MetricsInfluxDBDatabaseFlag,
+		utils.MetricsInfluxDBUsernameFlag,
+		utils.MetricsInfluxDBPasswordFlag,
+		utils.MetricsInfluxDBTagsFlag,
+	}
 )
 
 // init the CLI app.
 func init() {
 	overrideParams()
 
-	app.Action = actionLachesis
+	app.Action = glachesis
 	app.HideVersion = true // we have a command to print the version
 	app.Commands = []cli.Command{
+		// See accountcmd.go:
+		accountCommand,
+		walletCommand,
+		// See consolecmd.go:
+		consoleCommand,
+		attachCommand,
+		javascriptCommand,
+		// See config.go
 		dumpConfigCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
 	app.Flags = append(app.Flags, nodeFlags...)
+	app.Flags = append(app.Flags, rpcFlags...)
+	app.Flags = append(app.Flags, consoleFlags...)
+	app.Flags = append(app.Flags, debug.Flags...)
+	app.Flags = append(app.Flags, metricsFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
+		logdir := ""
+		if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
+			logdir = (&node.Config{DataDir: utils.MakeDataDir(ctx)}).ResolvePath("logs")
+		}
+		if err := debug.Setup(ctx, logdir); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
 	app.After = func(ctx *cli.Context) error {
+		debug.Exit()
+		console.Stdin.Close() // Resets terminal mode.
+
 		return nil
 	}
 }
@@ -134,27 +201,24 @@ func main() {
 	}
 }
 
-// actionLachesis is the main entry point into the system if no special subcommand is ran.
+// glachesis is the main entry point into the system if no special subcommand is ran.
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
-func actionLachesis(ctx *cli.Context) error {
+func glachesis(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 
-	node, err := makeFullNode(ctx)
-	if err != nil {
-		return err
-	}
+	node := makeFullNode(ctx)
 	defer node.Close()
-
-	utils.StartNode(node)
+	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeFullNode(ctx *cli.Context) (*node.Node, error) {
-	nodeCfg := makeNodeConfig(ctx)
+func makeFullNode(ctx *cli.Context) *node.Node {
+	stack, nodeCfg := makeConfigNode(ctx)
+
 	networkCfg := makeLachesisConfig(ctx)
 	gossipCfg := makeGossipConfig(ctx, networkCfg)
 
@@ -179,18 +243,146 @@ func makeFullNode(ctx *cli.Context) (*node.Node, error) {
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(gossipCfg, gdb, engine)
+		return gossip.NewService(ctx, gossipCfg, gdb, engine)
 	}
 
-	// Create node.
-	stack, err := node.New(nodeCfg)
+	if err := stack.Register(gossipService); err != nil {
+		utils.Fatalf("Failed to register the service: %v", err)
+	}
+
+	return stack
+}
+
+func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
+	cfg := makeNodeConfig(ctx)
+	stack, err := node.New(cfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
-	if err := stack.Register(gossipService); err != nil {
-		utils.Fatalf("Failed to register service: %v", err)
-	}
+	return stack, cfg
+}
 
-	return stack, nil
+// startNode boots up the system node and all registered protocols, after which
+// it unlocks any requested accounts, and starts the RPC/IPC interfaces.
+func startNode(ctx *cli.Context, stack *node.Node) {
+	debug.Memsize.Add("node", stack)
+
+	// Start up the node itself
+	utils.StartNode(stack)
+
+	// Unlock any account specifically requested
+	unlockAccounts(ctx, stack)
+
+	// Register wallet event handlers to open and auto-derive wallets
+	events := make(chan accounts.WalletEvent, 16)
+	stack.AccountManager().Subscribe(events)
+
+	// Create a client to interact with local glachesis node.
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Failed to attach to self: %v", err)
+	}
+	ethClient := ethclient.NewClient(rpcClient)
+	/*
+		// Set contract backend for ethereum service if local node
+		// is serving LES requests.
+		if ctx.GlobalInt(utils.LightLegacyServFlag.Name) > 0 || ctx.GlobalInt(utils.LightServeFlag.Name) > 0 {
+			var ethService *eth.Ethereum
+			if err := stack.Service(&ethService); err != nil {
+				utils.Fatalf("Failed to retrieve ethereum service: %v", err)
+			}
+			ethService.SetContractBackend(ethClient)
+		}
+		// Set contract backend for les service if local node is
+		// running as a light client.
+		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
+			var lesService *les.LightEthereum
+			if err := stack.Service(&lesService); err != nil {
+				utils.Fatalf("Failed to retrieve light ethereum service: %v", err)
+			}
+			lesService.SetContractBackend(ethClient)
+		}
+	*/
+	go func() {
+		// Open any wallets already attached
+		for _, wallet := range stack.AccountManager().Wallets() {
+			if err := wallet.Open(""); err != nil {
+				log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
+			}
+		}
+		// Listen for wallet event till termination
+		for event := range events {
+			switch event.Kind {
+			case accounts.WalletArrived:
+				if err := event.Wallet.Open(""); err != nil {
+					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+				}
+			case accounts.WalletOpened:
+				status, _ := event.Wallet.Status()
+				log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", status)
+
+				var derivationPaths []accounts.DerivationPath
+				if event.Wallet.URL().Scheme == "ledger" {
+					derivationPaths = append(derivationPaths, accounts.LegacyLedgerBaseDerivationPath)
+				}
+				derivationPaths = append(derivationPaths, accounts.DefaultBaseDerivationPath)
+
+				event.Wallet.SelfDerive(derivationPaths, ethClient)
+
+			case accounts.WalletDropped:
+				log.Info("Old wallet dropped", "url", event.Wallet.URL())
+				event.Wallet.Close()
+			}
+		}
+	}()
+
+	// Spawn a standalone goroutine for status synchronization monitoring,
+	// close the node when synchronization is complete if user required.
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) {
+		go func() {
+			sub := stack.EventMux().Subscribe(downloader.DoneEvent{})
+			defer sub.Unsubscribe()
+			for {
+				event := <-sub.Chan()
+				if event == nil {
+					continue
+				}
+				done, ok := event.Data.(downloader.DoneEvent)
+				if !ok {
+					continue
+				}
+				if timestamp := time.Unix(int64(done.Latest.Time), 0); time.Since(timestamp) < 10*time.Minute {
+					log.Info("Synchronisation completed", "latestnum", done.Latest.Number, "latesthash", done.Latest.Hash(),
+						"age", common.PrettyAge(timestamp))
+					stack.Stop()
+				}
+			}
+		}()
+	}
+}
+
+// unlockAccounts unlocks any account specifically requested.
+func unlockAccounts(ctx *cli.Context, stack *node.Node) {
+	var unlocks []string
+	inputs := strings.Split(ctx.GlobalString(utils.UnlockedAccountFlag.Name), ",")
+	for _, input := range inputs {
+		if trimmed := strings.TrimSpace(input); trimmed != "" {
+			unlocks = append(unlocks, trimmed)
+		}
+	}
+	// Short circuit if there is no account to unlock.
+	if len(unlocks) == 0 {
+		return
+	}
+	// If insecure account unlocking is not allowed if node's APIs are exposed to external.
+	// Print warning log to user and skip unlocking.
+	if !stack.Config().InsecureUnlockAllowed && stack.Config().ExtRPCEnabled() {
+		utils.Fatalf("Account unlock with HTTP access is forbidden!")
+	}
+	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+	passwords := utils.MakePasswordList(ctx)
+	for i, account := range unlocks {
+		unlockAccount(ks, account, i, passwords)
+	}
 }

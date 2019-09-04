@@ -9,12 +9,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -63,6 +65,7 @@ type Service struct {
 	privateKey *ecdsa.PrivateKey
 
 	// application
+	node     *node.ServiceContext
 	store    *Store
 	engine   Consensus
 	engineMu *sync.RWMutex
@@ -74,10 +77,12 @@ type Service struct {
 	// application protocol
 	pm *ProtocolManager
 
+	EthAPI *EthAPIBackend
+
 	logger.Instance
 }
 
-func NewService(config Config, store *Store, engine Consensus) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Consensus) (*Service, error) {
 	svc := &Service{
 		config: config,
 
@@ -85,6 +90,7 @@ func NewService(config Config, store *Store, engine Consensus) (*Service, error)
 
 		Name: fmt.Sprintf("Node-%d", rand.Int()),
 
+		node:  ctx,
 		store: store,
 
 		engineMu: new(sync.RWMutex),
@@ -104,10 +110,14 @@ func NewService(config Config, store *Store, engine Consensus) (*Service, error)
 
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
-	svc.txpool = evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, svc.GetEvmStateReader())
+	stateReader := svc.GetEvmStateReader()
+
+	svc.txpool = evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, engine)
+
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
 
 	return svc, err
 }
@@ -181,7 +191,16 @@ func (s *Service) Protocols() []p2p.Protocol {
 
 // APIs returns api methods the service wants to expose on rpc channels.
 func (s *Service) APIs() []rpc.API {
-	return []rpc.API{}
+	apis := ethapi.GetAPIs(s.EthAPI)
+
+	apis = append(apis, rpc.API{
+		Namespace: "eth",
+		Version:   "1.0",
+		Service:   NewPublicEthereumAPI(s),
+		Public:    true,
+	})
+
+	return apis
 }
 
 // Start method invoked when the node is ready to start the service.
@@ -216,7 +235,6 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
-	fmt.Println("Service stopping...")
 	s.pm.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()
