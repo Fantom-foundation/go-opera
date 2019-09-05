@@ -66,7 +66,7 @@ func TestEventBuffer(t *testing.T) {
 			return processed[e]
 		},
 
-		Validator: parents_check.New(&lachesis.DagConfig{}, &testDagReader{nodes}),
+		Check: parents_check.New(&lachesis.DagConfig{}, &testDagReader{nodes}).Validate,
 	})
 
 	for _, rnd := range rand.Perm(len(ordered)) {

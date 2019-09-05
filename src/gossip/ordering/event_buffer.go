@@ -1,19 +1,14 @@
 package ordering
 
 import (
-	"errors"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 const expiration = 1 * time.Hour
-
-var (
-	ErrAlreadyConnectedEvent = errors.New("event is connected already")
-)
 
 type (
 	// event is a inter.Event and data for ordering purpose.
@@ -27,10 +22,10 @@ type (
 
 	// Callback is a set of EventBuffer()'s args.
 	Callback struct {
-		Process   func(e *inter.Event) error
-		Drop      func(e *inter.Event, peer string, err error)
-		Exists    func(hash.Event) *inter.Event
-		Validator *parents_check.Validator
+		Process func(e *inter.Event) error
+		Drop    func(e *inter.Event, peer string, err error)
+		Exists  func(hash.Event) *inter.Event
+		Check   func(e *inter.Event, parents []*inter.EventHeaderData) error
 	}
 )
 
@@ -62,12 +57,12 @@ func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) 
 		}
 
 		// validate
-		if callback.Validator != nil {
+		if callback.Check != nil {
 			parentHeaders := make([]*inter.EventHeaderData, len(e.Parents))
 			for i, p := range e.Parents {
 				parentHeaders[i] = &e.parents[p].EventHeaderData
 			}
-			err := callback.Validator.Validate(e.Event, parentHeaders)
+			err := callback.Check(e.Event, parentHeaders)
 			if err != nil {
 				callback.Drop(e.Event, peer, err)
 				return
@@ -94,7 +89,7 @@ func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) 
 
 	push = func(e *inter.Event, peer string) {
 		if callback.Exists(e.Hash()) != nil {
-			callback.Drop(e, peer, ErrAlreadyConnectedEvent)
+			callback.Drop(e, peer, event_check.ErrAlreadyConnectedEvent)
 			return
 		}
 
