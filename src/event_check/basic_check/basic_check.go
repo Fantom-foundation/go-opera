@@ -34,7 +34,7 @@ var (
 	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
 	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
 	ErrIntrinsicGas   = errors.New("intrinsic gas too low")
-	ErrMalformed      = errors.New("event is malformed")
+	ErrNotInited      = errors.New("event field is not initialized")
 	ErrZeroTime       = errors.New("event has zero timestamp")
 	ErrNegativeValue  = errors.New("negative value")
 )
@@ -116,7 +116,7 @@ func (v *Validator) checkLimits(e *inter.Event) error {
 
 func (v *Validator) checkInited(e *inter.Event) error {
 	if e.Seq == 0 || e.Epoch == 0 || e.Frame == 0 || e.Lamport == 0 {
-		return ErrMalformed
+		return ErrNotInited
 	}
 	if e.ClaimedTime == 0 {
 		return ErrZeroTime
