@@ -3,6 +3,7 @@
 package metrics
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -12,10 +13,10 @@ type RegistryEachFunc func(name string, metric Metric)
 // Registry management metrics.
 type Registry interface {
 	// Each iteration on all registered metrics.
-	Each(f RegistryEachFunc)
+	Each(f RegistryEachFunc) error
 
 	// Register add new metric. If metric is exist, write Fatal error.
-	Register(name string, metric Metric)
+	Register(name string, metric Metric) error
 
 	// Get the metric by name.
 	Get(name string) Metric
@@ -48,32 +49,38 @@ func newRegistry() *registry {
 	}
 }
 
-func (r *registry) Each(f RegistryEachFunc) {
+func (r *registry) Each(f RegistryEachFunc) (err error) {
 	r.Range(func(key, value interface{}) bool {
 		name, ok := key.(string)
 		if !ok {
-			log.Fatal("name must be string")
+			err = fmt.Errorf("key name must be string")
+			return false
 		}
 
 		metric, ok := value.(Metric)
 		if !ok {
-			log.Fatal("metric is incorrect type: must be Metric type")
+			err = fmt.Errorf("metric must be instance of Metric")
+			return false
 		}
 
 		f(name, metric)
 
 		return true
 	})
+
+	return err
 }
 
-func (r *registry) Register(name string, metric Metric) {
+func (r *registry) Register(name string, metric Metric) error {
 	_, ok := r.Load(name)
 	if ok {
-		log.Fatalf("metric '%s' is exist", name)
+		return fmt.Errorf("metric name '%s' is already registered", name)
 	}
 
 	r.Store(name, metric)
 	r.onNew(name, metric)
+
+	return nil
 }
 
 func (r *registry) Get(name string) Metric {
