@@ -19,7 +19,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	// get event by hash
 	event := vi.GetEvent(id)
 	if event == nil {
-		vi.Error("vector.Index: event wasn't found " + id.String())
+		vi.Log.Error("Event wasn't found", "event", id.String())
 		return 0
 	}
 
@@ -65,7 +65,13 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 
 	// sanity check
 	if currStake < halfStake || currStake > honestTotalStake {
-		vi.Fatalf("vector.Index: median wasn't calculated correctly (median=%d, currStake=%d, totalStake=%d, len(highests)=%d, id=%s)", median, currStake, honestTotalStake, len(highests), id.String())
+		vi.Log.Crit("Median wasn't calculated correctly",
+			"median", median,
+			"currStake", currStake,
+			"totalStake", honestTotalStake,
+			"len(highests)", len(highests),
+			"id", id.String(),
+		)
 	}
 
 	return median
