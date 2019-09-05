@@ -38,7 +38,7 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 	for member, stake := range el.members {
 		vote, ok := el.decidedRoots[member]
 		if !ok {
-			el.Fatal("called before all the roots are decided")
+			el.Log.Crit("called before all the roots are decided")
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{

@@ -123,18 +123,18 @@ func TestEventStore(t *testing.T) {
 func (s *EventStore) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to encode rlp", "err", err)
 	}
 
 	if err := table.Put(key, buf); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
 func (s *EventStore) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
 		return nil
@@ -142,7 +142,7 @@ func (s *EventStore) get(table kvdb.KeyValueStore, key []byte, to interface{}) i
 
 	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to decode rlp", "err", err)
 	}
 	return to
 }
@@ -150,7 +150,7 @@ func (s *EventStore) get(table kvdb.KeyValueStore, key []byte, to interface{}) i
 func (s *EventStore) has(table kvdb.KeyValueStore, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
-		panic(err)
+		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
 }

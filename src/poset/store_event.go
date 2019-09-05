@@ -10,7 +10,7 @@ func (s *Store) SetEventConfirmedOn(e hash.Event, on idx.Frame) {
 	key := e.Bytes()
 
 	if err := s.table.ConfirmedEvent.Put(key, on.Bytes()); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
@@ -20,7 +20,7 @@ func (s *Store) GetEventConfirmedOn(e hash.Event) idx.Frame {
 
 	buf, err := s.table.ConfirmedEvent.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
 		return 0

@@ -99,7 +99,7 @@ func (el *Election) notDecidedRoots() []common.Address {
 		}
 	}
 	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.members) { // sanity check
-		el.Fatal("Mismatch of roots")
+		el.Log.Crit("Mismatch of roots")
 	}
 	return notDecidedRoots
 }

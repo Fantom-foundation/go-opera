@@ -63,7 +63,7 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	extended.Bootstrap(func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
 		// track block events
 		if extended.blocks[block.Index] != nil {
-			extended.Fatal("created block twice")
+			extended.Log.Crit("created block twice")
 		}
 		extended.blocks[block.Index] = block
 		return stateHash, members

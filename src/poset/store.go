@@ -1,11 +1,12 @@
 package poset
 
 import (
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Store is a poset persistent storage working over physical key-value database.
@@ -58,11 +59,11 @@ func (s *Store) Close() {
 	table.MigrateTables(&s.epochTable, nil)
 	err := s.persistentDB.Close()
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to close persistent db", "err", err)
 	}
 	err = s.epochDb.Close()
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to close epoch db", "err", err)
 	}
 }
 
@@ -70,7 +71,7 @@ func (s *Store) recreateEpochDb() {
 	if s.epochDb != nil {
 		err := s.epochDb.Close()
 		if err != nil {
-			s.Fatal(err)
+			s.Log.Crit("Failed to close epoch db", "err", err)
 		}
 		s.epochDb.Drop()
 	}
@@ -85,18 +86,18 @@ func (s *Store) recreateEpochDb() {
 func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to encode rlp", "err", err)
 	}
 
 	if err := table.Put(key, buf); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
 func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
 		return nil
@@ -104,7 +105,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 
 	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to decode rlp", "err", err)
 	}
 	return to
 }
@@ -112,7 +113,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
 }

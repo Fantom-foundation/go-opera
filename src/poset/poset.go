@@ -56,11 +56,11 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if e.Epoch != p.EpochN {
-		p.Infof("consensus: %s is too old/too new, %d != %d", e.String(), e.Epoch, p.EpochN)
+		p.Log.Info("Event is too old/too new", "event", e.String(), "epoch", e.Epoch, "expect", p.EpochN)
 		return nil
 	}
 	if _, ok := p.Members[e.Creator]; !ok {
-		p.Warnf("consensus: %s isn't a member", e.Creator.String())
+		p.Log.Warn("Creator isn't a member", "creator", e.Creator.String())
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
@@ -112,7 +112,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 		if !root.IsRoot {
 			return
 		}
-		p.Debugf("consensus: %s is root", root.String())
+		p.Log.Debug("consensus: event is root", "event", root.String())
 
 		decided := p.processRoot(root.Frame, root.Creator, root.Hash())
 		if decided == nil {
@@ -149,7 +149,8 @@ func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (de
 		},
 	})
 	if err != nil {
-		p.Fatal("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically ", err)
+		p.Log.Crit("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically ",
+			"err", err)
 	}
 	return decided
 }
@@ -173,7 +174,7 @@ func (p *Poset) ProcessEvent(e *inter.Event) error {
 	if e.Epoch != p.EpochN {
 		return ErrOutdatedEvent
 	}
-	p.Debugf("consensus: start %s", e.String())
+	p.Log.Debug("start event processing", "event", e.String())
 
 	err := p.checkAndSaveEvent(e)
 	if err != nil {
@@ -190,7 +191,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	p.election.Reset(p.Members, frame+1)
 	p.LastDecidedFrame = frame
 
-	p.Debugf("dfsSubgraph from %s", sfWitness.String())
+	p.Log.Debug("dfsSubgraph from sfWitness", "sfWitness", sfWitness.String())
 	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(event.Hash())
 		if decidedFrame == 0 {
@@ -199,12 +200,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 		return decidedFrame == 0
 	})
 	if err != nil {
-		p.Fatal(err)
+		p.Log.Crit("Failed to walk subgraph", "err", err)
 	}
 
 	// ordering
 	if len(unordered) == 0 {
-		p.Fatal("Frame is decided with no events. It isn't possible.")
+		p.Log.Crit("Frame is decided with no events. It isn't possible.")
 	}
 	ordered := p.fareOrdering(frame, sfWitness, unordered)
 

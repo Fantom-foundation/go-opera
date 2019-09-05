@@ -67,12 +67,15 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 							subjectHash.String(), el.frameToDecide, memberSubject.String())
 					}
 				} else {
-					el.Fatal("Every root must vote for every not decided subject. Possibly roots are processed out of order, root=", newRoot.Root.String())
+					el.Log.Crit("Every root must vote for every not decided subject. Possibly roots are processed out of order",
+						"root", newRoot.Root.String())
 				}
 			}
 			// sanity checks
 			if !allVotes.HasQuorum() {
-				el.Fatal("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order, root=", newRoot.Root.String(), " ", allVotes.Sum())
+				el.Log.Crit("Root must see at least 2/3n of prev roots. Possibly roots are processed out of order",
+					"root", newRoot.Root.String(),
+					"voites", allVotes.Sum())
 			}
 
 			// vote as majority of votes

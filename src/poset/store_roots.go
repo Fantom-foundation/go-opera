@@ -17,7 +17,7 @@ func (s *Store) AddRoot(root *inter.Event) {
 	key.Write(root.Hash().Bytes())
 
 	if err := s.epochTable.Roots.Put(key.Bytes(), []byte{}); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
@@ -29,7 +29,7 @@ func (s *Store) IsRoot(f idx.Frame, from common.Address, id hash.Event) bool {
 
 	ok, err := s.epochTable.Roots.Has(key.Bytes())
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return ok
 }
@@ -45,13 +45,13 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Addres
 	for it.Next() {
 		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIdSize {
-			s.Fatalf("Roots table: Incorrect key len %d", len(key))
+			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
 		}
 		actualF := idx.BytesToFrame(key[:frameSize])
 		actualCreator := common.BytesToAddress(key[frameSize : frameSize+addrSize])
 		actualId := hash.BytesToEvent(key[frameSize+addrSize:])
 		if actualF < f {
-			s.Fatalf("Roots table: frame %d < %d", actualF, f)
+			s.Log.Crit("Roots table: invalid frame", "frame", f, "expected", actualF)
 		}
 
 		if !do(actualF, actualCreator, actualId) {
@@ -59,7 +59,7 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Addres
 		}
 	}
 	if it.Error() != nil {
-		s.Fatal(it.Error())
+		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
 	it.Release()
 }
@@ -71,16 +71,16 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.
 	for it.Next() {
 		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIdSize {
-			s.Fatalf("Roots table: Incorrect key len %d", len(key))
+			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
 		}
 		actualF := idx.BytesToFrame(key[:frameSize])
 		actualCreator := common.BytesToAddress(key[frameSize : frameSize+addrSize])
 		actualId := hash.BytesToEvent(key[frameSize+addrSize:])
 		if actualF < f {
-			s.Fatalf("Roots table: frame %d < %d", actualF, f)
+			s.Log.Crit("Roots table: invalid frame", "frame", f, "expected", actualF)
 		}
 		if actualCreator != from {
-			s.Fatalf("Roots table: creator %s != %s", actualCreator.String(), from.String())
+			s.Log.Crit("Roots table: invalid creator", "creator", from.String(), "expected", actualCreator.String())
 		}
 
 		if !do(actualF, actualCreator, actualId) {
@@ -88,7 +88,7 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.
 		}
 	}
 	if it.Error() != nil {
-		s.Fatal(it.Error())
+		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
 	it.Release()
 }
