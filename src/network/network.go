@@ -3,6 +3,8 @@ package network
 import (
 	"context"
 	"net"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // ListenFunc returns addr listener.
@@ -13,7 +15,7 @@ type ListenFunc func(addr string) net.Listener
 func TCPListener(addr string) net.Listener {
 	res, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Fatal(err)
+		log.Crit("Failed to bind address (tcp)", "err", err)
 	}
 	return res
 }
@@ -23,7 +25,7 @@ func TCPListener(addr string) net.Listener {
 func FakeListener(addr string) net.Listener {
 	res, err := listenFreeAddr(Addr(addr))
 	if err != nil {
-		log.Fatal(err)
+		log.Crit("Failed to bind address (fake)", "err", err)
 	}
 
 	return res
