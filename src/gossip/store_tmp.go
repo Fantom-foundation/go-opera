@@ -33,7 +33,7 @@ func (s *Store) initTmpDbs() {
 		s.tmpDbs.min[string(it.Key())] = min
 	}
 	if it.Error() != nil {
-		s.Fatal(it.Error())
+		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
 	it.Release()
 }
@@ -47,7 +47,7 @@ func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueS
 		s.tmpDbs.seq[name] = make(map[uint64]tmpDb)
 		err := s.table.TmpDbs.Put([]byte(name), bigendian.Int64ToBytes(ver))
 		if err != nil {
-			s.Fatal(err)
+			s.Log.Crit("Failed to put key-value", "err", err)
 		}
 	} else if ver < min {
 		return nil

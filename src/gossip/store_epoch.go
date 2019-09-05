@@ -45,7 +45,7 @@ func (s *Store) SetLastEvent(epoch idx.Epoch, from common.Address, id hash.Event
 
 	key := from.Bytes()
 	if err := es.Tips.Put(key, id.Bytes()); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
@@ -58,7 +58,7 @@ func (s *Store) GetLastEvent(epoch idx.Epoch, from common.Address) *hash.Event {
 	key := from.Bytes()
 	idBytes, err := es.Tips.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if idBytes == nil {
 		return nil
@@ -102,6 +102,6 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	key := h.Bytes()
 	err := es.Headers.Delete(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to delete key", "err", err)
 	}
 }

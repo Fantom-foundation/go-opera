@@ -76,7 +76,7 @@ func (s *Store) Close() {
 func (s *Store) StateDB(from common.Hash) *state.StateDB {
 	db, err := state.New(common.Hash(from), s.table.EvmState)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to open state", "err", err)
 	}
 	return db
 }
@@ -88,18 +88,18 @@ func (s *Store) StateDB(from common.Hash) *state.StateDB {
 func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to encode rlp", "err", err)
 	}
 
 	if err := table.Put(key, buf); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
 func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
 		return nil
@@ -107,7 +107,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 
 	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to decode rlp", "err", err)
 	}
 	return to
 }
@@ -115,7 +115,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
 }
