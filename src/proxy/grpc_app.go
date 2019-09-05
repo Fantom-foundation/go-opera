@@ -84,7 +84,7 @@ func NewGrpcAppProxy(
 	go func() {
 		defer p.wg.Done()
 		if err := p.server.Serve(p.listener); err != nil {
-			p.Fatal(err)
+			p.Log.Crit("Failed to listen", "err", err)
 		}
 	}()
 
@@ -111,15 +111,15 @@ func (p *grpcAppProxy) Connect(stream internal.Lachesis_ConnectServer) error {
 	defer p.wg.Done()
 	// save client's stream for writing
 	p.newClients <- stream
-	p.Debugf("client connected")
+	p.Log.Debug("client connected")
 	// read from stream
 	for {
 		req, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				p.Debugf("client refused: %s", err)
+				p.Log.Debug("client refused", "err", err)
 			} else {
-				p.Debugf("client disconnected well")
+				p.Log.Debug("client disconnected well")
 			}
 			return err
 		}

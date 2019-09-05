@@ -1,8 +1,6 @@
 package proxy
 
 import (
-	"github.com/sirupsen/logrus"
-
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -44,29 +42,29 @@ func (p *inmemAppProxy) SubmitInternalCh() chan inter.InternalTransaction {
 
 func (p *inmemAppProxy) CommitBlock(block inter.Block) ([]byte, error) {
 	stateHash, err := p.handler.CommitHandler(block)
-	p.WithFields(logrus.Fields{
-		"state_hash": stateHash,
-		"err":        err,
-	}).Debug("inmemAppProxy.CommitBlock")
+	p.Log.Debug("inmemAppProxy.CommitBlock",
+		"state_hash", stateHash,
+		"err", err,
+	)
 	return stateHash, err
 }
 
 func (p *inmemAppProxy) GetSnapshot(blockIndex int64) ([]byte, error) {
 	snapshot, err := p.handler.SnapshotHandler(blockIndex)
-	p.WithFields(logrus.Fields{
-		"block":    blockIndex,
-		"snapshot": snapshot,
-		"err":      err,
-	}).Debug("inmemAppProxy.GetSnapshot")
+	p.Log.Debug("inmemAppProxy.GetSnapshot",
+		"block", blockIndex,
+		"snapshot", snapshot,
+		"err", err,
+	)
 	return snapshot, err
 }
 
 func (p *inmemAppProxy) Restore(snapshot []byte) error {
 	stateHash, err := p.handler.RestoreHandler(snapshot)
-	p.WithFields(logrus.Fields{
-		"state_hash": stateHash,
-		"err":        err,
-	}).Debug("inmemAppProxy.Restore")
+	p.Log.Debug("inmemAppProxy.Restore",
+		"state_hash", stateHash,
+		"err", err,
+	)
 	return err
 }
 

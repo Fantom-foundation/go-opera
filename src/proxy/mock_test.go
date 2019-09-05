@@ -5,13 +5,12 @@
 package proxy
 
 import (
-	reflect "reflect"
-
 	hash "github.com/Fantom-foundation/go-lachesis/src/hash"
 	inter "github.com/Fantom-foundation/go-lachesis/src/inter"
 	pos "github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	common "github.com/ethereum/go-ethereum/common"
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockApp is a mock of App interface

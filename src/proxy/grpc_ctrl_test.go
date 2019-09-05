@@ -41,13 +41,13 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 
 	consensus := NewMockConsensus(ctrl)
 
-	s, addr, err := NewGrpcCtrlProxy("127.0.0.1:", node, consensus, nil, nil)
+	s, addr, err := NewGrpcCtrlProxy("127.0.0.1:", node, consensus, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
 	defer s.Close()
 
-	client, err := NewGrpcNodeProxy(addr, nil)
+	client, err := NewGrpcNodeProxy(addr)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -157,14 +157,5 @@ func testGrpcCtrlCalls(t *testing.T, listen network.ListenFunc, opts ...grpc.Dia
 
 		_, err := client.SendTo(tx.Receiver, tx.Nonce, tx.Amount, tx.UntilBlock)
 		assertar.NoError(err)
-	})
-
-	t.Run("set log level", func(t *testing.T) {
-		assertar := assert.New(t)
-
-		l := "info"
-		err := client.SetLogLevel(l)
-		assertar.NoError(err)
-		assertar.Equal(logger.Get().GetLevel(), logger.GetLevel(l))
 	})
 }
