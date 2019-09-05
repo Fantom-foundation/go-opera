@@ -1,18 +1,20 @@
 package log
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Instance struct {
-	*logrus.Entry
+	Log log.Logger
 }
 
 func MakeInstance() Instance {
-	return Instance{logrus.NewEntry(Get())}
+	return Instance{
+		Log: log.New(),
+	}
 
 }
 
-func (i *Instance) SetName(host string) {
-	i.Entry = Get().WithField("node", host)
+func (i *Instance) SetName(name string) {
+	i.Log = log.New("name", name)
 }
