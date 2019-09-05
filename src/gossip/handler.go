@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -16,6 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/ordering"
@@ -162,6 +163,8 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		Exists: func(id hash.Event) *inter.Event {
 			return pm.store.GetEvent(id)
 		},
+
+		Validator: parents_check.New(&pm.config.Net.Dag, pm.engine),
 	})
 
 	pm.isEventBuffered = isEventBuffered

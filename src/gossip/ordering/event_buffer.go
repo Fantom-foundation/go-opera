@@ -2,9 +2,9 @@ package ordering
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
@@ -27,9 +27,10 @@ type (
 
 	// Callback is a set of EventBuffer()'s args.
 	Callback struct {
-		Process func(e *inter.Event) error
-		Drop    func(e *inter.Event, peer string, err error)
-		Exists  func(hash.Event) *inter.Event
+		Process   func(e *inter.Event) error
+		Drop      func(e *inter.Event, peer string, err error)
+		Exists    func(hash.Event) *inter.Event
+		Validator *parents_check.Validator
 	}
 )
 
@@ -47,56 +48,33 @@ func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) 
 	)
 
 	onNewEvent = func(e *event, peer string) {
-		reffs := newRefsValidator(e.Event)
-		ltime := newLamportTimeValidator(e.Event)
-
-		// fill event's parents index or hold it as incompleted
-		if e.SelfParent() == nil {
-			// first event of node
-			if err := reffs.AddUniqueParent(e.Creator); err != nil {
-				callback.Drop(e.Event, peer, err)
-				return
-			}
-			if err := ltime.AddParentTime(0); err != nil {
-				callback.Drop(e.Event, peer, err)
-				return
-			}
-		}
-
-		for _, pHash := range e.Parents {
-			parent := e.parents[pHash]
+		for _, p := range e.Parents {
+			parent := e.parents[p]
 			if parent == nil {
-				parent = callback.Exists(pHash)
+				parent = callback.Exists(p)
 				if parent == nil {
 					h := e.Hash()
 					incompletes[h] = e
 					return
 				}
-				e.parents[pHash] = parent
+				e.parents[p] = parent
 			}
-			if err := reffs.AddUniqueParent(parent.Creator); err != nil {
-				callback.Drop(e.Event, peer, err)
-				return
-			}
-			if parent.Creator == e.Creator && !e.IsSelfParent(pHash) {
-				callback.Drop(e.Event, peer, fmt.Errorf("invalid SelfParent"))
-				return
-			}
-			if err := ltime.AddParentTime(parent.Lamport); err != nil {
-				callback.Drop(e.Event, peer, err)
-				return
-			}
-		}
-		if err := reffs.CheckSelfParent(); err != nil {
-			callback.Drop(e.Event, peer, err)
-			return
-		}
-		if err := ltime.CheckSequential(); err != nil {
-			callback.Drop(e.Event, peer, err)
-			return
 		}
 
-		// parents OK
+		// validate
+		if callback.Validator != nil {
+			parentHeaders := make([]*inter.EventHeaderData, len(e.Parents))
+			for i, p := range e.Parents {
+				parentHeaders[i] = &e.parents[p].EventHeaderData
+			}
+			err := callback.Validator.Validate(e.Event, parentHeaders)
+			if err != nil {
+				callback.Drop(e.Event, peer, err)
+				return
+			}
+		}
+
+		// process
 		err := callback.Process(e.Event)
 		if err != nil {
 			callback.Drop(e.Event, peer, err)

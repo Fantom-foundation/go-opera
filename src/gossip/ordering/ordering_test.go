@@ -1,6 +1,10 @@
 package ordering
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/ethereum/go-ethereum/common"
 	"math/rand"
 	"testing"
 	"time"
@@ -8,6 +12,18 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
+
+type testDagReader struct {
+	nodes []common.Address
+}
+
+func (t *testDagReader) GetMembers() pos.Members {
+	members := pos.Members{}
+	for _, addr := range t.nodes {
+		members.Set(addr, 1)
+	}
+	return members
+}
 
 func TestEventBuffer(t *testing.T) {
 	nodes := inter.GenNodes(5)
@@ -49,6 +65,8 @@ func TestEventBuffer(t *testing.T) {
 		Exists: func(e hash.Event) *inter.Event {
 			return processed[e]
 		},
+
+		Validator: parents_check.New(&lachesis.DagConfig{}, &testDagReader{nodes}),
 	})
 
 	for _, rnd := range rand.Perm(len(ordered)) {
