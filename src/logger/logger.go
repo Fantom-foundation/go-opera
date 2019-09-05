@@ -1,4 +1,4 @@
-package log
+package logger
 
 import (
 	"github.com/ethereum/go-ethereum/log"
