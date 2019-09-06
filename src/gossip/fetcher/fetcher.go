@@ -7,6 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/heavy_check"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -18,15 +20,15 @@ const (
 	fetchTimeout  = 10 * time.Second       // Maximum allowed time to return an explicitly requested event
 	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
 
-	maxInjectBatch   = 8  // Maximum number of events in an inject batch (batch is divided if exceeded)
+	maxInjectBatch   = 4  // Maximum number of events in an inject batch (batch is divided if exceeded)
 	maxAnnounceBatch = 16 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
 
 	// maxQueuedInjects is the maximum number of inject batches to queue up before
 	// dropping incoming events.
-	maxQueuedInjects = 64
+	maxQueuedInjects = 128
 	// maxQueuedAnns is the maximum number of announce batches to queue up before
 	// dropping incoming hashes.
-	maxQueuedAnns = 64
+	maxQueuedAnns = 128
 )
 
 var (
@@ -76,9 +78,7 @@ type Fetcher struct {
 	quit   chan struct{}
 
 	// Callbacks
-	pushEvent      ordering.PushEventFn
-	onlyInterested FilterInterestedFn
-	dropPeer       DropPeerFn
+	callback Callback
 
 	// Announce states
 	announces map[string]int                // Per peer announce counts to prevent memory exhaustion
@@ -86,24 +86,32 @@ type Fetcher struct {
 	fetching  map[hash.Event]*oneAnnounce   // Announced events, currently fetching
 }
 
+type Callback struct {
+	PushEvent      ordering.PushEventFn
+	OnlyInterested FilterInterestedFn
+	DropPeer       DropPeerFn
+
+	HeavyCheck *heavy_check.Validator
+	FirstCheck func(*inter.Event) error
+}
+
 // New creates a event fetcher to retrieve events based on hash announcements.
-func New(pushEvent ordering.PushEventFn, onlyInterested FilterInterestedFn, dropPeer DropPeerFn) *Fetcher {
+func New(callback Callback) *Fetcher {
 	return &Fetcher{
-		notify:         make(chan *announcesBatch, maxQueuedAnns),
-		inject:         make(chan *inject, maxQueuedInjects),
-		quit:           make(chan struct{}),
-		announces:      make(map[string]int),
-		announced:      make(map[hash.Event][]*oneAnnounce),
-		fetching:       make(map[hash.Event]*oneAnnounce),
-		pushEvent:      pushEvent,
-		onlyInterested: onlyInterested,
-		dropPeer:       dropPeer,
+		notify:    make(chan *announcesBatch, maxQueuedAnns),
+		inject:    make(chan *inject, maxQueuedInjects),
+		quit:      make(chan struct{}),
+		announces: make(map[string]int),
+		announced: make(map[hash.Event][]*oneAnnounce),
+		fetching:  make(map[hash.Event]*oneAnnounce),
+		callback:  callback,
 	}
 }
 
 // Start boots up the announcement based synchroniser, accepting and processing
 // hash notifications and event fetches until termination requested.
 func (f *Fetcher) Start() {
+	f.callback.HeavyCheck.Start()
 	go f.loop()
 }
 
@@ -111,10 +119,14 @@ func (f *Fetcher) Start() {
 // operations.
 func (f *Fetcher) Stop() {
 	close(f.quit)
+	f.callback.HeavyCheck.Stop()
 }
 
 func (f *Fetcher) Overloaded() bool {
-	return len(f.inject) > maxQueuedInjects/2 || len(f.notify) > maxQueuedAnns/2 || len(f.announced) > hashLimit
+	return len(f.inject) > maxQueuedInjects/2 ||
+		len(f.notify) > maxQueuedAnns/2 ||
+		len(f.announced) > hashLimit ||
+		f.callback.HeavyCheck.Overloaded()
 }
 
 func (f *Fetcher) OverloadedPeer(peer string) bool {
@@ -147,7 +159,39 @@ func (f *Fetcher) Notify(peer string, hashes hash.Events, time time.Time, fetchE
 }
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
-func (f *Fetcher) Enqueue(peer string, events []*inter.Event, time time.Time, fetchEvents EventsRequesterFn) error {
+func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, time time.Time, fetchEvents EventsRequesterFn) error {
+	// Run light checks right away
+	passed := make(inter.Events, 0, len(inEvents))
+	for _, e := range inEvents {
+		err := f.callback.FirstCheck(e)
+		if event_check.IsBan(err) {
+			f.callback.DropPeer(peer)
+			return err
+		}
+		if err == nil {
+			passed = append(passed, e)
+		}
+	}
+
+	// Run heavy check in parallel
+	return f.callback.HeavyCheck.Enqueue(passed, func(res *heavy_check.TaskData) {
+		// Check errors of heavy check
+		passed := make(inter.Events, 0, len(res.Events))
+		for i, err := range res.Result {
+			if event_check.IsBan(err) {
+				f.callback.DropPeer(peer)
+				return
+			}
+			if err == nil {
+				passed = append(passed, res.Events[i])
+			}
+		}
+		// after all these checks, actually enqueue the events into fetcher
+		_ = f.enqueue(peer, passed, time, fetchEvents)
+	})
+}
+
+func (f *Fetcher) enqueue(peer string, events inter.Events, time time.Time, fetchEvents EventsRequesterFn) error {
 	// divide big batch into smaller ones
 	for start := 0; start < len(events); start += maxInjectBatch {
 		end := len(events)
@@ -203,7 +247,7 @@ func (f *Fetcher) loop() {
 			first := len(f.fetching) == 0
 
 			// filter only not known
-			notification.hashes = f.onlyInterested(notification.hashes)
+			notification.hashes = f.callback.OnlyInterested(notification.hashes)
 			if len(notification.hashes) == 0 {
 				break
 			}
@@ -249,7 +293,7 @@ func (f *Fetcher) loop() {
 					parents.Add(p)
 				}
 
-				f.pushEvent(e, op.peer)
+				f.callback.PushEvent(e, op.peer)
 				f.forgetHash(e.Hash())
 			}
 
@@ -267,7 +311,7 @@ func (f *Fetcher) loop() {
 			for e, _ := range f.announced {
 				all.Add(e)
 			}
-			notArrived := f.onlyInterested(all)
+			notArrived := f.callback.OnlyInterested(all)
 
 			// Re-fetch not arrived events
 			for _, e := range notArrived {

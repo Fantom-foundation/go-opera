@@ -13,8 +13,14 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/heavy_check"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/ordering"
@@ -23,7 +29,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 const (
@@ -135,6 +140,25 @@ func NewProtocolManager(
 }
 
 func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
+	// checkers
+	basicCheck := basic_check.New(&pm.config.Net.Dag)
+	epochCheck := epoch_check.New(&pm.config.Net.Dag, pm.engine)
+	parentsCheck := parents_check.New(&pm.config.Net.Dag, pm.engine)
+	firstCheck := func(e *inter.Event) error {
+		if err := basicCheck.Validate(e); err != nil {
+			return err
+		}
+		if err := epochCheck.Validate(e); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	dagId := params.AllEthashProtocolChanges.ChainID
+	txSigner := types.NewEIP155Signer(dagId)
+	heavyCheck := heavy_check.NewDefault(&pm.config.Net.Dag, txSigner)
+
+	// DAG callbacks
 	pushInBuffer, isEventBuffered := ordering.EventBuffer(ordering.Callback{
 
 		Process: func(e *inter.Event) error {
@@ -151,17 +175,17 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
-			if err == poset.ErrOutdatedEvent ||
-				err == ordering.ErrAlreadyConnectedEvent {
-				return
+			if event_check.IsBan(err) {
+				log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+				pm.removePeer(peer)
 			}
-			log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
-			pm.removePeer(peer)
 		},
 
 		Exists: func(id hash.Event) *inter.Event {
 			return pm.store.GetEvent(id)
 		},
+
+		Check: parentsCheck.Validate,
 	})
 
 	pm.isEventBuffered = isEventBuffered
@@ -173,7 +197,13 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 		pushInBuffer(e, peer)
 	}
 
-	return fetcher.New(pushEvent, pm.onlyInterestedEvents, pm.removePeer)
+	return fetcher.New(fetcher.Callback{
+		PushEvent:      pushEvent,
+		OnlyInterested: pm.onlyInterestedEvents,
+		DropPeer:       pm.removePeer,
+		FirstCheck:     firstCheck,
+		HeavyCheck:     heavyCheck,
+	})
 }
 
 func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
