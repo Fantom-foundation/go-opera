@@ -7,12 +7,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 )
 
 // dummyTxPool is a fake, helper transaction pool for testing purposes
 type dummyTxPool struct {
-	txFeed event.Feed
+	txFeed notify.Feed
 	pool   []*types.Transaction        // Collection of all transactions
 	added  chan<- []*types.Transaction // Notification channel for new transactions
 
@@ -48,6 +48,6 @@ func (p *dummyTxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return batches, nil
 }
 
-func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evm_core.NewTxsNotify) event.Subscription {
+func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evm_core.NewTxsNotify) notify.Subscription {
 	return p.txFeed.Subscribe(ch)
 }

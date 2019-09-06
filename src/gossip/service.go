@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
@@ -24,26 +24,26 @@ import (
 )
 
 type ServiceFeed struct {
-	newEpoch        event.Feed
-	newPack         event.Feed
-	newEmittedEvent event.Feed
-	newBlock        event.Feed
-	scope           event.SubscriptionScope
+	newEpoch        notify.Feed
+	newPack         notify.Feed
+	newEmittedEvent notify.Feed
+	newBlock        notify.Feed
+	scope           notify.SubscriptionScope
 }
 
-func (f *ServiceFeed) SubscribeNewEpoch(ch chan<- idx.Epoch) event.Subscription {
+func (f *ServiceFeed) SubscribeNewEpoch(ch chan<- idx.Epoch) notify.Subscription {
 	return f.scope.Track(f.newEpoch.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) event.Subscription {
+func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) notify.Subscription {
 	return f.scope.Track(f.newPack.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evm_core.ChainHeadNotify) event.Subscription {
+func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evm_core.ChainHeadNotify) notify.Subscription {
 	return f.scope.Track(f.newBlock.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) event.Subscription {
+func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) notify.Subscription {
 	return f.scope.Track(f.newEmittedEvent.Subscribe(ch))
 }
 

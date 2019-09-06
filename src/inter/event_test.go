@@ -22,11 +22,17 @@ func TestEventSerialization(t *testing.T) {
 			break
 		}
 
+		assertar.Equal(len(buf), e0.Size())
+		assertar.Equal(len(buf), e0.CalcSize())
+
 		e1 := &Event{}
 		err = rlp.DecodeBytes(buf, e1)
 		if !assertar.NoError(err, dsc) {
 			break
 		}
+
+		assertar.Equal(len(buf), e1.CalcSize())
+		assertar.Equal(len(buf), e1.Size())
 
 		if !assertar.Equal(e0.EventHeader, e1.EventHeader, dsc) {
 			break

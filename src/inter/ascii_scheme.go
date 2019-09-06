@@ -178,6 +178,7 @@ func ASCIIschemeForEach(
 			}
 			// calc hash of the event, after it's fully built
 			e.RecacheHash()
+			e.RecacheSize()
 			// save event
 			events[creator] = append(events[creator], e)
 			names[name] = e

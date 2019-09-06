@@ -155,6 +155,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 	// calc hash after event is fully built
 	event.RecacheHash()
+	event.RecacheSize()
 	// sign
 	if err := event.SignBy(em.privateKey); err != nil {
 		log.Error("Failed to sign event", "err", err)

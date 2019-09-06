@@ -124,6 +124,7 @@ func ForEachRandFork(
 		}
 		// calc hash of the event, after it's fully built
 		e.RecacheHash()
+		e.RecacheSize()
 		// save and name event
 		hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d", string('a'+self), len(events[creator])))
 		events[creator] = append(events[creator], e)

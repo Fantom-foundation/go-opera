@@ -21,7 +21,7 @@ func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Ev
 		dummyFiWitness.Extra = genesis.ExtraData
 		dummyFiWitness.ClaimedTime = header.Time
 		dummyFiWitness.TxHash = header.Root
-		//dummyFiWitness.Creator = header.Coinbase TODO
+		dummyFiWitness.Creator = header.Coinbase
 
 		return common.Hash(dummyFiWitness.Hash())
 	}

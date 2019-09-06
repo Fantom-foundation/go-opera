@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/prque"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
@@ -107,7 +107,7 @@ type stateReader interface {
 	GetBlock(hash common.Hash, number uint64) *EvmBlock
 	StateAt(root common.Hash) (*state.StateDB, error)
 
-	SubscribeNewBlock(ch chan<- ChainHeadNotify) event.Subscription
+	SubscribeNewBlock(ch chan<- ChainHeadNotify) notify.Subscription
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
@@ -196,8 +196,8 @@ type TxPool struct {
 	chainconfig *params.ChainConfig
 	chain       stateReader
 	gasPrice    *big.Int
-	txFeed      event.Feed
-	scope       event.SubscriptionScope
+	txFeed      notify.Feed
+	scope       notify.SubscriptionScope
 	signer      types.Signer
 	mu          sync.RWMutex
 
@@ -215,7 +215,7 @@ type TxPool struct {
 	priced  *txPricedList                // All transactions sorted by price
 
 	chainHeadCh     chan ChainHeadNotify
-	chainHeadSub    event.Subscription
+	chainHeadSub    notify.Subscription
 	reqResetCh      chan *txpoolResetRequest
 	reqPromoteCh    chan *accountSet
 	queueTxEventCh  chan *types.Transaction
@@ -376,7 +376,7 @@ func (pool *TxPool) Stop() {
 
 // SubscribeNewTxsNotify registers a subscription of NewTxsNotify and
 // starts sending event to the given channel.
-func (pool *TxPool) SubscribeNewTxsNotify(ch chan<- NewTxsNotify) event.Subscription {
+func (pool *TxPool) SubscribeNewTxsNotify(ch chan<- NewTxsNotify) notify.Subscription {
 	return pool.scope.Track(pool.txFeed.Subscribe(ch))
 }
 

@@ -5,13 +5,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 )
 
 // Implement our EthTest Manager
 type TestManager struct {
 	// stateManager *StateManager
-	eventMux *event.TypeMux
+	eventMux *notify.TypeMux
 
 	db     ethdb.Database
 	txPool *TxPool
@@ -47,7 +47,7 @@ func (tm *TestManager) TxPool() *TxPool {
 // 	return tm.stateManager
 // }
 
-func (tm *TestManager) EventMux() *event.TypeMux {
+func (tm *TestManager) EventMux() *notify.TypeMux {
 	return tm.eventMux
 }
 
@@ -61,7 +61,7 @@ func (tm *TestManager) Db() ethdb.Database {
 
 func NewTestManager() *TestManager {
 	testManager := &TestManager{}
-	testManager.eventMux = new(event.TypeMux)
+	testManager.eventMux = new(notify.TypeMux)
 	testManager.db = rawdb.NewMemoryDatabase()
 	// testManager.txPool = NewTxPool(testManager)
 	// testManager.blockChain = NewBlockChain(testManager)
