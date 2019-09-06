@@ -7,14 +7,15 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/dummy"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/src/log"
-	aproxy "github.com/Fantom-foundation/go-lachesis/src/proxy"
-	"github.com/Fantom-foundation/go-lachesis/tester"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/Fantom-foundation/go-lachesis/log"
+	"github.com/Fantom-foundation/go-lachesis/src/dummy"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/proxy"
+	"github.com/Fantom-foundation/go-lachesis/tester"
 )
 
 //NewRunCmd returns the command that starts a Lachesis node
@@ -73,7 +74,7 @@ func runSingleLachesis(config *CLIConfig) error {
 	}).Debug("RUN")
 
 	if !config.Standalone {
-		p, _, err := aproxy.NewGrpcAppProxy(
+		p, _, err := proxy.NewGrpcAppProxy(
 			config.ProxyAddr,
 			config.Lachesis.NodeConfig.HeartbeatTimeout,
 			nil,

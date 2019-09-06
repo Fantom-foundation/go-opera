@@ -25,7 +25,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	for _, id := range block.Events {
 		e := s.store.GetEvent(id)
 		if e == nil {
-			s.Fatal("Event wasn't found ", "e=", id.String())
+			s.Log.Crit("Event wasn't found", "event", id.String())
 		}
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
@@ -35,7 +35,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	statedb := s.store.StateDB(stateHash)
 	_, _, _, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
 	if err != nil {
-		s.Fatal(err) // shouldn't happen ever because it's not strict
+		s.Log.Crit("Shouldn't happen ever because it's not strict", "err", err)
 	}
 	block.SkippedTxs = skipped
 
@@ -45,7 +45,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	// finalize
 	newStateHash, err = statedb.Commit(true)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to commit state", "err", err)
 	}
 	block.Root = newStateHash
 	evmBlock.Root = newStateHash

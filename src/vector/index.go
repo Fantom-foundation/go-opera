@@ -42,7 +42,7 @@ func (vi *Index) Reset(members pos.Members, db kvdb.KeyValueStore) {
 func (vi *Index) Add(e *inter.Event) {
 	// sanity check
 	if vi.GetEvent(e.Hash()) != nil {
-		vi.Fatalf("event %s already exists", e.Hash().String())
+		vi.Log.Crit("Event already exists", "event", e.Hash().String())
 	}
 	w := vi.wrapEvent(e)
 	vi.SetEvent(w)
@@ -61,7 +61,7 @@ func (vi *Index) wrapEvent(e *inter.Event) *event {
 // Flush writes vector clocks to persistent store.
 func (vi *Index) Flush() {
 	if err := vi.eventsDb.Flush(); err != nil {
-		vi.Fatal(err)
+		vi.Log.Crit("Failed to flush db", "err", err)
 	}
 }
 
@@ -85,7 +85,7 @@ func (vi *Index) fillEventVectors(e *event) {
 	for _, p := range e.Parents {
 		parent := vi.GetEvent(p)
 		if parent == nil {
-			vi.Fatalf("vindex: event %s wasn't found", p.String())
+			vi.Log.Crit("Event %s wasn't found", "event", p.String())
 		}
 		eParents = append(eParents, parent)
 	}
@@ -136,7 +136,7 @@ func (vi *Index) fillEventVectors(e *event) {
 
 		err := vi.dfsSubgraph(headP.Hash(), walk)
 		if err != nil {
-			vi.Fatalf("vector.Index: error during dfxSubgraph %v", err)
+			vi.Log.Crit("Error during dfxSubgraph", "err", err)
 		}
 	}
 }

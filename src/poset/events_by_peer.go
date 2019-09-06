@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // TODO: make EventsByPeer internal
@@ -106,7 +106,7 @@ func (pp *EventsByPeer) DecodeRLP(s *rlp.Stream) error {
 			ee[w.Creator] = hash.EventsSet{}
 		}
 		if !ee[w.Creator].Add(w.Hash) {
-			logger.Get().Fatal("double value is detected")
+			log.Crit("double value is detected")
 		}
 	}
 

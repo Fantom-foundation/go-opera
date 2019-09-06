@@ -42,7 +42,7 @@ func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 	// restore checkpoint
 	p.checkpoint = p.store.GetCheckpoint()
 	if p.checkpoint == nil {
-		p.Fatal("Apply genesis for store first")
+		p.Log.Crit("Apply genesis for store first")
 	}
 
 	// restore current epoch

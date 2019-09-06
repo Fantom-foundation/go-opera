@@ -15,7 +15,7 @@ func TestRegisterGauge(t *testing.T) {
 	registry := NewMockRegistry(ctrl)
 
 	t.Run("registry is set", func(t *testing.T) {
-		registry.EXPECT().Register(name, gomock.Any()).Return()
+		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
 
 		gauge := RegisterGauge(name, registry)
 
@@ -24,7 +24,7 @@ func TestRegisterGauge(t *testing.T) {
 
 	t.Run("registry isn't set", func(t *testing.T) {
 		DefaultRegistry = registry
-		registry.EXPECT().Register(name, gomock.Any()).Return()
+		registry.EXPECT().Register(name, gomock.Any()).Return(nil)
 
 		gauge := RegisterGauge(name, nil)
 

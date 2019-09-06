@@ -33,9 +33,11 @@ func (m *MockRegistry) EXPECT() *MockRegistryMockRecorder {
 }
 
 // Each mocks base method
-func (m *MockRegistry) Each(arg0 RegistryEachFunc) {
+func (m *MockRegistry) Each(arg0 RegistryEachFunc) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Each", arg0)
+	ret := m.ctrl.Call(m, "Each", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Each indicates an expected call of Each
@@ -85,9 +87,11 @@ func (mr *MockRegistryMockRecorder) OnNew(arg0 interface{}) *gomock.Call {
 }
 
 // Register mocks base method
-func (m *MockRegistry) Register(arg0 string, arg1 Metric) {
+func (m *MockRegistry) Register(arg0 string, arg1 Metric) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Register", arg0, arg1)
+	ret := m.ctrl.Call(m, "Register", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Register indicates an expected call of Register

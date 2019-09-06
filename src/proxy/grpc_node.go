@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 
@@ -26,19 +25,11 @@ const (
 type grpcNodeProxy struct {
 	conn   *grpc.ClientConn
 	client internal.NodeClient
-	logger *logrus.Logger
 }
 
 // NewGrpcNodeProxy initiates a NodeProxy-interface connected to remote node.
-func NewGrpcNodeProxy(addr string, logger *logrus.Logger, opts ...grpc.DialOption) (NodeProxy, error) {
-	if logger == nil {
-		logger = logrus.New()
-		logger.Level = logrus.DebugLevel
-	}
-
-	p := &grpcNodeProxy{
-		logger: logger,
-	}
+func NewGrpcNodeProxy(addr string, opts ...grpc.DialOption) (NodeProxy, error) {
+	p := &grpcNodeProxy{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
 	defer cancel()

@@ -98,10 +98,10 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode common.Address, bFrame i
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from common.Address, b hash.Event) bool {
 		if f != bFrame {
-			p.Fatal()
+			p.Log.Crit("frame mismatch")
 		}
 		if from != bNode {
-			p.Fatal()
+			p.Log.Crit("node mismatch")
 		}
 		if p.seeVec.StronglySee(a, b) {
 			bHash = &b
@@ -117,7 +117,7 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode common.Address, bFrame i
 func (p *Poset) GetGenesisHash() common.Hash {
 	epoch := p.store.GetGenesis()
 	if epoch == nil {
-		p.Fatal("no genesis found")
+		p.Log.Crit("no genesis found")
 	}
 	return epoch.PrevEpoch.Hash()
 }

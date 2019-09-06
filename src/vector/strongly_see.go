@@ -17,12 +17,12 @@ func (vi *Index) StronglySee(aID, bID hash.Event) bool {
 	// get events by hash
 	a := vi.GetEvent(aID)
 	if a == nil {
-		vi.Error("vector.Index: event A wasn't found " + aID.String())
+		vi.Log.Error("Event A wasn't found", "event", aID.String())
 		return false
 	}
 	b := vi.GetEvent(bID)
 	if b == nil {
-		vi.Error("vector.Index: event B wasn't found " + bID.String())
+		vi.Log.Error("Event B wasn't found", "event", bID.String())
 		return false
 	}
 

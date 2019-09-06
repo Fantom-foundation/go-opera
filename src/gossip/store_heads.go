@@ -14,7 +14,7 @@ func (s *Store) DelHead(epoch idx.Epoch, id hash.Event) {
 	key := id.Bytes()
 
 	if err := es.Heads.Delete(key); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to delete key", "err", err)
 	}
 }
 
@@ -27,7 +27,7 @@ func (s *Store) AddHead(epoch idx.Epoch, id hash.Event) {
 	key := id.Bytes()
 
 	if err := es.Heads.Put(key, []byte{}); err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
@@ -41,7 +41,7 @@ func (s *Store) IsHead(epoch idx.Epoch, id hash.Event) bool {
 
 	ok, err := es.Heads.Has(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return ok
 }
@@ -60,7 +60,7 @@ func (s *Store) GetHeads(epoch idx.Epoch) hash.Events {
 		res.Add(hash.BytesToEvent(it.Key()))
 	}
 	if it.Error() != nil {
-		s.Fatal(it.Error())
+		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
 	it.Release()
 

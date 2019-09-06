@@ -14,7 +14,7 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 
 	err := s.table.Events.Delete(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to delete key", "err", err)
 	}
 	s.DelEventHeader(epoch, id)
 }
@@ -41,7 +41,7 @@ func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
 
 	data, err := s.table.Events.Get(key)
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	return data
 }

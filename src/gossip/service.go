@@ -126,7 +126,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
 
 	if s.store.HasEvent(e.Hash()) { // sanity check
-		s.store.Fatalf("ProcessEvent: event is already processed %s", e.Hash().String())
+		s.store.Log.Crit("Event is already processed", "event", e.Hash().String())
 	}
 
 	oldEpoch := e.Epoch
@@ -168,12 +168,12 @@ func (s *Service) makeEmitter() *Emitter {
 
 		err := s.engine.ProcessEvent(emitted)
 		if err != nil {
-			s.Fatalf("Self-event connection failed: %s", err.Error())
+			s.Log.Crit("Self-event connection failed", "err", err.Error())
 		}
 
 		s.feed.newEmittedEvent.Send(emitted) // PM listens and will broadcast it
 		if err != nil {
-			s.Fatalf("Failed to post self-event: %s", err.Error())
+			s.Log.Crit("Failed to post self-event", "err", err.Error())
 		}
 	},
 	)
@@ -216,8 +216,8 @@ func (s *Service) Start(srv *p2p.Server) error {
 		for _, topic := range s.Topics {
 			topic := topic
 			go func() {
-				s.Info("Starting topic registration")
-				defer s.Info("Terminated topic registration")
+				s.Log.Info("Starting topic registration")
+				defer s.Log.Info("Terminated topic registration")
 
 				srv.DiscV5.RegisterTopic(topic, s.done)
 			}()

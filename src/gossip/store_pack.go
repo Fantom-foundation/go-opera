@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"bytes"
+
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -58,7 +59,7 @@ func (s *Store) AddToPack(epoch idx.Epoch, idx idx.Pack, e hash.Event) {
 
 	err := s.table.Packs.Put(key.Bytes(), []byte{})
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
@@ -72,12 +73,12 @@ func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 	it := s.table.Packs.NewIteratorWithPrefix(prefix.Bytes())
 	for it.Next() {
 		if len(it.Key()) != epochSize+packSize+eventIdSize {
-			s.Fatalf("packs table: Incorrect key len %d", len(it.Key()))
+			s.Log.Crit("packs table: Incorrect key len", "len(key)", len(it.Key()))
 		}
 		res.Add(hash.BytesToEvent(it.Key()[epochSize+packSize:]))
 	}
 	if it.Error() != nil {
-		s.Fatal(it.Error())
+		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
 	it.Release()
 
@@ -90,7 +91,7 @@ func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 func (s *Store) GetPacksNum(epoch idx.Epoch) (idx.Pack, bool) {
 	b, err := s.table.PacksNum.Get(epoch.Bytes())
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if b == nil {
 		return 0, false
@@ -109,6 +110,6 @@ func (s *Store) GetPacksNumOrDefault(epoch idx.Epoch) idx.Pack {
 func (s *Store) SetPacksNum(epoch idx.Epoch, num idx.Pack) {
 	err := s.table.PacksNum.Put(epoch.Bytes(), num.Bytes())
 	if err != nil {
-		s.Fatal(err)
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }

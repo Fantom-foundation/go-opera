@@ -37,14 +37,8 @@ func TestRegistryRegister(t *testing.T) {
 		reg.Store(name, metric)
 		defer reg.Delete(name)
 
-		log.Logger.ExitFunc = func(i int) {
-			assert.Equal(t, 1, i)
-		}
-		defer func() {
-			log.Logger.ExitFunc = nil
-		}()
-
-		reg.Register(name, metric)
+		err := reg.Register(name, metric)
+		assert.Error(t, err)
 	})
 }
 
@@ -126,28 +120,16 @@ func TestRegistryEach(t *testing.T) {
 		reg.Store(noSupportName, metric)
 		defer reg.Delete(noSupportName)
 
-		log.Logger.ExitFunc = func(i int) {
-			assert.Equal(t, 1, i)
-		}
-		defer func() {
-			log.Logger.ExitFunc = nil
-		}()
-
-		reg.Each(noop())
+		err := reg.Each(noop())
+		assert.Error(t, err)
 	})
 
 	t.Run("incorrect metric type", func(t *testing.T) {
 		reg.Store(name, 0)
 		defer reg.Delete(name)
 
-		log.Logger.ExitFunc = func(i int) {
-			assert.Equal(t, 1, i)
-		}
-		defer func() {
-			log.Logger.ExitFunc = nil
-		}()
-
-		reg.Each(noop())
+		err := reg.Each(noop())
+		assert.Error(t, err)
 	})
 
 	t.Run("correct types", func(t *testing.T) {

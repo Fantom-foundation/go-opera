@@ -5,8 +5,8 @@ import (
 	"net"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,15 +31,10 @@ type grpcCtrlProxy struct {
 
 // NewGrpcCtrlProxy starts Ctrl proxy.
 func NewGrpcCtrlProxy(
-	bind string, n Node, c Consensus, logger *logrus.Logger, listen network.ListenFunc,
+	bind string, n Node, c Consensus, listen network.ListenFunc,
 ) (
 	res CtrlProxy, addr string, err error,
 ) {
-	if logger == nil {
-		logger = logrus.New()
-		logger.Level = logrus.DebugLevel
-	}
-
 	if listen == nil {
 		listen = network.TCPListener
 	}
@@ -55,7 +50,7 @@ func NewGrpcCtrlProxy(
 
 	go func() {
 		if err := p.server.Serve(p.listener); err != nil {
-			logger.Fatal(err)
+			log.Crit("Failed to listen", "err", err)
 		}
 	}()
 

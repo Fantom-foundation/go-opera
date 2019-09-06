@@ -4,8 +4,6 @@ import (
 	"os"
 
 	"github.com/fsnotify/fsnotify"
-
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 // StartFileWatcher starts watching the named file or directory (non-recursively) using metrics.Gauge.
@@ -16,12 +14,12 @@ func StartFileWatcher(name, path string) (stop func()) {
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		logger.Get().Fatal(err)
+		Log.Crit("Failed to make fs watcher", "err", err)
 	}
 
 	err = watcher.Add(path)
 	if err != nil {
-		logger.Get().Fatal(err)
+		Log.Crit("Failed to add fs watcher", "err", err)
 	}
 
 	go func() {
@@ -34,7 +32,7 @@ func StartFileWatcher(name, path string) (stop func()) {
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					fi, err := os.Stat(path)
 					if err != nil {
-						logger.Get().Error(err)
+						Log.Crit("Failed to get fs info", "err", err)
 					}
 
 					metric.Update(fi.Size())
@@ -43,14 +41,14 @@ func StartFileWatcher(name, path string) (stop func()) {
 				if !ok {
 					return
 				}
-				logger.Get().Error(err)
+				Log.Error("Failed to watch fs", "err", err)
 			}
 		}
 	}()
 
 	stop = func() {
 		if err := watcher.Close(); err != nil {
-			logger.Get().Error(err)
+			Log.Error("Failed to close fs watcher", "err", err)
 		}
 	}
 

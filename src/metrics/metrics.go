@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
 	// Enabled flag for turn on/off metrics
 	Enabled = false
 
-	log = logger.Get().WithField("module", "metrics")
+	Log = log.New("module", "metrics")
 )
 
 const (
@@ -41,7 +41,7 @@ func init() {
 			Enabled = false
 			log.Debug("metrics is disable by environment")
 		default:
-			log.Errorf("incorrect value in '%s'", envEnabled)
+			log.Error("incorrect value", envEnabled, isEnabled)
 		}
 	}
 }
