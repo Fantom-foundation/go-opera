@@ -6,12 +6,12 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-// calculate SfWitness votes only for the new root.
-// If this root sees that the current election is decided, then @return decided SfWitness
+// calculate Atropos votes only for the new root.
+// If this root sees that the current election is decided, then @return decided Atropos
 func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 	if len(el.decidedRoots) == len(el.members) {
 		// current election is already decided
-		return el.chooseSfWitness()
+		return el.chooseAtropos()
 	}
 
 	if newRoot.Slot.Frame <= el.frameToDecide {
@@ -103,7 +103,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 
 	frameDecided := len(el.decidedRoots) == len(el.members)
 	if frameDecided {
-		return el.chooseSfWitness()
+		return el.chooseAtropos()
 	}
 
 	return nil, nil

@@ -26,7 +26,7 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // ApplyGenesis writes or updates the genesis block in db.
-// Returns genesis FiWitness hash, StateHash
+// Returns genesis Atropos hash, StateHash
 func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn func(*EvmHeader) common.Hash) (*EvmBlock, error) {
 	if genesis == nil {
 		return nil, ErrNoGenesis

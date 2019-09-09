@@ -61,8 +61,8 @@ type voteValue struct {
 }
 
 type ElectionRes struct {
-	Frame     idx.Frame
-	SfWitness hash.Event
+	Frame   idx.Frame
+	Atropos hash.Event
 }
 
 func New(

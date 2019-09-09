@@ -226,11 +226,11 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	gdb, cdb := makeStorages(makeDb)
 
 	// write genesis
-	genesisFiWitness, genesisState, err := gdb.ApplyGenesis(&gossipCfg.Net.Genesis)
+	genesisAtropos, genesisState, err := gdb.ApplyGenesis(&gossipCfg.Net.Genesis)
 	if err != nil {
 		utils.Fatalf("Failed to write EVM genesis state: %v", err)
 	}
-	err = cdb.ApplyGenesis(&gossipCfg.Net.Genesis, genesisFiWitness, genesisState)
+	err = cdb.ApplyGenesis(&gossipCfg.Net.Genesis, genesisAtropos, genesisState)
 	if err != nil {
 		utils.Fatalf("Failed to write Poset genesis state: %v", err)
 	}

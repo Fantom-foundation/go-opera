@@ -24,10 +24,10 @@ const (
 
 // state of previous Epoch
 type GenesisState struct {
-	Epoch         idx.Epoch
-	Time          inter.Timestamp // consensus time of the last fiWitness
-	LastFiWitness hash.Event
-	StateHash     common.Hash // hash of txs state
+	Epoch       idx.Epoch
+	Time        inter.Timestamp // consensus time of the last atropos
+	LastAtropos hash.Event
+	StateHash   common.Hash // hash of txs state
 }
 
 func (g *GenesisState) Hash() common.Hash {
@@ -54,11 +54,11 @@ func (p *Poset) loadEpoch() {
 	p.epoch = *p.store.GetEpoch()
 }
 
-func (p *Poset) nextEpoch(fiWitness hash.Event) {
+func (p *Poset) nextEpoch(atropos hash.Event) {
 	// new PrevEpoch state
 	p.PrevEpoch.Time = p.LastConsensusTime
 	p.PrevEpoch.Epoch = p.EpochN
-	p.PrevEpoch.LastFiWitness = fiWitness
+	p.PrevEpoch.LastAtropos = atropos
 	p.PrevEpoch.StateHash = p.checkpoint.StateHash
 
 	// new members list
