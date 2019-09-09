@@ -15,12 +15,12 @@ import (
 // have achieved sufficient coherency.
 func (vi *Index) StronglySee(aID, bID hash.Event) bool {
 	// get events by hash
-	a := vi.GetEvent(aID)
+	a := vi.GetHighestBeforeSeq(aID)
 	if a == nil {
 		vi.Log.Error("Event A wasn't found", "event", aID.String())
 		return false
 	}
-	b := vi.GetEvent(bID)
+	b := vi.GetLowestAfterSeq(bID)
 	if b == nil {
 		vi.Log.Error("Event B wasn't found", "event", bID.String())
 		return false
@@ -31,10 +31,10 @@ func (vi *Index) StronglySee(aID, bID hash.Event) bool {
 
 	// calculate strongly seeing using the indexes
 	for creator, n := range vi.memberIdxs {
-		bLowestAfter := b.LowestAfter[n]
-		aHighestBefore := a.HighestBefore[n]
+		bLowestAfter := b.Get(n)
+		aHighestBefore := a.Get(n).Seq
 
-		if bLowestAfter.Seq <= aHighestBefore.Seq && bLowestAfter.Seq != 0 {
+		if bLowestAfter <= aHighestBefore && bLowestAfter != 0 {
 			yes.Count(creator)
 		} else {
 			no.Count(creator)

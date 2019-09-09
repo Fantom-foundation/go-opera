@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
@@ -31,11 +32,17 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		members.Set(peer, weights[i])
 	}
 
-	vi := NewIndex(members, memorydb.New())
+	events := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return events[id]
+	}
+
+	vi := NewIndex(members, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
-		vi.Add(e)
+		events[e.Hash()] = &e.EventHeaderData
+		vi.Add(&e.EventHeaderData)
 		vi.Flush()
 	}
 
@@ -113,102 +120,82 @@ func TestMedianTime(t *testing.T) {
 		members.Set(peer, weights[i])
 	}
 
-	vi := NewIndex(members, memorydb.New())
+	vi := NewIndex(members, memorydb.New(), nil)
 
 	assertar := assert.New(t)
 	{ // seq=0
-		e := &event{
-			EventHeaderData: &inter.NewEvent().EventHeaderData,
-		}
+		e := inter.NewEvent().EventHeaderData.Hash()
 		// member indexes are sorted by stake amount
-		e.HighestBefore = []HighestBefore{
-			{
-				Seq:         0,
-				ClaimedTime: 100,
-			},
-			{
-				Seq:         0,
-				ClaimedTime: 100,
-			},
-			{
-				Seq:         1,
-				ClaimedTime: 10,
-			},
-			{
-				Seq:         1,
-				ClaimedTime: 10,
-			},
-			{
-				Seq:         1,
-				ClaimedTime: 10,
-			},
-		}
-		vi.SetEvent(e)
-		assertar.Equal(inter.Timestamp(1), vi.MedianTime(e.Hash(), 1))
+		beforeSee := NewHighestBeforeSeq(len(members))
+		beforeTime := NewHighestBeforeTime(len(members))
+
+		beforeSee.Set(0, ForkSeq{Seq: 0})
+		beforeTime.Set(0, 100)
+
+		beforeSee.Set(1, ForkSeq{Seq: 0})
+		beforeTime.Set(1, 100)
+
+		beforeSee.Set(2, ForkSeq{Seq: 1})
+		beforeTime.Set(2, 10)
+
+		beforeSee.Set(3, ForkSeq{Seq: 1})
+		beforeTime.Set(3, 10)
+
+		beforeSee.Set(4, ForkSeq{Seq: 1})
+		beforeTime.Set(4, 10)
+
+		vi.SetHighestBefore(e, beforeSee, beforeTime)
+		assertar.Equal(inter.Timestamp(1), vi.MedianTime(e, 1))
 	}
 
 	{ // fork seen = true
-		e := &event{
-			EventHeaderData: &inter.NewEvent().EventHeaderData,
-		}
+		e := inter.NewEvent().EventHeaderData.Hash()
 		// member indexes are sorted by stake amount
-		e.HighestBefore = []HighestBefore{
-			{
-				Seq:         0,
-				ClaimedTime: 100,
-				IsForkSeen:  true,
-			},
-			{
-				Seq:         0,
-				ClaimedTime: 100,
-				IsForkSeen:  true,
-			},
-			{
-				Seq:         1,
-				ClaimedTime: 10,
-			},
-			{
-				Seq:         1,
-				ClaimedTime: 10,
-			},
-			{
-				Seq:         1,
-				ClaimedTime: 10,
-			},
-		}
-		vi.SetEvent(e)
-		assertar.Equal(inter.Timestamp(10), vi.MedianTime(e.Hash(), 1))
+		beforeSee := NewHighestBeforeSeq(len(members))
+		beforeTime := NewHighestBeforeTime(len(members))
+
+		beforeSee.Set(0, ForkSeq{Seq: 0, IsForkSeen: true})
+		beforeTime.Set(0, 100)
+
+		beforeSee.Set(1, ForkSeq{Seq: 0, IsForkSeen: true})
+		beforeTime.Set(1, 100)
+
+		beforeSee.Set(2, ForkSeq{Seq: 1})
+		beforeTime.Set(2, 10)
+
+		beforeSee.Set(3, ForkSeq{Seq: 1})
+		beforeTime.Set(3, 10)
+
+		beforeSee.Set(4, ForkSeq{Seq: 1})
+		beforeTime.Set(4, 10)
+
+		vi.SetHighestBefore(e, beforeSee, beforeTime)
+		assertar.Equal(inter.Timestamp(10), vi.MedianTime(e, 1))
 	}
 
 	{ // normal
-		e := &event{
-			EventHeaderData: &inter.NewEvent().EventHeaderData,
-		}
+		e := inter.NewEvent().EventHeaderData.Hash()
 		// member indexes are sorted by stake amount
-		e.HighestBefore = []HighestBefore{
-			{
-				Seq:         1,
-				ClaimedTime: 11,
-			},
-			{
-				Seq:         2,
-				ClaimedTime: 12,
-			},
-			{
-				Seq:         2,
-				ClaimedTime: 13,
-			},
-			{
-				Seq:         3,
-				ClaimedTime: 14,
-			},
-			{
-				Seq:         4,
-				ClaimedTime: 15,
-			},
-		}
-		vi.SetEvent(e)
-		assertar.Equal(inter.Timestamp(12), vi.MedianTime(e.Hash(), 1))
+		beforeSee := NewHighestBeforeSeq(len(members))
+		beforeTime := NewHighestBeforeTime(len(members))
+
+		beforeSee.Set(0, ForkSeq{Seq: 1})
+		beforeTime.Set(0, 11)
+
+		beforeSee.Set(1, ForkSeq{Seq: 2})
+		beforeTime.Set(1, 12)
+
+		beforeSee.Set(2, ForkSeq{Seq: 2})
+		beforeTime.Set(2, 13)
+
+		beforeSee.Set(3, ForkSeq{Seq: 3})
+		beforeTime.Set(3, 14)
+
+		beforeSee.Set(4, ForkSeq{Seq: 4})
+		beforeTime.Set(4, 15)
+
+		vi.SetHighestBefore(e, beforeSee, beforeTime)
+		assertar.Equal(inter.Timestamp(12), vi.MedianTime(e, 1))
 	}
 
 }

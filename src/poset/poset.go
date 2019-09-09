@@ -61,7 +61,7 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
-	p.seeVec.Add(e)
+	p.seeVec.Add(&e.EventHeaderData)
 	defer p.seeVec.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
@@ -75,7 +75,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return epoch_check.ErrAuth
 	}
 
-	p.seeVec.Add(e)
+	p.seeVec.Add(&e.EventHeaderData)
 	defer p.seeVec.DropNotFlushed()
 
 	// check frame & isRoot

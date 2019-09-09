@@ -189,7 +189,6 @@ func (em *Emitter) createEvent() *inter.Event {
 		// sanity check
 		dagId := params.AllEthashProtocolChanges.ChainID
 		if err := event_check.ValidateAll_test(em.dag, em.engine, types.NewEIP155Signer(dagId), event, parentHeaders); err != nil {
-			println(err.Error())
 			log.Error("Emitted incorrect event", "err", err)
 			return nil
 		}
