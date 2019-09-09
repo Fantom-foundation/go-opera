@@ -12,8 +12,8 @@ import (
  */
 
 type (
-	LowestAfterSeq    []byte
-	HighestBeforeSeq  []byte
+	LowestAfterSeq []byte
+	HighestBeforeSeq []byte
 	HighestBeforeTime []byte
 
 	ForkSeq struct {
@@ -54,6 +54,10 @@ func (b HighestBeforeTime) Get(n idx.Member) inter.Timestamp {
 
 func (b HighestBeforeTime) Set(n idx.Member, time inter.Timestamp) {
 	binary.LittleEndian.PutUint64(b[n*8:(n+1)*8], uint64(time))
+}
+
+func (b HighestBeforeSeq) MembersNum() idx.Member {
+	return idx.Member(len(b) / 4)
 }
 
 func (b HighestBeforeSeq) Get(n idx.Member) ForkSeq {

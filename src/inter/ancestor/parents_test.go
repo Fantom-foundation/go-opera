@@ -91,11 +91,17 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		members.Set(peer, 1)
 	}
 
-	vecSee := vector.NewIndex(members, memorydb.New())
+	events := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return events[id]
+	}
+
+	vecSee := vector.NewIndex(members, memorydb.New(), getEvent)
 
 	// build vector index
 	for _, e := range ordered {
-		vecSee.Add(e)
+		events[e.Hash()] = &e.EventHeaderData
+		vecSee.Add(&e.EventHeaderData)
 	}
 
 	// divide events by stage

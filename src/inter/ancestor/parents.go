@@ -41,7 +41,7 @@ func FindBestParents(max int, options hash.Events, selfParent *hash.Event, strat
 
 type SeeingStrategy struct {
 	seeVec   *vector.Index
-	template []vector.HighestBefore
+	template vector.HighestBeforeSeq
 }
 
 func NewSeeingStrategy(seeVec *vector.Index) *SeeingStrategy {
@@ -53,13 +53,13 @@ func NewSeeingStrategy(seeVec *vector.Index) *SeeingStrategy {
 type eventScore struct {
 	event hash.Event
 	score idx.Event
-	vec   []vector.HighestBefore
+	vec   vector.HighestBeforeSeq
 }
 
 func (st *SeeingStrategy) Init(selfParent *hash.Event) {
 	if selfParent != nil {
 		// we start searching by comparing with self-parent
-		st.template = st.seeVec.GetEvent(*selfParent).HighestBefore
+		st.template = st.seeVec.GetHighestBeforeSeq(*selfParent)
 	}
 }
 
@@ -67,20 +67,22 @@ func (st *SeeingStrategy) Find(options hash.Events) hash.Event {
 	scores := make([]eventScore, 0, 100)
 
 	// estimate score of each option as number of members it sees higher than provided template
-	for i, id := range options {
+	for _, id := range options {
 		score := eventScore{}
 		score.event = id
-		score.vec = st.seeVec.GetEvent(id).HighestBefore
+		score.vec = st.seeVec.GetHighestBeforeSeq(id)
 		if st.template == nil {
-			st.template = make([]vector.HighestBefore, len(score.vec)) // nothing sees
+			st.template = vector.NewHighestBeforeSeq(int(score.vec.MembersNum())) // nothing sees
 		}
-		for _, highest := range score.vec {
+		for n := idx.Member(0); n < score.vec.MembersNum(); n++ {
+			my := st.template.Get(n)
+			his := score.vec.Get(n)
 			// sees higher
-			if highest.Seq > st.template[i].Seq {
+			if his.Seq > my.Seq {
 				score.score += 1
 			}
 			// sees a fork
-			if highest.IsForkSeen && !st.template[i].IsForkSeen {
+			if his.IsForkSeen && !my.IsForkSeen {
 				score.score += 1
 			}
 		}
