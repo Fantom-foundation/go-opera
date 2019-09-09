@@ -4,6 +4,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
+type kv struct {
+	a, b hash.Event
+}
+
 // StronglySee calculates "sufficient coherence" between the events.
 // The A.HighestBefore array remembers the sequence number of the last
 // event by each member that is an ancestor of A. The array for
@@ -14,6 +18,10 @@ import (
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
 func (vi *Index) StronglySee(aID, bID hash.Event) bool {
+	if res, ok := vi.stronglySeeCache.Get(kv{aID, bID}); ok {
+		return res.(bool)
+	}
+
 	// get events by hash
 	a := vi.GetHighestBeforeSeq(aID)
 	if a == nil {
@@ -29,6 +37,7 @@ func (vi *Index) StronglySee(aID, bID hash.Event) bool {
 	yes := vi.members.NewCounter()
 	no := vi.members.NewCounter()
 
+	res := false
 	// calculate strongly seeing using the indexes
 	for creator, n := range vi.memberIdxs {
 		bLowestAfter := b.Get(n)
@@ -41,13 +50,16 @@ func (vi *Index) StronglySee(aID, bID hash.Event) bool {
 		}
 
 		if yes.HasQuorum() {
-			return true
+			res = true
+			break
 		}
 
 		if no.HasQuorum() {
-			return false
+			res = false
+			break
 		}
 	}
 
-	return false
+	//vi.stronglySeeCache.Add(kv{aID, bID}, res)
+	return res
 }

@@ -2,6 +2,7 @@ package vector
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -11,6 +12,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+)
+
+const (
+	stronglySeeCacheSize = 5000
 )
 
 // Index is a data to detect strongly-see condition, calculate median timestamp, detect forks.
@@ -26,13 +31,18 @@ type Index struct {
 		LowestAfterSeq    kvdb.KeyValueStore `table:"s"`
 	}
 
+	stronglySeeCache *lru.Cache
+
 	logger.Instance
 }
 
 // NewIndex creates Index instance.
 func NewIndex(members pos.Members, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
+	cache, _ := lru.New(stronglySeeCacheSize)
+
 	vi := &Index{
-		Instance: logger.MakeInstance(),
+		Instance:         logger.MakeInstance(),
+		stronglySeeCache: cache,
 	}
 	vi.Reset(members, db, getEvent)
 
