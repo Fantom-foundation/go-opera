@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -26,48 +25,17 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // ApplyGenesis writes or updates the genesis block in db.
-// Returns genesis FiWitness hash, StateHash
 func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error) {
 	if genesis == nil {
 		return nil, ErrNoGenesis
 	}
-	b := genesisToBlock(nil, genesis)
-	stored := rawdb.ReadCanonicalHash(db, 0)
-	if (stored == common.Hash{}) {
-		// Just commit the new block if there is no stored genesis block.
-		log.Info("Writing genesis state")
-		_, err := genesisWrite(db, genesis)
-		if err != nil {
-			return b, err
-		}
-		return b, nil
-	} else if b.Hash != stored {
-		// Check whether the genesis block is already written.
-		return b, &GenesisMismatchError{stored, b.Hash}
-	}
 
-	// We have the genesis block in database(perhaps in ancient database)
-	// but the corresponding state is missing.
-	header := rawdb.ReadHeader(db, stored, 0)
-	if _, err := state.New(header.Root, state.NewDatabaseWithCache(db, 0)); err != nil {
-		_, err := genesisWrite(db, genesis)
-		if err != nil {
-			return b, err
-		}
-		return b, nil
+	// state
+	statedb, err := state.New(common.Hash{}, state.NewDatabase(db))
+	if err != nil {
+		return nil, err
 	}
-	return b, nil
-}
-
-// genesisToBlock creates the genesis block and writes state of a genesis specification
-// to the given database (or discards it if nil).
-func genesisToBlock(db ethdb.Database, g *genesis.Genesis) *EvmBlock {
-	if db == nil {
-		db = rawdb.NewMemoryDatabase()
-	}
-	// write genesis accounts
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	for addr, account := range g.Alloc {
+	for addr, account := range genesis.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
@@ -75,57 +43,62 @@ func genesisToBlock(db ethdb.Database, g *genesis.Genesis) *EvmBlock {
 			statedb.SetState(addr, key, value)
 		}
 	}
-	root := statedb.IntermediateRoot(false)
 
-	coinbase := common.BytesToAddress([]byte{1})
+	// initial block
+	block := &EvmBlock{
+		EvmHeader: EvmHeader{
+			Number:   big.NewInt(0),
+			Time:     genesis.Time,
+			GasLimit: params.GenesisGasLimit, // TODO: config
+			Coinbase: common.BytesToAddress([]byte{1}),
+			Root:     statedb.IntermediateRoot(false),
+		},
+	}
+	block.Hash = block.PrettyHash()
+	blockNum := block.NumberU64()
 
-	head := &EvmHeader{
-		Number:   big.NewInt(0),
-		Time:     g.Time,
-		GasLimit: params.GenesisGasLimit, // TODO config
-		Coinbase: coinbase,
-		Root:     root,
+	stored := rawdb.ReadCanonicalHash(db, blockNum)
+	if (stored != common.Hash{}) {
+		if stored != block.Hash {
+			log.Info("Other genesis block is already written", "block", stored.String())
+			return nil, &GenesisMismatchError{stored, block.Hash}
+		}
+
+		log.Info("Genesis block is already written", "block", stored.String())
+		return block, nil
 	}
 
-	head.Hash = head.HashWith(g.ExtraData)
+	log.Info("Commit genesis block", "block", block.Hash.String())
 
-	statedb.Commit(false)
-	statedb.Database().TrieDB().Commit(root, true)
-
-	return &EvmBlock{
-		EvmHeader: *head,
+	root, err := statedb.Commit(false)
+	if err != nil {
+		return nil, err
 	}
-}
-
-// genesisWrite writes the block and state of a genesis specification to the database.
-// The block is committed as the canonical head block.
-func genesisWrite(db ethdb.Database, g *genesis.Genesis) (*EvmBlock, error) {
-	block := genesisToBlock(db, g)
-	if block.Number.Sign() != 0 {
-		return nil, fmt.Errorf("can't commit genesis state with number > 0")
+	err = statedb.Database().TrieDB().Commit(root, true) //TODO: ???
+	if err != nil {
+		return nil, err
 	}
-	rawdb.WriteReceipts(db, block.Hash, block.NumberU64(), nil)
-	rawdb.WriteCanonicalHash(db, block.Hash, block.NumberU64())
-	rawdb.WriteHeadBlockHash(db, block.Hash)
-	rawdb.WriteHeadHeaderHash(db, block.Hash)
-	rawdb.WriteHeadFastBlockHash(db, block.Hash)
-	rawdb.WriteHeader(db, &types.Header{
-		Number:     block.Number,
-		Root:       block.Root,
-		ParentHash: block.ParentHash,
-		Coinbase:   block.Coinbase,
-		Time:       uint64(block.Time),
-	})
+
+	writeBlockIndexes(db, blockNum, block.Hash)
 
 	return block, nil
 }
 
-// genesisMustWrite writes the genesis block and state to db, panicking on error.
-// The block is committed as the canonical head block.
-func genesisMustWrite(g *genesis.Genesis, db ethdb.Database) *EvmBlock {
-	block, err := genesisWrite(db, g)
+// writeBlockIndexes writes the block's indexes.
+func writeBlockIndexes(db ethdb.Database, num uint64, hash common.Hash) {
+	rawdb.WriteHeaderNumber(db, hash, num)
+	rawdb.WriteReceipts(db, hash, num, nil)
+	rawdb.WriteCanonicalHash(db, hash, num)
+	rawdb.WriteHeadBlockHash(db, hash)
+	rawdb.WriteHeadHeaderHash(db, hash)
+	rawdb.WriteHeadFastBlockHash(db, hash)
+}
+
+// mustApplyGenesis writes the genesis block and state to db, panicking on error.
+func mustApplyGenesis(g *genesis.Genesis, db ethdb.Database) *EvmBlock {
+	block, err := ApplyGenesis(db, g)
 	if err != nil {
-		panic(err)
+		log.Crit("ApplyGenesis", "err", err)
 	}
 	return block
 }

@@ -135,7 +135,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	gspec := &genesis.Genesis{
 		Alloc: genesis.Accounts{benchRootAddr: {Balance: benchRootFunds}},
 	}
-	genesisBlock := genesisMustWrite(gspec, db)
+	genesisBlock := mustApplyGenesis(gspec, db)
 
 	// Time the insertion of the new chain.
 	// State and blocks are stored in the same DB.

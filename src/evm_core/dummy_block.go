@@ -11,37 +11,29 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-type EvmHeader struct {
-	Hash       common.Hash
-	ParentHash common.Hash
+type (
+	EvmHeader struct {
+		Number     *big.Int
+		Hash       common.Hash
+		ParentHash common.Hash
+		Root       common.Hash
+		Time       inter.Timestamp
+		Coinbase   common.Address
 
-	Root common.Hash
+		GasLimit uint64
+		gasUsed  uint64 // tests only
 
-	GasLimit uint64
-	gasUsed  uint64 // tests only
+		Extra []byte
+	}
 
-	Number *big.Int
+	EvmBlock struct {
+		EvmHeader
 
-	Time inter.Timestamp
+		Transactions types.Transactions
+	}
+)
 
-	Coinbase common.Address
-}
-
-// HashWith calcs hash of EvmHeader with extra data.
-func (header *EvmHeader) HashWith(extra []byte) common.Hash {
-	e := inter.NewEvent()
-	// for nice-looking ID
-	e.Epoch = 0
-	e.Lamport = idx.Lamport(idx.MaxFrame)
-	// actual data hashed
-	e.Extra = extra
-	e.ClaimedTime = header.Time
-	e.TxHash = header.Root
-	e.Creator = header.Coinbase
-
-	return common.Hash(e.Hash())
-}
-
+// ToEvmHeader converts inter.Block to EvmHeader.
 func ToEvmHeader(block *inter.Block) *EvmHeader {
 	return &EvmHeader{
 		Hash:       common.Hash(block.Hash()),
@@ -54,25 +46,33 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 	}
 }
 
+// PrettyHash calcs hash of [genesis] header.
+// NOTE: it conflicts with inter.Block.Hash().
+// NOTE: it doesn't sum Transactions.
+func (b *EvmBlock) PrettyHash() common.Hash {
+	e := inter.NewEvent()
+	// for nice-looking ID
+	e.Epoch = 0
+	e.Lamport = idx.Lamport(idx.MaxFrame)
+	// actual data hashed
+	e.Extra = b.Extra
+	e.ClaimedTime = b.Time
+	e.TxHash = b.Root
+	e.Creator = b.Coinbase
+
+	return common.Hash(e.Hash())
+}
+
 func (b *EvmBlock) NumberU64() uint64 {
 	return b.Number.Uint64()
 }
 
-type EvmBlock struct {
-	EvmHeader
-
-	Transactions types.Transactions
-}
-
+// Header is a copy of EvmBlock.EvmHeader.
 func (b *EvmBlock) Header() *EvmHeader {
-	return &EvmHeader{
-		Hash:       b.Hash,
-		ParentHash: b.ParentHash,
-		Root:       b.Root,
-		GasLimit:   b.GasLimit,
-		gasUsed:    b.gasUsed,
-		Number:     new(big.Int).Set(b.Number),
-		Time:       b.Time,
-		Coinbase:   b.Coinbase,
-	}
+	// copy values
+	h := b.EvmHeader
+	// copy refs
+	h.Number = new(big.Int).Set(b.Number)
+
+	return &h
 }
