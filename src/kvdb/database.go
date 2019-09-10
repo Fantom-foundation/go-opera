@@ -21,5 +21,5 @@ type FlushableKeyValueStore interface {
 	NotFlushedPairs() int
 	NotFlushedSizeEst() int
 	Flush() error
-	ClearNotFlushed()
+	DropNotFlushed()
 }
