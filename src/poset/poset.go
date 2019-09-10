@@ -217,7 +217,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 }
 
 func (p *Poset) epochSealed(fiWitness hash.Event) bool {
-	if p.LastDecidedFrame < EpochLen {
+	if p.LastDecidedFrame < idx.MaxFrame {
 		return false
 	}
 

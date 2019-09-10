@@ -107,7 +107,7 @@ func benchmarkStore(b *testing.B) {
 	maxEpoch := idx.Epoch(b.N) + 1
 	for epoch := idx.Epoch(1); epoch <= maxEpoch; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(EpochLen*3), 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(idx.MaxFrame*3), 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				input.SetEvent(e)
 				_ = p.ProcessEvent(e)

@@ -40,7 +40,7 @@ func TestRestore(t *testing.T) {
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= epochs; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(EpochLen)*3, 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(idx.MaxFrame)*3, 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[0].SetEvent(e)
 				assertar.NoError(posets[0].ProcessEvent(e))
@@ -88,7 +88,7 @@ func TestRestore(t *testing.T) {
 
 		// check that blocks are identical
 		assertar.Equal(len(posets[i].blocks), len(posets[j].blocks))
-		assertar.Equal(len(posets[i].blocks), int(epochs)*int(EpochLen))
+		assertar.Equal(len(posets[i].blocks), int(epochs)*int(idx.MaxFrame))
 		assertar.Equal(len(posets[i].blocks), int(posets[i].LastBlockN))
 		for blockI := idx.Block(1); blockI <= idx.Block(len(posets[i].blocks)); blockI++ {
 			assertar.NotNil(posets[i].blocks[blockI])

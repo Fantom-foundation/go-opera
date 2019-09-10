@@ -30,7 +30,7 @@ func TestPoset(t *testing.T) {
 
 	// create events on poset0
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(EpochLen)-1, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, int(idx.MaxFrame)-1, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 

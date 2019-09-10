@@ -35,7 +35,7 @@ func TestPosetTxn(t *testing.T) {
 		return stateHash, members
 	}
 
-	_ = inter.ForEachRandEvent(nodes, int(EpochLen-1), 3, nil, inter.ForEachEvent{
+	_ = inter.ForEachRandEvent(nodes, int(idx.MaxFrame-1), 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			x.SetEvent(e)
 			assert.NoError(t, p.ProcessEvent(e))

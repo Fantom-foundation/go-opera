@@ -4,6 +4,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/common/bigendian"
 )
 
+const (
+	// MaxFrame is a max count of frames per epoch.
+	MaxFrame Frame = 100
+)
+
 type (
 	// Epoch numeration.
 	Epoch uint32

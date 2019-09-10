@@ -15,9 +15,6 @@ import (
 )
 
 const (
-	// EpochLen is a count of FW per epoch.
-	EpochLen idx.Frame = 100
-
 	firstFrame = idx.Frame(1)
 	firstEpoch = idx.Epoch(1)
 )
