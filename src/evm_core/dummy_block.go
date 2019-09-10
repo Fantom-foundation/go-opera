@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type EvmHeader struct {
@@ -24,6 +25,21 @@ type EvmHeader struct {
 	Time inter.Timestamp
 
 	Coinbase common.Address
+}
+
+// HashWith calcs hash of EvmHeader with extra data.
+func (header *EvmHeader) HashWith(extra []byte) common.Hash {
+	e := inter.NewEvent()
+	// for nice-looking ID
+	e.Epoch = 0
+	e.Lamport = idx.Lamport(idx.MaxFrame)
+	// actual data hashed
+	e.Extra = extra
+	e.ClaimedTime = header.Time
+	e.TxHash = header.Root
+	e.Creator = header.Coinbase
+
+	return common.Hash(e.Hash())
 }
 
 func ToEvmHeader(block *inter.Block) *EvmHeader {

@@ -27,16 +27,16 @@ func (e *GenesisMismatchError) Error() string {
 
 // ApplyGenesis writes or updates the genesis block in db.
 // Returns genesis FiWitness hash, StateHash
-func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn func(*EvmHeader) common.Hash) (*EvmBlock, error) {
+func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error) {
 	if genesis == nil {
 		return nil, ErrNoGenesis
 	}
-	b := genesisToBlock(nil, genesis, genesisHashFn)
+	b := genesisToBlock(nil, genesis)
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		// Just commit the new block if there is no stored genesis block.
 		log.Info("Writing genesis state")
-		_, err := genesisWrite(db, genesis, genesisHashFn)
+		_, err := genesisWrite(db, genesis)
 		if err != nil {
 			return b, err
 		}
@@ -50,7 +50,7 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn fun
 	// but the corresponding state is missing.
 	header := rawdb.ReadHeader(db, stored, 0)
 	if _, err := state.New(header.Root, state.NewDatabaseWithCache(db, 0)); err != nil {
-		_, err := genesisWrite(db, genesis, genesisHashFn)
+		_, err := genesisWrite(db, genesis)
 		if err != nil {
 			return b, err
 		}
@@ -61,7 +61,7 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis, genesisHashFn fun
 
 // genesisToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func genesisToBlock(db ethdb.Database, g *genesis.Genesis, genesisHashFn func(*EvmHeader) common.Hash) *EvmBlock {
+func genesisToBlock(db ethdb.Database, g *genesis.Genesis) *EvmBlock {
 	if db == nil {
 		db = rawdb.NewMemoryDatabase()
 	}
@@ -86,9 +86,8 @@ func genesisToBlock(db ethdb.Database, g *genesis.Genesis, genesisHashFn func(*E
 		Coinbase: coinbase,
 		Root:     root,
 	}
-	if genesisHashFn != nil {
-		head.Hash = genesisHashFn(head)
-	}
+
+	head.Hash = head.HashWith(g.ExtraData)
 
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
@@ -100,8 +99,8 @@ func genesisToBlock(db ethdb.Database, g *genesis.Genesis, genesisHashFn func(*E
 
 // genesisWrite writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func genesisWrite(db ethdb.Database, g *genesis.Genesis, genesisHashFn func(*EvmHeader) common.Hash) (*EvmBlock, error) {
-	block := genesisToBlock(db, g, genesisHashFn)
+func genesisWrite(db ethdb.Database, g *genesis.Genesis) (*EvmBlock, error) {
+	block := genesisToBlock(db, g)
 	if block.Number.Sign() != 0 {
 		return nil, fmt.Errorf("can't commit genesis state with number > 0")
 	}
@@ -123,8 +122,8 @@ func genesisWrite(db ethdb.Database, g *genesis.Genesis, genesisHashFn func(*Evm
 
 // genesisMustWrite writes the genesis block and state to db, panicking on error.
 // The block is committed as the canonical head block.
-func genesisMustWrite(g *genesis.Genesis, db ethdb.Database, genesisHashFn func(*EvmHeader) common.Hash) *EvmBlock {
-	block, err := genesisWrite(db, g, genesisHashFn)
+func genesisMustWrite(g *genesis.Genesis, db ethdb.Database) *EvmBlock {
+	block, err := genesisWrite(db, g)
 	if err != nil {
 		panic(err)
 	}
