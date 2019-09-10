@@ -78,7 +78,7 @@ func (st *SeeingStrategy) Find(options hash.Events) hash.Event {
 			my := st.template.Get(n)
 			his := score.vec.Get(n)
 			// sees higher
-			if his.Seq > my.Seq {
+			if his.Seq > my.Seq && !my.IsForkSeen {
 				score.score += 1
 			}
 			// sees a fork
