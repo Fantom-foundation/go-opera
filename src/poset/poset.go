@@ -49,7 +49,7 @@ func (p *Poset) GetVectorIndex() *vector.Index {
 }
 
 func (p *Poset) LastBlock() (idx.Block, hash.Event) {
-	return p.LastBlockN, p.LastFiWitness
+	return p.LastBlockN, p.LastAtropos
 }
 
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp
@@ -104,7 +104,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	return nil
 }
 
-// calculates fiWitness election for the root, calls p.onFrameDecided if election was decided
+// calculates atropos election for the root, calls p.onFrameDecided if election was decided
 func (p *Poset) handleElection(root *inter.Event) {
 	if root != nil { // if root is nil, then just bootstrap election
 		if !root.IsRoot {
@@ -118,8 +118,8 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 
 		// if we’re here, then this root has seen that lowest not decided frame is decided now
-		p.onFrameDecided(decided.Frame, decided.SfWitness)
-		if p.epochSealed(decided.SfWitness) {
+		p.onFrameDecided(decided.Frame, decided.Atropos)
+		if p.epochSealed(decided.Atropos) {
 			return
 		}
 	}
@@ -132,8 +132,8 @@ func (p *Poset) handleElection(root *inter.Event) {
 			break
 		}
 
-		p.onFrameDecided(decided.Frame, decided.SfWitness)
-		if p.epochSealed(decided.SfWitness) {
+		p.onFrameDecided(decided.Frame, decided.Atropos)
+		if p.epochSealed(decided.Atropos) {
 			return
 		}
 	}
@@ -185,12 +185,12 @@ func (p *Poset) ProcessEvent(e *inter.Event) error {
 
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, epoch sealing.
-func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
+func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) {
 	p.election.Reset(p.Members, frame+1)
 	p.LastDecidedFrame = frame
 
-	p.Log.Debug("dfsSubgraph from sfWitness", "sfWitness", sfWitness.String())
-	unordered, err := p.dfsSubgraph(sfWitness, func(event *inter.EventHeaderData) bool {
+	p.Log.Debug("dfsSubgraph from atropos", "atropos", atropos.String())
+	unordered, err := p.dfsSubgraph(atropos, func(event *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(event.Hash())
 		if decidedFrame == 0 {
 			p.store.SetEventConfirmedOn(event.Hash(), frame)
@@ -205,26 +205,26 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 	if len(unordered) == 0 {
 		p.Log.Crit("Frame is decided with no events. It isn't possible.")
 	}
-	ordered := p.fareOrdering(frame, sfWitness, unordered)
+	ordered := p.fareOrdering(frame, atropos, unordered)
 
 	// block generation
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastFiWitness)
+		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
 		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
 	}
-	p.checkpoint.LastFiWitness = sfWitness
+	p.checkpoint.LastAtropos = atropos
 	p.NextMembers = p.NextMembers.Top()
 
 	p.saveCheckpoint()
 }
 
-func (p *Poset) epochSealed(fiWitness hash.Event) bool {
+func (p *Poset) epochSealed(atropos hash.Event) bool {
 	if p.LastDecidedFrame < p.dag.EpochLen {
 		return false
 	}
 
-	p.nextEpoch(fiWitness)
+	p.nextEpoch(atropos)
 
 	return true
 }
@@ -258,7 +258,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-				if p.seeVec.StronglySee(e.Hash(), root) {
+				if p.seeVec.ForklessSee(e.Hash(), root) {
 					sSeenCounter.Count(from)
 				}
 				return !sSeenCounter.HasQuorum()

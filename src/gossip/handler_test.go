@@ -131,10 +131,10 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 		engineStore = poset.NewMemStore()
 	)
 
-	genesisFiWitness, genesisEvmState, err := store.ApplyGenesis(&net)
+	genesisAtropos, genesisEvmState, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
-	assertar.NoError(engineStore.ApplyGenesis(&net.Genesis, genesisFiWitness, genesisEvmState))
+	assertar.NoError(engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState))
 
 	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(nil)

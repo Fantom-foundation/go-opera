@@ -8,7 +8,7 @@ type kv struct {
 	a, b hash.Event
 }
 
-// StronglySee calculates "sufficient coherence" between the events.
+// ForklessSee calculates "sufficient coherence" between the events.
 // The A.HighestBefore array remembers the sequence number of the last
 // event by each member that is an ancestor of A. The array for
 // B.LowestAfter remembers the sequence number of the earliest
@@ -17,7 +17,7 @@ type kv struct {
 // than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
-func (vi *Index) StronglySee(aID, bID hash.Event) bool {
+func (vi *Index) ForklessSee(aID, bID hash.Event) bool {
 	if res, ok := vi.stronglySeeCache.Get(kv{aID, bID}); ok {
 		return res.(bool)
 	}

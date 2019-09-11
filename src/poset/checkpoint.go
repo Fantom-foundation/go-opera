@@ -16,7 +16,7 @@ type checkpoint struct {
 	// fields can change only after a frame is decided
 	LastDecidedFrame  idx.Frame
 	LastBlockN        idx.Block
-	LastFiWitness     hash.Event
+	LastAtropos       hash.Event
 	LastConsensusTime inter.Timestamp
 	NextMembers       pos.Members
 	StateHash         common.Hash
@@ -50,7 +50,7 @@ func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 	p.seeVec = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
 		return p.input.GetEventHeader(p.EpochN, id)
 	})
-	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootStronglySeeRoot)
+	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootForklessSeeRoot)
 
 	// events reprocessing
 	p.handleElection(nil)

@@ -69,7 +69,7 @@ func TestPosetTxn(t *testing.T) {
 	p.nextEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"))
 
 	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
-	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastFiWitness)
+	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastAtropos)
 	assert.NotEqual(t, genesisTestTime, p.PrevEpoch.Time)
 
 	assert.Equal(t, pos.Stake(5), p.Members.TotalStake())

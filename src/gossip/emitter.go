@@ -115,7 +115,7 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	var strategy ancestor.SearchStrategy
 	if seeVec != nil {
-		strategy = ancestor.NewSeeingStrategy(seeVec)
+		strategy = ancestor.NewСausalityStrategy(seeVec)
 	} else {
 		strategy = ancestor.NewRandomStrategy(nil)
 	}

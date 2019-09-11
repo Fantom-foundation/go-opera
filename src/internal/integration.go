@@ -13,11 +13,11 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 	makeDb := dbProducer(ctx.Config.DataDir)
 	gdb, cdb := makeStorages(makeDb)
 
-	genesisFiWitness, genesisState, err := gdb.ApplyGenesis(&network)
+	genesisAtropos, genesisState, err := gdb.ApplyGenesis(&network)
 	if err != nil {
 		utils.Fatalf("Failed to write EVM genesis state: %v", err)
 	}
-	err = cdb.ApplyGenesis(&network.Genesis, genesisFiWitness, genesisState)
+	err = cdb.ApplyGenesis(&network.Genesis, genesisAtropos, genesisState)
 	if err != nil {
 		utils.Fatalf("Failed to write Poset genesis state: %v", err)
 	}

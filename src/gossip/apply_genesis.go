@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
-func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisFiWitness hash.Event, genesisEvmState common.Hash, err error) {
+func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisEvmState common.Hash, err error) {
 	evmBlock, err := evm_core.ApplyGenesis(s.table.Evm, net)
 
 	block := inter.NewBlock(0,
