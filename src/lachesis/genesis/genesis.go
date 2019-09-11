@@ -3,7 +3,6 @@ package genesis
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"math/big"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
 var (

@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
@@ -53,7 +54,7 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 
 	input := NewEventStore(nil)
 
-	poset := New(store, input)
+	poset := New(lachesis.DefaultDagConfig(), store, input)
 
 	extended := &ExtendedPoset{
 		Poset:  poset,

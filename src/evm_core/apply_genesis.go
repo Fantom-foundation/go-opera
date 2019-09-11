@@ -11,7 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 // GenesisMismatchError is raised when trying to overwrite an existing
@@ -25,8 +27,8 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // ApplyGenesis writes or updates the genesis block in db.
-func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error) {
-	if genesis == nil {
+func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
+	if net == nil {
 		return nil, ErrNoGenesis
 	}
 
@@ -35,7 +37,7 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error
 	if err != nil {
 		return nil, err
 	}
-	for addr, account := range genesis.Alloc {
+	for addr, account := range net.Genesis.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
@@ -45,7 +47,9 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error
 	}
 
 	// initial block
-	block := &EvmBlock{
+	root := statedb.IntermediateRoot(false)
+	block := genesisBlock(net, root)
+	/* &EvmBlock{
 		EvmHeader: EvmHeader{
 			Number:   big.NewInt(0),
 			Time:     genesis.Time,
@@ -54,7 +58,8 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error
 			Root:     statedb.IntermediateRoot(false),
 		},
 	}
-	block.Hash = block.PrettyHash()
+	block.Hash = block.CalcGenesisHash()
+	*/
 	blockNum := block.NumberU64()
 
 	stored := rawdb.ReadCanonicalHash(db, blockNum)
@@ -70,7 +75,7 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error
 
 	log.Info("Commit genesis block", "block", block.Hash.String())
 
-	root, err := statedb.Commit(false)
+	root, err = statedb.Commit(false)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +89,37 @@ func ApplyGenesis(db ethdb.Database, genesis *genesis.Genesis) (*EvmBlock, error
 	return block, nil
 }
 
+// genesisBlock makes genesis block with pretty hash.
+func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
+
+	prettyHash := func(b *EvmBlock) common.Hash {
+		e := inter.NewEvent()
+		// for nice-looking ID
+		e.Epoch = 0
+		e.Lamport = idx.Lamport(net.Dag.EpochLen)
+		// actual data hashed
+		e.Extra = net.Genesis.ExtraData
+		e.ClaimedTime = b.Time
+		e.TxHash = b.Root
+		e.Creator = b.Coinbase
+
+		return common.Hash(e.Hash())
+	}
+
+	block := &EvmBlock{
+		EvmHeader: EvmHeader{
+			Number:   big.NewInt(0),
+			Time:     net.Genesis.Time,
+			GasLimit: params.GenesisGasLimit, // TODO: config
+			Coinbase: common.BytesToAddress([]byte{1}),
+			Root:     root,
+		},
+	}
+	block.Hash = prettyHash(block)
+
+	return block
+}
+
 // writeBlockIndexes writes the block's indexes.
 func writeBlockIndexes(db ethdb.Database, num uint64, hash common.Hash) {
 	rawdb.WriteHeaderNumber(db, hash, num)
@@ -95,8 +131,8 @@ func writeBlockIndexes(db ethdb.Database, num uint64, hash common.Hash) {
 }
 
 // mustApplyGenesis writes the genesis block and state to db, panicking on error.
-func mustApplyGenesis(g *genesis.Genesis, db ethdb.Database) *EvmBlock {
-	block, err := ApplyGenesis(db, g)
+func mustApplyGenesis(net *lachesis.Config, db ethdb.Database) *EvmBlock {
+	block, err := ApplyGenesis(db, net)
 	if err != nil {
 		log.Crit("ApplyGenesis", "err", err)
 	}

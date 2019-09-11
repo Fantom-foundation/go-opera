@@ -11,6 +11,8 @@ import (
 // Tests that transactions can be added to strict lists and list contents and
 // nonce boundaries are correctly maintained.
 func TestStrictTxListAdd(t *testing.T) {
+	cfg := DefaultTxPoolConfig()
+
 	// Generate a list of transactions to insert
 	key, _ := crypto.GenerateKey()
 
@@ -21,7 +23,7 @@ func TestStrictTxListAdd(t *testing.T) {
 	// Insert the transactions in a random order
 	list := newTxList(true)
 	for _, v := range rand.Perm(len(txs)) {
-		list.Add(txs[v], DefaultTxPoolConfig.PriceBump)
+		list.Add(txs[v], cfg.PriceBump)
 	}
 	// Verify internal state
 	if len(list.txs.items) != len(txs) {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
@@ -17,7 +17,8 @@ const (
 
 // DagConfig of DAG.
 type DagConfig struct {
-	MaxParents int `json:"maxParents"`
+	MaxParents int       `json:"maxParents"`
+	EpochLen   idx.Frame `json:"maxParents"`
 }
 
 // Config describes lachesis net.
@@ -29,9 +30,6 @@ type Config struct {
 
 	// Graph options
 	Dag DagConfig
-
-	// Transaction pool options
-	TxPool evm_core.TxPoolConfig
 
 	// Gas Price Oracle options
 	GPO gasprice.Config
@@ -57,8 +55,7 @@ func MainNetConfig() Config {
 		Name:      "main",
 		NetworkId: MainNetworkId,
 		Genesis:   genesis.MainGenesis(),
-		Dag:       DagConfig{3},
-		TxPool:    evm_core.DefaultTxPoolConfig,
+		Dag:       DefaultDagConfig(),
 	}
 }
 
@@ -67,8 +64,7 @@ func TestNetConfig() Config {
 		Name:      "test",
 		NetworkId: TestNetworkId,
 		Genesis:   genesis.TestGenesis(),
-		Dag:       DagConfig{3},
-		TxPool:    evm_core.DefaultTxPoolConfig,
+		Dag:       DefaultDagConfig(),
 	}
 }
 
@@ -79,13 +75,13 @@ func FakeNetConfig(n int) Config {
 		Name:      "fake",
 		NetworkId: FakeNetworkId,
 		Genesis:   g,
-		Dag:       DagConfig{3},
-		TxPool:    fakeTxPoolConfig(),
+		Dag:       DefaultDagConfig(),
 	}
 }
 
-func fakeTxPoolConfig() evm_core.TxPoolConfig {
-	cfg := evm_core.DefaultTxPoolConfig
-	cfg.Journal = ""
-	return cfg
+func DefaultDagConfig() DagConfig {
+	return DagConfig{
+		MaxParents: 3,
+		EpochLen:   100,
+	}
 }

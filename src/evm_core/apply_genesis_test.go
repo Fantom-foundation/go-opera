@@ -9,7 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/no_key_is_err"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -29,12 +29,12 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// the same genesis
-	genA := genesis.FakeGenesis(3)
-	blockA1, err := ApplyGenesis(db, &genA)
+	netA := lachesis.FakeNetConfig(3)
+	blockA1, err := ApplyGenesis(db, &netA)
 	if !assertar.NoError(err) {
 		return
 	}
-	blockA2, err := ApplyGenesis(db, &genA)
+	blockA2, err := ApplyGenesis(db, &netA)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -43,8 +43,8 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// different genesis
-	genB := genesis.FakeGenesis(3)
-	_, err = ApplyGenesis(db, &genB)
+	netB := lachesis.FakeNetConfig(3)
+	_, err = ApplyGenesis(db, &netB)
 	if !assertar.Error(err) {
 		return
 	}

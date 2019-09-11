@@ -117,26 +117,26 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	network := lachesis.FakeNetConfig(1)
-	config := DefaultConfig(network)
+	net := lachesis.FakeNetConfig(1)
+	config := DefaultConfig(net)
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
 	config.ForcedBroadcast = allowAggressive
 
-	me := network.Genesis.Alloc.Addresses()[0]
-	privateKey := network.Genesis.Alloc[me].PrivateKey
+	me := net.Genesis.Alloc.Addresses()[0]
+	privateKey := net.Genesis.Alloc[me].PrivateKey
 
 	var (
 		store       = NewMemStore()
 		engineStore = poset.NewMemStore()
 	)
 
-	genesisFiWitness, genesisEvmState, err := store.ApplyGenesis(&network.Genesis)
+	genesisFiWitness, genesisEvmState, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
-	assertar.NoError(engineStore.ApplyGenesis(&network.Genesis, genesisFiWitness, genesisEvmState))
+	assertar.NoError(engineStore.ApplyGenesis(&net.Genesis, genesisFiWitness, genesisEvmState))
 
-	engine := poset.New(engineStore, store)
+	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(nil)
 
 	svc, err := NewService(nil, config, store, engine)

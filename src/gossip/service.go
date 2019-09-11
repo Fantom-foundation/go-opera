@@ -112,7 +112,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 
 	stateReader := svc.GetEvmStateReader()
 
-	svc.txpool = evm_core.NewTxPool(config.Net.TxPool, params.AllEthashProtocolChanges, stateReader)
+	svc.txpool = evm_core.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, engine)

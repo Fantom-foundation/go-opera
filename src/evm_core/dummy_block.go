@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 type (
@@ -22,8 +21,6 @@ type (
 
 		GasLimit uint64
 		gasUsed  uint64 // tests only
-
-		Extra []byte
 	}
 
 	EvmBlock struct {
@@ -44,23 +41,6 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 		Coinbase:   block.Creator,
 		GasLimit:   math.MaxUint64,
 	}
-}
-
-// PrettyHash calcs hash of [genesis] header.
-// NOTE: it conflicts with inter.Block.Hash().
-// NOTE: it doesn't sum Transactions.
-func (b *EvmBlock) PrettyHash() common.Hash {
-	e := inter.NewEvent()
-	// for nice-looking ID
-	e.Epoch = 0
-	e.Lamport = idx.Lamport(idx.MaxFrame)
-	// actual data hashed
-	e.Extra = b.Extra
-	e.ClaimedTime = b.Time
-	e.TxHash = b.Root
-	e.Creator = b.Coinbase
-
-	return common.Hash(e.Hash())
 }
 
 func (b *EvmBlock) NumberU64() uint64 {

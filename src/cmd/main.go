@@ -226,7 +226,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	gdb, cdb := makeStorages(makeDb)
 
 	// write genesis
-	genesisFiWitness, genesisState, err := gdb.ApplyGenesis(&gossipCfg.Net.Genesis)
+	genesisFiWitness, genesisState, err := gdb.ApplyGenesis(&gossipCfg.Net)
 	if err != nil {
 		utils.Fatalf("Failed to write EVM genesis state: %v", err)
 	}
@@ -236,7 +236,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	// Create consensus.
-	engine := poset.New(cdb, gdb)
+	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for

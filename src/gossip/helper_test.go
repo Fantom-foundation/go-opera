@@ -31,16 +31,16 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		store = NewMemStore()
 	)
 
-	network := lachesis.FakeNetConfig(nodesNum)
-	config := DefaultConfig(network)
+	net := lachesis.FakeNetConfig(nodesNum)
+	config := DefaultConfig(net)
 
 	engineStore := poset.NewMemStore()
-	err := engineStore.ApplyGenesis(&network.Genesis, hash.Event{}, common.Hash{})
+	err := engineStore.ApplyGenesis(&net.Genesis, hash.Event{}, common.Hash{})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	engine := poset.New(engineStore, store)
+	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(nil)
 
 	pm, err := NewProtocolManager(
@@ -55,7 +55,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	inter.ForEachRandEvent(network.Genesis.Alloc.Addresses(), eventsNum, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(net.Genesis.Alloc.Addresses(), eventsNum, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			store.SetEvent(e)
 			err = engine.ProcessEvent(e)
