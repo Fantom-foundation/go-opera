@@ -240,7 +240,7 @@ func testProcessRoot(
 	}
 
 	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
+	forklessSeeFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
 			to: Slot{
@@ -263,7 +263,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(mm, 0, stronglySeeFn)
+	election := New(mm, 0, forklessSeeFn)
 
 	// processing:
 	var alreadyDecided bool

@@ -4,7 +4,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 )
 
-// StronglySee calculates "sufficient coherence" between the events.
+// ForklessSee calculates "sufficient coherence" between the events.
 // The A.HighestBefore array remembers the sequence number of the last
 // event by each member that is an ancestor of A. The array for
 // B.LowestAfter remembers the sequence number of the earliest
@@ -13,7 +13,7 @@ import (
 // than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
-func (vi *Index) StronglySee(aID, bID hash.Event) bool {
+func (vi *Index) ForklessSee(aID, bID hash.Event) bool {
 	// get events by hash
 	a := vi.GetEvent(aID)
 	if a == nil {

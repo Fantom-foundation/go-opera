@@ -26,15 +26,15 @@ type (
 		votes        map[voteId]voteValue
 
 		// external world
-		stronglySee RootStronglySeeRootFn
+		forklessSee RootForklessSeeRootFn
 
 		logger.Instance
 	}
 
-	// RootStronglySeeRootFn returns hash of root B, if root A strongly sees root B.
+	// RootForklessSeeRootFn returns hash of root B, if root A strongly sees root B.
 	// Due to a fork, there may be many roots B with the same slot,
 	// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-	RootStronglySeeRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
+	RootForklessSeeRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
 
 	// Slot specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
@@ -68,10 +68,10 @@ type ElectionRes struct {
 func New(
 	members pos.Members,
 	frameToDecide idx.Frame,
-	stronglySeeFn RootStronglySeeRootFn,
+	forklessSeeFn RootForklessSeeRootFn,
 ) *Election {
 	el := &Election{
-		stronglySee: stronglySeeFn,
+		forklessSee: forklessSeeFn,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -105,14 +105,14 @@ func (el *Election) notDecidedRoots() []common.Address {
 }
 
 // @return all the roots which are strongly seen by the specified root at the specified frame
-func (el *Election) stronglySeenRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
+func (el *Election) forklessSeenRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
 	seenRoots := make([]RootAndSlot, 0, len(el.members))
 	for member := range el.members {
 		slot := Slot{
 			Frame: frame,
 			Addr:  member,
 		}
-		seenRoot := el.stronglySee(root, member, frame)
+		seenRoot := el.forklessSee(root, member, frame)
 		if seenRoot != nil {
 			seenRoots = append(seenRoots, RootAndSlot{
 				Root: *seenRoot,

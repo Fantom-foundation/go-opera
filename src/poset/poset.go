@@ -255,7 +255,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-				if p.seeVec.StronglySee(e.Hash(), root) {
+				if p.seeVec.ForklessSee(e.Hash(), root) {
 					sSeenCounter.Count(from)
 				}
 				return !sSeenCounter.HasQuorum()

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	// EpochLen is a count of FW per epoch.
+	// EpochLen is a count of frames per epoch.
 	EpochLen idx.Frame = 100
 
 	firstFrame = idx.Frame(1)
@@ -91,10 +91,10 @@ func (p *Poset) GetMembers() pos.Members {
 	return p.Members.Copy()
 }
 
-// rootStronglySeeRoot returns hash of root B, if root A strongly sees root B.
+// rootForklessSeeRoot returns hash of root B, if root A strongly sees root B.
 // Due to a fork, there may be many roots B with the same slot,
 // but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {
+func (p *Poset) rootForklessSeeRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from common.Address, b hash.Event) bool {
 		if f != bFrame {
@@ -103,7 +103,7 @@ func (p *Poset) rootStronglySeeRoot(a hash.Event, bNode common.Address, bFrame i
 		if from != bNode {
 			p.Log.Crit("node mismatch")
 		}
-		if p.seeVec.StronglySee(a, b) {
+		if p.seeVec.ForklessSee(a, b) {
 			bHash = &b
 			return false
 		}

@@ -26,14 +26,14 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 
 		if round == 1 {
 			// in initial round, vote "yes" if subject is strongly seen
-			seenRoot := el.stronglySee(newRoot.Root, memberSubject, el.frameToDecide)
+			seenRoot := el.forklessSee(newRoot.Root, memberSubject, el.frameToDecide)
 			vote.yes = seenRoot != nil
 			vote.decided = false
 			if seenRoot != nil {
 				vote.seenRoot = *seenRoot
 			}
 		} else if round > 1 {
-			sSeenRoots := el.stronglySeenRoots(newRoot.Root, newRoot.Slot.Frame-1)
+			sSeenRoots := el.forklessSeenRoots(newRoot.Root, newRoot.Slot.Frame-1)
 
 			var (
 				yesVotes = el.members.NewCounter()
