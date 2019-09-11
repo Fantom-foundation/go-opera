@@ -24,7 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 )
 
-var ErrNotImplemented = errors.New("method is not implemented yet")
+var ErrNotImplemented = func(name string) error { return errors.New(name + " method is not implemented yet") }
 
 // EthAPIBackend implements ethapi.Backend.
 type EthAPIBackend struct {
@@ -64,7 +64,7 @@ func (b *EthAPIBackend) SetHead(number uint64) {
 func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
 	// Pending block is only known by the miner
 	if number == rpc.PendingBlockNumber {
-		return nil, nil
+		return nil, errors.New("Error: request pending block")
 	}
 
 	// Otherwise resolve and return the block
@@ -84,13 +84,13 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 	/*
 		return b.svc.blockchain.GetHeaderByHash(hash), nil
 	*/
-	return nil, ErrNotImplemented
+	return nil, ErrNotImplemented("HeaderByHash")
 }
 
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if number == rpc.PendingBlockNumber {
-		return nil, nil
+		return nil, errors.New("Error: request pending block")
 	}
 	// Otherwise resolve and return the block
 	var blk *evm_core.EvmBlock
@@ -128,7 +128,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 		stateDb, err := b.svc.BlockChain().StateAt(header.Root)
 		return stateDb, header, err
 	*/
-	return nil, nil, ErrNotImplemented
+	return nil, nil, ErrNotImplemented("StateAndHeaderByNumber")
 }
 
 func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *types.Header {
@@ -144,7 +144,7 @@ func (b *EthAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*types.
 	/*
 		return b.svc.blockchain.GetBlockByHash(hash), nil
 	*/
-	return nil, ErrNotImplemented
+	return nil, ErrNotImplemented("GetBlock")
 }
 
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
@@ -152,7 +152,7 @@ func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	/*
 		return b.svc.blockchain.GetReceiptsByHash(hash), nil
 	*/
-	return nil, ErrNotImplemented
+	return nil, ErrNotImplemented("GetReceipts")
 }
 
 func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
@@ -168,7 +168,7 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 		}
 		return logs, nil
 	*/
-	return nil, ErrNotImplemented
+	return nil, ErrNotImplemented("GetLogs")
 }
 
 func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
@@ -188,7 +188,7 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state *sta
 		context := core.NewEVMContext(msg, header, b.svc.BlockChain(), nil)
 		return vm.NewEVM(context, state, b.svc.blockchain.Config(), *b.svc.blockchain.GetVMConfig()), vmError, nil
 	*/
-	return nil, nil, ErrNotImplemented
+	return nil, nil, ErrNotImplemented("GetEVM")
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
@@ -236,7 +236,7 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	/*
 		return b.svc.txPool.AddLocal(signedTx)
 	*/
-	return ErrNotImplemented
+	return ErrNotImplemented("SendTx")
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
@@ -252,7 +252,7 @@ func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 		}
 		return txs, nil
 	*/
-	return nil, ErrNotImplemented
+	return nil, ErrNotImplemented("GetPoolTransactions")
 }
 
 func (b *EthAPIBackend) GetPoolTransaction(hash common.Hash) *types.Transaction {
@@ -269,15 +269,11 @@ func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		tx, blockHash, blockNumber, index := rawdb.ReadTransaction(b.svc.ChainDb(), txHash)
 		return tx, blockHash, blockNumber, index, nil
 	*/
-	return nil, common.Hash{}, 0, 0, ErrNotImplemented
+	return nil, common.Hash{}, 0, 0, ErrNotImplemented("GetTransaction")
 }
 
 func (b *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.txPool.Nonce(addr), nil
-	*/
-	return 0, ErrNotImplemented
+	return b.svc.txpool.Nonce(addr), nil
 }
 
 func (b *EthAPIBackend) Stats() (pending int, queued int) {
@@ -325,7 +321,7 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	/*
 		return b.gpo.SuggestPrice(ctx)
 	*/
-	return nil, ErrNotImplemented
+	return nil, ErrNotImplemented("SuggestPrice")
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
@@ -345,11 +341,7 @@ func (b *EthAPIBackend) EventMux() *event.TypeMux {
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.AccountManager()
-	*/
-	return nil
+	return b.svc.AccountManager()
 }
 
 func (b *EthAPIBackend) ExtRPCEnabled() bool {

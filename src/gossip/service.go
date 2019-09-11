@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -70,7 +71,7 @@ type Service struct {
 	engine   Consensus
 	engineMu *sync.RWMutex
 	emitter  *Emitter
-	txpool   txPool
+	txpool   *evm_core.TxPool
 
 	feed ServiceFeed
 
@@ -239,4 +240,9 @@ func (s *Service) Stop() error {
 	s.wg.Wait()
 	s.feed.scope.Close()
 	return nil
+}
+
+// AccountManager return node's account manager
+func (s *Service) AccountManager() *accounts.Manager {
+	return s.node.AccountManager
 }
