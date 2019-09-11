@@ -7,6 +7,13 @@ import (
 	"sync"
 )
 
+/*
+ * PacksDownloader is a network agent, which is responsible for syncing events pack-by-pack.
+ * It requests light pack infos with binary search, to find a lowest not connected pack.
+ * Once lowest not connected pack is found, it requests full packs.
+ * The full pack contains event hashes, which are re-directed to Fetcher.
+ */
+
 const (
 	maxPeers = 6 // max peers to download packs from
 )

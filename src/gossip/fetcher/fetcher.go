@@ -14,6 +14,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
+/*
+ * Fetcher is a network agent, which has handles basic hash-based events sync.
+ * The core mechanic is very simple: interested hash arrived => request it.
+ * The main reason why it has more than a few lines of code,
+ * is because it tries to protect itself (and other nodes) against DoS.
+ */
+
 const (
 	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced event is explicitly requested
 	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches

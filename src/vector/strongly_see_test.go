@@ -74,11 +74,17 @@ func testStronglySeen(t *testing.T, dag string) {
 		members.Set(peer, pos.Stake(1))
 	}
 
-	vi := NewIndex(members, memorydb.New())
+	events := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return events[id]
+	}
+
+	vi := NewIndex(members, memorydb.New(), getEvent)
 
 	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
-			vi.Add(e)
+			events[e.Hash()] = &e.EventHeaderData
+			vi.Add(&e.EventHeaderData)
 			vi.Flush()
 		},
 	})
@@ -385,11 +391,17 @@ func TestStronglySeenRandom(t *testing.T) {
 		members.Set(peer, pos.Stake(1))
 	}
 
-	vi := NewIndex(members, memorydb.New())
+	events := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return events[id]
+	}
+
+	vi := NewIndex(members, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
-		vi.Add(e)
+		events[e.Hash()] = &e.EventHeaderData
+		vi.Add(&e.EventHeaderData)
 		vi.Flush()
 	}
 
@@ -418,7 +430,7 @@ func test_forksSeen(vi *Index, head hash.Event) (cheaters map[common.Address]boo
 	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	seen := map[eventSlot]int{}
-	err = vi.dfsSubgraph(head, func(e *event) (godeeper bool) {
+	err = vi.dfsSubgraph(head, func(e *inter.EventHeaderData) (godeeper bool) {
 		// ensure visited once
 		if visited.Contains(e.Hash()) {
 			return false
@@ -453,17 +465,21 @@ func TestRandomForksSanity(t *testing.T) {
 	members.Set(nodes[3], pos.Stake(2))
 	members.Set(nodes[4], pos.Stake(3))
 
-	vi := NewIndex(members, memorydb.New())
+	processed := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return processed[id]
+	}
 
-	processed := make(map[hash.Event]*inter.Event)
+	vi := NewIndex(members, memorydb.New(), getEvent)
+
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
 	events := inter.ForEachRandFork(nodes, cheaters, 300, 4, 30, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			if _, ok := processed[e.Hash()]; ok {
 				return
 			}
-			processed[e.Hash()] = e
-			vi.Add(e)
+			processed[e.Hash()] = &e.EventHeaderData
+			vi.Add(&e.EventHeaderData)
 		},
 	})
 
@@ -475,15 +491,15 @@ func TestRandomForksSanity(t *testing.T) {
 	idxs := members.Idxs()
 	for _, node := range nodes {
 		ee := events[node]
-		highestBefore := vi.GetEvent(ee[len(ee)-1].Hash()).HighestBefore
+		highestBefore := vi.GetHighestBeforeSeq(ee[len(ee)-1].Hash())
 		for n, cheater := range nodes {
-			high := highestBefore[idxs[cheater]]
+			forkSeq := highestBefore.Get(idxs[cheater])
 			isCheater := n < len(cheaters)
-			assertar.Equal(isCheater, high.IsForkSeen, cheater.String())
+			assertar.Equal(isCheater, forkSeq.IsForkSeen, cheater.String())
 			if isCheater {
-				assertar.Equal(idx.Event(0), high.Seq, cheater.String())
+				assertar.Equal(idx.Event(0), forkSeq.Seq, cheater.String())
 			} else {
-				assertar.NotEqual(idx.Event(0), high.Seq, cheater.String())
+				assertar.NotEqual(idx.Event(0), forkSeq.Seq, cheater.String())
 			}
 		}
 	}
@@ -565,16 +581,20 @@ func TestRandomForks(t *testing.T) {
 				members.Set(peer, pos.Stake(1))
 			}
 
-			vi := NewIndex(members, memorydb.New())
+			processed := make(map[hash.Event]*inter.EventHeaderData)
+			getEvent := func(id hash.Event) *inter.EventHeaderData {
+				return processed[id]
+			}
 
-			processed := make(map[hash.Event]*inter.Event)
+			vi := NewIndex(members, memorydb.New(), getEvent)
+
 			_ = inter.ForEachRandFork(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, r, inter.ForEachEvent{
 				Process: func(e *inter.Event, name string) {
 					if _, ok := processed[e.Hash()]; ok {
 						return
 					}
-					processed[e.Hash()] = e
-					vi.Add(e)
+					processed[e.Hash()] = &e.EventHeaderData
+					vi.Add(&e.EventHeaderData)
 				},
 			})
 
@@ -582,23 +602,25 @@ func TestRandomForks(t *testing.T) {
 			idxs := members.Idxs()
 			// check that fork seeing is identical to naive version
 			for _, e := range processed {
-				highestBefore := vi.GetEvent(e.Hash()).HighestBefore
+				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
 				expectedCheaters, err := test_forksSeen(vi, e.Hash())
 				assertar.NoError(err)
 
 				for _, cheater := range nodes {
 					expectedCheater := expectedCheaters[cheater]
-					high := highestBefore[idxs[cheater]]
-					assertar.Equal(expectedCheater, high.IsForkSeen, cheater.String()+"_"+e.Creator.String())
+					forkSeq := highestBefore.Get(idxs[cheater])
+					assertar.Equal(expectedCheater, forkSeq.IsForkSeen, cheater.String()+"_"+e.Creator.String())
 					if expectedCheater {
-						assertar.Equal(idx.Event(0), high.Seq, cheater.String()+"_"+e.Creator.String())
+						assertar.Equal(idx.Event(0), forkSeq.Seq, cheater.String()+"_"+e.Creator.String())
 					}
 				}
 			}
 
-			vi.DropNotFlushed() // drops everything
+			vi.DropNotFlushed() // drops everything, because wasn't flushed
 			for _, e := range processed {
-				assertar.Nil(vi.GetEvent(e.Hash()))
+				assertar.Nil(vi.GetHighestBeforeSeq(e.Hash()))
+				assertar.Nil(vi.GetLowestAfterSeq(e.Hash()))
+				assertar.Nil(vi.GetHighestBeforeTime(e.Hash()))
 			}
 		})
 	}

@@ -17,25 +17,28 @@ type medianTimeIndex struct {
 // MedianTime calculates weighted median of claimed time within highest seen events.
 func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Timestamp {
 	// get event by hash
-	event := vi.GetEvent(id)
-	if event == nil {
+	seen := vi.GetHighestBeforeSeq(id)
+	times := vi.GetHighestBeforeTime(id)
+	if seen == nil || times == nil {
 		vi.Log.Error("Event wasn't found", "event", id.String())
+
 		return 0
 	}
 
 	honestTotalStake := pos.Stake(0) // isn't equal to members.TotalStake(), because doesn't count cheaters
-	highests := make([]medianTimeIndex, 0, len(event.HighestBefore))
+	highests := make([]medianTimeIndex, 0, len(vi.memberIdxs))
 	// convert []HighestBefore -> []medianTimeIndex
 	for creator, n := range vi.memberIdxs {
 		highest := medianTimeIndex{}
 		highest.stake = vi.members[creator]
-		highest.claimedTime = event.HighestBefore[n].ClaimedTime
+		highest.claimedTime = times.Get(n)
 
 		// edge cases
-		if event.HighestBefore[n].IsForkSeen {
+		forkSeq := seen.Get(n)
+		if forkSeq.IsForkSeen {
 			// cheaters don't influence medianTime
 			highest.stake = 0
-		} else if event.HighestBefore[n].Seq == 0 {
+		} else if forkSeq.Seq == 0 {
 			// if no event was seen from this node, then use genesisTime
 			highest.claimedTime = genesisTime
 		}

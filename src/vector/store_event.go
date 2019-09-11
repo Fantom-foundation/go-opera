@@ -1,39 +1,44 @@
 package vector
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 )
 
-// GetEvent from DB.
-func (vi *Index) GetEvent(id hash.Event) *event {
+func (vi *Index) get(table kvdb.KeyValueStore, id hash.Event) []byte {
 	key := id.Bytes()
-	buf, err := vi.eventsDb.Get(key)
+	b, err := table.Get(key)
 	if err != nil {
 		vi.Log.Crit("Failed to get key-value", "err", err)
 	}
-	if buf == nil {
-		return nil
-	}
-
-	e := &event{}
-	err = rlp.DecodeBytes(buf, e)
-	if err != nil {
-		vi.Log.Crit("Failed to decode rlp", "err", err)
-	}
-	return e
+	return b
 }
 
-// SetEvent to DB.
-func (vi *Index) SetEvent(e *event) {
-	key := e.Hash().Bytes()
-	buf, err := rlp.EncodeToBytes(e)
-	if err != nil {
-		vi.Log.Crit("Failed to encode rlp", "err", err)
-	}
-	err = vi.eventsDb.Put(key, buf)
+func (vi *Index) set(table kvdb.KeyValueStore, id hash.Event, b []byte) {
+	key := id.Bytes()
+	err := table.Put(key, b)
 	if err != nil {
 		vi.Log.Crit("Failed to put key-value", "err", err)
 	}
+}
+
+func (vi *Index) GetLowestAfterSeq(id hash.Event) LowestAfterSeq {
+	return vi.get(vi.table.LowestAfterSeq, id)
+}
+
+func (vi *Index) GetHighestBeforeSeq(id hash.Event) HighestBeforeSeq {
+	return vi.get(vi.table.HighestBeforeSeq, id)
+}
+
+func (vi *Index) GetHighestBeforeTime(id hash.Event) HighestBeforeTime {
+	return vi.get(vi.table.HighestBeforeTime, id)
+}
+
+func (vi *Index) SetLowestAfter(id hash.Event, seq LowestAfterSeq) {
+	vi.set(vi.table.LowestAfterSeq, id, seq)
+}
+
+func (vi *Index) SetHighestBefore(id hash.Event, seq HighestBeforeSeq, time HighestBeforeTime) {
+	vi.set(vi.table.HighestBeforeSeq, id, seq)
+	vi.set(vi.table.HighestBeforeTime, id, time)
 }

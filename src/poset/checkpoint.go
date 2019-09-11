@@ -47,7 +47,9 @@ func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 
 	// restore current epoch
 	p.loadEpoch()
-	p.seeVec = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex)
+	p.seeVec = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
+		return p.input.GetEventHeader(p.EpochN, id)
+	})
 	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootStronglySeeRoot)
 
 	// events reprocessing
