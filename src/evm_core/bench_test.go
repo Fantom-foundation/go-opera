@@ -2,7 +2,6 @@ package evm_core
 
 import (
 	"crypto/ecdsa"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -15,6 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -131,10 +133,14 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
-	gspec := &genesis.Genesis{
-		Alloc: genesis.Accounts{benchRootAddr: {Balance: benchRootFunds}},
+	net := &lachesis.Config{
+		Dag: lachesis.DefaultDagConfig(),
+		Genesis: genesis.Genesis{
+			Alloc: genesis.Accounts{benchRootAddr: {Balance: benchRootFunds}},
+		},
 	}
-	genesisBlock := genesisMustWrite(gspec, db, nil)
+
+	genesisBlock := mustApplyGenesis(net, db)
 
 	// Time the insertion of the new chain.
 	// State and blocks are stored in the same DB.

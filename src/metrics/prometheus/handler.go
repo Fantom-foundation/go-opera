@@ -3,16 +3,16 @@ package prometheus
 import (
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/metrics"
 )
 
 const address = ":19090"
 
-var log = logger.Get().WithField("module", "prometheus")
+var logger = log.New("module", "prometheus")
 
 func init() {
 	if !metrics.Enabled {
@@ -27,8 +27,8 @@ func enable() {
 	reg.OnNew(collect)
 
 	go func() {
-		log.Infof("metrics server start on %s", address)
-		defer log.Infof("metrics server is stopped")
+		logger.Info("metrics server starts", "address", address)
+		defer logger.Info("metrics server is stopped")
 
 		http.HandleFunc(
 			"/metrics", promhttp.Handler().ServeHTTP)
@@ -41,7 +41,7 @@ func enable() {
 func collect(name string, metric metrics.Metric) {
 	collector, ok := convertToPrometheusMetric(name, metric)
 	if !ok {
-		log.Debugf("metric '%s' not support prometheus", name)
+		logger.Debug("metric doesn't support prometheus", "metric", name)
 		return
 	}
 
@@ -53,6 +53,6 @@ func collect(name string, metric metrics.Metric) {
 	}
 
 	if err != nil {
-		log.Error(err)
+		logger.Error(err.Error())
 	}
 }

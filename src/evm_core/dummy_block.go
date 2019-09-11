@@ -10,22 +10,27 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-type EvmHeader struct {
-	Hash       common.Hash
-	ParentHash common.Hash
+type (
+	EvmHeader struct {
+		Number     *big.Int
+		Hash       common.Hash
+		ParentHash common.Hash
+		Root       common.Hash
+		Time       inter.Timestamp
+		Coinbase   common.Address
 
-	Root common.Hash
+		GasLimit uint64
+		gasUsed  uint64 // tests only
+	}
 
-	GasLimit uint64
-	gasUsed  uint64 // tests only
+	EvmBlock struct {
+		EvmHeader
 
-	Number *big.Int
+		Transactions types.Transactions
+	}
+)
 
-	Time inter.Timestamp
-
-	Coinbase common.Address
-}
-
+// ToEvmHeader converts inter.Block to EvmHeader.
 func ToEvmHeader(block *inter.Block) *EvmHeader {
 	return &EvmHeader{
 		Hash:       common.Hash(block.Hash()),
@@ -42,21 +47,12 @@ func (b *EvmBlock) NumberU64() uint64 {
 	return b.Number.Uint64()
 }
 
-type EvmBlock struct {
-	EvmHeader
-
-	Transactions types.Transactions
-}
-
+// Header is a copy of EvmBlock.EvmHeader.
 func (b *EvmBlock) Header() *EvmHeader {
-	return &EvmHeader{
-		Hash:       b.Hash,
-		ParentHash: b.ParentHash,
-		Root:       b.Root,
-		GasLimit:   b.GasLimit,
-		gasUsed:    b.gasUsed,
-		Number:     new(big.Int).Set(b.Number),
-		Time:       b.Time,
-		Coinbase:   b.Coinbase,
-	}
+	// copy values
+	h := b.EvmHeader
+	// copy refs
+	h.Number = new(big.Int).Set(b.Number)
+
+	return &h
 }

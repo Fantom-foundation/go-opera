@@ -1,16 +1,18 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
+	"math/big"
+	"sync"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"sync"
-	"testing"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 func TestGetGenesisBlock(t *testing.T) {
@@ -18,15 +20,15 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	g := genesis.FakeGenesis(5)
-	addrWithCode := g.Alloc.Addresses()[0]
-	accountWithCode := g.Alloc[addrWithCode]
+	net := lachesis.FakeNetConfig(5)
+	addrWithCode := net.Genesis.Alloc.Addresses()[0]
+	accountWithCode := net.Genesis.Alloc[addrWithCode]
 	accountWithCode.Code = []byte{1, 2, 3}
 	accountWithCode.Storage = make(map[common.Hash]common.Hash)
 	accountWithCode.Storage[common.Hash{}] = common.BytesToHash(common.Big1.Bytes())
-	g.Alloc[addrWithCode] = accountWithCode
+	net.Genesis.Alloc[addrWithCode] = accountWithCode
 
-	genesisHash, stateHash, err := store.ApplyGenesis(&g)
+	genesisHash, stateHash, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	assertar.NotEqual(common.Hash{}, genesisHash)
@@ -40,12 +42,12 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	assertar.Equal(common.Hash(genesisHash), genesisBlock.Hash)
 	assertar.Equal(stateHash, genesisBlock.Root)
-	assertar.Equal(g.Time, genesisBlock.Time)
+	assertar.Equal(net.Genesis.Time, genesisBlock.Time)
 	assertar.Empty(genesisBlock.Transactions)
 
 	statedb, err := reader.StateAt(stateHash)
 	assertar.NoError(err)
-	for addr, account := range g.Alloc {
+	for addr, account := range net.Genesis.Alloc {
 		assertar.Equal(account.Balance.String(), statedb.GetBalance(addr).String())
 		if addr == addrWithCode {
 			assertar.Equal(account.Code, statedb.GetCode(addr))
@@ -62,8 +64,8 @@ func TestGetBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	g := genesis.FakeGenesis(5)
-	genesisHash, _, err := store.ApplyGenesis(&g)
+	net := lachesis.FakeNetConfig(5)
+	genesisHash, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	txs := types.Transactions{}

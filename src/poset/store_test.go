@@ -17,6 +17,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
@@ -102,12 +103,14 @@ func benchmarkStore(b *testing.B) {
 		return stateHash, members
 	}
 
+	dag := lachesis.DefaultDagConfig()
+
 	// run test with random DAG, N + 1 epochs long
 	b.ResetTimer()
 	maxEpoch := idx.Epoch(b.N) + 1
 	for epoch := idx.Epoch(1); epoch <= maxEpoch; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(EpochLen*3), 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(dag.EpochLen*3), 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				input.SetEvent(e)
 				_ = p.ProcessEvent(e)
@@ -140,7 +143,8 @@ func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset 
 		panic(err)
 	}
 
-	poset := New(store, input)
+	dag := lachesis.DefaultDagConfig()
+	poset := New(dag, store, input)
 	poset.Bootstrap(nil)
 
 	return poset

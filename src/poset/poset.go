@@ -1,13 +1,14 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/poset/election"
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
@@ -15,6 +16,7 @@ import (
 
 // Poset processes events to get consensus.
 type Poset struct {
+	dag   lachesis.DagConfig
 	store *Store
 	input EventSource
 	*checkpoint
@@ -30,8 +32,9 @@ type Poset struct {
 
 // New creates Poset instance.
 // It does not start any process.
-func New(store *Store, input EventSource) *Poset {
+func New(dag lachesis.DagConfig, store *Store, input EventSource) *Poset {
 	p := &Poset{
+		dag:   dag,
 		store: store,
 		input: input,
 
@@ -217,7 +220,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, sfWitness hash.Event) {
 }
 
 func (p *Poset) epochSealed(fiWitness hash.Event) bool {
-	if p.LastDecidedFrame < EpochLen {
+	if p.LastDecidedFrame < p.dag.EpochLen {
 		return false
 	}
 

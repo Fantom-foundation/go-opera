@@ -7,6 +7,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -16,6 +17,7 @@ func TestPoset(t *testing.T) {
 
 	const posetCount = 3
 	nodes := inter.GenNodes(5)
+	dag := lachesis.DefaultDagConfig()
 
 	posets := make([]*ExtendedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
@@ -30,7 +32,7 @@ func TestPoset(t *testing.T) {
 
 	// create events on poset0
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(EpochLen)-1, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, int(dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 

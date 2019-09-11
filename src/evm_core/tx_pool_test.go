@@ -25,7 +25,7 @@ import (
 var testTxPoolConfig TxPoolConfig
 
 func init() {
-	testTxPoolConfig = DefaultTxPoolConfig
+	testTxPoolConfig = DefaultTxPoolConfig()
 	testTxPoolConfig.Journal = ""
 }
 

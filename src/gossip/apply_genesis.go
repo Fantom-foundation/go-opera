@@ -6,29 +6,18 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
-func (s *Store) ApplyGenesis(genesis *genesis.Genesis) (genesisFiWitness hash.Event, genesisEvmState common.Hash, err error) {
-	genesisHashFn := func(header *evm_core.EvmHeader) common.Hash {
-		dummyFiWitness := inter.NewEvent()
-		// for nice-looking ID
-		dummyFiWitness.Epoch = 0
-		dummyFiWitness.Lamport = idx.Lamport(poset.EpochLen)
-		// actual data hashed
-		dummyFiWitness.Extra = genesis.ExtraData
-		dummyFiWitness.ClaimedTime = header.Time
-		dummyFiWitness.TxHash = header.Root
-		dummyFiWitness.Creator = header.Coinbase
+func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisFiWitness hash.Event, genesisEvmState common.Hash, err error) {
+	evmBlock, err := evm_core.ApplyGenesis(s.table.Evm, net)
 
-		return common.Hash(dummyFiWitness.Hash())
-	}
+	block := inter.NewBlock(0,
+		net.Genesis.Time,
+		hash.Events{hash.Event(evmBlock.Hash)},
+		hash.Event{},
+	)
 
-	evmBlock, err := evm_core.ApplyGenesis(s.table.Evm, genesis, genesisHashFn)
-
-	block := inter.NewBlock(0, genesis.Time, hash.Events{hash.Event(evmBlock.Hash)}, hash.Event{})
 	block.Root = evmBlock.Root
 	block.Creator = evmBlock.Coinbase
 	s.SetBlock(block)

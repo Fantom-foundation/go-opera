@@ -3,13 +3,14 @@ package gossip
 import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
 type Config struct {
-	Net lachesis.Config
-
+	Net     lachesis.Config
 	Emitter EmitterConfig
+	TxPool  evm_core.TxPoolConfig
 
 	// Protocol options
 	SyncMode downloader.SyncMode
@@ -21,10 +22,26 @@ type Config struct {
 	ExtRPCEnabled bool
 }
 
+// DefaultConfig returns the default configurations for the gossip service.
 func DefaultConfig(network lachesis.Config) Config {
 	return Config{
-		Net:             network,
+		Net:     network,
+		Emitter: DefaultEmitterConfig(),
+		TxPool:  evm_core.DefaultTxPoolConfig(),
+
 		ForcedBroadcast: true,
-		Emitter:         DefaultEmitterConfig(),
+	}
+}
+
+// FakeConfig returns the fake configurations for the gossip service.
+func FakeConfig() Config {
+	network := lachesis.FakeNetConfig(3)
+
+	return Config{
+		Net:     network,
+		Emitter: DefaultEmitterConfig(),
+		TxPool:  evm_core.FakeTxPoolConfig(),
+
+		ForcedBroadcast: true,
 	}
 }
