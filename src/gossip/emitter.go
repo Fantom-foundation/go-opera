@@ -111,11 +111,11 @@ func (em *Emitter) createEvent() *inter.Event {
 		maxLamport idx.Lamport
 	)
 
-	seeVec := em.engine.GetVectorIndex()
+	causeVec := em.engine.GetVectorIndex()
 
 	var strategy ancestor.SearchStrategy
-	if seeVec != nil {
-		strategy = ancestor.NewСausalityStrategy(seeVec)
+	if causeVec != nil {
+		strategy = ancestor.NewСausalityStrategy(causeVec)
 	} else {
 		strategy = ancestor.NewRandomStrategy(nil)
 	}

@@ -14,12 +14,12 @@ type medianTimeIndex struct {
 	claimedTime inter.Timestamp
 }
 
-// MedianTime calculates weighted median of claimed time within highest seen events.
+// MedianTime calculates weighted median of claimed time within highest caused events.
 func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Timestamp {
 	// get event by hash
-	seen := vi.GetHighestBeforeSeq(id)
+	caused := vi.GetHighestBeforeSeq(id)
 	times := vi.GetHighestBeforeTime(id)
-	if seen == nil || times == nil {
+	if caused == nil || times == nil {
 		vi.Log.Error("Event wasn't found", "event", id.String())
 
 		return 0
@@ -34,8 +34,8 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 		highest.claimedTime = times.Get(n)
 
 		// edge cases
-		forkSeq := seen.Get(n)
-		if forkSeq.IsForkSeen {
+		forkSeq := caused.Get(n)
+		if forkSeq.IsForkDetected {
 			// cheaters don't influence medianTime
 			highest.stake = 0
 		} else if forkSeq.Seq == 0 {

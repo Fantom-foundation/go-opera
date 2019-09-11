@@ -96,12 +96,12 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return events[id]
 	}
 
-	vecSee := vector.NewIndex(members, memorydb.New(), getEvent)
+	causeVec := vector.NewIndex(members, memorydb.New(), getEvent)
 
 	// build vector index
 	for _, e := range ordered {
 		events[e.Hash()] = &e.EventHeaderData
-		vecSee.Add(&e.EventHeaderData)
+		causeVec.Add(&e.EventHeaderData)
 	}
 
 	// divide events by stage
@@ -136,7 +136,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		for _, node := range nodes {
 			selfParent := tips[node]
 
-			strategy := NewСausalityStrategy(vecSee)
+			strategy := NewСausalityStrategy(causeVec)
 
 			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
 

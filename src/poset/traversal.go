@@ -9,7 +9,7 @@ import (
 
 type eventFilterFn func(event *inter.EventHeaderData) bool
 
-// dfsSubgraph returns all the event which are seen by head, and accepted by a filter
+// dfsSubgraph returns all the event which are caused by head, and accepted by a filter.
 func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) (res []*inter.EventHeaderData, err error) {
 	res = make([]*inter.EventHeaderData, 0, 1024)
 

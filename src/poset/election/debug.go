@@ -19,11 +19,11 @@ func (el *Election) DebugStateHash() common.Hash {
 
 	for vid, vote := range el.votes {
 		write(vid.fromRoot.Bytes())
-		write(vote.seenRoot.Bytes())
+		write(vote.causedRoot.Bytes())
 	}
 	for member, vote := range el.decidedRoots {
 		write(member.Bytes())
-		write(vote.seenRoot.Bytes())
+		write(vote.causedRoot.Bytes())
 	}
 	return hash.FromBytes(hasher.Sum(nil))
 }

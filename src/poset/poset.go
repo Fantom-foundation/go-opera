@@ -23,7 +23,7 @@ type Poset struct {
 	epoch
 
 	election *election.Election
-	seeVec   *vector.Index
+	causeVec *vector.Index
 
 	applyBlock inter.ApplyBlockFn
 
@@ -45,7 +45,7 @@ func New(dag lachesis.DagConfig, store *Store, input EventSource) *Poset {
 }
 
 func (p *Poset) GetVectorIndex() *vector.Index {
-	return p.seeVec
+	return p.causeVec
 }
 
 func (p *Poset) LastBlock() (idx.Block, hash.Event) {
@@ -64,11 +64,11 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
-	p.seeVec.Add(&e.EventHeaderData)
-	defer p.seeVec.DropNotFlushed()
+	p.causeVec.Add(&e.EventHeaderData)
+	defer p.causeVec.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
-	e.MedianTime = p.seeVec.MedianTime(id, p.PrevEpoch.Time)
+	e.MedianTime = p.causeVec.MedianTime(id, p.PrevEpoch.Time)
 	return e
 }
 
@@ -78,8 +78,8 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return epoch_check.ErrAuth
 	}
 
-	p.seeVec.Add(&e.EventHeaderData)
-	defer p.seeVec.DropNotFlushed()
+	p.causeVec.Add(&e.EventHeaderData)
+	defer p.causeVec.DropNotFlushed()
 
 	// check frame & isRoot
 	frameIdx, isRoot := p.calcFrameIdx(e, true)
@@ -90,13 +90,13 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
 	}
 	// check median timestamp
-	medianTime := p.seeVec.MedianTime(e.Hash(), p.PrevEpoch.Time)
+	medianTime := p.causeVec.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
 
 	// save in DB the {vectorindex, e, heads}
-	p.seeVec.Flush()
+	p.causeVec.Flush()
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}
@@ -117,7 +117,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 			return
 		}
 
-		// if we’re here, then this root has seen that lowest not decided frame is decided now
+		// if we’re here, then this root has caused that lowest not decided frame is decided now
 		p.onFrameDecided(decided.Frame, decided.Atropos)
 		if p.epochSealed(decided.Atropos) {
 			return
@@ -253,23 +253,23 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 			}
 		}
 
-		// counter of all the seen roots on maxParentsFrame
-		sSeenCounter := p.Members.NewCounter()
+		// counter of all the caused roots on maxParentsFrame
+		forklessCausedCounter := p.Members.NewCounter()
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-				if p.seeVec.ForklessSee(e.Hash(), root) {
-					sSeenCounter.Count(from)
+				if p.causeVec.ForklessCause(e.Hash(), root) {
+					forklessCausedCounter.Count(from)
 				}
-				return !sSeenCounter.HasQuorum()
+				return !forklessCausedCounter.HasQuorum()
 			})
 		}
-		if sSeenCounter.HasQuorum() {
-			// if I see enough roots, then I become a root too
+		if forklessCausedCounter.HasQuorum() {
+			// if I cause enough roots, then I become a root too
 			frame = maxParentsFrame + 1
 			isRoot = true
 		} else {
-			// I see enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
+			// I cause enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
 			frame = maxParentsFrame
 			isRoot = maxParentsFrame > selfParentFrame
 		}

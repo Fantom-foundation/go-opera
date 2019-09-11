@@ -66,7 +66,7 @@ func (p *Poset) nextEpoch(atropos hash.Event) {
 	p.store.recreateEpochDb()
 
 	// reset election & vectorindex
-	p.seeVec.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
+	p.causeVec.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
 		return p.input.GetEventHeader(p.EpochN, id)
 	}) // this DB is pruned after .pruneTempDb()
 	p.election.Reset(p.Members, firstFrame)
@@ -90,10 +90,10 @@ func (p *Poset) GetMembers() pos.Members {
 	return p.Members.Copy()
 }
 
-// rootForklessSeeRoot returns hash of root B, if root A strongly sees root B.
+// rootForklessCausesRoot returns hash of root B, if root A forkless causes root B.
 // Due to a fork, there may be many roots B with the same slot,
-// but strongly seen may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootForklessSeeRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {
+// but forkless caused may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
+func (p *Poset) rootForklessCausesRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from common.Address, b hash.Event) bool {
 		if f != bFrame {
@@ -102,7 +102,7 @@ func (p *Poset) rootForklessSeeRoot(a hash.Event, bNode common.Address, bFrame i
 		if from != bNode {
 			p.Log.Crit("node mismatch")
 		}
-		if p.seeVec.ForklessSee(a, b) {
+		if p.causeVec.ForklessCause(a, b) {
 			bHash = &b
 			return false
 		}

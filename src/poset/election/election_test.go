@@ -211,17 +211,17 @@ func testProcessRoot(
 				Addr:  root.Creator,
 			}
 
-			// build edges to be able to fake strongly see fn
+			// build edges to be able to fake forkless cause fn
 			noPrev := false
 			if strings.HasPrefix(name, "+") {
 				noPrev = true
 			}
 			from := root.Hash()
-			for _, sSeen := range root.Parents {
-				if root.IsSelfParent(sSeen) && noPrev {
+			for _, forklessCaused := range root.Parents {
+				if root.IsSelfParent(forklessCaused) && noPrev {
 					continue
 				}
-				to := sSeen
+				to := forklessCaused
 				edge := fakeEdge{
 					from: from,
 					to:   vertices[to],
@@ -239,8 +239,8 @@ func testProcessRoot(
 		mm.Set(peer, stakes[utils.NameOf(peer)])
 	}
 
-	// strongly see fn:
-	forklessSeeFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
+	// forkless cause func:
+	forklessCauseFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
 			to: Slot{
@@ -263,7 +263,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(mm, 0, forklessSeeFn)
+	election := New(mm, 0, forklessCauseFn)
 
 	// processing:
 	var alreadyDecided bool

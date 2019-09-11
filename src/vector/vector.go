@@ -12,19 +12,19 @@ import (
  */
 
 type (
-	LowestAfterSeq []byte
-	HighestBeforeSeq []byte
+	LowestAfterSeq    []byte
+	HighestBeforeSeq  []byte
 	HighestBeforeTime []byte
 
 	ForkSeq struct {
-		IsForkSeen bool
-		Seq        idx.Event
+		IsForkDetected bool
+		Seq            idx.Event
 	}
 
 	allVecs struct {
-		afterSee   LowestAfterSeq
-		beforeSee  HighestBeforeSeq
-		beforeTime HighestBeforeTime
+		afterCause  LowestAfterSeq
+		beforeCause HighestBeforeSeq
+		beforeTime  HighestBeforeTime
 	}
 )
 
@@ -64,14 +64,14 @@ func (b HighestBeforeSeq) Get(n idx.Member) ForkSeq {
 	raw := binary.LittleEndian.Uint32(b[n*4 : (n+1)*4])
 
 	return ForkSeq{
-		Seq:        idx.Event(raw >> 1),
-		IsForkSeen: (raw & 1) != 0,
+		Seq:            idx.Event(raw >> 1),
+		IsForkDetected: (raw & 1) != 0,
 	}
 }
 
 func (b HighestBeforeSeq) Set(n idx.Member, seq ForkSeq) {
 	isForkSeen := uint32(0)
-	if seq.IsForkSeen {
+	if seq.IsForkDetected {
 		isForkSeen = 1
 	}
 	raw := (uint32(seq.Seq) << 1) | isForkSeen
