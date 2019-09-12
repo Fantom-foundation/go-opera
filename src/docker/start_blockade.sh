@@ -14,12 +14,11 @@ HEADER
 
 for i in $(seq $N)
 do
-    j=$((i % N + 1)) # ring
     cat << NODE >> $CONF
   node_$i:
     image: lachesis:latest
     container_name: ${NAME}-$i
-    command: start --network=fake:$i/$N --db=/tmp --peer=${NAME}-$j --metrics
+    command: --fakenet $i/$N --rpc --rpcapi "eth,admin,web3" --nousb --metrics
     expose:
       - "55555"
     deploy:
