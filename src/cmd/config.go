@@ -24,7 +24,7 @@ var (
 		Name:        "dumpconfig",
 		Usage:       "Show configuration values",
 		ArgsUsage:   "",
-		Flags:       nodeFlags,
+		Flags:       append(nodeFlags, testFlags...),
 		Category:    "MISCELLANEOUS COMMANDS",
 		Description: `The dumpconfig command shows configuration values.`,
 	}
@@ -73,8 +73,12 @@ func loadConfig(file string, cfg *config) error {
 }
 
 func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
-	cfg := lachesis.FakeNetConfig(0)
-	// TODO: apply flags
+	// TODO: lachesis.TestNetConfig() or lachesis.MainNetConfig() networks here:
+	cfg := lachesis.FakeNetConfig(1)
+
+	// Apply flags
+	setFakeNetConfig(ctx, &cfg)
+
 	return cfg
 }
 
@@ -88,7 +92,7 @@ func makeGossipConfig(ctx *cli.Context, network lachesis.Config) gossip.Config {
 func makeNodeConfig(ctx *cli.Context) *node.Config {
 	cfg := defaultNodeConfig()
 
-	// Apply flags.
+	// Apply flags
 	utils.SetNodeConfig(ctx, &cfg)
 
 	return &cfg

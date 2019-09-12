@@ -35,6 +35,9 @@ var (
 	// The app that holds all commands and flags.
 	app = utils.NewApp(gitCommit, gitDate, "the go-lachesis command line interface")
 	// Flags that configure the node.
+	testFlags = []cli.Flag{
+		FakeNetFlag,
+	}
 	nodeFlags = []cli.Flag{
 		utils.IdentityFlag,
 		utils.UnlockedAccountFlag,
@@ -168,6 +171,7 @@ func init() {
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
+	app.Flags = append(app.Flags, testFlags...)
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, consoleFlags...)
