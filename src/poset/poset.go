@@ -23,7 +23,7 @@ type Poset struct {
 	epoch
 
 	election *election.Election
-	causeVec *vector.Index
+	vecClock *vector.Index
 
 	applyBlock inter.ApplyBlockFn
 
@@ -45,7 +45,7 @@ func New(dag lachesis.DagConfig, store *Store, input EventSource) *Poset {
 }
 
 func (p *Poset) GetVectorIndex() *vector.Index {
-	return p.causeVec
+	return p.vecClock
 }
 
 func (p *Poset) LastBlock() (idx.Block, hash.Event) {
@@ -64,11 +64,11 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
-	p.causeVec.Add(&e.EventHeaderData)
-	defer p.causeVec.DropNotFlushed()
+	p.vecClock.Add(&e.EventHeaderData)
+	defer p.vecClock.DropNotFlushed()
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
-	e.MedianTime = p.causeVec.MedianTime(id, p.PrevEpoch.Time)
+	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
 	return e
 }
 
@@ -78,8 +78,8 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return epoch_check.ErrAuth
 	}
 
-	p.causeVec.Add(&e.EventHeaderData)
-	defer p.causeVec.DropNotFlushed()
+	p.vecClock.Add(&e.EventHeaderData)
+	defer p.vecClock.DropNotFlushed()
 
 	// check frame & isRoot
 	frameIdx, isRoot := p.calcFrameIdx(e, true)
@@ -90,13 +90,13 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
 	}
 	// check median timestamp
-	medianTime := p.causeVec.MedianTime(e.Hash(), p.PrevEpoch.Time)
+	medianTime := p.vecClock.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
 
 	// save in DB the {vectorindex, e, heads}
-	p.causeVec.Flush()
+	p.vecClock.Flush()
 	if e.IsRoot {
 		p.store.AddRoot(e)
 	}
@@ -258,7 +258,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		if !checkOnly || e.IsRoot {
 			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-				if p.causeVec.ForklessCause(e.Hash(), root) {
+				if p.vecClock.ForklessCause(e.Hash(), root) {
 					forklessCausedCounter.Count(from)
 				}
 				return !forklessCausedCounter.HasQuorum()
