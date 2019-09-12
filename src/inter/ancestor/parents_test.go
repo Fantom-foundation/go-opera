@@ -18,7 +18,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
-func TestSeeingStrategy(t *testing.T) {
+func TestСausalityStrategy(t *testing.T) {
 	testSpecialNamedParents(t, `
 a1.0   b1.0   c1.0   d1.0   e1.0
 ║      ║      ║      ║      ║
@@ -96,12 +96,12 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return events[id]
 	}
 
-	vecSee := vector.NewIndex(members, memorydb.New(), getEvent)
+	causeVec := vector.NewIndex(members, memorydb.New(), getEvent)
 
 	// build vector index
 	for _, e := range ordered {
 		events[e.Hash()] = &e.EventHeaderData
-		vecSee.Add(&e.EventHeaderData)
+		causeVec.Add(&e.EventHeaderData)
 	}
 
 	// divide events by stage
@@ -136,7 +136,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		for _, node := range nodes {
 			selfParent := tips[node]
 
-			strategy := NewSeeingStrategy(vecSee)
+			strategy := NewСausalityStrategy(causeVec)
 
 			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
 

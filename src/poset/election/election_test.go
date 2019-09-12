@@ -26,9 +26,9 @@ type (
 )
 
 type testExpected struct {
-	DecidedFrame     idx.Frame
-	DecidedSfWitness string
-	DecisiveRoots    map[string]bool
+	DecidedFrame   idx.Frame
+	DecidedAtropos string
+	DecisiveRoots  map[string]bool
 }
 
 func TestProcessRoot(t *testing.T) {
@@ -60,9 +60,9 @@ a2_2══╬═════╬═════╣
 	t.Run("4 equalStakes", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
-				DecidedFrame:     0,
-				DecidedSfWitness: "c0_0",
-				DecisiveRoots:    map[string]bool{"a2_2": true},
+				DecidedFrame:   0,
+				DecidedAtropos: "c0_0",
+				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
 				"nodeA": 1,
@@ -88,9 +88,9 @@ a2_2══╬═════╬═════╣
 	t.Run("4 equalStakes missingRoot", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
-				DecidedFrame:     0,
-				DecidedSfWitness: "c0_0",
-				DecisiveRoots:    map[string]bool{"a2_2": true},
+				DecidedFrame:   0,
+				DecidedAtropos: "c0_0",
+				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
 				"nodeA": 1,
@@ -114,9 +114,9 @@ a2_2══╬═════╣     ║
 	t.Run("4 differentStakes", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
-				DecidedFrame:     0,
-				DecidedSfWitness: "a0_0",
-				DecisiveRoots:    map[string]bool{"b2_2": true},
+				DecidedFrame:   0,
+				DecidedAtropos: "a0_0",
+				DecisiveRoots:  map[string]bool{"b2_2": true},
 			},
 			stakes{
 				"nodeA": 1000000000000000000,
@@ -142,9 +142,9 @@ a1_1══╬═════╣     ║
 	t.Run("4 differentStakes 4rounds", func(t *testing.T) {
 		testProcessRoot(t,
 			&testExpected{
-				DecidedFrame:     0,
-				DecidedSfWitness: "a0_0",
-				DecisiveRoots:    map[string]bool{"a4_4": true},
+				DecidedFrame:   0,
+				DecidedAtropos: "a0_0",
+				DecisiveRoots:  map[string]bool{"a4_4": true},
 			},
 			stakes{
 				"nodeA": 4,
@@ -211,17 +211,17 @@ func testProcessRoot(
 				Addr:  root.Creator,
 			}
 
-			// build edges to be able to fake strongly see fn
+			// build edges to be able to fake forkless cause fn
 			noPrev := false
 			if strings.HasPrefix(name, "+") {
 				noPrev = true
 			}
 			from := root.Hash()
-			for _, sSeen := range root.Parents {
-				if root.IsSelfParent(sSeen) && noPrev {
+			for _, forklessCaused := range root.Parents {
+				if root.IsSelfParent(forklessCaused) && noPrev {
 					continue
 				}
-				to := sSeen
+				to := forklessCaused
 				edge := fakeEdge{
 					from: from,
 					to:   vertices[to],
@@ -239,8 +239,8 @@ func testProcessRoot(
 		mm.Set(peer, stakes[utils.NameOf(peer)])
 	}
 
-	// strongly see fn:
-	stronglySeeFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
+	// forkless cause func:
+	forklessCauseFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
 		edge := fakeEdge{
 			from: a,
 			to: Slot{
@@ -263,7 +263,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(mm, 0, stronglySeeFn)
+	election := New(mm, 0, forklessCauseFn)
 
 	// processing:
 	var alreadyDecided bool
@@ -286,7 +286,7 @@ func testProcessRoot(
 		if decisive || alreadyDecided {
 			assertar.NotNil(got)
 			assertar.Equal(expected.DecidedFrame, got.Frame)
-			assertar.Equal(expected.DecidedSfWitness, got.SfWitness.String())
+			assertar.Equal(expected.DecidedAtropos, got.Atropos.String())
 			alreadyDecided = true
 		} else {
 			assertar.Nil(got)

@@ -31,8 +31,8 @@ func (s sortedRoots) Less(i, j int) bool {
 
 // Chooses the decided "yes" roots with the greatest stake amount.
 // This root serves as a "checkpoint" within DAG, as it's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
-// Other members will come to the same SfWitness not later than current highest frame + 2.
-func (el *Election) chooseSfWitness() (*ElectionRes, error) {
+// Other members will come to the same Atropos not later than current highest frame + 2.
+func (el *Election) chooseAtropos() (*ElectionRes, error) {
 	finalRoots := make(sortedRoots, 0, len(el.members))
 	// fill yesRoots
 	for member, stake := range el.members {
@@ -42,7 +42,7 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{
-				root:  vote.seenRoot,
+				root:  vote.causedRoot,
 				stake: stake,
 			})
 		}
@@ -56,7 +56,7 @@ func (el *Election) chooseSfWitness() (*ElectionRes, error) {
 
 	// take root with greatest stake
 	return &ElectionRes{
-		Frame:     el.frameToDecide,
-		SfWitness: finalRoots[0].root,
+		Frame:   el.frameToDecide,
+		Atropos: finalRoots[0].root,
 	}, nil
 }

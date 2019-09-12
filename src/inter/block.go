@@ -27,7 +27,7 @@ func (b *Block) Hash() hash.Event {
 	if len(b.Events) == 0 {
 		return hash.ZeroEvent
 	}
-	return b.Events[len(b.Events)-1] // fiWitness is always a last event
+	return b.Events[len(b.Events)-1] // atropos is always a last event
 }
 
 // NewBlock makes block from topological ordered events.

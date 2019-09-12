@@ -22,6 +22,7 @@ type GenesisMismatchError struct {
 	Stored, New common.Hash
 }
 
+// Error implements error interface.
 func (e *GenesisMismatchError) Error() string {
 	return fmt.Sprintf("database contains incompatible genesis (have %x, new %x)", e.Stored, e.New)
 }
@@ -49,17 +50,6 @@ func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
 	// initial block
 	root := statedb.IntermediateRoot(false)
 	block := genesisBlock(net, root)
-	/* &EvmBlock{
-		EvmHeader: EvmHeader{
-			Number:   big.NewInt(0),
-			Time:     genesis.Time,
-			GasLimit: params.GenesisGasLimit, // TODO: config
-			Coinbase: common.BytesToAddress([]byte{1}),
-			Root:     statedb.IntermediateRoot(false),
-		},
-	}
-	block.Hash = block.CalcGenesisHash()
-	*/
 	blockNum := block.NumberU64()
 
 	stored := rawdb.ReadCanonicalHash(db, blockNum)

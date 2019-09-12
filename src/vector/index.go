@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	stronglySeeCacheSize = 5000
+	forklessCauseCacheSize = 5000
 )
 
-// Index is a data to detect strongly-see condition, calculate median timestamp, detect forks.
+// Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
 type Index struct {
 	members    pos.Members
 	memberIdxs map[common.Address]idx.Member
@@ -31,18 +31,18 @@ type Index struct {
 		LowestAfterSeq    kvdb.KeyValueStore `table:"s"`
 	}
 
-	stronglySeeCache *lru.Cache
+	forklessCauseCache *lru.Cache
 
 	logger.Instance
 }
 
 // NewIndex creates Index instance.
 func NewIndex(members pos.Members, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
-	cache, _ := lru.New(stronglySeeCacheSize)
+	cache, _ := lru.New(forklessCauseCacheSize)
 
 	vi := &Index{
-		Instance:         logger.MakeInstance(),
-		stronglySeeCache: cache,
+		Instance:           logger.MakeInstance(),
+		forklessCauseCache: cache,
 	}
 	vi.Reset(members, db, getEvent)
 
@@ -67,8 +67,8 @@ func (vi *Index) Add(e *inter.EventHeaderData) {
 		vi.Log.Crit("Event already exists", "event", e.Hash().String())
 	}
 	vecs := vi.fillEventVectors(e)
-	vi.SetHighestBefore(e.Hash(), vecs.beforeSee, vecs.beforeTime)
-	vi.SetLowestAfter(e.Hash(), vecs.afterSee)
+	vi.SetHighestBefore(e.Hash(), vecs.beforeCause, vecs.beforeTime)
+	vi.SetLowestAfter(e.Hash(), vecs.afterCause)
 }
 
 // Flush writes vector clocks to persistent store.
@@ -86,14 +86,14 @@ func (vi *Index) DropNotFlushed() {
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	meIdx := vi.memberIdxs[e.Creator]
 	myVecs := allVecs{
-		beforeSee:  NewHighestBeforeSeq(len(vi.memberIdxs)),
-		beforeTime: NewHighestBeforeTime(len(vi.memberIdxs)),
-		afterSee:   NewLowestAfterSeq(len(vi.memberIdxs)),
+		beforeCause: NewHighestBeforeSeq(len(vi.memberIdxs)),
+		beforeTime:  NewHighestBeforeTime(len(vi.memberIdxs)),
+		afterCause:  NewLowestAfterSeq(len(vi.memberIdxs)),
 	}
 
-	// seen by himself
-	myVecs.afterSee.Set(meIdx, e.Seq)
-	myVecs.beforeSee.Set(meIdx, ForkSeq{Seq: e.Seq})
+	// caused by himself
+	myVecs.afterCause.Set(meIdx, e.Seq)
+	myVecs.beforeCause.Set(meIdx, ForkSeq{Seq: e.Seq})
 	myVecs.beforeTime.Set(meIdx, e.ClaimedTime)
 
 	// pre-load parents into RAM for quick access
@@ -106,36 +106,36 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 		}
 		parentsCreators[i] = vi.memberIdxs[parent.Creator]
 		parentsVecs[i] = allVecs{
-			beforeSee:  vi.GetHighestBeforeSeq(p),
-			beforeTime: vi.GetHighestBeforeTime(p),
-			//afterSee : vi.GetLowestAfterSeq(p), not needed
+			beforeCause: vi.GetHighestBeforeSeq(p),
+			beforeTime:  vi.GetHighestBeforeTime(p),
+			//afterCause : vi.GetLowestAfterSeq(p), not needed
 		}
-		if parentsVecs[i].beforeSee == nil {
+		if parentsVecs[i].beforeCause == nil {
 			vi.Log.Crit("processed out of order, parent wasn't found", "parent", p.String())
 		}
 	}
 
 	for _, pVec := range parentsVecs {
-		// calculate HighestBefore vector. Detect forks for a case when parent does see a fork
+		// calculate HighestBefore vector. Detect forks for a case when parent causes a fork
 		for n := idx.Member(0); n < idx.Member(len(vi.memberIdxs)); n++ {
-			myForkSeq := myVecs.beforeSee.Get(n)
-			hisForkSeq := pVec.beforeSee.Get(n)
+			myForkSeq := myVecs.beforeCause.Get(n)
+			hisForkSeq := pVec.beforeCause.Get(n)
 
-			if myForkSeq.IsForkSeen {
+			if myForkSeq.IsForkDetected {
 				continue
 			}
-			if hisForkSeq.IsForkSeen || myForkSeq.Seq < hisForkSeq.Seq {
-				myVecs.beforeSee.Set(n, hisForkSeq)
+			if hisForkSeq.IsForkDetected || myForkSeq.Seq < hisForkSeq.Seq {
+				myVecs.beforeCause.Set(n, hisForkSeq)
 				myVecs.beforeTime.Set(n, pVec.beforeTime.Get(n))
 			}
 		}
 	}
 
 	for _, pVec := range parentsVecs {
-		hisForkSeq := pVec.beforeSee.Get(meIdx)
+		hisForkSeq := pVec.beforeCause.Get(meIdx)
 		// self-fork detection
 		if hisForkSeq.Seq >= e.Seq {
-			myVecs.beforeSee.Set(meIdx, ForkSeq{IsForkSeen: true, Seq: 0})
+			myVecs.beforeCause.Set(meIdx, ForkSeq{IsForkDetected: true, Seq: 0})
 		}
 	}
 
@@ -150,11 +150,11 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 			wCreatorIdx := vi.memberIdxs[w.Creator]
 
-			// 'walk' is first time seen by e.Creator
-			// Detect forks for a case when fork is seen only seen if we combine parents
+			// 'walk' is first time caused by e.Creator
+			// Detect forks for a case when fork is caused only caused if we combine parents
 			for i, pVec := range parentsVecs {
-				if pVec.beforeSee.Get(wCreatorIdx).Seq >= w.Seq && wLowestAfterSeq.Get(parentsCreators[i]) == 0 {
-					myVecs.beforeSee.Set(wCreatorIdx, ForkSeq{IsForkSeen: true, Seq: 0})
+				if pVec.beforeCause.Get(wCreatorIdx).Seq >= w.Seq && wLowestAfterSeq.Get(parentsCreators[i]) == 0 {
+					myVecs.beforeCause.Set(wCreatorIdx, ForkSeq{IsForkDetected: true, Seq: 0})
 				}
 			}
 

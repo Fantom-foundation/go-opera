@@ -154,10 +154,10 @@ func TestMedianTime(t *testing.T) {
 		beforeSee := NewHighestBeforeSeq(len(members))
 		beforeTime := NewHighestBeforeTime(len(members))
 
-		beforeSee.Set(0, ForkSeq{Seq: 0, IsForkSeen: true})
+		beforeSee.Set(0, ForkSeq{Seq: 0, IsForkDetected: true})
 		beforeTime.Set(0, 100)
 
-		beforeSee.Set(1, ForkSeq{Seq: 0, IsForkSeen: true})
+		beforeSee.Set(1, ForkSeq{Seq: 0, IsForkDetected: true})
 		beforeTime.Set(1, 100)
 
 		beforeSee.Set(2, ForkSeq{Seq: 1})

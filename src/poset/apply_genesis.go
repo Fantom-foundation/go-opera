@@ -11,17 +11,17 @@ import (
 )
 
 // calcFirstGenesisHash calcs hash of genesis balances.
-func calcFirstGenesisHash(g *genesis.Genesis, genesisFiWitness hash.Event, stateHash common.Hash) common.Hash {
+func calcFirstGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) common.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
-	_ = s.ApplyGenesis(g, genesisFiWitness, stateHash)
+	_ = s.ApplyGenesis(g, genesisAtropos, stateHash)
 
 	return s.GetGenesis().PrevEpoch.Hash()
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, stateHash common.Hash) error {
+func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) error {
 	if g == nil {
 		return fmt.Errorf("config shouldn't be nil")
 	}
@@ -30,7 +30,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 	}
 
 	if exist := s.GetGenesis(); exist != nil {
-		if exist.PrevEpoch.Hash() == calcFirstGenesisHash(g, genesisFiWitness, stateHash) {
+		if exist.PrevEpoch.Hash() == calcFirstGenesisHash(g, genesisAtropos, stateHash) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
@@ -52,10 +52,10 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisFiWitness hash.Event, st
 	e.EpochN = firstEpoch
 	e.PrevEpoch.Epoch = e.EpochN - 1
 	e.PrevEpoch.StateHash = cp.StateHash
-	e.PrevEpoch.LastFiWitness = genesisFiWitness
+	e.PrevEpoch.LastAtropos = genesisAtropos
 	e.PrevEpoch.Time = g.Time
 	cp.LastConsensusTime = e.PrevEpoch.Time
-	cp.LastFiWitness = genesisFiWitness
+	cp.LastAtropos = genesisAtropos
 
 	s.SetGenesis(e)
 	s.SetEpoch(e)
