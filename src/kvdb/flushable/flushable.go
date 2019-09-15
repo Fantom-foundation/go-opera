@@ -108,7 +108,7 @@ func (w *Flushable) delete(key []byte) error {
 }
 
 // Drop all the not flashed keys. After this call, the state is identical to the state of parent DB.
-func (w *Flushable) ClearNotFlushed() {
+func (w *Flushable) DropNotFlushed() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 	w.modified.Clear()

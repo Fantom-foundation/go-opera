@@ -80,7 +80,7 @@ func (vi *Index) Flush() {
 
 // DropNotFlushed not connected clocks. Call it if event has failed.
 func (vi *Index) DropNotFlushed() {
-	vi.vecDb.ClearNotFlushed()
+	vi.vecDb.DropNotFlushed()
 }
 
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {

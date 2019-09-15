@@ -66,7 +66,7 @@ func (p *Poset) nextEpoch(atropos hash.Event) {
 	p.store.recreateEpochDb()
 
 	// reset election & vectorindex
-	p.causeVec.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
+	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
 		return p.input.GetEventHeader(p.EpochN, id)
 	}) // this DB is pruned after .pruneTempDb()
 	p.election.Reset(p.Members, firstFrame)
@@ -102,7 +102,7 @@ func (p *Poset) rootForklessCausesRoot(a hash.Event, bNode common.Address, bFram
 		if from != bNode {
 			p.Log.Crit("node mismatch")
 		}
-		if p.causeVec.ForklessCause(a, b) {
+		if p.vecClock.ForklessCause(a, b) {
 			bHash = &b
 			return false
 		}
