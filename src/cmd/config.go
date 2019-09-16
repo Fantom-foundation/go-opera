@@ -84,6 +84,7 @@ func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
 
 func makeGossipConfig(ctx *cli.Context, network lachesis.Config) gossip.Config {
 	cfg := gossip.DefaultConfig(network)
+
 	// TODO: apply flags
 
 	return cfg

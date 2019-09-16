@@ -34,10 +34,13 @@ var (
 	gitDate   = ""
 	// The app that holds all commands and flags.
 	app = utils.NewApp(gitCommit, gitDate, "the go-lachesis command line interface")
-	// Flags that configure the node.
+
+	// Flags for testing purpose.
 	testFlags = []cli.Flag{
 		FakeNetFlag,
 	}
+
+	// Flags that configure the node.
 	nodeFlags = []cli.Flag{
 		utils.IdentityFlag,
 		utils.UnlockedAccountFlag,
@@ -243,6 +246,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	// create consensus
 	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
+
+	// configure emitter
+	var ks *keystore.KeyStore
+	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
+		ks = keystores[0].(*keystore.KeyStore)
+	}
+	setEtherbase(ctx, ks, &gossipCfg.Emitter)
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
