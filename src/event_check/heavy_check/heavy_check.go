@@ -128,6 +128,7 @@ func (v *Validator) Validate(e *inter.Event) error {
 }
 
 func (v *Validator) loop() {
+	defer v.wg.Done()
 	for {
 		select {
 		case <-v.quit:
