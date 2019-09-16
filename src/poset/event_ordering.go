@@ -38,10 +38,10 @@ func (p *Poset) fareOrdering(frame idx.Frame, atropos hash.Event, unordered []*i
 	timeRatio := inter.MaxTimestamp(frameTimePeriod/inter.Timestamp(frameLamportPeriod), 1)
 
 	lowestConsensusTime := p.LastConsensusTime + timeRatio
-	timeOffset := lowestConsensusTime - inter.Timestamp(lowestLamport)*timeRatio
+	timeOffset := int64(lowestConsensusTime) - int64(lowestLamport)*int64(timeRatio)
 
 	// Calculate consensus timestamp of an event with highestLamport (it's always atropos)
-	p.LastConsensusTime = inter.Timestamp(highestLamport)*timeRatio + timeOffset
+	p.LastConsensusTime = inter.Timestamp(int64(highestLamport)*int64(timeRatio) + timeOffset)
 
 	// Save new timeRatio & timeOffset to frame
 	p.store.SetFrameInfo(p.EpochN, frame, &FrameInfo{
