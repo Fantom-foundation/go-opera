@@ -83,5 +83,5 @@ func TestPosetTxn(t *testing.T) {
 
 	st := s.GetCheckpoint()
 	ep := s.GetEpoch()
-	t.Logf("poset: SFrame %d, Block %d", ep.EpochN, st.LastBlockN)
+	t.Logf("poset: Epoch %d, Block %d", ep.EpochN, st.LastBlockN)
 }

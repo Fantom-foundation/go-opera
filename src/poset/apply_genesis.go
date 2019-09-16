@@ -10,8 +10,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
 
-// calcFirstGenesisHash calcs hash of genesis balances.
-func calcFirstGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) common.Hash {
+// calcGenesisHash calcs hash of genesis balances.
+func calcGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) common.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
@@ -30,7 +30,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 	}
 
 	if exist := s.GetGenesis(); exist != nil {
-		if exist.PrevEpoch.Hash() == calcFirstGenesisHash(g, genesisAtropos, stateHash) {
+		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, stateHash) {
 			return nil
 		}
 		return fmt.Errorf("other genesis has applied already")
