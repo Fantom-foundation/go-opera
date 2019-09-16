@@ -103,14 +103,12 @@ func benchmarkStore(b *testing.B) {
 		return stateHash, members
 	}
 
-	dag := lachesis.DefaultDagConfig()
-
 	// run test with random DAG, N + 1 epochs long
 	b.ResetTimer()
 	maxEpoch := idx.Epoch(b.N) + 1
 	for epoch := idx.Epoch(1); epoch <= maxEpoch; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(dag.EpochLen*3), 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen*3), 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				input.SetEvent(e)
 				_ = p.ProcessEvent(e)
