@@ -16,7 +16,7 @@ const (
 	// It ensures that in all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size.
 	MaxEventSize = MaxGasPowerUsed / params.TxDataNonZeroGas
-	MaxExtraData = 256 // it has fair gas price, so it's fine to have a high limit
+	MaxExtraData = 256 // it has fair gas cost, so it's fine to have a high limit
 
 	EventGas  = params.TxGas // TODO estimate the cost more accurately
 	ParentGas = EventGas / 5
@@ -30,7 +30,7 @@ var (
 	ErrTooLarge       = errors.New("event size exceeds the limit")
 	ErrExtraTooLarge  = errors.New("event extra is too big")
 	ErrNoParents      = errors.New("event has no parents")
-	ErrTooMuchParents = errors.New("event has too much parents")
+	ErrTooManyParents = errors.New("event has too many parents")
 	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
 	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
 	ErrIntrinsicGas   = errors.New("intrinsic gas too low")
@@ -109,16 +109,16 @@ func (v *Validator) checkLimits(e *inter.Event) error {
 		return ErrExtraTooLarge
 	}
 	if len(e.Parents) > v.config.MaxParents {
-		return ErrTooMuchParents
+		return ErrTooManyParents
 	}
 	return nil
 }
 
 func (v *Validator) checkInited(e *inter.Event) error {
-	if e.Seq == 0 || e.Epoch == 0 || e.Frame == 0 || e.Lamport == 0 {
-		return ErrNotInited
+	if e.Seq <= 0 || e.Epoch <= 0 || e.Frame <= 0 || e.Lamport <= 0 {
+		return ErrNotInited // it's unsigned, but check for negative in a case if type will change
 	}
-	if e.ClaimedTime == 0 {
+	if e.ClaimedTime <= 0 {
 		return ErrZeroTime
 	}
 	if e.Seq > 1 && len(e.Parents) == 0 {

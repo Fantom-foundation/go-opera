@@ -143,7 +143,7 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 	// checkers
 	basicCheck := basic_check.New(&pm.config.Net.Dag)
 	epochCheck := epoch_check.New(&pm.config.Net.Dag, pm.engine)
-	parentsCheck := parents_check.New(&pm.config.Net.Dag, pm.engine)
+	parentsCheck := parents_check.New(&pm.config.Net.Dag)
 	firstCheck := func(e *inter.Event) error {
 		if err := basicCheck.Validate(e); err != nil {
 			return err

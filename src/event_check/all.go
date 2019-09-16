@@ -18,7 +18,7 @@ func ValidateAll_test(config *lachesis.DagConfig, reader epoch_check.DagReader, 
 	if err := epoch_check.New(config, reader).Validate(e); err != nil {
 		return err
 	}
-	if err := parents_check.New(config, reader).Validate(e, parents); err != nil {
+	if err := parents_check.New(config).Validate(e, parents); err != nil {
 		return err
 	}
 	if err := heavy_check.New(config, txSigner, 1).Validate(e); err != nil {

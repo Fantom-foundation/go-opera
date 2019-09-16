@@ -1,29 +1,15 @@
 package ordering
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/ethereum/go-ethereum/common"
 	"math/rand"
 	"testing"
 	"time"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
-
-type testDagReader struct {
-	nodes []common.Address
-}
-
-func (t *testDagReader) GetMembers() pos.Members {
-	members := pos.Members{}
-	for _, addr := range t.nodes {
-		members.Set(addr, 1)
-	}
-	return members
-}
 
 func TestEventBuffer(t *testing.T) {
 	nodes := inter.GenNodes(5)
@@ -36,6 +22,7 @@ func TestEventBuffer(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
+			e.ClaimedTime = inter.Timestamp(e.Seq)
 			return e
 		},
 	})
@@ -66,7 +53,7 @@ func TestEventBuffer(t *testing.T) {
 			return processed[e]
 		},
 
-		Check: parents_check.New(&lachesis.DagConfig{}, &testDagReader{nodes}).Validate,
+		Check: parents_check.New(&lachesis.DagConfig{}).Validate,
 	})
 
 	for _, rnd := range rand.Perm(len(ordered)) {
