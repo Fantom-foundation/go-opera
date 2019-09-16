@@ -15,7 +15,7 @@ do
 	--net=${NETWORK} --name=${NAME}-$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	"lachesis" \
-	--fakenet $i/$N --rpc --rpcapi "eth,admin,web3" --nousb ${SENTRY_DSN}
+	--fakenet $i/$N --rpc --rpcapi "eth,admin,web3" --nousb --verbosity 5 ${SENTRY_DSN}
 done
 
 echo -e "\nConnect nodes (ring):\n"
