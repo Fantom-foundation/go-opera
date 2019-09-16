@@ -27,8 +27,8 @@ func TestEventBuffer(t *testing.T) {
 		},
 	})
 
-	processed := make(map[hash.Event]*inter.Event)
-	push, _ := EventBuffer(Callback{
+	processed := make(map[hash.Event]*inter.EventHeaderData)
+	buffer := New(len(nodes) * 10, Callback{
 
 		Process: func(e *inter.Event) error {
 			if _, ok := processed[e.Hash()]; ok {
@@ -41,7 +41,7 @@ func TestEventBuffer(t *testing.T) {
 					return nil
 				}
 			}
-			processed[e.Hash()] = e
+			processed[e.Hash()] = &e.EventHeaderData
 			return nil
 		},
 
@@ -49,7 +49,7 @@ func TestEventBuffer(t *testing.T) {
 			t.Fatalf("%s unexpectedly dropped with %s", e.String(), err)
 		},
 
-		Exists: func(e hash.Event) *inter.Event {
+		Exists: func(e hash.Event) *inter.EventHeaderData {
 			return processed[e]
 		},
 
@@ -58,6 +58,13 @@ func TestEventBuffer(t *testing.T) {
 
 	for _, rnd := range rand.Perm(len(ordered)) {
 		e := ordered[rnd]
-		push(e, "")
+		buffer.PushEvent(e, "")
+	}
+
+	// everything is processed
+	for _, e := range ordered {
+		if _, ok := processed[e.Hash()]; !ok {
+			t.Fatal("event wasn't processed")
+		}
 	}
 }

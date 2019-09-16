@@ -40,7 +40,10 @@ const (
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
 
-	// minimim number of peers to broadcast new events to
+	// the maximum number of events in the ordering buffer
+	eventsBuffSize = 2048
+
+	// minimum number of peers to broadcast new events to
 	minBroadcastPeers = 4
 )
 
@@ -78,9 +81,9 @@ type ProtocolManager struct {
 	txsCh  chan evm_core.NewTxsNotify
 	txsSub notify.Subscription
 
-	downloader      *packs_downloader.PacksDownloader
-	fetcher         *fetcher.Fetcher
-	isEventBuffered ordering.IsBufferedFn
+	downloader *packs_downloader.PacksDownloader
+	fetcher    *fetcher.Fetcher
+	buffer     *ordering.EventBuffer
 
 	store    *Store
 	engine   Consensus
@@ -133,13 +136,13 @@ func NewProtocolManager(
 		quitSync:    make(chan struct{}),
 	}
 
-	pm.fetcher = pm.makeFetcher()
+	pm.fetcher, pm.buffer = pm.makeFetcher()
 	pm.downloader = packs_downloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
 
 	return pm, nil
 }
 
-func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
+func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffer) {
 	// checkers
 	basicCheck := basic_check.New(&pm.config.Net.Dag)
 	epochCheck := epoch_check.New(&pm.config.Net.Dag, pm.engine)
@@ -159,7 +162,7 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 	heavyCheck := heavy_check.NewDefault(&pm.config.Net.Dag, txSigner)
 
 	// DAG callbacks
-	pushInBuffer, isEventBuffered := ordering.EventBuffer(ordering.Callback{
+	buffer := ordering.New(eventsBuffSize, ordering.Callback{
 
 		Process: func(e *inter.Event) error {
 			log.Info("New event", "hash", e.Hash())
@@ -181,29 +184,28 @@ func (pm *ProtocolManager) makeFetcher() *fetcher.Fetcher {
 			}
 		},
 
-		Exists: func(id hash.Event) *inter.Event {
-			return pm.store.GetEvent(id)
+		Exists: func(id hash.Event) *inter.EventHeaderData {
+			return pm.store.GetEventHeader(id.Epoch(), id)
 		},
 
 		Check: parentsCheck.Validate,
 	})
 
-	pm.isEventBuffered = isEventBuffered
-
 	pushEvent := func(e *inter.Event, peer string) {
 		pm.engineMu.Lock()
 		defer pm.engineMu.Unlock()
 
-		pushInBuffer(e, peer)
+		buffer.PushEvent(e, peer)
 	}
 
-	return fetcher.New(fetcher.Callback{
+	fetcher_ := fetcher.New(fetcher.Callback{
 		PushEvent:      pushEvent,
 		OnlyInterested: pm.onlyInterestedEvents,
 		DropPeer:       pm.removePeer,
 		FirstCheck:     firstCheck,
 		HeavyCheck:     heavyCheck,
 	})
+	return fetcher_, buffer
 }
 
 func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
@@ -236,7 +238,7 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 		if id.Epoch() != epoch {
 			continue
 		}
-		if pm.isEventBuffered(id) || pm.store.HasEvent(id) {
+		if pm.buffer.IsBuffered(id) || pm.store.HasEvent(id) {
 			continue
 		}
 		interested.Add(id)
@@ -775,6 +777,7 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 					atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
 				}
 			}
+			pm.buffer.Clear()
 			pm.downloader.OnNewEpoch(myEpoch, peerEpoch)
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
