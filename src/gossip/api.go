@@ -18,12 +18,12 @@ func NewPublicEthereumAPI(s *Service) *PublicEthereumAPI {
 
 // Etherbase is the address that mining rewards will be send to.
 func (api *PublicEthereumAPI) Etherbase() (common.Address, error) {
-	return api.s.me, nil
+	return api.s.emitter.GetCoinbase(), nil
 }
 
 // Coinbase is the address that mining rewards will be send to (alias for Etherbase)
 func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
-	return api.s.me, nil
+	return api.s.emitter.GetCoinbase(), nil
 }
 
 // Hashrate returns the POW hashrate

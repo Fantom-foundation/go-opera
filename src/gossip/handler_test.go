@@ -5,13 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -123,9 +126,6 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
 	config.ForcedBroadcast = allowAggressive
 
-	me := net.Genesis.Alloc.Addresses()[0]
-	privateKey := net.Genesis.Alloc[me].PrivateKey
-
 	var (
 		store       = NewMemStore()
 		engineStore = poset.NewMemStore()
@@ -139,7 +139,10 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(nil)
 
-	svc, err := NewService(nil, config, store, engine)
+	ctx := &node.ServiceContext{
+		AccountManager: mockAccountManager(net.Genesis.Alloc),
+	}
+	svc, err := NewService(ctx, config, store, engine)
 	assertar.NoError(err)
 
 	// start PM
@@ -160,9 +163,8 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	}
 
 	// start emitter
-	svc.privateKey = privateKey
-	svc.me = me
 	svc.emitter = svc.makeEmitter()
+	svc.emitter.SetCoinbase(net.Genesis.Alloc.Addresses()[0])
 
 	emittedEvents := make([]*inter.Event, 0)
 	for i := 0; i < broadcastExpected; i++ {
@@ -228,4 +230,11 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 			}
 		}
 	}
+}
+
+func mockAccountManager(accs genesis.Accounts) *accounts.Manager {
+	return accounts.NewManager(
+		&accounts.Config{InsecureUnlockAllowed: true},
+		genesis.NewAccountsBackend(accs),
+	)
 }
