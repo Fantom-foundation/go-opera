@@ -102,7 +102,18 @@ func (e *EventHeaderData) IsSelfParent(hash hash.Event) bool {
 
 // SignBy signs event by private key.
 func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
-	sig, err := crypto.Sign(e.HashToSign().Bytes(), priv)
+	signer := func(data []byte) ([]byte, error) {
+		data = crypto.Keccak256(data)
+		sig, err := crypto.Sign(data, priv)
+		return sig, err
+	}
+
+	return e.Sign(signer)
+}
+
+// Sign event by signer.
+func (e *Event) Sign(signer func([]byte) ([]byte, error)) error {
+	sig, err := signer(e.HashToSign().Bytes())
 	if err != nil {
 		return err
 	}
@@ -113,7 +124,10 @@ func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
 
 // Verify sign event by public key.
 func (e *Event) VerifySignature() bool {
-	pk, err := crypto.SigToPub(e.HashToSign().Bytes(), e.Sig)
+	// NOTE: Keccak256 because of AccontManager
+	data := crypto.Keccak256(e.HashToSign().Bytes())
+	// TODO: move to AccontManager
+	pk, err := crypto.SigToPub(data, e.Sig)
 	if err != nil {
 		return false
 	}
