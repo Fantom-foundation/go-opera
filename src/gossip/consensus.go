@@ -26,6 +26,8 @@ type Consensus interface {
 	GetEpoch() idx.Epoch
 	// GetMembers returns members of current epoch.
 	GetMembers() pos.Members
+	// GetEpochMembers atomically returns members of current epoch, and the epoch.
+	GetEpochMembers() (pos.Members, idx.Epoch)
 
 	// Bootstrap must be called (once) before calling other methods
 	Bootstrap(applyBlock inter.ApplyBlockFn)

@@ -55,12 +55,8 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // fills consensus-related fields: Frame, IsRoot, MedianTimestamp
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
-	if e.Epoch != p.EpochN {
-		p.Log.Info("Event is too old/too new", "event", e.String(), "epoch", e.Epoch, "expect", p.EpochN)
-		return nil
-	}
-	if _, ok := p.Members[e.Creator]; !ok {
-		p.Log.Warn("Creator isn't a member", "creator", e.Creator.String())
+	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
+		p.Log.Error("Event prepare error", "err", err)
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
@@ -169,8 +165,8 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // Event order matter: parents first.
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) error {
-	if e.Epoch != p.EpochN {
-		return epoch_check.ErrNotRecent
+	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
+		return err
 	}
 	p.Log.Debug("start event processing", "event", e.String())
 
