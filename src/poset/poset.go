@@ -20,7 +20,7 @@ type Poset struct {
 	store *Store
 	input EventSource
 	*checkpoint
-	epoch
+	epochState
 
 	election *election.Election
 	vecClock *vector.Index

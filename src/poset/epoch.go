@@ -39,7 +39,7 @@ func (g *GenesisState) EpochName() string {
 	return fmt.Sprintf("epoch%d", g.Epoch)
 }
 
-type epoch struct {
+type epochState struct {
 	// stored values
 	// these values change only after a change of epoch
 	EpochN    idx.Epoch
@@ -48,7 +48,7 @@ type epoch struct {
 }
 
 func (p *Poset) loadEpoch() {
-	p.epoch = *p.store.GetEpoch()
+	p.epochState = *p.store.GetEpoch()
 }
 
 func (p *Poset) nextEpoch(atropos hash.Event) {
@@ -76,7 +76,7 @@ func (p *Poset) nextEpoch(atropos hash.Event) {
 	p.EpochN++
 
 	// commit
-	p.store.SetEpoch(&p.epoch)
+	p.store.SetEpoch(&p.epochState)
 	p.saveCheckpoint()
 }
 

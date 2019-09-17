@@ -80,7 +80,7 @@ func TestRestore(t *testing.T) {
 			assertar.NoError(posets[j].ProcessEvent(e))
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-			assertar.Equal(posets[j].epoch, posets[i].epoch)
+			assertar.Equal(posets[j].epochState, posets[i].epochState)
 			// check LastAtropos and Head() method
 			if posets[i].checkpoint.LastBlockN != 0 {
 				assertar.Equal(posets[i].checkpoint.LastAtropos, posets[j].blocks[idx.Block(len(posets[j].blocks))].Hash(), "atropos must be last event in block")
