@@ -285,6 +285,16 @@ func (em *Emitter) controlEvent(e *inter.Event, selfParent *inter.EventHeaderDat
 			}
 		}
 	}
+	// Forbid emitting if not enough power and power is decreasing
+	{
+		threshold := em.dag.GasPower.EmergencyThreshold
+		if e.GasPowerLeft <= threshold {
+			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
+				log.Warn("Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+				return false
+			}
+		}
+	}
 
 	return true
 }
