@@ -122,9 +122,9 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	net := lachesis.FakeNetConfig(1)
 	config := DefaultConfig(net)
+	config.ForcedBroadcast = allowAggressive
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
-	config.ForcedBroadcast = allowAggressive
 
 	var (
 		store       = NewMemStore()
@@ -134,13 +134,15 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	genesisAtropos, genesisEvmState, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
-	assertar.NoError(engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState))
+	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)
+	assertar.NoError(err)
 
 	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(nil)
 
+	coinbase := net.Genesis.Alloc.Addresses()[0]
 	ctx := &node.ServiceContext{
-		AccountManager: mockAccountManager(net.Genesis.Alloc),
+		AccountManager: mockAccountManager(net.Genesis.Alloc, coinbase),
 	}
 	svc, err := NewService(ctx, config, store, engine)
 	assertar.NoError(err)
@@ -164,7 +166,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	// start emitter
 	svc.emitter = svc.makeEmitter()
-	svc.emitter.SetCoinbase(net.Genesis.Alloc.Addresses()[0])
+	svc.emitter.SetCoinbase(coinbase)
 
 	emittedEvents := make([]*inter.Event, 0)
 	for i := 0; i < broadcastExpected; i++ {
@@ -232,9 +234,9 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	}
 }
 
-func mockAccountManager(accs genesis.Accounts) *accounts.Manager {
+func mockAccountManager(accs genesis.Accounts, unlock ...common.Address) *accounts.Manager {
 	return accounts.NewManager(
 		&accounts.Config{InsecureUnlockAllowed: true},
-		genesis.NewAccountsBackend(accs),
+		genesis.NewAccountsBackend(accs, unlock...),
 	)
 }

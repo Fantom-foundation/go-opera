@@ -6,6 +6,7 @@ import (
 
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -30,10 +31,19 @@ type (
 	}
 )
 
-func NewAccountsBackend(accs Accounts) accounts.Backend {
-	return &keyStore{
-		all: accs,
+func NewAccountsBackend(accs Accounts, unlock ...common.Address) accounts.Backend {
+	ks := &keyStore{
+		all:      accs,
+		unlocked: make(Accounts),
 	}
+
+	for _, u := range unlock {
+		if a, ok := ks.all[u]; ok {
+			ks.unlocked[u] = a
+		}
+	}
+
+	return ks
 }
 
 // Wallets retrieves the list of wallets the backend is currently aware of.
