@@ -40,7 +40,8 @@ type Emitter struct {
 	coinbase   common.Address
 	coinbaseMu sync.RWMutex
 
-	gasRate metrics.Meter
+	gasRate         metrics.Meter
+	prevEmittedTime time.Time
 
 	onEmitted func(e *inter.Event)
 
@@ -63,6 +64,7 @@ func NewEmitter(
 		dag:       &config.Net.Dag,
 		config:    &config.Emitter,
 		am:        am,
+		gasRate:   metrics.NewMeterForced(),
 		engine:    engine,
 		engineMu:  engineMu,
 		store:     store,
@@ -78,15 +80,19 @@ func (em *Emitter) StartEventEmission() {
 	}
 	em.done = make(chan struct{})
 
+	em.prevEmittedTime = em.loadPrevEmitTime()
+
 	done := em.done
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(em.config.MinEmitInterval)
+		ticker := time.NewTicker(em.config.MinEmitInterval / 10)
 		for {
 			select {
 			case <-ticker.C:
-				em.EmitEvent()
+				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
+					em.EmitEvent()
+				}
 			case <-done:
 				return
 			}
@@ -117,6 +123,18 @@ func (em *Emitter) GetCoinbase() common.Address {
 	em.coinbaseMu.RLock()
 	defer em.coinbaseMu.RUnlock()
 	return em.coinbase
+}
+
+func (em *Emitter) loadPrevEmitTime() time.Time {
+	prevEventId := em.store.GetLastEvent(em.engine.GetEpoch(), em.GetCoinbase())
+	if prevEventId == nil {
+		return em.prevEmittedTime
+	}
+	prevEvent := em.store.GetEventHeader(prevEventId.Epoch(), *prevEventId)
+	if prevEvent == nil {
+		return em.prevEmittedTime
+	}
+	return prevEvent.ClaimedTime.Time()
 }
 
 func (em *Emitter) addTxs(event *inter.Event) *inter.Event {
@@ -187,9 +205,11 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	selfParentSeq = 0
 	selfParentTime = 0
+	var selfParentHeader *inter.EventHeaderData
 	if selfParent != nil {
-		selfParentSeq = parentHeaders[0].Seq
-		selfParentTime = parentHeaders[0].ClaimedTime
+		selfParentHeader = parentHeaders[0]
+		selfParentSeq = selfParentHeader.Seq
+		selfParentTime = selfParentHeader.ClaimedTime
 	}
 
 	event := inter.NewEvent()
@@ -211,6 +231,10 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	// Add txs
 	event = em.addTxs(event)
+
+	if !em.controlEvent(event, selfParentHeader) {
+		return nil
+	}
 
 	// calc Merkle root
 	event.TxHash = types.DeriveSha(event.Transactions)
@@ -250,16 +274,37 @@ func (em *Emitter) createEvent() *inter.Event {
 	return event
 }
 
+func (em *Emitter) controlEvent(e *inter.Event, selfParent *inter.EventHeaderData) bool {
+	// Slow down emitting if power is low
+	{
+		threshold := em.dag.GasPower.EmitIntervalControlThreshold
+		if e.GasPowerLeft <= threshold {
+			adjustedEmitInterval := em.config.MaxEmitInterval - ((em.config.MaxEmitInterval-em.config.MinEmitInterval)*time.Duration(e.GasPowerLeft))/time.Duration(threshold)
+			if time.Since(em.prevEmittedTime) < adjustedEmitInterval {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func (em *Emitter) EmitEvent() *inter.Event {
 	em.engineMu.Lock()
 	defer em.engineMu.Unlock()
 
 	e := em.createEvent()
-	if e != nil && em.onEmitted != nil {
-		em.onEmitted(e)
-		em.gasRate.Mark(int64(e.GasPowerUsed))
-		log.Info("New event emitted", "e", e.String())
+	if e == nil {
+		return nil
 	}
+
+	if em.onEmitted != nil {
+		em.onEmitted(e)
+	}
+	em.gasRate.Mark(int64(e.GasPowerUsed))
+	em.prevEmittedTime = time.Now()
+	log.Info("New event emitted", "e", e.String())
+
 	return e
 }
 

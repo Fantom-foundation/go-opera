@@ -17,6 +17,10 @@ func (t Timestamp) Unix() int64 {
 	return int64(t) / int64(time.Second)
 }
 
+func (t Timestamp) Time() time.Time {
+	return time.Unix(int64(t) / int64(time.Second), int64(t) % int64(time.Second))
+}
+
 // MaxTimestamp return max value.
 func MaxTimestamp(x, y Timestamp) Timestamp {
 	if x > y {

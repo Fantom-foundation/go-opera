@@ -23,6 +23,11 @@ type GasPowerConfig struct {
 	MaxStashedPeriod   inter.Timestamp `json:"maxStashedPeriod"`
 	StartupPeriod      inter.Timestamp `json:"startupPeriod"`
 	MinStartupGasPower uint64          `json:"minStartupGasPower"`
+
+	// thresholds on GasLeft
+	GasPowerControlThreshold     uint64
+	EmitIntervalControlThreshold uint64
+	EmergencyThreshold           uint64
 }
 
 // DagConfig of DAG.
@@ -105,7 +110,7 @@ func FakeNetDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:             3,
 		EpochLen:               100,
-		MaxMemberEventsInBlock: 500,
+		MaxMemberEventsInBlock: 50,
 		GasPower:               FakeNetGasPowerConfig(),
 	}
 }
@@ -116,14 +121,16 @@ func DefaultGasPowerConfig() GasPowerConfig {
 		MaxStashedPeriod:   inter.Timestamp(1 * time.Hour),
 		StartupPeriod:      inter.Timestamp(5 * time.Minute),
 		MinStartupGasPower: params.TxGas * 20,
+
+		GasPowerControlThreshold:     params.TxGas * 500,
+		EmitIntervalControlThreshold: params.TxGas * 100,
+		EmergencyThreshold:           params.TxGas * 5,
 	}
 }
 
 func FakeNetGasPowerConfig() GasPowerConfig {
-	return GasPowerConfig{
-		TotalPerH:          500 * params.TxGas * 60 * 60,
-		MaxStashedPeriod:   inter.Timestamp(1 * time.Hour),
-		StartupPeriod:      inter.Timestamp(5 * time.Minute),
-		MinStartupGasPower: params.TxGas * 200,
-	}
+	config := DefaultGasPowerConfig()
+	config.TotalPerH *= 10
+	config.MinStartupGasPower *= 10
+	return config
 }
