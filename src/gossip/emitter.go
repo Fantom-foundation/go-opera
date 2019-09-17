@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
@@ -32,13 +33,14 @@ type Emitter struct {
 	prevEpoch idx.Epoch
 	txpool    txPool
 
-	dag       *lachesis.DagConfig
-	config    *EmitterConfig
-	networkId uint64
+	dag    *lachesis.DagConfig
+	config *EmitterConfig
 
 	am         *accounts.Manager
 	coinbase   common.Address
 	coinbaseMu sync.RWMutex
+
+	gasRate metrics.Meter
 
 	onEmitted func(e *inter.Event)
 
@@ -255,6 +257,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	e := em.createEvent()
 	if e != nil && em.onEmitted != nil {
 		em.onEmitted(e)
+		em.gasRate.Mark(int64(e.GasPowerUsed))
 		log.Info("New event emitted", "e", e.String())
 	}
 	return e
