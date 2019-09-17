@@ -54,7 +54,7 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 
 	input := NewEventStore(nil)
 
-	poset := New(lachesis.DefaultDagConfig(), store, input)
+	poset := New(lachesis.FakeNetDagConfig(), store, input)
 
 	extended := &ExtendedPoset{
 		Poset:  poset,

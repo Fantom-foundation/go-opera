@@ -1,15 +1,11 @@
 package poset
 
 import (
-	"fmt"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
-	"golang.org/x/crypto/sha3"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
@@ -18,26 +14,6 @@ const (
 	firstFrame = idx.Frame(1)
 	firstEpoch = idx.Epoch(1)
 )
-
-// state of previous Epoch
-type GenesisState struct {
-	Epoch       idx.Epoch
-	Time        inter.Timestamp // consensus time of the last atropos
-	LastAtropos hash.Event
-	StateHash   common.Hash // hash of txs state
-}
-
-func (g *GenesisState) Hash() common.Hash {
-	hasher := sha3.New256()
-	if err := rlp.Encode(hasher, g); err != nil {
-		panic(err)
-	}
-	return hash.FromBytes(hasher.Sum(nil))
-}
-
-func (g *GenesisState) EpochName() string {
-	return fmt.Sprintf("epoch%d", g.Epoch)
-}
 
 type epochState struct {
 	// stored values
@@ -49,35 +25,6 @@ type epochState struct {
 
 func (p *Poset) loadEpoch() {
 	p.epochState = *p.store.GetEpoch()
-}
-
-func (p *Poset) nextEpoch(atropos hash.Event) {
-	// new PrevEpoch state
-	p.PrevEpoch.Time = p.LastConsensusTime
-	p.PrevEpoch.Epoch = p.EpochN
-	p.PrevEpoch.LastAtropos = atropos
-	p.PrevEpoch.StateHash = p.checkpoint.StateHash
-
-	// new members list
-	p.Members = p.NextMembers.Top()
-	p.NextMembers = p.Members.Copy()
-
-	// reset internal epoch DB
-	p.store.recreateEpochDb()
-
-	// reset election & vectorindex
-	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
-		return p.input.GetEventHeader(p.EpochN, id)
-	}) // this DB is pruned after .pruneTempDb()
-	p.election.Reset(p.Members, firstFrame)
-	p.LastDecidedFrame = 0
-
-	// move to new epoch
-	p.EpochN++
-
-	// commit
-	p.store.SetEpoch(&p.epochState)
-	p.saveCheckpoint()
 }
 
 // GetEpoch returns current epoch num to 3rd party.
@@ -95,7 +42,6 @@ func (p *Poset) GetEpochMembers() (pos.Members, idx.Epoch) {
 	return p.GetMembers(), p.GetEpoch() // TODO atomic
 }
 
-// rootForklessCausesRoot returns hash of root B, if root A forkless causes root B.
 // Due to a fork, there may be many roots B with the same slot,
 // but forkless caused may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
 func (p *Poset) rootForklessCausesRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {

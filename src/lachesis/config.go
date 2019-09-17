@@ -1,7 +1,10 @@
 package lachesis
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/ethereum/go-ethereum/params"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 
@@ -15,10 +18,20 @@ const (
 	FakeNetworkId uint64 = 3
 )
 
+type GasPowerConfig struct {
+	TotalPerH          uint64          `json:"totalPerH"`
+	MaxStashedPeriod   inter.Timestamp `json:"maxStashedPeriod"`
+	StartupPeriod      inter.Timestamp `json:"startupPeriod"`
+	MinStartupGasPower uint64          `json:"minStartupGasPower"`
+}
+
 // DagConfig of DAG.
 type DagConfig struct {
-	MaxParents int       `json:"maxParents"`
-	EpochLen   idx.Frame `json:"epochLen"`
+	MaxParents             int       `json:"maxParents"`
+	EpochLen               idx.Frame `json:"epochLen"`
+	MaxMemberEventsInBlock idx.Event `json:"maxMemberEventsInBlock"`
+
+	GasPower GasPowerConfig `json:"gasPower"`
 }
 
 // Config describes lachesis net.
@@ -75,13 +88,42 @@ func FakeNetConfig(n int) Config {
 		Name:      "fake",
 		NetworkId: FakeNetworkId,
 		Genesis:   g,
-		Dag:       DefaultDagConfig(),
+		Dag:       FakeNetDagConfig(),
 	}
 }
 
 func DefaultDagConfig() DagConfig {
 	return DagConfig{
-		MaxParents: 3,
-		EpochLen:   100,
+		MaxParents:             3,
+		EpochLen:               100,
+		MaxMemberEventsInBlock: 50,
+		GasPower:               DefaultGasPowerConfig(),
+	}
+}
+
+func FakeNetDagConfig() DagConfig {
+	return DagConfig{
+		MaxParents:             3,
+		EpochLen:               100,
+		MaxMemberEventsInBlock: 500,
+		GasPower:               FakeNetGasPowerConfig(),
+	}
+}
+
+func DefaultGasPowerConfig() GasPowerConfig {
+	return GasPowerConfig{
+		TotalPerH:          50 * params.TxGas * 60 * 60,
+		MaxStashedPeriod:   inter.Timestamp(1 * time.Hour),
+		StartupPeriod:      inter.Timestamp(5 * time.Minute),
+		MinStartupGasPower: params.TxGas * 20,
+	}
+}
+
+func FakeNetGasPowerConfig() GasPowerConfig {
+	return GasPowerConfig{
+		TotalPerH:          500 * params.TxGas * 60 * 60,
+		MaxStashedPeriod:   inter.Timestamp(1 * time.Hour),
+		StartupPeriod:      inter.Timestamp(5 * time.Minute),
+		MinStartupGasPower: params.TxGas * 200,
 	}
 }

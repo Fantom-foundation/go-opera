@@ -117,6 +117,33 @@ func (em *Emitter) GetCoinbase() common.Address {
 	return em.coinbase
 }
 
+func (em *Emitter) addTxs(event *inter.Event) *inter.Event {
+	poolTxs, err := em.txpool.Pending()
+	if err != nil {
+		log.Error("Tx pool transactions fetching error", "err", err)
+		return event
+	}
+	for _, txs := range poolTxs {
+		for _, tx := range txs {
+			if tx.Gas() < event.GasPowerLeft && event.GasPowerUsed+tx.Gas() < basic_check.MaxGasPowerUsed {
+				event.GasPowerUsed += tx.Gas()
+				event.GasPowerLeft -= tx.Gas()
+				event.Transactions = append(event.Transactions, txs...)
+			}
+		}
+	}
+	// Spill txs if exceeded size limit
+	// In all the "real" cases, the event will be limited by gas, not size.
+	// Yet it's technically possible to construct an event which is limited by size and not by gas.
+	for uint64(event.CalcSize()) > basic_check.MaxEventSize && len(event.Transactions) > 0 {
+		tx := event.Transactions[len(event.Transactions)-1]
+		event.GasPowerUsed -= tx.Gas()
+		event.GasPowerLeft += tx.Gas()
+		event.Transactions = event.Transactions[:len(event.Transactions)-1]
+	}
+	return event
+}
+
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
 	coinbase := em.GetCoinbase()
@@ -171,37 +198,20 @@ func (em *Emitter) createEvent() *inter.Event {
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-
-	// Add txs
-	poolTxs, err := em.txpool.Pending()
-	if err != nil {
-		log.Error("Tx pool transactions fetching error", "err", err)
-		return nil
-	}
 	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event)
-	for _, txs := range poolTxs {
-		for _, tx := range txs {
-			if event.GasPowerUsed+tx.Gas() < basic_check.MaxGasPowerUsed {
-				event.Transactions = append(event.Transactions, txs...)
-				event.GasPowerUsed += tx.Gas()
-			}
-		}
-	}
-	// Spill txs if exceeded size limit
-	// In all the "real" cases, the event will be limited by gas, not size.
-	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(event.CalcSize()) > basic_check.MaxEventSize && len(event.Transactions) > 0 {
-		event.Transactions = event.Transactions[:len(event.Transactions)-1]
-	}
-	// calc Merkle root
-	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// set consensus fields
-	event = em.engine.Prepare(event)
+	event = em.engine.Prepare(event) // GasPowerLeft is calced here
 	if event == nil {
 		log.Warn("dropped event while emitting")
 		return nil
 	}
+
+	// Add txs
+	event = em.addTxs(event)
+
+	// calc Merkle root
+	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
 	signer := func(data []byte) (sig []byte, err error) {

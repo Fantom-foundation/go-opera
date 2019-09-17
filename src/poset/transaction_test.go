@@ -64,7 +64,7 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, pos.Stake(2), p.NextMembers[nodes[1]])
 
 	// force Epoch commit
-	p.nextEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"))
+	p.onNewEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), nil)
 
 	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
 	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastAtropos)

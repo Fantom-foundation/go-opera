@@ -141,7 +141,7 @@ func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset 
 		panic(err)
 	}
 
-	dag := lachesis.DefaultDagConfig()
+	dag := lachesis.FakeNetDagConfig()
 	poset := New(dag, store, input)
 	poset.Bootstrap(nil)
 

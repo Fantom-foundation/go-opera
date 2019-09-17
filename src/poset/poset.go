@@ -66,6 +66,13 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
 	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
 	e.PrevEpochHash = p.PrevEpoch.Hash()
+
+	gasPower := p.CalcGasPower(&e.EventHeaderData)
+	if gasPower < e.GasPowerUsed {
+		p.Log.Warn("Not enough gas power", "used", e.GasPowerUsed, "have", gasPower)
+		return nil
+	}
+	e.GasPowerLeft = gasPower - e.GasPowerUsed
 	return e
 }
 
@@ -94,6 +101,11 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
 	}
+	// check GasPowerLeft
+	gasPower := p.CalcGasPower(&e.EventHeaderData)
+	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basic_check
+		return errors.Errorf("Claimed GasPower mismatched with calculated (%d!=%d)", e.GasPowerLeft+e.GasPowerUsed, gasPower)
+	}
 
 	// save in DB the {vectorindex, e, heads}
 	p.vecClock.Flush()
@@ -118,8 +130,8 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 
 		// if we’re here, then this root has caused that lowest not decided frame is decided now
-		p.onFrameDecided(decided.Frame, decided.Atropos)
-		if p.epochSealed(decided.Atropos) {
+		lastHeaders := p.onFrameDecided(decided.Frame, decided.Atropos)
+		if p.tryToSealEpoch(decided.Atropos, lastHeaders) {
 			return
 		}
 	}
@@ -132,8 +144,8 @@ func (p *Poset) handleElection(root *inter.Event) {
 			break
 		}
 
-		p.onFrameDecided(decided.Frame, decided.Atropos)
-		if p.epochSealed(decided.Atropos) {
+		lastHeaders := p.onFrameDecided(decided.Frame, decided.Atropos)
+		if p.tryToSealEpoch(decided.Atropos, lastHeaders) {
 			return
 		}
 	}
@@ -181,52 +193,6 @@ func (p *Poset) ProcessEvent(e *inter.Event) error {
 
 	p.handleElection(e)
 	return nil
-}
-
-// onFrameDecided moves LastDecidedFrameN to frame.
-// It includes: moving current decided frame, txs ordering and execution, epoch sealing.
-func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) {
-	p.election.Reset(p.Members, frame+1)
-	p.LastDecidedFrame = frame
-
-	p.Log.Debug("dfsSubgraph from atropos", "atropos", atropos.String())
-	unordered, err := p.dfsSubgraph(atropos, func(event *inter.EventHeaderData) bool {
-		decidedFrame := p.store.GetEventConfirmedOn(event.Hash())
-		if decidedFrame == 0 {
-			p.store.SetEventConfirmedOn(event.Hash(), frame)
-		}
-		return decidedFrame == 0
-	})
-	if err != nil {
-		p.Log.Crit("Failed to walk subgraph", "err", err)
-	}
-
-	// ordering
-	if len(unordered) == 0 {
-		p.Log.Crit("Frame is decided with no events. It isn't possible.")
-	}
-	ordered := p.fareOrdering(frame, atropos, unordered)
-
-	// block generation
-	p.checkpoint.LastBlockN += 1
-	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
-		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
-	}
-	p.checkpoint.LastAtropos = atropos
-	p.NextMembers = p.NextMembers.Top()
-
-	p.saveCheckpoint()
-}
-
-func (p *Poset) epochSealed(atropos hash.Event) bool {
-	if p.LastDecidedFrame < p.dag.EpochLen {
-		return false
-	}
-
-	p.nextEpoch(atropos)
-
-	return true
 }
 
 // calcFrameIdx checks root-conditions for new event

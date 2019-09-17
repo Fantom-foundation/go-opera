@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"math/rand"
 	"testing"
 
@@ -8,7 +9,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestRestore(t *testing.T) {
@@ -80,7 +80,9 @@ func TestRestore(t *testing.T) {
 			assertar.NoError(posets[j].ProcessEvent(e))
 			// compare state on i/j
 			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-			assertar.Equal(posets[j].epochState, posets[i].epochState)
+			assertar.Equal(posets[j].epochState.PrevEpoch.Hash(), posets[i].epochState.PrevEpoch.Hash())
+			assertar.Equal(posets[j].epochState.Members, posets[i].epochState.Members)
+			assertar.Equal(posets[j].epochState.EpochN, posets[i].epochState.EpochN)
 			// check LastAtropos and Head() method
 			if posets[i].checkpoint.LastBlockN != 0 {
 				assertar.Equal(posets[i].checkpoint.LastAtropos, posets[j].blocks[idx.Block(len(posets[j].blocks))].Hash(), "atropos must be last event in block")
