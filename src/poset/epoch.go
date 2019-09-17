@@ -90,6 +90,11 @@ func (p *Poset) GetMembers() pos.Members {
 	return p.Members.Copy()
 }
 
+// GetEpochMembers atomically returns members of current epoch, and the epoch.
+func (p *Poset) GetEpochMembers() (pos.Members, idx.Epoch) {
+	return p.GetMembers(), p.GetEpoch() // TODO atomic
+}
+
 // rootForklessCausesRoot returns hash of root B, if root A forkless causes root B.
 // Due to a fork, there may be many roots B with the same slot,
 // but forkless caused may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.

@@ -105,10 +105,11 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 
 	var (
-		epoch      = em.engine.GetEpoch()
-		seq        idx.Event
-		parents    hash.Events
-		maxLamport idx.Lamport
+		epoch          = em.engine.GetEpoch()
+		selfParentSeq  idx.Event
+		selfParentTime inter.Timestamp
+		parents        hash.Events
+		maxLamport     idx.Lamport
 	)
 
 	vecClock := em.engine.GetVectorIndex()
@@ -134,18 +135,20 @@ func (em *Emitter) createEvent() *inter.Event {
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
 	}
 
-	seq = 1
+	selfParentSeq = 0
+	selfParentTime = 0
 	if selfParent != nil {
-		seq = parentHeaders[0].Seq + 1
+		selfParentSeq = parentHeaders[0].Seq
+		selfParentTime = parentHeaders[0].ClaimedTime
 	}
 
 	event := inter.NewEvent()
 	event.Epoch = epoch
-	event.Seq = seq
+	event.Seq = selfParentSeq + 1
 	event.Creator = em.myAddr
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
-	event.ClaimedTime = inter.Timestamp(time.Now().UnixNano())
+	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
 
 	// Add txs
 	poolTxs, err := em.txpool.Pending()

@@ -3,6 +3,7 @@ package gossip
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // PublicEthereumAPI provides an API to access Ethereum-like information.
@@ -33,5 +34,5 @@ func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 
 // ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
 func (api *PublicEthereumAPI) ChainId() hexutil.Uint64 {
-	return hexutil.Uint64(api.s.config.Net.NetworkId)
+	return hexutil.Uint64(params.AllEthashProtocolChanges.ChainID.Uint64())
 }

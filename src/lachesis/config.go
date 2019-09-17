@@ -18,7 +18,7 @@ const (
 // DagConfig of DAG.
 type DagConfig struct {
 	MaxParents int       `json:"maxParents"`
-	EpochLen   idx.Frame `json:"maxParents"`
+	EpochLen   idx.Frame `json:"epochLen"`
 }
 
 // Config describes lachesis net.

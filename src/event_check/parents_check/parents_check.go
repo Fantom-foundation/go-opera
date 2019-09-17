@@ -5,7 +5,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
@@ -14,29 +13,19 @@ var (
 	ErrWrongLamport    = errors.New("event has wrong Lamport time")
 	ErrDoubleParents   = errors.New("event has double parents")
 	ErrWrongSelfParent = errors.New("event is missing self-parent")
+	ErrPastTime        = errors.New("event has lower claimed time than self-parent")
 )
-
-type DagReader interface {
-	GetMembers() pos.Members
-}
 
 // Check which require only parents list + current epoch info
 type Validator struct {
 	config *lachesis.DagConfig
-	reader DagReader
 }
 
 // Performs checks, which require known the parents
-func New(config *lachesis.DagConfig, reader DagReader) *Validator {
+func New(config *lachesis.DagConfig) *Validator {
 	return &Validator{
 		config: config,
-		reader: reader,
 	}
-}
-
-func (v *Validator) validateGasLeft(e *inter.Event, parents []*inter.EventHeaderData) error {
-	// TODO validate e.GasPowerLeft against median time, self-parent, and creator's stake
-	return nil
 }
 
 func (v *Validator) Validate(e *inter.Event, parents []*inter.EventHeaderData) error {
@@ -78,11 +67,11 @@ func (v *Validator) Validate(e *inter.Event, parents []*inter.EventHeaderData) e
 		if e.Seq != selfParent.Seq+1 {
 			return ErrWrongSeq
 		}
-	}
 
-	// gas left
-	if err := v.validateGasLeft(e, parents); err != nil {
-		return err
+		// selfParent time
+		if e.ClaimedTime <= selfParent.ClaimedTime {
+			return ErrPastTime
+		}
 	}
 
 	return nil

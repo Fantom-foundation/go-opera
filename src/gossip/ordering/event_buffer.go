@@ -1,126 +1,109 @@
 package ordering
 
 import (
-	"time"
-
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/hashicorp/golang-lru"
 )
-
-const expiration = 1 * time.Hour
 
 type (
 	// event is a inter.Event and data for ordering purpose.
 	event struct {
 		*inter.Event
 
-		peer    string
-		parents map[hash.Event]*inter.Event
-		expired time.Time
+		peer string
 	}
 
 	// Callback is a set of EventBuffer()'s args.
 	Callback struct {
 		Process func(e *inter.Event) error
 		Drop    func(e *inter.Event, peer string, err error)
-		Exists  func(hash.Event) *inter.Event
+		Exists  func(hash.Event) *inter.EventHeaderData
 		Check   func(e *inter.Event, parents []*inter.EventHeaderData) error
 	}
 )
 
-type IsBufferedFn func(hash.Event) bool
-type PushEventFn func(e *inter.Event, peer string)
+type EventBuffer struct {
+	incompletes *lru.Cache // event hash -> event
+	callback    Callback
+}
 
-// EventBuffer validates, bufferizes and drops() or processes() pushed() event
-// if all their parents exists().
-func EventBuffer(callback Callback) (push PushEventFn, downloaded IsBufferedFn) {
+func New(buffSize int, callback Callback) *EventBuffer {
+	incompletes, _ := lru.New(buffSize)
+	return &EventBuffer{
+		incompletes: incompletes,
+		callback:    callback,
+	}
+}
 
-	var (
-		incompletes = make(map[hash.Event]*event)
-		lastGC      = time.Now()
-		onNewEvent  func(e *event, peer string)
-	)
+func (buf *EventBuffer) PushEvent(e *inter.Event, peer string) {
+	if buf.callback.Exists(e.Hash()) != nil {
+		buf.callback.Drop(e, peer, event_check.ErrAlreadyConnectedEvent)
+		return
+	}
 
-	onNewEvent = func(e *event, peer string) {
-		for _, p := range e.Parents {
-			parent := e.parents[p]
-			if parent == nil {
-				parent = callback.Exists(p)
-				if parent == nil {
-					h := e.Hash()
-					incompletes[h] = e
-					return
-				}
-				e.parents[p] = parent
-			}
+	w := &event{
+		Event: e,
+		peer:  peer,
+	}
+
+	buf.pushEvent(w)
+}
+
+func (buf *EventBuffer) pushEvent(e *event) {
+	// LRU is thread-safe, no need in mutex
+	if buf.callback.Exists(e.Hash()) != nil {
+		return
+	}
+
+	parents := make([]*inter.EventHeaderData, len(e.Parents)) // use local buffer for thread safety
+	for i, p := range e.Parents {
+		_, _ = buf.incompletes.Get(p) // updating the "recently used"-ness of the key
+		parent := buf.callback.Exists(p)
+		if parent == nil {
+			buf.incompletes.Add(e.Hash(), e)
+			return
 		}
+		parents[i] = parent
+	}
 
-		// validate
-		if callback.Check != nil {
-			parentHeaders := make([]*inter.EventHeaderData, len(e.Parents))
-			for i, p := range e.Parents {
-				parentHeaders[i] = &e.parents[p].EventHeaderData
-			}
-			err := callback.Check(e.Event, parentHeaders)
-			if err != nil {
-				callback.Drop(e.Event, peer, err)
-				return
-			}
-		}
-
-		// process
-		err := callback.Process(e.Event)
+	// validate
+	if buf.callback.Check != nil {
+		err := buf.callback.Check(e.Event, parents)
 		if err != nil {
-			callback.Drop(e.Event, peer, err)
+			buf.callback.Drop(e.Event, e.peer, err)
 			return
 		}
-
-		// now child events may become complete, check it again
-		for hash_, child := range incompletes {
-			if parent, ok := child.parents[e.Hash()]; ok && parent == nil {
-				child.parents[e.Hash()] = e.Event
-				delete(incompletes, hash_)
-				onNewEvent(child, child.peer)
-			}
-		}
-
 	}
 
-	push = func(e *inter.Event, peer string) {
-		if callback.Exists(e.Hash()) != nil {
-			callback.Drop(e, peer, event_check.ErrAlreadyConnectedEvent)
-			return
-		}
+	// process
+	err := buf.callback.Process(e.Event)
+	if err != nil {
+		buf.callback.Drop(e.Event, e.peer, err)
+		return
+	}
 
-		w := &event{
-			Event:   e,
-			peer:    peer,
-			parents: make(map[hash.Event]*inter.Event, len(e.Parents)),
-			expired: time.Now().Add(expiration),
+	// now child events may become complete, check it again
+	for _, childId := range buf.incompletes.Keys() {
+		child, _ := buf.incompletes.Peek(childId) // without updating the "recently used"-ness of the key
+		if child == nil {
+			continue
 		}
-		for _, parentHash := range e.Parents {
-			w.parents[parentHash] = nil
-		}
-		onNewEvent(w, peer)
-
-		// GC
-		if time.Now().Add(-expiration / 4).Before(lastGC) {
-			return
-		}
-		lastGC = time.Now()
-		limit := time.Now().Add(-expiration)
-		for h, e := range incompletes {
-			if e.expired.Before(limit) {
-				delete(incompletes, h)
+		for _, parent := range child.(*event).Parents {
+			if parent == e.Hash() {
+				buf.pushEvent(child.(*event))
 			}
 		}
 	}
 
-	downloaded = func(id hash.Event) bool {
-		_, ok := incompletes[id]
-		return ok
-	}
+	buf.incompletes.Remove(e.Hash())
+}
 
-	return
+func (buf *EventBuffer) IsBuffered(id hash.Event) bool {
+	return buf.incompletes.Contains(id) // LRU is thread-safe, no need in mutex
+}
+
+func (buf *EventBuffer) Clear() {
+	buf.incompletes.Purge() // LRU is thread-safe, no need in mutex
 }

@@ -15,8 +15,7 @@ var (
 )
 
 type DagReader interface {
-	GetEpoch() idx.Epoch
-	GetMembers() pos.Members
+	GetEpochMembers() (pos.Members, idx.Epoch)
 }
 
 // Check which require only current epoch info
@@ -33,10 +32,12 @@ func New(config *lachesis.DagConfig, reader DagReader) *Validator {
 }
 
 func (v *Validator) Validate(e *inter.Event) error {
-	if e.Epoch != v.reader.GetEpoch() {
+	// check epoch first, because validators group is known only for the current epoch
+	members, epoch := v.reader.GetEpochMembers()
+	if e.Epoch != epoch {
 		return ErrNotRecent
 	}
-	if _, ok := v.reader.GetMembers()[e.Creator]; !ok {
+	if _, ok := members[e.Creator]; !ok {
 		return ErrAuth
 	}
 	return nil

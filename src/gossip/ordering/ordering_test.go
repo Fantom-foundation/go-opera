@@ -1,29 +1,15 @@
 package ordering
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/ethereum/go-ethereum/common"
 	"math/rand"
 	"testing"
 	"time"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
-
-type testDagReader struct {
-	nodes []common.Address
-}
-
-func (t *testDagReader) GetMembers() pos.Members {
-	members := pos.Members{}
-	for _, addr := range t.nodes {
-		members.Set(addr, 1)
-	}
-	return members
-}
 
 func TestEventBuffer(t *testing.T) {
 	nodes := inter.GenNodes(5)
@@ -36,12 +22,13 @@ func TestEventBuffer(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
+			e.ClaimedTime = inter.Timestamp(e.Seq)
 			return e
 		},
 	})
 
-	processed := make(map[hash.Event]*inter.Event)
-	push, _ := EventBuffer(Callback{
+	processed := make(map[hash.Event]*inter.EventHeaderData)
+	buffer := New(len(nodes) * 10, Callback{
 
 		Process: func(e *inter.Event) error {
 			if _, ok := processed[e.Hash()]; ok {
@@ -54,7 +41,7 @@ func TestEventBuffer(t *testing.T) {
 					return nil
 				}
 			}
-			processed[e.Hash()] = e
+			processed[e.Hash()] = &e.EventHeaderData
 			return nil
 		},
 
@@ -62,15 +49,22 @@ func TestEventBuffer(t *testing.T) {
 			t.Fatalf("%s unexpectedly dropped with %s", e.String(), err)
 		},
 
-		Exists: func(e hash.Event) *inter.Event {
+		Exists: func(e hash.Event) *inter.EventHeaderData {
 			return processed[e]
 		},
 
-		Check: parents_check.New(&lachesis.DagConfig{}, &testDagReader{nodes}).Validate,
+		Check: parents_check.New(&lachesis.DagConfig{}).Validate,
 	})
 
 	for _, rnd := range rand.Perm(len(ordered)) {
 		e := ordered[rnd]
-		push(e, "")
+		buffer.PushEvent(e, "")
+	}
+
+	// everything is processed
+	for _, e := range ordered {
+		if _, ok := processed[e.Hash()]; !ok {
+			t.Fatal("event wasn't processed")
+		}
 	}
 }

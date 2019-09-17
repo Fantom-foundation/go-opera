@@ -8,7 +8,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -18,7 +17,6 @@ func TestRestore(t *testing.T) {
 
 	const posetCount = 3 // 2 last will be restored
 	const epochs = idx.Epoch(2)
-	dag := lachesis.DefaultDagConfig()
 
 	nodes := inter.GenNodes(5)
 
@@ -43,7 +41,7 @@ func TestRestore(t *testing.T) {
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= epochs; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(dag.EpochLen)*3, 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(posets[0].dag.EpochLen)*3, 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[0].SetEvent(e)
 				assertar.NoError(posets[0].ProcessEvent(e))
@@ -67,7 +65,7 @@ func TestRestore(t *testing.T) {
 		for x, e := range ordered {
 			if (x < len(ordered)/4) || x%20 == 0 {
 				// restore
-				restored := New(dag, store, inputs[i])
+				restored := New(posets[0].dag, store, inputs[i])
 				n := i % len(nodes)
 				restored.SetName("restored_" + nodes[n].String())
 				store.SetName("restored_" + nodes[n].String())
@@ -91,7 +89,7 @@ func TestRestore(t *testing.T) {
 
 		// check that blocks are identical
 		assertar.Equal(len(posets[i].blocks), len(posets[j].blocks))
-		assertar.Equal(len(posets[i].blocks), int(epochs)*int(dag.EpochLen))
+		assertar.Equal(len(posets[i].blocks), int(epochs)*int(posets[0].dag.EpochLen))
 		assertar.Equal(len(posets[i].blocks), int(posets[i].LastBlockN))
 		for blockI := idx.Block(1); blockI <= idx.Block(len(posets[i].blocks)); blockI++ {
 			assertar.NotNil(posets[i].blocks[blockI])

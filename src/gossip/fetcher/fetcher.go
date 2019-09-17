@@ -9,13 +9,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/event_check/heavy_check"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/ordering"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 /*
- * Fetcher is a network agent, which has handles basic hash-based events sync.
+ * Fetcher is a network agent, which handles basic hash-based events sync.
  * The core mechanic is very simple: interested hash arrived => request it.
  * The main reason why it has more than a few lines of code,
  * is because it tries to protect itself (and other nodes) against DoS.
@@ -50,6 +49,9 @@ type FilterInterestedFn func(ids hash.Events) hash.Events
 
 // EventsRequesterFn is a callback type for sending a event retrieval request.
 type EventsRequesterFn func(hash.Events) error
+
+// Called to connect a received event
+type PushEventFn func(e *inter.Event, peer string)
 
 // inject represents a schedules import operation.
 type inject struct {
@@ -94,7 +96,7 @@ type Fetcher struct {
 }
 
 type Callback struct {
-	PushEvent      ordering.PushEventFn
+	PushEvent      PushEventFn
 	OnlyInterested FilterInterestedFn
 	DropPeer       DropPeerFn
 

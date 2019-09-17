@@ -10,7 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -36,8 +35,7 @@ func TestPosetTxn(t *testing.T) {
 		return stateHash, members
 	}
 
-	dag := lachesis.DefaultDagConfig()
-	_ = inter.ForEachRandEvent(nodes, int(dag.EpochLen-1), 3, nil, inter.ForEachEvent{
+	_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen-1), 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			x.SetEvent(e)
 			assert.NoError(t, p.ProcessEvent(e))

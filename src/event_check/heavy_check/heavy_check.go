@@ -15,7 +15,8 @@ var (
 	ErrWrongEventSig  = errors.New("event has wrong signature")
 	ErrMalformedTxSig = errors.New("tx has wrong signature")
 	ErrWrongTxHash    = errors.New("tx has wrong txs Merkle tree root")
-	errTerminated     = errors.New("terminated")
+
+	errTerminated = errors.New("terminated") // internal err
 )
 
 const (
@@ -127,6 +128,7 @@ func (v *Validator) Validate(e *inter.Event) error {
 }
 
 func (v *Validator) loop() {
+	defer v.wg.Done()
 	for {
 		select {
 		case <-v.quit:

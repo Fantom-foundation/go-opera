@@ -49,6 +49,13 @@ func (hook *HookedEngine) GetEpoch() idx.Epoch {
 	return hook.engine.GetEpoch()
 }
 
+func (hook *HookedEngine) GetEpochMembers() (pos.Members, idx.Epoch) {
+	if hook.engine == nil {
+		return pos.Members{}, 1
+	}
+	return hook.engine.GetEpochMembers()
+}
+
 func (hook *HookedEngine) LastBlock() (idx.Block, hash.Event) {
 	if hook.engine == nil {
 		return idx.Block(1), hash.ZeroEvent
