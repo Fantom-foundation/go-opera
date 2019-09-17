@@ -137,31 +137,34 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 	return prevEvent.ClaimedTime.Time()
 }
 
-func (em *Emitter) addTxs(event *inter.Event) *inter.Event {
+func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 	poolTxs, err := em.txpool.Pending()
 	if err != nil {
 		log.Error("Tx pool transactions fetching error", "err", err)
-		return event
+		return e
 	}
+
+	maxGasUsed := em.maxGasPowerToUse(e)
+
 	for _, txs := range poolTxs {
 		for _, tx := range txs {
-			if tx.Gas() < event.GasPowerLeft && event.GasPowerUsed+tx.Gas() < basic_check.MaxGasPowerUsed {
-				event.GasPowerUsed += tx.Gas()
-				event.GasPowerLeft -= tx.Gas()
-				event.Transactions = append(event.Transactions, txs...)
+			if tx.Gas() < e.GasPowerLeft && e.GasPowerUsed+tx.Gas() < maxGasUsed {
+				e.GasPowerUsed += tx.Gas()
+				e.GasPowerLeft -= tx.Gas()
+				e.Transactions = append(e.Transactions, txs...)
 			}
 		}
 	}
 	// Spill txs if exceeded size limit
 	// In all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(event.CalcSize()) > basic_check.MaxEventSize && len(event.Transactions) > 0 {
-		tx := event.Transactions[len(event.Transactions)-1]
-		event.GasPowerUsed -= tx.Gas()
-		event.GasPowerLeft += tx.Gas()
-		event.Transactions = event.Transactions[:len(event.Transactions)-1]
+	for uint64(e.CalcSize()) > basic_check.MaxEventSize && len(e.Transactions) > 0 {
+		tx := e.Transactions[len(e.Transactions)-1]
+		e.GasPowerUsed -= tx.Gas()
+		e.GasPowerLeft += tx.Gas()
+		e.Transactions = e.Transactions[:len(e.Transactions)-1]
 	}
-	return event
+	return e
 }
 
 // createEvent is not safe for concurrent use.
@@ -232,7 +235,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	// Add txs
 	event = em.addTxs(event)
 
-	if !em.controlEvent(event, selfParentHeader) {
+	if !em.isAllowedToEmit(event, selfParentHeader) {
 		return nil
 	}
 
@@ -274,13 +277,28 @@ func (em *Emitter) createEvent() *inter.Event {
 	return event
 }
 
-func (em *Emitter) controlEvent(e *inter.Event, selfParent *inter.EventHeaderData) bool {
+func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
+	// Smooth TPS if power isn't big
+	{
+		threshold := em.dag.GasPower.GasPowerControlThreshold
+		if e.GasPowerLeft <= threshold {
+			maxGasUsed := uint64(float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
+			if maxGasUsed > basic_check.MaxGasPowerUsed {
+				maxGasUsed = basic_check.MaxGasPowerUsed
+			}
+			return maxGasUsed
+		}
+	}
+	return basic_check.MaxGasPowerUsed
+}
+
+func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
 	// Slow down emitting if power is low
 	{
 		threshold := em.dag.GasPower.EmitIntervalControlThreshold
 		if e.GasPowerLeft <= threshold {
 			adjustedEmitInterval := em.config.MaxEmitInterval - ((em.config.MaxEmitInterval-em.config.MinEmitInterval)*time.Duration(e.GasPowerLeft))/time.Duration(threshold)
-			if time.Since(em.prevEmittedTime) < adjustedEmitInterval {
+			if e.ClaimedTime.Time().Sub(em.prevEmittedTime) < adjustedEmitInterval {
 				return false
 			}
 		}
@@ -312,7 +330,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 		em.onEmitted(e)
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
-	em.prevEmittedTime = time.Now()
+	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
 	log.Info("New event emitted", "e", e.String())
 
 	return e
