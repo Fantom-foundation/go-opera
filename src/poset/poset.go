@@ -52,7 +52,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 	return p.LastBlockN, p.LastAtropos
 }
 
-// fills consensus-related fields: Frame, IsRoot, MedianTimestamp
+// fills consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash, GasPowerLeft
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
@@ -65,13 +65,17 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
 	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
+	e.PrevEpochHash = p.PrevEpoch.Hash()
 	return e
 }
 
-// checks consensus-related fields: Frame, IsRoot, MedianTimestamp
+// checks consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash, GasPowerLeft
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if _, ok := p.Members[e.Creator]; !ok {
 		return epoch_check.ErrAuth
+	}
+	if e.PrevEpochHash != p.PrevEpoch.Hash() {
+		return errors.New("Mismatched prev epoch hash")
 	}
 
 	p.vecClock.Add(&e.EventHeaderData)
