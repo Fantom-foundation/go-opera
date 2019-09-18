@@ -6,13 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/src/integration"
 )
 
 var FakeNetFlag = cli.StringFlag{
@@ -25,41 +24,18 @@ func addFakeAccount(ctx *cli.Context, stack *node.Node) {
 		return
 	}
 
-	const pswd = "fakepassword"
-
-	kss := stack.AccountManager().Backends(keystore.KeyStoreType)
-	if len(kss) < 1 {
-		log.Warn("no keystore for fake accounts")
-		return
-	}
-	ks := kss[0].(*keystore.KeyStore)
-
-	coinbase, key := getFakeCoinbase(ctx)
-
-	_, err := ks.ImportECDSA(key, pswd)
-	if err != nil && err.Error() != "account already exists" {
-		log.Crit("failed to import fake key", "err", err)
-	}
-
-	err = ks.Unlock(coinbase, pswd)
-	if err != nil {
-		log.Crit("failed to unlock fake key", "err", err)
-	}
+	key := getFakeCoinbase(ctx)
+	coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
 	log.Info("Unlocked fake coinbase", "address", coinbase.Address.Hex())
 }
 
-func getFakeCoinbase(ctx *cli.Context) (accounts.Account, *ecdsa.PrivateKey) {
+func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
 	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
 		log.Crit("invalid flag", "flag", FakeNetFlag.Name, "err", err)
 	}
 
-	key := crypto.FakeKey(num)
-
-	return accounts.Account{
-		Address: crypto.PubkeyToAddress(key.PublicKey),
-	}, key
-
+	return crypto.FakeKey(num)
 }
 
 func parseFakeGen(s string) (num, total int, err error) {

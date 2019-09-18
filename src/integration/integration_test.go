@@ -64,8 +64,8 @@ func testSim(t *testing.T, connect topology) {
 	// create and start nodes
 	nodes := make([]enode.ID, count)
 	addrs := network.Genesis.Alloc.Addresses()
-	for i := 0; i < count; i++ {
-		key := network.Genesis.Alloc[addrs[i]].PrivateKey
+	for i, addr := range addrs {
+		key := network.Genesis.Alloc[addr].PrivateKey
 		id := enode.PubkeyToIDV4(&key.PublicKey)
 		config := &adapters.NodeConfig{
 			ID:         id,

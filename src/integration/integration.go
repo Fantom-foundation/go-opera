@@ -12,6 +12,14 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 
 	engine, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
+	coinbase := SetAccountKey(
+		ctx.NodeContext.AccountManager,
+		ctx.Config.PrivateKey,
+		"fakepassword",
+	)
+
+	gossipCfg.Emitter.Emitbase = coinbase.Address
+
 	svc, err := gossip.NewService(ctx.NodeContext, gossipCfg, gdb, engine)
 	if err != nil {
 		panic(err)
