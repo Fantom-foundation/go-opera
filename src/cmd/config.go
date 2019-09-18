@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
@@ -73,11 +74,20 @@ func loadConfig(file string, cfg *config) error {
 }
 
 func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
-	// TODO: lachesis.TestNetConfig() or lachesis.MainNetConfig() networks here:
-	cfg := lachesis.FakeNetConfig(1)
+	var cfg lachesis.Config
 
-	// Apply flags
-	setFakeNetConfig(ctx, &cfg)
+	switch {
+	case ctx.GlobalIsSet(FakeNetFlag.Name):
+		_, total, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		if err != nil {
+			log.Crit("invalid flag", "flag", FakeNetFlag.Name, "err", err)
+		}
+		cfg = lachesis.FakeNetConfig(total)
+	case ctx.GlobalBool(utils.TestnetFlag.Name):
+		cfg = lachesis.TestNetConfig()
+	default:
+		cfg = lachesis.MainNetConfig()
+	}
 
 	return cfg
 }
