@@ -3,7 +3,7 @@ package genesis
 import (
 	"time"
 
-	eth "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/src/crypto"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -26,7 +26,7 @@ func FakeGenesis(n int) Genesis {
 
 	for i := 0; i < n; i++ {
 		key := crypto.FakeKey(i)
-		addr := eth.PubkeyToAddress(key.PublicKey)
+		addr := crypto.PubkeyToAddress(key.PublicKey)
 		accounts[addr] = Account{
 			Balance:    pos.StakeToBalance(1000000),
 			PrivateKey: key,
@@ -43,9 +43,11 @@ func FakeGenesis(n int) Genesis {
 func MainGenesis() Genesis {
 	return Genesis{
 		Time: genesisTestTime,
-		/*Alloc: map[hash.Peer]pos.Stake{
-			// TODO: fill with official keys and balances.
-		},*/
+		Alloc: Accounts{
+			// TODO: fill with official keys and balances before release!
+			common.HexToAddress("a123456789123456789123456789012345678901"): Account{Balance: pos.StakeToBalance(1000000)},
+			common.HexToAddress("a123456789123456789123456789012345678902"): Account{Balance: pos.StakeToBalance(1000000)},
+		},
 	}
 }
 
@@ -53,8 +55,10 @@ func MainGenesis() Genesis {
 func TestGenesis() Genesis {
 	return Genesis{
 		Time: genesisTestTime,
-		/*Alloc: map[hash.Peer]pos.Stake{
-			// TODO: fill with official keys and balances.
-		},*/
+		Alloc: Accounts{
+			// TODO: fill with official keys and balances before release!
+			common.HexToAddress("b123456789123456789123456789012345678901"): Account{Balance: pos.StakeToBalance(1000000)},
+			common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: pos.StakeToBalance(1000000)},
+		},
 	}
 }
