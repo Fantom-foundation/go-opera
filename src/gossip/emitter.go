@@ -280,16 +280,18 @@ func (em *Emitter) createEvent() *inter.Event {
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 	// No txs if power is low
 	{
-		threshold := em.dag.GasPower.NoTxsThreshold
+		threshold := em.config.NoTxsThreshold
 		if e.GasPowerLeft <= threshold {
 			return 0
 		}
 	}
 	// Smooth TPS if power isn't big
 	{
-		threshold := em.dag.GasPower.GasPowerControlThreshold
+		threshold := em.config.SmoothTpsThreshold
 		if e.GasPowerLeft <= threshold {
-			maxGasUsed := uint64(float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
+			// it's emitter, so no need in determinism => fine to use float
+			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
+			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
 			if maxGasUsed > basic_check.MaxGasPowerUsed {
 				maxGasUsed = basic_check.MaxGasPowerUsed
 			}
@@ -302,17 +304,22 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
 	// Slow down emitting if power is low
 	{
-		threshold := em.dag.GasPower.NoTxsThreshold
+		threshold := em.config.NoTxsThreshold
 		if e.GasPowerLeft <= threshold {
-			adjustedEmitInterval := em.config.MaxEmitInterval - ((em.config.MaxEmitInterval-em.config.MinEmitInterval)*time.Duration(e.GasPowerLeft))/time.Duration(threshold)
-			if e.ClaimedTime.Time().Sub(em.prevEmittedTime) < adjustedEmitInterval {
+			// it's emitter, so no need in determinism => fine to use float
+			minT := float64(em.config.MinEmitInterval)
+			maxT := float64(em.config.MaxEmitInterval)
+			factor := float64(e.GasPowerLeft) / float64(threshold)
+			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
+			passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
+			if passedTime < adjustedEmitInterval {
 				return false
 			}
 		}
 	}
 	// Forbid emitting if not enough power and power is decreasing
 	{
-		threshold := em.dag.GasPower.EmergencyThreshold
+		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
 			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
 				log.Warn("Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)

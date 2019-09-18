@@ -1,13 +1,13 @@
 package lachesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
@@ -23,11 +23,6 @@ type GasPowerConfig struct {
 	MaxStashedPeriod   inter.Timestamp `json:"maxStashedPeriod"`
 	StartupPeriod      inter.Timestamp `json:"startupPeriod"`
 	MinStartupGasPower uint64          `json:"minStartupGasPower"`
-
-	// thresholds on GasLeft
-	GasPowerControlThreshold uint64 `json:"gasPowerControlThreshold"`
-	NoTxsThreshold           uint64 `json:"noTxsThreshold"`
-	EmergencyThreshold       uint64 `json:"emergencyThreshold"`
 }
 
 // DagConfig of DAG.
@@ -121,10 +116,6 @@ func DefaultGasPowerConfig() GasPowerConfig {
 		MaxStashedPeriod:   inter.Timestamp(1 * time.Hour),
 		StartupPeriod:      inter.Timestamp(5 * time.Minute),
 		MinStartupGasPower: params.TxGas * 20,
-
-		GasPowerControlThreshold: params.TxGas * 500,
-		NoTxsThreshold:           params.TxGas * 100,
-		EmergencyThreshold:       params.TxGas * 5,
 	}
 }
 
