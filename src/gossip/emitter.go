@@ -167,6 +167,30 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 	return e
 }
 
+func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*hash.Event, hash.Events, bool) {
+	selfParent := em.store.GetLastEvent(epoch, coinbase)
+	heads := em.store.GetHeads(epoch) // events with no descendants
+
+	var strategy ancestor.SearchStrategy
+	vecClock := em.engine.GetVectorIndex()
+	if vecClock != nil {
+		strategy = ancestor.NewСausalityStrategy(vecClock)
+
+		// don't link to known cheaters
+		heads = vecClock.NoCheaters(selfParent, heads)
+		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
+			log.Error("I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			return nil, nil, false
+		}
+	} else {
+		// use dummy strategy in engine-less tests
+		strategy = ancestor.NewRandomStrategy(nil)
+	}
+
+	_, parents := ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
+	return selfParent, parents, true
+}
+
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
 	coinbase := em.GetCoinbase()
@@ -183,19 +207,13 @@ func (em *Emitter) createEvent() *inter.Event {
 		maxLamport     idx.Lamport
 	)
 
-	vecClock := em.engine.GetVectorIndex()
-
-	var strategy ancestor.SearchStrategy
-	if vecClock != nil {
-		strategy = ancestor.NewСausalityStrategy(vecClock)
-	} else {
-		strategy = ancestor.NewRandomStrategy(nil)
+	// Find parents
+	selfParent, parents, ok := em.findBestParents(epoch, coinbase)
+	if !ok {
+		return nil
 	}
 
-	heads := em.store.GetHeads(epoch) // events with no descendants
-	selfParent := em.store.GetLastEvent(epoch, coinbase)
-	_, parents = ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
-
+	// Set parent-dependent fields
 	parentHeaders := make([]*inter.EventHeaderData, len(parents))
 	for i, p := range parents {
 		parent := em.store.GetEventHeader(epoch, p)

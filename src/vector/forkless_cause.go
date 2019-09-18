@@ -65,3 +65,24 @@ func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
 	//vi.forklessCauseCache.Add(kv{aID, bID}, res)
 	return res
 }
+
+// Excludes forbidden by consensus parents
+// called by emitter to exclude cheater's events from potential parents list
+func (vi *Index) NoCheaters(selfParent *hash.Event, options hash.Events) hash.Events {
+	if selfParent == nil {
+		return options
+	}
+
+	highest := vi.GetHighestBeforeSeq(*selfParent)
+	filtered := make(hash.Events, 0, len(options))
+	for _, id := range options {
+		header := vi.getEvent(id)
+		if header == nil {
+			vi.Log.Crit("Event not found", "id", id.String())
+		}
+		if !highest.Get(vi.memberIdxs[header.Creator]).IsForkDetected {
+			filtered.Add(id)
+		}
+	}
+	return filtered
+}

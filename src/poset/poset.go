@@ -78,11 +78,13 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 
 // checks consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash, GasPowerLeft
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
-	if _, ok := p.Members[e.Creator]; !ok {
-		return epoch_check.ErrAuth
-	}
 	if e.PrevEpochHash != p.PrevEpoch.Hash() {
 		return errors.New("Mismatched prev epoch hash")
+	}
+
+	// don't link to known cheaters
+	if len(p.vecClock.NoCheaters(e.SelfParent(), e.Parents)) != len(e.Parents) {
+		return errors.New("Cheaters observed by self-parent aren't allowed as parents")
 	}
 
 	p.vecClock.Add(&e.EventHeaderData)
