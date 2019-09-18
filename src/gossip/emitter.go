@@ -151,14 +151,14 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 			if tx.Gas() < e.GasPowerLeft && e.GasPowerUsed+tx.Gas() < maxGasUsed {
 				e.GasPowerUsed += tx.Gas()
 				e.GasPowerLeft -= tx.Gas()
-				e.Transactions = append(e.Transactions, txs...)
+				e.Transactions = append(e.Transactions, tx)
 			}
 		}
 	}
 	// Spill txs if exceeded size limit
 	// In all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(e.CalcSize()) > basic_check.MaxEventSize && len(e.Transactions) > 0 {
+	for uint64(e.CalcSize()) > (basic_check.MaxEventSize-500) && len(e.Transactions) > 0 {
 		tx := e.Transactions[len(e.Transactions)-1]
 		e.GasPowerUsed -= tx.Gas()
 		e.GasPowerLeft += tx.Gas()
