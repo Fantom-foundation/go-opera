@@ -25,9 +25,9 @@ type GasPowerConfig struct {
 	MinStartupGasPower uint64          `json:"minStartupGasPower"`
 
 	// thresholds on GasLeft
-	GasPowerControlThreshold     uint64
-	EmitIntervalControlThreshold uint64
-	EmergencyThreshold           uint64
+	GasPowerControlThreshold uint64 `json:"gasPowerControlThreshold"`
+	NoTxsThreshold           uint64 `json:"noTxsThreshold"`
+	EmergencyThreshold       uint64 `json:"emergencyThreshold"`
 }
 
 // DagConfig of DAG.
@@ -122,9 +122,9 @@ func DefaultGasPowerConfig() GasPowerConfig {
 		StartupPeriod:      inter.Timestamp(5 * time.Minute),
 		MinStartupGasPower: params.TxGas * 20,
 
-		GasPowerControlThreshold:     params.TxGas * 500,
-		EmitIntervalControlThreshold: params.TxGas * 100,
-		EmergencyThreshold:           params.TxGas * 5,
+		GasPowerControlThreshold: params.TxGas * 500,
+		NoTxsThreshold:           params.TxGas * 100,
+		EmergencyThreshold:       params.TxGas * 5,
 	}
 }
 

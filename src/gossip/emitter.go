@@ -278,6 +278,13 @@ func (em *Emitter) createEvent() *inter.Event {
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
+	// No txs if power is low
+	{
+		threshold := em.dag.GasPower.NoTxsThreshold
+		if e.GasPowerLeft <= threshold {
+			return 0
+		}
+	}
 	// Smooth TPS if power isn't big
 	{
 		threshold := em.dag.GasPower.GasPowerControlThreshold
@@ -295,7 +302,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
 	// Slow down emitting if power is low
 	{
-		threshold := em.dag.GasPower.EmitIntervalControlThreshold
+		threshold := em.dag.GasPower.NoTxsThreshold
 		if e.GasPowerLeft <= threshold {
 			adjustedEmitInterval := em.config.MaxEmitInterval - ((em.config.MaxEmitInterval-em.config.MinEmitInterval)*time.Duration(e.GasPowerLeft))/time.Duration(threshold)
 			if e.ClaimedTime.Time().Sub(em.prevEmittedTime) < adjustedEmitInterval {
