@@ -8,17 +8,21 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 )
 
-// setEtherbase retrieves the etherbase either from the directly specified
+// setCoinbase retrieves the etherbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
-func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *gossip.EmitterConfig) {
-	// Extract the current etherbase, new flag overriding legacy one
+func setCoinbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *gossip.EmitterConfig) {
+	// Extract the current coinbase, new flag overriding legacy one
 	var etherbase string
-	if ctx.GlobalIsSet(utils.MinerLegacyEtherbaseFlag.Name) {
-		etherbase = ctx.GlobalString(utils.MinerLegacyEtherbaseFlag.Name)
-	}
-	if ctx.GlobalIsSet(utils.MinerEtherbaseFlag.Name) {
+	switch {
+	case ctx.GlobalIsSet(utils.MinerEtherbaseFlag.Name):
 		etherbase = ctx.GlobalString(utils.MinerEtherbaseFlag.Name)
+	case ctx.GlobalIsSet(utils.MinerLegacyEtherbaseFlag.Name):
+		etherbase = ctx.GlobalString(utils.MinerLegacyEtherbaseFlag.Name)
+	case ctx.GlobalIsSet(FakeNetFlag.Name):
+		acc, _ := getFakeCoinbase(ctx)
+		etherbase = acc.Address.Hex()
 	}
+
 	// Convert the etherbase into an address and configure it
 	if etherbase != "" {
 		if ks != nil {

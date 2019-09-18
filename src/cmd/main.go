@@ -106,12 +106,10 @@ var (
 		utils.DeveloperFlag,
 		utils.DeveloperPeriodFlag,
 		utils.TestnetFlag,
-		utils.RinkebyFlag,
 		utils.GoerliFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.EthStatsURLFlag,
-		utils.FakePoWFlag,
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
 		utils.GpoPercentileFlag,
@@ -252,7 +250,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
 		ks = keystores[0].(*keystore.KeyStore)
 	}
-	setEtherbase(ctx, ks, &gossipCfg.Emitter)
+	setCoinbase(ctx, ks, &gossipCfg.Emitter)
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
@@ -275,6 +273,8 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
+
+	addFakeAccount(ctx, stack)
 
 	return stack, cfg
 }
