@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/src/cmd/cmdtest"
 )
@@ -32,7 +32,7 @@ type testcli struct {
 func (tt *testcli) readConfig() {
 	cfg := defaultNodeConfig()
 	cfg.DataDir = tt.Datadir
-	addr := crypto.PubkeyToAddress(cfg.NodeKey().PublicKey)
+	addr := common.Address{} // TODO: addr = emitter coinbase
 	tt.Coinbase = strings.ToLower(addr.String())
 }
 

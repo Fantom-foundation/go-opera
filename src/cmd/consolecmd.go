@@ -22,7 +22,7 @@ var (
 		Action:   utils.MigrateFlags(localConsole),
 		Name:     "console",
 		Usage:    "Start an interactive JavaScript environment",
-		Flags:    append(append(nodeFlags, rpcFlags...), consoleFlags...),
+		Flags:    append(append(append(nodeFlags, rpcFlags...), consoleFlags...), testFlags...),
 		Category: "CONSOLE COMMANDS",
 		Description: `
 The glachesis console is an interactive shell for the JavaScript runtime environment
@@ -49,7 +49,7 @@ This command allows to open a console on a running glachesis node.`,
 		Name:      "js",
 		Usage:     "Execute the specified JavaScript files",
 		ArgsUsage: "<jsfile> [jsfile...]",
-		Flags:     append(nodeFlags, consoleFlags...),
+		Flags:     append(append(nodeFlags, consoleFlags...), testFlags...),
 		Category:  "CONSOLE COMMANDS",
 		Description: `
 The JavaScript VM exposes a node admin interface as well as the Ðapp

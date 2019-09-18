@@ -11,6 +11,9 @@ import (
 
 func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisEvmState common.Hash, err error) {
 	evmBlock, err := evm_core.ApplyGenesis(s.table.Evm, net)
+	if err != nil {
+		return
+	}
 
 	block := inter.NewBlock(0,
 		net.Genesis.Time,
@@ -22,5 +25,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 	block.Creator = evmBlock.Coinbase
 	s.SetBlock(block)
 
-	return block.Hash(), block.Root, err
+	genesisAtropos = block.Hash()
+	genesisEvmState = block.Root
+	return
 }

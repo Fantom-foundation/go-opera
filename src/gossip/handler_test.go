@@ -5,13 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
@@ -119,12 +122,9 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	net := lachesis.FakeNetConfig(1)
 	config := DefaultConfig(net)
+	config.ForcedBroadcast = allowAggressive
 	config.Emitter.MinEmitInterval = 10 * time.Millisecond
 	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
-	config.ForcedBroadcast = allowAggressive
-
-	me := net.Genesis.Alloc.Addresses()[0]
-	privateKey := net.Genesis.Alloc[me].PrivateKey
 
 	var (
 		store       = NewMemStore()
@@ -134,12 +134,17 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	genesisAtropos, genesisEvmState, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
-	assertar.NoError(engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState))
+	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)
+	assertar.NoError(err)
 
 	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(nil)
 
-	svc, err := NewService(nil, config, store, engine)
+	coinbase := net.Genesis.Alloc.Addresses()[0]
+	ctx := &node.ServiceContext{
+		AccountManager: mockAccountManager(net.Genesis.Alloc, coinbase),
+	}
+	svc, err := NewService(ctx, config, store, engine)
 	assertar.NoError(err)
 
 	// start PM
@@ -160,9 +165,8 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	}
 
 	// start emitter
-	svc.privateKey = privateKey
-	svc.me = me
 	svc.emitter = svc.makeEmitter()
+	svc.emitter.SetCoinbase(coinbase)
 
 	emittedEvents := make([]*inter.Event, 0)
 	for i := 0; i < broadcastExpected; i++ {
@@ -228,4 +232,11 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 			}
 		}
 	}
+}
+
+func mockAccountManager(accs genesis.Accounts, unlock ...common.Address) *accounts.Manager {
+	return accounts.NewManager(
+		&accounts.Config{InsecureUnlockAllowed: true},
+		genesis.NewAccountsBackend(accs, unlock...),
+	)
 }

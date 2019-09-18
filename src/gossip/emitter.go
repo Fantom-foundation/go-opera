@@ -1,12 +1,12 @@
 package gossip
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -21,46 +21,51 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
+const (
+	MimetypeEvent = "application/event"
+)
+
 type Emitter struct {
-	store    *Store
-	engine   Consensus
-	engineMu *sync.RWMutex
+	store     *Store
+	engine    Consensus
+	engineMu  *sync.RWMutex
+	prevEpoch idx.Epoch
+	txpool    txPool
 
 	dag       *lachesis.DagConfig
 	config    *EmitterConfig
 	networkId uint64
 
-	myAddr     common.Address
-	privateKey *ecdsa.PrivateKey
-	prevEpoch  idx.Epoch
+	am         *accounts.Manager
+	coinbase   common.Address
+	coinbaseMu sync.RWMutex
 
 	onEmitted func(e *inter.Event)
-	txpool    txPool
 
 	done chan struct{}
 	wg   sync.WaitGroup
 }
 
+// NewEmitter creation.
 func NewEmitter(
 	config *Config,
-	me common.Address,
-	privateKey *ecdsa.PrivateKey,
+	am *accounts.Manager,
+	engine Consensus,
 	engineMu *sync.RWMutex,
 	store *Store,
 	txpool txPool,
-	engine Consensus,
 	onEmitted func(e *inter.Event),
 ) *Emitter {
+
 	return &Emitter{
-		dag:        &config.Net.Dag,
-		config:     &config.Emitter,
-		onEmitted:  onEmitted,
-		store:      store,
-		myAddr:     me,
-		privateKey: privateKey,
-		txpool:     txpool,
-		engine:     engine,
-		engineMu:   engineMu,
+		dag:       &config.Net.Dag,
+		config:    &config.Emitter,
+		am:        am,
+		engine:    engine,
+		engineMu:  engineMu,
+		store:     store,
+		txpool:    txpool,
+		onEmitted: onEmitted,
 	}
 }
 
@@ -98,9 +103,25 @@ func (em *Emitter) StopEventEmission() {
 	em.wg.Wait()
 }
 
+// SetCoinbase sets event creator.
+func (em *Emitter) SetCoinbase(addr common.Address) {
+	em.coinbaseMu.Lock()
+	defer em.coinbaseMu.Unlock()
+	em.coinbase = addr
+}
+
+// GetCoinbase gets event creator.
+func (em *Emitter) GetCoinbase() common.Address {
+	em.coinbaseMu.RLock()
+	defer em.coinbaseMu.RUnlock()
+	return em.coinbase
+}
+
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent() *inter.Event {
-	if _, ok := em.engine.GetMembers()[em.myAddr]; !ok {
+	coinbase := em.GetCoinbase()
+
+	if _, ok := em.engine.GetMembers()[coinbase]; !ok {
 		return nil
 	}
 
@@ -122,7 +143,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 
 	heads := em.store.GetHeads(epoch) // events with no descendants
-	selfParent := em.store.GetLastEvent(epoch, em.myAddr)
+	selfParent := em.store.GetLastEvent(epoch, coinbase)
 	_, parents = ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
 
 	parentHeaders := make([]*inter.EventHeaderData, len(parents))
@@ -145,7 +166,8 @@ func (em *Emitter) createEvent() *inter.Event {
 	event := inter.NewEvent()
 	event.Epoch = epoch
 	event.Seq = selfParentSeq + 1
-	event.Creator = em.myAddr
+	event.Creator = coinbase
+
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
@@ -182,8 +204,19 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 
 	// sign
-	if err := event.SignBy(em.privateKey); err != nil {
+	signer := func(data []byte) (sig []byte, err error) {
+		acc := accounts.Account{
+			Address: coinbase,
+		}
+		w, err := em.am.Find(acc)
+		if err != nil {
+			return
+		}
+		return w.SignData(acc, MimetypeEvent, data)
+	}
+	if err := event.Sign(signer); err != nil {
 		log.Error("Failed to sign event", "err", err)
+		return nil
 	}
 	// calc hash after event is fully built
 	event.RecacheHash()
@@ -200,7 +233,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	// set event name for debug
 	em.nameEventForDebug(event)
 
-	//countEmittedEvents.Inc(1) TODO
+	//TODO: countEmittedEvents.Inc(1)
 
 	return event
 }
@@ -218,7 +251,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 }
 
 func (em *Emitter) nameEventForDebug(e *inter.Event) {
-	name := []rune(hash.GetNodeName(em.myAddr))
+	name := []rune(hash.GetNodeName(em.coinbase))
 	if len(name) < 1 {
 		return
 	}

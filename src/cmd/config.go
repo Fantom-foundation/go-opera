@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
@@ -24,7 +25,7 @@ var (
 		Name:        "dumpconfig",
 		Usage:       "Show configuration values",
 		ArgsUsage:   "",
-		Flags:       nodeFlags,
+		Flags:       append(nodeFlags, testFlags...),
 		Category:    "MISCELLANEOUS COMMANDS",
 		Description: `The dumpconfig command shows configuration values.`,
 	}
@@ -73,13 +74,27 @@ func loadConfig(file string, cfg *config) error {
 }
 
 func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
-	cfg := lachesis.FakeNetConfig(0)
-	// TODO: apply flags
+	var cfg lachesis.Config
+
+	switch {
+	case ctx.GlobalIsSet(FakeNetFlag.Name):
+		_, total, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		if err != nil {
+			log.Crit("invalid flag", "flag", FakeNetFlag.Name, "err", err)
+		}
+		cfg = lachesis.FakeNetConfig(total)
+	case ctx.GlobalBool(utils.TestnetFlag.Name):
+		cfg = lachesis.TestNetConfig()
+	default:
+		cfg = lachesis.MainNetConfig()
+	}
+
 	return cfg
 }
 
 func makeGossipConfig(ctx *cli.Context, network lachesis.Config) gossip.Config {
 	cfg := gossip.DefaultConfig(network)
+
 	// TODO: apply flags
 
 	return cfg
@@ -88,7 +103,7 @@ func makeGossipConfig(ctx *cli.Context, network lachesis.Config) gossip.Config {
 func makeNodeConfig(ctx *cli.Context) *node.Config {
 	cfg := defaultNodeConfig()
 
-	// Apply flags.
+	// Apply flags
 	utils.SetNodeConfig(ctx, &cfg)
 
 	return &cfg

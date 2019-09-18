@@ -34,6 +34,12 @@ var (
 	gitDate   = ""
 	// The app that holds all commands and flags.
 	app = utils.NewApp(gitCommit, gitDate, "the go-lachesis command line interface")
+
+	// Flags for testing purpose.
+	testFlags = []cli.Flag{
+		FakeNetFlag,
+	}
+
 	// Flags that configure the node.
 	nodeFlags = []cli.Flag{
 		utils.IdentityFlag,
@@ -100,12 +106,10 @@ var (
 		utils.DeveloperFlag,
 		utils.DeveloperPeriodFlag,
 		utils.TestnetFlag,
-		utils.RinkebyFlag,
 		utils.GoerliFlag,
 		utils.VMEnableDebugFlag,
 		utils.NetworkIdFlag,
 		utils.EthStatsURLFlag,
-		utils.FakePoWFlag,
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
 		utils.GpoPercentileFlag,
@@ -168,6 +172,7 @@ func init() {
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
+	app.Flags = append(app.Flags, testFlags...)
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, consoleFlags...)
@@ -240,6 +245,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	// create consensus
 	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
 
+	// configure emitter
+	var ks *keystore.KeyStore
+	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
+		ks = keystores[0].(*keystore.KeyStore)
+	}
+	setCoinbase(ctx, ks, &gossipCfg.Emitter)
+
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
 	// the factory method approach is to support service restarts without relying on the
@@ -261,6 +273,8 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
+
+	addFakeAccount(ctx, stack)
 
 	return stack, cfg
 }

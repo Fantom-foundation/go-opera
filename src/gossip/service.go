@@ -1,14 +1,12 @@
 package gossip
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -60,10 +58,6 @@ type Service struct {
 	Topics []discv5.Topic
 
 	serverPool *serverPool
-
-	// my identity
-	me         common.Address
-	privateKey *ecdsa.PrivateKey
 
 	// application
 	node     *node.ServiceContext
@@ -164,7 +158,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(&s.config, s.me, s.privateKey, s.engineMu, s.store, s.txpool, s.engine, func(emitted *inter.Event) {
+	return NewEmitter(&s.config, s.AccountManager(), s.engine, s.engineMu, s.store, s.txpool, func(emitted *inter.Event) {
 		// s.engineMu is locked here
 
 		err := s.engine.ProcessEvent(emitted)
@@ -224,18 +218,19 @@ func (s *Service) Start(srv *p2p.Server) error {
 			}()
 		}
 	}
-	s.privateKey = srv.PrivateKey
-	s.me = crypto.PubkeyToAddress(s.privateKey.PublicKey)
 
 	s.pm.Start(srv.MaxPeers)
 
 	s.emitter = s.makeEmitter()
+	s.emitter.SetCoinbase(s.config.Emitter.Emitbase)
+	s.emitter.StartEventEmission()
 
 	return nil
 }
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+	s.emitter.StopEventEmission()
 	s.pm.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()

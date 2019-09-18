@@ -1,10 +1,11 @@
 package ordering
 
 import (
+	"github.com/hashicorp/golang-lru"
+
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/hashicorp/golang-lru"
 )
 
 type (
