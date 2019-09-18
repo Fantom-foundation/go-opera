@@ -1,4 +1,4 @@
-package internal
+package integration
 
 import (
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"

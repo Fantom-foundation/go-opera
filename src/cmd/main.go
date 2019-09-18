@@ -20,7 +20,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/debug"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/internal"
+	"github.com/Fantom-foundation/go-lachesis/src/integration"
 )
 
 const (
@@ -227,7 +227,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	networkCfg := makeLachesisConfig(ctx)
 	gossipCfg := makeGossipConfig(ctx, networkCfg)
 
-	engine, gdb := internal.MakeEngine(nodeCfg.DataDir, gossipCfg)
+	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, gossipCfg)
 
 	// configure emitter
 	var ks *keystore.KeyStore

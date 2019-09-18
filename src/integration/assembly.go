@@ -1,6 +1,4 @@
-package internal
-
-// TODO: move to dedicated package
+package integration
 
 import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
