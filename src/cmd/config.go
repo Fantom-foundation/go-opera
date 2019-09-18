@@ -92,12 +92,12 @@ func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
 	return cfg
 }
 
-func makeGossipConfig(ctx *cli.Context, network lachesis.Config) gossip.Config {
+func makeGossipConfig(ctx *cli.Context, network lachesis.Config) *gossip.Config {
 	cfg := gossip.DefaultConfig(network)
 
 	// TODO: apply flags
 
-	return cfg
+	return &cfg
 }
 
 func makeNodeConfig(ctx *cli.Context) *node.Config {

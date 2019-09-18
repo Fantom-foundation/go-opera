@@ -1,32 +1,18 @@
 package internal
 
 import (
-	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
 )
 
 func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *gossip.Service {
-	makeDb := dbProducer(ctx.Config.DataDir)
-	gdb, cdb := makeStorages(makeDb)
+	gossipCfg := gossip.DefaultConfig(network)
 
-	genesisAtropos, genesisState, err := gdb.ApplyGenesis(&network)
-	if err != nil {
-		utils.Fatalf("Failed to write EVM genesis state: %v", err)
-	}
-	err = cdb.ApplyGenesis(&network.Genesis, genesisAtropos, genesisState)
-	if err != nil {
-		utils.Fatalf("Failed to write Poset genesis state: %v", err)
-	}
+	engine, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
-	c := poset.New(network.Dag, cdb, gdb)
-
-	config := gossip.DefaultConfig(network)
-
-	svc, err := gossip.NewService(ctx.NodeContext, config, gdb, c)
+	svc, err := gossip.NewService(ctx.NodeContext, gossipCfg, gdb, engine)
 	if err != nil {
 		panic(err)
 	}
