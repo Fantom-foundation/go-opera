@@ -1,6 +1,7 @@
 package pos
 
 import (
+	"bytes"
 	"io"
 	"sort"
 
@@ -25,6 +26,23 @@ func (mm *Members) Set(addr common.Address, stake Stake) {
 	} else {
 		delete((*mm), addr)
 	}
+}
+
+func (mm Members) Addresses() []common.Address {
+	array := make([]common.Address, 0, len(mm))
+	for n := range mm {
+		array = append(array, n)
+	}
+	return array
+}
+
+func (mm Members) SortedAddresses() []common.Address {
+	array := mm.Addresses()
+	sort.Slice(array, func(i, j int) bool {
+		a, b := array[i], array[j]
+		return bytes.Compare(a.Bytes(), b.Bytes()) < 0
+	})
+	return array
 }
 
 func (mm Members) sortedArray() members {
