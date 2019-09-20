@@ -63,7 +63,7 @@ func openDb(dir, name string) (
 		return nil
 	}
 	onDrop := func() error {
-		return os.Remove(f)
+		return os.RemoveAll(f)
 	}
 
 	db, err = leveldb.New(f, 16, 0, "", onClose, onDrop)
