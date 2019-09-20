@@ -30,7 +30,7 @@ import (
 const (
 	MimetypeEvent    = "application/event"
 	TxTimeBufferSize = 20000
-	TxTurnPeriod     = 2 * time.Second
+	TxTurnPeriod     = 4 * time.Second
 )
 
 type Emitter struct {
@@ -102,7 +102,7 @@ func (em *Emitter) StartEventEmission() {
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(em.config.MinEmitInterval / 10)
+		ticker := time.NewTicker(em.config.MinEmitInterval / 5)
 		for {
 			select {
 			case txNotify := <-newTxsCh:
@@ -200,21 +200,25 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 	}
 
 	for sender, txs := range poolTxs {
+		if txs.Len() > em.config.MaxTxsFromSender { // no more than MaxTxsFromSender txs from 1 sender
+			txs = txs[:em.config.MaxTxsFromSender]
+		}
+
+		// txs is the chain of dependent txs
 		for _, tx := range txs {
 			// enough gas power
 			if tx.Gas() >= e.GasPowerLeft || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
-				continue
+				break // txs are dependent
 			}
 			// check not conflicted with already included txs (in any connected event)
 			if em.occurredTxs.MayBeConflicted(sender, tx.Hash()) {
-				continue
+				break // txs are dependent
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
 			if em.getTxTurn(tx.Hash(), now, membersArr, membersArrStakes) != e.Creator {
-				continue
+				break // txs are dependent
 			}
 
-			//if utils.WeightedPerm()
 			// add
 			e.GasPowerUsed += tx.Gas()
 			e.GasPowerLeft -= tx.Gas()
