@@ -2,6 +2,9 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +28,9 @@ import (
 )
 
 const (
-	MimetypeEvent = "application/event"
+	MimetypeEvent    = "application/event"
+	TxTimeBufferSize = 20000
+	TxTurnPeriod     = 2 * time.Second
 )
 
 type Emitter struct {
@@ -65,6 +70,7 @@ func NewEmitter(
 	onEmitted func(e *inter.Event),
 ) *Emitter {
 
+	txTime, _ := lru.New(TxTimeBufferSize)
 	return &Emitter{
 		dag:         &config.Net.Dag,
 		config:      &config.Emitter,
@@ -74,6 +80,7 @@ func NewEmitter(
 		engineMu:    engineMu,
 		store:       store,
 		txpool:      txpool,
+		txTime:      txTime,
 		occurredTxs: occurredTxs,
 		onEmitted:   onEmitted,
 	}
@@ -86,6 +93,9 @@ func (em *Emitter) StartEventEmission() {
 	}
 	em.done = make(chan struct{})
 
+	newTxsCh := make(chan evm_core.NewTxsNotify)
+	em.txpool.SubscribeNewTxsNotify(newTxsCh)
+
 	em.prevEmittedTime = em.loadPrevEmitTime()
 
 	done := em.done
@@ -95,6 +105,8 @@ func (em *Emitter) StartEventEmission() {
 		ticker := time.NewTicker(em.config.MinEmitInterval / 10)
 		for {
 			select {
+			case txNotify := <-newTxsCh:
+				em.memorizeTxTimes(txNotify.Txs)
 			case <-ticker.C:
 				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
 					em.EmitEvent()
@@ -143,6 +155,32 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 	return prevEvent.ClaimedTime.Time()
 }
 
+// safe for concurrent use
+func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
+	now := time.Now()
+	for _, tx := range txs {
+		_, ok := em.txTime.Get(tx.Hash())
+		if !ok {
+			em.txTime.Add(tx.Hash(), now)
+		}
+	}
+}
+
+// safe for concurrent use
+func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, membersArr []common.Address, membersArrStakes []pos.Stake) common.Address {
+	var txTime time.Time
+	txTimeI, ok := em.txTime.Get(txHash)
+	if !ok {
+		txTime = now
+		em.txTime.Add(txHash, txTime)
+	} else {
+		txTime = txTimeI.(time.Time)
+	}
+	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(membersArr)))
+	turn := utils.WeightedPermutation(roundIndex+1, membersArrStakes, txHash)[roundIndex]
+	return membersArr[turn]
+}
+
 func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 	poolTxs, err := em.txpool.Pending()
 	if err != nil {
@@ -151,6 +189,14 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 	}
 
 	maxGasUsed := em.maxGasPowerToUse(e)
+
+	now := time.Now()
+	members := em.engine.GetMembers()
+	membersArr := members.SortedAddresses()
+	membersArrStakes := make([]pos.Stake, len(membersArr))
+	for i, addr := range membersArr {
+		membersArrStakes[i] = members[addr]
+	}
 
 	for sender, txs := range poolTxs {
 		for _, tx := range txs {
@@ -162,6 +208,12 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 			if em.occurredTxs.MayBeConflicted(sender, tx.Hash()) {
 				continue
 			}
+			// my turn, i.e. try to not include the same tx simultaneously by different validators
+			if em.getTxTurn(tx.Hash(), now, membersArr, membersArrStakes) != e.Creator {
+				continue
+			}
+
+			//if utils.WeightedPerm()
 			// add
 			e.GasPowerUsed += tx.Gas()
 			e.GasPowerLeft -= tx.Gas()
