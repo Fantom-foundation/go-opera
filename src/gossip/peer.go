@@ -70,6 +70,8 @@ type peer struct {
 
 	progress PeerProgress
 
+	poolEntry *poolEntry
+
 	sync.RWMutex
 }
 

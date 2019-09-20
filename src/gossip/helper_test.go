@@ -50,6 +50,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		new(sync.RWMutex),
 		store,
 		engine,
+		nil,
 	)
 	if err != nil {
 		return nil, nil, err
