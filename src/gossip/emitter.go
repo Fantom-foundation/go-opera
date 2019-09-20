@@ -108,6 +108,7 @@ func (em *Emitter) StartEventEmission() {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-ticker.C:
+				// must pass at least MinEmitInterval since last event
 				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
 					em.EmitEvent()
 				}
@@ -192,7 +193,7 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 
 	now := time.Now()
 	members := em.engine.GetMembers()
-	membersArr := members.SortedAddresses()
+	membersArr := members.SortedAddresses() // members must be sorted deterministically
 	membersArrStakes := make([]pos.Stake, len(membersArr))
 	for i, addr := range membersArr {
 		membersArrStakes[i] = members[addr]
@@ -367,6 +368,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 }
 
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
+	passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
 	// Slow down emitting if power is low
 	{
 		threshold := em.config.NoTxsThreshold
@@ -376,7 +378,6 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 			maxT := float64(em.config.MaxEmitInterval)
 			factor := float64(e.GasPowerLeft) / float64(threshold)
 			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
-			passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
 			if passedTime < adjustedEmitInterval {
 				return false
 			}
@@ -390,6 +391,14 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 				log.Warn("Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
+		}
+	}
+	// Slow down emitting if no txs to confirm/post
+	{
+		if passedTime < em.config.MaxEmitInterval &&
+			em.occurredTxs.Len() == 0 &&
+			len(e.Transactions) == 0 {
+			return false
 		}
 	}
 
