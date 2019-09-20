@@ -78,6 +78,8 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
+	serverPool *serverPool
+
 	txsCh  chan evm_core.NewTxsNotify
 	txsSub notify.Subscription
 
@@ -117,6 +119,7 @@ func NewProtocolManager(
 	engineMu *sync.RWMutex,
 	s *Store,
 	engine Consensus,
+	serverPool *serverPool,
 ) (
 	*ProtocolManager,
 	error,
@@ -129,6 +132,7 @@ func NewProtocolManager(
 		store:       s,
 		engine:      engine,
 		peers:       newPeerSet(),
+		serverPool:  serverPool,
 		engineMu:    engineMu,
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
@@ -257,13 +261,25 @@ func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+			var entry *poolEntry
 			peer := pm.newPeer(int(version), p, rw)
+			if pm.serverPool != nil {
+				entry = pm.serverPool.connect(peer, peer.Node())
+			}
+			peer.poolEntry = entry
 			select {
 			case pm.newPeerCh <- peer:
 				pm.wg.Add(1)
 				defer pm.wg.Done()
-				return pm.handle(peer)
+				err := pm.handle(peer)
+				if entry != nil {
+					pm.serverPool.disconnect(entry)
+				}
+				return err
 			case <-pm.quitSync:
+				if entry != nil {
+					pm.serverPool.disconnect(entry)
+				}
 				return p2p.DiscQuitting
 			}
 		},

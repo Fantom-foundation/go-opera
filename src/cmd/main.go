@@ -18,9 +18,9 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-lachesis/src/debug"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/internal/debug"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/src/integration"
 )
 
 const (
@@ -227,23 +227,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	networkCfg := makeLachesisConfig(ctx)
 	gossipCfg := makeGossipConfig(ctx, networkCfg)
 
-	makeDb := dbProducer(nodeCfg.DataDir)
-	gdb, cdb := makeStorages(makeDb)
-
-	// write genesis
-
-	genesisAtropos, genesisState, err := gdb.ApplyGenesis(&gossipCfg.Net)
-	if err != nil {
-		utils.Fatalf("Failed to write EVM genesis state: %v", err)
-	}
-
-	err = cdb.ApplyGenesis(&gossipCfg.Net.Genesis, genesisAtropos, genesisState)
-	if err != nil {
-		utils.Fatalf("Failed to write Poset genesis state: %v", err)
-	}
-
-	// create consensus
-	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
+	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, gossipCfg)
 
 	// configure emitter
 	var ks *keystore.KeyStore
@@ -257,7 +241,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(ctx, gossipCfg, gdb, engine)
+		return gossip.NewService(ctx, *gossipCfg, gdb, engine)
 	}
 
 	if err := stack.Register(gossipService); err != nil {

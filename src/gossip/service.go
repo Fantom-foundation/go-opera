@@ -54,8 +54,8 @@ type Service struct {
 	done chan struct{}
 
 	// server
-	Name   string
-	Topics []discv5.Topic
+	Name  string
+	Topic discv5.Topic
 
 	serverPool *serverPool
 
@@ -110,7 +110,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	svc.txpool = evm_core.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	var err error
-	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, engine)
+	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, engine, svc.serverPool)
 
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
 
@@ -203,23 +203,20 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 	var genesis common.Hash
 	genesis = s.engine.GetGenesisHash()
-	s.Topics = []discv5.Topic{
-		discv5.Topic("lachesis@" + genesis.Hex()),
-	}
+	s.Topic = discv5.Topic("lachesis@" + genesis.Hex())
 
 	if srv.DiscV5 != nil {
-		for _, topic := range s.Topics {
-			topic := topic
-			go func() {
-				s.Log.Info("Starting topic registration")
-				defer s.Log.Info("Terminated topic registration")
+		go func(topic discv5.Topic) {
+			s.Log.Info("Starting topic registration")
+			defer s.Log.Info("Terminated topic registration")
 
-				srv.DiscV5.RegisterTopic(topic, s.done)
-			}()
-		}
+			srv.DiscV5.RegisterTopic(topic, s.done)
+		}(s.Topic)
 	}
 
 	s.pm.Start(srv.MaxPeers)
+
+	s.serverPool.start(srv, s.Topic)
 
 	s.emitter = s.makeEmitter()
 	s.emitter.SetCoinbase(s.config.Emitter.Emitbase)
@@ -230,6 +227,7 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 // Stop method invoked when the node terminates the service.
 func (s *Service) Stop() error {
+	close(s.done)
 	s.emitter.StopEventEmission()
 	s.pm.Stop()
 	s.wg.Wait()
