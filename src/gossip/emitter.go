@@ -293,7 +293,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event)
+	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event, em.dag)
 
 	// set consensus fields
 	event = em.engine.Prepare(event) // GasPowerLeft is calced here

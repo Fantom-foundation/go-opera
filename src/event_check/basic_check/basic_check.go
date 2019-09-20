@@ -80,13 +80,16 @@ func (v *Validator) checkTxs(e *inter.Event) error {
 	return nil
 }
 
-func CalcGasPowerUsed(e *inter.Event) uint64 {
+func CalcGasPowerUsed(e *inter.Event, config *lachesis.DagConfig) uint64 {
 	txsGas := uint64(0)
 	for _, tx := range e.Transactions {
 		txsGas += tx.Gas()
 	}
 
-	parentsGas := uint64(len(e.Parents)) * ParentGas
+	parentsGas := uint64(len(e.Parents)-config.MaxFreeParents) * ParentGas
+	if len(e.Parents) <= config.MaxFreeParents {
+		parentsGas = 0
+	}
 	extraGas := uint64(len(e.Extra)) * ExtraDataGas
 
 	return txsGas + parentsGas + extraGas + EventGas
@@ -96,7 +99,7 @@ func (v *Validator) checkGas(e *inter.Event) error {
 	if e.GasPowerUsed > MaxGasPowerUsed {
 		return ErrTooBigGasUsed
 	}
-	if e.GasPowerUsed != CalcGasPowerUsed(e) {
+	if e.GasPowerUsed != CalcGasPowerUsed(e, v.config) {
 		return ErrWrongGasUsed
 	}
 
