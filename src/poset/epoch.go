@@ -45,14 +45,11 @@ func (p *Poset) GetEpochMembers() (pos.Members, idx.Epoch) {
 // rootForklessCausesRoot returns hash of root B, if root A forkless causes root B.
 // Due to a fork, there may be many roots B with the same slot,
 // but forkless caused may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootForklessCausesRoot(a hash.Event, bNode common.Address, bFrame idx.Frame) *hash.Event {
+func (p *Poset) rootForklessCausesRoot(a hash.Event, bCreator common.Address, bFrame idx.Frame) *hash.Event {
 	var bHash *hash.Event
-	p.store.ForEachRootFrom(bFrame, bNode, func(f idx.Frame, from common.Address, b hash.Event) bool {
-		if f != bFrame {
-			p.Log.Crit("frame mismatch")
-		}
-		if from != bNode {
-			p.Log.Crit("node mismatch")
+	p.store.ForEachRootFrom(bFrame, bCreator, func(f idx.Frame, from common.Address, b hash.Event) bool {
+		if f != bFrame || from != bCreator {
+			p.Log.Crit("inconsistent DB iteration")
 		}
 		if p.vecClock.ForklessCause(a, b) {
 			bHash = &b

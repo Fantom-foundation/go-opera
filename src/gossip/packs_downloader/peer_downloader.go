@@ -2,6 +2,7 @@ package packs_downloader
 
 import (
 	"errors"
+	"math"
 	"time"
 
 	tree "github.com/emirpasic/gods/maps/treemap"
@@ -218,7 +219,7 @@ func (d *PeerPacksDownloader) loop() {
 				log.Error("All the peer packs are unknown. Faulty peer?", "peer", d.peer.Id)
 				d.dropPeer(d.peer.Id)
 			}
-			if packInfo.index == 0 {
+			if packInfo.index <= 0 || packInfo.index >= math.MaxInt32 {
 				log.Error("invalid pack index", "peer", d.peer.Id)
 				continue
 			}

@@ -61,11 +61,11 @@ func TestPoset(t *testing.T) {
 			p0 := posets[i]
 			st0 := p0.store.GetCheckpoint()
 			ep0 := p0.store.GetEpoch()
-			t.Logf("Compare poset%d: SFrame %d, Block %d", i, ep0.EpochN, st0.LastBlockN)
+			t.Logf("Compare poset%d: Epoch %d, Block %d", i, ep0.EpochN, st0.LastBlockN)
 			for j := i + 1; j < len(posets); j++ {
 				p1 := posets[j]
 				st1 := p1.store.GetCheckpoint()
-				t.Logf("with poset%d: SFrame %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
+				t.Logf("with poset%d: Epoch %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
 
 				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
 				assertar.Equal(posets[j].epochState, posets[i].epochState)

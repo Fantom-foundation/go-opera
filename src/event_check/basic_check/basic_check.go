@@ -2,6 +2,7 @@ package basic_check
 
 import (
 	"errors"
+	"math"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -37,6 +38,7 @@ var (
 	ErrNotInited      = errors.New("event field is not initialized")
 	ErrZeroTime       = errors.New("event has zero timestamp")
 	ErrNegativeValue  = errors.New("negative value")
+	ErrHugeValue      = errors.New("too big value")
 )
 
 // Check which don't require anything except event
@@ -118,6 +120,10 @@ func (v *Validator) checkInited(e *inter.Event) error {
 	if e.Seq <= 0 || e.Epoch <= 0 || e.Frame <= 0 || e.Lamport <= 0 {
 		return ErrNotInited // it's unsigned, but check for negative in a case if type will change
 	}
+	if e.Seq >= math.MaxInt32/2 || e.Epoch >= math.MaxInt32/2 || e.Frame >= math.MaxInt32/2 || e.Lamport >= math.MaxInt32/2 {
+		return ErrHugeValue
+	}
+
 	if e.ClaimedTime <= 0 {
 		return ErrZeroTime
 	}

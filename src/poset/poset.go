@@ -196,7 +196,7 @@ func (p *Poset) ProcessEvent(e *inter.Event) error {
 }
 
 // calcFrameIdx checks root-conditions for new event
-// and returns frame where event is root.
+// and returns event's frame.
 // It is not safe for concurrent use.
 func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
 	if e.SelfParent() == nil {
