@@ -17,6 +17,8 @@ type kv struct {
 // than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
+// If B1 and B2 are forks, then they cannot both archive sufficient
+// coherency with any events, unless more than 1/3n are Byzantine.
 func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
 	if res, ok := vi.forklessCauseCache.Get(kv{aID, bID}); ok {
 		return res.(bool)

@@ -134,7 +134,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
 	net := &lachesis.Config{
-		Dag: lachesis.DefaultDagConfig(),
+		Dag: lachesis.FakeNetDagConfig(),
 		Genesis: genesis.Genesis{
 			Alloc: genesis.Accounts{benchRootAddr: {Balance: benchRootFunds}},
 		},

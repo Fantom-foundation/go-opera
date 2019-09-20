@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
@@ -32,13 +33,15 @@ type Emitter struct {
 	prevEpoch idx.Epoch
 	txpool    txPool
 
-	dag       *lachesis.DagConfig
-	config    *EmitterConfig
-	networkId uint64
+	dag    *lachesis.DagConfig
+	config *EmitterConfig
 
 	am         *accounts.Manager
 	coinbase   common.Address
 	coinbaseMu sync.RWMutex
+
+	gasRate         metrics.Meter
+	prevEmittedTime time.Time
 
 	onEmitted func(e *inter.Event)
 
@@ -61,6 +64,7 @@ func NewEmitter(
 		dag:       &config.Net.Dag,
 		config:    &config.Emitter,
 		am:        am,
+		gasRate:   metrics.NewMeterForced(),
 		engine:    engine,
 		engineMu:  engineMu,
 		store:     store,
@@ -76,15 +80,19 @@ func (em *Emitter) StartEventEmission() {
 	}
 	em.done = make(chan struct{})
 
+	em.prevEmittedTime = em.loadPrevEmitTime()
+
 	done := em.done
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(em.config.MinEmitInterval)
+		ticker := time.NewTicker(em.config.MinEmitInterval / 10)
 		for {
 			select {
 			case <-ticker.C:
-				em.EmitEvent()
+				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
+					em.EmitEvent()
+				}
 			case <-done:
 				return
 			}
@@ -115,6 +123,48 @@ func (em *Emitter) GetCoinbase() common.Address {
 	em.coinbaseMu.RLock()
 	defer em.coinbaseMu.RUnlock()
 	return em.coinbase
+}
+
+func (em *Emitter) loadPrevEmitTime() time.Time {
+	prevEventId := em.store.GetLastEvent(em.engine.GetEpoch(), em.GetCoinbase())
+	if prevEventId == nil {
+		return em.prevEmittedTime
+	}
+	prevEvent := em.store.GetEventHeader(prevEventId.Epoch(), *prevEventId)
+	if prevEvent == nil {
+		return em.prevEmittedTime
+	}
+	return prevEvent.ClaimedTime.Time()
+}
+
+func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
+	poolTxs, err := em.txpool.Pending()
+	if err != nil {
+		log.Error("Tx pool transactions fetching error", "err", err)
+		return e
+	}
+
+	maxGasUsed := em.maxGasPowerToUse(e)
+
+	for _, txs := range poolTxs {
+		for _, tx := range txs {
+			if tx.Gas() < e.GasPowerLeft && e.GasPowerUsed+tx.Gas() < maxGasUsed {
+				e.GasPowerUsed += tx.Gas()
+				e.GasPowerLeft -= tx.Gas()
+				e.Transactions = append(e.Transactions, tx)
+			}
+		}
+	}
+	// Spill txs if exceeded size limit
+	// In all the "real" cases, the event will be limited by gas, not size.
+	// Yet it's technically possible to construct an event which is limited by size and not by gas.
+	for uint64(e.CalcSize()) > (basic_check.MaxEventSize-500) && len(e.Transactions) > 0 {
+		tx := e.Transactions[len(e.Transactions)-1]
+		e.GasPowerUsed -= tx.Gas()
+		e.GasPowerLeft += tx.Gas()
+		e.Transactions = e.Transactions[:len(e.Transactions)-1]
+	}
+	return e
 }
 
 // createEvent is not safe for concurrent use.
@@ -158,9 +208,11 @@ func (em *Emitter) createEvent() *inter.Event {
 
 	selfParentSeq = 0
 	selfParentTime = 0
+	var selfParentHeader *inter.EventHeaderData
 	if selfParent != nil {
-		selfParentSeq = parentHeaders[0].Seq
-		selfParentTime = parentHeaders[0].ClaimedTime
+		selfParentHeader = parentHeaders[0]
+		selfParentSeq = selfParentHeader.Seq
+		selfParentTime = selfParentHeader.ClaimedTime
 	}
 
 	event := inter.NewEvent()
@@ -171,37 +223,24 @@ func (em *Emitter) createEvent() *inter.Event {
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-
-	// Add txs
-	poolTxs, err := em.txpool.Pending()
-	if err != nil {
-		log.Error("Tx pool transactions fetching error", "err", err)
-		return nil
-	}
 	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event)
-	for _, txs := range poolTxs {
-		for _, tx := range txs {
-			if event.GasPowerUsed+tx.Gas() < basic_check.MaxGasPowerUsed {
-				event.Transactions = append(event.Transactions, txs...)
-				event.GasPowerUsed += tx.Gas()
-			}
-		}
-	}
-	// Spill txs if exceeded size limit
-	// In all the "real" cases, the event will be limited by gas, not size.
-	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(event.CalcSize()) > basic_check.MaxEventSize && len(event.Transactions) > 0 {
-		event.Transactions = event.Transactions[:len(event.Transactions)-1]
-	}
-	// calc Merkle root
-	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// set consensus fields
-	event = em.engine.Prepare(event)
+	event = em.engine.Prepare(event) // GasPowerLeft is calced here
 	if event == nil {
 		log.Warn("dropped event while emitting")
 		return nil
 	}
+
+	// Add txs
+	event = em.addTxs(event)
+
+	if !em.isAllowedToEmit(event, selfParentHeader) {
+		return nil
+	}
+
+	// calc Merkle root
+	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
 	signer := func(data []byte) (sig []byte, err error) {
@@ -238,15 +277,76 @@ func (em *Emitter) createEvent() *inter.Event {
 	return event
 }
 
+func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
+	// No txs if power is low
+	{
+		threshold := em.config.NoTxsThreshold
+		if e.GasPowerLeft <= threshold {
+			return 0
+		}
+	}
+	// Smooth TPS if power isn't big
+	{
+		threshold := em.config.SmoothTpsThreshold
+		if e.GasPowerLeft <= threshold {
+			// it's emitter, so no need in determinism => fine to use float
+			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
+			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
+			if maxGasUsed > basic_check.MaxGasPowerUsed {
+				maxGasUsed = basic_check.MaxGasPowerUsed
+			}
+			return maxGasUsed
+		}
+	}
+	return basic_check.MaxGasPowerUsed
+}
+
+func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
+	// Slow down emitting if power is low
+	{
+		threshold := em.config.NoTxsThreshold
+		if e.GasPowerLeft <= threshold {
+			// it's emitter, so no need in determinism => fine to use float
+			minT := float64(em.config.MinEmitInterval)
+			maxT := float64(em.config.MaxEmitInterval)
+			factor := float64(e.GasPowerLeft) / float64(threshold)
+			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
+			passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
+			if passedTime < adjustedEmitInterval {
+				return false
+			}
+		}
+	}
+	// Forbid emitting if not enough power and power is decreasing
+	{
+		threshold := em.config.EmergencyThreshold
+		if e.GasPowerLeft <= threshold {
+			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
+				log.Warn("Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func (em *Emitter) EmitEvent() *inter.Event {
 	em.engineMu.Lock()
 	defer em.engineMu.Unlock()
 
 	e := em.createEvent()
-	if e != nil && em.onEmitted != nil {
-		em.onEmitted(e)
-		log.Info("New event emitted", "e", e.String())
+	if e == nil {
+		return nil
 	}
+
+	if em.onEmitted != nil {
+		em.onEmitted(e)
+	}
+	em.gasRate.Mark(int64(e.GasPowerUsed))
+	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
+	log.Info("New event emitted", "e", e.String())
+
 	return e
 }
 

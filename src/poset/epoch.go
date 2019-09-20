@@ -1,15 +1,11 @@
 package poset
 
 import (
-	"fmt"
 	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
-	"golang.org/x/crypto/sha3"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
@@ -19,27 +15,7 @@ const (
 	firstEpoch = idx.Epoch(1)
 )
 
-// state of previous Epoch
-type GenesisState struct {
-	Epoch       idx.Epoch
-	Time        inter.Timestamp // consensus time of the last atropos
-	LastAtropos hash.Event
-	StateHash   common.Hash // hash of txs state
-}
-
-func (g *GenesisState) Hash() common.Hash {
-	hasher := sha3.New256()
-	if err := rlp.Encode(hasher, g); err != nil {
-		panic(err)
-	}
-	return hash.FromBytes(hasher.Sum(nil))
-}
-
-func (g *GenesisState) EpochName() string {
-	return fmt.Sprintf("epoch%d", g.Epoch)
-}
-
-type epoch struct {
+type epochState struct {
 	// stored values
 	// these values change only after a change of epoch
 	EpochN    idx.Epoch
@@ -48,36 +24,7 @@ type epoch struct {
 }
 
 func (p *Poset) loadEpoch() {
-	p.epoch = *p.store.GetEpoch()
-}
-
-func (p *Poset) nextEpoch(atropos hash.Event) {
-	// new PrevEpoch state
-	p.PrevEpoch.Time = p.LastConsensusTime
-	p.PrevEpoch.Epoch = p.EpochN
-	p.PrevEpoch.LastAtropos = atropos
-	p.PrevEpoch.StateHash = p.checkpoint.StateHash
-
-	// new members list
-	p.Members = p.NextMembers.Top()
-	p.NextMembers = p.Members.Copy()
-
-	// reset internal epoch DB
-	p.store.recreateEpochDb()
-
-	// reset election & vectorindex
-	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
-		return p.input.GetEventHeader(p.EpochN, id)
-	}) // this DB is pruned after .pruneTempDb()
-	p.election.Reset(p.Members, firstFrame)
-	p.LastDecidedFrame = 0
-
-	// move to new epoch
-	p.EpochN++
-
-	// commit
-	p.store.SetEpoch(&p.epoch)
-	p.saveCheckpoint()
+	p.epochState = *p.store.GetEpoch()
 }
 
 // GetEpoch returns current epoch num to 3rd party.

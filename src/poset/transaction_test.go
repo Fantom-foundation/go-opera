@@ -20,10 +20,10 @@ func TestPosetTxn(t *testing.T) {
 
 	p, s, x := FakePoset(nodes)
 	assert.Equal(t,
-		pos.Stake(1), p.epoch.Members[nodes[0]],
+		pos.Stake(1), p.epochState.Members[nodes[0]],
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		pos.Stake(1), p.epoch.Members[nodes[1]],
+		pos.Stake(1), p.epochState.Members[nodes[1]],
 		"balance of %s", nodes[1].String())
 
 	p.applyBlock = func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
@@ -64,7 +64,7 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, pos.Stake(2), p.NextMembers[nodes[1]])
 
 	// force Epoch commit
-	p.nextEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"))
+	p.onNewEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), nil)
 
 	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
 	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastAtropos)

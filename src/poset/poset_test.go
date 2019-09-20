@@ -68,7 +68,7 @@ func TestPoset(t *testing.T) {
 				t.Logf("with poset%d: SFrame %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
 
 				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-				assertar.Equal(posets[j].epoch, posets[i].epoch)
+				assertar.Equal(posets[j].epochState, posets[i].epochState)
 
 				both := p0.LastBlockN
 				if both > p1.LastBlockN {
