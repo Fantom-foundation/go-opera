@@ -12,9 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ancestor"
@@ -27,11 +29,13 @@ const (
 )
 
 type Emitter struct {
-	store     *Store
-	engine    Consensus
-	engineMu  *sync.RWMutex
-	prevEpoch idx.Epoch
-	txpool    txPool
+	store       *Store
+	engine      Consensus
+	engineMu    *sync.RWMutex
+	prevEpoch   idx.Epoch
+	txpool      txPool
+	occurredTxs *occured_txs.Buffer
+	txTime      *lru.Cache // tx hash -> tx time
 
 	dag    *lachesis.DagConfig
 	config *EmitterConfig
@@ -57,19 +61,21 @@ func NewEmitter(
 	engineMu *sync.RWMutex,
 	store *Store,
 	txpool txPool,
+	occurredTxs *occured_txs.Buffer,
 	onEmitted func(e *inter.Event),
 ) *Emitter {
 
 	return &Emitter{
-		dag:       &config.Net.Dag,
-		config:    &config.Emitter,
-		am:        am,
-		gasRate:   metrics.NewMeterForced(),
-		engine:    engine,
-		engineMu:  engineMu,
-		store:     store,
-		txpool:    txpool,
-		onEmitted: onEmitted,
+		dag:         &config.Net.Dag,
+		config:      &config.Emitter,
+		am:          am,
+		gasRate:     metrics.NewMeterForced(),
+		engine:      engine,
+		engineMu:    engineMu,
+		store:       store,
+		txpool:      txpool,
+		occurredTxs: occurredTxs,
+		onEmitted:   onEmitted,
 	}
 }
 
@@ -146,13 +152,20 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 
 	maxGasUsed := em.maxGasPowerToUse(e)
 
-	for _, txs := range poolTxs {
+	for sender, txs := range poolTxs {
 		for _, tx := range txs {
-			if tx.Gas() < e.GasPowerLeft && e.GasPowerUsed+tx.Gas() < maxGasUsed {
-				e.GasPowerUsed += tx.Gas()
-				e.GasPowerLeft -= tx.Gas()
-				e.Transactions = append(e.Transactions, tx)
+			// enough gas power
+			if tx.Gas() >= e.GasPowerLeft || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
+				continue
 			}
+			// check not conflicted with already included txs (in any connected event)
+			if em.occurredTxs.MayBeConflicted(sender, tx.Hash()) {
+				continue
+			}
+			// add
+			e.GasPowerUsed += tx.Gas()
+			e.GasPowerLeft -= tx.Gas()
+			e.Transactions = append(e.Transactions, tx)
 		}
 	}
 	// Spill txs if exceeded size limit
