@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
@@ -19,6 +21,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 	)
 
 	gossipCfg.Emitter.Emitbase = coinbase.Address
+	gossipCfg.Emitter.MaxEmitInterval = 3 * time.Second
 
 	svc, err := gossip.NewService(ctx.NodeContext, gossipCfg, gdb, engine)
 	if err != nil {
