@@ -2,13 +2,12 @@ package gossip
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
-	"github.com/ethereum/go-ethereum/core/types"
 	"math/rand"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"

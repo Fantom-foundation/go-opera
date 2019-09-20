@@ -2,9 +2,6 @@ package gossip
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/utils"
 	"strings"
 	"sync"
 	"time"
@@ -19,12 +16,15 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check"
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ancestor"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 const (
