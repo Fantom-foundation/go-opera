@@ -62,7 +62,7 @@ func (f *Fallible) Get(key []byte) ([]byte, error) {
 // Put inserts the given value into the key-value data store.
 func (f *Fallible) Put(key []byte, value []byte) error {
 	if !f.count() {
-		return errWriteLimit
+		panic(errWriteLimit)
 	}
 	return f.parent.Put(key, value)
 }
@@ -116,7 +116,7 @@ func (f *Fallible) Compact(start []byte, limit []byte) error {
 // Close closes database.
 func (f *Fallible) Close() error {
 	if !f.count() {
-		return errWriteLimit
+		panic(errWriteLimit)
 	}
 	return f.parent.Close()
 }

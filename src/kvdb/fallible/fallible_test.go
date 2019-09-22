@@ -26,14 +26,16 @@ func TestFallible(t *testing.T) {
 	_, err = db.Get(key)
 	assertar.NoError(err)
 
-	err = db.Put(key, val)
-	assertar.Equal(errWriteLimit, err)
+	assertar.Panics(func() {
+		db.Put(key, val)
+	})
 
 	w.SetWriteCount(1)
 
 	err = db.Put(key, val)
 	assertar.NoError(err)
 
-	err = db.Put(key, val)
-	assertar.Equal(errWriteLimit, err)
+	assertar.Panics(func() {
+		err = db.Put(key, val)
+	})
 }
