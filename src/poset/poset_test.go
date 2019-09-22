@@ -19,7 +19,7 @@ func TestPoset(t *testing.T) {
 
 	posets := make([]*ExtendedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
-	for i := 0; i < posetCount-1; i++ {
+	for i := 0; i < posetCount; i++ {
 		poset, store, input := FakePoset(nodes)
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
@@ -56,34 +56,39 @@ func TestPoset(t *testing.T) {
 	}
 
 	t.Run("Check consensus", func(t *testing.T) {
-
-		for i := 0; i < len(posets)-1; i++ {
-			p0 := posets[i]
-			st0 := p0.store.GetCheckpoint()
-			ep0 := p0.store.GetEpoch()
-			t.Logf("Compare poset%d: Epoch %d, Block %d", i, ep0.EpochN, st0.LastBlockN)
-			for j := i + 1; j < len(posets); j++ {
-				p1 := posets[j]
-				st1 := p1.store.GetCheckpoint()
-				t.Logf("with poset%d: Epoch %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
-
-				assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-				assertar.Equal(posets[j].epochState, posets[i].epochState)
-
-				both := p0.LastBlockN
-				if both > p1.LastBlockN {
-					both = p1.LastBlockN
-				}
-
-				for b := idx.Block(1); b <= both; b++ {
-					if !assertar.Equal(
-						p0.blocks[b], p1.blocks[b],
-						"block %d", b) {
-						break
-					}
-				}
-
-			}
-		}
+		compareResults(t, posets)
 	})
+}
+
+func compareResults(t *testing.T, posets []*ExtendedPoset) {
+	assertar := assert.New(t)
+
+	for i := 0; i < len(posets)-1; i++ {
+		p0 := posets[i]
+		st0 := p0.store.GetCheckpoint()
+		ep0 := p0.store.GetEpoch()
+		t.Logf("Compare poset%d: Epoch %d, Block %d", i, ep0.EpochN, st0.LastBlockN)
+		for j := i + 1; j < len(posets); j++ {
+			p1 := posets[j]
+			st1 := p1.store.GetCheckpoint()
+			t.Logf("with poset%d: Epoch %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
+
+			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
+			assertar.Equal(posets[j].epochState, posets[i].epochState)
+
+			both := p0.LastBlockN
+			if both > p1.LastBlockN {
+				both = p1.LastBlockN
+			}
+
+			for b := idx.Block(1); b <= both; b++ {
+				if !assertar.Equal(
+					p0.blocks[b], p1.blocks[b],
+					"block %d", b) {
+					break
+				}
+			}
+
+		}
+	}
 }
