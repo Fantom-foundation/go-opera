@@ -10,6 +10,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/fallible"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
@@ -43,7 +46,14 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
-	store := NewMemStore()
+	newDB := func(name string) kvdb.KeyValueStore {
+		mem := memorydb.New()
+		db := fallible.Wrap(mem)
+		db.SetWriteCount(1000000000) // infinity
+		return db
+	}
+	store := NewStore(newDB(""), newDB)
+
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Alloc: balances,
 		Time:  genesisTestTime,
