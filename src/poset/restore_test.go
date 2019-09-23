@@ -1,7 +1,6 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"math/rand"
 	"testing"
 
@@ -9,6 +8,10 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/fallible"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
 func TestRestore(t *testing.T) {
@@ -101,4 +104,94 @@ func TestRestore(t *testing.T) {
 			assertar.Equal(posets[i].blocks[blockI], posets[j].blocks[blockI])
 		}
 	})
+}
+
+func TestDbFailure(t *testing.T) {
+	logger.SetTestMode(t)
+	assertar := assert.New(t)
+
+	const (
+		CNT = 2 // two poset instances
+		EXP = 0 // first as etalon
+		GOT = 1 // second with db failures
+	)
+	nodes := inter.GenNodes(5)
+
+	posets := make([]*ExtendedPoset, 0, CNT)
+	inputs := make([]*EventStore, 0, CNT)
+
+	makePoset := func(i int) *Store {
+		poset, store, input := FakePoset(nodes)
+		n := i % len(nodes)
+		poset.SetName(nodes[n].String())
+		store.SetName(nodes[n].String())
+		posets = append(posets, poset)
+		inputs = append(inputs, input)
+		return store
+	}
+	for i := 0; i < CNT; i++ {
+		makePoset(i)
+	}
+
+	// create events on etalon poset
+	var ordered inter.Events
+	inter.ForEachRandEvent(nodes, int(posets[EXP].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			ordered = append(ordered, e)
+
+			inputs[EXP].SetEvent(e)
+			assertar.NoError(
+				posets[EXP].ProcessEvent(e))
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = 1
+			return posets[EXP].Prepare(e)
+		},
+	})
+
+	// db writes limit
+	db := posets[GOT].store.UnderlyingDB().(*fallible.Fallible)
+	db.SetWriteCount(10000) // TODO: test all stages
+
+	for len(ordered) > 0 {
+		e := ordered[0]
+		if e.Epoch != 1 {
+			continue
+		}
+
+		func() {
+			defer func() {
+				// recreate poset on panic
+				if r := recover(); r != nil {
+					t.Log("restart poset after db failure")
+					prev := posets[GOT]
+
+					db.SetWriteCount(enough)
+					store := NewStore(db, func(name string) kvdb.KeyValueStore {
+						return memorydb.New()
+					})
+
+					restored := New(prev.dag, store, prev.input)
+					restored.SetName("restored")
+					store.SetName("restored")
+					restored.Bootstrap(prev.applyBlock)
+
+					posets[GOT] = &ExtendedPoset{
+						Poset:  restored,
+						blocks: map[idx.Block]*inter.Block{},
+					}
+				}
+			}()
+
+			inputs[GOT].SetEvent(e)
+			posets[GOT].ProcessEvent(e)
+		}()
+
+		ordered = ordered[1:]
+	}
+
+	t.Run("Check consensus", func(t *testing.T) {
+		compareResults(t, posets)
+	})
+
 }

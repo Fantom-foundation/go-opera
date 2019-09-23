@@ -22,6 +22,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
+// UnderlyingDB of Store.
+func (s *Store) UnderlyingDB() kvdb.KeyValueStore {
+	return s.persistentDB
+}
+
 /*
  * bench:
  */

@@ -21,6 +21,10 @@ var (
 	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
 )
 
+const (
+	enough = 1000000000
+)
+
 // ExtendedPoset extends Poset for tests.
 type ExtendedPoset struct {
 	*Poset
@@ -49,7 +53,7 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	newDB := func(name string) kvdb.KeyValueStore {
 		mem := memorydb.New()
 		db := fallible.Wrap(mem)
-		db.SetWriteCount(1000000000) // infinity
+		db.SetWriteCount(enough)
 		return db
 	}
 	store := NewStore(newDB(""), newDB)
