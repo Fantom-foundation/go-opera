@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -18,90 +19,109 @@ func TestRestore(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	const posetCount = 3 // 2 last will be restored
-	const epochs = idx.Epoch(2)
+	const (
+		COUNT     = 3 // two poset instances
+		GENERATOR = 0 // event generator
+		EXPECTED  = 1 // first as etalon
+		RESTORED  = 2 // second with db failures
+	)
 
 	nodes := inter.GenNodes(5)
-
-	posets := make([]*ExtendedPoset, 0, posetCount)
-	inputs := make([]*EventStore, 0, posetCount)
-
-	makePoset := func(i int) *Store {
-		poset, store, input := FakePoset(nodes)
-		n := i % len(nodes)
-		poset.SetName(nodes[n].String())
-		store.SetName(nodes[n].String())
+	posets := make([]*ExtendedPoset, 0, COUNT)
+	inputs := make([]*EventStore, 0, COUNT)
+	for i := 0; i < COUNT; i++ {
+		poset, _, input := FakePoset(nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
-		return store
 	}
 
-	for i := 0; i < posetCount-1; i++ {
-		_ = makePoset(i)
-	}
+	posets[GENERATOR].
+		SetName("generator")
+	posets[GENERATOR].store.
+		SetName("generator")
+
+	const epochs = 2
+	var epochLen = int(posets[GENERATOR].dag.EpochLen)
 
 	// create events on poset0
 	var ordered []*inter.Event
-	for epoch := idx.Epoch(1); epoch <= epochs; epoch++ {
+	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(posets[0].dag.EpochLen)*3, 3, r, inter.ForEachEvent{
+		parentCount := epochLen * COUNT
+		_ = inter.ForEachRandEvent(nodes, parentCount, COUNT, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
-				inputs[0].SetEvent(e)
-				assertar.NoError(posets[0].ProcessEvent(e))
+				inputs[GENERATOR].SetEvent(e)
+				assertar.NoError(posets[GENERATOR].ProcessEvent(e))
 
 				ordered = append(ordered, e)
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
 				e.Epoch = epoch
-				return posets[0].Prepare(e)
+				return posets[GENERATOR].Prepare(e)
 			},
 		})
 	}
 
 	t.Run("Restore", func(t *testing.T) {
+		assertar := assert.New(t)
 
-		i := posetCount - 1
-		j := posetCount - 2
-		store := makePoset(i)
+		posets[EXPECTED].
+			SetName("expected")
+		posets[EXPECTED].store.
+			SetName("expected")
+
+		posets[RESTORED].
+			SetName("restored-0")
+		posets[RESTORED].store.
+			SetName("restored")
 
 		// use pre-ordered events, call consensus(e) directly, to avoid issues with restoring state of EventBuffer
-		for x, e := range ordered {
-			if (x < len(ordered)/4) || x%20 == 0 {
+		x := 0
+		for n, e := range ordered {
+			if (n < len(ordered)/4) || n%100 == 0 {
 				// restore
-				restored := New(posets[0].dag, store, inputs[i])
-				n := i % len(nodes)
-				restored.SetName("restored_" + nodes[n].String())
-				store.SetName("restored_" + nodes[n].String())
-				restored.Bootstrap(posets[i].applyBlock)
-				posets[i].Poset = restored
-			}
-			// push on restore i, and non-restored j
-			inputs[i].SetEvent(e)
-			assertar.NoError(posets[i].ProcessEvent(e))
+				prev := posets[RESTORED]
+				x++
+				restored := New(prev.dag, prev.store, inputs[RESTORED])
+				restored.SetName(fmt.Sprintf("restored-%d", x))
+				restored.Bootstrap(posets[RESTORED].applyBlock)
+				posets[RESTORED].Poset = restored
 
-			inputs[j].SetEvent(e)
-			assertar.NoError(posets[j].ProcessEvent(e))
-			// compare state on i/j
-			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-			assertar.Equal(posets[j].epochState.PrevEpoch.Hash(), posets[i].epochState.PrevEpoch.Hash())
-			assertar.Equal(posets[j].epochState.Members, posets[i].epochState.Members)
-			assertar.Equal(posets[j].epochState.EpochN, posets[i].epochState.EpochN)
+			}
+
+			inputs[EXPECTED].SetEvent(e)
+			assertar.NoError(posets[EXPECTED].ProcessEvent(e))
+			inputs[RESTORED].SetEvent(e)
+			assertar.NoError(posets[RESTORED].ProcessEvent(e))
+
+			// compare states
+			assertar.Equal(
+				*posets[EXPECTED].checkpoint, *posets[RESTORED].checkpoint)
+			assertar.Equal(
+				posets[EXPECTED].epochState.PrevEpoch.Hash(), posets[RESTORED].epochState.PrevEpoch.Hash())
+			assertar.Equal(
+				posets[EXPECTED].epochState.Members, posets[RESTORED].epochState.Members)
+			assertar.Equal(
+				posets[EXPECTED].epochState.EpochN, posets[RESTORED].epochState.EpochN)
 			// check LastAtropos and Head() method
-			if posets[i].checkpoint.LastBlockN != 0 {
-				assertar.Equal(posets[i].checkpoint.LastAtropos, posets[j].blocks[idx.Block(len(posets[j].blocks))].Hash(), "atropos must be last event in block")
+			if posets[EXPECTED].checkpoint.LastBlockN != 0 {
+				assertar.Equal(
+					posets[RESTORED].checkpoint.LastAtropos,
+					posets[EXPECTED].blocks[idx.Block(len(posets[EXPECTED].blocks))].Hash(),
+					"atropos must be last event in block")
 			}
 		}
 
 		// check that blocks are identical
-		assertar.Equal(len(posets[i].blocks), len(posets[j].blocks))
-		assertar.Equal(len(posets[i].blocks), int(epochs)*int(posets[0].dag.EpochLen))
-		assertar.Equal(len(posets[i].blocks), int(posets[i].LastBlockN))
-		for blockI := idx.Block(1); blockI <= idx.Block(len(posets[i].blocks)); blockI++ {
-			assertar.NotNil(posets[i].blocks[blockI])
+		assertar.Equal(len(posets[EXPECTED].blocks), len(posets[RESTORED].blocks))
+		assertar.Equal(len(posets[EXPECTED].blocks), epochLen*epochs)
+		assertar.Equal(len(posets[EXPECTED].blocks), int(posets[RESTORED].LastBlockN))
+		for i := idx.Block(1); i <= idx.Block(len(posets[RESTORED].blocks)); i++ {
+			assertar.NotNil(posets[RESTORED].blocks[i])
 			if t.Failed() {
 				return
 			}
-			assertar.Equal(posets[i].blocks[blockI], posets[j].blocks[blockI])
+			assertar.Equal(posets[EXPECTED].blocks[i], posets[RESTORED].blocks[i])
 		}
 	})
 }
@@ -111,47 +131,82 @@ func TestDbFailure(t *testing.T) {
 	assertar := assert.New(t)
 
 	const (
-		CNT = 2 // two poset instances
-		EXP = 0 // first as etalon
-		GOT = 1 // second with db failures
+		COUNT    = 2 // two poset instances
+		EXPECTED = 0 // first as etalon
+		RESTORED = 1 // second with db failures
 	)
 	nodes := inter.GenNodes(5)
 
-	posets := make([]*ExtendedPoset, 0, CNT)
-	inputs := make([]*EventStore, 0, CNT)
+	posets := make([]*ExtendedPoset, 0, COUNT)
+	inputs := make([]*EventStore, 0, COUNT)
 
-	makePoset := func(i int) *Store {
-		poset, store, input := FakePoset(nodes)
-		n := i % len(nodes)
-		poset.SetName(nodes[n].String())
-		store.SetName(nodes[n].String())
+	for i := 0; i < COUNT; i++ {
+		poset, _, input := FakePoset(nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
-		return store
 	}
-	for i := 0; i < CNT; i++ {
-		makePoset(i)
-	}
+
+	posets[EXPECTED].
+		SetName("expected")
+	posets[EXPECTED].store.
+		SetName("expected")
 
 	// create events on etalon poset
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(posets[EXP].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, int(posets[EXPECTED].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 
-			inputs[EXP].SetEvent(e)
+			inputs[EXPECTED].SetEvent(e)
 			assertar.NoError(
-				posets[EXP].ProcessEvent(e))
+				posets[EXPECTED].ProcessEvent(e))
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
-			return posets[EXP].Prepare(e)
+			return posets[EXPECTED].Prepare(e)
 		},
 	})
 
+	posets[RESTORED].
+		SetName("restored-0")
+	posets[RESTORED].store.
+		SetName("restored-0")
+
 	// db writes limit
-	db := posets[GOT].store.UnderlyingDB().(*fallible.Fallible)
-	db.SetWriteCount(10000) // TODO: test all stages
+	db := posets[RESTORED].store.UnderlyingDB().(*fallible.Fallible)
+	db.SetWriteCount(100) // TODO: test all stages
+
+	x := 0
+	process := func(e *inter.Event) (ok bool) {
+		ok = true
+		defer func() {
+			// catch a panic
+			if r := recover(); r == nil {
+				return
+			}
+			ok = false
+
+			t.Log("restart poset after db failure")
+			x++
+			prev := posets[RESTORED]
+
+			db.SetWriteCount(enough)
+			store := NewStore(db, func(name string) kvdb.KeyValueStore {
+				return memorydb.New()
+			})
+			restored := New(prev.dag, store, prev.input)
+			store.SetName(fmt.Sprintf("restored-%d", x))
+			restored.SetName(fmt.Sprintf("restored-%d", x))
+
+			restored.Bootstrap(prev.applyBlock)
+			posets[RESTORED].Poset = restored
+		}()
+
+		inputs[RESTORED].SetEvent(e)
+		posets[RESTORED].ProcessEvent(e)
+
+		return
+	}
 
 	for len(ordered) > 0 {
 		e := ordered[0]
@@ -159,35 +214,9 @@ func TestDbFailure(t *testing.T) {
 			continue
 		}
 
-		func() {
-			defer func() {
-				// recreate poset on panic
-				if r := recover(); r != nil {
-					t.Log("restart poset after db failure")
-					prev := posets[GOT]
-
-					db.SetWriteCount(enough)
-					store := NewStore(db, func(name string) kvdb.KeyValueStore {
-						return memorydb.New()
-					})
-
-					restored := New(prev.dag, store, prev.input)
-					restored.SetName("restored")
-					store.SetName("restored")
-					restored.Bootstrap(prev.applyBlock)
-
-					posets[GOT] = &ExtendedPoset{
-						Poset:  restored,
-						blocks: map[idx.Block]*inter.Block{},
-					}
-				}
-			}()
-
-			inputs[GOT].SetEvent(e)
-			posets[GOT].ProcessEvent(e)
-		}()
-
-		ordered = ordered[1:]
+		if process(e) {
+			ordered = ordered[1:]
+		}
 	}
 
 	t.Run("Check consensus", func(t *testing.T) {
