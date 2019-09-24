@@ -455,7 +455,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		if len(progress.LastPackInfo.Heads) > hardLimitItems {
+		if len(progress.LastPackInfo.Heads) > pos.MembersCount*pos.MembersCount { // squire because of possible forks
 			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
 		p.SetProgress(progress)
