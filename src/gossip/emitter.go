@@ -291,6 +291,11 @@ func (em *Emitter) createEvent() *inter.Event {
 			log.Crit("Emitter: head wasn't found", "e", p.String())
 		}
 		parentHeaders[i] = parent
+		if parentHeaders[i].Creator == coinbase && i != 0 {
+			// there're 2 heads from me
+			log.Error("I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			return nil
+		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
 	}
 
