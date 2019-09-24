@@ -15,6 +15,8 @@ type EmitterConfig struct {
 
 	MaxGasRateGrowthFactor float64 // fine to use float, because no need in determinism
 
+	MaxTxsFromSender int
+
 	// thresholds on GasLeft
 	SmoothTpsThreshold uint64 `json:"smoothTpsThreshold"`
 	NoTxsThreshold     uint64 `json:"noTxsThreshold"`
@@ -26,6 +28,7 @@ func DefaultEmitterConfig() EmitterConfig {
 		MinEmitInterval:        1 * time.Second,
 		MaxEmitInterval:        60 * time.Second,
 		MaxGasRateGrowthFactor: 3.0,
+		MaxTxsFromSender:       2,
 
 		SmoothTpsThreshold: params.TxGas * 500,
 		NoTxsThreshold:     params.TxGas * 100,

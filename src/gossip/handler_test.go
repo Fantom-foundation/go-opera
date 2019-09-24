@@ -123,6 +123,8 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	net := lachesis.FakeNetConfig(1)
 	config := DefaultConfig(net)
 	config.ForcedBroadcast = allowAggressive
+	config.Emitter.MinEmitInterval = time.Duration(0)
+	config.Emitter.MaxEmitInterval = time.Duration(0)
 
 	var (
 		store       = NewMemStore()
@@ -169,6 +171,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	emittedEvents := make([]*inter.Event, 0)
 	for i := 0; i < broadcastExpected; i++ {
 		emitted := svc.emitter.EmitEvent()
+		assertar.NotNil(emitted)
 		emittedEvents = append(emittedEvents, emitted)
 		// check it's broadcasted just after emitting
 		for _, peer := range peers {
@@ -201,6 +204,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	// create new event, but send it from new peer
 	{
 		emitted := svc.emitter.createEvent()
+		assertar.NotNil(emitted)
 		assertar.NoError(p2p.Send(newPeer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()})) // announce
 		// now PM should request it
 		assertar.NoError(p2p.ExpectMsg(newPeer.app, GetEventsMsg, []hash.Event{emitted.Hash()})) // request

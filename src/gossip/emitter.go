@@ -12,26 +12,35 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check"
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/ancestor"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
 const (
-	MimetypeEvent = "application/event"
+	MimetypeEvent    = "application/event"
+	TxTimeBufferSize = 20000
+	TxTurnPeriod     = 4 * time.Second
 )
 
 type Emitter struct {
-	store     *Store
-	engine    Consensus
-	engineMu  *sync.RWMutex
-	prevEpoch idx.Epoch
-	txpool    txPool
+	store       *Store
+	engine      Consensus
+	engineMu    *sync.RWMutex
+	prevEpoch   idx.Epoch
+	txpool      txPool
+	occurredTxs *occured_txs.Buffer
+	txTime      *lru.Cache // tx hash -> tx time
 
 	dag    *lachesis.DagConfig
 	config *EmitterConfig
@@ -57,19 +66,23 @@ func NewEmitter(
 	engineMu *sync.RWMutex,
 	store *Store,
 	txpool txPool,
+	occurredTxs *occured_txs.Buffer,
 	onEmitted func(e *inter.Event),
 ) *Emitter {
 
+	txTime, _ := lru.New(TxTimeBufferSize)
 	return &Emitter{
-		dag:       &config.Net.Dag,
-		config:    &config.Emitter,
-		am:        am,
-		gasRate:   metrics.NewMeterForced(),
-		engine:    engine,
-		engineMu:  engineMu,
-		store:     store,
-		txpool:    txpool,
-		onEmitted: onEmitted,
+		dag:         &config.Net.Dag,
+		config:      &config.Emitter,
+		am:          am,
+		gasRate:     metrics.NewMeterForced(),
+		engine:      engine,
+		engineMu:    engineMu,
+		store:       store,
+		txpool:      txpool,
+		txTime:      txTime,
+		occurredTxs: occurredTxs,
+		onEmitted:   onEmitted,
 	}
 }
 
@@ -80,16 +93,22 @@ func (em *Emitter) StartEventEmission() {
 	}
 	em.done = make(chan struct{})
 
+	newTxsCh := make(chan evm_core.NewTxsNotify)
+	em.txpool.SubscribeNewTxsNotify(newTxsCh)
+
 	em.prevEmittedTime = em.loadPrevEmitTime()
 
 	done := em.done
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(em.config.MinEmitInterval / 10)
+		ticker := time.NewTicker(em.config.MinEmitInterval / 5)
 		for {
 			select {
+			case txNotify := <-newTxsCh:
+				em.memorizeTxTimes(txNotify.Txs)
 			case <-ticker.C:
+				// must pass at least MinEmitInterval since last event
 				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
 					em.EmitEvent()
 				}
@@ -137,6 +156,32 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 	return prevEvent.ClaimedTime.Time()
 }
 
+// safe for concurrent use
+func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
+	now := time.Now()
+	for _, tx := range txs {
+		_, ok := em.txTime.Get(tx.Hash())
+		if !ok {
+			em.txTime.Add(tx.Hash(), now)
+		}
+	}
+}
+
+// safe for concurrent use
+func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, membersArr []common.Address, membersArrStakes []pos.Stake) common.Address {
+	var txTime time.Time
+	txTimeI, ok := em.txTime.Get(txHash)
+	if !ok {
+		txTime = now
+		em.txTime.Add(txHash, txTime)
+	} else {
+		txTime = txTimeI.(time.Time)
+	}
+	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(membersArr)))
+	turn := utils.WeightedPermutation(roundIndex+1, membersArrStakes, txHash)[roundIndex]
+	return membersArr[turn]
+}
+
 func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 	poolTxs, err := em.txpool.Pending()
 	if err != nil {
@@ -146,13 +191,38 @@ func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
 
 	maxGasUsed := em.maxGasPowerToUse(e)
 
-	for _, txs := range poolTxs {
+	now := time.Now()
+	members := em.engine.GetMembers()
+	membersArr := members.SortedAddresses() // members must be sorted deterministically
+	membersArrStakes := make([]pos.Stake, len(membersArr))
+	for i, addr := range membersArr {
+		membersArrStakes[i] = members[addr]
+	}
+
+	for sender, txs := range poolTxs {
+		if txs.Len() > em.config.MaxTxsFromSender { // no more than MaxTxsFromSender txs from 1 sender
+			txs = txs[:em.config.MaxTxsFromSender]
+		}
+
+		// txs is the chain of dependent txs
 		for _, tx := range txs {
-			if tx.Gas() < e.GasPowerLeft && e.GasPowerUsed+tx.Gas() < maxGasUsed {
-				e.GasPowerUsed += tx.Gas()
-				e.GasPowerLeft -= tx.Gas()
-				e.Transactions = append(e.Transactions, tx)
+			// enough gas power
+			if tx.Gas() >= e.GasPowerLeft || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
+				break // txs are dependent
 			}
+			// check not conflicted with already included txs (in any connected event)
+			if em.occurredTxs.MayBeConflicted(sender, tx.Hash()) {
+				break // txs are dependent
+			}
+			// my turn, i.e. try to not include the same tx simultaneously by different validators
+			if em.getTxTurn(tx.Hash(), now, membersArr, membersArrStakes) != e.Creator {
+				break // txs are dependent
+			}
+
+			// add
+			e.GasPowerUsed += tx.Gas()
+			e.GasPowerLeft -= tx.Gas()
+			e.Transactions = append(e.Transactions, tx)
 		}
 	}
 	// Spill txs if exceeded size limit
@@ -241,7 +311,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event)
+	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event, em.dag)
 
 	// set consensus fields
 	event = em.engine.Prepare(event) // GasPowerLeft is calced here
@@ -320,6 +390,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 }
 
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
+	passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
 	// Slow down emitting if power is low
 	{
 		threshold := em.config.NoTxsThreshold
@@ -329,7 +400,6 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 			maxT := float64(em.config.MaxEmitInterval)
 			factor := float64(e.GasPowerLeft) / float64(threshold)
 			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
-			passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
 			if passedTime < adjustedEmitInterval {
 				return false
 			}
@@ -343,6 +413,14 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 				log.Warn("Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
+		}
+	}
+	// Slow down emitting if no txs to confirm/post
+	{
+		if passedTime < em.config.MaxEmitInterval &&
+			em.occurredTxs.Len() == 0 &&
+			len(e.Transactions) == 0 {
+			return false
 		}
 	}
 

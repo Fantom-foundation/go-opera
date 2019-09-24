@@ -30,6 +30,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
 	}
+	s.occurredTxs.CollectConfirmedTxs(evmBlock.Transactions) // TODO collect all the confirmed txs, not only block txs
 
 	// Process txs
 	statedb := s.store.StateDB(stateHash)

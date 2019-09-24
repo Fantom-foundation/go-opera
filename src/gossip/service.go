@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -17,9 +18,14 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
+)
+
+const (
+	txsRingBufferSize = 20000 // Maximum number of stored hashes of included but not confirmed txs
 )
 
 type ServiceFeed struct {
@@ -60,12 +66,13 @@ type Service struct {
 	serverPool *serverPool
 
 	// application
-	node     *node.ServiceContext
-	store    *Store
-	engine   Consensus
-	engineMu *sync.RWMutex
-	emitter  *Emitter
-	txpool   *evm_core.TxPool
+	node        *node.ServiceContext
+	store       *Store
+	engine      Consensus
+	engineMu    *sync.RWMutex
+	emitter     *Emitter
+	txpool      *evm_core.TxPool
+	occurredTxs *occured_txs.Buffer
 
 	feed ServiceFeed
 
@@ -88,29 +95,26 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		node:  ctx,
 		store: store,
 
-		engineMu: new(sync.RWMutex),
+		engineMu:    new(sync.RWMutex),
+		occurredTxs: occured_txs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
 
 		Instance: logger.MakeInstance(),
 	}
 
-	engine = &HookedEngine{
+	svc.engine = &HookedEngine{
 		engine:       engine,
 		processEvent: svc.processEvent,
 	}
-	svc.engine = engine
-
-	engine.Bootstrap(svc.ApplyBlock)
+	svc.engine.Bootstrap(svc.ApplyBlock)
 
 	trustedNodes := []string{}
-
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	stateReader := svc.GetEvmStateReader()
-
 	svc.txpool = evm_core.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	var err error
-	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, engine, svc.serverPool)
+	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, svc.engine, svc.serverPool)
 
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
 
@@ -134,6 +138,8 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 			return err
 		}
 	}
+	_ = s.occurredTxs.CollectNotConfirmedTxs(e.Transactions)
+
 	// set member's last event. we don't care about forks, because this index is used only for emitter
 	s.store.SetLastEvent(e.Epoch, e.Creator, e.Hash())
 
@@ -152,13 +158,14 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		s.packs_onNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
 		s.feed.newEpoch.Send(newEpoch)
+		s.occurredTxs.Clear()
 	}
 
 	return nil
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(&s.config, s.AccountManager(), s.engine, s.engineMu, s.store, s.txpool, func(emitted *inter.Event) {
+	return NewEmitter(&s.config, s.AccountManager(), s.engine, s.engineMu, s.store, s.txpool, s.occurredTxs, func(emitted *inter.Event) {
 		// s.engineMu is locked here
 
 		err := s.engine.ProcessEvent(emitted)
