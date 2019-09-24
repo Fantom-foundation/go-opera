@@ -44,19 +44,14 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 }
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
+func FakePoset(namespace string, nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
-	newDB := func(name string) kvdb.KeyValueStore {
-		mem := memorydb.New()
-		db := fallible.Wrap(mem)
-		db.SetWriteCount(enough)
-		return db
-	}
-	store := NewStore(newDB(""), newDB)
+	fs := fakeFS(namespace)
+	store := NewStore(fs.makeFakeDB(""), fs.makeFakeDB)
 
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Alloc: balances,
@@ -87,12 +82,48 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	return extended, store, input
 }
 
-func reorder(events inter.Events) inter.Events {
-	unordered := make(inter.Events, len(events))
-	for i, j := range rand.Perm(len(events)) {
-		unordered[j] = events[i]
+/*
+ * fake FS for databases:
+ */
+
+type fakefs map[string]kvdb.KeyValueStore
+
+var fakeFSs = make(map[string]*fakefs)
+
+func fakeFS(namespace string) *fakefs {
+	if fs, ok := fakeFSs[namespace]; ok {
+		return fs
 	}
 
-	reordered := unordered.ByParents()
-	return reordered
+	fs := make(fakefs)
+	fakeFSs[namespace] = &fs
+	return &fs
+}
+
+func uniqNamespace() string {
+	buf := make([]byte, 128)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	return string(buf)
+}
+
+func (fs *fakefs) makeFakeDB(name string) kvdb.KeyValueStore {
+	if db, ok := (*fs)[name]; ok {
+		return db
+	}
+
+	mem := memorydb.New()
+
+	db := fallible.Wrap(mem, nil,
+		func() error { // on drop
+			delete(*fs, name)
+			return nil
+		},
+	)
+	db.SetWriteCount(enough)
+
+	(*fs)[name] = db
+
+	return db
 }

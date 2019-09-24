@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestPoset(t *testing.T) {
 	posets := make([]*ExtendedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
 	for i := 0; i < posetCount; i++ {
-		poset, store, input := FakePoset(nodes)
+		poset, store, input := FakePoset(uniqNamespace(), nodes)
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
@@ -58,6 +59,16 @@ func TestPoset(t *testing.T) {
 	t.Run("Check consensus", func(t *testing.T) {
 		compareResults(t, posets)
 	})
+}
+
+func reorder(events inter.Events) inter.Events {
+	unordered := make(inter.Events, len(events))
+	for i, j := range rand.Perm(len(events)) {
+		unordered[j] = events[i]
+	}
+
+	reordered := unordered.ByParents()
+	return reordered
 }
 
 func compareResults(t *testing.T, posets []*ExtendedPoset) {

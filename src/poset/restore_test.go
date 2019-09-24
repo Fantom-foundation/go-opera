@@ -9,9 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/fallible"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
@@ -30,7 +28,8 @@ func TestRestore(t *testing.T) {
 	posets := make([]*ExtendedPoset, 0, COUNT)
 	inputs := make([]*EventStore, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
-		poset, _, input := FakePoset(nodes)
+		namespace := uniqNamespace()
+		poset, _, input := FakePoset(namespace, nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
 	}
@@ -139,11 +138,13 @@ func TestDbFailure(t *testing.T) {
 
 	posets := make([]*ExtendedPoset, 0, COUNT)
 	inputs := make([]*EventStore, 0, COUNT)
-
+	namespaces := make([]string, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
-		poset, _, input := FakePoset(nodes)
+		namespace := uniqNamespace()
+		poset, _, input := FakePoset(namespace, nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
+		namespaces = append(namespaces, namespace)
 	}
 
 	posets[EXPECTED].
@@ -174,7 +175,7 @@ func TestDbFailure(t *testing.T) {
 
 	// db writes limit
 	db := posets[RESTORED].store.UnderlyingDB().(*fallible.Fallible)
-	db.SetWriteCount(100) // TODO: test all stages
+	db.SetWriteCount(100) // TODO: test all stages fault
 
 	x := 0
 	process := func(e *inter.Event) (ok bool) {
@@ -191,9 +192,8 @@ func TestDbFailure(t *testing.T) {
 			prev := posets[RESTORED]
 
 			db.SetWriteCount(enough)
-			store := NewStore(db, func(name string) kvdb.KeyValueStore {
-				return memorydb.New()
-			})
+			fs := fakeFS(namespaces[RESTORED])
+			store := NewStore(db, fs.makeFakeDB)
 			restored := New(prev.dag, store, prev.input)
 			store.SetName(fmt.Sprintf("restored-%d", x))
 			restored.SetName(fmt.Sprintf("restored-%d", x))
