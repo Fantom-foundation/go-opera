@@ -18,7 +18,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/vector"
 )
 
-func TestСausalityStrategy(t *testing.T) {
+func TestCasualityStrategy(t *testing.T) {
 	testSpecialNamedParents(t, `
 a1.0   b1.0   c1.0   d1.0   e1.0
 ║      ║      ║      ║      ║
@@ -136,7 +136,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		for _, node := range nodes {
 			selfParent := tips[node]
 
-			strategy := NewСausalityStrategy(vecClock)
+			strategy := NewCasualityStrategy(vecClock)
 
 			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
 

@@ -244,7 +244,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 	var strategy ancestor.SearchStrategy
 	vecClock := em.engine.GetVectorIndex()
 	if vecClock != nil {
-		strategy = ancestor.NewСausalityStrategy(vecClock)
+		strategy = ancestor.NewCasualityStrategy(vecClock)
 
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
