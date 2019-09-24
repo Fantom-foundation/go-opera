@@ -821,15 +821,17 @@ type NodeInfo struct {
 	Network     uint64      `json:"network"` // network ID
 	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
 	Epoch       idx.Epoch
-	NumOfEvents idx.Event
+	NumOfBlocks idx.Block
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
+	numOfBlocks, _ := pm.engine.LastBlock()
 	return &NodeInfo{
-		Network: pm.config.Net.NetworkId,
-		Genesis: pm.engine.GetGenesisHash(),
-		Epoch:   pm.engine.GetEpoch(),
+		Network:     pm.config.Net.NetworkId,
+		Genesis:     pm.engine.GetGenesisHash(),
+		Epoch:       pm.engine.GetEpoch(),
+		NumOfBlocks: numOfBlocks,
 	}
 }
