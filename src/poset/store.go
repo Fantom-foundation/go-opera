@@ -1,8 +1,11 @@
 package poset
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
@@ -35,18 +38,17 @@ type Store struct {
 func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
 	s := &Store{
 		persistentDB: db,
-		epochDb:      makeDb("epoch"),
 		makeDb:       makeDb,
 		Instance:     logger.MakeInstance(),
 	}
 
 	table.MigrateTables(&s.table, s.persistentDB)
-	table.MigrateTables(&s.epochTable, s.epochDb)
 
 	return s
 }
 
 // NewMemStore creates store over memory map.
+// Store is always blank.
 func NewMemStore() *Store {
 	return NewStore(memorydb.New(), func(name string) kvdb.KeyValueStore {
 		return memorydb.New()
@@ -67,15 +69,21 @@ func (s *Store) Close() {
 	}
 }
 
-func (s *Store) recreateEpochDb() {
-	if s.epochDb != nil {
-		err := s.epochDb.Close()
+// RecreateEpochDb makes new epoch DB and drops prev.
+func (s *Store) RecreateEpochDb(n idx.Epoch) {
+	prevDb := s.epochDb
+	if prevDb == nil {
+		prevDb = s.makeDb(fmt.Sprintf("epoch-%d", n-1))
+	}
+	if prevDb != nil {
+		err := prevDb.Close()
 		if err != nil {
 			s.Log.Crit("Failed to close epoch db", "err", err)
 		}
-		s.epochDb.Drop()
+		prevDb.Drop()
 	}
-	s.epochDb = s.makeDb("epoch")
+
+	s.epochDb = s.makeDb(fmt.Sprintf("epoch-%d", n))
 	table.MigrateTables(&s.epochTable, s.epochDb)
 }
 

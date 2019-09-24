@@ -25,6 +25,7 @@ type epochState struct {
 
 func (p *Poset) loadEpoch() {
 	p.epochState = *p.store.GetEpoch()
+	p.store.RecreateEpochDb(p.epochState.EpochN)
 }
 
 // GetEpoch returns current epoch num to 3rd party.
