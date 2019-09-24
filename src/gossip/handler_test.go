@@ -123,8 +123,6 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	net := lachesis.FakeNetConfig(1)
 	config := DefaultConfig(net)
 	config.ForcedBroadcast = allowAggressive
-	config.Emitter.MinEmitInterval = 10 * time.Millisecond
-	config.Emitter.MaxEmitInterval = 10 * time.Millisecond
 
 	var (
 		store       = NewMemStore()
