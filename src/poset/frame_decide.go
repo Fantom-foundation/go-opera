@@ -98,9 +98,6 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.Members = p.NextMembers.Top()
 	p.NextMembers = p.Members.Copy()
 
-	// reset internal epoch DB
-	p.store.recreateEpochDb()
-
 	// reset election & vectorindex
 	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
 		return p.input.GetEventHeader(p.EpochN, id)
@@ -114,4 +111,7 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	// commit
 	p.store.SetEpoch(&p.epochState)
 	p.saveCheckpoint()
+
+	// reset internal epoch DB
+	p.store.RecreateEpochDb(p.EpochN)
 }
