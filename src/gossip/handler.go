@@ -33,8 +33,8 @@ import (
 
 const (
 	softResponseLimitSize = 2 * 1024 * 1024    // Target maximum size of returned events, or other data.
-	softLimitItems        = 500                // Target maximum number of events or transactions to request/response
-	hardLimitItems        = softLimitItems * 2 // Maximum number of events or transactions to request/response
+	softLimitItems        = 250                // Target maximum number of events or transactions to request/response
+	hardLimitItems        = softLimitItems * 4 // Maximum number of events or transactions to request/response
 
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
