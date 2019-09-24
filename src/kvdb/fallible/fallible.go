@@ -16,15 +16,19 @@ var (
 // Fallible is a kvdb.KeyValueStore wrapper around any kvdb.KeyValueStore.
 // It falls when write counter is full for test purpose.
 type Fallible struct {
-	parent kvdb.KeyValueStore
+	parent  kvdb.KeyValueStore
+	onClose func() error
+	onDrop  func() error
 
 	writes int32
 }
 
 // Wrap returns a wrapped kvdb.KeyValueStore with counter 0. Set it manually.
-func Wrap(parent kvdb.KeyValueStore) *Fallible {
+func Wrap(parent kvdb.KeyValueStore, close, drop func() error) *Fallible {
 	return &Fallible{
-		parent: parent,
+		parent:  parent,
+		onClose: close,
+		onDrop:  drop,
 	}
 }
 
@@ -118,7 +122,15 @@ func (f *Fallible) Close() error {
 	if !f.count() {
 		panic(errWriteLimit)
 	}
-	return f.parent.Close()
+
+	if f.onClose == nil {
+		return nil
+	}
+	if err := f.onClose(); err != nil {
+		panic(err)
+	}
+
+	return nil
 }
 
 // Drop drops database.
@@ -126,5 +138,11 @@ func (f *Fallible) Drop() {
 	if !f.count() {
 		panic(errWriteLimit)
 	}
-	f.parent.Drop()
+
+	if f.onDrop == nil {
+		return
+	}
+	if err := f.onDrop(); err != nil {
+		panic(err)
+	}
 }
