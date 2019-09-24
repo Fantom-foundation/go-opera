@@ -345,7 +345,7 @@ func (f *Fetcher) loop() {
 
 			// Send out all event requests
 			for peer, hashes := range request {
-				log.Trace("Fetching scheduled events", "peer", peer, "list", hashes)
+				log.Trace("Fetching scheduled events", "peer", peer, "count", len(hashes))
 
 				// Create a closure of the fetch and schedule in on a new thread
 				fetchEvents, hashes := f.fetching[hashes[0]].batch.fetchEvents, hashes
