@@ -27,11 +27,13 @@ func TestRestore(t *testing.T) {
 	nodes := inter.GenNodes(5)
 	posets := make([]*ExtendedPoset, 0, COUNT)
 	inputs := make([]*EventStore, 0, COUNT)
+	namespaces := make([]string, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
 		namespace := uniqNamespace()
 		poset, _, input := FakePoset(namespace, nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
+		namespaces = append(namespaces, namespace)
 	}
 
 	posets[GENERATOR].
@@ -42,7 +44,7 @@ func TestRestore(t *testing.T) {
 	const epochs = 2
 	var epochLen = int(posets[GENERATOR].dag.EpochLen)
 
-	// create events on poset0
+	// create events
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
@@ -61,68 +63,68 @@ func TestRestore(t *testing.T) {
 		})
 	}
 
-	t.Run("Restore", func(t *testing.T) {
-		assertar := assert.New(t)
+	posets[EXPECTED].
+		SetName("expected")
+	posets[EXPECTED].store.
+		SetName("expected")
 
-		posets[EXPECTED].
-			SetName("expected")
-		posets[EXPECTED].store.
-			SetName("expected")
+	posets[RESTORED].
+		SetName("restored-0")
+	posets[RESTORED].store.
+		SetName("restored-0")
 
-		posets[RESTORED].
-			SetName("restored-0")
-		posets[RESTORED].store.
-			SetName("restored")
+	// use pre-ordered events, call consensus(e) directly, to avoid issues with restoring state of EventBuffer
+	x := 0
+	for n, e := range ordered {
+		if (n < len(ordered)/10) || n%20 == 0 {
+			t.Log("restart poset")
+			prev := posets[RESTORED]
+			x++
+			fs := newFakeFS(namespaces[RESTORED])
+			store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
+			store.SetName(fmt.Sprintf("restored-%d", x))
 
-		// use pre-ordered events, call consensus(e) directly, to avoid issues with restoring state of EventBuffer
-		x := 0
-		for n, e := range ordered {
-			if (n < len(ordered)/4) || n%100 == 0 {
-				// restore
-				prev := posets[RESTORED]
-				x++
-				restored := New(prev.dag, prev.store, inputs[RESTORED])
-				restored.SetName(fmt.Sprintf("restored-%d", x))
-				restored.Bootstrap(posets[RESTORED].applyBlock)
-				posets[RESTORED].Poset = restored
+			restored := New(prev.dag, store, prev.input)
+			restored.SetName(fmt.Sprintf("restored-%d", x))
+			restored.Bootstrap(prev.applyBlock)
 
-			}
-
-			inputs[EXPECTED].SetEvent(e)
-			assertar.NoError(posets[EXPECTED].ProcessEvent(e))
-			inputs[RESTORED].SetEvent(e)
-			assertar.NoError(posets[RESTORED].ProcessEvent(e))
-
-			// compare states
-			assertar.Equal(
-				*posets[EXPECTED].checkpoint, *posets[RESTORED].checkpoint)
-			assertar.Equal(
-				posets[EXPECTED].epochState.PrevEpoch.Hash(), posets[RESTORED].epochState.PrevEpoch.Hash())
-			assertar.Equal(
-				posets[EXPECTED].epochState.Members, posets[RESTORED].epochState.Members)
-			assertar.Equal(
-				posets[EXPECTED].epochState.EpochN, posets[RESTORED].epochState.EpochN)
-			// check LastAtropos and Head() method
-			if posets[EXPECTED].checkpoint.LastBlockN != 0 {
-				assertar.Equal(
-					posets[RESTORED].checkpoint.LastAtropos,
-					posets[EXPECTED].blocks[idx.Block(len(posets[EXPECTED].blocks))].Hash(),
-					"atropos must be last event in block")
-			}
+			posets[RESTORED].Poset = restored
 		}
 
-		// check that blocks are identical
-		assertar.Equal(len(posets[EXPECTED].blocks), len(posets[RESTORED].blocks))
-		assertar.Equal(len(posets[EXPECTED].blocks), epochLen*epochs)
-		assertar.Equal(len(posets[EXPECTED].blocks), int(posets[RESTORED].LastBlockN))
-		for i := idx.Block(1); i <= idx.Block(len(posets[RESTORED].blocks)); i++ {
-			assertar.NotNil(posets[RESTORED].blocks[i])
-			if t.Failed() {
-				return
-			}
-			assertar.Equal(posets[EXPECTED].blocks[i], posets[RESTORED].blocks[i])
+		inputs[EXPECTED].SetEvent(e)
+		assertar.NoError(posets[EXPECTED].ProcessEvent(e))
+		inputs[RESTORED].SetEvent(e)
+		assertar.NoError(posets[RESTORED].ProcessEvent(e))
+
+		// compare states
+		assertar.Equal(
+			*posets[EXPECTED].checkpoint, *posets[RESTORED].checkpoint)
+		assertar.Equal(
+			posets[EXPECTED].epochState.PrevEpoch.Hash(), posets[RESTORED].epochState.PrevEpoch.Hash())
+		assertar.Equal(
+			posets[EXPECTED].epochState.Members, posets[RESTORED].epochState.Members)
+		assertar.Equal(
+			posets[EXPECTED].epochState.EpochN, posets[RESTORED].epochState.EpochN)
+		// check LastAtropos and Head() method
+		if posets[EXPECTED].checkpoint.LastBlockN != 0 {
+			assertar.Equal(
+				posets[RESTORED].checkpoint.LastAtropos,
+				posets[EXPECTED].blocks[idx.Block(len(posets[EXPECTED].blocks))].Hash(),
+				"atropos must be last event in block")
 		}
-	})
+	}
+
+	// check that blocks are identical
+	assertar.Equal(len(posets[EXPECTED].blocks), len(posets[RESTORED].blocks))
+	assertar.Equal(len(posets[EXPECTED].blocks), epochLen*epochs)
+	assertar.Equal(len(posets[EXPECTED].blocks), int(posets[RESTORED].LastBlockN))
+	for i := idx.Block(1); i <= idx.Block(len(posets[RESTORED].blocks)); i++ {
+		assertar.NotNil(posets[RESTORED].blocks[i])
+		if t.Failed() {
+			return
+		}
+		assertar.Equal(posets[EXPECTED].blocks[i], posets[RESTORED].blocks[i])
+	}
 }
 
 func TestDbFailure(t *testing.T) {
@@ -187,23 +189,25 @@ func TestDbFailure(t *testing.T) {
 			}
 			ok = false
 
-			t.Log("restart poset after db failure")
-			x++
-			prev := posets[RESTORED]
-
 			db.SetWriteCount(enough)
-			fs := fakeFS(namespaces[RESTORED])
-			store := NewStore(db, fs.makeFakeDB)
-			restored := New(prev.dag, store, prev.input)
-			store.SetName(fmt.Sprintf("restored-%d", x))
-			restored.SetName(fmt.Sprintf("restored-%d", x))
 
+			t.Log("restart poset after db failure")
+			prev := posets[RESTORED]
+			x++
+			fs := newFakeFS(namespaces[RESTORED])
+			store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
+			store.SetName(fmt.Sprintf("restored-%d", x))
+
+			restored := New(prev.dag, store, prev.input)
+			restored.SetName(fmt.Sprintf("restored-%d", x))
 			restored.Bootstrap(prev.applyBlock)
+
 			posets[RESTORED].Poset = restored
 		}()
 
 		inputs[RESTORED].SetEvent(e)
-		posets[RESTORED].ProcessEvent(e)
+		assertar.NoError(
+			posets[RESTORED].ProcessEvent(e))
 
 		return
 	}
