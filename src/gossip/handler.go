@@ -169,6 +169,9 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 	buffer := ordering.New(eventsBuffSize, ordering.Callback{
 
 		Process: func(e *inter.Event) error {
+			pm.engineMu.Lock()
+			defer pm.engineMu.Unlock()
+
 			log.Info("New event", "hash", e.Hash())
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
@@ -196,9 +199,6 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 	})
 
 	pushEvent := func(e *inter.Event, peer string) {
-		pm.engineMu.Lock()
-		defer pm.engineMu.Unlock()
-
 		buffer.PushEvent(e, peer)
 	}
 
