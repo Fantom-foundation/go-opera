@@ -1,7 +1,6 @@
 package poset
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,9 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/fallible"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
 )
@@ -50,8 +46,8 @@ func FakePoset(namespace string, nodes []common.Address) (*ExtendedPoset, *Store
 		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
-	fs := fakeFS(namespace)
-	store := NewStore(fs.makeFakeDB(""), fs.makeFakeDB)
+	fs := newFakeFS(namespace)
+	store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
 
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Alloc: balances,
@@ -80,50 +76,4 @@ func FakePoset(namespace string, nodes []common.Address) (*ExtendedPoset, *Store
 	})
 
 	return extended, store, input
-}
-
-/*
- * fake FS for databases:
- */
-
-type fakefs map[string]kvdb.KeyValueStore
-
-var fakeFSs = make(map[string]*fakefs)
-
-func fakeFS(namespace string) *fakefs {
-	if fs, ok := fakeFSs[namespace]; ok {
-		return fs
-	}
-
-	fs := make(fakefs)
-	fakeFSs[namespace] = &fs
-	return &fs
-}
-
-func uniqNamespace() string {
-	buf := make([]byte, 128)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return string(buf)
-}
-
-func (fs *fakefs) makeFakeDB(name string) kvdb.KeyValueStore {
-	if db, ok := (*fs)[name]; ok {
-		return db
-	}
-
-	mem := memorydb.New()
-
-	db := fallible.Wrap(mem, nil,
-		func() error { // on drop
-			delete(*fs, name)
-			return nil
-		},
-	)
-	db.SetWriteCount(enough)
-
-	(*fs)[name] = db
-
-	return db
 }
