@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"bytes"
+
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
@@ -33,6 +35,26 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 
 	w, _ := s.get(s.table.Events, key, &inter.Event{}).(*inter.Event)
 	return w
+}
+
+func getPrefix(epoch idx.Epoch, lamport idx.Lamport, hashPrefix []byte) []byte {
+	buf := bytes.NewBuffer(epoch.Bytes())
+	buf.Write(lamport.Bytes())
+	buf.Write(hashPrefix)
+	return buf.Bytes()
+}
+
+func (s *Store) FindEventHashes(epoch idx.Epoch, lamport idx.Lamport, hashPrefix []byte) hash.Events {
+	prefix := getPrefix(epoch, lamport, hashPrefix)
+	res := make(hash.Events, 0, 10)
+
+	it := s.table.Events.NewIteratorWithPrefix(prefix)
+	for it.Next() {
+		res = append(res, hash.BytesToEvent(it.Key()))
+	}
+	it.Release()
+
+	return res
 }
 
 // GetEventRLP returns stored event. Serialized.

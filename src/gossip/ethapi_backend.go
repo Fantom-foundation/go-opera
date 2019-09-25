@@ -4,9 +4,14 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"strconv"
+	"strings"
 
-	//	"github.com/ethereum/go-ethereum/core/rawdb"
-	//	"github.com/ethereum/go-ethereum/common/math"
+	errors2 "github.com/pkg/errors"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -129,6 +134,87 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 		return stateDb, header, err
 	*/
 	return nil, nil, ErrNotImplemented("StateAndHeaderByNumber")
+}
+
+func decodeShortEventId(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
+	if len(s) != 3 {
+		return 0, 0, nil, errors.New("incorrent format of short event ID (need Epoch:Lamport:Hash")
+	}
+	epoch, err := strconv.ParseUint(s[0], 10, 32)
+	if err != nil {
+		return 0, 0, nil, errors2.Wrap(err, "short hash parsing error (lamport)")
+	}
+	lamport, err := strconv.ParseUint(s[1], 10, 32)
+	if err != nil {
+		return 0, 0, nil, errors2.Wrap(err, "short hash parsing error (lamport)")
+	}
+	return idx.Epoch(epoch), idx.Lamport(lamport), common.FromHex(s[2]), nil
+}
+
+func (b *EthAPIBackend) GetFullEventId(shortEventId string) (hash.Event, error) {
+	s := strings.Split(shortEventId, ":")
+	if len(s) == 1 {
+		// it's a full hash
+		return hash.HexToEventHash(shortEventId), nil
+	}
+	// short hash
+	epoch, lamport, prefix, err := decodeShortEventId(s)
+	if err != nil {
+		return hash.Event{}, err
+	}
+
+	options := b.svc.store.FindEventHashes(epoch, lamport, prefix)
+	if len(options) == 0 {
+		return hash.Event{}, errors.New("event wasn't found by short ID")
+	}
+	if len(options) > 1 {
+		return hash.Event{}, errors.New("there're multiple events with the same short ID, please use full ID")
+	}
+	return options[0], nil
+}
+
+func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventId string) (*inter.Event, error) {
+	id, err := b.GetFullEventId(shortEventId)
+	if err != nil {
+		return nil, err
+	}
+	e := b.svc.store.GetEvent(id)
+	if e == nil {
+		return nil, errors.New("event wasn't found")
+	}
+	return e, nil
+}
+
+func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventId string) (*inter.EventHeaderData, error) {
+	id, err := b.GetFullEventId(shortEventId)
+	if err != nil {
+		return nil, err
+	}
+	epoch := id.Epoch()
+	if epoch != b.svc.engine.GetEpoch() {
+		return nil, errors.New("event headers are stored only for current epoch")
+	}
+	e := b.svc.store.GetEventHeader(epoch, id)
+	if e == nil {
+		return nil, errors.New("event header wasn't found")
+	}
+	return e, nil
+}
+
+func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventId string) (inter.Timestamp, error) {
+	id, err := b.GetFullEventId(shortEventId)
+	if err != nil {
+		return 0, err
+	}
+	return b.svc.engine.GetConsensusTime(id)
+}
+
+func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
+	heads := b.svc.store.GetHeads(b.svc.engine.GetEpoch())
+	if heads == nil {
+		heads = hash.Events{}
+	}
+	return heads
 }
 
 func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *types.Header {
@@ -387,5 +473,6 @@ func convertHeader(h *evm_core.EvmHeader) *types.Header {
 		Root:       h.Root,
 		ParentHash: h.ParentHash,
 		Time:       uint64(h.Time.Unix()),
+		Extra:      h.Hash.Bytes(),
 	}
 }

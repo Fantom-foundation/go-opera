@@ -70,6 +70,13 @@ func (hook *HookedEngine) GetMembers() pos.Members {
 	return hook.engine.GetMembers()
 }
 
+func (hook *HookedEngine) GetConsensusTime(id hash.Event) (inter.Timestamp, error) {
+	if hook.engine == nil {
+		return 0, nil
+	}
+	return hook.engine.GetConsensusTime(id)
+}
+
 func (hook *HookedEngine) Bootstrap(fn inter.ApplyBlockFn) {
 	if hook.engine == nil {
 		return
