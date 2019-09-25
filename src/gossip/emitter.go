@@ -292,7 +292,7 @@ func (em *Emitter) createEvent() *inter.Event {
 		}
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == coinbase && i != 0 {
-			// there're 2 heads from me
+			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
 			log.Error("I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil
 		}
