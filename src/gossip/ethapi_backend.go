@@ -80,6 +80,9 @@ func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 		n := uint64(number.Int64())
 		blk = b.state.GetBlock(common.Hash{}, n)
 	}
+	if blk == nil {
+		return nil, errors.New("block wasn't found")
+	}
 
 	return convertHeader(&blk.EvmHeader), nil
 }
@@ -95,7 +98,7 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if number == rpc.PendingBlockNumber {
-		return nil, errors.New("Error: request pending block")
+		return nil, errors.New("pending block request isn't allowed")
 	}
 	// Otherwise resolve and return the block
 	var blk *evm_core.EvmBlock
@@ -104,6 +107,9 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	} else {
 		n := uint64(number.Int64())
 		blk = b.state.GetBlock(common.Hash{}, n)
+	}
+	if blk == nil {
+		return nil, errors.New("block wasn't found")
 	}
 
 	return types.NewBlock(
@@ -470,9 +476,12 @@ func convertHeader(h *evm_core.EvmHeader) *types.Header {
 		Number:     h.Number,
 		Coinbase:   h.Coinbase,
 		GasLimit:   h.GasLimit,
+		GasUsed:    h.GasUsed,
 		Root:       h.Root,
 		ParentHash: h.ParentHash,
 		Time:       uint64(h.Time.Unix()),
 		Extra:      h.Hash.Bytes(),
+
+		Difficulty: new(big.Int),
 	}
 }

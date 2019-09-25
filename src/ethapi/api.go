@@ -1665,7 +1665,10 @@ func (api *PublicDebugAPI) GetBlockRlp(ctx context.Context, number uint64) (stri
 // This is a temporary method to debug the externalsigner integration,
 // TODO: Remove this method when the integration is mature
 func (api *PublicDebugAPI) TestSignCliqueBlock(ctx context.Context, address common.Address, number uint64) (common.Address, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	if err != nil {
+		return common.Address{}, err
+	}
 	if block == nil {
 		return common.Address{}, fmt.Errorf("block #%d not found", number)
 	}
@@ -1700,7 +1703,10 @@ func (api *PublicDebugAPI) TestSignCliqueBlock(ctx context.Context, address comm
 
 // PrintBlock retrieves a block and returns its pretty printed form.
 func (api *PublicDebugAPI) PrintBlock(ctx context.Context, number uint64) (string, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	if err != nil {
+		return "", err
+	}
 	if block == nil {
 		return "", fmt.Errorf("block #%d not found", number)
 	}
@@ -1709,7 +1715,10 @@ func (api *PublicDebugAPI) PrintBlock(ctx context.Context, number uint64) (strin
 
 // SeedHash retrieves the seed hash of a block.
 func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	if err != nil {
+		return "", err
+	}
 	if block == nil {
 		return "", fmt.Errorf("block #%d not found", number)
 	}
@@ -1717,7 +1726,10 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 }
 
 func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventId string) (map[string]interface{}, error) {
-	header, _ := api.b.GetEventHeader(ctx, shortEventId)
+	header, err := api.b.GetEventHeader(ctx, shortEventId)
+	if err != nil {
+		return nil, err
+	}
 	if header == nil {
 		return nil, fmt.Errorf("event %s not found", shortEventId)
 	}
@@ -1725,7 +1737,10 @@ func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventId stri
 }
 
 func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventId string, inclTx bool) (map[string]interface{}, error) {
-	event, _ := api.b.GetEvent(ctx, shortEventId)
+	event, err := api.b.GetEvent(ctx, shortEventId)
+	if err != nil {
+		return nil, err
+	}
 	if event == nil {
 		return nil, fmt.Errorf("event %s not found", shortEventId)
 	}

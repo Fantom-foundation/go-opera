@@ -16,6 +16,7 @@ type Block struct {
 	Time       Timestamp
 	Events     hash.Events
 	SkippedTxs []uint // indexes of skipped txs, starting from first tx of first event, ending with last tx of last event
+	GasUsed    uint64
 
 	PrevHash hash.Event
 
