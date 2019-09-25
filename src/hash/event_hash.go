@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -97,7 +96,7 @@ func (h Event) String() string {
 		return name
 	}
 	// last bytes, because first are occupied by epoch and lamport
-	return fmt.Sprintf("%d:%d:%s...", h.Epoch(), h.Lamport(), hexutil.Encode(h[29:32]))
+	return fmt.Sprintf("%d:%d:%s", h.Epoch(), h.Lamport(), common.Bytes2Hex(h[8:12]))
 }
 
 // IsZero returns true if hash is empty.
