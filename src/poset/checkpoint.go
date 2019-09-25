@@ -14,12 +14,11 @@ import (
 // checkpoint is for persistent storing.
 type checkpoint struct {
 	// fields can change only after a frame is decided
-	LastDecidedFrame  idx.Frame
-	LastBlockN        idx.Block
-	LastAtropos       hash.Event
-	LastConsensusTime inter.Timestamp
-	NextMembers       pos.Members
-	StateHash         common.Hash
+	LastDecidedFrame idx.Frame
+	LastBlockN       idx.Block
+	LastAtropos      hash.Event
+	NextMembers      pos.Members
+	StateHash        common.Hash
 }
 
 /*

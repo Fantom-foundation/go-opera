@@ -60,12 +60,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCre
 	if len(blockEvents) == 0 {
 		p.Log.Crit("Frame is decided with no events. It isn't possible.")
 	}
-	ordered := p.fareOrdering(frame, atropos, blockEvents)
+	ordered, frameInfo := p.fareOrdering(frame, atropos, blockEvents)
 
 	// block generation
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
+		block := inter.NewBlock(p.checkpoint.LastBlockN, frameInfo.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
 		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
 	}
 	p.checkpoint.LastAtropos = atropos
@@ -92,7 +92,7 @@ func (p *Poset) tryToSealEpoch(atropos hash.Event, lastHeaders headersByCreator)
 
 func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	// new PrevEpoch state
-	p.PrevEpoch.Time = p.LastConsensusTime
+	p.PrevEpoch.Time = p.frameConsensusTime(p.LastDecidedFrame)
 	p.PrevEpoch.Epoch = p.EpochN
 	p.PrevEpoch.LastAtropos = atropos
 	p.PrevEpoch.StateHash = p.checkpoint.StateHash
