@@ -455,7 +455,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		if len(progress.LastPackInfo.Heads) > pos.MembersCount*pos.MembersCount { // squire because of possible forks
+		if len(progress.LastPackInfo.Heads) > pos.MembersCount*pos.MembersCount { // square because of possible forks
 			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
 		p.SetProgress(progress)
@@ -645,7 +645,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			if len(info.Heads) == 0 {
 				return errResp(ErrEmptyMessage, "%v", msg)
 			}
-			if len(info.Heads) > pos.MembersCount*pos.MembersCount { // squire because of possible forks
+			if len(info.Heads) > pos.MembersCount*pos.MembersCount { // square because of possible forks
 				return errResp(ErrMsgTooLarge, "%v", msg)
 			}
 			// Mark the hashes as present at the remote node
