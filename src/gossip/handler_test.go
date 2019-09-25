@@ -151,6 +151,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	pm := svc.pm
 	pm.Start(1000)
 	pm.synced = 1
+	pm.downloader.Terminate() // disable downloader so test would be deterministic
 	defer pm.Stop()
 
 	// create peers
@@ -177,14 +178,10 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 		for _, peer := range peers {
 			if allowAggressive {
 				// aggressive
-				assertar.NoError(
-					ExpectMsgOneOf(2, // NOTE: because GetPackInfosMsg could be received first
-						peer.app, EventsMsg, []*inter.Event{emitted}))
+				assertar.NoError(p2p.ExpectMsg(peer.app, EventsMsg, []*inter.Event{emitted}))
 			} else {
 				// announce
-				assertar.NoError(
-					ExpectMsgOneOf(2, // NOTE: because GetPackInfosMsg could be received first
-						peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()}))
+				assertar.NoError(p2p.ExpectMsg(peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()}))
 			}
 			if t.Failed() {
 				return
@@ -203,7 +200,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	// create new event, but send it from new peer
 	{
-		emitted := svc.emitter.createEvent()
+		emitted := svc.emitter.createEvent(nil)
 		assertar.NotNil(emitted)
 		assertar.NoError(p2p.Send(newPeer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()})) // announce
 		// now PM should request it

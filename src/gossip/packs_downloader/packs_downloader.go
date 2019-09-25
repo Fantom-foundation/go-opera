@@ -29,7 +29,8 @@ type PacksDownloader struct {
 	// State
 	peers map[string]*PeerPacksDownloader
 
-	peersMu *sync.RWMutex
+	peersMu    *sync.RWMutex
+	terminated bool
 }
 
 // New creates a packs fetcher to retrieve events based on pack announcements.
@@ -61,6 +62,10 @@ func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.Epoch) error {
 
 	d.peersMu.Lock()
 	defer d.peersMu.Unlock()
+
+	if d.terminated {
+		return nil
+	}
 
 	if d.peers[peer.Id] != nil || len(d.peers) >= maxPeers {
 		return nil
@@ -132,6 +137,7 @@ func (d *PacksDownloader) Terminate() {
 	d.peersMu.Lock()
 	defer d.peersMu.Unlock()
 
+	d.terminated = true
 	for _, peerDownloader := range d.peers {
 		peerDownloader.Stop()
 	}
