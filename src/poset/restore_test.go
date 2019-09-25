@@ -22,7 +22,7 @@ func TestRestore(t *testing.T) {
 		COUNT     = 3 // two poset instances
 		GENERATOR = 0 // event generator
 		EXPECTED  = 1 // first as etalon
-		RESTORED  = 2 // second with db failures
+		RESTORED  = 2 // second with restoring
 	)
 
 	nodes := inter.GenNodes(5)
@@ -78,7 +78,7 @@ func TestRestore(t *testing.T) {
 	x := 0
 	for n, e := range ordered {
 		if n%20 == 0 {
-			log.Info("restart poset")
+			log.Info("Restart poset")
 			prev := posets[RESTORED]
 			x++
 			fs := newFakeFS(namespaces[RESTORED])
@@ -98,35 +98,16 @@ func TestRestore(t *testing.T) {
 		inputs[RESTORED].SetEvent(e)
 		assertar.NoError(posets[RESTORED].ProcessEvent(e))
 
-		// compare states
-		assertar.Equal(
-			*posets[EXPECTED].checkpoint, *posets[RESTORED].checkpoint)
-		assertar.Equal(
-			posets[EXPECTED].epochState.PrevEpoch.Hash(), posets[RESTORED].epochState.PrevEpoch.Hash())
-		assertar.Equal(
-			posets[EXPECTED].epochState.Members, posets[RESTORED].epochState.Members)
-		assertar.Equal(
-			posets[EXPECTED].epochState.EpochN, posets[RESTORED].epochState.EpochN)
-		// check LastAtropos and Head() method
-		if posets[EXPECTED].checkpoint.LastBlockN != 0 {
-			assertar.Equal(
-				posets[RESTORED].checkpoint.LastAtropos,
-				posets[EXPECTED].blocks[idx.Block(len(posets[EXPECTED].blocks))].Hash(),
-				"atropos must be last event in block")
-		}
-	}
-
-	// check that blocks are identical
-	assertar.Equal(len(posets[EXPECTED].blocks), len(posets[RESTORED].blocks))
-	assertar.Equal(len(posets[EXPECTED].blocks), epochLen*epochs)
-	assertar.Equal(len(posets[EXPECTED].blocks), int(posets[RESTORED].LastBlockN))
-	for i := idx.Block(1); i <= idx.Block(len(posets[RESTORED].blocks)); i++ {
-		assertar.NotNil(posets[RESTORED].blocks[i])
+		compareStates(assertar, posets[EXPECTED], posets[RESTORED])
 		if t.Failed() {
 			return
 		}
-		assertar.Equal(posets[EXPECTED].blocks[i], posets[RESTORED].blocks[i])
 	}
+
+	if !assertar.Equal(len(posets[EXPECTED].blocks), epochLen*epochs) {
+		return
+	}
+	compareBlocks(assertar, posets[EXPECTED], posets[RESTORED])
 }
 
 func TestDbFailure(t *testing.T) {
@@ -134,9 +115,10 @@ func TestDbFailure(t *testing.T) {
 	assertar := assert.New(t)
 
 	const (
-		COUNT    = 2 // two poset instances
-		EXPECTED = 0 // first as etalon
-		RESTORED = 1 // second with db failures
+		COUNT     = 3 // two poset instances
+		GENERATOR = 0 // event generator
+		EXPECTED  = 1 // first as etalon
+		RESTORED  = 2 // second with db failures
 	)
 	nodes := inter.GenNodes(5)
 
@@ -151,26 +133,31 @@ func TestDbFailure(t *testing.T) {
 		namespaces = append(namespaces, namespace)
 	}
 
+	posets[GENERATOR].
+		SetName("generator")
+	posets[GENERATOR].store.
+		SetName("generator")
+
+	// create events on etalon poset
+	var ordered inter.Events
+	inter.ForEachRandEvent(nodes, int(posets[GENERATOR].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			ordered = append(ordered, e)
+
+			inputs[GENERATOR].SetEvent(e)
+			assertar.NoError(
+				posets[GENERATOR].ProcessEvent(e))
+		},
+		Build: func(e *inter.Event, name string) *inter.Event {
+			e.Epoch = 1
+			return posets[GENERATOR].Prepare(e)
+		},
+	})
+
 	posets[EXPECTED].
 		SetName("expected")
 	posets[EXPECTED].store.
 		SetName("expected")
-
-	// create events on etalon poset
-	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(posets[EXPECTED].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
-		Process: func(e *inter.Event, name string) {
-			ordered = append(ordered, e)
-
-			inputs[EXPECTED].SetEvent(e)
-			assertar.NoError(
-				posets[EXPECTED].ProcessEvent(e))
-		},
-		Build: func(e *inter.Event, name string) *inter.Event {
-			e.Epoch = 1
-			return posets[EXPECTED].Prepare(e)
-		},
-	})
 
 	posets[RESTORED].
 		SetName("restored-0")
@@ -193,7 +180,7 @@ func TestDbFailure(t *testing.T) {
 
 			db.SetWriteCount(enough)
 
-			t.Log("restart poset after db failure")
+			log.Info("Restart poset after db failure")
 			prev := posets[RESTORED]
 			x++
 			fs := newFakeFS(namespaces[RESTORED])
@@ -211,22 +198,60 @@ func TestDbFailure(t *testing.T) {
 		assertar.NoError(
 			posets[RESTORED].ProcessEvent(e))
 
+		inputs[EXPECTED].SetEvent(e)
+		assertar.NoError(
+			posets[EXPECTED].ProcessEvent(e))
+
 		return
 	}
 
 	for len(ordered) > 0 {
 		e := ordered[0]
 		if e.Epoch != 1 {
+			panic("sanity check")
+		}
+
+		if !process(e) {
 			continue
 		}
 
-		if process(e) {
-			ordered = ordered[1:]
+		ordered = ordered[1:]
+
+		compareStates(assertar, posets[EXPECTED], posets[RESTORED])
+		if t.Failed() {
+			return
 		}
 	}
 
-	t.Run("Check consensus", func(t *testing.T) {
-		compareResults(t, posets)
-	})
+	compareBlocks(assertar, posets[EXPECTED], posets[RESTORED])
+}
 
+func compareStates(assertar *assert.Assertions, expected, restored *ExtendedPoset) {
+	assertar.Equal(
+		*expected.checkpoint, *restored.checkpoint)
+	assertar.Equal(
+		expected.epochState.PrevEpoch.Hash(), restored.epochState.PrevEpoch.Hash())
+	assertar.Equal(
+		expected.epochState.Members, restored.epochState.Members)
+	assertar.Equal(
+		expected.epochState.EpochN, restored.epochState.EpochN)
+	// check LastAtropos and Head() method
+	if expected.checkpoint.LastBlockN != 0 {
+		assertar.Equal(
+			expected.blocks[idx.Block(len(expected.blocks))].Hash(),
+			restored.checkpoint.LastAtropos,
+			"atropos must be last event in block")
+	}
+}
+
+func compareBlocks(assertar *assert.Assertions, expected, restored *ExtendedPoset) {
+	assertar.Equal(len(expected.blocks), len(restored.blocks))
+	assertar.Equal(len(expected.blocks), int(restored.LastBlockN))
+	for i := idx.Block(1); i <= idx.Block(len(restored.blocks)); i++ {
+		if !assertar.NotNil(restored.blocks[i]) ||
+			!assertar.Equal(expected.blocks[i], restored.blocks[i]) {
+			return
+		}
+
+	}
 }

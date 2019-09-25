@@ -39,16 +39,15 @@ func (fs *fakeFS) OpenFakeDB(name string) kvdb.KeyValueStore {
 	if db, ok := fs.Files[name]; ok {
 		mem := db.(*fallible.Fallible).Underlying.(*memorydb.Database)
 		log.Debug("open fake-DB", "db-name", name, "namespace", fs.Namespace, "len", mem.Len())
-
 		return db
 	}
 
-	mem := memorydb.New()
 	log.Debug("make fake-DB", "db-name", name, "namespace", fs.Namespace, "len", "0")
+	mem := memorydb.New()
 
 	db := fallible.Wrap(mem, nil,
 		func() error { // on drop
-			log.Debug("drop fake-DB", "db-name", name, "namespace", fs.Namespace, "mem", mem.Len())
+			log.Debug("drop fake-DB", "db-name", name, "namespace", fs.Namespace, "len", mem.Len())
 			delete(fs.Files, name)
 			return nil
 		},
