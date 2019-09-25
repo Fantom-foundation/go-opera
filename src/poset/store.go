@@ -14,7 +14,6 @@ type Store struct {
 	persistentDB kvdb.KeyValueStore
 	table        struct {
 		Checkpoint     kvdb.KeyValueStore `table:"checkpoint_"`
-		Event2Block    kvdb.KeyValueStore `table:"event2block_"`
 		Epochs         kvdb.KeyValueStore `table:"epoch_"`
 		ConfirmedEvent kvdb.KeyValueStore `table:"confirmed_"`
 		FrameInfos     kvdb.KeyValueStore `table:"frameinfo_"`
@@ -105,7 +104,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 
 	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
-		s.Log.Crit("Failed to decode rlp", "err", err)
+		s.Log.Crit("Failed to decode rlp", "err", err, "size", len(buf))
 	}
 	return to
 }

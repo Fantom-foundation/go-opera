@@ -1,10 +1,15 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/ethereum/go-ethereum/rlp"
+	"errors"
 	"io"
 	"math"
+
+	"github.com/ethereum/go-ethereum/rlp"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // TODO: make FrameInfo internal
@@ -36,7 +41,16 @@ func (f *FrameInfo) DecodeRLP(st *rlp.Stream) error {
 	return nil
 }
 
-// GetConsensusTimestamp calc consensus timestamp for given event.
-func (f *FrameInfo) GetConsensusTimestamp(e *Event) inter.Timestamp {
-	return inter.Timestamp(int64(e.Lamport)*int64(f.TimeRatio) + f.TimeOffset)
+func (f *FrameInfo) CalcConsensusTime(lamport idx.Lamport) inter.Timestamp {
+	return inter.Timestamp(int64(lamport)*int64(f.TimeRatio) + f.TimeOffset)
+}
+
+// GetConsensusTime calc consensus timestamp for given event.
+func (p *Poset) GetConsensusTime(id hash.Event) (inter.Timestamp, error) {
+	f := p.store.GetEventConfirmedOn(id)
+	if f == 0 {
+		return 0, errors.New("event wasn't confirmed/found")
+	}
+	finfo := p.store.GetFrameInfo(id.Epoch(), f)
+	return finfo.CalcConsensusTime(id.Lamport()), nil
 }
