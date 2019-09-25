@@ -56,7 +56,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
-		p.Log.Error("Event prepare error", "err", err)
+		p.Log.Error("Event prepare error", "err", err, "event", e.String())
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
@@ -171,6 +171,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
 	var decided *election.ElectionRes
 	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
+		p.Log.Debug("root reprocessing", "root", root.String())
 		decided = p.processRoot(f, from, root)
 		return decided == nil
 	})

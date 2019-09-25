@@ -98,15 +98,9 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.Members = p.NextMembers.Top()
 	p.NextMembers = p.Members.Copy()
 
-	// reset election & vectorindex
-	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
-		return p.input.GetEventHeader(p.EpochN, id)
-	}) // this DB is pruned after .pruneTempDb()
-	p.election.Reset(p.Members, firstFrame)
-	p.LastDecidedFrame = 0
-
 	// move to new epoch
 	p.EpochN++
+	p.LastDecidedFrame = 0
 
 	// commit
 	p.store.SetEpoch(&p.epochState)
@@ -114,4 +108,11 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 
 	// reset internal epoch DB
 	p.store.RecreateEpochDb(p.EpochN)
+
+	// reset election & vectorindex to new epoch db
+	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
+		return p.input.GetEventHeader(p.EpochN, id)
+	})
+	p.election.Reset(p.Members, firstFrame)
+
 }

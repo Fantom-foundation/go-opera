@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -76,8 +77,8 @@ func TestRestore(t *testing.T) {
 	// use pre-ordered events, call consensus(e) directly, to avoid issues with restoring state of EventBuffer
 	x := 0
 	for n, e := range ordered {
-		if (n < len(ordered)/10) || n%20 == 0 {
-			t.Log("restart poset")
+		if n%20 == 0 {
+			log.Info("restart poset")
 			prev := posets[RESTORED]
 			x++
 			fs := newFakeFS(namespaces[RESTORED])
@@ -93,6 +94,7 @@ func TestRestore(t *testing.T) {
 
 		inputs[EXPECTED].SetEvent(e)
 		assertar.NoError(posets[EXPECTED].ProcessEvent(e))
+
 		inputs[RESTORED].SetEvent(e)
 		assertar.NoError(posets[RESTORED].ProcessEvent(e))
 
