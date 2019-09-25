@@ -14,11 +14,13 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 	memberIdxs := p.Members.Idxs()
 	err := p.dfsSubgraph(atropos, func(header *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(header.Hash())
-		if decidedFrame == 0 {
-			// confirm all the walked events
+		switch decidedFrame {
+		case 0:
+			// mark all the walked events
 			p.store.SetEventConfirmedOn(header.Hash(), frame)
-
-			// not all the events are included into a block
+			fallthrough
+		case frame:
+			// but not all the events are included into a block
 			creatorHighest := atroposHighestBefore.Get(memberIdxs[header.Creator])
 			fromCheater := creatorHighest.IsForkDetected
 			freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxMemberEventsInBlock // will overflow on forks, it's fine
@@ -40,13 +42,15 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 		p.Log.Crit("Failed to walk subgraph", "err", err)
 	}
 
-	p.Log.Debug("confirmed events", "atropos", atropos.String(), "num", len(blockEvents))
+	p.Log.Debug("confirmed events by", "atropos", atropos.String(), "num", len(blockEvents))
 	return blockEvents, lastHeaders
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, epoch sealing.
 func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCreator {
+	p.Log.Debug("consensus: event is atropos", "event", atropos.String())
+
 	p.election.Reset(p.Members, frame+1)
 	p.LastDecidedFrame = frame
 
