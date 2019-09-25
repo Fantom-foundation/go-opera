@@ -286,7 +286,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	for i, p := range parents {
 		parent := em.store.GetEventHeader(epoch, p)
 		if parent == nil {
-			log.Crit("Emitter: head wasn't found", "e", p.String())
+			log.Crit("Emitter: head wasn't found", "event", p.String())
 		}
 		parentHeaders[i] = parent
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -445,7 +445,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	log.Info("New event emitted", "e", e.String())
+	log.Info("New event emitted", "event", e.String())
 
 	return e
 }
