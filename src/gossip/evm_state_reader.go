@@ -96,7 +96,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_
 			}
 		}
 	} else {
-		evmBlock.Transactions = make(types.Transactions, 0, 0)
+		evmBlock.Transactions = make(types.Transactions, 0)
 	}
 	return evmBlock
 }
