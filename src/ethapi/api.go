@@ -55,6 +55,10 @@ const (
 	defaultGasPrice = params.GWei
 )
 
+var (
+	noUncles = []evm_core.EvmHeader{}
+)
+
 // PublicEthereumAPI provides an API to access Ethereum related information.
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicEthereumAPI struct {
@@ -682,7 +686,7 @@ func (s *PublicBlockChainAPI) GetUncleByBlockHashAndIndex(ctx context.Context, b
 // GetUncleCountByBlockNumber returns number of uncles in the block for the given block number
 func (s *PublicBlockChainAPI) GetUncleCountByBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) *hexutil.Uint {
 	if block, _ := s.b.BlockByNumber(ctx, blockNr); block != nil {
-		n := hexutil.Uint(len([]evm_core.EvmHeader{}))
+		n := hexutil.Uint(len(noUncles))
 		return &n
 	}
 	return nil
@@ -691,7 +695,7 @@ func (s *PublicBlockChainAPI) GetUncleCountByBlockNumber(ctx context.Context, bl
 // GetUncleCountByBlockHash returns number of uncles in the block for the given block hash
 func (s *PublicBlockChainAPI) GetUncleCountByBlockHash(ctx context.Context, blockHash common.Hash) *hexutil.Uint {
 	if block, _ := s.b.GetBlock(ctx, blockHash); block != nil {
-		n := hexutil.Uint(len([]evm_core.EvmHeader{}))
+		n := hexutil.Uint(len(noUncles))
 		return &n
 	}
 	return nil
@@ -1032,7 +1036,7 @@ func RPCMarshalBlock(block *evm_core.EvmBlock, inclTx bool, fullTx bool) (map[st
 		}
 		fields["transactions"] = transactions
 	}
-	uncles := []evm_core.EvmHeader{}
+	uncles := noUncles
 	uncleHashes := make([]common.Hash, len(uncles))
 	for i, uncle := range uncles {
 		uncleHashes[i] = uncle.Hash
