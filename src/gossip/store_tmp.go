@@ -53,7 +53,9 @@ func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueS
 		return nil
 	}
 
-	if tmp, ok := s.tmpDbs.seq[name][ver]; ok {
+	if _, ok := s.tmpDbs.seq[name]; !ok {
+		s.tmpDbs.seq[name] = make(map[uint64]tmpDb)
+	} else if tmp, ok := s.tmpDbs.seq[name][ver]; ok {
 		return tmp.Tables
 	}
 
@@ -93,5 +95,5 @@ func (s *Store) delTmpDb(name string, ver uint64) {
 }
 
 func tmpDbName(scope string, ver uint64) string {
-	return fmt.Sprintf("tmp_%s_%d", scope, ver)
+	return fmt.Sprintf("gossip-%s-%d", scope, ver)
 }
