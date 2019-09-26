@@ -71,7 +71,7 @@ type ProtocolManager struct {
 	config *Config
 
 	//fastSync uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
-	synced   uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
+	synced uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
 	txpool   txPool
 	maxPeers int

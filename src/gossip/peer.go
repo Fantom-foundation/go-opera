@@ -58,7 +58,7 @@ type peer struct {
 	*p2p.Peer
 	rw p2p.MsgReadWriter
 
-	version  int         // Protocol version negotiated
+	version int // Protocol version negotiated
 
 	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
 	knownEvents mapset.Set                // Set of event hashes known to be known by this peer

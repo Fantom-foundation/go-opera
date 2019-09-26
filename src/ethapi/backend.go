@@ -23,17 +23,16 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
@@ -42,29 +41,28 @@ import (
 // both full and light clients) with access to necessary functions.
 type Backend interface {
 	// General Ethereum API
-	Downloader() *downloader.Downloader
 	ProtocolVersion() int
 	SuggestPrice(ctx context.Context) (*big.Int, error)
 	ChainDb() ethdb.Database
-	EventMux() *event.TypeMux
+	NotifyMux() *notify.TypeMux
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API
-	SetHead(number uint64)
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
+	StateAndEvmHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error)
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	GetHeader(ctx context.Context, hash common.Hash) *types.Header
 	GetBlock(ctx context.Context, hash common.Hash) (*types.Block, error)
 	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
-	GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header) (*vm.EVM, func() error, error)
-	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
-	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
-	SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription
+	GetEVM(ctx context.Context, msg evm_core.Message, state *state.StateDB, header *evm_core.EvmHeader) (*vm.EVM, func() error, error)
+	SubscribeChainNotify(ch chan<- evm_core.ChainNotify) notify.Subscription
+	SubscribeChainHeadNotify(ch chan<- evm_core.ChainHeadNotify) notify.Subscription
+	SubscribeChainSideNotify(ch chan<- evm_core.ChainSideNotify) notify.Subscription
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
@@ -74,14 +72,14 @@ type Backend interface {
 	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	Stats() (pending int, queued int)
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
-	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
+	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) notify.Subscription
 
 	// Filter API
 	BloomStatus() (uint64, uint64)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
-	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
+	SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription
+	SubscribeRemovedLogsNotify(ch chan<- evm_core.RemovedLogsNotify) notify.Subscription
 
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block

@@ -19,6 +19,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
 	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -117,7 +118,8 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, svc.engine, svc.serverPool)
 
-	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
+	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil, new(notify.TypeMux)}
+	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	return svc, err
 }

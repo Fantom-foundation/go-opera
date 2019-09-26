@@ -46,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
 
+	"github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check"
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
@@ -76,28 +77,8 @@ func (s *PublicEthereumAPI) ProtocolVersion() hexutil.Uint {
 	return hexutil.Uint(s.b.ProtocolVersion())
 }
 
-// Syncing returns false in case the node is currently not syncing with the network. It can be up to date or has not
-// yet received the latest block headers from its pears. In case it is synchronizing:
-// - startingBlock: block number this node started to synchronise from
-// - currentBlock:  block number this node is currently importing
-// - highestBlock:  block number of the highest block header this node has received from peers
-// - pulledStates:  number of state entries processed until now
-// - knownStates:   number of known state entries that still need to be pulled
 func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
-	progress := s.b.Downloader().Progress()
-
-	// Return not syncing if the synchronisation already completed
-	if progress.CurrentBlock >= progress.HighestBlock {
-		return false, nil
-	}
-	// Otherwise gather the block sync stats
-	return map[string]interface{}{
-		"startingBlock": hexutil.Uint64(progress.StartingBlock),
-		"currentBlock":  hexutil.Uint64(progress.CurrentBlock),
-		"highestBlock":  hexutil.Uint64(progress.HighestBlock),
-		"pulledStates":  hexutil.Uint64(progress.PulledStates),
-		"knownStates":   hexutil.Uint64(progress.KnownStates),
-	}, nil
+	return false, nil
 }
 
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
@@ -761,7 +742,7 @@ type CallArgs struct {
 func DoCall(ctx context.Context, b Backend, args CallArgs, blockNr rpc.BlockNumber, vmCfg vm.Config, timeout time.Duration, globalGasCap *big.Int) ([]byte, uint64, bool, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
-	state, header, err := b.StateAndHeaderByNumber(ctx, blockNr)
+	state, header, err := b.StateAndEvmHeaderByNumber(ctx, blockNr)
 	if state == nil || err != nil {
 		return nil, 0, false, err
 	}
@@ -858,12 +839,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	if args.Gas != nil && uint64(*args.Gas) >= params.TxGas {
 		hi = uint64(*args.Gas)
 	} else {
-		// Retrieve the block to act as the gas ceiling
-		block, err := b.BlockByNumber(ctx, blockNr)
-		if err != nil {
-			return 0, err
-		}
-		hi = block.GasLimit()
+		hi = basic_check.MaxGasPowerUsed
 	}
 	if gasCap != nil && hi > gasCap.Uint64() {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
@@ -875,7 +851,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	executable := func(gas uint64) bool {
 		args.Gas = (*hexutil.Uint64)(&gas)
 
-		_, _, failed, err := DoCall(ctx, b, args, rpc.PendingBlockNumber, vm.Config{}, 0, gasCap)
+		_, _, failed, err := DoCall(ctx, b, args, rpc.LatestBlockNumber, vm.Config{}, 0, gasCap)
 		if err != nil || failed {
 			return false
 		}
@@ -902,7 +878,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
 func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (hexutil.Uint64, error) {
-	return DoEstimateGas(ctx, s.b, args, rpc.PendingBlockNumber, s.b.RPCGasCap())
+	return DoEstimateGas(ctx, s.b, args, rpc.LatestBlockNumber, s.b.RPCGasCap())
 }
 
 // ExecutionResult groups all structured logs emitted by the EVM
@@ -1421,7 +1397,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 			Value:    args.Value,
 			Data:     input,
 		}
-		estimated, err := DoEstimateGas(ctx, b, callArgs, rpc.PendingBlockNumber, b.RPCGasCap())
+		estimated, err := DoEstimateGas(ctx, b, callArgs, rpc.LatestBlockNumber, b.RPCGasCap())
 		if err != nil {
 			return err
 		}
@@ -1803,8 +1779,8 @@ func (api *PrivateDebugAPI) ChaindbCompact() error {
 }
 
 // SetHead rewinds the head of the blockchain to a previous block.
-func (api *PrivateDebugAPI) SetHead(number hexutil.Uint64) {
-	api.b.SetHead(uint64(number))
+func (api *PrivateDebugAPI) SetHead(number hexutil.Uint64) error {
+	return errors.New("lachesis cannot rewind blocks due to the BFT algorithm")
 }
 
 // PublicNetAPI offers network related RPC methods
