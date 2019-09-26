@@ -33,6 +33,7 @@ do
     enode=$(echo $enode | sed "s/127.0.0.1/${ip}/")
 
     docker exec -i ${NAME}-$i /lachesis --exec "admin.addPeer(${enode})" attach http://127.0.0.1:18545
+    echo "Connected $i to $j, with $enode"
 done
 
 
