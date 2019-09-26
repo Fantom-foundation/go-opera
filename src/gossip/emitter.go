@@ -182,10 +182,8 @@ func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, membersArr []com
 	return membersArr[turn]
 }
 
-func (em *Emitter) addTxs(e *inter.Event) *inter.Event {
-	poolTxs, err := em.txpool.Pending()
-	if err != nil {
-		log.Error("Tx pool transactions fetching error", "err", err)
+func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Transactions) *inter.Event {
+	if poolTxs == nil || len(poolTxs) == 0 {
 		return e
 	}
 
@@ -262,7 +260,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 }
 
 // createEvent is not safe for concurrent use.
-func (em *Emitter) createEvent() *inter.Event {
+func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
 	coinbase := em.GetCoinbase()
 
 	if _, ok := em.engine.GetMembers()[coinbase]; !ok {
@@ -288,7 +286,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	for i, p := range parents {
 		parent := em.store.GetEventHeader(epoch, p)
 		if parent == nil {
-			log.Crit("Emitter: head wasn't found", "e", p.String())
+			log.Crit("Emitter: head wasn't found", "event", p.String())
 		}
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == coinbase && i != 0 {
@@ -326,7 +324,7 @@ func (em *Emitter) createEvent() *inter.Event {
 	}
 
 	// Add txs
-	event = em.addTxs(event)
+	event = em.addTxs(event, poolTxs)
 
 	if !em.isAllowedToEmit(event, selfParentHeader) {
 		return nil
@@ -433,10 +431,16 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 }
 
 func (em *Emitter) EmitEvent() *inter.Event {
+	poolTxs, err := em.txpool.Pending() // request txs before locking engineMu to prevent deadlock!
+	if err != nil {
+		log.Error("Tx pool transactions fetching error", "err", err)
+		return nil
+	}
+
 	em.engineMu.Lock()
 	defer em.engineMu.Unlock()
 
-	e := em.createEvent()
+	e := em.createEvent(poolTxs)
 	if e == nil {
 		return nil
 	}
@@ -446,7 +450,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	log.Info("New event emitted", "e", e.String())
+	log.Info("New event emitted", "event", e.String())
 
 	return e
 }

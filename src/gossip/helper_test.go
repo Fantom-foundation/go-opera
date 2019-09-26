@@ -171,13 +171,3 @@ func (p *testPeer) handshake(t *testing.T, progress *PeerProgress, genesis commo
 func (p *testPeer) close() {
 	p.app.Close()
 }
-
-func ExpectMsgOneOf(times int, r p2p.MsgReader, code uint64, content interface{}) (err error) {
-	for i := 0; i < times; i++ {
-		err = p2p.ExpectMsg(r, code, content)
-		if err == nil {
-			return
-		}
-	}
-	return
-}
