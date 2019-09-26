@@ -42,7 +42,6 @@ type EventHeaderData struct {
 
 	// caches
 	hash atomic.Value
-	size atomic.Value
 }
 
 type EventHeader struct {
@@ -54,6 +53,9 @@ type EventHeader struct {
 type Event struct {
 	EventHeader
 	Transactions types.Transactions
+
+	// caches
+	size atomic.Value
 }
 
 // constructs empty event
