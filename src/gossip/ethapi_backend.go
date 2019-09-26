@@ -146,7 +146,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 // example of a short ID: "5:26:a2395846", where 5 is epoch, 26 is lamport, a2395846 are first bytes of the hash
 func decodeShortEventId(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
 	if len(s) != 3 {
-		return 0, 0, nil, errors.New("incorrent format of short event ID (need Epoch:Lamport:Hash")
+		return 0, 0, nil, errors.New("incorrect format of short event ID (need Epoch:Lamport:Hash")
 	}
 	epoch, err := strconv.ParseUint(s[0], 10, 32)
 	if err != nil {
