@@ -28,6 +28,7 @@ func (s *Store) initTmpDbs() {
 
 	// load mins
 	it := s.table.TmpDbs.NewIterator()
+	defer it.Release()
 	for it.Next() {
 		min := bigendian.BytesToInt64(it.Value())
 		s.tmpDbs.min[string(it.Key())] = min
@@ -35,7 +36,6 @@ func (s *Store) initTmpDbs() {
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-	it.Release()
 }
 
 func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueStore) interface{}) interface{} {
@@ -72,7 +72,7 @@ func (s *Store) delTmpDb(name string, ver uint64) {
 	defer s.tmpDbs.Unlock()
 
 	min, ok := s.tmpDbs.min[name]
-	if !ok {
+	if !ok || ver < min {
 		return
 	}
 
@@ -86,7 +86,10 @@ func (s *Store) delTmpDb(name string, ver uint64) {
 	}
 
 	ver += 1
-	s.set(s.table.TmpDbs, []byte(name), &ver)
+	err := s.table.TmpDbs.Put([]byte(name), bigendian.Int64ToBytes(ver))
+	if err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
 }
 
 func tmpDbName(scope string, ver uint64) string {
