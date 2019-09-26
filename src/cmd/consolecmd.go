@@ -101,7 +101,7 @@ func remoteConsole(ctx *cli.Context) error {
 	// Attach to a remotely running glachesis instance and start the JavaScript console
 	endpoint := ctx.Args().First()
 	if endpoint == "" {
-		path := node.DefaultDataDir()
+		path := DefaultDataDir()
 		if ctx.GlobalIsSet(utils.DataDirFlag.Name) {
 			path = ctx.GlobalString(utils.DataDirFlag.Name)
 		}
