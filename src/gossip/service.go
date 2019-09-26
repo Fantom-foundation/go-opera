@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
+	"github.com/Fantom-foundation/go-lachesis/src/event_check"
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -125,7 +126,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
 
 	if s.store.HasEvent(e.Hash()) { // sanity check
-		s.store.Log.Crit("Event is already processed", "event", e.Hash().String())
+		return event_check.ErrAlreadyConnectedEvent
 	}
 
 	oldEpoch := e.Epoch

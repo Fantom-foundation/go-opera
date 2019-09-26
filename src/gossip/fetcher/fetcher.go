@@ -21,13 +21,13 @@ import (
  */
 
 const (
-	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced event is explicitly requested
-	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
-	fetchTimeout  = 10 * time.Second       // Maximum allowed time to return an explicitly requested event
-	hashLimit     = 4096                   // Maximum number of unique events a peer may have announced
+	arriveTimeout = 1000 * time.Millisecond // Time allowance before an announced event is explicitly requested
+	gatherSlack   = 100 * time.Millisecond  // Interval used to collate almost-expired announces with fetches
+	fetchTimeout  = 10 * time.Second        // Maximum allowed time to return an explicitly requested event
+	hashLimit     = 3000                    // Maximum number of unique events a peer may have announced
 
 	maxInjectBatch   = 4  // Maximum number of events in an inject batch (batch is divided if exceeded)
-	maxAnnounceBatch = 16 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
+	maxAnnounceBatch = 32 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
 
 	// maxQueuedInjects is the maximum number of inject batches to queue up before
 	// dropping incoming events.
@@ -132,8 +132,8 @@ func (f *Fetcher) Stop() {
 }
 
 func (f *Fetcher) Overloaded() bool {
-	return len(f.inject) > maxQueuedInjects/2 ||
-		len(f.notify) > maxQueuedAnns/2 ||
+	return len(f.inject) > maxQueuedInjects*3/4 ||
+		len(f.notify) > maxQueuedAnns*3/4 ||
 		len(f.announced) > hashLimit ||
 		f.callback.HeavyCheck.Overloaded()
 }
@@ -345,7 +345,7 @@ func (f *Fetcher) loop() {
 
 			// Send out all event requests
 			for peer, hashes := range request {
-				log.Trace("Fetching scheduled events", "peer", peer, "list", hashes)
+				log.Trace("Fetching scheduled events", "peer", peer, "count", len(hashes))
 
 				// Create a closure of the fetch and schedule in on a new thread
 				fetchEvents, hashes := f.fetching[hashes[0]].batch.fetchEvents, hashes

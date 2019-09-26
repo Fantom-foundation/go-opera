@@ -15,8 +15,8 @@ import (
 
 const (
 	forceSyncPeriod = 5 * time.Minute        // Even if we synced up, in a case we're stalled, try to download a not pinned pack after the timeout
-	arriveTimeout   = 500 * time.Millisecond // Time allowance before an announced pack is explicitly requested
-	gatherSlack     = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
+	arriveTimeout   = 10 * time.Second       // Time allowance before an announced pack is explicitly requested
+	recheckInterval = 100 * time.Millisecond // Time between checking - was the arrived pack connected or not
 
 	// Maximum number of stored packs per peer.
 	// Shouldn't be high, because we do binary search, so stored packs are O(log_2(total packs)) + PeerProgress broadcasts
@@ -188,7 +188,7 @@ func (d *PeerPacksDownloader) NotifyPack(epoch idx.Epoch, index idx.Pack, ids ha
 // events.
 func (d *PeerPacksDownloader) loop() {
 	// Iterate the event fetching until a quit is requested
-	syncTicker := time.NewTicker(arriveTimeout)
+	syncTicker := time.NewTicker(recheckInterval)
 
 	for {
 		// Wait for an outside event to occur
@@ -286,7 +286,7 @@ func (d *PeerPacksDownloader) tryToSync() {
 // If pack isn't pinned, then it'll be different every time we request, so we must not remember it
 func (d *PeerPacksDownloader) timedRequestFullPack(index idx.Pack, pinned bool) {
 	prevRequestTime := d.fetchingFull[index]
-	if prevRequestTime.IsZero() || time.Since(prevRequestTime) > arriveTimeout-gatherSlack {
+	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPack(d.myEpoch, index)
 		if err != nil {
 			log.Error("pack request error", "index", index, "peer", d.peer.Id, "err", err)
@@ -301,7 +301,7 @@ func (d *PeerPacksDownloader) timedRequestFullPack(index idx.Pack, pinned bool) 
 // Wrapper does the request only if passed enough time since prev request
 func (d *PeerPacksDownloader) timedRequestPackInfo(index idx.Pack) {
 	prevRequestTime := d.fetchingInfo[index]
-	if prevRequestTime.IsZero() || time.Since(prevRequestTime) > arriveTimeout-gatherSlack {
+	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPackInfos(d.myEpoch, []idx.Pack{index})
 		if err != nil {
 			log.Error("pack info request error", "index", index, "peer", d.peer.Id, "err", err)

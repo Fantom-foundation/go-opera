@@ -33,9 +33,11 @@ var NodeDefaultConfig = node.Config{
 	GraphQLPort:         DefaultGraphQLPort,
 	GraphQLVirtualHosts: []string{"localhost"},
 	P2P: p2p.Config{
-		ListenAddr: ":30303",
-		MaxPeers:   50,
-		NAT:        nat.Any(),
+		NoDiscovery: false, // enable discovery v4 by default
+		DiscoveryV5: false, // disable discovery v5 by default
+		ListenAddr:  ":0",
+		MaxPeers:    50,
+		NAT:         nat.Any(),
 	},
 }
 

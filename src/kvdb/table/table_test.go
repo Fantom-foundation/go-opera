@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/dgraph-io/badger"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
@@ -135,47 +132,4 @@ func join(aa ...map[string][]byte) map[string][]byte {
 	}
 
 	return res
-}
-
-func bboltDB(dir string) (db *bbolt.DB, drop func()) {
-	dir, err := ioutil.TempDir("", "kvdb"+dir)
-	if err != nil {
-		panic(err)
-	}
-	f := filepath.Join(dir, "bbolt.db")
-
-	db, err = bbolt.Open(f, 0600, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	drop = func() {
-		_ = db.Close()
-		_ = os.RemoveAll(dir)
-	}
-
-	return
-}
-
-func badgerDB(dir string) (db *badger.DB, drop func()) {
-	dir, err := ioutil.TempDir("", "kvdb"+dir)
-	if err != nil {
-		panic(err)
-	}
-
-	opts := badger.DefaultOptions
-	opts.Dir = dir
-	opts.ValueDir = dir
-
-	db, err = badger.Open(opts)
-	if err != nil {
-		panic(err)
-	}
-
-	drop = func() {
-		_ = db.Close()
-		_ = os.RemoveAll(dir)
-	}
-
-	return
 }

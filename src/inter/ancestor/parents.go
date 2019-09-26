@@ -36,16 +36,16 @@ func FindBestParents(max int, options hash.Events, selfParent *hash.Event, strat
 }
 
 /*
- * СausalityStrategy
+ * CasualityStrategy
  */
 
-type СausalityStrategy struct {
+type CasualityStrategy struct {
 	vecClock *vector.Index
 	template vector.HighestBeforeSeq
 }
 
-func NewСausalityStrategy(vecClock *vector.Index) *СausalityStrategy {
-	return &СausalityStrategy{
+func NewCasualityStrategy(vecClock *vector.Index) *CasualityStrategy {
+	return &CasualityStrategy{
 		vecClock: vecClock,
 	}
 }
@@ -56,14 +56,14 @@ type eventScore struct {
 	vec   vector.HighestBeforeSeq
 }
 
-func (st *СausalityStrategy) Init(selfParent *hash.Event) {
+func (st *CasualityStrategy) Init(selfParent *hash.Event) {
 	if selfParent != nil {
 		// we start searching by comparing with self-parent
 		st.template = st.vecClock.GetHighestBeforeSeq(*selfParent)
 	}
 }
 
-func (st *СausalityStrategy) Find(options hash.Events) hash.Event {
+func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 	scores := make([]eventScore, 0, 100)
 
 	// estimate score of each option as number of members it causes higher than provided template

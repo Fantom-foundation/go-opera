@@ -33,8 +33,8 @@ import (
 
 const (
 	softResponseLimitSize = 2 * 1024 * 1024    // Target maximum size of returned events, or other data.
-	softLimitItems        = 500                // Target maximum number of events or transactions to request/response
-	hardLimitItems        = softLimitItems * 2 // Maximum number of events or transactions to request/response
+	softLimitItems        = 250                // Target maximum number of events or transactions to request/response
+	hardLimitItems        = softLimitItems * 4 // Maximum number of events or transactions to request/response
 
 	// txChanSize is the size of channel listening to NewTxsNotify.
 	// The number is referenced from the size of tx pool.
@@ -169,6 +169,9 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 	buffer := ordering.New(eventsBuffSize, ordering.Callback{
 
 		Process: func(e *inter.Event) error {
+			pm.engineMu.Lock()
+			defer pm.engineMu.Unlock()
+
 			log.Info("New event", "hash", e.Hash())
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
@@ -196,9 +199,6 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 	})
 
 	pushEvent := func(e *inter.Event, peer string) {
-		pm.engineMu.Lock()
-		defer pm.engineMu.Unlock()
-
 		buffer.PushEvent(e, peer)
 	}
 
@@ -455,7 +455,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		if len(progress.LastPackInfo.Heads) > hardLimitItems {
+		if len(progress.LastPackInfo.Heads) > pos.MembersCount*pos.MembersCount { // square because of possible forks
 			return errResp(ErrMsgTooLarge, "%v", msg)
 		}
 		p.SetProgress(progress)
@@ -645,7 +645,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			if len(info.Heads) == 0 {
 				return errResp(ErrEmptyMessage, "%v", msg)
 			}
-			if len(info.Heads) > pos.MembersCount*pos.MembersCount { // squire because of possible forks
+			if len(info.Heads) > pos.MembersCount*pos.MembersCount { // square because of possible forks
 				return errResp(ErrMsgTooLarge, "%v", msg)
 			}
 			// Mark the hashes as present at the remote node
@@ -821,15 +821,17 @@ type NodeInfo struct {
 	Network     uint64      `json:"network"` // network ID
 	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
 	Epoch       idx.Epoch
-	NumOfEvents idx.Event
+	NumOfBlocks idx.Block
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
+	numOfBlocks, _ := pm.engine.LastBlock()
 	return &NodeInfo{
-		Network: pm.config.Net.NetworkId,
-		Genesis: pm.engine.GetGenesisHash(),
-		Epoch:   pm.engine.GetEpoch(),
+		Network:     pm.config.Net.NetworkId,
+		Genesis:     pm.engine.GetGenesisHash(),
+		Epoch:       pm.engine.GetEpoch(),
+		NumOfBlocks: numOfBlocks,
 	}
 }
