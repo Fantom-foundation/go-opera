@@ -43,38 +43,17 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return params.AllEthashProtocolChanges
 }
 
-func (b *EthAPIBackend) CurrentBlock() *types.Block {
-	blk := b.state.CurrentBlock()
-	return types.NewBlock(
-		blk.EvmHeader.ConvertToHeader(),
-		blk.Transactions,
-		nil,
-		nil,
-	)
+func (b *EthAPIBackend) CurrentBlock() *evm_core.EvmBlock {
+	return b.state.CurrentBlock()
 }
 
-func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
-	// Pending block is only known by the miner
-	if number == rpc.PendingBlockNumber {
-		return nil, errors.New("pending block request isn't allowed")
-	}
+func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmHeader, error) {
+	blk, err := b.BlockByNumber(ctx, number)
 
-	// Otherwise resolve and return the block
-	var blk *evm_core.EvmBlock
-	if number == rpc.LatestBlockNumber {
-		blk = b.state.CurrentBlock()
-	} else {
-		n := uint64(number.Int64())
-		blk = b.state.GetBlock(common.Hash{}, n)
-	}
-	if blk == nil {
-		return nil, errors.New("block wasn't found")
-	}
-
-	return blk.EvmHeader.ConvertToHeader(), nil
+	return blk.Header(), err
 }
 
-func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*evm_core.EvmHeader, error) {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.blockchain.GetHeaderByHash(hash), nil
@@ -82,7 +61,7 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 	return nil, ErrNotImplemented("HeaderByHash")
 }
 
-func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
+func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error) {
 	// Pending block is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
@@ -99,20 +78,10 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		return nil, errors.New("block wasn't found")
 	}
 
-	return types.NewBlock(
-		blk.EvmHeader.ConvertToHeader(),
-		blk.Transactions,
-		nil,
-		nil,
-	), nil
+	return blk, nil
 }
 
-func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
-	stateDb, header, err := b.StateAndEvmHeaderByNumber(ctx, number)
-	return stateDb, header.ConvertToHeader(), err
-}
-
-func (b *EthAPIBackend) StateAndEvmHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error) {
+func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error) {
 	if number == rpc.PendingBlockNumber {
 		return nil, nil, errors.New("pending block request isn't allowed")
 	}
@@ -212,7 +181,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
 	return heads
 }
 
-func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *types.Header {
+func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *evm_core.EvmHeader {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.blockchain.GetHeaderByHash(hash)
@@ -220,7 +189,7 @@ func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *types.
 	return nil
 }
 
-func (b *EthAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*types.Block, error) {
+func (b *EthAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*evm_core.EvmBlock, error) {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.blockchain.GetBlockByHash(hash), nil
@@ -367,11 +336,7 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.ChainDb()
-	*/
-	return nil
+	return b.svc.store.table.Evm
 }
 
 func (b *EthAPIBackend) NotifyMux() *notify.TypeMux {

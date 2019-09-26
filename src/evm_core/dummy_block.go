@@ -44,7 +44,8 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 	}
 }
 
-func ConvertFromHeader(h *types.Header) *EvmHeader {
+// Ethereum wrappers
+func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 	// NOTE: incomplete conversion
 	return &EvmHeader{
 		Number:     h.Number,
@@ -58,7 +59,7 @@ func ConvertFromHeader(h *types.Header) *EvmHeader {
 	}
 }
 
-func (h *EvmHeader) ConvertToHeader() *types.Header {
+func (h *EvmHeader) EthHeader() *types.Header {
 	// NOTE: incomplete conversion
 	return &types.Header{
 		Number:     h.Number,
@@ -74,16 +75,23 @@ func (h *EvmHeader) ConvertToHeader() *types.Header {
 	}
 }
 
-func (b *EvmBlock) NumberU64() uint64 {
-	return b.Number.Uint64()
-}
-
 // Header is a copy of EvmBlock.EvmHeader.
 func (b *EvmBlock) Header() *EvmHeader {
+	if b == nil {
+		return nil
+	}
 	// copy values
 	h := b.EvmHeader
 	// copy refs
 	h.Number = new(big.Int).Set(b.Number)
 
 	return &h
+}
+
+func (b *EvmBlock) NumberU64() uint64 {
+	return b.Number.Uint64()
+}
+
+func (b *EvmBlock) EthBlock() *types.Block {
+	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil)
 }

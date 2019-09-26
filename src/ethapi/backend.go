@@ -50,13 +50,12 @@ type Backend interface {
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
-	StateAndEvmHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error)
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
-	GetHeader(ctx context.Context, hash common.Hash) *types.Header
-	GetBlock(ctx context.Context, hash common.Hash) (*types.Block, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmHeader, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*evm_core.EvmHeader, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error)
+	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error)
+	GetHeader(ctx context.Context, hash common.Hash) *evm_core.EvmHeader
+	GetBlock(ctx context.Context, hash common.Hash) (*evm_core.EvmBlock, error)
 	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg evm_core.Message, state *state.StateDB, header *evm_core.EvmHeader) (*vm.EVM, func() error, error)
@@ -82,7 +81,7 @@ type Backend interface {
 	SubscribeRemovedLogsNotify(ch chan<- evm_core.RemovedLogsNotify) notify.Subscription
 
 	ChainConfig() *params.ChainConfig
-	CurrentBlock() *types.Block
+	CurrentBlock() *evm_core.EvmBlock
 
 	// Lachesis debug API
 	GetEvent(ctx context.Context, shortEventId string) (*inter.Event, error)
