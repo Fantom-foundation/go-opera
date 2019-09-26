@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	DefaultHTTPHost    = "localhost" // Default host interface for the HTTP RPC server
-	DefaultHTTPPort    = 18545       // Default TCP port for the HTTP RPC server
-	DefaultWSHost      = "localhost" // Default host interface for the websocket RPC server
-	DefaultWSPort      = 18546       // Default TCP port for the websocket RPC server
-	DefaultGraphQLHost = "localhost" // Default host interface for the GraphQL server
-	DefaultGraphQLPort = 18547       // Default TCP port for the GraphQL server
+	//DefaultHTTPHost    = "localhost" // Default host interface for the HTTP RPC server
+	//DefaultWSHost      = "localhost" // Default host interface for the websocket RPC server
+	//DefaultGraphQLHost = "localhost" // Default host interface for the GraphQL server
+	DefaultHTTPPort    = 18545 // Default TCP port for the HTTP RPC server
+	DefaultWSPort      = 18546 // Default TCP port for the websocket RPC server
+	DefaultGraphQLPort = 18547 // Default TCP port for the GraphQL server
 )
 
 // NodeDefaultConfig contains reasonable default settings.

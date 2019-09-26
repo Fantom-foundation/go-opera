@@ -59,7 +59,6 @@ type peer struct {
 	rw p2p.MsgReadWriter
 
 	version  int         // Protocol version negotiated
-	syncDrop *time.Timer // Timed connection dropper if sync progress isn't validated in time
 
 	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
 	knownEvents mapset.Set                // Set of event hashes known to be known by this peer
