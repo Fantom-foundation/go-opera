@@ -36,8 +36,6 @@ aBFT Consensus platform for distributed applications.
 [![Issues][github-issues-image]][github-issues-url]  
 [![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
 
-[![Throughput Graph](https://graphs.waffle.io/Fantom-foundation/go-lachesis/throughput.svg)](https://waffle.io/Fantom-foundation/go-lachesis/metrics/throughput)  
-
 ## Social
 
 [![](https://img.shields.io/gitter/room/nwjs/nw.js.svg?style=flat-square)](https://gitter.im/fantom-foundation)    
