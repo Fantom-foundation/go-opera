@@ -53,6 +53,7 @@ func DefaultConfig(network lachesis.Config) Config {
 		GPO: gasprice.Config{
 			Blocks:     20,
 			Percentile: 60,
+			Default:    big.NewInt(1000000000),
 		},
 
 		ForcedBroadcast: true,
