@@ -224,10 +224,9 @@ func glachesis(ctx *cli.Context) error {
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, nodeCfg := makeConfigNode(ctx)
 
-	networkCfg := makeLachesisConfig(ctx)
-	gossipCfg := makeGossipConfig(ctx, networkCfg)
+	gossipCfg := makeConfig(ctx).Lachesis
 
-	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, gossipCfg)
+	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, &gossipCfg)
 
 	// configure emitter
 	var ks *keystore.KeyStore
@@ -241,7 +240,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(ctx, *gossipCfg, gdb, engine)
+		return gossip.NewService(ctx, gossipCfg, gdb, engine)
 	}
 
 	if err := stack.Register(gossipService); err != nil {
@@ -252,15 +251,15 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 }
 
 func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
-	cfg := makeNodeConfig(ctx)
-	stack, err := node.New(cfg)
+	cfg := makeConfig(ctx).Node
+	stack, err := node.New(&cfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
 	addFakeAccount(ctx, stack)
 
-	return stack, cfg
+	return stack, &cfg
 }
 
 // startNode boots up the system node and all registered protocols, after which

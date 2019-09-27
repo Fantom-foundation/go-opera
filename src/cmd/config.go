@@ -73,7 +73,7 @@ func loadConfig(file string, cfg *config) error {
 	return err
 }
 
-func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
+func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
 	var cfg lachesis.Config
 
 	switch {
@@ -92,21 +92,33 @@ func makeLachesisConfig(ctx *cli.Context) lachesis.Config {
 	return cfg
 }
 
-func makeGossipConfig(ctx *cli.Context, network lachesis.Config) *gossip.Config {
-	cfg := gossip.DefaultConfig(network)
-
+func gossipConfigWithFlags(ctx *cli.Context, cfg gossip.Config) gossip.Config {
 	// TODO: apply flags
-
-	return &cfg
+	return cfg
 }
 
-func makeNodeConfig(ctx *cli.Context) *node.Config {
-	cfg := defaultNodeConfig()
-
-	// Apply flags
+func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	utils.SetNodeConfig(ctx, &cfg)
+	return cfg
+}
 
-	return &cfg
+func makeConfig(ctx *cli.Context) config {
+	// Defaults (low priority)
+	net := defaultLachesisConfig(ctx)
+	cfg := config{Lachesis: gossip.DefaultConfig(net), Node: defaultNodeConfig()}
+
+	// Load config file (medium priority)
+	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
+		if err := loadConfig(file, &cfg); err != nil {
+			utils.Fatalf("%v", err)
+		}
+	}
+
+	// Apply flags (high priority)
+	cfg.Lachesis = gossipConfigWithFlags(ctx, cfg.Lachesis)
+	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
+
+	return cfg
 }
 
 func defaultNodeConfig() node.Config {
@@ -121,7 +133,7 @@ func defaultNodeConfig() node.Config {
 
 // dumpConfig is the dumpconfig command.
 func dumpConfig(ctx *cli.Context) error {
-	cfg := makeNodeConfig(ctx)
+	cfg := makeConfig(ctx)
 	comment := ""
 
 	out, err := tomlSettings.Marshal(&cfg)
