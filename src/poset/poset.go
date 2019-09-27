@@ -181,19 +181,27 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // ProcessEvent takes event into processing.
 // Event order matter: parents first.
 // ProcessEvent is not safe for concurrent use.
-func (p *Poset) ProcessEvent(e *inter.Event) error {
-	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
-		return err
+func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
+	defer func() {
+		if err != nil {
+			return
+		}
+		err = p.store.Commit()
+	}()
+
+	err = epoch_check.New(&p.dag, p).Validate(e)
+	if err != nil {
+		return
 	}
 	p.Log.Debug("start event processing", "event", e.String())
 
-	err := p.checkAndSaveEvent(e)
+	err = p.checkAndSaveEvent(e)
 	if err != nil {
-		return err
+		return
 	}
 
 	p.handleElection(e)
-	return nil
+	return
 }
 
 // calcFrameIdx checks root-conditions for new event

@@ -24,7 +24,7 @@ import (
 
 // UnderlyingDB of Store.
 func (s *Store) UnderlyingDB() kvdb.KeyValueStore {
-	return s.persistentDB
+	return s.mainDb.UnderlyingDB()
 }
 
 /*

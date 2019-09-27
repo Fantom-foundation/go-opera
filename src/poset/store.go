@@ -7,15 +7,16 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/src/logger"
 )
 
-// Store is a poset persistent storage working over physical key-value database.
+// Store is a poset persistent storage working over parent key-value database.
 type Store struct {
-	persistentDB kvdb.KeyValueStore
-	table        struct {
+	mainDb *flushable.Flushable
+	table  struct {
 		Checkpoint     kvdb.KeyValueStore `table:"checkpoint_"`
 		Event2Block    kvdb.KeyValueStore `table:"event2block_"`
 		Epochs         kvdb.KeyValueStore `table:"epoch_"`
@@ -23,7 +24,7 @@ type Store struct {
 		FrameInfos     kvdb.KeyValueStore `table:"frameinfo_"`
 	}
 
-	epochDb    kvdb.KeyValueStore
+	epochDb    *flushable.Flushable
 	epochTable struct {
 		Roots       kvdb.KeyValueStore `table:"roots_"`
 		VectorIndex kvdb.KeyValueStore `table:"vectors_"`
@@ -37,12 +38,12 @@ type Store struct {
 // NewStore creates store over key-value db.
 func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
 	s := &Store{
-		persistentDB: db,
-		makeDb:       makeDb,
-		Instance:     logger.MakeInstance(),
+		mainDb:   flushable.New(db),
+		makeDb:   makeDb,
+		Instance: logger.MakeInstance(),
 	}
 
-	table.MigrateTables(&s.table, s.persistentDB)
+	table.MigrateTables(&s.table, s.mainDb)
 
 	return s
 }
@@ -55,11 +56,21 @@ func NewMemStore() *Store {
 	})
 }
 
+// Commit changes.
+func (s *Store) Commit() error {
+	err := s.epochDb.Flush()
+	if err != nil {
+		return err
+	}
+
+	return s.mainDb.Flush()
+}
+
 // Close leaves underlying database.
 func (s *Store) Close() {
 	table.MigrateTables(&s.table, nil)
 	table.MigrateTables(&s.epochTable, nil)
-	err := s.persistentDB.Close()
+	err := s.mainDb.Close()
 	if err != nil {
 		s.Log.Crit("Failed to close persistent db", "err", err)
 	}
@@ -73,18 +84,20 @@ func (s *Store) Close() {
 func (s *Store) RecreateEpochDb(n idx.Epoch) {
 	prevDb := s.epochDb
 	if prevDb == nil {
-		prevDb = s.makeDb(fmt.Sprintf("epoch-%d", n-1))
+		prevDb = flushable.New(s.makeDb(name(n - 1)))
 	}
-	if prevDb != nil {
-		err := prevDb.Close()
-		if err != nil {
-			s.Log.Crit("Failed to close epoch db", "err", err)
-		}
-		prevDb.Drop()
+	err := prevDb.Close()
+	if err != nil {
+		s.Log.Crit("Failed to close epoch db", "err", err)
 	}
+	prevDb.Drop()
 
-	s.epochDb = s.makeDb(fmt.Sprintf("epoch-%d", n))
+	s.epochDb = flushable.New(s.makeDb(name(n)))
 	table.MigrateTables(&s.epochTable, s.epochDb)
+}
+
+func name(n idx.Epoch) string {
+	return fmt.Sprintf("epoch-%d", n)
 }
 
 /*
