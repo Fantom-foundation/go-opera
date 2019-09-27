@@ -196,6 +196,7 @@ func TestFlushable(t *testing.T) {
 				} else {
 					it = db.NewIteratorWithStart(prefix)
 				}
+				defer it.Release()
 
 				got := 0
 				for ; it.Next(); got++ {
@@ -217,8 +218,6 @@ func TestFlushable(t *testing.T) {
 				if !assertar.NoError(it.Error()) {
 					return
 				}
-
-				it.Release()
 
 				assertar.Equal(got, len(expectPairs)) // check that we've got the same num of pairs
 			}

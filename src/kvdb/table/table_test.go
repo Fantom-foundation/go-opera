@@ -94,6 +94,7 @@ func TestTable(t *testing.T) {
 					var prevKey []byte
 
 					it := t.NewIteratorWithPrefix([]byte(pref))
+					defer it.Release()
 					for it.Next() {
 						if prevKey == nil {
 							prevKey = common.CopyBytes(it.Key())
@@ -111,8 +112,6 @@ func TestTable(t *testing.T) {
 					if !assertar.NoError(it.Error()) {
 						return
 					}
-
-					it.Release()
 
 					if !assertar.Equal(count, got) {
 						return
