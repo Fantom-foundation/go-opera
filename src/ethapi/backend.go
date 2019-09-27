@@ -33,6 +33,9 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -82,6 +85,12 @@ type Backend interface {
 
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block
+
+	// Lachesis debug API
+	GetEvent(ctx context.Context, shortEventId string) (*inter.Event, error)
+	GetEventHeader(ctx context.Context, shortEventId string) (*inter.EventHeaderData, error)
+	GetConsensusTime(ctx context.Context, shortEventId string) (inter.Timestamp, error)
+	GetHeads(ctx context.Context) hash.Events
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

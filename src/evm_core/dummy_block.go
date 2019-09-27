@@ -20,7 +20,7 @@ type (
 		Coinbase   common.Address
 
 		GasLimit uint64
-		gasUsed  uint64 // tests only
+		GasUsed  uint64
 	}
 
 	EvmBlock struct {
@@ -40,6 +40,7 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 		Time:       block.Time,
 		Coinbase:   block.Creator,
 		GasLimit:   math.MaxUint64,
+		GasUsed:    block.GasUsed,
 	}
 }
 

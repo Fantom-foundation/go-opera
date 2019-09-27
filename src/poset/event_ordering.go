@@ -25,7 +25,7 @@ func (p *Poset) fareOrdering(frame idx.Frame, atropos hash.Event, unordered []*i
 	// calculate difference between highest and lowest period
 	highestLamport := ordered[len(ordered)-1].Lamport
 	lowestLamport := ordered[0].Lamport
-	frameLamportPeriod := idx.MaxLamport(highestLamport-lowestLamport, 1)
+	frameLamportPeriod := idx.MaxLamport(highestLamport-lowestLamport+1, 1)
 
 	// calculate difference between atropos's median time and previous atropos's consensus time (almost the same as previous median time)
 	nowMedianTime := p.GetEventHeader(p.EpochN, atropos).MedianTime

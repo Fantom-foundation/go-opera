@@ -45,6 +45,9 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
+
+	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
 const (
@@ -964,10 +967,61 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
+func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{} {
+	return map[string]interface{}{
+		"version":       header.Version,
+		"seq":           header.Seq,
+		"hash":          hexutil.Bytes(header.Hash().Bytes()),
+		"frame":         header.Frame,
+		"isRoot":        header.IsRoot,
+		"creator":       header.Creator,
+		"prevEpochHash": header.PrevEpochHash,
+		"parents":       eventIdsToHex(header.Parents),
+		"gasPowerLeft":  header.GasPowerLeft,
+		"gasPowerUsed":  header.GasPowerUsed,
+		"lamport":       header.Lamport,
+		"claimedTime":   header.ClaimedTime,
+		"medianTime":    header.MedianTime,
+		"extraData":     hexutil.Bytes(header.Extra),
+	}
+}
+
+// RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
+// returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
+// transaction hashes.
+func RPCMarshalEvent(event *inter.Event, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+	fields := RPCMarshalEventHeader(&event.EventHeaderData)
+	fields["size"] = event.Size()
+
+	if inclTx {
+		formatTx := func(tx *types.Transaction) (interface{}, error) {
+			return tx.Hash(), nil
+		}
+		if fullTx {
+			// TODO full txs for events API
+			//formatTx = func(tx *types.Transaction) (interface{}, error) {
+			//	return newRPCTransactionFromBlockHash(event, tx.Hash()), nil
+			//}
+		}
+		txs := event.Transactions
+		transactions := make([]interface{}, len(txs))
+		var err error
+		for i, tx := range txs {
+			if transactions[i], err = formatTx(tx); err != nil {
+				return nil, err
+			}
+		}
+		fields["transactions"] = transactions
+	}
+
+	return fields, nil
+}
+
+// RPCMarshalHeader converts the given header to the RPC output .
 func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	return map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
-		"hash":             head.Hash(),
+		"hash":             common.BytesToHash(head.Extra), // store EvmBlock's hash in extra, because extra is always empty
 		"parentHash":       head.ParentHash,
 		"nonce":            head.Nonce,
 		"mixHash":          head.MixDigest,
@@ -976,7 +1030,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"stateRoot":        head.Root,
 		"miner":            head.Coinbase,
 		"difficulty":       (*hexutil.Big)(head.Difficulty),
-		"extraData":        hexutil.Bytes(head.Extra),
+		"extraData":        hexutil.Bytes([]byte{}),
 		"size":             hexutil.Uint64(head.Size()),
 		"gasLimit":         hexutil.Uint64(head.GasLimit),
 		"gasUsed":          hexutil.Uint64(head.GasUsed),
@@ -1611,7 +1665,10 @@ func (api *PublicDebugAPI) GetBlockRlp(ctx context.Context, number uint64) (stri
 // This is a temporary method to debug the externalsigner integration,
 // TODO: Remove this method when the integration is mature
 func (api *PublicDebugAPI) TestSignCliqueBlock(ctx context.Context, address common.Address, number uint64) (common.Address, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	if err != nil {
+		return common.Address{}, err
+	}
 	if block == nil {
 		return common.Address{}, fmt.Errorf("block #%d not found", number)
 	}
@@ -1646,7 +1703,10 @@ func (api *PublicDebugAPI) TestSignCliqueBlock(ctx context.Context, address comm
 
 // PrintBlock retrieves a block and returns its pretty printed form.
 func (api *PublicDebugAPI) PrintBlock(ctx context.Context, number uint64) (string, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	if err != nil {
+		return "", err
+	}
 	if block == nil {
 		return "", fmt.Errorf("block #%d not found", number)
 	}
@@ -1655,11 +1715,56 @@ func (api *PublicDebugAPI) PrintBlock(ctx context.Context, number uint64) (strin
 
 // SeedHash retrieves the seed hash of a block.
 func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string, error) {
-	block, _ := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	block, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(number))
+	if err != nil {
+		return "", err
+	}
 	if block == nil {
 		return "", fmt.Errorf("block #%d not found", number)
 	}
 	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
+}
+
+func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventId string) (map[string]interface{}, error) {
+	header, err := api.b.GetEventHeader(ctx, shortEventId)
+	if err != nil {
+		return nil, err
+	}
+	if header == nil {
+		return nil, fmt.Errorf("event %s not found", shortEventId)
+	}
+	return RPCMarshalEventHeader(header), nil
+}
+
+func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventId string, inclTx bool) (map[string]interface{}, error) {
+	event, err := api.b.GetEvent(ctx, shortEventId)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, fmt.Errorf("event %s not found", shortEventId)
+	}
+	return RPCMarshalEvent(event, inclTx, false)
+}
+
+func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventId string) (inter.Timestamp, error) {
+	return api.b.GetConsensusTime(ctx, shortEventId)
+}
+
+func eventIdToHex(id hash.Event) hexutil.Bytes {
+	return hexutil.Bytes(id.Bytes())
+}
+
+func eventIdsToHex(ids hash.Events) []hexutil.Bytes {
+	res := make([]hexutil.Bytes, len(ids))
+	for i, id := range ids {
+		res[i] = eventIdToHex(id)
+	}
+	return res
+}
+
+func (api *PublicDebugAPI) GetHeads(ctx context.Context) ([]hexutil.Bytes, error) {
+	return eventIdsToHex(api.b.GetHeads(ctx)), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private

@@ -17,9 +17,9 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	evmProcessor := evm_core.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
-	evm_header := evm_core.ToEvmHeader(block)
+	evmHeader := evm_core.ToEvmHeader(block)
 	evmBlock := &evm_core.EvmBlock{
-		EvmHeader:    *evm_header,
+		EvmHeader:    *evmHeader,
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
 	for _, id := range block.Events {
@@ -34,11 +34,12 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 
 	// Process txs
 	statedb := s.store.StateDB(stateHash)
-	_, _, _, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
+	_, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
 	if err != nil {
 		s.Log.Crit("Shouldn't happen ever because it's not strict", "err", err)
 	}
 	block.SkippedTxs = skipped
+	block.GasUsed = gasUsed
 
 	// apply block rewards here if needed
 	log.Info("New block", "index", block.Index, "hash", block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(skipped))

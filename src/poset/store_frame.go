@@ -1,22 +1,20 @@
 package poset
 
 import (
-	"fmt"
-
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
 // SetFrameInfo stores event.
 func (s *Store) SetFrameInfo(e idx.Epoch, f idx.Frame, info *FrameInfo) {
-	key := fmt.Sprintf("%d_%d", e, f)
+	key := append(e.Bytes(), f.Bytes()...)
 
-	s.set(s.table.FrameInfos, []byte(key), f)
+	s.set(s.table.FrameInfos, key, info)
 }
 
 // GetFrameInfo returns stored frame.
-func (s *Store) GetFrameInfo(e idx.Epoch, n idx.Frame) *FrameInfo {
-	key := fmt.Sprintf("%d_%d", e, n)
+func (s *Store) GetFrameInfo(e idx.Epoch, f idx.Frame) *FrameInfo {
+	key := append(e.Bytes(), f.Bytes()...)
 
-	w, _ := s.get(s.table.FrameInfos, []byte(key), &FrameInfo{}).(*FrameInfo)
+	w, _ := s.get(s.table.FrameInfos, key, &FrameInfo{}).(*FrameInfo)
 	return w
 }

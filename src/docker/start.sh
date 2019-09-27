@@ -16,7 +16,7 @@ do
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	"lachesis" \
 	--fakenet $i/$N \
-	--rpc --rpcapi "eth,admin,web3" --nousb --verbosity 3 \
+	--rpc --rpcapi "eth,debug,admin,web3" --nousb --verbosity 3 \
 	${SENTRY_DSN}
     sleep 2
 done
@@ -33,6 +33,7 @@ do
     enode=$(echo $enode | sed "s/127.0.0.1/${ip}/")
 
     docker exec -i ${NAME}-$i /lachesis --exec "admin.addPeer(${enode})" attach http://127.0.0.1:18545
+    echo "Connected $i to $j, with $enode"
 done
 
 
