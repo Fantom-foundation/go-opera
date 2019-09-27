@@ -20,7 +20,7 @@ var (
 // On reading, it looks in memory cache first. If not found, it looks in a parent DB.
 // On writing, it writes only in cache. To flush the cache into parent DB, call Flush().
 type Flushable struct {
-	parent ethdb.KeyValueStore
+	underlying kvdb.KeyValueStore
 
 	modified       *rbt.Tree // modified, comparing to parent, pairs. deleted values are nil
 	sizeEstimation *int
@@ -29,13 +29,18 @@ type Flushable struct {
 }
 
 // NewFlushable wraps parent. All the writes into the cache won't be written in parent until .Flush() is called.
-func New(parent ethdb.KeyValueStore) *Flushable {
+func New(parent kvdb.KeyValueStore) *Flushable {
 	return &Flushable{
-		parent:         parent,
+		underlying:     parent,
 		modified:       rbt.NewWithStringComparator(),
 		lock:           new(sync.Mutex),
 		sizeEstimation: new(int),
 	}
+}
+
+// UnderlyingDB of Flushable.
+func (w *Flushable) UnderlyingDB() kvdb.KeyValueStore {
+	return w.underlying
 }
 
 /*
@@ -74,7 +79,7 @@ func (w *Flushable) Has(key []byte) (bool, error) {
 	if ok {
 		return val != nil, nil
 	}
-	return w.parent.Has(key)
+	return w.underlying.Has(key)
 }
 
 // Get returns key-value pair by key. Looks in cache first, then - in DB.
@@ -91,7 +96,7 @@ func (w *Flushable) Get(key []byte) ([]byte, error) {
 		}
 		return common.CopyBytes(entry.([]byte)), nil
 	}
-	return w.parent.Get(key)
+	return w.underlying.Get(key)
 }
 
 // Delete removes key-value pair by key. In parent DB, key won't be deleted until .Flush() is called.
@@ -117,19 +122,19 @@ func (w *Flushable) DropNotFlushed() {
 
 // Close leaves underlying database.
 func (w *Flushable) Close() error {
-	parent := w.parent
+	parent := w.underlying
 	*w = Flushable{
-		parent: parent,
+		underlying: parent,
 	}
-	return w.parent.Close()
+	return w.underlying.Close()
 }
 
 // Drop whole database.
 func (w *Flushable) Drop() {
-	if droper, ok := w.parent.(kvdb.Droper); ok {
+	if droper, ok := w.underlying.(kvdb.Droper); ok {
 		droper.Drop()
 	}
-	w.parent = nil
+	w.underlying = nil
 }
 
 // Num of not flushed keys, including deleted keys.
@@ -146,7 +151,7 @@ func (w *Flushable) NotFlushedSizeEst() int {
 func (w *Flushable) Flush() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
-	batch := w.parent.NewBatch()
+	batch := w.underlying.NewBatch()
 	for it := w.modified.Iterator(); it.Next(); {
 		var err error
 
@@ -350,7 +355,7 @@ func (w *Flushable) NewIterator() ethdb.Iterator {
 	return &iterator{
 		lock:     w.lock,
 		tree:     w.modified,
-		parentIt: w.parent.NewIterator(),
+		parentIt: w.underlying.NewIterator(),
 	}
 }
 
@@ -362,7 +367,7 @@ func (w *Flushable) NewIteratorWithStart(start []byte) ethdb.Iterator {
 		lock:     w.lock,
 		tree:     w.modified,
 		start:    start,
-		parentIt: w.parent.NewIteratorWithStart(start),
+		parentIt: w.underlying.NewIteratorWithStart(start),
 	}
 }
 
@@ -374,7 +379,7 @@ func (w *Flushable) NewIteratorWithPrefix(prefix []byte) ethdb.Iterator {
 		tree:     w.modified,
 		start:    prefix,
 		prefix:   prefix,
-		parentIt: w.parent.NewIteratorWithPrefix(prefix),
+		parentIt: w.underlying.NewIteratorWithPrefix(prefix),
 	}
 }
 
