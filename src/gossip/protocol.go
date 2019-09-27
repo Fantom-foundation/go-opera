@@ -15,17 +15,17 @@ import (
 
 // Constants to match up protocol versions and messages
 const (
-	fantom62 = 62 // derived from eth62
+	lachesis62 = 62 // derived from eth62
 )
 
 // protocolName is the official short name of the protocol used during capability negotiation.
-const protocolName = "fantom"
+const protocolName = "lachesis"
 
 // ProtocolVersions are the supported versions of the protocol (first is primary).
-var ProtocolVersions = []uint{fantom62}
+var ProtocolVersions = []uint{lachesis62}
 
 // protocolLengths are the number of implemented message corresponding to different protocol versions.
-var protocolLengths = map[uint]uint64{fantom62: PackMsg + 1}
+var protocolLengths = map[uint]uint64{lachesis62: PackMsg + 1}
 
 const protocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
@@ -35,7 +35,7 @@ const (
 	EthStatusMsg = 0x00
 	EvmTxMsg     = 0x02
 
-	// Protocol messages belonging to fantom/62
+	// Protocol messages belonging to lachesis/62
 
 	ProgressMsg = 0xf0
 
