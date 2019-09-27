@@ -58,7 +58,7 @@ type config struct {
 	Lachesis gossip.Config
 }
 
-func loadConfig(file string, cfg *config) error {
+func loadAllConfigs(file string, cfg *config) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -102,14 +102,14 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	return cfg
 }
 
-func makeConfig(ctx *cli.Context) config {
+func makeAllConfigs(ctx *cli.Context) config {
 	// Defaults (low priority)
 	net := defaultLachesisConfig(ctx)
 	cfg := config{Lachesis: gossip.DefaultConfig(net), Node: defaultNodeConfig()}
 
 	// Load config file (medium priority)
 	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
-		if err := loadConfig(file, &cfg); err != nil {
+		if err := loadAllConfigs(file, &cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
 	}
@@ -133,7 +133,7 @@ func defaultNodeConfig() node.Config {
 
 // dumpConfig is the dumpconfig command.
 func dumpConfig(ctx *cli.Context) error {
-	cfg := makeConfig(ctx)
+	cfg := makeAllConfigs(ctx)
 	comment := ""
 
 	out, err := tomlSettings.Marshal(&cfg)

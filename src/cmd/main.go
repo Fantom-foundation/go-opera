@@ -224,7 +224,7 @@ func glachesis(ctx *cli.Context) error {
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, nodeCfg := makeConfigNode(ctx)
 
-	gossipCfg := makeConfig(ctx).Lachesis
+	gossipCfg := makeAllConfigs(ctx).Lachesis
 
 	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, &gossipCfg)
 
@@ -251,7 +251,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 }
 
 func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
-	cfg := makeConfig(ctx).Node
+	cfg := makeAllConfigs(ctx).Node
 	stack, err := node.New(&cfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
