@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"github.com/facebookgo/pidfile"
 	"os"
 	"syscall"
+
+	"github.com/facebookgo/pidfile"
 )
 
 func CheckPid(pidfileName string) error {
