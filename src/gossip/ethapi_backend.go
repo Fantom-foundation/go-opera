@@ -53,12 +53,12 @@ func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	return blk.Header(), err
 }
 
-func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*evm_core.EvmHeader, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.blockchain.GetHeaderByHash(hash), nil
-	*/
-	return nil, ErrNotImplemented("HeaderByHash")
+func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evm_core.EvmHeader, error) {
+	index := b.svc.store.GetBlockIndex(hash.Event(h))
+	if index == nil {
+		return nil, errors.New("header wasn't found")
+	}
+	return b.HeaderByNumber(ctx, rpc.BlockNumber(*index))
 }
 
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error) {
@@ -181,20 +181,20 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
 	return heads
 }
 
-func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *evm_core.EvmHeader {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.blockchain.GetHeaderByHash(hash)
-	*/
-	return nil
+func (b *EthAPIBackend) GetHeader(ctx context.Context, h common.Hash) *evm_core.EvmHeader {
+	header, err := b.HeaderByHash(ctx, h)
+	if err != nil {
+		return nil
+	}
+	return header
 }
 
-func (b *EthAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*evm_core.EvmBlock, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.blockchain.GetBlockByHash(hash), nil
-	*/
-	return nil, ErrNotImplemented("GetBlock")
+func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evm_core.EvmBlock, error) {
+	index := b.svc.store.GetBlockIndex(hash.Event(h))
+	if index == nil {
+		return nil, errors.New("block wasn't found")
+	}
+	return b.BlockByNumber(ctx, rpc.BlockNumber(*index))
 }
 
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
@@ -324,11 +324,7 @@ func (b *EthAPIBackend) Progress() PeerProgress {
 }
 
 func (b *EthAPIBackend) ProtocolVersion() int {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.EthVersion()
-	*/
-	return 0
+	return int(ProtocolVersions[len(ProtocolVersions)-1])
 }
 
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {

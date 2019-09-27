@@ -26,6 +26,9 @@ type Store struct {
 		Packs     kvdb.KeyValueStore `table:"pack_"`
 		PacksNum  kvdb.KeyValueStore `table:"packs_num_"`
 
+		// API-only tables
+		BlockHashes kvdb.KeyValueStore `table:"block_hashes_"`
+
 		TmpDbs kvdb.KeyValueStore `table:"tmpdbs_"`
 
 		Evm      ethdb.Database

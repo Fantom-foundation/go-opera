@@ -52,6 +52,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	block.Root = newStateHash
 	evmBlock.Root = newStateHash
 	s.store.SetBlock(block)
+	s.store.SetBlockIndex(block.Hash(), block.Index)
 
 	// new members
 	// TODO replace with special transactions for changing members state
