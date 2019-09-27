@@ -3,6 +3,7 @@ package ancestor
 import (
 	"math/rand"
 	"sort"
+	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
@@ -110,7 +111,7 @@ type RandomStrategy struct {
 
 func NewRandomStrategy(r *rand.Rand) *RandomStrategy {
 	if r == nil {
-		r = rand.New(rand.NewSource(0))
+		r = rand.New(rand.NewSource(time.Now().UnixNano()))
 	}
 	return &RandomStrategy{
 		r: r,
