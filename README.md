@@ -28,6 +28,29 @@ aBFT Consensus platform for distributed applications.
 
 [![Sonarcloud](https://sonarcloud.io/api/project_badges/quality_gate?project=Fantom-foundation_go-lachesis)](https://sonarcloud.io/dashboard?id=Fantom-foundation_go-lachesis)  
 
+## GitHub
+
+[![Commit Activity](https://img.shields.io/github/commit-activity/w/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
+[![Last Commit](https://img.shields.io/github/last-commit/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
+[![Contributors](https://img.shields.io/github/contributors/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/graphs/contributors)  
+[![Issues][github-issues-image]][github-issues-url]  
+[![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
+
+[![Throughput Graph](https://graphs.waffle.io/Fantom-foundation/go-lachesis/throughput.svg)](https://waffle.io/Fantom-foundation/go-lachesis/metrics/throughput)  
+
+## Social
+
+[![](https://img.shields.io/gitter/room/nwjs/nw.js.svg?style=flat-square)](https://gitter.im/fantom-foundation)    
+[![twitter][twitter-image]][twitter-url]  
+
+
+[codecov-image]: https://codecov.io/gh/fantom-foundation/go-lachesis/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/fantom-foundation/go-lachesis
+[twitter-image]: https://img.shields.io/twitter/follow/FantomFDN.svg?style=social
+[twitter-url]: https://twitter.com/intent/follow?screen_name=FantomFDN
+[github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
+[github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
+
 ## Building the source
 
 Building `lachesis` requires both a Go (version 1.12 or later) and a C compiler. You can install
