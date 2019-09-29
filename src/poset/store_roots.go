@@ -42,6 +42,7 @@ const (
 
 func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Address, root hash.Event) bool) {
 	it := s.epochTable.Roots.NewIteratorWithStart(f.Bytes())
+	defer it.Release()
 	for it.Next() {
 		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIdSize {
@@ -61,13 +62,13 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Addres
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-	it.Release()
 }
 
 func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.Frame, from common.Address, id hash.Event) bool) {
 	prefix := append(f.Bytes(), from.Bytes()...)
 
 	it := s.epochTable.Roots.NewIteratorWithPrefix(prefix)
+	defer it.Release()
 	for it.Next() {
 		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIdSize {
@@ -90,5 +91,4 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-	it.Release()
 }

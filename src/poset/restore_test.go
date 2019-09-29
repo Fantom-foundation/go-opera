@@ -166,7 +166,7 @@ func TestDbFailure(t *testing.T) {
 
 	// db writes limit
 	db := posets[RESTORED].store.UnderlyingDB().(*fallible.Fallible)
-	db.SetWriteCount(100) // TODO: test all stages fault
+	db.SetWriteCount(100)
 
 	x := 0
 	process := func(e *inter.Event) (ok bool) {
@@ -177,8 +177,6 @@ func TestDbFailure(t *testing.T) {
 				return
 			}
 			ok = false
-
-			db.SetWriteCount(enough)
 
 			log.Info("Restart poset after db failure")
 			prev := posets[RESTORED]
