@@ -28,6 +28,7 @@ func (s *Store) initTmpDbs() {
 
 	// load mins
 	it := s.table.TmpDbs.NewIterator()
+	defer it.Release()
 	for it.Next() {
 		min := bigendian.BytesToInt64(it.Value())
 		s.tmpDbs.min[string(it.Key())] = min
@@ -35,7 +36,6 @@ func (s *Store) initTmpDbs() {
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-	it.Release()
 }
 
 func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueStore) interface{}) interface{} {

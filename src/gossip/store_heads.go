@@ -56,13 +56,13 @@ func (s *Store) GetHeads(epoch idx.Epoch) hash.Events {
 	res := make(hash.Events, 0, 100)
 
 	it := es.Heads.NewIterator()
+	defer it.Release()
 	for it.Next() {
 		res.Add(hash.BytesToEvent(it.Key()))
 	}
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-	it.Release()
 
 	return res
 }
