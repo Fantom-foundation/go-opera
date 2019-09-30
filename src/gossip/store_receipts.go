@@ -1,18 +1,43 @@
 package gossip
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 )
 
-// SetReceipt stores transaction receipts.
-func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
-	s.set(s.table.Receipts, n.Bytes(), receipts)
+type receiptRLP struct {
+	Receipt *types.ReceiptForStorage
+	// These fields aren't serialized in types.ReceiptForStorage
+	ContractAddress common.Address
+	GasUsed         uint64
 }
 
-// GetReceipt returns stored transaction receipts.
+// SetReceipts stores transaction receipts.
+func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
+	receiptsStorage := make([]*receiptRLP, len(receipts))
+	for i, r := range receipts {
+		receiptsStorage[i] = &receiptRLP{
+			Receipt:         (*types.ReceiptForStorage)(r),
+			ContractAddress: r.ContractAddress,
+			GasUsed:         r.GasUsed,
+		}
+	}
+	s.set(s.table.Receipts, n.Bytes(), receiptsStorage)
+}
+
+// GetReceipts returns stored transaction receipts.
 func (s *Store) GetReceipts(n idx.Block) types.Receipts {
-	receipts, _ := s.get(s.table.Receipts, n.Bytes(), &types.Receipts{}).(*types.Receipts)
-	return *receipts
+	receiptsStorage, _ := s.get(s.table.Receipts, n.Bytes(), &[]*receiptRLP{}).(*[]*receiptRLP)
+	if receiptsStorage == nil {
+		return nil
+	}
+	receipts := make(types.Receipts, len(*receiptsStorage))
+	for i, r := range *receiptsStorage {
+		receipts[i] = (*types.Receipt)(r.Receipt)
+		receipts[i].ContractAddress = r.ContractAddress
+		receipts[i].GasUsed = r.GasUsed
+	}
+	return receipts
 }
