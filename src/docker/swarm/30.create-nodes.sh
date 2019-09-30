@@ -10,6 +10,10 @@ do
   PORT=$(($PORT_BASE+$i))
   RPCP=$(($RPCP_BASE+$i))
 
+  # temporary solution, remove when ingress on
+  HOST=testnet$(($i-1))
+  SWARM_HOST=`./swarm node inspect $HOST --format "{{.Status.Addr}}"`
+
   docker $SWARM service create \
     --name ${NAME} \
     --publish published=${PORT},target=${PORT},mode=ingress,protocol=tcp \
@@ -18,6 +22,7 @@ do
     --replicas 1 \
     --with-registry-auth \
     --detach=false \
+    --constraint node.hostname==$HOST \
    ${REGISTRY_HOST}/${IMAGE} --nousb \
     --fakenet=$i/$N \
     --rpc --rpcaddr 0.0.0.0 --rpcport ${RPCP} --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \

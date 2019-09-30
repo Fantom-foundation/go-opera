@@ -24,3 +24,15 @@
 2. Upgrade node services `./40.upgrade-nodes.sh`.
 
 3. Delete node services `./80.delete-nodes.sh`.
+
+
+## Node console (example)
+
+1. Get node2 token `export enode2=$(./50.node-console.sh 2 --exec 'admin.nodeInfo.enode')`.
+
+2. Add peer to node3 `./50.node-console.sh 3 --exec "admin.addPeer($enode2)"`.
+
+
+## Node logs
+
+1. `./swarm servise logs node2`.

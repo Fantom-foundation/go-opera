@@ -2,6 +2,7 @@
 
 source $(dirname $0)/set_env.sh
 
+i=$1
 
 for i in `seq 1 $N`
 do
