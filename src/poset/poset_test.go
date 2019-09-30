@@ -51,7 +51,7 @@ func TestPoset(t *testing.T) {
 				continue
 			}
 			inputs[i].SetEvent(e)
-			posets[i].ProcessEvent(e)
+			assertar.NoError(posets[i].ProcessEvent(e))
 		}
 	}
 

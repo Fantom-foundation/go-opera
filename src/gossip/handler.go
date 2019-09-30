@@ -70,8 +70,8 @@ type dagNotifier interface {
 type ProtocolManager struct {
 	config *Config
 
-	fastSync uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
-	synced   uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
+	//fastSync uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
+	synced uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
 	txpool   txPool
 	maxPeers int
@@ -820,8 +820,8 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 type NodeInfo struct {
 	Network     uint64      `json:"network"` // network ID
 	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis object
-	Epoch       idx.Epoch
-	NumOfBlocks idx.Block
+	Epoch       idx.Epoch   `json:"epoch"`
+	NumOfBlocks idx.Block   `json:"blocks"`
 	//Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
 }
 

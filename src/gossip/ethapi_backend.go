@@ -7,26 +7,24 @@ import (
 	"strconv"
 	"strings"
 
-	errors2 "github.com/pkg/errors"
-
 	"github.com/Fantom-foundation/go-lachesis/src/hash"
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	errors2 "github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
 )
 
 var ErrNotImplemented = func(name string) error { return errors.New(name + " method is not implemented yet") }
@@ -37,57 +35,25 @@ type EthAPIBackend struct {
 	svc           *Service
 	state         *EvmStateReader
 	gpo           *gasprice.Oracle
+	mux           *notify.TypeMux
 }
 
 // ChainConfig returns the active chain configuration.
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.blockchain.Config()
-	*/
-	return nil
+	return params.AllEthashProtocolChanges
 }
 
-func (b *EthAPIBackend) CurrentBlock() *types.Block {
-	blk := b.state.CurrentBlock()
-	return types.NewBlock(
-		convertHeader(&blk.EvmHeader),
-		blk.Transactions,
-		nil,
-		nil,
-	)
+func (b *EthAPIBackend) CurrentBlock() *evm_core.EvmBlock {
+	return b.state.CurrentBlock()
 }
 
-func (b *EthAPIBackend) SetHead(number uint64) {
-	// TODO: implement or disable it. Origin:
-	/*
-		b.svc.protocolManager.downloader.Cancel()
-		b.svc.blockchain.SetHead(number)
-	*/
+func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmHeader, error) {
+	blk, err := b.BlockByNumber(ctx, number)
+
+	return blk.Header(), err
 }
 
-func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
-	// Pending block is only known by the miner
-	if number == rpc.PendingBlockNumber {
-		return nil, errors.New("Error: request pending block")
-	}
-
-	// Otherwise resolve and return the block
-	var blk *evm_core.EvmBlock
-	if number == rpc.LatestBlockNumber {
-		blk = b.state.CurrentBlock()
-	} else {
-		n := uint64(number.Int64())
-		blk = b.state.GetBlock(common.Hash{}, n)
-	}
-	if blk == nil {
-		return nil, errors.New("block wasn't found")
-	}
-
-	return convertHeader(&blk.EvmHeader), nil
-}
-
-func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*evm_core.EvmHeader, error) {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.blockchain.GetHeaderByHash(hash), nil
@@ -95,7 +61,7 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 	return nil, ErrNotImplemented("HeaderByHash")
 }
 
-func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
+func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error) {
 	// Pending block is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
@@ -112,34 +78,24 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		return nil, errors.New("block wasn't found")
 	}
 
-	return types.NewBlock(
-		convertHeader(&blk.EvmHeader),
-		blk.Transactions,
-		nil,
-		nil,
-	), nil
+	return blk, nil
 }
 
-func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		// Pending state is only known by the miner
-		if number == rpc.PendingBlockNumber {
-			block, state := b.svc.miner.Pending()
-			return state, block.Header(), nil
-		}
-		// Otherwise resolve the block number and return its state
-		header, err := b.HeaderByNumber(ctx, number)
-		if err != nil {
-			return nil, nil, err
-		}
-		if header == nil {
-			return nil, nil, errors.New("header not found")
-		}
-		stateDb, err := b.svc.BlockChain().StateAt(header.Root)
-		return stateDb, header, err
-	*/
-	return nil, nil, ErrNotImplemented("StateAndHeaderByNumber")
+func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error) {
+	if number == rpc.PendingBlockNumber {
+		return nil, nil, errors.New("pending block request isn't allowed")
+	}
+	var header *evm_core.EvmHeader
+	if number == rpc.LatestBlockNumber {
+		header = &b.state.CurrentBlock().EvmHeader
+	} else {
+		header = b.svc.GetEvmStateReader().GetHeader(common.Hash{}, uint64(number))
+	}
+	if header == nil {
+		return nil, nil, errors.New("header not found")
+	}
+	stateDb := b.svc.store.StateDB(header.Root)
+	return stateDb, header, nil
 }
 
 // s is a string splitted by ":" separator
@@ -225,7 +181,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
 	return heads
 }
 
-func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *types.Header {
+func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *evm_core.EvmHeader {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.blockchain.GetHeaderByHash(hash)
@@ -233,7 +189,7 @@ func (b *EthAPIBackend) GetHeader(ctx context.Context, hash common.Hash) *types.
 	return nil
 }
 
-func (b *EthAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*types.Block, error) {
+func (b *EthAPIBackend) GetBlock(ctx context.Context, hash common.Hash) (*evm_core.EvmBlock, error) {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.blockchain.GetBlockByHash(hash), nil
@@ -266,26 +222,19 @@ func (b *EthAPIBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*typ
 }
 
 func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.blockchain.GetTdByHash(blockHash)
-	*/
 	return big.NewInt(0)
 }
 
-func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header) (*vm.EVM, func() error, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		state.SetBalance(msg.From(), math.MaxBig256)
-		vmError := func() error { return nil }
+func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evm_core.Message, state *state.StateDB, header *evm_core.EvmHeader) (*vm.EVM, func() error, error) {
+	state.SetBalance(msg.From(), math.MaxBig256)
+	vmError := func() error { return nil }
 
-		context := core.NewEVMContext(msg, header, b.svc.BlockChain(), nil)
-		return vm.NewEVM(context, state, b.svc.blockchain.Config(), *b.svc.blockchain.GetVMConfig()), vmError, nil
-	*/
-	return nil, nil, ErrNotImplemented("GetEVM")
+	context := evm_core.NewEVMContext(msg, header, b.svc.GetEvmStateReader(), nil)
+	config := params.AllEthashProtocolChanges
+	return vm.NewEVM(context, state, config, vm.Config{}), vmError, nil
 }
 
-func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+func (b *EthAPIBackend) SubscribeRemovedLogsNotify(ch chan<- evm_core.RemovedLogsNotify) notify.Subscription {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.BlockChain().SubscribeRemovedLogsEvent(ch)
@@ -293,7 +242,7 @@ func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEven
 	return nil
 }
 
-func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+func (b *EthAPIBackend) SubscribeChainNotify(ch chan<- evm_core.ChainNotify) notify.Subscription {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.BlockChain().SubscribeChainEvent(ch)
@@ -301,7 +250,7 @@ func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Sub
 	return nil
 }
 
-func (b *EthAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
+func (b *EthAPIBackend) SubscribeChainHeadNotify(ch chan<- evm_core.ChainHeadNotify) notify.Subscription {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.BlockChain().SubscribeChainHeadEvent(ch)
@@ -309,7 +258,7 @@ func (b *EthAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) e
 	return nil
 }
 
-func (b *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
+func (b *EthAPIBackend) SubscribeChainSideNotify(ch chan<- evm_core.ChainSideNotify) notify.Subscription {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.BlockChain().SubscribeChainSideEvent(ch)
@@ -317,7 +266,7 @@ func (b *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) e
 	return nil
 }
 
-func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+func (b *EthAPIBackend) SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription {
 	// TODO: implement or disable it. Origin:
 	/*
 		return b.svc.BlockChain().SubscribeLogsEvent(ch)
@@ -326,35 +275,23 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.txPool.AddLocal(signedTx)
-	*/
-	return ErrNotImplemented("SendTx")
+	return b.svc.txpool.AddLocal(signedTx)
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		pending, err := b.svc.txPool.Pending()
-		if err != nil {
-			return nil, err
-		}
-		var txs types.Transactions
-		for _, batch := range pending {
-			txs = append(txs, batch...)
-		}
-		return txs, nil
-	*/
-	return nil, ErrNotImplemented("GetPoolTransactions")
+	pending, err := b.svc.txpool.Pending()
+	if err != nil {
+		return nil, err
+	}
+	var txs types.Transactions
+	for _, batch := range pending {
+		txs = append(txs, batch...)
+	}
+	return txs, nil
 }
 
 func (b *EthAPIBackend) GetPoolTransaction(hash common.Hash) *types.Transaction {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.txPool.Get(hash)
-	*/
-	return nil
+	return b.svc.txpool.Get(hash)
 }
 
 func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
@@ -371,35 +308,19 @@ func (b *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 }
 
 func (b *EthAPIBackend) Stats() (pending int, queued int) {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.txPool.Stats()
-	*/
-	return 0, 0
+	return b.svc.txpool.Stats()
 }
 
 func (b *EthAPIBackend) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.TxPool().Content()
-	*/
-	return nil, nil
+	return b.svc.txpool.Content()
 }
 
-func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.TxPool().SubscribeNewTxsEvent(ch)
-	*/
-	return nil
+func (b *EthAPIBackend) SubscribeNewTxsNotify(ch chan<- evm_core.NewTxsNotify) notify.Subscription {
+	return b.svc.txpool.SubscribeNewTxsNotify(ch)
 }
 
-func (b *EthAPIBackend) Downloader() *downloader.Downloader {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.Downloader()
-	*/
-	return nil
+func (b *EthAPIBackend) Progress() PeerProgress {
+	return b.svc.pm.myProgress()
 }
 
 func (b *EthAPIBackend) ProtocolVersion() int {
@@ -411,27 +332,15 @@ func (b *EthAPIBackend) ProtocolVersion() int {
 }
 
 func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.gpo.SuggestPrice(ctx)
-	*/
-	return nil, ErrNotImplemented("SuggestPrice")
+	return b.gpo.SuggestPrice(ctx)
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.ChainDb()
-	*/
-	return nil
+	return b.svc.store.table.Evm
 }
 
-func (b *EthAPIBackend) EventMux() *event.TypeMux {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.EventMux()
-	*/
-	return nil
+func (b *EthAPIBackend) NotifyMux() *notify.TypeMux {
+	return b.mux
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -443,11 +352,7 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 }
 
 func (b *EthAPIBackend) RPCGasCap() *big.Int {
-	// TODO: implement or disable it. Origin:
-	/*
-		return b.svc.config.RPCGasCap
-	*/
-	return big.NewInt(0)
+	return b.svc.config.RPCGasCap
 }
 
 func (b *EthAPIBackend) BloomStatus() (uint64, uint64) {
@@ -466,24 +371,4 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 			go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.svc.bloomRequests)
 		}
 	*/
-}
-
-/*
- * utils:
- */
-
-func convertHeader(h *evm_core.EvmHeader) *types.Header {
-	// NOTE: incomplete conversion
-	return &types.Header{
-		Number:     h.Number,
-		Coinbase:   h.Coinbase,
-		GasLimit:   h.GasLimit,
-		GasUsed:    h.GasUsed,
-		Root:       h.Root,
-		ParentHash: h.ParentHash,
-		Time:       uint64(h.Time.Unix()),
-		Extra:      h.Hash.Bytes(),
-
-		Difficulty: new(big.Int),
-	}
 }

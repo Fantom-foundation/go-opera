@@ -175,11 +175,11 @@ func (w *Flushable) Flush() error {
 }
 
 func (w *Flushable) Stat(property string) (string, error) {
-	return w.Stat(property)
+	return w.parent.Stat(property)
 }
 
 func (w *Flushable) Compact(start []byte, limit []byte) error {
-	return w.Compact(start, limit)
+	return w.parent.Compact(start, limit)
 }
 
 /*

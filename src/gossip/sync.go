@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"math/rand"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -10,8 +9,6 @@ import (
 )
 
 const (
-	forceSyncCycle = 10 * time.Second // Time interval to force syncs, even if few peers are available
-
 	// This is the target size for the packs of transactions sent by txsyncLoop.
 	// A pack can get larger than this if a single transactions exceeds this size.
 	txsyncPackSize = 100 * 1024

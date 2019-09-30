@@ -49,10 +49,10 @@ func (s *Store) FindEventHashes(epoch idx.Epoch, lamport idx.Lamport, hashPrefix
 	res := make(hash.Events, 0, 10)
 
 	it := s.table.Events.NewIteratorWithPrefix(prefix)
+	defer it.Release()
 	for it.Next() {
 		res = append(res, hash.BytesToEvent(it.Key()))
 	}
-	it.Release()
 
 	return res
 }

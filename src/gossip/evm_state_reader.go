@@ -50,7 +50,11 @@ func (r *EvmStateReader) GetDagHeader(h hash.Event, n idx.Block) *evm_core.EvmHe
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
-	return &r.getBlock(h, n, false).EvmHeader
+	block := r.getBlock(h, n, false)
+	if block == nil {
+		return nil
+	}
+	return &block.EvmHeader
 }
 
 func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evm_core.EvmBlock {
@@ -96,7 +100,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_
 			}
 		}
 	} else {
-		evmBlock.Transactions = make(types.Transactions, 0, 0)
+		evmBlock.Transactions = make(types.Transactions, 0)
 	}
 	return evmBlock
 }

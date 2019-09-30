@@ -19,7 +19,6 @@ type (
 		frameToDecide idx.Frame
 
 		members    pos.Members
-		totalStake pos.Stake // the sum of stakes (n)
 
 		// election state
 		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"

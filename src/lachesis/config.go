@@ -1,10 +1,8 @@
 package lachesis
 
 import (
-	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
@@ -44,24 +42,6 @@ type Config struct {
 
 	// Graph options
 	Dag DagConfig
-
-	// Gas Price Oracle options
-	GPO gasprice.Config
-
-	// Enables tracking of SHA3 preimages in the VM
-	EnablePreimageRecording bool
-
-	// Miscellaneous options
-	DocRoot string `toml:"-"`
-
-	// Type of the EWASM interpreter ("" for default)
-	EWASMInterpreter string
-
-	// Type of the EVM interpreter ("" for default)
-	EVMInterpreter string
-
-	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap *big.Int `toml:",omitempty"`
 }
 
 func MainNetConfig() Config {

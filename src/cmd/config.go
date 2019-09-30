@@ -116,6 +116,7 @@ func defaultNodeConfig() node.Config {
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "web3")
 	cfg.WSModules = append(cfg.WSModules, "eth", "web3")
 	cfg.IPCPath = "lachesis.ipc"
+	cfg.DataDir = DefaultDataDir()
 	return cfg
 }
 

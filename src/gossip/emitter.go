@@ -37,7 +37,6 @@ type Emitter struct {
 	store       *Store
 	engine      Consensus
 	engineMu    *sync.RWMutex
-	prevEpoch   idx.Epoch
 	txpool      txPool
 	occurredTxs *occured_txs.Buffer
 	txTime      *lru.Cache // tx hash -> tx time

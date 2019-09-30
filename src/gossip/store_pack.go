@@ -71,6 +71,7 @@ func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 	res := make(hash.Events, 0, hardLimitItems)
 
 	it := s.table.Packs.NewIteratorWithPrefix(prefix.Bytes())
+	defer it.Release()
 	for it.Next() {
 		if len(it.Key()) != epochSize+packSize+eventIdSize {
 			s.Log.Crit("packs table: Incorrect key len", "len(key)", len(it.Key()))
@@ -80,7 +81,6 @@ func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-	it.Release()
 
 	if len(res) == 0 {
 		return nil
