@@ -22,6 +22,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 		EvmHeader:    *evmHeader,
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
+	txPositions := make(map[common.Hash]TxPosition)
 	for _, id := range block.Events {
 		e := s.store.GetEvent(id)
 		if e == nil {
@@ -29,12 +30,19 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 		}
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
+		for i, tx := range e.Transactions {
+			// we don't care if tx was met in different events, any valid position will work
+			txPositions[tx.Hash()] = TxPosition{
+				Event:       e.Hash(),
+				EventOffset: uint32(i),
+			}
+		}
 	}
 	s.occurredTxs.CollectConfirmedTxs(evmBlock.Transactions) // TODO collect all the confirmed txs, not only block txs
 
 	// Process txs
 	statedb := s.store.StateDB(stateHash)
-	_, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
+	receipts, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
 	if err != nil {
 		s.Log.Crit("Shouldn't happen ever because it's not strict", "err", err)
 	}
@@ -72,7 +80,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 		}
 	}
 
-	// filter skipped transactions before notifying
+	// Filter skipped transactions before notifying. Receipts are filtered already
 	skipCount := 0
 	filteredTxs := make(types.Transactions, 0, len(evmBlock.Transactions))
 	for i, tx := range evmBlock.Transactions {
@@ -84,7 +92,29 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	}
 	evmBlock.Transactions = filteredTxs
 
+	// Build index for not skipped txs
+	if s.config.TxIndex {
+		for i, tx := range evmBlock.Transactions {
+			// not skipped txs only
+			position := txPositions[tx.Hash()]
+			position.Block = block.Index
+			position.BlockOffset = uint32(i)
+			s.store.SetTxPosition(tx.Hash(), &position)
+		}
+
+		if receipts.Len() != 0 {
+			s.store.SetReceipts(block.Index, receipts)
+		}
+	}
+
+	// Notify about new block
 	s.feed.newBlock.Send(evm_core.ChainHeadNotify{evmBlock})
+
+	// Flush trie on the main DB
+	err = statedb.Database().TrieDB().Cap(0)
+	if err != nil {
+		log.Error("Failed to flush trie DB into main DB", "err", err)
+	}
 
 	return newStateHash, newMembers
 }

@@ -34,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -1231,12 +1230,16 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 // GetTransactionByHash returns the transaction for the given hash
 func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
 	// Try to return an already finalized transaction
-	tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	tx, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
 	if tx != nil {
-		return newRPCTransaction(tx, blockHash, blockNumber, index), nil
+		header, err := s.b.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber)) // retrieve header to get block hash
+		if err != nil {
+			return nil, err
+		}
+		return newRPCTransaction(tx, header.Hash, blockNumber, index), nil
 	}
 	// No finalized transaction, try to retrieve it from the pool
 	if tx := s.b.GetPoolTransaction(hash); tx != nil {
@@ -1250,7 +1253,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, has
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.
 func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
 	// Retrieve a finalized transaction, or a pooled otherwise
-	tx, _, _, _, err := s.b.GetTransaction(ctx, hash)
+	tx, _, _, err := s.b.GetTransaction(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -1266,12 +1269,16 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
-	tx, blockHash, blockNumber, index := rawdb.ReadTransaction(s.b.ChainDb(), hash)
-	if tx == nil {
-		return nil, nil
+	tx, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+	if tx == nil || err != nil {
+		return nil, err
 	}
-	receipts, err := s.b.GetReceipts(ctx, blockHash)
-	if err != nil {
+	header, err := s.b.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber)) // retrieve header to get block hash
+	if header == nil || err != nil {
+		return nil, err
+	}
+	receipts, err := s.b.GetReceipts(ctx, rpc.BlockNumber(blockNumber))
+	if receipts == nil || err != nil {
 		return nil, err
 	}
 	if len(receipts) <= int(index) {
@@ -1286,7 +1293,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
-		"blockHash":         blockHash,
+		"blockHash":         header.Hash,
 		"blockNumber":       hexutil.Uint64(blockNumber),
 		"transactionHash":   hash,
 		"transactionIndex":  hexutil.Uint64(index),

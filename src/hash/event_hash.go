@@ -92,6 +92,11 @@ func (h Event) Epoch() idx.Epoch {
 
 // String returns human readable string representation.
 func (h Event) String() string {
+	return h.ShortId()
+}
+
+// ShortId returns human readable ID representation, suitable for API calls.
+func (h Event) ShortId() string {
 	if name := GetEventName(h); len(name) > 0 {
 		return name
 	}

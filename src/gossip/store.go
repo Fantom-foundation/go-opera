@@ -27,7 +27,9 @@ type Store struct {
 		PacksNum  kvdb.KeyValueStore `table:"packs_num_"`
 
 		// API-only tables
-		BlockHashes kvdb.KeyValueStore `table:"block_hashes_"`
+		BlockHashes kvdb.KeyValueStore `table:"block_h_"`
+		Receipts    kvdb.KeyValueStore `table:"receipts_"`
+		TxPositions kvdb.KeyValueStore `table:"tx_p_"`
 
 		TmpDbs kvdb.KeyValueStore `table:"tmpdbs_"`
 
