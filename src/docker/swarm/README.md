@@ -9,3 +9,10 @@
 
 3. Login to docker private registry `./10.registry-login.sh` with password.
 
+
+## Get docker image
+
+1. Build image `cd .. && make`.
+
+2. Upload image to private registry `./20.push-docker-image.sh`.
+
