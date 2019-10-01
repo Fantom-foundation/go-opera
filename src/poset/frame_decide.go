@@ -14,29 +14,27 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 	memberIdxs := p.Members.Idxs()
 	err := p.dfsSubgraph(atropos, func(header *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(header.Hash())
-		switch decidedFrame {
-		case 0:
-			// mark all the walked events
-			p.store.SetEventConfirmedOn(header.Hash(), frame)
-			fallthrough
-		case frame:
-			// but not all the events are included into a block
-			creatorHighest := atroposHighestBefore.Get(memberIdxs[header.Creator])
-			fromCheater := creatorHighest.IsForkDetected
-			freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxMemberEventsInBlock // will overflow on forks, it's fine
-			if !fromCheater && freshEvent {
-				blockEvents = append(blockEvents, header)
+		if decidedFrame != 0 {
+			return false
+		}
+		// mark all the walked events
+		p.store.SetEventConfirmedOn(header.Hash(), frame)
+		// but not all the events are included into a block
+		creatorHighest := atroposHighestBefore.Get(memberIdxs[header.Creator])
+		fromCheater := creatorHighest.IsForkDetected
+		freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxMemberEventsInBlock // will overflow on forks, it's fine
+		if !fromCheater && freshEvent {
+			blockEvents = append(blockEvents, header)
 
-				if creatorHighest.Seq == header.Seq {
-					lastHeaders[header.Creator] = header
-				}
-			}
-			// sanity check
-			if !fromCheater && header.Seq > creatorHighest.Seq {
-				p.Log.Crit("DAG is inconsistent with vector clock", "event", header.Hash().String(), "seq", header.Seq, "highest", creatorHighest.Seq)
+			if creatorHighest.Seq == header.Seq {
+				lastHeaders[header.Creator] = header
 			}
 		}
-		return decidedFrame == 0
+		// sanity check
+		if !fromCheater && header.Seq > creatorHighest.Seq {
+			p.Log.Crit("DAG is inconsistent with vector clock", "event", header.Hash().String(), "seq", header.Seq, "highest", creatorHighest.Seq)
+		}
+		return true
 	})
 	if err != nil {
 		p.Log.Crit("Failed to walk subgraph", "err", err)

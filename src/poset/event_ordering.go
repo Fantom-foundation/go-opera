@@ -19,7 +19,9 @@ func (p *Poset) frameConsensusTime(frame idx.Frame) inter.Timestamp {
 }
 
 func (p *Poset) fareOrdering(
-	frame idx.Frame, atropos hash.Event, unordered []*inter.EventHeaderData,
+	frame idx.Frame,
+	atropos hash.Event,
+	unordered []*inter.EventHeaderData,
 ) (
 	ids hash.Events,
 	frameInfo FrameInfo,

@@ -49,8 +49,7 @@ func TestRestore(t *testing.T) {
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		parentCount := epochLen * COUNT
-		_ = inter.ForEachRandEvent(nodes, parentCount, COUNT, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, epochLen*COUNT, COUNT, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[GENERATOR].SetEvent(e)
 				assertar.NoError(posets[GENERATOR].ProcessEvent(e))
@@ -140,7 +139,7 @@ func TestDbFailure(t *testing.T) {
 
 	// create events on etalon poset
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(posets[GENERATOR].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, int(posets[GENERATOR].dag.EpochLen)-1, COUNT, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 
