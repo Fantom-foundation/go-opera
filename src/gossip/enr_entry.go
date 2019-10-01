@@ -15,7 +15,7 @@ type Enr struct {
 
 // ENRKey implements enr.Entry.
 func (e Enr) ENRKey() string {
-	return "fantom"
+	return "lachesis"
 }
 
 func (s *Service) currentEnr() *Enr {

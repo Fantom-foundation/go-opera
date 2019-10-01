@@ -19,7 +19,7 @@ import (
 )
 
 // Tests that events can be retrieved from a remote graph based on user queries.
-func TestGetEvents62(t *testing.T) { testGetEvents(t, fantom62) }
+func TestGetEvents62(t *testing.T) { testGetEvents(t, lachesis62) }
 
 func testGetEvents(t *testing.T, protocol int) {
 	assertar := assert.New(t)
@@ -157,7 +157,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	// create peers
 	var peers []*testPeer
 	for i := 0; i < totalPeers; i++ {
-		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), fantom62, pm, true)
+		peer, _ := newTestPeer(fmt.Sprintf("peer %d", i), lachesis62, pm, true)
 		defer peer.close()
 		peers = append(peers, peer)
 	}
@@ -192,7 +192,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	}
 
 	// fresh new peer
-	newPeer, _ := newTestPeer(fmt.Sprintf("peer %d", totalPeers), fantom62, pm, true)
+	newPeer, _ := newTestPeer(fmt.Sprintf("peer %d", totalPeers), lachesis62, pm, true)
 	defer newPeer.close()
 	for pm.peers.Len() < totalPeers+1 { // wait until the new peer is registered
 		time.Sleep(10 * time.Millisecond)

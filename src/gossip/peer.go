@@ -421,7 +421,7 @@ func (p *peer) readStatus(network uint64, status *ethStatusData, genesis common.
 // String implements fmt.Stringer.
 func (p *peer) String() string {
 	return fmt.Sprintf("Peer %s [%s]", p.id,
-		fmt.Sprintf("fantom/%2d", p.version),
+		fmt.Sprintf("lachesis/%2d", p.version),
 	)
 }
 

@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/params"
 
@@ -25,6 +26,8 @@ func TestFakeNetFlag(t *testing.T) {
 	cli.SetTemplateFunc("version", func() string { return params.VersionWithCommit("", "") })
 	cli.SetTemplateFunc("niltime", genesisStart)
 	cli.SetTemplateFunc("apis", func() string { return ipcAPIs })
+
+	time.Sleep(time.Second)
 
 	// Verify the actual welcome message to the required template
 	// TODO: clone (or PR) "github.com/ethereum/go-ethereum/console" to customize welcome message

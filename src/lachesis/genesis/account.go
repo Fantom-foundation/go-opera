@@ -18,7 +18,7 @@ type (
 		Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
 		Balance    *big.Int                    `json:"balance" gencodec:"required"`
 		Nonce      uint64                      `json:"nonce,omitempty"`
-		PrivateKey *ecdsa.PrivateKey
+		PrivateKey *ecdsa.PrivateKey           `toml:"-"`
 	}
 )
 
