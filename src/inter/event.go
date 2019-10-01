@@ -73,18 +73,13 @@ func NewEvent() *Event {
 
 // String returns string representation.
 func (e *Event) String() string {
-	return fmt.Sprintf("Event{%s, %s, t=%d}", e.Hash().String(), e.Parents.String(), e.Lamport)
+	return fmt.Sprintf("{id=%s, p=%s, seq=%d}", e.Hash().String(), e.Parents.String(), e.Seq)
 }
 
 func (e *EventHeaderData) HashToSign() common.Hash {
 	hasher := sha3.New256()
-	err := rlp.Encode(hasher, []interface{}{
-		"Fantom signed event header",
-		e,
-	})
-	if err != nil {
-		panic("can't encode: " + err.Error())
-	}
+	hasher.Write([]byte("Lachesis: I'm signing the Event"))
+	hasher.Write(e.Hash().Bytes())
 	return common.BytesToHash(hasher.Sum(nil))
 }
 
@@ -115,6 +110,7 @@ func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
 
 // Sign event by signer.
 func (e *Event) Sign(signer func([]byte) ([]byte, error)) error {
+	e.RecacheHash() // because HashToSign uses .Hash
 	sig, err := signer(e.HashToSign().Bytes())
 	if err != nil {
 		return err

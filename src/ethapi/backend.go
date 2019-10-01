@@ -23,7 +23,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -56,29 +55,19 @@ type Backend interface {
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error)
 	GetHeader(ctx context.Context, hash common.Hash) *evm_core.EvmHeader
 	GetBlock(ctx context.Context, hash common.Hash) (*evm_core.EvmBlock, error)
-	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
+	GetReceipts(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg evm_core.Message, state *state.StateDB, header *evm_core.EvmHeader) (*vm.EVM, func() error, error)
-	SubscribeChainNotify(ch chan<- evm_core.ChainNotify) notify.Subscription
-	SubscribeChainHeadNotify(ch chan<- evm_core.ChainHeadNotify) notify.Subscription
-	SubscribeChainSideNotify(ch chan<- evm_core.ChainSideNotify) notify.Subscription
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
-	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error)
+	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, uint64, uint64, error)
 	GetPoolTransactions() (types.Transactions, error)
 	GetPoolTransaction(txHash common.Hash) *types.Transaction
 	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	Stats() (pending int, queued int)
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
 	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) notify.Subscription
-
-	// Filter API
-	BloomStatus() (uint64, uint64)
-	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
-	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
-	SubscribeLogsNotify(ch chan<- []*types.Log) notify.Subscription
-	SubscribeRemovedLogsNotify(ch chan<- evm_core.RemovedLogsNotify) notify.Subscription
 
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *evm_core.EvmBlock

@@ -3,8 +3,6 @@ package gossip
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/eth/downloader"
-
 	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
@@ -16,10 +14,7 @@ type Config struct {
 	TxPool  evm_core.TxPoolConfig
 
 	// Protocol options
-	SyncMode downloader.SyncMode
-
-	NoPruning       bool // Whether to disable pruning and flush everything to disk
-	NoPrefetch      bool // Whether to disable prefetching and only load state on demand
+	TxIndex         bool // Whether to disable indexing transactions and receipts or not
 	ForcedBroadcast bool
 
 	// Gas Price Oracle options
@@ -49,6 +44,7 @@ func DefaultConfig(network lachesis.Config) Config {
 		Net:     network,
 		Emitter: DefaultEmitterConfig(),
 		TxPool:  evm_core.DefaultTxPoolConfig(),
+		TxIndex: true,
 
 		GPO: gasprice.Config{
 			Blocks:     20,

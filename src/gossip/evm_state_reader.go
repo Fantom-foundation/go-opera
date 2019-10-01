@@ -38,6 +38,14 @@ func (r *EvmStateReader) CurrentBlock() *evm_core.EvmBlock {
 	return r.getBlock(hash.Event(h), idx.Block(n), n != 0)
 }
 
+func (r *EvmStateReader) CurrentHeader() *evm_core.EvmHeader {
+	r.engineMu.RLock()
+	defer r.engineMu.RUnlock()
+
+	n, h := r.engine.LastBlock()
+	return r.getBlock(hash.Event(h), idx.Block(n), false).Header()
+}
+
 func (r *EvmStateReader) GetHeader(h common.Hash, n uint64) *evm_core.EvmHeader {
 	return r.GetDagHeader(hash.Event(h), idx.Block(n))
 }
@@ -50,11 +58,7 @@ func (r *EvmStateReader) GetDagHeader(h hash.Event, n idx.Block) *evm_core.EvmHe
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
-	block := r.getBlock(h, n, false)
-	if block == nil {
-		return nil
-	}
-	return &block.EvmHeader
+	return r.getBlock(h, n, false).Header()
 }
 
 func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evm_core.EvmBlock {
