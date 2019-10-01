@@ -21,16 +21,13 @@ type Config struct {
 	GPO gasprice.Config
 
 	// Enables tracking of SHA3 preimages in the VM
-	EnablePreimageRecording bool
+	EnablePreimageRecording bool // TODO
 
 	// Type of the EWASM interpreter ("" for default)
 	EWASMInterpreter string
 
 	// Type of the EVM interpreter ("" for default)
-	EVMInterpreter string
-
-	// Miscellaneous options
-	DocRoot string `toml:"-"`
+	EVMInterpreter string // TODO custom interpreter
 
 	// RPCGasCap is the global gas cap for eth-call variants.
 	RPCGasCap *big.Int `toml:",omitempty"`

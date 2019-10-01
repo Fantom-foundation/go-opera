@@ -4,18 +4,24 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/src/gossip"
+	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
 )
 
@@ -33,6 +39,18 @@ var (
 	configFileFlag = cli.StringFlag{
 		Name:  "config",
 		Usage: "TOML configuration file",
+	}
+
+	GpoDefaultFlag = utils.BigFlag{
+		Name:  "gpofloor",
+		Usage: "The default suggested gas price",
+		Value: big.NewInt(params.GWei),
+	}
+
+	DataDirFlag = utils.DirectoryFlag{
+		Name:  "datadir",
+		Usage: "Data directory for the databases and keystore",
+		Value: utils.DirectoryString{DefaultDataDir()},
 	}
 )
 
@@ -92,13 +110,119 @@ func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
 	return cfg
 }
 
-func gossipConfigWithFlags(ctx *cli.Context, cfg gossip.Config) gossip.Config {
-	// TODO: apply flags
+func setDataDir(ctx *cli.Context, cfg *node.Config) {
+	defaultDataDir := DefaultDataDir()
+	cfg.DataDir = defaultDataDir
+	switch {
+	case ctx.GlobalIsSet(utils.DataDirFlag.Name):
+		cfg.DataDir = ctx.GlobalString(utils.DataDirFlag.Name)
+	case ctx.GlobalIsSet(FakeNetFlag.Name) && cfg.DataDir == defaultDataDir:
+		cfg.DataDir = filepath.Join(defaultDataDir, "fakenet")
+	case ctx.GlobalBool(utils.TestnetFlag.Name) && cfg.DataDir == defaultDataDir:
+		cfg.DataDir = filepath.Join(defaultDataDir, "testnet")
+	}
+}
+
+func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
+	if ctx.GlobalIsSet(utils.GpoBlocksFlag.Name) {
+		cfg.Blocks = ctx.GlobalInt(utils.GpoBlocksFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.GpoPercentileFlag.Name) {
+		cfg.Percentile = ctx.GlobalInt(utils.GpoPercentileFlag.Name)
+	}
+	if ctx.GlobalIsSet(GpoDefaultFlag.Name) {
+		cfg.Default = utils.GlobalBig(ctx, GpoDefaultFlag.Name)
+	}
+}
+
+func setTxPool(ctx *cli.Context, cfg *evm_core.TxPoolConfig) {
+	if ctx.GlobalIsSet(utils.TxPoolLocalsFlag.Name) {
+		locals := strings.Split(ctx.GlobalString(utils.TxPoolLocalsFlag.Name), ",")
+		for _, account := range locals {
+			if trimmed := strings.TrimSpace(account); !common.IsHexAddress(trimmed) {
+				utils.Fatalf("Invalid account in --txpool.locals: %s", trimmed)
+			} else {
+				cfg.Locals = append(cfg.Locals, common.HexToAddress(account))
+			}
+		}
+	}
+	if ctx.GlobalIsSet(utils.TxPoolNoLocalsFlag.Name) {
+		cfg.NoLocals = ctx.GlobalBool(utils.TxPoolNoLocalsFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolJournalFlag.Name) {
+		cfg.Journal = ctx.GlobalString(utils.TxPoolJournalFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolRejournalFlag.Name) {
+		cfg.Rejournal = ctx.GlobalDuration(utils.TxPoolRejournalFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolPriceLimitFlag.Name) {
+		cfg.PriceLimit = ctx.GlobalUint64(utils.TxPoolPriceLimitFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolPriceBumpFlag.Name) {
+		cfg.PriceBump = ctx.GlobalUint64(utils.TxPoolPriceBumpFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolAccountSlotsFlag.Name) {
+		cfg.AccountSlots = ctx.GlobalUint64(utils.TxPoolAccountSlotsFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolGlobalSlotsFlag.Name) {
+		cfg.GlobalSlots = ctx.GlobalUint64(utils.TxPoolGlobalSlotsFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolAccountQueueFlag.Name) {
+		cfg.AccountQueue = ctx.GlobalUint64(utils.TxPoolAccountQueueFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolGlobalQueueFlag.Name) {
+		cfg.GlobalQueue = ctx.GlobalUint64(utils.TxPoolGlobalQueueFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.TxPoolLifetimeFlag.Name) {
+		cfg.Lifetime = ctx.GlobalDuration(utils.TxPoolLifetimeFlag.Name)
+	}
+}
+
+func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) gossip.Config {
+	cfg := src
+
+	// Avoid conflicting network flags
+	utils.CheckExclusive(ctx, FakeNetFlag, utils.DeveloperFlag, utils.TestnetFlag)
+	utils.CheckExclusive(ctx, FakeNetFlag, utils.DeveloperFlag, utils.ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
+
+	setGPO(ctx, &cfg.GPO)
+	setTxPool(ctx, &cfg.TxPool)
+
+	if ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
+		cfg.Net.NetworkId = ctx.GlobalUint64(utils.NetworkIdFlag.Name)
+	}
+	// TODO cache config
+	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(utils.CacheDatabaseFlag.Name) {
+	//	cfg.DatabaseCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(utils.CacheDatabaseFlag.Name) / 100
+	//}
+	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(CacheTrieFlag.Name) {
+	//	cfg.TrieCleanCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(CacheTrieFlag.Name) / 100
+	//}
+	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(CacheGCFlag.Name) {
+	//	cfg.TrieDirtyCache = ctx.GlobalInt(utils.CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
+	//}
+
+	if ctx.GlobalIsSet(utils.VMEnableDebugFlag.Name) {
+		cfg.EnablePreimageRecording = ctx.GlobalBool(utils.VMEnableDebugFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(utils.EWASMInterpreterFlag.Name) {
+		cfg.EWASMInterpreter = ctx.GlobalString(utils.EWASMInterpreterFlag.Name)
+	}
+
+	if ctx.GlobalIsSet(utils.EVMInterpreterFlag.Name) {
+		cfg.EVMInterpreter = ctx.GlobalString(utils.EVMInterpreterFlag.Name)
+	}
+	if ctx.GlobalIsSet(utils.RPCGlobalGasCap.Name) {
+		cfg.RPCGasCap = new(big.Int).SetUint64(ctx.GlobalUint64(utils.RPCGlobalGasCap.Name))
+	}
+
 	return cfg
 }
 
 func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	utils.SetNodeConfig(ctx, &cfg)
+	setDataDir(ctx, &cfg)
 	return cfg
 }
 

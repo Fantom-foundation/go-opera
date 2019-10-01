@@ -357,7 +357,7 @@ func TestTransactionChainFork(t *testing.T) {
 
 	pool := setupTxPool(balance{
 		Addr:   addr,
-		Amount: big.NewInt(100000000000000),
+		Amount: big.NewInt(params.GWei),
 	})
 	defer pool.Stop()
 

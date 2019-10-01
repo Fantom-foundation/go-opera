@@ -12,7 +12,7 @@ import (
 )
 
 func TestFakeNetFlag(t *testing.T) {
-	// Start a glachesis console, make sure it's cleaned up and terminate the console
+	// Start a lachesis console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--fakenet", "1/3",
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",

@@ -24,7 +24,7 @@ const (
 // Tests that a node embedded within a console can be started up properly and
 // then terminated by closing the input stream.
 func TestConsoleWelcome(t *testing.T) {
-	// Start a glachesis console, make sure it's cleaned up and terminate the console
+	// Start a lachesis console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"console")
@@ -103,7 +103,7 @@ func TestWSAttachWelcome(t *testing.T) {
 }
 
 func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
-	// Attach to a running glachesis node and terminate immediately
+	// Attach to a running lachesis node and terminate immediately
 	attach := exec(t, "attach", endpoint)
 
 	attach.CloseStdin()
