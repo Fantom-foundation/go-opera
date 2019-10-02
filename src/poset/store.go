@@ -15,6 +15,8 @@ import (
 
 // Store is a poset persistent storage working over parent key-value database.
 type Store struct {
+	bareDb kvdb.KeyValueStore
+
 	mainDb *flushable.Flushable
 	table  struct {
 		Checkpoint     kvdb.KeyValueStore `table:"checkpoint_"`
@@ -38,12 +40,17 @@ type Store struct {
 // NewStore creates store over key-value db.
 func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
 	s := &Store{
+		bareDb:   db,
 		mainDb:   flushable.New(db),
 		makeDb:   makeDb,
 		Instance: logger.MakeInstance(),
 	}
 
 	table.MigrateTables(&s.table, s.mainDb)
+
+	if s.isDirty() {
+		s.Log.Crit("Consensus DB is possible inconsistent. Recreate it.")
+	}
 
 	return s
 }
@@ -58,12 +65,40 @@ func NewMemStore() *Store {
 
 // Commit changes.
 func (s *Store) Commit() error {
+	s.setDirty(true)
+	defer s.setDirty(false)
+
 	err := s.epochDb.Flush()
 	if err != nil {
 		return err
 	}
 
 	return s.mainDb.Flush()
+}
+
+// setDirty sets dirty flag.
+func (s *Store) setDirty(flag bool) {
+	key := []byte("is_dirty")
+	val := make([]byte, 1, 1)
+	if flag {
+		val[0] = 1
+	}
+
+	err := s.bareDb.Put(key, val)
+	if err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
+}
+
+// isDirty gets dirty flag.
+func (s *Store) isDirty() bool {
+	key := []byte("is_dirty")
+	val, err := s.bareDb.Get(key)
+	if err != nil {
+		s.Log.Crit("Failed to get value", "err", err)
+	}
+
+	return len(val) > 1 && val[0] != 0
 }
 
 // Close leaves underlying database.
