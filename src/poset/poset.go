@@ -124,7 +124,6 @@ func (p *Poset) handleElection(root *inter.Event) {
 		if !root.IsRoot {
 			return
 		}
-		p.Log.Debug("Consensus: event is root", "event", root.String())
 
 		decided := p.processRoot(root.Frame, root.Creator, root.Hash())
 		if decided == nil {
@@ -195,7 +194,7 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 	if err != nil {
 		return
 	}
-	p.Log.Debug("Start event processing", "event", e.String())
+	p.Log.Debug("Consensus: start event processing", "event", e.String())
 
 	err = p.checkAndSaveEvent(e)
 	if err != nil {

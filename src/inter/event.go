@@ -73,7 +73,10 @@ func NewEvent() *Event {
 
 // String returns string representation.
 func (e *Event) String() string {
-	return fmt.Sprintf("{id=%s, p=%s, seq=%d}", e.Hash().String(), e.Parents.String(), e.Seq)
+	if e.IsRoot {
+		return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
+	}
+	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
 }
 
 func (e *EventHeaderData) HashToSign() common.Hash {
