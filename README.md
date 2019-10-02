@@ -92,13 +92,13 @@ Docker:
 cd src/docker
 make
 docker run -d --name lachesis-node -v /home/alice/lachesis:/root \
-           -p 8545:8545 -p 30303:30303 \
+           -p 5050:5050 \
           "lachesis" \
-          --port 30303 \
+          --port 5050 \
           --nat=extip:YOUR_IP
 ```
 
-This will start `lachesis` with ```--port 30303 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
+This will start `lachesis` with ```--port 5050 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
 
 Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containers
 and/or hosts. By default, `lachesis` binds to the local interface and RPC endpoints is not
@@ -158,7 +158,7 @@ $ lachesis --fakenet 1/5 --bootnodes "enode://ade7067fe5495db3d9f44dfda710a2873f
 
 ### Running the demo
 
-Fot the testing purposes, the full demo may be launched using:
+For the testing purposes, the full demo may be launched using:
 ```shell
 cd src/docker
 make # build docker image
