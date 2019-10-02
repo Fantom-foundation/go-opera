@@ -17,14 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/src/ethapi"
-	"github.com/Fantom-foundation/go-lachesis/src/event_check"
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/ethapi"
+	"github.com/Fantom-foundation/go-lachesis/event_check"
+	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
+	"github.com/Fantom-foundation/go-lachesis/gossip/occured_txs"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 const (

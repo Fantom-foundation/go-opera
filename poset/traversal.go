@@ -3,8 +3,8 @@ package poset
 import (
 	"errors"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
 type eventFilterFn func(event *inter.EventHeaderData) bool

@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	cli "gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/integration"
+	"github.com/Fantom-foundation/go-lachesis/crypto"
+	"github.com/Fantom-foundation/go-lachesis/integration"
 )
 
 var FakeNetFlag = cli.StringFlag{

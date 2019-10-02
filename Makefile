@@ -24,7 +24,7 @@ export CGO_ENABLED=0
 SUBDIRS := src/.
 TARGETS := build proto clean buildtests
 SUBDIR_TARGETS := $(foreach t,$(TARGETS),$(addsuffix $t,$(SUBDIRS)))
-VENDOR_LDFLAG := --ldflags "-X github.com/Fantom-foundation/go-lachesis/src/version.GitCommit=`git rev-parse HEAD`"
+VENDOR_LDFLAG := --ldflags "-X github.com/Fantom-foundation/go-lachesis/version.GitCommit=`git rev-parse HEAD`"
 
 ifeq ($(OS),Windows_NT)
     # EXTLDFLAGS := ""

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/metrics"
+	"github.com/Fantom-foundation/go-lachesis/metrics"
 )
 
 var (

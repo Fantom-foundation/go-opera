@@ -10,16 +10,16 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 // UnderlyingDB of Store.

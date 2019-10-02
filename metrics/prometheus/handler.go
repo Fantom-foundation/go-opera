@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/Fantom-foundation/go-lachesis/src/metrics"
+	"github.com/Fantom-foundation/go-lachesis/metrics"
 )
 
 const address = ":19090"

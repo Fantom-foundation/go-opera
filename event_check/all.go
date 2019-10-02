@@ -1,12 +1,12 @@
 package event_check
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check"
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/heavy_check"
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/event_check/basic_check"
+	"github.com/Fantom-foundation/go-lachesis/event_check/epoch_check"
+	"github.com/Fantom-foundation/go-lachesis/event_check/heavy_check"
+	"github.com/Fantom-foundation/go-lachesis/event_check/parents_check"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 

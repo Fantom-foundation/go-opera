@@ -2,11 +2,11 @@ package utils
 
 import (
 	"crypto/sha256"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/src/common/littleendian"
+	"github.com/Fantom-foundation/go-lachesis/common/littleendian"
 )
 
 type weightedShuffleNode struct {

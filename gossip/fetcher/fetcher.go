@@ -7,10 +7,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-lachesis/src/event_check"
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/heavy_check"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/event_check"
+	"github.com/Fantom-foundation/go-lachesis/event_check/heavy_check"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
 /*

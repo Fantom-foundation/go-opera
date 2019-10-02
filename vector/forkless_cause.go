@@ -1,7 +1,7 @@
 package vector
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
+	"github.com/Fantom-foundation/go-lachesis/hash"
 )
 
 type kv struct {

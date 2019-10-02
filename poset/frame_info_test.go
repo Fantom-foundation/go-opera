@@ -1,10 +1,11 @@
 package poset
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFrameInfoSerialization(t *testing.T) {

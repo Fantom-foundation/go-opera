@@ -5,8 +5,8 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	cli "gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip"
+	"github.com/Fantom-foundation/go-lachesis/crypto"
+	"github.com/Fantom-foundation/go-lachesis/gossip"
 )
 
 // setCoinbase retrieves the etherbase either from the directly specified

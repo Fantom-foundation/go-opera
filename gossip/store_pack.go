@@ -3,8 +3,8 @@ package gossip
 import (
 	"bytes"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 

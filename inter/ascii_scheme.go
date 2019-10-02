@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 type ForEachEvent struct {
@@ -387,8 +387,8 @@ func (r *row) Position(i int) position {
 }
 
 // Note: after any changes below, run:
-// go test -count=100 -run="TestDAGtoASCIIschemeRand" ./src/inter
-// go test -count=100 -run="TestDAGtoASCIIschemeOptimisation" ./src/inter
+// go test -count=100 -run="TestDAGtoASCIIschemeRand" ./inter
+// go test -count=100 -run="TestDAGtoASCIIschemeOptimisation" ./inter
 func (rr *rows) Optimize() {
 
 	for curr, row := range rr.rows {

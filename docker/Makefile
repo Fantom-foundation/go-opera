@@ -3,4 +3,4 @@ all: build
 
 .PHONY: build
 build:
-	cd ../../ && docker build -f src/docker/Dockerfile -t "lachesis" .
+	cd ../ && docker build -f docker/Dockerfile -t "lachesis" .

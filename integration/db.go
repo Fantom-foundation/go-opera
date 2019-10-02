@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/gossip"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
+	"github.com/Fantom-foundation/go-lachesis/poset"
 )
 
 // DbProducer makes db.

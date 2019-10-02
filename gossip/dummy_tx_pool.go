@@ -1,7 +1,7 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"sort"
 	"sync"
 

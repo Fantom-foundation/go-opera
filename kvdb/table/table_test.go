@@ -10,10 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/flushable"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
 func tempLevelDB(name string) *leveldb.Database {

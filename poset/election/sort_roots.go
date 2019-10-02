@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
 type sortedRoot struct {

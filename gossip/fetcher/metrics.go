@@ -1,6 +1,6 @@
 package fetcher
 
-import "github.com/Fantom-foundation/go-lachesis/src/metrics"
+import "github.com/Fantom-foundation/go-lachesis/metrics"
 
 var (
 	propAnnounceInMeter  = metrics.RegisterGauge("lachesis/fetcher/prop/announces/in", nil)

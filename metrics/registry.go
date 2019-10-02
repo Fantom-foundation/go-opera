@@ -1,4 +1,4 @@
-//go:generate mockgen -package=metrics -self_package=github.com/Fantom-foundation/go-lachesis/src/metrics -destination=registry_mock_test.go github.com/Fantom-foundation/go-lachesis/src/metrics Registry
+//go:generate mockgen -package=metrics -self_package=github.com/Fantom-foundation/go-lachesis/metrics -destination=registry_mock_test.go github.com/Fantom-foundation/go-lachesis/metrics Registry
 
 package metrics
 

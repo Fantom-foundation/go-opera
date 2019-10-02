@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/src/cmd/cmdtest"
+	"github.com/Fantom-foundation/go-lachesis/cmd/cmdtest"
 )
 
 func tmpdir(t *testing.T) string {

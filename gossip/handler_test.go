@@ -11,11 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis/genesis"
-	"github.com/Fantom-foundation/go-lachesis/src/poset"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/poset"
 )
 
 // Tests that events can be retrieved from a remote graph based on user queries.

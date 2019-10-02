@@ -7,9 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
 // ApplyBlock execs ordered txns on state.

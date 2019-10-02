@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/event_check/parents_check"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
 func TestEventBuffer(t *testing.T) {

@@ -3,9 +3,9 @@ package gossip
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
 type Config struct {

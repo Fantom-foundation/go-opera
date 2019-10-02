@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/src/crypto"
+	"github.com/Fantom-foundation/go-lachesis/crypto"
 )
 
 func TestFakeNetFlag(t *testing.T) {

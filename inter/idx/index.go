@@ -1,7 +1,7 @@
 package idx
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/common/bigendian"
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 )
 
 type (

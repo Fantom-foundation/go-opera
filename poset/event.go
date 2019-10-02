@@ -3,7 +3,7 @@ package poset
 import (
 	"strings"
 
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
 /*

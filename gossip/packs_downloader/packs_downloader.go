@@ -1,8 +1,8 @@
 package packs_downloader
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/gossip/fetcher"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/ethereum/go-ethereum/log"
 	"sync"
 )

@@ -5,10 +5,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/fallible"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/fallible"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
 type fakeFS struct {

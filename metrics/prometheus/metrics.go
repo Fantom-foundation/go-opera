@@ -3,7 +3,7 @@ package prometheus
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/Fantom-foundation/go-lachesis/src/metrics"
+	"github.com/Fantom-foundation/go-lachesis/metrics"
 )
 
 func convertToPrometheusMetric(name string, metric metrics.Metric) (prometheus.Collector, bool) {

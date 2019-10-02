@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 	"time"
 )
 

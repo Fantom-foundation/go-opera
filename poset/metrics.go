@@ -1,7 +1,7 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/src/metrics"
+	"github.com/Fantom-foundation/go-lachesis/metrics"
 )
 
 var (

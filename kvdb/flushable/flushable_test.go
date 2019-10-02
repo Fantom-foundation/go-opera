@@ -2,7 +2,7 @@ package flushable
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"io/ioutil"
 	"math/big"
@@ -13,9 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
 
 func tempLevelDB(name string) *leveldb.Database {

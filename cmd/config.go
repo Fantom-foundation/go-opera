@@ -19,10 +19,10 @@ import (
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/src/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/gossip"
+	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
 var (

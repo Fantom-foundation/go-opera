@@ -4,14 +4,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check"
-	"github.com/Fantom-foundation/go-lachesis/src/hash"
-	"github.com/Fantom-foundation/go-lachesis/src/inter"
-	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
-	"github.com/Fantom-foundation/go-lachesis/src/poset/election"
-	"github.com/Fantom-foundation/go-lachesis/src/vector"
+	"github.com/Fantom-foundation/go-lachesis/event_check/epoch_check"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-lachesis/poset/election"
+	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
 // Poset processes events to get consensus.

@@ -18,9 +18,9 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/src/debug"
-	"github.com/Fantom-foundation/go-lachesis/src/gossip"
-	"github.com/Fantom-foundation/go-lachesis/src/integration"
+	"github.com/Fantom-foundation/go-lachesis/debug"
+	"github.com/Fantom-foundation/go-lachesis/gossip"
+	"github.com/Fantom-foundation/go-lachesis/integration"
 )
 
 const (

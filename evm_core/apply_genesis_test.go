@@ -6,11 +6,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/no_key_is_err"
-	"github.com/Fantom-foundation/go-lachesis/src/kvdb/table"
-	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/src/logger"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/no_key_is_err"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 func TestApplyGenesis(t *testing.T) {
