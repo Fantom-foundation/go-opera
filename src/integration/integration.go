@@ -20,8 +20,9 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 		"fakepassword",
 	)
 
-	gossipCfg.Emitter.Emitbase = coinbase.Address
+	gossipCfg.Emitter.Coinbase = coinbase.Address
 	gossipCfg.Emitter.MaxEmitInterval = 3 * time.Second
+	gossipCfg.Emitter.SelfForkProtectionInterval = 0
 
 	svc, err := gossip.NewService(ctx.NodeContext, gossipCfg, gdb, engine)
 	if err != nil {

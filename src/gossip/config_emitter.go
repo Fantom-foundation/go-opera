@@ -8,14 +8,16 @@ import (
 )
 
 type EmitterConfig struct {
-	Emitbase common.Address
+	Coinbase common.Address `json:"coinbase"`
 
-	MinEmitInterval time.Duration // minimum event emission interval
-	MaxEmitInterval time.Duration // maximum event emission interval
+	MinEmitInterval time.Duration `json:"minEmitInterval"` // minimum event emission interval
+	MaxEmitInterval time.Duration `json:"maxEmitInterval"` // maximum event emission interval
 
-	MaxGasRateGrowthFactor float64 // fine to use float, because no need in determinism
+	MaxGasRateGrowthFactor float64 `json:"maxGasRateGrowthFactor"` // fine to use float, because no need in determinism
 
-	MaxTxsFromSender int
+	MaxTxsFromSender int `json:"maxTxsFromSender"`
+
+	SelfForkProtectionInterval time.Duration `json:"selfForkProtectionInterval"`
 
 	// thresholds on GasLeft
 	SmoothTpsThreshold uint64 `json:"smoothTpsThreshold"`
@@ -25,13 +27,21 @@ type EmitterConfig struct {
 
 func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
-		MinEmitInterval:        1 * time.Second,
-		MaxEmitInterval:        60 * time.Second,
-		MaxGasRateGrowthFactor: 3.0,
-		MaxTxsFromSender:       2,
+		MinEmitInterval:            1 * time.Second,
+		MaxEmitInterval:            10 * time.Minute,
+		MaxGasRateGrowthFactor:     3.0,
+		MaxTxsFromSender:           2,
+		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
 
 		SmoothTpsThreshold: params.TxGas * 500,
 		NoTxsThreshold:     params.TxGas * 100,
 		EmergencyThreshold: params.TxGas * 5,
 	}
+}
+
+func FakeEmitterConfig() EmitterConfig {
+	cfg := DefaultEmitterConfig()
+	cfg.MaxEmitInterval = 10 * time.Second // don't wait long in fakenet
+	cfg.SelfForkProtectionInterval = cfg.MaxEmitInterval * 3 / 2
+	return cfg
 }

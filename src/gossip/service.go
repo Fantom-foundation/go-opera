@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -155,6 +156,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	s.store.AddHead(e.Epoch, e.Hash())
 
 	s.packs_onNewEvent(e, e.Epoch)
+	s.emitter.OnNewEvent(e)
 
 	newEpoch := realEngine.GetEpoch()
 	if newEpoch != oldEpoch {
@@ -168,21 +170,35 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	onEmitted := func(emitted *inter.Event) {
-		// s.engineMu is locked here
+	return NewEmitter(&s.config,
+		EmitterWorld{
+			Am:          s.AccountManager(),
+			Engine:      s.engine,
+			EngineMu:    s.engineMu,
+			Store:       s.store,
+			Txpool:      s.txpool,
+			OccurredTxs: s.occurredTxs,
+			OnEmitted: func(emitted *inter.Event) {
+				// s.engineMu is locked here
 
-		err := s.engine.ProcessEvent(emitted)
-		if err != nil {
-			s.Log.Crit("Self-event connection failed", "err", err.Error())
-		}
+				err := s.engine.ProcessEvent(emitted)
+				if err != nil {
+					s.Log.Crit("Self-event connection failed", "err", err.Error())
+				}
 
-		s.feed.newEmittedEvent.Send(emitted) // PM listens and will broadcast it
-		if err != nil {
-			s.Log.Crit("Failed to post self-event", "err", err.Error())
-		}
-	}
-
-	return NewEmitter(&s.config, s.AccountManager(), s.engine, s.engineMu, s.store, s.txpool, s.occurredTxs, onEmitted)
+				s.feed.newEmittedEvent.Send(emitted) // PM listens and will broadcast it
+				if err != nil {
+					s.Log.Crit("Failed to post self-event", "err", err.Error())
+				}
+			},
+			IsSynced: func() bool {
+				return atomic.LoadUint32(&s.pm.synced) != 0
+			},
+			PeersNum: func() int {
+				return s.pm.peers.Len()
+			},
+		},
+	)
 }
 
 // Protocols returns protocols the service can communicate on.
@@ -230,7 +246,7 @@ func (s *Service) Start(srv *p2p.Server) error {
 	s.serverPool.start(srv, s.Topic)
 
 	s.emitter = s.makeEmitter()
-	s.emitter.SetCoinbase(s.config.Emitter.Emitbase)
+	s.emitter.SetCoinbase(s.config.Emitter.Coinbase)
 	s.emitter.StartEventEmission()
 
 	return nil

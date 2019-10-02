@@ -31,7 +31,7 @@ func setCoinbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *gossip.EmitterCon
 			if err != nil {
 				utils.Fatalf("Invalid miner etherbase: %v", err)
 			}
-			cfg.Emitbase = account.Address
+			cfg.Coinbase = account.Address
 		} else {
 			utils.Fatalf("No etherbase configured")
 		}

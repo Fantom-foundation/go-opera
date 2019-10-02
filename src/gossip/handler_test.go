@@ -125,6 +125,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	config.ForcedBroadcast = allowAggressive
 	config.Emitter.MinEmitInterval = time.Duration(0)
 	config.Emitter.MaxEmitInterval = time.Duration(0)
+	config.Emitter.SelfForkProtectionInterval = 0
 
 	var (
 		store       = NewMemStore()

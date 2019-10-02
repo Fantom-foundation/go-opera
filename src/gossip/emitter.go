@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/hashicorp/golang-lru"
@@ -24,6 +23,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/src/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/src/logger"
 	"github.com/Fantom-foundation/go-lachesis/src/utils"
 )
 
@@ -33,55 +33,67 @@ const (
 	TxTurnPeriod     = 4 * time.Second
 )
 
+// external world
+type EmitterWorld struct {
+	Store       *Store
+	Engine      Consensus
+	EngineMu    *sync.RWMutex
+	Txpool      txPool
+	Am          *accounts.Manager
+	OccurredTxs *occured_txs.Buffer
+
+	OnEmitted func(e *inter.Event)
+	IsSynced  func() bool
+	PeersNum  func() int
+}
+
 type Emitter struct {
-	store       *Store
-	engine      Consensus
-	engineMu    *sync.RWMutex
-	txpool      txPool
-	occurredTxs *occured_txs.Buffer
-	txTime      *lru.Cache // tx hash -> tx time
+	txTime *lru.Cache // tx hash -> tx time
 
 	dag    *lachesis.DagConfig
 	config *EmitterConfig
 
-	am         *accounts.Manager
+	world EmitterWorld
+
 	coinbase   common.Address
 	coinbaseMu sync.RWMutex
+
+	antiSelfFork selfForkProtection
 
 	gasRate         metrics.Meter
 	prevEmittedTime time.Time
 
-	onEmitted func(e *inter.Event)
-
 	done chan struct{}
 	wg   sync.WaitGroup
+
+	logger.Instance
+	utils.PeriodicLogger
+}
+
+type selfForkProtection struct {
+	connectedTime           time.Time
+	prevLocalEmittedId      hash.Event
+	prevExternalEmittedTime time.Time
+	becameValidatorTime     time.Time
+	becameValidator         bool
 }
 
 // NewEmitter creation.
 func NewEmitter(
 	config *Config,
-	am *accounts.Manager,
-	engine Consensus,
-	engineMu *sync.RWMutex,
-	store *Store,
-	txpool txPool,
-	occurredTxs *occured_txs.Buffer,
-	onEmitted func(e *inter.Event),
+	world EmitterWorld,
 ) *Emitter {
 
 	txTime, _ := lru.New(TxTimeBufferSize)
+	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		dag:         &config.Net.Dag,
-		config:      &config.Emitter,
-		am:          am,
-		gasRate:     metrics.NewMeterForced(),
-		engine:      engine,
-		engineMu:    engineMu,
-		store:       store,
-		txpool:      txpool,
-		txTime:      txTime,
-		occurredTxs: occurredTxs,
-		onEmitted:   onEmitted,
+		dag:            &config.Net.Dag,
+		config:         &config.Emitter,
+		world:          world,
+		gasRate:        metrics.NewMeterForced(),
+		txTime:         txTime,
+		Instance:       loggerInstance,
+		PeriodicLogger: utils.PeriodicLogger{Instance: loggerInstance},
 	}
 }
 
@@ -93,9 +105,10 @@ func (em *Emitter) StartEventEmission() {
 	em.done = make(chan struct{})
 
 	newTxsCh := make(chan evm_core.NewTxsNotify)
-	em.txpool.SubscribeNewTxsNotify(newTxsCh)
+	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
 
 	em.prevEmittedTime = em.loadPrevEmitTime()
+	em.antiSelfFork.connectedTime = time.Now()
 
 	done := em.done
 	em.wg.Add(1)
@@ -144,11 +157,11 @@ func (em *Emitter) GetCoinbase() common.Address {
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	prevEventId := em.store.GetLastEvent(em.engine.GetEpoch(), em.GetCoinbase())
+	prevEventId := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), em.GetCoinbase())
 	if prevEventId == nil {
 		return em.prevEmittedTime
 	}
-	prevEvent := em.store.GetEventHeader(prevEventId.Epoch(), *prevEventId)
+	prevEvent := em.world.Store.GetEventHeader(prevEventId.Epoch(), *prevEventId)
 	if prevEvent == nil {
 		return em.prevEmittedTime
 	}
@@ -189,7 +202,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 	maxGasUsed := em.maxGasPowerToUse(e)
 
 	now := time.Now()
-	members := em.engine.GetMembers()
+	members := em.world.Engine.GetMembers()
 	membersArr := members.SortedAddresses() // members must be sorted deterministically
 	membersArrStakes := make([]pos.Stake, len(membersArr))
 	for i, addr := range membersArr {
@@ -208,7 +221,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 				break // txs are dependent
 			}
 			// check not conflicted with already included txs (in any connected event)
-			if em.occurredTxs.MayBeConflicted(sender, tx.Hash()) {
+			if em.world.OccurredTxs.MayBeConflicted(sender, tx.Hash()) {
 				break // txs are dependent
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
@@ -235,18 +248,18 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 }
 
 func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*hash.Event, hash.Events, bool) {
-	selfParent := em.store.GetLastEvent(epoch, coinbase)
-	heads := em.store.GetHeads(epoch) // events with no descendants
+	selfParent := em.world.Store.GetLastEvent(epoch, coinbase)
+	heads := em.world.Store.GetHeads(epoch) // events with no descendants
 
 	var strategy ancestor.SearchStrategy
-	vecClock := em.engine.GetVectorIndex()
+	vecClock := em.world.Engine.GetVectorIndex()
 	if vecClock != nil {
 		strategy = ancestor.NewCasualityStrategy(vecClock)
 
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			log.Error("I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.PeriodicLogger.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil, nil, false
 		}
 	} else {
@@ -261,13 +274,17 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
 	coinbase := em.GetCoinbase()
-
-	if _, ok := em.engine.GetMembers()[coinbase]; !ok {
+	if _, ok := em.world.Engine.GetMembers()[coinbase]; !ok {
+		// not a validator
+		return nil
+	}
+	if bad, _, _ := em.logging(em.selfForkPossible()); bad {
+		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
 	}
 
 	var (
-		epoch          = em.engine.GetEpoch()
+		epoch          = em.world.Engine.GetEpoch()
 		selfParentSeq  idx.Event
 		selfParentTime inter.Timestamp
 		parents        hash.Events
@@ -283,14 +300,14 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// Set parent-dependent fields
 	parentHeaders := make([]*inter.EventHeaderData, len(parents))
 	for i, p := range parents {
-		parent := em.store.GetEventHeader(epoch, p)
+		parent := em.world.Store.GetEventHeader(epoch, p)
 		if parent == nil {
-			log.Crit("Emitter: head wasn't found", "event", p.String())
+			em.Log.Crit("Emitter: head wasn't found", "event", p.String())
 		}
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == coinbase && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			log.Error("I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.PeriodicLogger.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -316,9 +333,9 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event, em.dag)
 
 	// set consensus fields
-	event = em.engine.Prepare(event) // GasPowerLeft is calced here
+	event = em.world.Engine.Prepare(event) // GasPowerLeft is calced here
 	if event == nil {
-		log.Warn("dropped event while emitting")
+		em.Log.Warn("dropped event while emitting")
 		return nil
 	}
 
@@ -337,14 +354,14 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		acc := accounts.Account{
 			Address: coinbase,
 		}
-		w, err := em.am.Find(acc)
+		w, err := em.world.Am.Find(acc)
 		if err != nil {
 			return
 		}
 		return w.SignData(acc, MimetypeEvent, data)
 	}
 	if err := event.Sign(signer); err != nil {
-		log.Error("Failed to sign event", "err", err)
+		em.Log.Error("Failed to sign event", "err", err)
 		return nil
 	}
 	// calc hash after event is fully built
@@ -353,8 +370,8 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	{
 		// sanity check
 		dagId := params.AllEthashProtocolChanges.ChainID
-		if err := event_check.ValidateAll_test(em.dag, em.engine, types.NewEIP155Signer(dagId), event, parentHeaders); err != nil {
-			log.Error("Emitted incorrect event", "err", err)
+		if err := event_check.ValidateAll_test(em.dag, em.world.Engine, types.NewEIP155Signer(dagId), event, parentHeaders); err != nil {
+			em.Log.Error("Emitted incorrect event", "err", err)
 			return nil
 		}
 	}
@@ -391,6 +408,61 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 	return basic_check.MaxGasPowerUsed
 }
 
+// Track new events to find out am I properly synced or not
+func (em *Emitter) OnNewEvent(e *inter.Event) {
+	if em.antiSelfFork.prevLocalEmittedId == e.Hash() {
+		// we've just emitted this event, so it wasn't emitted by another instance with the same address
+		return
+	}
+	coinbase := em.GetCoinbase()
+	now := time.Now()
+	if e.Creator == coinbase {
+		// it was emitted by another instance with the same address
+		em.antiSelfFork.prevExternalEmittedTime = now
+	}
+
+	_, validator := em.world.Engine.GetMembers()[coinbase]
+	if validator && !em.antiSelfFork.becameValidator {
+		em.antiSelfFork.becameValidatorTime = now
+	}
+	em.antiSelfFork.becameValidator = validator
+}
+
+func (em *Emitter) selfForkPossible() (bool, string, time.Duration) {
+	if em.world.PeersNum() == 0 {
+		em.antiSelfFork.connectedTime = time.Now() // move time of the first connection
+		return true, "no connections", 0
+	}
+	if !em.world.IsSynced() {
+		return true, "synchronizing (all the peers have higher/lower epoch)", 0
+	}
+	sinceLastExternalEvent := time.Since(em.antiSelfFork.prevExternalEmittedTime)
+	if sinceLastExternalEvent < em.config.SelfForkProtectionInterval {
+		return true, "synchronizing (not downloaded all the self-events)", em.config.SelfForkProtectionInterval - sinceLastExternalEvent
+	}
+	connectedTime := time.Since(em.antiSelfFork.connectedTime)
+	if connectedTime < em.config.SelfForkProtectionInterval {
+		return true, "synchronizing (just connected)", em.config.SelfForkProtectionInterval - connectedTime
+	}
+	sinceBecameValidator := time.Since(em.antiSelfFork.becameValidatorTime)
+	if sinceBecameValidator < em.config.SelfForkProtectionInterval {
+		return true, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval - sinceBecameValidator
+	}
+
+	return false, "", 0
+}
+
+func (em *Emitter) logging(bad bool, reason string, wait time.Duration) (bool, string, time.Duration) {
+	if bad {
+		if wait == 0 {
+			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason)
+		} else {
+			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
+		}
+	}
+	return bad, reason, wait
+}
+
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
 	passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
 	// Slow down emitting if power is low
@@ -412,7 +484,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
 			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
-				log.Warn("Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+				em.PeriodicLogger.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
 		}
@@ -420,7 +492,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	// Slow down emitting if no txs to confirm/post
 	{
 		if passedTime < em.config.MaxEmitInterval &&
-			em.occurredTxs.Len() == 0 &&
+			em.world.OccurredTxs.Len() == 0 &&
 			len(e.Transactions) == 0 {
 			return false
 		}
@@ -430,26 +502,27 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 }
 
 func (em *Emitter) EmitEvent() *inter.Event {
-	poolTxs, err := em.txpool.Pending() // request txs before locking engineMu to prevent deadlock!
+	poolTxs, err := em.world.Txpool.Pending() // request txs before locking engineMu to prevent deadlock!
 	if err != nil {
-		log.Error("Tx pool transactions fetching error", "err", err)
+		em.Log.Error("Tx pool transactions fetching error", "err", err)
 		return nil
 	}
 
-	em.engineMu.Lock()
-	defer em.engineMu.Unlock()
+	em.world.EngineMu.Lock()
+	defer em.world.EngineMu.Unlock()
 
 	e := em.createEvent(poolTxs)
 	if e == nil {
 		return nil
 	}
+	em.antiSelfFork.prevLocalEmittedId = e.Hash()
 
-	if em.onEmitted != nil {
-		em.onEmitted(e)
+	if em.world.OnEmitted != nil {
+		em.world.OnEmitted(e)
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	log.Info("New event emitted", "event", e.String())
+	em.Log.Info("New event emitted", "event", e.String())
 
 	return e
 }

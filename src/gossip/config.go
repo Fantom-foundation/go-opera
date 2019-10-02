@@ -37,7 +37,7 @@ type Config struct {
 
 // DefaultConfig returns the default configurations for the gossip service.
 func DefaultConfig(network lachesis.Config) Config {
-	return Config{
+	cfg := Config{
 		Net:     network,
 		Emitter: DefaultEmitterConfig(),
 		TxPool:  evm_core.DefaultTxPoolConfig(),
@@ -51,13 +51,12 @@ func DefaultConfig(network lachesis.Config) Config {
 
 		ForcedBroadcast: true,
 	}
-}
-
-// FakeConfig returns the fake configurations for the gossip service.
-func FakeConfig() Config {
-	network := lachesis.FakeNetConfig(3)
-	config := DefaultConfig(network)
-	config.TxPool = evm_core.FakeTxPoolConfig()
-
-	return config
+	if network.NetworkId == lachesis.FakeNetworkId {
+		cfg.Emitter = FakeEmitterConfig()
+	}
+	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network
+		cfg.TxPool = evm_core.FakeTxPoolConfig()
+		cfg.Emitter = FakeEmitterConfig()
+	}*/
+	return cfg
 }
