@@ -254,26 +254,5 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		isRoot = maxParentsFrame > selfParentFrame
 	}
 
-	// counter of all the caused roots on maxParentsFrame
-	forklessCausedCounter := p.Validators.NewCounter()
-	if !checkOnly || e.IsRoot {
-		// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
-		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-			if p.vecClock.ForklessCause(e.Hash(), root) {
-				forklessCausedCounter.Count(from)
-			}
-			return !forklessCausedCounter.HasQuorum()
-		})
-	}
-	if forklessCausedCounter.HasQuorum() {
-		// if I cause enough roots, then I become a root too
-		frame = maxParentsFrame + 1
-		isRoot = true
-	} else {
-		// I cause enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
-		frame = maxParentsFrame
-		isRoot = maxParentsFrame > selfParentFrame
-	}
-
 	return
 }
