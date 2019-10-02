@@ -86,9 +86,9 @@ func CalcGasPowerUsed(e *inter.Event, config *lachesis.DagConfig) uint64 {
 		txsGas += tx.Gas()
 	}
 
-	parentsGas := uint64(len(e.Parents)-config.MaxFreeParents) * ParentGas
-	if len(e.Parents) <= config.MaxFreeParents {
-		parentsGas = 0
+	parentsGas := uint64(0)
+	if len(e.Parents) > config.MaxFreeParents {
+		parentsGas = uint64(len(e.Parents)-config.MaxFreeParents) * ParentGas
 	}
 	extraGas := uint64(len(e.Extra)) * ExtraDataGas
 
