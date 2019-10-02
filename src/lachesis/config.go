@@ -25,10 +25,10 @@ type GasPowerConfig struct {
 
 // DagConfig of DAG.
 type DagConfig struct {
-	MaxParents             int       `json:"maxParents"`
-	MaxFreeParents         int       `json:"maxFreeParents"` // maximum number of parents with no gas cost
-	EpochLen               idx.Frame `json:"epochLen"`
-	MaxMemberEventsInBlock idx.Event `json:"maxMemberEventsInBlock"`
+	MaxParents                int       `json:"maxParents"`
+	MaxFreeParents            int       `json:"maxFreeParents"` // maximum number of parents with no gas cost
+	EpochLen                  idx.Frame `json:"epochLen"`
+	MaxValidatorEventsInBlock idx.Event `json:"maxValidatorEventsInBlock"`
 
 	GasPower GasPowerConfig `json:"gasPower"`
 }
@@ -75,21 +75,21 @@ func FakeNetConfig(n int) Config {
 
 func DefaultDagConfig() DagConfig {
 	return DagConfig{
-		MaxParents:             5,
-		MaxFreeParents:         3,
-		EpochLen:               100,
-		MaxMemberEventsInBlock: 50,
-		GasPower:               DefaultGasPowerConfig(),
+		MaxParents:                5,
+		MaxFreeParents:            3,
+		EpochLen:                  100,
+		MaxValidatorEventsInBlock: 50,
+		GasPower:                  DefaultGasPowerConfig(),
 	}
 }
 
 func FakeNetDagConfig() DagConfig {
 	return DagConfig{
-		MaxParents:             5,
-		MaxFreeParents:         3,
-		EpochLen:               50,
-		MaxMemberEventsInBlock: 50,
-		GasPower:               FakeNetGasPowerConfig(),
+		MaxParents:                5,
+		MaxFreeParents:            3,
+		EpochLen:                  50,
+		MaxValidatorEventsInBlock: 50,
+		GasPower:                  FakeNetGasPowerConfig(),
 	}
 }
 

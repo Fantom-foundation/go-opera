@@ -88,7 +88,7 @@ func ApplyTransaction(config *params.ChainConfig, bc DummyChain, author *common.
 
 	if !strict {
 		// the reason why we check here is to avoid spending sender's gas in a case if tx failed (due to insufficient balance or wrong nonce)
-		// the transaction has already spent member's gas power
+		// the transaction has already spent validator's gas power
 		err = TransactionPreCheck(statedb, msg, tx)
 		if err != nil {
 			return nil, 0, common.Big0, true, err

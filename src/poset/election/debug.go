@@ -19,11 +19,11 @@ func (el *Election) DebugStateHash() common.Hash {
 
 	for vid, vote := range el.votes {
 		write(vid.fromRoot.Bytes())
-		write(vote.causedRoot.Bytes())
+		write(vote.observedRoot.Bytes())
 	}
-	for member, vote := range el.decidedRoots {
-		write(member.Bytes())
-		write(vote.causedRoot.Bytes())
+	for validator, vote := range el.decidedRoots {
+		write(validator.Bytes())
+		write(vote.observedRoot.Bytes())
 	}
 	return hash.FromBytes(hasher.Sum(nil))
 }
@@ -44,10 +44,10 @@ func (el *Election) String(voters []hash.Event) string {
 	info := "Every line contains votes from a root, for each subject. y is yes, n is no. Upper case means 'decided'. '-' means that subject was already decided when root was processed.\n"
 	for _, root := range voters { // voter
 		info += root.String() + ": "
-		for forM := range el.members { // subject
+		for forV := range el.validators { // subject
 			vid := voteId{
-				fromRoot:  root,
-				forMember: forM,
+				fromRoot:     root,
+				forValidator: forV,
 			}
 			vote, ok := el.votes[vid]
 			if !ok { // i.e. subject was decided when root processed

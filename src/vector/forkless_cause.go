@@ -10,9 +10,9 @@ type kv struct {
 
 // ForklessCause calculates "sufficient coherence" between the events.
 // The A.HighestBefore array remembers the sequence number of the last
-// event by each member that is an ancestor of A. The array for
+// event by each validator that is an ancestor of A. The array for
 // B.LowestAfter remembers the sequence number of the earliest
-// event by each member that is a descendant of B. Compare the two arrays,
+// event by each validator that is a descendant of B. Compare the two arrays,
 // and find how many elements in the A.HighestBefore array are greater
 // than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
@@ -39,12 +39,12 @@ func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
 		return false
 	}
 
-	yes := vi.members.NewCounter()
-	no := vi.members.NewCounter()
+	yes := vi.validators.NewCounter()
+	no := vi.validators.NewCounter()
 
 	res := false
 	// calculate forkless seeing using the indexes
-	for creator, n := range vi.memberIdxs {
+	for creator, n := range vi.validatorIdxs {
 		bLowestAfter := b.Get(n)
 		aHighestBefore := a.Get(n).Seq
 
@@ -83,7 +83,7 @@ func (vi *Index) NoCheaters(selfParent *hash.Event, options hash.Events) hash.Ev
 		if header == nil {
 			vi.Log.Crit("Event not found", "id", id.String())
 		}
-		if !highest.Get(vi.memberIdxs[header.Creator]).IsForkDetected {
+		if !highest.Get(vi.validatorIdxs[header.Creator]).IsForkDetected {
 			filtered.Add(id)
 		}
 	}

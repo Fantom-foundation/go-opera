@@ -49,11 +49,11 @@ func (hook *HookedEngine) GetEpoch() idx.Epoch {
 	return hook.engine.GetEpoch()
 }
 
-func (hook *HookedEngine) GetEpochMembers() (pos.Members, idx.Epoch) {
+func (hook *HookedEngine) GetEpochValidators() (pos.Validators, idx.Epoch) {
 	if hook.engine == nil {
-		return pos.Members{}, 1
+		return pos.Validators{}, 1
 	}
-	return hook.engine.GetEpochMembers()
+	return hook.engine.GetEpochValidators()
 }
 
 func (hook *HookedEngine) LastBlock() (idx.Block, hash.Event) {
@@ -63,11 +63,11 @@ func (hook *HookedEngine) LastBlock() (idx.Block, hash.Event) {
 	return hook.engine.LastBlock()
 }
 
-func (hook *HookedEngine) GetMembers() pos.Members {
+func (hook *HookedEngine) GetValidators() pos.Validators {
 	if hook.engine == nil {
-		return pos.Members{}
+		return pos.Validators{}
 	}
-	return hook.engine.GetMembers()
+	return hook.engine.GetValidators()
 }
 
 func (hook *HookedEngine) GetConsensusTime(id hash.Event) (inter.Timestamp, error) {

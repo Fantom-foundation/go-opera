@@ -233,7 +233,7 @@ func compareStates(assertar *assert.Assertions, expected, restored *ExtendedPose
 	assertar.Equal(
 		expected.epochState.PrevEpoch.Hash(), restored.epochState.PrevEpoch.Hash())
 	assertar.Equal(
-		expected.epochState.Members, restored.epochState.Members)
+		expected.epochState.Validators, restored.epochState.Validators)
 	assertar.Equal(
 		expected.epochState.EpochN, restored.epochState.EpochN)
 	// check LastAtropos and Head() method

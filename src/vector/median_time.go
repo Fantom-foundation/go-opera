@@ -25,12 +25,12 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 		return 0
 	}
 
-	honestTotalStake := pos.Stake(0) // isn't equal to members.TotalStake(), because doesn't count cheaters
-	highests := make([]medianTimeIndex, 0, len(vi.memberIdxs))
+	honestTotalStake := pos.Stake(0) // isn't equal to validators.TotalStake(), because doesn't count cheaters
+	highests := make([]medianTimeIndex, 0, len(vi.validatorIdxs))
 	// convert []HighestBefore -> []medianTimeIndex
-	for creator, n := range vi.memberIdxs {
+	for creator, n := range vi.validatorIdxs {
 		highest := medianTimeIndex{}
-		highest.stake = vi.members[creator]
+		highest.stake = vi.validators[creator]
 		highest.claimedTime = times.Get(n)
 
 		// edge cases
@@ -46,7 +46,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 		highests = append(highests, highest)
 		honestTotalStake += highest.stake
 	}
-	// it's technically possible totalStake == 0 (all members are cheaters)
+	// it's technically possible totalStake == 0 (all validators are cheaters)
 
 	// sort by claimed time (partial order is enough here, because we need only claimedTime)
 	sort.Slice(highests, func(i, j int) bool {

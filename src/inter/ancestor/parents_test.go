@@ -86,9 +86,9 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		},
 	})
 
-	members := make(pos.Members, len(nodes))
+	validators := make(pos.Validators, len(nodes))
 	for _, peer := range nodes {
-		members.Set(peer, 1)
+		validators.Set(peer, 1)
 	}
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
@@ -96,7 +96,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return events[id]
 	}
 
-	vecClock := vector.NewIndex(members, memorydb.New(), getEvent)
+	vecClock := vector.NewIndex(validators, memorydb.New(), getEvent)
 
 	// build vector index
 	for _, e := range ordered {

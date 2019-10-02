@@ -69,9 +69,9 @@ func testForklessCaused(t *testing.T, dag string) {
 	assertar := assert.New(t)
 
 	peers, _, _ := inter.ASCIIschemeToDAG(dag)
-	members := make(pos.Members, len(peers))
+	validators := make(pos.Validators, len(peers))
 	for _, peer := range peers {
-		members.Set(peer, pos.Stake(1))
+		validators.Set(peer, pos.Stake(1))
 	}
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
@@ -79,7 +79,7 @@ func testForklessCaused(t *testing.T, dag string) {
 		return events[id]
 	}
 
-	vi := NewIndex(members, memorydb.New(), getEvent)
+	vi := NewIndex(validators, memorydb.New(), getEvent)
 
 	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
@@ -386,9 +386,9 @@ func TestForklessCausedRandom(t *testing.T) {
 		},
 	})
 
-	members := make(pos.Members, len(peers))
+	validators := make(pos.Validators, len(peers))
 	for _, peer := range peers {
-		members.Set(peer, pos.Stake(1))
+		validators.Set(peer, pos.Stake(1))
 	}
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
@@ -396,7 +396,7 @@ func TestForklessCausedRandom(t *testing.T) {
 		return events[id]
 	}
 
-	vi := NewIndex(members, memorydb.New(), getEvent)
+	vi := NewIndex(validators, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
@@ -456,21 +456,21 @@ func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
 	cheaters := []common.Address{nodes[0], nodes[1], nodes[2]}
 
-	members := make(pos.Members, len(nodes))
+	validators := make(pos.Validators, len(nodes))
 	for _, peer := range nodes {
-		members.Set(peer, pos.Stake(1))
+		validators.Set(peer, pos.Stake(1))
 	}
 
-	members.Set(cheaters[0], pos.Stake(2))
-	members.Set(nodes[3], pos.Stake(2))
-	members.Set(nodes[4], pos.Stake(3))
+	validators.Set(cheaters[0], pos.Stake(2))
+	validators.Set(nodes[3], pos.Stake(2))
+	validators.Set(nodes[4], pos.Stake(3))
 
 	processed := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
 		return processed[id]
 	}
 
-	vi := NewIndex(members, memorydb.New(), getEvent)
+	vi := NewIndex(validators, memorydb.New(), getEvent)
 
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
 	events := inter.ForEachRandFork(nodes, cheaters, 300, 4, 30, nil, inter.ForEachEvent{
@@ -488,7 +488,7 @@ func TestRandomForksSanity(t *testing.T) {
 
 	// quick sanity check. all the nodes should see that cheaters have a fork, and honest nodes don't have forks
 	assertar := assert.New(t)
-	idxs := members.Idxs()
+	idxs := validators.Idxs()
 	for _, node := range nodes {
 		ee := events[node]
 		highestBefore := vi.GetHighestBeforeSeq(ee[len(ee)-1].Hash())
@@ -576,9 +576,9 @@ func TestRandomForks(t *testing.T) {
 			nodes := inter.GenNodes(test.nodesNum)
 			cheaters := nodes[:test.cheatersNum]
 
-			members := make(pos.Members, len(nodes))
+			validators := make(pos.Validators, len(nodes))
 			for _, peer := range nodes {
-				members.Set(peer, pos.Stake(1))
+				validators.Set(peer, pos.Stake(1))
 			}
 
 			processed := make(map[hash.Event]*inter.EventHeaderData)
@@ -586,7 +586,7 @@ func TestRandomForks(t *testing.T) {
 				return processed[id]
 			}
 
-			vi := NewIndex(members, memorydb.New(), getEvent)
+			vi := NewIndex(validators, memorydb.New(), getEvent)
 
 			_ = inter.ForEachRandFork(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, r, inter.ForEachEvent{
 				Process: func(e *inter.Event, name string) {
@@ -599,7 +599,7 @@ func TestRandomForks(t *testing.T) {
 			})
 
 			assertar := assert.New(t)
-			idxs := members.Idxs()
+			idxs := validators.Idxs()
 			// check that fork seeing is identical to naive version
 			for _, e := range processed {
 				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
@@ -632,11 +632,11 @@ func codegen4ForklessCausedStability() {
 	peers := inter.GenNodes(4)
 	events := inter.GenEventsByNode(peers, 20, 2, nil, nil, nil)
 
-	members := make(pos.Members, len(peers))
+	validators := make(pos.Validators, len(peers))
 	for _, peer := range peers {
-		members.Set(peer, pos.Stake(1))
+		validators.Set(peer, pos.Stake(1))
 	}
-	vi := NewIndex(members, memorydb.New())
+	vi := NewIndex(validators, memorydb.New())
 
 	processed := make(map[hash.Event]*inter.Event)
 	orderThenProcess := ordering.EventBuffer(ordering.Callback{

@@ -144,7 +144,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 	_ = s.occurredTxs.CollectNotConfirmedTxs(e.Transactions)
 
-	// set member's last event. we don't care about forks, because this index is used only for emitter
+	// set validator's last event. we don't care about forks, because this index is used only for emitter
 	s.store.SetLastEvent(e.Epoch, e.Creator, e.Hash())
 
 	// track events with no descendants, i.e. heads

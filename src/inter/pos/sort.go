@@ -7,26 +7,26 @@ import (
 )
 
 type (
-	member struct {
+	validator struct {
 		Addr  common.Address
 		Stake Stake
 	}
 
-	members []member
+	validators []validator
 )
 
-func (mm members) Less(i, j int) bool {
-	if mm[i].Stake != mm[j].Stake {
-		return mm[i].Stake > mm[j].Stake
+func (vv validators) Less(i, j int) bool {
+	if vv[i].Stake != vv[j].Stake {
+		return vv[i].Stake > vv[j].Stake
 	}
 
-	return bytes.Compare(mm[i].Addr.Bytes(), mm[j].Addr.Bytes()) < 0
+	return bytes.Compare(vv[i].Addr.Bytes(), vv[j].Addr.Bytes()) < 0
 }
 
-func (mm members) Len() int {
-	return len(mm)
+func (vv validators) Len() int {
+	return len(vv)
 }
 
-func (mm members) Swap(i, j int) {
-	mm[i], mm[j] = mm[j], mm[i]
+func (vv validators) Swap(i, j int) {
+	vv[i], vv[j] = vv[j], vv[i]
 }

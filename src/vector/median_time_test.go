@@ -27,9 +27,9 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		},
 	})
 
-	members := make(pos.Members, len(peers))
+	validators := make(pos.Validators, len(peers))
 	for i, peer := range peers {
-		members.Set(peer, weights[i])
+		validators.Set(peer, weights[i])
 	}
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
@@ -37,7 +37,7 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		return events[id]
 	}
 
-	vi := NewIndex(members, memorydb.New(), getEvent)
+	vi := NewIndex(validators, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
@@ -113,21 +113,21 @@ func TestMedianTimeAscii(t *testing.T) {
 
 func TestMedianTime(t *testing.T) {
 	peers := inter.GenNodes(5)
-	members := make(pos.Members, len(peers))
+	validators := make(pos.Validators, len(peers))
 
 	weights := []pos.Stake{5, 4, 3, 2, 1}
 	for i, peer := range peers {
-		members.Set(peer, weights[i])
+		validators.Set(peer, weights[i])
 	}
 
-	vi := NewIndex(members, memorydb.New(), nil)
+	vi := NewIndex(validators, memorydb.New(), nil)
 
 	assertar := assert.New(t)
 	{ // seq=0
 		e := inter.NewEvent().EventHeaderData.Hash()
-		// member indexes are sorted by stake amount
-		beforeSee := NewHighestBeforeSeq(len(members))
-		beforeTime := NewHighestBeforeTime(len(members))
+		// validator indexes are sorted by stake amount
+		beforeSee := NewHighestBeforeSeq(len(validators))
+		beforeTime := NewHighestBeforeTime(len(validators))
 
 		beforeSee.Set(0, ForkSeq{Seq: 0})
 		beforeTime.Set(0, 100)
@@ -150,9 +150,9 @@ func TestMedianTime(t *testing.T) {
 
 	{ // fork seen = true
 		e := inter.NewEvent().EventHeaderData.Hash()
-		// member indexes are sorted by stake amount
-		beforeSee := NewHighestBeforeSeq(len(members))
-		beforeTime := NewHighestBeforeTime(len(members))
+		// validator indexes are sorted by stake amount
+		beforeSee := NewHighestBeforeSeq(len(validators))
+		beforeTime := NewHighestBeforeTime(len(validators))
 
 		beforeSee.Set(0, ForkSeq{Seq: 0, IsForkDetected: true})
 		beforeTime.Set(0, 100)
@@ -175,9 +175,9 @@ func TestMedianTime(t *testing.T) {
 
 	{ // normal
 		e := inter.NewEvent().EventHeaderData.Hash()
-		// member indexes are sorted by stake amount
-		beforeSee := NewHighestBeforeSeq(len(members))
-		beforeTime := NewHighestBeforeTime(len(members))
+		// validator indexes are sorted by stake amount
+		beforeSee := NewHighestBeforeSeq(len(validators))
+		beforeTime := NewHighestBeforeTime(len(validators))
 
 		beforeSee.Set(0, ForkSeq{Seq: 1})
 		beforeTime.Set(0, 11)

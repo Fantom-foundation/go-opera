@@ -18,9 +18,9 @@ const (
 type epochState struct {
 	// stored values
 	// these values change only after a change of epoch
-	EpochN    idx.Epoch
-	PrevEpoch GenesisState
-	Members   pos.Members
+	EpochN     idx.Epoch
+	PrevEpoch  GenesisState
+	Validators pos.Validators
 }
 
 func (p *Poset) loadEpoch() {
@@ -33,14 +33,14 @@ func (p *Poset) GetEpoch() idx.Epoch {
 	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
 }
 
-// EpochMembers returns members of current epoch.
-func (p *Poset) GetMembers() pos.Members {
-	return p.Members.Copy()
+// EpochValidators returns validators of current epoch.
+func (p *Poset) GetValidators() pos.Validators {
+	return p.Validators.Copy()
 }
 
-// GetEpochMembers atomically returns members of current epoch, and the epoch.
-func (p *Poset) GetEpochMembers() (pos.Members, idx.Epoch) {
-	return p.GetMembers(), p.GetEpoch() // TODO atomic
+// GetEpochValidators atomically returns validators of current epoch, and the epoch.
+func (p *Poset) GetEpochValidators() (pos.Validators, idx.Epoch) {
+	return p.GetValidators(), p.GetEpoch() // TODO atomic
 }
 
 // rootObservesRoot returns hash of root B, if root B forkless causes root A.

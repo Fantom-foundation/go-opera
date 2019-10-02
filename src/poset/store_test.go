@@ -99,13 +99,13 @@ func benchmarkStore(b *testing.B) {
 		}
 	}
 
-	p.applyBlock = func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
+	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
 		if block.Index == 1 {
 			// move stake from node0 to node1
-			members.Set(nodes[0], 0)
-			members.Set(nodes[1], 2)
+			validators.Set(nodes[0], 0)
+			validators.Set(nodes[1], 2)
 		}
-		return stateHash, members
+		return stateHash, validators
 	}
 
 	// run test with random DAG, N + 1 epochs long

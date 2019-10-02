@@ -68,12 +68,12 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 		StateHash: stateHash,
 	}
 
-	e.Members = make(pos.Members, len(g.Alloc))
+	e.Validators = make(pos.Validators, len(g.Alloc))
 	for addr, account := range g.Alloc {
-		e.Members.Set(addr, pos.BalanceToStake(account.Balance))
+		e.Validators.Set(addr, pos.BalanceToStake(account.Balance))
 	}
-	e.Members = e.Members.Top()
-	cp.NextMembers = e.Members.Copy()
+	e.Validators = e.Validators.Top()
+	cp.NextValidators = e.Validators.Copy()
 
 	// genesis object
 	e.EpochN = firstEpoch

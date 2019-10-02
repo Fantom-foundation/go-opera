@@ -21,28 +21,28 @@ func sub(a *big.Int, b uint64) {
 	a.Sub(a, new(big.Int).SetUint64(b))
 }
 
-func (p *Poset) calcMemberGasPowerPerH(member common.Address) (perHour, maxStashed, startup uint64) {
-	stake, ok := p.Members[member]
+func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, maxStashed, startup uint64) {
+	stake, ok := p.Validators[validator]
 	if !ok {
 		return 0, 0, 0
 	}
 
 	gas := p.dag.GasPower
 
-	memberGasPowerPerH_bn := new(big.Int).SetUint64(gas.TotalPerH)
-	mul(memberGasPowerPerH_bn, uint64(stake))
-	div(memberGasPowerPerH_bn, uint64(p.Members.TotalStake()))
-	perHour = memberGasPowerPerH_bn.Uint64()
+	validatorGasPowerPerH_bn := new(big.Int).SetUint64(gas.TotalPerH)
+	mul(validatorGasPowerPerH_bn, uint64(stake))
+	div(validatorGasPowerPerH_bn, uint64(p.Validators.TotalStake()))
+	perHour = validatorGasPowerPerH_bn.Uint64()
 
-	memberMaxStashed_bn := new(big.Int).Set(memberGasPowerPerH_bn)
-	mul(memberMaxStashed_bn, uint64(gas.MaxStashedPeriod))
-	div(memberMaxStashed_bn, uint64(time.Hour))
-	maxStashed = memberMaxStashed_bn.Uint64()
+	validatorMaxStashed_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
+	mul(validatorMaxStashed_bn, uint64(gas.MaxStashedPeriod))
+	div(validatorMaxStashed_bn, uint64(time.Hour))
+	maxStashed = validatorMaxStashed_bn.Uint64()
 
-	memberStartup_bn := new(big.Int).Set(memberGasPowerPerH_bn)
-	mul(memberStartup_bn, uint64(gas.StartupPeriod))
-	div(memberStartup_bn, uint64(time.Hour))
-	startup = memberStartup_bn.Uint64()
+	validatorStartup_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
+	mul(validatorStartup_bn, uint64(gas.StartupPeriod))
+	div(validatorStartup_bn, uint64(time.Hour))
+	startup = validatorStartup_bn.Uint64()
 	if startup < gas.MinStartupGasPower {
 		startup = gas.MinStartupGasPower
 	}
@@ -51,7 +51,7 @@ func (p *Poset) calcMemberGasPowerPerH(member common.Address) (perHour, maxStash
 }
 
 func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
-	gasPowerPerH, maxStashed, startup := p.calcMemberGasPowerPerH(e.Creator)
+	gasPowerPerH, maxStashed, startup := p.calcValidatorGasPowerPerH(e.Creator)
 
 	var prevGasPowerLeft uint64
 	var prevMedianTime inter.Timestamp

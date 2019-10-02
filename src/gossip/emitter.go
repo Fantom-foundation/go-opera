@@ -180,7 +180,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 }
 
 // safe for concurrent use
-func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, membersArr []common.Address, membersArrStakes []pos.Stake) common.Address {
+func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, validatorsArr []common.Address, validatorsArrStakes []pos.Stake) common.Address {
 	var txTime time.Time
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
@@ -189,9 +189,9 @@ func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, membersArr []com
 	} else {
 		txTime = txTimeI.(time.Time)
 	}
-	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(membersArr)))
-	turn := utils.WeightedPermutation(roundIndex+1, membersArrStakes, txHash)[roundIndex]
-	return membersArr[turn]
+	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(validatorsArr)))
+	turn := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, txHash)[roundIndex]
+	return validatorsArr[turn]
 }
 
 func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Transactions) *inter.Event {
@@ -202,11 +202,11 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 	maxGasUsed := em.maxGasPowerToUse(e)
 
 	now := time.Now()
-	members := em.world.Engine.GetMembers()
-	membersArr := members.SortedAddresses() // members must be sorted deterministically
-	membersArrStakes := make([]pos.Stake, len(membersArr))
-	for i, addr := range membersArr {
-		membersArrStakes[i] = members[addr]
+	validators := em.world.Engine.GetValidators()
+	validatorsArr := validators.SortedAddresses() // validators must be sorted deterministically
+	validatorsArrStakes := make([]pos.Stake, len(validatorsArr))
+	for i, addr := range validatorsArr {
+		validatorsArrStakes[i] = validators[addr]
 	}
 
 	for sender, txs := range poolTxs {
@@ -225,7 +225,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 				break // txs are dependent
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
-			if em.getTxTurn(tx.Hash(), now, membersArr, membersArrStakes) != e.Creator {
+			if em.getTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes) != e.Creator {
 				break // txs are dependent
 			}
 
@@ -274,7 +274,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
 	coinbase := em.GetCoinbase()
-	if _, ok := em.world.Engine.GetMembers()[coinbase]; !ok {
+	if _, ok := em.world.Engine.GetValidators()[coinbase]; !ok {
 		// not a validator
 		return nil
 	}
@@ -421,7 +421,7 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 		em.antiSelfFork.prevExternalEmittedTime = now
 	}
 
-	_, validator := em.world.Engine.GetMembers()[coinbase]
+	_, validator := em.world.Engine.GetValidators()[coinbase]
 	if validator && !em.antiSelfFork.becameValidator {
 		em.antiSelfFork.becameValidatorTime = now
 	}

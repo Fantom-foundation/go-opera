@@ -18,7 +18,7 @@ type (
 		// election params
 		frameToDecide idx.Frame
 
-		members pos.Members
+		validators pos.Validators
 
 		// election state
 		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"
@@ -35,7 +35,7 @@ type (
 	// but A may be forkless caused only by one of them (if no more than 1/3n are Byzantine), with a specific hash.
 	RootForklessCausesRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
 
-	// Slot specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
+	// Slot specifies a root slot {addr, frame}. Normal validators can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
 	Slot struct {
 		Frame idx.Frame
@@ -51,7 +51,7 @@ type (
 
 type voteId struct {
 	fromRoot  hash.Event
-	forMember common.Address
+	forValidator common.Address
 }
 type voteValue struct {
 	decided      bool
@@ -65,7 +65,7 @@ type ElectionRes struct {
 }
 
 func New(
-	members pos.Members,
+	validators pos.Validators,
 	frameToDecide idx.Frame,
 	forklessCausesFn RootForklessCausesRootFn,
 ) *Election {
@@ -75,14 +75,14 @@ func New(
 		Instance: logger.MakeInstance(),
 	}
 
-	el.Reset(members, frameToDecide)
+	el.Reset(validators, frameToDecide)
 
 	return el
 }
 
 // erase the current election state, prepare for new election frame
-func (el *Election) Reset(members pos.Members, frameToDecide idx.Frame) {
-	el.members = members
+func (el *Election) Reset(validators pos.Validators, frameToDecide idx.Frame) {
+	el.validators = validators
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteId]voteValue)
 	el.decidedRoots = make(map[common.Address]voteValue)
@@ -90,14 +90,14 @@ func (el *Election) Reset(members pos.Members, frameToDecide idx.Frame) {
 
 // return root slots which are not within el.decidedRoots
 func (el *Election) notDecidedRoots() []common.Address {
-	notDecidedRoots := make([]common.Address, 0, len(el.members))
+	notDecidedRoots := make([]common.Address, 0, len(el.validators))
 
-	for member := range el.members {
-		if _, ok := el.decidedRoots[member]; !ok {
-			notDecidedRoots = append(notDecidedRoots, member)
+	for validator := range el.validators {
+		if _, ok := el.decidedRoots[validator]; !ok {
+			notDecidedRoots = append(notDecidedRoots, validator)
 		}
 	}
-	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.members) { // sanity check
+	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.validators) { // sanity check
 		el.Log.Crit("Mismatch of roots")
 	}
 	return notDecidedRoots
@@ -105,13 +105,13 @@ func (el *Election) notDecidedRoots() []common.Address {
 
 // observedRoots returns all the roots at the specified frame which do forkless cause the specified root.
 func (el *Election) observedRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
-	observedRoots := make([]RootAndSlot, 0, len(el.members))
-	for member := range el.members {
+	observedRoots := make([]RootAndSlot, 0, len(el.validators))
+	for validator := range el.validators {
 		slot := Slot{
 			Frame: frame,
-			Addr:  member,
+			Addr:  validator,
 		}
-		observedRoot := el.observe(root, member, frame)
+		observedRoot := el.observe(root, validator, frame)
 		if observedRoot != nil {
 			observedRoots = append(observedRoots, RootAndSlot{
 				Root: *observedRoot,

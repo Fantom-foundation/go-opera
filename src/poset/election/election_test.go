@@ -231,12 +231,12 @@ func testProcessRoot(
 		},
 	})
 
-	// members:
+	// validators:
 	var (
-		mm = make(pos.Members, len(peers))
+		vv = make(pos.Validators, len(peers))
 	)
 	for _, peer := range peers {
-		mm.Set(peer, stakes[utils.NameOf(peer)])
+		vv.Set(peer, stakes[utils.NameOf(peer)])
 	}
 
 	// forkless cause func:
@@ -263,7 +263,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(mm, 0, forklessCauseFn)
+	election := New(vv, 0, forklessCauseFn)
 
 	// processing:
 	var alreadyDecided bool

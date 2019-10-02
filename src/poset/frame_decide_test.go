@@ -27,11 +27,11 @@ func TestConfirmBlockEvents(t *testing.T) {
 		blocks []*inter.Block
 	)
 	applyBlock := poset.applyBlock
-	poset.applyBlock = func(block *inter.Block, stateHash common.Hash, members pos.Members) (common.Hash, pos.Members) {
+	poset.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
 		frames = append(frames, poset.LastDecidedFrame)
 		blocks = append(blocks, block)
 
-		return applyBlock(block, stateHash, members)
+		return applyBlock(block, stateHash, validators)
 	}
 
 	_ = inter.ForEachRandEvent(nodes, int(poset.dag.EpochLen), poset.dag.MaxParents, nil, inter.ForEachEvent{

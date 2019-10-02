@@ -17,8 +17,8 @@ type (
 
 	// StakeCounter counts stakes.
 	StakeCounter struct {
-		members Members
-		already map[common.Address]struct{}
+		validators Validators
+		already    map[common.Address]struct{}
 
 		quorum Stake
 		sum    Stake
@@ -44,27 +44,27 @@ func StakeToBalance(stake Stake) *big.Int {
 }
 
 // NewCounter constructor.
-func (mm Members) NewCounter() *StakeCounter {
-	return newStakeCounter(mm)
+func (vv Validators) NewCounter() *StakeCounter {
+	return newStakeCounter(vv)
 }
 
-func newStakeCounter(mm Members) *StakeCounter {
+func newStakeCounter(vv Validators) *StakeCounter {
 	return &StakeCounter{
-		members: mm,
-		quorum:  mm.Quorum(),
-		already: make(map[common.Address]struct{}),
-		sum:     0,
+		validators: vv,
+		quorum:     vv.Quorum(),
+		already:    make(map[common.Address]struct{}),
+		sum:        0,
 	}
 }
 
-// Count member and return true if it hadn't counted before.
+// Count validator and return true if it hadn't counted before.
 func (s *StakeCounter) Count(node common.Address) bool {
 	if _, ok := s.already[node]; ok {
 		return false
 	}
 	s.already[node] = struct{}{}
 
-	s.sum += s.members.StakeOf(node)
+	s.sum += s.validators.StakeOf(node)
 	return true
 }
 

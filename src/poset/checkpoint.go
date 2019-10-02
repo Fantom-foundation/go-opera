@@ -17,7 +17,7 @@ type checkpoint struct {
 	LastDecidedFrame idx.Frame
 	LastBlockN       idx.Block
 	LastAtropos      hash.Event
-	NextMembers      pos.Members
+	NextValidators   pos.Validators
 	StateHash        common.Hash
 }
 
@@ -46,10 +46,10 @@ func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 
 	// restore current epoch
 	p.loadEpoch()
-	p.vecClock = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
+	p.vecClock = vector.NewIndex(p.Validators, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
 		return p.input.GetEventHeader(p.EpochN, id)
 	})
-	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootObservesRoot)
+	p.election = election.New(p.Validators, p.LastDecidedFrame+1, p.rootObservesRoot)
 
 	// events reprocessing
 	p.handleElection(nil)

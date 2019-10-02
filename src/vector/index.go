@@ -20,9 +20,9 @@ const (
 
 // Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
 type Index struct {
-	members    pos.Members
-	memberIdxs map[common.Address]idx.Member
-	getEvent   func(hash.Event) *inter.EventHeaderData
+	validators    pos.Validators
+	validatorIdxs map[common.Address]idx.Validator
+	getEvent      func(hash.Event) *inter.EventHeaderData
 
 	vecDb kvdb.FlushableKeyValueStore
 	table struct {
@@ -37,25 +37,25 @@ type Index struct {
 }
 
 // NewIndex creates Index instance.
-func NewIndex(members pos.Members, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
+func NewIndex(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
 	cache, _ := lru.New(forklessCauseCacheSize)
 
 	vi := &Index{
 		Instance:           logger.MakeInstance(),
 		forklessCauseCache: cache,
 	}
-	vi.Reset(members, db, getEvent)
+	vi.Reset(validators, db, getEvent)
 
 	return vi
 }
 
 // Reset resets buffers.
-func (vi *Index) Reset(members pos.Members, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) {
+func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) {
 	// we use wrapper to be able to drop failed events by dropping cache
 	vi.getEvent = getEvent
 	vi.vecDb = flushable.New(db)
-	vi.members = members
-	vi.memberIdxs = members.Idxs()
+	vi.validators = validators
+	vi.validatorIdxs = validators.Idxs()
 
 	table.MigrateTables(&vi.table, vi.vecDb)
 }
@@ -85,11 +85,11 @@ func (vi *Index) DropNotFlushed() {
 }
 
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
-	meIdx := vi.memberIdxs[e.Creator]
+	meIdx := vi.validatorIdxs[e.Creator]
 	myVecs := allVecs{
-		beforeCause: NewHighestBeforeSeq(len(vi.memberIdxs)),
-		beforeTime:  NewHighestBeforeTime(len(vi.memberIdxs)),
-		afterCause:  NewLowestAfterSeq(len(vi.memberIdxs)),
+		beforeCause: NewHighestBeforeSeq(len(vi.validatorIdxs)),
+		beforeTime:  NewHighestBeforeTime(len(vi.validatorIdxs)),
+		afterCause:  NewLowestAfterSeq(len(vi.validatorIdxs)),
 	}
 
 	// observed by himself
@@ -99,13 +99,13 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 	// pre-load parents into RAM for quick access
 	parentsVecs := make([]allVecs, len(e.Parents))
-	parentsCreators := make([]idx.Member, len(e.Parents))
+	parentsCreators := make([]idx.Validator, len(e.Parents))
 	for i, p := range e.Parents {
 		parent := vi.getEvent(p)
 		if parent == nil {
 			vi.Log.Crit("Event %s wasn't found", "event", p.String())
 		}
-		parentsCreators[i] = vi.memberIdxs[parent.Creator]
+		parentsCreators[i] = vi.validatorIdxs[parent.Creator]
 		parentsVecs[i] = allVecs{
 			beforeCause: vi.GetHighestBeforeSeq(p),
 			beforeTime:  vi.GetHighestBeforeTime(p),
@@ -118,7 +118,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 	for _, pVec := range parentsVecs {
 		// calculate HighestBefore vector. Detect forks for a case when parent observes a fork
-		for n := idx.Member(0); n < idx.Member(len(vi.memberIdxs)); n++ {
+		for n := idx.Validator(0); n < idx.Validator(len(vi.validatorIdxs)); n++ {
 			myForkSeq := myVecs.beforeCause.Get(n)
 			hisForkSeq := pVec.beforeCause.Get(n)
 
@@ -149,7 +149,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 				return
 			}
 
-			wCreatorIdx := vi.memberIdxs[w.Creator]
+			wCreatorIdx := vi.validatorIdxs[w.Creator]
 
 			// 'walk' is first time observed by e.Creator
 			// Detect forks for a case when fork is detected only if we combine parents

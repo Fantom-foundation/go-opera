@@ -40,27 +40,27 @@ func NewHighestBeforeSeq(size int) HighestBeforeSeq {
 	return make(HighestBeforeSeq, size*4)
 }
 
-func (b LowestAfterSeq) Get(n idx.Member) idx.Event {
+func (b LowestAfterSeq) Get(n idx.Validator) idx.Event {
 	return idx.Event(binary.LittleEndian.Uint32(b[n*4 : (n+1)*4]))
 }
 
-func (b LowestAfterSeq) Set(n idx.Member, seq idx.Event) {
+func (b LowestAfterSeq) Set(n idx.Validator, seq idx.Event) {
 	binary.LittleEndian.PutUint32(b[n*4:(n+1)*4], uint32(seq))
 }
 
-func (b HighestBeforeTime) Get(n idx.Member) inter.Timestamp {
+func (b HighestBeforeTime) Get(n idx.Validator) inter.Timestamp {
 	return inter.Timestamp(binary.LittleEndian.Uint64(b[n*8 : (n+1)*8]))
 }
 
-func (b HighestBeforeTime) Set(n idx.Member, time inter.Timestamp) {
+func (b HighestBeforeTime) Set(n idx.Validator, time inter.Timestamp) {
 	binary.LittleEndian.PutUint64(b[n*8:(n+1)*8], uint64(time))
 }
 
-func (b HighestBeforeSeq) MembersNum() idx.Member {
-	return idx.Member(len(b) / 4)
+func (b HighestBeforeSeq) ValidatorsNum() idx.Validator {
+	return idx.Validator(len(b) / 4)
 }
 
-func (b HighestBeforeSeq) Get(n idx.Member) ForkSeq {
+func (b HighestBeforeSeq) Get(n idx.Validator) ForkSeq {
 	raw := binary.LittleEndian.Uint32(b[n*4 : (n+1)*4])
 
 	return ForkSeq{
@@ -69,7 +69,7 @@ func (b HighestBeforeSeq) Get(n idx.Member) ForkSeq {
 	}
 }
 
-func (b HighestBeforeSeq) Set(n idx.Member, seq ForkSeq) {
+func (b HighestBeforeSeq) Set(n idx.Validator, seq ForkSeq) {
 	isForkSeen := uint32(0)
 	if seq.IsForkDetected {
 		isForkSeen = 1

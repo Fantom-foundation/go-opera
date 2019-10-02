@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter/pos"
 )
 
-type ApplyBlockFn func(block *Block, stateHash common.Hash, members pos.Members) (newStateHash common.Hash, mewMembers pos.Members)
+type ApplyBlockFn func(block *Block, stateHash common.Hash, validators pos.Validators) (newStateHash common.Hash, mewValidators pos.Validators)
 
 // Block is a "chain" block.
 type Block struct {

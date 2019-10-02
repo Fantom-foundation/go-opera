@@ -24,10 +24,10 @@ type Consensus interface {
 	LastBlock() (idx.Block, hash.Event)
 	// GetEpoch returns current epoch num.
 	GetEpoch() idx.Epoch
-	// GetMembers returns members of current epoch.
-	GetMembers() pos.Members
-	// GetEpochMembers atomically returns members of current epoch, and the epoch.
-	GetEpochMembers() (pos.Members, idx.Epoch)
+	// GetValidators returns validators of current epoch.
+	GetValidators() pos.Validators
+	// GetEpochValidators atomically returns validators of current epoch, and the epoch.
+	GetEpochValidators() (pos.Validators, idx.Epoch)
 	// GetConsensusTime calc consensus timestamp for given event.
 	GetConsensusTime(id hash.Event) (inter.Timestamp, error)
 

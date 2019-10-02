@@ -151,6 +151,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 	}
 }
+
 func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.ElectionRes) {
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		Root: id,
@@ -232,7 +233,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	}
 
 	// counter of all the observed roots on maxParentsFrame
-	observedCounter := p.Members.NewCounter()
+	observedCounter := p.Validators.NewCounter()
 	if !checkOnly || e.IsRoot {
 		// check "observing" prev roots only if called by creator, or if creator has marked that event is root
 		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
@@ -254,7 +255,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	}
 
 	// counter of all the caused roots on maxParentsFrame
-	forklessCausedCounter := p.Members.NewCounter()
+	forklessCausedCounter := p.Validators.NewCounter()
 	if !checkOnly || e.IsRoot {
 		// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
 		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {

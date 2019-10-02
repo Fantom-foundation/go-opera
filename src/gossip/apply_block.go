@@ -13,7 +13,7 @@ import (
 )
 
 // ApplyBlock execs ordered txns on state.
-func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members pos.Members) (newStateHash common.Hash, newMembers pos.Members) {
+func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, validators pos.Validators) (newStateHash common.Hash, newValidators pos.Validators) {
 	evmProcessor := evm_core.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
@@ -62,21 +62,21 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 	s.store.SetBlock(block)
 	s.store.SetBlockIndex(block.Hash(), block.Index)
 
-	// new members
-	// TODO replace with special transactions for changing members state
+	// new validators
+	// TODO replace with special transactions for changing validators state
 	// TODO the schema below doesn't work in all the cases, and intended only for testing
 	{
-		newMembers = members.Copy()
-		for addr := range members {
+		newValidators = validators.Copy()
+		for addr := range validators {
 			stake := pos.BalanceToStake(statedb.GetBalance(addr))
-			newMembers.Set(addr, stake)
+			newValidators.Set(addr, stake)
 		}
 		for _, tx := range evmBlock.Transactions {
 			if tx.To() == nil {
 				continue
 			}
 			stake := pos.BalanceToStake(statedb.GetBalance(*tx.To()))
-			newMembers.Set(*tx.To(), stake)
+			newValidators.Set(*tx.To(), stake)
 		}
 	}
 
@@ -116,5 +116,5 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, members 
 		log.Error("Failed to flush trie DB into main DB", "err", err)
 	}
 
-	return newStateHash, newMembers
+	return newStateHash, newValidators
 }

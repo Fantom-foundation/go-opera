@@ -9,7 +9,7 @@ import (
 // ProcessRoot calculates Atropos votes only for the new root.
 // If this root observes that the current election is decided, then @return decided Atropos
 func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
-	if len(el.decidedRoots) == len(el.members) {
+	if len(el.decidedRoots) == len(el.validators) {
 		// current election is already decided
 		return el.chooseAtropos()
 	}
@@ -21,12 +21,12 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 	round := newRoot.Slot.Frame - el.frameToDecide
 
 	notDecidedRoots := el.notDecidedRoots()
-	for _, memberSubject := range notDecidedRoots {
+	for _, validatorSubject := range notDecidedRoots {
 		vote := voteValue{}
 
 		if round == 1 {
 			// in initial round, vote "yes" if observe the subject
-			observedRoot := el.observe(newRoot.Root, memberSubject, el.frameToDecide)
+			observedRoot := el.observe(newRoot.Root, validatorSubject, el.frameToDecide)
 			vote.yes = observedRoot != nil
 			vote.decided = false
 			if observedRoot != nil {
@@ -36,23 +36,23 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 			observedRoots := el.observedRoots(newRoot.Root, newRoot.Slot.Frame-1)
 
 			var (
-				yesVotes = el.members.NewCounter()
-				noVotes  = el.members.NewCounter()
-				allVotes = el.members.NewCounter()
+				yesVotes = el.validators.NewCounter()
+				noVotes  = el.validators.NewCounter()
+				allVotes = el.validators.NewCounter()
 			)
 
-			// calc number of "yes" and "no", weighted by member's stake
+			// calc number of "yes" and "no", weighted by validator's stake
 			var subjectHash *hash.Event
 			for _, observedRoot := range observedRoots {
 				vid := voteId{
-					forMember: memberSubject,
+					forValidator: validatorSubject,
 					fromRoot:  observedRoot.Root,
 				}
 
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.observedRoot {
-						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s != %s, election frame=%d, member=%s)",
-							subjectHash.String(), vote.observedRoot.String(), el.frameToDecide, memberSubject.String())
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s != %s, election frame=%d, validator=%s)",
+							subjectHash.String(), vote.observedRoot.String(), el.frameToDecide, validatorSubject.String())
 					}
 
 					if vote.yes {
@@ -63,8 +63,8 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 					}
 					if !allVotes.Count(observedRoot.Slot.Addr) {
 						// it shouldn't be possible to get here, because we've taken 1 root from every node above
-						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s, election frame=%d, member=%s)",
-							subjectHash.String(), el.frameToDecide, memberSubject.String())
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s, election frame=%d, validator=%s)",
+							subjectHash.String(), el.frameToDecide, validatorSubject.String())
 					}
 				} else {
 					el.Log.Crit("Every root must vote for every not decided subject. Possibly roots are processed out of order",
@@ -88,7 +88,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
 			vote.decided = yesVotes.HasQuorum() || noVotes.HasQuorum()
 			if vote.decided {
-				el.decidedRoots[memberSubject] = vote
+				el.decidedRoots[validatorSubject] = vote
 			}
 		} else {
 			continue // we shouldn't be here, we checked it above the loop
@@ -96,12 +96,12 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 		// save vote for next rounds
 		vid := voteId{
 			fromRoot:  newRoot.Root,
-			forMember: memberSubject,
+			forValidator: validatorSubject,
 		}
 		el.votes[vid] = vote
 	}
 
-	frameDecided := len(el.decidedRoots) == len(el.members)
+	frameDecided := len(el.decidedRoots) == len(el.validators)
 	if frameDecided {
 		return el.chooseAtropos()
 	}

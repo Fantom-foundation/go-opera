@@ -5,16 +5,16 @@ import (
 )
 
 type (
-	// Member numeration.
-	Member uint32
+	// Validator numeration.
+	Validator uint32
 )
 
 // Bytes gets the byte representation of the index.
-func (m Member) Bytes() []byte {
-	return bigendian.Int32ToBytes(uint32(m))
+func (v Validator) Bytes() []byte {
+	return bigendian.Int32ToBytes(uint32(v))
 }
 
-// BytesToMember converts bytes to member index.
-func BytesToMember(b []byte) Member {
-	return Member(bigendian.BytesToInt32(b))
+// BytesToValidator converts bytes to validator index.
+func BytesToValidator(b []byte) Validator {
+	return Validator(bigendian.BytesToInt32(b))
 }

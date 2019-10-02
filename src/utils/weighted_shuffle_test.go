@@ -50,8 +50,8 @@ func Test_Permutation_distribution(t *testing.T) {
 	assertar := assert.New(t)
 	for weight_factor, hits := range weightHits {
 		//fmt.Printf("Test_RandomElection_distribution: %d \n", hits/weight_factor)
-		assertar.Equal((hits / weight_factor) > 20-8, true)
-		assertar.Equal((hits / weight_factor) < 20+8, true)
+		assertar.Equal((hits/weight_factor) > 20-8, true)
+		assertar.Equal((hits/weight_factor) < 20+8, true)
 		if t.Failed() {
 			return
 		}
