@@ -172,7 +172,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 			pm.engineMu.Lock()
 			defer pm.engineMu.Unlock()
 
-			log.Info("New event", "hash", e.Hash())
+			log.Info("New event", "event", e.String())
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
 				return err
