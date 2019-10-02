@@ -86,8 +86,8 @@ func (buf *EventBuffer) pushEvent(e *event) {
 	}
 
 	// now child events may become complete, check it again
-	for _, childId := range buf.incompletes.Keys() {
-		child, _ := buf.incompletes.Peek(childId) // without updating the "recently used"-ness of the key
+	for _, childID := range buf.incompletes.Keys() {
+		child, _ := buf.incompletes.Peek(childID) // without updating the "recently used"-ness of the key
 		if child == nil {
 			continue
 		}

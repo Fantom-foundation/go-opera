@@ -138,5 +138,5 @@ type getPackData struct {
 type packData struct {
 	Epoch idx.Epoch
 	Index idx.Pack
-	Ids   hash.Events
+	IDs   hash.Events
 }

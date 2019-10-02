@@ -45,7 +45,7 @@ func New(fetcher *fetcher.Fetcher, onlyNotConnected onlyNotConnectedFn, dropPeer
 }
 
 type Peer struct {
-	Id    string
+	ID    string
 	Epoch idx.Epoch
 
 	RequestPackInfos packInfoRequesterFn
@@ -57,7 +57,7 @@ type Peer struct {
 func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.Epoch) error {
 	if peer.Epoch < myEpoch {
 		// this peer is useless for syncing
-		return d.UnregisterPeer(peer.Id)
+		return d.UnregisterPeer(peer.ID)
 	}
 
 	d.peersMu.Lock()
@@ -67,13 +67,13 @@ func (d *PacksDownloader) RegisterPeer(peer Peer, myEpoch idx.Epoch) error {
 		return nil
 	}
 
-	if d.peers[peer.Id] != nil || len(d.peers) >= maxPeers {
+	if d.peers[peer.ID] != nil || len(d.peers) >= maxPeers {
 		return nil
 	}
 
-	log.Trace("Registering sync peer", "peer", peer.Id, "epoch", myEpoch)
-	d.peers[peer.Id] = newPeer(peer, myEpoch, d.fetcher, d.onlyNotConnected, d.dropPeer)
-	d.peers[peer.Id].Start()
+	log.Trace("Registering sync peer", "peer", peer.ID, "epoch", myEpoch)
+	d.peers[peer.ID] = newPeer(peer, myEpoch, d.fetcher, d.onlyNotConnected, d.dropPeer)
+	d.peers[peer.ID].Start()
 
 	return nil
 }
@@ -84,16 +84,16 @@ func (d *PacksDownloader) OnNewEpoch(myEpoch idx.Epoch, peerEpoch func(string) i
 
 	newPeers := make(map[string]*PeerPacksDownloader)
 
-	for peerId, peerDwnld := range d.peers {
+	for peerID, peerDwnld := range d.peers {
 		peerDwnld.Stop()
 
-		if peerEpoch(peerId) >= myEpoch {
+		if peerEpoch(peerID) >= myEpoch {
 			// allocate new peer for the new epoch
 			newPeerDwnld := newPeer(peerDwnld.peer, myEpoch, d.fetcher, d.onlyNotConnected, d.dropPeer)
 			newPeerDwnld.Start()
-			newPeers[peerId] = newPeerDwnld
+			newPeers[peerID] = newPeerDwnld
 		} else {
-			log.Trace("UnRegistering sync peer", "peer", peerId)
+			log.Trace("UnRegistering sync peer", "peer", peerID)
 		}
 	}
 	// wipe out old downloading state from prev. epoch

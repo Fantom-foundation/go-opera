@@ -45,7 +45,7 @@ func (el *Election) String(voters []hash.Event) string {
 	for _, root := range voters { // voter
 		info += root.String() + ": "
 		for forV := range el.validators { // subject
-			vid := voteId{
+			vid := voteID{
 				fromRoot:     root,
 				forValidator: forV,
 			}

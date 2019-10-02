@@ -50,12 +50,12 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Addres
 		}
 		actualF := idx.BytesToFrame(key[:frameSize])
 		actualCreator := common.BytesToAddress(key[frameSize : frameSize+addrSize])
-		actualId := hash.BytesToEvent(key[frameSize+addrSize:])
+		actualID := hash.BytesToEvent(key[frameSize+addrSize:])
 		if actualF < f {
 			s.Log.Crit("Roots table: invalid frame", "frame", f, "expected", actualF)
 		}
 
-		if !do(actualF, actualCreator, actualId) {
+		if !do(actualF, actualCreator, actualID) {
 			break
 		}
 	}
@@ -76,7 +76,7 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.
 		}
 		actualF := idx.BytesToFrame(key[:frameSize])
 		actualCreator := common.BytesToAddress(key[frameSize : frameSize+addrSize])
-		actualId := hash.BytesToEvent(key[frameSize+addrSize:])
+		actualID := hash.BytesToEvent(key[frameSize+addrSize:])
 		if actualF < f {
 			s.Log.Crit("Roots table: invalid frame", "frame", f, "expected", actualF)
 		}
@@ -84,7 +84,7 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.
 			s.Log.Crit("Roots table: invalid creator", "creator", from.String(), "expected", actualCreator.String())
 		}
 
-		if !do(actualF, actualCreator, actualId) {
+		if !do(actualF, actualCreator, actualID) {
 			break
 		}
 	}

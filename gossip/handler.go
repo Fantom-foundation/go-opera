@@ -161,8 +161,8 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 		return nil
 	}
 
-	dagId := params.AllEthashProtocolChanges.ChainID
-	txSigner := types.NewEIP155Signer(dagId)
+	dagID := params.AllEthashProtocolChanges.ChainID
+	txSigner := types.NewEIP155Signer(dagID)
 	heavyCheck := heavy_check.NewDefault(&pm.config.Net.Dag, txSigner)
 
 	// DAG callbacks
@@ -461,7 +461,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 		// notify downloader about new peer's epoch
 		_ = pm.downloader.RegisterPeer(packs_downloader.Peer{
-			Id:               p.id,
+			ID:               p.id,
 			Epoch:            p.progress.Epoch,
 			RequestPack:      p.RequestPack,
 			RequestPackInfos: p.RequestPackInfos,
@@ -617,7 +617,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			_ = p.SendPack(&packData{
 				Epoch: request.Epoch,
 				Index: request.Index,
-				Ids:   ids,
+				IDs:   ids,
 			})
 		}
 
@@ -661,18 +661,18 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&pack); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		if err := checkLenLimits(len(pack.Ids), pack); err != nil {
+		if err := checkLenLimits(len(pack.IDs), pack); err != nil {
 			return err
 		}
-		if len(pack.Ids) == 0 {
+		if len(pack.IDs) == 0 {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
 		// Mark the hashes as present at the remote node
-		for _, id := range pack.Ids {
+		for _, id := range pack.IDs {
 			p.MarkEvent(id)
 		}
 		// Notify downloader about new pack
-		_ = peerDwnlr.NotifyPack(pack.Epoch, pack.Index, pack.Ids, time.Now(), p.RequestEvents)
+		_ = peerDwnlr.NotifyPack(pack.Epoch, pack.Index, pack.IDs, time.Now(), p.RequestEvents)
 
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)

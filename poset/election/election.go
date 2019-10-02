@@ -22,7 +22,7 @@ type (
 
 		// election state
 		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"
-		votes        map[voteId]voteValue
+		votes        map[voteID]voteValue
 
 		// external world
 		observe RootForklessCausesRootFn
@@ -49,7 +49,7 @@ type (
 	}
 )
 
-type voteId struct {
+type voteID struct {
 	fromRoot  hash.Event
 	forValidator common.Address
 }
@@ -84,7 +84,7 @@ func New(
 func (el *Election) Reset(validators pos.Validators, frameToDecide idx.Frame) {
 	el.validators = validators
 	el.frameToDecide = frameToDecide
-	el.votes = make(map[voteId]voteValue)
+	el.votes = make(map[voteID]voteValue)
 	el.decidedRoots = make(map[common.Address]voteValue)
 }
 

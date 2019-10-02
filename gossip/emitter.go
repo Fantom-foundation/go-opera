@@ -33,7 +33,7 @@ const (
 	TxTurnPeriod     = 4 * time.Second
 )
 
-// external world
+// EmitterWorld is emitter's external world
 type EmitterWorld struct {
 	Store       *Store
 	Engine      Consensus
@@ -72,7 +72,7 @@ type Emitter struct {
 
 type selfForkProtection struct {
 	connectedTime           time.Time
-	prevLocalEmittedId      hash.Event
+	prevLocalEmittedID      hash.Event
 	prevExternalEmittedTime time.Time
 	becameValidatorTime     time.Time
 	becameValidator         bool
@@ -157,11 +157,11 @@ func (em *Emitter) GetCoinbase() common.Address {
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	prevEventId := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), em.GetCoinbase())
-	if prevEventId == nil {
+	prevEventID := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), em.GetCoinbase())
+	if prevEventID == nil {
 		return em.prevEmittedTime
 	}
-	prevEvent := em.world.Store.GetEventHeader(prevEventId.Epoch(), *prevEventId)
+	prevEvent := em.world.Store.GetEventHeader(prevEventID.Epoch(), *prevEventID)
 	if prevEvent == nil {
 		return em.prevEmittedTime
 	}
@@ -369,8 +369,8 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.RecacheSize()
 	{
 		// sanity check
-		dagId := params.AllEthashProtocolChanges.ChainID
-		if err := event_check.ValidateAll_test(em.dag, em.world.Engine, types.NewEIP155Signer(dagId), event, parentHeaders); err != nil {
+		dagID := params.AllEthashProtocolChanges.ChainID
+		if err := event_check.ValidateAll_test(em.dag, em.world.Engine, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
 			em.Log.Error("Emitted incorrect event", "err", err)
 			return nil
 		}
@@ -410,7 +410,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 
 // Track new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
-	if em.antiSelfFork.prevLocalEmittedId == e.Hash() {
+	if em.antiSelfFork.prevLocalEmittedID == e.Hash() {
 		// we've just emitted this event, so it wasn't emitted by another instance with the same address
 		return
 	}
@@ -515,7 +515,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	if e == nil {
 		return nil
 	}
-	em.antiSelfFork.prevLocalEmittedId = e.Hash()
+	em.antiSelfFork.prevLocalEmittedID = e.Hash()
 
 	if em.world.OnEmitted != nil {
 		em.world.OnEmitted(e)

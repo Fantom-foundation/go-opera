@@ -44,7 +44,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 			// calc number of "yes" and "no", weighted by validator's stake
 			var subjectHash *hash.Event
 			for _, observedRoot := range observedRoots {
-				vid := voteId{
+				vid := voteID{
 					forValidator: validatorSubject,
 					fromRoot:  observedRoot.Root,
 				}
@@ -94,7 +94,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 			continue // we shouldn't be here, we checked it above the loop
 		}
 		// save vote for next rounds
-		vid := voteId{
+		vid := voteID{
 			fromRoot:  newRoot.Root,
 			forValidator: validatorSubject,
 		}

@@ -95,7 +95,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 
 // s is a string splitted by ":" separator
 // example of a short ID: "5:26:a2395846", where 5 is epoch, 26 is lamport, a2395846 are first bytes of the hash
-func decodeShortEventId(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
+func decodeShortEventID(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
 	if len(s) != 3 {
 		return 0, 0, nil, errors.New("incorrect format of short event ID (need Epoch:Lamport:Hash")
 	}
@@ -110,14 +110,14 @@ func decodeShortEventId(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
 	return idx.Epoch(epoch), idx.Lamport(lamport), common.FromHex(s[2]), nil
 }
 
-func (b *EthAPIBackend) GetFullEventId(shortEventId string) (hash.Event, error) {
-	s := strings.Split(shortEventId, ":")
+func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) {
+	s := strings.Split(shortEventID, ":")
 	if len(s) == 1 {
 		// it's a full hash
-		return hash.HexToEventHash(shortEventId), nil
+		return hash.HexToEventHash(shortEventID), nil
 	}
 	// short hash
-	epoch, lamport, prefix, err := decodeShortEventId(s)
+	epoch, lamport, prefix, err := decodeShortEventID(s)
 	if err != nil {
 		return hash.Event{}, err
 	}
@@ -132,16 +132,16 @@ func (b *EthAPIBackend) GetFullEventId(shortEventId string) (hash.Event, error) 
 	return options[0], nil
 }
 
-func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventId string) (*inter.Event, error) {
-	id, err := b.GetFullEventId(shortEventId)
+func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error) {
+	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
 		return nil, err
 	}
 	return b.svc.store.GetEvent(id), nil
 }
 
-func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventId string) (*inter.EventHeaderData, error) {
-	id, err := b.GetFullEventId(shortEventId)
+func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error) {
+	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +152,8 @@ func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventId string)
 	return b.svc.store.GetEventHeader(epoch, id), nil
 }
 
-func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventId string) (inter.Timestamp, error) {
-	id, err := b.GetFullEventId(shortEventId)
+func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
+	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
 		return 0, err
 	}

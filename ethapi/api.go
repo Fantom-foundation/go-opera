@@ -945,7 +945,7 @@ func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{}
 		"isRoot":        header.IsRoot,
 		"creator":       header.Creator,
 		"prevEpochHash": header.PrevEpochHash,
-		"parents":       eventIdsToHex(header.Parents),
+		"parents":       eventIDsToHex(header.Parents),
 		"gasPowerLeft":  header.GasPowerLeft,
 		"gasPowerUsed":  header.GasPowerUsed,
 		"lamport":       header.Lamport,
@@ -1668,46 +1668,46 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
 }
 
-func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventId string) (map[string]interface{}, error) {
-	header, err := api.b.GetEventHeader(ctx, shortEventId)
+func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventID string) (map[string]interface{}, error) {
+	header, err := api.b.GetEventHeader(ctx, shortEventID)
 	if err != nil {
 		return nil, err
 	}
 	if header == nil {
-		return nil, fmt.Errorf("event %s not found", shortEventId)
+		return nil, fmt.Errorf("event %s not found", shortEventID)
 	}
 	return RPCMarshalEventHeader(header), nil
 }
 
-func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventId string, inclTx bool) (map[string]interface{}, error) {
-	event, err := api.b.GetEvent(ctx, shortEventId)
+func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventID string, inclTx bool) (map[string]interface{}, error) {
+	event, err := api.b.GetEvent(ctx, shortEventID)
 	if err != nil {
 		return nil, err
 	}
 	if event == nil {
-		return nil, fmt.Errorf("event %s not found", shortEventId)
+		return nil, fmt.Errorf("event %s not found", shortEventID)
 	}
 	return RPCMarshalEvent(event, inclTx, false)
 }
 
-func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventId string) (inter.Timestamp, error) {
-	return api.b.GetConsensusTime(ctx, shortEventId)
+func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
+	return api.b.GetConsensusTime(ctx, shortEventID)
 }
 
-func eventIdToHex(id hash.Event) hexutil.Bytes {
+func eventIDToHex(id hash.Event) hexutil.Bytes {
 	return hexutil.Bytes(id.Bytes())
 }
 
-func eventIdsToHex(ids hash.Events) []hexutil.Bytes {
+func eventIDsToHex(ids hash.Events) []hexutil.Bytes {
 	res := make([]hexutil.Bytes, len(ids))
 	for i, id := range ids {
-		res[i] = eventIdToHex(id)
+		res[i] = eventIDToHex(id)
 	}
 	return res
 }
 
 func (api *PublicDebugAPI) GetHeads(ctx context.Context) ([]hexutil.Bytes, error) {
-	return eventIdsToHex(api.b.GetHeads(ctx)), nil
+	return eventIDsToHex(api.b.GetHeads(ctx)), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private

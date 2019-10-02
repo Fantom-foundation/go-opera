@@ -216,11 +216,11 @@ func (d *PeerPacksDownloader) loop() {
 			if d.packInfos.Size() > maxPeerPacks {
 				// if we have too much packs -> d.sweepKnown() doesn't erase them -> we don't connect events from these packs.
 				// Also we do binary search, so we don't need much packs to store, so we shouldn't reach this if peer is ok.
-				log.Error("All the peer packs are unknown. Faulty peer?", "peer", d.peer.Id)
-				d.dropPeer(d.peer.Id)
+				log.Error("All the peer packs are unknown. Faulty peer?", "peer", d.peer.ID)
+				d.dropPeer(d.peer.ID)
 			}
 			if packInfo.index <= 0 || packInfo.index >= math.MaxInt32 {
-				log.Error("Invalid pack index", "peer", d.peer.Id)
+				log.Error("Invalid pack index", "peer", d.peer.ID)
 				continue
 			}
 
@@ -244,9 +244,9 @@ func (d *PeerPacksDownloader) loop() {
 			// Otherwise, we'll rapidly re-request the same pack until we connect events.
 			// DO NOT: delete(d.fetchingFull, pack.index)
 
-			err := d.fetcher.Notify(d.peer.Id, pack.ids, pack.time, pack.fetchEvents)
+			err := d.fetcher.Notify(d.peer.ID, pack.ids, pack.time, pack.fetchEvents)
 			if err != nil {
-				log.Error("Pack inject error", "index", pack.index, "peer", d.peer.Id, "err", err)
+				log.Error("Pack inject error", "index", pack.index, "peer", d.peer.ID, "err", err)
 			}
 
 		case <-syncTicker.C:
@@ -257,7 +257,7 @@ func (d *PeerPacksDownloader) loop() {
 }
 
 func (d *PeerPacksDownloader) tryToSync() {
-	if d.fetcher.OverloadedPeer(d.peer.Id) {
+	if d.fetcher.OverloadedPeer(d.peer.ID) {
 		return
 	}
 
@@ -289,7 +289,7 @@ func (d *PeerPacksDownloader) timedRequestFullPack(index idx.Pack, pinned bool) 
 	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPack(d.myEpoch, index)
 		if err != nil {
-			log.Error("Pack request error", "index", index, "peer", d.peer.Id, "err", err)
+			log.Error("Pack request error", "index", index, "peer", d.peer.ID, "err", err)
 		}
 		d.prevRequest = time.Now()
 		if pinned {
@@ -304,7 +304,7 @@ func (d *PeerPacksDownloader) timedRequestPackInfo(index idx.Pack) {
 	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPackInfos(d.myEpoch, []idx.Pack{index})
 		if err != nil {
-			log.Error("Pack info request error", "index", index, "peer", d.peer.Id, "err", err)
+			log.Error("Pack info request error", "index", index, "peer", d.peer.ID, "err", err)
 		}
 		d.prevRequest = time.Now()
 		d.fetchingInfo[index] = d.prevRequest
@@ -376,8 +376,8 @@ func (d *PeerPacksDownloader) sweepKnown() {
 			toRemove = append(toRemove, packIdx)
 
 			if !allKnown {
-				log.Error("Peer downloader error: met pack with an unknown head before pack with only known heads. Faulty peer?", "peer", d.peer.Id)
-				d.dropPeer(d.peer.Id)
+				log.Error("Peer downloader error: met pack with an unknown head before pack with only known heads. Faulty peer?", "peer", d.peer.ID)
+				d.dropPeer(d.peer.ID)
 				return
 			}
 		} else if allKnown {

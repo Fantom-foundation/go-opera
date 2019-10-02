@@ -73,9 +73,9 @@ type Backend interface {
 	CurrentBlock() *evm_core.EvmBlock
 
 	// Lachesis debug API
-	GetEvent(ctx context.Context, shortEventId string) (*inter.Event, error)
-	GetEventHeader(ctx context.Context, shortEventId string) (*inter.EventHeaderData, error)
-	GetConsensusTime(ctx context.Context, shortEventId string) (inter.Timestamp, error)
+	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
+	GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error)
+	GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error)
 	GetHeads(ctx context.Context) hash.Events
 }
 
