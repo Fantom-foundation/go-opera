@@ -93,9 +93,9 @@ func testSim(t *testing.T, connect topology) {
 		Handler: simulations.NewServer(sim),
 	}
 	go func() {
-		log.Info("starting simulation server on 0.0.0.0:8888...")
+		log.Info("Starting simulation server on 0.0.0.0:8888...")
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Crit("error starting simulation server", "err", err)
+			log.Crit("Error starting simulation server", "err", err)
 		}
 	}()
 
@@ -103,7 +103,7 @@ func testSim(t *testing.T, connect topology) {
 	<-time.After(5 * time.Second)
 
 	if err := srv.Shutdown(context.TODO()); err != nil {
-		log.Crit("error stopping simulation server", "err", err)
+		log.Crit("Error stopping simulation server", "err", err)
 	}
 }
 

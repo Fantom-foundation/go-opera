@@ -44,7 +44,7 @@ func SetAccountKey(
 ) {
 	kss := am.Backends(keystore.KeyStoreType)
 	if len(kss) < 1 {
-		log.Warn("keystore is not found")
+		log.Warn("Keystore is not found")
 		return
 	}
 	ks := kss[0].(*keystore.KeyStore)
@@ -57,7 +57,7 @@ func SetAccountKey(
 	if err == nil {
 		acc = imported
 	} else if err.Error() != "account already exists" {
-		log.Crit("failed to import key", "err", err)
+		log.Crit("Failed to import key", "err", err)
 	}
 
 	err = ks.Unlock(acc, pswd)

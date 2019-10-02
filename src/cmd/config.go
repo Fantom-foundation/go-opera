@@ -98,7 +98,7 @@ func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		_, total, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
-			log.Crit("invalid flag", "flag", FakeNetFlag.Name, "err", err)
+			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
 		cfg = lachesis.FakeNetConfig(total)
 	case ctx.GlobalBool(utils.TestnetFlag.Name):

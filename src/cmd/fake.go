@@ -32,7 +32,7 @@ func addFakeAccount(ctx *cli.Context, stack *node.Node) {
 func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
 	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
-		log.Crit("invalid flag", "flag", FakeNetFlag.Name, "err", err)
+		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 	}
 
 	return crypto.FakeKey(num)

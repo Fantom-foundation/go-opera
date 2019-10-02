@@ -335,7 +335,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// set consensus fields
 	event = em.world.Engine.Prepare(event) // GasPowerLeft is calced here
 	if event == nil {
-		em.Log.Warn("dropped event while emitting")
+		em.Log.Warn("Dropped event while emitting")
 		return nil
 	}
 

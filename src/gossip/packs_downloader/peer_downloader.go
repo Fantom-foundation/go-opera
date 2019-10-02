@@ -220,7 +220,7 @@ func (d *PeerPacksDownloader) loop() {
 				d.dropPeer(d.peer.Id)
 			}
 			if packInfo.index <= 0 || packInfo.index >= math.MaxInt32 {
-				log.Error("invalid pack index", "peer", d.peer.Id)
+				log.Error("Invalid pack index", "peer", d.peer.Id)
 				continue
 			}
 
@@ -246,7 +246,7 @@ func (d *PeerPacksDownloader) loop() {
 
 			err := d.fetcher.Notify(d.peer.Id, pack.ids, pack.time, pack.fetchEvents)
 			if err != nil {
-				log.Error("pack inject error", "index", pack.index, "peer", d.peer.Id, "err", err)
+				log.Error("Pack inject error", "index", pack.index, "peer", d.peer.Id, "err", err)
 			}
 
 		case <-syncTicker.C:
@@ -289,7 +289,7 @@ func (d *PeerPacksDownloader) timedRequestFullPack(index idx.Pack, pinned bool) 
 	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPack(d.myEpoch, index)
 		if err != nil {
-			log.Error("pack request error", "index", index, "peer", d.peer.Id, "err", err)
+			log.Error("Pack request error", "index", index, "peer", d.peer.Id, "err", err)
 		}
 		d.prevRequest = time.Now()
 		if pinned {
@@ -304,7 +304,7 @@ func (d *PeerPacksDownloader) timedRequestPackInfo(index idx.Pack) {
 	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPackInfos(d.myEpoch, []idx.Pack{index})
 		if err != nil {
-			log.Error("pack info request error", "index", index, "peer", d.peer.Id, "err", err)
+			log.Error("Pack info request error", "index", index, "peer", d.peer.Id, "err", err)
 		}
 		d.prevRequest = time.Now()
 		d.fetchingInfo[index] = d.prevRequest

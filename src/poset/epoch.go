@@ -50,7 +50,7 @@ func (p *Poset) rootForklessCausesRoot(a hash.Event, bCreator common.Address, bF
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bCreator, func(f idx.Frame, from common.Address, b hash.Event) bool {
 		if f != bFrame || from != bCreator {
-			p.Log.Crit("inconsistent DB iteration")
+			p.Log.Crit("Inconsistent DB iteration")
 		}
 		if p.vecClock.ForklessCause(a, b) {
 			bHash = &b
@@ -66,7 +66,7 @@ func (p *Poset) rootForklessCausesRoot(a hash.Event, bCreator common.Address, bF
 func (p *Poset) GetGenesisHash() common.Hash {
 	epoch := p.store.GetGenesis()
 	if epoch == nil {
-		p.Log.Crit("no genesis found")
+		p.Log.Crit("No genesis found")
 	}
 	return epoch.PrevEpoch.Hash()
 }

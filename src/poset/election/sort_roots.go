@@ -38,7 +38,7 @@ func (el *Election) chooseAtropos() (*ElectionRes, error) {
 	for member, stake := range el.members {
 		vote, ok := el.decidedRoots[member]
 		if !ok {
-			el.Log.Crit("called before all the roots are decided")
+			el.Log.Crit("Called before all the roots are decided")
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{
