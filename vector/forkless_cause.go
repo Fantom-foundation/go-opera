@@ -69,8 +69,8 @@ func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
 	return res
 }
 
-// Excludes forbidden by consensus parents
-// called by emitter to exclude cheater's events from potential parents list
+// NoCheaters excludes events which are observed by selfParents as cheaters.
+// Called by emitter to exclude cheater's events from potential parents list.
 func (vi *Index) NoCheaters(selfParent *hash.Event, options hash.Events) hash.Events {
 	if selfParent == nil {
 		return options

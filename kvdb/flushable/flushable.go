@@ -28,7 +28,7 @@ type Flushable struct {
 	lock *sync.Mutex // we have no guarantees that rbt.Tree works with concurrent reads, so we can't use MutexRW
 }
 
-// NewFlushable wraps parent. All the writes into the cache won't be written in parent until .Flush() is called.
+// New Flushable wraps underlying DB. All the writes into the cache won't be written in parent until .Flush() is called.
 func New(parent kvdb.KeyValueStore) *Flushable {
 	return &Flushable{
 		underlying:     parent,
@@ -112,7 +112,8 @@ func (w *Flushable) delete(key []byte) error {
 	return nil
 }
 
-// Drop all the not flashed keys. After this call, the state is identical to the state of parent DB.
+// DropNotFlushed drops all the not flushed keys.
+// After this call, the state of parent DB is identical to the state of this DB.
 func (w *Flushable) DropNotFlushed() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
@@ -137,17 +138,17 @@ func (w *Flushable) Drop() {
 	w.underlying = nil
 }
 
-// Num of not flushed keys, including deleted keys.
+// NotFlushedPairs returns num of not flushed keys, including deleted keys.
 func (w *Flushable) NotFlushedPairs() int {
 	return w.modified.Size()
 }
 
-// Estimation of not flushed data, including deleted keys.
+// NotFlushedSizeEst returns estimation of not flushed data, including deleted keys.
 func (w *Flushable) NotFlushedSizeEst() int {
 	return *w.sizeEstimation
 }
 
-// Flushes current cache into parent DB.
+// Flush current cache into parent DB.
 func (w *Flushable) Flush() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()

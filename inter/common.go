@@ -29,7 +29,7 @@ func GenNodes(
 	return
 }
 
-// GenRandForks generates random events with forks for test purpose.
+// ForEachRandFork generates random events with forks for test purpose.
 // Result:
 //   - events maps node address to array of its events;
 func ForEachRandFork(
@@ -93,7 +93,7 @@ func ForEachRandFork(
 					parent = nil
 				}
 				//e.Extra = bigendian.Int32ToBytes(uint32(i)) // make hash for each unique, because for forks we may have the same events
-				cheaters[creator] += 1
+				cheaters[creator]++
 			}
 		}
 		if parent == nil {

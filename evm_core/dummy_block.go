@@ -44,7 +44,7 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 	}
 }
 
-// Ethereum wrappers
+// ConvertFromEthHeader covert ETH-formatted header to Lachesis EVM header
 func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 	// NOTE: incomplete conversion
 	return &EvmHeader{
@@ -59,6 +59,7 @@ func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 	}
 }
 
+// ConvertFromEthHeader returns header in ETH format
 func (h *EvmHeader) EthHeader() *types.Header {
 	// NOTE: incomplete conversion
 	return &types.Header{

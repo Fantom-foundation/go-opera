@@ -15,13 +15,13 @@ type (
 	headersByCreator map[common.Address]*inter.EventHeaderData
 )
 
-type pair_headersByCreator struct {
+type headersByCreatorPair struct {
 	Creator common.Address
 	Header  *inter.EventHeaderData
 }
 
 func (hh headersByCreator) EncodeRLP(w io.Writer) error {
-	arr := make([]pair_headersByCreator, 0, len(hh))
+	arr := make([]headersByCreatorPair, 0, len(hh))
 	creators := make([]common.Address, 0, len(hh))
 	for creator := range hh {
 		creators = append(creators, creator)
@@ -34,7 +34,7 @@ func (hh headersByCreator) EncodeRLP(w io.Writer) error {
 
 	for _, creator := range creators {
 		header := hh[creator]
-		arr = append(arr, pair_headersByCreator{
+		arr = append(arr, headersByCreatorPair{
 			Creator: creator,
 			Header:  header,
 		})
@@ -47,7 +47,7 @@ func (phh *headersByCreator) DecodeRLP(s *rlp.Stream) error {
 		*phh = headersByCreator{}
 	}
 	hh := *phh
-	var arr []pair_headersByCreator
+	var arr []headersByCreatorPair
 	if err := s.Decode(&arr); err != nil {
 		return err
 	}

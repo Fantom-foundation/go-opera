@@ -17,14 +17,14 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	return block
 }
 
-// SetBlock stores chain block index.
+// SetBlockIndex stores chain block index.
 func (s *Store) SetBlockIndex(id hash.Event, n idx.Block) {
 	if err := s.table.BlockHashes.Put(id.Bytes(), n.Bytes()); err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
-// GetBlock returns stored block index.
+// GetBlockIndex returns stored block index.
 func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 	buf, err := s.table.BlockHashes.Get(id.Bytes())
 	if err != nil {

@@ -50,7 +50,7 @@ type FilterInterestedFn func(ids hash.Events) hash.Events
 // EventsRequesterFn is a callback type for sending a event retrieval request.
 type EventsRequesterFn func(hash.Events) error
 
-// Called to connect a received event
+// PushEventFn is a callback type to connect a received event
 type PushEventFn func(e *inter.Event, peer string)
 
 // inject represents a schedules import operation.
@@ -223,8 +223,7 @@ func (f *Fetcher) enqueue(peer string, events inter.Events, time time.Time, fetc
 	return nil
 }
 
-// Loop is the main fetcher loop, checking and processing various notification
-// events.
+// Loop is the main fetcher loop, checking and processing various notifications
 func (f *Fetcher) loop() {
 	// Iterate the event fetching until a quit is requested
 	fetchTimer := time.NewTimer(0)
@@ -317,7 +316,7 @@ func (f *Fetcher) loop() {
 
 			// Find not not arrived events
 			all := make(hash.Events, 0, len(f.announced))
-			for e, _ := range f.announced {
+			for e := range f.announced {
 				all.Add(e)
 			}
 			notArrived := f.callback.OnlyInterested(all)
@@ -349,13 +348,13 @@ func (f *Fetcher) loop() {
 
 				// Create a closure of the fetch and schedule in on a new thread
 				fetchEvents, hashes := f.fetching[hashes[0]].batch.fetchEvents, hashes
-				go func() {
+				go func(peer string) {
 					eventFetchMeter.Update(int64(len(hashes)))
 					err := fetchEvents(hashes)
 					if err != nil {
 						log.Error("Events request error", "peer", peer, "err", err)
 					}
-				}()
+				}(peer)
 			}
 			// Schedule the next fetch if events are still pending
 			f.rescheduleFetch(fetchTimer)

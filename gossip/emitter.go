@@ -370,7 +370,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	{
 		// sanity check
 		dagID := params.AllEthashProtocolChanges.ChainID
-		if err := event_check.ValidateAll_test(em.dag, em.world.Engine, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
+		if err := event_check.ValidateAll(em.dag, em.world.Engine, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
 			em.Log.Error("Emitted incorrect event", "err", err)
 			return nil
 		}

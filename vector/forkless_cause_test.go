@@ -426,7 +426,7 @@ type eventSlot struct {
 }
 
 // naive implementation of fork detection, O(n)
-func test_forksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]bool, err error) {
+func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]bool, err error) {
 	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
@@ -603,7 +603,7 @@ func TestRandomForks(t *testing.T) {
 			// check that fork seeing is identical to naive version
 			for _, e := range processed {
 				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
-				expectedCheaters, err := test_forksDetected(vi, e.Hash())
+				expectedCheaters, err := testForksDetected(vi, e.Hash())
 				assertar.NoError(err)
 
 				for _, cheater := range nodes {

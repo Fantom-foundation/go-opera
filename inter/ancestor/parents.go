@@ -15,6 +15,7 @@ type SearchStrategy interface {
 	Find(heads hash.Events) hash.Event
 }
 
+// FindBestParents returns estimated parents subset, according to provided strategy
 // max is max num of parents to link with (including self-parent)
 // returns set of parents to link, len(res) <= max
 func FindBestParents(max int, options hash.Events, selfParent *hash.Event, strategy SearchStrategy) (*hash.Event, hash.Events) {
@@ -81,11 +82,11 @@ func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 
 			// observes higher
 			if his.Seq > my.Seq && !my.IsForkDetected {
-				score.score += 1
+				score.score++
 			}
 			// observes a fork
 			if his.IsForkDetected && !my.IsForkDetected {
-				score.score += 1
+				score.score++
 			}
 		}
 		scores = append(scores, score)

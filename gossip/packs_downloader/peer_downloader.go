@@ -125,8 +125,7 @@ func (d *PeerPacksDownloader) Stop() {
 	close(d.quit)
 }
 
-// Notify announces the fetcher of the potential availability of a new event in
-// the network.
+// NotifyPackInfo injects new pack infos from a peer
 func (d *PeerPacksDownloader) NotifyPackInfo(epoch idx.Epoch, index idx.Pack, heads hash.Events, time time.Time) error {
 	if d.myEpoch != epoch {
 		return nil // Short circuit if from another epoch
@@ -146,6 +145,7 @@ func (d *PeerPacksDownloader) NotifyPackInfo(epoch idx.Epoch, index idx.Pack, he
 	}
 }
 
+// NotifyPacksNum injects new packs num from a peer
 func (d *PeerPacksDownloader) NotifyPacksNum(epoch idx.Epoch, packsNum idx.Pack) error {
 	if d.myEpoch != epoch {
 		return nil // Short circuit if from another epoch
@@ -163,7 +163,7 @@ func (d *PeerPacksDownloader) NotifyPacksNum(epoch idx.Epoch, packsNum idx.Pack)
 	}
 }
 
-// Enqueue tries to fill gaps the fetcher's future import queue.
+// NotifyPack injects new packs from a peer
 func (d *PeerPacksDownloader) NotifyPack(epoch idx.Epoch, index idx.Pack, ids hash.Events, time time.Time, fetchEvents fetcher.EventsRequesterFn) error {
 	if d.myEpoch != epoch {
 		return nil // Short circuit if from another epoch
@@ -184,8 +184,7 @@ func (d *PeerPacksDownloader) NotifyPack(epoch idx.Epoch, index idx.Pack, ids ha
 	}
 }
 
-// Loop is the main fetcher loop, checking and processing various notification
-// events.
+// Loop is the main downloader's loop, checking and processing various notifications
 func (d *PeerPacksDownloader) loop() {
 	// Iterate the event fetching until a quit is requested
 	syncTicker := time.NewTicker(recheckInterval)

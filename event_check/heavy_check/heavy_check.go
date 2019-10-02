@@ -46,7 +46,7 @@ type TaskData struct {
 	onValidated OnValidatedFn
 }
 
-// Uses N-1 threads
+// NewDefault uses N-1 threads
 func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Validator {
 	threads := runtime.NumCPU()
 	if threads > 1 {
@@ -58,7 +58,7 @@ func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Validator {
 	return New(config, txSigner, threads)
 }
 
-// Performs heavy checks, related to signatures validation and Merkle tree validation
+// New validator which performs heavy checks, related to signatures validation and Merkle tree validation
 func New(config *lachesis.DagConfig, txSigner types.Signer, numOfThreads int) *Validator {
 	return &Validator{
 		config:       config,

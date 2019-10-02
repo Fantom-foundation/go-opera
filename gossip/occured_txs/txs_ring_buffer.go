@@ -29,14 +29,14 @@ func New(size int, txSigner types.Signer) *Buffer {
 	}
 }
 
-// not safe for concurrent use
+// Add is not safe for concurrent use
 func (ring *buffer) Add(hash common.Hash, sender common.Address) {
 	ring.senders.Add(hash, sender)
 
-	ring.from[sender] += 1
+	ring.from[sender]++
 }
 
-// not safe for concurrent use
+// Delete is not safe for concurrent use
 func (ring *buffer) Delete(hash common.Hash) {
 	sender, ok := ring.Get(hash)
 	ring.senders.Remove(hash)
@@ -45,7 +45,7 @@ func (ring *buffer) Delete(hash common.Hash) {
 	}
 }
 
-// not safe for concurrent use
+// decreaseSender is not safe for concurrent use
 func (ring *buffer) decreaseSender(sender common.Address) {
 	was := ring.from[sender]
 	if was <= 1 {
@@ -55,7 +55,7 @@ func (ring *buffer) decreaseSender(sender common.Address) {
 	}
 }
 
-// not safe for concurrent use
+// Get is not safe for concurrent use
 func (ring *buffer) Get(hash common.Hash) (common.Address, bool) {
 	sender, ok := ring.senders.Peek(hash)
 	if !ok {
@@ -64,18 +64,18 @@ func (ring *buffer) Get(hash common.Hash) (common.Address, bool) {
 	return sender.(common.Address), true
 }
 
-// not safe for concurrent use
+// GetTxsNum is not safe for concurrent use
 func (ring *buffer) GetTxsNum(sender common.Address) int {
 	return ring.from[sender]
 }
 
-// not safe for concurrent use
+// Clear is not safe for concurrent use
 func (ring *buffer) Clear() {
 	ring.senders.Purge()
 	ring.from = make(map[common.Address]int)
 }
 
-// Txs are included into an event, but not included into a block
+// CollectNotConfirmedTxs is called when txs are included into an event, but not included into a block
 // not safe for concurrent use
 func (s *Buffer) CollectNotConfirmedTxs(txs types.Transactions) error {
 	for _, tx := range txs {
@@ -88,7 +88,7 @@ func (s *Buffer) CollectNotConfirmedTxs(txs types.Transactions) error {
 	return nil
 }
 
-// Txs are included into a block
+// CollectNotConfirmedTxs is called when txs are included into a block
 // not safe for concurrent use
 func (s *Buffer) CollectConfirmedTxs(txs types.Transactions) {
 	for _, tx := range txs {
@@ -96,7 +96,7 @@ func (s *Buffer) CollectConfirmedTxs(txs types.Transactions) {
 	}
 }
 
-// not safe for concurrent use
+// MayBeConflicted is not safe for concurrent use
 func (s *Buffer) MayBeConflicted(sender common.Address, txHash common.Hash) bool {
 	_, ok := s.ring.Get(txHash)
 	if ok {
@@ -106,12 +106,12 @@ func (s *Buffer) MayBeConflicted(sender common.Address, txHash common.Hash) bool
 	return s.ring.GetTxsNum(sender) != 0
 }
 
-// not safe for concurrent use
+// Clear is not safe for concurrent use
 func (s *Buffer) Clear() {
 	s.ring.Clear()
 }
 
-// not safe for concurrent use
+// Len is not safe for concurrent use
 func (s *Buffer) Len() int {
 	return s.ring.senders.Len()
 }

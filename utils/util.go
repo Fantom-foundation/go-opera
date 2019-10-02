@@ -118,7 +118,7 @@ func PaddedBigBytes(bigint *big.Int, n int) []byte {
 	return ret
 }
 
-// String returns human readable string representation.
+// NameOf returns human readable string representation.
 func NameOf(p common.Address) string {
 	if name := hash.GetNodeName(p); len(name) > 0 {
 		return name

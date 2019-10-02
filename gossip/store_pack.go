@@ -11,7 +11,7 @@ import (
 const (
 	epochSize   = 4
 	packSize    = 4
-	eventIdSize = 32
+	eventIDSize = 32
 )
 
 func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
@@ -73,7 +73,7 @@ func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 	it := s.table.Packs.NewIteratorWithPrefix(prefix.Bytes())
 	defer it.Release()
 	for it.Next() {
-		if len(it.Key()) != epochSize+packSize+eventIdSize {
+		if len(it.Key()) != epochSize+packSize+eventIDSize {
 			s.Log.Crit("packs table: Incorrect key len", "len(key)", len(it.Key()))
 		}
 		res.Add(hash.BytesToEvent(it.Key()[epochSize+packSize:]))

@@ -16,7 +16,7 @@ type HookedEngine struct {
 	processEvent func(realEngine Consensus, e *inter.Event) error
 }
 
-// not safe for concurrent use
+// ProcessEvent is not safe for concurrent use
 func (hook *HookedEngine) ProcessEvent(e *inter.Event) error {
 	return hook.processEvent(hook.engine, e)
 }

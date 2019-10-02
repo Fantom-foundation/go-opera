@@ -14,7 +14,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
 
-// state of previous Epoch
+// GenesisState stores state of previous Epoch
 type GenesisState struct {
 	Epoch       idx.Epoch
 	Time        inter.Timestamp // consensus time of the last atropos

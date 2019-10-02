@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/common/littleendian"
 )
 
-func getTestweights_increasing(num int) []pos.Stake {
+func getTestWeightsIncreasing(num int) []pos.Stake {
 	weights := make([]pos.Stake, num)
 	for i := 0; i < num; i++ {
 		weights[i] = pos.Stake(i+1) * 1000
@@ -19,7 +19,7 @@ func getTestweights_increasing(num int) []pos.Stake {
 	return weights
 }
 
-func getTestWeights_equal(num int) []pos.Stake {
+func getTestWeightsEqual(num int) []pos.Stake {
 	weights := make([]pos.Stake, num)
 	for i := 0; i < num; i++ {
 		weights[i] = 1000
@@ -29,29 +29,29 @@ func getTestWeights_equal(num int) []pos.Stake {
 
 // Test average distribution of the shuffle
 func Test_Permutation_distribution(t *testing.T) {
-	weightsArr := getTestweights_increasing(30)
+	weightsArr := getTestWeightsIncreasing(30)
 
 	weightHits := make(map[int]int) // weight -> number of occurrences
-	for round_seed := 0; round_seed < 3000; round_seed++ {
-		seed := hashOf(common.Hash{}, uint32(round_seed))
+	for roundSeed := 0; roundSeed < 3000; roundSeed++ {
+		seed := hashOf(common.Hash{}, uint32(roundSeed))
 		perm := WeightedPermutation(len(weightsArr)/10, weightsArr, seed)
 		for _, p := range perm {
 			weight := weightsArr[p]
-			weight_factor := int(weight / 1000)
+			weightFactor := int(weight / 1000)
 
-			_, ok := weightHits[weight_factor]
+			_, ok := weightHits[weightFactor]
 			if !ok {
-				weightHits[weight_factor] = 0
+				weightHits[weightFactor] = 0
 			}
-			weightHits[weight_factor] += 1
+			weightHits[weightFactor]++
 		}
 	}
 
 	assertar := assert.New(t)
-	for weight_factor, hits := range weightHits {
-		//fmt.Printf("Test_RandomElection_distribution: %d \n", hits/weight_factor)
-		assertar.Equal((hits/weight_factor) > 20-8, true)
-		assertar.Equal((hits/weight_factor) < 20+8, true)
+	for weightFactor, hits := range weightHits {
+		//fmt.Printf("Test_RandomElection_distribution: %d \n", hits/weightFactor)
+		assertar.Equal((hits/weightFactor) > 20-8, true)
+		assertar.Equal((hits/weightFactor) < 20+8, true)
 		if t.Failed() {
 			return
 		}
@@ -75,9 +75,9 @@ func testCorrectPermutation(t *testing.T, weightsArr []pos.Stake) {
 }
 
 func Test_Permutation_correctness(t *testing.T) {
-	testCorrectPermutation(t, getTestweights_increasing(1))
-	testCorrectPermutation(t, getTestweights_increasing(30))
-	testCorrectPermutation(t, getTestWeights_equal(1000))
+	testCorrectPermutation(t, getTestWeightsIncreasing(1))
+	testCorrectPermutation(t, getTestWeightsIncreasing(30))
+	testCorrectPermutation(t, getTestWeightsEqual(1000))
 }
 
 func hashOf(a common.Hash, b uint32) common.Hash {
@@ -88,7 +88,7 @@ func hashOf(a common.Hash, b uint32) common.Hash {
 }
 
 func Test_Permutation_determinism(t *testing.T) {
-	weightsArr := getTestweights_increasing(5)
+	weightsArr := getTestWeightsIncreasing(5)
 
 	assertar := assert.New(t)
 

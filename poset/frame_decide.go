@@ -61,7 +61,7 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCre
 	ordered, frameInfo := p.fareOrdering(frame, atropos, blockEvents)
 
 	// block generation
-	p.checkpoint.LastBlockN += 1
+	p.checkpoint.LastBlockN++
 	if p.applyBlock != nil {
 		block := inter.NewBlock(p.checkpoint.LastBlockN, frameInfo.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
 		p.checkpoint.StateHash, p.NextValidators = p.applyBlock(block, p.checkpoint.StateHash, p.NextValidators)

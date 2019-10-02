@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 )
 
-// may be used in tests to match election state
+// DebugStateHash may be used in tests to match election state
 func (el *Election) DebugStateHash() common.Hash {
 	hasher := sha3.New256()
 	write := func(bb []byte) {

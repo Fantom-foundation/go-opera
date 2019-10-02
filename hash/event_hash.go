@@ -18,10 +18,10 @@ type (
 	// It is a hash of Event.
 	Event common.Hash
 
-	// OrderedEvents is a sortable slice of event hash.
+	// OrderedEvents is a sortable slice of event hashes.
 	OrderedEvents []Event
 
-	// OrderedEvents is a slice of event hash.
+	// Events is a slice of event hashes.
 	Events []Event
 
 	EventsStack []Event

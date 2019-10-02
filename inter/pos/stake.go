@@ -29,6 +29,7 @@ var (
 	balanceToStakeRatio = new(big.Int).Exp(big.NewInt(10), big.NewInt(12), nil) // 10^12
 )
 
+// BalanceToStake balance to validator's stake
 func BalanceToStake(balance *big.Int) Stake {
 	stakeBig := new(big.Int).Div(balance, balanceToStakeRatio)
 	if stakeBig.Sign() < 0 || stakeBig.BitLen() >= 64 {
@@ -38,6 +39,7 @@ func BalanceToStake(balance *big.Int) Stake {
 	return Stake(stakeBig.Uint64())
 }
 
+// StakeToBalance converts validator's stake to balance
 // Warning: for tests only!
 func StakeToBalance(stake Stake) *big.Int {
 	return new(big.Int).Mul(big.NewInt(int64(stake)), balanceToStakeRatio)

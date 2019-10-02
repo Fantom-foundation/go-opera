@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// run all the checks except Poset-related. intended only for tests
-func ValidateAll_test(config *lachesis.DagConfig, reader epoch_check.DagReader, txSigner types.Signer, e *inter.Event, parents []*inter.EventHeaderData) error {
+// ValidateAll runs all the checks except Poset-related. intended only for tests
+func ValidateAll(config *lachesis.DagConfig, reader epoch_check.DagReader, txSigner types.Signer, e *inter.Event, parents []*inter.EventHeaderData) error {
 	if err := basic_check.New(config).Validate(e); err != nil {
 		return err
 	}

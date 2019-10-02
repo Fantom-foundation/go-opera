@@ -14,14 +14,14 @@ import (
 
 const (
 	MaxGasPowerUsed = params.GenesisGasLimit
-	// It ensures that in all the "real" cases, the event will be limited by gas, not size.
+	// MaxEventSize ensures that in all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size.
 	MaxEventSize = MaxGasPowerUsed / params.TxDataNonZeroGas
 	MaxExtraData = 256 // it has fair gas cost, so it's fine to have a high limit
 
 	EventGas  = params.TxGas // TODO estimate the cost more accurately
 	ParentGas = EventGas / 5
-	// Per byte of extra event data. It's higher than regular data price, because it's a part of the header
+	// ExtraDataGas is cost per byte of extra event data. It's higher than regular data price, because it's a part of the header
 	ExtraDataGas = params.TxDataNonZeroGas * 2
 )
 
@@ -41,11 +41,11 @@ var (
 	ErrHugeValue      = errors.New("too big value")
 )
 
-// Check which don't require anything except event
 type Validator struct {
 	config *lachesis.DagConfig
 }
 
+// New validator which performs checks which don't require anything except event
 func New(config *lachesis.DagConfig) *Validator {
 	return &Validator{
 		config: config,

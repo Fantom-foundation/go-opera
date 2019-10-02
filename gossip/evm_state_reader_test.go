@@ -94,14 +94,14 @@ func TestGetBlock(t *testing.T) {
 		store:    store,
 		engineMu: new(sync.RWMutex),
 	}
-	evm_block := reader.GetDagBlock(block.Hash(), block.Index)
+	evmBlock := reader.GetDagBlock(block.Hash(), block.Index)
 
-	assertar.Equal(uint64(block.Index), evm_block.Number.Uint64())
-	assertar.Equal(common.Hash(block.Hash()), evm_block.Hash)
-	assertar.Equal(common.Hash(genesisHash), evm_block.ParentHash)
-	assertar.Equal(block.Time, evm_block.Time)
-	assertar.Equal(len(txs)-len(block.SkippedTxs), evm_block.Transactions.Len())
-	assertar.Equal(txs[1].Hash(), evm_block.Transactions[0].Hash())
-	assertar.Equal(txs[3].Hash(), evm_block.Transactions[1].Hash())
-	assertar.Equal(txs[5].Hash(), evm_block.Transactions[2].Hash())
+	assertar.Equal(uint64(block.Index), evmBlock.Number.Uint64())
+	assertar.Equal(common.Hash(block.Hash()), evmBlock.Hash)
+	assertar.Equal(common.Hash(genesisHash), evmBlock.ParentHash)
+	assertar.Equal(block.Time, evmBlock.Time)
+	assertar.Equal(len(txs)-len(block.SkippedTxs), evmBlock.Transactions.Len())
+	assertar.Equal(txs[1].Hash(), evmBlock.Transactions[0].Hash())
+	assertar.Equal(txs[3].Hash(), evmBlock.Transactions[1].Hash())
+	assertar.Equal(txs[5].Hash(), evmBlock.Transactions[2].Hash())
 }

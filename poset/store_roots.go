@@ -37,7 +37,7 @@ func (s *Store) IsRoot(f idx.Frame, from common.Address, id hash.Event) bool {
 const (
 	frameSize   = 4
 	addrSize    = 20
-	eventIdSize = 32
+	eventIDSize = 32
 )
 
 func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Address, root hash.Event) bool) {
@@ -45,7 +45,7 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Addres
 	defer it.Release()
 	for it.Next() {
 		key := it.Key()
-		if len(key) != frameSize+addrSize+eventIdSize {
+		if len(key) != frameSize+addrSize+eventIDSize {
 			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
 		}
 		actualF := idx.BytesToFrame(key[:frameSize])
@@ -71,7 +71,7 @@ func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.
 	defer it.Release()
 	for it.Next() {
 		key := it.Key()
-		if len(key) != frameSize+addrSize+eventIdSize {
+		if len(key) != frameSize+addrSize+eventIDSize {
 			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
 		}
 		actualF := idx.BytesToFrame(key[:frameSize])

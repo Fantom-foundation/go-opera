@@ -21,7 +21,7 @@ type Validator struct {
 	config *lachesis.DagConfig
 }
 
-// Performs checks, which require known the parents
+// New validator which performs checks, which require known the parents
 func New(config *lachesis.DagConfig) *Validator {
 	return &Validator{
 		config: config,

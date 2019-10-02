@@ -35,20 +35,20 @@ func (t *weightedShuffleTree) build(i int) pos.Stake {
 	if i >= len(t.weights) {
 		return 0
 	}
-	this_w := t.weights[i]
-	left_w := t.build(t.leftIndex(i))
-	right_w := t.build(t.rightIndex(i))
+	thisW := t.weights[i]
+	leftW := t.build(t.leftIndex(i))
+	rightW := t.build(t.rightIndex(i))
 
-	if this_w <= 0 {
+	if thisW <= 0 {
 		panic("all the weight must be positive")
 	}
 
 	t.nodes[i] = weightedShuffleNode{
-		thisWeight:  this_w,
-		leftWeight:  left_w,
-		rightWeight: right_w,
+		thisWeight:  thisW,
+		leftWeight:  leftW,
+		rightWeight: rightW,
 	}
-	return this_w + left_w + right_w
+	return thisW + leftW + rightW
 }
 
 func (t *weightedShuffleTree) rand64() uint64 {
@@ -84,7 +84,7 @@ func (t *weightedShuffleTree) retrieve(i int) int {
 	}
 }
 
-// Builds weighted random permutation
+// WeightedPermutation builds weighted random permutation
 // Returns first {size} entries of {weights} permutation.
 // Call with {size} == len(weights) to get the whole permutation.
 func WeightedPermutation(size int, weights []pos.Stake, seed common.Hash) []int {

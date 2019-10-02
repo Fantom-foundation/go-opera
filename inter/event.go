@@ -58,7 +58,7 @@ type Event struct {
 	size atomic.Value
 }
 
-// constructs empty event
+// NewEvent constructs empty event
 func NewEvent() *Event {
 	return &Event{
 		EventHeader: EventHeader{
@@ -123,7 +123,7 @@ func (e *Event) Sign(signer func([]byte) ([]byte, error)) error {
 	return nil
 }
 
-// Verify sign event by public key.
+// VerifySignature checks the signature against e.Creator.
 func (e *Event) VerifySignature() bool {
 	// NOTE: Keccak256 because of AccontManager
 	data := crypto.Keccak256(e.HashToSign().Bytes())
@@ -139,7 +139,7 @@ func (e *Event) VerifySignature() bool {
  * Event ID (hash):
  */
 
-// Hash calcs hash of event (not cached).
+// CalcHash calcs hash of event (not cached).
 func (e *EventHeaderData) CalcHash() hash.Event {
 	hasher := sha3.New256()
 	err := rlp.Encode(hasher, e)

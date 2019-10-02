@@ -39,7 +39,7 @@ func FakeGenesis(n int) Genesis {
 	}
 }
 
-// MainNet returns builtin genesis keys of mainnet.
+// MainGenesis returns builtin genesis keys of mainnet.
 func MainGenesis() Genesis {
 	return Genesis{
 		Time: genesisTestTime,

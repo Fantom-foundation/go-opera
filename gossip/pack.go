@@ -26,7 +26,7 @@ func (s *Service) packs_onNewEvent(e *inter.Event, epoch idx.Epoch) {
 	s.store.AddToPack(epoch, packIdx, e.Hash())
 
 	packInfo.Index = packIdx
-	packInfo.NumOfEvents += 1
+	packInfo.NumOfEvents++
 	packInfo.Size += uint32(e.Size())
 	if packInfo.NumOfEvents >= maxPackEventsNum || packInfo.Size >= maxPackSize {
 		// pin the s.store.GetHeads()

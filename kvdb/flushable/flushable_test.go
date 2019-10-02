@@ -120,7 +120,7 @@ func TestFlushable(t *testing.T) {
 		dict = append(dict, b)
 	}
 
-	for try := 0; try < tries; try += 1 {
+	for try := 0; try < tries; try++ {
 		// random pet/delete operations
 		putDeleteRandom := func() {
 			for j := 0; j < tablesNum; j++ {
