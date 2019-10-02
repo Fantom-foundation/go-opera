@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// The same as logger.Instance, but writes only once in a period
+// PeriodicLogger is the same as logger.Instance, but writes only once in a period
 type PeriodicLogger struct {
 	logger.Instance
 	prevLogTime time.Time

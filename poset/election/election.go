@@ -80,7 +80,7 @@ func New(
 	return el
 }
 
-// erase the current election state, prepare for new election frame
+// Reset erases the current election state, prepare for new election frame
 func (el *Election) Reset(validators pos.Validators, frameToDecide idx.Frame) {
 	el.validators = validators
 	el.frameToDecide = frameToDecide

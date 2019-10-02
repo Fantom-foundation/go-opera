@@ -408,7 +408,7 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 	return basic_check.MaxGasPowerUsed
 }
 
-// Track new events to find out am I properly synced or not
+// OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
 	if em.antiSelfFork.prevLocalEmittedID == e.Hash() {
 		// we've just emitted this event, so it wasn't emitted by another instance with the same address

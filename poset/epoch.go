@@ -33,7 +33,7 @@ func (p *Poset) GetEpoch() idx.Epoch {
 	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
 }
 
-// EpochValidators returns validators of current epoch.
+// GetValidators returns validators of current epoch.
 func (p *Poset) GetValidators() pos.Validators {
 	return p.Validators.Copy()
 }
