@@ -11,7 +11,7 @@ var (
 )
 
 func IsBan(err error) bool {
-	if err == epoch_check.ErrNotRecent ||
+	if err == epoch_check.ErrNotRelevant ||
 		err == ErrAlreadyConnectedEvent {
 		return false
 	}

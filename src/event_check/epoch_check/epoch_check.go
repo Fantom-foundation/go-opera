@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrNotRecent = errors.New("event is too old or too new")
+	ErrNotRelevant = errors.New("event is too old or too new")
 	ErrAuth      = errors.New("event creator isn't team member")
 )
 
@@ -35,7 +35,7 @@ func (v *Validator) Validate(e *inter.Event) error {
 	// check epoch first, because validators group is known only for the current epoch
 	members, epoch := v.reader.GetEpochMembers()
 	if e.Epoch != epoch {
-		return ErrNotRecent
+		return ErrNotRelevant
 	}
 	if _, ok := members[e.Creator]; !ok {
 		return ErrAuth
