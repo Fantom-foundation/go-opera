@@ -1,7 +1,6 @@
 package poset
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,6 +15,10 @@ import (
 
 var (
 	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
+)
+
+const (
+	enough = 1000000000
 )
 
 // ExtendedPoset extends Poset for tests.
@@ -37,13 +40,15 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 }
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
+func FakePoset(namespace string, nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
-	store := NewMemStore()
+	fs := newFakeFS(namespace)
+	store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
+
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Alloc: balances,
 		Time:  genesisTestTime,
@@ -71,14 +76,4 @@ func FakePoset(nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
 	})
 
 	return extended, store, input
-}
-
-func reorder(events inter.Events) inter.Events {
-	unordered := make(inter.Events, len(events))
-	for i, j := range rand.Perm(len(events)) {
-		unordered[j] = events[i]
-	}
-
-	reordered := unordered.ByParents()
-	return reordered
 }

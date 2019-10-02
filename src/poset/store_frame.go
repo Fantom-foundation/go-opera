@@ -15,6 +15,10 @@ func (s *Store) SetFrameInfo(e idx.Epoch, f idx.Frame, info *FrameInfo) {
 func (s *Store) GetFrameInfo(e idx.Epoch, f idx.Frame) *FrameInfo {
 	key := append(e.Bytes(), f.Bytes()...)
 
-	w, _ := s.get(s.table.FrameInfos, key, &FrameInfo{}).(*FrameInfo)
+	w, exists := s.get(s.table.FrameInfos, key, &FrameInfo{}).(*FrameInfo)
+	if !exists {
+		return nil
+	}
+
 	return w
 }

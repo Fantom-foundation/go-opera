@@ -2,6 +2,7 @@ package poset
 
 import (
 	"fmt"
+
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 	"github.com/Fantom-foundation/go-lachesis/src/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
@@ -53,6 +54,8 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
+	defer s.mainDb.Flush()
+
 	if exist := s.GetGenesis(); exist != nil {
 		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, stateHash) {
 			return nil
@@ -79,7 +82,6 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 	e.PrevEpoch.LastAtropos = genesisAtropos
 	e.PrevEpoch.Time = g.Time
 	e.PrevEpoch.LastHeaders = headersByCreator{}
-	cp.LastConsensusTime = e.PrevEpoch.Time
 	cp.LastAtropos = genesisAtropos
 
 	s.SetGenesis(e)

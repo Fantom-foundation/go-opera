@@ -30,8 +30,10 @@ func (s *Store) initTmpDbs() {
 	it := s.table.TmpDbs.NewIterator()
 	defer it.Release()
 	for it.Next() {
+		name := string(it.Key())
 		min := bigendian.BytesToInt64(it.Value())
-		s.tmpDbs.min[string(it.Key())] = min
+		s.tmpDbs.min[name] = min
+		s.tmpDbs.seq[name] = make(map[uint64]tmpDb)
 	}
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())

@@ -56,7 +56,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
-		p.Log.Error("Event prepare error", "err", err)
+		p.Log.Error("Event prepare error", "err", err, "event", e.String())
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
@@ -173,6 +173,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
 	var decided *election.ElectionRes
 	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
+		p.Log.Debug("root reprocessing", "root", root.String())
 		decided = p.processRoot(f, from, root)
 		return decided == nil
 	})
@@ -182,19 +183,27 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 // ProcessEvent takes event into processing.
 // Event order matter: parents first.
 // ProcessEvent is not safe for concurrent use.
-func (p *Poset) ProcessEvent(e *inter.Event) error {
-	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
-		return err
+func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
+	defer func() {
+		if err != nil {
+			return
+		}
+		err = p.store.Commit()
+	}()
+
+	err = epoch_check.New(&p.dag, p).Validate(e)
+	if err != nil {
+		return
 	}
 	p.Log.Debug("start event processing", "event", e.String())
 
-	err := p.checkAndSaveEvent(e)
+	err = p.checkAndSaveEvent(e)
 	if err != nil {
-		return err
+		return
 	}
 
 	p.handleElection(e)
-	return nil
+	return
 }
 
 // calcFrameIdx checks root-conditions for new event
@@ -205,43 +214,44 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		// special case for first events in an SF
 		frame = idx.Frame(1)
 		isRoot = true
-	} else {
-		// calc maxParentsFrame, i.e. max(parent's frame height)
-		maxParentsFrame := idx.Frame(0)
-		selfParentFrame := idx.Frame(0)
+		return
+	}
 
-		for _, parent := range e.Parents {
-			pFrame := p.GetEventHeader(p.EpochN, parent).Frame
-			if maxParentsFrame == 0 || pFrame > maxParentsFrame {
-				maxParentsFrame = pFrame
-			}
+	// calc maxParentsFrame, i.e. max(parent's frame height)
+	maxParentsFrame := idx.Frame(0)
+	selfParentFrame := idx.Frame(0)
 
-			if e.IsSelfParent(parent) {
-				selfParentFrame = pFrame
-			}
+	for _, parent := range e.Parents {
+		pFrame := p.GetEventHeader(p.EpochN, parent).Frame
+		if maxParentsFrame == 0 || pFrame > maxParentsFrame {
+			maxParentsFrame = pFrame
 		}
 
-		// counter of all the caused roots on maxParentsFrame
-		forklessCausedCounter := p.Members.NewCounter()
-		if !checkOnly || e.IsRoot {
-			// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
-			p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-				if p.vecClock.ForklessCause(e.Hash(), root) {
-					forklessCausedCounter.Count(from)
-				}
-				return !forklessCausedCounter.HasQuorum()
-			})
-		}
-		if forklessCausedCounter.HasQuorum() {
-			// if I cause enough roots, then I become a root too
-			frame = maxParentsFrame + 1
-			isRoot = true
-		} else {
-			// I cause enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
-			frame = maxParentsFrame
-			isRoot = maxParentsFrame > selfParentFrame
+		if e.IsSelfParent(parent) {
+			selfParentFrame = pFrame
 		}
 	}
 
-	return frame, isRoot
+	// counter of all the caused roots on maxParentsFrame
+	forklessCausedCounter := p.Members.NewCounter()
+	if !checkOnly || e.IsRoot {
+		// check s.seeing of prev roots only if called by creator, or if creator has marked that event is root
+		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
+			if p.vecClock.ForklessCause(e.Hash(), root) {
+				forklessCausedCounter.Count(from)
+			}
+			return !forklessCausedCounter.HasQuorum()
+		})
+	}
+	if forklessCausedCounter.HasQuorum() {
+		// if I cause enough roots, then I become a root too
+		frame = maxParentsFrame + 1
+		isRoot = true
+	} else {
+		// I cause enough roots maxParentsFrame-1, because some of my parents does. The question is - did my self-parent start the frame already?
+		frame = maxParentsFrame
+		isRoot = maxParentsFrame > selfParentFrame
+	}
+
+	return
 }

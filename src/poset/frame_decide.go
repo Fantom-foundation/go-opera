@@ -14,39 +14,41 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 	memberIdxs := p.Members.Idxs()
 	err := p.dfsSubgraph(atropos, func(header *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(header.Hash())
-		if decidedFrame == 0 {
-			// confirm all the walked events
-			p.store.SetEventConfirmedOn(header.Hash(), frame)
+		if decidedFrame != 0 {
+			return false
+		}
+		// mark all the walked events
+		p.store.SetEventConfirmedOn(header.Hash(), frame)
+		// but not all the events are included into a block
+		creatorHighest := atroposHighestBefore.Get(memberIdxs[header.Creator])
+		fromCheater := creatorHighest.IsForkDetected
+		freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxMemberEventsInBlock // will overflow on forks, it's fine
+		if !fromCheater && freshEvent {
+			blockEvents = append(blockEvents, header)
 
-			// not all the events are included into a block
-			creatorHighest := atroposHighestBefore.Get(memberIdxs[header.Creator])
-			fromCheater := creatorHighest.IsForkDetected
-			freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxMemberEventsInBlock // will overflow on forks, it's fine
-			if !fromCheater && freshEvent {
-				blockEvents = append(blockEvents, header)
-
-				if creatorHighest.Seq == header.Seq {
-					lastHeaders[header.Creator] = header
-				}
-			}
-			// sanity check
-			if !fromCheater && header.Seq > creatorHighest.Seq {
-				p.Log.Crit("DAG is inconsistent with vector clock", "event", header.Hash().String(), "seq", header.Seq, "highest", creatorHighest.Seq)
+			if creatorHighest.Seq == header.Seq {
+				lastHeaders[header.Creator] = header
 			}
 		}
-		return decidedFrame == 0
+		// sanity check
+		if !fromCheater && header.Seq > creatorHighest.Seq {
+			p.Log.Crit("DAG is inconsistent with vector clock", "event", header.Hash().String(), "seq", header.Seq, "highest", creatorHighest.Seq)
+		}
+		return true
 	})
 	if err != nil {
 		p.Log.Crit("Failed to walk subgraph", "err", err)
 	}
 
-	p.Log.Debug("confirmed events", "atropos", atropos.String(), "num", len(blockEvents))
+	p.Log.Debug("confirmed events by", "atropos", atropos.String(), "num", len(blockEvents))
 	return blockEvents, lastHeaders
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, epoch sealing.
 func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCreator {
+	p.Log.Debug("consensus: event is atropos", "event", atropos.String())
+
 	p.election.Reset(p.Members, frame+1)
 	p.LastDecidedFrame = frame
 
@@ -56,12 +58,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCre
 	if len(blockEvents) == 0 {
 		p.Log.Crit("Frame is decided with no events. It isn't possible.")
 	}
-	ordered := p.fareOrdering(frame, atropos, blockEvents)
+	ordered, frameInfo := p.fareOrdering(frame, atropos, blockEvents)
 
 	// block generation
 	p.checkpoint.LastBlockN += 1
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, p.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
+		block := inter.NewBlock(p.checkpoint.LastBlockN, frameInfo.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
 		p.checkpoint.StateHash, p.NextMembers = p.applyBlock(block, p.checkpoint.StateHash, p.NextMembers)
 	}
 	p.checkpoint.LastAtropos = atropos
@@ -88,7 +90,7 @@ func (p *Poset) tryToSealEpoch(atropos hash.Event, lastHeaders headersByCreator)
 
 func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	// new PrevEpoch state
-	p.PrevEpoch.Time = p.LastConsensusTime
+	p.PrevEpoch.Time = p.frameConsensusTime(p.LastDecidedFrame)
 	p.PrevEpoch.Epoch = p.EpochN
 	p.PrevEpoch.LastAtropos = atropos
 	p.PrevEpoch.StateHash = p.checkpoint.StateHash
@@ -98,20 +100,21 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.Members = p.NextMembers.Top()
 	p.NextMembers = p.Members.Copy()
 
-	// reset internal epoch DB
-	p.store.recreateEpochDb()
-
-	// reset election & vectorindex
-	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
-		return p.input.GetEventHeader(p.EpochN, id)
-	}) // this DB is pruned after .pruneTempDb()
-	p.election.Reset(p.Members, firstFrame)
-	p.LastDecidedFrame = 0
-
 	// move to new epoch
 	p.EpochN++
+	p.LastDecidedFrame = 0
 
 	// commit
 	p.store.SetEpoch(&p.epochState)
 	p.saveCheckpoint()
+
+	// reset internal epoch DB
+	p.store.RecreateEpochDb(p.EpochN)
+
+	// reset election & vectorindex to new epoch db
+	p.vecClock.Reset(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
+		return p.input.GetEventHeader(p.EpochN, id)
+	})
+	p.election.Reset(p.Members, firstFrame)
+
 }

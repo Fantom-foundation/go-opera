@@ -266,7 +266,7 @@ func testSpecialNamedRoots(t *testing.T, scheme string) {
 	// get nodes only
 	nodes, _, _ := inter.ASCIIschemeToDAG(scheme)
 	// init poset
-	p, _, input := FakePoset(nodes)
+	p, _, input := FakePoset(uniqNamespace(), nodes)
 
 	// process events
 	_, _, names := inter.ASCIIschemeForEach(scheme, inter.ForEachEvent{

@@ -18,7 +18,7 @@ func TestPosetTxn(t *testing.T) {
 
 	nodes := inter.GenNodes(5)
 
-	p, s, x := FakePoset(nodes)
+	p, s, x := FakePoset(uniqNamespace(), nodes)
 	assert.Equal(t,
 		pos.Stake(1), p.epochState.Members[nodes[0]],
 		"balance of %s", nodes[0].String())

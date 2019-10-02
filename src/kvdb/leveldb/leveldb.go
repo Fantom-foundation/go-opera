@@ -66,7 +66,7 @@ type Database struct {
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, close, drop func() error) (*Database, error) {
+func New(path string, cache int, handles int, namespace string, close, drop func() error) (*Database, error) {
 	// Ensure we have some minimal caching and file guarantees
 	if cache < minCache {
 		cache = minCache
@@ -74,25 +74,25 @@ func New(file string, cache int, handles int, namespace string, close, drop func
 	if handles < minHandles {
 		handles = minHandles
 	}
-	logger := log.New("database", file)
+	logger := log.New("database", path)
 	logger.Info("Allocated cache and file handles", "cache", common.StorageSize(cache*1024*1024), "handles", handles)
 
 	// Open the db and recover any potential corruptions
-	db, err := leveldb.OpenFile(file, &opt.Options{
+	db, err := leveldb.OpenFile(path, &opt.Options{
 		OpenFilesCacheCapacity: handles,
 		BlockCacheCapacity:     cache / 2 * opt.MiB,
 		WriteBuffer:            cache / 4 * opt.MiB, // Two of these are used internally
 		Filter:                 filter.NewBloomFilter(10),
 	})
 	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
-		db, err = leveldb.RecoverFile(file, nil)
+		db, err = leveldb.RecoverFile(path, nil)
 	}
 	if err != nil {
 		return nil, err
 	}
 	// Assemble the wrapper with all the registered metrics
 	ldb := &Database{
-		fn:       file,
+		fn:       path,
 		db:       db,
 		log:      logger,
 		quitChan: make(chan chan error),

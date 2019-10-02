@@ -64,7 +64,8 @@ func (vi *Index) Reset(members pos.Members, db kvdb.KeyValueStore, getEvent func
 func (vi *Index) Add(e *inter.EventHeaderData) {
 	// sanity check
 	if vi.GetHighestBeforeSeq(e.Hash()) != nil {
-		vi.Log.Crit("Event already exists", "event", e.Hash().String())
+		vi.Log.Warn("Event already exists", "event", e.Hash().String())
+		return
 	}
 	vecs := vi.fillEventVectors(e)
 	vi.SetHighestBefore(e.Hash(), vecs.beforeCause, vecs.beforeTime)

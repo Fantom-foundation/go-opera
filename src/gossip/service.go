@@ -168,7 +168,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(&s.config, s.AccountManager(), s.engine, s.engineMu, s.store, s.txpool, s.occurredTxs, func(emitted *inter.Event) {
+	onEmitted := func(emitted *inter.Event) {
 		// s.engineMu is locked here
 
 		err := s.engine.ProcessEvent(emitted)
@@ -180,8 +180,9 @@ func (s *Service) makeEmitter() *Emitter {
 		if err != nil {
 			s.Log.Crit("Failed to post self-event", "err", err.Error())
 		}
-	},
-	)
+	}
+
+	return NewEmitter(&s.config, s.AccountManager(), s.engine, s.engineMu, s.store, s.txpool, s.occurredTxs, onEmitted)
 }
 
 // Protocols returns protocols the service can communicate on.
