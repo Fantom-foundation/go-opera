@@ -109,6 +109,10 @@ func (s *Store) Close() {
 	if err != nil {
 		s.Log.Crit("Failed to close persistent db", "err", err)
 	}
+
+	if s.epochDb == nil {
+		return
+	}
 	err = s.epochDb.Close()
 	if err != nil {
 		s.Log.Crit("Failed to close epoch db", "err", err)
