@@ -49,7 +49,7 @@ func TestRestore(t *testing.T) {
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, epochLen*COUNT, COUNT, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, epochLen*2, COUNT, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[GENERATOR].SetEvent(e)
 				assertar.NoError(posets[GENERATOR].ProcessEvent(e))
@@ -103,7 +103,7 @@ func TestRestore(t *testing.T) {
 		}
 	}
 
-	if !assertar.Equal(len(posets[EXPECTED].blocks), epochLen*epochs) {
+	if !assertar.Equal(epochLen*epochs, len(posets[EXPECTED].blocks)) {
 		return
 	}
 	compareBlocks(assertar, posets[EXPECTED], posets[RESTORED])
@@ -137,9 +137,11 @@ func TestDbFailure(t *testing.T) {
 	posets[GENERATOR].store.
 		SetName("generator")
 
+	epochLen := int(posets[GENERATOR].dag.EpochLen)
+
 	// create events on etalon poset
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(posets[GENERATOR].dag.EpochLen)-1, COUNT, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, epochLen-1, COUNT, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 
@@ -176,6 +178,8 @@ func TestDbFailure(t *testing.T) {
 				return
 			}
 			ok = false
+
+			db.SetWriteCount(100)
 
 			log.Info("Restart poset after db failure")
 			prev := posets[RESTORED]

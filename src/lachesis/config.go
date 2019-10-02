@@ -104,7 +104,7 @@ func DefaultDagConfig() DagConfig {
 func FakeNetDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:             3,
-		EpochLen:               100,
+		EpochLen:               50,
 		MaxMemberEventsInBlock: 50,
 		GasPower:               FakeNetGasPowerConfig(),
 	}
