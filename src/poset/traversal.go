@@ -18,7 +18,7 @@ func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) error {
 
 		event := p.input.GetEventHeader(p.EpochN, walk)
 		if event == nil {
-			return errors.New("event wasn't found " + walk.String())
+			return errors.New("event not found " + walk.String())
 		}
 
 		// filter

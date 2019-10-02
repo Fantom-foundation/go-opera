@@ -302,7 +302,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	for i, p := range parents {
 		parent := em.world.Store.GetEventHeader(epoch, p)
 		if parent == nil {
-			em.Log.Crit("Emitter: head wasn't found", "event", p.String())
+			em.Log.Crit("Emitter: head not found", "event", p.String())
 		}
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == coinbase && i != 0 {

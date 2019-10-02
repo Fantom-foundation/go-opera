@@ -32,7 +32,7 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 		}
 		// sanity check
 		if !fromCheater && header.Seq > creatorHighest.Seq {
-			p.Log.Crit("DAG is inconsistent with vector clock", "event", header.Hash().String(), "seq", header.Seq, "highest", creatorHighest.Seq)
+			p.Log.Crit("DAG is inconsistent with vector clock", "event", header.String(), "seq", header.Seq, "highest", creatorHighest.Seq)
 		}
 		return true
 	})

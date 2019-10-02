@@ -26,7 +26,7 @@ func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, validato
 	for _, id := range block.Events {
 		e := s.store.GetEvent(id)
 		if e == nil {
-			s.Log.Crit("Event wasn't found", "event", id.String())
+			s.Log.Crit("Event not found", "event", id.String())
 		}
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)

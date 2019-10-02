@@ -91,7 +91,7 @@ func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 		scores = append(scores, score)
 	}
 
-	// take the head with best score
+	// take the option with best score
 	sort.Slice(scores, func(i, j int) bool {
 		a, b := scores[i], scores[j]
 		return a.score < b.score

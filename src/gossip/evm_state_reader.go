@@ -89,7 +89,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_
 		for _, id := range block.Events {
 			e := r.store.GetEvent(id)
 			if e == nil {
-				log.Crit("Event wasn't found", "event", id.String())
+				log.Crit("Event not found", "event", id.String())
 				continue
 			}
 

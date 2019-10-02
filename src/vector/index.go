@@ -103,7 +103,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	for i, p := range e.Parents {
 		parent := vi.getEvent(p)
 		if parent == nil {
-			vi.Log.Crit("Event %s wasn't found", "event", p.String())
+			vi.Log.Crit("Event not found", "event", p.String())
 		}
 		parentsCreators[i] = vi.validatorIdxs[parent.Creator]
 		parentsVecs[i] = allVecs{
@@ -112,7 +112,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 			//afterCause : vi.GetLowestAfterSeq(p), not needed
 		}
 		if parentsVecs[i].beforeCause == nil {
-			vi.Log.Crit("processed out of order, parent wasn't found", "parent", p.String())
+			vi.Log.Crit("Processed out of order, parent not found", "parent", p.String())
 		}
 	}
 

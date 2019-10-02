@@ -16,7 +16,7 @@ func (vi *Index) dfsSubgraph(head hash.Event, walk func(*inter.EventHeaderData) 
 
 		event := vi.getEvent(curr)
 		if event == nil {
-			return errors.New("event wasn't found " + curr.String())
+			return errors.New("event not found " + curr.String())
 		}
 
 		// filter

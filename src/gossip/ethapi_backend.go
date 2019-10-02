@@ -124,7 +124,7 @@ func (b *EthAPIBackend) GetFullEventId(shortEventId string) (hash.Event, error) 
 
 	options := b.svc.store.FindEventHashes(epoch, lamport, prefix)
 	if len(options) == 0 {
-		return hash.Event{}, errors.New("event wasn't found by short ID")
+		return hash.Event{}, errors.New("event not found by short ID")
 	}
 	if len(options) > 1 {
 		return hash.Event{}, errors.New("there're multiple events with the same short ID, please use full ID")

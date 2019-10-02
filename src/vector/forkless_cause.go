@@ -30,12 +30,12 @@ func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
 	// get events by hash
 	a := vi.GetHighestBeforeSeq(aID)
 	if a == nil {
-		vi.Log.Error("Event A wasn't found", "event", aID.String())
+		vi.Log.Error("Event A not found", "event", aID.String())
 		return false
 	}
 	b := vi.GetLowestAfterSeq(bID)
 	if b == nil {
-		vi.Log.Error("Event B wasn't found", "event", bID.String())
+		vi.Log.Error("Event B not found", "event", bID.String())
 		return false
 	}
 

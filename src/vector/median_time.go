@@ -20,7 +20,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	observed := vi.GetHighestBeforeSeq(id)
 	times := vi.GetHighestBeforeTime(id)
 	if observed == nil || times == nil {
-		vi.Log.Error("Event wasn't found", "event", id.String())
+		vi.Log.Error("Event not found", "event", id.String())
 
 		return 0
 	}
