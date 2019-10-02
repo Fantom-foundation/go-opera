@@ -42,7 +42,7 @@ func (el *Election) chooseAtropos() (*ElectionRes, error) {
 		}
 		if vote.yes {
 			finalRoots = append(finalRoots, sortedRoot{
-				root:  vote.causedRoot,
+				root:  vote.observedRoot,
 				stake: stake,
 			})
 		}

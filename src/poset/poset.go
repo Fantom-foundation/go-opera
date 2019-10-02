@@ -130,7 +130,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 			return
 		}
 
-		// if we’re here, then this root has caused that lowest not decided frame is decided now
+		// if we’re here, then this root has observed that lowest not decided frame is decided now
 		lastHeaders := p.onFrameDecided(decided.Frame, decided.Atropos)
 		if p.tryToSealEpoch(decided.Atropos, lastHeaders) {
 			return
@@ -172,7 +172,7 @@ func (p *Poset) processKnownRoots() *election.ElectionRes {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
 	var decided *election.ElectionRes
 	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
-		p.Log.Debug("root reprocessing", "root", root.String())
+		p.Log.Debug("Calculate root votes in new election", "root", root.String())
 		decided = p.processRoot(f, from, root)
 		return decided == nil
 	})
@@ -229,6 +229,28 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		if e.IsSelfParent(parent) {
 			selfParentFrame = pFrame
 		}
+	}
+
+	// counter of all the observed roots on maxParentsFrame
+	observedCounter := p.Members.NewCounter()
+	if !checkOnly || e.IsRoot {
+		// check "observing" prev roots only if called by creator, or if creator has marked that event is root
+		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
+			if p.vecClock.ForklessCause(e.Hash(), root) {
+				observedCounter.Count(from)
+			}
+			return !observedCounter.HasQuorum()
+		})
+	}
+	if observedCounter.HasQuorum() {
+		// if I observe enough roots, then I become a root too
+		frame = maxParentsFrame + 1
+		isRoot = true
+	} else {
+		// I observe enough roots at maxParentsFrame-1, because some of my parents does.
+		frame = maxParentsFrame
+		// Calculates: Did my self-parent start the frame already?
+		isRoot = maxParentsFrame > selfParentFrame
 	}
 
 	// counter of all the caused roots on maxParentsFrame

@@ -92,7 +92,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 		afterCause:  NewLowestAfterSeq(len(vi.memberIdxs)),
 	}
 
-	// caused by himself
+	// observed by himself
 	myVecs.afterCause.Set(meIdx, e.Seq)
 	myVecs.beforeCause.Set(meIdx, ForkSeq{Seq: e.Seq})
 	myVecs.beforeTime.Set(meIdx, e.ClaimedTime)
@@ -117,7 +117,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	}
 
 	for _, pVec := range parentsVecs {
-		// calculate HighestBefore vector. Detect forks for a case when parent causes a fork
+		// calculate HighestBefore vector. Detect forks for a case when parent observes a fork
 		for n := idx.Member(0); n < idx.Member(len(vi.memberIdxs)); n++ {
 			myForkSeq := myVecs.beforeCause.Get(n)
 			hisForkSeq := pVec.beforeCause.Get(n)
@@ -151,8 +151,8 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 			wCreatorIdx := vi.memberIdxs[w.Creator]
 
-			// 'walk' is first time caused by e.Creator
-			// Detect forks for a case when fork is caused only caused if we combine parents
+			// 'walk' is first time observed by e.Creator
+			// Detect forks for a case when fork is detected only if we combine parents
 			for i, pVec := range parentsVecs {
 				if pVec.beforeCause.Get(wCreatorIdx).Seq >= w.Seq && wLowestAfterSeq.Get(parentsCreators[i]) == 0 {
 					myVecs.beforeCause.Set(wCreatorIdx, ForkSeq{IsForkDetected: true, Seq: 0})

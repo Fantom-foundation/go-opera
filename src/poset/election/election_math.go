@@ -7,7 +7,7 @@ import (
 )
 
 // ProcessRoot calculates Atropos votes only for the new root.
-// If this root causes that the current election is decided, then @return decided Atropos
+// If this root observes that the current election is decided, then @return decided Atropos
 func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 	if len(el.decidedRoots) == len(el.members) {
 		// current election is already decided
@@ -25,15 +25,15 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 		vote := voteValue{}
 
 		if round == 1 {
-			// in initial round, vote "yes" if subject is forkless caused
-			causedRoot := el.forklessCauses(newRoot.Root, memberSubject, el.frameToDecide)
-			vote.yes = causedRoot != nil
+			// in initial round, vote "yes" if observe the subject
+			observedRoot := el.observe(newRoot.Root, memberSubject, el.frameToDecide)
+			vote.yes = observedRoot != nil
 			vote.decided = false
-			if causedRoot != nil {
-				vote.causedRoot = *causedRoot
+			if observedRoot != nil {
+				vote.observedRoot = *observedRoot
 			}
 		} else if round > 1 {
-			forklessCausedRoots := el.forklessCausedRoots(newRoot.Root, newRoot.Slot.Frame-1)
+			observedRoots := el.observedRoots(newRoot.Root, newRoot.Slot.Frame-1)
 
 			var (
 				yesVotes = el.members.NewCounter()
@@ -43,27 +43,27 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 
 			// calc number of "yes" and "no", weighted by member's stake
 			var subjectHash *hash.Event
-			for _, forklessCausedRoot := range forklessCausedRoots {
+			for _, observedRoot := range observedRoots {
 				vid := voteId{
 					forMember: memberSubject,
-					fromRoot:  forklessCausedRoot.Root,
+					fromRoot:  observedRoot.Root,
 				}
 
 				if vote, ok := el.votes[vid]; ok {
-					if vote.yes && subjectHash != nil && *subjectHash != vote.causedRoot {
-						return nil, fmt.Errorf("2 fork roots are forkless caused => more than 1/3n are Byzantine (%s != %s, election frame=%d, member=%s)",
-							subjectHash.String(), vote.causedRoot.String(), el.frameToDecide, memberSubject.String())
+					if vote.yes && subjectHash != nil && *subjectHash != vote.observedRoot {
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s != %s, election frame=%d, member=%s)",
+							subjectHash.String(), vote.observedRoot.String(), el.frameToDecide, memberSubject.String())
 					}
 
 					if vote.yes {
-						subjectHash = &vote.causedRoot
-						yesVotes.Count(forklessCausedRoot.Slot.Addr)
+						subjectHash = &vote.observedRoot
+						yesVotes.Count(observedRoot.Slot.Addr)
 					} else {
-						noVotes.Count(forklessCausedRoot.Slot.Addr)
+						noVotes.Count(observedRoot.Slot.Addr)
 					}
-					if !allVotes.Count(forklessCausedRoot.Slot.Addr) {
+					if !allVotes.Count(observedRoot.Slot.Addr) {
 						// it shouldn't be possible to get here, because we've taken 1 root from every node above
-						return nil, fmt.Errorf("2 fork roots are forkless caused => more than 1/3n are Byzantine (%s, election frame=%d, member=%s)",
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s, election frame=%d, member=%s)",
 							subjectHash.String(), el.frameToDecide, memberSubject.String())
 					}
 				} else {
@@ -73,7 +73,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 			}
 			// sanity checks
 			if !allVotes.HasQuorum() {
-				el.Log.Crit("Root must cause at least 2/3n of prev roots. Possibly roots are processed out of order",
+				el.Log.Crit("Root must be forkless caused by at least 2/3n of prev roots. Possibly roots are processed out of order",
 					"root", newRoot.Root.String(),
 					"voites", allVotes.Sum())
 			}
@@ -81,10 +81,10 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*ElectionRes, error) {
 			// vote as majority of votes
 			vote.yes = yesVotes.Sum() >= noVotes.Sum()
 			if vote.yes && subjectHash != nil {
-				vote.causedRoot = *subjectHash
+				vote.observedRoot = *subjectHash
 			}
 
-			// If supermajority is caused, then the final decision may be made.
+			// If supermajority is observed, then the final decision may be made.
 			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
 			vote.decided = yesVotes.HasQuorum() || noVotes.HasQuorum()
 			if vote.decided {

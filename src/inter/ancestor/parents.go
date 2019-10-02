@@ -67,23 +67,23 @@ func (st *CasualityStrategy) Init(selfParent *hash.Event) {
 func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 	scores := make([]eventScore, 0, 100)
 
-	// estimate score of each option as number of members it causes higher than provided template
+	// estimate score of each option as number of members it observes higher than provided template
 	for _, id := range options {
 		score := eventScore{}
 		score.event = id
 		score.vec = st.vecClock.GetHighestBeforeSeq(id)
 		if st.template == nil {
-			st.template = vector.NewHighestBeforeSeq(int(score.vec.MembersNum())) // nothing causes
+			st.template = vector.NewHighestBeforeSeq(int(score.vec.MembersNum())) // nothing observes
 		}
 		for n := idx.Member(0); n < score.vec.MembersNum(); n++ {
 			my := st.template.Get(n)
 			his := score.vec.Get(n)
 
-			// causes higher
+			// observes higher
 			if his.Seq > my.Seq && !my.IsForkDetected {
 				score.score += 1
 			}
-			// causes a fork
+			// observes a fork
 			if his.IsForkDetected && !my.IsForkDetected {
 				score.score += 1
 			}

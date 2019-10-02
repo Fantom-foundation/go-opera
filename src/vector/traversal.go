@@ -7,7 +7,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/src/inter"
 )
 
-// dfsSubgraph returns all the event which are seen by head, and accepted by a filter
+// dfsSubgraph returns all the event which are observed by head, and accepted by a filter
 func (vi *Index) dfsSubgraph(head hash.Event, walk func(*inter.EventHeaderData) (godeeper bool)) error {
 	stack := make(hash.EventsStack, 0, len(vi.members))
 

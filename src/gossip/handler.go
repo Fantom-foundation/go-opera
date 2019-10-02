@@ -198,12 +198,8 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 		Check: parentsCheck.Validate,
 	})
 
-	pushEvent := func(e *inter.Event, peer string) {
-		buffer.PushEvent(e, peer)
-	}
-
 	fetcher_ := fetcher.New(fetcher.Callback{
-		PushEvent:      pushEvent,
+		PushEvent:      buffer.PushEvent,
 		OnlyInterested: pm.onlyInterestedEvents,
 		DropPeer:       pm.removePeer,
 		FirstCheck:     firstCheck,

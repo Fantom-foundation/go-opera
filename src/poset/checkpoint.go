@@ -49,7 +49,7 @@ func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 	p.vecClock = vector.NewIndex(p.Members, p.store.epochTable.VectorIndex, func(id hash.Event) *inter.EventHeaderData {
 		return p.input.GetEventHeader(p.EpochN, id)
 	})
-	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootForklessCausesRoot)
+	p.election = election.New(p.Members, p.LastDecidedFrame+1, p.rootObservesRoot)
 
 	// events reprocessing
 	p.handleElection(nil)

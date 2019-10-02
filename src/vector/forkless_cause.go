@@ -17,8 +17,11 @@ type kv struct {
 // than or equal to the corresponding element of the B.LowestAfter
 // array. If there are more than 2n/3 such matches, then the A and B
 // have achieved sufficient coherency.
-// If B1 and B2 are forks, then they cannot both archive sufficient
-// coherency with any events, unless more than 1/3n are Byzantine.
+//
+// If B1 and B2 are forks, then they cannot BOTH forkless-cause any specific event A,
+// unless more than 1/3n are Byzantine.
+// This great property is the reason why this function exists,
+// providing the base for the BFT algorithm.
 func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
 	if res, ok := vi.forklessCauseCache.Get(kv{aID, bID}); ok {
 		return res.(bool)

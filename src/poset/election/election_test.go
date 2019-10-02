@@ -217,11 +217,11 @@ func testProcessRoot(
 				noPrev = true
 			}
 			from := root.Hash()
-			for _, forklessCaused := range root.Parents {
-				if root.IsSelfParent(forklessCaused) && noPrev {
+			for _, observed := range root.Parents {
+				if root.IsSelfParent(observed) && noPrev {
 					continue
 				}
-				to := forklessCaused
+				to := observed
 				edge := fakeEdge{
 					from: from,
 					to:   vertices[to],

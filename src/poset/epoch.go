@@ -43,10 +43,10 @@ func (p *Poset) GetEpochMembers() (pos.Members, idx.Epoch) {
 	return p.GetMembers(), p.GetEpoch() // TODO atomic
 }
 
-// rootForklessCausesRoot returns hash of root B, if root A forkless causes root B.
+// rootObservesRoot returns hash of root B, if root B forkless causes root A.
 // Due to a fork, there may be many roots B with the same slot,
-// but forkless caused may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
-func (p *Poset) rootForklessCausesRoot(a hash.Event, bCreator common.Address, bFrame idx.Frame) *hash.Event {
+// but A may be forkless caused only by one of them (if no more than 1/3n are Byzantine), with a specific hash.
+func (p *Poset) rootObservesRoot(a hash.Event, bCreator common.Address, bFrame idx.Frame) *hash.Event {
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bCreator, func(f idx.Frame, from common.Address, b hash.Event) bool {
 		if f != bFrame || from != bCreator {

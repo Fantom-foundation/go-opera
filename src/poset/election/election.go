@@ -18,21 +18,21 @@ type (
 		// election params
 		frameToDecide idx.Frame
 
-		members    pos.Members
+		members pos.Members
 
 		// election state
 		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"
 		votes        map[voteId]voteValue
 
 		// external world
-		forklessCauses RootForklessCausesRootFn
+		observe RootForklessCausesRootFn
 
 		logger.Instance
 	}
 
-	// RootForklessCausesRootFn returns hash of root B, if root A forkless causes root B.
+	// RootForklessCausesRootFn returns hash of root B, if root B forkless causes root A.
 	// Due to a fork, there may be many roots B with the same slot,
-	// but forkless caused may be only one of them (if no more than 1/3n are Byzantine), with a specific hash.
+	// but A may be forkless caused only by one of them (if no more than 1/3n are Byzantine), with a specific hash.
 	RootForklessCausesRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
 
 	// Slot specifies a root slot {addr, frame}. Normal members can have only one root with this pair.
@@ -54,9 +54,9 @@ type voteId struct {
 	forMember common.Address
 }
 type voteValue struct {
-	decided    bool
-	yes        bool
-	causedRoot hash.Event
+	decided      bool
+	yes          bool
+	observedRoot hash.Event
 }
 
 type ElectionRes struct {
@@ -70,7 +70,7 @@ func New(
 	forklessCausesFn RootForklessCausesRootFn,
 ) *Election {
 	el := &Election{
-		forklessCauses: forklessCausesFn,
+		observe: forklessCausesFn,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -103,21 +103,21 @@ func (el *Election) notDecidedRoots() []common.Address {
 	return notDecidedRoots
 }
 
-// forklessCausedRoots returns all the roots which are forkless caused by the specified root at the specified frame.
-func (el *Election) forklessCausedRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
-	causedRoots := make([]RootAndSlot, 0, len(el.members))
+// observedRoots returns all the roots at the specified frame which do forkless cause the specified root.
+func (el *Election) observedRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
+	observedRoots := make([]RootAndSlot, 0, len(el.members))
 	for member := range el.members {
 		slot := Slot{
 			Frame: frame,
 			Addr:  member,
 		}
-		causedRoot := el.forklessCauses(root, member, frame)
-		if causedRoot != nil {
-			causedRoots = append(causedRoots, RootAndSlot{
-				Root: *causedRoot,
+		observedRoot := el.observe(root, member, frame)
+		if observedRoot != nil {
+			observedRoots = append(observedRoots, RootAndSlot{
+				Root: *observedRoot,
 				Slot: slot,
 			})
 		}
 	}
-	return causedRoots
+	return observedRoots
 }
