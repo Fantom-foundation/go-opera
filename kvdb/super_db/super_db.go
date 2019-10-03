@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
@@ -29,6 +29,8 @@ type SuperDb struct {
 	prevFlushTime time.Time
 
 	datadir string
+
+	mutex sync.Mutex
 }
 
 func New(datadir string) *SuperDb {
@@ -84,10 +86,23 @@ func (sdb *SuperDb) registerNew(name, path string) kvdb.KeyValueStore {
 }
 
 func (sdb *SuperDb) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
-	return sdb.GetDb(fmt.Sprintf("%s-%d", prefix, index))
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
+	return sdb.getDb(fmt.Sprintf("%s-%d", prefix, index))
 }
 
 func (sdb *SuperDb) GetDb(name string) kvdb.KeyValueStore {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
+	return sdb.getDb(name)
+}
+
+func (sdb *SuperDb) getDb(name string) kvdb.KeyValueStore {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
 	if wrapper := sdb.wrappers[name]; wrapper != nil {
 		return wrapper
 	}
@@ -95,6 +110,9 @@ func (sdb *SuperDb) GetDb(name string) kvdb.KeyValueStore {
 }
 
 func (sdb *SuperDb) GetLastDb(prefix string) kvdb.KeyValueStore {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
 	options := make(map[string]int64)
 	for name := range sdb.wrappers {
 		if strings.HasPrefix(name, prefix) {
@@ -122,10 +140,13 @@ func (sdb *SuperDb) GetLastDb(prefix string) kvdb.KeyValueStore {
 		}
 	}
 
-	return sdb.GetDb(maxIndexName)
+	return sdb.getDb(maxIndexName)
 }
 
 func (sdb *SuperDb) DropDb(name string) {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
 	if db := sdb.bareDbs[name]; db == nil {
 		// this DB wasn't flushed, just erase it from RAM then, and that's it
 		sdb.erase(name)
@@ -141,7 +162,14 @@ func (sdb *SuperDb) erase(name string) {
 	delete(sdb.queuedDrops, name)
 }
 
-func (sdb *SuperDb) Flush(id hash.Event) error {
+func (sdb *SuperDb) Flush(id []byte) error {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
+	return sdb.flush(id)
+}
+
+func (sdb *SuperDb) flush(id []byte) error {
 	key := []byte("flag")
 
 	// drop old DBs
@@ -181,7 +209,7 @@ func (sdb *SuperDb) Flush(id hash.Event) error {
 		marker.Write([]byte("dirty"))
 		marker.Write(prev)
 		marker.Write([]byte("->"))
-		marker.Write(id.Bytes())
+		marker.Write(id)
 		err = db.Put(key, marker.Bytes())
 		if err != nil {
 			return err
@@ -195,7 +223,7 @@ func (sdb *SuperDb) Flush(id hash.Event) error {
 
 	// write clean flags
 	for _, wrapper := range sdb.wrappers {
-		err := wrapper.Put(key, id.Bytes())
+		err := wrapper.Put(key, id)
 		if err != nil {
 			return err
 		}
@@ -206,7 +234,10 @@ func (sdb *SuperDb) Flush(id hash.Event) error {
 	return nil
 }
 
-func (sdb *SuperDb) FlushIfNeeded(id hash.Event) bool {
+func (sdb *SuperDb) FlushIfNeeded(id []byte) bool {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
 	if time.Since(sdb.prevFlushTime) > 10*time.Minute {
 		sdb.Flush(id)
 		return true
@@ -226,8 +257,11 @@ func (sdb *SuperDb) FlushIfNeeded(id hash.Event) bool {
 
 // call on startup, after all dbs are registered
 func (sdb *SuperDb) CheckDbsSynced() error {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
 	key := []byte("flag")
-	var prevId *hash.Event
+	var prevId *[]byte
 	for _, db := range sdb.bareDbs {
 		mark, err := db.Get(key)
 		if err != nil {
@@ -236,12 +270,23 @@ func (sdb *SuperDb) CheckDbsSynced() error {
 		if bytes.HasPrefix(mark, []byte("dirty")) {
 			return errors.New("dirty")
 		}
-		eventId := hash.BytesToEvent(mark)
 		if prevId == nil {
-			prevId = &eventId
+			prevId = &mark
 		}
-		if eventId != *prevId {
+		if bytes.Compare(mark, *prevId) != 0 {
 			return errors.New("not synced")
+		}
+	}
+	return nil
+}
+
+func (sdb *SuperDb) CloseAll() error {
+	sdb.mutex.Lock()
+	defer sdb.mutex.Unlock()
+
+	for _, db := range sdb.bareDbs {
+		if err := db.Close(); err != nil {
+			return err
 		}
 	}
 	return nil
