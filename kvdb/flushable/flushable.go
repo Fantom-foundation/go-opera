@@ -26,6 +26,8 @@ type Flushable struct {
 	sizeEstimation *int
 
 	lock *sync.Mutex // we have no guarantees that rbt.Tree works with concurrent reads, so we can't use MutexRW
+
+	dropper func()
 }
 
 // New Flushable wraps underlying DB. All the writes into the cache won't be written in parent until .Flush() is called.
@@ -36,6 +38,10 @@ func New(parent kvdb.KeyValueStore) *Flushable {
 		lock:           new(sync.Mutex),
 		sizeEstimation: new(int),
 	}
+}
+
+func (w *Flushable) SetDropper(dropper func()) {
+	w.dropper = dropper
 }
 
 // UnderlyingDB of Flushable.
@@ -132,7 +138,9 @@ func (w *Flushable) Close() error {
 
 // Drop whole database.
 func (w *Flushable) Drop() {
-	if droper, ok := w.underlying.(kvdb.Droper); ok {
+	if w.dropper != nil {
+		w.dropper()
+	} else if droper, ok := w.underlying.(kvdb.Droper); ok {
 		droper.Drop()
 	}
 	w.underlying = nil
