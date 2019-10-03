@@ -50,6 +50,7 @@ func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, ma
 	return
 }
 
+// CalcGasPower calculates available gas power for the event, i.e. how many gas its content may consume
 func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
 	gasPowerPerH, maxStashed, startup := p.calcValidatorGasPowerPerH(e.Creator)
 

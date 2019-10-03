@@ -11,6 +11,7 @@ type PeriodicLogger struct {
 	prevLogTime time.Time
 }
 
+// Info is timed log.Info
 func (l *PeriodicLogger) Info(period time.Duration, msg string, ctx ...interface{}) {
 	if time.Since(l.prevLogTime) > period {
 		l.Log.Info(msg, ctx...)
@@ -18,6 +19,7 @@ func (l *PeriodicLogger) Info(period time.Duration, msg string, ctx ...interface
 	}
 }
 
+// Warn is timed log.Warn
 func (l *PeriodicLogger) Warn(period time.Duration, msg string, ctx ...interface{}) {
 	if time.Since(l.prevLogTime) > period {
 		l.Log.Warn(msg, ctx...)
@@ -25,6 +27,7 @@ func (l *PeriodicLogger) Warn(period time.Duration, msg string, ctx ...interface
 	}
 }
 
+// Error is timed log.Error
 func (l *PeriodicLogger) Error(period time.Duration, msg string, ctx ...interface{}) {
 	if time.Since(l.prevLogTime) > period {
 		l.Log.Error(msg, ctx...)

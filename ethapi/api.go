@@ -80,6 +80,7 @@ func (s *PublicEthereumAPI) ProtocolVersion() hexutil.Uint {
 	return hexutil.Uint(s.b.ProtocolVersion())
 }
 
+// Syncing returns true if node is syncing
 func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	return false, nil
 }
@@ -205,7 +206,7 @@ func NewPrivateAccountAPI(b Backend, nonceLock *AddrLocker) *PrivateAccountAPI {
 	}
 }
 
-// listAccounts will return a list of addresses for accounts this node manages.
+// ListAccounts will return a list of addresses for accounts this node manages.
 func (s *PrivateAccountAPI) ListAccounts() []common.Address {
 	addresses := make([]common.Address, 0) // return [] instead of nil if empty
 	for _, wallet := range s.am.Wallets() {
@@ -537,7 +538,7 @@ func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Add
 	return (*hexutil.Big)(state.GetBalance(address)), state.Error()
 }
 
-// Result structs for GetProof
+// AccountResult is result struct for GetProof
 type AccountResult struct {
 	Address      common.Address  `json:"address"`
 	AccountProof []string        `json:"accountProof"`
@@ -547,6 +548,8 @@ type AccountResult struct {
 	StorageHash  common.Hash     `json:"storageHash"`
 	StorageProof []StorageResult `json:"storageProof"`
 }
+
+// StorageResult is result struct for GetProof
 type StorageResult struct {
 	Key   string       `json:"key"`
 	Value *hexutil.Big `json:"value"`
@@ -955,7 +958,7 @@ func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{}
 	}
 }
 
-// RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
+// RPCMarshalEvent converts the given event to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
 func RPCMarshalEvent(event *inter.Event, inclTx bool, fullTx bool) (map[string]interface{}, error) {
@@ -1668,6 +1671,7 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
 }
 
+// GetEventHeader returns the Lachesis event header by hash or short ID.
 func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventID string) (map[string]interface{}, error) {
 	header, err := api.b.GetEventHeader(ctx, shortEventID)
 	if err != nil {
@@ -1679,6 +1683,7 @@ func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventID stri
 	return RPCMarshalEventHeader(header), nil
 }
 
+// GetEvent returns the Lachesis event by hash or short ID.
 func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventID string, inclTx bool) (map[string]interface{}, error) {
 	event, err := api.b.GetEvent(ctx, shortEventID)
 	if err != nil {
@@ -1690,6 +1695,7 @@ func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventID string, in
 	return RPCMarshalEvent(event, inclTx, false)
 }
 
+// GetConsensusTime returns event's consensus time, if event is confirmed.
 func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
 	return api.b.GetConsensusTime(ctx, shortEventID)
 }
@@ -1706,6 +1712,7 @@ func eventIDsToHex(ids hash.Events) []hexutil.Bytes {
 	return res
 }
 
+// GetHeads returns IDs of all the events with no descendants in current epoch.
 func (api *PublicDebugAPI) GetHeads(ctx context.Context) ([]hexutil.Bytes, error) {
 	return eventIDsToHex(api.b.GetHeads(ctx)), nil
 }

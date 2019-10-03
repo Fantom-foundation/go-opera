@@ -13,7 +13,7 @@ import (
 //const coinRound = 10 // every 10th round is a round with pseudorandom votes
 
 type (
-	// Election cached data of election algorithm.
+	// Election is cached data of election algorithm.
 	Election struct {
 		// election params
 		frameToDecide idx.Frame
@@ -50,7 +50,7 @@ type (
 )
 
 type voteID struct {
-	fromRoot  hash.Event
+	fromRoot     hash.Event
 	forValidator common.Address
 }
 type voteValue struct {
@@ -59,11 +59,13 @@ type voteValue struct {
 	observedRoot hash.Event
 }
 
-type ElectionRes struct {
+// Res defines the final election result, i.e. decided frame
+type Res struct {
 	Frame   idx.Frame
 	Atropos hash.Event
 }
 
+// New election context
 func New(
 	validators pos.Validators,
 	frameToDecide idx.Frame,

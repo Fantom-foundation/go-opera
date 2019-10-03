@@ -32,7 +32,7 @@ func (s sortedRoots) Less(i, j int) bool {
 // Chooses the decided "yes" roots with the greatest stake amount.
 // This root serves as a "checkpoint" within DAG, as it's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
 // Other validators will come to the same Atropos not later than current highest frame + 2.
-func (el *Election) chooseAtropos() (*ElectionRes, error) {
+func (el *Election) chooseAtropos() (*Res, error) {
 	finalRoots := make(sortedRoots, 0, len(el.validators))
 	// fill yesRoots
 	for validator, stake := range el.validators {
@@ -55,7 +55,7 @@ func (el *Election) chooseAtropos() (*ElectionRes, error) {
 	sort.Sort(finalRoots)
 
 	// take root with greatest stake
-	return &ElectionRes{
+	return &Res{
 		Frame:   el.frameToDecide,
 		Atropos: finalRoots[0].root,
 	}, nil

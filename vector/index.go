@@ -67,9 +67,7 @@ func (vi *Index) Add(e *inter.EventHeaderData) {
 		vi.Log.Warn("Event already exists", "event", e.Hash().String())
 		return
 	}
-	vecs := vi.fillEventVectors(e)
-	vi.SetHighestBefore(e.Hash(), vecs.beforeCause, vecs.beforeTime)
-	vi.SetLowestAfter(e.Hash(), vecs.afterCause)
+	_ = vi.fillEventVectors(e)
 }
 
 // Flush writes vector clocks to persistent store.
@@ -84,6 +82,7 @@ func (vi *Index) DropNotFlushed() {
 	vi.vecDb.DropNotFlushed()
 }
 
+// fillEventVectors calculates (and stores) event's vectors, and updates LowestAfter of newly-observed events.
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	meIdx := vi.validatorIdxs[e.Creator]
 	myVecs := allVecs{
@@ -159,7 +158,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 				}
 			}
 
-			// calculate LowestAfter vector
+			// update LowestAfter vector of the newly-observed event
 			wLowestAfterSeq.Set(meIdx, e.Seq)
 			vi.SetLowestAfter(w.Hash(), wLowestAfterSeq)
 
@@ -168,9 +167,13 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 		err := vi.dfsSubgraph(headP, walk)
 		if err != nil {
-			vi.Log.Crit("Error during dfxSubgraph", "err", err)
+			vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
 		}
 	}
+
+	// store calculated vectors
+	vi.SetHighestBefore(e.Hash(), myVecs.beforeCause, myVecs.beforeTime)
+	vi.SetLowestAfter(e.Hash(), myVecs.afterCause)
 
 	return myVecs
 }

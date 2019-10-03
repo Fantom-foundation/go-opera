@@ -37,7 +37,7 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 		return true
 	})
 	if err != nil {
-		p.Log.Crit("Failed to walk subgraph", "err", err)
+		p.Log.Crit("Poset: Failed to walk subgraph", "err", err)
 	}
 
 	p.Log.Debug("Confirmed events by", "atropos", atropos.String(), "num", len(blockEvents))

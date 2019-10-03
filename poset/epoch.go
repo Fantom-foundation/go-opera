@@ -62,7 +62,7 @@ func (p *Poset) rootObservesRoot(a hash.Event, bCreator common.Address, bFrame i
 	return bHash
 }
 
-// GetGenesisHash is a genesis getter.
+// GetGenesisHash returns PrevEpochHash of first epoch.
 func (p *Poset) GetGenesisHash() common.Hash {
 	epoch := p.store.GetGenesis()
 	if epoch == nil {

@@ -16,6 +16,9 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
+// EventHeaderData is the graph vertex in the Lachesis consensus algorithm
+// Doesn't contain transactions, only their hash
+// Doesn't contain event signature
 type EventHeaderData struct {
 	Version uint32
 
@@ -45,12 +48,15 @@ type EventHeaderData struct {
 	hash atomic.Value
 }
 
+// EventHeader is the graph vertex in the Lachesis consensus algorithm
+// Doesn't contain transactions, only their hash
 type EventHeader struct {
 	EventHeaderData
 
 	Sig []byte
 }
 
+// Event is the graph vertex in the Lachesis consensus algorithm
 type Event struct {
 	EventHeader
 	Transactions types.Transactions
@@ -80,6 +86,7 @@ func (e *EventHeaderData) String() string {
 	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
 }
 
+// DataToSign returns data which must be signed to sign the event
 func (e *EventHeaderData) DataToSign() []byte {
 	buf := bytes.NewBuffer([]byte{})
 	buf.Write([]byte("Lachesis: I'm signing the Event"))
@@ -87,6 +94,7 @@ func (e *EventHeaderData) DataToSign() []byte {
 	return buf.Bytes()
 }
 
+// SelfParent returns event's self-parent, if any
 func (e *EventHeaderData) SelfParent() *hash.Event {
 	if e.Seq <= 1 || len(e.Parents) == 0 {
 		return nil
@@ -94,6 +102,7 @@ func (e *EventHeaderData) SelfParent() *hash.Event {
 	return &e.Parents[0]
 }
 
+// IsSelfParent is true if specified ID is event's self-parent
 func (e *EventHeaderData) IsSelfParent(hash hash.Event) bool {
 	if e.SelfParent() == nil {
 		return false
@@ -139,7 +148,7 @@ func (e *Event) VerifySignature() bool {
  * Event ID (hash):
  */
 
-// CalcHash calcs hash of event (not cached).
+// RecacheSize re-calculates event's ID
 func (e *EventHeaderData) CalcHash() hash.Event {
 	hasher := sha3.NewLegacyKeccak256()
 	err := rlp.Encode(hasher, e)
@@ -153,13 +162,14 @@ func (e *EventHeaderData) CalcHash() hash.Event {
 	return id
 }
 
+// RecacheHash re-calculates event's ID and caches it
 func (e *EventHeaderData) RecacheHash() hash.Event {
 	id := e.CalcHash()
 	e.hash.Store(id)
 	return id
 }
 
-// Hash calcs hash of event (cached).
+// Hash returns cached event ID
 func (e *EventHeaderData) Hash() hash.Event {
 	if cached := e.hash.Load(); cached != nil {
 		return cached.(hash.Event)
@@ -173,23 +183,27 @@ func (e *EventHeaderData) Hash() hash.Event {
 
 type writeCounter int
 
+// Write only counts "written" bytes
 func (c *writeCounter) Write(b []byte) (int, error) {
 	*c += writeCounter(len(b))
 	return len(b), nil
 }
 
+// RecacheSize re-calculates event's size
 func (e *Event) CalcSize() int {
 	c := writeCounter(0)
 	_ = rlp.Encode(&c, e)
 	return int(c)
 }
 
+// RecacheSize re-calculates event's size and caches it
 func (e *Event) RecacheSize() int {
 	size := e.CalcSize()
 	e.size.Store(size)
 	return size
 }
 
+// Size returns cached event size
 func (e *Event) Size() int {
 	if cached := e.size.Load(); cached != nil {
 		return cached.(int)

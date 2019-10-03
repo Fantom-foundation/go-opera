@@ -41,6 +41,7 @@ var (
 		Usage: "TOML configuration file",
 	}
 
+	// GpoDefaultFlag defines a starting gas price for the oracle (GPO)
 	GpoDefaultFlag = utils.BigFlag{
 		Name:  "gpofloor",
 		Usage: "The default suggested gas price",

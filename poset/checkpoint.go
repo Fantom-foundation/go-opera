@@ -30,7 +30,7 @@ func (p *Poset) saveCheckpoint() {
 	p.store.SetCheckpoint(p.checkpoint)
 }
 
-// Bootstrap restores checkpoint from store.
+// Bootstrap restores poset's state from store.
 func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
 	if p.checkpoint != nil {
 		return

@@ -31,6 +31,7 @@ func GenNodes(
 
 // ForEachRandFork generates random events with forks for test purpose.
 // Result:
+//   - callbacks are called for each new event;
 //   - events maps node address to array of its events;
 func ForEachRandFork(
 	nodes []common.Address,
@@ -139,6 +140,7 @@ func ForEachRandFork(
 
 // ForEachRandEvent generates random events for test purpose.
 // Result:
+//   - callbacks are called for each new event;
 //   - events maps node address to array of its events;
 func ForEachRandEvent(
 	nodes []common.Address,
@@ -152,6 +154,9 @@ func ForEachRandEvent(
 	return ForEachRandFork(nodes, []common.Address{}, eventCount, parentCount, 0, r, callback)
 }
 
+// GenRandEvents generates random events for test purpose.
+// Result:
+//   - events maps node address to array of its events;
 func GenRandEvents(
 	nodes []common.Address,
 	eventCount int,

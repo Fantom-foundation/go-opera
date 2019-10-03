@@ -93,8 +93,9 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	return stateDb, header, nil
 }
 
+// decodeShortEventID decodes ShortID
+// example of a ShortID: "5:26:a2395846", where 5 is epoch, 26 is lamport, a2395846 are first bytes of the hash
 // s is a string splitted by ":" separator
-// example of a short ID: "5:26:a2395846", where 5 is epoch, 26 is lamport, a2395846 are first bytes of the hash
 func decodeShortEventID(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
 	if len(s) != 3 {
 		return 0, 0, nil, errors.New("incorrect format of short event ID (need Epoch:Lamport:Hash")
@@ -110,6 +111,7 @@ func decodeShortEventID(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
 	return idx.Epoch(epoch), idx.Lamport(lamport), common.FromHex(s[2]), nil
 }
 
+// GetFullEventID "converts" ShortID to full event's hash, by searching in events DB.
 func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) {
 	s := strings.Split(shortEventID, ":")
 	if len(s) == 1 {
@@ -132,6 +134,7 @@ func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) 
 	return options[0], nil
 }
 
+// GetEvent returns the Lachesis event by hash or short ID.
 func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error) {
 	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
@@ -140,6 +143,7 @@ func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*int
 	return b.svc.store.GetEvent(id), nil
 }
 
+// GetEventHeader returns the Lachesis event header by hash or short ID.
 func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error) {
 	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
@@ -152,6 +156,7 @@ func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventID string)
 	return b.svc.store.GetEventHeader(epoch, id), nil
 }
 
+// GetConsensusTime returns event's consensus time, if event is confirmed.
 func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
 	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
@@ -160,6 +165,7 @@ func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID strin
 	return b.svc.engine.GetConsensusTime(id)
 }
 
+// GetHeads returns IDs of all the events with no descendants in current epoch.
 func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
 	heads := b.svc.store.GetHeads(b.svc.engine.GetEpoch())
 	if heads == nil {

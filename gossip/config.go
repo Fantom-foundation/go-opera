@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
+// Config for the gossip service.
 type Config struct {
 	Net     lachesis.Config
 	Emitter EmitterConfig

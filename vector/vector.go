@@ -12,10 +12,14 @@ import (
  */
 
 type (
-	LowestAfterSeq    []byte
-	HighestBeforeSeq  []byte
+	// LowestAfterSeq is vector of lowest events (their Seq) which do observe the source event
+	LowestAfterSeq []byte
+	// HighestBeforeSeq is vector of highest events (their Seq + IsForkDetected) which are observed by source event
+	HighestBeforeSeq []byte
+	// HighestBeforeSeq is vector of highest events (their ClaimedTime) which are observed by source event
 	HighestBeforeTime []byte
 
+	// ForkSeq encodes IsForkDetected and Seq into 4 bytes
 	ForkSeq struct {
 		IsForkDetected bool
 		Seq            idx.Event
@@ -28,40 +32,49 @@ type (
 	}
 )
 
+// NewLowestAfterSeq creates new LowestAfterSeq vector.
 func NewLowestAfterSeq(size int) LowestAfterSeq {
 	return make(LowestAfterSeq, size*4)
 }
 
+// NewHighestBeforeTime creates new HighestBeforeTime vector.
 func NewHighestBeforeTime(size int) HighestBeforeTime {
 	return make(HighestBeforeTime, size*8)
 }
 
+// NewHighestBeforeSeq creates new HighestBeforeSeq vector.
 func NewHighestBeforeSeq(size int) HighestBeforeSeq {
 	return make(HighestBeforeSeq, size*4)
 }
 
-func (b LowestAfterSeq) Get(n idx.Validator) idx.Event {
-	return idx.Event(binary.LittleEndian.Uint32(b[n*4 : (n+1)*4]))
+// Get i's position in the byte-encoded vector clock
+func (b LowestAfterSeq) Get(i idx.Validator) idx.Event {
+	return idx.Event(binary.LittleEndian.Uint32(b[i*4 : (i+1)*4]))
 }
 
-func (b LowestAfterSeq) Set(n idx.Validator, seq idx.Event) {
-	binary.LittleEndian.PutUint32(b[n*4:(n+1)*4], uint32(seq))
+// Set i's position in the byte-encoded vector clock
+func (b LowestAfterSeq) Set(i idx.Validator, seq idx.Event) {
+	binary.LittleEndian.PutUint32(b[i*4:(i+1)*4], uint32(seq))
 }
 
-func (b HighestBeforeTime) Get(n idx.Validator) inter.Timestamp {
-	return inter.Timestamp(binary.LittleEndian.Uint64(b[n*8 : (n+1)*8]))
+// Get i's position in the byte-encoded vector clock
+func (b HighestBeforeTime) Get(i idx.Validator) inter.Timestamp {
+	return inter.Timestamp(binary.LittleEndian.Uint64(b[i*8 : (i+1)*8]))
 }
 
-func (b HighestBeforeTime) Set(n idx.Validator, time inter.Timestamp) {
-	binary.LittleEndian.PutUint64(b[n*8:(n+1)*8], uint64(time))
+// Set i's position in the byte-encoded vector clock
+func (b HighestBeforeTime) Set(i idx.Validator, time inter.Timestamp) {
+	binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], uint64(time))
 }
 
+// ValidatorsNum returns the vector size
 func (b HighestBeforeSeq) ValidatorsNum() idx.Validator {
 	return idx.Validator(len(b) / 4)
 }
 
-func (b HighestBeforeSeq) Get(n idx.Validator) ForkSeq {
-	raw := binary.LittleEndian.Uint32(b[n*4 : (n+1)*4])
+// Get i's position in the byte-encoded vector clock
+func (b HighestBeforeSeq) Get(i idx.Validator) ForkSeq {
+	raw := binary.LittleEndian.Uint32(b[i*4 : (i+1)*4])
 
 	return ForkSeq{
 		Seq:            idx.Event(raw >> 1),
@@ -69,6 +82,7 @@ func (b HighestBeforeSeq) Get(n idx.Validator) ForkSeq {
 	}
 }
 
+// Set i's position in the byte-encoded vector clock
 func (b HighestBeforeSeq) Set(n idx.Validator, seq ForkSeq) {
 	isForkSeen := uint32(0)
 	if seq.IsForkDetected {

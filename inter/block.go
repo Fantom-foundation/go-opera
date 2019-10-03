@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
+// ApplyBlockFn is callback type to apply the new block to the state
 type ApplyBlockFn func(block *Block, stateHash common.Hash, validators pos.Validators) (newStateHash common.Hash, mewValidators pos.Validators)
 
 // Block is a "chain" block.
@@ -24,6 +25,7 @@ type Block struct {
 	Creator common.Address
 }
 
+// Hash returns atropus's ID
 func (b *Block) Hash() hash.Event {
 	if len(b.Events) == 0 {
 		return hash.ZeroEvent
