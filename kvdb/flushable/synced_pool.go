@@ -99,9 +99,6 @@ func (p *SyncedPool) GetDb(name string) kvdb.KeyValueStore {
 }
 
 func (p *SyncedPool) getDb(name string) kvdb.KeyValueStore {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
 	if wrapper := p.wrappers[name]; wrapper != nil {
 		return wrapper
 	}
