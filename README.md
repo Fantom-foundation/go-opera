@@ -55,7 +55,7 @@ Building `lachesis` requires both a Go (version 1.12 or later) and a C compiler.
 them using your favourite package manager. Once the dependencies are installed, run
 
 ```shell
-go build -o ./build/lachesis ./src/cmd
+go build -o ./build/lachesis ./cmd
 ```
 The build output is ```build/lachesis``` executable.
 
@@ -89,16 +89,16 @@ One of the quickest ways to get Lachesis up and running on your machine is by us
 Docker:
 
 ```shell
-cd src/docker
+cd docker/
 make
 docker run -d --name lachesis-node -v /home/alice/lachesis:/root \
-           -p 8545:8545 -p 30303:30303 \
+           -p 5050:5050 \
           "lachesis" \
-          --port 30303 \
+          --port 5050 \
           --nat=extip:YOUR_IP
 ```
 
-This will start `lachesis` with ```--port 30303 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
+This will start `lachesis` with ```--port 5050 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
 
 Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containers
 and/or hosts. By default, `lachesis` binds to the local interface and RPC endpoints is not
@@ -119,21 +119,21 @@ docker logs lachesis-node
 
 Lachesis has extensive unit-testing. Use the Go tool to run tests:
 ```shell
-go test ./src/...
+go test ./...
 ```
 
 If everything goes well, it should output something along these lines:
 ```
-?       github.com/Fantom-foundation/go-lachesis/src/event_check/basic_check    [no test files]
-?       github.com/Fantom-foundation/go-lachesis/src/event_check/epoch_check    [no test files]
-?       github.com/Fantom-foundation/go-lachesis/src/event_check/heavy_check    [no test files]
-?       github.com/Fantom-foundation/go-lachesis/src/event_check/parents_check  [no test files]
-ok      github.com/Fantom-foundation/go-lachesis/src/evm_core   (cached)
-ok      github.com/Fantom-foundation/go-lachesis/src/gossip (cached)
-?       github.com/Fantom-foundation/go-lachesis/src/gossip/fetcher [no test files]
-?       github.com/Fantom-foundation/go-lachesis/src/gossip/occured_txs [no test files]
-ok      github.com/Fantom-foundation/go-lachesis/src/gossip/ordering    (cached)
-ok      github.com/Fantom-foundation/go-lachesis/src/gossip/packs_downloader    (cached)
+?       github.com/Fantom-foundation/go-lachesis/event_check/basic_check    [no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/epoch_check    [no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/heavy_check    [no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/parents_check  [no test files]
+ok      github.com/Fantom-foundation/go-lachesis/evm_core   (cached)
+ok      github.com/Fantom-foundation/go-lachesis/gossip (cached)
+?       github.com/Fantom-foundation/go-lachesis/gossip/fetcher [no test files]
+?       github.com/Fantom-foundation/go-lachesis/gossip/occured_txs [no test files]
+ok      github.com/Fantom-foundation/go-lachesis/gossip/ordering    (cached)
+ok      github.com/Fantom-foundation/go-lachesis/gossip/packs_downloader    (cached)
 ```
 
 ### Operating a private network
@@ -158,9 +158,9 @@ $ lachesis --fakenet 1/5 --bootnodes "enode://ade7067fe5495db3d9f44dfda710a2873f
 
 ### Running the demo
 
-Fot the testing purposes, the full demo may be launched using:
+For the testing purposes, the full demo may be launched using:
 ```shell
-cd src/docker
+cd docker/
 make # build docker image
 ./start.sh # start the containers
 ./stop.sh # stop the demo
@@ -168,6 +168,6 @@ make # build docker image
 
 The full demo doesn't spin up very fast. To avoid the full docker image building, you may run the integration test instead:
 ```shell
-go test -v ./src/integration/...
+go test -v ./integration/...
 ```
 Adjust test duration, number of nodes and logs verbosity in the test source code.

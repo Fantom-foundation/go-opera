@@ -25,5 +25,5 @@ exclude_paths:
 - 'spec/**/*'
 - 'benchmarks/**/*'
 - '*.min.js'
-- 'src/**/*.pb.go'
+- '**/*.pb.go'
 - '**/tests/**'

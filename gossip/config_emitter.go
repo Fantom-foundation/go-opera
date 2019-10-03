@@ -1,0 +1,47 @@
+package gossip
+
+import (
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
+)
+
+type EmitterConfig struct {
+	Coinbase common.Address `json:"coinbase"`
+
+	MinEmitInterval time.Duration `json:"minEmitInterval"` // minimum event emission interval
+	MaxEmitInterval time.Duration `json:"maxEmitInterval"` // maximum event emission interval
+
+	MaxGasRateGrowthFactor float64 `json:"maxGasRateGrowthFactor"` // fine to use float, because no need in determinism
+
+	MaxTxsFromSender int `json:"maxTxsFromSender"`
+
+	SelfForkProtectionInterval time.Duration `json:"selfForkProtectionInterval"`
+
+	// thresholds on GasLeft
+	SmoothTpsThreshold uint64 `json:"smoothTpsThreshold"`
+	NoTxsThreshold     uint64 `json:"noTxsThreshold"`
+	EmergencyThreshold uint64 `json:"emergencyThreshold"`
+}
+
+func DefaultEmitterConfig() EmitterConfig {
+	return EmitterConfig{
+		MinEmitInterval:            1 * time.Second,
+		MaxEmitInterval:            10 * time.Minute,
+		MaxGasRateGrowthFactor:     3.0,
+		MaxTxsFromSender:           2,
+		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
+
+		SmoothTpsThreshold: params.TxGas * 500,
+		NoTxsThreshold:     params.TxGas * 100,
+		EmergencyThreshold: params.TxGas * 5,
+	}
+}
+
+func FakeEmitterConfig() EmitterConfig {
+	cfg := DefaultEmitterConfig()
+	cfg.MaxEmitInterval = 10 * time.Second // don't wait long in fakenet
+	cfg.SelfForkProtectionInterval = cfg.MaxEmitInterval * 3 / 2
+	return cfg
+}
