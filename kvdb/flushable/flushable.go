@@ -44,6 +44,10 @@ func (w *Flushable) SetDropper(dropper func()) {
 	w.dropper = dropper
 }
 
+func (w *Flushable) SetUnderlyingDB(parent kvdb.KeyValueStore) {
+	w.underlying = parent
+}
+
 // UnderlyingDB of Flushable.
 func (w *Flushable) UnderlyingDB() kvdb.KeyValueStore {
 	return w.underlying
