@@ -12,8 +12,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
-// ApplyBlock execs ordered txns on state.
-func (s *Service) ApplyBlock(block *inter.Block, stateHash common.Hash, validators pos.Validators) (newStateHash common.Hash, newValidators pos.Validators) {
+// onNewBlock execs ordered txns of new block on state.
+func (s *Service) onNewBlock(
+	block *inter.Block,
+	stateHash common.Hash,
+	validators pos.Validators,
+) (
+	newStateHash common.Hash,
+	newValidators pos.Validators,
+) {
 	evmProcessor := evm_core.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
