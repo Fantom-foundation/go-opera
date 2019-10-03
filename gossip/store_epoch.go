@@ -32,6 +32,11 @@ func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
 	return tables.(*epochStore)
 }
 
+// commitEpochStore is not safe for concurrent use.
+func (s *Store) commitEpochStore(epoch idx.Epoch) error {
+	return s.commitTmpDb("epoch", uint64(epoch))
+}
+
 // delEpochStore is not safe for concurrent use.
 func (s *Store) delEpochStore(epoch idx.Epoch) {
 	s.delTmpDb("epoch", uint64(epoch))

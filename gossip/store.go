@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
@@ -85,18 +86,16 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit() {
+func (s *Store) Commit(epoch idx.Epoch) {
 	s.setDirty(true)
 	defer s.setDirty(false)
 
-	/*
-		err := s.epochDb.Flush()
-		if err != nil {
-			s.Log.Crit("main DB commit", "err", err)
-		}
-	*/
+	err := s.commitEpochStore(epoch)
+	if err != nil {
+		s.Log.Crit("epoch DB commit", "err", err)
+	}
 
-	err := s.mainDb.Flush()
+	err = s.mainDb.Flush()
 	if err != nil {
 		s.Log.Crit("main DB commit", "err", err)
 	}

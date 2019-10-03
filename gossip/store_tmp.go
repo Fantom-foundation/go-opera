@@ -6,11 +6,12 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 )
 
 type (
 	tmpDb struct {
-		Db     kvdb.KeyValueStore
+		Db     *flushable.Flushable
 		Tables interface{}
 	}
 
@@ -23,6 +24,9 @@ type (
 )
 
 func (s *Store) initTmpDbs() {
+	s.tmpDbs.Lock()
+	defer s.tmpDbs.Unlock()
+
 	s.tmpDbs.min = make(map[string]uint64)
 	s.tmpDbs.seq = make(map[string]map[uint64]tmpDb)
 
@@ -61,7 +65,7 @@ func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueS
 		return tmp.Tables
 	}
 
-	db := s.makeDb(tmpDbName(name, ver))
+	db := flushable.New(s.makeDb(tmpDbName(name, ver)))
 	tables := makeTables(db)
 	s.tmpDbs.seq[name][ver] = tmpDb{
 		Db:     db,
@@ -69,6 +73,19 @@ func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueS
 	}
 
 	return tables
+}
+
+func (s *Store) commitTmpDb(name string, ver uint64) error {
+	s.tmpDbs.Lock()
+	defer s.tmpDbs.Unlock()
+
+	min, ok := s.tmpDbs.min[name]
+	if !ok || ver < min {
+		return nil
+	}
+
+	tmp := s.tmpDbs.seq[name][ver]
+	return tmp.Db.Flush()
 }
 
 func (s *Store) delTmpDb(name string, ver uint64) {
