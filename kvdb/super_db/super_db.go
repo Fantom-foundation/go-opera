@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
@@ -32,8 +32,9 @@ type SuperDb struct {
 }
 
 func New(datadir string) *SuperDb {
-	dirs, err := ioutil.ReadDir("./")
+	dirs, err := ioutil.ReadDir(datadir)
 	if err != nil {
+		println(err.Error())
 		return nil
 	}
 
@@ -47,9 +48,10 @@ func New(datadir string) *SuperDb {
 	}
 
 	for _, f := range dirs {
-		path := f.Name()
-		if f.IsDir() && strings.HasSuffix(path, "-ldb") {
-			name := strings.TrimSuffix(path, "-ldb")
+		dirname := f.Name()
+		if f.IsDir() && strings.HasSuffix(dirname, "-ldb") {
+			name := strings.TrimSuffix(dirname, "-ldb")
+			path := filepath.Join(datadir, dirname)
 			sdb.registerExisting(name, path)
 		}
 	}
@@ -59,7 +61,7 @@ func New(datadir string) *SuperDb {
 func (sdb *SuperDb) registerExisting(name, path string) kvdb.KeyValueStore {
 	db, err := openDb(path)
 	if err != nil {
-		// TODO log
+		println(err.Error())
 		return nil
 	}
 	wrapper := flushable.New(db)
@@ -81,9 +83,13 @@ func (sdb *SuperDb) registerNew(name, path string) kvdb.KeyValueStore {
 	return wrapper
 }
 
+func (sdb *SuperDb) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
+	return sdb.GetDb(fmt.Sprintf("%s-%d", prefix, index))
+}
+
 func (sdb *SuperDb) GetDb(name string) kvdb.KeyValueStore {
-	if db := sdb.wrappers[name]; db != nil {
-		return db
+	if wrapper := sdb.wrappers[name]; wrapper != nil {
+		return wrapper
 	}
 	return sdb.registerNew(name, filepath.Join(sdb.datadir, name+"-ldb"))
 }
@@ -94,11 +100,13 @@ func (sdb *SuperDb) GetLastDb(prefix string) kvdb.KeyValueStore {
 		if strings.HasPrefix(name, prefix) {
 			s := strings.Split(name, "-")
 			if len(s) < 2 {
+				println(name, "name without index")
 				continue
 			}
-			indexStr := s[len(s)-2]
+			indexStr := s[len(s)-1]
 			index, err := strconv.ParseInt(indexStr, 10, 64)
 			if err != nil {
+				println(err.Error())
 				continue
 			}
 			options[name] = index
@@ -134,12 +142,13 @@ func (sdb *SuperDb) erase(name string) {
 }
 
 func (sdb *SuperDb) Flush(id hash.Event) error {
-	key := []byte("mark")
+	key := []byte("flag")
 
 	// drop old DBs
 	for name := range sdb.queuedDrops {
 		db := sdb.bareDbs[name]
 		if db != nil {
+			db.Close()
 			db.Drop()
 		}
 		sdb.erase(name)
@@ -150,7 +159,7 @@ func (sdb *SuperDb) Flush(id hash.Event) error {
 		if db := sdb.bareDbs[name]; db == nil {
 			db, err := openDb(sdb.pathes[name])
 			if err != nil {
-				// TODO log
+				println(err.Error())
 				return nil
 			}
 			sdb.bareDbs[name] = db
@@ -217,7 +226,7 @@ func (sdb *SuperDb) FlushIfNeeded(id hash.Event) bool {
 
 // call on startup, after all dbs are registered
 func (sdb *SuperDb) CheckDbsSynced() error {
-	key := []byte("mark")
+	key := []byte("flag")
 	var prevId *hash.Event
 	for _, db := range sdb.bareDbs {
 		mark, err := db.Get(key)
