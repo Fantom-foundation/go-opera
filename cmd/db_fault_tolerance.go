@@ -97,3 +97,26 @@ func (dbs *RegisteredDbs) FlushIfNeeded(id hash.Event) bool {
 	}
 	return false
 }
+
+// call on startup, after all dbs are registered
+func (dbs *RegisteredDbs) CheckDbsSynced() error {
+	key := []byte("mark")
+	var prevId *hash.Event
+	for _, db := range dbs.bareDbs {
+		mark, err := db.Get(key)
+		if err != nil {
+			return err
+		}
+		if bytes.HasPrefix(mark, []byte("dirty")) {
+			return errors.New("dirty")
+		}
+		eventId := hash.BytesToEvent(mark)
+		if prevId == nil {
+			prevId  = &eventId
+		}
+		if eventId != *prevId {
+			return errors.New("not synced")
+		}
+	}
+	return nil
+}
