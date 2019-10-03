@@ -210,8 +210,8 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 // and returns event's frame.
 // It is not safe for concurrent use.
 func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
-	if e.SelfParent() == nil {
-		// special case for first events in an SF
+	if len(e.Parents) == 0 {
+		// special case for very first events in the epoch
 		frame = idx.Frame(1)
 		isRoot = true
 		return
@@ -235,7 +235,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	// counter of all the observed roots on maxParentsFrame
 	observedCounter := p.Validators.NewCounter()
 	if !checkOnly || e.IsRoot {
-		// check "observing" prev roots only if called by creator, or if creator has marked that event is root
+		// check "observing" prev roots only if called by creator, or if creator has marked that event as root
 		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
 			if p.vecClock.ForklessCause(e.Hash(), root) {
 				observedCounter.Count(from)
@@ -250,7 +250,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	} else {
 		// I observe enough roots at maxParentsFrame-1, because some of my parents does.
 		frame = maxParentsFrame
-		// Calculates: Did my self-parent start the frame already?
+		// Calculates: Did my self-parent start the frame already? If not, the event is a root.
 		isRoot = maxParentsFrame > selfParentFrame
 	}
 
