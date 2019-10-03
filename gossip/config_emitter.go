@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// Config for the events emitter.
+// EmitterConfig is the configuration of events emitter.
 type EmitterConfig struct {
 	Coinbase common.Address `json:"coinbase"`
 

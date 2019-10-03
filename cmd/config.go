@@ -48,6 +48,7 @@ var (
 		Value: big.NewInt(params.GWei),
 	}
 
+	// DataDirFlag defines directory to store Lachesis state and user's wallets
 	DataDirFlag = utils.DirectoryFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",

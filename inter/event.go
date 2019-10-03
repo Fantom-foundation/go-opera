@@ -148,7 +148,7 @@ func (e *Event) VerifySignature() bool {
  * Event ID (hash):
  */
 
-// RecacheSize re-calculates event's ID
+// CalcHash re-calculates event's ID
 func (e *EventHeaderData) CalcHash() hash.Event {
 	hasher := sha3.NewLegacyKeccak256()
 	err := rlp.Encode(hasher, e)
@@ -189,7 +189,7 @@ func (c *writeCounter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-// RecacheSize re-calculates event's size
+// CalcSize re-calculates event's size
 func (e *Event) CalcSize() int {
 	c := writeCounter(0)
 	_ = rlp.Encode(&c, e)

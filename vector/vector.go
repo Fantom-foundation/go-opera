@@ -12,11 +12,11 @@ import (
  */
 
 type (
-	// LowestAfterSeq is vector of lowest events (their Seq) which do observe the source event
+	// LowestAfterSeq is a vector of lowest events (their Seq) which do observe the source event
 	LowestAfterSeq []byte
-	// HighestBeforeSeq is vector of highest events (their Seq + IsForkDetected) which are observed by source event
+	// HighestBeforeSeq is a vector of highest events (their Seq + IsForkDetected) which are observed by source event
 	HighestBeforeSeq []byte
-	// HighestBeforeSeq is vector of highest events (their ClaimedTime) which are observed by source event
+	// HighestBeforeTime is a vector of highest events (their ClaimedTime) which are observed by source event
 	HighestBeforeTime []byte
 
 	// ForkSeq encodes IsForkDetected and Seq into 4 bytes
