@@ -63,16 +63,20 @@ func NewMemStore() *Store {
 }
 
 // Commit changes.
-func (s *Store) Commit() error {
+func (s *Store) Commit() {
 	s.setDirty(true)
 	defer s.setDirty(false)
 
 	err := s.epochDb.Flush()
 	if err != nil {
-		return err
+		s.Log.Crit("epoch DB commit", "err", err)
 	}
 
-	return s.mainDb.Flush()
+	err = s.mainDb.Flush()
+	if err != nil {
+		s.Log.Crit("main DB commit", "err", err)
+	}
+
 }
 
 // setDirty sets dirty flag.
