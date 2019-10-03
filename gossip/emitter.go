@@ -75,7 +75,7 @@ type selfForkProtection struct {
 	prevLocalEmittedID      hash.Event
 	prevExternalEmittedTime time.Time
 	becameValidatorTime     time.Time
-	becameValidator         bool
+	wasValidator            bool
 }
 
 // NewEmitter creation.
@@ -218,15 +218,15 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 		for _, tx := range txs {
 			// enough gas power
 			if tx.Gas() >= e.GasPowerLeft || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
-				break // txs are dependent
+				break // txs are dependent, so break the loop
 			}
 			// check not conflicted with already included txs (in any connected event)
 			if em.world.OccurredTxs.MayBeConflicted(sender, tx.Hash()) {
-				break // txs are dependent
+				break // txs are dependent, so break the loop
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
 			if em.getTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes) != e.Creator {
-				break // txs are dependent
+				break // txs are dependent, so break the loop
 			}
 
 			// add
@@ -278,7 +278,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		// not a validator
 		return nil
 	}
-	if bad, _, _ := em.logging(em.selfForkPossible()); bad {
+	if bad, _, _ := em.logging(em.isSelfForkPossible()); bad {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
 	}
@@ -410,25 +410,24 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
-	if em.antiSelfFork.prevLocalEmittedID == e.Hash() {
-		// we've just emitted this event, so it wasn't emitted by another instance with the same address
-		return
-	}
-	coinbase := em.GetCoinbase()
 	now := time.Now()
-	if e.Creator == coinbase {
-		// it was emitted by another instance with the same address
-		em.antiSelfFork.prevExternalEmittedTime = now
+	coinbase := em.GetCoinbase()
+	if em.antiSelfFork.prevLocalEmittedID != e.Hash() {
+		if e.Creator == coinbase {
+			// it was emitted by another instance with the same address
+			em.antiSelfFork.prevExternalEmittedTime = now
+		}
 	}
 
-	_, validator := em.world.Engine.GetValidators()[coinbase]
-	if validator && !em.antiSelfFork.becameValidator {
+	// track when I've became validator
+	_, isValidator := em.world.Engine.GetValidators()[coinbase]
+	if isValidator && !em.antiSelfFork.wasValidator {
 		em.antiSelfFork.becameValidatorTime = now
 	}
-	em.antiSelfFork.becameValidator = validator
+	em.antiSelfFork.wasValidator = isValidator
 }
 
-func (em *Emitter) selfForkPossible() (bool, string, time.Duration) {
+func (em *Emitter) isSelfForkPossible() (bool, string, time.Duration) {
 	if em.world.PeersNum() == 0 {
 		em.antiSelfFork.connectedTime = time.Now() // move time of the first connection
 		return true, "no connections", 0
