@@ -1,4 +1,4 @@
-package super_db
+package flushable
 
 import (
 	"bytes"
@@ -14,14 +14,13 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
-type SuperDb struct {
+type SyncedPool struct {
 	pathes   map[string]string
-	wrappers map[string]*flushable.Flushable
+	wrappers map[string]*Flushable
 	bareDbs  map[string]kvdb.KeyValueStore
 
 	queuedDrops map[string]struct{}
@@ -33,16 +32,16 @@ type SuperDb struct {
 	mutex sync.Mutex
 }
 
-func New(datadir string) *SuperDb {
+func NewSyncedPool(datadir string) *SyncedPool {
 	dirs, err := ioutil.ReadDir(datadir)
 	if err != nil {
 		println(err.Error())
 		return nil
 	}
 
-	sdb := &SuperDb{
+	p := &SyncedPool{
 		pathes:   make(map[string]string),
-		wrappers: make(map[string]*flushable.Flushable),
+		wrappers: make(map[string]*Flushable),
 		bareDbs:  make(map[string]kvdb.KeyValueStore),
 
 		queuedDrops: make(map[string]struct{}),
@@ -54,67 +53,67 @@ func New(datadir string) *SuperDb {
 		if f.IsDir() && strings.HasSuffix(dirname, "-ldb") {
 			name := strings.TrimSuffix(dirname, "-ldb")
 			path := filepath.Join(datadir, dirname)
-			sdb.registerExisting(name, path)
+			p.registerExisting(name, path)
 		}
 	}
-	return sdb
+	return p
 }
 
-func (sdb *SuperDb) registerExisting(name, path string) kvdb.KeyValueStore {
+func (p *SyncedPool) registerExisting(name, path string) kvdb.KeyValueStore {
 	db, err := openDb(path)
 	if err != nil {
 		println(err.Error())
 		return nil
 	}
-	wrapper := flushable.New(db)
+	wrapper := New(db)
 
-	sdb.pathes[name] = path
-	sdb.bareDbs[name] = db
-	sdb.wrappers[name] = wrapper
-	delete(sdb.queuedDrops, name)
+	p.pathes[name] = path
+	p.bareDbs[name] = db
+	p.wrappers[name] = wrapper
+	delete(p.queuedDrops, name)
 	return wrapper
 }
 
-func (sdb *SuperDb) registerNew(name, path string) kvdb.KeyValueStore {
-	wrapper := flushable.New(memorydb.New())
+func (p *SyncedPool) registerNew(name, path string) kvdb.KeyValueStore {
+	wrapper := New(memorydb.New())
 
-	sdb.pathes[name] = path
-	sdb.wrappers[name] = wrapper
-	delete(sdb.bareDbs, name)
-	delete(sdb.queuedDrops, name)
+	p.pathes[name] = path
+	p.wrappers[name] = wrapper
+	delete(p.bareDbs, name)
+	delete(p.queuedDrops, name)
 	return wrapper
 }
 
-func (sdb *SuperDb) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	return sdb.getDb(fmt.Sprintf("%s-%d", prefix, index))
+	return p.getDb(fmt.Sprintf("%s-%d", prefix, index))
 }
 
-func (sdb *SuperDb) GetDb(name string) kvdb.KeyValueStore {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) GetDb(name string) kvdb.KeyValueStore {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	return sdb.getDb(name)
+	return p.getDb(name)
 }
 
-func (sdb *SuperDb) getDb(name string) kvdb.KeyValueStore {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) getDb(name string) kvdb.KeyValueStore {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	if wrapper := sdb.wrappers[name]; wrapper != nil {
+	if wrapper := p.wrappers[name]; wrapper != nil {
 		return wrapper
 	}
-	return sdb.registerNew(name, filepath.Join(sdb.datadir, name+"-ldb"))
+	return p.registerNew(name, filepath.Join(p.datadir, name+"-ldb"))
 }
 
-func (sdb *SuperDb) GetLastDb(prefix string) kvdb.KeyValueStore {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) GetLastDb(prefix string) kvdb.KeyValueStore {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	options := make(map[string]int64)
-	for name := range sdb.wrappers {
+	for name := range p.wrappers {
 		if strings.HasPrefix(name, prefix) {
 			s := strings.Split(name, "-")
 			if len(s) < 2 {
@@ -140,63 +139,63 @@ func (sdb *SuperDb) GetLastDb(prefix string) kvdb.KeyValueStore {
 		}
 	}
 
-	return sdb.getDb(maxIndexName)
+	return p.getDb(maxIndexName)
 }
 
-func (sdb *SuperDb) DropDb(name string) {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) DropDb(name string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	if db := sdb.bareDbs[name]; db == nil {
+	if db := p.bareDbs[name]; db == nil {
 		// this DB wasn't flushed, just erase it from RAM then, and that's it
-		sdb.erase(name)
+		p.erase(name)
 		return
 	}
-	sdb.queuedDrops[name] = struct{}{}
+	p.queuedDrops[name] = struct{}{}
 }
 
-func (sdb *SuperDb) erase(name string) {
-	delete(sdb.wrappers, name)
-	delete(sdb.pathes, name)
-	delete(sdb.bareDbs, name)
-	delete(sdb.queuedDrops, name)
+func (p *SyncedPool) erase(name string) {
+	delete(p.wrappers, name)
+	delete(p.pathes, name)
+	delete(p.bareDbs, name)
+	delete(p.queuedDrops, name)
 }
 
-func (sdb *SuperDb) Flush(id []byte) error {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) Flush(id []byte) error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	return sdb.flush(id)
+	return p.flush(id)
 }
 
-func (sdb *SuperDb) flush(id []byte) error {
+func (p *SyncedPool) flush(id []byte) error {
 	key := []byte("flag")
 
 	// drop old DBs
-	for name := range sdb.queuedDrops {
-		db := sdb.bareDbs[name]
+	for name := range p.queuedDrops {
+		db := p.bareDbs[name]
 		if db != nil {
 			db.Close()
 			db.Drop()
 		}
-		sdb.erase(name)
+		p.erase(name)
 	}
 
 	// create new DBs, which were not dropped
-	for name, wrapper := range sdb.wrappers {
-		if db := sdb.bareDbs[name]; db == nil {
-			db, err := openDb(sdb.pathes[name])
+	for name, wrapper := range p.wrappers {
+		if db := p.bareDbs[name]; db == nil {
+			db, err := openDb(p.pathes[name])
 			if err != nil {
 				println(err.Error())
 				return nil
 			}
-			sdb.bareDbs[name] = db
+			p.bareDbs[name] = db
 			wrapper.SetUnderlyingDB(db)
 		}
 	}
 
 	// write dirty flags
-	for _, db := range sdb.bareDbs {
+	for _, db := range p.bareDbs {
 		marker := bytes.NewBuffer(nil)
 		prev, err := db.Get(key)
 		if err != nil {
@@ -217,12 +216,12 @@ func (sdb *SuperDb) flush(id []byte) error {
 	}
 
 	// flush data
-	for _, wrapper := range sdb.wrappers {
+	for _, wrapper := range p.wrappers {
 		wrapper.Flush()
 	}
 
 	// write clean flags
-	for _, wrapper := range sdb.wrappers {
+	for _, wrapper := range p.wrappers {
 		err := wrapper.Put(key, id)
 		if err != nil {
 			return err
@@ -230,39 +229,39 @@ func (sdb *SuperDb) flush(id []byte) error {
 		wrapper.Flush()
 	}
 
-	sdb.prevFlushTime = time.Now()
+	p.prevFlushTime = time.Now()
 	return nil
 }
 
-func (sdb *SuperDb) FlushIfNeeded(id []byte) bool {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) FlushIfNeeded(id []byte) bool {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	if time.Since(sdb.prevFlushTime) > 10*time.Minute {
-		sdb.Flush(id)
+	if time.Since(p.prevFlushTime) > 10*time.Minute {
+		p.Flush(id)
 		return true
 	}
 
 	totalNotFlushed := 0
-	for _, db := range sdb.wrappers {
+	for _, db := range p.wrappers {
 		totalNotFlushed += db.NotFlushedSizeEst()
 	}
 
 	if totalNotFlushed > 100*1024*1024 {
-		sdb.Flush(id)
+		p.Flush(id)
 		return true
 	}
 	return false
 }
 
 // call on startup, after all dbs are registered
-func (sdb *SuperDb) CheckDbsSynced() error {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) CheckDbsSynced() error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	key := []byte("flag")
 	var prevId *[]byte
-	for _, db := range sdb.bareDbs {
+	for _, db := range p.bareDbs {
 		mark, err := db.Get(key)
 		if err != nil {
 			return err
@@ -280,11 +279,11 @@ func (sdb *SuperDb) CheckDbsSynced() error {
 	return nil
 }
 
-func (sdb *SuperDb) CloseAll() error {
-	sdb.mutex.Lock()
-	defer sdb.mutex.Unlock()
+func (p *SyncedPool) CloseAll() error {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	for _, db := range sdb.bareDbs {
+	for _, db := range p.bareDbs {
 		if err := db.Close(); err != nil {
 			return err
 		}
