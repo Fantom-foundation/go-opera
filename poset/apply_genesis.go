@@ -24,7 +24,7 @@ type GenesisState struct {
 }
 
 func (g *GenesisState) Hash() common.Hash {
-	hasher := sha3.New256()
+	hasher := sha3.NewLegacyKeccak256()
 	if err := rlp.Encode(hasher, g); err != nil {
 		panic(err)
 	}

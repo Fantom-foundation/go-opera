@@ -1,6 +1,7 @@
 package inter
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"fmt"
 	"sync/atomic"
@@ -79,11 +80,11 @@ func (e *EventHeaderData) String() string {
 	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
 }
 
-func (e *EventHeaderData) HashToSign() common.Hash {
-	hasher := sha3.New256()
-	hasher.Write([]byte("Lachesis: I'm signing the Event"))
-	hasher.Write(e.Hash().Bytes())
-	return common.BytesToHash(hasher.Sum(nil))
+func (e *EventHeaderData) DataToSign() []byte {
+	buf := bytes.NewBuffer([]byte{})
+	buf.Write([]byte("Lachesis: I'm signing the Event"))
+	buf.Write(e.Hash().Bytes())
+	return buf.Bytes()
 }
 
 func (e *EventHeaderData) SelfParent() *hash.Event {
@@ -114,7 +115,7 @@ func (e *Event) SignBy(priv *ecdsa.PrivateKey) error {
 // Sign event by signer.
 func (e *Event) Sign(signer func([]byte) ([]byte, error)) error {
 	e.RecacheHash() // because HashToSign uses .Hash
-	sig, err := signer(e.HashToSign().Bytes())
+	sig, err := signer(e.DataToSign())
 	if err != nil {
 		return err
 	}
@@ -125,10 +126,9 @@ func (e *Event) Sign(signer func([]byte) ([]byte, error)) error {
 
 // VerifySignature checks the signature against e.Creator.
 func (e *Event) VerifySignature() bool {
-	// NOTE: Keccak256 because of AccontManager
-	data := crypto.Keccak256(e.HashToSign().Bytes())
-	// TODO: move to AccontManager
-	pk, err := crypto.SigToPub(data, e.Sig)
+	// NOTE: Keccak256 because of AccountManager
+	signedHash := crypto.Keccak256(e.DataToSign())
+	pk, err := crypto.SigToPub(signedHash, e.Sig)
 	if err != nil {
 		return false
 	}
@@ -141,7 +141,7 @@ func (e *Event) VerifySignature() bool {
 
 // CalcHash calcs hash of event (not cached).
 func (e *EventHeaderData) CalcHash() hash.Event {
-	hasher := sha3.New256()
+	hasher := sha3.NewLegacyKeccak256()
 	err := rlp.Encode(hasher, e)
 	if err != nil {
 		panic("can't encode: " + err.Error())

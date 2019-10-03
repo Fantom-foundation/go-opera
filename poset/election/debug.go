@@ -10,7 +10,7 @@ import (
 
 // DebugStateHash may be used in tests to match election state
 func (el *Election) DebugStateHash() common.Hash {
-	hasher := sha3.New256()
+	hasher := sha3.NewLegacyKeccak256()
 	write := func(bb []byte) {
 		if _, err := hasher.Write(bb); err != nil {
 			panic(err)

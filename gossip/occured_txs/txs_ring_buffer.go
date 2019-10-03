@@ -88,7 +88,7 @@ func (s *Buffer) CollectNotConfirmedTxs(txs types.Transactions) error {
 	return nil
 }
 
-// CollectNotConfirmedTxs is called when txs are included into a block
+// CollectConfirmedTxs is called when txs are included into a block
 // not safe for concurrent use
 func (s *Buffer) CollectConfirmedTxs(txs types.Transactions) {
 	for _, tx := range txs {
