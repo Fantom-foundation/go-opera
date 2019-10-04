@@ -19,59 +19,33 @@ import (
 )
 
 type SyncedPool struct {
-	pathes   map[string]string
-	wrappers map[string]*Flushable
-	bareDbs  map[string]kvdb.KeyValueStore
+	producer kvdb.DbProducer
 
+	wrappers    map[string]*Flushable
 	queuedDrops map[string]struct{}
 
 	prevFlushTime time.Time
 
-	datadir string
-
 	mutex sync.Mutex
 }
 
-func NewSyncedPool(datadir string) *SyncedPool {
-	dirs, err := ioutil.ReadDir(datadir)
-	if err != nil {
-		println(err.Error())
-		return nil
+func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
+	if producer == nil {
+		panic("nil producer")
 	}
 
 	p := &SyncedPool{
-		pathes:   make(map[string]string),
-		wrappers: make(map[string]*Flushable),
-		bareDbs:  make(map[string]kvdb.KeyValueStore),
-
+		producer:    producer,
+		wrappers:    make(map[string]*Flushable),
 		queuedDrops: make(map[string]struct{}),
-		datadir:     datadir,
 	}
 
-	for _, f := range dirs {
-		dirname := f.Name()
-		if f.IsDir() && strings.HasSuffix(dirname, "-ldb") {
-			name := strings.TrimSuffix(dirname, "-ldb")
-			path := filepath.Join(datadir, dirname)
-			p.registerExisting(name, path)
-		}
+	for _, name := range producer.Names() {
+		db := producer.OpenDb(name)
+		p.wrappers[name] = Wrap(db)
 	}
+
 	return p
-}
-
-func (p *SyncedPool) registerExisting(name, path string) kvdb.KeyValueStore {
-	db, err := openDb(path)
-	if err != nil {
-		println(err.Error())
-		return nil
-	}
-	wrapper := New(db)
-
-	p.pathes[name] = path
-	p.bareDbs[name] = db
-	p.wrappers[name] = wrapper
-	delete(p.queuedDrops, name)
-	return wrapper
 }
 
 func (p *SyncedPool) registerNew(name, path string) kvdb.KeyValueStore {
@@ -79,8 +53,8 @@ func (p *SyncedPool) registerNew(name, path string) kvdb.KeyValueStore {
 
 	p.pathes[name] = path
 	p.wrappers[name] = wrapper
-	delete(p.bareDbs, name)
 	delete(p.queuedDrops, name)
+
 	return wrapper
 }
 

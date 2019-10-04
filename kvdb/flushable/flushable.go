@@ -20,32 +20,44 @@ var (
 // On reading, it looks in memory cache first. If not found, it looks in a parent DB.
 // On writing, it writes only in cache. To flush the cache into parent DB, call Flush().
 type Flushable struct {
+	producer   func() kvdb.KeyValueStore
 	underlying kvdb.KeyValueStore
 
 	modified       *rbt.Tree // modified, comparing to parent, pairs. deleted values are nil
 	sizeEstimation *int
 
 	lock *sync.Mutex // we have no guarantees that rbt.Tree works with concurrent reads, so we can't use MutexRW
-
-	dropper func()
 }
 
-// New Flushable wraps underlying DB. All the writes into the cache won't be written in parent until .Flush() is called.
-func New(parent kvdb.KeyValueStore) *Flushable {
+// New makes flushable with real db producer.
+// Real db won't be produced until first .Flush() is called.
+// All the writes into the cache won't be written in parent until .Flush() is called.
+func New(producer func() kvdb.KeyValueStore) *Flushable {
+	if producer == nil {
+		panic("nil producer")
+	}
+
 	return &Flushable{
-		underlying:     parent,
+		producer:       producer,
 		modified:       rbt.NewWithStringComparator(),
 		lock:           new(sync.Mutex),
 		sizeEstimation: new(int),
 	}
 }
 
-func (w *Flushable) SetDropper(dropper func()) {
-	w.dropper = dropper
-}
+// Wrap underlying db.
+// All the writes into the cache won't be written in parent until .Flush() is called.
+func Wrap(parent kvdb.KeyValueStore) *Flushable {
+	if parent == nil {
+		panic("nil parent")
+	}
 
-func (w *Flushable) SetUnderlyingDB(parent kvdb.KeyValueStore) {
-	w.underlying = parent
+	return &Flushable{
+		underlying:     parent,
+		modified:       rbt.NewWithStringComparator(),
+		lock:           new(sync.Mutex),
+		sizeEstimation: new(int),
+	}
 }
 
 // UnderlyingDB of Flushable.
@@ -61,6 +73,7 @@ func (w *Flushable) UnderlyingDB() kvdb.KeyValueStore {
 func (w *Flushable) Put(key []byte, value []byte) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
 	return w.put(key, value)
 }
 
@@ -81,6 +94,7 @@ func (w *Flushable) put(key []byte, value []byte) error {
 func (w *Flushable) Has(key []byte) (bool, error) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
 	if w.modified == nil {
 		return false, errClosed
 	}
@@ -89,6 +103,10 @@ func (w *Flushable) Has(key []byte) (bool, error) {
 	if ok {
 		return val != nil, nil
 	}
+
+	if w.underlying == nil {
+		return false, nil
+	}
 	return w.underlying.Has(key)
 }
 
@@ -96,6 +114,7 @@ func (w *Flushable) Has(key []byte) (bool, error) {
 func (w *Flushable) Get(key []byte) ([]byte, error) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
 	if w.modified == nil {
 		return nil, errClosed
 	}
@@ -106,6 +125,10 @@ func (w *Flushable) Get(key []byte) ([]byte, error) {
 		}
 		return common.CopyBytes(entry.([]byte)), nil
 	}
+
+	if w.underlying == nil {
+		return nil, nil
+	}
 	return w.underlying.Get(key)
 }
 
@@ -113,6 +136,7 @@ func (w *Flushable) Get(key []byte) ([]byte, error) {
 func (w *Flushable) Delete(key []byte) error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
 	return w.delete(key)
 }
 
@@ -127,27 +151,37 @@ func (w *Flushable) delete(key []byte) error {
 func (w *Flushable) DropNotFlushed() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
 	w.modified.Clear()
 	*w.sizeEstimation = 0
 }
 
 // Close leaves underlying database.
 func (w *Flushable) Close() error {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
 	parent := w.underlying
 	*w = Flushable{
 		underlying: parent,
 	}
+
+	if w.underlying == nil {
+		return nil
+	}
+
 	return w.underlying.Close()
 }
 
 // Drop whole database.
 func (w *Flushable) Drop() {
-	if w.dropper != nil {
-		w.dropper()
-	} else if droper, ok := w.underlying.(kvdb.Droper); ok {
-		droper.Drop()
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	if w.underlying != nil {
+		w.underlying.Drop()
+		w.underlying = nil
 	}
-	w.underlying = nil
 }
 
 // NotFlushedPairs returns num of not flushed keys, including deleted keys.
@@ -164,6 +198,16 @@ func (w *Flushable) NotFlushedSizeEst() int {
 func (w *Flushable) Flush() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
+
+	if w.underlying == nil && w.producer != nil {
+		w.underlying = w.producer()
+		w.producer = nil // need once
+	}
+
+	if w.modified == nil {
+		return errClosed
+	}
+
 	batch := w.underlying.NewBatch()
 	for it := w.modified.Iterator(); it.Next(); {
 		var err error
