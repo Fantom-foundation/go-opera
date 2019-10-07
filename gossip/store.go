@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
@@ -18,9 +18,9 @@ import (
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	bareDb kvdb.KeyValueStore
+	dbs *flushable.SyncedPool
 
-	mainDb *flushable.Flushable
+	mainDb kvdb.KeyValueStore
 	table  struct {
 		Peers     kvdb.KeyValueStore `table:"peer_"`
 		Events    kvdb.KeyValueStore `table:"event_"`
@@ -42,25 +42,18 @@ type Store struct {
 
 	tmpDbs
 
-	makeDb func(name string) kvdb.KeyValueStore
-
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
+func NewStore(dbs *flushable.SyncedPool) *Store {
 	s := &Store{
-		bareDb:   db,
-		mainDb:   flushable.New(db),
-		makeDb:   makeDb,
+		dbs:      dbs,
+		mainDb:   dbs.GetDb("gossip-main"),
 		Instance: logger.MakeInstance(),
 	}
 
 	table.MigrateTables(&s.table, s.mainDb)
-
-	if s.isDirty() {
-		s.Log.Crit("Service DB is possible inconsistent. Recreate it.")
-	}
 
 	evmTable := no_key_is_err.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
@@ -73,10 +66,10 @@ func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore
 
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
-	db := memorydb.New()
-	return NewStore(db, func(name string) kvdb.KeyValueStore {
-		return memorydb.New()
-	})
+	mems := memorydb.NewProdicer("")
+	dbs := flushable.NewSyncedPool(mems)
+
+	return NewStore(dbs)
 }
 
 // Close leaves underlying database.
@@ -86,44 +79,8 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit(epoch idx.Epoch) {
-	s.setDirty(true)
-	defer s.setDirty(false)
-
-	err := s.commitEpochStore(epoch)
-	if err != nil {
-		s.Log.Crit("epoch DB commit", "err", err)
-	}
-
-	err = s.mainDb.Flush()
-	if err != nil {
-		s.Log.Crit("main DB commit", "err", err)
-	}
-}
-
-// setDirty sets dirty flag.
-func (s *Store) setDirty(flag bool) {
-	key := []byte("is_dirty")
-	val := make([]byte, 1, 1)
-	if flag {
-		val[0] = 1
-	}
-
-	err := s.bareDb.Put(key, val)
-	if err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
-	}
-}
-
-// isDirty gets dirty flag.
-func (s *Store) isDirty() bool {
-	key := []byte("is_dirty")
-	val, err := s.bareDb.Get(key)
-	if err != nil {
-		s.Log.Crit("Failed to get value", "err", err)
-	}
-
-	return len(val) > 1 && val[0] != 0
+func (s *Store) Commit(e hash.Event) {
+	s.dbs.FlushIfNeeded(e.Bytes())
 }
 
 // StateDB returns state database.
