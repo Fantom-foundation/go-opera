@@ -17,18 +17,14 @@ var (
 // It falls when write counter is full for test purpose.
 type Fallible struct {
 	Underlying kvdb.KeyValueStore
-	onClose    func() error
-	onDrop     func() error
 
 	writes int32
 }
 
 // Wrap returns a wrapped kvdb.KeyValueStore with counter 0. Set it manually.
-func Wrap(db kvdb.KeyValueStore, close, drop func() error) *Fallible {
+func Wrap(db kvdb.KeyValueStore) *Fallible {
 	return &Fallible{
 		Underlying: db,
-		onClose:    close,
-		onDrop:     drop,
 	}
 }
 
@@ -123,14 +119,7 @@ func (f *Fallible) Close() error {
 		panic(errWriteLimit)
 	}
 
-	if f.onClose == nil {
-		return nil
-	}
-	if err := f.onClose(); err != nil {
-		panic(err)
-	}
-
-	return nil
+	return f.Underlying.Close()
 }
 
 // Drop drops database.
@@ -139,10 +128,5 @@ func (f *Fallible) Drop() {
 		panic(errWriteLimit)
 	}
 
-	if f.onDrop == nil {
-		return
-	}
-	if err := f.onDrop(); err != nil {
-		panic(err)
-	}
+	f.Underlying.Drop()
 }
