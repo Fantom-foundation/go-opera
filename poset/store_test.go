@@ -1,11 +1,9 @@
 package poset
 
 import (
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,18 +12,12 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
-
-// UnderlyingDB of Store.
-func (s *Store) UnderlyingDB() kvdb.KeyValueStore {
-	return s.mainDb.UnderlyingDB()
-}
 
 /*
  * bench:
@@ -48,56 +40,18 @@ func benchmarkStore(b *testing.B) {
 		}
 	}()
 
-	var (
-		epochCache kvdb.FlushableKeyValueStore
-	)
-	newDb := func(name string) kvdb.KeyValueStore {
-		path := filepath.Join(dir, fmt.Sprintf("lachesis.%s", name))
+	lvl := leveldb.NewProdicer(dir)
+	dbs := flushable.NewSyncedPool(lvl)
 
-		ldb, err := leveldb.New(
-			path,
-			16,
-			0,
-			"",
-			nil,
-			func() error {
-				return os.RemoveAll(path)
-			})
-		if err != nil {
-			panic(err)
-		}
-
-		cache := flushable.New(ldb)
-		if name == "epoch" {
-			epochCache = cache
-		}
-		return cache
-	}
-
-	// open history DB
-	historyCache := flushable.New(newDb("main"))
-
-	input := NewEventStore(historyCache)
+	input := NewEventStore(dbs.GetDb("input"))
 	defer input.Close()
 
-	store := NewStore(historyCache, newDb)
+	store := NewStore(dbs)
 	defer store.Close()
 
 	nodes := inter.GenNodes(5)
 
 	p := benchPoset(nodes, input, store)
-
-	// flushes both epoch DB and history DB
-	flushAll := func() {
-		err := historyCache.Flush()
-		if err != nil {
-			b.Fatal(err)
-		}
-		err = epochCache.Flush()
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
 
 	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
 		if block.Index == 1 {
@@ -116,11 +70,11 @@ func benchmarkStore(b *testing.B) {
 		_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen*3), 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				input.SetEvent(e)
-				_ = p.ProcessEvent(e)
-
-				if (historyCache.NotFlushedSizeEst() + epochCache.NotFlushedSizeEst()) >= 1024*1024 {
-					flushAll()
+				err := p.ProcessEvent(e)
+				if err != nil {
+					panic(err)
 				}
+				store.Commit(e.Hash())
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
 				e.Epoch = epoch
@@ -128,8 +82,6 @@ func benchmarkStore(b *testing.B) {
 			},
 		})
 	}
-
-	flushAll()
 }
 
 func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset {

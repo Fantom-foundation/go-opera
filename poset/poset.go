@@ -188,7 +188,7 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 		if err != nil {
 			return
 		}
-		p.store.Commit()
+		p.store.Commit(e.Hash())
 	}()
 
 	err = epoch_check.New(&p.dag, p).Validate(e)
