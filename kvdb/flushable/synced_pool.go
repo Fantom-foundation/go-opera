@@ -4,18 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
 type SyncedPool struct {
@@ -26,7 +21,7 @@ type SyncedPool struct {
 
 	prevFlushTime time.Time
 
-	mutex sync.Mutex
+	sync.Mutex
 }
 
 func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
@@ -41,47 +36,58 @@ func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
 	}
 
 	for _, name := range producer.Names() {
-		db := producer.OpenDb(name)
-		p.wrappers[name] = Wrap(db)
+		open := func() kvdb.KeyValueStore {
+			return producer.OpenDb(name)
+		}
+		drop := func() {
+			p.dropDb(name)
+		}
+		p.wrappers[name] = New(open, drop)
+	}
+
+	if err := p.checkDbsSynced(); err != nil {
+		panic(err)
 	}
 
 	return p
 }
 
-func (p *SyncedPool) registerNew(name, path string) kvdb.KeyValueStore {
-	wrapper := New(memorydb.New())
-
-	p.pathes[name] = path
-	p.wrappers[name] = wrapper
-	delete(p.queuedDrops, name)
-
-	return wrapper
-}
-
 func (p *SyncedPool) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
 	return p.getDb(fmt.Sprintf("%s-%d", prefix, index))
 }
 
 func (p *SyncedPool) GetDb(name string) kvdb.KeyValueStore {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
 	return p.getDb(name)
 }
 
 func (p *SyncedPool) getDb(name string) kvdb.KeyValueStore {
-	if wrapper := p.wrappers[name]; wrapper != nil {
+	wrapper := p.wrappers[name]
+	if wrapper != nil {
 		return wrapper
 	}
-	return p.registerNew(name, filepath.Join(p.datadir, name+"-ldb"))
+
+	open := func() kvdb.KeyValueStore {
+		return p.producer.OpenDb(name)
+	}
+	drop := func() {
+		p.dropDb(name)
+	}
+	wrapper = New(open, drop)
+
+	p.wrappers[name] = wrapper
+
+	return wrapper
 }
 
 func (p *SyncedPool) GetLastDb(prefix string) kvdb.KeyValueStore {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
 	options := make(map[string]int64)
 	for name := range p.wrappers {
@@ -113,28 +119,21 @@ func (p *SyncedPool) GetLastDb(prefix string) kvdb.KeyValueStore {
 	return p.getDb(maxIndexName)
 }
 
-func (p *SyncedPool) DropDb(name string) {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+func (p *SyncedPool) dropDb(name string) {
+	p.Lock()
+	defer p.Unlock()
 
-	if db := p.bareDbs[name]; db == nil {
-		// this DB wasn't flushed, just erase it from RAM then, and that's it
-		p.erase(name)
-		return
-	}
 	p.queuedDrops[name] = struct{}{}
 }
 
 func (p *SyncedPool) erase(name string) {
 	delete(p.wrappers, name)
-	delete(p.pathes, name)
-	delete(p.bareDbs, name)
 	delete(p.queuedDrops, name)
 }
 
 func (p *SyncedPool) Flush(id []byte) error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
 	return p.flush(id)
 }
@@ -144,41 +143,33 @@ func (p *SyncedPool) flush(id []byte) error {
 
 	// drop old DBs
 	for name := range p.queuedDrops {
-		db := p.bareDbs[name]
-		if db != nil {
-			db.Close()
+		w := p.wrappers[name]
+		if w != nil {
+			db := w.UnderlyingDb()
+			err := db.Close()
+			if err != nil {
+				return err
+			}
 			db.Drop()
 		}
 		p.erase(name)
 	}
 
-	// create new DBs, which were not dropped
-	for name, wrapper := range p.wrappers {
-		if db := p.bareDbs[name]; db == nil {
-			db, err := openDb(p.pathes[name])
-			if err != nil {
-				println(err.Error())
-				return nil
-			}
-			p.bareDbs[name] = db
-			wrapper.SetUnderlyingDB(db)
-		}
-	}
-
 	// write dirty flags
-	for _, db := range p.bareDbs {
-		marker := bytes.NewBuffer(nil)
+	for _, w := range p.wrappers {
+		db := w.UnderlyingDb()
+
 		prev, err := db.Get(key)
 		if err != nil {
 			return err
 		}
 		if prev == nil {
-			return errors.New("not found prev flushed state marker")
+			prev = []byte("initial")
 		}
 
+		marker := bytes.NewBuffer(nil)
 		marker.Write([]byte("dirty"))
 		marker.Write(prev)
-		marker.Write([]byte("->"))
 		marker.Write(id)
 		err = db.Put(key, marker.Bytes())
 		if err != nil {
@@ -188,16 +179,19 @@ func (p *SyncedPool) flush(id []byte) error {
 
 	// flush data
 	for _, wrapper := range p.wrappers {
-		wrapper.Flush()
-	}
-
-	// write clean flags
-	for _, wrapper := range p.wrappers {
-		err := wrapper.Put(key, id)
+		err := wrapper.Flush()
 		if err != nil {
 			return err
 		}
-		wrapper.Flush()
+	}
+
+	// write clean flags
+	for _, w := range p.wrappers {
+		db := w.UnderlyingDb()
+		err := db.Put(key, id)
+		if err != nil {
+			return err
+		}
 	}
 
 	p.prevFlushTime = time.Now()
@@ -205,11 +199,11 @@ func (p *SyncedPool) flush(id []byte) error {
 }
 
 func (p *SyncedPool) FlushIfNeeded(id []byte) bool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
 	if time.Since(p.prevFlushTime) > 10*time.Minute {
-		p.Flush(id)
+		p.flush(id)
 		return true
 	}
 
@@ -219,20 +213,22 @@ func (p *SyncedPool) FlushIfNeeded(id []byte) bool {
 	}
 
 	if totalNotFlushed > 100*1024*1024 {
-		p.Flush(id)
+		p.flush(id)
 		return true
 	}
 	return false
 }
 
-// call on startup, after all dbs are registered
-func (p *SyncedPool) CheckDbsSynced() error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+// checkDbsSynced on startup, after all dbs are registered.
+func (p *SyncedPool) checkDbsSynced() error {
+	p.Lock()
+	defer p.Unlock()
 
 	key := []byte("flag")
 	var prevId *[]byte
-	for _, db := range p.bareDbs {
+	for _, w := range p.wrappers {
+		db := w.UnderlyingDb()
+
 		mark, err := db.Get(key)
 		if err != nil {
 			return err
@@ -251,45 +247,13 @@ func (p *SyncedPool) CheckDbsSynced() error {
 }
 
 func (p *SyncedPool) CloseAll() error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+	p.Lock()
+	defer p.Unlock()
 
-	for _, db := range p.bareDbs {
+	for _, db := range p.wrappers {
 		if err := db.Close(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func openDb(path string) (
-	db kvdb.KeyValueStore,
-	err error,
-) {
-	err = os.MkdirAll(path, 0600)
-	if err != nil {
-		return
-	}
-
-	var stopWatcher func()
-
-	onClose := func() error {
-		if stopWatcher != nil {
-			stopWatcher()
-		}
-		return nil
-	}
-	onDrop := func() error {
-		return os.RemoveAll(path)
-	}
-
-	db, err = leveldb.New(path, 16, 0, "", onClose, onDrop)
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary database: %v", err))
-	}
-
-	// TODO: dir watcher instead of file watcher needed.
-	//stopWatcher = metrics.StartFileWatcher(name+"_db_file_size", f)
-
-	return
 }

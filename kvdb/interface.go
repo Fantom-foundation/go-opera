@@ -28,7 +28,8 @@ type FlushableKeyValueStore interface {
 
 // DbProducer represents real db producer.
 type DbProducer interface {
+	// Names of existing databases.
 	Names() []string
-
+	// OpenDb or create db with name.
 	OpenDb(name string) KeyValueStore
 }
