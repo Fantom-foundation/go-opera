@@ -33,6 +33,8 @@ matrix:
       cache:
         directories:
           - "$TRAVIS_BUILD_DIR/vendor"
+      before_install:
+        - make vendor
       addons:
         apt:
           packages:
