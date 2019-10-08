@@ -5,6 +5,8 @@ matrix:
       language: go
       go:
         - 1.12.x
+      env:
+        - GO111MODULE=off
       go_import_path: github.com/Fantom-foundation/go-lachesis
       cache:
         directories:
@@ -45,6 +47,7 @@ matrix:
         - logshold='-1,-1,-1,5,0,0'
         - l_entry='main'
         - BUILD_DIR="$TRAVIS_BUILD_DIR"
+        - GO111MODULE=off
 #    - name: SonarQube automatic code reviewer
 #      language: java
 #      dist: trusty
@@ -65,6 +68,7 @@ matrix:
         - INPUT_DIR=src
         - LANGUAGE=golang
         - ROOT_URL=https://github.com/Fantom-Foundation/go-lachesis
+        - GO111MODULE=off
       before_install:
         - curl -L https://github.com/dev10/comment-extraction/archive/master.tar.gz -o
           comment-extraction.tgz
