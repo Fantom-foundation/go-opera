@@ -33,9 +33,6 @@ matrix:
       cache:
         directories:
           - "$TRAVIS_BUILD_DIR/vendor"
-      before_install:
-        - go get -v github.com/SamuelMarks/batch-ethkey
-        - make vendor
       addons:
         apt:
           packages:
