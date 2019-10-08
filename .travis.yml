@@ -22,8 +22,7 @@ matrix:
           packages:
             - jq
       script:
-        - make coverage
-        - TESTCOUNT=3 make test
+        - go test ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
     - name: testnet
