@@ -160,6 +160,10 @@ func (w *Flushable) DropNotFlushed() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
+	w.dropNotFlushed()
+}
+
+func (w *Flushable) dropNotFlushed() {
 	w.modified.Clear()
 	*w.sizeEstimation = 0
 }
@@ -169,9 +173,8 @@ func (w *Flushable) Close() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	w.modified.Clear()
+	w.dropNotFlushed()
 	w.modified = nil
-	*w.sizeEstimation = 0
 
 	if w.underlying == nil {
 		return nil
@@ -332,47 +335,49 @@ func (it *iterator) Next() bool {
 		}
 	}
 
-	// tree has priority, so check it first
-	if it.treeOk {
-		treeKey, treeVal := castToPair(it.treeNode)
-		for it.treeOk && (!it.parentOk || bytes.Compare(treeKey, it.parentIt.Key()) <= 0) {
-			// it's not possible that treeKey isn't bigger than prevKey
-			// treeVal may be nil (i.e. deleted). move to next tree's key if it is
-			var ok bool
-			if treeVal != nil {
-				ok, it.treeOk = isSuitable(treeKey, it.prevKey)
-			} else {
-				it.prevKey = treeKey // next key must be greater than deleted, even if from parent
+	for it.treeOk || it.parentOk {
+		// tree has priority, so check it first
+		if it.treeOk {
+			treeKey, treeVal := castToPair(it.treeNode)
+			for it.treeOk && (!it.parentOk || bytes.Compare(treeKey, it.parentIt.Key()) <= 0) {
+				// it's not possible that treeKey isn't bigger than prevKey
+				// treeVal may be nil (i.e. deleted). move to next tree's key if it is
+				var ok bool
+				if treeVal != nil {
+					ok, it.treeOk = isSuitable(treeKey, it.prevKey)
+				} else {
+					it.prevKey = treeKey // next key must be greater than deleted, even if from parent
+				}
+
+				if ok {
+					it.key, it.val = treeKey, treeVal
+					it.prevKey = it.key
+				}
+				if it.treeOk {
+					it.treeNode, it.treeOk = nextNode(it.tree, it.treeNode) // strict >
+					treeKey, treeVal = castToPair(it.treeNode)
+				}
+				if ok {
+					return true
+				}
 			}
+		}
+
+		if it.parentOk {
+			var ok bool
+			ok, it.parentOk = isSuitable(it.parentIt.Key(), it.prevKey)
 
 			if ok {
-				it.key, it.val = treeKey, treeVal
+				it.key = common.CopyBytes(it.parentIt.Key()) // leveldb's iterator may use the same memory
+				it.val = common.CopyBytes(it.parentIt.Value())
 				it.prevKey = it.key
 			}
-			if it.treeOk {
-				it.treeNode, it.treeOk = nextNode(it.tree, it.treeNode) // strict >
-				treeKey, treeVal = castToPair(it.treeNode)
+			if it.parentOk {
+				it.parentOk = it.parentIt.Next()
 			}
 			if ok {
 				return true
 			}
-		}
-	}
-
-	if it.parentOk {
-		var ok bool
-		ok, it.parentOk = isSuitable(it.parentIt.Key(), it.prevKey)
-
-		if ok {
-			it.key = common.CopyBytes(it.parentIt.Key()) // leveldb's iterator may use the same memory
-			it.val = common.CopyBytes(it.parentIt.Value())
-			it.prevKey = it.key
-		}
-		if it.parentOk {
-			it.parentOk = it.parentIt.Next()
-		}
-		if ok {
-			return true
 		}
 	}
 

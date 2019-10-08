@@ -144,15 +144,19 @@ func (p *SyncedPool) flush(id []byte) error {
 	// drop old DBs
 	for name := range p.queuedDrops {
 		w := p.wrappers[name]
-		if w != nil {
-			db := w.UnderlyingDb()
-			err := db.Close()
-			if err != nil {
-				return err
-			}
-			db.Drop()
-		}
 		p.erase(name)
+		if w == nil {
+			continue
+		}
+		db := w.UnderlyingDb()
+		if db == nil {
+			continue
+		}
+		err := db.Close()
+		if err != nil {
+			return err
+		}
+		db.Drop()
 	}
 
 	// write dirty flags
