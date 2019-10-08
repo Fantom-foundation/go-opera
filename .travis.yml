@@ -16,6 +16,8 @@ matrix:
         - go get -v github.com/SamuelMarks/batch-ethkey
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
+        - go get -v github.com/codeclimate/test-reporter
+        - cd $GOPATH/src/github.com/codeclimate/test-reporter && git checkout tags/v0.4.3 && go install
         - make vendor
       addons:
         apt:
@@ -44,7 +46,7 @@ matrix:
           packages:
             - jq
       script:
-        - scripts/multi.bash
+        - go test ./integration/
       env:
         - n=3
         - logshold='-1,-1,-1,5,0,0'
