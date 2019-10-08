@@ -2,6 +2,8 @@ module github.com/Fantom-foundation/go-lachesis
 
 go 1.12
 
+replace github.com/SamuelMarks/go-cidr => github.com/apparentlymart/go-cidr v1.0.1
+
 require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190306092124-e2d15f34fcf9 // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
