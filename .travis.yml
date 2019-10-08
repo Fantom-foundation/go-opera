@@ -6,7 +6,7 @@ matrix:
       go:
         - 1.12.x
       env:
-        - GO111MODULE=off
+        - GO111MODULE=on
       go_import_path: github.com/Fantom-foundation/go-lachesis
       cache:
         directories:
