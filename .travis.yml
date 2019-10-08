@@ -22,11 +22,13 @@ matrix:
           packages:
             - jq
       script:
-        - go test ./...
+        - go test -coverprofile c.out ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
+      after_script:
+        - test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
     - name: testnet
-      language: go
+      language: gogit st
       go:
         - 1.12.x
       go_import_path: github.com/Fantom-foundation/go-lachesis
