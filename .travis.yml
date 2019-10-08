@@ -16,8 +16,6 @@ matrix:
         - go get -v github.com/SamuelMarks/batch-ethkey
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
-        - go get -v github.com/codeclimate/test-reporter
-        - cd $GOPATH/src/github.com/codeclimate/test-reporter && git checkout tags/v0.4.3 && go install
         - make vendor
       addons:
         apt:
@@ -27,8 +25,6 @@ matrix:
         - go test -coverprofile c.out ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
-      after_script:
-        - test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
     - name: testnet
       language: gogit st
       go:
@@ -38,7 +34,6 @@ matrix:
         directories:
           - "$TRAVIS_BUILD_DIR/vendor"
       before_install:
-        - go get -v github.com/ethereum/go-ethereum@v1.9.1
         - go get -v github.com/SamuelMarks/batch-ethkey
         - make vendor
       addons:
