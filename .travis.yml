@@ -11,6 +11,7 @@ matrix:
       cache:
         directories:
           - $GOPATH/pkg
+          - $GOPATH/src
       before_install:
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
@@ -31,6 +32,7 @@ matrix:
       cache:
         directories:
           - $GOPATH/pkg
+          - $GOPATH/src
       before_install:
         - go mod download
       addons:
