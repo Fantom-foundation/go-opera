@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
+// NewIntegration creates gossip service for the integration test
 func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *gossip.Service {
 	gossipCfg := gossip.DefaultConfig(network)
 

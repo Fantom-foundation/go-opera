@@ -58,7 +58,7 @@ type Emitter struct {
 	coinbase   common.Address
 	coinbaseMu sync.RWMutex
 
-	antiSelfFork selfForkProtection
+	syncStatus selfForkProtection
 
 	gasRate         metrics.Meter
 	prevEmittedTime time.Time
@@ -75,7 +75,7 @@ type selfForkProtection struct {
 	prevLocalEmittedID      hash.Event
 	prevExternalEmittedTime time.Time
 	becameValidatorTime     time.Time
-	becameValidator         bool
+	wasValidator            bool
 }
 
 // NewEmitter creation.
@@ -108,7 +108,7 @@ func (em *Emitter) StartEventEmission() {
 	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
 
 	em.prevEmittedTime = em.loadPrevEmitTime()
-	em.antiSelfFork.connectedTime = time.Now()
+	em.syncStatus.connectedTime = time.Now()
 
 	done := em.done
 	em.wg.Add(1)
@@ -218,15 +218,15 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 		for _, tx := range txs {
 			// enough gas power
 			if tx.Gas() >= e.GasPowerLeft || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
-				break // txs are dependent
+				break // txs are dependent, so break the loop
 			}
 			// check not conflicted with already included txs (in any connected event)
 			if em.world.OccurredTxs.MayBeConflicted(sender, tx.Hash()) {
-				break // txs are dependent
+				break // txs are dependent, so break the loop
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
 			if em.getTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes) != e.Creator {
-				break // txs are dependent
+				break // txs are dependent, so break the loop
 			}
 
 			// add
@@ -278,7 +278,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		// not a validator
 		return nil
 	}
-	if bad, _, _ := em.logging(em.selfForkPossible()); bad {
+	if synced, _, _ := em.logging(em.isSynced()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
 	}
@@ -410,57 +410,56 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
-	if em.antiSelfFork.prevLocalEmittedID == e.Hash() {
-		// we've just emitted this event, so it wasn't emitted by another instance with the same address
-		return
-	}
-	coinbase := em.GetCoinbase()
 	now := time.Now()
-	if e.Creator == coinbase {
-		// it was emitted by another instance with the same address
-		em.antiSelfFork.prevExternalEmittedTime = now
+	coinbase := em.GetCoinbase()
+	if em.syncStatus.prevLocalEmittedID != e.Hash() {
+		if e.Creator == coinbase {
+			// it was emitted by another instance with the same address
+			em.syncStatus.prevExternalEmittedTime = now
+		}
 	}
 
-	_, validator := em.world.Engine.GetValidators()[coinbase]
-	if validator && !em.antiSelfFork.becameValidator {
-		em.antiSelfFork.becameValidatorTime = now
+	// track when I've became validator
+	_, isValidator := em.world.Engine.GetValidators()[coinbase]
+	if isValidator && !em.syncStatus.wasValidator {
+		em.syncStatus.becameValidatorTime = now
 	}
-	em.antiSelfFork.becameValidator = validator
+	em.syncStatus.wasValidator = isValidator
 }
 
-func (em *Emitter) selfForkPossible() (bool, string, time.Duration) {
+func (em *Emitter) isSynced() (bool, string, time.Duration) {
 	if em.world.PeersNum() == 0 {
-		em.antiSelfFork.connectedTime = time.Now() // move time of the first connection
-		return true, "no connections", 0
+		em.syncStatus.connectedTime = time.Now() // move time of the first connection
+		return false, "no connections", 0
 	}
 	if !em.world.IsSynced() {
-		return true, "synchronizing (all the peers have higher/lower epoch)", 0
+		return false, "synchronizing (all the peers have higher/lower epoch)", 0
 	}
-	sinceLastExternalEvent := time.Since(em.antiSelfFork.prevExternalEmittedTime)
+	sinceLastExternalEvent := time.Since(em.syncStatus.prevExternalEmittedTime)
 	if sinceLastExternalEvent < em.config.SelfForkProtectionInterval {
-		return true, "synchronizing (not downloaded all the self-events)", em.config.SelfForkProtectionInterval - sinceLastExternalEvent
+		return false, "synchronizing (not downloaded all the self-events)", em.config.SelfForkProtectionInterval - sinceLastExternalEvent
 	}
-	connectedTime := time.Since(em.antiSelfFork.connectedTime)
+	connectedTime := time.Since(em.syncStatus.connectedTime)
 	if connectedTime < em.config.SelfForkProtectionInterval {
-		return true, "synchronizing (just connected)", em.config.SelfForkProtectionInterval - connectedTime
+		return false, "synchronizing (just connected)", em.config.SelfForkProtectionInterval - connectedTime
 	}
-	sinceBecameValidator := time.Since(em.antiSelfFork.becameValidatorTime)
+	sinceBecameValidator := time.Since(em.syncStatus.becameValidatorTime)
 	if sinceBecameValidator < em.config.SelfForkProtectionInterval {
-		return true, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval - sinceBecameValidator
+		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval - sinceBecameValidator
 	}
 
-	return false, "", 0
+	return true, "", 0
 }
 
-func (em *Emitter) logging(bad bool, reason string, wait time.Duration) (bool, string, time.Duration) {
-	if bad {
+func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool, string, time.Duration) {
+	if !synced {
 		if wait == 0 {
 			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason)
 		} else {
 			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
 		}
 	}
-	return bad, reason, wait
+	return synced, reason, wait
 }
 
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
@@ -515,7 +514,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	if e == nil {
 		return nil
 	}
-	em.antiSelfFork.prevLocalEmittedID = e.Hash()
+	em.syncStatus.prevLocalEmittedID = e.Hash()
 
 	if em.world.OnEmitted != nil {
 		em.world.OnEmitted(e)

@@ -28,6 +28,7 @@ func (vv *Validators) Set(addr common.Address, stake Stake) {
 	}
 }
 
+// Addresses returns not sorted addresses.
 func (vv Validators) Addresses() []common.Address {
 	array := make([]common.Address, 0, len(vv))
 	for n := range vv {
@@ -36,6 +37,7 @@ func (vv Validators) Addresses() []common.Address {
 	return array
 }
 
+// SortedAddresses returns deterministically sorted addresses.
 func (vv Validators) SortedAddresses() []common.Address {
 	array := vv.Addresses()
 	sort.Slice(array, func(i, j int) bool {
@@ -109,10 +111,12 @@ func (vv Validators) StakeOf(n common.Address) Stake {
 	return vv[n]
 }
 
+// EncodeRLP is for RLP serialization.
 func (vv Validators) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, vv.sortedArray())
 }
 
+// DecodeRLP is for RLP deserialization.
 func (pp *Validators) DecodeRLP(s *rlp.Stream) error {
 	if *pp == nil {
 		*pp = Validators{}

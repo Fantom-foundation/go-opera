@@ -241,10 +241,12 @@ func (w *Flushable) Flush() error {
 	return batch.Write()
 }
 
+// Stat returns a particular internal stat of the database.
 func (w *Flushable) Stat(property string) (string, error) {
 	return w.underlying.Stat(property)
 }
 
+// Compact flattens the underlying data store for the given key range.
 func (w *Flushable) Compact(start []byte, limit []byte) error {
 	return w.underlying.Compact(start, limit)
 }

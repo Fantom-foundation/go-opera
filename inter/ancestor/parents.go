@@ -10,9 +10,12 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
+// SearchStrategy defines a criteria used to estimate the "best" subset of parents to emit event with.
 type SearchStrategy interface {
+	// Init must be called before using the strategy
 	Init(selfParent *hash.Event)
-	Find(heads hash.Events) hash.Event
+	// Find chooses the hash from the specified options
+	Find(options hash.Events) hash.Event
 }
 
 // FindBestParents returns estimated parents subset, according to provided strategy
@@ -41,11 +44,14 @@ func FindBestParents(max int, options hash.Events, selfParent *hash.Event, strat
  * CasualityStrategy
  */
 
+// CasualityStrategy uses vector clock to check which parents observe "more" than others
+// The strategy uses "observing more" as a search criteria
 type CasualityStrategy struct {
 	vecClock *vector.Index
 	template vector.HighestBeforeSeq
 }
 
+// NewCasualityStrategy creates new CasualityStrategy with provided vector clock
 func NewCasualityStrategy(vecClock *vector.Index) *CasualityStrategy {
 	return &CasualityStrategy{
 		vecClock: vecClock,
@@ -58,6 +64,7 @@ type eventScore struct {
 	vec   vector.HighestBeforeSeq
 }
 
+// Init must be called before using the strategy
 func (st *CasualityStrategy) Init(selfParent *hash.Event) {
 	if selfParent != nil {
 		// we start searching by comparing with self-parent
@@ -65,6 +72,7 @@ func (st *CasualityStrategy) Init(selfParent *hash.Event) {
 	}
 }
 
+// Find chooses the hash from the specified options
 func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 	scores := make([]eventScore, 0, 100)
 
@@ -106,6 +114,7 @@ func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
  * RandomStrategy
  */
 
+// RandomStrategy is used in tests, when vector clock isn't available
 type RandomStrategy struct {
 	r *rand.Rand
 }
@@ -121,6 +130,7 @@ func NewRandomStrategy(r *rand.Rand) *RandomStrategy {
 
 func (st *RandomStrategy) Init(myLast *hash.Event) {}
 
+// Find chooses the hash from the specified options
 func (st *RandomStrategy) Find(heads hash.Events) hash.Event {
 	return heads[st.r.Intn(len(heads))]
 }

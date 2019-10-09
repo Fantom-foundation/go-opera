@@ -10,10 +10,13 @@ import (
 )
 
 var (
+	// ErrNotRelevant indicates the event's epoch isn't equal to current epoch.
 	ErrNotRelevant = errors.New("event is too old or too new")
-	ErrAuth        = errors.New("event creator isn't validator")
+	// ErrAuth indicates that event's creator isn't authorized to create events in current epoch.
+	ErrAuth = errors.New("event creator isn't validator")
 )
 
+// DagReader is accessed by the validator to get the current state.
 type DagReader interface {
 	GetEpochValidators() (pos.Validators, idx.Epoch)
 }

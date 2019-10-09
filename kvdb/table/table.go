@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
+// Table wraps the underling DB, so all the table's data is stored with a prefix in underling DB
 type Table struct {
 	db     ethdb.KeyValueStore
 	prefix []byte

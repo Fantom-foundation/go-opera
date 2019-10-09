@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
+// AddRoot stores the new root
 func (s *Store) AddRoot(root *inter.Event) {
 	key := bytes.Buffer{}
 	key.Write(root.Frame.Bytes())
@@ -21,6 +22,7 @@ func (s *Store) AddRoot(root *inter.Event) {
 	}
 }
 
+// IsRoot returns true if event is root
 func (s *Store) IsRoot(f idx.Frame, from common.Address, id hash.Event) bool {
 	key := bytes.Buffer{}
 	key.Write(f.Bytes())
@@ -40,6 +42,7 @@ const (
 	eventIDSize = 32
 )
 
+// ForEachRoot iterates all the roots in the specified frame
 func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Address, root hash.Event) bool) {
 	it := s.epochTable.Roots.NewIteratorWithStart(f.Bytes())
 	defer it.Release()
@@ -64,6 +67,7 @@ func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Addres
 	}
 }
 
+// ForEachRootFrom iterates all the roots in the specified frame, from the specified validator
 func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.Frame, from common.Address, id hash.Event) bool) {
 	prefix := append(f.Bytes(), from.Bytes()...)
 

@@ -18,6 +18,7 @@ func (p *Poset) frameConsensusTime(frame idx.Frame) inter.Timestamp {
 		LastConsensusTime
 }
 
+// fareOrdering orders the events and calculates time ratio & time offset for the new frame
 func (p *Poset) fareOrdering(
 	frame idx.Frame,
 	atropos hash.Event,

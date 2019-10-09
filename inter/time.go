@@ -6,7 +6,6 @@ import (
 
 type (
 	// Timestamp is a logical time.
-	// TODO: replace with time.Time ?
 	Timestamp uint64
 )
 

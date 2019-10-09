@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
-// Droper wraps the Drop method of a backing data store.
+// Droper is able to delete the DB.
 type Droper interface {
 	Drop()
 }
@@ -16,7 +16,8 @@ type KeyValueStore interface {
 	Droper
 }
 
-// FlushableKeyValueStore
+// FlushableKeyValueStore contains all the method for flushable databases,
+// i.e. databases which write changes on disk only on flush.
 type FlushableKeyValueStore interface {
 	KeyValueStore
 

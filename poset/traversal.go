@@ -9,7 +9,7 @@ import (
 
 type eventFilterFn func(event *inter.EventHeaderData) bool
 
-// dfsSubgraph returns all the events which are observed by head, and accepted by a filter.
+// dfsSubgraph iterates all the events which are observed by head, and accepted by a filter.
 func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) error {
 	stack := make(hash.EventsStack, 0, len(p.Validators)*10)
 

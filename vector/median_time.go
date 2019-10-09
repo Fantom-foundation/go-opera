@@ -8,7 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
-// Handy index for the MedianTime() func
+// medianTimeIndex is a handy index for the MedianTime() func
 type medianTimeIndex struct {
 	stake       pos.Stake
 	claimedTime inter.Timestamp

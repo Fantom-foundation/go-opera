@@ -35,4 +35,4 @@
 
 ## Node logs
 
-1. `./swarm servise logs node2`.
+1. `./swarm service logs node2`.

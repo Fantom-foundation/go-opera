@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// EmitterConfig is the configuration of events emitter.
 type EmitterConfig struct {
 	Coinbase common.Address `json:"coinbase"`
 
@@ -25,6 +26,7 @@ type EmitterConfig struct {
 	EmergencyThreshold uint64 `json:"emergencyThreshold"`
 }
 
+// DefaultEmitterConfig returns the default configurations for the events emitter.
 func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
 		MinEmitInterval:            1 * time.Second,
@@ -39,6 +41,7 @@ func DefaultEmitterConfig() EmitterConfig {
 	}
 }
 
+// FakeEmitterConfig returns the testing configurations for the events emitter.
 func FakeEmitterConfig() EmitterConfig {
 	cfg := DefaultEmitterConfig()
 	cfg.MaxEmitInterval = 10 * time.Second // don't wait long in fakenet

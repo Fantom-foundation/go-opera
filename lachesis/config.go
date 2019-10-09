@@ -16,6 +16,7 @@ const (
 	FakeNetworkId uint64 = 3
 )
 
+// GasPowerConfig defines gas power rules in the consensus.
 type GasPowerConfig struct {
 	TotalPerH          uint64          `json:"totalPerH"`
 	MaxStashedPeriod   inter.Timestamp `json:"maxStashedPeriod"`
@@ -23,7 +24,7 @@ type GasPowerConfig struct {
 	MinStartupGasPower uint64          `json:"minStartupGasPower"`
 }
 
-// DagConfig of DAG.
+// DagConfig of Lachesis DAG (directed acyclic graph).
 type DagConfig struct {
 	MaxParents                int       `json:"maxParents"`
 	MaxFreeParents            int       `json:"maxFreeParents"` // maximum number of parents with no gas cost

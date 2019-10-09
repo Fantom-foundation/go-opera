@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/integration"
 )
 
+// FakeNetFlag enables special testnet, where validators are automatically created
 var FakeNetFlag = cli.StringFlag{
 	Name:  "fakenet",
 	Usage: "'N/X' - sets fake N-th key and genesis of X keys",

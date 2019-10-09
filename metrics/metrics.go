@@ -26,7 +26,7 @@ func init() {
 
 		if flag == "metrics" {
 			Enabled = true
-			log.Debug("Metrics is enabled by flags")
+			log.Debug("Metrics are enabled by flags")
 			return
 		}
 	}
@@ -36,10 +36,10 @@ func init() {
 		switch strings.ToLower(isEnabled) {
 		case "1", "true", "on":
 			Enabled = true
-			log.Debug("Metrics is enabled by environment")
+			log.Debug("Metrics are enabled by environment")
 		case "0", "false", "off":
 			Enabled = false
-			log.Debug("Metrics is disable by environment")
+			log.Debug("Metrics are disabled by environment")
 		default:
 			log.Error("Incorrect value", envEnabled, isEnabled)
 		}

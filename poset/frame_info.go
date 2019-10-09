@@ -14,6 +14,7 @@ import (
 
 // TODO: make FrameInfo internal
 
+// FrameInfo stores persistent data, associated with a frame
 type FrameInfo struct {
 	TimeOffset        int64 // may be negative
 	TimeRatio         inter.Timestamp
@@ -46,11 +47,12 @@ func (f *FrameInfo) DecodeRLP(st *rlp.Stream) error {
 	return nil
 }
 
+// CalcConsensusTime calcs consensus timestamp, using frame's time offset/ratio
 func (f *FrameInfo) CalcConsensusTime(lamport idx.Lamport) inter.Timestamp {
 	return inter.Timestamp(int64(lamport)*int64(f.TimeRatio) + f.TimeOffset)
 }
 
-// GetConsensusTime calc consensus timestamp for given event.
+// GetConsensusTime calc consensus timestamp for given event, if event is confirmed.
 func (p *Poset) GetConsensusTime(id hash.Event) (inter.Timestamp, error) {
 	f := p.store.GetEventConfirmedOn(id)
 	if f == 0 {

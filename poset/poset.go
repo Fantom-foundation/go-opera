@@ -44,10 +44,12 @@ func New(dag lachesis.DagConfig, store *Store, input EventSource) *Poset {
 	return p
 }
 
+// GetVectorIndex returns vector clock.
 func (p *Poset) GetVectorIndex() *vector.Index {
 	return p.vecClock
 }
 
+// LastBlock returns current block.
 func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 	return p.LastBlockN, p.LastAtropos
 }
@@ -152,7 +154,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 	}
 }
 
-func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.ElectionRes) {
+func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.Res) {
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		Root: id,
 		Slot: election.Slot{
@@ -169,9 +171,9 @@ func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (de
 
 // The function is similar to processRoot, but it fully re-processes the current voting.
 // This routine should be called after node startup, and after each decided frame.
-func (p *Poset) processKnownRoots() *election.ElectionRes {
+func (p *Poset) processKnownRoots() *election.Res {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
-	var decided *election.ElectionRes
+	var decided *election.Res
 	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
 		p.Log.Debug("Calculate root votes in new election", "root", root.String())
 		decided = p.processRoot(f, from, root)
@@ -214,8 +216,8 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 // and returns event's frame.
 // It is not safe for concurrent use.
 func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
-	if e.SelfParent() == nil {
-		// special case for first events in an SF
+	if len(e.Parents) == 0 {
+		// special case for very first events in the epoch
 		frame = idx.Frame(1)
 		isRoot = true
 		return
@@ -239,7 +241,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	// counter of all the observed roots on maxParentsFrame
 	observedCounter := p.Validators.NewCounter()
 	if !checkOnly || e.IsRoot {
-		// check "observing" prev roots only if called by creator, or if creator has marked that event is root
+		// check "observing" prev roots only if called by creator, or if creator has marked that event as root
 		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
 			if p.vecClock.ForklessCause(e.Hash(), root) {
 				observedCounter.Count(from)
@@ -254,7 +256,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	} else {
 		// I observe enough roots at maxParentsFrame-1, because some of my parents does.
 		frame = maxParentsFrame
-		// Calculates: Did my self-parent start the frame already?
+		// Calculates: Did my self-parent start the frame already? If not, the event is a root.
 		isRoot = maxParentsFrame > selfParentFrame
 	}
 

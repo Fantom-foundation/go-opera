@@ -113,6 +113,7 @@ func name(n idx.Epoch) string {
  * Utils:
  */
 
+// set RLP value
 func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
@@ -124,6 +125,7 @@ func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 	}
 }
 
+// get RLP value
 func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
