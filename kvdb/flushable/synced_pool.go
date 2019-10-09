@@ -214,7 +214,7 @@ func (p *SyncedPool) checkDbsSynced() error {
 		if prevId == nil {
 			prevId = &mark
 		}
-		if bytes.Compare(mark, *prevId) != 0 {
+		if !bytes.Equal(mark, *prevId) {
 			return fmt.Errorf("not synced: %s", list())
 		}
 	}
