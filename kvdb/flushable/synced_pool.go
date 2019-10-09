@@ -2,10 +2,7 @@ package flushable
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +40,7 @@ func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
 	}
 
 	if err := p.checkDbsSynced(); err != nil {
-		log.Crit("Databases aren't sync.")
+		log.Crit("Databases aren't sync", "err", err)
 	}
 
 	return p
@@ -64,11 +61,11 @@ func (p *SyncedPool) callbacks(name string) (
 	return
 }
 
-func (p *SyncedPool) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
+func (p *SyncedPool) dropDb(name string) {
 	p.Lock()
 	defer p.Unlock()
 
-	return p.getDb(fmt.Sprintf("%s-%d", prefix, index))
+	p.queuedDrops[name] = struct{}{}
 }
 
 func (p *SyncedPool) GetDb(name string) kvdb.KeyValueStore {
@@ -90,52 +87,6 @@ func (p *SyncedPool) getDb(name string) kvdb.KeyValueStore {
 	p.wrappers[name] = wrapper
 
 	return wrapper
-}
-
-func (p *SyncedPool) GetLastDb(prefix string) kvdb.KeyValueStore {
-	p.Lock()
-	defer p.Unlock()
-
-	options := make(map[string]int64)
-	for name := range p.wrappers {
-		if strings.HasPrefix(name, prefix) {
-			s := strings.Split(name, "-")
-			if len(s) < 2 {
-				println(name, "name without index")
-				continue
-			}
-			indexStr := s[len(s)-1]
-			index, err := strconv.ParseInt(indexStr, 10, 64)
-			if err != nil {
-				println(err.Error())
-				continue
-			}
-			options[name] = index
-		}
-	}
-
-	maxIndexName := ""
-	maxIndex := int64(math.MinInt64)
-	for name, index := range options {
-		if index > maxIndex {
-			maxIndex = index
-			maxIndexName = name
-		}
-	}
-
-	return p.getDb(maxIndexName)
-}
-
-func (p *SyncedPool) dropDb(name string) {
-	p.Lock()
-	defer p.Unlock()
-
-	p.queuedDrops[name] = struct{}{}
-}
-
-func (p *SyncedPool) erase(name string) {
-	delete(p.wrappers, name)
-	delete(p.queuedDrops, name)
 }
 
 func (p *SyncedPool) Flush(id []byte) error {
@@ -209,6 +160,11 @@ func (p *SyncedPool) flush(id []byte) error {
 	return nil
 }
 
+func (p *SyncedPool) erase(name string) {
+	delete(p.wrappers, name)
+	delete(p.queuedDrops, name)
+}
+
 func (p *SyncedPool) FlushIfNeeded(id []byte) bool {
 	p.Lock()
 	defer p.Unlock()
@@ -235,23 +191,31 @@ func (p *SyncedPool) checkDbsSynced() error {
 	p.Lock()
 	defer p.Unlock()
 
-	key := []byte("flag")
-	var prevId *[]byte
-	for _, w := range p.wrappers {
+	var (
+		key    = []byte("flag")
+		prevId *[]byte
+		descrs []string
+		list   = func() string {
+			return strings.Join(descrs, ",\n")
+		}
+	)
+	for name, w := range p.wrappers {
 		db := w.UnderlyingDb()
 
 		mark, err := db.Get(key)
 		if err != nil {
 			return err
 		}
+		descrs = append(descrs, fmt.Sprintf("%s: %s", name, mark))
+
 		if bytes.HasPrefix(mark, []byte("dirty")) {
-			return errors.New("dirty")
+			return fmt.Errorf("dirty state: %s", list())
 		}
 		if prevId == nil {
 			prevId = &mark
 		}
 		if bytes.Compare(mark, *prevId) != 0 {
-			return errors.New("not synced")
+			return fmt.Errorf("not synced: %s", list())
 		}
 	}
 	return nil
