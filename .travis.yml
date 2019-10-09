@@ -10,7 +10,6 @@ matrix:
         - GO111MODULE=on
       before_install:
         - go get -v github.com/ethereum/go-ethereum@v1.9.1
-        - go get -v github.com/SamuelMarks/batch-ethkey
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
         - go mod download
