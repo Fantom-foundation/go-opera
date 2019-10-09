@@ -33,7 +33,7 @@ func TestRestore(t *testing.T) {
 	inputs := make([]*EventStore, 0, COUNT)
 	namespaces := make([]string, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
-		namespace := fmt.Sprintf("poset.TestRestore-%d", i)
+		namespace := fmt.Sprintf("poset.TestRestore-%d-%d", i, rand.Int())
 		poset, _, input := FakePoset(namespace, nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
@@ -142,7 +142,7 @@ func TestDbFailure(t *testing.T) {
 	inputs := make([]*EventStore, 0, COUNT)
 	namespaces := make([]string, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
-		namespace := fmt.Sprintf("poset.TestDbFailure-%d", i)
+		namespace := fmt.Sprintf("poset.TestDbFailure-%d-%d", i, rand.Int())
 		var mods []memorydb.Mod
 		if i == RESTORED {
 			mods = []memorydb.Mod{setRealDb}
