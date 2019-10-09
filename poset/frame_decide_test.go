@@ -20,7 +20,7 @@ func TestConfirmBlockEvents(t *testing.T) {
 	assertar := assert.New(t)
 
 	nodes := inter.GenNodes(5)
-	poset, _, input := FakePoset(uniqNamespace(), nodes)
+	poset, _, input := FakePoset("", nodes)
 
 	var (
 		frames []idx.Frame

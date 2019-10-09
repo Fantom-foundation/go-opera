@@ -23,6 +23,9 @@ type (
 )
 
 func (s *Store) initTmpDbs() {
+	s.tmpDbs.Lock()
+	defer s.tmpDbs.Unlock()
+
 	s.tmpDbs.min = make(map[string]uint64)
 	s.tmpDbs.seq = make(map[string]map[uint64]tmpDb)
 
@@ -61,7 +64,7 @@ func (s *Store) getTmpDb(name string, ver uint64, makeTables func(kvdb.KeyValueS
 		return tmp.Tables
 	}
 
-	db := s.makeDb(tmpDbName(name, ver))
+	db := s.dbs.GetDb(tmpDbName(name, ver))
 	tables := makeTables(db)
 	s.tmpDbs.seq[name][ver] = tmpDb{
 		Db:     db,

@@ -9,6 +9,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
@@ -40,14 +42,15 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 }
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(namespace string, nodes []common.Address) (*ExtendedPoset, *Store, *EventStore) {
+func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (*ExtendedPoset, *Store, *EventStore) {
 	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
 		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
-	fs := newFakeFS(namespace)
-	store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
+	mems := memorydb.NewProdicer(namespace, mods...)
+	dbs := flushable.NewSyncedPool(mems)
+	store := NewStore(dbs)
 
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Alloc: balances,

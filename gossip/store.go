@@ -7,7 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/no_key_is_err"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
@@ -16,9 +18,10 @@ import (
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
-	persistentDB kvdb.KeyValueStore
+	dbs *flushable.SyncedPool
 
-	table struct {
+	mainDb kvdb.KeyValueStore
+	table  struct {
 		Peers     kvdb.KeyValueStore `table:"peer_"`
 		Events    kvdb.KeyValueStore `table:"event_"`
 		Blocks    kvdb.KeyValueStore `table:"block_"`
@@ -39,22 +42,20 @@ type Store struct {
 
 	tmpDbs
 
-	makeDb func(name string) kvdb.KeyValueStore
-
 	logger.Instance
 }
 
 // NewStore creates store over key-value db.
-func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore) *Store {
+func NewStore(dbs *flushable.SyncedPool) *Store {
 	s := &Store{
-		persistentDB: db,
-		makeDb:       makeDb,
-		Instance:     logger.MakeInstance(),
+		dbs:      dbs,
+		mainDb:   dbs.GetDb("gossip-main"),
+		Instance: logger.MakeInstance(),
 	}
 
-	table.MigrateTables(&s.table, s.persistentDB)
+	table.MigrateTables(&s.table, s.mainDb)
 
-	evmTable := no_key_is_err.Wrap(table.New(s.persistentDB, []byte("evm_"))) // ETH expects that "not found" is an error
+	evmTable := no_key_is_err.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabase(s.table.Evm)
 
@@ -65,16 +66,21 @@ func NewStore(db kvdb.KeyValueStore, makeDb func(name string) kvdb.KeyValueStore
 
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
-	db := memorydb.New()
-	return NewStore(db, func(name string) kvdb.KeyValueStore {
-		return memorydb.New()
-	})
+	mems := memorydb.NewProdicer("")
+	dbs := flushable.NewSyncedPool(mems)
+
+	return NewStore(dbs)
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
 	table.MigrateTables(&s.table, nil)
-	s.persistentDB.Close()
+	s.mainDb.Close()
+}
+
+// Commit changes.
+func (s *Store) Commit(e hash.Event) {
+	s.dbs.FlushIfNeeded(e.Bytes())
 }
 
 // StateDB returns state database.

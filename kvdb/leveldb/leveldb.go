@@ -61,12 +61,12 @@ type Database struct {
 	log log.Logger // Contextual logger tracking the database path
 
 	onClose func() error
-	onDrop  func() error
+	onDrop  func()
 }
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(path string, cache int, handles int, namespace string, close, drop func() error) (*Database, error) {
+func New(path string, cache int, handles int, namespace string, close func() error, drop func()) (*Database, error) {
 	// Ensure we have some minimal caching and file guarantees
 	if cache < minCache {
 		cache = minCache
@@ -149,11 +149,8 @@ func (db *Database) Drop() {
 	if db.db != nil {
 		panic("Close database first!")
 	}
-	if db.onDrop == nil {
-		return
-	}
-	if err := db.onDrop(); err != nil {
-		panic(err)
+	if db.onDrop != nil {
+		db.onDrop()
 	}
 }
 

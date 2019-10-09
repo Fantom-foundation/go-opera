@@ -10,7 +10,10 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/fallible"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -30,7 +33,7 @@ func TestRestore(t *testing.T) {
 	inputs := make([]*EventStore, 0, COUNT)
 	namespaces := make([]string, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
-		namespace := uniqNamespace()
+		namespace := fmt.Sprintf("poset.TestRestore-%d-%d", i, rand.Int())
 		poset, _, input := FakePoset(namespace, nodes)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
@@ -48,8 +51,8 @@ func TestRestore(t *testing.T) {
 	// create events
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
-		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, epochLen*2, COUNT, r, inter.ForEachEvent{
+		stability := rand.New(rand.NewSource(int64(epoch)))
+		_ = inter.ForEachRandEvent(nodes, epochLen*2, COUNT, stability, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[GENERATOR].SetEvent(e)
 				assertar.NoError(posets[GENERATOR].ProcessEvent(e))
@@ -80,12 +83,15 @@ func TestRestore(t *testing.T) {
 			log.Info("Restart poset")
 			prev := posets[RESTORED]
 			x++
-			fs := newFakeFS(namespaces[RESTORED])
-			store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
+
+			mems := memorydb.NewProdicer(namespaces[RESTORED])
+			dbs := flushable.NewSyncedPool(mems)
+			store := NewStore(dbs)
 			store.SetName(fmt.Sprintf("restored-%d", x))
 
 			restored := New(prev.dag, store, prev.input)
 			restored.SetName(fmt.Sprintf("restored-%d", x))
+
 			restored.Bootstrap(prev.applyBlock)
 
 			posets[RESTORED].Poset = restored
@@ -121,12 +127,27 @@ func TestDbFailure(t *testing.T) {
 	)
 	nodes := inter.GenNodes(5)
 
+	var realDb *fallible.Fallible
+	setRealDb := func(db kvdb.KeyValueStore) kvdb.KeyValueStore {
+		if realDb != nil {
+			return db
+		}
+		fdb := fallible.Wrap(db)
+		fdb.SetWriteCount(enough)
+		realDb = fdb
+		return fdb
+	}
+
 	posets := make([]*ExtendedPoset, 0, COUNT)
 	inputs := make([]*EventStore, 0, COUNT)
 	namespaces := make([]string, 0, COUNT)
 	for i := 0; i < COUNT; i++ {
-		namespace := uniqNamespace()
-		poset, _, input := FakePoset(namespace, nodes)
+		namespace := fmt.Sprintf("poset.TestDbFailure-%d-%d", i, rand.Int())
+		var mods []memorydb.Mod
+		if i == RESTORED {
+			mods = []memorydb.Mod{setRealDb}
+		}
+		poset, _, input := FakePoset(namespace, nodes, mods...)
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
 		namespaces = append(namespaces, namespace)
@@ -139,9 +160,10 @@ func TestDbFailure(t *testing.T) {
 
 	epochLen := int(posets[GENERATOR].dag.EpochLen)
 
+	stability := rand.New(rand.NewSource(1))
 	// create events on etalon poset
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, epochLen-1, COUNT, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, epochLen-1, COUNT, stability, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 
@@ -165,10 +187,6 @@ func TestDbFailure(t *testing.T) {
 	posets[RESTORED].store.
 		SetName("restored-0")
 
-	// db writes limit
-	db := posets[RESTORED].store.UnderlyingDB().(*fallible.Fallible)
-	db.SetWriteCount(100)
-
 	x := 0
 	process := func(e *inter.Event) (ok bool) {
 		ok = true
@@ -179,13 +197,14 @@ func TestDbFailure(t *testing.T) {
 			}
 			ok = false
 
-			db.SetWriteCount(100)
-
 			log.Info("Restart poset after db failure")
 			prev := posets[RESTORED]
 			x++
-			fs := newFakeFS(namespaces[RESTORED])
-			store := NewStore(fs.OpenFakeDB(""), fs.OpenFakeDB)
+
+			realDb.SetWriteCount(100)
+			mems := memorydb.NewProdicer(namespaces[RESTORED])
+			dbs := flushable.NewSyncedPool(mems)
+			store := NewStore(dbs)
 			store.SetName(fmt.Sprintf("restored-%d", x))
 
 			restored := New(prev.dag, store, prev.input)

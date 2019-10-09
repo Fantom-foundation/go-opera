@@ -10,13 +10,16 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-lachesis/gossip"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/poset"
 )
 
 // MakeEngine makes consensus engine from config.
 func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip.Store) {
-	makeDb := dbProducer(dataDir)
-	gdb, cdb := makeStorages(makeDb)
+	dbs := flushable.NewSyncedPool(dbProducer(dataDir))
+
+	gdb := gossip.NewStore(dbs)
+	cdb := poset.NewStore(dbs)
 
 	// write genesis
 

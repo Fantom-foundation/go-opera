@@ -2,51 +2,38 @@ package flushable
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
-	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
-
-func tempLevelDB(name string) *leveldb.Database {
-	dir, err := ioutil.TempDir("", "flushable-test"+name)
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory: %v", err))
-	}
-
-	drop := func() error {
-		_ = os.RemoveAll(dir)
-		return nil
-	}
-
-	diskdb, err := leveldb.New(dir, 16, 0, "", nil, drop)
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary database: %v", err))
-	}
-	return diskdb
-}
 
 func TestFlushable(t *testing.T) {
 	tries := 60            // number of test iterations
 	opsPerIter := 0x140    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
 
+	dir, err := ioutil.TempDir("", "test-flushable")
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
+	}
+	disk := leveldb.NewProdicer(dir)
+
 	// open raw databases
-	leveldb1 := tempLevelDB("1")
+	leveldb1 := disk.OpenDb("1")
 	defer leveldb1.Drop()
 	defer leveldb1.Close()
 
-	leveldb2 := tempLevelDB("2")
+	leveldb2 := disk.OpenDb("2")
 	defer leveldb2.Drop()
 	defer leveldb2.Close()
 
@@ -57,12 +44,13 @@ func TestFlushable(t *testing.T) {
 	}
 
 	flushableDbs := map[string]*Flushable{
-		"cache-over-leveldb": New(leveldb2),
-		"cache-over-memory":  New(memorydb.New()),
+		"cache-over-leveldb": Wrap(leveldb2),
+		"cache-over-memory":  Wrap(memorydb.New()),
 	}
 
 	baseLdb := table.New(dbs["leveldb"], []byte{})
 	baseMem := table.New(dbs["memory"], []byte{})
+
 	dbsTables := [][]ethdb.KeyValueStore{
 		{
 			dbs["leveldb"],
@@ -121,6 +109,7 @@ func TestFlushable(t *testing.T) {
 	}
 
 	for try := 0; try < tries; try++ {
+
 		// random pet/delete operations
 		putDeleteRandom := func() {
 			for j := 0; j < tablesNum; j++ {
@@ -187,7 +176,9 @@ func TestFlushable(t *testing.T) {
 
 		for j := 0; j < tablesNum; j++ {
 			expectPairs := []kv{}
+
 			testForEach := func(db ethdb.KeyValueStore, first bool) {
+
 				var it ethdb.Iterator
 				if try%3 == 0 {
 					it = db.NewIterator()
@@ -206,7 +197,7 @@ func TestFlushable(t *testing.T) {
 							v: common.CopyBytes(it.Value()),
 						})
 					} else {
-						assertar.NotEqual(got, len(expectPairs), try) // check that we've for the same num of values
+						assertar.NotEqual(len(expectPairs), got, try) // check that we've for the same num of values
 						if t.Failed() {
 							return
 						}
@@ -219,7 +210,7 @@ func TestFlushable(t *testing.T) {
 					return
 				}
 
-				assertar.Equal(got, len(expectPairs)) // check that we've got the same num of pairs
+				assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
 			}
 
 			// check that all groups return the same result

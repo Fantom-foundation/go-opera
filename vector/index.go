@@ -53,7 +53,7 @@ func NewIndex(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(ha
 func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) {
 	// we use wrapper to be able to drop failed events by dropping cache
 	vi.getEvent = getEvent
-	vi.vecDb = flushable.New(db)
+	vi.vecDb = flushable.Wrap(db)
 	vi.validators = validators
 	vi.validatorIdxs = validators.Idxs()
 

@@ -54,8 +54,6 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 		return fmt.Errorf("balances shouldn't be nil")
 	}
 
-	defer s.mainDb.Flush()
-
 	if exist := s.GetGenesis(); exist != nil {
 		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, stateHash) {
 			return nil
@@ -87,6 +85,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 	s.SetGenesis(e)
 	s.SetEpoch(e)
 	s.SetCheckpoint(cp)
+	s.Commit(genesisAtropos, immediately)
 
 	return nil
 }

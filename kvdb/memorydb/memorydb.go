@@ -21,8 +21,9 @@ var (
 // functionality it also supports batch writes and iterating over the keyspace in
 // binary-alphabetical order.
 type Database struct {
-	db   map[string][]byte
-	lock sync.RWMutex
+	db     map[string][]byte
+	onDrop func()
+	lock   sync.RWMutex
 }
 
 // New returns a wrapped map with all the required database interface methods
@@ -30,6 +31,15 @@ type Database struct {
 func New() *Database {
 	return &Database{
 		db: make(map[string][]byte),
+	}
+}
+
+// New returns a wrapped map with all the required database interface methods
+// implemented and drop callback.
+func NewWithDrop(drop func()) *Database {
+	return &Database{
+		db:     make(map[string][]byte),
+		onDrop: drop,
 	}
 }
 
@@ -54,6 +64,9 @@ func (db *Database) Close() error {
 func (db *Database) Drop() {
 	if db.db != nil {
 		panic("Close database first!")
+	}
+	if db.onDrop != nil {
+		db.onDrop()
 	}
 }
 

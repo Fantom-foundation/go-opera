@@ -75,6 +75,10 @@ func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
 	}
 
 	writeBlockIndexes(db, blockNum, block.Hash)
+	err = statedb.Database().TrieDB().Cap(0)
+	if err != nil {
+		return nil, err
+	}
 
 	return block, nil
 }

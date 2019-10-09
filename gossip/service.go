@@ -108,7 +108,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		engine:       engine,
 		processEvent: svc.processEvent,
 	}
-	svc.engine.Bootstrap(svc.ApplyBlock)
+	svc.engine.Bootstrap(svc.onNewBlock)
 
 	trustedNodes := []string{}
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)

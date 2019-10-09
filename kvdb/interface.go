@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
+// Droper wraps the Drop method of a backing data store.
 type Droper interface {
 	Drop()
 }
@@ -15,6 +16,7 @@ type KeyValueStore interface {
 	Droper
 }
 
+// FlushableKeyValueStore
 type FlushableKeyValueStore interface {
 	KeyValueStore
 
@@ -22,4 +24,12 @@ type FlushableKeyValueStore interface {
 	NotFlushedSizeEst() int
 	Flush() error
 	DropNotFlushed()
+}
+
+// DbProducer represents real db producer.
+type DbProducer interface {
+	// Names of existing databases.
+	Names() []string
+	// OpenDb or create db with name.
+	OpenDb(name string) KeyValueStore
 }

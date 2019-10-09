@@ -5,7 +5,6 @@ package poset
 func (s *Store) SetCheckpoint(cp *checkpoint) {
 	const key = "current"
 	s.set(s.table.Checkpoint, []byte(key), cp)
-
 }
 
 // GetCheckpoint returns stored checkpoint.

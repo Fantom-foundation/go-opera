@@ -22,9 +22,11 @@ func tempLevelDB(name string) *leveldb.Database {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
 
-	drop := func() error {
-		_ = os.RemoveAll(dir)
-		return nil
+	drop := func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	diskdb, err := leveldb.New(dir, 16, 0, "", nil, drop)
@@ -58,8 +60,8 @@ func TestTable(t *testing.T) {
 	for name, db := range map[string]kvdb.KeyValueStore{
 		"memory":                       memorydb.New(),
 		"leveldb":                      leveldb1,
-		"cache-over-leveldb":           flushable.New(leveldb2),
-		"cache-over-cache-over-memory": flushable.New(memorydb.New()),
+		"cache-over-leveldb":           flushable.Wrap(leveldb2),
+		"cache-over-cache-over-memory": flushable.Wrap(memorydb.New()),
 	} {
 		t.Run(name, func(t *testing.T) {
 			assertar := assert.New(t)

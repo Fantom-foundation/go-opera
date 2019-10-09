@@ -20,7 +20,7 @@ func TestFallible(t *testing.T) {
 	)
 
 	mem := memorydb.New()
-	w := Wrap(mem, nil, nil)
+	w := Wrap(mem)
 	db = w
 
 	_, err = db.Get(key)

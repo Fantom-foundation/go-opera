@@ -21,7 +21,7 @@ func TestPoset(t *testing.T) {
 	posets := make([]*ExtendedPoset, 0, posetCount)
 	inputs := make([]*EventStore, 0, posetCount)
 	for i := 0; i < posetCount; i++ {
-		poset, store, input := FakePoset(uniqNamespace(), nodes)
+		poset, store, input := FakePoset("", nodes)
 		n := i % len(nodes)
 		poset.SetName(nodes[n].String())
 		store.SetName(nodes[n].String())
