@@ -7,7 +7,7 @@ matrix:
         - 1.12.x
       go_import_path: github.com/Fantom-foundation/go-lachesis
       env:
-        - GO111MODULE=off
+        - GO111MODULE=on
       before_install:
         - go get -v github.com/ethereum/go-ethereum@v1.9.1
         - go get -v github.com/SamuelMarks/batch-ethkey
@@ -41,7 +41,7 @@ matrix:
         - logshold='-1,-1,-1,5,0,0'
         - l_entry='main'
         - BUILD_DIR="$TRAVIS_BUILD_DIR"
-        - GO111MODULE=off
+        - GO111MODULE=on
 #    - name: SonarQube automatic code reviewer
 #      language: java
 #      dist: trusty
