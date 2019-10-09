@@ -5,17 +5,12 @@ matrix:
       language: go
       go:
         - 1.12.x
-      env:
-        - GO111MODULE=off
       go_import_path: github.com/Fantom-foundation/go-lachesis
-      cache:
-        directories:
-          - "$TRAVIS_BUILD_DIR/vendor"
       before_install:
         - go get -v github.com/SamuelMarks/batch-ethkey
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
-        - make vendor
+        - go mod download
       addons:
         apt:
           packages:
@@ -29,11 +24,8 @@ matrix:
       go:
         - 1.12.x
       go_import_path: github.com/Fantom-foundation/go-lachesis
-      cache:
-        directories:
-          - "$TRAVIS_BUILD_DIR/vendor"
       before_install:
-        - make vendor
+        - go mod download
       addons:
         apt:
           packages:
@@ -45,7 +37,6 @@ matrix:
         - logshold='-1,-1,-1,5,0,0'
         - l_entry='main'
         - BUILD_DIR="$TRAVIS_BUILD_DIR"
-        - GO111MODULE=off
 #    - name: SonarQube automatic code reviewer
 #      language: java
 #      dist: trusty
