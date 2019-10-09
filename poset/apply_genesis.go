@@ -85,7 +85,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 	s.SetGenesis(e)
 	s.SetEpoch(e)
 	s.SetCheckpoint(cp)
-	s.Commit(genesisAtropos)
+	s.Commit(genesisAtropos, immediately)
 
 	return nil
 }

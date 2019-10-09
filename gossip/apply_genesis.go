@@ -25,8 +25,9 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 	block.Creator = evmBlock.Coinbase
 	s.SetBlock(block)
 	genesisAtropos = block.Hash()
-	s.dbs.Flush(genesisAtropos.Bytes())
 	genesisEvmState = block.Root
+
+	s.dbs.Flush(genesisAtropos.Bytes())
 
 	return
 }

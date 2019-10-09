@@ -14,6 +14,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
+const (
+	immediately = true
+)
+
 // Store is a poset persistent storage working over parent key-value database.
 type Store struct {
 	dbs *flushable.SyncedPool
@@ -58,8 +62,12 @@ func NewMemStore() *Store {
 }
 
 // Commit changes hard.
-func (s *Store) Commit(e hash.Event) {
-	s.dbs.Flush(e.Bytes())
+func (s *Store) Commit(e hash.Event, immediately bool) {
+	if immediately {
+		s.dbs.Flush(e.Bytes())
+	} else {
+		s.dbs.FlushIfNeeded(e.Bytes())
+	}
 }
 
 // Close leaves underlying database.
