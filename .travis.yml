@@ -12,7 +12,6 @@ matrix:
         directories:
           - $GOPATH/pkg
           - $GOPATH/src
-          - $GOROOT
       before_install:
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
@@ -30,7 +29,6 @@ matrix:
         directories:
           - $GOPATH/pkg
           - $GOPATH/src
-          - $GOROOT
       before_install:
         - go mod download
       script:
