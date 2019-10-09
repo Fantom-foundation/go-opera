@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 )
 
@@ -36,20 +38,30 @@ func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
 	}
 
 	for _, name := range producer.Names() {
-		open := func() kvdb.KeyValueStore {
-			return producer.OpenDb(name)
-		}
-		drop := func() {
-			p.dropDb(name)
-		}
+		open, drop := p.callbacks(name)
 		p.wrappers[name] = New(open, drop)
 	}
 
 	if err := p.checkDbsSynced(); err != nil {
-		panic(err)
+		log.Crit("Databases aren't sync.")
 	}
 
 	return p
+}
+
+func (p *SyncedPool) callbacks(name string) (
+	onOpen func() kvdb.KeyValueStore,
+	onDrop func(),
+) {
+	onOpen = func() kvdb.KeyValueStore {
+		return p.producer.OpenDb(name)
+	}
+
+	onDrop = func() {
+		p.dropDb(name)
+	}
+
+	return
 }
 
 func (p *SyncedPool) GetDbByIndex(prefix string, index int64) kvdb.KeyValueStore {
@@ -72,12 +84,7 @@ func (p *SyncedPool) getDb(name string) kvdb.KeyValueStore {
 		return wrapper
 	}
 
-	open := func() kvdb.KeyValueStore {
-		return p.producer.OpenDb(name)
-	}
-	drop := func() {
-		p.dropDb(name)
-	}
+	open, drop := p.callbacks(name)
 	wrapper = New(open, drop)
 
 	p.wrappers[name] = wrapper

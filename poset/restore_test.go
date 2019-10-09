@@ -18,7 +18,7 @@ import (
 )
 
 func TestRestore(t *testing.T) {
-	//logger.SetTestMode(t)
+	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
 	const (
@@ -91,6 +91,7 @@ func TestRestore(t *testing.T) {
 
 			restored := New(prev.dag, store, prev.input)
 			restored.SetName(fmt.Sprintf("restored-%d", x))
+
 			restored.Bootstrap(prev.applyBlock)
 
 			posets[RESTORED].Poset = restored
