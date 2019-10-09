@@ -8,6 +8,9 @@ matrix:
       go_import_path: github.com/Fantom-foundation/go-lachesis
       env:
         - GO111MODULE=on
+      cache:
+        directories:
+          - $GOPATH/pkg/mod
       before_install:
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
@@ -25,6 +28,9 @@ matrix:
       go:
         - 1.12.x
       go_import_path: github.com/Fantom-foundation/go-lachesis
+      cache:
+        directories:
+          - $GOPATH/pkg/mod
       before_install:
         - go mod download
       addons:
@@ -34,8 +40,4 @@ matrix:
       script:
         - go test ./integration/
       env:
-        - n=3
-        - logshold='-1,-1,-1,5,0,0'
-        - l_entry='main'
-        - BUILD_DIR="$TRAVIS_BUILD_DIR"
         - GO111MODULE=on
