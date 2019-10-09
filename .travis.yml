@@ -16,7 +16,7 @@ matrix:
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
       script:
-        - go test -coverprofile c.out ./...
+        - go test -race -coverprofile=coverage.txt -covermode=atomic ./...
       after_success:
         - bash <(curl -s https://codecov.io/bash)
     - name: testnet
