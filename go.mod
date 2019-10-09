@@ -24,7 +24,6 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/getsentry/raven-go v0.2.0 // indirect
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/golang/mock v1.3.1
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/graph-gophers/graphql-go v0.0.0-20190724201507-010347b5f9e6 // indirect
