@@ -10,7 +10,7 @@ matrix:
         - GO111MODULE=on
       cache:
         directories:
-          - $GOPATH/pkg/mod
+          - $GOPATH/pkg
       before_install:
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
@@ -30,7 +30,7 @@ matrix:
       go_import_path: github.com/Fantom-foundation/go-lachesis
       cache:
         directories:
-          - $GOPATH/pkg/mod
+          - $GOPATH/pkg
       before_install:
         - go mod download
       addons:
