@@ -9,6 +9,7 @@ matrix:
       env:
         - GO111MODULE=off
       before_install:
+        - go get -v github.com/ethereum/go-ethereum@v1.9.1
         - go get -v github.com/SamuelMarks/batch-ethkey
         - go get -v github.com/golang/mock/mockgen
         - go install github.com/golang/mock/mockgen
@@ -27,6 +28,7 @@ matrix:
         - 1.12.x
       go_import_path: github.com/Fantom-foundation/go-lachesis
       before_install:
+        - go get -v github.com/ethereum/go-ethereum@v1.9.1
         - go mod download
       addons:
         apt:
