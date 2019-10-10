@@ -20,7 +20,9 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 	}
 	s.DelEventHeader(epoch, id)
 
-	s.cache.Events.Remove(key)
+	if s.cache.Events != nil {
+		s.cache.Events.Remove(key)
+	}
 }
 
 // SetEvent stores event.
@@ -30,7 +32,9 @@ func (s *Store) SetEvent(e *inter.Event) {
 	s.set(s.table.Events, key, e)
 	s.SetEventHeader(e.Epoch, e.Hash(), &e.EventHeaderData)
 
-	s.cache.Events.Add(key, e)
+	if s.cache.Events != nil {
+		s.cache.Events.Add(key, e)
+	}
 }
 
 // GetEvent returns stored event.
@@ -38,17 +42,19 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	key := id.Bytes()
 
 	// Get event from LRU cache
-	c, ok := s.cache.Events.Get(key)
-	if ok {
-		if ev, ok := c.(*inter.Event); ok {
-			return ev
+	if s.cache.Events != nil {
+		c, ok := s.cache.Events.Get(key)
+		if ok {
+			if ev, ok := c.(*inter.Event); ok {
+				return ev
+			}
 		}
 	}
 
 	w, _ := s.get(s.table.Events, key, &inter.Event{}).(*inter.Event)
 
 	// Put event to LRU cache
-	if w != nil {
+	if w != nil && s.cache.Events != nil {
 		s.cache.Events.Add(key, w)
 	}
 
@@ -88,7 +94,7 @@ func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
 
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
-	if s.cache.Events.Contains(h.Bytes()) {
+	if 	s.cache.Events != nil && s.cache.Events.Contains(h.Bytes()) {
 		return true
 	}
 

@@ -159,14 +159,18 @@ func (s *Store) initLRUCache() bool {
 
 	var err error
 
-	s.cache.Events, err = lru.New(StoreConfig.EventsCacheSize)
-	if err != nil {
-		s.Log.Error("Error create LRU cache", "err", err)
+	if StoreConfig.EventsCacheSize > 0 {
+		s.cache.Events, err = lru.New(StoreConfig.EventsCacheSize)
+		if err != nil {
+			s.Log.Error("Error create LRU cache", "err", err)
+		}
 	}
 
-	s.cache.EventsHeaders, err = lru.New(StoreConfig.EventsHeadersCacheSize)
-	if err != nil {
-		s.Log.Error("Error create LRU cache", "err", err)
+	if StoreConfig.EventsHeadersCacheSize > 0 {
+		s.cache.EventsHeaders, err = lru.New(StoreConfig.EventsHeadersCacheSize)
+		if err != nil {
+			s.Log.Error("Error create LRU cache", "err", err)
+		}
 	}
 
 	return err == nil
