@@ -172,19 +172,21 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 			pm.engineMu.Lock()
 			defer pm.engineMu.Unlock()
 
+			was := pm.engine.GetEpoch()
+
 			log.Info("New event", "event", e.String())
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
 				return err
 			}
 
-			pm.store.Commit(e.Hash())
-
 			// If the event is indeed in our own graph, announce it
 			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
 				pm.BroadcastEvent(e, false)
 			}
-			return nil
+
+			immediately := (pm.engine.GetEpoch() != was)
+			return pm.store.Commit(e.Hash(), immediately)
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {

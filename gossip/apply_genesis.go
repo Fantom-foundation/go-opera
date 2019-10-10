@@ -27,7 +27,5 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 	genesisAtropos = block.Hash()
 	genesisEvmState = block.Root
 
-	s.dbs.Flush(genesisAtropos.Bytes())
-
 	return
 }

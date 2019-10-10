@@ -79,8 +79,13 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit(e hash.Event) {
-	s.dbs.FlushIfNeeded(e.Bytes())
+func (s *Store) Commit(e hash.Event, immediately bool) error {
+	if immediately {
+		return s.dbs.Flush(e.Bytes())
+	}
+
+	_, err := s.dbs.FlushIfNeeded(e.Bytes())
+	return err
 }
 
 // StateDB returns state database.
