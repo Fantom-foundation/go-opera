@@ -7,8 +7,25 @@ package gossip
 import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	lru "github.com/hashicorp/golang-lru"
+	"math/rand"
 	"testing"
 )
+
+func TestCorrectCacheWorkForEvent(t *testing.T) {
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
+
+	testEvent := &inter.Event{}
+	testEvent.ClaimedTime = inter.Timestamp(rand.Int63())
+
+	store.SetEvent(testEvent)
+	e := store.GetEvent(testEvent.Hash())
+
+	if e.Hash() != testEvent.Hash() {
+		t.Error("Error save/restore Event with LRU" )
+	}
+}
 
 func BenchmarkReadEventWithLRU(b *testing.B) {
 	store := NewMemStore()
