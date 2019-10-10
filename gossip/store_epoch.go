@@ -79,7 +79,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 	s.set(es.Headers, key, e)
 
 	if s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Add(key, e)
+		s.cache.EventsHeaders.Add(string(key), e)
 	}
 }
 
@@ -89,7 +89,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	// Сначала проверяем в LRU кэше
 	if s.cache.EventsHeaders != nil {
-		v, ok := s.cache.EventsHeaders.Get(key)
+		v, ok := s.cache.EventsHeaders.Get(string(key))
 		if ok {
 			if w, ok := v.(*inter.EventHeaderData); ok {
 				return w
@@ -106,7 +106,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	// Сохраняем в LRU кэше
 	if w != nil && s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Add(key, w)
+		s.cache.EventsHeaders.Add(string(key), w)
 	}
 
 	return w
@@ -126,6 +126,6 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	}
 
 	if s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Remove(key)
+		s.cache.EventsHeaders.Remove(string(key))
 	}
 }
