@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
@@ -15,6 +16,16 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
+
+var StoreConfig *ExtendedStoreConfig
+
+// Config for Store
+type ExtendedStoreConfig struct {
+	// LRU cache size for Events
+	EventsCacheSize	int
+
+	// LRU cache size for Epoch (HeadEvents)
+}
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
@@ -40,6 +51,10 @@ type Store struct {
 		EvmState state.Database
 	}
 
+	cache struct {
+		Events		*lru.Cache
+	}
+
 	tmpDbs
 
 	logger.Instance
@@ -60,6 +75,7 @@ func NewStore(dbs *flushable.SyncedPool) *Store {
 	s.table.EvmState = state.NewDatabase(s.table.Evm)
 
 	s.initTmpDbs()
+	s.initLRUCache(cfg)
 
 	return s
 }
@@ -131,4 +147,20 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
+}
+
+// Init LRU cache
+func (s *Store) initLRUCache() bool {
+	if storeConfig == nil {
+		return false
+	}
+
+	var err error
+
+	s.cache.Events, err = lru.New(storeConfig.EventsCacheSize)
+	if err != nil {
+		s.Log.Error("Error create LRU cache", "err", err)
+	}
+
+	return err == nil
 }

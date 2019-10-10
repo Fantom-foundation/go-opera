@@ -34,6 +34,8 @@ type Config struct {
 	RPCGasCap *big.Int `toml:",omitempty"`
 
 	ExtRPCEnabled bool
+
+	StoreConfig	ExtendedStoreConfig
 }
 
 // DefaultConfig returns the default configurations for the gossip service.
@@ -51,6 +53,10 @@ func DefaultConfig(network lachesis.Config) Config {
 		},
 
 		ForcedBroadcast: true,
+
+		StoreConfig: ExtendedStoreConfig{
+			EventsCacheSize: 300,
+		},
 	}
 	if network.NetworkId == lachesis.FakeNetworkId {
 		cfg.Emitter = FakeEmitterConfig()

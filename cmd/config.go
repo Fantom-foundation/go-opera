@@ -244,6 +244,8 @@ func makeAllConfigs(ctx *cli.Context) config {
 	cfg.Lachesis = gossipConfigWithFlags(ctx, cfg.Lachesis)
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
 
+	gossip.StoreConfig = &cfg.Lachesis.StoreConfig
+
 	return cfg
 }
 
