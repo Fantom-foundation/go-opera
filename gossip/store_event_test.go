@@ -1,26 +1,30 @@
 package gossip
 
+/*
+	Benchmarks for store Events with LRU and without
+*/
+
 import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"testing"
 )
 
-func BenchmarkReadWithLRU(b *testing.B) {
+func BenchmarkReadEventWithLRU(b *testing.B) {
 	StoreConfig = &ExtendedStoreConfig{
 		EventsCacheSize:        100,
 		EventsHeadersCacheSize: 10000,
 	}
 
-	benchReadTest(b)
+	benchReadEventTest(b)
 }
 
-func BenchmarkReadWithoutLRU(b *testing.B) {
+func BenchmarkReadEventWithoutLRU(b *testing.B) {
 	StoreConfig = nil
 
-	benchReadTest(b)
+	benchReadEventTest(b)
 }
 
-func benchReadTest(b *testing.B) {
+func benchReadEventTest(b *testing.B) {
 	testEvent := &inter.Event{}
 	store := NewMemStore()
 
@@ -35,22 +39,22 @@ func benchReadTest(b *testing.B) {
 	}
 }
 
-func BenchmarkWriteWithLRU(b *testing.B) {
+func BenchmarkWriteEventWithLRU(b *testing.B) {
 	StoreConfig = &ExtendedStoreConfig{
 		EventsCacheSize:        100,
 		EventsHeadersCacheSize: 10000,
 	}
 
-	benchWriteTest(b)
+	benchWriteEventTest(b)
 }
 
-func BenchmarkWriteWithoutLRU(b *testing.B) {
+func BenchmarkWriteEventWithoutLRU(b *testing.B) {
 	StoreConfig = nil
 
-	benchWriteTest(b)
+	benchWriteEventTest(b)
 }
 
-func benchWriteTest(b *testing.B) {
+func benchWriteEventTest(b *testing.B) {
 	testEvent := &inter.Event{}
 	store := NewMemStore()
 

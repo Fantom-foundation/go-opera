@@ -35,6 +35,9 @@ func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
 // delEpochStore is not safe for concurrent use.
 func (s *Store) delEpochStore(epoch idx.Epoch) {
 	s.delTmpDb("epoch", uint64(epoch))
+
+	// Clear full LRU cache
+	s.cache.EventsHeaders.Purge()
 }
 
 func (s *Store) SetLastEvent(epoch idx.Epoch, from common.Address, id hash.Event) {
@@ -78,6 +81,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 
 	s.set(es.Headers, key, e)
 
+	// Save to LRU cache
 	if s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Add(string(key), e)
 	}
@@ -87,7 +91,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeaderData {
 	key := h.Bytes()
 
-	// Сначала проверяем в LRU кэше
+	// Check LRU cache first
 	if s.cache.EventsHeaders != nil {
 		v, ok := s.cache.EventsHeaders.Get(string(key))
 		if ok {
@@ -104,7 +108,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	w, _ := s.get(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
 
-	// Сохраняем в LRU кэше
+	// Save to LRU cache
 	if w != nil && s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Add(string(key), w)
 	}
@@ -125,6 +129,7 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 		s.Log.Crit("Failed to delete key", "err", err)
 	}
 
+	// Remove from LRU cache
 	if s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Remove(string(key))
 	}
