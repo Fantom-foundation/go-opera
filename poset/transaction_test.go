@@ -38,7 +38,10 @@ func TestPosetTxn(t *testing.T) {
 	_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen-1), 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			x.SetEvent(e)
-			assert.NoError(t, p.ProcessEvent(e))
+			assert.NoError(t,
+				p.ProcessEvent(e))
+			assert.NoError(t,
+				flushDb(p, e.Hash()))
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1

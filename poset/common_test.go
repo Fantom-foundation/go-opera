@@ -52,13 +52,15 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 	dbs := flushable.NewSyncedPool(mems)
 	store := NewStore(dbs)
 
+	atropos := hash.ZeroEvent
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Alloc: balances,
 		Time:  genesisTestTime,
-	}, hash.ZeroEvent, common.Hash{})
+	}, atropos, common.Hash{})
 	if err != nil {
 		panic(err)
 	}
+	dbs.Flush(atropos.Bytes())
 
 	input := NewEventStore(nil)
 
@@ -79,4 +81,8 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 	})
 
 	return extended, store, input
+}
+
+func flushDb(p *ExtendedPoset, e hash.Event) error {
+	return p.store.dbs.Flush(e.Bytes())
 }

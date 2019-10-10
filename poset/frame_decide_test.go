@@ -39,6 +39,9 @@ func TestConfirmBlockEvents(t *testing.T) {
 			input.SetEvent(e)
 			assertar.NoError(
 				poset.ProcessEvent(e))
+			assertar.NoError(
+				flushDb(poset, e.Hash()))
+
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = idx.Epoch(1)
