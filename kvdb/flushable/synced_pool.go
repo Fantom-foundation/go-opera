@@ -165,13 +165,12 @@ func (p *SyncedPool) erase(name string) {
 	delete(p.queuedDrops, name)
 }
 
-func (p *SyncedPool) FlushIfNeeded(id []byte) bool {
+func (p *SyncedPool) FlushIfNeeded(id []byte) (bool, error) {
 	p.Lock()
 	defer p.Unlock()
 
 	if time.Since(p.prevFlushTime) > 10*time.Minute {
-		p.flush(id)
-		return true
+		return true, p.flush(id)
 	}
 
 	totalNotFlushed := 0
@@ -180,10 +179,9 @@ func (p *SyncedPool) FlushIfNeeded(id []byte) bool {
 	}
 
 	if totalNotFlushed > 100*1024*1024 {
-		p.flush(id)
-		return true
+		return true, p.flush(id)
 	}
-	return false
+	return false, nil
 }
 
 // checkDbsSynced on startup, after all dbs are registered.
