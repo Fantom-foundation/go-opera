@@ -166,7 +166,8 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		s.occurredTxs.Clear()
 	}
 
-	return nil
+	immediately := (newEpoch != oldEpoch)
+	return s.store.Commit(e.Hash(), immediately)
 }
 
 func (s *Service) makeEmitter() *Emitter {

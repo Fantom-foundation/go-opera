@@ -172,8 +172,6 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 			pm.engineMu.Lock()
 			defer pm.engineMu.Unlock()
 
-			was := pm.engine.GetEpoch()
-
 			log.Info("New event", "event", e.String())
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
@@ -185,8 +183,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 				pm.BroadcastEvent(e, false)
 			}
 
-			immediately := (pm.engine.GetEpoch() != was)
-			return pm.store.Commit(e.Hash(), immediately)
+			return nil
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
