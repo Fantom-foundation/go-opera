@@ -6,27 +6,28 @@ package gossip
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	lru "github.com/hashicorp/golang-lru"
 	"testing"
 )
 
 func BenchmarkReadHeaderWithLRU(b *testing.B) {
-	StoreConfig = &ExtendedStoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 10000,
-	}
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
 
-	benchReadEventHeaderTest(b)
+	benchReadEventHeaderTest(b, store)
 }
 
 func BenchmarkReadHeaderWithoutLRU(b *testing.B) {
-	StoreConfig = nil
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
 
-	benchReadEventHeaderTest(b)
+	benchReadEventHeaderTest(b, store)
 }
 
-func benchReadEventHeaderTest(b *testing.B) {
+func benchReadEventHeaderTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
-	store := NewMemStore()
 
 	store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
 
@@ -40,23 +41,23 @@ func benchReadEventHeaderTest(b *testing.B) {
 }
 
 func BenchmarkWriteHeaderWithLRU(b *testing.B) {
-	StoreConfig = &ExtendedStoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 10000,
-	}
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
 
-	benchWriteEventHeaderTest(b)
+	benchWriteEventHeaderTest(b, store)
 }
 
 func BenchmarkWriteHeaderWithoutLRU(b *testing.B) {
-	StoreConfig = nil
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
 
-	benchWriteEventHeaderTest(b)
+	benchWriteEventHeaderTest(b, store)
 }
 
-func benchWriteEventHeaderTest(b *testing.B) {
+func benchWriteEventHeaderTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
-	store := NewMemStore()
 
 	for i := 0; i < b.N; i++ {
 		store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)

@@ -17,10 +17,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
-var StoreConfig *ExtendedStoreConfig
-
 // Config for Store
-type ExtendedStoreConfig struct {
+type StoreConfig struct {
 	// LRU cache size for Events
 	EventsCacheSize			int
 
@@ -63,7 +61,7 @@ type Store struct {
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs *flushable.SyncedPool) *Store {
+func NewStore(dbs *flushable.SyncedPool, cfg *StoreConfig) *Store {
 	s := &Store{
 		dbs:      dbs,
 		mainDb:   dbs.GetDb("gossip-main"),
@@ -77,7 +75,7 @@ func NewStore(dbs *flushable.SyncedPool) *Store {
 	s.table.EvmState = state.NewDatabase(s.table.Evm)
 
 	s.initTmpDbs()
-	s.initLRUCache()
+	s.initLRUCache(cfg)
 
 	return s
 }
@@ -87,7 +85,12 @@ func NewMemStore() *Store {
 	mems := memorydb.NewProdicer("")
 	dbs := flushable.NewSyncedPool(mems)
 
-	return NewStore(dbs)
+	defaultTestStoreCfg := StoreConfig{
+		EventsCacheSize:        100,
+		EventsHeadersCacheSize: 1000,
+	}
+
+	return NewStore(dbs, &defaultTestStoreCfg)
 }
 
 // Close leaves underlying database.
@@ -152,22 +155,22 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 }
 
 // Init LRU cache
-func (s *Store) initLRUCache() bool {
-	if StoreConfig == nil {
+func (s *Store) initLRUCache(cfg *StoreConfig) bool {
+	if cfg == nil {
 		return false
 	}
 
 	var err error
 
-	if StoreConfig.EventsCacheSize > 0 {
-		s.cache.Events, err = lru.New(StoreConfig.EventsCacheSize)
+	if cfg.EventsCacheSize > 0 {
+		s.cache.Events, err = lru.New(cfg.EventsCacheSize)
 		if err != nil {
 			s.Log.Error("Error create LRU cache", "err", err)
 		}
 	}
 
-	if StoreConfig.EventsHeadersCacheSize > 0 {
-		s.cache.EventsHeaders, err = lru.New(StoreConfig.EventsHeadersCacheSize)
+	if cfg.EventsHeadersCacheSize > 0 {
+		s.cache.EventsHeaders, err = lru.New(cfg.EventsHeadersCacheSize)
 		if err != nil {
 			s.Log.Error("Error create LRU cache", "err", err)
 		}

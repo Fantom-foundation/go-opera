@@ -33,7 +33,6 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 
 	net := lachesis.FakeNetConfig(nodesNum)
 	config := DefaultConfig(net)
-	StoreConfig = &config.StoreConfig
 
 	engineStore := poset.NewMemStore()
 	err := engineStore.ApplyGenesis(&net.Genesis, hash.Event{}, common.Hash{})

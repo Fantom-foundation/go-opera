@@ -18,7 +18,7 @@ import (
 func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip.Store) {
 	dbs := flushable.NewSyncedPool(dbProducer(dataDir))
 
-	gdb := gossip.NewStore(dbs)
+	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
 	cdb := poset.NewStore(dbs)
 
 	// write genesis

@@ -6,27 +6,28 @@ package gossip
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	lru "github.com/hashicorp/golang-lru"
 	"testing"
 )
 
 func BenchmarkReadEventWithLRU(b *testing.B) {
-	StoreConfig = &ExtendedStoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 10000,
-	}
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
 
-	benchReadEventTest(b)
+	benchReadEventTest(b, store)
 }
 
 func BenchmarkReadEventWithoutLRU(b *testing.B) {
-	StoreConfig = nil
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
 
-	benchReadEventTest(b)
+	benchReadEventTest(b, store)
 }
 
-func benchReadEventTest(b *testing.B) {
+func benchReadEventTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
-	store := NewMemStore()
 
 	store.SetEvent(testEvent)
 
@@ -40,23 +41,23 @@ func benchReadEventTest(b *testing.B) {
 }
 
 func BenchmarkWriteEventWithLRU(b *testing.B) {
-	StoreConfig = &ExtendedStoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 10000,
-	}
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
 
-	benchWriteEventTest(b)
+	benchWriteEventTest(b, store)
 }
 
 func BenchmarkWriteEventWithoutLRU(b *testing.B) {
-	StoreConfig = nil
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
 
-	benchWriteEventTest(b)
+	benchWriteEventTest(b, store)
 }
 
-func benchWriteEventTest(b *testing.B) {
+func benchWriteEventTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
-	store := NewMemStore()
 
 	for i := 0; i < b.N; i++ {
 		store.SetEvent(testEvent)
@@ -64,38 +65,39 @@ func benchWriteEventTest(b *testing.B) {
 }
 
 func BenchmarkHasEventExistsWithLRU(b *testing.B) {
-	StoreConfig = &ExtendedStoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 10000,
-	}
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
 
-	benchHasEventExistsTest(b)
+	benchHasEventExistsTest(b, store)
 }
 
 func BenchmarkHasEventExistsWithoutLRU(b *testing.B) {
-	StoreConfig = nil
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
 
-	benchHasEventExistsTest(b)
+	benchHasEventExistsTest(b, store)
 }
 
 func BenchmarkHasEventAbsentWithLRU(b *testing.B) {
-	StoreConfig = &ExtendedStoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 10000,
-	}
+	store := NewMemStore()
+	store.cache.Events, _ = lru.New(100)
+	store.cache.EventsHeaders, _ = lru.New(100)
 
-	benchHasEventAbsentTest(b)
+	benchHasEventAbsentTest(b, store)
 }
 
 func BenchmarkHasEventAbsentWithoutLRU(b *testing.B) {
-	StoreConfig = nil
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
 
-	benchHasEventAbsentTest(b)
+	benchHasEventAbsentTest(b, store)
 }
 
-func benchHasEventExistsTest(b *testing.B) {
+func benchHasEventExistsTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
-	store := NewMemStore()
 
 	store.SetEvent(testEvent)
 
@@ -107,9 +109,8 @@ func benchHasEventExistsTest(b *testing.B) {
 	}
 }
 
-func benchHasEventAbsentTest(b *testing.B) {
+func benchHasEventAbsentTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
-	store := NewMemStore()
 
 	store.DeleteEvent(testEvent.Epoch, testEvent.Hash())
 

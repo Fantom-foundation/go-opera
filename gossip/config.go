@@ -35,7 +35,7 @@ type Config struct {
 
 	ExtRPCEnabled bool
 
-	StoreConfig	ExtendedStoreConfig
+	StoreConfig	StoreConfig
 }
 
 // DefaultConfig returns the default configurations for the gossip service.
@@ -54,7 +54,7 @@ func DefaultConfig(network lachesis.Config) Config {
 
 		ForcedBroadcast: true,
 
-		StoreConfig: ExtendedStoreConfig{
+		StoreConfig: StoreConfig{
 			EventsCacheSize:        300,
 			EventsHeadersCacheSize: 10000,
 		},
