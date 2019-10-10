@@ -153,7 +153,7 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 
 // Init LRU cache
 func (s *Store) initLRUCache() bool {
-	if storeConfig == nil {
+	if StoreConfig == nil {
 		return false
 	}
 
