@@ -55,7 +55,8 @@ func DefaultConfig(network lachesis.Config) Config {
 		ForcedBroadcast: true,
 
 		StoreConfig: ExtendedStoreConfig{
-			EventsCacheSize: 300,
+			EventsCacheSize:        300,
+			EventsHeadersCacheSize: 10000,
 		},
 	}
 	if network.NetworkId == lachesis.FakeNetworkId {

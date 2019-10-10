@@ -77,18 +77,34 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 	key := h.Bytes()
 
 	s.set(es.Headers, key, e)
+	s.cache.EventsHeaders.Add(key, e)
 }
 
 // GetEventHeader returns stored event header.
 func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeaderData {
+	key := h.Bytes()
+
+	// Сначала проверяем в LRU кэше
+	var w *inter.EventHeaderData
+	v, ok := s.cache.EventsHeaders.Get(key)
+	if ok {
+		if w, ok = v.(*inter.EventHeaderData); ok {
+			return w
+		}
+	}
+
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil
 	}
 
-	key := h.Bytes()
+	w, _ = s.get(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
 
-	w, _ := s.get(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
+	// Сохраняем в LRU кэше
+	if w != nil {
+		s.cache.EventsHeaders.Add(key, w)
+	}
+
 	return w
 }
 
@@ -104,4 +120,5 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	if err != nil {
 		s.Log.Crit("Failed to delete key", "err", err)
 	}
+	s.cache.EventsHeaders.Remove(key)
 }

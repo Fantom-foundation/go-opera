@@ -22,9 +22,10 @@ var StoreConfig *ExtendedStoreConfig
 // Config for Store
 type ExtendedStoreConfig struct {
 	// LRU cache size for Events
-	EventsCacheSize	int
+	EventsCacheSize			int
 
 	// LRU cache size for Epoch (HeadEvents)
+	EventsHeadersCacheSize int
 }
 
 // Store is a node persistent storage working over physical key-value database.
@@ -52,7 +53,8 @@ type Store struct {
 	}
 
 	cache struct {
-		Events		*lru.Cache
+		Events			*lru.Cache
+		EventsHeaders 	*lru.Cache
 	}
 
 	tmpDbs
@@ -75,7 +77,7 @@ func NewStore(dbs *flushable.SyncedPool) *Store {
 	s.table.EvmState = state.NewDatabase(s.table.Evm)
 
 	s.initTmpDbs()
-	s.initLRUCache(cfg)
+	s.initLRUCache()
 
 	return s
 }
@@ -157,7 +159,12 @@ func (s *Store) initLRUCache() bool {
 
 	var err error
 
-	s.cache.Events, err = lru.New(storeConfig.EventsCacheSize)
+	s.cache.Events, err = lru.New(StoreConfig.EventsCacheSize)
+	if err != nil {
+		s.Log.Error("Error create LRU cache", "err", err)
+	}
+
+	s.cache.EventsHeaders, err = lru.New(StoreConfig.EventsHeadersCacheSize)
 	if err != nil {
 		s.Log.Error("Error create LRU cache", "err", err)
 	}
