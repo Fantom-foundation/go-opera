@@ -12,7 +12,6 @@ import (
 // NewIntegration creates gossip service for the integration test
 func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *gossip.Service {
 	gossipCfg := gossip.DefaultConfig(network)
-	gossip.StoreConfig = &gossipCfg.StoreConfig
 
 	engine, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
