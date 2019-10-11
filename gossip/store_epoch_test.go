@@ -8,15 +8,11 @@ import (
 	"math/rand"
 	"testing"
 
-	lru "github.com/hashicorp/golang-lru"
-
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
 func TestStoreGetEventHeader(t *testing.T) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+	store := lruStore
 
 	expect := &inter.Event{}
 	expect.ClaimedTime = inter.Timestamp(rand.Int63())
@@ -29,56 +25,40 @@ func TestStoreGetEventHeader(t *testing.T) {
 	}
 }
 
-func BenchmarkReadHeaderWithLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+func BenchmarkReadHeader(b *testing.B) {
+	testStore = lruStore
+	b.Run("LRUon", benchReadEventHeaderTest)
 
-	benchReadEventHeaderTest(b, store)
+	testStore = simpleStore
+	b.Run("LRUoff", benchReadEventHeaderTest)
 }
 
-func BenchmarkReadHeaderWithoutLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events = nil
-	store.cache.EventsHeaders = nil
-
-	benchReadEventHeaderTest(b, store)
-}
-
-func benchReadEventHeaderTest(b *testing.B, store *Store) {
+func benchReadEventHeaderTest(b *testing.B) {
 	testEvent := &inter.Event{}
 
-	store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
+	testStore.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
 
 	key := testEvent.EventHeaderData.Hash().Bytes()
 	for i := 0; i < b.N; i++ {
-		hev := store.GetEventHeader(testEvent.Epoch, testEvent.Hash())
+		hev := testStore.GetEventHeader(testEvent.Epoch, testEvent.Hash())
 		if string(hev.Hash().Bytes()) != string(key) {
 			b.Fatalf("Stored event header '%s' not equal original '%s'\n", string(hev.Hash().Bytes()), string(key))
 		}
 	}
 }
 
-func BenchmarkWriteHeaderWithLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+func BenchmarkWriteHeader(b *testing.B) {
+	testStore = lruStore
+	b.Run("LRUon", benchWriteEventHeaderTest)
 
-	benchWriteEventHeaderTest(b, store)
+	testStore = simpleStore
+	b.Run("LRUoff", benchWriteEventHeaderTest)
 }
 
-func BenchmarkWriteHeaderWithoutLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events = nil
-	store.cache.EventsHeaders = nil
-
-	benchWriteEventHeaderTest(b, store)
-}
-
-func benchWriteEventHeaderTest(b *testing.B, store *Store) {
+func benchWriteEventHeaderTest(b *testing.B) {
 	testEvent := &inter.Event{}
 
 	for i := 0; i < b.N; i++ {
-		store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
+		testStore.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
 	}
 }

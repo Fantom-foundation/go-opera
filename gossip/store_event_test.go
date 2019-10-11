@@ -8,15 +8,29 @@ import (
 	"math/rand"
 	"testing"
 
-	lru "github.com/hashicorp/golang-lru"
-
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
+var (
+	lruStore *Store
+	simpleStore *Store
+
+	testStore *Store
+)
+
+func init() {
+	lruStore = NewMemStore()
+	simpleStore = NewMemStore()
+	simpleStore.cache.Events = nil
+	simpleStore.cache.EventsHeaders = nil
+	simpleStore.cache.Blocks = nil
+	simpleStore.cache.PackInfos = nil
+	simpleStore.cache.TxPositions = nil
+	simpleStore.cache.Receipts = nil
+}
+
 func TestCorrectCacheWorkForEvent(t *testing.T) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+	store := lruStore
 
 	testEvent := &inter.Event{}
 	testEvent.ClaimedTime = inter.Timestamp(rand.Int63())
@@ -29,113 +43,75 @@ func TestCorrectCacheWorkForEvent(t *testing.T) {
 	}
 }
 
-func BenchmarkReadEventWithLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+func BenchmarkReadEvent(b *testing.B) {
+	testStore = lruStore
+	b.Run("LRUon", benchReadEventTest)
 
-	benchReadEventTest(b, store)
+	testStore = simpleStore
+	b.Run("LRUoff", benchReadEventTest)
 }
 
-func BenchmarkReadEventWithoutLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events = nil
-	store.cache.EventsHeaders = nil
-
-	benchReadEventTest(b, store)
-}
-
-func benchReadEventTest(b *testing.B, store *Store) {
+func benchReadEventTest(b *testing.B) {
 	testEvent := &inter.Event{}
 
-	store.SetEvent(testEvent)
+	testStore.SetEvent(testEvent)
 
 	key := testEvent.Hash().Bytes()
 	for i := 0; i < b.N; i++ {
-		ev := store.GetEvent(testEvent.Hash())
+		ev := testStore.GetEvent(testEvent.Hash())
 		if string(ev.Hash().Bytes()) != string(key) {
 			b.Fatalf("Stored event '%s' not equal original '%s'\n", string(ev.Hash().Bytes()), string(key))
 		}
 	}
 }
 
-func BenchmarkWriteEventWithLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+func BenchmarkWriteEvent(b *testing.B) {
+	testStore = lruStore
+	b.Run("LRUon", benchWriteEventTest)
 
-	benchWriteEventTest(b, store)
+	testStore = simpleStore
+	b.Run("LRUoff", benchWriteEventTest)
 }
 
-func BenchmarkWriteEventWithoutLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events = nil
-	store.cache.EventsHeaders = nil
-
-	benchWriteEventTest(b, store)
-}
-
-func benchWriteEventTest(b *testing.B, store *Store) {
+func benchWriteEventTest(b *testing.B) {
 	testEvent := &inter.Event{}
 
 	for i := 0; i < b.N; i++ {
-		store.SetEvent(testEvent)
+		testStore.SetEvent(testEvent)
 	}
 }
 
-func BenchmarkHasEventExistsWithLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
+func BenchmarkHasEvent(b *testing.B) {
+	testStore = lruStore
+	b.Run("LRUonExists", benchHasEventExistsTest)
+	b.Run("LRUonAbsent", benchHasEventAbsentTest)
 
-	benchHasEventExistsTest(b, store)
+	testStore = simpleStore
+	b.Run("LRUoffExists", benchHasEventExistsTest)
+	b.Run("LRUoffAbsent", benchHasEventAbsentTest)
 }
 
-func BenchmarkHasEventExistsWithoutLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events = nil
-	store.cache.EventsHeaders = nil
-
-	benchHasEventExistsTest(b, store)
-}
-
-func BenchmarkHasEventAbsentWithLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events, _ = lru.New(100)
-	store.cache.EventsHeaders, _ = lru.New(100)
-
-	benchHasEventAbsentTest(b, store)
-}
-
-func BenchmarkHasEventAbsentWithoutLRU(b *testing.B) {
-	store := NewMemStore()
-	store.cache.Events = nil
-	store.cache.EventsHeaders = nil
-
-	benchHasEventAbsentTest(b, store)
-}
-
-func benchHasEventExistsTest(b *testing.B, store *Store) {
+func benchHasEventExistsTest(b *testing.B) {
 	testEvent := &inter.Event{}
 
-	store.SetEvent(testEvent)
+	testStore.SetEvent(testEvent)
 
 	hev := testEvent.Hash()
 	for i := 0; i < b.N; i++ {
-		if !store.HasEvent(hev) {
+		if !testStore.HasEvent(hev) {
 			b.Fatalf("Not exists saved event\n")
 		}
 	}
 }
 
-func benchHasEventAbsentTest(b *testing.B, store *Store) {
+func benchHasEventAbsentTest(b *testing.B) {
 	testEvent := &inter.Event{}
 
-	store.DeleteEvent(testEvent.Epoch, testEvent.Hash())
+	testStore.DeleteEvent(testEvent.Epoch, testEvent.Hash())
 
 	hev := testEvent.Hash()
 	for i := 0; i < b.N; i++ {
-		if store.HasEvent(hev) {
+		if testStore.HasEvent(hev) {
 			b.Fatalf("Exists absent event\n")
 		}
 	}
