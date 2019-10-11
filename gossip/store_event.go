@@ -20,7 +20,7 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 	}
 	s.DelEventHeader(epoch, id)
 
-	// Remove from LRU cache
+	// Remove from LRU cache.
 	if s.cache.Events != nil {
 		s.cache.Events.Remove(string(key))
 	}
@@ -33,7 +33,7 @@ func (s *Store) SetEvent(e *inter.Event) {
 	s.set(s.table.Events, key, e)
 	s.SetEventHeader(e.Epoch, e.Hash(), &e.EventHeaderData)
 
-	// Add to LRU cache
+	// Add to LRU cache.
 	if s.cache.Events != nil {
 		s.cache.Events.Add(string(key), e)
 	}
@@ -43,10 +43,9 @@ func (s *Store) SetEvent(e *inter.Event) {
 func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	key := id.Bytes()
 
-	// Get event from LRU cache first
+	// Get event from LRU cache first.
 	if s.cache.Events != nil {
-		c, ok := s.cache.Events.Get(string(key))
-		if ok {
+		if c, ok := s.cache.Events.Get(string(key)); ok {
 			if ev, ok := c.(*inter.Event); ok {
 				return ev
 			}
@@ -55,7 +54,7 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 
 	w, _ := s.get(s.table.Events, key, &inter.Event{}).(*inter.Event)
 
-	// Put event to LRU cache
+	// Put event to LRU cache.
 	if w != nil && s.cache.Events != nil {
 		s.cache.Events.Add(string(key), w)
 	}
@@ -96,7 +95,7 @@ func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
 
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
-	// Check in LRU cache first. Ff exists - return true
+	// Check in LRU cache first. Ff exists - return true.
 	if 	s.cache.Events != nil && s.cache.Events.Contains(string(h.Bytes())) {
 		return true
 	}

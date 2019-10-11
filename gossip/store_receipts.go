@@ -25,14 +25,31 @@ func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
 		}
 	}
 	s.set(s.table.Receipts, n.Bytes(), receiptsStorage)
+
+	// Add to LRU cache.
+	if s.cache.Receipts != nil {
+		s.cache.Receipts.Add(string(n.Bytes()), receiptsStorage)
+	}
 }
 
 // GetReceipts returns stored transaction receipts.
 func (s *Store) GetReceipts(n idx.Block) types.Receipts {
-	receiptsStorage, _ := s.get(s.table.Receipts, n.Bytes(), &[]*receiptRLP{}).(*[]*receiptRLP)
-	if receiptsStorage == nil {
-		return nil
+	var receiptsStorage *[]*receiptRLP
+
+	// Get data from LRU cache first.
+	if s.cache.Receipts != nil {
+		if c, ok := s.cache.Receipts.Get(string(n.Bytes())); ok {
+			receiptsStorage, _ = c.(*[]*receiptRLP)
+		}
 	}
+
+	if receiptsStorage == nil {
+		receiptsStorage, _ = s.get(s.table.Receipts, n.Bytes(), &[]*receiptRLP{}).(*[]*receiptRLP)
+		if receiptsStorage == nil {
+			return nil
+		}
+	}
+
 	receipts := make(types.Receipts, len(*receiptsStorage))
 	for i, r := range *receiptsStorage {
 		receipts[i] = (*types.Receipt)(r.Receipt)

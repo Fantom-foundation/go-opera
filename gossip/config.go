@@ -13,6 +13,7 @@ type Config struct {
 	Net     lachesis.Config
 	Emitter EmitterConfig
 	TxPool  evm_core.TxPoolConfig
+	StoreConfig
 
 	// Protocol options
 	TxIndex         bool // Whether to disable indexing transactions and receipts or not
@@ -34,8 +35,6 @@ type Config struct {
 	RPCGasCap *big.Int `toml:",omitempty"`
 
 	ExtRPCEnabled bool
-
-	StoreConfig	StoreConfig
 }
 
 // DefaultConfig returns the default configurations for the gossip service.
@@ -57,6 +56,10 @@ func DefaultConfig(network lachesis.Config) Config {
 		StoreConfig: StoreConfig{
 			EventsCacheSize:        300,
 			EventsHeadersCacheSize: 10000,
+			BlockCacheSize:			100,
+			PackInfosCacheSize:		100,
+			ReceiptsCacheSize:		100,
+			TxPositionsCacheSize:	1000,
 		},
 	}
 	if network.NetworkId == lachesis.FakeNetworkId {

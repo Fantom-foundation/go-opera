@@ -1,12 +1,14 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
-	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
@@ -17,13 +19,25 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
-// Config for Store
+// StoreConfig is a config for Store.
 type StoreConfig struct {
-	// LRU cache size for Events
+	// LRU cache size for Events.
 	EventsCacheSize			int
 
-	// LRU cache size for Epoch (HeadEvents)
-	EventsHeadersCacheSize int
+	// LRU cache size for Epoch (EventHeaderData).
+	EventsHeadersCacheSize 	int
+
+	// LRU cache size for Block.
+	BlockCacheSize			int
+
+	// LRU cache size for PackInfos.
+	PackInfosCacheSize		int
+
+	// LRU cache size for Receipts.
+	ReceiptsCacheSize		int
+
+	// LRU cache size for TxPositions.
+	TxPositionsCacheSize	int
 }
 
 // Store is a node persistent storage working over physical key-value database.
@@ -53,6 +67,10 @@ type Store struct {
 	cache struct {
 		Events			*lru.Cache
 		EventsHeaders 	*lru.Cache
+		Blocks			*lru.Cache
+		PackInfos		*lru.Cache
+		Receipts		*lru.Cache
+		TxPositions		*lru.Cache
 	}
 
 	tmpDbs
@@ -154,27 +172,30 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	return res
 }
 
-// Init LRU cache
-func (s *Store) initLRUCache(cfg *StoreConfig) bool {
+// Init LRU cache.
+func (s *Store) initLRUCache(cfg *StoreConfig) {
 	if cfg == nil {
-		return false
+		return
 	}
 
-	var err error
+	s.cache.Events 			= s.initOneLRUCache(cfg.EventsCacheSize)
+	s.cache.EventsHeaders 	= s.initOneLRUCache(cfg.EventsHeadersCacheSize)
+	s.cache.Blocks 			= s.initOneLRUCache(cfg.BlockCacheSize)
+	s.cache.PackInfos 		= s.initOneLRUCache(cfg.PackInfosCacheSize)
+	s.cache.Receipts 		= s.initOneLRUCache(cfg.ReceiptsCacheSize)
+	s.cache.TxPositions 	= s.initOneLRUCache(cfg.TxPositionsCacheSize)
 
-	if cfg.EventsCacheSize > 0 {
-		s.cache.Events, err = lru.New(cfg.EventsCacheSize)
+	return
+}
+
+func (s *Store) initOneLRUCache(size int) *lru.Cache {
+	if size > 0 {
+		cache, err := lru.New(size)
 		if err != nil {
 			s.Log.Error("Error create LRU cache", "err", err)
+			return nil
 		}
+		return cache
 	}
-
-	if cfg.EventsHeadersCacheSize > 0 {
-		s.cache.EventsHeaders, err = lru.New(cfg.EventsHeadersCacheSize)
-		if err != nil {
-			s.Log.Error("Error create LRU cache", "err", err)
-		}
-	}
-
-	return err == nil
+	return nil
 }

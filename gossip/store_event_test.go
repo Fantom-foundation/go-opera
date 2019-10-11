@@ -5,10 +5,12 @@ package gossip
 */
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	lru "github.com/hashicorp/golang-lru"
 	"math/rand"
 	"testing"
+
+	lru "github.com/hashicorp/golang-lru"
+
+	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
 func TestCorrectCacheWorkForEvent(t *testing.T) {
