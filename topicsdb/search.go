@@ -19,7 +19,11 @@ func NewCondition(topic common.Hash, n int) Condition {
 	return c
 }
 
-func (tt *TopicsDb) Find(cc ...Condition) (res []*Record, err error) {
+func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Record, err error) {
+	return tt.fetchSync(cc...)
+}
+
+func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Record, err error) {
 	recs := make(map[common.Hash]*recordBuilder)
 
 	for _, cond := range cc {

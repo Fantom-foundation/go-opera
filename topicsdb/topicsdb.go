@@ -14,6 +14,8 @@ type TopicsDb struct {
 		// recordID+N -> topic, data
 		Record kvdb.KeyValueStore `table:"record"`
 	}
+
+	fetchMethod func(cc ...Condition) (res []*Record, err error)
 }
 
 func New(db kvdb.KeyValueStore) *TopicsDb {
@@ -21,9 +23,15 @@ func New(db kvdb.KeyValueStore) *TopicsDb {
 		db: db,
 	}
 
+	tt.fetchMethod = tt.fetchSync
+
 	table.MigrateTables(&tt.table, tt.db)
 
 	return tt
+}
+
+func (tt *TopicsDb) Find(cc ...Condition) (res []*Record, err error) {
+	return tt.fetchMethod(cc...)
 }
 
 func (tt *TopicsDb) Push(rec *Record) error {
