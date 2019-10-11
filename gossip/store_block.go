@@ -11,7 +11,7 @@ func (s *Store) SetBlock(b *inter.Block) {
 	s.set(s.table.Blocks, b.Index.Bytes(), b)
 
 	// Add to LRU cache.
-	if s.cache.Blocks != nil {
+	if b != nil && s.cache.Blocks != nil {
 		s.cache.Blocks.Add(string(b.Index.Bytes()), b)
 	}
 }
@@ -30,7 +30,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	block, _ := s.get(s.table.Blocks, n.Bytes(), &inter.Block{}).(*inter.Block)
 
 	// Add to LRU cache.
-	if s.cache.Blocks != nil {
+	if block != nil && s.cache.Blocks != nil {
 		s.cache.Blocks.Add(string(block.Index.Bytes()), block)
 	}
 

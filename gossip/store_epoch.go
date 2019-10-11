@@ -88,7 +88,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 	s.set(es.Headers, key, e)
 
 	// Save to LRU cache.
-	if s.cache.EventsHeaders != nil {
+	if e != nil && s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Add(string(key), e)
 	}
 }

@@ -23,7 +23,7 @@ func (s *Store) SetTxPosition(txid common.Hash, position *TxPosition) {
 	s.set(s.table.TxPositions, txid.Bytes(), position)
 
 	// Add to LRU cache.
-	if s.cache.TxPositions != nil {
+	if position != nil && s.cache.TxPositions != nil {
 		s.cache.TxPositions.Add(string(txid.Bytes()), position)
 	}
 }
@@ -42,7 +42,7 @@ func (s *Store) GetTxPosition(txid common.Hash) *TxPosition {
 	txPosition, _ := s.get(s.table.TxPositions, txid.Bytes(), &TxPosition{}).(*TxPosition)
 
 	// Add to LRU cache.
-	if s.cache.TxPositions != nil {
+	if txPosition != nil && s.cache.TxPositions != nil {
 		s.cache.TxPositions.Add(string(txid.Bytes()), txPosition)
 	}
 

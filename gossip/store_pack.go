@@ -34,7 +34,7 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 	w, _ := s.get(s.table.PackInfos, key.Bytes(), &PackInfo{}).(*PackInfo)
 
 	// Add to LRU cache.
-	if s.cache.PackInfos != nil {
+	if w != nil && s.cache.PackInfos != nil {
 		s.cache.PackInfos.Add(string(key.Bytes()), *w)
 	}
 
