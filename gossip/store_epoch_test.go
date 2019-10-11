@@ -13,18 +13,18 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
-func TestCorrectCacheWorkForEventHeader(t *testing.T) {
+func TestStoreGetEventHeader(t *testing.T) {
 	store := NewMemStore()
 	store.cache.Events, _ = lru.New(100)
 	store.cache.EventsHeaders, _ = lru.New(100)
 
-	testEvent := &inter.Event{}
-	testEvent.ClaimedTime = inter.Timestamp(rand.Int63())
+	expect := &inter.Event{}
+	expect.ClaimedTime = inter.Timestamp(rand.Int63())
 
-	store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
-	eh := store.GetEventHeader(testEvent.Epoch, testEvent.Hash())
+	store.SetEventHeader(expect.Epoch, expect.Hash(), &expect.EventHeaderData)
+	got := store.GetEventHeader(expect.Epoch, expect.Hash())
 
-	if eh.Hash() != testEvent.EventHeaderData.Hash() {
+	if got.Hash() != expect.EventHeaderData.Hash() {
 		t.Error("Error save/restore EventHeader with LRU" )
 	}
 }

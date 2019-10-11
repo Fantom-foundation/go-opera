@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/inter"
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,22 +20,22 @@ import (
 
 // StoreConfig is a config for Store.
 type StoreConfig struct {
-	// LRU cache size for Events.
+	// LRU cache size for Events (stored by pointer).
 	EventsCacheSize			int
 
-	// LRU cache size for Epoch (EventHeaderData).
+	// LRU cache size for Epoch (EventHeaderData) (stored by pointer).
 	EventsHeadersCacheSize 	int
 
-	// LRU cache size for Block.
+	// LRU cache size for Block (stored by pointer).
 	BlockCacheSize			int
 
-	// LRU cache size for PackInfos.
+	// LRU cache size for PackInfos (stored by value).
 	PackInfosCacheSize		int
 
-	// LRU cache size for Receipts.
+	// LRU cache size for Receipts  (stored by value).
 	ReceiptsCacheSize		int
 
-	// LRU cache size for TxPositions.
+	// LRU cache size for TxPositions (stored by pointer).
 	TxPositionsCacheSize	int
 }
 

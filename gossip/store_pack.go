@@ -1,5 +1,9 @@
 package gossip
 
+/*
+	In LRU cache data stored like value
+*/
+
 import (
 	"bytes"
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -21,8 +25,8 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 	// Get data from LRU cache first.
 	if s.cache.PackInfos != nil {
 		if c, ok := s.cache.PackInfos.Get(string(key.Bytes())); ok {
-			if b, ok := c.(*PackInfo); ok {
-				return b
+			if b, ok := c.(PackInfo); ok {
+				return &b
 			}
 		}
 	}
@@ -31,7 +35,7 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 
 	// Add to LRU cache.
 	if s.cache.PackInfos != nil {
-		s.cache.PackInfos.Add(string(key.Bytes()), w)
+		s.cache.PackInfos.Add(string(key.Bytes()), *w)
 	}
 
 	return w

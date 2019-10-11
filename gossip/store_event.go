@@ -1,5 +1,9 @@
 package gossip
 
+/*
+	In LRU cache data stored like pointer
+*/
+
 import (
 	"bytes"
 
