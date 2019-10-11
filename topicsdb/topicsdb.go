@@ -23,7 +23,7 @@ func New(db kvdb.KeyValueStore) *TopicsDb {
 		db: db,
 	}
 
-	tt.fetchMethod = tt.fetchSync
+	tt.fetchMethod = tt.fetchAsync
 
 	table.MigrateTables(&tt.table, tt.db)
 
