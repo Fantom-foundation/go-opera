@@ -105,6 +105,10 @@ func NewMemStore() *Store {
 	defaultTestStoreCfg := StoreConfig{
 		EventsCacheSize:        100,
 		EventsHeadersCacheSize: 1000,
+		BlockCacheSize:			100,
+		PackInfosCacheSize:		100,
+		ReceiptsCacheSize:		100,
+		TxPositionsCacheSize:	100,
 	}
 
 	return NewStore(dbs, &defaultTestStoreCfg)
