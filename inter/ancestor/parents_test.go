@@ -136,7 +136,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		for _, node := range nodes {
 			selfParent := tips[node]
 
-			strategy := NewCasualityStrategy(vecClock)
+			strategy := NewCasualityStrategy(vecClock, validators)
 
 			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
 
