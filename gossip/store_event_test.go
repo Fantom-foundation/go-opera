@@ -5,6 +5,9 @@ package gossip
 */
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 
@@ -32,15 +35,13 @@ func init() {
 func TestCorrectCacheWorkForEvent(t *testing.T) {
 	store := lruStore
 
-	testEvent := &inter.Event{}
-	testEvent.ClaimedTime = inter.Timestamp(rand.Int63())
+	expect := &inter.Event{}
+	expect.ClaimedTime = inter.Timestamp(rand.Int63())
 
-	store.SetEvent(testEvent)
-	e := store.GetEvent(testEvent.Hash())
+	store.SetEvent(expect)
+	got := store.GetEvent(expect.Hash())
 
-	if e.Hash() != testEvent.Hash() {
-		t.Error("Error save/restore Event with LRU" )
-	}
+	assert.EqualValues(t, expect, got)
 }
 
 func BenchmarkReadEvent(b *testing.B) {
@@ -52,16 +53,15 @@ func BenchmarkReadEvent(b *testing.B) {
 }
 
 func benchReadEventTest(b *testing.B) {
-	testEvent := &inter.Event{}
+	expect := _createTestEvent()
+	if testStore.cache.Events != nil {
+		testStore.cache.Events.Purge()
+	}
 
-	testStore.SetEvent(testEvent)
+	testStore.SetEvent(expect)
 
-	key := testEvent.Hash().Bytes()
 	for i := 0; i < b.N; i++ {
-		ev := testStore.GetEvent(testEvent.Hash())
-		if string(ev.Hash().Bytes()) != string(key) {
-			b.Fatalf("Stored event '%s' not equal original '%s'\n", string(ev.Hash().Bytes()), string(key))
-		}
+		_ = testStore.GetEvent(expect.Hash())
 	}
 }
 
@@ -74,10 +74,10 @@ func BenchmarkWriteEvent(b *testing.B) {
 }
 
 func benchWriteEventTest(b *testing.B) {
-	testEvent := &inter.Event{}
+	expect := &inter.Event{}
 
 	for i := 0; i < b.N; i++ {
-		testStore.SetEvent(testEvent)
+		testStore.SetEvent(expect)
 	}
 }
 
@@ -92,27 +92,38 @@ func BenchmarkHasEvent(b *testing.B) {
 }
 
 func benchHasEventExistsTest(b *testing.B) {
-	testEvent := &inter.Event{}
+	expect := &inter.Event{}
 
-	testStore.SetEvent(testEvent)
+	testStore.SetEvent(expect)
 
-	hev := testEvent.Hash()
+	hev := expect.Hash()
 	for i := 0; i < b.N; i++ {
-		if !testStore.HasEvent(hev) {
-			b.Fatalf("Not exists saved event\n")
-		}
+		_ = testStore.HasEvent(hev)
 	}
 }
 
 func benchHasEventAbsentTest(b *testing.B) {
-	testEvent := &inter.Event{}
+	expect := &inter.Event{}
 
-	testStore.DeleteEvent(testEvent.Epoch, testEvent.Hash())
+	testStore.DeleteEvent(expect.Epoch, expect.Hash())
 
-	hev := testEvent.Hash()
+	hev := expect.Hash()
 	for i := 0; i < b.N; i++ {
-		if testStore.HasEvent(hev) {
-			b.Fatalf("Exists absent event\n")
-		}
+		_ = testStore.HasEvent(hev)
 	}
+}
+
+func _createTestEvent() *inter.Event {
+	d := &inter.Event{
+		EventHeader:  inter.EventHeader{
+			EventHeaderData: inter.EventHeaderData{
+				Parents:hash.Events{},
+				Extra: make([]byte, 0),
+			},
+			Sig: make([]byte, 0),
+		},
+		Transactions: types.Transactions{},
+	}
+
+	return d
 }

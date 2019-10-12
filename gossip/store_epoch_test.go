@@ -38,12 +38,8 @@ func benchReadEventHeaderTest(b *testing.B) {
 
 	testStore.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
 
-	key := testEvent.EventHeaderData.Hash().Bytes()
 	for i := 0; i < b.N; i++ {
-		hev := testStore.GetEventHeader(testEvent.Epoch, testEvent.Hash())
-		if string(hev.Hash().Bytes()) != string(key) {
-			b.Fatalf("Stored event header '%s' not equal original '%s'\n", string(hev.Hash().Bytes()), string(key))
-		}
+		_ = testStore.GetEventHeader(testEvent.Epoch, testEvent.Hash())
 	}
 }
 
