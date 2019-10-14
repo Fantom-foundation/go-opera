@@ -9,7 +9,7 @@ import (
 )
 
 func TestStoreGetPackInfo(t *testing.T) {
-	store := _lruStore()
+	store := fakeLruStore()
 
 	expect := &PackInfo{}
 	expect.Index = idx.Pack(1)
@@ -22,10 +22,10 @@ func TestStoreGetPackInfo(t *testing.T) {
 
 func BenchmarkReadPackInfo(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchReadPackInfo(b, _lruStore())
+		benchReadPackInfo(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchReadPackInfo(b, _simpleStore())
+		benchReadPackInfo(b, fakeSimpleStore())
 	})
 }
 
@@ -46,10 +46,10 @@ func benchReadPackInfo(b *testing.B, store *Store) {
 
 func BenchmarkWritePackInfo(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchWritePackInfo(b, _lruStore())
+		benchWritePackInfo(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchWritePackInfo(b, _simpleStore())
+		benchWritePackInfo(b, fakeSimpleStore())
 	})
 }
 

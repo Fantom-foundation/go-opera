@@ -11,7 +11,7 @@ import (
 )
 
 func TestStoreGetBlock(t *testing.T) {
-	store := _lruStore()
+	store := fakeLruStore()
 
 	expect := &inter.Block{}
 	expect.Time = inter.Timestamp(rand.Int63())
@@ -25,10 +25,10 @@ func TestStoreGetBlock(t *testing.T) {
 
 func BenchmarkReadBlock(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchReadBlock(b, _lruStore())
+		benchReadBlock(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchReadBlock(b, _simpleStore())
+		benchReadBlock(b, fakeSimpleStore())
 	})
 }
 
@@ -50,10 +50,10 @@ func benchReadBlock(b *testing.B, store *Store) {
 
 func BenchmarkWriteBlock(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchWriteBlock(b, _lruStore())
+		benchWriteBlock(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchWriteBlock(b, _simpleStore())
+		benchWriteBlock(b, fakeSimpleStore())
 	})
 }
 

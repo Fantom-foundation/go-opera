@@ -15,11 +15,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
-func _lruStore() *Store {
+func fakeLruStore() *Store {
 	return NewMemStore()
 }
 
-func _simpleStore() *Store {
+func fakeSimpleStore() *Store {
 	store := NewMemStore()
 	store.cache.Events = nil
 	store.cache.EventsHeaders = nil
@@ -32,7 +32,7 @@ func _simpleStore() *Store {
 }
 
 func TestCorrectCacheWorkForEvent(t *testing.T) {
-	store := _lruStore()
+	store := fakeLruStore()
 
 	expect := &inter.Event{}
 	expect.ClaimedTime = inter.Timestamp(rand.Int63())
@@ -45,15 +45,15 @@ func TestCorrectCacheWorkForEvent(t *testing.T) {
 
 func BenchmarkReadEvent(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchReadEventTest(b, _lruStore())
+		benchReadEventTest(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchReadEventTest(b, _simpleStore())
+		benchReadEventTest(b, fakeSimpleStore())
 	})
 }
 
 func benchReadEventTest(b *testing.B, store *Store) {
-	expect := _createTestEvent()
+	expect := createFakeEvent()
 	if store.cache.Events != nil {
 		store.cache.Events.Purge()
 	}
@@ -67,10 +67,10 @@ func benchReadEventTest(b *testing.B, store *Store) {
 
 func BenchmarkWriteEvent(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchWriteEventTest(b, _lruStore())
+		benchWriteEventTest(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchWriteEventTest(b, _simpleStore())
+		benchWriteEventTest(b, fakeSimpleStore())
 	})
 }
 
@@ -84,16 +84,16 @@ func benchWriteEventTest(b *testing.B, store *Store) {
 
 func BenchmarkHasEvent(b *testing.B) {
 	b.Run("LRU on Exists", func(b *testing.B) {
-		benchHasEventExistsTest(b, _lruStore())
+		benchHasEventExistsTest(b, fakeLruStore())
 	})
 	b.Run("LRU off Exists", func(b *testing.B) {
-		benchHasEventExistsTest(b, _simpleStore())
+		benchHasEventExistsTest(b, fakeSimpleStore())
 	})
 	b.Run("LRU on Absent", func(b *testing.B) {
-		benchHasEventAbsentTest(b, _lruStore())
+		benchHasEventAbsentTest(b, fakeLruStore())
 	})
 	b.Run("LRU off Absent", func(b *testing.B) {
-		benchHasEventAbsentTest(b, _simpleStore())
+		benchHasEventAbsentTest(b, fakeSimpleStore())
 	})
 }
 
@@ -119,7 +119,7 @@ func benchHasEventAbsentTest(b *testing.B, store *Store) {
 	}
 }
 
-func _createTestEvent() *inter.Event {
+func createFakeEvent() *inter.Event {
 	d := &inter.Event{
 		EventHeader: inter.EventHeader{
 			EventHeaderData: inter.EventHeaderData{

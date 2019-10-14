@@ -14,7 +14,7 @@ import (
 )
 
 func TestStoreGetEventHeader(t *testing.T) {
-	store := _lruStore()
+	store := fakeLruStore()
 
 	expect := &inter.Event{}
 	expect.ClaimedTime = inter.Timestamp(rand.Int63())
@@ -27,10 +27,10 @@ func TestStoreGetEventHeader(t *testing.T) {
 
 func BenchmarkReadHeader(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchReadEventHeaderTest(b, _lruStore())
+		benchReadEventHeaderTest(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchReadEventHeaderTest(b, _simpleStore())
+		benchReadEventHeaderTest(b, fakeSimpleStore())
 	})
 }
 
@@ -46,10 +46,10 @@ func benchReadEventHeaderTest(b *testing.B, store *Store) {
 
 func BenchmarkWriteHeader(b *testing.B) {
 	b.Run("LRU on", func(b *testing.B) {
-		benchWriteEventHeaderTest(b, _lruStore())
+		benchWriteEventHeaderTest(b, fakeLruStore())
 	})
 	b.Run("LRU off", func(b *testing.B) {
-		benchWriteEventHeaderTest(b, _simpleStore())
+		benchWriteEventHeaderTest(b, fakeSimpleStore())
 	})
 }
 
