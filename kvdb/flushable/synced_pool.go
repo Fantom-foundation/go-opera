@@ -119,7 +119,7 @@ func (p *SyncedPool) flush(id []byte) error {
 
 	// write dirty flags
 	for _, w := range p.wrappers {
-		db := w.UnderlyingDb()
+		db := w.underlyingDb()
 
 		prev, err := db.Get(key)
 		if err != nil {
@@ -149,7 +149,7 @@ func (p *SyncedPool) flush(id []byte) error {
 
 	// write clean flags
 	for _, w := range p.wrappers {
-		db := w.UnderlyingDb()
+		db := w.underlyingDb()
 		err := db.Put(key, id)
 		if err != nil {
 			return err
@@ -198,7 +198,7 @@ func (p *SyncedPool) checkDbsSynced() error {
 		}
 	)
 	for name, w := range p.wrappers {
-		db := w.UnderlyingDb()
+		db := w.underlyingDb()
 
 		mark, err := db.Get(key)
 		if err != nil {
