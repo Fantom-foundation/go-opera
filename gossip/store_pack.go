@@ -26,7 +26,7 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 
 	// Get data from LRU cache first.
 	if s.cache.PackInfos != nil {
-		if c, ok := s.cache.PackInfos.Get(string(key.Bytes())); ok {
+		if c, ok := s.cache.PackInfos.Get(key.String()); ok {
 			if b, ok := c.(PackInfo); ok {
 				return &b
 			}
@@ -37,7 +37,7 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 
 	// Add to LRU cache.
 	if w != nil && s.cache.PackInfos != nil {
-		s.cache.PackInfos.Add(string(key.Bytes()), *w)
+		s.cache.PackInfos.Add(key.String(), *w)
 	}
 
 	return w
@@ -72,7 +72,7 @@ func (s *Store) SetPackInfo(epoch idx.Epoch, idx idx.Pack, value PackInfo) {
 
 	// Add to LRU cache.
 	if s.cache.PackInfos != nil {
-		s.cache.PackInfos.Add(string(key.Bytes()), value)
+		s.cache.PackInfos.Add(key.String(), value)
 	}
 }
 

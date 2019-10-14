@@ -187,8 +187,6 @@ func (s *Store) initLRUCache(cfg *StoreConfig) {
 	s.cache.PackInfos 		= s.initOneLRUCache(cfg.PackInfosCacheSize)
 	s.cache.Receipts 		= s.initOneLRUCache(cfg.ReceiptsCacheSize)
 	s.cache.TxPositions 	= s.initOneLRUCache(cfg.TxPositionsCacheSize)
-
-	return
 }
 
 func (s *Store) initOneLRUCache(size int) *lru.Cache {
