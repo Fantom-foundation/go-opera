@@ -14,7 +14,7 @@ import (
 )
 
 func TestStoreGetEventHeader(t *testing.T) {
-	store := lruStore
+	store := _lruStore()
 
 	expect := &inter.Event{}
 	expect.ClaimedTime = inter.Timestamp(rand.Int63())
@@ -26,35 +26,37 @@ func TestStoreGetEventHeader(t *testing.T) {
 }
 
 func BenchmarkReadHeader(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchReadEventHeaderTest)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchReadEventHeaderTest)
+	b.Run("LRU on", func(b *testing.B) {
+		benchReadEventHeaderTest(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchReadEventHeaderTest(b, _simpleStore())
+	})
 }
 
-func benchReadEventHeaderTest(b *testing.B) {
+func benchReadEventHeaderTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
 
-	testStore.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
+	store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
 
 	for i := 0; i < b.N; i++ {
-		_ = testStore.GetEventHeader(testEvent.Epoch, testEvent.Hash())
+		_ = store.GetEventHeader(testEvent.Epoch, testEvent.Hash())
 	}
 }
 
 func BenchmarkWriteHeader(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchWriteEventHeaderTest)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchWriteEventHeaderTest)
+	b.Run("LRU on", func(b *testing.B) {
+		benchWriteEventHeaderTest(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchWriteEventHeaderTest(b, _simpleStore())
+	})
 }
 
-func benchWriteEventHeaderTest(b *testing.B) {
+func benchWriteEventHeaderTest(b *testing.B, store *Store) {
 	testEvent := &inter.Event{}
 
 	for i := 0; i < b.N; i++ {
-		testStore.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
+		store.SetEventHeader(testEvent.Epoch, testEvent.Hash(), &testEvent.EventHeaderData)
 	}
 }

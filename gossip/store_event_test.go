@@ -15,26 +15,24 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
-var (
-	lruStore    *Store
-	simpleStore *Store
+func _lruStore() *Store {
+	return NewMemStore()
+}
 
-	testStore *Store
-)
+func _simpleStore() *Store {
+	store := NewMemStore()
+	store.cache.Events = nil
+	store.cache.EventsHeaders = nil
+	store.cache.Blocks = nil
+	store.cache.PackInfos = nil
+	store.cache.TxPositions = nil
+	store.cache.Receipts = nil
 
-func init() {
-	lruStore = NewMemStore()
-	simpleStore = NewMemStore()
-	simpleStore.cache.Events = nil
-	simpleStore.cache.EventsHeaders = nil
-	simpleStore.cache.Blocks = nil
-	simpleStore.cache.PackInfos = nil
-	simpleStore.cache.TxPositions = nil
-	simpleStore.cache.Receipts = nil
+	return store
 }
 
 func TestCorrectCacheWorkForEvent(t *testing.T) {
-	store := lruStore
+	store := _lruStore()
 
 	expect := &inter.Event{}
 	expect.ClaimedTime = inter.Timestamp(rand.Int63())
@@ -46,71 +44,78 @@ func TestCorrectCacheWorkForEvent(t *testing.T) {
 }
 
 func BenchmarkReadEvent(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchReadEventTest)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchReadEventTest)
+	b.Run("LRU on", func(b *testing.B) {
+		benchReadEventTest(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchReadEventTest(b, _simpleStore())
+	})
 }
 
-func benchReadEventTest(b *testing.B) {
+func benchReadEventTest(b *testing.B, store *Store) {
 	expect := _createTestEvent()
-	if testStore.cache.Events != nil {
-		testStore.cache.Events.Purge()
+	if store.cache.Events != nil {
+		store.cache.Events.Purge()
 	}
 
-	testStore.SetEvent(expect)
+	store.SetEvent(expect)
 
 	for i := 0; i < b.N; i++ {
-		_ = testStore.GetEvent(expect.Hash())
+		_ = store.GetEvent(expect.Hash())
 	}
 }
 
 func BenchmarkWriteEvent(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchWriteEventTest)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchWriteEventTest)
+	b.Run("LRU on", func(b *testing.B) {
+		benchWriteEventTest(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchWriteEventTest(b, _simpleStore())
+	})
 }
 
-func benchWriteEventTest(b *testing.B) {
+func benchWriteEventTest(b *testing.B, store *Store) {
 	expect := &inter.Event{}
 
 	for i := 0; i < b.N; i++ {
-		testStore.SetEvent(expect)
+		store.SetEvent(expect)
 	}
 }
 
 func BenchmarkHasEvent(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUonExists", benchHasEventExistsTest)
-	b.Run("LRUonAbsent", benchHasEventAbsentTest)
-
-	testStore = simpleStore
-	b.Run("LRUoffExists", benchHasEventExistsTest)
-	b.Run("LRUoffAbsent", benchHasEventAbsentTest)
+	b.Run("LRU on Exists", func(b *testing.B) {
+		benchHasEventExistsTest(b, _lruStore())
+	})
+	b.Run("LRU off Exists", func(b *testing.B) {
+		benchHasEventExistsTest(b, _simpleStore())
+	})
+	b.Run("LRU on Absent", func(b *testing.B) {
+		benchHasEventAbsentTest(b, _lruStore())
+	})
+	b.Run("LRU off Absent", func(b *testing.B) {
+		benchHasEventAbsentTest(b, _simpleStore())
+	})
 }
 
-func benchHasEventExistsTest(b *testing.B) {
+func benchHasEventExistsTest(b *testing.B, store *Store) {
 	expect := &inter.Event{}
 
-	testStore.SetEvent(expect)
+	store.SetEvent(expect)
 
 	hev := expect.Hash()
 	for i := 0; i < b.N; i++ {
-		_ = testStore.HasEvent(hev)
+		_ = store.HasEvent(hev)
 	}
 }
 
-func benchHasEventAbsentTest(b *testing.B) {
+func benchHasEventAbsentTest(b *testing.B, store *Store) {
 	expect := &inter.Event{}
 
-	testStore.DeleteEvent(expect.Epoch, expect.Hash())
+	store.DeleteEvent(expect.Epoch, expect.Hash())
 
 	hev := expect.Hash()
 	for i := 0; i < b.N; i++ {
-		_ = testStore.HasEvent(hev)
+		_ = store.HasEvent(hev)
 	}
 }
 

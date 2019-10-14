@@ -9,7 +9,7 @@ import (
 )
 
 func TestStoreGetReceipts(t *testing.T) {
-	store := lruStore
+	store := _lruStore()
 
 	expect := _createTestReceipts()
 
@@ -20,44 +20,46 @@ func TestStoreGetReceipts(t *testing.T) {
 }
 
 func BenchmarkReadReceipts(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchReadReceipts)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchReadReceipts)
+	b.Run("LRU on", func(b *testing.B) {
+		benchReadReceipts(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchReadReceipts(b, _simpleStore())
+	})
 }
 
-func benchReadReceipts(b *testing.B) {
+func benchReadReceipts(b *testing.B, store *Store) {
 	expect := _createTestReceipts()
 
-	if testStore.cache.Receipts != nil {
-		testStore.cache.Receipts.Purge()
+	if store.cache.Receipts != nil {
+		store.cache.Receipts.Purge()
 	}
 
-	testStore.SetReceipts(1, *expect)
+	store.SetReceipts(1, *expect)
 
 	for i := 0; i < b.N; i++ {
-		_ = testStore.GetReceipts(1)
+		_ = store.GetReceipts(1)
 	}
 }
 
 func BenchmarkWriteReceipts(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchWriteReceipts)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchWriteReceipts)
+	b.Run("LRU on", func(b *testing.B) {
+		benchWriteReceipts(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchWriteReceipts(b, _simpleStore())
+	})
 }
 
-func benchWriteReceipts(b *testing.B) {
+func benchWriteReceipts(b *testing.B, store *Store) {
 	expect := _createTestReceipts()
 
-	if testStore.cache.Receipts != nil {
-		testStore.cache.Receipts.Purge()
+	if store.cache.Receipts != nil {
+		store.cache.Receipts.Purge()
 	}
 
 	for i := 0; i < b.N; i++ {
-		testStore.SetReceipts(1, *expect)
+		store.SetReceipts(1, *expect)
 	}
 }
 

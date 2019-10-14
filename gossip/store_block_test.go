@@ -11,7 +11,7 @@ import (
 )
 
 func TestStoreGetBlock(t *testing.T) {
-	store := lruStore
+	store := _lruStore()
 
 	expect := &inter.Block{}
 	expect.Time = inter.Timestamp(rand.Int63())
@@ -24,47 +24,49 @@ func TestStoreGetBlock(t *testing.T) {
 }
 
 func BenchmarkReadBlock(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchReadBlock)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchReadBlock)
+	b.Run("LRU on", func(b *testing.B) {
+		benchReadBlock(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchReadBlock(b, _simpleStore())
+	})
 }
 
-func benchReadBlock(b *testing.B) {
+func benchReadBlock(b *testing.B, store *Store) {
 	expect := &inter.Block{}
 	expect.Time = inter.Timestamp(rand.Int63())
 	expect.Index = idx.Block(1)
 
-	if testStore.cache.Blocks != nil {
-		testStore.cache.Blocks.Purge()
+	if store.cache.Blocks != nil {
+		store.cache.Blocks.Purge()
 	}
 
-	testStore.SetBlock(expect)
+	store.SetBlock(expect)
 
 	for i := 0; i < b.N; i++ {
-		_ = testStore.GetBlock(1)
+		_ = store.GetBlock(1)
 	}
 }
 
 func BenchmarkWriteBlock(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchWriteBlock)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchWriteBlock)
+	b.Run("LRU on", func(b *testing.B) {
+		benchWriteBlock(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchWriteBlock(b, _simpleStore())
+	})
 }
 
-func benchWriteBlock(b *testing.B) {
+func benchWriteBlock(b *testing.B, store *Store) {
 	expect := &inter.Block{}
 	expect.Time = inter.Timestamp(rand.Int63())
 	expect.Index = idx.Block(1)
 
-	if testStore.cache.Blocks != nil {
-		testStore.cache.Blocks.Purge()
+	if store.cache.Blocks != nil {
+		store.cache.Blocks.Purge()
 	}
 
 	for i := 0; i < b.N; i++ {
-		testStore.SetBlock(expect)
+		store.SetBlock(expect)
 	}
 }

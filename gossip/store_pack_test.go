@@ -9,7 +9,7 @@ import (
 )
 
 func TestStoreGetPackInfo(t *testing.T) {
-	store := lruStore
+	store := _lruStore()
 
 	expect := &PackInfo{}
 	expect.Index = idx.Pack(1)
@@ -21,45 +21,47 @@ func TestStoreGetPackInfo(t *testing.T) {
 }
 
 func BenchmarkReadPackInfo(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchReadPackInfo)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchReadPackInfo)
+	b.Run("LRU on", func(b *testing.B) {
+		benchReadPackInfo(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchReadPackInfo(b, _simpleStore())
+	})
 }
 
-func benchReadPackInfo(b *testing.B) {
+func benchReadPackInfo(b *testing.B, store *Store) {
 	expect := &PackInfo{}
 	expect.Index = idx.Pack(1)
 
-	if testStore.cache.PackInfos != nil {
-		testStore.cache.PackInfos.Purge()
+	if store.cache.PackInfos != nil {
+		store.cache.PackInfos.Purge()
 	}
 
-	testStore.SetPackInfo(1, expect.Index, *expect)
+	store.SetPackInfo(1, expect.Index, *expect)
 
 	for i := 0; i < b.N; i++ {
-		_ = testStore.GetPackInfo(1, expect.Index)
+		_ = store.GetPackInfo(1, expect.Index)
 	}
 }
 
 func BenchmarkWritePackInfo(b *testing.B) {
-	testStore = lruStore
-	b.Run("LRUon", benchWritePackInfo)
-
-	testStore = simpleStore
-	b.Run("LRUoff", benchWritePackInfo)
+	b.Run("LRU on", func(b *testing.B) {
+		benchWritePackInfo(b, _lruStore())
+	})
+	b.Run("LRU off", func(b *testing.B) {
+		benchWritePackInfo(b, _simpleStore())
+	})
 }
 
-func benchWritePackInfo(b *testing.B) {
+func benchWritePackInfo(b *testing.B, store *Store) {
 	expect := &PackInfo{}
 	expect.Index = idx.Pack(1)
 
-	if testStore.cache.PackInfos != nil {
-		testStore.cache.PackInfos.Purge()
+	if store.cache.PackInfos != nil {
+		store.cache.PackInfos.Purge()
 	}
 
 	for i := 0; i < b.N; i++ {
-		testStore.SetPackInfo(1, expect.Index, *expect)
+		store.SetPackInfo(1, expect.Index, *expect)
 	}
 }
