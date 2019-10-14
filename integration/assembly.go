@@ -33,6 +33,8 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip
 		utils.Fatalf("Failed to write Poset genesis state: %v", err)
 	}
 
+	dbs.Flush(genesisAtropos.Bytes())
+
 	// create consensus
 	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
 

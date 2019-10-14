@@ -178,12 +178,11 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 				return err
 			}
 
-			pm.store.Commit(e.Hash())
-
 			// If the event is indeed in our own graph, announce it
 			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
 				pm.BroadcastEvent(e, false)
 			}
+
 			return nil
 		},
 

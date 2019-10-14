@@ -274,6 +274,8 @@ func testSpecialNamedRoots(t *testing.T, scheme string) {
 			input.SetEvent(e)
 			assertar.NoError(
 				p.ProcessEvent(e))
+			assertar.NoError(
+				flushDb(p, e.Hash()))
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = p.GetEpoch()

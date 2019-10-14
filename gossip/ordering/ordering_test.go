@@ -28,7 +28,7 @@ func TestEventBuffer(t *testing.T) {
 	})
 
 	processed := make(map[hash.Event]*inter.EventHeaderData)
-	buffer := New(len(nodes) * 10, Callback{
+	buffer := New(len(nodes)*10, Callback{
 
 		Process: func(e *inter.Event) error {
 			if _, ok := processed[e.Hash()]; ok {

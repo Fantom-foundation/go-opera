@@ -186,17 +186,6 @@ func (p *Poset) processKnownRoots() *election.Res {
 // Event order matter: parents first.
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
-	was := p.EpochN
-
-	defer func() {
-		if err != nil {
-			return
-		}
-		immediately := (p.EpochN != was)
-		immediately = true // TODO: fix TestRestore then remove
-		p.store.Commit(e.Hash(), immediately)
-	}()
-
 	err = epoch_check.New(&p.dag, p).Validate(e)
 	if err != nil {
 		return

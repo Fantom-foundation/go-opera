@@ -55,7 +55,10 @@ func TestRestore(t *testing.T) {
 		_ = inter.ForEachRandEvent(nodes, epochLen*2, COUNT, stability, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[GENERATOR].SetEvent(e)
-				assertar.NoError(posets[GENERATOR].ProcessEvent(e))
+				assertar.NoError(
+					posets[GENERATOR].ProcessEvent(e))
+				assertar.NoError(
+					flushDb(posets[GENERATOR], e.Hash()))
 
 				ordered = append(ordered, e)
 			},
@@ -98,10 +101,16 @@ func TestRestore(t *testing.T) {
 		}
 
 		inputs[EXPECTED].SetEvent(e)
-		assertar.NoError(posets[EXPECTED].ProcessEvent(e))
+		assertar.NoError(
+			posets[EXPECTED].ProcessEvent(e))
+		assertar.NoError(
+			flushDb(posets[EXPECTED], e.Hash()))
 
 		inputs[RESTORED].SetEvent(e)
-		assertar.NoError(posets[RESTORED].ProcessEvent(e))
+		assertar.NoError(
+			posets[RESTORED].ProcessEvent(e))
+		assertar.NoError(
+			flushDb(posets[RESTORED], e.Hash()))
 
 		compareStates(assertar, posets[EXPECTED], posets[RESTORED])
 		if t.Failed() {
@@ -217,10 +226,14 @@ func TestDbFailure(t *testing.T) {
 		inputs[RESTORED].SetEvent(e)
 		assertar.NoError(
 			posets[RESTORED].ProcessEvent(e))
+		assertar.NoError(
+			flushDb(posets[RESTORED], e.Hash()))
 
 		inputs[EXPECTED].SetEvent(e)
 		assertar.NoError(
 			posets[EXPECTED].ProcessEvent(e))
+		assertar.NoError(
+			flushDb(posets[EXPECTED], e.Hash()))
 
 		return
 	}

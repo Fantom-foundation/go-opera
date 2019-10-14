@@ -63,8 +63,8 @@ func Wrap(parent kvdb.KeyValueStore) *Flushable {
 	}
 }
 
-// UnderlyingDb of Flushable.
-func (w *Flushable) UnderlyingDb() kvdb.KeyValueStore {
+// underlyingDb getter. Makes underlying in lazy case.
+func (w *Flushable) underlyingDb() kvdb.KeyValueStore {
 	if w.underlying == nil && w.producer != nil {
 		w.underlying = w.producer()
 		w.producer = nil // need once
@@ -187,6 +187,10 @@ func (w *Flushable) Drop() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
+	if w.modified != nil {
+		panic("close db first")
+	}
+
 	if w.onDrop != nil {
 		w.onDrop()
 	}
@@ -211,7 +215,7 @@ func (w *Flushable) Flush() error {
 		return errClosed
 	}
 
-	db := w.UnderlyingDb()
+	db := w.underlyingDb()
 
 	batch := db.NewBatch()
 	for it := w.modified.Iterator(); it.Next(); {

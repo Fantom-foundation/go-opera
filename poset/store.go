@@ -5,17 +5,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/logger"
-)
-
-const (
-	immediately = true
 )
 
 // Store is a poset persistent storage working over parent key-value database.
@@ -59,15 +54,6 @@ func NewMemStore() *Store {
 	dbs := flushable.NewSyncedPool(mems)
 
 	return NewStore(dbs)
-}
-
-// Commit changes hard.
-func (s *Store) Commit(e hash.Event, immediately bool) {
-	if immediately {
-		s.dbs.Flush(e.Bytes())
-	} else {
-		s.dbs.FlushIfNeeded(e.Bytes())
-	}
 }
 
 // Close leaves underlying database.

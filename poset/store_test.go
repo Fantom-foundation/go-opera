@@ -74,7 +74,10 @@ func benchmarkStore(b *testing.B) {
 				if err != nil {
 					panic(err)
 				}
-				store.Commit(e.Hash(), immediately)
+				err = dbs.Flush(e.Hash().Bytes())
+				if err != nil {
+					panic(err)
+				}
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
 				e.Epoch = epoch
