@@ -34,3 +34,11 @@ func (l *PeriodicLogger) Error(period time.Duration, msg string, ctx ...interfac
 		l.prevLogTime = time.Now()
 	}
 }
+
+// Debug is timed log.Debug
+func (l *PeriodicLogger) Debug(period time.Duration, msg string, ctx ...interface{}) {
+	if time.Since(l.prevLogTime) > period {
+		l.Log.Debug(msg, ctx...)
+		l.prevLogTime = time.Now()
+	}
+}

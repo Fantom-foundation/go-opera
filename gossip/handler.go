@@ -189,7 +189,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 
 		Drop: func(e *inter.Event, peer string, err error) {
 			if event_check.IsBan(err) {
-				log.Warn("Protocol: event rejected", "hash", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+				log.Warn("Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 				pm.removePeer(peer)
 			}
 		},
