@@ -1,10 +1,11 @@
 package gossip
 
 import (
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestStoreGetReceipts(t *testing.T) {

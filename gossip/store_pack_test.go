@@ -1,9 +1,11 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 func TestStoreGetPackInfo(t *testing.T) {

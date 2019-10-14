@@ -5,17 +5,18 @@ package gossip
 */
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
 var (
-	lruStore *Store
+	lruStore    *Store
 	simpleStore *Store
 
 	testStore *Store
@@ -115,10 +116,10 @@ func benchHasEventAbsentTest(b *testing.B) {
 
 func _createTestEvent() *inter.Event {
 	d := &inter.Event{
-		EventHeader:  inter.EventHeader{
+		EventHeader: inter.EventHeader{
 			EventHeaderData: inter.EventHeaderData{
-				Parents:hash.Events{},
-				Extra: make([]byte, 0),
+				Parents: hash.Events{},
+				Extra:   make([]byte, 0),
 			},
 			Sig: make([]byte, 0),
 		},

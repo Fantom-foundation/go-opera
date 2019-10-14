@@ -5,9 +5,10 @@ package gossip
 */
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
