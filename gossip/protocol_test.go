@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 func init() {
@@ -21,7 +22,10 @@ func init() {
 var testAccount, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 
 // Tests that handshake failures are detected and reported correctly.
-func TestStatusMsgErrors62(t *testing.T) { testStatusMsgErrors(t, lachesis62) }
+func TestStatusMsgErrors62(t *testing.T) {
+	logger.SetTestMode(t)
+	testStatusMsgErrors(t, lachesis62)
+}
 
 func testStatusMsgErrors(t *testing.T, protocol int) {
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)
@@ -75,7 +79,10 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 }
 
 // This test checks that received transactions are added to the local pool.
-func TestRecvTransactions62(t *testing.T) { testRecvTransactions(t, lachesis62) }
+func TestRecvTransactions62(t *testing.T) {
+	logger.SetTestMode(t)
+	testRecvTransactions(t, lachesis62)
+}
 
 func testRecvTransactions(t *testing.T, protocol int) {
 	txAdded := make(chan []*types.Transaction)
@@ -102,7 +109,10 @@ func testRecvTransactions(t *testing.T, protocol int) {
 }
 
 // This test checks that pending transactions are sent.
-func TestSendTransactions62(t *testing.T) { testSendTransactions(t, lachesis62) }
+func TestSendTransactions62(t *testing.T) {
+	logger.SetTestMode(t)
+	testSendTransactions(t, lachesis62)
+}
 
 func testSendTransactions(t *testing.T, protocol int) {
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)

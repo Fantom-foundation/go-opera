@@ -1,11 +1,16 @@
 package gossip
 
+/*
+	In LRU cache data stored like value
+*/
+
 import (
 	"bytes"
 
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (
@@ -19,7 +24,22 @@ func (s *Store) GetPackInfo(epoch idx.Epoch, idx idx.Pack) *PackInfo {
 	key.Write(epoch.Bytes())
 	key.Write(idx.Bytes())
 
+	// Get data from LRU cache first.
+	if s.cache.PackInfos != nil {
+		if c, ok := s.cache.PackInfos.Get(key.String()); ok {
+			if b, ok := c.(PackInfo); ok {
+				return &b
+			}
+		}
+	}
+
 	w, _ := s.get(s.table.PackInfos, key.Bytes(), &PackInfo{}).(*PackInfo)
+
+	// Add to LRU cache.
+	if w != nil && s.cache.PackInfos != nil {
+		s.cache.PackInfos.Add(key.String(), *w)
+	}
+
 	return w
 }
 
@@ -49,6 +69,11 @@ func (s *Store) SetPackInfo(epoch idx.Epoch, idx idx.Pack, value PackInfo) {
 	key.Write(idx.Bytes())
 
 	s.set(s.table.PackInfos, key.Bytes(), value)
+
+	// Add to LRU cache.
+	if s.cache.PackInfos != nil {
+		s.cache.PackInfos.Add(key.String(), value)
+	}
 }
 
 func (s *Store) AddToPack(epoch idx.Epoch, idx idx.Pack, e hash.Event) {

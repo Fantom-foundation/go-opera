@@ -8,50 +8,71 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
-// Config for the gossip service.
-type Config struct {
-	Net     lachesis.Config
-	Emitter EmitterConfig
-	TxPool  evm_core.TxPoolConfig
+type (
+	// Config for the gossip service.
+	Config struct {
+		Net     lachesis.Config
+		Emitter EmitterConfig
+		TxPool  evm_core.TxPoolConfig
+		StoreConfig
 
-	// Protocol options
-	TxIndex         bool // Whether to disable indexing transactions and receipts or not
-	ForcedBroadcast bool
+		// Protocol options
+		TxIndex         bool // Whether to disable indexing transactions and receipts or not
+		ForcedBroadcast bool
 
-	// Gas Price Oracle options
-	GPO gasprice.Config
+		// Gas Price Oracle options
+		GPO gasprice.Config
 
-	// Enables tracking of SHA3 preimages in the VM
-	EnablePreimageRecording bool // TODO
+		// Enables tracking of SHA3 preimages in the VM
+		EnablePreimageRecording bool // TODO
 
-	// Type of the EWASM interpreter ("" for default)
-	EWASMInterpreter string
+		// Type of the EWASM interpreter ("" for default)
+		EWASMInterpreter string
 
-	// Type of the EVM interpreter ("" for default)
-	EVMInterpreter string // TODO custom interpreter
+		// Type of the EVM interpreter ("" for default)
+		EVMInterpreter string // TODO custom interpreter
 
-	// RPCGasCap is the global gas cap for eth-call variants.
-	RPCGasCap *big.Int `toml:",omitempty"`
+		// RPCGasCap is the global gas cap for eth-call variants.
+		RPCGasCap *big.Int `toml:",omitempty"`
 
-	ExtRPCEnabled bool
-}
+		ExtRPCEnabled bool
+	}
+
+	// StoreConfig is a config for store db.
+	StoreConfig struct {
+		// Cache size for Events.
+		EventsCacheSize int
+		// Cache size for EventHeaderData (Epoch db).
+		EventsHeadersCacheSize int
+		// Cache size for Block.
+		BlockCacheSize int
+		// Cache size for PackInfos.
+		PackInfosCacheSize int
+		// Cache size for Receipts.
+		ReceiptsCacheSize int
+		// Cache size for TxPositions.
+		TxPositionsCacheSize int
+	}
+)
 
 // DefaultConfig returns the default configurations for the gossip service.
 func DefaultConfig(network lachesis.Config) Config {
 	cfg := Config{
-		Net:     network,
-		Emitter: DefaultEmitterConfig(),
-		TxPool:  evm_core.DefaultTxPoolConfig(),
-		TxIndex: true,
+		Net:         network,
+		Emitter:     DefaultEmitterConfig(),
+		TxPool:      evm_core.DefaultTxPoolConfig(),
+		StoreConfig: DefaultStoreConfig(),
+
+		TxIndex:         true,
+		ForcedBroadcast: true,
 
 		GPO: gasprice.Config{
 			Blocks:     20,
 			Percentile: 60,
 			Default:    big.NewInt(1000000000),
 		},
-
-		ForcedBroadcast: true,
 	}
+
 	if network.NetworkId == lachesis.FakeNetworkId {
 		cfg.Emitter = FakeEmitterConfig()
 	}
@@ -60,4 +81,28 @@ func DefaultConfig(network lachesis.Config) Config {
 		cfg.Emitter = FakeEmitterConfig()
 	}*/
 	return cfg
+}
+
+// DefaultStoreConfig for product.
+func DefaultStoreConfig() StoreConfig {
+	return StoreConfig{
+		EventsCacheSize:        300,
+		EventsHeadersCacheSize: 10000,
+		BlockCacheSize:         100,
+		PackInfosCacheSize:     100,
+		ReceiptsCacheSize:      100,
+		TxPositionsCacheSize:   1000,
+	}
+}
+
+// LiteStoreConfig is for tests or inmemory.
+func LiteStoreConfig() StoreConfig {
+	return StoreConfig{
+		EventsCacheSize:        100,
+		EventsHeadersCacheSize: 1000,
+		BlockCacheSize:         100,
+		PackInfosCacheSize:     100,
+		ReceiptsCacheSize:      100,
+		TxPositionsCacheSize:   100,
+	}
 }

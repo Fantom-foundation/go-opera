@@ -13,9 +13,11 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 func TestGetGenesisBlock(t *testing.T) {
+	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
 	store := NewMemStore()
@@ -60,6 +62,7 @@ func TestGetGenesisBlock(t *testing.T) {
 }
 
 func TestGetBlock(t *testing.T) {
+	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
 	store := NewMemStore()

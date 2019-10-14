@@ -3,6 +3,8 @@ package gossip
 import (
 	"math/rand"
 	"testing"
+
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type testWrsItem struct {
@@ -19,6 +21,8 @@ func (t *testWrsItem) Weight() int64 {
 }
 
 func TestWeightedRandomSelect(t *testing.T) {
+	logger.SetTestMode(t)
+
 	testFn := func(cnt int) {
 		s := newWeightedRandomSelect()
 		w := -1

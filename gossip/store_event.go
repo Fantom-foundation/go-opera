@@ -1,5 +1,9 @@
 package gossip
 
+/*
+	In LRU cache data stored like pointer
+*/
+
 import (
 	"bytes"
 
@@ -19,6 +23,11 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 		s.Log.Crit("Failed to delete key", "err", err)
 	}
 	s.DelEventHeader(epoch, id)
+
+	// Remove from LRU cache.
+	if s.cache.Events != nil {
+		s.cache.Events.Remove(string(key))
+	}
 }
 
 // SetEvent stores event.
@@ -27,13 +36,33 @@ func (s *Store) SetEvent(e *inter.Event) {
 
 	s.set(s.table.Events, key, e)
 	s.SetEventHeader(e.Epoch, e.Hash(), &e.EventHeaderData)
+
+	// Add to LRU cache.
+	if s.cache.Events != nil {
+		s.cache.Events.Add(string(key), e)
+	}
 }
 
 // GetEvent returns stored event.
 func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	key := id.Bytes()
 
+	// Get event from LRU cache first.
+	if s.cache.Events != nil {
+		if c, ok := s.cache.Events.Get(string(key)); ok {
+			if ev, ok := c.(*inter.Event); ok {
+				return ev
+			}
+		}
+	}
+
 	w, _ := s.get(s.table.Events, key, &inter.Event{}).(*inter.Event)
+
+	// Put event to LRU cache.
+	if w != nil && s.cache.Events != nil {
+		s.cache.Events.Add(string(key), w)
+	}
+
 	return w
 }
 
@@ -70,5 +99,10 @@ func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
 
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
+	// Check in LRU cache first. Ff exists - return true.
+	if s.cache.Events != nil && s.cache.Events.Contains(string(h.Bytes())) {
+		return true
+	}
+
 	return s.has(s.table.Events, h.Bytes())
 }

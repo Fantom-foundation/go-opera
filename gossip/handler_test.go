@@ -15,11 +15,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 	"github.com/Fantom-foundation/go-lachesis/poset"
 )
 
 // Tests that events can be retrieved from a remote graph based on user queries.
-func TestGetEvents62(t *testing.T) { testGetEvents(t, lachesis62) }
+func TestGetEvents62(t *testing.T) {
+	logger.SetTestMode(t)
+	testGetEvents(t, lachesis62)
+}
 
 func testGetEvents(t *testing.T, protocol int) {
 	assertar := assert.New(t)
@@ -91,6 +95,8 @@ func testGetEvents(t *testing.T, protocol int) {
 }
 
 func TestBroadcastEvent(t *testing.T) {
+	logger.SetTestMode(t)
+
 	var tests = []struct {
 		totalPeers        int
 		broadcastExpected int
