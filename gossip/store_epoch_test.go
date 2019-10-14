@@ -5,6 +5,7 @@ package gossip
 */
 
 import (
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 
@@ -20,9 +21,7 @@ func TestStoreGetEventHeader(t *testing.T) {
 	store.SetEventHeader(expect.Epoch, expect.Hash(), &expect.EventHeaderData)
 	got := store.GetEventHeader(expect.Epoch, expect.Hash())
 
-	if got.Hash() != expect.EventHeaderData.Hash() {
-		t.Error("Error save/restore EventHeader with LRU" )
-	}
+	assert.EqualValues(t, expect.EventHeaderData, *got)
 }
 
 func BenchmarkReadHeader(b *testing.B) {
