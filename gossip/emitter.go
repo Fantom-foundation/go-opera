@@ -109,6 +109,7 @@ func (em *Emitter) StartEventEmission() {
 
 	em.prevEmittedTime = em.loadPrevEmitTime()
 	em.syncStatus.connectedTime = time.Now()
+	em.syncStatus.wasValidator = true
 
 	done := em.done
 	em.wg.Add(1)
