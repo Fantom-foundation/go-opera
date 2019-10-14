@@ -106,7 +106,7 @@ func (p *SyncedPool) flush(id []byte) error {
 		if w == nil {
 			continue
 		}
-		db := w.UnderlyingDb()
+		db := w.underlying
 		if db == nil {
 			continue
 		}

@@ -187,6 +187,10 @@ func (w *Flushable) Drop() {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
+	if w.modified != nil {
+		panic("close db first")
+	}
+
 	if w.onDrop != nil {
 		w.onDrop()
 	}

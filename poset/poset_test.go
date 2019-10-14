@@ -11,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
+// TestPoset 's possibility to get consensus in general on any event order.
 func TestPoset(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
@@ -66,6 +67,7 @@ func TestPoset(t *testing.T) {
 	})
 }
 
+// reorder events, but ancestors are before it's descendants.
 func reorder(events inter.Events) inter.Events {
 	unordered := make(inter.Events, len(events))
 	for i, j := range rand.Perm(len(events)) {

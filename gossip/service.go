@@ -158,7 +158,11 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	s.packs_onNewEvent(e, e.Epoch)
 	s.emitter.OnNewEvent(e)
 
-	newEpoch := realEngine.GetEpoch()
+	newEpoch := oldEpoch
+	if realEngine != nil {
+		newEpoch = realEngine.GetEpoch()
+	}
+
 	if newEpoch != oldEpoch {
 		s.packs_onNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
