@@ -21,22 +21,22 @@ import (
 // StoreConfig is a config for Store.
 type StoreConfig struct {
 	// LRU cache size for Events (stored by pointer).
-	EventsCacheSize			int
+	EventsCacheSize int
 
 	// LRU cache size for Epoch (EventHeaderData) (stored by pointer).
-	EventsHeadersCacheSize 	int
+	EventsHeadersCacheSize int
 
 	// LRU cache size for Block (stored by pointer).
-	BlockCacheSize			int
+	BlockCacheSize int
 
 	// LRU cache size for PackInfos (stored by value).
-	PackInfosCacheSize		int
+	PackInfosCacheSize int
 
 	// LRU cache size for Receipts  (stored by value).
-	ReceiptsCacheSize		int
+	ReceiptsCacheSize int
 
 	// LRU cache size for TxPositions (stored by pointer).
-	TxPositionsCacheSize	int
+	TxPositionsCacheSize int
 }
 
 // Store is a node persistent storage working over physical key-value database.
@@ -64,12 +64,12 @@ type Store struct {
 	}
 
 	cache struct {
-		Events			*lru.Cache
-		EventsHeaders 	*lru.Cache
-		Blocks			*lru.Cache
-		PackInfos		*lru.Cache
-		Receipts		*lru.Cache
-		TxPositions		*lru.Cache
+		Events        *lru.Cache
+		EventsHeaders *lru.Cache
+		Blocks        *lru.Cache
+		PackInfos     *lru.Cache
+		Receipts      *lru.Cache
+		TxPositions   *lru.Cache
 	}
 
 	tmpDbs
@@ -105,10 +105,10 @@ func NewMemStore() *Store {
 	defaultTestStoreCfg := StoreConfig{
 		EventsCacheSize:        100,
 		EventsHeadersCacheSize: 1000,
-		BlockCacheSize:			100,
-		PackInfosCacheSize:		100,
-		ReceiptsCacheSize:		100,
-		TxPositionsCacheSize:	100,
+		BlockCacheSize:         100,
+		PackInfosCacheSize:     100,
+		ReceiptsCacheSize:      100,
+		TxPositionsCacheSize:   100,
 	}
 
 	return NewStore(dbs, &defaultTestStoreCfg)
@@ -181,12 +181,12 @@ func (s *Store) initLRUCache(cfg *StoreConfig) {
 		return
 	}
 
-	s.cache.Events 			= s.initOneLRUCache(cfg.EventsCacheSize)
-	s.cache.EventsHeaders 	= s.initOneLRUCache(cfg.EventsHeadersCacheSize)
-	s.cache.Blocks 			= s.initOneLRUCache(cfg.BlockCacheSize)
-	s.cache.PackInfos 		= s.initOneLRUCache(cfg.PackInfosCacheSize)
-	s.cache.Receipts 		= s.initOneLRUCache(cfg.ReceiptsCacheSize)
-	s.cache.TxPositions 	= s.initOneLRUCache(cfg.TxPositionsCacheSize)
+	s.cache.Events = s.initOneLRUCache(cfg.EventsCacheSize)
+	s.cache.EventsHeaders = s.initOneLRUCache(cfg.EventsHeadersCacheSize)
+	s.cache.Blocks = s.initOneLRUCache(cfg.BlockCacheSize)
+	s.cache.PackInfos = s.initOneLRUCache(cfg.PackInfosCacheSize)
+	s.cache.Receipts = s.initOneLRUCache(cfg.ReceiptsCacheSize)
+	s.cache.TxPositions = s.initOneLRUCache(cfg.TxPositionsCacheSize)
 }
 
 func (s *Store) initOneLRUCache(size int) *lru.Cache {

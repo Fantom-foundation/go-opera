@@ -56,10 +56,10 @@ func DefaultConfig(network lachesis.Config) Config {
 		StoreConfig: StoreConfig{
 			EventsCacheSize:        300,
 			EventsHeadersCacheSize: 10000,
-			BlockCacheSize:			100,
-			PackInfosCacheSize:		100,
-			ReceiptsCacheSize:		100,
-			TxPositionsCacheSize:	1000,
+			BlockCacheSize:         100,
+			PackInfosCacheSize:     100,
+			ReceiptsCacheSize:      100,
+			TxPositionsCacheSize:   1000,
 		},
 	}
 	if network.NetworkId == lachesis.FakeNetworkId {
