@@ -96,12 +96,9 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.PrevEpoch.StateHash = p.checkpoint.StateHash
 	p.PrevEpoch.LastHeaders = lastHeaders
 
-	// new validators list
-	p.Validators = p.NextValidators.Top()
+	// new validators list, move to new epoch
+	p.setEpochValidators(p.NextValidators.Top(), p.EpochN+1)
 	p.NextValidators = p.Validators.Copy()
-
-	// move to new epoch
-	p.EpochN++
 	p.LastDecidedFrame = 0
 
 	// commit

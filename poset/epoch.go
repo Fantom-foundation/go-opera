@@ -1,8 +1,6 @@
 package poset
 
 import (
-	"sync/atomic"
-
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -30,17 +28,34 @@ func (p *Poset) loadEpoch() {
 
 // GetEpoch returns current epoch num to 3rd party.
 func (p *Poset) GetEpoch() idx.Epoch {
-	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
+	return p.EpochN
 }
 
 // GetValidators returns validators of current epoch.
 func (p *Poset) GetValidators() pos.Validators {
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
 	return p.Validators.Copy()
 }
 
 // GetEpochValidators atomically returns validators of current epoch, and the epoch.
 func (p *Poset) GetEpochValidators() (pos.Validators, idx.Epoch) {
-	return p.GetValidators(), p.GetEpoch() // TODO atomic
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
+	return p.Validators.Copy(), p.EpochN
+}
+
+func (p *Poset) setEpochValidators(validators pos.Validators, epoch idx.Epoch) {
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
+	p.Validators = validators
+	p.EpochN = epoch
 }
 
 // rootObservesRoot returns hash of root B, if root B forkless causes root A.

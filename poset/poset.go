@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
@@ -26,6 +27,8 @@ type Poset struct {
 	vecClock *vector.Index
 
 	applyBlock inter.ApplyBlockFn
+
+	epochMu utils.SpinLock // protects p.Validators and p.EpochN
 
 	logger.Instance
 }
