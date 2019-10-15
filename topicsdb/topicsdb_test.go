@@ -38,8 +38,8 @@ func TestTopicsDb(t *testing.T) {
 			tt := topics[from : to-1]
 
 			conditions := make([]Condition, len(tt))
-			for n, t := range tt {
-				conditions[n] = NewCondition(t.Topic, n)
+			for pos, t := range tt {
+				conditions[pos] = NewCondition(t.Topic, uint8(pos))
 			}
 
 			got, err := db.Find(conditions...)

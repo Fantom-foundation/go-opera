@@ -26,8 +26,8 @@ func BenchmarkSearch(b *testing.B) {
 		tt := topics[from : to-1]
 
 		conditions := make([]Condition, len(tt))
-		for n, t := range tt {
-			conditions[n] = NewCondition(t.Topic, n)
+		for pos, t := range tt {
+			conditions[pos] = NewCondition(t.Topic, uint8(pos))
 		}
 
 		conditionsSet = append(conditionsSet, conditions)

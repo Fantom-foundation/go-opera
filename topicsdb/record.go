@@ -1,8 +1,6 @@
 package topicsdb
 
 import (
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -20,11 +18,11 @@ type (
 	}
 
 	logrecBuilder struct {
-		conditions2check int
+		conditions2check uint8
 		id               common.Hash
 		blockN           uint64
-		topicsCount      uint32
-		topicsReady      uint32
+		topicsCount      uint8
+		topicsReady      uint8
 		topics           []*Topic
 
 		ok    chan struct{}
@@ -32,7 +30,7 @@ type (
 	}
 )
 
-func newLogrecBuilder(conditions int, id common.Hash, blockN uint64, topicCount uint32) *logrecBuilder {
+func newLogrecBuilder(conditions uint8, id common.Hash, blockN uint64, topicCount uint8) *logrecBuilder {
 	return &logrecBuilder{
 		conditions2check: conditions,
 		id:               id,
@@ -75,7 +73,7 @@ func (rec *logrecBuilder) AllConditionsOK() bool {
 	return rec.conditions2check == 0
 }
 
-func (rec *logrecBuilder) SetParams(blockN uint64, topicCount uint32) {
+func (rec *logrecBuilder) SetParams(blockN uint64, topicCount uint8) {
 	if blockN != rec.blockN {
 		log.Crit("inconsistent table.Topic", "param", "blockN")
 	}
@@ -84,18 +82,15 @@ func (rec *logrecBuilder) SetParams(blockN uint64, topicCount uint32) {
 	}
 }
 
-func (rec *logrecBuilder) SetTopic(n uint32, raw []byte) {
-
-	time.Sleep(time.Millisecond) // TODO
-
-	if n >= rec.topicsCount {
+func (rec *logrecBuilder) SetTopic(pos uint8, raw []byte) {
+	if pos >= rec.topicsCount {
 		log.Crit("inconsistent table.Record", "param", "topicN")
 	}
 
-	if rec.topics[n] == nil {
+	if rec.topics[pos] == nil {
 		rec.topicsReady++
 	}
-	rec.topics[n] = &Topic{
+	rec.topics[pos] = &Topic{
 		Topic: common.BytesToHash(raw[:lenHash]),
 		Data:  raw[lenHash:],
 	}

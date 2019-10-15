@@ -1,10 +1,15 @@
 package topicsdb
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
+	"fmt"
+
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
+
+const MaxCount = 0xff
+
+var ErrTooManyTopics = fmt.Errorf("Too many topics")
 
 // TopicsDb is a specialized indexes for log records storing and fetching.
 type TopicsDb struct {
@@ -12,7 +17,7 @@ type TopicsDb struct {
 	table struct {
 		// topic+topicN+blockN+logrecID -> pair_count
 		Topic kvdb.KeyValueStore `table:"topic"`
-		// logrecID+N -> topic, data
+		// logrecID+topicN -> topic, data
 		Logrec kvdb.KeyValueStore `table:"logrec"`
 	}
 
@@ -39,19 +44,21 @@ func (tt *TopicsDb) Find(cc ...Condition) (res []*Logrec, err error) {
 
 // Push log record to database.
 func (tt *TopicsDb) Push(rec *Logrec) error {
-	count := bigendian.Int32ToBytes(uint32(len(
-		rec.Topics)))
+	if len(rec.Topics) > MaxCount {
+		return ErrTooManyTopics
+	}
+	count := posToBytes(uint8(len(rec.Topics)))
 
-	for n, topic := range rec.Topics {
-		key := topicKey(topic, n, rec.BlockN, rec.Id)
+	for pos, topic := range rec.Topics {
+		key := topicKey(topic, uint8(pos), rec.BlockN, rec.Id)
 		err := tt.table.Topic.Put(key, count)
 		if err != nil {
 			return err
 		}
 	}
 
-	for n, topic := range rec.Topics {
-		key := logrecKey(rec, n)
+	for pos, topic := range rec.Topics {
+		key := logrecKey(rec, uint8(pos))
 		err := tt.table.Logrec.Put(key, topic.Bytes())
 		if err != nil {
 			return err

@@ -6,34 +6,40 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 )
 
-const conditionSize = lenHash + lenInt32
+const conditionSize = lenHash + lenUint8
 
 // Condition to search log records by.
 type Condition [conditionSize]byte
 
 // NewCondition from topic and its position in log record.
-func NewCondition(topic common.Hash, position int) Condition {
+func NewCondition(topic common.Hash, position uint8) Condition {
 	var c Condition
 
 	copy(c[:], topic.Bytes())
-	copy(c[lenHash:], bigendian.Int32ToBytes(uint32(position)))
+	copy(c[lenHash:], posToBytes(position))
 
 	return c
 }
 
 func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Logrec, err error) {
+	if len(cc) > MaxCount {
+		err = ErrTooManyTopics
+		return
+	}
+
 	recs := make(map[common.Hash]*logrecBuilder)
 
+	conditions := uint8(len(cc))
 	for _, cond := range cc {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
 		for it.Next() {
 			key := it.Key()
 			id := extractLogrecId(key)
 			blockN := extractBlockN(key)
-			topicCount := bigendian.BytesToInt32(it.Value())
+			topicCount := bytesToPos(it.Value())
 			rec := recs[id]
 			if rec == nil {
-				rec = newLogrecBuilder(len(cc), id, blockN, topicCount)
+				rec = newLogrecBuilder(conditions, id, blockN, topicCount)
 				recs[id] = rec
 			} else {
 				rec.SetParams(blockN, topicCount)
@@ -56,8 +62,8 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Logrec, err error) {
 
 		it := tt.table.Logrec.NewIteratorWithPrefix(rec.id.Bytes())
 		for it.Next() {
-			n := extractTopicN(it.Key())
-			rec.SetTopic(n, it.Value())
+			pos := extractTopicPos(it.Key())
+			rec.SetTopic(pos, it.Value())
 		}
 
 		err = it.Error()

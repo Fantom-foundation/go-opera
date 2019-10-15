@@ -3,23 +3,27 @@ package topicsdb
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
-
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 )
 
 func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
+	if len(cc) > MaxCount {
+		err = ErrTooManyTopics
+		return
+	}
+
 	recs := make(map[common.Hash]*logrecBuilder)
 
+	conditions := uint8(len(cc))
 	for _, cond := range cc {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
 		for it.Next() {
 			key := it.Key()
 			id := extractLogrecId(key)
 			blockN := extractBlockN(key)
-			topicCount := bigendian.BytesToInt32(it.Value())
+			topicCount := bytesToPos(it.Value())
 			rec := recs[id]
 			if rec == nil {
-				rec = newLogrecBuilder(len(cc), id, blockN, topicCount)
+				rec = newLogrecBuilder(conditions, id, blockN, topicCount)
 				recs[id] = rec
 				rec.StartFetch(tt.table.Logrec.NewIteratorWithPrefix)
 				defer rec.StopFetch()
@@ -71,7 +75,7 @@ func (rec *logrecBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
 		defer it.Release()
 
 		for it.Next() {
-			n := extractTopicN(it.Key())
+			n := extractTopicPos(it.Key())
 			rec.SetTopic(n, it.Value())
 		}
 
