@@ -484,7 +484,7 @@ func TestRandomForksSanity(t *testing.T) {
 	})
 
 	vi.Flush()
-	vi.DropNotFlushed() // don't drop anything, because everything is flushed
+	vi.DropNotFlushed() // doesn't drop anything, because everything is flushed
 
 	// quick sanity check. all the nodes should see that cheaters have a fork, and honest nodes don't have forks
 	assertar := assert.New(t)
@@ -667,6 +667,7 @@ func TestRandomForks(t *testing.T) {
 					vi.Add(&a.EventHeaderData)
 				}
 
+				vi.forklessCauseCache.Purge() // disable cache
 				for _, a := range processedArr {
 					res := vi.MedianTime(a.Hash(), inter.Timestamp(testTime/2))
 					assertar.Equal(medianTimeMap[a.Hash()], res, "%s %d", a.Hash().String(), reorderTry)
