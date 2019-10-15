@@ -1,14 +1,17 @@
 package gossip
 
 import (
+	"bytes"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
@@ -108,12 +111,20 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit(e hash.Event, immediately bool) error {
-	if immediately {
-		return s.dbs.Flush(e.Bytes())
+func (s *Store) Commit(flushId []byte, immediately bool) error {
+	if flushId == nil {
+		// if flushId not specified, use current time
+		flushIdB := bytes.NewBuffer(nil)
+		flushIdB.Write([]byte("stop"))                                        // special marker that flushed at stop
+		flushIdB.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
+		flushId = flushIdB.Bytes()
 	}
 
-	_, err := s.dbs.FlushIfNeeded(e.Bytes())
+	if immediately {
+		return s.dbs.Flush(flushId)
+	}
+
+	_, err := s.dbs.FlushIfNeeded(flushId)
 	return err
 }
 

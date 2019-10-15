@@ -3,12 +3,12 @@ package flushable
 import (
 	"bytes"
 	"fmt"
-	"github.com/status-im/keycard-go/hexutils"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 )
@@ -41,7 +41,7 @@ func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
 	}
 
 	if err := p.checkDbsSynced(); err != nil {
-		log.Crit("Databases aren't sync", "err", err)
+		log.Crit("Databases are corrupted, which is possible after a crash or disk failure.", "err", err)
 	}
 
 	return p
@@ -111,10 +111,7 @@ func (p *SyncedPool) flush(id []byte) error {
 		if db == nil {
 			continue
 		}
-		err := db.Close()
-		if err != nil {
-			return err
-		}
+		// db.Close() is called inside wrapper.Close()
 		db.Drop()
 	}
 	p.queuedDrops = make(map[string]struct{})
@@ -175,7 +172,7 @@ func (p *SyncedPool) FlushIfNeeded(id []byte) (bool, error) {
 		totalNotFlushed += db.NotFlushedSizeEst()
 	}
 
-	if totalNotFlushed > 100*1024*1024 {
+	if totalNotFlushed > 10*1024*1024 {
 		return true, p.flush(id)
 	}
 	return false, nil
