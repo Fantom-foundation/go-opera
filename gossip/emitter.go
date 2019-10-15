@@ -66,8 +66,7 @@ type Emitter struct {
 	done chan struct{}
 	wg   sync.WaitGroup
 
-	logger.Instance
-	utils.PeriodicLogger
+	logger.Periodic
 }
 
 type selfForkProtection struct {
@@ -87,13 +86,12 @@ func NewEmitter(
 	txTime, _ := lru.New(TxTimeBufferSize)
 	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		dag:            &config.Net.Dag,
-		config:         &config.Emitter,
-		world:          world,
-		gasRate:        metrics.NewMeterForced(),
-		txTime:         txTime,
-		Instance:       loggerInstance,
-		PeriodicLogger: utils.PeriodicLogger{Instance: loggerInstance},
+		dag:      &config.Net.Dag,
+		config:   &config.Emitter,
+		world:    world,
+		gasRate:  metrics.NewMeterForced(),
+		txTime:   txTime,
+		Periodic: logger.Periodic{Instance: loggerInstance},
 	}
 }
 
@@ -260,7 +258,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.PeriodicLogger.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil, nil, false
 		}
 	} else {
@@ -308,7 +306,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == coinbase && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.PeriodicLogger.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -455,9 +453,9 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool, string, time.Duration) {
 	if !synced {
 		if wait == 0 {
-			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason)
+			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason)
 		} else {
-			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
+			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
 		}
 	}
 	return synced, reason, wait
@@ -484,7 +482,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
 			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
-				em.PeriodicLogger.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
 		}

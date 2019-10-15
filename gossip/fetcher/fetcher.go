@@ -10,7 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/logger"
-	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 /*
@@ -95,8 +94,7 @@ type Fetcher struct {
 	announced map[hash.Event][]*oneAnnounce // Announced events, scheduled for fetching
 	fetching  map[hash.Event]*oneAnnounce   // Announced events, currently fetching
 
-	logger.Instance
-	utils.PeriodicLogger
+	logger.Periodic
 }
 
 type Callback struct {
@@ -120,8 +118,7 @@ func New(callback Callback) *Fetcher {
 		fetching:  make(map[hash.Event]*oneAnnounce),
 		callback:  callback,
 
-		Instance:       loggerInstance,
-		PeriodicLogger: utils.PeriodicLogger{Instance: loggerInstance},
+		Periodic: logger.Periodic{Instance: loggerInstance},
 	}
 }
 
@@ -182,7 +179,7 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetch
 	for _, e := range inEvents {
 		err := f.callback.FirstCheck(e)
 		if event_check.IsBan(err) {
-			f.PeriodicLogger.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+			f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 			f.callback.DropPeer(peer)
 			return err
 		}
@@ -198,7 +195,7 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetch
 		for i, err := range res.Result {
 			if event_check.IsBan(err) {
 				e := res.Events[i]
-				f.PeriodicLogger.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+				f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 				f.callback.DropPeer(peer)
 				return
 			}
@@ -258,7 +255,7 @@ func (f *Fetcher) loop() {
 
 			count := f.announces[notification.peer]
 			if count+len(notification.hashes) > hashLimit {
-				f.PeriodicLogger.Debug(time.Second, "Peer exceeded outstanding announces", "peer", notification.peer, "limit", hashLimit)
+				f.Periodic.Debug(time.Second, "Peer exceeded outstanding announces", "peer", notification.peer, "limit", hashLimit)
 				propAnnounceDOSMeter.Update(1)
 				break
 			}
@@ -291,7 +288,7 @@ func (f *Fetcher) loop() {
 			if len(toFetch) != 0 {
 				err := notification.fetchEvents(toFetch)
 				if err != nil {
-					f.PeriodicLogger.Error(time.Second, "Events request error", "peer", notification.peer, "err", err)
+					f.Periodic.Error(time.Second, "Events request error", "peer", notification.peer, "err", err)
 				}
 			}
 
@@ -368,7 +365,7 @@ func (f *Fetcher) loop() {
 					eventFetchMeter.Update(int64(len(hashes)))
 					err := fetchEvents(hashes)
 					if err != nil {
-						f.PeriodicLogger.Error(time.Second, "Events request error", "peer", peer, "err", err)
+						f.Periodic.Error(time.Second, "Events request error", "peer", peer, "err", err)
 					}
 				}(peer)
 			}
