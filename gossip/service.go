@@ -166,6 +166,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	if newEpoch != oldEpoch {
 		s.packs_onNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
+		s.store.getEpochStore(newEpoch)
 		s.feed.newEpoch.Send(newEpoch)
 		s.occurredTxs.Clear()
 	}
