@@ -313,7 +313,7 @@ func (f *Fetcher) loop() {
 			if len(toFetch) != 0 {
 				err := notification.fetchEvents(toFetch)
 				if err != nil {
-					f.Periodic.Error(time.Second, "Events request error", "peer", notification.peer, "err", err)
+					f.Periodic.Warn(time.Second, "Events request error", "peer", notification.peer, "err", err)
 				}
 			}
 
@@ -390,7 +390,7 @@ func (f *Fetcher) loop() {
 					eventFetchMeter.Update(int64(len(hashes)))
 					err := fetchEvents(hashes)
 					if err != nil {
-						f.Periodic.Error(time.Second, "Events request error", "peer", peer, "err", err)
+						f.Periodic.Warn(time.Second, "Events request error", "peer", peer, "err", err)
 					}
 				}(peer)
 			}
