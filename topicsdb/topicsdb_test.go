@@ -39,7 +39,7 @@ func TestTopicsDb(t *testing.T) {
 
 			conditions := make([]Condition, len(tt))
 			for n, t := range tt {
-				conditions[n] = NewCondition(t.Val, n)
+				conditions[n] = NewCondition(t.Topic, n)
 			}
 
 			got, err := db.Find(conditions...)
@@ -47,7 +47,7 @@ func TestTopicsDb(t *testing.T) {
 				return
 			}
 
-			var expect []*Record
+			var expect []*Logrec
 			for j, rec := range recs {
 				if f, t := topics4rec(j); f != from || t != to {
 					continue
@@ -78,7 +78,7 @@ func TestTopicsDb(t *testing.T) {
 
 func genTestData() (
 	topics []*Topic,
-	recs []*Record,
+	recs []*Logrec,
 	topics4rec func(rec int) (from, to int),
 ) {
 	const (
@@ -89,8 +89,8 @@ func genTestData() (
 	topics = make([]*Topic, period)
 	for i := range topics {
 		t := &Topic{
-			Val:  hash.FakeHash(int64(i)),
-			Data: make([]byte, i+10),
+			Topic: hash.FakeHash(int64(i)),
+			Data:  make([]byte, i+10),
 		}
 		_, _ = rand.Read(t.Data)
 		topics[i] = t
@@ -102,10 +102,10 @@ func genTestData() (
 		return
 	}
 
-	recs = make([]*Record, count)
+	recs = make([]*Logrec, count)
 	for i := range recs {
 		from, to := topics4rec(i)
-		recs[i] = &Record{
+		recs[i] = &Logrec{
 			Id:     hash.FakeHash(int64(i)),
 			BlockN: uint64(i % 5),
 			Topics: topics[from:to],
@@ -115,7 +115,7 @@ func genTestData() (
 	return
 }
 
-func sortById(recs []*Record) {
+func sortById(recs []*Logrec) {
 	sort.Slice(recs, func(i, j int) bool {
 		return bytes.Compare(
 			recs[i].Id.Bytes(),

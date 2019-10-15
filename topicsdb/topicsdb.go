@@ -15,7 +15,7 @@ type TopicsDb struct {
 		Record kvdb.KeyValueStore `table:"record"`
 	}
 
-	fetchMethod func(cc ...Condition) (res []*Record, err error)
+	fetchMethod func(cc ...Condition) (res []*Logrec, err error)
 }
 
 func New(db kvdb.KeyValueStore) *TopicsDb {
@@ -30,11 +30,11 @@ func New(db kvdb.KeyValueStore) *TopicsDb {
 	return tt
 }
 
-func (tt *TopicsDb) Find(cc ...Condition) (res []*Record, err error) {
+func (tt *TopicsDb) Find(cc ...Condition) (res []*Logrec, err error) {
 	return tt.fetchMethod(cc...)
 }
 
-func (tt *TopicsDb) Push(rec *Record) error {
+func (tt *TopicsDb) Push(rec *Logrec) error {
 	count := bigendian.Int32ToBytes(uint32(len(
 		rec.Topics)))
 
@@ -47,7 +47,7 @@ func (tt *TopicsDb) Push(rec *Record) error {
 	}
 
 	for n, topic := range rec.Topics {
-		key := recordKey(rec, n)
+		key := logrecKey(rec, n)
 		err := tt.table.Record.Put(key, topic.Bytes())
 		if err != nil {
 			return err

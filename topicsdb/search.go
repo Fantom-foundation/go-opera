@@ -19,8 +19,8 @@ func NewCondition(topic common.Hash, n int) Condition {
 	return c
 }
 
-func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Record, err error) {
-	recs := make(map[common.Hash]*recordBuilder)
+func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Logrec, err error) {
+	recs := make(map[common.Hash]*logrecBuilder)
 
 	for _, cond := range cc {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
@@ -31,7 +31,7 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Record, err error) {
 			topicCount := bigendian.BytesToInt32(it.Value())
 			rec := recs[id]
 			if rec == nil {
-				rec = newRecordBuilder(len(cc), id, blockN, topicCount)
+				rec = newLogrecBuilder(len(cc), id, blockN, topicCount)
 				recs[id] = rec
 			} else {
 				rec.SetParams(blockN, topicCount)
@@ -65,7 +65,7 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Record, err error) {
 
 		it.Release()
 
-		var r *Record
+		var r *Logrec
 		r, err = rec.Build()
 		if err != nil {
 			return

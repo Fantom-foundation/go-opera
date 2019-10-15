@@ -9,17 +9,17 @@ import (
 
 type (
 	Topic struct {
-		Val  common.Hash
-		Data []byte
+		Topic common.Hash
+		Data  []byte
 	}
 
-	Record struct {
+	Logrec struct {
 		Id     common.Hash
 		BlockN uint64
 		Topics []*Topic
 	}
 
-	recordBuilder struct {
+	logrecBuilder struct {
 		conditions2check int
 		id               common.Hash
 		blockN           uint64
@@ -32,8 +32,8 @@ type (
 	}
 )
 
-func newRecordBuilder(conditions int, id common.Hash, blockN uint64, topicCount uint32) *recordBuilder {
-	return &recordBuilder{
+func newLogrecBuilder(conditions int, id common.Hash, blockN uint64, topicCount uint32) *logrecBuilder {
+	return &logrecBuilder{
 		conditions2check: conditions,
 		id:               id,
 		blockN:           blockN,
@@ -42,7 +42,7 @@ func newRecordBuilder(conditions int, id common.Hash, blockN uint64, topicCount 
 	}
 }
 
-func (rec *recordBuilder) Build() (r *Record, err error) {
+func (rec *logrecBuilder) Build() (r *Logrec, err error) {
 	if rec.ready != nil {
 		var complete bool
 		err, complete = <-rec.ready
@@ -51,7 +51,7 @@ func (rec *recordBuilder) Build() (r *Record, err error) {
 		}
 	}
 
-	r = &Record{
+	r = &Logrec{
 		Id:     rec.id,
 		BlockN: rec.blockN,
 		Topics: rec.topics,
@@ -60,7 +60,7 @@ func (rec *recordBuilder) Build() (r *Record, err error) {
 	return
 }
 
-func (rec *recordBuilder) ConditionOK(cond Condition) {
+func (rec *logrecBuilder) ConditionOK(cond Condition) {
 	rec.conditions2check--
 	if rec.conditions2check == 0 && rec.ok != nil {
 		rec.ok <- struct{}{}
@@ -71,11 +71,11 @@ func (rec *recordBuilder) ConditionOK(cond Condition) {
 	}
 }
 
-func (rec *recordBuilder) AllConditionsOK() bool {
+func (rec *logrecBuilder) AllConditionsOK() bool {
 	return rec.conditions2check == 0
 }
 
-func (rec *recordBuilder) SetParams(blockN uint64, topicCount uint32) {
+func (rec *logrecBuilder) SetParams(blockN uint64, topicCount uint32) {
 	if blockN != rec.blockN {
 		log.Crit("inconsistent table.Topic", "param", "blockN")
 	}
@@ -84,7 +84,7 @@ func (rec *recordBuilder) SetParams(blockN uint64, topicCount uint32) {
 	}
 }
 
-func (rec *recordBuilder) SetTopic(n uint32, raw []byte) {
+func (rec *logrecBuilder) SetTopic(n uint32, raw []byte) {
 
 	time.Sleep(time.Millisecond) // TODO
 
@@ -96,12 +96,12 @@ func (rec *recordBuilder) SetTopic(n uint32, raw []byte) {
 		rec.topicsReady++
 	}
 	rec.topics[n] = &Topic{
-		Val:  common.BytesToHash(raw[:lenHash]),
-		Data: raw[lenHash:],
+		Topic: common.BytesToHash(raw[:lenHash]),
+		Data:  raw[lenHash:],
 	}
 
 }
 
 func (t *Topic) Bytes() []byte {
-	return append(t.Val.Bytes(), t.Data...)
+	return append(t.Topic.Bytes(), t.Data...)
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 )
 
-func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Record, err error) {
-	recs := make(map[common.Hash]*recordBuilder)
+func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
+	recs := make(map[common.Hash]*logrecBuilder)
 
 	for _, cond := range cc {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
@@ -19,7 +19,7 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Record, err error) {
 			topicCount := bigendian.BytesToInt32(it.Value())
 			rec := recs[id]
 			if rec == nil {
-				rec = newRecordBuilder(len(cc), id, blockN, topicCount)
+				rec = newLogrecBuilder(len(cc), id, blockN, topicCount)
 				recs[id] = rec
 				rec.StartFetch(tt.table.Record.NewIteratorWithPrefix)
 				defer rec.StopFetch()
@@ -38,7 +38,7 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Record, err error) {
 	}
 
 	for _, rec := range recs {
-		var r *Record
+		var r *Logrec
 		r, err = rec.Build()
 		if err != nil {
 			return
@@ -52,7 +52,7 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Record, err error) {
 }
 
 // StartFetch record's data when all conditions are ok.
-func (rec *recordBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
+func (rec *logrecBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
 	if rec.ok != nil {
 		return
 	}
@@ -81,7 +81,7 @@ func (rec *recordBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
 
 // StopFetch releases resources associated with StartFetch,
 // so code should call StopFetch after StartFetch.
-func (rec *recordBuilder) StopFetch() {
+func (rec *logrecBuilder) StopFetch() {
 	if rec.ok != nil {
 		close(rec.ok)
 		rec.ok = nil
