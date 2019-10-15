@@ -9,7 +9,7 @@ import (
 )
 
 func cachedStore() *Store {
-	mems := memorydb.NewProdicer("", withDelay)
+	mems := memorydb.NewProducer("", withDelay)
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
 
@@ -17,7 +17,7 @@ func cachedStore() *Store {
 }
 
 func nonCachedStore() *Store {
-	mems := memorydb.NewProdicer("", withDelay)
+	mems := memorydb.NewProducer("", withDelay)
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := StoreConfig{}
 

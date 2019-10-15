@@ -61,7 +61,7 @@ type Store struct {
 
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
-	mems := memorydb.NewProdicer("")
+	mems := memorydb.NewProducer("")
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
 
