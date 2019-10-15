@@ -96,7 +96,7 @@ func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validato
 		// is it first event indeed?
 		if vi.bi.BranchIDLastSeq[meIdx] == 0 {
 			// OK, not a new fork
-			vi.bi.BranchIDLastSeq[meIdx] = e.Seq // TODO we see only globally the fork, but make decision based on it
+			vi.bi.BranchIDLastSeq[meIdx] = e.Seq
 			return meIdx
 		}
 	} else {

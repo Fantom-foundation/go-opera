@@ -19,7 +19,7 @@ func (ee Events) String() string {
 }
 
 // ByParents returns events topologically ordered by parent dependency.
-// TODO: use Topological sort algorithm
+// Used only for tests.
 func (ee Events) ByParents() (res Events) {
 	unsorted := make(Events, len(ee))
 	exists := hash.EventsSet{}
