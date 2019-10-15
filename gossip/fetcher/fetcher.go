@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 /*
@@ -90,9 +91,11 @@ type Fetcher struct {
 	callback Callback
 
 	// Announce states
+	stateMu   utils.SpinLock                // Protects announces and announced
 	announces map[string]int                // Per peer announce counts to prevent memory exhaustion
 	announced map[hash.Event][]*oneAnnounce // Announced events, scheduled for fetching
-	fetching  map[hash.Event]*oneAnnounce   // Announced events, currently fetching
+
+	fetching map[hash.Event]*oneAnnounce // Announced events, currently fetching
 
 	logger.Periodic
 }
@@ -136,15 +139,37 @@ func (f *Fetcher) Stop() {
 	f.callback.HeavyCheck.Stop()
 }
 
+// Overloaded returns true if too much events are being processed or requested
 func (f *Fetcher) Overloaded() bool {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	return f.overloaded()
+}
+
+func (f *Fetcher) overloaded() bool {
 	return len(f.inject) > maxQueuedInjects*3/4 ||
 		len(f.notify) > maxQueuedAnns*3/4 ||
-		len(f.announced) > hashLimit ||
+		len(f.announced) > hashLimit || // protected by stateMu
 		f.callback.HeavyCheck.Overloaded()
 }
 
+// Overloaded returns true if too much events are being processed or requested from the peer
 func (f *Fetcher) OverloadedPeer(peer string) bool {
-	return f.Overloaded() || f.announces[peer] > hashLimit/2 // TODO must be synced
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	return f.overloaded() || f.announces[peer] > hashLimit/2 // protected by stateMu
+}
+
+func (f *Fetcher) setAnnounces(peer string, num int) {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	f.announces[peer] = num
+}
+
+func (f *Fetcher) setAnnounced(id hash.Event, announces []*oneAnnounce) {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	f.announced[id] = announces
 }
 
 // Notify announces the fetcher of the potential availability of a new event in
@@ -275,7 +300,7 @@ func (f *Fetcher) loop() {
 					batch: notification,
 					i:     i,
 				}
-				f.announced[id] = append(f.announced[id], ann)
+				f.setAnnounced(id, append(f.announced[id], ann))
 				count++ // f.announced and f.announces must be synced!
 				// if it wasn't announced before, then schedule for fetching this time
 				if _, ok := f.fetching[id]; !ok {
@@ -283,7 +308,7 @@ func (f *Fetcher) loop() {
 					toFetch.Add(id)
 				}
 			}
-			f.announces[notification.peer] = count
+			f.setAnnounces(notification.peer, count)
 
 			if len(toFetch) != 0 {
 				err := notification.fetchEvents(toFetch)
@@ -394,6 +419,9 @@ func (f *Fetcher) rescheduleFetch(fetch *time.Timer) {
 // forgetHash removes all traces of a event announcement from the fetcher's
 // internal state.
 func (f *Fetcher) forgetHash(hash hash.Event) {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+
 	// Remove all pending announces and decrement DOS counters
 	for _, announce := range f.announced[hash] {
 		f.announces[announce.batch.peer]--
