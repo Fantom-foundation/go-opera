@@ -14,14 +14,14 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
 		for it.Next() {
 			key := it.Key()
-			id := extractRecId(key)
+			id := extractLogrecId(key)
 			blockN := extractBlockN(key)
 			topicCount := bigendian.BytesToInt32(it.Value())
 			rec := recs[id]
 			if rec == nil {
 				rec = newLogrecBuilder(len(cc), id, blockN, topicCount)
 				recs[id] = rec
-				rec.StartFetch(tt.table.Record.NewIteratorWithPrefix)
+				rec.StartFetch(tt.table.Logrec.NewIteratorWithPrefix)
 				defer rec.StopFetch()
 			} else {
 				rec.SetParams(blockN, topicCount)
@@ -51,7 +51,7 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
 	return
 }
 
-// StartFetch record's data when all conditions are ok.
+// StartFetch log record's data when all conditions are ok.
 func (rec *logrecBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
 	if rec.ok != nil {
 		return
@@ -80,7 +80,7 @@ func (rec *logrecBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
 }
 
 // StopFetch releases resources associated with StartFetch,
-// so code should call StopFetch after StartFetch.
+// so you should call StopFetch after StartFetch.
 func (rec *logrecBuilder) StopFetch() {
 	if rec.ok != nil {
 		close(rec.ok)

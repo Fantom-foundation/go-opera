@@ -8,13 +8,15 @@ import (
 
 const conditionSize = lenHash + lenInt32
 
+// Condition to search log records by.
 type Condition [conditionSize]byte
 
-func NewCondition(topic common.Hash, n int) Condition {
+// NewCondition from topic and its position in log record.
+func NewCondition(topic common.Hash, position int) Condition {
 	var c Condition
 
 	copy(c[:], topic.Bytes())
-	copy(c[lenHash:], bigendian.Int32ToBytes(uint32(n)))
+	copy(c[lenHash:], bigendian.Int32ToBytes(uint32(position)))
 
 	return c
 }
@@ -26,7 +28,7 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Logrec, err error) {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
 		for it.Next() {
 			key := it.Key()
-			id := extractRecId(key)
+			id := extractLogrecId(key)
 			blockN := extractBlockN(key)
 			topicCount := bigendian.BytesToInt32(it.Value())
 			rec := recs[id]
@@ -52,7 +54,7 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Logrec, err error) {
 			continue
 		}
 
-		it := tt.table.Record.NewIteratorWithPrefix(rec.id.Bytes())
+		it := tt.table.Logrec.NewIteratorWithPrefix(rec.id.Bytes())
 		for it.Next() {
 			n := extractTopicN(it.Key())
 			rec.SetTopic(n, it.Value())
@@ -78,10 +80,12 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*Logrec, err error) {
 	return
 }
 
-func (cond Condition) N() uint32 {
+// Position getter.
+func (cond Condition) Position() uint32 {
 	return bigendian.BytesToInt32(cond[lenHash:])
 }
 
-func (cond Condition) Val() common.Hash {
+// Topic getter.
+func (cond Condition) Topic() common.Hash {
 	return common.BytesToHash(cond[:lenHash])
 }

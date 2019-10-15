@@ -35,7 +35,7 @@ func logrecKey(r *Logrec, n int) []byte {
 	return key
 }
 
-func extractRecId(key []byte) common.Hash {
+func extractLogrecId(key []byte) common.Hash {
 	switch len(key) {
 	case topicKeySize:
 		return common.BytesToHash(
