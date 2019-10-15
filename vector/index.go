@@ -62,6 +62,8 @@ func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEven
 	vi.vecDb = flushable.Wrap(db)
 	vi.validators = validators.Copy()
 	vi.validatorIdxs = validators.Idxs()
+	vi.DropNotFlushed()
+	vi.forklessCauseCache.Purge()
 
 	table.MigrateTables(&vi.table, vi.vecDb)
 }
