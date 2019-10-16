@@ -1,7 +1,6 @@
 package inter
 
 import (
-	"bytes"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,6 +15,40 @@ const (
 	SerializedCounterSize = 4
 	SerializedEpochSize = 4
 )
+
+type FastBuffer struct {
+	buf *[]byte
+	offset     	int
+}
+
+func NewFastBuffer(buf *[]byte) *FastBuffer {
+	b := FastBuffer{
+		buf:        buf,
+		offset:     0,
+	}
+
+	return &b
+}
+
+func (b *FastBuffer) Write(src []byte) {
+	size := len(src)
+	b.WriteLen(src, size)
+}
+
+func (b *FastBuffer) WriteLen(src []byte, size int) {
+	copy((*b.buf)[b.offset:b.offset+ size], src)
+	b.offset += size
+}
+
+func (b *FastBuffer) Read(size int) (result []byte) {
+	result = (*b.buf)[b.offset:b.offset+size]
+	b.offset += size
+	return
+}
+
+func (b *FastBuffer) Bytes() []byte {
+	return (*b.buf)[0:b.offset]
+}
 
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	// Calculate size of constant sized fields
@@ -35,7 +68,8 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	// Full length with data about sizes of slices
 	length += SerializedCounterSize + parentsCount*common.HashLength + SerializedCounterSize + extraCount
 
-	buf := bytes.NewBuffer(make([]byte, 0, length*2))
+	bytesBuf := make([]byte, length*2, length*2)
+	buf := NewFastBuffer(&bytesBuf)
 
 	// Simple types values
 	e.marshalUint32ToPacked(buf)
@@ -62,31 +96,31 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (e *EventHeaderData) UnmarshalBinary(buf []byte) error {
+func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	// Simple types values
-	offset := 0
+	buf := NewFastBuffer(&src)
 
-	e.unmarshalPackedToUint32(&buf, &offset)
-	e.unmarshalPackedToUint64(&buf, &offset)
+	e.unmarshalPackedToUint32(buf)
+	e.unmarshalPackedToUint64(buf)
 
 	// Fixed types []byte values
-	e.Creator.SetBytes(readBufferBytes(&buf, &offset, common.AddressLength))
-	e.PrevEpochHash.SetBytes(readBufferBytes(&buf, &offset, common.HashLength))
-	e.TxHash.SetBytes(readBufferBytes(&buf, &offset, common.HashLength))
+	e.Creator.SetBytes(buf.Read(common.AddressLength))
+	e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
+	e.TxHash.SetBytes(buf.Read(common.HashLength))
 
 	// Boolean
-	e.IsRoot = readBufferBool(&buf, &offset)
+	e.IsRoot = readBufferBool(buf)
 
 	// Sliced values
-	e.unmarshalDeduplicateParents(&buf, &offset)
+	e.unmarshalDeduplicateParents(buf)
 
-	extraCount := readBufferUint32(&buf, &offset)
-	e.Extra = readBufferBytes(&buf, &offset, int(extraCount))
+	extraCount := readBufferUint32(buf)
+	e.Extra = buf.Read(int(extraCount))
 
 	return nil
 }
 
-func (e *EventHeaderData) marshalUint32ToPacked(buf *bytes.Buffer) {
+func (e *EventHeaderData) marshalUint32ToPacked(buf *FastBuffer) {
 	// Detect max value from 4 fields
 	v1size := maxBytesForUint32(e.Version)
 	v2size := maxBytesForUint32(uint32(e.Epoch))
@@ -106,7 +140,7 @@ func (e *EventHeaderData) marshalUint32ToPacked(buf *bytes.Buffer) {
 	buf.Write(littleendian.Int32ToBytes(uint32(e.Lamport))[0:v1size])
 }
 
-func (e *EventHeaderData) marshalUint64ToPacked(buf *bytes.Buffer) {
+func (e *EventHeaderData) marshalUint64ToPacked(buf *FastBuffer) {
 	v1size := maxBytesForUint64(e.GasPowerLeft)
 	v2size := maxBytesForUint64(e.GasPowerUsed)
 	sizeByte := byte((v1size - 1) | ((v2size - 1) << 4))
@@ -123,7 +157,7 @@ func (e *EventHeaderData) marshalUint64ToPacked(buf *bytes.Buffer) {
 	buf.Write(littleendian.Int64ToBytes(uint64(e.MedianTime))[0:v2size])
 }
 
-func (e *EventHeaderData) marshalDeduplicateParents(buf *bytes.Buffer) {
+func (e *EventHeaderData) marshalDeduplicateParents(buf *FastBuffer) {
 	// Sliced values
 	parentsCount := len(e.Parents)
 	buf.Write(littleendian.Int32ToBytes(uint32(parentsCount))[0:SerializedCounterSize])
@@ -138,49 +172,45 @@ func (e *EventHeaderData) marshalDeduplicateParents(buf *bytes.Buffer) {
 	}
 }
 
-func (e *EventHeaderData) unmarshalPackedToUint32(buf *[]byte, offset *int) {
-	v1size, v2size, v3size, v4size := readBufferSizeByte4Values(buf, offset)
+func (e *EventHeaderData) unmarshalPackedToUint32(buf *FastBuffer) {
+	v1size, v2size, v3size, v4size := readBufferSizeByte4Values(buf)
 
-	uint32buf := make([]byte, 4, 4)
+	e.Version = readBufferPackedUint32(buf, v1size)
+	e.Epoch = idx.Epoch(readBufferPackedUint32(buf, v2size))
+	e.Seq = idx.Event(readBufferPackedUint32(buf, v3size))
+	e.Frame = idx.Frame(readBufferPackedUint32(buf, v4size))
 
-	e.Version = readBufferOptimizedUint32(buf, offset, &uint32buf, v1size)
-	e.Epoch = idx.Epoch(readBufferOptimizedUint32(buf, offset, &uint32buf, v2size))
-	e.Seq = idx.Event(readBufferOptimizedUint32(buf, offset, &uint32buf, v3size))
-	e.Frame = idx.Frame(readBufferOptimizedUint32(buf, offset, &uint32buf, v4size))
+	v1size, _, _, _ = readBufferSizeByte4Values(buf)
 
-	v1size, _, _, _ = readBufferSizeByte4Values(buf, offset)
-
-	e.Lamport = idx.Lamport(readBufferOptimizedUint32(buf, offset, &uint32buf, v1size))
+	e.Lamport = idx.Lamport(readBufferPackedUint32(buf, v1size))
 }
 
-func (e *EventHeaderData) unmarshalPackedToUint64(buf *[]byte, offset *int) {
-	v1size, v2size := readBufferSizeByte2Values(buf, offset)
+func (e *EventHeaderData) unmarshalPackedToUint64(buf *FastBuffer) {
+	v1size, v2size := readBufferSizeByte2Values(buf)
 
-	uint64buf := make([]byte, 8, 8)
+	e.GasPowerLeft = readBufferPackedUint64(buf, v1size)
+	e.GasPowerUsed = readBufferPackedUint64(buf, v2size)
 
-	e.GasPowerLeft = readBufferOptimizedUint64(buf, offset, &uint64buf, v1size)
-	e.GasPowerUsed = readBufferOptimizedUint64(buf, offset, &uint64buf, v2size)
+	v1size, v2size = readBufferSizeByte2Values(buf)
 
-	v1size, v2size = readBufferSizeByte2Values(buf, offset)
-
-	e.ClaimedTime = Timestamp(readBufferOptimizedUint64(buf, offset, &uint64buf, v1size))
-	e.MedianTime = Timestamp(readBufferOptimizedUint64(buf, offset, &uint64buf, v2size))
+	e.ClaimedTime = Timestamp(readBufferPackedUint64(buf, v1size))
+	e.MedianTime = Timestamp(readBufferPackedUint64(buf, v2size))
 }
 
-func (e *EventHeaderData) unmarshalDeduplicateParents(buf *[]byte, offset *int) {
-	parentsCount := readBufferUint32(buf, offset)
+func (e *EventHeaderData) unmarshalDeduplicateParents(buf *FastBuffer) {
+	parentsCount := readBufferUint32(buf)
 
 	evBuf := make([]byte, common.HashLength)
 	if parentsCount > 0 {
 		// Read epoch for all Parents
-		copy(evBuf[0:4], readBufferBytes(buf, offset, 4))
+		copy(evBuf[0:4], buf.Read(4))
 	}
 
 	e.Parents = make(hash.Events, parentsCount, parentsCount)
 	for i := 0; i < int(parentsCount); i++ {
 		ev := hash.Event{}
 
-		copy(evBuf[4:common.HashLength], readBufferBytes(buf, offset, common.HashLength-4))
+		copy(evBuf[4:common.HashLength], buf.Read(common.HashLength-4))
 		ev.SetBytes(evBuf)
 
 		e.Parents[i] = ev
@@ -202,57 +232,40 @@ func maxBytesForUint64(t uint64) uint {
 	return 8
 }
 
-func readBufferSizeByte4Values(buf *[]byte, offset *int) (v1size int, v2size int, v3size int, v4size int) {
-	sizeByte := (*buf)[*offset]
+func readBufferSizeByte4Values(buf *FastBuffer) (v1size int, v2size int, v3size int, v4size int) {
+	sizeByte := buf.Read(1)[0]
 	v1size = int(sizeByte&3 + 1)
 	v2size = int((sizeByte>>2)&3 + 1)
 	v3size = int((sizeByte>>4)&3 + 1)
 	v4size = int((sizeByte>>6)&3 + 1)
-	*offset++
 
 	return
 }
 
-func readBufferSizeByte2Values(buf *[]byte, offset *int) (v1size int, v2size int) {
-	sizeByte := (*buf)[*offset]
+func readBufferSizeByte2Values(buf *FastBuffer) (v1size int, v2size int) {
+	sizeByte := buf.Read(1)[0]
 	v1size = int(sizeByte&7 + 1)
 	v2size = int((sizeByte>>4)&7 + 1)
-	*offset++
 
 	return
 }
 
-func readBufferOptimizedUint32(buf *[]byte, offset *int, intBuf *[]byte, size int) uint32 {
-	copy(*intBuf, []byte{0, 0, 0, 0})
-	copy(*intBuf, (*buf)[*offset:*offset+size])
-	*offset += size
-	return littleendian.BytesToInt32(*intBuf)
+func readBufferPackedUint32(buf *FastBuffer, size int) uint32 {
+	intBuf := []byte{0, 0, 0, 0}
+	copy(intBuf, buf.Read(size))
+	return littleendian.BytesToInt32(intBuf)
 }
 
-func readBufferOptimizedUint64(buf *[]byte, offset *int, intBuf *[]byte, size int) uint64 {
-	copy(*intBuf, []byte{0, 0, 0, 0, 0, 0, 0, 0})
-	copy(*intBuf, (*buf)[*offset:*offset+size])
-	*offset += size
-	return littleendian.BytesToInt64(*intBuf)
+func readBufferPackedUint64(buf *FastBuffer, size int) uint64 {
+	intBuf := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	copy(intBuf, buf.Read(size))
+	return littleendian.BytesToInt64(intBuf)
 }
 
-func readBufferBytes(buf *[]byte, offset *int, size int) (data []byte) {
-	data = (*buf)[*offset : *offset+size]
-	*offset += size
-
-	return
+func readBufferBool(buf *FastBuffer) bool {
+	return buf.Read(1)[0] != byte(0)
 }
 
-func readBufferBool(buf *[]byte, offset *int) (data bool) {
-	data = (*buf)[*offset] != byte(0)
-	*offset++
-
-	return
-}
-
-func readBufferUint32(buf *[]byte, offset *int) (data uint32) {
-	data = littleendian.BytesToInt32((*buf)[*offset : *offset+4])
-	*offset += 4
-
-	return
+func readBufferUint32(buf *FastBuffer) (data uint32) {
+	return littleendian.BytesToInt32(buf.Read(4))
 }
