@@ -38,7 +38,7 @@ func DefaultEmitterConfig() EmitterConfig {
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           2,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
-		EpochTailLength:            5,
+		EpochTailLength:            3,
 
 		SmoothTpsThreshold: params.TxGas * 500,
 		NoTxsThreshold:     params.TxGas * 100,
