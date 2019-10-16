@@ -123,7 +123,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	return nil
 }
 
-// calculates atropos election for the root, calls p.onFrameDecided if election was decided
+// calculates Atropos election for the root, calls p.onFrameDecided if election was decided
 func (p *Poset) handleElection(root *inter.Event) {
 	if root != nil { // if root is nil, then just bootstrap election
 		if !root.IsRoot {

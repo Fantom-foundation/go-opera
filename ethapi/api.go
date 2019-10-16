@@ -1686,7 +1686,7 @@ func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventID stri
 	return RPCMarshalEventHeader(header), nil
 }
 
-// GetEvent returns the Lachesis event by hash or short ID.
+// GetEvent returns Lachesis event by hash or short ID.
 func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventID string, inclTx bool) (map[string]interface{}, error) {
 	event, err := api.b.GetEvent(ctx, shortEventID)
 	if err != nil {

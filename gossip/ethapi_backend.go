@@ -134,7 +134,7 @@ func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) 
 	return options[0], nil
 }
 
-// GetEvent returns the Lachesis event by hash or short ID.
+// GetEvent returns Lachesis event by hash or short ID.
 func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error) {
 	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
