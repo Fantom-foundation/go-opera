@@ -34,6 +34,17 @@ func TestEventHeaderData_SerializeA(t *testing.T) {
 	assert.EqualValues(t, header, newHeader)
 }
 
+func TestEventHeaderData_SerializeB(t *testing.T) {
+	events := FakeEventWithOneEpoch()
+	header := events[len(events)-1].EventHeaderData
+
+	buf := header.SerializeB()
+	newHeader := EventHeaderData{}
+	newHeader.DeserializeB(buf)
+
+	assert.EqualValues(t, header, newHeader)
+}
+
 func BenchmarkEventHeaderData_Serialize(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
@@ -84,6 +95,31 @@ func BenchmarkEventHeaderData_SerializeA(b *testing.B) {
 	}
 }
 
+func BenchmarkEventHeaderData_SerializeB(b *testing.B) {
+	events := FakeEventWithOneEpoch()
+	header := events[len(events)-1].EventHeaderData
+
+	buf := header.SerializeB()
+	b.ReportMetric(float64(len(*buf)), "Bytes")
+
+	/*
+		if b.N == 1 {
+			fmt.Printf("Serialized: %X\n", buf)
+
+			tmp, err := rlp.EncodeToBytes(header)
+			if err != nil {
+				b.Fatalf("Error rlp serialization: %s", err)
+			}
+
+			fmt.Printf("OldSerialized: %X\n", tmp)
+		}
+	*/
+
+	for i := 0; i < b.N; i++ {
+		_ = header.SerializeB()
+	}
+}
+
 func BenchmarkEventHeaderData_OldSerialize(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
@@ -118,6 +154,17 @@ func BenchmarkEventHeaderData_DeserializeA(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		header.DeserializeA(buf)
+	}
+}
+
+func BenchmarkEventHeaderData_DeserializeB(b *testing.B) {
+	events := FakeEventWithOneEpoch()
+	header := events[len(events)-1].EventHeaderData
+
+	buf := header.SerializeB()
+
+	for i := 0; i < b.N; i++ {
+		header.DeserializeB(buf)
 	}
 }
 
