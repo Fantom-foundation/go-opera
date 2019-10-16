@@ -256,7 +256,8 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		}
 		if !e.IsRoot {
 			// don't check forklessCausedByQuorumOn if not claimed as root
-			return frame, false
+			// if not root, then not allowed to move frame
+			return selfParentFrame, false
 		}
 		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumOn(e, e.Frame-1))
 		return
