@@ -93,6 +93,7 @@ func (s *Store) delTmpDb(name string, ver uint64) {
 	}
 
 	ver++
+	s.tmpDbs.min[name] = ver
 	err := s.table.TmpDbs.Put([]byte(name), bigendian.Int64ToBytes(ver))
 	if err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
