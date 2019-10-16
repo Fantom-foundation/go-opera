@@ -166,7 +166,7 @@ func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (de
 		},
 	})
 	if err != nil {
-		p.Log.Crit("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically ",
+		p.Log.Crit("If we're here, probably more than 1/3W are Byzantine, and the problem cannot be resolved automatically ",
 			"err", err)
 	}
 	return decided

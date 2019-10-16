@@ -20,7 +20,7 @@ type kv struct {
 // have achieved sufficient coherency.
 //
 // If B1 and B2 are forks, then they cannot BOTH forkless-cause any specific event A,
-// unless more than 1/3n are Byzantine.
+// unless more than 1/3W are Byzantine.
 // This great property is the reason why this function exists,
 // providing the base for the BFT algorithm.
 func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
@@ -60,7 +60,7 @@ func (vi *Index) forklessCause(aID, bID hash.Event) bool {
 	}
 
 	yes := vi.validators.NewCounter()
-	// calculate forkless seeing using the indexes
+	// calculate forkless causing using the indexes
 	for branchIDint, creator := range vi.bi.BranchIDCreators {
 		branchID := idx.Validator(branchIDint)
 

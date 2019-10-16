@@ -60,7 +60,7 @@ func (p *Poset) setEpochValidators(validators pos.Validators, epoch idx.Epoch) {
 
 // rootObservesRoot returns hash of root B, if root B forkless causes root A.
 // Due to a fork, there may be many roots B with the same slot,
-// but A may be forkless caused only by one of them (if no more than 1/3n are Byzantine), with a specific hash.
+// but A may be forkless caused only by one of them (if no more than 1/3W are Byzantine), with a specific hash.
 func (p *Poset) rootObservesRoot(a hash.Event, bCreator common.Address, bFrame idx.Frame) *hash.Event {
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bCreator, func(f idx.Frame, from common.Address, b hash.Event) bool {
