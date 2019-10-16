@@ -68,7 +68,7 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	p.vecClock.Add(&e.EventHeaderData)
 	defer p.vecClock.DropNotFlushed()
 
-	e.Frame, e.IsRoot = p.calcFrameIdx(e)
+	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
 	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
 	e.PrevEpochHash = p.PrevEpoch.Hash()
 
@@ -96,7 +96,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	defer p.vecClock.DropNotFlushed()
 
 	// check frame & isRoot
-	frameIdx, isRoot := p.calcFrameIdx(e)
+	frameIdx, isRoot := p.calcFrameIdx(e, true)
 	if e.IsRoot != isRoot {
 		return errors.Errorf("Claimed isRoot mismatched with calculated (%v!=%v)", e.IsRoot, isRoot)
 	}
@@ -220,7 +220,7 @@ func (p *Poset) forklessCausedByQourumAt(e *inter.Event, f idx.Frame) bool {
 // calcFrameIdx checks root-conditions for new event
 // and returns event's frame.
 // It is not safe for concurrent use.
-func (p *Poset) calcFrameIdx(e *inter.Event) (frame idx.Frame, isRoot bool) {
+func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
 	if len(e.Parents) == 0 {
 		// special case for very first events in the epoch
 		frame = idx.Frame(1)
@@ -243,17 +243,42 @@ func (p *Poset) calcFrameIdx(e *inter.Event) (frame idx.Frame, isRoot bool) {
 		}
 	}
 
-	if p.forklessCausedByQourumAt(e, maxParentsFrame) {
-		// if I observe enough roots, then I become a root too
-		frame = maxParentsFrame + 1
-		isRoot = true
-	} else {
-		frame = maxParentsFrame
-		// check forklessCausedByQourumAt explicitly:
-		// Due to a fork, it's possible that forklessCausedByQourumAt returns false even if maxParentsFrame > selfParentFrame
-		// If there's no forks, then forklessCausedByQourumAt always returns true because some of the parents observes 2/3W
-		isRoot = e.SelfParent() == nil || (maxParentsFrame > selfParentFrame && p.forklessCausedByQourumAt(e, maxParentsFrame-1))
+	if checkOnly {
+		// check frame & isRoot
+		frame = e.Frame
+		if frame < selfParentFrame {
+			// every root must be greater than prev. self-root. Instead, election will be faulty
+			return selfParentFrame, false
+		}
+		if !e.IsRoot {
+			// don't check forklessCausedByQourumAt if not claimed as root
+			return frame, false
+		}
+		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQourumAt(e, e.Frame-1))
+		return
 	}
 
-	return
+	// calculate frame & isRoot
+	for f := maxParentsFrame + 1; f > selfParentFrame; f-- {
+		// Use the loop as a protection against forks.
+		// In more detail, forklessCause relation isn't transitive, unlike "happened-before", so we have to
+		// explicitly check forklessCausedByQourumAt, because every root must be forkless caused by 2/3W prev roots.
+		// If there's no forks, then forklessCausedByQourumAt always returns true for maxParentsFrame-1
+
+		if p.forklessCausedByQourumAt(e, f-1) {
+			frame = f
+			isRoot = frame > selfParentFrame
+			return
+		}
+	}
+	// If we're here, then forklessCausedByQourumAt returned false for every f >= selfParentFrame
+	if e.SelfParent() == nil {
+		return 1, true
+	}
+	// Note: if we assign maxParentsFrame, it'll break the liveness for a case with forks, because there may be less
+	// than 2/3W possible roots at maxParentsFrame, even if 1 validator is cheater and 1/3W were offline for some time
+	// and didn't create roots at maxParentsFrame - they won't be able to create roots at maxParentsFrame because
+	// every frame must be greater than previous
+	return selfParentFrame, false
+
 }
