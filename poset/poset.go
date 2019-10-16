@@ -204,8 +204,8 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 	return
 }
 
-// forklessCausedByQuorumAt returns true if event is forkless caused by 2/3W roots at specified frame
-func (p *Poset) forklessCausedByQuorumAt(e *inter.Event, f idx.Frame) bool {
+// forklessCausedByQuorumOn returns true if event is forkless caused by 2/3W roots on specified frame
+func (p *Poset) forklessCausedByQuorumOn(e *inter.Event, f idx.Frame) bool {
 	observedCounter := p.Validators.NewCounter()
 	// check "observing" prev roots only if called by creator, or if creator has marked that event as root
 	p.store.ForEachRoot(f, func(f idx.Frame, from common.Address, root hash.Event) bool {
@@ -250,11 +250,15 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 			// every root must be greater than prev. self-root. Instead, election will be faulty
 			return selfParentFrame, false
 		}
+		if frame > maxParentsFrame+1 {
+			// sanity check
+			return maxParentsFrame + 1, false
+		}
 		if !e.IsRoot {
-			// don't check forklessCausedByQuorumAt if not claimed as root
+			// don't check forklessCausedByQuorumOn if not claimed as root
 			return frame, false
 		}
-		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumAt(e, e.Frame-1))
+		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumOn(e, e.Frame-1))
 		return
 	}
 
@@ -265,7 +269,7 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		// explicitly check forklessCausedByQuorumAt, because every root must be forkless caused by 2/3W prev roots.
 		// If there's no forks, then forklessCausedByQuorumAt always returns true for maxParentsFrame-1
 
-		if p.forklessCausedByQuorumAt(e, f-1) {
+		if p.forklessCausedByQuorumOn(e, f-1) {
 			frame = f
 			isRoot = frame > selfParentFrame
 			return
