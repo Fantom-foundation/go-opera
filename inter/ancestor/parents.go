@@ -71,7 +71,7 @@ type eventScore struct {
 func (st *CasualityStrategy) Init(selfParent *hash.Event) {
 	if selfParent != nil {
 		// we start searching by comparing with self-parent
-		st.template = st.vecClock.GetHighestBeforeSeq(*selfParent)
+		st.template = st.vecClock.GetHighestBeforeAllBranches(*selfParent)
 	}
 }
 
@@ -83,7 +83,7 @@ func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 	for _, id := range options {
 		score := eventScore{}
 		score.event = id
-		score.vec = st.vecClock.GetHighestBeforeSeq(id)
+		score.vec = st.vecClock.GetHighestBeforeAllBranches(id)
 		if st.template == nil {
 			st.template = vector.NewHighestBeforeSeq(len(st.validators)) // nothing observes
 		}

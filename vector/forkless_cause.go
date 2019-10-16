@@ -86,6 +86,7 @@ func (vi *Index) NoCheaters(selfParent *hash.Event, options hash.Events) hash.Ev
 	}
 	vi.initBranchesInfo()
 
+	// no need to merge, because every branch is marked by IsForkDetected if fork is observed
 	highest := vi.GetHighestBeforeSeq(*selfParent)
 	filtered := make(hash.Events, 0, len(options))
 	for _, id := range options {

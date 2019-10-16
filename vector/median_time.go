@@ -18,8 +18,7 @@ type medianTimeIndex struct {
 func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Timestamp {
 	vi.initBranchesInfo()
 	// get event by hash
-	beforeSeq := vi.GetHighestBeforeSeq(id)
-	times := vi.GetHighestBeforeTime(id)
+	beforeSeq, times := vi.getHighestBeforeAllBranchesTime(id)
 	if beforeSeq == nil || times == nil {
 		vi.Log.Error("Event not found", "event", id.String())
 
@@ -32,27 +31,14 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	for creator, creatorIdx := range vi.validatorIdxs {
 		highest := medianTimeIndex{}
 		highest.stake = vi.validators[creator]
+		highest.claimedTime = times.Get(creatorIdx)
+		seq := beforeSeq.Get(creatorIdx)
 
-		// read all branches to find highest event
-		highestBranch := BranchSeq{Seq: 0}
-		//highestBranch := beforeSeq.Get(creatorIdx)
-		//highest.claimedTime = times.Get(creatorIdx)
-		for _, branchID := range vi.bi.BranchIDByCreators[creatorIdx] {
-			branch := beforeSeq.Get(branchID)
-			if branch.IsForkDetected() {
-				highestBranch = branch
-				break
-			}
-			if branch.Seq > highestBranch.Seq {
-				highestBranch = branch
-				highest.claimedTime = times.Get(branchID)
-			}
-		}
 		// edge cases
-		if highestBranch.IsForkDetected() {
+		if seq.IsForkDetected() {
 			// cheaters don't influence medianTime
 			highest.stake = 0
-		} else if highestBranch.Seq == 0 {
+		} else if seq.Seq == 0 {
 			// if no event was observed from this node, then use genesisTime
 			highest.claimedTime = genesisTime
 		}
