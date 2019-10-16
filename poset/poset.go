@@ -68,7 +68,7 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	p.vecClock.Add(&e.EventHeaderData)
 	defer p.vecClock.DropNotFlushed()
 
-	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
+	e.Frame, e.IsRoot = p.calcFrameIdx(e)
 	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
 	e.PrevEpochHash = p.PrevEpoch.Hash()
 
@@ -96,7 +96,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	defer p.vecClock.DropNotFlushed()
 
 	// check frame & isRoot
-	frameIdx, isRoot := p.calcFrameIdx(e, true)
+	frameIdx, isRoot := p.calcFrameIdx(e)
 	if e.IsRoot != isRoot {
 		return errors.Errorf("Claimed isRoot mismatched with calculated (%v!=%v)", e.IsRoot, isRoot)
 	}
@@ -204,10 +204,23 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 	return
 }
 
+// forklessCausedByQourumAt returns true if event is forkless caused by 2/3W roots at specified frame
+func (p *Poset) forklessCausedByQourumAt(e *inter.Event, f idx.Frame) bool {
+	observedCounter := p.Validators.NewCounter()
+	// check "observing" prev roots only if called by creator, or if creator has marked that event as root
+	p.store.ForEachRoot(f, func(f idx.Frame, from common.Address, root hash.Event) bool {
+		if p.vecClock.ForklessCause(e.Hash(), root) {
+			observedCounter.Count(from)
+		}
+		return !observedCounter.HasQuorum()
+	})
+	return observedCounter.HasQuorum()
+}
+
 // calcFrameIdx checks root-conditions for new event
 // and returns event's frame.
 // It is not safe for concurrent use.
-func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
+func (p *Poset) calcFrameIdx(e *inter.Event) (frame idx.Frame, isRoot bool) {
 	if len(e.Parents) == 0 {
 		// special case for very first events in the epoch
 		frame = idx.Frame(1)
@@ -230,26 +243,16 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		}
 	}
 
-	// counter of all the observed roots on maxParentsFrame
-	observedCounter := p.Validators.NewCounter()
-	if !checkOnly || e.IsRoot {
-		// check "observing" prev roots only if called by creator, or if creator has marked that event as root
-		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-			if p.vecClock.ForklessCause(e.Hash(), root) {
-				observedCounter.Count(from)
-			}
-			return !observedCounter.HasQuorum()
-		})
-	}
-	if observedCounter.HasQuorum() {
+	if p.forklessCausedByQourumAt(e, maxParentsFrame) {
 		// if I observe enough roots, then I become a root too
 		frame = maxParentsFrame + 1
 		isRoot = true
 	} else {
-		// I observe enough roots at maxParentsFrame-1, because some of my parents does.
 		frame = maxParentsFrame
-		// Calculates: Did my self-parent start the frame already? If not, the event is a root.
-		isRoot = maxParentsFrame > selfParentFrame
+		// check forklessCausedByQourumAt explicitly:
+		// Due to a fork, it's possible that forklessCausedByQourumAt returns false even if maxParentsFrame > selfParentFrame
+		// If there's no forks, then forklessCausedByQourumAt always returns true because some of the parents observes 2/3W
+		isRoot = e.SelfParent() == nil || (maxParentsFrame > selfParentFrame && p.forklessCausedByQourumAt(e, maxParentsFrame-1))
 	}
 
 	return
