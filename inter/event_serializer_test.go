@@ -27,9 +27,6 @@ func BenchmarkEventHeaderData_MarshalBinary(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
 
-	buf, _ := header.MarshalBinary()
-	b.ReportMetric(float64(len(buf)), "Bytes")
-
 	for i := 0; i < b.N; i++ {
 		_, _ = header.MarshalBinary()
 	}
@@ -38,12 +35,6 @@ func BenchmarkEventHeaderData_MarshalBinary(b *testing.B) {
 func BenchmarkEventHeaderData_OldMarshal(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
-
-	buf, err := rlp.EncodeToBytes(header)
-	if err != nil {
-		b.Fatalf("Error rlp serialization: %s", err)
-	}
-	b.ReportMetric(float64(len(buf)), "Bytes")
 
 	for i := 0; i < b.N; i++ {
 		_, _ = rlp.EncodeToBytes(header)
