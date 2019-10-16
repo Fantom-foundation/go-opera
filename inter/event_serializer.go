@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	MaxUint24 = uint64(math.MaxUint8) * math.MaxUint16
-	MaxUint40 = uint64(math.MaxUint8) * math.MaxUint32
-	MaxUint48 = uint64(math.MaxUint16) * math.MaxUint32
-	MaxUint56 = MaxUint48 * math.MaxUint8
+	MaxUint24 = 1 << 24 - 1
+	MaxUint40 = 1 << 40 - 1
+	MaxUint48 = 1 << 48 - 1
+	MaxUint56 = 1 << 56 - 1
 )
 
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
@@ -91,22 +91,22 @@ func (e *EventHeaderData) UnmarshalBinary(buf []byte) error {
 
 func (e *EventHeaderData) marshalOptimizedUint32(buf *[]byte, offset *int) {
 	// Detect max value from 4 fields
-	b1 := maxBytesForUint32(e.Version)
+	sizeValue1 := maxBytesForUint32(e.Version)
 	b2 := maxBytesForUint32(uint32(e.Epoch))
 	b3 := maxBytesForUint32(uint32(e.Seq))
 	b4 := maxBytesForUint32(uint32(e.Frame))
-	sizeByte := byte((b1 - 1) | ((b2 - 1) << 2) | ((b3 - 1) << 4) | ((b4 - 1) << 6))
+	sizeByte := byte((sizeValue1 - 1) | ((b2 - 1) << 2) | ((b3 - 1) << 4) | ((b4 - 1) << 6))
 
 	setToBuffer(buf, offset, []byte{sizeByte}, 1)
-	setToBuffer(buf, offset, littleendian.Int32ToBytes(e.Version), int(b1))
+	setToBuffer(buf, offset, littleendian.Int32ToBytes(e.Version), int(sizeValue1))
 	setToBuffer(buf, offset, littleendian.Int32ToBytes(uint32(e.Epoch)), int(b2))
 	setToBuffer(buf, offset, littleendian.Int32ToBytes(uint32(e.Seq)), int(b3))
 	setToBuffer(buf, offset, littleendian.Int32ToBytes(uint32(e.Frame)), int(b4))
 
-	b1 = maxBytesForUint32(uint32(e.Lamport))
-	sizeByte = byte(b1 - 1)
+	sizeValue1 = maxBytesForUint32(uint32(e.Lamport))
+	sizeByte = byte(sizeValue1 - 1)
 	setToBuffer(buf, offset, []byte{sizeByte}, 1)
-	setToBuffer(buf, offset, littleendian.Int32ToBytes(uint32(e.Lamport)), int(b1))
+	setToBuffer(buf, offset, littleendian.Int32ToBytes(uint32(e.Lamport)), int(sizeValue1))
 }
 
 func (e *EventHeaderData) marshalOptimizedUint64(buf *[]byte, offset *int) {
