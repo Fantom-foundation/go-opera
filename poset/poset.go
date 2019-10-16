@@ -204,8 +204,8 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 	return
 }
 
-// forklessCausedByQourumAt returns true if event is forkless caused by 2/3W roots at specified frame
-func (p *Poset) forklessCausedByQourumAt(e *inter.Event, f idx.Frame) bool {
+// forklessCausedByQuorumAt returns true if event is forkless caused by 2/3W roots at specified frame
+func (p *Poset) forklessCausedByQuorumAt(e *inter.Event, f idx.Frame) bool {
 	observedCounter := p.Validators.NewCounter()
 	// check "observing" prev roots only if called by creator, or if creator has marked that event as root
 	p.store.ForEachRoot(f, func(f idx.Frame, from common.Address, root hash.Event) bool {
@@ -251,10 +251,10 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 			return selfParentFrame, false
 		}
 		if !e.IsRoot {
-			// don't check forklessCausedByQourumAt if not claimed as root
+			// don't check forklessCausedByQuorumAt if not claimed as root
 			return frame, false
 		}
-		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQourumAt(e, e.Frame-1))
+		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumAt(e, e.Frame-1))
 		return
 	}
 
@@ -262,16 +262,16 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	for f := maxParentsFrame + 1; f > selfParentFrame; f-- {
 		// Use the loop as a protection against forks.
 		// In more detail, forklessCause relation isn't transitive, unlike "happened-before", so we have to
-		// explicitly check forklessCausedByQourumAt, because every root must be forkless caused by 2/3W prev roots.
-		// If there's no forks, then forklessCausedByQourumAt always returns true for maxParentsFrame-1
+		// explicitly check forklessCausedByQuorumAt, because every root must be forkless caused by 2/3W prev roots.
+		// If there's no forks, then forklessCausedByQuorumAt always returns true for maxParentsFrame-1
 
-		if p.forklessCausedByQourumAt(e, f-1) {
+		if p.forklessCausedByQuorumAt(e, f-1) {
 			frame = f
 			isRoot = frame > selfParentFrame
 			return
 		}
 	}
-	// If we're here, then forklessCausedByQourumAt returned false for every f >= selfParentFrame
+	// If we're here, then forklessCausedByQuorumAt returned false for every f >= selfParentFrame
 	if e.SelfParent() == nil {
 		return 1, true
 	}
