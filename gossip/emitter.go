@@ -383,30 +383,6 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	return event
 }
 
-func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
-	// No txs if power is low
-	{
-		threshold := em.config.NoTxsThreshold
-		if e.GasPowerLeft <= threshold {
-			return 0
-		}
-	}
-	// Smooth TPS if power isn't big
-	{
-		threshold := em.config.SmoothTpsThreshold
-		if e.GasPowerLeft <= threshold {
-			// it's emitter, so no need in determinism => fine to use float
-			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
-			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
-			if maxGasUsed > basic_check.MaxGasPowerUsed {
-				maxGasUsed = basic_check.MaxGasPowerUsed
-			}
-			return maxGasUsed
-		}
-	}
-	return basic_check.MaxGasPowerUsed
-}
-
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
 	now := time.Now()
@@ -461,6 +437,41 @@ func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool
 	return synced, reason, wait
 }
 
+// return true if event is in epoch tale (unlikely to confirm)
+func (em *Emitter) isEpochTale(e *inter.Event) bool {
+	return e.Frame >= em.dag.EpochLen-em.config.EpochTaleLength
+}
+
+func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
+	// No txs in epoch tale, because tale events are unlikely to confirm
+	{
+		if em.isEpochTale(e) {
+			return 0
+		}
+	}
+	// No txs if power is low
+	{
+		threshold := em.config.NoTxsThreshold
+		if e.GasPowerLeft <= threshold {
+			return 0
+		}
+	}
+	// Smooth TPS if power isn't big
+	{
+		threshold := em.config.SmoothTpsThreshold
+		if e.GasPowerLeft <= threshold {
+			// it's emitter, so no need in determinism => fine to use float
+			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
+			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
+			if maxGasUsed > basic_check.MaxGasPowerUsed {
+				maxGasUsed = basic_check.MaxGasPowerUsed
+			}
+			return maxGasUsed
+		}
+	}
+	return basic_check.MaxGasPowerUsed
+}
+
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
 	passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
 	// Slow down emitting if power is low
@@ -487,11 +498,12 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 			}
 		}
 	}
-	// Slow down emitting if no txs to confirm/post
+	// Slow down emitting if no txs to confirm/post, and not at epoch tale
 	{
 		if passedTime < em.config.MaxEmitInterval &&
 			em.world.OccurredTxs.Len() == 0 &&
-			len(e.Transactions) == 0 {
+			len(e.Transactions) == 0 &&
+			!em.isEpochTale(e) {
 			return false
 		}
 	}

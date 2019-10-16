@@ -5,6 +5,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 // EmitterConfig is the configuration of events emitter.
@@ -20,6 +22,8 @@ type EmitterConfig struct {
 
 	SelfForkProtectionInterval time.Duration `json:"selfForkProtectionInterval"`
 
+	EpochTaleLength idx.Frame `json:"epochTaleLength"` // number of frames before event is considered epoch tale
+
 	// thresholds on GasLeft
 	SmoothTpsThreshold uint64 `json:"smoothTpsThreshold"`
 	NoTxsThreshold     uint64 `json:"noTxsThreshold"`
@@ -34,6 +38,7 @@ func DefaultEmitterConfig() EmitterConfig {
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           2,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
+		EpochTaleLength:            5,
 
 		SmoothTpsThreshold: params.TxGas * 500,
 		NoTxsThreshold:     params.TxGas * 100,
