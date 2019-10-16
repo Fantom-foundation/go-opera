@@ -115,7 +115,7 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 	if flushID == nil {
 		// if flushId not specified, use current time
 		buf := bytes.NewBuffer(nil)
-		buf.Write([]byte("stop"))                                        // special marker that flushed at stop
+		buf.Write([]byte{0xbe, 0xee})                                    // 0xbeee eyecatcher that flushed time
 		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
 		flushID = buf.Bytes()
 	}
