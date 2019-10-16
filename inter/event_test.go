@@ -13,7 +13,7 @@ import (
 func TestEventSerialization(t *testing.T) {
 	assertar := assert.New(t)
 
-	events := FakeFuzzingEvents()
+	events := FakeEventWithOneEpoch()
 	for i, e0 := range events {
 		dsc := fmt.Sprintf("iter#%d", i)
 
@@ -29,6 +29,9 @@ func TestEventSerialization(t *testing.T) {
 		err = rlp.DecodeBytes(buf, e1)
 		if !assertar.NoError(err, dsc) {
 			break
+		}
+		if e1.Sig == nil {
+			e1.Sig = []uint8{}
 		}
 
 		assertar.Equal(len(buf), e1.CalcSize())

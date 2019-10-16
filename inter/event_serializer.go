@@ -1,13 +1,16 @@
 package inter
 
 import (
+	"io"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/common/littleendian"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/utils/fast_buffer"
 )
 
 const (
@@ -16,39 +19,28 @@ const (
 	SerializedEpochSize = 4
 )
 
-type FastBuffer struct {
-	buf *[]byte
-	offset     	int
-}
-
-func NewFastBuffer(buf *[]byte) *FastBuffer {
-	b := FastBuffer{
-		buf:        buf,
-		offset:     0,
+func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
+	bytes, err := e.MarshalBinary()
+	if err != nil {
+		return err
 	}
 
-	return &b
+	err = rlp.Encode(w, &bytes)
+
+	return err
 }
 
-func (b *FastBuffer) Write(src []byte) {
-	size := len(src)
-	b.WriteLen(src, size)
+func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
+	bytes, err := src.Bytes()
+	if err != nil {
+		return err
+	}
+
+	err = e.UnmarshalBinary(bytes)
+
+	return err
 }
 
-func (b *FastBuffer) WriteLen(src []byte, size int) {
-	copy((*b.buf)[b.offset:b.offset+ size], src)
-	b.offset += size
-}
-
-func (b *FastBuffer) Read(size int) (result []byte) {
-	result = (*b.buf)[b.offset:b.offset+size]
-	b.offset += size
-	return
-}
-
-func (b *FastBuffer) Bytes() []byte {
-	return (*b.buf)[0:b.offset]
-}
 
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	// Calculate size of constant sized fields
@@ -68,8 +60,8 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	// Full length with data about sizes of slices
 	length += SerializedCounterSize + parentsCount*common.HashLength + SerializedCounterSize + extraCount
 
-	bytesBuf := make([]byte, length*2, length*2)
-	buf := NewFastBuffer(&bytesBuf)
+	bytesBuf := make([]byte, length, length)
+	buf := fast_buffer.NewBuffer(&bytesBuf)
 
 	// Simple types values
 	e.marshalUint32ToPacked(buf)
@@ -98,7 +90,7 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 
 func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	// Simple types values
-	buf := NewFastBuffer(&src)
+	buf := fast_buffer.NewBuffer(&src)
 
 	e.unmarshalPackedToUint32(buf)
 	e.unmarshalPackedToUint64(buf)
@@ -120,7 +112,7 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	return nil
 }
 
-func (e *EventHeaderData) marshalUint32ToPacked(buf *FastBuffer) {
+func (e *EventHeaderData) marshalUint32ToPacked(buf *fast_buffer.Buffer) {
 	// Detect max value from 4 fields
 	v1size := maxBytesForUint32(e.Version)
 	v2size := maxBytesForUint32(uint32(e.Epoch))
@@ -140,7 +132,7 @@ func (e *EventHeaderData) marshalUint32ToPacked(buf *FastBuffer) {
 	buf.Write(littleendian.Int32ToBytes(uint32(e.Lamport))[0:v1size])
 }
 
-func (e *EventHeaderData) marshalUint64ToPacked(buf *FastBuffer) {
+func (e *EventHeaderData) marshalUint64ToPacked(buf *fast_buffer.Buffer) {
 	v1size := maxBytesForUint64(e.GasPowerLeft)
 	v2size := maxBytesForUint64(e.GasPowerUsed)
 	sizeByte := byte((v1size - 1) | ((v2size - 1) << 4))
@@ -157,7 +149,7 @@ func (e *EventHeaderData) marshalUint64ToPacked(buf *FastBuffer) {
 	buf.Write(littleendian.Int64ToBytes(uint64(e.MedianTime))[0:v2size])
 }
 
-func (e *EventHeaderData) marshalDeduplicateParents(buf *FastBuffer) {
+func (e *EventHeaderData) marshalDeduplicateParents(buf *fast_buffer.Buffer) {
 	// Sliced values
 	parentsCount := len(e.Parents)
 	buf.Write(littleendian.Int32ToBytes(uint32(parentsCount))[0:SerializedCounterSize])
@@ -172,7 +164,7 @@ func (e *EventHeaderData) marshalDeduplicateParents(buf *FastBuffer) {
 	}
 }
 
-func (e *EventHeaderData) unmarshalPackedToUint32(buf *FastBuffer) {
+func (e *EventHeaderData) unmarshalPackedToUint32(buf *fast_buffer.Buffer) {
 	v1size, v2size, v3size, v4size := readBufferSizeByte4Values(buf)
 
 	e.Version = readBufferPackedUint32(buf, v1size)
@@ -185,7 +177,7 @@ func (e *EventHeaderData) unmarshalPackedToUint32(buf *FastBuffer) {
 	e.Lamport = idx.Lamport(readBufferPackedUint32(buf, v1size))
 }
 
-func (e *EventHeaderData) unmarshalPackedToUint64(buf *FastBuffer) {
+func (e *EventHeaderData) unmarshalPackedToUint64(buf *fast_buffer.Buffer) {
 	v1size, v2size := readBufferSizeByte2Values(buf)
 
 	e.GasPowerLeft = readBufferPackedUint64(buf, v1size)
@@ -197,7 +189,7 @@ func (e *EventHeaderData) unmarshalPackedToUint64(buf *FastBuffer) {
 	e.MedianTime = Timestamp(readBufferPackedUint64(buf, v2size))
 }
 
-func (e *EventHeaderData) unmarshalDeduplicateParents(buf *FastBuffer) {
+func (e *EventHeaderData) unmarshalDeduplicateParents(buf *fast_buffer.Buffer) {
 	parentsCount := readBufferUint32(buf)
 
 	evBuf := make([]byte, common.HashLength)
@@ -232,7 +224,7 @@ func maxBytesForUint64(t uint64) uint {
 	return 8
 }
 
-func readBufferSizeByte4Values(buf *FastBuffer) (v1size int, v2size int, v3size int, v4size int) {
+func readBufferSizeByte4Values(buf *fast_buffer.Buffer) (v1size int, v2size int, v3size int, v4size int) {
 	sizeByte := buf.Read(1)[0]
 	v1size = int(sizeByte&3 + 1)
 	v2size = int((sizeByte>>2)&3 + 1)
@@ -242,7 +234,7 @@ func readBufferSizeByte4Values(buf *FastBuffer) (v1size int, v2size int, v3size 
 	return
 }
 
-func readBufferSizeByte2Values(buf *FastBuffer) (v1size int, v2size int) {
+func readBufferSizeByte2Values(buf *fast_buffer.Buffer) (v1size int, v2size int) {
 	sizeByte := buf.Read(1)[0]
 	v1size = int(sizeByte&7 + 1)
 	v2size = int((sizeByte>>4)&7 + 1)
@@ -250,22 +242,22 @@ func readBufferSizeByte2Values(buf *FastBuffer) (v1size int, v2size int) {
 	return
 }
 
-func readBufferPackedUint32(buf *FastBuffer, size int) uint32 {
+func readBufferPackedUint32(buf *fast_buffer.Buffer, size int) uint32 {
 	intBuf := []byte{0, 0, 0, 0}
 	copy(intBuf, buf.Read(size))
 	return littleendian.BytesToInt32(intBuf)
 }
 
-func readBufferPackedUint64(buf *FastBuffer, size int) uint64 {
+func readBufferPackedUint64(buf *fast_buffer.Buffer, size int) uint64 {
 	intBuf := []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	copy(intBuf, buf.Read(size))
 	return littleendian.BytesToInt64(intBuf)
 }
 
-func readBufferBool(buf *FastBuffer) bool {
+func readBufferBool(buf *fast_buffer.Buffer) bool {
 	return buf.Read(1)[0] != byte(0)
 }
 
-func readBufferUint32(buf *FastBuffer) (data uint32) {
+func readBufferUint32(buf *fast_buffer.Buffer) (data uint32) {
 	return littleendian.BytesToInt32(buf.Read(4))
 }

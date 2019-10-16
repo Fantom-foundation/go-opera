@@ -23,6 +23,20 @@ func TestEventHeaderData_MarshalBinary(t *testing.T) {
 	assert.EqualValues(t, header, newHeader)
 }
 
+func TestEventHeaderData_EncodeRLP(t *testing.T) {
+	events := FakeEventWithOneEpoch()
+	header := events[len(events)-1].EventHeaderData
+
+	buf, err := rlp.EncodeToBytes(&header)
+
+	assert.Equal(t, nil, err)
+
+	newHeader := EventHeaderData{}
+	_ = rlp.DecodeBytes(buf, &newHeader)
+
+	assert.EqualValues(t, header, newHeader)
+}
+
 func BenchmarkEventHeaderData_MarshalBinary(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
@@ -38,7 +52,7 @@ func BenchmarkEventHeaderData_MarshalBinary(b *testing.B) {
 	}
 }
 
-func BenchmarkEventHeaderData_OldMarshal(b *testing.B) {
+func BenchmarkEventHeaderData_RLPMarshal(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
 
@@ -67,11 +81,11 @@ func BenchmarkEventHeaderData_UnmarshalBinary(b *testing.B) {
 	}
 }
 
-func BenchmarkEventHeaderData_OldUnmarshal(b *testing.B) {
+func BenchmarkEventHeaderData_RLPUnmarshal(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
 
-	buf, err := rlp.EncodeToBytes(header)
+	buf, err := rlp.EncodeToBytes(&header)
 	if err != nil {
 		b.Fatalf("Error rlp serialization: %s", err)
 	}
