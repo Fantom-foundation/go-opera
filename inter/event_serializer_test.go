@@ -52,7 +52,7 @@ func BenchmarkEventHeaderData_MarshalBinary(b *testing.B) {
 	}
 }
 
-func BenchmarkEventHeaderData_RLPMarshal(b *testing.B) {
+func BenchmarkEventHeaderData_EncodeRLP(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
 
@@ -81,7 +81,7 @@ func BenchmarkEventHeaderData_UnmarshalBinary(b *testing.B) {
 	}
 }
 
-func BenchmarkEventHeaderData_RLPUnmarshal(b *testing.B) {
+func BenchmarkEventHeaderData_DecodeRLP(b *testing.B) {
 	events := FakeEventWithOneEpoch()
 	header := events[len(events)-1].EventHeaderData
 
