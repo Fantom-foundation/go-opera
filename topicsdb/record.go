@@ -63,10 +63,6 @@ func (rec *logrecBuilder) ConditionOK(cond Condition) {
 	if rec.conditions2check == 0 && rec.ok != nil {
 		rec.ok <- struct{}{}
 	}
-
-	if rec.conditions2check < 0 {
-		log.Crit("topicsdb.recordBuilder sanity check", "conditions2check", "wrong")
-	}
 }
 
 func (rec *logrecBuilder) AllConditionsOK() bool {
