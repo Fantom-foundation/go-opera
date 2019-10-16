@@ -532,7 +532,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	em.Log.Info("New event emitted", "event", e.String())
+	em.Log.Info("New event emitted", "event", e.String(), "address", e.Creator)
 
 	return e
 }
