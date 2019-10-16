@@ -941,20 +941,22 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 // RPCMarshalHeader converts the given header to the RPC output .
 func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{} {
 	return map[string]interface{}{
-		"version":       header.Version,
-		"seq":           header.Seq,
-		"hash":          hexutil.Bytes(header.Hash().Bytes()),
-		"frame":         header.Frame,
-		"isRoot":        header.IsRoot,
-		"creator":       header.Creator,
-		"prevEpochHash": header.PrevEpochHash,
-		"parents":       eventIDsToHex(header.Parents),
-		"gasPowerLeft":  header.GasPowerLeft,
-		"gasPowerUsed":  header.GasPowerUsed,
-		"lamport":       header.Lamport,
-		"claimedTime":   header.ClaimedTime,
-		"medianTime":    header.MedianTime,
-		"extraData":     hexutil.Bytes(header.Extra),
+		"version":          header.Version,
+		"epoch":            header.Epoch,
+		"seq":              header.Seq,
+		"hash":             hexutil.Bytes(header.Hash().Bytes()),
+		"frame":            header.Frame,
+		"isRoot":           header.IsRoot,
+		"creator":          header.Creator,
+		"prevEpochHash":    header.PrevEpochHash,
+		"parents":          eventIDsToHex(header.Parents),
+		"gasPowerLeft":     header.GasPowerLeft,
+		"gasPowerUsed":     header.GasPowerUsed,
+		"lamport":          header.Lamport,
+		"claimedTime":      header.ClaimedTime,
+		"medianTime":       header.MedianTime,
+		"extraData":        hexutil.Bytes(header.Extra),
+		"transactionsRoot": hexutil.Bytes(header.TxHash.Bytes()),
 	}
 }
 
@@ -1007,6 +1009,7 @@ func RPCMarshalHeader(head *evm_core.EvmHeader) map[string]interface{} {
 		"gasLimit":         hexutil.Uint64(head.GasLimit),
 		"gasUsed":          hexutil.Uint64(head.GasUsed),
 		"timestamp":        hexutil.Uint64(head.Time.Unix()),
+		"timestampNano":    hexutil.Uint64(head.Time),
 		"transactionsRoot": common.Hash{},
 		"receiptsRoot":     common.Hash{},
 	}

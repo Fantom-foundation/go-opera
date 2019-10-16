@@ -37,18 +37,31 @@ const (
 
 	// Protocol messages belonging to lachesis/62
 
+	// Signals about the current synchronization status.
+	// The current peer's status is used during packs downloading,
+	// and to estimate may peer be interested in the new event or not
+	// (based on peer's epoch).
 	ProgressMsg = 0xf0
 
+	// Non-aggressive events propagation. Signals about newly-connected
+	// batch of events, sending only their IDs.
 	NewEventHashesMsg = 0xf1
 
+	// Request the batch of events by IDs
 	GetEventsMsg = 0xf2
-	EventsMsg    = 0xf3
+	// Contains the batch of events.
+	// May be an answer to GetEventsMsg, or be sent during aggressive events propagation.
+	EventsMsg = 0xf3
 
+	// Request pack infos by epoch:pack indexes
 	GetPackInfosMsg = 0xf4
-	PackInfosMsg    = 0xf5
+	// Contains the requested pack infos. An answer to GetPackInfosMsg.
+	PackInfosMsg = 0xf5
 
+	// Request pack by epoch:pack index
 	GetPackMsg = 0xf6
-	PackMsg    = 0xf7
+	// Contains the requested pack. An answer to GetPackMsg.
+	PackMsg = 0xf7
 )
 
 type errCode int

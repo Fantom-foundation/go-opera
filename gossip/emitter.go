@@ -109,6 +109,7 @@ func (em *Emitter) StartEventEmission() {
 
 	em.prevEmittedTime = em.loadPrevEmitTime()
 	em.syncStatus.connectedTime = time.Now()
+	em.syncStatus.wasValidator = true
 
 	done := em.done
 	em.wg.Add(1)
@@ -254,7 +255,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 	var strategy ancestor.SearchStrategy
 	vecClock := em.world.Engine.GetVectorIndex()
 	if vecClock != nil {
-		strategy = ancestor.NewCasualityStrategy(vecClock)
+		strategy = ancestor.NewCasualityStrategy(vecClock, em.world.Engine.GetValidators())
 
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)

@@ -60,13 +60,13 @@ func newStakeCounter(vv Validators) *StakeCounter {
 }
 
 // Count validator and return true if it hadn't counted before.
-func (s *StakeCounter) Count(node common.Address) bool {
-	if _, ok := s.already[node]; ok {
+func (s *StakeCounter) Count(addr common.Address) bool {
+	if _, ok := s.already[addr]; ok {
 		return false
 	}
-	s.already[node] = struct{}{}
+	s.already[addr] = struct{}{}
 
-	s.sum += s.validators.StakeOf(node)
+	s.sum += s.validators.StakeOf(addr)
 	return true
 }
 

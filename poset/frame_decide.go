@@ -21,7 +21,7 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 		p.store.SetEventConfirmedOn(header.Hash(), frame)
 		// but not all the events are included into a block
 		creatorHighest := atroposHighestBefore.Get(validatorIdxs[header.Creator])
-		fromCheater := creatorHighest.IsForkDetected
+		fromCheater := creatorHighest.IsForkDetected()
 		freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxValidatorEventsInBlock // will overflow on forks, it's fine
 		if !fromCheater && freshEvent {
 			blockEvents = append(blockEvents, header)

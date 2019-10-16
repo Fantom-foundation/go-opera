@@ -493,13 +493,13 @@ func TestRandomForksSanity(t *testing.T) {
 		ee := events[node]
 		highestBefore := vi.GetHighestBeforeSeq(ee[len(ee)-1].Hash())
 		for n, cheater := range nodes {
-			forkSeq := highestBefore.Get(idxs[cheater])
+			branchSeq := highestBefore.Get(idxs[cheater])
 			isCheater := n < len(cheaters)
-			assertar.Equal(isCheater, forkSeq.IsForkDetected, cheater.String())
+			assertar.Equal(isCheater, branchSeq.IsForkDetected(), cheater.String())
 			if isCheater {
-				assertar.Equal(idx.Event(0), forkSeq.Seq, cheater.String())
+				assertar.Equal(idx.Event(0), branchSeq.Seq, cheater.String())
 			} else {
-				assertar.NotEqual(idx.Event(0), forkSeq.Seq, cheater.String())
+				assertar.NotEqual(idx.Event(0), branchSeq.Seq, cheater.String())
 			}
 		}
 	}
@@ -507,70 +507,81 @@ func TestRandomForksSanity(t *testing.T) {
 
 func TestRandomForks(t *testing.T) {
 	for i, test := range []struct {
-		nodesNum    int
-		cheatersNum int
-		eventsNum   int
-		forksNum    int
-		parentsNum  int
+		nodesNum      int
+		cheatersNum   int
+		eventsNum     int
+		forksNum      int
+		parentsNum    int
+		reorderChecks int
 	}{
 		{
-			nodesNum:    1,
-			parentsNum:  1,
-			cheatersNum: 1,
-			eventsNum:   10,
-			forksNum:    3,
+			nodesNum:      1,
+			parentsNum:    1,
+			cheatersNum:   1,
+			eventsNum:     10,
+			forksNum:      3,
+			reorderChecks: 30,
 		},
 		{
-			nodesNum:    2,
-			parentsNum:  1,
-			cheatersNum: 1,
-			eventsNum:   10,
-			forksNum:    3,
+			nodesNum:      2,
+			parentsNum:    1,
+			cheatersNum:   1,
+			eventsNum:     10,
+			forksNum:      3,
+			reorderChecks: 20,
 		},
 		{
-			nodesNum:    2,
-			parentsNum:  2,
-			cheatersNum: 2,
-			eventsNum:   10,
-			forksNum:    3,
+			nodesNum:      2,
+			parentsNum:    2,
+			cheatersNum:   2,
+			eventsNum:     10,
+			forksNum:      20,
+			reorderChecks: 5,
 		},
 		{
-			nodesNum:    10,
-			parentsNum:  4,
-			cheatersNum: 1,
-			eventsNum:   10,
-			forksNum:    3,
+			nodesNum:      10,
+			parentsNum:    4,
+			cheatersNum:   1,
+			eventsNum:     10,
+			forksNum:      3,
+			reorderChecks: 5,
 		},
 		{
-			nodesNum:    10,
-			parentsNum:  4,
-			cheatersNum: 10,
-			eventsNum:   10,
-			forksNum:    3,
+			nodesNum:      10,
+			parentsNum:    4,
+			cheatersNum:   10,
+			eventsNum:     10,
+			forksNum:      3,
+			reorderChecks: 3,
 		},
 		{
-			nodesNum:    20,
-			parentsNum:  4,
-			cheatersNum: 10,
-			eventsNum:   5,
-			forksNum:    2,
+			nodesNum:      20,
+			parentsNum:    4,
+			cheatersNum:   10,
+			eventsNum:     5,
+			forksNum:      2,
+			reorderChecks: 3,
 		},
 		{
-			nodesNum:    40,
-			parentsNum:  4,
-			cheatersNum: 10,
-			eventsNum:   3,
-			forksNum:    1,
+			nodesNum:      40,
+			parentsNum:    4,
+			cheatersNum:   10,
+			eventsNum:     3,
+			forksNum:      1,
+			reorderChecks: 2,
 		},
 		{
-			nodesNum:    5,
-			parentsNum:  4,
-			cheatersNum: 2,
-			eventsNum:   30,
-			forksNum:    30,
+			nodesNum:      5,
+			parentsNum:    4,
+			cheatersNum:   2,
+			eventsNum:     30,
+			forksNum:      30,
+			reorderChecks: 2,
 		},
 	} {
 		t.Run(fmt.Sprintf("Test #%d", i), func(t *testing.T) {
+			testTime := 100
+
 			r := rand.New(rand.NewSource(int64(i)))
 
 			nodes := inter.GenNodes(test.nodesNum)
@@ -581,6 +592,7 @@ func TestRandomForks(t *testing.T) {
 				validators.Set(peer, pos.Stake(1))
 			}
 
+			processedArr := inter.Events{}
 			processed := make(map[hash.Event]*inter.EventHeaderData)
 			getEvent := func(id hash.Event) *inter.EventHeaderData {
 				return processed[id]
@@ -594,13 +606,18 @@ func TestRandomForks(t *testing.T) {
 						return
 					}
 					processed[e.Hash()] = &e.EventHeaderData
+					processedArr = append(processedArr, e)
 					vi.Add(&e.EventHeaderData)
+				},
+				Build: func(e *inter.Event, name string) *inter.Event {
+					e.ClaimedTime = inter.Timestamp(r.Intn(testTime))
+					return e
 				},
 			})
 
 			assertar := assert.New(t)
 			idxs := validators.Idxs()
-			// check that fork seeing is identical to naive version
+			// check that fork observing is identical to naive version
 			for _, e := range processed {
 				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
 				expectedCheaters, err := testForksDetected(vi, e.Hash())
@@ -608,11 +625,25 @@ func TestRandomForks(t *testing.T) {
 
 				for _, cheater := range nodes {
 					expectedCheater := expectedCheaters[cheater]
-					forkSeq := highestBefore.Get(idxs[cheater])
-					assertar.Equal(expectedCheater, forkSeq.IsForkDetected, cheater.String()+"_"+e.Creator.String())
+					branchSeq := highestBefore.Get(idxs[cheater])
+					assertar.Equal(expectedCheater, branchSeq.IsForkDetected(), cheater.String()+"_"+e.Creator.String()+"_"+e.String())
 					if expectedCheater {
-						assertar.Equal(idx.Event(0), forkSeq.Seq, cheater.String()+"_"+e.Creator.String())
+						assertar.Equal(idx.Event(0), branchSeq.Seq, cheater.String()+"_"+e.Creator.String()+"_"+e.String())
 					}
+				}
+			}
+
+			// memorize results of ForklessCause and MedianTime
+			forklessCauseMap := map[kv]bool{}
+			medianTimeMap := map[hash.Event]inter.Timestamp{}
+			for _, a := range processedArr {
+				medianTimeMap[a.Hash()] = vi.MedianTime(a.Hash(), inter.Timestamp(testTime/2))
+				for _, b := range processedArr {
+					pair := kv{
+						a: a.Hash(),
+						b: b.Hash(),
+					}
+					forklessCauseMap[pair] = vi.ForklessCause(a.Hash(), b.Hash())
 				}
 			}
 
@@ -621,6 +652,35 @@ func TestRandomForks(t *testing.T) {
 				assertar.Nil(vi.GetHighestBeforeSeq(e.Hash()))
 				assertar.Nil(vi.GetLowestAfterSeq(e.Hash()))
 				assertar.Nil(vi.GetHighestBeforeTime(e.Hash()))
+			}
+
+			// check that events re-order doesn't change forklessCause result
+			for reorderTry := 0; reorderTry < test.reorderChecks; reorderTry++ {
+				// re-order events randomly, preserving parents order
+				unordered := make(inter.Events, len(processedArr))
+				for i, j := range r.Perm(len(processedArr)) {
+					unordered[i] = processedArr[j]
+				}
+				processedArr = unordered.ByParents()
+
+				for _, a := range processedArr {
+					vi.Add(&a.EventHeaderData)
+				}
+
+				for _, a := range processedArr {
+					res := vi.MedianTime(a.Hash(), inter.Timestamp(testTime/2))
+					assertar.Equal(medianTimeMap[a.Hash()], res, "%s %d", a.Hash().String(), reorderTry)
+
+					for _, b := range processedArr {
+						pair := kv{
+							a: a.Hash(),
+							b: b.Hash(),
+						}
+						res := vi.ForklessCause(a.Hash(), b.Hash())
+						assertar.Equal(forklessCauseMap[pair], res, "%s %s %d", a.Hash().String(), b.Hash().String(), reorderTry)
+					}
+				}
+				vi.DropNotFlushed()
 			}
 		})
 	}
