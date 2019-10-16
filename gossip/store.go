@@ -111,20 +111,20 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit(flushId []byte, immediately bool) error {
-	if flushId == nil {
+func (s *Store) Commit(flushID []byte, immediately bool) error {
+	if flushID == nil {
 		// if flushId not specified, use current time
-		flushIdB := bytes.NewBuffer(nil)
-		flushIdB.Write([]byte("stop"))                                        // special marker that flushed at stop
-		flushIdB.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
-		flushId = flushIdB.Bytes()
+		buf := bytes.NewBuffer(nil)
+		buf.Write([]byte("stop"))                                        // special marker that flushed at stop
+		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
+		flushID = buf.Bytes()
 	}
 
 	if immediately {
-		return s.dbs.Flush(flushId)
+		return s.dbs.Flush(flushID)
 	}
 
-	_, err := s.dbs.FlushIfNeeded(flushId)
+	_, err := s.dbs.FlushIfNeeded(flushID)
 	return err
 }
 

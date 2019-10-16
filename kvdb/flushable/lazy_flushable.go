@@ -5,6 +5,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb/devnulldb"
 )
 
+// LazyFlushable is a Flushable with delayed DB producer
 type LazyFlushable struct {
 	*Flushable
 	producer func() kvdb.KeyValueStore

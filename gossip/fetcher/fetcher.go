@@ -153,7 +153,7 @@ func (f *Fetcher) overloaded() bool {
 		f.callback.HeavyCheck.Overloaded()
 }
 
-// Overloaded returns true if too much events are being processed or requested from the peer
+// OverloadedPeer returns true if too much events are being processed or requested from the peer
 func (f *Fetcher) OverloadedPeer(peer string) bool {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
