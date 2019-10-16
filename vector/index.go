@@ -268,28 +268,31 @@ func (vi *Index) GetHighestBeforeAllBranches(id hash.Event) HighestBeforeSeq {
 func (vi *Index) getHighestBeforeAllBranchesTime(id hash.Event) (HighestBeforeSeq, HighestBeforeTime) {
 	vi.initBranchesInfo()
 
-	beforeSeq := vi.GetHighestBeforeSeq(id)
-	times := vi.GetHighestBeforeTime(id)
-	mergedTimes := NewHighestBeforeTime(len(vi.validators))
-	mergedSeq := NewHighestBeforeSeq(len(vi.validators))
-	for creatorIdx, branches := range vi.bi.BranchIDByCreators {
-		// read all branches to find highest event
-		highestBranchSeq := BranchSeq{}
-		highestBranchTime := inter.Timestamp(0)
-		for _, branchID := range branches {
-			branch := beforeSeq.Get(branchID)
-			if branch.IsForkDetected() {
-				highestBranchSeq = branch
-				break
+	if vi.atLeastOneFork() {
+		beforeSeq := vi.GetHighestBeforeSeq(id)
+		times := vi.GetHighestBeforeTime(id)
+		mergedTimes := NewHighestBeforeTime(len(vi.validators))
+		mergedSeq := NewHighestBeforeSeq(len(vi.validators))
+		for creatorIdx, branches := range vi.bi.BranchIDByCreators {
+			// read all branches to find highest event
+			highestBranchSeq := BranchSeq{}
+			highestBranchTime := inter.Timestamp(0)
+			for _, branchID := range branches {
+				branch := beforeSeq.Get(branchID)
+				if branch.IsForkDetected() {
+					highestBranchSeq = branch
+					break
+				}
+				if branch.Seq > highestBranchSeq.Seq {
+					highestBranchSeq = branch
+					highestBranchTime = times.Get(branchID)
+				}
 			}
-			if branch.Seq > highestBranchSeq.Seq {
-				highestBranchSeq = branch
-				highestBranchTime = times.Get(branchID)
-			}
+			mergedTimes.Set(idx.Validator(creatorIdx), highestBranchTime)
+			mergedSeq.Set(idx.Validator(creatorIdx), highestBranchSeq)
 		}
-		mergedTimes.Set(idx.Validator(creatorIdx), highestBranchTime)
-		mergedSeq.Set(idx.Validator(creatorIdx), highestBranchSeq)
-	}
 
-	return mergedSeq, mergedTimes
+		return mergedSeq, mergedTimes
+	}
+	return vi.GetHighestBeforeSeq(id), vi.GetHighestBeforeTime(id)
 }
