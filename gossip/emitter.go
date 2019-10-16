@@ -437,15 +437,15 @@ func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool
 	return synced, reason, wait
 }
 
-// return true if event is in epoch tale (unlikely to confirm)
-func (em *Emitter) isEpochTale(e *inter.Event) bool {
-	return e.Frame >= em.dag.EpochLen-em.config.EpochTaleLength
+// return true if event is in epoch tail (unlikely to confirm)
+func (em *Emitter) isEpochTail(e *inter.Event) bool {
+	return e.Frame >= em.dag.EpochLen-em.config.EpochTailLength
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
-	// No txs in epoch tale, because tale events are unlikely to confirm
+	// No txs in epoch tail, because tail events are unlikely to confirm
 	{
-		if em.isEpochTale(e) {
+		if em.isEpochTail(e) {
 			return 0
 		}
 	}
@@ -498,12 +498,12 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 			}
 		}
 	}
-	// Slow down emitting if no txs to confirm/post, and not at epoch tale
+	// Slow down emitting if no txs to confirm/post, and not at epoch tail
 	{
 		if passedTime < em.config.MaxEmitInterval &&
 			em.world.OccurredTxs.Len() == 0 &&
 			len(e.Transactions) == 0 &&
-			!em.isEpochTale(e) {
+			!em.isEpochTail(e) {
 			return false
 		}
 	}
