@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/common/littleendian"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -16,7 +17,6 @@ import (
 const (
 	EventHeaderFixedDataSize = 53
 	SerializedCounterSize = 4
-	SerializedEpochSize = 4
 )
 
 func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
@@ -154,11 +154,6 @@ func (e *EventHeaderData) encodeParentsWithoutEpoch(buf *fast_buffer.Buffer) {
 	parentsCount := len(e.Parents)
 	buf.Write(littleendian.Int32ToBytes(uint32(parentsCount))[0:SerializedCounterSize])
 
-	// Save epoch from first Parents (assume - all Parens have equal epoch part)
-	if parentsCount > 0 {
-		buf.Write(e.Parents[0].Bytes()[0:SerializedEpochSize])
-	}
-
 	for _, ev := range e.Parents {
 		buf.Write(ev.Bytes()[4:common.HashLength])
 	}
@@ -194,8 +189,8 @@ func (e *EventHeaderData) decodeParentsWithoutEpoch(buf *fast_buffer.Buffer) {
 
 	evBuf := make([]byte, common.HashLength)
 	if parentsCount > 0 {
-		// Read epoch for all Parents
-		copy(evBuf[0:4], buf.Read(4))
+		// Get epoch from Epoch field
+		copy(evBuf[0:4], bigendian.Int32ToBytes(uint32(e.Epoch)))
 	}
 
 	e.Parents = make(hash.Events, parentsCount, parentsCount)

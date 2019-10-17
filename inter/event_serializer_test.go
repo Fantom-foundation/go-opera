@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
@@ -114,6 +115,7 @@ func FakeEventWithOneEpoch() (res []*Event) {
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := NewEvent()
+			e.Epoch = FakeEpoch()
 			e.Seq = idx.Event(p)
 			e.Creator = creators[c]
 			e.Parents = parents[p]
@@ -127,13 +129,17 @@ func FakeEventWithOneEpoch() (res []*Event) {
 	return
 }
 
+func FakeEpoch() idx.Epoch {
+	return 123456
+}
+
 // FakeEvent generates random fake event hash with one epoch for testing purpose.
 func FakeEventEpoch() (h hash.Event) {
 	_, err := rand.Read(h[:])
 	if err != nil {
 		panic(err)
 	}
-	copy(h[0:4], []byte{1, 0, 1, 0})
+	copy(h[0:4], bigendian.Int32ToBytes(uint32(FakeEpoch())))
 	return
 }
 
