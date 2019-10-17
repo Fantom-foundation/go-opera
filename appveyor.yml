@@ -53,8 +53,8 @@ cache:
 #  - cmd: bash scripts\multi.bash
 
 test_script:
-  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
-  - cmd: go test ./...
+  - cd C:\gopath\src\github.com\Fantom-foundation\go-lachesis
+  - go test .\...
 
 platform: x64
 
