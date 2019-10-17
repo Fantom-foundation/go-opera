@@ -29,14 +29,19 @@ attach_and_exec() {
 
     for attempt in $(seq 20)
     do
-        #echo -n "  - attempt ${attempt}: " >&2
+        if (( $attempt > 5 ));
+        then 
+            echo "  - attempt ${attempt}: " >&2
+        fi;
+
         res=$(docker exec -i ${NAME} /lachesis --exec "${CMD}" attach http://127.0.0.1:18545 2> /dev/null)
         if [ $? -eq 0 ]
         then
-            #echo " success" >&2
+            #echo "success" >&2
             echo $res
             return 0
         else
+            #echo "wait" >&2
             sleep 1
         fi
     done
