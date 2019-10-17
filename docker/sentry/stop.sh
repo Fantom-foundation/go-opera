@@ -5,4 +5,4 @@ if [ ! -f ".env" ]; then
     > .env
 fi
 
-docker-compose down
+docker-compose down 2> /dev/null # fine if not found

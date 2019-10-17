@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+set -e
+
 cd $(dirname $0)
 
 . ./_params.sh
@@ -16,7 +19,7 @@ do
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	"lachesis" \
 	--fakenet $i/$N \
-	--rpc --rpcapi "eth,debug,admin,web3" --nousb --verbosity 3 \
+	--port 5050 --rpc --rpcapi "eth,debug,admin,web3" --rpcport 18545 --nousb --verbosity 3 \
 	${SENTRY_DSN}
 done
 
@@ -24,19 +27,21 @@ attach_and_exec() {
     local NAME=$1
     local CMD=$2
 
-    for attempt in $(seq 10)
+    for attempt in $(seq 20)
     do
-        echo -n "  - attempt ${attempt}: " >&2
-        res=$(docker exec -i ${NAME} /lachesis --exec "${CMD}" attach http://127.0.0.1:18545)
+        #echo -n "  - attempt ${attempt}: " >&2
+        res=$(docker exec -i ${NAME} /lachesis --exec "${CMD}" attach http://127.0.0.1:18545 2> /dev/null)
         if [ $? -eq 0 ]
         then
-            echo " ok" >&2
+            #echo " success" >&2
             echo $res
-            break
+            return 0
         else
             sleep 1
         fi
     done
+    echo "failed RPC connection to ${NAME}" >&2
+    return 1
 }
 
 echo -e "\nConnect nodes to ring:\n"
@@ -48,7 +53,7 @@ do
     ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${NAME}-$j)
     enode=$(attach_and_exec ${NAME}-$j 'admin.nodeInfo.enode')
     enode=$(echo ${enode} | sed "s/127.0.0.1/${ip}/")
-    echo "    address = ${enode}"
+    echo "    p2p address = ${enode}"
 
     echo " connecting node-$i to node-$j:"
     res=$(attach_and_exec ${NAME}-$i "admin.addPeer(${enode})")
