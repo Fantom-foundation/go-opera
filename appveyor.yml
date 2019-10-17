@@ -6,10 +6,19 @@ build: off
 clone_folder: c:\gopath\src\github.com\Fantom-foundation\go-lachesis
 
 environment:
+  PATH: C:\gopath\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;C:\PROGRA~1\Git\bin;C:\PROGRA~1\Git\usr\bin\;C:\ProgramData\chocolatey\bin;$(PATH)
   GOPATH: c:\gopath
   GO111MODULE: on
 
 stack: go 1.12
+
+init:
+  - choco install make mingw
+  
+cache:
+  - C:\usr
+  - C:\ProgramData\chocolatey
+  
 
 before_test:
   - go vet ./...
