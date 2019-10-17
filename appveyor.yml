@@ -20,8 +20,5 @@ cache:
   - C:\ProgramData\chocolatey
   
 
-before_test:
-  - go vet ./...
-
 test_script:
   - go test ./...
