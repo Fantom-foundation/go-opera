@@ -17,11 +17,10 @@ environment:
   GOOS: windows
   GOARCH: amd64
   GOPATH: C:\gopath
+  GO111MODULE: on
   #RM: del
   #RM_FLAGS: /f
-  GLIDE: /c/usr/bin/glide.exe
-  SED: /c/PROGRA~1/Git/sed.exe
-  n: 3
+  #SED: /c/PROGRA~1/Git/sed.exe
   logshold: '-1,-1,-1,5,0,0'
   entry: 'main'
   BUILD_DIR: "%APPVEYOR_BUILD_FOLDER%"
@@ -33,20 +32,15 @@ stack: go 1.12
 init:
   - cmd: md C:\usr\bin\ C:\usr\downloads\
   - cmd: cd C:\usr\downloads
-  - cmd: curl -L https://github.com/Masterminds/glide/releases/download/v0.13.2/glide-v0.13.2-windows-amd64.zip -o glide-windows-amd64.zip
-  - cmd: 7z x glide-windows-amd64.zip
-  - cmd: move windows-amd64\glide.exe C:\usr\bin\
   - cmd: choco install make sed protoc git.install jq mingw
-  - cmd: rmdir /s /q "%APPVEYOR_BUILD_FOLDER%"
-  - cmd: md "%APPVEYOR_BUILD_FOLDER%"
-  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
-  - cmd: go get -u github.com/SamuelMarks/batch-ethkey
-  - cmd: go get -u golang.org/x/tools/go/packages github.com/golang/protobuf/protoc-gen-go
-  - cmd: go get github.com/golang/mock/gomock
-  - cmd: go install github.com/golang/mock/mockgen
+#  - cmd: rmdir /s /q "%APPVEYOR_BUILD_FOLDER%"
+#  - cmd: md "%APPVEYOR_BUILD_FOLDER%"
+#  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
+#  - cmd: go get -u golang.org/x/tools/go/packages github.com/golang/protobuf/protoc-gen-go
+#  - cmd: go get github.com/golang/mock/gomock
+#  - cmd: go install github.com/golang/mock/mockgen
 
 cache:
-  - '%HOMEPATH%\.glide'
   - C:\usr
   - C:\ProgramData\chocolatey
   - C:\PROGRA~1\Git
@@ -59,7 +53,7 @@ cache:
 #  - cmd: bash scripts\multi.bash
 
 test_script:
-  - cmd: make clean proto vendor build test
+  - cmd: go test ./...
 
 platform: x64
 
