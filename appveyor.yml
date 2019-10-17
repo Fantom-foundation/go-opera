@@ -32,7 +32,7 @@ stack: go 1.12
 init:
   - cmd: md C:\usr\bin\ C:\usr\downloads\
   - cmd: cd C:\usr\downloads
-  - cmd: choco install make sed protoc git.install jq mingw
+  - cmd: choco install make sed git.install jq mingw #protoc
 #  - cmd: rmdir /s /q "%APPVEYOR_BUILD_FOLDER%"
 #  - cmd: md "%APPVEYOR_BUILD_FOLDER%"
 #  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
@@ -53,6 +53,7 @@ cache:
 #  - cmd: bash scripts\multi.bash
 
 test_script:
+  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
   - cmd: go test ./...
 
 platform: x64
