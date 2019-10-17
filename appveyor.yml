@@ -1,74 +1,18 @@
 version: 0.4.5-rc1#{build}
 image: Visual Studio 2017
 
-skip_tags: true
-
-max_jobs: 1
-
 build: off
 
-clone_folder: C:\gopath\src\github.com\Fantom-foundation\go-lachesis
-# shallow_clone when true, acquires repository as zip archive
-shallow_clone: false
-clone_depth: 5
+clone_folder: c:\gopath\src\github.com\Fantom-foundation\go-lachesis
 
 environment:
-  TARGET_OS: windows
-  GOOS: windows
-  GOARCH: amd64
-  GOPATH: C:\gopath
+  GOPATH: c:\gopath
   GO111MODULE: on
-  #RM: del
-  #RM_FLAGS: /f
-  #SED: /c/PROGRA~1/Git/sed.exe
-  logshold: '-1,-1,-1,5,0,0'
-  entry: 'main'
-  BUILD_DIR: "%APPVEYOR_BUILD_FOLDER%"
-  PATH: C:\gopath\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;C:\PROGRA~1\Git\bin;C:\PROGRA~1\Git\usr\bin\;C:\ProgramData\chocolatey\bin;$(PATH)
 
 stack: go 1.12
 
-# scripts that are called at very beginning, before repo cloning
-init:
-  - cmd: md C:\usr\bin\ C:\usr\downloads\
-  - cmd: cd C:\usr\downloads
-  - cmd: choco install make sed git.install jq mingw #protoc
-#  - cmd: rmdir /s /q "%APPVEYOR_BUILD_FOLDER%"
-#  - cmd: md "%APPVEYOR_BUILD_FOLDER%"
-#  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
-#  - cmd: go get -u golang.org/x/tools/go/packages github.com/golang/protobuf/protoc-gen-go
-#  - cmd: go get github.com/golang/mock/gomock
-#  - cmd: go install github.com/golang/mock/mockgen
-
-cache:
-  - C:\usr
-  - C:\ProgramData\chocolatey
-  - C:\PROGRA~1\Git
-
-#before_build:
-#  - cmd: make clean proto vendor build
-
-#install:
-#  - cmd: cd "%APPVEYOR_BUILD_FOLDER%"
-#  - cmd: bash scripts\multi.bash
+before_test:
+  - go vet ./...
 
 test_script:
-  - cd C:\gopath\src\github.com\Fantom-foundation\go-lachesis
-  - go test .\...
-
-platform: x64
-
-configuration: Release
-
-#notifications:
-#  # Slack
-#  - provider: Slack
-#    incoming_webhook: http://incoming-webhook-url
-#
-#  # ...or using auth token
-#
-#  - provider: Slack
-#    auth_token:
-#      secure: kBl9BlxvRMr9liHmnBs14A==
-#    channel: development
-#    template: "{message}, {commitId}, ..."
+  - go test ./...
