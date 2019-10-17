@@ -12,9 +12,6 @@ matrix:
       cache:
         directories:
           - $GOPATH/pkg
-      before_install:
-        - go get -v github.com/golang/mock/mockgen
-        - go install github.com/golang/mock/mockgen
       script:
         - go test -coverprofile=coverage.txt -covermode=atomic ./...
       after_success:
