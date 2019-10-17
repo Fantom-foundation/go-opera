@@ -29,7 +29,7 @@ attach_and_exec() {
 
     for attempt in $(seq 20)
     do
-        if (( $attempt > 5 ));
+        if (( attempt > 5 ));
         then 
             echo "  - attempt ${attempt}: " >&2
         fi;
