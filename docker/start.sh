@@ -18,22 +18,38 @@ do
 	--fakenet $i/$N \
 	--rpc --rpcapi "eth,debug,admin,web3" --nousb --verbosity 3 \
 	${SENTRY_DSN}
-    sleep 2
 done
+
+attach_and_exec() {
+    local name=$1
+    local cmd=$2
+
+    for attempt in `seq 10`
+    do
+        res=$(docker exec -i ${name} /lachesis --exec "$cmd" attach http://127.0.0.1:18545)
+        if [ $? -eq 0 ]
+        then
+            echo $res
+            break
+        else
+            echo "    try ${attempt} to attach console" >&2
+            sleep 1
+        fi
+    done
+}
 
 echo -e "\nConnect nodes (ring):\n"
 for i in $(seq $N)
 do
-    sleep 2
     j=$((i % N + 1))
+    echo " connect $i to $j"
 
     ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${NAME}-$j)
 
-    enode=$(docker exec -i ${NAME}-$j /lachesis --exec 'admin.nodeInfo.enode' attach http://127.0.0.1:18545)
+    enode=$(attach_and_exec ${NAME}-$j 'admin.nodeInfo.enode')
     enode=$(echo $enode | sed "s/127.0.0.1/${ip}/")
 
-    docker exec -i ${NAME}-$i /lachesis --exec "admin.addPeer(${enode})" attach http://127.0.0.1:18545
-    echo "Connected $i to $j, with $enode"
+    attach_and_exec ${NAME}-$i "admin.addPeer(${enode})"
 done
 
 
