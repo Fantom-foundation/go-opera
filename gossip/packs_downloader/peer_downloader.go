@@ -215,7 +215,7 @@ func (d *PeerPacksDownloader) loop() {
 			if d.packInfos.Size() > maxPeerPacks {
 				// if we have too much packs -> d.sweepKnown() doesn't erase them -> we don't connect events from these packs.
 				// Also we do binary search, so we don't need much packs to store, so we shouldn't reach this if peer is ok.
-				log.Error("All the peer packs are unknown. Faulty peer?", "peer", d.peer.ID)
+				log.Warn("All the peer packs are unknown. Faulty peer?", "peer", d.peer.ID)
 				d.dropPeer(d.peer.ID)
 			}
 			if packInfo.index <= 0 || packInfo.index >= math.MaxInt32 {
@@ -288,7 +288,7 @@ func (d *PeerPacksDownloader) timedRequestFullPack(index idx.Pack, pinned bool) 
 	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPack(d.myEpoch, index)
 		if err != nil {
-			log.Error("Pack request error", "index", index, "peer", d.peer.ID, "err", err)
+			log.Warn("Pack request error", "index", index, "peer", d.peer.ID, "err", err)
 		}
 		d.prevRequest = time.Now()
 		if pinned {
@@ -303,7 +303,7 @@ func (d *PeerPacksDownloader) timedRequestPackInfo(index idx.Pack) {
 	if prevRequestTime.IsZero() || time.Since(prevRequestTime) >= arriveTimeout {
 		err := d.peer.RequestPackInfos(d.myEpoch, []idx.Pack{index})
 		if err != nil {
-			log.Error("Pack info request error", "index", index, "peer", d.peer.ID, "err", err)
+			log.Warn("Pack info request error", "index", index, "peer", d.peer.ID, "err", err)
 		}
 		d.prevRequest = time.Now()
 		d.fetchingInfo[index] = d.prevRequest

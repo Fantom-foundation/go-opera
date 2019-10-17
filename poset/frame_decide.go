@@ -10,7 +10,7 @@ func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inte
 	lastHeaders := make(headersByCreator, len(p.Validators))
 	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*len(p.Validators))
 
-	atroposHighestBefore := p.vecClock.GetHighestBeforeSeq(atropos)
+	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
 	validatorIdxs := p.Validators.Idxs()
 	err := p.dfsSubgraph(atropos, func(header *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(header.Hash())
@@ -96,12 +96,9 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.PrevEpoch.StateHash = p.checkpoint.StateHash
 	p.PrevEpoch.LastHeaders = lastHeaders
 
-	// new validators list
-	p.Validators = p.NextValidators.Top()
+	// new validators list, move to new epoch
+	p.setEpochValidators(p.NextValidators.Top(), p.EpochN+1)
 	p.NextValidators = p.Validators.Copy()
-
-	// move to new epoch
-	p.EpochN++
 	p.LastDecidedFrame = 0
 
 	// commit

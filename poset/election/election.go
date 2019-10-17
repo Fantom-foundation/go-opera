@@ -32,7 +32,7 @@ type (
 
 	// RootForklessCausesRootFn returns hash of root B, if root B forkless causes root A.
 	// Due to a fork, there may be many roots B with the same slot,
-	// but A may be forkless caused only by one of them (if no more than 1/3n are Byzantine), with a specific hash.
+	// but A may be forkless caused only by one of them (if no more than 1/3W are Byzantine), with a specific hash.
 	RootForklessCausesRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
 
 	// Slot specifies a root slot {addr, frame}. Normal validators can have only one root with this pair.

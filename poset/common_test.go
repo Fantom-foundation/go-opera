@@ -48,7 +48,7 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
 	}
 
-	mems := memorydb.NewProdicer(namespace, mods...)
+	mems := memorydb.NewProducer(namespace, mods...)
 	dbs := flushable.NewSyncedPool(mems)
 	store := NewStore(dbs)
 

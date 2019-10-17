@@ -40,7 +40,7 @@ func benchmarkStore(b *testing.B) {
 		}
 	}()
 
-	lvl := leveldb.NewProdicer(dir)
+	lvl := leveldb.NewProducer(dir)
 	dbs := flushable.NewSyncedPool(lvl)
 
 	input := NewEventStore(dbs.GetDb("input"))

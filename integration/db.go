@@ -8,8 +8,8 @@ import (
 
 func dbProducer(dbdir string) kvdb.DbProducer {
 	if dbdir == "inmemory" || dbdir == "" {
-		return memorydb.NewProdicer("")
+		return memorydb.NewProducer("")
 	}
 
-	return leveldb.NewProdicer(dbdir)
+	return leveldb.NewProducer(dbdir)
 }

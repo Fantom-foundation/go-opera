@@ -62,6 +62,8 @@ func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEven
 	vi.vecDb = flushable.Wrap(db)
 	vi.validators = validators.Copy()
 	vi.validatorIdxs = validators.Idxs()
+	vi.DropNotFlushed()
+	vi.forklessCauseCache.Purge()
 
 	table.MigrateTables(&vi.table, vi.vecDb)
 }
@@ -79,7 +81,9 @@ func (vi *Index) Add(e *inter.EventHeaderData) {
 
 // Flush writes vector clocks to persistent store.
 func (vi *Index) Flush() {
-	vi.setBranchesInfo(vi.bi)
+	if vi.bi != nil {
+		vi.setBranchesInfo(vi.bi)
+	}
 	if err := vi.vecDb.Flush(); err != nil {
 		vi.Log.Crit("Failed to flush db", "err", err)
 	}
@@ -92,21 +96,35 @@ func (vi *Index) DropNotFlushed() {
 }
 
 func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validator) idx.Validator {
+	// sanity checks
+	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+	}
+	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
+		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+	}
+	if len(vi.bi.BranchIDCreators) < len(vi.validators) {
+		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+	}
+
 	if e.SelfParent() == nil {
 		// is it first event indeed?
 		if vi.bi.BranchIDLastSeq[meIdx] == 0 {
 			// OK, not a new fork
-			vi.bi.BranchIDLastSeq[meIdx] = e.Seq // TODO we see only globally the fork, but make decision based on it
+			vi.bi.BranchIDLastSeq[meIdx] = e.Seq
 			return meIdx
 		}
 	} else {
 		selfParentBranchID := vi.getEventBranchID(*e.SelfParent())
 		// sanity checks
-		if vi.bi.BranchIDCreators[selfParentBranchID] != e.Creator {
-			vi.Log.Crit("Inconsistent BranchIDCreators (inconsistent DB)", "event", e.String())
-		}
 		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
 			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+		}
+		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
+			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+		}
+		if vi.bi.BranchIDCreators[selfParentBranchID] != e.Creator {
+			vi.Log.Crit("Inconsistent BranchIDCreators (inconsistent DB). Wrong self-parent?", "event", e.String())
 		}
 
 		if vi.bi.BranchIDLastSeq[selfParentBranchID]+1 == e.Seq {
@@ -255,4 +273,42 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	vi.setEventBranchID(e.Hash(), meBranchID)
 
 	return myVecs
+}
+
+// GetHighestBeforeAllBranches returns HighestBefore vector clock without branches, where branches are merged into one
+func (vi *Index) GetHighestBeforeAllBranches(id hash.Event) HighestBeforeSeq {
+	mergedSeq, _ := vi.getHighestBeforeAllBranchesTime(id)
+	return mergedSeq
+}
+
+func (vi *Index) getHighestBeforeAllBranchesTime(id hash.Event) (HighestBeforeSeq, HighestBeforeTime) {
+	vi.initBranchesInfo()
+
+	if vi.atLeastOneFork() {
+		beforeSeq := vi.GetHighestBeforeSeq(id)
+		times := vi.GetHighestBeforeTime(id)
+		mergedTimes := NewHighestBeforeTime(len(vi.validators))
+		mergedSeq := NewHighestBeforeSeq(len(vi.validators))
+		for creatorIdx, branches := range vi.bi.BranchIDByCreators {
+			// read all branches to find highest event
+			highestBranchSeq := BranchSeq{}
+			highestBranchTime := inter.Timestamp(0)
+			for _, branchID := range branches {
+				branch := beforeSeq.Get(branchID)
+				if branch.IsForkDetected() {
+					highestBranchSeq = branch
+					break
+				}
+				if branch.Seq > highestBranchSeq.Seq {
+					highestBranchSeq = branch
+					highestBranchTime = times.Get(branchID)
+				}
+			}
+			mergedTimes.Set(idx.Validator(creatorIdx), highestBranchTime)
+			mergedSeq.Set(idx.Validator(creatorIdx), highestBranchSeq)
+		}
+
+		return mergedSeq, mergedTimes
+	}
+	return vi.GetHighestBeforeSeq(id), vi.GetHighestBeforeTime(id)
 }

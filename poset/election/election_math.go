@@ -51,7 +51,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.observedRoot {
-						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s != %s, election frame=%d, validator=%s)",
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3W are Byzantine (%s != %s, election frame=%d, validator=%s)",
 							subjectHash.String(), vote.observedRoot.String(), el.frameToDecide, validatorSubject.String())
 					}
 
@@ -63,7 +63,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 					}
 					if !allVotes.Count(observedRoot.Slot.Addr) {
 						// it shouldn't be possible to get here, because we've taken 1 root from every node above
-						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3n are Byzantine (%s, election frame=%d, validator=%s)",
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3W are Byzantine (%s, election frame=%d, validator=%s)",
 							subjectHash.String(), el.frameToDecide, validatorSubject.String())
 					}
 				} else {
@@ -73,9 +73,9 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 			}
 			// sanity checks
 			if !allVotes.HasQuorum() {
-				el.Log.Crit("Root must be forkless caused by at least 2/3n of prev roots. Possibly roots are processed out of order",
+				el.Log.Crit("Root must be forkless caused by at least 2/3W of prev roots. Possibly roots are processed out of order",
 					"root", newRoot.Root.String(),
-					"voites", allVotes.Sum())
+					"votes", allVotes.Sum())
 			}
 
 			// vote as majority of votes
@@ -85,7 +85,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 			}
 
 			// If supermajority is observed, then the final decision may be made.
-			// It's guaranteed to be final and consistent unless more than 1/3n are Byzantine.
+			// It's guaranteed to be final and consistent unless more than 1/3W are Byzantine.
 			vote.decided = yesVotes.HasQuorum() || noVotes.HasQuorum()
 			if vote.decided {
 				el.decidedRoots[validatorSubject] = vote

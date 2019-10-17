@@ -13,8 +13,8 @@ type producer struct {
 	datadir string
 }
 
-// NewProdicer of level db.
-func NewProdicer(datadir string) kvdb.DbProducer {
+// NewProducer of level db.
+func NewProducer(datadir string) kvdb.DbProducer {
 	return &producer{
 		datadir: datadir,
 	}
