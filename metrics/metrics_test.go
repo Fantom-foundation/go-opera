@@ -63,7 +63,7 @@ func Test_standardMetric_updateModification(t *testing.T) {
 
 	metric.updateModification()
 
-	assert.True(t, metric.lastModification.UnixNano() > currentTime.UnixNano())
+	assert.True(t, metric.lastModification.UnixNano() >= currentTime.UnixNano())
 	assert.Equal(t, loc, metric.lastModification.Location())
 }
 
@@ -84,7 +84,7 @@ func Test_standardMetric_copy(t *testing.T) {
 
 	result := copied.(*standardMetric)
 	assert.Equal(t, metric.loc, result.loc)
-	assert.True(t, result.creationTime.UnixNano() > metric.creationTime.UnixNano())
+	assert.True(t, result.creationTime.UnixNano() >= metric.creationTime.UnixNano())
 	assert.EqualValues(t, result.lastModification, result.creationTime)
 }
 
