@@ -1,16 +1,10 @@
 package inter
 
 import (
-	"math/rand"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 func TestEventHeaderData_MarshalBinary(t *testing.T) {
@@ -97,57 +91,4 @@ func BenchmarkEventHeaderData_DecodeRLP(b *testing.B) {
 			b.Fatalf("Error rlp deserialization: %s", err)
 		}
 	}
-}
-
-func FakeEventWithOneEpoch() (res []*Event) {
-	creators := []common.Address{
-		{},
-		hash.FakePeer(),
-		hash.FakePeer(),
-		hash.FakePeer(),
-	}
-	parents := []hash.Events{
-		FakeEventsEpoch(1),
-		FakeEventsEpoch(2),
-		FakeEventsEpoch(8),
-	}
-	i := 0
-	for c := 0; c < len(creators); c++ {
-		for p := 0; p < len(parents); p++ {
-			e := NewEvent()
-			e.Epoch = FakeEpoch()
-			e.Seq = idx.Event(p)
-			e.Creator = creators[c]
-			e.Parents = parents[p]
-			e.Extra = []byte{}
-			e.Sig = []byte{}
-
-			res = append(res, e)
-			i++
-		}
-	}
-	return
-}
-
-func FakeEpoch() idx.Epoch {
-	return 123456
-}
-
-// FakeEvent generates random fake event hash with one epoch for testing purpose.
-func FakeEventEpoch() (h hash.Event) {
-	_, err := rand.Read(h[:])
-	if err != nil {
-		panic(err)
-	}
-	copy(h[0:4], bigendian.Int32ToBytes(uint32(FakeEpoch())))
-	return
-}
-
-// FakeEvents generates random fake event hashes with one epoch for testing purpose.
-func FakeEventsEpoch(n int) hash.Events {
-	res := hash.Events{}
-	for i := 0; i < n; i++ {
-		res.Add(FakeEventEpoch())
-	}
-	return res
 }

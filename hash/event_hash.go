@@ -3,6 +3,7 @@ package hash
 import (
 	"bytes"
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -331,4 +332,28 @@ func FakeEvents(n int) Events {
 // FakePeer generates random fake peer id for testing purpose.
 func FakePeer(seed ...int64) common.Address {
 	return common.Address(common.BytesToAddress(FakeHash(seed...).Bytes()))
+}
+
+// Value of fake epoch
+func FakeEpoch() idx.Epoch {
+	return 123456
+}
+
+// FakeEvent generates random fake event hash with one epoch for testing purpose.
+func FakeEventEpoch() (h Event) {
+	_, err := rand.Read(h[:])
+	if err != nil {
+		panic(err)
+	}
+	copy(h[0:4], bigendian.Int32ToBytes(uint32(FakeEpoch())))
+	return
+}
+
+// FakeEvents generates random fake event hashes with one epoch for testing purpose.
+func FakeEventsEpoch(n int) Events {
+	res := Events{}
+	for i := 0; i < n; i++ {
+		res.Add(FakeEventEpoch())
+	}
+	return res
 }
