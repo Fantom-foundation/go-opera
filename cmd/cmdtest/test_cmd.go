@@ -30,7 +30,6 @@ import (
 	"syscall"
 	"testing"
 	"text/template"
-	"time"
 
 	"github.com/docker/docker/pkg/reexec"
 )
@@ -117,7 +116,7 @@ func (tt *TestCmd) Expect(tplsource string) {
 func (tt *TestCmd) matchExactOutput(want []byte) error {
 	buf := make([]byte, len(want))
 	n := 0
-	tt.withKillTimeout(func() { n, _ = io.ReadFull(tt.stdout, buf) })
+	n, _ = io.ReadFull(tt.stdout, buf)
 	buf = buf[:n]
 	if n < len(want) || !bytes.Equal(buf, want) {
 		// Grab any additional buffered output in case of mismatch
@@ -152,7 +151,7 @@ func (tt *TestCmd) ExpectRegexp(regex string) (*regexp.Regexp, []string) {
 		rtee    = &runeTee{in: tt.stdout}
 		matches []int
 	)
-	tt.withKillTimeout(func() { matches = re.FindReaderSubmatchIndex(rtee) })
+	matches = re.FindReaderSubmatchIndex(rtee)
 	output := rtee.buf.Bytes()
 	if matches == nil {
 		tt.Fatalf("Output did not match:\n---------------- (stdout text)\n%s\n---------------- (regular expression)\n%s",
@@ -172,9 +171,7 @@ func (tt *TestCmd) ExpectRegexp(regex string) (*regexp.Regexp, []string) {
 // printing any additional text on stdout.
 func (tt *TestCmd) ExpectExit() {
 	var output []byte
-	tt.withKillTimeout(func() {
-		output, _ = ioutil.ReadAll(tt.stdout)
-	})
+	output, _ = ioutil.ReadAll(tt.stdout)
 	tt.WaitExit()
 	if tt.Cleanup != nil {
 		tt.Cleanup()
@@ -224,15 +221,6 @@ func (tt *TestCmd) Kill() {
 	if tt.Cleanup != nil {
 		tt.Cleanup()
 	}
-}
-
-func (tt *TestCmd) withKillTimeout(fn func()) {
-	timeout := time.AfterFunc(5*time.Second, func() {
-		tt.Log("killing the child process (timeout)")
-		tt.Kill()
-	})
-	defer timeout.Stop()
-	fn()
 }
 
 // testlogger logs all written lines via t.Log and also
