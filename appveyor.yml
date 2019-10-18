@@ -18,7 +18,9 @@ init:
 cache:
   - C:\usr
   - C:\ProgramData\chocolatey
-  
+
+before_test:
+  - ps: Set-NetFirewallProfile -All -Enabled False
 
 test_script:
   - go test ./...
