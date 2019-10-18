@@ -68,7 +68,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
 
-	time.Sleep(2 * time.Second) // Simple way to wait for the RPC endpoint to open
+	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "ipc:"+ipc, ipcAPIs)
 
 	cli.Interrupt()
@@ -81,7 +81,7 @@ func TestHTTPAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--rpc", "--rpcport", port)
 
-	time.Sleep(2 * time.Second) // Simple way to wait for the RPC endpoint to open
+	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "http://localhost:"+port, httpAPIs)
 
 	cli.Interrupt()
@@ -95,7 +95,7 @@ func TestWSAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ws", "--wsport", port)
 
-	time.Sleep(2 * time.Second) // Simple way to wait for the RPC endpoint to open
+	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "ws://localhost:"+port, httpAPIs)
 
 	cli.Interrupt()
