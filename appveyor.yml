@@ -21,6 +21,7 @@ cache:
 
 before_test:
   - ps: Set-NetFirewallProfile -All -Enabled False
+  - ps: Get-NetFirewallRule -Action Block -Enabled True
 
 test_script:
   - go test ./...
