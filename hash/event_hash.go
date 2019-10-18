@@ -334,12 +334,12 @@ func FakePeer(seed ...int64) common.Address {
 	return common.Address(common.BytesToAddress(FakeHash(seed...).Bytes()))
 }
 
-// Value of fake epoch
+// FakeEpoch generate fixed value of fake epoch for testing purpose.
 func FakeEpoch() idx.Epoch {
 	return 123456
 }
 
-// FakeEvent generates random fake event hash with one epoch for testing purpose.
+// FakeEventEpoch generates random fake event hash with one epoch for testing purpose.
 func FakeEventEpoch() (h Event) {
 	_, err := rand.Read(h[:])
 	if err != nil {
@@ -349,7 +349,7 @@ func FakeEventEpoch() (h Event) {
 	return
 }
 
-// FakeEvents generates random fake event hashes with one epoch for testing purpose.
+// FakeEventsEpoch generates random fake event hashes with one epoch for testing purpose.
 func FakeEventsEpoch(n int) Events {
 	res := Events{}
 	for i := 0; i < n; i++ {
