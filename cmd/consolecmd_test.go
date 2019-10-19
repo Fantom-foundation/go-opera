@@ -57,13 +57,15 @@ at block: 0 ({{niltime}})
 func TestIPCAttachWelcome(t *testing.T) {
 	// Configure the instance for IPC attachement
 	var ipc string
+	/*
 	if runtime.GOOS == "windows" {
 		ipc = `\\.\pipe\lachesis` + strconv.Itoa(trulyRandInt(100000, 999999))
 	} else {
+	*/
 		ws := tmpdir(t)
 		defer os.RemoveAll(ws)
 		ipc = filepath.Join(ws, "lachesis.ipc")
-	}
+	// }
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
