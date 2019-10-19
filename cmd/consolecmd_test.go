@@ -57,21 +57,24 @@ at block: 0 ({{niltime}})
 func TestIPCAttachWelcome(t *testing.T) {
 	// Configure the instance for IPC attachement
 	var ipc string
-	/*
 	if runtime.GOOS == "windows" {
-		ipc = `\\.\pipe\lachesis` + strconv.Itoa(trulyRandInt(100000, 999999))
+		ipc = `\\.\pipe\lachesistest` + strconv.Itoa(trulyRandInt(100000, 999999))
 	} else {
-	*/
 		ws := tmpdir(t)
 		defer os.RemoveAll(ws)
 		ipc = filepath.Join(ws, "lachesis.ipc")
-	// }
+	}
+	t.Log("DBG: Exec...")
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
+	t.Log("DBG: Exec done")
 
 	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
+	t.Log("DBG: Sleep done")
+	t.Log("DBG: testAttachWelcome...")
 	testAttachWelcome(t, cli, "ipc:"+ipc, ipcAPIs)
+	t.Log("DBG: testAttachWelcome done")
 
 	cli.Interrupt()
 	cli.ExpectExit()
