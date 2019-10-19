@@ -113,7 +113,7 @@ func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
 	// Attach to a running lachesis node and terminate immediately
 	attach := exec(t, "attach", endpoint)
 
-	attach.CloseStdin()
+	// attach.CloseStdin()
 
 	// Gather all the infos the welcome message needs to contain
 	attach.SetTemplateFunc("goos", func() string { return runtime.GOOS })
