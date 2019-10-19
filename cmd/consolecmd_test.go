@@ -55,50 +55,38 @@ at block: 0 ({{niltime}})
 
 // Tests that a console can be attached to a running node via various means.
 func TestIPCAttachWelcome(t *testing.T) {
-	t.Skip("Unstable test - blocked IPC using and failed on timeout")
-
 	// Configure the instance for IPC attachement
 	var ipc string
 	if runtime.GOOS == "windows" {
-		ipc = `\\.\pipe\lachesistest` + strconv.Itoa(trulyRandInt(100000, 999999))
+		// ipc = `\\.\pipe\lachesis` + strconv.Itoa(trulyRandInt(100000, 999999))
+		ipc = `\\.\pipe\lachesis.ipc`
 	} else {
 		ws := tmpdir(t)
 		defer os.RemoveAll(ws)
 		ipc = filepath.Join(ws, "lachesis.ipc")
 	}
-	t.Log("DBG: Exec...")
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
-	t.Log("DBG: Exec done")
 
 	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
-	t.Log("DBG: Sleep done")
-	t.Log("DBG: testAttachWelcome...")
 	testAttachWelcome(t, cli, "ipc:"+ipc, ipcAPIs)
-	t.Log("DBG: testAttachWelcome done")
 
-	cli.Interrupt()
-	cli.ExpectExit()
+	cli.Kill()
+	cli.WaitExit()
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
-	t.Log("DBG1\n")
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--rpc", "--rpcport", port)
 
-	t.Log("DBG2\n")
 	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
-	t.Log("DBG3\n")
 	testAttachWelcome(t, cli, "http://localhost:"+port, httpAPIs)
-	t.Log("DBG4\n")
 
-	cli.Interrupt()
-	t.Log("DBG5\n")
-	cli.ExpectExit()
-	t.Log("DBG6\n")
+	cli.Kill()
+	cli.WaitExit()
 }
 
 func TestWSAttachWelcome(t *testing.T) {
@@ -111,15 +99,13 @@ func TestWSAttachWelcome(t *testing.T) {
 	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "ws://localhost:"+port, httpAPIs)
 
-	cli.Interrupt()
-	cli.ExpectExit()
+	cli.Kill()
+	cli.WaitExit()
 }
 
 func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
 	// Attach to a running lachesis node and terminate immediately
 	attach := exec(t, "attach", endpoint)
-
-	// attach.CloseStdin()
 
 	// Gather all the infos the welcome message needs to contain
 	attach.SetTemplateFunc("goos", func() string { return runtime.GOOS })
