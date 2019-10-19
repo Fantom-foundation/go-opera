@@ -19,8 +19,8 @@ environment:
 stack: go 1.12
 
 init:
-  - choco install make mingw
-  
+  - choco install make mingw jq
+
 cache:
   - C:\usr
   - C:\ProgramData\chocolatey
