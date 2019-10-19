@@ -83,16 +83,22 @@ func TestIPCAttachWelcome(t *testing.T) {
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
+	t.Log("DBG1\n")
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--rpc", "--rpcport", port)
 
+	t.Log("DBG2\n")
 	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
+	t.Log("DBG3\n")
 	testAttachWelcome(t, cli, "http://localhost:"+port, httpAPIs)
+	t.Log("DBG4\n")
 
 	cli.Interrupt()
+	t.Log("DBG5\n")
 	cli.ExpectExit()
+	t.Log("DBG6\n")
 }
 
 func TestWSAttachWelcome(t *testing.T) {
