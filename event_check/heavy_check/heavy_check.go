@@ -113,7 +113,6 @@ func (v *Validator) Validate(e *inter.Event) error {
 	}
 	// pre-cache tx sig
 	for _, tx := range e.Transactions {
-		// TODO ensure that tx won't get serialized/deserialized before tx execution, because it'll invalidate the cache
 		_, err := types.Sender(v.txSigner, tx)
 		if err != nil {
 			return ErrMalformedTxSig

@@ -19,7 +19,7 @@ const (
 // GasPowerConfig defines gas power rules in the consensus.
 type GasPowerConfig struct {
 	TotalPerH          uint64          `json:"totalPerH"`
-	MaxStashedPeriod   inter.Timestamp `json:"maxStashedPeriod"`
+	MaxGasPowerPeriod  inter.Timestamp `json:"maxGasPowerPeriod"`
 	StartupPeriod      inter.Timestamp `json:"startupPeriod"`
 	MinStartupGasPower uint64          `json:"minStartupGasPower"`
 }
@@ -97,8 +97,8 @@ func FakeNetDagConfig() DagConfig {
 func DefaultGasPowerConfig() GasPowerConfig {
 	return GasPowerConfig{
 		TotalPerH:          50 * params.TxGas * 60 * 60,
-		MaxStashedPeriod:   inter.Timestamp(1 * time.Hour),
-		StartupPeriod:      inter.Timestamp(5 * time.Minute),
+		MaxGasPowerPeriod:  inter.Timestamp(10 * time.Minute),
+		StartupPeriod:      inter.Timestamp(5 * time.Second),
 		MinStartupGasPower: params.TxGas * 20,
 	}
 }

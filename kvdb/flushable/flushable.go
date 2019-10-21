@@ -20,7 +20,6 @@ var (
 // On reading, it looks in memory cache first. If not found, it looks in a parent DB.
 // On writing, it writes only in cache. To flush the cache into parent DB, call Flush().
 type Flushable struct {
-	producer   func() kvdb.KeyValueStore
 	onDrop     func()
 	underlying kvdb.KeyValueStore
 
@@ -30,23 +29,6 @@ type Flushable struct {
 	lock *sync.Mutex // we have no guarantees that rbt.Tree works with concurrent reads, so we can't use MutexRW
 }
 
-// New makes flushable with real db producer.
-// Real db won't be produced until first .Flush() is called.
-// All the writes into the cache won't be written in parent until .Flush() is called.
-func New(producer func() kvdb.KeyValueStore, drop func()) *Flushable {
-	if producer == nil {
-		panic("nil producer")
-	}
-
-	return &Flushable{
-		producer:       producer,
-		onDrop:         drop,
-		modified:       rbt.NewWithStringComparator(),
-		lock:           new(sync.Mutex),
-		sizeEstimation: new(int),
-	}
-}
-
 // Wrap underlying db.
 // All the writes into the cache won't be written in parent until .Flush() is called.
 func Wrap(parent kvdb.KeyValueStore) *Flushable {
@@ -54,23 +36,22 @@ func Wrap(parent kvdb.KeyValueStore) *Flushable {
 		panic("nil parent")
 	}
 
+	return WrapWithDrop(parent, func() { parent.Drop() })
+}
+
+// WrapWithDrop is the same as Wrap, but defines onDrop callback.
+func WrapWithDrop(parent kvdb.KeyValueStore, drop func()) *Flushable {
+	if parent == nil {
+		panic("nil parent")
+	}
+
 	return &Flushable{
 		underlying:     parent,
-		onDrop:         func() { parent.Drop() },
+		onDrop:         drop,
 		modified:       rbt.NewWithStringComparator(),
 		lock:           new(sync.Mutex),
 		sizeEstimation: new(int),
 	}
-}
-
-// underlyingDb getter. Makes underlying in lazy case.
-func (w *Flushable) underlyingDb() kvdb.KeyValueStore {
-	if w.underlying == nil && w.producer != nil {
-		w.underlying = w.producer()
-		w.producer = nil // need once
-	}
-
-	return w.underlying
 }
 
 /*
@@ -112,9 +93,6 @@ func (w *Flushable) Has(key []byte) (bool, error) {
 		return val != nil, nil
 	}
 
-	if w.underlying == nil {
-		return false, nil
-	}
 	return w.underlying.Has(key)
 }
 
@@ -134,9 +112,6 @@ func (w *Flushable) Get(key []byte) ([]byte, error) {
 		return common.CopyBytes(entry.([]byte)), nil
 	}
 
-	if w.underlying == nil {
-		return nil, nil
-	}
 	return w.underlying.Get(key)
 }
 
@@ -176,9 +151,6 @@ func (w *Flushable) Close() error {
 	w.dropNotFlushed()
 	w.modified = nil
 
-	if w.underlying == nil {
-		return nil
-	}
 	return w.underlying.Close()
 }
 
@@ -211,13 +183,15 @@ func (w *Flushable) Flush() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
+	return w.flush()
+}
+
+func (w *Flushable) flush() error {
 	if w.modified == nil {
 		return errClosed
 	}
 
-	db := w.underlyingDb()
-
-	batch := db.NewBatch()
+	batch := w.underlying.NewBatch()
 	for it := w.modified.Iterator(); it.Next(); {
 		var err error
 
@@ -332,7 +306,7 @@ func (it *iterator) Next() bool {
 
 	if !it.inited {
 		it.inited = true
-		it.parentOk = (it.parentIt != nil && it.parentIt.Next())
+		it.parentOk = it.parentIt.Next()
 		if it.start != nil {
 			it.treeNode, it.treeOk = it.tree.Ceiling(string(it.start)) // not strict >=
 		} else {
@@ -393,9 +367,6 @@ func (it *iterator) Next() bool {
 // Error returns any accumulated error. Exhausting all the key/value pairs
 // is not considered to be an error. A memory iterator cannot encounter errors.
 func (it *iterator) Error() error {
-	if it.parentIt == nil {
-		return nil
-	}
 	return it.parentIt.Error()
 }
 
@@ -416,53 +387,42 @@ func (it *iterator) Value() []byte {
 // Release releases associated resources. Release should always succeed and can
 // be called multiple times without causing error.
 func (it *iterator) Release() {
-	if it.parentIt != nil {
-		it.parentIt.Release()
-	}
+	it.parentIt.Release()
 	*it = iterator{}
 }
 
 // NewIterator creates a binary-alphabetical iterator over the entire keyspace
 // contained within the memory database.
 func (w *Flushable) NewIterator() ethdb.Iterator {
-	it := &iterator{
-		lock: w.lock,
-		tree: w.modified,
+	return &iterator{
+		lock:     w.lock,
+		tree:     w.modified,
+		parentIt: w.underlying.NewIterator(),
 	}
-	if w.underlying != nil {
-		it.parentIt = w.underlying.NewIterator()
-	}
-	return it
 }
 
 // NewIteratorWithStart creates a binary-alphabetical iterator over a subset of
 // database content starting at a particular initial key (or after, if it does
 // not exist).
 func (w *Flushable) NewIteratorWithStart(start []byte) ethdb.Iterator {
-	it := &iterator{
-		lock:  w.lock,
-		tree:  w.modified,
-		start: start,
+	return &iterator{
+		lock:     w.lock,
+		tree:     w.modified,
+		start:    start,
+		parentIt: w.underlying.NewIteratorWithStart(start),
 	}
-	if w.underlying != nil {
-		it.parentIt = w.underlying.NewIteratorWithStart(start)
-	}
-	return it
 }
 
 // NewIteratorWithPrefix creates a binary-alphabetical iterator over a subset
 // of database content with a particular key prefix.
 func (w *Flushable) NewIteratorWithPrefix(prefix []byte) ethdb.Iterator {
-	it := &iterator{
-		lock:   w.lock,
-		tree:   w.modified,
-		start:  prefix,
-		prefix: prefix,
+	return &iterator{
+		lock:     w.lock,
+		tree:     w.modified,
+		start:    prefix,
+		prefix:   prefix,
+		parentIt: w.underlying.NewIteratorWithPrefix(prefix),
 	}
-	if w.underlying != nil {
-		it.parentIt = w.underlying.NewIteratorWithPrefix(prefix)
-	}
-	return it
 }
 
 /*

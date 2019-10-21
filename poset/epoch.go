@@ -1,8 +1,6 @@
 package poset
 
 import (
-	"sync/atomic"
-
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -30,22 +28,39 @@ func (p *Poset) loadEpoch() {
 
 // GetEpoch returns current epoch num to 3rd party.
 func (p *Poset) GetEpoch() idx.Epoch {
-	return idx.Epoch(atomic.LoadUint32((*uint32)(&p.EpochN)))
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
+	return p.EpochN
 }
 
 // GetValidators returns validators of current epoch.
 func (p *Poset) GetValidators() pos.Validators {
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
 	return p.Validators.Copy()
 }
 
 // GetEpochValidators atomically returns validators of current epoch, and the epoch.
 func (p *Poset) GetEpochValidators() (pos.Validators, idx.Epoch) {
-	return p.GetValidators(), p.GetEpoch() // TODO atomic
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
+	return p.Validators.Copy(), p.EpochN
+}
+
+func (p *Poset) setEpochValidators(validators pos.Validators, epoch idx.Epoch) {
+	p.epochMu.Lock()
+	defer p.epochMu.Unlock()
+
+	p.Validators = validators
+	p.EpochN = epoch
 }
 
 // rootObservesRoot returns hash of root B, if root B forkless causes root A.
 // Due to a fork, there may be many roots B with the same slot,
-// but A may be forkless caused only by one of them (if no more than 1/3n are Byzantine), with a specific hash.
+// but A may be forkless caused only by one of them (if no more than 1/3W are Byzantine), with a specific hash.
 func (p *Poset) rootObservesRoot(a hash.Event, bCreator common.Address, bFrame idx.Frame) *hash.Event {
 	var bHash *hash.Event
 	p.store.ForEachRootFrom(bFrame, bCreator, func(f idx.Frame, from common.Address, b hash.Event) bool {

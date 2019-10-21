@@ -16,10 +16,10 @@ type medianTimeIndex struct {
 
 // MedianTime calculates weighted median of claimed time within highest observed events.
 func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Timestamp {
+	vi.initBranchesInfo()
 	// get event by hash
-	observed := vi.GetHighestBeforeSeq(id)
-	times := vi.GetHighestBeforeTime(id)
-	if observed == nil || times == nil {
+	beforeSeq, times := vi.getHighestBeforeAllBranchesTime(id)
+	if beforeSeq == nil || times == nil {
 		vi.Log.Error("Event not found", "event", id.String())
 
 		return 0
@@ -28,17 +28,17 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	honestTotalStake := pos.Stake(0) // isn't equal to validators.TotalStake(), because doesn't count cheaters
 	highests := make([]medianTimeIndex, 0, len(vi.validatorIdxs))
 	// convert []HighestBefore -> []medianTimeIndex
-	for creator, n := range vi.validatorIdxs {
+	for creator, creatorIdx := range vi.validatorIdxs {
 		highest := medianTimeIndex{}
 		highest.stake = vi.validators[creator]
-		highest.claimedTime = times.Get(n)
+		highest.claimedTime = times.Get(creatorIdx)
+		seq := beforeSeq.Get(creatorIdx)
 
 		// edge cases
-		forkSeq := observed.Get(n)
-		if forkSeq.IsForkDetected {
+		if seq.IsForkDetected() {
 			// cheaters don't influence medianTime
 			highest.stake = 0
-		} else if forkSeq.Seq == 0 {
+		} else if seq.Seq == 0 {
 			// if no event was observed from this node, then use genesisTime
 			highest.claimedTime = genesisTime
 		}
@@ -46,7 +46,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 		highests = append(highests, highest)
 		honestTotalStake += highest.stake
 	}
-	// it's technically possible totalStake == 0 (all validators are cheaters)
+	// it's technically possible honestTotalStake == 0 (all validators are cheaters)
 
 	// sort by claimed time (partial order is enough here, because we need only claimedTime)
 	sort.Slice(highests, func(i, j int) bool {

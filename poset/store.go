@@ -50,7 +50,7 @@ func NewStore(dbs *flushable.SyncedPool) *Store {
 // NewMemStore creates store over memory map.
 // Store is always blank.
 func NewMemStore() *Store {
-	mems := memorydb.NewProdicer("")
+	mems := memorydb.NewProducer("")
 	dbs := flushable.NewSyncedPool(mems)
 
 	return NewStore(dbs)

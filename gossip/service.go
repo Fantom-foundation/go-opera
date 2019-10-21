@@ -166,12 +166,13 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	if newEpoch != oldEpoch {
 		s.packs_onNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
+		s.store.getEpochStore(newEpoch)
 		s.feed.newEpoch.Send(newEpoch)
 		s.occurredTxs.Clear()
 	}
 
 	immediately := (newEpoch != oldEpoch)
-	return s.store.Commit(e.Hash(), immediately)
+	return s.store.Commit(e.Hash().Bytes(), immediately)
 }
 
 func (s *Service) makeEmitter() *Emitter {
@@ -264,7 +265,11 @@ func (s *Service) Stop() error {
 	s.pm.Stop()
 	s.wg.Wait()
 	s.feed.scope.Close()
-	return nil
+
+	// flush the state at exit, after all the routines stopped
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	return s.store.Commit(nil, true)
 }
 
 // AccountManager return node's account manager

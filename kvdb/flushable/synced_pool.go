@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/status-im/keycard-go/hexutils"
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 )
@@ -15,7 +16,7 @@ import (
 type SyncedPool struct {
 	producer kvdb.DbProducer
 
-	wrappers    map[string]*Flushable
+	wrappers    map[string]*LazyFlushable
 	queuedDrops map[string]struct{}
 
 	prevFlushTime time.Time
@@ -30,17 +31,17 @@ func NewSyncedPool(producer kvdb.DbProducer) *SyncedPool {
 
 	p := &SyncedPool{
 		producer:    producer,
-		wrappers:    make(map[string]*Flushable),
+		wrappers:    make(map[string]*LazyFlushable),
 		queuedDrops: make(map[string]struct{}),
 	}
 
 	for _, name := range producer.Names() {
 		open, drop := p.callbacks(name)
-		p.wrappers[name] = New(open, drop)
+		p.wrappers[name] = NewLazy(open, drop)
 	}
 
 	if err := p.checkDbsSynced(); err != nil {
-		log.Crit("Databases aren't sync", "err", err)
+		log.Crit("Databases are corrupted, which is possible after a crash or disk failure.", "err", err)
 	}
 
 	return p
@@ -82,7 +83,7 @@ func (p *SyncedPool) getDb(name string) kvdb.KeyValueStore {
 	}
 
 	open, drop := p.callbacks(name)
-	wrapper = New(open, drop)
+	wrapper = NewLazy(open, drop)
 
 	p.wrappers[name] = wrapper
 
@@ -102,7 +103,7 @@ func (p *SyncedPool) flush(id []byte) error {
 	// drop old DBs
 	for name := range p.queuedDrops {
 		w := p.wrappers[name]
-		p.erase(name)
+		delete(p.wrappers, name)
 		if w == nil {
 			continue
 		}
@@ -110,16 +111,14 @@ func (p *SyncedPool) flush(id []byte) error {
 		if db == nil {
 			continue
 		}
-		err := db.Close()
-		if err != nil {
-			return err
-		}
+		// db.Close() is called inside wrapper.Close()
 		db.Drop()
 	}
+	p.queuedDrops = make(map[string]struct{})
 
 	// write dirty flags
 	for _, w := range p.wrappers {
-		db := w.underlyingDb()
+		db := w.InitUnderlyingDb()
 
 		prev, err := db.Get(key)
 		if err != nil {
@@ -149,7 +148,7 @@ func (p *SyncedPool) flush(id []byte) error {
 
 	// write clean flags
 	for _, w := range p.wrappers {
-		db := w.underlyingDb()
+		db := w.InitUnderlyingDb()
 		err := db.Put(key, id)
 		if err != nil {
 			return err
@@ -158,11 +157,6 @@ func (p *SyncedPool) flush(id []byte) error {
 
 	p.prevFlushTime = time.Now()
 	return nil
-}
-
-func (p *SyncedPool) erase(name string) {
-	delete(p.wrappers, name)
-	delete(p.queuedDrops, name)
 }
 
 func (p *SyncedPool) FlushIfNeeded(id []byte) (bool, error) {
@@ -178,7 +172,7 @@ func (p *SyncedPool) FlushIfNeeded(id []byte) (bool, error) {
 		totalNotFlushed += db.NotFlushedSizeEst()
 	}
 
-	if totalNotFlushed > 100*1024*1024 {
+	if totalNotFlushed > 10*1024*1024 {
 		return true, p.flush(id)
 	}
 	return false, nil
@@ -198,13 +192,13 @@ func (p *SyncedPool) checkDbsSynced() error {
 		}
 	)
 	for name, w := range p.wrappers {
-		db := w.underlyingDb()
+		db := w.InitUnderlyingDb()
 
 		mark, err := db.Get(key)
 		if err != nil {
 			return err
 		}
-		descrs = append(descrs, fmt.Sprintf("%s: %s", name, mark))
+		descrs = append(descrs, fmt.Sprintf("%s: %s", name, hexutils.BytesToHex(mark)))
 
 		if bytes.HasPrefix(mark, []byte("dirty")) {
 			return fmt.Errorf("dirty state: %s", list())
@@ -214,18 +208,6 @@ func (p *SyncedPool) checkDbsSynced() error {
 		}
 		if !bytes.Equal(mark, *prevId) {
 			return fmt.Errorf("not synced: %s", list())
-		}
-	}
-	return nil
-}
-
-func (p *SyncedPool) CloseAll() error {
-	p.Lock()
-	defer p.Unlock()
-
-	for _, db := range p.wrappers {
-		if err := db.Close(); err != nil {
-			return err
 		}
 	}
 	return nil

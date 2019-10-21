@@ -1,13 +1,15 @@
 package gossip
 
 import (
+	"time"
+
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
 func cachedStore() *Store {
-	mems := memorydb.NewProdicer("", withDelay)
+	mems := memorydb.NewProducer("", withDelay)
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
 
@@ -15,7 +17,7 @@ func cachedStore() *Store {
 }
 
 func nonCachedStore() *Store {
-	mems := memorydb.NewProdicer("", withDelay)
+	mems := memorydb.NewProducer("", withDelay)
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := StoreConfig{}
 
@@ -23,14 +25,11 @@ func nonCachedStore() *Store {
 }
 
 func withDelay(db kvdb.KeyValueStore) kvdb.KeyValueStore {
-	// TODO: uncomment
-	/*
-		mem, ok := db.(*memorydb.Database)
-		if ok {
-			 mem.SetDelay(time.Millisecond)
+	mem, ok := db.(*memorydb.Database)
+	if ok {
+		mem.SetDelay(time.Millisecond)
 
-		}
-	*/
+	}
 
 	return db
 }

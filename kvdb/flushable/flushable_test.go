@@ -26,7 +26,7 @@ func TestFlushable(t *testing.T) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
 	}
-	disk := leveldb.NewProdicer(dir)
+	disk := leveldb.NewProducer(dir)
 
 	// open raw databases
 	leveldb1 := disk.OpenDb("1")

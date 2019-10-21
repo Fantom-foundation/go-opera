@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
@@ -26,6 +27,8 @@ type Poset struct {
 	vecClock *vector.Index
 
 	applyBlock inter.ApplyBlockFn
+
+	epochMu utils.SpinLock // protects p.Validators and p.EpochN
 
 	logger.Instance
 }
@@ -163,7 +166,7 @@ func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (de
 		},
 	})
 	if err != nil {
-		p.Log.Crit("If we're here, probably more than 1/3n are Byzantine, and the problem cannot be resolved automatically ",
+		p.Log.Crit("If we're here, probably more than 1/3W are Byzantine, and the problem cannot be resolved automatically ",
 			"err", err)
 	}
 	return decided
@@ -201,6 +204,19 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 	return
 }
 
+// forklessCausedByQuorumOn returns true if event is forkless caused by 2/3W roots on specified frame
+func (p *Poset) forklessCausedByQuorumOn(e *inter.Event, f idx.Frame) bool {
+	observedCounter := p.Validators.NewCounter()
+	// check "observing" prev roots only if called by creator, or if creator has marked that event as root
+	p.store.ForEachRoot(f, func(f idx.Frame, from common.Address, root hash.Event) bool {
+		if p.vecClock.ForklessCause(e.Hash(), root) {
+			observedCounter.Count(from)
+		}
+		return !observedCounter.HasQuorum()
+	})
+	return observedCounter.HasQuorum()
+}
+
 // calcFrameIdx checks root-conditions for new event
 // and returns event's frame.
 // It is not safe for concurrent use.
@@ -227,27 +243,47 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 		}
 	}
 
-	// counter of all the observed roots on maxParentsFrame
-	observedCounter := p.Validators.NewCounter()
-	if !checkOnly || e.IsRoot {
-		// check "observing" prev roots only if called by creator, or if creator has marked that event as root
-		p.store.ForEachRoot(maxParentsFrame, func(f idx.Frame, from common.Address, root hash.Event) bool {
-			if p.vecClock.ForklessCause(e.Hash(), root) {
-				observedCounter.Count(from)
-			}
-			return !observedCounter.HasQuorum()
-		})
-	}
-	if observedCounter.HasQuorum() {
-		// if I observe enough roots, then I become a root too
-		frame = maxParentsFrame + 1
-		isRoot = true
-	} else {
-		// I observe enough roots at maxParentsFrame-1, because some of my parents does.
-		frame = maxParentsFrame
-		// Calculates: Did my self-parent start the frame already? If not, the event is a root.
-		isRoot = maxParentsFrame > selfParentFrame
+	if checkOnly {
+		// check frame & isRoot
+		frame = e.Frame
+		if frame < selfParentFrame {
+			// every root must be greater than prev. self-root. Instead, election will be faulty
+			return selfParentFrame, false
+		}
+		if frame > maxParentsFrame+1 {
+			// sanity check
+			return maxParentsFrame + 1, false
+		}
+		if !e.IsRoot {
+			// don't check forklessCausedByQuorumOn if not claimed as root
+			// if not root, then not allowed to move frame
+			return selfParentFrame, false
+		}
+		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumOn(e, e.Frame-1))
+		return
 	}
 
-	return
+	// calculate frame & isRoot
+	for f := maxParentsFrame + 1; f > selfParentFrame; f-- {
+		// Use the loop as a protection against forks.
+		// In more detail, forklessCause relation isn't transitive, unlike "happened-before", so we have to
+		// explicitly check forklessCausedByQuorumAt, because every root must be forkless caused by 2/3W prev roots.
+		// If there's no forks, then forklessCausedByQuorumAt always returns true for maxParentsFrame-1
+
+		if p.forklessCausedByQuorumOn(e, f-1) {
+			frame = f
+			isRoot = frame > selfParentFrame
+			return
+		}
+	}
+	// If we're here, then forklessCausedByQuorumAt returned false for every f >= selfParentFrame
+	if e.SelfParent() == nil {
+		return 1, true
+	}
+	// Note: if we assign maxParentsFrame, it'll break the liveness for a case with forks, because there may be less
+	// than 2/3W possible roots at maxParentsFrame, even if 1 validator is cheater and 1/3W were offline for some time
+	// and didn't create roots at maxParentsFrame - they won't be able to create roots at maxParentsFrame because
+	// every frame must be greater than previous
+	return selfParentFrame, false
+
 }

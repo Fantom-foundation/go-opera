@@ -22,13 +22,19 @@ const (
 type Index struct {
 	validators    pos.Validators
 	validatorIdxs map[common.Address]idx.Validator
-	getEvent      func(hash.Event) *inter.EventHeaderData
+
+	bi *branchesInfo
+
+	getEvent func(hash.Event) *inter.EventHeaderData
 
 	vecDb kvdb.FlushableKeyValueStore
 	table struct {
 		HighestBeforeSeq  kvdb.KeyValueStore `table:"S"`
 		HighestBeforeTime kvdb.KeyValueStore `table:"T"`
 		LowestAfterSeq    kvdb.KeyValueStore `table:"s"`
+
+		EventBranch  kvdb.KeyValueStore `table:"b"`
+		BranchesInfo kvdb.KeyValueStore `table:"B"`
 	}
 
 	forklessCauseCache *lru.Cache
@@ -54,8 +60,10 @@ func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEven
 	// we use wrapper to be able to drop failed events by dropping cache
 	vi.getEvent = getEvent
 	vi.vecDb = flushable.Wrap(db)
-	vi.validators = validators
+	vi.validators = validators.Copy()
 	vi.validatorIdxs = validators.Idxs()
+	vi.DropNotFlushed()
+	vi.forklessCauseCache.Purge()
 
 	table.MigrateTables(&vi.table, vi.vecDb)
 }
@@ -67,11 +75,15 @@ func (vi *Index) Add(e *inter.EventHeaderData) {
 		vi.Log.Warn("Event already exists", "event", e.Hash().String())
 		return
 	}
+	vi.initBranchesInfo()
 	_ = vi.fillEventVectors(e)
 }
 
 // Flush writes vector clocks to persistent store.
 func (vi *Index) Flush() {
+	if vi.bi != nil {
+		vi.setBranchesInfo(vi.bi)
+	}
 	if err := vi.vecDb.Flush(); err != nil {
 		vi.Log.Crit("Failed to flush db", "err", err)
 	}
@@ -79,87 +91,171 @@ func (vi *Index) Flush() {
 
 // DropNotFlushed not connected clocks. Call it if event has failed.
 func (vi *Index) DropNotFlushed() {
+	vi.bi = nil
 	vi.vecDb.DropNotFlushed()
+}
+
+func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validator) idx.Validator {
+	// sanity checks
+	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+	}
+	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
+		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+	}
+	if len(vi.bi.BranchIDCreators) < len(vi.validators) {
+		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+	}
+
+	if e.SelfParent() == nil {
+		// is it first event indeed?
+		if vi.bi.BranchIDLastSeq[meIdx] == 0 {
+			// OK, not a new fork
+			vi.bi.BranchIDLastSeq[meIdx] = e.Seq
+			return meIdx
+		}
+	} else {
+		selfParentBranchID := vi.getEventBranchID(*e.SelfParent())
+		// sanity checks
+		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+		}
+		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
+			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
+		}
+		if vi.bi.BranchIDCreators[selfParentBranchID] != e.Creator {
+			vi.Log.Crit("Inconsistent BranchIDCreators (inconsistent DB). Wrong self-parent?", "event", e.String())
+		}
+
+		if vi.bi.BranchIDLastSeq[selfParentBranchID]+1 == e.Seq {
+			vi.bi.BranchIDLastSeq[selfParentBranchID] = e.Seq
+			// OK, not a new fork
+			return selfParentBranchID
+		}
+	}
+
+	// if we're here, then new fork is observed (only globally), create new branchID due to a new fork
+	vi.bi.BranchIDLastSeq = append(vi.bi.BranchIDLastSeq, e.Seq)
+	vi.bi.BranchIDCreators = append(vi.bi.BranchIDCreators, e.Creator)
+	vi.bi.BranchIDCreatorIdxs = append(vi.bi.BranchIDCreatorIdxs, meIdx)
+	newBranchID := idx.Validator(len(vi.bi.BranchIDLastSeq) - 1)
+	vi.bi.BranchIDByCreators[meIdx] = append(vi.bi.BranchIDByCreators[meIdx], newBranchID)
+	return newBranchID
+}
+
+func (vi *Index) setForkDetected(beforeSeq HighestBeforeSeq, branchID idx.Validator) {
+	creatorIdx := vi.bi.BranchIDCreatorIdxs[branchID]
+	for _, branchID := range vi.bi.BranchIDByCreators[creatorIdx] {
+		beforeSeq.Set(idx.Validator(branchID), forkDetectedSeq)
+	}
+	// sanity check
+	if !vi.atLeastOneFork() {
+		vi.Log.Crit("Not written the correct branches info (inconsistent DB)")
+	}
 }
 
 // fillEventVectors calculates (and stores) event's vectors, and updates LowestAfter of newly-observed events.
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	meIdx := vi.validatorIdxs[e.Creator]
 	myVecs := allVecs{
-		beforeCause: NewHighestBeforeSeq(len(vi.validatorIdxs)),
-		beforeTime:  NewHighestBeforeTime(len(vi.validatorIdxs)),
-		afterCause:  NewLowestAfterSeq(len(vi.validatorIdxs)),
+		beforeSeq:  NewHighestBeforeSeq(len(vi.bi.BranchIDCreators)),
+		beforeTime: NewHighestBeforeTime(len(vi.bi.BranchIDCreators)),
+		after:      NewLowestAfterSeq(len(vi.bi.BranchIDCreators)),
 	}
 
-	// observed by himself
-	myVecs.afterCause.Set(meIdx, e.Seq)
-	myVecs.beforeCause.Set(meIdx, ForkSeq{Seq: e.Seq})
-	myVecs.beforeTime.Set(meIdx, e.ClaimedTime)
+	meBranchID := vi.fillGlobalBranchID(e, meIdx)
 
 	// pre-load parents into RAM for quick access
 	parentsVecs := make([]allVecs, len(e.Parents))
-	parentsCreators := make([]idx.Validator, len(e.Parents))
+	parentsBranchIDs := make([]idx.Validator, len(e.Parents))
 	for i, p := range e.Parents {
-		parent := vi.getEvent(p)
-		if parent == nil {
-			vi.Log.Crit("Event not found", "event", p.String())
-		}
-		parentsCreators[i] = vi.validatorIdxs[parent.Creator]
+		parentsBranchIDs[i] = vi.getEventBranchID(p)
 		parentsVecs[i] = allVecs{
-			beforeCause: vi.GetHighestBeforeSeq(p),
-			beforeTime:  vi.GetHighestBeforeTime(p),
-			//afterCause : vi.GetLowestAfterSeq(p), not needed
+			beforeSeq:  vi.GetHighestBeforeSeq(p),
+			beforeTime: vi.GetHighestBeforeTime(p),
+			//after : vi.GetLowestAfterSeq(p), not needed
 		}
-		if parentsVecs[i].beforeCause == nil {
-			vi.Log.Crit("Processed out of order, parent not found", "parent", p.String())
+		if parentsVecs[i].beforeSeq == nil {
+			vi.Log.Crit("Processed out of order, parent not found (inconsistent DB)", "parent", p.String())
 		}
 	}
+
+	// observed by himself
+	myVecs.after.Set(meBranchID, e.Seq)
+	myVecs.beforeSeq.Set(meBranchID, BranchSeq{Seq: e.Seq, MinSeq: e.Seq})
+	myVecs.beforeTime.Set(meBranchID, e.ClaimedTime)
 
 	for _, pVec := range parentsVecs {
 		// calculate HighestBefore vector. Detect forks for a case when parent observes a fork
-		for n := idx.Validator(0); n < idx.Validator(len(vi.validatorIdxs)); n++ {
-			myForkSeq := myVecs.beforeCause.Get(n)
-			hisForkSeq := pVec.beforeCause.Get(n)
-
-			if myForkSeq.IsForkDetected {
+		for branchID := idx.Validator(0); branchID < idx.Validator(len(vi.bi.BranchIDCreators)); branchID++ {
+			hisSeq := pVec.beforeSeq.Get(branchID)
+			if hisSeq.Seq == 0 && !hisSeq.IsForkDetected() {
+				// hisSeq doesn't observe anything about this branchID
 				continue
 			}
-			if hisForkSeq.IsForkDetected || myForkSeq.Seq < hisForkSeq.Seq {
-				myVecs.beforeCause.Set(n, hisForkSeq)
-				myVecs.beforeTime.Set(n, pVec.beforeTime.Get(n))
+			mySeq := myVecs.beforeSeq.Get(branchID)
+
+			if mySeq.IsForkDetected() {
+				// mySeq observes the maximum already
+				continue
+			}
+			if hisSeq.IsForkDetected() {
+				// set fork detected
+				vi.setForkDetected(myVecs.beforeSeq, branchID)
+			} else {
+				if mySeq.Seq == 0 || mySeq.MinSeq > hisSeq.MinSeq {
+					// take hisSeq.MinSeq
+					mySeq.MinSeq = hisSeq.MinSeq
+					myVecs.beforeSeq.Set(branchID, mySeq)
+				}
+				if mySeq.Seq < hisSeq.Seq {
+					// take hisSeq.Seq
+					mySeq.Seq = hisSeq.Seq
+					myVecs.beforeSeq.Set(branchID, mySeq)
+					myVecs.beforeTime.Set(branchID, pVec.beforeTime.Get(branchID))
+				}
 			}
 		}
 	}
-
-	for _, pVec := range parentsVecs {
-		hisForkSeq := pVec.beforeCause.Get(meIdx)
-		// self-fork detection
-		if hisForkSeq.Seq >= e.Seq {
-			myVecs.beforeCause.Set(meIdx, ForkSeq{IsForkDetected: true, Seq: 0})
+	// Detect forks, which were not observed by parents
+	for n := idx.Validator(0); n < idx.Validator(len(vi.validators)); n++ {
+		if myVecs.beforeSeq.Get(n).IsForkDetected() {
+			// fork is already detected from the creator
+			continue
 		}
+		for _, branchID1 := range vi.bi.BranchIDByCreators[n] {
+			for _, branchID2 := range vi.bi.BranchIDByCreators[n] {
+				if branchID1 == branchID2 {
+					continue
+				}
+
+				a := myVecs.beforeSeq.Get(branchID1)
+				b := myVecs.beforeSeq.Get(branchID2)
+
+				if a.Seq == 0 || b.Seq == 0 {
+					continue
+				}
+				if a.MinSeq <= b.Seq && b.MinSeq <= a.Seq {
+					vi.setForkDetected(myVecs.beforeSeq, n)
+					goto nextCreator
+				}
+			}
+		}
+	nextCreator:
 	}
 
 	for _, headP := range e.Parents {
 		// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
 		walk := func(w *inter.EventHeaderData) (godeeper bool) {
 			wLowestAfterSeq := vi.GetLowestAfterSeq(w.Hash())
-			godeeper = wLowestAfterSeq.Get(meIdx) == 0
+
+			godeeper = wLowestAfterSeq.Get(meBranchID) == 0
 			if !godeeper {
 				return
 			}
 
-			wCreatorIdx := vi.validatorIdxs[w.Creator]
-
-			// 'walk' is first time observed by e.Creator
-			// Detect forks for a case when fork is detected only if we combine parents
-			for i, pVec := range parentsVecs {
-				if pVec.beforeCause.Get(wCreatorIdx).Seq >= w.Seq && wLowestAfterSeq.Get(parentsCreators[i]) == 0 {
-					myVecs.beforeCause.Set(wCreatorIdx, ForkSeq{IsForkDetected: true, Seq: 0})
-				}
-			}
-
-			// update LowestAfter vector of the newly-observed event
-			wLowestAfterSeq.Set(meIdx, e.Seq)
+			// update LowestAfter vector of the old event, because newly-connected event observes it
+			wLowestAfterSeq.Set(meBranchID, e.Seq)
 			vi.SetLowestAfter(w.Hash(), wLowestAfterSeq)
 
 			return
@@ -172,8 +268,47 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	}
 
 	// store calculated vectors
-	vi.SetHighestBefore(e.Hash(), myVecs.beforeCause, myVecs.beforeTime)
-	vi.SetLowestAfter(e.Hash(), myVecs.afterCause)
+	vi.SetHighestBefore(e.Hash(), myVecs.beforeSeq, myVecs.beforeTime)
+	vi.SetLowestAfter(e.Hash(), myVecs.after)
+	vi.setEventBranchID(e.Hash(), meBranchID)
 
 	return myVecs
+}
+
+// GetHighestBeforeAllBranches returns HighestBefore vector clock without branches, where branches are merged into one
+func (vi *Index) GetHighestBeforeAllBranches(id hash.Event) HighestBeforeSeq {
+	mergedSeq, _ := vi.getHighestBeforeAllBranchesTime(id)
+	return mergedSeq
+}
+
+func (vi *Index) getHighestBeforeAllBranchesTime(id hash.Event) (HighestBeforeSeq, HighestBeforeTime) {
+	vi.initBranchesInfo()
+
+	if vi.atLeastOneFork() {
+		beforeSeq := vi.GetHighestBeforeSeq(id)
+		times := vi.GetHighestBeforeTime(id)
+		mergedTimes := NewHighestBeforeTime(len(vi.validators))
+		mergedSeq := NewHighestBeforeSeq(len(vi.validators))
+		for creatorIdx, branches := range vi.bi.BranchIDByCreators {
+			// read all branches to find highest event
+			highestBranchSeq := BranchSeq{}
+			highestBranchTime := inter.Timestamp(0)
+			for _, branchID := range branches {
+				branch := beforeSeq.Get(branchID)
+				if branch.IsForkDetected() {
+					highestBranchSeq = branch
+					break
+				}
+				if branch.Seq > highestBranchSeq.Seq {
+					highestBranchSeq = branch
+					highestBranchTime = times.Get(branchID)
+				}
+			}
+			mergedTimes.Set(idx.Validator(creatorIdx), highestBranchTime)
+			mergedSeq.Set(idx.Validator(creatorIdx), highestBranchSeq)
+		}
+
+		return mergedSeq, mergedTimes
+	}
+	return vi.GetHighestBeforeSeq(id), vi.GetHighestBeforeTime(id)
 }

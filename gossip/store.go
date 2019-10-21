@@ -1,14 +1,17 @@
 package gossip
 
 import (
+	"bytes"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
@@ -58,7 +61,7 @@ type Store struct {
 
 // NewMemStore creates store over memory map.
 func NewMemStore() *Store {
-	mems := memorydb.NewProdicer("")
+	mems := memorydb.NewProducer("")
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
 
@@ -108,12 +111,20 @@ func (s *Store) Close() {
 }
 
 // Commit changes.
-func (s *Store) Commit(e hash.Event, immediately bool) error {
-	if immediately {
-		return s.dbs.Flush(e.Bytes())
+func (s *Store) Commit(flushID []byte, immediately bool) error {
+	if flushID == nil {
+		// if flushId not specified, use current time
+		buf := bytes.NewBuffer(nil)
+		buf.Write([]byte{0xbe, 0xee})                                    // 0xbeee eyecatcher that flushed time
+		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
+		flushID = buf.Bytes()
 	}
 
-	_, err := s.dbs.FlushIfNeeded(e.Bytes())
+	if immediately {
+		return s.dbs.Flush(flushID)
+	}
+
+	_, err := s.dbs.FlushIfNeeded(flushID)
 	return err
 }
 

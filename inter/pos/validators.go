@@ -1,7 +1,6 @@
 package pos
 
 import (
-	"bytes"
 	"io"
 	"sort"
 
@@ -38,20 +37,29 @@ func (vv Validators) Addresses() []common.Address {
 }
 
 // SortedAddresses returns deterministically sorted addresses.
+// The order is the same as for Idxs().
 func (vv Validators) SortedAddresses() []common.Address {
-	array := vv.Addresses()
-	sort.Slice(array, func(i, j int) bool {
-		a, b := array[i], array[j]
-		return bytes.Compare(a.Bytes(), b.Bytes()) < 0
-	})
+	array := make([]common.Address, len(vv))
+	for i, s := range vv.sortedArray() {
+		array[i] = s.Addr
+	}
 	return array
+}
+
+// Idxs gets deterministic total order of validators.
+func (vv Validators) Idxs() map[common.Address]idx.Validator {
+	idxs := make(map[common.Address]idx.Validator, len(vv))
+	for i, v := range vv.sortedArray() {
+		idxs[v.Addr] = idx.Validator(i)
+	}
+	return idxs
 }
 
 func (vv Validators) sortedArray() validators {
 	array := make(validators, 0, len(vv))
-	for n, s := range vv {
+	for addr, s := range vv {
 		array = append(array, validator{
-			Addr:  n,
+			Addr:  addr,
 			Stake: s,
 		})
 	}
@@ -82,15 +90,6 @@ func (vv Validators) Copy() Validators {
 		res.Set(addr, stake)
 	}
 	return res
-}
-
-// Idxs gets deterministic total order of validators.
-func (vv Validators) Idxs() map[common.Address]idx.Validator {
-	idxs := make(map[common.Address]idx.Validator, len(vv))
-	for i, v := range vv.sortedArray() {
-		idxs[v.Addr] = idx.Validator(i)
-	}
-	return idxs
 }
 
 // Quorum limit of validators.

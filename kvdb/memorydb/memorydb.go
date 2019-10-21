@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -24,6 +25,8 @@ type Database struct {
 	db     map[string][]byte
 	onDrop func()
 	lock   sync.RWMutex
+
+	lag time.Duration
 }
 
 // New returns a wrapped map with all the required database interface methods
@@ -70,6 +73,11 @@ func (db *Database) Drop() {
 	}
 }
 
+// SetDelay on database operations for bench purpose.
+func (db *Database) SetDelay(d time.Duration) {
+	db.lag = d
+}
+
 // Has retrieves if a key is present in the key-value store.
 func (db *Database) Has(key []byte) (bool, error) {
 	db.lock.RLock()
@@ -78,6 +86,11 @@ func (db *Database) Has(key []byte) (bool, error) {
 	if db.db == nil {
 		return false, errMemorydbClosed
 	}
+
+	if db.lag != 0 {
+		time.Sleep(db.lag)
+	}
+
 	_, ok := db.db[string(key)]
 	return ok, nil
 }
@@ -90,6 +103,11 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 	if db.db == nil {
 		return nil, errMemorydbClosed
 	}
+
+	if db.lag != 0 {
+		time.Sleep(db.lag)
+	}
+
 	if entry, ok := db.db[string(key)]; ok {
 		return common.CopyBytes(entry), nil
 	}
@@ -104,6 +122,11 @@ func (db *Database) Put(key []byte, value []byte) error {
 	if db.db == nil {
 		return errMemorydbClosed
 	}
+
+	if db.lag != 0 {
+		time.Sleep(db.lag)
+	}
+
 	db.db[string(key)] = common.CopyBytes(value)
 	return nil
 }
@@ -116,6 +139,11 @@ func (db *Database) Delete(key []byte) error {
 	if db.db == nil {
 		return errMemorydbClosed
 	}
+
+	if db.lag != 0 {
+		time.Sleep(db.lag)
+	}
+
 	delete(db.db, string(key))
 	return nil
 }
@@ -160,6 +188,7 @@ func (db *Database) NewIteratorWithStart(start []byte) ethdb.Iterator {
 	return &iterator{
 		keys:   keys,
 		values: values,
+		lag:    db.lag,
 	}
 }
 
@@ -188,6 +217,7 @@ func (db *Database) NewIteratorWithPrefix(prefix []byte) ethdb.Iterator {
 	return &iterator{
 		keys:   keys,
 		values: values,
+		lag:    db.lag,
 	}
 }
 
@@ -291,11 +321,17 @@ type iterator struct {
 	inited bool
 	keys   []string
 	values [][]byte
+
+	lag time.Duration
 }
 
 // Next moves the iterator to the next key/value pair. It returns whether the
 // iterator is exhausted.
 func (it *iterator) Next() bool {
+	if it.lag != 0 {
+		time.Sleep(it.lag)
+	}
+
 	// If the iterator was not yet initialized, do it now
 	if !it.inited {
 		it.inited = true

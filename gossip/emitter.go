@@ -66,8 +66,7 @@ type Emitter struct {
 	done chan struct{}
 	wg   sync.WaitGroup
 
-	logger.Instance
-	utils.PeriodicLogger
+	logger.Periodic
 }
 
 type selfForkProtection struct {
@@ -87,13 +86,12 @@ func NewEmitter(
 	txTime, _ := lru.New(TxTimeBufferSize)
 	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		dag:            &config.Net.Dag,
-		config:         &config.Emitter,
-		world:          world,
-		gasRate:        metrics.NewMeterForced(),
-		txTime:         txTime,
-		Instance:       loggerInstance,
-		PeriodicLogger: utils.PeriodicLogger{Instance: loggerInstance},
+		dag:      &config.Net.Dag,
+		config:   &config.Emitter,
+		world:    world,
+		gasRate:  metrics.NewMeterForced(),
+		txTime:   txTime,
+		Periodic: logger.Periodic{Instance: loggerInstance},
 	}
 }
 
@@ -109,6 +107,7 @@ func (em *Emitter) StartEventEmission() {
 
 	em.prevEmittedTime = em.loadPrevEmitTime()
 	em.syncStatus.connectedTime = time.Now()
+	em.syncStatus.wasValidator = true
 
 	done := em.done
 	em.wg.Add(1)
@@ -254,12 +253,12 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 	var strategy ancestor.SearchStrategy
 	vecClock := em.world.Engine.GetVectorIndex()
 	if vecClock != nil {
-		strategy = ancestor.NewCasualityStrategy(vecClock)
+		strategy = ancestor.NewCasualityStrategy(vecClock, em.world.Engine.GetValidators())
 
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.PeriodicLogger.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil, nil, false
 		}
 	} else {
@@ -307,7 +306,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == coinbase && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.PeriodicLogger.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -384,30 +383,6 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	return event
 }
 
-func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
-	// No txs if power is low
-	{
-		threshold := em.config.NoTxsThreshold
-		if e.GasPowerLeft <= threshold {
-			return 0
-		}
-	}
-	// Smooth TPS if power isn't big
-	{
-		threshold := em.config.SmoothTpsThreshold
-		if e.GasPowerLeft <= threshold {
-			// it's emitter, so no need in determinism => fine to use float
-			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
-			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
-			if maxGasUsed > basic_check.MaxGasPowerUsed {
-				maxGasUsed = basic_check.MaxGasPowerUsed
-			}
-			return maxGasUsed
-		}
-	}
-	return basic_check.MaxGasPowerUsed
-}
-
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
 	now := time.Now()
@@ -454,12 +429,47 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool, string, time.Duration) {
 	if !synced {
 		if wait == 0 {
-			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason)
+			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason)
 		} else {
-			em.PeriodicLogger.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
+			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
 		}
 	}
 	return synced, reason, wait
+}
+
+// return true if event is in epoch tail (unlikely to confirm)
+func (em *Emitter) isEpochTail(e *inter.Event) bool {
+	return e.Frame >= em.dag.EpochLen-em.config.EpochTailLength
+}
+
+func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
+	// No txs in epoch tail, because tail events are unlikely to confirm
+	{
+		if em.isEpochTail(e) {
+			return 0
+		}
+	}
+	// No txs if power is low
+	{
+		threshold := em.config.NoTxsThreshold
+		if e.GasPowerLeft <= threshold {
+			return 0
+		}
+	}
+	// Smooth TPS if power isn't big
+	{
+		threshold := em.config.SmoothTpsThreshold
+		if e.GasPowerLeft <= threshold {
+			// it's emitter, so no need in determinism => fine to use float
+			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
+			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
+			if maxGasUsed > basic_check.MaxGasPowerUsed {
+				maxGasUsed = basic_check.MaxGasPowerUsed
+			}
+			return maxGasUsed
+		}
+	}
+	return basic_check.MaxGasPowerUsed
 }
 
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
@@ -483,16 +493,17 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
 			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
-				em.PeriodicLogger.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
 		}
 	}
-	// Slow down emitting if no txs to confirm/post
+	// Slow down emitting if no txs to confirm/post, and not at epoch tail
 	{
 		if passedTime < em.config.MaxEmitInterval &&
 			em.world.OccurredTxs.Len() == 0 &&
-			len(e.Transactions) == 0 {
+			len(e.Transactions) == 0 &&
+			!em.isEpochTail(e) {
 			return false
 		}
 	}
@@ -521,7 +532,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	em.Log.Info("New event emitted", "event", e.String())
+	em.Log.Info("New event emitted", "event", e.String(), "address", e.Creator)
 
 	return e
 }

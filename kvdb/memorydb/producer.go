@@ -11,8 +11,8 @@ type producer struct {
 	mods []Mod
 }
 
-// NewProdicer of memory db.
-func NewProdicer(namespace string, mods ...Mod) kvdb.DbProducer {
+// NewProducer of memory db.
+func NewProducer(namespace string, mods ...Mod) kvdb.DbProducer {
 	return &producer{
 		fs:   newFakeFS(namespace),
 		mods: mods,

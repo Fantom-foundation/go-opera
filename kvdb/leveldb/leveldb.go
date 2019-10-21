@@ -120,6 +120,10 @@ func (db *Database) Close() error {
 	db.quitLock.Lock()
 	defer db.quitLock.Unlock()
 
+	if db.db == nil {
+		panic("already closed")
+	}
+
 	if db.quitChan != nil {
 		errc := make(chan error)
 		db.quitChan <- errc
@@ -132,11 +136,11 @@ func (db *Database) Close() error {
 	ldb := db.db
 	db.db = nil
 
-	if db.onClose == nil {
-		return nil
-	}
-	if err := db.onClose(); err != nil {
-		panic(err)
+	if db.onClose != nil {
+		if err := db.onClose(); err != nil {
+			return err
+		}
+		db.onClose = nil
 	}
 	if err := ldb.Close(); err != nil {
 		return err

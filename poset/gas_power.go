@@ -21,7 +21,7 @@ func sub(a *big.Int, b uint64) {
 	a.Sub(a, new(big.Int).SetUint64(b))
 }
 
-func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, maxStashed, startup uint64) {
+func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, maxGasPower, startup uint64) {
 	stake, ok := p.Validators[validator]
 	if !ok {
 		return 0, 0, 0
@@ -34,10 +34,10 @@ func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, ma
 	div(validatorGasPowerPerH_bn, uint64(p.Validators.TotalStake()))
 	perHour = validatorGasPowerPerH_bn.Uint64()
 
-	validatorMaxStashed_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
-	mul(validatorMaxStashed_bn, uint64(gas.MaxStashedPeriod))
-	div(validatorMaxStashed_bn, uint64(time.Hour))
-	maxStashed = validatorMaxStashed_bn.Uint64()
+	validatorMaxGasPower_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
+	mul(validatorMaxGasPower_bn, uint64(gas.MaxGasPowerPeriod))
+	div(validatorMaxGasPower_bn, uint64(time.Hour))
+	maxGasPower = validatorMaxGasPower_bn.Uint64()
 
 	validatorStartup_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
 	mul(validatorStartup_bn, uint64(gas.StartupPeriod))
@@ -52,7 +52,7 @@ func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, ma
 
 // CalcGasPower calculates available gas power for the event, i.e. how many gas its content may consume
 func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
-	gasPowerPerH, maxStashed, startup := p.calcValidatorGasPowerPerH(e.Creator)
+	gasPowerPerH, maxGasPower, startup := p.calcValidatorGasPowerPerH(e.Creator)
 
 	var prevGasPowerLeft uint64
 	var prevMedianTime inter.Timestamp
@@ -63,23 +63,28 @@ func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
 		prevMedianTime = selfParent.MedianTime
 	} else if prevConfirmedHeader := p.PrevEpoch.LastHeaders[e.Creator]; prevConfirmedHeader != nil {
 		prevGasPowerLeft = prevConfirmedHeader.GasPowerLeft
+		if prevGasPowerLeft < startup {
+			prevGasPowerLeft = startup
+		}
 		prevMedianTime = prevConfirmedHeader.MedianTime
 	} else {
 		prevGasPowerLeft = startup
 		prevMedianTime = p.PrevEpoch.Time
 	}
 
-	if prevGasPowerLeft > maxStashed {
-		prevGasPowerLeft = maxStashed
-	}
 	if prevMedianTime > e.MedianTime {
 		prevMedianTime = e.MedianTime // do not change e.MedianTime
 	}
 
-	gasPower_bn := new(big.Int).SetUint64(uint64(e.MedianTime))
-	sub(gasPower_bn, uint64(prevMedianTime))
-	mul(gasPower_bn, gasPowerPerH)
-	div(gasPower_bn, uint64(time.Hour))
+	gasPowerAllocated_bn := new(big.Int).SetUint64(uint64(e.MedianTime))
+	sub(gasPowerAllocated_bn, uint64(prevMedianTime))
+	mul(gasPowerAllocated_bn, gasPowerPerH)
+	div(gasPowerAllocated_bn, uint64(time.Hour))
 
-	return gasPower_bn.Uint64() + prevGasPowerLeft
+	gasPower := gasPowerAllocated_bn.Uint64() + prevGasPowerLeft
+	if gasPower > maxGasPower {
+		gasPower = maxGasPower
+	}
+
+	return gasPower
 }

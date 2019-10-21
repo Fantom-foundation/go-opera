@@ -5,12 +5,12 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/Fantom-foundation/go-lachesis/event_check"
 	"github.com/Fantom-foundation/go-lachesis/event_check/heavy_check"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 /*
@@ -21,6 +21,7 @@ import (
  */
 
 const (
+	forgetTimeout = 1 * time.Minute         // Time before an announced event is forgotten
 	arriveTimeout = 1000 * time.Millisecond // Time allowance before an announced event is explicitly requested
 	gatherSlack   = 100 * time.Millisecond  // Interval used to collate almost-expired announces with fetches
 	fetchTimeout  = 10 * time.Second        // Maximum allowed time to return an explicitly requested event
@@ -90,9 +91,13 @@ type Fetcher struct {
 	callback Callback
 
 	// Announce states
+	stateMu   utils.SpinLock                // Protects announces and announced
 	announces map[string]int                // Per peer announce counts to prevent memory exhaustion
 	announced map[hash.Event][]*oneAnnounce // Announced events, scheduled for fetching
-	fetching  map[hash.Event]*oneAnnounce   // Announced events, currently fetching
+
+	fetching map[hash.Event]*oneAnnounce // Announced events, currently fetching
+
+	logger.Periodic
 }
 
 type Callback struct {
@@ -106,6 +111,7 @@ type Callback struct {
 
 // New creates a event fetcher to retrieve events based on hash announcements.
 func New(callback Callback) *Fetcher {
+	loggerInstance := logger.MakeInstance()
 	return &Fetcher{
 		notify:    make(chan *announcesBatch, maxQueuedAnns),
 		inject:    make(chan *inject, maxQueuedInjects),
@@ -114,6 +120,8 @@ func New(callback Callback) *Fetcher {
 		announced: make(map[hash.Event][]*oneAnnounce),
 		fetching:  make(map[hash.Event]*oneAnnounce),
 		callback:  callback,
+
+		Periodic: logger.Periodic{Instance: loggerInstance},
 	}
 }
 
@@ -131,15 +139,37 @@ func (f *Fetcher) Stop() {
 	f.callback.HeavyCheck.Stop()
 }
 
+// Overloaded returns true if too much events are being processed or requested
 func (f *Fetcher) Overloaded() bool {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	return f.overloaded()
+}
+
+func (f *Fetcher) overloaded() bool {
 	return len(f.inject) > maxQueuedInjects*3/4 ||
 		len(f.notify) > maxQueuedAnns*3/4 ||
-		len(f.announced) > hashLimit ||
+		len(f.announced) > hashLimit || // protected by stateMu
 		f.callback.HeavyCheck.Overloaded()
 }
 
+// OverloadedPeer returns true if too much events are being processed or requested from the peer
 func (f *Fetcher) OverloadedPeer(peer string) bool {
-	return f.Overloaded() || f.announces[peer] > hashLimit/2 // TODO must be synced
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	return f.overloaded() || f.announces[peer] > hashLimit/2 // protected by stateMu
+}
+
+func (f *Fetcher) setAnnounces(peer string, num int) {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	f.announces[peer] = num
+}
+
+func (f *Fetcher) setAnnounced(id hash.Event, announces []*oneAnnounce) {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+	f.announced[id] = announces
 }
 
 // Notify announces the fetcher of the potential availability of a new event in
@@ -168,12 +198,13 @@ func (f *Fetcher) Notify(peer string, hashes hash.Events, time time.Time, fetchE
 }
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
-func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, time time.Time, fetchEvents EventsRequesterFn) error {
+func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetchEvents EventsRequesterFn) error {
 	// Run light checks right away
 	passed := make(inter.Events, 0, len(inEvents))
 	for _, e := range inEvents {
 		err := f.callback.FirstCheck(e)
 		if event_check.IsBan(err) {
+			f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 			f.callback.DropPeer(peer)
 			return err
 		}
@@ -188,6 +219,8 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, time time.Time, fe
 		passed := make(inter.Events, 0, len(res.Events))
 		for i, err := range res.Result {
 			if event_check.IsBan(err) {
+				e := res.Events[i]
+				f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 				f.callback.DropPeer(peer)
 				return
 			}
@@ -196,7 +229,7 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, time time.Time, fe
 			}
 		}
 		// after all these checks, actually enqueue the events into fetcher
-		_ = f.enqueue(peer, passed, time, fetchEvents)
+		_ = f.enqueue(peer, passed, t, fetchEvents)
 	})
 }
 
@@ -247,7 +280,7 @@ func (f *Fetcher) loop() {
 
 			count := f.announces[notification.peer]
 			if count+len(notification.hashes) > hashLimit {
-				log.Debug("Peer exceeded outstanding announces", "peer", notification.peer, "limit", hashLimit)
+				f.Periodic.Debug(time.Second, "Peer exceeded outstanding announces", "peer", notification.peer, "limit", hashLimit)
 				propAnnounceDOSMeter.Update(1)
 				break
 			}
@@ -267,7 +300,7 @@ func (f *Fetcher) loop() {
 					batch: notification,
 					i:     i,
 				}
-				f.announced[id] = append(f.announced[id], ann)
+				f.setAnnounced(id, append(f.announced[id], ann))
 				count++ // f.announced and f.announces must be synced!
 				// if it wasn't announced before, then schedule for fetching this time
 				if _, ok := f.fetching[id]; !ok {
@@ -275,12 +308,12 @@ func (f *Fetcher) loop() {
 					toFetch.Add(id)
 				}
 			}
-			f.announces[notification.peer] = count
+			f.setAnnounces(notification.peer, count)
 
 			if len(toFetch) != 0 {
 				err := notification.fetchEvents(toFetch)
 				if err != nil {
-					log.Error("Events request error", "peer", notification.peer, "err", err)
+					f.Periodic.Warn(time.Second, "Events request error", "peer", notification.peer, "err", err)
 				}
 			}
 
@@ -321,10 +354,15 @@ func (f *Fetcher) loop() {
 			}
 			notArrived := f.callback.OnlyInterested(all)
 
-			// Re-fetch not arrived events
 			for _, e := range notArrived {
+				// Re-fetch not arrived events
 				announces := f.announced[e]
-				if time.Since(announces[0].batch.time) > arriveTimeout-gatherSlack { // first is the oldest
+
+				oldest := announces[0] // first is the oldest
+				if time.Since(oldest.batch.time) > forgetTimeout {
+					// Forget too old announces
+					f.forgetHash(e)
+				} else if time.Since(oldest.batch.time) > arriveTimeout-gatherSlack {
 					// The event still didn't arrive, queue for fetching from a random peer
 					announce := announces[rand.Intn(len(announces))]
 					request[announce.batch.peer] = append(request[announce.batch.peer], e)
@@ -344,7 +382,7 @@ func (f *Fetcher) loop() {
 
 			// Send out all event requests
 			for peer, hashes := range request {
-				log.Trace("Fetching scheduled events", "peer", peer, "count", len(hashes))
+				f.Log.Trace("Fetching scheduled events", "peer", peer, "count", len(hashes))
 
 				// Create a closure of the fetch and schedule in on a new thread
 				fetchEvents, hashes := f.fetching[hashes[0]].batch.fetchEvents, hashes
@@ -352,7 +390,7 @@ func (f *Fetcher) loop() {
 					eventFetchMeter.Update(int64(len(hashes)))
 					err := fetchEvents(hashes)
 					if err != nil {
-						log.Error("Events request error", "peer", peer, "err", err)
+						f.Periodic.Warn(time.Second, "Events request error", "peer", peer, "err", err)
 					}
 				}(peer)
 			}
@@ -381,6 +419,9 @@ func (f *Fetcher) rescheduleFetch(fetch *time.Timer) {
 // forgetHash removes all traces of a event announcement from the fetcher's
 // internal state.
 func (f *Fetcher) forgetHash(hash hash.Event) {
+	f.stateMu.Lock()
+	defer f.stateMu.Unlock()
+
 	// Remove all pending announces and decrement DOS counters
 	for _, announce := range f.announced[hash] {
 		f.announces[announce.batch.peer]--
