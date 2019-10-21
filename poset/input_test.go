@@ -99,7 +99,7 @@ func TestEventStore(t *testing.T) {
 	t.Run("Events", func(t *testing.T) {
 		assertar := assert.New(t)
 
-		events := inter.FakeFuzzingEvents()
+		events := inter.FakeEventWithOneEpoch()
 		for _, e0 := range events {
 			store.SetEvent(e0)
 			e1 := store.GetEvent(e0.Hash())

@@ -45,7 +45,7 @@ func TestEventSerialization(t *testing.T) {
 
 func TestEventHash(t *testing.T) {
 	var (
-		events = FakeFuzzingEvents()
+		events = FakeEventWithOneEpoch()
 		hashes = make([]hash.Event, len(events))
 	)
 

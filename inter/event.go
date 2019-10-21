@@ -215,36 +215,6 @@ func (e *Event) Size() int {
  * Utils:
  */
 
-// FakeFuzzingEvents generates random independent events for test purpose.
-func FakeFuzzingEvents() (res []*Event) {
-	creators := []common.Address{
-		{},
-		hash.FakePeer(),
-		hash.FakePeer(),
-		hash.FakePeer(),
-	}
-	parents := []hash.Events{
-		hash.FakeEvents(1),
-		hash.FakeEvents(2),
-		hash.FakeEvents(8),
-	}
-	i := 0
-	for c := 0; c < len(creators); c++ {
-		for p := 0; p < len(parents); p++ {
-			e := NewEvent()
-			e.Seq = idx.Event(p)
-			e.Creator = creators[c]
-			e.Parents = parents[p]
-			e.Extra = []byte{}
-			e.Sig = []byte{}
-
-			res = append(res, e)
-			i++
-		}
-	}
-	return
-}
-
 // FakeEventWithOneEpoch generates random independent events with one epoch for test purpose.
 func FakeEventWithOneEpoch() (res []*Event) {
 	creators := []common.Address{
