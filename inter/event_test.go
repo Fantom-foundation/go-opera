@@ -37,7 +37,7 @@ func TestEventSerialization(t *testing.T) {
 		assertar.Equal(len(buf), e1.CalcSize())
 		assertar.Equal(len(buf), e1.Size())
 
-		if !assertar.Equal(e0.EventHeader, e1.EventHeader, dsc) {
+		if !assertar.Equal(e0, e1, dsc) {
 			break
 		}
 	}
