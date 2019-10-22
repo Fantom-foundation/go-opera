@@ -2,9 +2,9 @@ package inter
 
 /*
 	Serializers for:
-	- Event
-	- EventHeader
-	- EventHeaderData
+	- Event (RLP)
+	- EventHeader (RLP)
+	- EventHeaderData (Binary & RLP)
 */
 
 import (
@@ -35,7 +35,7 @@ type (
 )
 
 /*
-	EventHeaderData serializers
+	EventHeaderData RLP serializers
 */
 func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
 	bytes, err := e.MarshalBinary()
@@ -57,6 +57,77 @@ func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
 
 	return err
 }
+
+/*
+	EventHeader RLP serializers
+*/
+func (e *EventHeader) EncodeRLP(w io.Writer) error {
+	eh := eventHeaderType{
+		EventHeaderData: e.EventHeaderData,
+		Sig:             e.Sig,
+	}
+
+	err := rlp.Encode(w, eh)
+
+	return err
+}
+func (e *EventHeader) DecodeRLP(src *rlp.Stream) error {
+	bytes, err := src.Raw()
+	if err != nil {
+		return err
+	}
+
+	eh := eventHeaderType{}
+	err = rlp.DecodeBytes(bytes, &eh)
+	if err != nil {
+		return err
+	}
+
+	e.EventHeaderData = eh.EventHeaderData
+	e.Sig = eh.Sig
+
+	return nil
+}
+
+/*
+	Event RLP serializers
+*/
+func (e *Event) EncodeRLP(w io.Writer) error {
+	ev := eventType{
+		EventHeader: eventHeaderType{
+			EventHeaderData: e.EventHeaderData,
+			Sig:             e.Sig,
+		},
+		Transactions: e.Transactions,
+		size:         e.size,
+	}
+
+	err := rlp.Encode(w, &ev)
+
+	return err
+}
+func (e *Event) DecodeRLP(src *rlp.Stream) error {
+	bytes, err := src.Raw()
+	if err != nil {
+		return err
+	}
+
+	ev := eventType{}
+	err = rlp.DecodeBytes(bytes, &ev)
+	if err != nil {
+		return err
+	}
+
+	e.EventHeader.EventHeaderData = ev.EventHeader.EventHeaderData
+	e.EventHeader.Sig = ev.EventHeader.Sig
+	e.Transactions = ev.Transactions
+
+	return nil
+}
+
+/*
+	EventHeaderData binary serialization
+*/
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	parentsCount := 0
 	if e.Parents != nil {
@@ -98,18 +169,25 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 
 	bytesBuf := make([]byte, length, length)
 
+	// Sizes in bytes, enough for save intX values, save to bit buffer
+
+	// Calculate header size required for BitArray buffers
 	header32Size := fast.BitArraySizeCalc(2, len(fields32))
 	header64Size := fast.BitArraySizeCalc(4, len(fields64))
 	headerBoolSize := fast.BitArraySizeCalc(1, len(fieldsBool))
 	headerSize := header32Size + header64Size + headerBoolSize
 
+	// Set buffers like slice from main buffer
 	header32buf := bytesBuf[0:header32Size]
 	header64buf := bytesBuf[header32Size : header32Size+header64Size]
 	headerBoolBuf := bytesBuf[header32Size+header64Size : headerSize]
+
+	// Create BitArrays for work with headers
 	header32 := fast.NewBitArray(2, &header32buf)
 	header64 := fast.NewBitArray(4, &header64buf)
 	headerBool := fast.NewBitArray(1, &headerBoolBuf)
 
+	// Separate slices for header and data buffer
 	dataBuf := bytesBuf[headerSize:]
 	buf := fast.NewBuffer(&dataBuf)
 
@@ -136,8 +214,9 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	buf.Write(e.PrevEpochHash.Bytes())
 	buf.Write(e.TxHash.Bytes())
 
+	// Write parents without Epoch (-4 bytes per parent for save)
 	for _, parent := range e.Parents {
-		buf.Write(parent.Bytes()[4:common.HashLength]) // Write parents without Epoch
+		buf.Write(parent.Bytes()[4:common.HashLength])
 	}
 
 	buf.Write(e.Extra)
@@ -167,6 +246,7 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 		&e.IsRoot,
 	}
 
+	// Create buffers for read bits packed data about sizes of intX values
 	header32Size := fast.BitArraySizeCalc(2, len(fields32))
 	header64Size := fast.BitArraySizeCalc(4, len(fields64))
 	headerBoolSize := fast.BitArraySizeCalc(1, len(fieldsBool))
@@ -175,21 +255,23 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	header32buf := src[0:header32Size]
 	header64buf := src[header32Size : header32Size+header64Size]
 	headerBoolBuf := src[header32Size+header64Size : headerSize]
+
 	header32 := fast.NewBitArray(2, &header32buf)
 	header64 := fast.NewBitArray(4, &header64buf)
 	headerBool := fast.NewBitArray(1, &headerBoolBuf)
 
+	// Buffer for data read
 	dataBuf := src[headerSize:]
 	buf := fast.NewBuffer(&dataBuf)
 
 	for _, f := range fields32 {
 		n := header32.Pop()
-		*f = readUint32Compact(buf, n + 1)
+		*f = readUint32Compact(buf, n+1)
 	}
 
 	for _, f := range fields64 {
 		n := header64.Pop()
-		*f = readUint64Compact(buf, n + 1)
+		*f = readUint64Compact(buf, n+1)
 	}
 
 	for _, f := range fieldsBool {
@@ -201,85 +283,14 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
 	e.TxHash.SetBytes(buf.Read(common.HashLength))
 
+	// Read parents without epoch and set epoch from e.Epoch
 	e.Parents = make(hash.Events, parentCount, parentCount)
 	for i := uint32(0); i < parentCount; i++ {
 		copy(e.Parents[i][:4], e.Epoch.Bytes())
-		copy(e.Parents[i][4:], buf.Read(common.HashLength-4)) // without epoch
+		copy(e.Parents[i][4:], buf.Read(common.HashLength-4))
 	}
 
 	e.Extra = buf.Read(int(extraCount))
-
-	return nil
-}
-
-/*
-	EventHeader serializers
-*/
-func (e *EventHeader) EncodeRLP(w io.Writer) error {
-	eh := eventHeaderType{
-		EventHeaderData: e.EventHeaderData,
-		Sig:             e.Sig,
-	}
-
-	// err := rlp.Encode(w, eh)
-	buf, err := rlp.EncodeToBytes(eh)
-	_, _ = w.Write(buf)
-
-	return err
-}
-func (e *EventHeader) DecodeRLP(src *rlp.Stream) error {
-	eh := eventHeaderType{}
-	bytes, err := src.Raw()
-	if err != nil {
-		return err
-	}
-
-	err = rlp.DecodeBytes(bytes, &eh)
-	if err != nil {
-		return err
-	}
-
-	e.EventHeaderData = eh.EventHeaderData
-	e.Sig = eh.Sig
-
-	return nil
-}
-
-/*
-	Event serializers
-*/
-func (e *Event) EncodeRLP(w io.Writer) error {
-	ev := eventType{
-		EventHeader: eventHeaderType{
-			EventHeaderData: e.EventHeaderData,
-			Sig:             e.Sig,
-		},
-		Transactions: e.Transactions,
-		size:         e.size,
-	}
-
-	bytes, err := rlp.EncodeToBytes(&ev)
-
-	_, _ = w.Write(bytes)
-
-	return err
-}
-func (e *Event) DecodeRLP(src *rlp.Stream) error {
-	ev := eventType{}
-
-	bytes, err := src.Raw()
-	if err != nil {
-		return err
-	}
-
-	err = rlp.DecodeBytes(bytes, &ev)
-	if err != nil {
-		return err
-	}
-
-	e.EventHeader.EventHeaderData = ev.EventHeader.EventHeaderData
-	e.EventHeader.Sig = ev.EventHeader.Sig
-	e.Transactions = ev.Transactions
 
 	return nil
 }
