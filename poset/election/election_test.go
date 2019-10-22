@@ -61,7 +61,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:   0,
-				DecidedAtropos: "c0_0",
+				DecidedAtropos: "d0_0",
 				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -89,7 +89,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:   0,
-				DecidedAtropos: "c0_0",
+				DecidedAtropos: "a0_0",
 				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
