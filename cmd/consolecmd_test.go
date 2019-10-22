@@ -58,7 +58,6 @@ func TestIPCAttachWelcome(t *testing.T) {
 	// Configure the instance for IPC attachement
 	var ipc string
 	if runtime.GOOS == "windows" {
-		// ipc = `\\.\pipe\lachesis` + strconv.Itoa(trulyRandInt(100000, 999999))
 		ipc = `\\.\pipe\lachesis.ipc`
 	} else {
 		ws := tmpdir(t)
