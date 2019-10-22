@@ -37,9 +37,9 @@ func BenchmarkEventHeaderData_MarshalBinary(b *testing.B) {
 	header := events[len(events)-1].EventHeaderData
 
 	/*
-	// Only for go1.13+
-	buf, _ := header.MarshalBinary()
-	b.ReportMetric(float64(len(buf)), "Bytes")
+		// Only for go1.13+
+		buf, _ := header.MarshalBinary()
+		b.ReportMetric(float64(len(buf)), "Bytes")
 	*/
 
 	for i := 0; i < b.N; i++ {
@@ -52,12 +52,12 @@ func BenchmarkEventHeaderData_EncodeRLP(b *testing.B) {
 	header := events[len(events)-1].EventHeaderData
 
 	/*
-	// Only for go1.13+
-	buf, err := rlp.EncodeToBytes(header)
-	if err != nil {
-		b.Fatalf("Error rlp serialization: %s", err)
-	}
-	b.ReportMetric(float64(len(buf)), "Bytes")
+		// Only for go1.13+
+		buf, err := rlp.EncodeToBytes(header)
+		if err != nil {
+			b.Fatalf("Error rlp serialization: %s", err)
+		}
+		b.ReportMetric(float64(len(buf)), "Bytes")
 	*/
 
 	for i := 0; i < b.N; i++ {

@@ -22,7 +22,7 @@ import (
 type (
 	eventHeaderType struct {
 		EventHeaderData EventHeaderData
-		Sig []byte
+		Sig             []byte
 	}
 
 	eventType struct {
@@ -88,11 +88,11 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	}
 
 	// Calculate size max size for buf
-	length := len(fields32)*4 + int(len(fields32)/4 + 1) + 	// int32 fields space + sizes header
-		len(fields64)*8 + int(len(fields32)/4 + 1) +		// int64 fields space + sizes header
+	length := len(fields32)*4 + int(len(fields32)/4+1) + // int32 fields space + sizes header
+		len(fields64)*8 + int(len(fields32)/4+1) + // int64 fields space + sizes header
 		len(fieldsBool) +
-		common.AddressLength +								// Creator
-		common.HashLength*2 +								// PrevEpochHash, TxHash
+		common.AddressLength + // Creator
+		common.HashLength*2 + // PrevEpochHash, TxHash
 		common.HashLength*parentsCount +
 		extraCount
 
@@ -105,9 +105,9 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 
 	header32buf := bytesBuf[0:header32Size]
 	header32 := fast.NewBitArray(2, &header32buf)
-	header64buf := bytesBuf[header32Size:header32Size +header64Size]
+	header64buf := bytesBuf[header32Size : header32Size+header64Size]
 	header64 := fast.NewBitArray(4, &header64buf)
-	headerBoolBuf := bytesBuf[header32Size +header64Size :headerSize]
+	headerBoolBuf := bytesBuf[header32Size+header64Size : headerSize]
 	headerBool := fast.NewBitArray(1, &headerBoolBuf)
 
 	dataBuf := bytesBuf[headerSize:]
@@ -137,12 +137,12 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	buf.Write(e.TxHash.Bytes())
 
 	for _, parent := range e.Parents {
-		buf.Write(parent.Bytes()[4:common.HashLength])	// Write parents without Epoch
+		buf.Write(parent.Bytes()[4:common.HashLength]) // Write parents without Epoch
 	}
 
 	buf.Write(e.Extra)
 
-	return bytesBuf[0:headerSize+buf.BytesLen()], nil
+	return bytesBuf[0 : headerSize+buf.BytesLen()], nil
 }
 func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	var parentCount uint32
@@ -174,9 +174,9 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 
 	header32buf := src[0:header32Size]
 	header32 := fast.NewBitArray(2, &header32buf)
-	header64buf := src[header32Size:header32Size +header64Size]
+	header64buf := src[header32Size : header32Size+header64Size]
 	header64 := fast.NewBitArray(4, &header64buf)
-	headerBoolBuf := src[header32Size +header64Size :headerSize]
+	headerBoolBuf := src[header32Size+header64Size : headerSize]
 	headerBool := fast.NewBitArray(1, &headerBoolBuf)
 
 	dataBuf := src[headerSize:]
@@ -211,7 +211,6 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 
 	return nil
 }
-
 
 /*
 	EventHeader serializers
@@ -255,8 +254,8 @@ func (e *Event) EncodeRLP(w io.Writer) error {
 			EventHeaderData: e.EventHeaderData,
 			Sig:             e.Sig,
 		},
-		Transactions:    e.Transactions,
-		size:            e.size,
+		Transactions: e.Transactions,
+		size:         e.size,
 	}
 
 	bytes, err := rlp.EncodeToBytes(&ev)
