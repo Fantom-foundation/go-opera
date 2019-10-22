@@ -104,10 +104,10 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	headerSize := header32Size + header64Size + headerBoolSize
 
 	header32buf := bytesBuf[0:header32Size]
-	header32 := fast.NewBitArray(2, &header32buf)
 	header64buf := bytesBuf[header32Size : header32Size+header64Size]
-	header64 := fast.NewBitArray(4, &header64buf)
 	headerBoolBuf := bytesBuf[header32Size+header64Size : headerSize]
+	header32 := fast.NewBitArray(2, &header32buf)
+	header64 := fast.NewBitArray(4, &header64buf)
 	headerBool := fast.NewBitArray(1, &headerBoolBuf)
 
 	dataBuf := bytesBuf[headerSize:]
@@ -115,12 +115,12 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 
 	for _, i32 := range fields32 {
 		n := writeUint32Compact(buf, i32)
-		header32.Push(n)
+		header32.Push(n - 1)
 	}
 
 	for _, i64 := range fields64 {
 		n := writeUint64Compact(buf, i64)
-		header64.Push(n)
+		header64.Push(n - 1)
 	}
 
 	for _, b := range fieldsBool {
@@ -173,10 +173,10 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	headerSize := header32Size + header64Size + headerBoolSize
 
 	header32buf := src[0:header32Size]
-	header32 := fast.NewBitArray(2, &header32buf)
 	header64buf := src[header32Size : header32Size+header64Size]
-	header64 := fast.NewBitArray(4, &header64buf)
 	headerBoolBuf := src[header32Size+header64Size : headerSize]
+	header32 := fast.NewBitArray(2, &header32buf)
+	header64 := fast.NewBitArray(4, &header64buf)
 	headerBool := fast.NewBitArray(1, &headerBoolBuf)
 
 	dataBuf := src[headerSize:]
@@ -184,12 +184,12 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 
 	for _, f := range fields32 {
 		n := header32.Pop()
-		*f = readUint32Compact(buf, n)
+		*f = readUint32Compact(buf, n + 1)
 	}
 
 	for _, f := range fields64 {
 		n := header64.Pop()
-		*f = readUint64Compact(buf, n)
+		*f = readUint64Compact(buf, n + 1)
 	}
 
 	for _, f := range fieldsBool {
@@ -285,6 +285,10 @@ func (e *Event) DecodeRLP(src *rlp.Stream) error {
 }
 
 func writeUint32Compact(buf *fast.Buffer, v uint32) (bytes int) {
+	if v == 0 {
+		buf.WriteByte(byte(v))
+		return 1
+	}
 	for v > 0 {
 		buf.WriteByte(byte(v))
 		bytes++
@@ -294,6 +298,10 @@ func writeUint32Compact(buf *fast.Buffer, v uint32) (bytes int) {
 }
 
 func writeUint64Compact(buf *fast.Buffer, v uint64) (bytes int) {
+	if v == 0 {
+		buf.WriteByte(byte(v))
+		return 1
+	}
 	for v > 0 {
 		buf.WriteByte(byte(v))
 		bytes++
