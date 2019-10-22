@@ -285,29 +285,25 @@ func (e *Event) DecodeRLP(src *rlp.Stream) error {
 }
 
 func writeUint32Compact(buf *fast.Buffer, v uint32) (bytes int) {
-	if v == 0 {
-		buf.WriteByte(byte(v))
-		return 1
-	}
-	for v > 0 {
+	for {
 		buf.WriteByte(byte(v))
 		bytes++
 		v = v >> 8
+		if v == 0 {
+			return
+		}
 	}
-	return
 }
 
 func writeUint64Compact(buf *fast.Buffer, v uint64) (bytes int) {
-	if v == 0 {
-		buf.WriteByte(byte(v))
-		return 1
-	}
-	for v > 0 {
+	for {
 		buf.WriteByte(byte(v))
 		bytes++
 		v = v >> 8
+		if v == 0 {
+			return
+		}
 	}
-	return
 }
 
 func readUint32Compact(buf *fast.Buffer, bytes int) uint32 {
