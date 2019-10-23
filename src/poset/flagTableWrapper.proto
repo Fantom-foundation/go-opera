@@ -1,4 +1,0 @@
-syntax = "proto3";
-package poset;
-
-message FlagTableWrapper { map<string, int64> Body = 1; }

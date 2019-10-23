@@ -27,17 +27,14 @@ aBFT Consensus platform for distributed applications.
 [Documentation](https://github.com/Fantom-foundation/fantom-documentation/wiki).  
 
 [![Sonarcloud](https://sonarcloud.io/api/project_badges/quality_gate?project=Fantom-foundation_go-lachesis)](https://sonarcloud.io/dashboard?id=Fantom-foundation_go-lachesis)  
-  
-## GitHub
 
+## GitHub
 
 [![Commit Activity](https://img.shields.io/github/commit-activity/w/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
 [![Last Commit](https://img.shields.io/github/last-commit/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/commits/master)  
 [![Contributors](https://img.shields.io/github/contributors/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github)](https://github.com/Fantom-foundation/go-lachesis/graphs/contributors)  
 [![Issues][github-issues-image]][github-issues-url]  
 [![LoC](https://tokei.rs/b1/github/Fantom-foundation/go-lachesis?category=lines)](https://github.com/Fantom-foundation/go-lachesis)  
-
-[![Throughput Graph](https://graphs.waffle.io/Fantom-foundation/go-lachesis/throughput.svg)](https://waffle.io/Fantom-foundation/go-lachesis/metrics/throughput)  
 
 ## Social
 
@@ -52,209 +49,125 @@ aBFT Consensus platform for distributed applications.
 [github-issues-image]: https://img.shields.io/github/issues/Fantom-foundation/go-lachesis.svg?style=flat-square&logo=github
 [github-issues-url]: https://github.com/Fantom-foundation/go-lachesis/issues
 
-# Features
-- [x] k-node selection
-- [x] k-parent EventBlock
-- [x] EventBlock merge
-- [ ] Lachesis consensus
-    - [x] Dominators
-    - [x] Self Dominators
-    - [x] Atropos
-    - [x] Clotho
-    - [x] Frame
-    - [x] Frame Received
-    - [x] Dominated
-    - [x] Lamport Timestamp
-    - [x] Atropos Consensus Time
-    - [x] Consensus Timestamp
-    - [x] Ordering on same Consensus Timestamp (Lamport Timestamp)
-    - [ ] Ordering on same Lamport Timestamp (Flag Table)
-    - [x] Ordering on same Flag Table (Signature XOR)
-    - [x] Transaction submit
-    - [x] Consensus Transaction output
-    - [ ] Dynamic participants
-        - [ ] Peer add
-        - [ ] Peer Remove
-- [x] Caching for performances
-- [x] Sync
-- [x] Event Signature
-- [ ] Transaction validation
-- [ ] Optimum Network pruning
+## Building the source
+
+Building `lachesis` requires both a Go (version 1.12 or later) and a C compiler. You can install
+them using your favourite package manager. Once the dependencies are installed, run
+
+```shell
+go build -o ./build/lachesis ./cmd
+```
+The build output is ```build/lachesis``` executable.
+
+Do not clone the project into $GOPATH, due to the Go Modules. Instead, use any other location.
+
+## Running `lachesis`
+
+Going through all the possible command line flags is out of scope here,
+but we've enumerated a few common parameter combos to get you up to speed quickly
+on how you can run your own `lachesis` instance.
+
+### Configuration
+
+As an alternative to passing the numerous flags to the `lachesis` binary, you can also pass a
+configuration file via:
+
+```shell
+$ lachesis --config /path/to/your_config.toml
+```
+
+To get an idea how the file should look like you can use the `dumpconfig` subcommand to
+export your existing configuration:
+
+```shell
+$ lachesis --your-favourite-flags dumpconfig
+```
+
+#### Docker quick start
+
+One of the quickest ways to get Lachesis up and running on your machine is by using
+Docker:
+
+```shell
+cd docker/
+make
+docker run -d --name lachesis-node -v /home/alice/lachesis:/root \
+           -p 5050:5050 \
+          "lachesis" \
+          --port 5050 \
+          --nat=extip:YOUR_IP
+```
+
+This will start `lachesis` with ```--port 5050 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
+
+Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containers
+and/or hosts. By default, `lachesis` binds to the local interface and RPC endpoints is not
+accessible from the outside.
+
+To find out your enode ID, use:
+```shell
+docker exec -i lachesis-node /lachesis --exec "admin.nodeInfo.enode" attach
+```
+To get the logs:
+```
+docker logs lachesis-node
+```
 
 ## Dev
-
-### Docker
-
-Create an 3 node lachesis cluster with:
-
-    n=3 BUILD_DIR="$PWD" ./scripts/docker/scale.bash
-
-### Dependencies
-
-  - [Docker](https://www.docker.com/get-started)
-  - [jq](https://stedolan.github.io/jq)
-  - [Bash](https://www.gnu.org/software/bash)
-  - [git](https://git-scm.com)
-  - [Go](https://golang.org)
-  - [Glide](https://glide.sh)
-  - [batch-ethkey](https://github.com/SamuelMarks/batch-ethkey) with: `go get -u github.com/SamuelMarks/batch-ethkey`
-  - [protocol buffers 3](https://github.com/protocolbuffers/protobuf), with: installation of [a release]([here](https://github.com/protocolbuffers/protobuf/releases)) & `go get -u github.com/golang/protobuf/protoc-gen-go`
-  - [mockgen](https://github.com/golang/mock) with installation commands: `
-go get github.com/golang/mock/gomock &&
-go install github.com/golang/mock/mockgen`
-
-### Protobuffer 3
-
-This project uses protobuffer 3 for the communication between posets.
-To use it, you have to install both `protoc` and the plugin for go code
-generation.
-
-Once the stack is setup, you can compile the proto messages by
-running this command:
-
-```bash
-make proto
-```
-
-### Lachesis and dependencies
-Clone the [repository](https://github.com/Fantom-foundation/go-lachesis) in the appropriate
-GOPATH subdirectory:
-
-```bash
-$ d="$GOPATH/src/github.com/Fantom-foundation"
-$ mkdir -p "$d"
-$ git clone https://github.com/Fantom-foundation/go-lachesis.git "$d"
-```
-Lachesis uses [Glide](http://github.com/Masterminds/glide) to manage dependencies.
-
-```bash
-$ curl https://glide.sh/get | sh
-$ cd "$GOPATH/src/github.com/Fantom-foundation" && glide install
-```
-This will download all dependencies and put them in the **vendor** folder.
-
-### Other requirements
-
-Bash scripts used in this project assume the use of GNU versions of coreutils.
-Please ensure you have GNU versions of these programs installed:-
-
-example for macos:
-```
-# --with-default-names makes the `sed` and `awk` commands default to gnu sed and gnu awk respectively.
-brew install gnu-sed gawk --with-default-names
-```
 
 ### Testing
 
 Lachesis has extensive unit-testing. Use the Go tool to run tests:
-```bash
-[...]/lachesis$ make test
+```shell
+go test ./...
 ```
 
 If everything goes well, it should output something along these lines:
 ```
-?   	github.com/Fantom-foundation/go-lachesis/cmd/dummy	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/cmd/dummy/commands	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/cmd/dummy_client	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/cmd/lachesis	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/cmd/lachesis/commands	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/tester	[no test files]
-ok  	github.com/Fantom-foundation/go-lachesis/src/common	(cached)
-ok  	github.com/Fantom-foundation/go-lachesis/src/crypto	(cached)
-ok  	github.com/Fantom-foundation/go-lachesis/src/difftool	(cached)
-ok  	github.com/Fantom-foundation/go-lachesis/src/dummy	0.522s
-?   	github.com/Fantom-foundation/go-lachesis/src/lachesis	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/src/log	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/src/mobile	[no test files]
-ok  	github.com/Fantom-foundation/go-lachesis/src/net	(cached)
-ok  	github.com/Fantom-foundation/go-lachesis/src/node	9.832s
-?   	github.com/Fantom-foundation/go-lachesis/src/pb	[no test files]
-ok  	github.com/Fantom-foundation/go-lachesis/src/peers	(cached)
-ok  	github.com/Fantom-foundation/go-lachesis/src/poset	9.627s
-ok  	github.com/Fantom-foundation/go-lachesis/src/proxy	1.019s
-?   	github.com/Fantom-foundation/go-lachesis/src/proxy/internal	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/src/proxy/proto	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/src/service	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/src/utils	[no test files]
-?   	github.com/Fantom-foundation/go-lachesis/src/version	[no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/basic_check    [no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/epoch_check    [no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/heavy_check    [no test files]
+?       github.com/Fantom-foundation/go-lachesis/event_check/parents_check  [no test files]
+ok      github.com/Fantom-foundation/go-lachesis/evm_core   (cached)
+ok      github.com/Fantom-foundation/go-lachesis/gossip (cached)
+?       github.com/Fantom-foundation/go-lachesis/gossip/fetcher [no test files]
+?       github.com/Fantom-foundation/go-lachesis/gossip/occured_txs [no test files]
+ok      github.com/Fantom-foundation/go-lachesis/gossip/ordering    (cached)
+ok      github.com/Fantom-foundation/go-lachesis/gossip/packs_downloader    (cached)
 ```
 
-#### New test creation
+### Operating a private network
 
-Lachesis is a multi-thread application and therefore it is important to check for leaking goroutines when creating new modules. To facilitate such testing we use [github.com/fortytw2/leaktest](https://github.com/fortytw2/leaktest) package. Please see the following example how to integrate `leaktest` into your tests:
+Maintaining your own private network is more involved as a lot of configurations taken for
+granted in the official networks need to be manually set up.
 
-```
-package newone
-import (
-     "testing"
-     "time"
-     ...
-	 "github.com/fortytw2/leaktest"
-)
-
-func TestNewOne(t *testing.T) {
-    // you may adjust 30 seconds timeout below to a reasonable value
-    // according to operations of your test. Usually timeout of 1 second is enough
-    defer leaktest.CheckTimeout(t, 30 * time.Second)()
-
-    // put your testing code here
-}
+To run the fakenet with just one validator, use:
+```shell
+$ lachesis --fakenet 1/1
 ```
 
-## Cross-build from source
-
-The easiest way to build binaries is to do so in a hermetic Docker container.
-Use this simple command:
-
-```bash
-[...]/lachesis$ make dist
+To run the fakenet with 5 validators, run the command for each validator:
+```shell
+$ lachesis --fakenet 1/5 # first node, use 2/5 for second node
 ```
-This will launch the build in a Docker container and write all the artifacts in
-the build/ folder.
 
-```bash
-[...]/lachesis$ tree --charset=nwildner build
-build
-|-- dist
-|   |-- lachesis_0.4.3_SHA256SUMS
-|   |-- lachesis_0.4.3_darwin_386.zip
-|   |-- lachesis_0.4.3_darwin_amd64.zip
-|   |-- lachesis_0.4.3_freebsd_386.zip
-|   |-- lachesis_0.4.3_freebsd_arm.zip
-|   |-- lachesis_0.4.3_linux_386.zip
-|   |-- lachesis_0.4.3_linux_amd64.zip
-|   |-- lachesis_0.4.3_linux_arm.zip
-|   |-- lachesis_0.4.3_windows_386.zip
-|   `-- lachesis_0.4.3_windows_amd64.zip
-|-- lachesis
-`-- pkg
-    |-- darwin_386
-    |   `-- lachesis
-    |-- darwin_386.zip
-    |-- darwin_amd64
-    |   `-- lachesis
-    |-- darwin_amd64.zip
-    |-- freebsd_386
-    |   `-- lachesis
-    |-- freebsd_386.zip
-    |-- freebsd_arm
-    |   `-- lachesis
-    |-- freebsd_arm.zip
-    |-- linux_386
-    |   `-- lachesis
-    |-- linux_386.zip
-    |-- linux_amd64
-    |   `-- lachesis
-    |-- linux_amd64.zip
-    |-- linux_arm
-    |   `-- lachesis
-    |-- linux_arm.zip
-    |-- windows_386
-    |   `-- lachesis.exe
-    |-- windows_386.zip
-    |-- windows_amd64
-    |   `-- lachesis.exe
-    `-- windows_amd64.zip
-
-11 directories, 29 files
+After that, you have to connect your nodes. Either connect them statically, or specify a bootnode:
+```shell
+$ lachesis --fakenet 1/5 --bootnodes "enode://ade7067fe5495db3d9f44dfda710a2873f339f9288c02941c80b1a7ede16f1d1ceef97736c6680d163f04be7f706dabca01e697e1e7290dfc7c07d1eacb47c54@172.20.0.3:38051"
 ```
+
+### Running the demo
+
+For the testing purposes, the full demo may be launched using:
+```shell
+cd docker/
+make # build docker image
+./start.sh # start the containers
+./stop.sh # stop the demo
+```
+
+The full demo doesn't spin up very fast. To avoid the full docker image building, you may run the integration test instead:
+```shell
+go test -v ./integration/...
+```
+Adjust test duration, number of nodes and logs verbosity in the test source code.

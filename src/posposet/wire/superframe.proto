@@ -1,7 +1,0 @@
-syntax = "proto3";
-package wire;
-
-message SuperFrame {
-  bytes Balances = 1;
-  map<string, uint64> Members = 2;
-}
