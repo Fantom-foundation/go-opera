@@ -22,6 +22,6 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /tmp/lachesis /
 
-EXPOSE 18545 18546 18547
+EXPOSE 5050 18545 18546 18547
 
 ENTRYPOINT ["/lachesis"]

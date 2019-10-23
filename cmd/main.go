@@ -35,6 +35,17 @@ var (
 	// The app that holds all commands and flags.
 	app = utils.NewApp(gitCommit, gitDate, "the go-lachesis command line interface")
 
+	testFlags    []cli.Flag
+	nodeFlags    []cli.Flag
+	rpcFlags     []cli.Flag
+	metricsFlags []cli.Flag
+)
+
+// init the CLI app.
+func init() {
+	overrideFlags()
+	overrideParams()
+
 	// Flags for testing purpose.
 	testFlags = []cli.Flag{
 		FakeNetFlag,
@@ -129,11 +140,8 @@ var (
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
 	}
-)
 
-// init the CLI app.
-func init() {
-	overrideParams()
+	// App.
 
 	app.Action = lachesisMain
 	app.HideVersion = true // we have a command to print the version

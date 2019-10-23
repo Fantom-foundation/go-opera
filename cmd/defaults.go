@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
 
+	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/nat"
@@ -16,10 +18,18 @@ const (
 	//DefaultHTTPHost    = "localhost" // Default host interface for the HTTP RPC server
 	//DefaultWSHost      = "localhost" // Default host interface for the websocket RPC server
 	//DefaultGraphQLHost = "localhost" // Default host interface for the GraphQL server
+	DefaultP2PPort     = 5050  // Default p2p port for listening
 	DefaultHTTPPort    = 18545 // Default TCP port for the HTTP RPC server
 	DefaultWSPort      = 18546 // Default TCP port for the websocket RPC server
 	DefaultGraphQLPort = 18547 // Default TCP port for the GraphQL server
 )
+
+func overrideFlags() {
+	utils.ListenPortFlag.Value = DefaultP2PPort
+	utils.RPCPortFlag.Value = DefaultHTTPPort
+	utils.WSPortFlag.Value = DefaultWSPort
+	utils.GraphQLPortFlag.Value = DefaultGraphQLPort
+}
 
 // NodeDefaultConfig contains reasonable default settings.
 var NodeDefaultConfig = node.Config{
@@ -35,7 +45,7 @@ var NodeDefaultConfig = node.Config{
 	P2P: p2p.Config{
 		NoDiscovery: false, // enable discovery v4 by default
 		DiscoveryV5: false, // disable discovery v5 by default
-		ListenAddr:  ":0",
+		ListenAddr:  fmt.Sprintf(":%d", DefaultP2PPort),
 		MaxPeers:    50,
 		NAT:         nat.Any(),
 	},
