@@ -25,12 +25,12 @@ type Block struct {
 	Creator common.Address
 }
 
-// Hash returns atropus's ID
+// Hash returns Atropos's ID
 func (b *Block) Hash() hash.Event {
 	if len(b.Events) == 0 {
 		return hash.ZeroEvent
 	}
-	return b.Events[len(b.Events)-1] // atropos is always a last event
+	return b.Events[len(b.Events)-1] // Atropos is always a last event
 }
 
 // NewBlock makes block from topological ordered events.

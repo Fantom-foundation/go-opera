@@ -17,7 +17,7 @@ import (
 // GenesisState stores state of previous Epoch
 type GenesisState struct {
 	Epoch       idx.Epoch
-	Time        inter.Timestamp // consensus time of the last atropos
+	Time        inter.Timestamp // consensus time of the last Atropos
 	LastAtropos hash.Event
 	StateHash   common.Hash // hash of txs state
 	LastHeaders headersByCreator
