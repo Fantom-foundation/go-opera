@@ -58,7 +58,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 	// Configure the instance for IPC attachement
 	var ipc string
 	if runtime.GOOS == "windows" {
-		ipc = `\\.\pipe\lachesis` + strconv.Itoa(trulyRandInt(100000, 999999))
+		ipc = `\\.\pipe\lachesis.ipc`
 	} else {
 		ws := tmpdir(t)
 		defer os.RemoveAll(ws)
@@ -68,11 +68,11 @@ func TestIPCAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
 
-	time.Sleep(2 * time.Second) // Simple way to wait for the RPC endpoint to open
+	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "ipc:"+ipc, ipcAPIs)
 
-	cli.Interrupt()
-	cli.ExpectExit()
+	cli.Kill()
+	cli.WaitExit()
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
@@ -81,11 +81,11 @@ func TestHTTPAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--rpc", "--rpcport", port)
 
-	time.Sleep(2 * time.Second) // Simple way to wait for the RPC endpoint to open
+	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "http://localhost:"+port, httpAPIs)
 
-	cli.Interrupt()
-	cli.ExpectExit()
+	cli.Kill()
+	cli.WaitExit()
 }
 
 func TestWSAttachWelcome(t *testing.T) {
@@ -95,18 +95,16 @@ func TestWSAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ws", "--wsport", port)
 
-	time.Sleep(2 * time.Second) // Simple way to wait for the RPC endpoint to open
+	time.Sleep(4 * time.Second) // Simple way to wait for the RPC endpoint to open
 	testAttachWelcome(t, cli, "ws://localhost:"+port, httpAPIs)
 
-	cli.Interrupt()
-	cli.ExpectExit()
+	cli.Kill()
+	cli.WaitExit()
 }
 
 func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
 	// Attach to a running lachesis node and terminate immediately
 	attach := exec(t, "attach", endpoint)
-
-	attach.CloseStdin()
 
 	// Gather all the infos the welcome message needs to contain
 	attach.SetTemplateFunc("goos", func() string { return runtime.GOOS })

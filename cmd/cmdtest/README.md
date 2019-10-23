@@ -1,1 +1,0 @@
-Package is a full copy of github.com/ethereum/go-ethereum/internal/cmdtest

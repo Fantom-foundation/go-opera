@@ -14,11 +14,14 @@ stack: go 1.12
 
 init:
   - choco install make mingw
-  
+
 cache:
   - C:\usr
   - C:\ProgramData\chocolatey
-  
+
+before_test:
+  - ps: Set-NetFirewallProfile -All -Enabled False
+  - ps: Disable-NetFirewallRule -All
 
 test_script:
   - go test ./...

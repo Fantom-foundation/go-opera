@@ -27,7 +27,7 @@ func TestFakeNetFlag(t *testing.T) {
 	cli.SetTemplateFunc("niltime", genesisStart)
 	cli.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
-	time.Sleep(time.Second)
+	time.Sleep(4*time.Second)
 
 	// Verify the actual welcome message to the required template
 	// TODO: clone (or PR) "github.com/ethereum/go-ethereum/console" to customize welcome message
