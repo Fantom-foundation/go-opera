@@ -37,6 +37,7 @@ which limits the maximum number of transactions per second which
 may be originated by a validator.
 
 #### Events Flooding
+
 A malicious validator can try to overload the network by emitting valid events as fast as possible.
 Each events consumes the certain amount of validator's gas power,
 which limits the maximum number of events per second.
@@ -45,7 +46,7 @@ A malicious validator can try to overload the network by emitting fork events as
 If a fork is observed by self-parent of validator V, then validator V cannot
 include events from the cheater as parents. It limits the maximum number of
 fork events from the cheater as n (n is number of validators). Hence the total
-number of fork events in a graph is limited by ```n^2```,
+number of fork events in a graph is limited by `n^2`,
 in a case if all the validators are cheaters.
 
 In the example below, the red edges are forbidden, and green/black edges are allowed:
@@ -76,7 +77,7 @@ as a penalty for originating conflicting transactions.
 An adversary could bribe nodes to emit malicious fork events.
 Since 2/3W participating nodes are required to create blocks in the malicious DAG,
 this would require the
-adversary to bribe &gt; 2/3W of all validators to begin a bribery
+adversary to bribe > 2/3W of all validators to begin a bribery
 attack.
 
 If a fork is observed by Atropos
@@ -87,7 +88,7 @@ with the same sequence number, from the same validator),
 #### Denial of Service
 
 We are a leaderless system requiring 2/3W participation. An adversary
-would have to deny &gt; 1/3W participants to be able to successfully
+would have to deny > 1/3W participants to be able to successfully
 mount a DDoS attack.
 
 #### Sybil
@@ -109,8 +110,8 @@ Algorithm secp256k1 curve. The security of this system is based on the
 hardness of the Elliptic Curve Discrete Log Problem (ECDLP).
 
 How quickly can a quantum computer compute the Elliptic Curve Discrete
-Log Problem? An instance with a *n* bit prime field, can be solved using
-9n + 2 \[log2(n)\]+10 logical qubits and (448log2(n)+4090)n3 Toffoli
+Log Problem? An instance with a _n_ bit prime field, can be solved using
+9n + 2 \[log2(n)]+10 logical qubits and (448log2(n)+4090)n3 Toffoli
 gates. We use n=256 bit signatures.
 
 For 10GHz clock speed and error rate of 10−5 , the signature is cracked

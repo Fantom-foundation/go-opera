@@ -1,12 +1,10 @@
-
 #### Fork definitions
 
 Fork pair is a pair of fork events {a, b}, such that:
-```
-a != b AND a.Seq == b.Seq && a.Epoch == b.Epoch && a.Creator == b.Creator
-```
 
-The creator of a fork pair is called ```cheater```.
+    a != b AND a.Seq == b.Seq && a.Epoch == b.Epoch && a.Creator == b.Creator
+
+The creator of a fork pair is called `cheater`.
 Cheater is always a Byzantine node, but not vice versa.
 
 Simply said, the fork is created when validator doesn't use his last event as self-parent.
@@ -25,8 +23,8 @@ unless more than 1/3W are Byzantine.
 
 #### Protections
 
-To protect the consensus from forks, the stricter ```forklessCause```
-relation is used in Atropos election instead of ```happened-before``` relation.
+To protect the consensus from forks, the stricter `forklessCause`
+relation is used in Atropos election instead of `happened-before` relation.
 
 When a fork pair gets confirmed, the validator gets a harsh penalty.
 
