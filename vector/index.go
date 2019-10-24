@@ -27,6 +27,11 @@ ok  	github.com/Fantom-foundation/go-lachesis/vector	4.318s
 
 const (
 	forklessCauseCacheSize = 5000
+	highestBeforeSeqCacheSize = 100
+	highestBeforeTimeCacheSize = 100
+	lowestAfterSeqCacheSize = 100
+	eventBranchCacheSize = 100
+	branchesInfoCacheSize = 100
 )
 
 // Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
@@ -48,6 +53,15 @@ type Index struct {
 		BranchesInfo kvdb.KeyValueStore `table:"B"`
 	}
 
+	cache struct {
+		HighestBeforeSeq  *lru.Cache
+		HighestBeforeTime *lru.Cache
+		LowestAfterSeq    *lru.Cache
+
+		EventBranch  *lru.Cache
+		BranchesInfo *lru.Cache
+	}
+
 	forklessCauseCache *lru.Cache
 
 	logger.Instance
@@ -61,6 +75,11 @@ func NewIndex(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(ha
 		Instance:           logger.MakeInstance(),
 		forklessCauseCache: cache,
 	}
+	vi.cache.HighestBeforeSeq, _ = lru.New(highestBeforeSeqCacheSize)
+	vi.cache.HighestBeforeTime, _ = lru.New(highestBeforeTimeCacheSize)
+	vi.cache.LowestAfterSeq, _ = lru.New(lowestAfterSeqCacheSize)
+	vi.cache.BranchesInfo, _ = lru.New(branchesInfoCacheSize)
+	vi.cache.EventBranch, _ = lru.New(eventBranchCacheSize)
 	vi.Reset(validators, db, getEvent)
 
 	return vi
@@ -75,8 +94,17 @@ func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEven
 	vi.validatorIdxs = validators.Idxs()
 	vi.DropNotFlushed()
 	vi.forklessCauseCache.Purge()
+	vi.cleanCaches()
 
 	table.MigrateTables(&vi.table, vi.vecDb)
+}
+
+func (vi *Index) cleanCaches() {
+	vi.cache.HighestBeforeSeq.Purge()
+	vi.cache.HighestBeforeTime.Purge()
+	vi.cache.LowestAfterSeq.Purge()
+	vi.cache.BranchesInfo.Purge()
+	vi.cache.EventBranch.Purge()
 }
 
 // Add calculates vector clocks for the event and saves into DB.
@@ -98,12 +126,14 @@ func (vi *Index) Flush() {
 	if err := vi.vecDb.Flush(); err != nil {
 		vi.Log.Crit("Failed to flush db", "err", err)
 	}
+	vi.cleanCaches()
 }
 
 // DropNotFlushed not connected clocks. Call it if event has failed.
 func (vi *Index) DropNotFlushed() {
 	vi.bi = nil
 	vi.vecDb.DropNotFlushed()
+	vi.cleanCaches()
 }
 
 func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validator) idx.Validator {

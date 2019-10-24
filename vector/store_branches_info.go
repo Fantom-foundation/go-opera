@@ -37,15 +37,25 @@ func (vi *Index) setBranchesInfo(info *branchesInfo) {
 	key := []byte("current")
 
 	vi.setRlp(vi.table.BranchesInfo, key, info)
+
+	vi.cache.BranchesInfo.Add(string(key), *info)
 }
 
 func (vi *Index) getBranchesInfo() *branchesInfo {
 	key := []byte("current")
 
+	wInterface, okGet := vi.cache.BranchesInfo.Get(string(key))
+	wVal, okType := wInterface.(branchesInfo)
+	if okGet && okType {
+		return &wVal
+	}
+
 	w, exists := vi.getRlp(vi.table.BranchesInfo, key, &branchesInfo{}).(*branchesInfo)
 	if !exists {
 		return nil
 	}
+
+	vi.cache.BranchesInfo.Add(key, *w)
 
 	return w
 }
