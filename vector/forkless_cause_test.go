@@ -18,6 +18,252 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
+func BenchmarkIndex_ForklessCause(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		benchForklessCauseMain(b, &i)
+	}
+}
+
+func benchForklessCauseMain(b *testing.B, idx *int) {
+	benchForklessCauseProcess(b, `
+ a000    
+ ║        ║       
+ ╠═══════ b000    
+ ║        ║        ║       
+ ║        ║        c000    
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════─╫─══════ d000    
+ ║        ║        ║        ║       
+ a001════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ╠═══════ b001     ║        ║       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c001     ║       
+ ║        ║        ║        ║       
+ ║        b002═════╣        ║       
+ ║        ║        ║        ║       
+ ║        ║        ╠═══════ d001    
+ ║        ║        ║        ║       
+ a002════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ a003═════╣        ║        ║       
+ ║        ║        ║        ║       
+ ╠═══════ b003     ║        ║       
+ ║        ║        ║        ║       
+ ║        ║        c002═════╣       
+ ║        ║║       ║        ║       
+ ║        ║╚══════─╫─══════ d002    
+ ║        ║        ║        ║       
+ ║        ║        c003═════╣       
+ ║        ║        ║        ║       
+ ║        ║        ╠═══════ d003    
+ ║        ║        ║        ║       
+ a004════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ╠═══════ b004     ║        ║       
+ ║        ║        ║        ║       
+ ║        ║        c004═════╣       
+ ║        ║        ║        ║       
+ a005════─╫─═══════╣        ║       
+ ║        ║        ║        ║       
+ ╠═══════ b005     ║        ║       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c005     ║       
+ ║        ║        ║        ║       
+ a006════─╫─═══════╣        ║       
+ ║        ║        ║║       ║       
+ ║        ║        ║╚══════ d004    
+ ║        ║        ║        ║       
+ ║        ╠═══════─╫─══════ d005    
+ ║        ║        ║        ║       
+ ║        b006════─╫─═══════╣       
+ ║        ║        ║        ║       
+ a007═════╣        ║        ║       
+ ║        ║        ║        ║       
+ ║        ║        c006═════╣       
+ ║        ║        ║        ║       
+ ║        ╠═══════─╫─══════ d006    
+ ║        ║        ║        ║       
+ ║        b007════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ║        ║        c007═════╣       
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════─╫─══════ d007    
+ ║        ║        ║        ║       
+ a008════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ║        b008════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c008     ║       
+ ║        ║        ║        ║       
+ a009════─╫─═══════╣        ║       
+ ║        ║        ║        ║       
+ ╠═══════ b009     ║        ║       
+ ║        ║        ║        ║       
+ ║        ║        ╠═══════ d008    
+ ║        ║        ║        ║       
+ ║        ║        c009═════╣       
+ ║        ║        ║        ║       
+ ║        b010═════╣        ║       
+ ║        ║        ║        ║       
+ ║        ║        ╠═══════ d009    
+ ║        ║        ║        ║       
+ a010════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════ c010     ║       
+ ║        ║        ║        ║       
+ ║        b011═════╣        ║       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c011     ║       
+ ║        ║║       ║        ║       
+ ║        ║╚══════─╫─══════ d010    
+ ║        ║        ║        ║       
+ a011════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ a012════─╫─═══════╣        ║       
+ ║        ║        ║        ║       
+ ╠═══════ b012     ║        ║       
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════ c012     ║       
+ ║        ║        ║        ║       
+ ║        b013═════╣        ║       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c013     ║       
+ ║        ║3       ║        ║       
+ ║        ║╚══════─╫─══════ d011    
+ ║        ║        ║║       ║       
+ ║        ║        ║╚══════ d012    
+ ║        ║        ║        ║       
+ a013════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ a014═════╣        ║        ║       
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════ c014     ║       
+ ║        ║        ║║       ║       
+ ║        ║        ║╚══════ d013    
+ ║        ║        ║        ║       
+ ║        b014════─╫─═══════╣       
+ ║        ║        ║        ║       
+ a015═════╣        ║        ║       
+ ║        ║        ║        ║       
+ ║        b015═════╣        ║       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c015     ║       
+ ║        ║        ║        ║       
+ a016════─╫─═══════╣        ║       
+ ║        ║        ║        ║       
+ ║        b016═════╣        ║       
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════ c016     ║       
+ ║        ║        ║        ║       
+ a017════─╫─═══════╣        ║       
+ ║        ║        ║        ║       
+ ║        b017═════╣        ║       
+ ║        ║        ║        ║       
+ a018═════╣        ║        ║       
+ ║5       ║        ║        ║       
+ ║╚══════─╫─══════─╫─══════ d014    
+ ║        ║        ║║       ║       
+ ║        ║        ║╚══════ d015    
+ ║3       ║        ║        ║       
+ ║╚══════─╫─══════─╫─══════ d016    
+ ║        ║        ║        ║       
+ ║        ║        c017═════╣       
+ ║        ║        ║        ║       
+ ║        b018═════╣        ║       
+ ║        ║        ║        ║       
+ ║        ╠═══════ c018     ║       
+ ║        ║║       ║        ║       
+ ║        ║╚══════─╫─══════ d017    
+ ║        ║        ║        ║       
+ ║        ║        ╠═══════ d018    
+ ║        ║        ║        ║       
+ a019════─╫─══════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ║        b019════─╫─═══════╣       
+ ║        ║        ║        ║       
+ ╠═══════─╫─══════ c019     ║       
+ ║        ║        ║        ║       
+ ║        ║        ╠═══════ d019    
+`, idx)
+
+	benchForklessCauseProcess(b, `
+a0_1(3)  b0_1     c0_1
+║        ║        ║
+╠─────── b1_2     ║
+║        ║        ║
+║        ╠─────── c1_3
+║        ║        ║
+`, idx)
+
+	benchForklessCauseProcess(b, `
+a0_1(3)  b0_1     c0_1
+║        ║        ║
+╠─────── b1_2     ║
+║        ║        ║
+║        ╠─────── c1_3
+║        ║        ║
+║        b2_4 ────╣
+║        ║        ║
+`, idx)
+
+	benchForklessCauseProcess(b, `
+a0_1(3)  b0_1(5)  c0_1(5)
+║        ║        ║
+╠─────── b1_2(5)  ║
+║        ║        ║
+║        ╠─────── c1_3(5)
+║        ║        ║
+║        b2_4 ────╣
+║        ║        ║
+a1_5 ────╣        ║
+║        ║        ║
+`, idx)
+}
+
+func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
+	logger.SetTestMode(b)
+
+	peers, _, _ := inter.ASCIIschemeToDAG(dag)
+	validators := make(pos.Validators, len(peers))
+	for _, peer := range peers {
+		validators.Set(peer, pos.Stake(1))
+	}
+
+	events := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return events[id]
+	}
+
+	vi := NewIndex(validators, memorydb.New(), getEvent)
+
+	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			events[e.Hash()] = &e.EventHeaderData
+			vi.Add(&e.EventHeaderData)
+			vi.Flush()
+		},
+	})
+
+	// check
+	b.StartTimer()
+	for _, ev := range named {
+		for _, by := range named {
+			who := by.Hash()
+			whom := ev.Hash()
+			vi.ForklessCause(who, whom)
+			if *idx > b.N {
+				b.StopTimer()
+				return
+			}
+			*idx++
+		}
+	}
+	b.StopTimer()
+}
+
+
 func TestForklessCausedClassic(t *testing.T) {
 
 	t.Run("step 3", func(t *testing.T) {

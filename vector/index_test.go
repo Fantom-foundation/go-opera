@@ -30,6 +30,7 @@ a2.1 ──╣      ║      ║      ║
 )
 
 func BenchmarkIndex_Add(b *testing.B) {
+	b.StopTimer()
 	ordered := make([]*inter.Event, 0)
 	nodes, _, _ := inter.ASCIIschemeForEach(testASCIIScheme, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
