@@ -14,6 +14,17 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
+/*
+Benchmark Index.Add before optimization:
+goos: linux
+goarch: amd64
+pkg: github.com/Fantom-foundation/go-lachesis/vector
+BenchmarkIndex_Add-8   	  118716	      9639 ns/op
+PASS
+ok  	github.com/Fantom-foundation/go-lachesis/vector	4.318s
+
+*/
+
 const (
 	forklessCauseCacheSize = 5000
 )
