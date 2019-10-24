@@ -51,7 +51,7 @@ aBFT Consensus platform for distributed applications.
 
 ## Building the source
 
-Building `lachesis` requires both a Go (version 1.12 or later) and a C compiler. You can install
+Building `lachesis` requires both a Go (version 1.13 or later) and a C compiler. You can install
 them using your favourite package manager. Once the dependencies are installed, run
 
 ```shell
