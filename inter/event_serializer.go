@@ -8,6 +8,7 @@ package inter
 */
 
 import (
+	"errors"
 	"io"
 	"sync/atomic"
 
@@ -67,7 +68,7 @@ func (e *EventHeader) EncodeRLP(w io.Writer) error {
 		Sig:             e.Sig,
 	}
 
-	err := rlp.Encode(w, eh)
+	err := rlp.Encode(w, &eh)
 
 	return err
 }
@@ -264,14 +265,21 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	dataBuf := src[headerSize:]
 	buf := fast.NewBuffer(&dataBuf)
 
+	var err error
 	for _, f := range fields32 {
 		n := header32.Pop()
-		*f = readUint32Compact(buf, n+1)
+		*f, err = readUint32Compact(buf, n+1)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, f := range fields64 {
 		n := header64.Pop()
-		*f = readUint64Compact(buf, n+1)
+		*f, err = readUint64Compact(buf, n+1)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, f := range fieldsBool {
@@ -317,18 +325,24 @@ func writeUint64Compact(buf *fast.Buffer, v uint64) (bytes int) {
 	}
 }
 
-func readUint32Compact(buf *fast.Buffer, bytes int) uint32 {
+func readUint32Compact(buf *fast.Buffer, bytes int) (uint32, error) {
 	var v uint32
 	for i, b := range buf.Read(bytes) {
 		v += uint32(b) << uint(8*i)
+		if b == 0 && i > 0 {
+			return v, errors.New("ambiguous int32 decoding")
+		}
 	}
-	return v
+	return v, nil
 }
 
-func readUint64Compact(buf *fast.Buffer, bytes int) uint64 {
+func readUint64Compact(buf *fast.Buffer, bytes int) (uint64, error) {
 	var v uint64
 	for i, b := range buf.Read(bytes) {
 		v += uint64(b) << uint(8*i)
+		if b == 0 && i > 0 {
+			return v, errors.New("ambiguous int64 decoding")
+		}
 	}
-	return v
+	return v, nil
 }
