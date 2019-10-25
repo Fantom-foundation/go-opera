@@ -27,198 +27,14 @@ func BenchmarkIndex_ForklessCause(b *testing.B) {
 
 func benchForklessCauseMain(b *testing.B, idx *int) {
 	benchForklessCauseProcess(b, `
- a000    
- ║        ║       
- ╠═══════ b000    
- ║        ║        ║       
- ║        ║        c000    
- ║        ║        ║        ║       
- ╠═══════─╫─══════─╫─══════ d000    
- ║        ║        ║        ║       
- a001════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- ╠═══════ b001     ║        ║       
- ║        ║        ║        ║       
- ║        ╠═══════ c001     ║       
- ║        ║        ║        ║       
- ║        b002═════╣        ║       
- ║        ║        ║        ║       
- ║        ║        ╠═══════ d001    
- ║        ║        ║        ║       
- a002════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- a003═════╣        ║        ║       
- ║        ║        ║        ║       
- ╠═══════ b003     ║        ║       
- ║        ║        ║        ║       
- ║        ║        c002═════╣       
- ║        ║║       ║        ║       
- ║        ║╚══════─╫─══════ d002    
- ║        ║        ║        ║       
- ║        ║        c003═════╣       
- ║        ║        ║        ║       
- ║        ║        ╠═══════ d003    
- ║        ║        ║        ║       
- a004════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- ╠═══════ b004     ║        ║       
- ║        ║        ║        ║       
- ║        ║        c004═════╣       
- ║        ║        ║        ║       
- a005════─╫─═══════╣        ║       
- ║        ║        ║        ║       
- ╠═══════ b005     ║        ║       
- ║        ║        ║        ║       
- ║        ╠═══════ c005     ║       
- ║        ║        ║        ║       
- a006════─╫─═══════╣        ║       
- ║        ║        ║║       ║       
- ║        ║        ║╚══════ d004    
- ║        ║        ║        ║       
- ║        ╠═══════─╫─══════ d005    
- ║        ║        ║        ║       
- ║        b006════─╫─═══════╣       
- ║        ║        ║        ║       
- a007═════╣        ║        ║       
- ║        ║        ║        ║       
- ║        ║        c006═════╣       
- ║        ║        ║        ║       
- ║        ╠═══════─╫─══════ d006    
- ║        ║        ║        ║       
- ║        b007════─╫─═══════╣       
- ║        ║        ║        ║       
- ║        ║        c007═════╣       
- ║        ║        ║        ║       
- ╠═══════─╫─══════─╫─══════ d007    
- ║        ║        ║        ║       
- a008════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- ║        b008════─╫─═══════╣       
- ║        ║        ║        ║       
- ║        ╠═══════ c008     ║       
- ║        ║        ║        ║       
- a009════─╫─═══════╣        ║       
- ║        ║        ║        ║       
- ╠═══════ b009     ║        ║       
- ║        ║        ║        ║       
- ║        ║        ╠═══════ d008    
- ║        ║        ║        ║       
- ║        ║        c009═════╣       
- ║        ║        ║        ║       
- ║        b010═════╣        ║       
- ║        ║        ║        ║       
- ║        ║        ╠═══════ d009    
- ║        ║        ║        ║       
- a010════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- ╠═══════─╫─══════ c010     ║       
- ║        ║        ║        ║       
- ║        b011═════╣        ║       
- ║        ║        ║        ║       
- ║        ╠═══════ c011     ║       
- ║        ║║       ║        ║       
- ║        ║╚══════─╫─══════ d010    
- ║        ║        ║        ║       
- a011════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- a012════─╫─═══════╣        ║       
- ║        ║        ║        ║       
- ╠═══════ b012     ║        ║       
- ║        ║        ║        ║       
- ╠═══════─╫─══════ c012     ║       
- ║        ║        ║        ║       
- ║        b013═════╣        ║       
- ║        ║        ║        ║       
- ║        ╠═══════ c013     ║       
- ║        ║3       ║        ║       
- ║        ║╚══════─╫─══════ d011    
- ║        ║        ║║       ║       
- ║        ║        ║╚══════ d012    
- ║        ║        ║        ║       
- a013════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- a014═════╣        ║        ║       
- ║        ║        ║        ║       
- ╠═══════─╫─══════ c014     ║       
- ║        ║        ║║       ║       
- ║        ║        ║╚══════ d013    
- ║        ║        ║        ║       
- ║        b014════─╫─═══════╣       
- ║        ║        ║        ║       
- a015═════╣        ║        ║       
- ║        ║        ║        ║       
- ║        b015═════╣        ║       
- ║        ║        ║        ║       
- ║        ╠═══════ c015     ║       
- ║        ║        ║        ║       
- a016════─╫─═══════╣        ║       
- ║        ║        ║        ║       
- ║        b016═════╣        ║       
- ║        ║        ║        ║       
- ╠═══════─╫─══════ c016     ║       
- ║        ║        ║        ║       
- a017════─╫─═══════╣        ║       
- ║        ║        ║        ║       
- ║        b017═════╣        ║       
- ║        ║        ║        ║       
- a018═════╣        ║        ║       
- ║5       ║        ║        ║       
- ║╚══════─╫─══════─╫─══════ d014    
- ║        ║        ║║       ║       
- ║        ║        ║╚══════ d015    
- ║3       ║        ║        ║       
- ║╚══════─╫─══════─╫─══════ d016    
- ║        ║        ║        ║       
- ║        ║        c017═════╣       
- ║        ║        ║        ║       
- ║        b018═════╣        ║       
- ║        ║        ║        ║       
- ║        ╠═══════ c018     ║       
- ║        ║║       ║        ║       
- ║        ║╚══════─╫─══════ d017    
- ║        ║        ║        ║       
- ║        ║        ╠═══════ d018    
- ║        ║        ║        ║       
- a019════─╫─══════─╫─═══════╣       
- ║        ║        ║        ║       
- ║        b019════─╫─═══════╣       
- ║        ║        ║        ║       
- ╠═══════─╫─══════ c019     ║       
- ║        ║        ║        ║       
- ║        ║        ╠═══════ d019    
-`, idx)
-
-	benchForklessCauseProcess(b, `
-a0_1(3)  b0_1     c0_1
-║        ║        ║
-╠─────── b1_2     ║
-║        ║        ║
-║        ╠─────── c1_3
-║        ║        ║
-`, idx)
-
-	benchForklessCauseProcess(b, `
-a0_1(3)  b0_1     c0_1
-║        ║        ║
-╠─────── b1_2     ║
-║        ║        ║
-║        ╠─────── c1_3
-║        ║        ║
-║        b2_4 ────╣
-║        ║        ║
-`, idx)
-
-	benchForklessCauseProcess(b, `
-a0_1(3)  b0_1(5)  c0_1(5)
-║        ║        ║
-╠─────── b1_2(5)  ║
-║        ║        ║
-║        ╠─────── c1_3(5)
-║        ║        ║
-║        b2_4 ────╣
-║        ║        ║
-a1_5 ────╣        ║
-║        ║        ║
+a0_1(3)  b0_1     c0_1     d0_1     e0_1     f0_1     g0_1     h0_1     i0_1     j0_1     k0_1     l0_1     m0_1     p0_1     q0_1
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+╠─────── b1_2     ║        ╠─────── e1_2     ║        ╠─────── h1_2     ║        ║        ║        ╠─────── m1_2     ║        ║
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+║        ╠─────── c1_3     ║        ╠─────── f1_3     ║        ║        ╠─────── j1_3     ╠─────── l1_3     ╠─────── p1_3     ║
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+║        ║        ╠─────── d1_4     ║        ╠─────── g1_4     ╠─────── i1_4     ╠─────── k1_4     ║        ║        ╠─────── q1_4
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
 `, idx)
 }
 
@@ -226,7 +42,7 @@ func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
 	logger.SetTestMode(b)
 
 	peers, _, _ := inter.ASCIIschemeToDAG(dag)
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 	for _, peer := range peers {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -236,7 +52,7 @@ func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
 		return events[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(*validators, memorydb.New(), getEvent)
 
 	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
@@ -315,7 +131,7 @@ func testForklessCaused(t *testing.T, dag string) {
 	assertar := assert.New(t)
 
 	peers, _, _ := inter.ASCIIschemeToDAG(dag)
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 	for _, peer := range peers {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -325,7 +141,7 @@ func testForklessCaused(t *testing.T, dag string) {
 		return events[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(*validators, memorydb.New(), getEvent)
 
 	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
@@ -632,7 +448,7 @@ func TestForklessCausedRandom(t *testing.T) {
 		},
 	})
 
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 	for _, peer := range peers {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -642,7 +458,7 @@ func TestForklessCausedRandom(t *testing.T) {
 		return events[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(*validators, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
@@ -676,6 +492,7 @@ func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]
 	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
+	dfsStack := make(hash.EventsStack, 0, vi.validators.Len())
 	err = vi.dfsSubgraph(head, func(e *inter.EventHeaderData) (godeeper bool) {
 		// ensure visited once
 		if visited.Contains(e.Hash()) {
@@ -689,7 +506,7 @@ func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]
 		}
 		detected[slot] += 1
 		return true
-	})
+	}, &dfsStack)
 	for s, count := range detected {
 		if count > 1 {
 			cheaters[s.creator] = true
@@ -702,7 +519,7 @@ func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
 	cheaters := []common.Address{nodes[0], nodes[1], nodes[2]}
 
-	validators := make(pos.Validators, len(nodes))
+	validators := pos.NewValidators()
 	for _, peer := range nodes {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -716,7 +533,7 @@ func TestRandomForksSanity(t *testing.T) {
 		return processed[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(*validators, memorydb.New(), getEvent)
 
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
 	events := inter.ForEachRandFork(nodes, cheaters, 300, 4, 30, nil, inter.ForEachEvent{
@@ -833,7 +650,7 @@ func TestRandomForks(t *testing.T) {
 			nodes := inter.GenNodes(test.nodesNum)
 			cheaters := nodes[:test.cheatersNum]
 
-			validators := make(pos.Validators, len(nodes))
+			validators := pos.NewValidators()
 			for _, peer := range nodes {
 				validators.Set(peer, pos.Stake(1))
 			}
@@ -844,7 +661,7 @@ func TestRandomForks(t *testing.T) {
 				return processed[id]
 			}
 
-			vi := NewIndex(validators, memorydb.New(), getEvent)
+			vi := NewIndex(*validators, memorydb.New(), getEvent)
 
 			_ = inter.ForEachRandFork(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, r, inter.ForEachEvent{
 				Process: func(e *inter.Event, name string) {

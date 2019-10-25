@@ -233,7 +233,7 @@ func testProcessRoot(
 
 	// validators:
 	var (
-		vv = make(pos.Validators, len(peers))
+		vv = *pos.NewValidators()
 	)
 	for _, peer := range peers {
 		vv.Set(peer, stakes[utils.NameOf(peer)])

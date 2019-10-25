@@ -8,9 +8,7 @@ import (
 )
 
 // dfsSubgraph iterates all the event which are observed by head, and accepted by a filter
-func (vi *Index) dfsSubgraph(head hash.Event, walk func(*inter.EventHeaderData) (godeeper bool)) error {
-	stack := make(hash.EventsStack, 0, len(vi.validators))
-
+func (vi *Index) dfsSubgraph(head hash.Event, walk func(*inter.EventHeaderData) (godeeper bool), stack *hash.EventsStack) error {
 	for next := &head; next != nil; next = stack.Pop() {
 		curr := *next
 

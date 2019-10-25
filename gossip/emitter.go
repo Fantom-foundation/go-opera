@@ -205,7 +205,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 	validatorsArr := validators.SortedAddresses() // validators must be sorted deterministically
 	validatorsArrStakes := make([]pos.Stake, len(validatorsArr))
 	for i, addr := range validatorsArr {
-		validatorsArrStakes[i] = validators[addr]
+		validatorsArrStakes[i] = validators.Get(addr)
 	}
 
 	for sender, txs := range poolTxs {
@@ -273,7 +273,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
 	coinbase := em.GetCoinbase()
-	if _, ok := em.world.Engine.GetValidators()[coinbase]; !ok {
+	if ok := em.world.Engine.GetValidators().Get(coinbase); ok == 0 {
 		// not a validator
 		return nil
 	}
@@ -395,11 +395,11 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 	}
 
 	// track when I've became validator
-	_, isValidator := em.world.Engine.GetValidators()[coinbase]
-	if isValidator && !em.syncStatus.wasValidator {
+	isValidator := em.world.Engine.GetValidators().Get(coinbase)
+	if isValidator != 0 && !em.syncStatus.wasValidator {
 		em.syncStatus.becameValidatorTime = now
 	}
-	em.syncStatus.wasValidator = isValidator
+	em.syncStatus.wasValidator = isValidator != 0
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {

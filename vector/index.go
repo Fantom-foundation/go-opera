@@ -14,24 +14,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
-/*
-Benchmark Index.Add before optimization:
-goos: linux
-goarch: amd64
-pkg: github.com/Fantom-foundation/go-lachesis/vector
-BenchmarkIndex_Add-8   	  118716	      9639 ns/op
-PASS
-ok  	github.com/Fantom-foundation/go-lachesis/vector	4.318s
-
-*/
-
 const (
 	forklessCauseCacheSize = 5000
-	highestBeforeSeqCacheSize = 100
-	highestBeforeTimeCacheSize = 100
-	lowestAfterSeqCacheSize = 100
-	eventBranchCacheSize = 100
-	branchesInfoCacheSize = 100
+	highestBeforeSeqCacheSize = 1000
+	highestBeforeTimeCacheSize = 1000
+	lowestAfterSeqCacheSize = 1000
+	eventBranchCacheSize = 1000
+	branchesInfoCacheSize = 1000
 )
 
 // Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
@@ -144,7 +133,7 @@ func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validato
 	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
 		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
 	}
-	if len(vi.bi.BranchIDCreators) < len(vi.validators) {
+	if len(vi.bi.BranchIDCreators) < vi.validators.Len() {
 		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
 	}
 
@@ -259,7 +248,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 		}
 	}
 	// Detect forks, which were not observed by parents
-	for n := idx.Validator(0); n < idx.Validator(len(vi.validators)); n++ {
+	for n := idx.Validator(0); n < idx.Validator(vi.validators.Len()); n++ {
 		if myVecs.beforeSeq.Get(n).IsForkDetected() {
 			// fork is already detected from the creator
 			continue
@@ -285,9 +274,14 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	nextCreator:
 	}
 
+	dfsStack := make(hash.EventsStack, 0, vi.validators.Len())
 	for _, headP := range e.Parents {
 		// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
 		walk := func(w *inter.EventHeaderData) (godeeper bool) {
+			if w.Hash() == e.Hash() {
+				return true // skip original element
+			}
+
 			wLowestAfterSeq := vi.GetLowestAfterSeq(w.Hash())
 
 			godeeper = wLowestAfterSeq.Get(meBranchID) == 0
@@ -302,16 +296,17 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 			return
 		}
 
-		err := vi.dfsSubgraph(headP, walk)
+		dfsStack := dfsStack[:0]
+		err := vi.dfsSubgraph(headP, walk, &dfsStack)
 		if err != nil {
 			vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
 		}
 	}
 
 	// store calculated vectors
-	vi.SetHighestBefore(e.Hash(), myVecs.beforeSeq, myVecs.beforeTime)
-	vi.SetLowestAfter(e.Hash(), myVecs.after)
-	vi.setEventBranchID(e.Hash(), meBranchID)
+	vi.SetHighestBefore(e.Hash(), myVecs.beforeSeq, myVecs.beforeTime) // 0.43/1.97
+	vi.SetLowestAfter(e.Hash(), myVecs.after)	// 0.3/1.97
+	vi.setEventBranchID(e.Hash(), meBranchID) 	// 0.28/1.97
 
 	return myVecs
 }
@@ -328,8 +323,8 @@ func (vi *Index) getHighestBeforeAllBranchesTime(id hash.Event) (HighestBeforeSe
 	if vi.atLeastOneFork() {
 		beforeSeq := vi.GetHighestBeforeSeq(id)
 		times := vi.GetHighestBeforeTime(id)
-		mergedTimes := NewHighestBeforeTime(len(vi.validators))
-		mergedSeq := NewHighestBeforeSeq(len(vi.validators))
+		mergedTimes := NewHighestBeforeTime(vi.validators.Len())
+		mergedSeq := NewHighestBeforeSeq(vi.validators.Len())
 		for creatorIdx, branches := range vi.bi.BranchIDByCreators {
 			// read all branches to find highest event
 			highestBranchSeq := BranchSeq{}

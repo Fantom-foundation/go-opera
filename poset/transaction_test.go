@@ -20,10 +20,10 @@ func TestPosetTxn(t *testing.T) {
 
 	p, s, x := FakePoset("", nodes)
 	assert.Equal(t,
-		pos.Stake(1), p.epochState.Validators[nodes[0]],
+		pos.Stake(1), p.epochState.Validators.Get(nodes[0]),
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		pos.Stake(1), p.epochState.Validators[nodes[1]],
+		pos.Stake(1), p.epochState.Validators.Get(nodes[1]),
 		"balance of %s", nodes[1].String())
 
 	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
@@ -58,13 +58,13 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, pos.Stake(5), p.Validators.TotalStake())
 	assert.Equal(t, pos.Stake(5), p.NextValidators.TotalStake())
 
-	assert.Equal(t, 5, len(p.Validators))
-	assert.Equal(t, 4, len(p.NextValidators))
+	assert.Equal(t, 5, p.Validators.Len())
+	assert.Equal(t, 4, p.NextValidators.Len())
 
-	assert.Equal(t, pos.Stake(1), p.Validators[nodes[0]])
-	assert.Equal(t, pos.Stake(1), p.Validators[nodes[1]])
-	assert.Equal(t, pos.Stake(0), p.NextValidators[nodes[0]])
-	assert.Equal(t, pos.Stake(2), p.NextValidators[nodes[1]])
+	assert.Equal(t, pos.Stake(1), p.Validators.Get(nodes[0]))
+	assert.Equal(t, pos.Stake(1), p.Validators.Get(nodes[1]))
+	assert.Equal(t, pos.Stake(0), p.NextValidators.Get(nodes[0]))
+	assert.Equal(t, pos.Stake(2), p.NextValidators.Get(nodes[1]))
 
 	// force Epoch commit
 	p.onNewEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), nil)
@@ -76,13 +76,13 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, pos.Stake(5), p.Validators.TotalStake())
 	assert.Equal(t, pos.Stake(5), p.NextValidators.TotalStake())
 
-	assert.Equal(t, 4, len(p.Validators))
-	assert.Equal(t, 4, len(p.NextValidators))
+	assert.Equal(t, 4, p.Validators.Len())
+	assert.Equal(t, 4, p.NextValidators.Len())
 
-	assert.Equal(t, pos.Stake(0), p.Validators[nodes[0]])
-	assert.Equal(t, pos.Stake(2), p.Validators[nodes[1]])
-	assert.Equal(t, pos.Stake(0), p.NextValidators[nodes[0]])
-	assert.Equal(t, pos.Stake(2), p.NextValidators[nodes[1]])
+	assert.Equal(t, pos.Stake(0), p.Validators.Get(nodes[0]))
+	assert.Equal(t, pos.Stake(2), p.Validators.Get(nodes[1]))
+	assert.Equal(t, pos.Stake(0), p.NextValidators.Get(nodes[0]))
+	assert.Equal(t, pos.Stake(2), p.NextValidators.Get(nodes[1]))
 
 	st := s.GetCheckpoint()
 	ep := s.GetEpoch()

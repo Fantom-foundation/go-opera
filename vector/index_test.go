@@ -37,7 +37,7 @@ func BenchmarkIndex_Add(b *testing.B) {
 			ordered = append(ordered, e)
 		},
 	})
-	validators := make(pos.Validators, len(nodes))
+	validators := pos.NewValidators()
 	for _, peer := range nodes {
 		validators.Set(peer, 1)
 	}
@@ -49,11 +49,11 @@ func BenchmarkIndex_Add(b *testing.B) {
 		events[e.Hash()] = &e.EventHeaderData
 	}
 
-	vecClock := NewIndex(validators, memorydb.New(), getEvent)
+	vecClock := NewIndex(*validators, memorydb.New(), getEvent)
 
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		vecClock.Reset(validators, memorydb.New(), getEvent)
+		vecClock.Reset(*validators, memorydb.New(), getEvent)
 		b.StartTimer()
 		for _, e := range ordered {
 			vecClock.Add(&e.EventHeaderData)

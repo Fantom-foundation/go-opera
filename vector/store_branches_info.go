@@ -55,7 +55,7 @@ func (vi *Index) getBranchesInfo() *branchesInfo {
 		return nil
 	}
 
-	vi.cache.BranchesInfo.Add(key, *w)
+	vi.cache.BranchesInfo.Add(string(key), *w)
 
 	return w
 }

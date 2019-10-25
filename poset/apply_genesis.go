@@ -66,7 +66,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 		StateHash: stateHash,
 	}
 
-	e.Validators = make(pos.Validators, len(g.Alloc))
+	e.Validators = *pos.NewValidators()
 	for addr, account := range g.Alloc {
 		e.Validators.Set(addr, pos.BalanceToStake(account.Balance))
 	}
