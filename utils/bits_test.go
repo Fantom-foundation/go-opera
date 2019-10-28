@@ -16,10 +16,10 @@ func TestBitArray(t *testing.T) {
 func testBitArray(t *testing.T, bits uint) {
 	expect := rand.Perm(1 << bits)
 	count := len(expect)
-	got := make([]int, count, count)
+	got := make([]int, count)
 
 	arr := NewBitArray(bits, uint(count))
-	raw := make([]byte, arr.Size(), arr.Size())
+	raw := make([]byte, arr.Size())
 
 	writer := arr.Writer(raw)
 	for _, v := range expect {

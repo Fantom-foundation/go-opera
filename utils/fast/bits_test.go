@@ -18,7 +18,7 @@ func testBitArray(t *testing.T, bits int) {
 
 	size := BitArraySizeCalc(bits, count)
 
-	buf := make([]byte, size, size)
+	buf := make([]byte, size)
 
 	arr := NewBitArray(bits, &buf)
 	for _, v := range expect {
