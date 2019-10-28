@@ -43,7 +43,7 @@ func NewBitArray(bits, count uint) *BitArray {
 	return &BitArray{
 		bits:  bits,
 		count: count,
-		vals:  make([]int, count, count),
+		vals:  make([]int, count),
 		size:  calcSize(bits, count),
 	}
 }

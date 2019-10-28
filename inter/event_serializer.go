@@ -168,7 +168,7 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 		common.HashLength*parentsCount +
 		extraCount
 
-	bytesBuf := make([]byte, length, length)
+	bytesBuf := make([]byte, length)
 
 	// Sizes in bytes, enough for save intX values, save to bit buffer
 
@@ -294,7 +294,7 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	e.TxHash.SetBytes(buf.Read(common.HashLength))
 
 	// Read parents without epoch and set epoch from e.Epoch
-	e.Parents = make(hash.Events, parentCount, parentCount)
+	e.Parents = make(hash.Events, parentCount)
 	for i := uint32(0); i < parentCount; i++ {
 		copy(e.Parents[i][:4], e.Epoch.Bytes())
 		copy(e.Parents[i][4:], buf.Read(common.HashLength-4))
