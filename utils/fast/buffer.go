@@ -25,9 +25,10 @@ func (b *Buffer) Write(src []byte) {
 }
 
 // WriteByte method write one byte in to buffer
-func (b *Buffer) WriteByte(src byte) {
+func (b *Buffer) WriteByte(src byte) error {
 	(*b.buf)[b.offset] = src
 	b.offset++
+	return nil
 }
 
 // WriteLen method write byte sequence in to buffer with fixed size
@@ -50,10 +51,10 @@ func (b *Buffer) Read(size int) (result []byte) {
 }
 
 // ReadByte method read one byte from buffer
-func (b *Buffer) ReadByte() byte {
+func (b *Buffer) ReadByte() (byte, error) {
 	res := (*b.buf)[b.offset]
 	b.offset++
-	return res
+	return res, nil
 }
 
 // Seek move internal offset to position in parameter

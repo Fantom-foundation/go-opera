@@ -307,7 +307,7 @@ func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 
 func writeUint32Compact(buf *fast.Buffer, v uint32) (bytes int) {
 	for {
-		buf.WriteByte(byte(v))
+		_ = buf.WriteByte(byte(v))
 		bytes++
 		v = v >> 8
 		if v == 0 {
@@ -318,7 +318,7 @@ func writeUint32Compact(buf *fast.Buffer, v uint32) (bytes int) {
 
 func writeUint64Compact(buf *fast.Buffer, v uint64) (bytes int) {
 	for {
-		buf.WriteByte(byte(v))
+		_ = buf.WriteByte(byte(v))
 		bytes++
 		v = v >> 8
 		if v == 0 {
