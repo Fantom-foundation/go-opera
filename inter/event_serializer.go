@@ -35,9 +35,7 @@ type (
 	}
 )
 
-/*
-	EventHeaderData RLP serializers
-*/
+// EncodeRLP EventHeaderData RLP encode
 func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
 	bytes, err := e.MarshalBinary()
 	if err != nil {
@@ -48,6 +46,8 @@ func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
 
 	return err
 }
+
+// DecodeRLP EventHeaderData RLP decode
 func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
 	bytes, err := src.Bytes()
 	if err != nil {
@@ -59,9 +59,7 @@ func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
 	return err
 }
 
-/*
-	EventHeader RLP serializers
-*/
+// EncodeRLP EventHeader RLP encode
 func (e *EventHeader) EncodeRLP(w io.Writer) error {
 	eh := eventHeaderType{
 		EventHeaderData: e.EventHeaderData,
@@ -72,6 +70,8 @@ func (e *EventHeader) EncodeRLP(w io.Writer) error {
 
 	return err
 }
+
+// DecodeRLP EventHeader RLP decode
 func (e *EventHeader) DecodeRLP(src *rlp.Stream) error {
 	bytes, err := src.Raw()
 	if err != nil {
@@ -90,9 +90,8 @@ func (e *EventHeader) DecodeRLP(src *rlp.Stream) error {
 	return nil
 }
 
-/*
-	Event RLP serializers
-*/
+
+// EncodeRLP Event RLP encode
 func (e *Event) EncodeRLP(w io.Writer) error {
 	ev := eventType{
 		EventHeader: eventHeaderType{
@@ -107,6 +106,8 @@ func (e *Event) EncodeRLP(w io.Writer) error {
 
 	return err
 }
+
+// DecodeRLP Event RLP decode
 func (e *Event) DecodeRLP(src *rlp.Stream) error {
 	bytes, err := src.Raw()
 	if err != nil {
@@ -126,9 +127,8 @@ func (e *Event) DecodeRLP(src *rlp.Stream) error {
 	return nil
 }
 
-/*
-	EventHeaderData binary serialization
-*/
+
+// MarshalBinary EventHeaderData binary serialize
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	parentsCount := 0
 	if e.Parents != nil {
@@ -224,6 +224,8 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 
 	return bytesBuf[0 : headerSize+buf.BytesLen()], nil
 }
+
+// UnmarshalBinary EventHeaderData binary deserialize
 func (e *EventHeaderData) UnmarshalBinary(src []byte) error {
 	var parentCount uint32
 	var extraCount uint32
