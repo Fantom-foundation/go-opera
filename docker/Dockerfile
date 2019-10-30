@@ -5,6 +5,7 @@ RUN apk add --no-cache make gcc musl-dev linux-headers git
 WORKDIR /go/go-lachesis
 COPY . .
 
+ARG GOPROXY=direct
 RUN go mod download
 
 RUN export GIT_COMMIT=$(git rev-list -1 HEAD) && \
@@ -12,7 +13,7 @@ RUN export GIT_COMMIT=$(git rev-list -1 HEAD) && \
     export CGO_ENABLED=1 && \
     go build -ldflags "-s -w -X main.gitCommit=$GIT_COMMIT -X main.gitDate=$GIT_DATE" \
     -o /tmp/lachesis \
-    ./cmd
+    ./cmd/lachesis
 
 
 
