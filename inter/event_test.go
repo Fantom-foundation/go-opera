@@ -30,6 +30,9 @@ func TestEventSerialization(t *testing.T) {
 		if !assertar.NoError(err, dsc) {
 			break
 		}
+		if e1.Sig == nil {
+			e1.Sig = []uint8{}
+		}
 
 		assertar.Equal(len(buf), e1.CalcSize())
 		assertar.Equal(len(buf), e1.Size())
