@@ -16,17 +16,17 @@ const ValidatorsMax = 30
 type (
 	// Validators of epoch with stake.
 	Validators struct {
-		indexes 	map[common.Address]int
-		list		[]Stake
-		addresses	[]common.Address
+		indexes   map[common.Address]int
+		list      []Stake
+		addresses []common.Address
 	}
 )
 
 func NewValidators() *Validators {
 	return &Validators{
-		indexes: 	make(map[common.Address]int),
-		list:    	make([]Stake, 0, ValidatorsMax),
-		addresses:	make([]common.Address, 0, ValidatorsMax),
+		indexes:   make(map[common.Address]int),
+		list:      make([]Stake, 0, ValidatorsMax),
+		addresses: make([]common.Address, 0, ValidatorsMax),
 	}
 }
 
@@ -60,7 +60,7 @@ func (vv *Validators) Set(addr common.Address, stake Stake) {
 		i, ok := vv.indexes[addr]
 		if ok {
 			delete(vv.indexes, addr)
-			idxOrig := len(vv.list)-1
+			idxOrig := len(vv.list) - 1
 			if i == idxOrig {
 				vv.list = vv.list[:idxOrig]
 				vv.addresses = vv.addresses[:idxOrig]
@@ -149,8 +149,8 @@ func (vv Validators) Copy() Validators {
 	res := NewValidators()
 
 	if cap(res.list) < len(vv.list) {
-		res.list = make([]Stake, len(vv.list), len(vv.list))
-		res.addresses = make([]common.Address, len(vv.list), len(vv.list))
+		res.list = make([]Stake, len(vv.list))
+		res.addresses = make([]common.Address, len(vv.list))
 	}
 	res.list = res.list[0:len(vv.list)]
 	res.addresses = res.addresses[0:len(vv.list)]
@@ -189,10 +189,18 @@ func (vv Validators) EncodeRLP(w io.Writer) error {
 
 // DecodeRLP is for RLP deserialization.
 func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
-	if vv == nil { vv = NewValidators() }
-	if vv.addresses == nil 	{ vv.addresses 	= make([]common.Address, 0, ValidatorsMax) }
-	if vv.indexes == nil 	{ vv.indexes 	= make(map[common.Address]int) }
-	if vv.list == nil 		{ vv.list		= make([]Stake, 0, ValidatorsMax) }
+	if vv == nil {
+		vv = NewValidators()
+	}
+	if vv.addresses == nil {
+		vv.addresses = make([]common.Address, 0, ValidatorsMax)
+	}
+	if vv.indexes == nil {
+		vv.indexes = make(map[common.Address]int)
+	}
+	if vv.list == nil {
+		vv.list = make([]Stake, 0, ValidatorsMax)
+	}
 
 	var arr []validator
 	if err := s.Decode(&arr); err != nil {

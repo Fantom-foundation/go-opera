@@ -54,7 +54,7 @@ func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
 
 	vi := NewIndex(*validators, memorydb.New(), getEvent)
 
-	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+	_, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			events[e.Hash()] = &e.EventHeaderData
 			vi.Add(&e.EventHeaderData)
@@ -78,7 +78,6 @@ func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
 	}
 	b.StopTimer()
 }
-
 
 func TestForklessCausedClassic(t *testing.T) {
 
@@ -143,7 +142,7 @@ func testForklessCaused(t *testing.T, dag string) {
 
 	vi := NewIndex(*validators, memorydb.New(), getEvent)
 
-	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+	_, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			events[e.Hash()] = &e.EventHeaderData
 			vi.Add(&e.EventHeaderData)
