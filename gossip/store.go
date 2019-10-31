@@ -37,6 +37,11 @@ type Store struct {
 		LastEpochHeaders kvdb.KeyValueStore `table:"lheaders"`
 		EpochStats       kvdb.KeyValueStore `table:"estats"`
 
+		ActiveValidatorScores kvdb.KeyValueStore `table:"actvscore"`
+		DirtyValidatorScores  kvdb.KeyValueStore `table:"drtvscore"`
+		BlockParticipation    kvdb.KeyValueStore `table:"blockprtcp"`
+		incMutex              *sync.Mutex
+
 		// API-only tables
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
 		Receipts    kvdb.KeyValueStore `table:"receipts"`
@@ -54,16 +59,17 @@ type Store struct {
 	}
 
 	cache struct {
-		Events           *lru.Cache `cache:"-"` // store by pointer
-		EventsHeaders    *lru.Cache `cache:"-"` // store by pointer
-		Blocks           *lru.Cache `cache:"-"` // store by pointer
-		PackInfos        *lru.Cache `cache:"-"` // store by value
-		Receipts         *lru.Cache `cache:"-"` // store by value
-		TxPositions      *lru.Cache `cache:"-"` // store by pointer
-		EpochStats       *lru.Cache `cache:"-"` // store by value
-		LastEpochHeaders *lru.Cache `cache:"-"` // store by pointer
-		Stakers          *lru.Cache `cache:"-"` // store by pointer
-		Delegators       *lru.Cache `cache:"-"` // store by pointer
+		Events             *lru.Cache `cache:"-"` // store by pointer
+		EventsHeaders      *lru.Cache `cache:"-"` // store by pointer
+		Blocks             *lru.Cache `cache:"-"` // store by pointer
+		PackInfos          *lru.Cache `cache:"-"` // store by value
+		Receipts           *lru.Cache `cache:"-"` // store by value
+		TxPositions        *lru.Cache `cache:"-"` // store by pointer
+		EpochStats         *lru.Cache `cache:"-"` // store by value
+		LastEpochHeaders   *lru.Cache `cache:"-"` // store by pointer
+		Stakers            *lru.Cache `cache:"-"` // store by pointer
+		Delegators         *lru.Cache `cache:"-"` // store by pointer
+		BlockParticipation *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutexes struct {
@@ -98,6 +104,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
+	s.table.incMutex = &sync.Mutex{}
 
 	s.initTmpDbs()
 	s.initCache()
@@ -117,6 +124,7 @@ func (s *Store) initCache() {
 	s.cache.LastEpochHeaders = s.makeCache(s.cfg.LastEpochHeadersCacheSize)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
+	s.cache.BlockParticipation = s.makeCache(64)
 }
 
 func (s *Store) initMutexes() {

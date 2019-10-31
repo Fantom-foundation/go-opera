@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -55,4 +56,38 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 	}
 	n := idx.BytesToBlock(buf)
 	return &n
+}
+
+// SetBlockGasUsed save block used gas
+func (s *Store) SetBlockGasUsed(n idx.Block, gas uint64) {
+	err := s.table.BlockParticipation.Put(n.Bytes(), bigendian.Int64ToBytes(gas))
+	if err != nil {
+		s.Log.Crit("Failed to set key-value", "err", err)
+	}
+
+	s.cache.BlockParticipation.Add(string(n.Bytes()), gas)
+}
+
+// GetBlockGasUsed return block used gas
+func (s *Store) GetBlockGasUsed(n idx.Block) uint64 {
+	gasVal, ok := s.cache.BlockParticipation.Get(string(n.Bytes()))
+	if ok {
+		gas, ok := gasVal.(uint64)
+		if ok {
+			return gas
+		}
+	}
+
+	gasBytes, err := s.table.BlockParticipation.Get(n.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to get key-value", "err", err)
+	}
+	if gasBytes == nil {
+		return 0
+	}
+
+	gas := bigendian.BytesToInt64(gasBytes)
+	s.cache.BlockParticipation.Add(string(n.Bytes()), gas)
+
+	return gas
 }
