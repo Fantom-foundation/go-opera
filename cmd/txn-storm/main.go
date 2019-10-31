@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"sort"
+	"syscall"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"gopkg.in/urfave/cli.v1"
@@ -30,7 +32,12 @@ var (
 func init() {
 
 	// Flags.
-	flags = []cli.Flag{}
+	flags = []cli.Flag{
+		DonorFlag,
+		TxnsRateFlag,
+		BlockPeriodFlag,
+		NumberFlag,
+	}
 
 	// App.
 	app.Action = generatorMain
@@ -59,9 +66,28 @@ func main() {
 
 // generatorMain is the main entry point.
 func generatorMain(ctx *cli.Context) error {
-	if args := ctx.Args(); len(args) > 0 {
-		return fmt.Errorf("invalid command: %q", args[0])
+	args := ctx.Args()
+	if len(args) != 1 {
+		return fmt.Errorf("url expected")
 	}
 
+	url := args[0]
+	donor := getDonor(ctx)
+	num, ofTotal := getNumber(ctx)
+	maxTxnsPerSec := getTxnsRate(ctx)
+	period := getBlockPeriod(ctx)
+
+	tt := newThreads(url, donor, num, ofTotal, maxTxnsPerSec, period)
+	tt.Start()
+
+	waitForSignal()
+	tt.Stop()
 	return nil
+}
+
+func waitForSignal() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	<-sigs
+
 }
