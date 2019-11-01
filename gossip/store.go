@@ -46,6 +46,7 @@ type Store struct {
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
 		Receipts    kvdb.KeyValueStore `table:"receipts"`
 		TxPositions kvdb.KeyValueStore `table:"txp"`
+		ScoreCheckpoint	kvdb.KeyValueStore `table:"schekpoint"`
 
 		// SFC-related tables
 		Validators kvdb.KeyValueStore `table:"va"`
@@ -70,6 +71,8 @@ type Store struct {
 		Stakers            *lru.Cache `cache:"-"` // store by pointer
 		Delegators         *lru.Cache `cache:"-"` // store by pointer
 		BlockParticipation *lru.Cache `cache:"-"` // store by pointer
+		BlockHashes        *lru.Cache `cache:"-"` // store by pointer
+		ScoreCheckpoint    *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutexes struct {
@@ -125,6 +128,8 @@ func (s *Store) initCache() {
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockParticipation = s.makeCache(64)
+	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
+	s.cache.ScoreCheckpoint = s.makeCache(4)
 }
 
 func (s *Store) initMutexes() {

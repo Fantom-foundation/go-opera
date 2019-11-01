@@ -3,10 +3,15 @@ package gossip
 import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"time"
+)
+
+const (
+	PeriodBetweenScoreCheckpoints = 4 * time.Hour
 )
 
 // calcScores calculates the validators scores
-func (s *Service) calcScores(block *inter.Block) {
+func (s *Service) calcScores(block *inter.Block, sealEpoch bool) {
 	validators := s.engine.GetValidators()
 
 	// Calc validators score
@@ -41,5 +46,19 @@ func (s *Service) calcScores(block *inter.Block) {
 			s.store.AddDirtyValidatorsScore(v, usedGas)
 		}
 		s.store.ResetBlocksMissed(v)
+	}
+
+	if sealEpoch {
+		prevBlock := s.store.GetBlockByHash(block.PrevHash)
+		if len(prevBlock.Events) > 0 && len(block.Events) > 0 {
+			if prevBlock.Events[0].Epoch() != block.Events[0].Epoch() {
+				// Epoch changed
+				lastCheckpoint := s.store.GetScoreCheckpoint()
+				if block.Time.Time().Sub(lastCheckpoint.Time()) > PeriodBetweenScoreCheckpoints {
+					s.store.MoveDirtyValidatorsToActive()
+					s.store.SetScoreCheckpoint(block.Time)
+				}
+			}
+		}
 	}
 }

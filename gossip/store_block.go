@@ -43,10 +43,20 @@ func (s *Store) SetBlockIndex(id hash.Event, n idx.Block) {
 	if err := s.table.BlockHashes.Put(id.Bytes(), n.Bytes()); err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
+
+	s.cache.BlockHashes.Add(string(id.Bytes()), n)
 }
 
 // GetBlockIndex returns stored block index.
 func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
+	nVal, ok := s.cache.BlockHashes.Get(string(id.Bytes()))
+	if ok {
+		n, ok := nVal.(idx.Block)
+		if ok {
+			return &n
+		}
+	}
+
 	buf, err := s.table.BlockHashes.Get(id.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
@@ -55,7 +65,15 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 		return nil
 	}
 	n := idx.BytesToBlock(buf)
+
+	s.cache.BlockHashes.Add(string(id.Bytes()), n)
+
 	return &n
+}
+
+// GetBlockByHash get block by block hash
+func (s *Store) GetBlockByHash(id hash.Event) *inter.Block {
+	return s.GetBlock(*s.GetBlockIndex(id))
 }
 
 // SetBlockGasUsed save block used gas
