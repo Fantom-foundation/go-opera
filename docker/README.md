@@ -4,7 +4,7 @@ Contains scripts to try lachesis (only for fakenet now) with Docker.
 
 ## for common purpose
 
-  - build node docker image "lachesis": `make build`;
+  - build node docker image "lachesis": `make lachesis`;
   - run network of x nodes: `N=x ./start.sh`;
   - stop network: `./stop.sh`;
 

@@ -1,10 +1,19 @@
-all: build
+all: lachesis txn-storm
 
 
-.PHONY: build
+.PHONY: lachesis
 build:
 	cd ../ && \
 	docker build \
 	    --network=host \
 	    --build-arg GOPROXY=$(GOPROXY) \
-	    -f docker/Dockerfile -t "lachesis" .
+	    -f docker/Dockerfile.lachesis -t "lachesis" .
+
+
+.PHONY: txn-storm
+txn-storm:
+	cd ../ && \
+	docker build \
+	    --network=host \
+	    --build-arg GOPROXY=$(GOPROXY) \
+	    -f docker/Dockerfile.txn-storm -t "txn-storm" .
