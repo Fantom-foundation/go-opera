@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 CONF=prometheus.yml
 
 declare -rl PROMETHEUS="${PROMETHEUS:-no}"
@@ -15,12 +16,12 @@ scrape_configs:
 HEADER
 
 
-    docker ps -f name=${NAME} --format '{{.Names}}' | while read n
+    docker ps -f network=${NETWORK} -f name=${NAME} --format '{{.Names}}' | while read node
     do
-	ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $n)
+	ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${node})
 
         cat << NODE >> $CONF
-  - job_name: '$n'
+  - job_name: '$node'
     static_configs:
       - targets: ['$ip:19090']
 NODE
