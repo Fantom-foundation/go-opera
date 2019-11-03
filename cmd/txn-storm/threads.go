@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type threads struct {
@@ -19,6 +20,8 @@ type threads struct {
 	output chan struct{}
 	work   sync.WaitGroup
 	sync.Mutex
+
+	logger.Instance
 }
 
 func newThreads(
@@ -38,7 +41,11 @@ func newThreads(
 	tt := &threads{
 		url: nodeUrl,
 		all: make([]*genThread, count, count),
+
+		Instance: logger.MakeInstance(),
 	}
+
+	tt.SetName("Sender")
 
 	accs := maxTxnsPerSec * uint(block.Milliseconds()/1000) / ofTotal
 	accsOnThread := accs / uint(count)
@@ -70,6 +77,8 @@ func (tt *threads) Start() {
 	tt.output = make(chan struct{})
 	tt.work.Add(1)
 	go tt.background()
+
+	tt.Log.Info("started")
 }
 
 func (tt *threads) Stop() {
@@ -94,6 +103,8 @@ func (tt *threads) Stop() {
 	close(tt.output)
 	tt.work.Wait()
 	tt.input = nil
+
+	tt.Log.Info("stopped")
 }
 
 func (tt *threads) background() {
@@ -111,8 +122,8 @@ func (tt *threads) background() {
 			if err == nil {
 				break
 			}
+			tt.Log.Error("txn sending", "err", err)
 
-			fmt.Println(err)
 			select {
 			case <-time.After(2 * time.Second):
 				continue
@@ -120,6 +131,7 @@ func (tt *threads) background() {
 				return
 			}
 		}
-		fmt.Println(txn)
+
+		tt.Log.Error("txn sent", "txn", txn)
 	}
 }

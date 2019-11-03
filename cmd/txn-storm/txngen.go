@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type genThread struct {
@@ -17,6 +20,8 @@ type genThread struct {
 	work sync.WaitGroup
 	done chan struct{}
 	sync.Mutex
+
+	logger.Instance
 }
 
 func newTxnGenerator(donor, from, to uint) *genThread {
@@ -30,11 +35,17 @@ func newTxnGenerator(donor, from, to uint) *genThread {
 
 	count := to - from
 
-	return &genThread{
+	g := &genThread{
 		acc:    MakeAcc(donor),
 		accs:   make([]*Acc, count, count),
 		offset: from,
+
+		Instance: logger.MakeInstance(),
 	}
+
+	g.SetName(fmt.Sprintf("Accs[%d:%d]", from, to))
+
+	return g
 }
 
 func (g *genThread) SetOutput(c chan<- *types.Transaction) {
@@ -59,6 +70,8 @@ func (g *genThread) Start() {
 	g.done = make(chan struct{})
 	g.work.Add(1)
 	go g.background()
+
+	g.Log.Info("started")
 }
 
 func (g *genThread) Stop() {
@@ -72,6 +85,8 @@ func (g *genThread) Stop() {
 	close(g.done)
 	g.work.Wait()
 	g.done = nil
+
+	g.Log.Info("stopped")
 }
 
 func (g *genThread) background() {
@@ -91,11 +106,13 @@ func (g *genThread) generate(pos uint) {
 	total := uint(len(g.accs))
 
 	if pos < total && g.accs[pos] == nil {
-		b := MakeAcc(g.offset + pos)
+		b := MakeAcc(pos + g.offset)
 		nonce := pos + 1
 		txn := g.acc.TransactionTo(b, nonce, 10)
 		g.send(txn)
 		g.accs[pos] = b
+
+		g.Log.Info("initial txn", "from", "donor", "to", pos+g.offset)
 		return
 	}
 
@@ -104,6 +121,8 @@ func (g *genThread) generate(pos uint) {
 	nonce := pos/total + 1
 	txn := g.accs[a].TransactionTo(g.accs[b], nonce, 1)
 	g.send(txn)
+
+	g.Log.Info("regular txn", "from", a+g.offset, "to", b+g.offset)
 }
 
 func (g *genThread) send(tx *types.Transaction) {
