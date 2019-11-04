@@ -28,7 +28,7 @@ func FakeGenesis(n int) Genesis {
 		key := crypto.FakeKey(i)
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		accounts[addr] = Account{
-			Balance:    pos.StakeToBalance(1000000),
+			Balance:    pos.StakeToBalance(1000000000),
 			PrivateKey: key,
 		}
 	}

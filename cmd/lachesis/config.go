@@ -114,14 +114,20 @@ func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
 
 func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	defaultDataDir := DefaultDataDir()
-	cfg.DataDir = defaultDataDir
+
 	switch {
 	case ctx.GlobalIsSet(utils.DataDirFlag.Name):
 		cfg.DataDir = ctx.GlobalString(utils.DataDirFlag.Name)
-	case ctx.GlobalIsSet(FakeNetFlag.Name) && cfg.DataDir == defaultDataDir:
-		cfg.DataDir = filepath.Join(defaultDataDir, "fakenet")
-	case ctx.GlobalBool(utils.TestnetFlag.Name) && cfg.DataDir == defaultDataDir:
+	case ctx.GlobalIsSet(FakeNetFlag.Name):
+		_, total, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		if err != nil {
+			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
+		}
+		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", total))
+	case ctx.GlobalBool(utils.TestnetFlag.Name):
 		cfg.DataDir = filepath.Join(defaultDataDir, "testnet")
+	default:
+		cfg.DataDir = defaultDataDir
 	}
 }
 
