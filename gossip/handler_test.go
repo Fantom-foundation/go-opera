@@ -133,6 +133,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	config.Emitter.MinEmitInterval = time.Duration(0)
 	config.Emitter.MaxEmitInterval = time.Duration(0)
 	config.Emitter.SelfForkProtectionInterval = 0
+	config.TxPool.Journal = ""
 
 	var (
 		store       = NewMemStore()

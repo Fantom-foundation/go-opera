@@ -3,6 +3,7 @@ package evmcore
 import (
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -203,11 +204,11 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 }
 
 func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
-	var time inter.Timestamp
+	var t inter.Timestamp
 	if parent.Time == 0 {
-		time = 10
+		t = 10
 	} else {
-		time = parent.Time + 10 // block time is fixed at 10 seconds
+		t = parent.Time + inter.Timestamp(10 * time.Second) // block time is fixed at 10 seconds
 	}
 
 	return &EvmHeader{
@@ -215,7 +216,7 @@ func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
 		Coinbase:   parent.Coinbase,
 		GasLimit:   parent.GasLimit,
 		Number:     new(big.Int).Add(parent.Number, common.Big1),
-		Time:       time,
+		Time:       t,
 	}
 }
 

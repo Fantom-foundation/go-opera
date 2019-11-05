@@ -35,6 +35,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, nodesNum, 1e6*pos.Qualification))
 	config := DefaultConfig(net)
+	config.TxPool.Journal = ""
 
 	engineStore := poset.NewMemStore()
 	err := engineStore.ApplyGenesis(&net.Genesis, hash.Event{}, common.Hash{})
