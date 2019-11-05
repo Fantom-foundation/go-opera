@@ -4,10 +4,9 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/Fantom-foundation/go-lachesis/metrics"
 )
 
 const address = ":19090"
@@ -24,7 +23,7 @@ func init() {
 
 func enable() {
 	reg := metrics.DefaultRegistry
-	reg.OnNew(collect)
+	reg.Each(collect)
 
 	go func() {
 		logger.Info("metrics server starts", "address", address)
@@ -38,7 +37,7 @@ func enable() {
 	}()
 }
 
-func collect(name string, metric metrics.Metric) {
+func collect(name string, metric interface{}) {
 	collector, ok := convertToPrometheusMetric(name, metric)
 	if !ok {
 		logger.Debug("metric doesn't support prometheus", "metric", name)
@@ -46,13 +45,12 @@ func collect(name string, metric metrics.Metric) {
 	}
 
 	err := prometheus.Register(collector)
-	switch err.(type) {
-	case prometheus.AlreadyRegisteredError:
-		return
-	default:
-	}
-
 	if err != nil {
-		logger.Error(err.Error())
+		switch err.(type) {
+		case prometheus.AlreadyRegisteredError:
+			return
+		default:
+			logger.Error(err.Error())
+		}
 	}
 }
