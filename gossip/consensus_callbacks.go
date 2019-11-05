@@ -285,6 +285,8 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 	}
 
+	s.blockParticipated = make(map[common.Address]bool) // reset map of participated validators
+
 	return newAppHash, sealEpoch
 }
 
@@ -314,6 +316,9 @@ func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.E
 	if seqDepth == 0 {
 		s.store.AddLastHeader(header.Epoch, header)
 	}
+
+	// track validators who participated in the block
+	s.blockParticipated[header.Creator] = true
 }
 
 // isEventAllowedIntoBlock is callback type to check is event may be within block or not

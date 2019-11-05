@@ -68,13 +68,14 @@ type Service struct {
 	serverPool *serverPool
 
 	// application
-	node        *node.ServiceContext
-	store       *Store
-	engine      Consensus
-	engineMu    *sync.RWMutex
-	emitter     *Emitter
-	txpool      *evmcore.TxPool
-	occurredTxs *occuredtxs.Buffer
+	node              *node.ServiceContext
+	store             *Store
+	engine            Consensus
+	engineMu          *sync.RWMutex
+	emitter           *Emitter
+	txpool            *evmcore.TxPool
+	occurredTxs       *occuredtxs.Buffer
+	blockParticipated map[common.Address]bool // validators who participated in last block
 
 	feed ServiceFeed
 
@@ -97,8 +98,9 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		node:  ctx,
 		store: store,
 
-		engineMu:    new(sync.RWMutex),
-		occurredTxs: occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
+		engineMu:          new(sync.RWMutex),
+		occurredTxs:       occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
+		blockParticipated: make(map[common.Address]bool),
 
 		Instance: logger.MakeInstance(),
 	}

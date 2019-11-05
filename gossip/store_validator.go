@@ -12,10 +12,10 @@ const (
 	ValidatorsScoreCheckpointKey = "LastScoreCheckpoint"
 )
 
-// AddBlocksMissed add count of missed blocks for validator
+// IncBlocksMissed add count of missed blocks for validator
 func (s *Store) IncBlocksMissed(v common.Address) {
-	s.table.incMutex.Lock()
-	defer s.table.incMutex.Unlock()
+	s.mutexes.IncMutex.Lock()
+	defer s.mutexes.IncMutex.Unlock()
 
 	missed := s.GetBlocksMissed(v)
 	missed++
@@ -29,8 +29,8 @@ func (s *Store) IncBlocksMissed(v common.Address) {
 
 // ResetBlocksMissed set to 0 missed blocks for validator
 func (s *Store) ResetBlocksMissed(v common.Address) {
-	s.table.incMutex.Lock()
-	defer s.table.incMutex.Unlock()
+	s.mutexes.IncMutex.Lock()
+	defer s.mutexes.IncMutex.Unlock()
 
 	err := s.table.BlockParticipation.Put(v.Bytes(), bigendian.Int32ToBytes(0))
 	if err != nil {
@@ -85,8 +85,8 @@ func (s *Store) GetDirtyValidatorsScore(v common.Address) uint64 {
 }
 
 func (s *Store) addValidatorScore(t kvdb.KeyValueStore, v common.Address, val uint64) {
-	s.table.incMutex.Lock()
-	defer s.table.incMutex.Unlock()
+	s.mutexes.IncMutex.Lock()
+	defer s.mutexes.IncMutex.Unlock()
 
 	score := s.getValidatorScore(t, v)
 	score += val

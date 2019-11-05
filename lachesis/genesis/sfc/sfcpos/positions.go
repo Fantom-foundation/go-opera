@@ -44,8 +44,8 @@ type VStakePos struct {
 	object
 }
 
-func VStake(stakerID uint64) VStakePos {
-	position := getMapValue(common.Hash{}, utils.U64to256(stakerID), 2)
+func VStake(stakerID idx.StakerID) VStakePos {
+	position := getMapValue(common.Hash{}, utils.U64to256(uint64(stakerID)), 2)
 
 	return VStakePos{object{base: position.Big()}}
 }

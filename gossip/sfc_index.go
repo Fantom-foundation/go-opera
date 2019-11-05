@@ -27,7 +27,7 @@ type SfcStaker struct {
 
 // SfcStakerAndID is pair SfcStaker + StakerID
 type SfcStakerAndID struct {
-	StakerID uint64
+	StakerID idx.StakerID
 	Staker   *SfcStaker
 }
 
@@ -43,7 +43,7 @@ type SfcDelegator struct {
 
 	Amount *big.Int
 
-	ToStakerID uint64
+	ToStakerID idx.StakerID
 }
 
 // processSfc applies the new SFC state
@@ -59,7 +59,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 			// Add new stakers
 			if l.Topics[0] == sfcpos.CreateStakeTopic {
-				stakerID := new(big.Int).SetBytes(l.Topics[1][:]).Uint64()
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 				address := common.BytesToAddress(l.Topics[2][12:])
 				amount := new(big.Int).SetBytes(l.Data[0:32])
 
@@ -74,7 +74,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 			// Increase stakes
 			if l.Topics[0] == sfcpos.IncreasedStakeTopic {
-				stakerID := new(big.Int).SetBytes(l.Topics[1][:]).Uint64()
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 				newAmount := new(big.Int).SetBytes(l.Data[0:32])
 
 				staker := s.store.GetSfcStaker(stakerID)
@@ -89,7 +89,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			// Add new delegators
 			if l.Topics[0] == sfcpos.CreatedDelegationTopic {
 				address := common.BytesToAddress(l.Topics[1][12:])
-				toStakerID := new(big.Int).SetBytes(l.Topics[2][12:]).Uint64()
+				toStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][12:]).Uint64())
 				amount := new(big.Int).SetBytes(l.Data[0:32])
 
 				staker := s.store.GetSfcStaker(toStakerID)
@@ -110,7 +110,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 			// Delete stakes
 			if l.Topics[0] == sfcpos.DeactivateStakeTopic {
-				stakerID := new(big.Int).SetBytes(l.Topics[1][:]).Uint64()
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 				s.store.DelSfcStaker(stakerID)
 			}
 

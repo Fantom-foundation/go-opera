@@ -1,30 +1,29 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // SetEpochValidator stores EpochValidator
-func (s *Store) SetEpochValidator(epoch idx.Epoch, stakerID uint64, v *SfcStaker) {
-	key := append(epoch.Bytes(), bigendian.Int64ToBytes(stakerID)...)
+func (s *Store) SetEpochValidator(epoch idx.Epoch, stakerID idx.StakerID, v *SfcStaker) {
+	key := append(epoch.Bytes(), stakerID.Bytes()...)
 
 	s.set(s.table.Validators, key, v)
 }
 
 // GetEpochValidator returns stored EpochValidator
-func (s *Store) GetEpochValidator(epoch idx.Epoch, stakerID uint64) *SfcStaker {
-	key := append(epoch.Bytes(), bigendian.Int64ToBytes(stakerID)...)
+func (s *Store) GetEpochValidator(epoch idx.Epoch, stakerID idx.StakerID) *SfcStaker {
+	key := append(epoch.Bytes(), stakerID.Bytes()...)
 
 	w, _ := s.get(s.table.Validators, key, &SfcStaker{}).(*SfcStaker)
 	return w
 }
 
-// SetSfcStaker stores SfcStaker
-func (s *Store) SetSfcStaker(stakerID uint64, v *SfcStaker) {
-	s.set(s.table.Stakers, bigendian.Int64ToBytes(stakerID), v)
+// DelSfcStaker deletes SfcStaker
+func (s *Store) SetSfcStaker(stakerID idx.StakerID, v *SfcStaker) {
+	s.set(s.table.Stakers, stakerID.Bytes(), v)
 
 	// Add to LRU cache.
 	if s.cache.Stakers != nil {
@@ -33,8 +32,8 @@ func (s *Store) SetSfcStaker(stakerID uint64, v *SfcStaker) {
 }
 
 // DelSfcStaker deletes SfcStaker
-func (s *Store) DelSfcStaker(stakerID uint64) {
-	err := s.table.Stakers.Delete(bigendian.Int64ToBytes(stakerID))
+func (s *Store) DelSfcStaker(stakerID idx.StakerID) {
+	err := s.table.Stakers.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to erase staker")
 	}
@@ -70,7 +69,7 @@ func (s *Store) forEachSfcStaker(it ethdb.Iterator) []SfcStakerAndID {
 
 		stakerIDBytes := it.Key()[len(it.Key())-8:]
 		stakers = append(stakers, SfcStakerAndID{
-			StakerID: bigendian.BytesToInt64(stakerIDBytes),
+			StakerID: idx.BytesToStakerID(stakerIDBytes),
 			Staker:   staker,
 		})
 	}
@@ -79,7 +78,7 @@ func (s *Store) forEachSfcStaker(it ethdb.Iterator) []SfcStakerAndID {
 }
 
 // GetSfcStaker returns stored SfcStaker
-func (s *Store) GetSfcStaker(stakerID uint64) *SfcStaker {
+func (s *Store) GetSfcStaker(stakerID idx.StakerID) *SfcStaker {
 	// Get data from LRU cache first.
 	if s.cache.Stakers != nil {
 		if c, ok := s.cache.Stakers.Get(stakerID); ok {
@@ -89,7 +88,7 @@ func (s *Store) GetSfcStaker(stakerID uint64) *SfcStaker {
 		}
 	}
 
-	w, _ := s.get(s.table.Stakers, bigendian.Int64ToBytes(stakerID), &SfcStaker{}).(*SfcStaker)
+	w, _ := s.get(s.table.Stakers, stakerID.Bytes(), &SfcStaker{}).(*SfcStaker)
 
 	// Add to LRU cache.
 	if w != nil && s.cache.Stakers != nil {

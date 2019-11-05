@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
@@ -46,7 +47,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 	})
 
 	for i, validator := range net.Genesis.Validators.SortedAddresses() { // sort validators to get deterministic stakerIDs
-		stakerID := uint64(i + 1)
+		stakerID := idx.StakerID(i + 1)
 		stakeAmount := net.Genesis.Validators.Get(validator)
 
 		staker := &SfcStaker{

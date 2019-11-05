@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
 	"github.com/Fantom-foundation/go-lachesis/utils"
@@ -30,7 +31,7 @@ func AssembleStorage(validators pos.Validators, genesisTime inter.Timestamp, sto
 
 	// set validators
 	for i, validator := range validators.SortedAddresses() { // sort validators to get deterministic stakerIDs
-		stakerID := uint64(i + 1)
+		stakerID := idx.StakerID(i + 1)
 		stakePos := sfcpos.VStake(stakerID)
 
 		stakeAmount := utils.BigTo256(pos.StakeToBalance(validators.Get(validator)))
@@ -41,7 +42,7 @@ func AssembleStorage(validators pos.Validators, genesisTime inter.Timestamp, sto
 		storage[stakePos.Address()] = validator.Hash()
 
 		stakerIDPos := sfcpos.VStakerID(validator)
-		storage[stakerIDPos] = utils.U64to256(stakerID)
+		storage[stakerIDPos] = utils.U64to256(uint64(stakerID))
 	}
 
 	storage[sfcpos.VStakersNum()] = utils.U64to256(uint64(validators.Len()))

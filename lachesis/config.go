@@ -37,6 +37,11 @@ type DagConfig struct {
 	IndexConfig vector.IndexConfig `json:"indexConfig"`
 }
 
+type EconomyConfig struct {
+	IntervalBetweenScoreCheckpoints time.Duration
+	FrameLatency                    idx.Frame
+}
+
 // Config describes lachesis net.
 type Config struct {
 	Name      string
@@ -46,6 +51,9 @@ type Config struct {
 
 	// Graph options
 	Dag DagConfig
+
+	// Economy options
+	Economy EconomyConfig
 }
 
 func MainNetConfig() Config {
@@ -54,6 +62,7 @@ func MainNetConfig() Config {
 		NetworkID: MainNetworkID,
 		Genesis:   genesis.MainGenesis(),
 		Dag:       DefaultDagConfig(),
+		Economy:   DefaultEconomyConfig(),
 	}
 }
 
@@ -63,6 +72,7 @@ func TestNetConfig() Config {
 		NetworkID: TestNetworkID,
 		Genesis:   genesis.TestGenesis(),
 		Dag:       DefaultDagConfig(),
+		Economy:   DefaultEconomyConfig(),
 	}
 }
 
@@ -72,6 +82,21 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 		NetworkID: FakeNetworkID,
 		Genesis:   genesis.FakeGenesis(accs),
 		Dag:       FakeNetDagConfig(),
+		Economy:   FakeEconomyConfig(),
+	}
+}
+
+func DefaultEconomyConfig() EconomyConfig {
+	return EconomyConfig{
+		IntervalBetweenScoreCheckpoints: 4 * time.Hour,
+		FrameLatency:                    4,
+	}
+}
+
+func FakeEconomyConfig() EconomyConfig {
+	return EconomyConfig{
+		IntervalBetweenScoreCheckpoints: 5 * time.Minute,
+		FrameLatency:                    4,
 	}
 }
 

@@ -3,11 +3,6 @@ package gossip
 import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"time"
-)
-
-const (
-	PeriodBetweenScoreCheckpoints = 4 * time.Hour
 )
 
 // calcScores calculates the validators scores
@@ -17,18 +12,11 @@ func (s *Service) calcScores(block *inter.Block, sealEpoch bool) {
 	// Calc validators score
 	s.store.SetBlockGasUsed(block.Index, block.GasUsed)
 	for v := range validators.Iterate() {
-		// Check validator events in current block
-		eventsInBlock := false
-		for _, evHash := range block.Events {
-			evh := s.store.GetEventHeader(evHash.Epoch(), evHash)
-			if evh.Creator == v {
-				eventsInBlock = true
-				break
-			}
-		}
+		// Check if validator has confirmed events by this Atropos
+		missedBlock := !s.blockParticipated[v]
 
-		// If have not events in block - add missed blocks for validator
-		if !eventsInBlock {
+		// If have confirmed events by this Atropos - just add missed blocks for validator
+		if missedBlock {
 			s.store.IncBlocksMissed(v)
 			continue
 		}
@@ -37,11 +25,12 @@ func (s *Service) calcScores(block *inter.Block, sealEpoch bool) {
 		s.store.AddDirtyValidatorsScore(v, block.GasUsed)
 
 		missedCapped := missed
-		if missedCapped > 2 {
-			missedCapped = 2
+		if missedCapped > uint32(s.config.Net.Economy.FrameLatency) {
+			missedCapped = uint32(s.config.Net.Economy.FrameLatency)
 		}
 
-		for i := uint32(1); i < missedCapped; i++ {
+		// Add score for previous blocks, but no more than FrameLatency prev blocks
+		for i := uint32(1); i <= missedCapped; i++ {
 			usedGas := s.store.GetBlockGasUsed(block.Index - idx.Block(i))
 			s.store.AddDirtyValidatorsScore(v, usedGas)
 		}
@@ -49,16 +38,10 @@ func (s *Service) calcScores(block *inter.Block, sealEpoch bool) {
 	}
 
 	if sealEpoch {
-		prevBlock := s.store.GetBlockByHash(block.PrevHash)
-		if len(prevBlock.Events) > 0 && len(block.Events) > 0 {
-			if prevBlock.Events[0].Epoch() != block.Events[0].Epoch() {
-				// Epoch changed
-				lastCheckpoint := s.store.GetScoreCheckpoint()
-				if block.Time.Time().Sub(lastCheckpoint.Time()) > PeriodBetweenScoreCheckpoints {
-					s.store.MoveDirtyValidatorsToActive()
-					s.store.SetScoreCheckpoint(block.Time)
-				}
-			}
+		lastCheckpoint := s.store.GetScoreCheckpoint()
+		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.IntervalBetweenScoreCheckpoints {
+			s.store.MoveDirtyValidatorsToActive()
+			s.store.SetScoreCheckpoint(block.Time)
 		}
 	}
 }

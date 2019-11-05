@@ -40,13 +40,19 @@ type Store struct {
 		ActiveValidatorScores kvdb.KeyValueStore `table:"actvscore"`
 		DirtyValidatorScores  kvdb.KeyValueStore `table:"drtvscore"`
 		BlockParticipation    kvdb.KeyValueStore `table:"blockprtcp"`
-		incMutex              *sync.Mutex
 
 		// API-only tables
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
 		Receipts    kvdb.KeyValueStore `table:"receipts"`
 		TxPositions kvdb.KeyValueStore `table:"txp"`
-		ScoreCheckpoint	kvdb.KeyValueStore `table:"schekpoint"`
+
+		// PoI/score tables
+		ScoreCheckpoint         kvdb.KeyValueStore `table:"schp"`
+		ValidatorPOIScore       kvdb.KeyValueStore `table:"vpois"`
+		AddressGasUsed          kvdb.KeyValueStore `table:"agu"`
+		StakerDelegatorsGasUsed kvdb.KeyValueStore `table:"sdgu"`
+		AddressLastTxTime       kvdb.KeyValueStore `table:"altt"`
+		TotalPOIGasUsed         kvdb.KeyValueStore `table:"tpoigu"`
 
 		// SFC-related tables
 		Validators kvdb.KeyValueStore `table:"va"`
@@ -77,6 +83,7 @@ type Store struct {
 
 	mutexes struct {
 		LastEpochHeaders *sync.RWMutex
+		IncMutex         *sync.Mutex
 	}
 
 	tmpDbs
@@ -107,7 +114,6 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
-	s.table.incMutex = &sync.Mutex{}
 
 	s.initTmpDbs()
 	s.initCache()
@@ -134,6 +140,7 @@ func (s *Store) initCache() {
 
 func (s *Store) initMutexes() {
 	s.mutexes.LastEpochHeaders = new(sync.RWMutex)
+	s.mutexes.IncMutex = new(sync.Mutex)
 }
 
 // Close leaves underlying database.
