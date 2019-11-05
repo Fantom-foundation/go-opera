@@ -136,8 +136,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 		}
 
 		// if we’re here, then this root has observed that lowest not decided frame is decided now
-		lastHeaders := p.onFrameDecided(decided.Frame, decided.Atropos)
-		if p.tryToSealEpoch(decided.Atropos, lastHeaders) {
+		if p.onFrameDecided(decided.Frame, decided.Atropos) {
 			return
 		}
 	}
@@ -150,8 +149,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 			break
 		}
 
-		lastHeaders := p.onFrameDecided(decided.Frame, decided.Atropos)
-		if p.tryToSealEpoch(decided.Atropos, lastHeaders) {
+		if p.onFrameDecided(decided.Frame, decided.Atropos) {
 			return
 		}
 	}

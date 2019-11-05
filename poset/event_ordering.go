@@ -18,32 +18,18 @@ func (p *Poset) frameConsensusTime(frame idx.Frame) inter.Timestamp {
 		LastConsensusTime
 }
 
-// fareOrdering orders the events and calculates time ratio & time offset for the new frame
-func (p *Poset) fareOrdering(
+// fareTimestamps calculates time ratio & time offset for the new frame
+func (p *Poset) fareTimestamps(
 	frame idx.Frame,
 	atropos hash.Event,
-	unordered []*inter.EventHeaderData,
+	highestLamport idx.Lamport,
+	lowestLamport idx.Lamport,
 ) (
-	ids hash.Events,
 	frameInfo FrameInfo,
 ) {
-	// sort by lamport timestamp & hash
-	sort.Slice(unordered, func(i, j int) bool {
-		a, b := unordered[i], unordered[j]
-
-		if a.Lamport != b.Lamport {
-			return a.Lamport < b.Lamport
-		}
-
-		return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
-	})
-	ordered := unordered
-
 	lastConsensusTime := p.frameConsensusTime(frame - 1)
 
 	// calculate difference between highest and lowest period
-	highestLamport := ordered[len(ordered)-1].Lamport
-	lowestLamport := ordered[0].Lamport
 	frameLamportPeriod := idx.MaxLamport(highestLamport-lowestLamport+1, 1)
 
 	// calculate difference between Atropos's median time and previous Atropos's consensus time (almost the same as previous median time)
@@ -68,7 +54,27 @@ func (p *Poset) fareOrdering(
 		TimeRatio:         timeRatio,
 		LastConsensusTime: lastConsensusTime,
 	}
-	p.store.SetFrameInfo(p.EpochN, frame, &frameInfo)
+
+	return
+}
+
+// fareOrdering orders the events
+func (p *Poset) fareOrdering(
+	unordered []*inter.EventHeaderData,
+) (
+	ids hash.Events,
+) {
+	// sort by lamport timestamp & hash
+	sort.Slice(unordered, func(i, j int) bool {
+		a, b := unordered[i], unordered[j]
+
+		if a.Lamport != b.Lamport {
+			return a.Lamport < b.Lamport
+		}
+
+		return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
+	})
+	ordered := unordered
 
 	ids = make(hash.Events, len(ordered))
 	for i, e := range ordered {

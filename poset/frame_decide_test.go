@@ -1,14 +1,11 @@
 package poset
 
 import (
-	"bytes"
-	"sort"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -50,6 +47,15 @@ func TestConfirmBlockEvents(t *testing.T) {
 		},
 	})
 
+	// unconfirm all events
+	it := poset.store.table.ConfirmedEvent.NewIterator()
+	batch := poset.store.table.ConfirmedEvent.NewBatch()
+	for it.Next() {
+		assertar.NoError(batch.Delete(it.Key()))
+	}
+	assertar.NoError(batch.Write())
+	it.Release()
+
 	for i, block := range blocks {
 		frame := frames[i]
 		atropos := poset.LastAtropos
@@ -57,30 +63,10 @@ func TestConfirmBlockEvents(t *testing.T) {
 			atropos = blocks[i+1].PrevHash
 		}
 
-		// call confirmBlockEvents again
-		unordered, _ := poset.confirmBlockEvents(frame, atropos)
+		// call confirmBlock again
+		gotBlock, _ := poset.confirmBlock(frame, atropos, nil)
 
-		sort.Slice(unordered, func(i, j int) bool {
-			a, b := unordered[i], unordered[j]
-
-			if a.Lamport != b.Lamport {
-				return a.Lamport < b.Lamport
-			}
-
-			return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
-		})
-		ordered := unordered
-
-		got := make(hash.Events, len(ordered))
-		for i, e := range ordered {
-			got[i] = e.Hash()
-		}
-
-		// NOTE: it means confirmBlockEvents() return events once
-		expect := hash.Events{}
-		// TODO: `expect := block.Events` if confirmBlockEvents() idempotent
-
-		if !assertar.Equal(expect, got, block) {
+		if !assertar.Equal(block.Events, gotBlock.Events) {
 			break
 		}
 	}

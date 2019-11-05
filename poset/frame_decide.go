@@ -6,72 +6,94 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
-func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inter.EventHeaderData, headersByCreator) {
-	lastHeaders := make(headersByCreator, p.Validators.Len())
-	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*p.Validators.Len())
-
-	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
-	validatorIdxs := p.Validators.Idxs()
+func (p *Poset) confirmEvents(frame idx.Frame, atropos hash.Event, onEventConfirmed func(*inter.EventHeaderData)) {
 	err := p.dfsSubgraph(atropos, func(header *inter.EventHeaderData) bool {
 		decidedFrame := p.store.GetEventConfirmedOn(header.Hash())
 		if decidedFrame != 0 {
 			return false
 		}
-		// mark all the walked events
+		// mark all the walked events as confirmed
 		p.store.SetEventConfirmedOn(header.Hash(), frame)
-		// but not all the events are included into a block
-		creatorHighest := atroposHighestBefore.Get(validatorIdxs[header.Creator])
-		fromCheater := creatorHighest.IsForkDetected()
-		freshEvent := (creatorHighest.Seq - header.Seq) < p.dag.MaxValidatorEventsInBlock // will overflow on forks, it's fine
-		if !fromCheater && freshEvent {
-			blockEvents = append(blockEvents, header)
-
-			if creatorHighest.Seq == header.Seq {
-				lastHeaders[header.Creator] = header
-			}
-		}
-		// sanity check
-		if !fromCheater && header.Seq > creatorHighest.Seq {
-			p.Log.Crit("DAG is inconsistent with vector clock", "event", header.String(), "seq", header.Seq, "highest", creatorHighest.Seq)
+		if onEventConfirmed != nil {
+			onEventConfirmed(header)
 		}
 		return true
 	})
 	if err != nil {
 		p.Log.Crit("Poset: Failed to walk subgraph", "err", err)
 	}
+}
+
+func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirmed func(*inter.EventHeaderData)) (*inter.Block, headersByCreator) {
+	lastHeaders := make(headersByCreator, p.Validators.Len())
+	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*p.Validators.Len())
+
+	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
+	validatorIdxs := p.Validators.Idxs()
+	var highestLamport idx.Lamport
+	var lowestLamport idx.Lamport
+	p.confirmEvents(frame, atropos, func(confirmedEvent *inter.EventHeaderData) {
+		if onEventConfirmed != nil {
+			onEventConfirmed(confirmedEvent)
+		}
+
+		// track highest and lowest Lamports
+		if highestLamport == 0 || highestLamport < confirmedEvent.Lamport {
+			highestLamport = confirmedEvent.Lamport
+		}
+		if lowestLamport == 0 || lowestLamport > confirmedEvent.Lamport {
+			lowestLamport = confirmedEvent.Lamport
+		}
+
+		// but not all the events are included into a block
+		creatorHighest := atroposHighestBefore.Get(validatorIdxs[confirmedEvent.Creator])
+		fromCheater := creatorHighest.IsForkDetected()
+		freshEvent := (creatorHighest.Seq - confirmedEvent.Seq) < p.dag.MaxValidatorEventsInBlock // will overflow on forks, it's fine
+		if !fromCheater && freshEvent {
+			blockEvents = append(blockEvents, confirmedEvent)
+
+			if creatorHighest.Seq == confirmedEvent.Seq {
+				lastHeaders[confirmedEvent.Creator] = confirmedEvent
+			}
+		}
+		// sanity check
+		if !fromCheater && confirmedEvent.Seq > creatorHighest.Seq {
+			p.Log.Crit("DAG is inconsistent with vector clock", "event", confirmedEvent.String(), "seq", confirmedEvent.Seq, "highest", creatorHighest.Seq)
+		}
+	})
 
 	p.Log.Debug("Confirmed events by", "atropos", atropos.String(), "num", len(blockEvents))
-	return blockEvents, lastHeaders
+
+	// ordering
+	orderedBlockEvents := p.fareOrdering(blockEvents)
+	frameInfo := p.fareTimestamps(frame, atropos, highestLamport, lowestLamport)
+	p.store.SetFrameInfo(p.EpochN, frame, &frameInfo)
+
+	// block building
+	block := inter.NewBlock(p.Checkpoint.LastBlockN+1, frameInfo.LastConsensusTime, orderedBlockEvents, p.Checkpoint.LastAtropos)
+	return block, lastHeaders
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
 // It includes: moving current decided frame, txs ordering and execution, epoch sealing.
-func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCreator {
+func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) bool {
 	p.Log.Debug("consensus: event is atropos", "event", atropos.String())
 
 	p.election.Reset(p.Validators, frame+1)
 	p.LastDecidedFrame = frame
 
-	blockEvents, lastHeaders := p.confirmBlockEvents(frame, atropos)
+	block, lastHeaders := p.confirmBlock(frame, atropos, nil)
 
-	// ordering
-	if len(blockEvents) == 0 {
-		p.Log.Crit("Frame is decided with no events. It isn't possible.")
-	}
-	ordered, frameInfo := p.fareOrdering(frame, atropos, blockEvents)
-
-	// block generation
+	// new checkpoint
 	p.Checkpoint.LastBlockN++
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.Checkpoint.LastBlockN, frameInfo.LastConsensusTime, ordered, p.Checkpoint.LastAtropos)
 		p.Checkpoint.StateHash, p.NextValidators = p.applyBlock(block, p.Checkpoint.StateHash, p.NextValidators)
 	}
 	p.Checkpoint.LastAtropos = atropos
-	p.NextValidators = p.NextValidators.Top()
-
+	p.Checkpoint.NextValidators = p.Checkpoint.NextValidators.Top()
 	p.saveCheckpoint()
 
-	return lastHeaders
+	return p.tryToSealEpoch(atropos, lastHeaders)
 }
 
 func (p *Poset) isEpochSealed() bool {
