@@ -104,21 +104,29 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		Instance: logger.MakeInstance(),
 	}
 
+	// wrap engine
 	svc.engine = &HookedEngine{
 		engine:       engine,
 		processEvent: svc.processEvent,
 	}
 	svc.engine.Bootstrap(svc.onNewBlock)
 
+	// create server pool
 	trustedNodes := []string{}
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
+	// create tx pool
 	stateReader := svc.GetEvmStateReader()
+	if config.TxPool.Journal != "" {
+		config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
+	}
 	svc.txpool = evmcore.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
+	// create protocol manager
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, svc.engine, svc.serverPool)
 
+	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil, new(notify.TypeMux)}
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
