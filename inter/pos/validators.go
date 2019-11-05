@@ -11,7 +11,9 @@ import (
 )
 
 // ValidatorsMax in top set.
-const ValidatorsMax = 30
+const (
+	ValidatorsMax = 30
+)
 
 type (
 	// Validators of epoch with stake.
