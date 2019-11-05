@@ -1,24 +1,26 @@
 package main
 
 import (
-	"context"
+	"fmt"
+	"reflect"
 	"runtime"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type threads struct {
-	url string
-	all []*genThread
+	url        string
+	generators []*genThread
 
-	input  chan *types.Transaction
-	output chan struct{}
-	work   sync.WaitGroup
+	txnsPerSec uint
+
+	input chan *types.Transaction
+	done  chan struct{}
+	work  sync.WaitGroup
 	sync.Mutex
 
 	logger.Instance
@@ -39,20 +41,22 @@ func newThreads(
 	runtime.GOMAXPROCS(count)
 
 	tt := &threads{
-		url: nodeUrl,
-		all: make([]*genThread, count, count),
+		url:        nodeUrl,
+		generators: make([]*genThread, count, count),
 
 		Instance: logger.MakeInstance(),
 	}
 
-	tt.SetName("Sender")
+	tt.SetName("Threads")
 
-	accs := maxTxnsPerSec * uint(block.Milliseconds()/1000) / ofTotal
+	tt.txnsPerSec = maxTxnsPerSec / ofTotal
+	accs := tt.txnsPerSec * uint(block.Milliseconds()/1000)
 	accsOnThread := accs / uint(count)
 
 	from := accs * (num)
-	for i := range tt.all {
-		tt.all[i] = newTxnGenerator(donor, from, from+accsOnThread)
+	for i := range tt.generators {
+		tt.generators[i] = newTxnGenerator(donor, from, from+accsOnThread)
+		tt.generators[i].SetName(fmt.Sprintf("Gen[%d:%d]", from, from+accsOnThread))
 		from += accsOnThread
 	}
 
@@ -69,12 +73,12 @@ func (tt *threads) Start() {
 
 	tt.input = make(chan *types.Transaction, 100)
 
-	for _, t := range tt.all {
+	for _, t := range tt.generators {
 		t.SetOutput(tt.input)
 		t.Start()
 	}
 
-	tt.output = make(chan struct{})
+	tt.done = make(chan struct{})
 	tt.work.Add(1)
 	go tt.background()
 
@@ -90,8 +94,8 @@ func (tt *threads) Stop() {
 	}
 
 	var stoped sync.WaitGroup
-	stoped.Add(len(tt.all))
-	for _, t := range tt.all {
+	stoped.Add(len(tt.generators))
+	for _, t := range tt.generators {
 		go func(t *genThread) {
 			t.Stop()
 			stoped.Done()
@@ -100,7 +104,7 @@ func (tt *threads) Stop() {
 	stoped.Wait()
 
 	close(tt.input)
-	close(tt.output)
+	close(tt.done)
 	tt.work.Wait()
 	tt.input = nil
 
@@ -110,28 +114,63 @@ func (tt *threads) Stop() {
 func (tt *threads) background() {
 	defer tt.work.Done()
 
-	client, err := ethclient.Dial(tt.url)
-	if err != nil {
-		panic(err)
-	}
-	defer client.Close()
+	senders, selectors := tt.makeSenders(10)
+	defer tt.closeSenders(senders)
+	selectors = append(selectors,
+		reflect.SelectCase{
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(tt.done),
+		})
+
+	count := uint(0)
+	start := time.Now()
 
 	for txn := range tt.input {
-		for {
-			err := client.SendTransaction(context.Background(), txn)
-			if err == nil {
-				break
-			}
-			tt.Log.Error("txn sending", "err", err)
 
+		if count >= tt.txnsPerSec {
+			timeout := start.Add(time.Second).Sub(time.Now())
+			tt.Log.Info("sending pause", "timeout", timeout)
 			select {
-			case <-time.After(2 * time.Second):
-				continue
-			case <-tt.output:
+			case <-time.After(timeout):
+			case <-tt.done:
 				return
 			}
 		}
+		if time.Since(start) >= time.Second {
+			count = 0
+			start = time.Now()
+		}
+		count++
 
-		tt.Log.Error("txn sent", "txn", txn)
+		choosen, _, _ := reflect.Select(selectors)
+		if choosen < len(senders) {
+			senders[choosen].Send(txn)
+		} else {
+			return
+		}
+
+	}
+}
+
+func (tt *threads) makeSenders(count int) (
+	senders []*sender,
+	selectors []reflect.SelectCase,
+) {
+	senders = make([]*sender, count, count)
+	selectors = make([]reflect.SelectCase, count)
+	for i := range senders {
+		senders[i] = newSender(tt.url)
+		senders[i].SetName(fmt.Sprintf("Sender%d", i))
+		selectors[i] = reflect.SelectCase{
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(senders[i].Ready),
+		}
+	}
+	return
+}
+
+func (tt *threads) closeSenders(ss []*sender) {
+	for _, s := range ss {
+		s.Close()
 	}
 }

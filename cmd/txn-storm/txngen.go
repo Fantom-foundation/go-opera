@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -42,8 +41,6 @@ func newTxnGenerator(donor, from, to uint) *genThread {
 
 		Instance: logger.MakeInstance(),
 	}
-
-	g.SetName(fmt.Sprintf("Accs[%d:%d]", from, to))
 
 	return g
 }
