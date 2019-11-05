@@ -89,5 +89,4 @@ func waitForSignal() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
 	<-sigs
-
 }

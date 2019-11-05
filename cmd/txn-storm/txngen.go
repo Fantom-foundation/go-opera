@@ -5,14 +5,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type genThread struct {
-	acc    *Acc
-	accs   []*Acc
-	offset uint
-	pos    uint
+	acc      *Acc
+	accs     []*Acc
+	offset   uint
+	position uint
 
 	output chan<- *types.Transaction
 
@@ -93,30 +94,32 @@ func (g *genThread) background() {
 		case <-g.done:
 			return
 		default:
-			g.generate(g.pos)
-			g.pos++
+			g.generate(g.position)
+			g.position++
 		}
 	}
 }
 
-func (g *genThread) generate(pos uint) {
+func (g *genThread) generate(position uint) {
 	total := uint(len(g.accs))
 
-	if pos < total && g.accs[pos] == nil {
-		b := MakeAcc(pos + g.offset)
-		nonce := pos + 1
-		txn := g.acc.TransactionTo(b, nonce, 10)
+	if position < total && g.accs[position] == nil {
+		b := MakeAcc(position + g.offset)
+		nonce := position + 1
+		amount := pos.StakeToBalance(100)
+		txn := g.acc.TransactionTo(b, nonce, amount)
 		g.send(txn)
-		g.accs[pos] = b
+		g.accs[position] = b
 
-		g.Log.Info("initial txn", "from", "donor", "to", pos+g.offset)
+		g.Log.Info("initial txn", "from", "donor", "to", position+g.offset)
 		return
 	}
 
-	a := pos % total
-	b := (pos + 1) % total
-	nonce := pos/total + 1
-	txn := g.accs[a].TransactionTo(g.accs[b], nonce, 1)
+	a := position % total
+	b := (position + 1) % total
+	nonce := position/total + 1
+	amount := pos.StakeToBalance(10)
+	txn := g.accs[a].TransactionTo(g.accs[b], nonce, amount)
 	g.send(txn)
 
 	g.Log.Info("regular txn", "from", a+g.offset, "to", b+g.offset)
