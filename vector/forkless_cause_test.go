@@ -487,11 +487,10 @@ type eventSlot struct {
 }
 
 // naive implementation of fork detection, O(n)
-func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]bool, err error) {
+func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[common.Address]bool, err error) {
 	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
-	dfsStack := make(hash.EventsStack, 0, vi.validators.Len())
 	err = vi.dfsSubgraph(head, func(e *inter.EventHeaderData) (godeeper bool) {
 		// ensure visited once
 		if visited.Contains(e.Hash()) {
@@ -505,7 +504,7 @@ func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]
 		}
 		detected[slot] += 1
 		return true
-	}, &dfsStack)
+	})
 	for s, count := range detected {
 		if count > 1 {
 			cheaters[s.creator] = true
@@ -682,7 +681,7 @@ func TestRandomForks(t *testing.T) {
 			// check that fork observing is identical to naive version
 			for _, e := range processed {
 				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
-				expectedCheaters, err := testForksDetected(vi, e.Hash())
+				expectedCheaters, err := testForksDetected(vi, e)
 				assertar.NoError(err)
 
 				for _, cheater := range nodes {

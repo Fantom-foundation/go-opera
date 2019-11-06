@@ -274,39 +274,35 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	nextCreator:
 	}
 
-	dfsStack := make(hash.EventsStack, 0, vi.validators.Len())
-	for _, headP := range e.Parents {
-		// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
-		walk := func(w *inter.EventHeaderData) (godeeper bool) {
-			if w.Hash() == e.Hash() {
-				return true // skip original element
-			}
+	// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
+	walk := func(w *inter.EventHeaderData) (godeeper bool) {
+		if w.Hash() == e.Hash() {
+			return true // skip original element
+		}
 
-			wLowestAfterSeq := vi.GetLowestAfterSeq(w.Hash())
+		wLowestAfterSeq := vi.GetLowestAfterSeq(w.Hash())
 
-			godeeper = wLowestAfterSeq.Get(meBranchID) == 0
-			if !godeeper {
-				return
-			}
-
-			// update LowestAfter vector of the old event, because newly-connected event observes it
-			wLowestAfterSeq.Set(meBranchID, e.Seq)
-			vi.SetLowestAfter(w.Hash(), wLowestAfterSeq)
-
+		godeeper = wLowestAfterSeq.Get(meBranchID) == 0
+		if !godeeper {
 			return
 		}
 
-		dfsStack := dfsStack[:0]
-		err := vi.dfsSubgraph(headP, walk, &dfsStack)
-		if err != nil {
-			vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
-		}
+		// update LowestAfter vector of the old event, because newly-connected event observes it
+		wLowestAfterSeq.Set(meBranchID, e.Seq)
+		vi.SetLowestAfter(w.Hash(), wLowestAfterSeq)
+
+		return
+	}
+
+	err := vi.dfsSubgraph(e, walk)
+	if err != nil {
+		vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
 	}
 
 	// store calculated vectors
-	vi.SetHighestBefore(e.Hash(), myVecs.beforeSeq, myVecs.beforeTime) // 0.43/1.97
-	vi.SetLowestAfter(e.Hash(), myVecs.after)	// 0.3/1.97
-	vi.setEventBranchID(e.Hash(), meBranchID) 	// 0.28/1.97
+	vi.SetHighestBefore(e.Hash(), myVecs.beforeSeq, myVecs.beforeTime)
+	vi.SetLowestAfter(e.Hash(), myVecs.after)
+	vi.setEventBranchID(e.Hash(), meBranchID)
 
 	return myVecs
 }
