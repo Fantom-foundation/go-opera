@@ -88,7 +88,7 @@ func TestGetBlock(t *testing.T) {
 	event1.Seq = 1
 	event2.Transactions = txs[1:]
 	event1.Seq = 2
-	block := inter.NewBlock(1, 123, hash.Events{event1.Hash(), event2.Hash()}, genesisHash)
+	block := inter.NewBlock(1, 123, event2.Hash(), genesisHash, hash.Events{event1.Hash(), event2.Hash()})
 	block.SkippedTxs = []uint{0, 2, 4}
 
 	store.SetEvent(event1)

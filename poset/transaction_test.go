@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -47,6 +48,7 @@ func TestPosetTxn(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
+			e.TxHash = types.DeriveSha(e.Transactions)
 			e = p.Prepare(e)
 			return e
 		},

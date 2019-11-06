@@ -17,12 +17,12 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 
 	block := inter.NewBlock(0,
 		net.Genesis.Time,
-		hash.Events{hash.Event(evmBlock.Hash)},
+		hash.Event(evmBlock.Hash),
 		hash.Event{},
+		hash.Events{hash.Event(evmBlock.Hash)},
 	)
 
 	block.Root = evmBlock.Root
-	block.Creator = evmBlock.Coinbase
 	s.SetBlock(block)
 	genesisAtropos = block.Hash()
 	genesisEvmState = block.Root

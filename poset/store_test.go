@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -81,6 +82,10 @@ func benchmarkStore(b *testing.B) {
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
 				e.Epoch = epoch
+				if e.Seq%2 != 0 {
+					e.Transactions = append(e.Transactions, &types.Transaction{})
+				}
+				e.TxHash = types.DeriveSha(e.Transactions)
 				return p.Prepare(e)
 			},
 		})

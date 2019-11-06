@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/stretchr/testify/assert"
 
@@ -64,6 +65,10 @@ func TestRestore(t *testing.T) {
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
 				e.Epoch = epoch
+				if e.Seq%2 != 0 {
+					e.Transactions = append(e.Transactions, &types.Transaction{})
+				}
+				e.TxHash = types.DeriveSha(e.Transactions)
 				return posets[GENERATOR].Prepare(e)
 			},
 		})
@@ -182,6 +187,10 @@ func TestDbFailure(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
+			if e.Seq%2 != 0 {
+				e.Transactions = append(e.Transactions, &types.Transaction{})
+			}
+			e.TxHash = types.DeriveSha(e.Transactions)
 			return posets[GENERATOR].Prepare(e)
 		},
 	})

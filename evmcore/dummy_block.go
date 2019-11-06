@@ -40,7 +40,6 @@ func ToEvmHeader(block *inter.Block, txHash common.Hash) *EvmHeader {
 		TxHash:     txHash,
 		Number:     big.NewInt(int64(block.Index)),
 		Time:       block.Time,
-		Coinbase:   block.Creator,
 		GasLimit:   math.MaxUint64,
 		GasUsed:    block.GasUsed,
 	}

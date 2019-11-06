@@ -22,24 +22,22 @@ type Block struct {
 	PrevHash hash.Event
 
 	Root    common.Hash
-	Creator common.Address
+	Atropos hash.Event
 }
 
 // Hash returns Atropos's ID
 func (b *Block) Hash() hash.Event {
-	if len(b.Events) == 0 {
-		return hash.ZeroEvent
-	}
-	return b.Events[len(b.Events)-1] // Atropos is always a last event
+	return b.Atropos
 }
 
 // NewBlock makes block from topological ordered events.
-func NewBlock(index idx.Block, time Timestamp, events hash.Events, prevHash hash.Event) *Block {
+func NewBlock(index idx.Block, time Timestamp, atropos hash.Event, prevHash hash.Event, events hash.Events) *Block {
 	return &Block{
 		Index:      index,
 		Time:       time,
 		Events:     events,
 		PrevHash:   prevHash,
 		SkippedTxs: make([]uint, 0),
+		Atropos:    atropos,
 	}
 }

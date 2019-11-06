@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -43,6 +44,10 @@ func TestConfirmBlockEvents(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = idx.Epoch(1)
+			if e.Seq%2 != 0 {
+				e.Transactions = append(e.Transactions, &types.Transaction{})
+			}
+			e.TxHash = types.DeriveSha(e.Transactions)
 			return poset.Prepare(e)
 		},
 	})
@@ -58,10 +63,7 @@ func TestConfirmBlockEvents(t *testing.T) {
 
 	for i, block := range blocks {
 		frame := frames[i]
-		atropos := poset.LastAtropos
-		if (i + 1) < len(blocks) {
-			atropos = blocks[i+1].PrevHash
-		}
+		atropos := blocks[i].Atropos
 
 		// call confirmBlock again
 		gotBlock, _ := poset.confirmBlock(frame, atropos, nil)

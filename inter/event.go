@@ -16,6 +16,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
+var (
+	EmptyTxHash  = types.DeriveSha(types.Transactions{})
+)
+
 // EventHeaderData is the graph vertex in the Lachesis consensus algorithm
 // Doesn't contain transactions, only their hash
 // Doesn't contain event signature
@@ -84,6 +88,10 @@ func (e *EventHeaderData) String() string {
 		return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
 	}
 	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
+}
+
+func (e *EventHeaderData) NoTransactions() bool {
+	return e.TxHash == EmptyTxHash
 }
 
 // DataToSign returns data which must be signed to sign the event

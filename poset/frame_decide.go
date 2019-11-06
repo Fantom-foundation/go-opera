@@ -32,10 +32,12 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 	validatorIdxs := p.Validators.Idxs()
 	var highestLamport idx.Lamport
 	var lowestLamport idx.Lamport
+	var confirmedNum int
 	p.confirmEvents(frame, atropos, func(confirmedEvent *inter.EventHeaderData) {
 		if onEventConfirmed != nil {
 			onEventConfirmed(confirmedEvent)
 		}
+		confirmedNum++
 
 		// track highest and lowest Lamports
 		if highestLamport == 0 || highestLamport < confirmedEvent.Lamport {
@@ -48,13 +50,14 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 		// but not all the events are included into a block
 		creatorHighest := atroposHighestBefore.Get(validatorIdxs[confirmedEvent.Creator])
 		fromCheater := creatorHighest.IsForkDetected()
-		freshEvent := (creatorHighest.Seq - confirmedEvent.Seq) < p.dag.MaxValidatorEventsInBlock // will overflow on forks, it's fine
-		if !fromCheater && freshEvent {
+		freshEvent := !fromCheater && (creatorHighest.Seq - confirmedEvent.Seq) < p.dag.MaxValidatorEventsInBlock // will overflow on forks, it's fine
+		// block consists of non-empty recent events from non-cheaters
+		if !confirmedEvent.NoTransactions() && !fromCheater && freshEvent {
 			blockEvents = append(blockEvents, confirmedEvent)
-
-			if creatorHighest.Seq == confirmedEvent.Seq {
-				lastHeaders[confirmedEvent.Creator] = confirmedEvent
-			}
+		}
+		// track last confirmed events from each validator
+		if !fromCheater && creatorHighest.Seq == confirmedEvent.Seq {
+			lastHeaders[confirmedEvent.Creator] = confirmedEvent
 		}
 		// sanity check
 		if !fromCheater && confirmedEvent.Seq > creatorHighest.Seq {
@@ -62,7 +65,7 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 		}
 	})
 
-	p.Log.Debug("Confirmed events by", "atropos", atropos.String(), "num", len(blockEvents))
+	p.Log.Debug("Confirmed events by", "atropos", atropos.String(), "events", confirmedNum, "blocksEvents", len(blockEvents))
 
 	// ordering
 	orderedBlockEvents := p.fareOrdering(blockEvents)
@@ -70,7 +73,7 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 	p.store.SetFrameInfo(p.EpochN, frame, &frameInfo)
 
 	// block building
-	block := inter.NewBlock(p.Checkpoint.LastBlockN+1, frameInfo.LastConsensusTime, orderedBlockEvents, p.Checkpoint.LastAtropos)
+	block := inter.NewBlock(p.Checkpoint.LastBlockN+1, frameInfo.LastConsensusTime, atropos, p.Checkpoint.LastAtropos, orderedBlockEvents)
 	return block, lastHeaders
 }
 
