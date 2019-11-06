@@ -2,7 +2,7 @@ all: lachesis txn-storm
 
 
 .PHONY: lachesis
-build:
+lachesis:
 	cd ../ && \
 	docker build \
 	    --network=host \
