@@ -46,6 +46,7 @@ func (s *Service) onNewBlock(
 		}
 	}
 	s.occurredTxs.CollectConfirmedTxs(evmBlock.Transactions) // TODO collect all the confirmed txs, not only block txs
+	confirmedTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
 
 	// Process txs
 	statedb := s.store.StateDB(stateHash)
