@@ -105,13 +105,13 @@ func (g *genThread) generate(position uint) {
 
 	if position < total && g.accs[position] == nil {
 		b := MakeAcc(position + g.offset)
-		nonce := position + 1
+		nonce := position + g.offset
 		amount := pos.StakeToBalance(100)
 		txn := g.acc.TransactionTo(b, nonce, amount)
 		g.send(txn)
 		g.accs[position] = b
 
-		g.Log.Info("initial txn", "from", "donor", "to", position+g.offset)
+		g.Log.Info("initial txn", "nonce", nonce, "from", "donor", "to", position+g.offset)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (g *genThread) generate(position uint) {
 	txn := g.accs[a].TransactionTo(g.accs[b], nonce, amount)
 	g.send(txn)
 
-	g.Log.Info("regular txn", "from", a+g.offset, "to", b+g.offset)
+	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset)
 }
 
 func (g *genThread) send(tx *types.Transaction) {

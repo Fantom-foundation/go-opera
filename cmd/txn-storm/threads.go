@@ -53,7 +53,7 @@ func newThreads(
 	accs := tt.txnsPerSec * uint(block.Milliseconds()/1000)
 	accsOnThread := accs / uint(count)
 
-	from := accs * (num)
+	from := accs * num
 	for i := range tt.generators {
 		tt.generators[i] = newTxnGenerator(donor, from, from+accsOnThread)
 		tt.generators[i].SetName(fmt.Sprintf("Gen[%d:%d]", from, from+accsOnThread))
