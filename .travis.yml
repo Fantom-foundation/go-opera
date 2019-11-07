@@ -15,14 +15,16 @@ env:
   - GO111MODULE=on
 
 script:
-  - if [ -n "$GO_TEST" ]; then
+  - |
+    if [ -n "$GO_TEST" ]; then
       go test -coverprofile=coverage.txt -covermode=atomic ./...
     elif [ -n "$GO_INTEGRATION_TEST" ]; then
       go test ./integration/
     fi
 
 after_success:
-  - if [ -n "$GO_TEST" ]; then
+  - |
+    if [ -n "$GO_TEST" ]; then
       bash <(curl -s https://codecov.io/bash)
     fi
 
