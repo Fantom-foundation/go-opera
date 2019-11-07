@@ -12,9 +12,15 @@ cache:
     - $GOPATH/pkg
 
 env:
-  - GO111MODULE=on
+  global:
+    - GO111MODULE=on
+
+# install: skip
 
 script:
+  - go build -v ./...
+
+after_success:
   - |
     if [ -n "$GO_TEST" ]; then
       go test -coverprofile=coverage.txt -covermode=atomic ./...
@@ -22,7 +28,7 @@ script:
       go test ./integration/
     fi
 
-after_success:
+after_script:
   - |
     if [ -n "$GO_TEST" ]; then
       bash <(curl -s https://codecov.io/bash)
