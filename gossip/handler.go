@@ -399,7 +399,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		genesis    = pm.engine.GetGenesisHash()
 		myProgress = pm.myProgress()
 	)
-	if err := p.Handshake(pm.config.Net.NetworkId, myProgress, genesis); err != nil {
+	if err := p.Handshake(pm.config.Net.NetworkID, myProgress, genesis); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
@@ -827,7 +827,7 @@ type NodeInfo struct {
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	numOfBlocks, _ := pm.engine.LastBlock()
 	return &NodeInfo{
-		Network:     pm.config.Net.NetworkId,
+		Network:     pm.config.Net.NetworkID,
 		Genesis:     pm.engine.GetGenesisHash(),
 		Epoch:       pm.engine.GetEpoch(),
 		NumOfBlocks: numOfBlocks,

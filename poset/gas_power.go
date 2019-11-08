@@ -29,20 +29,20 @@ func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, ma
 
 	gas := p.dag.GasPower
 
-	validatorGasPowerPerH_bn := new(big.Int).SetUint64(gas.TotalPerH)
-	mul(validatorGasPowerPerH_bn, uint64(stake))
-	div(validatorGasPowerPerH_bn, uint64(p.Validators.TotalStake()))
-	perHour = validatorGasPowerPerH_bn.Uint64()
+	validatorGasPowerPerHBn := new(big.Int).SetUint64(gas.TotalPerH)
+	mul(validatorGasPowerPerHBn, uint64(stake))
+	div(validatorGasPowerPerHBn, uint64(p.Validators.TotalStake()))
+	perHour = validatorGasPowerPerHBn.Uint64()
 
-	validatorMaxGasPower_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
-	mul(validatorMaxGasPower_bn, uint64(gas.MaxGasPowerPeriod))
-	div(validatorMaxGasPower_bn, uint64(time.Hour))
-	maxGasPower = validatorMaxGasPower_bn.Uint64()
+	validatorMaxGasPowerBn := new(big.Int).Set(validatorGasPowerPerHBn)
+	mul(validatorMaxGasPowerBn, uint64(gas.MaxGasPowerPeriod))
+	div(validatorMaxGasPowerBn, uint64(time.Hour))
+	maxGasPower = validatorMaxGasPowerBn.Uint64()
 
-	validatorStartup_bn := new(big.Int).Set(validatorGasPowerPerH_bn)
-	mul(validatorStartup_bn, uint64(gas.StartupPeriod))
-	div(validatorStartup_bn, uint64(time.Hour))
-	startup = validatorStartup_bn.Uint64()
+	validatorStartupBn := new(big.Int).Set(validatorGasPowerPerHBn)
+	mul(validatorStartupBn, uint64(gas.StartupPeriod))
+	div(validatorStartupBn, uint64(time.Hour))
+	startup = validatorStartupBn.Uint64()
 	if startup < gas.MinStartupGasPower {
 		startup = gas.MinStartupGasPower
 	}
@@ -76,12 +76,12 @@ func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
 		prevMedianTime = e.MedianTime // do not change e.MedianTime
 	}
 
-	gasPowerAllocated_bn := new(big.Int).SetUint64(uint64(e.MedianTime))
-	sub(gasPowerAllocated_bn, uint64(prevMedianTime))
-	mul(gasPowerAllocated_bn, gasPowerPerH)
-	div(gasPowerAllocated_bn, uint64(time.Hour))
+	gasPowerAllocatedBn := new(big.Int).SetUint64(uint64(e.MedianTime))
+	sub(gasPowerAllocatedBn, uint64(prevMedianTime))
+	mul(gasPowerAllocatedBn, gasPowerPerH)
+	div(gasPowerAllocatedBn, uint64(time.Hour))
 
-	gasPower := gasPowerAllocated_bn.Uint64() + prevGasPowerLeft
+	gasPower := gasPowerAllocatedBn.Uint64() + prevGasPowerLeft
 	if gasPower > maxGasPower {
 		gasPower = maxGasPower
 	}

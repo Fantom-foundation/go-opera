@@ -29,7 +29,7 @@ func topicKey(t *Topic, pos uint8, block uint64, id common.Hash) []byte {
 func logrecKey(r *Logrec, pos uint8) []byte {
 	key := make([]byte, 0, recordKeySize)
 
-	key = append(key, r.Id.Bytes()...)
+	key = append(key, r.ID.Bytes()...)
 	key = append(key, posToBytes(pos)...)
 
 	return key
@@ -51,7 +51,7 @@ func bytesToBlock(b []byte) uint64 {
 	return bigendian.BytesToInt64(b)
 }
 
-func extractLogrecId(key []byte) common.Hash {
+func extractLogrecID(key []byte) common.Hash {
 	switch len(key) {
 	case topicKeySize:
 		return common.BytesToHash(

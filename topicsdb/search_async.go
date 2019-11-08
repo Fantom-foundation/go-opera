@@ -18,7 +18,7 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
 		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
 		for it.Next() {
 			key := it.Key()
-			id := extractLogrecId(key)
+			id := extractLogrecID(key)
 			blockN := extractBlockN(key)
 			topicCount := bytesToPos(it.Value())
 			rec := recs[id]

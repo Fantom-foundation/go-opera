@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	MainNetworkId uint64 = 1
-	TestNetworkId uint64 = 2
-	FakeNetworkId uint64 = 3
+	MainNetworkID uint64 = 1
+	TestNetworkID uint64 = 2
+	FakeNetworkID uint64 = 3
 )
 
 // GasPowerConfig defines gas power rules in the consensus.
@@ -37,7 +37,7 @@ type DagConfig struct {
 // Config describes lachesis net.
 type Config struct {
 	Name      string
-	NetworkId uint64
+	NetworkID uint64
 
 	Genesis genesis.Genesis
 
@@ -48,7 +48,7 @@ type Config struct {
 func MainNetConfig() Config {
 	return Config{
 		Name:      "main",
-		NetworkId: MainNetworkId,
+		NetworkID: MainNetworkID,
 		Genesis:   genesis.MainGenesis(),
 		Dag:       DefaultDagConfig(),
 	}
@@ -57,7 +57,7 @@ func MainNetConfig() Config {
 func TestNetConfig() Config {
 	return Config{
 		Name:      "test",
-		NetworkId: TestNetworkId,
+		NetworkID: TestNetworkID,
 		Genesis:   genesis.TestGenesis(),
 		Dag:       DefaultDagConfig(),
 	}
@@ -68,7 +68,7 @@ func FakeNetConfig(n int) Config {
 
 	return Config{
 		Name:      "fake",
-		NetworkId: FakeNetworkId,
+		NetworkID: FakeNetworkID,
 		Genesis:   g,
 		Dag:       FakeNetDagConfig(),
 	}

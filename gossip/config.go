@@ -73,7 +73,7 @@ func DefaultConfig(network lachesis.Config) Config {
 		},
 	}
 
-	if network.NetworkId == lachesis.FakeNetworkId {
+	if network.NetworkID == lachesis.FakeNetworkID {
 		cfg.Emitter = FakeEmitterConfig()
 	}
 	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network

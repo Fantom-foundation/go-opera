@@ -25,7 +25,7 @@ type (
 // Addresses returns not sorted genesis addresses
 func (ga Accounts) Addresses() []common.Address {
 	res := make([]common.Address, 0, len(ga))
-	for addr, _ := range ga {
+	for addr := range ga {
 		res = append(res, addr)
 	}
 	return res

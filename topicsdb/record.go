@@ -12,7 +12,7 @@ type (
 	}
 
 	Logrec struct {
-		Id     common.Hash
+		ID     common.Hash
 		BlockN uint64
 		Topics []*Topic
 	}
@@ -50,7 +50,7 @@ func (rec *logrecBuilder) Build() (r *Logrec, err error) {
 	}
 
 	r = &Logrec{
-		Id:     rec.id,
+		ID:     rec.id,
 		BlockN: rec.blockN,
 		Topics: rec.topics,
 	}

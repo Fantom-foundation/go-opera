@@ -50,7 +50,7 @@ func (tt *TopicsDb) Push(rec *Logrec) error {
 	count := posToBytes(uint8(len(rec.Topics)))
 
 	for pos, topic := range rec.Topics {
-		key := topicKey(topic, uint8(pos), rec.BlockN, rec.Id)
+		key := topicKey(topic, uint8(pos), rec.BlockN, rec.ID)
 		err := tt.table.Topic.Put(key, count)
 		if err != nil {
 			return err
