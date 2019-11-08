@@ -106,7 +106,7 @@ func (g *genThread) generate(position uint) {
 	if position < total && g.accs[position] == nil {
 		b := MakeAcc(position + g.offset)
 		nonce := position + g.offset
-		amount := pos.StakeToBalance(100)
+		amount := pos.StakeToBalance(10000)
 		txn := g.acc.TransactionTo(b, nonce, amount)
 		g.send(txn)
 		g.accs[position] = b

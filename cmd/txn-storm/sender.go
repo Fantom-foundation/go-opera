@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
+	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -49,12 +51,13 @@ func (s *sender) Send(txn *types.Transaction) {
 	s.work.Add(1)
 	go func() {
 		defer s.work.Done()
-
 		var err error
+
+	connecting:
 		for s.client == nil {
 			s.client, err = ethclient.Dial(s.url)
 			if err == nil {
-				break
+				break connecting
 			}
 
 			s.Log.Error("connect to", "url", s.url, "err", err)
@@ -65,15 +68,26 @@ func (s *sender) Send(txn *types.Transaction) {
 			}
 		}
 
+	sending:
 		for {
-			s.Log.Info("try to send", "txn", txnToJson(txn))
 			err = s.client.SendTransaction(context.Background(), txn)
 			if err == nil {
 				s.Log.Info("txn sending ok")
-				break
+				txnsCountMeter.Inc(1)
+				break sending
 			}
 
-			s.Log.Error("txn sending", "err", err)
+			switch err.Error() {
+			case fmt.Sprintf("known transaction: %x", txn.Hash()):
+				break sending
+			case evm_core.ErrNonceTooLow.Error():
+				break sending
+			case evm_core.ErrReplaceUnderpriced.Error():
+				break sending
+			default:
+				s.Log.Error("txn sending", "err", err, "txn", txnToJson(txn))
+			}
+
 			select {
 			case <-time.After(time.Second):
 			case <-s.done:
