@@ -3,6 +3,7 @@ package genesis
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +20,11 @@ type (
 		Balance    *big.Int                    `json:"balance" gencodec:"required"`
 		Nonce      uint64                      `json:"nonce,omitempty"`
 		PrivateKey *ecdsa.PrivateKey           `toml:"-"`
+	}
+
+	VAccounts struct {
+		Accounts   Accounts
+		Validators pos.Validators
 	}
 )
 

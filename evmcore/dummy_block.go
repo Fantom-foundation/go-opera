@@ -32,12 +32,12 @@ type (
 )
 
 // ToEvmHeader converts inter.Block to EvmHeader.
-func ToEvmHeader(block *inter.Block, txHash common.Hash) *EvmHeader {
+func ToEvmHeader(block *inter.Block) *EvmHeader {
 	return &EvmHeader{
 		Hash:       common.Hash(block.Hash()),
 		ParentHash: common.Hash(block.PrevHash),
 		Root:       common.Hash(block.Root),
-		TxHash:     txHash,
+		TxHash:     block.TxHash,
 		Number:     big.NewInt(int64(block.Index)),
 		Time:       block.Time,
 		GasLimit:   math.MaxUint64,

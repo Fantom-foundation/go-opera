@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/ethapi"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
@@ -109,7 +108,12 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		engine:       engine,
 		processEvent: svc.processEvent,
 	}
-	svc.engine.Bootstrap(svc.onNewBlock)
+	svc.engine.Bootstrap(inter.ConsensusCallbacks{
+		ApplyBlock:              svc.applyBlock,
+		SelectValidatorsGroup:   svc.selectValidatorsGroup,
+		OnEventConfirmed:        svc.onEventConfirmed,
+		IsEventAllowedIntoBlock: svc.isEventAllowedIntoBlock,
+	})
 
 	// create server pool
 	trustedNodes := []string{}
@@ -131,56 +135,6 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	return svc, err
-}
-
-func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
-	// s.engineMu is locked here
-
-	if s.store.HasEvent(e.Hash()) { // sanity check
-		return eventcheck.ErrAlreadyConnectedEvent
-	}
-
-	oldEpoch := e.Epoch
-
-	s.store.SetEvent(e)
-	if realEngine != nil {
-		err := realEngine.ProcessEvent(e)
-		if err != nil { // TODO make it possible to write only on success
-			s.store.DeleteEvent(e.Epoch, e.Hash())
-			return err
-		}
-	}
-	_ = s.occurredTxs.CollectNotConfirmedTxs(e.Transactions)
-
-	// set validator's last event. we don't care about forks, because this index is used only for emitter
-	s.store.SetLastEvent(e.Epoch, e.Creator, e.Hash())
-
-	// track events with no descendants, i.e. heads
-	for _, parent := range e.Parents {
-		if s.store.IsHead(e.Epoch, parent) {
-			s.store.DelHead(e.Epoch, parent)
-		}
-	}
-	s.store.AddHead(e.Epoch, e.Hash())
-
-	s.packsOnNewEvent(e, e.Epoch)
-	s.emitter.OnNewEvent(e)
-
-	newEpoch := oldEpoch
-	if realEngine != nil {
-		newEpoch = realEngine.GetEpoch()
-	}
-
-	if newEpoch != oldEpoch {
-		s.packsOnNewEpoch(oldEpoch, newEpoch)
-		s.store.delEpochStore(oldEpoch)
-		s.store.getEpochStore(newEpoch)
-		s.feed.newEpoch.Send(newEpoch)
-		s.occurredTxs.Clear()
-	}
-
-	immediately := (newEpoch != oldEpoch)
-	return s.store.Commit(e.Hash().Bytes(), immediately)
 }
 
 func (s *Service) makeEmitter() *Emitter {

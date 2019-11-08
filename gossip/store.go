@@ -116,16 +116,21 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 		// if flushId not specified, use current time
 		buf := bytes.NewBuffer(nil)
 		buf.Write([]byte{0xbe, 0xee})                                    // 0xbeee eyecatcher that flushed time
-		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
+		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UnixNano time
 		flushID = buf.Bytes()
 	}
 
-	if immediately {
+	if immediately || s.dbs.IsFlushNeeded() {
+		// Flush trie on the DB
+		err := s.table.EvmState.TrieDB().Cap(0)
+		if err != nil {
+			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
+		}
+		// Flush the DBs
 		return s.dbs.Flush(flushID)
 	}
 
-	_, err := s.dbs.FlushIfNeeded(flushID)
-	return err
+	return nil
 }
 
 // StateDB returns state database.

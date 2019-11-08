@@ -2,6 +2,7 @@ package poset
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math/rand"
 	"testing"
 
@@ -47,13 +48,22 @@ func TestRestore(t *testing.T) {
 		SetName("generator")
 
 	const epochs = 2
-	var epochLen = int(posets[GENERATOR].dag.EpochLen)
+	var epochLen = 30
+
+	// seal epoch on decided frame == epochLen
+	for _, poset := range posets {
+		applyBlock := poset.callback.ApplyBlock
+		poset.callback.ApplyBlock = func(arg inter.ApplyBlockArgs) (common.Hash, bool) {
+			h, _ := applyBlock(arg)
+			return h, arg.DecidedFrame == idx.Frame(epochLen)
+		}
+	}
 
 	// create events
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
 		stability := rand.New(rand.NewSource(int64(epoch)))
-		_ = inter.ForEachRandEvent(nodes, epochLen*2, COUNT, stability, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, epochLen*4, COUNT, stability, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[GENERATOR].SetEvent(e)
 				assertar.NoError(
@@ -100,7 +110,7 @@ func TestRestore(t *testing.T) {
 			restored := New(prev.dag, store, prev.input)
 			restored.SetName(fmt.Sprintf("restored-%d", x))
 
-			restored.Bootstrap(prev.applyBlock)
+			restored.Bootstrap(prev.callback)
 
 			posets[RESTORED].Poset = restored
 		}
@@ -227,7 +237,7 @@ func TestDbFailure(t *testing.T) {
 
 			restored := New(prev.dag, store, prev.input)
 			restored.SetName(fmt.Sprintf("restored-%d", x))
-			restored.Bootstrap(prev.applyBlock)
+			restored.Bootstrap(prev.callback)
 
 			posets[RESTORED].Poset = restored
 		}()

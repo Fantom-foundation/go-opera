@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	EmptyTxHash  = types.DeriveSha(types.Transactions{})
+	EmptyTxHash = types.DeriveSha(types.Transactions{})
 )
 
 // EventHeaderData is the graph vertex in the Lachesis consensus algorithm

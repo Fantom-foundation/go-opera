@@ -9,7 +9,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -24,12 +23,12 @@ func TestConfirmBlockEvents(t *testing.T) {
 		frames []idx.Frame
 		blocks []*inter.Block
 	)
-	applyBlock := poset.applyBlock
-	poset.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
+	applyBlock := poset.callback.ApplyBlock
+	poset.callback.ApplyBlock = func(arg inter.ApplyBlockArgs) (common.Hash, bool) {
 		frames = append(frames, poset.LastDecidedFrame)
-		blocks = append(blocks, block)
+		blocks = append(blocks, arg.Block)
 
-		return applyBlock(block, stateHash, validators)
+		return applyBlock(arg)
 	}
 
 	eventCount := int(poset.dag.EpochLen)
@@ -66,8 +65,11 @@ func TestConfirmBlockEvents(t *testing.T) {
 		atropos := blocks[i].Atropos
 
 		// call confirmBlock again
-		gotBlock, _ := poset.confirmBlock(frame, atropos, nil)
+		gotBlock, cheaters, _ := poset.confirmBlock(frame, atropos)
 
+		if !assertar.Empty(cheaters) {
+			break
+		}
 		if !assertar.Equal(block.Events, gotBlock.Events) {
 			break
 		}

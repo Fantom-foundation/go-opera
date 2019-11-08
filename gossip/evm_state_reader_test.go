@@ -12,7 +12,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -24,7 +23,7 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, 1e6*pos.Qualification))
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), 1))
 	addrWithCode := net.Genesis.Alloc.Addresses()[0]
 	accountWithCode := net.Genesis.Alloc[addrWithCode]
 	accountWithCode.Code = []byte{1, 2, 3}
@@ -69,7 +68,7 @@ func TestGetBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, 1e6*pos.Qualification))
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), 1))
 	genesisHash, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 

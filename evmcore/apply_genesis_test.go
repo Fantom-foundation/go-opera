@@ -1,12 +1,12 @@
 package evmcore
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
@@ -31,7 +31,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// the same genesis
-	accsA := genesis.FakeAccounts(0, 3, 1e6*pos.Qualification)
+	accsA := genesis.FakeAccounts(0, 3, big.NewInt(10000000000), 1)
 	netA := lachesis.FakeNetConfig(accsA)
 	blockA1, err := ApplyGenesis(db, &netA)
 	if !assertar.NoError(err) {
@@ -46,7 +46,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// different genesis
-	accsB := genesis.FakeAccounts(0, 4, 1e6*pos.Qualification)
+	accsB := genesis.FakeAccounts(0, 4, big.NewInt(10000000000), 1)
 	netB := lachesis.FakeNetConfig(accsB)
 	_, err = ApplyGenesis(db, &netB)
 	if !assertar.Error(err) {

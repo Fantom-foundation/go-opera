@@ -26,7 +26,7 @@ type Poset struct {
 	election *election.Election
 	vecClock *vector.Index
 
-	applyBlock inter.ApplyBlockFn
+	callback inter.ConsensusCallbacks
 
 	epochMu utils.SpinLock // protects p.Validators and p.EpochN
 

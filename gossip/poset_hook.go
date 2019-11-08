@@ -90,9 +90,9 @@ func (hook *HookedEngine) GetConsensusTime(id hash.Event) (inter.Timestamp, erro
 }
 
 // Bootstrap restores poset's state from store.
-func (hook *HookedEngine) Bootstrap(fn inter.ApplyBlockFn) {
+func (hook *HookedEngine) Bootstrap(callbacks inter.ConsensusCallbacks) {
 	if hook.engine == nil {
 		return
 	}
-	hook.engine.Bootstrap(fn)
+	hook.engine.Bootstrap(callbacks)
 }

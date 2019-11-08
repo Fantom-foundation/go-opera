@@ -1,6 +1,8 @@
 package poset
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -24,8 +26,8 @@ func (p *Poset) confirmEvents(frame idx.Frame, atropos hash.Event, onEventConfir
 	}
 }
 
-func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirmed func(*inter.EventHeaderData)) (*inter.Block, headersByCreator) {
-	lastHeaders := make(headersByCreator, p.Validators.Len())
+func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.Block, cheaters []common.Address, lastHeaders headersByCreator) {
+	lastHeaders = make(headersByCreator, p.Validators.Len())
 	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*p.Validators.Len())
 
 	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
@@ -33,9 +35,17 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 	var highestLamport idx.Lamport
 	var lowestLamport idx.Lamport
 	var confirmedNum int
+
+	cheaters = make([]common.Address, 0, len(validatorIdxs))
+	for creator, creatorIdx := range validatorIdxs {
+		if atroposHighestBefore.Get(creatorIdx).IsForkDetected() {
+			cheaters = append(cheaters, creator)
+		}
+	}
+
 	p.confirmEvents(frame, atropos, func(confirmedEvent *inter.EventHeaderData) {
-		if onEventConfirmed != nil {
-			onEventConfirmed(confirmedEvent)
+		if p.callback.OnEventConfirmed != nil {
+			p.callback.OnEventConfirmed(confirmedEvent)
 		}
 		confirmedNum++
 
@@ -50,9 +60,9 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 		// but not all the events are included into a block
 		creatorHighest := atroposHighestBefore.Get(validatorIdxs[confirmedEvent.Creator])
 		fromCheater := creatorHighest.IsForkDetected()
-		freshEvent := !fromCheater && (creatorHighest.Seq - confirmedEvent.Seq) < p.dag.MaxValidatorEventsInBlock // will overflow on forks, it's fine
-		// block consists of non-empty recent events from non-cheaters
-		if !confirmedEvent.NoTransactions() && !fromCheater && freshEvent {
+		allowed := p.callback.IsEventAllowedIntoBlock == nil || p.callback.IsEventAllowedIntoBlock(confirmedEvent, creatorHighest.Seq)
+		// block consists of allowed events from non-cheaters
+		if !fromCheater && allowed {
 			blockEvents = append(blockEvents, confirmedEvent)
 		}
 		// track last confirmed events from each validator
@@ -73,8 +83,8 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event, onEventConfirm
 	p.store.SetFrameInfo(p.EpochN, frame, &frameInfo)
 
 	// block building
-	block := inter.NewBlock(p.Checkpoint.LastBlockN+1, frameInfo.LastConsensusTime, atropos, p.Checkpoint.LastAtropos, orderedBlockEvents)
-	return block, lastHeaders
+	block = inter.NewBlock(p.Checkpoint.LastBlockN+1, frameInfo.LastConsensusTime, atropos, p.Checkpoint.LastAtropos, orderedBlockEvents)
+	return block, cheaters, lastHeaders
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
@@ -83,48 +93,46 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) bool {
 	p.Log.Debug("consensus: event is atropos", "event", atropos.String())
 
 	p.election.Reset(p.Validators, frame+1)
-	p.LastDecidedFrame = frame
+	p.Checkpoint.LastDecidedFrame = frame
 
-	block, lastHeaders := p.confirmBlock(frame, atropos, nil)
+	block, cheaters, lastHeaders := p.confirmBlock(frame, atropos)
 
 	// new checkpoint
+	var sealEpoch bool
 	p.Checkpoint.LastBlockN++
-	if p.applyBlock != nil {
-		p.Checkpoint.StateHash, p.NextValidators = p.applyBlock(block, p.Checkpoint.StateHash, p.NextValidators)
+	if p.callback.ApplyBlock != nil {
+		p.Checkpoint.StateHash, sealEpoch = p.callback.ApplyBlock(inter.ApplyBlockArgs{
+			Block:        block,
+			DecidedFrame: frame,
+			StateHash:    p.Checkpoint.StateHash,
+			Validators:   p.Validators,
+			Cheaters:     cheaters,
+		})
 	}
 	p.Checkpoint.LastAtropos = atropos
-	p.Checkpoint.NextValidators = p.Checkpoint.NextValidators.Top()
 	p.saveCheckpoint()
 
-	return p.tryToSealEpoch(atropos, lastHeaders)
-}
-
-func (p *Poset) isEpochSealed() bool {
-	return p.LastDecidedFrame >= p.dag.EpochLen
-}
-
-func (p *Poset) tryToSealEpoch(atropos hash.Event, lastHeaders headersByCreator) bool {
-	if !p.isEpochSealed() {
-		return false
+	if sealEpoch {
+		p.sealEpoch(lastHeaders)
 	}
-
-	p.onNewEpoch(atropos, lastHeaders)
-
-	return true
+	return sealEpoch
 }
 
-func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
+func (p *Poset) sealEpoch(lastHeaders headersByCreator) {
 	// new PrevEpoch state
 	p.PrevEpoch.Time = p.frameConsensusTime(p.LastDecidedFrame)
 	p.PrevEpoch.Epoch = p.EpochN
-	p.PrevEpoch.LastAtropos = atropos
+	p.PrevEpoch.LastAtropos = p.Checkpoint.LastAtropos
 	p.PrevEpoch.StateHash = p.Checkpoint.StateHash
 	p.PrevEpoch.LastHeaders = lastHeaders
 
 	// new validators list, move to new epoch
-	p.setEpochValidators(p.NextValidators.Top(), p.EpochN+1)
-	p.NextValidators = p.Validators.Copy()
-	p.LastDecidedFrame = 0
+	nextValidators := p.Validators
+	if p.callback.SelectValidatorsGroup != nil {
+		nextValidators = p.callback.SelectValidatorsGroup(p.EpochN, p.EpochN+1)
+	}
+	p.setEpochValidators(nextValidators, p.EpochN+1)
+	p.Checkpoint.LastDecidedFrame = 0
 
 	// commit
 	p.store.SetEpoch(&p.EpochState)

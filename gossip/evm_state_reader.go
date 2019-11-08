@@ -78,9 +78,9 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	}
 
 	transactions := make(types.Transactions, 0, len(block.Events)*10)
-	txCount := uint(0)
-	skipCount := 0
-	if n > 0 {
+	if readTxs {
+		txCount := uint(0)
+		skipCount := 0
 		for _, id := range block.Events {
 			e := r.store.GetEvent(id)
 			if e == nil {
@@ -100,8 +100,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 		}
 	}
 
-	txHash := types.DeriveSha(transactions)
-	evmHeader := evmcore.ToEvmHeader(block, txHash)
+	evmHeader := evmcore.ToEvmHeader(block)
 	evmBlock := &evmcore.EvmBlock{
 		EvmHeader: *evmHeader,
 	}

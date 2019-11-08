@@ -208,7 +208,7 @@ func makeHeader(parent *EvmBlock, state *state.StateDB) *EvmHeader {
 	if parent.Time == 0 {
 		t = 10
 	} else {
-		t = parent.Time + inter.Timestamp(10 * time.Second) // block time is fixed at 10 seconds
+		t = parent.Time + inter.Timestamp(10*time.Second) // block time is fixed at 10 seconds
 	}
 
 	return &EvmHeader{

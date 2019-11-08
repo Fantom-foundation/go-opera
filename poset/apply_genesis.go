@@ -10,7 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
 
@@ -35,7 +34,7 @@ func (g *GenesisState) EpochName() string {
 	return fmt.Sprintf("epoch%d", g.Epoch)
 }
 
-// calcGenesisHash calcs hash of genesis balances.
+// calcGenesisHash calcs hash of genesis state.
 func calcGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) common.Hash {
 	s := NewMemStore()
 	defer s.Close()
@@ -48,17 +47,17 @@ func calcGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, stateHash co
 // ApplyGenesis stores initial state.
 func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) error {
 	if g == nil {
-		return fmt.Errorf("config shouldn't be nil")
+		return fmt.Errorf("genesis config shouldn't be nil")
 	}
-	if g.Alloc == nil {
-		return fmt.Errorf("balances shouldn't be nil")
+	if g.Validators.Len() == 0 {
+		return fmt.Errorf("genesis validators shouldn't be empty")
 	}
 
 	if exist := s.GetGenesis(); exist != nil {
 		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, stateHash) {
 			return nil
 		}
-		return fmt.Errorf("other genesis has applied already")
+		return fmt.Errorf("other genesis was applied already")
 	}
 
 	e := &EpochState{}
@@ -66,12 +65,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 		StateHash: stateHash,
 	}
 
-	e.Validators = *pos.NewValidators()
-	for addr, account := range g.Alloc {
-		e.Validators.Set(addr, pos.BalanceToStake(account.Balance))
-	}
-	e.Validators = e.Validators.Top()
-	cp.NextValidators = e.Validators.Copy()
+	e.Validators = g.Validators.Copy()
 
 	// genesis object
 	e.EpochN = firstEpoch

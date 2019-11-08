@@ -41,13 +41,11 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 	return res
 }
 
-var FakeInitialStake = 1000 * 1000 * pos.Qualification
-
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
 func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (*ExtendedPoset, *Store, *EventStore) {
-	balances := make(genesis.Accounts, len(nodes))
+	validators := pos.NewValidators()
 	for _, addr := range nodes {
-		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(FakeInitialStake)}
+		validators.Set(addr, 1)
 	}
 
 	mems := memorydb.NewProducer(namespace, mods...)
@@ -56,13 +54,13 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 
 	atropos := hash.ZeroEvent
 	err := store.ApplyGenesis(&genesis.Genesis{
-		Alloc: balances,
-		Time:  genesisTestTime,
+		Time:       genesisTestTime,
+		Validators: *validators,
 	}, atropos, common.Hash{})
 	if err != nil {
 		panic(err)
 	}
-	dbs.Flush(atropos.Bytes())
+	_ = dbs.Flush(atropos.Bytes())
 
 	input := NewEventStore(nil)
 
@@ -78,13 +76,16 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 		blocks: map[idx.Block]*inter.Block{},
 	}
 
-	extended.Bootstrap(func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
-		// track block events
-		if extended.blocks[block.Index] != nil {
-			extended.Log.Crit("Created block twice")
-		}
-		extended.blocks[block.Index] = block
-		return stateHash, validators
+	extended.Bootstrap(inter.ConsensusCallbacks{
+		ApplyBlock: func(arg inter.ApplyBlockArgs) (newStateHash common.Hash, sealEpoch bool) {
+			// track block events
+			if extended.blocks[arg.Block.Index] != nil {
+				extended.Log.Crit("Created block twice")
+			}
+			extended.blocks[arg.Block.Index] = arg.Block
+
+			return arg.StateHash, false
+		},
 	})
 
 	return extended, store, input

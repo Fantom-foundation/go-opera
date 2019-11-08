@@ -6,7 +6,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/poset/election"
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
@@ -17,7 +16,6 @@ type Checkpoint struct {
 	LastDecidedFrame idx.Frame
 	LastBlockN       idx.Block
 	LastAtropos      hash.Event
-	NextValidators   pos.Validators
 	StateHash        common.Hash
 }
 
@@ -31,12 +29,12 @@ func (p *Poset) saveCheckpoint() {
 }
 
 // Bootstrap restores poset's state from store.
-func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
+func (p *Poset) Bootstrap(callback inter.ConsensusCallbacks) {
 	if p.Checkpoint != nil {
 		return
 	}
 	// block handler must be set before p.handleElection
-	p.applyBlock = applyBlock
+	p.callback = callback
 
 	// restore Checkpoint
 	p.Checkpoint = p.store.GetCheckpoint()

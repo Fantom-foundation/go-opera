@@ -123,7 +123,7 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", len(accs)))
+		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", len(accs.Accounts)))
 	case ctx.GlobalBool(utils.TestnetFlag.Name):
 		cfg.DataDir = filepath.Join(defaultDataDir, "testnet")
 	default:

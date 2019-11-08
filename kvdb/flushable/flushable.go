@@ -287,7 +287,7 @@ func castToPair(node *rbt.Node) (key, val []byte) {
 	return key, val
 }
 
-// ForEach scans key-value pair by key in lexicographic order. Looks in cache first, then - in DB.
+// Next scans key-value pair by key in lexicographic order. Looks in cache first, then - in DB.
 func (it *iterator) Next() bool {
 	it.lock.Lock()
 	defer it.lock.Unlock()

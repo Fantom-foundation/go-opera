@@ -32,5 +32,5 @@ type Consensus interface {
 	GetConsensusTime(id hash.Event) (inter.Timestamp, error)
 
 	// Bootstrap must be called (once) before calling other methods
-	Bootstrap(applyBlock inter.ApplyBlockFn)
+	Bootstrap(callbacks inter.ConsensusCallbacks)
 }
