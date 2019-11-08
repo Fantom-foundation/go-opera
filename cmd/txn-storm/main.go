@@ -37,6 +37,8 @@ func init() {
 		TxnsRateFlag,
 		BlockPeriodFlag,
 		NumberFlag,
+		utils.MetricsEnabledFlag,
+		MetricsPrometheusEndpointFlag,
 	}
 
 	// App.
@@ -70,6 +72,8 @@ func generatorMain(ctx *cli.Context) error {
 	if len(args) != 1 {
 		return fmt.Errorf("url expected")
 	}
+
+	SetupPrometheus(ctx)
 
 	url := args[0]
 	donor := getDonor(ctx)

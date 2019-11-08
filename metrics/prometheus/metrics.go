@@ -42,17 +42,14 @@ func convertToPrometheusMetric(name string, m interface{}) (prometheus.Collector
 			return 0
 		})
 
-	// TODO: do
 	case metrics.Meter:
 		collector = NewCollector(opts, metric,
 			"rate1m", "rate5m", "rate15m", "rate")
 
-	// TODO: do
 	case metrics.Histogram:
 		collector = NewCollector(opts, metric,
 			"min", "max", "mean")
 
-	// TODO: do
 	case metrics.Timer, metrics.ResettingTimer:
 		collector = NewCollector(opts, metric,
 			"min", "max", "mean", "rate1m", "rate5m", "rate15m", "rate")
