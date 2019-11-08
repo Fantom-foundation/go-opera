@@ -31,7 +31,7 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)
 	var (
 		genesis   = pm.engine.GetGenesisHash()
-		networkId = lachesis.FakeNetworkId
+		networkId = lachesis.FakeNetworkID
 	)
 	defer pm.Stop()
 

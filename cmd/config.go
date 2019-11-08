@@ -191,7 +191,7 @@ func gossipConfigWithFlags(ctx *cli.Context, src gossip.Config) gossip.Config {
 	setTxPool(ctx, &cfg.TxPool)
 
 	if ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
-		cfg.Net.NetworkId = ctx.GlobalUint64(utils.NetworkIdFlag.Name)
+		cfg.Net.NetworkID = ctx.GlobalUint64(utils.NetworkIdFlag.Name)
 	}
 	// TODO cache config
 	//if ctx.GlobalIsSet(utils.CacheFlag.Name) || ctx.GlobalIsSet(utils.CacheDatabaseFlag.Name) {

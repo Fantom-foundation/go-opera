@@ -441,7 +441,7 @@ func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]
 			seq:     e.Seq,
 			creator: e.Creator,
 		}
-		detected[slot] += 1
+		detected[slot]++
 		return true
 	})
 	for s, count := range detected {

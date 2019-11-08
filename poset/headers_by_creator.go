@@ -42,18 +42,17 @@ func (hh headersByCreator) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, arr)
 }
 
-func (phh *headersByCreator) DecodeRLP(s *rlp.Stream) error {
-	if *phh == nil {
-		*phh = headersByCreator{}
+func (hh *headersByCreator) DecodeRLP(s *rlp.Stream) error {
+	if *hh == nil {
+		*hh = headersByCreator{}
 	}
-	hh := *phh
 	var arr []headersByCreatorPair
 	if err := s.Decode(&arr); err != nil {
 		return err
 	}
 
 	for _, w := range arr {
-		hh[w.Creator] = w.Header
+		(*hh)[w.Creator] = w.Header
 	}
 
 	return nil
