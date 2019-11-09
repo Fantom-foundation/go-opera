@@ -24,7 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/gossip/ordering"
-	"github.com/Fantom-foundation/go-lachesis/gossip/packs_downloader"
+	"github.com/Fantom-foundation/go-lachesis/gossip/packsdownloader"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -83,7 +83,7 @@ type ProtocolManager struct {
 	txsCh  chan evm_core.NewTxsNotify
 	txsSub notify.Subscription
 
-	downloader *packs_downloader.PacksDownloader
+	downloader *packsdownloader.PacksDownloader
 	fetcher    *fetcher.Fetcher
 	buffer     *ordering.EventBuffer
 
@@ -141,7 +141,7 @@ func NewProtocolManager(
 	}
 
 	pm.fetcher, pm.buffer = pm.makeFetcher()
-	pm.downloader = packs_downloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
+	pm.downloader = packsdownloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
 
 	return pm, nil
 }
@@ -200,14 +200,14 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 		Check: parentsCheck.Validate,
 	})
 
-	fetcher_ := fetcher.New(fetcher.Callback{
+	newFetcher := fetcher.New(fetcher.Callback{
 		PushEvent:      buffer.PushEvent,
 		OnlyInterested: pm.onlyInterestedEvents,
 		DropPeer:       pm.removePeer,
 		FirstCheck:     firstCheck,
 		HeavyCheck:     heavyCheck,
 	})
-	return fetcher_, buffer
+	return newFetcher, buffer
 }
 
 func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
@@ -462,7 +462,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 		// notify downloader about new peer's epoch
-		_ = pm.downloader.RegisterPeer(packs_downloader.Peer{
+		_ = pm.downloader.RegisterPeer(packsdownloader.Peer{
 			ID:               p.id,
 			Epoch:            p.progress.Epoch,
 			RequestPack:      p.RequestPack,

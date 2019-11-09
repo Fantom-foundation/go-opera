@@ -138,13 +138,13 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 
 			strategy := NewCasualityStrategy(vecClock, validators)
 
-			selfParent_, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
+			selfParentResult, parents := FindBestParents(5, heads.Slice(), selfParent, strategy)
 
 			if selfParent != nil {
 				assertar.Equal(parents[0], *selfParent)
-				assertar.Equal(*selfParent_, *selfParent)
+				assertar.Equal(*selfParentResult, *selfParent)
 			} else {
-				assertar.Nil(selfParent_)
+				assertar.Nil(selfParentResult)
 			}
 			//t.Logf("\"%s\": \"%s\",", node.String(), parentsToString(parents))
 			if !assertar.Equal(

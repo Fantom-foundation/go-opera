@@ -116,11 +116,10 @@ func (vv Validators) EncodeRLP(w io.Writer) error {
 }
 
 // DecodeRLP is for RLP deserialization.
-func (pp *Validators) DecodeRLP(s *rlp.Stream) error {
-	if *pp == nil {
-		*pp = Validators{}
+func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
+	if *vv == nil {
+		*vv = Validators{}
 	}
-	vv := *pp
 
 	var arr []validator
 	if err := s.Decode(&arr); err != nil {
@@ -128,7 +127,7 @@ func (pp *Validators) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	for _, w := range arr {
-		vv[w.Addr] = w.Stake
+		(*vv)[w.Addr] = w.Stake
 	}
 
 	return nil

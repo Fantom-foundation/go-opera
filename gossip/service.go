@@ -21,7 +21,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/event_check"
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/gossip/occured_txs"
+	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -75,7 +75,7 @@ type Service struct {
 	engineMu    *sync.RWMutex
 	emitter     *Emitter
 	txpool      *evm_core.TxPool
-	occurredTxs *occured_txs.Buffer
+	occurredTxs *occuredtxs.Buffer
 
 	feed ServiceFeed
 
@@ -99,7 +99,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		store: store,
 
 		engineMu:    new(sync.RWMutex),
-		occurredTxs: occured_txs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
+		occurredTxs: occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
 
 		Instance: logger.MakeInstance(),
 	}
@@ -155,7 +155,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 	s.store.AddHead(e.Epoch, e.Hash())
 
-	s.packs_onNewEvent(e, e.Epoch)
+	s.packsOnNewEvent(e, e.Epoch)
 	s.emitter.OnNewEvent(e)
 
 	newEpoch := oldEpoch
@@ -164,7 +164,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 
 	if newEpoch != oldEpoch {
-		s.packs_onNewEpoch(oldEpoch, newEpoch)
+		s.packsOnNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
 		s.store.getEpochStore(newEpoch)
 		s.feed.newEpoch.Send(newEpoch)

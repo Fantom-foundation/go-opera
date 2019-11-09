@@ -71,7 +71,7 @@ const (
 	ErrDecode
 	ErrInvalidMsgCode
 	ErrProtocolVersionMismatch
-	ErrNetworkIdMismatch
+	ErrNetworkIDMismatch
 	ErrGenesisMismatch
 	ErrNoStatusMsg
 	ErrExtraStatusMsg
@@ -89,7 +89,7 @@ var errorToString = map[int]string{
 	ErrDecode:                  "Invalid message",
 	ErrInvalidMsgCode:          "Invalid message code",
 	ErrProtocolVersionMismatch: "Protocol version mismatch",
-	ErrNetworkIdMismatch:       "NetworkId mismatch",
+	ErrNetworkIDMismatch:       "NetworkId mismatch",
 	ErrGenesisMismatch:         "Genesis object mismatch",
 	ErrNoStatusMsg:             "No status message",
 	ErrExtraStatusMsg:          "Extra status message",
@@ -113,7 +113,7 @@ type txPool interface {
 // ethStatusData is the network packet for the status message. It's used for compatibility with some ETH wallets.
 type ethStatusData struct {
 	ProtocolVersion   uint32
-	NetworkId         uint64
+	NetworkID         uint64
 	DummyTD           *big.Int
 	DummyCurrentBlock common.Hash
 	Genesis           common.Hash
