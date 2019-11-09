@@ -71,7 +71,7 @@ func (tt *threads) Start() {
 		return
 	}
 
-	tt.input = make(chan *types.Transaction, 100)
+	tt.input = make(chan *types.Transaction, len(tt.generators)*2)
 
 	for _, t := range tt.generators {
 		t.SetOutput(tt.input)

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	gasLimit = uint64(21000)
+	gasLimit = uint64(50000)
 	gasPrice = big.NewInt(1)
 )
 
@@ -31,14 +31,14 @@ func MakeAcc(n uint) *Acc {
 	}
 }
 
-func (a *Acc) TransactionTo(b *Acc, nonce uint, amount *big.Int) *types.Transaction {
+func (a *Acc) TransactionTo(b *Acc, nonce uint, amount *big.Int, extra []byte) *types.Transaction {
 	txn := types.NewTransaction(
 		uint64(nonce),
 		*b.Addr,
 		amount,
 		gasLimit,
 		gasPrice,
-		[]byte{},
+		extra,
 	)
 
 	signed, err := types.SignTx(

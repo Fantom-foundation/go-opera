@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -10,7 +12,8 @@ import (
 )
 
 type genThread struct {
-	acc      *Acc
+	donorNum uint
+	donorAcc *Acc
 	accs     []*Acc
 	offset   uint
 	position uint
@@ -36,9 +39,10 @@ func newTxnGenerator(donor, from, to uint) *genThread {
 	count := to - from
 
 	g := &genThread{
-		acc:    MakeAcc(donor),
-		accs:   make([]*Acc, count, count),
-		offset: from,
+		donorNum: donor,
+		donorAcc: MakeAcc(donor),
+		accs:     make([]*Acc, count, count),
+		offset:   from,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -104,14 +108,16 @@ func (g *genThread) generate(position uint) {
 	total := uint(len(g.accs))
 
 	if position < total && g.accs[position] == nil {
-		b := MakeAcc(position + g.offset)
+		b := position
+		g.accs[b] = MakeAcc(b + g.offset)
 		nonce := position + g.offset
 		amount := pos.StakeToBalance(10000)
-		txn := g.acc.TransactionTo(b, nonce, amount)
-		g.send(txn)
-		g.accs[position] = b
 
-		g.Log.Info("initial txn", "nonce", nonce, "from", "donor", "to", position+g.offset)
+		txn := g.donorAcc.TransactionTo(g.accs[b], nonce, amount, []byte(
+			metaInfo(g.donorNum, b+g.offset, amount)))
+		g.send(txn)
+
+		g.Log.Info("initial txn", "nonce", nonce, "from", "donor", "to", b+g.offset)
 		return
 	}
 
@@ -119,7 +125,9 @@ func (g *genThread) generate(position uint) {
 	b := (position + 1) % total
 	nonce := position/total + 1
 	amount := pos.StakeToBalance(10)
-	txn := g.accs[a].TransactionTo(g.accs[b], nonce, amount)
+
+	txn := g.accs[a].TransactionTo(g.accs[b], nonce, amount, []byte(
+		metaInfo(a+g.offset, b+g.offset, amount)))
 	g.send(txn)
 
 	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset)
@@ -136,4 +144,8 @@ func (g *genThread) send(tx *types.Transaction) {
 	case <-g.done:
 		break
 	}
+}
+
+func metaInfo(from, to uint, amount *big.Int) string {
+	return fmt.Sprintf("%d-->%d: %s", from, to, amount.String())
 }

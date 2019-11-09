@@ -72,7 +72,7 @@ func (s *sender) Send(txn *types.Transaction) {
 		for {
 			err = s.client.SendTransaction(context.Background(), txn)
 			if err == nil {
-				s.Log.Info("txn sending ok")
+				s.Log.Info("txn sending ok", "data", string(txn.Data()))
 				txnsCountMeter.Inc(1)
 				break sending
 			}
@@ -85,7 +85,8 @@ func (s *sender) Send(txn *types.Transaction) {
 			case evm_core.ErrReplaceUnderpriced.Error():
 				break sending
 			default:
-				s.Log.Error("txn sending", "err", err, "txn", txnToJson(txn))
+				s.Log.Error("txn sending", "err", err, "txn", string(txn.Data()))
+				panic(err)
 			}
 
 			select {
