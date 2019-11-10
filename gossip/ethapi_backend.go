@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 )
 
@@ -44,16 +44,16 @@ func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return params.AllEthashProtocolChanges
 }
 
-func (b *EthAPIBackend) CurrentBlock() *evm_core.EvmBlock {
+func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {
 	return b.state.CurrentBlock()
 }
 
-func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmHeader, error) {
+func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error) {
 	blk, err := b.BlockByNumber(ctx, number)
 	return blk.Header(), err
 }
 
-func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evm_core.EvmHeader, error) {
+func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmcore.EvmHeader, error) {
 	index := b.svc.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
 		return nil, nil
@@ -61,12 +61,12 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evm_c
 	return b.HeaderByNumber(ctx, rpc.BlockNumber(*index))
 }
 
-func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error) {
+func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
 	if number == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
 	}
 	// Otherwise resolve and return the block
-	var blk *evm_core.EvmBlock
+	var blk *evmcore.EvmBlock
 	if number == rpc.LatestBlockNumber {
 		blk = b.state.CurrentBlock()
 	} else {
@@ -76,11 +76,11 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return blk, nil
 }
 
-func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error) {
+func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evmcore.EvmHeader, error) {
 	if number == rpc.PendingBlockNumber {
 		return nil, nil, errors.New("pending block request isn't allowed")
 	}
-	var header *evm_core.EvmHeader
+	var header *evmcore.EvmHeader
 	if number == rpc.LatestBlockNumber {
 		header = &b.state.CurrentBlock().EvmHeader
 	} else {
@@ -174,7 +174,7 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
 	return heads
 }
 
-func (b *EthAPIBackend) GetHeader(ctx context.Context, h common.Hash) *evm_core.EvmHeader {
+func (b *EthAPIBackend) GetHeader(ctx context.Context, h common.Hash) *evmcore.EvmHeader {
 	header, err := b.HeaderByHash(ctx, h)
 	if err != nil {
 		return nil
@@ -182,7 +182,7 @@ func (b *EthAPIBackend) GetHeader(ctx context.Context, h common.Hash) *evm_core.
 	return header
 }
 
-func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evm_core.EvmBlock, error) {
+func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
 	index := b.svc.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
 		return nil, nil
@@ -223,11 +223,11 @@ func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
 	return big.NewInt(0)
 }
 
-func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evm_core.Message, state *state.StateDB, header *evm_core.EvmHeader) (*vm.EVM, func() error, error) {
+func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error) {
 	state.SetBalance(msg.From(), math.MaxBig256)
 	vmError := func() error { return nil }
 
-	context := evm_core.NewEVMContext(msg, header, b.state, nil)
+	context := evmcore.NewEVMContext(msg, header, b.state, nil)
 	config := params.AllEthashProtocolChanges
 	return vm.NewEVM(context, state, config, vm.Config{}), vmError, nil
 }
@@ -288,7 +288,7 @@ func (b *EthAPIBackend) TxPoolContent() (map[common.Address]types.Transactions, 
 	return b.svc.txpool.Content()
 }
 
-func (b *EthAPIBackend) SubscribeNewTxsNotify(ch chan<- evm_core.NewTxsNotify) notify.Subscription {
+func (b *EthAPIBackend) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
 	return b.svc.txpool.SubscribeNewTxsNotify(ch)
 }
 

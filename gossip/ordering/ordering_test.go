@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check/parents_check"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
@@ -53,7 +53,7 @@ func TestEventBuffer(t *testing.T) {
 			return processed[e]
 		},
 
-		Check: parents_check.New(&lachesis.DagConfig{}).Validate,
+		Check: parentscheck.New(&lachesis.DagConfig{}).Validate,
 	})
 
 	for _, rnd := range rand.Perm(len(ordered)) {

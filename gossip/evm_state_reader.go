@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
@@ -30,7 +30,7 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-func (r *EvmStateReader) CurrentBlock() *evm_core.EvmBlock {
+func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
@@ -38,7 +38,7 @@ func (r *EvmStateReader) CurrentBlock() *evm_core.EvmBlock {
 	return r.getBlock(hash.Event(h), idx.Block(n), n != 0)
 }
 
-func (r *EvmStateReader) CurrentHeader() *evm_core.EvmHeader {
+func (r *EvmStateReader) CurrentHeader() *evmcore.EvmHeader {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
@@ -46,29 +46,29 @@ func (r *EvmStateReader) CurrentHeader() *evm_core.EvmHeader {
 	return r.getBlock(hash.Event(h), idx.Block(n), false).Header()
 }
 
-func (r *EvmStateReader) GetHeader(h common.Hash, n uint64) *evm_core.EvmHeader {
+func (r *EvmStateReader) GetHeader(h common.Hash, n uint64) *evmcore.EvmHeader {
 	return r.GetDagHeader(hash.Event(h), idx.Block(n))
 }
 
-func (r *EvmStateReader) GetBlock(h common.Hash, n uint64) *evm_core.EvmBlock {
+func (r *EvmStateReader) GetBlock(h common.Hash, n uint64) *evmcore.EvmBlock {
 	return r.GetDagBlock(hash.Event(h), idx.Block(n))
 }
 
-func (r *EvmStateReader) GetDagHeader(h hash.Event, n idx.Block) *evm_core.EvmHeader {
+func (r *EvmStateReader) GetDagHeader(h hash.Event, n idx.Block) *evmcore.EvmHeader {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
 	return r.getBlock(h, n, false).Header()
 }
 
-func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evm_core.EvmBlock {
+func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evmcore.EvmBlock {
 	r.engineMu.RLock()
 	defer r.engineMu.RUnlock()
 
 	return r.getBlock(h, n, n != 0)
 }
 
-func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_core.EvmBlock {
+func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmcore.EvmBlock {
 	block := r.store.GetBlock(n)
 	if block == nil {
 		return nil
@@ -77,8 +77,8 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evm_
 		return nil
 	}
 
-	evmHeader := evm_core.ToEvmHeader(block)
-	evmBlock := &evm_core.EvmBlock{
+	evmHeader := evmcore.ToEvmHeader(block)
+	evmBlock := &evmcore.EvmBlock{
 		EvmHeader: *evmHeader,
 	}
 

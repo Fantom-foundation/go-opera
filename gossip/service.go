@@ -18,8 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/ethapi"
-	"github.com/Fantom-foundation/go-lachesis/event_check"
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -47,7 +47,7 @@ func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) notify.Subscription {
 	return f.scope.Track(f.newPack.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evm_core.ChainHeadNotify) notify.Subscription {
+func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
 	return f.scope.Track(f.newBlock.Subscribe(ch))
 }
 
@@ -74,7 +74,7 @@ type Service struct {
 	engine      Consensus
 	engineMu    *sync.RWMutex
 	emitter     *Emitter
-	txpool      *evm_core.TxPool
+	txpool      *evmcore.TxPool
 	occurredTxs *occuredtxs.Buffer
 
 	feed ServiceFeed
@@ -114,7 +114,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	stateReader := svc.GetEvmStateReader()
-	svc.txpool = evm_core.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
+	svc.txpool = evmcore.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	var err error
 	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, svc.engine, svc.serverPool)
@@ -129,7 +129,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
 
 	if s.store.HasEvent(e.Hash()) { // sanity check
-		return event_check.ErrAlreadyConnectedEvent
+		return eventcheck.ErrAlreadyConnectedEvent
 	}
 
 	oldEpoch := e.Epoch

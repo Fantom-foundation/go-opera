@@ -3,7 +3,7 @@ package ordering
 import (
 	"github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
@@ -40,7 +40,7 @@ func New(buffSize int, callback Callback) *EventBuffer {
 
 func (buf *EventBuffer) PushEvent(e *inter.Event, peer string) {
 	if buf.callback.Exists(e.Hash()) != nil {
-		buf.callback.Drop(e, peer, event_check.ErrAlreadyConnectedEvent)
+		buf.callback.Drop(e, peer, eventcheck.ErrAlreadyConnectedEvent)
 		return
 	}
 

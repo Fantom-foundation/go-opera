@@ -3,7 +3,7 @@ package gossip
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
@@ -13,7 +13,7 @@ type (
 	Config struct {
 		Net     lachesis.Config
 		Emitter EmitterConfig
-		TxPool  evm_core.TxPoolConfig
+		TxPool  evmcore.TxPoolConfig
 		StoreConfig
 
 		// Protocol options
@@ -60,7 +60,7 @@ func DefaultConfig(network lachesis.Config) Config {
 	cfg := Config{
 		Net:         network,
 		Emitter:     DefaultEmitterConfig(),
-		TxPool:      evm_core.DefaultTxPoolConfig(),
+		TxPool:      evmcore.DefaultTxPoolConfig(),
 		StoreConfig: DefaultStoreConfig(),
 
 		TxIndex:         true,
@@ -77,7 +77,7 @@ func DefaultConfig(network lachesis.Config) Config {
 		cfg.Emitter = FakeEmitterConfig()
 	}
 	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network
-		cfg.TxPool = evm_core.FakeTxPoolConfig()
+		cfg.TxPool = evmcore.FakeTxPoolConfig()
 		cfg.Emitter = FakeEmitterConfig()
 	}*/
 	return cfg
