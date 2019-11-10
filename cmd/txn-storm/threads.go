@@ -14,6 +14,7 @@ import (
 type threads struct {
 	generators []*generator
 	senders    []*sender
+	feedback   *feedback
 
 	maxTxnsPerSec uint
 
@@ -62,6 +63,9 @@ func newThreads(
 		tt.senders[i].SetName(fmt.Sprintf("Sender%d", i))
 	}
 
+	tt.feedback = newFeedback(nodeUrl)
+	tt.feedback.SetName("Feedback")
+
 	return tt
 }
 
@@ -81,6 +85,7 @@ func (tt *threads) Start() {
 	for _, s := range tt.senders {
 		s.Start(destination)
 	}
+	tt.feedback.Start()
 
 	tt.done = make(chan struct{})
 	tt.work.Add(1)
@@ -113,6 +118,11 @@ func (tt *threads) Stop() {
 			stoped.Done()
 		}(s)
 	}
+	stoped.Add(1)
+	go func() {
+		tt.feedback.Stop()
+		stoped.Done()
+	}()
 	stoped.Wait()
 
 	tt.work.Wait()
