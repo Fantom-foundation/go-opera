@@ -1,4 +1,4 @@
-package no_key_is_err
+package nokeyiserr
 
 import (
 	"errors"

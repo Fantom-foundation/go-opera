@@ -16,7 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/event_check"
 	"github.com/Fantom-foundation/go-lachesis/event_check/basic_check"
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
-	"github.com/Fantom-foundation/go-lachesis/gossip/occured_txs"
+	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/ancestor"
@@ -40,7 +40,7 @@ type EmitterWorld struct {
 	EngineMu    *sync.RWMutex
 	Txpool      txPool
 	Am          *accounts.Manager
-	OccurredTxs *occured_txs.Buffer
+	OccurredTxs *occuredtxs.Buffer
 
 	OnEmitted func(e *inter.Event)
 	IsSynced  func() bool

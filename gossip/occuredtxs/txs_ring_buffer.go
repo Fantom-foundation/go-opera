@@ -1,4 +1,4 @@
-package occured_txs
+package occuredtxs
 
 import (
 	"github.com/ethereum/go-ethereum/common"

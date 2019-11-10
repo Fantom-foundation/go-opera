@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/no_key_is_err"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -18,7 +18,7 @@ func TestApplyGenesis(t *testing.T) {
 	logger.SetTestMode(t)
 
 	db := rawdb.NewDatabase(
-		no_key_is_err.Wrap(
+		nokeyiserr.Wrap(
 			table.New(
 				memorydb.New(), []byte("evm_"))))
 

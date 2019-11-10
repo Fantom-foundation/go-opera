@@ -1,4 +1,4 @@
-package packs_downloader
+package packsdownloader
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/gossip/fetcher"

@@ -83,9 +83,9 @@ func (*HandlerT) GcStats() *debug.GCStats {
 	return s
 }
 
-// CpuProfile turns on CPU profiling for nsec seconds and writes
+// CPUProfile turns on CPU profiling for nsec seconds and writes
 // profile data to file.
-func (h *HandlerT) CpuProfile(file string, nsec uint) error {
+func (h *HandlerT) CPUProfile(file string, nsec uint) error {
 	if err := h.StartCPUProfile(file); err != nil {
 		return err
 	}

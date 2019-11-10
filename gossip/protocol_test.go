@@ -31,7 +31,7 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 	pm, _ := newTestProtocolManagerMust(t, 5, 5, nil, nil)
 	var (
 		genesis   = pm.engine.GetGenesisHash()
-		networkId = lachesis.FakeNetworkID
+		networkID = lachesis.FakeNetworkID
 	)
 	defer pm.Stop()
 
@@ -45,15 +45,15 @@ func testStatusMsgErrors(t *testing.T, protocol int) {
 			wantError: errResp(ErrNoStatusMsg, "first msg has code 2 (!= 0)"),
 		},
 		{
-			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: 10, NetworkId: networkId, Genesis: genesis},
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: 10, NetworkID: networkID, Genesis: genesis},
 			wantError: errResp(ErrProtocolVersionMismatch, "10 (!= %d)", protocol),
 		},
 		{
-			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkId: 999, Genesis: genesis},
-			wantError: errResp(ErrNetworkIdMismatch, "999 (!= %d)", networkId),
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkID: 999, Genesis: genesis},
+			wantError: errResp(ErrNetworkIDMismatch, "999 (!= %d)", networkID),
 		},
 		{
-			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkId: networkId, Genesis: common.Hash{3}},
+			code: EthStatusMsg, data: ethStatusData{ProtocolVersion: uint32(protocol), NetworkID: networkID, Genesis: common.Hash{3}},
 			wantError: errResp(ErrGenesisMismatch, "0300000000000000 (!= %x)", genesis.Bytes()[:8]),
 		},
 	}

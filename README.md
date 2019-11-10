@@ -131,9 +131,9 @@ If everything goes well, it should output something along these lines:
 ok      github.com/Fantom-foundation/go-lachesis/evm_core   (cached)
 ok      github.com/Fantom-foundation/go-lachesis/gossip (cached)
 ?       github.com/Fantom-foundation/go-lachesis/gossip/fetcher [no test files]
-?       github.com/Fantom-foundation/go-lachesis/gossip/occured_txs [no test files]
+?       github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs [no test files]
 ok      github.com/Fantom-foundation/go-lachesis/gossip/ordering    (cached)
-ok      github.com/Fantom-foundation/go-lachesis/gossip/packs_downloader    (cached)
+ok      github.com/Fantom-foundation/go-lachesis/gossip/packsdownloader    (cached)
 ```
 
 ### Operating a private network
