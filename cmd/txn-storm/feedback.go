@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
@@ -65,10 +64,9 @@ func (f *feedback) Stop() {
 func (f *feedback) background() {
 	defer f.work.Done()
 	var (
-		client       *ethclient.Client
-		err          error
-		newHead      = make(chan *types.Header)
-		subscription ethereum.Subscription
+		client *ethclient.Client
+		err    error
+		header *types.Header
 	)
 
 	for {
@@ -93,41 +91,31 @@ func (f *feedback) background() {
 				continue connecting
 			}
 
-			subscription, err = client.SubscribeNewHead(context.TODO(), newHead)
-			if err != nil {
-				f.Log.Error("SubscribeNewHead", "err", err)
-				continue connecting
-			}
-
 			break connecting
 		}
 
 	listening:
 		for {
+
 			select {
-			case err := <-subscription.Err():
-				f.Log.Error("NewHeadSubscription", "err", err)
-				break listening
-			case header := <-newHead:
-				f.Log.Info(">>>>>>>> NewHead", "header", header)
+			case <-time.After(time.Millisecond):
 			case <-f.done:
 				return
 			}
+
+			newHeader, err := client.HeaderByNumber(context.TODO(), nil)
+			if err != nil {
+				f.Log.Error("HeaderByNumber", "err", err)
+				break listening
+			}
+
+			if header != nil && header.Number.Cmp(newHeader.Number) >= 0 {
+				continue listening
+			}
+			header = newHeader
+
+			f.Log.Info(">>>>>>>> NewHead", "header", header)
 		}
 
 	}
 }
-
-/*
-func (f *feedback) readBlock(ctx context.Context) {
-	header, err := f.client.HeaderByNumber(ctx, nil)
-	if err != nil {
-		f.Log.Error("HeaderByNumber", "err", err)
-		return
-	}
-
-	f.client.SubscribeNewHead()
-
-	header.Number
-}
-*/
