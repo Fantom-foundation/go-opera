@@ -10,7 +10,7 @@ do
 
   docker $SWARM service update ${NAME} \
     --stop-grace-period 10s \
-    --image ${REGISTRY_HOST}/${IMAGE} \
+    --image ${REGISTRY_HOST}/${NODE_IMAGE} \
     --with-registry-auth \
     --detach=false
 

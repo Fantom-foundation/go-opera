@@ -11,5 +11,5 @@ SWARM_HOST=`./swarm node inspect $HOST --format "{{.Status.Addr}}"`
 
 RPCP=$(($RPCP_BASE+$i))
 
-docker run --rm ${IMAGE} $@ attach http://${SWARM_HOST}:${RPCP}
+docker run --rm ${NODE_IMAGE} $@ attach http://${SWARM_HOST}:${RPCP}
 

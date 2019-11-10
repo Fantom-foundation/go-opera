@@ -21,6 +21,8 @@ func (s *Service) onNewBlock(
 	newStateHash common.Hash,
 	newValidators pos.Validators,
 ) {
+	confirmBlocksMeter.Inc(1)
+
 	evmProcessor := evm_core.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
@@ -46,6 +48,7 @@ func (s *Service) onNewBlock(
 		}
 	}
 	s.occurredTxs.CollectConfirmedTxs(evmBlock.Transactions) // TODO collect all the confirmed txs, not only block txs
+	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
 
 	// Process txs
 	statedb := s.store.StateDB(stateHash)

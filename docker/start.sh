@@ -1,25 +1,28 @@
 #!/usr/bin/env bash
+cd $(dirname $0)
 
 set -e
 
-cd $(dirname $0)
 
 . ./_params.sh
 
-NETWORK=lachesis
 docker network create ${NETWORK}
 
 . ./_sentry.sh
 
+
 echo -e "\nStart $N nodes:\n"
+
 for i in $(seq $N)
 do
     docker run -d --rm \
 	--net=${NETWORK} --name=${NAME}-$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
+	-p $((4000+i)):18545 \
 	"lachesis" \
 	--fakenet $i/$N \
-	--port 5050 --rpc --rpcapi "eth,debug,admin,web3" --rpcport 18545 --nousb --verbosity 3 \
+	--port 5050 --rpc --rpcaddr 0.0.0.0 --rpcport 18545 --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
+	--nousb --verbosity 3 --metrics \
 	${SENTRY_DSN}
 done
 
@@ -64,6 +67,3 @@ do
     res=$(attach_and_exec ${NAME}-$i "admin.addPeer(${enode})")
     echo "    result = ${res}"
 done
-
-
-. ./_prometheus.sh

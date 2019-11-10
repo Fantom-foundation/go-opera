@@ -21,6 +21,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/debug"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/integration"
+	"github.com/Fantom-foundation/go-lachesis/params"
 )
 
 const (
@@ -139,11 +140,13 @@ func init() {
 		utils.MetricsInfluxDBUsernameFlag,
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
+		MetricsPrometheusEndpointFlag,
 	}
 
 	// App.
 
 	app.Action = lachesisMain
+	app.Version = params.VersionWithCommit(gitCommit, gitDate)
 	app.HideVersion = true // we have a command to print the version
 	app.Commands = []cli.Command{
 		// See accountcmd.go:
@@ -173,6 +176,10 @@ func init() {
 		if err := debug.Setup(ctx, logdir); err != nil {
 			return err
 		}
+
+		// Start metrics export if enabled
+		utils.SetupMetrics(ctx)
+		SetupPrometheus(ctx)
 
 		return nil
 	}

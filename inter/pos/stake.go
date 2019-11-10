@@ -1,9 +1,11 @@
 package pos
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type (
@@ -26,7 +28,7 @@ type (
 )
 
 var (
-	balanceToStakeRatio = new(big.Int).Exp(big.NewInt(10), big.NewInt(12), nil) // 10^12
+	balanceToStakeRatio = big.NewInt(params.Ether / 1e6)
 )
 
 // BalanceToStake balance to validator's stake

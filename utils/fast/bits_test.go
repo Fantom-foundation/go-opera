@@ -24,14 +24,14 @@ func testBitArray(t *testing.T, bits uint) {
 
 	t.Logf("Bits: %d, len(raw) = %d", bits, len(raw))
 
-	writer := arr.Writer(&raw)
+	writer := arr.Writer(raw)
 	for _, v := range expect {
 		writer.Push(v)
 	}
 
 	t.Logf("raw: %v", raw)
 
-	reader := arr.Reader(&raw)
+	reader := arr.Reader(raw)
 	for i := 0; i < count; i++ {
 		got[i] = reader.Pop()
 	}

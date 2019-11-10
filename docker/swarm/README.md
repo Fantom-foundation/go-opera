@@ -12,9 +12,9 @@
 
 ## Get docker image
 
-1. Build image `cd .. && make`.
+1. Build images `cd .. && make`.
 
-2. Upload image to private registry `./20.push-docker-image.sh`.
+2. Upload images to private registry `./20.push-docker-image.sh`.
 
 
 ## Deploy lachesis
@@ -36,3 +36,13 @@
 ## Node logs
 
 1. `./swarm service logs node2`.
+
+
+## Performance testing
+
+use `txn-storm` service to generate transaction streams:
+
+  - start: `./32.txn-storm.sh`;
+  - stop: `./82.delete-txn-storm.sh`;
+
+and Prometheus to collect metrics.
