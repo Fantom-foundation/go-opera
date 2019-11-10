@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"math/big"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -66,7 +66,7 @@ func (f *feedback) background() {
 	var (
 		client *ethclient.Client
 		err    error
-		header *types.Header
+		known  *big.Int
 	)
 
 	for {
@@ -94,7 +94,7 @@ func (f *feedback) background() {
 			break connecting
 		}
 
-	listening:
+	fetching:
 		for {
 
 			select {
@@ -103,18 +103,33 @@ func (f *feedback) background() {
 				return
 			}
 
-			newHeader, err := client.HeaderByNumber(context.TODO(), nil)
+			header, err := client.HeaderByNumber(context.TODO(), nil)
 			if err != nil {
 				f.Log.Error("HeaderByNumber", "err", err)
-				break listening
+				break fetching
+			}
+			if known == nil {
+				known = new(big.Int)
+				known.Sub(header.Number, big.NewInt(1))
 			}
 
-			if header != nil && header.Number.Cmp(newHeader.Number) >= 0 {
-				continue listening
-			}
-			header = newHeader
+			for ; header.Number.Cmp(known) > 0; known.Add(known, big.NewInt(1)) {
+				// NOTE: err="server returned empty transaction list but block header indicates transactions"
+				block, err := client.BlockByNumber(context.TODO(), known)
+				if err != nil {
+					f.Log.Error("BlockByNumber", "err", err)
+					break fetching
+				}
 
-			f.Log.Info(">>>>>>>> NewHead", "header", header)
+				for _, txn := range block.Transactions() {
+					info, err := parseInfo(txn.Data())
+					if err != nil || info == nil {
+						continue
+					}
+					f.Log.Info(">>>>>>>>> GOT", "info", info)
+				}
+			}
+
 		}
 
 	}

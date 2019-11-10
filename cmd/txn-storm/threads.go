@@ -85,7 +85,8 @@ func (tt *threads) Start() {
 	for _, s := range tt.senders {
 		s.Start(destination)
 	}
-	tt.feedback.Start()
+	// TODO: uncomment it after fix
+	//tt.feedback.Start()
 
 	tt.done = make(chan struct{})
 	tt.work.Add(1)

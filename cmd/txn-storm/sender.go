@@ -101,16 +101,16 @@ func (s *sender) background() {
 
 			switch err.Error() {
 			case fmt.Sprintf("known transaction: %x", txn.Hash()):
-				s.Log.Info("txn sending skip", "info", info)
+				s.Log.Info("txn sending skip", "info", info, "cause", err)
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("txn sending skip", "info", info)
+				s.Log.Info("txn sending skip", "info", info, "cause", err)
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("txn sending skip", "info", info)
+				s.Log.Info("txn sending skip", "info", info, "cause", err)
 				break sending
 			default:
-				s.Log.Error("try to send txn again", "cause", err, "info", info)
+				s.Log.Error("try to send txn again", "info", info, "cause", err)
 				select {
 				case <-time.After(time.Second):
 				case <-s.done:

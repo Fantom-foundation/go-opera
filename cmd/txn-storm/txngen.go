@@ -101,7 +101,7 @@ func (g *generator) generate(position uint) (txn *types.Transaction) {
 		b := position
 		g.accs[b] = MakeAcc(b + g.offset)
 		nonce := position + g.offset
-		amount := pos.StakeToBalance(10000)
+		amount := pos.StakeToBalance(10)
 
 		txn = g.donorAcc.TransactionTo(g.accs[b], nonce, amount,
 			makeInfo(g.donorNum, b+g.offset).Bytes())
@@ -113,8 +113,9 @@ func (g *generator) generate(position uint) (txn *types.Transaction) {
 	a := position % total
 	b := (position + 1) % total
 	nonce := position/total + 1
-	amount := pos.StakeToBalance(10)
+	amount := pos.StakeToBalance(1)
 
+	// NOTE: "insufficient funds for gas * price + value" err
 	txn = g.accs[a].TransactionTo(g.accs[b], nonce, amount,
 		makeInfo(a+g.offset, b+g.offset).Bytes())
 
