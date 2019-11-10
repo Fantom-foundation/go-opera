@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 )
 
 var maxPrice = big.NewInt(500 * params.GWei)
@@ -23,8 +23,8 @@ type Config struct {
 }
 
 type Reader interface {
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmHeader, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
 	ChainConfig() *params.ChainConfig
 }
 

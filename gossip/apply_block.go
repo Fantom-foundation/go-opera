@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
@@ -21,11 +21,11 @@ func (s *Service) onNewBlock(
 	newStateHash common.Hash,
 	newValidators pos.Validators,
 ) {
-	evmProcessor := evm_core.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
+	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
-	evmHeader := evm_core.ToEvmHeader(block)
-	evmBlock := &evm_core.EvmBlock{
+	evmHeader := evmcore.ToEvmHeader(block)
+	evmBlock := &evmcore.EvmBlock{
 		EvmHeader:    *evmHeader,
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
@@ -115,7 +115,7 @@ func (s *Service) onNewBlock(
 	}
 
 	// Notify about new block
-	s.feed.newBlock.Send(evm_core.ChainHeadNotify{evmBlock})
+	s.feed.newBlock.Send(evmcore.ChainHeadNotify{evmBlock})
 
 	// Flush trie on the main DB
 	err = statedb.Database().TrieDB().Cap(0)

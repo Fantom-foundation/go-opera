@@ -19,7 +19,7 @@ import (
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
@@ -137,7 +137,7 @@ func setGPO(ctx *cli.Context, cfg *gasprice.Config) {
 	}
 }
 
-func setTxPool(ctx *cli.Context, cfg *evm_core.TxPoolConfig) {
+func setTxPool(ctx *cli.Context, cfg *evmcore.TxPoolConfig) {
 	if ctx.GlobalIsSet(utils.TxPoolLocalsFlag.Name) {
 		locals := strings.Split(ctx.GlobalString(utils.TxPoolLocalsFlag.Name), ",")
 		for _, account := range locals {

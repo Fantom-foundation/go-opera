@@ -13,9 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check"
-	"github.com/Fantom-foundation/go-lachesis/event_check/basic_check"
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -102,7 +102,7 @@ func (em *Emitter) StartEventEmission() {
 	}
 	em.done = make(chan struct{})
 
-	newTxsCh := make(chan evm_core.NewTxsNotify)
+	newTxsCh := make(chan evmcore.NewTxsNotify)
 	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
 
 	em.prevEmittedTime = em.loadPrevEmitTime()
@@ -237,7 +237,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 	// Spill txs if exceeded size limit
 	// In all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(e.CalcSize()) > (basic_check.MaxEventSize-500) && len(e.Transactions) > 0 {
+	for uint64(e.CalcSize()) > (basiccheck.MaxEventSize-500) && len(e.Transactions) > 0 {
 		tx := e.Transactions[len(e.Transactions)-1]
 		e.GasPowerUsed -= tx.Gas()
 		e.GasPowerLeft += tx.Gas()
@@ -329,7 +329,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-	event.GasPowerUsed = basic_check.CalcGasPowerUsed(event, em.dag)
+	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
 
 	// set consensus fields
 	event = em.world.Engine.Prepare(event) // GasPowerLeft is calced here
@@ -369,7 +369,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	{
 		// sanity check
 		dagID := params.AllEthashProtocolChanges.ChainID
-		if err := event_check.ValidateAll(em.dag, em.world.Engine, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
+		if err := eventcheck.ValidateAll(em.dag, em.world.Engine, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
 			em.Log.Error("Emitted incorrect event", "err", err)
 			return nil
 		}
@@ -463,13 +463,13 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 			// it's emitter, so no need in determinism => fine to use float
 			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
 			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
-			if maxGasUsed > basic_check.MaxGasPowerUsed {
-				maxGasUsed = basic_check.MaxGasPowerUsed
+			if maxGasUsed > basiccheck.MaxGasPowerUsed {
+				maxGasUsed = basiccheck.MaxGasPowerUsed
 			}
 			return maxGasUsed
 		}
 	}
-	return basic_check.MaxGasPowerUsed
+	return basiccheck.MaxGasPowerUsed
 }
 
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {

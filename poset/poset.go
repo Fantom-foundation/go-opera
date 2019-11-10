@@ -5,7 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check/epoch_check"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -60,7 +60,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // Prepare fills consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash, GasPowerLeft
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
-	if err := epoch_check.New(&p.dag, p).Validate(e); err != nil {
+	if err := epochcheck.New(&p.dag, p).Validate(e); err != nil {
 		p.Log.Error("Event prepare error", "err", err, "event", e.String())
 		return nil
 	}
@@ -110,7 +110,7 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	}
 	// check GasPowerLeft
 	gasPower := p.CalcGasPower(&e.EventHeaderData)
-	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basic_check
+	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basiccheck
 		return errors.Errorf("Claimed GasPower mismatched with calculated (%d!=%d)", e.GasPowerLeft+e.GasPowerUsed, gasPower)
 	}
 
@@ -189,7 +189,7 @@ func (p *Poset) processKnownRoots() *election.Res {
 // Event order matter: parents first.
 // ProcessEvent is not safe for concurrent use.
 func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
-	err = epoch_check.New(&p.dag, p).Validate(e)
+	err = epochcheck.New(&p.dag, p).Validate(e)
 	if err != nil {
 		return
 	}
