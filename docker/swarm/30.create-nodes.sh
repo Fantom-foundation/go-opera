@@ -27,7 +27,7 @@ do
     --with-registry-auth \
     --detach=false \
     --constraint node.hostname==$HOST \
-   ${REGISTRY_HOST}/${IMAGE} --nousb \
+   ${REGISTRY_HOST}/${NODE_IMAGE} --nousb \
     --fakenet=$ACC/$N \
     --rpc --rpcaddr 0.0.0.0 --rpcport ${RPCP} --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3,personal" \
     --port ${PORT} --nat extip:${SWARM_HOST} \
