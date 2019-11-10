@@ -74,6 +74,7 @@ func (s *sender) background() {
 	)
 
 	for txn := range s.input {
+		info := mustParseInfo(txn.Data()).String()
 
 		//connecting:
 		for client == nil {
@@ -93,23 +94,23 @@ func (s *sender) background() {
 		for {
 			err = client.SendTransaction(context.Background(), txn)
 			if err == nil {
-				s.Log.Info("txn sending ok", "data", string(txn.Data()))
+				s.Log.Info("txn sending ok", "info", info)
 				txnsCountMeter.Inc(1)
 				break sending
 			}
 
 			switch err.Error() {
 			case fmt.Sprintf("known transaction: %x", txn.Hash()):
-				s.Log.Info("txn sending skip", "data", string(txn.Data()))
+				s.Log.Info("txn sending skip", "info", info)
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("txn sending skip", "data", string(txn.Data()))
+				s.Log.Info("txn sending skip", "info", info)
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("txn sending skip", "data", string(txn.Data()))
+				s.Log.Info("txn sending skip", "info", info)
 				break sending
 			default:
-				s.Log.Error("try to send txn again", "cause", err, "txn", string(txn.Data()))
+				s.Log.Error("try to send txn again", "cause", err, "info", info)
 				select {
 				case <-time.After(time.Second):
 				case <-s.done:

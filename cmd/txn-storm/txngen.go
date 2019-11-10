@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -105,8 +103,8 @@ func (g *generator) generate(position uint) (txn *types.Transaction) {
 		nonce := position + g.offset
 		amount := pos.StakeToBalance(10000)
 
-		txn = g.donorAcc.TransactionTo(g.accs[b], nonce, amount, []byte(
-			metaInfo(g.donorNum, b+g.offset, amount)))
+		txn = g.donorAcc.TransactionTo(g.accs[b], nonce, amount,
+			makeInfo(g.donorNum, b+g.offset).Bytes())
 
 		g.Log.Info("initial txn", "nonce", nonce, "from", "donor", "to", b+g.offset)
 		return
@@ -117,8 +115,8 @@ func (g *generator) generate(position uint) (txn *types.Transaction) {
 	nonce := position/total + 1
 	amount := pos.StakeToBalance(10)
 
-	txn = g.accs[a].TransactionTo(g.accs[b], nonce, amount, []byte(
-		metaInfo(a+g.offset, b+g.offset, amount)))
+	txn = g.accs[a].TransactionTo(g.accs[b], nonce, amount,
+		makeInfo(a+g.offset, b+g.offset).Bytes())
 
 	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset)
 	return
@@ -135,8 +133,4 @@ func (g *generator) send(txn *types.Transaction) {
 	case <-g.done:
 		break
 	}
-}
-
-func metaInfo(from, to uint, amount *big.Int) string {
-	return fmt.Sprintf("%d-->%d: %s", from, to, amount.String())
 }
