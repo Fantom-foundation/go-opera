@@ -999,7 +999,7 @@ func RPCMarshalHeader(head *evm_core.EvmHeader) map[string]interface{} {
 		"parentHash":       head.ParentHash,
 		"nonce":            types.BlockNonce{},
 		"mixHash":          common.Hash{},
-		"sha3Uncles":       common.Hash{},
+		"sha3Uncles":       types.EmptyUncleHash,
 		"logsBloom":        types.Bloom{},
 		"stateRoot":        head.Root,
 		"miner":            head.Coinbase,
