@@ -14,63 +14,84 @@ import (
 )
 
 type sender struct {
-	url    string
-	Ready  chan struct{}
-	client *ethclient.Client
+	url   string
+	input <-chan *types.Transaction
 
 	done chan struct{}
 	work sync.WaitGroup
+	sync.Mutex
 
 	logger.Instance
 }
 
 func newSender(url string) *sender {
 	s := &sender{
-		url:   url,
-		Ready: make(chan struct{}, 1),
-		done:  make(chan struct{}),
+		url: url,
 
 		Instance: logger.MakeInstance(),
 	}
-	s.Ready <- struct{}{}
 
 	return s
 }
 
-func (s *sender) Close() {
-	close(s.done)
-	s.work.Wait()
-	close(s.Ready)
-	if s.client != nil {
-		s.client.Close()
+func (s *sender) Start(c <-chan *types.Transaction) {
+	s.Lock()
+	defer s.Unlock()
+
+	if s.done != nil {
+		return
 	}
+
+	s.input = c
+	s.done = make(chan struct{})
+	s.work.Add(1)
+	go s.background()
+
+	s.Log.Info("started")
 }
 
-// TODO: prevent double calls
-func (s *sender) Send(txn *types.Transaction) {
-	s.work.Add(1)
-	go func() {
-		defer s.work.Done()
-		var err error
+func (s *sender) Stop() {
+	s.Lock()
+	defer s.Unlock()
 
-	connecting:
-		for s.client == nil {
-			s.client, err = ethclient.Dial(s.url)
-			if err == nil {
-				break connecting
-			}
+	if s.done == nil {
+		return
+	}
 
-			s.Log.Error("connect to", "url", s.url, "err", err)
-			select {
-			case <-time.After(time.Second):
-			case <-s.done:
-				return
+	close(s.done)
+	s.work.Wait()
+	s.done = nil
+
+	s.Log.Info("stopped")
+}
+
+func (s *sender) background() {
+	defer s.work.Done()
+
+	var (
+		client *ethclient.Client
+		err    error
+	)
+
+	for txn := range s.input {
+
+		//connecting:
+		for client == nil {
+			client, err = ethclient.Dial(s.url)
+			if err != nil {
+				client = nil
+				s.Log.Error("connect to", "url", s.url, "err", err)
+				select {
+				case <-time.After(time.Second):
+				case <-s.done:
+					return
+				}
 			}
 		}
 
 	sending:
 		for {
-			err = s.client.SendTransaction(context.Background(), txn)
+			err = client.SendTransaction(context.Background(), txn)
 			if err == nil {
 				s.Log.Info("txn sending ok", "data", string(txn.Data()))
 				txnsCountMeter.Inc(1)
@@ -79,31 +100,23 @@ func (s *sender) Send(txn *types.Transaction) {
 
 			switch err.Error() {
 			case fmt.Sprintf("known transaction: %x", txn.Hash()):
+				s.Log.Info("txn sending skip", "data", string(txn.Data()))
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
+				s.Log.Info("txn sending skip", "data", string(txn.Data()))
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
+				s.Log.Info("txn sending skip", "data", string(txn.Data()))
 				break sending
 			default:
-				s.Log.Error("txn sending", "err", err, "txn", string(txn.Data()))
-				panic(err)
-			}
-
-			select {
-			case <-time.After(time.Second):
-			case <-s.done:
-				return
+				s.Log.Error("try to send txn again", "cause", err, "txn", string(txn.Data()))
+				select {
+				case <-time.After(time.Second):
+				case <-s.done:
+					return
+				}
 			}
 		}
 
-		s.Ready <- struct{}{}
-	}()
-}
-
-func txnToJson(txn *types.Transaction) string {
-	b, err := txn.MarshalJSON()
-	if err != nil {
-		panic(err)
 	}
-	return string(b)
 }

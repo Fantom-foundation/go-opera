@@ -11,7 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
-type genThread struct {
+type generator struct {
 	donorNum uint
 	donorAcc *Acc
 	accs     []*Acc
@@ -27,7 +27,7 @@ type genThread struct {
 	logger.Instance
 }
 
-func newTxnGenerator(donor, from, to uint) *genThread {
+func newTxnGenerator(donor, from, to uint) *generator {
 	if from >= to {
 		panic("invalid range from-to")
 	}
@@ -38,7 +38,7 @@ func newTxnGenerator(donor, from, to uint) *genThread {
 
 	count := to - from
 
-	g := &genThread{
+	g := &generator{
 		donorNum: donor,
 		donorAcc: MakeAcc(donor),
 		accs:     make([]*Acc, count, count),
@@ -50,18 +50,7 @@ func newTxnGenerator(donor, from, to uint) *genThread {
 	return g
 }
 
-func (g *genThread) SetOutput(c chan<- *types.Transaction) {
-	g.Lock()
-	defer g.Unlock()
-
-	if g.output != nil || g.done != nil {
-		panic("do it once before start")
-	}
-
-	g.output = c
-}
-
-func (g *genThread) Start() {
+func (g *generator) Start(c chan<- *types.Transaction) {
 	g.Lock()
 	defer g.Unlock()
 
@@ -69,6 +58,7 @@ func (g *genThread) Start() {
 		return
 	}
 
+	g.output = c
 	g.done = make(chan struct{})
 	g.work.Add(1)
 	go g.background()
@@ -76,7 +66,7 @@ func (g *genThread) Start() {
 	g.Log.Info("started")
 }
 
-func (g *genThread) Stop() {
+func (g *generator) Stop() {
 	g.Lock()
 	defer g.Unlock()
 
@@ -91,20 +81,22 @@ func (g *genThread) Stop() {
 	g.Log.Info("stopped")
 }
 
-func (g *genThread) background() {
+func (g *generator) background() {
 	defer g.work.Done()
+
 	for {
 		select {
 		case <-g.done:
 			return
 		default:
-			g.generate(g.position)
+			txn := g.generate(g.position)
+			g.send(txn)
 			g.position++
 		}
 	}
 }
 
-func (g *genThread) generate(position uint) {
+func (g *generator) generate(position uint) (txn *types.Transaction) {
 	total := uint(len(g.accs))
 
 	if position < total && g.accs[position] == nil {
@@ -113,9 +105,8 @@ func (g *genThread) generate(position uint) {
 		nonce := position + g.offset
 		amount := pos.StakeToBalance(10000)
 
-		txn := g.donorAcc.TransactionTo(g.accs[b], nonce, amount, []byte(
+		txn = g.donorAcc.TransactionTo(g.accs[b], nonce, amount, []byte(
 			metaInfo(g.donorNum, b+g.offset, amount)))
-		g.send(txn)
 
 		g.Log.Info("initial txn", "nonce", nonce, "from", "donor", "to", b+g.offset)
 		return
@@ -126,20 +117,20 @@ func (g *genThread) generate(position uint) {
 	nonce := position/total + 1
 	amount := pos.StakeToBalance(10)
 
-	txn := g.accs[a].TransactionTo(g.accs[b], nonce, amount, []byte(
+	txn = g.accs[a].TransactionTo(g.accs[b], nonce, amount, []byte(
 		metaInfo(a+g.offset, b+g.offset, amount)))
-	g.send(txn)
 
 	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset)
+	return
 }
 
-func (g *genThread) send(tx *types.Transaction) {
+func (g *generator) send(txn *types.Transaction) {
 	if g.output == nil {
 		return
 	}
 
 	select {
-	case g.output <- tx:
+	case g.output <- txn:
 		break
 	case <-g.done:
 		break

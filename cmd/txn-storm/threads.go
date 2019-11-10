@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 	"runtime"
 	"sync"
 	"time"
@@ -13,14 +12,13 @@ import (
 )
 
 type threads struct {
-	url        string
-	generators []*genThread
+	generators []*generator
+	senders    []*sender
 
-	txnsPerSec uint
+	maxTxnsPerSec uint
 
-	input chan *types.Transaction
-	done  chan struct{}
-	work  sync.WaitGroup
+	done chan struct{}
+	work sync.WaitGroup
 	sync.Mutex
 
 	logger.Instance
@@ -41,23 +39,27 @@ func newThreads(
 	runtime.GOMAXPROCS(count)
 
 	tt := &threads{
-		url:        nodeUrl,
-		generators: make([]*genThread, count, count),
+		generators: make([]*generator, count, count),
+		senders:    make([]*sender, 10, 10),
 
 		Instance: logger.MakeInstance(),
 	}
-
 	tt.SetName("Threads")
 
-	tt.txnsPerSec = maxTxnsPerSec / ofTotal
-	accs := tt.txnsPerSec * uint(block.Milliseconds()/1000)
+	tt.maxTxnsPerSec = maxTxnsPerSec / ofTotal
+	accs := tt.maxTxnsPerSec * uint(block.Milliseconds()/1000)
 	accsOnThread := accs / uint(count)
 
 	from := accs * num
 	for i := range tt.generators {
 		tt.generators[i] = newTxnGenerator(donor, from, from+accsOnThread)
-		tt.generators[i].SetName(fmt.Sprintf("Gen[%d:%d]", from, from+accsOnThread))
+		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", from, from+accsOnThread))
 		from += accsOnThread
+	}
+
+	for i := range tt.senders {
+		tt.senders[i] = newSender(nodeUrl)
+		tt.senders[i].SetName(fmt.Sprintf("Sender%d", i))
 	}
 
 	return tt
@@ -67,20 +69,22 @@ func (tt *threads) Start() {
 	tt.Lock()
 	defer tt.Unlock()
 
-	if tt.input != nil {
+	if tt.done != nil {
 		return
 	}
 
-	tt.input = make(chan *types.Transaction, len(tt.generators)*2)
-
+	source := make(chan *types.Transaction, len(tt.generators)*2)
 	for _, t := range tt.generators {
-		t.SetOutput(tt.input)
-		t.Start()
+		t.Start(source)
+	}
+	destination := make(chan *types.Transaction, len(tt.senders)*2)
+	for _, s := range tt.senders {
+		s.Start(destination)
 	}
 
 	tt.done = make(chan struct{})
 	tt.work.Add(1)
-	go tt.background()
+	go tt.background(source, destination)
 
 	tt.Log.Info("started")
 }
@@ -89,88 +93,75 @@ func (tt *threads) Stop() {
 	tt.Lock()
 	defer tt.Unlock()
 
-	if tt.input == nil {
+	if tt.done == nil {
 		return
 	}
+	close(tt.done)
 
 	var stoped sync.WaitGroup
 	stoped.Add(len(tt.generators))
 	for _, t := range tt.generators {
-		go func(t *genThread) {
+		go func(t *generator) {
 			t.Stop()
 			stoped.Done()
 		}(t)
 	}
+	stoped.Add(len(tt.senders))
+	for _, s := range tt.senders {
+		go func(s *sender) {
+			s.Stop()
+			stoped.Done()
+		}(s)
+	}
 	stoped.Wait()
 
-	close(tt.input)
-	close(tt.done)
 	tt.work.Wait()
-	tt.input = nil
+	tt.done = nil
 
 	tt.Log.Info("stopped")
 }
 
-func (tt *threads) background() {
+func (tt *threads) background(
+	source <-chan *types.Transaction,
+	destination chan<- *types.Transaction,
+) {
 	defer tt.work.Done()
+	defer close(destination)
 
-	senders, selectors := tt.makeSenders(10)
-	defer tt.closeSenders(senders)
-	selectors = append(selectors,
-		reflect.SelectCase{
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(tt.done),
-		})
+	var (
+		count uint
+		start time.Time
+		txn   *types.Transaction
+	)
+	for {
 
-	count := uint(0)
-	start := time.Now()
+		if time.Since(start) >= time.Second {
+			count = 0
+			start = time.Now()
+		}
 
-	for txn := range tt.input {
-
-		if count >= tt.txnsPerSec {
+		if count >= tt.maxTxnsPerSec {
 			timeout := start.Add(time.Second).Sub(time.Now())
-			tt.Log.Info("sending pause", "timeout", timeout)
+			tt.Log.Info("TpS limit", "timeout", timeout)
 			select {
 			case <-time.After(timeout):
 			case <-tt.done:
 				return
 			}
 		}
-		if time.Since(start) >= time.Second {
-			count = 0
-			start = time.Now()
-		}
-		count++
 
-		choosen, _, _ := reflect.Select(selectors)
-		if choosen < len(senders) {
-			senders[choosen].Send(txn)
-		} else {
+		select {
+		case txn = <-source:
+			count++
+		case <-tt.done:
 			return
 		}
 
-	}
-}
-
-func (tt *threads) makeSenders(count int) (
-	senders []*sender,
-	selectors []reflect.SelectCase,
-) {
-	senders = make([]*sender, count, count)
-	selectors = make([]reflect.SelectCase, count)
-	for i := range senders {
-		senders[i] = newSender(tt.url)
-		senders[i].SetName(fmt.Sprintf("Sender%d", i))
-		selectors[i] = reflect.SelectCase{
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(senders[i].Ready),
+		select {
+		case destination <- txn:
+		case <-tt.done:
+			return
 		}
-	}
-	return
-}
 
-func (tt *threads) closeSenders(ss []*sender) {
-	for _, s := range ss {
-		s.Close()
 	}
 }
