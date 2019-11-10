@@ -16,6 +16,6 @@ do
 	--net=${NETWORK} --name=txngen-$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	"txn-storm" \
-	--num $i/$n --donor=$i --rate=100 --period=60 http://${ip}:18545
+	--num $i/$n --donor=$i --rate=10 --period=60 http://${ip}:18545
 
 done

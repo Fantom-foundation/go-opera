@@ -18,6 +18,7 @@ do
     docker run -d --rm \
 	--net=${NETWORK} --name=${NAME}-$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
+	-p $((4000+i)):18545 \
 	"lachesis" \
 	--fakenet $i/$N \
 	--port 5050 --rpc --rpcaddr 0.0.0.0 --rpcport 18545 --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
@@ -66,6 +67,3 @@ do
     res=$(attach_and_exec ${NAME}-$i "admin.addPeer(${enode})")
     echo "    result = ${res}"
 done
-
-
-. ./_prometheus.sh
