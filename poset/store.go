@@ -19,7 +19,7 @@ type Store struct {
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
-		Checkpoint     kvdb.KeyValueStore `table:"checkpoint_"`
+		Checkpoint     kvdb.KeyValueStore `table:"Checkpoint_"`
 		Epochs         kvdb.KeyValueStore `table:"epoch_"`
 		ConfirmedEvent kvdb.KeyValueStore `table:"confirmed_"`
 		FrameInfos     kvdb.KeyValueStore `table:"frameinfo_"`

@@ -217,9 +217,9 @@ func (s *PrivateAccountAPI) ListAccounts() []common.Address {
 	return addresses
 }
 
-// rawWallet is a JSON representation of an accounts.Wallet interface, with its
+// RawWallet is a JSON representation of an accounts.Wallet interface, with its
 // data contents extracted into plain fields.
-type rawWallet struct {
+type RawWallet struct {
 	URL      string             `json:"url"`
 	Status   string             `json:"status"`
 	Failure  string             `json:"failure,omitempty"`
@@ -227,12 +227,12 @@ type rawWallet struct {
 }
 
 // ListWallets will return a list of wallets this node manages.
-func (s *PrivateAccountAPI) ListWallets() []rawWallet {
-	wallets := make([]rawWallet, 0) // return [] instead of nil if empty
+func (s *PrivateAccountAPI) ListWallets() []RawWallet {
+	wallets := make([]RawWallet, 0) // return [] instead of nil if empty
 	for _, wallet := range s.am.Wallets() {
 		status, failure := wallet.Status()
 
-		raw := rawWallet{
+		raw := RawWallet{
 			URL:      wallet.URL().String(),
 			Status:   status,
 			Accounts: wallet.Accounts(),

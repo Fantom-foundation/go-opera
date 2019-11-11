@@ -20,8 +20,8 @@ type Poset struct {
 	dag   lachesis.DagConfig
 	store *Store
 	input EventSource
-	*checkpoint
-	epochState
+	*Checkpoint
+	EpochState
 
 	election *election.Election
 	vecClock *vector.Index
