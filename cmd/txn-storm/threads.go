@@ -77,20 +77,27 @@ func (tt *threads) Start() {
 		return
 	}
 
-	source := make(chan *types.Transaction, len(tt.generators)*2)
-	for _, t := range tt.generators {
-		t.Start(source)
-	}
 	destination := make(chan *types.Transaction, len(tt.senders)*2)
-	for _, s := range tt.senders {
-		s.Start(destination)
-	}
-	// TODO: uncomment it after fix
-	//tt.feedback.Start()
-
+	source := make(chan *types.Transaction, len(tt.generators)*2)
 	tt.done = make(chan struct{})
 	tt.work.Add(1)
 	go tt.background(source, destination)
+
+	for _, s := range tt.senders {
+		s.Start(destination)
+	}
+
+	for i, t := range tt.generators {
+		// first transactions from donor: one after another
+		txn := t.Yield(uint(i))
+		destination <- txn
+	}
+	for _, t := range tt.generators {
+		t.Start(source)
+	}
+
+	// TODO: uncomment it after fix
+	//tt.feedback.Start()
 
 	tt.Log.Info("started")
 }
@@ -102,9 +109,13 @@ func (tt *threads) Stop() {
 	if tt.done == nil {
 		return
 	}
-	close(tt.done)
 
 	var stoped sync.WaitGroup
+	stoped.Add(1)
+	go func() {
+		tt.feedback.Stop()
+		stoped.Done()
+	}()
 	stoped.Add(len(tt.generators))
 	for _, t := range tt.generators {
 		go func(t *generator) {
@@ -119,13 +130,9 @@ func (tt *threads) Stop() {
 			stoped.Done()
 		}(s)
 	}
-	stoped.Add(1)
-	go func() {
-		tt.feedback.Stop()
-		stoped.Done()
-	}()
 	stoped.Wait()
 
+	close(tt.done)
 	tt.work.Wait()
 	tt.done = nil
 

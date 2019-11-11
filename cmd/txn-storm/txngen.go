@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
@@ -87,39 +88,53 @@ func (g *generator) background() {
 		case <-g.done:
 			return
 		default:
-			txn := g.generate(g.position)
+			txn := g.Yield(1)
 			g.send(txn)
-			g.position++
 		}
 	}
 }
 
-func (g *generator) generate(position uint) (txn *types.Transaction) {
+func (g *generator) Yield(init uint) *types.Transaction {
+	txn := g.generate(init, g.position)
+	g.position++
+	return txn
+}
+
+func (g *generator) generate(init, position uint) (txn *types.Transaction) {
 	total := uint(len(g.accs))
 
 	if position < total && g.accs[position] == nil {
 		b := position
 		g.accs[b] = MakeAcc(b + g.offset)
-		nonce := position + g.offset
-		amount := pos.StakeToBalance(10)
 
-		txn = g.donorAcc.TransactionTo(g.accs[b], nonce, amount,
-			makeInfo(g.donorNum, b+g.offset).Bytes())
+		nonce := init
+		a := -1
+		from := g.donorAcc
+		if b > 0 {
+			a = int(b + g.offset - 1)
+			from = g.accs[b-1]
+		}
 
-		g.Log.Info("initial txn", "nonce", nonce, "from", "donor", "to", b+g.offset)
+		amount := pos.StakeToBalance(pos.Stake((total - b) * 10 * 2))
+
+		txn = from.TransactionTo(g.accs[b], nonce, amount,
+			meta.NewInfo(uint(a), b+g.offset).Bytes())
+
+		g.Log.Info("initial txn", "nonce", nonce, "from", a, "to", b+g.offset, "amount", amount)
 		return
 	}
 
 	a := position % total
 	b := (position + 1) % total
-	nonce := position/total + 1
-	amount := pos.StakeToBalance(1)
+	nonce := position/total + 2
+
+	amount := pos.StakeToBalance(10)
 
 	// NOTE: "insufficient funds for gas * price + value" err
 	txn = g.accs[a].TransactionTo(g.accs[b], nonce, amount,
-		makeInfo(a+g.offset, b+g.offset).Bytes())
+		meta.NewInfo(a+g.offset, b+g.offset).Bytes())
 
-	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset)
+	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset, "amount", amount)
 	return
 }
 

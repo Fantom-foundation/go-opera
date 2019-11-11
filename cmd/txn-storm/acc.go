@@ -13,7 +13,7 @@ import (
 
 var (
 	gasLimit = uint64(50000)
-	gasPrice = big.NewInt(1)
+	gasPrice = big.NewInt(0)
 )
 
 type Acc struct {
