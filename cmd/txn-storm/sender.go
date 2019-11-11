@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
+	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
@@ -71,10 +72,17 @@ func (s *sender) background() {
 	var (
 		client *ethclient.Client
 		err    error
+		txn    *types.Transaction
+		info   string
 	)
 
-	for txn := range s.input {
-		info := mustParseInfo(txn.Data()).String()
+	for {
+		select {
+		case txn = <-s.input:
+			info = meta.MustParseInfo(txn.Data()).String()
+		case <-s.done:
+			return
+		}
 
 		//connecting:
 		for client == nil {
@@ -111,6 +119,7 @@ func (s *sender) background() {
 				break sending
 			default:
 				s.Log.Error("try to send txn again", "info", info, "cause", err)
+				panic(err)
 				select {
 				case <-time.After(time.Second):
 				case <-s.done:

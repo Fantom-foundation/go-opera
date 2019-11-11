@@ -1,4 +1,4 @@
-package main
+package meta
 
 import (
 	"fmt"
@@ -7,35 +7,35 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-type metaInfo struct {
+type Info struct {
 	Created time.Time
 	From    uint
 	To      uint
 }
 
-func makeInfo(from, to uint) *metaInfo {
-	return &metaInfo{
+func NewInfo(from, to uint) *Info {
+	return &Info{
 		Created: time.Now(),
 		From:    from,
 		To:      to,
 	}
 }
 
-func mustParseInfo(bb []byte) *metaInfo {
-	m, err := parseInfo(bb)
+func MustParseInfo(bb []byte) *Info {
+	m, err := ParseInfo(bb)
 	if err != nil {
 		panic(err)
 	}
 	return m
 }
 
-func parseInfo(bb []byte) (*metaInfo, error) {
-	m := new(metaInfo)
+func ParseInfo(bb []byte) (*Info, error) {
+	m := new(Info)
 	err := rlp.DecodeBytes(bb, m)
 	return m, err
 }
 
-func (m *metaInfo) Bytes() []byte {
+func (m *Info) Bytes() []byte {
 	bb, err := rlp.EncodeToBytes(m)
 	if err != nil {
 		panic(err)
@@ -43,6 +43,6 @@ func (m *metaInfo) Bytes() []byte {
 	return bb
 }
 
-func (m *metaInfo) String() string {
+func (m *Info) String() string {
 	return fmt.Sprintf("%d-->%d", m.From, m.To)
 }
