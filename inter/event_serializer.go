@@ -279,7 +279,7 @@ func readUintCompact(buf *fast.Buffer, bytes int) (uint64, error) {
 	var v uint64
 	for i, b := range buf.Read(bytes) {
 		v += uint64(b) << uint(8*i)
-		if i > 0 && b == 0 {
+		if i > 0 && v == 0 {
 			return 0, ErrNonCanonicalEncoding
 		}
 	}
