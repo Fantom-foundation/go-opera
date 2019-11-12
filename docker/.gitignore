@@ -1,4 +1,5 @@
 .blockade
+.lachesis*
 blockade.yaml
 Pipfile
 prometheus.yml
