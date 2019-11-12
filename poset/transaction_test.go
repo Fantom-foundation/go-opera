@@ -20,10 +20,10 @@ func TestPosetTxn(t *testing.T) {
 
 	p, s, x := FakePoset("", nodes)
 	assert.Equal(t,
-		pos.Stake(1), p.epochState.Validators[nodes[0]],
+		pos.Stake(1), p.EpochState.Validators[nodes[0]],
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		pos.Stake(1), p.epochState.Validators[nodes[1]],
+		pos.Stake(1), p.EpochState.Validators[nodes[1]],
 		"balance of %s", nodes[1].String())
 
 	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {

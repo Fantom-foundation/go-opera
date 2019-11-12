@@ -61,8 +61,8 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 		return fmt.Errorf("other genesis has applied already")
 	}
 
-	e := &epochState{}
-	cp := &checkpoint{
+	e := &EpochState{}
+	cp := &Checkpoint{
 		StateHash: stateHash,
 	}
 

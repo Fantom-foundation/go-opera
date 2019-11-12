@@ -11,8 +11,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
-// checkpoint is for persistent storing.
-type checkpoint struct {
+// Checkpoint is for persistent storing.
+type Checkpoint struct {
 	// fields can change only after a frame is decided
 	LastDecidedFrame idx.Frame
 	LastBlockN       idx.Block
@@ -25,22 +25,22 @@ type checkpoint struct {
  * Poset's methods:
  */
 
-// State saves checkpoint.
+// State saves Checkpoint.
 func (p *Poset) saveCheckpoint() {
-	p.store.SetCheckpoint(p.checkpoint)
+	p.store.SetCheckpoint(p.Checkpoint)
 }
 
 // Bootstrap restores poset's state from store.
 func (p *Poset) Bootstrap(applyBlock inter.ApplyBlockFn) {
-	if p.checkpoint != nil {
+	if p.Checkpoint != nil {
 		return
 	}
 	// block handler must be set before p.handleElection
 	p.applyBlock = applyBlock
 
-	// restore checkpoint
-	p.checkpoint = p.store.GetCheckpoint()
-	if p.checkpoint == nil {
+	// restore Checkpoint
+	p.Checkpoint = p.store.GetCheckpoint()
+	if p.Checkpoint == nil {
 		p.Log.Crit("Apply genesis for store first")
 	}
 

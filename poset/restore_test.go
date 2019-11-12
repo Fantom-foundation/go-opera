@@ -261,18 +261,18 @@ func TestDbFailure(t *testing.T) {
 
 func compareStates(assertar *assert.Assertions, expected, restored *ExtendedPoset) {
 	assertar.Equal(
-		*expected.checkpoint, *restored.checkpoint)
+		*expected.Checkpoint, *restored.Checkpoint)
 	assertar.Equal(
-		expected.epochState.PrevEpoch.Hash(), restored.epochState.PrevEpoch.Hash())
+		expected.EpochState.PrevEpoch.Hash(), restored.EpochState.PrevEpoch.Hash())
 	assertar.Equal(
-		expected.epochState.Validators, restored.epochState.Validators)
+		expected.EpochState.Validators, restored.EpochState.Validators)
 	assertar.Equal(
-		expected.epochState.EpochN, restored.epochState.EpochN)
+		expected.EpochState.EpochN, restored.EpochState.EpochN)
 	// check LastAtropos and Head() method
-	if expected.checkpoint.LastBlockN != 0 {
+	if expected.Checkpoint.LastBlockN != 0 {
 		assertar.Equal(
 			expected.blocks[idx.Block(len(expected.blocks))].Hash(),
-			restored.checkpoint.LastAtropos,
+			restored.Checkpoint.LastAtropos,
 			"atropos must be last event in block")
 	}
 }
