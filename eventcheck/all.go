@@ -3,12 +3,18 @@ package eventcheck
 import (
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/ethereum/go-ethereum/core/types"
 )
+
+type DagReader interface {
+	epochcheck.DagReader
+	gaspowercheck.DagReader
+}
 
 // ValidateAll runs all the checks except Poset-related. intended only for tests
 func ValidateAll(config *lachesis.DagConfig, reader epochcheck.DagReader, txSigner types.Signer, e *inter.Event, parents []*inter.EventHeaderData) error {

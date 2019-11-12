@@ -1,6 +1,8 @@
-package poset
+package gaspowercheck
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"math/big"
 	"time"
 
@@ -8,6 +10,19 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
+
+// DagReader is accessed by the validator to get the current state.
+type DagReader interface {
+	GetValidators() pos.Validators
+	GetLastHeaders() inter.HeadersByCreator
+	GetPrevEpochTime() inter.Timestamp
+}
+
+// Checker which require only parents list + current epoch info
+type Checker struct {
+	config *lachesis.GasPowerConfig
+	reader DagReader
+}
 
 func mul(a *big.Int, b uint64) {
 	a.Mul(a, new(big.Int).SetUint64(b))
@@ -21,17 +36,25 @@ func sub(a *big.Int, b uint64) {
 	a.Sub(a, new(big.Int).SetUint64(b))
 }
 
-func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, maxGasPower, startup uint64) {
-	stake := p.Validators.Get(validator)
+func calcValidatorGasPowerPerH(
+	validator common.Address,
+	validators pos.Validators,
+	config *lachesis.GasPowerConfig,
+) (
+	perHour uint64,
+	maxGasPower uint64,
+	startup uint64,
+) {
+	stake := validators.Get(validator)
 	if stake == 0 {
 		return 0, 0, 0
 	}
 
-	gas := p.dag.GasPower
+	gas := config
 
 	validatorGasPowerPerHBn := new(big.Int).SetUint64(gas.TotalPerH)
 	mul(validatorGasPowerPerHBn, uint64(stake))
-	div(validatorGasPowerPerHBn, uint64(p.Validators.TotalStake()))
+	div(validatorGasPowerPerHBn, uint64(validators.TotalStake()))
 	perHour = validatorGasPowerPerHBn.Uint64()
 
 	validatorMaxGasPowerBn := new(big.Int).Set(validatorGasPowerPerHBn)
@@ -51,17 +74,23 @@ func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, ma
 }
 
 // CalcGasPower calculates available gas power for the event, i.e. how many gas its content may consume
-func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
-	gasPowerPerH, maxGasPower, startup := p.calcValidatorGasPowerPerH(e.Creator)
+func (v *Checker) CalcGasPower(
+	e *inter.EventHeaderData,
+	selfParent *inter.EventHeaderData,
+) uint64 {
+	validators := v.reader.GetValidators()
+
+	gasPowerPerH, maxGasPower, startup := calcValidatorGasPowerPerH(e.Creator, validators, v.config)
 
 	var prevGasPowerLeft uint64
 	var prevMedianTime inter.Timestamp
 
+	lastHeaders := v.reader.GetLastHeaders()
+
 	if e.SelfParent() != nil {
-		selfParent := p.GetEventHeader(e.Epoch, *e.SelfParent())
 		prevGasPowerLeft = selfParent.GasPowerLeft
 		prevMedianTime = selfParent.MedianTime
-	} else if prevConfirmedHeader := p.PrevEpoch.LastHeaders[e.Creator]; prevConfirmedHeader != nil {
+	} else if prevConfirmedHeader := lastHeaders[e.Creator]; prevConfirmedHeader != nil {
 		prevGasPowerLeft = prevConfirmedHeader.GasPowerLeft
 		if prevGasPowerLeft < startup {
 			prevGasPowerLeft = startup
@@ -69,7 +98,7 @@ func (p *Poset) CalcGasPower(e *inter.EventHeaderData) uint64 {
 		prevMedianTime = prevConfirmedHeader.MedianTime
 	} else {
 		prevGasPowerLeft = startup
-		prevMedianTime = p.PrevEpoch.Time
+		prevMedianTime = v.reader.GetPrevEpochTime()
 	}
 
 	if prevMedianTime > e.MedianTime {

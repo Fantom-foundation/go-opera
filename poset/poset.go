@@ -57,7 +57,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 	return p.LastBlockN, p.LastAtropos
 }
 
-// Prepare fills consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash, GasPowerLeft
+// Prepare fills consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if err := epochcheck.New(&p.dag, p).Validate(e); err != nil {
@@ -72,16 +72,10 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
 	e.PrevEpochHash = p.PrevEpoch.Hash()
 
-	gasPower := p.CalcGasPower(&e.EventHeaderData)
-	if gasPower < e.GasPowerUsed {
-		p.Log.Warn("Not enough gas power", "used", e.GasPowerUsed, "have", gasPower)
-		return nil
-	}
-	e.GasPowerLeft = gasPower - e.GasPowerUsed
 	return e
 }
 
-// checks consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash, GasPowerLeft
+// checks consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	if e.PrevEpochHash != p.PrevEpoch.Hash() {
 		return errors.New("Mismatched prev epoch hash")
@@ -107,11 +101,6 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	medianTime := p.vecClock.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
 		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
-	}
-	// check GasPowerLeft
-	gasPower := p.CalcGasPower(&e.EventHeaderData)
-	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basiccheck
-		return errors.Errorf("Claimed GasPower mismatched with calculated (%d!=%d)", e.GasPowerLeft+e.GasPowerUsed, gasPower)
 	}
 
 	// save in DB the {vectorindex, e, heads}

@@ -1,6 +1,8 @@
 package poset
 
 import (
+	"math"
+
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -26,8 +28,7 @@ func (p *Poset) confirmEvents(frame idx.Frame, atropos hash.Event, onEventConfir
 	}
 }
 
-func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.Block, cheaters []common.Address, lastHeaders headersByCreator) {
-	lastHeaders = make(headersByCreator, p.Validators.Len())
+func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.Block, cheaters []common.Address) {
 	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*p.Validators.Len())
 
 	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
@@ -44,9 +45,6 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 	}
 
 	p.confirmEvents(frame, atropos, func(confirmedEvent *inter.EventHeaderData) {
-		if p.callback.OnEventConfirmed != nil {
-			p.callback.OnEventConfirmed(confirmedEvent)
-		}
 		confirmedNum++
 
 		// track highest and lowest Lamports
@@ -60,18 +58,23 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 		// but not all the events are included into a block
 		creatorHighest := atroposHighestBefore.Get(validatorIdxs[confirmedEvent.Creator])
 		fromCheater := creatorHighest.IsForkDetected()
-		allowed := p.callback.IsEventAllowedIntoBlock == nil || p.callback.IsEventAllowedIntoBlock(confirmedEvent, creatorHighest.Seq)
+		// seqDepth is the depth in of this event in "chain" of self-parents of this creator
+		seqDepth := creatorHighest.Seq - creatorHighest.Seq
+		if creatorHighest.Seq < creatorHighest.Seq {
+			seqDepth = math.MaxInt32
+		}
+		allowed := p.callback.IsEventAllowedIntoBlock == nil || p.callback.IsEventAllowedIntoBlock(confirmedEvent, seqDepth)
 		// block consists of allowed events from non-cheaters
 		if !fromCheater && allowed {
 			blockEvents = append(blockEvents, confirmedEvent)
 		}
-		// track last confirmed events from each validator
-		if !fromCheater && creatorHighest.Seq == confirmedEvent.Seq {
-			lastHeaders[confirmedEvent.Creator] = confirmedEvent
-		}
 		// sanity check
 		if !fromCheater && confirmedEvent.Seq > creatorHighest.Seq {
 			p.Log.Crit("DAG is inconsistent with vector clock", "event", confirmedEvent.String(), "seq", confirmedEvent.Seq, "highest", creatorHighest.Seq)
+		}
+
+		if p.callback.OnEventConfirmed != nil {
+			p.callback.OnEventConfirmed(confirmedEvent, seqDepth)
 		}
 	})
 
@@ -84,7 +87,7 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 
 	// block building
 	block = inter.NewBlock(p.Checkpoint.LastBlockN+1, frameInfo.LastConsensusTime, atropos, p.Checkpoint.LastAtropos, orderedBlockEvents)
-	return block, cheaters, lastHeaders
+	return block, cheaters
 }
 
 // onFrameDecided moves LastDecidedFrameN to frame.
@@ -95,36 +98,29 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) bool {
 	p.election.Reset(p.Validators, frame+1)
 	p.Checkpoint.LastDecidedFrame = frame
 
-	block, cheaters, lastHeaders := p.confirmBlock(frame, atropos)
+	block, cheaters := p.confirmBlock(frame, atropos)
 
 	// new checkpoint
 	var sealEpoch bool
 	p.Checkpoint.LastBlockN++
 	if p.callback.ApplyBlock != nil {
-		p.Checkpoint.StateHash, sealEpoch = p.callback.ApplyBlock(inter.ApplyBlockArgs{
-			Block:        block,
-			DecidedFrame: frame,
-			StateHash:    p.Checkpoint.StateHash,
-			Validators:   p.Validators,
-			Cheaters:     cheaters,
-		})
+		p.Checkpoint.AppHash, sealEpoch = p.callback.ApplyBlock(block, frame, cheaters)
 	}
 	p.Checkpoint.LastAtropos = atropos
 	p.saveCheckpoint()
 
 	if sealEpoch {
-		p.sealEpoch(lastHeaders)
+		p.sealEpoch()
 	}
 	return sealEpoch
 }
 
-func (p *Poset) sealEpoch(lastHeaders headersByCreator) {
+func (p *Poset) sealEpoch() {
 	// new PrevEpoch state
 	p.PrevEpoch.Time = p.frameConsensusTime(p.LastDecidedFrame)
 	p.PrevEpoch.Epoch = p.EpochN
 	p.PrevEpoch.LastAtropos = p.Checkpoint.LastAtropos
-	p.PrevEpoch.StateHash = p.Checkpoint.StateHash
-	p.PrevEpoch.LastHeaders = lastHeaders
+	p.PrevEpoch.AppHash = p.Checkpoint.AppHash
 
 	// new validators list, move to new epoch
 	nextValidators := p.Validators

@@ -66,7 +66,7 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, 1*x, p.Validators.Get(nodes[0]))
 	assert.Equal(t, 1*x, p.Validators.Get(nodes[1]))
 	// force Epoch commit
-	p.sealEpoch(nil)
+	p.sealEpoch()
 
 	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
 	assert.NotEqual(t, genesisTestTime, p.PrevEpoch.Time)

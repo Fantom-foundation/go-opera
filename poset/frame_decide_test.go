@@ -24,11 +24,11 @@ func TestConfirmBlockEvents(t *testing.T) {
 		blocks []*inter.Block
 	)
 	applyBlock := poset.callback.ApplyBlock
-	poset.callback.ApplyBlock = func(arg inter.ApplyBlockArgs) (common.Hash, bool) {
+	poset.callback.ApplyBlock = func(block *inter.Block, decidedFrame idx.Frame, cheaters []common.Address) (common.Hash, bool) {
 		frames = append(frames, poset.LastDecidedFrame)
-		blocks = append(blocks, arg.Block)
+		blocks = append(blocks, block)
 
-		return applyBlock(arg)
+		return applyBlock(block, decidedFrame, cheaters)
 	}
 
 	eventCount := int(poset.dag.EpochLen)
@@ -65,7 +65,7 @@ func TestConfirmBlockEvents(t *testing.T) {
 		atropos := blocks[i].Atropos
 
 		// call confirmBlock again
-		gotBlock, cheaters, _ := poset.confirmBlock(frame, atropos)
+		gotBlock, cheaters := poset.confirmBlock(frame, atropos)
 
 		if !assertar.Empty(cheaters) {
 			break

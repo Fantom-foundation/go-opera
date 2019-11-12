@@ -41,20 +41,20 @@ var (
 	ErrHugeValue      = errors.New("too big value")
 )
 
-type Validator struct {
+type Checker struct {
 	config *lachesis.DagConfig
 }
 
 // New validator which performs checks which don't require anything except event
-func New(config *lachesis.DagConfig) *Validator {
-	return &Validator{
+func New(config *lachesis.DagConfig) *Checker {
+	return &Checker{
 		config: config,
 	}
 }
 
 // validateTx checks whether a transaction is valid according to the consensus
 // rules
-func (v *Validator) validateTx(tx *types.Transaction) error {
+func (v *Checker) validateTx(tx *types.Transaction) error {
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 || tx.GasPrice().Sign() < 0 {
@@ -71,7 +71,7 @@ func (v *Validator) validateTx(tx *types.Transaction) error {
 	return nil
 }
 
-func (v *Validator) checkTxs(e *inter.Event) error {
+func (v *Checker) checkTxs(e *inter.Event) error {
 	for _, tx := range e.Transactions {
 		if err := v.validateTx(tx); err != nil {
 			return err
@@ -95,7 +95,7 @@ func CalcGasPowerUsed(e *inter.Event, config *lachesis.DagConfig) uint64 {
 	return txsGas + parentsGas + extraGas + EventGas
 }
 
-func (v *Validator) checkGas(e *inter.Event) error {
+func (v *Checker) checkGas(e *inter.Event) error {
 	if e.GasPowerUsed > MaxGasPowerUsed {
 		return ErrTooBigGasUsed
 	}
@@ -106,7 +106,7 @@ func (v *Validator) checkGas(e *inter.Event) error {
 	return nil
 }
 
-func (v *Validator) checkLimits(e *inter.Event) error {
+func (v *Checker) checkLimits(e *inter.Event) error {
 	if uint64(e.Size()) > MaxEventSize {
 		return ErrTooLarge
 	}
@@ -124,7 +124,7 @@ func (v *Validator) checkLimits(e *inter.Event) error {
 	return nil
 }
 
-func (v *Validator) checkInited(e *inter.Event) error {
+func (v *Checker) checkInited(e *inter.Event) error {
 	if e.Seq <= 0 || e.Epoch <= 0 || e.Frame <= 0 || e.Lamport <= 0 {
 		return ErrNotInited // it's unsigned, but check for negative in a case if type will change
 	}
@@ -142,7 +142,7 @@ func (v *Validator) checkInited(e *inter.Event) error {
 	return nil
 }
 
-func (v *Validator) Validate(e *inter.Event) error {
+func (v *Checker) Validate(e *inter.Event) error {
 	if e.Version != 0 {
 		return ErrVersion
 	}

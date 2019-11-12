@@ -8,25 +8,16 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
-// ApplyBlockArgs holds arguments to for ApplyBlock
-type ApplyBlockArgs struct {
-	Block        *Block
-	DecidedFrame idx.Frame
-	StateHash    common.Hash
-	Validators   pos.Validators
-	Cheaters     []common.Address
-}
-
 // ConsensusCallbacks contains callbacks called during block processing by consensus engine
 type ConsensusCallbacks struct {
 	// ApplyBlock is callback type to apply the new block to the state
-	ApplyBlock func(ApplyBlockArgs) (newStateHash common.Hash, sealEpoch bool)
+	ApplyBlock func(block *Block, decidedFrame idx.Frame, cheaters inter.Cheaters) (newAppHash common.Hash, sealEpoch bool)
 	// SelectValidatorsGroup is a callback type to select new validators group.
 	SelectValidatorsGroup func(oldEpoch, newEpoch idx.Epoch) (newValidators pos.Validators)
 	// OnEventConfirmed is callback type to notify about event confirmation.
-	OnEventConfirmed func(event *EventHeaderData)
+	OnEventConfirmed func(event *EventHeaderData, seqDepth idx.Event)
 	// IsEventAllowedIntoBlock is callback type to check is event may be within block or not
-	IsEventAllowedIntoBlock func(event *EventHeaderData, highestCreatorSeq idx.Event) bool
+	IsEventAllowedIntoBlock func(event *EventHeaderData, seqDepth idx.Event) bool
 }
 
 // Block is a "chain" block.

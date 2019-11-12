@@ -1,18 +1,21 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/eventcheck"
-	"github.com/Fantom-foundation/go-lachesis/tracing"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/pkg/errors"
 
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
 // processEvent extends the engine.ProcessEvent with gossip-specific actions on each event processing
@@ -21,6 +24,12 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 	if s.store.HasEvent(e.Hash()) { // sanity check
 		return eventcheck.ErrAlreadyConnectedEvent
+	}
+
+	// check GasPowerLeft
+	gasPower := gaspowercheck.CalcGasPower(&e.EventHeaderData, realEngine.GetValidators(), s.store.GetEventHeader, s.store.GetLastHeaders(), s.config.Net.Dag.GasPower)
+	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basic_check
+		return errors.Errorf("Claimed GasPower mismatched with calculated (%d!=%d)", e.GasPowerLeft+e.GasPowerUsed, gasPower)
 	}
 
 	oldEpoch := e.Epoch
@@ -67,15 +76,15 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 }
 
 // executeTransactions execs ordered txns of new block on state.
-func (s *Service) executeTransactions(arg inter.ApplyBlockArgs, forEachEvent func(*inter.Event)) (*inter.Block, *evmcore.EvmBlock, types.Receipts) {
+func (s *Service) executeTransactions(block *inter.Block, cheaters []common.Address, forEachEvent func(*inter.Event)) (*inter.Block, *evmcore.EvmBlock, types.Receipts) {
 	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
 	evmBlock := &evmcore.EvmBlock{
-		EvmHeader:    *evmcore.ToEvmHeader(arg.Block),
-		Transactions: make(types.Transactions, 0, len(arg.Block.Events)*10),
+		EvmHeader:    *evmcore.ToEvmHeader(block),
+		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
-	for _, id := range arg.Block.Events {
+	for _, id := range block.Events {
 		e := s.store.GetEvent(id)
 		if e == nil {
 			s.Log.Crit("Event not found", "event", id.String())
@@ -88,28 +97,29 @@ func (s *Service) executeTransactions(arg inter.ApplyBlockArgs, forEachEvent fun
 	}
 
 	// Process txs
-	statedb := s.store.StateDB(arg.StateHash)
+	stateHash := s.store.GetBlock(block.Index - 1).Root
+	statedb := s.store.StateDB(stateHash)
 	receipts, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
 	if err != nil {
 		s.Log.Crit("Shouldn't happen ever because it's not strict", "err", err)
 	}
-	arg.Block.SkippedTxs = skipped
-	arg.Block.GasUsed = gasUsed
+	block.SkippedTxs = skipped
+	block.GasUsed = gasUsed
 
 	// finalize
 	newStateHash, err := statedb.Commit(true)
 	if err != nil {
 		s.Log.Crit("Failed to commit state", "err", err)
 	}
-	arg.Block.Root = newStateHash
+	block.Root = newStateHash
 
-	log.Info("New block", "index", arg.Block.Index, "hash", arg.Block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(skipped))
+	log.Info("New block", "index", block.Index, "hash", block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(skipped))
 
 	// Filter skipped transactions. Receipts are filtered already
 	skipCount := 0
 	filteredTxs := make(types.Transactions, 0, len(evmBlock.Transactions))
 	for i, tx := range evmBlock.Transactions {
-		if skipCount < len(arg.Block.SkippedTxs) && arg.Block.SkippedTxs[skipCount] == uint(i) {
+		if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == uint(i) {
 			skipCount++
 		} else {
 			filteredTxs = append(filteredTxs, tx)
@@ -117,19 +127,18 @@ func (s *Service) executeTransactions(arg inter.ApplyBlockArgs, forEachEvent fun
 	}
 
 	// Calc Merkle root of transactions
-	arg.Block.TxHash = types.DeriveSha(filteredTxs)
+	block.TxHash = types.DeriveSha(filteredTxs)
 
 	*evmBlock = evmcore.EvmBlock{
-		EvmHeader:    *evmcore.ToEvmHeader(arg.Block),
+		EvmHeader:    *evmcore.ToEvmHeader(block),
 		Transactions: filteredTxs,
 	}
-	return arg.Block, evmBlock, receipts
+	return block, evmBlock, receipts
 }
 
 // applyBlock execs ordered txns of new block on state, and fills the block DB indexes.
-func (s *Service) applyBlock(arg inter.ApplyBlockArgs) (newStateHash common.Hash, sealEpoch bool) {
+func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheaters inter.Cheaters) (newAppHash common.Hash, sealEpoch bool) {
 	confirmBlocksMeter.Inc(1)
-
 	// memorize position of each tx, for later indexing
 	var txPositions map[common.Hash]TxPosition
 	var forEachBlockEvent func(e *inter.Event)
@@ -146,12 +155,22 @@ func (s *Service) applyBlock(arg inter.ApplyBlockArgs) (newStateHash common.Hash
 		}
 	}
 
-	block, evmBlock, receipts := s.executeTransactions(arg, forEachBlockEvent)
+	block, evmBlock, receipts := s.executeTransactions(block, cheaters, forEachBlockEvent)
 
 	s.store.SetBlock(block)
-	s.store.SetBlockIndex(block.Hash(), arg.Block.Index)
-	newStateHash = block.Root
-	sealEpoch = arg.DecidedFrame == s.config.Net.Dag.EpochLen
+	s.store.SetBlockIndex(block.Hash(), block.Index)
+	newAppHash = block.Root
+	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
+	if sealEpoch {
+		// update last headers
+		hh := s.store.GetDirtyLastHeaders(s.engine.GetEpoch())
+		for _, cheater := range cheaters {
+			delete(hh, cheater) // for cheaters, it's uncertain which event is "last confirmed"
+		}
+		s.store.SetLastHeaders(hh)
+		// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
+		newAppHash = hash.Of(newAppHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
+	}
 
 	// Build index for not skipped txs
 	if s.config.TxIndex {
@@ -179,7 +198,7 @@ func (s *Service) applyBlock(arg inter.ApplyBlockArgs) (newStateHash common.Hash
 		}
 	}
 
-	return newStateHash, sealEpoch
+	return newAppHash, sealEpoch
 }
 
 // selectValidatorsGroup is a callback type to select new validators group
@@ -199,20 +218,25 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 }
 
 // onEventConfirmed is callback type to notify about event confirmation
-func (s *Service) onEventConfirmed(header *inter.EventHeaderData) {
+func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.Event) {
 	if !header.NoTransactions() {
 		// erase confirmed txs from originated-but-non-confirmed
 		event := s.store.GetEvent(header.Hash())
 		s.occurredTxs.CollectConfirmedTxs(event.Transactions)
 	}
+
+	// track last confirmed events from each validator
+	if seqDepth == 0 {
+		s.store.AddDirtyLastHeader(header.Epoch, header.Creator, header.Hash())
+	}
 }
 
 // isEventAllowedIntoBlock is callback type to check is event may be within block or not
-func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, highestCreatorSeq idx.Event) bool {
+func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, seqDepth idx.Event) bool {
 	if header.NoTransactions() {
 		return false // block contains only non-empty events to speed up block retrieving and processing
 	}
-	if header.Seq+s.config.Net.Dag.MaxValidatorEventsInBlock <= highestCreatorSeq {
+	if seqDepth > s.config.Net.Dag.MaxValidatorEventsInBlock {
 		return false // block contains only MaxValidatorEventsInBlock highest events from a creator to prevent huge blocks
 	}
 	return true

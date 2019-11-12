@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"bytes"
+	"github.com/Fantom-foundation/go-lachesis/inter"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,12 +28,13 @@ type Store struct {
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
-		Peers     kvdb.KeyValueStore `table:"peer"`
-		Events    kvdb.KeyValueStore `table:"event"`
-		Blocks    kvdb.KeyValueStore `table:"block"`
-		PackInfos kvdb.KeyValueStore `table:"packinfo"`
-		Packs     kvdb.KeyValueStore `table:"pack"`
-		PacksNum  kvdb.KeyValueStore `table:"packsnum"`
+		Peers            kvdb.KeyValueStore `table:"peer"`
+		Events           kvdb.KeyValueStore `table:"event"`
+		Blocks           kvdb.KeyValueStore `table:"block"`
+		PackInfos        kvdb.KeyValueStore `table:"packinfo"`
+		Packs            kvdb.KeyValueStore `table:"pack"`
+		PacksNum         kvdb.KeyValueStore `table:"packsnum"`
+		LastEpochHeaders kvdb.KeyValueStore `table:"lheaders"`
 
 		// API-only tables
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
@@ -46,12 +48,13 @@ type Store struct {
 	}
 
 	cache struct {
-		Events        *lru.Cache `cache:"-"` // store by pointer
-		EventsHeaders *lru.Cache `cache:"-"` // store by pointer
-		Blocks        *lru.Cache `cache:"-"` // store by pointer
-		PackInfos     *lru.Cache `cache:"-"` // store by value
-		Receipts      *lru.Cache `cache:"-"` // store by value
-		TxPositions   *lru.Cache `cache:"-"` // store by pointer
+		LastEpochHeaders inter.HeadersByCreator // store by value
+		Events           *lru.Cache       `cache:"-"` // store by pointer
+		EventsHeaders    *lru.Cache       `cache:"-"` // store by pointer
+		Blocks           *lru.Cache       `cache:"-"` // store by pointer
+		PackInfos        *lru.Cache       `cache:"-"` // store by value
+		Receipts         *lru.Cache       `cache:"-"` // store by value
+		TxPositions      *lru.Cache       `cache:"-"` // store by pointer
 	}
 
 	tmpDbs

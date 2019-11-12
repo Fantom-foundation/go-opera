@@ -18,8 +18,7 @@ type GenesisState struct {
 	Epoch       idx.Epoch
 	Time        inter.Timestamp // consensus time of the last Atropos
 	LastAtropos hash.Event
-	StateHash   common.Hash // hash of txs state
-	LastHeaders headersByCreator
+	AppHash     common.Hash
 }
 
 func (g *GenesisState) Hash() common.Hash {
@@ -35,17 +34,17 @@ func (g *GenesisState) EpochName() string {
 }
 
 // calcGenesisHash calcs hash of genesis state.
-func calcGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) common.Hash {
+func calcGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, appHash common.Hash) common.Hash {
 	s := NewMemStore()
 	defer s.Close()
 
-	_ = s.ApplyGenesis(g, genesisAtropos, stateHash)
+	_ = s.ApplyGenesis(g, genesisAtropos, appHash)
 
 	return s.GetGenesis().PrevEpoch.Hash()
 }
 
 // ApplyGenesis stores initial state.
-func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stateHash common.Hash) error {
+func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, appHash common.Hash) error {
 	if g == nil {
 		return fmt.Errorf("genesis config shouldn't be nil")
 	}
@@ -54,7 +53,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 	}
 
 	if exist := s.GetGenesis(); exist != nil {
-		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, stateHash) {
+		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, appHash) {
 			return nil
 		}
 		return fmt.Errorf("other genesis was applied already")
@@ -62,7 +61,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 
 	e := &EpochState{}
 	cp := &Checkpoint{
-		StateHash: stateHash,
+		AppHash: appHash,
 	}
 
 	e.Validators = g.Validators.Copy()
@@ -70,10 +69,9 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, stat
 	// genesis object
 	e.EpochN = firstEpoch
 	e.PrevEpoch.Epoch = e.EpochN - 1
-	e.PrevEpoch.StateHash = cp.StateHash
+	e.PrevEpoch.AppHash = cp.AppHash
 	e.PrevEpoch.LastAtropos = genesisAtropos
 	e.PrevEpoch.Time = g.Time
-	e.PrevEpoch.LastHeaders = headersByCreator{}
 	cp.LastAtropos = genesisAtropos
 
 	s.SetGenesis(e)

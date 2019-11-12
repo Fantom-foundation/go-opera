@@ -16,7 +16,7 @@ type Checkpoint struct {
 	LastDecidedFrame idx.Frame
 	LastBlockN       idx.Block
 	LastAtropos      hash.Event
-	StateHash        common.Hash
+	AppHash          common.Hash
 }
 
 /*
