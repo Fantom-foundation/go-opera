@@ -294,7 +294,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 		return
 	}
 
-	err := vi.dfsSubgraph(e.Hash(), walk)
+	err := vi.dfsSubgraph(e, walk)
 	if err != nil {
 		vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
 	}
