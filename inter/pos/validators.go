@@ -24,6 +24,7 @@ type (
 	}
 )
 
+// NewValidators return new pointer of Validators object
 func NewValidators() *Validators {
 	return &Validators{
 		indexes:   make(map[common.Address]int),
@@ -32,10 +33,12 @@ func NewValidators() *Validators {
 	}
 }
 
+// Len return count of validators in Validators objects
 func (vv Validators) Len() int {
 	return len(vv.list)
 }
 
+// Iterate return chanel of common.Address for get validators in loop
 func (vv Validators) Iterate() <-chan common.Address {
 	c := make(chan common.Address)
 	go func() {
@@ -47,7 +50,7 @@ func (vv Validators) Iterate() <-chan common.Address {
 	return c
 }
 
-// Set appends item.
+// Set appends item to Validator object
 func (vv *Validators) Set(addr common.Address, stake Stake) {
 	if stake != 0 {
 		i, ok := vv.indexes[addr]
@@ -80,6 +83,7 @@ func (vv *Validators) Set(addr common.Address, stake Stake) {
 	}
 }
 
+// Get return stake for validator address
 func (vv Validators) Get(addr common.Address) Stake {
 	i, ok := vv.indexes[addr]
 	if ok {
@@ -88,6 +92,7 @@ func (vv Validators) Get(addr common.Address) Stake {
 	return 0
 }
 
+// Exists return boolean true if address exists in Validators object
 func (vv Validators) Exists(addr common.Address) bool {
 	_, ok := vv.indexes[addr]
 	return ok

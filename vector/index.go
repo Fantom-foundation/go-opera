@@ -24,6 +24,7 @@ const (
 	dfsSubgraphVisitedCacheSize = 1000
 )
 
+// IndexCacheConfig - config for cache sizes of Index
 type IndexCacheConfig struct {
 	ForklessCause     int `json:"forklessCause"`
 	HighestBeforeSeq  int `json:"highestBeforeSeq"`
@@ -34,6 +35,7 @@ type IndexCacheConfig struct {
 	DfsSubgraphVisited int `json:"dfsSubgraphVisited"`
 }
 
+// IndexConfig - Index config (cache sizes)
 type IndexConfig struct {
 	Caches IndexCacheConfig `json:"cacheSizes"`
 }
@@ -73,6 +75,7 @@ type Index struct {
 	logger.Instance
 }
 
+// DefaultIndexConfig return default index config for tests
 func DefaultIndexConfig() IndexConfig {
 	return IndexConfig{
 		Caches: IndexCacheConfig{
