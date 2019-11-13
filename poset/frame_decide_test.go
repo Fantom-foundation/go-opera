@@ -2,7 +2,6 @@ package poset
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 	"sort"
 	"testing"
@@ -20,19 +19,14 @@ func TestConfirmBlockEvents(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	fmt.Println("DBG1")
-
 	nodes := inter.GenNodes(5)
 	poset, _, input := FakePoset("", nodes)
-
-	fmt.Println("DBG2")
 
 	var (
 		frames []idx.Frame
 		blocks []*inter.Block
 	)
 	applyBlock := poset.applyBlock
-	fmt.Println("DBG3")
 	poset.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
 		frames = append(frames, poset.LastDecidedFrame)
 		blocks = append(blocks, block)
@@ -40,7 +34,6 @@ func TestConfirmBlockEvents(t *testing.T) {
 		return applyBlock(block, stateHash, validators)
 	}
 
-	fmt.Println("DBG4")
 	_ = inter.ForEachRandEvent(nodes, int(poset.dag.EpochLen), poset.dag.MaxParents, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			input.SetEvent(e)
@@ -55,8 +48,6 @@ func TestConfirmBlockEvents(t *testing.T) {
 			return poset.Prepare(e)
 		},
 	})
-
-	fmt.Println("DBG5")
 
 	for i, block := range blocks {
 		frame := frames[i]
