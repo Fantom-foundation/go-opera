@@ -21,6 +21,7 @@ const (
 	lowestAfterSeqCacheSize = 1000
 	eventBranchCacheSize = 1000
 	branchesInfoCacheSize = 1000
+	dfsSubgraphVisitedCacheSize = 1000
 )
 
 type IndexCacheConfig struct {
@@ -75,13 +76,13 @@ type Index struct {
 func DefaultIndexConfig() IndexConfig {
 	return IndexConfig{
 		Caches: IndexCacheConfig{
-			ForklessCause:      1000,
-			HighestBeforeSeq:   1000,
-			HighestBeforeTime:  1000,
-			LowestAfterSeq:     1000,
-			EventBranch:        1000,
-			BranchesInfo:       1000,
-			DfsSubgraphVisited: 1000,
+			ForklessCause:      forklessCauseCacheSize,
+			HighestBeforeSeq:   highestBeforeSeqCacheSize,
+			HighestBeforeTime:  highestBeforeTimeCacheSize,
+			LowestAfterSeq:     lowestAfterSeqCacheSize,
+			EventBranch:        eventBranchCacheSize,
+			BranchesInfo:       branchesInfoCacheSize,
+			DfsSubgraphVisited: dfsSubgraphVisitedCacheSize,
 		},
 	}
 }
