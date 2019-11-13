@@ -15,23 +15,23 @@ import (
 )
 
 const (
-	forklessCauseCacheSize = 5000
-	highestBeforeSeqCacheSize = 1000
-	highestBeforeTimeCacheSize = 1000
-	lowestAfterSeqCacheSize = 1000
-	eventBranchCacheSize = 1000
-	branchesInfoCacheSize = 1000
+	forklessCauseCacheSize      = 5000
+	highestBeforeSeqCacheSize   = 1000
+	highestBeforeTimeCacheSize  = 1000
+	lowestAfterSeqCacheSize     = 1000
+	eventBranchCacheSize        = 1000
+	branchesInfoCacheSize       = 1000
 	dfsSubgraphVisitedCacheSize = 1000
 )
 
 // IndexCacheConfig - config for cache sizes of Index
 type IndexCacheConfig struct {
-	ForklessCause     int `json:"forklessCause"`
-	HighestBeforeSeq  int `json:"highestBeforeSeq"`
-	HighestBeforeTime int `json:"highestBeforeTime"`
-	LowestAfterSeq    int `json:"lowestAfterSeq"`
-	EventBranch       int `json:"eventBranch"`
-	BranchesInfo      int `json:"branchesInfo"`
+	ForklessCause      int `json:"forklessCause"`
+	HighestBeforeSeq   int `json:"highestBeforeSeq"`
+	HighestBeforeTime  int `json:"highestBeforeTime"`
+	LowestAfterSeq     int `json:"lowestAfterSeq"`
+	EventBranch        int `json:"eventBranch"`
+	BranchesInfo       int `json:"branchesInfo"`
 	DfsSubgraphVisited int `json:"dfsSubgraphVisited"`
 }
 
@@ -97,7 +97,7 @@ func NewIndex(config IndexConfig, validators pos.Validators, db kvdb.KeyValueSto
 	vi := &Index{
 		Instance:           logger.MakeInstance(),
 		forklessCauseCache: cache,
-		cfg: config,
+		cfg:                config,
 	}
 	vi.cache.HighestBeforeSeq, _ = lru.New(vi.cfg.Caches.HighestBeforeSeq)
 	vi.cache.HighestBeforeTime, _ = lru.New(vi.cfg.Caches.HighestBeforeTime)

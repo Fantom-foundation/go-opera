@@ -16,9 +16,9 @@ import (
 
 type (
 	epochStore struct {
-		Headers               kvdb.KeyValueStore `table:"header"`
-		Tips                  kvdb.KeyValueStore `table:"tips"`
-		Heads                 kvdb.KeyValueStore `table:"heads"`
+		Headers kvdb.KeyValueStore `table:"header"`
+		Tips    kvdb.KeyValueStore `table:"tips"`
+		Heads   kvdb.KeyValueStore `table:"heads"`
 	}
 )
 

@@ -1,12 +1,13 @@
 package gossip
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
@@ -76,6 +77,8 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 // executeTransactions execs ordered txns of new block on state.
 func (s *Service) executeTransactions(block *inter.Block, cheaters []common.Address, forEachEvent func(*inter.Event)) (*inter.Block, *evmcore.EvmBlock, types.Receipts) {
+	// s.engineMu is locked here
+
 	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
@@ -137,6 +140,8 @@ func (s *Service) executeTransactions(block *inter.Block, cheaters []common.Addr
 
 // applyBlock execs ordered txns of new block on state, and fills the block DB indexes.
 func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheaters inter.Cheaters) (newAppHash common.Hash, sealEpoch bool) {
+	// s.engineMu is locked here
+
 	confirmBlocksMeter.Inc(1)
 	// memorize position of each tx, for later indexing
 	var txPositions map[common.Hash]TxPosition
@@ -216,12 +221,16 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 
 // selectValidatorsGroup is a callback type to select new validators group
 func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValidators pos.Validators) {
+	// s.engineMu is locked here
+
 	// new validators calculation
 	// TODO replace with SFC transactions for changing validators state
 	// TODO the schema below doesn't work in all the cases, and intended only for testing
 	{
 		newValidators = s.engine.GetValidators().Copy()
-		statedb := s.store.StateDB(s.GetEvmStateReader().CurrentHeader().Root)
+		n, _ := s.engine.LastBlock()
+		root := s.store.GetBlock(n).Root
+		statedb := s.store.StateDB(root)
 		for addr := range newValidators.Iterate() {
 			stake := pos.BalanceToStake(statedb.GetBalance(addr))
 			newValidators.Set(addr, stake)
@@ -232,6 +241,8 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 
 // onEventConfirmed is callback type to notify about event confirmation
 func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.Event) {
+	// s.engineMu is locked here
+
 	if !header.NoTransactions() {
 		// erase confirmed txs from originated-but-non-confirmed
 		event := s.store.GetEvent(header.Hash())
@@ -246,6 +257,8 @@ func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.E
 
 // isEventAllowedIntoBlock is callback type to check is event may be within block or not
 func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, seqDepth idx.Event) bool {
+	// s.engineMu is locked here
+
 	if header.NoTransactions() {
 		return false // block contains only non-empty events to speed up block retrieving and processing
 	}
@@ -261,6 +274,7 @@ func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, seqDept
 
 func (s *Service) gasPowerCheck(e *inter.Event) error {
 	// s.engineMu is locked here
+
 	gasPowerChecker := gaspowercheck.New(&s.config.Net.Dag.GasPower, &GasPowerCheckReader{
 		Consensus: s.engine,
 		store:     s.store,
@@ -279,16 +293,14 @@ type GasPowerCheckReader struct {
 
 // GetPrevEpochLastHeaders isn't safe for concurrent use
 func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
-	//r.engineMu.Lock()
-	//defer r.engineMu.Unlock()
+	// s.engineMu is locked here
 	epoch := r.GetEpoch() - 1
 	return r.store.GetLastHeaders(epoch), epoch
 }
 
 // GetPrevEpochEndTime isn't safe for concurrent use
 func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
-	//r.engineMu.Lock()
-	//defer r.engineMu.Unlock()
+	// s.engineMu is locked here
 	epoch := r.GetEpoch() - 1
 	return r.store.GetEpochStats(epoch).End, epoch
 }

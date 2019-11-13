@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-func FakeAccounts(from, count int, balance *big.Int, stake pos.Stake) (VAccounts) {
+func FakeAccounts(from, count int, balance *big.Int, stake pos.Stake) VAccounts {
 	accs := make(Accounts, count)
 	validators := pos.NewValidators()
 

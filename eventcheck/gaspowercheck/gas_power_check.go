@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrWrongGasPowerLeft = errors.New("event has wrong GasPowerLEft")
+	ErrWrongGasPowerLeft = errors.New("event has wrong GasPowerLeft")
 )
 
 // DagReader is accessed by the validator to get the current state.
