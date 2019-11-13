@@ -9,11 +9,11 @@ import (
 
 type Info struct {
 	Created time.Time
-	From    uint
+	From    string
 	To      uint
 }
 
-func NewInfo(from, to uint) *Info {
+func NewInfo(from string, to uint) *Info {
 	return &Info{
 		Created: time.Now(),
 		From:    from,
@@ -44,5 +44,5 @@ func (m *Info) Bytes() []byte {
 }
 
 func (m *Info) String() string {
-	return fmt.Sprintf("%d-->%d", m.From, m.To)
+	return fmt.Sprintf("%s-->%d", m.From, m.To)
 }

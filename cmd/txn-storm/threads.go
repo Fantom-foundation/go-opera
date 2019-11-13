@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 	"runtime"
 	"sync"
 	"time"
@@ -81,7 +82,7 @@ func (tt *threads) Start() {
 	source := make(chan *types.Transaction, len(tt.generators)*2)
 	tt.done = make(chan struct{})
 	tt.work.Add(1)
-	go tt.background(source, destination)
+	go tt.txTransfer(source, destination)
 
 	for _, s := range tt.senders {
 		s.Start(destination)
@@ -89,15 +90,16 @@ func (tt *threads) Start() {
 
 	for i, t := range tt.generators {
 		// first transactions from donor: one after another
-		txn := t.Yield(uint(i))
+		txn := t.Yield(uint(i + 1))
 		destination <- txn
 	}
 	for _, t := range tt.generators {
 		t.Start(source)
 	}
 
-	// TODO: uncomment it after fix
-	//tt.feedback.Start()
+	blocks := tt.feedback.Start()
+	tt.work.Add(1)
+	go tt.blockNotify(blocks, tt.senders)
 
 	tt.Log.Info("started")
 }
@@ -139,7 +141,21 @@ func (tt *threads) Stop() {
 	tt.Log.Info("stopped")
 }
 
-func (tt *threads) background(
+func (tt *threads) blockNotify(blocks <-chan big.Int, senders []*sender) {
+	defer tt.work.Done()
+	for {
+		select {
+		case bnum := <-blocks:
+			for _, s := range senders {
+				s.Notify(bnum)
+			}
+		case <-tt.done:
+			return
+		}
+	}
+}
+
+func (tt *threads) txTransfer(
 	source <-chan *types.Transaction,
 	destination chan<- *types.Transaction,
 ) {
@@ -160,7 +176,7 @@ func (tt *threads) background(
 
 		if count >= tt.maxTxnsPerSec {
 			timeout := start.Add(time.Second).Sub(time.Now())
-			tt.Log.Info("TpS limit", "timeout", timeout)
+			tt.Log.Debug("tps limit", "timeout", timeout)
 			select {
 			case <-time.After(timeout):
 			case <-tt.done:

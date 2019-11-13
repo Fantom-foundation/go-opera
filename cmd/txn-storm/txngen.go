@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math/big"
+	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -101,40 +103,54 @@ func (g *generator) Yield(init uint) *types.Transaction {
 }
 
 func (g *generator) generate(init, position uint) (txn *types.Transaction) {
-	total := uint(len(g.accs))
+	const (
+		X    = 3
+		dose = 10
+	)
+	var (
+		total = uint(len(g.accs))
+
+		txKind   string
+		a, b     uint
+		aa       string
+		from, to *Acc
+		nonce    uint
+		amount   *big.Int
+	)
 
 	if position < total && g.accs[position] == nil {
-		b := position
-		g.accs[b] = MakeAcc(b + g.offset)
+		txKind = "initial txn"
+		b = position
+		to = MakeAcc(b + g.offset)
+		g.accs[b] = to
 
-		nonce := init
-		a := -1
-		from := g.donorAcc
-		if b > 0 {
-			a = int(b + g.offset - 1)
-			from = g.accs[b-1]
+		if b == 0 {
+			nonce = init
+			aa = "donor"
+			from = g.donorAcc
+		} else {
+			nonce = (b-1)%X + 1
+			a = (b - 1) / X
+			aa = strconv.FormatUint(uint64(a+g.offset), 10)
+			from = g.accs[a]
 		}
 
-		amount := pos.StakeToBalance(pos.Stake((total - b) * 10 * 2))
+		times := pow(X, (total-b)/X)
+		amount = pos.StakeToBalance(pos.Stake(times * dose))
 
-		txn = from.TransactionTo(g.accs[b], nonce, amount,
-			meta.NewInfo(uint(a), b+g.offset).Bytes())
-
-		g.Log.Info("initial txn", "nonce", nonce, "from", a, "to", b+g.offset, "amount", amount)
-		return
+	} else {
+		txKind = "regular txn"
+		a = position % total
+		b = (position + 1) % total
+		aa = strconv.FormatUint(uint64(a+g.offset), 10)
+		from = g.accs[a]
+		to = g.accs[b]
+		nonce = 0 // position/total + 2
+		amount = pos.StakeToBalance(pos.Stake(dose))
 	}
 
-	a := position % total
-	b := (position + 1) % total
-	nonce := position/total + 2
-
-	amount := pos.StakeToBalance(10)
-
-	// NOTE: "insufficient funds for gas * price + value" err
-	txn = g.accs[a].TransactionTo(g.accs[b], nonce, amount,
-		meta.NewInfo(a+g.offset, b+g.offset).Bytes())
-
-	g.Log.Info("regular txn", "nonce", nonce, "from", a+g.offset, "to", b+g.offset, "amount", amount)
+	g.Log.Info(txKind, "nonce", nonce, "from", aa, "to", b+g.offset, "amount", amount)
+	txn = from.TransactionTo(to, nonce, amount, meta.NewInfo(aa, b+g.offset).Bytes())
 	return
 }
 
@@ -149,4 +165,12 @@ func (g *generator) send(txn *types.Transaction) {
 	case <-g.done:
 		break
 	}
+}
+
+func pow(x, y uint) uint {
+	res := uint(1)
+	for i := uint(0); i < y; i++ {
+		res *= x
+	}
+	return res
 }

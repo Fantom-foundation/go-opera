@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -15,8 +16,9 @@ import (
 )
 
 type sender struct {
-	url   string
-	input <-chan *types.Transaction
+	url    string
+	input  <-chan *types.Transaction
+	blocks chan big.Int
 
 	done chan struct{}
 	work sync.WaitGroup
@@ -26,13 +28,12 @@ type sender struct {
 }
 
 func newSender(url string) *sender {
-	s := &sender{
-		url: url,
+	return &sender{
+		url:    url,
+		blocks: make(chan big.Int, 1),
 
 		Instance: logger.MakeInstance(),
 	}
-
-	return s
 }
 
 func (s *sender) Start(c <-chan *types.Transaction) {
@@ -84,7 +85,7 @@ func (s *sender) background() {
 			return
 		}
 
-		//connecting:
+	connecting:
 		for client == nil {
 			client, err = ethclient.Dial(s.url)
 			if err != nil {
@@ -92,6 +93,7 @@ func (s *sender) background() {
 				s.Log.Error("connect to", "url", s.url, "err", err)
 				select {
 				case <-time.After(time.Second):
+					continue connecting
 				case <-s.done:
 					return
 				}
@@ -100,33 +102,42 @@ func (s *sender) background() {
 
 	sending:
 		for {
-			err = client.SendTransaction(context.Background(), txn)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			err = client.SendTransaction(ctx, txn)
+			cancel()
 			if err == nil {
-				s.Log.Info("txn sending ok", "info", info)
+				s.Log.Info("txn sending ok", "info", info, "amount", txn.Value())
 				txnsCountMeter.Inc(1)
 				break sending
 			}
 
 			switch err.Error() {
 			case fmt.Sprintf("known transaction: %x", txn.Hash()):
-				s.Log.Info("txn sending skip", "info", info, "cause", err)
+				s.Log.Info("txn sending skip", "info", info, "amount", txn.Value(), "cause", err)
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("txn sending skip", "info", info, "cause", err)
+				s.Log.Info("txn sending skip", "info", info, "amount", txn.Value(), "cause", err)
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("txn sending skip", "info", info, "cause", err)
+				s.Log.Info("txn sending skip", "info", info, "amount", txn.Value(), "cause", err)
 				break sending
 			default:
-				s.Log.Error("try to send txn again", "info", info, "cause", err)
-				panic(err)
+				s.Log.Error("txn sending err", "info", info, "amount", txn.Value(), "cause", err)
 				select {
-				case <-time.After(time.Second):
+				case <-s.blocks:
+					s.Log.Error("try to send txn again", "info", info, "amount", txn.Value())
 				case <-s.done:
 					return
 				}
 			}
 		}
 
+	}
+}
+
+func (s *sender) Notify(bnum big.Int) {
+	select {
+	case s.blocks <- bnum:
+	default:
 	}
 }
