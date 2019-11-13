@@ -23,6 +23,20 @@ const (
 	branchesInfoCacheSize = 1000
 )
 
+type IndexCacheConfig struct {
+	ForklessCause     int `json:"forklessCause"`
+	HighestBeforeSeq  int `json:"highestBeforeSeq"`
+	HighestBeforeTime int `json:"highestBeforeTime"`
+	LowestAfterSeq    int `json:"lowestAfterSeq"`
+	EventBranch       int `json:"eventBranch"`
+	BranchesInfo      int `json:"branchesInfo"`
+	DfsSubgraphVisited int `json:"dfsSubgraphVisited"`
+}
+
+type IndexConfig struct {
+	Caches IndexCacheConfig `json:"cacheSizes"`
+}
+
 // Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
 type Index struct {
 	validators    pos.Validators
@@ -53,22 +67,39 @@ type Index struct {
 
 	forklessCauseCache *lru.Cache
 
+	cfg IndexConfig
+
 	logger.Instance
 }
 
+func DefaultIndexConfig() IndexConfig {
+	return IndexConfig{
+		Caches: IndexCacheConfig{
+			ForklessCause:      1000,
+			HighestBeforeSeq:   1000,
+			HighestBeforeTime:  1000,
+			LowestAfterSeq:     1000,
+			EventBranch:        1000,
+			BranchesInfo:       1000,
+			DfsSubgraphVisited: 1000,
+		},
+	}
+}
+
 // NewIndex creates Index instance.
-func NewIndex(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
-	cache, _ := lru.New(forklessCauseCacheSize)
+func NewIndex(config IndexConfig, validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
+	cache, _ := lru.New(config.Caches.ForklessCause)
 
 	vi := &Index{
 		Instance:           logger.MakeInstance(),
 		forklessCauseCache: cache,
+		cfg: config,
 	}
-	vi.cache.HighestBeforeSeq, _ = lru.New(highestBeforeSeqCacheSize)
-	vi.cache.HighestBeforeTime, _ = lru.New(highestBeforeTimeCacheSize)
-	vi.cache.LowestAfterSeq, _ = lru.New(lowestAfterSeqCacheSize)
-	vi.cache.BranchesInfo, _ = lru.New(branchesInfoCacheSize)
-	vi.cache.EventBranch, _ = lru.New(eventBranchCacheSize)
+	vi.cache.HighestBeforeSeq, _ = lru.New(vi.cfg.Caches.HighestBeforeSeq)
+	vi.cache.HighestBeforeTime, _ = lru.New(vi.cfg.Caches.HighestBeforeTime)
+	vi.cache.LowestAfterSeq, _ = lru.New(vi.cfg.Caches.LowestAfterSeq)
+	vi.cache.BranchesInfo, _ = lru.New(vi.cfg.Caches.BranchesInfo)
+	vi.cache.EventBranch, _ = lru.New(vi.cfg.Caches.EventBranch)
 	vi.Reset(validators, db, getEvent)
 
 	return vi

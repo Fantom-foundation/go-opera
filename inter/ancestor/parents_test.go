@@ -96,7 +96,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		return events[id]
 	}
 
-	vecClock := vector.NewIndex(*validators, memorydb.New(), getEvent)
+	vecClock := vector.NewIndex(vector.DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
 	// build vector index
 	for _, e := range ordered {

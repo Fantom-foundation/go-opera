@@ -49,7 +49,7 @@ func BenchmarkIndex_Add(b *testing.B) {
 		events[e.Hash()] = &e.EventHeaderData
 	}
 
-	vecClock := NewIndex(*validators, memorydb.New(), getEvent)
+	vecClock := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
