@@ -491,7 +491,7 @@ func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[com
 	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
-	err = vi.dfsSubgraph(head, func(e *inter.EventHeaderData) (godeeper bool) {
+	err = vi.dfsSubgraph(head.Hash(), func(e *inter.EventHeaderData) (godeeper bool) {
 		// ensure visited once
 		if visited.Contains(e.Hash()) {
 			return false
