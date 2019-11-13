@@ -95,7 +95,8 @@ type Fetcher struct {
 	announces map[string]int                // Per peer announce counts to prevent memory exhaustion
 	announced map[hash.Event][]*oneAnnounce // Announced events, scheduled for fetching
 
-	fetching map[hash.Event]*oneAnnounce // Announced events, currently fetching
+	fetching     map[hash.Event]*oneAnnounce // Announced events, currently fetching
+	fetchingTime map[hash.Event]time.Time
 
 	logger.Periodic
 }
@@ -113,13 +114,14 @@ type Callback struct {
 func New(callback Callback) *Fetcher {
 	loggerInstance := logger.MakeInstance()
 	return &Fetcher{
-		notify:    make(chan *announcesBatch, maxQueuedAnns),
-		inject:    make(chan *inject, maxQueuedInjects),
-		quit:      make(chan struct{}),
-		announces: make(map[string]int),
-		announced: make(map[hash.Event][]*oneAnnounce),
-		fetching:  make(map[hash.Event]*oneAnnounce),
-		callback:  callback,
+		notify:       make(chan *announcesBatch, maxQueuedAnns),
+		inject:       make(chan *inject, maxQueuedInjects),
+		quit:         make(chan struct{}),
+		announces:    make(map[string]int),
+		announced:    make(map[hash.Event][]*oneAnnounce),
+		fetching:     make(map[hash.Event]*oneAnnounce),
+		fetchingTime: make(map[hash.Event]time.Time),
+		callback:     callback,
 
 		Periodic: logger.Periodic{Instance: loggerInstance},
 	}
@@ -305,6 +307,7 @@ func (f *Fetcher) loop() {
 				// if it wasn't announced before, then schedule for fetching this time
 				if _, ok := f.fetching[id]; !ok {
 					f.fetching[id] = ann
+					f.fetchingTime[id] = notification.time
 					toFetch.Add(id)
 				}
 			}
@@ -343,7 +346,7 @@ func (f *Fetcher) loop() {
 				_ = f.Notify(op.peer, parents, op.time, op.fetchEvents)
 			}
 
-		case <-fetchTimer.C:
+		case now := <-fetchTimer.C:
 			// At least one event's timer ran out, check for needing retrieval
 			request := make(map[string]hash.Events)
 
@@ -362,11 +365,12 @@ func (f *Fetcher) loop() {
 				if time.Since(oldest.batch.time) > forgetTimeout {
 					// Forget too old announces
 					f.forgetHash(e)
-				} else if time.Since(oldest.batch.time) > arriveTimeout-gatherSlack {
+				} else if time.Since(f.fetchingTime[e]) > arriveTimeout-gatherSlack {
 					// The event still didn't arrive, queue for fetching from a random peer
 					announce := announces[rand.Intn(len(announces))]
 					request[announce.batch.peer] = append(request[announce.batch.peer], e)
 					f.fetching[e] = announce
+					f.fetchingTime[e] = now
 				}
 			}
 
@@ -408,9 +412,9 @@ func (f *Fetcher) rescheduleFetch(fetch *time.Timer) {
 	}
 	// Otherwise find the earliest expiring announcement
 	earliest := time.Now()
-	for _, announces := range f.announced {
-		if earliest.After(announces[0].batch.time) {
-			earliest = announces[0].batch.time
+	for _, t := range f.fetchingTime {
+		if earliest.After(t) {
+			earliest = t
 		}
 	}
 	fetch.Reset(arriveTimeout - time.Since(earliest))
@@ -431,4 +435,5 @@ func (f *Fetcher) forgetHash(hash hash.Event) {
 	}
 	delete(f.announced, hash)
 	delete(f.fetching, hash)
+	delete(f.fetchingTime, hash)
 }
