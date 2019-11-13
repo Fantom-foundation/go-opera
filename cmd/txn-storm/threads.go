@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -78,20 +76,21 @@ func (tt *threads) Start() {
 		return
 	}
 
-	destination := make(chan *types.Transaction, len(tt.senders)*2)
-	source := make(chan *types.Transaction, len(tt.generators)*2)
-	tt.done = make(chan struct{})
-	tt.work.Add(1)
-	go tt.txTransfer(source, destination)
-
-	for _, s := range tt.senders {
+	destinations := make([]chan<- *Transaction, len(tt.senders))
+	for i, s := range tt.senders {
+		destination := make(chan *Transaction, X)
+		destinations[i] = destination
 		s.Start(destination)
 	}
+	source := make(chan *Transaction, len(tt.generators)*2)
+	tt.done = make(chan struct{})
+	tt.work.Add(1)
+	go tt.txTransfer(source, destinations)
 
 	for i, t := range tt.generators {
 		// first transactions from donor: one after another
 		txn := t.Yield(uint(i + 1))
-		destination <- txn
+		destinations[0] <- txn
 	}
 	for _, t := range tt.generators {
 		t.Start(source)
@@ -156,16 +155,20 @@ func (tt *threads) blockNotify(blocks <-chan big.Int, senders []*sender) {
 }
 
 func (tt *threads) txTransfer(
-	source <-chan *types.Transaction,
-	destination chan<- *types.Transaction,
+	source <-chan *Transaction,
+	destinations []chan<- *Transaction,
 ) {
 	defer tt.work.Done()
-	defer close(destination)
+	defer func() {
+		for _, d := range destinations {
+			close(d)
+		}
+	}()
 
 	var (
 		count uint
 		start time.Time
-		txn   *types.Transaction
+		tx    *Transaction
 	)
 	for {
 
@@ -185,14 +188,16 @@ func (tt *threads) txTransfer(
 		}
 
 		select {
-		case txn = <-source:
+		case tx = <-source:
 			count++
 		case <-tt.done:
 			return
 		}
 
+		// the same from-addr to the same sender
+		destination := destinations[tx.Info.From%uint(len(destinations))]
 		select {
-		case destination <- txn:
+		case destination <- tx:
 		case <-tt.done:
 			return
 		}

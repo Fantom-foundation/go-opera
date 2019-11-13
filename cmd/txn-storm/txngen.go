@@ -2,10 +2,7 @@ package main
 
 import (
 	"math/big"
-	"strconv"
 	"sync"
-
-	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -19,7 +16,7 @@ type generator struct {
 	offset   uint
 	position uint
 
-	output chan<- *types.Transaction
+	output chan<- *Transaction
 
 	work sync.WaitGroup
 	done chan struct{}
@@ -29,6 +26,10 @@ type generator struct {
 }
 
 func newTxnGenerator(donor, from, to uint) *generator {
+	if from < 1 {
+		panic("invalid from")
+	}
+
 	if from >= to {
 		panic("invalid range from-to")
 	}
@@ -51,7 +52,7 @@ func newTxnGenerator(donor, from, to uint) *generator {
 	return g
 }
 
-func (g *generator) Start(c chan<- *types.Transaction) {
+func (g *generator) Start(c chan<- *Transaction) {
 	g.Lock()
 	defer g.Unlock()
 
@@ -90,21 +91,22 @@ func (g *generator) background() {
 		case <-g.done:
 			return
 		default:
-			txn := g.Yield(1)
-			g.send(txn)
+			tx := g.Yield(1)
+			g.send(tx)
 		}
 	}
 }
 
-func (g *generator) Yield(init uint) *types.Transaction {
-	txn := g.generate(init, g.position)
+func (g *generator) Yield(init uint) *Transaction {
+	tx := g.generate(init, g.position)
 	g.position++
-	return txn
+	return tx
 }
 
-func (g *generator) generate(init, position uint) (txn *types.Transaction) {
+const X = 3
+
+func (g *generator) generate(init, position uint) *Transaction {
 	const (
-		X    = 3
 		dose = 10
 	)
 	var (
@@ -112,7 +114,6 @@ func (g *generator) generate(init, position uint) (txn *types.Transaction) {
 
 		txKind   string
 		a, b     uint
-		aa       string
 		from, to *Acc
 		nonce    uint
 		amount   *big.Int
@@ -126,13 +127,13 @@ func (g *generator) generate(init, position uint) (txn *types.Transaction) {
 
 		if b == 0 {
 			nonce = init
-			aa = "donor"
+			a = 0
 			from = g.donorAcc
 		} else {
 			nonce = (b-1)%X + 1
 			a = (b - 1) / X
-			aa = strconv.FormatUint(uint64(a+g.offset), 10)
 			from = g.accs[a]
+			a += g.offset
 		}
 
 		times := pow(X, (total-b)/X)
@@ -142,25 +143,25 @@ func (g *generator) generate(init, position uint) (txn *types.Transaction) {
 		txKind = "regular txn"
 		a = position % total
 		b = (position + 1) % total
-		aa = strconv.FormatUint(uint64(a+g.offset), 10)
 		from = g.accs[a]
+		a += g.offset
 		to = g.accs[b]
 		nonce = 0 // position/total + 2
 		amount = pos.StakeToBalance(pos.Stake(dose))
 	}
 
-	g.Log.Info(txKind, "nonce", nonce, "from", aa, "to", b+g.offset, "amount", amount)
-	txn = from.TransactionTo(to, nonce, amount, meta.NewInfo(aa, b+g.offset).Bytes())
-	return
+	b += g.offset
+	g.Log.Info(txKind, "nonce", nonce, "from", a, "to", b, "amount", amount)
+	return from.TransactionTo(to, nonce, amount, meta.NewInfo(a, b))
 }
 
-func (g *generator) send(txn *types.Transaction) {
+func (g *generator) send(tx *Transaction) {
 	if g.output == nil {
 		return
 	}
 
 	select {
-	case g.output <- txn:
+	case g.output <- tx:
 		break
 	case <-g.done:
 		break

@@ -7,17 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type sender struct {
 	url    string
-	input  <-chan *types.Transaction
+	input  <-chan *Transaction
 	blocks chan big.Int
 
 	done chan struct{}
@@ -36,7 +34,7 @@ func newSender(url string) *sender {
 	}
 }
 
-func (s *sender) Start(c <-chan *types.Transaction) {
+func (s *sender) Start(c <-chan *Transaction) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -73,14 +71,14 @@ func (s *sender) background() {
 	var (
 		client *ethclient.Client
 		err    error
-		txn    *types.Transaction
+		tx     *Transaction
 		info   string
 	)
 
 	for {
 		select {
-		case txn = <-s.input:
-			info = meta.MustParseInfo(txn.Data()).String()
+		case tx = <-s.input:
+			info = tx.Info.String()
 		case <-s.done:
 			return
 		}
@@ -103,29 +101,29 @@ func (s *sender) background() {
 	sending:
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			err = client.SendTransaction(ctx, txn)
+			err = client.SendTransaction(ctx, tx.Tx)
 			cancel()
 			if err == nil {
-				s.Log.Info("txn sending ok", "info", info, "amount", txn.Value())
+				s.Log.Info("txn sending ok", "info", info, "amount", tx.Tx.Value())
 				txnsCountMeter.Inc(1)
 				break sending
 			}
 
 			switch err.Error() {
-			case fmt.Sprintf("known transaction: %x", txn.Hash()):
-				s.Log.Info("txn sending skip", "info", info, "amount", txn.Value(), "cause", err)
+			case fmt.Sprintf("known transaction: %x", tx.Tx.Hash()):
+				s.Log.Info("txn sending skip", "info", info, "amount", tx.Tx.Value(), "cause", err)
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("txn sending skip", "info", info, "amount", txn.Value(), "cause", err)
+				s.Log.Info("txn sending skip", "info", info, "amount", tx.Tx.Value(), "cause", err)
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("txn sending skip", "info", info, "amount", txn.Value(), "cause", err)
+				s.Log.Info("txn sending skip", "info", info, "amount", tx.Tx.Value(), "cause", err)
 				break sending
 			default:
-				s.Log.Error("txn sending err", "info", info, "amount", txn.Value(), "cause", err)
+				s.Log.Error("txn sending err", "info", info, "amount", tx.Tx.Value(), "cause", err)
 				select {
 				case <-s.blocks:
-					s.Log.Error("try to send txn again", "info", info, "amount", txn.Value())
+					s.Log.Error("try to send txn again", "info", info, "amount", tx.Tx.Value())
 				case <-s.done:
 					return
 				}
