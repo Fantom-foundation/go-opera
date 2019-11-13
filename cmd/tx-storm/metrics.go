@@ -13,7 +13,7 @@ var MetricsPrometheusEndpointFlag = cli.StringFlag{
 	Value: ":19090",
 }
 
-var txnsCountMeter = metrics.NewRegisteredCounter("txns", nil)
+var txCountMeter = metrics.NewRegisteredCounter("txn", nil)
 
 func SetupPrometheus(ctx *cli.Context) {
 	if !metrics.Enabled {

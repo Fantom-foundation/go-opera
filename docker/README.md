@@ -98,10 +98,10 @@ docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinb
 
 ## Performance testing
 
-use `cmd/txn-storm` util to generate transaction streams:
+use `cmd/tx-storm` util to generate transaction streams:
 
-  - start: `./txn-storm_on.sh`;
-  - stop: `./txn-storm_off.sh`;
+  - start: `./tx-storm_on.sh`;
+  - stop: `./tx-storm_off.sh`;
 
 and Prometheus to collect metrics.
 

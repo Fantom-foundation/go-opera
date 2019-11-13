@@ -101,29 +101,29 @@ func (s *sender) background() {
 	sending:
 		for {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			err = client.SendTransaction(ctx, tx.Tx)
+			err = client.SendTransaction(ctx, tx.Raw)
 			cancel()
 			if err == nil {
-				s.Log.Info("txn sending ok", "info", info, "amount", tx.Tx.Value())
-				txnsCountMeter.Inc(1)
+				s.Log.Info("tx sending ok", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
+				txCountMeter.Inc(1)
 				break sending
 			}
 
 			switch err.Error() {
-			case fmt.Sprintf("known transaction: %x", tx.Tx.Hash()):
-				s.Log.Info("txn sending skip", "info", info, "amount", tx.Tx.Value(), "cause", err)
+			case fmt.Sprintf("known transaction: %x", tx.Raw.Hash()):
+				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("txn sending skip", "info", info, "amount", tx.Tx.Value(), "cause", err)
+				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("txn sending skip", "info", info, "amount", tx.Tx.Value(), "cause", err)
+				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			default:
-				s.Log.Error("txn sending err", "info", info, "amount", tx.Tx.Value(), "cause", err)
+				s.Log.Error("tx sending err", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				select {
 				case <-s.blocks:
-					s.Log.Error("try to send txn again", "info", info, "amount", tx.Tx.Value())
+					s.Log.Error("try to send tx again", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
 				case <-s.done:
 					return
 				}

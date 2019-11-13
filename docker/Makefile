@@ -1,4 +1,4 @@
-all: lachesis txn-storm
+all: lachesis tx-storm
 
 
 .PHONY: lachesis
@@ -10,10 +10,10 @@ lachesis:
 	    -f docker/Dockerfile.lachesis -t "lachesis" .
 
 
-.PHONY: txn-storm
-txn-storm:
+.PHONY: tx-storm
+tx-storm:
 	cd ../ && \
 	docker build \
 	    --network=host \
 	    --build-arg GOPROXY=$(GOPROXY) \
-	    -f docker/Dockerfile.txn-storm -t "txn-storm" .
+	    -f docker/Dockerfile.tx-storm -t "tx-storm" .

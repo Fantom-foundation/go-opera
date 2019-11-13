@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -132,14 +132,14 @@ func (f *feedback) background(blocks chan<- big.Int) {
 					return
 				}
 
-				for _, txn := range block.Transactions() {
-					info, err := meta.ParseInfo(txn.Data())
+				for _, tx := range block.Transactions() {
+					info, err := meta.ParseInfo(tx.Data())
 					if err != nil {
 						f.Log.Error("meta.ParseInfo", "err", err)
 						continue
 					}
 					if info == nil {
-						f.Log.Info("3rd-party tx", "tx", txn)
+						f.Log.Info("3rd-party tx", "tx", tx)
 						continue
 					}
 

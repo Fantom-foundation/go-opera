@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/crypto"
 )
 
@@ -23,7 +23,7 @@ type Acc struct {
 }
 
 type Transaction struct {
-	Tx   *types.Transaction
+	Raw  *types.Transaction
 	Info *meta.Info
 }
 
@@ -57,7 +57,7 @@ func (a *Acc) TransactionTo(b *Acc, nonce uint, amount *big.Int, info *meta.Info
 	}
 
 	return &Transaction{
-		Tx:   signed,
+		Raw:  signed,
 		Info: info,
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/txn-storm/meta"
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
@@ -25,7 +25,7 @@ type generator struct {
 	logger.Instance
 }
 
-func newTxnGenerator(donor, from, to uint) *generator {
+func newTxGenerator(donor, from, to uint) *generator {
 	if from < 1 {
 		panic("invalid from")
 	}
@@ -120,7 +120,7 @@ func (g *generator) generate(init, position uint) *Transaction {
 	)
 
 	if position < total && g.accs[position] == nil {
-		txKind = "initial txn"
+		txKind = "initial tx"
 		b = position
 		to = MakeAcc(b + g.offset)
 		g.accs[b] = to
@@ -140,7 +140,7 @@ func (g *generator) generate(init, position uint) *Transaction {
 		amount = pos.StakeToBalance(pos.Stake(times * dose))
 
 	} else {
-		txKind = "regular txn"
+		txKind = "regular tx"
 		a = position % total
 		b = (position + 1) % total
 		from = g.accs[a]

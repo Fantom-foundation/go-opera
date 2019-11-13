@@ -9,6 +9,7 @@ echo -e "\nStart $N nodes:\n"
 
 for i in $(seq $N)
 do
+    rm -f ./transactions.rlp
     DATADIR="${PWD}/.lachesis$i"
     rm -fr ${DATADIR}
     mkdir -p ${DATADIR}
@@ -16,7 +17,7 @@ do
 	--datadir=${DATADIR} \
 	--fakenet $i/$N \
 	--port $((5050+i)) --rpc --rpcaddr 127.0.0.1 --rpcport $((4000+i)) --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
-	--nousb --verbosity 3 --metrics &> .lachesis$i.log)&
+	--nousb --verbosity 5 --metrics &> .lachesis$i.log)&
 done
 
 attach_and_exec() {

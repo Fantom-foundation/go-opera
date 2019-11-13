@@ -15,7 +15,7 @@ import (
 
 const (
 	// clientIdentifier to advertise over the network.
-	clientIdentifier = "txn-storm"
+	clientIdentifier = "tx-storm"
 )
 
 var (

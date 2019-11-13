@@ -52,7 +52,7 @@ func newThreads(
 
 	from := accs * num
 	for i := range tt.generators {
-		tt.generators[i] = newTxnGenerator(donor, from, from+accsOnThread)
+		tt.generators[i] = newTxGenerator(donor, from, from+accsOnThread)
 		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", from, from+accsOnThread))
 		from += accsOnThread
 	}
@@ -89,8 +89,8 @@ func (tt *threads) Start() {
 
 	for i, t := range tt.generators {
 		// first transactions from donor: one after another
-		txn := t.Yield(uint(i + 1))
-		destinations[0] <- txn
+		tx := t.Yield(uint(i))
+		destinations[0] <- tx
 	}
 	for _, t := range tt.generators {
 		t.Start(source)

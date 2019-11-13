@@ -19,7 +19,7 @@ do
     static_configs:
       - targets: ['$ip:19090']
 
-  - job_name: 'txnstorm$i'
+  - job_name: 'txstorm$i'
     static_configs:
       - targets: ['$ip:19090']
 

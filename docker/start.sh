@@ -22,7 +22,7 @@ do
 	"lachesis" \
 	--fakenet $i/$N \
 	--port 5050 --rpc --rpcaddr 0.0.0.0 --rpcport 18545 --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
-	--nousb --verbosity 3 --metrics \
+	--nousb --verbosity 5 --metrics \
 	${SENTRY_DSN}
 done
 
