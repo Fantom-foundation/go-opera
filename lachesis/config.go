@@ -105,7 +105,7 @@ func DefaultGasPowerConfig() GasPowerConfig {
 
 func FakeNetGasPowerConfig() GasPowerConfig {
 	config := DefaultGasPowerConfig()
-	config.TotalPerH *= 10
-	config.MinStartupGasPower *= 10
+	config.TotalPerH *= 1000
+	config.MinStartupGasPower *= 1000
 	return config
 }
