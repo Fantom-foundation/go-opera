@@ -1,98 +1,110 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/hash"
+	"bytes"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/ethereum/go-ethereum/common"
 )
 
-func (s *Store) deleteLastHeaders() {
-	prevKeys := make([][]byte, 0, 500) // don't write during iteration
+func (s *Store) DelLastHeader(epoch idx.Epoch, creator common.Address) {
+	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
+	defer s.mutexes.LastEpochHeaders.Unlock()
 
-	it := s.table.LastEpochHeaders.NewIterator()
+	key := bytes.NewBuffer(nil)
+	key.Write(epoch.Bytes())
+	key.Write(creator.Bytes())
+
+	err := s.table.LastEpochHeaders.Delete(key.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to erase LastHeader", "err", err)
+	}
+
+	// Add to cache.
+	if s.cache.LastEpochHeaders != nil {
+		if c, ok := s.cache.LastEpochHeaders.Get(epoch); ok {
+			if hh, ok := c.(inter.HeadersByCreator); ok {
+				delete(hh, creator)
+			}
+		}
+	}
+}
+
+func (s *Store) DelLastHeaders(epoch idx.Epoch) {
+	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
+	defer s.mutexes.LastEpochHeaders.Unlock()
+
+	keys := make([][]byte, 0, 500) // don't write during iteration
+
+	it := s.table.LastEpochHeaders.NewIteratorWithPrefix(epoch.Bytes())
 	defer it.Release()
 	for it.Next() {
-		prevKeys = append(prevKeys, it.Key())
+		keys = append(keys, it.Key())
 	}
-	for _, key := range prevKeys {
+
+	for _, key := range keys {
 		err := s.table.LastEpochHeaders.Delete(key)
 		if err != nil {
-			s.Log.Crit("Failed to erase key-value", "err", err)
+			s.Log.Crit("Failed to erase LastHeader", "err", err)
 		}
 	}
+
 	// Add to cache.
-	s.cache.LastEpochHeaders = nil
+	s.cache.LastEpochHeaders.Remove(epoch)
 }
 
-func (s *Store) SetLastHeaders(hh inter.HeadersByCreator) {
-	// delete previous headers
-	s.deleteLastHeaders()
-	// put new headers
-	for creator, header := range hh {
-		err := s.table.LastEpochHeaders.Put(creator.Bytes(), header.Hash().Bytes())
-		if err != nil {
-			s.Log.Crit("Failed to put key-value", "err", err)
-		}
-	}
-	// Add to cache.
-	s.cache.LastEpochHeaders = hh
-}
+func (s *Store) AddLastHeader(epoch idx.Epoch, header *inter.EventHeaderData) {
+	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
+	defer s.mutexes.LastEpochHeaders.Unlock()
 
-func (s *Store) GetLastHeaders() inter.HeadersByCreator {
-	// Get LastHeaders from cache first.
+	key := bytes.NewBuffer(nil)
+	key.Write(epoch.Bytes())
+	key.Write(header.Creator.Bytes())
+
+	s.set(s.table.LastEpochHeaders, key.Bytes(), header)
+
+	// Add to cache.
 	if s.cache.LastEpochHeaders != nil {
-		return s.cache.LastEpochHeaders
+		if c, ok := s.cache.LastEpochHeaders.Get(epoch); ok {
+			if hh, ok := c.(inter.HeadersByCreator); ok {
+				hh[header.Creator] = header
+			}
+		}
+	}
+}
+
+func (s *Store) GetLastHeaders(epoch idx.Epoch) inter.HeadersByCreator {
+	s.mutexes.LastEpochHeaders.RLock()
+	defer s.mutexes.LastEpochHeaders.RUnlock()
+
+	// Get data from LRU cache first.
+	if s.cache.LastEpochHeaders != nil {
+		if c, ok := s.cache.LastEpochHeaders.Get(epoch); ok {
+			if hh, ok := c.(inter.HeadersByCreator); ok {
+				return hh
+			}
+		}
 	}
 
 	hh := make(inter.HeadersByCreator)
 
-	it := s.table.LastEpochHeaders.NewIterator()
+	it := s.table.LastEpochHeaders.NewIteratorWithPrefix(epoch.Bytes())
 	defer it.Release()
 	for it.Next() {
-		id := hash.BytesToEvent(it.Value())
-		header := s.GetEventHeader(id.Epoch(), id)
-		if header == nil {
-			s.Log.Crit("Failed to load LastHeaders", "err", "not found")
+		creator := it.Key()[4:]
+		header := &inter.EventHeaderData{}
+		err := rlp.DecodeBytes(it.Value(), header)
+		if err != nil {
+			s.Log.Crit("Failed to decode rlp", "err", err)
 		}
-		hh[common.BytesToAddress(it.Key())] = header
+		hh[common.BytesToAddress(creator)] = header
 	}
 
 	// Add to cache.
-	s.cache.LastEpochHeaders = hh
+	s.cache.LastEpochHeaders.Add(epoch, hh)
 
-	return hh
-}
-
-func (s *Store) AddDirtyLastHeader(epoch idx.Epoch, creator common.Address, id hash.Event) {
-	es := s.getEpochStore(epoch)
-	if es == nil {
-		return
-	}
-
-	err := es.LastDirtyEpochHeaders.Put(creator.Bytes(), id.Bytes())
-	if err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
-	}
-}
-
-func (s *Store) GetDirtyLastHeaders(epoch idx.Epoch) inter.HeadersByCreator {
-	es := s.getEpochStore(epoch)
-	if es == nil {
-		return nil
-	}
-
-	hh := make(inter.HeadersByCreator)
-
-	it := es.LastDirtyEpochHeaders.NewIterator()
-	defer it.Release()
-	for it.Next() {
-		id := hash.BytesToEvent(it.Value())
-		header := s.GetEventHeader(id.Epoch(), id)
-		if header == nil {
-			s.Log.Crit("Failed to load LastHeaders", "err", "not found")
-		}
-		hh[common.BytesToAddress(it.Key())] = header
-	}
 	return hh
 }

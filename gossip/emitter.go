@@ -15,6 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -274,7 +275,8 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
 	coinbase := em.GetCoinbase()
-	if ok := em.world.Engine.GetValidators().Get(coinbase); ok == 0 {
+	validators := em.world.Engine.GetValidators()
+	if stake := validators.Get(coinbase); stake == 0 {
 		// not a validator
 		return nil
 	}
@@ -330,14 +332,22 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
 
 	// set consensus fields
-	event = em.world.Engine.Prepare(event) // GasPowerLeft is calced here
+	event = em.world.Engine.Prepare(event)
 	if event == nil {
 		em.Log.Warn("Dropped event while emitting")
 		return nil
 	}
+
+	// calc initial GasPower
+	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
+	availableGasPower := gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader, validators, em.world.Store.GetLastHeaders(epoch-1), em.world.Store.GetEpochStats(epoch-1).End, &em.dag.GasPower)
+	if event.GasPowerUsed > availableGasPower {
+		em.Log.Warn("Not enough gas power to emit event")
+		return nil
+	}
+	event.GasPowerLeft = availableGasPower - event.GasPowerUsed
 
 	// Add txs
 	event = em.addTxs(event, poolTxs)
@@ -374,8 +384,12 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.RecacheSize()
 	{
 		// sanity check
+		gReader := GasPowerCheckReader{
+			Consensus: em.world.Engine,
+			store:     em.world.Store,
+		}
 		dagID := params.AllEthashProtocolChanges.ChainID
-		if err := eventcheck.ValidateAll(em.dag, em.world.Engine, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
+		if err := eventcheck.ValidateAll(em.dag, em.world.Engine, &gReader, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
 			em.Log.Error("Emitted incorrect event", "err", err)
 			return nil
 		}

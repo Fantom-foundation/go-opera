@@ -1,27 +1,41 @@
 package gaspowercheck
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"errors"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
+)
+
+var (
+	ErrWrongGasPowerLeft = errors.New("event has wrong GasPowerLEft")
 )
 
 // DagReader is accessed by the validator to get the current state.
 type DagReader interface {
-	GetValidators() pos.Validators
-	GetLastHeaders() inter.HeadersByCreator
-	GetPrevEpochTime() inter.Timestamp
+	GetEpochValidators() (pos.Validators, idx.Epoch)
+	GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch)
+	GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch)
 }
 
-// Checker which require only parents list + current epoch info
+// Checker which checks gas power
 type Checker struct {
 	config *lachesis.GasPowerConfig
 	reader DagReader
+}
+
+func New(config *lachesis.GasPowerConfig, reader DagReader) *Checker {
+	return &Checker{
+		config: config,
+		reader: reader,
+	}
 }
 
 func mul(a *big.Int, b uint64) {
@@ -74,18 +88,18 @@ func calcValidatorGasPowerPerH(
 }
 
 // CalcGasPower calculates available gas power for the event, i.e. how many gas its content may consume
-func (v *Checker) CalcGasPower(
+func CalcGasPower(
 	e *inter.EventHeaderData,
 	selfParent *inter.EventHeaderData,
+	validators pos.Validators,
+	lastHeaders inter.HeadersByCreator,
+	prevEpochEnd inter.Timestamp,
+	config *lachesis.GasPowerConfig,
 ) uint64 {
-	validators := v.reader.GetValidators()
-
-	gasPowerPerH, maxGasPower, startup := calcValidatorGasPowerPerH(e.Creator, validators, v.config)
+	gasPowerPerH, maxGasPower, startup := calcValidatorGasPowerPerH(e.Creator, validators, config)
 
 	var prevGasPowerLeft uint64
 	var prevMedianTime inter.Timestamp
-
-	lastHeaders := v.reader.GetLastHeaders()
 
 	if e.SelfParent() != nil {
 		prevGasPowerLeft = selfParent.GasPowerLeft
@@ -98,7 +112,7 @@ func (v *Checker) CalcGasPower(
 		prevMedianTime = prevConfirmedHeader.MedianTime
 	} else {
 		prevGasPowerLeft = startup
-		prevMedianTime = v.reader.GetPrevEpochTime()
+		prevMedianTime = prevEpochEnd
 	}
 
 	if prevMedianTime > e.MedianTime {
@@ -116,4 +130,26 @@ func (v *Checker) CalcGasPower(
 	}
 
 	return gasPower
+}
+
+func (v *Checker) Validate(e *inter.Event, selfParent *inter.EventHeaderData) error {
+	validators, epoch := v.reader.GetEpochValidators()
+	lastHeaders, prevEpoch1 := v.reader.GetPrevEpochLastHeaders()
+	epochEndTime, prevEpoch2 := v.reader.GetPrevEpochEndTime()
+	// check that all the data is for the same epoch
+	if epoch != e.Epoch {
+		return epochcheck.ErrNotRelevant
+	}
+	if prevEpoch1+1 != e.Epoch {
+		return epochcheck.ErrNotRelevant
+	}
+	if prevEpoch2+1 != e.Epoch {
+		return epochcheck.ErrNotRelevant
+	}
+
+	gasPower := CalcGasPower(&e.EventHeaderData, selfParent, validators, lastHeaders, epochEndTime, v.config)
+	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basic_check
+		return ErrWrongGasPowerLeft
+	}
+	return nil
 }

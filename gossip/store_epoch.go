@@ -19,7 +19,6 @@ type (
 		Headers               kvdb.KeyValueStore `table:"header"`
 		Tips                  kvdb.KeyValueStore `table:"tips"`
 		Heads                 kvdb.KeyValueStore `table:"heads"`
-		LastDirtyEpochHeaders kvdb.KeyValueStore `table:"ldheaders"`
 	}
 )
 

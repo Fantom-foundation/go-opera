@@ -106,7 +106,7 @@ type Callback struct {
 	OnlyInterested FilterInterestedFn
 	DropPeer       DropPeerFn
 
-	HeavyCheck *heavycheck.Validator
+	HeavyCheck *heavycheck.Checker
 	FirstCheck func(*inter.Event) error
 }
 

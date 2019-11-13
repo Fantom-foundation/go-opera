@@ -2,7 +2,7 @@ package gossip
 
 import (
 	"bytes"
-	"github.com/Fantom-foundation/go-lachesis/inter"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -35,6 +35,7 @@ type Store struct {
 		Packs            kvdb.KeyValueStore `table:"pack"`
 		PacksNum         kvdb.KeyValueStore `table:"packsnum"`
 		LastEpochHeaders kvdb.KeyValueStore `table:"lheaders"`
+		EpochStats       kvdb.KeyValueStore `table:"estats"`
 
 		// API-only tables
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
@@ -48,13 +49,18 @@ type Store struct {
 	}
 
 	cache struct {
-		LastEpochHeaders inter.HeadersByCreator // store by value
-		Events           *lru.Cache       `cache:"-"` // store by pointer
-		EventsHeaders    *lru.Cache       `cache:"-"` // store by pointer
-		Blocks           *lru.Cache       `cache:"-"` // store by pointer
-		PackInfos        *lru.Cache       `cache:"-"` // store by value
-		Receipts         *lru.Cache       `cache:"-"` // store by value
-		TxPositions      *lru.Cache       `cache:"-"` // store by pointer
+		Events           *lru.Cache `cache:"-"` // store by pointer
+		EventsHeaders    *lru.Cache `cache:"-"` // store by pointer
+		Blocks           *lru.Cache `cache:"-"` // store by pointer
+		PackInfos        *lru.Cache `cache:"-"` // store by value
+		Receipts         *lru.Cache `cache:"-"` // store by value
+		TxPositions      *lru.Cache `cache:"-"` // store by pointer
+		EpochStats       *lru.Cache `cache:"-"` // store by value
+		LastEpochHeaders *lru.Cache `cache:"-"` // store by pointer
+	}
+
+	mutexes struct {
+		LastEpochHeaders *sync.RWMutex
 	}
 
 	tmpDbs
@@ -88,6 +94,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 
 	s.initTmpDbs()
 	s.initCache()
+	s.initMutexes()
 
 	return s
 }
@@ -99,6 +106,12 @@ func (s *Store) initCache() {
 	s.cache.PackInfos = s.makeCache(s.cfg.PackInfosCacheSize)
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
+	s.cache.EpochStats = s.makeCache(s.cfg.EpochStatsCacheSize)
+	s.cache.LastEpochHeaders = s.makeCache(s.cfg.LastEpochHeadersCacheSize)
+}
+
+func (s *Store) initMutexes() {
+	s.mutexes.LastEpochHeaders = new(sync.RWMutex)
 }
 
 // Close leaves underlying database.

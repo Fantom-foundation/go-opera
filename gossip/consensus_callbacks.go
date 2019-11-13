@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/pkg/errors"
+	"math/big"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
@@ -26,10 +26,9 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		return eventcheck.ErrAlreadyConnectedEvent
 	}
 
-	// check GasPowerLeft
-	gasPower := gaspowercheck.CalcGasPower(&e.EventHeaderData, realEngine.GetValidators(), s.store.GetEventHeader, s.store.GetLastHeaders(), s.config.Net.Dag.GasPower)
-	if e.GasPowerLeft+e.GasPowerUsed != gasPower { // GasPowerUsed is checked in basic_check
-		return errors.Errorf("Claimed GasPower mismatched with calculated (%d!=%d)", e.GasPowerLeft+e.GasPowerUsed, gasPower)
+	// we check gas power here, because engineMu is locked here
+	if err := s.gasPowerCheck(e); err != nil {
+		return err
 	}
 
 	oldEpoch := e.Epoch
@@ -160,16 +159,30 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	s.store.SetBlock(block)
 	s.store.SetBlockIndex(block.Hash(), block.Index)
 	newAppHash = block.Root
+	epoch := s.engine.GetEpoch()
 	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
 	if sealEpoch {
 		// update last headers
-		hh := s.store.GetDirtyLastHeaders(s.engine.GetEpoch())
 		for _, cheater := range cheaters {
-			delete(hh, cheater) // for cheaters, it's uncertain which event is "last confirmed"
+			s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
 		}
-		s.store.SetLastHeaders(hh)
+		hh := s.store.GetLastHeaders(epoch)
 		// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
 		newAppHash = hash.Of(newAppHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
+		// prune not needed last headers
+		s.store.DelLastHeaders(epoch - 1)
+
+		// dirty EpochStats becomes active
+		sealedStats := s.store.GetDirtyEpochStats()
+		sealedStats.End = block.Time
+		s.store.SetEpochStats(epoch, *sealedStats)
+
+		// new dirty EpochStats
+		s.store.SetDirtyEpochStats(EpochStats{
+			Start:    block.Time,
+			End:      0,
+			TotalFee: new(big.Int),
+		})
 	}
 
 	// Build index for not skipped txs
@@ -227,7 +240,7 @@ func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.E
 
 	// track last confirmed events from each validator
 	if seqDepth == 0 {
-		s.store.AddDirtyLastHeader(header.Epoch, header.Creator, header.Hash())
+		s.store.AddLastHeader(header.Epoch, header)
 	}
 }
 
@@ -240,4 +253,42 @@ func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, seqDept
 		return false // block contains only MaxValidatorEventsInBlock highest events from a creator to prevent huge blocks
 	}
 	return true
+}
+
+/*
+ * Calling gaspowercheck
+ */
+
+func (s *Service) gasPowerCheck(e *inter.Event) error {
+	// s.engineMu is locked here
+	gasPowerChecker := gaspowercheck.New(&s.config.Net.Dag.GasPower, &GasPowerCheckReader{
+		Consensus: s.engine,
+		store:     s.store,
+	})
+	var selfParent *inter.EventHeaderData
+	if e.SelfParent() != nil {
+		selfParent = s.store.GetEventHeader(e.Epoch, *e.SelfParent())
+	}
+	return gasPowerChecker.Validate(e, selfParent)
+}
+
+type GasPowerCheckReader struct {
+	Consensus
+	store *Store
+}
+
+// GetPrevEpochLastHeaders isn't safe for concurrent use
+func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
+	//r.engineMu.Lock()
+	//defer r.engineMu.Unlock()
+	epoch := r.GetEpoch() - 1
+	return r.store.GetLastHeaders(epoch), epoch
+}
+
+// GetPrevEpochEndTime isn't safe for concurrent use
+func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
+	//r.engineMu.Lock()
+	//defer r.engineMu.Unlock()
+	epoch := r.GetEpoch() - 1
+	return r.store.GetEpochStats(epoch).End, epoch
 }
