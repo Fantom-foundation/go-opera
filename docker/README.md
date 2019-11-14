@@ -1,7 +1,6 @@
 # Docker
 
-Contains scripts to try lachesis (only for fakenet now) with Docker.
-
+Contains the scripts to do lachesis benchmarking (only for fakenet now) with Docker.
 
 ## for common purpose
 
@@ -9,8 +8,8 @@ Contains scripts to try lachesis (only for fakenet now) with Docker.
   - run network: `./start.sh`;
   - stop network: `./stop.sh`;
 
-You could setup nodes count by `N` environment.
-It is possible to get error "failed RPC connection to" because of nodes start slowly. Try `./start.sh` again.
+You could specify number of validators by setting N environment variable.
+It is possible to get the error "failed RPC connection to" because nodes start slowly. Try `./start.sh` again.
 
 
 ## the same with Sentry service
@@ -18,10 +17,9 @@ It is possible to get error "failed RPC connection to" because of nodes start sl
   - set `SENTRY=yes` before `./start.sh`;
   - remove Sentry database: `sentry/clean.sh`;
 
-During first run, you'll get offer to create Sentry-account. Note that account exist only inside local copy Sentry and don't affect to sentry.io.
-After start up go to `http://localhost:9000` and sign in using that Sentry-account to see and management logs from all running local nodes.
-Logs are grouped and marked with color (info - blue, warn - yellow, error - red).
-Each log include: environment info, message about error, code line (in case error).
+After startup go to http://localhost:9000 and sign in using your Sentry-account to watch and manage logs from all running local nodes.
+Logs are grouped and colored (info - blue, warn - yellow, error - red).
+Each log includes: environment info, message about an error, code line (in case of an error).
 
 
 ## Stake transfer example
@@ -33,17 +31,17 @@ from [`docker/`](./docker/) dir
 N=3 ./start.sh
 ```
 
-* Attach js-console of running node1:
+* Attach js-console to running node1:
 ```sh
 docker exec -ti lachesis-node-1 /lachesis attach http://localhost:18545
 ```
 
-* Check the stake to ensure the node1 have something to transfer (node1 js-console):
+* Check the balance to ensure that node1 has something to transfer (node1 js-console):
 ```js
 eth.getBalance(eth.coinbase);
 
 ```
- output shows stake value:
+ output shows the balance value:
 ```js
 1e+24
 ```
@@ -66,7 +64,7 @@ eth.sendTransaction(
             console.log(transactionHash + " success"); 
     });
 ```
- output shows unique hash the outgoing transaction:
+ output shows unique hash of the outgoing transaction:
 ```js
 0x68a7c1daeee7e7ab5aedf0d0dba337dbf79ce0988387cf6d63ea73b98193adfd success
 ```
@@ -80,7 +78,7 @@ eth.getTransactionReceipt("0x68a7c1daeee7e7ab5aedf0d0dba337dbf79ce0988387cf6d63e
 174
 ```
 
-* As soon as transaction included into block you will see new stake of both nodes:
+* As soon as transaction is included into a block you will see new balance of both node addresses:
 ```sh
 docker exec -i lachesis-node-1 /lachesis attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
 docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
@@ -102,6 +100,7 @@ use `cmd/tx-storm` util to generate transaction streams for each node:
 
 then collect metrics.
 
+Also you may manually launch transactions generation only for one node - the nodes will exchange a content of their transactions pool.
 
 ## Prometheus metrics collection
 
