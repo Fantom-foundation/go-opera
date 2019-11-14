@@ -61,7 +61,7 @@ func parseNumber(s string) (num, total uint, err error) {
 	}
 	total = uint(i64)
 
-	if num < 0 || num >= total {
+	if num >= total {
 		err = fmt.Errorf("key-num should be in range from 1 to total : <key-num>/<total>")
 	}
 

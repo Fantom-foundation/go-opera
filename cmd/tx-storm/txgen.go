@@ -31,7 +31,7 @@ func newTxGenerator(from, to uint) *generator {
 	count := to - from
 
 	g := &generator{
-		accs:   make([]*Acc, count, count),
+		accs:   make([]*Acc, count),
 		offset: from,
 
 		Instance: logger.MakeInstance(),
@@ -140,12 +140,4 @@ func (g *generator) send(tx *Transaction) {
 	case <-g.done:
 		break
 	}
-}
-
-func pow(x, y uint) uint {
-	res := uint(1)
-	for i := uint(0); i < y; i++ {
-		res *= x
-	}
-	return res
 }

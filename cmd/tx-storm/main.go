@@ -13,11 +13,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/params"
 )
 
-const (
-	// clientIdentifier to advertise over the network.
-	clientIdentifier = "tx-storm"
-)
-
 var (
 	// Git SHA1 commit hash of the release (set via linker flags).
 	gitCommit = ""
