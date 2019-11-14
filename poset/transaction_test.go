@@ -16,28 +16,30 @@ import (
 func TestPosetTxn(t *testing.T) {
 	logger.SetTestMode(t)
 
+	var x = FakeInitialStake
+
 	nodes := inter.GenNodes(5)
 
-	p, s, x := FakePoset("", nodes)
+	p, s, in := FakePoset("", nodes)
 	assert.Equal(t,
-		pos.Stake(1), p.epochState.Validators[nodes[0]],
+		1*x, p.epochState.Validators[nodes[0]],
 		"balance of %s", nodes[0].String())
 	assert.Equal(t,
-		pos.Stake(1), p.epochState.Validators[nodes[1]],
+		1*x, p.epochState.Validators[nodes[1]],
 		"balance of %s", nodes[1].String())
 
 	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
 		if block.Index == 1 {
 			// move stake from node0 to node1
 			validators.Set(nodes[0], 0)
-			validators.Set(nodes[1], 2)
+			validators.Set(nodes[1], 2*x)
 		}
 		return stateHash, validators
 	}
 
 	_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen-1), 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
-			x.SetEvent(e)
+			in.SetEvent(e)
 			assert.NoError(t,
 				p.ProcessEvent(e))
 			assert.NoError(t,
@@ -55,16 +57,16 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, idx.Epoch(0), p.PrevEpoch.Epoch)
 	assert.Equal(t, genesisTestTime, p.PrevEpoch.Time)
 
-	assert.Equal(t, pos.Stake(5), p.Validators.TotalStake())
-	assert.Equal(t, pos.Stake(5), p.NextValidators.TotalStake())
+	assert.Equal(t, 5*x, p.Validators.TotalStake())
+	assert.Equal(t, 5*x, p.NextValidators.TotalStake())
 
 	assert.Equal(t, 5, len(p.Validators))
 	assert.Equal(t, 4, len(p.NextValidators))
 
-	assert.Equal(t, pos.Stake(1), p.Validators[nodes[0]])
-	assert.Equal(t, pos.Stake(1), p.Validators[nodes[1]])
-	assert.Equal(t, pos.Stake(0), p.NextValidators[nodes[0]])
-	assert.Equal(t, pos.Stake(2), p.NextValidators[nodes[1]])
+	assert.Equal(t, 1*x, p.Validators[nodes[0]])
+	assert.Equal(t, 1*x, p.Validators[nodes[1]])
+	assert.Equal(t, 0*x, p.NextValidators[nodes[0]])
+	assert.Equal(t, 2*x, p.NextValidators[nodes[1]])
 
 	// force Epoch commit
 	p.onNewEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), nil)
@@ -73,16 +75,16 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastAtropos)
 	assert.NotEqual(t, genesisTestTime, p.PrevEpoch.Time)
 
-	assert.Equal(t, pos.Stake(5), p.Validators.TotalStake())
-	assert.Equal(t, pos.Stake(5), p.NextValidators.TotalStake())
+	assert.Equal(t, 5*x, p.Validators.TotalStake())
+	assert.Equal(t, 5*x, p.NextValidators.TotalStake())
 
 	assert.Equal(t, 4, len(p.Validators))
 	assert.Equal(t, 4, len(p.NextValidators))
 
-	assert.Equal(t, pos.Stake(0), p.Validators[nodes[0]])
-	assert.Equal(t, pos.Stake(2), p.Validators[nodes[1]])
-	assert.Equal(t, pos.Stake(0), p.NextValidators[nodes[0]])
-	assert.Equal(t, pos.Stake(2), p.NextValidators[nodes[1]])
+	assert.Equal(t, 0*x, p.Validators[nodes[0]])
+	assert.Equal(t, 2*x, p.Validators[nodes[1]])
+	assert.Equal(t, 0*x, p.NextValidators[nodes[0]])
+	assert.Equal(t, 2*x, p.NextValidators[nodes[1]])
 
 	st := s.GetCheckpoint()
 	ep := s.GetEpoch()

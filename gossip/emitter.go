@@ -492,7 +492,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	{
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
-			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
+			if selfParent != nil && e.GasPowerLeft < selfParent.GasPowerLeft {
 				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
@@ -532,7 +532,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	em.Log.Info("New event emitted", "event", e.String(), "address", e.Creator)
+	em.Log.Info("New event emitted", "event", e.String(), "address", e.Creator, "txn", e.Transactions.Len())
 
 	return e
 }

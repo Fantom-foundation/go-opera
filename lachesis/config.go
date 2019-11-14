@@ -63,8 +63,8 @@ func TestNetConfig() Config {
 	}
 }
 
-func FakeNetConfig(n int) Config {
-	g := genesis.FakeGenesis(n)
+func FakeNetConfig(validators, others int) Config {
+	g := genesis.FakeGenesis(validators, others)
 
 	return Config{
 		Name:      "fake",
@@ -105,7 +105,7 @@ func DefaultGasPowerConfig() GasPowerConfig {
 
 func FakeNetGasPowerConfig() GasPowerConfig {
 	config := DefaultGasPowerConfig()
-	config.TotalPerH *= 10
-	config.MinStartupGasPower *= 10
+	config.TotalPerH *= 1000
+	config.MinStartupGasPower *= 1000
 	return config
 }

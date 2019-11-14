@@ -14,7 +14,7 @@ SWARM="--tls --tlscacert=${CA_FILE} --tlscert=${CERT_FILE} --tlskey=${KEY_FILE} 
 # nodes:
 
 NODE_IMAGE=lachesis:latest
-TXSTORM_IMAGE=txn-storm:latest
+TXSTORM_IMAGE=tx-storm:latest
 
 N=4
 PORT_BASE=3000

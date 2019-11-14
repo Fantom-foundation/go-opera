@@ -26,9 +26,7 @@ func (s *Service) onNewBlock(
 	evmProcessor := evm_core.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
-	evmHeader := evm_core.ToEvmHeader(block)
 	evmBlock := &evm_core.EvmBlock{
-		EvmHeader:    *evmHeader,
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
 	txPositions := make(map[common.Hash]TxPosition)
@@ -47,6 +45,9 @@ func (s *Service) onNewBlock(
 			}
 		}
 	}
+	txHash := types.DeriveSha(evmBlock.Transactions)
+	evmBlock.EvmHeader = *evm_core.ToEvmHeader(block, txHash)
+
 	s.occurredTxs.CollectConfirmedTxs(evmBlock.Transactions) // TODO collect all the confirmed txs, not only block txs
 	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
 

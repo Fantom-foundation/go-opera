@@ -19,5 +19,5 @@ func SetupPrometheus(ctx *cli.Context) {
 	}
 
 	var endpoint = ctx.GlobalString(MetricsPrometheusEndpointFlag.Name)
-	prometheus.ListenTo(endpoint)
+	prometheus.ListenTo(endpoint, nil)
 }

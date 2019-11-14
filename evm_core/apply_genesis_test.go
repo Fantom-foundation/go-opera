@@ -29,7 +29,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// the same genesis
-	netA := lachesis.FakeNetConfig(3)
+	netA := lachesis.FakeNetConfig(3, 0)
 	blockA1, err := ApplyGenesis(db, &netA)
 	if !assertar.NoError(err) {
 		return
@@ -43,7 +43,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// different genesis
-	netB := lachesis.FakeNetConfig(4)
+	netB := lachesis.FakeNetConfig(4, 0)
 	_, err = ApplyGenesis(db, &netB)
 	if !assertar.Error(err) {
 		return

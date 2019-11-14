@@ -13,11 +13,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/params"
 )
 
-const (
-	// clientIdentifier to advertise over the network.
-	clientIdentifier = "txn-storm"
-)
-
 var (
 	// Git SHA1 commit hash of the release (set via linker flags).
 	gitCommit = ""
@@ -33,9 +28,8 @@ func init() {
 
 	// Flags.
 	flags = []cli.Flag{
-		DonorFlag,
+		AccountsFlag,
 		TxnsRateFlag,
-		BlockPeriodFlag,
 		NumberFlag,
 		utils.MetricsEnabledFlag,
 		MetricsPrometheusEndpointFlag,
@@ -76,12 +70,15 @@ func generatorMain(ctx *cli.Context) error {
 	SetupPrometheus(ctx)
 
 	url := args[0]
-	donor := getDonor(ctx)
 	num, ofTotal := getNumber(ctx)
 	maxTxnsPerSec := getTxnsRate(ctx)
-	period := getBlockPeriod(ctx)
+	accs := getAccCount(ctx)
 
-	tt := newThreads(url, donor, num, ofTotal, maxTxnsPerSec, period)
+	count := accs / ofTotal
+	accMin := count * num
+	accMax := accMin + count
+
+	tt := newThreads(url, num, ofTotal, maxTxnsPerSec, accMin, accMax)
 	tt.Start()
 
 	waitForSignal()

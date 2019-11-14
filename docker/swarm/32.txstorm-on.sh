@@ -7,7 +7,7 @@ source $(dirname $0)/set_env.sh
 for ((i=$N-1;i>=0;i-=1))
 do
 
-  NAME=txnstorm$i
+  NAME=txstorm$i
   PORT=$(($PORT_BASE+$i))
   RPCP=$(($RPCP_BASE+$i))
   ACC=$(($i+1))
@@ -23,7 +23,7 @@ do
     --detach=false \
     --constraint node.hostname==$HOST \
    ${REGISTRY_HOST}/${TXSTORM_IMAGE} \
-    --num=$ACC/$N --donor=$ACC --rate=500 --period=120 --metrics \
+    --num=$ACC/$N --rate=500 --accs=100000 --metrics \
     http://${SWARM_HOST}:${RPCP} 
 
 done

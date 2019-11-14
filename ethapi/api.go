@@ -1010,7 +1010,7 @@ func RPCMarshalHeader(head *evm_core.EvmHeader) map[string]interface{} {
 		"gasUsed":          hexutil.Uint64(head.GasUsed),
 		"timestamp":        hexutil.Uint64(head.Time.Unix()),
 		"timestampNano":    hexutil.Uint64(head.Time),
-		"transactionsRoot": common.Hash{},
+		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     common.Hash{},
 	}
 }

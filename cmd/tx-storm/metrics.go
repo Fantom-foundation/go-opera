@@ -13,7 +13,13 @@ var MetricsPrometheusEndpointFlag = cli.StringFlag{
 	Value: ":19090",
 }
 
-var txnsCountMeter = metrics.NewRegisteredCounter("txns", nil)
+var (
+	reg = metrics.NewRegistry()
+
+	txCountSentMeter = metrics.NewRegisteredCounter("tx_count_sent", reg)
+	txCountGotMeter  = metrics.NewRegisteredCounter("tx_count_got", reg)
+	txLatencyMeter   = metrics.NewRegisteredHistogram("tx_latency", reg, metrics.NewUniformSample(100))
+)
 
 func SetupPrometheus(ctx *cli.Context) {
 	if !metrics.Enabled {
@@ -21,5 +27,5 @@ func SetupPrometheus(ctx *cli.Context) {
 	}
 
 	var endpoint = ctx.GlobalString(MetricsPrometheusEndpointFlag.Name)
-	prometheus.ListenTo(endpoint)
+	prometheus.ListenTo(endpoint, reg)
 }

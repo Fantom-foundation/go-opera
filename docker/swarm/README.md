@@ -40,9 +40,9 @@
 
 ## Performance testing
 
-use `txn-storm` service to generate transaction streams:
+use `tx-storm` service to generate transaction streams:
 
-  - start: `./32.txn-storm.sh`;
-  - stop: `./82.delete-txn-storm.sh`;
+  - start: `./32.tx-storm.sh`;
+  - stop: `./82.delete-tx-storm.sh`;
 
 and Prometheus to collect metrics.

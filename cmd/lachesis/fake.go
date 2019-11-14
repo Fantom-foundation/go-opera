@@ -17,7 +17,7 @@ import (
 // FakeNetFlag enables special testnet, where validators are automatically created
 var FakeNetFlag = cli.StringFlag{
 	Name:  "fakenet",
-	Usage: "'N/X' - sets fake N-th key and genesis of X keys",
+	Usage: "'N/X[,x]' - sets fake N-th key and genesis of X keys and x non-validators",
 }
 
 func addFakeAccount(ctx *cli.Context, stack *node.Node) {
@@ -31,7 +31,7 @@ func addFakeAccount(ctx *cli.Context, stack *node.Node) {
 }
 
 func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
-	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	num, _, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
 		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 	}
@@ -39,24 +39,36 @@ func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
 	return crypto.FakeKey(num)
 }
 
-func parseFakeGen(s string) (num, total int, err error) {
+func parseFakeGen(s string) (num, validators, others int, err error) {
+	var i64 uint64
+
 	parts := strings.Split(s, "/")
 	if len(parts) != 2 {
 		err = fmt.Errorf("use %%d/%%d format")
 		return
 	}
 
-	num64, err := strconv.ParseUint(parts[0], 10, 64)
+	i64, err = strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
 		return
 	}
-	num = int(num64) - 1
+	num = int(i64) - 1
 
-	total64, err := strconv.ParseUint(parts[1], 10, 64)
-	total = int(total64)
+	parts = strings.Split(parts[1], ",")
 
-	if num64 < 1 || num64 > total64 {
-		err = fmt.Errorf("key-num should be in range from 1 to total : <key-num>/<total>")
+	i64, err = strconv.ParseUint(parts[0], 10, 64)
+	validators = int(i64)
+
+	if validators < 1 || num >= validators {
+		err = fmt.Errorf("key-num should be in range from 1 to validators : <key-num>/<validators>")
+	}
+
+	if len(parts) > 1 {
+		i64, err = strconv.ParseUint(parts[1], 10, 64)
+		if err != nil {
+			return
+		}
+		others = int(i64)
 	}
 
 	return

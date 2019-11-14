@@ -31,7 +31,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		store = NewMemStore()
 	)
 
-	net := lachesis.FakeNetConfig(nodesNum)
+	net := lachesis.FakeNetConfig(nodesNum, 0)
 	config := DefaultConfig(net)
 
 	engineStore := poset.NewMemStore()

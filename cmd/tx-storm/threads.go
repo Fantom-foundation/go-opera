@@ -2,11 +2,10 @@ package main
 
 import (
 	"fmt"
+	"math/big"
 	"runtime"
 	"sync"
 	"time"
-
-	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
@@ -27,12 +26,11 @@ type threads struct {
 
 func newThreads(
 	nodeUrl string,
-	donor uint,
 	num, ofTotal uint,
 	maxTxnsPerSec uint,
-	block time.Duration,
+	accMin, accMax uint,
 ) *threads {
-	if num < 1 || num > ofTotal {
+	if num >= ofTotal {
 		panic("num is a generator number of total generators count")
 	}
 
@@ -48,14 +46,14 @@ func newThreads(
 	tt.SetName("Threads")
 
 	tt.maxTxnsPerSec = maxTxnsPerSec / ofTotal
-	accs := tt.maxTxnsPerSec * uint(block.Milliseconds()/1000)
+	accs := accMax - accMin
 	accsOnThread := accs / uint(count)
 
-	from := accs * num
 	for i := range tt.generators {
-		tt.generators[i] = newTxnGenerator(donor, from, from+accsOnThread)
-		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", from, from+accsOnThread))
-		from += accsOnThread
+		min := accMin + uint(i)*accsOnThread
+		max := min + accsOnThread
+		tt.generators[i] = newTxGenerator(min, max)
+		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", min, max))
 	}
 
 	for i := range tt.senders {
@@ -77,20 +75,24 @@ func (tt *threads) Start() {
 		return
 	}
 
-	source := make(chan *types.Transaction, len(tt.generators)*2)
+	destinations := make([]chan<- *Transaction, len(tt.senders))
+	for i, s := range tt.senders {
+		destination := make(chan *Transaction, X)
+		destinations[i] = destination
+		s.Start(destination)
+	}
+	source := make(chan *Transaction, len(tt.generators)*2)
+	tt.done = make(chan struct{})
+	tt.work.Add(1)
+	go tt.txTransfer(source, destinations)
+
 	for _, t := range tt.generators {
 		t.Start(source)
 	}
-	destination := make(chan *types.Transaction, len(tt.senders)*2)
-	for _, s := range tt.senders {
-		s.Start(destination)
-	}
-	// TODO: uncomment it after fix
-	//tt.feedback.Start()
 
-	tt.done = make(chan struct{})
+	blocks := tt.feedback.Start()
 	tt.work.Add(1)
-	go tt.background(source, destination)
+	go tt.blockNotify(blocks, tt.senders)
 
 	tt.Log.Info("started")
 }
@@ -102,9 +104,13 @@ func (tt *threads) Stop() {
 	if tt.done == nil {
 		return
 	}
-	close(tt.done)
 
 	var stoped sync.WaitGroup
+	stoped.Add(1)
+	go func() {
+		tt.feedback.Stop()
+		stoped.Done()
+	}()
 	stoped.Add(len(tt.generators))
 	for _, t := range tt.generators {
 		go func(t *generator) {
@@ -119,30 +125,44 @@ func (tt *threads) Stop() {
 			stoped.Done()
 		}(s)
 	}
-	stoped.Add(1)
-	go func() {
-		tt.feedback.Stop()
-		stoped.Done()
-	}()
 	stoped.Wait()
 
+	close(tt.done)
 	tt.work.Wait()
 	tt.done = nil
 
 	tt.Log.Info("stopped")
 }
 
-func (tt *threads) background(
-	source <-chan *types.Transaction,
-	destination chan<- *types.Transaction,
+func (tt *threads) blockNotify(blocks <-chan big.Int, senders []*sender) {
+	defer tt.work.Done()
+	for {
+		select {
+		case bnum := <-blocks:
+			for _, s := range senders {
+				s.Notify(bnum)
+			}
+		case <-tt.done:
+			return
+		}
+	}
+}
+
+func (tt *threads) txTransfer(
+	source <-chan *Transaction,
+	destinations []chan<- *Transaction,
 ) {
 	defer tt.work.Done()
-	defer close(destination)
+	defer func() {
+		for _, d := range destinations {
+			close(d)
+		}
+	}()
 
 	var (
 		count uint
 		start time.Time
-		txn   *types.Transaction
+		tx    *Transaction
 	)
 	for {
 
@@ -153,7 +173,7 @@ func (tt *threads) background(
 
 		if count >= tt.maxTxnsPerSec {
 			timeout := start.Add(time.Second).Sub(time.Now())
-			tt.Log.Info("TpS limit", "timeout", timeout)
+			tt.Log.Debug("tps limit", "timeout", timeout)
 			select {
 			case <-time.After(timeout):
 			case <-tt.done:
@@ -162,14 +182,16 @@ func (tt *threads) background(
 		}
 
 		select {
-		case txn = <-source:
+		case tx = <-source:
 			count++
 		case <-tt.done:
 			return
 		}
 
+		// the same from-addr to the same sender
+		destination := destinations[tx.Info.From%uint(len(destinations))]
 		select {
-		case destination <- txn:
+		case destination <- tx:
 		case <-tt.done:
 			return
 		}

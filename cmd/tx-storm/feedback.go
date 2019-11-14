@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -31,19 +32,21 @@ func newFeedback(url string) *feedback {
 	return f
 }
 
-func (f *feedback) Start() {
+func (f *feedback) Start() <-chan big.Int {
 	f.Lock()
 	defer f.Unlock()
 
 	if f.done != nil {
-		return
+		return nil
 	}
 	f.done = make(chan struct{})
 
+	blocks := make(chan big.Int, 1)
 	f.work.Add(1)
-	go f.background()
+	go f.background(blocks)
 
 	f.Log.Info("started")
+	return blocks
 }
 
 func (f *feedback) Stop() {
@@ -61,7 +64,7 @@ func (f *feedback) Stop() {
 	f.Log.Info("stopped")
 }
 
-func (f *feedback) background() {
+func (f *feedback) background(blocks chan<- big.Int) {
 	defer f.work.Done()
 	var (
 		client *ethclient.Client
@@ -98,7 +101,7 @@ func (f *feedback) background() {
 		for {
 
 			select {
-			case <-time.After(time.Millisecond):
+			case <-time.After(time.Second):
 			case <-f.done:
 				return
 			}
@@ -113,20 +116,36 @@ func (f *feedback) background() {
 				known.Sub(header.Number, big.NewInt(1))
 			}
 
+			f.Log.Info("header", "num", header.Number)
+
 			for ; header.Number.Cmp(known) > 0; known.Add(known, big.NewInt(1)) {
-				// NOTE: err="server returned empty transaction list but block header indicates transactions"
 				block, err := client.BlockByNumber(context.TODO(), known)
 				if err != nil {
 					f.Log.Error("BlockByNumber", "err", err)
 					break fetching
 				}
 
-				for _, txn := range block.Transactions() {
-					info, err := parseInfo(txn.Data())
-					if err != nil || info == nil {
+				select {
+				case blocks <- *known:
+					f.Log.Info("block", "num", header.Number, "txs", block.Transactions())
+				case <-f.done:
+					return
+				}
+
+				for _, tx := range block.Transactions() {
+					info, err := meta.ParseInfo(tx.Data())
+					if err != nil {
+						f.Log.Error("meta.ParseInfo", "err", err)
 						continue
 					}
-					f.Log.Info(">>>>>>>>> GOT", "info", info)
+					if info == nil {
+						f.Log.Info("3rd-party tx", "tx", tx)
+						continue
+					}
+
+					f.Log.Info("Got tx", "info", info)
+					txCountGotMeter.Inc(1)
+					txLatencyMeter.Update(info.Seconds())
 				}
 			}
 

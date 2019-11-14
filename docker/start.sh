@@ -6,6 +6,7 @@ set -e
 
 . ./_params.sh
 
+docker network inspect ${NETWORK} &>/dev/null || \
 docker network create ${NETWORK}
 
 . ./_sentry.sh
@@ -15,14 +16,16 @@ echo -e "\nStart $N nodes:\n"
 
 for i in $(seq $N)
 do
+    name=${NAME}-$i
+    docker inspect $name &>/dev/null || \
     docker run -d --rm \
-	--net=${NETWORK} --name=${NAME}-$i \
+	--net=${NETWORK} --name=$name \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	-p $((4000+i)):18545 \
 	"lachesis" \
-	--fakenet $i/$N \
+	--fakenet $i/$N,100000 \
 	--port 5050 --rpc --rpcaddr 0.0.0.0 --rpcport 18545 --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
-	--nousb --verbosity 3 --metrics \
+	--nousb --verbosity 5 --metrics \
 	${SENTRY_DSN}
 done
 
@@ -40,15 +43,14 @@ attach_and_exec() {
         res=$(docker exec -i ${NAME} /lachesis --exec "${CMD}" attach http://127.0.0.1:18545 2> /dev/null)
         if [ $? -eq 0 ]
         then
-            #echo "success" >&2
             echo $res
             return 0
         else
-            #echo "wait" >&2
-            sleep 1
+            sleep 2
         fi
     done
     echo "failed RPC connection to ${NAME}" >&2
+    echo "try $0 again" >&2
     return 1
 }
 

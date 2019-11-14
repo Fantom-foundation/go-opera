@@ -10,8 +10,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
-// ValidatorsMax in top set.
-const ValidatorsMax = 30
+// TODO: move it to config
+const (
+	// ValidatorsMax in top set.
+	ValidatorsMax = 30
+	// Qualification is a minimal validator's stake.
+	Qualification Stake = 1e6
+)
 
 type (
 	// Validators of epoch with stake.
@@ -70,6 +75,13 @@ func (vv Validators) sortedArray() validators {
 // Top gets top subset.
 func (vv Validators) Top() Validators {
 	top := vv.sortedArray()
+
+	for i, v := range top {
+		if v.Stake < Qualification {
+			top = top[:i]
+			break
+		}
+	}
 
 	if len(top) > ValidatorsMax {
 		top = top[:ValidatorsMax]

@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/crypto"
 )
 
@@ -21,6 +22,11 @@ type Acc struct {
 	Addr *common.Address
 }
 
+type Transaction struct {
+	Raw  *types.Transaction
+	Info *meta.Info
+}
+
 func MakeAcc(n uint) *Acc {
 	key := crypto.FakeKey(int(n))
 	addr := crypto.PubkeyToAddress(key.PublicKey)
@@ -31,18 +37,18 @@ func MakeAcc(n uint) *Acc {
 	}
 }
 
-func (a *Acc) TransactionTo(b *Acc, nonce uint, amount *big.Int, extra []byte) *types.Transaction {
-	txn := types.NewTransaction(
+func (a *Acc) TransactionTo(b *Acc, nonce uint, amount *big.Int, info *meta.Info) *Transaction {
+	tx := types.NewTransaction(
 		uint64(nonce),
 		*b.Addr,
 		amount,
 		gasLimit,
 		gasPrice,
-		extra,
+		info.Bytes(),
 	)
 
 	signed, err := types.SignTx(
-		txn,
+		tx,
 		types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID),
 		a.Key,
 	)
@@ -50,5 +56,8 @@ func (a *Acc) TransactionTo(b *Acc, nonce uint, amount *big.Int, extra []byte) *
 		panic(err)
 	}
 
-	return signed
+	return &Transaction{
+		Raw:  signed,
+		Info: info,
+	}
 }

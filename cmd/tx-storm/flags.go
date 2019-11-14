@@ -4,36 +4,26 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"gopkg.in/urfave/cli.v1"
 )
 
-var DonorFlag = cli.IntFlag{
-	Name:  "donor",
-	Usage: "fake account number to take balance from",
+var AccountsFlag = cli.IntFlag{
+	Name:  "accs",
+	Usage: "total fake account count to use",
 }
 
-func getDonor(ctx *cli.Context) uint {
-	return uint(ctx.GlobalInt(DonorFlag.Name))
+func getAccCount(ctx *cli.Context) uint {
+	return uint(ctx.GlobalInt(AccountsFlag.Name))
 }
 
 var TxnsRateFlag = cli.IntFlag{
 	Name:  "rate",
-	Usage: "transactions per second (max sum of all generators)",
+	Usage: "transactions per second (max sum of all instances)",
 }
 
 func getTxnsRate(ctx *cli.Context) uint {
 	return uint(ctx.GlobalInt(TxnsRateFlag.Name))
-}
-
-var BlockPeriodFlag = cli.IntFlag{
-	Name:  "period",
-	Usage: "seconds beetwen blocks (estimation)",
-}
-
-func getBlockPeriod(ctx *cli.Context) time.Duration {
-	return time.Second * time.Duration(ctx.GlobalInt(BlockPeriodFlag.Name))
 }
 
 var NumberFlag = cli.StringFlag{
@@ -51,22 +41,27 @@ func getNumber(ctx *cli.Context) (num, total uint) {
 }
 
 func parseNumber(s string) (num, total uint, err error) {
+	var i64 uint64
+
 	parts := strings.Split(s, "/")
 	if len(parts) != 2 {
 		err = fmt.Errorf("use %%d/%%d format")
 		return
 	}
 
-	num64, err := strconv.ParseUint(parts[0], 10, 64)
+	i64, err = strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
 		return
 	}
-	num = uint(num64)
+	num = uint(i64) - 1
 
-	total64, err := strconv.ParseUint(parts[1], 10, 64)
-	total = uint(total64)
+	i64, err = strconv.ParseUint(parts[1], 10, 64)
+	if err != nil {
+		return
+	}
+	total = uint(i64)
 
-	if num64 < 1 || num64 > total64 {
+	if num >= total {
 		err = fmt.Errorf("key-num should be in range from 1 to total : <key-num>/<total>")
 	}
 

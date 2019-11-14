@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
@@ -14,8 +14,9 @@ import (
 )
 
 type sender struct {
-	url   string
-	input <-chan *types.Transaction
+	url    string
+	input  <-chan *Transaction
+	blocks chan big.Int
 
 	done chan struct{}
 	work sync.WaitGroup
@@ -25,16 +26,15 @@ type sender struct {
 }
 
 func newSender(url string) *sender {
-	s := &sender{
-		url: url,
+	return &sender{
+		url:    url,
+		blocks: make(chan big.Int, 1),
 
 		Instance: logger.MakeInstance(),
 	}
-
-	return s
 }
 
-func (s *sender) Start(c <-chan *types.Transaction) {
+func (s *sender) Start(c <-chan *Transaction) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -71,12 +71,19 @@ func (s *sender) background() {
 	var (
 		client *ethclient.Client
 		err    error
+		tx     *Transaction
+		info   string
 	)
 
-	for txn := range s.input {
-		info := mustParseInfo(txn.Data()).String()
+	for {
+		select {
+		case tx = <-s.input:
+			info = tx.Info.String()
+		case <-s.done:
+			return
+		}
 
-		//connecting:
+	connecting:
 		for client == nil {
 			client, err = ethclient.Dial(s.url)
 			if err != nil {
@@ -84,6 +91,7 @@ func (s *sender) background() {
 				s.Log.Error("connect to", "url", s.url, "err", err)
 				select {
 				case <-time.After(time.Second):
+					continue connecting
 				case <-s.done:
 					return
 				}
@@ -92,32 +100,42 @@ func (s *sender) background() {
 
 	sending:
 		for {
-			err = client.SendTransaction(context.Background(), txn)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			err = client.SendTransaction(ctx, tx.Raw)
+			cancel()
 			if err == nil {
-				s.Log.Info("txn sending ok", "info", info)
-				txnsCountMeter.Inc(1)
+				s.Log.Info("tx sending ok", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
+				txCountSentMeter.Inc(1)
 				break sending
 			}
 
 			switch err.Error() {
-			case fmt.Sprintf("known transaction: %x", txn.Hash()):
-				s.Log.Info("txn sending skip", "info", info, "cause", err)
+			case fmt.Sprintf("known transaction: %x", tx.Raw.Hash()):
+				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("txn sending skip", "info", info, "cause", err)
+				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("txn sending skip", "info", info, "cause", err)
+				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			default:
-				s.Log.Error("try to send txn again", "info", info, "cause", err)
+				s.Log.Error("tx sending err", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				select {
-				case <-time.After(time.Second):
+				case <-s.blocks:
+					s.Log.Error("try to send tx again", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
 				case <-s.done:
 					return
 				}
 			}
 		}
 
+	}
+}
+
+func (s *sender) Notify(bnum big.Int) {
+	select {
+	case s.blocks <- bnum:
+	default:
 	}
 }
