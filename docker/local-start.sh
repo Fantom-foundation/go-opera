@@ -15,7 +15,7 @@ do
     mkdir -p ${DATADIR}
     (go run ../cmd/lachesis \
 	--datadir=${DATADIR} \
-	--fakenet $i/$N,100000 \
+	--fakenet $i/$N,${TEST_ACCS} \
 	--port $((5050+i)) --rpc --rpcaddr 127.0.0.1 --rpcport $((4000+i)) --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
 	--nousb --verbosity 5  &> .lachesis$i.log)&
 done

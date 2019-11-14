@@ -23,9 +23,9 @@ Each log include: environment info, message about error, code line (in case erro
 
 ## Prometheus metrics collection:
 
-  - collect metrics from runnings: `./prometheus_on.sh` (after `./start.sh`);
+  - collect metrics from runnings: `./prometheus-on.sh` (after `./start.sh`);
   - see webUI at `http://localhost:9090`;
-  - stop: `./prometheus_off.sh`;
+  - stop: `./prometheus-off.sh`;
 
 
 ## Stake transfer example
@@ -100,8 +100,8 @@ docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinb
 
 use `cmd/tx-storm` util to generate transaction streams:
 
-  - start: `./tx-storm_on.sh`;
-  - stop: `./tx-storm_off.sh`;
+  - start: `./txstorm-on.sh`;
+  - stop: `./txstorm-off.sh`;
 
 and Prometheus to collect metrics.
 
@@ -111,3 +111,8 @@ and Prometheus to collect metrics.
   - install blockade and add it to "$PATH": `pip install blockade`;
   - use `./start_blockade.sh` instead normal `./start.sh`;
   - test lachesis network with blockade [`commands`](https://github.com/worstcase/blockade/blob/master/docs/commands.rst);
+
+
+## without docker
+
+see `local-*.sh` scripts.
