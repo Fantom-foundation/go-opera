@@ -17,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 )
 
 const (
@@ -534,14 +532,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	bl := pool.currentState.GetBalance(from).String()
-	cs := tx.Cost().String()
-	info, _ := meta.ParseInfo(tx.Data())
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		log.Debug(">>>> HERE 2", "balance", bl, "cost", cs, "tx", info.String(), "nonce", tx.Nonce())
 		return ErrInsufficientFunds
-	} else {
-		log.Debug(">>>> ok", "balance", bl, "cost", cs, "tx", info.String(), "nonce", tx.Nonce())
 	}
 	// Ensure the transaction has more gas than the basic tx fee.
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, true)
