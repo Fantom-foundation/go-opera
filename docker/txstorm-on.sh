@@ -16,6 +16,6 @@ do
 	--net=${NETWORK} --name=txgen-$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	"tx-storm" \
-	--num=$i/$n --rate=10 --accs=100000 --metrics http://${ip}:18545
+	--num=$i/$n --rate=10000 --accs=100000 --metrics http://${ip}:18545
 
 done

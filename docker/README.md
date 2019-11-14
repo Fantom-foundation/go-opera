@@ -5,9 +5,12 @@ Contains scripts to try lachesis (only for fakenet now) with Docker.
 
 ## for common purpose
 
-  - build node docker image "lachesis": `make lachesis`;
-  - run network of x nodes: `N=x ./start.sh`;
+  - build node docker image "lachesis": `make lachesis` (use GOPROXY env optionally);
+  - run network: `./start.sh`;
   - stop network: `./stop.sh`;
+
+You could setup nodes count by `N` environment.
+It is possible to get error "failed RPC connection to" because of nodes start slowly. Try `./start.sh` again.
 
 
 ## the same with Sentry service
@@ -19,13 +22,6 @@ During first run, you'll get offer to create Sentry-account. Note that account e
 After start up go to `http://localhost:9000` and sign in using that Sentry-account to see and management logs from all running local nodes.
 Logs are grouped and marked with color (info - blue, warn - yellow, error - red).
 Each log include: environment info, message about error, code line (in case error).
-
-
-## Prometheus metrics collection:
-
-  - collect metrics from runnings: `./prometheus-on.sh` (after `./start.sh`);
-  - see webUI at `http://localhost:9090`;
-  - stop: `./prometheus-off.sh`;
 
 
 ## Stake transfer example
@@ -98,12 +94,26 @@ docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinb
 
 ## Performance testing
 
-use `cmd/tx-storm` util to generate transaction streams:
+use `cmd/tx-storm` util to generate transaction streams for each node:
 
+  - build node docker image "tx-storm": `make tx-storm`;
   - start: `./txstorm-on.sh`;
   - stop: `./txstorm-off.sh`;
 
-and Prometheus to collect metrics.
+then collect metrics.
+
+
+## Prometheus metrics collection
+
+  - `./prometheus-on.sh` collects metrics from running nodes and tx-storms (so run it after);
+  - see webUI at `http://localhost:9090`;
+  - stop: `./prometheus-off.sh`;
+
+See results at:
+
+ - [tx latency](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_latency&g0.tab=0)
+ - [count of sent txs](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_count_sent&g0.tab=0)
+ - [count of confirmed txs](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_count_sent&g0.tab=0)
 
 
 ## Testing network failures
@@ -115,4 +125,4 @@ and Prometheus to collect metrics.
 
 ## without docker
 
-see `local-*.sh` scripts.
+You can do the same without docker, see `local-*.sh` scripts.
