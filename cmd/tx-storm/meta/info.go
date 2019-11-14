@@ -8,14 +8,14 @@ import (
 )
 
 type Info struct {
-	CreatedUnix int64
+	CreatedUnix uint64
 	From        uint
 	To          uint
 }
 
 func NewInfo(from, to uint) *Info {
 	return &Info{
-		CreatedUnix: time.Now().Unix(),
+		CreatedUnix: uint64(time.Now().Unix()),
 		From:        from,
 		To:          to,
 	}
@@ -33,6 +33,10 @@ func ParseInfo(bb []byte) (*Info, error) {
 	m := new(Info)
 	err := rlp.DecodeBytes(bb, m)
 	return m, err
+}
+
+func (m *Info) Seconds() int64 {
+	return time.Now().Unix() - int64(m.CreatedUnix)
 }
 
 func (m *Info) Bytes() []byte {
