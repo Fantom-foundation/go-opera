@@ -98,7 +98,7 @@ func (g *generator) generate(init, position uint) *Transaction {
 		dose = 10
 	)
 	var (
-		total = uint(len(g.accs))
+		count = uint(len(g.accs))
 
 		txKind   string
 		a, b     uint
@@ -108,9 +108,9 @@ func (g *generator) generate(init, position uint) *Transaction {
 	)
 
 	txKind = "regular tx"
-	a = position % total
-	b = (position + 1) % total
-	if position < total {
+	a = position % count
+	b = (position + 1) % count
+	if position < count {
 		if g.accs[a] == nil {
 			g.accs[a] = MakeAcc(a + g.offset)
 		}
@@ -120,7 +120,7 @@ func (g *generator) generate(init, position uint) *Transaction {
 	}
 	from = g.accs[a]
 	to = g.accs[b]
-	nonce = position/total + 1
+	nonce = position / count
 	amount = pos.StakeToBalance(pos.Stake(dose))
 
 	a += g.offset

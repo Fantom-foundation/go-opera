@@ -143,9 +143,9 @@ func (f *feedback) background(blocks chan<- big.Int) {
 						continue
 					}
 
-					f.Log.Info(">>>>>>>>> GOT", "info", info)
+					f.Log.Info("Got tx", "info", info)
 					txCountGotMeter.Inc(1)
-					txLatencyMeter.Update(time.Since(info.Created).Milliseconds() * 1000)
+					txLatencyMeter.Update(time.Now().Unix() - info.CreatedUnix)
 				}
 			}
 

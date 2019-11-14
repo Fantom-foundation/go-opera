@@ -8,16 +8,16 @@ import (
 )
 
 type Info struct {
-	Created time.Time
-	From    uint
-	To      uint
+	CreatedUnix int64
+	From        uint
+	To          uint
 }
 
 func NewInfo(from, to uint) *Info {
 	return &Info{
-		Created: time.Now(),
-		From:    from,
-		To:      to,
+		CreatedUnix: time.Now().Unix(),
+		From:        from,
+		To:          to,
 	}
 }
 
