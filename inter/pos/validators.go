@@ -14,7 +14,7 @@ import (
 const (
 	// ValidatorsMax in top set.
 	ValidatorsMax = 30
-	// ValidatorsMax in top set.
+	// Qualification is a minimal validator's stake.
 	Qualification Stake = 1e6
 )
 
