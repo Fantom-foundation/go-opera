@@ -17,7 +17,7 @@ do
 	--datadir=${DATADIR} \
 	--fakenet $i/$N,100000 \
 	--port $((5050+i)) --rpc --rpcaddr 127.0.0.1 --rpcport $((4000+i)) --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
-	--nousb --verbosity 5 --metrics &> .lachesis$i.log)&
+	--nousb --verbosity 5  &> .lachesis$i.log)&
 done
 
 attach_and_exec() {

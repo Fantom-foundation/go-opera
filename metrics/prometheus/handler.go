@@ -11,8 +11,10 @@ import (
 
 var logger = log.New("module", "prometheus")
 
-func ListenTo(endpoint string) {
-	reg := metrics.DefaultRegistry
+func ListenTo(endpoint string, reg metrics.Registry) {
+	if reg == nil {
+		reg = metrics.DefaultRegistry
+	}
 	reg.Each(collect)
 
 	go func() {

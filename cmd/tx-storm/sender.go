@@ -105,7 +105,7 @@ func (s *sender) background() {
 			cancel()
 			if err == nil {
 				s.Log.Info("tx sending ok", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
-				txCountMeter.Inc(1)
+				txCountSentMeter.Inc(1)
 				break sending
 			}
 
