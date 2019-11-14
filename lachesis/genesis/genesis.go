@@ -21,14 +21,22 @@ type Genesis struct {
 }
 
 // FakeGenesis generates fake genesis with n-nodes.
-func FakeGenesis(n int) Genesis {
-	accounts := make(Accounts, n)
+func FakeGenesis(validators, others int) Genesis {
+	accounts := make(Accounts, validators+others)
 
-	for i := 0; i < n; i++ {
+	for i := 0; i < validators; i++ {
 		key := crypto.FakeKey(i)
 		addr := crypto.PubkeyToAddress(key.PublicKey)
 		accounts[addr] = Account{
-			Balance:    pos.StakeToBalance(1000 * 1000 * 1e6),
+			Balance:    pos.StakeToBalance(1000 * 1000 * pos.Qualification),
+			PrivateKey: key,
+		}
+	}
+	for i := validators; i < validators+others; i++ {
+		key := crypto.FakeKey(i)
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		accounts[addr] = Account{
+			Balance:    pos.StakeToBalance(pos.Qualification - 1),
 			PrivateKey: key,
 		}
 	}

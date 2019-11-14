@@ -63,8 +63,8 @@ func TestNetConfig() Config {
 	}
 }
 
-func FakeNetConfig(n int) Config {
-	g := genesis.FakeGenesis(n)
+func FakeNetConfig(validators, others int) Config {
+	g := genesis.FakeGenesis(validators, others)
 
 	return Config{
 		Name:      "fake",

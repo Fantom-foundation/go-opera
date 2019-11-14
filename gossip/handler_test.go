@@ -126,7 +126,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	net := lachesis.FakeNetConfig(1)
+	net := lachesis.FakeNetConfig(1, 0)
 	config := DefaultConfig(net)
 	config.ForcedBroadcast = allowAggressive
 	config.Emitter.MinEmitInterval = time.Duration(0)

@@ -22,7 +22,7 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	net := lachesis.FakeNetConfig(5)
+	net := lachesis.FakeNetConfig(5, 0)
 	addrWithCode := net.Genesis.Alloc.Addresses()[0]
 	accountWithCode := net.Genesis.Alloc[addrWithCode]
 	accountWithCode.Code = []byte{1, 2, 3}
@@ -67,7 +67,7 @@ func TestGetBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	net := lachesis.FakeNetConfig(5)
+	net := lachesis.FakeNetConfig(5, 0)
 	genesisHash, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 

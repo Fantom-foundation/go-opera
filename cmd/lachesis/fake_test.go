@@ -27,7 +27,7 @@ func TestFakeNetFlag(t *testing.T) {
 	cli.SetTemplateFunc("niltime", genesisStart)
 	cli.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
-	time.Sleep(4*time.Second)
+	time.Sleep(4 * time.Second)
 
 	// Verify the actual welcome message to the required template
 	// TODO: clone (or PR) "github.com/ethereum/go-ethereum/console" to customize welcome message
@@ -56,7 +56,7 @@ at block: 0 ({{niltime}})
 }
 
 func cliSetFakeCoinbase(cli *testcli, fakenet string) {
-	n, _, err := parseFakeGen(fakenet)
+	n, _, _, err := parseFakeGen(fakenet)
 	if err != nil {
 		panic(err)
 	}
