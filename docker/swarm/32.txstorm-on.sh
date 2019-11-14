@@ -23,7 +23,7 @@ do
     --detach=false \
     --constraint node.hostname==$HOST \
    ${REGISTRY_HOST}/${TXSTORM_IMAGE} \
-    --num=$ACC/$N --donor=$ACC --rate=500 --period=120 --metrics \
+    --num=$ACC/$N --rate=500 --accs=100000 --metrics \
     http://${SWARM_HOST}:${RPCP} 
 
 done

@@ -20,7 +20,7 @@ do
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	-p $((4000+i)):18545 \
 	"lachesis" \
-	--fakenet $i/$N \
+	--fakenet $i/$N,100000 \
 	--port 5050 --rpc --rpcaddr 0.0.0.0 --rpcport 18545 --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
 	--nousb --verbosity 5 --metrics \
 	${SENTRY_DSN}

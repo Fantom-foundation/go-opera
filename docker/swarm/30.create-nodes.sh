@@ -28,7 +28,7 @@ do
     --detach=false \
     --constraint node.hostname==$HOST \
    ${REGISTRY_HOST}/${NODE_IMAGE} --nousb \
-    --fakenet=$ACC/$N \
+    --fakenet=$ACC/$N,100000 \
     --rpc --rpcaddr 0.0.0.0 --rpcport ${RPCP} --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3,personal" \
     --port ${PORT} --nat extip:${SWARM_HOST} \
     ${bootnode}

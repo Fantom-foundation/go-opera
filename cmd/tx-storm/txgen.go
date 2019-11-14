@@ -10,8 +10,6 @@ import (
 )
 
 type generator struct {
-	donorNum uint
-	donorAcc *Acc
 	accs     []*Acc
 	offset   uint
 	position uint
@@ -25,26 +23,16 @@ type generator struct {
 	logger.Instance
 }
 
-func newTxGenerator(donor, from, to uint) *generator {
-	if from < 1 {
-		panic("invalid from")
-	}
-
+func newTxGenerator(from, to uint) *generator {
 	if from >= to {
 		panic("invalid range from-to")
-	}
-
-	if donor >= from && donor < to {
-		panic("donor is in range from-to")
 	}
 
 	count := to - from
 
 	g := &generator{
-		donorNum: donor,
-		donorAcc: MakeAcc(donor),
-		accs:     make([]*Acc, count, count),
-		offset:   from,
+		accs:   make([]*Acc, count, count),
+		offset: from,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -119,37 +107,23 @@ func (g *generator) generate(init, position uint) *Transaction {
 		amount   *big.Int
 	)
 
-	if position < total && g.accs[position] == nil {
-		txKind = "initial tx"
-		b = position
-		to = MakeAcc(b + g.offset)
-		g.accs[b] = to
-
-		if b == 0 {
-			nonce = init
-			a = 0
-			from = g.donorAcc
-		} else {
-			nonce = (b-1)%X + 1
-			a = (b - 1) / X
-			from = g.accs[a]
-			a += g.offset
+	txKind = "regular tx"
+	a = position % total
+	b = (position + 1) % total
+	if position < total {
+		if g.accs[a] == nil {
+			g.accs[a] = MakeAcc(a + g.offset)
 		}
-
-		times := pow(X, (total-b)/X)
-		amount = pos.StakeToBalance(pos.Stake(times * dose))
-
-	} else {
-		txKind = "regular tx"
-		a = position % total
-		b = (position + 1) % total
-		from = g.accs[a]
-		a += g.offset
-		to = g.accs[b]
-		nonce = 0 // position/total + 2
-		amount = pos.StakeToBalance(pos.Stake(dose))
+		if g.accs[b] == nil {
+			g.accs[b] = MakeAcc(b + g.offset)
+		}
 	}
+	from = g.accs[a]
+	to = g.accs[b]
+	nonce = position/total + 1
+	amount = pos.StakeToBalance(pos.Stake(dose))
 
+	a += g.offset
 	b += g.offset
 	g.Log.Info(txKind, "nonce", nonce, "from", a, "to", b, "amount", amount)
 	return from.TransactionTo(to, nonce, amount, meta.NewInfo(a, b))

@@ -26,12 +26,11 @@ type threads struct {
 
 func newThreads(
 	nodeUrl string,
-	donor uint,
 	num, ofTotal uint,
 	maxTxnsPerSec uint,
-	block time.Duration,
+	accMin, accMax uint,
 ) *threads {
-	if num < 1 || num > ofTotal {
+	if num >= ofTotal {
 		panic("num is a generator number of total generators count")
 	}
 
@@ -47,14 +46,14 @@ func newThreads(
 	tt.SetName("Threads")
 
 	tt.maxTxnsPerSec = maxTxnsPerSec / ofTotal
-	accs := tt.maxTxnsPerSec * uint(block.Milliseconds()/1000)
+	accs := accMax - accMin
 	accsOnThread := accs / uint(count)
 
-	from := accs * num
 	for i := range tt.generators {
-		tt.generators[i] = newTxGenerator(donor, from, from+accsOnThread)
-		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", from, from+accsOnThread))
-		from += accsOnThread
+		min := accMin + uint(i)*accsOnThread
+		max := min + accsOnThread
+		tt.generators[i] = newTxGenerator(min, max)
+		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", min, max))
 	}
 
 	for i := range tt.senders {
@@ -87,11 +86,6 @@ func (tt *threads) Start() {
 	tt.work.Add(1)
 	go tt.txTransfer(source, destinations)
 
-	for i, t := range tt.generators {
-		// first transactions from donor: one after another
-		tx := t.Yield(uint(i))
-		destinations[0] <- tx
-	}
 	for _, t := range tt.generators {
 		t.Start(source)
 	}
