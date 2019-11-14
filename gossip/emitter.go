@@ -492,7 +492,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	{
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
-			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
+			if selfParent != nil && e.GasPowerLeft < selfParent.GasPowerLeft {
 				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
