@@ -67,3 +67,9 @@ func parseNumber(s string) (num, total uint, err error) {
 
 	return
 }
+
+var VerbosityFlag = cli.IntFlag{
+	Name:  "verbosity",
+	Usage: "sets the verbosity level",
+	Value: 3,
+}

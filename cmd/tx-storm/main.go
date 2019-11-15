@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/params"
@@ -25,7 +26,6 @@ var (
 
 // init the CLI app.
 func init() {
-
 	// Flags.
 	flags = []cli.Flag{
 		AccountsFlag,
@@ -33,6 +33,7 @@ func init() {
 		NumberFlag,
 		utils.MetricsEnabledFlag,
 		MetricsPrometheusEndpointFlag,
+		VerbosityFlag,
 	}
 
 	// App.
@@ -62,6 +63,10 @@ func main() {
 
 // generatorMain is the main entry point.
 func generatorMain(ctx *cli.Context) error {
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	glogger.Verbosity(log.Lvl(ctx.GlobalInt(VerbosityFlag.Name)))
+	log.Root().SetHandler(glogger)
+
 	args := ctx.Args()
 	if len(args) != 1 {
 		return fmt.Errorf("url expected")
