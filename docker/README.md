@@ -61,7 +61,7 @@ eth.sendTransaction(
 	{from: eth.coinbase, to: "0x239fa7623354ec26520de878b52f13fe84b06971", value:  "1000000000"},
 	function(err, transactionHash) {
         if (!err)
-            console.log(transactionHash + " success"); 
+            console.log(transactionHash + " success");
     });
 ```
  output shows unique hash of the outgoing transaction:
@@ -125,3 +125,9 @@ See results at:
 ## without docker
 
 You can do the same without docker, see `local-*.sh` scripts.
+
+## FAQs
+
+*Q: I get the following error `./_sentry.sh: line 3: declare: -l: invalid option`*
+
+A: Try upgrading to the latest version of bash on your machine. If you are on Mac OSX, you can follow this guide [here](https://itnext.io/upgrading-bash-on-macos-7138bd1066ba).
