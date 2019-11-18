@@ -949,7 +949,7 @@ func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{}
 		"isRoot":           header.IsRoot,
 		"creator":          header.Creator,
 		"prevEpochHash":    header.PrevEpochHash,
-		"parents":          eventIDsToHex(header.Parents, nil),
+		"parents":          eventIDsToHex(header.Parents),
 		"gasPowerLeft":     header.GasPowerLeft,
 		"gasPowerUsed":     header.GasPowerUsed,
 		"lamport":          header.Lamport,
@@ -1707,7 +1707,7 @@ func eventIDToHex(id hash.Event) hexutil.Bytes {
 	return hexutil.Bytes(id.Bytes())
 }
 
-func eventIDsToHex(ids hash.Events, err error) []hexutil.Bytes {
+func eventIDsToHex(ids hash.Events) []hexutil.Bytes {
 	res := make([]hexutil.Bytes, len(ids))
 	for i, id := range ids {
 		res[i] = eventIDToHex(id)
@@ -1717,7 +1717,13 @@ func eventIDsToHex(ids hash.Events, err error) []hexutil.Bytes {
 
 // GetHeads returns IDs of all the events with no descendants in current epoch.
 func (api *PublicDebugAPI) GetHeads(ctx context.Context, n int) ([]hexutil.Bytes, error) {
-	return eventIDsToHex(api.b.GetHeads(ctx, n)), nil
+	res, err := api.b.GetHeads(ctx, n)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return eventIDsToHex(res), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private
