@@ -11,7 +11,7 @@ import (
 
 // Global variables
 
-func LastEpoch() common.Hash {
+func CurrentSealedEpoch() common.Hash {
 	return utils.U64to256(0)
 }
 
