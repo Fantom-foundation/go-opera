@@ -92,6 +92,8 @@ docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinb
 
 ## Performance testing
 
+[step by step example](./EXAMPLE.md)
+
 use `cmd/tx-storm` util to generate transaction streams for each node:
 
   - build node docker image "tx-storm": `make tx-storm`;
