@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/urfave/cli.v1"
 )
 
-var AccountsFlag = cli.IntFlag{
-	Name:  "accs",
-	Usage: "total fake account count to use",
+var PeriodFlag = cli.IntFlag{
+	Name:  "period",
+	Usage: "seconds before reusing of account",
+	Value: 60,
 }
 
-func getAccCount(ctx *cli.Context) uint {
-	return uint(ctx.GlobalInt(AccountsFlag.Name))
+func getPeriod(ctx *cli.Context) time.Duration {
+	return time.Second * time.Duration(ctx.GlobalInt(PeriodFlag.Name))
 }
 
 var TxnsRateFlag = cli.IntFlag{

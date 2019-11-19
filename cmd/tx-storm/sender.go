@@ -47,7 +47,7 @@ func (s *sender) Start(c <-chan *Transaction) {
 	s.work.Add(1)
 	go s.background()
 
-	s.Log.Info("started")
+	s.Log.Info("Started")
 }
 
 func (s *sender) Stop() {
@@ -62,7 +62,7 @@ func (s *sender) Stop() {
 	s.work.Wait()
 	s.done = nil
 
-	s.Log.Info("stopped")
+	s.Log.Info("Stopped")
 }
 
 func (s *sender) background() {
@@ -88,7 +88,7 @@ func (s *sender) background() {
 			client, err = ethclient.Dial(s.url)
 			if err != nil {
 				client = nil
-				s.Log.Error("connect to", "url", s.url, "err", err)
+				s.Log.Error("Connect to", "url", s.url, "err", err)
 				select {
 				case <-time.After(time.Second):
 					continue connecting
@@ -104,26 +104,26 @@ func (s *sender) background() {
 			err = client.SendTransaction(ctx, tx.Raw)
 			cancel()
 			if err == nil {
-				s.Log.Info("tx sending ok", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
+				s.Log.Info("Tx sending ok", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
 				txCountSentMeter.Inc(1)
 				break sending
 			}
 
 			switch err.Error() {
 			case fmt.Sprintf("known transaction: %x", tx.Raw.Hash()):
-				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
+				s.Log.Info("Tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			case evm_core.ErrNonceTooLow.Error():
-				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
+				s.Log.Info("Tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			case evm_core.ErrReplaceUnderpriced.Error():
-				s.Log.Info("tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
+				s.Log.Info("Tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			default:
-				s.Log.Error("tx sending err", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
+				s.Log.Error("Tx sending err", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				select {
 				case <-s.blocks:
-					s.Log.Error("try to send tx again", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
+					s.Log.Error("Try to send tx again", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
 				case <-s.done:
 					return
 				}

@@ -28,7 +28,7 @@ func newThreads(
 	nodeUrl string,
 	num, ofTotal uint,
 	maxTxnsPerSec uint,
-	accMin, accMax uint,
+	period time.Duration,
 ) *threads {
 	if num >= ofTotal {
 		panic("num is a generator number of total generators count")
@@ -43,17 +43,18 @@ func newThreads(
 
 		Instance: logger.MakeInstance(),
 	}
-	tt.SetName("Threads")
 
 	tt.maxTxnsPerSec = maxTxnsPerSec / ofTotal
-	accs := accMax - accMin
-	accsOnThread := accs / uint(count)
+	accs := tt.maxTxnsPerSec * uint(period.Milliseconds()/1000)
+	accsOnThread := approximate(accs / uint(count))
+	accs = accsOnThread * uint(count)
+	offset := accs * (num + 1)
+	tt.Log.Info("Will create", "accounts", accs, "from", offset, "to", accs+offset)
 
+	donor := num
 	for i := range tt.generators {
-		min := accMin + uint(i)*accsOnThread
-		max := min + accsOnThread
-		tt.generators[i] = newTxGenerator(min, max)
-		tt.generators[i].SetName(fmt.Sprintf("Generator-%d-%d", min, max))
+		tt.generators[i] = newTxGenerator(donor, uint(i), accsOnThread, offset)
+		tt.generators[i].SetName(fmt.Sprintf("Generator-%d", i))
 	}
 
 	for i := range tt.senders {
@@ -77,7 +78,7 @@ func (tt *threads) Start() {
 
 	destinations := make([]chan<- *Transaction, len(tt.senders))
 	for i, s := range tt.senders {
-		destination := make(chan *Transaction, X)
+		destination := make(chan *Transaction, multiplicator)
 		destinations[i] = destination
 		s.Start(destination)
 	}
@@ -85,6 +86,12 @@ func (tt *threads) Start() {
 	tt.done = make(chan struct{})
 	tt.work.Add(1)
 	go tt.txTransfer(source, destinations)
+
+	for i, t := range tt.generators {
+		// first transactions from donor: one by one
+		tx, _ := t.Yield(uint(i))
+		destinations[0] <- tx
+	}
 
 	for _, t := range tt.generators {
 		t.Start(source)
@@ -94,7 +101,7 @@ func (tt *threads) Start() {
 	tt.work.Add(1)
 	go tt.blockNotify(blocks, tt.senders)
 
-	tt.Log.Info("started")
+	tt.Log.Info("Started")
 }
 
 func (tt *threads) Stop() {
@@ -131,7 +138,7 @@ func (tt *threads) Stop() {
 	tt.work.Wait()
 	tt.done = nil
 
-	tt.Log.Info("stopped")
+	tt.Log.Info("Stopped")
 }
 
 func (tt *threads) blockNotify(blocks <-chan big.Int, senders []*sender) {

@@ -45,7 +45,7 @@ func (f *feedback) Start() <-chan big.Int {
 	f.work.Add(1)
 	go f.background(blocks)
 
-	f.Log.Info("started")
+	f.Log.Info("Started")
 	return blocks
 }
 
@@ -61,7 +61,7 @@ func (f *feedback) Stop() {
 	f.work.Wait()
 	f.done = nil
 
-	f.Log.Info("stopped")
+	f.Log.Info("Stopped")
 }
 
 func (f *feedback) background(blocks chan<- big.Int) {
@@ -89,7 +89,7 @@ func (f *feedback) background(blocks chan<- big.Int) {
 
 			client, err = ethclient.Dial(f.url)
 			if err != nil {
-				f.Log.Error("connect to", "url", f.url, "err", err)
+				f.Log.Error("Connect to", "url", f.url, "err", err)
 				client = nil
 				continue connecting
 			}
@@ -116,7 +116,7 @@ func (f *feedback) background(blocks chan<- big.Int) {
 				known.Sub(header.Number, big.NewInt(1))
 			}
 
-			f.Log.Info("header", "num", header.Number)
+			f.Log.Info("Header", "num", header.Number)
 
 			for ; header.Number.Cmp(known) > 0; known.Add(known, big.NewInt(1)) {
 				block, err := client.BlockByNumber(context.TODO(), known)
@@ -127,7 +127,7 @@ func (f *feedback) background(blocks chan<- big.Int) {
 
 				select {
 				case blocks <- *known:
-					f.Log.Info("block", "num", header.Number, "txs", block.Transactions())
+					f.Log.Info("Block", "num", header.Number, "txs", block.Transactions().Len())
 				case <-f.done:
 					return
 				}
