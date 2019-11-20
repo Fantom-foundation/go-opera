@@ -1,9 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+cd $(dirname $0)
+. ./_params.sh
 
-source $(dirname $0)/set_env.sh
 
-for IMAGE in ${NODE_IMAGE} ${TXSTORM_IMAGE}
+for IMAGE in lachesis tx-storm
 do
-    docker tag ${IMAGE} ${REGISTRY_HOST}/${IMAGE}
-    docker push ${REGISTRY_HOST}/${IMAGE}
+    docker tag ${IMAGE} ${REGISTRY_HOST}/${IMAGE}:${TAG}
+    docker push ${REGISTRY_HOST}/${IMAGE}:${TAG}
 done

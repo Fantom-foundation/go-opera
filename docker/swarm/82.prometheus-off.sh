@@ -1,6 +1,6 @@
-#!/bin/bash
-
-source $(dirname $0)/set_env.sh
+#!/usr/bin/env bash
+cd $(dirname $0)
+. ./_params.sh
 
 
 docker $SWARM service rm prometheus

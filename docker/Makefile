@@ -1,5 +1,6 @@
 all: lachesis tx-storm
 
+TAG ?= "latest"
 
 .PHONY: lachesis
 lachesis:
@@ -7,7 +8,7 @@ lachesis:
 	docker build \
 	    --network=host \
 	    --build-arg GOPROXY=$(GOPROXY) \
-	    -f docker/Dockerfile.lachesis -t "lachesis" .
+	    -f docker/Dockerfile.lachesis -t "lachesis:$(TAG)" .
 
 
 .PHONY: tx-storm
@@ -16,4 +17,4 @@ tx-storm:
 	docker build \
 	    --network=host \
 	    --build-arg GOPROXY=$(GOPROXY) \
-	    -f docker/Dockerfile.tx-storm -t "tx-storm" .
+	    -f docker/Dockerfile.tx-storm -t "tx-storm:$(TAG)" .

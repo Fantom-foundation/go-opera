@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+cd $(dirname $0)
+. ./_params.sh
 
-source $(dirname $0)/set_env.sh
 
 cat << HEADER > prometheus.yml
 scrape_configs:

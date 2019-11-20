@@ -9,12 +9,14 @@ echo -e "\nStart $N tx-storms:\n"
 
 METRICS=--metrics
 
-for i in $(seq $N)
+for ((i=$N-1;i>=0;i-=1))
 do
+  RPCP=$(($RPCP_BASE+$i))
+  ACC=$(($i+1))
     (go run ../cmd/tx-storm \
-	--num $i/$N \
+	--num ${ACC}/$N \
 	--rate=10000 --period=30 \
 	${METRICS} --verbosity 5 \
-	http://127.0.0.1:$((4000+i))  &> .txstorm$i.log)&
+	http://127.0.0.1:${RPCP}  &> .txstorm$i.log)&
     METRICS=
 done

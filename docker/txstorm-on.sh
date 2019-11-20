@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
-
 . ./_params.sh
 
 
-n=$(docker ps -a -q -f network=${NETWORK} -f name=${NAME} | wc -l)
+n=$(docker ps -a -q -f network=${NETWORK} -f name=node | wc -l)
 echo -e "\nStart $N tx generators:\n"
 i=0
 
@@ -13,9 +12,9 @@ do
     ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${node})
     i=$((i+1))
     docker run -d --rm \
-	--net=${NETWORK} --name=txgen-$i \
+	--net=${NETWORK} --name=txgen$i \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
-	"tx-storm" \
+	tx-storm:${TAG} \
 	--num=$i/$n --rate=10000 --period=30 --metrics --verbosity 5 http://${ip}:18545
 
 done

@@ -4,7 +4,7 @@ Contains the scripts to do lachesis benchmarking (only for fakenet now) with Doc
 
 ## for common purpose
 
-  - build node docker image "lachesis": `make lachesis` (use GOPROXY env optionally);
+  - build node docker image "lachesis": `make lachesis` (use GOPROXY and TAG env vars optionally);
   - run network: `./start.sh`;
   - stop network: `./stop.sh`;
 
@@ -31,12 +31,12 @@ from [`docker/`](./docker/) dir
 N=3 ./start.sh
 ```
 
-* Attach js-console to running node1:
+* Attach js-console to running node0:
 ```sh
-docker exec -ti lachesis-node-1 /lachesis attach http://localhost:18545
+docker exec -ti node0 /lachesis attach http://localhost:18545
 ```
 
-* Check the balance to ensure that node1 has something to transfer (node1 js-console):
+* Check the balance to ensure that node0 has something to transfer (node0 js-console):
 ```js
 eth.getBalance(eth.coinbase);
 
@@ -46,16 +46,16 @@ eth.getBalance(eth.coinbase);
 1e+24
 ```
 
-* Get node2 address:
+* Get node1 address:
 ```sh
-docker exec -i lachesis-node-2 /lachesis attach --exec "eth.coinbase" http://localhost:18545
+docker exec -i node1 /lachesis attach --exec "eth.coinbase" http://localhost:18545
 ```
  output shows address:
 ```js
 "0x239fa7623354ec26520de878b52f13fe84b06971"
 ```
 
-* Transfer some amount from node1 to node2 address as receiver (node1 js-console):
+* Transfer some amount from node1 to node2 address as receiver (node0 js-console):
 ```js
 eth.sendTransaction(
 	{from: eth.coinbase, to: "0x239fa7623354ec26520de878b52f13fe84b06971", value:  "1000000000"},
@@ -80,8 +80,8 @@ eth.getTransactionReceipt("0x68a7c1daeee7e7ab5aedf0d0dba337dbf79ce0988387cf6d63e
 
 * As soon as transaction is included into a block you will see new balance of both node addresses:
 ```sh
-docker exec -i lachesis-node-1 /lachesis attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
-docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
+docker exec -i node0 /lachesis attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
+docker exec -i node1 /lachesis attach --exec "eth.getBalance(eth.coinbase)" http://localhost:18545                                               
 ```
  outputs:
 ```js
@@ -96,7 +96,7 @@ docker exec -i lachesis-node-2 /lachesis attach --exec "eth.getBalance(eth.coinb
 
 use `cmd/tx-storm` util to generate transaction streams for each node:
 
-  - build node docker image "tx-storm": `make tx-storm`;
+  - build node docker image "tx-storm": `make tx-storm` (use GOPROXY and TAG env vars optionally);
   - start: `./txstorm-on.sh`;
   - stop: `./txstorm-off.sh`;
 

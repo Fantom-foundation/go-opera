@@ -1,28 +1,36 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
+. ./_params.sh
 
 set -e
 
-. ./_params.sh
 
 echo -e "\nStart $N nodes:\n"
 
-for i in $(seq $N)
+for ((i=$N-1;i>=0;i-=1))
 do
     rm -f ./transactions.rlp
     DATADIR="${PWD}/.lachesis$i"
     rm -fr ${DATADIR}
     mkdir -p ${DATADIR}
+
+    PORT=$(($PORT_BASE+$i))
+    RPCP=$(($RPCP_BASE+$i))
+    WSP=$(($WSP_BASE+$i))
+    ACC=$(($i+1)) 
     (go run ../cmd/lachesis \
 	--datadir=${DATADIR} \
-	--fakenet $i/$N \
-	--port $((5050+i)) --rpc --rpcaddr 127.0.0.1 --rpcport $((4000+i)) --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
-	--nousb --verbosity 5  &> .lachesis$i.log)&
+	--fakenet=${ACC}/$N \
+	--port=${PORT} \
+	--rpc --rpcaddr="127.0.0.1" --rpcport=${RPCP} --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3" \
+	--ws --wsaddr="127.0.0.1" --wsport=${WSP} --wsorigins="*" --wsapi="eth,debug,admin,web3,personal" \
+	--nousb --verbosity=5  &> .lachesis$i.log)&
 done
 
 attach_and_exec() {
     local i=$1
     local CMD=$2
+    local RPCP=$(($RPCP_BASE+$i))
 
     for attempt in $(seq 20)
     do
@@ -31,7 +39,7 @@ attach_and_exec() {
             echo "  - attempt ${attempt}: " >&2
         fi;
 
-        res=$(go run ../cmd/lachesis --exec "${CMD}" attach http://127.0.0.1:$((4000+i)) 2> /dev/null)
+        res=$(go run ../cmd/lachesis --exec "${CMD}" attach http://127.0.0.1:${RPCP} 2> /dev/null)
         if [ $? -eq 0 ]
         then
             #echo "success" >&2
@@ -47,9 +55,9 @@ attach_and_exec() {
 }
 
 echo -e "\nConnect nodes to ring:\n"
-for i in $(seq $N)
+for ((i=$N-1;i>=0;i-=1))
 do
-    j=$((i % N + 1))
+    j=$(((i+1) % N))
 
     enode=$(attach_and_exec $j 'admin.nodeInfo.enode')
     echo "    p2p address = ${enode}"

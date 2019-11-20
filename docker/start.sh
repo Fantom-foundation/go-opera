@@ -14,18 +14,23 @@ docker network create ${NETWORK}
 
 echo -e "\nStart $N nodes:\n"
 
-for i in $(seq $N)
+for ((i=$N-1;i>=0;i-=1))
 do
-    name=${NAME}-$i
+    NAME=node$i
+    RPCP=$(($RPCP_BASE+$i))
+    ACC=$(($i+1))
+
     docker inspect $name &>/dev/null || \
     docker run -d --rm \
-	--net=${NETWORK} --name=$name \
+	--net=${NETWORK} --name=${NAME} \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
-	-p $((4000+i)):18545 \
-	"lachesis" \
-	--fakenet $i/$N \
-	--port 5050 --rpc --rpcaddr 0.0.0.0 --rpcport 18545 --rpccorsdomain "*" --rpcapi "eth,debug,admin,web3" \
-	--nousb --verbosity 5 --metrics \
+	-p ${RPCP}:18545 \
+	lachesis:${TAG} \
+	--fakenet=${ACC}/$N \
+	--port=5050 \
+	--rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,net" \
+	--ws --wsaddr="0.0.0.0" --wsport=18546 --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net" \
+	--nousb --verbosity=5 --metrics \
 	${SENTRY_DSN}
 done
 
@@ -55,17 +60,18 @@ attach_and_exec() {
 }
 
 echo -e "\nConnect nodes to ring:\n"
-for i in $(seq $N)
+for ((i=$N-1;i>=0;i-=1))
 do
-    j=$((i % N + 1))
+    j=$(((i+1) % N))
 
-    echo " getting node-$j address:"
-    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${NAME}-$j)
-    enode=$(attach_and_exec ${NAME}-$j 'admin.nodeInfo.enode')
+    echo " getting node$j address:"
+    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' node$j)
+    enode=$(attach_and_exec node$j 'admin.nodeInfo.enode')
     enode=$(echo ${enode} | sed "s/127.0.0.1/${ip}/")
     echo "    p2p address = ${enode}"
 
-    echo " connecting node-$i to node-$j:"
-    res=$(attach_and_exec ${NAME}-$i "admin.addPeer(${enode})")
+    echo " connecting node$i to node$j:"
+    res=$(attach_and_exec node$i "admin.addPeer(${enode})")
     echo "    result = ${res}"
+
 done

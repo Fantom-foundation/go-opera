@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+cd $(dirname $0)
+. ./_params.sh
 
-source $(dirname $0)/set_env.sh
 
 i=$1
 shift
@@ -11,5 +12,5 @@ SWARM_HOST=`./swarm node inspect $HOST --format "{{.Status.Addr}}"`
 
 RPCP=$(($RPCP_BASE+$i))
 
-docker run --rm -ti ${NODE_IMAGE} $@ attach http://${SWARM_HOST}:${RPCP}
+echo docker run --rm -i lachesis:${TAG} $@ attach http://${SWARM_HOST}:${RPCP}
 

@@ -3,7 +3,7 @@
 
 ## Configure docker client
 
-1. Set "*_HOST" environments in `set_env.sh`.
+1. Set "*_HOST" environments in `_params.sh`.
 
 2. Put docker-swarm certs into `./ssl`.
 
@@ -12,16 +12,16 @@
 
 ## Get docker image
 
-1. Build images `cd .. && make`.
+1. Build images `cd .. && make` (use GOPROXY and TAG env vars optionally).
 
-2. Upload images to private registry `./20.push-docker-image.sh`.
+2. Upload images to private registry `./20.push-docker-image.sh` (use TAG env var optionally).
 
 
 ## Deploy lachesis
 
-1. Create node1-node4 services `./30.create-nodes.sh`.
+1. Create node1-node4 services `./30.create-nodes.sh` (use TAG env var optionally).
 
-2. Upgrade node services `./40.upgrade-nodes.sh`.
+2. Upgrade node services `./40.upgrade-nodes.sh` (use TAG env var optionally).
 
 3. Delete node services `./80.delete-nodes.sh`.
 

@@ -72,8 +72,8 @@ Links will be available if prometheus container is running.
 6. See logs:
 
 ```sh
-docker logs --tail 100 -f lachesis-node-1
-docker logs --tail 100 -f txgen-1
+docker logs --tail 100 -f node1
+docker logs --tail 100 -f txgen1
 ```
 
 7. Stops the all:
