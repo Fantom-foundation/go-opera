@@ -2,6 +2,7 @@ package poset
 
 import (
 	"bytes"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 	"sort"
 	"testing"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 func TestConfirmBlockEvents(t *testing.T) {

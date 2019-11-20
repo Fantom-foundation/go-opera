@@ -78,7 +78,7 @@ func (s *Service) onNewBlock(
 	// TODO the schema below doesn't work in all the cases, and intended only for testing
 	{
 		newValidators = validators.Copy()
-		for addr := range validators {
+		for addr := range validators.Iterate() {
 			stake := pos.BalanceToStake(statedb.GetBalance(addr))
 			newValidators.Set(addr, stake)
 		}

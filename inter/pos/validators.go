@@ -20,31 +20,96 @@ const (
 
 type (
 	// Validators of epoch with stake.
-	Validators map[common.Address]Stake
+	Validators struct {
+		indexes   map[common.Address]int
+		list      []Stake
+		addresses []common.Address
+	}
 )
 
-// Set appends item.
+// NewValidators return new pointer of Validators object
+func NewValidators() *Validators {
+	return &Validators{
+		indexes:   make(map[common.Address]int),
+		list:      make([]Stake, 0, ValidatorsMax),
+		addresses: make([]common.Address, 0, ValidatorsMax),
+	}
+}
+
+// Len return count of validators in Validators objects
+func (vv Validators) Len() int {
+	return len(vv.list)
+}
+
+// Iterate return chanel of common.Address for get validators in loop
+func (vv Validators) Iterate() <-chan common.Address {
+	c := make(chan common.Address)
+	go func() {
+		for _, a := range vv.addresses {
+			c <- a
+		}
+		close(c)
+	}()
+	return c
+}
+
+// Set appends item to Validator object
 func (vv *Validators) Set(addr common.Address, stake Stake) {
 	if stake != 0 {
-		(*vv)[addr] = stake
+		i, ok := vv.indexes[addr]
+		if ok {
+			vv.list[i] = stake
+			return
+		}
+		vv.list = append(vv.list, stake)
+		vv.addresses = append(vv.addresses, addr)
+		vv.indexes[addr] = len(vv.list) - 1
 	} else {
-		delete((*vv), addr)
+		i, ok := vv.indexes[addr]
+		if ok {
+			delete(vv.indexes, addr)
+			idxOrig := len(vv.list) - 1
+			if i == idxOrig {
+				vv.list = vv.list[:idxOrig]
+				vv.addresses = vv.addresses[:idxOrig]
+			} else {
+				// Move last to deleted position + truncate list len
+				vv.list[i] = vv.list[idxOrig]
+				vv.list = vv.list[:idxOrig]
+
+				vv.indexes[vv.addresses[idxOrig]] = i
+
+				vv.addresses[i] = vv.addresses[idxOrig]
+				vv.addresses = vv.addresses[:idxOrig]
+			}
+		}
 	}
+}
+
+// Get return stake for validator address
+func (vv Validators) Get(addr common.Address) Stake {
+	i, ok := vv.indexes[addr]
+	if ok {
+		return vv.list[i]
+	}
+	return 0
+}
+
+// Exists return boolean true if address exists in Validators object
+func (vv Validators) Exists(addr common.Address) bool {
+	_, ok := vv.indexes[addr]
+	return ok
 }
 
 // Addresses returns not sorted addresses.
 func (vv Validators) Addresses() []common.Address {
-	array := make([]common.Address, 0, len(vv))
-	for n := range vv {
-		array = append(array, n)
-	}
-	return array
+	return vv.addresses
 }
 
 // SortedAddresses returns deterministically sorted addresses.
 // The order is the same as for Idxs().
 func (vv Validators) SortedAddresses() []common.Address {
-	array := make([]common.Address, len(vv))
+	array := make([]common.Address, len(vv.list))
 	for i, s := range vv.sortedArray() {
 		array[i] = s.Addr
 	}
@@ -53,7 +118,7 @@ func (vv Validators) SortedAddresses() []common.Address {
 
 // Idxs gets deterministic total order of validators.
 func (vv Validators) Idxs() map[common.Address]idx.Validator {
-	idxs := make(map[common.Address]idx.Validator, len(vv))
+	idxs := make(map[common.Address]idx.Validator, len(vv.list))
 	for i, v := range vv.sortedArray() {
 		idxs[v.Addr] = idx.Validator(i)
 	}
@@ -61,8 +126,9 @@ func (vv Validators) Idxs() map[common.Address]idx.Validator {
 }
 
 func (vv Validators) sortedArray() validators {
-	array := make(validators, 0, len(vv))
-	for addr, s := range vv {
+	array := make(validators, 0, len(vv.list))
+	for addr, i := range vv.indexes {
+		s := vv.list[i]
 		array = append(array, validator{
 			Addr:  addr,
 			Stake: s,
@@ -87,21 +153,32 @@ func (vv Validators) Top() Validators {
 		top = top[:ValidatorsMax]
 	}
 
-	res := make(Validators)
+	res := NewValidators()
 	for _, v := range top {
 		res.Set(v.Addr, v.Stake)
 	}
 
-	return res
+	return *res
 }
 
 // Copy constructs a copy.
 func (vv Validators) Copy() Validators {
-	res := make(Validators)
-	for addr, stake := range vv {
-		res.Set(addr, stake)
+	res := NewValidators()
+
+	if cap(res.list) < len(vv.list) {
+		res.list = make([]Stake, len(vv.list))
+		res.addresses = make([]common.Address, len(vv.list))
 	}
-	return res
+	res.list = res.list[0:len(vv.list)]
+	res.addresses = res.addresses[0:len(vv.list)]
+	copy(res.list, vv.list)
+	copy(res.addresses, vv.addresses)
+
+	for addr, i := range vv.indexes {
+		res.indexes[addr] = i
+	}
+
+	return *res
 }
 
 // Quorum limit of validators.
@@ -111,7 +188,7 @@ func (vv Validators) Quorum() Stake {
 
 // TotalStake of validators.
 func (vv Validators) TotalStake() (sum Stake) {
-	for _, s := range vv {
+	for _, s := range vv.list {
 		sum += s
 	}
 	return
@@ -119,7 +196,7 @@ func (vv Validators) TotalStake() (sum Stake) {
 
 // StakeOf validator.
 func (vv Validators) StakeOf(n common.Address) Stake {
-	return vv[n]
+	return vv.Get(n)
 }
 
 // EncodeRLP is for RLP serialization.
@@ -128,11 +205,19 @@ func (vv Validators) EncodeRLP(w io.Writer) error {
 }
 
 // DecodeRLP is for RLP deserialization.
-func (pp *Validators) DecodeRLP(s *rlp.Stream) error {
-	if *pp == nil {
-		*pp = Validators{}
+func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
+	if vv == nil {
+		vv = NewValidators()
 	}
-	vv := *pp
+	if vv.addresses == nil {
+		vv.addresses = make([]common.Address, 0, ValidatorsMax)
+	}
+	if vv.indexes == nil {
+		vv.indexes = make(map[common.Address]int)
+	}
+	if vv.list == nil {
+		vv.list = make([]Stake, 0, ValidatorsMax)
+	}
 
 	var arr []validator
 	if err := s.Decode(&arr); err != nil {
@@ -140,7 +225,7 @@ func (pp *Validators) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	for _, w := range arr {
-		vv[w.Addr] = w.Stake
+		vv.Set(w.Addr, w.Stake)
 	}
 
 	return nil

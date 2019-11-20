@@ -11,7 +11,7 @@ type eventFilterFn func(event *inter.EventHeaderData) bool
 
 // dfsSubgraph iterates all the events which are observed by head, and accepted by a filter.
 func (p *Poset) dfsSubgraph(head hash.Event, filter eventFilterFn) error {
-	stack := make(hash.EventsStack, 0, len(p.Validators)*10)
+	stack := make(hash.EventsStack, 0, p.Validators.Len()*10)
 
 	for pwalk := &head; pwalk != nil; pwalk = stack.Pop() {
 		walk := *pwalk

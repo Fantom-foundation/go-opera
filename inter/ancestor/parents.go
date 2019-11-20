@@ -85,9 +85,9 @@ func (st *CasualityStrategy) Find(options hash.Events) hash.Event {
 		score.event = id
 		score.vec = st.vecClock.GetHighestBeforeAllBranches(id)
 		if st.template == nil {
-			st.template = vector.NewHighestBeforeSeq(len(st.validators)) // nothing observes
+			st.template = vector.NewHighestBeforeSeq(st.validators.Len()) // nothing observes
 		}
-		for creatorIdx := idx.Validator(0); creatorIdx < idx.Validator(len(st.validators)); creatorIdx++ {
+		for creatorIdx := idx.Validator(0); creatorIdx < idx.Validator(st.validators.Len()); creatorIdx++ {
 			my := st.template.Get(creatorIdx)
 			his := score.vec.Get(creatorIdx)
 

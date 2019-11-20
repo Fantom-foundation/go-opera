@@ -30,7 +30,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	// convert []HighestBefore -> []medianTimeIndex
 	for creator, creatorIdx := range vi.validatorIdxs {
 		highest := medianTimeIndex{}
-		highest.stake = vi.validators[creator]
+		highest.stake = vi.validators.Get(creator)
 		highest.claimedTime = times.Get(creatorIdx)
 		seq := beforeSeq.Get(creatorIdx)
 

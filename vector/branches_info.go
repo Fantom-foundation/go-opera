@@ -35,9 +35,9 @@ func newInitialBranchesInfo(validators pos.Validators) *branchesInfo {
 	}
 
 	branchIDLastSeq := make([]idx.Event, len(branchIDCreatorIdxs))
-	branchIDByCreators := make([][]idx.Validator, len(validators))
+	branchIDByCreators := make([][]idx.Validator, validators.Len())
 	for i := range branchIDByCreators {
-		branchIDByCreators[i] = make([]idx.Validator, 1, len(validators)/2+1)
+		branchIDByCreators[i] = make([]idx.Validator, 1, validators.Len()/2+1)
 		branchIDByCreators[i][0] = idx.Validator(i)
 	}
 	return &branchesInfo{
@@ -49,5 +49,5 @@ func newInitialBranchesInfo(validators pos.Validators) *branchesInfo {
 }
 
 func (vi *Index) atLeastOneFork() bool {
-	return len(vi.bi.BranchIDCreators) > len(vi.validators)
+	return len(vi.bi.BranchIDCreators) > vi.validators.Len()
 }

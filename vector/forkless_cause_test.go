@@ -18,6 +18,67 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
+func BenchmarkIndex_ForklessCause(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		benchForklessCauseMain(b, &i)
+	}
+}
+
+func benchForklessCauseMain(b *testing.B, idx *int) {
+	benchForklessCauseProcess(b, `
+a0_1(3)  b0_1     c0_1     d0_1     e0_1     f0_1     g0_1     h0_1     i0_1     j0_1     k0_1     l0_1     m0_1     p0_1     q0_1
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+╠─────── b1_2     ║        ╠─────── e1_2     ║        ╠─────── h1_2     ║        ║        ║        ╠─────── m1_2     ║        ║
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+║        ╠─────── c1_3     ║        ╠─────── f1_3     ║        ║        ╠─────── j1_3     ╠─────── l1_3     ╠─────── p1_3     ║
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+║        ║        ╠─────── d1_4     ║        ╠─────── g1_4     ╠─────── i1_4     ╠─────── k1_4     ║        ║        ╠─────── q1_4
+║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║        ║
+`, idx)
+}
+
+func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
+	logger.SetTestMode(b)
+
+	peers, _, _ := inter.ASCIIschemeToDAG(dag)
+	validators := pos.NewValidators()
+	for _, peer := range peers {
+		validators.Set(peer, pos.Stake(1))
+	}
+
+	events := make(map[hash.Event]*inter.EventHeaderData)
+	getEvent := func(id hash.Event) *inter.EventHeaderData {
+		return events[id]
+	}
+
+	vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
+
+	_, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+		Process: func(e *inter.Event, name string) {
+			events[e.Hash()] = &e.EventHeaderData
+			vi.Add(&e.EventHeaderData)
+			vi.Flush()
+		},
+	})
+
+	// check
+	b.StartTimer()
+	for _, ev := range named {
+		for _, by := range named {
+			who := by.Hash()
+			whom := ev.Hash()
+			vi.ForklessCause(who, whom)
+			if *idx > b.N {
+				b.StopTimer()
+				return
+			}
+			*idx++
+		}
+	}
+	b.StopTimer()
+}
+
 func TestForklessCausedClassic(t *testing.T) {
 
 	t.Run("step 3", func(t *testing.T) {
@@ -69,7 +130,7 @@ func testForklessCaused(t *testing.T, dag string) {
 	assertar := assert.New(t)
 
 	peers, _, _ := inter.ASCIIschemeToDAG(dag)
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 	for _, peer := range peers {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -79,9 +140,9 @@ func testForklessCaused(t *testing.T, dag string) {
 		return events[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
-	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+	_, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			events[e.Hash()] = &e.EventHeaderData
 			vi.Add(&e.EventHeaderData)
@@ -386,7 +447,7 @@ func TestForklessCausedRandom(t *testing.T) {
 		},
 	})
 
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 	for _, peer := range peers {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -396,7 +457,7 @@ func TestForklessCausedRandom(t *testing.T) {
 		return events[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
@@ -426,7 +487,7 @@ type eventSlot struct {
 }
 
 // naive implementation of fork detection, O(n)
-func testForksDetected(vi *Index, head hash.Event) (cheaters map[common.Address]bool, err error) {
+func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[common.Address]bool, err error) {
 	cheaters = map[common.Address]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
@@ -456,7 +517,7 @@ func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
 	cheaters := []common.Address{nodes[0], nodes[1], nodes[2]}
 
-	validators := make(pos.Validators, len(nodes))
+	validators := pos.NewValidators()
 	for _, peer := range nodes {
 		validators.Set(peer, pos.Stake(1))
 	}
@@ -470,7 +531,7 @@ func TestRandomForksSanity(t *testing.T) {
 		return processed[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
 	events := inter.ForEachRandFork(nodes, cheaters, 300, 4, 30, nil, inter.ForEachEvent{
@@ -587,7 +648,7 @@ func TestRandomForks(t *testing.T) {
 			nodes := inter.GenNodes(test.nodesNum)
 			cheaters := nodes[:test.cheatersNum]
 
-			validators := make(pos.Validators, len(nodes))
+			validators := pos.NewValidators()
 			for _, peer := range nodes {
 				validators.Set(peer, pos.Stake(1))
 			}
@@ -598,7 +659,7 @@ func TestRandomForks(t *testing.T) {
 				return processed[id]
 			}
 
-			vi := NewIndex(validators, memorydb.New(), getEvent)
+			vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
 			_ = inter.ForEachRandFork(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, r, inter.ForEachEvent{
 				Process: func(e *inter.Event, name string) {
@@ -620,7 +681,7 @@ func TestRandomForks(t *testing.T) {
 			// check that fork observing is identical to naive version
 			for _, e := range processed {
 				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
-				expectedCheaters, err := testForksDetected(vi, e.Hash())
+				expectedCheaters, err := testForksDetected(vi, e)
 				assertar.NoError(err)
 
 				for _, cheater := range nodes {

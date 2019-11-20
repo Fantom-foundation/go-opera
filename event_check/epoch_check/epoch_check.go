@@ -40,7 +40,7 @@ func (v *Validator) Validate(e *inter.Event) error {
 	if e.Epoch != epoch {
 		return ErrNotRelevant
 	}
-	if _, ok := validators[e.Creator]; !ok {
+	if !validators.Exists(e.Creator) {
 		return ErrAuth
 	}
 	return nil
