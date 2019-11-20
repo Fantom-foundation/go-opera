@@ -179,7 +179,19 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, n int) (hash.Events, error
 		ne = idx.Epoch(n)
 	}
 
-	heads = b.svc.store.GetHeads(ne)
+	if (ne == ep) {
+		heads = b.svc.store.GetHeads(ne)
+	} else {
+		num, ok := b.svc.store.GetPacksNum(ne)
+		if !ok {
+			return nil, errors.New("epoch is not found")
+		}
+		packInfo := b.svc.store.GetPackInfo(ne, num - 1)
+		if packInfo == nil {
+			return nil, errors.New("epoch is not found")
+		}
+		heads = packInfo.Heads
+	}
 
 	if heads == nil {
 		heads = hash.Events{}
