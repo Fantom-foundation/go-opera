@@ -25,7 +25,7 @@ entity.
 -   "miner" field is an undefined address
 -   "difficulty" is always 0
 -   "extraData" is always empty
--   "gasLimit" is always 0xFFFFFFFFFFFFFFFF
+-   "gasLimit" is always 0xFFFFFFFFFFFF , i.e. infinite
     (Lachesis has a different transaction authorization mechanism)
 -   "transactionsRoot" is always 0
 -   "receiptsRoot" is always 0

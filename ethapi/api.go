@@ -1006,7 +1006,7 @@ func RPCMarshalHeader(head *evm_core.EvmHeader) map[string]interface{} {
 		"difficulty":       (*hexutil.Big)(new(big.Int)),
 		"extraData":        hexutil.Bytes([]byte{}),
 		"size":             hexutil.Uint64(head.EthHeader().Size()),
-		"gasLimit":         hexutil.Uint64(head.GasLimit),
+		"gasLimit":         hexutil.Uint64(0xffffffffffff), // don't use too much bits here to avoid parsing issues
 		"gasUsed":          hexutil.Uint64(head.GasUsed),
 		"timestamp":        hexutil.Uint64(head.Time.Unix()),
 		"timestampNano":    hexutil.Uint64(head.Time),
