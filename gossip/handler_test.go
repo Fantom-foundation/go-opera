@@ -149,7 +149,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(inter.ConsensusCallbacks{})
 
-	coinbase := net.Genesis.Alloc.Addresses()[0]
+	coinbase := net.Genesis.Validators.Addresses()[0]
 	ctx := &node.ServiceContext{
 		AccountManager: mockAccountManager(net.Genesis.Alloc, coinbase),
 	}

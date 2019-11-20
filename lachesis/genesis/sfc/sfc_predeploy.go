@@ -29,20 +29,24 @@ func AssembleStorage(validators pos.Validators, genesisTime inter.Timestamp, sto
 	}
 
 	// set validators
-	for stakerIdx, validator := range validators.SortedAddresses() { // sort validators to get deterministic stakerIdxs
-		position := sfcpos.VStake(validator)
+	for i, validator := range validators.SortedAddresses() { // sort validators to get deterministic stakerIDs
+		stakerID := uint64(i + 1)
+		stakePos := sfcpos.VStake(stakerID)
 
-		stakeAmount := common.BytesToHash(pos.StakeToBalance(validators.Get(validator)).Bytes())
+		stakeAmount := utils.BigTo256(pos.StakeToBalance(validators.Get(validator)))
 
-		storage[position.StakeAmount()] = stakeAmount
-		storage[position.CreatedEpoch()] = utils.U64to256(0)
-		storage[position.CreatedTime()] = utils.U64to256(uint64(genesisTime.Unix()))
-		storage[position.StakerIdx()] = utils.U64to256(uint64(stakerIdx + 1))
+		storage[stakePos.StakeAmount()] = stakeAmount
+		storage[stakePos.CreatedEpoch()] = utils.U64to256(0)
+		storage[stakePos.CreatedTime()] = utils.U64to256(uint64(genesisTime.Unix()))
+		storage[stakePos.Address()] = validator.Hash()
+
+		stakerIDPos := sfcpos.VStakerID(validator)
+		storage[stakerIDPos] = utils.U64to256(stakerID)
 	}
 
 	storage[sfcpos.VStakersNum()] = utils.U64to256(uint64(validators.Len()))
 	storage[sfcpos.VStakersLastIdx()] = utils.U64to256(uint64(validators.Len()))
-	storage[sfcpos.VStakeTotalAmount()] = common.BytesToHash((pos.StakeToBalance(validators.TotalStake())).Bytes())
+	storage[sfcpos.VStakeTotalAmount()] = utils.BigTo256((pos.StakeToBalance(validators.TotalStake())))
 
 	return storage
 }

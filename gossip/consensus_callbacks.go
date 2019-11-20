@@ -17,10 +17,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
-	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 // processEvent extends the engine.ProcessEvent with gossip-specific actions on each event processing
@@ -104,7 +101,7 @@ func (s *Service) applyNewState(
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
 
 	// Process SFC contract transactions
-	s.processSfc(block, receipts, sealEpoch, cheaters, statedb)
+	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
 
 	// Process new epoch
 	var newEpochHash common.Hash
@@ -140,9 +137,7 @@ func (s *Service) applyNewState(
 func (s *Service) assembleEvmBlock(
 	block *inter.Block,
 	forEachEvent func(*inter.Event),
-) (
-	*evmcore.EvmBlock,
-) {
+) *evmcore.EvmBlock {
 	// s.engineMu is locked here
 	if len(block.SkippedTxs) != 0 {
 		log.Crit("Building with SkippedTxs isn't supported")
@@ -218,25 +213,6 @@ func (s *Service) executeEvmTransactions(
 	return block, evmBlock, totalFee, receipts
 }
 
-// processSfc applies the new SFC state
-func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, sealEpoch bool, cheaters inter.Cheaters, statedb *state.StateDB) {
-	// s.engineMu is locked here
-
-	// Write cheaters
-	for _, validator := range cheaters {
-		position := sfcpos.VStake(validator)
-		if statedb.GetState(sfc.ContractAddress, position.IsCheater()) == (common.Hash{}) {
-			statedb.SetState(sfc.ContractAddress, position.IsCheater(), common.BytesToHash([]byte{1}))
-		}
-	}
-
-	// Write epoch snapshot
-	if sealEpoch {
-		epoch256 := utils.U64to256(uint64(s.engine.GetEpoch()))
-		statedb.SetState(sfc.ContractAddress, sfcpos.CurrentSealedEpoch(), epoch256)
-	}
-}
-
 // onEpochSealed applies the new epoch sealing state
 func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (newEpochHash common.Hash) {
 	// s.engineMu is locked here
@@ -252,18 +228,6 @@ func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (ne
 	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
 	// prune not needed last headers
 	s.store.DelLastHeaders(epoch - 1)
-
-	// dirty EpochStats becomes active
-	sealedStats := s.store.GetDirtyEpochStats()
-	sealedStats.End = block.Time
-	s.store.SetEpochStats(epoch, *sealedStats)
-
-	// new dirty EpochStats
-	s.store.SetDirtyEpochStats(EpochStats{
-		Start:    block.Time,
-		End:      0,
-		TotalFee: new(big.Int),
-	})
 
 	return newEpochHash
 }
@@ -328,19 +292,11 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValidators pos.Validators) {
 	// s.engineMu is locked here
 
-	// new validators calculation
-	// TODO replace with SFC transactions for changing validators state
-	// TODO the schema below doesn't work in all the cases, and intended only for testing
-	{
-		newValidators = s.engine.GetValidators().Copy()
-		n, _ := s.engine.LastBlock()
-		root := s.store.GetBlock(n).Root
-		statedb := s.store.StateDB(root)
-		for addr := range newValidators.Iterate() {
-			stake := pos.BalanceToStake(statedb.GetBalance(addr))
-			newValidators.Set(addr, stake)
-		}
+	newValidators = pos.Validators{}
+	for _, it := range s.store.GetEpochValidators(newEpoch) {
+		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcEfficientStake()))
 	}
+
 	return newValidators
 }
 
@@ -399,14 +355,14 @@ type GasPowerCheckReader struct {
 
 // GetPrevEpochLastHeaders isn't safe for concurrent use
 func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
-	// s.engineMu is locked here
+	// engineMu is locked here
 	epoch := r.GetEpoch() - 1
 	return r.store.GetLastHeaders(epoch), epoch
 }
 
 // GetPrevEpochEndTime isn't safe for concurrent use
 func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
-	// s.engineMu is locked here
+	// engineMu is locked here
 	epoch := r.GetEpoch() - 1
 	return r.store.GetEpochStats(epoch).End, epoch
 }

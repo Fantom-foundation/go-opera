@@ -1,12 +1,22 @@
 package sfcpos
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
+)
+
+// Events
+var (
+	CreateStakeTopic          = hash.Of([]byte("CreatedVStake(uint256,address,uint256)"))
+	IncreasedStakeTopic       = hash.Of([]byte("IncreasedVStake(uint256,uint256,uint256)"))
+	CreatedDelegationTopic    = hash.Of([]byte("CreatedDelegation(address,uint256,uint256)"))
+	DeactivateStakeTopic      = hash.Of([]byte("PreparedToWithdrawVStake(uint256)"))
+	DeactivateDelegationTopic = hash.Of([]byte("PreparedToWithdrawDelegation(address)"))
 )
 
 // Global variables
@@ -16,15 +26,15 @@ func CurrentSealedEpoch() common.Hash {
 }
 
 func VStakersLastIdx() common.Hash {
-	return utils.U64to256(3)
-}
-
-func VStakersNum() common.Hash {
 	return utils.U64to256(4)
 }
 
-func VStakeTotalAmount() common.Hash {
+func VStakersNum() common.Hash {
 	return utils.U64to256(5)
+}
+
+func VStakeTotalAmount() common.Hash {
+	return utils.U64to256(6)
 }
 
 // VStake
@@ -33,8 +43,8 @@ type VStakePos struct {
 	object
 }
 
-func VStake(vstaker common.Address) VStakePos {
-	position := getMapValue(common.Hash{}, vstaker.Hash(), 2)
+func VStake(stakerID uint64) VStakePos {
+	position := getMapValue(common.Hash{}, utils.U64to256(stakerID), 2)
 
 	return VStakePos{object{base: position.Big()}}
 }
@@ -43,20 +53,26 @@ func (p *VStakePos) IsCheater() common.Hash {
 	return p.Field(0)
 }
 
-func (p *VStakePos) StakerIdx() common.Hash {
+func (p *VStakePos) CreatedEpoch() common.Hash {
 	return p.Field(1)
 }
 
-func (p *VStakePos) CreatedEpoch() common.Hash {
+func (p *VStakePos) CreatedTime() common.Hash {
 	return p.Field(2)
 }
 
-func (p *VStakePos) CreatedTime() common.Hash {
-	return p.Field(3)
+func (p *VStakePos) StakeAmount() common.Hash {
+	return p.Field(5)
 }
 
-func (p *VStakePos) StakeAmount() common.Hash {
-	return p.Field(6)
+func (p *VStakePos) Address() common.Hash {
+	return p.Field(8)
+}
+
+// vStakerIDs
+
+func VStakerID(vstaker common.Address) common.Hash {
+	return getMapValue(common.Hash{}, vstaker.Hash(), 3)
 }
 
 // EpochSnapshot
@@ -113,17 +129,13 @@ func (p *ValidatorMeritPos) DelegatedMe() common.Hash {
 	return p.Field(2)
 }
 
-func (p *ValidatorMeritPos) StakerIdx() common.Hash {
-	return p.Field(3)
-}
-
 // Util
 
 func getMapValue(base common.Hash, key common.Hash, mapIdx int64) common.Hash {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(key.Bytes())
 	start := base.Big()
-	hasher.Write(common.BytesToHash(start.Add(start, big.NewInt(mapIdx)).Bytes()).Bytes())
+	hasher.Write(utils.BigTo256(start.Add(start, big.NewInt(mapIdx))).Bytes())
 
 	return common.BytesToHash(hasher.Sum(nil))
 }
@@ -139,5 +151,5 @@ func (p *object) Field(offset int64) common.Hash {
 
 	start := new(big.Int).Set(p.base)
 
-	return common.BytesToHash(start.Add(start, big.NewInt(offset)).Bytes())
+	return utils.BigTo256(start.Add(start, big.NewInt(offset)))
 }
