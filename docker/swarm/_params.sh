@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 . $(dirname $0)/../_params.sh
 
-REGISTRY_HOST=18.189.195.64
-SWARM_HOST=18.189.195.64
+REGISTRY_HOST=192.168.88.10
+SWARM_HOST=192.168.88.10
 
 SSLDIR=$(dirname $0)/ssl
 CA_FILE=`ls -1 ${SSLDIR}/*CA*.crt`

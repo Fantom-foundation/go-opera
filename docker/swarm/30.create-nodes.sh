@@ -2,10 +2,11 @@
 cd $(dirname $0)
 . ./_params.sh
 
+docker $SWARM network inspect lachesis &>/dev/null || \
+docker $SWARM network create --driver overlay lachesis
 
 bootnode=""
 
-# temporary solution, revers because testnet0 is not avaible from Russia
 for ((i=$N-1;i>=0;i-=1))
 do
   NAME=node$i
@@ -14,27 +15,24 @@ do
   WSP=$(($WSP_BASE+$i))
   ACC=$(($i+1))
 
-  # temporary solution, remove when ingress on
-  HOST=testnet$i
-  SWARM_HOST=`./swarm node inspect $HOST --format "{{.Status.Addr}}"`
-
   docker $SWARM service inspect ${NAME} &>/dev/null || \
   docker $SWARM service create \
+    --network lachesis \
+    --hostname="{{.Service.Name}}" \
     --name ${NAME} \
-    --publish published=${PORT},target=${PORT},mode=ingress,protocol=tcp \
-    --publish published=${PORT},target=${PORT},mode=ingress,protocol=udp \
-    --publish published=${RPCP},target=${RPCP},mode=ingress \
-    --publish published=${WSP},target=${WSP},mode=ingress \
+    --publish ${PORT}:${PORT}/tcp \
+    --publish ${PORT}:${PORT}/udp \
+    --publish ${RPCP}:${RPCP} \
+    --publish ${WSP}:${WSP} \
     --replicas 1 \
     --with-registry-auth \
     --detach=false \
-    --constraint node.hostname==$HOST \
    ${REGISTRY_HOST}/lachesis:${TAG} --nousb \
-    --verbosity=5 \
     --fakenet=$ACC/$N \
-    --rpc --rpcaddr="0.0.0.0" --rpcport=${RPCP} --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,personal,net" \
-    --ws --wsaddr="0.0.0.0" --wsport=${WSP} --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net" \
     --port=${PORT} --nat="extip:${SWARM_HOST}" \
+    --rpc --rpcaddr="0.0.0.0" --rpcport=${RPCP} --rpcvhosts="*" --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,personal,net" \
+    --ws --wsaddr="0.0.0.0" --wsport=${WSP} --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net" \
+    --verbosity=3 --metrics \
     ${bootnode}
 
     if [ -z "$bootnode" ]

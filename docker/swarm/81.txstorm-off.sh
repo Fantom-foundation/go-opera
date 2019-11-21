@@ -3,10 +3,8 @@ cd $(dirname $0)
 . ./_params.sh
 
 
-for ((i=$N-1;i>=0;i-=1))
+for NAME in $(docker $SWARM service ls --filter "name=txgen" --format "{{.Name}}")
 do
-
-  NAME=txgen$i
 
   docker $SWARM service rm \
     ${NAME}

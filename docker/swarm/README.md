@@ -19,18 +19,16 @@
 
 ## Deploy lachesis
 
-1. Create node1-node4 services `./30.create-nodes.sh` (use TAG env var optionally).
+1. Create node0-node2 services `./30.create-nodes.sh` (use N and TAG env vars optionally).
 
-2. Upgrade node services `./40.upgrade-nodes.sh` (use TAG env var optionally).
-
-3. Delete node services `./80.delete-nodes.sh`.
+2. Delete node services `./80.delete-nodes.sh`.
 
 
 ## Node console (example)
 
-1. Get node2 token `export enode2=$(./50.node-console.sh 2 --exec 'admin.nodeInfo.enode')`.
+1. Get node1 token `export enode=$(./50.node-console.sh 1 --exec 'admin.nodeInfo.enode')`.
 
-2. Add peer to node3 `./50.node-console.sh 3 --exec "admin.addPeer($enode2)"`.
+2. Add peer to node2 `./50.node-console.sh 2 --exec "admin.addPeer($enode)"`.
 
 
 ## Node logs
@@ -42,7 +40,10 @@
 
 use `tx-storm` service to generate transaction streams:
 
-  - start: `./32.tx-storm.sh`;
-  - stop: `./82.delete-tx-storm.sh`;
+  - start: `./31.txstorm-on.sh`  (use N and TAG env vars optionally);
+  - stop: `./81.txstorm-off.sh`;
 
-and Prometheus to collect metrics.
+and Prometheus to collect metrics:
+
+  - start: `./32.prometheus-on.sh`;
+  - stop: `./82.prometheus-off.sh`;

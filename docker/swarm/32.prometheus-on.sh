@@ -2,40 +2,40 @@
 cd $(dirname $0)
 . ./_params.sh
 
+docker $SWARM config create prometheus - < <(
 
-cat << HEADER > prometheus.yml
+cat << HEADER
 scrape_configs:
-
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['127.0.0.1:9090']
 
 HEADER
 
-
-for ((i=$N-1;i>=0;i-=1))                                                                                                                                                                                    
-do                                                                                                                                                                                                          
-    cat << SVC >> prometheus.yml
-  - job_name: 'node$i'
+for MASK in node txgen
+do
+    for NAME in $(docker $SWARM service ls --filter "name=${MASK}" --format "{{.Name}}")
+    do
+        cat << SVC
+  - job_name: '${NAME}'
     static_configs:
-      - targets: ['$ip:19090']
-
-  - job_name: 'txstorm$i'
-    static_configs:
-      - targets: ['$ip:19090']
+      - targets: ['${NAME}:19090']
 
 SVC
+    done
 done
 
-docker $SWARM config create prometheus prometheus.yml
-rm -f prometheus.yml
+)
 
+#docker $SWARM config create prometheus prometheus.yml
+#rm -f prometheus.yml
 
 docker $SWARM service create \
+  --network lachesis \
+  --hostname="{{.Service.Name}}" \
   --name prometheus \
+  --config src=prometheus,target=/etc/prometheus/prometheus.yml \
+  --publish 9090:9090 \
   --replicas 1 \
   --with-registry-auth \
   --detach=false \
-  prom/prometheus \
-    --config src=prometheus,target=/etc/prometheus/prometheus.yml \
-    --publish published=9090,target=9090,mode=ingress
+  prom/prometheus
+
+#  --publish published=9090,target=9090,mode=ingress \
