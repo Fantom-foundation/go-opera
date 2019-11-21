@@ -5,6 +5,6 @@ cd $(dirname $0)
 
 for IMAGE in lachesis tx-storm
 do
-    docker tag ${IMAGE} ${REGISTRY_HOST}/${IMAGE}:${TAG}
+    docker tag ${IMAGE}:${TAG} ${REGISTRY_HOST}/${IMAGE}:${TAG}
     docker push ${REGISTRY_HOST}/${IMAGE}:${TAG}
 done
