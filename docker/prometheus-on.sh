@@ -8,11 +8,7 @@ CONF=prometheus.yml
 cat << HEADER > $CONF
 scrape_configs:
 
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['127.0.0.1:9090']
 HEADER
-
 
 docker ps -f network=${NETWORK} --format '{{.Names}}' | while read svc
 do

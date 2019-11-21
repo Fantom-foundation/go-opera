@@ -220,6 +220,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	gossipCfg := makeAllConfigs(ctx).Lachesis
 
 	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, &gossipCfg)
+	dbDataDirMetric = nodeCfg.DataDir
 
 	// configure emitter
 	var ks *keystore.KeyStore
