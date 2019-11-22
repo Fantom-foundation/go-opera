@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	gasLimit = uint64(50000)
+	gasLimit = uint64(23000)
 	gasPrice = big.NewInt(1)
 )
 
