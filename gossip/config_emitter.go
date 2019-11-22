@@ -33,12 +33,12 @@ type EmitterConfig struct {
 // DefaultEmitterConfig returns the default configurations for the events emitter.
 func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
-		MinEmitInterval:            1 * time.Second,
+		MinEmitInterval:            500 * time.Millisecond,
 		MaxEmitInterval:            10 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           2,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
-		EpochTailLength:            3,
+		EpochTailLength:            1,
 
 		SmoothTpsThreshold: params.TxGas * 500,
 		NoTxsThreshold:     params.TxGas * 100,

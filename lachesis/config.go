@@ -1,7 +1,6 @@
 package lachesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/vector"
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -9,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
 const (
@@ -34,7 +34,7 @@ type DagConfig struct {
 
 	GasPower GasPowerConfig `json:"gasPower"`
 
-	IndexConfig 			vector.IndexConfig	`json:"indexConfig"`
+	IndexConfig vector.IndexConfig `json:"indexConfig"`
 }
 
 // Config describes lachesis net.
@@ -81,7 +81,7 @@ func DefaultDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  100,
+		EpochLen:                  500,
 		MaxValidatorEventsInBlock: 50,
 		GasPower:                  DefaultGasPowerConfig(),
 		IndexConfig:               vector.DefaultIndexConfig(),
