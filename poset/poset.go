@@ -210,9 +210,7 @@ func (p *Poset) forklessCausedByQuorumOn(e *inter.Event, f idx.Frame) bool {
 func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
 	if len(e.Parents) == 0 {
 		// special case for very first events in the epoch
-		frame = idx.Frame(1)
-		isRoot = true
-		return
+		return 1, true
 	}
 
 	// calc maxParentsFrame, i.e. max(parent's frame height)
@@ -233,21 +231,14 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	if checkOnly {
 		// check frame & isRoot
 		frame = e.Frame
-		if frame < selfParentFrame {
-			// every root must be greater than prev. self-root. Instead, election will be faulty
-			return selfParentFrame, false
-		}
-		if frame > maxParentsFrame+1 {
-			// sanity check
-			return maxParentsFrame + 1, false
-		}
 		if !e.IsRoot {
 			// don't check forklessCausedByQuorumOn if not claimed as root
 			// if not root, then not allowed to move frame
 			return selfParentFrame, false
 		}
+		// every root must be greater than prev. self-root. Instead, election will be faulty
 		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumOn(e, e.Frame-1))
-		return
+		return frame, isRoot
 	}
 
 	// calculate frame & isRoot
