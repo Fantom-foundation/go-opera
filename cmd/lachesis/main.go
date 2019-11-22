@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
 
+	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/metrics"
 	"github.com/Fantom-foundation/go-lachesis/debug"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/integration"
@@ -140,7 +141,7 @@ func init() {
 		utils.MetricsInfluxDBUsernameFlag,
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
-		MetricsPrometheusEndpointFlag,
+		metrics.PrometheusEndpointFlag,
 	}
 
 	// App.
@@ -179,7 +180,7 @@ func init() {
 
 		// Start metrics export if enabled
 		utils.SetupMetrics(ctx)
-		SetupPrometheus(ctx)
+		metrics.SetupPrometheus(ctx)
 
 		return nil
 	}
@@ -220,7 +221,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	gossipCfg := makeAllConfigs(ctx).Lachesis
 
 	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, &gossipCfg)
-	dbDataDirMetric = nodeCfg.DataDir
+	metrics.SetDataDir(nodeCfg.DataDir)
 
 	// configure emitter
 	var ks *keystore.KeyStore
