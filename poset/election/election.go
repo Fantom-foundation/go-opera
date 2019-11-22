@@ -25,15 +25,16 @@ type (
 		votes        map[voteID]voteValue
 
 		// external world
-		observe RootForklessCausesRootFn
+		observe       ForklessCauseFn
+		getFrameRoots GetFrameRootsFn
 
 		logger.Instance
 	}
 
-	// RootForklessCausesRootFn returns hash of root B, if root B forkless causes root A.
-	// Due to a fork, there may be many roots B with the same slot,
-	// but A may be forkless caused only by one of them (if no more than 1/3W are Byzantine), with a specific hash.
-	RootForklessCausesRootFn func(a hash.Event, b common.Address, f idx.Frame) *hash.Event
+	// ForklessCauseFn returns true if event A is forkless caused by event B
+	ForklessCauseFn func(a hash.Event, b hash.Event) bool
+	// GetFrameRootsFn returns all the roots in the specified frame
+	GetFrameRootsFn func(f idx.Frame) []RootAndSlot
 
 	// Slot specifies a root slot {addr, frame}. Normal validators can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
@@ -44,7 +45,7 @@ type (
 
 	// RootAndSlot specifies concrete root of slot.
 	RootAndSlot struct {
-		Root hash.Event
+		ID   hash.Event
 		Slot Slot
 	}
 )
@@ -69,10 +70,12 @@ type Res struct {
 func New(
 	validators pos.Validators,
 	frameToDecide idx.Frame,
-	forklessCausesFn RootForklessCausesRootFn,
+	forklessCauseFn ForklessCauseFn,
+	getFrameRoots GetFrameRootsFn,
 ) *Election {
 	el := &Election{
-		observe: forklessCausesFn,
+		observe:       forklessCauseFn,
+		getFrameRoots: getFrameRoots,
 
 		Instance: logger.MakeInstance(),
 	}
@@ -108,18 +111,24 @@ func (el *Election) notDecidedRoots() []common.Address {
 // observedRoots returns all the roots at the specified frame which do forkless cause the specified root.
 func (el *Election) observedRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
 	observedRoots := make([]RootAndSlot, 0, el.validators.Len())
-	for validator := range el.validators.Iterate() {
-		slot := Slot{
-			Frame: frame,
-			Addr:  validator,
-		}
-		observedRoot := el.observe(root, validator, frame)
-		if observedRoot != nil {
-			observedRoots = append(observedRoots, RootAndSlot{
-				Root: *observedRoot,
-				Slot: slot,
-			})
+
+	frameRoots := el.getFrameRoots(frame)
+	for _, frameRoot := range frameRoots {
+		if el.observe(root, frameRoot.ID) {
+			observedRoots = append(observedRoots, frameRoot)
 		}
 	}
 	return observedRoots
+}
+
+func (el *Election) observedRootsMap(root hash.Event, frame idx.Frame) map[common.Address]RootAndSlot {
+	observedRootsMap := make(map[common.Address]RootAndSlot, el.validators.Len())
+
+	frameRoots := el.getFrameRoots(frame)
+	for _, frameRoot := range frameRoots {
+		if el.observe(root, frameRoot.ID) {
+			observedRootsMap[frameRoot.Slot.Addr] = frameRoot
+		}
+	}
+	return observedRootsMap
 }

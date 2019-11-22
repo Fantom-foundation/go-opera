@@ -47,7 +47,7 @@ func benchmarkStore(b *testing.B) {
 	input := NewEventStore(dbs.GetDb("input"))
 	defer input.Close()
 
-	store := NewStore(dbs)
+	store := NewStore(dbs, DefaultStoreConfig())
 	defer store.Close()
 
 	nodes := inter.GenNodes(5)

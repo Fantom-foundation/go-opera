@@ -104,7 +104,7 @@ func TestRestore(t *testing.T) {
 
 			mems := memorydb.NewProducer(namespaces[RESTORED])
 			dbs := flushable.NewSyncedPool(mems)
-			store := NewStore(dbs)
+			store := NewStore(dbs, LiteStoreConfig())
 			store.SetName(fmt.Sprintf("restored-%d", x))
 
 			restored := New(prev.dag, store, prev.input)
@@ -232,7 +232,7 @@ func TestDbFailure(t *testing.T) {
 			realDb.SetWriteCount(100)
 			mems := memorydb.NewProducer(namespaces[RESTORED])
 			dbs := flushable.NewSyncedPool(mems)
-			store := NewStore(dbs)
+			store := NewStore(dbs, LiteStoreConfig())
 			store.SetName(fmt.Sprintf("restored-%d", x))
 
 			restored := New(prev.dag, store, prev.input)

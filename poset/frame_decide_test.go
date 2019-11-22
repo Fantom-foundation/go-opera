@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/logger"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 func TestConfirmBlockEvents(t *testing.T) {

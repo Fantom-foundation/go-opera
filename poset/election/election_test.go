@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -18,7 +17,7 @@ import (
 
 type fakeEdge struct {
 	from hash.Event
-	to   Slot
+	to   hash.Event
 }
 
 type (
@@ -196,8 +195,9 @@ func testProcessRoot(
 	// events:
 	ordered := make(inter.Events, 0)
 	events := make(map[hash.Event]*inter.Event)
+	frameRoots := make(map[idx.Frame][]RootAndSlot)
 	vertices := make(map[hash.Event]Slot)
-	edges := make(map[fakeEdge]hash.Event)
+	edges := make(map[fakeEdge]bool)
 
 	peers, _, _ := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(root *inter.Event, name string) {
@@ -206,10 +206,16 @@ func testProcessRoot(
 
 			events[root.Hash()] = root
 
-			vertices[root.Hash()] = Slot{
+			slot := Slot{
 				Frame: frameOf(name),
 				Addr:  root.Creator,
 			}
+			vertices[root.Hash()] = slot
+
+			frameRoots[frameOf(name)] = append(frameRoots[frameOf(name)], RootAndSlot{
+				ID:   root.Hash(),
+				Slot: slot,
+			})
 
 			// build edges to be able to fake forkless cause fn
 			noPrev := false
@@ -224,9 +230,9 @@ func testProcessRoot(
 				to := observed
 				edge := fakeEdge{
 					from: from,
-					to:   vertices[to],
+					to:   to,
 				}
-				edges[edge] = to
+				edges[edge] = true
 			}
 		},
 	})
@@ -240,19 +246,15 @@ func testProcessRoot(
 	}
 
 	// forkless cause func:
-	forklessCauseFn := func(a hash.Event, b common.Address, f idx.Frame) *hash.Event {
+	forklessCauseFn := func(a hash.Event, b hash.Event) bool {
 		edge := fakeEdge{
 			from: a,
-			to: Slot{
-				Addr:  b,
-				Frame: f,
-			},
+			to:   b,
 		}
-		hashB, ok := edges[edge]
-		if ok {
-			return &hashB
-		}
-		return nil
+		return edges[edge]
+	}
+	getFrameRootsFn := func(f idx.Frame) []RootAndSlot {
+		return frameRoots[f]
 	}
 
 	// re-order events randomly, preserving parents order
@@ -262,7 +264,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(vv, 0, forklessCauseFn)
+	election := New(vv, 0, forklessCauseFn, getFrameRootsFn)
 
 	// processing:
 	var alreadyDecided bool
@@ -273,7 +275,7 @@ func testProcessRoot(
 			t.Fatal("inconsistent vertices")
 		}
 		got, err := election.ProcessRoot(RootAndSlot{
-			Root: rootHash,
+			ID:   rootHash,
 			Slot: rootSlot,
 		})
 		if err != nil {
