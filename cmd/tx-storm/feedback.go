@@ -112,8 +112,12 @@ func (f *feedback) background(blocks chan<- big.Int) {
 				break fetching
 			}
 			if known == nil {
-				known = new(big.Int)
-				known.Sub(header.Number, big.NewInt(1))
+				if header.Number.Cmp(big.NewInt(1)) > 0 {
+					known = new(big.Int)
+					known.Sub(header.Number, big.NewInt(1))
+				} else {
+					known = big.NewInt(1)
+				}
 			}
 
 			f.Log.Info("Header", "num", header.Number)
@@ -145,6 +149,7 @@ func (f *feedback) background(blocks chan<- big.Int) {
 
 					f.Log.Info("Got tx", "info", info)
 					txCountGotMeter.Inc(1)
+					//if info.IsRegular {
 					txLatencyMeter.Update(info.Seconds())
 				}
 			}

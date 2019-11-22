@@ -11,13 +11,15 @@ type Info struct {
 	CreatedUnix uint64
 	From        uint
 	To          uint
+	IsRegular   bool
 }
 
-func NewInfo(from, to uint) *Info {
+func NewInfo(from, to uint, isRegular bool) *Info {
 	return &Info{
 		CreatedUnix: uint64(time.Now().Unix()),
 		From:        from,
 		To:          to,
+		IsRegular:   isRegular,
 	}
 }
 

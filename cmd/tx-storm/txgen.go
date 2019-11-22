@@ -117,15 +117,17 @@ func (g *generator) generate(init, position uint) (*Transaction, *meta.Info) {
 	var (
 		count = uint(len(g.accs))
 
-		txKind   string
-		a, b     uint
-		from, to *Acc
-		nonce    uint
-		amount   *big.Int
+		txKind    string
+		isRegular bool
+		a, b      uint
+		from, to  *Acc
+		nonce     uint
+		amount    *big.Int
 	)
 
 	if position < count && g.accs[position] == nil {
 		txKind = "Initial tx"
+		isRegular = false
 
 		b = position
 		to = MakeAcc(b + g.offset)
@@ -148,6 +150,7 @@ func (g *generator) generate(init, position uint) (*Transaction, *meta.Info) {
 
 	} else {
 		txKind = "Regular tx"
+		isRegular = true
 		a = position % count
 		b = (position + 1) % count
 		from = g.accs[a]
@@ -158,7 +161,7 @@ func (g *generator) generate(init, position uint) (*Transaction, *meta.Info) {
 	}
 
 	b += g.offset
-	info := meta.NewInfo(a, b)
+	info := meta.NewInfo(a, b, isRegular)
 	g.Log.Info(txKind, "from", a, "to", b, "nonce", nonce, "amount", amount)
 	return from.TransactionTo(to, nonce, amount, info), info
 }
