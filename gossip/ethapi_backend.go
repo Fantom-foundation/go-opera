@@ -8,9 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -26,6 +23,10 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
 var ErrNotImplemented = func(name string) error { return errors.New(name + " method is not implemented yet") }
@@ -73,6 +74,7 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		n := uint64(number.Int64())
 		blk = b.state.GetBlock(common.Hash{}, n)
 	}
+
 	return blk, nil
 }
 
@@ -233,6 +235,7 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evm_core.Message, state 
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	tracing.StartTx(ctx, "EthAPIBackend.SendTx()", signedTx.Hash())
 	return b.svc.txpool.AddLocal(signedTx)
 }
 

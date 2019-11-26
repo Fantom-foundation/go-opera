@@ -17,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
 const (
@@ -762,6 +764,10 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
+	for _, tx := range txs {
+		span := tracing.CheckTx(tx.Hash(), "TxPool.addTxs()")
+		defer span.Finish()
+	}
 	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
 	for _, tx := range txs {
 		types.Sender(pool.signer, tx)
@@ -770,6 +776,12 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	pool.mu.Lock()
 	errs, dirtyAddrs := pool.addTxsLocked(txs, local)
 	pool.mu.Unlock()
+
+	for i, e := range errs {
+		if e != nil {
+			tracing.FinishTx(txs[i].Hash())
+		}
+	}
 
 	done := pool.requestPromoteExecutables(dirtyAddrs)
 	if sync {
@@ -1510,4 +1522,5 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
+	tracing.FinishTx(hash)
 }
