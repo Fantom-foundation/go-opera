@@ -39,6 +39,7 @@ type DagConfig struct {
 
 type EconomyConfig struct {
 	IntervalBetweenScoreCheckpoints time.Duration
+	PoiPeriodDuration               time.Duration
 	FrameLatency                    idx.Frame
 }
 
@@ -89,6 +90,7 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 func DefaultEconomyConfig() EconomyConfig {
 	return EconomyConfig{
 		IntervalBetweenScoreCheckpoints: 4 * time.Hour,
+		PoiPeriodDuration:               24 * time.Hour,
 		FrameLatency:                    4,
 	}
 }
@@ -96,6 +98,7 @@ func DefaultEconomyConfig() EconomyConfig {
 func FakeEconomyConfig() EconomyConfig {
 	return EconomyConfig{
 		IntervalBetweenScoreCheckpoints: 5 * time.Minute,
+		PoiPeriodDuration:               1 * time.Minute,
 		FrameLatency:                    4,
 	}
 }

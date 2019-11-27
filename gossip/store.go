@@ -48,7 +48,8 @@ type Store struct {
 
 		// PoI/score tables
 		ScoreCheckpoint         kvdb.KeyValueStore `table:"schp"`
-		ValidatorPOIScore       kvdb.KeyValueStore `table:"vpois"`
+		StakerPOIScore          kvdb.KeyValueStore `table:"spois"`
+		AddressPOIScore         kvdb.KeyValueStore `table:"apois"`
 		AddressGasUsed          kvdb.KeyValueStore `table:"agu"`
 		StakerDelegatorsGasUsed kvdb.KeyValueStore `table:"sdgu"`
 		AddressLastTxTime       kvdb.KeyValueStore `table:"altt"`
