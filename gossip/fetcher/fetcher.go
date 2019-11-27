@@ -201,9 +201,18 @@ func (f *Fetcher) Notify(peer string, hashes hash.Events, time time.Time, fetchE
 
 // Enqueue tries to fill gaps the fetcher's future import queue.
 func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetchEvents EventsRequesterFn) error {
-	// Run light checks right away
-	passed := make(inter.Events, 0, len(inEvents))
+	// Filter already known events
+	notKnownEvents := make(inter.Events, 0, len(inEvents))
 	for _, e := range inEvents {
+		if len(f.callback.OnlyInterested(hash.Events{e.Hash()})) == 0 {
+			continue
+		}
+		notKnownEvents = append(notKnownEvents, e)
+	}
+
+	// Run light checks right away
+	passed := make(inter.Events, 0, len(notKnownEvents))
+	for _, e := range notKnownEvents {
 		err := f.callback.FirstCheck(e)
 		if event_check.IsBan(err) {
 			f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)

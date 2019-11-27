@@ -214,8 +214,6 @@ func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
 	if len(ids) == 0 {
 		return ids
 	}
-	pm.engineMu.RLock()
-	defer pm.engineMu.RUnlock()
 
 	notConnected := make(hash.Events, 0, len(ids))
 	for _, id := range ids {
@@ -231,8 +229,6 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 	if len(ids) == 0 {
 		return ids
 	}
-	pm.engineMu.RLock()
-	defer pm.engineMu.RUnlock()
 	epoch := pm.engine.GetEpoch()
 
 	interested := make(hash.Events, 0, len(ids))

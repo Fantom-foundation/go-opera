@@ -28,7 +28,7 @@ do
 	lachesis:${TAG} \
 	--fakenet=${ACC}/$N \
 	--port=5050 \
-	--rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,net" \
+	--rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpcvhosts="*" --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,net" \
 	--ws --wsaddr="0.0.0.0" --wsport=18546 --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net" \
 	--nousb --verbosity=5 --metrics \
 	${SENTRY_DSN}
