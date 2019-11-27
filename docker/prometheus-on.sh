@@ -6,18 +6,19 @@ cd $(dirname $0)
 CONF=prometheus.yml
 
 cat << HEADER > $CONF
-scrape_configs:
+global:
+  # How frequently to scrape targets by default.
+  scrape_interval: 1m
 
+scrape_configs:
 HEADER
 
 docker ps -f network=${NETWORK} --format '{{.Names}}' | while read svc
 do
-    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${svc})
-
     cat << NODE >> $CONF
   - job_name: '$svc'
     static_configs:
-      - targets: ['$ip:19090']
+      - targets: ['$svc:19090']
 NODE
 done
 
