@@ -100,13 +100,6 @@ func (f *feedback) background(blocks chan<- big.Int) {
 
 	fetching:
 		for {
-
-			select {
-			case <-time.After(time.Second):
-			case <-f.done:
-				return
-			}
-
 			header, err := client.HeaderByNumber(context.TODO(), nil)
 			if err != nil {
 				f.Log.Error("HeaderByNumber", "err", err)
@@ -121,9 +114,8 @@ func (f *feedback) background(blocks chan<- big.Int) {
 				}
 			}
 
-			f.Log.Info("Header", "num", header.Number)
-
 			for ; header.Number.Cmp(known) > 0; known.Add(known, big.NewInt(1)) {
+				f.Log.Info("Header", "num", header.Number)
 				block, err := client.BlockByNumber(context.TODO(), known)
 				if err != nil {
 					f.Log.Error("BlockByNumber", "err", err)
