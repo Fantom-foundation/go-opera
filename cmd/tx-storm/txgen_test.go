@@ -8,8 +8,8 @@ func TestGenerator(t *testing.T) {
 	t.Skip("example only")
 	g := newTxGenerator(0, 0, 20, 0)
 	for i := 0; i < 2*len(g.accs); i++ {
-		tx, info := g.Yield(99)
-		t.Log(info.String(), tx.Raw.Nonce(), tx.Raw.Value())
+		tx := g.Yield(99)
+		t.Log(tx.Info.String(), tx.Raw.Nonce(), tx.Raw.Value())
 	}
 }
 

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -14,6 +16,7 @@ type threads struct {
 	generators []*generator
 	senders    []*sender
 	feedback   *feedback
+	txs        *txsDict
 
 	maxTxnsPerSec uint
 
@@ -40,6 +43,7 @@ func newThreads(
 	tt := &threads{
 		generators: make([]*generator, count, count),
 		senders:    make([]*sender, 10, 10),
+		txs:        newTxsDict(),
 
 		Instance: logger.MakeInstance(),
 	}
@@ -59,10 +63,12 @@ func newThreads(
 
 	for i := range tt.senders {
 		tt.senders[i] = newSender(nodeUrl)
+		tt.senders[i].OnSendTx = tt.onSendTx
 		tt.senders[i].SetName(fmt.Sprintf("Sender%d", i))
 	}
 
 	tt.feedback = newFeedback(nodeUrl)
+	tt.feedback.OnGetTx = tt.onGetTx
 	tt.feedback.SetName("Feedback")
 
 	return tt
@@ -89,7 +95,7 @@ func (tt *threads) Start() {
 
 	for i, t := range tt.generators {
 		// first transactions from donor: one by one
-		tx, _ := t.Yield(uint(i))
+		tx := t.Yield(uint(i))
 		destinations[0] <- tx
 	}
 
@@ -203,5 +209,22 @@ func (tt *threads) txTransfer(
 			return
 		}
 
+	}
+}
+
+func (tt *threads) onSendTx(tx *Transaction) {
+	txCountSentMeter.Inc(1)
+	tt.txs.Start(tx.Raw.Hash())
+}
+
+func (tt *threads) onGetTx(txs types.Transactions) {
+	txCountGotMeter.Inc(int64(txs.Len()))
+
+	for _, tx := range txs {
+		latency, err := tt.txs.Finish(tx.Hash())
+		if err != nil {
+			continue
+		}
+		txLatencyMeter.Update(latency.Milliseconds())
 	}
 }

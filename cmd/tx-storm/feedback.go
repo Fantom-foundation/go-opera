@@ -6,14 +6,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 type feedback struct {
-	url string
+	url     string
+	OnGetTx func(types.Transactions)
 
 	done chan struct{}
 	work sync.WaitGroup
@@ -135,23 +136,7 @@ func (f *feedback) background(blocks chan<- big.Int) {
 				case <-f.done:
 					return
 				}
-
-				for _, tx := range block.Transactions() {
-					info, err := meta.ParseInfo(tx.Data())
-					if err != nil {
-						f.Log.Error("meta.ParseInfo", "err", err)
-						continue
-					}
-					if info == nil {
-						f.Log.Info("3rd-party tx", "tx", tx)
-						continue
-					}
-
-					f.Log.Info("Got tx", "info", info)
-					txCountGotMeter.Inc(1)
-					//if info.IsRegular {
-					txLatencyMeter.Update(info.Seconds())
-				}
+				f.OnGetTx(block.Transactions())
 			}
 
 		}

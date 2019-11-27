@@ -4,10 +4,17 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
+
+type Transaction struct {
+	Raw  *types.Transaction
+	Info *meta.Info
+}
 
 type generator struct {
 	donor  *Acc
@@ -88,13 +95,13 @@ func (g *generator) background() {
 		case <-g.done:
 			return
 		default:
-			tx, _ := g.Yield(0)
+			tx := g.Yield(0)
 			g.send(tx)
 		}
 	}
 }
 
-func (g *generator) Yield(init uint) (*Transaction, *meta.Info) {
+func (g *generator) Yield(init uint) *Transaction {
 	if g.level.Counter == 0 {
 		g.level.CurrCount = pow(multiplicator, g.level.Num)
 		g.level.NextsCount -= g.level.CurrCount
@@ -103,15 +110,15 @@ func (g *generator) Yield(init uint) (*Transaction, *meta.Info) {
 	}
 	g.level.Counter--
 
-	tx, info := g.generate(init, g.position)
+	tx := g.generate(init, g.position)
 	g.position++
 
-	return tx, info
+	return tx
 }
 
 const multiplicator = 3
 
-func (g *generator) generate(init, position uint) (*Transaction, *meta.Info) {
+func (g *generator) generate(init, position uint) *Transaction {
 	const reserve = 10
 
 	var (
@@ -161,9 +168,14 @@ func (g *generator) generate(init, position uint) (*Transaction, *meta.Info) {
 	}
 
 	b += g.offset
-	info := meta.NewInfo(a, b, isRegular)
+
+	tx := &Transaction{
+		Raw:  from.TransactionTo(to, nonce, amount),
+		Info: meta.NewInfo(a, b, isRegular),
+	}
+
 	g.Log.Info(txKind, "from", a, "to", b, "nonce", nonce, "amount", amount)
-	return from.TransactionTo(to, nonce, amount, info), info
+	return tx
 }
 
 func (g *generator) send(tx *Transaction) {
