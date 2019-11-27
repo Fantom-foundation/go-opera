@@ -15,7 +15,7 @@ do
   ACC=$(($i+1))
     (go run ../cmd/tx-storm \
 	--num ${ACC}/$N \
-	--rate=10000 --period=30 \
+	--rate=10 --period=30 \
 	${METRICS} --verbosity 5 \
 	http://127.0.0.1:${RPCP}  &> .txstorm$i.log)&
     METRICS=
