@@ -26,6 +26,7 @@ func StartTx(ctx context.Context, operation string, tx common.Hash) {
 	}
 
 	span, _ := opentracing.StartSpanFromContext(ctx, operation)
+	span.SetTag("txhash", tx.String())
 
 	txSpansMu.Lock()
 	defer txSpansMu.Unlock()

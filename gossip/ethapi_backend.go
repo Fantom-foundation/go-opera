@@ -74,6 +74,10 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		n := uint64(number.Int64())
 		blk = b.state.GetBlock(common.Hash{}, n)
 	}
+	for _, tx := range blk.Transactions {
+		//tracing.CheckTx(tx.Hash(), "EthAPIBackend.BlockByNumber()").Finish()
+		tracing.FinishTx(tx.Hash())
+	}
 
 	return blk, nil
 }

@@ -7,9 +7,9 @@ set -e
 
 echo -e "\nStart $N nodes:\n"
 
+rm -f ./transactions.rlp
 for ((i=$N-1;i>=0;i-=1))
 do
-    rm -f ./transactions.rlp
     DATADIR="${PWD}/.lachesis$i"
     rm -fr ${DATADIR}
     mkdir -p ${DATADIR}

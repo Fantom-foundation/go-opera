@@ -1522,5 +1522,4 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
-	tracing.FinishTx(hash)
 }
