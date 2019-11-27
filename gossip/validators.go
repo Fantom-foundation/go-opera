@@ -9,8 +9,9 @@ import (
 )
 
 // GetAddressGasUsed get gas used by address
-func (s *Store) GetAddressGasUsed(addr common.Address) uint64 {
-	gasBytes, err := s.table.AddressGasUsed.Get(addr.Bytes())
+func (s *Store) GetAddressGasUsed(addr common.Address, poiPeriod uint64) uint64 {
+	key := append(addr.Bytes(), bigendian.Int64ToBytes(poiPeriod)...)
+	gasBytes, err := s.table.AddressGasUsed.Get(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
@@ -21,6 +22,17 @@ func (s *Store) GetAddressGasUsed(addr common.Address) uint64 {
 	gas := bigendian.BytesToInt64(gasBytes)
 
 	return gas
+}
+
+// SetAddressGasUsed save gas used by address
+func (s *Store) SetAddressGasUsed(addr common.Address, poiPeriod uint64, gas uint64) {
+	key := append(addr.Bytes(), bigendian.Int64ToBytes(poiPeriod)...)
+	gasBytes := bigendian.Int64ToBytes(gas)
+
+	err := s.table.AddressGasUsed.Put(key, gasBytes)
+	if err != nil {
+		s.Log.Crit("Failed to set key", "err", err)
+	}
 }
 
 // GetStakerDelegatorsGasUsed get gas used by delegators of a staker
@@ -62,16 +74,6 @@ func (s *Store) DelStakersDelegatorsGasUsed() {
 		if err != nil {
 			s.Log.Crit("Failed to erase LastHeader", "err", err)
 		}
-	}
-}
-
-// SetAddressGasUsed save gas used by address
-func (s *Store) SetAddressGasUsed(addr common.Address, gas uint64) {
-	gasBytes := bigendian.Int64ToBytes(gas)
-
-	err := s.table.AddressGasUsed.Put(addr.Bytes(), gasBytes)
-	if err != nil {
-		s.Log.Crit("Failed to set key", "err", err)
 	}
 }
 

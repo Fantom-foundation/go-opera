@@ -17,10 +17,8 @@ func PoiPeriod(t inter.Timestamp, config *lachesis.EconomyConfig) uint64 {
 }
 
 // UpdateAddressPOI calculate and save POI for validator
-func (s *Store) UpdateAddressPOI(address common.Address, poiPeriod uint64) {
-	totalGasUsed := s.GetAddressGasUsed(address)
-
-	poi := uint64((totalGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod))
+func (s *Store) UpdateAddressPOI(address common.Address, senderTotalGasUsed uint64, poiPeriod uint64) {
+	poi := uint64((senderTotalGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod))
 	s.SetAddressPOI(address, poi)
 }
 
@@ -37,9 +35,9 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 			s.Log.Crit("Failed to get sender from transaction", "err", err)
 		}
 
-		senderTotalGasUsed := s.store.GetAddressGasUsed(sender)
 		senderLastTxTime := s.store.GetAddressLastTxTime(sender)
 		prevUserPoiPeriod := PoiPeriod(senderLastTxTime, &s.config.Net.Economy)
+		senderTotalGasUsed := s.store.GetAddressGasUsed(sender, prevUserPoiPeriod)
 
 		delegator := s.store.GetSfcDelegator(sender)
 		if delegator != nil {
@@ -48,13 +46,12 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 		}
 
 		if prevUserPoiPeriod != poiPeriod {
-			s.store.UpdateAddressPOI(sender, prevUserPoiPeriod)
-			s.store.SetAddressGasUsed(sender, 0)
+			s.store.UpdateAddressPOI(sender, senderTotalGasUsed, prevUserPoiPeriod)
 			senderTotalGasUsed = 0
 		}
 
 		s.store.SetAddressLastTxTime(sender, block.Time)
-		s.store.SetAddressGasUsed(sender, senderTotalGasUsed+tx.Gas())
+		s.store.SetAddressGasUsed(sender, poiPeriod, senderTotalGasUsed+tx.Gas())
 	}
 
 }
@@ -62,7 +59,7 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 // UpdateStakerPOI calculate and save POI for staker
 func (s *Store) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Address, poiPeriod uint64) {
 	dGasUsed := s.GetStakerDelegatorsGasUsed(stakerID)
-	vGasUsed := s.GetAddressGasUsed(stakerAddress)
+	vGasUsed := s.GetAddressGasUsed(stakerAddress, poiPeriod)
 
 	vGasUsed += dGasUsed
 
