@@ -2,7 +2,10 @@ module github.com/Fantom-foundation/go-lachesis
 
 go 1.13
 
+replace github.com/ethereum/go-ethereum => github.com/devintegral2/go-ethereum v1.9.2-0.20191126105014-57a9b19d73ce
+
 require (
+	github.com/Fantom-foundation/go-ethereum v1.9.6 // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/apilayer/freegeoip v3.5.0+incompatible // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015 // indirect
@@ -15,7 +18,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/elastic/gosigar v0.10.4 // indirect
 	github.com/emirpasic/gods v1.12.0
-	github.com/ethereum/go-ethereum v1.9.1
+	github.com/ethereum/go-ethereum v0.0.0-00010101000000-000000000000
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
