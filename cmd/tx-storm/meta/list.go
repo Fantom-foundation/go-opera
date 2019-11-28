@@ -1,4 +1,4 @@
-package main
+package meta
 
 import (
 	"errors"
@@ -10,24 +10,24 @@ import (
 
 var errUnknownTx = errors.New("unknown tx")
 
-type txsDict struct {
+type Txs struct {
 	txs map[common.Hash]time.Time
 	sync.Mutex
 }
 
-func newTxsDict() *txsDict {
-	return &txsDict{
+func NewTxs() *Txs {
+	return &Txs{
 		txs: make(map[common.Hash]time.Time),
 	}
 }
 
-func (d *txsDict) Start(tx common.Hash) {
+func (d *Txs) Start(tx common.Hash) {
 	d.Lock()
 	d.txs[tx] = time.Now()
 	d.Unlock()
 }
 
-func (d *txsDict) Finish(tx common.Hash) (latency time.Duration, err error) {
+func (d *Txs) Finish(tx common.Hash) (latency time.Duration, err error) {
 	d.Lock()
 	defer d.Unlock()
 
