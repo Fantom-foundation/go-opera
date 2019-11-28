@@ -19,7 +19,7 @@ do
     --with-registry-auth \
     --detach=false \
    ${REGISTRY_HOST}/tx-storm:${TAG} \
-    --num=$PART/$N --rate=10000 --period=30 \
+    --num=$PART/$N --rate=10 --period=30 \
     --verbosity 5 --metrics \
     http://node$i:${RPCP} 
 

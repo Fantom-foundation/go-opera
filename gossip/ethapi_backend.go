@@ -239,6 +239,8 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if err == nil {
 		// NOTE: only sent txs tracing, see TxPool.addTxs() for all
 		tracing.StartTx(signedTx.Hash(), "EthAPIBackend.SendTx()")
+		// TODO: txLatency cleaning, possible memory leak
+		txLatency.Start(signedTx.Hash())
 	}
 	return err
 }

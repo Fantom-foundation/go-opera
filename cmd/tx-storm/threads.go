@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -16,7 +17,7 @@ type threads struct {
 	generators []*generator
 	senders    []*sender
 	feedback   *feedback
-	txs        *txsDict
+	txs        *meta.Txs
 
 	maxTxnsPerSec uint
 
@@ -43,7 +44,7 @@ func newThreads(
 	tt := &threads{
 		generators: make([]*generator, count, count),
 		senders:    make([]*sender, 10, 10),
-		txs:        newTxsDict(),
+		txs:        meta.NewTxs(),
 
 		Instance: logger.MakeInstance(),
 	}
