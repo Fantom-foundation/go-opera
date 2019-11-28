@@ -2,10 +2,7 @@ module github.com/Fantom-foundation/go-lachesis
 
 go 1.13
 
-replace github.com/ethereum/go-ethereum => github.com/devintegral2/go-ethereum v1.9.2-0.20191126105014-57a9b19d73ce
-
 require (
-	github.com/Fantom-foundation/go-ethereum v1.9.6 // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/apilayer/freegeoip v3.5.0+incompatible // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015 // indirect
@@ -18,7 +15,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/elastic/gosigar v0.10.4 // indirect
 	github.com/emirpasic/gods v1.12.0
-	github.com/ethereum/go-ethereum v0.0.0-00010101000000-000000000000
+	github.com/ethereum/go-ethereum v1.9.1-ftm
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
@@ -46,6 +43,7 @@ require (
 	github.com/naoina/go-stringutil v0.1.0 // indirect
 	github.com/naoina/toml v0.1.1
 	github.com/olekukonko/tablewriter v0.0.1 // indirect
+	github.com/opentracing/opentracing-go v1.1.0
 	github.com/oschwald/maxminddb-golang v1.3.1 // indirect
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/peterh/liner v1.1.0 // indirect
@@ -63,9 +61,11 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tyler-smith/go-bip39 v1.0.0
+	github.com/uber/jaeger-client-go v2.20.1+incompatible
+	github.com/uber/jaeger-lib v2.2.0+incompatible
 	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208 // indirect
+	go.uber.org/atomic v1.5.1 // indirect
 	golang.org/x/crypto v0.0.0-20190621222207-cc06ce4a13d4
-	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
 	golang.org/x/sys v0.0.0-20190624142023-c5567b49c5d0 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
@@ -75,3 +75,5 @@ require (
 	gopkg.in/urfave/cli.v1 v1.20.0
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
+
+replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum v1.9.1-ftm

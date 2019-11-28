@@ -40,7 +40,7 @@ func TestConsoleWelcome(t *testing.T) {
 	// Verify the actual welcome message to the required template
 	// TODO: clone (or PR) "github.com/ethereum/go-ethereum/console" to customize welcome message
 	cli.Expect(`
-Welcome to the Geth JavaScript console!
+Welcome to the lachesis JavaScript console!
 
 instance: go-lachesis/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
@@ -119,7 +119,7 @@ func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
 
 	// Verify the actual welcome message to the required template
 	attach.Expect(`
-Welcome to the Geth JavaScript console!
+Welcome to the lachesis JavaScript console!
 
 instance: go-lachesis/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{coinbase}}
