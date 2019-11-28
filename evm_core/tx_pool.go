@@ -764,10 +764,6 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
-	for _, tx := range txs {
-		span := tracing.CheckTx(tx.Hash(), "TxPool.addTxs()")
-		defer span.Finish()
-	}
 	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
 	for _, tx := range txs {
 		types.Sender(pool.signer, tx)
@@ -777,11 +773,14 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	errs, dirtyAddrs := pool.addTxsLocked(txs, local)
 	pool.mu.Unlock()
 
-	for i, e := range errs {
-		if e != nil {
-			tracing.FinishTx(txs[i].Hash())
+	// NOTE: all txs tracing
+	/*
+		for i, e := range errs {
+			if e == nil {
+				tracing.StartTx("TxPool", txs[i].Hash())
+			}
 		}
-	}
+	*/
 
 	done := pool.requestPromoteExecutables(dirtyAddrs)
 	if sync {
@@ -1521,5 +1520,6 @@ func (t *txLookup) Remove(hash common.Hash) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
+	tracing.FinishTx(hash, "txLookup.Remove()")
 	delete(t.all, hash)
 }

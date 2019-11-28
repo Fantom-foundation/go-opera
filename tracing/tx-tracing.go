@@ -1,7 +1,6 @@
 package tracing
 
 import (
-	"context"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,13 +19,10 @@ func SetEnabled(val bool) {
 	enabled = val
 }
 
-func StartTx(ctx context.Context, operation string, tx common.Hash) {
+func StartTx(tx common.Hash, operation string) {
 	if !enabled {
 		return
 	}
-
-	span, _ := opentracing.StartSpanFromContext(ctx, operation)
-	span.SetTag("txhash", tx.String())
 
 	txSpansMu.Lock()
 	defer txSpansMu.Unlock()
@@ -35,10 +31,14 @@ func StartTx(ctx context.Context, operation string, tx common.Hash) {
 		//panic("tracing: tx double")
 		return
 	}
+
+	span := opentracing.StartSpan("lifecycle")
+	span.SetTag("txhash", tx.String())
+	span.SetTag("enter", operation)
 	txSpans[tx] = span
 }
 
-func FinishTx(tx common.Hash) {
+func FinishTx(tx common.Hash, operation string) {
 	if !enabled {
 		return
 	}
@@ -46,13 +46,14 @@ func FinishTx(tx common.Hash) {
 	txSpansMu.Lock()
 	defer txSpansMu.Unlock()
 
-	span := txSpans[tx]
-	if span == nil {
-		//panic("tracing: FinishTx before StartTx")
+	span, ok := txSpans[tx]
+	if !ok {
 		return
 	}
-	delete(txSpans, tx)
+
+	span.SetTag("exit", operation)
 	span.Finish()
+	delete(txSpans, tx)
 }
 
 func CheckTx(tx common.Hash, operation string) opentracing.Span {
@@ -61,10 +62,11 @@ func CheckTx(tx common.Hash, operation string) opentracing.Span {
 	}
 
 	txSpansMu.RLock()
-	span := txSpans[tx]
-	txSpansMu.RUnlock()
+	defer txSpansMu.RUnlock()
 
-	if span == nil {
+	span, ok := txSpans[tx]
+
+	if !ok {
 		//panic("tracing: CheckTx before StartTx")
 		return noopSpan
 	}

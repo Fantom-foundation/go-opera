@@ -74,10 +74,6 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		n := uint64(number.Int64())
 		blk = b.state.GetBlock(common.Hash{}, n)
 	}
-	for _, tx := range blk.Transactions {
-		//tracing.CheckTx(tx.Hash(), "EthAPIBackend.BlockByNumber()").Finish()
-		tracing.FinishTx(tx.Hash())
-	}
 
 	return blk, nil
 }
@@ -239,8 +235,12 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evm_core.Message, state 
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
-	tracing.StartTx(ctx, "EthAPIBackend.SendTx()", signedTx.Hash())
-	return b.svc.txpool.AddLocal(signedTx)
+	err := b.svc.txpool.AddLocal(signedTx)
+	if err == nil {
+		// NOTE: only sent txs tracing, see TxPool.addTxs() for all
+		tracing.StartTx(signedTx.Hash(), "EthAPIBackend.SendTx()")
+	}
+	return err
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {

@@ -526,7 +526,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 
 	for _, tt := range poolTxs {
 		for _, t := range tt {
-			span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent()")
+			span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent(candidate)")
 			defer span.Finish()
 		}
 	}
