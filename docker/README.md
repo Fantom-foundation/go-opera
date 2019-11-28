@@ -112,7 +112,8 @@ Also you may manually launch transactions generation only for one node - the nod
 
 See results at:
 
- - [tx latency](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_latency&g0.tab=0)
+ - [tx latency total](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_latency&g0.tab=0)
+ - [tx latency at node](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_confirm%3Atxlatency&g0.tab=0)
  - [count of sent txs](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_count_sent&g0.tab=0)
  - [count of confirmed txs](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_tx_count_got&g0.tab=0)
  - [data dir size](http://localhost:9090/graph?g0.range_input=5m&g0.expr=lachesis_db_size&g0.tab=0)
