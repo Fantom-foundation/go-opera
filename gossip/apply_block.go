@@ -43,6 +43,9 @@ func (s *Service) onNewBlock(
 				Event:       e.Hash(),
 				EventOffset: uint32(i),
 			}
+			if latency, err := txLatency.Finish(tx.Hash()); err == nil {
+				confirmTxLatencyMeter.Update(latency.Milliseconds())
+			}
 		}
 	}
 	txHash := types.DeriveSha(evmBlock.Transactions)

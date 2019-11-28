@@ -233,7 +233,12 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evm_core.Message, state 
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
-	return b.svc.txpool.AddLocal(signedTx)
+	err := b.svc.txpool.AddLocal(signedTx)
+	if err == nil {
+		// TODO: txLatency cleaning, possible memory leak
+		txLatency.Start(signedTx.Hash())
+	}
+	return err
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
