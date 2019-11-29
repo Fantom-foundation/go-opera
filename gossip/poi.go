@@ -27,12 +27,14 @@ func (s *Store) UpdateAddressPOI(address common.Address, senderTotalGasUsed uint
 }
 
 // updateUsersPOI calculates the Proof Of Importance weights for users
-func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock, sealEpoch bool) {
+func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock, receipts types.Receipts, sealEpoch bool) {
 	// User POI calculations
 	poiPeriod := PoiPeriod(block.Time, &s.config.Net.Economy)
 	s.store.AddPOIGasUsed(poiPeriod, block.GasUsed)
 
-	for _, tx := range evmBlock.Transactions {
+	for i, tx := range evmBlock.Transactions {
+		txGasUsed := receipts[i].GasUsed
+
 		signer := types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)
 		sender, err := signer.Sender(tx)
 		if err != nil {
@@ -45,8 +47,8 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 
 		delegator := s.store.GetSfcDelegator(sender)
 		if delegator != nil {
-			gas := s.store.GetStakerDelegatorsGasUsed(delegator.ToStakerID)
-			s.store.SetStakerDelegatorsGasUsed(delegator.ToStakerID, gas+tx.Gas())
+			prevGas := s.store.GetStakerDelegatorsGasUsed(delegator.ToStakerID)
+			s.store.SetStakerDelegatorsGasUsed(delegator.ToStakerID, prevGas+txGasUsed)
 		}
 
 		if prevUserPoiPeriod != poiPeriod {
@@ -55,7 +57,8 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 		}
 
 		s.store.SetAddressLastTxTime(sender, block.Time)
-		s.store.SetAddressGasUsed(sender, poiPeriod, senderTotalGasUsed+tx.Gas())
+		senderTotalGasUsed += txGasUsed
+		s.store.SetAddressGasUsed(sender, poiPeriod, senderTotalGasUsed)
 	}
 
 }
@@ -76,7 +79,7 @@ func (s *Store) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Addr
 }
 
 // updateStakersPOI calculates the Proof Of Importance weights for stakers
-func (s *Service) updateStakersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock, sealEpoch bool) {
+func (s *Service) updateStakersPOI(block *inter.Block, sealEpoch bool) {
 	// Stakers POI calculations
 	poiPeriod := PoiPeriod(block.Time, &s.config.Net.Economy)
 	prevBlockPoiPeriod := PoiPeriod(s.store.GetBlock(block.Index-1).Time, &s.config.Net.Economy)

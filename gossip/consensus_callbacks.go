@@ -105,8 +105,8 @@ func (s *Service) applyNewState(
 
 	// Process PoI/score changes
 	s.updateScores(block, sealEpoch)
-	s.updateUsersPOI(block, evmBlock, sealEpoch)
-	s.updateStakersPOI(block, evmBlock, sealEpoch)
+	s.updateUsersPOI(block, evmBlock, receipts, sealEpoch)
+	s.updateStakersPOI(block, sealEpoch)
 
 	// Process SFC contract transactions
 	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
