@@ -50,7 +50,7 @@ type (
 // ToEvmHeader converts inter.Block to EvmHeader.
 func ToEvmHeader(block *inter.Block) *EvmHeader {
 	return &EvmHeader{
-		Hash:       common.Hash(block.Hash()),
+		Hash:       common.Hash(block.Atropos),
 		ParentHash: common.Hash(block.PrevHash),
 		Root:       common.Hash(block.Root),
 		TxHash:     block.TxHash,

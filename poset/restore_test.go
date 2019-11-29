@@ -290,7 +290,7 @@ func compareStates(assertar *assert.Assertions, expected, restored *ExtendedPose
 	// check LastAtropos and Head() method
 	if expected.Checkpoint.LastBlockN != 0 {
 		assertar.Equal(
-			expected.blocks[idx.Block(len(expected.blocks))].Hash(),
+			expected.blocks[idx.Block(len(expected.blocks))].Atropos,
 			restored.Checkpoint.LastAtropos,
 			"atropos must be last event in block")
 	}

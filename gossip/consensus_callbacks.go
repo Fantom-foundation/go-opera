@@ -133,7 +133,7 @@ func (s *Service) applyNewState(
 		newAppHash = newStateHash
 	}
 
-	log.Info("New block", "index", block.Index, "hash", block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs))
+	log.Info("New block", "index", block.Index, "atropos", block.Atropos.String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs))
 
 	return block, evmBlock, receipts, newAppHash
 }
@@ -263,7 +263,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	block, evmBlock, receipts, newAppHash := s.applyNewState(block, sealEpoch, cheaters, forEachBlockEvent)
 
 	s.store.SetBlock(block)
-	s.store.SetBlockIndex(block.Hash(), block.Index)
+	s.store.SetBlockIndex(block.Atropos, block.Index)
 
 	// Build index for not skipped txs
 	if s.config.TxIndex {

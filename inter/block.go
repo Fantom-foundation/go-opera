@@ -35,11 +35,6 @@ type Block struct {
 	Atropos hash.Event
 }
 
-// Hash returns Atropos's ID
-func (b *Block) Hash() hash.Event {
-	return b.Atropos
-}
-
 // NewBlock makes block from topological ordered events.
 func NewBlock(index idx.Block, time Timestamp, atropos hash.Event, prevHash hash.Event, events hash.Events) *Block {
 	return &Block{

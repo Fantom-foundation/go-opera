@@ -37,6 +37,7 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 	var lowestLamport idx.Lamport
 	var confirmedNum int
 
+	// cheaters are ordered deterministically
 	cheaters = make([]common.Address, 0, len(validatorIdxs))
 	for creator, creatorIdx := range validatorIdxs {
 		if atroposHighestBefore.Get(creatorIdx).IsForkDetected() {

@@ -73,7 +73,7 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	if block == nil {
 		return nil
 	}
-	if (h != hash.Event{}) && (h != block.Hash()) {
+	if (h != hash.Event{}) && (h != block.Atropos) {
 		return nil
 	}
 

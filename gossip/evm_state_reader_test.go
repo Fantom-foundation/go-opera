@@ -97,10 +97,10 @@ func TestGetBlock(t *testing.T) {
 		store:    store,
 		engineMu: new(sync.RWMutex),
 	}
-	evmBlock := reader.GetDagBlock(block.Hash(), block.Index)
+	evmBlock := reader.GetDagBlock(block.Atropos, block.Index)
 
 	assertar.Equal(uint64(block.Index), evmBlock.Number.Uint64())
-	assertar.Equal(common.Hash(block.Hash()), evmBlock.Hash)
+	assertar.Equal(common.Hash(block.Atropos), evmBlock.Hash)
 	assertar.Equal(common.Hash(genesisHash), evmBlock.ParentHash)
 	assertar.Equal(block.Time, evmBlock.Time)
 	assertar.Equal(len(txs)-len(block.SkippedTxs), evmBlock.Transactions.Len())
