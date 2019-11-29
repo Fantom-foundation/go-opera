@@ -110,14 +110,14 @@ func (s *Store) addValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID, v
 }
 
 func (s *Store) getValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID) uint64 {
-	gasBytes, err := t.Get(stakerID.Bytes())
+	scoreBytes, err := t.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
-	if gasBytes == nil {
+	if scoreBytes == nil {
 		return 0
 	}
-	return bigendian.BytesToInt64(gasBytes)
+	return bigendian.BytesToInt64(scoreBytes)
 }
 
 // SetScoreCheckpoint set score checkpoint time
@@ -128,7 +128,7 @@ func (s *Store) SetScoreCheckpoint(cp inter.Timestamp) {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.BlockParticipation.Add(ValidatorsScoreCheckpointKey, cp)
+	s.cache.ScoreCheckpoint.Add(ValidatorsScoreCheckpointKey, cp)
 }
 
 // GetScoreCheckpoint return last score checkpoint time
@@ -150,7 +150,7 @@ func (s *Store) GetScoreCheckpoint() inter.Timestamp {
 	}
 
 	cp := inter.Timestamp(bigendian.BytesToInt64(cpBytes))
-	s.cache.BlockParticipation.Add(ValidatorsScoreCheckpointKey, cp)
+	s.cache.ScoreCheckpoint.Add(ValidatorsScoreCheckpointKey, cp)
 
 	return cp
 }
