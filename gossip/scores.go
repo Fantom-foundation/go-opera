@@ -35,7 +35,7 @@ func (s *Service) updateScores(block *inter.Block, sealEpoch bool) {
 
 	if sealEpoch {
 		lastCheckpoint := s.store.GetScoreCheckpoint()
-		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.IntervalBetweenScoreCheckpoints {
+		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.ScoreCheckpointsInterval {
 			s.store.MoveDirtyValidatorsToActive()
 			s.store.SetScoreCheckpoint(block.Time)
 		}
