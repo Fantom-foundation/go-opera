@@ -181,7 +181,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 }
 
 // safe for concurrent use
-func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, validatorsArr []common.Address, validatorsArrStakes []pos.Stake) common.Address {
+func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr []common.Address, validatorsArrStakes []pos.Stake, me common.Address) bool {
 	var txTime time.Time
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
@@ -190,9 +190,15 @@ func (em *Emitter) getTxTurn(txHash common.Hash, now time.Time, validatorsArr []
 	} else {
 		txTime = txTimeI.(time.Time)
 	}
+
 	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(validatorsArr)))
-	turn := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, txHash)[roundIndex]
-	return validatorsArr[turn]
+	prevRoundIndex := roundIndex
+	if prevRoundIndex > 0 {
+		prevRoundIndex--
+	}
+	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, txHash)
+
+	return validatorsArr[turns[roundIndex]] == me || validatorsArr[turns[prevRoundIndex]] == me
 }
 
 func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Transactions) *inter.Event {
@@ -226,7 +232,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 				break // txs are dependent, so break the loop
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
-			if em.getTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes) != e.Creator {
+			if !em.isMyTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes, e.Creator) {
 				break // txs are dependent, so break the loop
 			}
 
