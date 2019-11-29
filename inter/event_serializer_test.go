@@ -11,6 +11,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/utils/fast"
 )
 
 func TestEventHeaderDataSerialization(t *testing.T) {
@@ -106,6 +107,40 @@ func BenchmarkEventHeaderData_DecodeRLP(b *testing.B) {
 		err = rlp.DecodeBytes(buf, &header)
 		if err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func TestReadUintCompact(t *testing.T) {
+	assertar := assert.New(t)
+
+	// canonical
+	for exp, bb := range map[uint64][]byte{
+		0x000000: []byte{0x00},
+		0x0000FF: []byte{0xFF},
+		0x010000: []byte{0x00, 0x00, 0x01},
+	} {
+		got, err := readUintCompact(fast.NewBuffer(bb), len(bb))
+		if !assertar.NoError(err) {
+			return
+		}
+		if !assertar.Equal(exp, got, bb) {
+			return
+		}
+	}
+
+	// non canonical
+	for _, bb := range [][]byte{
+		[]byte{0x00, 0x00},
+		[]byte{0xFF, 0x00},
+		[]byte{0x00, 0x00, 0x01, 0x00},
+	} {
+		_, err := readUintCompact(fast.NewBuffer(bb), len(bb))
+		if !assertar.Error(err) {
+			return
+		}
+		if !assertar.Equal(ErrNonCanonicalEncoding, err, bb) {
+			return
 		}
 	}
 }
