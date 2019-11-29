@@ -89,7 +89,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 
 	// Save to LRU cache.
 	if e != nil && s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Add(string(key), e)
+		s.cache.EventsHeaders.Add(h, e)
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	// Check LRU cache first.
 	if s.cache.EventsHeaders != nil {
-		if v, ok := s.cache.EventsHeaders.Get(string(key)); ok {
+		if v, ok := s.cache.EventsHeaders.Get(h); ok {
 			if w, ok := v.(*inter.EventHeaderData); ok {
 				return w
 			}
@@ -115,7 +115,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	// Save to LRU cache.
 	if w != nil && s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Add(string(key), w)
+		s.cache.EventsHeaders.Add(h, w)
 	}
 
 	return w
@@ -136,6 +136,6 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 
 	// Remove from LRU cache.
 	if s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Remove(string(key))
+		s.cache.EventsHeaders.Remove(h)
 	}
 }
