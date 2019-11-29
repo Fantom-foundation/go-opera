@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -90,6 +91,8 @@ func (s *Service) applyNewState(
 ) {
 	// s.engineMu is locked here
 
+	start := time.Now()
+
 	// Assemble block data
 	evmBlock := s.assembleEvmBlock(block, forEachEvent)
 
@@ -133,7 +136,8 @@ func (s *Service) applyNewState(
 		newAppHash = newStateHash
 	}
 
-	log.Info("New block", "index", block.Index, "atropos", block.Atropos.String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs))
+	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
+		evmBlock.GasUsed, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs), "elapsed", time.Since(start))
 
 	return block, evmBlock, receipts, newAppHash
 }
@@ -228,10 +232,10 @@ func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (ne
 	for _, cheater := range cheaters {
 		s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
 	}
-	//hh := s.store.GetLastHeaders(epoch)
+	hh := s.store.GetLastHeaders(epoch)
 	// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
 	// TODO use transparent state hashing (i.e. store state in a trie)
-	//newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
+	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
 	// prune not needed last headers
 	s.store.DelLastHeaders(epoch - 1)
 

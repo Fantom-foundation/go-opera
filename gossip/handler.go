@@ -171,11 +171,12 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 			pm.engineMu.Lock()
 			defer pm.engineMu.Unlock()
 
-			log.Info("New event", "event", e.String())
+			start := time.Now()
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
 				return err
 			}
+			log.Info("New event", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(start))
 
 			// If the event is indeed in our own graph, announce it
 			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
