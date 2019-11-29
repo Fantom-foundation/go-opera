@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	ValidatorsScoreCheckpointKey = "LastScoreCheckpoint"
+	ValidationScoreCheckpointKey = "LastScoreCheckpoint"
 )
 
 // IncBlocksMissed add count of missed blocks for validator
@@ -63,45 +63,45 @@ func (s *Store) GetBlocksMissed(stakerID idx.StakerID) uint32 {
 	return missed
 }
 
-// AddActiveValidatorsScore add gas value for active validation score
-func (s *Store) AddActiveValidatorsScore(stakerID idx.StakerID, gas uint64) {
-	s.addValidatorScore(s.table.ActiveValidatorScores, stakerID, gas)
+// AddActiveValidationScore add gas value for active validation score
+func (s *Store) AddActiveValidationScore(stakerID idx.StakerID, gas uint64) {
+	s.addValidationScore(s.table.ActiveValidationScore, stakerID, gas)
 }
 
-// GetActiveValidatorsScore return gas value for active validator score
-func (s *Store) GetActiveValidatorsScore(stakerID idx.StakerID) uint64 {
-	return s.getValidatorScore(s.table.ActiveValidatorScores, stakerID)
+// GetActiveValidationScore return gas value for active validator score
+func (s *Store) GetActiveValidationScore(stakerID idx.StakerID) uint64 {
+	return s.getValidationScore(s.table.ActiveValidationScore, stakerID)
 }
 
-// AddDirtyValidatorsScore add gas value for active validation score
-func (s *Store) AddDirtyValidatorsScore(stakerID idx.StakerID, gas uint64) {
-	s.addValidatorScore(s.table.DirtyValidatorScores, stakerID, gas)
+// AddDirtyValidationScore add gas value for active validation score
+func (s *Store) AddDirtyValidationScore(stakerID idx.StakerID, gas uint64) {
+	s.addValidationScore(s.table.DirtyValidationScore, stakerID, gas)
 }
 
-func (s *Store) DelActiveValidatorsScore(stakerID idx.StakerID) {
-	err := s.table.ActiveValidatorScores.Delete(stakerID.Bytes())
+func (s *Store) DelActiveValidationScore(stakerID idx.StakerID) {
+	err := s.table.ActiveValidationScore.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to erase key-value", "err", err)
 	}
 }
 
-func (s *Store) DelDirtyValidatorsScore(stakerID idx.StakerID) {
-	err := s.table.DirtyValidatorScores.Delete(stakerID.Bytes())
+func (s *Store) DelDirtyValidationScore(stakerID idx.StakerID) {
+	err := s.table.DirtyValidationScore.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to erase key-value", "err", err)
 	}
 }
 
-// GetDirtyValidatorsScore return gas value for active validator score
-func (s *Store) GetDirtyValidatorsScore(stakerID idx.StakerID) uint64 {
-	return s.getValidatorScore(s.table.DirtyValidatorScores, stakerID)
+// GetDirtyValidationScore return gas value for active validator score
+func (s *Store) GetDirtyValidationScore(stakerID idx.StakerID) uint64 {
+	return s.getValidationScore(s.table.DirtyValidationScore, stakerID)
 }
 
-func (s *Store) addValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID, val uint64) {
+func (s *Store) addValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID, val uint64) {
 	s.mutexes.IncMutex.Lock()
 	defer s.mutexes.IncMutex.Unlock()
 
-	score := s.getValidatorScore(t, stakerID)
+	score := s.getValidationScore(t, stakerID)
 	score += val
 	err := t.Put(stakerID.Bytes(), bigendian.Int64ToBytes(score))
 	if err != nil {
@@ -109,7 +109,7 @@ func (s *Store) addValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID, v
 	}
 }
 
-func (s *Store) getValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID) uint64 {
+func (s *Store) getValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) uint64 {
 	scoreBytes, err := t.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
@@ -123,17 +123,17 @@ func (s *Store) getValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID) u
 // SetScoreCheckpoint set score checkpoint time
 func (s *Store) SetScoreCheckpoint(cp inter.Timestamp) {
 	cpBytes := bigendian.Int64ToBytes(uint64(cp))
-	err := s.table.ScoreCheckpoint.Put([]byte(ValidatorsScoreCheckpointKey), cpBytes)
+	err := s.table.ScoreCheckpoint.Put([]byte(ValidationScoreCheckpointKey), cpBytes)
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.ScoreCheckpoint.Add(ValidatorsScoreCheckpointKey, cp)
+	s.cache.ScoreCheckpoint.Add(ValidationScoreCheckpointKey, cp)
 }
 
 // GetScoreCheckpoint return last score checkpoint time
 func (s *Store) GetScoreCheckpoint() inter.Timestamp {
-	cpVal, ok := s.cache.ScoreCheckpoint.Get(ValidatorsScoreCheckpointKey)
+	cpVal, ok := s.cache.ScoreCheckpoint.Get(ValidationScoreCheckpointKey)
 	if ok {
 		cp, ok := cpVal.(inter.Timestamp)
 		if ok {
@@ -141,7 +141,7 @@ func (s *Store) GetScoreCheckpoint() inter.Timestamp {
 		}
 	}
 
-	cpBytes, err := s.table.ScoreCheckpoint.Get([]byte(ValidatorsScoreCheckpointKey))
+	cpBytes, err := s.table.ScoreCheckpoint.Get([]byte(ValidationScoreCheckpointKey))
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
@@ -150,13 +150,13 @@ func (s *Store) GetScoreCheckpoint() inter.Timestamp {
 	}
 
 	cp := inter.Timestamp(bigendian.BytesToInt64(cpBytes))
-	s.cache.ScoreCheckpoint.Add(ValidatorsScoreCheckpointKey, cp)
+	s.cache.ScoreCheckpoint.Add(ValidationScoreCheckpointKey, cp)
 
 	return cp
 }
 
 func (s *Store) MoveDirtyValidatorsToActive() {
-	it := s.table.DirtyValidatorScores.NewIterator()
+	it := s.table.DirtyValidationScore.NewIterator()
 	defer it.Release()
 
 	keys := make([][]byte, 0, 500) // don't write during iteration
@@ -168,11 +168,11 @@ func (s *Store) MoveDirtyValidatorsToActive() {
 	}
 
 	for i := range keys {
-		err := s.table.ActiveValidatorScores.Put(keys[i], vals[i])
+		err := s.table.ActiveValidationScore.Put(keys[i], vals[i])
 		if err != nil {
 			s.Log.Crit("Failed to set key-value", "err", err)
 		}
-		err = s.table.DirtyValidatorScores.Delete(keys[i])
+		err = s.table.DirtyValidationScore.Delete(keys[i])
 		if err != nil {
 			s.Log.Crit("Failed to erase key-value", "err", err)
 		}

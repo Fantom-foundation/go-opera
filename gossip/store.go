@@ -38,8 +38,8 @@ type Store struct {
 		EpochStats       kvdb.KeyValueStore `table:"estats"`
 
 		// score tables
-		ActiveValidatorScores kvdb.KeyValueStore `table:"actvscore"`
-		DirtyValidatorScores  kvdb.KeyValueStore `table:"drtvscore"`
+		ActiveValidationScore kvdb.KeyValueStore `table:"actvscore"`
+		DirtyValidationScore  kvdb.KeyValueStore `table:"drtvscore"`
 		BlockParticipation    kvdb.KeyValueStore `table:"blockprtcp"`
 		ScoreCheckpoint       kvdb.KeyValueStore `table:"schp"`
 

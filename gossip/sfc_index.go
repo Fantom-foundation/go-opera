@@ -49,8 +49,8 @@ type SfcDelegator struct {
 func (s *Service) delStaker(stakerID idx.StakerID) {
 	s.store.DelSfcStaker(stakerID)
 	s.store.ResetBlocksMissed(stakerID)
-	s.store.DelActiveValidatorsScore(stakerID)
-	s.store.DelDirtyValidatorsScore(stakerID)
+	s.store.DelActiveValidationScore(stakerID)
+	s.store.DelDirtyValidationScore(stakerID)
 	s.store.DelStakersDelegatorGasUsed(stakerID)
 	s.store.DelStakerPOI(stakerID)
 }

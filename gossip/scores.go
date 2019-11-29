@@ -8,7 +8,6 @@ import (
 // calcScores calculates the validators scores
 func (s *Service) updateScores(block *inter.Block, sealEpoch bool) {
 	// Calc validators score
-	s.store.SetBlockGasUsed(block.Index, block.GasUsed)
 	for _, it := range s.store.GetSfcStakers() {
 		// Check if validator has confirmed events by this Atropos
 		missedBlock := !s.blockParticipated[it.Staker.Address]
@@ -25,10 +24,10 @@ func (s *Service) updateScores(block *inter.Block, sealEpoch bool) {
 		}
 
 		// Add score for previous blocks, but no more than FrameLatency prev blocks
-		s.store.AddDirtyValidatorsScore(it.StakerID, block.GasUsed)
+		s.store.AddDirtyValidationScore(it.StakerID, block.GasUsed)
 		for i := uint32(1); i <= missed; i++ {
-			usedGas := s.store.GetBlockGasUsed(block.Index - idx.Block(i))
-			s.store.AddDirtyValidatorsScore(it.StakerID, usedGas)
+			usedGas := s.store.GetBlock(block.Index - idx.Block(i)).GasUsed
+			s.store.AddDirtyValidationScore(it.StakerID, usedGas)
 		}
 		s.store.ResetBlocksMissed(it.StakerID)
 	}
