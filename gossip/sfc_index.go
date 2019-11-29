@@ -46,6 +46,15 @@ type SfcDelegator struct {
 	ToStakerID idx.StakerID
 }
 
+func (s *Service) delStaker(stakerID idx.StakerID) {
+	s.store.DelSfcStaker(stakerID)
+	s.store.ResetBlocksMissed(stakerID)
+	s.store.DelActiveValidatorsScore(stakerID)
+	s.store.DelDirtyValidatorsScore(stakerID)
+	s.store.DelStakersDelegatorGasUsed(stakerID)
+	s.store.DelStakerPOI(stakerID)
+}
+
 // processSfc applies the new SFC state
 func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockFee *big.Int, sealEpoch bool, cheaters inter.Cheaters, statedb *state.StateDB) {
 	// s.engineMu is locked here
@@ -111,7 +120,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			// Delete stakes
 			if l.Topics[0] == sfcpos.DeactivateStakeTopic {
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
-				s.store.DelSfcStaker(stakerID)
+				s.delStaker(stakerID)
 			}
 
 			// Delete delegators
@@ -185,7 +194,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 		// Erase cheaters from our stakers index
 		/*for _, validator := range cheaters {
-			s.store.DelSfcStaker(validator)
+			s.delStaker(validator)
 		}*/
 		// Select new validators
 		for _, it := range s.store.GetSfcStakers() {

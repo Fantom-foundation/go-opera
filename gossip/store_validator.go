@@ -1,11 +1,10 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
 )
 
 const (
@@ -13,36 +12,36 @@ const (
 )
 
 // IncBlocksMissed add count of missed blocks for validator
-func (s *Store) IncBlocksMissed(v common.Address) {
+func (s *Store) IncBlocksMissed(stakerID idx.StakerID) {
 	s.mutexes.IncMutex.Lock()
 	defer s.mutexes.IncMutex.Unlock()
 
-	missed := s.GetBlocksMissed(v)
+	missed := s.GetBlocksMissed(stakerID)
 	missed++
-	err := s.table.BlockParticipation.Put(v.Bytes(), bigendian.Int32ToBytes(missed))
+	err := s.table.BlockParticipation.Put(stakerID.Bytes(), bigendian.Int32ToBytes(missed))
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.BlockParticipation.Add(v.String(), missed)
+	s.cache.BlockParticipation.Add(stakerID, missed)
 }
 
 // ResetBlocksMissed set to 0 missed blocks for validator
-func (s *Store) ResetBlocksMissed(v common.Address) {
+func (s *Store) ResetBlocksMissed(stakerID idx.StakerID) {
 	s.mutexes.IncMutex.Lock()
 	defer s.mutexes.IncMutex.Unlock()
 
-	err := s.table.BlockParticipation.Put(v.Bytes(), bigendian.Int32ToBytes(0))
+	err := s.table.BlockParticipation.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.BlockParticipation.Add(v.String(), uint32(0))
+	s.cache.BlockParticipation.Add(stakerID, uint32(0))
 }
 
 // GetBlocksMissed return blocks missed num for validator
-func (s *Store) GetBlocksMissed(v common.Address) uint32 {
-	missedVal, ok := s.cache.BlockParticipation.Get(v.String())
+func (s *Store) GetBlocksMissed(stakerID idx.StakerID) uint32 {
+	missedVal, ok := s.cache.BlockParticipation.Get(stakerID)
 	if ok {
 		missed, ok := missedVal.(uint32)
 		if ok {
@@ -50,7 +49,7 @@ func (s *Store) GetBlocksMissed(v common.Address) uint32 {
 		}
 	}
 
-	missedBytes, err := s.table.BlockParticipation.Get(v.Bytes())
+	missedBytes, err := s.table.BlockParticipation.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
@@ -59,45 +58,59 @@ func (s *Store) GetBlocksMissed(v common.Address) uint32 {
 	}
 
 	missed := bigendian.BytesToInt32(missedBytes)
-	s.cache.BlockParticipation.Add(v.String(), missed)
+	s.cache.BlockParticipation.Add(stakerID, missed)
 
 	return missed
 }
 
 // AddActiveValidatorsScore add gas value for active validation score
-func (s *Store) AddActiveValidatorsScore(v common.Address, gas uint64) {
-	s.addValidatorScore(s.table.ActiveValidatorScores, v, gas)
+func (s *Store) AddActiveValidatorsScore(stakerID idx.StakerID, gas uint64) {
+	s.addValidatorScore(s.table.ActiveValidatorScores, stakerID, gas)
 }
 
 // GetActiveValidatorsScore return gas value for active validator score
-func (s *Store) GetActiveValidatorsScore(v common.Address) uint64 {
-	return s.getValidatorScore(s.table.ActiveValidatorScores, v)
+func (s *Store) GetActiveValidatorsScore(stakerID idx.StakerID) uint64 {
+	return s.getValidatorScore(s.table.ActiveValidatorScores, stakerID)
 }
 
 // AddDirtyValidatorsScore add gas value for active validation score
-func (s *Store) AddDirtyValidatorsScore(v common.Address, gas uint64) {
-	s.addValidatorScore(s.table.DirtyValidatorScores, v, gas)
+func (s *Store) AddDirtyValidatorsScore(stakerID idx.StakerID, gas uint64) {
+	s.addValidatorScore(s.table.DirtyValidatorScores, stakerID, gas)
+}
+
+func (s *Store) DelActiveValidatorsScore(stakerID idx.StakerID) {
+	err := s.table.ActiveValidatorScores.Delete(stakerID.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to erase key-value", "err", err)
+	}
+}
+
+func (s *Store) DelDirtyValidatorsScore(stakerID idx.StakerID) {
+	err := s.table.DirtyValidatorScores.Delete(stakerID.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to erase key-value", "err", err)
+	}
 }
 
 // GetDirtyValidatorsScore return gas value for active validator score
-func (s *Store) GetDirtyValidatorsScore(v common.Address) uint64 {
-	return s.getValidatorScore(s.table.DirtyValidatorScores, v)
+func (s *Store) GetDirtyValidatorsScore(stakerID idx.StakerID) uint64 {
+	return s.getValidatorScore(s.table.DirtyValidatorScores, stakerID)
 }
 
-func (s *Store) addValidatorScore(t kvdb.KeyValueStore, v common.Address, val uint64) {
+func (s *Store) addValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID, val uint64) {
 	s.mutexes.IncMutex.Lock()
 	defer s.mutexes.IncMutex.Unlock()
 
-	score := s.getValidatorScore(t, v)
+	score := s.getValidatorScore(t, stakerID)
 	score += val
-	err := t.Put(v.Bytes(), bigendian.Int64ToBytes(score))
+	err := t.Put(stakerID.Bytes(), bigendian.Int64ToBytes(score))
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 }
 
-func (s *Store) getValidatorScore(t kvdb.KeyValueStore, v common.Address) uint64 {
-	gasBytes, err := t.Get(v.Bytes())
+func (s *Store) getValidatorScore(t kvdb.KeyValueStore, stakerID idx.StakerID) uint64 {
+	gasBytes, err := t.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
@@ -152,13 +165,16 @@ func (s *Store) MoveDirtyValidatorsToActive() {
 	for it.Next() {
 		keys = append(keys, it.Key())
 		vals = append(keys, it.Value())
-
 	}
 
 	for i := range keys {
 		err := s.table.ActiveValidatorScores.Put(keys[i], vals[i])
 		if err != nil {
 			s.Log.Crit("Failed to set key-value", "err", err)
+		}
+		err = s.table.DirtyValidatorScores.Delete(keys[i])
+		if err != nil {
+			s.Log.Crit("Failed to erase key-value", "err", err)
 		}
 	}
 }

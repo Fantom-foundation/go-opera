@@ -16,10 +16,14 @@ func PoiPeriod(t inter.Timestamp, config *lachesis.EconomyConfig) uint64 {
 	return uint64(t) / uint64(config.PoiPeriodDuration)
 }
 
-// UpdateAddressPOI calculate and save POI for validator
+// UpdateAddressPOI calculate and save POI for user
 func (s *Store) UpdateAddressPOI(address common.Address, senderTotalGasUsed uint64, poiPeriod uint64) {
-	poi := uint64((senderTotalGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod))
-	s.SetAddressPOI(address, poi)
+	if senderTotalGasUsed == 0 {
+		s.SetAddressPOI(address, 0)
+	} else {
+		poi := uint64((senderTotalGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod))
+		s.SetAddressPOI(address, poi)
+	}
 }
 
 // updateUsersPOI calculates the Proof Of Importance weights for users
@@ -63,8 +67,12 @@ func (s *Store) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Addr
 
 	vGasUsed += dGasUsed
 
-	poi := (vGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod)
-	s.SetStakerPOI(stakerID, poi)
+	if vGasUsed == 0 {
+		s.SetStakerPOI(stakerID, 0)
+	} else {
+		poi := (vGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod)
+		s.SetStakerPOI(stakerID, poi)
+	}
 }
 
 // updateStakersPOI calculates the Proof Of Importance weights for stakers

@@ -6,35 +6,31 @@ import (
 )
 
 // calcScores calculates the validators scores
-func (s *Service) calcScores(block *inter.Block, sealEpoch bool) {
-	validators := s.engine.GetValidators()
-
+func (s *Service) updateScores(block *inter.Block, sealEpoch bool) {
 	// Calc validators score
 	s.store.SetBlockGasUsed(block.Index, block.GasUsed)
-	for v := range validators.Iterate() {
+	for _, it := range s.store.GetSfcStakers() {
 		// Check if validator has confirmed events by this Atropos
-		missedBlock := !s.blockParticipated[v]
+		missedBlock := !s.blockParticipated[it.Staker.Address]
 
-		// If have confirmed events by this Atropos - just add missed blocks for validator
+		// If have no confirmed events by this Atropos - just add missed blocks for validator
 		if missedBlock {
-			s.store.IncBlocksMissed(v)
+			s.store.IncBlocksMissed(it.StakerID)
 			continue
 		}
 
-		missed := s.store.GetBlocksMissed(v)
-		s.store.AddDirtyValidatorsScore(v, block.GasUsed)
-
-		missedCapped := missed
-		if missedCapped > uint32(s.config.Net.Economy.FrameLatency) {
-			missedCapped = uint32(s.config.Net.Economy.FrameLatency)
+		missed := s.store.GetBlocksMissed(it.StakerID)
+		if missed > uint32(s.config.Net.Economy.FrameLatency) {
+			missed = uint32(s.config.Net.Economy.FrameLatency)
 		}
 
 		// Add score for previous blocks, but no more than FrameLatency prev blocks
-		for i := uint32(1); i <= missedCapped; i++ {
+		s.store.AddDirtyValidatorsScore(it.StakerID, block.GasUsed)
+		for i := uint32(1); i <= missed; i++ {
 			usedGas := s.store.GetBlockGasUsed(block.Index - idx.Block(i))
-			s.store.AddDirtyValidatorsScore(v, usedGas)
+			s.store.AddDirtyValidatorsScore(it.StakerID, usedGas)
 		}
-		s.store.ResetBlocksMissed(v)
+		s.store.ResetBlocksMissed(it.StakerID)
 	}
 
 	if sealEpoch {

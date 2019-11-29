@@ -91,7 +91,7 @@ func DefaultEconomyConfig() EconomyConfig {
 	return EconomyConfig{
 		IntervalBetweenScoreCheckpoints: 4 * time.Hour,
 		PoiPeriodDuration:               24 * time.Hour,
-		FrameLatency:                    4,
+		FrameLatency:                    6,
 	}
 }
 
@@ -99,7 +99,7 @@ func FakeEconomyConfig() EconomyConfig {
 	return EconomyConfig{
 		IntervalBetweenScoreCheckpoints: 5 * time.Minute,
 		PoiPeriodDuration:               1 * time.Minute,
-		FrameLatency:                    4,
+		FrameLatency:                    6,
 	}
 }
 

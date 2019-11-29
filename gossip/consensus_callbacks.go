@@ -100,6 +100,11 @@ func (s *Service) applyNewState(
 	// Process EVM txs
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
 
+	// Process PoI/score changes
+	s.updateScores(block, sealEpoch)
+	s.updateUsersPOI(block, evmBlock, sealEpoch)
+	s.updateStakersPOI(block, evmBlock, sealEpoch)
+
 	// Process SFC contract transactions
 	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
 
@@ -223,9 +228,10 @@ func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (ne
 	for _, cheater := range cheaters {
 		s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
 	}
-	hh := s.store.GetLastHeaders(epoch)
+	//hh := s.store.GetLastHeaders(epoch)
 	// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
-	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
+	// TODO use transparent state hashing (i.e. store state in a trie)
+	//newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
 	// prune not needed last headers
 	s.store.DelLastHeaders(epoch - 1)
 

@@ -60,6 +60,13 @@ func (s *Store) SetStakerDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) {
 	}
 }
 
+func (s *Store) DelStakersDelegatorGasUsed(stakerID idx.StakerID) {
+	err := s.table.StakerDelegatorsGasUsed.Delete(stakerID.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to erase key", "err", err)
+	}
+}
+
 func (s *Store) DelStakersDelegatorsGasUsed() {
 	keys := make([][]byte, 0, 500) // don't write during iteration
 
@@ -115,6 +122,9 @@ func (s *Store) SetPOIGasUsed(poiPeriod uint64, gas uint64) {
 
 // AddPOIGasUsed add gas used to POI period
 func (s *Store) AddPOIGasUsed(poiPeriod uint64, gas uint64) {
+	if gas == 0 {
+		return
+	}
 	oldGas := s.GetPOIGasUsed(poiPeriod)
 	s.SetPOIGasUsed(poiPeriod, gas+oldGas)
 }
@@ -142,6 +152,13 @@ func (s *Store) SetStakerPOI(stakerID idx.StakerID, poi uint64) {
 	err := s.table.StakerPOIScore.Put(stakerID.Bytes(), poiBytes)
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
+	}
+}
+
+func (s *Store) DelStakerPOI(stakerID idx.StakerID) {
+	err := s.table.StakerPOIScore.Delete(stakerID.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to erase key", "err", err)
 	}
 }
 

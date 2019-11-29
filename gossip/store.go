@@ -37,17 +37,18 @@ type Store struct {
 		LastEpochHeaders kvdb.KeyValueStore `table:"lheaders"`
 		EpochStats       kvdb.KeyValueStore `table:"estats"`
 
+		// score tables
 		ActiveValidatorScores kvdb.KeyValueStore `table:"actvscore"`
 		DirtyValidatorScores  kvdb.KeyValueStore `table:"drtvscore"`
 		BlockParticipation    kvdb.KeyValueStore `table:"blockprtcp"`
+		ScoreCheckpoint       kvdb.KeyValueStore `table:"schp"`
 
 		// API-only tables
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
 		Receipts    kvdb.KeyValueStore `table:"receipts"`
 		TxPositions kvdb.KeyValueStore `table:"txp"`
 
-		// PoI/score tables
-		ScoreCheckpoint         kvdb.KeyValueStore `table:"schp"`
+		// PoI tables
 		StakerPOIScore          kvdb.KeyValueStore `table:"spois"`
 		AddressPOIScore         kvdb.KeyValueStore `table:"apois"`
 		AddressGasUsed          kvdb.KeyValueStore `table:"agu"`
