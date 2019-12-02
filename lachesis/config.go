@@ -66,13 +66,11 @@ func TestNetConfig() Config {
 	}
 }
 
-func FakeNetConfig(validators, others int) Config {
-	g := genesis.FakeGenesis(validators, others)
-
+func FakeNetConfig(accs genesis.Accounts) Config {
 	return Config{
 		Name:      "fake",
 		NetworkId: FakeNetworkId,
-		Genesis:   g,
+		Genesis:   genesis.FakeGenesis(accs),
 		Dag:       FakeNetDagConfig(),
 	}
 }

@@ -3,7 +3,7 @@ all: lachesis tx-storm
 TAG ?= "latest"
 
 .PHONY: lachesis
-lachesis:
+lachesis: test_accs.json
 	cd ../ && \
 	docker build \
 	    --network=host \
@@ -18,3 +18,6 @@ tx-storm:
 	    --network=host \
 	    --build-arg GOPROXY=$(GOPROXY) \
 	    -f docker/Dockerfile.tx-storm -t "tx-storm:$(TAG)" .
+
+test_accs.json:
+	./_test_accs.sh

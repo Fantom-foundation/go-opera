@@ -8,18 +8,16 @@ import (
 )
 
 type Info struct {
-	Created   uint64
-	From      uint
-	To        uint
-	IsRegular bool
+	Created uint64
+	From    uint
+	To      uint
 }
 
-func NewInfo(from, to uint, isRegular bool) *Info {
+func NewInfo(from, to uint) *Info {
 	return &Info{
-		Created:   uint64(time.Now().UnixNano()),
-		From:      from,
-		To:        to,
-		IsRegular: isRegular,
+		Created: uint64(time.Now().UnixNano()),
+		From:    from,
+		To:      to,
 	}
 }
 
