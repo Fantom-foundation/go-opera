@@ -122,7 +122,7 @@ func (g *generator) generate(position uint) *Transaction {
 		Info: meta.NewInfo(a, b),
 	}
 
-	g.Log.Info("Regular tx", "from", a, "to", b, "nonce", nonce, "amount", amount)
+	g.Log.Info("Regular tx", "from", a, "to", b, "amount", amount, "nonce", nonce)
 	return tx
 }
 

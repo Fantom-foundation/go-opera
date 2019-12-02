@@ -114,6 +114,15 @@ func (f *feedback) background(blocks chan<- big.Int) {
 				}
 			}
 
+			if header.Number.Cmp(known) <= 0 {
+				select {
+				case <-time.After(10 * time.Millisecond):
+					continue fetching
+				case <-f.done:
+					return
+				}
+			}
+
 			for ; header.Number.Cmp(known) > 0; known.Add(known, big.NewInt(1)) {
 				f.Log.Info("Header", "num", header.Number)
 				block, err := client.BlockByNumber(context.TODO(), known)
