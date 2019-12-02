@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evm_core"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
 // onNewBlock execs ordered txns of new block on state.
@@ -38,6 +39,7 @@ func (s *Service) onNewBlock(
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
 		for i, tx := range e.Transactions {
+			tracing.FinishTx(tx.Hash(), "Service.onNewBlock()")
 			// we don't care if tx was met in different events, any valid position will work
 			txPositions[tx.Hash()] = TxPosition{
 				Event:       e.Hash(),

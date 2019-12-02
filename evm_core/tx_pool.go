@@ -17,6 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
 const (
@@ -771,6 +773,15 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	errs, dirtyAddrs := pool.addTxsLocked(txs, local)
 	pool.mu.Unlock()
 
+	// NOTE: all txs tracing
+	/*
+		for i, e := range errs {
+			if e == nil {
+				tracing.StartTx("TxPool", txs[i].Hash())
+			}
+		}
+	*/
+
 	done := pool.requestPromoteExecutables(dirtyAddrs)
 	if sync {
 		<-done
@@ -1509,5 +1520,6 @@ func (t *txLookup) Remove(hash common.Hash) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
+	tracing.FinishTx(hash, "txLookup.Remove()")
 	delete(t.all, hash)
 }

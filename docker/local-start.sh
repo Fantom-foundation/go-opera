@@ -7,9 +7,10 @@ set -e
 ./_test_accs.sh
 
 echo -e "\nStart $N nodes:\n"
+
+rm -f ./transactions.rlp
 for ((i=0;i<$N;i+=1))
 do
-    rm -f ./transactions.rlp
     DATADIR="${PWD}/.lachesis$i"
     rm -fr ${DATADIR}
     mkdir -p ${DATADIR}
@@ -24,7 +25,7 @@ do
 	--port=${PORT} \
 	--rpc --rpcaddr="127.0.0.1" --rpcport=${RPCP} --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3" \
 	--ws --wsaddr="127.0.0.1" --wsport=${WSP} --wsorigins="*" --wsapi="eth,debug,admin,web3,personal" \
-	--nousb --verbosity=5 &> .lachesis$i.log)&
+	--nousb --verbosity=5 --tracing &> .lachesis$i.log)&
 done
 
 attach_and_exec() {

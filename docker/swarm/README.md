@@ -47,3 +47,8 @@ and Prometheus to collect metrics:
 
   - start: `./32.prometheus-on.sh`;
   - stop: `./82.prometheus-off.sh`;
+
+and tx traces:
+
+  - start: `./33.tracing-on.sh`;
+  - stop: `./83.tracing-off.sh`;

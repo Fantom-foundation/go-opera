@@ -24,6 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
@@ -341,6 +342,11 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// Add txs
 	event = em.addTxs(event, poolTxs)
 
+	for _, t := range event.Transactions {
+		span := tracing.CheckTx(t.Hash(), "Emitter.createEvent()")
+		defer span.Finish()
+	}
+
 	if !em.isAllowedToEmit(event, selfParentHeader) {
 		return nil
 	}
@@ -516,6 +522,13 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	if err != nil {
 		em.Log.Error("Tx pool transactions fetching error", "err", err)
 		return nil
+	}
+
+	for _, tt := range poolTxs {
+		for _, t := range tt {
+			span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent(candidate)")
+			defer span.Finish()
+		}
 	}
 
 	em.world.EngineMu.Lock()
