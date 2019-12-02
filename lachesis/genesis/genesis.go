@@ -5,7 +5,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/crypto"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
@@ -20,29 +19,10 @@ type Genesis struct {
 	ExtraData []byte
 }
 
-// FakeGenesis generates fake genesis with n-nodes.
-func FakeGenesis(validators, others int) Genesis {
-	accounts := make(Accounts, validators+others)
-
-	for i := 0; i < validators; i++ {
-		key := crypto.FakeKey(i)
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		accounts[addr] = Account{
-			Balance:    pos.StakeToBalance(1000 * 1000 * pos.Qualification),
-			PrivateKey: key,
-		}
-	}
-	for i := validators; i < validators+others; i++ {
-		key := crypto.FakeKey(i)
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		accounts[addr] = Account{
-			Balance:    pos.StakeToBalance(pos.Qualification - 1),
-			PrivateKey: key,
-		}
-	}
-
+// FakeGenesis makes fake genesis.
+func FakeGenesis(accs Accounts) Genesis {
 	return Genesis{
-		Alloc: accounts,
+		Alloc: accs,
 		Time:  genesisTestTime,
 	}
 }

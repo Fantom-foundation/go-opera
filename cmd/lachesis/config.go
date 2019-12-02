@@ -98,11 +98,11 @@ func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
 
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
-		_, validators, others, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		_, accs, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		cfg = lachesis.FakeNetConfig(validators, others)
+		cfg = lachesis.FakeNetConfig(accs)
 	case ctx.GlobalBool(utils.TestnetFlag.Name):
 		cfg = lachesis.TestNetConfig()
 	default:
@@ -119,11 +119,11 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.GlobalIsSet(utils.DataDirFlag.Name):
 		cfg.DataDir = ctx.GlobalString(utils.DataDirFlag.Name)
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
-		_, validators, others, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+		_, accs, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d-%d", validators, others))
+		cfg.DataDir = filepath.Join(defaultDataDir, fmt.Sprintf("fakenet-%d", len(accs)))
 	case ctx.GlobalBool(utils.TestnetFlag.Name):
 		cfg.DataDir = filepath.Join(defaultDataDir, "testnet")
 	default:

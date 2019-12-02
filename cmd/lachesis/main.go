@@ -19,6 +19,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/metrics"
+	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/tracing"
 	"github.com/Fantom-foundation/go-lachesis/debug"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/integration"
@@ -142,6 +143,7 @@ func init() {
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
 		metrics.PrometheusEndpointFlag,
+		tracing.EnableFlag,
 	}
 
 	// App.
@@ -207,6 +209,13 @@ func lachesisMain(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
+
+	// TODO: tracing flags
+	tracingStop, err := tracing.Start(ctx)
+	if err != nil {
+		return err
+	}
+	defer tracingStop()
 
 	node := makeFullNode(ctx)
 	defer node.Close()

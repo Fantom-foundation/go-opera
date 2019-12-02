@@ -276,12 +276,17 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 }
 
 func readUintCompact(buf *fast.Buffer, bytes int) (uint64, error) {
-	var v uint64
+	var (
+		v    uint64
+		last byte
+	)
 	for i, b := range buf.Read(bytes) {
 		v += uint64(b) << uint(8*i)
-		if i > 0 && v == 0 {
-			return 0, ErrNonCanonicalEncoding
-		}
+		last = b
+	}
+
+	if bytes > 1 && last == 0 {
+		return 0, ErrNonCanonicalEncoding
 	}
 
 	return v, nil

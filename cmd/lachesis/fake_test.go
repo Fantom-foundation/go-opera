@@ -56,7 +56,7 @@ at block: 0 ({{niltime}})
 }
 
 func cliSetFakeCoinbase(cli *testcli, fakenet string) {
-	n, _, _, err := parseFakeGen(fakenet)
+	n, _, err := parseFakeGen(fakenet)
 	if err != nil {
 		panic(err)
 	}

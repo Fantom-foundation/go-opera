@@ -3,8 +3,7 @@ cd $(dirname $0)
 . ./_params.sh
 
 
-# temporary solution, revers because testnet0 is not avaible from Russia
-for ((i=$N-1;i>=0;i-=1))
+for ((i=0;i<$N;i+=1))
 do
 
   NAME=txgen$i
@@ -19,7 +18,8 @@ do
     --with-registry-auth \
     --detach=false \
    ${REGISTRY_HOST}/tx-storm:${TAG} \
-    --num=$PART/$N --rate=10000 --period=30 \
+    --num=$PART/$N --rate=100 \
+    --accs-start=${TEST_ACCS_START} --accs-count=${TEST_ACCS_COUNT} \
     --verbosity 5 --metrics \
     http://node$i:${RPCP} 
 

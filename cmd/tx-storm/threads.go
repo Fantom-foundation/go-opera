@@ -7,6 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -14,6 +17,7 @@ type threads struct {
 	generators []*generator
 	senders    []*sender
 	feedback   *feedback
+	txs        *meta.Txs
 
 	maxTxnsPerSec uint
 
@@ -28,7 +32,7 @@ func newThreads(
 	nodeUrl string,
 	num, ofTotal uint,
 	maxTxnsPerSec uint,
-	period time.Duration,
+	accsFrom, accsCount uint,
 ) *threads {
 	if num >= ofTotal {
 		panic("num is a generator number of total generators count")
@@ -40,29 +44,31 @@ func newThreads(
 	tt := &threads{
 		generators: make([]*generator, count, count),
 		senders:    make([]*sender, 10, 10),
+		txs:        meta.NewTxs(),
 
 		Instance: logger.MakeInstance(),
 	}
 
 	tt.maxTxnsPerSec = maxTxnsPerSec / ofTotal
-	accs := tt.maxTxnsPerSec * uint(period.Milliseconds()/1000)
-	accsOnThread := approximate(accs / uint(count))
-	accs = accsOnThread * uint(count)
-	offset := accs * (num + 1)
-	tt.Log.Info("Will create", "accounts", accs, "from", offset, "to", accs+offset)
+	accs := uint(accsCount) / ofTotal
+	accsOnThread := accs / uint(count)
+	offset := accs*num + accsFrom
+	tt.Log.Info("Will use", "accounts", accs, "from", offset, "to", accs+offset)
 
-	donor := num
 	for i := range tt.generators {
-		tt.generators[i] = newTxGenerator(donor, uint(i), accsOnThread, offset)
-		tt.generators[i].SetName(fmt.Sprintf("Generator-%d", i))
+		tt.generators[i] = newTxGenerator(uint(i), accsOnThread, offset)
+		offset += accsOnThread
+		tt.generators[i].SetName(fmt.Sprintf("Generator%d", i))
 	}
 
 	for i := range tt.senders {
 		tt.senders[i] = newSender(nodeUrl)
+		tt.senders[i].OnSendTx = tt.onSendTx
 		tt.senders[i].SetName(fmt.Sprintf("Sender%d", i))
 	}
 
 	tt.feedback = newFeedback(nodeUrl)
+	tt.feedback.OnGetTx = tt.onGetTx
 	tt.feedback.SetName("Feedback")
 
 	return tt
@@ -78,7 +84,7 @@ func (tt *threads) Start() {
 
 	destinations := make([]chan<- *Transaction, len(tt.senders))
 	for i, s := range tt.senders {
-		destination := make(chan *Transaction, multiplicator)
+		destination := make(chan *Transaction, 2)
 		destinations[i] = destination
 		s.Start(destination)
 	}
@@ -86,12 +92,6 @@ func (tt *threads) Start() {
 	tt.done = make(chan struct{})
 	tt.work.Add(1)
 	go tt.txTransfer(source, destinations)
-
-	for i, t := range tt.generators {
-		// first transactions from donor: one by one
-		tx, _ := t.Yield(uint(i))
-		destinations[0] <- tx
-	}
 
 	for _, t := range tt.generators {
 		t.Start(source)
@@ -203,5 +203,22 @@ func (tt *threads) txTransfer(
 			return
 		}
 
+	}
+}
+
+func (tt *threads) onSendTx(tx *Transaction) {
+	txCountSentMeter.Inc(1)
+	tt.txs.Start(tx.Raw.Hash())
+}
+
+func (tt *threads) onGetTx(txs types.Transactions) {
+	txCountGotMeter.Inc(int64(txs.Len()))
+
+	for _, tx := range txs {
+		latency, err := tt.txs.Finish(tx.Hash())
+		if err != nil {
+			continue
+		}
+		txLatencyMeter.Update(latency.Milliseconds())
 	}
 }

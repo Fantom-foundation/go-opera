@@ -4,19 +4,26 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"gopkg.in/urfave/cli.v1"
 )
 
-var PeriodFlag = cli.IntFlag{
-	Name:  "period",
-	Usage: "seconds before reusing of account",
-	Value: 60,
+var AccsStartFlag = cli.IntFlag{
+	Name:  "accs-start",
+	Usage: "offset of predefined fake accounts",
+	Value: 1000,
 }
 
-func getPeriod(ctx *cli.Context) time.Duration {
-	return time.Second * time.Duration(ctx.GlobalInt(PeriodFlag.Name))
+var AccsCountFlag = cli.IntFlag{
+	Name:  "accs-count",
+	Usage: "count of predefined fake accounts",
+	Value: 100000,
+}
+
+func getTestAccs(ctx *cli.Context) (start, count uint) {
+	start = uint(ctx.GlobalInt(AccsStartFlag.Name))
+	count = uint(ctx.GlobalInt(AccsCountFlag.Name))
+	return
 }
 
 var TxnsRateFlag = cli.IntFlag{

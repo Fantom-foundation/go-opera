@@ -22,6 +22,7 @@ FROM alpine:latest
 RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /tmp/lachesis /
+COPY ./docker/test_accs.json /tmp/
 
 EXPOSE 5050 18545 18546 18547 19090
 

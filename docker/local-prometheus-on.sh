@@ -13,20 +13,16 @@ global:
 scrape_configs:
 HEADER
 
-docker ps -f network=${NETWORK} --format '{{.Names}}' | while read svc
-do
-    cat << NODE >> $CONF
-  - job_name: '$svc'
+cat << NODE >> $CONF
+  - job_name: 'txgen0'
     static_configs:
-      - targets: ['$svc:19090']
+      - targets: ['localhost:19090']
 NODE
-done
 
 
 echo -e "\nStart Prometheus:\n"
 
 docker run --rm -d --name=prometheus \
-    --net=${NETWORK} \
-    -p 9090:9090 \
+    --net=host \
     -v ${PWD}/${CONF}:/etc/prometheus/${CONF} \
     prom/prometheus

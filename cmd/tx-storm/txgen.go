@@ -1,27 +1,25 @@
 package main
 
 import (
-	"math/big"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
+type Transaction struct {
+	Raw  *types.Transaction
+	Info *meta.Info
+}
+
 type generator struct {
-	donor  *Acc
 	accs   []*Acc
 	offset uint
 
 	position uint
-
-	level struct {
-		Num        uint
-		Counter    uint
-		CurrCount  uint
-		NextsCount uint
-	}
 
 	output chan<- *Transaction
 
@@ -32,18 +30,13 @@ type generator struct {
 	logger.Instance
 }
 
-func newTxGenerator(donor, num, accs, offset uint) *generator {
-	accs = approximate(accs)
-
+func newTxGenerator(num, accs, offset uint) *generator {
 	g := &generator{
-		donor:  MakeAcc(donor),
 		accs:   make([]*Acc, accs),
-		offset: offset + accs*num,
+		offset: offset,
 
 		Instance: logger.MakeInstance(),
 	}
-
-	g.level.NextsCount = accs
 
 	g.Log.Info("Will use", "accounts", accs, "from", g.offset, "to", accs+g.offset)
 	return g
@@ -88,82 +81,49 @@ func (g *generator) background() {
 		case <-g.done:
 			return
 		default:
-			tx, _ := g.Yield(0)
+			tx := g.Yield()
 			g.send(tx)
 		}
 	}
 }
 
-func (g *generator) Yield(init uint) (*Transaction, *meta.Info) {
-	if g.level.Counter == 0 {
-		g.level.CurrCount = pow(multiplicator, g.level.Num)
-		g.level.NextsCount -= g.level.CurrCount
-		g.level.Counter = g.level.CurrCount
-		g.level.Num++
-	}
-	g.level.Counter--
-
-	tx, info := g.generate(init, g.position)
+func (g *generator) Yield() *Transaction {
+	tx := g.generate(g.position)
 	g.position++
 
-	return tx, info
+	return tx
 }
 
-const multiplicator = 3
+func (g *generator) generate(position uint) *Transaction {
+	var count = uint(len(g.accs))
 
-func (g *generator) generate(init, position uint) (*Transaction, *meta.Info) {
-	const reserve = 10
+	a := position % count
+	b := (position + 1) % count
 
-	var (
-		count = uint(len(g.accs))
+	from := g.accs[a]
+	if from == nil {
+		from = MakeAcc(a + g.offset)
+		g.accs[a] = from
+	}
+	a += g.offset
 
-		txKind    string
-		isRegular bool
-		a, b      uint
-		from, to  *Acc
-		nonce     uint
-		amount    *big.Int
-	)
-
-	if position < count && g.accs[position] == nil {
-		txKind = "Initial tx"
-		isRegular = false
-
-		b = position
+	to := g.accs[b]
+	if to == nil {
 		to = MakeAcc(b + g.offset)
 		g.accs[b] = to
+	}
+	b += g.offset
 
-		var childs uint
-		if b == 0 {
-			nonce = init
-			a = 0
-			from = g.donor
-			childs = count
-		} else {
-			nonce = (b - 1) % multiplicator
-			a = (b - 1) / multiplicator
-			from = g.accs[a]
-			childs = g.level.NextsCount/g.level.CurrCount + 1
-			a += g.offset
-		}
-		amount = pos.StakeToBalance(pos.Stake(childs * reserve))
+	nonce := position / count
+	amount := pos.StakeToBalance(pos.Stake(1))
 
-	} else {
-		txKind = "Regular tx"
-		isRegular = true
-		a = position % count
-		b = (position + 1) % count
-		from = g.accs[a]
-		a += g.offset
-		to = g.accs[b]
-		nonce = position/count + multiplicator - 1
-		amount = pos.StakeToBalance(pos.Stake(1))
+	tx := &Transaction{
+		Raw:  from.TransactionTo(to, nonce, amount),
+		Info: meta.NewInfo(a, b),
 	}
 
-	b += g.offset
-	info := meta.NewInfo(a, b, isRegular)
-	g.Log.Info(txKind, "from", a, "to", b, "nonce", nonce, "amount", amount)
-	return from.TransactionTo(to, nonce, amount, info), info
+	g.Log.Info("Regular tx", "from", a, "to", b, "amount", amount, "nonce", nonce)
+	return tx
 }
 
 func (g *generator) send(tx *Transaction) {
@@ -177,23 +137,4 @@ func (g *generator) send(tx *Transaction) {
 	case <-g.done:
 		break
 	}
-}
-
-func approximate(target uint) (count uint) {
-	var level uint
-	for target > count {
-		count += pow(multiplicator, level)
-		level++
-	}
-
-	return
-}
-
-func pow(x, y uint) uint {
-	res := uint(1)
-	for i := uint(0); i < y; i++ {
-		res *= x
-	}
-
-	return res
 }

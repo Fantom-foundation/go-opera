@@ -8,18 +8,16 @@ import (
 )
 
 type Info struct {
-	CreatedUnix uint64
-	From        uint
-	To          uint
-	IsRegular   bool
+	Created uint64
+	From    uint
+	To      uint
 }
 
-func NewInfo(from, to uint, isRegular bool) *Info {
+func NewInfo(from, to uint) *Info {
 	return &Info{
-		CreatedUnix: uint64(time.Now().Unix()),
-		From:        from,
-		To:          to,
-		IsRegular:   isRegular,
+		Created: uint64(time.Now().UnixNano()),
+		From:    from,
+		To:      to,
 	}
 }
 
@@ -37,8 +35,8 @@ func ParseInfo(bb []byte) (*Info, error) {
 	return m, err
 }
 
-func (m *Info) Seconds() int64 {
-	return time.Now().Unix() - int64(m.CreatedUnix)
+func (m *Info) Nanoseconds() int64 {
+	return time.Now().UnixNano() - int64(m.Created)
 }
 
 func (m *Info) Bytes() []byte {

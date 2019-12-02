@@ -15,7 +15,9 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/poset"
 )
 
@@ -31,7 +33,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		store = NewMemStore()
 	)
 
-	net := lachesis.FakeNetConfig(nodesNum, 0)
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, nodesNum, 1e6*pos.Qualification))
 	config := DefaultConfig(net)
 
 	engineStore := poset.NewMemStore()

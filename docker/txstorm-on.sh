@@ -3,18 +3,21 @@ cd $(dirname $0)
 . ./_params.sh
 
 
-n=$(docker ps -a -q -f network=${NETWORK} -f name=node | wc -l)
 echo -e "\nStart $N tx generators:\n"
-i=0
 
-docker ps -f network=${NETWORK} -f name=${NAME} --format '{{.Names}}' | while read node
+for ((i=0;i<$N;i+=1))
 do
-    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${node})
+    NODE=node$i
+    NAME=txgen$i
+
     i=$((i+1))
     docker run -d --rm \
-	--net=${NETWORK} --name=txgen$i \
+	--net=${NETWORK} --name=${NAME} \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	tx-storm:${TAG} \
-	--num=$i/$n --rate=10000 --period=30 --metrics --verbosity 5 http://${ip}:18545
+	--num=$i/$N --rate=10 \
+	--accs-start=${TEST_ACCS_START} --accs-count=${TEST_ACCS_COUNT} \
+	--metrics --verbosity 5 \
+	http://${NODE}:18545
 
 done

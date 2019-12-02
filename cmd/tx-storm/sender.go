@@ -14,9 +14,10 @@ import (
 )
 
 type sender struct {
-	url    string
-	input  <-chan *Transaction
-	blocks chan big.Int
+	url      string
+	input    <-chan *Transaction
+	blocks   chan big.Int
+	OnSendTx func(*Transaction)
 
 	done chan struct{}
 	work sync.WaitGroup
@@ -105,7 +106,7 @@ func (s *sender) background() {
 			cancel()
 			if err == nil {
 				s.Log.Info("Tx sending ok", "info", info, "amount", tx.Raw.Value(), "nonce", tx.Raw.Nonce())
-				txCountSentMeter.Inc(1)
+				s.OnSendTx(tx)
 				break sending
 			}
 
