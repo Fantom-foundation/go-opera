@@ -82,11 +82,11 @@ func (s *Service) applyNewState(
 	block *inter.Block,
 	sealEpoch bool,
 	cheaters []common.Address,
-	forEachEvent func(*inter.Event),
 ) (
 	*inter.Block,
 	*evmcore.EvmBlock,
 	types.Receipts,
+	map[common.Hash]TxPosition,
 	common.Hash,
 ) {
 	// s.engineMu is locked here
@@ -94,7 +94,22 @@ func (s *Service) applyNewState(
 	start := time.Now()
 
 	// Assemble block data
-	evmBlock := s.assembleEvmBlock(block, forEachEvent)
+	evmBlock, blockEvents := s.assembleEvmBlock(block)
+
+	// memorize position of each tx, for indexing and origination scores
+	txPositions := make(map[common.Hash]TxPosition)
+	for _, e := range blockEvents {
+		for i, tx := range e.Transactions {
+			// If tx was met in multiple events, then assign to first ordered event
+			if _, ok := txPositions[tx.Hash()]; ok {
+				continue
+			}
+			txPositions[tx.Hash()] = TxPosition{
+				Event:       e.Hash(),
+				EventOffset: uint32(i),
+			}
+		}
+	}
 
 	// Get stateDB
 	stateHash := s.store.GetBlock(block.Index - 1).Root
@@ -104,7 +119,8 @@ func (s *Service) applyNewState(
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
 
 	// Process PoI/score changes
-	s.updateScores(block, sealEpoch)
+	s.updateOriginationScores(block, receipts, blockEvents, txPositions, sealEpoch)
+	s.updateValidationScores(block, sealEpoch)
 	s.updateUsersPOI(block, evmBlock, receipts, sealEpoch)
 	s.updateStakersPOI(block, sealEpoch)
 
@@ -139,18 +155,18 @@ func (s *Service) applyNewState(
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
 		evmBlock.GasUsed, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs), "elapsed", time.Since(start))
 
-	return block, evmBlock, receipts, newAppHash
+	return block, evmBlock, receipts, txPositions, newAppHash
 }
 
 // assembleEvmBlock converts inter.Block to evmcore.EvmBlock (without skipped transactions)
 func (s *Service) assembleEvmBlock(
 	block *inter.Block,
-	forEachEvent func(*inter.Event),
-) *evmcore.EvmBlock {
+) (*evmcore.EvmBlock, inter.Events) {
 	// s.engineMu is locked here
 	if len(block.SkippedTxs) != 0 {
 		log.Crit("Building with SkippedTxs isn't supported")
 	}
+	blockEvents := make(inter.Events, 0, len(block.Events))
 
 	// Assemble block data
 	evmBlock := &evmcore.EvmBlock{
@@ -164,12 +180,10 @@ func (s *Service) assembleEvmBlock(
 		}
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
-		if forEachEvent != nil {
-			forEachEvent(e)
-		}
+		blockEvents = append(blockEvents, e)
 	}
 
-	return evmBlock
+	return evmBlock, blockEvents
 }
 
 func filterSkippedTxs(block *inter.Block, evmBlock *evmcore.EvmBlock) *evmcore.EvmBlock {
@@ -247,24 +261,9 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	// s.engineMu is locked here
 
 	confirmBlocksMeter.Inc(1)
-	// memorize position of each tx, for later indexing
-	var txPositions map[common.Hash]TxPosition
-	var forEachBlockEvent func(e *inter.Event)
-	if s.config.TxIndex {
-		txPositions = make(map[common.Hash]TxPosition)
-		forEachBlockEvent = func(e *inter.Event) {
-			for i, tx := range e.Transactions {
-				// we don't care if tx was met in multiple events, any valid position will work
-				txPositions[tx.Hash()] = TxPosition{
-					Event:       e.Hash(),
-					EventOffset: uint32(i),
-				}
-			}
-		}
-	}
 	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
 
-	block, evmBlock, receipts, newAppHash := s.applyNewState(block, sealEpoch, cheaters, forEachBlockEvent)
+	block, evmBlock, receipts, txPositions, newAppHash := s.applyNewState(block, sealEpoch, cheaters)
 
 	s.store.SetBlock(block)
 	s.store.SetBlockIndex(block.Atropos, block.Index)

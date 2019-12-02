@@ -39,8 +39,8 @@ type DagConfig struct {
 
 type EconomyConfig struct {
 	ScoreCheckpointsInterval time.Duration
-	PoiPeriodDuration               time.Duration
-	FrameLatency                    idx.Frame
+	PoiPeriodDuration        time.Duration
+	BlockMissedLatency       idx.Block
 }
 
 // Config describes lachesis net.
@@ -90,16 +90,16 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 func DefaultEconomyConfig() EconomyConfig {
 	return EconomyConfig{
 		ScoreCheckpointsInterval: 4 * time.Hour,
-		PoiPeriodDuration:               24 * time.Hour,
-		FrameLatency:                    6,
+		PoiPeriodDuration:        24 * time.Hour,
+		BlockMissedLatency:       6,
 	}
 }
 
 func FakeEconomyConfig() EconomyConfig {
 	return EconomyConfig{
 		ScoreCheckpointsInterval: 5 * time.Minute,
-		PoiPeriodDuration:               1 * time.Minute,
-		FrameLatency:                    6,
+		PoiPeriodDuration:        1 * time.Minute,
+		BlockMissedLatency:       6,
 	}
 }
 
