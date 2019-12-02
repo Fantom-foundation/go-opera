@@ -3,7 +3,6 @@ package table
 import (
 	"bytes"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
@@ -15,13 +14,16 @@ type Table struct {
 
 var (
 	// NOTE: key collisions are possible
-	separator = []byte("::")
+	separator = []byte{}
 )
 
-// prefixed key
+// prefixed key (prefix + separator + key)
 func prefixed(key, prefix []byte) []byte {
-	base := common.CopyBytes(prefix)
-	return append(append(base, separator...), key...)
+	prefixedKey := make([]byte, 0, len(prefix)+len(separator)+len(key))
+	prefixedKey = append(prefixedKey, prefix...)
+	prefixedKey = append(prefixedKey, separator...)
+	prefixedKey = append(prefixedKey, key...)
+	return prefixedKey
 }
 
 func noPrefix(key, prefix []byte) []byte {

@@ -16,9 +16,9 @@ type TopicsDb struct {
 	db    kvdb.KeyValueStore
 	table struct {
 		// topic+topicN+blockN+logrecID -> pair_count
-		Topic kvdb.KeyValueStore `table:"topic"`
+		Topic kvdb.KeyValueStore `table:"t"`
 		// logrecID+topicN -> topic, data
-		Logrec kvdb.KeyValueStore `table:"logrec"`
+		Logrec kvdb.KeyValueStore `table:"l"`
 	}
 
 	fetchMethod func(cc ...Condition) (res []*Logrec, err error)

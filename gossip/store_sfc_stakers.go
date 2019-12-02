@@ -48,23 +48,23 @@ func (s *Store) DelSfcStaker(stakerID idx.StakerID) {
 func (s *Store) GetSfcStakers() []SfcStakerAndID {
 	it := s.table.Stakers.NewIterator()
 	defer it.Release()
-	return s.forEachSfcStaker(it)
+	return s.getSfcStakers(it)
 }
 
 // GetEpochValidators returns all stored EpochValidators on the epoch
 func (s *Store) GetEpochValidators(epoch idx.Epoch) []SfcStakerAndID {
 	it := s.table.Validators.NewIteratorWithPrefix(epoch.Bytes())
 	defer it.Release()
-	return s.forEachSfcStaker(it)
+	return s.getSfcStakers(it)
 }
 
-func (s *Store) forEachSfcStaker(it ethdb.Iterator) []SfcStakerAndID {
+func (s *Store) getSfcStakers(it ethdb.Iterator) []SfcStakerAndID {
 	stakers := make([]SfcStakerAndID, 0, 1000)
 	for it.Next() {
 		staker := &SfcStaker{}
 		err := rlp.DecodeBytes(it.Value(), staker)
 		if err != nil {
-			s.Log.Crit("Failed to decode rlp", "err", err)
+			s.Log.Crit("Failed to decode rlp while iteration", "err", err)
 		}
 
 		stakerIDBytes := it.Key()[len(it.Key())-8:]

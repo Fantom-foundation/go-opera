@@ -28,43 +28,43 @@ type Store struct {
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
-		Peers            kvdb.KeyValueStore `table:"peer"`
-		Events           kvdb.KeyValueStore `table:"event"`
-		Blocks           kvdb.KeyValueStore `table:"block"`
-		PackInfos        kvdb.KeyValueStore `table:"packinfo"`
-		Packs            kvdb.KeyValueStore `table:"pack"`
-		PacksNum         kvdb.KeyValueStore `table:"packsnum"`
-		LastEpochHeaders kvdb.KeyValueStore `table:"lheaders"`
-		EpochStats       kvdb.KeyValueStore `table:"estats"`
+		Peers            kvdb.KeyValueStore `table:"p"`
+		Events           kvdb.KeyValueStore `table:"e"`
+		Blocks           kvdb.KeyValueStore `table:"b"`
+		PackInfos        kvdb.KeyValueStore `table:"p"`
+		Packs            kvdb.KeyValueStore `table:"P"`
+		PacksNum         kvdb.KeyValueStore `table:"n"`
+		LastEpochHeaders kvdb.KeyValueStore `table:"l"`
+		EpochStats       kvdb.KeyValueStore `table:"E"`
 
 		// score tables
-		ActiveValidationScore      kvdb.KeyValueStore `table:"actvscore"`
-		DirtyValidationScore       kvdb.KeyValueStore `table:"drtvscore"`
-		ActiveOriginationScore     kvdb.KeyValueStore `table:"actvscore"`
-		DirtyOriginationScore      kvdb.KeyValueStore `table:"drtvscore"`
-		BlockParticipation         kvdb.KeyValueStore `table:"bp"`
-		ValidationScoreCheckpoint  kvdb.KeyValueStore `table:"vscp"`
-		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"oscp"`
+		ActiveValidationScore      kvdb.KeyValueStore `table:"V"`
+		DirtyValidationScore       kvdb.KeyValueStore `table:"v"`
+		ActiveOriginationScore     kvdb.KeyValueStore `table:"O"`
+		DirtyOriginationScore      kvdb.KeyValueStore `table:"o"`
+		BlockParticipation         kvdb.KeyValueStore `table:"m"`
+		ValidationScoreCheckpoint  kvdb.KeyValueStore `table:"c"`
+		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"C"`
 
 		// API-only tables
-		BlockHashes kvdb.KeyValueStore `table:"blockh"`
-		Receipts    kvdb.KeyValueStore `table:"receipts"`
-		TxPositions kvdb.KeyValueStore `table:"txp"`
+		BlockHashes kvdb.KeyValueStore `table:"h"`
+		Receipts    kvdb.KeyValueStore `table:"r"`
+		TxPositions kvdb.KeyValueStore `table:"x"`
 
 		// PoI tables
-		StakerPOIScore          kvdb.KeyValueStore `table:"spois"`
-		AddressPOIScore         kvdb.KeyValueStore `table:"apois"`
-		AddressGasUsed          kvdb.KeyValueStore `table:"agu"`
-		StakerDelegatorsGasUsed kvdb.KeyValueStore `table:"sdgu"`
-		AddressLastTxTime       kvdb.KeyValueStore `table:"altt"`
-		TotalPOIGasUsed         kvdb.KeyValueStore `table:"tpoigu"`
+		StakerPOIScore          kvdb.KeyValueStore `table:"s"`
+		AddressPOIScore         kvdb.KeyValueStore `table:"a"`
+		AddressGasUsed          kvdb.KeyValueStore `table:"g"`
+		StakerDelegatorsGasUsed kvdb.KeyValueStore `table:"d"`
+		AddressLastTxTime       kvdb.KeyValueStore `table:"X"`
+		TotalPOIGasUsed         kvdb.KeyValueStore `table:"U"`
 
 		// SFC-related tables
-		Validators kvdb.KeyValueStore `table:"va"`
-		Stakers    kvdb.KeyValueStore `table:"vs"`
-		Delegators kvdb.KeyValueStore `table:"de"`
+		Validators kvdb.KeyValueStore `table:"1"`
+		Stakers    kvdb.KeyValueStore `table:"2"`
+		Delegators kvdb.KeyValueStore `table:"3"`
 
-		TmpDbs kvdb.KeyValueStore `table:"tmpdbs"`
+		TmpDbs kvdb.KeyValueStore `table:"T"`
 
 		Evm      ethdb.Database
 		EvmState state.Database
@@ -117,7 +117,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 
 	table.MigrateTables(&s.table, s.mainDb)
 
-	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
+	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("M"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
 
@@ -222,7 +222,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 
 	err = rlp.DecodeBytes(buf, to)
 	if err != nil {
-		s.Log.Crit("Failed to decode rlp", "err", err)
+		s.Log.Crit("Failed to decode rlp", "err", err, "size", len(buf))
 	}
 	return to
 }
