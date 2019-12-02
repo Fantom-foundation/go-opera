@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -12,12 +14,14 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/crypto"
 	"github.com/Fantom-foundation/go-lachesis/integration"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
 
 // FakeNetFlag enables special testnet, where validators are automatically created
 var FakeNetFlag = cli.StringFlag{
 	Name:  "fakenet",
-	Usage: "'N/X[,x]' - sets fake N-th key and genesis of X keys and x non-validators",
+	Usage: "'n/N[,non-validators]' - sets coinbase as fake n-th key from genesis of N validators. Non-validators is a count or json-file.",
 }
 
 func addFakeAccount(ctx *cli.Context, stack *node.Node) {
@@ -31,7 +35,7 @@ func addFakeAccount(ctx *cli.Context, stack *node.Node) {
 }
 
 func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
-	num, _, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
+	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
 		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 	}
@@ -39,7 +43,7 @@ func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
 	return crypto.FakeKey(num)
 }
 
-func parseFakeGen(s string) (num, validators, others int, err error) {
+func parseFakeGen(s string) (num int, accs genesis.Accounts, err error) {
 	var i64 uint64
 
 	parts := strings.Split(s, "/")
@@ -48,7 +52,7 @@ func parseFakeGen(s string) (num, validators, others int, err error) {
 		return
 	}
 
-	i64, err = strconv.ParseUint(parts[0], 10, 64)
+	i64, err = strconv.ParseUint(parts[0], 10, 32)
 	if err != nil {
 		return
 	}
@@ -56,20 +60,41 @@ func parseFakeGen(s string) (num, validators, others int, err error) {
 
 	parts = strings.Split(parts[1], ",")
 
-	i64, err = strconv.ParseUint(parts[0], 10, 64)
-	validators = int(i64)
+	i64, err = strconv.ParseUint(parts[0], 10, 32)
+	validators := int(i64)
 
 	if validators < 1 || num >= validators {
 		err = fmt.Errorf("key-num should be in range from 1 to validators : <key-num>/<validators>")
 	}
 
-	if len(parts) > 1 {
-		i64, err = strconv.ParseUint(parts[1], 10, 64)
-		if err != nil {
-			return
-		}
-		others = int(i64)
+	accs = genesis.FakeAccounts(0, validators, 1e6*pos.Qualification)
+
+	if len(parts) < 2 {
+		return
+	}
+	var others genesis.Accounts
+	i64, err = strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		others, err = readAccounts(parts[1])
+	} else {
+		others, err = genesis.FakeAccounts(validators, int(i64), pos.Qualification-1), nil
+	}
+	if err != nil {
+		return
+	}
+	accs.Add(others)
+
+	return
+}
+
+func readAccounts(filename string) (accs genesis.Accounts, err error) {
+	var f *os.File
+	f, err = os.Open(filename)
+	if err != nil {
+		return
 	}
 
+	accs = genesis.Accounts{}
+	err = json.NewDecoder(f).Decode(&accs)
 	return
 }
