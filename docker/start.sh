@@ -11,10 +11,8 @@ docker network create ${NETWORK}
 
 . ./_sentry.sh
 
-
 echo -e "\nStart $N nodes:\n"
-
-for ((i=$N-1;i>=0;i-=1))
+for ((i=0;i<$N;i+=1))
 do
     NAME=node$i
     RPCP=$(($RPCP_BASE+$i))
@@ -26,7 +24,7 @@ do
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \
 	-p ${RPCP}:18545 \
 	lachesis:${TAG} \
-	--fakenet=${ACC}/$N \
+	--fakenet=${ACC}/$N,/tmp/test_accs.json \
 	--port=5050 \
 	--rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpcvhosts="*" --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,net" \
 	--ws --wsaddr="0.0.0.0" --wsport=18546 --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net" \
@@ -60,7 +58,7 @@ attach_and_exec() {
 }
 
 echo -e "\nConnect nodes to ring:\n"
-for ((i=$N-1;i>=0;i-=1))
+for ((i=0;i<$N;i+=1))
 do
     j=$(((i+1) % N))
 
