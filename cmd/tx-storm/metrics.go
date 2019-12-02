@@ -18,7 +18,7 @@ var (
 
 	txCountSentMeter = metrics.NewRegisteredCounter("tx_count_sent", reg)
 	txCountGotMeter  = metrics.NewRegisteredCounter("tx_count_got", reg)
-	txLatencyMeter   = metrics.NewRegisteredHistogram("tx_latency", reg, metrics.NewUniformSample(100))
+	txLatencyMeter   = metrics.NewRegisteredHistogram("tx_latency", reg, metrics.NewUniformSample(10000))
 )
 
 func SetupPrometheus(ctx *cli.Context) {

@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	gasLimit = uint64(23000)
-	gasPrice = big.NewInt(0)
+	gasLimit = uint64(21000)
+	gasPrice = big.NewInt(1e9) // minimal
 )
 
 type Acc struct {
