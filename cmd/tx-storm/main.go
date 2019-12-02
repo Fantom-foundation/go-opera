@@ -29,7 +29,8 @@ func init() {
 	// Flags.
 	flags = []cli.Flag{
 		NumberFlag,
-		PeriodFlag,
+		AccsStartFlag,
+		AccsCountFlag,
 		TxnsRateFlag,
 		utils.MetricsEnabledFlag,
 		MetricsPrometheusEndpointFlag,
@@ -77,9 +78,9 @@ func generatorMain(ctx *cli.Context) error {
 	url := args[0]
 	num, ofTotal := getNumber(ctx)
 	maxTxnsPerSec := getTxnsRate(ctx)
-	period := getPeriod(ctx)
+	accsFrom, accsCount := getTestAccs(ctx)
 
-	tt := newThreads(url, num, ofTotal, maxTxnsPerSec, period)
+	tt := newThreads(url, num, ofTotal, maxTxnsPerSec, accsFrom, accsCount)
 	tt.SetName("Threads")
 	tt.Start()
 
