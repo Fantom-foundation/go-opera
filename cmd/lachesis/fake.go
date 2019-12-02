@@ -46,7 +46,7 @@ func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
 func parseFakeGen(s string) (num int, accs genesis.Accounts, err error) {
 	var i64 uint64
 
-	parts := strings.Split(s, "/")
+	parts := strings.SplitN(s, "/", 2)
 	if len(parts) != 2 {
 		err = fmt.Errorf("use %%d/%%d format")
 		return
@@ -58,7 +58,7 @@ func parseFakeGen(s string) (num int, accs genesis.Accounts, err error) {
 	}
 	num = int(i64) - 1
 
-	parts = strings.Split(parts[1], ",")
+	parts = strings.SplitN(parts[1], ",", 2)
 
 	i64, err = strconv.ParseUint(parts[0], 10, 32)
 	validators := int(i64)
