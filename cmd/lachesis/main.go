@@ -211,7 +211,10 @@ func lachesisMain(ctx *cli.Context) error {
 	}
 
 	// TODO: tracing flags
-	tracingStop := tracing.Start(ctx)
+	tracingStop, err := tracing.Start(ctx)
+	if err != nil {
+		return err
+	}
 	defer tracingStop()
 
 	node := makeFullNode(ctx)

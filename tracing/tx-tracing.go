@@ -28,7 +28,6 @@ func StartTx(tx common.Hash, operation string) {
 	defer txSpansMu.Unlock()
 
 	if _, ok := txSpans[tx]; ok {
-		//panic("tracing: tx double")
 		return
 	}
 
@@ -67,7 +66,6 @@ func CheckTx(tx common.Hash, operation string) opentracing.Span {
 	span, ok := txSpans[tx]
 
 	if !ok {
-		//panic("tracing: CheckTx before StartTx")
 		return noopSpan
 	}
 

@@ -2,7 +2,6 @@ package tracing
 
 import (
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
@@ -16,32 +15,27 @@ var EnableFlag = cli.BoolFlag{
 	Usage: "Enable traces collection and reporting",
 }
 
-func Start(ctx *cli.Context) (stop func()) {
+func Start(ctx *cli.Context) (stop func(), err error) {
+	stop = func() {}
+
 	if !ctx.Bool(EnableFlag.Name) {
-		stop = func() {}
 		return
 	}
 
-	cfg := jaegercfg.Configuration{
-		ServiceName: "lachesis",
-		Sampler: &jaegercfg.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst, // to sample every trace
-			Param: 1,
-		},
-		Reporter: &jaegercfg.ReporterConfig{
-			LogSpans: true, // to log every span via configured Logger
-		},
+	var cfg *jaegercfg.Configuration
+	cfg, err = jaegercfg.FromEnv()
+	if err != nil {
+		return
 	}
 
-	jLogger := jaegerlog.StdLogger
-	jMetricsFactory := metrics.NullFactory
+	cfg.ServiceName = "lachesis"
 
 	tracer, closer, err := cfg.NewTracer(
-		jaegercfg.Logger(jLogger),
-		jaegercfg.Metrics(jMetricsFactory),
+		jaegercfg.Logger(jaegerlog.StdLogger),
+		jaegercfg.Metrics(metrics.NullFactory),
 	)
 	if err != nil {
-		panic(err)
+		return
 	}
 	stop = func() {
 		closer.Close()
