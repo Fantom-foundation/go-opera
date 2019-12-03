@@ -64,6 +64,8 @@ github.com/deckarep/golang-set v1.7.1 h1:SCQV0S6gTtp6itiFrTqI+pfmJ4LN85S1YzhDf9r
 github.com/deckarep/golang-set v1.7.1/go.mod h1:93vsz/8Wt4joVM7c2AVqh+YRMiUSc14yDtF28KmMOgQ=
 github.com/devintegral2/go-ethereum v1.9.8-ftm-0.1 h1:ghoXHNIPJGCfnJs+oQFQUTZ6Jts1rCpKccvLTNKPer0=
 github.com/devintegral2/go-ethereum v1.9.8-ftm-0.1/go.mod h1:N68Ktr8bkyajaEy6D8CSANxkhUxcnVjTmp9sKdKd8OI=
+github.com/devintegral2/go-ethereum v1.9.8-ftm-0.2 h1:WdckS4NH5wmT1jsuXz0OP5RBxfEzuhEhy1NHfvSAIRA=
+github.com/devintegral2/go-ethereum v1.9.8-ftm-0.2/go.mod h1:arcJDscBoRuY4gwPHUuFztJEyFZWHLUgBGXUBcr5ARY=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
