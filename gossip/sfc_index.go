@@ -53,7 +53,7 @@ func (s *Service) delStaker(stakerID idx.StakerID) {
 	s.store.DelDirtyValidationScore(stakerID)
 	s.store.DelActiveOriginationScore(stakerID)
 	s.store.DelDirtyOriginationScore(stakerID)
-	s.store.DelStakersDelegatorGasUsed(stakerID)
+	s.store.DelWeightedDelegatorsGasUsed(stakerID)
 	s.store.DelStakerPOI(stakerID)
 }
 

@@ -118,8 +118,17 @@ func (s *Service) applyNewState(
 	// Process EVM txs
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
 
+	// memorize block position of each tx, for indexing and origination scores
+	for i, tx := range evmBlock.Transactions {
+		// not skipped txs only
+		position := txPositions[tx.Hash()]
+		position.Block = block.Index
+		position.BlockOffset = uint32(i)
+		txPositions[tx.Hash()] = position
+	}
+
 	// Process PoI/score changes
-	s.updateOriginationScores(block, receipts, blockEvents, txPositions, sealEpoch)
+	s.updateOriginationScores(block, receipts, txPositions, sealEpoch)
 	s.updateValidationScores(block, sealEpoch)
 	s.updateUsersPOI(block, evmBlock, receipts, sealEpoch)
 	s.updateStakersPOI(block, sealEpoch)
@@ -270,11 +279,9 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 
 	// Build index for not skipped txs
 	if s.config.TxIndex {
-		for i, tx := range evmBlock.Transactions {
+		for _, tx := range evmBlock.Transactions {
 			// not skipped txs only
 			position := txPositions[tx.Hash()]
-			position.Block = block.Index
-			position.BlockOffset = uint32(i)
 			s.store.SetTxPosition(tx.Hash(), &position)
 		}
 

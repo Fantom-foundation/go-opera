@@ -13,19 +13,20 @@ type BlocksMissed struct {
 }
 
 // updateOriginationScores calculates the origination scores
-func (s *Service) updateOriginationScores(block *inter.Block, receipts types.Receipts, blockEvents inter.Events, txPositions map[common.Hash]TxPosition, sealEpoch bool) {
+func (s *Service) updateOriginationScores(block *inter.Block, receipts types.Receipts, txPositions map[common.Hash]TxPosition, sealEpoch bool) {
 	// Calc origination scores
 	for _, receipt := range receipts {
 		txEventPos := txPositions[receipt.TxHash]
 		// sanity check
-		if txEventPos.Block != block.Index || txEventPos.EventOffset >= uint32(len(block.Events)) {
-			s.Log.Crit("Incorrect tx block position", "tx", receipt.TxHash)
+		if txEventPos.Block != block.Index {
+			s.Log.Crit("Incorrect tx block position", "tx", receipt.TxHash,
+				"block", txEventPos.Block, "block_got", block.Index)
 		}
 
-		txEvent := blockEvents[txEventPos.BlockOffset]
+		txEvent := s.store.GetEventHeader(txEventPos.Event.Epoch(), txEventPos.Event)
 		// sanity check
-		if txEventPos.EventOffset >= uint32(txEvent.Transactions.Len()) || txEvent.Transactions[txEventPos.EventOffset].Hash() == receipt.TxHash {
-			s.Log.Crit("Incorrect tx event position", "tx", receipt.TxHash)
+		if txEvent.NoTransactions() {
+			s.Log.Crit("Incorrect tx event position", "tx", receipt.TxHash, "event", txEventPos.Event, "reason", "event has no transactions")
 		}
 
 		stakerID := idx.StakerID(1) // TODO txEvent.Creator -> StakerID
