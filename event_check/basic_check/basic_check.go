@@ -16,13 +16,13 @@ const (
 	MaxGasPowerUsed = params.GenesisGasLimit * 3
 	// MaxEventSize ensures that in all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size.
-	MaxEventSize = MaxGasPowerUsed / params.TxDataNonZeroGas
+	MaxEventSize = MaxGasPowerUsed / params.TxDataNonZeroGasEIP2028
 	MaxExtraData = 256 // it has fair gas cost, so it's fine to have a high limit
 
 	EventGas  = params.TxGas // TODO estimate the cost more accurately
 	ParentGas = EventGas / 5
 	// ExtraDataGas is cost per byte of extra event data. It's higher than regular data price, because it's a part of the header
-	ExtraDataGas = params.TxDataNonZeroGas * 2
+	ExtraDataGas = params.TxDataNonZeroGasEIP2028 * 2
 )
 
 var (
