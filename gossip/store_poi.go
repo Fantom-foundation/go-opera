@@ -35,8 +35,8 @@ func (s *Store) SetAddressGasUsed(addr common.Address, poiPeriod uint64, gas uin
 	}
 }
 
-// GetStakerDelegatorsGasUsed get gas used by delegators of a staker
-func (s *Store) GetStakerDelegatorsGasUsed(stakerID idx.StakerID) uint64 {
+// GetWeightedDelegatorsGasUsed get gas used by delegators of a staker
+func (s *Store) GetWeightedDelegatorsGasUsed(stakerID idx.StakerID) uint64 {
 	gasBytes, err := s.table.StakerDelegatorsGasUsed.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
@@ -50,8 +50,8 @@ func (s *Store) GetStakerDelegatorsGasUsed(stakerID idx.StakerID) uint64 {
 	return gas
 }
 
-// SetStakerDelegatorsGasUsed save gas used by delegators of a staker
-func (s *Store) SetStakerDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) {
+// SetWeightedDelegatorsGasUsed save gas used by delegators of a staker
+func (s *Store) SetWeightedDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) {
 	gasBytes := bigendian.Int64ToBytes(gas)
 
 	err := s.table.StakerDelegatorsGasUsed.Put(stakerID.Bytes(), gasBytes)
@@ -60,14 +60,14 @@ func (s *Store) SetStakerDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) {
 	}
 }
 
-func (s *Store) DelStakersDelegatorGasUsed(stakerID idx.StakerID) {
+func (s *Store) DelWeightedDelegatorsGasUsed(stakerID idx.StakerID) {
 	err := s.table.StakerDelegatorsGasUsed.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to erase key", "err", err)
 	}
 }
 
-func (s *Store) DelStakersDelegatorsGasUsed() {
+func (s *Store) DelAllWeightedDelegatorsGasUsed() {
 	keys := make([][]byte, 0, 500) // don't write during iteration
 
 	it := s.table.StakerDelegatorsGasUsed.NewIterator()

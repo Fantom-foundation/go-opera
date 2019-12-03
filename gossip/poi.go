@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -17,12 +19,12 @@ func PoiPeriod(t inter.Timestamp, config *lachesis.EconomyConfig) uint64 {
 }
 
 // UpdateAddressPOI calculate and save POI for user
-func (s *Store) UpdateAddressPOI(address common.Address, senderTotalGasUsed uint64, poiPeriod uint64) {
+func (s *Service) UpdateAddressPOI(address common.Address, senderTotalGasUsed uint64, poiPeriod uint64) {
 	if senderTotalGasUsed == 0 {
-		s.SetAddressPOI(address, 0)
+		s.store.SetAddressPOI(address, 0)
 	} else {
-		poi := uint64((senderTotalGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod))
-		s.SetAddressPOI(address, poi)
+		poi := (senderTotalGasUsed * 1000000) / s.store.GetPOIGasUsed(poiPeriod)
+		s.store.SetAddressPOI(address, poi)
 	}
 }
 
@@ -47,12 +49,18 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 
 		delegator := s.store.GetSfcDelegator(sender)
 		if delegator != nil {
-			prevGas := s.store.GetStakerDelegatorsGasUsed(delegator.ToStakerID)
-			s.store.SetStakerDelegatorsGasUsed(delegator.ToStakerID, prevGas+txGasUsed)
+			staker := s.store.GetSfcStaker(delegator.ToStakerID)
+			prevGas := s.store.GetWeightedDelegatorsGasUsed(delegator.ToStakerID)
+
+			weightedTxGasUsed := new(big.Int).SetUint64(txGasUsed)
+			weightedTxGasUsed.Mul(weightedTxGasUsed, delegator.Amount)
+			weightedTxGasUsed.Div(weightedTxGasUsed, staker.CalcEfficientStake())
+
+			s.store.SetWeightedDelegatorsGasUsed(delegator.ToStakerID, prevGas+weightedTxGasUsed.Uint64())
 		}
 
 		if prevUserPoiPeriod != poiPeriod {
-			s.store.UpdateAddressPOI(sender, senderTotalGasUsed, prevUserPoiPeriod)
+			s.UpdateAddressPOI(sender, senderTotalGasUsed, prevUserPoiPeriod)
 			senderTotalGasUsed = 0
 		}
 
@@ -64,18 +72,23 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 }
 
 // UpdateStakerPOI calculate and save POI for staker
-func (s *Store) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Address, poiPeriod uint64) {
-	dGasUsed := s.GetStakerDelegatorsGasUsed(stakerID)
-	vGasUsed := s.GetAddressGasUsed(stakerAddress, poiPeriod)
+func (s *Service) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Address, poiPeriod uint64) {
+	staker := s.store.GetSfcStaker(stakerID)
 
-	vGasUsed += dGasUsed
-
-	if vGasUsed == 0 {
-		s.SetStakerPOI(stakerID, 0)
-	} else {
-		poi := (vGasUsed * 1000000) / s.GetPOIGasUsed(poiPeriod)
-		s.SetStakerPOI(stakerID, poi)
+	vGasUsed := s.store.GetAddressGasUsed(stakerAddress, poiPeriod)
+	weightedDGasUsed := s.store.GetWeightedDelegatorsGasUsed(stakerID)
+	if vGasUsed == 0 && weightedDGasUsed == 0 {
+		s.store.SetStakerPOI(stakerID, 0)
 	}
+
+	weightedVGasUsed := new(big.Int).SetUint64(vGasUsed)
+	weightedVGasUsed.Mul(weightedVGasUsed, staker.StakeAmount)
+	weightedVGasUsed.Div(weightedVGasUsed, staker.CalcEfficientStake())
+
+	weightedGasUsed := weightedDGasUsed + weightedVGasUsed.Uint64()
+
+	poi := (weightedGasUsed * 1000000) / s.store.GetPOIGasUsed(poiPeriod)
+	s.store.SetStakerPOI(stakerID, poi)
 }
 
 // updateStakersPOI calculates the Proof Of Importance weights for stakers
@@ -86,9 +99,9 @@ func (s *Service) updateStakersPOI(block *inter.Block, sealEpoch bool) {
 
 	if poiPeriod != prevBlockPoiPeriod {
 		for _, it := range s.store.GetSfcStakers() {
-			s.store.UpdateStakerPOI(it.StakerID, it.Staker.Address, prevBlockPoiPeriod)
+			s.UpdateStakerPOI(it.StakerID, it.Staker.Address, prevBlockPoiPeriod)
 		}
 		// clear StakersDelegatorsGasUsed counters
-		s.store.DelStakersDelegatorsGasUsed()
+		s.store.DelAllWeightedDelegatorsGasUsed()
 	}
 }
