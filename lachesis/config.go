@@ -90,7 +90,7 @@ func FakeNetDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  50,
+		EpochLen:                  500,
 		MaxValidatorEventsInBlock: 50,
 		GasPower:                  FakeNetGasPowerConfig(),
 		IndexConfig:               vector.DefaultIndexConfig(),
