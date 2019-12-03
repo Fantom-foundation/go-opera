@@ -89,8 +89,8 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 
 func DefaultEconomyConfig() EconomyConfig {
 	return EconomyConfig{
-		ScoreCheckpointsInterval: 4 * time.Hour,
-		PoiPeriodDuration:        24 * time.Hour,
+		ScoreCheckpointsInterval: 30 * 24 * time.Hour,
+		PoiPeriodDuration:        30 * 24 * time.Hour,
 		BlockMissedLatency:       6,
 	}
 }
