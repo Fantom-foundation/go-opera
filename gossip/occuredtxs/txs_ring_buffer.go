@@ -31,6 +31,10 @@ func New(size int, txSigner types.Signer) *Buffer {
 
 // Add is not safe for concurrent use
 func (ring *buffer) Add(hash common.Hash, sender common.Address) {
+	if ring.senders.Contains(hash) {
+		return
+	}
+
 	ring.senders.Add(hash, sender)
 
 	ring.from[sender]++

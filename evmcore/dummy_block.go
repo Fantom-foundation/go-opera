@@ -16,6 +16,7 @@ type (
 		Hash       common.Hash
 		ParentHash common.Hash
 		Root       common.Hash
+		TxHash     common.Hash
 		Time       inter.Timestamp
 		Coinbase   common.Address
 
@@ -31,11 +32,12 @@ type (
 )
 
 // ToEvmHeader converts inter.Block to EvmHeader.
-func ToEvmHeader(block *inter.Block) *EvmHeader {
+func ToEvmHeader(block *inter.Block, txHash common.Hash) *EvmHeader {
 	return &EvmHeader{
 		Hash:       common.Hash(block.Hash()),
 		ParentHash: common.Hash(block.PrevHash),
 		Root:       common.Hash(block.Root),
+		TxHash:     txHash,
 		Number:     big.NewInt(int64(block.Index)),
 		Time:       block.Time,
 		Coinbase:   block.Creator,
@@ -53,6 +55,7 @@ func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 		GasLimit:   h.GasLimit,
 		GasUsed:    h.GasUsed,
 		Root:       h.Root,
+		TxHash:     h.TxHash,
 		ParentHash: h.ParentHash,
 		Time:       inter.FromUnix(int64(h.Time)),
 		Hash:       common.BytesToHash(h.Extra),
@@ -68,6 +71,7 @@ func (h *EvmHeader) EthHeader() *types.Header {
 		GasLimit:   h.GasLimit,
 		GasUsed:    h.GasUsed,
 		Root:       h.Root,
+		TxHash:     h.TxHash,
 		ParentHash: h.ParentHash,
 		Time:       uint64(h.Time.Unix()),
 		Extra:      h.Hash.Bytes(),

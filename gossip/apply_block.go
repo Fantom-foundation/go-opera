@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
 // onNewBlock execs ordered txns of new block on state.
@@ -21,12 +22,12 @@ func (s *Service) onNewBlock(
 	newStateHash common.Hash,
 	newValidators pos.Validators,
 ) {
+	confirmBlocksMeter.Inc(1)
+
 	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
 
 	// Assemble block data
-	evmHeader := evmcore.ToEvmHeader(block)
 	evmBlock := &evmcore.EvmBlock{
-		EvmHeader:    *evmHeader,
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
 	txPositions := make(map[common.Hash]TxPosition)
@@ -38,14 +39,22 @@ func (s *Service) onNewBlock(
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
 		for i, tx := range e.Transactions {
+			tracing.FinishTx(tx.Hash(), "Service.onNewBlock()")
 			// we don't care if tx was met in different events, any valid position will work
 			txPositions[tx.Hash()] = TxPosition{
 				Event:       e.Hash(),
 				EventOffset: uint32(i),
 			}
+			if latency, err := txLatency.Finish(tx.Hash()); err == nil {
+				confirmTxLatencyMeter.Update(latency.Milliseconds())
+			}
 		}
 	}
+	txHash := types.DeriveSha(evmBlock.Transactions)
+	evmBlock.EvmHeader = *evmcore.ToEvmHeader(block, txHash)
+
 	s.occurredTxs.CollectConfirmedTxs(evmBlock.Transactions) // TODO collect all the confirmed txs, not only block txs
+	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
 
 	// Process txs
 	statedb := s.store.StateDB(stateHash)
@@ -74,7 +83,7 @@ func (s *Service) onNewBlock(
 	// TODO the schema below doesn't work in all the cases, and intended only for testing
 	{
 		newValidators = validators.Copy()
-		for addr := range validators {
+		for addr := range validators.Iterate() {
 			stake := pos.BalanceToStake(statedb.GetBalance(addr))
 			newValidators.Set(addr, stake)
 		}

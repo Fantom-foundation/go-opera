@@ -41,11 +41,13 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 	return res
 }
 
+var FakeInitialStake = 1000 * 1000 * pos.Qualification
+
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
 func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (*ExtendedPoset, *Store, *EventStore) {
 	balances := make(genesis.Accounts, len(nodes))
 	for _, addr := range nodes {
-		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
+		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(FakeInitialStake)}
 	}
 
 	mems := memorydb.NewProducer(namespace, mods...)
@@ -64,7 +66,12 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 
 	input := NewEventStore(nil)
 
-	poset := New(lachesis.FakeNetDagConfig(), store, input)
+	config := lachesis.FakeNetDagConfig()
+	if config.EpochLen > 100 {
+		// EpochLen too big, test timeout is possible.
+		config.EpochLen = 100
+	}
+	poset := New(config, store, input)
 
 	extended := &ExtendedPoset{
 		Poset:  poset,

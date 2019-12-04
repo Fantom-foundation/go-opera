@@ -92,14 +92,14 @@ func (el *Election) Reset(validators pos.Validators, frameToDecide idx.Frame) {
 
 // return root slots which are not within el.decidedRoots
 func (el *Election) notDecidedRoots() []common.Address {
-	notDecidedRoots := make([]common.Address, 0, len(el.validators))
+	notDecidedRoots := make([]common.Address, 0, el.validators.Len())
 
-	for validator := range el.validators {
+	for validator := range el.validators.Iterate() {
 		if _, ok := el.decidedRoots[validator]; !ok {
 			notDecidedRoots = append(notDecidedRoots, validator)
 		}
 	}
-	if len(notDecidedRoots)+len(el.decidedRoots) != len(el.validators) { // sanity check
+	if len(notDecidedRoots)+len(el.decidedRoots) != el.validators.Len() { // sanity check
 		el.Log.Crit("Mismatch of roots")
 	}
 	return notDecidedRoots
@@ -107,8 +107,8 @@ func (el *Election) notDecidedRoots() []common.Address {
 
 // observedRoots returns all the roots at the specified frame which do forkless cause the specified root.
 func (el *Election) observedRoots(root hash.Event, frame idx.Frame) []RootAndSlot {
-	observedRoots := make([]RootAndSlot, 0, len(el.validators))
-	for validator := range el.validators {
+	observedRoots := make([]RootAndSlot, 0, el.validators.Len())
+	for validator := range el.validators.Iterate() {
 		slot := Slot{
 			Frame: frame,
 			Addr:  validator,

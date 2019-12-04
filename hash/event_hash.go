@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
@@ -310,25 +311,31 @@ func Of(data ...[]byte) (hash common.Hash) {
  * Utils:
  */
 
-// FakeEvent generates random fake event hash for testing purpose.
+// FakePeer generates random fake peer id for testing purpose.
+func FakePeer(seed ...int64) common.Address {
+	return common.Address(common.BytesToAddress(FakeHash(seed...).Bytes()))
+}
+
+// FakeEpoch gives fixed value of fake epoch for testing purpose.
+func FakeEpoch() idx.Epoch {
+	return 123456
+}
+
+// FakeEvent generates random fake event hash with the same epoch for testing purpose.
 func FakeEvent() (h Event) {
 	_, err := rand.Read(h[:])
 	if err != nil {
 		panic(err)
 	}
+	copy(h[0:4], bigendian.Int32ToBytes(uint32(FakeEpoch())))
 	return
 }
 
-// FakeEvents generates random fake event hashes for testing purpose.
+// FakeEvents generates random hashes of fake event with the same epoch for testing purpose.
 func FakeEvents(n int) Events {
 	res := Events{}
 	for i := 0; i < n; i++ {
 		res.Add(FakeEvent())
 	}
 	return res
-}
-
-// FakePeer generates random fake peer id for testing purpose.
-func FakePeer(seed ...int64) common.Address {
-	return common.Address(common.BytesToAddress(FakeHash(seed...).Bytes()))
 }

@@ -22,8 +22,8 @@ func sub(a *big.Int, b uint64) {
 }
 
 func (p *Poset) calcValidatorGasPowerPerH(validator common.Address) (perHour, maxGasPower, startup uint64) {
-	stake, ok := p.Validators[validator]
-	if !ok {
+	stake := p.Validators.Get(validator)
+	if stake == 0 {
 		return 0, 0, 0
 	}
 

@@ -4,55 +4,49 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/Fantom-foundation/go-lachesis/metrics"
 )
-
-const address = ":19090"
 
 var logger = log.New("module", "prometheus")
 
-func init() {
-	if !metrics.Enabled {
-		return
+func ListenTo(endpoint string, reg metrics.Registry) {
+	if reg == nil {
+		reg = metrics.DefaultRegistry
 	}
-
-	enable()
-}
-
-func enable() {
-	reg := metrics.DefaultRegistry
-	reg.OnNew(collect)
+	reg.Each(collect)
 
 	go func() {
-		logger.Info("metrics server starts", "address", address)
+		logger.Info("metrics server starts", "endpoint", endpoint)
 		defer logger.Info("metrics server is stopped")
 
 		http.HandleFunc(
 			"/metrics", promhttp.Handler().ServeHTTP)
-		http.ListenAndServe(address, nil)
+		err := http.ListenAndServe(endpoint, nil)
+		if err != nil {
+			logger.Info("metrics server", "err", err)
+		}
 
 		// TODO: wait for exit signal?
 	}()
 }
 
-func collect(name string, metric metrics.Metric) {
+func collect(name string, metric interface{}) {
+	logger.Info("metric to prometheus", "metric", name)
+
 	collector, ok := convertToPrometheusMetric(name, metric)
 	if !ok {
-		logger.Debug("metric doesn't support prometheus", "metric", name)
 		return
 	}
 
 	err := prometheus.Register(collector)
-	switch err.(type) {
-	case prometheus.AlreadyRegisteredError:
-		return
-	default:
-	}
-
 	if err != nil {
-		logger.Error(err.Error())
+		switch err.(type) {
+		case prometheus.AlreadyRegisteredError:
+			return
+		default:
+			logger.Warn(err.Error())
+		}
 	}
 }

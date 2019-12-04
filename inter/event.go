@@ -215,7 +215,7 @@ func (e *Event) Size() int {
  * Utils:
  */
 
-// FakeFuzzingEvents generates random independent events for test purpose.
+// FakeFuzzingEvents generates random independent events with the same epoch for testing purpose.
 func FakeFuzzingEvents() (res []*Event) {
 	creators := []common.Address{
 		{},
@@ -232,6 +232,7 @@ func FakeFuzzingEvents() (res []*Event) {
 	for c := 0; c < len(creators); c++ {
 		for p := 0; p < len(parents); p++ {
 			e := NewEvent()
+			e.Epoch = hash.FakeEpoch()
 			e.Seq = idx.Event(p)
 			e.Creator = creators[c]
 			e.Parents = parents[p]

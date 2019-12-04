@@ -67,7 +67,7 @@ func (p *producer) OpenDb(name string) kvdb.KeyValueStore {
 
 	}
 
-	db, err := New(path, 16, 0, "", onClose, onDrop)
+	db, err := New(path, 64, 0, "", onClose, onDrop)
 	if err != nil {
 		panic(err)
 	}

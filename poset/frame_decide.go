@@ -7,8 +7,8 @@ import (
 )
 
 func (p *Poset) confirmBlockEvents(frame idx.Frame, atropos hash.Event) ([]*inter.EventHeaderData, headersByCreator) {
-	lastHeaders := make(headersByCreator, len(p.Validators))
-	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*len(p.Validators))
+	lastHeaders := make(headersByCreator, p.Validators.Len())
+	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*p.Validators.Len())
 
 	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
 	validatorIdxs := p.Validators.Idxs()

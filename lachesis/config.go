@@ -8,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
 const (
@@ -32,6 +33,8 @@ type DagConfig struct {
 	MaxValidatorEventsInBlock idx.Event `json:"maxValidatorEventsInBlock"`
 
 	GasPower GasPowerConfig `json:"gasPower"`
+
+	IndexConfig vector.IndexConfig `json:"indexConfig"`
 }
 
 // Config describes lachesis net.
@@ -63,13 +66,11 @@ func TestNetConfig() Config {
 	}
 }
 
-func FakeNetConfig(n int) Config {
-	g := genesis.FakeGenesis(n)
-
+func FakeNetConfig(accs genesis.Accounts) Config {
 	return Config{
 		Name:      "fake",
 		NetworkID: FakeNetworkID,
-		Genesis:   g,
+		Genesis:   genesis.FakeGenesis(accs),
 		Dag:       FakeNetDagConfig(),
 	}
 }
@@ -78,9 +79,10 @@ func DefaultDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  100,
+		EpochLen:                  500,
 		MaxValidatorEventsInBlock: 50,
 		GasPower:                  DefaultGasPowerConfig(),
+		IndexConfig:               vector.DefaultIndexConfig(),
 	}
 }
 
@@ -88,9 +90,10 @@ func FakeNetDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  50,
+		EpochLen:                  500,
 		MaxValidatorEventsInBlock: 50,
 		GasPower:                  FakeNetGasPowerConfig(),
+		IndexConfig:               vector.DefaultIndexConfig(),
 	}
 }
 
@@ -105,7 +108,7 @@ func DefaultGasPowerConfig() GasPowerConfig {
 
 func FakeNetGasPowerConfig() GasPowerConfig {
 	config := DefaultGasPowerConfig()
-	config.TotalPerH *= 10
-	config.MinStartupGasPower *= 10
+	config.TotalPerH *= 1000
+	config.MinStartupGasPower *= 1000
 	return config
 }

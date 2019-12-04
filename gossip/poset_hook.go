@@ -60,7 +60,7 @@ func (hook *HookedEngine) GetEpoch() idx.Epoch {
 // GetEpochValidators atomically returns validators of current epoch, and the epoch.
 func (hook *HookedEngine) GetEpochValidators() (pos.Validators, idx.Epoch) {
 	if hook.engine == nil {
-		return pos.Validators{}, 1
+		return *pos.NewValidators(), 1
 	}
 	return hook.engine.GetEpochValidators()
 }
@@ -76,7 +76,7 @@ func (hook *HookedEngine) LastBlock() (idx.Block, hash.Event) {
 // GetValidators returns validators of current epoch.
 func (hook *HookedEngine) GetValidators() pos.Validators {
 	if hook.engine == nil {
-		return pos.Validators{}
+		return *pos.NewValidators()
 	}
 	return hook.engine.GetValidators()
 }

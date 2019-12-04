@@ -24,6 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-lachesis/tracing"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
@@ -205,7 +206,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 	validatorsArr := validators.SortedAddresses() // validators must be sorted deterministically
 	validatorsArrStakes := make([]pos.Stake, len(validatorsArr))
 	for i, addr := range validatorsArr {
-		validatorsArrStakes[i] = validators[addr]
+		validatorsArrStakes[i] = validators.Get(addr)
 	}
 
 	for sender, txs := range poolTxs {
@@ -273,7 +274,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
 	coinbase := em.GetCoinbase()
-	if _, ok := em.world.Engine.GetValidators()[coinbase]; !ok {
+	if ok := em.world.Engine.GetValidators().Get(coinbase); ok == 0 {
 		// not a validator
 		return nil
 	}
@@ -341,6 +342,11 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// Add txs
 	event = em.addTxs(event, poolTxs)
 
+	for _, t := range event.Transactions {
+		span := tracing.CheckTx(t.Hash(), "Emitter.createEvent()")
+		defer span.Finish()
+	}
+
 	if !em.isAllowedToEmit(event, selfParentHeader) {
 		return nil
 	}
@@ -395,11 +401,11 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 	}
 
 	// track when I've became validator
-	_, isValidator := em.world.Engine.GetValidators()[coinbase]
-	if isValidator && !em.syncStatus.wasValidator {
+	isValidator := em.world.Engine.GetValidators().Get(coinbase)
+	if isValidator != 0 && !em.syncStatus.wasValidator {
 		em.syncStatus.becameValidatorTime = now
 	}
-	em.syncStatus.wasValidator = isValidator
+	em.syncStatus.wasValidator = isValidator != 0
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
@@ -492,7 +498,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	{
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
-			if !(selfParent != nil && e.GasPowerLeft >= selfParent.GasPowerLeft) {
+			if selfParent != nil && e.GasPowerLeft < selfParent.GasPowerLeft {
 				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
 				return false
 			}
@@ -518,6 +524,13 @@ func (em *Emitter) EmitEvent() *inter.Event {
 		return nil
 	}
 
+	for _, tt := range poolTxs {
+		for _, t := range tt {
+			span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent(candidate)")
+			defer span.Finish()
+		}
+	}
+
 	em.world.EngineMu.Lock()
 	defer em.world.EngineMu.Unlock()
 
@@ -532,7 +545,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	em.Log.Info("New event emitted", "event", e.String(), "address", e.Creator)
+	em.Log.Info("New event emitted", "event", e.String(), "address", e.Creator, "txn", e.Transactions.Len())
 
 	return e
 }

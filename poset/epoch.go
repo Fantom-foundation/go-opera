@@ -35,19 +35,21 @@ func (p *Poset) GetEpoch() idx.Epoch {
 }
 
 // GetValidators returns validators of current epoch.
+// Don't mutate validators.
 func (p *Poset) GetValidators() pos.Validators {
 	p.epochMu.Lock()
 	defer p.epochMu.Unlock()
 
-	return p.Validators.Copy()
+	return p.Validators
 }
 
-// GetEpochValidators atomically returns validators of current epoch, and the epoch.
+// GetEpochValidators returns validators of current epoch, and the epoch.
+// Don't mutate validators.
 func (p *Poset) GetEpochValidators() (pos.Validators, idx.Epoch) {
 	p.epochMu.Lock()
 	defer p.epochMu.Unlock()
 
-	return p.Validators.Copy(), p.EpochN
+	return p.Validators, p.EpochN
 }
 
 func (p *Poset) setEpochValidators(validators pos.Validators, epoch idx.Epoch) {

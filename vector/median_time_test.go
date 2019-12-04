@@ -16,21 +16,21 @@ func TestMedianTimeOnIndex(t *testing.T) {
 	logger.SetTestMode(t)
 
 	peers := inter.GenNodes(5)
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 
 	weights := []pos.Stake{5, 4, 3, 2, 1}
 	for i, peer := range peers {
 		validators.Set(peer, weights[i])
 	}
 
-	vi := NewIndex(validators, memorydb.New(), nil)
+	vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), nil)
 
 	assertar := assert.New(t)
 	{ // seq=0
 		e := inter.NewEvent().EventHeaderData.Hash()
 		// validator indexes are sorted by stake amount
-		beforeSeq := NewHighestBeforeSeq(len(validators))
-		beforeTime := NewHighestBeforeTime(len(validators))
+		beforeSeq := NewHighestBeforeSeq(validators.Len())
+		beforeTime := NewHighestBeforeTime(validators.Len())
 
 		beforeSeq.Set(0, BranchSeq{Seq: 0})
 		beforeTime.Set(0, 100)
@@ -54,8 +54,8 @@ func TestMedianTimeOnIndex(t *testing.T) {
 	{ // fork seen = true
 		e := inter.NewEvent().EventHeaderData.Hash()
 		// validator indexes are sorted by stake amount
-		beforeSeq := NewHighestBeforeSeq(len(validators))
-		beforeTime := NewHighestBeforeTime(len(validators))
+		beforeSeq := NewHighestBeforeSeq(validators.Len())
+		beforeTime := NewHighestBeforeTime(validators.Len())
 
 		beforeSeq.Set(0, forkDetectedSeq)
 		beforeTime.Set(0, 100)
@@ -79,8 +79,8 @@ func TestMedianTimeOnIndex(t *testing.T) {
 	{ // normal
 		e := inter.NewEvent().EventHeaderData.Hash()
 		// validator indexes are sorted by stake amount
-		beforeSeq := NewHighestBeforeSeq(len(validators))
-		beforeTime := NewHighestBeforeTime(len(validators))
+		beforeSeq := NewHighestBeforeSeq(validators.Len())
+		beforeTime := NewHighestBeforeTime(validators.Len())
 
 		beforeSeq.Set(0, BranchSeq{Seq: 1})
 		beforeTime.Set(0, 11)
@@ -174,7 +174,7 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		},
 	})
 
-	validators := make(pos.Validators, len(peers))
+	validators := pos.NewValidators()
 	for i, peer := range peers {
 		validators.Set(peer, weights[i])
 	}
@@ -184,7 +184,7 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		return events[id]
 	}
 
-	vi := NewIndex(validators, memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), *validators, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {

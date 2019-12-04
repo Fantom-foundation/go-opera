@@ -1,12 +1,14 @@
 package fetcher
 
-import "github.com/Fantom-foundation/go-lachesis/metrics"
+import (
+	"github.com/ethereum/go-ethereum/metrics"
+)
 
 var (
-	propAnnounceInMeter  = metrics.RegisterGauge("lachesis/fetcher/prop/announces/in", nil)
-	propAnnounceDOSMeter = metrics.RegisterGauge("lachesis/fetcher/prop/announces/dos", nil)
+	propAnnounceInMeter  = metrics.NewRegisteredGauge("fetcher/prop/announces/in", nil)
+	propAnnounceDOSMeter = metrics.NewRegisteredGauge("fetcher/prop/announces/dos", nil)
 
-	propBroadcastInMeter = metrics.RegisterGauge("lachesis/fetcher/prop/broadcasts/in", nil)
+	propBroadcastInMeter = metrics.NewRegisteredGauge("fetcher/prop/broadcasts/in", nil)
 
-	eventFetchMeter = metrics.RegisterGauge("lachesis/fetcher/fetch/headers", nil)
+	eventFetchMeter = metrics.NewRegisteredGauge("fetcher/fetch/headers", nil)
 )

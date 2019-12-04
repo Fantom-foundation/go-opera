@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -107,6 +108,7 @@ func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
 			GasLimit: params.GenesisGasLimit, // TODO: config
 			Coinbase: common.BytesToAddress([]byte{1}),
 			Root:     root,
+			TxHash:   types.EmptyRootHash,
 		},
 	}
 	block.Hash = prettyHash(block)

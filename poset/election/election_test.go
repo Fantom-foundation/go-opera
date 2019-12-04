@@ -61,7 +61,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:   0,
-				DecidedAtropos: "c0_0",
+				DecidedAtropos: "b0_0",
 				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -89,7 +89,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:   0,
-				DecidedAtropos: "c0_0",
+				DecidedAtropos: "b0_0",
 				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -233,7 +233,7 @@ func testProcessRoot(
 
 	// validators:
 	var (
-		vv = make(pos.Validators, len(peers))
+		vv = *pos.NewValidators()
 	)
 	for _, peer := range peers {
 		vv.Set(peer, stakes[utils.NameOf(peer)])

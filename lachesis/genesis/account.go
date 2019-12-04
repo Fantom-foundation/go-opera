@@ -42,3 +42,9 @@ func (ga *Accounts) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+func (ga Accounts) Add(gb Accounts) {
+	for addr, acc := range gb {
+		ga[addr] = acc
+	}
+}

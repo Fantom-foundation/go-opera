@@ -10,7 +10,7 @@ environment:
   GOPATH: c:\gopath
   GO111MODULE: on
 
-stack: go 1.12
+stack: go 1.13
 
 init:
   - choco install make mingw
@@ -24,4 +24,4 @@ before_test:
   - ps: Disable-NetFirewallRule -All
 
 test_script:
-  - go test ./...
+  - go test -v ./...

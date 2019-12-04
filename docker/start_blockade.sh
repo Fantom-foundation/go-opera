@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
-
 . ./_params.sh
+
 
 CONF=blockade.yaml
 
@@ -12,13 +12,15 @@ network:
 containers:
 HEADER
 
-for i in $(seq $N)
+for ((i=$N-1;i>=0;i-=1))
 do
+    ACC=$(($i+1)) 
+
     cat << NODE >> $CONF
-  node_$i:
+  node$i:
     image: lachesis:latest
-    container_name: ${NAME}-$i
-    command: --fakenet $i/$N --rpc --rpcapi "eth,admin,web3" --nousb --metrics
+    container_name: node$i
+    command: --fakenet=${ACC}/$N --rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpccorsdomain="*" --rpcapi="eth,admin,web3" --nousb --metrics
     expose:
       - "55555"
     deploy:
@@ -31,7 +33,4 @@ done
 
 blockade up
 
-NETWORK=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' ${NAME}-1)
-
 . ./_prometheus.sh
-

@@ -64,6 +64,7 @@ func (vi *Index) forklessCause(aID, bID hash.Event) bool {
 	for branchIDint, creator := range vi.bi.BranchIDCreators {
 		branchID := idx.Validator(branchIDint)
 
+		// bLowestAfter := vi.GetLowestAfterSeq_(bID, branchID)   // lowest event from creator on branchID, which observes B
 		bLowestAfter := b.Get(branchID)   // lowest event from creator on branchID, which observes B
 		aHighestBefore := a.Get(branchID) // highest event from creator, observed by A
 

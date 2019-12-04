@@ -1,6 +1,6 @@
 module github.com/Fantom-foundation/go-lachesis
 
-go 1.12
+go 1.13
 
 require (
 	cloud.google.com/go v0.47.0 // indirect
@@ -16,6 +16,7 @@ require (
 	github.com/btcsuite/goleveldb v1.0.0 // indirect
 	github.com/certifi/gocertifi v0.0.0-20191021191039-0944d244cd40 // indirect
 	github.com/cespare/cp v1.1.1
+	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/creack/pty v1.1.9 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/deckarep/golang-set v1.7.1
@@ -35,7 +36,6 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gballet/go-libpcsclite v0.0.0-20191108122812-4678299bea08 // indirect
 	github.com/getsentry/raven-go v0.2.0 // indirect
-	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/golang/mock v1.3.1
@@ -62,8 +62,6 @@ require (
 	github.com/mattn/go-colorable v0.1.4
 	github.com/mattn/go-isatty v0.0.10
 	github.com/mattn/go-runewidth v0.0.6 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/naoina/go-stringutil v0.1.0 // indirect
@@ -71,12 +69,14 @@ require (
 	github.com/olekukonko/tablewriter v0.0.2 // indirect
 	github.com/onsi/ginkgo v1.10.3 // indirect
 	github.com/onsi/gomega v1.7.1 // indirect
+	github.com/opentracing/opentracing-go v1.1.0
 	github.com/oschwald/maxminddb-golang v1.5.0 // indirect
 	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/peterh/liner v1.1.0 // indirect
 	github.com/pierrec/lz4 v2.3.0+incompatible // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/prometheus/tsdb v0.10.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563 // indirect
 	github.com/rjeczalik/notify v0.9.2 // indirect
@@ -92,9 +92,12 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tyler-smith/go-bip39 v1.0.2
+	github.com/uber/jaeger-client-go v2.20.1+incompatible
+	github.com/uber/jaeger-lib v2.2.0+incompatible
 	github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208 // indirect
 	github.com/xtaci/kcp-go v5.4.19+incompatible // indirect
 	go.opencensus.io v0.22.2 // indirect
+	go.uber.org/atomic v1.5.1 // indirect
 	golang.org/x/crypto v0.0.0-20191108234033-bd318be0434a
 	golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8 // indirect
 	golang.org/x/mobile v0.0.0-20191031020345-0945064e013a // indirect
@@ -117,3 +120,5 @@ require (
 )
 
 replace gopkg.in/urfave/cli.v1 => github.com/urfave/cli v1.20.0
+
+replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum v1.9.1-ftm-0.1
