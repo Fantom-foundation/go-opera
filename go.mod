@@ -51,4 +51,4 @@ require (
 	gopkg.in/urfave/cli.v1 v1.20.0
 )
 
-replace github.com/ethereum/go-ethereum => github.com/devintegral2/go-ethereum v1.9.8-ftm-0.5
+replace github.com/ethereum/go-ethereum => github.com/devintegral2/go-ethereum v1.9.8-ftm-0.6
