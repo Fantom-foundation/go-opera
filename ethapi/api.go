@@ -205,9 +205,9 @@ func (s *PrivateAccountAPI) ListAccounts() []common.Address {
 	return s.am.Accounts()
 }
 
-// rawWallet is a JSON representation of an accounts.Wallet interface, with its
+// RawWallet is a JSON representation of an accounts.Wallet interface, with its
 // data contents extracted into plain fields.
-type rawWallet struct {
+type RawWallet struct {
 	URL      string             `json:"url"`
 	Status   string             `json:"status"`
 	Failure  string             `json:"failure,omitempty"`
@@ -215,12 +215,12 @@ type rawWallet struct {
 }
 
 // ListWallets will return a list of wallets this node manages.
-func (s *PrivateAccountAPI) ListWallets() []rawWallet {
-	wallets := make([]rawWallet, 0) // return [] instead of nil if empty
+func (s *PrivateAccountAPI) ListWallets() []RawWallet {
+	wallets := make([]RawWallet, 0) // return [] instead of nil if empty
 	for _, wallet := range s.am.Wallets() {
 		status, failure := wallet.Status()
 
-		raw := rawWallet{
+		raw := RawWallet{
 			URL:      wallet.URL().String(),
 			Status:   status,
 			Accounts: wallet.Accounts(),
@@ -504,8 +504,8 @@ func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
 
-// ChainId returns the chainID value for transaction replay protection.
-func (s *PublicBlockChainAPI) ChainId() *hexutil.Big {
+// ChainID returns the chainID value for transaction replay protection.
+func (s *PublicBlockChainAPI) ChainID() *hexutil.Big {
 	return (*hexutil.Big)(s.b.ChainConfig().ChainID)
 }
 
@@ -863,6 +863,7 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNr r
 	return (hexutil.Bytes)(result), err
 }
 
+// DoEstimateGas - binary search the gas requirement, as it may be higher than the amount used
 func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.BlockNumber, gasCap *big.Int) (hexutil.Uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
@@ -990,7 +991,7 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 	return formatted
 }
 
-// RPCMarshalHeader converts the given header to the RPC output .
+// RPCMarshalEventHeader converts the given header to the RPC output .
 func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{} {
 	return map[string]interface{}{
 		"version":          header.Version,
@@ -1425,7 +1426,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		args.Nonce = (*hexutil.Uint64)(&nonce)
 	}
 	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
-		return errors.New(`Both "data" and "input" are set and not equal. Please use "input" to pass transaction call data.`)
+		return errors.New(`both "data" and "input" are set and not equal. Please use "input" to pass transaction call data.`)
 	}
 	if args.To == nil {
 		// Contract creation

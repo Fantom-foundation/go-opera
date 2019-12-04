@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// MaxGasPowerUsed - max value of Gas Power used
 	MaxGasPowerUsed = params.GenesisGasLimit * 3
 	// MaxEventSize ensures that in all the "real" cases, the event will be limited by gas, not size.
 	// Yet it's technically possible to construct an event which is limited by size.

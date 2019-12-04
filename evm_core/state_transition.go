@@ -32,6 +32,7 @@ The state transitioning model does all the necessary work to work out a valid ne
 5) Run Script section
 6) Derive new state root
 */
+
 type StateTransition struct {
 	gp         *GasPool
 	msg        Message
