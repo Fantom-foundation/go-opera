@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -15,6 +16,10 @@ const (
 	MainNetworkID uint64 = 1
 	TestNetworkID uint64 = 2
 	FakeNetworkID uint64 = 3
+)
+
+var (
+	PercentUnit = big.NewInt(1e6)
 )
 
 // GasPowerConfig defines gas power rules in the consensus.
@@ -41,6 +46,7 @@ type EconomyConfig struct {
 	ScoreCheckpointsInterval time.Duration
 	PoiPeriodDuration        time.Duration
 	BlockMissedLatency       idx.Block
+	ValidatorPoiImpact       *big.Int
 }
 
 // Config describes lachesis net.
@@ -88,19 +94,24 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 }
 
 func DefaultEconomyConfig() EconomyConfig {
+	// 30%
+	validatorPoiImpact := big.NewInt(30)
+	validatorPoiImpact.Mul(validatorPoiImpact, PercentUnit)
+	validatorPoiImpact.Div(validatorPoiImpact, big.NewInt(100))
+
 	return EconomyConfig{
 		ScoreCheckpointsInterval: 30 * 24 * time.Hour,
 		PoiPeriodDuration:        30 * 24 * time.Hour,
 		BlockMissedLatency:       6,
+		ValidatorPoiImpact:       validatorPoiImpact,
 	}
 }
 
 func FakeEconomyConfig() EconomyConfig {
-	return EconomyConfig{
-		ScoreCheckpointsInterval: 5 * time.Minute,
-		PoiPeriodDuration:        1 * time.Minute,
-		BlockMissedLatency:       6,
-	}
+	cfg := DefaultEconomyConfig()
+	cfg.ScoreCheckpointsInterval = 5 * time.Minute
+	cfg.PoiPeriodDuration = 1 * time.Minute
+	return cfg
 }
 
 func DefaultDagConfig() DagConfig {

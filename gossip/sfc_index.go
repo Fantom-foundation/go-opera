@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
 	"github.com/Fantom-foundation/go-lachesis/utils"
@@ -55,6 +56,58 @@ func (s *Service) delStaker(stakerID idx.StakerID) {
 	s.store.DelDirtyOriginationScore(stakerID)
 	s.store.DelWeightedDelegatorsGasUsed(stakerID)
 	s.store.DelStakerPOI(stakerID)
+}
+
+func (s *Service) calcValidatingPowers(stakers []SfcStakerAndID) []*big.Int {
+	validatingPowers := make([]*big.Int, 0, 200)
+	scores := make([]*big.Int, 0, 200)
+	pois := make([]*big.Int, 0, 200)
+	stakes := make([]*big.Int, 0, 200)
+
+	totalStake := new(big.Int)
+	totalPoI := new(big.Int)
+	totalScore := new(big.Int)
+
+	for _, it := range stakers {
+		stake := it.Staker.CalcTotalStake()
+		poi := new(big.Int).SetUint64(s.store.GetStakerPOI(it.StakerID))
+		// score = OriginationScore + ValidationScore
+		score := new(big.Int).SetUint64(s.store.GetActiveOriginationScore(it.StakerID))
+		score.Add(score, new(big.Int).SetUint64(s.store.GetActiveValidationScore(it.StakerID)))
+
+		stakes = append(stakes, stake)
+		scores = append(scores, score)
+		pois = append(pois, poi)
+
+		totalStake.Add(totalStake, stake)
+		totalPoI.Add(totalPoI, poi)
+		totalScore.Add(totalPoI, score)
+	}
+
+	for i, _ := range stakers {
+		// validatingPower = ((1 - CONST) * stake + (CONST) * PoI) * score,
+		// where PoI is rebased to be comparable with stake, score is rebased to [0, 1]
+		stakeWithRatio := stakes[i]
+		stakeWithRatio.Mul(stakeWithRatio, new(big.Int).Sub(lachesis.PercentUnit, s.config.Net.Economy.ValidatorPoiImpact))
+		stakeWithRatio.Div(stakeWithRatio, lachesis.PercentUnit)
+
+		poiRebased := pois[i]
+		poiRebased.Mul(poiRebased, totalStake)
+		poiRebased.Div(poiRebased, totalPoI)
+
+		poiRebasedWithRatio := poiRebased
+		poiRebasedWithRatio.Mul(poiRebasedWithRatio, s.config.Net.Economy.ValidatorPoiImpact)
+		poiRebasedWithRatio.Div(poiRebasedWithRatio, lachesis.PercentUnit)
+
+		validatingPower := new(big.Int)
+		validatingPower.Add(stakeWithRatio, poiRebasedWithRatio)
+		validatingPower.Mul(validatingPower, scores[i])
+		validatingPower.Div(validatingPower, totalScore)
+
+		validatingPowers = append(validatingPowers, validatingPower)
+	}
+
+	return validatingPowers
 }
 
 // processSfc applies the new SFC state
@@ -173,15 +226,18 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		// Write epoch snapshot (for reward)
 		cheatersSet := cheaters.Set()
 		epochPos := sfcpos.EpochSnapshot(epoch)
+		epochValidators := s.store.GetEpochValidators(epoch)
+		validatingPowers := s.calcValidatingPowers(epochValidators)
+
 		totalValidatingPower := new(big.Int)
-		for _, it := range s.store.GetEpochValidators(epoch) {
+		for i, it := range epochValidators {
 			if _, ok := cheatersSet[it.Staker.Address]; ok {
 				continue // don't give reward to cheaters
 			}
 
-			meritPos := epochPos.ValidatorMerit(it.Staker.Address)
+			meritPos := epochPos.ValidatorMerit(it.StakerID)
 
-			validatingPower := it.Staker.CalcTotalStake() // TODO
+			validatingPower := validatingPowers[i]
 
 			statedb.SetState(sfc.ContractAddress, meritPos.StakeAmount(), utils.BigTo256(it.Staker.StakeAmount))
 			statedb.SetState(sfc.ContractAddress, meritPos.DelegatedMe(), utils.BigTo256(it.Staker.DelegatedMe))

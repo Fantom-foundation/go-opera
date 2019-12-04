@@ -54,7 +54,7 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 
 			weightedTxGasUsed := new(big.Int).SetUint64(txGasUsed)
 			weightedTxGasUsed.Mul(weightedTxGasUsed, delegator.Amount)
-			weightedTxGasUsed.Div(weightedTxGasUsed, staker.CalcEfficientStake())
+			weightedTxGasUsed.Div(weightedTxGasUsed, staker.CalcTotalStake())
 
 			s.store.SetWeightedDelegatorsGasUsed(delegator.ToStakerID, prevGas+weightedTxGasUsed.Uint64())
 		}
@@ -84,7 +84,7 @@ func (s *Service) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Ad
 
 	weightedVGasUsed := new(big.Int).SetUint64(vGasUsed)
 	weightedVGasUsed.Mul(weightedVGasUsed, staker.StakeAmount)
-	weightedVGasUsed.Div(weightedVGasUsed, staker.CalcEfficientStake())
+	weightedVGasUsed.Div(weightedVGasUsed, staker.CalcTotalStake())
 
 	weightedGasUsed := weightedDGasUsed + weightedVGasUsed.Uint64()
 

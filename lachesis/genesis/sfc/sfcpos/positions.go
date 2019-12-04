@@ -110,10 +110,10 @@ type ValidatorMeritPos struct {
 	object
 }
 
-func (p *EpochSnapshotPos) ValidatorMerit(validator common.Address) ValidatorMeritPos {
+func (p *EpochSnapshotPos) ValidatorMerit(stakerID idx.StakerID) ValidatorMeritPos {
 	base := p.Field(0)
 
-	position := getMapValue(base, validator.Hash(), 0)
+	position := getMapValue(base, utils.U64to256(uint64(stakerID)), 0)
 
 	return ValidatorMeritPos{object{base: position.Big()}}
 }
