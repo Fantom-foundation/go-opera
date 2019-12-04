@@ -15,7 +15,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/no_key_is_err"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
@@ -79,9 +79,9 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 
 	table.MigrateTables(&s.table, s.mainDb)
 
-	evmTable := no_key_is_err.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
+	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
-	s.table.EvmState = state.NewDatabase(s.table.Evm)
+	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
 
 	s.initTmpDbs()
 	s.initCache()

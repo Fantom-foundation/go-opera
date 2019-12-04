@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 )
 
 // dummyTxPool is a fake, helper transaction pool for testing purposes
@@ -49,6 +49,6 @@ func (p *dummyTxPool) Pending() (map[common.Address]types.Transactions, error) {
 	return batches, nil
 }
 
-func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evm_core.NewTxsNotify) notify.Subscription {
+func (p *dummyTxPool) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) notify.Subscription {
 	return p.txFeed.Subscribe(ch)
 }

@@ -8,7 +8,7 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
@@ -71,7 +71,7 @@ const (
 	ErrDecode
 	ErrInvalidMsgCode
 	ErrProtocolVersionMismatch
-	ErrNetworkIdMismatch
+	ErrNetworkIDMismatch
 	ErrGenesisMismatch
 	ErrNoStatusMsg
 	ErrExtraStatusMsg
@@ -89,7 +89,7 @@ var errorToString = map[int]string{
 	ErrDecode:                  "Invalid message",
 	ErrInvalidMsgCode:          "Invalid message code",
 	ErrProtocolVersionMismatch: "Protocol version mismatch",
-	ErrNetworkIdMismatch:       "NetworkId mismatch",
+	ErrNetworkIDMismatch:       "NetworkId mismatch",
 	ErrGenesisMismatch:         "Genesis object mismatch",
 	ErrNoStatusMsg:             "No status message",
 	ErrExtraStatusMsg:          "Extra status message",
@@ -107,13 +107,13 @@ type txPool interface {
 
 	// SubscribeNewTxsNotify should return an event subscription of
 	// NewTxsNotify and send events to the given channel.
-	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) notify.Subscription
+	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
 }
 
 // ethStatusData is the network packet for the status message. It's used for compatibility with some ETH wallets.
 type ethStatusData struct {
 	ProtocolVersion   uint32
-	NetworkId         uint64
+	NetworkID         uint64
 	DummyTD           *big.Int
 	DummyCurrentBlock common.Hash
 	Genesis           common.Hash

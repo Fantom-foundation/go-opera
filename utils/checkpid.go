@@ -15,11 +15,10 @@ func CheckPid(pidfileName string) error {
 		process, err := os.FindProcess(pid)
 		if err != nil {
 			return fmt.Errorf("failed to find process: %v", err)
-		} else {
-			err := process.Signal(syscall.Signal(0))
-			if err == nil {
-				return fmt.Errorf("perhaps another lachesis is already running with pid %d", pid)
-			}
+		}
+		err = process.Signal(syscall.Signal(0))
+		if err == nil {
+			return fmt.Errorf("perhaps another lachesis is already running with pid %d", pid)
 		}
 	}
 

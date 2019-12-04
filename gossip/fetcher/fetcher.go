@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check"
-	"github.com/Fantom-foundation/go-lachesis/event_check/heavy_check"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -106,7 +106,7 @@ type Callback struct {
 	OnlyInterested FilterInterestedFn
 	DropPeer       DropPeerFn
 
-	HeavyCheck *heavy_check.Validator
+	HeavyCheck *heavycheck.Validator
 	FirstCheck func(*inter.Event) error
 }
 
@@ -214,7 +214,7 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetch
 	passed := make(inter.Events, 0, len(notKnownEvents))
 	for _, e := range notKnownEvents {
 		err := f.callback.FirstCheck(e)
-		if event_check.IsBan(err) {
+		if eventcheck.IsBan(err) {
 			f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 			f.callback.DropPeer(peer)
 			return err
@@ -225,11 +225,11 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetch
 	}
 
 	// Run heavy check in parallel
-	return f.callback.HeavyCheck.Enqueue(passed, func(res *heavy_check.TaskData) {
+	return f.callback.HeavyCheck.Enqueue(passed, func(res *heavycheck.TaskData) {
 		// Check errors of heavy check
 		passed := make(inter.Events, 0, len(res.Events))
 		for i, err := range res.Result {
-			if event_check.IsBan(err) {
+			if eventcheck.IsBan(err) {
 				e := res.Events[i]
 				f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 				f.callback.DropPeer(peer)

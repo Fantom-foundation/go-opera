@@ -1,31 +1,45 @@
-matrix:
-  allow_failures: java
-  include:
+language: go
 
+go:
+  - 1.11.x
+  - 1.12.x
+  - 1.13.x
+
+go_import_path: github.com/Fantom-foundation/go-lachesis
+
+cache:
+  directories:
+    - $GOPATH/pkg
+
+env:
+  global:
+    - GO111MODULE=on
+
+# install: skip
+
+script:
+  - go build -v ./...
+
+after_success:
+  - |
+    if [ -n "$GO_TEST" ]; then
+      go test -coverprofile=coverage.txt -covermode=atomic ./...
+    elif [ -n "$GO_INTEGRATION_TEST" ]; then
+      go test ./integration/
+    fi
+
+after_script:
+  - |
+    if [ -n "$GO_TEST" ]; then
+      bash <(curl -s https://codecov.io/bash)
+    fi
+
+matrix:
+  include:
     - name: go test
-      language: go
-      go:
-        - 1.13.x
-      go_import_path: github.com/Fantom-foundation/go-lachesis
       env:
-        - GO111MODULE=on
-      cache:
-        directories:
-          - $GOPATH/pkg
-      script:
-        - go test -coverprofile=coverage.txt -covermode=atomic ./...
-      after_success:
-        - bash <(curl -s https://codecov.io/bash)
+        - GO_TEST=1
 
     - name: testnet
-      language: go
-      go:
-        - 1.13.x
-      go_import_path: github.com/Fantom-foundation/go-lachesis
       env:
-        - GO111MODULE=on
-      cache:
-        directories:
-          - $GOPATH/pkg
-      script:
-        - go test ./integration/
+        - GO_INTEGRATION_TEST=1

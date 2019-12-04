@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -114,10 +114,10 @@ func (s *sender) background() {
 			case fmt.Sprintf("known transaction: %x", tx.Raw.Hash()):
 				s.Log.Info("Tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
-			case evm_core.ErrNonceTooLow.Error():
+			case evmcore.ErrNonceTooLow.Error():
 				s.Log.Info("Tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
-			case evm_core.ErrReplaceUnderpriced.Error():
+			case evmcore.ErrReplaceUnderpriced.Error():
 				s.Log.Info("Tx sending skip", "info", info, "amount", tx.Raw.Value(), "cause", err, "nonce", tx.Raw.Nonce())
 				break sending
 			default:

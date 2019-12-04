@@ -66,7 +66,12 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 
 	input := NewEventStore(nil)
 
-	poset := New(lachesis.FakeNetDagConfig(), store, input)
+	config := lachesis.FakeNetDagConfig()
+	if config.EpochLen > 100 {
+		// EpochLen too big, test timeout is possible.
+		config.EpochLen = 100
+	}
+	poset := New(config, store, input)
 
 	extended := &ExtendedPoset{
 		Poset:  poset,

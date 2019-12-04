@@ -91,8 +91,8 @@ func compareResults(t *testing.T, posets []*ExtendedPoset) {
 			st1 := p1.store.GetCheckpoint()
 			t.Logf("with poset%d: Epoch %d, Block %d", j, ep0.EpochN, st1.LastBlockN)
 
-			assertar.Equal(*posets[j].checkpoint, *posets[i].checkpoint)
-			assertar.Equal(posets[j].epochState, posets[i].epochState)
+			assertar.Equal(*posets[j].Checkpoint, *posets[i].Checkpoint)
+			assertar.Equal(posets[j].EpochState, posets[i].EpochState)
 
 			both := p0.LastBlockN
 			if both > p1.LastBlockN {

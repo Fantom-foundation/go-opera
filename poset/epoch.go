@@ -13,7 +13,7 @@ const (
 	firstEpoch = idx.Epoch(1)
 )
 
-type epochState struct {
+type EpochState struct {
 	// stored values
 	// these values change only after a change of epoch
 	EpochN     idx.Epoch
@@ -22,8 +22,8 @@ type epochState struct {
 }
 
 func (p *Poset) loadEpoch() {
-	p.epochState = *p.store.GetEpoch()
-	p.store.RecreateEpochDb(p.epochState.EpochN)
+	p.EpochState = *p.store.GetEpoch()
+	p.store.RecreateEpochDb(p.EpochState.EpochN)
 }
 
 // GetEpoch returns current epoch num to 3rd party.

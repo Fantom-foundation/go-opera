@@ -61,12 +61,12 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) headersByCre
 	ordered, frameInfo := p.fareOrdering(frame, atropos, blockEvents)
 
 	// block generation
-	p.checkpoint.LastBlockN++
+	p.Checkpoint.LastBlockN++
 	if p.applyBlock != nil {
-		block := inter.NewBlock(p.checkpoint.LastBlockN, frameInfo.LastConsensusTime, ordered, p.checkpoint.LastAtropos)
-		p.checkpoint.StateHash, p.NextValidators = p.applyBlock(block, p.checkpoint.StateHash, p.NextValidators)
+		block := inter.NewBlock(p.Checkpoint.LastBlockN, frameInfo.LastConsensusTime, ordered, p.Checkpoint.LastAtropos)
+		p.Checkpoint.StateHash, p.NextValidators = p.applyBlock(block, p.Checkpoint.StateHash, p.NextValidators)
 	}
-	p.checkpoint.LastAtropos = atropos
+	p.Checkpoint.LastAtropos = atropos
 	p.NextValidators = p.NextValidators.Top()
 
 	p.saveCheckpoint()
@@ -93,7 +93,7 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.PrevEpoch.Time = p.frameConsensusTime(p.LastDecidedFrame)
 	p.PrevEpoch.Epoch = p.EpochN
 	p.PrevEpoch.LastAtropos = atropos
-	p.PrevEpoch.StateHash = p.checkpoint.StateHash
+	p.PrevEpoch.StateHash = p.Checkpoint.StateHash
 	p.PrevEpoch.LastHeaders = lastHeaders
 
 	// new validators list, move to new epoch
@@ -102,7 +102,7 @@ func (p *Poset) onNewEpoch(atropos hash.Event, lastHeaders headersByCreator) {
 	p.LastDecidedFrame = 0
 
 	// commit
-	p.store.SetEpoch(&p.epochState)
+	p.store.SetEpoch(&p.EpochState)
 	p.saveCheckpoint()
 
 	// reset internal epoch DB

@@ -358,7 +358,7 @@ func (p *peer) Handshake(network uint64, progress PeerProgress, genesis common.H
 		// send both EthStatusMsg and ProgressMsg, eth62 clients will understand only status
 		err := p2p.Send(p.rw, EthStatusMsg, &ethStatusData{
 			ProtocolVersion:   uint32(p.version),
-			NetworkId:         network,
+			NetworkID:         network,
 			Genesis:           genesis,
 			DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
 			DummyCurrentBlock: common.Hash(progress.LastBlock),
@@ -409,8 +409,8 @@ func (p *peer) readStatus(network uint64, status *ethStatusData, genesis common.
 	if status.Genesis != genesis {
 		return errResp(ErrGenesisMismatch, "%x (!= %x)", status.Genesis[:8], genesis[:8])
 	}
-	if status.NetworkId != network {
-		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
+	if status.NetworkID != network {
+		return errResp(ErrNetworkIDMismatch, "%d (!= %d)", status.NetworkID, network)
 	}
 	if int(status.ProtocolVersion) != p.version {
 		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", status.ProtocolVersion, p.version)

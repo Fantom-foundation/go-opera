@@ -185,7 +185,7 @@ func (p *SyncedPool) checkDbsSynced() error {
 
 	var (
 		key    = []byte("flag")
-		prevId *[]byte
+		prevID *[]byte
 		descrs []string
 		list   = func() string {
 			return strings.Join(descrs, ",\n")
@@ -203,10 +203,10 @@ func (p *SyncedPool) checkDbsSynced() error {
 		if bytes.HasPrefix(mark, []byte("dirty")) {
 			return fmt.Errorf("dirty state: %s", list())
 		}
-		if prevId == nil {
-			prevId = &mark
+		if prevID == nil {
+			prevID = &mark
 		}
-		if !bytes.Equal(mark, *prevId) {
+		if !bytes.Equal(mark, *prevID) {
 			return fmt.Errorf("not synced: %s", list())
 		}
 	}

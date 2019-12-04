@@ -149,7 +149,7 @@ func newTestPeer(name string, version int, pm *ProtocolManager, shake bool) (*te
 func (p *testPeer) handshake(t *testing.T, progress *PeerProgress, genesis common.Hash) {
 	msg := &ethStatusData{
 		ProtocolVersion:   uint32(p.version),
-		NetworkId:         lachesis.FakeNetworkId,
+		NetworkID:         lachesis.FakeNetworkID,
 		Genesis:           genesis,
 		DummyTD:           big.NewInt(int64(progress.NumOfBlocks)), // for ETH clients
 		DummyCurrentBlock: common.Hash(progress.LastBlock),

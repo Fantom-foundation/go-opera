@@ -2,7 +2,6 @@ package poset
 
 import (
 	"bytes"
-	"github.com/Fantom-foundation/go-lachesis/logger"
 	"sort"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 func TestConfirmBlockEvents(t *testing.T) {
@@ -34,7 +34,8 @@ func TestConfirmBlockEvents(t *testing.T) {
 		return applyBlock(block, stateHash, validators)
 	}
 
-	_ = inter.ForEachRandEvent(nodes, int(poset.dag.EpochLen), poset.dag.MaxParents, nil, inter.ForEachEvent{
+	eventCount := int(poset.dag.EpochLen)
+	_ = inter.ForEachRandEvent(nodes, eventCount, poset.dag.MaxParents, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			input.SetEvent(e)
 			assertar.NoError(

@@ -16,15 +16,15 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check"
-	"github.com/Fantom-foundation/go-lachesis/event_check/basic_check"
-	"github.com/Fantom-foundation/go-lachesis/event_check/epoch_check"
-	"github.com/Fantom-foundation/go-lachesis/event_check/heavy_check"
-	"github.com/Fantom-foundation/go-lachesis/event_check/parents_check"
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/heavycheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/parentscheck"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/gossip/ordering"
-	"github.com/Fantom-foundation/go-lachesis/gossip/packs_downloader"
+	"github.com/Fantom-foundation/go-lachesis/gossip/packsdownloader"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -80,10 +80,10 @@ type ProtocolManager struct {
 
 	serverPool *serverPool
 
-	txsCh  chan evm_core.NewTxsNotify
+	txsCh  chan evmcore.NewTxsNotify
 	txsSub notify.Subscription
 
-	downloader *packs_downloader.PacksDownloader
+	downloader *packsdownloader.PacksDownloader
 	fetcher    *fetcher.Fetcher
 	buffer     *ordering.EventBuffer
 
@@ -141,16 +141,16 @@ func NewProtocolManager(
 	}
 
 	pm.fetcher, pm.buffer = pm.makeFetcher()
-	pm.downloader = packs_downloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
+	pm.downloader = packsdownloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
 
 	return pm, nil
 }
 
 func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffer) {
 	// checkers
-	basicCheck := basic_check.New(&pm.config.Net.Dag)
-	epochCheck := epoch_check.New(&pm.config.Net.Dag, pm.engine)
-	parentsCheck := parents_check.New(&pm.config.Net.Dag)
+	basicCheck := basiccheck.New(&pm.config.Net.Dag)
+	epochCheck := epochcheck.New(&pm.config.Net.Dag, pm.engine)
+	parentsCheck := parentscheck.New(&pm.config.Net.Dag)
 	firstCheck := func(e *inter.Event) error {
 		if err := basicCheck.Validate(e); err != nil {
 			return err
@@ -163,7 +163,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 
 	dagID := params.AllEthashProtocolChanges.ChainID
 	txSigner := types.NewEIP155Signer(dagID)
-	heavyCheck := heavy_check.NewDefault(&pm.config.Net.Dag, txSigner)
+	heavyCheck := heavycheck.NewDefault(&pm.config.Net.Dag, txSigner)
 
 	// DAG callbacks
 	buffer := ordering.New(eventsBuffSize, ordering.Callback{
@@ -187,7 +187,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 		},
 
 		Drop: func(e *inter.Event, peer string, err error) {
-			if event_check.IsBan(err) {
+			if eventcheck.IsBan(err) {
 				log.Warn("Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
 				pm.removePeer(peer)
 			}
@@ -200,14 +200,14 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 		Check: parentsCheck.Validate,
 	})
 
-	fetcher_ := fetcher.New(fetcher.Callback{
+	newFetcher := fetcher.New(fetcher.Callback{
 		PushEvent:      buffer.PushEvent,
 		OnlyInterested: pm.onlyInterestedEvents,
 		DropPeer:       pm.removePeer,
 		FirstCheck:     firstCheck,
 		HeavyCheck:     heavyCheck,
 	})
-	return fetcher_, buffer
+	return newFetcher, buffer
 }
 
 func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
@@ -312,7 +312,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	// broadcast transactions
-	pm.txsCh = make(chan evm_core.NewTxsNotify, txChanSize)
+	pm.txsCh = make(chan evmcore.NewTxsNotify, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsNotify(pm.txsCh)
 	go pm.txBroadcastLoop()
 
@@ -395,7 +395,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		genesis    = pm.engine.GetGenesisHash()
 		myProgress = pm.myProgress()
 	)
-	if err := p.Handshake(pm.config.Net.NetworkId, myProgress, genesis); err != nil {
+	if err := p.Handshake(pm.config.Net.NetworkID, myProgress, genesis); err != nil {
 		p.Log().Debug("Handshake failed", "err", err)
 		return err
 	}
@@ -458,7 +458,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 		// notify downloader about new peer's epoch
-		_ = pm.downloader.RegisterPeer(packs_downloader.Peer{
+		_ = pm.downloader.RegisterPeer(packsdownloader.Peer{
 			ID:               p.id,
 			Epoch:            p.progress.Epoch,
 			RequestPack:      p.RequestPack,
@@ -823,7 +823,7 @@ type NodeInfo struct {
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	numOfBlocks, _ := pm.engine.LastBlock()
 	return &NodeInfo{
-		Network:     pm.config.Net.NetworkId,
+		Network:     pm.config.Net.NetworkID,
 		Genesis:     pm.engine.GetGenesisHash(),
 		Epoch:       pm.engine.GetEpoch(),
 		NumOfBlocks: numOfBlocks,

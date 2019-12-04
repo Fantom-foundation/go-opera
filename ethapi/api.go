@@ -44,8 +44,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
 
-	"github.com/Fantom-foundation/go-lachesis/event_check/basic_check"
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
@@ -55,7 +55,7 @@ const (
 )
 
 var (
-	noUncles = []evm_core.EvmHeader{}
+	noUncles = []evmcore.EvmHeader{}
 )
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
@@ -874,8 +874,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	if args.Gas != nil && uint64(*args.Gas) >= params.TxGas {
 		hi = uint64(*args.Gas)
 	} else {
-		// Retrieve the block to act as the gas ceiling
-		hi = basic_check.MaxGasPowerUsed
+		hi = basiccheck.MaxGasPowerUsed
 	}
 	if gasCap != nil && hi > gasCap.Uint64() {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
@@ -1045,7 +1044,8 @@ func RPCMarshalEvent(event *inter.Event, inclTx bool, fullTx bool) (map[string]i
 	return fields, nil
 }
 
-func RPCMarshalHeader(head *evm_core.EvmHeader) map[string]interface{} {
+// RPCMarshalHeader converts the given header to the RPC output .
+func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
 	return map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
 		"hash":             head.Hash, // store EvmBlock's hash in extra, because extra is always empty
@@ -1069,7 +1069,7 @@ func RPCMarshalHeader(head *evm_core.EvmHeader) map[string]interface{} {
 // RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
-func RPCMarshalBlock(block *evm_core.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields := RPCMarshalHeader(block.Header())
 	fields["size"] = block.EthBlock().Size()
 
@@ -1104,7 +1104,7 @@ func RPCMarshalBlock(block *evm_core.EvmBlock, inclTx bool, fullTx bool) (map[st
 
 // rpcMarshalHeader uses the generalized output filler, then adds the total difficulty field, which requires
 // a `PublicBlockchainAPI`.
-func (s *PublicBlockChainAPI) rpcMarshalHeader(header *evm_core.EvmHeader) map[string]interface{} {
+func (s *PublicBlockChainAPI) rpcMarshalHeader(header *evmcore.EvmHeader) map[string]interface{} {
 	fields := RPCMarshalHeader(header)
 	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(header.Hash))
 	return fields
@@ -1112,7 +1112,7 @@ func (s *PublicBlockChainAPI) rpcMarshalHeader(header *evm_core.EvmHeader) map[s
 
 // rpcMarshalBlock uses the generalized output filler, then adds the total difficulty field, which requires
 // a `PublicBlockchainAPI`.
-func (s *PublicBlockChainAPI) rpcMarshalBlock(b *evm_core.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+func (s *PublicBlockChainAPI) rpcMarshalBlock(b *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields, err := RPCMarshalBlock(b, inclTx, fullTx)
 	if err != nil {
 		return nil, err
@@ -1176,7 +1176,7 @@ func newRPCPendingTransaction(tx *types.Transaction) *RPCTransaction {
 }
 
 // newRPCTransactionFromBlockIndex returns a transaction that will serialize to the RPC representation.
-func newRPCTransactionFromBlockIndex(b *evm_core.EvmBlock, index uint64) *RPCTransaction {
+func newRPCTransactionFromBlockIndex(b *evmcore.EvmBlock, index uint64) *RPCTransaction {
 	txs := b.Transactions
 	if index >= uint64(len(txs)) {
 		return nil
@@ -1185,7 +1185,7 @@ func newRPCTransactionFromBlockIndex(b *evm_core.EvmBlock, index uint64) *RPCTra
 }
 
 // newRPCRawTransactionFromBlockIndex returns the bytes of a transaction given a block and a transaction index.
-func newRPCRawTransactionFromBlockIndex(b *evm_core.EvmBlock, index uint64) hexutil.Bytes {
+func newRPCRawTransactionFromBlockIndex(b *evmcore.EvmBlock, index uint64) hexutil.Bytes {
 	txs := b.Transactions
 	if index >= uint64(len(txs)) {
 		return nil
@@ -1195,7 +1195,7 @@ func newRPCRawTransactionFromBlockIndex(b *evm_core.EvmBlock, index uint64) hexu
 }
 
 // newRPCTransactionFromBlockHash returns a transaction that will serialize to the RPC representation.
-func newRPCTransactionFromBlockHash(b *evm_core.EvmBlock, hash common.Hash) *RPCTransaction {
+func newRPCTransactionFromBlockHash(b *evmcore.EvmBlock, hash common.Hash) *RPCTransaction {
 	for idx, tx := range b.Transactions {
 		if tx.Hash() == hash {
 			return newRPCTransactionFromBlockIndex(b, uint64(idx))

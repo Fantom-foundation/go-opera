@@ -1,31 +1,31 @@
 package poset
 
 // SetGenesis stores first epoch.
-func (s *Store) SetGenesis(e *epochState) {
+func (s *Store) SetGenesis(e *EpochState) {
 	s.setEpoch([]byte("genesis"), e)
 }
 
 // GetGenesis returns stored first epoch.
-func (s *Store) GetGenesis() *epochState {
+func (s *Store) GetGenesis() *EpochState {
 	return s.getEpoch([]byte("genesis"))
 }
 
 // SetEpoch stores epoch.
-func (s *Store) SetEpoch(e *epochState) {
+func (s *Store) SetEpoch(e *EpochState) {
 	s.setEpoch([]byte("current"), e)
 }
 
 // GetEpoch returns stored epoch.
-func (s *Store) GetEpoch() *epochState {
+func (s *Store) GetEpoch() *EpochState {
 	return s.getEpoch([]byte("current"))
 }
 
-func (s *Store) setEpoch(key []byte, e *epochState) {
+func (s *Store) setEpoch(key []byte, e *EpochState) {
 	s.set(s.table.Epochs, key, e)
 }
 
-func (s *Store) getEpoch(key []byte) *epochState {
-	w, exists := s.get(s.table.Epochs, key, &epochState{}).(*epochState)
+func (s *Store) getEpoch(key []byte) *EpochState {
+	w, exists := s.get(s.table.Epochs, key, &EpochState{}).(*EpochState)
 	if !exists {
 		return nil
 	}

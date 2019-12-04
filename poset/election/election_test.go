@@ -251,9 +251,8 @@ func testProcessRoot(
 		hashB, ok := edges[edge]
 		if ok {
 			return &hashB
-		} else {
-			return nil
 		}
+		return nil
 	}
 
 	// re-order events randomly, preserving parents order

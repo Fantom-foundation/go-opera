@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/evm_core"
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
@@ -49,15 +49,15 @@ type Backend interface {
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmHeader, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*evm_core.EvmHeader, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evm_core.EvmBlock, error)
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evm_core.EvmHeader, error)
-	GetHeader(ctx context.Context, hash common.Hash) *evm_core.EvmHeader
-	GetBlock(ctx context.Context, hash common.Hash) (*evm_core.EvmBlock, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmHeader, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
+	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evmcore.EvmHeader, error)
+	GetHeader(ctx context.Context, hash common.Hash) *evmcore.EvmHeader
+	GetBlock(ctx context.Context, hash common.Hash) (*evmcore.EvmBlock, error)
 	GetReceipts(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
-	GetEVM(ctx context.Context, msg evm_core.Message, state *state.StateDB, header *evm_core.EvmHeader) (*vm.EVM, func() error, error)
+	GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error)
 
 	// Transaction pool API
 	SendTx(ctx context.Context, signedTx *types.Transaction) error
@@ -67,10 +67,10 @@ type Backend interface {
 	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	Stats() (pending int, queued int)
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
-	SubscribeNewTxsNotify(chan<- evm_core.NewTxsNotify) notify.Subscription
+	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
 
 	ChainConfig() *params.ChainConfig
-	CurrentBlock() *evm_core.EvmBlock
+	CurrentBlock() *evmcore.EvmBlock
 
 	// Lachesis debug API
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
