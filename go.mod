@@ -74,3 +74,5 @@ require (
 	gopkg.in/urfave/cli.v1 v1.20.0
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
+
+replace github.com/ethereum/go-ethereum => github.com/Fantom-foundation/go-ethereum v1.9.1-ftm-0.1
