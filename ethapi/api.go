@@ -1044,6 +1044,18 @@ func RPCMarshalEvent(event *inter.Event, inclTx bool, fullTx bool) (map[string]i
 	return fields, nil
 }
 
+func eventIDsToHex(ids hash.Events) []hexutil.Bytes {
+	res := make([]hexutil.Bytes, len(ids))
+	for i, id := range ids {
+		res[i] = eventIDToHex(id)
+	}
+	return res
+}
+
+func eventIDToHex(id hash.Event) hexutil.Bytes {
+	return hexutil.Bytes(id.Bytes())
+}
+
 // RPCMarshalHeader converts the given header to the RPC output .
 func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
 	return map[string]interface{}{
@@ -1771,21 +1783,15 @@ func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventID st
 	return api.b.GetConsensusTime(ctx, shortEventID)
 }
 
-func eventIDToHex(id hash.Event) hexutil.Bytes {
-	return hexutil.Bytes(id.Bytes())
-}
+// GetHeads returns IDs of all the epoch events with no descendants.
+func (api *PublicDebugAPI) GetHeads(ctx context.Context, epoch int) ([]hexutil.Bytes, error) {
+	res, err := api.b.GetHeads(ctx, epoch)
 
-func eventIDsToHex(ids hash.Events) []hexutil.Bytes {
-	res := make([]hexutil.Bytes, len(ids))
-	for i, id := range ids {
-		res[i] = eventIDToHex(id)
+	if err != nil {
+		return nil, err
 	}
-	return res
-}
 
-// GetHeads returns IDs of all the events with no descendants in current epoch.
-func (api *PublicDebugAPI) GetHeads(ctx context.Context) ([]hexutil.Bytes, error) {
-	return eventIDsToHex(api.b.GetHeads(ctx)), nil
+	return eventIDsToHex(res), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private
