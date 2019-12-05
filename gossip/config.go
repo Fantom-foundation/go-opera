@@ -52,6 +52,10 @@ type (
 		ReceiptsCacheSize int
 		// Cache size for TxPositions.
 		TxPositionsCacheSize int
+		// Cache size for EpochStats.
+		EpochStatsCacheSize int
+		// Cache size for LastEpochHeaders.
+		LastEpochHeadersCacheSize int
 	}
 )
 
@@ -86,23 +90,27 @@ func DefaultConfig(network lachesis.Config) Config {
 // DefaultStoreConfig for product.
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
-		EventsCacheSize:        300,
-		EventsHeadersCacheSize: 10000,
-		BlockCacheSize:         100,
-		PackInfosCacheSize:     100,
-		ReceiptsCacheSize:      100,
-		TxPositionsCacheSize:   1000,
+		EventsCacheSize:           300,
+		EventsHeadersCacheSize:    10000,
+		BlockCacheSize:            100,
+		PackInfosCacheSize:        100,
+		ReceiptsCacheSize:         100,
+		TxPositionsCacheSize:      1000,
+		EpochStatsCacheSize:       100,
+		LastEpochHeadersCacheSize: 2,
 	}
 }
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
-		EventsCacheSize:        100,
-		EventsHeadersCacheSize: 1000,
-		BlockCacheSize:         100,
-		PackInfosCacheSize:     100,
-		ReceiptsCacheSize:      100,
-		TxPositionsCacheSize:   100,
+		EventsCacheSize:           100,
+		EventsHeadersCacheSize:    1000,
+		BlockCacheSize:            100,
+		PackInfosCacheSize:        100,
+		ReceiptsCacheSize:         100,
+		TxPositionsCacheSize:      100,
+		EpochStatsCacheSize:       100,
+		LastEpochHeadersCacheSize: 2,
 	}
 }

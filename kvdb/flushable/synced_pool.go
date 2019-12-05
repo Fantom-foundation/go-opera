@@ -159,23 +159,23 @@ func (p *SyncedPool) flush(id []byte) error {
 	return nil
 }
 
-func (p *SyncedPool) FlushIfNeeded(id []byte) (bool, error) {
+// IsFlushNeeded returns true if it's recommended to flush data to disk
+func (p *SyncedPool) IsFlushNeeded() bool {
 	p.Lock()
 	defer p.Unlock()
 
 	if time.Since(p.prevFlushTime) > 10*time.Minute {
-		return true, p.flush(id)
+		return true
 	}
-
 	totalNotFlushed := 0
 	for _, db := range p.wrappers {
 		totalNotFlushed += db.NotFlushedSizeEst()
 	}
-
 	if totalNotFlushed > 10*1024*1024 {
-		return true, p.flush(id)
+		return true
 	}
-	return false, nil
+
+	return false
 }
 
 // checkDbsSynced on startup, after all dbs are registered.

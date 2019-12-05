@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"os/signal"
 	"sort"
@@ -11,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/params"
 )
@@ -56,7 +56,7 @@ func generatorMain(ctx *cli.Context) error {
 	count := getCount(ctx)
 
 	balance := genesis.Account{
-		Balance: pos.StakeToBalance(pos.Qualification - 1),
+		Balance: big.NewInt(1e18),
 	}
 	jsonData, err := json.Marshal(balance)
 	if err != nil {

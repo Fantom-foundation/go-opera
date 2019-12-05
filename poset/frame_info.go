@@ -27,6 +27,7 @@ type frameInfoMarshaling struct {
 	LastConsensusTime uint64
 }
 
+// EncodeRLP is for RLP serialization.
 func (f *FrameInfo) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, &frameInfoMarshaling{
 		TimeOffset:        uint64(f.TimeOffset + math.MaxInt64/2),
@@ -35,6 +36,7 @@ func (f *FrameInfo) EncodeRLP(w io.Writer) error {
 	})
 }
 
+// DecodeRLP is for RLP deserialization.
 func (f *FrameInfo) DecodeRLP(st *rlp.Stream) error {
 	m := &frameInfoMarshaling{}
 	if err := st.Decode(m); err != nil {

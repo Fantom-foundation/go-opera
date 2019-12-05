@@ -1,26 +1,27 @@
-package poset
+package inter
 
 import (
 	"bytes"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/rlp"
 	"io"
 	"sort"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type (
-	// headersByCreator is a event hashes grouped by creator.
+	// HeadersByCreator is a event headers grouped by creator.
 	// ( creator --> event header )
-	headersByCreator map[common.Address]*inter.EventHeaderData
+	HeadersByCreator map[common.Address]*EventHeaderData
 )
 
 type headersByCreatorPair struct {
 	Creator common.Address
-	Header  *inter.EventHeaderData
+	Header  *EventHeaderData
 }
 
-func (hh headersByCreator) EncodeRLP(w io.Writer) error {
+// EncodeRLP implements rlp.Encoder interface.
+func (hh HeadersByCreator) EncodeRLP(w io.Writer) error {
 	arr := make([]headersByCreatorPair, 0, len(hh))
 	creators := make([]common.Address, 0, len(hh))
 	for creator := range hh {
@@ -42,9 +43,10 @@ func (hh headersByCreator) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, arr)
 }
 
-func (hh *headersByCreator) DecodeRLP(s *rlp.Stream) error {
+// DecodeRLP is for RLP deserialization.
+func (hh *HeadersByCreator) DecodeRLP(s *rlp.Stream) error {
 	if *hh == nil {
-		*hh = headersByCreator{}
+		*hh = HeadersByCreator{}
 	}
 	var arr []headersByCreatorPair
 	if err := s.Decode(&arr); err != nil {
@@ -56,4 +58,10 @@ func (hh *headersByCreator) DecodeRLP(s *rlp.Stream) error {
 	}
 
 	return nil
+}
+
+// Bytes gets the byte representation of the headers map.
+func (hh HeadersByCreator) Bytes() []byte {
+	b, _ := rlp.EncodeToBytes(hh)
+	return b
 }

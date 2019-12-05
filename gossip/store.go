@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"bytes"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,12 +28,14 @@ type Store struct {
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
-		Peers     kvdb.KeyValueStore `table:"peer"`
-		Events    kvdb.KeyValueStore `table:"event"`
-		Blocks    kvdb.KeyValueStore `table:"block"`
-		PackInfos kvdb.KeyValueStore `table:"packinfo"`
-		Packs     kvdb.KeyValueStore `table:"pack"`
-		PacksNum  kvdb.KeyValueStore `table:"packsnum"`
+		Peers            kvdb.KeyValueStore `table:"peer"`
+		Events           kvdb.KeyValueStore `table:"event"`
+		Blocks           kvdb.KeyValueStore `table:"block"`
+		PackInfos        kvdb.KeyValueStore `table:"packinfo"`
+		Packs            kvdb.KeyValueStore `table:"pack"`
+		PacksNum         kvdb.KeyValueStore `table:"packsnum"`
+		LastEpochHeaders kvdb.KeyValueStore `table:"lheaders"`
+		EpochStats       kvdb.KeyValueStore `table:"estats"`
 
 		// API-only tables
 		BlockHashes kvdb.KeyValueStore `table:"blockh"`
@@ -46,12 +49,18 @@ type Store struct {
 	}
 
 	cache struct {
-		Events        *lru.Cache `cache:"-"` // store by pointer
-		EventsHeaders *lru.Cache `cache:"-"` // store by pointer
-		Blocks        *lru.Cache `cache:"-"` // store by pointer
-		PackInfos     *lru.Cache `cache:"-"` // store by value
-		Receipts      *lru.Cache `cache:"-"` // store by value
-		TxPositions   *lru.Cache `cache:"-"` // store by pointer
+		Events           *lru.Cache `cache:"-"` // store by pointer
+		EventsHeaders    *lru.Cache `cache:"-"` // store by pointer
+		Blocks           *lru.Cache `cache:"-"` // store by pointer
+		PackInfos        *lru.Cache `cache:"-"` // store by value
+		Receipts         *lru.Cache `cache:"-"` // store by value
+		TxPositions      *lru.Cache `cache:"-"` // store by pointer
+		EpochStats       *lru.Cache `cache:"-"` // store by value
+		LastEpochHeaders *lru.Cache `cache:"-"` // store by pointer
+	}
+
+	mutexes struct {
+		LastEpochHeaders *sync.RWMutex
 	}
 
 	tmpDbs
@@ -85,6 +94,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 
 	s.initTmpDbs()
 	s.initCache()
+	s.initMutexes()
 
 	return s
 }
@@ -96,6 +106,12 @@ func (s *Store) initCache() {
 	s.cache.PackInfos = s.makeCache(s.cfg.PackInfosCacheSize)
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
+	s.cache.EpochStats = s.makeCache(s.cfg.EpochStatsCacheSize)
+	s.cache.LastEpochHeaders = s.makeCache(s.cfg.LastEpochHeadersCacheSize)
+}
+
+func (s *Store) initMutexes() {
+	s.mutexes.LastEpochHeaders = new(sync.RWMutex)
 }
 
 // Close leaves underlying database.
@@ -116,16 +132,21 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 		// if flushId not specified, use current time
 		buf := bytes.NewBuffer(nil)
 		buf.Write([]byte{0xbe, 0xee})                                    // 0xbeee eyecatcher that flushed time
-		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UNIX time
+		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UnixNano time
 		flushID = buf.Bytes()
 	}
 
-	if immediately {
+	if immediately || s.dbs.IsFlushNeeded() {
+		// Flush trie on the DB
+		err := s.table.EvmState.TrieDB().Cap(0)
+		if err != nil {
+			s.Log.Error("Failed to flush trie DB into main DB", "err", err)
+		}
+		// Flush the DBs
 		return s.dbs.Flush(flushID)
 	}
 
-	_, err := s.dbs.FlushIfNeeded(flushID)
-	return err
+	return nil
 }
 
 // StateDB returns state database.

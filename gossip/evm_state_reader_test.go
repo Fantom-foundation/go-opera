@@ -12,7 +12,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -24,7 +23,7 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, 1e6*pos.Qualification))
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), 1))
 	addrWithCode := net.Genesis.Alloc.Addresses()[0]
 	accountWithCode := net.Genesis.Alloc[addrWithCode]
 	accountWithCode.Code = []byte{1, 2, 3}
@@ -69,7 +68,7 @@ func TestGetBlock(t *testing.T) {
 
 	store := NewMemStore()
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, 1e6*pos.Qualification))
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), 1))
 	genesisHash, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
@@ -88,7 +87,7 @@ func TestGetBlock(t *testing.T) {
 	event1.Seq = 1
 	event2.Transactions = txs[1:]
 	event1.Seq = 2
-	block := inter.NewBlock(1, 123, hash.Events{event1.Hash(), event2.Hash()}, genesisHash)
+	block := inter.NewBlock(1, 123, event2.Hash(), genesisHash, hash.Events{event1.Hash(), event2.Hash()})
 	block.SkippedTxs = []uint{0, 2, 4}
 
 	store.SetEvent(event1)

@@ -3,10 +3,9 @@ package poset
 import (
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -16,7 +15,7 @@ import (
 func TestPosetTxn(t *testing.T) {
 	logger.SetTestMode(t)
 
-	var x = FakeInitialStake
+	var x = pos.Stake(1)
 
 	nodes := inter.GenNodes(5)
 
@@ -28,13 +27,15 @@ func TestPosetTxn(t *testing.T) {
 		1*x, p.EpochState.Validators.Get(nodes[1]),
 		"balance of %s", nodes[1].String())
 
-	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
-		if block.Index == 1 {
+	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) pos.Validators {
+		if oldEpoch == 1 {
+			validators := p.Validators.Copy()
 			// move stake from node0 to node1
-			validators.Set(nodes[0], 0)
+			validators.Set(nodes[0], 0*x)
 			validators.Set(nodes[1], 2*x)
+			return validators
 		}
-		return stateHash, validators
+		return p.Validators
 	}
 
 	_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen-1), 3, nil, inter.ForEachEvent{
@@ -47,6 +48,7 @@ func TestPosetTxn(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = 1
+			e.TxHash = types.DeriveSha(e.Transactions)
 			e = p.Prepare(e)
 			return e
 		},
@@ -58,33 +60,23 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, genesisTestTime, p.PrevEpoch.Time)
 
 	assert.Equal(t, 5*x, p.Validators.TotalStake())
-	assert.Equal(t, 5*x, p.NextValidators.TotalStake())
 
 	assert.Equal(t, 5, p.Validators.Len())
-	assert.Equal(t, 4, p.NextValidators.Len())
 
 	assert.Equal(t, 1*x, p.Validators.Get(nodes[0]))
 	assert.Equal(t, 1*x, p.Validators.Get(nodes[1]))
-	assert.Equal(t, 0*x, p.NextValidators.Get(nodes[0]))
-	assert.Equal(t, 2*x, p.NextValidators.Get(nodes[1]))
-
 	// force Epoch commit
-	p.onNewEpoch(hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), nil)
+	p.sealEpoch()
 
 	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
-	assert.Equal(t, hash.HexToEventHash("0x6099dac580ff18a7055f5c92c2e0717dd4bf9907565df7a8502d0c3dd513b30c"), p.PrevEpoch.LastAtropos)
 	assert.NotEqual(t, genesisTestTime, p.PrevEpoch.Time)
 
 	assert.Equal(t, 5*x, p.Validators.TotalStake())
-	assert.Equal(t, 5*x, p.NextValidators.TotalStake())
 
 	assert.Equal(t, 4, p.Validators.Len())
-	assert.Equal(t, 4, p.NextValidators.Len())
 
 	assert.Equal(t, 0*x, p.Validators.Get(nodes[0]))
 	assert.Equal(t, 2*x, p.Validators.Get(nodes[1]))
-	assert.Equal(t, 0*x, p.NextValidators.Get(nodes[0]))
-	assert.Equal(t, 2*x, p.NextValidators.Get(nodes[1]))
 
 	st := s.GetCheckpoint()
 	ep := s.GetEpoch()

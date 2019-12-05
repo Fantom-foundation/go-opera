@@ -1,17 +1,14 @@
 package poset
 
 import (
-	"bytes"
-	"sort"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -26,12 +23,12 @@ func TestConfirmBlockEvents(t *testing.T) {
 		frames []idx.Frame
 		blocks []*inter.Block
 	)
-	applyBlock := poset.applyBlock
-	poset.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
+	applyBlock := poset.callback.ApplyBlock
+	poset.callback.ApplyBlock = func(block *inter.Block, decidedFrame idx.Frame, cheaters inter.Cheaters) (common.Hash, bool) {
 		frames = append(frames, poset.LastDecidedFrame)
 		blocks = append(blocks, block)
 
-		return applyBlock(block, stateHash, validators)
+		return applyBlock(block, decidedFrame, cheaters)
 	}
 
 	eventCount := int(poset.dag.EpochLen)
@@ -46,41 +43,34 @@ func TestConfirmBlockEvents(t *testing.T) {
 		},
 		Build: func(e *inter.Event, name string) *inter.Event {
 			e.Epoch = idx.Epoch(1)
+			if e.Seq%2 != 0 {
+				e.Transactions = append(e.Transactions, &types.Transaction{})
+			}
+			e.TxHash = types.DeriveSha(e.Transactions)
 			return poset.Prepare(e)
 		},
 	})
 
+	// unconfirm all events
+	it := poset.store.table.ConfirmedEvent.NewIterator()
+	batch := poset.store.table.ConfirmedEvent.NewBatch()
+	for it.Next() {
+		assertar.NoError(batch.Delete(it.Key()))
+	}
+	assertar.NoError(batch.Write())
+	it.Release()
+
 	for i, block := range blocks {
 		frame := frames[i]
-		atropos := poset.LastAtropos
-		if (i + 1) < len(blocks) {
-			atropos = blocks[i+1].PrevHash
+		atropos := blocks[i].Atropos
+
+		// call confirmBlock again
+		gotBlock, cheaters := poset.confirmBlock(frame, atropos)
+
+		if !assertar.Empty(cheaters) {
+			break
 		}
-
-		// call confirmBlockEvents again
-		unordered, _ := poset.confirmBlockEvents(frame, atropos)
-
-		sort.Slice(unordered, func(i, j int) bool {
-			a, b := unordered[i], unordered[j]
-
-			if a.Lamport != b.Lamport {
-				return a.Lamport < b.Lamport
-			}
-
-			return bytes.Compare(a.Hash().Bytes(), b.Hash().Bytes()) < 0
-		})
-		ordered := unordered
-
-		got := make(hash.Events, len(ordered))
-		for i, e := range ordered {
-			got[i] = e.Hash()
-		}
-
-		// NOTE: it means confirmBlockEvents() return events once
-		expect := hash.Events{}
-		// TODO: `expect := block.Events` if confirmBlockEvents() idempotent
-
-		if !assertar.Equal(expect, got, block) {
+		if !assertar.Equal(block.Events, gotBlock.Events) {
 			break
 		}
 	}

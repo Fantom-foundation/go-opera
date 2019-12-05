@@ -28,7 +28,7 @@ const (
 type OnValidatedFn func(*TaskData)
 
 // Check which require only parents list + current epoch info
-type Validator struct {
+type Checker struct {
 	config   *lachesis.DagConfig
 	txSigner types.Signer
 
@@ -47,7 +47,7 @@ type TaskData struct {
 }
 
 // NewDefault uses N-1 threads
-func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Validator {
+func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Checker {
 	threads := runtime.NumCPU()
 	if threads > 1 {
 		threads--
@@ -59,8 +59,8 @@ func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Validator {
 }
 
 // New validator which performs heavy checks, related to signatures validation and Merkle tree validation
-func New(config *lachesis.DagConfig, txSigner types.Signer, numOfThreads int) *Validator {
-	return &Validator{
+func New(config *lachesis.DagConfig, txSigner types.Signer, numOfThreads int) *Checker {
+	return &Checker{
 		config:       config,
 		txSigner:     txSigner,
 		numOfThreads: numOfThreads,
@@ -69,23 +69,23 @@ func New(config *lachesis.DagConfig, txSigner types.Signer, numOfThreads int) *V
 	}
 }
 
-func (v *Validator) Start() {
+func (v *Checker) Start() {
 	for i := 0; i < v.numOfThreads; i++ {
 		v.wg.Add(1)
 		go v.loop()
 	}
 }
 
-func (v *Validator) Stop() {
+func (v *Checker) Stop() {
 	close(v.quit)
 	v.wg.Wait()
 }
 
-func (v *Validator) Overloaded() bool {
+func (v *Checker) Overloaded() bool {
 	return len(v.tasksQ) > maxQueuedTasks/2
 }
 
-func (v *Validator) Enqueue(events inter.Events, onValidated OnValidatedFn) error {
+func (v *Checker) Enqueue(events inter.Events, onValidated OnValidatedFn) error {
 	// divide big batch into smaller ones
 	for start := 0; start < len(events); start += maxBatch {
 		end := len(events)
@@ -106,7 +106,8 @@ func (v *Validator) Enqueue(events inter.Events, onValidated OnValidatedFn) erro
 	return nil
 }
 
-func (v *Validator) Validate(e *inter.Event) error {
+// Validate event
+func (v *Checker) Validate(e *inter.Event) error {
 	// event sig
 	if !e.VerifySignature() {
 		return ErrWrongEventSig
@@ -126,7 +127,7 @@ func (v *Validator) Validate(e *inter.Event) error {
 	return nil
 }
 
-func (v *Validator) loop() {
+func (v *Checker) loop() {
 	defer v.wg.Done()
 	for {
 		select {

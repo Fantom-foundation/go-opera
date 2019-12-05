@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -53,13 +54,15 @@ func benchmarkStore(b *testing.B) {
 
 	p := benchPoset(nodes, input, store)
 
-	p.applyBlock = func(block *inter.Block, stateHash common.Hash, validators pos.Validators) (common.Hash, pos.Validators) {
-		if block.Index == 1 {
+	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) pos.Validators {
+		if oldEpoch == 1 {
+			validators := p.Validators.Copy()
 			// move stake from node0 to node1
 			validators.Set(nodes[0], 0)
 			validators.Set(nodes[1], 2)
+			return validators
 		}
-		return stateHash, validators
+		return p.Validators
 	}
 
 	// run test with random DAG, N + 1 epochs long
@@ -81,6 +84,10 @@ func benchmarkStore(b *testing.B) {
 			},
 			Build: func(e *inter.Event, name string) *inter.Event {
 				e.Epoch = epoch
+				if e.Seq%2 != 0 {
+					e.Transactions = append(e.Transactions, &types.Transaction{})
+				}
+				e.TxHash = types.DeriveSha(e.Transactions)
 				return p.Prepare(e)
 			},
 		})
@@ -88,14 +95,14 @@ func benchmarkStore(b *testing.B) {
 }
 
 func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset {
-	balances := make(genesis.Accounts, len(nodes))
+	validators := pos.NewValidators()
 	for _, addr := range nodes {
-		balances[addr] = genesis.Account{Balance: pos.StakeToBalance(1)}
+		validators.Set(addr, 1)
 	}
 
 	err := store.ApplyGenesis(&genesis.Genesis{
-		Alloc: balances,
-		Time:  genesisTestTime,
+		Time:       genesisTestTime,
+		Validators: *validators,
 	}, hash.Event{}, common.Hash{})
 	if err != nil {
 		panic(err)
@@ -103,7 +110,7 @@ func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset 
 
 	dag := lachesis.FakeNetDagConfig()
 	poset := New(dag, store, input)
-	poset.Bootstrap(nil)
+	poset.Bootstrap(inter.ConsensusCallbacks{})
 
 	return poset
 }

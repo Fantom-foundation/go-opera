@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/crypto"
 	"github.com/Fantom-foundation/go-lachesis/integration"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
 
@@ -43,7 +43,7 @@ func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
 	return crypto.FakeKey(num)
 }
 
-func parseFakeGen(s string) (num int, accs genesis.Accounts, err error) {
+func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 	var i64 uint64
 
 	parts := strings.SplitN(s, "/", 2)
@@ -61,13 +61,13 @@ func parseFakeGen(s string) (num int, accs genesis.Accounts, err error) {
 	parts = strings.SplitN(parts[1], ",", 2)
 
 	i64, err = strconv.ParseUint(parts[0], 10, 32)
-	validators := int(i64)
+	validatorsNum := int(i64)
 
-	if validators < 1 || num >= validators {
+	if validatorsNum < 1 || num >= validatorsNum {
 		err = fmt.Errorf("key-num should be in range from 1 to validators : <key-num>/<validators>")
 	}
 
-	accs = genesis.FakeAccounts(0, validators, 1e6*pos.Qualification)
+	vaccs = genesis.FakeAccounts(0, validatorsNum, big.NewInt(1e18), 1e6)
 
 	if len(parts) < 2 {
 		return
@@ -77,12 +77,13 @@ func parseFakeGen(s string) (num int, accs genesis.Accounts, err error) {
 	if err != nil {
 		others, err = readAccounts(parts[1])
 	} else {
-		others, err = genesis.FakeAccounts(validators, int(i64), pos.Qualification-1), nil
+		others, err = genesis.FakeAccounts(validatorsNum, int(i64), big.NewInt(1e18), 0).Accounts, nil
 	}
+	vaccs.Accounts.Add(others)
+
 	if err != nil {
 		return
 	}
-	accs.Add(others)
 
 	return
 }

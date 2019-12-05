@@ -66,7 +66,7 @@ func TestNetConfig() Config {
 	}
 }
 
-func FakeNetConfig(accs genesis.Accounts) Config {
+func FakeNetConfig(accs genesis.VAccounts) Config {
 	return Config{
 		Name:      "fake",
 		NetworkID: FakeNetworkID,

@@ -287,7 +287,7 @@ func castToPair(node *rbt.Node) (key, val []byte) {
 	return key, val
 }
 
-// ForEach scans key-value pair by key in lexicographic order. Looks in cache first, then - in DB.
+// Next scans key-value pair by key in lexicographic order. Looks in cache first, then - in DB.
 func (it *iterator) Next() bool {
 	it.lock.Lock()
 	defer it.lock.Unlock()
@@ -445,14 +445,14 @@ type cacheBatch struct {
 	size   int
 }
 
-// Put puts key-value pair into batch.
+// Put adds "add key-value pair" operation into batch.
 func (b *cacheBatch) Put(key, value []byte) error {
 	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
 	b.size += len(value) + len(key)
 	return nil
 }
 
-// Delete removes key-value pair from batch by key.
+// Delete adds "remove key" operation into batch.
 func (b *cacheBatch) Delete(key []byte) error {
 	b.writes = append(b.writes, kv{common.CopyBytes(key), nil})
 	b.size += len(key)
@@ -479,7 +479,7 @@ func (b *cacheBatch) Write() error {
 	return nil
 }
 
-// ValueSize returns values sizes sum.
+// ValueSize returns key-values sizes sum.
 func (b *cacheBatch) ValueSize() int {
 	return b.size
 }

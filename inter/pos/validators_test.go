@@ -20,30 +20,30 @@ func TestNewValidators(t *testing.T) {
 func TestValidators_Set(t *testing.T) {
 	v := NewValidators()
 
-	v.Set(common.Address{1, }, 1)
-	v.Set(common.Address{1, 2, }, 2)
-	v.Set(common.Address{1, 2, 3, }, 3)
-	v.Set(common.Address{1, 2, 3, 4, }, 4)
-	v.Set(common.Address{1, 2, 3, 4, 5, }, 5)
+	v.Set(common.Address{1}, 1)
+	v.Set(common.Address{1, 2}, 2)
+	v.Set(common.Address{1, 2, 3}, 3)
+	v.Set(common.Address{1, 2, 3, 4}, 4)
+	v.Set(common.Address{1, 2, 3, 4, 5}, 5)
 
 	assert.Equal(t, 5, v.Len())
 	assert.Equal(t, Stake(15), v.TotalStake())
 
-	v.Set(common.Address{1, }, 10)
-	v.Set(common.Address{1, 2, 3, }, 30)
+	v.Set(common.Address{1}, 10)
+	v.Set(common.Address{1, 2, 3}, 30)
 
 	assert.Equal(t, 5, v.Len())
 	assert.Equal(t, Stake(51), v.TotalStake())
 
-	v.Set(common.Address{1, 2, }, 0)
-	v.Set(common.Address{1, 2, 3, 4, 5, }, 0)
+	v.Set(common.Address{1, 2}, 0)
+	v.Set(common.Address{1, 2, 3, 4, 5}, 0)
 
 	assert.Equal(t, 3, v.Len())
 	assert.Equal(t, Stake(44), v.TotalStake())
 
-	v.Set(common.Address{1, 2, 3, 4, }, 0)
-	v.Set(common.Address{1, 2, 3, }, 0)
-	v.Set(common.Address{1, }, 0)
+	v.Set(common.Address{1, 2, 3, 4}, 0)
+	v.Set(common.Address{1, 2, 3}, 0)
+	v.Set(common.Address{1}, 0)
 
 	assert.Equal(t, 0, v.Len())
 	assert.Equal(t, Stake(0), v.TotalStake())
@@ -52,27 +52,27 @@ func TestValidators_Set(t *testing.T) {
 func TestValidators_Get(t *testing.T) {
 	v := NewValidators()
 
-	v.Set(common.Address{1, }, 1)
-	v.Set(common.Address{1, 2, }, 2)
-	v.Set(common.Address{1, 2, 3, }, 3)
-	v.Set(common.Address{1, 2, 3, 4, }, 4)
-	v.Set(common.Address{1, 2, 3, 4, 5, }, 5)
+	v.Set(common.Address{1}, 1)
+	v.Set(common.Address{1, 2}, 2)
+	v.Set(common.Address{1, 2, 3}, 3)
+	v.Set(common.Address{1, 2, 3, 4}, 4)
+	v.Set(common.Address{1, 2, 3, 4, 5}, 5)
 
-	assert.Equal(t, Stake(1), v.Get(common.Address{1, }))
-	assert.Equal(t, Stake(2), v.Get(common.Address{1, 2, }))
-	assert.Equal(t, Stake(3), v.Get(common.Address{1, 2, 3, }))
-	assert.Equal(t, Stake(4), v.Get(common.Address{1, 2, 3, 4, }))
-	assert.Equal(t, Stake(5), v.Get(common.Address{1, 2, 3, 4, 5, }))
+	assert.Equal(t, Stake(1), v.Get(common.Address{1}))
+	assert.Equal(t, Stake(2), v.Get(common.Address{1, 2}))
+	assert.Equal(t, Stake(3), v.Get(common.Address{1, 2, 3}))
+	assert.Equal(t, Stake(4), v.Get(common.Address{1, 2, 3, 4}))
+	assert.Equal(t, Stake(5), v.Get(common.Address{1, 2, 3, 4, 5}))
 }
 
 func TestValidators_Iterate(t *testing.T) {
 	v := NewValidators()
 
-	v.Set(common.Address{1, }, 1)
-	v.Set(common.Address{1, 2, }, 2)
-	v.Set(common.Address{1, 2, 3, }, 3)
-	v.Set(common.Address{1, 2, 3, 4, }, 4)
-	v.Set(common.Address{1, 2, 3, 4, 5, }, 5)
+	v.Set(common.Address{1}, 1)
+	v.Set(common.Address{1, 2}, 2)
+	v.Set(common.Address{1, 2, 3}, 3)
+	v.Set(common.Address{1, 2, 3, 4}, 4)
+	v.Set(common.Address{1, 2, 3, 4, 5}, 5)
 
 	count := 0
 	sum := 0
@@ -88,11 +88,11 @@ func TestValidators_Iterate(t *testing.T) {
 func TestValidators_Copy(t *testing.T) {
 	v := NewValidators()
 
-	v.Set(common.Address{1, }, 1)
-	v.Set(common.Address{1, 2, }, 2)
-	v.Set(common.Address{1, 2, 3, }, 3)
-	v.Set(common.Address{1, 2, 3, 4, }, 4)
-	v.Set(common.Address{1, 2, 3, 4, 5, }, 5)
+	v.Set(common.Address{1}, 1)
+	v.Set(common.Address{1, 2}, 2)
+	v.Set(common.Address{1, 2, 3}, 3)
+	v.Set(common.Address{1, 2, 3, 4}, 4)
+	v.Set(common.Address{1, 2, 3, 4, 5}, 5)
 
 	vv := v.Copy()
 

@@ -18,7 +18,7 @@ do
     RPCP=$(($RPCP_BASE+$i))
     ACC=$(($i+1))
 
-    docker inspect $name &>/dev/null || \
+    docker inspect $NAME &>/dev/null || \
     docker run -d --rm \
 	--net=${NETWORK} --name=${NAME} \
 	--cpus=${LIMIT_CPU} --blkio-weight=${LIMIT_IO} \

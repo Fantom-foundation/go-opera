@@ -16,19 +16,20 @@ var (
 	ErrPastTime        = errors.New("event has lower claimed time than self-parent")
 )
 
-// Check which require only parents list + current epoch info
-type Validator struct {
+// Checker which require only parents list + current epoch info
+type Checker struct {
 	config *lachesis.DagConfig
 }
 
 // New validator which performs checks, which require known the parents
-func New(config *lachesis.DagConfig) *Validator {
-	return &Validator{
+func New(config *lachesis.DagConfig) *Checker {
+	return &Checker{
 		config: config,
 	}
 }
 
-func (v *Validator) Validate(e *inter.Event, parents []*inter.EventHeaderData) error {
+// Validate event
+func (v *Checker) Validate(e *inter.Event, parents []*inter.EventHeaderData) error {
 	if len(e.Parents) != len(parents) {
 		panic("parentscheck: expected event's parents as an argument")
 	}

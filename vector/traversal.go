@@ -47,4 +47,3 @@ func (vi *Index) dfsSubgraph(head *inter.EventHeaderData, walk func(*inter.Event
 
 	return nil
 }
-

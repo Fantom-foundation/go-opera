@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -127,12 +127,13 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 1, 1e6*pos.Qualification))
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 1, big.NewInt(0), 1))
 	config := DefaultConfig(net)
 	config.ForcedBroadcast = allowAggressive
 	config.Emitter.MinEmitInterval = time.Duration(0)
 	config.Emitter.MaxEmitInterval = time.Duration(0)
 	config.Emitter.SelfForkProtectionInterval = 0
+	config.TxPool.Journal = ""
 
 	var (
 		store       = NewMemStore()
@@ -146,7 +147,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	assertar.NoError(err)
 
 	engine := poset.New(net.Dag, engineStore, store)
-	engine.Bootstrap(nil)
+	engine.Bootstrap(inter.ConsensusCallbacks{})
 
 	coinbase := net.Genesis.Alloc.Addresses()[0]
 	ctx := &node.ServiceContext{
