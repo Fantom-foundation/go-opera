@@ -59,8 +59,8 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 		creatorHighest := atroposHighestBefore.Get(validatorIdxs[confirmedEvent.Creator])
 		fromCheater := creatorHighest.IsForkDetected()
 		// seqDepth is the depth in of this event in "chain" of self-parents of this creator
-		seqDepth := creatorHighest.Seq - creatorHighest.Seq
-		if creatorHighest.Seq < creatorHighest.Seq {
+		seqDepth := creatorHighest.Seq - confirmedEvent.Seq
+		if creatorHighest.Seq < confirmedEvent.Seq {
 			seqDepth = math.MaxInt32
 		}
 		allowed := p.callback.IsEventAllowedIntoBlock == nil || p.callback.IsEventAllowedIntoBlock(confirmedEvent, seqDepth)

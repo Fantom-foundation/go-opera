@@ -206,7 +206,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	}
 
 	// Notify about new block
-	s.feed.newBlock.Send(evmcore.ChainHeadNotify{evmBlock})
+	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 
 	// trace confirmed transactions
 	for _, tx := range evmBlock.Transactions {
