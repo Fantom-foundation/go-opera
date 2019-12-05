@@ -142,6 +142,7 @@ func (v *Checker) checkInited(e *inter.Event) error {
 	return nil
 }
 
+// Validate event
 func (v *Checker) Validate(e *inter.Event) error {
 	if e.Version != 0 {
 		return ErrVersion

@@ -286,6 +286,7 @@ func (s *Service) gasPowerCheck(e *inter.Event) error {
 	return gasPowerChecker.Validate(e, selfParent)
 }
 
+// GasPowerCheckReader is a helper to run gas power check
 type GasPowerCheckReader struct {
 	Consensus
 	store *Store

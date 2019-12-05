@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	// Hash of empty transactions list. Used to check that event doesn't have transactions not having full event.
 	EmptyTxHash = types.DeriveSha(types.Transactions{})
 )
 
@@ -90,6 +91,7 @@ func (e *EventHeaderData) String() string {
 	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
 }
 
+// NoTransactions is used to check that event doesn't have transactions not having full event.
 func (e *EventHeaderData) NoTransactions() bool {
 	return e.TxHash == EmptyTxHash
 }

@@ -6,6 +6,7 @@ import (
 	"math/big"
 )
 
+// FakeAccounts returns accounts and validators for fakenet
 func FakeAccounts(from, count int, balance *big.Int, stake pos.Stake) VAccounts {
 	accs := make(Accounts, count)
 	validators := pos.NewValidators()

@@ -5,10 +5,12 @@ import (
 	"math"
 )
 
+// GetDirtyEpochStats returns EpochStats for current (not sealed) epoch
 func (s *Store) GetDirtyEpochStats() *EpochStats {
 	return s.GetEpochStats(idx.Epoch(math.MaxInt32))
 }
 
+// GetEpochStats returns EpochStats for an already sealed epoch
 func (s *Store) GetEpochStats(epoch idx.Epoch) *EpochStats {
 	key := epoch.Bytes()
 
@@ -31,10 +33,12 @@ func (s *Store) GetEpochStats(epoch idx.Epoch) *EpochStats {
 	return w
 }
 
+// SetDirtyEpochStats set EpochStats for current (not sealed) epoch
 func (s *Store) SetDirtyEpochStats(value EpochStats) {
 	s.SetEpochStats(idx.Epoch(math.MaxInt32), value)
 }
 
+// SetEpochStats set EpochStats for an already sealed epoch
 func (s *Store) SetEpochStats(epoch idx.Epoch, value EpochStats) {
 	key := epoch.Bytes()
 

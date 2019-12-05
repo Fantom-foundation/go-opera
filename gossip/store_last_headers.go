@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
+// DelLastHeader deletes record about last header from a validator
 func (s *Store) DelLastHeader(epoch idx.Epoch, creator common.Address) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
@@ -33,6 +34,7 @@ func (s *Store) DelLastHeader(epoch idx.Epoch, creator common.Address) {
 	}
 }
 
+// DelLastHeaders deletes all the records about last headers
 func (s *Store) DelLastHeaders(epoch idx.Epoch) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
@@ -56,6 +58,7 @@ func (s *Store) DelLastHeaders(epoch idx.Epoch) {
 	s.cache.LastEpochHeaders.Remove(epoch)
 }
 
+// AddLastHeader adds/updates a records about last header from a validator
 func (s *Store) AddLastHeader(epoch idx.Epoch, header *inter.EventHeaderData) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
@@ -76,6 +79,7 @@ func (s *Store) AddLastHeader(epoch idx.Epoch, header *inter.EventHeaderData) {
 	}
 }
 
+// GetLastHeaders retrieves all the records about last headers from validators
 func (s *Store) GetLastHeaders(epoch idx.Epoch) inter.HeadersByCreator {
 	s.mutexes.LastEpochHeaders.RLock()
 	defer s.mutexes.LastEpochHeaders.RUnlock()

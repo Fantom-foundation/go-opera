@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	// ErrWrongGasPowerLeft indicates that event's GasPowerLeft is miscalculated.
 	ErrWrongGasPowerLeft = errors.New("event has wrong GasPowerLeft")
 )
 
@@ -31,6 +32,7 @@ type Checker struct {
 	reader DagReader
 }
 
+// New Checker for gas power
 func New(config *lachesis.GasPowerConfig, reader DagReader) *Checker {
 	return &Checker{
 		config: config,
@@ -132,6 +134,7 @@ func CalcGasPower(
 	return gasPower
 }
 
+// Validate event
 func (v *Checker) Validate(e *inter.Event, selfParent *inter.EventHeaderData) error {
 	validators, epoch := v.reader.GetEpochValidators()
 	lastHeaders, prevEpoch1 := v.reader.GetPrevEpochLastHeaders()

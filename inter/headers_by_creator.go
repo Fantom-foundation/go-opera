@@ -20,6 +20,7 @@ type headersByCreatorPair struct {
 	Header  *EventHeaderData
 }
 
+// EncodeRLP implements rlp.Encoder interface.
 func (hh HeadersByCreator) EncodeRLP(w io.Writer) error {
 	arr := make([]headersByCreatorPair, 0, len(hh))
 	creators := make([]common.Address, 0, len(hh))
@@ -42,6 +43,7 @@ func (hh HeadersByCreator) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, arr)
 }
 
+// DecodeRLP is for RLP deserialization.
 func (hh *HeadersByCreator) DecodeRLP(s *rlp.Stream) error {
 	if *hh == nil {
 		*hh = HeadersByCreator{}
@@ -58,6 +60,7 @@ func (hh *HeadersByCreator) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
+// Bytes gets the byte representation of the headers map.
 func (hh HeadersByCreator) Bytes() []byte {
 	b, _ := rlp.EncodeToBytes(hh)
 	return b

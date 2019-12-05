@@ -159,6 +159,7 @@ func (p *SyncedPool) flush(id []byte) error {
 	return nil
 }
 
+// IsFlushNeeded returns true if it's recommended to flush data to disk
 func (p *SyncedPool) IsFlushNeeded() bool {
 	p.Lock()
 	defer p.Unlock()

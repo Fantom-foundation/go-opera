@@ -28,6 +28,7 @@ func New(config *lachesis.DagConfig) *Checker {
 	}
 }
 
+// Validate event
 func (v *Checker) Validate(e *inter.Event, parents []*inter.EventHeaderData) error {
 	if len(e.Parents) != len(parents) {
 		panic("parentscheck: expected event's parents as an argument")

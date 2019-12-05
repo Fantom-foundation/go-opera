@@ -106,6 +106,7 @@ func (v *Checker) Enqueue(events inter.Events, onValidated OnValidatedFn) error 
 	return nil
 }
 
+// Validate event
 func (v *Checker) Validate(e *inter.Event) error {
 	// event sig
 	if !e.VerifySignature() {

@@ -34,6 +34,7 @@ func New(config *lachesis.DagConfig, reader DagReader) *Checker {
 	}
 }
 
+// Validate event
 func (v *Checker) Validate(e *inter.Event) error {
 	// check epoch first, because validators group is known only for the current epoch
 	validators, epoch := v.reader.GetEpochValidators()
