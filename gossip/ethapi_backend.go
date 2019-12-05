@@ -167,13 +167,42 @@ func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID strin
 	return b.svc.engine.GetConsensusTime(id)
 }
 
-// GetHeads returns IDs of all the events with no descendants in current epoch.
-func (b *EthAPIBackend) GetHeads(ctx context.Context) hash.Events {
-	heads := b.svc.store.GetHeads(b.svc.engine.GetEpoch())
+// GetHeads returns IDs of all the epoch events with no descendants.
+func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch int) (heads hash.Events, err error) {
+	current := b.svc.engine.GetEpoch()
+
+	var requested idx.Epoch
+	switch {
+	case epoch == -1:
+		requested = current
+	case epoch >= 0 && idx.Epoch(epoch) <= current:
+		requested = idx.Epoch(epoch)
+	default:
+		err = errors.New("epoch is not in range")
+		return
+	}
+
+	if requested == current {
+		heads = b.svc.store.GetHeads(requested)
+	} else {
+		num, ok := b.svc.store.GetPacksNum(requested)
+		if !ok {
+			err = errors.New("epoch is not found")
+			return
+		}
+		packInfo := b.svc.store.GetPackInfo(requested, num-1)
+		if packInfo == nil {
+			err = errors.New("epoch is not found")
+			return
+		}
+		heads = packInfo.Heads
+	}
+
 	if heads == nil {
 		heads = hash.Events{}
 	}
-	return heads
+
+	return
 }
 
 func (b *EthAPIBackend) GetHeader(ctx context.Context, h common.Hash) *evmcore.EvmHeader {
@@ -194,7 +223,7 @@ func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.E
 
 func (b *EthAPIBackend) GetReceipts(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error) {
 	if !b.svc.config.TxIndex {
-		return nil, errors.New("trnsactions index is disabled (enable TxIndex and re-process the DAG)")
+		return nil, errors.New("transactions index is disabled (enable TxIndex and re-process the DAG)")
 	}
 
 	if number == rpc.PendingBlockNumber {

@@ -123,7 +123,7 @@ returns the Lachesis event header by hash or short ID.
 
 #### debug_getHeads
 
-returns IDs of all the events with no descendants in current epoch
+returns IDs of all the epoch events with no descendants
 
 ##### Parameters
 

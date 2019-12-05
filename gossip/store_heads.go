@@ -46,7 +46,7 @@ func (s *Store) IsHead(epoch idx.Epoch, id hash.Event) bool {
 	return ok
 }
 
-// GetHeads returns all the events with no descendants
+// GetHeads returns IDs of all the epoch events with no descendants
 func (s *Store) GetHeads(epoch idx.Epoch) hash.Events {
 	es := s.getEpochStore(epoch)
 	if es == nil {
