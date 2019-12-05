@@ -42,6 +42,12 @@ var (
 	nodeFlags    []cli.Flag
 	rpcFlags     []cli.Flag
 	metricsFlags []cli.Flag
+
+	coinbaseFlag = cli.StringFlag{
+		Name:  "coinbase",
+		Usage: "Public address for block mining rewards",
+		Value: "0",
+	}
 )
 
 // init the CLI app.
@@ -104,6 +110,7 @@ func init() {
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
+		coinbaseFlag,
 	}
 
 	rpcFlags = []cli.Flag{

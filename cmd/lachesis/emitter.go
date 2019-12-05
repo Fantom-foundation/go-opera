@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/crypto"
@@ -15,6 +16,11 @@ func setCoinbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *gossip.EmitterCon
 	// Extract the current coinbase, new flag overriding legacy one
 	var coinbase string
 	switch {
+	case ctx.GlobalIsSet(coinbaseFlag.Name):
+		coinbase = ctx.GlobalString(coinbaseFlag.Name)
+		if coinbase == "no" {
+			coinbase = common.Address{}.String()
+		}
 	case ctx.GlobalIsSet(utils.MinerEtherbaseFlag.Name):
 		coinbase = ctx.GlobalString(utils.MinerEtherbaseFlag.Name)
 	case ctx.GlobalIsSet(utils.MinerLegacyEtherbaseFlag.Name):
