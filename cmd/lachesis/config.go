@@ -52,7 +52,7 @@ var (
 	DataDirFlag = utils.DirectoryFlag{
 		Name:  "datadir",
 		Usage: "Data directory for the databases and keystore",
-		Value: utils.DirectoryString{DefaultDataDir()},
+		Value: utils.DirectoryString(DefaultDataDir()),
 	}
 )
 
