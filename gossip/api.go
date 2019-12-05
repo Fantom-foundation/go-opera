@@ -32,7 +32,7 @@ func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 	return hexutil.Uint64(0)
 }
 
-// ChainID is the EIP-155 replay-protection chain id for the current ethereum chain config.
+// ChainId is the EIP-155 replay-protection chain id for the current ethereum chain config.
 func (api *PublicEthereumAPI) ChainId() hexutil.Uint64 {
 	return hexutil.Uint64(params.AllEthashProtocolChanges.ChainID.Uint64())
 }
