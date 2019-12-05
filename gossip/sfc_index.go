@@ -71,9 +71,15 @@ func (s *Service) calcValidatingPowers(stakers []SfcStakerAndID) []*big.Int {
 	for _, it := range stakers {
 		stake := it.Staker.CalcTotalStake()
 		poi := new(big.Int).SetUint64(s.store.GetStakerPOI(it.StakerID))
+		if poi.Sign() == 0 {
+			poi = big.NewInt(1)
+		}
 		// score = OriginationScore + ValidationScore
 		score := new(big.Int).SetUint64(s.store.GetActiveOriginationScore(it.StakerID))
 		score.Add(score, new(big.Int).SetUint64(s.store.GetActiveValidationScore(it.StakerID)))
+		if score.Sign() == 0 {
+			score = big.NewInt(1)
+		}
 
 		stakes = append(stakes, stake)
 		scores = append(scores, score)
@@ -235,9 +241,9 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				continue // don't give reward to cheaters
 			}
 
-			meritPos := epochPos.ValidatorMerit(it.StakerID)
-
 			validatingPower := validatingPowers[i]
+
+			meritPos := epochPos.ValidatorMerit(it.StakerID)
 
 			statedb.SetState(sfc.ContractAddress, meritPos.StakeAmount(), utils.BigTo256(it.Staker.StakeAmount))
 			statedb.SetState(sfc.ContractAddress, meritPos.DelegatedMe(), utils.BigTo256(it.Staker.DelegatedMe))
