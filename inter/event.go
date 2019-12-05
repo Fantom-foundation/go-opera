@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	// Hash of empty transactions list. Used to check that event doesn't have transactions not having full event.
+	// EmptyTxHash is hash of empty transactions list. Used to check that event doesn't have transactions not having full event.
 	EmptyTxHash = types.DeriveSha(types.Transactions{})
 )
 
