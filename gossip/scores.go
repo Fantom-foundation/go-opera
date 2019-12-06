@@ -29,8 +29,7 @@ func (s *Service) updateOriginationScores(block *inter.Block, receipts types.Rec
 			s.Log.Crit("Incorrect tx event position", "tx", receipt.TxHash, "event", txEventPos.Event, "reason", "event has no transactions")
 		}
 
-		stakerID := idx.StakerID(1) // TODO txEvent.Creator -> StakerID
-		s.store.AddDirtyOriginationScore(stakerID, receipt.GasUsed)
+		s.store.AddDirtyOriginationScore(txEvent.Creator, receipt.GasUsed)
 	}
 
 	if sealEpoch {

@@ -217,12 +217,12 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 	}
 
 	// Write cheaters into SFC
-	/*for _, validator := range cheaters {
+	for _, validator := range cheaters {
 		position := sfcpos.VStake(validator)
 		if statedb.GetState(sfc.ContractAddress, position.IsCheater()) == (common.Hash{}) {
 			statedb.SetState(sfc.ContractAddress, position.IsCheater(), common.BytesToHash([]byte{1}))
 		}
-	}*/
+	}
 
 	if sealEpoch {
 
@@ -257,9 +257,9 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64((stats.End - stats.Start).Unix())))
 
 		// Erase cheaters from our stakers index
-		/*for _, validator := range cheaters {
+		for _, validator := range cheaters {
 			s.delStaker(validator)
-		}*/
+		}
 		// Select new validators
 		for _, it := range s.store.GetSfcStakers() {
 			// Note: cheaters are already erased from Stakers table

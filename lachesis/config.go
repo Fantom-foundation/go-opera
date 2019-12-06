@@ -47,6 +47,7 @@ type EconomyConfig struct {
 	PoiPeriodDuration        time.Duration
 	BlockMissedLatency       idx.Block
 	ValidatorPoiImpact       *big.Int
+	RewardPerSecond          *big.Int
 }
 
 // Config describes lachesis net.
@@ -104,6 +105,7 @@ func DefaultEconomyConfig() EconomyConfig {
 		PoiPeriodDuration:        30 * 24 * time.Hour,
 		BlockMissedLatency:       6,
 		ValidatorPoiImpact:       validatorPoiImpact,
+		RewardPerSecond:          big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
 	}
 }
 
