@@ -3,8 +3,6 @@ package poset
 import (
 	"bytes"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -14,7 +12,7 @@ import (
 func rootRecordBytes(r *election.RootAndSlot) []byte {
 	key := bytes.Buffer{}
 	key.Write(r.Slot.Frame.Bytes())
-	key.Write(r.Slot.Addr.Bytes())
+	key.Write(r.Slot.Validator.Bytes())
 	key.Write(r.ID.Bytes())
 	return key.Bytes()
 }
@@ -24,8 +22,8 @@ func rootRecordBytes(r *election.RootAndSlot) []byte {
 func (s *Store) AddRoot(root *inter.Event) {
 	r := election.RootAndSlot{
 		Slot: election.Slot{
-			Frame: root.Frame,
-			Addr:  root.Creator,
+			Frame:     root.Frame,
+			Validator: root.Creator,
 		},
 		ID: root.Hash(),
 	}
@@ -45,9 +43,9 @@ func (s *Store) AddRoot(root *inter.Event) {
 }
 
 const (
-	frameSize   = 4
-	addrSize    = 20
-	eventIDSize = 32
+	frameSize    = 4
+	stakerIDSize = 4
+	eventIDSize  = 32
 )
 
 // GetFrameRoots returns all the roots in the specified frame
@@ -67,15 +65,15 @@ func (s *Store) GetFrameRoots(f idx.Frame) []election.RootAndSlot {
 	defer it.Release()
 	for it.Next() {
 		key := it.Key()
-		if len(key) != frameSize+addrSize+eventIDSize {
+		if len(key) != frameSize+stakerIDSize+eventIDSize {
 			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
 		}
 		r := election.RootAndSlot{
 			Slot: election.Slot{
-				Frame: idx.BytesToFrame(key[:frameSize]),
-				Addr:  common.BytesToAddress(key[frameSize : frameSize+addrSize]),
+				Frame:     idx.BytesToFrame(key[:frameSize]),
+				Validator: idx.BytesToStakerID(key[frameSize : frameSize+stakerIDSize]),
 			},
-			ID: hash.BytesToEvent(key[frameSize+addrSize:]),
+			ID: hash.BytesToEvent(key[frameSize+stakerIDSize:]),
 		}
 		if r.Slot.Frame != f {
 			s.Log.Crit("Roots table: invalid frame", "frame", r.Slot.Frame, "expected", f)

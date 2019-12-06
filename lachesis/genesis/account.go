@@ -24,8 +24,8 @@ type (
 	}
 
 	VAccounts struct {
-		Accounts   Accounts
-		Validators pos.Validators
+		Accounts    Accounts
+		GValidators pos.GValidators
 	}
 )
 

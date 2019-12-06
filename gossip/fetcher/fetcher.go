@@ -215,7 +215,7 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetch
 	for _, e := range notKnownEvents {
 		err := f.callback.FirstCheck(e)
 		if eventcheck.IsBan(err) {
-			f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+			f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator, "err", err)
 			f.callback.DropPeer(peer)
 			return err
 		}
@@ -231,7 +231,7 @@ func (f *Fetcher) Enqueue(peer string, inEvents inter.Events, t time.Time, fetch
 		for i, err := range res.Result {
 			if eventcheck.IsBan(err) {
 				e := res.Events[i]
-				f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+				f.Periodic.Warn(time.Second, "Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator, "err", err)
 				f.callback.DropPeer(peer)
 				return
 			}

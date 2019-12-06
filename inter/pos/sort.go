@@ -1,14 +1,12 @@
 package pos
 
 import (
-	"bytes"
-
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 type (
 	validator struct {
-		Addr  common.Address
+		ID    idx.StakerID
 		Stake Stake
 	}
 
@@ -20,7 +18,7 @@ func (vv validators) Less(i, j int) bool {
 		return vv[i].Stake > vv[j].Stake
 	}
 
-	return bytes.Compare(vv[i].Addr.Bytes(), vv[j].Addr.Bytes()) < 0
+	return vv[i].ID < vv[j].ID
 }
 
 func (vv validators) Len() int {

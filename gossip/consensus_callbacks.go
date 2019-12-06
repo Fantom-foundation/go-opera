@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -66,6 +65,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 
 	if newEpoch != oldEpoch {
+		s.heavyCheckReader.Addrs.Store(s.store.ReadEpochPubKeys(newEpoch)) // notify checker about new pub keys
 		s.packsOnNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
 		s.store.getEpochStore(newEpoch)
@@ -81,7 +81,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 func (s *Service) applyNewState(
 	block *inter.Block,
 	sealEpoch bool,
-	cheaters []common.Address,
+	cheaters inter.Cheaters,
 ) (
 	*inter.Block,
 	*evmcore.EvmBlock,
@@ -301,7 +301,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 	}
 
-	s.blockParticipated = make(map[common.Address]bool) // reset map of participated validators
+	s.blockParticipated = make(map[idx.StakerID]bool) // reset map of participated validators
 
 	return newAppHash, sealEpoch
 }
@@ -312,7 +312,7 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 
 	newValidators = pos.NewValidators()
 	for _, it := range s.store.GetEpochValidators(newEpoch) {
-		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcTotalStake()))
+		newValidators.Set(it.StakerID, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
 
 	return newValidators
@@ -348,42 +348,4 @@ func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, seqDept
 		return false // block contains only MaxValidatorEventsInBlock highest events from a creator to prevent huge blocks
 	}
 	return true
-}
-
-/*
- * Calling gaspowercheck
- */
-
-func (s *Service) gasPowerCheck(e *inter.Event) error {
-	// s.engineMu is locked here
-
-	gasPowerChecker := gaspowercheck.New(&s.config.Net.Dag.GasPower, &GasPowerCheckReader{
-		Consensus: s.engine,
-		store:     s.store,
-	})
-	var selfParent *inter.EventHeaderData
-	if e.SelfParent() != nil {
-		selfParent = s.store.GetEventHeader(e.Epoch, *e.SelfParent())
-	}
-	return gasPowerChecker.Validate(e, selfParent)
-}
-
-// GasPowerCheckReader is a helper to run gas power check
-type GasPowerCheckReader struct {
-	Consensus
-	store *Store
-}
-
-// GetPrevEpochLastHeaders isn't safe for concurrent use
-func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
-	// engineMu is locked here
-	epoch := r.GetEpoch() - 1
-	return r.store.GetLastHeaders(epoch), epoch
-}
-
-// GetPrevEpochEndTime isn't safe for concurrent use
-func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
-	// engineMu is locked here
-	epoch := r.GetEpoch() - 1
-	return r.store.GetEpochStats(epoch).End, epoch
 }

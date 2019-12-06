@@ -5,8 +5,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -53,7 +51,7 @@ func sub(a *big.Int, b uint64) {
 }
 
 func calcValidatorGasPowerPerH(
-	validator common.Address,
+	validator idx.StakerID,
 	validators *pos.Validators,
 	config *lachesis.GasPowerConfig,
 ) (

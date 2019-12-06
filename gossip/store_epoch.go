@@ -5,8 +5,6 @@ package gossip
 */
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -46,7 +44,7 @@ func (s *Store) delEpochStore(epoch idx.Epoch) {
 	}
 }
 
-func (s *Store) SetLastEvent(epoch idx.Epoch, from common.Address, id hash.Event) {
+func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.StakerID, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -58,7 +56,7 @@ func (s *Store) SetLastEvent(epoch idx.Epoch, from common.Address, id hash.Event
 	}
 }
 
-func (s *Store) GetLastEvent(epoch idx.Epoch, from common.Address) *hash.Event {
+func (s *Store) GetLastEvent(epoch idx.Epoch, from idx.StakerID) *hash.Event {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil

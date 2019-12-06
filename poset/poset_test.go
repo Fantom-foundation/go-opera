@@ -1,6 +1,7 @@
 package poset
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"math/rand"
 	"testing"
 
@@ -25,8 +26,8 @@ func TestPoset(t *testing.T) {
 	for i := 0; i < posetCount; i++ {
 		poset, store, input := FakePoset("", nodes)
 		n := i % len(nodes)
-		poset.SetName(nodes[n].String())
-		store.SetName(nodes[n].String())
+		poset.SetName(hash.GetNodeName(nodes[n]))
+		store.SetName(hash.GetNodeName(nodes[n]))
 		posets = append(posets, poset)
 		inputs = append(inputs, input)
 	}

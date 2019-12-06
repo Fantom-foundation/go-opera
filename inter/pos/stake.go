@@ -1,9 +1,9 @@
 package pos
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -20,7 +20,7 @@ type (
 	// StakeCounter counts stakes.
 	StakeCounter struct {
 		validators Validators
-		already    map[common.Address]struct{}
+		already    map[idx.StakerID]struct{}
 
 		quorum Stake
 		sum    Stake
@@ -56,19 +56,19 @@ func newStakeCounter(vv Validators) *StakeCounter {
 	return &StakeCounter{
 		validators: vv,
 		quorum:     vv.Quorum(),
-		already:    make(map[common.Address]struct{}),
+		already:    make(map[idx.StakerID]struct{}),
 		sum:        0,
 	}
 }
 
 // Count validator and return true if it hadn't counted before.
-func (s *StakeCounter) Count(addr common.Address) bool {
-	if _, ok := s.already[addr]; ok {
+func (s *StakeCounter) Count(id idx.StakerID) bool {
+	if _, ok := s.already[id]; ok {
 		return false
 	}
-	s.already[addr] = struct{}{}
+	s.already[id] = struct{}{}
 
-	s.sum += s.validators.StakeOf(addr)
+	s.sum += s.validators.StakeOf(id)
 	return true
 }
 

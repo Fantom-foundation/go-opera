@@ -2,6 +2,13 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/heavycheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/parentscheck"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -75,7 +82,9 @@ type Service struct {
 	emitter           *Emitter
 	txpool            *evmcore.TxPool
 	occurredTxs       *occuredtxs.Buffer
-	blockParticipated map[common.Address]bool // validators who participated in last block
+	blockParticipated map[idx.StakerID]bool // validators who participated in last block
+	heavyCheckReader  HeavyCheckReader
+	checkers          *eventcheck.Checkers
 
 	feed ServiceFeed
 
@@ -100,7 +109,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 
 		engineMu:          new(sync.RWMutex),
 		occurredTxs:       occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
-		blockParticipated: make(map[common.Address]bool),
+		blockParticipated: make(map[idx.StakerID]bool),
 
 		Instance: logger.MakeInstance(),
 	}
@@ -128,15 +137,40 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	}
 	svc.txpool = evmcore.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
+	// create checkers
+	svc.heavyCheckReader.Addrs.Store(svc.store.ReadEpochPubKeys(svc.engine.GetEpoch())) // read pub keys of current epoch from disk
+	svc.checkers = makeCheckers(&svc.config.Net, &svc.heavyCheckReader, svc.engine, svc.store)
+
 	// create protocol manager
 	var err error
-	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, store, svc.engine, svc.serverPool)
+	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.engine, svc.serverPool)
 
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil, new(notify.TypeMux)}
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	return svc, err
+}
+
+// makeCheckers builds event checkers
+func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, engine Consensus, store *Store) *eventcheck.Checkers {
+	// create signatures checker
+	dagID := params.AllEthashProtocolChanges.ChainID
+	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(dagID))
+
+	// create gaspower checker
+	gaspowerCheck := gaspowercheck.New(&net.Dag.GasPower, &GasPowerCheckReader{
+		Consensus: engine,
+		store:     store,
+	})
+
+	return &eventcheck.Checkers{
+		Basiccheck:    basiccheck.New(&net.Dag),
+		Epochcheck:    epochcheck.New(&net.Dag, engine),
+		Parentscheck:  parentscheck.New(&net.Dag),
+		Heavycheck:    heavyCheck,
+		Gaspowercheck: gaspowerCheck,
+	}
 }
 
 func (s *Service) makeEmitter() *Emitter {
@@ -167,6 +201,7 @@ func (s *Service) makeEmitter() *Emitter {
 			PeersNum: func() int {
 				return s.pm.peers.Len()
 			},
+			Checkers: s.checkers,
 		},
 	)
 }

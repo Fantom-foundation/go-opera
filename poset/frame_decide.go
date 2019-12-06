@@ -3,8 +3,6 @@ package poset
 import (
 	"math"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -28,7 +26,7 @@ func (p *Poset) confirmEvents(frame idx.Frame, atropos hash.Event, onEventConfir
 	}
 }
 
-func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.Block, cheaters []common.Address) {
+func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.Block, cheaters []idx.StakerID) {
 	blockEvents := make([]*inter.EventHeaderData, 0, int(p.dag.MaxValidatorEventsInBlock)*p.Validators.Len())
 
 	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
@@ -38,7 +36,7 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 	var confirmedNum int
 
 	// cheaters are ordered deterministically
-	cheaters = make([]common.Address, 0, len(validatorIdxs))
+	cheaters = make([]idx.StakerID, 0, len(validatorIdxs))
 	for creator, creatorIdx := range validatorIdxs {
 		if atroposHighestBefore.Get(creatorIdx).IsForkDetected() {
 			cheaters = append(cheaters, creator)

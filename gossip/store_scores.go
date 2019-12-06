@@ -47,7 +47,7 @@ func (s *Store) GetBlocksMissed(stakerID idx.StakerID) BlocksMissed {
 		}
 	}
 
-	pMissed, _  := s.get(s.table.BlockParticipation, stakerID.Bytes(), &BlocksMissed{}).(*BlocksMissed)
+	pMissed, _ := s.get(s.table.BlockParticipation, stakerID.Bytes(), &BlocksMissed{}).(*BlocksMissed)
 	if pMissed == nil {
 		return BlocksMissed{}
 	}

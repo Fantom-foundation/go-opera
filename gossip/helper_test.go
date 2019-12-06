@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
@@ -18,11 +17,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/poset"
-)
-
-var (
-	testBankKey, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	testBank       = crypto.PubkeyToAddress(testBankKey.PublicKey)
 )
 
 // newTestProtocolManager creates a new protocol manager for testing purposes,
@@ -50,6 +44,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		nil,
 		&dummyTxPool{added: newtx},
 		new(sync.RWMutex),
+		mockCheckers(1, &net, engine, store),
 		store,
 		engine,
 		nil,
@@ -58,7 +53,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	inter.ForEachRandEvent(net.Genesis.Alloc.Addresses(), eventsNum, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(net.Genesis.Alloc.GValidators.Validators().IDs(), eventsNum, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			store.SetEvent(e)
 			err = engine.ProcessEvent(e)

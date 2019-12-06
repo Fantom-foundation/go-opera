@@ -60,7 +60,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:   0,
-				DecidedAtropos: "b0_0",
+				DecidedAtropos: "d0_0",
 				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -88,7 +88,7 @@ a2_2══╬═════╬═════╣
 		testProcessRoot(t,
 			&testExpected{
 				DecidedFrame:   0,
-				DecidedAtropos: "b0_0",
+				DecidedAtropos: "c0_0",
 				DecisiveRoots:  map[string]bool{"a2_2": true},
 			},
 			stakes{
@@ -207,8 +207,8 @@ func testProcessRoot(
 			events[root.Hash()] = root
 
 			slot := Slot{
-				Frame: frameOf(name),
-				Addr:  root.Creator,
+				Frame:     frameOf(name),
+				Validator: root.Creator,
 			}
 			vertices[root.Hash()] = slot
 

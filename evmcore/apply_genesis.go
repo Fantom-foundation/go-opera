@@ -55,7 +55,7 @@ func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
 	if err != nil {
 		return nil, err
 	}
-	for addr, account := range net.Genesis.Alloc {
+	for addr, account := range net.Genesis.Alloc.Accounts {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
@@ -112,7 +112,6 @@ func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
 		e.Extra = net.Genesis.ExtraData
 		e.ClaimedTime = b.Time
 		e.TxHash = b.Root
-		e.Creator = b.Coinbase
 
 		return common.Hash(e.Hash())
 	}

@@ -3,7 +3,6 @@ package gossip
 import (
 	"bytes"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -11,7 +10,7 @@ import (
 )
 
 // DelLastHeader deletes record about last header from a validator
-func (s *Store) DelLastHeader(epoch idx.Epoch, creator common.Address) {
+func (s *Store) DelLastHeader(epoch idx.Epoch, creator idx.StakerID) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
 
@@ -106,7 +105,7 @@ func (s *Store) GetLastHeaders(epoch idx.Epoch) inter.HeadersByCreator {
 		if err != nil {
 			s.Log.Crit("Failed to decode rlp", "err", err)
 		}
-		hh[common.BytesToAddress(creator)] = header
+		hh[idx.BytesToStakerID(creator)] = header
 	}
 
 	// Add to cache.

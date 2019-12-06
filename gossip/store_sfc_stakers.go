@@ -67,7 +67,7 @@ func (s *Store) getSfcStakers(it ethdb.Iterator) []SfcStakerAndID {
 			s.Log.Crit("Failed to decode rlp while iteration", "err", err)
 		}
 
-		stakerIDBytes := it.Key()[len(it.Key())-8:]
+		stakerIDBytes := it.Key()[len(it.Key())-4:]
 		stakers = append(stakers, SfcStakerAndID{
 			StakerID: idx.BytesToStakerID(stakerIDBytes),
 			Staker:   staker,

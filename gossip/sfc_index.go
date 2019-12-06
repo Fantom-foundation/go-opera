@@ -237,7 +237,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 		totalValidatingPower := new(big.Int)
 		for i, it := range epochValidators {
-			if _, ok := cheatersSet[it.Staker.Address]; ok {
+			if _, ok := cheatersSet[it.StakerID]; ok {
 				continue // don't give reward to cheaters
 			}
 
@@ -263,7 +263,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		// Select new validators
 		for _, it := range s.store.GetSfcStakers() {
 			// Note: cheaters are already erased from Stakers table
-			if _, ok := cheatersSet[it.Staker.Address]; ok {
+			if _, ok := cheatersSet[it.StakerID]; ok {
 				s.Log.Crit("Cheaters must be erased from Stakers table")
 			}
 			s.store.SetEpochValidator(epoch+1, it.StakerID, it.Staker)

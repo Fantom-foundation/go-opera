@@ -1,8 +1,6 @@
 package poset
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/utils"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
@@ -12,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 	"github.com/Fantom-foundation/go-lachesis/poset/election"
+	"github.com/Fantom-foundation/go-lachesis/utils"
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
@@ -144,12 +143,12 @@ func (p *Poset) handleElection(root *inter.Event) {
 	}
 }
 
-func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.Res) {
+func (p *Poset) processRoot(f idx.Frame, from idx.StakerID, id hash.Event) (decided *election.Res) {
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
 		ID: id,
 		Slot: election.Slot{
-			Frame: f,
-			Addr:  from,
+			Frame:     f,
+			Validator: from,
 		},
 	})
 	if err != nil {
@@ -168,7 +167,7 @@ func (p *Poset) processKnownRoots() *election.Res {
 		frameRoots := p.store.GetFrameRoots(f)
 		for _, it := range frameRoots {
 			p.Log.Debug("Calculate root votes in new election", "root", it.ID.String())
-			decided = p.processRoot(it.Slot.Frame, it.Slot.Addr, it.ID)
+			decided = p.processRoot(it.Slot.Frame, it.Slot.Validator, it.ID)
 			if decided != nil {
 				break
 			}
@@ -205,7 +204,7 @@ func (p *Poset) forklessCausedByQuorumOn(e *inter.Event, f idx.Frame) bool {
 	// check "observing" prev roots only if called by creator, or if creator has marked that event as root
 	for _, it := range p.store.GetFrameRoots(f) {
 		if p.vecClock.ForklessCause(e.Hash(), it.ID) {
-			observedCounter.Count(it.Slot.Addr)
+			observedCounter.Count(it.Slot.Validator)
 		}
 		if observedCounter.HasQuorum() {
 			break

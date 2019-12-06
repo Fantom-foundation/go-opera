@@ -49,7 +49,7 @@ func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
 	// Calc validation scores
 	for _, it := range s.store.GetSfcStakers() {
 		// Check if validator has confirmed events by this Atropos
-		missedBlock := !s.blockParticipated[it.Staker.Address]
+		missedBlock := !s.blockParticipated[it.StakerID]
 
 		// If have no confirmed events by this Atropos - just add missed blocks for validator
 		if missedBlock {

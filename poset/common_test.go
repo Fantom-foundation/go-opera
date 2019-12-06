@@ -42,10 +42,13 @@ func (p *ExtendedPoset) EventsTillBlock(until idx.Block) hash.Events {
 }
 
 // FakePoset creates empty poset with mem store and equal stakes of nodes in genesis.
-func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (*ExtendedPoset, *Store, *EventStore) {
-	validators := pos.NewValidators()
-	for _, addr := range nodes {
-		validators.Set(addr, 1)
+func FakePoset(namespace string, nodes []idx.StakerID, mods ...memorydb.Mod) (*ExtendedPoset, *Store, *EventStore) {
+	validators := make(pos.GValidators)
+	for _, v := range nodes {
+		validators[v] = pos.GenesisValidator{
+			ID:    v,
+			Stake: 1,
+		}
 	}
 
 	mems := memorydb.NewProducer(namespace, mods...)
@@ -54,8 +57,11 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 
 	atropos := hash.ZeroEvent
 	err := store.ApplyGenesis(&genesis.Genesis{
-		Time:       genesisTestTime,
-		Validators: *validators,
+		Time: genesisTestTime,
+		Alloc: genesis.VAccounts{
+			GValidators: validators,
+			Accounts:    nil,
+		},
 	}, atropos, common.Hash{})
 	if err != nil {
 		panic(err)

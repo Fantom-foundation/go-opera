@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"math/big"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -140,18 +142,21 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 		engineStore = poset.NewMemStore()
 	)
 
+	// create stores
 	genesisAtropos, genesisEvmState, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)
 	assertar.NoError(err)
 
+	// create consensus engine
 	engine := poset.New(net.Dag, engineStore, store)
 	engine.Bootstrap(inter.ConsensusCallbacks{})
 
-	coinbase := net.Genesis.Validators.Addresses()[0]
+	// create service
+	coinbase := net.Genesis.Alloc.GValidators.Addresses()[0]
 	ctx := &node.ServiceContext{
-		AccountManager: mockAccountManager(net.Genesis.Alloc, coinbase),
+		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, coinbase),
 	}
 	svc, err := NewService(ctx, config, store, engine)
 	assertar.NoError(err)
@@ -247,4 +252,10 @@ func mockAccountManager(accs genesis.Accounts, unlock ...common.Address) *accoun
 		&accounts.Config{InsecureUnlockAllowed: true},
 		genesis.NewAccountsBackend(accs, unlock...),
 	)
+}
+
+func mockCheckers(epoch idx.Epoch, net *lachesis.Config, engine Consensus, store *Store) *eventcheck.Checkers {
+	heavyCheckReader := &HeavyCheckReader{}
+	heavyCheckReader.Addrs.Store(store.ReadEpochPubKeys(epoch))
+	return makeCheckers(net, heavyCheckReader, engine, store)
 }

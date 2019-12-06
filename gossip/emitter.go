@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
@@ -43,6 +42,8 @@ type EmitterWorld struct {
 	Txpool      txPool
 	Am          *accounts.Manager
 	OccurredTxs *occuredtxs.Buffer
+
+	Checkers *eventcheck.Checkers
 
 	OnEmitted func(e *inter.Event)
 	IsSynced  func() bool
@@ -158,7 +159,12 @@ func (em *Emitter) GetCoinbase() common.Address {
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	prevEventID := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), em.GetCoinbase())
+	myID, ok := em.myStakerID()
+	if !ok {
+		return em.prevEmittedTime
+	}
+
+	prevEventID := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), myID)
 	if prevEventID == nil {
 		return em.prevEmittedTime
 	}
@@ -180,8 +186,20 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 }
 
+func (em *Emitter) myStakerID() (idx.StakerID, bool) {
+	coinbase := em.GetCoinbase()
+
+	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
+	for _, it := range validators {
+		if it.Staker.Address == coinbase {
+			return it.StakerID, true
+		}
+	}
+	return 0, false
+}
+
 // safe for concurrent use
-func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr []common.Address, validatorsArrStakes []pos.Stake, me common.Address) bool {
+func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr []idx.StakerID, validatorsArrStakes []pos.Stake, me idx.StakerID) bool {
 	var txTime time.Time
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
@@ -210,7 +228,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 
 	now := time.Now()
 	validators := em.world.Engine.GetValidators()
-	validatorsArr := validators.SortedAddresses() // validators must be sorted deterministically
+	validatorsArr := validators.SortedIDs() // validators must be sorted deterministically
 	validatorsArrStakes := make([]pos.Stake, len(validatorsArr))
 	for i, addr := range validatorsArr {
 		validatorsArrStakes[i] = validators.Get(addr)
@@ -254,8 +272,8 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 	return e
 }
 
-func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*hash.Event, hash.Events, bool) {
-	selfParent := em.world.Store.GetLastEvent(epoch, coinbase)
+func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*hash.Event, hash.Events, bool) {
+	selfParent := em.world.Store.GetLastEvent(epoch, myStakerID)
 	heads := em.world.Store.GetHeads(epoch) // events with no descendants
 
 	var strategy ancestor.SearchStrategy
@@ -266,7 +284,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "validator", myStakerID)
 			return nil, nil, false
 		}
 	} else {
@@ -280,12 +298,13 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, coinbase common.Address) (*h
 
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
-	coinbase := em.GetCoinbase()
-	validators := em.world.Engine.GetValidators()
-	if stake := validators.Get(coinbase); stake == 0 {
+	myStakerID, ok := em.myStakerID()
+	if !ok {
 		// not a validator
 		return nil
 	}
+	validators := em.world.Engine.GetValidators()
+
 	if synced, _, _ := em.logging(em.isSynced()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
@@ -300,7 +319,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	)
 
 	// Find parents
-	selfParent, parents, ok := em.findBestParents(epoch, coinbase)
+	selfParent, parents, ok := em.findBestParents(epoch, myStakerID)
 	if !ok {
 		return nil
 	}
@@ -313,9 +332,9 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 			em.Log.Crit("Emitter: head not found", "event", p.String())
 		}
 		parentHeaders[i] = parent
-		if parentHeaders[i].Creator == coinbase && i != 0 {
+		if parentHeaders[i].Creator == myStakerID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "address", coinbase.String())
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "StakerID", myStakerID)
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -333,7 +352,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event := inter.NewEvent()
 	event.Epoch = epoch
 	event.Seq = selfParentSeq + 1
-	event.Creator = coinbase
+	event.Creator = myStakerID
 
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
@@ -371,6 +390,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
+	coinbase := em.GetCoinbase()
 	signer := func(data []byte) (sig []byte, err error) {
 		acc := accounts.Account{
 			Address: coinbase,
@@ -390,14 +410,11 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.RecacheSize()
 	{
 		// sanity check
-		gReader := GasPowerCheckReader{
-			Consensus: em.world.Engine,
-			store:     em.world.Store,
-		}
-		dagID := params.AllEthashProtocolChanges.ChainID
-		if err := eventcheck.ValidateAll(em.dag, em.world.Engine, &gReader, types.NewEIP155Signer(dagID), event, parentHeaders); err != nil {
-			em.Log.Error("Emitted incorrect event", "err", err)
-			return nil
+		if em.world.Checkers != nil {
+			if err := em.world.Checkers.Validate(event, parentHeaders); err != nil {
+				em.Log.Error("Signed event incorrectly", "err", err)
+				return nil
+			}
 		}
 	}
 
@@ -412,20 +429,19 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
 	now := time.Now()
-	coinbase := em.GetCoinbase()
-	if em.syncStatus.prevLocalEmittedID != e.Hash() {
-		if e.Creator == coinbase {
+	myStakerID, isValidator := em.myStakerID()
+	if isValidator && em.syncStatus.prevLocalEmittedID != e.Hash() {
+		if e.Creator == myStakerID {
 			// it was emitted by another instance with the same address
 			em.syncStatus.prevExternalEmittedTime = now
 		}
 	}
 
 	// track when I've became validator
-	isValidator := em.world.Engine.GetValidators().Get(coinbase)
-	if isValidator != 0 && !em.syncStatus.wasValidator {
+	if isValidator && !em.syncStatus.wasValidator {
 		em.syncStatus.becameValidatorTime = now
 	}
-	em.syncStatus.wasValidator = isValidator != 0
+	em.syncStatus.wasValidator = isValidator
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
@@ -571,7 +587,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 }
 
 func (em *Emitter) nameEventForDebug(e *inter.Event) {
-	name := []rune(hash.GetNodeName(em.coinbase))
+	name := []rune(hash.GetNodeName(e.Creator))
 	if len(name) < 1 {
 		return
 	}
