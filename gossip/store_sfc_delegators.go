@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// SetSfcDelegator stores SfcDelegator
 func (s *Store) SetSfcDelegator(address common.Address, v *SfcDelegator) {
 	s.set(s.table.Delegators, address.Bytes(), v)
 
@@ -13,6 +14,7 @@ func (s *Store) SetSfcDelegator(address common.Address, v *SfcDelegator) {
 	}
 }
 
+// DelSfcDelegator deletes SfcDelegator
 func (s *Store) DelSfcDelegator(address common.Address) {
 	err := s.table.Delegators.Delete(address.Bytes())
 	if err != nil {
@@ -25,6 +27,7 @@ func (s *Store) DelSfcDelegator(address common.Address) {
 	}
 }
 
+// GetSfcDelegator returns stored SfcDelegator
 func (s *Store) GetSfcDelegator(address common.Address) *SfcDelegator {
 	// Get data from LRU cache first.
 	if s.cache.Delegators != nil {

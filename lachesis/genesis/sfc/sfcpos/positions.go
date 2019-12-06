@@ -133,9 +133,9 @@ func (p *ValidatorMeritPos) DelegatedMe() common.Hash {
 
 func getMapValue(base common.Hash, key common.Hash, mapIdx int64) common.Hash {
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(key.Bytes())
+	_, _ = hasher.Write(key.Bytes())
 	start := base.Big()
-	hasher.Write(utils.BigTo256(start.Add(start, big.NewInt(mapIdx))).Bytes())
+	_, _ = hasher.Write(utils.BigTo256(start.Add(start, big.NewInt(mapIdx))).Bytes())
 
 	return common.BytesToHash(hasher.Sum(nil))
 }

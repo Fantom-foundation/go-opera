@@ -10,13 +10,13 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
-// SFC contract first implementation bin code
+// GetContractBinV1 is SFC contract first implementation bin code
 // Must be compiled with bin-runtime flag
-func GetContractBin_v1() []byte {
+func GetContractBinV1() []byte {
 	return hexutil.MustDecode("0x00")
 }
 
-// the SFC proxy contract address
+// ContractAddress is the SFC proxy contract address
 var ContractAddress = common.HexToAddress("0xfa00face00fc0000000000000000000000000100")
 
 // the SFC contract first implementation address

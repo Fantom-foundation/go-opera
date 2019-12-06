@@ -8,6 +8,7 @@ import (
 // Cheaters is a slice type for storing cheaters list.
 type Cheaters []common.Address
 
+// Set returns map of cheaters
 func (s Cheaters) Set() map[common.Address]struct{} {
 	set := map[common.Address]struct{}{}
 	for _, element := range s {

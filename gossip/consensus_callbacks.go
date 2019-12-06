@@ -294,7 +294,7 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 
 	newValidators = pos.Validators{}
 	for _, it := range s.store.GetEpochValidators(newEpoch) {
-		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcEfficientStake()))
+		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
 
 	return newValidators

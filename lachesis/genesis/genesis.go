@@ -23,7 +23,7 @@ type Genesis struct {
 
 func preDeploySfc(g Genesis) Genesis {
 	g.Alloc[sfc.ContractAddress] = Account{
-		Code:    sfc.GetContractBin_v1(),
+		Code:    sfc.GetContractBinV1(),
 		Storage: sfc.AssembleStorage(g.Validators, g.Time, nil),
 		Balance: pos.StakeToBalance(g.Validators.TotalStake()),
 	}

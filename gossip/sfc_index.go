@@ -14,6 +14,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
+// SfcStaker is the node-side representation of SFC staker
 type SfcStaker struct {
 	CreatedEpoch idx.Epoch
 	CreatedTime  inter.Timestamp
@@ -24,15 +25,18 @@ type SfcStaker struct {
 	Address common.Address
 }
 
+// SfcStakerAndID is pair SfcStaker + StakerID
 type SfcStakerAndID struct {
 	StakerID uint64
 	Staker   *SfcStaker
 }
 
-func (st *SfcStaker) CalcEfficientStake() *big.Int {
+// CalcTotalStake returns sum of staker's stake and delegated to staker stake
+func (st *SfcStaker) CalcTotalStake() *big.Int {
 	return new(big.Int).Add(st.StakeAmount, st.DelegatedMe)
 }
 
+// SfcDelegator is the node-side representation of SFC delegator
 type SfcDelegator struct {
 	CreatedEpoch idx.Epoch
 	CreatedTime  inter.Timestamp
@@ -166,7 +170,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 			meritPos := epochPos.ValidatorMerit(it.Staker.Address)
 
-			validatingPower := it.Staker.CalcEfficientStake() // TODO
+			validatingPower := it.Staker.CalcTotalStake() // TODO
 
 			statedb.SetState(sfc.ContractAddress, meritPos.StakeAmount(), utils.BigTo256(it.Staker.StakeAmount))
 			statedb.SetState(sfc.ContractAddress, meritPos.DelegatedMe(), utils.BigTo256(it.Staker.DelegatedMe))

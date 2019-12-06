@@ -7,12 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// SetEpochValidator stores EpochValidator
 func (s *Store) SetEpochValidator(epoch idx.Epoch, stakerID uint64, v *SfcStaker) {
 	key := append(epoch.Bytes(), bigendian.Int64ToBytes(stakerID)...)
 
 	s.set(s.table.Validators, key, v)
 }
 
+// GetEpochValidator returns stored EpochValidator
 func (s *Store) GetEpochValidator(epoch idx.Epoch, stakerID uint64) *SfcStaker {
 	key := append(epoch.Bytes(), bigendian.Int64ToBytes(stakerID)...)
 
@@ -20,6 +22,7 @@ func (s *Store) GetEpochValidator(epoch idx.Epoch, stakerID uint64) *SfcStaker {
 	return w
 }
 
+// SetSfcStaker stores SfcStaker
 func (s *Store) SetSfcStaker(stakerID uint64, v *SfcStaker) {
 	s.set(s.table.Stakers, bigendian.Int64ToBytes(stakerID), v)
 
@@ -29,6 +32,7 @@ func (s *Store) SetSfcStaker(stakerID uint64, v *SfcStaker) {
 	}
 }
 
+// DelSfcStaker deletes SfcStaker
 func (s *Store) DelSfcStaker(stakerID uint64) {
 	err := s.table.Stakers.Delete(bigendian.Int64ToBytes(stakerID))
 	if err != nil {
@@ -41,12 +45,14 @@ func (s *Store) DelSfcStaker(stakerID uint64) {
 	}
 }
 
+// GetSfcStakers returns all stored SfcStakers
 func (s *Store) GetSfcStakers() []SfcStakerAndID {
 	it := s.table.Stakers.NewIterator()
 	defer it.Release()
 	return s.forEachSfcStaker(it)
 }
 
+// GetEpochValidators returns all stored EpochValidators on the epoch
 func (s *Store) GetEpochValidators(epoch idx.Epoch) []SfcStakerAndID {
 	it := s.table.Validators.NewIteratorWithPrefix(epoch.Bytes())
 	defer it.Release()
@@ -62,9 +68,9 @@ func (s *Store) forEachSfcStaker(it ethdb.Iterator) []SfcStakerAndID {
 			s.Log.Crit("Failed to decode rlp", "err", err)
 		}
 
-		stakerIdBytes := it.Key()[len(it.Key())-8:]
+		stakerIDBytes := it.Key()[len(it.Key())-8:]
 		stakers = append(stakers, SfcStakerAndID{
-			StakerID: bigendian.BytesToInt64(stakerIdBytes),
+			StakerID: bigendian.BytesToInt64(stakerIDBytes),
 			Staker:   staker,
 		})
 	}
@@ -72,6 +78,7 @@ func (s *Store) forEachSfcStaker(it ethdb.Iterator) []SfcStakerAndID {
 	return stakers
 }
 
+// GetSfcStaker returns stored SfcStaker
 func (s *Store) GetSfcStaker(stakerID uint64) *SfcStaker {
 	// Get data from LRU cache first.
 	if s.cache.Stakers != nil {
