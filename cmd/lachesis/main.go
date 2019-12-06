@@ -104,6 +104,7 @@ func init() {
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
+		coinbaseFlag,
 	}
 
 	rpcFlags = []cli.Flag{
