@@ -377,11 +377,6 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	// Add txs
 	event = em.addTxs(event, poolTxs)
 
-	for _, t := range event.Transactions {
-		span := tracing.CheckTx(t.Hash(), "Emitter.createEvent()")
-		defer span.Finish()
-	}
-
 	if !em.isAllowedToEmit(event, selfParentHeader) {
 		return nil
 	}
@@ -420,8 +415,6 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 
 	// set event name for debug
 	em.nameEventForDebug(event)
-
-	//TODO: countEmittedEvents.Inc(1)
 
 	return event
 }
@@ -582,6 +575,12 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
 	em.Log.Info("New event emitted", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(e.ClaimedTime.Time()), "address", e.Creator)
+
+	// metrics
+	for _, t := range e.Transactions {
+		span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent()")
+		defer span.Finish()
+	}
 
 	return e
 }
