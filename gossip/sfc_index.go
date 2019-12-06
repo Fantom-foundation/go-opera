@@ -256,6 +256,11 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		statedb.SetState(sfc.ContractAddress, epochPos.EndTime(), utils.U64to256(uint64(stats.End.Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64((stats.End - stats.Start).Unix())))
 
+		// Add balance for SFC to pay rewards
+		blockRewards := big.NewInt(stats.End.Unix() - stats.Start.Unix())
+		blockRewards.Mul(blockRewards, s.config.Net.Economy.RewardPerSecond)
+		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(blockRewards, stats.TotalFee))
+
 		// Erase cheaters from our stakers index
 		for _, validator := range cheaters {
 			s.delStaker(validator)
