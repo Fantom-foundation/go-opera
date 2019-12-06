@@ -10,12 +10,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
-// TODO: move it to config
-const (
-	// ValidatorsMax in top set.
-	ValidatorsMax = 30
-)
-
 type (
 	// Validators of epoch with stake.
 	Validators struct {
@@ -29,8 +23,8 @@ type (
 func NewValidators() *Validators {
 	return &Validators{
 		indexes:   make(map[common.Address]int),
-		list:      make([]Stake, 0, ValidatorsMax),
-		addresses: make([]common.Address, 0, ValidatorsMax),
+		list:      make([]Stake, 0, 200),
+		addresses: make([]common.Address, 0, 200),
 	}
 }
 
@@ -185,13 +179,13 @@ func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
 		vv = NewValidators()
 	}
 	if vv.addresses == nil {
-		vv.addresses = make([]common.Address, 0, ValidatorsMax)
+		vv.addresses = make([]common.Address, 0, 200)
 	}
 	if vv.indexes == nil {
 		vv.indexes = make(map[common.Address]int)
 	}
 	if vv.list == nil {
-		vv.list = make([]Stake, 0, ValidatorsMax)
+		vv.list = make([]Stake, 0, 200)
 	}
 
 	var arr []validator

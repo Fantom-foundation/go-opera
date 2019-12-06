@@ -50,7 +50,7 @@ func FakePoset(namespace string, nodes []common.Address, mods ...memorydb.Mod) (
 
 	mems := memorydb.NewProducer(namespace, mods...)
 	dbs := flushable.NewSyncedPool(mems)
-	store := NewStore(dbs)
+	store := NewStore(dbs, LiteStoreConfig())
 
 	atropos := hash.ZeroEvent
 	err := store.ApplyGenesis(&genesis.Genesis{

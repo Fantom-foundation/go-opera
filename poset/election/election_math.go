@@ -3,6 +3,8 @@ package election
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/hash"
 )
 
@@ -19,22 +21,32 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 		return nil, nil
 	}
 	round := newRoot.Slot.Frame - el.frameToDecide
+	if round == 0 {
+		return nil, nil
+	}
 
 	notDecidedRoots := el.notDecidedRoots()
+
+	var observedRoots []RootAndSlot
+	var observedRootsMap map[common.Address]RootAndSlot
+	if round == 1 {
+		observedRootsMap = el.observedRootsMap(newRoot.ID, newRoot.Slot.Frame-1)
+	} else {
+		observedRoots = el.observedRoots(newRoot.ID, newRoot.Slot.Frame-1)
+	}
+
 	for _, validatorSubject := range notDecidedRoots {
 		vote := voteValue{}
 
 		if round == 1 {
 			// in initial round, vote "yes" if observe the subject
-			observedRoot := el.observe(newRoot.Root, validatorSubject, el.frameToDecide)
-			vote.yes = observedRoot != nil
+			observedRoot, ok := observedRootsMap[validatorSubject]
+			vote.yes = ok
 			vote.decided = false
-			if observedRoot != nil {
-				vote.observedRoot = *observedRoot
+			if ok {
+				vote.observedRoot = observedRoot.ID
 			}
-		} else if round > 1 {
-			observedRoots := el.observedRoots(newRoot.Root, newRoot.Slot.Frame-1)
-
+		} else {
 			var (
 				yesVotes = el.validators.NewCounter()
 				noVotes  = el.validators.NewCounter()
@@ -46,7 +58,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 			for _, observedRoot := range observedRoots {
 				vid := voteID{
 					forValidator: validatorSubject,
-					fromRoot:     observedRoot.Root,
+					fromRoot:     observedRoot.ID,
 				}
 
 				if vote, ok := el.votes[vid]; ok {
@@ -68,13 +80,13 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 					}
 				} else {
 					el.Log.Crit("Every root must vote for every not decided subject. Possibly roots are processed out of order",
-						"root", newRoot.Root.String())
+						"root", newRoot.ID.String())
 				}
 			}
 			// sanity checks
 			if !allVotes.HasQuorum() {
 				el.Log.Crit("Root must be forkless caused by at least 2/3W of prev roots. Possibly roots are processed out of order",
-					"root", newRoot.Root.String(),
+					"root", newRoot.ID.String(),
 					"votes", allVotes.Sum())
 			}
 
@@ -90,12 +102,10 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 			if vote.decided {
 				el.decidedRoots[validatorSubject] = vote
 			}
-		} else {
-			continue // we shouldn't be here, we checked it above the loop
 		}
 		// save vote for next rounds
 		vid := voteID{
-			fromRoot:     newRoot.Root,
+			fromRoot:     newRoot.ID,
 			forValidator: validatorSubject,
 		}
 		el.votes[vid] = vote

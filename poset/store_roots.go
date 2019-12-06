@@ -8,32 +8,40 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/poset/election"
 )
 
-// AddRoot stores the new root
-func (s *Store) AddRoot(root *inter.Event) {
+func rootRecordBytes(r *election.RootAndSlot) []byte {
 	key := bytes.Buffer{}
-	key.Write(root.Frame.Bytes())
-	key.Write(root.Creator.Bytes())
-	key.Write(root.Hash().Bytes())
-
-	if err := s.epochTable.Roots.Put(key.Bytes(), []byte{}); err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
-	}
+	key.Write(r.Slot.Frame.Bytes())
+	key.Write(r.Slot.Addr.Bytes())
+	key.Write(r.ID.Bytes())
+	return key.Bytes()
 }
 
-// IsRoot returns true if event is root
-func (s *Store) IsRoot(f idx.Frame, from common.Address, id hash.Event) bool {
-	key := bytes.Buffer{}
-	key.Write(f.Bytes())
-	key.Write(from.Bytes())
-	key.Write(id.Bytes())
-
-	ok, err := s.epochTable.Roots.Has(key.Bytes())
-	if err != nil {
-		s.Log.Crit("Failed to get key", "err", err)
+// AddRoot stores the new root
+// Not safe for concurrent use due to complex mutable cache!
+func (s *Store) AddRoot(root *inter.Event) {
+	r := election.RootAndSlot{
+		Slot: election.Slot{
+			Frame: root.Frame,
+			Addr:  root.Creator,
+		},
+		ID: root.Hash(),
 	}
-	return ok
+
+	if err := s.epochTable.Roots.Put(rootRecordBytes(&r), []byte{}); err != nil {
+		s.Log.Crit("Failed to put key-value", "err", err)
+	}
+
+	// Add to cache.
+	if s.cache.FrameRoots != nil {
+		if c, ok := s.cache.FrameRoots.Get(root.Frame); ok {
+			if rr, ok := c.([]election.RootAndSlot); ok {
+				s.cache.FrameRoots.Add(root.Frame, append(rr, r))
+			}
+		}
+	}
 }
 
 const (
@@ -42,57 +50,47 @@ const (
 	eventIDSize = 32
 )
 
-// ForEachRoot iterates all the roots in the specified frame
-func (s *Store) ForEachRoot(f idx.Frame, do func(f idx.Frame, from common.Address, root hash.Event) bool) {
-	it := s.epochTable.Roots.NewIteratorWithStart(f.Bytes())
+// GetFrameRoots returns all the roots in the specified frame
+// Not safe for concurrent use due to complex mutable cache!
+func (s *Store) GetFrameRoots(f idx.Frame) []election.RootAndSlot {
+	// Get data from LRU cache first.
+	if s.cache.FrameRoots != nil {
+		if c, ok := s.cache.FrameRoots.Get(f); ok {
+			if rr, ok := c.([]election.RootAndSlot); ok {
+				return rr
+			}
+		}
+	}
+	rr := make([]election.RootAndSlot, 0, 200)
+
+	it := s.epochTable.Roots.NewIteratorWithPrefix(f.Bytes())
 	defer it.Release()
 	for it.Next() {
 		key := it.Key()
 		if len(key) != frameSize+addrSize+eventIDSize {
 			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
 		}
-		actualF := idx.BytesToFrame(key[:frameSize])
-		actualCreator := common.BytesToAddress(key[frameSize : frameSize+addrSize])
-		actualID := hash.BytesToEvent(key[frameSize+addrSize:])
-		if actualF < f {
-			s.Log.Crit("Roots table: invalid frame", "frame", f, "expected", actualF)
+		r := election.RootAndSlot{
+			Slot: election.Slot{
+				Frame: idx.BytesToFrame(key[:frameSize]),
+				Addr:  common.BytesToAddress(key[frameSize : frameSize+addrSize]),
+			},
+			ID: hash.BytesToEvent(key[frameSize+addrSize:]),
+		}
+		if r.Slot.Frame != f {
+			s.Log.Crit("Roots table: invalid frame", "frame", r.Slot.Frame, "expected", f)
 		}
 
-		if !do(actualF, actualCreator, actualID) {
-			break
-		}
+		rr = append(rr, r)
 	}
 	if it.Error() != nil {
 		s.Log.Crit("Failed to iterate keys", "err", it.Error())
 	}
-}
 
-// ForEachRootFrom iterates all the roots in the specified frame, from the specified validator
-func (s *Store) ForEachRootFrom(f idx.Frame, from common.Address, do func(f idx.Frame, from common.Address, id hash.Event) bool) {
-	prefix := append(f.Bytes(), from.Bytes()...)
-
-	it := s.epochTable.Roots.NewIteratorWithPrefix(prefix)
-	defer it.Release()
-	for it.Next() {
-		key := it.Key()
-		if len(key) != frameSize+addrSize+eventIDSize {
-			s.Log.Crit("Roots table: incorrect key len", "len", len(key))
-		}
-		actualF := idx.BytesToFrame(key[:frameSize])
-		actualCreator := common.BytesToAddress(key[frameSize : frameSize+addrSize])
-		actualID := hash.BytesToEvent(key[frameSize+addrSize:])
-		if actualF < f {
-			s.Log.Crit("Roots table: invalid frame", "frame", f, "expected", actualF)
-		}
-		if actualCreator != from {
-			s.Log.Crit("Roots table: invalid creator", "creator", from.String(), "expected", actualCreator.String())
-		}
-
-		if !do(actualF, actualCreator, actualID) {
-			break
-		}
+	// Add to cache.
+	if s.cache.FrameRoots != nil {
+		s.cache.FrameRoots.Add(f, rr)
 	}
-	if it.Error() != nil {
-		s.Log.Crit("Failed to iterate keys", "err", it.Error())
-	}
+
+	return rr
 }

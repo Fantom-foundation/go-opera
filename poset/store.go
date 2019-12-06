@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/rlp"
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
@@ -16,6 +17,7 @@ import (
 // Store is a poset persistent storage working over parent key-value database.
 type Store struct {
 	dbs *flushable.SyncedPool
+	cfg StoreConfig
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
@@ -23,6 +25,10 @@ type Store struct {
 		Epochs         kvdb.KeyValueStore `table:"epoch_"`
 		ConfirmedEvent kvdb.KeyValueStore `table:"confirmed_"`
 		FrameInfos     kvdb.KeyValueStore `table:"frameinfo_"`
+	}
+
+	cache struct {
+		FrameRoots *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	epochDb    kvdb.KeyValueStore
@@ -35,16 +41,23 @@ type Store struct {
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs *flushable.SyncedPool) *Store {
+func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	s := &Store{
 		dbs:      dbs,
+		cfg:      cfg,
 		mainDb:   dbs.GetDb("poset-main"),
 		Instance: logger.MakeInstance(),
 	}
 
 	table.MigrateTables(&s.table, s.mainDb)
 
+	s.initCache()
+
 	return s
+}
+
+func (s *Store) initCache() {
+	s.cache.FrameRoots = s.makeCache(s.cfg.Roots)
 }
 
 // NewMemStore creates store over memory map.
@@ -52,13 +65,19 @@ func NewStore(dbs *flushable.SyncedPool) *Store {
 func NewMemStore() *Store {
 	mems := memorydb.NewProducer("")
 	dbs := flushable.NewSyncedPool(mems)
+	cfg := LiteStoreConfig()
 
-	return NewStore(dbs)
+	return NewStore(dbs, cfg)
 }
 
 // Close leaves underlying database.
 func (s *Store) Close() {
+	setnil := func() interface{} {
+		return nil
+	}
+
 	table.MigrateTables(&s.table, nil)
+	table.MigrateCaches(&s.cache, setnil)
 	table.MigrateTables(&s.epochTable, nil)
 	err := s.mainDb.Close()
 	if err != nil {
@@ -86,6 +105,11 @@ func (s *Store) RecreateEpochDb(n idx.Epoch) {
 		s.Log.Crit("Failed to close epoch db", "err", err)
 	}
 	prevDb.Drop()
+
+	// Clear full LRU cache.
+	if s.cache.FrameRoots != nil {
+		s.cache.FrameRoots.Purge()
+	}
 
 	s.epochDb = s.dbs.GetDb(name(n))
 	table.MigrateTables(&s.epochTable, s.epochDb)
@@ -134,4 +158,17 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
+}
+
+func (s *Store) makeCache(size int) *lru.Cache {
+	if size <= 0 {
+		return nil
+	}
+
+	cache, err := lru.New(size)
+	if err != nil {
+		s.Log.Crit("Error create LRU cache", "err", err)
+		return nil
+	}
+	return cache
 }
