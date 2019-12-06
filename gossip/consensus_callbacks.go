@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
@@ -75,11 +76,72 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	return s.store.Commit(e.Hash().Bytes(), immediately)
 }
 
-// executeTransactions execs ordered txns of new block on state.
-func (s *Service) executeTransactions(block *inter.Block, cheaters []common.Address, forEachEvent func(*inter.Event)) (*inter.Block, *evmcore.EvmBlock, types.Receipts) {
+// applyNewState moves the state according to new block (txs execution, SFC logic, epoch sealing)
+func (s *Service) applyNewState(
+	block *inter.Block,
+	sealEpoch bool,
+	cheaters []common.Address,
+	forEachEvent func(*inter.Event),
+) (
+	*inter.Block,
+	*evmcore.EvmBlock,
+	types.Receipts,
+	common.Hash,
+) {
 	// s.engineMu is locked here
 
-	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
+	// Assemble block data
+	evmBlock := s.assembleEvmBlock(block, forEachEvent)
+
+	// Get stateDB
+	stateHash := s.store.GetBlock(block.Index - 1).Root
+	statedb := s.store.StateDB(stateHash)
+
+	// Process EVM txs
+	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
+
+	// Process SFC contract transactions
+	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
+
+	// Process new epoch
+	var newEpochHash common.Hash
+	if sealEpoch {
+		newEpochHash = s.onEpochSealed(block, cheaters)
+	}
+
+	// Get state root
+	newStateHash, err := statedb.Commit(true)
+	if err != nil {
+		s.Log.Crit("Failed to commit state", "err", err)
+	}
+	block.Root = newStateHash
+	*evmBlock = evmcore.EvmBlock{
+		EvmHeader:    *evmcore.ToEvmHeader(block),
+		Transactions: evmBlock.Transactions,
+	}
+
+	// calc appHash
+	var newAppHash common.Hash
+	if sealEpoch {
+		newAppHash = hash.Of(newStateHash.Bytes(), newEpochHash.Bytes())
+	} else {
+		newAppHash = newStateHash
+	}
+
+	log.Info("New block", "index", block.Index, "hash", block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs))
+
+	return block, evmBlock, receipts, newAppHash
+}
+
+// assembleEvmBlock converts inter.Block to evmcore.EvmBlock (without skipped transactions)
+func (s *Service) assembleEvmBlock(
+	block *inter.Block,
+	forEachEvent func(*inter.Event),
+) *evmcore.EvmBlock {
+	// s.engineMu is locked here
+	if len(block.SkippedTxs) != 0 {
+		log.Crit("Building with SkippedTxs isn't supported")
+	}
 
 	// Assemble block data
 	evmBlock := &evmcore.EvmBlock{
@@ -98,25 +160,10 @@ func (s *Service) executeTransactions(block *inter.Block, cheaters []common.Addr
 		}
 	}
 
-	// Process txs
-	stateHash := s.store.GetBlock(block.Index - 1).Root
-	statedb := s.store.StateDB(stateHash)
-	receipts, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
-	if err != nil {
-		s.Log.Crit("Shouldn't happen ever because it's not strict", "err", err)
-	}
-	block.SkippedTxs = skipped
-	block.GasUsed = gasUsed
+	return evmBlock
+}
 
-	// finalize
-	newStateHash, err := statedb.Commit(true)
-	if err != nil {
-		s.Log.Crit("Failed to commit state", "err", err)
-	}
-	block.Root = newStateHash
-
-	log.Info("New block", "index", block.Index, "hash", block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(skipped))
-
+func filterSkippedTxs(block *inter.Block, evmBlock *evmcore.EvmBlock) *evmcore.EvmBlock {
 	// Filter skipped transactions. Receipts are filtered already
 	skipCount := 0
 	filteredTxs := make(types.Transactions, 0, len(evmBlock.Transactions))
@@ -127,15 +174,62 @@ func (s *Service) executeTransactions(block *inter.Block, cheaters []common.Addr
 			filteredTxs = append(filteredTxs, tx)
 		}
 	}
+	evmBlock.Transactions = filteredTxs
+	return evmBlock
+}
 
-	// Calc Merkle root of transactions
-	block.TxHash = types.DeriveSha(filteredTxs)
+// executeTransactions execs ordered txns of new block on state.
+func (s *Service) executeEvmTransactions(
+	block *inter.Block,
+	evmBlock *evmcore.EvmBlock,
+	statedb *state.StateDB,
+) (
+	*inter.Block,
+	*evmcore.EvmBlock,
+	*big.Int,
+	types.Receipts,
+) {
+	// s.engineMu is locked here
 
+	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
+
+	// Process txs
+	receipts, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
+	if err != nil {
+		s.Log.Crit("Shouldn't happen ever because it's not strict", "err", err)
+	}
+	block.SkippedTxs = skipped
+	block.GasUsed = gasUsed
+
+	// Filter skipped transactions
+	evmBlock = filterSkippedTxs(block, evmBlock)
+
+	block.TxHash = types.DeriveSha(evmBlock.Transactions)
 	*evmBlock = evmcore.EvmBlock{
 		EvmHeader:    *evmcore.ToEvmHeader(block),
-		Transactions: filteredTxs,
+		Transactions: evmBlock.Transactions,
 	}
-	return block, evmBlock, receipts
+
+	return block, evmBlock, totalFee, receipts
+}
+
+// onEpochSealed applies the new epoch sealing state
+func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (newEpochHash common.Hash) {
+	// s.engineMu is locked here
+
+	epoch := s.engine.GetEpoch()
+
+	// update last headers
+	for _, cheater := range cheaters {
+		s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
+	}
+	hh := s.store.GetLastHeaders(epoch)
+	// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
+	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
+	// prune not needed last headers
+	s.store.DelLastHeaders(epoch - 1)
+
+	return newEpochHash
 }
 
 // applyBlock execs ordered txns of new block on state, and fills the block DB indexes.
@@ -158,37 +252,12 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 			}
 		}
 	}
+	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
 
-	block, evmBlock, receipts := s.executeTransactions(block, cheaters, forEachBlockEvent)
+	block, evmBlock, receipts, newAppHash := s.applyNewState(block, sealEpoch, cheaters, forEachBlockEvent)
 
 	s.store.SetBlock(block)
 	s.store.SetBlockIndex(block.Hash(), block.Index)
-	newAppHash = block.Root
-	epoch := s.engine.GetEpoch()
-	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
-	if sealEpoch {
-		// update last headers
-		for _, cheater := range cheaters {
-			s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
-		}
-		hh := s.store.GetLastHeaders(epoch)
-		// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
-		newAppHash = hash.Of(newAppHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
-		// prune not needed last headers
-		s.store.DelLastHeaders(epoch - 1)
-
-		// dirty EpochStats becomes active
-		sealedStats := s.store.GetDirtyEpochStats()
-		sealedStats.End = block.Time
-		s.store.SetEpochStats(epoch, *sealedStats)
-
-		// new dirty EpochStats
-		s.store.SetDirtyEpochStats(EpochStats{
-			Start:    block.Time,
-			End:      0,
-			TotalFee: new(big.Int),
-		})
-	}
 
 	// Build index for not skipped txs
 	if s.config.TxIndex {
@@ -223,19 +292,11 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValidators pos.Validators) {
 	// s.engineMu is locked here
 
-	// new validators calculation
-	// TODO replace with SFC transactions for changing validators state
-	// TODO the schema below doesn't work in all the cases, and intended only for testing
-	{
-		newValidators = s.engine.GetValidators().Copy()
-		n, _ := s.engine.LastBlock()
-		root := s.store.GetBlock(n).Root
-		statedb := s.store.StateDB(root)
-		for addr := range newValidators.Iterate() {
-			stake := pos.BalanceToStake(statedb.GetBalance(addr))
-			newValidators.Set(addr, stake)
-		}
+	newValidators = pos.Validators{}
+	for _, it := range s.store.GetEpochValidators(newEpoch) {
+		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
+
 	return newValidators
 }
 
@@ -294,14 +355,14 @@ type GasPowerCheckReader struct {
 
 // GetPrevEpochLastHeaders isn't safe for concurrent use
 func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
-	// s.engineMu is locked here
+	// engineMu is locked here
 	epoch := r.GetEpoch() - 1
 	return r.store.GetLastHeaders(epoch), epoch
 }
 
 // GetPrevEpochEndTime isn't safe for concurrent use
 func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
-	// s.engineMu is locked here
+	// engineMu is locked here
 	epoch := r.GetEpoch() - 1
 	return r.store.GetEpochStats(epoch).End, epoch
 }

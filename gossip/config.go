@@ -56,6 +56,10 @@ type (
 		EpochStatsCacheSize int
 		// Cache size for LastEpochHeaders.
 		LastEpochHeadersCacheSize int
+		// Cache size for Stakers.
+		StakersCacheSize int
+		// Cache size for Delegators.
+		DelegatorsCacheSize int
 	}
 )
 
@@ -98,6 +102,8 @@ func DefaultStoreConfig() StoreConfig {
 		TxPositionsCacheSize:      1000,
 		EpochStatsCacheSize:       100,
 		LastEpochHeadersCacheSize: 2,
+		DelegatorsCacheSize:       4000,
+		StakersCacheSize:          4000,
 	}
 }
 
@@ -112,5 +118,7 @@ func LiteStoreConfig() StoreConfig {
 		TxPositionsCacheSize:      100,
 		EpochStatsCacheSize:       100,
 		LastEpochHeadersCacheSize: 2,
+		DelegatorsCacheSize:       400,
+		StakersCacheSize:          400,
 	}
 }
