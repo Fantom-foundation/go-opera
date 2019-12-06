@@ -50,7 +50,7 @@ const (
 	eventIDSize = 32
 )
 
-// GerFrameRoots returns all the roots in the specified frame
+// GetFrameRoots returns all the roots in the specified frame
 // Not safe for concurrent use due to complex mutable cache!
 func (s *Store) GetFrameRoots(f idx.Frame) []election.RootAndSlot {
 	// Get data from LRU cache first.
