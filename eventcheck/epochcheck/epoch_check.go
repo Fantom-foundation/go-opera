@@ -18,7 +18,7 @@ var (
 
 // DagReader is accessed by the validator to get the current state.
 type DagReader interface {
-	GetEpochValidators() (pos.Validators, idx.Epoch)
+	GetEpochValidators() (*pos.Validators, idx.Epoch)
 }
 
 // Checker which require only current epoch info

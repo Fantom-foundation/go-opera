@@ -131,7 +131,7 @@ func (vv Validators) sortedArray() validators {
 }
 
 // Copy constructs a copy.
-func (vv Validators) Copy() Validators {
+func (vv *Validators) Copy() *Validators {
 	res := NewValidators()
 
 	if cap(res.list) < len(vv.list) {
@@ -147,7 +147,7 @@ func (vv Validators) Copy() Validators {
 		res.indexes[addr] = i
 	}
 
-	return *res
+	return res
 }
 
 // Quorum limit of validators.

@@ -27,7 +27,7 @@ func (vi *Index) initBranchesInfo() {
 	}
 }
 
-func newInitialBranchesInfo(validators pos.Validators) *branchesInfo {
+func newInitialBranchesInfo(validators *pos.Validators) *branchesInfo {
 	branchIDCreators := validators.SortedAddresses()
 	branchIDCreatorIdxs := make([]idx.Validator, len(branchIDCreators))
 	for i := range branchIDCreators {

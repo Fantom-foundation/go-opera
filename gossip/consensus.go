@@ -25,9 +25,9 @@ type Consensus interface {
 	// GetEpoch returns current epoch num.
 	GetEpoch() idx.Epoch
 	// GetValidators returns validators of current epoch.
-	GetValidators() pos.Validators
+	GetValidators() *pos.Validators
 	// GetEpochValidators atomically returns validators of current epoch, and the epoch.
-	GetEpochValidators() (pos.Validators, idx.Epoch)
+	GetEpochValidators() (*pos.Validators, idx.Epoch)
 	// GetConsensusTime calc consensus timestamp for given event.
 	GetConsensusTime(id hash.Event) (inter.Timestamp, error)
 
