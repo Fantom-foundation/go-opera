@@ -121,6 +121,12 @@ func (s *Store) SetValidationScoreCheckpoint(cp inter.Timestamp) {
 	s.cache.ValidationScoreCheckpoint.Add(ValidationScoreCheckpointKey, cp)
 }
 
+func (s *Store) DelAllActiveValidationScores() {
+	it := s.table.ActiveValidationScore.NewIterator()
+	defer it.Release()
+	s.dropTable(it, s.table.ActiveValidationScore)
+}
+
 func (s *Store) MoveDirtyValidationScoresToActive() {
 	it := s.table.DirtyValidationScore.NewIterator()
 	defer it.Release()
@@ -130,7 +136,7 @@ func (s *Store) MoveDirtyValidationScoresToActive() {
 
 	for it.Next() {
 		keys = append(keys, it.Key())
-		vals = append(keys, it.Value())
+		vals = append(vals, it.Value())
 	}
 
 	for i := range keys {
@@ -232,6 +238,12 @@ func (s *Store) SetOriginationScoreCheckpoint(cp inter.Timestamp) {
 	s.cache.OriginationScoreCheckpoint.Add(OriginationScoreCheckpointKey, cp)
 }
 
+func (s *Store) DelAllActiveOriginationScores() {
+	it := s.table.ActiveOriginationScore.NewIterator()
+	defer it.Release()
+	s.dropTable(it, s.table.ActiveOriginationScore)
+}
+
 func (s *Store) MoveDirtyOriginationScoresToActive() {
 	it := s.table.DirtyOriginationScore.NewIterator()
 	defer it.Release()
@@ -241,7 +253,7 @@ func (s *Store) MoveDirtyOriginationScoresToActive() {
 
 	for it.Next() {
 		keys = append(keys, it.Key())
-		vals = append(keys, it.Value())
+		vals = append(vals, it.Value())
 	}
 
 	for i := range keys {
@@ -256,7 +268,7 @@ func (s *Store) MoveDirtyOriginationScoresToActive() {
 	}
 }
 
-// GeOriginationtScoreCheckpoint return last validation score checkpoint time
+// GetOriginationScoreCheckpoint return last validation score checkpoint time
 func (s *Store) GetOriginationScoreCheckpoint() inter.Timestamp {
 	cpVal, ok := s.cache.OriginationScoreCheckpoint.Get(OriginationScoreCheckpointKey)
 	if ok {

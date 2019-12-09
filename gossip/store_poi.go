@@ -68,20 +68,9 @@ func (s *Store) DelWeightedDelegatorsGasUsed(stakerID idx.StakerID) {
 }
 
 func (s *Store) DelAllWeightedDelegatorsGasUsed() {
-	keys := make([][]byte, 0, 500) // don't write during iteration
-
 	it := s.table.StakerDelegatorsGasUsed.NewIterator()
 	defer it.Release()
-	for it.Next() {
-		keys = append(keys, it.Key())
-	}
-
-	for _, key := range keys {
-		err := s.table.StakerDelegatorsGasUsed.Delete(key)
-		if err != nil {
-			s.Log.Crit("Failed to erase LastHeader", "err", err)
-		}
-	}
+	s.dropTable(it, s.table.StakerDelegatorsGasUsed)
 }
 
 // GetAddressLastTxTime get last time for last tx from this address

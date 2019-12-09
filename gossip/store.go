@@ -235,6 +235,21 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	return res
 }
 
+func (s *Store) dropTable(it ethdb.Iterator, t kvdb.KeyValueStore) {
+	keys := make([][]byte, 0, 500) // don't write during iteration
+
+	for it.Next() {
+		keys = append(keys, it.Key())
+	}
+
+	for i := range keys {
+		err := t.Delete(keys[i])
+		if err != nil {
+			s.Log.Crit("Failed to erase key-value", "err", err)
+		}
+	}
+}
+
 func (s *Store) makeCache(size int) *lru.Cache {
 	if size <= 0 {
 		return nil

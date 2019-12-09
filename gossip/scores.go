@@ -35,6 +35,7 @@ func (s *Service) updateOriginationScores(block *inter.Block, receipts types.Rec
 	if sealEpoch {
 		lastCheckpoint := s.store.GetOriginationScoreCheckpoint()
 		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.ScoreCheckpointsInterval {
+			s.store.DelAllActiveOriginationScores()
 			s.store.MoveDirtyOriginationScoresToActive()
 			s.store.SetOriginationScoreCheckpoint(block.Time)
 		}
