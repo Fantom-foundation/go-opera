@@ -42,7 +42,7 @@ type IndexConfig struct {
 
 // Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
 type Index struct {
-	validators    pos.Validators
+	validators    *pos.Validators
 	validatorIdxs map[common.Address]idx.Validator
 
 	bi *branchesInfo
@@ -91,7 +91,7 @@ func DefaultIndexConfig() IndexConfig {
 }
 
 // NewIndex creates Index instance.
-func NewIndex(config IndexConfig, validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
+func NewIndex(config IndexConfig, validators *pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
 	cache, _ := lru.New(config.Caches.ForklessCause)
 
 	vi := &Index{
@@ -110,7 +110,7 @@ func NewIndex(config IndexConfig, validators pos.Validators, db kvdb.KeyValueSto
 }
 
 // Reset resets buffers.
-func (vi *Index) Reset(validators pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) {
+func (vi *Index) Reset(validators *pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) {
 	// we use wrapper to be able to drop failed events by dropping cache
 	vi.getEvent = getEvent
 	vi.vecDb = flushable.Wrap(db)

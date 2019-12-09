@@ -50,11 +50,11 @@ func FindBestParents(max int, options hash.Events, selfParent *hash.Event, strat
 type CasualityStrategy struct {
 	vecClock   *vector.Index
 	template   vector.HighestBeforeSeq
-	validators pos.Validators
+	validators *pos.Validators
 }
 
 // NewCasualityStrategy creates new CasualityStrategy with provided vector clock
-func NewCasualityStrategy(vecClock *vector.Index, validators pos.Validators) *CasualityStrategy {
+func NewCasualityStrategy(vecClock *vector.Index, validators *pos.Validators) *CasualityStrategy {
 	return &CasualityStrategy{
 		vecClock:   vecClock,
 		validators: validators,

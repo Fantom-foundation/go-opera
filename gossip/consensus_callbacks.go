@@ -289,10 +289,10 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 }
 
 // selectValidatorsGroup is a callback type to select new validators group
-func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValidators pos.Validators) {
+func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValidators *pos.Validators) {
 	// s.engineMu is locked here
 
-	newValidators = pos.Validators{}
+	newValidators = pos.NewValidators()
 	for _, it := range s.store.GetEpochValidators(newEpoch) {
 		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}

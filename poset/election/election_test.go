@@ -237,15 +237,11 @@ func testProcessRoot(
 		},
 	})
 
-	// validators:
-	var (
-		vv = *pos.NewValidators()
-	)
+	validators := pos.NewValidators()
 	for _, peer := range peers {
-		vv.Set(peer, stakes[utils.NameOf(peer)])
+		validators.Set(peer, stakes[utils.NameOf(peer)])
 	}
 
-	// forkless cause func:
 	forklessCauseFn := func(a hash.Event, b hash.Event) bool {
 		edge := fakeEdge{
 			from: a,
@@ -264,7 +260,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(vv, 0, forklessCauseFn, getFrameRootsFn)
+	election := New(validators, 0, forklessCauseFn, getFrameRootsFn)
 
 	// processing:
 	var alreadyDecided bool

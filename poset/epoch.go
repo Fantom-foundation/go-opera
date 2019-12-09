@@ -17,7 +17,7 @@ type EpochState struct {
 	// these values change only after a change of epoch
 	EpochN     idx.Epoch
 	PrevEpoch  GenesisState
-	Validators pos.Validators
+	Validators *pos.Validators
 }
 
 func (p *Poset) loadEpoch() {
@@ -35,7 +35,7 @@ func (p *Poset) GetEpoch() idx.Epoch {
 
 // GetValidators returns validators of current epoch.
 // Don't mutate validators.
-func (p *Poset) GetValidators() pos.Validators {
+func (p *Poset) GetValidators() *pos.Validators {
 	p.epochMu.Lock()
 	defer p.epochMu.Unlock()
 
@@ -44,14 +44,14 @@ func (p *Poset) GetValidators() pos.Validators {
 
 // GetEpochValidators returns validators of current epoch, and the epoch.
 // Don't mutate validators.
-func (p *Poset) GetEpochValidators() (pos.Validators, idx.Epoch) {
+func (p *Poset) GetEpochValidators() (*pos.Validators, idx.Epoch) {
 	p.epochMu.Lock()
 	defer p.epochMu.Unlock()
 
 	return p.Validators, p.EpochN
 }
 
-func (p *Poset) setEpochValidators(validators pos.Validators, epoch idx.Epoch) {
+func (p *Poset) setEpochValidators(validators *pos.Validators, epoch idx.Epoch) {
 	p.epochMu.Lock()
 	defer p.epochMu.Unlock()
 

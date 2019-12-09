@@ -18,7 +18,7 @@ type (
 		// election params
 		frameToDecide idx.Frame
 
-		validators pos.Validators
+		validators *pos.Validators
 
 		// election state
 		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"
@@ -68,7 +68,7 @@ type Res struct {
 
 // New election context
 func New(
-	validators pos.Validators,
+	validators *pos.Validators,
 	frameToDecide idx.Frame,
 	forklessCauseFn ForklessCauseFn,
 	getFrameRoots GetFrameRootsFn,
@@ -86,7 +86,7 @@ func New(
 }
 
 // Reset erases the current election state, prepare for new election frame
-func (el *Election) Reset(validators pos.Validators, frameToDecide idx.Frame) {
+func (el *Election) Reset(validators *pos.Validators, frameToDecide idx.Frame) {
 	el.validators = validators
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteID]voteValue)

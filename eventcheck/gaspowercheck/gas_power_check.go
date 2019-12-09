@@ -21,7 +21,7 @@ var (
 
 // DagReader is accessed by the validator to get the current state.
 type DagReader interface {
-	GetEpochValidators() (pos.Validators, idx.Epoch)
+	GetEpochValidators() (*pos.Validators, idx.Epoch)
 	GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch)
 	GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch)
 }
@@ -54,7 +54,7 @@ func sub(a *big.Int, b uint64) {
 
 func calcValidatorGasPowerPerH(
 	validator common.Address,
-	validators pos.Validators,
+	validators *pos.Validators,
 	config *lachesis.GasPowerConfig,
 ) (
 	perHour uint64,
@@ -93,7 +93,7 @@ func calcValidatorGasPowerPerH(
 func CalcGasPower(
 	e *inter.EventHeaderData,
 	selfParent *inter.EventHeaderData,
-	validators pos.Validators,
+	validators *pos.Validators,
 	lastHeaders inter.HeadersByCreator,
 	prevEpochEnd inter.Timestamp,
 	config *lachesis.GasPowerConfig,

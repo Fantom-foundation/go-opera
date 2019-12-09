@@ -54,7 +54,7 @@ func benchmarkStore(b *testing.B) {
 
 	p := benchPoset(nodes, input, store)
 
-	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) pos.Validators {
+	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) *pos.Validators {
 		if oldEpoch == 1 {
 			validators := p.Validators.Copy()
 			// move stake from node0 to node1
