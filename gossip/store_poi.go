@@ -68,7 +68,7 @@ func (s *Store) DelWeightedDelegatorsGasUsed(stakerID idx.StakerID) {
 	}
 }
 
-// DelWeightedDelegatorsGasUsed deletes all the records about gas used by delegators of all stakers
+// DelAllWeightedDelegatorsGasUsed deletes all the records about gas used by delegators of all stakers
 func (s *Store) DelAllWeightedDelegatorsGasUsed() {
 	it := s.table.StakerDelegatorsGasUsed.NewIterator()
 	defer it.Release()

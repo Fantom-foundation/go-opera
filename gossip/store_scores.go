@@ -68,7 +68,7 @@ func (s *Store) AddDirtyValidationScore(stakerID idx.StakerID, gas uint64) {
 	s.addValidationScore(s.table.DirtyValidationScore, stakerID, gas)
 }
 
-// AddDirtyValidationScore deletes record about active validation score of a staker
+// DelActiveValidationScore deletes record about active validation score of a staker
 func (s *Store) DelActiveValidationScore(stakerID idx.StakerID) {
 	err := s.table.ActiveValidationScore.Delete(stakerID.Bytes())
 	if err != nil {
@@ -76,7 +76,7 @@ func (s *Store) DelActiveValidationScore(stakerID idx.StakerID) {
 	}
 }
 
-// AddDirtyValidationScore deletes record about dirty validation score of a staker
+// DelDirtyValidationScore deletes record about dirty validation score of a staker
 func (s *Store) DelDirtyValidationScore(stakerID idx.StakerID) {
 	err := s.table.DirtyValidationScore.Delete(stakerID.Bytes())
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *Store) MoveDirtyValidationScoresToActive() {
 	}
 }
 
-// GeValidationtScoreCheckpoint return last validation score checkpoint time
+// GetValidationScoreCheckpoint return last validation score checkpoint time
 func (s *Store) GetValidationScoreCheckpoint() inter.Timestamp {
 	cpVal, ok := s.cache.ValidationScoreCheckpoint.Get(validationScoreCheckpointKey)
 	if ok {
@@ -244,14 +244,14 @@ func (s *Store) SetOriginationScoreCheckpoint(cp inter.Timestamp) {
 	s.cache.OriginationScoreCheckpoint.Add(originationScoreCheckpointKey, cp)
 }
 
-// DelAllActiveValidationScores deletes all the record about dirty origination scores of stakers
+// DelAllActiveOriginationScores deletes all the record about dirty origination scores of stakers
 func (s *Store) DelAllActiveOriginationScores() {
 	it := s.table.ActiveOriginationScore.NewIterator()
 	defer it.Release()
 	s.dropTable(it, s.table.ActiveOriginationScore)
 }
 
-// MoveDirtyValidationScoresToActive moves all the dirty records to active
+// MoveDirtyOriginationScoresToActive moves all the dirty records to active
 func (s *Store) MoveDirtyOriginationScoresToActive() {
 	it := s.table.DirtyOriginationScore.NewIterator()
 	defer it.Release()
