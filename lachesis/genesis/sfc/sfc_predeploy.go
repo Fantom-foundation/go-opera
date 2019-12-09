@@ -32,7 +32,7 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, st
 	// set validators
 	maxStakerID := idx.StakerID(0)
 	for stakerID, validator := range validators {
-		stakePos := sfcpos.VStake(stakerID)
+		stakePos := sfcpos.Staker(stakerID)
 
 		stakeAmount := utils.BigTo256(pos.StakeToBalance(validator.Stake))
 
@@ -41,7 +41,7 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, st
 		storage[stakePos.CreatedTime()] = utils.U64to256(uint64(genesisTime.Unix()))
 		storage[stakePos.Address()] = validator.Address.Hash()
 
-		stakerIDPos := sfcpos.VStakerID(validator.Address)
+		stakerIDPos := sfcpos.StakerID(validator.Address)
 		storage[stakerIDPos] = utils.U64to256(uint64(stakerID))
 
 		if maxStakerID < stakerID {
@@ -49,9 +49,9 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, st
 		}
 	}
 
-	storage[sfcpos.VStakersNum()] = utils.U64to256(uint64(len(validators)))
-	storage[sfcpos.VStakersLastIdx()] = utils.U64to256(uint64(maxStakerID))
-	storage[sfcpos.VStakeTotalAmount()] = utils.BigTo256((pos.StakeToBalance(validators.Validators().TotalStake())))
+	storage[sfcpos.StakersNum()] = utils.U64to256(uint64(len(validators)))
+	storage[sfcpos.StakersLastIdx()] = utils.U64to256(uint64(maxStakerID))
+	storage[sfcpos.StakeTotalAmount()] = utils.BigTo256((pos.StakeToBalance(validators.Validators().TotalStake())))
 
 	return storage
 }

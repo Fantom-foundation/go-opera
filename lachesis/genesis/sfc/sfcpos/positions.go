@@ -13,10 +13,10 @@ import (
 
 // Events
 var (
-	CreateStakeTopic          = hash.Of([]byte("CreatedVStake(uint256,address,uint256)"))
-	IncreasedStakeTopic       = hash.Of([]byte("IncreasedVStake(uint256,uint256,uint256)"))
+	CreateStakeTopic          = hash.Of([]byte("CreatedStake(uint256,address,uint256)"))
+	IncreasedStakeTopic       = hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)"))
 	CreatedDelegationTopic    = hash.Of([]byte("CreatedDelegation(address,uint256,uint256)"))
-	DeactivateStakeTopic      = hash.Of([]byte("PreparedToWithdrawVStake(uint256)"))
+	DeactivateStakeTopic      = hash.Of([]byte("PreparedToWithdrawStake(uint256)"))
 	DeactivateDelegationTopic = hash.Of([]byte("PreparedToWithdrawDelegation(address)"))
 )
 
@@ -26,53 +26,53 @@ func CurrentSealedEpoch() common.Hash {
 	return utils.U64to256(0)
 }
 
-func VStakersLastIdx() common.Hash {
+func StakersLastIdx() common.Hash {
 	return utils.U64to256(4)
 }
 
-func VStakersNum() common.Hash {
+func StakersNum() common.Hash {
 	return utils.U64to256(5)
 }
 
-func VStakeTotalAmount() common.Hash {
+func StakeTotalAmount() common.Hash {
 	return utils.U64to256(6)
 }
 
-// VStake
+// Stake
 
-type VStakePos struct {
+type StakePos struct {
 	object
 }
 
-func VStake(stakerID idx.StakerID) VStakePos {
+func Staker(stakerID idx.StakerID) StakePos {
 	position := getMapValue(common.Hash{}, utils.U64to256(uint64(stakerID)), 2)
 
-	return VStakePos{object{base: position.Big()}}
+	return StakePos{object{base: position.Big()}}
 }
 
-func (p *VStakePos) IsCheater() common.Hash {
+func (p *StakePos) IsCheater() common.Hash {
 	return p.Field(0)
 }
 
-func (p *VStakePos) CreatedEpoch() common.Hash {
+func (p *StakePos) CreatedEpoch() common.Hash {
 	return p.Field(1)
 }
 
-func (p *VStakePos) CreatedTime() common.Hash {
+func (p *StakePos) CreatedTime() common.Hash {
 	return p.Field(2)
 }
 
-func (p *VStakePos) StakeAmount() common.Hash {
+func (p *StakePos) StakeAmount() common.Hash {
 	return p.Field(5)
 }
 
-func (p *VStakePos) Address() common.Hash {
+func (p *StakePos) Address() common.Hash {
 	return p.Field(8)
 }
 
-// vStakerIDs
+// stakerIDs
 
-func VStakerID(vstaker common.Address) common.Hash {
+func StakerID(vstaker common.Address) common.Hash {
 	return getMapValue(common.Hash{}, vstaker.Hash(), 3)
 }
 

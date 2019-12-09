@@ -218,7 +218,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 	// Write cheaters into SFC
 	for _, validator := range cheaters {
-		position := sfcpos.VStake(validator)
+		position := sfcpos.Staker(validator)
 		if statedb.GetState(sfc.ContractAddress, position.IsCheater()) == (common.Hash{}) {
 			statedb.SetState(sfc.ContractAddress, position.IsCheater(), common.BytesToHash([]byte{1}))
 		}
