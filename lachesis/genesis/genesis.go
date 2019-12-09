@@ -21,9 +21,9 @@ type Genesis struct {
 	ExtraData []byte
 }
 
-func preDeploySfc(g Genesis) Genesis {
+func preDeploySfc(g Genesis, code []byte) Genesis {
 	g.Alloc.Accounts[sfc.ContractAddress] = Account{
-		Code:    sfc.GetContractBinV1(),
+		Code:    code,
 		Storage: sfc.AssembleStorage(g.Alloc.GValidators, g.Time, nil),
 		Balance: pos.StakeToBalance(g.Alloc.GValidators.Validators().TotalStake()),
 	}
@@ -36,7 +36,7 @@ func FakeGenesis(accs VAccounts) Genesis {
 		Alloc: accs,
 		Time:  genesisTestTime,
 	}
-	g = preDeploySfc(g)
+	g = preDeploySfc(g, sfc.GetTestContractBinV1())
 	return g
 }
 
@@ -65,7 +65,7 @@ func MainGenesis() Genesis {
 			},
 		},
 	}
-	g = preDeploySfc(g)
+	g = preDeploySfc(g, sfc.GetMainContractBinV1())
 	return g
 }
 
@@ -94,6 +94,6 @@ func TestGenesis() Genesis {
 			},
 		},
 	}
-	g = preDeploySfc(g)
+	g = preDeploySfc(g, sfc.GetTestContractBinV1())
 	return g
 }

@@ -11,9 +11,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
-// GetContractBinV1 is SFC contract first implementation bin code
+// GetMainContractBinV1 is SFC contract first implementation bin code for mainnet
 // Must be compiled with bin-runtime flag
-func GetContractBinV1() []byte {
+func GetMainContractBinV1() []byte {
+	return hexutil.MustDecode("0x00")
+}
+
+// GetTestContractBinV1 is SFC contract first implementation bin code for testnet
+// Must be compiled with bin-runtime flag
+func GetTestContractBinV1() []byte {
 	return hexutil.MustDecode("0x00")
 }
 
