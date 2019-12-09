@@ -19,6 +19,7 @@ const (
 )
 
 var (
+	// PercentUnit is used to define ratios with integers
 	PercentUnit = big.NewInt(1e6)
 )
 
@@ -42,6 +43,7 @@ type DagConfig struct {
 	IndexConfig vector.IndexConfig `json:"indexConfig"`
 }
 
+// EconomyConfig contains economy constants
 type EconomyConfig struct {
 	ScoreCheckpointsInterval time.Duration
 	PoiPeriodDuration        time.Duration
@@ -94,6 +96,7 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 	}
 }
 
+// DefaultEconomyConfig returns mainnet economy
 func DefaultEconomyConfig() EconomyConfig {
 	// 30%
 	validatorPoiImpact := big.NewInt(30)
@@ -109,6 +112,7 @@ func DefaultEconomyConfig() EconomyConfig {
 	}
 }
 
+// FakeEconomyConfig returns fakenet economy
 func FakeEconomyConfig() EconomyConfig {
 	cfg := DefaultEconomyConfig()
 	cfg.ScoreCheckpointsInterval = 5 * time.Minute

@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
+// Checkers is collection of all the checkers
 type Checkers struct {
 	Basiccheck    *basiccheck.Checker
 	Epochcheck    *epochcheck.Checker

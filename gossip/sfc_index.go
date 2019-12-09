@@ -90,7 +90,7 @@ func (s *Service) calcValidatingPowers(stakers []SfcStakerAndID) []*big.Int {
 		totalScore.Add(totalPoI, score)
 	}
 
-	for i, _ := range stakers {
+	for i := range stakers {
 		// validatingPower = ((1 - CONST) * stake + (CONST) * PoI) * score,
 		// where PoI is rebased to be comparable with stake, score is rebased to [0, 1]
 		stakeWithRatio := stakes[i]

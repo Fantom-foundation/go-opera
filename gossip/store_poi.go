@@ -50,7 +50,7 @@ func (s *Store) GetWeightedDelegatorsGasUsed(stakerID idx.StakerID) uint64 {
 	return gas
 }
 
-// SetWeightedDelegatorsGasUsed save gas used by delegators of a staker
+// SetWeightedDelegatorsGasUsed stores gas used by delegators of a staker
 func (s *Store) SetWeightedDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) {
 	gasBytes := bigendian.Int64ToBytes(gas)
 
@@ -60,6 +60,7 @@ func (s *Store) SetWeightedDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) 
 	}
 }
 
+// DelWeightedDelegatorsGasUsed deletes record about gas used by delegators of a staker
 func (s *Store) DelWeightedDelegatorsGasUsed(stakerID idx.StakerID) {
 	err := s.table.StakerDelegatorsGasUsed.Delete(stakerID.Bytes())
 	if err != nil {
@@ -67,6 +68,7 @@ func (s *Store) DelWeightedDelegatorsGasUsed(stakerID idx.StakerID) {
 	}
 }
 
+// DelWeightedDelegatorsGasUsed deletes all the records about gas used by delegators of all stakers
 func (s *Store) DelAllWeightedDelegatorsGasUsed() {
 	it := s.table.StakerDelegatorsGasUsed.NewIterator()
 	defer it.Release()
@@ -144,6 +146,7 @@ func (s *Store) SetStakerPOI(stakerID idx.StakerID, poi uint64) {
 	}
 }
 
+// DelStakerPOI deletes record about staker's PoI
 func (s *Store) DelStakerPOI(stakerID idx.StakerID) {
 	err := s.table.StakerPOIScore.Delete(stakerID.Bytes())
 	if err != nil {

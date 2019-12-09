@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// BlocksMissed is information about missed blocks from a staker
 type BlocksMissed struct {
 	Num    idx.Block
 	Period inter.Timestamp

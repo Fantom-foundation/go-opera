@@ -44,6 +44,7 @@ func (s *Store) delEpochStore(epoch idx.Epoch) {
 	}
 }
 
+// SetLastEvent stores last unconfirmed event from a validator (off-chain)
 func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.StakerID, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
@@ -56,6 +57,7 @@ func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.StakerID, id hash.Event) 
 	}
 }
 
+// SetLastEvent returns stored last unconfirmed event from a validator (off-chain)
 func (s *Store) GetLastEvent(epoch idx.Epoch, from idx.StakerID) *hash.Event {
 	es := s.getEpochStore(epoch)
 	if es == nil {

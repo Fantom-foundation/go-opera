@@ -26,7 +26,7 @@ type (
 	// Pack numeration.
 	Pack uint32
 
-	// Staker numeration.
+	// StakerID numeration.
 	StakerID uint32
 )
 

@@ -18,12 +18,14 @@ type (
 		ids     []idx.StakerID
 	}
 
+	// GenesisValidator is helper structure to define genesis validators
 	GenesisValidator struct {
 		ID      idx.StakerID
 		Address common.Address
 		Stake   Stake
 	}
 
+	// GValidators defines genesis validators
 	GValidators map[idx.StakerID]GenesisValidator
 )
 
@@ -208,6 +210,7 @@ func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
+// Validators converts GValidators to Validators
 func (gv GValidators) Validators() *Validators {
 	validators := NewValidators()
 	for stakerID, validator := range gv {

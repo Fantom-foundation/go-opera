@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	ValidationScoreCheckpointKey  = "current"
-	OriginationScoreCheckpointKey = "current"
+	validationScoreCheckpointKey  = "current"
+	originationScoreCheckpointKey = "current"
 )
 
 // IncBlocksMissed add count of missed blocks for validator
@@ -68,6 +68,7 @@ func (s *Store) AddDirtyValidationScore(stakerID idx.StakerID, gas uint64) {
 	s.addValidationScore(s.table.DirtyValidationScore, stakerID, gas)
 }
 
+// AddDirtyValidationScore deletes record about active validation score of a staker
 func (s *Store) DelActiveValidationScore(stakerID idx.StakerID) {
 	err := s.table.ActiveValidationScore.Delete(stakerID.Bytes())
 	if err != nil {
@@ -75,6 +76,7 @@ func (s *Store) DelActiveValidationScore(stakerID idx.StakerID) {
 	}
 }
 
+// AddDirtyValidationScore deletes record about dirty validation score of a staker
 func (s *Store) DelDirtyValidationScore(stakerID idx.StakerID) {
 	err := s.table.DirtyValidationScore.Delete(stakerID.Bytes())
 	if err != nil {
@@ -113,20 +115,22 @@ func (s *Store) getValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) 
 // SetValidationScoreCheckpoint set validation score checkpoint time
 func (s *Store) SetValidationScoreCheckpoint(cp inter.Timestamp) {
 	cpBytes := bigendian.Int64ToBytes(uint64(cp))
-	err := s.table.ValidationScoreCheckpoint.Put([]byte(ValidationScoreCheckpointKey), cpBytes)
+	err := s.table.ValidationScoreCheckpoint.Put([]byte(validationScoreCheckpointKey), cpBytes)
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.ValidationScoreCheckpoint.Add(ValidationScoreCheckpointKey, cp)
+	s.cache.ValidationScoreCheckpoint.Add(validationScoreCheckpointKey, cp)
 }
 
+// DelAllActiveValidationScores deletes all the record about dirty validation scores of stakers
 func (s *Store) DelAllActiveValidationScores() {
 	it := s.table.ActiveValidationScore.NewIterator()
 	defer it.Release()
 	s.dropTable(it, s.table.ActiveValidationScore)
 }
 
+// MoveDirtyValidationScoresToActive moves all the dirty records to active
 func (s *Store) MoveDirtyValidationScoresToActive() {
 	it := s.table.DirtyValidationScore.NewIterator()
 	defer it.Release()
@@ -153,7 +157,7 @@ func (s *Store) MoveDirtyValidationScoresToActive() {
 
 // GeValidationtScoreCheckpoint return last validation score checkpoint time
 func (s *Store) GetValidationScoreCheckpoint() inter.Timestamp {
-	cpVal, ok := s.cache.ValidationScoreCheckpoint.Get(ValidationScoreCheckpointKey)
+	cpVal, ok := s.cache.ValidationScoreCheckpoint.Get(validationScoreCheckpointKey)
 	if ok {
 		cp, ok := cpVal.(inter.Timestamp)
 		if ok {
@@ -161,7 +165,7 @@ func (s *Store) GetValidationScoreCheckpoint() inter.Timestamp {
 		}
 	}
 
-	cpBytes, err := s.table.ValidationScoreCheckpoint.Get([]byte(ValidationScoreCheckpointKey))
+	cpBytes, err := s.table.ValidationScoreCheckpoint.Get([]byte(validationScoreCheckpointKey))
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
@@ -170,7 +174,7 @@ func (s *Store) GetValidationScoreCheckpoint() inter.Timestamp {
 	}
 
 	cp := inter.Timestamp(bigendian.BytesToInt64(cpBytes))
-	s.cache.ValidationScoreCheckpoint.Add(ValidationScoreCheckpointKey, cp)
+	s.cache.ValidationScoreCheckpoint.Add(validationScoreCheckpointKey, cp)
 
 	return cp
 }
@@ -185,6 +189,7 @@ func (s *Store) AddDirtyOriginationScore(stakerID idx.StakerID, gas uint64) {
 	s.addOriginationScore(s.table.DirtyOriginationScore, stakerID, gas)
 }
 
+// DelActiveOriginationScore deletes record about active origination score of a staker
 func (s *Store) DelActiveOriginationScore(stakerID idx.StakerID) {
 	err := s.table.ActiveOriginationScore.Delete(stakerID.Bytes())
 	if err != nil {
@@ -192,6 +197,7 @@ func (s *Store) DelActiveOriginationScore(stakerID idx.StakerID) {
 	}
 }
 
+// DelDirtyOriginationScore deletes record about dirty origination score of a staker
 func (s *Store) DelDirtyOriginationScore(stakerID idx.StakerID) {
 	err := s.table.DirtyOriginationScore.Delete(stakerID.Bytes())
 	if err != nil {
@@ -230,20 +236,22 @@ func (s *Store) getOriginationScore(t kvdb.KeyValueStore, stakerID idx.StakerID)
 // SetOriginationScoreCheckpoint set origination score checkpoint time
 func (s *Store) SetOriginationScoreCheckpoint(cp inter.Timestamp) {
 	cpBytes := bigendian.Int64ToBytes(uint64(cp))
-	err := s.table.OriginationScoreCheckpoint.Put([]byte(OriginationScoreCheckpointKey), cpBytes)
+	err := s.table.OriginationScoreCheckpoint.Put([]byte(originationScoreCheckpointKey), cpBytes)
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.OriginationScoreCheckpoint.Add(OriginationScoreCheckpointKey, cp)
+	s.cache.OriginationScoreCheckpoint.Add(originationScoreCheckpointKey, cp)
 }
 
+// DelAllActiveValidationScores deletes all the record about dirty origination scores of stakers
 func (s *Store) DelAllActiveOriginationScores() {
 	it := s.table.ActiveOriginationScore.NewIterator()
 	defer it.Release()
 	s.dropTable(it, s.table.ActiveOriginationScore)
 }
 
+// MoveDirtyValidationScoresToActive moves all the dirty records to active
 func (s *Store) MoveDirtyOriginationScoresToActive() {
 	it := s.table.DirtyOriginationScore.NewIterator()
 	defer it.Release()
@@ -270,7 +278,7 @@ func (s *Store) MoveDirtyOriginationScoresToActive() {
 
 // GetOriginationScoreCheckpoint return last validation score checkpoint time
 func (s *Store) GetOriginationScoreCheckpoint() inter.Timestamp {
-	cpVal, ok := s.cache.OriginationScoreCheckpoint.Get(OriginationScoreCheckpointKey)
+	cpVal, ok := s.cache.OriginationScoreCheckpoint.Get(originationScoreCheckpointKey)
 	if ok {
 		cp, ok := cpVal.(inter.Timestamp)
 		if ok {
@@ -278,7 +286,7 @@ func (s *Store) GetOriginationScoreCheckpoint() inter.Timestamp {
 		}
 	}
 
-	cpBytes, err := s.table.OriginationScoreCheckpoint.Get([]byte(OriginationScoreCheckpointKey))
+	cpBytes, err := s.table.OriginationScoreCheckpoint.Get([]byte(originationScoreCheckpointKey))
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
@@ -287,7 +295,7 @@ func (s *Store) GetOriginationScoreCheckpoint() inter.Timestamp {
 	}
 
 	cp := inter.Timestamp(bigendian.BytesToInt64(cpBytes))
-	s.cache.OriginationScoreCheckpoint.Add(OriginationScoreCheckpointKey, cp)
+	s.cache.OriginationScoreCheckpoint.Add(originationScoreCheckpointKey, cp)
 
 	return cp
 }

@@ -39,6 +39,7 @@ func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch)
 	return r.store.GetEpochStats(epoch).End, epoch
 }
 
+// ValidatorsPubKeys stores info to authenticate validators
 type ValidatorsPubKeys struct {
 	Epoch     idx.Epoch
 	Addresses map[idx.StakerID]common.Address

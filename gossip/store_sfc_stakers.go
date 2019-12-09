@@ -21,7 +21,7 @@ func (s *Store) GetEpochValidator(epoch idx.Epoch, stakerID idx.StakerID) *SfcSt
 	return w
 }
 
-// DelSfcStaker deletes SfcStaker
+// SetSfcStaker stores SfcStaker
 func (s *Store) SetSfcStaker(stakerID idx.StakerID, v *SfcStaker) {
 	s.set(s.table.Stakers, stakerID.Bytes(), v)
 
