@@ -86,9 +86,9 @@ func NewEvent() *Event {
 // String returns string representation.
 func (e *EventHeaderData) String() string {
 	if e.IsRoot {
-		return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
+		return fmt.Sprintf("{id=%s, p=%s, v=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Creator, e.Frame)
 	}
-	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
+	return fmt.Sprintf("{id=%s, p=%s, v=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Creator, e.Frame)
 }
 
 // NoTransactions is used to check that event doesn't have transactions not having full event.
