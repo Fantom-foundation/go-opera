@@ -146,7 +146,7 @@ func (p *Poset) handleElection(root *inter.Event) {
 
 func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (decided *election.Res) {
 	decided, err := p.election.ProcessRoot(election.RootAndSlot{
-		Root: id,
+		ID: id,
 		Slot: election.Slot{
 			Frame: f,
 			Addr:  from,
@@ -164,11 +164,19 @@ func (p *Poset) processRoot(f idx.Frame, from common.Address, id hash.Event) (de
 func (p *Poset) processKnownRoots() *election.Res {
 	// iterate all the roots from LastDecidedFrame+1 to highest, call processRoot for each
 	var decided *election.Res
-	p.store.ForEachRoot(p.LastDecidedFrame+1, func(f idx.Frame, from common.Address, root hash.Event) bool {
-		p.Log.Debug("Calculate root votes in new election", "root", root.String())
-		decided = p.processRoot(f, from, root)
-		return decided == nil
-	})
+	for f := p.LastDecidedFrame + 1; ; f++ {
+		frameRoots := p.store.GetFrameRoots(f)
+		for _, it := range frameRoots {
+			p.Log.Debug("Calculate root votes in new election", "root", it.ID.String())
+			decided = p.processRoot(it.Slot.Frame, it.Slot.Addr, it.ID)
+			if decided != nil {
+				break
+			}
+		}
+		if len(frameRoots) == 0 {
+			break
+		}
+	}
 	return decided
 }
 
@@ -195,12 +203,14 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 func (p *Poset) forklessCausedByQuorumOn(e *inter.Event, f idx.Frame) bool {
 	observedCounter := p.Validators.NewCounter()
 	// check "observing" prev roots only if called by creator, or if creator has marked that event as root
-	p.store.ForEachRoot(f, func(f idx.Frame, from common.Address, root hash.Event) bool {
-		if p.vecClock.ForklessCause(e.Hash(), root) {
-			observedCounter.Count(from)
+	for _, it := range p.store.GetFrameRoots(f) {
+		if p.vecClock.ForklessCause(e.Hash(), it.ID) {
+			observedCounter.Count(it.Slot.Addr)
 		}
-		return !observedCounter.HasQuorum()
-	})
+		if observedCounter.HasQuorum() {
+			break
+		}
+	}
 	return observedCounter.HasQuorum()
 }
 
@@ -210,9 +220,7 @@ func (p *Poset) forklessCausedByQuorumOn(e *inter.Event, f idx.Frame) bool {
 func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, isRoot bool) {
 	if len(e.Parents) == 0 {
 		// special case for very first events in the epoch
-		frame = idx.Frame(1)
-		isRoot = true
-		return
+		return 1, true
 	}
 
 	// calc maxParentsFrame, i.e. max(parent's frame height)
@@ -233,21 +241,14 @@ func (p *Poset) calcFrameIdx(e *inter.Event, checkOnly bool) (frame idx.Frame, i
 	if checkOnly {
 		// check frame & isRoot
 		frame = e.Frame
-		if frame < selfParentFrame {
-			// every root must be greater than prev. self-root. Instead, election will be faulty
-			return selfParentFrame, false
-		}
-		if frame > maxParentsFrame+1 {
-			// sanity check
-			return maxParentsFrame + 1, false
-		}
 		if !e.IsRoot {
 			// don't check forklessCausedByQuorumOn if not claimed as root
 			// if not root, then not allowed to move frame
 			return selfParentFrame, false
 		}
+		// every root must be greater than prev. self-root. Instead, election will be faulty
 		isRoot = frame > selfParentFrame && (e.Frame <= 1 || p.forklessCausedByQuorumOn(e, e.Frame-1))
-		return
+		return frame, isRoot
 	}
 
 	// calculate frame & isRoot

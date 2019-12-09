@@ -55,7 +55,9 @@ func (s *Store) DelLastHeaders(epoch idx.Epoch) {
 	}
 
 	// Add to cache.
-	s.cache.LastEpochHeaders.Remove(epoch)
+	if s.cache.LastEpochHeaders != nil {
+		s.cache.LastEpochHeaders.Remove(epoch)
+	}
 }
 
 // AddLastHeader adds/updates a records about last header from a validator
@@ -108,7 +110,9 @@ func (s *Store) GetLastHeaders(epoch idx.Epoch) inter.HeadersByCreator {
 	}
 
 	// Add to cache.
-	s.cache.LastEpochHeaders.Add(epoch, hh)
+	if s.cache.LastEpochHeaders != nil {
+		s.cache.LastEpochHeaders.Add(epoch, hh)
+	}
 
 	return hh
 }

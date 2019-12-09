@@ -18,8 +18,8 @@ func (s *Store) GetEpochStats(epoch idx.Epoch) *EpochStats {
 	// Get data from LRU cache first.
 	if s.cache.EpochStats != nil {
 		if c, ok := s.cache.EpochStats.Get(string(key)); ok {
-			if b, ok := c.(EpochStats); ok {
-				return &b
+			if b, ok := c.(*EpochStats); ok {
+				return b
 			}
 		}
 	}
@@ -28,19 +28,19 @@ func (s *Store) GetEpochStats(epoch idx.Epoch) *EpochStats {
 
 	// Add to LRU cache.
 	if w != nil && s.cache.EpochStats != nil {
-		s.cache.EpochStats.Add(string(key), *w)
+		s.cache.EpochStats.Add(string(key), w)
 	}
 
 	return w
 }
 
 // SetDirtyEpochStats set EpochStats for current (not sealed) epoch
-func (s *Store) SetDirtyEpochStats(value EpochStats) {
+func (s *Store) SetDirtyEpochStats(value *EpochStats) {
 	s.SetEpochStats(idx.Epoch(math.MaxInt32), value)
 }
 
 // SetEpochStats set EpochStats for an already sealed epoch
-func (s *Store) SetEpochStats(epoch idx.Epoch, value EpochStats) {
+func (s *Store) SetEpochStats(epoch idx.Epoch, value *EpochStats) {
 	key := epoch.Bytes()
 
 	s.set(s.table.EpochStats, key, value)

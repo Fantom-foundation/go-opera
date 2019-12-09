@@ -24,12 +24,12 @@ func TestGetGenesisBlock(t *testing.T) {
 	store := NewMemStore()
 
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), 1))
-	addrWithCode := net.Genesis.Alloc.Addresses()[0]
-	accountWithCode := net.Genesis.Alloc[addrWithCode]
+	addrWithStorage := net.Genesis.Alloc.Addresses()[0]
+	accountWithCode := net.Genesis.Alloc[addrWithStorage]
 	accountWithCode.Code = []byte{1, 2, 3}
 	accountWithCode.Storage = make(map[common.Hash]common.Hash)
 	accountWithCode.Storage[common.Hash{}] = common.BytesToHash(common.Big1.Bytes())
-	net.Genesis.Alloc[addrWithCode] = accountWithCode
+	net.Genesis.Alloc[addrWithStorage] = accountWithCode
 
 	genesisHash, stateHash, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
@@ -52,11 +52,10 @@ func TestGetGenesisBlock(t *testing.T) {
 	assertar.NoError(err)
 	for addr, account := range net.Genesis.Alloc {
 		assertar.Equal(account.Balance.String(), statedb.GetBalance(addr).String())
-		if addr == addrWithCode {
-			assertar.Equal(account.Code, statedb.GetCode(addr))
-			assertar.Equal(account.Storage[common.Hash{}], statedb.GetState(addr, common.Hash{}))
+		assertar.Equal(account.Code, statedb.GetCode(addr))
+		if addr == addrWithStorage {
+			assertar.Equal(accountWithCode.Storage[common.Hash{}], statedb.GetState(addr, common.Hash{}))
 		} else {
-			assertar.Empty(statedb.GetCode(addr))
 			assertar.Equal(common.Hash{}, statedb.GetState(addr, common.Hash{}))
 		}
 	}

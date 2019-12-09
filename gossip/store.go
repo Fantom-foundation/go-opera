@@ -42,6 +42,11 @@ type Store struct {
 		Receipts    kvdb.KeyValueStore `table:"receipts"`
 		TxPositions kvdb.KeyValueStore `table:"txp"`
 
+		// SFC-related tables
+		Validators kvdb.KeyValueStore `table:"va"`
+		Stakers    kvdb.KeyValueStore `table:"vs"`
+		Delegators kvdb.KeyValueStore `table:"de"`
+
 		TmpDbs kvdb.KeyValueStore `table:"tmpdbs"`
 
 		Evm      ethdb.Database
@@ -57,6 +62,8 @@ type Store struct {
 		TxPositions      *lru.Cache `cache:"-"` // store by pointer
 		EpochStats       *lru.Cache `cache:"-"` // store by value
 		LastEpochHeaders *lru.Cache `cache:"-"` // store by pointer
+		Stakers          *lru.Cache `cache:"-"` // store by pointer
+		Delegators       *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutexes struct {
@@ -108,6 +115,8 @@ func (s *Store) initCache() {
 	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
 	s.cache.EpochStats = s.makeCache(s.cfg.EpochStatsCacheSize)
 	s.cache.LastEpochHeaders = s.makeCache(s.cfg.LastEpochHeadersCacheSize)
+	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
+	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 }
 
 func (s *Store) initMutexes() {

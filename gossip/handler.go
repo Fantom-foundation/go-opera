@@ -28,7 +28,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
 
 const (
@@ -449,9 +448,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&progress); err != nil {
 			return errResp(ErrDecode, "%v: %v", msg, err)
 		}
-		if len(progress.LastPackInfo.Heads) > pos.ValidatorsMax*pos.ValidatorsMax { // square because of possible forks
-			return errResp(ErrMsgTooLarge, "%v", msg)
-		}
 		p.SetProgress(progress)
 		if progress.Epoch == myEpoch {
 			atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
@@ -638,9 +634,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		for _, info := range infos.Infos {
 			if len(info.Heads) == 0 {
 				return errResp(ErrEmptyMessage, "%v", msg)
-			}
-			if len(info.Heads) > pos.ValidatorsMax*pos.ValidatorsMax { // square because of possible forks
-				return errResp(ErrMsgTooLarge, "%v", msg)
 			}
 			// Mark the hashes as present at the remote node
 			for _, id := range info.Heads {

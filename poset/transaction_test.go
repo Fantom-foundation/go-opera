@@ -27,7 +27,7 @@ func TestPosetTxn(t *testing.T) {
 		1*x, p.EpochState.Validators.Get(nodes[1]),
 		"balance of %s", nodes[1].String())
 
-	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) pos.Validators {
+	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) *pos.Validators {
 		if oldEpoch == 1 {
 			validators := p.Validators.Copy()
 			// move stake from node0 to node1

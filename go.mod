@@ -15,7 +15,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/elastic/gosigar v0.10.5 // indirect
 	github.com/emirpasic/gods v1.12.0
-	github.com/ethereum/go-ethereum v1.9.8-ftm-0.3
+	github.com/ethereum/go-ethereum v1.9.8
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/facebookgo/atomicfile v0.0.0-20151019160806-2de1f203e7d5 // indirect
 	github.com/facebookgo/pidfile v0.0.0-20150612191647-f242e2999868
