@@ -61,7 +61,7 @@ func (vi *Index) forklessCause(aID, bID hash.Event) bool {
 
 	yes := vi.validators.NewCounter()
 	// calculate forkless causing using the indexes
-	for branchIDint, creator := range vi.bi.BranchIDCreators {
+	for branchIDint, creatorIdx := range vi.bi.BranchIDCreatorIdxs {
 		branchID := idx.Validator(branchIDint)
 
 		// bLowestAfter := vi.GetLowestAfterSeq_(bID, branchID)   // lowest event from creator on branchID, which observes B
@@ -73,7 +73,7 @@ func (vi *Index) forklessCause(aID, bID hash.Event) bool {
 		if bLowestAfter <= aHighestBefore.Seq && bLowestAfter != 0 && !aHighestBefore.IsForkDetected() {
 			// we may count the same creator multiple times (on different branches)!
 			// so not every call increases the counter
-			yes.Count(creator)
+			yes.CountByIdx(creatorIdx)
 		}
 	}
 	return yes.HasQuorum()

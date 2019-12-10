@@ -237,9 +237,9 @@ func testProcessRoot(
 		},
 	})
 
-	validators := pos.NewValidators()
+	builder := pos.NewBuilder()
 	for _, peer := range peers {
-		validators.Set(peer, stakes[utils.NameOf(peer)])
+		builder.Set(peer, stakes[utils.NameOf(peer)])
 	}
 
 	forklessCauseFn := func(a hash.Event, b hash.Event) bool {
@@ -260,7 +260,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(validators, 0, forklessCauseFn, getFrameRootsFn)
+	election := New(builder.Build(), 0, forklessCauseFn, getFrameRootsFn)
 
 	// processing:
 	var alreadyDecided bool

@@ -1,6 +1,7 @@
 package vector
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"sort"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -28,9 +29,10 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	honestTotalStake := pos.Stake(0) // isn't equal to validators.TotalStake(), because doesn't count cheaters
 	highests := make([]medianTimeIndex, 0, len(vi.validatorIdxs))
 	// convert []HighestBefore -> []medianTimeIndex
-	for creator, creatorIdx := range vi.validatorIdxs {
+	for creatorIdxI, _ := range vi.validators.IDs() {
+		creatorIdx := idx.Validator(creatorIdxI)
 		highest := medianTimeIndex{}
-		highest.stake = vi.validators.Get(creator)
+		highest.stake = vi.validators.GetByIdx(creatorIdx)
 		highest.claimedTime = times.Get(creatorIdx)
 		seq := beforeSeq.Get(creatorIdx)
 

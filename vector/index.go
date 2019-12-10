@@ -1,8 +1,6 @@
 package vector
 
 import (
-	"github.com/hashicorp/golang-lru"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -11,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -161,13 +160,10 @@ func (vi *Index) DropNotFlushed() {
 
 func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validator) idx.Validator {
 	// sanity checks
-	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+	if len(vi.bi.BranchIDCreatorIdxs) != len(vi.bi.BranchIDLastSeq) {
 		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
 	}
-	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
-		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
-	}
-	if len(vi.bi.BranchIDCreators) < vi.validators.Len() {
+	if len(vi.bi.BranchIDCreatorIdxs) < vi.validators.Len() {
 		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
 	}
 
@@ -181,14 +177,8 @@ func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validato
 	} else {
 		selfParentBranchID := vi.getEventBranchID(*e.SelfParent())
 		// sanity checks
-		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+		if len(vi.bi.BranchIDCreatorIdxs) != len(vi.bi.BranchIDLastSeq) {
 			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
-		}
-		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
-			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
-		}
-		if vi.bi.BranchIDCreators[selfParentBranchID] != e.Creator {
-			vi.Log.Crit("Inconsistent BranchIDCreators (inconsistent DB). Wrong self-parent?", "event", e.String())
 		}
 
 		if vi.bi.BranchIDLastSeq[selfParentBranchID]+1 == e.Seq {
@@ -200,7 +190,6 @@ func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validato
 
 	// if we're here, then new fork is observed (only globally), create new branchID due to a new fork
 	vi.bi.BranchIDLastSeq = append(vi.bi.BranchIDLastSeq, e.Seq)
-	vi.bi.BranchIDCreators = append(vi.bi.BranchIDCreators, e.Creator)
 	vi.bi.BranchIDCreatorIdxs = append(vi.bi.BranchIDCreatorIdxs, meIdx)
 	newBranchID := idx.Validator(len(vi.bi.BranchIDLastSeq) - 1)
 	vi.bi.BranchIDByCreators[meIdx] = append(vi.bi.BranchIDByCreators[meIdx], newBranchID)
@@ -222,9 +211,9 @@ func (vi *Index) setForkDetected(beforeSeq HighestBeforeSeq, branchID idx.Valida
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	meIdx := vi.validatorIdxs[e.Creator]
 	myVecs := allVecs{
-		beforeSeq:  NewHighestBeforeSeq(len(vi.bi.BranchIDCreators)),
-		beforeTime: NewHighestBeforeTime(len(vi.bi.BranchIDCreators)),
-		after:      NewLowestAfterSeq(len(vi.bi.BranchIDCreators)),
+		beforeSeq:  NewHighestBeforeSeq(len(vi.bi.BranchIDCreatorIdxs)),
+		beforeTime: NewHighestBeforeTime(len(vi.bi.BranchIDCreatorIdxs)),
+		after:      NewLowestAfterSeq(len(vi.bi.BranchIDCreatorIdxs)),
 	}
 
 	meBranchID := vi.fillGlobalBranchID(e, meIdx)
@@ -251,7 +240,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 	for _, pVec := range parentsVecs {
 		// calculate HighestBefore vector. Detect forks for a case when parent observes a fork
-		for branchID := idx.Validator(0); branchID < idx.Validator(len(vi.bi.BranchIDCreators)); branchID++ {
+		for branchID := idx.Validator(0); branchID < idx.Validator(len(vi.bi.BranchIDCreatorIdxs)); branchID++ {
 			hisSeq := pVec.beforeSeq.Get(branchID)
 			if hisSeq.Seq == 0 && !hisSeq.IsForkDetected() {
 				// hisSeq doesn't observe anything about this branchID
@@ -310,11 +299,12 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 	// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
 	walk := func(w *inter.EventHeaderData) (godeeper bool) {
-		if w.Hash() == e.Hash() {
+		wHash := w.Hash()
+		if wHash == e.Hash() {
 			return true // skip original element
 		}
 
-		wLowestAfterSeq := vi.GetLowestAfterSeq(w.Hash())
+		wLowestAfterSeq := vi.GetLowestAfterSeq(wHash)
 
 		godeeper = wLowestAfterSeq.Get(meBranchID) == 0
 		if !godeeper {
@@ -323,7 +313,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 		// update LowestAfter vector of the old event, because newly-connected event observes it
 		wLowestAfterSeq.Set(meBranchID, e.Seq)
-		vi.SetLowestAfter(w.Hash(), wLowestAfterSeq)
+		vi.SetLowestAfter(wHash, wLowestAfterSeq)
 
 		return
 	}

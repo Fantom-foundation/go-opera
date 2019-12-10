@@ -8,55 +8,64 @@ import (
 )
 
 func TestNewValidators(t *testing.T) {
-	v := NewValidators()
+	b := NewBuilder()
 
-	assert.NotNil(t, v)
-	assert.NotNil(t, v.list)
-	assert.NotNil(t, v.indexes)
+	assert.NotNil(t, b)
+	assert.NotNil(t, b.Build())
 
-	assert.Equal(t, 0, v.Len())
+	assert.Equal(t, 0, b.Build().Len())
 }
 
 func TestValidators_Set(t *testing.T) {
-	v := NewValidators()
+	b := NewBuilder()
 
-	v.Set(1, 1)
-	v.Set(2, 2)
-	v.Set(3, 3)
-	v.Set(4, 4)
-	v.Set(5, 5)
+	b.Set(1, 1)
+	b.Set(2, 2)
+	b.Set(3, 3)
+	b.Set(4, 4)
+	b.Set(5, 5)
+
+	v := b.Build()
 
 	assert.Equal(t, 5, v.Len())
 	assert.Equal(t, Stake(15), v.TotalStake())
 
-	v.Set(1, 10)
-	v.Set(3, 30)
+	b.Set(1, 10)
+	b.Set(3, 30)
+
+	v = b.Build()
 
 	assert.Equal(t, 5, v.Len())
 	assert.Equal(t, Stake(51), v.TotalStake())
 
-	v.Set(2, 0)
-	v.Set(5, 0)
+	b.Set(2, 0)
+	b.Set(5, 0)
+
+	v = b.Build()
 
 	assert.Equal(t, 3, v.Len())
 	assert.Equal(t, Stake(44), v.TotalStake())
 
-	v.Set(4, 0)
-	v.Set(3, 0)
-	v.Set(1, 0)
+	b.Set(4, 0)
+	b.Set(3, 0)
+	b.Set(1, 0)
+
+	v = b.Build()
 
 	assert.Equal(t, 0, v.Len())
 	assert.Equal(t, Stake(0), v.TotalStake())
 }
 
 func TestValidators_Get(t *testing.T) {
-	v := NewValidators()
+	b := NewBuilder()
 
-	v.Set(0, 1)
-	v.Set(2, 2)
-	v.Set(3, 3)
-	v.Set(4, 4)
-	v.Set(7, 5)
+	b.Set(0, 1)
+	b.Set(2, 2)
+	b.Set(3, 3)
+	b.Set(4, 4)
+	b.Set(7, 5)
+
+	v := b.Build()
 
 	assert.Equal(t, Stake(1), v.Get(0))
 	assert.Equal(t, Stake(0), v.Get(1))
@@ -69,19 +78,21 @@ func TestValidators_Get(t *testing.T) {
 }
 
 func TestValidators_Iterate(t *testing.T) {
-	v := NewValidators()
+	b := NewBuilder()
 
-	v.Set(1, 1)
-	v.Set(2, 2)
-	v.Set(3, 3)
-	v.Set(4, 4)
-	v.Set(5, 5)
+	b.Set(1, 1)
+	b.Set(2, 2)
+	b.Set(3, 3)
+	b.Set(4, 4)
+	b.Set(5, 5)
+
+	v := b.Build()
 
 	count := 0
 	sum := 0
-	for addr := range v.Iterate() {
+	for _, id := range v.Iterate() {
 		count++
-		sum += int(v.Get(addr))
+		sum += int(v.Get(id))
 	}
 
 	assert.Equal(t, 5, count)
@@ -89,21 +100,21 @@ func TestValidators_Iterate(t *testing.T) {
 }
 
 func TestValidators_Copy(t *testing.T) {
-	v := NewValidators()
+	b := NewBuilder()
 
-	v.Set(1, 1)
-	v.Set(2, 2)
-	v.Set(3, 3)
-	v.Set(4, 4)
-	v.Set(5, 5)
+	b.Set(1, 1)
+	b.Set(2, 2)
+	b.Set(3, 3)
+	b.Set(4, 4)
+	b.Set(5, 5)
 
+	v := b.Build()
 	vv := v.Copy()
 
-	assert.Equal(t, v.list, vv.list)
-	assert.Equal(t, v.indexes, vv.indexes)
-	assert.Equal(t, v.ids, vv.ids)
+	assert.Equal(t, v.values, vv.values)
 
-	assert.NotEqual(t, unsafe.Pointer(&v.list), unsafe.Pointer(&vv.list))
-	assert.NotEqual(t, unsafe.Pointer(&v.indexes), unsafe.Pointer(&vv.indexes))
-	assert.NotEqual(t, unsafe.Pointer(&v.ids), unsafe.Pointer(&vv.ids))
+	assert.NotEqual(t, unsafe.Pointer(&v.values), unsafe.Pointer(&vv.values))
+	assert.NotEqual(t, unsafe.Pointer(&v.cache.indexes), unsafe.Pointer(&vv.cache.indexes))
+	assert.NotEqual(t, unsafe.Pointer(&v.cache.ids), unsafe.Pointer(&vv.cache.ids))
+	assert.NotEqual(t, unsafe.Pointer(&v.cache.stakes), unsafe.Pointer(&vv.cache.stakes))
 }

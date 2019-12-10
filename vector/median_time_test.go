@@ -16,12 +16,13 @@ func TestMedianTimeOnIndex(t *testing.T) {
 	logger.SetTestMode(t)
 
 	peers := inter.GenNodes(5)
-	validators := pos.NewValidators()
+	validatorsBuilder := pos.NewBuilder()
 
 	weights := []pos.Stake{5, 4, 3, 2, 1}
 	for i, peer := range peers {
-		validators.Set(peer, weights[i])
+		validatorsBuilder.Set(peer, weights[i])
 	}
+	validators := validatorsBuilder.Build()
 
 	vi := NewIndex(DefaultIndexConfig(), validators, memorydb.New(), nil)
 
@@ -174,10 +175,11 @@ func testMedianTime(t *testing.T, dag string, weights []pos.Stake, claimedTimes 
 		},
 	})
 
-	validators := pos.NewValidators()
+	validatorsBuilder := pos.NewBuilder()
 	for i, peer := range peers {
-		validators.Set(peer, weights[i])
+		validatorsBuilder.Set(peer, weights[i])
 	}
+	validators := validatorsBuilder.Build()
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {

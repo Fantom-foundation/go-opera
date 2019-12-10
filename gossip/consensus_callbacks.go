@@ -310,12 +310,12 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValidators *pos.Validators) {
 	// s.engineMu is locked here
 
-	newValidators = pos.NewValidators()
+	builder := pos.NewBuilder()
 	for _, it := range s.store.GetEpochValidators(newEpoch) {
-		newValidators.Set(it.StakerID, pos.BalanceToStake(it.Staker.CalcTotalStake()))
+		builder.Set(it.StakerID, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
 
-	return newValidators
+	return builder.Build()
 }
 
 // onEventConfirmed is callback type to notify about event confirmation

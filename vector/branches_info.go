@@ -9,7 +9,6 @@ import (
 type branchesInfo struct {
 	BranchIDLastSeq     []idx.Event       // branchID -> highest e.Seq in the branch
 	BranchIDCreatorIdxs []idx.Validator   // branchID -> validator idx
-	BranchIDCreators    []idx.StakerID    // branchID -> validator addr
 	BranchIDByCreators  [][]idx.Validator // validator idx -> list of branch IDs
 }
 
@@ -42,10 +41,9 @@ func newInitialBranchesInfo(validators *pos.Validators) *branchesInfo {
 		BranchIDLastSeq:     branchIDLastSeq,
 		BranchIDCreatorIdxs: branchIDCreatorIdxs,
 		BranchIDByCreators:  branchIDByCreators,
-		BranchIDCreators:    branchIDCreators,
 	}
 }
 
 func (vi *Index) atLeastOneFork() bool {
-	return len(vi.bi.BranchIDCreators) > vi.validators.Len()
+	return len(vi.bi.BranchIDCreatorIdxs) > vi.validators.Len()
 }

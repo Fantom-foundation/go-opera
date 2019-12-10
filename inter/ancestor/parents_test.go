@@ -86,10 +86,11 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		},
 	})
 
-	validators := pos.NewValidators()
+	validatorsBuiler := pos.NewBuilder()
 	for _, peer := range nodes {
-		validators.Set(peer, 1)
+		validatorsBuiler.Set(peer, 1)
 	}
+	validators := validatorsBuiler.Build()
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
