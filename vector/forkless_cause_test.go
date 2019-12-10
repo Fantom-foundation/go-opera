@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -483,12 +482,12 @@ func TestForklessCausedRandom(t *testing.T) {
 
 type eventSlot struct {
 	seq     idx.Event
-	creator common.Address
+	creator idx.StakerID
 }
 
 // naive implementation of fork detection, O(n)
-func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[common.Address]bool, err error) {
-	cheaters = map[common.Address]bool{}
+func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[idx.StakerID]bool, err error) {
+	cheaters = map[idx.StakerID]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
 	err = vi.dfsSubgraph(head, func(e *inter.EventHeaderData) (godeeper bool) {
@@ -515,7 +514,7 @@ func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[com
 
 func TestRandomForksSanity(t *testing.T) {
 	nodes := inter.GenNodes(8)
-	cheaters := []common.Address{nodes[0], nodes[1], nodes[2]}
+	cheaters := []idx.StakerID{nodes[0], nodes[1], nodes[2]}
 
 	validators := pos.NewValidators()
 	for _, peer := range nodes {
@@ -556,11 +555,11 @@ func TestRandomForksSanity(t *testing.T) {
 		for n, cheater := range nodes {
 			branchSeq := highestBefore.Get(idxs[cheater])
 			isCheater := n < len(cheaters)
-			assertar.Equal(isCheater, branchSeq.IsForkDetected(), cheater.String())
+			assertar.Equal(isCheater, branchSeq.IsForkDetected(), cheater)
 			if isCheater {
-				assertar.Equal(idx.Event(0), branchSeq.Seq, cheater.String())
+				assertar.Equal(idx.Event(0), branchSeq.Seq, cheater)
 			} else {
-				assertar.NotEqual(idx.Event(0), branchSeq.Seq, cheater.String())
+				assertar.NotEqual(idx.Event(0), branchSeq.Seq, cheater)
 			}
 		}
 	}
@@ -687,9 +686,9 @@ func TestRandomForks(t *testing.T) {
 				for _, cheater := range nodes {
 					expectedCheater := expectedCheaters[cheater]
 					branchSeq := highestBefore.Get(idxs[cheater])
-					assertar.Equal(expectedCheater, branchSeq.IsForkDetected(), cheater.String()+"_"+e.Creator.String()+"_"+e.String())
+					assertar.Equal(expectedCheater, branchSeq.IsForkDetected(), e.String())
 					if expectedCheater {
-						assertar.Equal(idx.Event(0), branchSeq.Seq, cheater.String()+"_"+e.Creator.String()+"_"+e.String())
+						assertar.Equal(idx.Event(0), branchSeq.Seq, e.String())
 					}
 				}
 			}

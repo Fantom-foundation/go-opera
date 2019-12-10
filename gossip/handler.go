@@ -13,14 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/heavycheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/fetcher"
 	"github.com/Fantom-foundation/go-lachesis/gossip/ordering"
@@ -116,6 +111,7 @@ func NewProtocolManager(
 	notifier dagNotifier,
 	txpool txPool,
 	engineMu *sync.RWMutex,
+	checkers *eventcheck.Checkers,
 	s *Store,
 	engine Consensus,
 	serverPool *serverPool,
@@ -139,30 +135,23 @@ func NewProtocolManager(
 		quitSync:    make(chan struct{}),
 	}
 
-	pm.fetcher, pm.buffer = pm.makeFetcher()
+	pm.fetcher, pm.buffer = pm.makeFetcher(checkers)
 	pm.downloader = packsdownloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
 
 	return pm, nil
 }
 
-func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffer) {
+func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.Fetcher, *ordering.EventBuffer) {
 	// checkers
-	basicCheck := basiccheck.New(&pm.config.Net.Dag)
-	epochCheck := epochcheck.New(&pm.config.Net.Dag, pm.engine)
-	parentsCheck := parentscheck.New(&pm.config.Net.Dag)
 	firstCheck := func(e *inter.Event) error {
-		if err := basicCheck.Validate(e); err != nil {
+		if err := checkers.Basiccheck.Validate(e); err != nil {
 			return err
 		}
-		if err := epochCheck.Validate(e); err != nil {
+		if err := checkers.Epochcheck.Validate(e); err != nil {
 			return err
 		}
 		return nil
 	}
-
-	dagID := params.AllEthashProtocolChanges.ChainID
-	txSigner := types.NewEIP155Signer(dagID)
-	heavyCheck := heavycheck.NewDefault(&pm.config.Net.Dag, txSigner)
 
 	// DAG callbacks
 	buffer := ordering.New(eventsBuffSize, ordering.Callback{
@@ -171,11 +160,12 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 			pm.engineMu.Lock()
 			defer pm.engineMu.Unlock()
 
-			log.Info("New event", "event", e.String())
+			start := time.Now()
 			err := pm.engine.ProcessEvent(e)
 			if err != nil {
 				return err
 			}
+			log.Info("New event", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(start))
 
 			// If the event is indeed in our own graph, announce it
 			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
@@ -187,7 +177,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 
 		Drop: func(e *inter.Event, peer string, err error) {
 			if eventcheck.IsBan(err) {
-				log.Warn("Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator.String(), "err", err)
+				log.Warn("Incoming event rejected", "event", e.Hash().String(), "creator", e.Creator, "err", err)
 				pm.removePeer(peer)
 			}
 		},
@@ -196,7 +186,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 			return pm.store.GetEventHeader(id.Epoch(), id)
 		},
 
-		Check: parentsCheck.Validate,
+		Check: checkers.Parentscheck.Validate,
 	})
 
 	newFetcher := fetcher.New(fetcher.Callback{
@@ -204,7 +194,7 @@ func (pm *ProtocolManager) makeFetcher() (*fetcher.Fetcher, *ordering.EventBuffe
 		OnlyInterested: pm.onlyInterestedEvents,
 		DropPeer:       pm.removePeer,
 		FirstCheck:     firstCheck,
-		HeavyCheck:     heavyCheck,
+		HeavyCheck:     checkers.Heavycheck,
 	})
 	return newFetcher, buffer
 }

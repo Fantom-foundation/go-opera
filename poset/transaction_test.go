@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -22,10 +23,10 @@ func TestPosetTxn(t *testing.T) {
 	p, s, in := FakePoset("", nodes)
 	assert.Equal(t,
 		1*x, p.EpochState.Validators.Get(nodes[0]),
-		"balance of %s", nodes[0].String())
+		"balance of %s", hash.GetNodeName(nodes[0]))
 	assert.Equal(t,
 		1*x, p.EpochState.Validators.Get(nodes[1]),
-		"balance of %s", nodes[1].String())
+		"balance of %s", hash.GetNodeName(nodes[1]))
 
 	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) *pos.Validators {
 		if oldEpoch == 1 {

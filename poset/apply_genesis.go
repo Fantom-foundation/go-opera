@@ -48,7 +48,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, appH
 	if g == nil {
 		return fmt.Errorf("genesis config shouldn't be nil")
 	}
-	if g.Validators.Len() == 0 {
+	if len(g.Alloc.GValidators) == 0 {
 		return fmt.Errorf("genesis validators shouldn't be empty")
 	}
 
@@ -64,7 +64,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, appH
 		AppHash: appHash,
 	}
 
-	e.Validators = g.Validators.Copy()
+	e.Validators = g.Alloc.GValidators.Validators().Copy()
 
 	// genesis object
 	e.EpochN = firstEpoch

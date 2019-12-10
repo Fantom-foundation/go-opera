@@ -5,9 +5,12 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
@@ -27,10 +30,16 @@ const (
 // OnValidatedFn is a callback type for notifying about validation result.
 type OnValidatedFn func(*TaskData)
 
+// DagReader is accessed by the validator to get the current state.
+type DagReader interface {
+	GetEpochPubKeys() (map[idx.StakerID]common.Address, idx.Epoch)
+}
+
 // Check which require only parents list + current epoch info
 type Checker struct {
 	config   *lachesis.DagConfig
 	txSigner types.Signer
+	reader   DagReader
 
 	numOfThreads int
 
@@ -47,7 +56,7 @@ type TaskData struct {
 }
 
 // NewDefault uses N-1 threads
-func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Checker {
+func NewDefault(config *lachesis.DagConfig, reader DagReader, txSigner types.Signer) *Checker {
 	threads := runtime.NumCPU()
 	if threads > 1 {
 		threads--
@@ -55,14 +64,15 @@ func NewDefault(config *lachesis.DagConfig, txSigner types.Signer) *Checker {
 	if threads < 1 {
 		threads = 1
 	}
-	return New(config, txSigner, threads)
+	return New(config, reader, txSigner, threads)
 }
 
 // New validator which performs heavy checks, related to signatures validation and Merkle tree validation
-func New(config *lachesis.DagConfig, txSigner types.Signer, numOfThreads int) *Checker {
+func New(config *lachesis.DagConfig, reader DagReader, txSigner types.Signer, numOfThreads int) *Checker {
 	return &Checker{
 		config:       config,
 		txSigner:     txSigner,
+		reader:       reader,
 		numOfThreads: numOfThreads,
 		tasksQ:       make(chan *TaskData, maxQueuedTasks),
 		quit:         make(chan struct{}),
@@ -108,8 +118,17 @@ func (v *Checker) Enqueue(events inter.Events, onValidated OnValidatedFn) error 
 
 // Validate event
 func (v *Checker) Validate(e *inter.Event) error {
+	addrs, epoch := v.reader.GetEpochPubKeys()
+	if e.Epoch != epoch {
+		return epochcheck.ErrNotRelevant
+	}
+	// stakerID
+	addr, ok := addrs[e.Creator]
+	if !ok {
+		return epochcheck.ErrAuth
+	}
 	// event sig
-	if !e.VerifySignature() {
+	if !e.VerifySignature(addr) {
 		return ErrWrongEventSig
 	}
 	// pre-cache tx sig

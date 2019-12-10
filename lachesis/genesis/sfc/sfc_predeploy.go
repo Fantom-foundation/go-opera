@@ -5,14 +5,21 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
-// GetContractBinV1 is SFC contract first implementation bin code
+// GetMainContractBinV1 is SFC contract first implementation bin code for mainnet
 // Must be compiled with bin-runtime flag
-func GetContractBinV1() []byte {
+func GetMainContractBinV1() []byte {
+	return hexutil.MustDecode("0x00")
+}
+
+// GetTestContractBinV1 is SFC contract first implementation bin code for testnet
+// Must be compiled with bin-runtime flag
+func GetTestContractBinV1() []byte {
 	return hexutil.MustDecode("0x00")
 }
 
@@ -23,30 +30,34 @@ var ContractAddress = common.HexToAddress("0xfa00face00fc00000000000000000000000
 //var ContractAddress_v1 = common.HexToAddress("0xfa00beef0fc00000000000000000000000000101")
 
 // AssembleStorage builds the genesis storage for the SFC contract
-func AssembleStorage(validators pos.Validators, genesisTime inter.Timestamp, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
+func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
 	if storage == nil {
 		storage = make(map[common.Hash]common.Hash)
 	}
 
 	// set validators
-	for i, validator := range validators.SortedAddresses() { // sort validators to get deterministic stakerIDs
-		stakerID := uint64(i + 1)
-		stakePos := sfcpos.VStake(stakerID)
+	maxStakerID := idx.StakerID(0)
+	for stakerID, validator := range validators {
+		stakePos := sfcpos.Staker(stakerID)
 
-		stakeAmount := utils.BigTo256(pos.StakeToBalance(validators.Get(validator)))
+		stakeAmount := utils.BigTo256(pos.StakeToBalance(validator.Stake))
 
 		storage[stakePos.StakeAmount()] = stakeAmount
 		storage[stakePos.CreatedEpoch()] = utils.U64to256(0)
 		storage[stakePos.CreatedTime()] = utils.U64to256(uint64(genesisTime.Unix()))
-		storage[stakePos.Address()] = validator.Hash()
+		storage[stakePos.Address()] = validator.Address.Hash()
 
-		stakerIDPos := sfcpos.VStakerID(validator)
-		storage[stakerIDPos] = utils.U64to256(stakerID)
+		stakerIDPos := sfcpos.StakerID(validator.Address)
+		storage[stakerIDPos] = utils.U64to256(uint64(stakerID))
+
+		if maxStakerID < stakerID {
+			maxStakerID = stakerID
+		}
 	}
 
-	storage[sfcpos.VStakersNum()] = utils.U64to256(uint64(validators.Len()))
-	storage[sfcpos.VStakersLastIdx()] = utils.U64to256(uint64(validators.Len()))
-	storage[sfcpos.VStakeTotalAmount()] = utils.BigTo256((pos.StakeToBalance(validators.TotalStake())))
+	storage[sfcpos.StakersNum()] = utils.U64to256(uint64(len(validators)))
+	storage[sfcpos.StakersLastIdx()] = utils.U64to256(uint64(maxStakerID))
+	storage[sfcpos.StakeTotalAmount()] = utils.BigTo256((pos.StakeToBalance(validators.Validators().TotalStake())))
 
 	return storage
 }

@@ -5,25 +5,26 @@ import (
 	"io"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 type (
 	// HeadersByCreator is a event headers grouped by creator.
 	// ( creator --> event header )
-	HeadersByCreator map[common.Address]*EventHeaderData
+	HeadersByCreator map[idx.StakerID]*EventHeaderData
 )
 
 type headersByCreatorPair struct {
-	Creator common.Address
+	Creator idx.StakerID
 	Header  *EventHeaderData
 }
 
 // EncodeRLP implements rlp.Encoder interface.
 func (hh HeadersByCreator) EncodeRLP(w io.Writer) error {
 	arr := make([]headersByCreatorPair, 0, len(hh))
-	creators := make([]common.Address, 0, len(hh))
+	creators := make([]idx.StakerID, 0, len(hh))
 	for creator := range hh {
 		creators = append(creators, creator)
 	}

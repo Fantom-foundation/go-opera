@@ -21,7 +21,7 @@ type EventStore struct {
 	physicalDB kvdb.KeyValueStore
 
 	table struct {
-		Events kvdb.KeyValueStore `table:"event_"`
+		Events kvdb.KeyValueStore `table:"e"`
 	}
 
 	logger.Instance

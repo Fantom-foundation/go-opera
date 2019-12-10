@@ -3,9 +3,8 @@ package election
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 // ProcessRoot calculates Atropos votes only for the new root.
@@ -28,7 +27,7 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 	notDecidedRoots := el.notDecidedRoots()
 
 	var observedRoots []RootAndSlot
-	var observedRootsMap map[common.Address]RootAndSlot
+	var observedRootsMap map[idx.StakerID]RootAndSlot
 	if round == 1 {
 		observedRootsMap = el.observedRootsMap(newRoot.ID, newRoot.Slot.Frame-1)
 	} else {
@@ -63,20 +62,20 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 
 				if vote, ok := el.votes[vid]; ok {
 					if vote.yes && subjectHash != nil && *subjectHash != vote.observedRoot {
-						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3W are Byzantine (%s != %s, election frame=%d, validator=%s)",
-							subjectHash.String(), vote.observedRoot.String(), el.frameToDecide, validatorSubject.String())
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3W are Byzantine (%s != %s, election frame=%d, validator=%d)",
+							subjectHash.String(), vote.observedRoot.String(), el.frameToDecide, validatorSubject)
 					}
 
 					if vote.yes {
 						subjectHash = &vote.observedRoot
-						yesVotes.Count(observedRoot.Slot.Addr)
+						yesVotes.Count(observedRoot.Slot.Validator)
 					} else {
-						noVotes.Count(observedRoot.Slot.Addr)
+						noVotes.Count(observedRoot.Slot.Validator)
 					}
-					if !allVotes.Count(observedRoot.Slot.Addr) {
+					if !allVotes.Count(observedRoot.Slot.Validator) {
 						// it shouldn't be possible to get here, because we've taken 1 root from every node above
-						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3W are Byzantine (%s, election frame=%d, validator=%s)",
-							subjectHash.String(), el.frameToDecide, validatorSubject.String())
+						return nil, fmt.Errorf("forkless caused by 2 fork roots => more than 1/3W are Byzantine (%s, election frame=%d, validator=%d)",
+							subjectHash.String(), el.frameToDecide, validatorSubject)
 					}
 				} else {
 					el.Log.Crit("Every root must vote for every not decided subject. Possibly roots are processed out of order",

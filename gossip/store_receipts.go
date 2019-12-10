@@ -32,7 +32,7 @@ func (s *Store) SetReceipts(n idx.Block, receipts types.Receipts) {
 
 	// Add to LRU cache.
 	if s.cache.Receipts != nil {
-		s.cache.Receipts.Add(string(n.Bytes()), receiptsStorage)
+		s.cache.Receipts.Add(n, receiptsStorage)
 	}
 }
 
@@ -42,7 +42,7 @@ func (s *Store) GetReceipts(n idx.Block) types.Receipts {
 
 	// Get data from LRU cache first.
 	if s.cache.Receipts != nil {
-		if c, ok := s.cache.Receipts.Get(string(n.Bytes())); ok {
+		if c, ok := s.cache.Receipts.Get(n); ok {
 			if receiptsStorage, ok = c.(*[]*receiptRLP); !ok {
 				if cv, ok := c.([]*receiptRLP); ok {
 					receiptsStorage = &cv
@@ -59,7 +59,7 @@ func (s *Store) GetReceipts(n idx.Block) types.Receipts {
 
 		// Add to LRU cache.
 		if s.cache.Receipts != nil {
-			s.cache.Receipts.Add(string(n.Bytes()), *receiptsStorage)
+			s.cache.Receipts.Add(n, *receiptsStorage)
 		}
 	}
 

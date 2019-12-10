@@ -3,7 +3,7 @@ package hash
 import (
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 var (
@@ -11,14 +11,14 @@ var (
 	eventNameDictMu sync.RWMutex
 
 	// nodeNameDict is an optional dictionary to make node address human readable in log.
-	nodeNameDict = make(map[common.Address]string)
+	nodeNameDict = make(map[idx.StakerID]string)
 
 	// eventNameDict is an optional dictionary to make events human readable in log.
 	eventNameDict = make(map[Event]string)
 )
 
 // SetNodeName sets an optional human readable alias of node address in log.
-func SetNodeName(n common.Address, name string) {
+func SetNodeName(n idx.StakerID, name string) {
 	nodeNameDictMu.Lock()
 	defer nodeNameDictMu.Unlock()
 
@@ -34,7 +34,7 @@ func SetEventName(e Event, name string) {
 }
 
 // GetNodeName gets an optional human readable alias of node address.
-func GetNodeName(n common.Address) string {
+func GetNodeName(n idx.StakerID) string {
 	nodeNameDictMu.RLock()
 	defer nodeNameDictMu.RUnlock()
 

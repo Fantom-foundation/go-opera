@@ -1,6 +1,7 @@
 package lachesis
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -15,6 +16,11 @@ const (
 	MainNetworkID uint64 = 1
 	TestNetworkID uint64 = 2
 	FakeNetworkID uint64 = 3
+)
+
+var (
+	// PercentUnit is used to define ratios with integers
+	PercentUnit = big.NewInt(1e6)
 )
 
 // GasPowerConfig defines gas power rules in the consensus.
@@ -37,6 +43,15 @@ type DagConfig struct {
 	IndexConfig vector.IndexConfig `json:"indexConfig"`
 }
 
+// EconomyConfig contains economy constants
+type EconomyConfig struct {
+	ScoreCheckpointsInterval time.Duration
+	PoiPeriodDuration        time.Duration
+	BlockMissedLatency       idx.Block
+	ValidatorPoiImpact       *big.Int
+	RewardPerSecond          *big.Int
+}
+
 // Config describes lachesis net.
 type Config struct {
 	Name      string
@@ -46,6 +61,9 @@ type Config struct {
 
 	// Graph options
 	Dag DagConfig
+
+	// Economy options
+	Economy EconomyConfig
 }
 
 func MainNetConfig() Config {
@@ -54,6 +72,7 @@ func MainNetConfig() Config {
 		NetworkID: MainNetworkID,
 		Genesis:   genesis.MainGenesis(),
 		Dag:       DefaultDagConfig(),
+		Economy:   DefaultEconomyConfig(),
 	}
 }
 
@@ -63,6 +82,7 @@ func TestNetConfig() Config {
 		NetworkID: TestNetworkID,
 		Genesis:   genesis.TestGenesis(),
 		Dag:       DefaultDagConfig(),
+		Economy:   DefaultEconomyConfig(),
 	}
 }
 
@@ -72,7 +92,32 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 		NetworkID: FakeNetworkID,
 		Genesis:   genesis.FakeGenesis(accs),
 		Dag:       FakeNetDagConfig(),
+		Economy:   FakeEconomyConfig(),
 	}
+}
+
+// DefaultEconomyConfig returns mainnet economy
+func DefaultEconomyConfig() EconomyConfig {
+	// 30%
+	validatorPoiImpact := big.NewInt(30)
+	validatorPoiImpact.Mul(validatorPoiImpact, PercentUnit)
+	validatorPoiImpact.Div(validatorPoiImpact, big.NewInt(100))
+
+	return EconomyConfig{
+		ScoreCheckpointsInterval: 30 * 24 * time.Hour,
+		PoiPeriodDuration:        30 * 24 * time.Hour,
+		BlockMissedLatency:       6,
+		ValidatorPoiImpact:       validatorPoiImpact,
+		RewardPerSecond:          big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
+	}
+}
+
+// FakeEconomyConfig returns fakenet economy
+func FakeEconomyConfig() EconomyConfig {
+	cfg := DefaultEconomyConfig()
+	cfg.ScoreCheckpointsInterval = 5 * time.Minute
+	cfg.PoiPeriodDuration = 1 * time.Minute
+	return cfg
 }
 
 func DefaultDagConfig() DagConfig {

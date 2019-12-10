@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -116,7 +116,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 	}
 
 	heads := hash.EventsSet{}
-	tips := map[common.Address]*hash.Event{}
+	tips := map[idx.StakerID]*hash.Event{}
 	// check
 	for stage, ee := range stages {
 		t.Logf("Stage %d:", stage)

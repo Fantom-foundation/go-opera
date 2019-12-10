@@ -1,6 +1,7 @@
 package genesis
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,17 +16,16 @@ var (
 )
 
 type Genesis struct {
-	Alloc      Accounts
-	Validators pos.Validators
-	Time       inter.Timestamp
-	ExtraData  []byte
+	Alloc     VAccounts
+	Time      inter.Timestamp
+	ExtraData []byte
 }
 
-func preDeploySfc(g Genesis) Genesis {
-	g.Alloc[sfc.ContractAddress] = Account{
-		Code:    sfc.GetContractBinV1(),
-		Storage: sfc.AssembleStorage(g.Validators, g.Time, nil),
-		Balance: pos.StakeToBalance(g.Validators.TotalStake()),
+func preDeploySfc(g Genesis, code []byte) Genesis {
+	g.Alloc.Accounts[sfc.ContractAddress] = Account{
+		Code:    code,
+		Storage: sfc.AssembleStorage(g.Alloc.GValidators, g.Time, nil),
+		Balance: pos.StakeToBalance(g.Alloc.GValidators.Validators().TotalStake()),
 	}
 	return g
 }
@@ -33,48 +33,67 @@ func preDeploySfc(g Genesis) Genesis {
 // FakeGenesis generates fake genesis with n-nodes.
 func FakeGenesis(accs VAccounts) Genesis {
 	g := Genesis{
-		Alloc:      accs.Accounts,
-		Validators: accs.Validators,
-		Time:       genesisTestTime,
+		Alloc: accs,
+		Time:  genesisTestTime,
 	}
-	g = preDeploySfc(g)
+	g = preDeploySfc(g, sfc.GetTestContractBinV1())
 	return g
 }
 
 // MainGenesis returns builtin genesis keys of mainnet.
 func MainGenesis() Genesis {
-	validators := pos.NewValidators()
-	validators.Set(common.HexToAddress("a123456789123456789123456789012345678901"), 1000000000000)
-	validators.Set(common.HexToAddress("a123456789123456789123456789012345678902"), 1000000000000)
-
 	g := Genesis{
 		Time: genesisTestTime,
-		Alloc: Accounts{
-			// TODO: fill with official keys and balances before release!
-			common.HexToAddress("a123456789123456789123456789012345678901"): Account{Balance: pos.StakeToBalance(50000000000000)},
-			common.HexToAddress("a123456789123456789123456789012345678902"): Account{Balance: pos.StakeToBalance(50000000000000)},
+		Alloc: VAccounts{
+			Accounts: Accounts{
+				// TODO: fill with official keys and balances before release!
+				common.HexToAddress("a123456789123456789123456789012345678901"): Account{Balance: big.NewInt(1e18)},
+				common.HexToAddress("a123456789123456789123456789012345678902"): Account{Balance: big.NewInt(1e18)},
+				common.HexToAddress("a123456789123456789123456789012345678903"): Account{Balance: big.NewInt(1e18)},
+			},
+			GValidators: pos.GValidators{
+				1: pos.GenesisValidator{
+					ID:      1,
+					Address: common.HexToAddress("a123456789123456789123456789012345678901"),
+					Stake:   10000000,
+				},
+				2: pos.GenesisValidator{
+					ID:      1,
+					Address: common.HexToAddress("a123456789123456789123456789012345678902"),
+					Stake:   10000000,
+				},
+			},
 		},
-		Validators: *validators,
 	}
-	g = preDeploySfc(g)
+	g = preDeploySfc(g, sfc.GetMainContractBinV1())
 	return g
 }
 
 // TestGenesis returns builtin genesis keys of testnet.
 func TestGenesis() Genesis {
-	validators := pos.NewValidators()
-	validators.Set(common.HexToAddress("b123456789123456789123456789012345678901"), 1000000000000)
-	validators.Set(common.HexToAddress("b123456789123456789123456789012345678902"), 1000000000000)
-
 	g := Genesis{
 		Time: genesisTestTime,
-		Alloc: Accounts{
-			// TODO: fill with official keys and balances before release!
-			common.HexToAddress("b123456789123456789123456789012345678901"): Account{Balance: pos.StakeToBalance(50000000000000)},
-			common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: pos.StakeToBalance(50000000000000)},
+		Alloc: VAccounts{
+			Accounts: Accounts{
+				// TODO: fill with official keys and balances before release!
+				common.HexToAddress("b123456789123456789123456789012345678901"): Account{Balance: big.NewInt(1e18)},
+				common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: big.NewInt(1e18)},
+				common.HexToAddress("b123456789123456789123456789012345678903"): Account{Balance: big.NewInt(1e18)},
+			},
+			GValidators: pos.GValidators{
+				1: pos.GenesisValidator{
+					ID:      1,
+					Address: common.HexToAddress("b123456789123456789123456789012345678901"),
+					Stake:   10000000,
+				},
+				2: pos.GenesisValidator{
+					ID:      1,
+					Address: common.HexToAddress("b123456789123456789123456789012345678902"),
+					Stake:   10000000,
+				},
+			},
 		},
-		Validators: *validators,
 	}
-	g = preDeploySfc(g)
+	g = preDeploySfc(g, sfc.GetTestContractBinV1())
 	return g
 }

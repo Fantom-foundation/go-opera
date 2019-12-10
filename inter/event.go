@@ -33,7 +33,7 @@ type EventHeaderData struct {
 	Frame  idx.Frame
 	IsRoot bool
 
-	Creator common.Address
+	Creator idx.StakerID
 
 	PrevEpochHash common.Hash
 	Parents       hash.Events
@@ -86,9 +86,9 @@ func NewEvent() *Event {
 // String returns string representation.
 func (e *EventHeaderData) String() string {
 	if e.IsRoot {
-		return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
+		return fmt.Sprintf("{id=%s, p=%s, v=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Creator, e.Frame)
 	}
-	return fmt.Sprintf("{id=%s, p=%s, seq=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Seq, e.Frame)
+	return fmt.Sprintf("{id=%s, p=%s, v=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Creator, e.Frame)
 }
 
 // NoTransactions is used to check that event doesn't have transactions not having full event.
@@ -144,14 +144,14 @@ func (e *Event) Sign(signer func([]byte) ([]byte, error)) error {
 }
 
 // VerifySignature checks the signature against e.Creator.
-func (e *Event) VerifySignature() bool {
+func (e *Event) VerifySignature(address common.Address) bool {
 	// NOTE: Keccak256 because of AccountManager
 	signedHash := crypto.Keccak256(e.DataToSign())
 	pk, err := crypto.SigToPub(signedHash, e.Sig)
 	if err != nil {
 		return false
 	}
-	return crypto.PubkeyToAddress(*pk) == e.Creator
+	return crypto.PubkeyToAddress(*pk) == address
 }
 
 /*
@@ -227,8 +227,8 @@ func (e *Event) Size() int {
 
 // FakeFuzzingEvents generates random independent events with the same epoch for testing purpose.
 func FakeFuzzingEvents() (res []*Event) {
-	creators := []common.Address{
-		{},
+	creators := []idx.StakerID{
+		0,
 		hash.FakePeer(),
 		hash.FakePeer(),
 		hash.FakePeer(),

@@ -1,7 +1,6 @@
 package vector
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -43,7 +42,7 @@ type IndexConfig struct {
 // Index is a data to detect forkless-cause condition, calculate median timestamp, detect forks.
 type Index struct {
 	validators    *pos.Validators
-	validatorIdxs map[common.Address]idx.Validator
+	validatorIdxs map[idx.StakerID]idx.Validator
 
 	bi *branchesInfo
 

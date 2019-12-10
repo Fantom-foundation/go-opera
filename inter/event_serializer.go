@@ -119,6 +119,7 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 		uint32(e.Epoch),
 		uint32(e.Seq),
 		uint32(e.Frame),
+		uint32(e.Creator),
 		uint32(e.Lamport),
 		uint32(len(e.Parents)),
 	}
@@ -140,7 +141,6 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 		len(fields64)*8 +
 		len(fields32)*4 +
 		len(e.Parents)*(32-4) + // without idx.Epoch
-		common.AddressLength + // Creator
 		common.HashLength + // PrevEpochHash
 		common.HashLength + // TxHash
 		len(e.Extra)
@@ -174,7 +174,6 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 		buf.Write(p.Bytes()[4:]) // without epoch
 	}
 
-	buf.Write(e.Creator.Bytes())
 	buf.Write(e.PrevEpochHash.Bytes())
 	buf.Write(e.TxHash.Bytes())
 	buf.Write(e.Extra)
@@ -216,6 +215,7 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 		(*uint32)(&e.Epoch),
 		(*uint32)(&e.Seq),
 		(*uint32)(&e.Frame),
+		(*uint32)(&e.Creator),
 		(*uint32)(&e.Lamport),
 		&parentCount,
 	}
@@ -267,7 +267,6 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 		copy(e.Parents[i][4:], buf.Read(common.HashLength-4)) // without epoch
 	}
 
-	e.Creator.SetBytes(buf.Read(common.AddressLength))
 	e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
 	e.TxHash.SetBytes(buf.Read(common.HashLength))
 	e.Extra = buf.Read(len(raw) - buf.Position())

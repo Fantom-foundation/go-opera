@@ -1,8 +1,6 @@
 package vector
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
@@ -11,7 +9,7 @@ import (
 type branchesInfo struct {
 	BranchIDLastSeq     []idx.Event       // branchID -> highest e.Seq in the branch
 	BranchIDCreatorIdxs []idx.Validator   // branchID -> validator idx
-	BranchIDCreators    []common.Address  // branchID -> validator addr
+	BranchIDCreators    []idx.StakerID    // branchID -> validator addr
 	BranchIDByCreators  [][]idx.Validator // validator idx -> list of branch IDs
 }
 
@@ -28,7 +26,7 @@ func (vi *Index) initBranchesInfo() {
 }
 
 func newInitialBranchesInfo(validators *pos.Validators) *branchesInfo {
-	branchIDCreators := validators.SortedAddresses()
+	branchIDCreators := validators.SortedIDs()
 	branchIDCreatorIdxs := make([]idx.Validator, len(branchIDCreators))
 	for i := range branchIDCreators {
 		branchIDCreatorIdxs[i] = idx.Validator(i)

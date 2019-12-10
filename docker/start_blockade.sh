@@ -20,7 +20,7 @@ do
   node$i:
     image: lachesis:latest
     container_name: node$i
-    command: --fakenet=${ACC}/$N --rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpccorsdomain="*" --rpcapi="eth,admin,web3" --nousb --metrics
+    command: --fakenet=${ACC}/$N --rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpccorsdomain="*" --rpcapi="eth,admin,web3,txpool" --nousb --metrics
     expose:
       - "55555"
     deploy:

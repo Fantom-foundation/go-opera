@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -11,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -65,6 +65,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 
 	if newEpoch != oldEpoch {
+		s.heavyCheckReader.Addrs.Store(s.store.ReadEpochPubKeys(newEpoch)) // notify checker about new pub keys
 		s.packsOnNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
 		s.store.getEpochStore(newEpoch)
@@ -80,18 +81,35 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 func (s *Service) applyNewState(
 	block *inter.Block,
 	sealEpoch bool,
-	cheaters []common.Address,
-	forEachEvent func(*inter.Event),
+	cheaters inter.Cheaters,
 ) (
 	*inter.Block,
 	*evmcore.EvmBlock,
 	types.Receipts,
+	map[common.Hash]TxPosition,
 	common.Hash,
 ) {
 	// s.engineMu is locked here
 
+	start := time.Now()
+
 	// Assemble block data
-	evmBlock := s.assembleEvmBlock(block, forEachEvent)
+	evmBlock, blockEvents := s.assembleEvmBlock(block)
+
+	// memorize position of each tx, for indexing and origination scores
+	txPositions := make(map[common.Hash]TxPosition)
+	for _, e := range blockEvents {
+		for i, tx := range e.Transactions {
+			// If tx was met in multiple events, then assign to first ordered event
+			if _, ok := txPositions[tx.Hash()]; ok {
+				continue
+			}
+			txPositions[tx.Hash()] = TxPosition{
+				Event:       e.Hash(),
+				EventOffset: uint32(i),
+			}
+		}
+	}
 
 	// Get stateDB
 	stateHash := s.store.GetBlock(block.Index - 1).Root
@@ -99,6 +117,21 @@ func (s *Service) applyNewState(
 
 	// Process EVM txs
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
+
+	// memorize block position of each tx, for indexing and origination scores
+	for i, tx := range evmBlock.Transactions {
+		// not skipped txs only
+		position := txPositions[tx.Hash()]
+		position.Block = block.Index
+		position.BlockOffset = uint32(i)
+		txPositions[tx.Hash()] = position
+	}
+
+	// Process PoI/score changes
+	s.updateOriginationScores(block, receipts, txPositions, sealEpoch)
+	s.updateValidationScores(block, sealEpoch)
+	s.updateUsersPOI(block, evmBlock, receipts, sealEpoch)
+	s.updateStakersPOI(block, sealEpoch)
 
 	// Process SFC contract transactions
 	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
@@ -128,20 +161,21 @@ func (s *Service) applyNewState(
 		newAppHash = newStateHash
 	}
 
-	log.Info("New block", "index", block.Index, "hash", block.Hash().String(), "fee", totalFee, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs))
+	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
+		evmBlock.GasUsed, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs), "elapsed", time.Since(start))
 
-	return block, evmBlock, receipts, newAppHash
+	return block, evmBlock, receipts, txPositions, newAppHash
 }
 
 // assembleEvmBlock converts inter.Block to evmcore.EvmBlock (without skipped transactions)
 func (s *Service) assembleEvmBlock(
 	block *inter.Block,
-	forEachEvent func(*inter.Event),
-) *evmcore.EvmBlock {
+) (*evmcore.EvmBlock, inter.Events) {
 	// s.engineMu is locked here
 	if len(block.SkippedTxs) != 0 {
 		log.Crit("Building with SkippedTxs isn't supported")
 	}
+	blockEvents := make(inter.Events, 0, len(block.Events))
 
 	// Assemble block data
 	evmBlock := &evmcore.EvmBlock{
@@ -155,12 +189,10 @@ func (s *Service) assembleEvmBlock(
 		}
 
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
-		if forEachEvent != nil {
-			forEachEvent(e)
-		}
+		blockEvents = append(blockEvents, e)
 	}
 
-	return evmBlock
+	return evmBlock, blockEvents
 }
 
 func filterSkippedTxs(block *inter.Block, evmBlock *evmcore.EvmBlock) *evmcore.EvmBlock {
@@ -225,6 +257,7 @@ func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (ne
 	}
 	hh := s.store.GetLastHeaders(epoch)
 	// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
+	// TODO use transparent state hashing (i.e. store state in a trie)
 	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
 	// prune not needed last headers
 	s.store.DelLastHeaders(epoch - 1)
@@ -237,35 +270,18 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	// s.engineMu is locked here
 
 	confirmBlocksMeter.Inc(1)
-	// memorize position of each tx, for later indexing
-	var txPositions map[common.Hash]TxPosition
-	var forEachBlockEvent func(e *inter.Event)
-	if s.config.TxIndex {
-		txPositions = make(map[common.Hash]TxPosition)
-		forEachBlockEvent = func(e *inter.Event) {
-			for i, tx := range e.Transactions {
-				// we don't care if tx was met in multiple events, any valid position will work
-				txPositions[tx.Hash()] = TxPosition{
-					Event:       e.Hash(),
-					EventOffset: uint32(i),
-				}
-			}
-		}
-	}
 	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
 
-	block, evmBlock, receipts, newAppHash := s.applyNewState(block, sealEpoch, cheaters, forEachBlockEvent)
+	block, evmBlock, receipts, txPositions, newAppHash := s.applyNewState(block, sealEpoch, cheaters)
 
 	s.store.SetBlock(block)
-	s.store.SetBlockIndex(block.Hash(), block.Index)
+	s.store.SetBlockIndex(block.Atropos, block.Index)
 
 	// Build index for not skipped txs
 	if s.config.TxIndex {
-		for i, tx := range evmBlock.Transactions {
+		for _, tx := range evmBlock.Transactions {
 			// not skipped txs only
 			position := txPositions[tx.Hash()]
-			position.Block = block.Index
-			position.BlockOffset = uint32(i)
 			s.store.SetTxPosition(tx.Hash(), &position)
 		}
 
@@ -285,6 +301,8 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 	}
 
+	s.blockParticipated = make(map[idx.StakerID]bool) // reset map of participated validators
+
 	return newAppHash, sealEpoch
 }
 
@@ -294,7 +312,7 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 
 	newValidators = pos.NewValidators()
 	for _, it := range s.store.GetEpochValidators(newEpoch) {
-		newValidators.Set(it.Staker.Address, pos.BalanceToStake(it.Staker.CalcTotalStake()))
+		newValidators.Set(it.StakerID, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
 
 	return newValidators
@@ -314,6 +332,9 @@ func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.E
 	if seqDepth == 0 {
 		s.store.AddLastHeader(header.Epoch, header)
 	}
+
+	// track validators who participated in the block
+	s.blockParticipated[header.Creator] = true
 }
 
 // isEventAllowedIntoBlock is callback type to check is event may be within block or not
@@ -327,42 +348,4 @@ func (s *Service) isEventAllowedIntoBlock(header *inter.EventHeaderData, seqDept
 		return false // block contains only MaxValidatorEventsInBlock highest events from a creator to prevent huge blocks
 	}
 	return true
-}
-
-/*
- * Calling gaspowercheck
- */
-
-func (s *Service) gasPowerCheck(e *inter.Event) error {
-	// s.engineMu is locked here
-
-	gasPowerChecker := gaspowercheck.New(&s.config.Net.Dag.GasPower, &GasPowerCheckReader{
-		Consensus: s.engine,
-		store:     s.store,
-	})
-	var selfParent *inter.EventHeaderData
-	if e.SelfParent() != nil {
-		selfParent = s.store.GetEventHeader(e.Epoch, *e.SelfParent())
-	}
-	return gasPowerChecker.Validate(e, selfParent)
-}
-
-// GasPowerCheckReader is a helper to run gas power check
-type GasPowerCheckReader struct {
-	Consensus
-	store *Store
-}
-
-// GetPrevEpochLastHeaders isn't safe for concurrent use
-func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
-	// engineMu is locked here
-	epoch := r.GetEpoch() - 1
-	return r.store.GetLastHeaders(epoch), epoch
-}
-
-// GetPrevEpochEndTime isn't safe for concurrent use
-func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
-	// engineMu is locked here
-	epoch := r.GetEpoch() - 1
-	return r.store.GetEpochStats(epoch).End, epoch
 }

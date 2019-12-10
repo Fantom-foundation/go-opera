@@ -44,7 +44,7 @@ var NodeDefaultConfig = node.Config{
 	GraphQLVirtualHosts: []string{"localhost"},
 	P2P: p2p.Config{
 		NoDiscovery: false, // enable discovery v4 by default
-		DiscoveryV5: false, // disable discovery v5 by default
+		DiscoveryV5: true,  // enable discovery v5 by default
 		ListenAddr:  fmt.Sprintf(":%d", DefaultP2PPort),
 		MaxPeers:    50,
 		NAT:         nat.Any(),

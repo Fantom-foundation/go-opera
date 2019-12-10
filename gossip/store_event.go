@@ -26,7 +26,7 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 
 	// Remove from LRU cache.
 	if s.cache.Events != nil {
-		s.cache.Events.Remove(string(key))
+		s.cache.Events.Remove(id)
 	}
 }
 
@@ -39,7 +39,7 @@ func (s *Store) SetEvent(e *inter.Event) {
 
 	// Add to LRU cache.
 	if s.cache.Events != nil {
-		s.cache.Events.Add(string(key), e)
+		s.cache.Events.Add(e.Hash(), e)
 	}
 }
 
@@ -49,7 +49,7 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 
 	// Get event from LRU cache first.
 	if s.cache.Events != nil {
-		if c, ok := s.cache.Events.Get(string(key)); ok {
+		if c, ok := s.cache.Events.Get(id); ok {
 			if ev, ok := c.(*inter.Event); ok {
 				return ev
 			}
@@ -60,7 +60,7 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 
 	// Put event to LRU cache.
 	if w != nil && s.cache.Events != nil {
-		s.cache.Events.Add(string(key), w)
+		s.cache.Events.Add(id, w)
 	}
 
 	return w
@@ -100,7 +100,7 @@ func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
 	// Check in LRU cache first. Ff exists - return true.
-	if s.cache.Events != nil && s.cache.Events.Contains(string(h.Bytes())) {
+	if s.cache.Events != nil && s.cache.Events.Contains(h) {
 		return true
 	}
 

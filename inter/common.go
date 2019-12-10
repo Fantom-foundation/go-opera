@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 // GenNodes generates nodes.
@@ -15,10 +14,10 @@ import (
 func GenNodes(
 	nodeCount int,
 ) (
-	nodes []common.Address,
+	nodes []idx.StakerID,
 ) {
 	// init results
-	nodes = make([]common.Address, nodeCount)
+	nodes = make([]idx.StakerID, nodeCount)
 	// make and name nodes
 	for i := 0; i < nodeCount; i++ {
 		addr := hash.FakePeer()
@@ -34,15 +33,15 @@ func GenNodes(
 //   - callbacks are called for each new event;
 //   - events maps node address to array of its events;
 func ForEachRandFork(
-	nodes []common.Address,
-	cheatersArr []common.Address,
+	nodes []idx.StakerID,
+	cheatersArr []idx.StakerID,
 	eventCount int,
 	parentCount int,
 	forksCount int,
 	r *rand.Rand,
 	callback ForEachEvent,
 ) (
-	events map[common.Address][]*Event,
+	events map[idx.StakerID][]*Event,
 ) {
 	if r == nil {
 		// fixed seed
@@ -50,8 +49,8 @@ func ForEachRandFork(
 	}
 	// init results
 	nodeCount := len(nodes)
-	events = make(map[common.Address][]*Event, nodeCount)
-	cheaters := map[common.Address]int{}
+	events = make(map[idx.StakerID][]*Event, nodeCount)
+	cheaters := map[idx.StakerID]int{}
 	for _, cheater := range cheatersArr {
 		cheaters[cheater] = 0
 	}
@@ -143,32 +142,32 @@ func ForEachRandFork(
 //   - callbacks are called for each new event;
 //   - events maps node address to array of its events;
 func ForEachRandEvent(
-	nodes []common.Address,
+	nodes []idx.StakerID,
 	eventCount int,
 	parentCount int,
 	r *rand.Rand,
 	callback ForEachEvent,
 ) (
-	events map[common.Address][]*Event,
+	events map[idx.StakerID][]*Event,
 ) {
-	return ForEachRandFork(nodes, []common.Address{}, eventCount, parentCount, 0, r, callback)
+	return ForEachRandFork(nodes, []idx.StakerID{}, eventCount, parentCount, 0, r, callback)
 }
 
 // GenRandEvents generates random events for test purpose.
 // Result:
 //   - events maps node address to array of its events;
 func GenRandEvents(
-	nodes []common.Address,
+	nodes []idx.StakerID,
 	eventCount int,
 	parentCount int,
 	r *rand.Rand,
 ) (
-	events map[common.Address][]*Event,
+	events map[idx.StakerID][]*Event,
 ) {
 	return ForEachRandEvent(nodes, eventCount, parentCount, r, ForEachEvent{})
 }
 
-func delPeerIndex(events map[common.Address][]*Event) (res Events) {
+func delPeerIndex(events map[idx.StakerID][]*Event) (res Events) {
 	for _, ee := range events {
 		res = append(res, ee...)
 	}

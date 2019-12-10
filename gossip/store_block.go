@@ -12,7 +12,7 @@ func (s *Store) SetBlock(b *inter.Block) {
 
 	// Add to LRU cache.
 	if b != nil && s.cache.Blocks != nil {
-		s.cache.Blocks.Add(string(b.Index.Bytes()), b)
+		s.cache.Blocks.Add(b.Index, b)
 	}
 }
 
@@ -20,7 +20,7 @@ func (s *Store) SetBlock(b *inter.Block) {
 func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	// Get block from LRU cache first.
 	if s.cache.Blocks != nil {
-		if c, ok := s.cache.Blocks.Get(string(n.Bytes())); ok {
+		if c, ok := s.cache.Blocks.Get(n); ok {
 			if b, ok := c.(*inter.Block); ok {
 				return b
 			}
@@ -31,7 +31,7 @@ func (s *Store) GetBlock(n idx.Block) *inter.Block {
 
 	// Add to LRU cache.
 	if block != nil && s.cache.Blocks != nil {
-		s.cache.Blocks.Add(string(block.Index.Bytes()), block)
+		s.cache.Blocks.Add(n, block)
 	}
 
 	return block
@@ -42,10 +42,20 @@ func (s *Store) SetBlockIndex(id hash.Event, n idx.Block) {
 	if err := s.table.BlockHashes.Put(id.Bytes(), n.Bytes()); err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
+
+	s.cache.BlockHashes.Add(id, n)
 }
 
 // GetBlockIndex returns stored block index.
 func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
+	nVal, ok := s.cache.BlockHashes.Get(id)
+	if ok {
+		n, ok := nVal.(idx.Block)
+		if ok {
+			return &n
+		}
+	}
+
 	buf, err := s.table.BlockHashes.Get(id.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
@@ -54,5 +64,13 @@ func (s *Store) GetBlockIndex(id hash.Event) *idx.Block {
 		return nil
 	}
 	n := idx.BytesToBlock(buf)
+
+	s.cache.BlockHashes.Add(id, n)
+
 	return &n
+}
+
+// GetBlockByHash get block by block hash
+func (s *Store) GetBlockByHash(id hash.Event) *inter.Block {
+	return s.GetBlock(*s.GetBlockIndex(id))
 }

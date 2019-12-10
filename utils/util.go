@@ -2,16 +2,15 @@ package utils
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"net"
 	"strconv"
 	"sync/atomic"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 var startBase uint32 = 12000
@@ -119,11 +118,10 @@ func PaddedBigBytes(bigint *big.Int, n int) []byte {
 }
 
 // NameOf returns human readable string representation.
-func NameOf(p common.Address) string {
+func NameOf(p idx.StakerID) string {
 	if name := hash.GetNodeName(p); len(name) > 0 {
 		return name
 	}
 
-	h := p.Hash()
-	return hexutil.Encode(h[:3]) + "..."
+	return fmt.Sprintf("%d", p)
 }

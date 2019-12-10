@@ -26,9 +26,9 @@ do
 	lachesis:${TAG} \
 	--fakenet=${ACC}/$N,/tmp/test_accs.json \
 	--port=5050 \
-	--rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpcvhosts="*" --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,net" \
-	--ws --wsaddr="0.0.0.0" --wsport=18546 --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net" \
-	--nousb --verbosity=5 --metrics \
+	--rpc --rpcaddr="0.0.0.0" --rpcport=18545 --rpcvhosts="*" --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,personal,net,txpool" \
+	--ws --wsaddr="0.0.0.0" --wsport=18546 --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net,txpool" \
+	--nousb --verbosity=3 --metrics \
 	${SENTRY_DSN}
 done
 
@@ -36,9 +36,9 @@ attach_and_exec() {
     local NAME=$1
     local CMD=$2
 
-    for attempt in $(seq 20)
+    for attempt in $(seq 40)
     do
-        if (( attempt > 5 ));
+        if (( attempt > 10 ));
         then
             echo "  - attempt ${attempt}: " >&2
         fi;

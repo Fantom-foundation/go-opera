@@ -24,12 +24,12 @@ func TestGetGenesisBlock(t *testing.T) {
 	store := NewMemStore()
 
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), 1))
-	addrWithStorage := net.Genesis.Alloc.Addresses()[0]
-	accountWithCode := net.Genesis.Alloc[addrWithStorage]
+	addrWithStorage := net.Genesis.Alloc.Accounts.Addresses()[0]
+	accountWithCode := net.Genesis.Alloc.Accounts[addrWithStorage]
 	accountWithCode.Code = []byte{1, 2, 3}
 	accountWithCode.Storage = make(map[common.Hash]common.Hash)
 	accountWithCode.Storage[common.Hash{}] = common.BytesToHash(common.Big1.Bytes())
-	net.Genesis.Alloc[addrWithStorage] = accountWithCode
+	net.Genesis.Alloc.Accounts[addrWithStorage] = accountWithCode
 
 	genesisHash, stateHash, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
@@ -50,7 +50,7 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	statedb, err := reader.StateAt(stateHash)
 	assertar.NoError(err)
-	for addr, account := range net.Genesis.Alloc {
+	for addr, account := range net.Genesis.Alloc.Accounts {
 		assertar.Equal(account.Balance.String(), statedb.GetBalance(addr).String())
 		assertar.Equal(account.Code, statedb.GetCode(addr))
 		if addr == addrWithStorage {
@@ -97,10 +97,10 @@ func TestGetBlock(t *testing.T) {
 		store:    store,
 		engineMu: new(sync.RWMutex),
 	}
-	evmBlock := reader.GetDagBlock(block.Hash(), block.Index)
+	evmBlock := reader.GetDagBlock(block.Atropos, block.Index)
 
 	assertar.Equal(uint64(block.Index), evmBlock.Number.Uint64())
-	assertar.Equal(common.Hash(block.Hash()), evmBlock.Hash)
+	assertar.Equal(common.Hash(block.Atropos), evmBlock.Hash)
 	assertar.Equal(common.Hash(genesisHash), evmBlock.ParentHash)
 	assertar.Equal(block.Time, evmBlock.Time)
 	assertar.Equal(len(txs)-len(block.SkippedTxs), evmBlock.Transactions.Len())

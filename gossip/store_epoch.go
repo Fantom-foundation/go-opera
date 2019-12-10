@@ -5,8 +5,6 @@ package gossip
 */
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -16,9 +14,9 @@ import (
 
 type (
 	epochStore struct {
-		Headers kvdb.KeyValueStore `table:"header"`
-		Tips    kvdb.KeyValueStore `table:"tips"`
-		Heads   kvdb.KeyValueStore `table:"heads"`
+		Headers kvdb.KeyValueStore `table:"h"`
+		Tips    kvdb.KeyValueStore `table:"t"`
+		Heads   kvdb.KeyValueStore `table:"H"`
 	}
 )
 
@@ -46,7 +44,8 @@ func (s *Store) delEpochStore(epoch idx.Epoch) {
 	}
 }
 
-func (s *Store) SetLastEvent(epoch idx.Epoch, from common.Address, id hash.Event) {
+// SetLastEvent stores last unconfirmed event from a validator (off-chain)
+func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.StakerID, id hash.Event) {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return
@@ -58,7 +57,8 @@ func (s *Store) SetLastEvent(epoch idx.Epoch, from common.Address, id hash.Event
 	}
 }
 
-func (s *Store) GetLastEvent(epoch idx.Epoch, from common.Address) *hash.Event {
+// GetLastEvent returns stored last unconfirmed event from a validator (off-chain)
+func (s *Store) GetLastEvent(epoch idx.Epoch, from idx.StakerID) *hash.Event {
 	es := s.getEpochStore(epoch)
 	if es == nil {
 		return nil
@@ -89,7 +89,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 
 	// Save to LRU cache.
 	if e != nil && s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Add(string(key), e)
+		s.cache.EventsHeaders.Add(h, e)
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	// Check LRU cache first.
 	if s.cache.EventsHeaders != nil {
-		if v, ok := s.cache.EventsHeaders.Get(string(key)); ok {
+		if v, ok := s.cache.EventsHeaders.Get(h); ok {
 			if w, ok := v.(*inter.EventHeaderData); ok {
 				return w
 			}
@@ -115,7 +115,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 
 	// Save to LRU cache.
 	if w != nil && s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Add(string(key), w)
+		s.cache.EventsHeaders.Add(h, w)
 	}
 
 	return w
@@ -136,6 +136,6 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 
 	// Remove from LRU cache.
 	if s.cache.EventsHeaders != nil {
-		s.cache.EventsHeaders.Remove(string(key))
+		s.cache.EventsHeaders.Remove(h)
 	}
 }

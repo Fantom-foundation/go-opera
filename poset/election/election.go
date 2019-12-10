@@ -1,8 +1,6 @@
 package election
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -21,7 +19,7 @@ type (
 		validators *pos.Validators
 
 		// election state
-		decidedRoots map[common.Address]voteValue // decided roots at "frameToDecide"
+		decidedRoots map[idx.StakerID]voteValue // decided roots at "frameToDecide"
 		votes        map[voteID]voteValue
 
 		// external world
@@ -39,8 +37,8 @@ type (
 	// Slot specifies a root slot {addr, frame}. Normal validators can have only one root with this pair.
 	// Due to a fork, different roots may occupy the same slot
 	Slot struct {
-		Frame idx.Frame
-		Addr  common.Address
+		Frame     idx.Frame
+		Validator idx.StakerID
 	}
 
 	// RootAndSlot specifies concrete root of slot.
@@ -52,7 +50,7 @@ type (
 
 type voteID struct {
 	fromRoot     hash.Event
-	forValidator common.Address
+	forValidator idx.StakerID
 }
 type voteValue struct {
 	decided      bool
@@ -90,12 +88,12 @@ func (el *Election) Reset(validators *pos.Validators, frameToDecide idx.Frame) {
 	el.validators = validators
 	el.frameToDecide = frameToDecide
 	el.votes = make(map[voteID]voteValue)
-	el.decidedRoots = make(map[common.Address]voteValue)
+	el.decidedRoots = make(map[idx.StakerID]voteValue)
 }
 
 // return root slots which are not within el.decidedRoots
-func (el *Election) notDecidedRoots() []common.Address {
-	notDecidedRoots := make([]common.Address, 0, el.validators.Len())
+func (el *Election) notDecidedRoots() []idx.StakerID {
+	notDecidedRoots := make([]idx.StakerID, 0, el.validators.Len())
 
 	for validator := range el.validators.Iterate() {
 		if _, ok := el.decidedRoots[validator]; !ok {
@@ -121,13 +119,13 @@ func (el *Election) observedRoots(root hash.Event, frame idx.Frame) []RootAndSlo
 	return observedRoots
 }
 
-func (el *Election) observedRootsMap(root hash.Event, frame idx.Frame) map[common.Address]RootAndSlot {
-	observedRootsMap := make(map[common.Address]RootAndSlot, el.validators.Len())
+func (el *Election) observedRootsMap(root hash.Event, frame idx.Frame) map[idx.StakerID]RootAndSlot {
+	observedRootsMap := make(map[idx.StakerID]RootAndSlot, el.validators.Len())
 
 	frameRoots := el.getFrameRoots(frame)
 	for _, frameRoot := range frameRoots {
 		if el.observe(root, frameRoot.ID) {
-			observedRootsMap[frameRoot.Slot.Addr] = frameRoot
+			observedRootsMap[frameRoot.Slot.Validator] = frameRoot
 		}
 	}
 	return observedRootsMap

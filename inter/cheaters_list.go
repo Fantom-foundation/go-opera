@@ -1,16 +1,17 @@
 package inter
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 // Cheaters is a slice type for storing cheaters list.
-type Cheaters []common.Address
+type Cheaters []idx.StakerID
 
 // Set returns map of cheaters
-func (s Cheaters) Set() map[common.Address]struct{} {
-	set := map[common.Address]struct{}{}
+func (s Cheaters) Set() map[idx.StakerID]struct{} {
+	set := map[idx.StakerID]struct{}{}
 	for _, element := range s {
 		set[element] = struct{}{}
 	}

@@ -94,15 +94,21 @@ func benchmarkStore(b *testing.B) {
 	}
 }
 
-func benchPoset(nodes []common.Address, input EventSource, store *Store) *Poset {
-	validators := pos.NewValidators()
-	for _, addr := range nodes {
-		validators.Set(addr, 1)
+func benchPoset(nodes []idx.StakerID, input EventSource, store *Store) *Poset {
+	validators := make(pos.GValidators)
+	for _, v := range nodes {
+		validators[v] = pos.GenesisValidator{
+			ID:    v,
+			Stake: 1,
+		}
 	}
 
 	err := store.ApplyGenesis(&genesis.Genesis{
-		Time:       genesisTestTime,
-		Validators: *validators,
+		Time: genesisTestTime,
+		Alloc: genesis.VAccounts{
+			GValidators: validators,
+			Accounts:    nil,
+		},
 	}, hash.Event{}, common.Hash{})
 	if err != nil {
 		panic(err)
