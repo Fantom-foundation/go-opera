@@ -17,8 +17,6 @@ const (
 	highestBeforeSeqCacheSize   = 1000
 	highestBeforeTimeCacheSize  = 1000
 	lowestAfterSeqCacheSize     = 1000
-	eventBranchCacheSize        = 1000
-	branchesInfoCacheSize       = 1000
 	dfsSubgraphVisitedCacheSize = 1000
 )
 
@@ -28,8 +26,6 @@ type IndexCacheConfig struct {
 	HighestBeforeSeq   int `json:"highestBeforeSeq"`
 	HighestBeforeTime  int `json:"highestBeforeTime"`
 	LowestAfterSeq     int `json:"lowestAfterSeq"`
-	EventBranch        int `json:"eventBranch"`
-	BranchesInfo       int `json:"branchesInfo"`
 	DfsSubgraphVisited int `json:"dfsSubgraphVisited"`
 }
 
@@ -61,9 +57,6 @@ type Index struct {
 		HighestBeforeSeq  *lru.Cache
 		HighestBeforeTime *lru.Cache
 		LowestAfterSeq    *lru.Cache
-
-		EventBranch  *lru.Cache
-		BranchesInfo *lru.Cache
 	}
 
 	forklessCauseCache *lru.Cache
@@ -81,8 +74,6 @@ func DefaultIndexConfig() IndexConfig {
 			HighestBeforeSeq:   highestBeforeSeqCacheSize,
 			HighestBeforeTime:  highestBeforeTimeCacheSize,
 			LowestAfterSeq:     lowestAfterSeqCacheSize,
-			EventBranch:        eventBranchCacheSize,
-			BranchesInfo:       branchesInfoCacheSize,
 			DfsSubgraphVisited: dfsSubgraphVisitedCacheSize,
 		},
 	}
@@ -100,8 +91,6 @@ func NewIndex(config IndexConfig, validators *pos.Validators, db kvdb.KeyValueSt
 	vi.cache.HighestBeforeSeq, _ = lru.New(vi.cfg.Caches.HighestBeforeSeq)
 	vi.cache.HighestBeforeTime, _ = lru.New(vi.cfg.Caches.HighestBeforeTime)
 	vi.cache.LowestAfterSeq, _ = lru.New(vi.cfg.Caches.LowestAfterSeq)
-	vi.cache.BranchesInfo, _ = lru.New(vi.cfg.Caches.BranchesInfo)
-	vi.cache.EventBranch, _ = lru.New(vi.cfg.Caches.EventBranch)
 	vi.Reset(validators, db, getEvent)
 
 	return vi
@@ -125,8 +114,6 @@ func (vi *Index) cleanCaches() {
 	vi.cache.HighestBeforeSeq.Purge()
 	vi.cache.HighestBeforeTime.Purge()
 	vi.cache.LowestAfterSeq.Purge()
-	vi.cache.BranchesInfo.Purge()
-	vi.cache.EventBranch.Purge()
 }
 
 // Add calculates vector clocks for the event and saves into DB.
