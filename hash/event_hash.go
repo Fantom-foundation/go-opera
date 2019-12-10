@@ -231,6 +231,10 @@ func (s *EventsStack) Push(v Event) {
 	*s = append(*s, v)
 }
 
+func (s *EventsStack) PushAll(vv Events) {
+	*s = append(*s, vv...)
+}
+
 func (s *EventsStack) Pop() *Event {
 	l := len(*s)
 	if l == 0 {

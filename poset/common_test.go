@@ -68,7 +68,7 @@ func FakePoset(namespace string, nodes []idx.StakerID, mods ...memorydb.Mod) (*E
 	}
 	_ = dbs.Flush(atropos.Bytes())
 
-	input := NewEventStore(nil)
+	input := NewEventStore(nil, 100)
 
 	config := lachesis.FakeNetDagConfig()
 	if config.EpochLen > 100 {

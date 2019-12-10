@@ -13,20 +13,18 @@ import (
 )
 
 const (
-	forklessCauseCacheSize      = 5000
-	highestBeforeSeqCacheSize   = 1000
-	highestBeforeTimeCacheSize  = 1000
-	lowestAfterSeqCacheSize     = 1000
-	dfsSubgraphVisitedCacheSize = 1000
+	forklessCauseCacheSize     = 5000
+	highestBeforeSeqCacheSize  = 1000
+	highestBeforeTimeCacheSize = 1000
+	lowestAfterSeqCacheSize    = 1000
 )
 
 // IndexCacheConfig - config for cache sizes of Index
 type IndexCacheConfig struct {
-	ForklessCause      int `json:"forklessCause"`
-	HighestBeforeSeq   int `json:"highestBeforeSeq"`
-	HighestBeforeTime  int `json:"highestBeforeTime"`
-	LowestAfterSeq     int `json:"lowestAfterSeq"`
-	DfsSubgraphVisited int `json:"dfsSubgraphVisited"`
+	ForklessCause     int `json:"forklessCause"`
+	HighestBeforeSeq  int `json:"highestBeforeSeq"`
+	HighestBeforeTime int `json:"highestBeforeTime"`
+	LowestAfterSeq    int `json:"lowestAfterSeq"`
 }
 
 // IndexConfig - Index config (cache sizes)
@@ -70,11 +68,10 @@ type Index struct {
 func DefaultIndexConfig() IndexConfig {
 	return IndexConfig{
 		Caches: IndexCacheConfig{
-			ForklessCause:      forklessCauseCacheSize,
-			HighestBeforeSeq:   highestBeforeSeqCacheSize,
-			HighestBeforeTime:  highestBeforeTimeCacheSize,
-			LowestAfterSeq:     lowestAfterSeqCacheSize,
-			DfsSubgraphVisited: dfsSubgraphVisitedCacheSize,
+			ForklessCause:     forklessCauseCacheSize,
+			HighestBeforeSeq:  highestBeforeSeqCacheSize,
+			HighestBeforeTime: highestBeforeTimeCacheSize,
+			LowestAfterSeq:    lowestAfterSeqCacheSize,
 		},
 	}
 }
@@ -284,14 +281,9 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	nextCreator:
 	}
 
-	// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
-	walk := func(w *inter.EventHeaderData) (godeeper bool) {
-		wHash := w.Hash()
-		if wHash == e.Hash() {
-			return true // skip original element
-		}
-
-		wLowestAfterSeq := vi.GetLowestAfterSeq(wHash)
+	// graph traversal starting from e, but excluding e
+	onWalk := func(walk hash.Event) (godeeper bool) {
+		wLowestAfterSeq := vi.GetLowestAfterSeq(walk)
 
 		godeeper = wLowestAfterSeq.Get(meBranchID) == 0
 		if !godeeper {
@@ -300,12 +292,11 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 		// update LowestAfter vector of the old event, because newly-connected event observes it
 		wLowestAfterSeq.Set(meBranchID, e.Seq)
-		vi.SetLowestAfter(wHash, wLowestAfterSeq)
+		vi.SetLowestAfter(walk, wLowestAfterSeq)
 
 		return
 	}
-
-	err := vi.dfsSubgraph(e, walk)
+	err := vi.dfsSubgraph(e, onWalk)
 	if err != nil {
 		vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
 	}

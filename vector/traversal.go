@@ -7,42 +7,28 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
-// dfsSubgraph iterates all the event which are observed by head, and accepted by a filter
-func (vi *Index) dfsSubgraph(head *inter.EventHeaderData, walk func(*inter.EventHeaderData) (godeeper bool)) error {
-	stack := make(hash.EventsStack, 0, vi.validators.Len() * 5)
-	visitedCache := make(map[hash.Event]bool)
+// dfsSubgraph iterates all the event which are observed by head, and accepted by a filter. Excluding head
+func (vi *Index) dfsSubgraph(head *inter.EventHeaderData, walk func(hash.Event) (godeeper bool)) error {
+	stack := make(hash.EventsStack, 0, vi.validators.Len()*5)
 
-	headHash := head.Hash()
-	for next := &headHash; next != nil; next = stack.Pop() {
+	// first element
+	stack.PushAll(head.Parents)
+
+	for next := stack.Pop(); next != nil; next = stack.Pop() {
 		curr := *next
 
-		if visitedCache[curr] {
-			continue
-		}
-		visitedCache[curr] = true
-		if len(visitedCache) > vi.cfg.Caches.DfsSubgraphVisited {
-			visitedCache = make(map[hash.Event]bool)
-		}
-
-		var event *inter.EventHeaderData
-		if curr == headHash {
-			event = head
-		} else {
-			event = vi.getEvent(curr)
-			if event == nil {
-				return errors.New("event not found " + curr.String())
-			}
-		}
-
 		// filter
-		if !walk(event) {
+		if !walk(curr) {
 			continue
+		}
+
+		event := vi.getEvent(curr)
+		if event == nil {
+			return errors.New("event not found " + curr.String())
 		}
 
 		// memorize parents
-		for _, parent := range event.Parents {
-			stack.Push(parent)
-		}
+		stack.PushAll(event.Parents)
 	}
 
 	return nil

@@ -490,20 +490,23 @@ func testForksDetected(vi *Index, head *inter.EventHeaderData) (cheaters map[idx
 	cheaters = map[idx.StakerID]bool{}
 	visited := hash.EventsSet{}
 	detected := map[eventSlot]int{}
-	err = vi.dfsSubgraph(head, func(e *inter.EventHeaderData) (godeeper bool) {
+	onWalk := func(id hash.Event) (godeeper bool) {
 		// ensure visited once
-		if visited.Contains(e.Hash()) {
+		if visited.Contains(id) {
 			return false
 		}
-		visited.Add(e.Hash())
+		visited.Add(id)
 
+		e := vi.getEvent(id)
 		slot := eventSlot{
 			seq:     e.Seq,
 			creator: e.Creator,
 		}
 		detected[slot]++
 		return true
-	})
+	}
+	onWalk(head.Hash())
+	err = vi.dfsSubgraph(head, onWalk)
 	for s, count := range detected {
 		if count > 1 {
 			cheaters[s.creator] = true
