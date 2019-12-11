@@ -96,7 +96,24 @@ func TransactionPreCheck(statedb *state.StateDB, msg types.Message, tx *types.Tr
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc DummyChain, author *common.Address, gp *GasPool, statedb *state.StateDB, header *EvmHeader, tx *types.Transaction, usedGas *uint64, cfg vm.Config, strict bool) (*types.Receipt, uint64, *big.Int, bool, error) {
+func ApplyTransaction(
+	config *params.ChainConfig,
+	bc DummyChain,
+	author *common.Address,
+	gp *GasPool,
+	statedb *state.StateDB,
+	header *EvmHeader,
+	tx *types.Transaction,
+	usedGas *uint64,
+	cfg vm.Config,
+	strict bool,
+) (
+	*types.Receipt,
+	uint64,
+	*big.Int,
+	bool,
+	error,
+) {
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
 		return nil, 0, common.Big0, false, err
@@ -139,9 +156,8 @@ func ApplyTransaction(config *params.ChainConfig, bc DummyChain, author *common.
 	if msg.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 	}
-	// Set the receipt logs and create a bloom for filtering
+	// Set the receipt logs
 	receipt.Logs = statedb.GetLogs(tx.Hash())
-	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 	receipt.BlockHash = statedb.BlockHash()
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
