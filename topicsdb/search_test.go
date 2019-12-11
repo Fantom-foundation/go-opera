@@ -20,17 +20,17 @@ func BenchmarkSearch(b *testing.B) {
 		}
 	}
 
-	var conditionsSet [][]Condition
+	var query [][]Condition
 	for i := 0; i < len(topics); i++ {
 		from, to := topics4rec(i)
 		tt := topics[from : to-1]
 
 		conditions := make([]Condition, len(tt))
 		for pos, t := range tt {
-			conditions[pos] = NewCondition(t.Topic, uint8(pos))
+			conditions[pos] = NewCondition(t, uint8(pos))
 		}
 
-		conditionsSet = append(conditionsSet, conditions)
+		query = append(query, conditions)
 	}
 
 	b.Run("Sync", func(b *testing.B) {
@@ -38,7 +38,7 @@ func BenchmarkSearch(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			conditions := conditionsSet[i%len(conditionsSet)]
+			conditions := query[i%len(query)]
 			_, err := db.Find(conditions...)
 			if err != nil {
 				b.Fatal(err)
@@ -51,7 +51,7 @@ func BenchmarkSearch(b *testing.B) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			conditions := conditionsSet[i%len(conditionsSet)]
+			conditions := query[i%len(query)]
 			_, err := db.Find(conditions...)
 			if err != nil {
 				b.Fatal(err)

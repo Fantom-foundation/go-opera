@@ -1,11 +1,11 @@
 package topicsdb
 
 import (
-	"bytes"
 	"math/rand"
-	"sort"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -39,7 +39,7 @@ func TestTopicsDb(t *testing.T) {
 
 			conditions := make([]Condition, len(tt))
 			for pos, t := range tt {
-				conditions[pos] = NewCondition(t.Topic, uint8(pos))
+				conditions[pos] = NewCondition(t, uint8(pos))
 			}
 
 			got, err := db.Find(conditions...)
@@ -47,7 +47,7 @@ func TestTopicsDb(t *testing.T) {
 				return
 			}
 
-			var expect []*Logrec
+			var expect []*types.Log
 			for j, rec := range recs {
 				if f, t := topics4rec(j); f != from || t != to {
 					continue
@@ -56,10 +56,7 @@ func TestTopicsDb(t *testing.T) {
 				expect = append(expect, rec)
 			}
 
-			sortByID(got)
-			sortByID(expect)
-
-			if !assertar.EqualValuesf(expect, got, "step %d", i) {
+			if !assertar.ElementsMatchf(expect, got, "step %d", i) {
 				return
 			}
 		}
@@ -74,11 +71,12 @@ func TestTopicsDb(t *testing.T) {
 		db.fetchMethod = db.fetchAsync
 		find(t)
 	})
+
 }
 
 func genTestData() (
-	topics []*Topic,
-	recs []*Logrec,
+	topics []common.Hash,
+	recs []*types.Log,
 	topics4rec func(rec int) (from, to int),
 ) {
 	const (
@@ -86,14 +84,9 @@ func genTestData() (
 		count  = period * 3
 	)
 
-	topics = make([]*Topic, period)
+	topics = make([]common.Hash, period)
 	for i := range topics {
-		t := &Topic{
-			Topic: hash.FakeHash(int64(i)),
-			Data:  make([]byte, i+10),
-		}
-		_, _ = rand.Read(t.Data)
-		topics[i] = t
+		topics[i] = hash.FakeHash(int64(i))
 	}
 
 	topics4rec = func(rec int) (from, to int) {
@@ -102,24 +95,19 @@ func genTestData() (
 		return
 	}
 
-	recs = make([]*Logrec, count)
+	recs = make([]*types.Log, count)
 	for i := range recs {
 		from, to := topics4rec(i)
-		recs[i] = &Logrec{
-			ID:     hash.FakeHash(int64(i)),
-			BlockN: uint64(i % 5),
-			Topics: topics[from:to],
+		r := &types.Log{
+			BlockNumber: uint64(i / period),
+			TxHash:      hash.FakeHash(int64(i % period)),
+			Index:       uint(i % period),
+			Topics:      topics[from:to],
+			Data:        make([]byte, 10),
 		}
+		_, _ = rand.Read(r.Data)
+		recs[i] = r
 	}
 
 	return
-}
-
-func sortByID(recs []*Logrec) {
-	sort.Slice(recs, func(i, j int) bool {
-		return bytes.Compare(
-			recs[i].ID.Bytes(),
-			recs[j].ID.Bytes(),
-		) < 0
-	})
 }
