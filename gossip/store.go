@@ -19,6 +19,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 )
 
 // Store is a node persistent storage working over physical key-value database.
@@ -51,6 +52,7 @@ type Store struct {
 
 		Evm      ethdb.Database
 		EvmState state.Database
+		EvmLogs  *topicsdb.TopicsDb
 	}
 
 	cache struct {
@@ -98,6 +100,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("evm_"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
+	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("evmlogs_")))
 
 	s.initTmpDbs()
 	s.initCache()

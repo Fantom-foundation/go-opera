@@ -210,6 +210,12 @@ func (s *Service) executeEvmTransactions(
 		Transactions: evmBlock.Transactions,
 	}
 
+	for _, r := range receipts {
+		for _, l := range r.Logs {
+			s.store.table.EvmLogs.Push(l)
+		}
+	}
+
 	return block, evmBlock, totalFee, receipts
 }
 
