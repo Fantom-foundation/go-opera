@@ -730,7 +730,7 @@ func TestRandomForks(t *testing.T) {
 					vi.Add(&a.EventHeaderData)
 				}
 
-				vi.forklessCauseCache.Purge() // disable cache
+				vi.cache.ForklessCause.Purge() // disable cache
 				for _, a := range processedArr {
 					res := vi.MedianTime(a.Hash(), inter.Timestamp(testTime/2))
 					assertar.Equal(medianTimeMap[a.Hash()], res, "%s %d", a.Hash().String(), reorderTry)
