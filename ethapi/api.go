@@ -646,7 +646,7 @@ func (s *PublicBlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.B
 func (s *PublicBlockChainAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.GetBlock(ctx, hash)
 	if block != nil {
-		return s.rpcMarshalBlock(block, true, fullTx)
+		return s.rpcMarshalBlock(block.EthBlock(), true, fullTx)
 	}
 	return nil, err
 }
@@ -1057,35 +1057,34 @@ func eventIDToHex(id hash.Event) hexutil.Bytes {
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
-func RPCMarshalHeader(head *evmcore.EvmHeader) map[string]interface{} {
+func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	return map[string]interface{}{
 		"number":           (*hexutil.Big)(head.Number),
-		"hash":             head.Hash, // store EvmBlock's hash in extra, because extra is always empty
+		"hash":             head.Hash(),
 		"parentHash":       head.ParentHash,
-		"nonce":            types.BlockNonce{},
-		"mixHash":          common.Hash{},
-		"sha3Uncles":       types.EmptyUncleHash,
-		"logsBloom":        types.Bloom{},
+		"nonce":            head.Nonce,
+		"mixHash":          head.MixDigest,
+		"sha3Uncles":       head.UncleHash,
+		"logsBloom":        head.Bloom,
 		"stateRoot":        head.Root,
 		"miner":            head.Coinbase,
-		"difficulty":       (*hexutil.Big)(new(big.Int)),
-		"extraData":        hexutil.Bytes([]byte{}),
-		"size":             hexutil.Uint64(head.EthHeader().Size()),
-		"gasLimit":         hexutil.Uint64(0xffffffffffff), // don't use too much bits here to avoid parsing issues
+		"difficulty":       (*hexutil.Big)(head.Difficulty),
+		"extraData":        hexutil.Bytes(head.Extra),
+		"size":             hexutil.Uint64(head.Size()),
+		"gasLimit":         hexutil.Uint64(head.GasLimit),
 		"gasUsed":          hexutil.Uint64(head.GasUsed),
-		"timestamp":        hexutil.Uint64(head.Time.Unix()),
-		"timestampNano":    hexutil.Uint64(head.Time),
+		"timestamp":        hexutil.Uint64(head.Time),
 		"transactionsRoot": head.TxHash,
-		"receiptsRoot":     common.Hash{},
+		"receiptsRoot":     head.ReceiptHash,
 	}
 }
 
 // RPCMarshalBlock converts the given block to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
-func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+func RPCMarshalBlock(block *types.Block, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields := RPCMarshalHeader(block.Header())
-	fields["size"] = block.EthBlock().Size()
+	fields["size"] = hexutil.Uint64(block.Size())
 
 	if inclTx {
 		formatTx := func(tx *types.Transaction) (interface{}, error) {
@@ -1096,7 +1095,7 @@ func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[str
 				return newRPCTransactionFromBlockHash(block, tx.Hash()), nil
 			}
 		}
-		txs := block.Transactions
+		txs := block.Transactions()
 		transactions := make([]interface{}, len(txs))
 		var err error
 		for i, tx := range txs {
@@ -1106,10 +1105,10 @@ func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[str
 		}
 		fields["transactions"] = transactions
 	}
-	uncles := noUncles
+	uncles := block.Uncles()
 	uncleHashes := make([]common.Hash, len(uncles))
 	for i, uncle := range uncles {
-		uncleHashes[i] = uncle.Hash
+		uncleHashes[i] = uncle.Hash()
 	}
 	fields["uncles"] = uncleHashes
 
@@ -1118,20 +1117,20 @@ func RPCMarshalBlock(block *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[str
 
 // rpcMarshalHeader uses the generalized output filler, then adds the total difficulty field, which requires
 // a `PublicBlockchainAPI`.
-func (s *PublicBlockChainAPI) rpcMarshalHeader(header *evmcore.EvmHeader) map[string]interface{} {
+func (s *PublicBlockChainAPI) rpcMarshalHeader(header *types.Header) map[string]interface{} {
 	fields := RPCMarshalHeader(header)
-	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(header.Hash))
+	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(header.Hash()))
 	return fields
 }
 
 // rpcMarshalBlock uses the generalized output filler, then adds the total difficulty field, which requires
 // a `PublicBlockchainAPI`.
-func (s *PublicBlockChainAPI) rpcMarshalBlock(b *evmcore.EvmBlock, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+func (s *PublicBlockChainAPI) rpcMarshalBlock(b *types.Block, inclTx bool, fullTx bool) (map[string]interface{}, error) {
 	fields, err := RPCMarshalBlock(b, inclTx, fullTx)
 	if err != nil {
 		return nil, err
 	}
-	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash))
+	fields["totalDifficulty"] = (*hexutil.Big)(s.b.GetTd(b.Hash()))
 	return fields, err
 }
 
@@ -1190,17 +1189,17 @@ func newRPCPendingTransaction(tx *types.Transaction) *RPCTransaction {
 }
 
 // newRPCTransactionFromBlockIndex returns a transaction that will serialize to the RPC representation.
-func newRPCTransactionFromBlockIndex(b *evmcore.EvmBlock, index uint64) *RPCTransaction {
-	txs := b.Transactions
+func newRPCTransactionFromBlockIndex(b *types.Block, index uint64) *RPCTransaction {
+	txs := b.Transactions()
 	if index >= uint64(len(txs)) {
 		return nil
 	}
-	return newRPCTransaction(txs[index], b.Hash, b.NumberU64(), index)
+	return newRPCTransaction(txs[index], b.Hash(), b.NumberU64(), index)
 }
 
 // newRPCRawTransactionFromBlockIndex returns the bytes of a transaction given a block and a transaction index.
-func newRPCRawTransactionFromBlockIndex(b *evmcore.EvmBlock, index uint64) hexutil.Bytes {
-	txs := b.Transactions
+func newRPCRawTransactionFromBlockIndex(b *types.Block, index uint64) hexutil.Bytes {
+	txs := b.Transactions()
 	if index >= uint64(len(txs)) {
 		return nil
 	}
@@ -1209,8 +1208,8 @@ func newRPCRawTransactionFromBlockIndex(b *evmcore.EvmBlock, index uint64) hexut
 }
 
 // newRPCTransactionFromBlockHash returns a transaction that will serialize to the RPC representation.
-func newRPCTransactionFromBlockHash(b *evmcore.EvmBlock, hash common.Hash) *RPCTransaction {
-	for idx, tx := range b.Transactions {
+func newRPCTransactionFromBlockHash(b *types.Block, hash common.Hash) *RPCTransaction {
+	for idx, tx := range b.Transactions() {
 		if tx.Hash() == hash {
 			return newRPCTransactionFromBlockIndex(b, uint64(idx))
 		}
@@ -1232,7 +1231,7 @@ func NewPublicTransactionPoolAPI(b Backend, nonceLock *AddrLocker) *PublicTransa
 // GetBlockTransactionCountByNumber returns the number of transactions in the block with the given block number.
 func (s *PublicTransactionPoolAPI) GetBlockTransactionCountByNumber(ctx context.Context, blockNr rpc.BlockNumber) *hexutil.Uint {
 	if block, _ := s.b.BlockByNumber(ctx, blockNr); block != nil {
-		n := hexutil.Uint(len(block.Transactions))
+		n := hexutil.Uint(len(block.Transactions()))
 		return &n
 	}
 	return nil
@@ -1258,7 +1257,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionByBlockNumberAndIndex(ctx conte
 // GetTransactionByBlockHashAndIndex returns the transaction for the given block hash and index.
 func (s *PublicTransactionPoolAPI) GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index hexutil.Uint) *RPCTransaction {
 	if block, _ := s.b.GetBlock(ctx, blockHash); block != nil {
-		return newRPCTransactionFromBlockIndex(block, uint64(index))
+		return newRPCTransactionFromBlockIndex(block.EthBlock(), uint64(index))
 	}
 	return nil
 }
@@ -1274,7 +1273,7 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByBlockNumberAndIndex(ctx co
 // GetRawTransactionByBlockHashAndIndex returns the bytes of the transaction for the given block hash and index.
 func (s *PublicTransactionPoolAPI) GetRawTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index hexutil.Uint) hexutil.Bytes {
 	if block, _ := s.b.GetBlock(ctx, blockHash); block != nil {
-		return newRPCRawTransactionFromBlockIndex(block, uint64(index))
+		return newRPCRawTransactionFromBlockIndex(block.EthBlock(), uint64(index))
 	}
 	return nil
 }
@@ -1310,7 +1309,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, has
 		if err != nil {
 			return nil, err
 		}
-		return newRPCTransaction(tx, header.Hash, blockNumber, index), nil
+		return newRPCTransaction(tx, header.Hash(), blockNumber, index), nil
 	}
 	// No finalized transaction, try to retrieve it from the pool
 	if tx := s.b.GetPoolTransaction(hash); tx != nil {
@@ -1344,11 +1343,11 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if tx == nil || err != nil {
 		return nil, err
 	}
-	header, err := s.b.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber)) // retrieve header to get block hash
+	header, err := s.b.HeaderByHash(ctx, hash) // retrieve header to get block hash
 	if header == nil || err != nil {
 		return nil, err
 	}
-	receipts, err := s.b.GetReceipts(ctx, rpc.BlockNumber(blockNumber))
+	receipts, err := s.b.GetReceipts(ctx, hash)
 	if receipts == nil || err != nil {
 		return nil, err
 	}

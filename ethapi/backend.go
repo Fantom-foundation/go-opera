@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
-	notify "github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -43,19 +43,19 @@ type Backend interface {
 	ProtocolVersion() int
 	SuggestPrice(ctx context.Context) (*big.Int, error)
 	ChainDb() ethdb.Database
-	NotifyMux() *notify.TypeMux
+	EventMux() *event.TypeMux
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmHeader, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evmcore.EvmHeader, error)
-	GetHeader(ctx context.Context, hash common.Hash) *evmcore.EvmHeader
+	//GetHeader(ctx context.Context, hash common.Hash) *evmcore.EvmHeader
 	GetBlock(ctx context.Context, hash common.Hash) (*evmcore.EvmBlock, error)
-	GetReceipts(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error)
+	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
 	GetTd(hash common.Hash) *big.Int
 	GetEVM(ctx context.Context, msg evmcore.Message, state *state.StateDB, header *evmcore.EvmHeader) (*vm.EVM, func() error, error)
 
@@ -67,7 +67,7 @@ type Backend interface {
 	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	Stats() (pending int, queued int)
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
-	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) notify.Subscription
+	SubscribeNewTxsNotify(chan<- evmcore.NewTxsNotify) event.Subscription
 
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *evmcore.EvmBlock

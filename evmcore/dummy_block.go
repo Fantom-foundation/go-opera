@@ -113,5 +113,8 @@ func (b *EvmBlock) NumberU64() uint64 {
 }
 
 func (b *EvmBlock) EthBlock() *types.Block {
+	if b == nil {
+		return nil
+	}
 	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil)
 }
