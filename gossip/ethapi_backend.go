@@ -279,34 +279,20 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	return err
 }
 
+func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
+	return b.svc.feed.SubscribeNewLogs(ch)
+}
+
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription {
-	// TODO: implement it
-	return nil
+	return b.svc.feed.SubscribeRemovedLogs(ch)
 }
 
 func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
-	// TODO: implement it
-	return nil
-}
-
-func (b *EthAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) notify.Subscription {
-	// TODO: implement it
-	return nil
-}
-
-func (b *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) notify.Subscription {
-	// TODO: implement it
-	return nil
-}
-
-func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
-	// TODO: implement it
-	return nil
+	return b.svc.feed.SubscribeChainEvent(ch)
 }
 
 func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
-	// TODO: implement it
-	return nil
+	return b.svc.feed.SubscribeNewTxs(ch)
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {

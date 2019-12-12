@@ -8,7 +8,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/filters"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -31,11 +33,17 @@ const (
 )
 
 type ServiceFeed struct {
+	scope notify.SubscriptionScope
+	// custom
 	newEpoch        notify.Feed
 	newPack         notify.Feed
 	newEmittedEvent notify.Feed
 	newBlock        notify.Feed
-	scope           notify.SubscriptionScope
+	// ethereum compatible
+	newTxs     notify.Feed
+	newLogs    notify.Feed
+	delLogs    notify.Feed // will be never sent
+	chainEvent notify.Feed
 }
 
 func (f *ServiceFeed) SubscribeNewEpoch(ch chan<- idx.Epoch) notify.Subscription {
@@ -46,12 +54,28 @@ func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) notify.Subscription {
 	return f.scope.Track(f.newPack.Subscribe(ch))
 }
 
+func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) notify.Subscription {
+	return f.scope.Track(f.newEmittedEvent.Subscribe(ch))
+}
+
 func (f *ServiceFeed) SubscribeNewBlock(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
 	return f.scope.Track(f.newBlock.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) notify.Subscription {
-	return f.scope.Track(f.newEmittedEvent.Subscribe(ch))
+func (f *ServiceFeed) SubscribeNewTxs(ch chan<- core.NewTxsEvent) notify.Subscription {
+	return f.scope.Track(f.newTxs.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscription {
+	return f.scope.Track(f.newLogs.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeRemovedLogs(ch chan<- core.RemovedLogsEvent) notify.Subscription {
+	return f.scope.Track(f.delLogs.Subscribe(ch))
+}
+
+func (f *ServiceFeed) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
+	return f.scope.Track(f.chainEvent.Subscribe(ch))
 }
 
 // Service implements go-ethereum/node.Service interface.
@@ -183,12 +207,19 @@ func (s *Service) Protocols() []p2p.Protocol {
 func (s *Service) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.EthAPI)
 
-	apis = append(apis, rpc.API{
-		Namespace: "eth",
-		Version:   "1.0",
-		Service:   NewPublicEthereumAPI(s),
-		Public:    true,
-	})
+	apis = append(apis, []rpc.API{
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewPublicEthereumAPI(s),
+			Public:    true,
+		}, {
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   filters.NewPublicFilterAPI(s.EthAPI, false),
+			Public:    true,
+		},
+	}...)
 
 	return apis
 }
