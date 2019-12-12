@@ -34,6 +34,8 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -76,7 +78,26 @@ type Backend interface {
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
 	GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error)
 	GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error)
-	GetHeads(ctx context.Context, epoch int) (hash.Events, error)
+	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
+
+	// Lachesis DAG API
+	CurrentEpoch(ctx context.Context) idx.Epoch
+	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, idx.Epoch, error)
+
+	// Lachesis SFC API
+	GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetValidatingPower(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetStakerPoI(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error)
+	GetDelegatorClaimedRewards(ctx context.Context, addr common.Address) (*big.Int, error)
+	GetStakerClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetStakerDelegatorsClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetStaker(ctx context.Context, stakerID idx.StakerID) (*sfctype.SfcStaker, error)
+	GetStakerID(ctx context.Context, addr common.Address) (idx.StakerID, error)
+	GetStakers(ctx context.Context) ([]sfctype.SfcStakerAndID, error)
+	GetDelegatorsOf(ctx context.Context, stakerID idx.StakerID) ([]sfctype.SfcDelegatorAndAddr, error)
+	GetDelegator(ctx context.Context, addr common.Address) (*sfctype.SfcDelegator, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
@@ -120,6 +141,11 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Namespace: "personal",
 			Version:   "1.0",
 			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
+			Public:    false,
+		}, {
+			Namespace: "sfc",
+			Version:   "1.0",
+			Service:   NewPublicSfcAPI(apiBackend),
 			Public:    false,
 		},
 	}

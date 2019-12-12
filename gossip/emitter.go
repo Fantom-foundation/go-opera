@@ -334,7 +334,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == myStakerID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "StakerID", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -574,7 +574,7 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	em.Log.Info("New event emitted", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(e.ClaimedTime.Time()), "StakerID", e.Creator)
+	em.Log.Info("New event emitted", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(e.ClaimedTime.Time()))
 
 	// metrics
 	for _, t := range e.Transactions {

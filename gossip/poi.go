@@ -103,7 +103,7 @@ func (s *Service) updateStakersPOI(block *inter.Block, sealEpoch bool) {
 	prevBlockPoiPeriod := PoiPeriod(s.store.GetBlock(block.Index-1).Time, &s.config.Net.Economy)
 
 	if poiPeriod != prevBlockPoiPeriod {
-		for _, it := range s.store.GetSfcStakers() {
+		for _, it := range s.GetActiveSfcStakers() {
 			s.UpdateStakerPOI(it.StakerID, it.Staker.Address, prevBlockPoiPeriod)
 		}
 		// clear StakersDelegatorsGasUsed counters

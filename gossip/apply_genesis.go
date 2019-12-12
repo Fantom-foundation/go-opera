@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
@@ -35,18 +36,18 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 
 	block.Root = evmBlock.Root
 	s.SetBlock(block)
-	s.SetEpochStats(0, &EpochStats{
+	s.SetEpochStats(0, &sfctype.EpochStats{
 		Start:    net.Genesis.Time,
 		End:      net.Genesis.Time,
 		TotalFee: new(big.Int),
 	})
-	s.SetDirtyEpochStats(&EpochStats{
+	s.SetDirtyEpochStats(&sfctype.EpochStats{
 		Start:    net.Genesis.Time,
 		TotalFee: new(big.Int),
 	})
 
 	for stakerID, validator := range net.Genesis.Alloc.GValidators { // sort validators to get deterministic stakerIDs
-		staker := &SfcStaker{
+		staker := &sfctype.SfcStaker{
 			Address:      validator.Address,
 			CreatedEpoch: 0,
 			CreatedTime:  net.Genesis.Time,

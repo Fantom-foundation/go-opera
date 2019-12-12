@@ -1135,6 +1135,28 @@ func (s *PublicBlockChainAPI) rpcMarshalBlock(b *evmcore.EvmBlock, inclTx bool, 
 	return fields, err
 }
 
+// CurrentEpoch returns current epoch number.
+func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
+	return hexutil.Uint64(s.b.CurrentEpoch(ctx))
+}
+
+// GetEpochStats returns epoch statistics.
+func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (map[string]interface{}, error) {
+	stats, epoch, err := s.b.GetEpochStats(ctx, requestedEpoch)
+	if err != nil {
+		return nil, err
+	}
+	if stats == nil {
+		return nil, nil
+	}
+	return map[string]interface{}{
+		"epoch":    hexutil.Uint64(epoch),
+		"start":    hexutil.Uint64(stats.Start),
+		"end":      hexutil.Uint64(stats.End),
+		"totalFee": (*hexutil.Big)(stats.TotalFee),
+	}, nil
+}
+
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
@@ -1786,7 +1808,7 @@ func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventID st
 }
 
 // GetHeads returns IDs of all the epoch events with no descendants.
-func (api *PublicDebugAPI) GetHeads(ctx context.Context, epoch int) ([]hexutil.Bytes, error) {
+func (api *PublicDebugAPI) GetHeads(ctx context.Context, epoch rpc.BlockNumber) ([]hexutil.Bytes, error) {
 	res, err := api.b.GetHeads(ctx, epoch)
 
 	if err != nil {
