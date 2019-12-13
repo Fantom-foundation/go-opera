@@ -39,6 +39,11 @@ type (
 	GValidators map[idx.StakerID]GenesisValidator
 )
 
+var (
+	// EmptyValidators is empty validators group
+	EmptyValidators = NewBuilder().Build()
+)
+
 // NewBuilder creates new mutable ValidatorsBuilder
 func NewBuilder() ValidatorsBuilder {
 	return ValidatorsBuilder{}
