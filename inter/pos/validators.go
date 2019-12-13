@@ -39,7 +39,7 @@ type (
 	GValidators map[idx.StakerID]GenesisValidator
 )
 
-// NewBuilder creates new ValidatorsBuilder
+// NewBuilder creates new mutable ValidatorsBuilder
 func NewBuilder() ValidatorsBuilder {
 	return ValidatorsBuilder{}
 }
@@ -54,12 +54,12 @@ func (vv ValidatorsBuilder) Set(id idx.StakerID, stake Stake) {
 	}
 }
 
-// Build new Validators object
+// Build new read-only Validators object
 func (vv ValidatorsBuilder) Build() *Validators {
 	return NewValidators(vv)
 }
 
-// NewValidators returns new pointer of Validators object
+// NewValidators builds new read-only Validators object
 func NewValidators(values ValidatorsBuilder) *Validators {
 	valuesCopy := make(ValidatorsBuilder)
 	for id, s := range values {
@@ -73,12 +73,12 @@ func NewValidators(values ValidatorsBuilder) *Validators {
 	return vv
 }
 
-// Len return count of validators in Validators objects
+// Len returns count of validators in Validators objects
 func (vv *Validators) Len() int {
 	return len(vv.values)
 }
 
-// Iterate return slice of ids for get validators in loop
+// Iterate returns slice of ids for get validators in loop
 func (vv *Validators) Iterate() []idx.StakerID {
 	return vv.cache.ids
 }
@@ -101,21 +101,22 @@ func (vv *Validators) calcCaches() cache {
 	return cache
 }
 
-// Get return stake for validator address
+// Get returns stake for validator by ID
 func (vv *Validators) Get(id idx.StakerID) Stake {
 	return vv.values[id]
 }
 
+// GetIdx returns index (offset) of validator in the group
 func (vv *Validators) GetIdx(id idx.StakerID) idx.Validator {
 	return vv.cache.indexes[id]
 }
 
-// Get return stake for validator address
+// GetByIdx returns stake for validator by index
 func (vv *Validators) GetByIdx(i idx.Validator) Stake {
 	return vv.cache.stakes[i]
 }
 
-// Exists return boolean true if address exists in Validators object
+// Exists returns boolean true if address exists in Validators object
 func (vv *Validators) Exists(id idx.StakerID) bool {
 	_, ok := vv.values[id]
 	return ok
@@ -155,6 +156,7 @@ func (vv *Validators) Copy() *Validators {
 	return NewValidators(vv.values)
 }
 
+// Builder returns a mutable copy of content
 func (vv *Validators) Builder() ValidatorsBuilder {
 	return vv.Copy().values
 }
