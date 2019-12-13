@@ -34,7 +34,7 @@ func (s *Service) delAllStakerData(stakerID idx.StakerID) {
 	s.store.DelDirtyValidationScore(stakerID)
 	s.store.DelActiveOriginationScore(stakerID)
 	s.store.DelDirtyOriginationScore(stakerID)
-	s.store.DelWeightedDelegatorsGasUsed(stakerID)
+	s.store.DelWeightedDelegatorsFee(stakerID)
 	s.store.DelStakerPOI(stakerID)
 	s.store.DelStakerClaimedRewards(stakerID)
 	s.store.DelStakerDelegatorsClaimedRewards(stakerID)
@@ -57,13 +57,13 @@ func (s *Service) calcValidatingPowers(stakers []sfctype.SfcStakerAndID) []*big.
 
 	for _, it := range stakers {
 		stake := it.Staker.CalcTotalStake()
-		poi := new(big.Int).SetUint64(s.store.GetStakerPOI(it.StakerID))
+		poi := s.store.GetStakerPOI(it.StakerID)
 		if poi.Sign() == 0 {
 			poi = big.NewInt(1)
 		}
 		// score = OriginationScore + ValidationScore
-		score := new(big.Int).SetUint64(s.store.GetActiveOriginationScore(it.StakerID))
-		score.Add(score, new(big.Int).SetUint64(s.store.GetActiveValidationScore(it.StakerID)))
+		score := s.store.GetActiveOriginationScore(it.StakerID)
+		score.Add(score, s.store.GetActiveValidationScore(it.StakerID))
 		if score.Sign() == 0 {
 			score = big.NewInt(1)
 		}

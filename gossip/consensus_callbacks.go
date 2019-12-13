@@ -127,9 +127,9 @@ func (s *Service) applyNewState(
 	}
 
 	// Process PoI/score changes
-	s.updateOriginationScores(block, receipts, txPositions, sealEpoch)
-	s.updateValidationScores(block, sealEpoch)
-	s.updateUsersPOI(block, evmBlock, receipts, sealEpoch)
+	s.updateOriginationScores(block, evmBlock, receipts, txPositions, sealEpoch)
+	s.updateValidationScores(block, totalFee, sealEpoch)
+	s.updateUsersPOI(block, evmBlock, receipts, totalFee, sealEpoch)
 	s.updateStakersPOI(block, sealEpoch)
 
 	// Process SFC contract transactions

@@ -1,9 +1,12 @@
 package gossip
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
@@ -15,23 +18,25 @@ type BlocksMissed struct {
 }
 
 // updateOriginationScores calculates the origination scores
-func (s *Service) updateOriginationScores(block *inter.Block, receipts types.Receipts, txPositions map[common.Hash]TxPosition, sealEpoch bool) {
+func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.EvmBlock, receipts types.Receipts, txPositions map[common.Hash]TxPosition, sealEpoch bool) {
 	// Calc origination scores
-	for _, receipt := range receipts {
-		txEventPos := txPositions[receipt.TxHash]
+	for i, tx := range evmBlock.Transactions {
+		txEventPos := txPositions[receipts[i].TxHash]
 		// sanity check
 		if txEventPos.Block != block.Index {
-			s.Log.Crit("Incorrect tx block position", "tx", receipt.TxHash,
+			s.Log.Crit("Incorrect tx block position", "tx", receipts[i].TxHash,
 				"block", txEventPos.Block, "block_got", block.Index)
 		}
 
 		txEvent := s.store.GetEventHeader(txEventPos.Event.Epoch(), txEventPos.Event)
 		// sanity check
 		if txEvent.NoTransactions() {
-			s.Log.Crit("Incorrect tx event position", "tx", receipt.TxHash, "event", txEventPos.Event, "reason", "event has no transactions")
+			s.Log.Crit("Incorrect tx event position", "tx", receipts[i].TxHash, "event", txEventPos.Event, "reason", "event has no transactions")
 		}
 
-		s.store.AddDirtyOriginationScore(txEvent.Creator, receipt.GasUsed)
+		txFee := new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice())
+
+		s.store.AddDirtyOriginationScore(txEvent.Creator, txFee)
 	}
 
 	if sealEpoch {
@@ -45,8 +50,11 @@ func (s *Service) updateOriginationScores(block *inter.Block, receipts types.Rec
 }
 
 // updateValidationScores calculates the validation scores
-func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
+func (s *Service) updateValidationScores(block *inter.Block, totalFee *big.Int, sealEpoch bool) {
 	blockTimeDiff := block.Time - s.store.GetBlock(block.Index-1).Time
+
+	// Write block fee
+	s.store.SetBlockFee(block.Index, totalFee)
 
 	// Calc validation scores
 	for _, it := range s.GetActiveSfcStakers() {
@@ -65,10 +73,10 @@ func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
 		}
 
 		// Add score for previous blocks, but no more than FrameLatency prev blocks
-		s.store.AddDirtyValidationScore(it.StakerID, block.GasUsed)
-		for i := idx.Block(1); i <= missedNum; i++ {
-			usedGas := s.store.GetBlock(block.Index - idx.Block(i)).GasUsed
-			s.store.AddDirtyValidationScore(it.StakerID, usedGas)
+		s.store.AddDirtyValidationScore(it.StakerID, totalFee)
+		for i := idx.Block(1); i <= missedNum && i < block.Index; i++ {
+			fee := s.store.GetBlockFee(block.Index - i)
+			s.store.AddDirtyValidationScore(it.StakerID, fee)
 		}
 		s.store.ResetBlocksMissed(it.StakerID)
 	}

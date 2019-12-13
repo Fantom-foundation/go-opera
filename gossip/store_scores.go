@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"math/big"
+
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -11,6 +13,29 @@ const (
 	validationScoreCheckpointKey  = "current"
 	originationScoreCheckpointKey = "current"
 )
+
+func (s *Store) SetBlockFee(block idx.Block, fee *big.Int) {
+	err := s.table.BlockFee.Put(block.Bytes(), fee.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to set key-value", "err", err)
+	}
+}
+
+func (s *Store) GetBlockFee(block idx.Block) *big.Int {
+	feeBytes, err := s.table.BlockFee.Get(block.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to get key-value", "err", err)
+	}
+	fee := new(big.Int).SetBytes(feeBytes)
+	return fee
+}
+
+func (s *Store) DelBlockFee(block idx.Block, fee *big.Int) {
+	err := s.table.BlockFee.Delete(block.Bytes())
+	if err != nil {
+		s.Log.Crit("Failed to erase key-value", "err", err)
+	}
+}
 
 // IncBlocksMissed add count of missed blocks for validator
 func (s *Store) IncBlocksMissed(stakerID idx.StakerID, periodDiff inter.Timestamp) {
@@ -59,13 +84,13 @@ func (s *Store) GetBlocksMissed(stakerID idx.StakerID) BlocksMissed {
 }
 
 // GetActiveValidationScore return gas value for active validator score
-func (s *Store) GetActiveValidationScore(stakerID idx.StakerID) uint64 {
+func (s *Store) GetActiveValidationScore(stakerID idx.StakerID) *big.Int {
 	return s.getValidationScore(s.table.ActiveValidationScore, stakerID)
 }
 
 // AddDirtyValidationScore add gas value for active validation score
-func (s *Store) AddDirtyValidationScore(stakerID idx.StakerID, gas uint64) {
-	s.addValidationScore(s.table.DirtyValidationScore, stakerID, gas)
+func (s *Store) AddDirtyValidationScore(stakerID idx.StakerID, v *big.Int) {
+	s.addValidationScore(s.table.DirtyValidationScore, stakerID, v)
 }
 
 // DelActiveValidationScore deletes record about active validation score of a staker
@@ -85,31 +110,28 @@ func (s *Store) DelDirtyValidationScore(stakerID idx.StakerID) {
 }
 
 // GetDirtyValidationScore return gas value for active validator score
-func (s *Store) GetDirtyValidationScore(stakerID idx.StakerID) uint64 {
+func (s *Store) GetDirtyValidationScore(stakerID idx.StakerID) *big.Int {
 	return s.getValidationScore(s.table.DirtyValidationScore, stakerID)
 }
 
-func (s *Store) addValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID, val uint64) {
-	s.mutexes.IncMutex.Lock()
-	defer s.mutexes.IncMutex.Unlock()
-
+func (s *Store) addValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID, diff *big.Int) {
 	score := s.getValidationScore(t, stakerID)
-	score += val
-	err := t.Put(stakerID.Bytes(), bigendian.Int64ToBytes(score))
+	score.Add(score, diff)
+	err := t.Put(stakerID.Bytes(), score.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 }
 
-func (s *Store) getValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) uint64 {
+func (s *Store) getValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) *big.Int {
 	scoreBytes, err := t.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if scoreBytes == nil {
-		return 0
+		return big.NewInt(0)
 	}
-	return bigendian.BytesToInt64(scoreBytes)
+	return new(big.Int).SetBytes(scoreBytes)
 }
 
 // SetValidationScoreCheckpoint set validation score checkpoint time
@@ -180,13 +202,13 @@ func (s *Store) GetValidationScoreCheckpoint() inter.Timestamp {
 }
 
 // GetActiveOriginationScore return gas value for active validator score
-func (s *Store) GetActiveOriginationScore(stakerID idx.StakerID) uint64 {
+func (s *Store) GetActiveOriginationScore(stakerID idx.StakerID) *big.Int {
 	return s.getOriginationScore(s.table.ActiveOriginationScore, stakerID)
 }
 
 // AddDirtyOriginationScore add gas value for active validation score
-func (s *Store) AddDirtyOriginationScore(stakerID idx.StakerID, gas uint64) {
-	s.addOriginationScore(s.table.DirtyOriginationScore, stakerID, gas)
+func (s *Store) AddDirtyOriginationScore(stakerID idx.StakerID, v *big.Int) {
+	s.addOriginationScore(s.table.DirtyOriginationScore, stakerID, v)
 }
 
 // DelActiveOriginationScore deletes record about active origination score of a staker
@@ -206,31 +228,28 @@ func (s *Store) DelDirtyOriginationScore(stakerID idx.StakerID) {
 }
 
 // GetDirtyOriginationScore return gas value for active validator score
-func (s *Store) GetDirtyOriginationScore(stakerID idx.StakerID) uint64 {
+func (s *Store) GetDirtyOriginationScore(stakerID idx.StakerID) *big.Int {
 	return s.getOriginationScore(s.table.DirtyOriginationScore, stakerID)
 }
 
-func (s *Store) addOriginationScore(t kvdb.KeyValueStore, stakerID idx.StakerID, val uint64) {
-	s.mutexes.IncMutex.Lock()
-	defer s.mutexes.IncMutex.Unlock()
-
+func (s *Store) addOriginationScore(t kvdb.KeyValueStore, stakerID idx.StakerID, diff *big.Int) {
 	score := s.getOriginationScore(t, stakerID)
-	score += val
-	err := t.Put(stakerID.Bytes(), bigendian.Int64ToBytes(score))
+	score.Add(score, diff)
+	err := t.Put(stakerID.Bytes(), score.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 }
 
-func (s *Store) getOriginationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) uint64 {
+func (s *Store) getOriginationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) *big.Int {
 	scoreBytes, err := t.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if scoreBytes == nil {
-		return 0
+		return big.NewInt(0)
 	}
-	return bigendian.BytesToInt64(scoreBytes)
+	return new(big.Int).SetBytes(scoreBytes)
 }
 
 // SetOriginationScoreCheckpoint set origination score checkpoint time

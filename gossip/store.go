@@ -46,6 +46,7 @@ type Store struct {
 		BlockParticipation         kvdb.KeyValueStore `table:"m"`
 		ValidationScoreCheckpoint  kvdb.KeyValueStore `table:"c"`
 		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"C"`
+		BlockFee                   kvdb.KeyValueStore `table:"f"`
 
 		// API-only tables
 		BlockHashes                kvdb.KeyValueStore `table:"h"`
@@ -56,12 +57,12 @@ type Store struct {
 		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
 
 		// PoI tables
-		StakerPOIScore          kvdb.KeyValueStore `table:"s"`
-		AddressPOIScore         kvdb.KeyValueStore `table:"a"`
-		AddressGasUsed          kvdb.KeyValueStore `table:"g"`
-		StakerDelegatorsGasUsed kvdb.KeyValueStore `table:"d"`
-		AddressLastTxTime       kvdb.KeyValueStore `table:"X"`
-		TotalPOIGasUsed         kvdb.KeyValueStore `table:"U"`
+		StakerPOIScore      kvdb.KeyValueStore `table:"s"`
+		AddressPOIScore     kvdb.KeyValueStore `table:"a"`
+		AddressFee          kvdb.KeyValueStore `table:"g"`
+		StakerDelegatorsFee kvdb.KeyValueStore `table:"d"`
+		AddressLastTxTime   kvdb.KeyValueStore `table:"X"`
+		TotalPoiFee         kvdb.KeyValueStore `table:"U"`
 
 		// SFC-related tables
 		Validators kvdb.KeyValueStore `table:"1"`

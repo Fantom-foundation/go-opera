@@ -1,8 +1,6 @@
 package gossip
 
 import (
-	"bytes"
-
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -14,11 +12,9 @@ func (s *Store) DelLastHeader(epoch idx.Epoch, creator idx.StakerID) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
 
-	key := bytes.NewBuffer(nil)
-	key.Write(epoch.Bytes())
-	key.Write(creator.Bytes())
+	key := append(epoch.Bytes(), creator.Bytes()...)
 
-	err := s.table.LastEpochHeaders.Delete(key.Bytes())
+	err := s.table.LastEpochHeaders.Delete(key)
 	if err != nil {
 		s.Log.Crit("Failed to erase LastHeader", "err", err)
 	}
@@ -38,20 +34,9 @@ func (s *Store) DelLastHeaders(epoch idx.Epoch) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
 
-	keys := make([][]byte, 0, 500) // don't write during iteration
-
 	it := s.table.LastEpochHeaders.NewIteratorWithPrefix(epoch.Bytes())
 	defer it.Release()
-	for it.Next() {
-		keys = append(keys, it.Key())
-	}
-
-	for _, key := range keys {
-		err := s.table.LastEpochHeaders.Delete(key)
-		if err != nil {
-			s.Log.Crit("Failed to erase LastHeader", "err", err)
-		}
-	}
+	s.dropTable(it, s.table.LastEpochHeaders)
 
 	// Add to cache.
 	if s.cache.LastEpochHeaders != nil {
@@ -64,11 +49,9 @@ func (s *Store) AddLastHeader(epoch idx.Epoch, header *inter.EventHeaderData) {
 	s.mutexes.LastEpochHeaders.Lock() // need mutex because of complex mutable cache
 	defer s.mutexes.LastEpochHeaders.Unlock()
 
-	key := bytes.NewBuffer(nil)
-	key.Write(epoch.Bytes())
-	key.Write(header.Creator.Bytes())
+	key := append(epoch.Bytes(), header.Creator.Bytes()...)
 
-	s.set(s.table.LastEpochHeaders, key.Bytes(), header)
+	s.set(s.table.LastEpochHeaders, key, header)
 
 	// Add to cache.
 	if s.cache.LastEpochHeaders != nil {

@@ -425,7 +425,7 @@ func (b *EthAPIBackend) GetValidationScore(ctx context.Context, stakerID idx.Sta
 	if !b.svc.store.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return new(big.Int).SetUint64(b.svc.store.GetActiveValidationScore(stakerID)), nil
+	return b.svc.store.GetActiveValidationScore(stakerID), nil
 }
 
 // GetOriginationScore returns staker's OriginationScore.
@@ -433,7 +433,7 @@ func (b *EthAPIBackend) GetOriginationScore(ctx context.Context, stakerID idx.St
 	if !b.svc.store.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return new(big.Int).SetUint64(b.svc.store.GetActiveOriginationScore(stakerID)), nil
+	return b.svc.store.GetActiveOriginationScore(stakerID), nil
 }
 
 // GetStakerPoI returns staker's PoI.
@@ -441,7 +441,7 @@ func (b *EthAPIBackend) GetStakerPoI(ctx context.Context, stakerID idx.StakerID)
 	if !b.svc.store.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return new(big.Int).SetUint64(b.svc.store.GetStakerPOI(stakerID)), nil
+	return b.svc.store.GetStakerPOI(stakerID), nil
 }
 
 // GetValidatingPower returns staker's ValidatingPower.
