@@ -18,9 +18,9 @@ do
     --with-registry-auth \
     --detach=false \
    ${REGISTRY_HOST}/tx-storm:${TAG} \
-    --num=$PART/$N --rate=100 \
+    --num=$PART/$N --rate=10 \
     --accs-start=${TEST_ACCS_START} --accs-count=${TEST_ACCS_COUNT} \
-    --verbosity 5 --metrics \
+    --verbosity 3 --metrics \
     http://node$i:${RPCP} 
 
 done
