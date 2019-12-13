@@ -50,9 +50,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 	// track events with no descendants, i.e. heads
 	for _, parent := range e.Parents {
-		if s.store.IsHead(e.Epoch, parent) {
-			s.store.DelHead(e.Epoch, parent)
-		}
+		s.store.DelHead(e.Epoch, parent)
 	}
 	s.store.AddHead(e.Epoch, e.Hash())
 
