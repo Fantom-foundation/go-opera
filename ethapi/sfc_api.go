@@ -171,6 +171,7 @@ func (s *PublicSfcAPI) addDelegatorMetricFields(ctx context.Context, res map[str
 }
 
 // GetStaker returns SFC staker's info
+// Verbosity. Number. If >= 1, then include base field. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetStaker(ctx context.Context, stakerID hexutil.Uint, verbosity hexutil.Uint64) (map[string]interface{}, error) {
 	staker, err := s.b.GetStaker(ctx, idx.StakerID(stakerID))
 	if err != nil {
@@ -191,6 +192,7 @@ func (s *PublicSfcAPI) GetStaker(ctx context.Context, stakerID hexutil.Uint, ver
 }
 
 // GetStakerByAddress returns SFC staker's info by address
+// Verbosity. Number. If 0, then include only stakerID. If >= 1, then include base field. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetStakerByAddress(ctx context.Context, address common.Address, verbosity hexutil.Uint64) (map[string]interface{}, error) {
 	stakerID, err := s.b.GetStakerID(ctx, address)
 	if err != nil {
@@ -209,6 +211,7 @@ func (s *PublicSfcAPI) GetStakerByAddress(ctx context.Context, address common.Ad
 }
 
 // GetStakers returns SFC stakers info
+// Verbosity. Number. If 0, then include only stakerIDs. If >= 1, then include base field. If >= 2, then include metrics (including downtime if validator).
 func (s *PublicSfcAPI) GetStakers(ctx context.Context, verbosity hexutil.Uint64) ([]interface{}, error) {
 	stakers, err := s.b.GetStakers(ctx)
 	if err != nil {
@@ -253,6 +256,7 @@ func RPCMarshalDelegator(it sfctype.SfcDelegatorAndAddr) map[string]interface{} 
 }
 
 // GetDelegatorsOf returns SFC delegators who delegated to a staker
+// Verbosity. Number. If 0, then include only addresses. If >= 1, then include base fields. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetDelegatorsOf(ctx context.Context, stakerID hexutil.Uint64, verbosity hexutil.Uint64) ([]interface{}, error) {
 	delegators, err := s.b.GetDelegatorsOf(ctx, idx.StakerID(stakerID))
 	if err != nil {
@@ -284,6 +288,7 @@ func (s *PublicSfcAPI) GetDelegatorsOf(ctx context.Context, stakerID hexutil.Uin
 }
 
 // GetDelegator returns SFC delegator info
+// Verbosity. Number. If >= 1, then include base fields. If >= 2, then include metrics.
 func (s *PublicSfcAPI) GetDelegator(ctx context.Context, addr common.Address, verbosity hexutil.Uint64) (map[string]interface{}, error) {
 	delegator, err := s.b.GetDelegator(ctx, addr)
 	if err != nil {
