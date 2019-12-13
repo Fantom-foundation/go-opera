@@ -1141,6 +1141,7 @@ func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 }
 
 // GetEpochStats returns epoch statistics.
+// * When epoch is -1 the heads for latest epoch are returned.
 func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (map[string]interface{}, error) {
 	stats, epoch, err := s.b.GetEpochStats(ctx, requestedEpoch)
 	if err != nil {
@@ -1808,6 +1809,7 @@ func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventID st
 }
 
 // GetHeads returns IDs of all the epoch events with no descendants.
+// * When epoch is -1 the heads for latest epoch are returned.
 func (api *PublicDebugAPI) GetHeads(ctx context.Context, epoch rpc.BlockNumber) ([]hexutil.Bytes, error) {
 	res, err := api.b.GetHeads(ctx, epoch)
 

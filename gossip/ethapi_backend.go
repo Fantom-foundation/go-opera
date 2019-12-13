@@ -174,6 +174,7 @@ func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID strin
 }
 
 // GetHeads returns IDs of all the epoch events with no descendants.
+// * When epoch is -1 the heads for latest epoch are returned.
 func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
 	current := b.svc.engine.GetEpoch()
 
@@ -392,6 +393,7 @@ func (b *EthAPIBackend) CurrentEpoch(ctx context.Context) idx.Epoch {
 }
 
 // GetEpochStats returns epoch statistics.
+// * When epoch is -1 the heads for latest epoch are returned.
 func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, idx.Epoch, error) {
 	var epoch idx.Epoch
 	if requestedEpoch == rpc.PendingBlockNumber {
