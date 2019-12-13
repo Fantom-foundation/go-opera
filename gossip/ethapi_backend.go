@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	errors2 "github.com/pkg/errors"
@@ -269,7 +270,9 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		// NOTE: only sent txs tracing, see TxPool.addTxs() for all
 		tracing.StartTx(signedTx.Hash(), "EthAPIBackend.SendTx()")
 		// TODO: txLatency cleaning, possible memory leak
-		txLatency.Start(signedTx.Hash())
+		if metrics.Enabled {
+			txLatency.Start(signedTx.Hash())
+		}
 	}
 	return err
 }

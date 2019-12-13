@@ -297,7 +297,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	for _, tx := range evmBlock.Transactions {
 		tracing.FinishTx(tx.Hash(), "Service.onNewBlock()")
 		if latency, err := txLatency.Finish(tx.Hash()); err == nil {
-			confirmTxLatencyMeter.Update(latency.Milliseconds())
+			txTtfMeter.Update(latency.Milliseconds())
 		}
 	}
 
