@@ -75,7 +75,7 @@ func (s *StakeCounter) CountByIdx(stakerIdx idx.Validator) bool {
 	}
 	s.already[stakerIdx] = true
 
-	s.sum += s.validators.GetByIdx(stakerIdx)
+	s.sum += s.validators.GetStakeByIdx(stakerIdx)
 	return true
 }
 

@@ -116,8 +116,8 @@ func (vv *Validators) GetIdx(id idx.StakerID) idx.Validator {
 	return vv.cache.indexes[id]
 }
 
-// GetByIdx returns stake for validator by index
-func (vv *Validators) GetByIdx(i idx.Validator) Stake {
+// GetStakeByIdx returns stake for validator by index
+func (vv *Validators) GetStakeByIdx(i idx.Validator) Stake {
 	return vv.cache.stakes[i]
 }
 
