@@ -78,8 +78,8 @@ func DefaultIndexConfig() IndexConfig {
 // NewIndex creates Index instance.
 func NewIndex(config IndexConfig, validators *pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
 	vi := &Index{
-		Instance:           logger.MakeInstance(),
-		cfg:                config,
+		Instance: logger.MakeInstance(),
+		cfg:      config,
 	}
 	vi.cache.ForklessCause, _ = lru.New(vi.cfg.Caches.ForklessCause)
 	vi.cache.HighestBeforeSeq, _ = lru.New(vi.cfg.Caches.HighestBeforeSeq)

@@ -29,7 +29,7 @@ func (vi *Index) MedianTime(id hash.Event, genesisTime inter.Timestamp) inter.Ti
 	honestTotalStake := pos.Stake(0) // isn't equal to validators.TotalStake(), because doesn't count cheaters
 	highests := make([]medianTimeIndex, 0, len(vi.validatorIdxs))
 	// convert []HighestBefore -> []medianTimeIndex
-	for creatorIdxI, _ := range vi.validators.IDs() {
+	for creatorIdxI := range vi.validators.IDs() {
 		creatorIdx := idx.Validator(creatorIdxI)
 		highest := medianTimeIndex{}
 		highest.stake = vi.validators.GetByIdx(creatorIdx)

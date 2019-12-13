@@ -227,14 +227,17 @@ func (hh *Events) Add(hash ...Event) {
  * EventsStack methods:
  */
 
+// Push event ID on top
 func (s *EventsStack) Push(v Event) {
 	*s = append(*s, v)
 }
 
+// PushAll event IDs on top
 func (s *EventsStack) PushAll(vv Events) {
 	*s = append(*s, vv...)
 }
 
+// Pop event ID from top. Erases element.
 func (s *EventsStack) Pop() *Event {
 	l := len(*s)
 	if l == 0 {
@@ -251,6 +254,7 @@ func (s *EventsStack) Pop() *Event {
  * OrderedEvents methods:
  */
 
+// String returns string representation.
 func (hh OrderedEvents) String() string {
 	buf := &strings.Builder{}
 
@@ -293,12 +297,14 @@ func WireToOrderedEvents(buf [][]byte) OrderedEvents {
 	return hh
 }
 
+
 func (hh OrderedEvents) Len() int      { return len(hh) }
 func (hh OrderedEvents) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
 func (hh OrderedEvents) Less(i, j int) bool {
 	return bytes.Compare(hh[i].Bytes(), hh[j].Bytes()) < 0
 }
 
+// Of returns hash of data
 func Of(data ...[]byte) (hash common.Hash) {
 	d := sha3.NewLegacyKeccak256()
 	for _, b := range data {

@@ -17,12 +17,15 @@ type (
 		ids        []idx.StakerID
 		totalStake Stake
 	}
-	// Validators of epoch with stake.
+	// Validators group of an epoch with stakes.
+	// Optimized for BFT algorithm calculations.
+	// Read-only.
 	Validators struct {
 		values map[idx.StakerID]Stake
 		cache  cache
 	}
 
+	// ValidatorsBuilder is a helper to create Validators object
 	ValidatorsBuilder map[idx.StakerID]Stake
 
 	// GenesisValidator is helper structure to define genesis validators
@@ -36,11 +39,12 @@ type (
 	GValidators map[idx.StakerID]GenesisValidator
 )
 
+// NewBuilder creates new ValidatorsBuilder
 func NewBuilder() ValidatorsBuilder {
 	return ValidatorsBuilder{}
 }
 
-// Set appends item to Validator object
+// Set appends item to ValidatorsBuilder object
 func (vv ValidatorsBuilder) Set(id idx.StakerID, stake Stake) {
 	// add
 	if stake == 0 {
@@ -50,11 +54,12 @@ func (vv ValidatorsBuilder) Set(id idx.StakerID, stake Stake) {
 	}
 }
 
+// Build new Validators object
 func (vv ValidatorsBuilder) Build() *Validators {
 	return NewValidators(vv)
 }
 
-// NewValidators return new pointer of Validators object
+// NewValidators returns new pointer of Validators object
 func NewValidators(values ValidatorsBuilder) *Validators {
 	valuesCopy := make(ValidatorsBuilder)
 	for id, s := range values {
@@ -78,6 +83,7 @@ func (vv *Validators) Iterate() []idx.StakerID {
 	return vv.cache.ids
 }
 
+// calcCaches calculates internal caches for validators
 func (vv *Validators) calcCaches() cache {
 	cache := cache{
 		indexes: make(map[idx.StakerID]idx.Validator),
@@ -131,6 +137,7 @@ func (vv *Validators) Idxs() map[idx.StakerID]idx.Validator {
 	return vv.cache.indexes
 }
 
+// sortedArray is sorted by stake and ID
 func (vv *Validators) sortedArray() validators {
 	array := make(validators, 0, len(vv.values))
 	for id, s := range vv.values {
