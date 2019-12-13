@@ -183,11 +183,11 @@ func (s *PublicSfcAPI) GetStaker(ctx context.Context, stakerID hexutil.Uint, ver
 		StakerID: idx.StakerID(stakerID),
 		Staker:   staker,
 	}
-	stakerRpc := RPCMarshalStaker(it)
+	stakerRPC := RPCMarshalStaker(it)
 	if verbosity <= 1 {
-		return stakerRpc, nil
+		return stakerRPC, nil
 	}
-	return s.addStakerMetricFields(ctx, stakerRpc, idx.StakerID(stakerID))
+	return s.addStakerMetricFields(ctx, stakerRPC, idx.StakerID(stakerID))
 }
 
 // GetStakerByAddress returns SFC staker's info by address
@@ -224,22 +224,22 @@ func (s *PublicSfcAPI) GetStakers(ctx context.Context, verbosity hexutil.Uint64)
 		return ids, nil
 	}
 
-	stakersRpc := make([]interface{}, len(stakers))
+	stakersRPC := make([]interface{}, len(stakers))
 	for i, it := range stakers {
-		stakerRpc := RPCMarshalStaker(it)
+		stakerRPC := RPCMarshalStaker(it)
 		if verbosity >= 2 {
-			stakerRpc, err = s.addStakerMetricFields(ctx, stakerRpc, it.StakerID)
+			stakerRPC, err = s.addStakerMetricFields(ctx, stakerRPC, it.StakerID)
 			if err != nil {
 				return nil, err
 			}
 		}
-		stakersRpc[i] = stakerRpc
+		stakersRPC[i] = stakerRPC
 	}
 
-	return stakersRpc, err
+	return stakersRPC, err
 }
 
-// RPCMarshalStaker converts the given staker to the RPC output .
+// RPCMarshalDelegator converts the given delegator to the RPC output .
 func RPCMarshalDelegator(it sfctype.SfcDelegatorAndAddr) map[string]interface{} {
 	return map[string]interface{}{
 		"address":          it.Addr,
@@ -268,19 +268,19 @@ func (s *PublicSfcAPI) GetDelegatorsOf(ctx context.Context, stakerID hexutil.Uin
 		return addresses, nil
 	}
 
-	delegatorsRpc := make([]interface{}, len(delegators))
+	delegatorsRPC := make([]interface{}, len(delegators))
 	for i, it := range delegators {
-		delegatorRpc := RPCMarshalDelegator(it)
+		delegatorRPC := RPCMarshalDelegator(it)
 		if verbosity >= 2 {
-			delegatorRpc, err = s.addDelegatorMetricFields(ctx, delegatorRpc, it.Addr)
+			delegatorRPC, err = s.addDelegatorMetricFields(ctx, delegatorRPC, it.Addr)
 			if err != nil {
 				return nil, err
 			}
 		}
-		delegatorsRpc[i] = delegatorRpc
+		delegatorsRPC[i] = delegatorRPC
 	}
 
-	return delegatorsRpc, err
+	return delegatorsRPC, err
 }
 
 // GetDelegator returns SFC delegator info
@@ -296,9 +296,9 @@ func (s *PublicSfcAPI) GetDelegator(ctx context.Context, addr common.Address, ve
 		Addr:      addr,
 		Delegator: delegator,
 	}
-	delegatorRpc := RPCMarshalDelegator(it)
+	delegatorRPC := RPCMarshalDelegator(it)
 	if verbosity <= 1 {
-		return delegatorRpc, nil
+		return delegatorRPC, nil
 	}
-	return s.addDelegatorMetricFields(ctx, delegatorRpc, addr)
+	return s.addDelegatorMetricFields(ctx, delegatorRPC, addr)
 }

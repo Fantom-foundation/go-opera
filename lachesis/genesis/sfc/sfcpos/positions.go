@@ -14,6 +14,7 @@ import (
 // Events
 
 var (
+	// Topics of SFC contract logs
 	Topics = struct {
 		CreateStake                  common.Hash
 		IncreasedStake               common.Hash

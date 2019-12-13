@@ -20,7 +20,7 @@ import (
 func (s *Service) GetActiveSfcStakers() []sfctype.SfcStakerAndID {
 	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
 	s.store.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
-		if it.Staker.DeactivatedEpoch == 0 && it.Staker.IsCheater == false {
+		if it.Staker.DeactivatedEpoch == 0 && !it.Staker.IsCheater {
 			stakers = append(stakers, it)
 		}
 	})

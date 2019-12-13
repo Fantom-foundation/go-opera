@@ -45,7 +45,7 @@ func (s *Store) DelSfcStaker(stakerID idx.StakerID) {
 	}
 }
 
-// GetSfcStakers iterates all stored SfcStakers
+// ForEachSfcStaker iterates all stored SfcStakers
 func (s *Store) ForEachSfcStaker(do func(sfctype.SfcStakerAndID)) {
 	it := s.table.Stakers.NewIterator()
 	defer it.Release()
@@ -100,6 +100,7 @@ func (s *Store) GetSfcStaker(stakerID idx.StakerID) *sfctype.SfcStaker {
 	return w
 }
 
+// HasSfcStaker returns true if staker exists
 func (s *Store) HasSfcStaker(stakerID idx.StakerID) bool {
 	ok, err := s.table.Stakers.Has(stakerID.Bytes())
 	if err != nil {
@@ -108,6 +109,7 @@ func (s *Store) HasSfcStaker(stakerID idx.StakerID) bool {
 	return ok
 }
 
+// HasEpochValidator returns true if validator exists
 func (s *Store) HasEpochValidator(epoch idx.Epoch, stakerID idx.StakerID) bool {
 	key := append(epoch.Bytes(), stakerID.Bytes()...)
 
