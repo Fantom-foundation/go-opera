@@ -43,18 +43,6 @@ func (vv Validators) Len() int {
 	return len(vv.list)
 }
 
-// Iterate return chanel of ids for get validators in loop
-func (vv Validators) Iterate() <-chan idx.StakerID {
-	c := make(chan idx.StakerID)
-	go func() {
-		for _, a := range vv.ids {
-			c <- a
-		}
-		close(c)
-	}()
-	return c
-}
-
 // Set appends item to Validator object
 func (vv *Validators) Set(id idx.StakerID, stake Stake) {
 	if stake != 0 {

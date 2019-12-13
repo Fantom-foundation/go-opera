@@ -44,7 +44,7 @@ func (el *Election) String(voters []hash.Event) string {
 	info := "Every line contains votes from a root, for each subject. y is yes, n is no. Upper case means 'decided'. '-' means that subject was already decided when root was processed.\n"
 	for _, root := range voters { // voter
 		info += root.String() + ": "
-		for forV := range el.validators.Iterate() { // subject
+		for _, forV := range el.validators.IDs() { // subject
 			vid := voteID{
 				fromRoot:     root,
 				forValidator: forV,
