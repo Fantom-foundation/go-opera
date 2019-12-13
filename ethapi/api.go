@@ -1141,7 +1141,7 @@ func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 }
 
 // GetEpochStats returns epoch statistics.
-// * When epoch is -1 the heads for latest epoch are returned.
+// * When epoch is -1 the statistics for latest epoch is returned.
 func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (map[string]interface{}, error) {
 	stats, epoch, err := s.b.GetEpochStats(ctx, requestedEpoch)
 	if err != nil {

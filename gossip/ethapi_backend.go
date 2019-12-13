@@ -393,7 +393,7 @@ func (b *EthAPIBackend) CurrentEpoch(ctx context.Context) idx.Epoch {
 }
 
 // GetEpochStats returns epoch statistics.
-// * When epoch is -1 the heads for latest epoch are returned.
+// * When epoch is -1 the statistics for latest epoch is returned.
 func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, idx.Epoch, error) {
 	var epoch idx.Epoch
 	if requestedEpoch == rpc.PendingBlockNumber {
