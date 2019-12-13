@@ -16,7 +16,7 @@ import (
 var (
 	// Topics of SFC contract logs
 	Topics = struct {
-		CreateStake                  common.Hash
+		CreatedStake                 common.Hash
 		IncreasedStake               common.Hash
 		CreatedDelegation            common.Hash
 		PreparedToWithdrawStake      common.Hash
@@ -26,7 +26,7 @@ var (
 		ClaimedDelegationReward      common.Hash
 		ClaimedValidatorReward       common.Hash
 	}{
-		CreateStake:                  hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
+		CreatedStake:                 hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
 		IncreasedStake:               hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)")),
 		CreatedDelegation:            hash.Of([]byte("CreatedDelegation(address,uint256,uint256)")),
 		PreparedToWithdrawStake:      hash.Of([]byte("PreparedToWithdrawStake(uint256)")),

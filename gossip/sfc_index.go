@@ -115,7 +115,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				continue
 			}
 			// Add new stakers
-			if l.Topics[0] == sfcpos.Topics.CreateStake && len(l.Topics) > 2 && len(l.Data) >= 32 {
+			if l.Topics[0] == sfcpos.Topics.CreatedStake && len(l.Topics) > 2 && len(l.Data) >= 32 {
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 				address := common.BytesToAddress(l.Topics[2][12:])
 				amount := new(big.Int).SetBytes(l.Data[0:32])
