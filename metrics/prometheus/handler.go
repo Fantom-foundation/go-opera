@@ -11,6 +11,7 @@ import (
 
 var logger = log.New("module", "prometheus")
 
+// ListenTo serves prometheus connections.
 func ListenTo(endpoint string, reg metrics.Registry) {
 	if reg == nil {
 		reg = metrics.DefaultRegistry
