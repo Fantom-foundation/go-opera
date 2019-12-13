@@ -222,7 +222,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		scheme rows
 
 		processed = make(map[hash.Event]*Event)
-		peerCols  = make(map[idx.StakerID]int)
+		nodeCols  = make(map[idx.StakerID]int)
 		ok        bool
 
 		eventIndex       = make(map[idx.StakerID]map[hash.Event]int)
@@ -251,9 +251,9 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 		ehash := e.Hash()
 		r := &row{}
 		// creator
-		if r.Self, ok = peerCols[e.Creator]; !ok {
-			r.Self = len(peerCols)
-			peerCols[e.Creator] = r.Self
+		if r.Self, ok = nodeCols[e.Creator]; !ok {
+			r.Self = len(nodeCols)
+			nodeCols[e.Creator] = r.Self
 		}
 		// name
 		r.Name = hash.GetEventName(ehash)
@@ -268,7 +268,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 			scheme.ColWidth = w
 		}
 		// parents
-		r.Refs = make([]int, len(peerCols))
+		r.Refs = make([]int, len(nodeCols))
 		selfRefs := 0
 		for _, p := range e.Parents {
 			parent := processed[p]
@@ -284,7 +284,7 @@ func DAGtoASCIIscheme(events Events) (string, error) {
 				}
 			}
 
-			refCol := peerCols[parent.Creator]
+			refCol := nodeCols[parent.Creator]
 
 			var shift int
 			if parent.Creator != e.Creator {

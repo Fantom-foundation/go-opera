@@ -1,6 +1,7 @@
 package election
 
 import (
+	"github.com/Fantom-foundation/go-lachesis/utils"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 type fakeEdge struct {
@@ -199,7 +199,7 @@ func testProcessRoot(
 	vertices := make(map[hash.Event]Slot)
 	edges := make(map[fakeEdge]bool)
 
-	peers, _, _ := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+	nodes, _, _ := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(root *inter.Event, name string) {
 			// store all the events
 			ordered = append(ordered, root)
@@ -237,10 +237,11 @@ func testProcessRoot(
 		},
 	})
 
-	builder := pos.NewBuilder()
-	for _, peer := range peers {
-		builder.Set(peer, stakes[utils.NameOf(peer)])
+	validatorsBuilder := pos.NewBuilder()
+	for _, node := range nodes {
+		validatorsBuilder.Set(node, stakes[utils.NameOf(node)])
 	}
+	validators := validatorsBuilder.Build()
 
 	forklessCauseFn := func(a hash.Event, b hash.Event) bool {
 		edge := fakeEdge{
@@ -260,7 +261,7 @@ func testProcessRoot(
 	}
 	ordered = unordered.ByParents()
 
-	election := New(builder.Build(), 0, forklessCauseFn, getFrameRootsFn)
+	election := New(validators, 0, forklessCauseFn, getFrameRootsFn)
 
 	// processing:
 	var alreadyDecided bool

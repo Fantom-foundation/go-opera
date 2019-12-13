@@ -51,7 +51,6 @@ func NewBuilder() ValidatorsBuilder {
 
 // Set appends item to ValidatorsBuilder object
 func (vv ValidatorsBuilder) Set(id idx.StakerID, stake Stake) {
-	// add
 	if stake == 0 {
 		delete(vv, id)
 	} else {
@@ -61,11 +60,29 @@ func (vv ValidatorsBuilder) Set(id idx.StakerID, stake Stake) {
 
 // Build new read-only Validators object
 func (vv ValidatorsBuilder) Build() *Validators {
-	return NewValidators(vv)
+	return newValidators(vv)
 }
 
-// NewValidators builds new read-only Validators object
-func NewValidators(values ValidatorsBuilder) *Validators {
+// EqualStakeValidators builds new read-only Validators object with equal stakes (for tests)
+func EqualStakeValidators(ids []idx.StakerID, stake Stake) *Validators {
+	builder := NewBuilder()
+	for _, id := range ids {
+		builder.Set(id, stake)
+	}
+	return builder.Build()
+}
+
+// ArrayToValidators builds new read-only Validators object from array
+func ArrayToValidators(ids []idx.StakerID, stakes []Stake) *Validators {
+	builder := NewBuilder()
+	for i, id := range ids {
+		builder.Set(id, stakes[i])
+	}
+	return builder.Build()
+}
+
+// newValidators builds new read-only Validators object
+func newValidators(values ValidatorsBuilder) *Validators {
 	valuesCopy := make(ValidatorsBuilder)
 	for id, s := range values {
 		valuesCopy.Set(id, s)
@@ -158,7 +175,7 @@ func (vv *Validators) sortedArray() validators {
 
 // Copy constructs a copy.
 func (vv *Validators) Copy() *Validators {
-	return NewValidators(vv.values)
+	return newValidators(vv.values)
 }
 
 // Builder returns a mutable copy of content

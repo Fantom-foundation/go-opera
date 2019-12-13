@@ -40,18 +40,15 @@ a0_1(3)  b0_1     c0_1     d0_1     e0_1     f0_1     g0_1     h0_1     i0_1    
 func benchForklessCauseProcess(b *testing.B, dag string, idx *int) {
 	logger.SetTestMode(b)
 
-	peers, _, _ := inter.ASCIIschemeToDAG(dag)
-	validatorsBuilder := pos.NewBuilder()
-	for _, peer := range peers {
-		validatorsBuilder.Set(peer, pos.Stake(1))
-	}
+	nodes, _, _ := inter.ASCIIschemeToDAG(dag)
+	validators := pos.EqualStakeValidators(nodes, 1)
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
 		return events[id]
 	}
 
-	vi := NewIndex(DefaultIndexConfig(), validatorsBuilder.Build(), memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), validators, memorydb.New(), getEvent)
 
 	_, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
@@ -128,18 +125,15 @@ func testForklessCaused(t *testing.T, dag string) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	peers, _, _ := inter.ASCIIschemeToDAG(dag)
-	validatorsBuilder := pos.NewBuilder()
-	for _, peer := range peers {
-		validatorsBuilder.Set(peer, pos.Stake(1))
-	}
+	nodes, _, _ := inter.ASCIIschemeToDAG(dag)
+	validators := pos.EqualStakeValidators(nodes, 1)
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
 		return events[id]
 	}
 
-	vi := NewIndex(DefaultIndexConfig(), validatorsBuilder.Build(), memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), validators, memorydb.New(), getEvent)
 
 	_, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
@@ -440,23 +434,20 @@ func TestForklessCausedRandom(t *testing.T) {
 	}
 
 	ordered := make([]*inter.Event, 0)
-	peers, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+	nodes, _, named := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 		},
 	})
 
-	validatorsBuilder := pos.NewBuilder()
-	for _, peer := range peers {
-		validatorsBuilder.Set(peer, pos.Stake(1))
-	}
+	validators := pos.EqualStakeValidators(nodes, 1)
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
 		return events[id]
 	}
 
-	vi := NewIndex(DefaultIndexConfig(), validatorsBuilder.Build(), memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), validators, memorydb.New(), getEvent)
 
 	// push
 	for _, e := range ordered {
@@ -527,13 +518,14 @@ func TestRandomForksSanity(t *testing.T) {
 	validatorsBuilder.Set(cheaters[0], pos.Stake(2))
 	validatorsBuilder.Set(nodes[3], pos.Stake(2))
 	validatorsBuilder.Set(nodes[4], pos.Stake(3))
+	validators := validatorsBuilder.Build()
 
 	processed := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
 		return processed[id]
 	}
 
-	vi := NewIndex(DefaultIndexConfig(), validatorsBuilder.Build(), memorydb.New(), getEvent)
+	vi := NewIndex(DefaultIndexConfig(), validators, memorydb.New(), getEvent)
 
 	// Many forks from each node in large graph, so probability of not seeing a fork is negligible
 	events := inter.ForEachRandFork(nodes, cheaters, 300, 4, 30, nil, inter.ForEachEvent{
@@ -650,10 +642,7 @@ func TestRandomForks(t *testing.T) {
 			nodes := inter.GenNodes(test.nodesNum)
 			cheaters := nodes[:test.cheatersNum]
 
-			validatorsBuilder := pos.NewBuilder()
-			for _, peer := range nodes {
-				validatorsBuilder.Set(peer, pos.Stake(1))
-			}
+			validators := pos.EqualStakeValidators(nodes, 1)
 
 			processedArr := inter.Events{}
 			processed := make(map[hash.Event]*inter.EventHeaderData)
@@ -661,7 +650,7 @@ func TestRandomForks(t *testing.T) {
 				return processed[id]
 			}
 
-			vi := NewIndex(DefaultIndexConfig(), validatorsBuilder.Build(), memorydb.New(), getEvent)
+			vi := NewIndex(DefaultIndexConfig(), validators, memorydb.New(), getEvent)
 
 			_ = inter.ForEachRandFork(nodes, cheaters, test.eventsNum, test.parentsNum, test.forksNum, r, inter.ForEachEvent{
 				Process: func(e *inter.Event, name string) {
@@ -679,7 +668,7 @@ func TestRandomForks(t *testing.T) {
 			})
 
 			assertar := assert.New(t)
-			idxs := validatorsBuilder.Build().Idxs()
+			idxs := validators.Idxs()
 			// check that fork observing is identical to naive version
 			for _, e := range processed {
 				highestBefore := vi.GetHighestBeforeSeq(e.Hash())
