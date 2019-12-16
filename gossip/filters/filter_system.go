@@ -19,7 +19,6 @@
 package filters
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -28,7 +27,6 @@ import (
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -89,10 +87,9 @@ type subscription struct {
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	mux       *event.TypeMux
-	backend   Backend
-	lightMode bool
-	lastHead  *types.Header
+	mux      *event.TypeMux
+	backend  Backend
+	lastHead *types.Header
 
 	// Subscriptions
 	txsSub        event.Subscription         // Subscription for new transaction event
@@ -116,11 +113,10 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
-func NewEventSystem(mux *event.TypeMux, backend Backend, lightMode bool) *EventSystem {
+func NewEventSystem(mux *event.TypeMux, backend Backend) *EventSystem {
 	m := &EventSystem{
 		mux:       mux,
 		backend:   backend,
-		lightMode: lightMode,
 		install:   make(chan *subscription),
 		uninstall: make(chan *subscription),
 		txsCh:     make(chan core.NewTxsEvent, txChanSize),
@@ -359,89 +355,7 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 		for _, f := range filters[BlocksSubscription] {
 			f.headers <- e.Block.Header()
 		}
-		if es.lightMode && len(filters[LogsSubscription]) > 0 {
-			es.lightFilterNewHead(e.Block.Header(), func(header *types.Header, remove bool) {
-				for _, f := range filters[LogsSubscription] {
-					if matchedLogs := es.lightFilterLogs(header, f.logsCrit.Addresses, f.logsCrit.Topics, remove); len(matchedLogs) > 0 {
-						f.logs <- matchedLogs
-					}
-				}
-			})
-		}
 	}
-}
-
-func (es *EventSystem) lightFilterNewHead(newHeader *types.Header, callBack func(*types.Header, bool)) {
-	oldh := es.lastHead
-	es.lastHead = newHeader
-	if oldh == nil {
-		return
-	}
-	newh := newHeader
-	// find common ancestor, create list of rolled back and new block hashes
-	var oldHeaders, newHeaders []*types.Header
-	for oldh.Hash() != newh.Hash() {
-		if oldh.Number.Uint64() >= newh.Number.Uint64() {
-			oldHeaders = append(oldHeaders, oldh)
-			oldh = rawdb.ReadHeader(es.backend.ChainDb(), oldh.ParentHash, oldh.Number.Uint64()-1)
-		}
-		if oldh.Number.Uint64() < newh.Number.Uint64() {
-			newHeaders = append(newHeaders, newh)
-			newh = rawdb.ReadHeader(es.backend.ChainDb(), newh.ParentHash, newh.Number.Uint64()-1)
-			if newh == nil {
-				// happens when CHT syncing, nothing to do
-				newh = oldh
-			}
-		}
-	}
-	// roll back old blocks
-	for _, h := range oldHeaders {
-		callBack(h, true)
-	}
-	// check new blocks (array is in reverse order)
-	for i := len(newHeaders) - 1; i >= 0; i-- {
-		callBack(newHeaders[i], false)
-	}
-}
-
-// filter logs of a single header in light client mode
-func (es *EventSystem) lightFilterLogs(header *types.Header, addresses []common.Address, topics [][]common.Hash, remove bool) []*types.Log {
-	if bloomFilter(header.Bloom, addresses, topics) {
-		// Get the logs of the block
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
-		logsList, err := es.backend.GetLogs(ctx, header.Hash())
-		if err != nil {
-			return nil
-		}
-		var unfiltered []*types.Log
-		for _, logs := range logsList {
-			for _, log := range logs {
-				logcopy := *log
-				logcopy.Removed = remove
-				unfiltered = append(unfiltered, &logcopy)
-			}
-		}
-		logs := filterLogs(unfiltered, nil, nil, addresses, topics)
-		if len(logs) > 0 && logs[0].TxHash == (common.Hash{}) {
-			// We have matching but non-derived logs
-			receipts, err := es.backend.GetReceipts(ctx, header.Hash())
-			if err != nil {
-				return nil
-			}
-			unfiltered = unfiltered[:0]
-			for _, receipt := range receipts {
-				for _, log := range receipt.Logs {
-					logcopy := *log
-					logcopy.Removed = remove
-					unfiltered = append(unfiltered, &logcopy)
-				}
-			}
-			logs = filterLogs(unfiltered, nil, nil, addresses, topics)
-		}
-		return logs
-	}
-	return nil
 }
 
 // eventLoop (un)installs filters and processes mux events.
