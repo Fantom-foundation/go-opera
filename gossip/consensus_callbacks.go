@@ -294,6 +294,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 
 	// trace confirmed transactions
+	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
 	for _, tx := range evmBlock.Transactions {
 		tracing.FinishTx(tx.Hash(), "Service.onNewBlock()")
 		if latency, err := txLatency.Finish(tx.Hash()); err == nil {
