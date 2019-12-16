@@ -86,10 +86,7 @@ func testSpecialNamedParents(t *testing.T, asciiScheme string, exp map[int]map[s
 		},
 	})
 
-	validators := pos.NewValidators()
-	for _, peer := range nodes {
-		validators.Set(peer, 1)
-	}
+	validators := pos.EqualStakeValidators(nodes, 1)
 
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {

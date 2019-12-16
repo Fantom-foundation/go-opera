@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/rlp"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -23,12 +24,15 @@ type EventStore struct {
 	table struct {
 		Events kvdb.KeyValueStore `table:"e"`
 	}
+	cache struct {
+		Events *lru.Cache `cache:"-"` // store by pointer
+	}
 
 	logger.Instance
 }
 
 // NewEventStore creates store over memory map.
-func NewEventStore(db kvdb.KeyValueStore) *EventStore {
+func NewEventStore(db kvdb.KeyValueStore, cacheSize int) *EventStore {
 	if db == nil {
 		db = memorydb.New()
 	}
@@ -37,6 +41,8 @@ func NewEventStore(db kvdb.KeyValueStore) *EventStore {
 		physicalDB: db,
 		Instance:   logger.MakeInstance(),
 	}
+
+	s.cache.Events = s.makeCache(cacheSize)
 
 	table.MigrateTables(&s.table, s.physicalDB)
 
@@ -52,10 +58,15 @@ func (s *EventStore) Close() {
 // SetEvent stores event.
 func (s *EventStore) SetEvent(e *inter.Event) {
 	s.set(s.table.Events, e.Hash().Bytes(), e)
+	s.cache.Events.Add(e.Hash(), e)
 }
 
 // GetEvent returns stored event.
 func (s *EventStore) GetEvent(h hash.Event) *inter.Event {
+	if val, ok := s.cache.Events.Get(h); ok {
+		return val.(*inter.Event)
+	}
+
 	w, _ := s.get(s.table.Events, h.Bytes(), &inter.Event{}).(*inter.Event)
 	if w == nil {
 		return nil
@@ -86,7 +97,7 @@ func (s *EventStore) HasEvent(h hash.Event) bool {
 func TestEventStore(t *testing.T) {
 	logger.SetTestMode(t)
 
-	store := NewEventStore(nil)
+	store := NewEventStore(nil, 100)
 
 	t.Run("NotExisting", func(t *testing.T) {
 		assertar := assert.New(t)
@@ -153,4 +164,17 @@ func (s *EventStore) has(table kvdb.KeyValueStore, key []byte) bool {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
+}
+
+func (s *EventStore) makeCache(size int) *lru.Cache {
+	if size <= 0 {
+		return nil
+	}
+
+	cache, err := lru.New(size)
+	if err != nil {
+		s.Log.Crit("Error create LRU cache", "err", err)
+		return nil
+	}
+	return cache
 }

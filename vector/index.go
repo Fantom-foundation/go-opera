@@ -14,24 +14,18 @@ import (
 )
 
 const (
-	forklessCauseCacheSize      = 5000
-	highestBeforeSeqCacheSize   = 1000
-	highestBeforeTimeCacheSize  = 1000
-	lowestAfterSeqCacheSize     = 1000
-	eventBranchCacheSize        = 1000
-	branchesInfoCacheSize       = 1000
-	dfsSubgraphVisitedCacheSize = 1000
+	forklessCauseCacheSize     = 5000
+	highestBeforeSeqCacheSize  = 1000
+	highestBeforeTimeCacheSize = 1000
+	lowestAfterSeqCacheSize    = 1000
 )
 
 // IndexCacheConfig - config for cache sizes of Index
 type IndexCacheConfig struct {
-	ForklessCause      int `json:"forklessCause"`
-	HighestBeforeSeq   int `json:"highestBeforeSeq"`
-	HighestBeforeTime  int `json:"highestBeforeTime"`
-	LowestAfterSeq     int `json:"lowestAfterSeq"`
-	EventBranch        int `json:"eventBranch"`
-	BranchesInfo       int `json:"branchesInfo"`
-	DfsSubgraphVisited int `json:"dfsSubgraphVisited"`
+	ForklessCause     int `json:"forklessCause"`
+	HighestBeforeSeq  int `json:"highestBeforeSeq"`
+	HighestBeforeTime int `json:"highestBeforeTime"`
+	LowestAfterSeq    int `json:"lowestAfterSeq"`
 }
 
 // IndexConfig - Index config (cache sizes)
@@ -62,12 +56,8 @@ type Index struct {
 		HighestBeforeSeq  *lru.Cache
 		HighestBeforeTime *lru.Cache
 		LowestAfterSeq    *lru.Cache
-
-		EventBranch  *lru.Cache
-		BranchesInfo *lru.Cache
+		ForklessCause     *lru.Cache
 	}
-
-	forklessCauseCache *lru.Cache
 
 	cfg IndexConfig
 
@@ -78,31 +68,24 @@ type Index struct {
 func DefaultIndexConfig() IndexConfig {
 	return IndexConfig{
 		Caches: IndexCacheConfig{
-			ForklessCause:      forklessCauseCacheSize,
-			HighestBeforeSeq:   highestBeforeSeqCacheSize,
-			HighestBeforeTime:  highestBeforeTimeCacheSize,
-			LowestAfterSeq:     lowestAfterSeqCacheSize,
-			EventBranch:        eventBranchCacheSize,
-			BranchesInfo:       branchesInfoCacheSize,
-			DfsSubgraphVisited: dfsSubgraphVisitedCacheSize,
+			ForklessCause:     forklessCauseCacheSize,
+			HighestBeforeSeq:  highestBeforeSeqCacheSize,
+			HighestBeforeTime: highestBeforeTimeCacheSize,
+			LowestAfterSeq:    lowestAfterSeqCacheSize,
 		},
 	}
 }
 
 // NewIndex creates Index instance.
 func NewIndex(config IndexConfig, validators *pos.Validators, db kvdb.KeyValueStore, getEvent func(hash.Event) *inter.EventHeaderData) *Index {
-	cache, _ := lru.New(config.Caches.ForklessCause)
-
 	vi := &Index{
-		Instance:           logger.MakeInstance(),
-		forklessCauseCache: cache,
-		cfg:                config,
+		Instance: logger.MakeInstance(),
+		cfg:      config,
 	}
+	vi.cache.ForklessCause, _ = lru.New(vi.cfg.Caches.ForklessCause)
 	vi.cache.HighestBeforeSeq, _ = lru.New(vi.cfg.Caches.HighestBeforeSeq)
 	vi.cache.HighestBeforeTime, _ = lru.New(vi.cfg.Caches.HighestBeforeTime)
 	vi.cache.LowestAfterSeq, _ = lru.New(vi.cfg.Caches.LowestAfterSeq)
-	vi.cache.BranchesInfo, _ = lru.New(vi.cfg.Caches.BranchesInfo)
-	vi.cache.EventBranch, _ = lru.New(vi.cfg.Caches.EventBranch)
 	vi.Reset(validators, db, getEvent)
 
 	return vi
@@ -116,18 +99,16 @@ func (vi *Index) Reset(validators *pos.Validators, db kvdb.KeyValueStore, getEve
 	vi.validators = validators.Copy()
 	vi.validatorIdxs = validators.Idxs()
 	vi.DropNotFlushed()
-	vi.forklessCauseCache.Purge()
-	vi.cleanCaches()
+	vi.cache.ForklessCause.Purge()
+	vi.dropDependentCaches()
 
 	table.MigrateTables(&vi.table, vi.vecDb)
 }
 
-func (vi *Index) cleanCaches() {
+func (vi *Index) dropDependentCaches() {
 	vi.cache.HighestBeforeSeq.Purge()
 	vi.cache.HighestBeforeTime.Purge()
 	vi.cache.LowestAfterSeq.Purge()
-	vi.cache.BranchesInfo.Purge()
-	vi.cache.EventBranch.Purge()
 }
 
 // Add calculates vector clocks for the event and saves into DB.
@@ -149,25 +130,23 @@ func (vi *Index) Flush() {
 	if err := vi.vecDb.Flush(); err != nil {
 		vi.Log.Crit("Failed to flush db", "err", err)
 	}
-	vi.cleanCaches()
 }
 
 // DropNotFlushed not connected clocks. Call it if event has failed.
 func (vi *Index) DropNotFlushed() {
 	vi.bi = nil
-	vi.vecDb.DropNotFlushed()
-	vi.cleanCaches()
+	if vi.vecDb.NotFlushedPairs() != 0 {
+		vi.vecDb.DropNotFlushed()
+		vi.dropDependentCaches()
+	}
 }
 
 func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validator) idx.Validator {
 	// sanity checks
-	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+	if len(vi.bi.BranchIDCreatorIdxs) != len(vi.bi.BranchIDLastSeq) {
 		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
 	}
-	if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
-		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
-	}
-	if len(vi.bi.BranchIDCreators) < vi.validators.Len() {
+	if len(vi.bi.BranchIDCreatorIdxs) < vi.validators.Len() {
 		vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
 	}
 
@@ -181,14 +160,8 @@ func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validato
 	} else {
 		selfParentBranchID := vi.getEventBranchID(*e.SelfParent())
 		// sanity checks
-		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDLastSeq) {
+		if len(vi.bi.BranchIDCreatorIdxs) != len(vi.bi.BranchIDLastSeq) {
 			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
-		}
-		if len(vi.bi.BranchIDCreators) != len(vi.bi.BranchIDCreatorIdxs) {
-			vi.Log.Crit("Inconsistent BranchIDCreators len (inconsistent DB)", "event", e.String())
-		}
-		if vi.bi.BranchIDCreators[selfParentBranchID] != e.Creator {
-			vi.Log.Crit("Inconsistent BranchIDCreators (inconsistent DB). Wrong self-parent?", "event", e.String())
 		}
 
 		if vi.bi.BranchIDLastSeq[selfParentBranchID]+1 == e.Seq {
@@ -200,7 +173,6 @@ func (vi *Index) fillGlobalBranchID(e *inter.EventHeaderData, meIdx idx.Validato
 
 	// if we're here, then new fork is observed (only globally), create new branchID due to a new fork
 	vi.bi.BranchIDLastSeq = append(vi.bi.BranchIDLastSeq, e.Seq)
-	vi.bi.BranchIDCreators = append(vi.bi.BranchIDCreators, e.Creator)
 	vi.bi.BranchIDCreatorIdxs = append(vi.bi.BranchIDCreatorIdxs, meIdx)
 	newBranchID := idx.Validator(len(vi.bi.BranchIDLastSeq) - 1)
 	vi.bi.BranchIDByCreators[meIdx] = append(vi.bi.BranchIDByCreators[meIdx], newBranchID)
@@ -222,9 +194,9 @@ func (vi *Index) setForkDetected(beforeSeq HighestBeforeSeq, branchID idx.Valida
 func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	meIdx := vi.validatorIdxs[e.Creator]
 	myVecs := allVecs{
-		beforeSeq:  NewHighestBeforeSeq(len(vi.bi.BranchIDCreators)),
-		beforeTime: NewHighestBeforeTime(len(vi.bi.BranchIDCreators)),
-		after:      NewLowestAfterSeq(len(vi.bi.BranchIDCreators)),
+		beforeSeq:  NewHighestBeforeSeq(len(vi.bi.BranchIDCreatorIdxs)),
+		beforeTime: NewHighestBeforeTime(len(vi.bi.BranchIDCreatorIdxs)),
+		after:      NewLowestAfterSeq(len(vi.bi.BranchIDCreatorIdxs)),
 	}
 
 	meBranchID := vi.fillGlobalBranchID(e, meIdx)
@@ -251,7 +223,7 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 	for _, pVec := range parentsVecs {
 		// calculate HighestBefore vector. Detect forks for a case when parent observes a fork
-		for branchID := idx.Validator(0); branchID < idx.Validator(len(vi.bi.BranchIDCreators)); branchID++ {
+		for branchID := idx.Validator(0); branchID < idx.Validator(len(vi.bi.BranchIDCreatorIdxs)); branchID++ {
 			hisSeq := pVec.beforeSeq.Get(branchID)
 			if hisSeq.Seq == 0 && !hisSeq.IsForkDetected() {
 				// hisSeq doesn't observe anything about this branchID
@@ -308,13 +280,9 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 	nextCreator:
 	}
 
-	// we could just pass e.Hash() instead of the outer loop, but e isn't written yet
-	walk := func(w *inter.EventHeaderData) (godeeper bool) {
-		if w.Hash() == e.Hash() {
-			return true // skip original element
-		}
-
-		wLowestAfterSeq := vi.GetLowestAfterSeq(w.Hash())
+	// graph traversal starting from e, but excluding e
+	onWalk := func(walk hash.Event) (godeeper bool) {
+		wLowestAfterSeq := vi.GetLowestAfterSeq(walk)
 
 		godeeper = wLowestAfterSeq.Get(meBranchID) == 0
 		if !godeeper {
@@ -323,12 +291,11 @@ func (vi *Index) fillEventVectors(e *inter.EventHeaderData) allVecs {
 
 		// update LowestAfter vector of the old event, because newly-connected event observes it
 		wLowestAfterSeq.Set(meBranchID, e.Seq)
-		vi.SetLowestAfter(w.Hash(), wLowestAfterSeq)
+		vi.SetLowestAfter(walk, wLowestAfterSeq)
 
 		return
 	}
-
-	err := vi.dfsSubgraph(e, walk)
+	err := vi.dfsSubgraph(e, onWalk)
 	if err != nil {
 		vi.Log.Crit("VectorClock: Failed to walk subgraph", "err", err)
 	}

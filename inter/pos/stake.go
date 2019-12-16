@@ -21,7 +21,7 @@ type (
 	// StakeCounter counts stakes.
 	StakeCounter struct {
 		validators Validators
-		already    map[idx.StakerID]struct{}
+		already    []bool // idx.Validator -> bool
 
 		quorum Stake
 		sum    Stake
@@ -57,19 +57,25 @@ func newStakeCounter(vv Validators) *StakeCounter {
 	return &StakeCounter{
 		validators: vv,
 		quorum:     vv.Quorum(),
-		already:    make(map[idx.StakerID]struct{}),
+		already:    make([]bool, vv.Len()),
 		sum:        0,
 	}
 }
 
 // Count validator and return true if it hadn't counted before.
-func (s *StakeCounter) Count(id idx.StakerID) bool {
-	if _, ok := s.already[id]; ok {
+func (s *StakeCounter) Count(v idx.StakerID) bool {
+	stakerIdx := s.validators.GetIdx(v)
+	return s.CountByIdx(stakerIdx)
+}
+
+// CountByIdx validator and return true if it hadn't counted before.
+func (s *StakeCounter) CountByIdx(stakerIdx idx.Validator) bool {
+	if s.already[stakerIdx] {
 		return false
 	}
-	s.already[id] = struct{}{}
+	s.already[stakerIdx] = true
 
-	s.sum += s.validators.StakeOf(id)
+	s.sum += s.validators.GetStakeByIdx(stakerIdx)
 	return true
 }
 

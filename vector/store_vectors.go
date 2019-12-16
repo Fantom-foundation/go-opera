@@ -25,40 +25,34 @@ func (vi *Index) setBytes(table kvdb.KeyValueStore, id hash.Event, b []byte) {
 
 // GetLowestAfterSeq reads the vector from DB
 func (vi *Index) GetLowestAfterSeq(id hash.Event) LowestAfterSeq {
-	bVal, okGet := vi.cache.LowestAfterSeq.Get(id)
-	b, okType := bVal.(LowestAfterSeq)
-	if !okGet || !okType || b == nil {
-		b = vi.getBytes(vi.table.LowestAfterSeq, id)
-
-		vi.cache.LowestAfterSeq.Add(id, b)
+	if bVal, okGet := vi.cache.LowestAfterSeq.Get(id); okGet {
+		return bVal.(LowestAfterSeq)
 	}
 
+	b := vi.getBytes(vi.table.LowestAfterSeq, id)
+	vi.cache.LowestAfterSeq.Add(id, LowestAfterSeq(b))
 	return b
 }
 
 // GetHighestBeforeSeq reads the vector from DB
 func (vi *Index) GetHighestBeforeSeq(id hash.Event) HighestBeforeSeq {
-	bVal, okGet := vi.cache.HighestBeforeSeq.Get(id)
-	b, okType := bVal.(HighestBeforeSeq)
-	if !okGet || !okType || b == nil {
-		b = vi.getBytes(vi.table.HighestBeforeSeq, id)
-
-		vi.cache.HighestBeforeSeq.Add(id, b)
+	if bVal, okGet := vi.cache.HighestBeforeSeq.Get(id); okGet {
+		return bVal.(HighestBeforeSeq)
 	}
 
+	b := vi.getBytes(vi.table.HighestBeforeSeq, id)
+	vi.cache.HighestBeforeSeq.Add(id, HighestBeforeSeq(b))
 	return b
 }
 
 // GetHighestBeforeTime reads the vector from DB
 func (vi *Index) GetHighestBeforeTime(id hash.Event) HighestBeforeTime {
-	bVal, okGet := vi.cache.HighestBeforeTime.Get(id)
-	b, okType := bVal.(HighestBeforeTime)
-	if !okGet || !okType || b == nil {
-		b = vi.getBytes(vi.table.HighestBeforeTime, id)
-
-		vi.cache.HighestBeforeTime.Add(id, b)
+	if bVal, okGet := vi.cache.HighestBeforeTime.Get(id); okGet {
+		return bVal.(HighestBeforeTime)
 	}
 
+	b := vi.getBytes(vi.table.HighestBeforeTime, id)
+	vi.cache.HighestBeforeTime.Add(id, HighestBeforeTime(b))
 	return b
 }
 
@@ -81,22 +75,14 @@ func (vi *Index) SetHighestBefore(id hash.Event, seq HighestBeforeSeq, time High
 // setEventBranchID stores the event's global branch ID
 func (vi *Index) setEventBranchID(id hash.Event, branchID idx.Validator) {
 	vi.setBytes(vi.table.EventBranch, id, branchID.Bytes())
-
-	vi.cache.EventBranch.Add(id, branchID.Bytes())
 }
 
 // getEventBranchID reads the event's global branch ID
 func (vi *Index) getEventBranchID(id hash.Event) idx.Validator {
-	bVal, okGet := vi.cache.EventBranch.Get(id)
-	b, okType := bVal.([]byte)
-	if !okGet || !okType || b == nil {
-		b = vi.getBytes(vi.table.EventBranch, id)
-		if b == nil {
-			vi.Log.Crit("Failed to read event's branch ID (inconsistent DB)")
-			return 0
-		}
-
-		vi.cache.EventBranch.Add(id, b)
+	b := vi.getBytes(vi.table.EventBranch, id)
+	if b == nil {
+		vi.Log.Crit("Failed to read event's branch ID (inconsistent DB)")
+		return 0
 	}
 	branchID := idx.BytesToValidator(b)
 	return branchID

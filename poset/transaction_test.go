@@ -30,11 +30,11 @@ func TestPosetTxn(t *testing.T) {
 
 	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) *pos.Validators {
 		if oldEpoch == 1 {
-			validators := p.Validators.Copy()
+			validators := p.Validators.Builder()
 			// move stake from node0 to node1
 			validators.Set(nodes[0], 0*x)
 			validators.Set(nodes[1], 2*x)
-			return validators
+			return validators.Build()
 		}
 		return p.Validators
 	}

@@ -44,7 +44,7 @@ func benchmarkStore(b *testing.B) {
 	lvl := leveldb.NewProducer(dir)
 	dbs := flushable.NewSyncedPool(lvl)
 
-	input := NewEventStore(dbs.GetDb("input"))
+	input := NewEventStore(dbs.GetDb("input"), 1000)
 	defer input.Close()
 
 	store := NewStore(dbs, DefaultStoreConfig())
@@ -56,11 +56,11 @@ func benchmarkStore(b *testing.B) {
 
 	p.callback.SelectValidatorsGroup = func(oldEpoch, newEpoch idx.Epoch) *pos.Validators {
 		if oldEpoch == 1 {
-			validators := p.Validators.Copy()
+			validators := p.Validators.Builder()
 			// move stake from node0 to node1
 			validators.Set(nodes[0], 0)
 			validators.Set(nodes[1], 2)
-			return validators
+			return validators.Build()
 		}
 		return p.Validators
 	}

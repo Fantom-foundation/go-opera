@@ -38,10 +38,11 @@ func BenchmarkIndex_Add(b *testing.B) {
 			ordered = append(ordered, e)
 		},
 	})
-	validators := pos.NewValidators()
+	validatorsBuilder := pos.NewBuilder()
 	for _, peer := range nodes {
-		validators.Set(peer, 1)
+		validatorsBuilder.Set(peer, 1)
 	}
+	validators := validatorsBuilder.Build()
 	events := make(map[hash.Event]*inter.EventHeaderData)
 	getEvent := func(id hash.Event) *inter.EventHeaderData {
 		return events[id]

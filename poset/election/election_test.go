@@ -199,7 +199,7 @@ func testProcessRoot(
 	vertices := make(map[hash.Event]Slot)
 	edges := make(map[fakeEdge]bool)
 
-	peers, _, _ := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
+	nodes, _, _ := inter.ASCIIschemeForEach(dag, inter.ForEachEvent{
 		Process: func(root *inter.Event, name string) {
 			// store all the events
 			ordered = append(ordered, root)
@@ -237,10 +237,11 @@ func testProcessRoot(
 		},
 	})
 
-	validators := pos.NewValidators()
-	for _, peer := range peers {
-		validators.Set(peer, stakes[utils.NameOf(peer)])
+	validatorsBuilder := pos.NewBuilder()
+	for _, node := range nodes {
+		validatorsBuilder.Set(node, stakes[utils.NameOf(node)])
 	}
+	validators := validatorsBuilder.Build()
 
 	forklessCauseFn := func(a hash.Event, b hash.Event) bool {
 		edge := fakeEdge{

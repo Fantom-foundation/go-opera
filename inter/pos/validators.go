@@ -11,12 +11,22 @@ import (
 )
 
 type (
-	// Validators of epoch with stake.
-	Validators struct {
-		indexes map[idx.StakerID]int
-		list    []Stake
-		ids     []idx.StakerID
+	cache struct {
+		indexes    map[idx.StakerID]idx.Validator
+		stakes     []Stake
+		ids        []idx.StakerID
+		totalStake Stake
 	}
+	// Validators group of an epoch with stakes.
+	// Optimized for BFT algorithm calculations.
+	// Read-only.
+	Validators struct {
+		values map[idx.StakerID]Stake
+		cache  cache
+	}
+
+	// ValidatorsBuilder is a helper to create Validators object
+	ValidatorsBuilder map[idx.StakerID]Stake
 
 	// GenesisValidator is helper structure to define genesis validators
 	GenesisValidator struct {
@@ -29,108 +39,131 @@ type (
 	GValidators map[idx.StakerID]GenesisValidator
 )
 
-// NewValidators return new pointer of Validators object
-func NewValidators() *Validators {
-	return &Validators{
-		indexes: make(map[idx.StakerID]int),
-		list:    make([]Stake, 0, 200),
-		ids:     make([]idx.StakerID, 0, 200),
-	}
+var (
+	// EmptyValidators is empty validators group
+	EmptyValidators = NewBuilder().Build()
+)
+
+// NewBuilder creates new mutable ValidatorsBuilder
+func NewBuilder() ValidatorsBuilder {
+	return ValidatorsBuilder{}
 }
 
-// Len return count of validators in Validators objects
-func (vv Validators) Len() int {
-	return len(vv.list)
-}
-
-// Iterate return chanel of ids for get validators in loop
-func (vv Validators) Iterate() <-chan idx.StakerID {
-	c := make(chan idx.StakerID)
-	go func() {
-		for _, a := range vv.ids {
-			c <- a
-		}
-		close(c)
-	}()
-	return c
-}
-
-// Set appends item to Validator object
-func (vv *Validators) Set(id idx.StakerID, stake Stake) {
-	if stake != 0 {
-		i, ok := vv.indexes[id]
-		if ok {
-			vv.list[i] = stake
-			return
-		}
-		vv.list = append(vv.list, stake)
-		vv.ids = append(vv.ids, id)
-		vv.indexes[id] = len(vv.list) - 1
+// Set appends item to ValidatorsBuilder object
+func (vv ValidatorsBuilder) Set(id idx.StakerID, stake Stake) {
+	if stake == 0 {
+		delete(vv, id)
 	} else {
-		i, ok := vv.indexes[id]
-		if ok {
-			delete(vv.indexes, id)
-			idxOrig := len(vv.list) - 1
-			if i == idxOrig {
-				vv.list = vv.list[:idxOrig]
-				vv.ids = vv.ids[:idxOrig]
-			} else {
-				// Move last to deleted position + truncate list len
-				vv.list[i] = vv.list[idxOrig]
-				vv.list = vv.list[:idxOrig]
-
-				vv.indexes[vv.ids[idxOrig]] = i
-
-				vv.ids[i] = vv.ids[idxOrig]
-				vv.ids = vv.ids[:idxOrig]
-			}
-		}
+		vv[id] = stake
 	}
 }
 
-// Get return stake for validator address
-func (vv Validators) Get(id idx.StakerID) Stake {
-	i, ok := vv.indexes[id]
-	if ok {
-		return vv.list[i]
-	}
-	return 0
+// Build new read-only Validators object
+func (vv ValidatorsBuilder) Build() *Validators {
+	return newValidators(vv)
 }
 
-// Exists return boolean true if address exists in Validators object
-func (vv Validators) Exists(id idx.StakerID) bool {
-	_, ok := vv.indexes[id]
+// EqualStakeValidators builds new read-only Validators object with equal stakes (for tests)
+func EqualStakeValidators(ids []idx.StakerID, stake Stake) *Validators {
+	builder := NewBuilder()
+	for _, id := range ids {
+		builder.Set(id, stake)
+	}
+	return builder.Build()
+}
+
+// ArrayToValidators builds new read-only Validators object from array
+func ArrayToValidators(ids []idx.StakerID, stakes []Stake) *Validators {
+	builder := NewBuilder()
+	for i, id := range ids {
+		builder.Set(id, stakes[i])
+	}
+	return builder.Build()
+}
+
+// newValidators builds new read-only Validators object
+func newValidators(values ValidatorsBuilder) *Validators {
+	valuesCopy := make(ValidatorsBuilder)
+	for id, s := range values {
+		valuesCopy.Set(id, s)
+	}
+
+	vv := &Validators{
+		values: valuesCopy,
+	}
+	vv.cache = vv.calcCaches()
+	return vv
+}
+
+// Len returns count of validators in Validators objects
+func (vv *Validators) Len() int {
+	return len(vv.values)
+}
+
+// Iterate returns slice of ids for get validators in loop
+func (vv *Validators) Iterate() []idx.StakerID {
+	return vv.cache.ids
+}
+
+// calcCaches calculates internal caches for validators
+func (vv *Validators) calcCaches() cache {
+	cache := cache{
+		indexes: make(map[idx.StakerID]idx.Validator),
+		stakes:  make([]Stake, vv.Len()),
+		ids:     make([]idx.StakerID, vv.Len()),
+	}
+
+	for i, v := range vv.sortedArray() {
+		cache.indexes[v.ID] = idx.Validator(i)
+		cache.stakes[i] = v.Stake
+		cache.ids[i] = v.ID
+		cache.totalStake += v.Stake
+	}
+
+	return cache
+}
+
+// Get returns stake for validator by ID
+func (vv *Validators) Get(id idx.StakerID) Stake {
+	return vv.values[id]
+}
+
+// GetIdx returns index (offset) of validator in the group
+func (vv *Validators) GetIdx(id idx.StakerID) idx.Validator {
+	return vv.cache.indexes[id]
+}
+
+// GetStakeByIdx returns stake for validator by index
+func (vv *Validators) GetStakeByIdx(i idx.Validator) Stake {
+	return vv.cache.stakes[i]
+}
+
+// Exists returns boolean true if address exists in Validators object
+func (vv *Validators) Exists(id idx.StakerID) bool {
+	_, ok := vv.values[id]
 	return ok
 }
 
 // IDs returns not sorted ids.
-func (vv Validators) IDs() []idx.StakerID {
-	return vv.ids
+func (vv *Validators) IDs() []idx.StakerID {
+	return vv.cache.ids
 }
 
 // SortedIDs returns deterministically sorted ids.
 // The order is the same as for Idxs().
-func (vv Validators) SortedIDs() []idx.StakerID {
-	array := make([]idx.StakerID, len(vv.list))
-	for i, s := range vv.sortedArray() {
-		array[i] = s.ID
-	}
-	return array
+func (vv *Validators) SortedIDs() []idx.StakerID {
+	return vv.cache.ids
 }
 
 // Idxs gets deterministic total order of validators.
-func (vv Validators) Idxs() map[idx.StakerID]idx.Validator {
-	idxs := make(map[idx.StakerID]idx.Validator, len(vv.list))
-	for i, v := range vv.sortedArray() {
-		idxs[v.ID] = idx.Validator(i)
-	}
-	return idxs
+func (vv *Validators) Idxs() map[idx.StakerID]idx.Validator {
+	return vv.cache.indexes
 }
 
-func (vv Validators) sortedArray() validators {
-	array := make(validators, 0, len(vv.list))
-	for id, i := range vv.indexes {
-		s := vv.list[i]
+// sortedArray is sorted by stake and ID
+func (vv *Validators) sortedArray() validators {
+	array := make(validators, 0, len(vv.values))
+	for id, s := range vv.values {
 		array = append(array, validator{
 			ID:    id,
 			Stake: s,
@@ -142,81 +175,52 @@ func (vv Validators) sortedArray() validators {
 
 // Copy constructs a copy.
 func (vv *Validators) Copy() *Validators {
-	res := NewValidators()
+	return newValidators(vv.values)
+}
 
-	if cap(res.list) < len(vv.list) {
-		res.list = make([]Stake, len(vv.list))
-		res.ids = make([]idx.StakerID, len(vv.list))
-	}
-	res.list = res.list[0:len(vv.list)]
-	res.ids = res.ids[0:len(vv.list)]
-	copy(res.list, vv.list)
-	copy(res.ids, vv.ids)
-
-	for id, i := range vv.indexes {
-		res.indexes[id] = i
-	}
-
-	return res
+// Builder returns a mutable copy of content
+func (vv *Validators) Builder() ValidatorsBuilder {
+	return vv.Copy().values
 }
 
 // Quorum limit of validators.
-func (vv Validators) Quorum() Stake {
+func (vv *Validators) Quorum() Stake {
 	return vv.TotalStake()*2/3 + 1
 }
 
 // TotalStake of validators.
-func (vv Validators) TotalStake() (sum Stake) {
-	for _, s := range vv.list {
-		sum += s
-	}
-	return
-}
-
-// StakeOf validator.
-func (vv Validators) StakeOf(id idx.StakerID) Stake {
-	return vv.Get(id)
+func (vv *Validators) TotalStake() (sum Stake) {
+	return vv.cache.totalStake
 }
 
 // EncodeRLP is for RLP serialization.
-func (vv Validators) EncodeRLP(w io.Writer) error {
+func (vv *Validators) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, vv.sortedArray())
 }
 
 // DecodeRLP is for RLP deserialization.
 func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
-	if vv == nil {
-		vv = NewValidators()
-	}
-	if vv.ids == nil {
-		vv.ids = make([]idx.StakerID, 0, 200)
-	}
-	if vv.indexes == nil {
-		vv.indexes = make(map[idx.StakerID]int)
-	}
-	if vv.list == nil {
-		vv.list = make([]Stake, 0, 200)
-	}
-
 	var arr []validator
 	if err := s.Decode(&arr); err != nil {
 		return err
 	}
 
+	builder := NewBuilder()
 	for _, w := range arr {
-		vv.Set(w.ID, w.Stake)
+		builder.Set(w.ID, w.Stake)
 	}
+	*vv = *builder.Build()
 
 	return nil
 }
 
 // Validators converts GValidators to Validators
 func (gv GValidators) Validators() *Validators {
-	validators := NewValidators()
+	builder := NewBuilder()
 	for stakerID, validator := range gv {
-		validators.Set(stakerID, validator.Stake)
+		builder.Set(stakerID, validator.Stake)
 	}
-	return validators
+	return builder.Build()
 }
 
 // Addresses returns not sorted genesis addresses

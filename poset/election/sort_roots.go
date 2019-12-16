@@ -35,7 +35,7 @@ func (s sortedRoots) Less(i, j int) bool {
 func (el *Election) chooseAtropos() (*Res, error) {
 	finalRoots := make(sortedRoots, 0, el.validators.Len())
 	// fill yesRoots
-	for validator := range el.validators.Iterate() {
+	for _, validator := range el.validators.Iterate() {
 		stake := el.validators.Get(validator)
 		vote, ok := el.decidedRoots[validator]
 		if !ok {

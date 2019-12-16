@@ -24,13 +24,13 @@ type kv struct {
 // This great property is the reason why this function exists,
 // providing the base for the BFT algorithm.
 func (vi *Index) ForklessCause(aID, bID hash.Event) bool {
-	if res, ok := vi.forklessCauseCache.Get(kv{aID, bID}); ok {
+	if res, ok := vi.cache.ForklessCause.Get(kv{aID, bID}); ok {
 		return res.(bool)
 	}
 
 	res := vi.forklessCause(aID, bID)
 
-	vi.forklessCauseCache.Add(kv{aID, bID}, res)
+	vi.cache.ForklessCause.Add(kv{aID, bID}, res)
 	return res
 }
 
@@ -61,7 +61,7 @@ func (vi *Index) forklessCause(aID, bID hash.Event) bool {
 
 	yes := vi.validators.NewCounter()
 	// calculate forkless causing using the indexes
-	for branchIDint, creator := range vi.bi.BranchIDCreators {
+	for branchIDint, creatorIdx := range vi.bi.BranchIDCreatorIdxs {
 		branchID := idx.Validator(branchIDint)
 
 		// bLowestAfter := vi.GetLowestAfterSeq_(bID, branchID)   // lowest event from creator on branchID, which observes B
@@ -73,7 +73,7 @@ func (vi *Index) forklessCause(aID, bID hash.Event) bool {
 		if bLowestAfter <= aHighestBefore.Seq && bLowestAfter != 0 && !aHighestBefore.IsForkDetected() {
 			// we may count the same creator multiple times (on different branches)!
 			// so not every call increases the counter
-			yes.Count(creator)
+			yes.CountByIdx(creatorIdx)
 		}
 	}
 	return yes.HasQuorum()
