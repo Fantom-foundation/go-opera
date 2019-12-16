@@ -8,6 +8,7 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+// NewCollector constructor.
 func NewCollector(opts prometheus.Opts, metric interface{}, fields ...string) *Collector {
 
 	return &Collector{
@@ -23,14 +24,17 @@ func NewCollector(opts prometheus.Opts, metric interface{}, fields ...string) *C
 	}
 }
 
+// Collector collects ethereum metrics data.
 type Collector struct {
 	*Metric
 }
 
+// Describe implements prometheus.Collector interface.
 func (c *Collector) Describe(out chan<- *prometheus.Desc) {
 	out <- c.Metric.Desc()
 }
 
+// Collect implements prometheus.Collector interface.
 func (c *Collector) Collect(out chan<- prometheus.Metric) {
 	out <- c.Metric
 }

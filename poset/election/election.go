@@ -95,7 +95,7 @@ func (el *Election) Reset(validators *pos.Validators, frameToDecide idx.Frame) {
 func (el *Election) notDecidedRoots() []idx.StakerID {
 	notDecidedRoots := make([]idx.StakerID, 0, el.validators.Len())
 
-	for _, validator := range el.validators.Iterate() {
+	for _, validator := range el.validators.IDs() {
 		if _, ok := el.decidedRoots[validator]; !ok {
 			notDecidedRoots = append(notDecidedRoots, validator)
 		}

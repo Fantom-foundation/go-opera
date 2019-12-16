@@ -90,7 +90,8 @@ func TestValidators_Iterate(t *testing.T) {
 
 	count := 0
 	sum := 0
-	for _, id := range v.Iterate() {
+
+	for _, id := range v.IDs() {
 		count++
 		sum += int(v.Get(id))
 	}

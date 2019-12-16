@@ -100,11 +100,6 @@ func (vv *Validators) Len() int {
 	return len(vv.values)
 }
 
-// Iterate returns slice of ids for get validators in loop
-func (vv *Validators) Iterate() []idx.StakerID {
-	return vv.cache.ids
-}
-
 // calcCaches calculates internal caches for validators
 func (vv *Validators) calcCaches() cache {
 	cache := cache{

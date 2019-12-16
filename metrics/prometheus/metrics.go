@@ -8,9 +8,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+var namespace = "lachesis"
+
+// SetNamespace for metrics.
+func SetNamespace(s string) {
+	namespace = s
+}
+
 func convertToPrometheusMetric(name string, m interface{}) (prometheus.Collector, bool) {
 	opts := prometheus.Opts{
-		Namespace: "lachesis",
+		Namespace: namespace,
 		Name:      prometheusDelims(name),
 	}
 
