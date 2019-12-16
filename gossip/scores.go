@@ -30,7 +30,7 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 
 		txEvent := s.store.GetEventHeader(txEventPos.Event.Epoch(), txEventPos.Event)
 		// sanity check
-		if txEvent.NoTransactions() {
+		if txEvent == nil {
 			s.Log.Crit("Incorrect tx event position", "tx", receipts[i].TxHash, "event", txEventPos.Event, "reason", "event has no transactions")
 		}
 

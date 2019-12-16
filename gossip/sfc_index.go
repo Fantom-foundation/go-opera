@@ -45,15 +45,16 @@ func (s *Service) delAllDelegatorData(address common.Address) {
 	s.store.DelDelegatorClaimedRewards(address)
 }
 
-func (s *Service) calcValidatingPowers(stakers []sfctype.SfcStakerAndID) []*big.Int {
-	validatingPowers := make([]*big.Int, 0, 200)
-	scores := make([]*big.Int, 0, 200)
-	pois := make([]*big.Int, 0, 200)
-	stakes := make([]*big.Int, 0, 200)
+func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID) (baseRewardWeights []*big.Int, txRewardWeights []*big.Int) {
+	validationScores := make([]*big.Int, 0, len(stakers))
+	originationScores := make([]*big.Int, 0, len(stakers))
+	pois := make([]*big.Int, 0, len(stakers))
+	stakes := make([]*big.Int, 0, len(stakers))
 
 	totalStake := new(big.Int)
 	totalPoI := new(big.Int)
-	totalScore := new(big.Int)
+	totalValidationScore := new(big.Int)
+	totalOriginationScore := new(big.Int)
 
 	for _, it := range stakers {
 		stake := it.Staker.CalcTotalStake()
@@ -61,46 +62,73 @@ func (s *Service) calcValidatingPowers(stakers []sfctype.SfcStakerAndID) []*big.
 		if poi.Sign() == 0 {
 			poi = big.NewInt(1)
 		}
-		// score = OriginationScore + ValidationScore
-		score := s.store.GetActiveOriginationScore(it.StakerID)
-		score.Add(score, s.store.GetActiveValidationScore(it.StakerID))
-		if score.Sign() == 0 {
-			score = big.NewInt(1)
+		validationScore := s.store.GetActiveValidationScore(it.StakerID)
+		if validationScore.Sign() == 0 {
+			validationScore = big.NewInt(1)
+		}
+		originationScore := s.store.GetActiveOriginationScore(it.StakerID)
+		if originationScore.Sign() == 0 {
+			originationScore = big.NewInt(1)
 		}
 
 		stakes = append(stakes, stake)
-		scores = append(scores, score)
+		validationScores = append(validationScores, validationScore)
+		originationScores = append(originationScores, originationScore)
 		pois = append(pois, poi)
 
 		totalStake.Add(totalStake, stake)
 		totalPoI.Add(totalPoI, poi)
-		totalScore.Add(totalPoI, score)
+		totalValidationScore.Add(totalValidationScore, validationScore)
+		totalOriginationScore.Add(totalOriginationScore, originationScore)
 	}
 
+	totalScore := new(big.Int).Add(totalOriginationScore, totalValidationScore)
+
+	txRewardWeights = make([]*big.Int, 0, len(stakers))
 	for i := range stakers {
-		// validatingPower = ((1 - CONST) * stake + (CONST) * PoI) * score,
+		// txRewardWeight = ((1 - CONST) * stake + (CONST) * PoI) * score,
 		// where PoI is rebased to be comparable with stake, score is rebased to [0, 1]
-		stakeWithRatio := stakes[i]
-		stakeWithRatio.Mul(stakeWithRatio, new(big.Int).Sub(lachesis.PercentUnit, s.config.Net.Economy.ValidatorPoiImpact))
+		stakeWithRatio := new(big.Int).Mul(stakes[i], new(big.Int).Sub(lachesis.PercentUnit, s.config.Net.Economy.TxRewardPoiImpact))
 		stakeWithRatio.Div(stakeWithRatio, lachesis.PercentUnit)
 
-		poiRebased := pois[i]
-		poiRebased.Mul(poiRebased, totalStake)
+		poiRebased := new(big.Int).Mul(pois[i], totalStake)
 		poiRebased.Div(poiRebased, totalPoI)
 
 		poiRebasedWithRatio := poiRebased
-		poiRebasedWithRatio.Mul(poiRebasedWithRatio, s.config.Net.Economy.ValidatorPoiImpact)
+		poiRebasedWithRatio.Mul(poiRebasedWithRatio, s.config.Net.Economy.TxRewardPoiImpact)
 		poiRebasedWithRatio.Div(poiRebasedWithRatio, lachesis.PercentUnit)
 
-		validatingPower := new(big.Int)
-		validatingPower.Add(stakeWithRatio, poiRebasedWithRatio)
-		validatingPower.Mul(validatingPower, scores[i])
-		validatingPower.Div(validatingPower, totalScore)
+		// score = OriginationScore + ValidationScore
+		score := new(big.Int).Add(validationScores[i], originationScores[i])
 
-		validatingPowers = append(validatingPowers, validatingPower)
+		txRewardWeight := new(big.Int).Add(stakeWithRatio, poiRebasedWithRatio)
+		txRewardWeight.Mul(txRewardWeight, score)
+		txRewardWeight.Div(txRewardWeight, totalScore)
+
+		txRewardWeights = append(txRewardWeights, txRewardWeight)
 	}
 
-	return validatingPowers
+	baseRewardWeights = make([]*big.Int, 0, len(stakers))
+	for i := range stakers {
+		// baseRewardWeight = (1 - CONST) * stake + (CONST) * validationScore,
+		// where validationScore is rebased to be comparable with stake
+		stakeWithRatio := new(big.Int).Mul(stakes[i], new(big.Int).Sub(lachesis.PercentUnit, s.config.Net.Economy.BaseRewardValidationScoreImpact))
+		stakeWithRatio.Div(stakeWithRatio, lachesis.PercentUnit)
+
+		vScoreRebased := new(big.Int).Mul(validationScores[i], totalStake)
+		vScoreRebased.Div(vScoreRebased, totalValidationScore)
+
+		vScoreRebasedWithRatio := vScoreRebased
+		vScoreRebasedWithRatio.Mul(vScoreRebasedWithRatio, s.config.Net.Economy.BaseRewardValidationScoreImpact)
+		vScoreRebasedWithRatio.Div(vScoreRebasedWithRatio, lachesis.PercentUnit)
+
+		baseRewardWeight := new(big.Int)
+		baseRewardWeight.Add(stakeWithRatio, vScoreRebasedWithRatio)
+
+		baseRewardWeights = append(baseRewardWeights, baseRewardWeight)
+	}
+
+	return baseRewardWeights, txRewardWeights
 }
 
 // processSfc applies the new SFC state
@@ -251,7 +279,6 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 	}
 
 	if sealEpoch {
-
 		epoch256 := utils.U64to256(uint64(epoch))
 		statedb.SetState(sfc.ContractAddress, sfcpos.CurrentSealedEpoch(), epoch256)
 
@@ -259,39 +286,44 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		cheatersSet := cheaters.Set()
 		epochPos := sfcpos.EpochSnapshot(epoch)
 		epochValidators := s.store.GetEpochValidators(epoch)
-		validatingPowers := s.calcValidatingPowers(epochValidators)
+		baseRewardWeights, txRewardWeights := s.calcRewardWeights(epochValidators)
 
-		totalValidatingPower := new(big.Int)
+		totalBaseRewardWeight := new(big.Int)
+		totalTxRewardWeight := new(big.Int)
 		for i, it := range epochValidators {
 			if _, ok := cheatersSet[it.StakerID]; ok {
 				continue // don't give reward to cheaters
 			}
 
-			validatingPower := validatingPowers[i]
+			baseRewardWeight := baseRewardWeights[i]
+			txRewardWeight := txRewardWeights[i]
 
 			meritPos := epochPos.ValidatorMerit(it.StakerID)
 
 			statedb.SetState(sfc.ContractAddress, meritPos.StakeAmount(), utils.BigTo256(it.Staker.StakeAmount))
 			statedb.SetState(sfc.ContractAddress, meritPos.DelegatedMe(), utils.BigTo256(it.Staker.DelegatedMe))
-			statedb.SetState(sfc.ContractAddress, meritPos.ValidatingPower(), utils.BigTo256(validatingPower))
+			statedb.SetState(sfc.ContractAddress, meritPos.BaseRewardWeight(), utils.BigTo256(baseRewardWeight))
+			statedb.SetState(sfc.ContractAddress, meritPos.TxRewardWeight(), utils.BigTo256(txRewardWeight))
 
-			totalValidatingPower.Add(totalValidatingPower, validatingPower)
+			totalBaseRewardWeight.Add(totalBaseRewardWeight, baseRewardWeight)
+			totalTxRewardWeight.Add(totalTxRewardWeight, txRewardWeight)
 		}
-		statedb.SetState(sfc.ContractAddress, epochPos.TotalValidatingPower(), utils.BigTo256(totalValidatingPower))
+		statedb.SetState(sfc.ContractAddress, epochPos.TotalBaseRewardWeight(), utils.BigTo256(totalBaseRewardWeight))
+		statedb.SetState(sfc.ContractAddress, epochPos.TotalTxRewardWeight(), utils.BigTo256(totalTxRewardWeight))
 		statedb.SetState(sfc.ContractAddress, epochPos.EpochFee(), utils.BigTo256(stats.TotalFee))
 		statedb.SetState(sfc.ContractAddress, epochPos.EndTime(), utils.U64to256(uint64(stats.End.Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64((stats.End - stats.Start).Unix())))
 
 		// Add balance for SFC to pay rewards
-		blockRewards := big.NewInt(stats.End.Unix() - stats.Start.Unix())
-		blockRewards.Mul(blockRewards, s.config.Net.Economy.RewardPerSecond)
-		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(blockRewards, stats.TotalFee))
+		baseRewards := big.NewInt(stats.End.Unix() - stats.Start.Unix())
+		baseRewards.Mul(baseRewards, s.config.Net.Economy.RewardPerSecond)
+		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(baseRewards, stats.TotalFee))
 
 		// Select new validators
 		for _, it := range s.GetActiveSfcStakers() {
 			// Note: cheaters are not active
 			if _, ok := cheatersSet[it.StakerID]; ok {
-				s.Log.Crit("Cheaters must be erased from Stakers table")
+				s.Log.Crit("Cheaters must be deactivated")
 			}
 			s.store.SetEpochValidator(epoch+1, it.StakerID, it.Staker)
 		}

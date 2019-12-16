@@ -118,8 +118,12 @@ func (p *EpochSnapshotPos) EpochFee() common.Hash {
 	return p.Field(3)
 }
 
-func (p *EpochSnapshotPos) TotalValidatingPower() common.Hash {
+func (p *EpochSnapshotPos) TotalBaseRewardWeight() common.Hash {
 	return p.Field(4)
+}
+
+func (p *EpochSnapshotPos) TotalTxRewardWeight() common.Hash {
+	return p.Field(5)
 }
 
 // ValidatorMerit
@@ -136,16 +140,20 @@ func (p *EpochSnapshotPos) ValidatorMerit(stakerID idx.StakerID) ValidatorMeritP
 	return ValidatorMeritPos{object{base: position.Big()}}
 }
 
-func (p *ValidatorMeritPos) ValidatingPower() common.Hash {
+func (p *ValidatorMeritPos) StakeAmount() common.Hash {
 	return p.Field(0)
 }
 
-func (p *ValidatorMeritPos) StakeAmount() common.Hash {
+func (p *ValidatorMeritPos) DelegatedMe() common.Hash {
 	return p.Field(1)
 }
 
-func (p *ValidatorMeritPos) DelegatedMe() common.Hash {
+func (p *ValidatorMeritPos) BaseRewardWeight() common.Hash {
 	return p.Field(2)
+}
+
+func (p *ValidatorMeritPos) TxRewardWeight() common.Hash {
+	return p.Field(3)
 }
 
 // Util

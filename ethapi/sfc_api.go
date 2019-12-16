@@ -39,13 +39,19 @@ func (s *PublicSfcAPI) GetOriginationScore(ctx context.Context, stakerID hexutil
 	return (*hexutil.Big)(v), err
 }
 
-// GetValidatingPower returns staker's ValidatingPower.
-func (s *PublicSfcAPI) GetValidatingPower(ctx context.Context, stakerID hexutil.Uint) (*hexutil.Big, error) {
-	v, err := s.b.GetValidatingPower(ctx, idx.StakerID(stakerID))
+// GetRewardWeights returns staker's reward weights.
+func (s *PublicSfcAPI) GetRewardWeights(ctx context.Context, stakerID hexutil.Uint) (map[string]interface{}, error) {
+	baseRewardWeight, txRewardWeight, err := s.b.GetRewardWeights(ctx, idx.StakerID(stakerID))
 	if err != nil {
 		return nil, err
 	}
-	return (*hexutil.Big)(v), err
+	if baseRewardWeight == nil || txRewardWeight == nil {
+		return nil, nil
+	}
+	return map[string]interface{}{
+		"baseRewardWeight": (*hexutil.Big)(baseRewardWeight),
+		"txRewardWeight":   (*hexutil.Big)(txRewardWeight),
+	}, nil
 }
 
 // GetStakerPoI returns staker's PoI.
@@ -127,11 +133,12 @@ func (s *PublicSfcAPI) addStakerMetricFields(ctx context.Context, res map[string
 	}
 	res["poi"] = (*hexutil.Big)(poi)
 
-	validatingPower, err := s.b.GetValidatingPower(ctx, stakerID)
+	baseRewardWeight, txRewardWeight, err := s.b.GetRewardWeights(ctx, stakerID)
 	if err != nil {
 		return nil, err
 	}
-	res["validatingPower"] = (*hexutil.Big)(validatingPower)
+	res["baseRewardWeight"] = (*hexutil.Big)(baseRewardWeight)
+	res["txRewardWeight"] = (*hexutil.Big)(txRewardWeight)
 
 	validationScore, err := s.b.GetValidationScore(ctx, stakerID)
 	if err != nil {

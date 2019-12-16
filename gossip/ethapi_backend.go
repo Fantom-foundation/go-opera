@@ -444,10 +444,10 @@ func (b *EthAPIBackend) GetStakerPoI(ctx context.Context, stakerID idx.StakerID)
 	return b.svc.store.GetStakerPOI(stakerID), nil
 }
 
-// GetValidatingPower returns staker's ValidatingPower.
-func (b *EthAPIBackend) GetValidatingPower(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
+// GetRewardWeights returns staker's reward weights.
+func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error) {
 	if !b.svc.store.HasSfcStaker(stakerID) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	header := b.state.CurrentHeader()
 	statedb := b.svc.store.StateDB(header.Root)
@@ -455,9 +455,10 @@ func (b *EthAPIBackend) GetValidatingPower(ctx context.Context, stakerID idx.Sta
 	epoch := b.svc.engine.GetEpoch()
 	epochPosition := sfcpos.EpochSnapshot(epoch - 1)
 	validatorPosition := epochPosition.ValidatorMerit(stakerID)
-	validatingPower256 := statedb.GetState(sfc.ContractAddress, validatorPosition.ValidatingPower())
+	baseRewardWeight256 := statedb.GetState(sfc.ContractAddress, validatorPosition.BaseRewardWeight())
+	txRewardWeight256 := statedb.GetState(sfc.ContractAddress, validatorPosition.TxRewardWeight())
 
-	return new(big.Int).SetBytes(validatingPower256.Bytes()), nil
+	return new(big.Int).SetBytes(baseRewardWeight256.Bytes()), new(big.Int).SetBytes(txRewardWeight256.Bytes()), nil
 }
 
 // GetDowntime returns staker's Downtime.

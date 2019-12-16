@@ -45,11 +45,12 @@ type DagConfig struct {
 
 // EconomyConfig contains economy constants
 type EconomyConfig struct {
-	ScoreCheckpointsInterval time.Duration
-	PoiPeriodDuration        time.Duration
-	BlockMissedLatency       idx.Block
-	ValidatorPoiImpact       *big.Int
-	RewardPerSecond          *big.Int
+	ScoreCheckpointsInterval        time.Duration
+	PoiPeriodDuration               time.Duration
+	BlockMissedLatency              idx.Block
+	TxRewardPoiImpact               *big.Int
+	BaseRewardValidationScoreImpact *big.Int
+	RewardPerSecond                 *big.Int
 }
 
 // Config describes lachesis net.
@@ -99,16 +100,20 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 // DefaultEconomyConfig returns mainnet economy
 func DefaultEconomyConfig() EconomyConfig {
 	// 30%
-	validatorPoiImpact := big.NewInt(30)
-	validatorPoiImpact.Mul(validatorPoiImpact, PercentUnit)
-	validatorPoiImpact.Div(validatorPoiImpact, big.NewInt(100))
+	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(30), PercentUnit)
+	txRewardPoiImpact.Div(txRewardPoiImpact, big.NewInt(100))
+
+	// 30%
+	baseRewardValidationScoreImpact := new(big.Int).Mul(big.NewInt(30), PercentUnit)
+	baseRewardValidationScoreImpact.Div(baseRewardValidationScoreImpact, big.NewInt(100))
 
 	return EconomyConfig{
-		ScoreCheckpointsInterval: 30 * 24 * time.Hour,
-		PoiPeriodDuration:        30 * 24 * time.Hour,
-		BlockMissedLatency:       6,
-		ValidatorPoiImpact:       validatorPoiImpact,
-		RewardPerSecond:          big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
+		ScoreCheckpointsInterval:        30 * 24 * time.Hour,
+		PoiPeriodDuration:               30 * 24 * time.Hour,
+		BlockMissedLatency:              5,
+		TxRewardPoiImpact:               txRewardPoiImpact,
+		BaseRewardValidationScoreImpact: baseRewardValidationScoreImpact,
+		RewardPerSecond:                 big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
 	}
 }
 
