@@ -9,45 +9,25 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
-// SfcStaker is the node-side representation of SFC staker
-type SfcStaker struct {
-	CreatedEpoch idx.Epoch
-	CreatedTime  inter.Timestamp
-
-	StakeAmount *big.Int
-	DelegatedMe *big.Int
-
-	Address common.Address
+// GetActiveSfcStakers returns stakers which will become validators in next epoch
+func (s *Service) GetActiveSfcStakers() []sfctype.SfcStakerAndID {
+	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
+	s.store.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
+		if it.Staker.DeactivatedEpoch == 0 && !it.Staker.IsCheater {
+			stakers = append(stakers, it)
+		}
+	})
+	return stakers
 }
 
-// SfcStakerAndID is pair SfcStaker + StakerID
-type SfcStakerAndID struct {
-	StakerID idx.StakerID
-	Staker   *SfcStaker
-}
-
-// CalcTotalStake returns sum of staker's stake and delegated to staker stake
-func (st *SfcStaker) CalcTotalStake() *big.Int {
-	return new(big.Int).Add(st.StakeAmount, st.DelegatedMe)
-}
-
-// SfcDelegator is the node-side representation of SFC delegator
-type SfcDelegator struct {
-	CreatedEpoch idx.Epoch
-	CreatedTime  inter.Timestamp
-
-	Amount *big.Int
-
-	ToStakerID idx.StakerID
-}
-
-func (s *Service) delStaker(stakerID idx.StakerID) {
+func (s *Service) delAllStakerData(stakerID idx.StakerID) {
 	s.store.DelSfcStaker(stakerID)
 	s.store.ResetBlocksMissed(stakerID)
 	s.store.DelActiveValidationScore(stakerID)
@@ -56,9 +36,16 @@ func (s *Service) delStaker(stakerID idx.StakerID) {
 	s.store.DelDirtyOriginationScore(stakerID)
 	s.store.DelWeightedDelegatorsGasUsed(stakerID)
 	s.store.DelStakerPOI(stakerID)
+	s.store.DelStakerClaimedRewards(stakerID)
+	s.store.DelStakerDelegatorsClaimedRewards(stakerID)
 }
 
-func (s *Service) calcValidatingPowers(stakers []SfcStakerAndID) []*big.Int {
+func (s *Service) delAllDelegatorData(address common.Address) {
+	s.store.DelSfcDelegator(address)
+	s.store.DelDelegatorClaimedRewards(address)
+}
+
+func (s *Service) calcValidatingPowers(stakers []sfctype.SfcStakerAndID) []*big.Int {
 	validatingPowers := make([]*big.Int, 0, 200)
 	scores := make([]*big.Int, 0, 200)
 	pois := make([]*big.Int, 0, 200)
@@ -128,12 +115,12 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				continue
 			}
 			// Add new stakers
-			if l.Topics[0] == sfcpos.CreateStakeTopic {
+			if l.Topics[0] == sfcpos.Topics.CreatedStake && len(l.Topics) > 2 && len(l.Data) >= 32 {
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 				address := common.BytesToAddress(l.Topics[2][12:])
 				amount := new(big.Int).SetBytes(l.Data[0:32])
 
-				s.store.SetSfcStaker(stakerID, &SfcStaker{
+				s.store.SetSfcStaker(stakerID, &sfctype.SfcStaker{
 					Address:      address,
 					CreatedEpoch: epoch,
 					CreatedTime:  block.Time,
@@ -143,7 +130,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 
 			// Increase stakes
-			if l.Topics[0] == sfcpos.IncreasedStakeTopic {
+			if l.Topics[0] == sfcpos.Topics.IncreasedStake && len(l.Topics) > 1 && len(l.Data) >= 32 {
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 				newAmount := new(big.Int).SetBytes(l.Data[0:32])
 
@@ -157,7 +144,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 
 			// Add new delegators
-			if l.Topics[0] == sfcpos.CreatedDelegationTopic {
+			if l.Topics[0] == sfcpos.Topics.CreatedDelegation && len(l.Topics) > 1 && len(l.Data) >= 32 {
 				address := common.BytesToAddress(l.Topics[1][12:])
 				toStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][12:]).Uint64())
 				amount := new(big.Int).SetBytes(l.Data[0:32])
@@ -169,7 +156,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				}
 				staker.DelegatedMe.Add(staker.DelegatedMe, amount)
 
-				s.store.SetSfcDelegator(address, &SfcDelegator{
+				s.store.SetSfcDelegator(address, &sfctype.SfcDelegator{
 					ToStakerID:   toStakerID,
 					CreatedEpoch: epoch,
 					CreatedTime:  block.Time,
@@ -178,14 +165,18 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				s.store.SetSfcStaker(toStakerID, staker)
 			}
 
-			// Delete stakes
-			if l.Topics[0] == sfcpos.DeactivateStakeTopic {
+			// Deactivate stakes
+			if l.Topics[0] == sfcpos.Topics.PreparedToWithdrawStake && len(l.Topics) > 1 {
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
-				s.delStaker(stakerID)
+
+				staker := s.store.GetSfcStaker(stakerID)
+				staker.DeactivatedEpoch = epoch
+				staker.DeactivatedTime = block.Time
+				s.store.SetSfcStaker(stakerID, staker)
 			}
 
-			// Delete delegators
-			if l.Topics[0] == sfcpos.DeactivateDelegationTopic {
+			// Deactivate delegators
+			if l.Topics[0] == sfcpos.Topics.PreparedToWithdrawDelegation && len(l.Topics) > 1 {
 				address := common.BytesToAddress(l.Topics[1][12:])
 
 				delegator := s.store.GetSfcDelegator(address)
@@ -194,7 +185,37 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 					staker.DelegatedMe.Sub(staker.DelegatedMe, delegator.Amount)
 					s.store.SetSfcStaker(delegator.ToStakerID, staker)
 				}
-				s.store.DelSfcDelegator(address)
+				delegator.DeactivatedEpoch = epoch
+				delegator.DeactivatedTime = block.Time
+				s.store.SetSfcDelegator(address, delegator)
+			}
+
+			// Delete stakes
+			if l.Topics[0] == sfcpos.Topics.WithdrawnStake && len(l.Topics) > 1 {
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
+				s.delAllStakerData(stakerID)
+			}
+
+			// Delete delegators
+			if l.Topics[0] == sfcpos.Topics.WithdrawnDelegation && len(l.Topics) > 1 {
+				address := common.BytesToAddress(l.Topics[1][12:])
+				s.delAllDelegatorData(address)
+			}
+
+			// Track rewards (API-only)
+			if l.Topics[0] == sfcpos.Topics.ClaimedValidatorReward && len(l.Topics) > 1 && len(l.Data) >= 32 {
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
+				reward := new(big.Int).SetBytes(l.Data[0:32])
+
+				s.store.IncStakerClaimedRewards(stakerID, reward)
+			}
+			if l.Topics[0] == sfcpos.Topics.ClaimedDelegationReward && len(l.Topics) > 2 && len(l.Data) >= 32 {
+				address := common.BytesToAddress(l.Topics[1][12:])
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
+				reward := new(big.Int).SetBytes(l.Data[0:32])
+
+				s.store.IncDelegatorClaimedRewards(address, reward)
+				s.store.IncStakerDelegatorsClaimedRewards(stakerID, reward)
 			}
 		}
 	}
@@ -208,7 +229,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		s.store.SetEpochStats(epoch, stats)
 
 		// new dirty EpochStats
-		s.store.SetDirtyEpochStats(&EpochStats{
+		s.store.SetDirtyEpochStats(&sfctype.EpochStats{
 			Start:    block.Time,
 			TotalFee: new(big.Int),
 		})
@@ -216,10 +237,15 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		s.store.SetDirtyEpochStats(stats)
 	}
 
-	// Write cheaters into SFC
-	for _, validator := range cheaters {
-		position := sfcpos.Staker(validator)
-		if statedb.GetState(sfc.ContractAddress, position.IsCheater()) == (common.Hash{}) {
+	// Write cheaters
+	for _, stakerID := range cheaters {
+		staker := s.store.GetSfcStaker(stakerID)
+		if !staker.IsCheater {
+			// write into node DB
+			staker.IsCheater = true
+			s.store.SetSfcStaker(stakerID, staker)
+			// write into SFC contract
+			position := sfcpos.Staker(stakerID)
 			statedb.SetState(sfc.ContractAddress, position.IsCheater(), common.BytesToHash([]byte{1}))
 		}
 	}
@@ -261,13 +287,9 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		blockRewards.Mul(blockRewards, s.config.Net.Economy.RewardPerSecond)
 		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(blockRewards, stats.TotalFee))
 
-		// Erase cheaters from our stakers index
-		for _, validator := range cheaters {
-			s.delStaker(validator)
-		}
 		// Select new validators
-		for _, it := range s.store.GetSfcStakers() {
-			// Note: cheaters are already erased from Stakers table
+		for _, it := range s.GetActiveSfcStakers() {
+			// Note: cheaters are not active
 			if _, ok := cheatersSet[it.StakerID]; ok {
 				s.Log.Crit("Cheaters must be erased from Stakers table")
 			}

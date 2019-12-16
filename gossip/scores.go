@@ -49,7 +49,7 @@ func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
 	blockTimeDiff := block.Time - s.store.GetBlock(block.Index-1).Time
 
 	// Calc validation scores
-	for _, it := range s.store.GetSfcStakers() {
+	for _, it := range s.GetActiveSfcStakers() {
 		// Check if validator has confirmed events by this Atropos
 		missedBlock := !s.blockParticipated[it.StakerID]
 

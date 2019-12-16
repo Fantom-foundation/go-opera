@@ -12,12 +12,30 @@ import (
 )
 
 // Events
+
 var (
-	CreateStakeTopic          = hash.Of([]byte("CreatedStake(uint256,address,uint256)"))
-	IncreasedStakeTopic       = hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)"))
-	CreatedDelegationTopic    = hash.Of([]byte("CreatedDelegation(address,uint256,uint256)"))
-	DeactivateStakeTopic      = hash.Of([]byte("PreparedToWithdrawStake(uint256)"))
-	DeactivateDelegationTopic = hash.Of([]byte("PreparedToWithdrawDelegation(address)"))
+	// Topics of SFC contract logs
+	Topics = struct {
+		CreatedStake                 common.Hash
+		IncreasedStake               common.Hash
+		CreatedDelegation            common.Hash
+		PreparedToWithdrawStake      common.Hash
+		PreparedToWithdrawDelegation common.Hash
+		WithdrawnStake               common.Hash
+		WithdrawnDelegation          common.Hash
+		ClaimedDelegationReward      common.Hash
+		ClaimedValidatorReward       common.Hash
+	}{
+		CreatedStake:                 hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
+		IncreasedStake:               hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)")),
+		CreatedDelegation:            hash.Of([]byte("CreatedDelegation(address,uint256,uint256)")),
+		PreparedToWithdrawStake:      hash.Of([]byte("PreparedToWithdrawStake(uint256)")),
+		PreparedToWithdrawDelegation: hash.Of([]byte("PreparedToWithdrawDelegation(address, uint256)")),
+		WithdrawnStake:               hash.Of([]byte("WithdrawnStake(uint256,bool)")),
+		WithdrawnDelegation:          hash.Of([]byte("WithdrawnDelegation(address,uint256,bool)")),
+		ClaimedDelegationReward:      hash.Of([]byte("ClaimedDelegationReward(address,uint256,uint256,uint256,uint256)")),
+		ClaimedValidatorReward:       hash.Of([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
+	}
 )
 
 // Global variables

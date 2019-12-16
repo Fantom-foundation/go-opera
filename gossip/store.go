@@ -47,9 +47,12 @@ type Store struct {
 		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"C"`
 
 		// API-only tables
-		BlockHashes kvdb.KeyValueStore `table:"h"`
-		Receipts    kvdb.KeyValueStore `table:"r"`
-		TxPositions kvdb.KeyValueStore `table:"x"`
+		BlockHashes                kvdb.KeyValueStore `table:"h"`
+		Receipts                   kvdb.KeyValueStore `table:"r"`
+		TxPositions                kvdb.KeyValueStore `table:"x"`
+		DelegatorOldRewards        kvdb.KeyValueStore `table:"6"`
+		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
+		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
 
 		// PoI tables
 		StakerPOIScore          kvdb.KeyValueStore `table:"s"`
