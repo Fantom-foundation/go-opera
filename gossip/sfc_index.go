@@ -113,20 +113,9 @@ func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID) (baseRewar
 
 	baseRewardWeights = make([]*big.Int, 0, len(stakers))
 	for i := range stakers {
-		// baseRewardWeight = (1 - CONST) * stake + (CONST) * validationScore,
-		// where validationScore is rebased to be comparable with stake
-		stakeWithRatio := new(big.Int).Mul(stakes[i], new(big.Int).Sub(lachesis.PercentUnit, s.config.Net.Economy.BaseRewardValidationScoreImpact))
-		stakeWithRatio.Div(stakeWithRatio, lachesis.PercentUnit)
-
-		vScoreRebased := new(big.Int).Mul(validationScores[i], totalStake)
-		vScoreRebased.Div(vScoreRebased, totalValidationScore)
-
-		vScoreRebasedWithRatio := vScoreRebased
-		vScoreRebasedWithRatio.Mul(vScoreRebasedWithRatio, s.config.Net.Economy.BaseRewardValidationScoreImpact)
-		vScoreRebasedWithRatio.Div(vScoreRebasedWithRatio, lachesis.PercentUnit)
-
-		baseRewardWeight := new(big.Int)
-		baseRewardWeight.Add(stakeWithRatio, vScoreRebasedWithRatio)
+		// baseRewardWeight = stake * validationScore, validationScore is rebased to [0, 1]
+		baseRewardWeight := new(big.Int).Mul(stakes[i], validationScores[i])
+		baseRewardWeight.Div(baseRewardWeight, totalValidationScore)
 
 		baseRewardWeights = append(baseRewardWeights, baseRewardWeight)
 	}

@@ -56,7 +56,6 @@ type EconomyConfig struct {
 	BlockMissedLatency                 idx.Block
 	OfflinePenaltyThreshold            BlocksMissed
 	TxRewardPoiImpact                  *big.Int
-	BaseRewardValidationScoreImpact    *big.Int
 	RewardPerSecond                    *big.Int
 }
 
@@ -110,16 +109,11 @@ func DefaultEconomyConfig() EconomyConfig {
 	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(30), PercentUnit)
 	txRewardPoiImpact.Div(txRewardPoiImpact, big.NewInt(100))
 
-	// 30%
-	baseRewardValidationScoreImpact := new(big.Int).Mul(big.NewInt(30), PercentUnit)
-	baseRewardValidationScoreImpact.Div(baseRewardValidationScoreImpact, big.NewInt(100))
-
 	return EconomyConfig{
 		OriginationScoreCheckpointInterval: 30 * 24 * time.Hour,
 		PoiPeriodDuration:                  30 * 24 * time.Hour,
 		BlockMissedLatency:                 4,
 		TxRewardPoiImpact:                  txRewardPoiImpact,
-		BaseRewardValidationScoreImpact:    baseRewardValidationScoreImpact,
 		RewardPerSecond:                    big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
 		OfflinePenaltyThreshold: BlocksMissed{
 			Num:    1000,
