@@ -55,6 +55,11 @@ func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
 
 	// Calc validation scores
 	for _, it := range s.GetActiveSfcStakers() {
+		// validators only
+		if !s.engine.GetValidators().Exists(it.StakerID) {
+			continue
+		}
+
 		// Check if validator has confirmed events by this Atropos
 		missedBlock := !s.blockParticipated[it.StakerID]
 
