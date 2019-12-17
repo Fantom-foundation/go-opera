@@ -83,6 +83,10 @@ func DefaultConfig(network lachesis.Config) Config {
 
 	if network.NetworkID == lachesis.FakeNetworkID {
 		cfg.Emitter = FakeEmitterConfig()
+		// disable self-fork protection if fakenet 1/1
+		if len(network.Genesis.Alloc.GValidators) == 1 {
+			cfg.Emitter.SelfForkProtectionInterval = 0
+		}
 	}
 	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network
 		cfg.TxPool = evmcore.FakeTxPoolConfig()

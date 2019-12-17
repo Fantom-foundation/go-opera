@@ -438,6 +438,9 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
+	if em.config.SelfForkProtectionInterval == 0 {
+		return true, "", 0 // protection disabled
+	}
 	if em.world.PeersNum() == 0 {
 		em.syncStatus.connectedTime = time.Now() // move time of the first connection
 		return false, "no connections", 0
