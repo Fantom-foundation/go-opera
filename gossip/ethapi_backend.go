@@ -465,7 +465,7 @@ func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.Stake
 func (b *EthAPIBackend) GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error) {
 	epoch := b.svc.engine.GetEpoch()
 	if !b.svc.store.HasEpochValidator(epoch, stakerID) {
-		return 0, 0, errors.New("staker isn't validator")
+		return 0, 0, nil
 	}
 
 	missed := b.svc.store.GetBlocksMissed(stakerID)

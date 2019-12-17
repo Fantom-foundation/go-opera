@@ -20,7 +20,7 @@ import (
 func (s *Service) GetActiveSfcStakers() []sfctype.SfcStakerAndID {
 	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
 	s.store.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
-		if it.Staker.DeactivatedEpoch == 0 && !it.Staker.IsCheater {
+		if it.Staker.Ok() {
 			stakers = append(stakers, it)
 		}
 	})
@@ -271,19 +271,38 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 	// Write cheaters
 	for _, stakerID := range cheaters {
 		staker := s.store.GetSfcStaker(stakerID)
-		if !staker.IsCheater {
-			// write into node DB
-			staker.IsCheater = true
-			s.store.SetSfcStaker(stakerID, staker)
-			// write into SFC contract
-			position := sfcpos.Staker(stakerID)
-			statedb.SetState(sfc.ContractAddress, position.IsCheater(), common.BytesToHash([]byte{1}))
+		if staker.HasFork() {
+			continue
 		}
+		// write into DB
+		staker.Status |= sfctype.FORK_BIT
+		s.store.SetSfcStaker(stakerID, staker)
+		// write into SFC contract
+		position := sfcpos.Staker(stakerID)
+		statedb.SetState(sfc.ContractAddress, position.Status(), utils.U64to256(staker.Status))
 	}
 
 	if sealEpoch {
 		epoch256 := utils.U64to256(uint64(epoch))
 		statedb.SetState(sfc.ContractAddress, sfcpos.CurrentSealedEpoch(), epoch256)
+
+		// Write offline validators
+		for _, it := range s.store.GetSfcStakers() {
+			if it.Staker.Offline() {
+				continue
+			}
+
+			gotMissed := s.store.GetBlocksMissed(it.StakerID)
+			badMissed := s.config.Net.Economy.OfflinePenaltyThreshold
+			if gotMissed.Num >= badMissed.Num && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
+				// write into DB
+				it.Staker.Status |= sfctype.OFFLINE_BIT
+				s.store.SetSfcStaker(it.StakerID, it.Staker)
+				// write into SFC contract
+				position := sfcpos.Staker(it.StakerID)
+				statedb.SetState(sfc.ContractAddress, position.Status(), utils.U64to256(it.Staker.Status))
+			}
+		}
 
 		// Write epoch snapshot (for reward)
 		cheatersSet := cheaters.Set()
@@ -294,12 +313,15 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		totalBaseRewardWeight := new(big.Int)
 		totalTxRewardWeight := new(big.Int)
 		for i, it := range epochValidators {
+			baseRewardWeight := baseRewardWeights[i]
+			txRewardWeight := txRewardWeights[i]
+
 			if _, ok := cheatersSet[it.StakerID]; ok {
 				continue // don't give reward to cheaters
 			}
-
-			baseRewardWeight := baseRewardWeights[i]
-			txRewardWeight := txRewardWeights[i]
+			if baseRewardWeight.Sign() == 0 && txRewardWeight.Sign() == 0 {
+				continue // don't give reward to offline validators
+			}
 
 			meritPos := epochPos.ValidatorMerit(it.StakerID)
 

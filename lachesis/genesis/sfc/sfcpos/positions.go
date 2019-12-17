@@ -31,8 +31,8 @@ var (
 		CreatedDelegation:            hash.Of([]byte("CreatedDelegation(address,uint256,uint256)")),
 		PreparedToWithdrawStake:      hash.Of([]byte("PreparedToWithdrawStake(uint256)")),
 		PreparedToWithdrawDelegation: hash.Of([]byte("PreparedToWithdrawDelegation(address, uint256)")),
-		WithdrawnStake:               hash.Of([]byte("WithdrawnStake(uint256,bool)")),
-		WithdrawnDelegation:          hash.Of([]byte("WithdrawnDelegation(address,uint256,bool)")),
+		WithdrawnStake:               hash.Of([]byte("WithdrawnStake(uint256,uint256)")),
+		WithdrawnDelegation:          hash.Of([]byte("WithdrawnDelegation(address,uint256,uint256)")),
 		ClaimedDelegationReward:      hash.Of([]byte("ClaimedDelegationReward(address,uint256,uint256,uint256,uint256)")),
 		ClaimedValidatorReward:       hash.Of([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
 	}
@@ -68,7 +68,7 @@ func Staker(stakerID idx.StakerID) StakePos {
 	return StakePos{object{base: position.Big()}}
 }
 
-func (p *StakePos) IsCheater() common.Hash {
+func (p *StakePos) Status() common.Hash {
 	return p.Field(0)
 }
 

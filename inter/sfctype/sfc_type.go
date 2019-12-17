@@ -9,6 +9,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
+var (
+	// FORK_BIT is set if staker has a confirmed pair of fork events
+	FORK_BIT = uint64(1)
+	// OFFLINE_BIT is set if staker has didn't have confirmed events for a long time
+	OFFLINE_BIT = uint64(1 << 8)
+	// CHEATER_MASK is a combination of severe misbehavings
+	CHEATER_MASK = FORK_BIT
+)
+
 // SfcStaker is the node-side representation of SFC staker
 type SfcStaker struct {
 	CreatedEpoch idx.Epoch
@@ -22,9 +31,29 @@ type SfcStaker struct {
 
 	Address common.Address
 
-	IsCheater bool
+	Status uint64
 
 	IsValidator bool `rlp:"-"` // API-only field
+}
+
+// Ok returns true if not deactivated and not pruned
+func (s *SfcStaker) Ok() bool {
+	return s.Status == 0 && s.DeactivatedEpoch == 0
+}
+
+// IsCheater returns true if staker is cheater
+func (s *SfcStaker) IsCheater() bool {
+	return s.Status&CHEATER_MASK != 0
+}
+
+// HasFork returns true if staker has a confirmed fork
+func (s *SfcStaker) HasFork() bool {
+	return s.Status&FORK_BIT != 0
+}
+
+// Offline returns true if staker was offline for long time
+func (s *SfcStaker) Offline() bool {
+	return s.Status&OFFLINE_BIT != 0
 }
 
 // SfcStakerAndID is pair SfcStaker + StakerID
