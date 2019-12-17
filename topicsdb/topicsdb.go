@@ -21,7 +21,7 @@ type TopicsDb struct {
 		Topic kvdb.KeyValueStore `table:"topic"`
 		// (blockN+TxHash+logIndex) + topicN -> topic
 		Other kvdb.KeyValueStore `table:"other"`
-		// (blockN+TxHash+logIndex) -> data
+		// (blockN+TxHash+logIndex) -> address, data
 		Logrec kvdb.KeyValueStore `table:"logrec"`
 	}
 
@@ -53,8 +53,6 @@ func (tt *TopicsDb) Push(rec *types.Log) error {
 	}
 	count := posToBytes(uint8(len(rec.Topics)))
 
-	//	fmt.Println("PUSH", recToString(rec))
-
 	id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
 
 	for pos, topic := range rec.Topics {
@@ -71,16 +69,10 @@ func (tt *TopicsDb) Push(rec *types.Log) error {
 		}
 	}
 
-	err := tt.table.Logrec.Put(id.Bytes(), rec.Data)
+	err := tt.table.Logrec.Put(id.Bytes(), append(rec.Data, rec.Address[:]...))
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-
-/*
-func recToString(rec *types.Log) string {
-	return fmt.Sprintf("{%d,%s,%d,[topics]}", rec.BlockNumber, rec.TxHash.String(), rec.Index)
-}
-*/

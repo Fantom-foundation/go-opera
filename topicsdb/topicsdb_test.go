@@ -102,6 +102,7 @@ func genTestData() (
 			BlockNumber: uint64(i / period),
 			TxHash:      hash.FakeHash(int64(i % period)),
 			Index:       uint(i % period),
+			Address:     common.Address{0x1, 0x2, 0xff, 0x0},
 			Topics:      topics[from:to],
 			Data:        make([]byte, 10),
 		}

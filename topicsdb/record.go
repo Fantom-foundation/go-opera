@@ -97,10 +97,13 @@ func (rec *logrecBuilder) Fetch(
 	it.Release()
 
 	// fields
-	rec.Data, err = logrecTable.Get(rec.ID.Bytes())
+	buf, err := logrecTable.Get(rec.ID.Bytes())
 	if err != nil {
 		return
 	}
+
+	rec.Address = common.BytesToAddress(buf)
+	rec.Data = buf[:len(buf)-common.AddressLength]
 
 	return
 }
