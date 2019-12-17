@@ -43,14 +43,21 @@ type DagConfig struct {
 	IndexConfig vector.IndexConfig `json:"indexConfig"`
 }
 
+// BlocksMissed is information about missed blocks from a staker
+type BlocksMissed struct {
+	Num    idx.Block
+	Period time.Duration
+}
+
 // EconomyConfig contains economy constants
 type EconomyConfig struct {
-	ScoreCheckpointsInterval        time.Duration
-	PoiPeriodDuration               time.Duration
-	BlockMissedLatency              idx.Block
-	TxRewardPoiImpact               *big.Int
-	BaseRewardValidationScoreImpact *big.Int
-	RewardPerSecond                 *big.Int
+	OriginationScoreCheckpointInterval time.Duration
+	PoiPeriodDuration                  time.Duration
+	BlockMissedLatency                 idx.Block
+	OfflinePenaltyThreshold            BlocksMissed
+	TxRewardPoiImpact                  *big.Int
+	BaseRewardValidationScoreImpact    *big.Int
+	RewardPerSecond                    *big.Int
 }
 
 // Config describes lachesis net.
@@ -108,20 +115,26 @@ func DefaultEconomyConfig() EconomyConfig {
 	baseRewardValidationScoreImpact.Div(baseRewardValidationScoreImpact, big.NewInt(100))
 
 	return EconomyConfig{
-		ScoreCheckpointsInterval:        30 * 24 * time.Hour,
-		PoiPeriodDuration:               30 * 24 * time.Hour,
-		BlockMissedLatency:              5,
-		TxRewardPoiImpact:               txRewardPoiImpact,
-		BaseRewardValidationScoreImpact: baseRewardValidationScoreImpact,
-		RewardPerSecond:                 big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
+		OriginationScoreCheckpointInterval: 30 * 24 * time.Hour,
+		PoiPeriodDuration:                  30 * 24 * time.Hour,
+		BlockMissedLatency:                 4,
+		TxRewardPoiImpact:                  txRewardPoiImpact,
+		BaseRewardValidationScoreImpact:    baseRewardValidationScoreImpact,
+		RewardPerSecond:                    big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
+		OfflinePenaltyThreshold: BlocksMissed{
+			Num:    1000,
+			Period: 24 * time.Hour,
+		},
 	}
 }
 
 // FakeEconomyConfig returns fakenet economy
 func FakeEconomyConfig() EconomyConfig {
 	cfg := DefaultEconomyConfig()
-	cfg.ScoreCheckpointsInterval = 5 * time.Minute
+	cfg.OriginationScoreCheckpointInterval = 5 * time.Minute
 	cfg.PoiPeriodDuration = 1 * time.Minute
+	cfg.OfflinePenaltyThreshold.Period = 10 * time.Minute
+	cfg.OfflinePenaltyThreshold.Num = 10
 	return cfg
 }
 

@@ -44,9 +44,7 @@ type Store struct {
 		ActiveOriginationScore     kvdb.KeyValueStore `table:"O"`
 		DirtyOriginationScore      kvdb.KeyValueStore `table:"o"`
 		BlockParticipation         kvdb.KeyValueStore `table:"m"`
-		ValidationScoreCheckpoint  kvdb.KeyValueStore `table:"c"`
 		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"C"`
-		BlockFee                   kvdb.KeyValueStore `table:"f"`
 
 		// API-only tables
 		BlockHashes                kvdb.KeyValueStore `table:"h"`
@@ -89,7 +87,6 @@ type Store struct {
 		Delegators                 *lru.Cache `cache:"-"` // store by pointer
 		BlockParticipation         *lru.Cache `cache:"-"` // store by pointer
 		BlockHashes                *lru.Cache `cache:"-"` // store by pointer
-		ValidationScoreCheckpoint  *lru.Cache `cache:"-"` // store by pointer
 		OriginationScoreCheckpoint *lru.Cache `cache:"-"` // store by pointer
 	}
 
@@ -148,7 +145,6 @@ func (s *Store) initCache() {
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockParticipation = s.makeCache(256)
 	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
-	s.cache.ValidationScoreCheckpoint = s.makeCache(4)
 	s.cache.OriginationScoreCheckpoint = s.makeCache(4)
 }
 

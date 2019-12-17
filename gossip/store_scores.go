@@ -10,32 +10,8 @@ import (
 )
 
 const (
-	validationScoreCheckpointKey  = "current"
 	originationScoreCheckpointKey = "current"
 )
-
-func (s *Store) SetBlockFee(block idx.Block, fee *big.Int) {
-	err := s.table.BlockFee.Put(block.Bytes(), fee.Bytes())
-	if err != nil {
-		s.Log.Crit("Failed to set key-value", "err", err)
-	}
-}
-
-func (s *Store) GetBlockFee(block idx.Block) *big.Int {
-	feeBytes, err := s.table.BlockFee.Get(block.Bytes())
-	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
-	}
-	fee := new(big.Int).SetBytes(feeBytes)
-	return fee
-}
-
-func (s *Store) DelBlockFee(block idx.Block, fee *big.Int) {
-	err := s.table.BlockFee.Delete(block.Bytes())
-	if err != nil {
-		s.Log.Crit("Failed to erase key-value", "err", err)
-	}
-}
 
 // IncBlocksMissed add count of missed blocks for validator
 func (s *Store) IncBlocksMissed(stakerID idx.StakerID, periodDiff inter.Timestamp) {
@@ -134,17 +110,6 @@ func (s *Store) getValidationScore(t kvdb.KeyValueStore, stakerID idx.StakerID) 
 	return new(big.Int).SetBytes(scoreBytes)
 }
 
-// SetValidationScoreCheckpoint set validation score checkpoint time
-func (s *Store) SetValidationScoreCheckpoint(cp inter.Timestamp) {
-	cpBytes := bigendian.Int64ToBytes(uint64(cp))
-	err := s.table.ValidationScoreCheckpoint.Put([]byte(validationScoreCheckpointKey), cpBytes)
-	if err != nil {
-		s.Log.Crit("Failed to set key-value", "err", err)
-	}
-
-	s.cache.ValidationScoreCheckpoint.Add(validationScoreCheckpointKey, cp)
-}
-
 // DelAllActiveValidationScores deletes all the record about dirty validation scores of stakers
 func (s *Store) DelAllActiveValidationScores() {
 	it := s.table.ActiveValidationScore.NewIterator()
@@ -175,30 +140,6 @@ func (s *Store) MoveDirtyValidationScoresToActive() {
 			s.Log.Crit("Failed to erase key-value", "err", err)
 		}
 	}
-}
-
-// GetValidationScoreCheckpoint return last validation score checkpoint time
-func (s *Store) GetValidationScoreCheckpoint() inter.Timestamp {
-	cpVal, ok := s.cache.ValidationScoreCheckpoint.Get(validationScoreCheckpointKey)
-	if ok {
-		cp, ok := cpVal.(inter.Timestamp)
-		if ok {
-			return cp
-		}
-	}
-
-	cpBytes, err := s.table.ValidationScoreCheckpoint.Get([]byte(validationScoreCheckpointKey))
-	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
-	}
-	if cpBytes == nil {
-		return 0
-	}
-
-	cp := inter.Timestamp(bigendian.BytesToInt64(cpBytes))
-	s.cache.ValidationScoreCheckpoint.Add(validationScoreCheckpointKey, cp)
-
-	return cp
 }
 
 // GetActiveOriginationScore return gas value for active validator score

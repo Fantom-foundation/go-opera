@@ -41,7 +41,7 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 
 	if sealEpoch {
 		lastCheckpoint := s.store.GetOriginationScoreCheckpoint()
-		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.ScoreCheckpointsInterval {
+		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.OriginationScoreCheckpointInterval {
 			s.store.DelAllActiveOriginationScores()
 			s.store.MoveDirtyOriginationScoresToActive()
 			s.store.SetOriginationScoreCheckpoint(block.Time)
@@ -50,11 +50,8 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 }
 
 // updateValidationScores calculates the validation scores
-func (s *Service) updateValidationScores(block *inter.Block, totalFee *big.Int, sealEpoch bool) {
+func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
 	blockTimeDiff := block.Time - s.store.GetBlock(block.Index-1).Time
-
-	// Write block fee
-	s.store.SetBlockFee(block.Index, totalFee)
 
 	// Calc validation scores
 	for _, it := range s.GetActiveSfcStakers() {
@@ -73,19 +70,18 @@ func (s *Service) updateValidationScores(block *inter.Block, totalFee *big.Int, 
 		}
 
 		// Add score for previous blocks, but no more than FrameLatency prev blocks
-		s.store.AddDirtyValidationScore(it.StakerID, totalFee)
+		s.store.AddDirtyValidationScore(it.StakerID, new(big.Int).SetUint64(uint64(blockTimeDiff)))
 		for i := idx.Block(1); i <= missedNum && i < block.Index; i++ {
-			fee := s.store.GetBlockFee(block.Index - i)
-			s.store.AddDirtyValidationScore(it.StakerID, fee)
+			blockTime := s.store.GetBlock(block.Index - i).Time
+			prevBlockTime := s.store.GetBlock(block.Index - i - 1).Time
+			timeDiff := blockTime - prevBlockTime
+			s.store.AddDirtyValidationScore(it.StakerID, new(big.Int).SetUint64(uint64(timeDiff)))
 		}
 		s.store.ResetBlocksMissed(it.StakerID)
 	}
 
 	if sealEpoch {
-		lastCheckpoint := s.store.GetValidationScoreCheckpoint()
-		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.ScoreCheckpointsInterval {
-			s.store.MoveDirtyValidationScoresToActive()
-			s.store.SetValidationScoreCheckpoint(block.Time)
-		}
+		s.store.DelAllActiveValidationScores()
+		s.store.MoveDirtyValidationScoresToActive()
 	}
 }
