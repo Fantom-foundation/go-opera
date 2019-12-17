@@ -463,11 +463,6 @@ func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.Stake
 
 // GetDowntime returns staker's Downtime.
 func (b *EthAPIBackend) GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error) {
-	epoch := b.svc.engine.GetEpoch()
-	if !b.svc.store.HasEpochValidator(epoch, stakerID) {
-		return 0, 0, nil
-	}
-
 	missed := b.svc.store.GetBlocksMissed(stakerID)
 	return missed.Num, missed.Period, nil
 }
