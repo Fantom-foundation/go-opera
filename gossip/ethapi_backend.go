@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -381,22 +380,4 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 
 func (b *EthAPIBackend) RPCGasCap() *big.Int {
 	return b.svc.config.RPCGasCap
-}
-
-func (b *EthAPIBackend) BloomStatus() (uint64, uint64) {
-	// TODO: implement or disable it. Origin:
-	/*
-		sections, _, _ := b.svc.bloomIndexer.Sections()
-		return params.BloomBitsBlocks, sections
-	*/
-	return 0, 0
-}
-
-func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
-	// TODO: implement or disable it. Origin:
-	/*
-		for i := 0; i < bloomFilterThreads; i++ {
-			go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.svc.bloomRequests)
-		}
-	*/
 }
