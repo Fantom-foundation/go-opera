@@ -20,13 +20,13 @@ func PoiPeriod(t inter.Timestamp, config *lachesis.EconomyConfig) uint64 {
 
 // UpdateAddressPOI calculate and save POI for user
 func (s *Service) UpdateAddressPOI(address common.Address, senderTotalFee *big.Int, poiPeriod uint64) {
-	if senderTotalFee.Sign() == 0 {
+	/*if senderTotalFee.Sign() == 0 {
 		s.store.SetAddressPOI(address, common.Big0)
 		return // avoid division by 0
 	}
 	poi := new(big.Int).Mul(senderTotalFee, lachesis.PercentUnit)
-	poi.Div(poi, s.store.GetPoiFee(poiPeriod))
-	s.store.SetAddressPOI(address, poi)
+	poi.Div(poi, s.store.GetPoiFee(poiPeriod)) // rebase user's PoI as <= 1.0 ratio
+	s.store.SetAddressPOI(address, poi)*/
 }
 
 // updateUsersPOI calculates the Proof Of Importance weights for users
@@ -92,8 +92,9 @@ func (s *Service) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Ad
 		s.store.SetStakerPOI(stakerID, common.Big0)
 		return // avoid division by 0
 	}
-	poi := new(big.Int).Mul(weightedFee, lachesis.PercentUnit)
-	poi.Div(poi, s.store.GetPoiFee(poiPeriod))
+	poi := weightedFee // no need to rebase validator's PoI as <= 1.0 ratio
+	/*poi := new(big.Int).Mul(weightedFee, lachesis.PercentUnit)
+	poi.Div(poi, s.store.GetPoiFee(poiPeriod))*/
 	s.store.SetStakerPOI(stakerID, poi)
 }
 

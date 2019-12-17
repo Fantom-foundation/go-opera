@@ -161,7 +161,7 @@ func (s *Service) applyNewState(
 	}
 
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
-		evmBlock.GasUsed, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs), "elapsed", time.Since(start))
+		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "elapsed", time.Since(start))
 
 	return block, evmBlock, receipts, txPositions, newAppHash
 }

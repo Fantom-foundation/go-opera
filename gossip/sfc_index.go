@@ -59,17 +59,8 @@ func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID) (baseRewar
 	for _, it := range stakers {
 		stake := it.Staker.CalcTotalStake()
 		poi := s.store.GetStakerPOI(it.StakerID)
-		if poi.Sign() == 0 {
-			poi = big.NewInt(1)
-		}
 		validationScore := s.store.GetActiveValidationScore(it.StakerID)
-		if validationScore.Sign() == 0 {
-			validationScore = big.NewInt(1)
-		}
 		originationScore := s.store.GetActiveOriginationScore(it.StakerID)
-		if originationScore.Sign() == 0 {
-			originationScore = big.NewInt(1)
-		}
 
 		stakes = append(stakes, stake)
 		validationScores = append(validationScores, validationScore)
@@ -82,6 +73,18 @@ func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID) (baseRewar
 		totalOriginationScore.Add(totalOriginationScore, originationScore)
 	}
 
+	if totalPoI.Sign() == 0 {
+		totalPoI = big.NewInt(1)
+	}
+	if totalValidationScore.Sign() == 0 {
+		totalValidationScore = big.NewInt(1)
+	}
+	if totalOriginationScore.Sign() == 0 {
+		totalOriginationScore = big.NewInt(1)
+	}
+	if totalStake.Sign() == 0 {
+		totalStake = big.NewInt(1)
+	}
 	totalScore := new(big.Int).Add(totalOriginationScore, totalValidationScore)
 
 	txRewardWeights = make([]*big.Int, 0, len(stakers))
