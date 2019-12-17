@@ -397,7 +397,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		return w.SignData(acc, MimetypeEvent, data)
 	}
 	if err := event.Sign(signer); err != nil {
-		em.Log.Error("Failed to sign event", "err", err)
+		em.Periodic.Error(time.Second, "Failed to sign event. Please unlock account.", "err", err)
 		return nil
 	}
 	// calc hash after event is fully built
@@ -407,7 +407,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		// sanity check
 		if em.world.Checkers != nil {
 			if err := em.world.Checkers.Validate(event, parentHeaders); err != nil {
-				em.Log.Error("Signed event incorrectly", "err", err)
+				em.Periodic.Error(time.Second, "Signed event incorrectly", "err", err)
 				return nil
 			}
 		}
