@@ -130,16 +130,11 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 func (f *Filter) indexedLogs(ctx context.Context, end int64) ([]*types.Log, error) {
 	conditions := make([]topicsdb.Condition, len(f.topics))
 	for i, tt := range f.topics {
-		switch len(tt) {
-		case 0:
+		if len(tt) < 1 {
 			// empty rule set == wildcard
 			continue
-		case 1:
-			conditions[i] = topicsdb.NewCondition(tt[0], uint8(i))
-		default:
-			// TODO: implement it
-			return nil, errors.New("or-topic criteria is not implemented yet")
 		}
+		conditions[i] = topicsdb.NewCondition(uint8(i), tt...)
 	}
 
 	logs, err := f.backend.EvmLogIndex().Find(conditions...)

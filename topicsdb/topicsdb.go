@@ -43,6 +43,7 @@ func New(db kvdb.KeyValueStore) *TopicsDb {
 
 // Find log records by conditions.
 func (tt *TopicsDb) Find(cc ...Condition) ([]*types.Log, error) {
+	// TODO: collapse the same conditions into one and remove empty
 	return tt.fetchMethod(cc...)
 }
 

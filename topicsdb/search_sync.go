@@ -14,24 +14,26 @@ func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*types.Log, err error) {
 
 	conditions := uint8(len(cc))
 	for _, cond := range cc {
-		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
-		for it.Next() {
-			id := extractLogrecID(it.Key())
-			topicCount := bytesToPos(it.Value())
-			rec := recs[id]
-			if rec == nil {
-				rec = newLogrecBuilder(id, conditions, topicCount)
-				recs[id] = rec
+		for _, alternative := range cond {
+			it := tt.table.Topic.NewIteratorWithPrefix(alternative[:])
+			for it.Next() {
+				id := extractLogrecID(it.Key())
+				topicCount := bytesToPos(it.Value())
+				rec := recs[id]
+				if rec == nil {
+					rec = newLogrecBuilder(id, conditions, topicCount)
+					recs[id] = rec
+				}
+				rec.MatchedWith(cond)
 			}
-			rec.MatchedWith(cond)
-		}
 
-		err = it.Error()
-		if err != nil {
-			return
-		}
+			err = it.Error()
+			if err != nil {
+				return
+			}
 
-		it.Release()
+			it.Release()
+		}
 	}
 
 	for _, rec := range recs {

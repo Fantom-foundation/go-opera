@@ -14,26 +14,28 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*types.Log, err error) {
 	conditions := uint8(len(cc))
 	recs := make(map[ID]*logrecBuilder)
 	for _, cond := range cc {
-		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
-		for it.Next() {
-			id := extractLogrecID(it.Key())
-			topicCount := bytesToPos(it.Value())
-			rec := recs[id]
-			if rec == nil {
-				rec = newLogrecBuilder(id, conditions, topicCount)
-				recs[id] = rec
-				rec.StartFetch(tt.table.Other, tt.table.Logrec)
-				defer rec.StopFetch()
+		for _, alternative := range cond {
+			it := tt.table.Topic.NewIteratorWithPrefix(alternative[:])
+			for it.Next() {
+				id := extractLogrecID(it.Key())
+				topicCount := bytesToPos(it.Value())
+				rec := recs[id]
+				if rec == nil {
+					rec = newLogrecBuilder(id, conditions, topicCount)
+					recs[id] = rec
+					rec.StartFetch(tt.table.Other, tt.table.Logrec)
+					defer rec.StopFetch()
+				}
+				rec.MatchedWith(cond)
 			}
-			rec.MatchedWith(cond)
-		}
 
-		err = it.Error()
-		if err != nil {
-			return
-		}
+			err = it.Error()
+			if err != nil {
+				return
+			}
 
-		it.Release()
+			it.Release()
+		}
 	}
 
 	for _, rec := range recs {

@@ -27,7 +27,7 @@ func BenchmarkSearch(b *testing.B) {
 
 		conditions := make([]Condition, len(tt))
 		for pos, t := range tt {
-			conditions[pos] = NewCondition(t, uint8(pos))
+			conditions[pos] = NewCondition(uint8(pos), t)
 		}
 
 		query = append(query, conditions)
