@@ -1142,7 +1142,7 @@ func (s *PublicBlockChainAPI) CurrentEpoch(ctx context.Context) hexutil.Uint64 {
 // GetEpochStats returns epoch statistics.
 // * When epoch is -1 the statistics for latest epoch is returned.
 func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (map[string]interface{}, error) {
-	stats, epoch, err := s.b.GetEpochStats(ctx, requestedEpoch)
+	stats, err := s.b.GetEpochStats(ctx, requestedEpoch)
 	if err != nil {
 		return nil, err
 	}
@@ -1150,10 +1150,12 @@ func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch 
 		return nil, nil
 	}
 	return map[string]interface{}{
-		"epoch":    hexutil.Uint64(epoch),
-		"start":    hexutil.Uint64(stats.Start),
-		"end":      hexutil.Uint64(stats.End),
-		"totalFee": (*hexutil.Big)(stats.TotalFee),
+		"epoch":                 hexutil.Uint64(stats.Epoch),
+		"start":                 hexutil.Uint64(stats.Start),
+		"end":                   hexutil.Uint64(stats.End),
+		"totalFee":              (*hexutil.Big)(stats.TotalFee),
+		"totalBaseRewardWeight": (*hexutil.Big)(stats.TotalBaseRewardWeight),
+		"totalTxRewardWeight":   (*hexutil.Big)(stats.TotalTxRewardWeight),
 	}, nil
 }
 

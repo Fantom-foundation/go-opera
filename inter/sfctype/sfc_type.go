@@ -91,4 +91,8 @@ type EpochStats struct {
 	Start    inter.Timestamp
 	End      inter.Timestamp
 	TotalFee *big.Int
+
+	Epoch                 idx.Epoch `rlp:"-"` // API-only field
+	TotalBaseRewardWeight *big.Int  `rlp:"-"` // API-only field
+	TotalTxRewardWeight   *big.Int  `rlp:"-"` // API-only field
 }

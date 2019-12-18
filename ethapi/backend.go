@@ -82,7 +82,7 @@ type Backend interface {
 
 	// Lachesis DAG API
 	CurrentEpoch(ctx context.Context) idx.Epoch
-	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, idx.Epoch, error)
+	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
 
 	// Lachesis SFC API
 	GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
