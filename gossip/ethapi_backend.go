@@ -26,6 +26,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
@@ -380,4 +381,8 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 
 func (b *EthAPIBackend) RPCGasCap() *big.Int {
 	return b.svc.config.RPCGasCap
+}
+
+func (b *EthAPIBackend) EvmLogIndex() *topicsdb.TopicsDb {
+	return b.svc.store.table.EvmLogs
 }

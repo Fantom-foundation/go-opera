@@ -34,11 +34,15 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 )
 
 type testBackend struct {
 	mux        *event.TypeMux
 	db         ethdb.Database
+	logIndex   *topicsdb.TopicsDb
 	sections   uint64
 	txFeed     *event.Feed
 	rmLogsFeed *event.Feed
@@ -118,6 +122,10 @@ func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subsc
 	return b.chainFeed.Subscribe(ch)
 }
 
+func (b *testBackend) EvmLogIndex() *topicsdb.TopicsDb {
+	return b.logIndex
+}
+
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.
 // It creates multiple subscriptions:
 // - one at the start and should receive all posted chain events and a second (blockHashes)
@@ -129,11 +137,12 @@ func TestBlockSubscription(t *testing.T) {
 	var (
 		mux         = new(event.TypeMux)
 		db          = rawdb.NewMemoryDatabase()
+		logIndex    = topicsdb.New(memorydb.New())
 		txFeed      = new(event.Feed)
 		rmLogsFeed  = new(event.Feed)
 		logsFeed    = new(event.Feed)
 		chainFeed   = new(event.Feed)
-		backend     = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend     = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api         = NewPublicFilterAPI(backend)
 		genesis     = new(core.Genesis).MustCommit(db)
 		chain, _    = core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 10, func(i int, gen *core.BlockGen) {})
@@ -186,11 +195,12 @@ func TestPendingTxFilter(t *testing.T) {
 	var (
 		mux        = new(event.TypeMux)
 		db         = rawdb.NewMemoryDatabase()
+		logIndex   = topicsdb.New(memorydb.New())
 		txFeed     = new(event.Feed)
 		rmLogsFeed = new(event.Feed)
 		logsFeed   = new(event.Feed)
 		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api        = NewPublicFilterAPI(backend)
 
 		transactions = []*types.Transaction{
@@ -246,11 +256,12 @@ func TestLogFilterCreation(t *testing.T) {
 	var (
 		mux        = new(event.TypeMux)
 		db         = rawdb.NewMemoryDatabase()
+		logIndex   = topicsdb.New(memorydb.New())
 		txFeed     = new(event.Feed)
 		rmLogsFeed = new(event.Feed)
 		logsFeed   = new(event.Feed)
 		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api        = NewPublicFilterAPI(backend)
 
 		testCases = []struct {
@@ -295,11 +306,12 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	var (
 		mux        = new(event.TypeMux)
 		db         = rawdb.NewMemoryDatabase()
+		logIndex   = topicsdb.New(memorydb.New())
 		txFeed     = new(event.Feed)
 		rmLogsFeed = new(event.Feed)
 		logsFeed   = new(event.Feed)
 		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api        = NewPublicFilterAPI(backend)
 	)
 
@@ -322,11 +334,12 @@ func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
 		mux        = new(event.TypeMux)
 		db         = rawdb.NewMemoryDatabase()
+		logIndex   = topicsdb.New(memorydb.New())
 		txFeed     = new(event.Feed)
 		rmLogsFeed = new(event.Feed)
 		logsFeed   = new(event.Feed)
 		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api        = NewPublicFilterAPI(backend)
 		blockHash  = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
 	)
@@ -352,11 +365,12 @@ func TestLogFilter(t *testing.T) {
 	var (
 		mux        = new(event.TypeMux)
 		db         = rawdb.NewMemoryDatabase()
+		logIndex   = topicsdb.New(memorydb.New())
 		txFeed     = new(event.Feed)
 		rmLogsFeed = new(event.Feed)
 		logsFeed   = new(event.Feed)
 		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api        = NewPublicFilterAPI(backend)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
@@ -471,11 +485,12 @@ func TestPendingLogsSubscription(t *testing.T) {
 	var (
 		mux        = new(event.TypeMux)
 		db         = rawdb.NewMemoryDatabase()
+		logIndex   = topicsdb.New(memorydb.New())
 		txFeed     = new(event.Feed)
 		rmLogsFeed = new(event.Feed)
 		logsFeed   = new(event.Feed)
 		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
+		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
 		api        = NewPublicFilterAPI(backend)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")

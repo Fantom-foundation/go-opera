@@ -27,6 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 )
 
 type Backend interface {
@@ -41,6 +43,8 @@ type Backend interface {
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+
+	EvmLogIndex() *topicsdb.TopicsDb
 }
 
 // Filter can be used to retrieve and filter logs.
@@ -57,24 +61,7 @@ type Filter struct {
 
 // NewRangeFilter creates a new filter which inspects the blocks to
 // figure out whether a particular block is interesting or not.
-// TODO: index instead of bloombits.
 func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
-	var filters [][][]byte
-	if len(addresses) > 0 {
-		filter := make([][]byte, len(addresses))
-		for i, address := range addresses {
-			filter[i] = address.Bytes()
-		}
-		filters = append(filters, filter)
-	}
-	for _, topicList := range topics {
-		filter := make([][]byte, len(topicList))
-		for i, topic := range topicList {
-			filter[i] = topic.Bytes()
-		}
-		filters = append(filters, filter)
-	}
-
 	// Create a generic filter and convert it into a range filter
 	filter := newFilter(backend, addresses, topics)
 
@@ -89,7 +76,9 @@ func NewRangeFilter(backend Backend, begin, end int64, addresses []common.Addres
 func NewBlockFilter(backend Backend, block common.Hash, addresses []common.Address, topics [][]common.Hash) *Filter {
 	// Create a generic filter and convert it into a block filter
 	filter := newFilter(backend, addresses, topics)
+
 	filter.block = block
+
 	return filter
 }
 
@@ -133,25 +122,33 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		end = head
 	}
 
-	return f.unindexedLogs(ctx, end)
+	logs, err := f.indexedLogs(ctx, int64(end))
+	return logs, err
 }
 
-// indexedLogs returns the logs matching the filter criteria based on raw block
-// iteration.
-func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, error) {
-	var logs []*types.Log
-
-	for ; f.begin <= int64(end); f.begin++ {
-		header, err := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
-		if header == nil || err != nil {
-			return logs, err
+// indexedLogs returns the logs matching the filter criteria based on topics index.
+func (f *Filter) indexedLogs(ctx context.Context, end int64) ([]*types.Log, error) {
+	conditions := make([]topicsdb.Condition, len(f.topics))
+	for i, tt := range f.topics {
+		switch len(tt) {
+		case 0:
+			// empty rule set == wildcard
+			continue
+		case 1:
+			conditions[i] = topicsdb.NewCondition(tt[0], uint8(i))
+		default:
+			// TODO: implement it
+			return nil, errors.New("or-topic criteria is not implemented yet")
 		}
-		found, err := f.blockLogs(ctx, header)
-		if err != nil {
-			return logs, err
-		}
-		logs = append(logs, found...)
 	}
+
+	logs, err := f.backend.EvmLogIndex().Find(conditions...)
+	if err != nil {
+		return nil, err
+	}
+
+	logs = filterLogs(logs, big.NewInt(f.begin), big.NewInt(end), f.addresses, f.topics)
+
 	return logs, nil
 }
 
