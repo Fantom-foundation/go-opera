@@ -284,7 +284,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "validator", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
 			return nil, nil, false
 		}
 	} else {
@@ -369,7 +369,9 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
 	availableGasPower := gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader, validators, em.world.Store.GetLastHeaders(epoch-1), em.world.Store.GetEpochStats(epoch-1).End, &em.dag.GasPower)
 	if event.GasPowerUsed > availableGasPower {
-		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?", "gasPower", availableGasPower, "stake%", float64(validators.Get(myStakerID))/float64(validators.TotalStake()))
+		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
+			"gasPower", availableGasPower,
+			"stake%", 100*float64(validators.Get(myStakerID))/float64(validators.TotalStake()))
 		return nil
 	}
 	event.GasPowerLeft = availableGasPower - event.GasPowerUsed
@@ -531,7 +533,11 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 		threshold := em.config.EmergencyThreshold
 		if e.GasPowerLeft <= threshold {
 			if selfParent != nil && e.GasPowerLeft < selfParent.GasPowerLeft {
-				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+				validators := em.world.Engine.GetValidators()
+				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting",
+					"power", e.GasPowerLeft,
+					"selfParentPower", selfParent.GasPowerLeft,
+					"stake%", 100*float64(validators.Get(e.Creator))/float64(validators.TotalStake()))
 				return false
 			}
 		}
