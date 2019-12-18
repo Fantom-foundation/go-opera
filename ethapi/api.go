@@ -1159,6 +1159,47 @@ func (s *PublicBlockChainAPI) GetEpochStats(ctx context.Context, requestedEpoch 
 	}, nil
 }
 
+// GetEventHeader returns the Lachesis event header by hash or short ID.
+func (s *PublicBlockChainAPI) GetEventHeader(ctx context.Context, shortEventID string) (map[string]interface{}, error) {
+	header, err := s.b.GetEventHeader(ctx, shortEventID)
+	if err != nil {
+		return nil, err
+	}
+	if header == nil {
+		return nil, fmt.Errorf("event %s not found", shortEventID)
+	}
+	return RPCMarshalEventHeader(header), nil
+}
+
+// GetEvent returns Lachesis event by hash or short ID.
+func (s *PublicBlockChainAPI) GetEvent(ctx context.Context, shortEventID string, inclTx bool) (map[string]interface{}, error) {
+	event, err := s.b.GetEvent(ctx, shortEventID)
+	if err != nil {
+		return nil, err
+	}
+	if event == nil {
+		return nil, fmt.Errorf("event %s not found", shortEventID)
+	}
+	return RPCMarshalEvent(event, inclTx, false)
+}
+
+// GetConsensusTime returns event's consensus time, if event is confirmed.
+func (s *PublicBlockChainAPI) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
+	return s.b.GetConsensusTime(ctx, shortEventID)
+}
+
+// GetHeads returns IDs of all the epoch events with no descendants.
+// * When epoch is -1 the heads for latest epoch are returned.
+func (s *PublicBlockChainAPI) GetHeads(ctx context.Context, epoch rpc.BlockNumber) ([]hexutil.Bytes, error) {
+	res, err := s.b.GetHeads(ctx, epoch)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return eventIDsToHex(res), nil
+}
+
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
@@ -1778,47 +1819,6 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 		return "", fmt.Errorf("block #%d not found", number)
 	}
 	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
-}
-
-// GetEventHeader returns the Lachesis event header by hash or short ID.
-func (api *PublicDebugAPI) GetEventHeader(ctx context.Context, shortEventID string) (map[string]interface{}, error) {
-	header, err := api.b.GetEventHeader(ctx, shortEventID)
-	if err != nil {
-		return nil, err
-	}
-	if header == nil {
-		return nil, fmt.Errorf("event %s not found", shortEventID)
-	}
-	return RPCMarshalEventHeader(header), nil
-}
-
-// GetEvent returns Lachesis event by hash or short ID.
-func (api *PublicDebugAPI) GetEvent(ctx context.Context, shortEventID string, inclTx bool) (map[string]interface{}, error) {
-	event, err := api.b.GetEvent(ctx, shortEventID)
-	if err != nil {
-		return nil, err
-	}
-	if event == nil {
-		return nil, fmt.Errorf("event %s not found", shortEventID)
-	}
-	return RPCMarshalEvent(event, inclTx, false)
-}
-
-// GetConsensusTime returns event's consensus time, if event is confirmed.
-func (api *PublicDebugAPI) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
-	return api.b.GetConsensusTime(ctx, shortEventID)
-}
-
-// GetHeads returns IDs of all the epoch events with no descendants.
-// * When epoch is -1 the heads for latest epoch are returned.
-func (api *PublicDebugAPI) GetHeads(ctx context.Context, epoch rpc.BlockNumber) ([]hexutil.Bytes, error) {
-	res, err := api.b.GetHeads(ctx, epoch)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return eventIDsToHex(res), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private

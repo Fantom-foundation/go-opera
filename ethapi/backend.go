@@ -74,13 +74,11 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *evmcore.EvmBlock
 
-	// Lachesis debug API
+	// Lachesis DAG API
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
 	GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error)
 	GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error)
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
-
-	// Lachesis DAG API
 	CurrentEpoch(ctx context.Context) idx.Epoch
 	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
 
