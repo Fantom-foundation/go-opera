@@ -1,48 +1,49 @@
 package topicsdb
 
 import (
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
-func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
+func (tt *Index) fetchAsync(cc ...Condition) (res []*types.Log, err error) {
 	if len(cc) > MaxCount {
 		err = ErrTooManyTopics
 		return
 	}
 
-	recs := make(map[common.Hash]*logrecBuilder)
-
 	conditions := uint8(len(cc))
+	recs := make(map[ID]*logrecBuilder)
 	for _, cond := range cc {
-		it := tt.table.Topic.NewIteratorWithPrefix(cond[:])
-		for it.Next() {
-			key := it.Key()
-			id := extractLogrecID(key)
-			blockN := extractBlockN(key)
-			topicCount := bytesToPos(it.Value())
-			rec := recs[id]
-			if rec == nil {
-				rec = newLogrecBuilder(conditions, id, blockN, topicCount)
-				recs[id] = rec
-				rec.StartFetch(tt.table.Logrec.NewIteratorWithPrefix)
-				defer rec.StopFetch()
-			} else {
-				rec.SetParams(blockN, topicCount)
+		for _, alternative := range cond {
+			it := tt.table.Topic.NewIteratorWithPrefix(alternative[:])
+			for it.Next() {
+				id := extractLogrecID(it.Key())
+				topicCount := bytesToPos(it.Value())
+				rec := recs[id]
+				if rec == nil {
+					rec = newLogrecBuilder(id, conditions, topicCount)
+					recs[id] = rec
+					rec.StartFetch(tt.table.Other, tt.table.Logrec)
+					defer rec.StopFetch()
+				}
+				rec.MatchedWith(cond)
 			}
-			rec.ConditionOK(cond)
-		}
 
-		err = it.Error()
-		if err != nil {
-			return
-		}
+			err = it.Error()
+			if err != nil {
+				return
+			}
 
-		it.Release()
+			it.Release()
+		}
 	}
 
 	for _, rec := range recs {
-		var r *Logrec
+		if !rec.IsMatched() {
+			continue
+		}
+
+		var r *types.Log
 		r, err = rec.Build()
 		if err != nil {
 			return
@@ -56,7 +57,10 @@ func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*Logrec, err error) {
 }
 
 // StartFetch log record's data when all conditions are ok.
-func (rec *logrecBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
+func (rec *logrecBuilder) StartFetch(
+	othersTable ethdb.Iteratee,
+	logrecTable ethdb.KeyValueReader,
+) {
 	if rec.ok != nil {
 		return
 	}
@@ -66,20 +70,12 @@ func (rec *logrecBuilder) StartFetch(fetch func(prefix []byte) ethdb.Iterator) {
 	go func() {
 		defer close(rec.ready)
 
-		_, conditions := <-rec.ok
-		if !conditions {
+		_, conditionsOk := <-rec.ok
+		if !conditionsOk {
 			return
 		}
 
-		it := fetch(rec.id.Bytes())
-		defer it.Release()
-
-		for it.Next() {
-			n := extractTopicPos(it.Key())
-			rec.SetTopic(n, it.Value())
-		}
-
-		rec.ready <- it.Error()
+		rec.ready <- rec.Fetch(othersTable, logrecTable)
 	}()
 }
 

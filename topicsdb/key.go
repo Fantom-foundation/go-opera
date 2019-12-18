@@ -7,29 +7,59 @@ import (
 )
 
 const (
-	lenUint8 = 1
-	lenInt64 = 8
-	lenHash  = 32
+	uint8Size  = 1
+	uint64Size = 8
+	hashSize   = 32
 
-	topicKeySize  = lenHash + lenUint8 + lenInt64 + lenHash
-	recordKeySize = lenHash + lenUint8
+	logrecKeySize = uint64Size + hashSize + uint64Size
+	topicKeySize  = hashSize + uint8Size + logrecKeySize
+	otherKeySize  = logrecKeySize + uint8Size
 )
 
-func topicKey(t *Topic, pos uint8, block uint64, id common.Hash) []byte {
+type (
+	// ID of log record
+	ID [logrecKeySize]byte
+)
+
+func NewID(block uint64, tx common.Hash, logIndex uint) (id ID) {
+	copy(id[:], uintToBytes(block))
+	copy(id[uint64Size:], tx.Bytes())
+	copy(id[uint64Size+hashSize:], uintToBytes(uint64(logIndex)))
+	return
+}
+
+func (id *ID) Bytes() []byte {
+	return (*id)[:]
+}
+
+func (id *ID) BlockNumber() uint64 {
+	return bytesToUint((*id)[:uint64Size])
+}
+
+func (id *ID) TxHash() (tx common.Hash) {
+	copy(tx[:], (*id)[uint64Size:uint64Size+hashSize])
+	return
+}
+
+func (id *ID) Index() uint {
+	return uint(bytesToUint(
+		(*id)[uint64Size+hashSize : uint64Size+hashSize+uint64Size]))
+}
+
+func topicKey(topic common.Hash, pos uint8, logrec ID) []byte {
 	key := make([]byte, 0, topicKeySize)
 
-	key = append(key, t.Topic.Bytes()...)
+	key = append(key, topic.Bytes()...)
 	key = append(key, posToBytes(pos)...)
-	key = append(key, blockToBytes(block)...)
-	key = append(key, id.Bytes()...)
+	key = append(key, logrec.Bytes()...)
 
 	return key
 }
 
-func logrecKey(r *Logrec, pos uint8) []byte {
-	key := make([]byte, 0, recordKeySize)
+func otherKey(logrec ID, pos uint8) []byte {
+	key := make([]byte, 0, otherKeySize)
 
-	key = append(key, r.ID.Bytes()...)
+	key = append(key, logrec.Bytes()...)
 	key = append(key, posToBytes(pos)...)
 
 	return key
@@ -43,46 +73,30 @@ func bytesToPos(b []byte) uint8 {
 	return uint8(b[0])
 }
 
-func blockToBytes(n uint64) []byte {
+func uintToBytes(n uint64) []byte {
 	return bigendian.Int64ToBytes(n)
 }
 
-func bytesToBlock(b []byte) uint64 {
+func bytesToUint(b []byte) uint64 {
 	return bigendian.BytesToInt64(b)
 }
 
-func extractLogrecID(key []byte) common.Hash {
+func extractLogrecID(key []byte) (id ID) {
 	switch len(key) {
 	case topicKeySize:
-		return common.BytesToHash(
-			key[topicKeySize-lenHash:])
-	case recordKeySize:
-		return common.BytesToHash(
-			key[:lenHash])
+		copy(id[:], key[hashSize+uint8Size:])
+		return
 	default:
-		panic("unknown key type")
-	}
-}
-
-func extractBlockN(key []byte) uint64 {
-	switch len(key) {
-	case topicKeySize:
-		return bytesToBlock(
-			key[lenHash+lenUint8 : lenHash+lenUint8+lenInt64])
-	default:
-		panic("unknown key type")
+		panic("wrong key type")
 	}
 }
 
 func extractTopicPos(key []byte) uint8 {
 	switch len(key) {
-	case topicKeySize:
+	case otherKeySize:
 		return bytesToPos(
-			key[lenHash : lenHash+lenUint8])
-	case recordKeySize:
-		return bytesToPos(
-			key[lenHash : lenHash+lenUint8])
+			key[logrecKeySize : logrecKeySize+uint8Size])
 	default:
-		panic("unknown key type")
+		panic("wrong key type")
 	}
 }

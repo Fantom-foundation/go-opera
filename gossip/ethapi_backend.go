@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -30,6 +30,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
+	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
@@ -53,20 +54,21 @@ func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {
 	return b.state.CurrentBlock()
 }
 
-func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error) {
+func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
 	blk, err := b.BlockByNumber(ctx, number)
 	return blk.Header(), err
 }
 
-func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmcore.EvmHeader, error) {
-	index := b.svc.store.GetBlockIndex(hash.Event(h))
+func (b *EthAPIBackend) HeaderByHash(ctx context.Context, block common.Hash) (*types.Header, error) {
+	index := b.svc.store.GetBlockIndex(hash.Event(block))
 	if index == nil {
 		return nil, nil
 	}
+
 	return b.HeaderByNumber(ctx, rpc.BlockNumber(*index))
 }
 
-func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
+func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
 	if number == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
 	}
@@ -79,7 +81,7 @@ func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		blk = b.state.GetBlock(common.Hash{}, n)
 	}
 
-	return blk, nil
+	return blk.EthBlock(), nil
 }
 
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evmcore.EvmHeader, error) {
@@ -213,41 +215,44 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	return
 }
 
-func (b *EthAPIBackend) GetHeader(ctx context.Context, h common.Hash) *evmcore.EvmHeader {
-	header, err := b.HeaderByHash(ctx, h)
-	if err != nil {
-		return nil
-	}
-	return header
-}
-
 func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
 	index := b.svc.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
 		return nil, nil
 	}
-	return b.BlockByNumber(ctx, rpc.BlockNumber(*index))
-}
 
-func (b *EthAPIBackend) GetReceipts(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error) {
-	if !b.svc.config.TxIndex {
-		return nil, errors.New("transactions index is disabled (enable TxIndex and re-process the DAG)")
-	}
-
-	if number == rpc.PendingBlockNumber {
+	if rpc.BlockNumber(*index) == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
 	}
-	if number == rpc.LatestBlockNumber {
-		header := b.state.CurrentHeader()
-		number = rpc.BlockNumber(header.Number.Uint64())
+	// Otherwise resolve and return the block
+	var blk *evmcore.EvmBlock
+	if rpc.BlockNumber(*index) == rpc.LatestBlockNumber {
+		blk = b.state.CurrentBlock()
+	} else {
+		n := uint64(*index)
+		blk = b.state.GetBlock(common.Hash{}, n)
 	}
 
-	receipts := b.svc.store.GetReceipts(idx.Block(number))
+	return blk, nil
+}
+
+func (b *EthAPIBackend) GetReceipts(ctx context.Context, block common.Hash) (types.Receipts, error) {
+	return b.GetReceiptsByHash(ctx, block)
+}
+
+// GetReceiptsByHash retrieves the receipts for all transactions in a given block.
+func (b *EthAPIBackend) GetReceiptsByHash(ctx context.Context, block common.Hash) (types.Receipts, error) {
+	number := b.svc.store.GetBlockIndex(hash.Event(block))
+	if number == nil {
+		return nil, nil
+	}
+
+	receipts := b.svc.store.GetReceipts(idx.Block(*number))
 	return receipts, nil
 }
 
-func (b *EthAPIBackend) GetLogs(ctx context.Context, number rpc.BlockNumber) ([][]*types.Log, error) {
-	receipts, err := b.GetReceipts(ctx, number)
+func (b *EthAPIBackend) GetLogs(ctx context.Context, block common.Hash) ([][]*types.Log, error) {
+	receipts, err := b.GetReceiptsByHash(ctx, block)
 	if receipts == nil || err != nil {
 		return nil, err
 	}
@@ -282,6 +287,22 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		}
 	}
 	return err
+}
+
+func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
+	return b.svc.feed.SubscribeNewLogs(ch)
+}
+
+func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription {
+	return b.svc.feed.SubscribeRemovedLogs(ch)
+}
+
+func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
+	return b.svc.feed.SubscribeChainEvent(ch)
+}
+
+func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
+	return b.svc.feed.SubscribeNewTxs(ch)
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
@@ -356,7 +377,7 @@ func (b *EthAPIBackend) ChainDb() ethdb.Database {
 	return b.svc.store.table.Evm
 }
 
-func (b *EthAPIBackend) NotifyMux() *notify.TypeMux {
+func (b *EthAPIBackend) EventMux() *notify.TypeMux {
 	return b.mux
 }
 
@@ -372,22 +393,8 @@ func (b *EthAPIBackend) RPCGasCap() *big.Int {
 	return b.svc.config.RPCGasCap
 }
 
-func (b *EthAPIBackend) BloomStatus() (uint64, uint64) {
-	// TODO: implement or disable it. Origin:
-	/*
-		sections, _, _ := b.svc.bloomIndexer.Sections()
-		return params.BloomBitsBlocks, sections
-	*/
-	return 0, 0
-}
-
-func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
-	// TODO: implement or disable it. Origin:
-	/*
-		for i := 0; i < bloomFilterThreads; i++ {
-			go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.svc.bloomRequests)
-		}
-	*/
+func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
+	return b.svc.store.table.EvmLogs
 }
 
 // CurrentEpoch returns current epoch number.

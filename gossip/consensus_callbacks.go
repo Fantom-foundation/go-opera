@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -240,6 +241,13 @@ func (s *Service) executeEvmTransactions(
 		Transactions: evmBlock.Transactions,
 	}
 
+	for _, r := range receipts {
+		err := s.store.table.EvmLogs.Push(r.Logs...)
+		if err != nil {
+			s.Log.Crit("DB logs index", "err", err)
+		}
+	}
+
 	return block, evmBlock, totalFee, receipts
 }
 
@@ -288,8 +296,20 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 	}
 
-	// Notify about new block
-	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
+	var logs []*types.Log
+	for _, r := range receipts {
+		for _, l := range r.Logs {
+			logs = append(logs, l)
+		}
+	}
+
+	// Notify about new block ans txs
+	s.feed.chainEvent.Send(core.ChainEvent{
+		Block: evmBlock.EthBlock(),
+		Hash:  evmBlock.Hash,
+	})
+	s.feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
+	s.feed.newLogs.Send(logs)
 
 	// trace confirmed transactions
 	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))

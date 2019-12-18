@@ -2,97 +2,108 @@ package topicsdb
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 type (
-	Topic struct {
-		Topic common.Hash
-		Data  []byte
-	}
-
-	Logrec struct {
-		ID     common.Hash
-		BlockN uint64
-		Topics []*Topic
-	}
-
 	logrecBuilder struct {
-		conditions2check uint8
-		id               common.Hash
-		blockN           uint64
-		topicsCount      uint8
-		topicsReady      uint8
-		topics           []*Topic
+		types.Log
+
+		ID          ID
+		conditions  uint8
+		topicsCount uint8
 
 		ok    chan struct{}
 		ready chan error
 	}
 )
 
-func newLogrecBuilder(conditions uint8, id common.Hash, blockN uint64, topicCount uint8) *logrecBuilder {
-	return &logrecBuilder{
-		conditions2check: conditions,
-		id:               id,
-		blockN:           blockN,
-		topicsCount:      topicCount,
-		topics:           make([]*Topic, topicCount),
+func newLogrecBuilder(logrec ID, conditions uint8, topicCount uint8) *logrecBuilder {
+	rec := &logrecBuilder{
+		Log: types.Log{
+			BlockNumber: logrec.BlockNumber(),
+			TxHash:      logrec.TxHash(),
+			Index:       logrec.Index(),
+			Topics:      make([]common.Hash, topicCount),
+		},
+		ID:          logrec,
+		conditions:  conditions,
+		topicsCount: topicCount,
 	}
+
+	return rec
 }
 
-func (rec *logrecBuilder) Build() (r *Logrec, err error) {
+func (rec *logrecBuilder) Build() (r *types.Log, err error) {
 	if rec.ready != nil {
 		var complete bool
 		err, complete = <-rec.ready
 		if !complete {
-			return nil, nil
+			return
 		}
 	}
 
-	r = &Logrec{
-		ID:     rec.id,
-		BlockN: rec.blockN,
-		Topics: rec.topics,
-	}
-
+	r = &rec.Log
 	return
 }
 
-func (rec *logrecBuilder) ConditionOK(cond Condition) {
-	rec.conditions2check--
-	if rec.conditions2check == 0 && rec.ok != nil {
+// MatchedWith condition.
+func (rec *logrecBuilder) MatchedWith(cond Condition) {
+	rec.conditions--
+	if rec.conditions == 0 && rec.ok != nil {
 		rec.ok <- struct{}{}
 	}
 }
 
-func (rec *logrecBuilder) AllConditionsOK() bool {
-	return rec.conditions2check == 0
+// IsMatched if it is matched with the all conditions.
+func (rec *logrecBuilder) IsMatched() bool {
+	return rec.conditions == 0
 }
 
-func (rec *logrecBuilder) SetParams(blockN uint64, topicCount uint8) {
-	if blockN != rec.blockN {
-		log.Crit("inconsistent table.Topic", "param", "blockN")
-	}
-	if topicCount != rec.topicsCount {
-		log.Crit("inconsistent table.Topic", "param", "topicCount")
-	}
-}
-
-func (rec *logrecBuilder) SetTopic(pos uint8, raw []byte) {
+// SetOtherTopic appends topic.
+func (rec *logrecBuilder) SetOtherTopic(pos uint8, topic common.Hash) {
 	if pos >= rec.topicsCount {
-		log.Crit("inconsistent table.Record", "param", "topicN")
+		log.Crit("inconsistent table.Others", "param", "topicN")
 	}
 
-	if rec.topics[pos] == nil {
-		rec.topicsReady++
-	}
-	rec.topics[pos] = &Topic{
-		Topic: common.BytesToHash(raw[:lenHash]),
-		Data:  raw[lenHash:],
+	var empty common.Hash
+	if rec.Topics[pos] != empty {
+		return
 	}
 
+	rec.Topics[pos] = topic
 }
 
-func (t *Topic) Bytes() []byte {
-	return append(t.Topic.Bytes(), t.Data...)
+// Fetch log record's data.
+func (rec *logrecBuilder) Fetch(
+	othersTable ethdb.Iteratee,
+	logrecTable ethdb.KeyValueReader,
+) (err error) {
+	// others
+	it := othersTable.NewIteratorWithPrefix(rec.ID.Bytes())
+	for it.Next() {
+		pos := extractTopicPos(it.Key())
+		topic := common.BytesToHash(it.Value())
+		rec.SetOtherTopic(pos, topic)
+	}
+
+	err = it.Error()
+	if err != nil {
+		return
+	}
+
+	it.Release()
+
+	// fields
+	buf, err := logrecTable.Get(rec.ID.Bytes())
+	if err != nil {
+		return
+	}
+
+	rec.Address = common.BytesToAddress(buf)
+	rec.Data = buf[:len(buf)-common.AddressLength]
+
+	return
 }
