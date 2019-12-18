@@ -39,12 +39,11 @@ type Store struct {
 		EpochStats       kvdb.KeyValueStore `table:"E"`
 
 		// score tables
-		ActiveValidationScore      kvdb.KeyValueStore `table:"V"`
-		DirtyValidationScore       kvdb.KeyValueStore `table:"v"`
-		ActiveOriginationScore     kvdb.KeyValueStore `table:"O"`
-		DirtyOriginationScore      kvdb.KeyValueStore `table:"o"`
-		BlockParticipation         kvdb.KeyValueStore `table:"m"`
-		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"C"`
+		ActiveValidationScore  kvdb.KeyValueStore `table:"V"`
+		DirtyValidationScore   kvdb.KeyValueStore `table:"v"`
+		ActiveOriginationScore kvdb.KeyValueStore `table:"O"`
+		DirtyOriginationScore  kvdb.KeyValueStore `table:"o"`
+		BlockParticipation     kvdb.KeyValueStore `table:"m"`
 
 		// API-only tables
 		BlockHashes                kvdb.KeyValueStore `table:"h"`
@@ -75,19 +74,18 @@ type Store struct {
 	}
 
 	cache struct {
-		Events                     *lru.Cache `cache:"-"` // store by pointer
-		EventsHeaders              *lru.Cache `cache:"-"` // store by pointer
-		Blocks                     *lru.Cache `cache:"-"` // store by pointer
-		PackInfos                  *lru.Cache `cache:"-"` // store by value
-		Receipts                   *lru.Cache `cache:"-"` // store by value
-		TxPositions                *lru.Cache `cache:"-"` // store by pointer
-		EpochStats                 *lru.Cache `cache:"-"` // store by value
-		LastEpochHeaders           *lru.Cache `cache:"-"` // store by pointer
-		Stakers                    *lru.Cache `cache:"-"` // store by pointer
-		Delegators                 *lru.Cache `cache:"-"` // store by pointer
-		BlockParticipation         *lru.Cache `cache:"-"` // store by pointer
-		BlockHashes                *lru.Cache `cache:"-"` // store by pointer
-		OriginationScoreCheckpoint *lru.Cache `cache:"-"` // store by pointer
+		Events             *lru.Cache `cache:"-"` // store by pointer
+		EventsHeaders      *lru.Cache `cache:"-"` // store by pointer
+		Blocks             *lru.Cache `cache:"-"` // store by pointer
+		PackInfos          *lru.Cache `cache:"-"` // store by value
+		Receipts           *lru.Cache `cache:"-"` // store by value
+		TxPositions        *lru.Cache `cache:"-"` // store by pointer
+		EpochStats         *lru.Cache `cache:"-"` // store by value
+		LastEpochHeaders   *lru.Cache `cache:"-"` // store by pointer
+		Stakers            *lru.Cache `cache:"-"` // store by pointer
+		Delegators         *lru.Cache `cache:"-"` // store by pointer
+		BlockParticipation *lru.Cache `cache:"-"` // store by pointer
+		BlockHashes        *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutexes struct {
@@ -145,7 +143,6 @@ func (s *Store) initCache() {
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockParticipation = s.makeCache(256)
 	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
-	s.cache.OriginationScoreCheckpoint = s.makeCache(4)
 }
 
 func (s *Store) initMutexes() {

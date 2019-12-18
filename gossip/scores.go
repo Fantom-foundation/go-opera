@@ -40,12 +40,8 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 	}
 
 	if sealEpoch {
-		lastCheckpoint := s.store.GetOriginationScoreCheckpoint()
-		if block.Time.Time().Sub(lastCheckpoint.Time()) > s.config.Net.Economy.OriginationScoreCheckpointInterval {
-			s.store.DelAllActiveOriginationScores()
-			s.store.MoveDirtyOriginationScoresToActive()
-			s.store.SetOriginationScoreCheckpoint(block.Time)
-		}
+		s.store.DelAllActiveOriginationScores()
+		s.store.MoveDirtyOriginationScoresToActive()
 	}
 }
 

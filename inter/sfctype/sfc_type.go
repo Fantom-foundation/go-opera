@@ -96,3 +96,8 @@ type EpochStats struct {
 	TotalBaseRewardWeight *big.Int  `rlp:"-"` // API-only field
 	TotalTxRewardWeight   *big.Int  `rlp:"-"` // API-only field
 }
+
+// Duration returns epoch duration
+func (s *EpochStats) Duration() inter.Timestamp {
+	return s.End - s.Start
+}

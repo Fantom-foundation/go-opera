@@ -51,12 +51,11 @@ type BlocksMissed struct {
 
 // EconomyConfig contains economy constants
 type EconomyConfig struct {
-	OriginationScoreCheckpointInterval time.Duration
-	PoiPeriodDuration                  time.Duration
-	BlockMissedLatency                 idx.Block
-	OfflinePenaltyThreshold            BlocksMissed
-	TxRewardPoiImpact                  *big.Int
-	RewardPerSecond                    *big.Int
+	PoiPeriodDuration       time.Duration
+	BlockMissedLatency      idx.Block
+	OfflinePenaltyThreshold BlocksMissed
+	TxRewardPoiImpact       *big.Int
+	RewardPerSecond         *big.Int
 }
 
 // Config describes lachesis net.
@@ -105,16 +104,15 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 
 // DefaultEconomyConfig returns mainnet economy
 func DefaultEconomyConfig() EconomyConfig {
-	// 30%
-	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(30), PercentUnit)
+	// 45%
+	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(45), PercentUnit)
 	txRewardPoiImpact.Div(txRewardPoiImpact, big.NewInt(100))
 
 	return EconomyConfig{
-		OriginationScoreCheckpointInterval: 30 * 24 * time.Hour,
-		PoiPeriodDuration:                  30 * 24 * time.Hour,
-		BlockMissedLatency:                 4,
-		TxRewardPoiImpact:                  txRewardPoiImpact,
-		RewardPerSecond:                    big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
+		PoiPeriodDuration:  30 * 24 * time.Hour,
+		BlockMissedLatency: 3,
+		TxRewardPoiImpact:  txRewardPoiImpact,
+		RewardPerSecond:    big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
 		OfflinePenaltyThreshold: BlocksMissed{
 			Num:    1000,
 			Period: 24 * time.Hour,
@@ -125,7 +123,6 @@ func DefaultEconomyConfig() EconomyConfig {
 // FakeEconomyConfig returns fakenet economy
 func FakeEconomyConfig() EconomyConfig {
 	cfg := DefaultEconomyConfig()
-	cfg.OriginationScoreCheckpointInterval = 5 * time.Minute
 	cfg.PoiPeriodDuration = 1 * time.Minute
 	cfg.OfflinePenaltyThreshold.Period = 10 * time.Minute
 	cfg.OfflinePenaltyThreshold.Num = 10

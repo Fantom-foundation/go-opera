@@ -3,7 +3,6 @@ package gossip
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
@@ -193,17 +192,6 @@ func (s *Store) getOriginationScore(t kvdb.KeyValueStore, stakerID idx.StakerID)
 	return new(big.Int).SetBytes(scoreBytes)
 }
 
-// SetOriginationScoreCheckpoint set origination score checkpoint time
-func (s *Store) SetOriginationScoreCheckpoint(cp inter.Timestamp) {
-	cpBytes := bigendian.Int64ToBytes(uint64(cp))
-	err := s.table.OriginationScoreCheckpoint.Put([]byte(originationScoreCheckpointKey), cpBytes)
-	if err != nil {
-		s.Log.Crit("Failed to set key-value", "err", err)
-	}
-
-	s.cache.OriginationScoreCheckpoint.Add(originationScoreCheckpointKey, cp)
-}
-
 // DelAllActiveOriginationScores deletes all the record about dirty origination scores of stakers
 func (s *Store) DelAllActiveOriginationScores() {
 	it := s.table.ActiveOriginationScore.NewIterator()
@@ -234,28 +222,4 @@ func (s *Store) MoveDirtyOriginationScoresToActive() {
 			s.Log.Crit("Failed to erase key-value", "err", err)
 		}
 	}
-}
-
-// GetOriginationScoreCheckpoint return last validation score checkpoint time
-func (s *Store) GetOriginationScoreCheckpoint() inter.Timestamp {
-	cpVal, ok := s.cache.OriginationScoreCheckpoint.Get(originationScoreCheckpointKey)
-	if ok {
-		cp, ok := cpVal.(inter.Timestamp)
-		if ok {
-			return cp
-		}
-	}
-
-	cpBytes, err := s.table.OriginationScoreCheckpoint.Get([]byte(originationScoreCheckpointKey))
-	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
-	}
-	if cpBytes == nil {
-		return 0
-	}
-
-	cp := inter.Timestamp(bigendian.BytesToInt64(cpBytes))
-	s.cache.OriginationScoreCheckpoint.Add(originationScoreCheckpointKey, cp)
-
-	return cp
 }

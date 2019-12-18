@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -45,16 +46,20 @@ func (s *Service) delAllDelegatorData(address common.Address) {
 	s.store.DelDelegatorClaimedRewards(address)
 }
 
-func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID) (baseRewardWeights []*big.Int, txRewardWeights []*big.Int) {
+var (
+	max128 = new(big.Int).Sub(math.BigPow(2, 128), common.Big1)
+)
+
+func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID, _epochDuration inter.Timestamp) (baseRewardWeights []*big.Int, txRewardWeights []*big.Int) {
 	validationScores := make([]*big.Int, 0, len(stakers))
 	originationScores := make([]*big.Int, 0, len(stakers))
 	pois := make([]*big.Int, 0, len(stakers))
 	stakes := make([]*big.Int, 0, len(stakers))
 
-	totalStake := new(big.Int)
-	totalPoI := new(big.Int)
-	totalValidationScore := new(big.Int)
-	totalOriginationScore := new(big.Int)
+	if _epochDuration == 0 {
+		_epochDuration = 1
+	}
+	epochDuration := new(big.Int).SetUint64(uint64(_epochDuration))
 
 	for _, it := range stakers {
 		stake := it.Staker.CalcTotalStake()
@@ -66,56 +71,37 @@ func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID) (baseRewar
 		validationScores = append(validationScores, validationScore)
 		originationScores = append(originationScores, originationScore)
 		pois = append(pois, poi)
-
-		totalStake.Add(totalStake, stake)
-		totalPoI.Add(totalPoI, poi)
-		totalValidationScore.Add(totalValidationScore, validationScore)
-		totalOriginationScore.Add(totalOriginationScore, originationScore)
 	}
-
-	if totalPoI.Sign() == 0 {
-		totalPoI = big.NewInt(1)
-	}
-	if totalValidationScore.Sign() == 0 {
-		totalValidationScore = big.NewInt(1)
-	}
-	if totalOriginationScore.Sign() == 0 {
-		totalOriginationScore = big.NewInt(1)
-	}
-	if totalStake.Sign() == 0 {
-		totalStake = big.NewInt(1)
-	}
-	totalScore := new(big.Int).Add(totalOriginationScore, totalValidationScore)
 
 	txRewardWeights = make([]*big.Int, 0, len(stakers))
 	for i := range stakers {
-		// txRewardWeight = ((1 - CONST) * stake + (CONST) * PoI) * score,
-		// where PoI is rebased to be comparable with stake, score is rebased to [0, 1]
-		stakeWithRatio := new(big.Int).Mul(stakes[i], new(big.Int).Sub(lachesis.PercentUnit, s.config.Net.Economy.TxRewardPoiImpact))
-		stakeWithRatio.Div(stakeWithRatio, lachesis.PercentUnit)
+		// txRewardWeight = ({origination score} + {CONST} * {PoI}) * {validation score}
+		// origination score is roughly proportional to {validation score} * {stake}, so the whole formula is roughly
+		// {stake} * {validation score} ^ 2
+		poiWithRatio := new(big.Int).Mul(pois[i], s.config.Net.Economy.TxRewardPoiImpact)
+		poiWithRatio.Div(poiWithRatio, lachesis.PercentUnit)
 
-		poiRebased := new(big.Int).Mul(pois[i], totalStake)
-		poiRebased.Div(poiRebased, totalPoI)
-
-		poiRebasedWithRatio := poiRebased
-		poiRebasedWithRatio.Mul(poiRebasedWithRatio, s.config.Net.Economy.TxRewardPoiImpact)
-		poiRebasedWithRatio.Div(poiRebasedWithRatio, lachesis.PercentUnit)
-
-		// score = OriginationScore + ValidationScore
-		score := new(big.Int).Add(validationScores[i], originationScores[i])
-
-		txRewardWeight := new(big.Int).Add(stakeWithRatio, poiRebasedWithRatio)
-		txRewardWeight.Mul(txRewardWeight, score)
-		txRewardWeight.Div(txRewardWeight, totalScore)
+		txRewardWeight := new(big.Int).Add(originationScores[i], poiWithRatio)
+		txRewardWeight.Mul(txRewardWeight, validationScores[i])
+		txRewardWeight.Div(txRewardWeight, epochDuration)
+		if txRewardWeight.Cmp(max128) > 0 {
+			txRewardWeight = new(big.Int).Set(max128) // never going to get here
+		}
 
 		txRewardWeights = append(txRewardWeights, txRewardWeight)
 	}
 
 	baseRewardWeights = make([]*big.Int, 0, len(stakers))
 	for i := range stakers {
-		// baseRewardWeight = stake * validationScore, validationScore is rebased to [0, 1]
-		baseRewardWeight := new(big.Int).Mul(stakes[i], validationScores[i])
-		baseRewardWeight.Div(baseRewardWeight, totalValidationScore)
+		// baseRewardWeight = {stake} * {validationScore ^ 2}
+		baseRewardWeight := new(big.Int).Set(stakes[i])
+		for pow := 0; pow < 2; pow++ {
+			baseRewardWeight.Mul(baseRewardWeight, validationScores[i])
+			baseRewardWeight.Div(baseRewardWeight, epochDuration)
+		}
+		if baseRewardWeight.Cmp(max128) > 0 {
+			baseRewardWeight = new(big.Int).Set(max128) // never going to get here
+		}
 
 		baseRewardWeights = append(baseRewardWeights, baseRewardWeight)
 	}
@@ -297,7 +283,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		cheatersSet := cheaters.Set()
 		epochPos := sfcpos.EpochSnapshot(epoch)
 		epochValidators := s.store.GetEpochValidators(epoch)
-		baseRewardWeights, txRewardWeights := s.calcRewardWeights(epochValidators)
+		baseRewardWeights, txRewardWeights := s.calcRewardWeights(epochValidators, stats.Duration())
 
 		totalBaseRewardWeight := new(big.Int)
 		totalTxRewardWeight := new(big.Int)
@@ -326,10 +312,10 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		statedb.SetState(sfc.ContractAddress, epochPos.TotalTxRewardWeight(), utils.BigTo256(totalTxRewardWeight))
 		statedb.SetState(sfc.ContractAddress, epochPos.EpochFee(), utils.BigTo256(stats.TotalFee))
 		statedb.SetState(sfc.ContractAddress, epochPos.EndTime(), utils.U64to256(uint64(stats.End.Unix())))
-		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64((stats.End - stats.Start).Unix())))
+		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64(stats.Duration().Unix())))
 
 		// Add balance for SFC to pay rewards
-		baseRewards := big.NewInt(stats.End.Unix() - stats.Start.Unix())
+		baseRewards := big.NewInt(stats.Duration().Unix())
 		baseRewards.Mul(baseRewards, s.config.Net.Economy.RewardPerSecond)
 		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(baseRewards, stats.TotalFee))
 
