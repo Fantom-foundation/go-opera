@@ -47,31 +47,33 @@ func (tt *TopicsDb) Find(cc ...Condition) ([]*types.Log, error) {
 }
 
 // Push log record to database.
-func (tt *TopicsDb) Push(rec *types.Log) error {
-	if len(rec.Topics) > MaxCount {
-		return ErrTooManyTopics
-	}
-	count := posToBytes(uint8(len(rec.Topics)))
+func (tt *TopicsDb) Push(recs ...*types.Log) error {
+	for _, rec := range recs {
+		if len(rec.Topics) > MaxCount {
+			return ErrTooManyTopics
+		}
+		count := posToBytes(uint8(len(rec.Topics)))
 
-	id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
+		id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
 
-	for pos, topic := range rec.Topics {
-		key := topicKey(topic, uint8(pos), id)
-		err := tt.table.Topic.Put(key, count)
+		for pos, topic := range rec.Topics {
+			key := topicKey(topic, uint8(pos), id)
+			err := tt.table.Topic.Put(key, count)
+			if err != nil {
+				return err
+			}
+
+			key = otherKey(id, uint8(pos))
+			err = tt.table.Other.Put(key, topic.Bytes())
+			if err != nil {
+				return err
+			}
+		}
+
+		err := tt.table.Logrec.Put(id.Bytes(), append(rec.Data, rec.Address[:]...))
 		if err != nil {
 			return err
 		}
-
-		key = otherKey(id, uint8(pos))
-		err = tt.table.Other.Put(key, topic.Bytes())
-		if err != nil {
-			return err
-		}
-	}
-
-	err := tt.table.Logrec.Put(id.Bytes(), append(rec.Data, rec.Address[:]...))
-	if err != nil {
-		return err
 	}
 
 	return nil
