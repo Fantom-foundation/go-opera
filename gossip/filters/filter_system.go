@@ -87,9 +87,8 @@ type subscription struct {
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	mux      *event.TypeMux
-	backend  Backend
-	lastHead *types.Header
+	mux     *event.TypeMux
+	backend Backend
 
 	// Subscriptions
 	txsSub        event.Subscription         // Subscription for new transaction event

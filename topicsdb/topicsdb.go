@@ -47,6 +47,14 @@ func (tt *Index) Find(cc ...Condition) ([]*types.Log, error) {
 	return tt.fetchMethod(cc...)
 }
 
+// MustPush calls Push() and panics if error.
+func (tt *Index) MustPush(recs ...*types.Log) {
+	err := tt.Push(recs...)
+	if err != nil {
+		panic(err)
+	}
+}
+
 // Push log record to database.
 func (tt *Index) Push(recs ...*types.Log) error {
 	for _, rec := range recs {
