@@ -52,7 +52,7 @@ type Store struct {
 
 		Evm      ethdb.Database
 		EvmState state.Database
-		EvmLogs  *topicsdb.TopicsDb
+		EvmLogs  *topicsdb.Index
 	}
 
 	cache struct {

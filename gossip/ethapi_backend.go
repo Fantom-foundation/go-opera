@@ -383,6 +383,6 @@ func (b *EthAPIBackend) RPCGasCap() *big.Int {
 	return b.svc.config.RPCGasCap
 }
 
-func (b *EthAPIBackend) EvmLogIndex() *topicsdb.TopicsDb {
+func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
 	return b.svc.store.table.EvmLogs
 }

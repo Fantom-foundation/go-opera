@@ -13,8 +13,8 @@ const MaxCount = 0xff
 
 var ErrTooManyTopics = fmt.Errorf("Too many topics")
 
-// TopicsDb is a specialized indexes for log records storing and fetching.
-type TopicsDb struct {
+// Index is a specialized indexes for log records storing and fetching.
+type Index struct {
 	db    kvdb.KeyValueStore
 	table struct {
 		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count
@@ -29,8 +29,8 @@ type TopicsDb struct {
 }
 
 // New TopicsDb instance.
-func New(db kvdb.KeyValueStore) *TopicsDb {
-	tt := &TopicsDb{
+func New(db kvdb.KeyValueStore) *Index {
+	tt := &Index{
 		db: db,
 	}
 
@@ -42,13 +42,13 @@ func New(db kvdb.KeyValueStore) *TopicsDb {
 }
 
 // Find log records by conditions.
-func (tt *TopicsDb) Find(cc ...Condition) ([]*types.Log, error) {
+func (tt *Index) Find(cc ...Condition) ([]*types.Log, error) {
 	// TODO: collapse the same conditions into one and remove empty
 	return tt.fetchMethod(cc...)
 }
 
 // Push log record to database.
-func (tt *TopicsDb) Push(recs ...*types.Log) error {
+func (tt *Index) Push(recs ...*types.Log) error {
 	for _, rec := range recs {
 		if len(rec.Topics) > MaxCount {
 			return ErrTooManyTopics

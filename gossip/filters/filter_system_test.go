@@ -42,7 +42,7 @@ import (
 type testBackend struct {
 	mux        *event.TypeMux
 	db         ethdb.Database
-	logIndex   *topicsdb.TopicsDb
+	logIndex   *topicsdb.Index
 	sections   uint64
 	txFeed     *event.Feed
 	rmLogsFeed *event.Feed
@@ -122,7 +122,7 @@ func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subsc
 	return b.chainFeed.Subscribe(ch)
 }
 
-func (b *testBackend) EvmLogIndex() *topicsdb.TopicsDb {
+func (b *testBackend) EvmLogIndex() *topicsdb.Index {
 	return b.logIndex
 }
 

@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *TopicsDb) fetchSync(cc ...Condition) (res []*types.Log, err error) {
+func (tt *Index) fetchSync(cc ...Condition) (res []*types.Log, err error) {
 	if len(cc) > MaxCount {
 		err = ErrTooManyTopics
 		return

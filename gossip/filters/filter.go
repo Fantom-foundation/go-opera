@@ -44,7 +44,7 @@ type Backend interface {
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
 
-	EvmLogIndex() *topicsdb.TopicsDb
+	EvmLogIndex() *topicsdb.Index
 }
 
 // Filter can be used to retrieve and filter logs.

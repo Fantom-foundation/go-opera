@@ -5,7 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
-func (tt *TopicsDb) fetchAsync(cc ...Condition) (res []*types.Log, err error) {
+func (tt *Index) fetchAsync(cc ...Condition) (res []*types.Log, err error) {
 	if len(cc) > MaxCount {
 		err = ErrTooManyTopics
 		return
