@@ -95,12 +95,12 @@ func benchmarkStore(b *testing.B) {
 }
 
 func benchPoset(nodes []idx.StakerID, input EventSource, store *Store) *Poset {
-	validators := make(pos.GValidators)
+	validators := make(pos.GValidators, 0, len(nodes))
 	for _, v := range nodes {
-		validators[v] = pos.GenesisValidator{
+		validators = append(validators, pos.GenesisValidator{
 			ID:    v,
 			Stake: 1,
-		}
+		})
 	}
 
 	err := store.ApplyGenesis(&genesis.Genesis{

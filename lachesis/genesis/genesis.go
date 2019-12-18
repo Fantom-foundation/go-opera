@@ -1,7 +1,6 @@
 package genesis
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -9,6 +8,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
+	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 var (
@@ -47,20 +47,20 @@ func MainGenesis() Genesis {
 		Alloc: VAccounts{
 			Accounts: Accounts{
 				// TODO: fill with official keys and balances before release!
-				common.HexToAddress("a123456789123456789123456789012345678901"): Account{Balance: big.NewInt(1e18)},
-				common.HexToAddress("a123456789123456789123456789012345678902"): Account{Balance: big.NewInt(1e18)},
-				common.HexToAddress("a123456789123456789123456789012345678903"): Account{Balance: big.NewInt(1e18)},
+				common.HexToAddress("a123456789123456789123456789012345678901"): Account{Balance: utils.ToFtm(1e10)},
+				common.HexToAddress("a123456789123456789123456789012345678902"): Account{Balance: utils.ToFtm(1e10)},
+				common.HexToAddress("a123456789123456789123456789012345678903"): Account{Balance: utils.ToFtm(1e10)},
 			},
 			GValidators: pos.GValidators{
-				1: pos.GenesisValidator{
+				pos.GenesisValidator{
 					ID:      1,
 					Address: common.HexToAddress("a123456789123456789123456789012345678901"),
-					Stake:   10000000,
+					Stake:   pos.BalanceToStake(utils.ToFtm(3175000)),
 				},
-				2: pos.GenesisValidator{
-					ID:      1,
+				pos.GenesisValidator{
+					ID:      2,
 					Address: common.HexToAddress("a123456789123456789123456789012345678902"),
-					Stake:   10000000,
+					Stake:   pos.BalanceToStake(utils.ToFtm(3175000)),
 				},
 			},
 		},
@@ -76,20 +76,20 @@ func TestGenesis() Genesis {
 		Alloc: VAccounts{
 			Accounts: Accounts{
 				// TODO: fill with official keys and balances before release!
-				common.HexToAddress("b123456789123456789123456789012345678901"): Account{Balance: big.NewInt(1e18)},
-				common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: big.NewInt(1e18)},
-				common.HexToAddress("b123456789123456789123456789012345678903"): Account{Balance: big.NewInt(1e18)},
+				common.HexToAddress("b123456789123456789123456789012345678901"): Account{Balance: utils.ToFtm(1e10)},
+				common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: utils.ToFtm(1e10)},
+				common.HexToAddress("b123456789123456789123456789012345678903"): Account{Balance: utils.ToFtm(1e10)},
 			},
 			GValidators: pos.GValidators{
-				1: pos.GenesisValidator{
+				pos.GenesisValidator{
 					ID:      1,
 					Address: common.HexToAddress("b123456789123456789123456789012345678901"),
-					Stake:   10000000,
+					Stake:   pos.BalanceToStake(utils.ToFtm(3175000)),
 				},
-				2: pos.GenesisValidator{
+				pos.GenesisValidator{
 					ID:      1,
 					Address: common.HexToAddress("b123456789123456789123456789012345678902"),
-					Stake:   10000000,
+					Stake:   pos.BalanceToStake(utils.ToFtm(3175000)),
 				},
 			},
 		},

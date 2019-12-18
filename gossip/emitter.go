@@ -369,7 +369,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
 	availableGasPower := gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader, validators, em.world.Store.GetLastHeaders(epoch-1), em.world.Store.GetEpochStats(epoch-1).End, &em.dag.GasPower)
 	if event.GasPowerUsed > availableGasPower {
-		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?", "gasPower", availableGasPower, "stakePercent", float64(validators.Get(myStakerID))/float64(validators.TotalStake()))
+		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?", "gasPower", availableGasPower, "stake%", float64(validators.Get(myStakerID))/float64(validators.TotalStake()))
 		return nil
 	}
 	event.GasPowerLeft = availableGasPower - event.GasPowerUsed

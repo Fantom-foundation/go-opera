@@ -114,7 +114,7 @@ func DefaultEconomyConfig() EconomyConfig {
 		PoiPeriodDuration:                  30 * 24 * time.Hour,
 		BlockMissedLatency:                 4,
 		TxRewardPoiImpact:                  txRewardPoiImpact,
-		RewardPerSecond:                    big.NewInt(8.24199429223 * 1e18), // 712108.306849 FTM per day
+		RewardPerSecond:                    big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
 		OfflinePenaltyThreshold: BlocksMissed{
 			Num:    1000,
 			Period: 24 * time.Hour,

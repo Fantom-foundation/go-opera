@@ -15,7 +15,9 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/crypto"
 	"github.com/Fantom-foundation/go-lachesis/integration"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
 // FakeNetFlag enables special testnet, where validators are automatically created
@@ -67,10 +69,7 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 		err = fmt.Errorf("key-num should be in range from 1 to validators : <key-num>/<validators>")
 	}
 
-	defaultValidatorBalance := big.NewInt(1e18)
-	defaultValidatorBalance.Mul(defaultValidatorBalance, defaultValidatorBalance) // 1e36
-
-	vaccs = genesis.FakeAccounts(0, validatorsNum, defaultValidatorBalance, 1e6)
+	vaccs = genesis.FakeAccounts(0, validatorsNum, utils.ToFtm(1e10), pos.BalanceToStake(utils.ToFtm(3175000)))
 
 	if len(parts) < 2 {
 		return

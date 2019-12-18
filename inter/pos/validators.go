@@ -36,7 +36,7 @@ type (
 	}
 
 	// GValidators defines genesis validators
-	GValidators map[idx.StakerID]GenesisValidator
+	GValidators []GenesisValidator
 )
 
 var (
@@ -212,10 +212,19 @@ func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
 // Validators converts GValidators to Validators
 func (gv GValidators) Validators() *Validators {
 	builder := NewBuilder()
-	for stakerID, validator := range gv {
-		builder.Set(stakerID, validator.Stake)
+	for _, validator := range gv {
+		builder.Set(validator.ID, validator.Stake)
 	}
 	return builder.Build()
+}
+
+// Map converts GValidators to map
+func (gv GValidators) Map() map[idx.StakerID]GenesisValidator {
+	validators := map[idx.StakerID]GenesisValidator{}
+	for _, validator := range gv {
+		validators[validator.ID] = validator
+	}
+	return validators
 }
 
 // Addresses returns not sorted genesis addresses

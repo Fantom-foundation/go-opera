@@ -46,7 +46,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		TotalFee: new(big.Int),
 	})
 
-	for stakerID, validator := range net.Genesis.Alloc.GValidators { // sort validators to get deterministic stakerIDs
+	for _, validator := range net.Genesis.Alloc.GValidators {
 		staker := &sfctype.SfcStaker{
 			Address:      validator.Address,
 			CreatedEpoch: 0,
@@ -54,8 +54,8 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 			StakeAmount:  pos.StakeToBalance(validator.Stake),
 			DelegatedMe:  big.NewInt(0),
 		}
-		s.SetSfcStaker(stakerID, staker)
-		s.SetEpochValidator(1, stakerID, staker)
+		s.SetSfcStaker(validator.ID, staker)
+		s.SetEpochValidator(1, validator.ID, staker)
 	}
 
 	return genesisAtropos, genesisEvmState, nil
