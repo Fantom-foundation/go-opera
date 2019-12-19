@@ -10,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 )
 
 var maxPrice = big.NewInt(500 * params.GWei)
@@ -21,8 +23,8 @@ type Config struct {
 }
 
 type Reader interface {
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
 	ChainConfig() *params.ChainConfig
 }
 
@@ -70,7 +72,7 @@ func (gpo *Oracle) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	gpo.cacheLock.RUnlock()
 
 	head, _ := gpo.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
-	headHash := head.Hash()
+	headHash := head.Hash
 	if headHash == lastHead {
 		return lastPrice, nil
 	}
@@ -156,14 +158,14 @@ func (gpo *Oracle) getBlockPrices(ctx context.Context, signer types.Signer, bloc
 		return
 	}
 
-	blockTxs := block.Transactions()
+	blockTxs := block.Transactions
 	txs := make([]*types.Transaction, len(blockTxs))
 	copy(txs, blockTxs)
 	sort.Sort(transactionsByGasPrice(txs))
 
 	for _, tx := range txs {
 		sender, err := types.Sender(signer, tx)
-		if err == nil && sender != block.Coinbase() {
+		if err == nil && sender != block.Coinbase {
 			ch <- getBlockPricesResult{tx.GasPrice(), nil}
 			return
 		}

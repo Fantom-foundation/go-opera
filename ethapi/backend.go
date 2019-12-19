@@ -51,9 +51,9 @@ type Backend interface {
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
 
 	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmHeader, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmHeader, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error)
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *evmcore.EvmHeader, error)
 	//GetHeader(ctx context.Context, hash common.Hash) *evmcore.EvmHeader
 	GetBlock(ctx context.Context, hash common.Hash) (*evmcore.EvmBlock, error)
