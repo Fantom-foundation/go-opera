@@ -20,9 +20,9 @@ func (s *Store) IncBlocksMissed(stakerID idx.StakerID, periodDiff inter.Timestam
 	missed := s.GetBlocksMissed(stakerID)
 	missed.Num++
 	missed.Period += periodDiff
-	s.set(s.table.BlockParticipation, stakerID.Bytes(), &missed)
+	s.set(s.table.BlockDowntime, stakerID.Bytes(), &missed)
 
-	s.cache.BlockParticipation.Add(stakerID, missed)
+	s.cache.BlockDowntime.Add(stakerID, missed)
 }
 
 // ResetBlocksMissed set to 0 missed blocks for validator
@@ -30,30 +30,30 @@ func (s *Store) ResetBlocksMissed(stakerID idx.StakerID) {
 	s.mutexes.IncMutex.Lock()
 	defer s.mutexes.IncMutex.Unlock()
 
-	err := s.table.BlockParticipation.Delete(stakerID.Bytes())
+	err := s.table.BlockDowntime.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key-value", "err", err)
 	}
 
-	s.cache.BlockParticipation.Add(stakerID, BlocksMissed{})
+	s.cache.BlockDowntime.Add(stakerID, BlocksMissed{})
 }
 
 // GetBlocksMissed return blocks missed num for validator
 func (s *Store) GetBlocksMissed(stakerID idx.StakerID) BlocksMissed {
-	missedVal, ok := s.cache.BlockParticipation.Get(stakerID)
+	missedVal, ok := s.cache.BlockDowntime.Get(stakerID)
 	if ok {
 		if missed, ok := missedVal.(BlocksMissed); ok {
 			return missed
 		}
 	}
 
-	pMissed, _ := s.get(s.table.BlockParticipation, stakerID.Bytes(), &BlocksMissed{}).(*BlocksMissed)
+	pMissed, _ := s.get(s.table.BlockDowntime, stakerID.Bytes(), &BlocksMissed{}).(*BlocksMissed)
 	if pMissed == nil {
 		return BlocksMissed{}
 	}
 	missed := *pMissed
 
-	s.cache.BlockParticipation.Add(stakerID, missed)
+	s.cache.BlockDowntime.Add(stakerID, missed)
 
 	return missed
 }

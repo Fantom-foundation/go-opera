@@ -44,7 +44,7 @@ func CurrentSealedEpoch() common.Hash {
 	return utils.U64to256(0)
 }
 
-func StakersLastIdx() common.Hash {
+func StakersLastID() common.Hash {
 	return utils.U64to256(4)
 }
 

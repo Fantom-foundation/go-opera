@@ -297,7 +297,6 @@ func WireToOrderedEvents(buf [][]byte) OrderedEvents {
 	return hh
 }
 
-
 func (hh OrderedEvents) Len() int      { return len(hh) }
 func (hh OrderedEvents) Swap(i, j int) { hh[i], hh[j] = hh[j], hh[i] }
 func (hh OrderedEvents) Less(i, j int) bool {

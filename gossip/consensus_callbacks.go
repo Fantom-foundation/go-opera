@@ -166,7 +166,37 @@ func (s *Service) applyNewState(
 	return block, evmBlock, receipts, txPositions, newAppHash
 }
 
-// assembleEvmBlock converts inter.Block to evmcore.EvmBlock (without skipped transactions)
+// spillBlockEvents excludes first events which exceed BlockGasHardLimit
+func (s *Service) spillBlockEvents(block *inter.Block) (*inter.Block, inter.Events) {
+	fullEvents := make(inter.Events, len(block.Events))
+	if len(block.Events) == 0 {
+		return block, fullEvents
+	}
+	gasPowerUsedSum := uint64(0)
+	// iterate in reversed order
+	for i := len(block.Events) - 1; ; i-- {
+		id := block.Events[i]
+		e := s.store.GetEvent(id)
+		if e == nil {
+			s.Log.Crit("Event not found", "event", id.String())
+		}
+		fullEvents[i] = e
+		gasPowerUsedSum += e.GasPowerUsed
+		// stop if limit is exceeded, erase [:i] events
+		if gasPowerUsedSum > s.config.Net.Blockchain.BlockGasHardLimit {
+			// spill
+			block.Events = block.Events[i+1:]
+			fullEvents = fullEvents[i+1:]
+			break
+		}
+		if i == 0 {
+			break
+		}
+	}
+	return block, fullEvents
+}
+
+// assembleEvmBlock converts inter.Block to evmcore.EvmBlock
 func (s *Service) assembleEvmBlock(
 	block *inter.Block,
 ) (*evmcore.EvmBlock, inter.Events) {
@@ -174,19 +204,14 @@ func (s *Service) assembleEvmBlock(
 	if len(block.SkippedTxs) != 0 {
 		log.Crit("Building with SkippedTxs isn't supported")
 	}
-	blockEvents := make(inter.Events, 0, len(block.Events))
+	block, blockEvents := s.spillBlockEvents(block)
 
 	// Assemble block data
 	evmBlock := &evmcore.EvmBlock{
 		EvmHeader:    *evmcore.ToEvmHeader(block),
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
-	for _, id := range block.Events {
-		e := s.store.GetEvent(id)
-		if e == nil {
-			s.Log.Crit("Event not found", "event", id.String())
-		}
-
+	for _, e := range blockEvents {
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
 		blockEvents = append(blockEvents, e)
 	}
@@ -343,6 +368,7 @@ func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.E
 
 	if !header.NoTransactions() {
 		// erase confirmed txs from originated-but-non-confirmed
+		// to allow to re-originate this transaction if it will get skipped or spilled
 		event := s.store.GetEvent(header.Hash())
 		s.occurredTxs.CollectConfirmedTxs(event.Transactions)
 	}

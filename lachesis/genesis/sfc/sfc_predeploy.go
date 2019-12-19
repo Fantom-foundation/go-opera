@@ -40,7 +40,7 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, st
 	for _, validator := range validators {
 		stakePos := sfcpos.Staker(validator.ID)
 
-		stakeAmount := utils.BigTo256(pos.StakeToBalance(validator.Stake))
+		stakeAmount := utils.BigTo256(validator.Stake)
 
 		storage[stakePos.StakeAmount()] = stakeAmount
 		storage[stakePos.CreatedEpoch()] = utils.U64to256(0)
@@ -56,8 +56,8 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, st
 	}
 
 	storage[sfcpos.StakersNum()] = utils.U64to256(uint64(len(validators)))
-	storage[sfcpos.StakersLastIdx()] = utils.U64to256(uint64(maxStakerID))
-	storage[sfcpos.StakeTotalAmount()] = utils.BigTo256((pos.StakeToBalance(validators.Validators().TotalStake())))
+	storage[sfcpos.StakersLastID()] = utils.U64to256(uint64(maxStakerID))
+	storage[sfcpos.StakeTotalAmount()] = utils.BigTo256(validators.TotalStake())
 
 	return storage
 }

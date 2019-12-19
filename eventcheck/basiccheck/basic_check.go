@@ -4,32 +4,26 @@ import (
 	"errors"
 	"math"
 
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
-
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
-	// MaxGasPowerUsed - max value of Gas Power used
-	MaxGasPowerUsed = params.GenesisGasLimit * 3
-	// MaxEventSize ensures that in all the "real" cases, the event will be limited by gas, not size.
-	// Yet it's technically possible to construct an event which is limited by size.
-	MaxEventSize = MaxGasPowerUsed / params.TxDataNonZeroGasEIP2028
-	MaxExtraData = 256 // it has fair gas cost, so it's fine to have a high limit
+	// MaxGasPowerUsed - max value of Gas Power used in one event
+	MaxGasPowerUsed = 10000000 + EventGas
+	MaxExtraData    = 128 // it has fair gas cost, so it's fine to have a high limit
 
-	EventGas  = params.TxGas // TODO estimate the cost more accurately
+	EventGas  = 48000
 	ParentGas = EventGas / 5
 	// ExtraDataGas is cost per byte of extra event data. It's higher than regular data price, because it's a part of the header
-	ExtraDataGas = params.TxDataNonZeroGasEIP2028 * 2
+	ExtraDataGas = 150
 )
 
 var (
 	ErrSigMalformed   = errors.New("event signature malformed")
 	ErrVersion        = errors.New("event has wrong version")
-	ErrTooLarge       = errors.New("event size exceeds the limit")
 	ErrExtraTooLarge  = errors.New("event extra is too big")
 	ErrNoParents      = errors.New("event has no parents")
 	ErrTooManyParents = errors.New("event has too many parents")
@@ -108,9 +102,6 @@ func (v *Checker) checkGas(e *inter.Event) error {
 }
 
 func (v *Checker) checkLimits(e *inter.Event) error {
-	if uint64(e.Size()) > MaxEventSize {
-		return ErrTooLarge
-	}
 	if len(e.Extra) > MaxExtraData {
 		return ErrExtraTooLarge
 	}

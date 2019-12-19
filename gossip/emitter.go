@@ -53,7 +53,7 @@ type EmitterWorld struct {
 type Emitter struct {
 	txTime *lru.Cache // tx hash -> tx time
 
-	dag    *lachesis.DagConfig
+	net    *lachesis.Config
 	config *EmitterConfig
 
 	world EmitterWorld
@@ -89,7 +89,7 @@ func NewEmitter(
 	txTime, _ := lru.New(TxTimeBufferSize)
 	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		dag:      &config.Net.Dag,
+		net:      &config.Net,
 		config:   &config.Emitter,
 		world:    world,
 		gasRate:  metrics.NewMeterForced(),
@@ -260,15 +260,6 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 			e.Transactions = append(e.Transactions, tx)
 		}
 	}
-	// Spill txs if exceeded size limit
-	// In all the "real" cases, the event will be limited by gas, not size.
-	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(e.CalcSize()) > (basiccheck.MaxEventSize-500) && len(e.Transactions) > 0 {
-		tx := e.Transactions[len(e.Transactions)-1]
-		e.GasPowerUsed -= tx.Gas()
-		e.GasPowerLeft += tx.Gas()
-		e.Transactions = e.Transactions[:len(e.Transactions)-1]
-	}
 	return e
 }
 
@@ -292,7 +283,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 		strategy = ancestor.NewRandomStrategy(nil)
 	}
 
-	_, parents := ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
+	_, parents := ancestor.FindBestParents(em.net.Dag.MaxParents, heads, selfParent, strategy)
 	return selfParent, parents, true
 }
 
@@ -366,8 +357,8 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	// calc initial GasPower
-	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
-	availableGasPower := gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader, validators, em.world.Store.GetLastHeaders(epoch-1), em.world.Store.GetEpochStats(epoch-1).End, &em.dag.GasPower)
+	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, &em.net.Dag)
+	availableGasPower := gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader, validators, em.world.Store.GetLastHeaders(epoch-1), em.world.Store.GetEpochStats(epoch-1).End, &em.net.Economy.GasPower)
 	if event.GasPowerUsed > availableGasPower {
 		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
 			"gasPower", availableGasPower,
@@ -479,7 +470,7 @@ func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool
 
 // return true if event is in epoch tail (unlikely to confirm)
 func (em *Emitter) isEpochTail(e *inter.Event) bool {
-	return e.Frame >= em.dag.EpochLen-em.config.EpochTailLength
+	return e.Frame >= em.net.Dag.EpochLen-em.config.EpochTailLength
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {

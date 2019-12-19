@@ -99,7 +99,7 @@ func benchPoset(nodes []idx.StakerID, input EventSource, store *Store) *Poset {
 	for _, v := range nodes {
 		validators = append(validators, pos.GenesisValidator{
 			ID:    v,
-			Stake: 1,
+			Stake: pos.StakeToBalance(1),
 		})
 	}
 
