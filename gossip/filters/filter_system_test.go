@@ -35,19 +35,31 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 )
 
 type testBackend struct {
-	mux        *event.TypeMux
 	db         ethdb.Database
 	logIndex   *topicsdb.Index
-	sections   uint64
+	mux        *event.TypeMux
 	txFeed     *event.Feed
 	rmLogsFeed *event.Feed
 	logsFeed   *event.Feed
 	chainFeed  *event.Feed
+}
+
+func newTestBackend() *testBackend {
+	return &testBackend{
+		db:         rawdb.NewMemoryDatabase(),
+		logIndex:   topicsdb.New(memorydb.New()),
+		mux:        new(event.TypeMux),
+		txFeed:     new(event.Feed),
+		rmLogsFeed: new(event.Feed),
+		logsFeed:   new(event.Feed),
+		chainFeed:  new(event.Feed),
+	}
 }
 
 func (b *testBackend) ChainDb() ethdb.Database {
@@ -58,7 +70,7 @@ func (b *testBackend) EventMux() *event.TypeMux {
 	return b.mux
 }
 
-func (b *testBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
+func (b *testBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error) {
 	var (
 		hash common.Hash
 		num  uint64
@@ -74,15 +86,23 @@ func (b *testBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumbe
 		num = uint64(blockNr)
 		hash = rawdb.ReadCanonicalHash(b.db, num)
 	}
-	return rawdb.ReadHeader(b.db, hash, num), nil
+
+	h := rawdb.ReadHeader(b.db, hash, num)
+	eh := evmcore.ConvertFromEthHeader(h)
+	eh.Hash = h.Hash()
+	return eh, nil
 }
 
-func (b *testBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+func (b *testBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*evmcore.EvmHeader, error) {
 	number := rawdb.ReadHeaderNumber(b.db, hash)
 	if number == nil {
 		return nil, nil
 	}
-	return rawdb.ReadHeader(b.db, hash, *number), nil
+
+	h := rawdb.ReadHeader(b.db, hash, *number)
+	eh := evmcore.ConvertFromEthHeader(h)
+	eh.Hash = h.Hash()
+	return eh, nil
 }
 
 func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
@@ -97,12 +117,13 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 	if number == nil {
 		return nil, nil
 	}
-	receipts := rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig)
 
+	receipts := rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig)
 	logs := make([][]*types.Log, len(receipts))
 	for i, receipt := range receipts {
 		logs[i] = receipt.Logs
 	}
+
 	return logs, nil
 }
 
@@ -135,17 +156,11 @@ func TestBlockSubscription(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mux         = new(event.TypeMux)
-		db          = rawdb.NewMemoryDatabase()
-		logIndex    = topicsdb.New(memorydb.New())
-		txFeed      = new(event.Feed)
-		rmLogsFeed  = new(event.Feed)
-		logsFeed    = new(event.Feed)
-		chainFeed   = new(event.Feed)
-		backend     = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api         = NewPublicFilterAPI(backend)
-		genesis     = new(core.Genesis).MustCommit(db)
-		chain, _    = core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 10, func(i int, gen *core.BlockGen) {})
+		backend = newTestBackend()
+		api     = NewPublicFilterAPI(backend)
+
+		genesis     = new(core.Genesis).MustCommit(backend.db)
+		chain, _    = core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), backend.db, 10, func(i int, gen *core.BlockGen) {})
 		chainEvents = []core.ChainEvent{}
 	)
 
@@ -181,7 +196,7 @@ func TestBlockSubscription(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	for _, e := range chainEvents {
-		chainFeed.Send(e)
+		backend.chainFeed.Send(e)
 	}
 
 	<-sub0.Err()
@@ -193,15 +208,8 @@ func TestPendingTxFilter(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mux        = new(event.TypeMux)
-		db         = rawdb.NewMemoryDatabase()
-		logIndex   = topicsdb.New(memorydb.New())
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api        = NewPublicFilterAPI(backend)
+		backend = newTestBackend()
+		api     = NewPublicFilterAPI(backend)
 
 		transactions = []*types.Transaction{
 			types.NewTransaction(0, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
@@ -217,7 +225,7 @@ func TestPendingTxFilter(t *testing.T) {
 	fid0 := api.NewPendingTransactionFilter()
 
 	time.Sleep(1 * time.Second)
-	txFeed.Send(core.NewTxsEvent{Txs: transactions})
+	backend.txFeed.Send(core.NewTxsEvent{Txs: transactions})
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {
@@ -254,15 +262,8 @@ func TestPendingTxFilter(t *testing.T) {
 // If not it must return an error.
 func TestLogFilterCreation(t *testing.T) {
 	var (
-		mux        = new(event.TypeMux)
-		db         = rawdb.NewMemoryDatabase()
-		logIndex   = topicsdb.New(memorydb.New())
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api        = NewPublicFilterAPI(backend)
+		backend = newTestBackend()
+		api     = NewPublicFilterAPI(backend)
 
 		testCases = []struct {
 			crit    FilterCriteria
@@ -304,15 +305,8 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mux        = new(event.TypeMux)
-		db         = rawdb.NewMemoryDatabase()
-		logIndex   = topicsdb.New(memorydb.New())
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api        = NewPublicFilterAPI(backend)
+		backend = newTestBackend()
+		api     = NewPublicFilterAPI(backend)
 	)
 
 	// different situations where log filter creation should fail.
@@ -332,16 +326,9 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 
 func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
-		mux        = new(event.TypeMux)
-		db         = rawdb.NewMemoryDatabase()
-		logIndex   = topicsdb.New(memorydb.New())
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api        = NewPublicFilterAPI(backend)
-		blockHash  = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
+		backend   = newTestBackend()
+		api       = NewPublicFilterAPI(backend)
+		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
 	)
 
 	// Reason: Cannot specify both BlockHash and FromBlock/ToBlock)
@@ -363,15 +350,8 @@ func TestLogFilter(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mux        = new(event.TypeMux)
-		db         = rawdb.NewMemoryDatabase()
-		logIndex   = topicsdb.New(memorydb.New())
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api        = NewPublicFilterAPI(backend)
+		backend = newTestBackend()
+		api     = NewPublicFilterAPI(backend)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
 		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -434,10 +414,10 @@ func TestLogFilter(t *testing.T) {
 
 	// raise events
 	time.Sleep(1 * time.Second)
-	if nsend := logsFeed.Send(allLogs); nsend == 0 {
+	if nsend := backend.logsFeed.Send(allLogs); nsend == 0 {
 		t.Fatal("Shoud have at least one subscription")
 	}
-	if err := mux.Post(core.PendingLogsEvent{Logs: allLogs}); err != nil {
+	if err := backend.mux.Post(core.PendingLogsEvent{Logs: allLogs}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -483,15 +463,8 @@ func TestPendingLogsSubscription(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mux        = new(event.TypeMux)
-		db         = rawdb.NewMemoryDatabase()
-		logIndex   = topicsdb.New(memorydb.New())
-		txFeed     = new(event.Feed)
-		rmLogsFeed = new(event.Feed)
-		logsFeed   = new(event.Feed)
-		chainFeed  = new(event.Feed)
-		backend    = &testBackend{mux, db, logIndex, 0, txFeed, rmLogsFeed, logsFeed, chainFeed}
-		api        = NewPublicFilterAPI(backend)
+		backend = newTestBackend()
+		api     = NewPublicFilterAPI(backend)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
 		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -591,7 +564,7 @@ func TestPendingLogsSubscription(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	// allLogs are type of core.PendingLogsEvent
 	for _, l := range allLogs {
-		if err := mux.Post(l); err != nil {
+		if err := backend.mux.Post(l); err != nil {
 			t.Fatal(err)
 		}
 	}
