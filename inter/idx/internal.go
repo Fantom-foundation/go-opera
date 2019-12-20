@@ -18,3 +18,10 @@ func (v Validator) Bytes() []byte {
 func BytesToValidator(b []byte) Validator {
 	return Validator(bigendian.BytesToInt32(b))
 }
+
+const (
+	// ShortTermGas is short-window settings for gas power
+	ShortTermGas = 0
+	// LongTermGas is long-window settings for gas power
+	LongTermGas  = 1
+)

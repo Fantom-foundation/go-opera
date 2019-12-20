@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
@@ -47,7 +48,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// the same genesis
-	accsA := genesis.FakeAccounts(0, 3, big.NewInt(10000000000), 1)
+	accsA := genesis.FakeAccounts(0, 3, big.NewInt(10000000000), pos.StakeToBalance(1))
 	netA := lachesis.FakeNetConfig(accsA)
 	blockA1, err := ApplyGenesis(db, &netA)
 	if !assertar.NoError(err) {
@@ -62,7 +63,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// different genesis
-	accsB := genesis.FakeAccounts(0, 4, big.NewInt(10000000000), 1)
+	accsB := genesis.FakeAccounts(0, 4, big.NewInt(10000000000), pos.StakeToBalance(1))
 	netB := lachesis.FakeNetConfig(accsB)
 	_, err = ApplyGenesis(db, &netB)
 	if !assertar.Error(err) {

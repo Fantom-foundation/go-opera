@@ -16,6 +16,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -129,7 +130,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	assertar := assert.New(t)
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 1, big.NewInt(0), 1))
+	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 1, big.NewInt(0), pos.StakeToBalance(1)))
 	config := DefaultConfig(net)
 	config.ForcedBroadcast = allowAggressive
 	config.Emitter.MinEmitInterval = time.Duration(0)
@@ -256,6 +257,8 @@ func mockAccountManager(accs genesis.Accounts, unlock ...common.Address) *accoun
 
 func mockCheckers(epoch idx.Epoch, net *lachesis.Config, engine Consensus, store *Store) *eventcheck.Checkers {
 	heavyCheckReader := &HeavyCheckReader{}
-	heavyCheckReader.Addrs.Store(store.ReadEpochPubKeys(epoch))
-	return makeCheckers(net, heavyCheckReader, engine, store)
+	heavyCheckReader.Addrs.Store(ReadEpochPubKeys(store, epoch))
+	gasPowerCheckReader := &GasPowerCheckReader{}
+	gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(store, engine.GetValidators(), engine.GetEpoch(), &net.Economy))
+	return makeCheckers(net, heavyCheckReader, gasPowerCheckReader, engine, store)
 }

@@ -74,20 +74,18 @@ type Backend interface {
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *evmcore.EvmBlock
 
-	// Lachesis debug API
+	// Lachesis DAG API
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
 	GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error)
 	GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error)
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
-
-	// Lachesis DAG API
 	CurrentEpoch(ctx context.Context) idx.Epoch
-	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, idx.Epoch, error)
+	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
 
 	// Lachesis SFC API
 	GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetValidatingPower(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error)
 	GetStakerPoI(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error)
 	GetDelegatorClaimedRewards(ctx context.Context, addr common.Address) (*big.Int, error)

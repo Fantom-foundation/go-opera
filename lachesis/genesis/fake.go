@@ -9,9 +9,9 @@ import (
 )
 
 // FakeAccounts returns accounts and validators for fakenet
-func FakeAccounts(from, count int, balance *big.Int, stake pos.Stake) VAccounts {
+func FakeAccounts(from, count int, balance *big.Int, stake *big.Int) VAccounts {
 	accs := make(Accounts, count)
-	validators := make(pos.GValidators)
+	validators := make(pos.GValidators, 0, count)
 
 	for i := from; i < from+count; i++ {
 		key := crypto.FakeKey(i)
@@ -21,11 +21,11 @@ func FakeAccounts(from, count int, balance *big.Int, stake pos.Stake) VAccounts 
 			PrivateKey: key,
 		}
 		stakerID := idx.StakerID(i + 1)
-		validators[stakerID] = pos.GenesisValidator{
+		validators = append(validators, pos.GenesisValidator{
 			ID:      stakerID,
 			Address: addr,
 			Stake:   stake,
-		}
+		})
 	}
 
 	return VAccounts{accs, validators}

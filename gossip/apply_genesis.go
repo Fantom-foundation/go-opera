@@ -8,7 +8,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
@@ -46,16 +45,16 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		TotalFee: new(big.Int),
 	})
 
-	for stakerID, validator := range net.Genesis.Alloc.GValidators { // sort validators to get deterministic stakerIDs
+	for _, validator := range net.Genesis.Alloc.GValidators {
 		staker := &sfctype.SfcStaker{
 			Address:      validator.Address,
 			CreatedEpoch: 0,
 			CreatedTime:  net.Genesis.Time,
-			StakeAmount:  pos.StakeToBalance(validator.Stake),
+			StakeAmount:  validator.Stake,
 			DelegatedMe:  big.NewInt(0),
 		}
-		s.SetSfcStaker(stakerID, staker)
-		s.SetEpochValidator(1, stakerID, staker)
+		s.SetSfcStaker(validator.ID, staker)
+		s.SetEpochValidator(1, validator.ID, staker)
 	}
 
 	return genesisAtropos, genesisEvmState, nil

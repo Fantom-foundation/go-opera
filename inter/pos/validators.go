@@ -2,6 +2,7 @@ package pos
 
 import (
 	"io"
+	"math/big"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,11 +33,11 @@ type (
 	GenesisValidator struct {
 		ID      idx.StakerID
 		Address common.Address
-		Stake   Stake
+		Stake   *big.Int
 	}
 
 	// GValidators defines genesis validators
-	GValidators map[idx.StakerID]GenesisValidator
+	GValidators []GenesisValidator
 )
 
 var (
@@ -212,10 +213,28 @@ func (vv *Validators) DecodeRLP(s *rlp.Stream) error {
 // Validators converts GValidators to Validators
 func (gv GValidators) Validators() *Validators {
 	builder := NewBuilder()
-	for stakerID, validator := range gv {
-		builder.Set(stakerID, validator.Stake)
+	for _, validator := range gv {
+		builder.Set(validator.ID, BalanceToStake(validator.Stake))
 	}
 	return builder.Build()
+}
+
+// TotalStake returns sum of stakes
+func (gv GValidators) TotalStake() *big.Int {
+	totalStake := new(big.Int)
+	for _, validator := range gv {
+		totalStake.Add(totalStake, validator.Stake)
+	}
+	return totalStake
+}
+
+// Map converts GValidators to map
+func (gv GValidators) Map() map[idx.StakerID]GenesisValidator {
+	validators := map[idx.StakerID]GenesisValidator{}
+	for _, validator := range gv {
+		validators[validator.ID] = validator
+	}
+	return validators
 }
 
 // Addresses returns not sorted genesis addresses

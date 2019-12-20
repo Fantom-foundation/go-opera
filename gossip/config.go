@@ -54,8 +54,6 @@ type (
 		TxPositionsCacheSize int
 		// Cache size for EpochStats.
 		EpochStatsCacheSize int
-		// Cache size for LastEpochHeaders.
-		LastEpochHeadersCacheSize int
 		// Cache size for Stakers.
 		StakersCacheSize int
 		// Cache size for Delegators.
@@ -83,6 +81,10 @@ func DefaultConfig(network lachesis.Config) Config {
 
 	if network.NetworkID == lachesis.FakeNetworkID {
 		cfg.Emitter = FakeEmitterConfig()
+		// disable self-fork protection if fakenet 1/1
+		if len(network.Genesis.Alloc.GValidators) == 1 {
+			cfg.Emitter.SelfForkProtectionInterval = 0
+		}
 	}
 	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network
 		cfg.TxPool = evmcore.FakeTxPoolConfig()
@@ -94,31 +96,29 @@ func DefaultConfig(network lachesis.Config) Config {
 // DefaultStoreConfig for product.
 func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{
-		EventsCacheSize:           500,
-		EventsHeadersCacheSize:    10000,
-		BlockCacheSize:            100,
-		PackInfosCacheSize:        100,
-		ReceiptsCacheSize:         100,
-		TxPositionsCacheSize:      1000,
-		EpochStatsCacheSize:       100,
-		LastEpochHeadersCacheSize: 2,
-		DelegatorsCacheSize:       4000,
-		StakersCacheSize:          4000,
+		EventsCacheSize:        500,
+		EventsHeadersCacheSize: 10000,
+		BlockCacheSize:         100,
+		PackInfosCacheSize:     100,
+		ReceiptsCacheSize:      100,
+		TxPositionsCacheSize:   1000,
+		EpochStatsCacheSize:    100,
+		DelegatorsCacheSize:    4000,
+		StakersCacheSize:       4000,
 	}
 }
 
 // LiteStoreConfig is for tests or inmemory.
 func LiteStoreConfig() StoreConfig {
 	return StoreConfig{
-		EventsCacheSize:           100,
-		EventsHeadersCacheSize:    1000,
-		BlockCacheSize:            100,
-		PackInfosCacheSize:        100,
-		ReceiptsCacheSize:         100,
-		TxPositionsCacheSize:      100,
-		EpochStatsCacheSize:       100,
-		LastEpochHeadersCacheSize: 2,
-		DelegatorsCacheSize:       400,
-		StakersCacheSize:          400,
+		EventsCacheSize:        100,
+		EventsHeadersCacheSize: 1000,
+		BlockCacheSize:         100,
+		PackInfosCacheSize:     100,
+		ReceiptsCacheSize:      100,
+		TxPositionsCacheSize:   100,
+		EpochStatsCacheSize:    100,
+		DelegatorsCacheSize:    400,
+		StakersCacheSize:       400,
 	}
 }

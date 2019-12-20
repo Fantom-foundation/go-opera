@@ -14,7 +14,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -23,6 +22,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 	"github.com/Fantom-foundation/go-lachesis/utils"
@@ -53,7 +53,7 @@ type EmitterWorld struct {
 type Emitter struct {
 	txTime *lru.Cache // tx hash -> tx time
 
-	dag    *lachesis.DagConfig
+	net    *lachesis.Config
 	config *EmitterConfig
 
 	world EmitterWorld
@@ -89,7 +89,7 @@ func NewEmitter(
 	txTime, _ := lru.New(TxTimeBufferSize)
 	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		dag:      &config.Net.Dag,
+		net:      &config.Net,
 		config:   &config.Emitter,
 		world:    world,
 		gasRate:  metrics.NewMeterForced(),
@@ -242,7 +242,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 		// txs is the chain of dependent txs
 		for _, tx := range txs {
 			// enough gas power
-			if tx.Gas() >= e.GasPowerLeft || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
+			if tx.Gas() >= e.GasPowerLeft.Min() || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
 				break // txs are dependent, so break the loop
 			}
 			// check not conflicted with already included txs (in any connected event)
@@ -256,18 +256,9 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 
 			// add
 			e.GasPowerUsed += tx.Gas()
-			e.GasPowerLeft -= tx.Gas()
+			e.GasPowerLeft.Sub(tx.Gas())
 			e.Transactions = append(e.Transactions, tx)
 		}
-	}
-	// Spill txs if exceeded size limit
-	// In all the "real" cases, the event will be limited by gas, not size.
-	// Yet it's technically possible to construct an event which is limited by size and not by gas.
-	for uint64(e.CalcSize()) > (basiccheck.MaxEventSize-500) && len(e.Transactions) > 0 {
-		tx := e.Transactions[len(e.Transactions)-1]
-		e.GasPowerUsed -= tx.Gas()
-		e.GasPowerLeft += tx.Gas()
-		e.Transactions = e.Transactions[:len(e.Transactions)-1]
 	}
 	return e
 }
@@ -284,7 +275,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "validator", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
 			return nil, nil, false
 		}
 	} else {
@@ -292,7 +283,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 		strategy = ancestor.NewRandomStrategy(nil)
 	}
 
-	_, parents := ancestor.FindBestParents(em.dag.MaxParents, heads, selfParent, strategy)
+	_, parents := ancestor.FindBestParents(em.net.Dag.MaxParents, heads, selfParent, strategy)
 	return selfParent, parents, true
 }
 
@@ -366,13 +357,19 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	// calc initial GasPower
-	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, em.dag)
-	availableGasPower := gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader, validators, em.world.Store.GetLastHeaders(epoch-1), em.world.Store.GetEpochStats(epoch-1).End, &em.dag.GasPower)
-	if event.GasPowerUsed > availableGasPower {
-		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?")
+	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, &em.net.Dag)
+	availableGasPower, err := em.world.Checkers.Gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader)
+	if err != nil {
+		em.Log.Warn("Gas power calculation failed", "err", err)
 		return nil
 	}
-	event.GasPowerLeft = availableGasPower - event.GasPowerUsed
+	if event.GasPowerUsed > availableGasPower.Min() {
+		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
+			"gasPower", availableGasPower,
+			"stake%", 100*float64(validators.Get(myStakerID))/float64(validators.TotalStake()))
+		return nil
+	}
+	event.GasPowerLeft = *availableGasPower.Sub(event.GasPowerUsed)
 
 	// Add txs
 	event = em.addTxs(event, poolTxs)
@@ -397,7 +394,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		return w.SignData(acc, MimetypeEvent, data)
 	}
 	if err := event.Sign(signer); err != nil {
-		em.Log.Error("Failed to sign event", "err", err)
+		em.Periodic.Error(time.Second, "Failed to sign event. Please unlock account.", "err", err)
 		return nil
 	}
 	// calc hash after event is fully built
@@ -407,7 +404,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		// sanity check
 		if em.world.Checkers != nil {
 			if err := em.world.Checkers.Validate(event, parentHeaders); err != nil {
-				em.Log.Error("Signed event incorrectly", "err", err)
+				em.Periodic.Error(time.Second, "Signed event incorrectly", "err", err)
 				return nil
 			}
 		}
@@ -438,6 +435,9 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
+	if em.config.SelfForkProtectionInterval == 0 {
+		return true, "", 0 // protection disabled
+	}
 	if em.world.PeersNum() == 0 {
 		em.syncStatus.connectedTime = time.Now() // move time of the first connection
 		return false, "no connections", 0
@@ -474,7 +474,7 @@ func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool
 
 // return true if event is in epoch tail (unlikely to confirm)
 func (em *Emitter) isEpochTail(e *inter.Event) bool {
-	return e.Frame >= em.dag.EpochLen-em.config.EpochTailLength
+	return e.Frame >= em.net.Dag.EpochLen-em.config.EpochTailLength
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
@@ -487,24 +487,27 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 	// No txs if power is low
 	{
 		threshold := em.config.NoTxsThreshold
-		if e.GasPowerLeft <= threshold {
+		if e.GasPowerLeft.Min() <= threshold {
 			return 0
+		}
+		if e.GasPowerLeft.Min() < threshold+params.MaxGasPowerUsed {
+			return e.GasPowerLeft.Min() - threshold
 		}
 	}
 	// Smooth TPS if power isn't big
 	{
 		threshold := em.config.SmoothTpsThreshold
-		if e.GasPowerLeft <= threshold {
+		if e.GasPowerLeft.Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
 			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
 			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
-			if maxGasUsed > basiccheck.MaxGasPowerUsed {
-				maxGasUsed = basiccheck.MaxGasPowerUsed
+			if maxGasUsed > params.MaxGasPowerUsed {
+				maxGasUsed = params.MaxGasPowerUsed
 			}
 			return maxGasUsed
 		}
 	}
-	return basiccheck.MaxGasPowerUsed
+	return params.MaxGasPowerUsed
 }
 
 func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
@@ -512,11 +515,11 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	// Slow down emitting if power is low
 	{
 		threshold := em.config.NoTxsThreshold
-		if e.GasPowerLeft <= threshold {
+		if e.GasPowerLeft.Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
 			minT := float64(em.config.MinEmitInterval)
 			maxT := float64(em.config.MaxEmitInterval)
-			factor := float64(e.GasPowerLeft) / float64(threshold)
+			factor := float64(e.GasPowerLeft.Min()) / float64(threshold)
 			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
 			if passedTime < adjustedEmitInterval {
 				return false
@@ -526,9 +529,13 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	// Forbid emitting if not enough power and power is decreasing
 	{
 		threshold := em.config.EmergencyThreshold
-		if e.GasPowerLeft <= threshold {
-			if selfParent != nil && e.GasPowerLeft < selfParent.GasPowerLeft {
-				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting", "power", e.GasPowerLeft, "self_parent_power", selfParent.GasPowerLeft)
+		if e.GasPowerLeft.Min() <= threshold {
+			if selfParent != nil && e.GasPowerLeft.Min() < selfParent.GasPowerLeft.Min() {
+				validators := em.world.Engine.GetValidators()
+				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting",
+					"power", e.GasPowerLeft.String(),
+					"selfParentPower", selfParent.GasPowerLeft.String(),
+					"stake%", 100*float64(validators.Get(e.Creator))/float64(validators.TotalStake()))
 				return false
 			}
 		}

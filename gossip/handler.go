@@ -152,6 +152,19 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 		}
 		return nil
 	}
+	bifferedCheck := func(e *inter.Event, parents []*inter.EventHeaderData) error {
+		var selfParent *inter.EventHeaderData
+		if e.SelfParent() != nil {
+			selfParent = parents[0]
+		}
+		if err := checkers.Parentscheck.Validate(e, parents); err != nil {
+			return err
+		}
+		if err := checkers.Gaspowercheck.Validate(e, selfParent); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	// DAG callbacks
 	buffer := ordering.New(eventsBuffSize, ordering.Callback{
@@ -186,7 +199,7 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 			return pm.store.GetEventHeader(id.Epoch(), id)
 		},
 
-		Check: checkers.Parentscheck.Validate,
+		Check: bifferedCheck,
 	})
 
 	newFetcher := fetcher.New(fetcher.Callback{

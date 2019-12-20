@@ -19,23 +19,24 @@ func PoiPeriod(t inter.Timestamp, config *lachesis.EconomyConfig) uint64 {
 }
 
 // UpdateAddressPOI calculate and save POI for user
-func (s *Service) UpdateAddressPOI(address common.Address, senderTotalGasUsed uint64, poiPeriod uint64) {
-	if senderTotalGasUsed == 0 {
-		s.store.SetAddressPOI(address, 0)
+func (s *Service) UpdateAddressPOI(address common.Address, senderTotalFee *big.Int, poiPeriod uint64) {
+	/*if senderTotalFee.Sign() == 0 {
+		s.store.SetAddressPOI(address, common.Big0)
 		return // avoid division by 0
 	}
-	poi := (senderTotalGasUsed * 1000000) / s.store.GetPOIGasUsed(poiPeriod)
-	s.store.SetAddressPOI(address, poi)
+	poi := new(big.Int).Mul(senderTotalFee, lachesis.PercentUnit)
+	poi.Div(poi, s.store.GetPoiFee(poiPeriod)) // rebase user's PoI as <= 1.0 ratio
+	s.store.SetAddressPOI(address, poi)*/
 }
 
 // updateUsersPOI calculates the Proof Of Importance weights for users
-func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock, receipts types.Receipts, sealEpoch bool) {
+func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock, receipts types.Receipts, totalFee *big.Int, sealEpoch bool) {
 	// User POI calculations
 	poiPeriod := PoiPeriod(block.Time, &s.config.Net.Economy)
-	s.store.AddPOIGasUsed(poiPeriod, block.GasUsed)
+	s.store.AddPoiFee(poiPeriod, totalFee)
 
 	for i, tx := range evmBlock.Transactions {
-		txGasUsed := receipts[i].GasUsed
+		txFee := new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice())
 
 		signer := types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)
 		sender, err := signer.Sender(tx)
@@ -45,28 +46,28 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 
 		senderLastTxTime := s.store.GetAddressLastTxTime(sender)
 		prevUserPoiPeriod := PoiPeriod(senderLastTxTime, &s.config.Net.Economy)
-		senderTotalGasUsed := s.store.GetAddressGasUsed(sender, prevUserPoiPeriod)
+		senderTotalFee := s.store.GetAddressFee(sender, prevUserPoiPeriod)
 
 		delegator := s.store.GetSfcDelegator(sender)
 		if delegator != nil {
 			staker := s.store.GetSfcStaker(delegator.ToStakerID)
-			prevGas := s.store.GetWeightedDelegatorsGasUsed(delegator.ToStakerID)
+			prevWeightedTxFee := s.store.GetWeightedDelegatorsFee(delegator.ToStakerID)
 
-			weightedTxGasUsed := new(big.Int).SetUint64(txGasUsed)
-			weightedTxGasUsed.Mul(weightedTxGasUsed, delegator.Amount)
-			weightedTxGasUsed.Div(weightedTxGasUsed, staker.CalcTotalStake())
+			weightedTxFee := new(big.Int).Mul(txFee, delegator.Amount)
+			weightedTxFee.Div(weightedTxFee, staker.CalcTotalStake())
 
-			s.store.SetWeightedDelegatorsGasUsed(delegator.ToStakerID, prevGas+weightedTxGasUsed.Uint64())
+			weightedTxFee.Add(weightedTxFee, prevWeightedTxFee)
+			s.store.SetWeightedDelegatorsFee(delegator.ToStakerID, weightedTxFee)
 		}
 
 		if prevUserPoiPeriod != poiPeriod {
-			s.UpdateAddressPOI(sender, senderTotalGasUsed, prevUserPoiPeriod)
-			senderTotalGasUsed = 0
+			s.UpdateAddressPOI(sender, senderTotalFee, prevUserPoiPeriod)
+			senderTotalFee = big.NewInt(0)
 		}
 
 		s.store.SetAddressLastTxTime(sender, block.Time)
-		senderTotalGasUsed += txGasUsed
-		s.store.SetAddressGasUsed(sender, poiPeriod, senderTotalGasUsed)
+		senderTotalFee.Add(senderTotalFee, txFee)
+		s.store.SetAddressFee(sender, poiPeriod, senderTotalFee)
 	}
 
 }
@@ -75,24 +76,25 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 func (s *Service) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Address, poiPeriod uint64) {
 	staker := s.store.GetSfcStaker(stakerID)
 
-	vGasUsed := s.store.GetAddressGasUsed(stakerAddress, poiPeriod)
-	weightedDGasUsed := s.store.GetWeightedDelegatorsGasUsed(stakerID)
-	if vGasUsed == 0 && weightedDGasUsed == 0 {
-		s.store.SetStakerPOI(stakerID, 0)
+	vFee := s.store.GetAddressFee(stakerAddress, poiPeriod)
+	weightedDFee := s.store.GetWeightedDelegatorsFee(stakerID)
+	if vFee.Sign() == 0 && weightedDFee.Sign() == 0 {
+		s.store.SetStakerPOI(stakerID, common.Big0)
 		return // optimization
 	}
 
-	weightedVGasUsed := new(big.Int).SetUint64(vGasUsed)
-	weightedVGasUsed.Mul(weightedVGasUsed, staker.StakeAmount)
-	weightedVGasUsed.Div(weightedVGasUsed, staker.CalcTotalStake())
+	weightedVFee := new(big.Int).Mul(vFee, staker.StakeAmount)
+	weightedVFee.Div(weightedVFee, staker.CalcTotalStake())
 
-	weightedGasUsed := weightedDGasUsed + weightedVGasUsed.Uint64()
+	weightedFee := new(big.Int).Add(weightedDFee, weightedVFee)
 
-	if weightedGasUsed == 0 {
-		s.store.SetStakerPOI(stakerID, 0)
+	if weightedFee.Sign() == 0 {
+		s.store.SetStakerPOI(stakerID, common.Big0)
 		return // avoid division by 0
 	}
-	poi := (weightedGasUsed * 1000000) / s.store.GetPOIGasUsed(poiPeriod)
+	poi := weightedFee // no need to rebase validator's PoI as <= 1.0 ratio
+	/*poi := new(big.Int).Mul(weightedFee, lachesis.PercentUnit)
+	poi.Div(poi, s.store.GetPoiFee(poiPeriod))*/
 	s.store.SetStakerPOI(stakerID, poi)
 }
 
@@ -106,7 +108,7 @@ func (s *Service) updateStakersPOI(block *inter.Block, sealEpoch bool) {
 		for _, it := range s.GetActiveSfcStakers() {
 			s.UpdateStakerPOI(it.StakerID, it.Staker.Address, prevBlockPoiPeriod)
 		}
-		// clear StakersDelegatorsGasUsed counters
-		s.store.DelAllWeightedDelegatorsGasUsed()
+		// clear StakersDelegatorsFee counters
+		s.store.DelAllWeightedDelegatorsFee()
 	}
 }

@@ -53,6 +53,15 @@ func (s *Store) ForEachSfcStaker(do func(sfctype.SfcStakerAndID)) {
 	s.forEachSfcStaker(it, do)
 }
 
+// GetSfcStakers returns all stored SfcStakers
+func (s *Store) GetSfcStakers() []sfctype.SfcStakerAndID {
+	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
+	s.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
+		stakers = append(stakers, it)
+	})
+	return stakers
+}
+
 // GetEpochValidators returns all stored EpochValidators on the epoch
 func (s *Store) GetEpochValidators(epoch idx.Epoch) []sfctype.SfcStakerAndID {
 	it := s.table.Validators.NewIteratorWithPrefix(epoch.Bytes())

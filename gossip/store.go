@@ -29,23 +29,43 @@ type Store struct {
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
-		Peers            kvdb.KeyValueStore `table:"p"`
-		Events           kvdb.KeyValueStore `table:"e"`
-		Blocks           kvdb.KeyValueStore `table:"b"`
-		PackInfos        kvdb.KeyValueStore `table:"p"`
-		Packs            kvdb.KeyValueStore `table:"P"`
-		PacksNum         kvdb.KeyValueStore `table:"n"`
-		LastEpochHeaders kvdb.KeyValueStore `table:"l"`
-		EpochStats       kvdb.KeyValueStore `table:"E"`
+		// Network tables
+		Peers kvdb.KeyValueStore `table:"p"`
 
-		// score tables
-		ActiveValidationScore      kvdb.KeyValueStore `table:"V"`
-		DirtyValidationScore       kvdb.KeyValueStore `table:"v"`
-		ActiveOriginationScore     kvdb.KeyValueStore `table:"O"`
-		DirtyOriginationScore      kvdb.KeyValueStore `table:"o"`
-		BlockParticipation         kvdb.KeyValueStore `table:"m"`
-		ValidationScoreCheckpoint  kvdb.KeyValueStore `table:"c"`
-		OriginationScoreCheckpoint kvdb.KeyValueStore `table:"C"`
+		// Main DAG tables
+		Events    kvdb.KeyValueStore `table:"e"`
+		Blocks    kvdb.KeyValueStore `table:"b"`
+		PackInfos kvdb.KeyValueStore `table:"p"`
+		Packs     kvdb.KeyValueStore `table:"P"`
+		PacksNum  kvdb.KeyValueStore `table:"n"`
+
+		// general economy tables
+		EpochStats kvdb.KeyValueStore `table:"E"`
+
+		// score economy tables
+		ActiveValidationScore  kvdb.KeyValueStore `table:"V"`
+		DirtyValidationScore   kvdb.KeyValueStore `table:"v"`
+		ActiveOriginationScore kvdb.KeyValueStore `table:"O"`
+		DirtyOriginationScore  kvdb.KeyValueStore `table:"o"`
+		BlockDowntime          kvdb.KeyValueStore `table:"m"`
+
+		// PoI economy tables
+		StakerPOIScore      kvdb.KeyValueStore `table:"s"`
+		AddressPOIScore     kvdb.KeyValueStore `table:"a"`
+		AddressFee          kvdb.KeyValueStore `table:"g"`
+		StakerDelegatorsFee kvdb.KeyValueStore `table:"d"`
+		AddressLastTxTime   kvdb.KeyValueStore `table:"X"`
+		TotalPoiFee         kvdb.KeyValueStore `table:"U"`
+
+		// gas power economy tables
+		LastEpochHeaders kvdb.KeyValueStore `table:"l"`
+		GasPowerRefund   kvdb.KeyValueStore `table:"R"`
+
+		// SFC-related economy tables
+		Validators   kvdb.KeyValueStore `table:"1"`
+		Stakers      kvdb.KeyValueStore `table:"2"`
+		Delegators   kvdb.KeyValueStore `table:"3"`
+		SfcConstants kvdb.KeyValueStore `table:"4"`
 
 		// API-only tables
 		BlockHashes                kvdb.KeyValueStore `table:"h"`
@@ -55,19 +75,6 @@ type Store struct {
 		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
 		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
 
-		// PoI tables
-		StakerPOIScore          kvdb.KeyValueStore `table:"s"`
-		AddressPOIScore         kvdb.KeyValueStore `table:"a"`
-		AddressGasUsed          kvdb.KeyValueStore `table:"g"`
-		StakerDelegatorsGasUsed kvdb.KeyValueStore `table:"d"`
-		AddressLastTxTime       kvdb.KeyValueStore `table:"X"`
-		TotalPOIGasUsed         kvdb.KeyValueStore `table:"U"`
-
-		// SFC-related tables
-		Validators kvdb.KeyValueStore `table:"1"`
-		Stakers    kvdb.KeyValueStore `table:"2"`
-		Delegators kvdb.KeyValueStore `table:"3"`
-
 		TmpDbs kvdb.KeyValueStore `table:"T"`
 
 		Evm      ethdb.Database
@@ -76,25 +83,21 @@ type Store struct {
 	}
 
 	cache struct {
-		Events                     *lru.Cache `cache:"-"` // store by pointer
-		EventsHeaders              *lru.Cache `cache:"-"` // store by pointer
-		Blocks                     *lru.Cache `cache:"-"` // store by pointer
-		PackInfos                  *lru.Cache `cache:"-"` // store by value
-		Receipts                   *lru.Cache `cache:"-"` // store by value
-		TxPositions                *lru.Cache `cache:"-"` // store by pointer
-		EpochStats                 *lru.Cache `cache:"-"` // store by value
-		LastEpochHeaders           *lru.Cache `cache:"-"` // store by pointer
-		Stakers                    *lru.Cache `cache:"-"` // store by pointer
-		Delegators                 *lru.Cache `cache:"-"` // store by pointer
-		BlockParticipation         *lru.Cache `cache:"-"` // store by pointer
-		BlockHashes                *lru.Cache `cache:"-"` // store by pointer
-		ValidationScoreCheckpoint  *lru.Cache `cache:"-"` // store by pointer
-		OriginationScoreCheckpoint *lru.Cache `cache:"-"` // store by pointer
+		Events        *lru.Cache `cache:"-"` // store by pointer
+		EventsHeaders *lru.Cache `cache:"-"` // store by pointer
+		Blocks        *lru.Cache `cache:"-"` // store by pointer
+		PackInfos     *lru.Cache `cache:"-"` // store by value
+		Receipts      *lru.Cache `cache:"-"` // store by value
+		TxPositions   *lru.Cache `cache:"-"` // store by pointer
+		EpochStats    *lru.Cache `cache:"-"` // store by value
+		Stakers       *lru.Cache `cache:"-"` // store by pointer
+		Delegators    *lru.Cache `cache:"-"` // store by pointer
+		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
+		BlockHashes   *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutexes struct {
-		LastEpochHeaders *sync.RWMutex
-		IncMutex         *sync.Mutex
+		IncMutex *sync.Mutex
 	}
 
 	tmpDbs
@@ -142,17 +145,13 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
 	s.cache.EpochStats = s.makeCache(s.cfg.EpochStatsCacheSize)
-	s.cache.LastEpochHeaders = s.makeCache(s.cfg.LastEpochHeadersCacheSize)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
-	s.cache.BlockParticipation = s.makeCache(256)
+	s.cache.BlockDowntime = s.makeCache(256)
 	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
-	s.cache.ValidationScoreCheckpoint = s.makeCache(4)
-	s.cache.OriginationScoreCheckpoint = s.makeCache(4)
 }
 
 func (s *Store) initMutexes() {
-	s.mutexes.LastEpochHeaders = new(sync.RWMutex)
 	s.mutexes.IncMutex = new(sync.Mutex)
 }
 

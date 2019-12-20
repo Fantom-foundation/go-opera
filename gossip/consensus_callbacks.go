@@ -29,11 +29,6 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		return eventcheck.ErrAlreadyConnectedEvent
 	}
 
-	// we check gas power here, because engineMu is locked here
-	if err := s.gasPowerCheck(e); err != nil {
-		return err
-	}
-
 	oldEpoch := e.Epoch
 
 	s.store.SetEvent(e)
@@ -64,12 +59,18 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 
 	if newEpoch != oldEpoch {
-		s.heavyCheckReader.Addrs.Store(s.store.ReadEpochPubKeys(newEpoch)) // notify checker about new pub keys
+		// notify event checkers about new validation data
+		s.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(s.store, newEpoch))
+		s.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s.store, s.engine.GetValidators(), newEpoch, &s.config.Net.Economy))
+
+		// sealings/prunings
 		s.packsOnNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
 		s.store.getEpochStore(newEpoch)
-		s.feed.newEpoch.Send(newEpoch)
 		s.occurredTxs.Clear()
+
+		// notify about new epoch after event connection
+		s.feed.newEpoch.Send(newEpoch)
 	}
 
 	immediately := (newEpoch != oldEpoch)
@@ -127,9 +128,9 @@ func (s *Service) applyNewState(
 	}
 
 	// Process PoI/score changes
-	s.updateOriginationScores(block, receipts, txPositions, sealEpoch)
+	s.updateOriginationScores(block, evmBlock, receipts, txPositions, sealEpoch)
 	s.updateValidationScores(block, sealEpoch)
-	s.updateUsersPOI(block, evmBlock, receipts, sealEpoch)
+	s.updateUsersPOI(block, evmBlock, receipts, totalFee, sealEpoch)
 	s.updateStakersPOI(block, sealEpoch)
 
 	// Process SFC contract transactions
@@ -161,12 +162,42 @@ func (s *Service) applyNewState(
 	}
 
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
-		evmBlock.GasUsed, "txs", len(evmBlock.Transactions), "skipped_txs", len(block.SkippedTxs), "elapsed", time.Since(start))
+		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "elapsed", time.Since(start))
 
 	return block, evmBlock, receipts, txPositions, newAppHash
 }
 
-// assembleEvmBlock converts inter.Block to evmcore.EvmBlock (without skipped transactions)
+// spillBlockEvents excludes first events which exceed BlockGasHardLimit
+func (s *Service) spillBlockEvents(block *inter.Block) (*inter.Block, inter.Events) {
+	fullEvents := make(inter.Events, len(block.Events))
+	if len(block.Events) == 0 {
+		return block, fullEvents
+	}
+	gasPowerUsedSum := uint64(0)
+	// iterate in reversed order
+	for i := len(block.Events) - 1; ; i-- {
+		id := block.Events[i]
+		e := s.store.GetEvent(id)
+		if e == nil {
+			s.Log.Crit("Event not found", "event", id.String())
+		}
+		fullEvents[i] = e
+		gasPowerUsedSum += e.GasPowerUsed
+		// stop if limit is exceeded, erase [:i] events
+		if gasPowerUsedSum > s.config.Net.Blockchain.BlockGasHardLimit {
+			// spill
+			block.Events = block.Events[i+1:]
+			fullEvents = fullEvents[i+1:]
+			break
+		}
+		if i == 0 {
+			break
+		}
+	}
+	return block, fullEvents
+}
+
+// assembleEvmBlock converts inter.Block to evmcore.EvmBlock
 func (s *Service) assembleEvmBlock(
 	block *inter.Block,
 ) (*evmcore.EvmBlock, inter.Events) {
@@ -174,19 +205,14 @@ func (s *Service) assembleEvmBlock(
 	if len(block.SkippedTxs) != 0 {
 		log.Crit("Building with SkippedTxs isn't supported")
 	}
-	blockEvents := make(inter.Events, 0, len(block.Events))
+	block, blockEvents := s.spillBlockEvents(block)
 
 	// Assemble block data
 	evmBlock := &evmcore.EvmBlock{
 		EvmHeader:    *evmcore.ToEvmHeader(block),
 		Transactions: make(types.Transactions, 0, len(block.Events)*10),
 	}
-	for _, id := range block.Events {
-		e := s.store.GetEvent(id)
-		if e == nil {
-			s.Log.Crit("Event not found", "event", id.String())
-		}
-
+	for _, e := range blockEvents {
 		evmBlock.Transactions = append(evmBlock.Transactions, e.Transactions...)
 		blockEvents = append(blockEvents, e)
 	}
@@ -345,6 +371,7 @@ func (s *Service) onEventConfirmed(header *inter.EventHeaderData, seqDepth idx.E
 
 	if !header.NoTransactions() {
 		// erase confirmed txs from originated-but-non-confirmed
+		// to allow to re-originate this transaction if it will get skipped or spilled
 		event := s.store.GetEvent(header.Hash())
 		s.occurredTxs.CollectConfirmedTxs(event.Transactions)
 	}

@@ -5,31 +5,16 @@ import (
 	"math"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
-)
-
-const (
-	// MaxGasPowerUsed - max value of Gas Power used
-	MaxGasPowerUsed = params.GenesisGasLimit * 3
-	// MaxEventSize ensures that in all the "real" cases, the event will be limited by gas, not size.
-	// Yet it's technically possible to construct an event which is limited by size.
-	MaxEventSize = MaxGasPowerUsed / params.TxDataNonZeroGasEIP2028
-	MaxExtraData = 256 // it has fair gas cost, so it's fine to have a high limit
-
-	EventGas  = params.TxGas // TODO estimate the cost more accurately
-	ParentGas = EventGas / 5
-	// ExtraDataGas is cost per byte of extra event data. It's higher than regular data price, because it's a part of the header
-	ExtraDataGas = params.TxDataNonZeroGasEIP2028 * 2
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
 var (
 	ErrSigMalformed   = errors.New("event signature malformed")
 	ErrVersion        = errors.New("event has wrong version")
-	ErrTooLarge       = errors.New("event size exceeds the limit")
 	ErrExtraTooLarge  = errors.New("event extra is too big")
 	ErrNoParents      = errors.New("event has no parents")
 	ErrTooManyParents = errors.New("event has too many parents")
@@ -89,15 +74,15 @@ func CalcGasPowerUsed(e *inter.Event, config *lachesis.DagConfig) uint64 {
 
 	parentsGas := uint64(0)
 	if len(e.Parents) > config.MaxFreeParents {
-		parentsGas = uint64(len(e.Parents)-config.MaxFreeParents) * ParentGas
+		parentsGas = uint64(len(e.Parents)-config.MaxFreeParents) * params.ParentGas
 	}
-	extraGas := uint64(len(e.Extra)) * ExtraDataGas
+	extraGas := uint64(len(e.Extra)) * params.ExtraDataGas
 
-	return txsGas + parentsGas + extraGas + EventGas
+	return txsGas + parentsGas + extraGas + params.EventGas
 }
 
 func (v *Checker) checkGas(e *inter.Event) error {
-	if e.GasPowerUsed > MaxGasPowerUsed {
+	if e.GasPowerUsed > params.MaxGasPowerUsed {
 		return ErrTooBigGasUsed
 	}
 	if e.GasPowerUsed != CalcGasPowerUsed(e, v.config) {
@@ -108,17 +93,14 @@ func (v *Checker) checkGas(e *inter.Event) error {
 }
 
 func (v *Checker) checkLimits(e *inter.Event) error {
-	if uint64(e.Size()) > MaxEventSize {
-		return ErrTooLarge
-	}
-	if len(e.Extra) > MaxExtraData {
+	if len(e.Extra) > params.MaxExtraData {
 		return ErrExtraTooLarge
 	}
 	if len(e.Parents) > v.config.MaxParents {
 		return ErrTooManyParents
 	}
 	if e.Seq >= math.MaxInt32/2 || e.Epoch >= math.MaxInt32/2 || e.Frame >= math.MaxInt32/2 ||
-		e.Lamport >= math.MaxInt32/2 || e.GasPowerUsed >= math.MaxInt64/2 || e.GasPowerLeft >= math.MaxInt64/2 {
+		e.Lamport >= math.MaxInt32/2 || e.GasPowerUsed >= math.MaxInt64/2 || e.GasPowerLeft.Max() >= math.MaxInt64/2 {
 		return ErrHugeValue
 	}
 

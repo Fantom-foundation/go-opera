@@ -99,16 +99,17 @@ type Service struct {
 	serverPool *serverPool
 
 	// application
-	node              *node.ServiceContext
-	store             *Store
-	engine            Consensus
-	engineMu          *sync.RWMutex
-	emitter           *Emitter
-	txpool            *evmcore.TxPool
-	occurredTxs       *occuredtxs.Buffer
-	blockParticipated map[idx.StakerID]bool // validators who participated in last block
-	heavyCheckReader  HeavyCheckReader
-	checkers          *eventcheck.Checkers
+	node                *node.ServiceContext
+	store               *Store
+	engine              Consensus
+	engineMu            *sync.RWMutex
+	emitter             *Emitter
+	txpool              *evmcore.TxPool
+	occurredTxs         *occuredtxs.Buffer
+	blockParticipated   map[idx.StakerID]bool // validators who participated in last block
+	heavyCheckReader    HeavyCheckReader
+	gasPowerCheckReader GasPowerCheckReader
+	checkers            *eventcheck.Checkers
 
 	feed ServiceFeed
 
@@ -162,8 +163,9 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	svc.txpool = evmcore.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
 
 	// create checkers
-	svc.heavyCheckReader.Addrs.Store(svc.store.ReadEpochPubKeys(svc.engine.GetEpoch())) // read pub keys of current epoch from disk
-	svc.checkers = makeCheckers(&svc.config.Net, &svc.heavyCheckReader, svc.engine, svc.store)
+	svc.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(svc.store, svc.engine.GetEpoch()))                                                          // read pub keys of current epoch from disk
+	svc.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(svc.store, svc.engine.GetValidators(), svc.engine.GetEpoch(), &svc.config.Net.Economy)) // read gaspower check data from disk
+	svc.checkers = makeCheckers(&svc.config.Net, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.engine, svc.store)
 
 	// create protocol manager
 	var err error
@@ -177,16 +179,13 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 }
 
 // makeCheckers builds event checkers
-func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, engine Consensus, store *Store) *eventcheck.Checkers {
+func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, engine Consensus, store *Store) *eventcheck.Checkers {
 	// create signatures checker
 	dagID := params.AllEthashProtocolChanges.ChainID
 	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(dagID))
 
 	// create gaspower checker
-	gaspowerCheck := gaspowercheck.New(&net.Dag.GasPower, &GasPowerCheckReader{
-		Consensus: engine,
-		store:     store,
-	})
+	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)
 
 	return &eventcheck.Checkers{
 		Basiccheck:    basiccheck.New(&net.Dag),

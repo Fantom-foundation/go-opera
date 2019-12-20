@@ -178,14 +178,17 @@ func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID strin
 }
 
 // GetHeads returns IDs of all the epoch events with no descendants.
-// * When epoch is -1 the heads for latest epoch are returned.
+// * When epoch is -2 the heads for latest epoch are returned.
+// * When epoch is -1 the heads for latest sealed epoch are returned.
 func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
 	current := b.svc.engine.GetEpoch()
 
 	var requested idx.Epoch
 	switch {
-	case epoch == rpc.LatestBlockNumber:
+	case epoch == rpc.PendingBlockNumber:
 		requested = current
+	case epoch == rpc.LatestBlockNumber:
+		requested = current - 1
 	case epoch >= 0 && idx.Epoch(epoch) <= current:
 		requested = idx.Epoch(epoch)
 	default:
@@ -417,8 +420,9 @@ func (b *EthAPIBackend) CurrentEpoch(ctx context.Context) idx.Epoch {
 }
 
 // GetEpochStats returns epoch statistics.
-// * When epoch is -1 the statistics for latest epoch is returned.
-func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, idx.Epoch, error) {
+// * When epoch is -2 the statistics for latest epoch is returned.
+// * When epoch is -1 the statistics for latest sealed epoch is returned.
+func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error) {
 	var epoch idx.Epoch
 	if requestedEpoch == rpc.PendingBlockNumber {
 		epoch = pendingEpoch
@@ -428,10 +432,24 @@ func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.Bl
 		epoch = idx.Epoch(requestedEpoch)
 	}
 	if epoch == b.CurrentEpoch(ctx) {
-		return nil, 0, errors.New("current epoch isn't sealed yet, request pending epoch")
+		return nil, errors.New("current epoch isn't sealed yet, request pending epoch")
 	}
 
-	return b.svc.store.GetEpochStats(epoch), epoch, nil
+	stats := b.svc.store.GetEpochStats(epoch)
+	if stats == nil {
+		return nil, nil
+	}
+	stats.Epoch = epoch
+
+	// read total reward weights from SFC contract
+	header := b.state.CurrentHeader()
+	statedb := b.svc.store.StateDB(header.Root)
+
+	epochPosition := sfcpos.EpochSnapshot(epoch)
+	stats.TotalBaseRewardWeight = statedb.GetState(sfc.ContractAddress, epochPosition.TotalBaseRewardWeight()).Big()
+	stats.TotalTxRewardWeight = statedb.GetState(sfc.ContractAddress, epochPosition.TotalTxRewardWeight()).Big()
+
+	return stats, nil
 }
 
 // GetValidationScore returns staker's ValidationScore.
@@ -439,7 +457,7 @@ func (b *EthAPIBackend) GetValidationScore(ctx context.Context, stakerID idx.Sta
 	if !b.svc.store.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return new(big.Int).SetUint64(b.svc.store.GetActiveValidationScore(stakerID)), nil
+	return b.svc.store.GetActiveValidationScore(stakerID), nil
 }
 
 // GetOriginationScore returns staker's OriginationScore.
@@ -447,7 +465,7 @@ func (b *EthAPIBackend) GetOriginationScore(ctx context.Context, stakerID idx.St
 	if !b.svc.store.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return new(big.Int).SetUint64(b.svc.store.GetActiveOriginationScore(stakerID)), nil
+	return b.svc.store.GetActiveOriginationScore(stakerID), nil
 }
 
 // GetStakerPoI returns staker's PoI.
@@ -455,32 +473,29 @@ func (b *EthAPIBackend) GetStakerPoI(ctx context.Context, stakerID idx.StakerID)
 	if !b.svc.store.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return new(big.Int).SetUint64(b.svc.store.GetStakerPOI(stakerID)), nil
+	return b.svc.store.GetStakerPOI(stakerID), nil
 }
 
-// GetValidatingPower returns staker's ValidatingPower.
-func (b *EthAPIBackend) GetValidatingPower(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
+// GetRewardWeights returns staker's reward weights.
+func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error) {
 	if !b.svc.store.HasSfcStaker(stakerID) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	header := b.state.CurrentHeader()
 	statedb := b.svc.store.StateDB(header.Root)
 
+	// read reward weight from SFC contract
 	epoch := b.svc.engine.GetEpoch()
 	epochPosition := sfcpos.EpochSnapshot(epoch - 1)
 	validatorPosition := epochPosition.ValidatorMerit(stakerID)
-	validatingPower256 := statedb.GetState(sfc.ContractAddress, validatorPosition.ValidatingPower())
+	baseRewardWeight256 := statedb.GetState(sfc.ContractAddress, validatorPosition.BaseRewardWeight())
+	txRewardWeight256 := statedb.GetState(sfc.ContractAddress, validatorPosition.TxRewardWeight())
 
-	return new(big.Int).SetBytes(validatingPower256.Bytes()), nil
+	return new(big.Int).SetBytes(baseRewardWeight256.Bytes()), new(big.Int).SetBytes(txRewardWeight256.Bytes()), nil
 }
 
 // GetDowntime returns staker's Downtime.
 func (b *EthAPIBackend) GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error) {
-	epoch := b.svc.engine.GetEpoch()
-	if !b.svc.store.HasEpochValidator(epoch, stakerID) {
-		return 0, 0, errors.New("staker isn't validator")
-	}
-
 	missed := b.svc.store.GetBlocksMissed(stakerID)
 	return missed.Num, missed.Period, nil
 }

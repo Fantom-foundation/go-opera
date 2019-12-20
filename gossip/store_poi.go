@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
@@ -8,71 +10,68 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
-// GetAddressGasUsed get gas used by address
-func (s *Store) GetAddressGasUsed(addr common.Address, poiPeriod uint64) uint64 {
+// GetAddressFee get gas used by address
+func (s *Store) GetAddressFee(addr common.Address, poiPeriod uint64) *big.Int {
 	key := append(addr.Bytes(), bigendian.Int64ToBytes(poiPeriod)...)
-	gasBytes, err := s.table.AddressGasUsed.Get(key)
+	valBytes, err := s.table.AddressFee.Get(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
-	if gasBytes == nil {
-		return 0
+	if valBytes == nil {
+		return big.NewInt(0)
 	}
 
-	gas := bigendian.BytesToInt64(gasBytes)
+	val := new(big.Int).SetBytes(valBytes)
 
-	return gas
+	return val
 }
 
-// SetAddressGasUsed save gas used by address
-func (s *Store) SetAddressGasUsed(addr common.Address, poiPeriod uint64, gas uint64) {
+// SetAddressFee save gas used by address
+func (s *Store) SetAddressFee(addr common.Address, poiPeriod uint64, val *big.Int) {
 	key := append(addr.Bytes(), bigendian.Int64ToBytes(poiPeriod)...)
-	gasBytes := bigendian.Int64ToBytes(gas)
 
-	err := s.table.AddressGasUsed.Put(key, gasBytes)
+	err := s.table.AddressFee.Put(key, val.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 }
 
-// GetWeightedDelegatorsGasUsed get gas used by delegators of a staker
-func (s *Store) GetWeightedDelegatorsGasUsed(stakerID idx.StakerID) uint64 {
-	gasBytes, err := s.table.StakerDelegatorsGasUsed.Get(stakerID.Bytes())
+// GetWeightedDelegatorsFee get gas used by delegators of a staker
+func (s *Store) GetWeightedDelegatorsFee(stakerID idx.StakerID) *big.Int {
+	valBytes, err := s.table.StakerDelegatorsFee.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
-	if gasBytes == nil {
-		return 0
+	if valBytes == nil {
+		return big.NewInt(0)
 	}
 
-	gas := bigendian.BytesToInt64(gasBytes)
+	val := new(big.Int).SetBytes(valBytes)
 
-	return gas
+	return val
 }
 
-// SetWeightedDelegatorsGasUsed stores gas used by delegators of a staker
-func (s *Store) SetWeightedDelegatorsGasUsed(stakerID idx.StakerID, gas uint64) {
-	gasBytes := bigendian.Int64ToBytes(gas)
-
-	err := s.table.StakerDelegatorsGasUsed.Put(stakerID.Bytes(), gasBytes)
+// SetWeightedDelegatorsFee stores gas used by delegators of a staker
+func (s *Store) SetWeightedDelegatorsFee(stakerID idx.StakerID, val *big.Int) {
+	err := s.table.StakerDelegatorsFee.Put(stakerID.Bytes(), val.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 }
 
-// DelWeightedDelegatorsGasUsed deletes record about gas used by delegators of a staker
-func (s *Store) DelWeightedDelegatorsGasUsed(stakerID idx.StakerID) {
-	err := s.table.StakerDelegatorsGasUsed.Delete(stakerID.Bytes())
+// DelWeightedDelegatorsFee deletes record about gas used by delegators of a staker
+func (s *Store) DelWeightedDelegatorsFee(stakerID idx.StakerID) {
+	err := s.table.StakerDelegatorsFee.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to erase key", "err", err)
 	}
 }
 
-// DelAllWeightedDelegatorsGasUsed deletes all the records about gas used by delegators of all stakers
-func (s *Store) DelAllWeightedDelegatorsGasUsed() {
-	it := s.table.StakerDelegatorsGasUsed.NewIterator()
+// DelAllWeightedDelegatorsFee deletes all the records about gas used by delegators of all stakers
+func (s *Store) DelAllWeightedDelegatorsFee() {
+	it := s.table.StakerDelegatorsFee.NewIterator()
 	defer it.Release()
-	s.dropTable(it, s.table.StakerDelegatorsGasUsed)
+	s.dropTable(it, s.table.StakerDelegatorsFee)
 }
 
 // GetAddressLastTxTime get last time for last tx from this address
@@ -100,47 +99,46 @@ func (s *Store) SetAddressLastTxTime(addr common.Address, t inter.Timestamp) {
 	}
 }
 
-// SetPOIGasUsed save gas used for POI period
-func (s *Store) SetPOIGasUsed(poiPeriod uint64, gas uint64) {
+// SetPoiFee save gas used for POI period
+func (s *Store) SetPoiFee(poiPeriod uint64, val *big.Int) {
 	key := bigendian.Int64ToBytes(poiPeriod)
-	gasBytes := bigendian.Int64ToBytes(gas)
 
-	err := s.table.TotalPOIGasUsed.Put(key, gasBytes)
+	err := s.table.TotalPoiFee.Put(key, val.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 }
 
-// AddPOIGasUsed add gas used to POI period
-func (s *Store) AddPOIGasUsed(poiPeriod uint64, gas uint64) {
-	if gas == 0 {
+// AddPoiFee add gas used to POI period
+func (s *Store) AddPoiFee(poiPeriod uint64, diff *big.Int) {
+	if diff.Sign() == 0 {
 		return
 	}
-	oldGas := s.GetPOIGasUsed(poiPeriod)
-	s.SetPOIGasUsed(poiPeriod, gas+oldGas)
+	val := s.GetPoiFee(poiPeriod)
+	val.Add(val, diff)
+	s.SetPoiFee(poiPeriod, val)
 }
 
-// GetPOIGasUsed get gas used for POI period
-func (s *Store) GetPOIGasUsed(poiPeriod uint64) uint64 {
+// GetPoiFee get gas used for POI period
+func (s *Store) GetPoiFee(poiPeriod uint64) *big.Int {
 	key := bigendian.Int64ToBytes(poiPeriod)
 
-	gasBytes, err := s.table.TotalPOIGasUsed.Get(key)
+	valBytes, err := s.table.TotalPoiFee.Get(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
-	if gasBytes == nil {
-		return 0
+	if valBytes == nil {
+		return big.NewInt(0)
 	}
 
-	gas := bigendian.BytesToInt64(gasBytes)
+	val := new(big.Int).SetBytes(valBytes)
 
-	return gas
+	return val
 }
 
 // SetStakerPOI save POI value for staker
-func (s *Store) SetStakerPOI(stakerID idx.StakerID, poi uint64) {
-	poiBytes := bigendian.Int64ToBytes(poi)
-	err := s.table.StakerPOIScore.Put(stakerID.Bytes(), poiBytes)
+func (s *Store) SetStakerPOI(stakerID idx.StakerID, poi *big.Int) {
+	err := s.table.StakerPOIScore.Put(stakerID.Bytes(), poi.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
@@ -155,40 +153,39 @@ func (s *Store) DelStakerPOI(stakerID idx.StakerID) {
 }
 
 // GetStakerPOI get POI value for staker
-func (s *Store) GetStakerPOI(stakerID idx.StakerID) uint64 {
+func (s *Store) GetStakerPOI(stakerID idx.StakerID) *big.Int {
 	poiBytes, err := s.table.StakerPOIScore.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 	if poiBytes == nil {
-		return 0
+		return big.NewInt(0)
 	}
 
-	poi := bigendian.BytesToInt64(poiBytes)
+	poi := new(big.Int).SetBytes(poiBytes)
 
 	return poi
 }
 
 // SetAddressPOI save POI value for a user address
-func (s *Store) SetAddressPOI(address common.Address, poi uint64) {
-	poiBytes := bigendian.Int64ToBytes(poi)
-	err := s.table.AddressPOIScore.Put(address.Bytes(), poiBytes)
+func (s *Store) SetAddressPOI(address common.Address, poi *big.Int) {
+	err := s.table.AddressPOIScore.Put(address.Bytes(), poi.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 }
 
 // GetAddressPOI get POI value for user address
-func (s *Store) GetAddressPOI(address common.Address) uint64 {
+func (s *Store) GetAddressPOI(address common.Address) *big.Int {
 	poiBytes, err := s.table.AddressPOIScore.Get(address.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 	if poiBytes == nil {
-		return 0
+		return big.NewInt(0)
 	}
 
-	poi := bigendian.BytesToInt64(poiBytes)
+	poi := new(big.Int).SetBytes(poiBytes)
 
 	return poi
 }
