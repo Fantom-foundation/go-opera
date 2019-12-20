@@ -87,7 +87,7 @@ func TestGenesis() Genesis {
 					Stake:   utils.ToFtm(3175000),
 				},
 				pos.GenesisValidator{
-					ID:      1,
+					ID:      2,
 					Address: common.HexToAddress("b123456789123456789123456789012345678902"),
 					Stake:   utils.ToFtm(3175000),
 				},
