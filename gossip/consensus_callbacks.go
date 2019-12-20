@@ -242,6 +242,7 @@ func (s *Service) executeEvmTransactions(
 	}
 
 	for _, r := range receipts {
+
 		err := s.store.table.EvmLogs.Push(r.Logs...)
 		if err != nil {
 			s.Log.Crit("DB logs index", "err", err)
@@ -303,7 +304,8 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 	}
 
-	// Notify about new block ans txs
+	// Notify about new block and txs
+	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 	s.feed.chainEvent.Send(core.ChainEvent{
 		Block: evmBlock.EthBlock(),
 		Hash:  evmBlock.Hash,

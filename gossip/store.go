@@ -125,7 +125,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("M"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(evmTable)
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
-	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("evmlogs_")))
+	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
 
 	s.initTmpDbs()
 	s.initCache()
