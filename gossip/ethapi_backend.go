@@ -235,23 +235,35 @@ func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.E
 	return blk, nil
 }
 
-func (b *EthAPIBackend) GetReceipts(ctx context.Context, block common.Hash) (types.Receipts, error) {
-	return b.GetReceiptsByHash(ctx, block)
+func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error) {
+	if !b.svc.config.TxIndex {
+		return nil, errors.New("transactions index is disabled (enable TxIndex and re-process the DAG)")
+	}
+
+	if number == rpc.PendingBlockNumber {
+		return nil, errors.New("pending block request isn't allowed")
+	}
+	if number == rpc.LatestBlockNumber {
+		header := b.state.CurrentHeader()
+		number = rpc.BlockNumber(header.Number.Uint64())
+	}
+
+	receipts := b.svc.store.GetReceipts(idx.Block(number))
+	return receipts, nil
 }
 
-// GetReceiptsByHash retrieves the receipts for all transactions in a given block.
-func (b *EthAPIBackend) GetReceiptsByHash(ctx context.Context, block common.Hash) (types.Receipts, error) {
+// GetReceipts retrieves the receipts for all transactions in a given block.
+func (b *EthAPIBackend) GetReceipts(ctx context.Context, block common.Hash) (types.Receipts, error) {
 	number := b.svc.store.GetBlockIndex(hash.Event(block))
 	if number == nil {
 		return nil, nil
 	}
 
-	receipts := b.svc.store.GetReceipts(idx.Block(*number))
-	return receipts, nil
+	return b.GetReceiptsByNumber(ctx, rpc.BlockNumber(*number))
 }
 
 func (b *EthAPIBackend) GetLogs(ctx context.Context, block common.Hash) ([][]*types.Log, error) {
-	receipts, err := b.GetReceiptsByHash(ctx, block)
+	receipts, err := b.GetReceipts(ctx, block)
 	if receipts == nil || err != nil {
 		return nil, err
 	}

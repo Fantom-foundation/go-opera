@@ -242,6 +242,7 @@ func (s *Service) executeEvmTransactions(
 	}
 
 	for _, r := range receipts {
+
 		err := s.store.table.EvmLogs.Push(r.Logs...)
 		if err != nil {
 			s.Log.Crit("DB logs index", "err", err)

@@ -1367,11 +1367,11 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if tx == nil || err != nil {
 		return nil, err
 	}
-	header, err := s.b.HeaderByHash(ctx, hash) // retrieve header to get block hash
+	header, err := s.b.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber)) // retrieve header to get block hash
 	if header == nil || err != nil {
 		return nil, err
 	}
-	receipts, err := s.b.GetReceipts(ctx, hash)
+	receipts, err := s.b.GetReceiptsByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if receipts == nil || err != nil {
 		return nil, err
 	}
@@ -1397,7 +1397,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
-		"logsBloom":         receipt.Bloom,
 	}
 
 	// Assign receipt status or post state.
