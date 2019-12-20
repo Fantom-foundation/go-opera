@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 
+	lachesisparams "github.com/Fantom-foundation/go-lachesis/lachesis/params"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
@@ -543,6 +544,12 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
 	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
 		return ErrUnderpriced
+	}
+	// Ensure Lachesis-specific hard bounds
+	if pool.gasPrice.Cmp(lachesisparams.MinGasPrice) >= 0 { // if not test. TODO
+		if lachesisparams.MinGasPrice.Cmp(tx.GasPrice()) > 0 {
+			return ErrUnderpriced
+		}
 	}
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
@@ -1135,7 +1142,7 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 	}
 	pool.currentState = statedb
 	pool.pendingNonces = newTxNoncer(statedb)
-	pool.currentMaxGas = newHead.GasLimit
+	pool.currentMaxGas = newHead.GasLimit / 2
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))

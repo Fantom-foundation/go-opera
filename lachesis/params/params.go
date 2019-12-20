@@ -1,6 +1,10 @@
 package params
 
-import "github.com/ethereum/go-ethereum/params"
+import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/params"
+)
 
 // gas settings
 const (
@@ -14,4 +18,8 @@ const (
 	ExtraDataGas = 150
 
 	TxGas = params.TxGas
+)
+
+var (
+	MinGasPrice = big.NewInt(1e9)
 )
