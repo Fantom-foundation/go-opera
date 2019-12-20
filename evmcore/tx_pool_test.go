@@ -42,6 +42,7 @@ var testTxPoolConfig TxPoolConfig
 
 func init() {
 	testTxPoolConfig = DefaultTxPoolConfig()
+	testTxPoolConfig.PriceLimit = 1
 	testTxPoolConfig.Journal = ""
 }
 
