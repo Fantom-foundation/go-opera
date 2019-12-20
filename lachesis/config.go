@@ -91,6 +91,9 @@ func MainNetConfig() Config {
 		Genesis:   genesis.MainGenesis(),
 		Dag:       DefaultDagConfig(),
 		Economy:   DefaultEconomyConfig(),
+		Blockchain: BlockchainConfig{
+			BlockGasHardLimit: 20000000,
+		},
 	}
 }
 

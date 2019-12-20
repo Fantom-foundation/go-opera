@@ -42,6 +42,7 @@ var testTxPoolConfig TxPoolConfig
 
 func init() {
 	testTxPoolConfig = DefaultTxPoolConfig()
+	testTxPoolConfig.PriceLimit = 1
 	testTxPoolConfig.Journal = ""
 }
 
@@ -564,7 +565,7 @@ func TestTransactionDropping(t *testing.T) {
 		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 4)
 	}
 	// Reduce the block gas limit, check that invalidated transactions are dropped
-	pool.chain.(*testBlockChain).SetGasLimit(100 * 2) // TODO NOTE: * 2 because of lachesis-specific logic
+	pool.chain.(*testBlockChain).SetGasLimit(100)
 	<-pool.requestReset(nil, nil)
 
 	if _, ok := pool.pending[account].txs.items[tx0.Nonce()]; !ok {
@@ -595,7 +596,7 @@ func TestTransactionPostponing(t *testing.T) {
 
 	blockchain := &testBlockChain{
 		statedb:       statedb,
-		gasLimit:      2 * 1000000, // TODO NOTE: * 2 because of lachesis-specific logic
+		gasLimit:      1000000,
 		chainHeadFeed: new(notify.Feed),
 	}
 

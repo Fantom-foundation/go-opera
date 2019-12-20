@@ -154,7 +154,7 @@ func DefaultTxPoolConfig() TxPoolConfig {
 		Journal:   "transactions.rlp",
 		Rejournal: time.Hour,
 
-		PriceLimit: 1,
+		PriceLimit: lachesisparams.MinGasPrice.Uint64(),
 		PriceBump:  10,
 
 		AccountSlots: 16,
@@ -1142,7 +1142,10 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 	}
 	pool.currentState = statedb
 	pool.pendingNonces = newTxNoncer(statedb)
-	pool.currentMaxGas = newHead.GasLimit / 2
+	pool.currentMaxGas = newHead.GasLimit
+	if pool.currentMaxGas > lachesisparams.MaxGasPowerUsed/2 {
+		pool.currentMaxGas = lachesisparams.MaxGasPowerUsed / 2
+	}
 
 	// Inject any transactions discarded due to reorgs
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))

@@ -336,6 +336,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		Block: evmBlock.EthBlock(),
 		Hash:  evmBlock.Hash,
 	})
+	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 	s.feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
 	s.feed.newLogs.Send(logs)
 
