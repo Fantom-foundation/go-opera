@@ -59,6 +59,7 @@ func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	return blk.Header(), err
 }
 
+// HeaderByHash returns evm header by its (atropos) hash.
 func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmcore.EvmHeader, error) {
 	index := b.svc.store.GetBlockIndex(hash.Event(h))
 	if index == nil {
@@ -67,6 +68,7 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, h common.Hash) (*evmco
 	return b.HeaderByNumber(ctx, rpc.BlockNumber(*index))
 }
 
+// BlockByNumber returns block by its number.
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*evmcore.EvmBlock, error) {
 	if number == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
@@ -235,6 +237,7 @@ func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.E
 	return blk, nil
 }
 
+// GetReceiptsByNumber returns receipts by block number.
 func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.BlockNumber) (types.Receipts, error) {
 	if !b.svc.config.TxIndex {
 		return nil, errors.New("transactions index is disabled (enable TxIndex and re-process the DAG)")
