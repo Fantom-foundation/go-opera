@@ -17,13 +17,13 @@
 package evmcore
 
 import (
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
 type (
@@ -56,7 +56,7 @@ func ToEvmHeader(block *inter.Block) *EvmHeader {
 		TxHash:     block.TxHash,
 		Number:     big.NewInt(int64(block.Index)),
 		Time:       block.Time,
-		GasLimit:   params.MaxGasPowerUsed,
+		GasLimit:   math.MaxUint64,
 		GasUsed:    block.GasUsed,
 	}
 }
