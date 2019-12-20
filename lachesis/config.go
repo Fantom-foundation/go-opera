@@ -171,6 +171,7 @@ func FakeNetDagConfig() DagConfig {
 	return cfg
 }
 
+// DefaulLongGasPowerConfig is long-window config
 func DefaulLongGasPowerConfig() GasPowerConfig {
 	return GasPowerConfig{
 		InitialAllocPerSec: 100 * params.EventGas,
@@ -182,6 +183,7 @@ func DefaulLongGasPowerConfig() GasPowerConfig {
 	}
 }
 
+// DefaultShortGasPowerConfig is short-window config
 func DefaultShortGasPowerConfig() GasPowerConfig {
 	// 5x faster allocation rate, 12x lower max accumulated gas power
 	cfg := DefaulLongGasPowerConfig()
@@ -193,6 +195,7 @@ func DefaultShortGasPowerConfig() GasPowerConfig {
 	return cfg
 }
 
+// FakeLongGasPowerConfig is fake long-window config
 func FakeLongGasPowerConfig() GasPowerConfig {
 	config := DefaulLongGasPowerConfig()
 	config.InitialAllocPerSec *= 1000
@@ -200,6 +203,7 @@ func FakeLongGasPowerConfig() GasPowerConfig {
 	return config
 }
 
+// FakeShortGasPowerConfig is fake short-window config
 func FakeShortGasPowerConfig() GasPowerConfig {
 	config := DefaultShortGasPowerConfig()
 	config.InitialAllocPerSec *= 1000

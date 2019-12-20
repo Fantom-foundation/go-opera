@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	// FORK_BIT is set if staker has a confirmed pair of fork events
-	FORK_BIT = uint64(1)
-	// OFFLINE_BIT is set if staker has didn't have confirmed events for a long time
-	OFFLINE_BIT = uint64(1 << 8)
-	// CHEATER_MASK is a combination of severe misbehavings
-	CHEATER_MASK = FORK_BIT
+	// ForkBit is set if staker has a confirmed pair of fork events
+	ForkBit = uint64(1)
+	// OfflineBit is set if staker has didn't have confirmed events for a long time
+	OfflineBit = uint64(1 << 8)
+	// CheaterMask is a combination of severe misbehavings
+	CheaterMask = ForkBit
 )
 
 // SfcStaker is the node-side representation of SFC staker
@@ -43,17 +43,17 @@ func (s *SfcStaker) Ok() bool {
 
 // IsCheater returns true if staker is cheater
 func (s *SfcStaker) IsCheater() bool {
-	return s.Status&CHEATER_MASK != 0
+	return s.Status&CheaterMask != 0
 }
 
 // HasFork returns true if staker has a confirmed fork
 func (s *SfcStaker) HasFork() bool {
-	return s.Status&FORK_BIT != 0
+	return s.Status&ForkBit != 0
 }
 
 // Offline returns true if staker was offline for long time
 func (s *SfcStaker) Offline() bool {
-	return s.Status&OFFLINE_BIT != 0
+	return s.Status&OfflineBit != 0
 }
 
 // SfcStakerAndID is pair SfcStaker + StakerID
@@ -63,8 +63,8 @@ type SfcStakerAndID struct {
 }
 
 // CalcTotalStake returns sum of staker's stake and delegated to staker stake
-func (st *SfcStaker) CalcTotalStake() *big.Int {
-	return new(big.Int).Add(st.StakeAmount, st.DelegatedMe)
+func (s *SfcStaker) CalcTotalStake() *big.Int {
+	return new(big.Int).Add(s.StakeAmount, s.DelegatedMe)
 }
 
 // SfcDelegator is the node-side representation of SFC delegator

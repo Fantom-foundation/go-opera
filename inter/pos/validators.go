@@ -219,6 +219,7 @@ func (gv GValidators) Validators() *Validators {
 	return builder.Build()
 }
 
+// TotalStake returns sum of stakes
 func (gv GValidators) TotalStake() *big.Int {
 	totalStake := new(big.Int)
 	for _, validator := range gv {

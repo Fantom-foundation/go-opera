@@ -21,5 +21,6 @@ const (
 )
 
 var (
+	// MinGasPrice is minimum possible gas price for a transaction
 	MinGasPrice = big.NewInt(1e9)
 )

@@ -17,6 +17,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
+// SfcConstants are constants which may be changed by SFC contract
 type SfcConstants struct {
 	ShortGasPowerAllocPerSec uint64
 	LongGasPowerAllocPerSec  uint64
@@ -284,7 +285,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			continue
 		}
 		// write into DB
-		staker.Status |= sfctype.FORK_BIT
+		staker.Status |= sfctype.ForkBit
 		s.store.SetSfcStaker(stakerID, staker)
 		// write into SFC contract
 		position := sfcpos.Staker(stakerID)
@@ -305,7 +306,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			badMissed := s.config.Net.Economy.OfflinePenaltyThreshold
 			if gotMissed.Num >= badMissed.Num && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
 				// write into DB
-				it.Staker.Status |= sfctype.OFFLINE_BIT
+				it.Staker.Status |= sfctype.OfflineBit
 				s.store.SetSfcStaker(it.StakerID, it.Staker)
 				// write into SFC contract
 				position := sfcpos.Staker(it.StakerID)

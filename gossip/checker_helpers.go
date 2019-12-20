@@ -16,7 +16,7 @@ type GasPowerCheckReader struct {
 	Ctx atomic.Value
 }
 
-// ValidationContext returns current validation context for gaspowercheck
+// GetValidationContext returns current validation context for gaspowercheck
 func (r *GasPowerCheckReader) GetValidationContext() *gaspowercheck.ValidationContext {
 	return r.Ctx.Load().(*gaspowercheck.ValidationContext)
 }

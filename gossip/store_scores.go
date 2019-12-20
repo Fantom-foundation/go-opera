@@ -8,10 +8,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 )
 
-const (
-	originationScoreCheckpointKey = "c"
-)
-
 // IncBlocksMissed add count of missed blocks for validator
 func (s *Store) IncBlocksMissed(stakerID idx.StakerID, periodDiff inter.Timestamp) {
 	s.mutexes.IncMutex.Lock()
