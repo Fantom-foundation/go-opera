@@ -8,7 +8,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
@@ -51,7 +50,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 			Address:      validator.Address,
 			CreatedEpoch: 0,
 			CreatedTime:  net.Genesis.Time,
-			StakeAmount:  pos.StakeToBalance(validator.Stake),
+			StakeAmount:  validator.Stake,
 			DelegatedMe:  big.NewInt(0),
 		}
 		s.SetSfcStaker(validator.ID, staker)

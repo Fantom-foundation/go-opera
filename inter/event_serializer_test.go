@@ -22,7 +22,7 @@ func TestEventHeaderDataSerialization(t *testing.T) {
 		},
 		"max": EventHeaderData{
 			Epoch:        idx.Epoch(math.MaxUint32),
-			GasPowerLeft: math.MaxUint64,
+			GasPowerLeft: GasPowerLeft{Gas: [2]uint64{math.MaxUint64, math.MaxUint64}},
 			Parents: hash.Events{
 				hash.BytesToEvent(bytes.Repeat([]byte{math.MaxUint8}, 32)),
 			},
@@ -152,6 +152,8 @@ func FakeEvent() *Event {
 	e := NewEvent()
 	e.Epoch = epoch
 	e.Seq = idx.Event(9)
+	e.GasPowerLeft.Gas[0] = 0x010000
+	e.GasPowerLeft.Gas[1] = 100
 	e.Creator = hash.FakePeer()
 	e.Parents = hash.FakeEvents(8)
 	e.Extra = make([]byte, 10, 10)

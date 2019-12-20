@@ -109,7 +109,8 @@ func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
 // MarshalBinary implements encoding.BinaryMarshaler interface.
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	fields64 := []uint64{
-		e.GasPowerLeft,
+		e.GasPowerLeft.Gas[0],
+		e.GasPowerLeft.Gas[1],
 		e.GasPowerUsed,
 		uint64(e.ClaimedTime),
 		uint64(e.MedianTime),
@@ -205,7 +206,8 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 	var parentCount uint32
 
 	fields64 := []*uint64{
-		&e.GasPowerLeft,
+		&e.GasPowerLeft.Gas[0],
+		&e.GasPowerLeft.Gas[1],
 		&e.GasPowerUsed,
 		(*uint64)(&e.ClaimedTime),
 		(*uint64)(&e.MedianTime),

@@ -2,22 +2,22 @@ package poset
 
 // SetGenesis stores first epoch.
 func (s *Store) SetGenesis(e *EpochState) {
-	s.setEpoch([]byte("genesis"), e)
+	s.setEpoch([]byte("g"), e)
 }
 
 // GetGenesis returns stored first epoch.
 func (s *Store) GetGenesis() *EpochState {
-	return s.getEpoch([]byte("genesis"))
+	return s.getEpoch([]byte("g"))
 }
 
 // SetEpoch stores epoch.
 func (s *Store) SetEpoch(e *EpochState) {
-	s.setEpoch([]byte("current"), e)
+	s.setEpoch([]byte("c"), e)
 }
 
 // GetEpoch returns stored epoch.
 func (s *Store) GetEpoch() *EpochState {
-	return s.getEpoch([]byte("current"))
+	return s.getEpoch([]byte("c"))
 }
 
 func (s *Store) setEpoch(key []byte, e *EpochState) {

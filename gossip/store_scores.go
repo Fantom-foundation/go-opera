@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	originationScoreCheckpointKey = "current"
+	originationScoreCheckpointKey = "c"
 )
 
 // IncBlocksMissed add count of missed blocks for validator

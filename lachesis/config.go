@@ -4,11 +4,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/params"
-
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
@@ -26,9 +25,11 @@ var (
 // GasPowerConfig defines gas power rules in the consensus.
 type GasPowerConfig struct {
 	InitialAllocPerSec uint64          `json:"initialAllocPerSec"`
+	MaxAllocPerSec     uint64          `json:"maxAllocPerSec"`
+	MinAllocPerSec     uint64          `json:"minAllocPerSec"`
 	MaxAllocPeriod     inter.Timestamp `json:"maxAllocPeriod"`
 	StartupAllocPeriod inter.Timestamp `json:"startupAllocPeriod"`
-	MinStartup         uint64          `json:"minStartup"`
+	MinStartupGas      uint64          `json:"minStartupGas"`
 }
 
 // DagConfig of Lachesis DAG (directed acyclic graph).
@@ -54,9 +55,11 @@ type EconomyConfig struct {
 	BlockMissedLatency      idx.Block
 	OfflinePenaltyThreshold BlocksMissed
 	TxRewardPoiImpact       *big.Int
-	RewardPerSecond         *big.Int
+	InitialRewardPerSecond  *big.Int
+	MaxRewardPerSecond      *big.Int
 
-	GasPower GasPowerConfig `json:"gasPower"`
+	ShortGasPower GasPowerConfig `json:"shortGasPower"`
+	LongGasPower  GasPowerConfig `json:"longGasPower"`
 }
 
 // BlockchainConfig contains transactions model constants
@@ -123,16 +126,21 @@ func DefaultEconomyConfig() EconomyConfig {
 	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(45), PercentUnit)
 	txRewardPoiImpact.Div(txRewardPoiImpact, big.NewInt(100))
 
+	initialRewardPerSecond := big.NewInt(8241994292233796296) // 8.241994 FTM per sec, 712108.306849 FTM per day
+	maxRewardPerSecond := new(big.Int).Mul(initialRewardPerSecond, big.NewInt(100))
+
 	return EconomyConfig{
-		PoiPeriodDuration:  30 * 24 * time.Hour,
-		BlockMissedLatency: 3,
-		TxRewardPoiImpact:  txRewardPoiImpact,
-		RewardPerSecond:    big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
+		PoiPeriodDuration:      30 * 24 * time.Hour,
+		BlockMissedLatency:     3,
+		TxRewardPoiImpact:      txRewardPoiImpact,
+		InitialRewardPerSecond: big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
+		MaxRewardPerSecond:     maxRewardPerSecond,
 		OfflinePenaltyThreshold: BlocksMissed{
 			Num:    1000,
 			Period: 24 * time.Hour,
 		},
-		GasPower: DefaultGasPowerConfig(),
+		ShortGasPower: DefaultShortGasPowerConfig(),
+		LongGasPower:  DefaulLongGasPowerConfig(),
 	}
 }
 
@@ -142,7 +150,8 @@ func FakeEconomyConfig() EconomyConfig {
 	cfg.PoiPeriodDuration = 15 * time.Minute
 	cfg.OfflinePenaltyThreshold.Period = 10 * time.Minute
 	cfg.OfflinePenaltyThreshold.Num = 10
-	cfg.GasPower = FakeNetGasPowerConfig()
+	cfg.ShortGasPower = FakeShortGasPowerConfig()
+	cfg.LongGasPower = FakeLongGasPowerConfig()
 	return cfg
 }
 
@@ -150,29 +159,50 @@ func DefaultDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  500,
+		EpochLen:                  1000,
 		MaxValidatorEventsInBlock: 50,
+		VectorClockConfig:         vector.DefaultIndexConfig(),
 	}
 }
 
 func FakeNetDagConfig() DagConfig {
 	cfg := DefaultDagConfig()
-	cfg.VectorClockConfig = vector.DefaultIndexConfig()
+	cfg.EpochLen = 200
 	return cfg
 }
 
-func DefaultGasPowerConfig() GasPowerConfig {
+func DefaulLongGasPowerConfig() GasPowerConfig {
 	return GasPowerConfig{
-		InitialAllocPerSec: 50 * params.TxGas,
-		MaxAllocPeriod:     inter.Timestamp(10 * time.Minute),
+		InitialAllocPerSec: 100 * params.EventGas,
+		MaxAllocPerSec:     1000 * params.EventGas,
+		MinAllocPerSec:     10 * params.EventGas,
+		MaxAllocPeriod:     inter.Timestamp(60 * time.Minute),
 		StartupAllocPeriod: inter.Timestamp(5 * time.Second),
-		MinStartup:         params.TxGas * 20,
+		MinStartupGas:      params.EventGas * 20,
 	}
 }
 
-func FakeNetGasPowerConfig() GasPowerConfig {
-	config := DefaultGasPowerConfig()
+func DefaultShortGasPowerConfig() GasPowerConfig {
+	// 5x faster allocation rate, 12x lower max accumulated gas power
+	cfg := DefaulLongGasPowerConfig()
+	cfg.InitialAllocPerSec *= 5
+	cfg.MaxAllocPerSec *= 5
+	cfg.MinAllocPerSec *= 5
+	cfg.StartupAllocPeriod /= 5
+	cfg.MaxAllocPeriod /= 5 * 12
+	return cfg
+}
+
+func FakeLongGasPowerConfig() GasPowerConfig {
+	config := DefaulLongGasPowerConfig()
 	config.InitialAllocPerSec *= 1000
-	config.MinStartup *= 1000
+	config.MaxAllocPerSec *= 1000
+	return config
+}
+
+func FakeShortGasPowerConfig() GasPowerConfig {
+	config := DefaultShortGasPowerConfig()
+	config.InitialAllocPerSec *= 1000
+	config.MaxAllocPerSec *= 1000
 	return config
 }

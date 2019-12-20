@@ -9,6 +9,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
 // BlocksMissed is information about missed blocks from a staker
@@ -19,6 +20,7 @@ type BlocksMissed struct {
 
 // updateOriginationScores calculates the origination scores
 func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.EvmBlock, receipts types.Receipts, txPositions map[common.Hash]TxPosition, sealEpoch bool) {
+	epoch := s.engine.GetEpoch()
 	// Calc origination scores
 	for i, tx := range evmBlock.Transactions {
 		txEventPos := txPositions[receipts[i].TxHash]
@@ -37,11 +39,23 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 		txFee := new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice())
 
 		s.store.AddDirtyOriginationScore(txEvent.Creator, txFee)
+
+		{ // logic for gas power refunds
+			if tx.Gas() < receipts[i].GasUsed {
+				s.Log.Crit("Transaction gas used is higher than tx gas limit", "tx", receipts[i].TxHash, "event", txEventPos.Event)
+			}
+			notUsedGas := tx.Gas() - receipts[i].GasUsed
+			if notUsedGas > params.TxGas/10 { // do not refund if refunding is more costly than refunded value
+				s.store.IncGasPowerRefund(epoch, txEvent.Creator, notUsedGas)
+			}
+		}
 	}
 
 	if sealEpoch {
 		s.store.DelAllActiveOriginationScores()
 		s.store.MoveDirtyOriginationScoresToActive()
+		// prune not needed gas power records
+		s.store.DelGasPowerRefunds(epoch - 1)
 	}
 }
 

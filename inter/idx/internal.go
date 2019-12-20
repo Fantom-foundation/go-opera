@@ -18,3 +18,8 @@ func (v Validator) Bytes() []byte {
 func BytesToValidator(b []byte) Validator {
 	return Validator(bigendian.BytesToInt32(b))
 }
+
+const (
+	ShortTermGas = 0
+	LongTermGas  = 1
+)

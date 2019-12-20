@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
 // EmitterConfig is the configuration of events emitter.
@@ -33,16 +33,16 @@ type EmitterConfig struct {
 // DefaultEmitterConfig returns the default configurations for the events emitter.
 func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
-		MinEmitInterval:            100 * time.Millisecond,
+		MinEmitInterval:            250 * time.Millisecond,
 		MaxEmitInterval:            10 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           2,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
 		EpochTailLength:            1,
 
-		SmoothTpsThreshold: params.TxGas * 500,
-		NoTxsThreshold:     params.TxGas * 100,
-		EmergencyThreshold: params.TxGas * 5,
+		SmoothTpsThreshold: (params.EventGas + params.TxGas) * 500,
+		NoTxsThreshold:     params.EventGas * 30,
+		EmergencyThreshold: params.EventGas * 5,
 	}
 }
 

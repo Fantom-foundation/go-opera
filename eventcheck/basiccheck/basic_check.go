@@ -4,21 +4,12 @@ import (
 	"errors"
 	"math"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/ethereum/go-ethereum/core/types"
-)
-
-const (
-	// MaxGasPowerUsed - max value of Gas Power used in one event
-	MaxGasPowerUsed = 10000000 + EventGas
-	MaxExtraData    = 128 // it has fair gas cost, so it's fine to have a high limit
-
-	EventGas  = 48000
-	ParentGas = EventGas / 5
-	// ExtraDataGas is cost per byte of extra event data. It's higher than regular data price, because it's a part of the header
-	ExtraDataGas = 150
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
 var (
@@ -83,15 +74,15 @@ func CalcGasPowerUsed(e *inter.Event, config *lachesis.DagConfig) uint64 {
 
 	parentsGas := uint64(0)
 	if len(e.Parents) > config.MaxFreeParents {
-		parentsGas = uint64(len(e.Parents)-config.MaxFreeParents) * ParentGas
+		parentsGas = uint64(len(e.Parents)-config.MaxFreeParents) * params.ParentGas
 	}
-	extraGas := uint64(len(e.Extra)) * ExtraDataGas
+	extraGas := uint64(len(e.Extra)) * params.ExtraDataGas
 
-	return txsGas + parentsGas + extraGas + EventGas
+	return txsGas + parentsGas + extraGas + params.EventGas
 }
 
 func (v *Checker) checkGas(e *inter.Event) error {
-	if e.GasPowerUsed > MaxGasPowerUsed {
+	if e.GasPowerUsed > params.MaxGasPowerUsed {
 		return ErrTooBigGasUsed
 	}
 	if e.GasPowerUsed != CalcGasPowerUsed(e, v.config) {
@@ -102,14 +93,14 @@ func (v *Checker) checkGas(e *inter.Event) error {
 }
 
 func (v *Checker) checkLimits(e *inter.Event) error {
-	if len(e.Extra) > MaxExtraData {
+	if len(e.Extra) > params.MaxExtraData {
 		return ErrExtraTooLarge
 	}
 	if len(e.Parents) > v.config.MaxParents {
 		return ErrTooManyParents
 	}
 	if e.Seq >= math.MaxInt32/2 || e.Epoch >= math.MaxInt32/2 || e.Frame >= math.MaxInt32/2 ||
-		e.Lamport >= math.MaxInt32/2 || e.GasPowerUsed >= math.MaxInt64/2 || e.GasPowerLeft >= math.MaxInt64/2 {
+		e.Lamport >= math.MaxInt32/2 || e.GasPowerUsed >= math.MaxInt64/2 || e.GasPowerLeft.Max() >= math.MaxInt64/2 {
 		return ErrHugeValue
 	}
 

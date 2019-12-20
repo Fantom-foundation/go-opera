@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
@@ -41,7 +42,7 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	network := lachesis.FakeNetConfig(genesis.FakeAccounts(0, count, big.NewInt(0), 10000))
+	network := lachesis.FakeNetConfig(genesis.FakeAccounts(0, count, big.NewInt(0), pos.StakeToBalance(10000)))
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{

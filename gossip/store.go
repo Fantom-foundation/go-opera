@@ -62,9 +62,10 @@ type Store struct {
 		GasPowerRefund   kvdb.KeyValueStore `table:"R"`
 
 		// SFC-related economy tables
-		Validators kvdb.KeyValueStore `table:"1"`
-		Stakers    kvdb.KeyValueStore `table:"2"`
-		Delegators kvdb.KeyValueStore `table:"3"`
+		Validators   kvdb.KeyValueStore `table:"1"`
+		Stakers      kvdb.KeyValueStore `table:"2"`
+		Delegators   kvdb.KeyValueStore `table:"3"`
+		SfcConstants kvdb.KeyValueStore `table:"4"`
 
 		// API-only tables
 		BlockHashes                kvdb.KeyValueStore `table:"h"`
@@ -82,23 +83,21 @@ type Store struct {
 	}
 
 	cache struct {
-		Events           *lru.Cache `cache:"-"` // store by pointer
-		EventsHeaders    *lru.Cache `cache:"-"` // store by pointer
-		Blocks           *lru.Cache `cache:"-"` // store by pointer
-		PackInfos        *lru.Cache `cache:"-"` // store by value
-		Receipts         *lru.Cache `cache:"-"` // store by value
-		TxPositions      *lru.Cache `cache:"-"` // store by pointer
-		EpochStats       *lru.Cache `cache:"-"` // store by value
-		LastEpochHeaders *lru.Cache `cache:"-"` // store by pointer
-		Stakers          *lru.Cache `cache:"-"` // store by pointer
-		Delegators       *lru.Cache `cache:"-"` // store by pointer
-		BlockDowntime    *lru.Cache `cache:"-"` // store by pointer
-		BlockHashes      *lru.Cache `cache:"-"` // store by pointer
+		Events        *lru.Cache `cache:"-"` // store by pointer
+		EventsHeaders *lru.Cache `cache:"-"` // store by pointer
+		Blocks        *lru.Cache `cache:"-"` // store by pointer
+		PackInfos     *lru.Cache `cache:"-"` // store by value
+		Receipts      *lru.Cache `cache:"-"` // store by value
+		TxPositions   *lru.Cache `cache:"-"` // store by pointer
+		EpochStats    *lru.Cache `cache:"-"` // store by value
+		Stakers       *lru.Cache `cache:"-"` // store by pointer
+		Delegators    *lru.Cache `cache:"-"` // store by pointer
+		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
+		BlockHashes   *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	mutexes struct {
-		LastEpochHeaders *sync.RWMutex
-		IncMutex         *sync.Mutex
+		IncMutex *sync.Mutex
 	}
 
 	tmpDbs
@@ -146,7 +145,6 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
 	s.cache.EpochStats = s.makeCache(s.cfg.EpochStatsCacheSize)
-	s.cache.LastEpochHeaders = s.makeCache(s.cfg.LastEpochHeadersCacheSize)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)
@@ -154,7 +152,6 @@ func (s *Store) initCache() {
 }
 
 func (s *Store) initMutexes() {
-	s.mutexes.LastEpochHeaders = new(sync.RWMutex)
 	s.mutexes.IncMutex = new(sync.Mutex)
 }
 

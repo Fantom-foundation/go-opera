@@ -17,6 +17,12 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
 
+type SfcConstants struct {
+	ShortGasPowerAllocPerSec uint64
+	LongGasPowerAllocPerSec  uint64
+	BaseRewardPerSec         *big.Int
+}
+
 // GetActiveSfcStakers returns stakers which will become validators in next epoch
 func (s *Service) GetActiveSfcStakers() []sfctype.SfcStakerAndID {
 	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
@@ -107,6 +113,18 @@ func (s *Service) calcRewardWeights(stakers []sfctype.SfcStakerAndID, _epochDura
 	}
 
 	return baseRewardWeights, txRewardWeights
+}
+
+// getRewardPerSec returns current rewardPerSec, depending on config and value provided by SFC
+func (s *Service) getRewardPerSec() *big.Int {
+	rewardPerSecond := s.store.GetSfcConstants(s.engine.GetEpoch() - 1).BaseRewardPerSec
+	if rewardPerSecond == nil || rewardPerSecond.Sign() == 0 {
+		rewardPerSecond = s.config.Net.Economy.InitialRewardPerSecond
+	}
+	if rewardPerSecond.Cmp(s.config.Net.Economy.MaxRewardPerSecond) > 0 {
+		rewardPerSecond = s.config.Net.Economy.MaxRewardPerSecond
+	}
+	return new(big.Int).Set(rewardPerSecond)
 }
 
 // processSfc applies the new SFC state
@@ -206,6 +224,22 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			if l.Topics[0] == sfcpos.Topics.WithdrawnDelegation && len(l.Topics) > 1 {
 				address := common.BytesToAddress(l.Topics[1][12:])
 				s.delAllDelegatorData(address)
+			}
+
+			// Track changes of constants by SFC
+			if l.Topics[0] == sfcpos.Topics.UpdatedBaseRewardPerSec && len(l.Data) >= 32 {
+				baseRewardPerSec := new(big.Int).SetBytes(l.Data[0:32])
+				constants := s.store.GetSfcConstants(epoch)
+				constants.BaseRewardPerSec = baseRewardPerSec
+				s.store.SetSfcConstants(epoch, constants)
+			}
+			if l.Topics[0] == sfcpos.Topics.UpdatedGasPowerAllocationRate && len(l.Data) >= 64 {
+				shortAllocationRate := new(big.Int).SetBytes(l.Data[0:32])
+				longAllocationRate := new(big.Int).SetBytes(l.Data[32:64])
+				constants := s.store.GetSfcConstants(epoch)
+				constants.ShortGasPowerAllocPerSec = shortAllocationRate.Uint64()
+				constants.LongGasPowerAllocPerSec = longAllocationRate.Uint64()
+				s.store.SetSfcConstants(epoch, constants)
 			}
 
 			// Track rewards (API-only)
@@ -308,15 +342,17 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			totalBaseRewardWeight.Add(totalBaseRewardWeight, baseRewardWeight)
 			totalTxRewardWeight.Add(totalTxRewardWeight, txRewardWeight)
 		}
+		baseRewardPerSec := s.getRewardPerSec()
+
 		statedb.SetState(sfc.ContractAddress, epochPos.TotalBaseRewardWeight(), utils.BigTo256(totalBaseRewardWeight))
 		statedb.SetState(sfc.ContractAddress, epochPos.TotalTxRewardWeight(), utils.BigTo256(totalTxRewardWeight))
 		statedb.SetState(sfc.ContractAddress, epochPos.EpochFee(), utils.BigTo256(stats.TotalFee))
 		statedb.SetState(sfc.ContractAddress, epochPos.EndTime(), utils.U64to256(uint64(stats.End.Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64(stats.Duration().Unix())))
+		statedb.SetState(sfc.ContractAddress, epochPos.BaseRewardPerSecond(), utils.BigTo256(baseRewardPerSec))
 
 		// Add balance for SFC to pay rewards
-		baseRewards := big.NewInt(stats.Duration().Unix())
-		baseRewards.Mul(baseRewards, s.config.Net.Economy.RewardPerSecond)
+		baseRewards := new(big.Int).Mul(big.NewInt(stats.Duration().Unix()), baseRewardPerSec)
 		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(baseRewards, stats.TotalFee))
 
 		// Select new validators

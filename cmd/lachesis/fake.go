@@ -15,7 +15,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/crypto"
 	"github.com/Fantom-foundation/go-lachesis/integration"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
@@ -69,7 +68,7 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 		err = fmt.Errorf("key-num should be in range from 1 to validators : <key-num>/<validators>")
 	}
 
-	vaccs = genesis.FakeAccounts(0, validatorsNum, utils.ToFtm(1e10), pos.BalanceToStake(utils.ToFtm(3175000)))
+	vaccs = genesis.FakeAccounts(0, validatorsNum, utils.ToFtm(1e10), utils.ToFtm(3175000))
 
 	if len(parts) < 2 {
 		return
@@ -79,7 +78,7 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 	if err != nil {
 		others, err = readAccounts(parts[1])
 	} else {
-		others, err = genesis.FakeAccounts(validatorsNum, int(i64), big.NewInt(1e18), 0).Accounts, nil
+		others, err = genesis.FakeAccounts(validatorsNum, int(i64), big.NewInt(1e18), big.NewInt(0)).Accounts, nil
 	}
 	vaccs.Accounts.Add(others)
 

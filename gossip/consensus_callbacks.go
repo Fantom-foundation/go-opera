@@ -29,11 +29,6 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		return eventcheck.ErrAlreadyConnectedEvent
 	}
 
-	// we check gas power here, because engineMu is locked here
-	if err := s.gasPowerCheck(e); err != nil {
-		return err
-	}
-
 	oldEpoch := e.Epoch
 
 	s.store.SetEvent(e)
@@ -64,12 +59,18 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 
 	if newEpoch != oldEpoch {
-		s.heavyCheckReader.Addrs.Store(s.store.ReadEpochPubKeys(newEpoch)) // notify checker about new pub keys
+		// notify event checkers about new validation data
+		s.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(s.store, newEpoch))
+		s.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s.store, s.engine.GetValidators(), newEpoch, &s.config.Net.Economy))
+
+		// sealings/prunings
 		s.packsOnNewEpoch(oldEpoch, newEpoch)
 		s.store.delEpochStore(oldEpoch)
 		s.store.getEpochStore(newEpoch)
-		s.feed.newEpoch.Send(newEpoch)
 		s.occurredTxs.Clear()
+
+		// notify about new epoch after event connection
+		s.feed.newEpoch.Send(newEpoch)
 	}
 
 	immediately := (newEpoch != oldEpoch)

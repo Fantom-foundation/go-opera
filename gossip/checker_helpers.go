@@ -5,38 +5,75 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
-
-func (s *Service) gasPowerCheck(e *inter.Event) error {
-	// s.engineMu is locked here
-
-	var selfParent *inter.EventHeaderData
-	if e.SelfParent() != nil {
-		selfParent = s.store.GetEventHeader(e.Epoch, *e.SelfParent())
-	}
-	return s.checkers.Gaspowercheck.Validate(e, selfParent)
-}
 
 // GasPowerCheckReader is a helper to run gas power check
 type GasPowerCheckReader struct {
-	Consensus
-	store *Store
+	Ctx atomic.Value
 }
 
-// GetPrevEpochLastHeaders isn't safe for concurrent use
-func (r *GasPowerCheckReader) GetPrevEpochLastHeaders() (inter.HeadersByCreator, idx.Epoch) {
-	// engineMu is locked here
-	epoch := r.GetEpoch() - 1
-	return r.store.GetLastHeaders(epoch), epoch
+// ValidationContext returns current validation context for gaspowercheck
+func (r *GasPowerCheckReader) GetValidationContext() *gaspowercheck.ValidationContext {
+	return r.Ctx.Load().(*gaspowercheck.ValidationContext)
 }
 
-// GetPrevEpochEndTime isn't safe for concurrent use
-func (r *GasPowerCheckReader) GetPrevEpochEndTime() (inter.Timestamp, idx.Epoch) {
+func gasPowerBounds(initialAlloc, minAlloc, maxAlloc, customAlloc uint64) uint64 {
+	allocPerSec := initialAlloc
+	if customAlloc != 0 {
+		allocPerSec = customAlloc
+	}
+	if allocPerSec > maxAlloc {
+		allocPerSec = maxAlloc
+	}
+	if allocPerSec < minAlloc {
+		allocPerSec = minAlloc
+	}
+
+	return allocPerSec
+}
+
+// ReadGasPowerContext reads current validation context for gaspowercheck
+func ReadGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, cfg *lachesis.EconomyConfig) *gaspowercheck.ValidationContext {
 	// engineMu is locked here
-	epoch := r.GetEpoch() - 1
-	return r.store.GetEpochStats(epoch).End, epoch
+	sfcConstants := s.GetSfcConstants(epoch - 1)
+
+	short := cfg.ShortGasPower
+	shortAllocPerSec := gasPowerBounds(short.InitialAllocPerSec, short.MinAllocPerSec, short.MaxAllocPerSec, sfcConstants.ShortGasPowerAllocPerSec)
+
+	shortTermConfig := gaspowercheck.Config{
+		Idx:                idx.ShortTermGas,
+		AllocPerSec:        shortAllocPerSec,
+		MaxAllocPeriod:     short.MaxAllocPeriod,
+		StartupAllocPeriod: short.StartupAllocPeriod,
+		MinStartupGas:      short.MinStartupGas,
+	}
+
+	long := cfg.LongGasPower
+	longAllocPerSec := gasPowerBounds(long.InitialAllocPerSec, long.MinAllocPerSec, long.MaxAllocPerSec, sfcConstants.LongGasPowerAllocPerSec)
+
+	longTermConfig := gaspowercheck.Config{
+		Idx:                idx.LongTermGas,
+		AllocPerSec:        longAllocPerSec,
+		MaxAllocPeriod:     long.MaxAllocPeriod,
+		StartupAllocPeriod: long.StartupAllocPeriod,
+		MinStartupGas:      long.MinStartupGas,
+	}
+
+	return &gaspowercheck.ValidationContext{
+		Epoch:                epoch,
+		Validators:           validators,
+		PrevEpochLastHeaders: s.GetLastHeaders(epoch - 1),
+		PrevEpochEndTime:     s.GetEpochStats(epoch - 1).End,
+		PrevEpochRefunds:     s.GetGasPowerRefunds(epoch - 1),
+		Configs: [2]gaspowercheck.Config{
+			idx.ShortTermGas: shortTermConfig,
+			idx.LongTermGas:  longTermConfig,
+		},
+	}
 }
 
 // ValidatorsPubKeys stores info to authenticate validators
@@ -58,7 +95,7 @@ func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.StakerID]common.Address, i
 }
 
 // ReadEpochPubKeys is the same as GetEpochValidators, but returns only addresses
-func (s *Store) ReadEpochPubKeys(epoch idx.Epoch) *ValidatorsPubKeys {
+func ReadEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
 	addrs := make(map[idx.StakerID]common.Address)
 	for _, it := range s.GetEpochValidators(epoch) {
 		addrs[it.StakerID] = it.Staker.Address
