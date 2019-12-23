@@ -9,7 +9,7 @@ import (
 const (
 	uint8Size  = 1
 	uint64Size = 8
-	hashSize   = 32
+	hashSize   = common.HashLength
 
 	logrecKeySize = uint64Size + hashSize + uint64Size
 	topicKeySize  = hashSize + uint8Size + logrecKeySize

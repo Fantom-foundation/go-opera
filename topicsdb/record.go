@@ -49,10 +49,14 @@ func (rec *logrecBuilder) Build() (r *types.Log, err error) {
 	return
 }
 
-// MatchedWith condition.
-func (rec *logrecBuilder) MatchedWith(cond Condition) {
-	rec.conditions--
-	if rec.conditions == 0 && rec.ok != nil {
+// MatchedWith count of conditions.
+func (rec *logrecBuilder) MatchedWith(count uint8) {
+	if rec.conditions > count {
+		rec.conditions -= count
+		return
+	}
+	rec.conditions = 0
+	if rec.ok != nil {
 		rec.ok <- struct{}{}
 	}
 }
