@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
@@ -34,16 +34,16 @@ import (
 
 type Backend interface {
 	ChainDb() ethdb.Database
-	EventMux() *event.TypeMux
+	EventMux() *notify.TypeMux
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*evmcore.EvmHeader, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 
-	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
-	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) notify.Subscription
+	SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription
+	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription
+	SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription
 
 	EvmLogIndex() *topicsdb.Index
 }

@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -87,23 +87,23 @@ type subscription struct {
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	mux     *event.TypeMux
+	mux     *notify.TypeMux
 	backend Backend
 
 	// Subscriptions
-	txsSub        event.Subscription         // Subscription for new transaction event
-	logsSub       event.Subscription         // Subscription for new log event
-	rmLogsSub     event.Subscription         // Subscription for removed log event
-	chainSub      event.Subscription         // Subscription for new chain event
-	pendingLogSub *event.TypeMuxSubscription // Subscription for pending log event
+	txsSub        notify.Subscription         // Subscription for new transaction notify
+	logsSub       notify.Subscription         // Subscription for new log notify
+	rmLogsSub     notify.Subscription         // Subscription for removed log notify
+	chainSub      notify.Subscription         // Subscription for new chain notify
+	pendingLogSub *notify.TypeMuxSubscription // Subscription for pending log notify
 
 	// Channels
 	install   chan *subscription         // install filter for event notification
 	uninstall chan *subscription         // remove filter for event notification
-	txsCh     chan core.NewTxsEvent      // Channel to receive new transactions event
-	logsCh    chan []*types.Log          // Channel to receive new log event
-	rmLogsCh  chan core.RemovedLogsEvent // Channel to receive removed log event
-	chainCh   chan core.ChainEvent       // Channel to receive new chain event
+	txsCh     chan core.NewTxsEvent      // Channel to receive new transactions notify
+	logsCh    chan []*types.Log          // Channel to receive new log notify
+	rmLogsCh  chan core.RemovedLogsEvent // Channel to receive removed log notify
+	chainCh   chan core.ChainEvent       // Channel to receive new chain notify
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -112,7 +112,7 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
-func NewEventSystem(mux *event.TypeMux, backend Backend) *EventSystem {
+func NewEventSystem(mux *notify.TypeMux, backend Backend) *EventSystem {
 	m := &EventSystem{
 		mux:       mux,
 		backend:   backend,
@@ -332,7 +332,7 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 				f.logs <- matchedLogs
 			}
 		}
-	case *event.TypeMuxEvent:
+	case *notify.TypeMuxEvent:
 		if muxe, ok := e.Data.(core.PendingLogsEvent); ok {
 			for _, f := range filters[PendingLogsSubscription] {
 				if e.Time.After(f.created) {
