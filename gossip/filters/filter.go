@@ -132,16 +132,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
 func (f *Filter) indexedLogs(ctx context.Context, end int64) ([]*types.Log, error) {
-	conditions := make([]topicsdb.Condition, len(f.topics))
-	for i, tt := range f.topics {
-		if len(tt) < 1 {
-			// empty rule set == wildcard
-			continue
-		}
-		conditions[i] = topicsdb.NewCondition(uint8(i), tt...)
-	}
-
-	logs, err := f.backend.EvmLogIndex().Find(conditions...)
+	logs, err := f.backend.EvmLogIndex().Find(f.topics)
 	if err != nil {
 		return nil, err
 	}
