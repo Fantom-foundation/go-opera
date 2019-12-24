@@ -27,6 +27,7 @@ do
     --publish published=${PORT},target=${PORT},mode=ingress,protocol=udp \
     --publish published=${RPCP},target=${RPCP},mode=ingress \
     --publish published=${WSP},target=${WSP},mode=ingress \
+    --mount type=bind,source=/var/lachesis,destination=/var/lachesis \
     --replicas 1 \
     --with-registry-auth \
     --detach=false \
@@ -37,6 +38,7 @@ do
     --rpc --rpcaddr="0.0.0.0" --rpcport=${RPCP} --rpccorsdomain="*" --rpcapi="eth,debug,admin,web3,personal,net,txpool,ftm,sfc" \
     --ws --wsaddr="0.0.0.0" --wsport=${WSP} --wsorigins="*" --wsapi="eth,debug,admin,web3,personal,net,txpool,ftm,sfc" \
     --port=${PORT} --nat="extip:${SWARM_HOST}" \
+    --datadir=/var/lachesis \
     ${bootnode}
 
     if [ -z "$bootnode" ]
