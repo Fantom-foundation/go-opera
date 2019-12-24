@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ const (
 	MimetypeEvent    = "application/event"
 	TxTimeBufferSize = 20000
 	TxTurnPeriod     = 4 * time.Second
+	TxTurnNonces     = 8
 )
 
 // EmitterWorld is emitter's external world
@@ -213,13 +215,9 @@ func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, account
 	}
 
 	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(validatorsArr)))
-	prevRoundIndex := roundIndex
-	if prevRoundIndex > 0 {
-		prevRoundIndex--
-	}
 	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, turnHash)
 
-	return validatorsArr[turns[roundIndex]] == me || validatorsArr[turns[prevRoundIndex]] == me
+	return validatorsArr[turns[roundIndex]] == me
 }
 
 func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Transactions) *inter.Event {
@@ -274,6 +272,9 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 	vecClock := em.world.Engine.GetVectorIndex()
 	if vecClock != nil {
 		strategy = ancestor.NewCasualityStrategy(vecClock, em.world.Engine.GetValidators())
+		if rand.Intn(20) == 0 { // every 20th event uses random strategy is avoid repeating patterns in DAG
+			strategy = ancestor.NewRandomStrategy(rand.New(rand.NewSource(time.Now().UnixNano())))
+		}
 
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
