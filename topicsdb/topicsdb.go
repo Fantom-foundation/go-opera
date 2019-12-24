@@ -3,6 +3,7 @@ package topicsdb
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
@@ -25,7 +26,7 @@ type Index struct {
 		Logrec kvdb.KeyValueStore `table:"r"`
 	}
 
-	fetchMethod func(...Condition) ([]*types.Log, error)
+	fetchMethod func(topics [][]common.Hash) ([]*types.Log, error)
 }
 
 // New TopicsDb instance.
@@ -42,9 +43,8 @@ func New(db kvdb.KeyValueStore) *Index {
 }
 
 // Find log records by conditions.
-func (tt *Index) Find(cc ...Condition) ([]*types.Log, error) {
-	// TODO: collapse the same conditions into one and remove empty
-	return tt.fetchMethod(cc...)
+func (tt *Index) Find(topics [][]common.Hash) ([]*types.Log, error) {
+	return tt.fetchMethod(topics)
 }
 
 // MustPush calls Push() and panics if error.

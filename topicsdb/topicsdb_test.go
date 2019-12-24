@@ -37,12 +37,12 @@ func TestTopicsDb(t *testing.T) {
 			from, to := topics4rec(i)
 			tt := topics[from : to-1]
 
-			conditions := make([]Condition, len(tt))
+			qq := make([][]common.Hash, len(tt))
 			for pos, t := range tt {
-				conditions[pos] = NewCondition(uint8(pos), t)
+				qq[pos] = []common.Hash{t}
 			}
 
-			got, err := db.Find(conditions...)
+			got, err := db.Find(qq)
 			if !assertar.NoError(err) {
 				return
 			}

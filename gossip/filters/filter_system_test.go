@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -43,22 +43,22 @@ import (
 type testBackend struct {
 	db         ethdb.Database
 	logIndex   *topicsdb.Index
-	mux        *event.TypeMux
-	txFeed     *event.Feed
-	rmLogsFeed *event.Feed
-	logsFeed   *event.Feed
-	chainFeed  *event.Feed
+	mux        *notify.TypeMux
+	txFeed     *notify.Feed
+	rmLogsFeed *notify.Feed
+	logsFeed   *notify.Feed
+	chainFeed  *notify.Feed
 }
 
 func newTestBackend() *testBackend {
 	return &testBackend{
 		db:         rawdb.NewMemoryDatabase(),
 		logIndex:   topicsdb.New(memorydb.New()),
-		mux:        new(event.TypeMux),
-		txFeed:     new(event.Feed),
-		rmLogsFeed: new(event.Feed),
-		logsFeed:   new(event.Feed),
-		chainFeed:  new(event.Feed),
+		mux:        new(notify.TypeMux),
+		txFeed:     new(notify.Feed),
+		rmLogsFeed: new(notify.Feed),
+		logsFeed:   new(notify.Feed),
+		chainFeed:  new(notify.Feed),
 	}
 }
 
@@ -66,7 +66,7 @@ func (b *testBackend) ChainDb() ethdb.Database {
 	return b.db
 }
 
-func (b *testBackend) EventMux() *event.TypeMux {
+func (b *testBackend) EventMux() *notify.TypeMux {
 	return b.mux
 }
 
@@ -127,19 +127,19 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 	return logs, nil
 }
 
-func (b *testBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
+func (b *testBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
 	return b.txFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+func (b *testBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription {
 	return b.rmLogsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
 	return b.logsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
 	return b.chainFeed.Subscribe(ch)
 }
 
@@ -147,7 +147,7 @@ func (b *testBackend) EvmLogIndex() *topicsdb.Index {
 	return b.logIndex
 }
 
-// TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.
+// TestBlockSubscription tests if a block subscription returns block hashes for posted chain notify.
 // It creates multiple subscriptions:
 // - one at the start and should receive all posted chain events and a second (blockHashes)
 // - one that is created after a cutoff moment and uninstalled after a second cutoff moment (blockHashes[cutoff1:cutoff2])

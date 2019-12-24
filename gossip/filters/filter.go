@@ -25,7 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
@@ -34,16 +34,16 @@ import (
 
 type Backend interface {
 	ChainDb() ethdb.Database
-	EventMux() *event.TypeMux
+	EventMux() *notify.TypeMux
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*evmcore.EvmHeader, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 
-	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
-	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) notify.Subscription
+	SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription
+	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription
+	SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription
 
 	EvmLogIndex() *topicsdb.Index
 }
@@ -132,16 +132,7 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
 func (f *Filter) indexedLogs(ctx context.Context, end int64) ([]*types.Log, error) {
-	conditions := make([]topicsdb.Condition, len(f.topics))
-	for i, tt := range f.topics {
-		if len(tt) < 1 {
-			// empty rule set == wildcard
-			continue
-		}
-		conditions[i] = topicsdb.NewCondition(uint8(i), tt...)
-	}
-
-	logs, err := f.backend.EvmLogIndex().Find(conditions...)
+	logs, err := f.backend.EvmLogIndex().Find(f.topics)
 	if err != nil {
 		return nil, err
 	}

@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
+	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -53,7 +53,7 @@ type filter struct {
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
 	backend   Backend
-	mux       *event.TypeMux
+	mux       *notify.TypeMux
 	chainDb   ethdb.Database
 	events    *EventSystem
 	filtersMu sync.Mutex

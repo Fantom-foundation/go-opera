@@ -1,30 +1,42 @@
 package topicsdb
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchSync(cc ...Condition) (res []*types.Log, err error) {
-	if len(cc) > MaxCount {
+const prefixSize = hashSize + uint8Size
+
+func (tt *Index) fetchSync(topics [][]common.Hash) (res []*types.Log, err error) {
+	if len(topics) > MaxCount {
 		err = ErrTooManyTopics
 		return
 	}
 
-	recs := make(map[ID]*logrecBuilder)
-
-	conditions := uint8(len(cc))
-	for _, cond := range cc {
+	var (
+		recs      = make(map[ID]*logrecBuilder)
+		condCount = uint8(len(topics))
+		wildcards uint8
+		prefix    [prefixSize]byte
+	)
+	for pos, cond := range topics {
+		if len(cond) < 1 {
+			wildcards++
+			continue
+		}
+		copy(prefix[common.HashLength:], posToBytes(uint8(pos)))
 		for _, alternative := range cond {
-			it := tt.table.Topic.NewIteratorWithPrefix(alternative[:])
+			copy(prefix[:], alternative[:])
+			it := tt.table.Topic.NewIteratorWithPrefix(prefix[:])
 			for it.Next() {
 				id := extractLogrecID(it.Key())
 				topicCount := bytesToPos(it.Value())
 				rec := recs[id]
 				if rec == nil {
-					rec = newLogrecBuilder(id, conditions, topicCount)
+					rec = newLogrecBuilder(id, condCount, topicCount)
 					recs[id] = rec
 				}
-				rec.MatchedWith(cond)
+				rec.MatchedWith(1)
 			}
 
 			err = it.Error()
@@ -37,6 +49,7 @@ func (tt *Index) fetchSync(cc ...Condition) (res []*types.Log, err error) {
 	}
 
 	for _, rec := range recs {
+		rec.MatchedWith(wildcards)
 		if !rec.IsMatched() {
 			continue
 		}
