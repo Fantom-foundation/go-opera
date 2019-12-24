@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-. $(dirname $0)/../_params.sh
+. ../_params.sh
 
 REGISTRY_HOST=18.189.195.64
 SWARM_HOST=18.189.195.64
 
-SSLDIR=$(dirname $0)/ssl
+SSLDIR=./ssl
 CA_FILE=`ls -1 ${SSLDIR}/*CA*.crt`
 CERT_FILE=`ls -1 ${SSLDIR}/*.crt | grep -v CA`
 KEY_FILE=`ls -1 ${SSLDIR}/*.key`
