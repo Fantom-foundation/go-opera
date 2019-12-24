@@ -30,7 +30,6 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 	blockEvents := make([]*inter.EventHeaderData, 0, 50*p.Validators.Len())
 
 	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
-	validatorIdxs := p.Validators.Idxs()
 	var highestLamport idx.Lamport
 	var lowestLamport idx.Lamport
 	var confirmedNum int
