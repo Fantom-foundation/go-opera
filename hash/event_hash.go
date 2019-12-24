@@ -96,6 +96,11 @@ func (h Event) String() string {
 	return h.ShortID(4)
 }
 
+// FullID returns human readable string representation with no information loss.
+func (h Event) FullID() string {
+	return h.ShortID(32 - 4 - 4)
+}
+
 // ShortID returns human readable ID representation, suitable for API calls.
 func (h Event) ShortID(precision int) string {
 	if name := GetEventName(h); len(name) > 0 {

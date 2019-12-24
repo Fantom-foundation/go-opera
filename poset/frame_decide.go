@@ -2,6 +2,8 @@ package poset
 
 import (
 	"math"
+	
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -100,9 +102,11 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) bool {
 
 	// new checkpoint
 	var sealEpoch bool
+	var appHash common.Hash
 	p.Checkpoint.LastBlockN++
 	if p.callback.ApplyBlock != nil {
-		p.Checkpoint.AppHash, sealEpoch = p.callback.ApplyBlock(block, frame, cheaters)
+		appHash, sealEpoch = p.callback.ApplyBlock(block, frame, cheaters)
+		p.Checkpoint.AppHash = hash.Of(p.Checkpoint.AppHash.Bytes(), appHash.Bytes())
 	}
 	p.Checkpoint.LastAtropos = atropos
 	p.saveCheckpoint()

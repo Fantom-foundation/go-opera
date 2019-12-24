@@ -165,6 +165,7 @@ func DefaultDagConfig() DagConfig {
 		MaxParents:                5,
 		MaxFreeParents:            3,
 		MaxEpochBlocks:            1000,
+		MaxEpochDuration:          4 * time.Hour,
 		MaxValidatorEventsInBlock: 50,
 		VectorClockConfig:         vector.DefaultIndexConfig(),
 	}
@@ -173,6 +174,7 @@ func DefaultDagConfig() DagConfig {
 func FakeNetDagConfig() DagConfig {
 	cfg := DefaultDagConfig()
 	cfg.MaxEpochBlocks = 200
+	cfg.MaxEpochDuration = 10 * time.Minute
 	return cfg
 }
 

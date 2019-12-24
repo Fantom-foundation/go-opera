@@ -279,7 +279,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myStakerID)
 			return nil, nil, false
 		}
 	} else {
@@ -329,7 +329,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == myStakerID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myStakerID)
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)

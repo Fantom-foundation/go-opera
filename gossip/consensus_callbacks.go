@@ -14,7 +14,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -137,9 +136,8 @@ func (s *Service) applyNewState(
 	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
 
 	// Process new epoch
-	var newEpochHash common.Hash
 	if sealEpoch {
-		newEpochHash = s.onEpochSealed(block, cheaters)
+		s.onEpochSealed(block, cheaters)
 	}
 
 	// Get state root
@@ -154,17 +152,12 @@ func (s *Service) applyNewState(
 	}
 
 	// calc appHash
-	var newAppHash common.Hash
-	if sealEpoch {
-		newAppHash = hash.Of(newStateHash.Bytes(), newEpochHash.Bytes())
-	} else {
-		newAppHash = newStateHash
-	}
+	appHash := block.TxHash
 
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
 		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "elapsed", time.Since(start))
 
-	return block, evmBlock, receipts, txPositions, newAppHash
+	return block, evmBlock, receipts, txPositions, appHash
 }
 
 // spillBlockEvents excludes first events which exceed BlockGasHardLimit
@@ -279,23 +272,17 @@ func (s *Service) executeEvmTransactions(
 }
 
 // onEpochSealed applies the new epoch sealing state
-func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (newEpochHash common.Hash) {
+func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) {
 	// s.engineMu is locked here
 
 	epoch := s.engine.GetEpoch()
 
-	// update last headers
+	// delete last headers of cheaters
 	for _, cheater := range cheaters {
 		s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
 	}
-	hh := s.store.GetLastHeaders(epoch)
-	// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
-	// TODO use transparent state hashing (i.e. store state in a trie)
-	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
 	// prune not needed last headers
 	s.store.DelLastHeaders(epoch - 1)
-
-	return newEpochHash
 }
 
 // applyBlock execs ordered txns of new block on state, and fills the block DB indexes.
