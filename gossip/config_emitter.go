@@ -36,7 +36,7 @@ func DefaultEmitterConfig() EmitterConfig {
 		MinEmitInterval:            250 * time.Millisecond,
 		MaxEmitInterval:            10 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
-		MaxTxsFromSender:           2,
+		MaxTxsFromSender:           TxTurnNonces,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
 		EpochTailLength:            1,
 

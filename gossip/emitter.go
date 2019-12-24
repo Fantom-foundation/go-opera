@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/golang-lru"
 
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
@@ -199,7 +200,9 @@ func (em *Emitter) myStakerID() (idx.StakerID, bool) {
 }
 
 // safe for concurrent use
-func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr []idx.StakerID, validatorsArrStakes []pos.Stake, me idx.StakerID) bool {
+func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validatorsArr []idx.StakerID, validatorsArrStakes []pos.Stake, me idx.StakerID) bool {
+	turnHash := hash.Of(sender.Bytes(), bigendian.Int64ToBytes(accountNonce/TxTurnNonces), em.world.Engine.GetEpoch().Bytes())
+
 	var txTime time.Time
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
@@ -214,7 +217,7 @@ func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr [
 	if prevRoundIndex > 0 {
 		prevRoundIndex--
 	}
-	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, txHash)
+	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, turnHash)
 
 	return validatorsArr[turns[roundIndex]] == me || validatorsArr[turns[prevRoundIndex]] == me
 }
@@ -250,7 +253,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 				break // txs are dependent, so break the loop
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
-			if !em.isMyTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes, e.Creator) {
+			if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), now, validatorsArr, validatorsArrStakes, e.Creator) {
 				break // txs are dependent, so break the loop
 			}
 
