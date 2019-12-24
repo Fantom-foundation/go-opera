@@ -81,7 +81,7 @@ func (h Event) Hex() string {
 	return common.Hash(h).Hex()
 }
 
-// Lamport returns [4:9] bytes, which store event's Lamport.
+// Lamport returns [4:8] bytes, which store event's Lamport.
 func (h Event) Lamport() idx.Lamport {
 	return idx.BytesToLamport(h[4:8])
 }
