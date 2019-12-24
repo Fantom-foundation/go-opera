@@ -34,9 +34,11 @@ type GasPowerConfig struct {
 
 // DagConfig of Lachesis DAG (directed acyclic graph).
 type DagConfig struct {
-	MaxParents     int       `json:"maxParents"`
-	MaxFreeParents int       `json:"maxFreeParents"` // maximum number of parents with no gas cost
-	EpochLen       idx.Frame `json:"epochLen"`
+	MaxParents     int `json:"maxParents"`
+	MaxFreeParents int `json:"maxFreeParents"` // maximum number of parents with no gas cost
+
+	MaxEpochBlocks   idx.Frame     `json:"maxEpochBlocks"`
+	MaxEpochDuration time.Duration `json:"maxEpochDuration"`
 
 	VectorClockConfig vector.IndexConfig `json:"vectorClockConfig"`
 
@@ -162,7 +164,7 @@ func DefaultDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  1000,
+		MaxEpochBlocks:            1000,
 		MaxValidatorEventsInBlock: 50,
 		VectorClockConfig:         vector.DefaultIndexConfig(),
 	}
@@ -170,7 +172,7 @@ func DefaultDagConfig() DagConfig {
 
 func FakeNetDagConfig() DagConfig {
 	cfg := DefaultDagConfig()
-	cfg.EpochLen = 200
+	cfg.MaxEpochBlocks = 200
 	return cfg
 }
 

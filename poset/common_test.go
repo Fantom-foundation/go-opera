@@ -71,9 +71,9 @@ func FakePoset(namespace string, nodes []idx.StakerID, mods ...memorydb.Mod) (*E
 	input := NewEventStore(nil, 100)
 
 	config := lachesis.FakeNetDagConfig()
-	if config.EpochLen > 100 {
-		// EpochLen too big, test timeout is possible.
-		config.EpochLen = 100
+	if config.MaxEpochBlocks > 100 {
+		// MaxEpochBlocks too big, test timeout is possible.
+		config.MaxEpochBlocks = 100
 	}
 	poset := New(config, store, input)
 

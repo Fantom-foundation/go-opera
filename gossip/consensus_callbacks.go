@@ -303,7 +303,12 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	// s.engineMu is locked here
 
 	confirmBlocksMeter.Inc(1)
-	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
+	// if cheater is confirmed, seal epoch right away to prune them from of BFT validators list
+
+	epochStart := s.store.GetEpochStats(pendingEpoch).Start
+	sealEpoch = decidedFrame >= s.config.Net.Dag.MaxEpochBlocks
+	sealEpoch = sealEpoch || block.Time-epochStart >= inter.Timestamp(s.config.Net.Dag.MaxEpochDuration)
+	sealEpoch = sealEpoch || cheaters.Len() > 0
 
 	block, evmBlock, receipts, txPositions, newAppHash := s.applyNewState(block, sealEpoch, cheaters)
 

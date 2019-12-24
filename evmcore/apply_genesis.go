@@ -108,7 +108,7 @@ func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
 		e := inter.NewEvent()
 		// for nice-looking ID
 		e.Epoch = 0
-		e.Lamport = idx.Lamport(net.Dag.EpochLen)
+		e.Lamport = idx.Lamport(net.Dag.MaxEpochBlocks)
 		// actual data hashed
 		e.Extra = net.Genesis.ExtraData
 		e.ClaimedTime = b.Time

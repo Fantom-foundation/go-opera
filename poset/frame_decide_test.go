@@ -31,7 +31,7 @@ func TestConfirmBlockEvents(t *testing.T) {
 		return applyBlock(block, decidedFrame, cheaters)
 	}
 
-	eventCount := int(poset.dag.EpochLen)
+	eventCount := int(poset.dag.MaxEpochBlocks)
 	_ = inter.ForEachRandEvent(nodes, eventCount, poset.dag.MaxParents, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			input.SetEvent(e)

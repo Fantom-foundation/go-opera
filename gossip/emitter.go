@@ -478,7 +478,7 @@ func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool
 
 // return true if event is in epoch tail (unlikely to confirm)
 func (em *Emitter) isEpochTail(e *inter.Event) bool {
-	return e.Frame >= em.net.Dag.EpochLen-em.config.EpochTailLength
+	return e.Frame >= em.net.Dag.MaxEpochBlocks-em.config.EpochTailLength
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
