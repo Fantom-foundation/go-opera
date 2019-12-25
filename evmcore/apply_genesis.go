@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
@@ -70,7 +71,7 @@ func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
 	blockNum := block.NumberU64()
 
 	stored := rawdb.ReadCanonicalHash(db, blockNum)
-	if (stored != common.Hash{}) {
+	if stored != hash.Zero {
 		if stored != block.Hash {
 			log.Info("Other genesis block is already written", "block", stored.String())
 			return nil, &GenesisMismatchError{stored, block.Hash}
