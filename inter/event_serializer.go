@@ -129,8 +129,8 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	}
 
 	header3 := fast.NewBitArray(
-		4, // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
-		uint(len(fields64)),
+		4,                     // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
+		uint(len(fields64))+1, // 1 is a nonempty-PrevEpochHash flag
 	)
 	header2 := fast.NewBitArray(
 		2, // bits for storing sizes 1-4 of uint32 fields
@@ -175,7 +175,13 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 		buf.Write(p.Bytes()[4:]) // without epoch
 	}
 
-	buf.Write(e.PrevEpochHash.Bytes())
+	if e.PrevEpochHash != hash.Zero {
+		header3w.Push(1)
+		buf.Write(e.PrevEpochHash.Bytes())
+	} else {
+		header3w.Push(0)
+	}
+
 	buf.Write(e.TxHash.Bytes())
 	buf.Write(e.Extra)
 
@@ -226,8 +232,8 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 	}
 
 	header3 := fast.NewBitArray(
-		4, // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
-		uint(len(fields64)),
+		4,                     // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
+		uint(len(fields64))+1, // 1 is a nonempty-PrevEpochHash flag
 	)
 	header2 := fast.NewBitArray(
 		2, // bits for storing sizes 1-4 of uint32 fields
@@ -269,7 +275,9 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 		copy(e.Parents[i][4:], buf.Read(common.HashLength-4)) // without epoch
 	}
 
-	e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
+	if header3r.Pop() > 0 {
+		e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
+	}
 	e.TxHash.SetBytes(buf.Read(common.HashLength))
 	e.Extra = buf.Read(len(raw) - buf.Position())
 
