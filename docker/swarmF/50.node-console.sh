@@ -12,5 +12,5 @@ SWARM_HOST=`./swarm node inspect $HOST --format "{{.Status.Addr}}"`
 
 RPCP=$(($RPCP_BASE+$i))
 
-docker run --rm -ti lachesis:${TAG} $@ attach http://${SWARM_HOST}:${RPCP}
+docker run --rm -i lachesis:${TAG} $@ attach http://${SWARM_HOST}:${RPCP}
 

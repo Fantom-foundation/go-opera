@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
+. ./_params.sh
 
 set -e
-
-
-. ./_params.sh
 
 docker network inspect ${NETWORK} &>/dev/null || \
 docker network create ${NETWORK}

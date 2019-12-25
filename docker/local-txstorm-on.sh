@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 cd $(dirname $0)
+. ./_params.sh
 
 set -e
 
-. ./_params.sh
 
 echo -e "\nStart $N tx-storms:\n"
 
