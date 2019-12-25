@@ -32,7 +32,7 @@ func TestGetGenesisBlock(t *testing.T) {
 	accountWithCode.Storage[common.Hash{}] = common.BytesToHash(common.Big1.Bytes())
 	net.Genesis.Alloc.Accounts[addrWithStorage] = accountWithCode
 
-	genesisHash, stateHash, err := store.ApplyGenesis(&net)
+	genesisHash, stateHash, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	assertar.NotEqual(common.Hash{}, genesisHash)
@@ -45,11 +45,10 @@ func TestGetGenesisBlock(t *testing.T) {
 	genesisBlock := reader.GetBlock(common.Hash(genesisHash), 0)
 
 	assertar.Equal(common.Hash(genesisHash), genesisBlock.Hash)
-	assertar.Equal(stateHash, genesisBlock.Root)
 	assertar.Equal(net.Genesis.Time, genesisBlock.Time)
 	assertar.Empty(genesisBlock.Transactions)
 
-	statedb, err := reader.StateAt(stateHash)
+	statedb, err := reader.StateAt(genesisBlock.Root)
 	assertar.NoError(err)
 	for addr, account := range net.Genesis.Alloc.Accounts {
 		assertar.Equal(account.Balance.String(), statedb.GetBalance(addr).String())
@@ -69,7 +68,7 @@ func TestGetBlock(t *testing.T) {
 	store := NewMemStore()
 
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
-	genesisHash, _, err := store.ApplyGenesis(&net)
+	genesisHash, _, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	txs := types.Transactions{}

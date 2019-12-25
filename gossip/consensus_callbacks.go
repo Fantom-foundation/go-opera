@@ -4,20 +4,18 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // processEvent extends the engine.ProcessEvent with gossip-specific actions on each event processing
@@ -177,7 +175,7 @@ func (s *Service) spillBlockEvents(block *inter.Block) (*inter.Block, inter.Even
 		fullEvents[i] = e
 		gasPowerUsedSum += e.GasPowerUsed
 		// stop if limit is exceeded, erase [:i] events
-		if gasPowerUsedSum > s.config.Net.Blockchain.BlockGasHardLimit {
+		if gasPowerUsedSum > s.config.Net.Blocks.BlockGasHardLimit {
 			// spill
 			block.Events = block.Events[i+1:]
 			fullEvents = fullEvents[i+1:]
@@ -241,7 +239,7 @@ func (s *Service) executeEvmTransactions(
 ) {
 	// s.engineMu is locked here
 
-	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
+	evmProcessor := evmcore.NewStateProcessor(s.config.Net.EvmChainConfig(), s.GetEvmStateReader())
 
 	// Process txs
 	receipts, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)

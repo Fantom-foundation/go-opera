@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/ethapi"
@@ -133,7 +132,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 		store: store,
 
 		engineMu:          new(sync.RWMutex),
-		occurredTxs:       occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)),
+		occurredTxs:       occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(config.Net.EvmChainConfig().ChainID)),
 		blockParticipated: make(map[idx.StakerID]bool),
 
 		Instance: logger.MakeInstance(),
@@ -160,7 +159,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 	if config.TxPool.Journal != "" {
 		config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
 	}
-	svc.txpool = evmcore.NewTxPool(config.TxPool, params.AllEthashProtocolChanges, stateReader)
+	svc.txpool = evmcore.NewTxPool(config.TxPool, config.Net.EvmChainConfig(), stateReader)
 
 	// create checkers
 	svc.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(svc.store, svc.engine.GetEpoch()))                                                          // read pub keys of current epoch from disk
@@ -181,8 +180,8 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 // makeCheckers builds event checkers
 func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, engine Consensus, store *Store) *eventcheck.Checkers {
 	// create signatures checker
-	dagID := params.AllEthashProtocolChanges.ChainID
-	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(dagID))
+	ledgerID := net.EvmChainConfig().ChainID
+	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(ledgerID))
 
 	// create gaspower checker
 	gaspowerCheck := gaspowercheck.New(gasPowerCheckReader)

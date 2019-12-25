@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"time"
 
+	ethparams "github.com/ethereum/go-ethereum/params"
+
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
@@ -12,9 +14,9 @@ import (
 )
 
 const (
-	MainNetworkID uint64 = 1
-	TestNetworkID uint64 = 2
-	FakeNetworkID uint64 = 3
+	MainNetworkID uint64 = 0xfa
+	TestNetworkID uint64 = 0xfa2
+	FakeNetworkID uint64 = 0xfa3
 )
 
 var (
@@ -64,8 +66,8 @@ type EconomyConfig struct {
 	LongGasPower  GasPowerConfig `json:"longGasPower"`
 }
 
-// BlockchainConfig contains transactions model constants
-type BlockchainConfig struct {
+// BlocksConfig contains blocks constants
+type BlocksConfig struct {
 	BlockGasHardLimit uint64 `json:"maxBlockGasLimit"` // technical hard limit, gas is mostly governed by gas power allocation
 }
 
@@ -80,10 +82,16 @@ type Config struct {
 	Dag DagConfig
 
 	// Blockchain options
-	Blockchain BlockchainConfig
+	Blocks BlocksConfig
 
 	// Economy options
 	Economy EconomyConfig
+}
+
+func (c *Config) EvmChainConfig() *ethparams.ChainConfig {
+	cfg := *ethparams.AllEthashProtocolChanges
+	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
+	return &cfg
 }
 
 func MainNetConfig() Config {
@@ -93,7 +101,7 @@ func MainNetConfig() Config {
 		Genesis:   genesis.MainGenesis(),
 		Dag:       DefaultDagConfig(),
 		Economy:   DefaultEconomyConfig(),
-		Blockchain: BlockchainConfig{
+		Blocks: BlocksConfig{
 			BlockGasHardLimit: 20000000,
 		},
 	}
@@ -106,7 +114,7 @@ func TestNetConfig() Config {
 		Genesis:   genesis.TestGenesis(),
 		Dag:       DefaultDagConfig(),
 		Economy:   DefaultEconomyConfig(),
-		Blockchain: BlockchainConfig{
+		Blocks: BlocksConfig{
 			BlockGasHardLimit: 20000000,
 		},
 	}
@@ -119,7 +127,7 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 		Genesis:   genesis.FakeGenesis(accs),
 		Dag:       FakeNetDagConfig(),
 		Economy:   FakeEconomyConfig(),
-		Blockchain: BlockchainConfig{
+		Blocks: BlocksConfig{
 			BlockGasHardLimit: 20000000,
 		},
 	}

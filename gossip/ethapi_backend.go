@@ -47,7 +47,7 @@ type EthAPIBackend struct {
 
 // ChainConfig returns the active chain configuration.
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
-	return params.AllEthashProtocolChanges
+	return b.svc.config.Net.EvmChainConfig()
 }
 
 func (b *EthAPIBackend) CurrentBlock() *evmcore.EvmBlock {
@@ -289,7 +289,7 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg evmcore.Message, state *
 	vmError := func() error { return nil }
 
 	context := evmcore.NewEVMContext(msg, header, b.state, nil)
-	config := params.AllEthashProtocolChanges
+	config := b.ChainConfig()
 	return vm.NewEVM(context, state, config, vm.Config{}), vmError, nil
 }
 
