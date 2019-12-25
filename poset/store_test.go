@@ -107,7 +107,7 @@ func benchPoset(nodes []idx.StakerID, input EventSource, store *Store) *Poset {
 		Time: genesisTestTime,
 		Alloc: genesis.VAccounts{
 			Validators: validators,
-			Accounts:    nil,
+			Accounts:   nil,
 		},
 	}, hash.Event{}, common.Hash{})
 	if err != nil {

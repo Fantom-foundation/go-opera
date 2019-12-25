@@ -60,7 +60,7 @@ func FakePoset(namespace string, nodes []idx.StakerID, mods ...memorydb.Mod) (*E
 		Time: genesisTestTime,
 		Alloc: genesis.VAccounts{
 			Validators: validators,
-			Accounts:    nil,
+			Accounts:   nil,
 		},
 	}, atropos, common.Hash{})
 	if err != nil {
