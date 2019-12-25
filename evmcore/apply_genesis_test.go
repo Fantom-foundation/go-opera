@@ -36,13 +36,17 @@ func TestApplyGenesis(t *testing.T) {
 	assertar := assert.New(t)
 	logger.SetTestMode(t)
 
-	db := rawdb.NewDatabase(
+	db1 := rawdb.NewDatabase(
 		nokeyiserr.Wrap(
 			table.New(
-				memorydb.New(), []byte("evm_"))))
+				memorydb.New(), []byte("evm1_"))))
+	db2 := rawdb.NewDatabase(
+		nokeyiserr.Wrap(
+			table.New(
+				memorydb.New(), []byte("evm2_"))))
 
 	// no genesis
-	_, err := ApplyGenesis(db, nil)
+	_, err := ApplyGenesis(db1, nil)
 	if !assertar.Error(err) {
 		return
 	}
@@ -50,11 +54,11 @@ func TestApplyGenesis(t *testing.T) {
 	// the same genesis
 	accsA := genesis.FakeAccounts(0, 3, big.NewInt(10000000000), pos.StakeToBalance(1))
 	netA := lachesis.FakeNetConfig(accsA)
-	blockA1, err := ApplyGenesis(db, &netA)
+	blockA1, err := ApplyGenesis(db1, &netA)
 	if !assertar.NoError(err) {
 		return
 	}
-	blockA2, err := ApplyGenesis(db, &netA)
+	blockA2, err := ApplyGenesis(db2, &netA)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -65,8 +69,8 @@ func TestApplyGenesis(t *testing.T) {
 	// different genesis
 	accsB := genesis.FakeAccounts(0, 4, big.NewInt(10000000000), pos.StakeToBalance(1))
 	netB := lachesis.FakeNetConfig(accsB)
-	_, err = ApplyGenesis(db, &netB)
-	if !assertar.Error(err) {
+	blockB, err := ApplyGenesis(db2, &netB)
+	if !assertar.NotEqual(blockA1, blockB) {
 		return
 	}
 

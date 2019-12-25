@@ -144,7 +144,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	)
 
 	// create stores
-	genesisAtropos, genesisEvmState, err := store.ApplyGenesis(&net)
+	genesisAtropos, genesisEvmState, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)

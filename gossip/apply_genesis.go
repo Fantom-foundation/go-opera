@@ -21,7 +21,7 @@ type GenesisMismatchError struct {
 
 // Error implements error interface.
 func (e *GenesisMismatchError) Error() string {
-	return fmt.Sprintf("database contains incompatible genesis (have %s, new %s)", e.Stored.FullID(), e.New.FullID())
+	return fmt.Sprintf("database contains incompatible gossip genesis (have %s, new %s)", e.Stored.FullID(), e.New.FullID())
 }
 
 // calcGenesisHash calcs hash of genesis state.
@@ -29,27 +29,34 @@ func calcGenesisHash(net *lachesis.Config) hash.Event {
 	s := NewMemStore()
 	defer s.Close()
 
-	h, _, _ := s.ApplyGenesis(net)
+	h, _, _ := s.applyGenesis(net)
 
 	return h
 }
 
-func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
+// ApplyGenesis writes initial state.
+func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
 	storedGenesis := s.GetBlock(0)
 	if storedGenesis != nil {
-		expectedHash := calcGenesisHash(net)
-		if storedGenesis.Atropos != expectedHash {
-			s.Log.Info("Other genesis state is already written", "atropos", storedGenesis.Atropos.FullID())
-			return genesisAtropos, genesisState, &GenesisMismatchError{storedGenesis.Atropos, expectedHash}
+		newHash := calcGenesisHash(net)
+		if storedGenesis.Atropos != newHash {
+			return genesisAtropos, genesisState, true, &GenesisMismatchError{storedGenesis.Atropos, newHash}
 		}
 
 		genesisAtropos = storedGenesis.Atropos
 		genesisState = common.Hash(genesisAtropos)
-		s.Log.Info("Genesis state is already written", "atropos", storedGenesis.Atropos.FullID())
-		return genesisAtropos, genesisState, nil
+		return genesisAtropos, genesisState, false, nil
 	}
 	// if we'here, then it's first time genesis is applied
+	genesisAtropos, genesisState, err = s.applyGenesis(net)
+	if err != nil {
+		return genesisAtropos, genesisState, true, err
+	}
 
+	return genesisAtropos, genesisState, true, err
+}
+
+func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
 	evmBlock, err := evmcore.ApplyGenesis(s.table.Evm, net)
 	if err != nil {
 		return genesisAtropos, genesisState, err
@@ -70,8 +77,6 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 	genesisAtropos = prettyHash(net)
 	genesisState = common.Hash(genesisAtropos)
 
-	s.Log.Info("Commit genesis state", "atropos", genesisAtropos.FullID())
-
 	block := inter.NewBlock(0,
 		net.Genesis.Time,
 		genesisAtropos,
@@ -81,6 +86,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 
 	block.Root = evmBlock.Root
 	s.SetBlock(block)
+	s.SetBlockIndex(genesisAtropos, block.Index)
 	s.SetEpochStats(0, &sfctype.EpochStats{
 		Start:    net.Genesis.Time,
 		End:      net.Genesis.Time,

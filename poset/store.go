@@ -3,6 +3,7 @@ package poset
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	lru "github.com/hashicorp/golang-lru"
 
@@ -28,7 +29,8 @@ type Store struct {
 	}
 
 	cache struct {
-		FrameRoots *lru.Cache `cache:"-"` // store by pointer
+		GenesisHash *common.Hash
+		FrameRoots  *lru.Cache `cache:"-"` // store by pointer
 	}
 
 	epochDb    kvdb.KeyValueStore
