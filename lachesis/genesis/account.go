@@ -42,8 +42,9 @@ type (
 	}
 
 	VAccounts struct {
-		Accounts    Accounts
-		GValidators pos.GValidators
+		Accounts         Accounts
+		Validators       pos.GValidators
+		SfcContractAdmin common.Address
 	}
 )
 

@@ -59,7 +59,7 @@ func FakePoset(namespace string, nodes []idx.StakerID, mods ...memorydb.Mod) (*E
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Time: genesisTestTime,
 		Alloc: genesis.VAccounts{
-			GValidators: validators,
+			Validators: validators,
 			Accounts:    nil,
 		},
 	}, atropos, common.Hash{})

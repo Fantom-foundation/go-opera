@@ -155,7 +155,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	engine.Bootstrap(inter.ConsensusCallbacks{})
 
 	// create service
-	creator := net.Genesis.Alloc.GValidators.Addresses()[0]
+	creator := net.Genesis.Alloc.Validators.Addresses()[0]
 	ctx := &node.ServiceContext{
 		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, creator),
 	}

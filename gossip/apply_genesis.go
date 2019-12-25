@@ -97,7 +97,7 @@ func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		TotalFee: new(big.Int),
 	})
 
-	for _, validator := range net.Genesis.Alloc.GValidators {
+	for _, validator := range net.Genesis.Alloc.Validators {
 		staker := &sfctype.SfcStaker{
 			Address:      validator.Address,
 			CreatedEpoch: 0,
