@@ -304,7 +304,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 			gotMissed := s.store.GetBlocksMissed(it.StakerID)
 			badMissed := s.config.Net.Economy.OfflinePenaltyThreshold
-			if gotMissed.Num >= badMissed.Num && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
+			if gotMissed.Num >= badMissed.BlocksNum && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
 				// write into DB
 				it.Staker.Status |= sfctype.OfflineBit
 				s.store.SetSfcStaker(it.StakerID, it.Staker)

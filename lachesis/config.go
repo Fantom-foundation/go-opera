@@ -47,8 +47,8 @@ type DagConfig struct {
 
 // BlocksMissed is information about missed blocks from a staker
 type BlocksMissed struct {
-	Num    idx.Block
-	Period time.Duration
+	BlocksNum idx.Block
+	Period    time.Duration
 }
 
 // EconomyConfig contains economy constants
@@ -141,8 +141,8 @@ func DefaultEconomyConfig() EconomyConfig {
 		InitialRewardPerSecond: big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
 		MaxRewardPerSecond:     maxRewardPerSecond,
 		OfflinePenaltyThreshold: BlocksMissed{
-			Num:    1000,
-			Period: 24 * time.Hour,
+			BlocksNum: 1000,
+			Period:    24 * time.Hour,
 		},
 		ShortGasPower: DefaultShortGasPowerConfig(),
 		LongGasPower:  DefaulLongGasPowerConfig(),
@@ -154,7 +154,7 @@ func FakeEconomyConfig() EconomyConfig {
 	cfg := DefaultEconomyConfig()
 	cfg.PoiPeriodDuration = 15 * time.Minute
 	cfg.OfflinePenaltyThreshold.Period = 10 * time.Minute
-	cfg.OfflinePenaltyThreshold.Num = 10
+	cfg.OfflinePenaltyThreshold.BlocksNum = 10
 	cfg.ShortGasPower = FakeShortGasPowerConfig()
 	cfg.LongGasPower = FakeLongGasPowerConfig()
 	return cfg
