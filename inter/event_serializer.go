@@ -277,6 +277,9 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 
 	if header3r.Pop() > 0 {
 		e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
+		if e.PrevEpochHash == hash.Zero {
+			return ErrNonCanonicalEncoding
+		}
 	}
 	e.TxHash.SetBytes(buf.Read(common.HashLength))
 	e.Extra = buf.Read(len(raw) - buf.Position())
