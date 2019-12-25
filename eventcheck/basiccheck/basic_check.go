@@ -21,6 +21,7 @@ var (
 	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
 	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
 	ErrIntrinsicGas   = errors.New("intrinsic gas too low")
+	ErrUnderpriced    = errors.New("event transaction underpriced")
 	ErrNotInited      = errors.New("event field is not initialized")
 	ErrZeroTime       = errors.New("event has zero timestamp")
 	ErrNegativeValue  = errors.New("negative value")
@@ -53,6 +54,9 @@ func (v *Checker) validateTx(tx *types.Transaction) error {
 	}
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
+	}
+	if tx.GasPrice().Cmp(params.MinGasPrice) < 0 {
+		return ErrUnderpriced
 	}
 	return nil
 }
