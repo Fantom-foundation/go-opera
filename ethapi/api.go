@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"math/big"
 	"strings"
 	"time"
@@ -1002,13 +1003,16 @@ func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{}
 		"creator":          header.Creator,
 		"prevEpochHash":    header.PrevEpochHash,
 		"parents":          eventIDsToHex(header.Parents),
-		"gasPowerLeft":     header.GasPowerLeft,
-		"gasPowerUsed":     header.GasPowerUsed,
 		"lamport":          header.Lamport,
 		"claimedTime":      header.ClaimedTime,
 		"medianTime":       header.MedianTime,
 		"extraData":        hexutil.Bytes(header.Extra),
 		"transactionsRoot": hexutil.Bytes(header.TxHash.Bytes()),
+		"gasPowerLeft": map[string]interface{}{
+			"shortTerm": header.GasPowerLeft.Gas[idx.ShortTermGas],
+			"longTerm":  header.GasPowerLeft.Gas[idx.LongTermGas],
+		},
+		"gasPowerUsed": header.GasPowerUsed,
 	}
 }
 
