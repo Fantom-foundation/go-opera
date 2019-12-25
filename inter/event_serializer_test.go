@@ -18,6 +18,7 @@ func TestEventHeaderDataSerialization(t *testing.T) {
 	ee := map[string]EventHeaderData{
 		"empty": EventHeaderData{
 			Parents: hash.Events{},
+			TxHash:  EmptyTxHash,
 			Extra:   []uint8{},
 		},
 		"max": EventHeaderData{

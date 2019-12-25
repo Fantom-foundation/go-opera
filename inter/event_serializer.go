@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
-	//	"github.com/Fantom-foundation/go-lachesis/utils"
 	"github.com/Fantom-foundation/go-lachesis/utils/fast"
 )
 
@@ -108,6 +107,9 @@ func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
 
 // MarshalBinary implements encoding.BinaryMarshaler interface.
 func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
+	isPrevEpochHashEmpty := (e.PrevEpochHash == hash.Zero)
+	isTxHashEmpty := (e.TxHash == EmptyTxHash)
+
 	fields64 := []uint64{
 		e.GasPowerLeft.Gas[0],
 		e.GasPowerLeft.Gas[1],
@@ -126,11 +128,13 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 	}
 	fieldsBool := []bool{
 		e.IsRoot,
+		isPrevEpochHashEmpty,
+		isTxHashEmpty,
 	}
 
 	header3 := fast.NewBitArray(
-		4,                     // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
-		uint(len(fields64))+1, // 1 is a nonempty-PrevEpochHash flag
+		4, // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
+		uint(len(fields64)),
 	)
 	header2 := fast.NewBitArray(
 		2, // bits for storing sizes 1-4 of uint32 fields
@@ -175,14 +179,14 @@ func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
 		buf.Write(p.Bytes()[4:]) // without epoch
 	}
 
-	if e.PrevEpochHash != hash.Zero {
-		header3w.Push(1)
+	if !isPrevEpochHashEmpty {
 		buf.Write(e.PrevEpochHash.Bytes())
-	} else {
-		header3w.Push(0)
 	}
 
-	buf.Write(e.TxHash.Bytes())
+	if !isTxHashEmpty {
+		buf.Write(e.TxHash.Bytes())
+	}
+
 	buf.Write(e.Extra)
 
 	length := header3.Size() + header2.Size() + buf.Position()
@@ -209,6 +213,11 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 		}
 	}()
 
+	var (
+		isPrevEpochHashEmpty bool
+		isTxHashEmpty        bool
+	)
+
 	var parentCount uint32
 
 	fields64 := []*uint64{
@@ -229,11 +238,13 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 	}
 	fieldsBool := []*bool{
 		&e.IsRoot,
+		&isPrevEpochHashEmpty,
+		&isTxHashEmpty,
 	}
 
 	header3 := fast.NewBitArray(
-		4,                     // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
-		uint(len(fields64))+1, // 1 is a nonempty-PrevEpochHash flag
+		4, // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
+		uint(len(fields64)),
 	)
 	header2 := fast.NewBitArray(
 		2, // bits for storing sizes 1-4 of uint32 fields
@@ -275,13 +286,22 @@ func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
 		copy(e.Parents[i][4:], buf.Read(common.HashLength-4)) // without epoch
 	}
 
-	if header3r.Pop() > 0 {
+	if !isPrevEpochHashEmpty {
 		e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
 		if e.PrevEpochHash == hash.Zero {
 			return ErrNonCanonicalEncoding
 		}
 	}
-	e.TxHash.SetBytes(buf.Read(common.HashLength))
+
+	if !isTxHashEmpty {
+		e.TxHash.SetBytes(buf.Read(common.HashLength))
+		if e.TxHash == EmptyTxHash {
+			return ErrNonCanonicalEncoding
+		}
+	} else {
+		e.TxHash = EmptyTxHash
+	}
+
 	e.Extra = buf.Read(len(raw) - buf.Position())
 
 	return nil
