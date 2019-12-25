@@ -11,7 +11,7 @@ import (
 
 // EmitterConfig is the configuration of events emitter.
 type EmitterConfig struct {
-	Coinbase common.Address `json:"coinbase"`
+	Validator common.Address `json:"validator"`
 
 	MinEmitInterval time.Duration `json:"minEmitInterval"` // minimum event emission interval
 	MaxEmitInterval time.Duration `json:"maxEmitInterval"` // maximum event emission interval

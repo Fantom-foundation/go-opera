@@ -104,7 +104,7 @@ func init() {
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
-		coinbaseFlag,
+		validatorFlag,
 	}
 
 	rpcFlags = []cli.Flag{
@@ -231,7 +231,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
 		ks = keystores[0].(*keystore.KeyStore)
 	}
-	setCoinbase(ctx, ks, &gossipCfg.Emitter)
+	setValidator(ctx, ks, &gossipCfg.Emitter)
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for

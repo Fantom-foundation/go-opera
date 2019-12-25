@@ -61,8 +61,8 @@ type Emitter struct {
 
 	world EmitterWorld
 
-	coinbase   common.Address
-	coinbaseMu sync.RWMutex
+	creator   common.Address
+	creatorMu sync.RWMutex
 
 	syncStatus selfForkProtection
 
@@ -95,6 +95,7 @@ func NewEmitter(
 		net:      &config.Net,
 		config:   &config.Emitter,
 		world:    world,
+		creator:  config.Emitter.Validator,
 		gasRate:  metrics.NewMeterForced(),
 		txTime:   txTime,
 		Periodic: logger.Periodic{Instance: loggerInstance},
@@ -147,18 +148,18 @@ func (em *Emitter) StopEventEmission() {
 	em.wg.Wait()
 }
 
-// SetCoinbase sets event creator.
-func (em *Emitter) SetCoinbase(addr common.Address) {
-	em.coinbaseMu.Lock()
-	defer em.coinbaseMu.Unlock()
-	em.coinbase = addr
+// SetValidator sets event creator.
+func (em *Emitter) SetValidator(addr common.Address) {
+	em.creatorMu.Lock()
+	defer em.creatorMu.Unlock()
+	em.creator = addr
 }
 
-// GetCoinbase gets event creator.
-func (em *Emitter) GetCoinbase() common.Address {
-	em.coinbaseMu.RLock()
-	defer em.coinbaseMu.RUnlock()
-	return em.coinbase
+// GetValidator gets event creator.
+func (em *Emitter) GetValidator() common.Address {
+	em.creatorMu.RLock()
+	defer em.creatorMu.RUnlock()
+	return em.creator
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
@@ -190,7 +191,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 }
 
 func (em *Emitter) myStakerID() (idx.StakerID, bool) {
-	coinbase := em.GetCoinbase()
+	coinbase := em.GetValidator()
 
 	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
@@ -386,7 +387,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
-	coinbase := em.GetCoinbase()
+	coinbase := em.GetValidator()
 	signer := func(data []byte) (sig []byte, err error) {
 		acc := accounts.Account{
 			Address: coinbase,

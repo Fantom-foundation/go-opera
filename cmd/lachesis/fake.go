@@ -30,12 +30,12 @@ func addFakeAccount(ctx *cli.Context, stack *node.Node) {
 		return
 	}
 
-	key := getFakeCoinbase(ctx)
+	key := getFakeValidator(ctx)
 	coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
-	log.Info("Unlocked fake coinbase", "address", coinbase.Address.Hex())
+	log.Info("Unlocked fake validator", "address", coinbase.Address.Hex())
 }
 
-func getFakeCoinbase(ctx *cli.Context) *ecdsa.PrivateKey {
+func getFakeValidator(ctx *cli.Context) *ecdsa.PrivateKey {
 	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
 		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)

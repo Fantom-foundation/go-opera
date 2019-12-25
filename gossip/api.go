@@ -17,14 +17,19 @@ func NewPublicEthereumAPI(s *Service) *PublicEthereumAPI {
 	return &PublicEthereumAPI{s}
 }
 
-// Etherbase is the address that mining rewards will be send to.
+// Etherbase is the validator address
 func (api *PublicEthereumAPI) Etherbase() (common.Address, error) {
-	return api.s.emitter.GetCoinbase(), nil
+	return api.Validator()
 }
 
-// Coinbase is the address that mining rewards will be send to (alias for Etherbase)
+// Coinbase is the validator address
 func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
-	return api.s.emitter.GetCoinbase(), nil
+	return api.Validator()
+}
+
+// Validator is the validator address
+func (api *PublicEthereumAPI) Validator() (common.Address, error) {
+	return api.s.emitter.GetValidator(), nil
 }
 
 // Hashrate returns the POW hashrate

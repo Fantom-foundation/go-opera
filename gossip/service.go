@@ -281,7 +281,7 @@ func (s *Service) Start(srv *p2p.Server) error {
 	s.serverPool.start(srv, s.Topic)
 
 	s.emitter = s.makeEmitter()
-	s.emitter.SetCoinbase(s.config.Emitter.Coinbase)
+	s.emitter.SetValidator(s.config.Emitter.Validator)
 	s.emitter.StartEventEmission()
 
 	return nil

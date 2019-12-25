@@ -20,7 +20,7 @@ func TestFakeNetFlag(t *testing.T) {
 		"console")
 
 	// Gather all the infos the welcome message needs to contain
-	cliSetFakeCoinbase(cli, "1/3")
+	cliSetFakeValidator(cli, "1/3")
 	cli.SetTemplateFunc("goos", func() string { return runtime.GOOS })
 	cli.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
 	cli.SetTemplateFunc("gover", runtime.Version)
@@ -46,7 +46,7 @@ at block: 0 ({{niltime}})
 	cli.ExpectExit()
 
 	wantMessages := []string{
-		"Unlocked fake coinbase",
+		"Unlocked fake validator",
 		"=0xF88D5892faF084DCF4143566d9C9b3F047c153Ca",
 	}
 	for _, m := range wantMessages {
@@ -56,7 +56,7 @@ at block: 0 ({{niltime}})
 	}
 }
 
-func cliSetFakeCoinbase(cli *testcli, fakenet string) {
+func cliSetFakeValidator(cli *testcli, fakenet string) {
 	n, _, err := parseFakeGen(fakenet)
 	if err != nil {
 		panic(err)
