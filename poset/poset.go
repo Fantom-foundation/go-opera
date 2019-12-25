@@ -169,14 +169,14 @@ func (p *Poset) processKnownRoots() *election.Res {
 			p.Log.Debug("Calculate root votes in new election", "root", it.ID.String())
 			decided = p.processRoot(it.Slot.Frame, it.Slot.Validator, it.ID)
 			if decided != nil {
-				break
+				return decided
 			}
 		}
 		if len(frameRoots) == 0 {
 			break
 		}
 	}
-	return decided
+	return nil
 }
 
 // ProcessEvent takes event into processing.

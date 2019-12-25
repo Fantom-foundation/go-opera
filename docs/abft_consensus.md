@@ -81,7 +81,6 @@ all other nodes will calculate exactly the same color, unless more than 1/3W are
 This property of the coloring is the core of consensus algorithm.
 
 ```go
-COIN_ROUND=10
 function decideRoots
     for x range roots: lowestNotDecidedFrame + 1 to up
         for y range roots: x.frame + 1 to up
@@ -109,16 +108,6 @@ function decideRoots
                 if noVotes >= QUORUM
                     x.candidate = FALSE // decided as a non-candidate
                     break
-                // special rules of coin round (for too-long elections)
-                if round % COIN_ROUND == 0
-                    if x.candidate == nil
-                        // vote pseudorandomly
-                        y.vote[x] = first bit of y.hash
-                    // if x.candidate != nil, do vote normally (as if it isn't coin round)
-                    
-                    // never decide in coin round (similar to first round)
-                    // even if quorum is observed
-                    x.candidate = nil
 ```
 
 Once we have a coloring, identical on all the nodes, it allows us to define Atropos as one
@@ -164,12 +153,9 @@ by ```forklessCause``` relation, to prevent deciding differently due to forks.
 Moreover, non-existing events (from an offline validator) will be decided NO unanimously.
 This way, non-existing event cannot get {decided as candidate} color,
 and hence cannot become Atropos.
-- Technically, the election may take forever. That's why coin round is used -
-every 10th round the votes are pseudorandom, so there's a chance that QUORUM of
-votes will be the same, which will always end the election.
-Event hash may be brute forced to delay the decision,
-but we suppose that less than 1/3W are Byzantine.
-Practically, however, all the elections end before the coin round, mostly in 2nd round.
+- Technically, the election may take forever. Practically, however, the elections end mostly in 2nd or 3rd round.
+It would be possible to add a round wtih pseudo-random votes every C's round,
+but it was considered as an unnecessary complexity.
 
 ## Atropos calculation example
 

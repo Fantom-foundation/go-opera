@@ -8,11 +8,11 @@ import (
 )
 
 // ProcessRoot calculates Atropos votes only for the new root.
-// If this root observes that the current election is decided, then @return decided Atropos
+// If this root observes that the current election is decided, then return decided Atropos
 func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
-	if len(el.decidedRoots) == el.validators.Len() {
-		// current election is already decided
-		return el.chooseAtropos()
+	res, err := el.chooseAtropos()
+	if err != nil || res != nil {
+		return res, err
 	}
 
 	if newRoot.Slot.Frame <= el.frameToDecide {
@@ -110,10 +110,6 @@ func (el *Election) ProcessRoot(newRoot RootAndSlot) (*Res, error) {
 		el.votes[vid] = vote
 	}
 
-	frameDecided := len(el.decidedRoots) == el.validators.Len()
-	if frameDecided {
-		return el.chooseAtropos()
-	}
-
-	return nil, nil
+	// check if election is decided
+	return el.chooseAtropos()
 }

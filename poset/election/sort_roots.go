@@ -2,62 +2,24 @@ package election
 
 import (
 	"errors"
-	"sort"
-
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 )
-
-type sortedRoot struct {
-	stake pos.Stake
-	root  hash.Event
-}
-type sortedRoots []sortedRoot
-
-func (s sortedRoots) Len() int {
-	return len(s)
-}
-func (s sortedRoots) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-// compare by stake amount, root hash
-func (s sortedRoots) Less(i, j int) bool {
-	if s[i].stake != s[j].stake {
-		return s[i].stake > s[j].stake
-	}
-	return s[i].root.Big().Cmp(s[j].root.Big()) > 0
-}
 
 // Chooses the decided "yes" roots with the greatest stake amount.
 // This root serves as a "checkpoint" within DAG, as it's guaranteed to be final and consistent unless more than 1/3W are Byzantine.
 // Other validators will come to the same Atropos not later than current highest frame + 2.
 func (el *Election) chooseAtropos() (*Res, error) {
-	finalRoots := make(sortedRoots, 0, el.validators.Len())
-	// fill yesRoots
-	for _, validator := range el.validators.IDs() {
-		stake := el.validators.Get(validator)
+	// iterate until Yes root is met, which will be Atropos. I.e. not necessarily all the roots must be decided
+	for _, validator := range el.validators.SortedIDs() {
 		vote, ok := el.decidedRoots[validator]
 		if !ok {
-			el.Log.Crit("Called before all the roots are decided")
+			return nil, nil // not decided
 		}
 		if vote.yes {
-			finalRoots = append(finalRoots, sortedRoot{
-				root:  vote.observedRoot,
-				stake: stake,
-			})
+			return &Res{
+				Frame:   el.frameToDecide,
+				Atropos: vote.observedRoot,
+			}, nil
 		}
 	}
-	if len(finalRoots) == 0 {
-		return nil, errors.New("All the roots aren't decided as 'yes', which is possible only if more than 1/3W are Byzantine")
-	}
-
-	// sort by stake amount, root hash
-	sort.Sort(finalRoots)
-
-	// take root with greatest stake
-	return &Res{
-		Frame:   el.frameToDecide,
-		Atropos: finalRoots[0].root,
-	}, nil
+	return nil, errors.New("All the roots are decided as 'no', which is possible only if more than 1/3W are Byzantine")
 }

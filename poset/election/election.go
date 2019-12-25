@@ -7,9 +7,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
-// TODO implement&test coinRound
-//const coinRound = 10 // every 10th round is a round with pseudorandom votes
-
 type (
 	// Election is cached data of election algorithm.
 	Election struct {
