@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/metrics"
@@ -23,7 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/debug"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/integration"
-	"github.com/Fantom-foundation/go-lachesis/params"
+	_ "github.com/Fantom-foundation/go-lachesis/version"
 )
 
 const (
@@ -156,8 +157,11 @@ func init() {
 		consoleCommand,
 		attachCommand,
 		javascriptCommand,
-		// See config.go
+		// See config.go:
 		dumpConfigCommand,
+		// See misccmd.go:
+		versionCommand,
+		licenseCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 

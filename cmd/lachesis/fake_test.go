@@ -31,7 +31,6 @@ func TestFakeNetFlag(t *testing.T) {
 	waitForEndpoint(t, filepath.Join(cli.Datadir, "lachesis.ipc"), 10*time.Second)
 
 	// Verify the actual welcome message to the required template
-	// TODO: clone (or PR) "github.com/ethereum/go-ethereum/console" to customize welcome message
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 

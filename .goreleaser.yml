@@ -2,57 +2,11 @@ before:
   hooks:
     - make clean proto vendor
 builds:
-  - main: ./cmd/dummy/main.go
-    binary: go-lachesis-dummy
-    ldflags:
-      - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/version.GitCommit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-    # hooks:
-    #   pre: make clean proto vendor
-  - main: ./cmd/dummy_client/main.go
-    binary: go-lachesis-dummy-client
-    ldflags:
-      - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/version.GitCommit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
   - main: ./cmd/lachesis/main.go
     binary: go-lachesis
     ldflags:
       - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/version.GitCommit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - main: ./cmd/lachesis/main_profile.go
-    binary: go-lachesis-with-profiler
-    ldflags:
-      - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/version.GitCommit={{ .ShortCommit }}
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-  - main: ./cmd/network/main.go
-    binary: go-lachesis-network
-    ldflags:
-      - -linkmode external -extldflags -static -s -w
-      - -X github.com/Fantom-foundation/go-lachesis/version.GitCommit={{ .ShortCommit }}
+      - -X main.gitCommit={{ .ShortCommit }}
     env:
       - CGO_ENABLED=0
     goos:
