@@ -38,7 +38,6 @@ func TestConsoleWelcome(t *testing.T) {
 	cli.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
-	// TODO: clone (or PR) "github.com/ethereum/go-ethereum/console" to customize welcome message
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 

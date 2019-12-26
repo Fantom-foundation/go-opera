@@ -60,7 +60,7 @@ do
 
     echo "#!/bin/bash" > ${prog}
     echo "${EXEC} --fakenet $i/$N --port ${localport} \
-      --rpc --rpcapi \"eth,debug,admin,web3\" --rpcport ${port} --nousb --verbosity 3 \
+      --rpc --rpcapi \"eth,ftm,debug,admin,web3\" --rpcport ${port} --nousb --verbosity 3 \
       --datadir ${LACHESIS_BASE_DIR}/lach$i" >> ${prog}
     chmod +x ${prog}
     progs+="\"./${prog}\" "

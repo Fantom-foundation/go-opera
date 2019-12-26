@@ -10,10 +10,11 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
-	"github.com/Fantom-foundation/go-lachesis/params"
+	_ "github.com/Fantom-foundation/go-lachesis/version"
 )
 
 var (

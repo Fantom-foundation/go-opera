@@ -51,7 +51,7 @@ returns Lachesis event by hash or short ID
 ##### Parameters
 
 1.  `String`, - full event ID (hex-encoded 32 bytes) or short event ID.
-2.  `Boolean` - If true it returns the full transaction objects, if false only the hashes of the transactions.
+2.  `Boolean`, - If true it returns the full transaction objects, if false only the hashes of the transactions.
 
 ##### Returns
 
@@ -156,3 +156,38 @@ returns event's consensus time, if event is confirmed (more accurate than `Media
 ###### Example with full ID
 
     curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getConsensusTime","params":["0x00000001000000039bcda184cc9e2b20386dcee5f39fe3c4f36f7b47c297ff2b"],"id":1}' localhost:18545
+
+#### ftm_currentEpoch
+
+returns current epoch number
+
+##### Returns
+
+`String` - epoch number (HEX-encoded)
+
+##### Example
+
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_currentEpoch","id":1}' localhost:18545
+
+#### ftm_getEpochStats
+
+returns epoch statistics
+
+##### Returns
+
+`Object` - An status object, or null when no epoch was found:
+
+-   `epoch`: `QUANTITY` - the epoch number.
+-   `start`: `QUANTITY` - the UnixNano timestamp of epoch's start time.
+-   `end`: `QUANTITY` - the UnixNano timestamp of epoch's end time.
+-   `totalFee`: `QUANTITY` - the total epoch's fee.
+-   `totalBaseRewardWeight`: `QUANTITY` - the total epoch's base reward weight.
+-   `totalTxRewardWeight`: `QUANTITY` - the total epoch's tx reward weight.
+
+##### Parameters
+
+1.  `String`, - "latest" for last epoch or epoch number (HEX-encoded) for a specific epoch.
+
+##### Example
+
+	curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getEpochStats","params":["latest"],"id":1}' localhost:18545
