@@ -5,6 +5,8 @@ package gossip
 */
 
 import (
+	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -53,7 +55,7 @@ func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.StakerID, id hash.Event) 
 
 	key := from.Bytes()
 	if err := es.Tips.Put(key, id.Bytes()); err != nil {
-		s.Log.Crit("Failed to put key-value", "err", err)
+		return
 	}
 }
 
@@ -67,7 +69,7 @@ func (s *Store) GetLastEvent(epoch idx.Epoch, from idx.StakerID) *hash.Event {
 	key := from.Bytes()
 	idBytes, err := es.Tips.Get(key)
 	if err != nil {
-		s.Log.Crit("Failed to get key-value", "err", err)
+		return nil
 	}
 	if idBytes == nil {
 		return nil
@@ -85,7 +87,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 
 	key := h.Bytes()
 
-	s.set(es.Headers, key, e)
+	s.tmpDbSet(es.Headers, key, e)
 
 	// Save to LRU cache.
 	if e != nil && s.cache.EventsHeaders != nil {
@@ -111,7 +113,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 		return nil
 	}
 
-	w, _ := s.get(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
+	w, _ := s.tmpDbGet(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
 
 	// Save to LRU cache.
 	if w != nil && s.cache.EventsHeaders != nil {
@@ -131,11 +133,40 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	key := h.Bytes()
 	err := es.Headers.Delete(key)
 	if err != nil {
-		s.Log.Crit("Failed to delete key", "err", err)
+		return
 	}
 
 	// Remove from LRU cache.
 	if s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Remove(h)
 	}
+}
+
+// tmpDbSet RLP value, ignore if DB is closed
+func (s *Store) tmpDbSet(table kvdb.KeyValueStore, key []byte, val interface{}) {
+	buf, err := rlp.EncodeToBytes(val)
+	if err != nil {
+		s.Log.Crit("Failed to encode rlp", "err", err)
+	}
+
+	if err := table.Put(key, buf); err != nil {
+		return
+	}
+}
+
+// tmpDbGet RLP value, return nil if DB is closed
+func (s *Store) tmpDbGet(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
+	buf, err := table.Get(key)
+	if err != nil {
+		return nil // return nil if DB is closed
+	}
+	if buf == nil {
+		return nil
+	}
+
+	err = rlp.DecodeBytes(buf, to)
+	if err != nil {
+		s.Log.Crit("Failed to decode rlp", "err", err, "size", len(buf))
+	}
+	return to
 }
