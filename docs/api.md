@@ -44,7 +44,7 @@ entity.
 
 ## New API calls (comparing to web3 API)
 
-#### dag_getEvent
+#### ftm_getEvent
 
 returns Lachesis event by hash or short ID
 
@@ -83,7 +83,7 @@ returns Lachesis event by hash or short ID
 
     curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getEvent","params":["0x00000001000000039bcda184cc9e2b20386dcee5f39fe3c4f36f7b47c297ff2b", true],"id":1}' localhost:18545
 
-#### dag_getEventHeader
+#### ftm_getEventHeader
 
 returns the Lachesis event header by hash or short ID.
 
@@ -115,13 +115,13 @@ returns the Lachesis event header by hash or short ID.
 
 ##### Example with short ID
 
-    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_getEventHeader","params":["1:3:a2395846"],"id":1}' localhost:18545
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getEventHeader","params":["1:3:a2395846"],"id":1}' localhost:18545
 
 ##### Example with full ID
 
-    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_getEventHeader","params":["0x00000001000000039bcda184cc9e2b20386dcee5f39fe3c4f36f7b47c297ff2b"],"id":1}' localhost:18545
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getEventHeader","params":["0x00000001000000039bcda184cc9e2b20386dcee5f39fe3c4f36f7b47c297ff2b"],"id":1}' localhost:18545
 
-#### dag_getHeads
+#### ftm_getHeads
 
 returns IDs of all the epoch events with no descendants in a given epoch
 
@@ -135,9 +135,9 @@ returns IDs of all the epoch events with no descendants in a given epoch
 
 ##### Example
 
-    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_getHeads","params":["latest"],"id":1}' localhost:18545
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getHeads","params":["latest"],"id":1}' localhost:18545
 
-#### dag_getConsensusTime
+#### ftm_getConsensusTime
 
 returns event's consensus time, if event is confirmed (more accurate than `MedianTime`)
 
@@ -151,13 +151,13 @@ returns event's consensus time, if event is confirmed (more accurate than `Media
 
 ##### Example with short ID
 
-    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_getConsensusTime","params":["1:3:a2395846"],"id":1}' localhost:18545
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getConsensusTime","params":["1:3:a2395846"],"id":1}' localhost:18545
 
 ###### Example with full ID
 
-    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_getConsensusTime","params":["0x00000001000000039bcda184cc9e2b20386dcee5f39fe3c4f36f7b47c297ff2b"],"id":1}' localhost:18545
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getConsensusTime","params":["0x00000001000000039bcda184cc9e2b20386dcee5f39fe3c4f36f7b47c297ff2b"],"id":1}' localhost:18545
 
-#### dag_currentEpoch
+#### ftm_currentEpoch
 
 returns current epoch number
 
@@ -167,17 +167,17 @@ returns current epoch number
 
 ##### Example
 
-    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_currentEpoch","id":1}' localhost:18545
+    curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_currentEpoch","id":1}' localhost:18545
 
-#### dag_getEpochStats
+#### ftm_getEpochStats
 
 returns epoch statistics
 
 ##### Returns
 
-`Object` - An event object, or null when no event was found:
+`Object` - An status object, or null when no epoch was found:
 
--   `epoch`: `QUANTITY` - the event epoch number.
+-   `epoch`: `QUANTITY` - the epoch number.
 -   `start`: `QUANTITY` - the UnixNano timestamp of epoch's start time.
 -   `end`: `QUANTITY` - the UnixNano timestamp of epoch's end time.
 -   `totalFee`: `QUANTITY` - the total epoch's fee.
@@ -190,4 +190,4 @@ returns epoch statistics
 
 ##### Example
 
-	curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"dag_getEpochStats","params":["latest"],"id":1}' localhost:18545
+	curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"ftm_getEpochStats","params":["latest"],"id":1}' localhost:18545
