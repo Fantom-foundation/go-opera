@@ -18,6 +18,7 @@ func TestEventHeaderDataSerialization(t *testing.T) {
 	ee := map[string]EventHeaderData{
 		"empty": EventHeaderData{
 			Parents: hash.Events{},
+			TxHash:  EmptyTxHash,
 			Extra:   []uint8{},
 		},
 		"max": EventHeaderData{
@@ -156,6 +157,7 @@ func FakeEvent() *Event {
 	e.GasPowerLeft.Gas[1] = 100
 	e.Creator = hash.FakePeer()
 	e.Parents = hash.FakeEvents(8)
+	e.PrevEpochHash = hash.FakeHash()
 	e.Extra = make([]byte, 10, 10)
 	e.Sig = []byte{}
 

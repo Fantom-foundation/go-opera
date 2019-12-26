@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 )
 
@@ -98,7 +99,7 @@ func newFilter(backend Backend, addresses []common.Address, topics [][]common.Ha
 // first block that contains matches, updating the start of the filter accordingly.
 func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	// If we're doing singleton block filtering, execute and return
-	if f.block != (common.Hash{}) {
+	if f.block != hash.Zero {
 		header, err := f.backend.HeaderByHash(ctx, f.block)
 		if err != nil {
 			return nil, err
@@ -191,7 +192,7 @@ func (f *Filter) checkMatches(ctx context.Context, header *evmcore.EvmHeader) (l
 	logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
-		if logs[0].TxHash == (common.Hash{}) {
+		if logs[0].TxHash == hash.Zero {
 			receipts, err := f.backend.GetReceipts(ctx, header.Hash)
 			if err != nil {
 				return nil, err
