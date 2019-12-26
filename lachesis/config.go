@@ -88,6 +88,7 @@ type Config struct {
 	Economy EconomyConfig
 }
 
+// EvmChainConfig returns ChainConfig for transaction signing and execution
 func (c *Config) EvmChainConfig() *ethparams.ChainConfig {
 	cfg := *ethparams.AllEthashProtocolChanges
 	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
