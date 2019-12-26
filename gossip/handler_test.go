@@ -144,7 +144,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	)
 
 	// create stores
-	genesisAtropos, genesisEvmState, err := store.ApplyGenesis(&net)
+	genesisAtropos, genesisEvmState, _, err := store.ApplyGenesis(&net)
 	assertar.NoError(err)
 
 	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)
@@ -155,9 +155,9 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	engine.Bootstrap(inter.ConsensusCallbacks{})
 
 	// create service
-	coinbase := net.Genesis.Alloc.GValidators.Addresses()[0]
+	creator := net.Genesis.Alloc.Validators.Addresses()[0]
 	ctx := &node.ServiceContext{
-		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, coinbase),
+		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, creator),
 	}
 	svc, err := NewService(ctx, config, store, engine)
 	assertar.NoError(err)
@@ -182,7 +182,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 
 	// start emitter
 	svc.emitter = svc.makeEmitter()
-	svc.emitter.SetCoinbase(coinbase)
+	svc.emitter.SetValidator(creator)
 
 	emittedEvents := make([]*inter.Event, 0)
 	for i := 0; i < broadcastExpected; i++ {

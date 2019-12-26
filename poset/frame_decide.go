@@ -3,6 +3,8 @@ package poset
 import (
 	"math"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -30,15 +32,14 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 	blockEvents := make([]*inter.EventHeaderData, 0, 50*p.Validators.Len())
 
 	atroposHighestBefore := p.vecClock.GetHighestBeforeAllBranches(atropos)
-	validatorIdxs := p.Validators.Idxs()
 	var highestLamport idx.Lamport
 	var lowestLamport idx.Lamport
 	var confirmedNum int
 
 	// cheaters are ordered deterministically
-	cheaters = make([]idx.StakerID, 0, len(validatorIdxs))
-	for creator, creatorIdx := range validatorIdxs {
-		if atroposHighestBefore.Get(creatorIdx).IsForkDetected() {
+	cheaters = make([]idx.StakerID, 0, p.Validators.Len())
+	for creatorIdx, creator := range p.Validators.SortedIDs() {
+		if atroposHighestBefore.Get(idx.Validator(creatorIdx)).IsForkDetected() {
 			cheaters = append(cheaters, creator)
 		}
 	}
@@ -55,7 +56,7 @@ func (p *Poset) confirmBlock(frame idx.Frame, atropos hash.Event) (block *inter.
 		}
 
 		// but not all the events are included into a block
-		creatorHighest := atroposHighestBefore.Get(validatorIdxs[confirmedEvent.Creator])
+		creatorHighest := atroposHighestBefore.Get(p.Validators.GetIdx(confirmedEvent.Creator))
 		fromCheater := creatorHighest.IsForkDetected()
 		// seqDepth is the depth in of this event in "chain" of self-parents of this creator
 		seqDepth := creatorHighest.Seq - confirmedEvent.Seq
@@ -101,9 +102,11 @@ func (p *Poset) onFrameDecided(frame idx.Frame, atropos hash.Event) bool {
 
 	// new checkpoint
 	var sealEpoch bool
+	var appHash common.Hash
 	p.Checkpoint.LastBlockN++
 	if p.callback.ApplyBlock != nil {
-		p.Checkpoint.AppHash, sealEpoch = p.callback.ApplyBlock(block, frame, cheaters)
+		appHash, sealEpoch = p.callback.ApplyBlock(block, frame, cheaters)
+		p.Checkpoint.AppHash = hash.Of(p.Checkpoint.AppHash.Bytes(), appHash.Bytes())
 	}
 	p.Checkpoint.LastAtropos = atropos
 	p.saveCheckpoint()

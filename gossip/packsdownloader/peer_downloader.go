@@ -376,8 +376,6 @@ func (d *PeerPacksDownloader) sweepKnown() {
 
 			if !allKnown {
 				log.Error("Peer downloader error: met pack with an unknown head before pack with only known heads. Faulty peer?", "peer", d.peer.ID)
-				d.dropPeer(d.peer.ID)
-				return
 			}
 		} else if allKnown {
 			allKnownMet = true

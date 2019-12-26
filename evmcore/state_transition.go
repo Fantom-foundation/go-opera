@@ -213,6 +213,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, fee *big.
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
+	// use 10% of not used gas
+	if err = st.useGas(st.gas / 10); err != nil {
+		return nil, 0, common.Big0, false, err
+	}
 	if vmerr != nil {
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't

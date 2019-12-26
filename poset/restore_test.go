@@ -48,14 +48,14 @@ func TestRestore(t *testing.T) {
 		SetName("generator")
 
 	const epochs = 2
-	var epochLen = 30
+	var maxEpochBlocks = 30
 
-	// seal epoch on decided frame == epochLen
+	// seal epoch on decided frame == maxEpochBlocks
 	for _, poset := range posets {
 		applyBlock := poset.callback.ApplyBlock
 		poset.callback.ApplyBlock = func(block *inter.Block, decidedFrame idx.Frame, cheaters inter.Cheaters) (common.Hash, bool) {
 			h, _ := applyBlock(block, decidedFrame, cheaters)
-			return h, decidedFrame == idx.Frame(epochLen)
+			return h, decidedFrame == idx.Frame(maxEpochBlocks)
 		}
 	}
 
@@ -63,7 +63,7 @@ func TestRestore(t *testing.T) {
 	var ordered []*inter.Event
 	for epoch := idx.Epoch(1); epoch <= idx.Epoch(epochs); epoch++ {
 		stability := rand.New(rand.NewSource(int64(epoch)))
-		_ = inter.ForEachRandEvent(nodes, epochLen*4, COUNT, stability, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, maxEpochBlocks*4, COUNT, stability, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				inputs[GENERATOR].SetEvent(e)
 				assertar.NoError(
@@ -133,7 +133,7 @@ func TestRestore(t *testing.T) {
 		}
 	}
 
-	if !assertar.Equal(epochLen*epochs, len(posets[EXPECTED].blocks)) {
+	if !assertar.Equal(maxEpochBlocks*epochs, len(posets[EXPECTED].blocks)) {
 		return
 	}
 	compareBlocks(assertar, posets[EXPECTED], posets[RESTORED])
@@ -182,12 +182,12 @@ func TestDbFailure(t *testing.T) {
 	posets[GENERATOR].store.
 		SetName("generator")
 
-	epochLen := int(posets[GENERATOR].dag.EpochLen)
+	maxEpochBlocks := int(posets[GENERATOR].dag.MaxEpochBlocks)
 
 	stability := rand.New(rand.NewSource(1))
 	// create events on etalon poset
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, epochLen-1, COUNT, stability, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, maxEpochBlocks-1, COUNT, stability, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 

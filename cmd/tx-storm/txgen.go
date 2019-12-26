@@ -1,12 +1,12 @@
 package main
 
 import (
+	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/Fantom-foundation/go-lachesis/cmd/tx-storm/meta"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -115,7 +115,7 @@ func (g *generator) generate(position uint) *Transaction {
 	b += g.offset
 
 	nonce := position / count
-	amount := pos.StakeToBalance(pos.Stake(1))
+	amount := big.NewInt(1e6)
 
 	tx := &Transaction{
 		Raw:  from.TransactionTo(to, nonce, amount),

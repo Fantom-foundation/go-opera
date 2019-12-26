@@ -23,9 +23,9 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip
 
 	// write genesis
 
-	genesisAtropos, genesisState, err := gdb.ApplyGenesis(&gossipCfg.Net)
+	genesisAtropos, genesisState, isNew, err := gdb.ApplyGenesis(&gossipCfg.Net)
 	if err != nil {
-		utils.Fatalf("Failed to write EVM genesis state: %v", err)
+		utils.Fatalf("Failed to write Gossip genesis state: %v", err)
 	}
 
 	err = cdb.ApplyGenesis(&gossipCfg.Net.Genesis, genesisAtropos, genesisState)
@@ -33,7 +33,16 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip
 		utils.Fatalf("Failed to write Poset genesis state: %v", err)
 	}
 
-	dbs.Flush(genesisAtropos.Bytes())
+	err = dbs.Flush(genesisAtropos.Bytes())
+	if err != nil {
+		utils.Fatalf("Failed to flush genesis state: %v", err)
+	}
+
+	if isNew {
+		log.Info("Applied genesis state", "hash", cdb.GetGenesisHash().String())
+	} else {
+		log.Info("Genesis state is already written", "hash", cdb.GetGenesisHash().String())
+	}
 
 	// create consensus
 	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)

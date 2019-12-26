@@ -13,6 +13,17 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 )
 
+// GenesisMismatchError is raised when trying to overwrite an existing
+// genesis block with an incompatible one.
+type GenesisMismatchError struct {
+	Stored, New common.Hash
+}
+
+// Error implements error interface.
+func (e *GenesisMismatchError) Error() string {
+	return fmt.Sprintf("database contains incompatible poset genesis (have %s, new %s)", e.Stored.String(), e.New.String())
+}
+
 // GenesisState stores state of previous Epoch
 type GenesisState struct {
 	Epoch       idx.Epoch
@@ -43,20 +54,22 @@ func calcGenesisHash(g *genesis.Genesis, genesisAtropos hash.Event, appHash comm
 	return s.GetGenesis().PrevEpoch.Hash()
 }
 
-// ApplyGenesis stores initial state.
+// ApplyGenesis writes initial state.
 func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, appHash common.Hash) error {
 	if g == nil {
 		return fmt.Errorf("genesis config shouldn't be nil")
 	}
-	if len(g.Alloc.GValidators) == 0 {
+	if len(g.Alloc.Validators) == 0 {
 		return fmt.Errorf("genesis validators shouldn't be empty")
 	}
 
-	if exist := s.GetGenesis(); exist != nil {
-		if exist.PrevEpoch.Hash() == calcGenesisHash(g, genesisAtropos, appHash) {
-			return nil
+	if stored := s.GetGenesis(); stored != nil {
+		storedHash := stored.PrevEpoch.Hash()
+		newHash := calcGenesisHash(g, genesisAtropos, appHash)
+		if storedHash != newHash {
+			return &GenesisMismatchError{newHash, storedHash}
 		}
-		return fmt.Errorf("other genesis was applied already")
+		return nil
 	}
 
 	e := &EpochState{}
@@ -64,7 +77,7 @@ func (s *Store) ApplyGenesis(g *genesis.Genesis, genesisAtropos hash.Event, appH
 		AppHash: appHash,
 	}
 
-	e.Validators = g.Alloc.GValidators.Validators().Copy()
+	e.Validators = g.Alloc.Validators.Validators().Copy()
 
 	// genesis object
 	e.EpochN = firstEpoch

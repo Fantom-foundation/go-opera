@@ -34,7 +34,7 @@ func TestPoset(t *testing.T) {
 
 	// create events on poset0
 	var ordered inter.Events
-	inter.ForEachRandEvent(nodes, int(posets[0].dag.EpochLen)-1, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(nodes, int(posets[0].dag.MaxEpochBlocks)-1, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			ordered = append(ordered, e)
 

@@ -11,7 +11,7 @@ import (
 
 // EmitterConfig is the configuration of events emitter.
 type EmitterConfig struct {
-	Coinbase common.Address `json:"coinbase"`
+	Validator common.Address `json:"validator"`
 
 	MinEmitInterval time.Duration `json:"minEmitInterval"` // minimum event emission interval
 	MaxEmitInterval time.Duration `json:"maxEmitInterval"` // maximum event emission interval
@@ -36,7 +36,7 @@ func DefaultEmitterConfig() EmitterConfig {
 		MinEmitInterval:            250 * time.Millisecond,
 		MaxEmitInterval:            10 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
-		MaxTxsFromSender:           2,
+		MaxTxsFromSender:           TxTurnNonces,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
 		EpochTailLength:            1,
 

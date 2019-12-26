@@ -47,6 +47,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	lachesisparams "github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
@@ -874,7 +875,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	if args.Gas != nil && uint64(*args.Gas) >= params.TxGas {
 		hi = uint64(*args.Gas)
 	} else {
-		hi = lachesisparams.MaxGasPowerUsed
+		hi = lachesisparams.MaxGasPowerUsed/2
 	}
 	if gasCap != nil && hi > gasCap.Uint64() {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
@@ -1002,13 +1003,16 @@ func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{}
 		"creator":          header.Creator,
 		"prevEpochHash":    header.PrevEpochHash,
 		"parents":          eventIDsToHex(header.Parents),
-		"gasPowerLeft":     header.GasPowerLeft,
-		"gasPowerUsed":     header.GasPowerUsed,
 		"lamport":          header.Lamport,
 		"claimedTime":      header.ClaimedTime,
 		"medianTime":       header.MedianTime,
 		"extraData":        hexutil.Bytes(header.Extra),
 		"transactionsRoot": hexutil.Bytes(header.TxHash.Bytes()),
+		"gasPowerLeft": map[string]interface{}{
+			"shortTerm": header.GasPowerLeft.Gas[idx.ShortTermGas],
+			"longTerm":  header.GasPowerLeft.Gas[idx.LongTermGas],
+		},
+		"gasPowerUsed": header.GasPowerUsed,
 	}
 }
 

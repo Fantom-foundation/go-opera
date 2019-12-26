@@ -28,5 +28,5 @@ func FakeAccounts(from, count int, balance *big.Int, stake *big.Int) VAccounts {
 		})
 	}
 
-	return VAccounts{accs, validators}
+	return VAccounts{Accounts: accs, Validators: validators, SfcContractAdmin: validators[0].Address}
 }

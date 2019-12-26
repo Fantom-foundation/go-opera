@@ -29,7 +29,7 @@ type (
 )
 
 var (
-	balanceToStakeRatio = big.NewInt(params.Ether / 1e6)
+	balanceToStakeRatio = big.NewInt(params.Ether / 1e3)
 )
 
 // BalanceToStake balance to validator's stake

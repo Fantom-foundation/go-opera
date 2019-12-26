@@ -99,8 +99,8 @@ func (e *EventHeaderData) NoTransactions() bool {
 // DataToSign returns data which must be signed to sign the event
 func (e *EventHeaderData) DataToSign() []byte {
 	buf := bytes.NewBuffer([]byte{})
-	buf.Write([]byte("Lachesis: I'm signing the Event"))
-	buf.Write(e.Hash().Bytes())
+	buf.Write([]byte("Lachesis: I'm signing the Event "))
+	buf.Write(e.calcHash().Bytes())
 	return buf.Bytes()
 }
 
@@ -158,15 +158,19 @@ func (e *Event) VerifySignature(address common.Address) bool {
  * Event ID (hash):
  */
 
-// CalcHash re-calculates event's ID
-func (e *EventHeaderData) CalcHash() hash.Event {
+func (e *EventHeaderData) calcHash() hash.Event {
 	hasher := sha3.NewLegacyKeccak256()
 	err := rlp.Encode(hasher, e)
 	if err != nil {
 		panic("can't encode: " + err.Error())
 	}
+	return hash.BytesToEvent(hasher.Sum(nil))
+}
+
+// CalcHash re-calculates event's ID
+func (e *EventHeaderData) CalcHash() hash.Event {
+	id := e.calcHash()
 	// return 24 bytes hash | epoch | lamport
-	id := hash.BytesToEvent(hasher.Sum(nil))
 	copy(id[0:4], e.Epoch.Bytes())
 	copy(id[4:8], e.Lamport.Bytes())
 	return id

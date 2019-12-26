@@ -24,12 +24,12 @@ func GetTestContractBinV1() []byte {
 }
 
 // ContractAddress is the SFC proxy contract address
-var ContractAddress = common.HexToAddress("0xfa00face00fc0000000000000000000000000100")
+var ContractAddress = common.HexToAddress("0xfc00face00000000000000000000000000000000")
 
 // the SFC contract first implementation address
-//var ContractAddress_v1 = common.HexToAddress("0xfa00beef0fc00000000000000000000000000101")
+var ContractAddressV1 = common.HexToAddress("0xfc00beef00000000000000000000000000000101")
 
-// AssembleStorage builds the genesis storage for the SFC contract
+// AssembleStorage builds genesis storage for the SFC contract
 func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
 	if storage == nil {
 		storage = make(map[common.Hash]common.Hash)

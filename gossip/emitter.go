@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/golang-lru"
 
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
@@ -32,6 +34,7 @@ const (
 	MimetypeEvent    = "application/event"
 	TxTimeBufferSize = 20000
 	TxTurnPeriod     = 4 * time.Second
+	TxTurnNonces     = 8
 )
 
 // EmitterWorld is emitter's external world
@@ -58,8 +61,8 @@ type Emitter struct {
 
 	world EmitterWorld
 
-	coinbase   common.Address
-	coinbaseMu sync.RWMutex
+	creator   common.Address
+	creatorMu sync.RWMutex
 
 	syncStatus selfForkProtection
 
@@ -92,6 +95,7 @@ func NewEmitter(
 		net:      &config.Net,
 		config:   &config.Emitter,
 		world:    world,
+		creator:  config.Emitter.Validator,
 		gasRate:  metrics.NewMeterForced(),
 		txTime:   txTime,
 		Periodic: logger.Periodic{Instance: loggerInstance},
@@ -144,18 +148,18 @@ func (em *Emitter) StopEventEmission() {
 	em.wg.Wait()
 }
 
-// SetCoinbase sets event creator.
-func (em *Emitter) SetCoinbase(addr common.Address) {
-	em.coinbaseMu.Lock()
-	defer em.coinbaseMu.Unlock()
-	em.coinbase = addr
+// SetValidator sets event creator.
+func (em *Emitter) SetValidator(addr common.Address) {
+	em.creatorMu.Lock()
+	defer em.creatorMu.Unlock()
+	em.creator = addr
 }
 
-// GetCoinbase gets event creator.
-func (em *Emitter) GetCoinbase() common.Address {
-	em.coinbaseMu.RLock()
-	defer em.coinbaseMu.RUnlock()
-	return em.coinbase
+// GetValidator gets event creator.
+func (em *Emitter) GetValidator() common.Address {
+	em.creatorMu.RLock()
+	defer em.creatorMu.RUnlock()
+	return em.creator
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
@@ -187,7 +191,7 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 }
 
 func (em *Emitter) myStakerID() (idx.StakerID, bool) {
-	coinbase := em.GetCoinbase()
+	coinbase := em.GetValidator()
 
 	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
@@ -199,7 +203,9 @@ func (em *Emitter) myStakerID() (idx.StakerID, bool) {
 }
 
 // safe for concurrent use
-func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr []idx.StakerID, validatorsArrStakes []pos.Stake, me idx.StakerID) bool {
+func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validatorsArr []idx.StakerID, validatorsArrStakes []pos.Stake, me idx.StakerID) bool {
+	turnHash := hash.Of(sender.Bytes(), bigendian.Int64ToBytes(accountNonce/TxTurnNonces), em.world.Engine.GetEpoch().Bytes())
+
 	var txTime time.Time
 	txTimeI, ok := em.txTime.Get(txHash)
 	if !ok {
@@ -210,13 +216,9 @@ func (em *Emitter) isMyTxTurn(txHash common.Hash, now time.Time, validatorsArr [
 	}
 
 	roundIndex := int((now.Sub(txTime) / TxTurnPeriod) % time.Duration(len(validatorsArr)))
-	prevRoundIndex := roundIndex
-	if prevRoundIndex > 0 {
-		prevRoundIndex--
-	}
-	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, txHash)
+	turns := utils.WeightedPermutation(roundIndex+1, validatorsArrStakes, turnHash)
 
-	return validatorsArr[turns[roundIndex]] == me || validatorsArr[turns[prevRoundIndex]] == me
+	return validatorsArr[turns[roundIndex]] == me
 }
 
 func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Transactions) *inter.Event {
@@ -250,7 +252,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 				break // txs are dependent, so break the loop
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
-			if !em.isMyTxTurn(tx.Hash(), now, validatorsArr, validatorsArrStakes, e.Creator) {
+			if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), now, validatorsArr, validatorsArrStakes, e.Creator) {
 				break // txs are dependent, so break the loop
 			}
 
@@ -271,11 +273,14 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 	vecClock := em.world.Engine.GetVectorIndex()
 	if vecClock != nil {
 		strategy = ancestor.NewCasualityStrategy(vecClock, em.world.Engine.GetValidators())
+		if rand.Intn(20) == 0 { // every 20th event uses random strategy is avoid repeating patterns in DAG
+			strategy = ancestor.NewRandomStrategy(rand.New(rand.NewSource(time.Now().UnixNano())))
+		}
 
 		// don't link to known cheaters
 		heads = vecClock.NoCheaters(selfParent, heads)
 		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myStakerID)
 			return nil, nil, false
 		}
 	} else {
@@ -325,7 +330,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		parentHeaders[i] = parent
 		if parentHeaders[i].Creator == myStakerID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "staker", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myStakerID)
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -382,7 +387,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
-	coinbase := em.GetCoinbase()
+	coinbase := em.GetValidator()
 	signer := func(data []byte) (sig []byte, err error) {
 		acc := accounts.Account{
 			Address: coinbase,
@@ -474,7 +479,7 @@ func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool
 
 // return true if event is in epoch tail (unlikely to confirm)
 func (em *Emitter) isEpochTail(e *inter.Event) bool {
-	return e.Frame >= em.net.Dag.EpochLen-em.config.EpochTailLength
+	return e.Frame >= em.net.Dag.MaxEpochBlocks-em.config.EpochTailLength
 }
 
 func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {

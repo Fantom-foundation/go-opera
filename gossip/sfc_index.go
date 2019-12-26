@@ -304,7 +304,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 			gotMissed := s.store.GetBlocksMissed(it.StakerID)
 			badMissed := s.config.Net.Economy.OfflinePenaltyThreshold
-			if gotMissed.Num >= badMissed.Num && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
+			if gotMissed.Num >= badMissed.BlocksNum && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
 				// write into DB
 				it.Staker.Status |= sfctype.OfflineBit
 				s.store.SetSfcStaker(it.StakerID, it.Staker)
@@ -322,9 +322,11 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 		totalBaseRewardWeight := new(big.Int)
 		totalTxRewardWeight := new(big.Int)
+		totalStake := new(big.Int)
 		for i, it := range epochValidators {
 			baseRewardWeight := baseRewardWeights[i]
 			txRewardWeight := txRewardWeights[i]
+			totalStake.Add(totalStake, it.Staker.CalcTotalStake())
 
 			if _, ok := cheatersSet[it.StakerID]; ok {
 				continue // don't give reward to cheaters
@@ -351,6 +353,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		statedb.SetState(sfc.ContractAddress, epochPos.EndTime(), utils.U64to256(uint64(stats.End.Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64(stats.Duration().Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.BaseRewardPerSecond(), utils.BigTo256(baseRewardPerSec))
+		statedb.SetState(sfc.ContractAddress, epochPos.TotalStake(), utils.BigTo256(totalStake))
 
 		// Add balance for SFC to pay rewards
 		baseRewards := new(big.Int).Mul(big.NewInt(stats.Duration().Unix()), baseRewardPerSec)

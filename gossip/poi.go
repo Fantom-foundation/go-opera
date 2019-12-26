@@ -5,7 +5,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -38,7 +37,7 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 	for i, tx := range evmBlock.Transactions {
 		txFee := new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice())
 
-		signer := types.NewEIP155Signer(params.AllEthashProtocolChanges.ChainID)
+		signer := types.NewEIP155Signer(s.config.Net.EvmChainConfig().ChainID)
 		sender, err := signer.Sender(tx)
 		if err != nil {
 			s.Log.Crit("Failed to get sender from transaction", "err", err)

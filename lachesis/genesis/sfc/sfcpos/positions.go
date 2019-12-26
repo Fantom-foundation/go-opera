@@ -134,6 +134,10 @@ func (p *EpochSnapshotPos) BaseRewardPerSecond() common.Hash {
 	return p.Field(6)
 }
 
+func (p *EpochSnapshotPos) TotalStake() common.Hash {
+	return p.Field(7)
+}
+
 // ValidatorMerit
 
 type ValidatorMeritPos struct {

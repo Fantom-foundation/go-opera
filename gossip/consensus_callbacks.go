@@ -10,11 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -137,9 +135,8 @@ func (s *Service) applyNewState(
 	s.processSfc(block, receipts, totalFee, sealEpoch, cheaters, statedb)
 
 	// Process new epoch
-	var newEpochHash common.Hash
 	if sealEpoch {
-		newEpochHash = s.onEpochSealed(block, cheaters)
+		s.onEpochSealed(block, cheaters)
 	}
 
 	// Get state root
@@ -154,17 +151,12 @@ func (s *Service) applyNewState(
 	}
 
 	// calc appHash
-	var newAppHash common.Hash
-	if sealEpoch {
-		newAppHash = hash.Of(newStateHash.Bytes(), newEpochHash.Bytes())
-	} else {
-		newAppHash = newStateHash
-	}
+	appHash := block.TxHash
 
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
 		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "elapsed", time.Since(start))
 
-	return block, evmBlock, receipts, txPositions, newAppHash
+	return block, evmBlock, receipts, txPositions, appHash
 }
 
 // spillBlockEvents excludes first events which exceed BlockGasHardLimit
@@ -184,7 +176,7 @@ func (s *Service) spillBlockEvents(block *inter.Block) (*inter.Block, inter.Even
 		fullEvents[i] = e
 		gasPowerUsedSum += e.GasPowerUsed
 		// stop if limit is exceeded, erase [:i] events
-		if gasPowerUsedSum > s.config.Net.Blockchain.BlockGasHardLimit {
+		if gasPowerUsedSum > s.config.Net.Blocks.BlockGasHardLimit {
 			// spill
 			block.Events = block.Events[i+1:]
 			fullEvents = fullEvents[i+1:]
@@ -248,7 +240,7 @@ func (s *Service) executeEvmTransactions(
 ) {
 	// s.engineMu is locked here
 
-	evmProcessor := evmcore.NewStateProcessor(params.AllEthashProtocolChanges, s.GetEvmStateReader())
+	evmProcessor := evmcore.NewStateProcessor(s.config.Net.EvmChainConfig(), s.GetEvmStateReader())
 
 	// Process txs
 	receipts, _, gasUsed, totalFee, skipped, err := evmProcessor.Process(evmBlock, statedb, vm.Config{}, false)
@@ -279,23 +271,17 @@ func (s *Service) executeEvmTransactions(
 }
 
 // onEpochSealed applies the new epoch sealing state
-func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) (newEpochHash common.Hash) {
+func (s *Service) onEpochSealed(block *inter.Block, cheaters inter.Cheaters) {
 	// s.engineMu is locked here
 
 	epoch := s.engine.GetEpoch()
 
-	// update last headers
+	// delete last headers of cheaters
 	for _, cheater := range cheaters {
 		s.store.DelLastHeader(epoch, cheater) // for cheaters, it's uncertain which event is "last confirmed"
 	}
-	hh := s.store.GetLastHeaders(epoch)
-	// After sealing, AppHash includes last confirmed headers in this epoch from each honest validator and cheaters list
-	// TODO use transparent state hashing (i.e. store state in a trie)
-	newEpochHash = hash.Of(newEpochHash.Bytes(), hash.Of(hh.Bytes()).Bytes(), types.DeriveSha(cheaters).Bytes())
 	// prune not needed last headers
 	s.store.DelLastHeaders(epoch - 1)
-
-	return newEpochHash
 }
 
 // applyBlock execs ordered txns of new block on state, and fills the block DB indexes.
@@ -303,7 +289,12 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	// s.engineMu is locked here
 
 	confirmBlocksMeter.Inc(1)
-	sealEpoch = decidedFrame == s.config.Net.Dag.EpochLen
+	// if cheater is confirmed, seal epoch right away to prune them from of BFT validators list
+
+	epochStart := s.store.GetEpochStats(pendingEpoch).Start
+	sealEpoch = decidedFrame >= s.config.Net.Dag.MaxEpochBlocks
+	sealEpoch = sealEpoch || block.Time-epochStart >= inter.Timestamp(s.config.Net.Dag.MaxEpochDuration)
+	sealEpoch = sealEpoch || cheaters.Len() > 0
 
 	block, evmBlock, receipts, txPositions, newAppHash := s.applyNewState(block, sealEpoch, cheaters)
 

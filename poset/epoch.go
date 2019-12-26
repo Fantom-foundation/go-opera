@@ -61,9 +61,5 @@ func (p *Poset) setEpochValidators(validators *pos.Validators, epoch idx.Epoch) 
 
 // GetGenesisHash returns PrevEpochHash of first epoch.
 func (p *Poset) GetGenesisHash() common.Hash {
-	epoch := p.store.GetGenesis()
-	if epoch == nil {
-		p.Log.Crit("No genesis found")
-	}
-	return epoch.PrevEpoch.Hash()
+	return p.store.GetGenesisHash()
 }

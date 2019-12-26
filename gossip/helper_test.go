@@ -37,7 +37,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	_, _, err = store.ApplyGenesis(&net)
+	_, _, _, err = store.ApplyGenesis(&net)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -59,7 +59,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	inter.ForEachRandEvent(net.Genesis.Alloc.GValidators.Validators().IDs(), eventsNum, 3, nil, inter.ForEachEvent{
+	inter.ForEachRandEvent(net.Genesis.Alloc.Validators.Validators().IDs(), eventsNum, 3, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			store.SetEvent(e)
 			err = engine.ProcessEvent(e)

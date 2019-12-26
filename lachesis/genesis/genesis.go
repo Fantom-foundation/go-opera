@@ -1,12 +1,14 @@
 package genesis
 
 import (
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/proxy"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )
@@ -21,11 +23,19 @@ type Genesis struct {
 	ExtraData []byte
 }
 
-func preDeploySfc(g Genesis, code []byte) Genesis {
+func preDeploySfc(g Genesis, implCode []byte) Genesis {
+	// pre deploy SFC impl
+	g.Alloc.Accounts[sfc.ContractAddressV1] = Account{
+		Code:    implCode, // impl account has only code, balance and storage is in proxy account
+		Balance: big.NewInt(0),
+	}
+	// pre deploy SFC proxy
+	storage := sfc.AssembleStorage(g.Alloc.Validators, g.Time, nil)
+	storage = proxy.AssembleStorage(g.Alloc.SfcContractAdmin, sfc.ContractAddressV1, storage) // Add storage of proxy
 	g.Alloc.Accounts[sfc.ContractAddress] = Account{
-		Code:    code,
-		Storage: sfc.AssembleStorage(g.Alloc.GValidators, g.Time, nil),
-		Balance: pos.StakeToBalance(g.Alloc.GValidators.Validators().TotalStake()),
+		Code:    proxy.GetContractBin(),
+		Storage: storage,
+		Balance: g.Alloc.Validators.TotalStake(),
 	}
 	return g
 }
@@ -51,7 +61,7 @@ func MainGenesis() Genesis {
 				common.HexToAddress("a123456789123456789123456789012345678902"): Account{Balance: utils.ToFtm(1e10)},
 				common.HexToAddress("a123456789123456789123456789012345678903"): Account{Balance: utils.ToFtm(1e10)},
 			},
-			GValidators: pos.GValidators{
+			Validators: pos.GValidators{
 				pos.GenesisValidator{
 					ID:      1,
 					Address: common.HexToAddress("a123456789123456789123456789012345678901"),
@@ -63,6 +73,7 @@ func MainGenesis() Genesis {
 					Stake:   utils.ToFtm(3175000),
 				},
 			},
+			SfcContractAdmin: common.HexToAddress("a123456789123456789123456789012345678904"),
 		},
 	}
 	g = preDeploySfc(g, sfc.GetMainContractBinV1())
@@ -80,7 +91,7 @@ func TestGenesis() Genesis {
 				common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: utils.ToFtm(1e10)},
 				common.HexToAddress("b123456789123456789123456789012345678903"): Account{Balance: utils.ToFtm(1e10)},
 			},
-			GValidators: pos.GValidators{
+			Validators: pos.GValidators{
 				pos.GenesisValidator{
 					ID:      1,
 					Address: common.HexToAddress("b123456789123456789123456789012345678901"),
@@ -92,6 +103,7 @@ func TestGenesis() Genesis {
 					Stake:   utils.ToFtm(3175000),
 				},
 			},
+			SfcContractAdmin: common.HexToAddress("b123456789123456789123456789012345678904"),
 		},
 	}
 	g = preDeploySfc(g, sfc.GetTestContractBinV1())

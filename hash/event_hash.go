@@ -81,7 +81,7 @@ func (h Event) Hex() string {
 	return common.Hash(h).Hex()
 }
 
-// Lamport returns [4:9] bytes, which store event's Lamport.
+// Lamport returns [4:8] bytes, which store event's Lamport.
 func (h Event) Lamport() idx.Lamport {
 	return idx.BytesToLamport(h[4:8])
 }
@@ -94,6 +94,11 @@ func (h Event) Epoch() idx.Epoch {
 // String returns human readable string representation.
 func (h Event) String() string {
 	return h.ShortID(4)
+}
+
+// FullID returns human readable string representation with no information loss.
+func (h Event) FullID() string {
+	return h.ShortID(32 - 4 - 4)
 }
 
 // ShortID returns human readable ID representation, suitable for API calls.

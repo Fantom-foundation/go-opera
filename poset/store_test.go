@@ -70,7 +70,7 @@ func benchmarkStore(b *testing.B) {
 	maxEpoch := idx.Epoch(b.N) + 1
 	for epoch := idx.Epoch(1); epoch <= maxEpoch; epoch++ {
 		r := rand.New(rand.NewSource(int64((epoch))))
-		_ = inter.ForEachRandEvent(nodes, int(p.dag.EpochLen*3), 3, r, inter.ForEachEvent{
+		_ = inter.ForEachRandEvent(nodes, int(p.dag.MaxEpochBlocks*3), 3, r, inter.ForEachEvent{
 			Process: func(e *inter.Event, name string) {
 				input.SetEvent(e)
 				err := p.ProcessEvent(e)
@@ -106,8 +106,8 @@ func benchPoset(nodes []idx.StakerID, input EventSource, store *Store) *Poset {
 	err := store.ApplyGenesis(&genesis.Genesis{
 		Time: genesisTestTime,
 		Alloc: genesis.VAccounts{
-			GValidators: validators,
-			Accounts:    nil,
+			Validators: validators,
+			Accounts:   nil,
 		},
 	}, hash.Event{}, common.Hash{})
 	if err != nil {

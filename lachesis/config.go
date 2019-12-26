@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"time"
 
+	ethparams "github.com/ethereum/go-ethereum/params"
+
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
@@ -12,9 +14,9 @@ import (
 )
 
 const (
-	MainNetworkID uint64 = 1
-	TestNetworkID uint64 = 2
-	FakeNetworkID uint64 = 3
+	MainNetworkID uint64 = 0xfa
+	TestNetworkID uint64 = 0xfa2
+	FakeNetworkID uint64 = 0xfa3
 )
 
 var (
@@ -34,9 +36,11 @@ type GasPowerConfig struct {
 
 // DagConfig of Lachesis DAG (directed acyclic graph).
 type DagConfig struct {
-	MaxParents     int       `json:"maxParents"`
-	MaxFreeParents int       `json:"maxFreeParents"` // maximum number of parents with no gas cost
-	EpochLen       idx.Frame `json:"epochLen"`
+	MaxParents     int `json:"maxParents"`
+	MaxFreeParents int `json:"maxFreeParents"` // maximum number of parents with no gas cost
+
+	MaxEpochBlocks   idx.Frame     `json:"maxEpochBlocks"`
+	MaxEpochDuration time.Duration `json:"maxEpochDuration"`
 
 	VectorClockConfig vector.IndexConfig `json:"vectorClockConfig"`
 
@@ -45,8 +49,8 @@ type DagConfig struct {
 
 // BlocksMissed is information about missed blocks from a staker
 type BlocksMissed struct {
-	Num    idx.Block
-	Period time.Duration
+	BlocksNum idx.Block
+	Period    time.Duration
 }
 
 // EconomyConfig contains economy constants
@@ -62,8 +66,8 @@ type EconomyConfig struct {
 	LongGasPower  GasPowerConfig `json:"longGasPower"`
 }
 
-// BlockchainConfig contains transactions model constants
-type BlockchainConfig struct {
+// BlocksConfig contains blocks constants
+type BlocksConfig struct {
 	BlockGasHardLimit uint64 `json:"maxBlockGasLimit"` // technical hard limit, gas is mostly governed by gas power allocation
 }
 
@@ -78,10 +82,17 @@ type Config struct {
 	Dag DagConfig
 
 	// Blockchain options
-	Blockchain BlockchainConfig
+	Blocks BlocksConfig
 
 	// Economy options
 	Economy EconomyConfig
+}
+
+// EvmChainConfig returns ChainConfig for transaction signing and execution
+func (c *Config) EvmChainConfig() *ethparams.ChainConfig {
+	cfg := *ethparams.AllEthashProtocolChanges
+	cfg.ChainID = new(big.Int).SetUint64(c.NetworkID)
+	return &cfg
 }
 
 func MainNetConfig() Config {
@@ -91,7 +102,7 @@ func MainNetConfig() Config {
 		Genesis:   genesis.MainGenesis(),
 		Dag:       DefaultDagConfig(),
 		Economy:   DefaultEconomyConfig(),
-		Blockchain: BlockchainConfig{
+		Blocks: BlocksConfig{
 			BlockGasHardLimit: 20000000,
 		},
 	}
@@ -104,7 +115,7 @@ func TestNetConfig() Config {
 		Genesis:   genesis.TestGenesis(),
 		Dag:       DefaultDagConfig(),
 		Economy:   DefaultEconomyConfig(),
-		Blockchain: BlockchainConfig{
+		Blocks: BlocksConfig{
 			BlockGasHardLimit: 20000000,
 		},
 	}
@@ -117,7 +128,7 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 		Genesis:   genesis.FakeGenesis(accs),
 		Dag:       FakeNetDagConfig(),
 		Economy:   FakeEconomyConfig(),
-		Blockchain: BlockchainConfig{
+		Blocks: BlocksConfig{
 			BlockGasHardLimit: 20000000,
 		},
 	}
@@ -139,8 +150,8 @@ func DefaultEconomyConfig() EconomyConfig {
 		InitialRewardPerSecond: big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
 		MaxRewardPerSecond:     maxRewardPerSecond,
 		OfflinePenaltyThreshold: BlocksMissed{
-			Num:    1000,
-			Period: 24 * time.Hour,
+			BlocksNum: 1000,
+			Period:    24 * time.Hour,
 		},
 		ShortGasPower: DefaultShortGasPowerConfig(),
 		LongGasPower:  DefaulLongGasPowerConfig(),
@@ -152,7 +163,7 @@ func FakeEconomyConfig() EconomyConfig {
 	cfg := DefaultEconomyConfig()
 	cfg.PoiPeriodDuration = 15 * time.Minute
 	cfg.OfflinePenaltyThreshold.Period = 10 * time.Minute
-	cfg.OfflinePenaltyThreshold.Num = 10
+	cfg.OfflinePenaltyThreshold.BlocksNum = 10
 	cfg.ShortGasPower = FakeShortGasPowerConfig()
 	cfg.LongGasPower = FakeLongGasPowerConfig()
 	return cfg
@@ -162,7 +173,8 @@ func DefaultDagConfig() DagConfig {
 	return DagConfig{
 		MaxParents:                5,
 		MaxFreeParents:            3,
-		EpochLen:                  1000,
+		MaxEpochBlocks:            1000,
+		MaxEpochDuration:          4 * time.Hour,
 		MaxValidatorEventsInBlock: 50,
 		VectorClockConfig:         vector.DefaultIndexConfig(),
 	}
@@ -170,7 +182,8 @@ func DefaultDagConfig() DagConfig {
 
 func FakeNetDagConfig() DagConfig {
 	cfg := DefaultDagConfig()
-	cfg.EpochLen = 200
+	cfg.MaxEpochBlocks = 200
+	cfg.MaxEpochDuration = 10 * time.Minute
 	return cfg
 }
 
