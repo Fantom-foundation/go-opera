@@ -1,7 +1,6 @@
 package genesis
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/proxy"
 	"math/big"
 	"time"
 
@@ -9,6 +8,7 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/proxy"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/utils"
 )

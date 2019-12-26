@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"math/big"
 	"strings"
 	"time"
@@ -48,6 +47,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	lachesisparams "github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
