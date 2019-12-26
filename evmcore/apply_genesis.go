@@ -50,13 +50,11 @@ func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
 	}
 
 	// initial block
-	root := statedb.IntermediateRoot(false)
-	block := genesisBlock(net, root)
-
-	root, err = statedb.Commit(true)
+	root, err := statedb.Commit(true)
 	if err != nil {
 		return nil, err
 	}
+	block := genesisBlock(net, root)
 
 	err = statedb.Database().TrieDB().Cap(0)
 	if err != nil {

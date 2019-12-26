@@ -73,5 +73,8 @@ func TestApplyGenesis(t *testing.T) {
 	if !assertar.NotEqual(blockA1, blockB) {
 		return
 	}
+	if !assertar.NoError(err) {
+		return
+	}
 
 }
