@@ -14,6 +14,15 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
+var (
+	ErrWrongEpochHash   = errors.New("mismatched prev epoch hash")
+	ErrNonZeroEpochHash = errors.New("prev epoch hash isn't zero for non-first event")
+	ErrCheatersObserved = errors.New("Cheaters observed by self-parent aren't allowed as parents")
+	ErrWrongFrame       = errors.New("Claimed frame mismatched with calculated")
+	ErrWrongIsRoot      = errors.New("Claimed isRoot mismatched with calculated")
+	ErrWrongMedianTime  = errors.New("Claimed medianTime mismatched with calculated")
+)
+
 // Poset processes events to get consensus.
 type Poset struct {
 	dag   lachesis.DagConfig
@@ -69,20 +78,27 @@ func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 
 	e.Frame, e.IsRoot = p.calcFrameIdx(e, false)
 	e.MedianTime = p.vecClock.MedianTime(id, p.PrevEpoch.Time)
-	e.PrevEpochHash = p.PrevEpoch.Hash()
+	if e.Seq <= 1 {
+		e.PrevEpochHash = p.PrevEpoch.Hash()
+	} else {
+		e.PrevEpochHash = hash.Zero
+	}
 
 	return e
 }
 
 // checks consensus-related fields: Frame, IsRoot, MedianTimestamp, PrevEpochHash
 func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
-	if e.PrevEpochHash != p.PrevEpoch.Hash() {
-		return errors.New("Mismatched prev epoch hash")
+	if e.Seq <= 1 && e.PrevEpochHash != p.PrevEpoch.Hash() {
+		return ErrWrongEpochHash
+	}
+	if e.Seq > 1 && e.PrevEpochHash != hash.Zero {
+		return ErrNonZeroEpochHash
 	}
 
 	// don't link to known cheaters
 	if len(p.vecClock.NoCheaters(e.SelfParent(), e.Parents)) != len(e.Parents) {
-		return errors.New("Cheaters observed by self-parent aren't allowed as parents")
+		return ErrCheatersObserved
 	}
 
 	p.vecClock.Add(&e.EventHeaderData)
@@ -91,15 +107,15 @@ func (p *Poset) checkAndSaveEvent(e *inter.Event) error {
 	// check frame & isRoot
 	frameIdx, isRoot := p.calcFrameIdx(e, true)
 	if e.IsRoot != isRoot {
-		return errors.Errorf("Claimed isRoot mismatched with calculated (%v!=%v)", e.IsRoot, isRoot)
+		return ErrWrongIsRoot
 	}
 	if e.Frame != frameIdx {
-		return errors.Errorf("Claimed frame mismatched with calculated (%d!=%d)", e.Frame, frameIdx)
+		return ErrWrongFrame
 	}
 	// check median timestamp
 	medianTime := p.vecClock.MedianTime(e.Hash(), p.PrevEpoch.Time)
 	if e.MedianTime != medianTime {
-		return errors.Errorf("Claimed medianTime mismatched with calculated (%d!=%d)", e.MedianTime, medianTime)
+		return ErrWrongMedianTime
 	}
 
 	// save in DB the {vectorindex, e, heads}
