@@ -18,6 +18,8 @@ github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.1 h1:DqYLYK3R0sUWrQpbdutA7
 github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.1/go.mod h1:arcJDscBoRuY4gwPHUuFztJEyFZWHLUgBGXUBcr5ARY=
 github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.2 h1:TtOqHLNfMJUnhdE954LsyLbVIip3KuJ0OritQjvS/Lg=
 github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.2/go.mod h1:arcJDscBoRuY4gwPHUuFztJEyFZWHLUgBGXUBcr5ARY=
+github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.3 h1:lsUzytQSB5FX65BQGPnN+Po7+5IQ+iFjf4OMhaSBNIg=
+github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.3/go.mod h1:arcJDscBoRuY4gwPHUuFztJEyFZWHLUgBGXUBcr5ARY=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/OneOfOne/xxhash v1.2.5/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
 github.com/Shopify/sarama v1.23.1/go.mod h1:XLH1GYJnLVE0XCr6KdJGVJRTwY30moWNJ4sERjXX6fs=
