@@ -55,7 +55,7 @@ start_node() {
 
     ${EXEC} \
 	--fakenet $i/$N \
-	--port ${localport} --rpc --rpcapi "eth,debug,admin,web3" --rpcport ${port} --nousb --verbosity 3 \
+	--port ${localport} --rpc --rpcapi "eth,dag,debug,admin,web3" --rpcport ${port} --nousb --verbosity 3 \
 	--datadir "${LACHESIS_BASE_DIR}/datadir/lach$i" &
 	pids+=($!)
     echo -e "Started lachesis client at ${IP}:${port}, pid: $!"

@@ -17,7 +17,7 @@ type PublicDAGChainAPI struct {
 }
 
 // NewPublicDAGChainAPI creates a new DAG chain API.
-func NewPublicDagAPI(b Backend) *PublicDAGChainAPI {
+func NewPublicDAGChainAPI(b Backend) *PublicDAGChainAPI {
 	return &PublicDAGChainAPI{b}
 }
 
