@@ -152,7 +152,7 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 		}
 		return nil
 	}
-	bifferedCheck := func(e *inter.Event, parents []*inter.EventHeaderData) error {
+	bufferedCheck := func(e *inter.Event, parents []*inter.EventHeaderData) error {
 		var selfParent *inter.EventHeaderData
 		if e.SelfParent() != nil {
 			selfParent = parents[0]
@@ -199,7 +199,7 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 			return pm.store.GetEventHeader(id.Epoch(), id)
 		},
 
-		Check: bifferedCheck,
+		Check: bufferedCheck,
 	})
 
 	newFetcher := fetcher.New(fetcher.Callback{
