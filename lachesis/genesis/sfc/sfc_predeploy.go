@@ -30,7 +30,7 @@ var ContractAddress = common.HexToAddress("0xfc00face000000000000000000000000000
 var ContractAddressV1 = common.HexToAddress("0xfc00beef00000000000000000000000000000101")
 
 // AssembleStorage builds genesis storage for the SFC contract
-func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
+func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, owner common.Address, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
 	if storage == nil {
 		storage = make(map[common.Hash]common.Hash)
 	}
@@ -55,6 +55,7 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, st
 		}
 	}
 
+	storage[sfcpos.Owner()] = owner.Hash()
 	storage[sfcpos.StakersNum()] = utils.U64to256(uint64(len(validators)))
 	storage[sfcpos.StakersLastID()] = utils.U64to256(uint64(maxStakerID))
 	storage[sfcpos.StakeTotalAmount()] = utils.BigTo256(validators.TotalStake())

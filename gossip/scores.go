@@ -9,7 +9,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
 // BlocksMissed is information about missed blocks from a staker
@@ -17,6 +16,10 @@ type BlocksMissed struct {
 	Num    idx.Block
 	Period inter.Timestamp
 }
+
+const (
+	minGasPowerRefund = 800
+)
 
 // updateOriginationScores calculates the origination scores
 func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.EvmBlock, receipts types.Receipts, txPositions map[common.Hash]TxPosition, sealEpoch bool) {
@@ -45,7 +48,7 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 				s.Log.Crit("Transaction gas used is higher than tx gas limit", "tx", receipts[i].TxHash, "event", txEventPos.Event)
 			}
 			notUsedGas := tx.Gas() - receipts[i].GasUsed
-			if notUsedGas > params.TxGas/10 { // do not refund if refunding is more costly than refunded value
+			if notUsedGas >= minGasPowerRefund { // do not refund if refunding is more costly than refunded value
 				s.store.IncGasPowerRefund(epoch, txEvent.Creator, notUsedGas)
 			}
 		}

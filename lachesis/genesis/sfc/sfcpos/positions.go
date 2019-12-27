@@ -44,20 +44,28 @@ var (
 
 // Global variables
 
-func CurrentSealedEpoch() common.Hash {
+func Owner() common.Hash {
 	return utils.U64to256(0)
 }
 
+const (
+	offset = 30
+)
+
+func CurrentSealedEpoch() common.Hash {
+	return utils.U64to256(offset + 0)
+}
+
 func StakersLastID() common.Hash {
-	return utils.U64to256(4)
+	return utils.U64to256(offset + 4)
 }
 
 func StakersNum() common.Hash {
-	return utils.U64to256(5)
+	return utils.U64to256(offset + 5)
 }
 
 func StakeTotalAmount() common.Hash {
-	return utils.U64to256(6)
+	return utils.U64to256(offset + 6)
 }
 
 // Stake
@@ -67,7 +75,7 @@ type StakePos struct {
 }
 
 func Staker(stakerID idx.StakerID) StakePos {
-	position := getMapValue(common.Hash{}, utils.U64to256(uint64(stakerID)), 2)
+	position := getMapValue(common.Hash{}, utils.U64to256(uint64(stakerID)), offset+2)
 
 	return StakePos{object{base: position.Big()}}
 }
@@ -95,7 +103,7 @@ func (p *StakePos) Address() common.Hash {
 // stakerIDs
 
 func StakerID(vstaker common.Address) common.Hash {
-	return getMapValue(common.Hash{}, vstaker.Hash(), 3)
+	return getMapValue(common.Hash{}, vstaker.Hash(), offset+3)
 }
 
 // EpochSnapshot
@@ -105,7 +113,7 @@ type EpochSnapshotPos struct {
 }
 
 func EpochSnapshot(epoch idx.Epoch) EpochSnapshotPos {
-	position := getMapValue(common.Hash{}, utils.U64to256(uint64(epoch)), 1)
+	position := getMapValue(common.Hash{}, utils.U64to256(uint64(epoch)), offset+1)
 
 	return EpochSnapshotPos{object{base: position.Big()}}
 }
@@ -134,8 +142,16 @@ func (p *EpochSnapshotPos) BaseRewardPerSecond() common.Hash {
 	return p.Field(6)
 }
 
-func (p *EpochSnapshotPos) TotalStake() common.Hash {
+func (p *EpochSnapshotPos) StakeTotalAmount() common.Hash {
 	return p.Field(7)
+}
+
+func (p *EpochSnapshotPos) DelegationsTotalAmount() common.Hash {
+	return p.Field(8)
+}
+
+func (p *EpochSnapshotPos) TotalSupply() common.Hash {
+	return p.Field(9)
 }
 
 // ValidatorMerit
