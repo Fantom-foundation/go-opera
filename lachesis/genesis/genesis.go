@@ -30,7 +30,7 @@ func preDeploySfc(g Genesis, implCode []byte) Genesis {
 		Balance: big.NewInt(0),
 	}
 	// pre deploy SFC proxy
-	storage := sfc.AssembleStorage(g.Alloc.Validators, g.Time, nil)
+	storage := sfc.AssembleStorage(g.Alloc.Validators, g.Time, g.Alloc.SfcContractAdmin, nil)
 	storage = proxy.AssembleStorage(g.Alloc.SfcContractAdmin, sfc.ContractAddressV1, storage) // Add storage of proxy
 	g.Alloc.Accounts[sfc.ContractAddress] = Account{
 		Code:    proxy.GetContractBin(),

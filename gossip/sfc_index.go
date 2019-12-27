@@ -293,8 +293,9 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 	}
 
 	if sealEpoch {
-		epoch256 := utils.U64to256(uint64(epoch))
-		statedb.SetState(sfc.ContractAddress, sfcpos.CurrentSealedEpoch(), epoch256)
+		if s.store.HasSfcConstants(epoch) {
+			s.store.SetSfcConstants(epoch+1, s.store.GetSfcConstants(epoch))
+		}
 
 		// Write offline validators
 		for _, it := range s.store.GetSfcStakers() {
@@ -323,10 +324,12 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		totalBaseRewardWeight := new(big.Int)
 		totalTxRewardWeight := new(big.Int)
 		totalStake := new(big.Int)
+		totalDelegated := new(big.Int)
 		for i, it := range epochValidators {
 			baseRewardWeight := baseRewardWeights[i]
 			txRewardWeight := txRewardWeights[i]
-			totalStake.Add(totalStake, it.Staker.CalcTotalStake())
+			totalStake.Add(totalStake, it.Staker.StakeAmount)
+			totalDelegated.Add(totalDelegated, it.Staker.DelegatedMe)
 
 			if _, ok := cheatersSet[it.StakerID]; ok {
 				continue // don't give reward to cheaters
@@ -347,17 +350,26 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		}
 		baseRewardPerSec := s.getRewardPerSec()
 
+		// set total supply
+		baseRewards := new(big.Int).Mul(big.NewInt(stats.Duration().Unix()), baseRewardPerSec)
+		rewards := new(big.Int).Add(baseRewards, stats.TotalFee)
+		totalSupply := new(big.Int).Add(s.store.GetTotalSupply(), rewards)
+		statedb.SetState(sfc.ContractAddress, sfcpos.CurrentSealedEpoch(), utils.U64to256(uint64(epoch)))
+		s.store.SetTotalSupply(totalSupply)
+
 		statedb.SetState(sfc.ContractAddress, epochPos.TotalBaseRewardWeight(), utils.BigTo256(totalBaseRewardWeight))
 		statedb.SetState(sfc.ContractAddress, epochPos.TotalTxRewardWeight(), utils.BigTo256(totalTxRewardWeight))
 		statedb.SetState(sfc.ContractAddress, epochPos.EpochFee(), utils.BigTo256(stats.TotalFee))
 		statedb.SetState(sfc.ContractAddress, epochPos.EndTime(), utils.U64to256(uint64(stats.End.Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.Duration(), utils.U64to256(uint64(stats.Duration().Unix())))
 		statedb.SetState(sfc.ContractAddress, epochPos.BaseRewardPerSecond(), utils.BigTo256(baseRewardPerSec))
-		statedb.SetState(sfc.ContractAddress, epochPos.TotalStake(), utils.BigTo256(totalStake))
+		statedb.SetState(sfc.ContractAddress, epochPos.StakeTotalAmount(), utils.BigTo256(totalStake))
+		statedb.SetState(sfc.ContractAddress, epochPos.DelegationsTotalAmount(), utils.BigTo256(totalDelegated))
+		statedb.SetState(sfc.ContractAddress, epochPos.TotalSupply(), utils.BigTo256(totalSupply))
+		statedb.SetState(sfc.ContractAddress, sfcpos.CurrentSealedEpoch(), utils.U64to256(uint64(epoch)))
 
 		// Add balance for SFC to pay rewards
-		baseRewards := new(big.Int).Mul(big.NewInt(stats.Duration().Unix()), baseRewardPerSec)
-		statedb.AddBalance(sfc.ContractAddress, new(big.Int).Add(baseRewards, stats.TotalFee))
+		statedb.AddBalance(sfc.ContractAddress, rewards)
 
 		// Select new validators
 		for _, it := range s.GetActiveSfcStakers() {

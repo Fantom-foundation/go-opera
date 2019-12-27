@@ -66,6 +66,7 @@ type Store struct {
 		Stakers      kvdb.KeyValueStore `table:"2"`
 		Delegators   kvdb.KeyValueStore `table:"3"`
 		SfcConstants kvdb.KeyValueStore `table:"4"`
+		TotalSupply  kvdb.KeyValueStore `table:"5"`
 
 		// API-only tables
 		BlockHashes                kvdb.KeyValueStore `table:"h"`

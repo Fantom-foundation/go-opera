@@ -98,6 +98,13 @@ func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		TotalFee: new(big.Int),
 	})
 
+	// calc total pre-minted supply
+	totalSupply := big.NewInt(0)
+	for _, account := range net.Genesis.Alloc.Accounts {
+		totalSupply.Add(totalSupply, account.Balance)
+	}
+	s.SetTotalSupply(totalSupply)
+
 	for _, validator := range net.Genesis.Alloc.Validators {
 		staker := &sfctype.SfcStaker{
 			Address:      validator.Address,
