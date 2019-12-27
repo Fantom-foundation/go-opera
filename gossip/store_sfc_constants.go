@@ -7,6 +7,7 @@ func (s *Store) SetSfcConstants(epoch idx.Epoch, constants SfcConstants) {
 	s.set(s.table.SfcConstants, epoch.Bytes(), constants)
 }
 
+// HasSfcConstants returns true if SFC constants are stored
 func (s *Store) HasSfcConstants(epoch idx.Epoch) bool {
 	ok, err := s.table.SfcConstants.Has(epoch.Bytes())
 	if err != nil {
