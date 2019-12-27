@@ -22,7 +22,9 @@ type EmitterConfig struct {
 
 	SelfForkProtectionInterval time.Duration `json:"selfForkProtectionInterval"`
 
-	EpochTailLength idx.Frame `json:"epochTailLength"` // number of frames before event is considered epoch tail
+	EpochTailLength idx.Frame `json:"epochTailLength"` // number of frames before event is considered epoch
+
+	MaxParents int `json:"maxParents"`
 
 	// thresholds on GasLeft
 	SmoothTpsThreshold uint64 `json:"smoothTpsThreshold"`
@@ -39,6 +41,8 @@ func DefaultEmitterConfig() EmitterConfig {
 		MaxTxsFromSender:           TxTurnNonces,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
 		EpochTailLength:            1,
+
+		MaxParents: 7,
 
 		SmoothTpsThreshold: (params.EventGas + params.TxGas) * 500,
 		NoTxsThreshold:     params.EventGas * 30,
