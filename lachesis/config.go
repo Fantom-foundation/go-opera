@@ -171,7 +171,7 @@ func FakeEconomyConfig() EconomyConfig {
 
 func DefaultDagConfig() DagConfig {
 	return DagConfig{
-		MaxParents:                5,
+		MaxParents:                10,
 		MaxFreeParents:            3,
 		MaxEpochBlocks:            1000,
 		MaxEpochDuration:          4 * time.Hour,

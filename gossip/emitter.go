@@ -288,7 +288,14 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 		strategy = ancestor.NewRandomStrategy(nil)
 	}
 
-	_, parents := ancestor.FindBestParents(em.net.Dag.MaxParents, heads, selfParent, strategy)
+	maxParents := em.config.MaxParents
+	if maxParents < em.net.Dag.MaxFreeParents {
+		maxParents = em.net.Dag.MaxFreeParents
+	}
+	if maxParents > em.net.Dag.MaxParents {
+		maxParents = em.net.Dag.MaxParents
+	}
+	_, parents := ancestor.FindBestParents(maxParents, heads, selfParent, strategy)
 	return selfParent, parents, true
 }
 

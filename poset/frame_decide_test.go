@@ -32,7 +32,7 @@ func TestConfirmBlockEvents(t *testing.T) {
 	}
 
 	eventCount := int(poset.dag.MaxEpochBlocks)
-	_ = inter.ForEachRandEvent(nodes, eventCount, poset.dag.MaxParents, nil, inter.ForEachEvent{
+	_ = inter.ForEachRandEvent(nodes, eventCount, 5, nil, inter.ForEachEvent{
 		Process: func(e *inter.Event, name string) {
 			input.SetEvent(e)
 			assertar.NoError(
