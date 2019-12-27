@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 	"time"
 
@@ -75,12 +76,14 @@ type Store struct {
 		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
 		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
 
-		TmpDbs kvdb.KeyValueStore `table:"T"`
-
 		Evm      ethdb.Database
 		EvmState state.Database
 		EvmLogs  *topicsdb.Index
+
+		TmpDbs kvdb.KeyValueStore `table:"T"`
 	}
+
+	EpochDbs *tmpDbs
 
 	cache struct {
 		Events        *lru.Cache `cache:"-"` // store by pointer
@@ -99,8 +102,6 @@ type Store struct {
 	mutexes struct {
 		IncMutex *sync.Mutex
 	}
-
-	tmpDbs
 
 	logger.Instance
 }
@@ -130,7 +131,16 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
 
-	s.initTmpDbs()
+	s.EpochDbs = s.newTmpDbs("epoch", func(ver uint64) (
+		db kvdb.KeyValueStore,
+		tables interface{},
+	) {
+		db = s.dbs.GetDb(fmt.Sprintf("gossip-epoch-%d", ver))
+		tables = &epochStore{}
+		table.MigrateTables(tables, db)
+		return
+	})
+
 	s.initCache()
 	s.initMutexes()
 

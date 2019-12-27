@@ -11,7 +11,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
 
 type (
@@ -24,11 +23,7 @@ type (
 
 // getEpochStore is not safe for concurrent use.
 func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
-	tables := s.getTmpDb("epoch", uint64(epoch), func(db kvdb.KeyValueStore) interface{} {
-		es := &epochStore{}
-		table.MigrateTables(es, db)
-		return es
-	})
+	tables := s.EpochDbs.Get(uint64(epoch))
 	if tables == nil {
 		return nil
 	}
@@ -38,8 +33,7 @@ func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
 
 // delEpochStore is not safe for concurrent use.
 func (s *Store) delEpochStore(epoch idx.Epoch) {
-	s.delTmpDb("epoch", uint64(epoch))
-
+	s.EpochDbs.Del(uint64(epoch))
 	// Clear full LRU cache.
 	if s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Purge()
