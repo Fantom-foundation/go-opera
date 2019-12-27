@@ -10,8 +10,8 @@ import (
 
 // IncBlocksMissed add count of missed blocks for validator
 func (s *Store) IncBlocksMissed(stakerID idx.StakerID, periodDiff inter.Timestamp) {
-	s.mutexes.IncMutex.Lock()
-	defer s.mutexes.IncMutex.Unlock()
+	s.mutex.Inc.Lock()
+	defer s.mutex.Inc.Unlock()
 
 	missed := s.GetBlocksMissed(stakerID)
 	missed.Num++
@@ -23,8 +23,8 @@ func (s *Store) IncBlocksMissed(stakerID idx.StakerID, periodDiff inter.Timestam
 
 // ResetBlocksMissed set to 0 missed blocks for validator
 func (s *Store) ResetBlocksMissed(stakerID idx.StakerID) {
-	s.mutexes.IncMutex.Lock()
-	defer s.mutexes.IncMutex.Unlock()
+	s.mutex.Inc.Lock()
+	defer s.mutex.Inc.Unlock()
 
 	err := s.table.BlockDowntime.Delete(stakerID.Bytes())
 	if err != nil {

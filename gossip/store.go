@@ -99,8 +99,8 @@ type Store struct {
 		BlockHashes   *lru.Cache `cache:"-"` // store by pointer
 	}
 
-	mutexes struct {
-		IncMutex *sync.Mutex
+	mutex struct {
+		Inc sync.Mutex
 	}
 
 	logger.Instance
@@ -142,7 +142,6 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	})
 
 	s.initCache()
-	s.initMutexes()
 
 	return s
 }
@@ -159,10 +158,6 @@ func (s *Store) initCache() {
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)
 	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
-}
-
-func (s *Store) initMutexes() {
-	s.mutexes.IncMutex = new(sync.Mutex)
 }
 
 // Close leaves underlying database.
