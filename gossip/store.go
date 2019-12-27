@@ -136,8 +136,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 		tables interface{},
 	) {
 		db = s.dbs.GetDb(fmt.Sprintf("gossip-epoch-%d", ver))
-		tables = &epochStore{}
-		table.MigrateTables(tables, db)
+		tables = newEpochStore(db)
 		return
 	})
 

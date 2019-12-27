@@ -11,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
 
 type (
@@ -20,6 +21,12 @@ type (
 		Heads   kvdb.KeyValueStore `table:"H"`
 	}
 )
+
+func newEpochStore(db kvdb.KeyValueStore) *epochStore {
+	es := &epochStore{}
+	table.MigrateTables(es, db)
+	return es
+}
 
 // getEpochStore is not safe for concurrent use.
 func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
