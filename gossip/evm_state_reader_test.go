@@ -53,10 +53,12 @@ func TestGetGenesisBlock(t *testing.T) {
 	for addr, account := range net.Genesis.Alloc.Accounts {
 		assertar.Equal(account.Balance.String(), statedb.GetBalance(addr).String())
 		assertar.Equal(account.Code, statedb.GetCode(addr))
-		if addr == addrWithStorage {
-			assertar.Equal(accountWithCode.Storage[common.Hash{}], statedb.GetState(addr, common.Hash{}))
-		} else {
+		if len(account.Storage) == 0 {
 			assertar.Equal(common.Hash{}, statedb.GetState(addr, common.Hash{}))
+		} else {
+			for key, val := range account.Storage {
+				assertar.Equal(val, statedb.GetState(addr, key))
+			}
 		}
 	}
 }
