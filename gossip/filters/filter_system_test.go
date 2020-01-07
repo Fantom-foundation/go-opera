@@ -44,10 +44,9 @@ type testBackend struct {
 	db         ethdb.Database
 	logIndex   *topicsdb.Index
 	mux        *notify.TypeMux
-	txFeed     *notify.Feed
-	rmLogsFeed *notify.Feed
+	blocksFeed *notify.Feed
+	txsFeed    *notify.Feed
 	logsFeed   *notify.Feed
-	chainFeed  *notify.Feed
 }
 
 func newTestBackend() *testBackend {
@@ -55,10 +54,9 @@ func newTestBackend() *testBackend {
 		db:         rawdb.NewMemoryDatabase(),
 		logIndex:   topicsdb.New(memorydb.New()),
 		mux:        new(notify.TypeMux),
-		txFeed:     new(notify.Feed),
-		rmLogsFeed: new(notify.Feed),
+		blocksFeed: new(notify.Feed),
+		txsFeed:    new(notify.Feed),
 		logsFeed:   new(notify.Feed),
-		chainFeed:  new(notify.Feed),
 	}
 }
 
@@ -128,19 +126,15 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 }
 
 func (b *testBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
-	return b.txFeed.Subscribe(ch)
-}
-
-func (b *testBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription {
-	return b.rmLogsFeed.Subscribe(ch)
+	return b.txsFeed.Subscribe(ch)
 }
 
 func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription {
 	return b.logsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
-	return b.chainFeed.Subscribe(ch)
+func (b *testBackend) SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
+	return b.blocksFeed.Subscribe(ch)
 }
 
 func (b *testBackend) EvmLogIndex() *topicsdb.Index {
@@ -161,11 +155,18 @@ func TestBlockSubscription(t *testing.T) {
 
 		genesis     = new(core.Genesis).MustCommit(backend.db)
 		chain, _    = core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), backend.db, 10, func(i int, gen *core.BlockGen) {})
-		chainEvents = []core.ChainEvent{}
+		chainEvents = []evmcore.ChainHeadNotify{}
 	)
 
 	for _, blk := range chain {
-		chainEvents = append(chainEvents, core.ChainEvent{Hash: blk.Hash(), Block: blk})
+		h := *evmcore.ConvertFromEthHeader(blk.Header())
+		h.Hash = blk.Header().Hash()
+		chainEvents = append(chainEvents, evmcore.ChainHeadNotify{
+			Block: &evmcore.EvmBlock{
+				EvmHeader:    h,
+				Transactions: blk.Transactions(),
+			},
+		})
 	}
 
 	chan0 := make(chan *types.Header)
@@ -178,13 +179,13 @@ func TestBlockSubscription(t *testing.T) {
 		for i1 != len(chainEvents) || i2 != len(chainEvents) {
 			select {
 			case header := <-chan0:
-				if chainEvents[i1].Hash != header.Hash() {
-					t.Errorf("sub0 received invalid hash on index %d, want %x, got %x", i1, chainEvents[i1].Hash, header.Hash())
+				if chainEvents[i1].Block.Hash != header.Hash() {
+					t.Errorf("sub0 received invalid hash on index %d, want %x, got %x", i1, chainEvents[i1].Block.Hash, header.Hash())
 				}
 				i1++
 			case header := <-chan1:
-				if chainEvents[i2].Hash != header.Hash() {
-					t.Errorf("sub1 received invalid hash on index %d, want %x, got %x", i2, chainEvents[i2].Hash, header.Hash())
+				if chainEvents[i2].Block.Hash != header.Hash() {
+					t.Errorf("sub1 received invalid hash on index %d, want %x, got %x", i2, chainEvents[i2].Block.Hash, header.Hash())
 				}
 				i2++
 			}
@@ -196,7 +197,7 @@ func TestBlockSubscription(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	for _, e := range chainEvents {
-		backend.chainFeed.Send(e)
+		backend.blocksFeed.Send(e)
 	}
 
 	<-sub0.Err()
@@ -225,7 +226,7 @@ func TestPendingTxFilter(t *testing.T) {
 	fid0 := api.NewPendingTransactionFilter()
 
 	time.Sleep(1 * time.Second)
-	backend.txFeed.Send(core.NewTxsEvent{Txs: transactions})
+	backend.txsFeed.Send(core.NewTxsEvent{Txs: transactions})
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {

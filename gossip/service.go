@@ -40,16 +40,13 @@ const (
 
 type ServiceFeed struct {
 	scope notify.SubscriptionScope
-	// custom
+
 	newEpoch        notify.Feed
 	newPack         notify.Feed
 	newEmittedEvent notify.Feed
 	newBlock        notify.Feed
-	// ethereum compatible
-	newTxs     notify.Feed
-	newLogs    notify.Feed
-	delLogs    notify.Feed // will be never sent
-	chainEvent notify.Feed
+	newTxs          notify.Feed
+	newLogs         notify.Feed
 }
 
 func (f *ServiceFeed) SubscribeNewEpoch(ch chan<- idx.Epoch) notify.Subscription {
@@ -74,14 +71,6 @@ func (f *ServiceFeed) SubscribeNewTxs(ch chan<- core.NewTxsEvent) notify.Subscri
 
 func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscription {
 	return f.scope.Track(f.newLogs.Subscribe(ch))
-}
-
-func (f *ServiceFeed) SubscribeRemovedLogs(ch chan<- core.RemovedLogsEvent) notify.Subscription {
-	return f.scope.Track(f.delLogs.Subscribe(ch))
-}
-
-func (f *ServiceFeed) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
-	return f.scope.Track(f.chainEvent.Subscribe(ch))
 }
 
 // Service implements go-ethereum/node.Service interface.

@@ -310,14 +310,6 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscr
 	return b.svc.feed.SubscribeNewLogs(ch)
 }
 
-func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription {
-	return b.svc.feed.SubscribeRemovedLogs(ch)
-}
-
-func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
-	return b.svc.feed.SubscribeChainEvent(ch)
-}
-
 func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
 	return b.svc.feed.SubscribeNewTxs(ch)
 }
