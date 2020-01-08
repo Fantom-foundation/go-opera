@@ -36,9 +36,6 @@ const (
 
 	// the maximum number of events in the ordering buffer
 	eventsBuffSize = 2048
-
-	// minimum number of peers to broadcast new events to
-	minBroadcastPeers = 4
 )
 
 func errResp(code errCode, format string, v ...interface{}) error {
@@ -170,6 +167,7 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 	buffer := ordering.New(eventsBuffSize, ordering.Callback{
 
 		Process: func(e *inter.Event) error {
+			now := time.Now()
 			pm.engineMu.Lock()
 			defer pm.engineMu.Unlock()
 
@@ -181,8 +179,9 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 			log.Info("New event", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(start))
 
 			// If the event is indeed in our own graph, announce it
-			if atomic.LoadUint32(&pm.synced) != 0 { // announce only fresh events
-				pm.BroadcastEvent(e, false)
+			if atomic.LoadUint32(&pm.synced) != 0 { // announce only if synced up
+				passedSinceEvent := now.Sub(e.ClaimedTime.Time())
+				pm.BroadcastEvent(e, passedSinceEvent)
 			}
 
 			return nil
@@ -674,34 +673,69 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
+func (pm *ProtocolManager) decideBroadcastAggressiveness(size int, passed time.Duration, peersNum int) int {
+	percents := 100
+	maxPercents := 1000000 * percents
+	latencyVsThroughputTradeoff := maxPercents
+	cfg := pm.config.Protocol
+	if cfg.ThroughputImportance != 0 {
+		latencyVsThroughputTradeoff = (cfg.LatencyImportance * percents) / cfg.ThroughputImportance
+	}
+
+	byteCost := time.Millisecond / 2
+	broadcastCost := passed + time.Duration(size)*byteCost
+	broadcastAllCostTarget := time.Duration(latencyVsThroughputTradeoff) * (700 * time.Millisecond) / time.Duration(percents)
+	broadcastSqrtCostTarget := broadcastAllCostTarget * 20
+
+	fullRecipients := 0
+	if latencyVsThroughputTradeoff >= maxPercents {
+		// edge case
+		fullRecipients = peersNum
+	} else if latencyVsThroughputTradeoff <= 0 {
+		// edge case
+		fullRecipients = 0
+	} else if broadcastCost <= broadcastAllCostTarget {
+		// if event is small or was created recently, always send to everyone full event
+		fullRecipients = peersNum
+	} else if broadcastCost <= broadcastSqrtCostTarget || passed == 0 {
+		// if event is big but was created recently, send full event to subset of peers
+		fullRecipients = int(math.Sqrt(float64(peersNum)))
+		if fullRecipients < 4 {
+			fullRecipients = 4
+		}
+	}
+	if fullRecipients > peersNum {
+		fullRecipients = peersNum
+	}
+	return fullRecipients
+}
+
 // BroadcastEvent will either propagate a event to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
-func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, aggressive bool) int {
+func (pm *ProtocolManager) BroadcastEvent(event *inter.Event, passed time.Duration) int {
+	if passed < 0 {
+		passed = 0
+	}
 	id := event.Hash()
 	peers := pm.peers.PeersWithoutEvent(id)
-
-	// If propagation is requested, send to a subset of the peer
-	if aggressive {
-		// Send the event to a subset of our peers
-		transferLen := int(math.Sqrt(float64(len(peers))))
-		if transferLen < minBroadcastPeers {
-			transferLen = minBroadcastPeers
-		}
-		if transferLen > len(peers) {
-			transferLen = len(peers)
-		}
-		transfer := peers[:transferLen]
-		for _, peer := range transfer {
-			peer.AsyncSendEvents(inter.Events{event})
-		}
-		log.Trace("Propagated event", "hash", id, "recipients", len(transfer))
-		return transferLen
+	if len(peers) == 0 {
+		log.Trace("Event is already known to all peers", "hash", id)
+		return 0
 	}
-	// Announce it
-	for _, peer := range peers {
+
+	fullRecipients := pm.decideBroadcastAggressiveness(event.Size(), passed, len(peers))
+
+	// Broadcast of full event to a subset of peers
+	fullBroadcast := peers[:fullRecipients]
+	for _, peer := range fullBroadcast {
+		peer.AsyncSendEvents(inter.Events{event})
+	}
+	// Broadcast of event hash to the rest peers
+	hashBroadcast := peers[fullRecipients:]
+	for _, peer := range hashBroadcast {
 		peer.AsyncSendNewEventHashes(hash.Events{event.Hash()})
 	}
-	log.Trace("Announced event", "hash", id, "recipients", len(peers))
+	log.Trace("Broadcast event", "hash", id, "fullRecipients", len(fullBroadcast), "hashRecipients", len(hashBroadcast))
 	return len(peers)
 }
 
@@ -733,10 +767,7 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 	for {
 		select {
 		case emitted := <-pm.emittedEventsCh:
-			if pm.config.ForcedBroadcast {
-				pm.BroadcastEvent(emitted, true) // No one knows the event, so be aggressive
-			}
-			pm.BroadcastEvent(emitted, false) // Only then announce to the rest
+			pm.BroadcastEvent(emitted, 0)
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
 			return
