@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
+	"github.com/Fantom-foundation/go-lachesis/gossip/temporary"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
@@ -83,7 +84,7 @@ type Store struct {
 		TmpDbs kvdb.KeyValueStore `table:"T"`
 	}
 
-	EpochDbs *tmpDbs
+	EpochDbs *temporary.Dbs
 
 	cache struct {
 		Events        *lru.Cache `cache:"-"` // store by pointer
@@ -143,6 +144,14 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	s.initCache()
 
 	return s
+}
+
+func (s *Store) newTmpDbs(name string, maker temporary.DbMaker) *temporary.Dbs {
+	t := table.New(s.table.TmpDbs, []byte(name))
+	dbs := temporary.NewDbs(t, maker)
+	dbs.SetName(name)
+
+	return dbs
 }
 
 func (s *Store) initCache() {
