@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
@@ -19,21 +20,65 @@ type (
 	// tmpDbs is a named sequence of tmpDb
 	tmpDbs struct {
 		store kvdb.KeyValueStore
-		min   uint64
-		seq   map[uint64]tmpDb
+		seq   ringbuf
 		maker tmpDbMaker
 
 		sync.Mutex
 		logger.Instance
 	}
 
+	ringbuf struct {
+		Min    uint64
+		offset int
+		count  int
+		seq    [5]*tmpDb // len is a max count
+	}
+
 	tmpDbMaker func(ver uint64) (db kvdb.KeyValueStore, tables interface{})
 )
+
+func (r *ringbuf) Get(num uint64) *tmpDb {
+	i := int(num - r.Min)
+	if num < r.Min || i >= r.count {
+		return nil
+	}
+
+	i = (i + r.offset) % len(r.seq)
+	return r.seq[i]
+}
+
+func (r *ringbuf) Set(num uint64, val *tmpDb) {
+	if r.count >= len(r.seq) {
+		panic("no space")
+	}
+
+	if r.count == 0 {
+		r.Min = num
+	}
+
+	i := int(num - r.Min)
+	if i != r.count {
+		panic(fmt.Sprintf("sequence is broken (set %d to %+v)", num, r))
+	}
+
+	i = (i + r.offset) % len(r.seq)
+	r.seq[i] = val
+	r.count++
+}
+
+func (r *ringbuf) Del(num uint64) {
+	if num != r.Min {
+		panic(fmt.Sprintf("sequence is broken (del %d from %+v)", num, r))
+	}
+
+	r.Min++
+	r.offset = (r.offset + 1) % len(r.seq)
+	r.count--
+}
 
 func (s *Store) newTmpDbs(name string, maker tmpDbMaker) *tmpDbs {
 	dbs := &tmpDbs{
 		store:    table.New(s.table.TmpDbs, []byte(name)),
-		seq:      make(map[uint64]tmpDb),
 		maker:    maker,
 		Instance: logger.MakeInstance(),
 	}
@@ -43,69 +88,67 @@ func (s *Store) newTmpDbs(name string, maker tmpDbMaker) *tmpDbs {
 	return dbs
 }
 
-func (dbs *tmpDbs) loadMin() {
+func (t *tmpDbs) loadMin() {
 	key := []byte("m")
 
-	buf, err := dbs.store.Get(key)
+	buf, err := t.store.Get(key)
 	if err != nil {
-		dbs.Log.Crit("Failed to get key-value", "err", err)
+		t.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if buf == nil {
 		return
 	}
 
-	dbs.min = bigendian.BytesToInt64(buf)
+	t.seq.Min = bigendian.BytesToInt64(buf)
 }
 
-func (dbs *tmpDbs) saveMin() {
+func (t *tmpDbs) saveMin() {
 	key := []byte("m")
 
-	err := dbs.store.Put(key, bigendian.Int64ToBytes(dbs.min))
+	err := t.store.Put(key, bigendian.Int64ToBytes(t.seq.Min))
 	if err != nil {
-		dbs.Log.Crit("Failed to put key-value", "err", err)
+		t.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
-func (dbs *tmpDbs) Get(ver uint64) interface{} {
-	dbs.Lock()
-	defer dbs.Unlock()
+func (t *tmpDbs) Get(ver uint64) interface{} {
+	t.Lock()
+	defer t.Unlock()
 
-	if ver < dbs.min {
+	if ver < t.seq.Min {
 		return nil
 	}
 
-	if tmp, ok := dbs.seq[ver]; ok {
+	if tmp := t.seq.Get(ver); tmp != nil {
 		return tmp.Tables
 	}
 
-	db, tables := dbs.maker(ver)
+	db, tables := t.maker(ver)
 
-	dbs.seq[ver] = tmpDb{
+	t.seq.Set(ver, &tmpDb{
 		Db:     db,
 		Tables: tables,
-	}
+	})
 
 	return tables
 }
 
-func (dbs *tmpDbs) Del(ver uint64) {
-	dbs.Lock()
-	defer dbs.Unlock()
+func (t *tmpDbs) Del(ver uint64) {
+	t.Lock()
+	defer t.Unlock()
 
-	if ver < dbs.min {
+	if ver < t.seq.Min {
 		return
 	}
 
-	for i := dbs.min; i <= ver; i++ {
-		tmp := dbs.seq[i]
-		if tmp.Db != nil {
+	for i := t.seq.Min; i <= ver; i++ {
+		tmp := t.seq.Get(i)
+		if tmp != nil {
 			tmp.Db.Close()
 			tmp.Db.Drop()
 		}
-		delete(dbs.seq, i)
+		t.seq.Del(i)
 	}
 
-	ver++
-	dbs.min = ver
-	dbs.saveMin()
+	t.saveMin()
 }
