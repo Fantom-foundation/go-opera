@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
+	"github.com/Fantom-foundation/go-lachesis/gossip/temporary"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
@@ -76,12 +78,14 @@ type Store struct {
 		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
 		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
 
-		TmpDbs kvdb.KeyValueStore `table:"T"`
-
 		Evm      ethdb.Database
 		EvmState state.Database
 		EvmLogs  *topicsdb.Index
+
+		TmpDbs kvdb.KeyValueStore `table:"T"`
 	}
+
+	EpochDbs *temporary.Dbs
 
 	cache struct {
 		Events        *lru.Cache `cache:"-"` // store by pointer
@@ -97,11 +101,9 @@ type Store struct {
 		BlockHashes   *lru.Cache `cache:"-"` // store by pointer
 	}
 
-	mutexes struct {
-		IncMutex *sync.Mutex
+	mutex struct {
+		Inc sync.Mutex
 	}
-
-	tmpDbs
 
 	logger.Instance
 }
@@ -131,11 +133,26 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
 
-	s.initTmpDbs()
+	s.EpochDbs = s.newTmpDbs("epoch", func(ver uint64) (
+		db kvdb.KeyValueStore,
+		tables interface{},
+	) {
+		db = s.dbs.GetDb(fmt.Sprintf("gossip-epoch-%d", ver))
+		tables = newEpochStore(db)
+		return
+	})
+
 	s.initCache()
-	s.initMutexes()
 
 	return s
+}
+
+func (s *Store) newTmpDbs(name string, maker temporary.DbMaker) *temporary.Dbs {
+	t := table.New(s.table.TmpDbs, []byte(name))
+	dbs := temporary.NewDbs(t, maker)
+	dbs.SetName(name)
+
+	return dbs
 }
 
 func (s *Store) initCache() {
@@ -150,10 +167,6 @@ func (s *Store) initCache() {
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)
 	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
-}
-
-func (s *Store) initMutexes() {
-	s.mutexes.IncMutex = new(sync.Mutex)
 }
 
 // Close leaves underlying database.
