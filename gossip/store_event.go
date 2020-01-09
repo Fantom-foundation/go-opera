@@ -99,10 +99,5 @@ func (s *Store) GetEventRLP(id hash.Event) rlp.RawValue {
 
 // HasEvent returns true if event exists.
 func (s *Store) HasEvent(h hash.Event) bool {
-	// Check in LRU cache first. Ff exists - return true.
-	if s.cache.Events != nil && s.cache.Events.Contains(h) {
-		return true
-	}
-
 	return s.has(s.table.Events, h.Bytes())
 }
