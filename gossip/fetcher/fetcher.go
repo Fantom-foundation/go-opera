@@ -27,8 +27,8 @@ const (
 	fetchTimeout  = 10 * time.Second        // Maximum allowed time to return an explicitly requested event
 	hashLimit     = 3000                    // Maximum number of unique events a peer may have announced
 
-	maxInjectBatch   = 4  // Maximum number of events in an inject batch (batch is divided if exceeded)
-	maxAnnounceBatch = 32 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
+	maxInjectBatch   = 4   // Maximum number of events in an inject batch (batch is divided if exceeded)
+	maxAnnounceBatch = 256 // Maximum number of hashes in an announce batch (batch is divided if exceeded)
 
 	// maxQueuedInjects is the maximum number of inject batches to queue up before
 	// dropping incoming events.
@@ -287,7 +287,7 @@ func (f *Fetcher) loop() {
 
 		case notification := <-f.notify:
 			// A event was announced, make sure the peer isn't DOSing us
-			propAnnounceInMeter.Update(1)
+			propAnnounceInMeter.Update(int64(len(notification.hashes)))
 
 			count := f.announces[notification.peer]
 			if count+len(notification.hashes) > hashLimit {
@@ -336,7 +336,7 @@ func (f *Fetcher) loop() {
 		case op := <-f.inject:
 			// A direct event insertion was requested, try and fill any pending gaps
 			parents := make(hash.Events, 0, len(op.events))
-			propBroadcastInMeter.Update(1)
+			propBroadcastInMeter.Update(int64(len(op.events)))
 			for _, e := range op.events {
 				// fetch unknown parents
 				for _, p := range e.Parents {
@@ -350,6 +350,7 @@ func (f *Fetcher) loop() {
 				f.forgetHash(e.Hash())
 			}
 
+			parents = f.callback.OnlyInterested(parents)
 			if len(parents) != 0 && !f.OverloadedPeer(op.peer) {
 				// f.Notify will filter onlyInterested parents - this way, we won't request the events from op.events
 				_ = f.Notify(op.peer, parents, op.time, op.fetchEvents)
