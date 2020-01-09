@@ -133,6 +133,16 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 	return w
 }
 
+// HasEvent returns true if event exists.
+func (s *Store) HasEventHeader(h hash.Event) bool {
+	es := s.getEpochStore(h.Epoch())
+	if es == nil {
+		return false
+	}
+
+	return s.has(es.Headers, h.Bytes())
+}
+
 // DelEventHeader removes stored event header.
 func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	es := s.getEpochStore(epoch)

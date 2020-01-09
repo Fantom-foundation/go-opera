@@ -32,6 +32,7 @@ func TestEventBuffer(t *testing.T) {
 
 		Process: func(e *inter.Event) error {
 			if _, ok := processed[e.Hash()]; ok {
+				t.Fatalf("%s already processed", e.String())
 				return nil
 			}
 			for _, p := range e.Parents {
@@ -48,7 +49,11 @@ func TestEventBuffer(t *testing.T) {
 			t.Fatalf("%s unexpectedly dropped with %s", e.String(), err)
 		},
 
-		Exists: func(e hash.Event) *inter.EventHeaderData {
+		Exists: func(e hash.Event) bool {
+			return processed[e] != nil
+		},
+
+		Get: func(e hash.Event) *inter.EventHeaderData {
 			return processed[e]
 		},
 

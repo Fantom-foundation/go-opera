@@ -20,7 +20,8 @@ type (
 	Callback struct {
 		Process func(e *inter.Event) error
 		Drop    func(e *inter.Event, peer string, err error)
-		Exists  func(hash.Event) *inter.EventHeaderData
+		Get     func(hash.Event) *inter.EventHeaderData
+		Exists  func(hash.Event) bool
 		Check   func(e *inter.Event, parents []*inter.EventHeaderData) error
 	}
 )
@@ -39,17 +40,12 @@ func New(buffSize int, callback Callback) *EventBuffer {
 }
 
 func (buf *EventBuffer) PushEvent(e *inter.Event, peer string) {
-	if buf.callback.Exists(e.Hash()) != nil {
-		buf.callback.Drop(e, peer, eventcheck.ErrAlreadyConnectedEvent)
-		return
-	}
-
 	w := &event{
 		Event: e,
 		peer:  peer,
 	}
 
-	buf.pushEvent(w, buf.getIncompleteEventsList())
+	buf.pushEvent(w, buf.getIncompleteEventsList(), true)
 }
 
 func (buf *EventBuffer) getIncompleteEventsList() []*event {
@@ -64,13 +60,19 @@ func (buf *EventBuffer) getIncompleteEventsList() []*event {
 	return res
 }
 
-func (buf *EventBuffer) pushEvent(e *event, incompleteEventsList []*event) {
+func (buf *EventBuffer) pushEvent(e *event, incompleteEventsList []*event, strict bool) {
 	// LRU is thread-safe, no need in mutex
+	if buf.callback.Exists(e.Hash()) {
+		if strict {
+			buf.callback.Drop(e.Event, e.peer, eventcheck.ErrAlreadyConnectedEvent)
+		}
+		return
+	}
 
 	parents := make([]*inter.EventHeaderData, len(e.Parents)) // use local buffer for thread safety
 	for i, p := range e.Parents {
 		_, _ = buf.incompletes.Get(p) // updating the "recently used"-ness of the key
-		parent := buf.callback.Exists(p)
+		parent := buf.callback.Get(p)
 		if parent == nil {
 			buf.incompletes.Add(e.Hash(), e)
 			return
@@ -100,7 +102,7 @@ func (buf *EventBuffer) pushEvent(e *event, incompleteEventsList []*event) {
 	for _, child := range incompleteEventsList {
 		for _, parent := range child.Parents {
 			if parent == eHash {
-				buf.pushEvent(child, incompleteEventsList)
+				buf.pushEvent(child, incompleteEventsList, false)
 			}
 		}
 	}

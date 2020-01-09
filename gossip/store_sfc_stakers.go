@@ -9,18 +9,14 @@ import (
 )
 
 // SetEpochValidator stores EpochValidator
-func (s *Store) SetEpochValidator(epoch idx.Epoch, stakerID idx.StakerID, v *sfctype.SfcStaker) {
-	key := append(epoch.Bytes(), stakerID.Bytes()...)
+func (s *Store) SetEpochValidators(epoch idx.Epoch, vv []sfctype.SfcStakerAndID) {
+	for _, v := range vv {
+		key := append(epoch.Bytes(), v.StakerID.Bytes()...)
+		s.set(s.table.Validators, key, v.Staker)
+	}
 
-	s.set(s.table.Validators, key, v)
-}
-
-// GetEpochValidator returns stored EpochValidator
-func (s *Store) GetEpochValidator(epoch idx.Epoch, stakerID idx.StakerID) *sfctype.SfcStaker {
-	key := append(epoch.Bytes(), stakerID.Bytes()...)
-
-	w, _ := s.get(s.table.Validators, key, &sfctype.SfcStaker{}).(*sfctype.SfcStaker)
-	return w
+	// Add to LRU cache.
+	s.cache.Validators.Add(epoch, vv)
 }
 
 // SetSfcStaker stores SfcStaker
@@ -64,12 +60,21 @@ func (s *Store) GetSfcStakers() []sfctype.SfcStakerAndID {
 
 // GetEpochValidators returns all stored EpochValidators on the epoch
 func (s *Store) GetEpochValidators(epoch idx.Epoch) []sfctype.SfcStakerAndID {
+	// Get from cache
+	if bVal, okGet := s.cache.Validators.Get(epoch); okGet {
+		return bVal.([]sfctype.SfcStakerAndID)
+	}
+
 	it := s.table.Validators.NewIteratorWithPrefix(epoch.Bytes())
 	defer it.Release()
 	validators := make([]sfctype.SfcStakerAndID, 0, 200)
 	s.forEachSfcStaker(it, func(staker sfctype.SfcStakerAndID) {
 		validators = append(validators, staker)
 	})
+
+	// Add to LRU cache.
+	s.cache.Validators.Add(epoch, validators)
+
 	return validators
 }
 
@@ -113,17 +118,6 @@ func (s *Store) GetSfcStaker(stakerID idx.StakerID) *sfctype.SfcStaker {
 // HasSfcStaker returns true if staker exists
 func (s *Store) HasSfcStaker(stakerID idx.StakerID) bool {
 	ok, err := s.table.Stakers.Has(stakerID.Bytes())
-	if err != nil {
-		s.Log.Crit("Failed to get staker", "err", err)
-	}
-	return ok
-}
-
-// HasEpochValidator returns true if validator exists
-func (s *Store) HasEpochValidator(epoch idx.Epoch, stakerID idx.StakerID) bool {
-	key := append(epoch.Bytes(), stakerID.Bytes()...)
-
-	ok, err := s.table.Validators.Has(key)
 	if err != nil {
 		s.Log.Crit("Failed to get staker", "err", err)
 	}

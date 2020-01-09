@@ -23,7 +23,7 @@ import (
 func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
 
-	if s.store.HasEvent(e.Hash()) { // sanity check
+	if s.store.HasEventHeader(e.Hash()) { // sanity check
 		return eventcheck.ErrAlreadyConnectedEvent
 	}
 

@@ -194,7 +194,11 @@ func (pm *ProtocolManager) makeFetcher(checkers *eventcheck.Checkers) (*fetcher.
 			}
 		},
 
-		Exists: func(id hash.Event) *inter.EventHeaderData {
+		Exists: func(id hash.Event) bool {
+			return pm.store.HasEventHeader(id)
+		},
+
+		Get: func(id hash.Event) *inter.EventHeaderData {
 			return pm.store.GetEventHeader(id.Epoch(), id)
 		},
 
@@ -218,7 +222,7 @@ func (pm *ProtocolManager) onlyNotConnectedEvents(ids hash.Events) hash.Events {
 
 	notConnected := make(hash.Events, 0, len(ids))
 	for _, id := range ids {
-		if pm.store.HasEvent(id) {
+		if pm.store.HasEventHeader(id) {
 			continue
 		}
 		notConnected.Add(id)
@@ -237,7 +241,7 @@ func (pm *ProtocolManager) onlyInterestedEvents(ids hash.Events) hash.Events {
 		if id.Epoch() != epoch {
 			continue
 		}
-		if pm.buffer.IsBuffered(id) || pm.store.HasEvent(id) {
+		if pm.buffer.IsBuffered(id) || pm.store.HasEventHeader(id) {
 			continue
 		}
 		interested.Add(id)

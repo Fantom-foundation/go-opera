@@ -95,6 +95,7 @@ type Store struct {
 		Receipts      *lru.Cache `cache:"-"` // store by value
 		TxPositions   *lru.Cache `cache:"-"` // store by pointer
 		EpochStats    *lru.Cache `cache:"-"` // store by value
+		Validators    *lru.Cache `cache:"-"` // store by pointer
 		Stakers       *lru.Cache `cache:"-"` // store by pointer
 		Delegators    *lru.Cache `cache:"-"` // store by pointer
 		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
@@ -163,6 +164,7 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
 	s.cache.EpochStats = s.makeCache(s.cfg.EpochStatsCacheSize)
+	s.cache.Validators = s.makeCache(2)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
 	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)

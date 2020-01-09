@@ -192,6 +192,9 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 
 func (em *Emitter) myStakerID() (idx.StakerID, bool) {
 	coinbase := em.GetValidator()
+	if coinbase == (common.Address{}) {
+		return 0, false // short circuit if zero address
+	}
 
 	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
