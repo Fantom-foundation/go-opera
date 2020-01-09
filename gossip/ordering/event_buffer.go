@@ -2,7 +2,7 @@ package ordering
 
 import (
 	"github.com/hashicorp/golang-lru"
-
+	
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -49,14 +49,23 @@ func (buf *EventBuffer) PushEvent(e *inter.Event, peer string) {
 		peer:  peer,
 	}
 
-	buf.pushEvent(w)
+	buf.pushEvent(w, buf.getIncompleteEventsList())
 }
 
-func (buf *EventBuffer) pushEvent(e *event) {
-	// LRU is thread-safe, no need in mutex
-	if buf.callback.Exists(e.Hash()) != nil {
-		return
+func (buf *EventBuffer) getIncompleteEventsList() []*event {
+	res := make([]*event, 0, buf.incompletes.Len())
+	for _, childID := range buf.incompletes.Keys() {
+		child, _ := buf.incompletes.Peek(childID)
+		if child == nil {
+			continue
+		}
+		res = append(res, child.(*event))
 	}
+	return res
+}
+
+func (buf *EventBuffer) pushEvent(e *event, incompleteEventsList []*event) {
+	// LRU is thread-safe, no need in mutex
 
 	parents := make([]*inter.EventHeaderData, len(e.Parents)) // use local buffer for thread safety
 	for i, p := range e.Parents {
@@ -86,19 +95,15 @@ func (buf *EventBuffer) pushEvent(e *event) {
 	}
 
 	// now child events may become complete, check it again
-	for _, childID := range buf.incompletes.Keys() {
-		child, _ := buf.incompletes.Peek(childID) // without updating the "recently used"-ness of the key
-		if child == nil {
-			continue
-		}
-		for _, parent := range child.(*event).Parents {
-			if parent == e.Hash() {
-				buf.pushEvent(child.(*event))
+	eHash := e.Hash()
+	buf.incompletes.Remove(eHash)
+	for _, child := range incompleteEventsList {
+		for _, parent := range child.Parents {
+			if parent == eHash {
+				buf.pushEvent(child, incompleteEventsList)
 			}
 		}
 	}
-
-	buf.incompletes.Remove(e.Hash())
 }
 
 func (buf *EventBuffer) IsBuffered(id hash.Event) bool {
