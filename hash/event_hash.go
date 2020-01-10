@@ -93,7 +93,7 @@ func (h Event) Epoch() idx.Epoch {
 
 // String returns human readable string representation.
 func (h Event) String() string {
-	return h.ShortID(4)
+	return h.ShortID(3)
 }
 
 // FullID returns human readable string representation with no information loss.
