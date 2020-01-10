@@ -223,26 +223,26 @@ func lachesisMain(ctx *cli.Context) error {
 }
 
 func makeFullNode(ctx *cli.Context) *node.Node {
-	stack, nodeCfg := makeConfigNode(ctx)
+	cfg := makeAllConfigs(ctx)
 
-	gossipCfg := makeAllConfigs(ctx).Lachesis
+	stack := makeConfigNode(ctx, &cfg.Node)
 
-	engine, gdb := integration.MakeEngine(nodeCfg.DataDir, &gossipCfg)
-	metrics.SetDataDir(nodeCfg.DataDir)
+	engine, gdb := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
+	metrics.SetDataDir(cfg.Node.DataDir)
 
 	// configure emitter
 	var ks *keystore.KeyStore
 	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
 		ks = keystores[0].(*keystore.KeyStore)
 	}
-	setValidator(ctx, ks, &gossipCfg.Emitter)
+	setValidator(ctx, ks, &cfg.Lachesis.Emitter)
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(ctx, gossipCfg, gdb, engine)
+		return gossip.NewService(ctx, &cfg.Lachesis, gdb, engine)
 	}
 
 	if err := stack.Register(gossipService); err != nil {
@@ -252,16 +252,15 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	return stack
 }
 
-func makeConfigNode(ctx *cli.Context) (*node.Node, *node.Config) {
-	cfg := makeAllConfigs(ctx).Node
-	stack, err := node.New(&cfg)
+func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {
+	stack, err := node.New(cfg)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 
 	addFakeAccount(ctx, stack)
 
-	return stack, &cfg
+	return stack
 }
 
 // startNode boots up the system node and all registered protocols, after which

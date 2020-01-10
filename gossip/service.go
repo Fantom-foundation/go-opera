@@ -86,7 +86,7 @@ func (f *ServiceFeed) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subs
 
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
-	config Config
+	config *Config
 
 	wg   sync.WaitGroup
 	done chan struct{}
@@ -120,7 +120,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Consensus) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine Consensus) (*Service, error) {
 	svc := &Service{
 		config: config,
 
@@ -168,7 +168,7 @@ func NewService(ctx *node.ServiceContext, config Config, store *Store, engine Co
 
 	// create protocol manager
 	var err error
-	svc.pm, err = NewProtocolManager(&config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.engine, svc.serverPool)
+	svc.pm, err = NewProtocolManager(config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.engine, svc.serverPool)
 
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil, new(notify.TypeMux)}
@@ -196,7 +196,7 @@ func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasP
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(&s.config,
+	return NewEmitter(s.config,
 		EmitterWorld{
 			Am:          s.AccountManager(),
 			Engine:      s.engine,

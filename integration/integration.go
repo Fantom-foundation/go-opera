@@ -25,7 +25,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 	gossipCfg.Emitter.MaxEmitInterval = 3 * time.Second
 	gossipCfg.Emitter.SelfForkProtectionInterval = 0
 
-	svc, err := gossip.NewService(ctx.NodeContext, gossipCfg, gdb, engine)
+	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine)
 	if err != nil {
 		panic(err)
 	}

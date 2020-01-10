@@ -159,7 +159,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	ctx := &node.ServiceContext{
 		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, creator),
 	}
-	svc, err := NewService(ctx, config, store, engine)
+	svc, err := NewService(ctx, &config, store, engine)
 	assertar.NoError(err)
 
 	// start PM

@@ -193,7 +193,8 @@ nodes.
 )
 
 func accountList(ctx *cli.Context) error {
-	stack, _ := makeConfigNode(ctx)
+	cfg := makeAllConfigs(ctx)
+	stack := makeConfigNode(ctx, &cfg.Node)
 	var index int
 	for _, wallet := range stack.AccountManager().Wallets() {
 		for _, account := range wallet.Accounts() {
@@ -322,7 +323,9 @@ func accountUpdate(ctx *cli.Context) error {
 	if len(ctx.Args()) == 0 {
 		utils.Fatalf("No accounts specified to update")
 	}
-	stack, _ := makeConfigNode(ctx)
+
+	cfg := makeAllConfigs(ctx)
+	stack := makeConfigNode(ctx, &cfg.Node)
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 
 	for _, addr := range ctx.Args() {
@@ -345,7 +348,8 @@ func importWallet(ctx *cli.Context) error {
 		utils.Fatalf("Could not read wallet file: %v", err)
 	}
 
-	stack, _ := makeConfigNode(ctx)
+	cfg := makeAllConfigs(ctx)
+	stack := makeConfigNode(ctx, &cfg.Node)
 	passphrase := getPassPhrase("", false, 0, utils.MakePasswordList(ctx))
 
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
@@ -366,7 +370,9 @@ func accountImport(ctx *cli.Context) error {
 	if err != nil {
 		utils.Fatalf("Failed to load the private key: %v", err)
 	}
-	stack, _ := makeConfigNode(ctx)
+
+	cfg := makeAllConfigs(ctx)
+	stack := makeConfigNode(ctx, &cfg.Node)
 	passphrase := getPassPhrase("Your new account is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))
 
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
