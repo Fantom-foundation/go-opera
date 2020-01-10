@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -29,7 +30,10 @@ func TestStoreGetEventHeader(t *testing.T) {
 func TestStoreEpochStore(t *testing.T) {
 	logger.SetTestMode(t)
 
-	dir := os.TempDir()
+	dir, err := ioutil.TempDir("", "epochstore-test")
+	if err != nil {
+		panic(err)
+	}
 	defer os.RemoveAll(dir)
 
 	for name, store := range map[string]*Store{
