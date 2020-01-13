@@ -67,6 +67,14 @@ Going through all the possible command line flags is out of scope here,
 but we've enumerated a few common parameter combos to get you up to speed quickly
 on how you can run your own `lachesis` instance.
 
+### Mainnet
+
+Launching `lachesis` for mainnet with default settings:
+
+```shell
+$ lachesis
+```
+
 ### Configuration
 
 As an alternative to passing the numerous flags to the `lachesis` binary, you can also pass a
