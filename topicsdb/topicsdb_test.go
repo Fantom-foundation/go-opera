@@ -100,11 +100,12 @@ func genTestData() (
 		from, to := topics4rec(i)
 		r := &types.Log{
 			BlockNumber: uint64(i / period),
+			BlockHash:   hash.FakeHash(int64(i / period)),
 			TxHash:      hash.FakeHash(int64(i % period)),
 			Index:       uint(i % period),
 			Address:     common.Address{0x1, 0x2, 0xff, 0x0},
 			Topics:      topics[from:to],
-			Data:        make([]byte, 10),
+			Data:        make([]byte, i),
 		}
 		_, _ = rand.Read(r.Data)
 		recs[i] = r

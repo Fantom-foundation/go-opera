@@ -105,9 +105,12 @@ func (rec *logrecBuilder) Fetch(
 	if err != nil {
 		return
 	}
-
-	rec.Address = common.BytesToAddress(buf)
-	rec.Data = buf[:len(buf)-common.AddressLength]
+	offset := 0
+	rec.Address = common.BytesToAddress(buf[offset : offset+common.AddressLength])
+	offset += common.AddressLength
+	rec.BlockHash = common.BytesToHash(buf[offset : offset+common.HashLength])
+	offset += common.HashLength
+	rec.Data = buf[offset:]
 
 	return
 }
