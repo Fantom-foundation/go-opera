@@ -87,7 +87,6 @@ type subscription struct {
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	mux     *notify.TypeMux
 	backend Backend
 
 	// Subscriptions
@@ -103,15 +102,13 @@ type EventSystem struct {
 	blocksCh  chan evmcore.ChainHeadNotify // Channel to receive new chain notify
 }
 
-// NewEventSystem creates a new manager that listens for event on the given mux,
+// NewEventSystem creates a new manager that listens for event on the given chans,
 // parses and filters them. It uses the all map to retrieve filter changes. The
 // work loop holds its own index that is used to forward events to filters.
 //
-// The returned manager has a loop that needs to be stopped with the Stop function
-// or by stopping the given mux.
-func NewEventSystem(mux *notify.TypeMux, backend Backend) *EventSystem {
+// The returned manager has a loop that needs to be stopped with the Stop function.
+func NewEventSystem(backend Backend) *EventSystem {
 	m := &EventSystem{
-		mux:       mux,
 		backend:   backend,
 		install:   make(chan *subscription),
 		uninstall: make(chan *subscription),
