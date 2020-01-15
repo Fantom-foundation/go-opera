@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -35,7 +34,10 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/topicsdb"
 )
 
@@ -146,26 +148,18 @@ func TestBlockSubscription(t *testing.T) {
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend)
 
-		genesis = new(core.Genesis).MustCommit(backend.db)
-		// TODO: generate chain of EvmBlocks
-		chain, _ = core.GenerateChain(
-			params.TestChainConfig,
-			genesis,
-			ethash.NewFaker(),
-			backend.db,
-			10,
-			func(i int, gen *core.BlockGen) {
-				gen.SetExtra(hash.FakeHash(int64(i)).Bytes())
-			})
+		net         = lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
+		genesis     = evmcore.MustApplyGenesis(&net, backend.db)
+		chain, _, _ = evmcore.GenerateChain(
+			params.TestChainConfig, genesis, backend.db, 10, nil)
 		chainEvents = []evmcore.ChainHeadNotify{}
 	)
 
 	for _, blk := range chain {
-		h := *evmcore.ConvertFromEthHeader(blk.Header())
 		chainEvents = append(chainEvents, evmcore.ChainHeadNotify{
 			Block: &evmcore.EvmBlock{
-				EvmHeader:    h,
-				Transactions: blk.Transactions(),
+				EvmHeader:    blk.EvmHeader,
+				Transactions: blk.Transactions,
 			},
 		})
 	}
@@ -365,7 +359,6 @@ func TestLogFilter(t *testing.T) {
 		secondTopic    = common.HexToHash("0x2222222222222222222222222222222222222222222222222222222222222222")
 		notUsedTopic   = common.HexToHash("0x9999999999999999999999999999999999999999999999999999999999999999")
 
-		// posted twice, once as vm.Logs and once as core.PendingLogsEvent
 		allLogs = []*types.Log{
 			{Address: firstAddr},
 			{Address: firstAddr, Topics: []common.Hash{firstTopic}, BlockNumber: 1},
@@ -373,9 +366,6 @@ func TestLogFilter(t *testing.T) {
 			{Address: thirdAddress, Topics: []common.Hash{secondTopic}, BlockNumber: 2},
 			{Address: thirdAddress, Topics: []common.Hash{secondTopic}, BlockNumber: 3},
 		}
-
-		//expectedCase7 =
-		//expectedCase11 =
 
 		testCases = []struct {
 			crit     FilterCriteria

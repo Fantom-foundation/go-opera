@@ -80,8 +80,8 @@ func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
 	return block
 }
 
-// mustApplyGenesis writes the genesis block and state to db, panicking on error.
-func mustApplyGenesis(net *lachesis.Config, db ethdb.Database) *EvmBlock {
+// MustApplyGenesis writes the genesis block and state to db, panicking on error.
+func MustApplyGenesis(net *lachesis.Config, db ethdb.Database) *EvmBlock {
 	block, err := ApplyGenesis(db, net)
 	if err != nil {
 		log.Crit("ApplyGenesis", "err", err)

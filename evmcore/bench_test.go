@@ -156,7 +156,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 		},
 	}
 
-	genesisBlock := mustApplyGenesis(net, db)
+	genesisBlock := MustApplyGenesis(net, db)
 
 	// Time the insertion of the new chain.
 	// State and blocks are stored in the same DB.
