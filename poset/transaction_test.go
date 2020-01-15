@@ -58,7 +58,7 @@ func TestPosetTxn(t *testing.T) {
 	assert.Equal(t, p.PrevEpoch.Hash(), s.GetGenesis().PrevEpoch.Hash())
 
 	assert.Equal(t, idx.Epoch(0), p.PrevEpoch.Epoch)
-	assert.Equal(t, genesisTestTime, p.PrevEpoch.Time)
+	assert.Equal(t, genesisTime, p.PrevEpoch.Time)
 
 	assert.Equal(t, 5*x, p.Validators.TotalStake())
 
@@ -70,7 +70,7 @@ func TestPosetTxn(t *testing.T) {
 	p.sealEpoch()
 
 	assert.Equal(t, idx.Epoch(1), p.PrevEpoch.Epoch)
-	assert.NotEqual(t, genesisTestTime, p.PrevEpoch.Time)
+	assert.NotEqual(t, genesisTime, p.PrevEpoch.Time)
 
 	assert.Equal(t, 5*x, p.Validators.TotalStake())
 

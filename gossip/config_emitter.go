@@ -35,7 +35,7 @@ type EmitterConfig struct {
 // DefaultEmitterConfig returns the default configurations for the events emitter.
 func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
-		MinEmitInterval:            250 * time.Millisecond,
+		MinEmitInterval:            300 * time.Millisecond,
 		MaxEmitInterval:            10 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           TxTurnNonces,

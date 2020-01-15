@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	genesisTestTime = inter.Timestamp(1565000000 * time.Second)
+	genesisTime = inter.Timestamp(1565000000 * time.Second)
 )
 
 const (
@@ -57,7 +57,7 @@ func FakePoset(namespace string, nodes []idx.StakerID, mods ...memorydb.Mod) (*E
 
 	atropos := hash.ZeroEvent
 	err := store.ApplyGenesis(&genesis.Genesis{
-		Time: genesisTestTime,
+		Time: genesisTime,
 		Alloc: genesis.VAccounts{
 			Validators: validators,
 			Accounts:   nil,
