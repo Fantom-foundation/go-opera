@@ -35,15 +35,13 @@ import (
 
 type Backend interface {
 	ChainDb() ethdb.Database
-	EventMux() *notify.TypeMux
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*evmcore.EvmHeader, error)
 	HeaderByHash(ctx context.Context, blockHash common.Hash) (*evmcore.EvmHeader, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 
+	SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify) notify.Subscription
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) notify.Subscription
-	SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription
-	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription
 	SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscription
 
 	EvmLogIndex() *topicsdb.Index

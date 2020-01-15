@@ -42,7 +42,6 @@ type EthAPIBackend struct {
 	svc           *Service
 	state         *EvmStateReader
 	gpo           *gasprice.Oracle
-	mux           *notify.TypeMux
 }
 
 // ChainConfig returns the active chain configuration.
@@ -310,16 +309,12 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) notify.Subscr
 	return b.svc.feed.SubscribeNewLogs(ch)
 }
 
-func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) notify.Subscription {
-	return b.svc.feed.SubscribeRemovedLogs(ch)
-}
-
-func (b *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) notify.Subscription {
-	return b.svc.feed.SubscribeChainEvent(ch)
-}
-
 func (b *EthAPIBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) notify.Subscription {
 	return b.svc.feed.SubscribeNewTxs(ch)
+}
+
+func (b *EthAPIBackend) SubscribeNewBlockEvent(ch chan<- evmcore.ChainHeadNotify) notify.Subscription {
+	return b.svc.feed.SubscribeNewBlock(ch)
 }
 
 func (b *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
@@ -392,10 +387,6 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
 	return b.svc.store.table.Evm
-}
-
-func (b *EthAPIBackend) EventMux() *notify.TypeMux {
-	return b.mux
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {

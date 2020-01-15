@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -53,7 +52,6 @@ type filter struct {
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
 	backend   Backend
-	mux       *notify.TypeMux
 	chainDb   ethdb.Database
 	events    *EventSystem
 	filtersMu sync.Mutex
@@ -64,9 +62,8 @@ type PublicFilterAPI struct {
 func NewPublicFilterAPI(backend Backend) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend: backend,
-		mux:     backend.EventMux(),
 		chainDb: backend.ChainDb(),
-		events:  NewEventSystem(backend.EventMux(), backend),
+		events:  NewEventSystem(backend),
 		filters: make(map[rpc.ID]*filter),
 	}
 	go api.timeoutLoop()
