@@ -50,13 +50,15 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 		delegator := s.store.GetSfcDelegator(sender)
 		if delegator != nil {
 			staker := s.store.GetSfcStaker(delegator.ToStakerID)
-			prevWeightedTxFee := s.store.GetWeightedDelegatorsFee(delegator.ToStakerID)
+			if staker != nil {
+				prevWeightedTxFee := s.store.GetWeightedDelegatorsFee(delegator.ToStakerID)
 
-			weightedTxFee := new(big.Int).Mul(txFee, delegator.Amount)
-			weightedTxFee.Div(weightedTxFee, staker.CalcTotalStake())
+				weightedTxFee := new(big.Int).Mul(txFee, delegator.Amount)
+				weightedTxFee.Div(weightedTxFee, staker.CalcTotalStake())
 
-			weightedTxFee.Add(weightedTxFee, prevWeightedTxFee)
-			s.store.SetWeightedDelegatorsFee(delegator.ToStakerID, weightedTxFee)
+				weightedTxFee.Add(weightedTxFee, prevWeightedTxFee)
+				s.store.SetWeightedDelegatorsFee(delegator.ToStakerID, weightedTxFee)
+			}
 		}
 
 		if prevUserPoiPeriod != poiPeriod {
