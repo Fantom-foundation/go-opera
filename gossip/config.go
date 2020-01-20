@@ -103,6 +103,7 @@ func DefaultConfig(network lachesis.Config) Config {
 		cfg.TxPool = evmcore.FakeTxPoolConfig()
 		cfg.Emitter = FakeEmitterConfig()
 	}*/
+
 	return cfg
 }
 

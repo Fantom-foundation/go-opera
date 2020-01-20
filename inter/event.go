@@ -25,7 +25,7 @@ var (
 // Doesn't contain transactions, only their hash
 // Doesn't contain event signature
 type EventHeaderData struct {
-	Version uint32
+	Version uint32 // serialization version
 
 	Epoch idx.Epoch
 	Seq   idx.Event

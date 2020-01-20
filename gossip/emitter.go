@@ -51,6 +51,8 @@ type EmitterWorld struct {
 	OnEmitted func(e *inter.Event)
 	IsSynced  func() bool
 	PeersNum  func() int
+
+	AddVersion func(e *inter.Event) *inter.Event
 }
 
 type Emitter struct {
@@ -363,6 +365,11 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
 	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
+
+	// add version
+	if em.world.AddVersion != nil {
+		event = em.world.AddVersion(event)
+	}
 
 	// set consensus fields
 	event = em.world.Engine.Prepare(event)
