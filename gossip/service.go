@@ -104,7 +104,8 @@ type Service struct {
 	// application protocol
 	pm *ProtocolManager
 
-	EthAPI *EthAPIBackend
+	EthAPI        *EthAPIBackend
+	netRPCService *ethapi.PublicNetAPI
 
 	logger.Instance
 }
@@ -242,6 +243,11 @@ func (s *Service) APIs() []rpc.API {
 			Version:   "1.0",
 			Service:   filters.NewPublicFilterAPI(s.EthAPI),
 			Public:    true,
+		}, {
+			Namespace: "net",
+			Version:   "1.0",
+			Service:   s.netRPCService,
+			Public:    true,
 		},
 	}...)
 
@@ -250,6 +256,8 @@ func (s *Service) APIs() []rpc.API {
 
 // Start method invoked when the node is ready to start the service.
 func (s *Service) Start(srv *p2p.Server) error {
+	// Start the RPC service
+	s.netRPCService = ethapi.NewPublicNetAPI(srv, s.config.Net.NetworkID)
 
 	var genesis common.Hash
 	genesis = s.engine.GetGenesisHash()
