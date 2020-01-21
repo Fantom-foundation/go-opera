@@ -374,6 +374,7 @@ func (b *EthAPIBackend) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) no
 	return b.svc.txpool.SubscribeNewTxsNotify(ch)
 }
 
+// Progress returns current synchronization status of this node
 func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
 	p2pProgress := b.svc.pm.myProgress()
 	highestP2pProgress := b.svc.pm.highestPeerProgress()

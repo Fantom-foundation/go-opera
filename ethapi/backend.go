@@ -38,6 +38,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 )
 
+// PeerProgress is synchronization status of a peer
 type PeerProgress struct {
 	CurrentEpoch     idx.Epoch
 	CurrentBlock     idx.Block
