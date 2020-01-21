@@ -875,7 +875,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	if args.Gas != nil && uint64(*args.Gas) >= params.TxGas {
 		hi = uint64(*args.Gas)
 	} else {
-		hi = lachesisparams.MaxGasPowerUsed/2
+		hi = lachesisparams.MaxGasPowerUsed / 2
 	}
 	if gasCap != nil && hi > gasCap.Uint64() {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)

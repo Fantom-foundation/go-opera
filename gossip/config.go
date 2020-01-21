@@ -10,6 +10,13 @@ import (
 )
 
 type (
+	// ProtocolConfig is config for p2p protocol
+	ProtocolConfig struct {
+		// 0/M means "optimize only for throughput", N/0 means "optimize only for latency", N/M is a balanced mode
+
+		LatencyImportance    int
+		ThroughputImportance int
+	}
 	// Config for the gossip service.
 	Config struct {
 		Net     lachesis.Config
@@ -17,9 +24,10 @@ type (
 		TxPool  evmcore.TxPoolConfig
 		StoreConfig
 
+		TxIndex bool // Whether to disable indexing transactions and receipts or not
+
 		// Protocol options
-		TxIndex         bool // Whether to disable indexing transactions and receipts or not
-		ForcedBroadcast bool
+		Protocol ProtocolConfig
 
 		// Gas Price Oracle options
 		GPO gasprice.Config
@@ -70,8 +78,12 @@ func DefaultConfig(network lachesis.Config) Config {
 		TxPool:      evmcore.DefaultTxPoolConfig(),
 		StoreConfig: DefaultStoreConfig(),
 
-		TxIndex:         true,
-		ForcedBroadcast: true,
+		TxIndex: true,
+
+		Protocol: ProtocolConfig{
+			LatencyImportance:    60,
+			ThroughputImportance: 40,
+		},
 
 		GPO: gasprice.Config{
 			Blocks:     20,

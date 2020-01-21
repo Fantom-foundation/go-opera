@@ -192,6 +192,9 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 
 func (em *Emitter) myStakerID() (idx.StakerID, bool) {
 	coinbase := em.GetValidator()
+	if coinbase == (common.Address{}) {
+		return 0, false // short circuit if zero address
+	}
 
 	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
@@ -592,8 +595,8 @@ func (em *Emitter) EmitEvent() *inter.Event {
 		em.world.OnEmitted(e)
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed))
-	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time
-	em.Log.Info("New event emitted", "event", e.String(), "txs", e.Transactions.Len(), "elapsed", time.Since(e.ClaimedTime.Time()))
+	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time"
+	em.Log.Info("New event emitted", "id", e.Hash(), "parents", len(e.Parents), "by", e.Creator, "frame", inter.FmtFrame(e.Frame, e.IsRoot), "txs", e.Transactions.Len(), "t", time.Since(e.ClaimedTime.Time()))
 
 	// metrics
 	for _, t := range e.Transactions {

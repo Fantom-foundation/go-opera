@@ -23,7 +23,7 @@ import (
 func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
 
-	if s.store.HasEvent(e.Hash()) { // sanity check
+	if s.store.HasEventHeader(e.Hash()) { // sanity check
 		return eventcheck.ErrAlreadyConnectedEvent
 	}
 
@@ -154,7 +154,7 @@ func (s *Service) applyNewState(
 	appHash := block.TxHash
 
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
-		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "elapsed", time.Since(start))
+		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 
 	return block, evmBlock, receipts, txPositions, appHash
 }

@@ -22,7 +22,7 @@ const (
 	// Shouldn't be high, because we do binary search, so stored packs are O(log_2(total packs)) + PeerProgress broadcasts
 	maxPeerPacks = 128
 	// Maximum number of parallel full pack requests to a peer
-	maxFetchingFullPacks = 2
+	maxFetchingFullPacks = 3
 
 	// maxQueuedFullPacks is the maximum number of inject batches to queue up before
 	// dropping incoming packs.
@@ -275,6 +275,12 @@ func (d *PeerPacksDownloader) tryToSync() {
 		// request a few packs in parallel
 		for i := index; i < index+maxFetchingFullPacks && i <= d.packsNum; i++ {
 			d.timedRequestFullPack(i, true)
+			if i+1 <= d.packsNum {
+				_, found := d.packInfos.Get(int(i + 1))
+				if !found {
+					d.timedRequestPackInfo(i + 1) // request new pack info in advance
+				}
+			}
 		}
 	} else {
 		d.timedRequestPackInfo(index)

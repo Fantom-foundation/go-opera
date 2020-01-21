@@ -372,12 +372,6 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 		statedb.AddBalance(sfc.ContractAddress, rewards)
 
 		// Select new validators
-		for _, it := range s.GetActiveSfcStakers() {
-			// Note: cheaters are not active
-			if _, ok := cheatersSet[it.StakerID]; ok {
-				s.Log.Crit("Cheaters must be deactivated")
-			}
-			s.store.SetEpochValidator(epoch+1, it.StakerID, it.Staker)
-		}
+		s.store.SetEpochValidators(epoch+1, s.GetActiveSfcStakers())
 	}
 }
