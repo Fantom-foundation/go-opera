@@ -35,6 +35,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 )
 
@@ -80,8 +81,10 @@ type Backend interface {
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
 	CurrentEpoch(ctx context.Context) idx.Epoch
 	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
+	ForEachEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error
 
 	// Lachesis SFC API
+	GetValidators(ctx context.Context) *pos.Validators
 	GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error)

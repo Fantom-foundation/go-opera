@@ -1,9 +1,10 @@
 package ethapi
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -87,4 +88,26 @@ func (s *PublicDAGChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rp
 		"totalBaseRewardWeight": (*hexutil.Big)(stats.TotalBaseRewardWeight),
 		"totalTxRewardWeight":   (*hexutil.Big)(stats.TotalTxRewardWeight),
 	}, nil
+}
+
+// ValidatorVersions returns published node version of each validator.
+// If validator didn't have an event in beginning of epoch, then it will not be listed.
+func (s *PublicDebugAPI) ValidatorVersions(ctx context.Context) (map[hexutil.Uint64]string, error) {
+	epoch := rpc.LatestBlockNumber
+	maxDepth := idx.Event(20)
+	prefix := []byte("v-")
+	versions := map[hexutil.Uint64]string{}
+
+	err := s.b.ForEachEvent(ctx, epoch, func(event *inter.Event) bool {
+		creator := hexutil.Uint64(event.Creator)
+		if bytes.HasPrefix(event.Extra, prefix) {
+			version := string(event.Extra[len(prefix):])
+			versions[creator] = version
+		} else if _, ok := versions[creator]; !ok {
+			versions[creator] = "not found"
+		}
+
+		return event.Seq <= maxDepth // iterate until first met event with high seq
+	})
+	return versions, err
 }

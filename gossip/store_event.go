@@ -66,18 +66,29 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	return w
 }
 
-func getPrefix(epoch idx.Epoch, lamport idx.Lamport, hashPrefix []byte) []byte {
-	buf := bytes.NewBuffer(epoch.Bytes())
-	buf.Write(lamport.Bytes())
-	buf.Write(hashPrefix)
-	return buf.Bytes()
+func (s *Store) ForEachEvent(epoch idx.Epoch, onEvent func(event *inter.Event) bool) {
+	it := s.table.Events.NewIteratorWithPrefix(epoch.Bytes())
+	defer it.Release()
+	for it.Next() {
+		event := &inter.Event{}
+		err := rlp.DecodeBytes(it.Value(), event)
+		if err != nil {
+			s.Log.Crit("Failed to decode event", "err", err)
+		}
+
+		if !onEvent(event) {
+			return
+		}
+	}
 }
 
 func (s *Store) FindEventHashes(epoch idx.Epoch, lamport idx.Lamport, hashPrefix []byte) hash.Events {
-	prefix := getPrefix(epoch, lamport, hashPrefix)
+	prefix := bytes.NewBuffer(epoch.Bytes())
+	prefix.Write(lamport.Bytes())
+	prefix.Write(hashPrefix)
 	res := make(hash.Events, 0, 10)
 
-	it := s.table.Events.NewIteratorWithPrefix(prefix)
+	it := s.table.Events.NewIteratorWithPrefix(prefix.Bytes())
 	defer it.Release()
 	for it.Next() {
 		res = append(res, hash.BytesToEvent(it.Key()))
