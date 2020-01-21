@@ -22,11 +22,13 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	errors2 "github.com/pkg/errors"
 
+	"github.com/Fantom-foundation/go-lachesis/ethapi"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
@@ -373,8 +375,18 @@ func (b *EthAPIBackend) SubscribeNewTxsNotify(ch chan<- evmcore.NewTxsNotify) no
 	return b.svc.txpool.SubscribeNewTxsNotify(ch)
 }
 
-func (b *EthAPIBackend) Progress() PeerProgress {
-	return b.svc.pm.myProgress()
+func (b *EthAPIBackend) Progress() ethapi.PeerProgress {
+	p2pProgress := b.svc.pm.myProgress()
+	highestP2pProgress := b.svc.pm.highestPeerProgress()
+
+	return ethapi.PeerProgress{
+		CurrentEpoch:     p2pProgress.Epoch,
+		CurrentBlock:     p2pProgress.NumOfBlocks,
+		CurrentBlockHash: p2pProgress.LastBlock,
+		CurrentBlockTime: b.svc.store.GetBlock(p2pProgress.NumOfBlocks).Time,
+		HighestBlock:     highestP2pProgress.NumOfBlocks,
+		HighestEpoch:     highestP2pProgress.Epoch,
+	}
 }
 
 func (b *EthAPIBackend) ProtocolVersion() int {

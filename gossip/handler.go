@@ -386,6 +386,17 @@ func (pm *ProtocolManager) myProgress() PeerProgress {
 	}
 }
 
+func (pm *ProtocolManager) highestPeerProgress() PeerProgress {
+	peers := pm.peers.List()
+	max := pm.myProgress()
+	for _, peer := range peers {
+		if max.NumOfBlocks < peer.progress.NumOfBlocks {
+			max = peer.progress
+		}
+	}
+	return max
+}
+
 // handle is the callback invoked to manage the life cycle of a peer. When
 // this function terminates, the peer is disconnected.
 func (pm *ProtocolManager) handle(p *peer) error {

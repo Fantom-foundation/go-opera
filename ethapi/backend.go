@@ -38,11 +38,21 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 )
 
+type PeerProgress struct {
+	CurrentEpoch     idx.Epoch
+	CurrentBlock     idx.Block
+	CurrentBlockHash hash.Event
+	CurrentBlockTime inter.Timestamp
+	HighestBlock     idx.Block
+	HighestEpoch     idx.Epoch
+}
+
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
 	// General Ethereum API
 	ProtocolVersion() int
+	Progress() PeerProgress
 	SuggestPrice(ctx context.Context) (*big.Int, error)
 	ChainDb() ethdb.Database
 	AccountManager() *accounts.Manager
