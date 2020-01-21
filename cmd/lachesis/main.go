@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -10,9 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -341,21 +340,25 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// close the node when synchronization is complete if user required.
 	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) {
 		go func() {
-			sub := stack.EventMux().Subscribe(downloader.DoneEvent{})
-			defer sub.Unsubscribe()
-			for {
-				event := <-sub.Chan()
-				if event == nil {
+			for first := true; ; first = false {
+				// Call ftm_syncing until it returns false
+				time.Sleep(5 * time.Second)
+
+				var syncing bool
+				err := rpcClient.CallContext(context.TODO(), &syncing, "ftm_syncing")
+				if err != nil {
 					continue
 				}
-				done, ok := event.Data.(downloader.DoneEvent)
-				if !ok {
-					continue
-				}
-				if timestamp := time.Unix(int64(done.Latest.Time), 0); time.Since(timestamp) < 10*time.Minute {
-					log.Info("Synchronisation completed", "latestnum", done.Latest.Number, "latesthash", done.Latest.Hash(),
-						"age", common.PrettyAge(timestamp))
-					stack.Stop()
+				if !syncing {
+					if !first {
+						time.Sleep(time.Minute)
+					}
+					log.Info("Synchronisation completed. Exiting due to exitwhensynced flag.")
+					err = stack.Stop()
+					if err != nil {
+						continue
+					}
+					return
 				}
 			}
 		}()

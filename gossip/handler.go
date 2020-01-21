@@ -824,9 +824,16 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 				}
 				return p.progress.Epoch
 			}
-			for _, peer := range pm.peers.List() {
-				if peer.progress.Epoch == myEpoch {
-					atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done on any peer which has the same epoch
+			if atomic.LoadUint32(&pm.synced) == 0 {
+				synced := false
+				for _, peer := range pm.peers.List() {
+					if peer.progress.Epoch == myEpoch {
+						synced = true
+					}
+				}
+				// Mark initial sync done on any peer which has the same epoch
+				if synced {
+					atomic.StoreUint32(&pm.synced, 1)
 				}
 			}
 			pm.buffer.Clear()
