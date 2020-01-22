@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -53,6 +54,16 @@ func DefaultEmitterConfig() EmitterConfig {
 		NoTxsThreshold:     params.EventGas * 30,
 		EmergencyThreshold: params.EventGas * 5,
 	}
+}
+
+// RandomizeEmitTime and return new config
+func (cfg *EmitterConfig) RandomizeEmitTime(r *rand.Rand) *EmitterConfig {
+	config := *cfg
+	// value = value - 0.05 * value + 0.1 * random value
+	if config.MaxEmitInterval > 10 {
+		config.MaxEmitInterval = config.MaxEmitInterval - config.MaxEmitInterval/20 + time.Duration(r.Int63n(int64(config.MaxEmitInterval/10)))
+	}
+	return &config
 }
 
 // FakeEmitterConfig returns the testing configurations for the events emitter.

@@ -89,17 +89,18 @@ type selfForkProtection struct {
 
 // NewEmitter creation.
 func NewEmitter(
-	config *Config,
+	net *lachesis.Config,
+	config *EmitterConfig,
 	world EmitterWorld,
 ) *Emitter {
 
 	txTime, _ := lru.New(TxTimeBufferSize)
 	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		net:      &config.Net,
-		config:   &config.Emitter,
+		net:      net,
+		config:   config,
 		world:    world,
-		creator:  config.Emitter.Validator,
+		creator:  config.Validator,
 		gasRate:  metrics.NewMeterForced(),
 		txTime:   txTime,
 		Periodic: logger.Periodic{Instance: loggerInstance},

@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -187,7 +188,11 @@ func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasP
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(s.config,
+	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	emitterCfg := s.config.Emitter.RandomizeEmitTime(r)
+
+	return NewEmitter(&s.config.Net, emitterCfg,
 		EmitterWorld{
 			Am:          s.AccountManager(),
 			Engine:      s.engine,
