@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/beorn7/perks/histogram"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -110,4 +113,69 @@ func (s *PublicDebugAPI) ValidatorVersions(ctx context.Context) (map[hexutil.Uin
 		return event.Seq <= maxDepth // iterate until first met event with high seq
 	})
 	return versions, err
+}
+
+// TtfReport for a range of blocks
+// Verbosity. Number. If 0, then include only avg, min, max.
+// Verbosity. Number. If >= 1, then include histogram with 6 bins.
+// Verbosity. Number. If >= 2, then include histogram with 16 bins.
+// Verbosity. Number. If >= 3, then include raw data.
+func (s *PublicDebugAPI) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	ttfs, err := s.b.TtfReport(ctx, untilBlock, idx.Block(maxBlocks))
+	if err != nil {
+		return nil, err
+	}
+	ttfsRpc := map[string]interface{}{}
+
+	hist := histogram.New(6)
+	if verbosity >= 2 {
+		hist = histogram.New(16)
+	}
+
+	rawTtfs := map[string]interface{}{}
+	totalTtf := time.Duration(0)
+	minTtf := time.Duration(0)
+	maxTtf := time.Duration(0)
+	for id, ttf := range ttfs {
+		rawTtfs[id.FullID()] = hexutil.Uint64(ttf)
+
+		// stats
+		totalTtf += ttf
+		if minTtf == 0 || minTtf > ttf {
+			minTtf = ttf
+		}
+		if maxTtf == 0 || maxTtf < ttf {
+			maxTtf = ttf
+		}
+
+		hist.Insert(float64(ttf))
+	}
+
+	avgTtf := totalTtf
+	if len(ttfs) > 0 {
+		avgTtf /= time.Duration(len(ttfs))
+	}
+
+	if verbosity >= 0 {
+		statsTtfs := map[string]interface{}{}
+		statsTtfs["avg"] = hexutil.Uint64(avgTtf)
+		statsTtfs["min"] = hexutil.Uint64(minTtf)
+		statsTtfs["max"] = hexutil.Uint64(maxTtf)
+		statsTtfs["samples"] = hexutil.Uint64(len(ttfs))
+		ttfsRpc["stats"] = statsTtfs
+	}
+	if verbosity >= 1 {
+		histRpc := make([]map[string]interface{}, len(hist.Bins()))
+		for i, bin := range hist.Bins() {
+			histRpc[i] = map[string]interface{}{}
+			histRpc[i]["count"] = hexutil.Uint64(bin.Count)
+			histRpc[i]["mean"] = hexutil.Uint64(bin.Mean())
+		}
+		ttfsRpc["histogram"] = histRpc
+	}
+	if verbosity >= 3 {
+		ttfsRpc["raw"] = rawTtfs
+	}
+
+	return ttfsRpc, nil
 }

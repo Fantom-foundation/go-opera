@@ -29,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/gossip/filters"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
@@ -96,10 +97,13 @@ type Service struct {
 	emitter             *Emitter
 	txpool              *evmcore.TxPool
 	occurredTxs         *occuredtxs.Buffer
-	blockParticipated   map[idx.StakerID]bool // validators who participated in last block
 	heavyCheckReader    HeavyCheckReader
 	gasPowerCheckReader GasPowerCheckReader
 	checkers            *eventcheck.Checkers
+
+	// global variables. TODO refactor to pass them as arguments if possible
+	blockParticipated map[idx.StakerID]bool // validators who participated in last block
+	currentEvent      hash.Event            // current event which is being processed
 
 	feed ServiceFeed
 

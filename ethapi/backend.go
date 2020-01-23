@@ -20,6 +20,7 @@ package ethapi
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -93,6 +94,7 @@ type Backend interface {
 	CurrentEpoch(ctx context.Context) idx.Epoch
 	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
 	ForEachEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error
+	TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block) (map[hash.Event]time.Duration, error)
 
 	// Lachesis SFC API
 	GetValidators(ctx context.Context) *pos.Validators

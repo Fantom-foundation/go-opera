@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20191023202215-f096da5361bb // indirect
+	github.com/beorn7/perks v1.0.1
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/certifi/gocertifi v0.0.0-20191021191039-0944d244cd40 // indirect
 	github.com/cespare/cp v1.1.1
