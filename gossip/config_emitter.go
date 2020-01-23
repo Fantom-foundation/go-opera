@@ -41,8 +41,8 @@ func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
 		VersionToPublish: _params.VersionWithMeta(),
 
-		MinEmitInterval:            300 * time.Millisecond,
-		MaxEmitInterval:            10 * time.Minute,
+		MinEmitInterval:            200 * time.Millisecond,
+		MaxEmitInterval:            12 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           TxTurnNonces,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
@@ -59,9 +59,9 @@ func DefaultEmitterConfig() EmitterConfig {
 // RandomizeEmitTime and return new config
 func (cfg *EmitterConfig) RandomizeEmitTime(r *rand.Rand) *EmitterConfig {
 	config := *cfg
-	// value = value - 0.05 * value + 0.1 * random value
+	// value = value - 0.1 * value + 0.1 * random value
 	if config.MaxEmitInterval > 10 {
-		config.MaxEmitInterval = config.MaxEmitInterval - config.MaxEmitInterval/20 + time.Duration(r.Int63n(int64(config.MaxEmitInterval/10)))
+		config.MaxEmitInterval = config.MaxEmitInterval - config.MaxEmitInterval/10 + time.Duration(r.Int63n(int64(config.MaxEmitInterval/10)))
 	}
 	return &config
 }

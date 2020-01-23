@@ -111,7 +111,7 @@ func (s *Buffer) Clear() {
 	s.ring.Clear()
 }
 
-// Len is not safe for concurrent use
+// Len is safe for concurrent use
 func (s *Buffer) Len() int {
 	return s.ring.senders.Len()
 }

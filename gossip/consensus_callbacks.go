@@ -76,6 +76,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		s.occurredTxs.Clear()
 
 		// notify about new epoch after event connection
+		s.emitter.OnNewEpoch(s.engine.GetValidators(), newEpoch)
 		s.feed.newEpoch.Send(newEpoch)
 	}
 
