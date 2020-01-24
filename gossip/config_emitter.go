@@ -41,8 +41,9 @@ func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
 		VersionToPublish: _params.VersionWithMeta(),
 
-		MinEmitInterval:            200 * time.Millisecond,
-		MaxEmitInterval:            12 * time.Minute,
+		MinEmitInterval: 200 * time.Millisecond,
+		MaxEmitInterval: 12 * time.Minute,
+
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           TxTurnNonces,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval

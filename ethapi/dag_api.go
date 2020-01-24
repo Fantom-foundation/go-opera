@@ -3,6 +3,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 )
 
@@ -93,51 +95,29 @@ func (s *PublicDAGChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rp
 	}, nil
 }
 
-// ValidatorVersions returns published node version of each validator.
-// If validator didn't have an event in beginning of epoch, then it will not be listed.
-func (s *PublicDebugAPI) ValidatorVersions(ctx context.Context) (map[hexutil.Uint64]string, error) {
-	epoch := rpc.LatestBlockNumber
-	maxDepth := idx.Event(20)
-	prefix := []byte("v-")
-	versions := map[hexutil.Uint64]string{}
-
-	err := s.b.ForEachEvent(ctx, epoch, func(event *inter.Event) bool {
-		creator := hexutil.Uint64(event.Creator)
-		if bytes.HasPrefix(event.Extra, prefix) {
-			version := string(event.Extra[len(prefix):])
-			versions[creator] = version
-		} else if _, ok := versions[creator]; !ok {
-			versions[creator] = "not found"
-		}
-
-		return event.Seq <= maxDepth // iterate until first met event with high seq
-	})
-	return versions, err
+func durationToRpc(t time.Duration) string {
+	/*if t < 0 {
+		t = -t
+		return "-" + hexutil.Uint64(t).String()
+	}
+	return hexutil.Uint64(t).String()*/
+	return t.String()
 }
 
-// TtfReport for a range of blocks
-// Verbosity. Number. If 0, then include only avg, min, max.
-// Verbosity. Number. If >= 1, then include histogram with 6 bins.
-// Verbosity. Number. If >= 2, then include histogram with 16 bins.
-// Verbosity. Number. If >= 3, then include raw data.
-func (s *PublicDebugAPI) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64, verbosity hexutil.Uint64) (map[string]interface{}, error) {
-	ttfs, err := s.b.TtfReport(ctx, untilBlock, idx.Block(maxBlocks))
-	if err != nil {
-		return nil, err
-	}
-	ttfsRpc := map[string]interface{}{}
+func rpcEncodeEventsTimeStats(data map[hash.Event]time.Duration, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	resRpc := map[string]interface{}{}
 
 	hist := histogram.New(6)
 	if verbosity >= 2 {
 		hist = histogram.New(16)
 	}
 
-	rawTtfs := map[string]interface{}{}
+	raw := map[string]interface{}{}
 	totalTtf := time.Duration(0)
 	minTtf := time.Duration(0)
 	maxTtf := time.Duration(0)
-	for id, ttf := range ttfs {
-		rawTtfs[id.FullID()] = hexutil.Uint64(ttf)
+	for id, ttf := range data {
+		raw[id.FullID()] = hexutil.Uint64(ttf)
 
 		// stats
 		totalTtf += ttf
@@ -152,30 +132,92 @@ func (s *PublicDebugAPI) TtfReport(ctx context.Context, untilBlock rpc.BlockNumb
 	}
 
 	avgTtf := totalTtf
-	if len(ttfs) > 0 {
-		avgTtf /= time.Duration(len(ttfs))
+	if len(data) > 0 {
+		avgTtf /= time.Duration(len(data))
 	}
 
 	if verbosity >= 0 {
-		statsTtfs := map[string]interface{}{}
-		statsTtfs["avg"] = hexutil.Uint64(avgTtf)
-		statsTtfs["min"] = hexutil.Uint64(minTtf)
-		statsTtfs["max"] = hexutil.Uint64(maxTtf)
-		statsTtfs["samples"] = hexutil.Uint64(len(ttfs))
-		ttfsRpc["stats"] = statsTtfs
+		stats := map[string]interface{}{}
+		stats["avg"] = durationToRpc(avgTtf)
+		stats["min"] = durationToRpc(minTtf)
+		stats["max"] = durationToRpc(maxTtf)
+		stats["samples"] = hexutil.Uint64(len(data))
+		resRpc["stats"] = stats
 	}
 	if verbosity >= 1 {
 		histRpc := make([]map[string]interface{}, len(hist.Bins()))
 		for i, bin := range hist.Bins() {
 			histRpc[i] = map[string]interface{}{}
 			histRpc[i]["count"] = hexutil.Uint64(bin.Count)
-			histRpc[i]["mean"] = hexutil.Uint64(bin.Mean())
+			histRpc[i]["mean"] = durationToRpc(time.Duration(bin.Mean()))
 		}
-		ttfsRpc["histogram"] = histRpc
+		resRpc["histogram"] = histRpc
 	}
 	if verbosity >= 3 {
-		ttfsRpc["raw"] = rawTtfs
+		resRpc["raw"] = raw
 	}
 
-	return ttfsRpc, nil
+	return resRpc, nil
+}
+
+// TtfReport for a range of blocks
+// maxEvents. Number.  maximum number of events to process
+// Verbosity. Number. If 0, then include only avg, min, max.
+// Verbosity. Number. If >= 1, then include histogram with 6 bins.
+// Verbosity. Number. If >= 2, then include histogram with 16 bins.
+// Verbosity. Number. If >= 3, then include raw data.
+// Mode. String. One of {"arrival_time", "claimed_time"}
+func (s *PublicDebugAPI) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64, mode string, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	if mode != "arrival_time" && mode != "claimed_time" {
+		return nil, errors.New("mode must be one of {arrival_time, claimed_time}")
+	}
+
+	ttfs, err := s.b.TtfReport(ctx, untilBlock, idx.Block(maxBlocks), mode)
+	if err != nil {
+		return nil, err
+	}
+	return rpcEncodeEventsTimeStats(ttfs, verbosity)
+}
+
+// ValidatorVersions returns published node version of each validator.
+// If validator didn't have an event in beginning of epoch, then it will not be listed.
+func (s *PublicDebugAPI) ValidatorVersions(ctx context.Context, epoch rpc.BlockNumber, maxEvents hexutil.Uint64) (map[hexutil.Uint64]string, error) {
+	processed := 0
+	prefix := []byte("v-")
+	versions := map[hexutil.Uint64]string{}
+
+	err := s.b.ForEachEvent(ctx, epoch, func(event *inter.Event) bool {
+		creator := hexutil.Uint64(event.Creator)
+		if bytes.HasPrefix(event.Extra, prefix) {
+			version := string(event.Extra[len(prefix):])
+			versions[creator] = version
+		} else if _, ok := versions[creator]; !ok {
+			versions[creator] = "not found"
+		}
+		processed++
+
+		return processed < int(maxEvents) // iterate until first met event with high seq
+	})
+	return versions, err
+}
+
+// ValidatorTimeDrifts for an epoch
+// maxEvents. Number.  maximum number of events to process
+// Verbosity. Number. If 0, then include only avg, min, max.
+// Verbosity. Number. If >= 1, then include histogram with 6 bins.
+// Verbosity. Number. If >= 2, then include histogram with 16 bins.
+// Verbosity. Number. If >= 3, then include raw data.
+func (s *PublicDebugAPI) ValidatorTimeDrifts(ctx context.Context, epoch rpc.BlockNumber, maxEvents hexutil.Uint64, verbosity hexutil.Uint64) (map[hexutil.Uint64]map[string]interface{}, error) {
+	validatorsDrifts, err := s.b.ValidatorTimeDrifts(ctx, epoch, idx.Event(maxEvents))
+
+	resRpc := map[hexutil.Uint64]map[string]interface{}{}
+	for v, drifts := range validatorsDrifts {
+		vRpc, err := rpcEncodeEventsTimeStats(drifts, verbosity)
+		if err != nil {
+			return nil, err
+		}
+		resRpc[hexutil.Uint64(v)] = vRpc
+	}
+
+	return resRpc, err
 }

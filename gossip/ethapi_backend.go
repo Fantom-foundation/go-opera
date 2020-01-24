@@ -602,12 +602,13 @@ func (b *EthAPIBackend) GetStakerDelegatorsClaimedRewards(ctx context.Context, s
 	return b.svc.store.GetStakerDelegatorsClaimedRewards(stakerID), nil
 }
 
-func (b *EthAPIBackend) GetLocalEventTime(ctx context.Context, id hash.Event) inter.Timestamp {
+// GetEventTime returns estimation of when event was created
+func (b *EthAPIBackend) GetEventTime(ctx context.Context, id hash.Event, arrivalTime bool) inter.Timestamp {
 	var t inter.Timestamp
-	if b.svc.config.EventLocalTimeIndex {
+	if arrivalTime && b.svc.config.EventLocalTimeIndex {
 		t = b.svc.store.GetEventReceivingTime(id)
 	}
-	if t == 0 {
+	if !arrivalTime {
 		decisiveEvent := b.svc.store.GetEvent(id)
 		if decisiveEvent == nil {
 			return 0
@@ -618,9 +619,12 @@ func (b *EthAPIBackend) GetLocalEventTime(ctx context.Context, id hash.Event) in
 }
 
 // TtfReport for a range of blocks
-func (b *EthAPIBackend) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block) (map[hash.Event]time.Duration, error) {
+func (b *EthAPIBackend) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block, mode string) (map[hash.Event]time.Duration, error) {
 	if !b.svc.config.DecisiveEventsIndex {
 		return nil, errors.New("decisive-events index is disabled (enable DecisiveEventsIndex and re-process the DAGs)")
+	}
+	if mode == "arrival_time" && !b.svc.config.EventLocalTimeIndex {
+		return nil, errors.New("arrival-time index is disabled (enable EventLocalTimeIndex and re-process the DAGs)")
 	}
 	if untilBlock == rpc.PendingBlockNumber {
 		return nil, errors.New("pending block request isn't allowed")
@@ -640,11 +644,14 @@ func (b *EthAPIBackend) TtfReport(ctx context.Context, untilBlock rpc.BlockNumbe
 		if decisiveEventID.IsZero() {
 			break
 		}
-		decidedTime := b.GetLocalEventTime(ctx, decisiveEventID)
+		decidedTime := b.GetEventTime(ctx, decisiveEventID, mode == "arrival_time")
+		if decidedTime == 0 {
+			break
+		}
 
 		for _, id := range block.Events {
-			eventTime := b.GetLocalEventTime(ctx, id)
-			if decidedTime < eventTime {
+			eventTime := b.GetEventTime(ctx, id, mode == "arrival_time")
+			if eventTime == 0 || decidedTime < eventTime {
 				continue
 			}
 			ttf := time.Duration(decidedTime - eventTime)
@@ -653,4 +660,31 @@ func (b *EthAPIBackend) TtfReport(ctx context.Context, untilBlock rpc.BlockNumbe
 	}
 
 	return ttfs, nil
+}
+
+// ValidatorTimeDrifts returns data to estimate time drift of each validator
+func (b *EthAPIBackend) ValidatorTimeDrifts(ctx context.Context, epoch rpc.BlockNumber, maxEvents idx.Event) (map[idx.StakerID]map[hash.Event]time.Duration, error) {
+	if !b.svc.config.EventLocalTimeIndex {
+		return nil, errors.New("arrival-time index is disabled (enable EventLocalTimeIndex and re-process the DAGs)")
+	}
+
+	drifts := map[idx.StakerID]map[hash.Event]time.Duration{}
+
+	processed := 0
+
+	err := b.ForEachEvent(ctx, epoch, func(event *inter.Event) bool {
+		arrivalTime := b.GetEventTime(ctx, event.Hash(), true)
+		claimedTime := event.ClaimedTime
+
+		if arrivalTime != 0 {
+			if drifts[event.Creator] == nil {
+				drifts[event.Creator] = map[hash.Event]time.Duration{}
+			}
+			drifts[event.Creator][event.Hash()] = claimedTime.Time().Sub(arrivalTime.Time())
+		}
+
+		processed++
+		return processed < int(maxEvents)
+	})
+	return drifts, err
 }
