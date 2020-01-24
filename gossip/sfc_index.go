@@ -161,7 +161,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 
 				staker := s.store.GetSfcStaker(stakerID)
 				if staker == nil {
-					s.Log.Error("Internal SFC index isn't synced with SFC contract")
+					s.Log.Warn("Internal SFC index isn't synced with SFC contract")
 					continue
 				}
 				staker.StakeAmount = newAmount
@@ -171,12 +171,12 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			// Add new delegators
 			if l.Topics[0] == sfcpos.Topics.CreatedDelegation && len(l.Topics) > 1 && len(l.Data) >= 32 {
 				address := common.BytesToAddress(l.Topics[1][12:])
-				toStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][12:]).Uint64())
+				toStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
 				amount := new(big.Int).SetBytes(l.Data[0:32])
 
 				staker := s.store.GetSfcStaker(toStakerID)
 				if staker == nil {
-					s.Log.Error("Internal SFC index isn't synced with SFC contract")
+					s.Log.Warn("Internal SFC index isn't synced with SFC contract")
 					continue
 				}
 				staker.DelegatedMe.Add(staker.DelegatedMe, amount)
@@ -191,7 +191,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 
 			// Deactivate stakes
-			if l.Topics[0] == sfcpos.Topics.PreparedToWithdrawStake && len(l.Topics) > 1 {
+			if (l.Topics[0] == sfcpos.Topics.DeactivatedStake || l.Topics[0] == sfcpos.Topics.PreparedToWithdrawStake) && len(l.Topics) > 1 {
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
 
 				staker := s.store.GetSfcStaker(stakerID)
@@ -201,17 +201,52 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 
 			// Deactivate delegators
-			if l.Topics[0] == sfcpos.Topics.PreparedToWithdrawDelegation && len(l.Topics) > 1 {
+			if (l.Topics[0] == sfcpos.Topics.DeactivatedDelegation || l.Topics[0] == sfcpos.Topics.PreparedToWithdrawDelegation) && len(l.Topics) > 1 {
 				address := common.BytesToAddress(l.Topics[1][12:])
 
 				delegator := s.store.GetSfcDelegator(address)
 				staker := s.store.GetSfcStaker(delegator.ToStakerID)
 				if staker != nil {
 					staker.DelegatedMe.Sub(staker.DelegatedMe, delegator.Amount)
+					if staker.DelegatedMe.Sign() < 0 {
+						staker.DelegatedMe = big.NewInt(0)
+					}
 					s.store.SetSfcStaker(delegator.ToStakerID, staker)
 				}
 				delegator.DeactivatedEpoch = epoch
 				delegator.DeactivatedTime = block.Time
+				s.store.SetSfcDelegator(address, delegator)
+			}
+
+			// Update stake
+			if l.Topics[0] == sfcpos.Topics.UpdatedStake && len(l.Topics) > 1 && len(l.Data) >= 64 {
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[1][:]).Uint64())
+				newAmount := new(big.Int).SetBytes(l.Data[0:32])
+				newDelegatedMe := new(big.Int).SetBytes(l.Data[32:64])
+
+				staker := s.store.GetSfcStaker(stakerID)
+				if staker == nil {
+					s.Log.Warn("Internal SFC index isn't synced with SFC contract")
+					continue
+				}
+				staker.StakeAmount = newAmount
+				staker.DelegatedMe = newDelegatedMe
+				s.store.SetSfcStaker(stakerID, staker)
+			}
+
+			// Update delegation
+			if l.Topics[0] == sfcpos.Topics.UpdatedDelegation && len(l.Topics) > 3 && len(l.Data) >= 32 {
+				address := common.BytesToAddress(l.Topics[1][12:])
+				newStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[3][:]).Uint64())
+				newAmount := new(big.Int).SetBytes(l.Data[0:32])
+
+				delegator := s.store.GetSfcDelegator(address)
+				if delegator == nil {
+					s.Log.Warn("Internal SFC index isn't synced with SFC contract")
+					continue
+				}
+				delegator.Amount = newAmount
+				delegator.ToStakerID = newStakerID
 				s.store.SetSfcDelegator(address, delegator)
 			}
 
