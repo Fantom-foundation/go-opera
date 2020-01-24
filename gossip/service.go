@@ -31,6 +31,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
@@ -212,6 +213,19 @@ func (s *Service) makeEmitter() *Emitter {
 			},
 			PeersNum: func() int {
 				return s.pm.peers.Len()
+			},
+			AddVersion: func(e *inter.Event) *inter.Event {
+				// serialization version
+				e.Version = 0
+				// node version
+				if e.Seq <= 1 && len(s.config.Emitter.VersionToPublish) > 0 {
+					version := []byte("v-" + s.config.Emitter.VersionToPublish)
+					if len(version) <= params.MaxExtraData {
+						e.Extra = version
+					}
+				}
+
+				return e
 			},
 			Checkers: s.checkers,
 		},

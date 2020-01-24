@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"math/big"
 	"strconv"
 	"strings"
@@ -176,13 +177,9 @@ func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID strin
 	return b.svc.engine.GetConsensusTime(id)
 }
 
-// GetHeads returns IDs of all the epoch events with no descendants.
-// * When epoch is -2 the heads for latest epoch are returned.
-// * When epoch is -1 the heads for latest sealed epoch are returned.
-func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
+func (b *EthAPIBackend) epochWithDefault(ctx context.Context, epoch rpc.BlockNumber) (requested idx.Epoch, err error) {
 	current := b.svc.engine.GetEpoch()
 
-	var requested idx.Epoch
 	switch {
 	case epoch == rpc.PendingBlockNumber:
 		requested = current
@@ -193,6 +190,19 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	default:
 		err = errors.New("epoch is not in range")
 		return
+	}
+	return requested, nil
+}
+
+// GetHeads returns IDs of all the epoch events with no descendants.
+// * When epoch is -2 the heads for latest epoch are returned.
+// * When epoch is -1 the heads for latest sealed epoch are returned.
+func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
+	current := b.svc.engine.GetEpoch()
+
+	requested, err := b.epochWithDefault(ctx, epoch)
+	if err != nil {
+		return nil, err
 	}
 
 	if requested == current {
@@ -216,6 +226,22 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	}
 
 	return
+}
+
+// ForEachEvent iterates all the events which are observed by head, and accepted by a filter.
+// filter CANNOT called twice for the same event.
+func (b *EthAPIBackend) ForEachEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error {
+	requested, err := b.epochWithDefault(ctx, epoch)
+	if err != nil {
+		return err
+	}
+
+	b.svc.store.ForEachEvent(requested, onEvent)
+	return nil
+}
+
+func (b *EthAPIBackend) GetValidators(ctx context.Context) *pos.Validators {
+	return b.svc.engine.GetValidators()
 }
 
 func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {

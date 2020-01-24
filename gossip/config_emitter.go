@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	_params "github.com/ethereum/go-ethereum/params"
 
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
@@ -11,6 +12,8 @@ import (
 
 // EmitterConfig is the configuration of events emitter.
 type EmitterConfig struct {
+	VersionToPublish string
+
 	Validator common.Address `json:"validator"`
 
 	MinEmitInterval time.Duration `json:"minEmitInterval"` // minimum event emission interval
@@ -35,6 +38,8 @@ type EmitterConfig struct {
 // DefaultEmitterConfig returns the default configurations for the events emitter.
 func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
+		VersionToPublish: _params.VersionWithMeta(),
+
 		MinEmitInterval:            300 * time.Millisecond,
 		MaxEmitInterval:            10 * time.Minute,
 		MaxGasRateGrowthFactor:     3.0,
