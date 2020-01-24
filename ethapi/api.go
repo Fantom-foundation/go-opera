@@ -83,7 +83,23 @@ func (s *PublicEthereumAPI) ProtocolVersion() hexutil.Uint {
 
 // Syncing returns true if node is syncing
 func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
-	return false, nil
+	progress := s.b.Progress()
+	// Return not syncing if the synchronisation already completed
+	if time.Since(progress.CurrentBlockTime.Time()) <= 90 * time.Minute { // should be >> MaxEmitInterval
+		return false, nil
+	}
+	// Otherwise gather the block sync stats
+	return map[string]interface{}{
+		"startingBlock":    hexutil.Uint64(0), // back-compatibility
+		"currentEpoch":     hexutil.Uint64(progress.CurrentEpoch),
+		"currentBlock":     hexutil.Uint64(progress.CurrentBlock),
+		"currentBlockHash": progress.CurrentBlockHash.Hex(),
+		"currentBlockTime": hexutil.Uint64(progress.CurrentBlockTime),
+		"highestBlock":     hexutil.Uint64(progress.HighestBlock),
+		"highestEpoch":     hexutil.Uint64(progress.HighestEpoch),
+		"pulledStates":     hexutil.Uint64(0), // back-compatibility
+		"knownStates":      hexutil.Uint64(0), // back-compatibility
+	}, nil
 }
 
 // PublicTxPoolAPI offers and API for the transaction pool. It only operates on data that is non confidential.
