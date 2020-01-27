@@ -65,9 +65,8 @@ type Emitter struct {
 
 	world EmitterWorld
 
-	myStakerID  idx.StakerID
-	myAddress   common.Address
-	myAddressMu sync.RWMutex
+	myStakerID idx.StakerID
+	myAddress  common.Address
 
 	syncStatus selfForkProtection
 
@@ -110,6 +109,13 @@ func NewEmitter(
 	}
 }
 
+// init emitter without starting events emission
+func (em *Emitter) init() {
+	em.syncStatus.connectedTime = time.Now()
+	validators, epoch := em.world.Engine.GetEpochValidators()
+	em.OnNewEpoch(validators, epoch)
+}
+
 // StartEventEmission starts event emission.
 func (em *Emitter) StartEventEmission() {
 	if em.done != nil {
@@ -120,10 +126,7 @@ func (em *Emitter) StartEventEmission() {
 	newTxsCh := make(chan evmcore.NewTxsNotify)
 	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
 
-	em.prevEmittedTime = em.loadPrevEmitTime()
-	em.syncStatus.connectedTime = time.Now()
-	validators, epoch := em.world.Engine.GetEpochValidators()
-	em.OnNewEpoch(validators, epoch)
+	em.SetValidator(em.myAddress)
 
 	done := em.done
 	em.wg.Add(1)
@@ -167,16 +170,17 @@ func (em *Emitter) StopEventEmission() {
 
 // SetValidator sets event creator.
 func (em *Emitter) SetValidator(addr common.Address) {
-	em.myAddressMu.Lock()
-	defer em.myAddressMu.Unlock()
+	em.world.EngineMu.Lock()
+	defer em.world.EngineMu.Unlock()
 	em.myAddress = addr
+	em.init()
 }
 
 // GetValidator gets event creator.
-func (em *Emitter) GetValidator() common.Address {
-	em.myAddressMu.RLock()
-	defer em.myAddressMu.RUnlock()
-	return em.myAddress
+func (em *Emitter) GetValidator() (idx.StakerID, common.Address) {
+	em.world.EngineMu.RLock()
+	defer em.world.EngineMu.RUnlock()
+	return em.myStakerID, em.myAddress
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
@@ -210,14 +214,14 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 }
 
 func (em *Emitter) findMyStakerID() (idx.StakerID, bool) {
-	coinbase := em.GetValidator()
-	if coinbase == (common.Address{}) {
+	myAddress := em.myAddress
+	if myAddress == (common.Address{}) {
 		return 0, false // short circuit if zero address
 	}
 
 	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
-		if it.Staker.Address == coinbase {
+		if it.Staker.Address == myAddress {
 			return it.StakerID, true
 		}
 	}
@@ -420,10 +424,10 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
-	coinbase := em.GetValidator()
+	myAddress := em.myAddress
 	signer := func(data []byte) (sig []byte, err error) {
 		acc := accounts.Account{
-			Address: coinbase,
+			Address: myAddress,
 		}
 		w, err := em.world.Am.Find(acc)
 		if err != nil {
@@ -493,17 +497,18 @@ var (
 	}
 )
 
+// OnNewEpoch should be called after each epoch change, and on startup
 func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
 	// update myStakerID
 	em.myStakerID, _ = em.findMyStakerID()
+	em.prevEmittedTime = em.loadPrevEmitTime()
 
 	// stakers with lower stake should emit less events to reduce network load
 	// confirmingEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MinEmitInterval
 	myIdx := newValidators.GetIdx(em.myStakerID)
 	totalStake := pos.Stake(0)
 	totalStakeBeforeMe := pos.Stake(0)
-	for i, _ := range newValidators.SortedIDs() {
-		stake := newValidators.GetStakeByIdx(idx.Validator(i))
+	for i, stake := range newValidators.SortedStakes() {
 		totalStake += stake
 		if idx.Validator(i) < myIdx {
 			totalStakeBeforeMe += stake

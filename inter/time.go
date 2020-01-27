@@ -11,8 +11,8 @@ type (
 )
 
 // Bytes gets the byte representation of the index.
-func (v Timestamp) Bytes() []byte {
-	return bigendian.Int64ToBytes(uint64(v))
+func (t Timestamp) Bytes() []byte {
+	return bigendian.Int64ToBytes(uint64(t))
 }
 
 // BytesToTimestamp converts bytes to timestamp.

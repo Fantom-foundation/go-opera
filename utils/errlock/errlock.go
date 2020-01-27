@@ -20,6 +20,7 @@ var (
 	datadir string
 )
 
+// SetDefaultDatadir for errlock files
 func SetDefaultDatadir(dir string) {
 	datadir = dir
 }

@@ -95,7 +95,7 @@ func (s *PublicDAGChainAPI) GetEpochStats(ctx context.Context, requestedEpoch rp
 	}, nil
 }
 
-func durationToRpc(t time.Duration) string {
+func durationToRPC(t time.Duration) string {
 	/*if t < 0 {
 		t = -t
 		return "-" + hexutil.Uint64(t).String()
@@ -105,7 +105,7 @@ func durationToRpc(t time.Duration) string {
 }
 
 func rpcEncodeEventsTimeStats(data map[hash.Event]time.Duration, verbosity hexutil.Uint64) (map[string]interface{}, error) {
-	resRpc := map[string]interface{}{}
+	resRPC := map[string]interface{}{}
 
 	hist := histogram.New(6)
 	if verbosity >= 2 {
@@ -138,26 +138,26 @@ func rpcEncodeEventsTimeStats(data map[hash.Event]time.Duration, verbosity hexut
 
 	if verbosity >= 0 {
 		stats := map[string]interface{}{}
-		stats["avg"] = durationToRpc(avgTtf)
-		stats["min"] = durationToRpc(minTtf)
-		stats["max"] = durationToRpc(maxTtf)
+		stats["avg"] = durationToRPC(avgTtf)
+		stats["min"] = durationToRPC(minTtf)
+		stats["max"] = durationToRPC(maxTtf)
 		stats["samples"] = hexutil.Uint64(len(data))
-		resRpc["stats"] = stats
+		resRPC["stats"] = stats
 	}
 	if verbosity >= 1 {
-		histRpc := make([]map[string]interface{}, len(hist.Bins()))
+		histRPC := make([]map[string]interface{}, len(hist.Bins()))
 		for i, bin := range hist.Bins() {
-			histRpc[i] = map[string]interface{}{}
-			histRpc[i]["count"] = hexutil.Uint64(bin.Count)
-			histRpc[i]["mean"] = durationToRpc(time.Duration(bin.Mean()))
+			histRPC[i] = map[string]interface{}{}
+			histRPC[i]["count"] = hexutil.Uint64(bin.Count)
+			histRPC[i]["mean"] = durationToRPC(time.Duration(bin.Mean()))
 		}
-		resRpc["histogram"] = histRpc
+		resRPC["histogram"] = histRPC
 	}
 	if verbosity >= 3 {
-		resRpc["raw"] = raw
+		resRPC["raw"] = raw
 	}
 
-	return resRpc, nil
+	return resRPC, nil
 }
 
 // TtfReport for a range of blocks
@@ -210,14 +210,14 @@ func (s *PublicDebugAPI) ValidatorVersions(ctx context.Context, epoch rpc.BlockN
 func (s *PublicDebugAPI) ValidatorTimeDrifts(ctx context.Context, epoch rpc.BlockNumber, maxEvents hexutil.Uint64, verbosity hexutil.Uint64) (map[hexutil.Uint64]map[string]interface{}, error) {
 	validatorsDrifts, err := s.b.ValidatorTimeDrifts(ctx, epoch, idx.Event(maxEvents))
 
-	resRpc := map[hexutil.Uint64]map[string]interface{}{}
+	resRPC := map[hexutil.Uint64]map[string]interface{}{}
 	for v, drifts := range validatorsDrifts {
-		vRpc, err := rpcEncodeEventsTimeStats(drifts, verbosity)
+		vRPC, err := rpcEncodeEventsTimeStats(drifts, verbosity)
 		if err != nil {
 			return nil, err
 		}
-		resRpc[hexutil.Uint64(v)] = vRpc
+		resRPC[hexutil.Uint64(v)] = vRPC
 	}
 
-	return resRpc, err
+	return resRPC, err
 }
