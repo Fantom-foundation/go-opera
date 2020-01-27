@@ -136,7 +136,7 @@ func rpcEncodeEventsTimeStats(data map[hash.Event]time.Duration, verbosity hexut
 		avgTtf /= time.Duration(len(data))
 	}
 
-	if verbosity >= 0 {
+	{
 		stats := map[string]interface{}{}
 		stats["avg"] = durationToRPC(avgTtf)
 		stats["min"] = durationToRPC(minTtf)
