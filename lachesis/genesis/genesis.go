@@ -148,7 +148,7 @@ func TestGenesis() Genesis {
 				common.HexToAddress("0xe003e080e8d61207a0a9890c3663b4cd7fb766b8"): Account{Balance: utils.ToFtm(2000000100)},
 				common.HexToAddress("0xcc8b10332478e26f676bccfc73f8c687e3ad1d04"): Account{Balance: utils.ToFtm(400)},
 				common.HexToAddress("0x30e3b5cc7e8fb98a22e688dfb20b327be8a9fe30"): Account{Balance: utils.ToFtm(400)},
-				common.HexToAddress("0xa123456789123456789123456789012345678903"): Account{Balance: utils.ToFtm(400)},
+				common.HexToAddress("0x567b6f3d4ba1f55652cf90df6db90ad6d8f9abc1"): Account{Balance: utils.ToFtm(400)},
 			},
 			Validators: pos.GValidators{
 				pos.GenesisValidator{
