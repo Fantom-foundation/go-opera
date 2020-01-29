@@ -67,7 +67,7 @@ func ConvertFromEthHeader(h *types.Header) *EvmHeader {
 	return &EvmHeader{
 		Number:     h.Number,
 		Coinbase:   h.Coinbase,
-		GasLimit:   h.GasLimit,
+		GasLimit:   math.MaxUint64,
 		GasUsed:    h.GasUsed,
 		Root:       h.Root,
 		TxHash:     h.TxHash,
@@ -83,7 +83,7 @@ func (h *EvmHeader) EthHeader() *types.Header {
 	return &types.Header{
 		Number:     h.Number,
 		Coinbase:   h.Coinbase,
-		GasLimit:   h.GasLimit,
+		GasLimit:   0xffffffffffff, // don't use h.GasLimit (too much bits) here to avoid parsing issues
 		GasUsed:    h.GasUsed,
 		Root:       h.Root,
 		TxHash:     h.TxHash,
