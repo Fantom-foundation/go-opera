@@ -64,6 +64,10 @@ func (cfg *EmitterConfig) RandomizeEmitTime(r *rand.Rand) *EmitterConfig {
 	if config.MaxEmitInterval > 10 {
 		config.MaxEmitInterval = config.MaxEmitInterval - config.MaxEmitInterval/10 + time.Duration(r.Int63n(int64(config.MaxEmitInterval/10)))
 	}
+	// value = value + 0.1 * random value
+	if config.SelfForkProtectionInterval > 10 {
+		config.SelfForkProtectionInterval = config.SelfForkProtectionInterval + time.Duration(r.Int63n(int64(config.SelfForkProtectionInterval/10)))
+	}
 	return &config
 }
 
