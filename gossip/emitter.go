@@ -570,12 +570,12 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 		return false, "synchronizing (not downloaded all the self-events)", em.config.SelfForkProtectionInterval - sinceLastExternalEvent
 	}
 	sinceBecameValidator := time.Since(em.syncStatus.becameValidatorTime)
-	if sinceBecameValidator < em.config.SelfForkProtectionInterval*2/3 {
-		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval*2/3 - sinceBecameValidator
+	if sinceBecameValidator < em.config.SelfForkProtectionInterval {
+		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval - sinceBecameValidator
 	}
 	syncedPassed := time.Since(em.syncStatus.syncedTime)
 	if syncedPassed < em.config.SelfForkProtectionInterval {
-		return false, "synchronized but waiting additional time", em.config.SelfForkProtectionInterval - syncedPassed
+		return false, "synchronized (waiting additional time)", em.config.SelfForkProtectionInterval - syncedPassed
 	}
 	connectedPassed := time.Since(em.syncStatus.connectedTime)
 	if connectedPassed < em.config.SelfForkProtectionInterval {
