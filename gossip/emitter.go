@@ -540,7 +540,11 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 			em.syncStatus.prevExternalEmittedTime = now
 
 			passedSinceEvent := time.Since(inter.MaxTimestamp(e.ClaimedTime, e.MedianTime).Time())
-			if passedSinceEvent < em.config.SelfForkProtectionInterval/5 {
+			threshold := em.config.SelfForkProtectionInterval
+			if threshold > time.Minute {
+				threshold = time.Minute
+			}
+			if passedSinceEvent <= threshold {
 				reason := "Received a recent event (event id=%s) from this validator (staker id=%d) which wasn't created on this node.\n" +
 					"This external event was created %s, %s ago at the time of this error.\n" +
 					"It means that a duplicating instance of the same validator is running simultaneously, which will eventually lead to a doublesign.\n" +
@@ -567,7 +571,7 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 	}
 	sinceBecameValidator := time.Since(em.syncStatus.becameValidatorTime)
 	if sinceBecameValidator < em.config.SelfForkProtectionInterval*2/3 {
-		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval/2 - sinceBecameValidator
+		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval*2/3 - sinceBecameValidator
 	}
 	syncedPassed := time.Since(em.syncStatus.syncedTime)
 	if syncedPassed < em.config.SelfForkProtectionInterval {
