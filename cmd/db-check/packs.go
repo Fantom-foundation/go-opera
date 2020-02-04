@@ -14,24 +14,36 @@ import (
 func checkPacks(db kvdb.KeyValueStore) {
 	t := table.New(db, []byte("p"))
 
+	rmPrefix(t, "serverPool")
+
 	it := t.NewIterator()
 	defer it.Release()
 
 	for it.Next() {
 		buf := it.Key()
-		epoch := idx.BytesToEpoch(buf[0:4])
-		pack := idx.BytesToEpoch(buf[4:8])
-
-		fmt.Printf("%d:%d ", epoch, pack)
+		w := it.Value()
 
 		var info gossip.PackInfo
-		w := it.Value()
 		err := rlp.DecodeBytes(w, &info)
 		if err != nil {
-			fmt.Printf("%s: %#v\n", err.Error(), w)
-		} else {
-			fmt.Printf("%+v\n", info)
+			fmt.Printf(">>> %s\n ", string(buf))
+			continue
+		}
+
+		epoch := idx.BytesToEpoch(buf[0:4])
+		pack := idx.BytesToEpoch(buf[4:8])
+		fmt.Printf("%d:%d %+v\n", epoch, pack, info)
+
+	}
+}
+
+func rmPrefix(t kvdb.KeyValueStore, prefix string) {
+	t1 := table.New(t, []byte(prefix))
+	it := t1.NewIterator()
+	for it.Next() {
+		if err := t1.Delete(it.Key()); err != nil {
+			panic(err)
 		}
 	}
-
+	it.Release()
 }
