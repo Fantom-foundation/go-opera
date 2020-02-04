@@ -135,6 +135,9 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	s.initCache()
 	s.initMutexes()
 
+	// for compability with db before commit 591ede6
+	s.rmPrefix(s.table.PackInfos, "serverPool")
+
 	return s
 }
 
@@ -239,6 +242,13 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
 	return res
+}
+
+func (s *Store) rmPrefix(t kvdb.KeyValueStore, prefix string) {
+	it := t.NewIteratorWithPrefix([]byte(prefix))
+	defer it.Release()
+
+	s.dropTable(it, t)
 }
 
 func (s *Store) dropTable(it ethdb.Iterator, t kvdb.KeyValueStore) {
