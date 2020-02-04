@@ -306,6 +306,97 @@ func TestFlushableParallel(t *testing.T) {
 	wg.Wait()
 }
 
+func TestFlushableParallelTableLocal(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-flushable")
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
+	}
+	disk := leveldb.NewProducer(dir)
+
+	leveldb2 := disk.OpenDb("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
+
+	dbLdb := Wrap(leveldb2)
+
+	assertar := assert.New(t)
+
+	i := 128
+	// Test with i parallel goroutines
+	wg := sync.WaitGroup{}
+	for j := 0; j < i; j++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			baseLdb := table.New(dbLdb, []byte{})
+			_loopPutGetSameData(assertar, baseLdb, 1000)
+
+			err := dbLdb.Flush()
+			assertar.True(err == nil, "Error flush data to DB")
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			baseLdb := table.New(dbLdb, []byte{})
+			_loopPutGetDiffData(assertar, baseLdb, 1000)
+
+			err := dbLdb.Flush()
+			assertar.True(err == nil, "Error flush data to DB")
+		}()
+	}
+	wg.Wait()
+}
+
+func TestFlushableIteratorParallel(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-flushable")
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
+	}
+	disk := leveldb.NewProducer(dir)
+
+	leveldb2 := disk.OpenDb("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
+
+	dbLdb := Wrap(leveldb2)
+	baseLdb := table.New(dbLdb, []byte{})
+
+	assertar := assert.New(t)
+
+
+	// Prepare data
+	_loopPutGetDiffData(assertar, baseLdb, 1000)
+	dbLdb.Flush()
+
+	i := 128
+	// Test with i parallel goroutines
+	wg := sync.WaitGroup{}
+	for j := 0; j < i; j++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			it := dbLdb.NewIterator()
+			defer it.Release()
+
+			expectPairs := map[string][]byte{}
+
+			got := 0
+			for ; it.Next(); got++ {
+				expectPairs[string(it.Key())] = it.Value()
+				assertar.False(t.Failed(), "Parallel iterator failed")
+			}
+
+			assertar.NoError(it.Error())
+
+			assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
+		}()
+	}
+	wg.Wait()
+}
+
 func BenchmarkFlushable_PutGet(b *testing.B) {
 	dir, err := ioutil.TempDir("", "test-flushable")
 	if err != nil {
