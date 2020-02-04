@@ -30,7 +30,7 @@ type Store struct {
 	mainDb kvdb.KeyValueStore
 	table  struct {
 		// Network tables
-		Peers kvdb.KeyValueStore `table:"p"`
+		Peers kvdb.KeyValueStore `table:"Z"`
 
 		// Main DAG tables
 		Events    kvdb.KeyValueStore `table:"e"`
