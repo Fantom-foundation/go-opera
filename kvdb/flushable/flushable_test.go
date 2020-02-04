@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"math/big"
 	"math/rand"
+	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -110,7 +112,7 @@ func TestFlushable(t *testing.T) {
 
 	for try := 0; try < tries; try++ {
 
-		// random pet/delete operations
+		// random put/delete operations
 		putDeleteRandom := func() {
 			for j := 0; j < tablesNum; j++ {
 				var batches []ethdb.Batch
@@ -259,5 +261,192 @@ func TestFlushable(t *testing.T) {
 		if t.Failed() {
 			return
 		}
+	}
+}
+
+func TestFlushableParallel(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test-flushable")
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
+	}
+	disk := leveldb.NewProducer(dir)
+
+	leveldb2 := disk.OpenDb("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
+
+	dbLdb := Wrap(leveldb2)
+	baseLdb := table.New(dbLdb, []byte{})
+
+	assertar := assert.New(t)
+
+	i := 128
+	// Test with i parallel goroutines
+	wg := sync.WaitGroup{}
+	for j := 0; j < i; j++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			_loopPutGetSameData(assertar, baseLdb, 1000)
+
+			err := dbLdb.Flush()
+			assertar.True(err == nil, "Error flush data to DB")
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			_loopPutGetDiffData(assertar, baseLdb, 1000)
+
+			err := dbLdb.Flush()
+			assertar.True(err == nil, "Error flush data to DB")
+		}()
+	}
+	wg.Wait()
+}
+
+func BenchmarkFlushable_PutGet(b *testing.B) {
+	dir, err := ioutil.TempDir("", "test-flushable")
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
+	}
+	disk := leveldb.NewProducer(dir)
+
+	// open raw databases
+	leveldb2 := disk.OpenDb("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
+
+	dbLdb := Wrap(leveldb2)
+	baseLdb := table.New(dbLdb, []byte{})
+
+	allThreads := 16384
+	for i := 1; i <= allThreads; i*=2 {
+		pNum := i
+		b.Run("Sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				_parallelBenchmarkPutGet(baseLdb, pNum, allThreads)
+				dbLdb.Flush()
+			}
+		})
+	}
+}
+
+var flushCounter int
+
+func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
+	dir, err := ioutil.TempDir("", "test-flushable")
+	if err != nil {
+		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
+	}
+	disk := leveldb.NewProducer(dir)
+
+	// open raw databases
+	leveldb2 := disk.OpenDb("2")
+	defer leveldb2.Drop()
+	defer leveldb2.Close()
+
+	dbLdb := Wrap(leveldb2)
+	baseLdb := table.New(dbLdb, []byte{})
+
+	for flushAfter := 1; flushAfter <= 1000; flushAfter *= 10 {
+		flushCounter = flushAfter
+		for allThreads := 16384; allThreads > 1024; allThreads/=2 {
+			for i := 1; i <= allThreads; i *= 2 {
+				pNum := i
+				b.Run("Flush every "+strconv.FormatInt(int64(flushAfter), 10)+
+					" sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+
+					" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						_parallelBenchmarkPutGetFlush(baseLdb, dbLdb, pNum, allThreads, flushAfter)
+					}
+				})
+			}
+		}
+	}
+}
+
+func _parallelBenchmarkPutGet(tbl *table.Table, pNum, allThreads int) {
+	wg := sync.WaitGroup{}
+
+	r := rand.New(rand.NewSource(0))
+	testKey := big.NewInt(r.Int63()).Bytes()
+	testVal := big.NewInt(r.Int63()).Bytes()
+
+	seqNum := allThreads / pNum
+
+	for i := 0; i < pNum; i++ {
+		wg.Add(1)
+		go func(){
+			defer wg.Done()
+
+			for j := 0; j < seqNum; j++ {
+				_ = tbl.Put(testKey, testVal)
+				_, _ = tbl.Get(testKey)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThreads, flushAfter int) {
+	wg := sync.WaitGroup{}
+
+	r := rand.New(rand.NewSource(1))
+	mu := sync.Mutex{}
+
+	seqNum := allThreads / pNum
+
+	for i := 0; i < pNum; i++ {
+		wg.Add(1)
+		go func(){
+			defer wg.Done()
+
+			for j := 0; j < seqNum; j++ {
+				mu.Lock()
+				testKey := big.NewInt(r.Int63()).Bytes()
+				testVal := big.NewInt(r.Int63()).Bytes()
+				mu.Unlock()
+
+				_ = tbl.Put(testKey, testVal)
+				_, _ = tbl.Get(testKey)
+
+				flushCounter--
+				if flushCounter <= 0 {
+					db.Flush()
+					flushCounter = flushAfter
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func _loopPutGetSameData(assertar *assert.Assertions, tbl *table.Table, loopCount int) {
+	r := rand.New(rand.NewSource(0))
+
+	testKey := big.NewInt(r.Int63()).Bytes()
+	testVal := big.NewInt(r.Int63()).Bytes()
+
+	for i := 0; i < loopCount; i++ {
+		err := tbl.Put(testKey, testVal)
+		assertar.True(err == nil, "Error put data to DB")
+		_, err = tbl.Get(testKey)
+		assertar.True(err == nil, "Error get data from DB")
+	}
+}
+
+func _loopPutGetDiffData(assertar *assert.Assertions, tbl *table.Table, loopCount int) {
+	r := rand.New(rand.NewSource(0))
+
+	for i := 0; i < loopCount; i++ {
+		testKey := big.NewInt(r.Int63()).Bytes()
+		testVal := big.NewInt(r.Int63()).Bytes()
+
+		err := tbl.Put(testKey, testVal)
+		assertar.True(err == nil, "Error put data to DB")
+		_, err = tbl.Get(testKey)
+		assertar.True(err == nil, "Error get data from DB")
 	}
 }
