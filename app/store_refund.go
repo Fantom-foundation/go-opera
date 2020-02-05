@@ -1,4 +1,4 @@
-package gossip
+package app
 
 import (
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"

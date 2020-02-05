@@ -1,4 +1,4 @@
-package gossip
+package app
 
 /*
 	In LRU cache data stored like value
