@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/golang-lru"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
@@ -40,6 +41,7 @@ const (
 // EmitterWorld is emitter's external world
 type EmitterWorld struct {
 	Store       *Store
+	App         *app.Store
 	Engine      Consensus
 	EngineMu    *sync.RWMutex
 	Txpool      txPool
@@ -198,7 +200,7 @@ func (em *Emitter) myStakerID() (idx.StakerID, bool) {
 		return 0, false // short circuit if zero address
 	}
 
-	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
+	validators := em.world.App.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
 		if it.Staker.Address == coinbase {
 			return it.StakerID, true

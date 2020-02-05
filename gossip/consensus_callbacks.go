@@ -58,8 +58,8 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 	if newEpoch != oldEpoch {
 		// notify event checkers about new validation data
-		s.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(s.store, newEpoch))
-		s.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s.store, s.engine.GetValidators(), newEpoch, &s.config.Net.Economy))
+		s.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(s.app, newEpoch))
+		s.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s.store, s.app, s.engine.GetValidators(), newEpoch, &s.config.Net.Economy))
 
 		// sealings/prunings
 		s.packsOnNewEpoch(oldEpoch, newEpoch)
@@ -72,6 +72,11 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	}
 
 	immediately := (newEpoch != oldEpoch)
+
+	err := s.app.Commit(e.Hash().Bytes(), immediately)
+	if err != nil {
+		return err
+	}
 	return s.store.Commit(e.Hash().Bytes(), immediately)
 }
 
@@ -111,7 +116,7 @@ func (s *Service) applyNewState(
 
 	// Get stateDB
 	stateHash := s.store.GetBlock(block.Index - 1).Root
-	statedb := s.store.StateDB(stateHash)
+	statedb := s.app.StateDB(stateHash)
 
 	// Process EVM txs
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
@@ -260,11 +265,7 @@ func (s *Service) executeEvmTransactions(
 	}
 
 	for _, r := range receipts {
-
-		err := s.store.table.EvmLogs.Push(r.Logs...)
-		if err != nil {
-			s.Log.Crit("DB logs index", "err", err)
-		}
+		s.app.IndexLogs(r.Logs...)
 	}
 
 	return block, evmBlock, totalFee, receipts
@@ -310,7 +311,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 
 		if receipts.Len() != 0 {
-			s.store.SetReceipts(block.Index, receipts)
+			s.app.SetReceipts(block.Index, receipts)
 		}
 	}
 
@@ -345,7 +346,7 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 	// s.engineMu is locked here
 
 	builder := pos.NewBuilder()
-	for _, it := range s.store.GetEpochValidators(newEpoch) {
+	for _, it := range s.app.GetEpochValidators(newEpoch) {
 		builder.Set(it.StakerID, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
 

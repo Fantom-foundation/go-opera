@@ -25,21 +25,11 @@ func (e *GenesisMismatchError) Error() string {
 	return fmt.Sprintf("database contains incompatible gossip genesis (have %s, new %s)", e.Stored.FullID(), e.New.FullID())
 }
 
-// calcGenesisHash calcs hash of genesis state.
-func calcGenesisHash(net *lachesis.Config) hash.Event {
-	s := NewMemStore()
-	defer s.Close()
-
-	h, _, _ := s.applyGenesis(net)
-
-	return h
-}
-
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
+func (s *Store) ApplyGenesis(net *lachesis.Config, state *evmcore.EvmBlock) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
 	storedGenesis := s.GetBlock(0)
 	if storedGenesis != nil {
-		newHash := calcGenesisHash(net)
+		newHash := calcGenesisHash(net, state)
 		if storedGenesis.Atropos != newHash {
 			return genesisAtropos, genesisState, true, &GenesisMismatchError{storedGenesis.Atropos, newHash}
 		}
@@ -49,7 +39,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		return genesisAtropos, genesisState, false, nil
 	}
 	// if we'here, then it's first time genesis is applied
-	genesisAtropos, genesisState, err = s.applyGenesis(net)
+	genesisAtropos, genesisState, err = s.applyGenesis(net, state)
 	if err != nil {
 		return genesisAtropos, genesisState, true, err
 	}
@@ -57,12 +47,17 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 	return genesisAtropos, genesisState, true, err
 }
 
-func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
-	evmBlock, err := evmcore.ApplyGenesis(s.table.Evm, net)
-	if err != nil {
-		return genesisAtropos, genesisState, err
-	}
+// calcGenesisHash calcs hash of genesis state.
+func calcGenesisHash(net *lachesis.Config, state *evmcore.EvmBlock) hash.Event {
+	s := NewMemStore()
+	defer s.Close()
 
+	h, _, _ := s.applyGenesis(net, state)
+
+	return h
+}
+
+func (s *Store) applyGenesis(net *lachesis.Config, state *evmcore.EvmBlock) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
 	prettyHash := func(net *lachesis.Config) hash.Event {
 		e := inter.NewEvent()
 		// for nice-looking ID
@@ -85,7 +80,7 @@ func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		hash.Events{genesisAtropos},
 	)
 
-	block.Root = evmBlock.Root
+	block.Root = state.Root
 	s.SetBlock(block)
 	s.SetBlockIndex(genesisAtropos, block.Index)
 	s.SetEpochStats(0, &sfctype.EpochStats{
@@ -97,30 +92,6 @@ func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 		Start:    net.Genesis.Time,
 		TotalFee: new(big.Int),
 	})
-
-	// calc total pre-minted supply
-	totalSupply := big.NewInt(0)
-	for _, account := range net.Genesis.Alloc.Accounts {
-		totalSupply.Add(totalSupply, account.Balance)
-	}
-	s.SetTotalSupply(totalSupply)
-
-	validatorsArr := []sfctype.SfcStakerAndID{}
-	for _, validator := range net.Genesis.Alloc.Validators {
-		staker := &sfctype.SfcStaker{
-			Address:      validator.Address,
-			CreatedEpoch: 0,
-			CreatedTime:  net.Genesis.Time,
-			StakeAmount:  validator.Stake,
-			DelegatedMe:  big.NewInt(0),
-		}
-		s.SetSfcStaker(validator.ID, staker)
-		validatorsArr = append(validatorsArr, sfctype.SfcStakerAndID{
-			StakerID: validator.ID,
-			Staker:   staker,
-		})
-	}
-	s.SetEpochValidators(1, validatorsArr)
 
 	return genesisAtropos, genesisState, nil
 }
