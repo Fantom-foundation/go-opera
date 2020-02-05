@@ -12,9 +12,12 @@ func main() {
 		dir = os.Args[1]
 	}
 
+	//dir = "/home/fabel/Work/fantom/go-lachesis/build/20200204"
+
 	p := leveldb.NewProducer(dir)
 	db := p.OpenDb("gossip-main")
 	defer db.Close()
 
-	checkPacks(db)
+	// checkPacks(db)
+	checkEvents(db)
 }
