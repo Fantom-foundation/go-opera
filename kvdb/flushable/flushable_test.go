@@ -448,14 +448,71 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	got = 0
+	added := map[string][]byte{}
 	for ; it2.Next(); got++ {
 		expectPairs[string(it2.Key())] = it2.Value()
 		assertar.NoError(it2.Error(), "Parallel iterator failed")
 
 		// Only added data before iterator create should by returned
-		assertar.Equal(keysMap[string(it2.Key())], it2.Value(), "Absent data in iterator return")
+		assertar.Equal(keysMap[fmt.Sprintf("%x", it2.Key())], it2.Value(), "Absent data in iterator return")
 		// Data output in add sequence
 		assertar.Equal(originOrder[got], it2.Key(), "Wrong order of data from iterator")
+
+		// Add more data in process
+		testKey := big.NewInt(r.Int63()).Bytes()
+		testVal := big.NewInt(r.Int63()).Bytes()
+
+		_ = tblLdb.Put(testKey, testVal)
+		added[fmt.Sprintf("%x", testKey)] = testVal
+		dbLdb.Flush()
+	}
+
+	assertar.NoError(it2.Error())
+
+	assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
+	assertar.Equal(got, keysCount) // check that we've got the same num of pairs
+
+	// Add added values in keysMap
+	for k, v := range added {
+		keysMap[k] = v
+	}
+
+	// With prefix
+	prefix := []byte{0x32}
+	it3 := dbLdb.NewIteratorWithPrefix(prefix)
+	defer it3.Release()
+
+	// Use first iterator (it3) order results like pattern for check second iterator (it4) run with new data insertion
+	originOrder = make([][]byte, 0, 0)
+
+	got = 0
+	for ; it3.Next(); got++ {
+		assertar.NoError(it3.Error(), "Parallel iterator failed")
+
+		// Only added data before iterator create should by returned
+		assertar.Equal(keysMap[fmt.Sprintf("%x", it3.Key())], it3.Value(), "Absent data in iterator return")
+
+		originOrder = append(originOrder, it3.Key())
+	}
+
+	assertar.NoError(it3.Error())
+	assertar.Greater(got, 0, "No test data with prefix")
+
+	it4 := dbLdb.NewIteratorWithPrefix(prefix)
+	defer it4.Release()
+
+	expectPairs = map[string][]byte{}
+
+	r = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	got = 0
+	for ; it4.Next(); got++ {
+		assertar.NoError(it4.Error(), "Parallel iterator failed")
+
+		// Only added data before iterator create should by returned
+		assertar.Equal(keysMap[fmt.Sprintf("%x", it4.Key())], it4.Value(), "Absent data in iterator return")
+		// Data output in add sequence
+		assertar.Equal(originOrder[got], it4.Key(), "Wrong order of data from iterator")
 
 		// Add more data in process
 		testKey := big.NewInt(r.Int63()).Bytes()
@@ -465,10 +522,10 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 		dbLdb.Flush()
 	}
 
-	assertar.NoError(it2.Error())
+	assertar.NoError(it4.Error())
 
-	assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
-	assertar.Equal(got, keysCount) // check that we've got the same num of pairs
+	assertar.Greater(got, 0, "No test data with prefix")
+	assertar.Equal(len(originOrder), got) // check that we've got the same num of pairs
 }
 
 func BenchmarkFlushable_PutGet(b *testing.B) {
@@ -606,9 +663,11 @@ func _loopPutGetDiffData(assertar *assert.Assertions, tbl *table.Table, loopCoun
 	data := make(map[string][]byte)
 
 	r := rand.New(rand.NewSource(0))
+	prefixByte := byte(0x32)
 
 	for i := 0; i < loopCount; i++ {
 		testKey := big.NewInt(r.Int63()).Bytes()
+		testKey[0] = prefixByte
 		testVal := big.NewInt(r.Int63()).Bytes()
 
 		err := tbl.Put(testKey, testVal)
@@ -616,7 +675,7 @@ func _loopPutGetDiffData(assertar *assert.Assertions, tbl *table.Table, loopCoun
 		_, err = tbl.Get(testKey)
 		assertar.NoError(err, "Error get data from DB")
 
-		data[string(testKey)] = testVal
+		data[fmt.Sprintf("%x", testKey)] = testVal
 	}
 
 	return data
