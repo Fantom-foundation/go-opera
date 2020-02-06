@@ -18,6 +18,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
+	"github.com/Fantom-foundation/go-lachesis/gossip/piecefunc"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/ancestor"
@@ -28,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/logger"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 	"github.com/Fantom-foundation/go-lachesis/utils"
+	"github.com/Fantom-foundation/go-lachesis/utils/errlock"
 )
 
 const (
@@ -63,13 +65,15 @@ type Emitter struct {
 
 	world EmitterWorld
 
-	creator   common.Address
-	creatorMu sync.RWMutex
+	myStakerID idx.StakerID
+	myAddress  common.Address
 
 	syncStatus selfForkProtection
 
 	gasRate         metrics.Meter
 	prevEmittedTime time.Time
+
+	confirmingEmitInterval time.Duration // emit time when there's no txs to originate, but at least 1 tx to confirm
 
 	done chan struct{}
 	wg   sync.WaitGroup
@@ -79,29 +83,37 @@ type Emitter struct {
 
 type selfForkProtection struct {
 	connectedTime           time.Time
+	syncedTime              time.Time
 	prevLocalEmittedID      hash.Event
 	prevExternalEmittedTime time.Time
 	becameValidatorTime     time.Time
-	wasValidator            bool
 }
 
 // NewEmitter creation.
 func NewEmitter(
-	config *Config,
+	net *lachesis.Config,
+	config *EmitterConfig,
 	world EmitterWorld,
 ) *Emitter {
 
 	txTime, _ := lru.New(TxTimeBufferSize)
 	loggerInstance := logger.MakeInstance()
 	return &Emitter{
-		net:      &config.Net,
-		config:   &config.Emitter,
-		world:    world,
-		creator:  config.Emitter.Validator,
-		gasRate:  metrics.NewMeterForced(),
-		txTime:   txTime,
-		Periodic: logger.Periodic{Instance: loggerInstance},
+		net:       net,
+		config:    config,
+		world:     world,
+		myAddress: config.Validator,
+		gasRate:   metrics.NewMeterForced(),
+		txTime:    txTime,
+		Periodic:  logger.Periodic{Instance: loggerInstance},
 	}
+}
+
+// init emitter without starting events emission
+func (em *Emitter) init() {
+	em.syncStatus.connectedTime = time.Now()
+	validators, epoch := em.world.Engine.GetEpochValidators()
+	em.OnNewEpoch(validators, epoch)
 }
 
 // StartEventEmission starts event emission.
@@ -114,20 +126,26 @@ func (em *Emitter) StartEventEmission() {
 	newTxsCh := make(chan evmcore.NewTxsNotify)
 	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
 
-	em.prevEmittedTime = em.loadPrevEmitTime()
-	em.syncStatus.connectedTime = time.Now()
-	em.syncStatus.wasValidator = true
+	em.SetValidator(em.myAddress)
 
 	done := em.done
 	em.wg.Add(1)
 	go func() {
 		defer em.wg.Done()
-		ticker := time.NewTicker(em.config.MinEmitInterval / 5)
+		ticker := time.NewTicker(10 * time.Millisecond)
 		for {
 			select {
 			case txNotify := <-newTxsCh:
 				em.memorizeTxTimes(txNotify.Txs)
 			case <-ticker.C:
+				// track synced time
+				if em.world.PeersNum() == 0 {
+					em.syncStatus.connectedTime = time.Now() // connected time ~= last time when it's true that "not connected yet"
+				}
+				if !em.world.IsSynced() {
+					em.syncStatus.syncedTime = time.Now() // synced time ~= last time when it's true that "not synced yet"
+				}
+
 				// must pass at least MinEmitInterval since last event
 				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
 					em.EmitEvent()
@@ -152,25 +170,25 @@ func (em *Emitter) StopEventEmission() {
 
 // SetValidator sets event creator.
 func (em *Emitter) SetValidator(addr common.Address) {
-	em.creatorMu.Lock()
-	defer em.creatorMu.Unlock()
-	em.creator = addr
+	em.world.EngineMu.Lock()
+	defer em.world.EngineMu.Unlock()
+	em.myAddress = addr
+	em.init()
 }
 
 // GetValidator gets event creator.
-func (em *Emitter) GetValidator() common.Address {
-	em.creatorMu.RLock()
-	defer em.creatorMu.RUnlock()
-	return em.creator
+func (em *Emitter) GetValidator() (idx.StakerID, common.Address) {
+	em.world.EngineMu.RLock()
+	defer em.world.EngineMu.RUnlock()
+	return em.myStakerID, em.myAddress
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	myID, ok := em.myStakerID()
-	if !ok {
+	if em.myStakerID == 0 {
 		return em.prevEmittedTime
 	}
 
-	prevEventID := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), myID)
+	prevEventID := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), em.myStakerID)
 	if prevEventID == nil {
 		return em.prevEmittedTime
 	}
@@ -183,6 +201,9 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 
 // safe for concurrent use
 func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
+	if em.myStakerID == 0 {
+		return // short circuit if not validator
+	}
 	now := time.Now()
 	for _, tx := range txs {
 		_, ok := em.txTime.Get(tx.Hash())
@@ -192,15 +213,15 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 }
 
-func (em *Emitter) myStakerID() (idx.StakerID, bool) {
-	coinbase := em.GetValidator()
-	if coinbase == (common.Address{}) {
+func (em *Emitter) findMyStakerID() (idx.StakerID, bool) {
+	myAddress := em.myAddress
+	if myAddress == (common.Address{}) {
 		return 0, false // short circuit if zero address
 	}
 
 	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
-		if it.Staker.Address == coinbase {
+		if it.Staker.Address == myAddress {
 			return it.StakerID, true
 		}
 	}
@@ -306,14 +327,13 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
-	myStakerID, ok := em.myStakerID()
-	if !ok {
+	if em.myStakerID == 0 {
 		// not a validator
 		return nil
 	}
 	validators := em.world.Engine.GetValidators()
 
-	if synced, _, _ := em.logging(em.isSynced()); !synced {
+	if synced, _, _ := em.logSyncStatus(em.isSynced()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
 	}
@@ -327,7 +347,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	)
 
 	// Find parents
-	selfParent, parents, ok := em.findBestParents(epoch, myStakerID)
+	selfParent, parents, ok := em.findBestParents(epoch, em.myStakerID)
 	if !ok {
 		return nil
 	}
@@ -340,9 +360,9 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 			em.Log.Crit("Emitter: head not found", "event", p.String())
 		}
 		parentHeaders[i] = parent
-		if parentHeaders[i].Creator == myStakerID && i != 0 {
+		if parentHeaders[i].Creator == em.myStakerID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.myStakerID)
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
@@ -360,7 +380,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event := inter.NewEvent()
 	event.Epoch = epoch
 	event.Seq = selfParentSeq + 1
-	event.Creator = myStakerID
+	event.Creator = em.myStakerID
 
 	event.Parents = parents
 	event.Lamport = maxLamport + 1
@@ -388,7 +408,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	if event.GasPowerUsed > availableGasPower.Min() {
 		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
 			"gasPower", availableGasPower,
-			"stake%", 100*float64(validators.Get(myStakerID))/float64(validators.TotalStake()))
+			"stake%", 100*float64(validators.Get(em.myStakerID))/float64(validators.TotalStake()))
 		return nil
 	}
 	event.GasPowerLeft = *availableGasPower.Sub(event.GasPowerUsed)
@@ -404,10 +424,10 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	event.TxHash = types.DeriveSha(event.Transactions)
 
 	// sign
-	coinbase := em.GetValidator()
+	myAddress := em.myAddress
 	signer := func(data []byte) (sig []byte, err error) {
 		acc := accounts.Account{
-			Address: coinbase,
+			Address: myAddress,
 		}
 		w, err := em.world.Am.Find(acc)
 		if err != nil {
@@ -438,22 +458,101 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	return event
 }
 
+var (
+	confirmingEmitIntervalPieces = []piecefunc.Dot{
+		{
+			X: 0,
+			Y: 1.0 * piecefunc.PercentUnit,
+		},
+		{
+			X: 0.33 * piecefunc.PercentUnit,
+			Y: 1.05 * piecefunc.PercentUnit,
+		},
+		{
+			X: 0.66 * piecefunc.PercentUnit,
+			Y: 1.20 * piecefunc.PercentUnit,
+		},
+		{
+			X: 0.8 * piecefunc.PercentUnit,
+			Y: 1.5 * piecefunc.PercentUnit,
+		},
+		{
+			X: 0.9 * piecefunc.PercentUnit,
+			Y: 3 * piecefunc.PercentUnit,
+		},
+		{
+			X: 1.0 * piecefunc.PercentUnit,
+			Y: 3.9 * piecefunc.PercentUnit,
+		},
+	}
+	maxEmitIntervalPieces = []piecefunc.Dot{
+		{
+			X: 0,
+			Y: 1.0 * piecefunc.PercentUnit,
+		},
+		{
+			X: 1.0 * piecefunc.PercentUnit,
+			Y: 0.89 * piecefunc.PercentUnit,
+		},
+	}
+)
+
+// OnNewEpoch should be called after each epoch change, and on startup
+func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
+	// update myStakerID
+	em.myStakerID, _ = em.findMyStakerID()
+	em.prevEmittedTime = em.loadPrevEmitTime()
+
+	// stakers with lower stake should emit less events to reduce network load
+	// confirmingEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MinEmitInterval
+	myIdx := newValidators.GetIdx(em.myStakerID)
+	totalStake := pos.Stake(0)
+	totalStakeBeforeMe := pos.Stake(0)
+	for i, stake := range newValidators.SortedStakes() {
+		totalStake += stake
+		if idx.Validator(i) < myIdx {
+			totalStakeBeforeMe += stake
+		}
+	}
+	stakeRatio := uint64((totalStakeBeforeMe * piecefunc.PercentUnit) / totalStake)
+	confirmingEmitIntervalRatio := piecefunc.Get(stakeRatio, confirmingEmitIntervalPieces)
+	em.confirmingEmitInterval = time.Duration(piecefunc.Mul(uint64(em.config.MinEmitInterval), confirmingEmitIntervalRatio))
+
+	// stakers with lower stake should emit more events at idle, to catch up with other stakers if their frame is behind
+	// MaxEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MaxEmitInterval
+	maxEmitIntervalRatio := piecefunc.Get(stakeRatio, maxEmitIntervalPieces)
+	em.config.MaxEmitInterval = time.Duration(piecefunc.Mul(uint64(em.config.MaxEmitInterval), maxEmitIntervalRatio))
+
+	// track when I've became validator
+	now := time.Now()
+	if em.myStakerID != 0 && !em.world.Store.HasEpochValidator(newEpoch-1, em.myStakerID) {
+		em.syncStatus.becameValidatorTime = now
+	}
+}
+
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
 	now := time.Now()
-	myStakerID, isValidator := em.myStakerID()
-	if isValidator && em.syncStatus.prevLocalEmittedID != e.Hash() {
+	myStakerID := em.myStakerID
+	if em.myStakerID != 0 && em.syncStatus.prevLocalEmittedID != e.Hash() {
 		if e.Creator == myStakerID {
-			// it was emitted by another instance with the same address
+			// event was emitted by me on another instance
 			em.syncStatus.prevExternalEmittedTime = now
+
+			passedSinceEvent := time.Since(inter.MaxTimestamp(e.ClaimedTime, e.MedianTime).Time())
+			threshold := em.config.SelfForkProtectionInterval
+			if threshold > time.Minute {
+				threshold = time.Minute
+			}
+			if passedSinceEvent <= threshold {
+				reason := "Received a recent event (event id=%s) from this validator (staker id=%d) which wasn't created on this node.\n" +
+					"This external event was created %s, %s ago at the time of this error.\n" +
+					"It means that a duplicating instance of the same validator is running simultaneously, which will eventually lead to a doublesign.\n" +
+					"For now, doublesign was prevented by one of the heuristics, but next time you (and your delegators) may lose the stake."
+				errlock.Permanent(fmt.Errorf(reason, e.Hash().String(), myStakerID, e.ClaimedTime.Time().Local().String(), passedSinceEvent.String()))
+			}
 		}
 	}
-
-	// track when I've became validator
-	if isValidator && !em.syncStatus.wasValidator {
-		em.syncStatus.becameValidatorTime = now
-	}
-	em.syncStatus.wasValidator = isValidator
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
@@ -461,7 +560,6 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 		return true, "", 0 // protection disabled
 	}
 	if em.world.PeersNum() == 0 {
-		em.syncStatus.connectedTime = time.Now() // move time of the first connection
 		return false, "no connections", 0
 	}
 	if !em.world.IsSynced() {
@@ -471,19 +569,23 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 	if sinceLastExternalEvent < em.config.SelfForkProtectionInterval {
 		return false, "synchronizing (not downloaded all the self-events)", em.config.SelfForkProtectionInterval - sinceLastExternalEvent
 	}
-	connectedTime := time.Since(em.syncStatus.connectedTime)
-	if connectedTime < em.config.SelfForkProtectionInterval {
-		return false, "synchronizing (just connected)", em.config.SelfForkProtectionInterval - connectedTime
-	}
 	sinceBecameValidator := time.Since(em.syncStatus.becameValidatorTime)
 	if sinceBecameValidator < em.config.SelfForkProtectionInterval {
 		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval - sinceBecameValidator
+	}
+	syncedPassed := time.Since(em.syncStatus.syncedTime)
+	if syncedPassed < em.config.SelfForkProtectionInterval {
+		return false, "synchronized (waiting additional time)", em.config.SelfForkProtectionInterval - syncedPassed
+	}
+	connectedPassed := time.Since(em.syncStatus.connectedTime)
+	if connectedPassed < em.config.SelfForkProtectionInterval {
+		return false, "synchronizing (recently connected)", em.config.SelfForkProtectionInterval - connectedPassed
 	}
 
 	return true, "", 0
 }
 
-func (em *Emitter) logging(synced bool, reason string, wait time.Duration) (bool, string, time.Duration) {
+func (em *Emitter) logSyncStatus(synced bool, reason string, wait time.Duration) (bool, string, time.Duration) {
 	if !synced {
 		if wait == 0 {
 			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason)
@@ -571,11 +673,23 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 			return false
 		}
 	}
+	// Emit no more than 1 event per confirmingEmitInterval (when there's no txs to originate, but at least 1 tx to confirm)
+	{
+		if passedTime < em.confirmingEmitInterval &&
+			em.world.OccurredTxs.Len() != 0 &&
+			len(e.Transactions) == 0 {
+			return false
+		}
+	}
 
 	return true
 }
 
 func (em *Emitter) EmitEvent() *inter.Event {
+	if em.myStakerID == 0 {
+		return nil // short circuit if not validator
+	}
+
 	poolTxs, err := em.world.Txpool.Pending() // request txs before locking engineMu to prevent deadlock!
 	if err != nil {
 		em.Log.Error("Tx pool transactions fetching error", "err", err)

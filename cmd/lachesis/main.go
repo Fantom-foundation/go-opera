@@ -23,6 +23,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/debug"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/integration"
+	"github.com/Fantom-foundation/go-lachesis/utils/errlock"
 	_ "github.com/Fantom-foundation/go-lachesis/version"
 )
 
@@ -223,6 +224,10 @@ func lachesisMain(ctx *cli.Context) error {
 
 func makeFullNode(ctx *cli.Context) *node.Node {
 	cfg := makeAllConfigs(ctx)
+
+	// check errlock file
+	errlock.SetDefaultDatadir(cfg.Node.DataDir)
+	errlock.Check()
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 

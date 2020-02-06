@@ -77,6 +77,8 @@ type Store struct {
 		DelegatorOldRewards        kvdb.KeyValueStore `table:"6"`
 		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
 		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
+		DecisiveEvents             kvdb.KeyValueStore `table:"9"`
+		EventLocalTimes            kvdb.KeyValueStore `table:"!"`
 
 		Evm      ethdb.Database
 		EvmState state.Database

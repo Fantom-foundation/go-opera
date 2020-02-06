@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -40,8 +41,9 @@ func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
 		VersionToPublish: _params.VersionWithMeta(),
 
-		MinEmitInterval:            300 * time.Millisecond,
-		MaxEmitInterval:            10 * time.Minute,
+		MinEmitInterval: 200 * time.Millisecond,
+		MaxEmitInterval: 12 * time.Minute,
+
 		MaxGasRateGrowthFactor:     3.0,
 		MaxTxsFromSender:           TxTurnNonces,
 		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
@@ -53,6 +55,20 @@ func DefaultEmitterConfig() EmitterConfig {
 		NoTxsThreshold:     params.EventGas * 30,
 		EmergencyThreshold: params.EventGas * 5,
 	}
+}
+
+// RandomizeEmitTime and return new config
+func (cfg *EmitterConfig) RandomizeEmitTime(r *rand.Rand) *EmitterConfig {
+	config := *cfg
+	// value = value - 0.1 * value + 0.1 * random value
+	if config.MaxEmitInterval > 10 {
+		config.MaxEmitInterval = config.MaxEmitInterval - config.MaxEmitInterval/10 + time.Duration(r.Int63n(int64(config.MaxEmitInterval/10)))
+	}
+	// value = value + 0.1 * random value
+	if config.SelfForkProtectionInterval > 10 {
+		config.SelfForkProtectionInterval = config.SelfForkProtectionInterval + time.Duration(r.Int63n(int64(config.SelfForkProtectionInterval/10)))
+	}
+	return &config
 }
 
 // FakeEmitterConfig returns the testing configurations for the events emitter.

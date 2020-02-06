@@ -24,7 +24,9 @@ type (
 		TxPool  evmcore.TxPoolConfig
 		StoreConfig
 
-		TxIndex bool // Whether to disable indexing transactions and receipts or not
+		TxIndex             bool // Whether to enable indexing transactions and receipts or not
+		DecisiveEventsIndex bool // Whether to enable indexing events which decide blocks or not
+		EventLocalTimeIndex bool // Whether to enable indexing arrival time of events or not
 
 		// Protocol options
 		Protocol ProtocolConfig
@@ -78,7 +80,8 @@ func DefaultConfig(network lachesis.Config) Config {
 		TxPool:      evmcore.DefaultTxPoolConfig(),
 		StoreConfig: DefaultStoreConfig(),
 
-		TxIndex: true,
+		TxIndex:             true,
+		DecisiveEventsIndex: false,
 
 		Protocol: ProtocolConfig{
 			LatencyImportance:    60,

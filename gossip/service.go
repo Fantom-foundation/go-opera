@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/gossip/filters"
 	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
 	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
+	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
@@ -95,10 +97,13 @@ type Service struct {
 	emitter             *Emitter
 	txpool              *evmcore.TxPool
 	occurredTxs         *occuredtxs.Buffer
-	blockParticipated   map[idx.StakerID]bool // validators who participated in last block
 	heavyCheckReader    HeavyCheckReader
 	gasPowerCheckReader GasPowerCheckReader
 	checkers            *eventcheck.Checkers
+
+	// global variables. TODO refactor to pass them as arguments if possible
+	blockParticipated map[idx.StakerID]bool // validators who participated in last block
+	currentEvent      hash.Event            // current event which is being processed
 
 	feed ServiceFeed
 
@@ -187,7 +192,11 @@ func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasP
 }
 
 func (s *Service) makeEmitter() *Emitter {
-	return NewEmitter(s.config,
+	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	emitterCfg := s.config.Emitter.RandomizeEmitTime(r)
+
+	return NewEmitter(&s.config.Net, emitterCfg,
 		EmitterWorld{
 			Am:          s.AccountManager(),
 			Engine:      s.engine,

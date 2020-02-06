@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	// PercentUnit is used to define ratios with integers
+	// PercentUnit is used to define ratios with integers, it's 1.0
 	PercentUnit = big.NewInt(1e6)
 )
 

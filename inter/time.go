@@ -2,12 +2,24 @@ package inter
 
 import (
 	"time"
+
+	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 )
 
 type (
 	// Timestamp is a logical time.
 	Timestamp uint64
 )
+
+// Bytes gets the byte representation of the index.
+func (t Timestamp) Bytes() []byte {
+	return bigendian.Int64ToBytes(uint64(t))
+}
+
+// BytesToTimestamp converts bytes to timestamp.
+func BytesToTimestamp(b []byte) Timestamp {
+	return Timestamp(bigendian.BytesToInt64(b))
+}
 
 func FromUnix(t int64) Timestamp {
 	return Timestamp(int64(t) * int64(time.Second))

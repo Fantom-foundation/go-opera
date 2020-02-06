@@ -27,6 +27,14 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		return eventcheck.ErrAlreadyConnectedEvent
 	}
 
+	// Trace arrival time of events
+	if s.config.EventLocalTimeIndex {
+		s.store.SetEventReceivingTime(e.Hash(), inter.Timestamp(time.Now().UnixNano()))
+	}
+	if s.config.DecisiveEventsIndex {
+		s.currentEvent = e.Hash()
+	}
+
 	oldEpoch := e.Epoch
 
 	s.store.SetEvent(e)
@@ -68,6 +76,7 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		s.occurredTxs.Clear()
 
 		// notify about new epoch after event connection
+		s.emitter.OnNewEpoch(s.engine.GetValidators(), newEpoch)
 		s.feed.newEpoch.Send(newEpoch)
 	}
 
@@ -325,6 +334,11 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 	s.feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
 	s.feed.newLogs.Send(logs)
+
+	// Trace by which event this block was confirmed (only for API)
+	if s.config.DecisiveEventsIndex {
+		s.store.SetBlockDecidedBy(block.Index, s.currentEvent)
+	}
 
 	// trace confirmed transactions
 	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
