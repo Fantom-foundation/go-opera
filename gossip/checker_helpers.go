@@ -3,10 +3,9 @@ package gossip
 import (
 	"sync/atomic"
 
-	"github.com/Fantom-foundation/go-lachesis/app"
-
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"

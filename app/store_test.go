@@ -5,7 +5,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
@@ -21,14 +20,6 @@ func nonCachedStore() *Store {
 	mems := memorydb.NewProducer("", withDelay)
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := StoreConfig{}
-
-	return NewStore(dbs, cfg)
-}
-
-func realStore(dir string) *Store {
-	disk := leveldb.NewProducer(dir)
-	dbs := flushable.NewSyncedPool(disk)
-	cfg := LiteStoreConfig()
 
 	return NewStore(dbs, cfg)
 }

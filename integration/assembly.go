@@ -30,7 +30,7 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *app.St
 
 	// write genesis
 
-	state, isNew, err := adb.ApplyGenesis(&gossipCfg.Net)
+	state, _, err := adb.ApplyGenesis(&gossipCfg.Net)
 	if err != nil {
 		utils.Fatalf("Failed to write App genesis state: %v", err)
 	}

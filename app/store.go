@@ -133,15 +133,18 @@ func (s *Store) Close() {
 
 // Commit changes.
 func (s *Store) Commit(flushID []byte, immediately bool) error {
+	// TODO: enable s.dbs (uncomment all the code) when database versioning is ready
+
 	if flushID == nil {
 		// if flushId not specified, use current time
 		buf := bytes.NewBuffer(nil)
 		buf.Write([]byte{0xbe, 0xee})                                    // 0xbeee eyecatcher that flushed time
 		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UnixNano time
-		flushID = buf.Bytes()
+		/*
+			flushID = buf.Bytes()
+		*/
 	}
 
-	// TODO: enable s.dbs when database versioning is ready
 	/*
 		if !immediately && !s.dbs.IsFlushNeeded() {
 			return nil
@@ -218,14 +221,6 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 		s.Log.Crit("Failed to decode rlp", "err", err, "size", len(buf))
 	}
 	return to
-}
-
-func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
-	res, err := table.Has(key)
-	if err != nil {
-		s.Log.Crit("Failed to get key", "err", err)
-	}
-	return res
 }
 
 func (s *Store) dropTable(it ethdb.Iterator, t kvdb.KeyValueStore) {
