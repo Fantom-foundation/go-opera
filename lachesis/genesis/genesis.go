@@ -145,24 +145,29 @@ func TestGenesis() Genesis {
 		Time: genesisTime,
 		Alloc: VAccounts{
 			Accounts: Accounts{
-				// TODO: fill with official keys and balances before release!
-				common.HexToAddress("b123456789123456789123456789012345678901"): Account{Balance: utils.ToFtm(1e10)},
-				common.HexToAddress("b123456789123456789123456789012345678902"): Account{Balance: utils.ToFtm(1e10)},
-				common.HexToAddress("b123456789123456789123456789012345678903"): Account{Balance: utils.ToFtm(1e10)},
+				common.HexToAddress("0xe003e080e8d61207a0a9890c3663b4cd7fb766b8"): Account{Balance: utils.ToFtm(2000000100)},
+				common.HexToAddress("0xcc8b10332478e26f676bccfc73f8c687e3ad1d04"): Account{Balance: utils.ToFtm(400)},
+				common.HexToAddress("0x30e3b5cc7e8fb98a22e688dfb20b327be8a9fe30"): Account{Balance: utils.ToFtm(400)},
+				common.HexToAddress("0x567b6f3d4ba1f55652cf90df6db90ad6d8f9abc1"): Account{Balance: utils.ToFtm(400)},
 			},
 			Validators: pos.GValidators{
 				pos.GenesisValidator{
 					ID:      1,
-					Address: common.HexToAddress("b123456789123456789123456789012345678901"),
-					Stake:   utils.ToFtm(3175000),
+					Address: common.HexToAddress("0xcc8b10332478e26f676bccfc73f8c687e3ad1d04"),
+					Stake:   utils.ToFtm(40000000),
 				},
 				pos.GenesisValidator{
 					ID:      2,
-					Address: common.HexToAddress("b123456789123456789123456789012345678902"),
-					Stake:   utils.ToFtm(3175000),
+					Address: common.HexToAddress("0x30e3b5cc7e8fb98a22e688dfb20b327be8a9fe30"),
+					Stake:   utils.ToFtm(40000000),
+				},
+				pos.GenesisValidator{
+					ID:      3,
+					Address: common.HexToAddress("0x567b6f3d4ba1f55652cf90df6db90ad6d8f9abc1"),
+					Stake:   utils.ToFtm(40000000),
 				},
 			},
-			SfcContractAdmin: common.HexToAddress("b123456789123456789123456789012345678904"),
+			SfcContractAdmin: common.HexToAddress("0xe003e080e8d61207a0a9890c3663b4cd7fb766b8"),
 		},
 	}
 	g = preDeploySfc(g, sfc.GetTestContractBinV1())
