@@ -2,13 +2,6 @@ package flushable
 
 import (
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
@@ -16,6 +9,15 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
 
 func TestFlushable(t *testing.T) {
@@ -364,7 +366,6 @@ func TestFlushableIteratorParallel(t *testing.T) {
 
 	assertar := assert.New(t)
 
-
 	// Prepare data
 	_loopPutGetDiffData(assertar, baseLdb, 1000)
 	dbLdb.Flush()
@@ -412,7 +413,6 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 
 	assertar := assert.New(t)
 
-
 	// Prepare data
 	keysCount := 10000
 	keysMap := _loopPutGetDiffData(assertar, tblLdb, keysCount)
@@ -437,8 +437,7 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 	assertar.NoError(it1.Error())
 
 	assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
-	assertar.Equal(got, keysCount) // check that we've got the same num of pairs
-
+	assertar.Equal(got, keysCount)        // check that we've got the same num of pairs
 
 	it2 := dbLdb.NewIterator()
 	defer it2.Release()
@@ -470,7 +469,7 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 	assertar.NoError(it2.Error())
 
 	assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
-	assertar.Equal(got, keysCount) // check that we've got the same num of pairs
+	assertar.Equal(got, keysCount)        // check that we've got the same num of pairs
 
 	// Add added values in keysMap
 	for k, v := range added {
@@ -544,7 +543,7 @@ func BenchmarkFlushable_PutGet(b *testing.B) {
 	baseLdb := table.New(dbLdb, []byte{})
 
 	allThreads := 16384
-	for i := 1; i <= allThreads; i*=2 {
+	for i := 1; i <= allThreads; i *= 2 {
 		pNum := i
 		b.Run("Sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
@@ -574,7 +573,7 @@ func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
 
 	for flushAfter := 1; flushAfter <= 1000; flushAfter *= 10 {
 		flushCounter = flushAfter
-		for allThreads := 16384; allThreads > 1024; allThreads/=2 {
+		for allThreads := 16384; allThreads > 1024; allThreads /= 2 {
 			for i := 1; i <= allThreads; i *= 2 {
 				pNum := i
 				b.Run("Flush every "+strconv.FormatInt(int64(flushAfter), 10)+
@@ -600,7 +599,7 @@ func _parallelBenchmarkPutGet(tbl *table.Table, pNum, allThreads int) {
 
 	for i := 0; i < pNum; i++ {
 		wg.Add(1)
-		go func(){
+		go func() {
 			defer wg.Done()
 
 			for j := 0; j < seqNum; j++ {
@@ -622,7 +621,7 @@ func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThr
 
 	for i := 0; i < pNum; i++ {
 		wg.Add(1)
-		go func(){
+		go func() {
 			defer wg.Done()
 
 			for j := 0; j < seqNum; j++ {
