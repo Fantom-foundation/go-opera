@@ -103,10 +103,10 @@ docker run -d --name lachesis-node -v /home/alice/lachesis:/root \
            -p 5050:5050 \
           "lachesis" \
           --port 5050 \
-          --nat=extip:YOUR_IP
+          --nat extip:YOUR_IP
 ```
 
-This will start `lachesis` with ```--port 5050 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
+This will start `lachesis` with ```--port 5050 --nat extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
 
 Do not forget `--rpcaddr 0.0.0.0`, if you plan to access RPC from other containers
 and/or hosts. By default, `lachesis` binds to the local interface and RPC endpoints is not
@@ -128,6 +128,15 @@ validator account manually. Validator account should be unlocked for signing eve
 
 ```shell
 $ lachesis --nousb --validator 0xADDRESS --unlock 0xADDRESS --password /path/to/password
+```
+
+#### Participation in discovery
+
+Optionally you can specify your public IP to straighten connectivity of the network.
+Ensure your UDP p2p port (5050 by default) isn't blocked by your firewall.
+
+```shell
+$ lachesis --nat extip:1.2.3.4
 ```
 
 ## Dev
