@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -139,17 +140,22 @@ func testBroadcastEvent(t *testing.T, totalPeers int, forcedAggressiveBroadcast 
 	config.Emitter.SelfForkProtectionInterval = 0
 	config.TxPool.Journal = ""
 
-	var (
-		store       = NewMemStore()
-		engineStore = poset.NewMemStore()
-	)
-
 	// create stores
-	genesisAtropos, genesisEvmState, _, err := store.ApplyGenesis(&net)
-	assertar.NoError(err)
-
+	app := app.NewMemStore()
+	state, _, err := app.ApplyGenesis(&net)
+	if !assertar.NoError(err) {
+		return
+	}
+	store := NewMemStore()
+	genesisAtropos, genesisEvmState, _, err := store.ApplyGenesis(&net, state)
+	if !assertar.NoError(err) {
+		return
+	}
+	engineStore := poset.NewMemStore()
 	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)
-	assertar.NoError(err)
+	if !assertar.NoError(err) {
+		return
+	}
 
 	// create consensus engine
 	engine := poset.New(net.Dag, engineStore, store)
@@ -160,7 +166,7 @@ func testBroadcastEvent(t *testing.T, totalPeers int, forcedAggressiveBroadcast 
 	ctx := &node.ServiceContext{
 		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, creator),
 	}
-	svc, err := NewService(ctx, &config, store, engine)
+	svc, err := NewService(ctx, &config, store, engine, app)
 	assertar.NoError(err)
 
 	// start PM
@@ -262,10 +268,10 @@ func mockAccountManager(accs genesis.Accounts, unlock ...common.Address) *accoun
 	)
 }
 
-func mockCheckers(epoch idx.Epoch, net *lachesis.Config, engine Consensus, store *Store) *eventcheck.Checkers {
+func mockCheckers(epoch idx.Epoch, net *lachesis.Config, engine Consensus, s *Store, a *app.Store) *eventcheck.Checkers {
 	heavyCheckReader := &HeavyCheckReader{}
-	heavyCheckReader.Addrs.Store(ReadEpochPubKeys(store, epoch))
+	heavyCheckReader.Addrs.Store(ReadEpochPubKeys(a, epoch))
 	gasPowerCheckReader := &GasPowerCheckReader{}
-	gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(store, engine.GetValidators(), engine.GetEpoch(), &net.Economy))
-	return makeCheckers(net, heavyCheckReader, gasPowerCheckReader, engine, store)
+	gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s, a, engine.GetValidators(), engine.GetEpoch(), &net.Economy))
+	return makeCheckers(net, heavyCheckReader, gasPowerCheckReader, engine, s)
 }

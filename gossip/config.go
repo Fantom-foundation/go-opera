@@ -59,12 +59,14 @@ type (
 		BlockCacheSize int
 		// Cache size for PackInfos.
 		PackInfosCacheSize int
-		// Cache size for Receipts.
-		ReceiptsCacheSize int
 		// Cache size for TxPositions.
 		TxPositionsCacheSize int
 		// Cache size for EpochStats.
 		EpochStatsCacheSize int
+
+		// NOTE: fields for config-file back compatibility
+		// Cache size for Receipts.
+		ReceiptsCacheSize int
 		// Cache size for Stakers.
 		StakersCacheSize int
 		// Cache size for Delegators.
@@ -117,11 +119,8 @@ func DefaultStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 10000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		ReceiptsCacheSize:      100,
 		TxPositionsCacheSize:   1000,
 		EpochStatsCacheSize:    100,
-		DelegatorsCacheSize:    4000,
-		StakersCacheSize:       4000,
 	}
 }
 
@@ -132,10 +131,7 @@ func LiteStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 1000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		ReceiptsCacheSize:      100,
 		TxPositionsCacheSize:   100,
 		EpochStatsCacheSize:    100,
-		DelegatorsCacheSize:    400,
-		StakersCacheSize:       400,
 	}
 }

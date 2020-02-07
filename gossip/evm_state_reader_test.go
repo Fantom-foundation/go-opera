@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -22,8 +23,6 @@ func TestGetGenesisBlock(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	store := NewMemStore()
-
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
 	addrWithStorage := net.Genesis.Alloc.Accounts.Addresses()[0]
 	accountWithCode := net.Genesis.Alloc.Accounts[addrWithStorage]
@@ -32,14 +31,24 @@ func TestGetGenesisBlock(t *testing.T) {
 	accountWithCode.Storage[common.Hash{}] = common.BytesToHash(common.Big1.Bytes())
 	net.Genesis.Alloc.Accounts[addrWithStorage] = accountWithCode
 
-	genesisHash, stateHash, _, err := store.ApplyGenesis(&net)
-	assertar.NoError(err)
+	app := app.NewMemStore()
+	state, _, err := app.ApplyGenesis(&net)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	store := NewMemStore()
+	genesisHash, stateHash, _, err := store.ApplyGenesis(&net, state)
+	if !assertar.NoError(err) {
+		return
+	}
 
 	assertar.NotEqual(common.Hash{}, genesisHash)
 	assertar.NotEqual(common.Hash{}, stateHash)
 
 	reader := EvmStateReader{
 		store:    store,
+		app:      app,
 		engineMu: new(sync.RWMutex),
 	}
 	genesisBlock := reader.GetBlock(common.Hash(genesisHash), 0)
@@ -67,11 +76,19 @@ func TestGetBlock(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	store := NewMemStore()
-
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
-	genesisHash, _, _, err := store.ApplyGenesis(&net)
-	assertar.NoError(err)
+
+	app := app.NewMemStore()
+	state, _, err := app.ApplyGenesis(&net)
+	if !assertar.NoError(err) {
+		return
+	}
+
+	store := NewMemStore()
+	genesisHash, _, _, err := store.ApplyGenesis(&net, state)
+	if !assertar.NoError(err) {
+		return
+	}
 
 	txs := types.Transactions{}
 	key, err := crypto.GenerateKey()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"math/big"
 	"strconv"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
@@ -100,7 +100,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb := b.svc.store.StateDB(header.Root)
+	stateDb := b.svc.app.StateDB(header.Root)
 	return stateDb, header, nil
 }
 
@@ -281,7 +281,7 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 		number = rpc.BlockNumber(header.Number.Uint64())
 	}
 
-	receipts := b.svc.store.GetReceipts(idx.Block(number))
+	receipts := b.svc.app.GetReceipts(idx.Block(number))
 	return receipts, nil
 }
 
@@ -428,7 +428,7 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.store.table.Evm
+	return b.svc.app.EvmTable()
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -444,7 +444,7 @@ func (b *EthAPIBackend) RPCGasCap() *big.Int {
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
-	return b.svc.store.table.EvmLogs
+	return b.svc.app.EvmLogs()
 }
 
 // CurrentEpoch returns current epoch number.
@@ -476,7 +476,7 @@ func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.Bl
 
 	// read total reward weights from SFC contract
 	header := b.state.CurrentHeader()
-	statedb := b.svc.store.StateDB(header.Root)
+	statedb := b.svc.app.StateDB(header.Root)
 
 	epochPosition := sfcpos.EpochSnapshot(epoch)
 	stats.TotalBaseRewardWeight = statedb.GetState(sfc.ContractAddress, epochPosition.TotalBaseRewardWeight()).Big()
@@ -487,35 +487,35 @@ func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.Bl
 
 // GetValidationScore returns staker's ValidationScore.
 func (b *EthAPIBackend) GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	if !b.svc.store.HasSfcStaker(stakerID) {
+	if !b.svc.app.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return b.svc.store.GetActiveValidationScore(stakerID), nil
+	return b.svc.app.GetActiveValidationScore(stakerID), nil
 }
 
 // GetOriginationScore returns staker's OriginationScore.
 func (b *EthAPIBackend) GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	if !b.svc.store.HasSfcStaker(stakerID) {
+	if !b.svc.app.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return b.svc.store.GetActiveOriginationScore(stakerID), nil
+	return b.svc.app.GetActiveOriginationScore(stakerID), nil
 }
 
 // GetStakerPoI returns staker's PoI.
 func (b *EthAPIBackend) GetStakerPoI(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	if !b.svc.store.HasSfcStaker(stakerID) {
+	if !b.svc.app.HasSfcStaker(stakerID) {
 		return nil, nil
 	}
-	return b.svc.store.GetStakerPOI(stakerID), nil
+	return b.svc.app.GetStakerPOI(stakerID), nil
 }
 
 // GetRewardWeights returns staker's reward weights.
 func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error) {
-	if !b.svc.store.HasSfcStaker(stakerID) {
+	if !b.svc.app.HasSfcStaker(stakerID) {
 		return nil, nil, nil
 	}
 	header := b.state.CurrentHeader()
-	statedb := b.svc.store.StateDB(header.Root)
+	statedb := b.svc.app.StateDB(header.Root)
 
 	// read reward weight from SFC contract
 	epoch := b.svc.engine.GetEpoch()
@@ -529,13 +529,13 @@ func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.Stake
 
 // GetDowntime returns staker's Downtime.
 func (b *EthAPIBackend) GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error) {
-	missed := b.svc.store.GetBlocksMissed(stakerID)
+	missed := b.svc.app.GetBlocksMissed(stakerID)
 	return missed.Num, missed.Period, nil
 }
 
 // GetStaker returns SFC staker's info
 func (b *EthAPIBackend) GetStaker(ctx context.Context, stakerID idx.StakerID) (*sfctype.SfcStaker, error) {
-	staker := b.svc.store.GetSfcStaker(stakerID)
+	staker := b.svc.app.GetSfcStaker(stakerID)
 	if staker == nil {
 		return nil, nil
 	}
@@ -546,7 +546,7 @@ func (b *EthAPIBackend) GetStaker(ctx context.Context, stakerID idx.StakerID) (*
 // GetStakerID returns SFC staker's Id by address
 func (b *EthAPIBackend) GetStakerID(ctx context.Context, addr common.Address) (idx.StakerID, error) {
 	header := b.state.CurrentHeader()
-	statedb := b.svc.store.StateDB(header.Root)
+	statedb := b.svc.app.StateDB(header.Root)
 
 	position := sfcpos.StakerID(addr)
 	stakerID256 := statedb.GetState(sfc.ContractAddress, position)
@@ -560,7 +560,7 @@ func (b *EthAPIBackend) GetStakers(ctx context.Context) ([]sfctype.SfcStakerAndI
 	defer b.svc.engineMu.RUnlock()
 
 	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
-	b.svc.store.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
+	b.svc.app.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
 		it.Staker.IsValidator = b.svc.engine.GetValidators().Exists(it.StakerID)
 		stakers = append(stakers, it)
 	})
@@ -574,7 +574,7 @@ func (b *EthAPIBackend) GetDelegatorsOf(ctx context.Context, stakerID idx.Staker
 
 	delegators := make([]sfctype.SfcDelegatorAndAddr, 0, 200)
 	// TODO add additional DB index
-	b.svc.store.ForEachSfcDelegator(func(it sfctype.SfcDelegatorAndAddr) {
+	b.svc.app.ForEachSfcDelegator(func(it sfctype.SfcDelegatorAndAddr) {
 		if it.Delegator.ToStakerID == stakerID {
 			delegators = append(delegators, it)
 		}
@@ -584,22 +584,22 @@ func (b *EthAPIBackend) GetDelegatorsOf(ctx context.Context, stakerID idx.Staker
 
 // GetDelegator returns SFC delegator info
 func (b *EthAPIBackend) GetDelegator(ctx context.Context, addr common.Address) (*sfctype.SfcDelegator, error) {
-	return b.svc.store.GetSfcDelegator(addr), nil
+	return b.svc.app.GetSfcDelegator(addr), nil
 }
 
 // GetDelegatorClaimedRewards returns sum of claimed rewards in past, by this delegator
 func (b *EthAPIBackend) GetDelegatorClaimedRewards(ctx context.Context, addr common.Address) (*big.Int, error) {
-	return b.svc.store.GetDelegatorClaimedRewards(addr), nil
+	return b.svc.app.GetDelegatorClaimedRewards(addr), nil
 }
 
 // GetStakerClaimedRewards returns sum of claimed rewards in past, by this staker
 func (b *EthAPIBackend) GetStakerClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	return b.svc.store.GetStakerClaimedRewards(stakerID), nil
+	return b.svc.app.GetStakerClaimedRewards(stakerID), nil
 }
 
 // GetStakerDelegatorsClaimedRewards returns sum of claimed rewards in past, by this delegators of this staker
 func (b *EthAPIBackend) GetStakerDelegatorsClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	return b.svc.store.GetStakerDelegatorsClaimedRewards(stakerID), nil
+	return b.svc.app.GetStakerDelegatorsClaimedRewards(stakerID), nil
 }
 
 // GetEventTime returns estimation of when event was created

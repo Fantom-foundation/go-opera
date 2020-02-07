@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -19,6 +20,7 @@ type EvmStateReader struct {
 	engine   Consensus
 
 	store *Store
+	app   *app.Store
 }
 
 func (s *Service) GetEvmStateReader() *EvmStateReader {
@@ -27,6 +29,7 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 		engineMu:    s.engineMu,
 		engine:      s.engine,
 		store:       s.store,
+		app:         s.app,
 	}
 }
 
@@ -109,5 +112,5 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 }
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
-	return r.store.StateDB(root), nil
+	return r.app.StateDB(root), nil
 }

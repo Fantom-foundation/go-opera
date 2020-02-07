@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -37,9 +38,9 @@ func gasPowerBounds(initialAlloc, minAlloc, maxAlloc, customAlloc uint64) uint64
 }
 
 // ReadGasPowerContext reads current validation context for gaspowercheck
-func ReadGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, cfg *lachesis.EconomyConfig) *gaspowercheck.ValidationContext {
+func ReadGasPowerContext(s *Store, a *app.Store, validators *pos.Validators, epoch idx.Epoch, cfg *lachesis.EconomyConfig) *gaspowercheck.ValidationContext {
 	// engineMu is locked here
-	sfcConstants := s.GetSfcConstants(epoch - 1)
+	sfcConstants := a.GetSfcConstants(epoch - 1)
 
 	short := cfg.ShortGasPower
 	shortAllocPerSec := gasPowerBounds(short.InitialAllocPerSec, short.MinAllocPerSec, short.MaxAllocPerSec, sfcConstants.ShortGasPowerAllocPerSec)
@@ -68,7 +69,7 @@ func ReadGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, 
 		Validators:           validators,
 		PrevEpochLastHeaders: s.GetLastHeaders(epoch - 1),
 		PrevEpochEndTime:     s.GetEpochStats(epoch - 1).End,
-		PrevEpochRefunds:     s.GetGasPowerRefunds(epoch - 1),
+		PrevEpochRefunds:     a.GetGasPowerRefunds(epoch - 1),
 		Configs: [2]gaspowercheck.Config{
 			idx.ShortTermGas: shortTermConfig,
 			idx.LongTermGas:  longTermConfig,
@@ -95,9 +96,9 @@ func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.StakerID]common.Address, i
 }
 
 // ReadEpochPubKeys is the same as GetEpochValidators, but returns only addresses
-func ReadEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
+func ReadEpochPubKeys(a *app.Store, epoch idx.Epoch) *ValidatorsPubKeys {
 	addrs := make(map[idx.StakerID]common.Address)
-	for _, it := range s.GetEpochValidators(epoch) {
+	for _, it := range a.GetEpochValidators(epoch) {
 		addrs[it.StakerID] = it.Staker.Address
 	}
 	return &ValidatorsPubKeys{

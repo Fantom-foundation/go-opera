@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/hashicorp/golang-lru"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
@@ -42,6 +43,7 @@ const (
 // EmitterWorld is emitter's external world
 type EmitterWorld struct {
 	Store       *Store
+	App         *app.Store
 	Engine      Consensus
 	EngineMu    *sync.RWMutex
 	Txpool      txPool
@@ -219,7 +221,7 @@ func (em *Emitter) findMyStakerID() (idx.StakerID, bool) {
 		return 0, false // short circuit if zero address
 	}
 
-	validators := em.world.Store.GetEpochValidators(em.world.Engine.GetEpoch())
+	validators := em.world.App.GetEpochValidators(em.world.Engine.GetEpoch())
 	for _, it := range validators {
 		if it.Staker.Address == myAddress {
 			return it.StakerID, true
@@ -525,7 +527,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 	// track when I've became validator
 	now := time.Now()
-	if em.myStakerID != 0 && !em.world.Store.HasEpochValidator(newEpoch-1, em.myStakerID) {
+	if em.myStakerID != 0 && !em.world.App.HasEpochValidator(newEpoch-1, em.myStakerID) {
 		em.syncStatus.becameValidatorTime = now
 	}
 }

@@ -11,12 +11,6 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
-// BlocksMissed is information about missed blocks from a staker
-type BlocksMissed struct {
-	Num    idx.Block
-	Period inter.Timestamp
-}
-
 const (
 	minGasPowerRefund = 800
 )
@@ -41,7 +35,7 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 
 		txFee := new(big.Int).Mul(new(big.Int).SetUint64(receipts[i].GasUsed), tx.GasPrice())
 
-		s.store.AddDirtyOriginationScore(txEvent.Creator, txFee)
+		s.app.AddDirtyOriginationScore(txEvent.Creator, txFee)
 
 		{ // logic for gas power refunds
 			if tx.Gas() < receipts[i].GasUsed {
@@ -49,16 +43,16 @@ func (s *Service) updateOriginationScores(block *inter.Block, evmBlock *evmcore.
 			}
 			notUsedGas := tx.Gas() - receipts[i].GasUsed
 			if notUsedGas >= minGasPowerRefund { // do not refund if refunding is more costly than refunded value
-				s.store.IncGasPowerRefund(epoch, txEvent.Creator, notUsedGas)
+				s.app.IncGasPowerRefund(epoch, txEvent.Creator, notUsedGas)
 			}
 		}
 	}
 
 	if sealEpoch {
-		s.store.DelAllActiveOriginationScores()
-		s.store.MoveDirtyOriginationScoresToActive()
+		s.app.DelAllActiveOriginationScores()
+		s.app.MoveDirtyOriginationScoresToActive()
 		// prune not needed gas power records
-		s.store.DelGasPowerRefunds(epoch - 1)
+		s.app.DelGasPowerRefunds(epoch - 1)
 	}
 }
 
@@ -78,28 +72,28 @@ func (s *Service) updateValidationScores(block *inter.Block, sealEpoch bool) {
 
 		// If have no confirmed events by this Atropos - just add missed blocks for validator
 		if missedBlock {
-			s.store.IncBlocksMissed(it.StakerID, blockTimeDiff)
+			s.app.IncBlocksMissed(it.StakerID, blockTimeDiff)
 			continue
 		}
 
-		missedNum := s.store.GetBlocksMissed(it.StakerID).Num
+		missedNum := s.app.GetBlocksMissed(it.StakerID).Num
 		if missedNum > s.config.Net.Economy.BlockMissedLatency {
 			missedNum = s.config.Net.Economy.BlockMissedLatency
 		}
 
 		// Add score for previous blocks, but no more than FrameLatency prev blocks
-		s.store.AddDirtyValidationScore(it.StakerID, new(big.Int).SetUint64(uint64(blockTimeDiff)))
+		s.app.AddDirtyValidationScore(it.StakerID, new(big.Int).SetUint64(uint64(blockTimeDiff)))
 		for i := idx.Block(1); i <= missedNum && i < block.Index; i++ {
 			blockTime := s.store.GetBlock(block.Index - i).Time
 			prevBlockTime := s.store.GetBlock(block.Index - i - 1).Time
 			timeDiff := blockTime - prevBlockTime
-			s.store.AddDirtyValidationScore(it.StakerID, new(big.Int).SetUint64(uint64(timeDiff)))
+			s.app.AddDirtyValidationScore(it.StakerID, new(big.Int).SetUint64(uint64(timeDiff)))
 		}
-		s.store.ResetBlocksMissed(it.StakerID)
+		s.app.ResetBlocksMissed(it.StakerID)
 	}
 
 	if sealEpoch {
-		s.store.DelAllActiveValidationScores()
-		s.store.MoveDirtyValidationScoresToActive()
+		s.app.DelAllActiveValidationScores()
+		s.app.MoveDirtyValidationScoresToActive()
 	}
 }

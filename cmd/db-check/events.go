@@ -38,7 +38,6 @@ func checkEvents(db kvdb.KeyValueStore) {
 			if exists(p) {
 				continue
 			}
-			fmt.Printf("%v\n", p)
 			losts[p] = struct{}{}
 		}
 	}
@@ -48,5 +47,6 @@ func checkEvents(db kvdb.KeyValueStore) {
 		if exists(p) {
 			panic("event order")
 		}
+		fmt.Printf("%v\n", p)
 	}
 }
