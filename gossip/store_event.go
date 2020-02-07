@@ -28,6 +28,8 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 	if s.cache.Events != nil {
 		s.cache.Events.Remove(id)
 	}
+
+	s.Log.Info("DeleteEvent", "event", id)
 }
 
 // SetEvent stores event.
