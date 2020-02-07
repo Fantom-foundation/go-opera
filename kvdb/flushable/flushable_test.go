@@ -26,11 +26,7 @@ func TestFlushable(t *testing.T) {
 	opsPerIter := 0x140    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
 
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	disk := dbProducer("TestFlushable")
 
 	// open raw databases
 	leveldb1 := disk.OpenDb("1")
@@ -267,11 +263,9 @@ func TestFlushable(t *testing.T) {
 }
 
 func TestFlushableParallel(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	assertar := assert.New(t)
+
+	disk := dbProducer("TestFlushableParallel")
 
 	leveldb := disk.OpenDb("1")
 	defer leveldb.Drop()
@@ -279,8 +273,6 @@ func TestFlushableParallel(t *testing.T) {
 
 	dbLdb := Wrap(leveldb)
 	baseLdb := table.New(dbLdb, []byte{})
-
-	assertar := assert.New(t)
 
 	const n = 128
 	// Test with n parallel goroutines
@@ -309,19 +301,15 @@ func TestFlushableParallel(t *testing.T) {
 }
 
 func TestFlushableParallelTableLocal(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	assertar := assert.New(t)
+
+	disk := dbProducer("TestFlushableParallelTableLocal")
 
 	leveldb := disk.OpenDb("1")
 	defer leveldb.Drop()
 	defer leveldb.Close()
 
 	dbLdb := Wrap(leveldb)
-
-	assertar := assert.New(t)
 
 	const n = 128
 	// Test with i parallel goroutines
@@ -352,11 +340,9 @@ func TestFlushableParallelTableLocal(t *testing.T) {
 }
 
 func TestFlushableIteratorParallel(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	assertar := assert.New(t)
+
+	disk := dbProducer("TestFlushableIteratorParallel")
 
 	leveldb := disk.OpenDb("1")
 	defer leveldb.Drop()
@@ -364,8 +350,6 @@ func TestFlushableIteratorParallel(t *testing.T) {
 
 	dbLdb := Wrap(leveldb)
 	baseLdb := table.New(dbLdb, []byte{})
-
-	assertar := assert.New(t)
 
 	// Prepare data
 	_loopPutGetDiffData(assertar, baseLdb, 1000)
@@ -399,11 +383,9 @@ func TestFlushableIteratorParallel(t *testing.T) {
 }
 
 func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	assertar := assert.New(t)
+
+	disk := dbProducer("TestFlushableIteratorWithAddDataSeq")
 
 	leveldb := disk.OpenDb("1")
 	defer leveldb.Drop()
@@ -411,8 +393,6 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 
 	dbLdb := Wrap(leveldb)
 	tblLdb := table.New(dbLdb, []byte{})
-
-	assertar := assert.New(t)
 
 	// Prepare data
 	keysCount := 10000
@@ -523,11 +503,7 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 }
 
 func BenchmarkFlushable_PutGet(b *testing.B) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	disk := dbProducer("BenchmarkFlushable_PutGet")
 
 	// open raw databases
 	leveldb := disk.OpenDb("1")
@@ -550,11 +526,7 @@ func BenchmarkFlushable_PutGet(b *testing.B) {
 }
 
 func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	disk := dbProducer("BenchmarkFlushable_PutGet_WithFlush")
 
 	// open raw databases
 	leveldb := disk.OpenDb("1")
@@ -680,4 +652,12 @@ func _loopPutGetDiffData(assertar *assert.Assertions, tbl *table.Table, loopCoun
 	}
 
 	return data
+}
+
+func dbProducer(name string) kvdb.DbProducer {
+	dir, err := ioutil.TempDir("", name)
+	if err != nil {
+		panic(err)
+	}
+	return leveldb.NewProducer(dir)
 }
