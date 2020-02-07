@@ -23,6 +23,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/logger"
 )
 
 const (
@@ -99,6 +100,8 @@ type ProtocolManager struct {
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
+
+	logger.Instance
 }
 
 // NewProtocolManager returns a new Fantom sub protocol manager. The Fantom sub protocol manages peers capable
@@ -130,7 +133,11 @@ func NewProtocolManager(
 		noMorePeers: make(chan struct{}),
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
+
+		Instance: logger.MakeInstance(),
 	}
+
+	pm.SetName("PM")
 
 	pm.fetcher, pm.buffer = pm.makeFetcher(checkers)
 	pm.downloader = packsdownloader.New(pm.fetcher, pm.onlyNotConnectedEvents, pm.removePeer)
@@ -558,6 +565,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				rawEvents = append(rawEvents, raw)
 				ids = append(ids, id)
 				size += len(raw)
+			} else {
+				pm.Log.Debug("requested event not found", "hash", id)
 			}
 			if size >= softResponseLimitSize {
 				break
