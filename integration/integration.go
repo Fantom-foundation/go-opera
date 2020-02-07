@@ -22,8 +22,8 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 	)
 
 	gossipCfg.Emitter.Validator = coinbase.Address
-	gossipCfg.Emitter.MaxEmitInterval = 3 * time.Second
-	gossipCfg.Emitter.SelfForkProtectionInterval = 0
+	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
+	gossipCfg.Emitter.EmitIntervals.SelfForkProtection = 0
 
 	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine, adb)
 	if err != nil {

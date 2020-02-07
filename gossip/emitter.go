@@ -75,7 +75,7 @@ type Emitter struct {
 	gasRate         metrics.Meter
 	prevEmittedTime time.Time
 
-	confirmingEmitInterval time.Duration // emit time when there's no txs to originate, but at least 1 tx to confirm
+	intervals EmitIntervals
 
 	done chan struct{}
 	wg   sync.WaitGroup
@@ -107,6 +107,7 @@ func NewEmitter(
 		myAddress: config.Validator,
 		gasRate:   metrics.NewMeterForced(),
 		txTime:    txTime,
+		intervals: config.EmitIntervals,
 		Periodic:  logger.Periodic{Instance: loggerInstance},
 	}
 }
@@ -149,7 +150,7 @@ func (em *Emitter) StartEventEmission() {
 				}
 
 				// must pass at least MinEmitInterval since last event
-				if time.Since(em.prevEmittedTime) >= em.config.MinEmitInterval {
+				if time.Since(em.prevEmittedTime) >= em.intervals.Min {
 					em.EmitEvent()
 				}
 			case <-done:
@@ -518,12 +519,12 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	}
 	stakeRatio := uint64((totalStakeBeforeMe * piecefunc.PercentUnit) / totalStake)
 	confirmingEmitIntervalRatio := piecefunc.Get(stakeRatio, confirmingEmitIntervalPieces)
-	em.confirmingEmitInterval = time.Duration(piecefunc.Mul(uint64(em.config.MinEmitInterval), confirmingEmitIntervalRatio))
+	em.intervals.Confirming = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Confirming), confirmingEmitIntervalRatio))
 
 	// stakers with lower stake should emit more events at idle, to catch up with other stakers if their frame is behind
 	// MaxEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MaxEmitInterval
 	maxEmitIntervalRatio := piecefunc.Get(stakeRatio, maxEmitIntervalPieces)
-	em.config.MaxEmitInterval = time.Duration(piecefunc.Mul(uint64(em.config.MaxEmitInterval), maxEmitIntervalRatio))
+	em.intervals.Max = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Max), maxEmitIntervalRatio))
 
 	// track when I've became validator
 	now := time.Now()
@@ -542,7 +543,7 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 			em.syncStatus.prevExternalEmittedTime = now
 
 			passedSinceEvent := time.Since(inter.MaxTimestamp(e.ClaimedTime, e.MedianTime).Time())
-			threshold := em.config.SelfForkProtectionInterval
+			threshold := em.intervals.SelfForkProtection
 			if threshold > time.Minute {
 				threshold = time.Minute
 			}
@@ -558,7 +559,7 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
-	if em.config.SelfForkProtectionInterval == 0 {
+	if em.intervals.SelfForkProtection == 0 {
 		return true, "", 0 // protection disabled
 	}
 	if em.world.PeersNum() == 0 {
@@ -568,20 +569,20 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 		return false, "synchronizing (all the peers have higher/lower epoch)", 0
 	}
 	sinceLastExternalEvent := time.Since(em.syncStatus.prevExternalEmittedTime)
-	if sinceLastExternalEvent < em.config.SelfForkProtectionInterval {
-		return false, "synchronizing (not downloaded all the self-events)", em.config.SelfForkProtectionInterval - sinceLastExternalEvent
+	if sinceLastExternalEvent < em.intervals.SelfForkProtection {
+		return false, "synchronizing (not downloaded all the self-events)", em.intervals.SelfForkProtection - sinceLastExternalEvent
 	}
 	sinceBecameValidator := time.Since(em.syncStatus.becameValidatorTime)
-	if sinceBecameValidator < em.config.SelfForkProtectionInterval {
-		return false, "synchronizing (just joined the validators group)", em.config.SelfForkProtectionInterval - sinceBecameValidator
+	if sinceBecameValidator < em.intervals.SelfForkProtection {
+		return false, "synchronizing (just joined the validators group)", em.intervals.SelfForkProtection - sinceBecameValidator
 	}
 	syncedPassed := time.Since(em.syncStatus.syncedTime)
-	if syncedPassed < em.config.SelfForkProtectionInterval {
-		return false, "synchronized (waiting additional time)", em.config.SelfForkProtectionInterval - syncedPassed
+	if syncedPassed < em.intervals.SelfForkProtection {
+		return false, "synchronized (waiting additional time)", em.intervals.SelfForkProtection - syncedPassed
 	}
 	connectedPassed := time.Since(em.syncStatus.connectedTime)
-	if connectedPassed < em.config.SelfForkProtectionInterval {
-		return false, "synchronizing (recently connected)", em.config.SelfForkProtectionInterval - connectedPassed
+	if connectedPassed < em.intervals.SelfForkProtection {
+		return false, "synchronizing (recently connected)", em.intervals.SelfForkProtection - connectedPassed
 	}
 
 	return true, "", 0
@@ -643,8 +644,8 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 		threshold := em.config.NoTxsThreshold
 		if e.GasPowerLeft.Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
-			minT := float64(em.config.MinEmitInterval)
-			maxT := float64(em.config.MaxEmitInterval)
+			minT := float64(em.intervals.Min)
+			maxT := float64(em.intervals.Max)
 			factor := float64(e.GasPowerLeft.Min()) / float64(threshold)
 			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
 			if passedTime < adjustedEmitInterval {
@@ -668,7 +669,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	}
 	// Slow down emitting if no txs to confirm/post, and not at epoch tail
 	{
-		if passedTime < em.config.MaxEmitInterval &&
+		if passedTime < em.intervals.Max &&
 			em.world.OccurredTxs.Len() == 0 &&
 			len(e.Transactions) == 0 &&
 			!em.isEpochTail(e) {
@@ -677,7 +678,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	}
 	// Emit no more than 1 event per confirmingEmitInterval (when there's no txs to originate, but at least 1 tx to confirm)
 	{
-		if passedTime < em.confirmingEmitInterval &&
+		if passedTime < em.intervals.Confirming &&
 			em.world.OccurredTxs.Len() != 0 &&
 			len(e.Transactions) == 0 {
 			return false

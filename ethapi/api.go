@@ -85,7 +85,7 @@ func (s *PublicEthereumAPI) ProtocolVersion() hexutil.Uint {
 func (s *PublicEthereumAPI) Syncing() (interface{}, error) {
 	progress := s.b.Progress()
 	// Return not syncing if the synchronisation already completed
-	if time.Since(progress.CurrentBlockTime.Time()) <= 90 * time.Minute { // should be >> MaxEmitInterval
+	if time.Since(progress.CurrentBlockTime.Time()) <= 90*time.Minute { // should be >> MaxEmitInterval
 		return false, nil
 	}
 	// Otherwise gather the block sync stats
