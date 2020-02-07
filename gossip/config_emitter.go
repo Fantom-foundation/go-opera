@@ -14,9 +14,9 @@ import (
 // EmitIntervals is the configuration of emit intervals.
 type EmitIntervals struct {
 	Min                time.Duration `json:"min"`
-	Max                time.Duration `json:"min"`
+	Max                time.Duration `json:"max"`
 	Confirming         time.Duration `json:"confirming"` // emit time when there's no txs to originate, but at least 1 tx to confirm
-	SelfForkProtection time.Duration `json:"selfForkProtectionInterval"`
+	SelfForkProtection time.Duration `json:"selfForkProtection"`
 }
 
 // EmitterConfig is the configuration of events emitter.
