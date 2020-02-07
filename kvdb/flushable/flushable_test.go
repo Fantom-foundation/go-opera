@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -21,6 +20,8 @@ import (
 )
 
 func TestFlushable(t *testing.T) {
+	assertar := assert.New(t)
+
 	tries := 60            // number of test iterations
 	opsPerIter := 0x140    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
@@ -82,7 +83,6 @@ func TestFlushable(t *testing.T) {
 		},
 	}
 
-	assertar := assert.New(t)
 	assertar.Equal(len(dbsTables), len(flushableDbsTables))
 	assertar.Equal(len(dbsTables[0]), len(flushableDbsTables[0]))
 
@@ -90,7 +90,7 @@ func TestFlushable(t *testing.T) {
 	tablesNum := len(dbsTables[0])
 
 	// use the same seed for determinism
-	r := rand.New(rand.NewSource(0))
+	rand := rand.New(rand.NewSource(0))
 
 	// words dictionary
 	prefixes := [][]byte{
@@ -107,7 +107,7 @@ func TestFlushable(t *testing.T) {
 	}
 	dict := [][]byte{}
 	for i := 0; i < dictSize; i++ {
-		b := append(prefixes[i%len(prefixes)], big.NewInt(r.Int63()).Bytes()...)
+		b := append(prefixes[i%len(prefixes)], big.NewInt(rand.Int63()).Bytes()...)
 		dict = append(dict, b)
 	}
 
@@ -122,17 +122,17 @@ func TestFlushable(t *testing.T) {
 					batches = append(batches, flushableDbsTables[i][j].NewBatch())
 				}
 
-				ops := 1 + r.Intn(opsPerIter)
+				ops := 1 + rand.Intn(opsPerIter)
 				for p := 0; p < ops; p++ {
 					var pair kv
-					if r.Intn(2) == 0 { // put
+					if rand.Intn(2) == 0 { // put
 						pair = kv{
-							k: dict[r.Intn(len(dict))],
-							v: dict[r.Intn(len(dict))],
+							k: dict[rand.Intn(len(dict))],
+							v: dict[rand.Intn(len(dict))],
 						}
 					} else { // delete
 						pair = kv{
-							k: dict[r.Intn(len(dict))],
+							k: dict[rand.Intn(len(dict))],
 							v: nil,
 						}
 					}
@@ -192,8 +192,9 @@ func TestFlushable(t *testing.T) {
 				}
 				defer it.Release()
 
-				got := 0
-				for ; it.Next(); got++ {
+				var got int
+
+				for got = 0; it.Next(); got++ {
 					if first {
 						expectPairs = append(expectPairs, kv{
 							k: common.CopyBytes(it.Key()),
@@ -230,9 +231,9 @@ func TestFlushable(t *testing.T) {
 		}
 
 		// try to get random values
-		ops := r.Intn(opsPerIter)
+		ops := rand.Intn(opsPerIter)
 		for p := 0; p < ops; p++ {
-			key := dict[r.Intn(len(dict))]
+			key := dict[rand.Intn(len(dict))]
 
 			for j := 0; j < tablesNum; j++ {
 				// get values for first group, so we could check that all groups return the same result
@@ -281,10 +282,10 @@ func TestFlushableParallel(t *testing.T) {
 
 	assertar := assert.New(t)
 
-	i := 128
-	// Test with i parallel goroutines
-	wg := sync.WaitGroup{}
-	for j := 0; j < i; j++ {
+	const n = 128
+	// Test with n parallel goroutines
+	var wg sync.WaitGroup
+	for j := 0; j < n; j++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -322,10 +323,10 @@ func TestFlushableParallelTableLocal(t *testing.T) {
 
 	assertar := assert.New(t)
 
-	i := 128
+	const n = 128
 	// Test with i parallel goroutines
-	wg := sync.WaitGroup{}
-	for j := 0; j < i; j++ {
+	var wg sync.WaitGroup
+	for j := 0; j < n; j++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -370,10 +371,10 @@ func TestFlushableIteratorParallel(t *testing.T) {
 	_loopPutGetDiffData(assertar, baseLdb, 1000)
 	dbLdb.Flush()
 
-	i := 128
-	// Test with i parallel goroutines
-	wg := sync.WaitGroup{}
-	for j := 0; j < i; j++ {
+	const n = 128
+	// Test with n parallel goroutines
+	var wg sync.WaitGroup
+	for j := 0; j < n; j++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -383,8 +384,8 @@ func TestFlushableIteratorParallel(t *testing.T) {
 
 			expectPairs := map[string][]byte{}
 
-			got := 0
-			for ; it.Next(); got++ {
+			var got int
+			for got = 0; it.Next(); got++ {
 				expectPairs[string(it.Key())] = it.Value()
 				assertar.False(t.Failed(), "Parallel iterator failed")
 			}
@@ -426,8 +427,9 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 	// Use first iterator (it1) order results like pattern for check second iterator (it2) run with new data insertion
 	originOrder := make([][]byte, 0, keysCount)
 
-	got := 0
-	for ; it1.Next(); got++ {
+	var got int
+
+	for got = 0; it1.Next(); got++ {
 		expectPairs[string(it1.Key())] = it1.Value()
 		assertar.NoError(it1.Error(), "Parallel iterator failed")
 
@@ -444,11 +446,8 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 
 	expectPairs = map[string][]byte{}
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	got = 0
 	added := map[string][]byte{}
-	for ; it2.Next(); got++ {
+	for got = 0; it2.Next(); got++ {
 		expectPairs[string(it2.Key())] = it2.Value()
 		assertar.NoError(it2.Error(), "Parallel iterator failed")
 
@@ -458,8 +457,8 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 		assertar.Equal(originOrder[got], it2.Key(), "Wrong order of data from iterator")
 
 		// Add more data in process
-		testKey := big.NewInt(r.Int63()).Bytes()
-		testVal := big.NewInt(r.Int63()).Bytes()
+		testKey := big.NewInt(rand.Int63()).Bytes()
+		testVal := big.NewInt(rand.Int63()).Bytes()
 
 		_ = tblLdb.Put(testKey, testVal)
 		added[fmt.Sprintf("%x", testKey)] = testVal
@@ -484,8 +483,7 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 	// Use first iterator (it3) order results like pattern for check second iterator (it4) run with new data insertion
 	originOrder = make([][]byte, 0, 0)
 
-	got = 0
-	for ; it3.Next(); got++ {
+	for got = 0; it3.Next(); got++ {
 		assertar.NoError(it3.Error(), "Parallel iterator failed")
 
 		// Only added data before iterator create should by returned
@@ -502,10 +500,7 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 
 	expectPairs = map[string][]byte{}
 
-	r = rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	got = 0
-	for ; it4.Next(); got++ {
+	for got = 0; it4.Next(); got++ {
 		assertar.NoError(it4.Error(), "Parallel iterator failed")
 
 		// Only added data before iterator create should by returned
@@ -514,8 +509,8 @@ func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
 		assertar.Equal(originOrder[got], it4.Key(), "Wrong order of data from iterator")
 
 		// Add more data in process
-		testKey := big.NewInt(r.Int63()).Bytes()
-		testVal := big.NewInt(r.Int63()).Bytes()
+		testKey := big.NewInt(rand.Int63()).Bytes()
+		testVal := big.NewInt(rand.Int63()).Bytes()
 
 		_ = tblLdb.Put(testKey, testVal)
 		dbLdb.Flush()
@@ -554,8 +549,6 @@ func BenchmarkFlushable_PutGet(b *testing.B) {
 	}
 }
 
-var flushCounter int
-
 func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
 	dir, err := ioutil.TempDir("", "test-flushable")
 	if err != nil {
@@ -571,16 +564,15 @@ func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
 	dbLdb := Wrap(leveldb)
 	baseLdb := table.New(dbLdb, []byte{})
 
-	for flushAfter := 1; flushAfter <= 1000; flushAfter *= 10 {
-		flushCounter = flushAfter
+	for flushPeriod := 1; flushPeriod <= 1000; flushPeriod *= 10 {
 		for allThreads := 16384; allThreads > 1024; allThreads /= 2 {
 			for i := 1; i <= allThreads; i *= 2 {
 				pNum := i
-				b.Run("Flush every "+strconv.FormatInt(int64(flushAfter), 10)+
+				b.Run("Flush every "+strconv.FormatInt(int64(flushPeriod), 10)+
 					" sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+
 					" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
 					for n := 0; n < b.N; n++ {
-						_parallelBenchmarkPutGetFlush(baseLdb, dbLdb, pNum, allThreads, flushAfter)
+						_parallelBenchmarkPutGetFlush(baseLdb, dbLdb, pNum, allThreads, flushPeriod)
 					}
 				})
 			}
@@ -589,54 +581,64 @@ func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
 }
 
 func _parallelBenchmarkPutGet(tbl *table.Table, pNum, allThreads int) {
-	wg := sync.WaitGroup{}
-
-	r := rand.New(rand.NewSource(0))
-	testKey := big.NewInt(r.Int63()).Bytes()
-	testVal := big.NewInt(r.Int63()).Bytes()
+	rand := rand.New(rand.NewSource(0))
+	testKey := big.NewInt(rand.Int63()).Bytes()
+	testVal := big.NewInt(rand.Int63()).Bytes()
 
 	seqNum := allThreads / pNum
 
+	var wg sync.WaitGroup
 	for i := 0; i < pNum; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
 			for j := 0; j < seqNum; j++ {
-				_ = tbl.Put(testKey, testVal)
-				_, _ = tbl.Get(testKey)
+				err := tbl.Put(testKey, testVal)
+				if err != nil {
+					panic(err)
+				}
+				_, err = tbl.Get(testKey)
+				if err != nil {
+					panic(err)
+				}
 			}
 		}()
 	}
 	wg.Wait()
 }
 
-func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThreads, flushAfter int) {
-	wg := sync.WaitGroup{}
-
-	r := rand.New(rand.NewSource(1))
-	mu := sync.Mutex{}
+func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThreads, flushPeriod int) {
+	var (
+		rand = rand.New(rand.NewSource(1))
+		rnd  sync.Mutex
+	)
 
 	seqNum := allThreads / pNum
 
+	var wg sync.WaitGroup
 	for i := 0; i < pNum; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
 			for j := 0; j < seqNum; j++ {
-				mu.Lock()
-				testKey := big.NewInt(r.Int63()).Bytes()
-				testVal := big.NewInt(r.Int63()).Bytes()
-				mu.Unlock()
+				rnd.Lock()
+				testKey := big.NewInt(rand.Int63()).Bytes()
+				testVal := big.NewInt(rand.Int63()).Bytes()
+				rnd.Unlock()
 
-				_ = tbl.Put(testKey, testVal)
-				_, _ = tbl.Get(testKey)
+				err := tbl.Put(testKey, testVal)
+				if err != nil {
+					panic(err)
+				}
+				_, err = tbl.Get(testKey)
+				if err != nil {
+					panic(err)
+				}
 
-				flushCounter--
-				if flushCounter <= 0 {
+				if j%flushPeriod == 0 {
 					db.Flush()
-					flushCounter = flushAfter
 				}
 			}
 		}()
@@ -645,10 +647,10 @@ func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThr
 }
 
 func _loopPutGetSameData(assertar *assert.Assertions, tbl *table.Table, loopCount int) {
-	r := rand.New(rand.NewSource(0))
+	rand := rand.New(rand.NewSource(0))
 
-	testKey := big.NewInt(r.Int63()).Bytes()
-	testVal := big.NewInt(r.Int63()).Bytes()
+	testKey := big.NewInt(rand.Int63()).Bytes()
+	testVal := big.NewInt(rand.Int63()).Bytes()
 
 	for i := 0; i < loopCount; i++ {
 		err := tbl.Put(testKey, testVal)
@@ -661,13 +663,13 @@ func _loopPutGetSameData(assertar *assert.Assertions, tbl *table.Table, loopCoun
 func _loopPutGetDiffData(assertar *assert.Assertions, tbl *table.Table, loopCount int) map[string][]byte {
 	data := make(map[string][]byte)
 
-	r := rand.New(rand.NewSource(0))
+	rand := rand.New(rand.NewSource(0))
 	prefixByte := byte(0x32)
 
 	for i := 0; i < loopCount; i++ {
-		testKey := big.NewInt(r.Int63()).Bytes()
+		testKey := big.NewInt(rand.Int63()).Bytes()
 		testKey[0] = prefixByte
-		testVal := big.NewInt(r.Int63()).Bytes()
+		testVal := big.NewInt(rand.Int63()).Bytes()
 
 		err := tbl.Put(testKey, testVal)
 		assertar.NoError(err, "Error put data to DB")
