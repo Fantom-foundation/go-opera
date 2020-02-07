@@ -566,7 +566,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 				ids = append(ids, id)
 				size += len(raw)
 			} else {
-				pm.Log.Debug("requested event not found", "hash", id.ShortID(8))
+				pm.Log.Debug("requested event not found", "hash", id)
 			}
 			if size >= softResponseLimitSize {
 				break
