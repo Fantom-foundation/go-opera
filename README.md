@@ -108,7 +108,7 @@ docker run -d --name lachesis-node -v /home/alice/lachesis:/root \
 
 This will start `lachesis` with ```--port 5050 --nat=extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/lachesis/.lachesis```
 
-Do not forget `--rpcaddr 0.0.0.0`, if you want to access RPC from other containers
+Do not forget `--rpcaddr 0.0.0.0`, if you plan to access RPC from other containers
 and/or hosts. By default, `lachesis` binds to the local interface and RPC endpoints is not
 accessible from the outside.
 
@@ -121,7 +121,26 @@ To get the logs:
 docker logs lachesis-node
 ```
 
+#### Validator
+
+To launch a validator, you have to use `--validator` flag to enable events emitter. Also you have to either use `--unlock` / `--password` flags or unlock
+validator account manually. Validator account should be unlocked for signing events.
+
+```shell
+$ lachesis --nousb --validator 0xADDRESS --unlock 0xADDRESS --password /path/to/password
+```
+
 ## Dev
+
+### Running testnet
+
+To run a testnet node, you have to add `--testnet` flag every time you use `lachesis`:
+
+```shell
+$ lachesis --testnet # launch node
+$ lachesis --testnet attach # attach to IPC
+$ lachesis --testnet account new # create new account
+```
 
 ### Testing
 
@@ -144,12 +163,18 @@ ok      github.com/Fantom-foundation/go-lachesis/gossip/ordering    (cached)
 ok      github.com/Fantom-foundation/go-lachesis/gossip/packsdownloader    (cached)
 ```
 
-### Operating a private network
+### Operating a private network (fakenet)
+
+Fakenet is a private network optimized for your private testing.
+It'll generate a genesis containing N validators with equal stakes.
+To launch a validator in this network, all you need to do is specify a validator ID you're willing to launch.
+
+Pay attention that validator's private keys are deterministically generated in this network, so you must use it only for private testing.
 
 Maintaining your own private network is more involved as a lot of configurations taken for
 granted in the official networks need to be manually set up.
 
-To run the fakenet with just one validator, use:
+To run the fakenet with just one validator (which will work practically as a PoA blockchain), use:
 ```shell
 $ lachesis --fakenet 1/1
 ```
@@ -159,9 +184,14 @@ To run the fakenet with 5 validators, run the command for each validator:
 $ lachesis --fakenet 1/5 # first node, use 2/5 for second node
 ```
 
-After that, you have to connect your nodes. Either connect them statically, or specify a bootnode:
+If you have to launch a non-validator node in fakenet, use 0 as ID:
 ```shell
-$ lachesis --fakenet 1/5 --bootnodes "enode://ade7067fe5495db3d9f44dfda710a2873f339f9288c02941c80b1a7ede16f1d1ceef97736c6680d163f04be7f706dabca01e697e1e7290dfc7c07d1eacb47c54@172.20.0.3:38051"
+$ lachesis --fakenet 0/5
+```
+
+After that, you have to connect your nodes. Either connect them statically or specify a bootnode:
+```shell
+$ lachesis --fakenet 1/5 --bootnodes "enode://verylonghex@1.2.3.4:5050"
 ```
 
 ### Running the demo
