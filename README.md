@@ -133,7 +133,7 @@ $ lachesis --nousb --validator 0xADDRESS --unlock 0xADDRESS --password /path/to/
 #### Participation in discovery
 
 Optionally you can specify your public IP to straighten connectivity of the network.
-Ensure your UDP p2p port (5050 by default) isn't blocked by your firewall.
+Ensure your TCP/UDP p2p port (5050 by default) isn't blocked by your firewall.
 
 ```shell
 $ lachesis --nat extip:1.2.3.4
