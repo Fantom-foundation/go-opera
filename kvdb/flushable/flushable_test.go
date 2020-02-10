@@ -1,10 +1,11 @@
 package flushable
 
 import (
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -318,118 +319,62 @@ func TestFlushableIterator(t *testing.T) {
 	}
 }
 
-func BenchmarkFlushable_PutGet(b *testing.B) {
-	disk := dbProducer("BenchmarkFlushable_PutGet")
+func BenchmarkFlushable(b *testing.B) {
+	disk := dbProducer("BenchmarkFlushable")
 
-	// open raw databases
 	leveldb := disk.OpenDb("1")
 	defer leveldb.Drop()
 	defer leveldb.Close()
 
-	dbLdb := Wrap(leveldb)
-	baseLdb := table.New(dbLdb, []byte{})
+	flushable := Wrap(leveldb)
 
-	allThreads := 16384
-	for i := 1; i <= allThreads; i *= 2 {
-		pNum := i
-		b.Run("Sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				_parallelBenchmarkPutGet(baseLdb, pNum, allThreads)
-				dbLdb.Flush()
-			}
-		})
-	}
-}
+	const recs = 10000
 
-func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
-	disk := dbProducer("BenchmarkFlushable_PutGet_WithFlush")
-
-	// open raw databases
-	leveldb := disk.OpenDb("1")
-	defer leveldb.Drop()
-	defer leveldb.Close()
-
-	dbLdb := Wrap(leveldb)
-	baseLdb := table.New(dbLdb, []byte{})
-
-	for flushPeriod := 1; flushPeriod <= 1000; flushPeriod *= 10 {
-		for allThreads := 16384; allThreads > 1024; allThreads /= 2 {
-			for i := 1; i <= allThreads; i *= 2 {
-				pNum := i
-				b.Run("Flush every "+strconv.FormatInt(int64(flushPeriod), 10)+
-					" sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+
-					" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
-					for n := 0; n < b.N; n++ {
-						_parallelBenchmarkPutGetFlush(baseLdb, dbLdb, pNum, allThreads, flushPeriod)
-					}
-				})
-			}
+	for _, flushPeriod := range []int{0, 1, 10, 100, 1000} {
+		for goroutines := 1; goroutines <= recs/2; goroutines *= 2 {
+			name := fmt.Sprintf(
+				"%d goroutines with flush every %d ops",
+				goroutines, flushPeriod)
+			b.Run(name, func(b *testing.B) {
+				benchmarkFlushable(flushable, goroutines, recs*b.N, flushPeriod)
+			})
 		}
 	}
 }
 
-func _parallelBenchmarkPutGet(tbl *table.Table, pNum, allThreads int) {
-	rand := rand.New(rand.NewSource(0))
-	testKey := big.NewInt(rand.Int63()).Bytes()
-	testVal := big.NewInt(rand.Int63()).Bytes()
-
-	seqNum := allThreads / pNum
+func benchmarkFlushable(db *Flushable, goroutines, recs, flushPeriod int) {
+	var ops = recs / goroutines
 
 	var wg sync.WaitGroup
-	for i := 0; i < pNum; i++ {
-		wg.Add(1)
-		go func() {
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
 			defer wg.Done()
 
-			for j := 0; j < seqNum; j++ {
-				err := tbl.Put(testKey, testVal)
+			rand := rand.New(rand.NewSource(int64(i)))
+			flushOffset := flushPeriod * i / goroutines
+
+			for op := 0; op < ops; op++ {
+				key := big.NewInt(rand.Int63()).Bytes()
+				val := big.NewInt(rand.Int63()).Bytes()
+
+				err := db.Put(key, val)
 				if err != nil {
 					panic(err)
 				}
-				_, err = tbl.Get(testKey)
+				got, err := db.Get(key)
 				if err != nil {
 					panic(err)
 				}
-			}
-		}()
-	}
-	wg.Wait()
-}
-
-func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThreads, flushPeriod int) {
-	var (
-		rand = rand.New(rand.NewSource(1))
-		rnd  sync.Mutex
-	)
-
-	seqNum := allThreads / pNum
-
-	var wg sync.WaitGroup
-	for i := 0; i < pNum; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			for j := 0; j < seqNum; j++ {
-				rnd.Lock()
-				testKey := big.NewInt(rand.Int63()).Bytes()
-				testVal := big.NewInt(rand.Int63()).Bytes()
-				rnd.Unlock()
-
-				err := tbl.Put(testKey, testVal)
-				if err != nil {
-					panic(err)
-				}
-				_, err = tbl.Get(testKey)
-				if err != nil {
-					panic(err)
+				if !bytes.Equal(val, got) {
+					panic("invalid value")
 				}
 
-				if j%flushPeriod == 0 {
+				if flushPeriod != 0 && (op+flushOffset)%flushPeriod == 0 {
 					db.Flush()
 				}
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 }
