@@ -197,9 +197,10 @@ func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasP
 func (s *Service) makeEmitter() *Emitter {
 	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	emitterCfg := s.config.Emitter.RandomizeEmitTime(r)
+	emitterCfg := s.config.Emitter // copy data
+	emitterCfg.EmitIntervals = *emitterCfg.EmitIntervals.RandomizeEmitTime(r)
 
-	return NewEmitter(&s.config.Net, emitterCfg,
+	return NewEmitter(&s.config.Net, &emitterCfg,
 		EmitterWorld{
 			Am:          s.AccountManager(),
 			Engine:      s.engine,

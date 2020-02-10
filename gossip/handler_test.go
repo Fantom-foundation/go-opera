@@ -135,9 +135,9 @@ func testBroadcastEvent(t *testing.T, totalPeers int, forcedAggressiveBroadcast 
 		config.Protocol.LatencyImportance = 0
 		config.Protocol.ThroughputImportance = 1
 	}
-	config.Emitter.MinEmitInterval = time.Duration(0)
-	config.Emitter.MaxEmitInterval = time.Duration(0)
-	config.Emitter.SelfForkProtectionInterval = 0
+	config.Emitter.EmitIntervals.Min = time.Duration(0)
+	config.Emitter.EmitIntervals.Max = time.Duration(0)
+	config.Emitter.EmitIntervals.SelfForkProtection = 0
 	config.TxPool.Journal = ""
 
 	// create stores

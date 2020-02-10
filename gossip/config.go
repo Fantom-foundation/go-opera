@@ -101,7 +101,7 @@ func DefaultConfig(network lachesis.Config) Config {
 		cfg.Emitter = FakeEmitterConfig()
 		// disable self-fork protection if fakenet 1/1
 		if len(network.Genesis.Alloc.Validators) == 1 {
-			cfg.Emitter.SelfForkProtectionInterval = 0
+			cfg.Emitter.EmitIntervals.SelfForkProtection = 0
 		}
 	}
 	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network

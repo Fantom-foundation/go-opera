@@ -11,20 +11,25 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
 )
 
+// EmitIntervals is the configuration of emit intervals.
+type EmitIntervals struct {
+	Min                time.Duration `json:"min"`
+	Max                time.Duration `json:"max"`
+	Confirming         time.Duration `json:"confirming"` // emit time when there's no txs to originate, but at least 1 tx to confirm
+	SelfForkProtection time.Duration `json:"selfForkProtection"`
+}
+
 // EmitterConfig is the configuration of events emitter.
 type EmitterConfig struct {
 	VersionToPublish string
 
 	Validator common.Address `json:"validator"`
 
-	MinEmitInterval time.Duration `json:"minEmitInterval"` // minimum event emission interval
-	MaxEmitInterval time.Duration `json:"maxEmitInterval"` // maximum event emission interval
+	EmitIntervals EmitIntervals `json:"emitIntervals"` // event emission intervals
 
 	MaxGasRateGrowthFactor float64 `json:"maxGasRateGrowthFactor"` // fine to use float, because no need in determinism
 
 	MaxTxsFromSender int `json:"maxTxsFromSender"`
-
-	SelfForkProtectionInterval time.Duration `json:"selfForkProtectionInterval"`
 
 	EpochTailLength idx.Frame `json:"epochTailLength"` // number of frames before event is considered epoch
 
@@ -41,13 +46,16 @@ func DefaultEmitterConfig() EmitterConfig {
 	return EmitterConfig{
 		VersionToPublish: _params.VersionWithMeta(),
 
-		MinEmitInterval: 200 * time.Millisecond,
-		MaxEmitInterval: 12 * time.Minute,
+		EmitIntervals: EmitIntervals{
+			Min:                200 * time.Millisecond,
+			Max:                12 * time.Minute,
+			Confirming:         200 * time.Millisecond,
+			SelfForkProtection: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
+		},
 
-		MaxGasRateGrowthFactor:     3.0,
-		MaxTxsFromSender:           TxTurnNonces,
-		SelfForkProtectionInterval: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
-		EpochTailLength:            1,
+		MaxGasRateGrowthFactor: 3.0,
+		MaxTxsFromSender:       TxTurnNonces,
+		EpochTailLength:        1,
 
 		MaxParents: 7,
 
@@ -58,15 +66,15 @@ func DefaultEmitterConfig() EmitterConfig {
 }
 
 // RandomizeEmitTime and return new config
-func (cfg *EmitterConfig) RandomizeEmitTime(r *rand.Rand) *EmitterConfig {
+func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 	config := *cfg
 	// value = value - 0.1 * value + 0.1 * random value
-	if config.MaxEmitInterval > 10 {
-		config.MaxEmitInterval = config.MaxEmitInterval - config.MaxEmitInterval/10 + time.Duration(r.Int63n(int64(config.MaxEmitInterval/10)))
+	if config.Max > 10 {
+		config.Max = config.Max - config.Max/10 + time.Duration(r.Int63n(int64(config.Max/10)))
 	}
 	// value = value + 0.1 * random value
-	if config.SelfForkProtectionInterval > 10 {
-		config.SelfForkProtectionInterval = config.SelfForkProtectionInterval + time.Duration(r.Int63n(int64(config.SelfForkProtectionInterval/10)))
+	if config.SelfForkProtection > 10 {
+		config.SelfForkProtection = config.SelfForkProtection + time.Duration(r.Int63n(int64(config.SelfForkProtection/10)))
 	}
 	return &config
 }
@@ -74,7 +82,7 @@ func (cfg *EmitterConfig) RandomizeEmitTime(r *rand.Rand) *EmitterConfig {
 // FakeEmitterConfig returns the testing configurations for the events emitter.
 func FakeEmitterConfig() EmitterConfig {
 	cfg := DefaultEmitterConfig()
-	cfg.MaxEmitInterval = 10 * time.Second // don't wait long in fakenet
-	cfg.SelfForkProtectionInterval = cfg.MaxEmitInterval * 3 / 2
+	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
+	cfg.EmitIntervals.SelfForkProtection = cfg.EmitIntervals.Max * 3 / 2
 	return cfg
 }
