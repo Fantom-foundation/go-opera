@@ -134,13 +134,13 @@ func (p *peer) broadcast() {
 			if err := p.SendEvents(events); err != nil {
 				return
 			}
-			p.Log().Trace("Propagated events", "count", len(events))
+			p.Log().Trace("Broadcast events", "count", len(events))
 
 		case ids := <-p.queuedAnns:
 			if err := p.SendNewEventHashes(ids); err != nil {
 				return
 			}
-			p.Log().Trace("Announced events", "count", len(ids))
+			p.Log().Trace("Broadcast event hashes", "count", len(ids))
 
 		case <-p.term:
 			return

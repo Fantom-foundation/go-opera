@@ -9,21 +9,33 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/poset"
 )
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip.Store) {
+func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *app.Store, *gossip.Store) {
 	dbs := flushable.NewSyncedPool(dbProducer(dataDir))
 
+	appStoreConfig := app.StoreConfig{
+		ReceiptsCacheSize:   gossipCfg.ReceiptsCacheSize,
+		DelegatorsCacheSize: gossipCfg.DelegatorsCacheSize,
+		StakersCacheSize:    gossipCfg.StakersCacheSize,
+	}
+	adb := app.NewStore(dbs, appStoreConfig)
 	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
 	cdb := poset.NewStore(dbs, poset.DefaultStoreConfig())
 
 	// write genesis
 
-	genesisAtropos, genesisState, isNew, err := gdb.ApplyGenesis(&gossipCfg.Net)
+	state, _, err := adb.ApplyGenesis(&gossipCfg.Net)
+	if err != nil {
+		utils.Fatalf("Failed to write App genesis state: %v", err)
+	}
+
+	genesisAtropos, genesisState, isNew, err := gdb.ApplyGenesis(&gossipCfg.Net, state)
 	if err != nil {
 		utils.Fatalf("Failed to write Gossip genesis state: %v", err)
 	}
@@ -47,7 +59,7 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip
 	// create consensus
 	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
 
-	return engine, gdb
+	return engine, adb, gdb
 }
 
 // SetAccountKey sets key into accounts manager and unlocks it with pswd.

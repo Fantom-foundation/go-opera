@@ -20,6 +20,7 @@ package ethapi
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,17 +36,28 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 )
+
+// PeerProgress is synchronization status of a peer
+type PeerProgress struct {
+	CurrentEpoch     idx.Epoch
+	CurrentBlock     idx.Block
+	CurrentBlockHash hash.Event
+	CurrentBlockTime inter.Timestamp
+	HighestBlock     idx.Block
+	HighestEpoch     idx.Epoch
+}
 
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
 	// General Ethereum API
 	ProtocolVersion() int
+	Progress() PeerProgress
 	SuggestPrice(ctx context.Context) (*big.Int, error)
 	ChainDb() ethdb.Database
-	EventMux() *notify.TypeMux
 	AccountManager() *accounts.Manager
 	ExtRPCEnabled() bool
 	RPCGasCap() *big.Int // global gas cap for eth_call over rpc: DoS protection
@@ -81,8 +93,12 @@ type Backend interface {
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
 	CurrentEpoch(ctx context.Context) idx.Epoch
 	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
+	TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block, mode string) (map[hash.Event]time.Duration, error)
+	ForEachEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error
+	ValidatorTimeDrifts(ctx context.Context, epoch rpc.BlockNumber, maxEvents idx.Event) (map[idx.StakerID]map[hash.Event]time.Duration, error)
 
 	// Lachesis SFC API
+	GetValidators(ctx context.Context) *pos.Validators
 	GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error)

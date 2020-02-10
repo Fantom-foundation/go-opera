@@ -25,7 +25,7 @@ var (
 // Doesn't contain transactions, only their hash
 // Doesn't contain event signature
 type EventHeaderData struct {
-	Version uint32
+	Version uint32 // serialization version
 
 	Epoch idx.Epoch
 	Seq   idx.Event
@@ -83,12 +83,17 @@ func NewEvent() *Event {
 	}
 }
 
+// FmtFrame returns string representation.
+func FmtFrame(frame idx.Frame, isRoot bool) string {
+	if isRoot {
+		return fmt.Sprintf("%d:y", frame)
+	}
+	return fmt.Sprintf("%d:n", frame)
+}
+
 // String returns string representation.
 func (e *EventHeaderData) String() string {
-	if e.IsRoot {
-		return fmt.Sprintf("{id=%s, p=%s, v=%d, f=%d, root}", e.Hash().String(), e.Parents.String(), e.Creator, e.Frame)
-	}
-	return fmt.Sprintf("{id=%s, p=%s, v=%d, f=%d}", e.Hash().String(), e.Parents.String(), e.Creator, e.Frame)
+	return fmt.Sprintf("{id=%s, p=%s, by=%d, frame=%s}", e.Hash().ShortID(3), e.Parents.String(), e.Creator, FmtFrame(e.Frame, e.IsRoot))
 }
 
 // NoTransactions is used to check that event doesn't have transactions not having full event.

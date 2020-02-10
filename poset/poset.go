@@ -69,7 +69,7 @@ func (p *Poset) LastBlock() (idx.Block, hash.Event) {
 // returns nil if event should be dropped
 func (p *Poset) Prepare(e *inter.Event) *inter.Event {
 	if err := epochcheck.New(&p.dag, p).Validate(e); err != nil {
-		p.Log.Error("Event prepare error", "err", err, "event", e.String())
+		p.Log.Error("Event prepare error", "err", err, "event", e)
 		return nil
 	}
 	id := e.Hash() // remember, because we change event here
@@ -203,7 +203,7 @@ func (p *Poset) ProcessEvent(e *inter.Event) (err error) {
 	if err != nil {
 		return
 	}
-	p.Log.Debug("Consensus: start event processing", "event", e.String())
+	p.Log.Debug("Consensus: start event processing", "event", e)
 
 	err = p.checkAndSaveEvent(e)
 	if err != nil {

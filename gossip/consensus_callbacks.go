@@ -23,8 +23,16 @@ import (
 func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
 
-	if s.store.HasEvent(e.Hash()) { // sanity check
+	if s.store.HasEventHeader(e.Hash()) { // sanity check
 		return eventcheck.ErrAlreadyConnectedEvent
+	}
+
+	// Trace arrival time of events
+	if s.config.EventLocalTimeIndex {
+		s.store.SetEventReceivingTime(e.Hash(), inter.Timestamp(time.Now().UnixNano()))
+	}
+	if s.config.DecisiveEventsIndex {
+		s.currentEvent = e.Hash()
 	}
 
 	oldEpoch := e.Epoch
@@ -58,8 +66,8 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 	if newEpoch != oldEpoch {
 		// notify event checkers about new validation data
-		s.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(s.store, newEpoch))
-		s.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s.store, s.engine.GetValidators(), newEpoch, &s.config.Net.Economy))
+		s.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(s.app, newEpoch))
+		s.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s.store, s.app, s.engine.GetValidators(), newEpoch, &s.config.Net.Economy))
 
 		// sealings/prunings
 		s.packsOnNewEpoch(oldEpoch, newEpoch)
@@ -68,10 +76,16 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 		s.occurredTxs.Clear()
 
 		// notify about new epoch after event connection
+		s.emitter.OnNewEpoch(s.engine.GetValidators(), newEpoch)
 		s.feed.newEpoch.Send(newEpoch)
 	}
 
 	immediately := (newEpoch != oldEpoch)
+
+	err := s.app.Commit(e.Hash().Bytes(), immediately)
+	if err != nil {
+		return err
+	}
 	return s.store.Commit(e.Hash().Bytes(), immediately)
 }
 
@@ -111,7 +125,7 @@ func (s *Service) applyNewState(
 
 	// Get stateDB
 	stateHash := s.store.GetBlock(block.Index - 1).Root
-	statedb := s.store.StateDB(stateHash)
+	statedb := s.app.StateDB(stateHash)
 
 	// Process EVM txs
 	block, evmBlock, totalFee, receipts := s.executeEvmTransactions(block, evmBlock, statedb)
@@ -154,7 +168,7 @@ func (s *Service) applyNewState(
 	appHash := block.TxHash
 
 	log.Info("New block", "index", block.Index, "atropos", block.Atropos, "fee", totalFee, "gasUsed",
-		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "elapsed", time.Since(start))
+		evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 
 	return block, evmBlock, receipts, txPositions, appHash
 }
@@ -260,11 +274,7 @@ func (s *Service) executeEvmTransactions(
 	}
 
 	for _, r := range receipts {
-
-		err := s.store.table.EvmLogs.Push(r.Logs...)
-		if err != nil {
-			s.Log.Crit("DB logs index", "err", err)
-		}
+		s.app.IndexLogs(r.Logs...)
 	}
 
 	return block, evmBlock, totalFee, receipts
@@ -310,7 +320,7 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 		}
 
 		if receipts.Len() != 0 {
-			s.store.SetReceipts(block.Index, receipts)
+			s.app.SetReceipts(block.Index, receipts)
 		}
 	}
 
@@ -323,13 +333,13 @@ func (s *Service) applyBlock(block *inter.Block, decidedFrame idx.Frame, cheater
 
 	// Notify about new block and txs
 	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
-	s.feed.chainEvent.Send(core.ChainEvent{
-		Block: evmBlock.EthBlock(),
-		Hash:  evmBlock.Hash,
-	})
-	s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 	s.feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
 	s.feed.newLogs.Send(logs)
+
+	// Trace by which event this block was confirmed (only for API)
+	if s.config.DecisiveEventsIndex {
+		s.store.SetBlockDecidedBy(block.Index, s.currentEvent)
+	}
 
 	// trace confirmed transactions
 	confirmTxnsMeter.Inc(int64(evmBlock.Transactions.Len()))
@@ -350,7 +360,7 @@ func (s *Service) selectValidatorsGroup(oldEpoch, newEpoch idx.Epoch) (newValida
 	// s.engineMu is locked here
 
 	builder := pos.NewBuilder()
-	for _, it := range s.store.GetEpochValidators(newEpoch) {
+	for _, it := range s.app.GetEpochValidators(newEpoch) {
 		builder.Set(it.StakerID, pos.BalanceToStake(it.Staker.CalcTotalStake()))
 	}
 

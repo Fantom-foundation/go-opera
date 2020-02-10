@@ -28,7 +28,8 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 
 // Validator is the validator address
 func (api *PublicEthereumAPI) Validator() (common.Address, error) {
-	return api.s.emitter.GetValidator(), nil
+	_, addr := api.s.emitter.GetValidator()
+	return addr, nil
 }
 
 // Hashrate returns the POW hashrate

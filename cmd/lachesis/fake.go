@@ -41,6 +41,10 @@ func getFakeValidator(ctx *cli.Context) *ecdsa.PrivateKey {
 		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 	}
 
+	if num == 0 {
+		return nil
+	}
+
 	return crypto.FakeKey(num)
 }
 
@@ -57,18 +61,18 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 	if err != nil {
 		return
 	}
-	num = int(i64) - 1
+	num = int(i64)
 
 	parts = strings.SplitN(parts[1], ",", 2)
 
 	i64, err = strconv.ParseUint(parts[0], 10, 32)
 	validatorsNum := int(i64)
 
-	if validatorsNum < 1 || num >= validatorsNum {
-		err = fmt.Errorf("key-num should be in range from 1 to validators : <key-num>/<validators>")
+	if validatorsNum < 0 || num >= validatorsNum {
+		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
 	}
 
-	vaccs = genesis.FakeAccounts(0, validatorsNum, utils.ToFtm(1e10), utils.ToFtm(3175000))
+	vaccs = genesis.FakeAccounts(1, validatorsNum, utils.ToFtm(1e10), utils.ToFtm(3175000))
 
 	if len(parts) < 2 {
 		return
@@ -78,7 +82,7 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 	if err != nil {
 		others, err = readAccounts(parts[1])
 	} else {
-		others, err = genesis.FakeAccounts(validatorsNum, int(i64), big.NewInt(1e18), big.NewInt(0)).Accounts, nil
+		others, err = genesis.FakeAccounts(validatorsNum+1, int(i64), big.NewInt(1e18), big.NewInt(0)).Accounts, nil
 	}
 	vaccs.Accounts.Add(others)
 

@@ -151,6 +151,12 @@ func (vv *Validators) SortedIDs() []idx.StakerID {
 	return vv.cache.ids
 }
 
+// SortedStakes returns deterministically sorted stakes.
+// The order is the same as for Idxs().
+func (vv *Validators) SortedStakes() []Stake {
+	return vv.cache.stakes
+}
+
 // Idxs gets deterministic total order of validators.
 func (vv *Validators) Idxs() map[idx.StakerID]idx.Validator {
 	return vv.cache.indexes

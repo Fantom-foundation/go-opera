@@ -27,6 +27,10 @@ var (
 		ClaimedValidatorReward        common.Hash
 		UpdatedBaseRewardPerSec       common.Hash
 		UpdatedGasPowerAllocationRate common.Hash
+		DeactivatedStake              common.Hash
+		DeactivatedDelegation         common.Hash
+		UpdatedStake                  common.Hash
+		UpdatedDelegation             common.Hash
 	}{
 		CreatedStake:                  hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
 		IncreasedStake:                hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)")),
@@ -39,6 +43,10 @@ var (
 		ClaimedValidatorReward:        hash.Of([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
 		UpdatedBaseRewardPerSec:       hash.Of([]byte("UpdatedBaseRewardPerSec(uint256)")),
 		UpdatedGasPowerAllocationRate: hash.Of([]byte("UpdatedGasPowerAllocationRate(uint256,uint256)")),
+		DeactivatedStake:              hash.Of([]byte("DeactivatedStake(uint256)")),
+		DeactivatedDelegation:         hash.Of([]byte("DeactivatedDelegation(address,uint256)")),
+		UpdatedStake:                  hash.Of([]byte("UpdatedStake(uint256,uint256,uint256)")),
+		UpdatedDelegation:             hash.Of([]byte("UpdatedDelegation(address,uint256,uint256,uint256)")),
 	}
 )
 

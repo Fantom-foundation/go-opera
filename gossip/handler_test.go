@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
@@ -102,53 +103,59 @@ func TestBroadcastEvent(t *testing.T) {
 	logger.SetTestMode(t)
 
 	var tests = []struct {
-		totalPeers        int
-		broadcastExpected int
-		allowAggressive   bool
+		totalPeers                int
+		forcedAggressiveBroadcast bool
 	}{
-		{1, 1, true},
-		{1, 1, false},
-		{2, 2, true},
-		{3, 3, true},
-		{4, 4, true},
-		{5, 4, false},
-		{9, 4, false},
-		{12, 4, false},
-		{16, 4, false},
-		{26, 5, false},
-		{100, 10, false},
+		{1, true},
+		{1, false},
+		{2, true},
+		{3, true},
+		{4, true},
+		{5, false},
+		{9, true},
+		{12, false},
+		{16, false},
+		{26, true},
+		{100, false},
 	}
 	for _, test := range tests {
-		testBroadcastEvent(t, test.totalPeers, test.broadcastExpected, test.allowAggressive)
+		testBroadcastEvent(t, test.totalPeers, test.forcedAggressiveBroadcast)
 	}
 }
 
-func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAggressive bool) {
-	if allowAggressive && totalPeers > minBroadcastPeers {
-		t.Error("Wrong testcase: allowAggressive must be false if totalPeers > minBroadcastPeers (because we'll broadcast only to a subset)")
-	}
-
+func testBroadcastEvent(t *testing.T, totalPeers int, forcedAggressiveBroadcast bool) {
 	assertar := assert.New(t)
 
 	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 1, big.NewInt(0), pos.StakeToBalance(1)))
 	config := DefaultConfig(net)
-	config.ForcedBroadcast = allowAggressive
-	config.Emitter.MinEmitInterval = time.Duration(0)
-	config.Emitter.MaxEmitInterval = time.Duration(0)
-	config.Emitter.SelfForkProtectionInterval = 0
+	if forcedAggressiveBroadcast {
+		config.Protocol.LatencyImportance = 1
+		config.Protocol.ThroughputImportance = 0
+	} else {
+		config.Protocol.LatencyImportance = 0
+		config.Protocol.ThroughputImportance = 1
+	}
+	config.Emitter.EmitIntervals.Min = time.Duration(0)
+	config.Emitter.EmitIntervals.Max = time.Duration(0)
+	config.Emitter.EmitIntervals.SelfForkProtection = 0
 	config.TxPool.Journal = ""
 
-	var (
-		store       = NewMemStore()
-		engineStore = poset.NewMemStore()
-	)
-
 	// create stores
-	genesisAtropos, genesisEvmState, _, err := store.ApplyGenesis(&net)
-	assertar.NoError(err)
-
+	app := app.NewMemStore()
+	state, _, err := app.ApplyGenesis(&net)
+	if !assertar.NoError(err) {
+		return
+	}
+	store := NewMemStore()
+	genesisAtropos, genesisEvmState, _, err := store.ApplyGenesis(&net, state)
+	if !assertar.NoError(err) {
+		return
+	}
+	engineStore := poset.NewMemStore()
 	err = engineStore.ApplyGenesis(&net.Genesis, genesisAtropos, genesisEvmState)
-	assertar.NoError(err)
+	if !assertar.NoError(err) {
+		return
+	}
 
 	// create consensus engine
 	engine := poset.New(net.Dag, engineStore, store)
@@ -159,7 +166,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	ctx := &node.ServiceContext{
 		AccountManager: mockAccountManager(net.Genesis.Alloc.Accounts, creator),
 	}
-	svc, err := NewService(ctx, config, store, engine)
+	svc, err := NewService(ctx, &config, store, engine, app)
 	assertar.NoError(err)
 
 	// start PM
@@ -185,13 +192,13 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 	svc.emitter.SetValidator(creator)
 
 	emittedEvents := make([]*inter.Event, 0)
-	for i := 0; i < broadcastExpected; i++ {
+	for i := 0; i < totalPeers; i++ {
 		emitted := svc.emitter.EmitEvent()
 		assertar.NotNil(emitted)
 		emittedEvents = append(emittedEvents, emitted)
 		// check it's broadcasted just after emitting
 		for _, peer := range peers {
-			if allowAggressive {
+			if forcedAggressiveBroadcast {
 				// aggressive
 				assertar.NoError(p2p.ExpectMsg(peer.app, EventsMsg, []*inter.Event{emitted}))
 			} else {
@@ -203,7 +210,7 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 			}
 		}
 		// broadcast doesn't send to peers who are known to know this event
-		assertar.Equal(0, pm.BroadcastEvent(emitted, false))
+		assertar.Equal(0, pm.BroadcastEvent(emitted, 0))
 	}
 
 	// fresh new peer
@@ -225,9 +232,15 @@ func testBroadcastEvent(t *testing.T, totalPeers, broadcastExpected int, allowAg
 		}
 		// send it to PM
 		assertar.NoError(p2p.Send(newPeer.app, EventsMsg, []*inter.Event{emitted}))
-		// PM should broadcast it to all other peer except newPeer, non-aggressively
+		// PM should broadcast it to all other peer except newPeer
 		for _, peer := range peers {
-			assertar.NoError(p2p.ExpectMsg(peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()}))
+			if forcedAggressiveBroadcast {
+				// aggressive
+				assertar.NoError(p2p.ExpectMsg(peer.app, EventsMsg, []*inter.Event{emitted}))
+			} else {
+				// announce
+				assertar.NoError(p2p.ExpectMsg(peer.app, NewEventHashesMsg, []hash.Event{emitted.Hash()}))
+			}
 			if t.Failed() {
 				return
 			}
@@ -255,10 +268,10 @@ func mockAccountManager(accs genesis.Accounts, unlock ...common.Address) *accoun
 	)
 }
 
-func mockCheckers(epoch idx.Epoch, net *lachesis.Config, engine Consensus, store *Store) *eventcheck.Checkers {
+func mockCheckers(epoch idx.Epoch, net *lachesis.Config, engine Consensus, s *Store, a *app.Store) *eventcheck.Checkers {
 	heavyCheckReader := &HeavyCheckReader{}
-	heavyCheckReader.Addrs.Store(ReadEpochPubKeys(store, epoch))
+	heavyCheckReader.Addrs.Store(ReadEpochPubKeys(a, epoch))
 	gasPowerCheckReader := &GasPowerCheckReader{}
-	gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(store, engine.GetValidators(), engine.GetEpoch(), &net.Economy))
-	return makeCheckers(net, heavyCheckReader, gasPowerCheckReader, engine, store)
+	gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(s, a, engine.GetValidators(), engine.GetEpoch(), &net.Economy))
+	return makeCheckers(net, heavyCheckReader, gasPowerCheckReader, engine, s)
 }

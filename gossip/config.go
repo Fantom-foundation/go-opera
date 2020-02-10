@@ -10,6 +10,13 @@ import (
 )
 
 type (
+	// ProtocolConfig is config for p2p protocol
+	ProtocolConfig struct {
+		// 0/M means "optimize only for throughput", N/0 means "optimize only for latency", N/M is a balanced mode
+
+		LatencyImportance    int
+		ThroughputImportance int
+	}
 	// Config for the gossip service.
 	Config struct {
 		Net     lachesis.Config
@@ -17,9 +24,12 @@ type (
 		TxPool  evmcore.TxPoolConfig
 		StoreConfig
 
+		TxIndex             bool // Whether to enable indexing transactions and receipts or not
+		DecisiveEventsIndex bool // Whether to enable indexing events which decide blocks or not
+		EventLocalTimeIndex bool // Whether to enable indexing arrival time of events or not
+
 		// Protocol options
-		TxIndex         bool // Whether to disable indexing transactions and receipts or not
-		ForcedBroadcast bool
+		Protocol ProtocolConfig
 
 		// Gas Price Oracle options
 		GPO gasprice.Config
@@ -49,12 +59,14 @@ type (
 		BlockCacheSize int
 		// Cache size for PackInfos.
 		PackInfosCacheSize int
-		// Cache size for Receipts.
-		ReceiptsCacheSize int
 		// Cache size for TxPositions.
 		TxPositionsCacheSize int
 		// Cache size for EpochStats.
 		EpochStatsCacheSize int
+
+		// NOTE: fields for config-file back compatibility
+		// Cache size for Receipts.
+		ReceiptsCacheSize int
 		// Cache size for Stakers.
 		StakersCacheSize int
 		// Cache size for Delegators.
@@ -70,8 +82,13 @@ func DefaultConfig(network lachesis.Config) Config {
 		TxPool:      evmcore.DefaultTxPoolConfig(),
 		StoreConfig: DefaultStoreConfig(),
 
-		TxIndex:         true,
-		ForcedBroadcast: true,
+		TxIndex:             true,
+		DecisiveEventsIndex: false,
+
+		Protocol: ProtocolConfig{
+			LatencyImportance:    60,
+			ThroughputImportance: 40,
+		},
 
 		GPO: gasprice.Config{
 			Blocks:     20,
@@ -84,13 +101,14 @@ func DefaultConfig(network lachesis.Config) Config {
 		cfg.Emitter = FakeEmitterConfig()
 		// disable self-fork protection if fakenet 1/1
 		if len(network.Genesis.Alloc.Validators) == 1 {
-			cfg.Emitter.SelfForkProtectionInterval = 0
+			cfg.Emitter.EmitIntervals.SelfForkProtection = 0
 		}
 	}
 	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network
 		cfg.TxPool = evmcore.FakeTxPoolConfig()
 		cfg.Emitter = FakeEmitterConfig()
 	}*/
+
 	return cfg
 }
 
@@ -101,11 +119,8 @@ func DefaultStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 10000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		ReceiptsCacheSize:      100,
 		TxPositionsCacheSize:   1000,
 		EpochStatsCacheSize:    100,
-		DelegatorsCacheSize:    4000,
-		StakersCacheSize:       4000,
 	}
 }
 
@@ -116,10 +131,7 @@ func LiteStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 1000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		ReceiptsCacheSize:      100,
 		TxPositionsCacheSize:   100,
 		EpochStatsCacheSize:    100,
-		DelegatorsCacheSize:    400,
-		StakersCacheSize:       400,
 	}
 }

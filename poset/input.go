@@ -17,11 +17,6 @@ type EventSource interface {
  * Poset's methods:
  */
 
-// HasEvent returns true if event exists.
-func (p *Poset) HasEvent(h hash.Event) bool {
-	return p.input.HasEvent(h)
-}
-
 // GetEvent returns event.
 func (p *Poset) GetEvent(h hash.Event) *Event {
 	e := p.input.GetEvent(h)

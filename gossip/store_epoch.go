@@ -5,12 +5,14 @@ package gossip
 */
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
+	"errors"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
+
+	"github.com/Fantom-foundation/go-lachesis/kvdb/skiperrors"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 )
 
@@ -22,13 +24,22 @@ type (
 	}
 )
 
+func newEpochStore(db kvdb.KeyValueStore) *epochStore {
+	es := &epochStore{}
+	table.MigrateTables(es, db)
+
+	err := errors.New("database closed")
+
+	es.Headers = skiperrors.Wrap(es.Headers, err)
+	es.Tips = skiperrors.Wrap(es.Tips, err)
+	es.Heads = skiperrors.Wrap(es.Heads, err)
+
+	return es
+}
+
 // getEpochStore is not safe for concurrent use.
 func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
-	tables := s.getTmpDb("epoch", uint64(epoch), func(db kvdb.KeyValueStore) interface{} {
-		es := &epochStore{}
-		table.MigrateTables(es, db)
-		return es
-	})
+	tables := s.EpochDbs.Get(uint64(epoch))
 	if tables == nil {
 		return nil
 	}
@@ -38,8 +49,7 @@ func (s *Store) getEpochStore(epoch idx.Epoch) *epochStore {
 
 // delEpochStore is not safe for concurrent use.
 func (s *Store) delEpochStore(epoch idx.Epoch) {
-	s.delTmpDb("epoch", uint64(epoch))
-
+	s.EpochDbs.Del(uint64(epoch))
 	// Clear full LRU cache.
 	if s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Purge()
@@ -55,7 +65,7 @@ func (s *Store) SetLastEvent(epoch idx.Epoch, from idx.StakerID, id hash.Event) 
 
 	key := from.Bytes()
 	if err := es.Tips.Put(key, id.Bytes()); err != nil {
-		return
+		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
 
@@ -69,7 +79,7 @@ func (s *Store) GetLastEvent(epoch idx.Epoch, from idx.StakerID) *hash.Event {
 	key := from.Bytes()
 	idBytes, err := es.Tips.Get(key)
 	if err != nil {
-		return nil
+		s.Log.Crit("Failed to get key-value", "err", err)
 	}
 	if idBytes == nil {
 		return nil
@@ -87,7 +97,7 @@ func (s *Store) SetEventHeader(epoch idx.Epoch, h hash.Event, e *inter.EventHead
 
 	key := h.Bytes()
 
-	s.tmpDbSet(es.Headers, key, e)
+	s.set(es.Headers, key, e)
 
 	// Save to LRU cache.
 	if e != nil && s.cache.EventsHeaders != nil {
@@ -113,7 +123,7 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 		return nil
 	}
 
-	w, _ := s.tmpDbGet(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
+	w, _ := s.get(es.Headers, key, &inter.EventHeaderData{}).(*inter.EventHeaderData)
 
 	// Save to LRU cache.
 	if w != nil && s.cache.EventsHeaders != nil {
@@ -121,6 +131,16 @@ func (s *Store) GetEventHeader(epoch idx.Epoch, h hash.Event) *inter.EventHeader
 	}
 
 	return w
+}
+
+// HasEvent returns true if event exists.
+func (s *Store) HasEventHeader(h hash.Event) bool {
+	es := s.getEpochStore(h.Epoch())
+	if es == nil {
+		return false
+	}
+
+	return s.has(es.Headers, h.Bytes())
 }
 
 // DelEventHeader removes stored event header.
@@ -133,40 +153,11 @@ func (s *Store) DelEventHeader(epoch idx.Epoch, h hash.Event) {
 	key := h.Bytes()
 	err := es.Headers.Delete(key)
 	if err != nil {
-		return
+		s.Log.Crit("Failed to delete key", "err", err)
 	}
 
 	// Remove from LRU cache.
 	if s.cache.EventsHeaders != nil {
 		s.cache.EventsHeaders.Remove(h)
 	}
-}
-
-// tmpDbSet RLP value, ignore if DB is closed
-func (s *Store) tmpDbSet(table kvdb.KeyValueStore, key []byte, val interface{}) {
-	buf, err := rlp.EncodeToBytes(val)
-	if err != nil {
-		s.Log.Crit("Failed to encode rlp", "err", err)
-	}
-
-	if err := table.Put(key, buf); err != nil {
-		return
-	}
-}
-
-// tmpDbGet RLP value, return nil if DB is closed
-func (s *Store) tmpDbGet(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
-	buf, err := table.Get(key)
-	if err != nil {
-		return nil // return nil if DB is closed
-	}
-	if buf == nil {
-		return nil
-	}
-
-	err = rlp.DecodeBytes(buf, to)
-	if err != nil {
-		s.Log.Crit("Failed to decode rlp", "err", err, "size", len(buf))
-	}
-	return to
 }

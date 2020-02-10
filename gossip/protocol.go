@@ -119,6 +119,7 @@ type ethStatusData struct {
 	Genesis           common.Hash
 }
 
+// PeerProgress is synchronization status of a peer
 type PeerProgress struct {
 	Epoch        idx.Epoch
 	NumOfBlocks  idx.Block

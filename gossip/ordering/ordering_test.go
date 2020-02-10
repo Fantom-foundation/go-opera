@@ -49,7 +49,11 @@ func TestEventBuffer(t *testing.T) {
 			t.Fatalf("%s unexpectedly dropped with %s", e.String(), err)
 		},
 
-		Exists: func(e hash.Event) *inter.EventHeaderData {
+		Exists: func(e hash.Event) bool {
+			return processed[e] != nil
+		},
+
+		Get: func(e hash.Event) *inter.EventHeaderData {
 			return processed[e]
 		},
 

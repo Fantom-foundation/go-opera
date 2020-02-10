@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-lachesis/crypto"
@@ -25,7 +24,7 @@ func setValidator(ctx *cli.Context, ks *keystore.KeyStore, cfg *gossip.EmitterCo
 	case ctx.GlobalIsSet(validatorFlag.Name):
 		validator = ctx.GlobalString(validatorFlag.Name)
 		if validator == "no" || validator == "0" {
-			validator = common.Address{}.String()
+			validator = ""
 		}
 	case ctx.GlobalIsSet(utils.MinerEtherbaseFlag.Name):
 		validator = ctx.GlobalString(utils.MinerEtherbaseFlag.Name)
@@ -33,19 +32,24 @@ func setValidator(ctx *cli.Context, ks *keystore.KeyStore, cfg *gossip.EmitterCo
 		validator = ctx.GlobalString(utils.MinerLegacyEtherbaseFlag.Name)
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
 		key := getFakeValidator(ctx)
-		validator = crypto.PubkeyToAddress(key.PublicKey).Hex()
+		if key != nil {
+			validator = crypto.PubkeyToAddress(key.PublicKey).Hex()
+		}
 	}
 
 	// Convert the validator into an address and configure it
-	if validator != "" {
-		if ks != nil {
-			account, err := utils.MakeAddress(ks, validator)
-			if err != nil {
-				utils.Fatalf("Invalid miner etherbase: %v", err)
-			}
-			cfg.Validator = account.Address
-		} else {
-			utils.Fatalf("No etherbase configured")
-		}
+	if validator == "" {
+		return
 	}
+
+	if ks != nil {
+		account, err := utils.MakeAddress(ks, validator)
+		if err != nil {
+			utils.Fatalf("Invalid miner etherbase: %v", err)
+		}
+		cfg.Validator = account.Address
+	} else {
+		utils.Fatalf("No etherbase configured")
+	}
+
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
 	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
+	"github.com/Fantom-foundation/go-lachesis/utils"
 	"github.com/Fantom-foundation/go-lachesis/vector"
 )
 
@@ -20,7 +21,7 @@ const (
 )
 
 var (
-	// PercentUnit is used to define ratios with integers
+	// PercentUnit is used to define ratios with integers, it's 1.0
 	PercentUnit = big.NewInt(1e6)
 )
 
@@ -140,14 +141,14 @@ func DefaultEconomyConfig() EconomyConfig {
 	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(45), PercentUnit)
 	txRewardPoiImpact.Div(txRewardPoiImpact, big.NewInt(100))
 
-	initialRewardPerSecond := big.NewInt(8241994292233796296) // 8.241994 FTM per sec, 712108.306849 FTM per day
-	maxRewardPerSecond := new(big.Int).Mul(initialRewardPerSecond, big.NewInt(100))
+	initialRewardPerSecond := new(big.Int).Add(utils.ToFtm(16), big.NewInt(483988584467592592)) // 16.483988584467592592 FTM per sec, or 1424216,6136 FTM per day
+	maxRewardPerSecond := new(big.Int).Mul(initialRewardPerSecond, big.NewInt(2))
 
 	return EconomyConfig{
 		PoiPeriodDuration:      30 * 24 * time.Hour,
 		BlockMissedLatency:     3,
 		TxRewardPoiImpact:      txRewardPoiImpact,
-		InitialRewardPerSecond: big.NewInt(8241994292233796296), // 8.241994 FTM per sec, 712108.306849 FTM per day
+		InitialRewardPerSecond: initialRewardPerSecond,
 		MaxRewardPerSecond:     maxRewardPerSecond,
 		OfflinePenaltyThreshold: BlocksMissed{
 			BlocksNum: 1000,

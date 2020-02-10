@@ -22,7 +22,7 @@ type Index struct {
 		Topic kvdb.KeyValueStore `table:"t"`
 		// (blockN+TxHash+logIndex) + topicN -> topic
 		Other kvdb.KeyValueStore `table:"o"`
-		// (blockN+TxHash+logIndex) -> address, data
+		// (blockN+TxHash+logIndex) -> address, blockHash, data
 		Logrec kvdb.KeyValueStore `table:"r"`
 	}
 
@@ -79,7 +79,12 @@ func (tt *Index) Push(recs ...*types.Log) error {
 			}
 		}
 
-		err := tt.table.Logrec.Put(id.Bytes(), append(rec.Data, rec.Address[:]...))
+		buf := make([]byte, 0, common.AddressLength+common.HashLength+len(rec.Data))
+		buf = append(buf, rec.Address.Bytes()...)
+		buf = append(buf, rec.BlockHash.Bytes()...)
+		buf = append(buf, rec.Data...)
+
+		err := tt.table.Logrec.Put(id.Bytes(), buf)
 		if err != nil {
 			return err
 		}
