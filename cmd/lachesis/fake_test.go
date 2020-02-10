@@ -46,7 +46,7 @@ at block: 0 ({{niltime}})
 
 	wantMessages := []string{
 		"Unlocked fake validator",
-		"=0xF88D5892faF084DCF4143566d9C9b3F047c153Ca",
+		"=0x239fA7623354eC26520dE878B52f13Fe84b06971",
 	}
 	for _, m := range wantMessages {
 		if !strings.Contains(cli.StderrText(), m) {
