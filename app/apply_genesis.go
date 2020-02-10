@@ -15,8 +15,6 @@ import (
 func (s *Store) ApplyGenesis(net *lachesis.Config) (block *evmcore.EvmBlock, isNew bool, err error) {
 	stored := s.getGenesisState()
 	if stored != nil {
-		isNew = false
-
 		block, err = calcGenesisBlock(net)
 		if err != nil {
 			return
@@ -28,12 +26,13 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (block *evmcore.EvmBlock, isN
 
 		return
 	}
+
 	// if we'here, then it's first time genesis is applied
+	isNew = true
 	block, err = s.applyGenesis(net)
 	if err != nil {
 		return
 	}
-
 	s.setGenesisState(block.Root)
 	return
 }
