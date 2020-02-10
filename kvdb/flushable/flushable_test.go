@@ -1,33 +1,32 @@
 package flushable
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"math/rand"
+	"sync"
+	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"math/big"
-	"math/rand"
-	"strconv"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestFlushable(t *testing.T) {
+	assertar := assert.New(t)
+
 	tries := 60            // number of test iterations
 	opsPerIter := 0x140    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
 
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	disk := dbProducer("TestFlushable")
 
 	// open raw databases
 	leveldb1 := disk.OpenDb("1")
@@ -80,7 +79,6 @@ func TestFlushable(t *testing.T) {
 		},
 	}
 
-	assertar := assert.New(t)
 	assertar.Equal(len(dbsTables), len(flushableDbsTables))
 	assertar.Equal(len(dbsTables[0]), len(flushableDbsTables[0]))
 
@@ -88,7 +86,7 @@ func TestFlushable(t *testing.T) {
 	tablesNum := len(dbsTables[0])
 
 	// use the same seed for determinism
-	r := rand.New(rand.NewSource(0))
+	rand := rand.New(rand.NewSource(0))
 
 	// words dictionary
 	prefixes := [][]byte{
@@ -105,7 +103,7 @@ func TestFlushable(t *testing.T) {
 	}
 	dict := [][]byte{}
 	for i := 0; i < dictSize; i++ {
-		b := append(prefixes[i%len(prefixes)], big.NewInt(r.Int63()).Bytes()...)
+		b := append(prefixes[i%len(prefixes)], big.NewInt(rand.Int63()).Bytes()...)
 		dict = append(dict, b)
 	}
 
@@ -120,17 +118,17 @@ func TestFlushable(t *testing.T) {
 					batches = append(batches, flushableDbsTables[i][j].NewBatch())
 				}
 
-				ops := 1 + r.Intn(opsPerIter)
+				ops := 1 + rand.Intn(opsPerIter)
 				for p := 0; p < ops; p++ {
 					var pair kv
-					if r.Intn(2) == 0 { // put
+					if rand.Intn(2) == 0 { // put
 						pair = kv{
-							k: dict[r.Intn(len(dict))],
-							v: dict[r.Intn(len(dict))],
+							k: dict[rand.Intn(len(dict))],
+							v: dict[rand.Intn(len(dict))],
 						}
 					} else { // delete
 						pair = kv{
-							k: dict[r.Intn(len(dict))],
+							k: dict[rand.Intn(len(dict))],
 							v: nil,
 						}
 					}
@@ -190,8 +188,9 @@ func TestFlushable(t *testing.T) {
 				}
 				defer it.Release()
 
-				got := 0
-				for ; it.Next(); got++ {
+				var got int
+
+				for got = 0; it.Next(); got++ {
 					if first {
 						expectPairs = append(expectPairs, kv{
 							k: common.CopyBytes(it.Key()),
@@ -228,9 +227,9 @@ func TestFlushable(t *testing.T) {
 		}
 
 		// try to get random values
-		ops := r.Intn(opsPerIter)
+		ops := rand.Intn(opsPerIter)
 		for p := 0; p < ops; p++ {
-			key := dict[r.Intn(len(dict))]
+			key := dict[rand.Intn(len(dict))]
 
 			for j := 0; j < tablesNum; j++ {
 				// get values for first group, so we could check that all groups return the same result
@@ -263,420 +262,127 @@ func TestFlushable(t *testing.T) {
 	}
 }
 
-func TestFlushableParallel(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
-
-	leveldb := disk.OpenDb("1")
-	defer leveldb.Drop()
-	defer leveldb.Close()
-
-	dbLdb := Wrap(leveldb)
-	baseLdb := table.New(dbLdb, []byte{})
-
+func TestFlushableIterator(t *testing.T) {
 	assertar := assert.New(t)
 
-	i := 128
-	// Test with i parallel goroutines
-	wg := sync.WaitGroup{}
-	for j := 0; j < i; j++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			_loopPutGetSameData(assertar, baseLdb, 1000)
-
-			err := dbLdb.Flush()
-			assertar.NoError(err, "Error flush data to DB")
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			_loopPutGetDiffData(assertar, baseLdb, 1000)
-
-			err := dbLdb.Flush()
-			assertar.NoError(err, "Error flush data to DB")
-		}()
-	}
-	wg.Wait()
-}
-
-func TestFlushableParallelTableLocal(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	disk := dbProducer("TestFlushableIterator")
 
 	leveldb := disk.OpenDb("1")
 	defer leveldb.Drop()
 	defer leveldb.Close()
 
-	dbLdb := Wrap(leveldb)
+	flushable1 := Wrap(leveldb)
+	flushable2 := Wrap(leveldb)
 
-	assertar := assert.New(t)
-
-	i := 128
-	// Test with i parallel goroutines
-	wg := sync.WaitGroup{}
-	for j := 0; j < i; j++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			baseLdb := table.New(dbLdb, []byte{})
-			_loopPutGetSameData(assertar, baseLdb, 1000)
-
-			err := dbLdb.Flush()
-			assertar.NoError(err, "Error flush data to DB")
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			baseLdb := table.New(dbLdb, []byte{})
-			_loopPutGetDiffData(assertar, baseLdb, 1000)
-
-			err := dbLdb.Flush()
-			assertar.NoError(err, "Error flush data to DB")
-		}()
-	}
-	wg.Wait()
-}
-
-func TestFlushableIteratorParallel(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
-
-	leveldb := disk.OpenDb("1")
-	defer leveldb.Drop()
-	defer leveldb.Close()
-
-	dbLdb := Wrap(leveldb)
-	baseLdb := table.New(dbLdb, []byte{})
-
-	assertar := assert.New(t)
-
-
-	// Prepare data
-	_loopPutGetDiffData(assertar, baseLdb, 1000)
-	dbLdb.Flush()
-
-	i := 128
-	// Test with i parallel goroutines
-	wg := sync.WaitGroup{}
-	for j := 0; j < i; j++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			it := dbLdb.NewIterator()
-			defer it.Release()
-
-			expectPairs := map[string][]byte{}
-
-			got := 0
-			for ; it.Next(); got++ {
-				expectPairs[string(it.Key())] = it.Value()
-				assertar.False(t.Failed(), "Parallel iterator failed")
-			}
-
-			assertar.NoError(it.Error())
-
-			assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
-		}()
-	}
-	wg.Wait()
-}
-
-func TestFlushableIteratorWithAddDataSeq(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
-
-	leveldb := disk.OpenDb("1")
-	defer leveldb.Drop()
-	defer leveldb.Close()
-
-	dbLdb := Wrap(leveldb)
-	tblLdb := table.New(dbLdb, []byte{})
-
-	assertar := assert.New(t)
-
-
-	// Prepare data
-	keysCount := 10000
-	keysMap := _loopPutGetDiffData(assertar, tblLdb, keysCount)
-	dbLdb.Flush()
-
-	it1 := dbLdb.NewIterator()
-	defer it1.Release()
-
-	expectPairs := map[string][]byte{}
-
-	// Use first iterator (it1) order results like pattern for check second iterator (it2) run with new data insertion
-	originOrder := make([][]byte, 0, keysCount)
-
-	got := 0
-	for ; it1.Next(); got++ {
-		expectPairs[string(it1.Key())] = it1.Value()
-		assertar.NoError(it1.Error(), "Parallel iterator failed")
-
-		originOrder = append(originOrder, it1.Key())
+	allkeys := [][]byte{
+		{0x11, 0x00},
+		{0x12, 0x00},
+		{0x13, 0x00},
+		{0x14, 0x00},
+		{0x15, 0x00},
+		{0x16, 0x00},
+		{0x17, 0x00},
+		{0x18, 0x00},
+		{0x19, 0x00},
+		{0x1a, 0x00},
+		{0x1b, 0x00},
+		{0x1c, 0x00},
+		{0x1d, 0x00},
+		{0x1e, 0x00},
+		{0x1f, 0x00},
 	}
 
-	assertar.NoError(it1.Error())
+	veryFirstKey := allkeys[0]
+	veryLastKey := allkeys[len(allkeys)-1]
+	expected := allkeys[1 : len(allkeys)-1]
 
-	assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
-	assertar.Equal(got, keysCount) // check that we've got the same num of pairs
-
-
-	it2 := dbLdb.NewIterator()
-	defer it2.Release()
-
-	expectPairs = map[string][]byte{}
-
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	got = 0
-	added := map[string][]byte{}
-	for ; it2.Next(); got++ {
-		expectPairs[string(it2.Key())] = it2.Value()
-		assertar.NoError(it2.Error(), "Parallel iterator failed")
-
-		// Only added data before iterator create should by returned
-		assertar.Equal(keysMap[fmt.Sprintf("%x", it2.Key())], it2.Value(), "Absent data in iterator return")
-		// Data output in add sequence
-		assertar.Equal(originOrder[got], it2.Key(), "Wrong order of data from iterator")
-
-		// Add more data in process
-		testKey := big.NewInt(r.Int63()).Bytes()
-		testVal := big.NewInt(r.Int63()).Bytes()
-
-		_ = tblLdb.Put(testKey, testVal)
-		added[fmt.Sprintf("%x", testKey)] = testVal
-		dbLdb.Flush()
+	for _, key := range expected {
+		leveldb.Put(key, []byte("in-order"))
 	}
 
-	assertar.NoError(it2.Error())
+	flushable2.Put(veryFirstKey, []byte("first"))
+	flushable2.Put(veryLastKey, []byte("last"))
 
-	assertar.Equal(len(expectPairs), got) // check that we've got the same num of pairs
-	assertar.Equal(got, keysCount) // check that we've got the same num of pairs
+	it := flushable1.NewIterator()
+	defer it.Release()
 
-	// Add added values in keysMap
-	for k, v := range added {
-		keysMap[k] = v
+	err := flushable2.Flush()
+	if !assertar.NoError(err) {
+		return
 	}
 
-	// With prefix
-	prefix := []byte{0x32}
-	it3 := dbLdb.NewIteratorWithPrefix(prefix)
-	defer it3.Release()
-
-	// Use first iterator (it3) order results like pattern for check second iterator (it4) run with new data insertion
-	originOrder = make([][]byte, 0, 0)
-
-	got = 0
-	for ; it3.Next(); got++ {
-		assertar.NoError(it3.Error(), "Parallel iterator failed")
-
-		// Only added data before iterator create should by returned
-		assertar.Equal(keysMap[fmt.Sprintf("%x", it3.Key())], it3.Value(), "Absent data in iterator return")
-
-		originOrder = append(originOrder, it3.Key())
-	}
-
-	assertar.NoError(it3.Error())
-	assertar.Greater(got, 0, "No test data with prefix")
-
-	it4 := dbLdb.NewIteratorWithPrefix(prefix)
-	defer it4.Release()
-
-	expectPairs = map[string][]byte{}
-
-	r = rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	got = 0
-	for ; it4.Next(); got++ {
-		assertar.NoError(it4.Error(), "Parallel iterator failed")
-
-		// Only added data before iterator create should by returned
-		assertar.Equal(keysMap[fmt.Sprintf("%x", it4.Key())], it4.Value(), "Absent data in iterator return")
-		// Data output in add sequence
-		assertar.Equal(originOrder[got], it4.Key(), "Wrong order of data from iterator")
-
-		// Add more data in process
-		testKey := big.NewInt(r.Int63()).Bytes()
-		testVal := big.NewInt(r.Int63()).Bytes()
-
-		_ = tblLdb.Put(testKey, testVal)
-		dbLdb.Flush()
-	}
-
-	assertar.NoError(it4.Error())
-
-	assertar.Greater(got, 0, "No test data with prefix")
-	assertar.Equal(len(originOrder), got) // check that we've got the same num of pairs
-}
-
-func BenchmarkFlushable_PutGet(b *testing.B) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
-
-	// open raw databases
-	leveldb := disk.OpenDb("1")
-	defer leveldb.Drop()
-	defer leveldb.Close()
-
-	dbLdb := Wrap(leveldb)
-	baseLdb := table.New(dbLdb, []byte{})
-
-	allThreads := 16384
-	for i := 1; i <= allThreads; i*=2 {
-		pNum := i
-		b.Run("Sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				_parallelBenchmarkPutGet(baseLdb, pNum, allThreads)
-				dbLdb.Flush()
-			}
-		})
-	}
-}
-
-var flushCounter int
-
-func BenchmarkFlushable_PutGet_WithFlush(b *testing.B) {
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
-
-	// open raw databases
-	leveldb := disk.OpenDb("1")
-	defer leveldb.Drop()
-	defer leveldb.Close()
-
-	dbLdb := Wrap(leveldb)
-	baseLdb := table.New(dbLdb, []byte{})
-
-	for flushAfter := 1; flushAfter <= 1000; flushAfter *= 10 {
-		flushCounter = flushAfter
-		for allThreads := 16384; allThreads > 1024; allThreads/=2 {
-			for i := 1; i <= allThreads; i *= 2 {
-				pNum := i
-				b.Run("Flush every "+strconv.FormatInt(int64(flushAfter), 10)+
-					" sequenced "+strconv.FormatInt(int64(allThreads/pNum), 10)+
-					" parallel "+strconv.FormatInt(int64(pNum), 10), func(b *testing.B) {
-					for n := 0; n < b.N; n++ {
-						_parallelBenchmarkPutGetFlush(baseLdb, dbLdb, pNum, allThreads, flushAfter)
-					}
-				})
-			}
+	for i := 0; it.Next(); i++ {
+		if !assertar.Equal(expected[i], it.Key()) ||
+			!assertar.Equal([]byte("in-order"), it.Value()) {
+			break
 		}
 	}
 }
 
-func _parallelBenchmarkPutGet(tbl *table.Table, pNum, allThreads int) {
-	wg := sync.WaitGroup{}
+func BenchmarkFlushable(b *testing.B) {
+	disk := dbProducer("BenchmarkFlushable")
 
-	r := rand.New(rand.NewSource(0))
-	testKey := big.NewInt(r.Int63()).Bytes()
-	testVal := big.NewInt(r.Int63()).Bytes()
+	leveldb := disk.OpenDb("1")
+	defer leveldb.Drop()
+	defer leveldb.Close()
 
-	seqNum := allThreads / pNum
+	flushable := Wrap(leveldb)
 
-	for i := 0; i < pNum; i++ {
-		wg.Add(1)
-		go func(){
-			defer wg.Done()
+	const recs = 10000
 
-			for j := 0; j < seqNum; j++ {
-				_ = tbl.Put(testKey, testVal)
-				_, _ = tbl.Get(testKey)
-			}
-		}()
+	for _, flushPeriod := range []int{0, 1, 10, 100, 1000} {
+		for goroutines := 1; goroutines <= recs/2; goroutines *= 2 {
+			name := fmt.Sprintf(
+				"%d goroutines with flush every %d ops",
+				goroutines, flushPeriod)
+			b.Run(name, func(b *testing.B) {
+				benchmarkFlushable(flushable, goroutines, recs*b.N, flushPeriod)
+			})
+		}
 	}
-	wg.Wait()
 }
 
-func _parallelBenchmarkPutGetFlush(tbl *table.Table, db *Flushable, pNum, allThreads, flushAfter int) {
-	wg := sync.WaitGroup{}
+func benchmarkFlushable(db *Flushable, goroutines, recs, flushPeriod int) {
+	var ops = recs / goroutines
 
-	r := rand.New(rand.NewSource(1))
-	mu := sync.Mutex{}
-
-	seqNum := allThreads / pNum
-
-	for i := 0; i < pNum; i++ {
-		wg.Add(1)
-		go func(){
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
 			defer wg.Done()
 
-			for j := 0; j < seqNum; j++ {
-				mu.Lock()
-				testKey := big.NewInt(r.Int63()).Bytes()
-				testVal := big.NewInt(r.Int63()).Bytes()
-				mu.Unlock()
+			rand := rand.New(rand.NewSource(int64(i)))
+			flushOffset := flushPeriod * i / goroutines
 
-				_ = tbl.Put(testKey, testVal)
-				_, _ = tbl.Get(testKey)
+			for op := 0; op < ops; op++ {
+				key := big.NewInt(rand.Int63()).Bytes()
+				val := big.NewInt(rand.Int63()).Bytes()
 
-				flushCounter--
-				if flushCounter <= 0 {
+				err := db.Put(key, val)
+				if err != nil {
+					panic(err)
+				}
+				got, err := db.Get(key)
+				if err != nil {
+					panic(err)
+				}
+				if !bytes.Equal(val, got) {
+					panic("invalid value")
+				}
+
+				if flushPeriod != 0 && (op+flushOffset)%flushPeriod == 0 {
 					db.Flush()
-					flushCounter = flushAfter
 				}
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 }
 
-func _loopPutGetSameData(assertar *assert.Assertions, tbl *table.Table, loopCount int) {
-	r := rand.New(rand.NewSource(0))
-
-	testKey := big.NewInt(r.Int63()).Bytes()
-	testVal := big.NewInt(r.Int63()).Bytes()
-
-	for i := 0; i < loopCount; i++ {
-		err := tbl.Put(testKey, testVal)
-		assertar.NoError(err, "Error put data to DB")
-		_, err = tbl.Get(testKey)
-		assertar.NoError(err, "Error get data from DB")
+func dbProducer(name string) kvdb.DbProducer {
+	dir, err := ioutil.TempDir("", name)
+	if err != nil {
+		panic(err)
 	}
-}
-
-func _loopPutGetDiffData(assertar *assert.Assertions, tbl *table.Table, loopCount int) map[string][]byte {
-	data := make(map[string][]byte)
-
-	r := rand.New(rand.NewSource(0))
-	prefixByte := byte(0x32)
-
-	for i := 0; i < loopCount; i++ {
-		testKey := big.NewInt(r.Int63()).Bytes()
-		testKey[0] = prefixByte
-		testVal := big.NewInt(r.Int63()).Bytes()
-
-		err := tbl.Put(testKey, testVal)
-		assertar.NoError(err, "Error put data to DB")
-		_, err = tbl.Get(testKey)
-		assertar.NoError(err, "Error get data from DB")
-
-		data[fmt.Sprintf("%x", testKey)] = testVal
-	}
-
-	return data
+	return leveldb.NewProducer(dir)
 }
