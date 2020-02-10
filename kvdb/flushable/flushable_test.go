@@ -1,10 +1,12 @@
 package flushable
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"math/big"
 	"math/rand"
+	"sync"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,15 +20,13 @@ import (
 )
 
 func TestFlushable(t *testing.T) {
+	assertar := assert.New(t)
+
 	tries := 60            // number of test iterations
 	opsPerIter := 0x140    // max number of put/delete ops per iteration
 	dictSize := opsPerIter // number of different words
 
-	dir, err := ioutil.TempDir("", "test-flushable")
-	if err != nil {
-		panic(fmt.Sprintf("can't create temporary directory %s: %v", dir, err))
-	}
-	disk := leveldb.NewProducer(dir)
+	disk := dbProducer("TestFlushable")
 
 	// open raw databases
 	leveldb1 := disk.OpenDb("1")
@@ -79,7 +79,6 @@ func TestFlushable(t *testing.T) {
 		},
 	}
 
-	assertar := assert.New(t)
 	assertar.Equal(len(dbsTables), len(flushableDbsTables))
 	assertar.Equal(len(dbsTables[0]), len(flushableDbsTables[0]))
 
@@ -87,7 +86,7 @@ func TestFlushable(t *testing.T) {
 	tablesNum := len(dbsTables[0])
 
 	// use the same seed for determinism
-	r := rand.New(rand.NewSource(0))
+	rand := rand.New(rand.NewSource(0))
 
 	// words dictionary
 	prefixes := [][]byte{
@@ -104,13 +103,13 @@ func TestFlushable(t *testing.T) {
 	}
 	dict := [][]byte{}
 	for i := 0; i < dictSize; i++ {
-		b := append(prefixes[i%len(prefixes)], big.NewInt(r.Int63()).Bytes()...)
+		b := append(prefixes[i%len(prefixes)], big.NewInt(rand.Int63()).Bytes()...)
 		dict = append(dict, b)
 	}
 
 	for try := 0; try < tries; try++ {
 
-		// random pet/delete operations
+		// random put/delete operations
 		putDeleteRandom := func() {
 			for j := 0; j < tablesNum; j++ {
 				var batches []ethdb.Batch
@@ -119,17 +118,17 @@ func TestFlushable(t *testing.T) {
 					batches = append(batches, flushableDbsTables[i][j].NewBatch())
 				}
 
-				ops := 1 + r.Intn(opsPerIter)
+				ops := 1 + rand.Intn(opsPerIter)
 				for p := 0; p < ops; p++ {
 					var pair kv
-					if r.Intn(2) == 0 { // put
+					if rand.Intn(2) == 0 { // put
 						pair = kv{
-							k: dict[r.Intn(len(dict))],
-							v: dict[r.Intn(len(dict))],
+							k: dict[rand.Intn(len(dict))],
+							v: dict[rand.Intn(len(dict))],
 						}
 					} else { // delete
 						pair = kv{
-							k: dict[r.Intn(len(dict))],
+							k: dict[rand.Intn(len(dict))],
 							v: nil,
 						}
 					}
@@ -189,8 +188,9 @@ func TestFlushable(t *testing.T) {
 				}
 				defer it.Release()
 
-				got := 0
-				for ; it.Next(); got++ {
+				var got int
+
+				for got = 0; it.Next(); got++ {
 					if first {
 						expectPairs = append(expectPairs, kv{
 							k: common.CopyBytes(it.Key()),
@@ -227,9 +227,9 @@ func TestFlushable(t *testing.T) {
 		}
 
 		// try to get random values
-		ops := r.Intn(opsPerIter)
+		ops := rand.Intn(opsPerIter)
 		for p := 0; p < ops; p++ {
-			key := dict[r.Intn(len(dict))]
+			key := dict[rand.Intn(len(dict))]
 
 			for j := 0; j < tablesNum; j++ {
 				// get values for first group, so we could check that all groups return the same result
@@ -260,4 +260,129 @@ func TestFlushable(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestFlushableIterator(t *testing.T) {
+	assertar := assert.New(t)
+
+	disk := dbProducer("TestFlushableIterator")
+
+	leveldb := disk.OpenDb("1")
+	defer leveldb.Drop()
+	defer leveldb.Close()
+
+	flushable1 := Wrap(leveldb)
+	flushable2 := Wrap(leveldb)
+
+	allkeys := [][]byte{
+		{0x11, 0x00},
+		{0x12, 0x00},
+		{0x13, 0x00},
+		{0x14, 0x00},
+		{0x15, 0x00},
+		{0x16, 0x00},
+		{0x17, 0x00},
+		{0x18, 0x00},
+		{0x19, 0x00},
+		{0x1a, 0x00},
+		{0x1b, 0x00},
+		{0x1c, 0x00},
+		{0x1d, 0x00},
+		{0x1e, 0x00},
+		{0x1f, 0x00},
+	}
+
+	veryFirstKey := allkeys[0]
+	veryLastKey := allkeys[len(allkeys)-1]
+	expected := allkeys[1 : len(allkeys)-1]
+
+	for _, key := range expected {
+		leveldb.Put(key, []byte("in-order"))
+	}
+
+	flushable2.Put(veryFirstKey, []byte("first"))
+	flushable2.Put(veryLastKey, []byte("last"))
+
+	it := flushable1.NewIterator()
+	defer it.Release()
+
+	err := flushable2.Flush()
+	if !assertar.NoError(err) {
+		return
+	}
+
+	for i := 0; it.Next(); i++ {
+		if !assertar.Equal(expected[i], it.Key()) ||
+			!assertar.Equal([]byte("in-order"), it.Value()) {
+			break
+		}
+	}
+}
+
+func BenchmarkFlushable(b *testing.B) {
+	disk := dbProducer("BenchmarkFlushable")
+
+	leveldb := disk.OpenDb("1")
+	defer leveldb.Drop()
+	defer leveldb.Close()
+
+	flushable := Wrap(leveldb)
+
+	const recs = 10000
+
+	for _, flushPeriod := range []int{0, 1, 10, 100, 1000} {
+		for goroutines := 1; goroutines <= recs/2; goroutines *= 2 {
+			name := fmt.Sprintf(
+				"%d goroutines with flush every %d ops",
+				goroutines, flushPeriod)
+			b.Run(name, func(b *testing.B) {
+				benchmarkFlushable(flushable, goroutines, recs*b.N, flushPeriod)
+			})
+		}
+	}
+}
+
+func benchmarkFlushable(db *Flushable, goroutines, recs, flushPeriod int) {
+	var ops = recs / goroutines
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+
+			rand := rand.New(rand.NewSource(int64(i)))
+			flushOffset := flushPeriod * i / goroutines
+
+			for op := 0; op < ops; op++ {
+				key := big.NewInt(rand.Int63()).Bytes()
+				val := big.NewInt(rand.Int63()).Bytes()
+
+				err := db.Put(key, val)
+				if err != nil {
+					panic(err)
+				}
+				got, err := db.Get(key)
+				if err != nil {
+					panic(err)
+				}
+				if !bytes.Equal(val, got) {
+					panic("invalid value")
+				}
+
+				if flushPeriod != 0 && (op+flushOffset)%flushPeriod == 0 {
+					db.Flush()
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+func dbProducer(name string) kvdb.DbProducer {
+	dir, err := ioutil.TempDir("", name)
+	if err != nil {
+		panic(err)
+	}
+	return leveldb.NewProducer(dir)
 }
