@@ -70,6 +70,7 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 
 	if validatorsNum < 0 || num > validatorsNum {
 		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
+		return
 	}
 
 	vaccs = genesis.FakeValidators(validatorsNum, utils.ToFtm(1e10), utils.ToFtm(3175000))
@@ -85,10 +86,6 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 		others = genAccounts(validatorsNum, int(i64), big.NewInt(1e18), big.NewInt(0))
 	}
 	vaccs.Accounts.Add(others)
-
-	if err != nil {
-		return
-	}
 
 	return
 }
