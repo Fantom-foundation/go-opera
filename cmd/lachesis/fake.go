@@ -31,6 +31,10 @@ func addFakeAccount(ctx *cli.Context, stack *node.Node) {
 	}
 
 	key := getFakeValidator(ctx)
+	if key == nil {
+		return
+	}
+
 	coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
 	log.Info("Unlocked fake validator", "address", coinbase.Address.Hex())
 }
