@@ -68,7 +68,7 @@ func parseFakeGen(s string) (num int, vaccs genesis.VAccounts, err error) {
 	i64, err = strconv.ParseUint(parts[0], 10, 32)
 	validatorsNum := int(i64)
 
-	if validatorsNum < 0 || num >= validatorsNum {
+	if validatorsNum < 0 || num > validatorsNum {
 		err = fmt.Errorf("key-num should be in range from 1 to validators (<key-num>/<validators>), or should be zero for non-validator node")
 	}
 
