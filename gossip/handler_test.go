@@ -126,7 +126,7 @@ func TestBroadcastEvent(t *testing.T) {
 func testBroadcastEvent(t *testing.T, totalPeers int, forcedAggressiveBroadcast bool) {
 	assertar := assert.New(t)
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 1, big.NewInt(0), pos.StakeToBalance(1)))
+	net := lachesis.FakeNetConfig(genesis.FakeValidators(1, big.NewInt(0), pos.StakeToBalance(1)))
 	config := DefaultConfig(net)
 	if forcedAggressiveBroadcast {
 		config.Protocol.LatencyImportance = 1

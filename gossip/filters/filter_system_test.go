@@ -148,7 +148,7 @@ func TestBlockSubscription(t *testing.T) {
 		backend = newTestBackend()
 		api     = NewPublicFilterAPI(backend)
 
-		net         = lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
+		net         = lachesis.FakeNetConfig(genesis.FakeValidators(5, big.NewInt(0), pos.StakeToBalance(1)))
 		genesis     = evmcore.MustApplyGenesis(&net, backend.db)
 		chain, _, _ = evmcore.GenerateChain(
 			params.TestChainConfig, genesis, backend.db, 10, nil)

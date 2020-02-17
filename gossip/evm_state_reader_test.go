@@ -23,7 +23,7 @@ func TestGetGenesisBlock(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
+	net := lachesis.FakeNetConfig(genesis.FakeValidators(5, big.NewInt(0), pos.StakeToBalance(1)))
 	addrWithStorage := net.Genesis.Alloc.Accounts.Addresses()[0]
 	accountWithCode := net.Genesis.Alloc.Accounts[addrWithStorage]
 	accountWithCode.Code = []byte{1, 2, 3}
@@ -76,7 +76,7 @@ func TestGetBlock(t *testing.T) {
 	logger.SetTestMode(t)
 	assertar := assert.New(t)
 
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, 5, big.NewInt(0), pos.StakeToBalance(1)))
+	net := lachesis.FakeNetConfig(genesis.FakeValidators(5, big.NewInt(0), pos.StakeToBalance(1)))
 
 	app := app.NewMemStore()
 	state, _, err := app.ApplyGenesis(&net, nil)

@@ -52,7 +52,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// the same genesis
-	accsA := genesis.FakeAccounts(0, 3, big.NewInt(10000000000), pos.StakeToBalance(1))
+	accsA := genesis.FakeValidators(3, big.NewInt(10000000000), pos.StakeToBalance(1))
 	netA := lachesis.FakeNetConfig(accsA)
 	blockA1, err := ApplyGenesis(db1, &netA)
 	if !assertar.NoError(err) {
@@ -67,7 +67,7 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// different genesis
-	accsB := genesis.FakeAccounts(0, 4, big.NewInt(10000000000), pos.StakeToBalance(1))
+	accsB := genesis.FakeValidators(4, big.NewInt(10000000000), pos.StakeToBalance(1))
 	netB := lachesis.FakeNetConfig(accsB)
 	blockB, err := ApplyGenesis(db2, &netB)
 	if !assertar.NotEqual(blockA1, blockB) {
