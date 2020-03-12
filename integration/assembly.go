@@ -30,7 +30,9 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *app.St
 
 	// write genesis
 
-	state, _, err := adb.ApplyGenesis(&gossipCfg.Net)
+	// TODO: replace first block with DB-migrations
+	firstBlock := gdb.GetBlock(0)
+	state, _, err := adb.ApplyGenesis(&gossipCfg.Net, firstBlock)
 	if err != nil {
 		utils.Fatalf("Failed to write App genesis state: %v", err)
 	}

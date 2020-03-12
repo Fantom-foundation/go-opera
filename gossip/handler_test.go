@@ -142,7 +142,7 @@ func testBroadcastEvent(t *testing.T, totalPeers int, forcedAggressiveBroadcast 
 
 	// create stores
 	app := app.NewMemStore()
-	state, _, err := app.ApplyGenesis(&net)
+	state, _, err := app.ApplyGenesis(&net, nil)
 	if !assertar.NoError(err) {
 		return
 	}
