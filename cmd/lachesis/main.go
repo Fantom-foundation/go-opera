@@ -162,6 +162,9 @@ func init() {
 		// See misccmd.go:
 		versionCommand,
 		licenseCommand,
+		// See chaincmd.go
+		importCommand,
+		exportCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
