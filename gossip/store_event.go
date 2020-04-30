@@ -84,6 +84,22 @@ func (s *Store) ForEachEvent(epoch idx.Epoch, onEvent func(event *inter.Event) b
 	}
 }
 
+func (s *Store) ForEachEventWithoutEpoch(onEvent func(event *inter.Event) bool) {
+	it := s.table.Events.NewIterator()
+	defer it.Release()
+	for it.Next() {
+		event := &inter.Event{}
+		err := rlp.DecodeBytes(it.Value(), event)
+		if err != nil {
+			s.Log.Crit("Failed to decode event", "err", err)
+		}
+
+		if !onEvent(event) {
+			return
+		}
+	}
+}
+
 func (s *Store) FindEventHashes(epoch idx.Epoch, lamport idx.Lamport, hashPrefix []byte) hash.Events {
 	prefix := bytes.NewBuffer(epoch.Bytes())
 	prefix.Write(lamport.Bytes())
