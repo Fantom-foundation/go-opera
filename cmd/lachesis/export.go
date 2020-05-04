@@ -4,22 +4,19 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"github.com/Fantom-foundation/go-lachesis/gossip"
-	"github.com/Fantom-foundation/go-lachesis/integration"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
-	"github.com/Fantom-foundation/go-lachesis/utils/errlock"
-	"github.com/Fantom-foundation/go-lachesis/version"
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/params"
-	"gopkg.in/urfave/cli.v1"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
+	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Fantom-foundation/go-lachesis/gossip"
+	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 func exportChain(ctx *cli.Context) error {
@@ -27,22 +24,7 @@ func exportChain(ctx *cli.Context) error {
 		utils.Fatalf("This command requires an argument.")
 	}
 
-	cfg := makeAllConfigs(ctx)
-
-	if !cfg.Lachesis.NoCheckVersion {
-		ver := params.VersionWithCommit(gitCommit, gitDate)
-		status, msg, err := version.CheckRelease(nil, ver)
-		applyVersionCheck(&cfg, status, msg, err)
-	}
-
-	// check errlock file
-	errlock.SetDefaultDatadir(cfg.Node.DataDir)
-	errlock.Check()
-
-	stack := makeConfigNode(ctx, &cfg.Node)
-	defer stack.Close()
-
-	_, gdb := makeGDB(cfg.Node.DataDir, &cfg.Lachesis)
+	_, _, _, _, gdb := makeFNode(ctx, false)
 	defer gdb.Close()
 
 	start := time.Now()
@@ -58,15 +40,7 @@ func exportChain(ctx *cli.Context) error {
 	return nil
 }
 
-func makeGDB(dataDir string, gossipCfg *gossip.Config) (kvdb.KeyValueStore, *gossip.Store) {
-	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
-
-	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
-	gdb.SetName("gossip-db")
-	return dbs.GetDb("gossip-main"), gdb
-}
-
-// ExportChain exports a blockchain into the specified file, truncating any data
+// ExportChain exports a events into the specified file, truncating any data
 // already present in the file.
 func ExportChain(gdb *gossip.Store, fn string) error {
 	log.Info("Exporting events", "file", fn)
@@ -87,7 +61,7 @@ func ExportChain(gdb *gossip.Store, fn string) error {
 	if err := Export(gdb, writer); err != nil {
 		return err
 	}
-	log.Info("Exported blockchain", "file", fn)
+	log.Info("Exported events", "file", fn)
 
 	return nil
 }
@@ -98,23 +72,42 @@ func Export(gdb *gossip.Store, w io.Writer) error {
 	var err error
 	start, reported := time.Now(), time.Now()
 
+	var (
+		events      inter.Events
+		sealedEpoch idx.Epoch
+		prevEvent   *inter.Event
+	)
 	gdb.ForEachEventWithoutEpoch(func(event *inter.Event) bool {
-		log.Debug("export--->", "event", event.String())
 		if event == nil {
 			err = errors.New("export failed, event not found")
 			return false
 		}
+		events = append(events, event)
+		if prevEvent == nil {
+			prevEvent = event
+		}
+		if len(event.Parents) == 0 && prevEvent.Epoch != event.Epoch {
+			sealedEpoch = prevEvent.Epoch
+		}
+		prevEvent = event
+		return true
+	})
+
+	for _, event := range events {
+		if event.Epoch > sealedEpoch {
+			break
+		}
+		log.Debug("exported", "event", event.String())
 		err := event.EncodeRLP(w)
 		if err != nil {
 			err = fmt.Errorf("export failed, error: %v", err)
-			return false
+			return err
 		}
 		if time.Since(reported) >= statsReportLimit {
 			log.Info("Exporting events", "exported", event.String(), "elapsed", common.PrettyDuration(time.Since(start)))
 			reported = time.Now()
 		}
-		return true
-	})
+	}
 
-	return err
+	return nil
 }

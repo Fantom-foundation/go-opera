@@ -1,14 +1,27 @@
 package main
 
 import (
-	"fmt"
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/log"
-	"gopkg.in/urfave/cli.v1"
-	"runtime"
-	"strconv"
-	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/node"
+	"gopkg.in/urfave/cli.v1"
+
+	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/metrics"
+	"github.com/Fantom-foundation/go-lachesis/gossip"
+	"github.com/Fantom-foundation/go-lachesis/integration"
+	"github.com/Fantom-foundation/go-lachesis/kvdb"
+	"github.com/Fantom-foundation/go-lachesis/utils/errlock"
+)
+
+const (
+	// statsReportLimit is the time limit during import and export after which we
+	// always print out progress. This avoids the user wondering what's going on.
+	statsReportLimit = 8 * time.Second
+
+	importBatchSize = 2500
+
+	importFlushBatch = 300
 )
 
 var (
@@ -53,126 +66,32 @@ be gzipped.`,
 	}
 )
 
-func importChain(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
-		utils.Fatalf("This command requires an argument.")
-	}
-	stack := makeFullNode(ctx)
+func makeFNode(ctx *cli.Context, gossipCreate bool) (config, *node.Node, gossip.Consensus, kvdb.KeyValueStore, *gossip.Store) {
+	cfg := makeAllConfigs(ctx)
+
+	// check errlock file
+	errlock.SetDefaultDatadir(cfg.Node.DataDir)
+	errlock.Check()
+
+	stack := makeConfigNode(ctx, &cfg.Node)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack)
-	defer db.Close()
+	engine, dbs, gdb := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
+	metrics.SetDataDir(cfg.Node.DataDir)
 
-	// Start periodically gathering memory profiles
-	var peakMemAlloc, peakMemSys uint64
-	go func() {
-		stats := new(runtime.MemStats)
-		for {
-			runtime.ReadMemStats(stats)
-			if atomic.LoadUint64(&peakMemAlloc) < stats.Alloc {
-				atomic.StoreUint64(&peakMemAlloc, stats.Alloc)
-			}
-			if atomic.LoadUint64(&peakMemSys) < stats.Sys {
-				atomic.StoreUint64(&peakMemSys, stats.Sys)
-			}
-			time.Sleep(5 * time.Second)
+	if gossipCreate {
+		// Create and register a gossip network service. This is done through the definition
+		// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
+		// the factory method approach is to support service restarts without relying on the
+		// individual implementations' support for such operations.
+		gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
+			return gossip.NewService(ctx, &cfg.Lachesis, gdb, engine)
 		}
-	}()
-	// Import the chain
-	start := time.Now()
 
-	if len(ctx.Args()) == 1 {
-		if err := utils.ImportChain(chain, ctx.Args().First()); err != nil {
-			log.Error("Import error", "err", err)
-		}
-	} else {
-		for _, arg := range ctx.Args() {
-			if err := utils.ImportChain(chain, arg); err != nil {
-				log.Error("Import error", "file", arg, "err", err)
-			}
+		if err := stack.Register(gossipService); err != nil {
+			utils.Fatalf("Failed to register the service: %v", err)
 		}
 	}
-	chain.Stop()
-	fmt.Printf("Import done in %v.\n\n", time.Since(start))
 
-	// Output pre-compaction stats mostly to see the import trashing
-	stats, err := db.Stat("leveldb.stats")
-	if err != nil {
-		utils.Fatalf("Failed to read database stats: %v", err)
-	}
-	fmt.Println(stats)
-
-	ioStats, err := db.Stat("leveldb.iostats")
-	if err != nil {
-		utils.Fatalf("Failed to read database iostats: %v", err)
-	}
-	fmt.Println(ioStats)
-
-	// Print the memory statistics used by the importing
-	mem := new(runtime.MemStats)
-	runtime.ReadMemStats(mem)
-
-	fmt.Printf("Object memory: %.3f MB current, %.3f MB peak\n", float64(mem.Alloc)/1024/1024, float64(atomic.LoadUint64(&peakMemAlloc))/1024/1024)
-	fmt.Printf("System memory: %.3f MB current, %.3f MB peak\n", float64(mem.Sys)/1024/1024, float64(atomic.LoadUint64(&peakMemSys))/1024/1024)
-	fmt.Printf("Allocations:   %.3f million\n", float64(mem.Mallocs)/1000000)
-	fmt.Printf("GC pause:      %v\n\n", time.Duration(mem.PauseTotalNs))
-
-	if ctx.GlobalBool(utils.NoCompactionFlag.Name) {
-		return nil
-	}
-
-	// Compact the entire database to more accurately measure disk io and print the stats
-	start = time.Now()
-	fmt.Println("Compacting entire database...")
-	if err = db.Compact(nil, nil); err != nil {
-		utils.Fatalf("Compaction failed: %v", err)
-	}
-	fmt.Printf("Compaction done in %v.\n\n", time.Since(start))
-
-	stats, err = db.Stat("leveldb.stats")
-	if err != nil {
-		utils.Fatalf("Failed to read database stats: %v", err)
-	}
-	fmt.Println(stats)
-
-	ioStats, err = db.Stat("leveldb.iostats")
-	if err != nil {
-		utils.Fatalf("Failed to read database iostats: %v", err)
-	}
-	fmt.Println(ioStats)
-	return nil
-}
-
-func exportChain(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
-		utils.Fatalf("This command requires an argument.")
-	}
-	stack := makeFullNode(ctx)
-	defer stack.Close()
-
-	chain, _ := utils.MakeChain(ctx, stack)
-	start := time.Now()
-
-	var err error
-	fp := ctx.Args().First()
-	if len(ctx.Args()) < 3 {
-		err = utils.ExportChain(chain, fp)
-	} else {
-		// This can be improved to allow for numbers larger than 9223372036854775807
-		first, ferr := strconv.ParseInt(ctx.Args().Get(1), 10, 64)
-		last, lerr := strconv.ParseInt(ctx.Args().Get(2), 10, 64)
-		if ferr != nil || lerr != nil {
-			utils.Fatalf("Export error in parsing parameters: block number not an integer\n")
-		}
-		if first < 0 || last < 0 {
-			utils.Fatalf("Export error: block number must be greater than 0\n")
-		}
-		err = utils.ExportAppendChain(chain, fp, uint64(first), uint64(last))
-	}
-
-	if err != nil {
-		utils.Fatalf("Export error: %v\n", err)
-	}
-	fmt.Printf("Export done in %v\n", time.Since(start))
-	return nil
+	return cfg, stack, engine, dbs.GetDb("gossip-main"), gdb
 }

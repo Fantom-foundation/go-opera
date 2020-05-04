@@ -16,8 +16,8 @@ import (
 )
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip.Store) {
-	dbs := flushable.NewSyncedPool(DBProducer(dataDir))
+func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *flushable.SyncedPool, *gossip.Store) {
+	dbs := flushable.NewSyncedPool(dbProducer(dataDir))
 
 	appStoreConfig := app.StoreConfig{
 		ReceiptsCacheSize:    gossipCfg.ReceiptsCacheSize,
@@ -57,7 +57,7 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*poset.Poset, *gossip
 	// create consensus
 	engine := poset.New(gossipCfg.Net.Dag, cdb, gdb)
 
-	return engine, gdb
+	return engine, dbs, gdb
 }
 
 // SetAccountKey sets key into accounts manager and unlocks it with pswd.

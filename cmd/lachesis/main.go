@@ -234,7 +234,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 
-	engine, gdb := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
+	engine, _, gdb := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	// configure emitter
