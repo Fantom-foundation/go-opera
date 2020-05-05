@@ -16,7 +16,6 @@ import (
 
 	"github.com/Fantom-foundation/go-lachesis/gossip"
 	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 )
 
 func exportChain(ctx *cli.Context) error {
@@ -73,9 +72,8 @@ func Export(gdb *gossip.Store, w io.Writer) error {
 	start, reported := time.Now(), time.Now()
 
 	var (
-		events      inter.Events
-		sealedEpoch idx.Epoch
-		prevEvent   *inter.Event
+		events    inter.Events
+		prevEvent *inter.Event
 	)
 	gdb.ForEachEventWithoutEpoch(func(event *inter.Event) bool {
 		if event == nil {
@@ -86,7 +84,6 @@ func Export(gdb *gossip.Store, w io.Writer) error {
 			prevEvent = event
 		}
 		if len(event.Parents) == 0 && prevEvent.Epoch != event.Epoch {
-			sealedEpoch = prevEvent.Epoch
 			for _, event := range events {
 				log.Debug("exported", "event", event.String())
 				err := event.EncodeRLP(w)
