@@ -82,32 +82,32 @@ func Export(gdb *gossip.Store, w io.Writer) error {
 			err = errors.New("export failed, event not found")
 			return false
 		}
-		events = append(events, event)
 		if prevEvent == nil {
 			prevEvent = event
 		}
 		if len(event.Parents) == 0 && prevEvent.Epoch != event.Epoch {
 			sealedEpoch = prevEvent.Epoch
+			for _, event := range events {
+				log.Debug("exported", "event", event.String())
+				err := event.EncodeRLP(w)
+				if err != nil {
+					err = fmt.Errorf("export failed, error: %v", err)
+					return false
+				}
+				if time.Since(reported) >= statsReportLimit {
+					log.Info("Exporting events", "exported", event.String(), "elapsed", common.PrettyDuration(time.Since(start)))
+					reported = time.Now()
+				}
+			}
+			events = inter.Events{}
 		}
+		events = append(events, event)
 		prevEvent = event
 		return true
 	})
-
-	for _, event := range events {
-		if event.Epoch > sealedEpoch {
-			break
-		}
-		log.Debug("exported", "event", event.String())
-		err := event.EncodeRLP(w)
-		if err != nil {
-			err = fmt.Errorf("export failed, error: %v", err)
-			return err
-		}
-		if time.Since(reported) >= statsReportLimit {
-			log.Info("Exporting events", "exported", event.String(), "elapsed", common.PrettyDuration(time.Since(start)))
-			reported = time.Now()
-		}
+	if err != nil {
+		return err
 	}
-
+	events = inter.Events{}
 	return nil
 }

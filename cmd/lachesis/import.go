@@ -26,8 +26,7 @@ func importChain(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
-	cfg, stack, engine, db, gdb := makeFNode(ctx, true)
-	log.Debug("CONFIG LACHESIS STORE", "store config", cfg.Lachesis.StoreConfig)
+	_, stack, engine, db, gdb := makeFNode(ctx, true)
 	utils.StartNode(stack)
 
 	// Start periodically gathering memory profiles
@@ -244,7 +243,6 @@ func insertEvents(engine gossip.Consensus, gdb *gossip.Store, events []*inter.Ev
 			if err != nil {
 				return err
 			}
-			gdb.EpochDbs.Del(uint64(sealedEpoch))
 		}
 		current++
 		if gdb.HasEventHeader(event.Hash()) {
@@ -261,6 +259,7 @@ func insertEvents(engine gossip.Consensus, gdb *gossip.Store, events []*inter.Ev
 			gdb.DeleteEvent(ev.Epoch, ev.Hash())
 			return err
 		}
+		gdb.EpochDbs.Del(uint64(sealedEpoch))
 	}
 	err := gdb.Commit(nil, true)
 	if err != nil {
