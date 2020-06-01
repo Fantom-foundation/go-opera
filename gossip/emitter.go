@@ -84,6 +84,7 @@ type Emitter struct {
 }
 
 type selfForkProtection struct {
+	startupTime             time.Time
 	connectedTime           time.Time
 	syncedTime              time.Time
 	prevLocalEmittedID      hash.Event
@@ -115,6 +116,7 @@ func NewEmitter(
 // init emitter without starting events emission
 func (em *Emitter) init() {
 	em.syncStatus.connectedTime = time.Now()
+	em.syncStatus.startupTime = time.Now()
 	validators, epoch := em.world.Engine.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 }
@@ -334,9 +336,8 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		// not a validator
 		return nil
 	}
-	validators := em.world.Engine.GetValidators()
 
-	if synced, _, _ := em.logSyncStatus(em.isSynced()); !synced {
+	if synced := em.logSyncStatus(em.isSynced()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
 	}
@@ -402,6 +403,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	// calc initial GasPower
+	validators := em.world.Engine.GetValidators()
 	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, &em.net.Dag)
 	availableGasPower, err := em.world.Checkers.Gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader)
 	if err != nil {
@@ -535,27 +537,36 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.Event) {
-	now := time.Now()
-	myStakerID := em.myStakerID
-	if em.myStakerID != 0 && em.syncStatus.prevLocalEmittedID != e.Hash() {
-		if e.Creator == myStakerID {
-			// event was emitted by me on another instance
-			em.syncStatus.prevExternalEmittedTime = now
-
-			passedSinceEvent := time.Since(inter.MaxTimestamp(e.ClaimedTime, e.MedianTime).Time())
-			threshold := em.intervals.SelfForkProtection
-			if threshold > time.Minute {
-				threshold = time.Minute
-			}
-			if passedSinceEvent <= threshold {
-				reason := "Received a recent event (event id=%s) from this validator (staker id=%d) which wasn't created on this node.\n" +
-					"This external event was created %s, %s ago at the time of this error.\n" +
-					"It means that a duplicating instance of the same validator is running simultaneously, which will eventually lead to a doublesign.\n" +
-					"For now, doublesign was prevented by one of the heuristics, but next time you (and your delegators) may lose the stake."
-				errlock.Permanent(fmt.Errorf(reason, e.Hash().String(), myStakerID, e.ClaimedTime.Time().Local().String(), passedSinceEvent.String()))
-			}
-		}
+	if em.myStakerID == 0 || em.myStakerID != e.Creator {
+		return
 	}
+	if em.syncStatus.prevLocalEmittedID == e.Hash() {
+		return
+	}
+
+	// event was emitted by me on another instance
+	em.syncStatus.prevExternalEmittedTime = time.Now()
+
+	eventTime := inter.MaxTimestamp(e.ClaimedTime, e.MedianTime).Time()
+	if eventTime.Before(em.syncStatus.startupTime) {
+		return
+	}
+
+	passedSinceEvent := time.Since(eventTime)
+	threshold := em.intervals.SelfForkProtection
+	if threshold > time.Minute {
+		threshold = time.Minute
+	}
+	if passedSinceEvent <= threshold {
+		reason := "Received a recent event (event id=%s) from this validator (staker ID=%d) which wasn't created on this node.\n" +
+			"This external event was created %s, %s ago at the time of this error.\n" +
+			"It might mean that a duplicating instance of the same validator is running simultaneously, which may eventually lead to a doublesign.\n" +
+			"The node was stopped by one of the doublesign protection heuristics.\n" +
+			"There's no guaranteed automatic protection against a doublesign," +
+			"please always ensure that no more than one instance of the same validator is running."
+		errlock.Permanent(fmt.Errorf(reason, e.Hash().String(), em.myStakerID, e.ClaimedTime.Time().Local().String(), passedSinceEvent.String()))
+	}
+
 }
 
 func (em *Emitter) isSynced() (bool, string, time.Duration) {
@@ -588,15 +599,17 @@ func (em *Emitter) isSynced() (bool, string, time.Duration) {
 	return true, "", 0
 }
 
-func (em *Emitter) logSyncStatus(synced bool, reason string, wait time.Duration) (bool, string, time.Duration) {
-	if !synced {
-		if wait == 0 {
-			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason)
-		} else {
-			em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
-		}
+func (em *Emitter) logSyncStatus(synced bool, reason string, wait time.Duration) bool {
+	if synced {
+		return true
 	}
-	return synced, reason, wait
+
+	if wait == 0 {
+		em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason)
+	} else {
+		em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
+	}
+	return false
 }
 
 // return true if event is in epoch tail (unlikely to confirm)
