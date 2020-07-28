@@ -56,12 +56,12 @@ type BlocksMissed struct {
 
 // EconomyConfig contains economy constants
 type EconomyConfig struct {
-	PoiPeriodDuration       time.Duration
-	BlockMissedLatency      idx.Block
-	OfflinePenaltyThreshold BlocksMissed
-	TxRewardPoiImpact       *big.Int
-	InitialRewardPerSecond  *big.Int
-	MaxRewardPerSecond      *big.Int
+	PoiPeriodDuration              time.Duration
+	BlockMissedLatency             idx.Block
+	InitialOfflinePenaltyThreshold BlocksMissed
+	TxRewardPoiImpact              *big.Int
+	InitialRewardPerSecond         *big.Int
+	MaxRewardPerSecond             *big.Int
 
 	ShortGasPower GasPowerConfig `json:"shortGasPower"`
 	LongGasPower  GasPowerConfig `json:"longGasPower"`
@@ -150,7 +150,7 @@ func DefaultEconomyConfig() EconomyConfig {
 		TxRewardPoiImpact:      txRewardPoiImpact,
 		InitialRewardPerSecond: initialRewardPerSecond,
 		MaxRewardPerSecond:     maxRewardPerSecond,
-		OfflinePenaltyThreshold: BlocksMissed{
+		InitialOfflinePenaltyThreshold: BlocksMissed{
 			BlocksNum: 1000,
 			Period:    24 * time.Hour,
 		},
@@ -163,8 +163,8 @@ func DefaultEconomyConfig() EconomyConfig {
 func FakeEconomyConfig() EconomyConfig {
 	cfg := DefaultEconomyConfig()
 	cfg.PoiPeriodDuration = 15 * time.Minute
-	cfg.OfflinePenaltyThreshold.Period = 10 * time.Minute
-	cfg.OfflinePenaltyThreshold.BlocksNum = 10
+	cfg.InitialOfflinePenaltyThreshold.Period = 10 * time.Minute
+	cfg.InitialOfflinePenaltyThreshold.BlocksNum = 10
 	cfg.ShortGasPower = FakeShortGasPowerConfig()
 	cfg.LongGasPower = FakeLongGasPowerConfig()
 	return cfg

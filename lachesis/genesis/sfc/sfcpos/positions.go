@@ -16,37 +16,39 @@ import (
 var (
 	// Topics of SFC contract logs
 	Topics = struct {
-		CreatedStake                  common.Hash
-		IncreasedStake                common.Hash
-		CreatedDelegation             common.Hash
-		PreparedToWithdrawStake       common.Hash
-		PreparedToWithdrawDelegation  common.Hash
-		WithdrawnStake                common.Hash
-		WithdrawnDelegation           common.Hash
-		ClaimedDelegationReward       common.Hash
-		ClaimedValidatorReward        common.Hash
-		UpdatedBaseRewardPerSec       common.Hash
-		UpdatedGasPowerAllocationRate common.Hash
-		DeactivatedStake              common.Hash
-		DeactivatedDelegation         common.Hash
-		UpdatedStake                  common.Hash
-		UpdatedDelegation             common.Hash
+		CreatedStake                   common.Hash
+		IncreasedStake                 common.Hash
+		CreatedDelegation              common.Hash
+		PreparedToWithdrawStake        common.Hash
+		PreparedToWithdrawDelegation   common.Hash
+		WithdrawnStake                 common.Hash
+		WithdrawnDelegation            common.Hash
+		ClaimedDelegationReward        common.Hash
+		ClaimedValidatorReward         common.Hash
+		UpdatedBaseRewardPerSec        common.Hash
+		UpdatedGasPowerAllocationRate  common.Hash
+		UpdatedOfflinePenaltyThreshold common.Hash
+		DeactivatedStake               common.Hash
+		DeactivatedDelegation          common.Hash
+		UpdatedStake                   common.Hash
+		UpdatedDelegation              common.Hash
 	}{
-		CreatedStake:                  hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
-		IncreasedStake:                hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)")),
-		CreatedDelegation:             hash.Of([]byte("CreatedDelegation(address,uint256,uint256)")),
-		PreparedToWithdrawStake:       hash.Of([]byte("PreparedToWithdrawStake(uint256)")),
-		PreparedToWithdrawDelegation:  hash.Of([]byte("PreparedToWithdrawDelegation(address, uint256)")),
-		WithdrawnStake:                hash.Of([]byte("WithdrawnStake(uint256,uint256)")),
-		WithdrawnDelegation:           hash.Of([]byte("WithdrawnDelegation(address,uint256,uint256)")),
-		ClaimedDelegationReward:       hash.Of([]byte("ClaimedDelegationReward(address,uint256,uint256,uint256,uint256)")),
-		ClaimedValidatorReward:        hash.Of([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
-		UpdatedBaseRewardPerSec:       hash.Of([]byte("UpdatedBaseRewardPerSec(uint256)")),
-		UpdatedGasPowerAllocationRate: hash.Of([]byte("UpdatedGasPowerAllocationRate(uint256,uint256)")),
-		DeactivatedStake:              hash.Of([]byte("DeactivatedStake(uint256)")),
-		DeactivatedDelegation:         hash.Of([]byte("DeactivatedDelegation(address,uint256)")),
-		UpdatedStake:                  hash.Of([]byte("UpdatedStake(uint256,uint256,uint256)")),
-		UpdatedDelegation:             hash.Of([]byte("UpdatedDelegation(address,uint256,uint256,uint256)")),
+		CreatedStake:                   hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
+		IncreasedStake:                 hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)")),
+		CreatedDelegation:              hash.Of([]byte("CreatedDelegation(address,uint256,uint256)")),
+		PreparedToWithdrawStake:        hash.Of([]byte("PreparedToWithdrawStake(uint256)")),
+		PreparedToWithdrawDelegation:   hash.Of([]byte("PreparedToWithdrawDelegation(address, uint256)")),
+		WithdrawnStake:                 hash.Of([]byte("WithdrawnStake(uint256,uint256)")),
+		WithdrawnDelegation:            hash.Of([]byte("WithdrawnDelegation(address,uint256,uint256)")),
+		ClaimedDelegationReward:        hash.Of([]byte("ClaimedDelegationReward(address,uint256,uint256,uint256,uint256)")),
+		ClaimedValidatorReward:         hash.Of([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
+		UpdatedBaseRewardPerSec:        hash.Of([]byte("UpdatedBaseRewardPerSec(uint256)")),
+		UpdatedGasPowerAllocationRate:  hash.Of([]byte("UpdatedGasPowerAllocationRate(uint256,uint256)")),
+		UpdatedOfflinePenaltyThreshold: hash.Of([]byte("UpdatedOfflinePenaltyThreshold(uint256,uint256)")),
+		DeactivatedStake:               hash.Of([]byte("DeactivatedStake(uint256)")),
+		DeactivatedDelegation:          hash.Of([]byte("DeactivatedDelegation(address,uint256)")),
+		UpdatedStake:                   hash.Of([]byte("UpdatedStake(uint256,uint256,uint256)")),
+		UpdatedDelegation:              hash.Of([]byte("UpdatedDelegation(address,uint256,uint256,uint256)")),
 	}
 )
 

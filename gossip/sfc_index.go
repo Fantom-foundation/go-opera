@@ -122,6 +122,18 @@ func (s *Service) getRewardPerSec() *big.Int {
 	return new(big.Int).Set(rewardPerSecond)
 }
 
+// getOfflinePenaltyThreshold returns current offlinePenaltyThreshold, depending on config and value provided by SFC
+func (s *Service) getOfflinePenaltyThreshold() app.BlocksMissed {
+	v := s.app.GetSfcConstants(s.engine.GetEpoch() - 1).OfflinePenaltyThreshold
+	if v.Num == 0 {
+		v.Num = s.config.Net.Economy.InitialOfflinePenaltyThreshold.BlocksNum
+	}
+	if v.Period == 0 {
+		v.Period = inter.Timestamp(s.config.Net.Economy.InitialOfflinePenaltyThreshold.Period)
+	}
+	return v
+}
+
 // processSfc applies the new SFC state
 func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockFee *big.Int, sealEpoch bool, cheaters inter.Cheaters, statedb *state.StateDB) {
 	// s.engineMu is locked here
@@ -276,6 +288,14 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				constants.LongGasPowerAllocPerSec = longAllocationRate.Uint64()
 				s.app.SetSfcConstants(epoch, constants)
 			}
+			if l.Topics[0] == sfcpos.Topics.UpdatedOfflinePenaltyThreshold && len(l.Data) >= 64 {
+				blocksNum := new(big.Int).SetBytes(l.Data[0:32])
+				period := new(big.Int).SetBytes(l.Data[32:64])
+				constants := s.app.GetSfcConstants(epoch)
+				constants.OfflinePenaltyThreshold.Num = idx.Block(blocksNum.Uint64())
+				constants.OfflinePenaltyThreshold.Period = inter.Timestamp(period.Uint64())
+				s.app.SetSfcConstants(epoch, constants)
+			}
 
 			// Track rewards (API-only)
 			if l.Topics[0] == sfcpos.Topics.ClaimedValidatorReward && len(l.Topics) > 1 && len(l.Data) >= 32 {
@@ -338,8 +358,8 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 
 			gotMissed := s.app.GetBlocksMissed(it.StakerID)
-			badMissed := s.config.Net.Economy.OfflinePenaltyThreshold
-			if gotMissed.Num >= badMissed.BlocksNum && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
+			badMissed := s.getOfflinePenaltyThreshold()
+			if gotMissed.Num >= badMissed.Num && gotMissed.Period >= badMissed.Period {
 				// write into DB
 				it.Staker.Status |= sfctype.OfflineBit
 				s.app.SetSfcStaker(it.StakerID, it.Staker)
