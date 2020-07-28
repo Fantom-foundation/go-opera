@@ -39,12 +39,12 @@ type Store struct {
 		BlockDowntime          kvdb.KeyValueStore `table:"m"`
 
 		// PoI economy tables
-		StakerPOIScore      kvdb.KeyValueStore `table:"s"`
-		AddressPOIScore     kvdb.KeyValueStore `table:"a"`
-		AddressFee          kvdb.KeyValueStore `table:"g"`
-		StakerDelegatorsFee kvdb.KeyValueStore `table:"d"`
-		AddressLastTxTime   kvdb.KeyValueStore `table:"X"`
-		TotalPoiFee         kvdb.KeyValueStore `table:"U"`
+		StakerPOIScore       kvdb.KeyValueStore `table:"s"`
+		AddressPOIScore      kvdb.KeyValueStore `table:"a"`
+		AddressFee           kvdb.KeyValueStore `table:"g"`
+		StakerDelegationsFee kvdb.KeyValueStore `table:"d"`
+		AddressLastTxTime    kvdb.KeyValueStore `table:"X"`
+		TotalPoiFee          kvdb.KeyValueStore `table:"U"`
 
 		// gas power economy tables
 		GasPowerRefund kvdb.KeyValueStore `table:"R"`
@@ -52,15 +52,15 @@ type Store struct {
 		// SFC-related economy tables
 		Validators   kvdb.KeyValueStore `table:"1"`
 		Stakers      kvdb.KeyValueStore `table:"2"`
-		Delegators   kvdb.KeyValueStore `table:"3"`
+		Delegations  kvdb.KeyValueStore `table:"3"`
 		SfcConstants kvdb.KeyValueStore `table:"4"`
 		TotalSupply  kvdb.KeyValueStore `table:"5"`
 
 		// API-only tables
-		Receipts                   kvdb.KeyValueStore `table:"r"`
-		DelegatorOldRewards        kvdb.KeyValueStore `table:"6"`
-		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
-		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
+		Receipts                    kvdb.KeyValueStore `table:"r"`
+		DelegationOldRewards        kvdb.KeyValueStore `table:"6"`
+		StakerOldRewards            kvdb.KeyValueStore `table:"7"`
+		StakerDelegationsOldRewards kvdb.KeyValueStore `table:"8"`
 
 		Evm      ethdb.Database
 		EvmState state.Database
@@ -71,7 +71,7 @@ type Store struct {
 		Receipts      *lru.Cache `cache:"-"` // store by value
 		Validators    *lru.Cache `cache:"-"` // store by pointer
 		Stakers       *lru.Cache `cache:"-"` // store by pointer
-		Delegators    *lru.Cache `cache:"-"` // store by pointer
+		Delegations   *lru.Cache `cache:"-"` // store by pointer
 		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
 	}
 
@@ -115,7 +115,7 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.Validators = s.makeCache(2)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
-	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
+	s.cache.Delegations = s.makeCache(s.cfg.DelegationsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)
 }
 

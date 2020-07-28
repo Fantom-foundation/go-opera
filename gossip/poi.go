@@ -12,6 +12,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/lachesis"
 )
 
+const (
+	maxPoiDelegations = 1
+)
+
 // PoiPeriod calculate POI period from int64 unix time
 func PoiPeriod(t inter.Timestamp, config *lachesis.EconomyConfig) uint64 {
 	return uint64(t) / uint64(config.PoiPeriodDuration)
@@ -47,17 +51,17 @@ func (s *Service) updateUsersPOI(block *inter.Block, evmBlock *evmcore.EvmBlock,
 		prevUserPoiPeriod := PoiPeriod(senderLastTxTime, &s.config.Net.Economy)
 		senderTotalFee := s.app.GetAddressFee(sender, prevUserPoiPeriod)
 
-		delegator := s.app.GetSfcDelegator(sender)
-		if delegator != nil {
-			staker := s.app.GetSfcStaker(delegator.ToStakerID)
+		delegations := s.app.GetSfcDelegationsByAddr(sender, maxPoiDelegations)
+		for _, it := range delegations {
+			staker := s.app.GetSfcStaker(it.ID.StakerID)
 			if staker != nil {
-				prevWeightedTxFee := s.app.GetWeightedDelegatorsFee(delegator.ToStakerID)
+				prevWeightedTxFee := s.app.GetWeightedDelegationsFee(it.ID.StakerID)
 
-				weightedTxFee := new(big.Int).Mul(txFee, delegator.Amount)
+				weightedTxFee := new(big.Int).Mul(txFee, it.Delegation.Amount)
 				weightedTxFee.Div(weightedTxFee, staker.CalcTotalStake())
 
 				weightedTxFee.Add(weightedTxFee, prevWeightedTxFee)
-				s.app.SetWeightedDelegatorsFee(delegator.ToStakerID, weightedTxFee)
+				s.app.SetWeightedDelegationsFee(it.ID.StakerID, weightedTxFee)
 			}
 		}
 
@@ -78,7 +82,7 @@ func (s *Service) UpdateStakerPOI(stakerID idx.StakerID, stakerAddress common.Ad
 	staker := s.app.GetSfcStaker(stakerID)
 
 	vFee := s.app.GetAddressFee(stakerAddress, poiPeriod)
-	weightedDFee := s.app.GetWeightedDelegatorsFee(stakerID)
+	weightedDFee := s.app.GetWeightedDelegationsFee(stakerID)
 	if vFee.Sign() == 0 && weightedDFee.Sign() == 0 {
 		s.app.SetStakerPOI(stakerID, common.Big0)
 		return // optimization
@@ -109,7 +113,7 @@ func (s *Service) updateStakersPOI(block *inter.Block, sealEpoch bool) {
 		for _, it := range s.GetActiveSfcStakers() {
 			s.UpdateStakerPOI(it.StakerID, it.Staker.Address, prevBlockPoiPeriod)
 		}
-		// clear StakersDelegatorsFee counters
-		s.app.DelAllWeightedDelegatorsFee()
+		// clear StakersDelegationsFee counters
+		s.app.DelAllWeightedDelegationsFee()
 	}
 }

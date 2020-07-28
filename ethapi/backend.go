@@ -104,14 +104,15 @@ type Backend interface {
 	GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error)
 	GetStakerPoI(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error)
-	GetDelegatorClaimedRewards(ctx context.Context, addr common.Address) (*big.Int, error)
+	GetDelegationClaimedRewards(ctx context.Context, id sfctype.DelegationID) (*big.Int, error)
 	GetStakerClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetStakerDelegatorsClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
+	GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
 	GetStaker(ctx context.Context, stakerID idx.StakerID) (*sfctype.SfcStaker, error)
 	GetStakerID(ctx context.Context, addr common.Address) (idx.StakerID, error)
 	GetStakers(ctx context.Context) ([]sfctype.SfcStakerAndID, error)
-	GetDelegatorsOf(ctx context.Context, stakerID idx.StakerID) ([]sfctype.SfcDelegatorAndAddr, error)
-	GetDelegator(ctx context.Context, addr common.Address) (*sfctype.SfcDelegator, error)
+	GetDelegationsOf(ctx context.Context, stakerID idx.StakerID) ([]sfctype.SfcDelegationAndID, error)
+	GetDelegations(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error)
+	GetDelegation(ctx context.Context, id sfctype.DelegationID) (*sfctype.SfcDelegation, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {

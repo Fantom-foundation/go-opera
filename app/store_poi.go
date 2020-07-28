@@ -36,9 +36,9 @@ func (s *Store) SetAddressFee(addr common.Address, poiPeriod uint64, val *big.In
 	}
 }
 
-// GetWeightedDelegatorsFee get gas used by delegators of a staker
-func (s *Store) GetWeightedDelegatorsFee(stakerID idx.StakerID) *big.Int {
-	valBytes, err := s.table.StakerDelegatorsFee.Get(stakerID.Bytes())
+// GetWeightedDelegationsFee get gas used by delegations of a staker
+func (s *Store) GetWeightedDelegationsFee(stakerID idx.StakerID) *big.Int {
+	valBytes, err := s.table.StakerDelegationsFee.Get(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
@@ -51,27 +51,27 @@ func (s *Store) GetWeightedDelegatorsFee(stakerID idx.StakerID) *big.Int {
 	return val
 }
 
-// SetWeightedDelegatorsFee stores gas used by delegators of a staker
-func (s *Store) SetWeightedDelegatorsFee(stakerID idx.StakerID, val *big.Int) {
-	err := s.table.StakerDelegatorsFee.Put(stakerID.Bytes(), val.Bytes())
+// SetWeightedDelegationsFee stores gas used by delegations of a staker
+func (s *Store) SetWeightedDelegationsFee(stakerID idx.StakerID, val *big.Int) {
+	err := s.table.StakerDelegationsFee.Put(stakerID.Bytes(), val.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to set key", "err", err)
 	}
 }
 
-// DelWeightedDelegatorsFee deletes record about gas used by delegators of a staker
-func (s *Store) DelWeightedDelegatorsFee(stakerID idx.StakerID) {
-	err := s.table.StakerDelegatorsFee.Delete(stakerID.Bytes())
+// DelWeightedDelegationsFee deletes record about gas used by delegations of a staker
+func (s *Store) DelWeightedDelegationsFee(stakerID idx.StakerID) {
+	err := s.table.StakerDelegationsFee.Delete(stakerID.Bytes())
 	if err != nil {
 		s.Log.Crit("Failed to erase key", "err", err)
 	}
 }
 
-// DelAllWeightedDelegatorsFee deletes all the records about gas used by delegators of all stakers
-func (s *Store) DelAllWeightedDelegatorsFee() {
-	it := s.table.StakerDelegatorsFee.NewIterator()
+// DelAllWeightedDelegationsFee deletes all the records about gas used by delegations of all stakers
+func (s *Store) DelAllWeightedDelegationsFee() {
+	it := s.table.StakerDelegationsFee.NewIterator()
 	defer it.Release()
-	s.dropTable(it, s.table.StakerDelegatorsFee)
+	s.dropTable(it, s.table.StakerDelegationsFee)
 }
 
 // GetAddressLastTxTime get last time for last tx from this address
