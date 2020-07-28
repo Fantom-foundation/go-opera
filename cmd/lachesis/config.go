@@ -234,7 +234,7 @@ func nodeConfigWithFlags(ctx *cli.Context, cfg node.Config) node.Config {
 	return cfg
 }
 
-func makeAllConfigs(ctx *cli.Context) config {
+func makeAllConfigs(ctx *cli.Context) *config {
 	// Defaults (low priority)
 	net := defaultLachesisConfig(ctx)
 	cfg := config{Lachesis: gossip.DefaultConfig(net), Node: defaultNodeConfig()}
@@ -250,7 +250,7 @@ func makeAllConfigs(ctx *cli.Context) config {
 	cfg.Lachesis = gossipConfigWithFlags(ctx, cfg.Lachesis)
 	cfg.Node = nodeConfigWithFlags(ctx, cfg.Node)
 
-	return cfg
+	return &cfg
 }
 
 func defaultNodeConfig() node.Config {

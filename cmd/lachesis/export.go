@@ -1,48 +1,48 @@
 package main
 
 import (
-	"compress/gzip"
-	"errors"
-	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"compress/gzip"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/status-im/keycard-go/hexutils"
 	"gopkg.in/urfave/cli.v1"
 
+	appdb "github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/gossip"
-	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-lachesis/hash"
+	"github.com/Fantom-foundation/go-lachesis/integration"
+	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 )
+
+var (
+	eventsFileHeader  = hexutils.HexToBytes("7e995678")
+	eventsFileVersion = hexutils.HexToBytes("00010000")
+)
+
+// statsReportLimit is the time limit during import and export after which we
+// always print out progress. This avoids the user wondering what's going on.
+const statsReportLimit = 8 * time.Second
 
 func exportChain(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
 
-	_, _, _, _, gdb := makeFNode(ctx, false)
+	cfg := makeAllConfigs(ctx)
+
+	gdb := makeGossipStore(cfg.Node.DataDir, &cfg.Lachesis)
 	defer gdb.Close()
 
-	start := time.Now()
-
-	var err error
-	fp := ctx.Args().First()
-
-	err = ExportChain(gdb, fp)
-	if err != nil {
-		utils.Fatalf("Export error: %v\n", err)
-	}
-	fmt.Printf("Export done in %v\n", time.Since(start))
-	return nil
-}
-
-// ExportChain exports a events into the specified file, truncating any data
-// already present in the file.
-func ExportChain(gdb *gossip.Store, fn string) error {
-	log.Info("Exporting events", "file", fn)
+	fn := ctx.Args().First()
 
 	// Open the file handle and potentially wrap with a gzip stream
 	fh, err := os.OpenFile(fn, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
@@ -56,55 +56,70 @@ func ExportChain(gdb *gossip.Store, fn string) error {
 		writer = gzip.NewWriter(writer)
 		defer writer.(*gzip.Writer).Close()
 	}
-	// Iterate over the blocks and export them
-	if err := Export(gdb, writer); err != nil {
+
+	from := idx.Epoch(1)
+	if len(ctx.Args()) > 1 {
+		n, err := strconv.ParseUint(ctx.Args().Get(1), 10, 32)
+		if err != nil {
+			return err
+		}
+		from = idx.Epoch(n)
+	}
+	to := idx.Epoch(0)
+	if len(ctx.Args()) > 2 {
+		n, err := strconv.ParseUint(ctx.Args().Get(2), 10, 32)
+		if err != nil {
+			return err
+		}
+		to = idx.Epoch(n)
+	}
+
+	log.Info("Exporting events to file", "file", fn)
+	// Write header and version
+	_, err = writer.Write(append(eventsFileHeader, eventsFileVersion...))
+	if err != nil {
 		return err
 	}
-	log.Info("Exported events", "file", fn)
+	err = exportTo(writer, gdb, from, to)
+	if err != nil {
+		utils.Fatalf("Export error: %v\n", err)
+	}
 
 	return nil
 }
 
-// Export writes the active chain to the given writer.
-func Export(gdb *gossip.Store, w io.Writer) error {
-	log.Info("Exporting batch of events")
-	var err error
-	start, reported := time.Now(), time.Now()
+func makeGossipStore(dataDir string, gossipCfg *gossip.Config) *gossip.Store {
+	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
+	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig, appdb.LiteStoreConfig())
+	gdb.SetName("gossip-db")
+	return gdb
+}
+
+// exportTo writer the active chain.
+func exportTo(w io.Writer, gdb *gossip.Store, from, to idx.Epoch) (err error) {
+	start, reported := time.Now(), time.Time{}
 
 	var (
-		events    inter.Events
-		prevEvent *inter.Event
+		counter int
+		last    hash.Event
 	)
-	gdb.ForEachEventWithoutEpoch(func(event *inter.Event) bool {
-		if event == nil {
-			err = errors.New("export failed, event not found")
+	gdb.ForEachEventRLP(from, func(id hash.Event, event rlp.RawValue) bool {
+		if to >= from && id.Epoch() > to {
 			return false
 		}
-		if prevEvent == nil {
-			prevEvent = event
+		counter++
+		_, err = w.Write(event)
+		if err != nil {
+			return false
 		}
-		if len(event.Parents) == 0 && prevEvent.Epoch != event.Epoch {
-			for _, event := range events {
-				log.Debug("exported", "event", event.String())
-				err := event.EncodeRLP(w)
-				if err != nil {
-					err = fmt.Errorf("export failed, error: %v", err)
-					return false
-				}
-				if time.Since(reported) >= statsReportLimit {
-					log.Info("Exporting events", "exported", event.String(), "elapsed", common.PrettyDuration(time.Since(start)))
-					reported = time.Now()
-				}
-			}
-			events = inter.Events{}
+		last = id
+		if counter%100 == 1 && time.Since(reported) >= statsReportLimit {
+			log.Info("Exporting events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+			reported = time.Now()
 		}
-		events = append(events, event)
-		prevEvent = event
 		return true
 	})
-	if err != nil {
-		return err
-	}
-	events = inter.Events{}
-	return nil
+	log.Info("Exported events", "last", last.String(), "exported", counter, "elapsed", common.PrettyDuration(time.Since(start)))
+
+	return
 }

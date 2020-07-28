@@ -230,15 +230,15 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	return
 }
 
-// ForEachEvent iterates all the events which are observed by head, and accepted by a filter.
+// ForEachEpochEvent iterates all the events which are observed by head, and accepted by a filter.
 // filter CANNOT called twice for the same event.
-func (b *EthAPIBackend) ForEachEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error {
+func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error {
 	requested, err := b.epochWithDefault(ctx, epoch)
 	if err != nil {
 		return err
 	}
 
-	b.svc.store.ForEachEvent(requested, onEvent)
+	b.svc.store.ForEachEpochEvent(requested, onEvent)
 	return nil
 }
 
@@ -677,7 +677,7 @@ func (b *EthAPIBackend) ValidatorTimeDrifts(ctx context.Context, epoch rpc.Block
 
 	processed := 0
 
-	err := b.ForEachEvent(ctx, epoch, func(event *inter.Event) bool {
+	err := b.ForEachEpochEvent(ctx, epoch, func(event *inter.Event) bool {
 		arrivalTime := b.GetEventTime(ctx, event.Hash(), true)
 		claimedTime := event.ClaimedTime
 

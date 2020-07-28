@@ -218,16 +218,14 @@ func lachesisMain(ctx *cli.Context) error {
 	}
 	defer tracingStop()
 
-	node := makeFullNode(ctx)
+	node := makeNode(ctx, makeAllConfigs(ctx))
 	defer node.Close()
 	startNode(ctx, node)
 	node.Wait()
 	return nil
 }
 
-func makeFullNode(ctx *cli.Context) *node.Node {
-	cfg := makeAllConfigs(ctx)
-
+func makeNode(ctx *cli.Context, cfg *config) *node.Node {
 	// check errlock file
 	errlock.SetDefaultDatadir(cfg.Node.DataDir)
 	errlock.Check()

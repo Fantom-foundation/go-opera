@@ -7,6 +7,7 @@ package gossip
 import (
 	"bytes"
 
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/hash"
@@ -28,8 +29,6 @@ func (s *Store) DeleteEvent(epoch idx.Epoch, id hash.Event) {
 	if s.cache.Events != nil {
 		s.cache.Events.Remove(id)
 	}
-
-	s.Log.Info("DeleteEvent", "event", id)
 }
 
 // SetEvent stores event.
@@ -68,9 +67,7 @@ func (s *Store) GetEvent(id hash.Event) *inter.Event {
 	return w
 }
 
-func (s *Store) ForEachEvent(epoch idx.Epoch, onEvent func(event *inter.Event) bool) {
-	it := s.table.Events.NewIteratorWithPrefix(epoch.Bytes())
-	defer it.Release()
+func (s *Store) forEachEvent(it ethdb.Iterator, onEvent func(event *inter.Event) bool) {
 	for it.Next() {
 		event := &inter.Event{}
 		err := rlp.DecodeBytes(it.Value(), event)
@@ -84,17 +81,23 @@ func (s *Store) ForEachEvent(epoch idx.Epoch, onEvent func(event *inter.Event) b
 	}
 }
 
-func (s *Store) ForEachEventWithoutEpoch(onEvent func(event *inter.Event) bool) {
-	it := s.table.Events.NewIterator()
+func (s *Store) ForEachEpochEvent(epoch idx.Epoch, onEvent func(event *inter.Event) bool) {
+	it := s.table.Events.NewIteratorWithPrefix(epoch.Bytes())
+	defer it.Release()
+	s.forEachEvent(it, onEvent)
+}
+
+func (s *Store) ForEachEvent(start idx.Epoch, onEvent func(event *inter.Event) bool) {
+	it := s.table.Events.NewIteratorWithStart(start.Bytes())
+	defer it.Release()
+	s.forEachEvent(it, onEvent)
+}
+
+func (s *Store) ForEachEventRLP(start idx.Epoch, onEvent func(key hash.Event, event rlp.RawValue) bool) {
+	it := s.table.Events.NewIteratorWithStart(start.Bytes())
 	defer it.Release()
 	for it.Next() {
-		event := &inter.Event{}
-		err := rlp.DecodeBytes(it.Value(), event)
-		if err != nil {
-			s.Log.Crit("Failed to decode event", "err", err)
-		}
-
-		if !onEvent(event) {
+		if !onEvent(hash.BytesToEvent(it.Key()), it.Value()) {
 			return
 		}
 	}

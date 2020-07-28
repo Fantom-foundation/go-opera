@@ -6,7 +6,7 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 )
 
-func dbProducer(dbdir string) kvdb.DbProducer {
+func DBProducer(dbdir string) kvdb.DbProducer {
 	if dbdir == "inmemory" || dbdir == "" {
 		return memorydb.NewProducer("")
 	}
