@@ -13,7 +13,7 @@ import (
 func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *gossip.Service {
 	gossipCfg := gossip.DefaultConfig(network)
 
-	engine, adb, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
+	engine, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
 	coinbase := SetAccountKey(
 		ctx.NodeContext.AccountManager,
@@ -25,7 +25,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.SelfForkProtection = 0
 
-	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine, adb)
+	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine)
 	if err != nil {
 		panic(err)
 	}

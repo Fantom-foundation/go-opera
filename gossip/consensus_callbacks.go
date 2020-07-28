@@ -82,10 +82,6 @@ func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 
 	immediately := (newEpoch != oldEpoch)
 
-	err := s.app.Commit(e.Hash().Bytes(), immediately)
-	if err != nil {
-		return err
-	}
 	return s.store.Commit(e.Hash().Bytes(), immediately)
 }
 
