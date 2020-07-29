@@ -28,7 +28,9 @@ func (s *Store) ApplyGenesis(net *lachesis.Config, firstBlock *inter.Block) (blo
 		}
 
 		if block.Root != *stored {
-			err = fmt.Errorf("database contains incompatible state hash (have %s, new %s)", *stored, block.Root)
+			err = fmt.Errorf("database contains incompatible state hash (have %s, new %s)",
+				stored.String(),
+				block.Root.String())
 		}
 
 		return

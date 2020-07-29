@@ -24,7 +24,7 @@ import (
 // newTestProtocolManager creates a new protocol manager for testing purposes,
 // with the given number of events already known from each node
 func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.Transaction, onNewEvent func(e *inter.Event)) (*ProtocolManager, *Store, error) {
-	net := lachesis.FakeNetConfig(genesis.FakeAccounts(0, nodesNum, big.NewInt(0), pos.StakeToBalance(1)))
+	net := lachesis.FakeNetConfig(genesis.FakeValidators(nodesNum, big.NewInt(0), pos.StakeToBalance(1)))
 
 	config := DefaultConfig(net)
 	config.TxPool.Journal = ""

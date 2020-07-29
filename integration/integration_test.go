@@ -42,7 +42,7 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	network := lachesis.FakeNetConfig(genesis.FakeAccounts(0, count, big.NewInt(0), pos.StakeToBalance(10000)))
+	network := lachesis.FakeNetConfig(genesis.FakeValidators(count, big.NewInt(0), pos.StakeToBalance(10000)))
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{
