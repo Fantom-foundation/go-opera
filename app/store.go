@@ -1,9 +1,7 @@
 package app
 
 import (
-	"bytes"
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -13,10 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
 	"github.com/Fantom-foundation/go-lachesis/logger"
@@ -29,8 +24,6 @@ type Store struct {
 
 	mainDb kvdb.KeyValueStore
 	table  struct {
-		Genesis kvdb.KeyValueStore `table:"G"`
-
 		// score economy tables
 		ActiveValidationScore  kvdb.KeyValueStore `table:"V"`
 		DirtyValidationScore   kvdb.KeyValueStore `table:"v"`
@@ -39,12 +32,12 @@ type Store struct {
 		BlockDowntime          kvdb.KeyValueStore `table:"m"`
 
 		// PoI economy tables
-		StakerPOIScore      kvdb.KeyValueStore `table:"s"`
-		AddressPOIScore     kvdb.KeyValueStore `table:"a"`
-		AddressFee          kvdb.KeyValueStore `table:"g"`
-		StakerDelegatorsFee kvdb.KeyValueStore `table:"d"`
-		AddressLastTxTime   kvdb.KeyValueStore `table:"X"`
-		TotalPoiFee         kvdb.KeyValueStore `table:"U"`
+		StakerPOIScore       kvdb.KeyValueStore `table:"s"`
+		AddressPOIScore      kvdb.KeyValueStore `table:"a"`
+		AddressFee           kvdb.KeyValueStore `table:"g"`
+		StakerDelegationsFee kvdb.KeyValueStore `table:"d"`
+		AddressLastTxTime    kvdb.KeyValueStore `table:"X"`
+		TotalPoiFee          kvdb.KeyValueStore `table:"U"`
 
 		// gas power economy tables
 		GasPowerRefund kvdb.KeyValueStore `table:"R"`
@@ -52,15 +45,15 @@ type Store struct {
 		// SFC-related economy tables
 		Validators   kvdb.KeyValueStore `table:"1"`
 		Stakers      kvdb.KeyValueStore `table:"2"`
-		Delegators   kvdb.KeyValueStore `table:"3"`
+		Delegations  kvdb.KeyValueStore `table:"3"`
 		SfcConstants kvdb.KeyValueStore `table:"4"`
 		TotalSupply  kvdb.KeyValueStore `table:"5"`
 
 		// API-only tables
-		Receipts                   kvdb.KeyValueStore `table:"r"`
-		DelegatorOldRewards        kvdb.KeyValueStore `table:"6"`
-		StakerOldRewards           kvdb.KeyValueStore `table:"7"`
-		StakerDelegatorsOldRewards kvdb.KeyValueStore `table:"8"`
+		Receipts                    kvdb.KeyValueStore `table:"r"`
+		DelegationOldRewards        kvdb.KeyValueStore `table:"6"`
+		StakerOldRewards            kvdb.KeyValueStore `table:"7"`
+		StakerDelegationsOldRewards kvdb.KeyValueStore `table:"8"`
 
 		Evm      ethdb.Database
 		EvmState state.Database
@@ -71,7 +64,7 @@ type Store struct {
 		Receipts      *lru.Cache `cache:"-"` // store by value
 		Validators    *lru.Cache `cache:"-"` // store by pointer
 		Stakers       *lru.Cache `cache:"-"` // store by pointer
-		Delegators    *lru.Cache `cache:"-"` // store by pointer
+		Delegations   *lru.Cache `cache:"-"` // store by pointer
 		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
 	}
 
@@ -82,20 +75,11 @@ type Store struct {
 	logger.Instance
 }
 
-// NewMemStore creates store over memory map.
-func NewMemStore() *Store {
-	mems := memorydb.NewProducer("")
-	dbs := flushable.NewSyncedPool(mems)
-	cfg := LiteStoreConfig()
-
-	return NewStore(dbs, cfg)
-}
-
 // NewStore creates store over key-value db.
-func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
+func NewStore(mainDb kvdb.KeyValueStore, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
-		mainDb:   dbs.GetDb("gossip-main"), // TODO: use "app-main" when database versioning is ready
+		mainDb:   mainDb,
 		Instance: logger.MakeInstance(),
 	}
 
@@ -115,54 +99,18 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.Validators = s.makeCache(2)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
-	s.cache.Delegators = s.makeCache(s.cfg.DelegatorsCacheSize)
+	s.cache.Delegations = s.makeCache(s.cfg.DelegationsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)
 }
 
-// Close leaves underlying database.
-func (s *Store) Close() {
-	setnil := func() interface{} {
-		return nil
-	}
-
-	table.MigrateTables(&s.table, nil)
-	table.MigrateCaches(&s.cache, setnil)
-
-	s.mainDb.Close()
-}
-
 // Commit changes.
-func (s *Store) Commit(flushID []byte, immediately bool) error {
-	// TODO: enable s.dbs (uncomment all the code) when database versioning is ready
-
-	if flushID == nil {
-		// if flushId not specified, use current time
-		buf := bytes.NewBuffer(nil)
-		buf.Write([]byte{0xbe, 0xee})                                    // 0xbeee eyecatcher that flushed time
-		buf.Write(bigendian.Int64ToBytes(uint64(time.Now().UnixNano()))) // current UnixNano time
-		/*
-			flushID = buf.Bytes()
-		*/
-	}
-
-	/*
-		if !immediately && !s.dbs.IsFlushNeeded() {
-			return nil
-		}
-	*/
-
+func (s *Store) Commit() error {
 	// Flush trie on the DB
 	err := s.table.EvmState.TrieDB().Cap(0)
 	if err != nil {
 		s.Log.Error("Failed to flush trie DB into main DB", "err", err)
 	}
 	return err
-
-	// Flush the DBs
-	/*
-		return s.dbs.Flush(flushID)
-	*/
-
 }
 
 // StateDB returns state database.

@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/Fantom-foundation/go-lachesis/gossip"
@@ -21,11 +19,6 @@ func checkPacks(db kvdb.KeyValueStore) {
 	for it.Next() {
 		buf := it.Key()
 		w := it.Value()
-
-		if strings.HasPrefix(string(buf), "serverPool") {
-			fmt.Printf("skip %s key\n", string(buf))
-			continue
-		}
 
 		var info gossip.PackInfo
 		err := rlp.DecodeBytes(w, &info)

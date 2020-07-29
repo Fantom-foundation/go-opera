@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
@@ -35,15 +36,15 @@ func (s *Service) delAllStakerData(stakerID idx.StakerID) {
 	s.app.DelDirtyValidationScore(stakerID)
 	s.app.DelActiveOriginationScore(stakerID)
 	s.app.DelDirtyOriginationScore(stakerID)
-	s.app.DelWeightedDelegatorsFee(stakerID)
+	s.app.DelWeightedDelegationsFee(stakerID)
 	s.app.DelStakerPOI(stakerID)
 	s.app.DelStakerClaimedRewards(stakerID)
-	s.app.DelStakerDelegatorsClaimedRewards(stakerID)
+	s.app.DelStakerDelegationsClaimedRewards(stakerID)
 }
 
-func (s *Service) delAllDelegatorData(address common.Address) {
-	s.app.DelSfcDelegator(address)
-	s.app.DelDelegatorClaimedRewards(address)
+func (s *Service) delAllDelegationData(id sfctype.DelegationID) {
+	s.app.DelSfcDelegation(id)
+	s.app.DelDelegationClaimedRewards(id)
 }
 
 var (
@@ -121,6 +122,18 @@ func (s *Service) getRewardPerSec() *big.Int {
 	return new(big.Int).Set(rewardPerSecond)
 }
 
+// getOfflinePenaltyThreshold returns current offlinePenaltyThreshold, depending on config and value provided by SFC
+func (s *Service) getOfflinePenaltyThreshold() app.BlocksMissed {
+	v := s.app.GetSfcConstants(s.engine.GetEpoch() - 1).OfflinePenaltyThreshold
+	if v.Num == 0 {
+		v.Num = s.config.Net.Economy.InitialOfflinePenaltyThreshold.BlocksNum
+	}
+	if v.Period == 0 {
+		v.Period = inter.Timestamp(s.config.Net.Economy.InitialOfflinePenaltyThreshold.Period)
+	}
+	return v
+}
+
 // processSfc applies the new SFC state
 func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockFee *big.Int, sealEpoch bool, cheaters inter.Cheaters, statedb *state.StateDB) {
 	// s.engineMu is locked here
@@ -161,7 +174,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				s.app.SetSfcStaker(stakerID, staker)
 			}
 
-			// Add new delegators
+			// Add new delegations
 			if l.Topics[0] == sfcpos.Topics.CreatedDelegation && len(l.Topics) > 1 && len(l.Data) >= 32 {
 				address := common.BytesToAddress(l.Topics[1][12:])
 				toStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
@@ -174,8 +187,7 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				}
 				staker.DelegatedMe.Add(staker.DelegatedMe, amount)
 
-				s.app.SetSfcDelegator(address, &sfctype.SfcDelegator{
-					ToStakerID:   toStakerID,
+				s.app.SetSfcDelegation(sfctype.DelegationID{address, toStakerID}, &sfctype.SfcDelegation{
 					CreatedEpoch: epoch,
 					CreatedTime:  block.Time,
 					Amount:       amount,
@@ -193,22 +205,24 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				s.app.SetSfcStaker(stakerID, staker)
 			}
 
-			// Deactivate delegators
-			if (l.Topics[0] == sfcpos.Topics.DeactivatedDelegation || l.Topics[0] == sfcpos.Topics.PreparedToWithdrawDelegation) && len(l.Topics) > 1 {
+			// Deactivate delegations
+			if (l.Topics[0] == sfcpos.Topics.DeactivatedDelegation || l.Topics[0] == sfcpos.Topics.PreparedToWithdrawDelegation) && len(l.Topics) > 2 {
 				address := common.BytesToAddress(l.Topics[1][12:])
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
+				id := sfctype.DelegationID{address, stakerID}
 
-				delegator := s.app.GetSfcDelegator(address)
-				staker := s.app.GetSfcStaker(delegator.ToStakerID)
+				delegation := s.app.GetSfcDelegation(id)
+				staker := s.app.GetSfcStaker(stakerID)
 				if staker != nil {
-					staker.DelegatedMe.Sub(staker.DelegatedMe, delegator.Amount)
+					staker.DelegatedMe.Sub(staker.DelegatedMe, delegation.Amount)
 					if staker.DelegatedMe.Sign() < 0 {
 						staker.DelegatedMe = big.NewInt(0)
 					}
-					s.app.SetSfcStaker(delegator.ToStakerID, staker)
+					s.app.SetSfcStaker(stakerID, staker)
 				}
-				delegator.DeactivatedEpoch = epoch
-				delegator.DeactivatedTime = block.Time
-				s.app.SetSfcDelegator(address, delegator)
+				delegation.DeactivatedEpoch = epoch
+				delegation.DeactivatedTime = block.Time
+				s.app.SetSfcDelegation(id, delegation)
 			}
 
 			// Update stake
@@ -230,17 +244,20 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			// Update delegation
 			if l.Topics[0] == sfcpos.Topics.UpdatedDelegation && len(l.Topics) > 3 && len(l.Data) >= 32 {
 				address := common.BytesToAddress(l.Topics[1][12:])
+				oldStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[3][:]).Uint64())
 				newStakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[3][:]).Uint64())
 				newAmount := new(big.Int).SetBytes(l.Data[0:32])
+				oldId := sfctype.DelegationID{address, oldStakerID}
+				newId := sfctype.DelegationID{address, newStakerID}
 
-				delegator := s.app.GetSfcDelegator(address)
-				if delegator == nil {
+				delegation := s.app.GetSfcDelegation(oldId)
+				if delegation == nil {
 					s.Log.Warn("Internal SFC index isn't synced with SFC contract")
 					continue
 				}
-				delegator.Amount = newAmount
-				delegator.ToStakerID = newStakerID
-				s.app.SetSfcDelegator(address, delegator)
+				delegation.Amount = newAmount
+				s.app.DelSfcDelegation(oldId)
+				s.app.SetSfcDelegation(newId, delegation)
 			}
 
 			// Delete stakes
@@ -249,10 +266,11 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				s.delAllStakerData(stakerID)
 			}
 
-			// Delete delegators
-			if l.Topics[0] == sfcpos.Topics.WithdrawnDelegation && len(l.Topics) > 1 {
+			// Delete delegations
+			if l.Topics[0] == sfcpos.Topics.WithdrawnDelegation && len(l.Topics) > 2 {
 				address := common.BytesToAddress(l.Topics[1][12:])
-				s.delAllDelegatorData(address)
+				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
+				s.delAllDelegationData(sfctype.DelegationID{address, stakerID})
 			}
 
 			// Track changes of constants by SFC
@@ -270,6 +288,14 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				constants.LongGasPowerAllocPerSec = longAllocationRate.Uint64()
 				s.app.SetSfcConstants(epoch, constants)
 			}
+			if l.Topics[0] == sfcpos.Topics.UpdatedOfflinePenaltyThreshold && len(l.Data) >= 64 {
+				blocksNum := new(big.Int).SetBytes(l.Data[0:32])
+				period := new(big.Int).SetBytes(l.Data[32:64])
+				constants := s.app.GetSfcConstants(epoch)
+				constants.OfflinePenaltyThreshold.Num = idx.Block(blocksNum.Uint64())
+				constants.OfflinePenaltyThreshold.Period = inter.Timestamp(period.Uint64())
+				s.app.SetSfcConstants(epoch, constants)
+			}
 
 			// Track rewards (API-only)
 			if l.Topics[0] == sfcpos.Topics.ClaimedValidatorReward && len(l.Topics) > 1 && len(l.Data) >= 32 {
@@ -283,8 +309,8 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 				stakerID := idx.StakerID(new(big.Int).SetBytes(l.Topics[2][:]).Uint64())
 				reward := new(big.Int).SetBytes(l.Data[0:32])
 
-				s.app.IncDelegatorClaimedRewards(address, reward)
-				s.app.IncStakerDelegatorsClaimedRewards(stakerID, reward)
+				s.app.IncDelegationClaimedRewards(sfctype.DelegationID{address, stakerID}, reward)
+				s.app.IncStakerDelegationsClaimedRewards(stakerID, reward)
 			}
 		}
 	}
@@ -332,8 +358,8 @@ func (s *Service) processSfc(block *inter.Block, receipts types.Receipts, blockF
 			}
 
 			gotMissed := s.app.GetBlocksMissed(it.StakerID)
-			badMissed := s.config.Net.Economy.OfflinePenaltyThreshold
-			if gotMissed.Num >= badMissed.BlocksNum && gotMissed.Period >= inter.Timestamp(badMissed.Period) {
+			badMissed := s.getOfflinePenaltyThreshold()
+			if gotMissed.Num >= badMissed.Num && gotMissed.Period >= badMissed.Period {
 				// write into DB
 				it.Staker.Status |= sfctype.OfflineBit
 				s.app.SetSfcStaker(it.StakerID, it.Staker)

@@ -8,68 +8,85 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
 )
 
-// SetSfcDelegator stores SfcDelegator
-func (s *Store) SetSfcDelegator(address common.Address, v *sfctype.SfcDelegator) {
-	s.set(s.table.Delegators, address.Bytes(), v)
+// SetSfcDelegation stores SfcDelegation
+func (s *Store) SetSfcDelegation(id sfctype.DelegationID, v *sfctype.SfcDelegation) {
+	s.set(s.table.Delegations, id.Bytes(), v)
 
 	// Add to LRU cache.
-	if s.cache.Delegators != nil {
-		s.cache.Delegators.Add(address, v)
+	if s.cache.Delegations != nil {
+		s.cache.Delegations.Add(id, v)
 	}
 }
 
-// DelSfcDelegator deletes SfcDelegator
-func (s *Store) DelSfcDelegator(address common.Address) {
-	err := s.table.Delegators.Delete(address.Bytes())
+// DelSfcDelegation deletes SfcDelegation
+func (s *Store) DelSfcDelegation(id sfctype.DelegationID) {
+	err := s.table.Delegations.Delete(id.Bytes())
 	if err != nil {
-		s.Log.Crit("Failed to erase delegator")
+		s.Log.Crit("Failed to erase delegation")
 	}
 
 	// Add to LRU cache.
-	if s.cache.Delegators != nil {
-		s.cache.Delegators.Remove(address)
+	if s.cache.Delegations != nil {
+		s.cache.Delegations.Remove(id)
 	}
 }
 
-// ForEachSfcDelegator iterates all stored SfcDelegators
-func (s *Store) ForEachSfcDelegator(do func(sfctype.SfcDelegatorAndAddr)) {
-	it := s.table.Delegators.NewIterator()
+// ForEachSfcDelegation iterates all stored SfcDelegations
+func (s *Store) ForEachSfcDelegation(do func(sfctype.SfcDelegationAndID)) {
+	it := s.table.Delegations.NewIterator()
 	defer it.Release()
-	s.forEachSfcDelegator(it, do)
+	s.forEachSfcDelegation(it, func(id sfctype.SfcDelegationAndID) bool {
+		do(id)
+		return true
+	})
 }
 
-func (s *Store) forEachSfcDelegator(it ethdb.Iterator, do func(sfctype.SfcDelegatorAndAddr)) {
-	for it.Next() {
-		delegator := &sfctype.SfcDelegator{}
-		err := rlp.DecodeBytes(it.Value(), delegator)
+// GetSfcDelegationsByAddr returns a lsit of delegations by address
+func (s *Store) GetSfcDelegationsByAddr(addr common.Address, limit int) []sfctype.SfcDelegationAndID {
+	it := s.table.Delegations.NewIteratorWithPrefix(addr.Bytes())
+	defer it.Release()
+	res := make([]sfctype.SfcDelegationAndID, 0, limit)
+	s.forEachSfcDelegation(it, func(id sfctype.SfcDelegationAndID) bool {
+		res = append(res, id)
+		limit -= 1
+		return limit == 0
+	})
+	return res
+}
+
+func (s *Store) forEachSfcDelegation(it ethdb.Iterator, do func(sfctype.SfcDelegationAndID) bool) {
+	_continue := true
+	for _continue && it.Next() {
+		delegation := &sfctype.SfcDelegation{}
+		err := rlp.DecodeBytes(it.Value(), delegation)
 		if err != nil {
 			s.Log.Crit("Failed to decode rlp while iteration", "err", err)
 		}
 
-		addr := it.Key()[len(it.Key())-20:]
-		do(sfctype.SfcDelegatorAndAddr{
-			Addr:      common.BytesToAddress(addr),
-			Delegator: delegator,
+		addr := it.Key()[len(it.Key())-sfctype.DelegationIDSize:]
+		_continue = do(sfctype.SfcDelegationAndID{
+			ID:         sfctype.BytesToDelegationID(addr),
+			Delegation: delegation,
 		})
 	}
 }
 
-// GetSfcDelegator returns stored SfcDelegator
-func (s *Store) GetSfcDelegator(address common.Address) *sfctype.SfcDelegator {
+// GetSfcDelegation returns stored SfcDelegation
+func (s *Store) GetSfcDelegation(id sfctype.DelegationID) *sfctype.SfcDelegation {
 	// Get data from LRU cache first.
-	if s.cache.Delegators != nil {
-		if c, ok := s.cache.Delegators.Get(address); ok {
-			if b, ok := c.(*sfctype.SfcDelegator); ok {
+	if s.cache.Delegations != nil {
+		if c, ok := s.cache.Delegations.Get(id); ok {
+			if b, ok := c.(*sfctype.SfcDelegation); ok {
 				return b
 			}
 		}
 	}
 
-	w, _ := s.get(s.table.Delegators, address.Bytes(), &sfctype.SfcDelegator{}).(*sfctype.SfcDelegator)
+	w, _ := s.get(s.table.Delegations, id.Bytes(), &sfctype.SfcDelegation{}).(*sfctype.SfcDelegation)
 
 	// Add to LRU cache.
-	if w != nil && s.cache.Delegators != nil {
-		s.cache.Delegators.Add(address, w)
+	if w != nil && s.cache.Delegations != nil {
+		s.cache.Delegations.Add(id, w)
 	}
 
 	return w

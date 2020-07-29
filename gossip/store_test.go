@@ -3,6 +3,7 @@ package gossip
 import (
 	"time"
 
+	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/kvdb"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/flushable"
 	"github.com/Fantom-foundation/go-lachesis/kvdb/leveldb"
@@ -14,7 +15,7 @@ func cachedStore() *Store {
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
 
-	return NewStore(dbs, cfg)
+	return NewStore(dbs, cfg, app.LiteStoreConfig())
 }
 
 func nonCachedStore() *Store {
@@ -22,7 +23,7 @@ func nonCachedStore() *Store {
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := StoreConfig{}
 
-	return NewStore(dbs, cfg)
+	return NewStore(dbs, cfg, app.LiteStoreConfig())
 }
 
 func realStore(dir string) *Store {
@@ -30,7 +31,7 @@ func realStore(dir string) *Store {
 	dbs := flushable.NewSyncedPool(disk)
 	cfg := LiteStoreConfig()
 
-	return NewStore(dbs, cfg)
+	return NewStore(dbs, cfg, app.LiteStoreConfig())
 }
 
 func withDelay(db kvdb.KeyValueStore) kvdb.KeyValueStore {

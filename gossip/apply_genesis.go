@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
@@ -26,10 +25,10 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(net *lachesis.Config, state *evmcore.EvmBlock) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
+func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
 	storedGenesis := s.GetBlock(0)
 	if storedGenesis != nil {
-		newHash := calcGenesisHash(net, state)
+		newHash := calcGenesisHash(net)
 		if storedGenesis.Atropos != newHash {
 			return genesisAtropos, genesisState, true, &GenesisMismatchError{storedGenesis.Atropos, newHash}
 		}
@@ -39,7 +38,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config, state *evmcore.EvmBlock) (gen
 		return genesisAtropos, genesisState, false, nil
 	}
 	// if we'here, then it's first time genesis is applied
-	genesisAtropos, genesisState, err = s.applyGenesis(net, state)
+	genesisAtropos, genesisState, err = s.applyGenesis(net)
 	if err != nil {
 		return genesisAtropos, genesisState, true, err
 	}
@@ -48,16 +47,22 @@ func (s *Store) ApplyGenesis(net *lachesis.Config, state *evmcore.EvmBlock) (gen
 }
 
 // calcGenesisHash calcs hash of genesis state.
-func calcGenesisHash(net *lachesis.Config, state *evmcore.EvmBlock) hash.Event {
+func calcGenesisHash(net *lachesis.Config) hash.Event {
 	s := NewMemStore()
 	defer s.Close()
 
-	h, _, _ := s.applyGenesis(net, state)
+	h, _, _ := s.applyGenesis(net)
 
 	return h
 }
 
-func (s *Store) applyGenesis(net *lachesis.Config, state *evmcore.EvmBlock) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
+func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
+	// apply app genesis
+	state, err := s.app.ApplyGenesis(net)
+	if err != nil {
+		return genesisAtropos, genesisState, err
+	}
+
 	prettyHash := func(net *lachesis.Config) hash.Event {
 		e := inter.NewEvent()
 		// for nice-looking ID

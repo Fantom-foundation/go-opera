@@ -69,8 +69,8 @@ type (
 		ReceiptsCacheSize int
 		// Cache size for Stakers.
 		StakersCacheSize int
-		// Cache size for Delegators.
-		DelegatorsCacheSize int
+		// Cache size for Delegations.
+		DelegationsCacheSize int
 	}
 )
 

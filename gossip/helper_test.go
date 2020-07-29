@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
-	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -35,14 +34,8 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		return nil, nil, err
 	}
 
-	app := app.NewMemStore()
-	state, _, err := app.ApplyGenesis(&net, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	store := NewMemStore()
-	_, _, _, err = store.ApplyGenesis(&net, state)
+	_, _, _, err = store.ApplyGenesis(&net)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -55,7 +48,7 @@ func newTestProtocolManager(nodesNum int, eventsNum int, newtx chan<- []*types.T
 		nil,
 		&dummyTxPool{added: newtx},
 		new(sync.RWMutex),
-		mockCheckers(1, &net, engine, store, app),
+		mockCheckers(1, &net, engine, store),
 		store,
 		engine,
 		nil,

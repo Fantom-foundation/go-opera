@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/app"
 	"github.com/Fantom-foundation/go-lachesis/hash"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
@@ -31,14 +30,8 @@ func TestGetGenesisBlock(t *testing.T) {
 	accountWithCode.Storage[common.Hash{}] = common.BytesToHash(common.Big1.Bytes())
 	net.Genesis.Alloc.Accounts[addrWithStorage] = accountWithCode
 
-	app := app.NewMemStore()
-	state, _, err := app.ApplyGenesis(&net, nil)
-	if !assertar.NoError(err) {
-		return
-	}
-
 	store := NewMemStore()
-	genesisHash, stateHash, _, err := store.ApplyGenesis(&net, state)
+	genesisHash, stateHash, _, err := store.ApplyGenesis(&net)
 	if !assertar.NoError(err) {
 		return
 	}
@@ -48,7 +41,7 @@ func TestGetGenesisBlock(t *testing.T) {
 
 	reader := EvmStateReader{
 		store:    store,
-		app:      app,
+		app:      store.app,
 		engineMu: new(sync.RWMutex),
 	}
 	genesisBlock := reader.GetBlock(common.Hash(genesisHash), 0)
@@ -78,14 +71,8 @@ func TestGetBlock(t *testing.T) {
 
 	net := lachesis.FakeNetConfig(genesis.FakeValidators(5, big.NewInt(0), pos.StakeToBalance(1)))
 
-	app := app.NewMemStore()
-	state, _, err := app.ApplyGenesis(&net, nil)
-	if !assertar.NoError(err) {
-		return
-	}
-
 	store := NewMemStore()
-	genesisHash, _, _, err := store.ApplyGenesis(&net, state)
+	genesisHash, _, _, err := store.ApplyGenesis(&net)
 	if !assertar.NoError(err) {
 		return
 	}

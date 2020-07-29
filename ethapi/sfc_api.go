@@ -75,9 +75,9 @@ func (s *PublicSfcAPI) GetDowntime(ctx context.Context, stakerID hexutil.Uint) (
 	}, nil
 }
 
-// GetDelegatorClaimedRewards returns sum of claimed rewards in past, by this delegator
-func (s *PublicSfcAPI) GetDelegatorClaimedRewards(ctx context.Context, addr common.Address) (*hexutil.Big, error) {
-	v, err := s.b.GetDelegatorClaimedRewards(ctx, addr)
+// GetDelegationClaimedRewards returns sum of claimed rewards in past, by this delegation
+func (s *PublicSfcAPI) GetDelegationClaimedRewards(ctx context.Context, addr common.Address, stakerID hexutil.Uint) (*hexutil.Big, error) {
+	v, err := s.b.GetDelegationClaimedRewards(ctx, sfctype.DelegationID{addr, idx.StakerID(stakerID)})
 	if err != nil {
 		return nil, err
 	}
@@ -93,9 +93,9 @@ func (s *PublicSfcAPI) GetStakerClaimedRewards(ctx context.Context, stakerID hex
 	return (*hexutil.Big)(v), err
 }
 
-// GetStakerDelegatorsClaimedRewards returns sum of claimed rewards in past, by this delegators of this staker
-func (s *PublicSfcAPI) GetStakerDelegatorsClaimedRewards(ctx context.Context, stakerID hexutil.Uint64) (*hexutil.Big, error) {
-	v, err := s.b.GetStakerDelegatorsClaimedRewards(ctx, idx.StakerID(stakerID))
+// GetStakerDelegationsClaimedRewards returns sum of claimed rewards in past, by this delegations of this staker
+func (s *PublicSfcAPI) GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID hexutil.Uint64) (*hexutil.Big, error) {
+	v, err := s.b.GetStakerDelegationsClaimedRewards(ctx, idx.StakerID(stakerID))
 	if err != nil {
 		return nil, err
 	}
@@ -160,17 +160,17 @@ func (s *PublicSfcAPI) addStakerMetricFields(ctx context.Context, res map[string
 	}
 	res["claimedRewards"] = (*hexutil.Big)(claimedRewards)
 
-	delegatorsClaimedRewards, err := s.b.GetStakerDelegatorsClaimedRewards(ctx, stakerID)
+	delegationsClaimedRewards, err := s.b.GetStakerDelegationsClaimedRewards(ctx, stakerID)
 	if err != nil {
 		return nil, err
 	}
-	res["delegatorsClaimedRewards"] = (*hexutil.Big)(delegatorsClaimedRewards)
+	res["delegationsClaimedRewards"] = (*hexutil.Big)(delegationsClaimedRewards)
 
 	return res, nil
 }
 
-func (s *PublicSfcAPI) addDelegatorMetricFields(ctx context.Context, res map[string]interface{}, address common.Address) (map[string]interface{}, error) {
-	claimedRewards, err := s.b.GetDelegatorClaimedRewards(ctx, address)
+func (s *PublicSfcAPI) addDelegationMetricFields(ctx context.Context, res map[string]interface{}, id sfctype.DelegationID) (map[string]interface{}, error) {
+	claimedRewards, err := s.b.GetDelegationClaimedRewards(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -251,68 +251,92 @@ func (s *PublicSfcAPI) GetStakers(ctx context.Context, verbosity hexutil.Uint64)
 	return stakersRPC, err
 }
 
-// RPCMarshalDelegator converts the given delegator to the RPC output .
-func RPCMarshalDelegator(it sfctype.SfcDelegatorAndAddr) map[string]interface{} {
+// RPCMarshalDelegation converts the given delegation to the RPC output .
+func RPCMarshalDelegation(it sfctype.SfcDelegationAndID) map[string]interface{} {
 	return map[string]interface{}{
-		"address":          it.Addr,
-		"toStakerID":       hexutil.Uint64(it.Delegator.ToStakerID),
-		"amount":           (*hexutil.Big)(it.Delegator.Amount),
-		"createdEpoch":     hexutil.Uint64(it.Delegator.CreatedEpoch),
-		"createdTime":      hexutil.Uint64(it.Delegator.CreatedTime),
-		"deactivatedEpoch": hexutil.Uint64(it.Delegator.DeactivatedEpoch),
-		"deactivatedTime":  hexutil.Uint64(it.Delegator.DeactivatedTime),
+		"address":          it.ID.Delegator,
+		"toStakerID":       hexutil.Uint64(it.ID.StakerID),
+		"amount":           (*hexutil.Big)(it.Delegation.Amount),
+		"createdEpoch":     hexutil.Uint64(it.Delegation.CreatedEpoch),
+		"createdTime":      hexutil.Uint64(it.Delegation.CreatedTime),
+		"deactivatedEpoch": hexutil.Uint64(it.Delegation.DeactivatedEpoch),
+		"deactivatedTime":  hexutil.Uint64(it.Delegation.DeactivatedTime),
 	}
 }
 
-// GetDelegatorsOf returns SFC delegators who delegated to a staker
+// GetDelegationsOf returns SFC delegations who delegated to a staker
 // Verbosity. Number. If 0, then include only addresses. If >= 1, then include base fields. If >= 2, then include metrics.
-func (s *PublicSfcAPI) GetDelegatorsOf(ctx context.Context, stakerID hexutil.Uint64, verbosity hexutil.Uint64) ([]interface{}, error) {
-	delegators, err := s.b.GetDelegatorsOf(ctx, idx.StakerID(stakerID))
+func (s *PublicSfcAPI) GetDelegationsOf(ctx context.Context, stakerID hexutil.Uint64, verbosity hexutil.Uint64) ([]interface{}, error) {
+	delegations, err := s.b.GetDelegationsOf(ctx, idx.StakerID(stakerID))
 	if err != nil {
 		return nil, err
 	}
 
 	if verbosity == 0 {
 		// Addresses only
-		addresses := make([]interface{}, len(delegators))
-		for i, it := range delegators {
-			addresses[i] = it.Addr.String()
+		addresses := make([]interface{}, len(delegations))
+		for i, it := range delegations {
+			addresses[i] = it.ID.Delegator.String()
 		}
 		return addresses, nil
 	}
 
-	delegatorsRPC := make([]interface{}, len(delegators))
-	for i, it := range delegators {
-		delegatorRPC := RPCMarshalDelegator(it)
+	delegationsRPC := make([]interface{}, len(delegations))
+	for i, it := range delegations {
+		delegationRPC := RPCMarshalDelegation(it)
 		if verbosity >= 2 {
-			delegatorRPC, err = s.addDelegatorMetricFields(ctx, delegatorRPC, it.Addr)
+			delegationRPC, err = s.addDelegationMetricFields(ctx, delegationRPC, it.ID)
 			if err != nil {
 				return nil, err
 			}
 		}
-		delegatorsRPC[i] = delegatorRPC
+		delegationsRPC[i] = delegationRPC
 	}
 
-	return delegatorsRPC, err
+	return delegationsRPC, err
 }
 
-// GetDelegator returns SFC delegator info
+// GetDelegation returns SFC delegation info
 // Verbosity. Number. If >= 1, then include base fields. If >= 2, then include metrics.
-func (s *PublicSfcAPI) GetDelegator(ctx context.Context, addr common.Address, verbosity hexutil.Uint64) (map[string]interface{}, error) {
-	delegator, err := s.b.GetDelegator(ctx, addr)
+func (s *PublicSfcAPI) GetDelegation(ctx context.Context, addr common.Address, stakerID hexutil.Uint, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+	id := sfctype.DelegationID{addr, idx.StakerID(stakerID)}
+	delegation, err := s.b.GetDelegation(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if delegator == nil {
+	if delegation == nil {
 		return nil, nil
 	}
-	it := sfctype.SfcDelegatorAndAddr{
-		Addr:      addr,
-		Delegator: delegator,
+	it := sfctype.SfcDelegationAndID{
+		ID:         id,
+		Delegation: delegation,
 	}
-	delegatorRPC := RPCMarshalDelegator(it)
+	delegationRPC := RPCMarshalDelegation(it)
 	if verbosity <= 1 {
-		return delegatorRPC, nil
+		return delegationRPC, nil
 	}
-	return s.addDelegatorMetricFields(ctx, delegatorRPC, addr)
+	return s.addDelegationMetricFields(ctx, delegationRPC, id)
+}
+
+// GetDelegations returns SFC delegations by address
+// Verbosity. Number. If >= 1, then include base fields. If >= 2, then include metrics.
+func (s *PublicSfcAPI) GetDelegations(ctx context.Context, addr common.Address, verbosity hexutil.Uint64) ([]interface{}, error) {
+	delegations, err := s.b.GetDelegations(ctx, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	delegationsRPC := make([]interface{}, len(delegations))
+	for i, it := range delegations {
+		delegationRPC := RPCMarshalDelegation(it)
+		if verbosity >= 2 {
+			delegationRPC, err = s.addDelegationMetricFields(ctx, delegationRPC, it.ID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		delegationsRPC[i] = delegationRPC
+	}
+
+	return delegationsRPC, err
 }
