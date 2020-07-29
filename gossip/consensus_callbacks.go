@@ -1,6 +1,7 @@
 package gossip
 
 import (
+	"errors"
 	"math/big"
 	"time"
 
@@ -12,12 +13,44 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
+	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
 	"github.com/Fantom-foundation/go-lachesis/evmcore"
 	"github.com/Fantom-foundation/go-lachesis/inter"
 	"github.com/Fantom-foundation/go-lachesis/inter/idx"
 	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
+
+// ProcessEvent takes event into processing.
+// Event order matter: parents first.
+// ProcessEvent is safe for concurrent use
+func (s *Service) ProcessEvent(e *inter.Event) error {
+	s.engineMu.Lock()
+	defer s.engineMu.Unlock()
+	return s.engine.ProcessEvent(e)
+}
+
+// ValidateEvent runs all the checkers for an event
+func (s *Service) ValidateEvent(e *inter.Event) error {
+	s.engineMu.RLock()
+	defer s.engineMu.RUnlock()
+	if e.Epoch != s.engine.GetEpoch() {
+		return epochcheck.ErrNotRelevant
+	}
+	if s.store.HasEventHeader(e.Hash()) {
+		return eventcheck.ErrAlreadyConnectedEvent
+	}
+	parents := make([]*inter.EventHeaderData, 0, len(e.Parents))
+	epoch := e.Epoch
+	for _, id := range e.Parents {
+		header := s.store.GetEventHeader(epoch, id)
+		if header == nil {
+			return errors.New("out of order")
+		}
+		parents = append(parents, header)
+	}
+	return s.checkers.Validate(e, parents)
+}
 
 // processEvent extends the engine.ProcessEvent with gossip-specific actions on each event processing
 func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {

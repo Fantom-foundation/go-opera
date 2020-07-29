@@ -176,6 +176,11 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine C
 	return svc, err
 }
 
+// GetEngine returns service's engine
+func (s *Service) GetEngine() Consensus {
+	return s.engine
+}
+
 // makeCheckers builds event checkers
 func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, engine Consensus, store *Store) *eventcheck.Checkers {
 	// create signatures checker

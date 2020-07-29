@@ -10,7 +10,7 @@ var (
 		Action:    utils.MigrateFlags(importChain),
 		Name:      "import",
 		Usage:     "Import a blockchain file",
-		ArgsUsage: "<filename> (<filename 2> ... <filename N>) ",
+		ArgsUsage: "<filename> (<filename 2> ... <filename N>) [check=false]",
 		Flags: []cli.Flag{
 			DataDirFlag,
 			utils.CacheFlag,
@@ -21,7 +21,8 @@ var (
 		},
 		Category: "MISCELLANEOUS COMMANDS",
 		Description: `
-The import command imports events from an RLP-encoded files.`,
+The import command imports events from an RLP-encoded files.
+Events are fully verified by default, unless overridden by check=false flag.`,
 	}
 	exportCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportChain),
