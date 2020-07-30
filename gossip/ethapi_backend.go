@@ -587,8 +587,8 @@ func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfctype.Delegation
 	return b.svc.app.GetSfcDelegation(id), nil
 }
 
-// GetDelegations returns SFC delegations info by address
-func (b *EthAPIBackend) GetDelegations(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error) {
+// GetDelegationsByAddress returns SFC delegations info by address
+func (b *EthAPIBackend) GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error) {
 	return b.svc.app.GetSfcDelegationsByAddr(addr, 1000), nil
 }
 
@@ -623,8 +623,8 @@ func (b *EthAPIBackend) GetEventTime(ctx context.Context, id hash.Event, arrival
 	return t
 }
 
-// TtfReport for a range of blocks
-func (b *EthAPIBackend) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block, mode string) (map[hash.Event]time.Duration, error) {
+// BlocksTTF for a range of blocks
+func (b *EthAPIBackend) BlocksTTF(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block, mode string) (map[hash.Event]time.Duration, error) {
 	if !b.svc.config.DecisiveEventsIndex {
 		return nil, errors.New("decisive-events index is disabled (enable DecisiveEventsIndex and re-process the DAGs)")
 	}

@@ -318,10 +318,10 @@ func (s *PublicSfcAPI) GetDelegation(ctx context.Context, addr common.Address, s
 	return s.addDelegationMetricFields(ctx, delegationRPC, id)
 }
 
-// GetDelegations returns SFC delegations by address
+// GetDelegationsByAddress returns SFC delegations by address
 // Verbosity. Number. If >= 1, then include base fields. If >= 2, then include metrics.
-func (s *PublicSfcAPI) GetDelegations(ctx context.Context, addr common.Address, verbosity hexutil.Uint64) ([]interface{}, error) {
-	delegations, err := s.b.GetDelegations(ctx, addr)
+func (s *PublicSfcAPI) GetDelegationsByAddress(ctx context.Context, addr common.Address, verbosity hexutil.Uint64) ([]interface{}, error) {
+	delegations, err := s.b.GetDelegationsByAddress(ctx, addr)
 	if err != nil {
 		return nil, err
 	}

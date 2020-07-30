@@ -1775,6 +1775,30 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
 }
 
+// BlocksTransactionTimes returns the map time => number of transactions
+// This data may be used to draw a histogram to calculate a peak TPS of a range of blocks
+func (api *PublicDebugAPI) BlocksTransactionTimes(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64) (map[hexutil.Uint64]hexutil.Uint, error) {
+
+	until, err := api.b.HeaderByNumber(ctx, untilBlock)
+	if err != nil {
+		return nil, err
+	}
+	untilN := until.Number.Uint64()
+	times := map[hexutil.Uint64]hexutil.Uint{}
+	for i := untilN; i >= 1 && i+uint64(maxBlocks) > untilN; i-- {
+		b, err := api.b.BlockByNumber(ctx, rpc.BlockNumber(i))
+		if err != nil {
+			return nil, err
+		}
+		if b.Transactions.Len() == 0 {
+			continue
+		}
+		times[hexutil.Uint64(b.Time)] += hexutil.Uint(b.Transactions.Len())
+	}
+
+	return times, nil
+}
+
 // PrivateDebugAPI is the collection of Ethereum APIs exposed over the private
 // debugging endpoint.
 type PrivateDebugAPI struct {
