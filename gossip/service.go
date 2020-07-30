@@ -151,7 +151,7 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine C
 
 	// create server pool
 	trustedNodes := []string{}
-	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
+	svc.serverPool = newServerPool(store.async.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	// create tx pool
 	stateReader := svc.GetEvmStateReader()
