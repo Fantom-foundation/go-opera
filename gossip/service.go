@@ -151,7 +151,7 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine C
 
 	// create server pool
 	trustedNodes := []string{}
-	svc.serverPool = newServerPool(store.table.Peers, svc.done, &svc.wg, trustedNodes)
+	svc.serverPool = newServerPool(store.async.table.Peers, svc.done, &svc.wg, trustedNodes)
 
 	// create tx pool
 	stateReader := svc.GetEvmStateReader()
@@ -174,6 +174,11 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine C
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
 	return svc, err
+}
+
+// GetEngine returns service's engine
+func (s *Service) GetEngine() Consensus {
+	return s.engine
 }
 
 // makeCheckers builds event checkers

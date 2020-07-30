@@ -12,9 +12,10 @@ func (s *Store) Migrate() error {
 func (s *Store) migrations() *migration.Migration {
 	return migration.
 		Begin("lachesis-gossip-store").
-		Next("remove serverPool from PackInfos table",
+		Next("remove async data from sync DBs",
 			func() error {
 				s.rmPrefix(s.table.PackInfos, "serverPool")
+				s.rmPrefix(s.mainDb, "Z")
 				return nil
 			}).
 		Next("remove legacy genesis field",

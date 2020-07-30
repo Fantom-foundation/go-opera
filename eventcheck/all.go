@@ -18,7 +18,7 @@ type Checkers struct {
 	Heavycheck    *heavycheck.Checker
 }
 
-// Validate runs all the checks except Poset-related. intended only for tests
+// Validate runs all the checks except Poset-related
 func (v *Checkers) Validate(e *inter.Event, parents []*inter.EventHeaderData) error {
 	if err := v.Basiccheck.Validate(e); err != nil {
 		return err

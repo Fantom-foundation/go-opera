@@ -25,13 +25,12 @@ type Store struct {
 	dbs *flushable.SyncedPool
 	cfg StoreConfig
 
+	async *asyncStore
+
 	mainDb kvdb.KeyValueStore
 	app    *app.Store
 	table  struct {
 		Version kvdb.KeyValueStore `table:"_"`
-
-		// Network tables
-		Peers kvdb.KeyValueStore `table:"Z"`
 
 		// Main DAG tables
 		Events    kvdb.KeyValueStore `table:"e"`
@@ -89,6 +88,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig, appCfg app.StoreConfig
 	s := &Store{
 		dbs:      dbs,
 		cfg:      cfg,
+		async:    newAsyncStore(dbs),
 		mainDb:   dbs.GetDb("gossip-main"),
 		Instance: logger.MakeInstance(),
 	}
@@ -138,6 +138,7 @@ func (s *Store) Close() {
 	table.MigrateCaches(&s.cache, setnil)
 
 	s.mainDb.Close()
+	s.async.Close()
 }
 
 // Commit changes.

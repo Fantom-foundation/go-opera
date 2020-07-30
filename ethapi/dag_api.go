@@ -186,7 +186,7 @@ func (s *PublicDebugAPI) ValidatorVersions(ctx context.Context, epoch rpc.BlockN
 	prefix := []byte("v-")
 	versions := map[hexutil.Uint64]string{}
 
-	err := s.b.ForEachEvent(ctx, epoch, func(event *inter.Event) bool {
+	err := s.b.ForEachEpochEvent(ctx, epoch, func(event *inter.Event) bool {
 		creator := hexutil.Uint64(event.Creator)
 		if bytes.HasPrefix(event.Extra, prefix) {
 			version := string(event.Extra[len(prefix):])
