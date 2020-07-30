@@ -160,19 +160,19 @@ func rpcEncodeEventsTimeStats(data map[hash.Event]time.Duration, verbosity hexut
 	return resRPC, nil
 }
 
-// TtfReport for a range of blocks
+// BlocksTTF for a range of blocks
 // maxEvents. Number.  maximum number of events to process
 // Verbosity. Number. If 0, then include only avg, min, max.
 // Verbosity. Number. If >= 1, then include histogram with 6 bins.
 // Verbosity. Number. If >= 2, then include histogram with 16 bins.
 // Verbosity. Number. If >= 3, then include raw data.
 // Mode. String. One of {"arrival_time", "claimed_time"}
-func (s *PublicDebugAPI) TtfReport(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64, mode string, verbosity hexutil.Uint64) (map[string]interface{}, error) {
+func (s *PublicDebugAPI) BlocksTTF(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks hexutil.Uint64, mode string, verbosity hexutil.Uint64) (map[string]interface{}, error) {
 	if mode != "arrival_time" && mode != "claimed_time" {
 		return nil, errors.New("mode must be one of {arrival_time, claimed_time}")
 	}
 
-	ttfs, err := s.b.TtfReport(ctx, untilBlock, idx.Block(maxBlocks), mode)
+	ttfs, err := s.b.BlocksTTF(ctx, untilBlock, idx.Block(maxBlocks), mode)
 	if err != nil {
 		return nil, err
 	}
