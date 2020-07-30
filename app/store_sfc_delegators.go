@@ -47,9 +47,12 @@ func (s *Store) GetSfcDelegationsByAddr(addr common.Address, limit int) []sfctyp
 	defer it.Release()
 	res := make([]sfctype.SfcDelegationAndID, 0, limit)
 	s.forEachSfcDelegation(it, func(id sfctype.SfcDelegationAndID) bool {
+		if limit == 0 {
+			return false
+		}
+		limit--
 		res = append(res, id)
-		limit -= 1
-		return limit == 0
+		return true
 	})
 	return res
 }
