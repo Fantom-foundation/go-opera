@@ -587,8 +587,8 @@ func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfctype.Delegation
 	return b.svc.app.GetSfcDelegation(id), nil
 }
 
-// GetDelegations returns SFC delegations info by address
-func (b *EthAPIBackend) GetDelegations(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error) {
+// GetDelegationsByAddress returns SFC delegations info by address
+func (b *EthAPIBackend) GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error) {
 	return b.svc.app.GetSfcDelegationsByAddr(addr, 1000), nil
 }
 

@@ -111,7 +111,7 @@ type Backend interface {
 	GetStakerID(ctx context.Context, addr common.Address) (idx.StakerID, error)
 	GetStakers(ctx context.Context) ([]sfctype.SfcStakerAndID, error)
 	GetDelegationsOf(ctx context.Context, stakerID idx.StakerID) ([]sfctype.SfcDelegationAndID, error)
-	GetDelegations(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error)
+	GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error)
 	GetDelegation(ctx context.Context, id sfctype.DelegationID) (*sfctype.SfcDelegation, error)
 }
 
