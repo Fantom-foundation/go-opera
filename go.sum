@@ -16,6 +16,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
 github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.3 h1:lsUzytQSB5FX65BQGPnN+Po7+5IQ+iFjf4OMhaSBNIg=
 github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.3/go.mod h1:arcJDscBoRuY4gwPHUuFztJEyFZWHLUgBGXUBcr5ARY=
+github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.10 h1:34vAcUM0aT4qKaBoQKP/RMm0OgQvTplYP6yWBHO8EYY=
+github.com/Fantom-foundation/go-ethereum v1.9.8-ftm-0.10/go.mod h1:arcJDscBoRuY4gwPHUuFztJEyFZWHLUgBGXUBcr5ARY=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/OneOfOne/xxhash v1.2.5/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
 github.com/Shopify/sarama v1.23.1/go.mod h1:XLH1GYJnLVE0XCr6KdJGVJRTwY30moWNJ4sERjXX6fs=
