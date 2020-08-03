@@ -21,6 +21,10 @@ import (
 	"github.com/Fantom-foundation/go-lachesis/tracing"
 )
 
+var (
+	errStopped = errors.New("service is stopped")
+)
+
 // ProcessEvent takes event into processing.
 // Event order matter: parents first.
 // ProcessEvent is safe for concurrent use
@@ -55,6 +59,9 @@ func (s *Service) ValidateEvent(e *inter.Event) error {
 // processEvent extends the engine.ProcessEvent with gossip-specific actions on each event processing
 func (s *Service) processEvent(realEngine Consensus, e *inter.Event) error {
 	// s.engineMu is locked here
+	if s.stopped {
+		return errStopped
+	}
 
 	if s.store.HasEventHeader(e.Hash()) { // sanity check
 		return eventcheck.ErrAlreadyConnectedEvent

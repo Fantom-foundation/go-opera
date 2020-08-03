@@ -115,6 +115,8 @@ type Service struct {
 	EthAPI        *EthAPIBackend
 	netRPCService *ethapi.PublicNetAPI
 
+	stopped bool
+
 	logger.Instance
 }
 
@@ -327,6 +329,7 @@ func (s *Service) Stop() error {
 	// flush the state at exit, after all the routines stopped
 	s.engineMu.Lock()
 	defer s.engineMu.Unlock()
+	s.stopped = true
 
 	return s.store.Commit(nil, true)
 }
