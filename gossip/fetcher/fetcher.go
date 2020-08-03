@@ -3,6 +3,7 @@ package fetcher
 import (
 	"errors"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/Fantom-foundation/go-lachesis/eventcheck"
@@ -97,6 +98,7 @@ type Fetcher struct {
 
 	fetching     map[hash.Event]*oneAnnounce // Announced events, currently fetching
 	fetchingTime map[hash.Event]time.Time
+	wg           sync.WaitGroup
 
 	logger.Periodic
 }
@@ -131,6 +133,7 @@ func New(callback Callback) *Fetcher {
 // hash notifications and event fetches until termination requested.
 func (f *Fetcher) Start() {
 	f.callback.HeavyCheck.Start()
+	f.wg.Add(1)
 	go f.loop()
 }
 
@@ -139,6 +142,7 @@ func (f *Fetcher) Start() {
 func (f *Fetcher) Stop() {
 	close(f.quit)
 	f.callback.HeavyCheck.Stop()
+	f.wg.Wait()
 }
 
 // Overloaded returns true if too much events are being processed or requested
@@ -269,6 +273,7 @@ func (f *Fetcher) enqueue(peer string, events inter.Events, time time.Time, fetc
 
 // Loop is the main fetcher loop, checking and processing various notifications
 func (f *Fetcher) loop() {
+	defer f.wg.Done()
 	// Iterate the event fetching until a quit is requested
 	fetchTimer := time.NewTimer(0)
 

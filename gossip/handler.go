@@ -347,10 +347,14 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// start sync handlers
 	go pm.syncer()
 	go pm.txsyncLoop()
+	pm.fetcher.Start()
 }
 
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Fantom protocol")
+
+	pm.downloader.Terminate()
+	pm.fetcher.Stop()
 
 	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 	if pm.notifier != nil {
@@ -362,8 +366,6 @@ func (pm *ProtocolManager) Stop() {
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
 	pm.noMorePeers <- struct{}{}
-
-	// Quit fetcher, txsyncLoop.
 	close(pm.quitSync)
 
 	// Disconnect existing sessions.

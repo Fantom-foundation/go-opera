@@ -110,10 +110,6 @@ func (pm *ProtocolManager) txsyncLoop() {
 // downloading hashes and events as well as handling the announcement handler.
 func (pm *ProtocolManager) syncer() {
 	// Start and ensure cleanup of sync mechanisms
-	pm.fetcher.Start()
-	defer pm.fetcher.Stop()
-	defer pm.downloader.Terminate()
-
 	for {
 		select {
 		case <-pm.newPeerCh:
