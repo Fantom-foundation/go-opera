@@ -62,7 +62,6 @@ type dagNotifier interface {
 type ProtocolManager struct {
 	config *Config
 
-	//fastSync uint32 // Flag whether fast sync is enabled (gets disabled if we already have events)
 	synced uint32 // Flag whether we're considered synchronised (enables transaction processing, events broadcasting)
 
 	txpool   txPool
@@ -429,7 +428,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	//}
 	// Register the peer locally
 	if err := pm.peers.Register(p); err != nil {
-		p.Log().Error("Peer registration failed", "err", err)
+		p.Log().Warn("Peer registration failed", "err", err)
 		return err
 	}
 	defer pm.removePeer(p.id)
@@ -795,7 +794,7 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 		case emitted := <-pm.emittedEventsCh:
 			pm.BroadcastEvent(emitted, 0)
 		// Err() channel will be closed when unsubscribing.
-		case <-pm.txsSub.Err():
+		case <-pm.emittedEventsSub.Err():
 			return
 		}
 	}
@@ -813,12 +812,12 @@ func (pm *ProtocolManager) progressBroadcastLoop() {
 			for _, peer := range pm.peers.List() {
 				err := peer.SendProgress(prevProgress)
 				if err != nil {
-					log.Error("Failed to send progress status", "peer", peer.id)
+					log.Warn("Failed to send progress status", "peer", peer.id, "err", err)
 				}
 			}
 			prevProgress = pm.myProgress()
 		// Err() channel will be closed when unsubscribing.
-		case <-pm.txsSub.Err():
+		case <-pm.newPacksSub.Err():
 			return
 		}
 	}
@@ -850,7 +849,7 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 			pm.buffer.Clear()
 			pm.downloader.OnNewEpoch(myEpoch, peerEpoch)
 		// Err() channel will be closed when unsubscribing.
-		case <-pm.txsSub.Err():
+		case <-pm.newEpochsSub.Err():
 			return
 		}
 	}
