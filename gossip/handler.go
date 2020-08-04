@@ -98,7 +98,8 @@ type ProtocolManager struct {
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
-	wg sync.WaitGroup
+	loopsWg sync.WaitGroup
+	wg      sync.WaitGroup
 
 	logger.Instance
 }
@@ -339,6 +340,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 		pm.newEpochsSub = pm.notifier.SubscribeNewEpoch(pm.newEpochsCh)
 	}
 
+	pm.loopsWg.Add(3)
 	go pm.emittedBroadcastLoop()
 	go pm.progressBroadcastLoop()
 	go pm.onNewEpochLoop()
@@ -361,6 +363,8 @@ func (pm *ProtocolManager) Stop() {
 		pm.newPacksSub.Unsubscribe()      // quits progressBroadcastLoop
 		pm.newEpochsSub.Unsubscribe()     // quits onNewEpochLoop
 	}
+	// Wait for the subscription loops to come down.
+	pm.loopsWg.Wait()
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -373,7 +377,7 @@ func (pm *ProtocolManager) Stop() {
 	// will exit when they try to register.
 	pm.peers.Close()
 
-	// Wait for all peer handler goroutines and the loops to come down.
+	// Wait for all peer handler goroutines to come down.
 	pm.wg.Wait()
 
 	log.Info("Fantom protocol stopped")
@@ -802,6 +806,7 @@ func (pm *ProtocolManager) emittedBroadcastLoop() {
 
 // Progress broadcast loop
 func (pm *ProtocolManager) progressBroadcastLoop() {
+	defer pm.loopsWg.Done()
 	// automatically stops if unsubscribe
 	prevProgress := pm.myProgress()
 	for {
@@ -824,6 +829,7 @@ func (pm *ProtocolManager) progressBroadcastLoop() {
 }
 
 func (pm *ProtocolManager) onNewEpochLoop() {
+	defer pm.loopsWg.Done()
 	for {
 		select {
 		case myEpoch := <-pm.newEpochsCh:
@@ -856,6 +862,7 @@ func (pm *ProtocolManager) onNewEpochLoop() {
 }
 
 func (pm *ProtocolManager) txBroadcastLoop() {
+	defer pm.loopsWg.Done()
 	for {
 		select {
 		case notify := <-pm.txsCh:
