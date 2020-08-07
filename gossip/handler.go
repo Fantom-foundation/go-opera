@@ -326,6 +326,8 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// broadcast transactions
 	pm.txsCh = make(chan evmcore.NewTxsNotify, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsNotify(pm.txsCh)
+
+	pm.loopsWg.Add(1)
 	go pm.txBroadcastLoop()
 
 	if pm.notifier != nil {
@@ -338,12 +340,12 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 		// epoch changes
 		pm.newEpochsCh = make(chan idx.Epoch, 4)
 		pm.newEpochsSub = pm.notifier.SubscribeNewEpoch(pm.newEpochsCh)
-	}
 
-	pm.loopsWg.Add(3)
-	go pm.emittedBroadcastLoop()
-	go pm.progressBroadcastLoop()
-	go pm.onNewEpochLoop()
+		pm.loopsWg.Add(3)
+		go pm.emittedBroadcastLoop()
+		go pm.progressBroadcastLoop()
+		go pm.onNewEpochLoop()
+	}
 
 	// start sync handlers
 	go pm.syncer()
@@ -793,6 +795,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 
 // Mined broadcast loop
 func (pm *ProtocolManager) emittedBroadcastLoop() {
+	defer pm.loopsWg.Done()
 	for {
 		select {
 		case emitted := <-pm.emittedEventsCh:
