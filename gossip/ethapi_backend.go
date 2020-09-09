@@ -7,8 +7,10 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -18,26 +20,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	notify "github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	errors2 "github.com/pkg/errors"
 
-	"github.com/Fantom-foundation/go-lachesis/ethapi"
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
-	"github.com/Fantom-foundation/go-lachesis/topicsdb"
-	"github.com/Fantom-foundation/go-lachesis/tracing"
+	"github.com/Fantom-foundation/go-opera/ethapi"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/topicsdb"
+	"github.com/Fantom-foundation/go-opera/tracing"
 )
-
-var ErrNotImplemented = func(name string) error { return errors.New(name + " method is not implemented yet") }
 
 // EthAPIBackend implements ethapi.Backend.
 type EthAPIBackend struct {
@@ -100,7 +93,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb := b.svc.app.StateDB(header.Root)
+	stateDb := b.svc.store.app.StateDB(hash.Hash(header.Root))
 	return stateDb, header, nil
 }
 
@@ -148,7 +141,16 @@ func (b *EthAPIBackend) GetFullEventID(shortEventID string) (hash.Event, error) 
 	return options[0], nil
 }
 
-// GetEvent returns Lachesis event by hash or short ID.
+// GetEventPayload returns Lachesis event by hash or short ID.
+func (b *EthAPIBackend) GetEventPayload(ctx context.Context, shortEventID string) (*inter.EventPayload, error) {
+	id, err := b.GetFullEventID(shortEventID)
+	if err != nil {
+		return nil, err
+	}
+	return b.svc.store.GetEventPayload(id), nil
+}
+
+// GetEvent returns the Lachesis event header by hash or short ID.
 func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error) {
 	id, err := b.GetFullEventID(shortEventID)
 	if err != nil {
@@ -157,50 +159,11 @@ func (b *EthAPIBackend) GetEvent(ctx context.Context, shortEventID string) (*int
 	return b.svc.store.GetEvent(id), nil
 }
 
-// GetEventHeader returns the Lachesis event header by hash or short ID.
-func (b *EthAPIBackend) GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error) {
-	id, err := b.GetFullEventID(shortEventID)
-	if err != nil {
-		return nil, err
-	}
-	epoch := id.Epoch()
-	if epoch != b.svc.engine.GetEpoch() {
-		return nil, errors.New("event headers are stored only for current epoch")
-	}
-	return b.svc.store.GetEventHeader(epoch, id), nil
-}
-
-// GetConsensusTime returns event's consensus time, if event is confirmed.
-func (b *EthAPIBackend) GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error) {
-	id, err := b.GetFullEventID(shortEventID)
-	if err != nil {
-		return 0, err
-	}
-	return b.svc.engine.GetConsensusTime(id)
-}
-
-func (b *EthAPIBackend) epochWithDefault(ctx context.Context, epoch rpc.BlockNumber) (requested idx.Epoch, err error) {
-	current := b.svc.engine.GetEpoch()
-
-	switch {
-	case epoch == rpc.PendingBlockNumber:
-		requested = current
-	case epoch == rpc.LatestBlockNumber:
-		requested = current - 1
-	case epoch >= 0 && idx.Epoch(epoch) <= current:
-		requested = idx.Epoch(epoch)
-	default:
-		err = errors.New("epoch is not in range")
-		return
-	}
-	return requested, nil
-}
-
 // GetHeads returns IDs of all the epoch events with no descendants.
 // * When epoch is -2 the heads for latest epoch are returned.
 // * When epoch is -1 the heads for latest sealed epoch are returned.
 func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (heads hash.Events, err error) {
-	current := b.svc.engine.GetEpoch()
+	current := b.svc.store.GetEpoch()
 
 	requested, err := b.epochWithDefault(ctx, epoch)
 	if err != nil {
@@ -230,9 +193,26 @@ func (b *EthAPIBackend) GetHeads(ctx context.Context, epoch rpc.BlockNumber) (he
 	return
 }
 
+func (b *EthAPIBackend) epochWithDefault(ctx context.Context, epoch rpc.BlockNumber) (requested idx.Epoch, err error) {
+	current := b.svc.store.GetEpoch()
+
+	switch {
+	case epoch == rpc.PendingBlockNumber:
+		requested = current
+	case epoch == rpc.LatestBlockNumber:
+		requested = current - 1
+	case epoch >= 0 && idx.Epoch(epoch) <= current:
+		requested = idx.Epoch(epoch)
+	default:
+		err = errors.New("epoch is not in range")
+		return
+	}
+	return requested, nil
+}
+
 // ForEachEpochEvent iterates all the events which are observed by head, and accepted by a filter.
 // filter CANNOT called twice for the same event.
-func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error {
+func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.EventPayload) bool) error {
 	requested, err := b.epochWithDefault(ctx, epoch)
 	if err != nil {
 		return err
@@ -243,7 +223,7 @@ func (b *EthAPIBackend) ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNu
 }
 
 func (b *EthAPIBackend) GetValidators(ctx context.Context) *pos.Validators {
-	return b.svc.engine.GetValidators()
+	return b.svc.store.GetValidators()
 }
 
 func (b *EthAPIBackend) GetBlock(ctx context.Context, h common.Hash) (*evmcore.EvmBlock, error) {
@@ -281,7 +261,7 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 		number = rpc.BlockNumber(header.Number.Uint64())
 	}
 
-	receipts := b.svc.app.GetReceipts(idx.Block(number))
+	receipts := b.svc.store.app.GetReceipts(idx.Block(number))
 	return receipts, nil
 }
 
@@ -325,10 +305,6 @@ func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if err == nil {
 		// NOTE: only sent txs tracing, see TxPool.addTxs() for all
 		tracing.StartTx(signedTx.Hash(), "EthAPIBackend.SendTx()")
-		// TODO: txLatency cleaning, possible memory leak
-		if metrics.Enabled {
-			txLatency.Start(signedTx.Hash())
-		}
 	}
 	return err
 }
@@ -371,17 +347,17 @@ func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		return nil, 0, 0, nil
 	}
 
-	event := b.svc.store.GetEvent(position.Event)
-	if position.EventOffset > uint32(event.Transactions.Len()) {
+	event := b.svc.store.GetEventPayload(position.Event)
+	if position.EventOffset > uint32(event.Txs().Len()) {
 		return nil, 0, 0, fmt.Errorf("transactions index is corrupted (offset is larger than number of txs in event), event=%s, txid=%s, block=%d, offset=%d, txs_num=%d",
 			position.Event.String(),
 			txHash.String(),
 			position.Block,
 			position.EventOffset,
-			event.Transactions.Len())
+			event.Txs().Len())
 	}
 
-	tx := event.Transactions[position.EventOffset]
+	tx := event.Txs()[position.EventOffset]
 	return tx, uint64(position.Block), uint64(position.BlockOffset), nil
 }
 
@@ -428,7 +404,7 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.app.EvmTable()
+	return b.svc.store.app.EvmTable()
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -444,252 +420,10 @@ func (b *EthAPIBackend) RPCGasCap() *big.Int {
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
-	return b.svc.app.EvmLogs()
+	return b.svc.store.app.EvmLogs()
 }
 
 // CurrentEpoch returns current epoch number.
 func (b *EthAPIBackend) CurrentEpoch(ctx context.Context) idx.Epoch {
-	return b.svc.engine.GetEpoch()
-}
-
-// GetEpochStats returns epoch statistics.
-// * When epoch is -2 the statistics for latest epoch is returned.
-// * When epoch is -1 the statistics for latest sealed epoch is returned.
-func (b *EthAPIBackend) GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error) {
-	var epoch idx.Epoch
-	if requestedEpoch == rpc.PendingBlockNumber {
-		epoch = pendingEpoch
-	} else if requestedEpoch == rpc.LatestBlockNumber {
-		epoch = b.CurrentEpoch(ctx) - 1
-	} else {
-		epoch = idx.Epoch(requestedEpoch)
-	}
-	if epoch == b.CurrentEpoch(ctx) {
-		return nil, errors.New("current epoch isn't sealed yet, request pending epoch")
-	}
-
-	stats := b.svc.store.GetEpochStats(epoch)
-	if stats == nil {
-		return nil, nil
-	}
-	stats.Epoch = epoch
-
-	// read total reward weights from SFC contract
-	header := b.state.CurrentHeader()
-	statedb := b.svc.app.StateDB(header.Root)
-
-	epochPosition := sfcpos.EpochSnapshot(epoch)
-	stats.TotalBaseRewardWeight = statedb.GetState(sfc.ContractAddress, epochPosition.TotalBaseRewardWeight()).Big()
-	stats.TotalTxRewardWeight = statedb.GetState(sfc.ContractAddress, epochPosition.TotalTxRewardWeight()).Big()
-
-	return stats, nil
-}
-
-// GetValidationScore returns staker's ValidationScore.
-func (b *EthAPIBackend) GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	if !b.svc.app.HasSfcStaker(stakerID) {
-		return nil, nil
-	}
-	return b.svc.app.GetActiveValidationScore(stakerID), nil
-}
-
-// GetOriginationScore returns staker's OriginationScore.
-func (b *EthAPIBackend) GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	if !b.svc.app.HasSfcStaker(stakerID) {
-		return nil, nil
-	}
-	return b.svc.app.GetActiveOriginationScore(stakerID), nil
-}
-
-// GetStakerPoI returns staker's PoI.
-func (b *EthAPIBackend) GetStakerPoI(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	if !b.svc.app.HasSfcStaker(stakerID) {
-		return nil, nil
-	}
-	return b.svc.app.GetStakerPOI(stakerID), nil
-}
-
-// GetRewardWeights returns staker's reward weights.
-func (b *EthAPIBackend) GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error) {
-	if !b.svc.app.HasSfcStaker(stakerID) {
-		return nil, nil, nil
-	}
-	header := b.state.CurrentHeader()
-	statedb := b.svc.app.StateDB(header.Root)
-
-	// read reward weight from SFC contract
-	epoch := b.svc.engine.GetEpoch()
-	epochPosition := sfcpos.EpochSnapshot(epoch - 1)
-	validatorPosition := epochPosition.ValidatorMerit(stakerID)
-	baseRewardWeight256 := statedb.GetState(sfc.ContractAddress, validatorPosition.BaseRewardWeight())
-	txRewardWeight256 := statedb.GetState(sfc.ContractAddress, validatorPosition.TxRewardWeight())
-
-	return new(big.Int).SetBytes(baseRewardWeight256.Bytes()), new(big.Int).SetBytes(txRewardWeight256.Bytes()), nil
-}
-
-// GetDowntime returns staker's Downtime.
-func (b *EthAPIBackend) GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error) {
-	missed := b.svc.app.GetBlocksMissed(stakerID)
-	return missed.Num, missed.Period, nil
-}
-
-// GetStaker returns SFC staker's info
-func (b *EthAPIBackend) GetStaker(ctx context.Context, stakerID idx.StakerID) (*sfctype.SfcStaker, error) {
-	staker := b.svc.app.GetSfcStaker(stakerID)
-	if staker == nil {
-		return nil, nil
-	}
-	staker.IsValidator = b.svc.engine.GetValidators().Exists(stakerID)
-	return staker, nil
-}
-
-// GetStakerID returns SFC staker's Id by address
-func (b *EthAPIBackend) GetStakerID(ctx context.Context, addr common.Address) (idx.StakerID, error) {
-	header := b.state.CurrentHeader()
-	statedb := b.svc.app.StateDB(header.Root)
-
-	position := sfcpos.StakerID(addr)
-	stakerID256 := statedb.GetState(sfc.ContractAddress, position)
-
-	return idx.StakerID(new(big.Int).SetBytes(stakerID256.Bytes()).Uint64()), nil
-}
-
-// GetStakers returns SFC stakers info
-func (b *EthAPIBackend) GetStakers(ctx context.Context) ([]sfctype.SfcStakerAndID, error) {
-	b.svc.engineMu.RLock() // lock because of iteration
-	defer b.svc.engineMu.RUnlock()
-
-	stakers := make([]sfctype.SfcStakerAndID, 0, 200)
-	b.svc.app.ForEachSfcStaker(func(it sfctype.SfcStakerAndID) {
-		it.Staker.IsValidator = b.svc.engine.GetValidators().Exists(it.StakerID)
-		stakers = append(stakers, it)
-	})
-	return stakers, nil
-}
-
-// GetDelegationsOf returns SFC delegations who delegated to a staker
-func (b *EthAPIBackend) GetDelegationsOf(ctx context.Context, stakerID idx.StakerID) ([]sfctype.SfcDelegationAndID, error) {
-	b.svc.engineMu.RLock() // lock because of iteration
-	defer b.svc.engineMu.RUnlock()
-
-	delegations := make([]sfctype.SfcDelegationAndID, 0, 200)
-	// TODO add additional DB index
-	b.svc.app.ForEachSfcDelegation(func(it sfctype.SfcDelegationAndID) {
-		if it.ID.StakerID == stakerID {
-			delegations = append(delegations, it)
-		}
-	})
-	return delegations, nil
-}
-
-// GetDelegation returns SFC delegation info
-func (b *EthAPIBackend) GetDelegation(ctx context.Context, id sfctype.DelegationID) (*sfctype.SfcDelegation, error) {
-	return b.svc.app.GetSfcDelegation(id), nil
-}
-
-// GetDelegationsByAddress returns SFC delegations info by address
-func (b *EthAPIBackend) GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error) {
-	return b.svc.app.GetSfcDelegationsByAddr(addr, 1000), nil
-}
-
-// GetDelegationClaimedRewards returns sum of claimed rewards in past, by this delegation
-func (b *EthAPIBackend) GetDelegationClaimedRewards(ctx context.Context, id sfctype.DelegationID) (*big.Int, error) {
-	return b.svc.app.GetDelegationClaimedRewards(id), nil
-}
-
-// GetStakerClaimedRewards returns sum of claimed rewards in past, by this staker
-func (b *EthAPIBackend) GetStakerClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	return b.svc.app.GetStakerClaimedRewards(stakerID), nil
-}
-
-// GetStakerDelegationsClaimedRewards returns sum of claimed rewards in past, by this delegations of this staker
-func (b *EthAPIBackend) GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error) {
-	return b.svc.app.GetStakerDelegationsClaimedRewards(stakerID), nil
-}
-
-// GetEventTime returns estimation of when event was created
-func (b *EthAPIBackend) GetEventTime(ctx context.Context, id hash.Event, arrivalTime bool) inter.Timestamp {
-	var t inter.Timestamp
-	if arrivalTime && b.svc.config.EventLocalTimeIndex {
-		t = b.svc.store.GetEventReceivingTime(id)
-	}
-	if !arrivalTime {
-		decisiveEvent := b.svc.store.GetEvent(id)
-		if decisiveEvent == nil {
-			return 0
-		}
-		t = decisiveEvent.ClaimedTime
-	}
-	return t
-}
-
-// BlocksTTF for a range of blocks
-func (b *EthAPIBackend) BlocksTTF(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block, mode string) (map[hash.Event]time.Duration, error) {
-	if !b.svc.config.DecisiveEventsIndex {
-		return nil, errors.New("decisive-events index is disabled (enable DecisiveEventsIndex and re-process the DAGs)")
-	}
-	if mode == "arrival_time" && !b.svc.config.EventLocalTimeIndex {
-		return nil, errors.New("arrival-time index is disabled (enable EventLocalTimeIndex and re-process the DAGs)")
-	}
-	if untilBlock == rpc.PendingBlockNumber {
-		return nil, errors.New("pending block request isn't allowed")
-	}
-	if untilBlock == rpc.LatestBlockNumber {
-		untilBlock = rpc.BlockNumber(b.state.CurrentHeader().Number.Uint64())
-	}
-
-	ttfs := map[hash.Event]time.Duration{}
-
-	for i := idx.Block(untilBlock); i >= 1 && i+maxBlocks >= idx.Block(untilBlock); i-- {
-		block := b.svc.store.GetBlock(i)
-		if block == nil {
-			break
-		}
-		decisiveEventID := b.svc.store.GetBlockDecidedBy(i)
-		if decisiveEventID.IsZero() {
-			break
-		}
-		decidedTime := b.GetEventTime(ctx, decisiveEventID, mode == "arrival_time")
-		if decidedTime == 0 {
-			break
-		}
-
-		for _, id := range block.Events {
-			eventTime := b.GetEventTime(ctx, id, mode == "arrival_time")
-			if eventTime == 0 || decidedTime < eventTime {
-				continue
-			}
-			ttf := time.Duration(decidedTime - eventTime)
-			ttfs[id] = ttf
-		}
-	}
-
-	return ttfs, nil
-}
-
-// ValidatorTimeDrifts returns data to estimate time drift of each validator
-func (b *EthAPIBackend) ValidatorTimeDrifts(ctx context.Context, epoch rpc.BlockNumber, maxEvents idx.Event) (map[idx.StakerID]map[hash.Event]time.Duration, error) {
-	if !b.svc.config.EventLocalTimeIndex {
-		return nil, errors.New("arrival-time index is disabled (enable EventLocalTimeIndex and re-process the DAGs)")
-	}
-
-	drifts := map[idx.StakerID]map[hash.Event]time.Duration{}
-
-	processed := 0
-
-	err := b.ForEachEpochEvent(ctx, epoch, func(event *inter.Event) bool {
-		arrivalTime := b.GetEventTime(ctx, event.Hash(), true)
-		claimedTime := event.ClaimedTime
-
-		if arrivalTime != 0 {
-			if drifts[event.Creator] == nil {
-				drifts[event.Creator] = map[hash.Event]time.Duration{}
-			}
-			drifts[event.Creator][event.Hash()] = claimedTime.Time().Sub(arrivalTime.Time())
-		}
-
-		processed++
-		return processed < int(maxEvents)
-	})
-	return drifts, err
+	return b.svc.store.GetEpoch()
 }

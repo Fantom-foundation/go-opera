@@ -20,8 +20,9 @@ package ethapi
 import (
 	"context"
 	"math/big"
-	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -32,12 +33,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 // PeerProgress is synchronization status of a peer
@@ -87,32 +84,10 @@ type Backend interface {
 	CurrentBlock() *evmcore.EvmBlock
 
 	// Lachesis DAG API
+	GetEventPayload(ctx context.Context, shortEventID string) (*inter.EventPayload, error)
 	GetEvent(ctx context.Context, shortEventID string) (*inter.Event, error)
-	GetEventHeader(ctx context.Context, shortEventID string) (*inter.EventHeaderData, error)
-	GetConsensusTime(ctx context.Context, shortEventID string) (inter.Timestamp, error)
 	GetHeads(ctx context.Context, epoch rpc.BlockNumber) (hash.Events, error)
 	CurrentEpoch(ctx context.Context) idx.Epoch
-	GetEpochStats(ctx context.Context, requestedEpoch rpc.BlockNumber) (*sfctype.EpochStats, error)
-	BlocksTTF(ctx context.Context, untilBlock rpc.BlockNumber, maxBlocks idx.Block, mode string) (map[hash.Event]time.Duration, error)
-	ForEachEpochEvent(ctx context.Context, epoch rpc.BlockNumber, onEvent func(event *inter.Event) bool) error
-	ValidatorTimeDrifts(ctx context.Context, epoch rpc.BlockNumber, maxEvents idx.Event) (map[idx.StakerID]map[hash.Event]time.Duration, error)
-
-	// Lachesis SFC API
-	GetValidators(ctx context.Context) *pos.Validators
-	GetValidationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetOriginationScore(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetRewardWeights(ctx context.Context, stakerID idx.StakerID) (*big.Int, *big.Int, error)
-	GetStakerPoI(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetDowntime(ctx context.Context, stakerID idx.StakerID) (idx.Block, inter.Timestamp, error)
-	GetDelegationClaimedRewards(ctx context.Context, id sfctype.DelegationID) (*big.Int, error)
-	GetStakerClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetStakerDelegationsClaimedRewards(ctx context.Context, stakerID idx.StakerID) (*big.Int, error)
-	GetStaker(ctx context.Context, stakerID idx.StakerID) (*sfctype.SfcStaker, error)
-	GetStakerID(ctx context.Context, addr common.Address) (idx.StakerID, error)
-	GetStakers(ctx context.Context) ([]sfctype.SfcStakerAndID, error)
-	GetDelegationsOf(ctx context.Context, stakerID idx.StakerID) ([]sfctype.SfcDelegationAndID, error)
-	GetDelegationsByAddress(ctx context.Context, addr common.Address) ([]sfctype.SfcDelegationAndID, error)
-	GetDelegation(ctx context.Context, id sfctype.DelegationID) (*sfctype.SfcDelegation, error)
 }
 
 func GetAPIs(apiBackend Backend) []rpc.API {
@@ -129,7 +104,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Service:   NewPublicBlockChainAPI(apiBackend),
 			Public:    true,
 		}, {
-			Namespace: "eth",
+			Namespace: "dag",
 			Version:   "1.0",
 			Service:   NewPublicDAGChainAPI(apiBackend),
 			Public:    true,
@@ -162,11 +137,6 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Version:   "1.0",
 			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
 			Public:    false,
-		}, {
-			Namespace: "sfc",
-			Version:   "1.0",
-			Service:   NewPublicSfcAPI(apiBackend),
-			Public:    false,
 		},
 	}
 
@@ -181,11 +151,6 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 			Namespace: "ftm",
 			Version:   "1.0",
 			Service:   NewPublicBlockChainAPI(apiBackend),
-			Public:    true,
-		}, {
-			Namespace: "ftm",
-			Version:   "1.0",
-			Service:   NewPublicDAGChainAPI(apiBackend),
 			Public:    true,
 		}, {
 			Namespace: "ftm",

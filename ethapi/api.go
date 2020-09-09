@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -44,11 +45,9 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	lachesisparams "github.com/Fantom-foundation/go-lachesis/lachesis/params"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/inter"
+	operaparams "github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 const (
@@ -891,7 +890,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	if args.Gas != nil && uint64(*args.Gas) >= params.TxGas {
 		hi = uint64(*args.Gas)
 	} else {
-		hi = lachesisparams.MaxGasPowerUsed / 2
+		hi = operaparams.MaxGasPowerUsed / 2
 	}
 	if gasCap != nil && hi > gasCap.Uint64() {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
@@ -1008,25 +1007,24 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 }
 
 // RPCMarshalEventHeader converts the given header to the RPC output .
-func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{} {
+func RPCMarshalEventHeader(header *inter.Event) map[string]interface{} {
 	return map[string]interface{}{
-		"version":          header.Version,
 		"epoch":            header.Epoch,
 		"seq":              header.Seq,
-		"hash":             hexutil.Bytes(header.Hash().Bytes()),
+		"id":               hexutil.Bytes(header.ID().Bytes()),
 		"frame":            header.Frame,
 		"isRoot":           header.IsRoot,
 		"creator":          header.Creator,
 		"prevEpochHash":    header.PrevEpochHash,
-		"parents":          eventIDsToHex(header.Parents),
+		"parents":          eventIDsToHex(header.Parents()),
 		"lamport":          header.Lamport,
-		"claimedTime":      header.ClaimedTime,
+		"creationTime":     header.CreationTime,
 		"medianTime":       header.MedianTime,
-		"extraData":        hexutil.Bytes(header.Extra),
-		"transactionsRoot": hexutil.Bytes(header.TxHash.Bytes()),
+		"extraData":        hexutil.Bytes(header.Extra()),
+		"transactionsRoot": hexutil.Bytes(header.TxHash().Bytes()),
 		"gasPowerLeft": map[string]interface{}{
-			"shortTerm": header.GasPowerLeft.Gas[idx.ShortTermGas],
-			"longTerm":  header.GasPowerLeft.Gas[idx.LongTermGas],
+			"shortTerm": header.GasPowerLeft().Gas[inter.ShortTermGas],
+			"longTerm":  header.GasPowerLeft().Gas[inter.LongTermGas],
 		},
 		"gasPowerUsed": header.GasPowerUsed,
 	}
@@ -1035,8 +1033,8 @@ func RPCMarshalEventHeader(header *inter.EventHeaderData) map[string]interface{}
 // RPCMarshalEvent converts the given event to the RPC output which depends on fullTx. If inclTx is true transactions are
 // returned. When fullTx is true the returned block contains full transaction details, otherwise it will only contain
 // transaction hashes.
-func RPCMarshalEvent(event *inter.Event, inclTx bool, fullTx bool) (map[string]interface{}, error) {
-	fields := RPCMarshalEventHeader(&event.EventHeaderData)
+func RPCMarshalEvent(event *inter.EventPayload, inclTx bool, fullTx bool) (map[string]interface{}, error) {
+	fields := RPCMarshalEventHeader(&event.Event)
 	fields["size"] = event.Size()
 
 	if inclTx {
@@ -1049,7 +1047,7 @@ func RPCMarshalEvent(event *inter.Event, inclTx bool, fullTx bool) (map[string]i
 			//	return newRPCTransactionFromBlockHash(event, tx.Hash()), nil
 			//}
 		}
-		txs := event.Transactions
+		txs := event.Txs()
 		transactions := make([]interface{}, len(txs))
 		var err error
 		for i, tx := range txs {
@@ -1196,7 +1194,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		R:        (*hexutil.Big)(r),
 		S:        (*hexutil.Big)(s),
 	}
-	if blockHash != hash.Zero {
+	if blockHash != common.Hash(hash.Zero) {
 		result.BlockHash = &blockHash
 		result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
 		result.TransactionIndex = (*hexutil.Uint64)(&index)
@@ -1836,7 +1834,7 @@ func (api *PrivateDebugAPI) ChaindbCompact() error {
 
 // SetHead rewinds the head of the blockchain to a previous block.
 func (api *PrivateDebugAPI) SetHead(number hexutil.Uint64) error {
-	return errors.New("lachesis cannot rewind blocks due to the BFT algorithm")
+	return errors.New("opera cannot rewind blocks due to the BFT algorithm")
 }
 
 // PublicNetAPI offers network related RPC methods
