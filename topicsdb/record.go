@@ -1,9 +1,9 @@
 package topicsdb
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -82,8 +82,8 @@ func (rec *logrecBuilder) SetOtherTopic(pos uint8, topic common.Hash) {
 
 // Fetch log record's data.
 func (rec *logrecBuilder) Fetch(
-	othersTable ethdb.Iteratee,
-	logrecTable ethdb.KeyValueReader,
+	othersTable kvdb.Iteratee,
+	logrecTable kvdb.Reader,
 ) (err error) {
 	// others
 	it := othersTable.NewIteratorWithPrefix(rec.ID.Bytes())

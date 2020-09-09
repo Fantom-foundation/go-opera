@@ -4,13 +4,13 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-opera/logger"
 )
 
 func TestTopicsDb(t *testing.T) {
@@ -20,7 +20,7 @@ func TestTopicsDb(t *testing.T) {
 
 	db := New(memorydb.New())
 
-	t.Run("Push", func(t *testing.T) {
+	t.Run("Write", func(t *testing.T) {
 		assertar := assert.New(t)
 
 		for _, rec := range recs {

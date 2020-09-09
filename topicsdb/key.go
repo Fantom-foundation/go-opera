@@ -1,9 +1,8 @@
 package topicsdb
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/ethereum/go-ethereum/common"
-
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
 )
 
 const (
@@ -74,11 +73,11 @@ func bytesToPos(b []byte) uint8 {
 }
 
 func uintToBytes(n uint64) []byte {
-	return bigendian.Int64ToBytes(n)
+	return bigendian.Uint64ToBytes(n)
 }
 
 func bytesToUint(b []byte) uint64 {
-	return bigendian.BytesToInt64(b)
+	return bigendian.BytesToUint64(b)
 }
 
 func extractLogrecID(key []byte) (id ID) {

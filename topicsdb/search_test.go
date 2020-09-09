@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func BenchmarkSearch(b *testing.B) {

@@ -1,9 +1,9 @@
 package topicsdb
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 func (tt *Index) fetchAsync(topics [][]common.Hash) (res []*types.Log, err error) {
@@ -70,8 +70,8 @@ func (tt *Index) fetchAsync(topics [][]common.Hash) (res []*types.Log, err error
 
 // StartFetch log record's data when all conditions are ok.
 func (rec *logrecBuilder) StartFetch(
-	othersTable ethdb.Iteratee,
-	logrecTable ethdb.KeyValueReader,
+	othersTable kvdb.Iteratee,
+	logrecTable kvdb.Reader,
 ) {
 	if rec.ok != nil {
 		return
