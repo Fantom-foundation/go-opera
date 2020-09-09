@@ -1,4 +1,4 @@
-package gossip
+package emitter
 
 import (
 	"fmt"
@@ -7,30 +7,30 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
+	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/app"
-	"github.com/Fantom-foundation/go-lachesis/common/bigendian"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
-	"github.com/Fantom-foundation/go-lachesis/gossip/piecefunc"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/ancestor"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
-	"github.com/Fantom-foundation/go-lachesis/logger"
-	"github.com/Fantom-foundation/go-lachesis/tracing"
-	"github.com/Fantom-foundation/go-lachesis/utils"
-	"github.com/Fantom-foundation/go-lachesis/utils/errlock"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
+	"github.com/Fantom-foundation/go-opera/gossip/piecefunc"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/params"
+	"github.com/Fantom-foundation/go-opera/tracing"
+	"github.com/Fantom-foundation/go-opera/utils"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
+	"github.com/Fantom-foundation/go-opera/utils/errlock"
+	"github.com/Fantom-foundation/go-opera/vecmt"
+	"github.com/Fantom-foundation/lachesis-base/hash"
 )
 
 const (
@@ -42,33 +42,31 @@ const (
 
 // EmitterWorld is emitter's external world
 type EmitterWorld struct {
-	Store       *Store
-	App         *app.Store
-	Engine      Consensus
+	Store       Reader
 	EngineMu    *sync.RWMutex
 	Txpool      txPool
 	Am          *accounts.Manager
 	OccurredTxs *occuredtxs.Buffer
 
-	Checkers *eventcheck.Checkers
+	Check    func(e *inter.EventPayload, parents inter.Events) error
+	Process  func(*inter.EventPayload) error
+	Build    func(*inter.MutableEventPayload) error
+	DagIndex *vecmt.Index
 
-	OnEmitted func(e *inter.Event)
-	IsSynced  func() bool
-	PeersNum  func() int
-
-	AddVersion func(e *inter.Event) *inter.Event
+	IsSynced func() bool
+	PeersNum func() int
 }
 
 type Emitter struct {
 	txTime *lru.Cache // tx hash -> tx time
 
-	net    *lachesis.Config
-	config *EmitterConfig
+	net    *opera.Config
+	config *Config
 
 	world EmitterWorld
 
-	myStakerID idx.StakerID
-	myAddress  common.Address
+	myValidatorID idx.ValidatorID
+	myAddress     common.Address
 
 	syncStatus selfForkProtection
 
@@ -94,8 +92,8 @@ type selfForkProtection struct {
 
 // NewEmitter creation.
 func NewEmitter(
-	net *lachesis.Config,
-	config *EmitterConfig,
+	net *opera.Config,
+	config *Config,
 	world EmitterWorld,
 ) *Emitter {
 
@@ -117,7 +115,7 @@ func NewEmitter(
 func (em *Emitter) init() {
 	em.syncStatus.connectedTime = time.Now()
 	em.syncStatus.startupTime = time.Now()
-	validators, epoch := em.world.Engine.GetEpochValidators()
+	validators, epoch := em.world.Store.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 }
 
@@ -182,31 +180,31 @@ func (em *Emitter) SetValidator(addr common.Address) {
 }
 
 // GetValidator gets event creator.
-func (em *Emitter) GetValidator() (idx.StakerID, common.Address) {
+func (em *Emitter) GetValidator() (idx.ValidatorID, common.Address) {
 	em.world.EngineMu.RLock()
 	defer em.world.EngineMu.RUnlock()
-	return em.myStakerID, em.myAddress
+	return em.myValidatorID, em.myAddress
 }
 
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	if em.myStakerID == 0 {
+	if em.myValidatorID == 0 {
 		return em.prevEmittedTime
 	}
 
-	prevEventID := em.world.Store.GetLastEvent(em.world.Engine.GetEpoch(), em.myStakerID)
+	prevEventID := em.world.Store.GetLastEvent(em.world.Store.GetEpoch(), em.myValidatorID)
 	if prevEventID == nil {
 		return em.prevEmittedTime
 	}
-	prevEvent := em.world.Store.GetEventHeader(prevEventID.Epoch(), *prevEventID)
+	prevEvent := em.world.Store.GetEvent(*prevEventID)
 	if prevEvent == nil {
 		return em.prevEmittedTime
 	}
-	return prevEvent.ClaimedTime.Time()
+	return prevEvent.CreationTime().Time()
 }
 
 // safe for concurrent use
 func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
-	if em.myStakerID == 0 {
+	if em.myValidatorID == 0 {
 		return // short circuit if not validator
 	}
 	now := time.Now()
@@ -218,24 +216,24 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 	}
 }
 
-func (em *Emitter) findMyStakerID() (idx.StakerID, bool) {
+func (em *Emitter) findMyValidatorID() (idx.ValidatorID, bool) {
 	myAddress := em.myAddress
 	if myAddress == (common.Address{}) {
 		return 0, false // short circuit if zero address
 	}
 
-	validators := em.world.App.GetEpochValidators(em.world.Engine.GetEpoch())
-	for _, it := range validators {
+	profiles := em.world.Store.GetValidatorProfiles()
+	for _, it := range profiles {
 		if it.Staker.Address == myAddress {
-			return it.StakerID, true
+			return it.ValidatorID, true
 		}
 	}
 	return 0, false
 }
 
 // safe for concurrent use
-func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validatorsArr []idx.StakerID, validatorsArrStakes []pos.Stake, me idx.StakerID) bool {
-	turnHash := hash.Of(sender.Bytes(), bigendian.Int64ToBytes(accountNonce/TxTurnNonces), em.world.Engine.GetEpoch().Bytes())
+func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, accountNonce uint64, now time.Time, validatorsArr []idx.ValidatorID, validatorsArrStakes []pos.Weight, me idx.ValidatorID, epoch idx.Epoch) bool {
+	turnHash := hash.Of(sender.Bytes(), bigendian.Uint64ToBytes(accountNonce/TxTurnNonces), epoch.Bytes())
 
 	var txTime time.Time
 	txTimeI, ok := em.txTime.Get(txHash)
@@ -252,17 +250,17 @@ func (em *Emitter) isMyTxTurn(txHash common.Hash, sender common.Address, account
 	return validatorsArr[turns[roundIndex]] == me
 }
 
-func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Transactions) *inter.Event {
+func (em *Emitter) addTxs(e *inter.MutableEventPayload, poolTxs map[common.Address]types.Transactions) {
 	if poolTxs == nil || len(poolTxs) == 0 {
-		return e
+		return
 	}
 
 	maxGasUsed := em.maxGasPowerToUse(e)
 
 	now := time.Now()
-	validators := em.world.Engine.GetValidators()
+	validators, epoch := em.world.Store.GetEpochValidators()
 	validatorsArr := validators.SortedIDs() // validators must be sorted deterministically
-	validatorsArrStakes := make([]pos.Stake, len(validatorsArr))
+	validatorsArrStakes := make([]pos.Weight, len(validatorsArr))
 	for i, addr := range validatorsArr {
 		validatorsArrStakes[i] = validators.Get(addr)
 	}
@@ -275,7 +273,7 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 		// txs is the chain of dependent txs
 		for _, tx := range txs {
 			// enough gas power
-			if tx.Gas() >= e.GasPowerLeft.Min() || e.GasPowerUsed+tx.Gas() >= maxGasUsed {
+			if tx.Gas() >= e.GasPowerLeft().Min() || e.GasPowerUsed()+tx.Gas() >= maxGasUsed {
 				break // txs are dependent, so break the loop
 			}
 			// check not conflicted with already included txs (in any connected event)
@@ -283,35 +281,36 @@ func (em *Emitter) addTxs(e *inter.Event, poolTxs map[common.Address]types.Trans
 				break // txs are dependent, so break the loop
 			}
 			// my turn, i.e. try to not include the same tx simultaneously by different validators
-			if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), now, validatorsArr, validatorsArrStakes, e.Creator) {
+			if !em.isMyTxTurn(tx.Hash(), sender, tx.Nonce(), now, validatorsArr, validatorsArrStakes, e.Creator(), epoch) {
 				break // txs are dependent, so break the loop
 			}
 
 			// add
-			e.GasPowerUsed += tx.Gas()
-			e.GasPowerLeft.Sub(tx.Gas())
-			e.Transactions = append(e.Transactions, tx)
+			e.SetGasPowerUsed(e.GasPowerUsed() + tx.Gas())
+			e.SetGasPowerLeft(e.GasPowerLeft().Sub(tx.Gas()))
+			e.SetTxs(append(e.Txs(), tx))
 		}
 	}
-	return e
 }
 
-func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*hash.Event, hash.Events, bool) {
-	selfParent := em.world.Store.GetLastEvent(epoch, myStakerID)
+func (em *Emitter) findBestParents(epoch idx.Epoch, myValidatorID idx.ValidatorID) (*hash.Event, hash.Events, bool) {
+	selfParent := em.world.Store.GetLastEvent(epoch, myValidatorID)
 	heads := em.world.Store.GetHeads(epoch) // events with no descendants
 
+	validators := em.world.Store.GetValidators()
+
 	var strategy ancestor.SearchStrategy
-	vecClock := em.world.Engine.GetVectorIndex()
-	if vecClock != nil {
-		strategy = ancestor.NewCasualityStrategy(vecClock, em.world.Engine.GetValidators())
+	dagIndex := em.world.DagIndex
+	if dagIndex != nil {
+		strategy = ancestor.NewCasualityStrategy(vecmt2dagidx.Wrap(dagIndex), validators)
 		if rand.Intn(20) == 0 { // every 20th event uses random strategy is avoid repeating patterns in DAG
 			strategy = ancestor.NewRandomStrategy(rand.New(rand.NewSource(time.Now().UnixNano())))
 		}
 
 		// don't link to known cheaters
-		heads = vecClock.NoCheaters(selfParent, heads)
-		if selfParent != nil && len(vecClock.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myStakerID)
+		heads = dagIndex.NoCheaters(selfParent, heads)
+		if selfParent != nil && len(dagIndex.NoCheaters(selfParent, hash.Events{*selfParent})) == 0 {
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", myValidatorID)
 			return nil, nil, false
 		}
 	} else {
@@ -331,8 +330,8 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myStakerID idx.StakerID) (*h
 }
 
 // createEvent is not safe for concurrent use.
-func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.Event {
-	if em.myStakerID == 0 {
+func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.EventPayload {
+	if em.myValidatorID == 0 {
 		// not a validator
 		return nil
 	}
@@ -343,7 +342,8 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	var (
-		epoch          = em.world.Engine.GetEpoch()
+		epoch          = em.world.Store.GetEpoch()
+		validators     = em.world.Store.GetValidators()
 		selfParentSeq  idx.Event
 		selfParentTime inter.Timestamp
 		parents        hash.Events
@@ -351,82 +351,66 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	)
 
 	// Find parents
-	selfParent, parents, ok := em.findBestParents(epoch, em.myStakerID)
+	selfParent, parents, ok := em.findBestParents(epoch, em.myValidatorID)
 	if !ok {
 		return nil
 	}
 
 	// Set parent-dependent fields
-	parentHeaders := make([]*inter.EventHeaderData, len(parents))
+	parentHeaders := make(inter.Events, len(parents))
 	for i, p := range parents {
-		parent := em.world.Store.GetEventHeader(epoch, p)
+		parent := em.world.Store.GetEvent(p)
 		if parent == nil {
-			em.Log.Crit("Emitter: head not found", "event", p.String())
+			em.Log.Crit("Emitter: head not found", "mutEvent", p.String())
 		}
 		parentHeaders[i] = parent
-		if parentHeaders[i].Creator == em.myStakerID && i != 0 {
+		if parentHeaders[i].Creator() == em.myValidatorID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.myStakerID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.myValidatorID)
 			return nil
 		}
-		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport)
+		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport())
 	}
 
 	selfParentSeq = 0
 	selfParentTime = 0
-	var selfParentHeader *inter.EventHeaderData
+	var selfParentHeader *inter.Event
 	if selfParent != nil {
 		selfParentHeader = parentHeaders[0]
-		selfParentSeq = selfParentHeader.Seq
-		selfParentTime = selfParentHeader.ClaimedTime
+		selfParentSeq = selfParentHeader.Seq()
+		selfParentTime = selfParentHeader.CreationTime()
 	}
 
-	event := inter.NewEvent()
-	event.Epoch = epoch
-	event.Seq = selfParentSeq + 1
-	event.Creator = em.myStakerID
+	mutEvent := &inter.MutableEventPayload{}
+	mutEvent.SetEpoch(epoch)
+	mutEvent.SetSeq(selfParentSeq + 1)
+	mutEvent.SetCreator(em.myValidatorID)
 
-	event.Parents = parents
-	event.Lamport = maxLamport + 1
-	event.ClaimedTime = inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+1)
-
-	// add version
-	if em.world.AddVersion != nil {
-		event = em.world.AddVersion(event)
-	}
+	mutEvent.SetParents(parents)
+	mutEvent.SetLamport(maxLamport + 1)
+	mutEvent.SetCreationTime(inter.MaxTimestamp(inter.Timestamp(time.Now().UnixNano()), selfParentTime+inter.MinEventTime))
 
 	// set consensus fields
-	event = em.world.Engine.Prepare(event)
-	if event == nil {
-		em.Log.Warn("Dropped event while emitting")
-		return nil
-	}
-
-	// calc initial GasPower
-	validators := em.world.Engine.GetValidators()
-	event.GasPowerUsed = basiccheck.CalcGasPowerUsed(event, &em.net.Dag)
-	availableGasPower, err := em.world.Checkers.Gaspowercheck.CalcGasPower(&event.EventHeaderData, selfParentHeader)
+	err := em.world.Build(mutEvent)
 	if err != nil {
-		em.Log.Warn("Gas power calculation failed", "err", err)
+		if err == NotEnoughGasPower {
+			em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
+				"stake%", 100*float64(validators.Get(em.myValidatorID))/float64(validators.TotalWeight()))
+		} else {
+			em.Log.Warn("Dropped event while emitting", "err", err)
+		}
 		return nil
 	}
-	if event.GasPowerUsed > availableGasPower.Min() {
-		em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
-			"gasPower", availableGasPower,
-			"stake%", 100*float64(validators.Get(em.myStakerID))/float64(validators.TotalStake()))
-		return nil
-	}
-	event.GasPowerLeft = *availableGasPower.Sub(event.GasPowerUsed)
 
 	// Add txs
-	event = em.addTxs(event, poolTxs)
+	em.addTxs(mutEvent, poolTxs)
 
-	if !em.isAllowedToEmit(event, selfParentHeader) {
+	if !em.isAllowedToEmit(mutEvent, selfParentHeader) {
 		return nil
 	}
 
 	// calc Merkle root
-	event.TxHash = types.DeriveSha(event.Transactions)
+	mutEvent.SetTxHash(hash.Hash(types.DeriveSha(mutEvent.Txs())))
 
 	// sign
 	myAddress := em.myAddress
@@ -440,24 +424,25 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		}
 		return w.SignData(acc, MimetypeEvent, data)
 	}
-	if err := event.Sign(signer); err != nil {
+	bSig, err := signer(mutEvent.HashToSign().Bytes())
+	if err != nil {
 		em.Periodic.Error(time.Second, "Failed to sign event. Please unlock account.", "err", err)
 		return nil
 	}
-	// calc hash after event is fully built
-	event.RecacheHash()
-	event.RecacheSize()
-	{
-		// sanity check
-		if em.world.Checkers != nil {
-			if err := em.world.Checkers.Validate(event, parentHeaders); err != nil {
-				em.Periodic.Error(time.Second, "Signed event incorrectly", "err", err)
-				return nil
-			}
-		}
+	var sig inter.Signature
+	copy(sig[:], bSig)
+	mutEvent.SetSig(sig)
+
+	// build clean event
+	event := mutEvent.Build()
+
+	// check
+	if err := em.world.Check(event, parentHeaders); err != nil {
+		em.Periodic.Error(time.Second, "Emitted incorrect event", "err", err)
+		return nil
 	}
 
-	// set event name for debug
+	// set mutEvent name for debug
 	em.nameEventForDebug(event)
 
 	return event
@@ -467,59 +452,59 @@ var (
 	confirmingEmitIntervalPieces = []piecefunc.Dot{
 		{
 			X: 0,
-			Y: 1.0 * piecefunc.PercentUnit,
+			Y: 1.0 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 0.33 * piecefunc.PercentUnit,
-			Y: 1.05 * piecefunc.PercentUnit,
+			X: 0.33 * piecefunc.DecimalUnit,
+			Y: 1.05 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 0.66 * piecefunc.PercentUnit,
-			Y: 1.20 * piecefunc.PercentUnit,
+			X: 0.66 * piecefunc.DecimalUnit,
+			Y: 1.20 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 0.8 * piecefunc.PercentUnit,
-			Y: 1.5 * piecefunc.PercentUnit,
+			X: 0.8 * piecefunc.DecimalUnit,
+			Y: 1.5 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 0.9 * piecefunc.PercentUnit,
-			Y: 3 * piecefunc.PercentUnit,
+			X: 0.9 * piecefunc.DecimalUnit,
+			Y: 3 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 1.0 * piecefunc.PercentUnit,
-			Y: 3.9 * piecefunc.PercentUnit,
+			X: 1.0 * piecefunc.DecimalUnit,
+			Y: 3.9 * piecefunc.DecimalUnit,
 		},
 	}
 	maxEmitIntervalPieces = []piecefunc.Dot{
 		{
 			X: 0,
-			Y: 1.0 * piecefunc.PercentUnit,
+			Y: 1.0 * piecefunc.DecimalUnit,
 		},
 		{
-			X: 1.0 * piecefunc.PercentUnit,
-			Y: 0.89 * piecefunc.PercentUnit,
+			X: 1.0 * piecefunc.DecimalUnit,
+			Y: 0.89 * piecefunc.DecimalUnit,
 		},
 	}
 )
 
 // OnNewEpoch should be called after each epoch change, and on startup
 func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
-	// update myStakerID
-	em.myStakerID, _ = em.findMyStakerID()
+	// update myValidatorID
+	em.myValidatorID, _ = em.findMyValidatorID()
 	em.prevEmittedTime = em.loadPrevEmitTime()
 
 	// stakers with lower stake should emit less events to reduce network load
 	// confirmingEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MinEmitInterval
-	myIdx := newValidators.GetIdx(em.myStakerID)
-	totalStake := pos.Stake(0)
-	totalStakeBeforeMe := pos.Stake(0)
-	for i, stake := range newValidators.SortedStakes() {
+	myIdx := newValidators.GetIdx(em.myValidatorID)
+	totalStake := pos.Weight(0)
+	totalStakeBeforeMe := pos.Weight(0)
+	for i, stake := range newValidators.SortedWeights() {
 		totalStake += stake
 		if idx.Validator(i) < myIdx {
 			totalStakeBeforeMe += stake
 		}
 	}
-	stakeRatio := uint64((totalStakeBeforeMe * piecefunc.PercentUnit) / totalStake)
+	stakeRatio := uint64((totalStakeBeforeMe * piecefunc.DecimalUnit) / totalStake)
 	confirmingEmitIntervalRatio := piecefunc.Get(stakeRatio, confirmingEmitIntervalPieces)
 	em.intervals.Confirming = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Confirming), confirmingEmitIntervalRatio))
 
@@ -527,27 +512,21 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 	// MaxEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MaxEmitInterval
 	maxEmitIntervalRatio := piecefunc.Get(stakeRatio, maxEmitIntervalPieces)
 	em.intervals.Max = time.Duration(piecefunc.Mul(uint64(em.config.EmitIntervals.Max), maxEmitIntervalRatio))
-
-	// track when I've became validator
-	now := time.Now()
-	if em.myStakerID != 0 && !em.world.App.HasEpochValidator(newEpoch-1, em.myStakerID) {
-		em.syncStatus.becameValidatorTime = now
-	}
 }
 
 // OnNewEvent tracks new events to find out am I properly synced or not
-func (em *Emitter) OnNewEvent(e *inter.Event) {
-	if em.myStakerID == 0 || em.myStakerID != e.Creator {
+func (em *Emitter) OnNewEvent(e *inter.EventPayload) {
+	if em.myValidatorID == 0 || em.myValidatorID != e.Creator() {
 		return
 	}
-	if em.syncStatus.prevLocalEmittedID == e.Hash() {
+	if em.syncStatus.prevLocalEmittedID == e.ID() {
 		return
 	}
 
 	// event was emitted by me on another instance
 	em.syncStatus.prevExternalEmittedTime = time.Now()
 
-	eventTime := inter.MaxTimestamp(e.ClaimedTime, e.MedianTime).Time()
+	eventTime := inter.MaxTimestamp(e.CreationTime(), e.MedianTime()).Time()
 	if eventTime.Before(em.syncStatus.startupTime) {
 		return
 	}
@@ -564,7 +543,7 @@ func (em *Emitter) OnNewEvent(e *inter.Event) {
 			"The node was stopped by one of the doublesign protection heuristics.\n" +
 			"There's no guaranteed automatic protection against a doublesign," +
 			"please always ensure that no more than one instance of the same validator is running."
-		errlock.Permanent(fmt.Errorf(reason, e.Hash().String(), em.myStakerID, e.ClaimedTime.Time().Local().String(), passedSinceEvent.String()))
+		errlock.Permanent(fmt.Errorf(reason, e.ID().String(), em.myValidatorID, e.CreationTime().Time().Local().String(), passedSinceEvent.String()))
 	}
 
 }
@@ -613,11 +592,11 @@ func (em *Emitter) logSyncStatus(synced bool, reason string, wait time.Duration)
 }
 
 // return true if event is in epoch tail (unlikely to confirm)
-func (em *Emitter) isEpochTail(e *inter.Event) bool {
-	return e.Frame >= em.net.Dag.MaxEpochBlocks-em.config.EpochTailLength
+func (em *Emitter) isEpochTail(e dag.Event) bool {
+	return e.Frame() >= idx.Frame(em.net.Dag.MaxEpochBlocks)-em.config.EpochTailLength
 }
 
-func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
+func (em *Emitter) maxGasPowerToUse(e *inter.MutableEventPayload) uint64 {
 	// No txs in epoch tail, because tail events are unlikely to confirm
 	{
 		if em.isEpochTail(e) {
@@ -627,19 +606,19 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 	// No txs if power is low
 	{
 		threshold := em.config.NoTxsThreshold
-		if e.GasPowerLeft.Min() <= threshold {
+		if e.GasPowerLeft().Min() <= threshold {
 			return 0
 		}
-		if e.GasPowerLeft.Min() < threshold+params.MaxGasPowerUsed {
-			return e.GasPowerLeft.Min() - threshold
+		if e.GasPowerLeft().Min() < threshold+params.MaxGasPowerUsed {
+			return e.GasPowerLeft().Min() - threshold
 		}
 	}
 	// Smooth TPS if power isn't big
 	{
 		threshold := em.config.SmoothTpsThreshold
-		if e.GasPowerLeft.Min() <= threshold {
+		if e.GasPowerLeft().Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
-			passedTime := float64(e.ClaimedTime.Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
+			passedTime := float64(e.CreationTime().Time().Sub(em.prevEmittedTime)) / (float64(time.Second))
 			maxGasUsed := uint64(passedTime * em.gasRate.Rate1() * em.config.MaxGasRateGrowthFactor)
 			if maxGasUsed > params.MaxGasPowerUsed {
 				maxGasUsed = params.MaxGasPowerUsed
@@ -650,16 +629,16 @@ func (em *Emitter) maxGasPowerToUse(e *inter.Event) uint64 {
 	return params.MaxGasPowerUsed
 }
 
-func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeaderData) bool {
-	passedTime := e.ClaimedTime.Time().Sub(em.prevEmittedTime)
+func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, selfParent *inter.Event) bool {
+	passedTime := e.CreationTime().Time().Sub(em.prevEmittedTime)
 	// Slow down emitting if power is low
 	{
 		threshold := em.config.NoTxsThreshold
-		if e.GasPowerLeft.Min() <= threshold {
+		if e.GasPowerLeft().Min() <= threshold {
 			// it's emitter, so no need in determinism => fine to use float
 			minT := float64(em.intervals.Min)
 			maxT := float64(em.intervals.Max)
-			factor := float64(e.GasPowerLeft.Min()) / float64(threshold)
+			factor := float64(e.GasPowerLeft().Min()) / float64(threshold)
 			adjustedEmitInterval := time.Duration(maxT - (maxT-minT)*factor)
 			if passedTime < adjustedEmitInterval {
 				return false
@@ -669,13 +648,13 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	// Forbid emitting if not enough power and power is decreasing
 	{
 		threshold := em.config.EmergencyThreshold
-		if e.GasPowerLeft.Min() <= threshold {
-			if selfParent != nil && e.GasPowerLeft.Min() < selfParent.GasPowerLeft.Min() {
-				validators := em.world.Engine.GetValidators()
+		if e.GasPowerLeft().Min() <= threshold {
+			if selfParent != nil && e.GasPowerLeft().Min() < selfParent.GasPowerLeft().Min() {
+				validators := em.world.Store.GetValidators()
 				em.Periodic.Warn(10*time.Second, "Not enough power to emit event, waiting",
-					"power", e.GasPowerLeft.String(),
-					"selfParentPower", selfParent.GasPowerLeft.String(),
-					"stake%", 100*float64(validators.Get(e.Creator))/float64(validators.TotalStake()))
+					"power", e.GasPowerLeft().String(),
+					"selfParentPower", selfParent.GasPowerLeft().String(),
+					"stake%", 100*float64(validators.Get(e.Creator()))/float64(validators.TotalWeight()))
 				return false
 			}
 		}
@@ -684,7 +663,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	{
 		if passedTime < em.intervals.Max &&
 			em.world.OccurredTxs.Len() == 0 &&
-			len(e.Transactions) == 0 &&
+			len(e.Txs()) == 0 &&
 			!em.isEpochTail(e) {
 			return false
 		}
@@ -693,7 +672,7 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	{
 		if passedTime < em.intervals.Confirming &&
 			em.world.OccurredTxs.Len() != 0 &&
-			len(e.Transactions) == 0 {
+			len(e.Txs()) == 0 {
 			return false
 		}
 	}
@@ -701,8 +680,8 @@ func (em *Emitter) isAllowedToEmit(e *inter.Event, selfParent *inter.EventHeader
 	return true
 }
 
-func (em *Emitter) EmitEvent() *inter.Event {
-	if em.myStakerID == 0 {
+func (em *Emitter) EmitEvent() *inter.EventPayload {
+	if em.myValidatorID == 0 {
 		return nil // short circuit if not validator
 	}
 
@@ -722,21 +701,23 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	em.world.EngineMu.Lock()
 	defer em.world.EngineMu.Unlock()
 
+	start := time.Now()
+
 	e := em.createEvent(poolTxs)
 	if e == nil {
 		return nil
 	}
-	em.syncStatus.prevLocalEmittedID = e.Hash()
+	em.syncStatus.prevLocalEmittedID = e.ID()
 
-	if em.world.OnEmitted != nil {
-		em.world.OnEmitted(e)
+	if em.world.Process != nil {
+		em.world.Process(e)
 	}
-	em.gasRate.Mark(int64(e.GasPowerUsed))
+	em.gasRate.Mark(int64(e.GasPowerUsed()))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time"
-	em.Log.Info("New event emitted", "id", e.Hash(), "parents", len(e.Parents), "by", e.Creator, "frame", inter.FmtFrame(e.Frame, e.IsRoot), "txs", e.Transactions.Len(), "t", time.Since(e.ClaimedTime.Time()))
+	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", inter.FmtFrame(e.Frame(), e.IsRoot()), "txs", e.Txs().Len(), "t", time.Since(start))
 
 	// metrics
-	for _, t := range e.Transactions {
+	for _, t := range e.Txs() {
 		span := tracing.CheckTx(t.Hash(), "Emitter.EmitEvent()")
 		defer span.Finish()
 	}
@@ -744,14 +725,14 @@ func (em *Emitter) EmitEvent() *inter.Event {
 	return e
 }
 
-func (em *Emitter) nameEventForDebug(e *inter.Event) {
-	name := []rune(hash.GetNodeName(e.Creator))
+func (em *Emitter) nameEventForDebug(e *inter.EventPayload) {
+	name := []rune(hash.GetNodeName(e.Creator()))
 	if len(name) < 1 {
 		return
 	}
 
 	name = name[len(name)-1:]
-	hash.SetEventName(e.Hash(), fmt.Sprintf("%s%03d",
+	hash.SetEventName(e.ID(), fmt.Sprintf("%s%03d",
 		strings.ToLower(string(name)),
-		e.Seq))
+		e.Seq()))
 }

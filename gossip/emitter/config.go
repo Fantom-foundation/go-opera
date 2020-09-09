@@ -1,14 +1,14 @@
-package gossip
+package emitter
 
 import (
 	"math/rand"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	_params "github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
+	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 // EmitIntervals is the configuration of emit intervals.
@@ -19,8 +19,8 @@ type EmitIntervals struct {
 	SelfForkProtection time.Duration `json:"selfForkProtection"`
 }
 
-// EmitterConfig is the configuration of events emitter.
-type EmitterConfig struct {
+// Config is the configuration of events emitter.
+type Config struct {
 	VersionToPublish string
 
 	Validator common.Address `json:"validator"`
@@ -42,8 +42,8 @@ type EmitterConfig struct {
 }
 
 // DefaultEmitterConfig returns the default configurations for the events emitter.
-func DefaultEmitterConfig() EmitterConfig {
-	return EmitterConfig{
+func DefaultEmitterConfig() Config {
+	return Config{
 		VersionToPublish: _params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
@@ -80,7 +80,7 @@ func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 }
 
 // FakeEmitterConfig returns the testing configurations for the events emitter.
-func FakeEmitterConfig() EmitterConfig {
+func FakeEmitterConfig() Config {
 	cfg := DefaultEmitterConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
 	cfg.EmitIntervals.SelfForkProtection = cfg.EmitIntervals.Max * 3 / 2
