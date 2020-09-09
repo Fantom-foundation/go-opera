@@ -3,12 +3,12 @@ package sfcpos
 import (
 	"math/big"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/utils"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 // Events
@@ -18,37 +18,23 @@ var (
 	Topics = struct {
 		CreatedStake                   common.Hash
 		IncreasedStake                 common.Hash
-		CreatedDelegation              common.Hash
-		PreparedToWithdrawStake        common.Hash
-		PreparedToWithdrawDelegation   common.Hash
 		WithdrawnStake                 common.Hash
-		WithdrawnDelegation            common.Hash
-		ClaimedDelegationReward        common.Hash
-		ClaimedValidatorReward         common.Hash
 		UpdatedBaseRewardPerSec        common.Hash
 		UpdatedGasPowerAllocationRate  common.Hash
 		UpdatedOfflinePenaltyThreshold common.Hash
 		DeactivatedStake               common.Hash
-		DeactivatedDelegation          common.Hash
 		UpdatedStake                   common.Hash
 		UpdatedDelegation              common.Hash
 	}{
-		CreatedStake:                   hash.Of([]byte("CreatedStake(uint256,address,uint256)")),
-		IncreasedStake:                 hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)")),
-		CreatedDelegation:              hash.Of([]byte("CreatedDelegation(address,uint256,uint256)")),
-		PreparedToWithdrawStake:        hash.Of([]byte("PreparedToWithdrawStake(uint256)")),
-		PreparedToWithdrawDelegation:   hash.Of([]byte("PreparedToWithdrawDelegation(address, uint256)")),
-		WithdrawnStake:                 hash.Of([]byte("WithdrawnStake(uint256,uint256)")),
-		WithdrawnDelegation:            hash.Of([]byte("WithdrawnDelegation(address,uint256,uint256)")),
-		ClaimedDelegationReward:        hash.Of([]byte("ClaimedDelegationReward(address,uint256,uint256,uint256,uint256)")),
-		ClaimedValidatorReward:         hash.Of([]byte("ClaimedValidatorReward(uint256,uint256,uint256,uint256)")),
-		UpdatedBaseRewardPerSec:        hash.Of([]byte("UpdatedBaseRewardPerSec(uint256)")),
-		UpdatedGasPowerAllocationRate:  hash.Of([]byte("UpdatedGasPowerAllocationRate(uint256,uint256)")),
-		UpdatedOfflinePenaltyThreshold: hash.Of([]byte("UpdatedOfflinePenaltyThreshold(uint256,uint256)")),
-		DeactivatedStake:               hash.Of([]byte("DeactivatedStake(uint256)")),
-		DeactivatedDelegation:          hash.Of([]byte("DeactivatedDelegation(address,uint256)")),
-		UpdatedStake:                   hash.Of([]byte("UpdatedStake(uint256,uint256,uint256)")),
-		UpdatedDelegation:              hash.Of([]byte("UpdatedDelegation(address,uint256,uint256,uint256)")),
+		CreatedStake:                   common.Hash(hash.Of([]byte("CreatedStake(uint256,address,uint256)"))),
+		IncreasedStake:                 common.Hash(hash.Of([]byte("IncreasedStake(uint256,uint256,uint256)"))),
+		WithdrawnStake:                 common.Hash(hash.Of([]byte("WithdrawnStake(uint256,uint256)"))),
+		UpdatedBaseRewardPerSec:        common.Hash(hash.Of([]byte("UpdatedBaseRewardPerSec(uint256)"))),
+		UpdatedGasPowerAllocationRate:  common.Hash(hash.Of([]byte("UpdatedGasPowerAllocationRate(uint256,uint256)"))),
+		UpdatedOfflinePenaltyThreshold: common.Hash(hash.Of([]byte("UpdatedOfflinePenaltyThreshold(uint256,uint256)"))),
+		DeactivatedStake:               common.Hash(hash.Of([]byte("DeactivatedStake(uint256)"))),
+		UpdatedStake:                   common.Hash(hash.Of([]byte("UpdatedStake(uint256,uint256,uint256)"))),
+		UpdatedDelegation:              common.Hash(hash.Of([]byte("UpdatedDelegation(address,uint256,uint256,uint256)"))),
 	}
 )
 
@@ -84,8 +70,8 @@ type StakePos struct {
 	object
 }
 
-func Staker(stakerID idx.StakerID) StakePos {
-	position := getMapValue(common.Hash{}, utils.U64to256(uint64(stakerID)), offset+2)
+func Staker(validatorID idx.ValidatorID) StakePos {
+	position := getMapValue(common.Hash{}, utils.U64to256(uint64(validatorID)), offset+2)
 
 	return StakePos{object{base: position.Big()}}
 }
@@ -98,7 +84,7 @@ func (p *StakePos) CreatedEpoch() common.Hash {
 	return p.Field(1)
 }
 
-func (p *StakePos) CreatedTime() common.Hash {
+func (p *StakePos) CreationTime() common.Hash {
 	return p.Field(2)
 }
 
@@ -110,9 +96,9 @@ func (p *StakePos) Address() common.Hash {
 	return p.Field(8)
 }
 
-// stakerIDs
+// validatorIDs
 
-func StakerID(vstaker common.Address) common.Hash {
+func ValidatorID(vstaker common.Address) common.Hash {
 	return getMapValue(common.Hash{}, vstaker.Hash(), offset+3)
 }
 
@@ -170,10 +156,10 @@ type ValidatorMeritPos struct {
 	object
 }
 
-func (p *EpochSnapshotPos) ValidatorMerit(stakerID idx.StakerID) ValidatorMeritPos {
+func (p *EpochSnapshotPos) ValidatorMerit(validatorID idx.ValidatorID) ValidatorMeritPos {
 	base := p.Field(0)
 
-	position := getMapValue(base, utils.U64to256(uint64(stakerID)), 0)
+	position := getMapValue(base, utils.U64to256(uint64(validatorID)), 0)
 
 	return ValidatorMeritPos{object{base: position.Big()}}
 }

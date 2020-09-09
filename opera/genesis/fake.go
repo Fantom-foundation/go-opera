@@ -3,15 +3,16 @@ package genesis
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/crypto"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
+	"github.com/Fantom-foundation/go-opera/crypto"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
 )
 
 // FakeValidators returns validators accounts for fakenet
 func FakeValidators(count int, balance *big.Int, stake *big.Int) VAccounts {
 	accs := make(Accounts, count)
-	validators := make(pos.GValidators, 0, count)
+	validators := make(gpos.Validators, 0, count)
 
 	for i := 1; i <= count; i++ {
 		key := crypto.FakeKey(i)
@@ -20,9 +21,9 @@ func FakeValidators(count int, balance *big.Int, stake *big.Int) VAccounts {
 			Balance:    balance,
 			PrivateKey: key,
 		}
-		stakerID := idx.StakerID(i)
-		validators = append(validators, pos.GenesisValidator{
-			ID:      stakerID,
+		validatorID := idx.ValidatorID(i)
+		validators = append(validators, gpos.Validator{
+			ID:      validatorID,
 			Address: addr,
 			Stake:   stake,
 		})

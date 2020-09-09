@@ -1,9 +1,10 @@
 package proxy
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/proxy/proxypos"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+
+	"github.com/Fantom-foundation/go-opera/opera/genesis/proxy/proxypos"
 )
 
 // GetContractBin is SFC contract first implementation bin code for mainnet

@@ -1,14 +1,14 @@
 package sfc
 
 import (
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis/sfc/sfcpos"
-	"github.com/Fantom-foundation/go-lachesis/utils"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/gpos"
+	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc/sfcpos"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 // GetMainContractBinV1 is SFC contract first implementation bin code for mainnet
@@ -30,13 +30,13 @@ var ContractAddress = common.HexToAddress("0xfc00face000000000000000000000000000
 var ContractAddressV1 = common.HexToAddress("0xfc00beef00000000000000000000000000000101")
 
 // AssembleStorage builds genesis storage for the SFC contract
-func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, owner common.Address, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
+func AssembleStorage(validators gpos.Validators, genesisTime inter.Timestamp, owner common.Address, storage map[common.Hash]common.Hash) map[common.Hash]common.Hash {
 	if storage == nil {
 		storage = make(map[common.Hash]common.Hash)
 	}
 
 	// set validators
-	maxStakerID := idx.StakerID(0)
+	maxValidatorID := idx.ValidatorID(0)
 	for _, validator := range validators {
 		stakePos := sfcpos.Staker(validator.ID)
 
@@ -44,20 +44,20 @@ func AssembleStorage(validators pos.GValidators, genesisTime inter.Timestamp, ow
 
 		storage[stakePos.StakeAmount()] = stakeAmount
 		storage[stakePos.CreatedEpoch()] = utils.U64to256(0)
-		storage[stakePos.CreatedTime()] = utils.U64to256(uint64(genesisTime.Unix()))
+		storage[stakePos.CreationTime()] = utils.U64to256(uint64(genesisTime.Unix()))
 		storage[stakePos.Address()] = validator.Address.Hash()
 
-		stakerIDPos := sfcpos.StakerID(validator.Address)
-		storage[stakerIDPos] = utils.U64to256(uint64(validator.ID))
+		validatorIDPos := sfcpos.ValidatorID(validator.Address)
+		storage[validatorIDPos] = utils.U64to256(uint64(validator.ID))
 
-		if maxStakerID < validator.ID {
-			maxStakerID = validator.ID
+		if maxValidatorID < validator.ID {
+			maxValidatorID = validator.ID
 		}
 	}
 
 	storage[sfcpos.Owner()] = owner.Hash()
 	storage[sfcpos.StakersNum()] = utils.U64to256(uint64(len(validators)))
-	storage[sfcpos.StakersLastID()] = utils.U64to256(uint64(maxStakerID))
+	storage[sfcpos.StakersLastID()] = utils.U64to256(uint64(maxValidatorID))
 	storage[sfcpos.StakeTotalAmount()] = utils.BigTo256(validators.TotalStake())
 
 	return storage

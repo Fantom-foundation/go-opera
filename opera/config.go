@@ -1,17 +1,16 @@
-package lachesis
+package opera
 
 import (
 	"math/big"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	ethparams "github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
-	"github.com/Fantom-foundation/go-lachesis/utils"
-	"github.com/Fantom-foundation/go-lachesis/vector"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/params"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 const (
@@ -21,8 +20,8 @@ const (
 )
 
 var (
-	// PercentUnit is used to define ratios with integers, it's 1.0
-	PercentUnit = big.NewInt(1e6)
+	// DecimalUnit is used to define ratios with integers, it's 1.0
+	DecimalUnit = big.NewInt(1e6)
 )
 
 // GasPowerConfig defines gas power rules in the consensus.
@@ -40,10 +39,8 @@ type DagConfig struct {
 	MaxParents     int `json:"maxParents"`
 	MaxFreeParents int `json:"maxFreeParents"` // maximum number of parents with no gas cost
 
-	MaxEpochBlocks   idx.Frame     `json:"maxEpochBlocks"`
+	MaxEpochBlocks   idx.Block     `json:"maxEpochBlocks"`
 	MaxEpochDuration time.Duration `json:"maxEpochDuration"`
-
-	VectorClockConfig vector.IndexConfig `json:"vectorClockConfig"`
 
 	MaxValidatorEventsInBlock idx.Event `json:"maxValidatorEventsInBlock"`
 }
@@ -72,7 +69,7 @@ type BlocksConfig struct {
 	BlockGasHardLimit uint64 `json:"maxBlockGasLimit"` // technical hard limit, gas is mostly governed by gas power allocation
 }
 
-// Config describes lachesis net.
+// Config describes opera net.
 type Config struct {
 	Name      string
 	NetworkID uint64
@@ -138,7 +135,7 @@ func FakeNetConfig(accs genesis.VAccounts) Config {
 // DefaultEconomyConfig returns mainnet economy
 func DefaultEconomyConfig() EconomyConfig {
 	// 45%
-	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(45), PercentUnit)
+	txRewardPoiImpact := new(big.Int).Mul(big.NewInt(45), DecimalUnit)
 	txRewardPoiImpact.Div(txRewardPoiImpact, big.NewInt(100))
 
 	initialRewardPerSecond := new(big.Int).Add(utils.ToFtm(16), big.NewInt(483988584467592592)) // 16.483988584467592592 FTM per sec, or 1424216,6136 FTM per day
@@ -177,7 +174,6 @@ func DefaultDagConfig() DagConfig {
 		MaxEpochBlocks:            1000,
 		MaxEpochDuration:          4 * time.Hour,
 		MaxValidatorEventsInBlock: 50,
-		VectorClockConfig:         vector.DefaultIndexConfig(),
 	}
 }
 
