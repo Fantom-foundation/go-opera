@@ -5,13 +5,17 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
@@ -27,19 +31,16 @@ const (
 	maxBatch       = 4   // Maximum number of events in an task batch (batch is divided if exceeded)
 )
 
-// OnValidatedFn is a callback type for notifying about validation result.
-type OnValidatedFn func(*TaskData)
-
-// DagReader is accessed by the validator to get the current state.
-type DagReader interface {
-	GetEpochPubKeys() (map[idx.StakerID]common.Address, idx.Epoch)
+// Reader is accessed by the validator to get the current state.
+type Reader interface {
+	GetEpochPubKeys() (map[idx.ValidatorID]common.Address, idx.Epoch)
 }
 
 // Check which require only parents list + current epoch info
 type Checker struct {
-	config   *lachesis.DagConfig
+	config   *opera.DagConfig
 	txSigner types.Signer
-	reader   DagReader
+	reader   Reader
 
 	numOfThreads int
 
@@ -49,14 +50,13 @@ type Checker struct {
 }
 
 type TaskData struct {
-	Events inter.Events // events to validate
-	Result []error      // resulting errors of events, nil if ok
+	Events dag.Events // events to validate
 
-	onValidated OnValidatedFn
+	onValidated func(dag.Events, []error)
 }
 
 // NewDefault uses N-1 threads
-func NewDefault(config *lachesis.DagConfig, reader DagReader, txSigner types.Signer) *Checker {
+func NewDefault(config *opera.DagConfig, reader Reader, txSigner types.Signer) *Checker {
 	threads := runtime.NumCPU()
 	if threads > 1 {
 		threads--
@@ -68,7 +68,7 @@ func NewDefault(config *lachesis.DagConfig, reader DagReader, txSigner types.Sig
 }
 
 // New validator which performs heavy checks, related to signatures validation and Merkle tree validation
-func New(config *lachesis.DagConfig, reader DagReader, txSigner types.Signer, numOfThreads int) *Checker {
+func New(config *opera.DagConfig, reader Reader, txSigner types.Signer, numOfThreads int) *Checker {
 	return &Checker{
 		config:       config,
 		txSigner:     txSigner,
@@ -95,7 +95,7 @@ func (v *Checker) Overloaded() bool {
 	return len(v.tasksQ) > maxQueuedTasks/2
 }
 
-func (v *Checker) Enqueue(events inter.Events, onValidated OnValidatedFn) error {
+func (v *Checker) Enqueue(events dag.Events, onValidated func(dag.Events, []error)) error {
 	// divide big batch into smaller ones
 	for start := 0; start < len(events); start += maxBatch {
 		end := len(events)
@@ -116,30 +116,43 @@ func (v *Checker) Enqueue(events inter.Events, onValidated OnValidatedFn) error 
 	return nil
 }
 
+// verifySignature checks the signature against e.Creator.
+func verifySignature(e inter.EventPayloadI, address common.Address) bool {
+	// NOTE: Keccak256 because of AccountManager
+	signedHash := crypto.Keccak256(e.HashToSign().Bytes())
+	sig := e.Sig()
+	pk, err := crypto.SigToPub(signedHash, sig.Bytes())
+	if err != nil {
+		return false
+	}
+	return crypto.PubkeyToAddress(*pk) == address
+}
+
 // Validate event
-func (v *Checker) Validate(e *inter.Event) error {
+func (v *Checker) Validate(de dag.Event) error {
+	e := de.(inter.EventPayloadI)
 	addrs, epoch := v.reader.GetEpochPubKeys()
-	if e.Epoch != epoch {
+	if e.Epoch() != epoch {
 		return epochcheck.ErrNotRelevant
 	}
-	// stakerID
-	addr, ok := addrs[e.Creator]
+	// validatorID
+	addr, ok := addrs[e.Creator()]
 	if !ok {
 		return epochcheck.ErrAuth
 	}
 	// event sig
-	if !e.VerifySignature(addr) {
+	if !verifySignature(e, addr) {
 		return ErrWrongEventSig
 	}
 	// pre-cache tx sig
-	for _, tx := range e.Transactions {
+	for _, tx := range e.Txs() {
 		_, err := types.Sender(v.txSigner, tx)
 		if err != nil {
 			return ErrMalformedTxSig
 		}
 	}
 	// Merkle tree
-	if e.TxHash != types.DeriveSha(e.Transactions) {
+	if e.TxHash() != hash.Hash(types.DeriveSha(e.Txs())) {
 		return ErrWrongTxHash
 	}
 
@@ -154,11 +167,11 @@ func (v *Checker) loop() {
 			return
 
 		case op := <-v.tasksQ:
-			op.Result = make([]error, len(op.Events))
+			result := make([]error, len(op.Events))
 			for i, e := range op.Events {
-				op.Result[i] = v.Validate(e)
+				result[i] = v.Validate(e)
 			}
-			op.onValidated(op)
+			op.onValidated(op.Events, result)
 		}
 	}
 }
