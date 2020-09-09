@@ -31,8 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
 func BenchmarkInsertChain_empty_memdb(b *testing.B) {
@@ -149,8 +149,8 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
-	net := &lachesis.Config{
-		Dag: lachesis.FakeNetDagConfig(),
+	net := &opera.Config{
+		Dag: opera.FakeNetDagConfig(),
 		Genesis: genesis.Genesis{
 			Alloc: genesis.VAccounts{Accounts: genesis.Accounts{benchRootAddr: {Balance: benchRootFunds}}},
 		},

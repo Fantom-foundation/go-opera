@@ -20,16 +20,16 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
-	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 )
 
 func TestApplyGenesis(t *testing.T) {
@@ -37,13 +37,15 @@ func TestApplyGenesis(t *testing.T) {
 	logger.SetTestMode(t)
 
 	db1 := rawdb.NewDatabase(
-		nokeyiserr.Wrap(
-			table.New(
-				memorydb.New(), []byte("evm1_"))))
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				table.New(
+					memorydb.New(), []byte("evm1_")))))
 	db2 := rawdb.NewDatabase(
-		nokeyiserr.Wrap(
-			table.New(
-				memorydb.New(), []byte("evm2_"))))
+		kvdb2ethdb.Wrap(
+			nokeyiserr.Wrap(
+				table.New(
+					memorydb.New(), []byte("evm2_")))))
 
 	// no genesis
 	_, err := ApplyGenesis(db1, nil)
@@ -52,8 +54,8 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// the same genesis
-	accsA := genesis.FakeValidators(3, big.NewInt(10000000000), pos.StakeToBalance(1))
-	netA := lachesis.FakeNetConfig(accsA)
+	accsA := genesis.FakeValidators(3, big.NewInt(10000000000), big.NewInt(1))
+	netA := opera.FakeNetConfig(accsA)
 	blockA1, err := ApplyGenesis(db1, &netA)
 	if !assertar.NoError(err) {
 		return
@@ -67,8 +69,8 @@ func TestApplyGenesis(t *testing.T) {
 	}
 
 	// different genesis
-	accsB := genesis.FakeValidators(4, big.NewInt(10000000000), pos.StakeToBalance(1))
-	netB := lachesis.FakeNetConfig(accsB)
+	accsB := genesis.FakeValidators(4, big.NewInt(10000000000), big.NewInt(1))
+	netB := opera.FakeNetConfig(accsB)
 	blockB, err := ApplyGenesis(db2, &netB)
 	if !assertar.NotEqual(blockA1, blockB) {
 		return

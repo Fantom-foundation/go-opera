@@ -84,7 +84,7 @@ func (m *txSortedMap) Put(tx *types.Transaction) {
 func (m *txSortedMap) Forward(threshold uint64) types.Transactions {
 	var removed types.Transactions
 
-	// Pop off heap items until the threshold is reached
+	// Read off heap items until the threshold is reached
 	for m.index.Len() > 0 && (*m.index)[0] < threshold {
 		nonce := heap.Pop(m.index).(uint64)
 		removed = append(removed, m.items[nonce])

@@ -34,8 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
 
-	lachesisparams "github.com/Fantom-foundation/go-lachesis/lachesis/params"
-	"github.com/Fantom-foundation/go-lachesis/tracing"
+	operaparams "github.com/Fantom-foundation/go-opera/opera/params"
+	"github.com/Fantom-foundation/go-opera/tracing"
 )
 
 const (
@@ -154,7 +154,7 @@ func DefaultTxPoolConfig() TxPoolConfig {
 		Journal:   "transactions.rlp",
 		Rejournal: time.Hour,
 
-		PriceLimit: lachesisparams.MinGasPrice.Uint64(),
+		PriceLimit: operaparams.MinGasPrice.Uint64(),
 		PriceBump:  10,
 
 		AccountSlots: 16,
@@ -546,8 +546,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrUnderpriced
 	}
 	// Ensure Lachesis-specific hard bounds
-	if pool.gasPrice.Cmp(lachesisparams.MinGasPrice) >= 0 { // if not test. TODO
-		if lachesisparams.MinGasPrice.Cmp(tx.GasPrice()) > 0 {
+	if pool.gasPrice.Cmp(operaparams.MinGasPrice) >= 0 { // if not test. TODO
+		if operaparams.MinGasPrice.Cmp(tx.GasPrice()) > 0 {
 			return ErrUnderpriced
 		}
 	}
@@ -1143,8 +1143,8 @@ func (pool *TxPool) reset(oldHead, newHead *EvmHeader) {
 	pool.currentState = statedb
 	pool.pendingNonces = newTxNoncer(statedb)
 	pool.currentMaxGas = newHead.GasLimit
-	if pool.currentMaxGas > lachesisparams.MaxGasPowerUsed/2 {
-		pool.currentMaxGas = lachesisparams.MaxGasPowerUsed / 2
+	if pool.currentMaxGas > operaparams.MaxGasPowerUsed/2 {
+		pool.currentMaxGas = operaparams.MaxGasPowerUsed / 2
 	}
 
 	// Inject any transactions discarded due to reorgs

@@ -25,12 +25,12 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 // ApplyGenesis writes or updates the genesis block in db.
-func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
+func ApplyGenesis(db ethdb.Database, net *opera.Config) (*EvmBlock, error) {
 	if net == nil {
 		return nil, ErrNoGenesis
 	}
@@ -65,7 +65,7 @@ func ApplyGenesis(db ethdb.Database, net *lachesis.Config) (*EvmBlock, error) {
 }
 
 // genesisBlock makes genesis block with pretty hash.
-func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
+func genesisBlock(net *opera.Config, root common.Hash) *EvmBlock {
 
 	block := &EvmBlock{
 		EvmHeader: EvmHeader{
@@ -73,7 +73,7 @@ func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
 			Time:     net.Genesis.Time,
 			GasLimit: math.MaxUint64,
 			Root:     root,
-			TxHash:   inter.EmptyTxHash,
+			TxHash:   common.Hash(inter.EmptyTxHash),
 		},
 	}
 
@@ -81,7 +81,7 @@ func genesisBlock(net *lachesis.Config, root common.Hash) *EvmBlock {
 }
 
 // MustApplyGenesis writes the genesis block and state to db, panicking on error.
-func MustApplyGenesis(net *lachesis.Config, db ethdb.Database) *EvmBlock {
+func MustApplyGenesis(net *opera.Config, db ethdb.Database) *EvmBlock {
 	block, err := ApplyGenesis(db, net)
 	if err != nil {
 		log.Crit("ApplyGenesis", "err", err)

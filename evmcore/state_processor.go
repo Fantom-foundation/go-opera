@@ -51,13 +51,13 @@ func NewStateProcessor(config *params.ChainConfig, bc DummyChain) *StateProcesso
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *EvmBlock, statedb *state.StateDB, cfg vm.Config, strict bool) (types.Receipts, []*types.Log, uint64, *big.Int, []uint, error) {
+func (p *StateProcessor) Process(block *EvmBlock, statedb *state.StateDB, cfg vm.Config, strict bool) (types.Receipts, []*types.Log, uint64, *big.Int, []uint32, error) {
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
 		allLogs  []*types.Log
 		gp       = new(GasPool).AddGas(block.GasLimit)
-		skipped  = make([]uint, 0, len(block.Transactions))
+		skipped  = make([]uint32, 0, len(block.Transactions))
 		totalFee = new(big.Int)
 	)
 	// Iterate over and process the individual transactions
@@ -65,7 +65,7 @@ func (p *StateProcessor) Process(block *EvmBlock, statedb *state.StateDB, cfg vm
 		statedb.Prepare(tx.Hash(), block.Hash, i)
 		receipt, _, fee, skip, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, block.Header(), tx, usedGas, cfg, strict)
 		if !strict && (skip || err != nil) {
-			skipped = append(skipped, uint(i))
+			skipped = append(skipped, uint32(i))
 			continue
 		}
 		totalFee.Add(totalFee, fee)

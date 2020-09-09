@@ -20,10 +20,13 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/Fantom-foundation/go-lachesis/inter"
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 type (
@@ -48,13 +51,12 @@ type (
 )
 
 // ToEvmHeader converts inter.Block to EvmHeader.
-func ToEvmHeader(block *inter.Block) *EvmHeader {
+func ToEvmHeader(block *inter.Block, index idx.Block, prevHash hash.Event) *EvmHeader {
 	return &EvmHeader{
 		Hash:       common.Hash(block.Atropos),
-		ParentHash: common.Hash(block.PrevHash),
+		ParentHash: common.Hash(prevHash),
 		Root:       common.Hash(block.Root),
-		TxHash:     block.TxHash,
-		Number:     big.NewInt(int64(block.Index)),
+		Number:     big.NewInt(int64(index)),
 		Time:       block.Time,
 		GasLimit:   math.MaxUint64,
 		GasUsed:    block.GasUsed,
