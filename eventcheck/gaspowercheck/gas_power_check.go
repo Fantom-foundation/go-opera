@@ -5,10 +5,11 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
+	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
+
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 var (
@@ -16,18 +17,22 @@ var (
 	ErrWrongGasPowerLeft = errors.New("event has wrong GasPowerLeft")
 )
 
-// ValidationContext for gaspower checking
-type ValidationContext struct {
-	Epoch                idx.Epoch
-	Configs              [2]Config
-	Validators           *pos.Validators
-	PrevEpochLastHeaders inter.HeadersByCreator
-	PrevEpochEndTime     inter.Timestamp
-	PrevEpochRefunds     map[idx.StakerID]uint64
+type ValidatorState struct {
+	PrevEpochEvent inter.EventI
+	GasRefund      uint64
 }
 
-// DagReader is accessed by the validator to get the current state.
-type DagReader interface {
+// ValidationContext for gaspower checking
+type ValidationContext struct {
+	Epoch           idx.Epoch
+	Configs         [inter.GasPowerConfigs]Config
+	EpochStart      inter.Timestamp
+	Validators      *pos.Validators
+	ValidatorStates []ValidatorState
+}
+
+// Reader is accessed by the validator to get the current state.
+type Reader interface {
 	GetValidationContext() *ValidationContext
 }
 
@@ -42,11 +47,11 @@ type Config struct {
 
 // Checker which checks gas power
 type Checker struct {
-	reader DagReader
+	reader Reader
 }
 
 // New Checker for gas power
-func New(reader DagReader) *Checker {
+func New(reader Reader) *Checker {
 	return &Checker{
 		reader: reader,
 	}
@@ -60,8 +65,71 @@ func div(a *big.Int, b uint64) {
 	a.Div(a, new(big.Int).SetUint64(b))
 }
 
+// CalcGasPower calculates available gas power for the event, i.e. how many gas its content may consume
+func (v *Checker) CalcGasPower(e inter.EventI, selfParent inter.EventI) (inter.GasPowerLeft, error) {
+	ctx := v.reader.GetValidationContext()
+	// check that all the data is for the same epoch
+	if ctx.Epoch != e.Epoch() {
+		return inter.GasPowerLeft{}, epochcheck.ErrNotRelevant
+	}
+
+	var res inter.GasPowerLeft
+	for i := range ctx.Configs {
+		res.Gas[i] = calcGasPower(e, selfParent, ctx, &ctx.Configs[i])
+	}
+
+	return res, nil
+}
+
+func calcGasPower(e inter.EventI, selfParent inter.EventI, ctx *ValidationContext, config *Config) uint64 {
+	var prevGasPowerLeft uint64
+	var prevTime inter.Timestamp
+
+	if e.SelfParent() != nil {
+		prevGasPowerLeft = selfParent.GasPowerLeft().Gas[config.Idx]
+		prevTime = selfParent.MedianTime()
+	} else {
+		validatorState := ctx.ValidatorStates[ctx.Validators.GetIdx(e.Creator())]
+		if validatorState.PrevEpochEvent != nil {
+			prevGasPowerLeft = validatorState.PrevEpochEvent.GasPowerLeft().Gas[config.Idx]
+			prevTime = validatorState.PrevEpochEvent.MedianTime()
+		} else {
+			prevGasPowerLeft = 0
+			prevTime = ctx.EpochStart
+		}
+		prevGasPowerLeft += validatorState.GasRefund
+	}
+
+	return calcValidatorGasPower(e, prevTime, prevGasPowerLeft, ctx.Validators, config)
+}
+
+func calcValidatorGasPower(e inter.EventI, prevTime inter.Timestamp, prevGasPowerLeft uint64, validators *pos.Validators, config *Config) uint64 {
+	gasPowerPerSec, maxGasPower, startup := calcValidatorGasPowerPerSec(e.Creator(), validators, config)
+
+	if e.SelfParent() == nil {
+		if prevGasPowerLeft < startup {
+			prevGasPowerLeft = startup
+		}
+	}
+
+	if prevTime > e.MedianTime() {
+		prevTime = e.MedianTime()
+	}
+
+	gasPowerAllocatedBn := new(big.Int).SetUint64(uint64(e.MedianTime() - prevTime))
+	mul(gasPowerAllocatedBn, gasPowerPerSec)
+	div(gasPowerAllocatedBn, uint64(time.Second))
+
+	gasPower := gasPowerAllocatedBn.Uint64() + prevGasPowerLeft
+	if gasPower > maxGasPower {
+		gasPower = maxGasPower
+	}
+
+	return gasPower
+}
+
 func calcValidatorGasPowerPerSec(
-	validator idx.StakerID,
+	validator idx.ValidatorID,
 	validators *pos.Validators,
 	config *Config,
 ) (
@@ -78,7 +146,7 @@ func calcValidatorGasPowerPerSec(
 
 	validatorGasPowerPerSecBn := new(big.Int).SetUint64(gas.AllocPerSec)
 	mul(validatorGasPowerPerSecBn, uint64(stake))
-	div(validatorGasPowerPerSecBn, uint64(validators.TotalStake()))
+	div(validatorGasPowerPerSecBn, uint64(validators.TotalWeight()))
 	perSec = validatorGasPowerPerSecBn.Uint64()
 
 	maxGasPower = perSec * (uint64(gas.MaxAllocPeriod) / uint64(time.Second))
@@ -91,66 +159,14 @@ func calcValidatorGasPowerPerSec(
 	return
 }
 
-// CalcGasPower calculates available gas power for the event, i.e. how many gas its content may consume
-func (v *Checker) CalcGasPower(e *inter.EventHeaderData, selfParent *inter.EventHeaderData) (inter.GasPowerLeft, error) {
-	ctx := v.reader.GetValidationContext()
-	// check that all the data is for the same epoch
-	if ctx.Epoch != e.Epoch {
-		return inter.GasPowerLeft{}, epochcheck.ErrNotRelevant
-	}
-
-	var res inter.GasPowerLeft
-	for i := range ctx.Configs {
-		res.Gas[i] = calcGasPower(e, selfParent, ctx, &ctx.Configs[i])
-	}
-
-	return res, nil
-}
-
-func calcGasPower(e *inter.EventHeaderData, selfParent *inter.EventHeaderData, ctx *ValidationContext, config *Config) uint64 {
-	gasPowerPerSec, maxGasPower, startup := calcValidatorGasPowerPerSec(e.Creator, ctx.Validators, config)
-
-	var prevGasPowerLeft uint64
-	var prevMedianTime inter.Timestamp
-
-	if e.SelfParent() != nil {
-		prevGasPowerLeft = selfParent.GasPowerLeft.Gas[config.Idx]
-		prevMedianTime = selfParent.MedianTime
-	} else if prevConfirmedHeader := ctx.PrevEpochLastHeaders[e.Creator]; prevConfirmedHeader != nil {
-		prevGasPowerLeft = prevConfirmedHeader.GasPowerLeft.Gas[config.Idx] + ctx.PrevEpochRefunds[e.Creator]
-		if prevGasPowerLeft < startup {
-			prevGasPowerLeft = startup
-		}
-		prevMedianTime = prevConfirmedHeader.MedianTime
-	} else {
-		prevGasPowerLeft = startup + ctx.PrevEpochRefunds[e.Creator]
-		prevMedianTime = ctx.PrevEpochEndTime
-	}
-
-	if prevMedianTime > e.MedianTime {
-		prevMedianTime = e.MedianTime // do not change e.MedianTime
-	}
-
-	gasPowerAllocatedBn := new(big.Int).SetUint64(uint64(e.MedianTime - prevMedianTime))
-	mul(gasPowerAllocatedBn, gasPowerPerSec)
-	div(gasPowerAllocatedBn, uint64(time.Second))
-
-	gasPower := gasPowerAllocatedBn.Uint64() + prevGasPowerLeft
-	if gasPower > maxGasPower {
-		gasPower = maxGasPower
-	}
-
-	return gasPower
-}
-
 // Validate event
-func (v *Checker) Validate(e *inter.Event, selfParent *inter.EventHeaderData) error {
-	gasPowers, err := v.CalcGasPower(&e.EventHeaderData, selfParent)
+func (v *Checker) Validate(e inter.EventI, selfParent inter.EventI) error {
+	gasPowers, err := v.CalcGasPower(e, selfParent)
 	if err != nil {
 		return err
 	}
 	for i := range gasPowers.Gas {
-		if e.GasPowerLeft.Gas[i]+e.GasPowerUsed != gasPowers.Gas[i] { // GasPowerUsed is checked in basic_check
+		if e.GasPowerLeft().Gas[i]+e.GasPowerUsed() != gasPowers.Gas[i] { // GasPowerUsed is checked in basic_check
 			return ErrWrongGasPowerLeft
 		}
 	}
