@@ -4,38 +4,35 @@ import (
 	"errors"
 	"math"
 
+	base "github.com/Fantom-foundation/lachesis-base/eventcheck/basiccheck"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 var (
-	ErrSigMalformed   = errors.New("event signature malformed")
-	ErrVersion        = errors.New("event has wrong version")
-	ErrExtraTooLarge  = errors.New("event extra is too big")
-	ErrNoParents      = errors.New("event has no parents")
 	ErrTooManyParents = errors.New("event has too many parents")
+	ErrZeroTime       = errors.New("event has zero timestamp")
+	ErrNegativeValue  = errors.New("negative value")
 	ErrTooBigGasUsed  = errors.New("event uses too much gas power")
 	ErrWrongGasUsed   = errors.New("event has incorrect gas power")
 	ErrIntrinsicGas   = errors.New("intrinsic gas too low")
 	ErrUnderpriced    = errors.New("event transaction underpriced")
-	ErrNotInited      = errors.New("event field is not initialized")
-	ErrZeroTime       = errors.New("event has zero timestamp")
-	ErrNegativeValue  = errors.New("negative value")
-	ErrHugeValue      = errors.New("too big value")
 )
 
 type Checker struct {
-	config *lachesis.DagConfig
+	base   *base.Checker
+	config *opera.DagConfig
 }
 
 // New validator which performs checks which don't require anything except event
-func New(config *lachesis.DagConfig) *Checker {
+func New(config *opera.DagConfig) *Checker {
 	return &Checker{
 		config: config,
+		base:   &base.Checker{},
 	}
 }
 
@@ -61,8 +58,8 @@ func (v *Checker) validateTx(tx *types.Transaction) error {
 	return nil
 }
 
-func (v *Checker) checkTxs(e *inter.Event) error {
-	for _, tx := range e.Transactions {
+func (v *Checker) checkTxs(e inter.EventPayloadI) error {
+	for _, tx := range e.Txs() {
 		if err := v.validateTx(tx); err != nil {
 			return err
 		}
@@ -70,75 +67,45 @@ func (v *Checker) checkTxs(e *inter.Event) error {
 	return nil
 }
 
-func CalcGasPowerUsed(e *inter.Event, config *lachesis.DagConfig) uint64 {
+func CalcGasPowerUsed(e inter.EventPayloadI, config *opera.DagConfig) uint64 {
 	txsGas := uint64(0)
-	for _, tx := range e.Transactions {
+	for _, tx := range e.Txs() {
 		txsGas += tx.Gas()
 	}
 
 	parentsGas := uint64(0)
-	if len(e.Parents) > config.MaxFreeParents {
-		parentsGas = uint64(len(e.Parents)-config.MaxFreeParents) * params.ParentGas
+	if len(e.Parents()) > config.MaxFreeParents {
+		parentsGas = uint64(len(e.Parents())-config.MaxFreeParents) * params.ParentGas
 	}
-	extraGas := uint64(len(e.Extra)) * params.ExtraDataGas
+	extraGas := uint64(len(e.Extra())) * params.ExtraDataGas
 
 	return txsGas + parentsGas + extraGas + params.EventGas
 }
 
-func (v *Checker) checkGas(e *inter.Event) error {
-	if e.GasPowerUsed > params.MaxGasPowerUsed {
+func (v *Checker) checkGas(e inter.EventPayloadI) error {
+	if e.GasPowerUsed() > params.MaxGasPowerUsed {
 		return ErrTooBigGasUsed
 	}
-	if e.GasPowerUsed != CalcGasPowerUsed(e, v.config) {
+	if e.GasPowerUsed() != CalcGasPowerUsed(e, v.config) {
 		return ErrWrongGasUsed
 	}
 
 	return nil
 }
 
-func (v *Checker) checkLimits(e *inter.Event) error {
-	if len(e.Extra) > params.MaxExtraData {
-		return ErrExtraTooLarge
+// Validate event
+func (v *Checker) Validate(e inter.EventPayloadI) error {
+	if err := v.base.Validate(e); err != nil {
+		return err
 	}
-	if len(e.Parents) > v.config.MaxParents {
-		return ErrTooManyParents
+	if e.GasPowerUsed() >= math.MaxInt64-1 || e.GasPowerLeft().Max() >= math.MaxInt64-1 {
+		return base.ErrHugeValue
 	}
-	if e.Seq >= math.MaxInt32/2 || e.Epoch >= math.MaxInt32/2 || e.Frame >= math.MaxInt32/2 ||
-		e.Lamport >= math.MaxInt32/2 || e.GasPowerUsed >= math.MaxInt64/2 || e.GasPowerLeft.Max() >= math.MaxInt64/2 {
-		return ErrHugeValue
-	}
-
-	return nil
-}
-
-func (v *Checker) checkInited(e *inter.Event) error {
-	if e.Seq <= 0 || e.Epoch <= 0 || e.Frame <= 0 || e.Lamport <= 0 {
-		return ErrNotInited // it's unsigned, but check for negative in a case if type will change
-	}
-
-	if e.ClaimedTime <= 0 {
+	if e.CreationTime() <= 0 || e.MedianTime() <= 0 {
 		return ErrZeroTime
 	}
-	if e.Seq > 1 && len(e.Parents) == 0 {
-		return ErrNoParents
-	}
-	if len(e.Sig) != 65 {
-		return ErrSigMalformed
-	}
-
-	return nil
-}
-
-// Validate event
-func (v *Checker) Validate(e *inter.Event) error {
-	if e.Version != 0 {
-		return ErrVersion
-	}
-	if err := v.checkLimits(e); err != nil {
-		return err
-	}
-	if err := v.checkInited(e); err != nil {
-		return err
+	if len(e.Parents()) > v.config.MaxParents {
+		return ErrTooManyParents
 	}
 	if err := v.checkGas(e); err != nil {
 		return err
