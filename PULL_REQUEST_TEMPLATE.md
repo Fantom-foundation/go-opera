@@ -1,4 +1,4 @@
-Please check if what you want to add to `go-lachesis` list meets [quality standards](https://github.com/Fantom-foundation/go-lachesis/blob/master/CONTRIBUTING.md#quality-standard) before sending pull request.
+Please check if what you want to add to `go-opera` list meets [quality standards](https://github.com/Fantom-foundation/go-opera/blob/master/CONTRIBUTING.md#quality-standard) before sending pull request.
 
 **Please provide package links to:**
 
@@ -14,4 +14,4 @@ Please check if what you want to add to `go-lachesis` list meets [quality standa
 - [ ] I have added godoc link to the repo and to my pull request.
 - [ ] I have added coverage service link to the repo and to my pull request.
 - [ ] I have added goreportcard link to the repo and to my pull request.
-- [ ] I have read [Contribution guidelines](https://github.com/Fantom-foundation/go-lachesis/blob/master/CONTRIBUTING.md#contribution-guidelines), [maintainers note](https://github.com/Fantom-foundation/go-lachesis/blob/master/CONTRIBUTING.md#maintainers) and [Quality standard](https://github.com/Fantom-foundation/go-lachesis/blob/master/CONTRIBUTING.md#quality-standard).
+- [ ] I have read [Contribution guidelines](https://github.com/Fantom-foundation/go-opera/blob/master/CONTRIBUTING.md#contribution-guidelines), [maintainers note](https://github.com/Fantom-foundation/go-opera/blob/master/CONTRIBUTING.md#maintainers) and [Quality standard](https://github.com/Fantom-foundation/go-opera/blob/master/CONTRIBUTING.md#quality-standard).

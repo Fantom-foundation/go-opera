@@ -13,11 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/cmdtest"
+	"github.com/Fantom-foundation/go-opera/cmd/cmdtest"
 )
 
 func tmpdir(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "lachesis-test")
+	dir, err := ioutil.TempDir("", "opera-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,8 +40,8 @@ func (tt *testcli) readConfig() {
 }
 
 func init() {
-	// Run the app if we've been exec'd as "lachesis-test" in exec().
-	reexec.Register("lachesis-test", func() {
+	// Run the app if we've been exec'd as "opera-test" in exec().
+	reexec.Register("opera-test", func() {
 		if err := app.Run(os.Args); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -88,9 +88,9 @@ func exec(t *testing.T, args ...string) *testcli {
 		}()
 	}
 
-	// Boot "lachesis". This actually runs the test binary but the TestMain
+	// Boot "opera". This actually runs the test binary but the TestMain
 	// function will prevent any tests from running.
-	tt.Run("lachesis-test", args...)
+	tt.Run("opera-test", args...)
 
 	// Read the generated key
 	tt.readConfig()

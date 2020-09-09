@@ -16,9 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
 type topology func(net *simulations.Network, nodes []enode.ID)
@@ -42,7 +41,7 @@ func testSim(t *testing.T, connect topology) {
 		log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// fake net
-	network := lachesis.FakeNetConfig(genesis.FakeValidators(count, big.NewInt(0), pos.StakeToBalance(10000)))
+	network := opera.FakeNetConfig(genesis.FakeValidators(count, big.NewInt(0), big.NewInt(10000)))
 
 	// register a single gossip service
 	services := map[string]adapters.ServiceFunc{

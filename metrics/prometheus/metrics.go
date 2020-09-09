@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var namespace = "lachesis"
+var namespace = "opera"
 
 // SetNamespace for metrics.
 func SetNamespace(s string) {

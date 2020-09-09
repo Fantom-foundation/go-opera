@@ -5,15 +5,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
-	"github.com/Fantom-foundation/go-lachesis/gossip"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 // NewIntegration creates gossip service for the integration test
-func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *gossip.Service {
+func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.Service {
 	gossipCfg := gossip.DefaultConfig(network)
 
-	engine, _, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
+	engine, dagIndex, _, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
 	coinbase := SetAccountKey(
 		ctx.NodeContext.AccountManager,
@@ -25,9 +25,13 @@ func NewIntegration(ctx *adapters.ServiceContext, network lachesis.Config) *goss
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.SelfForkProtection = 0
 
-	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine)
+	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine, dagIndex)
 	if err != nil {
 		panic(err)
+	}
+	err = engine.Bootstrap(svc.GetConsensusCallbacks())
+	if err != nil {
+		return nil
 	}
 
 	return svc

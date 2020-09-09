@@ -7,7 +7,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/tracing"
+	"github.com/Fantom-foundation/go-opera/tracing"
 )
 
 var EnableFlag = cli.BoolFlag{
@@ -28,7 +28,7 @@ func Start(ctx *cli.Context) (stop func(), err error) {
 		return
 	}
 
-	cfg.ServiceName = "lachesis"
+	cfg.ServiceName = "opera"
 
 	tracer, closer, err := cfg.NewTracer(
 		jaegercfg.Logger(jaegerlog.StdLogger),

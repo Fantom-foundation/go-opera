@@ -1,9 +1,9 @@
 #!/bin/bash
 
-PROG=lachesis
+PROG=opera
 
-# kill all lachesis processes
+# kill all opera processes
 pkill "${PROG}"
 
 # remove demo data
-rm -rf /tmp/lachesis-demo/datadir/
+rm -rf /tmp/opera-demo/datadir/

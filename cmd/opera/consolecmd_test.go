@@ -13,18 +13,18 @@ import (
 
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/lachesis/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
 const (
-	ipcAPIs  = "admin:1.0 debug:1.0 ftm:1.0 net:1.0 personal:1.0 rpc:1.0 sfc:1.0 txpool:1.0 web3:1.0"
-	httpAPIs = "ftm:1.0 rpc:1.0 sfc:1.0 web3:1.0"
+	ipcAPIs  = "admin:1.0 dag:1.0 debug:1.0 ftm:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0"
+	httpAPIs = "dag:1.0 ftm:1.0 rpc:1.0 web3:1.0"
 )
 
 // Tests that a node embedded within a console can be started up properly and
 // then terminated by closing the input stream.
 func TestConsoleWelcome(t *testing.T) {
-	// Start a lachesis console, make sure it's cleaned up and terminate the console
+	// Start a opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"console")
@@ -41,7 +41,7 @@ func TestConsoleWelcome(t *testing.T) {
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-lachesis/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
 at block: 0 ({{niltime}})
  datadir: {{.Datadir}}
@@ -61,7 +61,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 	} else {
 		ws := tmpdir(t)
 		defer os.RemoveAll(ws)
-		ipc = filepath.Join(ws, "lachesis.ipc")
+		ipc = filepath.Join(ws, "opera.ipc")
 	}
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
@@ -104,7 +104,7 @@ func TestWSAttachWelcome(t *testing.T) {
 }
 
 func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
-	// Attach to a running lachesis node and terminate immediately
+	// Attach to a running opera node and terminate immediately
 	attach := exec(t, "attach", endpoint)
 
 	// Gather all the infos the welcome message needs to contain
@@ -122,7 +122,7 @@ func testAttachWelcome(t *testing.T, cli *testcli, endpoint, apis string) {
 	attach.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-lachesis/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{coinbase}}
 at block: 0 ({{niltime}}){{if ipc}}
  datadir: {{datadir}}{{end}}

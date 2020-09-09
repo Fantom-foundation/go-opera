@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	cli "gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/metrics/prometheus"
+	"github.com/Fantom-foundation/go-opera/metrics/prometheus"
 )
 
 var PrometheusEndpointFlag = cli.StringFlag{
@@ -22,7 +22,7 @@ func SetupPrometheus(ctx *cli.Context) {
 	if !metrics.Enabled {
 		return
 	}
-	prometheus.SetNamespace("lachesis")
+	prometheus.SetNamespace("opera")
 	var endpoint = ctx.GlobalString(PrometheusEndpointFlag.Name)
 	prometheus.ListenTo(endpoint, nil)
 }

@@ -1,7 +1,7 @@
 # build
 .PHONY : build txstorm
 build :
-	go build -o build/lachesis ./cmd/lachesis
+	go build -o build/opera ./cmd/opera
 
 txstorm :
 	go build -o build/tx-storm ./cmd/tx-storm
@@ -13,4 +13,4 @@ test :
 #clean
 .PHONY : clean
 clean :
-	rm ./build/lachesis ./build/tx-storm
+	rm ./build/opera

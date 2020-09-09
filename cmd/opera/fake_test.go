@@ -10,11 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-lachesis/crypto"
+	"github.com/Fantom-foundation/go-opera/crypto"
 )
 
 func TestFakeNetFlag_NonValidator(t *testing.T) {
-	// Start a lachesis console, make sure it's cleaned up and terminate the console
+	// Start a opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--fakenet", "0/3",
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
@@ -28,13 +28,13 @@ func TestFakeNetFlag_NonValidator(t *testing.T) {
 	cli.SetTemplateFunc("niltime", genesisStart)
 	cli.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
-	waitForEndpoint(t, filepath.Join(cli.Datadir, "lachesis.ipc"), 10*time.Second)
+	waitForEndpoint(t, filepath.Join(cli.Datadir, "opera.ipc"), 10*time.Second)
 
 	// Verify the actual welcome message to the required template
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-lachesis/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
 at block: 0 ({{niltime}})
  datadir: {{.Datadir}}
@@ -55,7 +55,7 @@ at block: 0 ({{niltime}})
 }
 
 func TestFakeNetFlag_Validator(t *testing.T) {
-	// Start a lachesis console, make sure it's cleaned up and terminate the console
+	// Start a opera console, make sure it's cleaned up and terminate the console
 	cli := exec(t,
 		"--fakenet", "3/3",
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
@@ -71,13 +71,13 @@ func TestFakeNetFlag_Validator(t *testing.T) {
 	cli.SetTemplateFunc("niltime", genesisStart)
 	cli.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
-	waitForEndpoint(t, filepath.Join(cli.Datadir, "lachesis.ipc"), 10*time.Second)
+	waitForEndpoint(t, filepath.Join(cli.Datadir, "opera.ipc"), 10*time.Second)
 
 	// Verify the actual welcome message to the required template
 	cli.Expect(`
 Welcome to the Lachesis JavaScript console!
 
-instance: go-lachesis/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
+instance: go-opera/v{{version}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Coinbase}}
 at block: 0 ({{niltime}})
  datadir: {{.Datadir}}

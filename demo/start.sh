@@ -7,34 +7,33 @@ set -e
 
 # number of nodes N
 N=5
-LIMIT_CPU=$(echo "scale=2; 1/$N" | bc)
-LIMIT_IO=$(echo "500/$N" | bc)
 
 #
-PROG=lachesis
-EXEC=../build/lachesis
+PROG=opera
+EXEC=../build/opera
 
 # default ip using localhost
 IP=127.0.0.1
-# default port PORT
+# default RPC port PORT
 # the actual ports are PORT+1, PORT+2, etc (18541, 18542, 18543, ... )
 #PORT=18540
 PORT=4000
 
-declare -r LACHESIS_BASE_DIR=/tmp/lachesis-demo
+declare -r LACHESIS_BASE_DIR=/tmp/opera-demo
 
 
 echo -e "\nStart $N nodes:"
 for i in $(seq $N)
 do
-    port=$((PORT + i))
-    localport=$((5050 + i))
+    rpcport=$((PORT + i))
+    p2pport=$((5050 + i))
 
     ${EXEC} \
+  --nat extip:$IP \
 	--fakenet $i/$N \
-	--port ${localport} --rpc --rpcapi "eth,ftm,debug,admin,web3,personal,net,txpool" --rpcport ${port} --nousb --verbosity 3 \
-	--datadir "${LACHESIS_BASE_DIR}/datadir/lach$i" &
-    echo -e "Started lachesis client at ${IP}:${port}"
+	--port ${p2pport} --rpc --rpcapi "eth,ftm,dag,debug,admin,web3,personal,net,txpool" --rpcport ${rpcport} --nousb --verbosity 3 \
+	--datadir "${LACHESIS_BASE_DIR}/datadir/opera$i" &
+    echo -e "Started opera client at ${IP}:${port}"
 done
 
 

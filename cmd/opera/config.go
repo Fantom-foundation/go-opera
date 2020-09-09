@@ -18,10 +18,10 @@ import (
 	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/gossip"
-	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 var (
@@ -93,8 +93,8 @@ func loadAllConfigs(file string, cfg *config) error {
 	return err
 }
 
-func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
-	var cfg lachesis.Config
+func defaultLachesisConfig(ctx *cli.Context) opera.Config {
+	var cfg opera.Config
 
 	switch {
 	case ctx.GlobalIsSet(FakeNetFlag.Name):
@@ -102,11 +102,11 @@ func defaultLachesisConfig(ctx *cli.Context) lachesis.Config {
 		if err != nil {
 			log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
 		}
-		cfg = lachesis.FakeNetConfig(accs)
+		cfg = opera.FakeNetConfig(accs)
 	case ctx.GlobalBool(utils.TestnetFlag.Name):
-		cfg = lachesis.TestNetConfig()
+		cfg = opera.TestNetConfig()
 	default:
-		cfg = lachesis.MainNetConfig()
+		cfg = opera.MainNetConfig()
 	}
 
 	return cfg
@@ -257,9 +257,9 @@ func defaultNodeConfig() node.Config {
 	cfg := NodeDefaultConfig
 	cfg.Name = clientIdentifier
 	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
-	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "ftm", "sfc", "web3")
-	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "sfc", "web3")
-	cfg.IPCPath = "lachesis.ipc"
+	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "ftm", "dag", "web3")
+	cfg.WSModules = append(cfg.WSModules, "eth", "ftm", "dag", "web3")
+	cfg.IPCPath = "opera.ipc"
 	cfg.DataDir = DefaultDataDir()
 	return cfg
 }

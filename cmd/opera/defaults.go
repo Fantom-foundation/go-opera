@@ -71,7 +71,7 @@ func DefaultDataDir() string {
 			}
 			return filepath.Join(appdata, "Lachesis")
 		default:
-			return filepath.Join(home, ".lachesis")
+			return filepath.Join(home, ".opera")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

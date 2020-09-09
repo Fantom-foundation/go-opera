@@ -3,7 +3,7 @@ image: Visual Studio 2017
 
 build: off
 
-clone_folder: c:\gopath\src\github.com\Fantom-foundation\go-lachesis
+clone_folder: c:\gopath\src\github.com\Fantom-foundation\go-opera
 
 environment:
   PATH: C:\gopath\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;C:\PROGRA~1\Git\bin;C:\PROGRA~1\Git\usr\bin\;C:\ProgramData\chocolatey\bin;$(PATH)

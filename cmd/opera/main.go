@@ -18,18 +18,18 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/metrics"
-	"github.com/Fantom-foundation/go-lachesis/cmd/lachesis/tracing"
-	"github.com/Fantom-foundation/go-lachesis/debug"
-	"github.com/Fantom-foundation/go-lachesis/gossip"
-	"github.com/Fantom-foundation/go-lachesis/integration"
-	"github.com/Fantom-foundation/go-lachesis/utils/errlock"
-	_ "github.com/Fantom-foundation/go-lachesis/version"
+	"github.com/Fantom-foundation/go-opera/cmd/opera/metrics"
+	"github.com/Fantom-foundation/go-opera/cmd/opera/tracing"
+	"github.com/Fantom-foundation/go-opera/debug"
+	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/utils/errlock"
+	_ "github.com/Fantom-foundation/go-opera/version"
 )
 
 const (
 	// clientIdentifier to advertise over the network.
-	clientIdentifier = "go-lachesis"
+	clientIdentifier = "go-opera"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 	gitCommit = ""
 	gitDate   = ""
 	// The app that holds all commands and flags.
-	app = utils.NewApp(gitCommit, gitDate, "the go-lachesis command line interface")
+	app = utils.NewApp(gitCommit, gitDate, "the go-opera command line interface")
 
 	testFlags    []cli.Flag
 	nodeFlags    []cli.Flag
@@ -203,7 +203,7 @@ func main() {
 	}
 }
 
-// lachesis is the main entry point into the system if no special subcommand is ran.
+// opera is the main entry point into the system if no special subcommand is ran.
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
 func lachesisMain(ctx *cli.Context) error {
@@ -232,7 +232,7 @@ func makeNode(ctx *cli.Context, cfg *config) *node.Node {
 
 	stack := makeConfigNode(ctx, &cfg.Node)
 
-	engine, _, gdb := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
+	engine, dagIndex, _, gdb := integration.MakeEngine(cfg.Node.DataDir, &cfg.Lachesis)
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	// configure emitter
@@ -247,7 +247,12 @@ func makeNode(ctx *cli.Context, cfg *config) *node.Node {
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		return gossip.NewService(ctx, &cfg.Lachesis, gdb, engine)
+		svc, err := gossip.NewService(ctx, &cfg.Lachesis, gdb, engine, dagIndex)
+		if err != nil {
+			return nil, err
+		}
+		err = engine.Bootstrap(svc.GetConsensusCallbacks())
+		return svc, err
 	}
 
 	if err := stack.Register(gossipService); err != nil {
@@ -283,7 +288,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	events := make(chan accounts.WalletEvent, 16)
 	stack.AccountManager().Subscribe(events)
 
-	// Create a client to interact with local lachesis node.
+	// Create a client to interact with local opera node.
 	rpcClient, err := stack.Attach()
 	if err != nil {
 		utils.Fatalf("Failed to attach to self: %v", err)

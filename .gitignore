@@ -33,7 +33,7 @@ glide.lock
 *.tgz
 *.zip
 
-# lachesis project specific
+# opera project specific
 scripts/certs
 scripts/nodes
 scripts/peers.json
