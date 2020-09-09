@@ -2,25 +2,24 @@ package utils
 
 import (
 	"crypto/sha256"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Fantom-foundation/lachesis-base/common/littleendian"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Fantom-foundation/go-lachesis/common/littleendian"
 )
 
-func getTestWeightsIncreasing(num int) []pos.Stake {
-	weights := make([]pos.Stake, num)
+func getTestWeightsIncreasing(num int) []pos.Weight {
+	weights := make([]pos.Weight, num)
 	for i := 0; i < num; i++ {
-		weights[i] = pos.Stake(i+1) * 1000
+		weights[i] = pos.Weight(i+1) * 1000
 	}
 	return weights
 }
 
-func getTestWeightsEqual(num int) []pos.Stake {
-	weights := make([]pos.Stake, num)
+func getTestWeightsEqual(num int) []pos.Weight {
+	weights := make([]pos.Weight, num)
 	for i := 0; i < num; i++ {
 		weights[i] = 1000
 	}
@@ -33,7 +32,7 @@ func Test_Permutation_distribution(t *testing.T) {
 
 	weightHits := make(map[int]int) // weight -> number of occurrences
 	for roundSeed := 0; roundSeed < 3000; roundSeed++ {
-		seed := hashOf(common.Hash{}, uint32(roundSeed))
+		seed := hashOf(hash.Hash{}, uint32(roundSeed))
 		perm := WeightedPermutation(len(weightsArr)/10, weightsArr, seed)
 		for _, p := range perm {
 			weight := weightsArr[p]
@@ -59,10 +58,10 @@ func Test_Permutation_distribution(t *testing.T) {
 }
 
 // test that WeightedPermutation provides a correct permaition
-func testCorrectPermutation(t *testing.T, weightsArr []pos.Stake) {
+func testCorrectPermutation(t *testing.T, weightsArr []pos.Weight) {
 	assertar := assert.New(t)
 
-	perm := WeightedPermutation(len(weightsArr), weightsArr, common.Hash{})
+	perm := WeightedPermutation(len(weightsArr), weightsArr, hash.Hash{})
 	assertar.Equal(len(weightsArr), len(perm))
 
 	met := make(map[int]bool)
@@ -80,11 +79,11 @@ func Test_Permutation_correctness(t *testing.T) {
 	testCorrectPermutation(t, getTestWeightsEqual(1000))
 }
 
-func hashOf(a common.Hash, b uint32) common.Hash {
+func hashOf(a hash.Hash, b uint32) hash.Hash {
 	hasher := sha256.New()
 	hasher.Write(a.Bytes())
-	hasher.Write(littleendian.Int32ToBytes(uint32(b)))
-	return common.BytesToHash(hasher.Sum(nil))
+	hasher.Write(littleendian.Uint32ToBytes(uint32(b)))
+	return hash.FromBytes(hasher.Sum(nil))
 }
 
 func Test_Permutation_determinism(t *testing.T) {
@@ -92,9 +91,9 @@ func Test_Permutation_determinism(t *testing.T) {
 
 	assertar := assert.New(t)
 
-	assertar.Equal([]int{3, 2, 4, 1, 0}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(common.Hash{}, 0)))
-	assertar.Equal([]int{0, 4, 2, 1, 3}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(common.Hash{}, 1)))
-	assertar.Equal([]int{3, 4, 2, 1, 0}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(common.Hash{}, 2)))
-	assertar.Equal([]int{4, 2, 1, 3, 0}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(common.Hash{}, 3)))
-	assertar.Equal([]int{1, 4}, WeightedPermutation(len(weightsArr)/2, weightsArr, hashOf(common.Hash{}, 4)))
+	assertar.Equal([]int{3, 2, 4, 1, 0}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(hash.Hash{}, 0)))
+	assertar.Equal([]int{0, 4, 2, 1, 3}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(hash.Hash{}, 1)))
+	assertar.Equal([]int{3, 4, 2, 1, 0}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(hash.Hash{}, 2)))
+	assertar.Equal([]int{4, 2, 1, 3, 0}, WeightedPermutation(len(weightsArr), weightsArr, hashOf(hash.Hash{}, 3)))
+	assertar.Equal([]int{1, 4}, WeightedPermutation(len(weightsArr)/2, weightsArr, hashOf(hash.Hash{}, 4)))
 }

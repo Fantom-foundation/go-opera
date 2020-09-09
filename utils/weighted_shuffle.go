@@ -2,24 +2,23 @@ package utils
 
 import (
 	"crypto/sha256"
-	"github.com/Fantom-foundation/go-lachesis/inter/pos"
 
-	"github.com/ethereum/go-ethereum/common"
-
-	"github.com/Fantom-foundation/go-lachesis/common/littleendian"
+	"github.com/Fantom-foundation/lachesis-base/common/littleendian"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 )
 
 type weightedShuffleNode struct {
-	thisWeight  pos.Stake
-	leftWeight  pos.Stake
-	rightWeight pos.Stake
+	thisWeight  pos.Weight
+	leftWeight  pos.Weight
+	rightWeight pos.Weight
 }
 
 type weightedShuffleTree struct {
-	seed      common.Hash
+	seed      hash.Hash
 	seedIndex int
 
-	weights []pos.Stake
+	weights []pos.Weight
 	nodes   []weightedShuffleNode
 }
 
@@ -31,7 +30,7 @@ func (t *weightedShuffleTree) rightIndex(i int) int {
 	return i*2 + 2
 }
 
-func (t *weightedShuffleTree) build(i int) pos.Stake {
+func (t *weightedShuffleTree) build(i int) pos.Weight {
 	if i >= len(t.weights) {
 		return 0
 	}
@@ -55,11 +54,11 @@ func (t *weightedShuffleTree) rand64() uint64 {
 	if t.seedIndex == 32 {
 		hasher := sha256.New() // use sha2 instead of sha3 for speed
 		hasher.Write(t.seed.Bytes())
-		t.seed = common.BytesToHash(hasher.Sum(nil))
+		t.seed = hash.BytesToHash(hasher.Sum(nil))
 		t.seedIndex = 0
 	}
 	// use not used parts of old seed, instead of calculating new one
-	res := littleendian.BytesToInt64(t.seed[t.seedIndex : t.seedIndex+8])
+	res := littleendian.BytesToUint64(t.seed[t.seedIndex : t.seedIndex+8])
 	t.seedIndex += 8
 	return res
 }
@@ -68,7 +67,7 @@ func (t *weightedShuffleTree) retrieve(i int) int {
 	node := t.nodes[i]
 	total := node.rightWeight + node.leftWeight + node.thisWeight
 
-	r := pos.Stake(t.rand64()) % total
+	r := pos.Weight(t.rand64()) % total
 
 	if r < node.thisWeight {
 		t.nodes[i].thisWeight = 0
@@ -87,7 +86,7 @@ func (t *weightedShuffleTree) retrieve(i int) int {
 // WeightedPermutation builds weighted random permutation
 // Returns first {size} entries of {weights} permutation.
 // Call with {size} == len(weights) to get the whole permutation.
-func WeightedPermutation(size int, weights []pos.Stake, seed common.Hash) []int {
+func WeightedPermutation(size int, weights []pos.Weight, seed hash.Hash) []int {
 	if len(weights) < size {
 		panic("the permutation size must be less or equal to weights size")
 	}
