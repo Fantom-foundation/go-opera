@@ -4,87 +4,201 @@ import (
 	"errors"
 	"io"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/utils/fast"
+	"github.com/Fantom-foundation/go-opera/utils/cser"
 )
 
 var (
-	ErrNonCanonicalEncoding = errors.New("Non canonical encoded event")
-	ErrInvalidEncoding      = errors.New("Invalid encoded event")
+	ErrSerMalformedEvent = errors.New("serialization of malformed event")
 )
 
-type (
-	eventMarshaling struct {
-		EventHeader  eventHeaderMarshaling
-		Transactions types.Transactions
+func (e *Event) MarshalCSER(w *cser.Writer) error {
+	// base fields
+	w.U32(uint32(e.Epoch()))
+	w.U32(uint32(e.Lamport()))
+	w.U32(uint32(e.Creator()))
+	w.U32(uint32(e.Seq()))
+	w.U32(uint32(e.Frame()))
+	w.Bool(e.IsRoot())
+	w.U64(e.creationTime)
+	medianTimeDiff := int64(e.creationTime) - int64(e.medianTime)
+	w.I64(medianTimeDiff)
+	// gas power
+	w.U64(e.gasPowerUsed)
+	w.U64(e.gasPowerLeft.Gas[0])
+	w.U64(e.gasPowerLeft.Gas[1])
+	// parents
+	w.U32(uint32(len(e.Parents())))
+	for _, p := range e.Parents() {
+		if e.Lamport() < p.Lamport() {
+			return ErrSerMalformedEvent
+		}
+		// lamport difference
+		w.U32(uint32(e.Lamport() - p.Lamport()))
+		// without epoch and lamport
+		w.FixedBytes(p.Bytes()[8:])
 	}
-
-	eventHeaderMarshaling struct {
-		EventHeaderData EventHeaderData
-		Sig             []byte
+	// prev epoch hash
+	w.Bool(e.prevEpochHash != nil)
+	if e.prevEpochHash != nil {
+		w.FixedBytes(e.prevEpochHash.Bytes())
 	}
-)
-
-// EncodeRLP implements rlp.Encoder interface.
-// Its goal to override custom encoder of promoted field EventHeaderData.
-func (e *Event) EncodeRLP(w io.Writer) error {
-	m := &eventMarshaling{
-		EventHeader: eventHeaderMarshaling{
-			EventHeaderData: e.EventHeaderData,
-			Sig:             e.Sig,
-		},
-		Transactions: e.Transactions,
+	// tx hash
+	w.Bool(!e.NoTxs())
+	if !e.NoTxs() {
+		w.FixedBytes(e.txHash.Bytes())
 	}
-
-	return rlp.Encode(w, m)
+	// extra
+	w.SliceBytes(e.Extra())
+	return nil
 }
 
-// DecodeRLP implements rlp.Decoder interface.
-// Its goal to override custom decoder of promoted field EventHeaderData.
-func (e *Event) DecodeRLP(src *rlp.Stream) error {
-	m := &eventMarshaling{}
-	if err := src.Decode(m); err != nil {
+// MarshalBinary implements encoding.BinaryMarshaler interface.
+func (e *Event) MarshalBinary() ([]byte, error) {
+	return cser.MarshalBinaryAdapter(e.MarshalCSER)
+}
+
+func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
+	// base fields
+	epoch := r.U32()
+	lamport := r.U32()
+	creator := r.U32()
+	seq := r.U32()
+	frame := r.U32()
+	isRoot := r.Bool()
+	creationTime := r.U64()
+	medianTimeDiff := r.I64()
+	// gas power
+	gasPowerUsed := r.U64()
+	gasPowerLeft0 := r.U64()
+	gasPowerLeft1 := r.U64()
+	// parents
+	parentsNum := r.U32()
+	parents := make(hash.Events, 0, parentsNum)
+	for i := uint32(0); i < parentsNum; i++ {
+		// lamport difference
+		lamportDiff := r.U32()
+		// hash
+		h := [24]byte{}
+		r.FixedBytes(h[:])
+		eID := dag.MutableBaseEvent{}
+		eID.SetEpoch(idx.Epoch(epoch))
+		eID.SetLamport(idx.Lamport(lamport - lamportDiff))
+		eID.SetID(h)
+		parents.Add(eID.ID())
+	}
+	// prev epoch hash
+	var prevEpochHash *hash.Hash
+	prevEpochHashExists := r.Bool()
+	if prevEpochHashExists {
+		prevEpochHash_ := hash.Hash{}
+		r.FixedBytes(prevEpochHash_[:])
+		prevEpochHash = &prevEpochHash_
+	}
+	// tx hash
+	txHash := EmptyTxHash
+	txHashExists := r.Bool()
+	if txHashExists {
+		r.FixedBytes(txHash[:])
+		if txHash == EmptyTxHash {
+			return cser.ErrNonCanonicalEncoding
+		}
+	}
+	// extra
+	extra := r.SliceBytes()
+
+	e.SetEpoch(idx.Epoch(epoch))
+	e.SetLamport(idx.Lamport(lamport))
+	e.SetCreator(idx.ValidatorID(creator))
+	e.SetSeq(idx.Event(seq))
+	e.SetFrame(idx.Frame(frame))
+	e.SetIsRoot(isRoot)
+	e.creationTime = creationTime
+	e.medianTime = uint64(int64(creationTime) - medianTimeDiff)
+	e.SetGasPowerUsed(gasPowerUsed)
+	e.SetGasPowerLeft(GasPowerLeft{[2]uint64{gasPowerLeft0, gasPowerLeft1}})
+	e.SetParents(parents)
+	e.SetPrevEpochHash(prevEpochHash)
+	e.SetTxHash(txHash)
+	e.SetExtra(extra)
+	return nil
+}
+
+func (e *EventPayload) MarshalCSER(w *cser.Writer) error {
+	if e.NoTxs() != (e.txs.Len() == 0) {
+		return ErrSerMalformedEvent
+	}
+	err := e.Event.MarshalCSER(w)
+	if err != nil {
 		return err
 	}
+	w.FixedBytes(e.sig.Bytes())
+	if !e.NoTxs() {
+		// txs size
+		w.U64fromZero(uint64(e.txs.Len()))
+		// txs
+		for _, tx := range e.txs {
+			err := TransactionMarshalCSER(w, tx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
-	e.EventHeader.EventHeaderData = m.EventHeader.EventHeaderData
-	e.EventHeader.Sig = m.EventHeader.Sig
-	e.Transactions = m.Transactions
+func (e *MutableEventPayload) UnmarshalCSER(r *cser.Reader) error {
+	err := eventUnmarshalCSER(r, e)
+	if err != nil {
+		return err
+	}
+	r.FixedBytes(e.sig[:])
+	txs := types.Transactions{}
+	if !e.NoTxs() {
+		// txs size
+		size := r.U64fromZero()
+		for i := uint64(0); i < size; i++ {
+			tx, err := TransactionUnmarshalCSER(r)
+			if err != nil {
+				return err
+			}
+			txs = append(txs, tx)
+		}
+	}
+	e.SetTxs(txs)
+	return nil
+}
 
+// MarshalBinary implements encoding.BinaryMarshaler interface.
+func (e *EventPayload) MarshalBinary() ([]byte, error) {
+	return cser.MarshalBinaryAdapter(e.MarshalCSER)
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler interface.
+func (e *MutableEventPayload) UnmarshalBinary(raw []byte) (err error) {
+	return cser.UnmmrshalBinaryAdapter(raw, e.UnmarshalCSER)
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler interface.
+func (e *EventPayload) UnmarshalBinary(raw []byte) (err error) {
+	mutE := MutableEventPayload{}
+	err = mutE.UnmarshalBinary(raw)
+	if err != nil {
+		return err
+	}
+	eventSer, _ := mutE.immutable().Event.MarshalBinary()
+	h := eventHash(eventSer)
+	*e = *mutE.build(h, len(raw))
 	return nil
 }
 
 // EncodeRLP implements rlp.Encoder interface.
-// Its goal to override custom encoder of promoted field EventHeaderData.
-func (e *EventHeader) EncodeRLP(w io.Writer) error {
-	m := &eventHeaderMarshaling{
-		EventHeaderData: e.EventHeaderData,
-		Sig:             e.Sig,
-	}
-
-	return rlp.Encode(w, m)
-}
-
-// DecodeRLP implements rlp.Decoder interface.
-// Its goal to override custom decoder of promoted field EventHeaderData.
-func (e *EventHeader) DecodeRLP(src *rlp.Stream) error {
-	m := &eventHeaderMarshaling{}
-	if err := src.Decode(m); err != nil {
-		return err
-	}
-
-	e.EventHeaderData = m.EventHeaderData
-	e.Sig = m.Sig
-
-	return nil
-}
-
-// EncodeRLP implements rlp.Encoder interface.
-func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
+func (e *EventPayload) EncodeRLP(w io.Writer) error {
 	bytes, err := e.MarshalBinary()
 	if err != nil {
 		return err
@@ -96,7 +210,7 @@ func (e *EventHeaderData) EncodeRLP(w io.Writer) error {
 }
 
 // DecodeRLP implements rlp.Decoder interface.
-func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
+func (e *EventPayload) DecodeRLP(src *rlp.Stream) error {
 	bytes, err := src.Bytes()
 	if err != nil {
 		return err
@@ -105,221 +219,12 @@ func (e *EventHeaderData) DecodeRLP(src *rlp.Stream) error {
 	return e.UnmarshalBinary(bytes)
 }
 
-// MarshalBinary implements encoding.BinaryMarshaler interface.
-func (e *EventHeaderData) MarshalBinary() ([]byte, error) {
-	isPrevEpochHashEmpty := (e.PrevEpochHash == hash.Zero)
-	isTxHashEmpty := (e.TxHash == EmptyTxHash)
-
-	fields64 := []uint64{
-		e.GasPowerLeft.Gas[0],
-		e.GasPowerLeft.Gas[1],
-		e.GasPowerUsed,
-		uint64(e.ClaimedTime),
-		uint64(e.MedianTime),
-	}
-	fields32 := []uint32{
-		e.Version,
-		uint32(e.Epoch),
-		uint32(e.Seq),
-		uint32(e.Frame),
-		uint32(e.Creator),
-		uint32(e.Lamport),
-		uint32(len(e.Parents)),
-	}
-	fieldsBool := []bool{
-		e.IsRoot,
-		isPrevEpochHashEmpty,
-		isTxHashEmpty,
+// DecodeRLP implements rlp.Decoder interface.
+func (e *MutableEventPayload) DecodeRLP(src *rlp.Stream) error {
+	bytes, err := src.Bytes()
+	if err != nil {
+		return err
 	}
 
-	header3 := fast.NewBitArray(
-		4, // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
-		uint(len(fields64)),
-	)
-	header2 := fast.NewBitArray(
-		2, // bits for storing sizes 1-4 of uint32 fields
-		uint(len(fields32)+len(fieldsBool)),
-	)
-
-	maxBytes := header3.Size() +
-		header2.Size() +
-		len(fields64)*8 +
-		len(fields32)*4 +
-		len(e.Parents)*(32-4) + // without idx.Epoch
-		common.HashLength + // PrevEpochHash
-		common.HashLength + // TxHash
-		len(e.Extra)
-
-	raw := make([]byte, maxBytes, maxBytes)
-
-	offset := 0
-	header3w := header3.Writer(raw[offset : offset+header3.Size()])
-	offset += header3.Size()
-	header2w := header2.Writer(raw[offset : offset+header2.Size()])
-	offset += header2.Size()
-	buf := fast.NewBuffer(raw[offset:])
-
-	for _, i64 := range fields64 {
-		n := writeUintCompact(buf, i64, 8)
-		header3w.Push(n - 1)
-	}
-	for _, i32 := range fields32 {
-		n := writeUintCompact(buf, uint64(i32), 4)
-		header2w.Push(n - 1)
-	}
-	for _, f := range fieldsBool {
-		if f {
-			header2w.Push(1)
-		} else {
-			header2w.Push(0)
-		}
-	}
-
-	for _, p := range e.Parents {
-		buf.Write(p.Bytes()[4:]) // without epoch
-	}
-
-	if !isPrevEpochHashEmpty {
-		buf.Write(e.PrevEpochHash.Bytes())
-	}
-
-	if !isTxHashEmpty {
-		buf.Write(e.TxHash.Bytes())
-	}
-
-	buf.Write(e.Extra)
-
-	length := header3.Size() + header2.Size() + buf.Position()
-	return raw[:length], nil
-}
-
-func writeUintCompact(buf *fast.Buffer, v uint64, size int) (bytes int) {
-	for i := 0; i < size; i++ {
-		buf.WriteByte(byte(v))
-		bytes++
-		v = v >> 8
-		if v == 0 {
-			break
-		}
-	}
-	return
-}
-
-// UnmarshalBinary implements encoding.BinaryUnmarshaler interface.
-func (e *EventHeaderData) UnmarshalBinary(raw []byte) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = ErrInvalidEncoding
-		}
-	}()
-
-	var (
-		isPrevEpochHashEmpty bool
-		isTxHashEmpty        bool
-	)
-
-	var parentCount uint32
-
-	fields64 := []*uint64{
-		&e.GasPowerLeft.Gas[0],
-		&e.GasPowerLeft.Gas[1],
-		&e.GasPowerUsed,
-		(*uint64)(&e.ClaimedTime),
-		(*uint64)(&e.MedianTime),
-	}
-	fields32 := []*uint32{
-		&e.Version,
-		(*uint32)(&e.Epoch),
-		(*uint32)(&e.Seq),
-		(*uint32)(&e.Frame),
-		(*uint32)(&e.Creator),
-		(*uint32)(&e.Lamport),
-		&parentCount,
-	}
-	fieldsBool := []*bool{
-		&e.IsRoot,
-		&isPrevEpochHashEmpty,
-		&isTxHashEmpty,
-	}
-
-	header3 := fast.NewBitArray(
-		4, // bits for storing sizes 1-8 of uint64 fields (forced to 4 because fast.BitArray)
-		uint(len(fields64)),
-	)
-	header2 := fast.NewBitArray(
-		2, // bits for storing sizes 1-4 of uint32 fields
-		uint(len(fields32)+len(fieldsBool)),
-	)
-
-	offset := 0
-	header3r := header3.Reader(raw[offset : offset+header3.Size()])
-	offset += header3.Size()
-	header2r := header2.Reader(raw[offset : offset+header2.Size()])
-	offset += header2.Size()
-	raw = raw[offset:]
-	buf := fast.NewBuffer(raw)
-
-	for _, i64 := range fields64 {
-		n := header3r.Pop() + 1
-		*i64, err = readUintCompact(buf, n)
-		if err != nil {
-			return
-		}
-	}
-	var x uint64
-	for _, i32 := range fields32 {
-		n := header2r.Pop() + 1
-		x, err = readUintCompact(buf, n)
-		if err != nil {
-			return
-		}
-		*i32 = uint32(x)
-	}
-	for _, f := range fieldsBool {
-		n := header2r.Pop()
-		*f = (n != 0)
-	}
-
-	e.Parents = make(hash.Events, parentCount, parentCount)
-	for i := uint32(0); i < parentCount; i++ {
-		copy(e.Parents[i][:4], e.Epoch.Bytes())
-		copy(e.Parents[i][4:], buf.Read(common.HashLength-4)) // without epoch
-	}
-
-	if !isPrevEpochHashEmpty {
-		e.PrevEpochHash.SetBytes(buf.Read(common.HashLength))
-		if e.PrevEpochHash == hash.Zero {
-			return ErrNonCanonicalEncoding
-		}
-	}
-
-	if !isTxHashEmpty {
-		e.TxHash.SetBytes(buf.Read(common.HashLength))
-		if e.TxHash == EmptyTxHash {
-			return ErrNonCanonicalEncoding
-		}
-	} else {
-		e.TxHash = EmptyTxHash
-	}
-
-	e.Extra = buf.Read(len(raw) - buf.Position())
-
-	return nil
-}
-
-func readUintCompact(buf *fast.Buffer, bytes int) (uint64, error) {
-	var (
-		v    uint64
-		last byte
-	)
-	for i, b := range buf.Read(bytes) {
-		v += uint64(b) << uint(8*i)
-		last = b
-	}
-
-	if bytes > 1 && last == 0 {
-		return 0, ErrNonCanonicalEncoding
-	}
-
-	return v, nil
+	return e.UnmarshalBinary(bytes)
 }
