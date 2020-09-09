@@ -3,10 +3,11 @@ package gossip
 import (
 	"math/big"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 type (
@@ -19,8 +20,8 @@ type (
 	}
 	// Config for the gossip service.
 	Config struct {
-		Net     lachesis.Config
-		Emitter EmitterConfig
+		Net     opera.Config
+		Emitter emitter.Config
 		TxPool  evmcore.TxPoolConfig
 		StoreConfig
 
@@ -61,24 +62,20 @@ type (
 		PackInfosCacheSize int
 		// Cache size for TxPositions.
 		TxPositionsCacheSize int
-		// Cache size for EpochStats.
-		EpochStatsCacheSize int
 
 		// NOTE: fields for config-file back compatibility
 		// Cache size for Receipts.
 		ReceiptsCacheSize int
 		// Cache size for Stakers.
 		StakersCacheSize int
-		// Cache size for Delegations.
-		DelegationsCacheSize int
 	}
 )
 
 // DefaultConfig returns the default configurations for the gossip service.
-func DefaultConfig(network lachesis.Config) Config {
+func DefaultConfig(network opera.Config) Config {
 	cfg := Config{
 		Net:         network,
-		Emitter:     DefaultEmitterConfig(),
+		Emitter:     emitter.DefaultEmitterConfig(),
 		TxPool:      evmcore.DefaultTxPoolConfig(),
 		StoreConfig: DefaultStoreConfig(),
 
@@ -97,14 +94,14 @@ func DefaultConfig(network lachesis.Config) Config {
 		},
 	}
 
-	if network.NetworkID == lachesis.FakeNetworkID {
-		cfg.Emitter = FakeEmitterConfig()
+	if network.NetworkID == opera.FakeNetworkID {
+		cfg.Emitter = emitter.FakeEmitterConfig()
 		// disable self-fork protection if fakenet 1/1
 		if len(network.Genesis.Alloc.Validators) == 1 {
 			cfg.Emitter.EmitIntervals.SelfForkProtection = 0
 		}
 	}
-	/*if network.NetworkId == lachesis.DevNetworkId { // TODO dev network
+	/*if network.NetworkId == opera.DevNetworkId { // TODO dev network
 		cfg.TxPool = evmcore.FakeTxPoolConfig()
 		cfg.Emitter = FakeEmitterConfig()
 	}*/
@@ -120,7 +117,6 @@ func DefaultStoreConfig() StoreConfig {
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
 		TxPositionsCacheSize:   1000,
-		EpochStatsCacheSize:    100,
 	}
 }
 
@@ -132,6 +128,5 @@ func LiteStoreConfig() StoreConfig {
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
 		TxPositionsCacheSize:   100,
-		EpochStatsCacheSize:    100,
 	}
 }

@@ -3,21 +3,20 @@ package gossip
 import (
 	"sync"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-lachesis/app"
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-opera/app"
+	"github.com/Fantom-foundation/go-opera/evmcore"
 )
 
 type EvmStateReader struct {
 	*ServiceFeed
 	engineMu *sync.RWMutex
-	engine   Consensus
 
 	store *Store
 	app   *app.Store
@@ -27,26 +26,21 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 	return &EvmStateReader{
 		ServiceFeed: &s.feed,
 		engineMu:    s.engineMu,
-		engine:      s.engine,
 		store:       s.store,
-		app:         s.app,
+		app:         s.store.app,
 	}
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {
-	r.engineMu.RLock()
-	n, h := r.engine.LastBlock()
-	r.engineMu.RUnlock()
+	n := r.store.GetLatestBlockIndex()
 
-	return r.getBlock(hash.Event(h), idx.Block(n), n != 0)
+	return r.getBlock(hash.Event{}, n, n != 0)
 }
 
 func (r *EvmStateReader) CurrentHeader() *evmcore.EvmHeader {
-	r.engineMu.RLock()
-	n, h := r.engine.LastBlock()
-	r.engineMu.RUnlock()
+	n := r.store.GetLatestBlockIndex()
 
-	return r.getBlock(hash.Event(h), idx.Block(n), false).Header()
+	return r.getBlock(hash.Event{}, n, false).Header()
 }
 
 func (r *EvmStateReader) GetHeader(h common.Hash, n uint64) *evmcore.EvmHeader {
@@ -76,17 +70,17 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 
 	transactions := make(types.Transactions, 0, len(block.Events)*10)
 	if readTxs {
-		txCount := uint(0)
+		txCount := uint32(0)
 		skipCount := 0
 		for _, id := range block.Events {
-			e := r.store.GetEvent(id)
+			e := r.store.GetEventPayload(id)
 			if e == nil {
 				log.Crit("Event not found", "event", id.String())
 				continue
 			}
 
 			// appends txs except skipped ones
-			for _, tx := range e.Transactions {
+			for _, tx := range e.Txs() {
 				if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
 					skipCount++
 				} else {
@@ -97,7 +91,11 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 		}
 	}
 
-	evmHeader := evmcore.ToEvmHeader(block)
+	var prev hash.Event
+	if n != 0 {
+		prev = r.store.GetBlock(n - 1).Atropos
+	}
+	evmHeader := evmcore.ToEvmHeader(block, n, prev)
 	evmBlock := &evmcore.EvmBlock{
 		EvmHeader: *evmHeader,
 	}
@@ -112,5 +110,5 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 }
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
-	return r.app.StateDB(root), nil
+	return r.app.StateDB(hash.Hash(root)), nil
 }

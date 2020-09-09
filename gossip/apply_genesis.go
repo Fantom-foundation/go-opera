@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/inter/sfctype"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 // GenesisMismatchError is raised when trying to overwrite an existing
@@ -25,7 +25,7 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // ApplyGenesis writes initial state.
-func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
+func (s *Store) ApplyGenesis(net *opera.Config) (genesisAtropos hash.Event, genesisState common.Hash, new bool, err error) {
 	storedGenesis := s.GetBlock(0)
 	if storedGenesis != nil {
 		newHash := calcGenesisHash(net)
@@ -47,7 +47,7 @@ func (s *Store) ApplyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, g
 }
 
 // calcGenesisHash calcs hash of genesis state.
-func calcGenesisHash(net *lachesis.Config) hash.Event {
+func calcGenesisHash(net *opera.Config) hash.Event {
 	s := NewMemStore()
 	defer s.Close()
 
@@ -56,46 +56,78 @@ func calcGenesisHash(net *lachesis.Config) hash.Event {
 	return h
 }
 
-func (s *Store) applyGenesis(net *lachesis.Config) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
+func (s *Store) applyGenesis(net *opera.Config) (genesisAtropos hash.Event, genesisState common.Hash, err error) {
 	// apply app genesis
 	state, err := s.app.ApplyGenesis(net)
 	if err != nil {
 		return genesisAtropos, genesisState, err
 	}
 
-	prettyHash := func(net *lachesis.Config) hash.Event {
-		e := inter.NewEvent()
+	prettyHash := func(net *opera.Config) hash.Event {
+		e := inter.MutableEventPayload{}
 		// for nice-looking ID
-		e.Epoch = 0
-		e.Lamport = idx.Lamport(net.Dag.MaxEpochBlocks)
+		e.SetEpoch(0)
+		e.SetLamport(idx.Lamport(net.Dag.MaxEpochBlocks))
 		// actual data hashed
-		e.Extra = net.Genesis.ExtraData
-		e.ClaimedTime = net.Genesis.Time
-		e.TxHash = net.Genesis.Alloc.Accounts.Hash()
+		h := net.Genesis.Alloc.Accounts.Hash()
+		e.SetExtra(append(net.Genesis.ExtraData, h[:]...))
+		e.SetCreationTime(net.Genesis.Time)
 
-		return e.CalcHash()
+		return e.Build().ID()
 	}
 	genesisAtropos = prettyHash(net)
 	genesisState = common.Hash(genesisAtropos)
 
-	block := inter.NewBlock(0,
-		net.Genesis.Time,
-		genesisAtropos,
-		hash.Event{},
-		hash.Events{genesisAtropos},
-	)
+	block := &inter.Block{
+		Time:       net.Genesis.Time,
+		Atropos:    genesisAtropos,
+		Events:     hash.Events{genesisAtropos},
+		SkippedTxs: []uint32{},
+		GasUsed:    0,
+		Root:       hash.Hash(state.Root),
+	}
 
-	block.Root = state.Root
-	s.SetBlock(block)
-	s.SetBlockIndex(genesisAtropos, block.Index)
-	s.SetEpochStats(0, &sfctype.EpochStats{
-		Start:    net.Genesis.Time,
-		End:      net.Genesis.Time,
-		TotalFee: new(big.Int),
+	s.SetBlock(0, block)
+	s.SetBlockIndex(genesisAtropos, 0)
+
+	validators := net.Genesis.Alloc.Validators.Build()
+	valBlockStates := make([]ValidatorBlockState, validators.Len())
+	for i := range valBlockStates {
+		valBlockStates[i] = ValidatorBlockState{
+			Originated: new(big.Int),
+		}
+	}
+	valEpochStates := make([]ValidatorEpochState, validators.Len())
+
+	valProfiles := make([]sfctype.SfcStakerAndID, len(net.Genesis.Alloc.Validators))
+	for i, validator := range net.Genesis.Alloc.Validators {
+		staker := &sfctype.SfcStaker{
+			Address:      validator.Address,
+			CreatedEpoch: 0,
+			CreationTime: net.Genesis.Time,
+			StakeAmount:  validator.Stake,
+			DelegatedMe:  big.NewInt(0),
+		}
+		valProfiles[i] = sfctype.SfcStakerAndID{
+			ValidatorID: validator.ID,
+			Staker:      staker,
+		}
+		s.app.SetSfcStaker(validator.ID, staker)
+	}
+
+	s.SetBlockState(BlockState{
+		Block:           0,
+		EpochBlocks:     0,
+		EpochFee:        new(big.Int),
+		ValidatorStates: valBlockStates,
 	})
-	s.SetDirtyEpochStats(&sfctype.EpochStats{
-		Start:    net.Genesis.Time,
-		TotalFee: new(big.Int),
+	s.SetEpochState(EpochState{
+		Epoch:             1,
+		Validators:        validators,
+		EpochStart:        net.Genesis.Time,
+		PrevEpochStart:    net.Genesis.Time,
+		ValidatorStates:   valEpochStates,
+		ValidatorProfiles: valProfiles,
 	})
 
 	return genesisAtropos, genesisState, nil

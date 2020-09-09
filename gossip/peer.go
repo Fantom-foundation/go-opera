@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-opera/inter"
 )
 
 var (
@@ -63,7 +63,7 @@ type peer struct {
 	knownTxs    mapset.Set                // Set of transaction hashes known to be known by this peer
 	knownEvents mapset.Set                // Set of event hashes known to be known by this peer
 	queuedTxs   chan []*types.Transaction // Queue of transactions to broadcast to the peer
-	queuedProps chan inter.Events         // Queue of events to broadcast to the peer
+	queuedProps chan inter.EventPayloads  // Queue of events to broadcast to the peer
 	queuedAnns  chan hash.Events          // Queue of events to announce to the peer
 	term        chan struct{}             // Termination channel to stop the broadcaster
 
@@ -112,7 +112,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		knownTxs:    mapset.NewSet(),
 		knownEvents: mapset.NewSet(),
 		queuedTxs:   make(chan []*types.Transaction, maxQueuedTxs),
-		queuedProps: make(chan inter.Events, maxQueuedProps),
+		queuedProps: make(chan inter.EventPayloads, maxQueuedProps),
 		queuedAnns:  make(chan hash.Events, maxQueuedAnns),
 		term:        make(chan struct{}),
 	}
@@ -244,10 +244,10 @@ func (p *peer) AsyncSendNewEventHashes(ids hash.Events) {
 }
 
 // SendNewEvent propagates an entire event to a remote peer.
-func (p *peer) SendEvents(events inter.Events) error {
+func (p *peer) SendEvents(events inter.EventPayloads) error {
 	// Mark all the event hash as known, but ensure we don't overflow our limits
 	for _, event := range events {
-		p.knownEvents.Add(event.Hash())
+		p.knownEvents.Add(event.ID())
 		for p.knownEvents.Cardinality() >= maxKnownEvents {
 			p.knownEvents.Pop()
 		}
@@ -276,12 +276,12 @@ func (p *peer) SendPack(pack *packData) error {
 
 // AsyncSendEvents queues an entire event for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendEvents(events inter.Events) {
+func (p *peer) AsyncSendEvents(events inter.EventPayloads) {
 	select {
 	case p.queuedProps <- events:
 		// Mark all the event hash as known, but ensure we don't overflow our limits
 		for _, event := range events {
-			p.knownEvents.Add(event.Hash())
+			p.knownEvents.Add(event.ID())
 		}
 		for p.knownEvents.Cardinality() >= maxKnownEvents {
 			p.knownEvents.Pop()
@@ -290,32 +290,6 @@ func (p *peer) AsyncSendEvents(events inter.Events) {
 		p.Log().Debug("Dropping event propagation", "count", len(events))
 	}
 }
-
-// SendEventHeaders sends a batch of event headers to the remote peer.
-/*func (p *peer) SendEventHeaders(headers []*EvmHeader) error {
-	return p2p.Send(p.rw, EventHeadersMsg, headers)
-}*/
-
-/*// RequestOneHeader is a wrapper around the header query functions to fetch a
-// single header. It is used solely by the fetcher.
-func (p *peer) RequestOneHeader(hash common.Hash) error {
-	p.Log().Debug("Fetching single header", "hash", hash)
-	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Hash: hash}, Amount: uint64(1), Skip: uint64(0), Reverse: false})
-}
-
-// RequestHeadersByHash fetches a batch of events' headers corresponding to the
-// specified header query, based on the hash of an origin event.
-func (p *peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool) error {
-	p.Log().Debug("Fetching batch of headers", "count", amount, "fromhash", origin, "skip", skip, "reverse", reverse)
-	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Hash: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
-}
-
-// RequestHeadersByNumber fetches a batch of events' headers corresponding to the
-// specified header query, based on the number of an origin event.
-func (p *peer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool) error {
-	p.Log().Debug("Fetching batch of headers", "count", amount, "fromnum", origin, "skip", skip, "reverse", reverse)
-	return p2p.Send(p.rw, GetEventHeadersMsg, &getEventHeadersData{Origin: hashOrNumber{Number: origin}, Amount: uint64(amount), Skip: uint64(skip), Reverse: reverse})
-}*/
 
 func (p *peer) RequestEvents(ids hash.Events) error {
 	// divide big batch into smaller ones
@@ -421,7 +395,7 @@ func (p *peer) readStatus(network uint64, status *ethStatusData, genesis common.
 // String implements fmt.Stringer.
 func (p *peer) String() string {
 	return fmt.Sprintf("Peer %s [%s]", p.id,
-		fmt.Sprintf("lachesis/%2d", p.version),
+		fmt.Sprintf("opera/%2d", p.version),
 	)
 }
 

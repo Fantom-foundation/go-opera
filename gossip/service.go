@@ -2,13 +2,18 @@ package gossip
 
 import (
 	"fmt"
+	"math/big"
 	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/dag"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
@@ -18,24 +23,21 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/Fantom-foundation/go-lachesis/app"
-	"github.com/Fantom-foundation/go-lachesis/ethapi"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/basiccheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/gaspowercheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/heavycheck"
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/parentscheck"
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/gossip/filters"
-	"github.com/Fantom-foundation/go-lachesis/gossip/gasprice"
-	"github.com/Fantom-foundation/go-lachesis/gossip/occuredtxs"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
-	"github.com/Fantom-foundation/go-lachesis/lachesis"
-	"github.com/Fantom-foundation/go-lachesis/lachesis/params"
-	"github.com/Fantom-foundation/go-lachesis/logger"
+	"github.com/Fantom-foundation/go-opera/ethapi"
+	"github.com/Fantom-foundation/go-opera/eventcheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/basiccheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
+	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"
+	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
+	"github.com/Fantom-foundation/go-opera/gossip/filters"
+	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
+	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
 const (
@@ -61,7 +63,7 @@ func (f *ServiceFeed) SubscribeNewPack(ch chan<- idx.Pack) notify.Subscription {
 	return f.scope.Track(f.newPack.Subscribe(ch))
 }
 
-func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.Event) notify.Subscription {
+func (f *ServiceFeed) SubscribeNewEmitted(ch chan<- *inter.EventPayload) notify.Subscription {
 	return f.scope.Track(f.newEmittedEvent.Subscribe(ch))
 }
 
@@ -93,19 +95,16 @@ type Service struct {
 	// application
 	node                *node.ServiceContext
 	store               *Store
-	app                 *app.Store
-	engine              Consensus
+	engine              lachesis.Consensus
+	dagIndexer          *vecmt.Index
 	engineMu            *sync.RWMutex
-	emitter             *Emitter
+	emitter             *emitter.Emitter
 	txpool              *evmcore.TxPool
 	occurredTxs         *occuredtxs.Buffer
 	heavyCheckReader    HeavyCheckReader
 	gasPowerCheckReader GasPowerCheckReader
 	checkers            *eventcheck.Checkers
-
-	// global variables. TODO refactor to pass them as arguments if possible
-	blockParticipated map[idx.StakerID]bool // validators who participated in last block
-	currentEvent      hash.Event            // current event which is being processed
+	uniqueEventIDs      uniqueID
 
 	feed ServiceFeed
 
@@ -120,36 +119,21 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine Consensus) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
-		config: config,
-
-		done: make(chan struct{}),
-
-		Name: fmt.Sprintf("Node-%d", rand.Int()),
-
-		node:  ctx,
-		store: store,
-		app:   store.app,
-
-		engineMu:          new(sync.RWMutex),
-		occurredTxs:       occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(config.Net.EvmChainConfig().ChainID)),
-		blockParticipated: make(map[idx.StakerID]bool),
-
-		Instance: logger.MakeInstance(),
+		config:         config,
+		wg:             sync.WaitGroup{},
+		done:           make(chan struct{}),
+		Name:           fmt.Sprintf("Node-%d", rand.Int()),
+		node:           ctx,
+		store:          store,
+		engine:         engine,
+		dagIndexer:     dagIndexer,
+		engineMu:       new(sync.RWMutex),
+		occurredTxs:    occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(config.Net.EvmChainConfig().ChainID)),
+		uniqueEventIDs: uniqueID{new(big.Int)},
+		Instance:       logger.MakeInstance(),
 	}
-
-	// wrap engine
-	svc.engine = &HookedEngine{
-		engine:       engine,
-		processEvent: svc.processEvent,
-	}
-	svc.engine.Bootstrap(inter.ConsensusCallbacks{
-		ApplyBlock:              svc.applyBlock,
-		SelectValidatorsGroup:   svc.selectValidatorsGroup,
-		OnEventConfirmed:        svc.onEventConfirmed,
-		IsEventAllowedIntoBlock: svc.isEventAllowedIntoBlock,
-	})
 
 	// create server pool
 	trustedNodes := []string{}
@@ -163,28 +147,30 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine C
 	svc.txpool = evmcore.NewTxPool(config.TxPool, config.Net.EvmChainConfig(), stateReader)
 
 	// create checkers
-	svc.heavyCheckReader.Addrs.Store(ReadEpochPubKeys(svc.app, svc.engine.GetEpoch()))                                                                     // read pub keys of current epoch from disk
-	svc.gasPowerCheckReader.Ctx.Store(ReadGasPowerContext(svc.store, svc.app, svc.engine.GetValidators(), svc.engine.GetEpoch(), &svc.config.Net.Economy)) // read gaspower check data from disk
-	svc.checkers = makeCheckers(&svc.config.Net, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.engine, svc.store)
+	svc.heavyCheckReader.Addrs.Store(NewEpochPubKeys(svc.store, svc.store.GetEpoch()))                                                         // read pub keys of current epoch from disk
+	svc.gasPowerCheckReader.Ctx.Store(NewGasPowerContext(svc.store, svc.store.GetValidators(), svc.store.GetEpoch(), &svc.config.Net.Economy)) // read gaspower check data from disk
+	svc.checkers = makeCheckers(&svc.config.Net, &svc.heavyCheckReader, &svc.gasPowerCheckReader, svc.store)
 
 	// create protocol manager
 	var err error
-	svc.pm, err = NewProtocolManager(config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.engine, svc.serverPool)
+	svc.pm, err = NewProtocolManager(config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent, svc.serverPool)
 
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
 	svc.EthAPI.gpo = gasprice.NewOracle(svc.EthAPI, svc.config.GPO)
 
+	// load epoch DB
+	svc.store.loadEpochStore(svc.store.GetEpoch())
+	es := svc.store.getEpochStore(svc.store.GetEpoch())
+	svc.dagIndexer.Reset(svc.store.GetValidators(), es.table.DagIndex, func(id hash.Event) dag.Event {
+		return svc.store.GetEvent(id)
+	})
+
 	return svc, err
 }
 
-// GetEngine returns service's engine
-func (s *Service) GetEngine() Consensus {
-	return s.engine
-}
-
 // makeCheckers builds event checkers
-func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, engine Consensus, store *Store) *eventcheck.Checkers {
+func makeCheckers(net *opera.Config, heavyCheckReader *HeavyCheckReader, gasPowerCheckReader *GasPowerCheckReader, store *Store) *eventcheck.Checkers {
 	// create signatures checker
 	ledgerID := net.EvmChainConfig().ChainID
 	heavyCheck := heavycheck.NewDefault(&net.Dag, heavyCheckReader, types.NewEIP155Signer(ledgerID))
@@ -194,32 +180,32 @@ func makeCheckers(net *lachesis.Config, heavyCheckReader *HeavyCheckReader, gasP
 
 	return &eventcheck.Checkers{
 		Basiccheck:    basiccheck.New(&net.Dag),
-		Epochcheck:    epochcheck.New(&net.Dag, engine),
-		Parentscheck:  parentscheck.New(&net.Dag),
+		Epochcheck:    epochcheck.New(store),
+		Parentscheck:  parentscheck.New(),
 		Heavycheck:    heavyCheck,
 		Gaspowercheck: gaspowerCheck,
 	}
 }
 
-func (s *Service) makeEmitter() *Emitter {
+func (s *Service) makeEmitter() *emitter.Emitter {
 	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	emitterCfg := s.config.Emitter // copy data
 	emitterCfg.EmitIntervals = *emitterCfg.EmitIntervals.RandomizeEmitTime(r)
 
-	return NewEmitter(&s.config.Net, &emitterCfg,
-		EmitterWorld{
-			Am:          s.AccountManager(),
-			Engine:      s.engine,
-			EngineMu:    s.engineMu,
+	return emitter.NewEmitter(&s.config.Net, &emitterCfg,
+		emitter.EmitterWorld{
 			Store:       s.store,
-			App:         s.app,
+			EngineMu:    s.engineMu,
 			Txpool:      s.txpool,
+			Am:          s.AccountManager(),
 			OccurredTxs: s.occurredTxs,
-			OnEmitted: func(emitted *inter.Event) {
-				// s.engineMu is locked here
-
-				err := s.engine.ProcessEvent(emitted)
+			Check: func(emitted *inter.EventPayload, parents inter.Events) error {
+				// sanity check
+				return s.checkers.Validate(emitted, parents.Interfaces())
+			},
+			Process: func(emitted *inter.EventPayload) error {
+				err := s.processEvent(emitted)
 				if err != nil {
 					s.Log.Crit("Self-event connection failed", "err", err.Error())
 				}
@@ -228,27 +214,16 @@ func (s *Service) makeEmitter() *Emitter {
 				if err != nil {
 					s.Log.Crit("Failed to post self-event", "err", err.Error())
 				}
+				return nil
 			},
+			Build:    s.buildEvent,
+			DagIndex: s.dagIndexer,
 			IsSynced: func() bool {
 				return atomic.LoadUint32(&s.pm.synced) != 0
 			},
 			PeersNum: func() int {
 				return s.pm.peers.Len()
 			},
-			AddVersion: func(e *inter.Event) *inter.Event {
-				// serialization version
-				e.Version = 0
-				// node version
-				if e.Seq <= 1 && len(s.config.Emitter.VersionToPublish) > 0 {
-					version := []byte("v-" + s.config.Emitter.VersionToPublish)
-					if len(version) <= params.MaxExtraData {
-						e.Extra = version
-					}
-				}
-
-				return e
-			},
-			Checkers: s.checkers,
 		},
 	)
 }
@@ -294,9 +269,9 @@ func (s *Service) Start(srv *p2p.Server) error {
 	// Start the RPC service
 	s.netRPCService = ethapi.NewPublicNetAPI(srv, s.config.Net.NetworkID)
 
-	var genesis common.Hash
-	genesis = s.engine.GetGenesisHash()
-	s.Topic = discv5.Topic("lachesis@" + genesis.Hex())
+	var genesis hash.Event
+	genesis = s.store.GetBlock(0).Atropos
+	s.Topic = discv5.Topic("opera@" + genesis.Hex())
 
 	if srv.DiscV5 != nil {
 		go func(topic discv5.Topic) {

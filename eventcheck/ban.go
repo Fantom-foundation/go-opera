@@ -1,13 +1,12 @@
 package eventcheck
 
 import (
-	"errors"
-
-	"github.com/Fantom-foundation/go-lachesis/eventcheck/epochcheck"
+	base "github.com/Fantom-foundation/lachesis-base/eventcheck"
+	"github.com/Fantom-foundation/lachesis-base/eventcheck/epochcheck"
 )
 
 var (
-	ErrAlreadyConnectedEvent = errors.New("event is connected already")
+	ErrAlreadyConnectedEvent = base.ErrAlreadyConnectedEvent
 )
 
 func IsBan(err error) bool {

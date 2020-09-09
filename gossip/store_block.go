@@ -1,18 +1,18 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
 // SetBlock stores chain block.
-func (s *Store) SetBlock(b *inter.Block) {
-	s.set(s.table.Blocks, b.Index.Bytes(), b)
+func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
+	s.set(s.table.Blocks, n.Bytes(), b)
 
 	// Add to LRU cache.
 	if b != nil && s.cache.Blocks != nil {
-		s.cache.Blocks.Add(b.Index, b)
+		s.cache.Blocks.Add(n, b)
 	}
 }
 

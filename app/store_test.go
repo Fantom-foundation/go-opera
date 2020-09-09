@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/memorydb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 )
 
 func cachedStore() *Store {
@@ -21,7 +21,7 @@ func nonCachedStore() *Store {
 	return NewStore(mems.OpenDb("test"), cfg)
 }
 
-func withDelay(db kvdb.KeyValueStore) kvdb.KeyValueStore {
+func withDelay(db kvdb.DropableStore) kvdb.DropableStore {
 	mem, ok := db.(*memorydb.Database)
 	if ok {
 		mem.SetDelay(time.Millisecond)

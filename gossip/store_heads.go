@@ -1,8 +1,8 @@
 package gossip
 
 import (
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 )
 
 func (s *Store) DelHead(epoch idx.Epoch, id hash.Event) {
@@ -13,7 +13,7 @@ func (s *Store) DelHead(epoch idx.Epoch, id hash.Event) {
 
 	key := id.Bytes()
 
-	if err := es.Heads.Delete(key); err != nil {
+	if err := es.table.Heads.Delete(key); err != nil {
 		s.Log.Crit("Failed to delete key", "err", err)
 	}
 }
@@ -26,7 +26,7 @@ func (s *Store) AddHead(epoch idx.Epoch, id hash.Event) {
 
 	key := id.Bytes()
 
-	if err := es.Heads.Put(key, []byte{}); err != nil {
+	if err := es.table.Heads.Put(key, []byte{}); err != nil {
 		s.Log.Crit("Failed to put key-value", "err", err)
 	}
 }
@@ -39,7 +39,7 @@ func (s *Store) IsHead(epoch idx.Epoch, id hash.Event) bool {
 
 	key := id.Bytes()
 
-	ok, err := es.Heads.Has(key)
+	ok, err := es.table.Heads.Has(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
 	}
@@ -55,7 +55,7 @@ func (s *Store) GetHeads(epoch idx.Epoch) hash.Events {
 
 	res := make(hash.Events, 0, 100)
 
-	it := es.Heads.NewIterator()
+	it := es.table.Heads.NewIterator()
 	defer it.Release()
 	for it.Next() {
 		res.Add(hash.BytesToEvent(it.Key()))

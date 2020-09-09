@@ -1,8 +1,8 @@
 package piecefunc
 
 const (
-	// PercentUnit is used to define ratios with integers, it's 1.0
-	PercentUnit = 1e6
+	// DecimalUnit is used to define ratios with integers, it's 1.0
+	DecimalUnit = 1e6
 )
 
 // Dot is a pair of numbers
@@ -13,12 +13,12 @@ type Dot struct {
 
 // Mul is multiplication of ratios with integer numbers
 func Mul(a, b uint64) uint64 {
-	return a * b / PercentUnit
+	return a * b / DecimalUnit
 }
 
 // Div is division of ratios with integer numbers
 func Div(a, b uint64) uint64 {
-	return a * PercentUnit / b
+	return a * DecimalUnit / b
 }
 
 // Get calculates f(x), where f is a piecewise linear function defined by the pieces
@@ -38,5 +38,5 @@ func Get(x uint64, pieces []Dot) uint64 {
 
 	ratio := Div(x-pieces[p0].X, pieces[p1].X-pieces[p0].X)
 
-	return Mul(pieces[p0].Y, (PercentUnit-ratio)) + Mul(pieces[p1].Y, ratio)
+	return Mul(pieces[p0].Y, (DecimalUnit-ratio)) + Mul(pieces[p1].Y, ratio)
 }

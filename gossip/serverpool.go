@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -18,8 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
-
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
 )
 
 const (
@@ -97,7 +96,7 @@ type registerReq struct {
 // known nodes. It received discovered nodes, stores statistics about
 // known nodes and takes care of always having enough good quality servers connected.
 type serverPool struct {
-	db     kvdb.KeyValueStore
+	db     kvdb.Store
 	dbKey  []byte
 	server *p2p.Server
 	quit   chan struct{}
@@ -125,7 +124,7 @@ type serverPool struct {
 }
 
 // newServerPool creates a new serverPool instance
-func newServerPool(db kvdb.KeyValueStore, quit chan struct{}, wg *sync.WaitGroup, trustedNodes []string) *serverPool {
+func newServerPool(db kvdb.Store, quit chan struct{}, wg *sync.WaitGroup, trustedNodes []string) *serverPool {
 	pool := &serverPool{
 		db:           db,
 		quit:         quit,

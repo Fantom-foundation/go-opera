@@ -3,14 +3,14 @@ package gossip
 import (
 	"math/big"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"github.com/Fantom-foundation/go-lachesis/evmcore"
-	"github.com/Fantom-foundation/go-lachesis/hash"
-	"github.com/Fantom-foundation/go-lachesis/inter/idx"
+	"github.com/Fantom-foundation/go-opera/evmcore"
 )
 
 // Constants to match up protocol versions and messages
@@ -19,7 +19,7 @@ const (
 )
 
 // protocolName is the official short name of the protocol used during capability negotiation.
-const protocolName = "lachesis"
+const protocolName = "opera"
 
 // ProtocolVersions are the supported versions of the protocol (first is primary).
 var ProtocolVersions = []uint{lachesis62}
@@ -35,7 +35,7 @@ const (
 	EthStatusMsg = 0x00
 	EvmTxMsg     = 0x02
 
-	// Protocol messages belonging to lachesis/62
+	// Protocol messages belonging to opera/62
 
 	// Signals about the current synchronization status.
 	// The current peer's status is used during packs downloading,

@@ -3,57 +3,49 @@ package app
 import (
 	"sync"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
+	"github.com/Fantom-foundation/lachesis-base/kvdb"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/nokeyiserr"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/table"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-lachesis/kvdb"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/nokeyiserr"
-	"github.com/Fantom-foundation/go-lachesis/kvdb/table"
-	"github.com/Fantom-foundation/go-lachesis/logger"
-	"github.com/Fantom-foundation/go-lachesis/topicsdb"
+	"github.com/Fantom-foundation/go-opera/logger"
+	"github.com/Fantom-foundation/go-opera/topicsdb"
+	"github.com/Fantom-foundation/go-opera/utils/adapters/kvdb2ethdb"
 )
 
 // Store is a node persistent storage working over physical key-value database.
 type Store struct {
 	cfg StoreConfig
 
-	mainDb kvdb.KeyValueStore
+	mainDb kvdb.Store
 	table  struct {
 		// score economy tables
-		ActiveValidationScore  kvdb.KeyValueStore `table:"V"`
-		DirtyValidationScore   kvdb.KeyValueStore `table:"v"`
-		ActiveOriginationScore kvdb.KeyValueStore `table:"O"`
-		DirtyOriginationScore  kvdb.KeyValueStore `table:"o"`
-		BlockDowntime          kvdb.KeyValueStore `table:"m"`
-
-		// PoI economy tables
-		StakerPOIScore       kvdb.KeyValueStore `table:"s"`
-		AddressPOIScore      kvdb.KeyValueStore `table:"a"`
-		AddressFee           kvdb.KeyValueStore `table:"g"`
-		StakerDelegationsFee kvdb.KeyValueStore `table:"d"`
-		AddressLastTxTime    kvdb.KeyValueStore `table:"X"`
-		TotalPoiFee          kvdb.KeyValueStore `table:"U"`
+		ActiveValidationScore  kvdb.Store `table:"V"`
+		DirtyValidationScore   kvdb.Store `table:"v"`
+		ActiveOriginationScore kvdb.Store `table:"O"`
+		DirtyOriginationScore  kvdb.Store `table:"o"`
+		BlockDowntime          kvdb.Store `table:"m"`
 
 		// gas power economy tables
-		GasPowerRefund kvdb.KeyValueStore `table:"R"`
+		GasPowerRefund kvdb.Store `table:"R"`
 
 		// SFC-related economy tables
-		Validators   kvdb.KeyValueStore `table:"1"`
-		Stakers      kvdb.KeyValueStore `table:"2"`
-		Delegations  kvdb.KeyValueStore `table:"3"`
-		SfcConstants kvdb.KeyValueStore `table:"4"`
-		TotalSupply  kvdb.KeyValueStore `table:"5"`
+		Validators  kvdb.Store `table:"1"`
+		Stakers     kvdb.Store `table:"2"`
+		TotalSupply kvdb.Store `table:"5"`
 
 		// API-only tables
-		Receipts                    kvdb.KeyValueStore `table:"r"`
-		DelegationOldRewards        kvdb.KeyValueStore `table:"6"`
-		StakerOldRewards            kvdb.KeyValueStore `table:"7"`
-		StakerDelegationsOldRewards kvdb.KeyValueStore `table:"8"`
+		Receipts                    kvdb.Store `table:"r"`
+		DelegationOldRewards        kvdb.Store `table:"6"`
+		StakerOldRewards            kvdb.Store `table:"7"`
+		StakerDelegationsOldRewards kvdb.Store `table:"8"`
 
 		Evm      ethdb.Database
 		EvmState state.Database
@@ -64,7 +56,6 @@ type Store struct {
 		Receipts      *lru.Cache `cache:"-"` // store by value
 		Validators    *lru.Cache `cache:"-"` // store by pointer
 		Stakers       *lru.Cache `cache:"-"` // store by pointer
-		Delegations   *lru.Cache `cache:"-"` // store by pointer
 		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
 	}
 
@@ -76,7 +67,7 @@ type Store struct {
 }
 
 // NewStore creates store over key-value db.
-func NewStore(mainDb kvdb.KeyValueStore, cfg StoreConfig) *Store {
+func NewStore(mainDb kvdb.Store, cfg StoreConfig) *Store {
 	s := &Store{
 		cfg:      cfg,
 		mainDb:   mainDb,
@@ -86,7 +77,7 @@ func NewStore(mainDb kvdb.KeyValueStore, cfg StoreConfig) *Store {
 	table.MigrateTables(&s.table, s.mainDb)
 
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("M"))) // ETH expects that "not found" is an error
-	s.table.Evm = rawdb.NewDatabase(evmTable)
+	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
 	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
 
@@ -99,7 +90,6 @@ func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
 	s.cache.Validators = s.makeCache(2)
 	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
-	s.cache.Delegations = s.makeCache(s.cfg.DelegationsCacheSize)
 	s.cache.BlockDowntime = s.makeCache(256)
 }
 
@@ -114,7 +104,7 @@ func (s *Store) Commit() error {
 }
 
 // StateDB returns state database.
-func (s *Store) StateDB(from common.Hash) *state.StateDB {
+func (s *Store) StateDB(from hash.Hash) *state.StateDB {
 	db, err := state.New(common.Hash(from), s.table.EvmState)
 	if err != nil {
 		s.Log.Crit("Failed to open state", "err", err)
@@ -143,7 +133,7 @@ func (s *Store) EvmLogs() *topicsdb.Index {
  */
 
 // set RLP value
-func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
+func (s *Store) set(table kvdb.Store, key []byte, val interface{}) {
 	buf, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		s.Log.Crit("Failed to encode rlp", "err", err)
@@ -155,7 +145,7 @@ func (s *Store) set(table kvdb.KeyValueStore, key []byte, val interface{}) {
 }
 
 // get RLP value
-func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interface{} {
+func (s *Store) get(table kvdb.Store, key []byte, to interface{}) interface{} {
 	buf, err := table.Get(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key-value", "err", err)
@@ -171,7 +161,7 @@ func (s *Store) get(table kvdb.KeyValueStore, key []byte, to interface{}) interf
 	return to
 }
 
-func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
+func (s *Store) has(table kvdb.Store, key []byte) bool {
 	res, err := table.Has(key)
 	if err != nil {
 		s.Log.Crit("Failed to get key", "err", err)
@@ -179,7 +169,7 @@ func (s *Store) has(table kvdb.KeyValueStore, key []byte) bool {
 	return res
 }
 
-func (s *Store) dropTable(it ethdb.Iterator, t kvdb.KeyValueStore) {
+func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
 	keys := make([][]byte, 0, 500) // don't write during iteration
 
 	for it.Next() {
