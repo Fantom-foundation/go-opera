@@ -286,27 +286,30 @@ func (s *Service) processSfc(bs *BlockState, es *EpochState, block *inter.Block,
 			builder.Set(it.ValidatorID, it.Staker.CalcTotalStake())
 		}
 		newValidators := builder.Build()
+		oldValidators := es.Validators
 
-		es.ValidatorStates = make([]ValidatorEpochState, newValidators.Len())
-		for i, info := range es.ValidatorStates {
-			info.GasRefund = bs.ValidatorStates[i].DirtyGasRefund
-		}
-		es.Validators = newValidators
+		// Build new []ValidatorEpochState and []ValidatorBlockState
+		newValidatorEpochStates := make([]ValidatorEpochState, newValidators.Len())
 		newValidatorBlockStates := make([]ValidatorBlockState, newValidators.Len())
-		for i := range newValidatorBlockStates {
-			newValidatorBlockStates[i] = ValidatorBlockState{
+		for newValIdx := 0; newValIdx < newValidators.Len(); newValIdx++ {
+			// default values
+			newValidatorBlockStates[newValIdx] = ValidatorBlockState{
 				Originated: new(big.Int),
 			}
-		}
-		for oldValIdx := range bs.ValidatorStates {
-			oldValID := es.Validators.SortedIDs()[oldValIdx]
-			if newValidators.Exists(oldValID) {
-				newValIdx := newValidators.GetIdx(oldValID)
-				newValidatorBlockStates[newValIdx] = bs.ValidatorStates[oldValIdx]
-				newValidatorBlockStates[newValIdx].DirtyGasRefund = 0
+			// inherit validator's state from previous epoch, if any
+			valID := newValidators.SortedIDs()[newValIdx]
+			if !oldValidators.Exists(valID) {
+				continue
 			}
+			oldValIdx := oldValidators.GetIdx(valID)
+			newValidatorBlockStates[newValIdx] = bs.ValidatorStates[oldValIdx]
+			newValidatorBlockStates[newValIdx].DirtyGasRefund = 0
+			newValidatorEpochStates[newValIdx].GasRefund = bs.ValidatorStates[oldValIdx].DirtyGasRefund
+			newValidatorEpochStates[newValIdx].PrevEpochEvent = bs.ValidatorStates[oldValIdx].PrevEvent
 		}
+		es.ValidatorStates = newValidatorEpochStates
 		bs.ValidatorStates = newValidatorBlockStates
+		es.Validators = newValidators
 	}
 
 	if sealEpoch {
