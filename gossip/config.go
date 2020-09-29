@@ -98,7 +98,7 @@ func DefaultConfig(network opera.Config) Config {
 		cfg.Emitter = emitter.FakeEmitterConfig()
 		// disable self-fork protection if fakenet 1/1
 		if len(network.Genesis.Alloc.Validators) == 1 {
-			cfg.Emitter.EmitIntervals.SelfForkProtection = 0
+			cfg.Emitter.EmitIntervals.DoublesignProtection = 0
 		}
 	}
 	/*if network.NetworkId == opera.DevNetworkId { // TODO dev network
