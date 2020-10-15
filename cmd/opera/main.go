@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
 )
 
@@ -105,7 +107,9 @@ func init() {
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
-		validatorFlag,
+		validatorIDFlag,
+		validatorPubkeyFlag,
+		validatorPasswordFlag,
 	}
 
 	rpcFlags = []cli.Flag{
@@ -236,18 +240,30 @@ func makeNode(ctx *cli.Context, cfg *config) *node.Node {
 	metrics.SetDataDir(cfg.Node.DataDir)
 
 	// configure emitter
-	var ks *keystore.KeyStore
-	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
-		ks = keystores[0].(*keystore.KeyStore)
+	err := setValidator(ctx, &cfg.Lachesis.Emitter)
+	if err != nil {
+		utils.Fatalf("Failed to set validator: %v", err)
 	}
-	setValidator(ctx, ks, &cfg.Lachesis.Emitter)
+
+	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
+	valPubkey := cfg.Lachesis.Emitter.Validator.PubKey
+	addFakeValidatorKey(ctx, valPubkey, valKeystore)
+
+	// unlock validator key
+	if !valPubkey.Empty() {
+		err := unlockValidatorKey(ctx, valPubkey, valKeystore)
+		if err != nil {
+			utils.Fatalf("Failed to unlock validator key: %v", err)
+		}
+	}
+	signer := valkeystore.NewSigner(valKeystore)
 
 	// Create and register a gossip network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for
 	// the factory method approach is to support service restarts without relying on the
 	// individual implementations' support for such operations.
 	gossipService := func(ctx *node.ServiceContext) (node.Service, error) {
-		svc, err := gossip.NewService(ctx, &cfg.Lachesis, gdb, engine, dagIndex)
+		svc, err := gossip.NewService(ctx, &cfg.Lachesis, gdb, signer, engine, dagIndex)
 		if err != nil {
 			return nil, err
 		}
@@ -267,8 +283,6 @@ func makeConfigNode(ctx *cli.Context, cfg *node.Config) *node.Node {
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
-
-	addFakeAccount(ctx, stack)
 
 	return stack
 }

@@ -37,6 +37,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
@@ -119,7 +120,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer valkeystore.SignerI, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
 		config:         config,
 		wg:             sync.WaitGroup{},
@@ -166,6 +167,8 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine l
 		return svc.store.GetEvent(id)
 	})
 
+	svc.emitter = svc.makeEmitter(signer)
+
 	return svc, err
 }
 
@@ -187,7 +190,7 @@ func makeCheckers(net *opera.Config, heavyCheckReader *HeavyCheckReader, gasPowe
 	}
 }
 
-func (s *Service) makeEmitter() *emitter.Emitter {
+func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	emitterCfg := s.config.Emitter // copy data
@@ -198,7 +201,7 @@ func (s *Service) makeEmitter() *emitter.Emitter {
 			Store:       s.store,
 			EngineMu:    s.engineMu,
 			Txpool:      s.txpool,
-			Am:          s.AccountManager(),
+			Signer:      signer,
 			OccurredTxs: s.occurredTxs,
 			Check: func(emitted *inter.EventPayload, parents inter.Events) error {
 				// sanity check
@@ -286,8 +289,6 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 	s.serverPool.start(srv, s.Topic)
 
-	s.emitter = s.makeEmitter()
-	s.emitter.SetValidator(s.config.Emitter.Validator)
 	s.emitter.StartEventEmission()
 
 	return nil

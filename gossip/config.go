@@ -95,11 +95,7 @@ func DefaultConfig(network opera.Config) Config {
 	}
 
 	if network.NetworkID == opera.FakeNetworkID {
-		cfg.Emitter = emitter.FakeEmitterConfig()
-		// disable self-fork protection if fakenet 1/1
-		if len(network.Genesis.Alloc.Validators) == 1 {
-			cfg.Emitter.EmitIntervals.DoublesignProtection = 0
-		}
+		cfg.Emitter = emitter.FakeEmitterConfig(len(network.Genesis.Alloc.Validators))
 	}
 	/*if network.NetworkId == opera.DevNetworkId { // TODO dev network
 		cfg.TxPool = evmcore.FakeTxPoolConfig()

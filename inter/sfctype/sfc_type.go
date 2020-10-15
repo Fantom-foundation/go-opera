@@ -4,10 +4,10 @@ import (
 	"math/big"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 )
 
 var (
@@ -31,6 +31,7 @@ type SfcStaker struct {
 	DelegatedMe *big.Int
 
 	Address common.Address
+	PubKey  validator.PubKey
 
 	Status uint64
 }

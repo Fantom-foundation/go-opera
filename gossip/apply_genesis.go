@@ -102,6 +102,7 @@ func (s *Store) applyGenesis(net *opera.Config) (genesisAtropos hash.Event, gene
 	valProfiles := make([]sfctype.SfcStakerAndID, len(net.Genesis.Alloc.Validators))
 	for i, validator := range net.Genesis.Alloc.Validators {
 		staker := &sfctype.SfcStaker{
+			PubKey:       validator.PubKey,
 			Address:      validator.Address,
 			CreatedEpoch: 0,
 			CreationTime: net.Genesis.Time,

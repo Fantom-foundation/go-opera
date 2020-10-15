@@ -13,7 +13,6 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -30,12 +29,12 @@ import (
 	"github.com/Fantom-foundation/go-opera/utils"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 	"github.com/Fantom-foundation/lachesis-base/hash"
 )
 
 const (
-	MimetypeEvent    = "application/event"
 	TxTimeBufferSize = 20000
 	TxTurnPeriod     = 4 * time.Second
 	TxTurnNonces     = 8
@@ -46,7 +45,7 @@ type EmitterWorld struct {
 	Store       Reader
 	EngineMu    *sync.RWMutex
 	Txpool      txPool
-	Am          *accounts.Manager
+	Signer      valkeystore.SignerI
 	OccurredTxs *occuredtxs.Buffer
 
 	Check    func(e *inter.EventPayload, parents inter.Events) error
@@ -65,9 +64,6 @@ type Emitter struct {
 	config *Config
 
 	world EmitterWorld
-
-	myValidatorID idx.ValidatorID
-	myAddress     common.Address
 
 	syncStatus syncStatus
 
@@ -105,7 +101,6 @@ func NewEmitter(
 		net:       net,
 		config:    config,
 		world:     world,
-		myAddress: config.Validator,
 		gasRate:   metrics.NewMeterForced(),
 		txTime:    txTime,
 		intervals: config.EmitIntervals,
@@ -130,8 +125,6 @@ func (em *Emitter) StartEventEmission() {
 
 	newTxsCh := make(chan evmcore.NewTxsNotify)
 	em.world.Txpool.SubscribeNewTxsNotify(newTxsCh)
-
-	em.SetValidator(em.myAddress)
 
 	done := em.done
 	em.wg.Add(1)
@@ -173,27 +166,12 @@ func (em *Emitter) StopEventEmission() {
 	em.wg.Wait()
 }
 
-// SetValidator sets event creator.
-func (em *Emitter) SetValidator(addr common.Address) {
-	em.world.EngineMu.Lock()
-	defer em.world.EngineMu.Unlock()
-	em.myAddress = addr
-	em.init()
-}
-
-// GetValidator gets event creator.
-func (em *Emitter) GetValidator() (idx.ValidatorID, common.Address) {
-	em.world.EngineMu.RLock()
-	defer em.world.EngineMu.RUnlock()
-	return em.myValidatorID, em.myAddress
-}
-
 func (em *Emitter) loadPrevEmitTime() time.Time {
-	if em.myValidatorID == 0 {
+	if em.config.Validator.ID == 0 {
 		return em.prevEmittedTime
 	}
 
-	prevEventID := em.world.Store.GetLastEvent(em.world.Store.GetEpoch(), em.myValidatorID)
+	prevEventID := em.world.Store.GetLastEvent(em.world.Store.GetEpoch(), em.config.Validator.ID)
 	if prevEventID == nil {
 		return em.prevEmittedTime
 	}
@@ -206,7 +184,7 @@ func (em *Emitter) loadPrevEmitTime() time.Time {
 
 // safe for concurrent use
 func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
-	if em.myValidatorID == 0 {
+	if em.config.Validator.ID == 0 {
 		return // short circuit if not validator
 	}
 	now := time.Now()
@@ -216,21 +194,6 @@ func (em *Emitter) memorizeTxTimes(txs types.Transactions) {
 			em.txTime.Add(tx.Hash(), now)
 		}
 	}
-}
-
-func (em *Emitter) findMyValidatorID() (idx.ValidatorID, bool) {
-	myAddress := em.myAddress
-	if myAddress == (common.Address{}) {
-		return 0, false // short circuit if zero address
-	}
-
-	profiles := em.world.Store.GetValidatorProfiles()
-	for _, it := range profiles {
-		if it.Staker.Address == myAddress {
-			return it.ValidatorID, true
-		}
-	}
-	return 0, false
 }
 
 // safe for concurrent use
@@ -333,7 +296,7 @@ func (em *Emitter) findBestParents(epoch idx.Epoch, myValidatorID idx.ValidatorI
 
 // createEvent is not safe for concurrent use.
 func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *inter.EventPayload {
-	if em.myValidatorID == 0 {
+	if em.config.Validator.ID == 0 {
 		// not a validator
 		return nil
 	}
@@ -353,7 +316,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	)
 
 	// Find parents
-	selfParent, parents, ok := em.findBestParents(epoch, em.myValidatorID)
+	selfParent, parents, ok := em.findBestParents(epoch, em.config.Validator.ID)
 	if !ok {
 		return nil
 	}
@@ -366,9 +329,9 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 			em.Log.Crit("Emitter: head not found", "mutEvent", p.String())
 		}
 		parentHeaders[i] = parent
-		if parentHeaders[i].Creator() == em.myValidatorID && i != 0 {
+		if parentHeaders[i].Creator() == em.config.Validator.ID && i != 0 {
 			// there're 2 heads from me, i.e. due to a fork, findBestParents could have found multiple self-parents
-			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.myValidatorID)
+			em.Periodic.Error(5*time.Second, "I've created a fork, events emitting isn't allowed", "creator", em.config.Validator.ID)
 			return nil
 		}
 		maxLamport = idx.MaxLamport(maxLamport, parent.Lamport())
@@ -386,7 +349,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	mutEvent := &inter.MutableEventPayload{}
 	mutEvent.SetEpoch(epoch)
 	mutEvent.SetSeq(selfParentSeq + 1)
-	mutEvent.SetCreator(em.myValidatorID)
+	mutEvent.SetCreator(em.config.Validator.ID)
 
 	mutEvent.SetParents(parents)
 	mutEvent.SetLamport(maxLamport + 1)
@@ -397,7 +360,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	if err != nil {
 		if err == NotEnoughGasPower {
 			em.Periodic.Warn(time.Second, "Not enough gas power to emit event. Too small stake?",
-				"stake%", 100*float64(validators.Get(em.myValidatorID))/float64(validators.TotalWeight()))
+				"stake%", 100*float64(validators.Get(em.config.Validator.ID))/float64(validators.TotalWeight()))
 		} else {
 			em.Log.Warn("Dropped event while emitting", "err", err)
 		}
@@ -415,20 +378,9 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	mutEvent.SetTxHash(hash.Hash(types.DeriveSha(mutEvent.Txs())))
 
 	// sign
-	myAddress := em.myAddress
-	signer := func(data []byte) (sig []byte, err error) {
-		acc := accounts.Account{
-			Address: myAddress,
-		}
-		w, err := em.world.Am.Find(acc)
-		if err != nil {
-			return
-		}
-		return w.SignData(acc, MimetypeEvent, data)
-	}
-	bSig, err := signer(mutEvent.HashToSign().Bytes())
+	bSig, err := em.world.Signer.Sign(em.config.Validator.PubKey, mutEvent.HashToSign().Bytes())
 	if err != nil {
-		em.Periodic.Error(time.Second, "Failed to sign event. Please unlock account.", "err", err)
+		em.Periodic.Error(time.Second, "Failed to sign event", "err", err)
 		return nil
 	}
 	var sig inter.Signature
@@ -492,12 +444,11 @@ var (
 // OnNewEpoch should be called after each epoch change, and on startup
 func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch) {
 	// update myValidatorID
-	em.myValidatorID, _ = em.findMyValidatorID()
 	em.prevEmittedTime = em.loadPrevEmitTime()
 
 	// stakers with lower stake should emit less events to reduce network load
 	// confirmingEmitInterval = piecefunc(totalStakeBeforeMe / totalStake) * MinEmitInterval
-	myIdx := newValidators.GetIdx(em.myValidatorID)
+	myIdx := newValidators.GetIdx(em.config.Validator.ID)
 	totalStake := pos.Weight(0)
 	totalStakeBeforeMe := pos.Weight(0)
 	for i, stake := range newValidators.SortedWeights() {
@@ -518,7 +469,7 @@ func (em *Emitter) OnNewEpoch(newValidators *pos.Validators, newEpoch idx.Epoch)
 
 // OnNewEvent tracks new events to find out am I properly synced or not
 func (em *Emitter) OnNewEvent(e *inter.EventPayload) {
-	if em.myValidatorID == 0 || em.myValidatorID != e.Creator() {
+	if em.config.Validator.ID == 0 || em.config.Validator.ID != e.Creator() {
 		return
 	}
 	if em.syncStatus.prevLocalEmittedID == e.ID() {
@@ -541,7 +492,7 @@ func (em *Emitter) onNewExternalEvent(e *inter.EventPayload) {
 			"The node was stopped by one of the doublesign protection heuristics.\n" +
 			"There's no guaranteed automatic protection against a doublesign," +
 			"please always ensure that no more than one instance of the same validator is running."
-		errlock.Permanent(fmt.Errorf(reason, e.ID().String(), em.myValidatorID, e.CreationTime().Time().Local().String(), passedSinceEvent.String()))
+		errlock.Permanent(fmt.Errorf(reason, e.ID().String(), em.config.Validator.ID, e.CreationTime().Time().Local().String(), passedSinceEvent.String()))
 		panic("unreachable")
 	}
 }
@@ -563,7 +514,7 @@ func (em *Emitter) currentSyncStatus() doublesign.SyncStatus {
 }
 
 func (em *Emitter) isSyncedToEmit() (time.Duration, error) {
-	if em.intervals.ParallelInstanceProtection == 0 {
+	if em.intervals.DoublesignProtection == 0 {
 		return 0, nil // protection disabled
 	}
 	return doublesign.SyncedToEmit(em.currentSyncStatus(), em.intervals.DoublesignProtection)
@@ -672,7 +623,7 @@ func (em *Emitter) isAllowedToEmit(e inter.EventPayloadI, selfParent *inter.Even
 }
 
 func (em *Emitter) EmitEvent() *inter.EventPayload {
-	if em.myValidatorID == 0 {
+	if em.config.Validator.ID == 0 || em.world.Store.GetValidators().Get(em.config.Validator.ID) == 0 {
 		return nil // short circuit if not validator
 	}
 

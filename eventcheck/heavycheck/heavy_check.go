@@ -9,12 +9,11 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
@@ -33,7 +32,7 @@ const (
 
 // Reader is accessed by the validator to get the current state.
 type Reader interface {
-	GetEpochPubKeys() (map[idx.ValidatorID]common.Address, idx.Epoch)
+	GetEpochPubKeys() (map[idx.ValidatorID]validator.PubKey, idx.Epoch)
 }
 
 // Check which require only parents list + current epoch info
@@ -117,15 +116,13 @@ func (v *Checker) Enqueue(events dag.Events, onValidated func(dag.Events, []erro
 }
 
 // verifySignature checks the signature against e.Creator.
-func verifySignature(e inter.EventPayloadI, address common.Address) bool {
-	// NOTE: Keccak256 because of AccountManager
-	signedHash := crypto.Keccak256(e.HashToSign().Bytes())
-	sig := e.Sig()
-	pk, err := crypto.SigToPub(signedHash, sig.Bytes())
-	if err != nil {
+func verifySignature(e inter.EventPayloadI, pubkey validator.PubKey) bool {
+	if pubkey.Type != "secp256k1" {
 		return false
 	}
-	return crypto.PubkeyToAddress(*pk) == address
+	signedHash := e.HashToSign().Bytes()
+	sig := e.Sig()
+	return crypto.VerifySignature(pubkey.Raw, signedHash, sig.Bytes())
 }
 
 // Validate event

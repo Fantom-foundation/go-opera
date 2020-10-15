@@ -3,6 +3,10 @@ package integration
 import (
 	"time"
 
+	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
@@ -15,17 +19,30 @@ func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.
 
 	engine, dagIndex, _, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
-	coinbase := SetAccountKey(
-		ctx.NodeContext.AccountManager,
-		ctx.Config.PrivateKey,
-		"fakepassword",
-	)
+	valKeystore := valkeystore.NewDefaultMemKeystore()
 
-	gossipCfg.Emitter.Validator = coinbase.Address
+	pubKey := validator.PubKey{
+		Raw:  crypto.FromECDSAPub(&ctx.Config.PrivateKey.PublicKey),
+		Type: "secp256k1",
+	}
+
+	// unlock the key
+	_ = valKeystore.Add(pubKey, crypto.FromECDSA(ctx.Config.PrivateKey), "fakepassword")
+	_ = valKeystore.Unlock(pubKey, "fakepassword")
+	signer := valkeystore.NewSigner(valKeystore)
+
+	// find a genesis validator which corresponds to the key
+	for _, v := range network.Genesis.Alloc.Validators {
+		if v.PubKey.String() == pubKey.String() {
+			gossipCfg.Emitter.Validator.ID = v.ID
+			gossipCfg.Emitter.Validator.PubKey = v.PubKey
+		}
+	}
+
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, engine, dagIndex)
+	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, signer, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}

@@ -6,10 +6,10 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/Fantom-foundation/go-opera/eventcheck/gaspowercheck"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/opera"
 )
 
@@ -68,8 +68,8 @@ func NewGasPowerContext(s *Store, validators *pos.Validators, epoch idx.Epoch, c
 
 // ValidatorsPubKeys stores info to authenticate validators
 type ValidatorsPubKeys struct {
-	Epoch     idx.Epoch
-	Addresses map[idx.ValidatorID]common.Address
+	Epoch   idx.Epoch
+	PubKeys map[idx.ValidatorID]validator.PubKey
 }
 
 // HeavyCheckReader is a helper to run heavy power checks
@@ -78,21 +78,21 @@ type HeavyCheckReader struct {
 }
 
 // GetEpochPubKeys is safe for concurrent use
-func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]common.Address, idx.Epoch) {
+func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]validator.PubKey, idx.Epoch) {
 	auth := r.Addrs.Load().(*ValidatorsPubKeys)
 
-	return auth.Addresses, auth.Epoch
+	return auth.PubKeys, auth.Epoch
 }
 
 // NewEpochPubKeys is the same as GetEpochValidators, but returns only addresses
 func NewEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
 	es := s.GetEpochState()
-	addrs := make(map[idx.ValidatorID]common.Address, len(es.ValidatorProfiles))
+	pubkeys := make(map[idx.ValidatorID]validator.PubKey, len(es.ValidatorProfiles))
 	for _, it := range es.ValidatorProfiles {
-		addrs[it.ValidatorID] = it.Staker.Address
+		pubkeys[it.ValidatorID] = it.Staker.PubKey
 	}
 	return &ValidatorsPubKeys{
-		Epoch:     epoch,
-		Addresses: addrs,
+		Epoch:   epoch,
+		PubKeys: pubkeys,
 	}
 }
