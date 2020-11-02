@@ -75,7 +75,3 @@ func (s *Store) GetLatestBlockIndex() idx.Block {
 func (s *Store) GetEpochBlocks() idx.Block {
 	return s.GetBlockState().EpochBlocks
 }
-
-func (s *Store) GetValidatorProfiles() []sfctype.SfcStakerAndID {
-	return s.GetEpochState().ValidatorProfiles
-}

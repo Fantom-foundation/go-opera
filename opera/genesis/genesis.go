@@ -26,8 +26,8 @@ type Genesis struct {
 func preDeploySfc(g Genesis, implCode []byte) Genesis {
 	// pre deploy SFC impl
 	g.Alloc.Accounts[sfc.ContractAddressV1] = Account{
-		Code:    implCode, // impl account has only code, balance and storage is in proxy account
-		Balance: big.NewInt(0),
+		Code:    implCode, // impl account has only code, balance and storage is in the proxy account
+		Balance: new(big.Int),
 	}
 	// pre deploy SFC proxy
 	storage := sfc.AssembleStorage(g.Alloc.Validators, g.Time, g.Alloc.SfcContractAdmin, nil)

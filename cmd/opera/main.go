@@ -249,7 +249,11 @@ func makeNode(ctx *cli.Context, cfg *config) *node.Node {
 
 	valKeystore := valkeystore.NewDefaultFileKeystore(path.Join(getValKeystoreDir(cfg.Node), "validator"))
 	valPubkey := cfg.Lachesis.Emitter.Validator.PubKey
-	addFakeValidatorKey(ctx, valPubkey, valKeystore)
+	if key := getFakeValidatorKey(ctx); key != nil {
+		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
+		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
+		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
+	}
 
 	// unlock validator key
 	if !valPubkey.Empty() {

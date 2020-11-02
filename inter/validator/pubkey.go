@@ -21,6 +21,10 @@ func (pk *PubKey) String() string {
 	return common.Bytes2Hex(pk.Raw) + "@" + pk.Type
 }
 
+func (pk *PubKey) Bytes() []byte {
+	return []byte(string(pk.Raw) + pk.Type)
+}
+
 func PubKeyFromString(str string) (PubKey, error) {
 	parts := strings.Split(str, "@")
 	if len(parts) != 2 {

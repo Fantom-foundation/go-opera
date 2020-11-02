@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -15,17 +16,14 @@ import (
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 )
 
-func addFakeValidatorKey(ctx *cli.Context, pubkey validator.PubKey, valKeystore valkeystore.RawKeystoreI) {
+func addFakeValidatorKey(ctx *cli.Context, key *ecdsa.PrivateKey, pubkey validator.PubKey, valKeystore valkeystore.RawKeystoreI) {
 	// add fake validator key
-	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		key := getFakeValidatorKey(ctx)
-		if key != nil && !valKeystore.Has(pubkey) {
-			err := valKeystore.Add(pubkey, crypto.FromECDSA(key), "fakepassword")
-			if err != nil {
-				utils.Fatalf("Failed to add fake validator key: %v", err)
-			}
-			log.Info("Added fake validator key", "pubkey", pubkey.String())
+	if key != nil && !valKeystore.Has(pubkey) {
+		err := valKeystore.Add(pubkey, crypto.FromECDSA(key), "fakepassword")
+		if err != nil {
+			utils.Fatalf("Failed to add fake validator key: %v", err)
 		}
+		log.Info("Added fake validator key", "pubkey", pubkey.String())
 	}
 }
 
