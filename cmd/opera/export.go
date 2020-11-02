@@ -17,7 +17,6 @@ import (
 	"github.com/status-im/keycard-go/hexutils"
 	"gopkg.in/urfave/cli.v1"
 
-	appdb "github.com/Fantom-foundation/go-opera/app"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
 	"github.com/Fantom-foundation/lachesis-base/hash"
@@ -90,7 +89,7 @@ func exportChain(ctx *cli.Context) error {
 
 func makeGossipStore(dataDir string, gossipCfg *gossip.Config) *gossip.Store {
 	dbs := flushable.NewSyncedPool(integration.DBProducer(dataDir))
-	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig, appdb.LiteStoreConfig())
+	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
 	gdb.SetName("gossip-db")
 	return gdb
 }

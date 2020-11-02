@@ -1,4 +1,4 @@
-package gossip
+package evmstore
 
 /*
 	In LRU cache data stored like pointer
@@ -18,30 +18,26 @@ type TxPosition struct {
 }
 
 // SetTxPosition stores transaction block and position.
-func (s *Store) SetTxPosition(txid common.Hash, position *TxPosition) {
-	s.set(s.table.TxPositions, txid.Bytes(), position)
+func (s *Store) SetTxPosition(txid common.Hash, position TxPosition) {
+	s.set(s.table.TxPositions, txid.Bytes(), &position)
 
 	// Add to LRU cache.
-	if position != nil && s.cache.TxPositions != nil {
-		s.cache.TxPositions.Add(txid.String(), position)
-	}
+	s.cache.TxPositions.Add(txid.String(), &position)
 }
 
 // GetTxPosition returns stored transaction block and position.
 func (s *Store) GetTxPosition(txid common.Hash) *TxPosition {
 	// Get data from LRU cache first.
-	if s.cache.TxPositions != nil {
-		if c, ok := s.cache.TxPositions.Get(txid.String()); ok {
-			if b, ok := c.(*TxPosition); ok {
-				return b
-			}
+	if c, ok := s.cache.TxPositions.Get(txid.String()); ok {
+		if b, ok := c.(*TxPosition); ok {
+			return b
 		}
 	}
 
 	txPosition, _ := s.get(s.table.TxPositions, txid.Bytes(), &TxPosition{}).(*TxPosition)
 
 	// Add to LRU cache.
-	if txPosition != nil && s.cache.TxPositions != nil {
+	if txPosition != nil {
 		s.cache.TxPositions.Add(txid.String(), txPosition)
 	}
 

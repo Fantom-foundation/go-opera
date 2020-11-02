@@ -1,4 +1,4 @@
-package app
+package evmstore
 
 /*
 	In LRU cache data stored like value

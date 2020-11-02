@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/params"
@@ -60,14 +61,8 @@ type (
 		BlockCacheSize int
 		// Cache size for PackInfos.
 		PackInfosCacheSize int
-		// Cache size for TxPositions.
-		TxPositionsCacheSize int
-
-		// NOTE: fields for config-file back compatibility
-		// Cache size for Receipts.
-		ReceiptsCacheSize int
-		// Cache size for Stakers.
-		StakersCacheSize int
+		// EVM is EVM store config
+		EVM evmstore.StoreConfig
 	}
 )
 
@@ -112,7 +107,7 @@ func DefaultStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 10000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		TxPositionsCacheSize:   1000,
+		EVM:                    evmstore.DefaultStoreConfig(),
 	}
 }
 
@@ -123,6 +118,6 @@ func LiteStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 1000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		TxPositionsCacheSize:   100,
+		EVM:                    evmstore.LiteStoreConfig(),
 	}
 }

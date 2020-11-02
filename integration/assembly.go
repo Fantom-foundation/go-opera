@@ -44,11 +44,7 @@ func (g *GossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
 func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecmt.Index, *flushable.SyncedPool, *gossip.Store) {
 	dbs := flushable.NewSyncedPool(DBProducer(dataDir))
 
-	appStoreConfig := app.StoreConfig{
-		ReceiptsCacheSize: gossipCfg.ReceiptsCacheSize,
-		StakersCacheSize:  gossipCfg.StakersCacheSize,
-	}
-	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig, appStoreConfig)
+	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
 
 	cMainDb := dbs.GetDb("opera")
 	cGetEpochDB := func(epoch idx.Epoch) kvdb.DropableStore {
