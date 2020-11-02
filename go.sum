@@ -14,8 +14,8 @@ github.com/Azure/go-autorest/logger v0.1.0/go.mod h1:oExouG+K6PryycPJfVSxi/koC6L
 github.com/Azure/go-autorest/tracing v0.5.0/go.mod h1:r/s2XiOKccPW3HrqB+W0TQzfbtp2fGCgRFtBroKn4Dk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
-github.com/Fantom-foundation/lachesis-base v0.0.0-20200908101207-b7817ce06bd2 h1:WMST2ofXiEp/EtNI9ZEJaFXmYJj9Vrm4MvMY5fbpWzw=
-github.com/Fantom-foundation/lachesis-base v0.0.0-20200908101207-b7817ce06bd2/go.mod h1:JyoGnkqzSRYBRPzVybDAP6MlB027ZNy8p87YQoE9dKQ=
+github.com/Fantom-foundation/lachesis-base v0.0.0-20201116092818-623831589818 h1:9l3qG2Tw/T9e4icdGYUswsO01WMsCqx3y2nAZq2Rk1E=
+github.com/Fantom-foundation/lachesis-base v0.0.0-20201116092818-623831589818/go.mod h1:JyoGnkqzSRYBRPzVybDAP6MlB027ZNy8p87YQoE9dKQ=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/OneOfOne/xxhash v1.2.5/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
 github.com/Shopify/sarama v1.23.1/go.mod h1:XLH1GYJnLVE0XCr6KdJGVJRTwY30moWNJ4sERjXX6fs=

@@ -2,11 +2,8 @@ package inter
 
 import (
 	"crypto/sha256"
-	"fmt"
-
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
-	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -197,12 +194,4 @@ func (e *MutableEventPayload) Build() *EventPayload {
 	h := eventHash(eventSer)
 	payloadSer, _ := e.immutable().MarshalBinary()
 	return e.build(h, len(payloadSer))
-}
-
-// fmtFrame returns frame string representation.
-func FmtFrame(frame idx.Frame, isRoot bool) string {
-	if isRoot {
-		return fmt.Sprintf("%d:y", frame)
-	}
-	return fmt.Sprintf("%d:n", frame)
 }

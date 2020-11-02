@@ -24,7 +24,6 @@ func (e *Event) MarshalCSER(w *cser.Writer) error {
 	w.U32(uint32(e.Creator()))
 	w.U32(uint32(e.Seq()))
 	w.U32(uint32(e.Frame()))
-	w.Bool(e.IsRoot())
 	w.U64(e.creationTime)
 	medianTimeDiff := int64(e.creationTime) - int64(e.medianTime)
 	w.I64(medianTimeDiff)
@@ -70,7 +69,6 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	creator := r.U32()
 	seq := r.U32()
 	frame := r.U32()
-	isRoot := r.Bool()
 	creationTime := r.U64()
 	medianTimeDiff := r.I64()
 	// gas power
@@ -117,7 +115,6 @@ func eventUnmarshalCSER(r *cser.Reader, e *MutableEventPayload) (err error) {
 	e.SetCreator(idx.ValidatorID(creator))
 	e.SetSeq(idx.Event(seq))
 	e.SetFrame(idx.Frame(frame))
-	e.SetIsRoot(isRoot)
 	e.creationTime = creationTime
 	e.medianTime = uint64(int64(creationTime) - medianTimeDiff)
 	e.SetGasPowerUsed(gasPowerUsed)
