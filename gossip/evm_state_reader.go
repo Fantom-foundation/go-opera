@@ -1,8 +1,6 @@
 package gossip
 
 import (
-	"sync"
-
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
@@ -10,31 +8,26 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/app"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 )
 
 type EvmStateReader struct {
 	*ServiceFeed
-	engineMu *sync.RWMutex
 
 	store *Store
-	app   *app.Store
 }
 
 func (s *Service) GetEvmStateReader() *EvmStateReader {
 	return &EvmStateReader{
 		ServiceFeed: &s.feed,
-		engineMu:    s.engineMu,
 		store:       s.store,
-		app:         s.store.app,
 	}
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {
 	n := r.store.GetLatestBlockIndex()
 
-	return r.getBlock(hash.Event{}, n, n != 0)
+	return r.getBlock(hash.Event{}, n, true)
 }
 
 func (r *EvmStateReader) CurrentHeader() *evmcore.EvmHeader {
@@ -56,7 +49,7 @@ func (r *EvmStateReader) GetDagHeader(h hash.Event, n idx.Block) *evmcore.EvmHea
 }
 
 func (r *EvmStateReader) GetDagBlock(h hash.Event, n idx.Block) *evmcore.EvmBlock {
-	return r.getBlock(h, n, n != 0)
+	return r.getBlock(h, n, true)
 }
 
 func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmcore.EvmBlock {
@@ -72,22 +65,41 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 	if readTxs {
 		txCount := uint32(0)
 		skipCount := 0
-		for _, id := range block.Events {
-			e := r.store.GetEventPayload(id)
-			if e == nil {
-				log.Crit("Event not found", "event", id.String())
+		if len(block.Txs) != 0 {
+			for _, txid := range block.Txs {
+				tx := r.store.evm.GetTx(txid)
+				if tx == nil {
+					log.Crit("Tx not found", "tx", txid.String())
+					continue
+				}
+				transactions = append(transactions, tx)
+			}
+		} else {
+			for _, id := range block.Events {
+				e := r.store.GetEventPayload(id)
+				if e == nil {
+					log.Crit("Block event not found", "event", id.String())
+					continue
+				}
+
+				// appends txs except skipped ones
+				for _, tx := range e.Txs() {
+					if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
+						skipCount++
+					} else {
+						transactions = append(transactions, tx)
+					}
+					txCount++
+				}
+			}
+		}
+		for _, txid := range block.InternalTxs {
+			tx := r.store.evm.GetTx(txid)
+			if tx == nil {
+				log.Crit("Block tx not found", "tx", txid.String())
 				continue
 			}
-
-			// appends txs except skipped ones
-			for _, tx := range e.Txs() {
-				if skipCount < len(block.SkippedTxs) && block.SkippedTxs[skipCount] == txCount {
-					skipCount++
-				} else {
-					transactions = append(transactions, tx)
-				}
-				txCount++
-			}
+			transactions = append(transactions, tx)
 		}
 	}
 
@@ -110,5 +122,5 @@ func (r *EvmStateReader) getBlock(h hash.Event, n idx.Block, readTxs bool) *evmc
 }
 
 func (r *EvmStateReader) StateAt(root common.Hash) (*state.StateDB, error) {
-	return r.app.StateDB(hash.Hash(root)), nil
+	return r.store.evm.StateDB(hash.Hash(root)), nil
 }
