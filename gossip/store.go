@@ -127,7 +127,9 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 	}
 
 	// Flush the DBs
-	err := s.app.Commit()
+	s.FlushBlockState()
+	s.FlushEpochState()
+	err := s.evm.Commit()
 	if err != nil {
 		return err
 	}

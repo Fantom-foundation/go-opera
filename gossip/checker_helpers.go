@@ -88,8 +88,8 @@ func (r *HeavyCheckReader) GetEpochPubKeys() (map[idx.ValidatorID]validator.PubK
 func NewEpochPubKeys(s *Store, epoch idx.Epoch) *ValidatorsPubKeys {
 	es := s.GetEpochState()
 	pubkeys := make(map[idx.ValidatorID]validator.PubKey, len(es.ValidatorProfiles))
-	for _, it := range es.ValidatorProfiles {
-		pubkeys[it.ValidatorID] = it.Staker.PubKey
+	for id, profile := range es.ValidatorProfiles {
+		pubkeys[id] = profile.Pubkey
 	}
 	return &ValidatorsPubKeys{
 		Epoch:   epoch,

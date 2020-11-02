@@ -17,7 +17,7 @@ import (
 func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.Service {
 	gossipCfg := gossip.DefaultConfig(network)
 
-	engine, dagIndex, _, gdb := MakeEngine(ctx.Config.DataDir, &gossipCfg)
+	engine, dagIndex, _, gdb, blockProc := MakeEngine(ctx.Config.DataDir, &gossipCfg)
 
 	valKeystore := valkeystore.NewDefaultMemKeystore()
 
@@ -42,7 +42,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, signer, engine, dagIndex)
+	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}

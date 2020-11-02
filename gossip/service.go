@@ -30,6 +30,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -80,6 +81,16 @@ func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscripti
 	return f.scope.Track(f.newLogs.Subscribe(ch))
 }
 
+type BlockProc struct {
+	SealerModule        blockproc.SealerModule
+	TxListenerModule    blockproc.TxListenerModule
+	GenesisTxTransactor blockproc.TxTransactor
+	PreTxTransactor     blockproc.TxTransactor
+	PostTxTransactor    blockproc.TxTransactor
+	EventsModule        blockproc.ConfirmedEventsModule
+	EVMModule           blockproc.EVM
+}
+
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
 	config *Config
@@ -107,6 +118,8 @@ type Service struct {
 	checkers            *eventcheck.Checkers
 	uniqueEventIDs      uniqueID
 
+	blockProc BlockProc
+
 	feed ServiceFeed
 
 	// application protocol
@@ -120,7 +133,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer valkeystore.SignerI, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
 		config:         config,
 		wg:             sync.WaitGroup{},
@@ -129,6 +142,7 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer v
 		node:           ctx,
 		store:          store,
 		engine:         engine,
+		blockProc:      blockProc,
 		dagIndexer:     dagIndexer,
 		engineMu:       new(sync.RWMutex),
 		occurredTxs:    occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(config.Net.EvmChainConfig().ChainID)),

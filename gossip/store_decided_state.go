@@ -5,25 +5,29 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/inter/sfctype"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 )
 
 const lbKey = "d"
 
 const leKey = "e"
 
-// SetBlockState stores the latest block state
-func (s *Store) SetBlockState(v BlockState) {
-	s.set(s.table.BlockState, []byte(lbKey), v)
+// SetBlockState stores the latest block state in memory
+func (s *Store) SetBlockState(v blockproc.BlockState) {
 	s.cache.BlockState.Store(&v)
 }
 
+// FlushEpochState stores the latest block state in DB
+func (s *Store) FlushBlockState() {
+	s.set(s.table.BlockState, []byte(lbKey), s.GetBlockState())
+}
+
 // GetBlockState retrieves the latest block state
-func (s *Store) GetBlockState() BlockState {
+func (s *Store) GetBlockState() blockproc.BlockState {
 	if v := s.cache.BlockState.Load(); v != nil {
-		return *v.(*BlockState)
+		return *v.(*blockproc.BlockState)
 	}
-	v, ok := s.get(s.table.BlockState, []byte(lbKey), &BlockState{}).(*BlockState)
+	v, ok := s.get(s.table.BlockState, []byte(lbKey), &blockproc.BlockState{}).(*blockproc.BlockState)
 	if !ok {
 		log.Crit("Genesis not applied")
 	}
@@ -31,18 +35,22 @@ func (s *Store) GetBlockState() BlockState {
 	return *v
 }
 
-// SetEpochState stores the latest block state
-func (s *Store) SetEpochState(v EpochState) {
-	s.set(s.table.EpochState, []byte(leKey), v)
+// SetEpochState stores the latest block state in memory
+func (s *Store) SetEpochState(v blockproc.EpochState) {
 	s.cache.EpochState.Store(&v)
 }
 
-// GetEpochState retrieves the latest block state
-func (s *Store) GetEpochState() EpochState {
+// FlushEpochState stores the latest epoch state in DB
+func (s *Store) FlushEpochState() {
+	s.set(s.table.EpochState, []byte(leKey), s.GetEpochState())
+}
+
+// GetEpochState retrieves the latest epoch state
+func (s *Store) GetEpochState() blockproc.EpochState {
 	if v := s.cache.EpochState.Load(); v != nil {
-		return *v.(*EpochState)
+		return *v.(*blockproc.EpochState)
 	}
-	v, ok := s.get(s.table.EpochState, []byte(leKey), &EpochState{}).(*EpochState)
+	v, ok := s.get(s.table.EpochState, []byte(leKey), &blockproc.EpochState{}).(*blockproc.EpochState)
 	if !ok {
 		log.Crit("Genesis not applied")
 	}
@@ -68,7 +76,7 @@ func (s *Store) GetEpochValidators() (*pos.Validators, idx.Epoch) {
 
 // GetEpoch retrieves the current block number
 func (s *Store) GetLatestBlockIndex() idx.Block {
-	return s.GetBlockState().Block
+	return s.GetBlockState().LastBlock
 }
 
 // GetEpochBlockIndex retrieves the number of blocks in current epoch
