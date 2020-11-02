@@ -129,7 +129,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, *big.Int, bool, error) {
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, bool, error) {
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -178,12 +178,19 @@ func (st *StateTransition) preCheck() error {
 	return st.buyGas()
 }
 
+func (st *StateTransition) internal() bool {
+	zeroAddr := common.Address{}
+	return st.msg.From() == zeroAddr
+}
+
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the used gas. It returns an error if failed.
 // An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, fee *big.Int, failed bool, err error) {
+func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, skip bool, err error) {
 	if err = st.preCheck(); err != nil {
-		return
+		// Note: failed pre-check isn't a consensus error in Opera, unlike Ethereum
+		// Such transaction will be skipped
+		return nil, 0, false, true, err
 	}
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
@@ -193,17 +200,16 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, fee *big.
 	// Pay intrinsic gas
 	gas, err := IntrinsicGas(st.data, contractCreation, homestead)
 	if err != nil {
-		return nil, 0, common.Big0, false, err
+		return nil, 0, false, false, err
 	}
 	if err = st.useGas(gas); err != nil {
-		return nil, 0, common.Big0, false, err
+		return nil, 0, false, false, err
 	}
 
 	var (
 		evm = st.evm
 		// vm errors do not effect consensus and are therefor
-		// not assigned to err, except for insufficient balance
-		// error.
+		// not assigned to err
 		vmerr error
 	)
 	if contractCreation {
@@ -213,23 +219,18 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, fee *big.
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
-	// use 10% of not used gas
-	if err = st.useGas(st.gas / 10); err != nil {
-		return nil, 0, common.Big0, false, err
-	}
 	if vmerr != nil {
+		// Note: insufficient balance isn't a consensus error in Opera, unlike Ethereum
+		// Such transaction will revert and consume sender's gas
 		log.Debug("VM returned with error", "err", vmerr)
-		// The only possible consensus-error would be if there wasn't
-		// sufficient balance to make the transfer happen. The first
-		// balance transfer may never fail.
-		if vmerr == vm.ErrInsufficientBalance {
-			return nil, 0, common.Big0, false, vmerr
-		}
+	}
+	// use 10% of not used gas
+	if !st.internal() {
+		_ = st.useGas(st.gas / 10)
 	}
 	st.refundGas()
-	fee = new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice)
 
-	return ret, st.gasUsed(), fee, vmerr != nil, err
+	return ret, st.gasUsed(), vmerr != nil, false, err
 }
 
 func (st *StateTransition) refundGas() {
