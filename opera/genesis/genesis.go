@@ -30,12 +30,11 @@ func preDeploySfc(g Genesis, implCode []byte) Genesis {
 		Balance: new(big.Int),
 	}
 	// pre deploy SFC proxy
-	storage := sfc.AssembleStorage(g.Alloc.Validators, g.Time, g.Alloc.SfcContractAdmin, nil)
-	storage = proxy.AssembleStorage(g.Alloc.SfcContractAdmin, sfc.ContractAddressV1, storage) // Add storage of proxy
+	storage := proxy.AssembleStorage(g.Alloc.SfcContractAdmin, sfc.ContractAddressV1, nil) // Add storage of proxy
 	g.Alloc.Accounts[sfc.ContractAddress] = Account{
 		Code:    proxy.GetContractBin(),
 		Storage: storage,
-		Balance: g.Alloc.Validators.TotalStake(),
+		Balance: new(big.Int),
 	}
 	return g
 }
@@ -46,7 +45,7 @@ func FakeGenesis(accs VAccounts) Genesis {
 		Alloc: accs,
 		Time:  genesisTime,
 	}
-	g = preDeploySfc(g, sfc.GetTestContractBinV1())
+	g = preDeploySfc(g, sfc.GetContractBin())
 	return g
 }
 
@@ -69,7 +68,7 @@ func MainGenesis() Genesis {
 			SfcContractAdmin: common.HexToAddress("0xd6A37423Be930019b8CFeA57BE049329f3119a3D"),
 		},
 	}
-	g = preDeploySfc(g, sfc.GetMainContractBinV1())
+	g = preDeploySfc(g, sfc.GetContractBin())
 	return g
 }
 
@@ -92,6 +91,6 @@ func TestGenesis() Genesis {
 			SfcContractAdmin: common.HexToAddress("0xe003e080e8d61207a0a9890c3663b4cd7fb766b8"),
 		},
 	}
-	g = preDeploySfc(g, sfc.GetTestContractBinV1())
+	g = preDeploySfc(g, sfc.GetContractBin())
 	return g
 }

@@ -17,6 +17,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sfcmodule"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -52,6 +56,16 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecm
 	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), abft.DefaultStoreConfig())
 
 	// write genesis
+
+	blockProc := gossip.BlockProc{
+		SealerModule:        sealmodule.New(gossipCfg.Net),
+		TxListenerModule:    sfcmodule.NewSfcTxListenerModule(gossipCfg.Net),
+		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(gossipCfg.Net),
+		PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(gossipCfg.Net),
+		PostTxTransactor:    sfcmodule.NewSfcTxTransactor(gossipCfg.Net),
+		EventsModule:        eventmodule.New(gossipCfg.Net),
+		EVMModule:           evmmodule.New(gossipCfg.Net),
+	}
 
 	err := gdb.Migrate()
 	if err != nil {
