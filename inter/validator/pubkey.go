@@ -8,6 +8,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	FakePassword = "fakepassword"
+)
+
 type PubKey struct {
 	Raw  []byte
 	Type string

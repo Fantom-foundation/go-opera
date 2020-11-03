@@ -113,7 +113,7 @@ func SetAccountKey(
 ) {
 	kss := am.Backends(keystore.KeyStoreType)
 	if len(kss) < 1 {
-		log.Warn("Keystore is not found")
+		log.Crit("Keystore is not found")
 		return
 	}
 	ks := kss[0].(*keystore.KeyStore)

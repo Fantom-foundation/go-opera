@@ -27,8 +27,8 @@ func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.
 	}
 
 	// unlock the key
-	_ = valKeystore.Add(pubKey, crypto.FromECDSA(ctx.Config.PrivateKey), "fakepassword")
-	_ = valKeystore.Unlock(pubKey, "fakepassword")
+	_ = valKeystore.Add(pubKey, crypto.FromECDSA(ctx.Config.PrivateKey), validator.FakePassword)
+	_ = valKeystore.Unlock(pubKey, validator.FakePassword)
 	signer := valkeystore.NewSigner(valKeystore)
 
 	// find a genesis validator which corresponds to the key
