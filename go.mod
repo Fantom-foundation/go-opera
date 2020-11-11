@@ -3,7 +3,7 @@ module github.com/Fantom-foundation/go-opera
 go 1.13
 
 require (
-	github.com/Fantom-foundation/lachesis-base v0.0.0-20201116092818-623831589818
+	github.com/Fantom-foundation/lachesis-base v0.0.0-20201116093211-2ca60a7ee23f
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20191023202215-f096da5361bb // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
@@ -47,6 +47,7 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/status-im/keycard-go v0.0.0-20190424133014-d95853db0f48
 	github.com/stretchr/testify v1.4.0
+	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/tyler-smith/go-bip39 v1.0.2
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible

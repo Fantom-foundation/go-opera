@@ -49,9 +49,9 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecm
 
 	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
 
-	cMainDb := dbs.GetDb("opera")
+	cMainDb := dbs.GetDb("lachesis")
 	cGetEpochDB := func(epoch idx.Epoch) kvdb.DropableStore {
-		return dbs.GetDb(fmt.Sprintf("opera-%d", epoch))
+		return dbs.GetDb(fmt.Sprintf("lachesis-%d", epoch))
 	}
 	cdb := abft.NewStore(cMainDb, cGetEpochDB, panics("Lachesis store"), abft.DefaultStoreConfig())
 
