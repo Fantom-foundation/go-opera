@@ -36,8 +36,8 @@ type GasPowerConfig struct {
 
 // DagConfig of Lachesis DAG (directed acyclic graph).
 type DagConfig struct {
-	MaxParents     int `json:"maxParents"`
-	MaxFreeParents int `json:"maxFreeParents"` // maximum number of parents with no gas cost
+	MaxParents     uint32 `json:"maxParents"`
+	MaxFreeParents uint32 `json:"maxFreeParents"` // maximum number of parents with no gas cost
 
 	MaxEpochBlocks   idx.Block     `json:"maxEpochBlocks"`
 	MaxEpochDuration time.Duration `json:"maxEpochDuration"`

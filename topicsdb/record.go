@@ -86,7 +86,7 @@ func (rec *logrecBuilder) Fetch(
 	logrecTable kvdb.Reader,
 ) (err error) {
 	// others
-	it := othersTable.NewIteratorWithPrefix(rec.ID.Bytes())
+	it := othersTable.NewIterator(rec.ID.Bytes(), nil)
 	for it.Next() {
 		pos := extractTopicPos(it.Key())
 		topic := common.BytesToHash(it.Value())

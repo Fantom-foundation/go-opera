@@ -196,7 +196,7 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 		if err != nil {
 			panic(fmt.Sprintf("state write error: %v", err))
 		}
-		if err := statedb.Database().TrieDB().Commit(root, false); err != nil {
+		if err := statedb.Database().TrieDB().Commit(root, false, nil); err != nil {
 			panic(fmt.Sprintf("trie write error: %v", err))
 		}
 		b.header = block.Header()
@@ -205,7 +205,7 @@ func GenerateChain(config *params.ChainConfig, parent *EvmBlock, db ethdb.Databa
 		return block, b.receipts
 	}
 	for i := 0; i < n; i++ {
-		statedb, err := state.New(parent.Root, state.NewDatabase(db))
+		statedb, err := state.New(parent.Root, state.NewDatabase(db), nil)
 		if err != nil {
 			panic(err)
 		}

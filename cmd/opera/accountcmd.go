@@ -23,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
@@ -236,7 +236,7 @@ func unlockAccount(ks *keystore.KeyStore, address string, i int, passwords []str
 
 // getPassPhrase retrieves the password associated with an account, either fetched
 // from a list of preloaded passphrases, or requested interactively from the user.
-func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) string {
+func getPassPhrase(msg string, confirmation bool, i int, passwords []string) string {
 	// If a list of passwords was supplied, retrieve from them
 	if len(passwords) > 0 {
 		if i < len(passwords) {
@@ -245,15 +245,15 @@ func getPassPhrase(prompt string, confirmation bool, i int, passwords []string) 
 		return passwords[len(passwords)-1]
 	}
 	// Otherwise prompt the user for the password
-	if prompt != "" {
-		fmt.Println(prompt)
+	if msg != "" {
+		fmt.Println(msg)
 	}
-	password, err := console.Stdin.PromptPassword("Passphrase: ")
+	password, err := prompt.Stdin.PromptPassword("Passphrase: ")
 	if err != nil {
 		utils.Fatalf("Failed to read passphrase: %v", err)
 	}
 	if confirmation {
-		confirm, err := console.Stdin.PromptPassword("Repeat passphrase: ")
+		confirm, err := prompt.Stdin.PromptPassword("Repeat passphrase: ")
 		if err != nil {
 			utils.Fatalf("Failed to read passphrase confirmation: %v", err)
 		}

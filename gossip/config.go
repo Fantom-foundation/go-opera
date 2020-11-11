@@ -1,14 +1,11 @@
 package gossip
 
 import (
-	"math/big"
-
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
-	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 type (
@@ -46,7 +43,11 @@ type (
 		EVMInterpreter string // TODO custom interpreter
 
 		// RPCGasCap is the global gas cap for eth-call variants.
-		RPCGasCap *big.Int `toml:",omitempty"`
+		RPCGasCap uint64 `toml:",omitempty"`
+
+		// RPCTxFeeCap is the global transaction fee(price * gaslimit) cap for
+		// send-transction variants. The unit is ether.
+		RPCTxFeeCap float64 `toml:",omitempty"`
 
 		ExtRPCEnabled bool
 	}
@@ -85,7 +86,7 @@ func DefaultConfig(network opera.Config) Config {
 		GPO: gasprice.Config{
 			Blocks:     20,
 			Percentile: 60,
-			Default:    params.MinGasPrice,
+			MaxPrice:   gasprice.DefaultMaxPrice,
 		},
 	}
 

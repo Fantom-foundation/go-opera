@@ -2,9 +2,11 @@ package inter
 
 import (
 	"crypto/sha256"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 type EventI interface {
@@ -29,7 +31,7 @@ type EventPayloadI interface {
 
 var (
 	// EmptyTxHash is hash of empty transactions list. Used to check that event doesn't have transactions not having full event.
-	EmptyTxHash = hash.Hash(types.DeriveSha(types.Transactions{}))
+	EmptyTxHash = hash.Hash(types.DeriveSha(types.Transactions{}, new(trie.Trie)))
 )
 
 type baseEvent struct {

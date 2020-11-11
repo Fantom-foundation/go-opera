@@ -36,7 +36,7 @@ func ApplyGenesis(db ethdb.Database, net *opera.Config) (*EvmBlock, error) {
 	}
 
 	// state
-	statedb, err := state.New(common.Hash{}, state.NewDatabase(db))
+	statedb, err := state.New(common.Hash{}, state.NewDatabase(db), nil)
 	if err != nil {
 		return nil, err
 	}

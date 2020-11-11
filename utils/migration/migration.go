@@ -1,11 +1,11 @@
 package migration
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/log"
-	"golang.org/x/crypto/sha3"
 )
 
 // Migration is a migration step.
@@ -41,7 +41,7 @@ func (m *Migration) Next(name string, exec func() error) *Migration {
 
 // ID is an uniq migration's id.
 func (m *Migration) ID() string {
-	digest := sha3.NewLegacyKeccak256()
+	digest := sha256.New()
 	digest.Write([]byte(m.name))
 
 	bytes := digest.Sum(nil)
@@ -54,7 +54,7 @@ func (m *Migration) Exec(curr IDStore) error {
 	myID := m.ID()
 
 	if m.veryFirst() {
-		if currID != "" {
+		if currID != "" && currID != myID {
 			return errors.New("unknown version: " + currID)
 		}
 		return nil

@@ -8,7 +8,7 @@ import (
 
 type asyncStore struct {
 	dbs    *flushable.SyncedPool
-	mainDb kvdb.Store
+	mainDB kvdb.Store
 	table  struct {
 		// Network tables
 		Peers kvdb.Store `table:"Z"`
@@ -18,10 +18,10 @@ type asyncStore struct {
 func newAsyncStore(dbs *flushable.SyncedPool) *asyncStore {
 	s := &asyncStore{
 		dbs:    dbs,
-		mainDb: dbs.GetDb("gossip-async"),
+		mainDB: dbs.GetDb("gossip-async"),
 	}
 
-	table.MigrateTables(&s.table, s.mainDb)
+	table.MigrateTables(&s.table, s.mainDB)
 
 	return s
 }
@@ -30,5 +30,5 @@ func newAsyncStore(dbs *flushable.SyncedPool) *asyncStore {
 func (s *asyncStore) Close() {
 	table.MigrateTables(&s.table, nil)
 
-	s.mainDb.Close()
+	s.mainDB.Close()
 }

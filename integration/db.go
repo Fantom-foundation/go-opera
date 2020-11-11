@@ -1,11 +1,12 @@
 package integration
 
 import (
+	"strings"
+
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/leveldb"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"strings"
 )
 
 func dbCacheSize(name string) int {

@@ -11,6 +11,7 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/inter/validator"
@@ -149,7 +150,7 @@ func (v *Checker) Validate(de dag.Event) error {
 		}
 	}
 	// Merkle tree
-	if e.TxHash() != hash.Hash(types.DeriveSha(e.Txs())) {
+	if e.TxHash() != hash.Hash(types.DeriveSha(e.Txs(), new(trie.Trie))) {
 		return ErrWrongTxHash
 	}
 

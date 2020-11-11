@@ -94,7 +94,7 @@ func (s *Store) GetPack(epoch idx.Epoch, idx idx.Pack) hash.Events {
 
 	res := make(hash.Events, 0, hardLimitItems)
 
-	it := s.table.Packs.NewIteratorWithPrefix(prefix.Bytes())
+	it := s.table.Packs.NewIterator(prefix.Bytes(), nil)
 	defer it.Release()
 	for it.Next() {
 		if len(it.Key()) != epochSize+packSize+eventIDSize {

@@ -17,18 +17,12 @@
 package evmcore
 
 import (
-	"errors"
 	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-)
-
-var (
-	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for gas")
 )
 
 /*
@@ -48,7 +42,6 @@ The state transitioning model does all the necessary work to work out a valid ne
 5) Run Script section
 6) Derive new state root
 */
-
 type StateTransition struct {
 	gp         *GasPool
 	msg        Message
@@ -64,7 +57,6 @@ type StateTransition struct {
 // Message represents a message sent to a contract.
 type Message interface {
 	From() common.Address
-	//FromFrontier() (common.Address, error)
 	To() *common.Address
 
 	GasPrice() *big.Int
@@ -76,11 +68,46 @@ type Message interface {
 	Data() []byte
 }
 
+// ExecutionResult includes all output after executing given evm
+// message no matter the execution itself is successful or not.
+type ExecutionResult struct {
+	UsedGas    uint64 // Total used gas but include the refunded gas
+	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
+}
+
+// Unwrap returns the internal evm error which allows us for further
+// analysis outside.
+func (result *ExecutionResult) Unwrap() error {
+	return result.Err
+}
+
+// Failed returns the indicator whether the execution is successful or not
+func (result *ExecutionResult) Failed() bool { return result.Err != nil }
+
+// Return is a helper function to help caller distinguish between revert reason
+// and function return. Return returns the data after execution if no error occurs.
+func (result *ExecutionResult) Return() []byte {
+	if result.Err != nil {
+		return nil
+	}
+	return common.CopyBytes(result.ReturnData)
+}
+
+// Revert returns the concrete revert reason if the execution is aborted by `REVERT`
+// opcode. Note the reason can be nil if no data supplied with revert opcode.
+func (result *ExecutionResult) Revert() []byte {
+	if result.Err != vm.ErrExecutionReverted {
+		return nil
+	}
+	return common.CopyBytes(result.ReturnData)
+}
+
 // IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
-func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error) {
+func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
-	if contractCreation && homestead {
+	if contractCreation {
 		gas = params.TxGasContractCreation
 	} else {
 		gas = params.TxGas
@@ -102,7 +129,7 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) (uint64, error)
 
 		z := uint64(len(data)) - nz
 		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
-			return 0, vm.ErrOutOfGas
+			return 0, ErrGasUintOverflow
 		}
 		gas += z * params.TxDataZeroGas
 	}
@@ -129,7 +156,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) ([]byte, uint64, bool, bool, error) {
+func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) (*ExecutionResult, error) {
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -141,19 +168,10 @@ func (st *StateTransition) to() common.Address {
 	return *st.msg.To()
 }
 
-func (st *StateTransition) useGas(amount uint64) error {
-	if st.gas < amount {
-		return vm.ErrOutOfGas
-	}
-	st.gas -= amount
-
-	return nil
-}
-
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
 	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
-		return errInsufficientBalanceForGas
+		return ErrInsufficientFunds
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
@@ -184,53 +202,72 @@ func (st *StateTransition) internal() bool {
 }
 
 // TransitionDb will transition the state by applying the current message and
-// returning the result including the used gas. It returns an error if failed.
-// An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, skip bool, err error) {
-	if err = st.preCheck(); err != nil {
-		// Note: failed pre-check isn't a consensus error in Opera, unlike Ethereum
-		// Such transaction will be skipped
-		return nil, 0, false, true, err
+// returning the evm execution result with following fields.
+//
+// - used gas:
+//      total gas used (including gas being refunded)
+// - returndata:
+//      the returned data from evm
+// - concrete execution error:
+//      various **EVM** error which aborts the execution,
+//      e.g. ErrOutOfGas, ErrExecutionReverted
+//
+// However if any consensus issue encountered, return the error directly with
+// nil evm execution result.
+func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
+	// First check this message satisfies all consensus rules before
+	// applying the message. The rules include these clauses
+	//
+	// 1. the nonce of the message caller is correct
+	// 2. caller has enough balance to cover transaction fee(gaslimit * gasprice)
+	// 3. the amount of gas required is available in the block
+	// 4. the purchased gas is enough to cover intrinsic usage
+	// 5. there is no overflow when calculating intrinsic gas
+
+	// Note: insufficient balance for **topmost** call isn't a consensus error in Opera, unlike Ethereum
+	// Such transaction will revert and consume sender's gas
+
+	// Check clauses 1-3, buy gas if everything is correct
+	if err := st.preCheck(); err != nil {
+		return nil, err
 	}
 	msg := st.msg
 	sender := vm.AccountRef(msg.From())
-	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
 	contractCreation := msg.To() == nil
 
-	// Pay intrinsic gas
-	gas, err := IntrinsicGas(st.data, contractCreation, homestead)
+	// Check clauses 4-5, subtract intrinsic gas if everything is correct
+	gas, err := IntrinsicGas(st.data, contractCreation)
 	if err != nil {
-		return nil, 0, false, false, err
+		return nil, err
 	}
-	if err = st.useGas(gas); err != nil {
-		return nil, 0, false, false, err
+	if st.gas < gas {
+		return nil, ErrIntrinsicGas
 	}
+	st.gas -= gas
 
 	var (
-		evm = st.evm
-		// vm errors do not effect consensus and are therefor
-		// not assigned to err
-		vmerr error
+		ret   []byte
+		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
 	)
 	if contractCreation {
-		ret, _, st.gas, vmerr = evm.Create(sender, st.data, st.gas, st.value)
+		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-		ret, st.gas, vmerr = evm.Call(sender, st.to(), st.data, st.gas, st.value)
-	}
-	if vmerr != nil {
-		// Note: insufficient balance isn't a consensus error in Opera, unlike Ethereum
-		// Such transaction will revert and consume sender's gas
-		log.Debug("VM returned with error", "err", vmerr)
+		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 	// use 10% of not used gas
 	if !st.internal() {
-		_ = st.useGas(st.gas / 10)
+		st.gas -= st.gas / 10
 	}
+
 	st.refundGas()
 
-	return ret, st.gasUsed(), vmerr != nil, false, err
+	return &ExecutionResult{
+		UsedGas:    st.gasUsed(),
+		Err:        vmerr,
+		ReturnData: ret,
+	}, nil
 }
 
 func (st *StateTransition) refundGas() {

@@ -55,7 +55,7 @@ func (s *Store) GetHeads(epoch idx.Epoch) hash.Events {
 
 	res := make(hash.Events, 0, 100)
 
-	it := es.table.Heads.NewIterator()
+	it := es.table.Heads.NewIterator(nil, nil)
 	defer it.Release()
 	for it.Next() {
 		res.Add(hash.BytesToEvent(it.Key()))

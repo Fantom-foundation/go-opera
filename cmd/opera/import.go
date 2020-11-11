@@ -57,14 +57,9 @@ func importChain(ctx *cli.Context) error {
 }
 
 func importToNode(ctx *cli.Context, cfg *config, args ...string) error {
-	node := makeNode(ctx, cfg)
+	node, svc := makeNode(ctx, cfg)
 	defer node.Close()
 	startNode(ctx, node)
-
-	var srv *gossip.Service
-	if err := node.Service(&srv); err != nil {
-		return err
-	}
 
 	check := true
 	for _, arg := range ctx.Args() {
@@ -77,7 +72,7 @@ func importToNode(ctx *cli.Context, cfg *config, args ...string) error {
 		if strings.HasPrefix(fn, "check=") {
 			continue
 		}
-		if err := importFile(srv, check, fn); err != nil {
+		if err := importFile(svc, check, fn); err != nil {
 			log.Error("Import error", "file", fn, "err", err)
 			return err
 		}
