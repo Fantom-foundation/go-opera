@@ -3,6 +3,9 @@ package gossip
 import (
 	"testing"
 
+	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
+	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
+
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
@@ -17,7 +20,7 @@ type testEnv struct {
 func newTestEnv() *testEnv {
 	network := opera.MainNetConfig()
 
-	return &testEnv{
+	env := &testEnv{
 		blockProc: BlockProc{
 			SealerModule:        sealmodule.New(network),
 			TxListenerModule:    sfcmodule.NewSfcTxListenerModule(network),
@@ -28,10 +31,20 @@ func newTestEnv() *testEnv {
 			EVMModule:           evmmodule.New(network),
 		},
 	}
+
+	dbs := flushable.NewSyncedPool(
+		memorydb.NewProducer(""))
+	gdb := NewStore(dbs, LiteStoreConfig())
+	_, _, err := gdb.ApplyGenesis(env.blockProc, &network)
+	if err != nil {
+		panic(err)
+	}
+
+	return env
 }
 
 func (env *testEnv) Block() {
-	
+
 }
 
 func TestEnv(t *testing.T) {
