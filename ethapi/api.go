@@ -1013,7 +1013,6 @@ func RPCMarshalEventHeader(header *inter.Event) map[string]interface{} {
 		"seq":              header.Seq,
 		"id":               hexutil.Bytes(header.ID().Bytes()),
 		"frame":            header.Frame,
-		"isRoot":           header.IsRoot,
 		"creator":          header.Creator,
 		"prevEpochHash":    header.PrevEpochHash,
 		"parents":          eventIDsToHex(header.Parents()),

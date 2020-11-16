@@ -656,7 +656,7 @@ func (em *Emitter) EmitEvent() *inter.EventPayload {
 	}
 	em.gasRate.Mark(int64(e.GasPowerUsed()))
 	em.prevEmittedTime = time.Now() // record time after connecting, to add the event processing time"
-	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", inter.FmtFrame(e.Frame(), e.IsRoot()), "txs", e.Txs().Len(), "t", time.Since(start))
+	em.Log.Info("New event emitted", "id", e.ID(), "parents", len(e.Parents()), "by", e.Creator(), "frame", e.Frame(), "txs", e.Txs().Len(), "t", time.Since(start))
 
 	// metrics
 	for _, t := range e.Txs() {

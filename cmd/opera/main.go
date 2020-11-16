@@ -24,6 +24,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/debug"
 	"github.com/Fantom-foundation/go-opera/gossip"
 	"github.com/Fantom-foundation/go-opera/integration"
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/utils/errlock"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
 	_ "github.com/Fantom-foundation/go-opera/version"
@@ -251,8 +252,9 @@ func makeNode(ctx *cli.Context, cfg *config) *node.Node {
 	valPubkey := cfg.Lachesis.Emitter.Validator.PubKey
 	if key := getFakeValidatorKey(ctx); key != nil {
 		addFakeValidatorKey(ctx, key, valPubkey, valKeystore)
-		coinbase := integration.SetAccountKey(stack.AccountManager(), key, "fakepassword")
-		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex())
+		log.Info("Added fake validator key", "pubkey", valPubkey.String())
+		coinbase := integration.SetAccountKey(stack.AccountManager(), key, validator.FakePassword)
+		log.Info("Unlocked fake validator account", "address", coinbase.Address.Hex(), "password", validator.FakePassword)
 	}
 
 	// unlock validator key

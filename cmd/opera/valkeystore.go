@@ -19,11 +19,10 @@ import (
 func addFakeValidatorKey(ctx *cli.Context, key *ecdsa.PrivateKey, pubkey validator.PubKey, valKeystore valkeystore.RawKeystoreI) {
 	// add fake validator key
 	if key != nil && !valKeystore.Has(pubkey) {
-		err := valKeystore.Add(pubkey, crypto.FromECDSA(key), "fakepassword")
+		err := valKeystore.Add(pubkey, crypto.FromECDSA(key), validator.FakePassword)
 		if err != nil {
 			utils.Fatalf("Failed to add fake validator key: %v", err)
 		}
-		log.Info("Added fake validator key", "pubkey", pubkey.String())
 	}
 }
 
@@ -50,7 +49,7 @@ func makeValidatorPasswordList(ctx *cli.Context) []string {
 		return lines
 	}
 	if ctx.GlobalIsSet(FakeNetFlag.Name) {
-		return []string{"fakepassword"}
+		return []string{validator.FakePassword}
 	}
 	return nil
 }

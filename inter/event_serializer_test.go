@@ -37,7 +37,6 @@ func TestEventPayloadSerialization(t *testing.T) {
 	max.SetExtra(bytes.Repeat([]byte{math.MaxUint8}, 100))
 	max.SetCreationTime(math.MaxUint64)
 	max.SetMedianTime(math.MaxUint64)
-	max.SetIsRoot(true)
 	tx1 := types.NewRawTransaction(math.MaxUint64, nil, h.Big(), math.MaxUint64, h.Big(), []byte{}, big.NewInt(0xff), h.Big(), h.Big())
 	tx2 := types.NewRawTransaction(math.MaxUint64, &common.Address{}, h.Big(), math.MaxUint64, h.Big(), max.extra, big.NewInt(0xff), h.Big(), h.Big())
 	txs := types.Transactions{}
