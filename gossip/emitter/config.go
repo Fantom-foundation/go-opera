@@ -13,10 +13,11 @@ import (
 
 // EmitIntervals is the configuration of emit intervals.
 type EmitIntervals struct {
-	Min                time.Duration `json:"min"`
-	Max                time.Duration `json:"max"`
-	Confirming         time.Duration `json:"confirming"` // emit time when there's no txs to originate, but at least 1 tx to confirm
-	SelfForkProtection time.Duration `json:"selfForkProtection"`
+	Min                        time.Duration
+	Max                        time.Duration
+	Confirming                 time.Duration // emit time when there's no txs to originate, but at least 1 tx to confirm
+	ParallelInstanceProtection time.Duration
+	DoublesignProtection       time.Duration
 }
 
 // Config is the configuration of events emitter.
@@ -47,10 +48,11 @@ func DefaultEmitterConfig() Config {
 		VersionToPublish: _params.VersionWithMeta(),
 
 		EmitIntervals: EmitIntervals{
-			Min:                200 * time.Millisecond,
-			Max:                12 * time.Minute,
-			Confirming:         200 * time.Millisecond,
-			SelfForkProtection: 30 * time.Minute, // should be at least 2x of MaxEmitInterval
+			Min:                        200 * time.Millisecond,
+			Max:                        12 * time.Minute,
+			Confirming:                 200 * time.Millisecond,
+			DoublesignProtection:       30 * time.Minute, // should be at least 2x of MaxEmitInterval
+			ParallelInstanceProtection: 1 * time.Minute,
 		},
 
 		MaxGasRateGrowthFactor: 3.0,
@@ -73,8 +75,8 @@ func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 		config.Max = config.Max - config.Max/10 + time.Duration(r.Int63n(int64(config.Max/10)))
 	}
 	// value = value + 0.1 * random value
-	if config.SelfForkProtection > 10 {
-		config.SelfForkProtection = config.SelfForkProtection + time.Duration(r.Int63n(int64(config.SelfForkProtection/10)))
+	if config.DoublesignProtection > 10 {
+		config.DoublesignProtection = config.DoublesignProtection + time.Duration(r.Int63n(int64(config.DoublesignProtection/10)))
 	}
 	return &config
 }
@@ -83,6 +85,6 @@ func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 func FakeEmitterConfig() Config {
 	cfg := DefaultEmitterConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
-	cfg.EmitIntervals.SelfForkProtection = cfg.EmitIntervals.Max * 3 / 2
+	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max * 3 / 2
 	return cfg
 }

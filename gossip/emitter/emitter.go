@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/common/bigendian"
 	"github.com/Fantom-foundation/lachesis-base/emitter/ancestor"
+	"github.com/Fantom-foundation/lachesis-base/emitter/doublesign"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
@@ -68,7 +69,7 @@ type Emitter struct {
 	myValidatorID idx.ValidatorID
 	myAddress     common.Address
 
-	syncStatus selfForkProtection
+	syncStatus syncStatus
 
 	gasRate         metrics.Meter
 	prevEmittedTime time.Time
@@ -81,13 +82,14 @@ type Emitter struct {
 	logger.Periodic
 }
 
-type selfForkProtection struct {
-	startupTime             time.Time
-	connectedTime           time.Time
-	syncedTime              time.Time
-	prevLocalEmittedID      hash.Event
-	prevExternalEmittedTime time.Time
-	becameValidatorTime     time.Time
+type syncStatus struct {
+	startup                   time.Time
+	lastConnected             time.Time
+	p2pSynced                 time.Time
+	prevLocalEmittedID        hash.Event
+	externalSelfEventCreated  time.Time
+	externalSelfEventDetected time.Time
+	becameValidator           time.Time
 }
 
 // NewEmitter creation.
@@ -113,8 +115,8 @@ func NewEmitter(
 
 // init emitter without starting events emission
 func (em *Emitter) init() {
-	em.syncStatus.connectedTime = time.Now()
-	em.syncStatus.startupTime = time.Now()
+	em.syncStatus.lastConnected = time.Now()
+	em.syncStatus.p2pSynced = time.Now()
 	validators, epoch := em.world.Store.GetEpochValidators()
 	em.OnNewEpoch(validators, epoch)
 }
@@ -143,10 +145,10 @@ func (em *Emitter) StartEventEmission() {
 			case <-ticker.C:
 				// track synced time
 				if em.world.PeersNum() == 0 {
-					em.syncStatus.connectedTime = time.Now() // connected time ~= last time when it's true that "not connected yet"
+					em.syncStatus.lastConnected = time.Now() // connected time ~= last time when it's true that "not connected yet"
 				}
 				if !em.world.IsSynced() {
-					em.syncStatus.syncedTime = time.Now() // synced time ~= last time when it's true that "not synced yet"
+					em.syncStatus.p2pSynced = time.Now() // synced time ~= last time when it's true that "not synced yet"
 				}
 
 				// must pass at least MinEmitInterval since last event
@@ -336,7 +338,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 		return nil
 	}
 
-	if synced := em.logSyncStatus(em.isSynced()); !synced {
+	if synced := em.logSyncStatus(em.isSyncedToEmit()); !synced {
 		// I'm reindexing my old events, so don't create events until connect all the existing self-events
 		return nil
 	}
@@ -522,71 +524,60 @@ func (em *Emitter) OnNewEvent(e *inter.EventPayload) {
 	if em.syncStatus.prevLocalEmittedID == e.ID() {
 		return
 	}
-
 	// event was emitted by me on another instance
-	em.syncStatus.prevExternalEmittedTime = time.Now()
+	em.onNewExternalEvent(e)
 
-	eventTime := inter.MaxTimestamp(e.CreationTime(), e.MedianTime()).Time()
-	if eventTime.Before(em.syncStatus.startupTime) {
-		return
-	}
+}
 
-	passedSinceEvent := time.Since(eventTime)
-	threshold := em.intervals.SelfForkProtection
-	if threshold > time.Minute {
-		threshold = time.Minute
-	}
-	if passedSinceEvent <= threshold {
-		reason := "Received a recent event (event id=%s) from this validator (staker ID=%d) which wasn't created on this node.\n" +
+func (em *Emitter) onNewExternalEvent(e *inter.EventPayload) {
+	em.syncStatus.externalSelfEventDetected = time.Now()
+	em.syncStatus.externalSelfEventCreated = e.CreationTime().Time()
+	status := em.currentSyncStatus()
+	if doublesign.DetectParallelInstance(status, em.config.EmitIntervals.ParallelInstanceProtection) {
+		passedSinceEvent := status.Since(status.ExternalSelfEventCreated)
+		reason := "Received a recent event (event id=%s) from this validator (validator ID=%d) which wasn't created on this node.\n" +
 			"This external event was created %s, %s ago at the time of this error.\n" +
 			"It might mean that a duplicating instance of the same validator is running simultaneously, which may eventually lead to a doublesign.\n" +
 			"The node was stopped by one of the doublesign protection heuristics.\n" +
 			"There's no guaranteed automatic protection against a doublesign," +
 			"please always ensure that no more than one instance of the same validator is running."
 		errlock.Permanent(fmt.Errorf(reason, e.ID().String(), em.myValidatorID, e.CreationTime().Time().Local().String(), passedSinceEvent.String()))
+		panic("unreachable")
 	}
-
 }
 
-func (em *Emitter) isSynced() (bool, string, time.Duration) {
-	if em.intervals.SelfForkProtection == 0 {
-		return true, "", 0 // protection disabled
+func (em *Emitter) currentSyncStatus() doublesign.SyncStatus {
+	s := doublesign.SyncStatus{
+		Now:                       time.Now(),
+		PeersNum:                  em.world.PeersNum(),
+		Startup:                   em.syncStatus.startup,
+		LastConnected:             em.syncStatus.lastConnected,
+		ExternalSelfEventCreated:  em.syncStatus.externalSelfEventCreated,
+		ExternalSelfEventDetected: em.syncStatus.externalSelfEventDetected,
+		BecameValidator:           em.syncStatus.becameValidator,
 	}
-	if em.world.PeersNum() == 0 {
-		return false, "no connections", 0
+	if em.world.IsSynced() {
+		s.P2PSynced = em.syncStatus.p2pSynced
 	}
-	if !em.world.IsSynced() {
-		return false, "synchronizing (all the peers have higher/lower epoch)", 0
-	}
-	sinceLastExternalEvent := time.Since(em.syncStatus.prevExternalEmittedTime)
-	if sinceLastExternalEvent < em.intervals.SelfForkProtection {
-		return false, "synchronizing (not downloaded all the self-events)", em.intervals.SelfForkProtection - sinceLastExternalEvent
-	}
-	sinceBecameValidator := time.Since(em.syncStatus.becameValidatorTime)
-	if sinceBecameValidator < em.intervals.SelfForkProtection {
-		return false, "synchronizing (just joined the validators group)", em.intervals.SelfForkProtection - sinceBecameValidator
-	}
-	syncedPassed := time.Since(em.syncStatus.syncedTime)
-	if syncedPassed < em.intervals.SelfForkProtection {
-		return false, "synchronized (waiting additional time)", em.intervals.SelfForkProtection - syncedPassed
-	}
-	connectedPassed := time.Since(em.syncStatus.connectedTime)
-	if connectedPassed < em.intervals.SelfForkProtection {
-		return false, "synchronizing (recently connected)", em.intervals.SelfForkProtection - connectedPassed
-	}
-
-	return true, "", 0
+	return s
 }
 
-func (em *Emitter) logSyncStatus(synced bool, reason string, wait time.Duration) bool {
-	if synced {
+func (em *Emitter) isSyncedToEmit() (time.Duration, error) {
+	if em.intervals.ParallelInstanceProtection == 0 {
+		return 0, nil // protection disabled
+	}
+	return doublesign.SyncedToEmit(em.currentSyncStatus(), em.intervals.DoublesignProtection)
+}
+
+func (em *Emitter) logSyncStatus(wait time.Duration, syncErr error) bool {
+	if syncErr == nil {
 		return true
 	}
 
 	if wait == 0 {
-		em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason)
+		em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", syncErr)
 	} else {
-		em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", reason, "wait", wait)
+		em.Periodic.Info(25*time.Second, "Emitting is paused", "reason", syncErr, "wait", wait)
 	}
 	return false
 }
