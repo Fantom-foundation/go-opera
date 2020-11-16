@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -22,12 +21,13 @@ import (
 	notify "github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	errors2 "github.com/pkg/errors"
+	"github.com/pkg/errors"
 
 	"github.com/Fantom-foundation/go-opera/ethapi"
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/inter"
+	operaparams "github.com/Fantom-foundation/go-opera/opera/params"
 	"github.com/Fantom-foundation/go-opera/topicsdb"
 	"github.com/Fantom-foundation/go-opera/tracing"
 )
@@ -106,11 +106,11 @@ func decodeShortEventID(s []string) (idx.Epoch, idx.Lamport, []byte, error) {
 	}
 	epoch, err := strconv.ParseUint(s[0], 10, 32)
 	if err != nil {
-		return 0, 0, nil, errors2.Wrap(err, "short hash parsing error (lamport)")
+		return 0, 0, nil, errors.Wrap(err, "short hash parsing error (lamport)")
 	}
 	lamport, err := strconv.ParseUint(s[1], 10, 32)
 	if err != nil {
-		return 0, 0, nil, errors2.Wrap(err, "short hash parsing error (lamport)")
+		return 0, 0, nil, errors.Wrap(err, "short hash parsing error (lamport)")
 	}
 	return idx.Epoch(epoch), idx.Lamport(lamport), common.FromHex(s[2]), nil
 }
@@ -408,6 +408,10 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	return b.gpo.SuggestPrice(ctx)
 }
 
+func (b *EthAPIBackend) MinGasPrice() *big.Int {
+	return operaparams.MinGasPrice
+}
+
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
 	return b.svc.store.evm.EvmTable()
 }
@@ -420,8 +424,12 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
-func (b *EthAPIBackend) RPCGasCap() *big.Int {
+func (b *EthAPIBackend) RPCGasCap() uint64 {
 	return b.svc.config.RPCGasCap
+}
+
+func (b *EthAPIBackend) RPCTxFeeCap() float64 {
+	return b.svc.config.RPCTxFeeCap
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {

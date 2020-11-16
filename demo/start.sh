@@ -31,7 +31,7 @@ do
     ${EXEC} \
   --nat extip:$IP \
 	--fakenet $i/$N \
-	--port ${p2pport} --rpc --rpcapi "eth,ftm,dag,debug,admin,web3,personal,net,txpool" --rpcport ${rpcport} --nousb --verbosity 3 \
+	--port ${p2pport} --http --http.api "eth,ftm,dag,debug,admin,web3,personal,net,txpool" --http.port ${rpcport} --nousb --verbosity 3 \
 	--datadir "${LACHESIS_BASE_DIR}/datadir/opera$i" &
     echo -e "Started opera client at ${IP}:${port}"
 done

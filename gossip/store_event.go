@@ -102,19 +102,19 @@ func (s *Store) forEachEvent(it ethdb.Iterator, onEvent func(event *inter.EventP
 }
 
 func (s *Store) ForEachEpochEvent(epoch idx.Epoch, onEvent func(event *inter.EventPayload) bool) {
-	it := s.table.Events.NewIteratorWithPrefix(epoch.Bytes())
+	it := s.table.Events.NewIterator(epoch.Bytes(), nil)
 	defer it.Release()
 	s.forEachEvent(it, onEvent)
 }
 
 func (s *Store) ForEachEvent(start idx.Epoch, onEvent func(event *inter.EventPayload) bool) {
-	it := s.table.Events.NewIteratorWithStart(start.Bytes())
+	it := s.table.Events.NewIterator(nil, start.Bytes())
 	defer it.Release()
 	s.forEachEvent(it, onEvent)
 }
 
 func (s *Store) ForEachEventRLP(start idx.Epoch, onEvent func(key hash.Event, event rlp.RawValue) bool) {
-	it := s.table.Events.NewIteratorWithStart(start.Bytes())
+	it := s.table.Events.NewIterator(nil, start.Bytes())
 	defer it.Release()
 	for it.Next() {
 		if !onEvent(hash.BytesToEvent(it.Key()), it.Value()) {
@@ -129,7 +129,7 @@ func (s *Store) FindEventHashes(epoch idx.Epoch, lamport idx.Lamport, hashPrefix
 	prefix.Write(hashPrefix)
 	res := make(hash.Events, 0, 10)
 
-	it := s.table.Events.NewIteratorWithPrefix(prefix.Bytes())
+	it := s.table.Events.NewIterator(prefix.Bytes(), nil)
 	defer it.Release()
 	for it.Next() {
 		res = append(res, hash.BytesToEvent(it.Key()))

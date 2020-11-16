@@ -99,13 +99,15 @@ type Service struct {
 	done chan struct{}
 
 	// server
-	Name  string
-	Topic discv5.Topic
+	p2pServer *p2p.Server
+	Name      string
+	Topic     discv5.Topic
 
 	serverPool *serverPool
 
+	accountManager *accounts.Manager
+
 	// application
-	node                *node.ServiceContext
 	store               *Store
 	engine              lachesis.Consensus
 	dagIndexer          *vecmt.Index
@@ -133,13 +135,30 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(stack *node.Node, config *Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+	if config.TxPool.Journal != "" {
+		config.TxPool.Journal = stack.ResolvePath(config.TxPool.Journal)
+	}
+
+	svc, err := newService(config, store, signer, blockProc, engine, dagIndexer)
+	if err != nil {
+		return nil, err
+	}
+
+	svc.p2pServer = stack.Server()
+	svc.accountManager = stack.AccountManager()
+	// Create the net API service
+	svc.netRPCService = ethapi.NewPublicNetAPI(svc.p2pServer, svc.config.Net.NetworkID)
+
+	return svc, err
+}
+
+func newService(config *Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
 		config:         config,
 		wg:             sync.WaitGroup{},
 		done:           make(chan struct{}),
 		Name:           fmt.Sprintf("Node-%d", rand.Int()),
-		node:           ctx,
 		store:          store,
 		engine:         engine,
 		blockProc:      blockProc,
@@ -156,9 +175,6 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer v
 
 	// create tx pool
 	stateReader := svc.GetEvmStateReader()
-	if config.TxPool.Journal != "" {
-		config.TxPool.Journal = ctx.ResolvePath(config.TxPool.Journal)
-	}
 	svc.txpool = evmcore.NewTxPool(config.TxPool, config.Net.EvmChainConfig(), stateReader)
 
 	// create checkers
@@ -169,6 +185,9 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer v
 	// create protocol manager
 	var err error
 	svc.pm, err = NewProtocolManager(config, &svc.feed, svc.txpool, svc.engineMu, svc.checkers, store, svc.processEvent, svc.serverPool)
+	if err != nil {
+		return nil, err
+	}
 
 	// create API backend
 	svc.EthAPI = &EthAPIBackend{config.ExtRPCEnabled, svc, stateReader, nil}
@@ -183,7 +202,7 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer v
 
 	svc.emitter = svc.makeEmitter(signer)
 
-	return svc, err
+	return svc, nil
 }
 
 // makeCheckers builds event checkers
@@ -282,26 +301,23 @@ func (s *Service) APIs() []rpc.API {
 }
 
 // Start method invoked when the node is ready to start the service.
-func (s *Service) Start(srv *p2p.Server) error {
-	// Start the RPC service
-	s.netRPCService = ethapi.NewPublicNetAPI(srv, s.config.Net.NetworkID)
-
+func (s *Service) Start() error {
 	var genesis hash.Event
 	genesis = s.store.GetBlock(0).Atropos
 	s.Topic = discv5.Topic("opera@" + genesis.Hex())
 
-	if srv.DiscV5 != nil {
+	if s.p2pServer.DiscV5 != nil {
 		go func(topic discv5.Topic) {
 			s.Log.Info("Starting topic registration")
 			defer s.Log.Info("Terminated topic registration")
 
-			srv.DiscV5.RegisterTopic(topic, s.done)
+			s.p2pServer.DiscV5.RegisterTopic(topic, s.done)
 		}(s.Topic)
 	}
 
-	s.pm.Start(srv.MaxPeers)
+	s.pm.Start(s.p2pServer.MaxPeers)
 
-	s.serverPool.start(srv, s.Topic)
+	s.serverPool.start(s.p2pServer, s.Topic)
 
 	s.emitter.StartEventEmission()
 
@@ -326,5 +342,5 @@ func (s *Service) Stop() error {
 
 // AccountManager return node's account manager
 func (s *Service) AccountManager() *accounts.Manager {
-	return s.node.AccountManager
+	return s.accountManager
 }

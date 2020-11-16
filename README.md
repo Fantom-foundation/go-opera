@@ -61,7 +61,7 @@ docker run -d --name opera-node -v /home/alice/opera:/root \
 
 This will start `opera` with ```--port 5050 --nat extip:YOUR_IP``` arguments, with DB files inside ```/home/alice/opera/.opera```
 
-Do not forget `--rpcaddr 0.0.0.0`, if you plan to access RPC from other containers
+Do not forget `--http.addr 0.0.0.0`, if you plan to access RPC from other containers
 and/or hosts. By default, `opera` binds to the local interface and RPC endpoints is not
 accessible from the outside.
 

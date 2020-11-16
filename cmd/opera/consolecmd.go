@@ -77,7 +77,7 @@ JavaScript API. See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Cons
 // same time.
 func localConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
-	node := makeNode(ctx, makeAllConfigs(ctx))
+	node, _ := makeNode(ctx, makeAllConfigs(ctx))
 	startNode(ctx, node)
 	defer node.Close()
 
@@ -122,7 +122,7 @@ func remoteConsole(ctx *cli.Context) error {
 			path = ctx.GlobalString(utils.DataDirFlag.Name)
 		}
 		if path != "" {
-			if ctx.GlobalBool(utils.TestnetFlag.Name) {
+			if ctx.GlobalBool(utils.LegacyTestnetFlag.Name) {
 				path = filepath.Join(path, "testnet")
 			} else if ctx.GlobalBool(utils.RinkebyFlag.Name) {
 				path = filepath.Join(path, "rinkeby")
@@ -177,7 +177,7 @@ func dialRPC(endpoint string) (*rpc.Client, error) {
 // everything down.
 func ephemeralConsole(ctx *cli.Context) error {
 	// Create and start the node based on the CLI flags
-	node := makeNode(ctx, makeAllConfigs(ctx))
+	node, _ := makeNode(ctx, makeAllConfigs(ctx))
 	startNode(ctx, node)
 	defer node.Close()
 

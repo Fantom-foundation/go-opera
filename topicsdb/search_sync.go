@@ -27,7 +27,7 @@ func (tt *Index) fetchSync(topics [][]common.Hash) (res []*types.Log, err error)
 		copy(prefix[common.HashLength:], posToBytes(uint8(pos)))
 		for _, alternative := range cond {
 			copy(prefix[:], alternative[:])
-			it := tt.table.Topic.NewIteratorWithPrefix(prefix[:])
+			it := tt.table.Topic.NewIterator(prefix[:], nil)
 			for it.Next() {
 				id := extractLogrecID(it.Key())
 				topicCount := bytesToPos(it.Value())

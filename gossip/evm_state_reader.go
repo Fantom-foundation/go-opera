@@ -1,6 +1,8 @@
 package gossip
 
 import (
+	"math/big"
+
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/ethereum/go-ethereum/common"
@@ -9,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 type EvmStateReader struct {
@@ -22,6 +25,10 @@ func (s *Service) GetEvmStateReader() *EvmStateReader {
 		ServiceFeed: &s.feed,
 		store:       s.store,
 	}
+}
+
+func (r *EvmStateReader) MinGasPrice() *big.Int {
+	return params.MinGasPrice
 }
 
 func (r *EvmStateReader) CurrentBlock() *evmcore.EvmBlock {

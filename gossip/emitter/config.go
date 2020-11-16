@@ -39,7 +39,7 @@ type Config struct {
 
 	EpochTailLength idx.Frame // number of frames before event is considered epoch
 
-	MaxParents int
+	MaxParents uint32
 
 	// thresholds on GasLeft
 	SmoothTpsThreshold uint64

@@ -60,7 +60,7 @@ func NewStore(mainDb kvdb.Store, cfg StoreConfig) *Store {
 
 	evmTable := nokeyiserr.Wrap(table.New(s.mainDb, []byte("M"))) // ETH expects that "not found" is an error
 	s.table.Evm = rawdb.NewDatabase(kvdb2ethdb.Wrap(evmTable))
-	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16)
+	s.table.EvmState = state.NewDatabaseWithCache(s.table.Evm, 16, "")
 	s.table.EvmLogs = topicsdb.New(table.New(s.mainDb, []byte("L")))
 
 	s.initCache()
@@ -85,7 +85,7 @@ func (s *Store) Commit() error {
 
 // StateDB returns state database.
 func (s *Store) StateDB(from hash.Hash) *state.StateDB {
-	db, err := state.New(common.Hash(from), s.table.EvmState)
+	db, err := state.New(common.Hash(from), s.table.EvmState, nil)
 	if err != nil {
 		s.Log.Crit("Failed to open state", "err", err)
 	}

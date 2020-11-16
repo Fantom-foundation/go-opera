@@ -178,7 +178,7 @@ func (s *Store) has(table kvdb.Store, key []byte) bool {
 }
 
 func (s *Store) rmPrefix(t kvdb.Store, prefix string) {
-	it := t.NewIteratorWithPrefix([]byte(prefix))
+	it := t.NewIterator([]byte(prefix), nil)
 	defer it.Release()
 
 	s.dropTable(it, t)

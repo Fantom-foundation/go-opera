@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
@@ -375,7 +376,7 @@ func (em *Emitter) createEvent(poolTxs map[common.Address]types.Transactions) *i
 	}
 
 	// calc Merkle root
-	mutEvent.SetTxHash(hash.Hash(types.DeriveSha(mutEvent.Txs())))
+	mutEvent.SetTxHash(hash.Hash(types.DeriveSha(mutEvent.Txs(), new(trie.Trie))))
 
 	// sign
 	bSig, err := em.world.Signer.Sign(em.config.Validator.PubKey, mutEvent.HashToSign().Bytes())

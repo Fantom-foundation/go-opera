@@ -22,9 +22,9 @@ import (
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/Fantom-foundation/go-opera/inter"
 )
@@ -118,5 +118,5 @@ func (b *EvmBlock) EthBlock() *types.Block {
 	if b == nil {
 		return nil
 	}
-	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil)
+	return types.NewBlock(b.EvmHeader.EthHeader(), b.Transactions, nil, nil, new(trie.Trie))
 }

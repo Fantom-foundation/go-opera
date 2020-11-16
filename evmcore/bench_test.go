@@ -80,7 +80,7 @@ func genValueTx(nbytes int) func(int, *BlockGen) {
 	return func(i int, gen *BlockGen) {
 		toaddr := common.Address{}
 		data := make([]byte, nbytes)
-		gas, _ := IntrinsicGas(data, false, false)
+		gas, _ := IntrinsicGas(data, false)
 		tx, _ := types.SignTx(types.NewTransaction(gen.TxNonce(benchRootAddr), toaddr, big.NewInt(1), gas, nil, data), types.HomesteadSigner{}, benchRootKey)
 		gen.AddTx(tx)
 	}
@@ -157,6 +157,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	}
 
 	genesisBlock := MustApplyGenesis(net, db)
+	genesisBlock.GasLimit = 1000000
 
 	// Time the insertion of the new chain.
 	// State and blocks are stored in the same DB.

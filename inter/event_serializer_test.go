@@ -74,7 +74,7 @@ func TestEventPayloadSerialization(t *testing.T) {
 				return
 			}
 			for i := range header0.payloadData.txs {
-				if !assert.EqualValues(t, header0.payloadData.txs[i], header1.payloadData.txs[i], name) {
+				if !assert.EqualValues(t, header0.payloadData.txs[i].Hash(), header1.payloadData.txs[i].Hash(), name) {
 					return
 				}
 			}

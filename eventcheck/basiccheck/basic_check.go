@@ -45,7 +45,7 @@ func (v *Checker) validateTx(tx *types.Transaction) error {
 		return ErrNegativeValue
 	}
 	// Ensure the transaction has more gas than the basic tx fee.
-	intrGas, err := evmcore.IntrinsicGas(tx.Data(), tx.To() == nil, true)
+	intrGas, err := evmcore.IntrinsicGas(tx.Data(), tx.To() == nil)
 	if err != nil {
 		return err
 	}
@@ -74,8 +74,8 @@ func CalcGasPowerUsed(e inter.EventPayloadI, config *opera.DagConfig) uint64 {
 	}
 
 	parentsGas := uint64(0)
-	if len(e.Parents()) > config.MaxFreeParents {
-		parentsGas = uint64(len(e.Parents())-config.MaxFreeParents) * params.ParentGas
+	if uint32(len(e.Parents())) > config.MaxFreeParents {
+		parentsGas = uint64(uint32(len(e.Parents()))-config.MaxFreeParents) * params.ParentGas
 	}
 	extraGas := uint64(len(e.Extra())) * params.ExtraDataGas
 
@@ -104,7 +104,7 @@ func (v *Checker) Validate(e inter.EventPayloadI) error {
 	if e.CreationTime() <= 0 || e.MedianTime() <= 0 {
 		return ErrZeroTime
 	}
-	if len(e.Parents()) > v.config.MaxParents {
+	if uint32(len(e.Parents())) > v.config.MaxParents {
 		return ErrTooManyParents
 	}
 	if err := v.checkGas(e); err != nil {

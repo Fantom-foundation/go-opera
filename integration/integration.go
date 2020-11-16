@@ -3,18 +3,18 @@ package integration
 import (
 	"time"
 
-	"github.com/Fantom-foundation/go-opera/inter/validator"
-	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/ethereum/go-ethereum/crypto"
-
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 )
 
 // NewIntegration creates gossip service for the integration test
-func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.Service {
+func NewIntegration(ctx *adapters.ServiceContext, network opera.Config, stack *node.Node) *gossip.Service {
 	gossipCfg := gossip.DefaultConfig(network)
 
 	engine, dagIndex, _, gdb, blockProc := MakeEngine(ctx.Config.DataDir, &gossipCfg)
@@ -42,7 +42,7 @@ func NewIntegration(ctx *adapters.ServiceContext, network opera.Config) *gossip.
 	gossipCfg.Emitter.EmitIntervals.Max = 3 * time.Second
 	gossipCfg.Emitter.EmitIntervals.DoublesignProtection = 0
 
-	svc, err := gossip.NewService(ctx.NodeContext, &gossipCfg, gdb, signer, blockProc, engine, dagIndex)
+	svc, err := gossip.NewService(stack, &gossipCfg, gdb, signer, blockProc, engine, dagIndex)
 	if err != nil {
 		panic(err)
 	}

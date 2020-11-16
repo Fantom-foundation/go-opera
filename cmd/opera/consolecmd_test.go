@@ -67,7 +67,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
 		"--ipcpath", ipc)
 
-	waitForEndpoint(t, ipc, 10*time.Second)
+	waitForEndpoint(t, ipc, 60*time.Second)
 	testAttachWelcome(t, cli, "ipc:"+ipc, ipcAPIs)
 
 	cli.Kill()
@@ -78,10 +78,10 @@ func TestHTTPAttachWelcome(t *testing.T) {
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--rpc", "--rpcport", port)
+		"--http", "--http.port", port)
 
 	endpoint := "http://127.0.0.1:" + port
-	waitForEndpoint(t, endpoint, 10*time.Second)
+	waitForEndpoint(t, endpoint, 60*time.Second)
 	testAttachWelcome(t, cli, "http://localhost:"+port, httpAPIs)
 
 	cli.Kill()
@@ -93,10 +93,10 @@ func TestWSAttachWelcome(t *testing.T) {
 
 	cli := exec(t,
 		"--port", "0", "--maxpeers", "0", "--nodiscover", "--nat", "none",
-		"--ws", "--wsport", port)
+		"--ws", "--ws.port", port)
 
 	endpoint := "ws://127.0.0.1:" + port
-	waitForEndpoint(t, endpoint, 10*time.Second)
+	waitForEndpoint(t, endpoint, 60*time.Second)
 	testAttachWelcome(t, cli, "ws://localhost:"+port, httpAPIs)
 
 	cli.Kill()
@@ -143,5 +143,5 @@ func trulyRandInt(lo, hi int) int {
 func genesisStart() string {
 	g := genesis.MainGenesis()
 	s := g.Time.Unix()
-	return time.Unix(s, 0).Format(time.RFC1123)
+	return time.Unix(s, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 }

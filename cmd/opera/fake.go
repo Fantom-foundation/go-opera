@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/ethereum/go-ethereum/log"
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
@@ -20,10 +19,15 @@ var FakeNetFlag = cli.StringFlag{
 	Usage: "'n/N[,non-validators]' - sets coinbase as fake n-th key from genesis of N validators. Non-validators is a count or json-file.",
 }
 
+var LegacyTestnetFlag = cli.BoolFlag{
+	Name:  "testnet",
+	Usage: "Pre-configured test network",
+}
+
 func getFakeValidatorKey(ctx *cli.Context) *ecdsa.PrivateKey {
 	num, _, err := parseFakeGen(ctx.GlobalString(FakeNetFlag.Name))
 	if err != nil {
-		log.Crit("Invalid flag", "flag", FakeNetFlag.Name, "err", err)
+		return nil
 	}
 
 	if num == 0 {
