@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/Fantom-foundation/go-opera/app"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
@@ -28,7 +28,7 @@ type Store struct {
 	async *asyncStore
 
 	mainDB kvdb.Store
-	app    *app.Store
+	evm    *evmstore.Store
 	table  struct {
 		Version kvdb.Store `table:"_"`
 
@@ -41,16 +41,8 @@ type Store struct {
 		Packs      kvdb.Store `table:"P"`
 		PacksNum   kvdb.Store `table:"n"`
 
-		// gas power economy tables
-		LastEpochHeaders kvdb.Store `table:"l"`
-
-		// API-only tables
-		BlockHashes     kvdb.Store `table:"h"`
-		TxPositions     kvdb.Store `table:"x"`
-		DecisiveEvents  kvdb.Store `table:"9"`
-		EventLocalTimes kvdb.Store `table:"!"`
-
-		TmpDbs kvdb.Store `table:"T"`
+		// API-only
+		BlockHashes kvdb.Store `table:"B"`
 	}
 
 	epochStore atomic.Value
@@ -60,7 +52,6 @@ type Store struct {
 		EventsHeaders *lru.Cache   `cache:"-"` // store by pointer
 		Blocks        *lru.Cache   `cache:"-"` // store by pointer
 		PackInfos     *lru.Cache   `cache:"-"` // store by value
-		TxPositions   *lru.Cache   `cache:"-"` // store by pointer
 		BlockHashes   *lru.Cache   `cache:"-"` // store by pointer
 		BlockState    atomic.Value // store by pointer
 		EpochState    atomic.Value // store by pointer
@@ -78,13 +69,12 @@ func NewMemStore() *Store {
 	mems := memorydb.NewProducer("")
 	dbs := flushable.NewSyncedPool(mems)
 	cfg := LiteStoreConfig()
-	appCfg := app.LiteStoreConfig()
 
-	return NewStore(dbs, cfg, appCfg)
+	return NewStore(dbs, cfg)
 }
 
 // NewStore creates store over key-value db.
-func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig, appCfg app.StoreConfig) *Store {
+func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig) *Store {
 	s := &Store{
 		dbs:      dbs,
 		cfg:      cfg,
@@ -96,7 +86,7 @@ func NewStore(dbs *flushable.SyncedPool, cfg StoreConfig, appCfg app.StoreConfig
 	table.MigrateTables(&s.table, s.mainDB)
 
 	s.initCache()
-	s.app = app.NewStore(s.mainDB, appCfg)
+	s.evm = evmstore.NewStore(s.mainDB, cfg.EVM)
 
 	return s
 }
@@ -106,7 +96,6 @@ func (s *Store) initCache() {
 	s.cache.EventsHeaders = s.makeCache(s.cfg.EventsHeadersCacheSize)
 	s.cache.Blocks = s.makeCache(s.cfg.BlockCacheSize)
 	s.cache.PackInfos = s.makeCache(s.cfg.PackInfosCacheSize)
-	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
 	s.cache.BlockHashes = s.makeCache(s.cfg.BlockCacheSize)
 }
 
@@ -138,7 +127,9 @@ func (s *Store) Commit(flushID []byte, immediately bool) error {
 	}
 
 	// Flush the DBs
-	err := s.app.Commit()
+	s.FlushBlockState()
+	s.FlushEpochState()
+	err := s.evm.Commit()
 	if err != nil {
 		return err
 	}

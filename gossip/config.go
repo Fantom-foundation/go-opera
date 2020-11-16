@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
+	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/params"
@@ -60,14 +61,8 @@ type (
 		BlockCacheSize int
 		// Cache size for PackInfos.
 		PackInfosCacheSize int
-		// Cache size for TxPositions.
-		TxPositionsCacheSize int
-
-		// NOTE: fields for config-file back compatibility
-		// Cache size for Receipts.
-		ReceiptsCacheSize int
-		// Cache size for Stakers.
-		StakersCacheSize int
+		// EVM is EVM store config
+		EVM evmstore.StoreConfig
 	}
 )
 
@@ -95,11 +90,7 @@ func DefaultConfig(network opera.Config) Config {
 	}
 
 	if network.NetworkID == opera.FakeNetworkID {
-		cfg.Emitter = emitter.FakeEmitterConfig()
-		// disable self-fork protection if fakenet 1/1
-		if len(network.Genesis.Alloc.Validators) == 1 {
-			cfg.Emitter.EmitIntervals.DoublesignProtection = 0
-		}
+		cfg.Emitter = emitter.FakeEmitterConfig(len(network.Genesis.Alloc.Validators))
 	}
 	/*if network.NetworkId == opera.DevNetworkId { // TODO dev network
 		cfg.TxPool = evmcore.FakeTxPoolConfig()
@@ -116,7 +107,7 @@ func DefaultStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 10000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		TxPositionsCacheSize:   1000,
+		EVM:                    evmstore.DefaultStoreConfig(),
 	}
 }
 
@@ -127,6 +118,6 @@ func LiteStoreConfig() StoreConfig {
 		EventsHeadersCacheSize: 1000,
 		BlockCacheSize:         100,
 		PackInfosCacheSize:     100,
-		TxPositionsCacheSize:   100,
+		EVM:                    evmstore.LiteStoreConfig(),
 	}
 }

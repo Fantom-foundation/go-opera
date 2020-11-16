@@ -1,4 +1,4 @@
-package gossip
+package blockproc
 
 import (
 	"math/big"
@@ -8,17 +8,21 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 
 	"github.com/Fantom-foundation/go-opera/inter"
-	"github.com/Fantom-foundation/go-opera/inter/sfctype"
 )
 
 type ValidatorBlockState struct {
-	PrevEvent        hash.Event
+	Cheater          bool
+	LastEvent        hash.Event
 	Uptime           inter.Timestamp
-	PrevMedianTime   inter.Timestamp
-	PrevGasPowerLeft inter.GasPowerLeft
-	PrevBlock        idx.Block
+	LastMedianTime   inter.Timestamp
+	LastGasPowerLeft inter.GasPowerLeft
+	LastBlock        idx.Block
 	DirtyGasRefund   uint64
 	Originated       *big.Int
+}
+
+var DefaultValidatorBlockState = ValidatorBlockState{
+	Originated: new(big.Int),
 }
 
 type ValidatorEpochState struct {
@@ -27,11 +31,11 @@ type ValidatorEpochState struct {
 }
 
 type BlockState struct {
-	Block       idx.Block
+	LastBlock   idx.Block
 	EpochBlocks idx.Block
-	EpochFee    *big.Int
 
-	ValidatorStates []ValidatorBlockState
+	ValidatorStates       []ValidatorBlockState
+	NextValidatorProfiles ValidatorProfiles
 }
 
 func (bs *BlockState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorBlockState {
@@ -41,12 +45,12 @@ func (bs *BlockState) GetValidatorState(id idx.ValidatorID, validators *pos.Vali
 
 type EpochState struct {
 	Epoch          idx.Epoch
-	Validators     *pos.Validators
 	EpochStart     inter.Timestamp
 	PrevEpochStart inter.Timestamp
 
+	Validators        *pos.Validators
 	ValidatorStates   []ValidatorEpochState
-	ValidatorProfiles []sfctype.SfcStakerAndID
+	ValidatorProfiles ValidatorProfiles
 }
 
 func (es *EpochState) GetValidatorState(id idx.ValidatorID, validators *pos.Validators) *ValidatorEpochState {

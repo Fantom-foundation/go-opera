@@ -93,7 +93,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb := b.svc.store.app.StateDB(hash.Hash(header.Root))
+	stateDb := b.svc.store.evm.StateDB(hash.Hash(header.Root))
 	return stateDb, header, nil
 }
 
@@ -261,7 +261,7 @@ func (b *EthAPIBackend) GetReceiptsByNumber(ctx context.Context, number rpc.Bloc
 		number = rpc.BlockNumber(header.Number.Uint64())
 	}
 
-	receipts := b.svc.store.app.GetReceipts(idx.Block(number))
+	receipts := b.svc.store.evm.GetReceipts(idx.Block(number))
 	return receipts, nil
 }
 
@@ -342,22 +342,27 @@ func (b *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		return nil, 0, 0, errors.New("transactions index is disabled (enable TxIndex and re-process the DAG)")
 	}
 
-	position := b.svc.store.GetTxPosition(txHash)
+	position := b.svc.store.evm.GetTxPosition(txHash)
 	if position == nil {
 		return nil, 0, 0, nil
 	}
 
-	event := b.svc.store.GetEventPayload(position.Event)
-	if position.EventOffset > uint32(event.Txs().Len()) {
-		return nil, 0, 0, fmt.Errorf("transactions index is corrupted (offset is larger than number of txs in event), event=%s, txid=%s, block=%d, offset=%d, txs_num=%d",
-			position.Event.String(),
-			txHash.String(),
-			position.Block,
-			position.EventOffset,
-			event.Txs().Len())
+	var tx *types.Transaction
+	if position.Event.IsZero() {
+		tx = b.svc.store.evm.GetTx(txHash)
+	} else {
+		event := b.svc.store.GetEventPayload(position.Event)
+		if position.EventOffset > uint32(event.Txs().Len()) {
+			return nil, 0, 0, fmt.Errorf("transactions index is corrupted (offset is larger than number of txs in event), event=%s, txid=%s, block=%d, offset=%d, txs_num=%d",
+				position.Event.String(),
+				txHash.String(),
+				position.Block,
+				position.EventOffset,
+				event.Txs().Len())
+		}
+		tx = event.Txs()[position.EventOffset]
 	}
 
-	tx := event.Txs()[position.EventOffset]
 	return tx, uint64(position.Block), uint64(position.BlockOffset), nil
 }
 
@@ -404,7 +409,7 @@ func (b *EthAPIBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 }
 
 func (b *EthAPIBackend) ChainDb() ethdb.Database {
-	return b.svc.store.app.EvmTable()
+	return b.svc.store.evm.EvmTable()
 }
 
 func (b *EthAPIBackend) AccountManager() *accounts.Manager {
@@ -420,7 +425,7 @@ func (b *EthAPIBackend) RPCGasCap() *big.Int {
 }
 
 func (b *EthAPIBackend) EvmLogIndex() *topicsdb.Index {
-	return b.svc.store.app.EvmLogs()
+	return b.svc.store.evm.EvmLogs()
 }
 
 // CurrentEpoch returns current epoch number.

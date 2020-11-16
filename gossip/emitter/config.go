@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
-	"github.com/ethereum/go-ethereum/common"
 	_params "github.com/ethereum/go-ethereum/params"
 
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
@@ -20,26 +20,31 @@ type EmitIntervals struct {
 	DoublesignProtection       time.Duration
 }
 
+type ValidatorConfig struct {
+	ID     idx.ValidatorID
+	PubKey validator.PubKey
+}
+
 // Config is the configuration of events emitter.
 type Config struct {
 	VersionToPublish string
 
-	Validator common.Address `json:"validator"`
+	Validator ValidatorConfig
 
-	EmitIntervals EmitIntervals `json:"emitIntervals"` // event emission intervals
+	EmitIntervals EmitIntervals // event emission intervals
 
-	MaxGasRateGrowthFactor float64 `json:"maxGasRateGrowthFactor"` // fine to use float, because no need in determinism
+	MaxGasRateGrowthFactor float64 // fine to use float, because no need in determinism
 
-	MaxTxsFromSender int `json:"maxTxsFromSender"`
+	MaxTxsFromSender int
 
-	EpochTailLength idx.Frame `json:"epochTailLength"` // number of frames before event is considered epoch
+	EpochTailLength idx.Frame // number of frames before event is considered epoch
 
-	MaxParents int `json:"maxParents"`
+	MaxParents int
 
 	// thresholds on GasLeft
-	SmoothTpsThreshold uint64 `json:"smoothTpsThreshold"`
-	NoTxsThreshold     uint64 `json:"noTxsThreshold"`
-	EmergencyThreshold uint64 `json:"emergencyThreshold"`
+	SmoothTpsThreshold uint64
+	NoTxsThreshold     uint64
+	EmergencyThreshold uint64
 }
 
 // DefaultEmitterConfig returns the default configurations for the events emitter.
@@ -82,9 +87,13 @@ func (cfg *EmitIntervals) RandomizeEmitTime(r *rand.Rand) *EmitIntervals {
 }
 
 // FakeEmitterConfig returns the testing configurations for the events emitter.
-func FakeEmitterConfig() Config {
+func FakeEmitterConfig(num int) Config {
 	cfg := DefaultEmitterConfig()
 	cfg.EmitIntervals.Max = 10 * time.Second // don't wait long in fakenet
 	cfg.EmitIntervals.DoublesignProtection = cfg.EmitIntervals.Max * 3 / 2
+	if num <= 1 {
+		// disable self-fork protection if fakenet 1/1
+		cfg.EmitIntervals.DoublesignProtection = 0
+	}
 	return cfg
 }

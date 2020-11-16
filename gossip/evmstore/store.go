@@ -1,4 +1,4 @@
-package app
+package evmstore
 
 import (
 	"sync"
@@ -26,26 +26,10 @@ type Store struct {
 
 	mainDb kvdb.Store
 	table  struct {
-		// score economy tables
-		ActiveValidationScore  kvdb.Store `table:"V"`
-		DirtyValidationScore   kvdb.Store `table:"v"`
-		ActiveOriginationScore kvdb.Store `table:"O"`
-		DirtyOriginationScore  kvdb.Store `table:"o"`
-		BlockDowntime          kvdb.Store `table:"m"`
-
-		// gas power economy tables
-		GasPowerRefund kvdb.Store `table:"R"`
-
-		// SFC-related economy tables
-		Validators  kvdb.Store `table:"1"`
-		Stakers     kvdb.Store `table:"2"`
-		TotalSupply kvdb.Store `table:"5"`
-
 		// API-only tables
-		Receipts                    kvdb.Store `table:"r"`
-		DelegationOldRewards        kvdb.Store `table:"6"`
-		StakerOldRewards            kvdb.Store `table:"7"`
-		StakerDelegationsOldRewards kvdb.Store `table:"8"`
+		Receipts    kvdb.Store `table:"r"`
+		TxPositions kvdb.Store `table:"x"`
+		Txs         kvdb.Store `table:"X"`
 
 		Evm      ethdb.Database
 		EvmState state.Database
@@ -53,10 +37,8 @@ type Store struct {
 	}
 
 	cache struct {
-		Receipts      *lru.Cache `cache:"-"` // store by value
-		Validators    *lru.Cache `cache:"-"` // store by pointer
-		Stakers       *lru.Cache `cache:"-"` // store by pointer
-		BlockDowntime *lru.Cache `cache:"-"` // store by pointer
+		TxPositions *lru.Cache `cache:"-"` // store by pointer
+		Receipts    *lru.Cache `cache:"-"` // store by value
 	}
 
 	mutex struct {
@@ -88,9 +70,7 @@ func NewStore(mainDb kvdb.Store, cfg StoreConfig) *Store {
 
 func (s *Store) initCache() {
 	s.cache.Receipts = s.makeCache(s.cfg.ReceiptsCacheSize)
-	s.cache.Validators = s.makeCache(2)
-	s.cache.Stakers = s.makeCache(s.cfg.StakersCacheSize)
-	s.cache.BlockDowntime = s.makeCache(256)
+	s.cache.TxPositions = s.makeCache(s.cfg.TxPositionsCacheSize)
 }
 
 // Commit changes.

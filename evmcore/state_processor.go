@@ -17,8 +17,6 @@
 package evmcore
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,45 +49,29 @@ func NewStateProcessor(config *params.ChainConfig, bc DummyChain) *StateProcesso
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *EvmBlock, statedb *state.StateDB, cfg vm.Config, strict bool) (types.Receipts, []*types.Log, uint64, *big.Int, []uint32, error) {
+func (p *StateProcessor) Process(block *EvmBlock, statedb *state.StateDB, cfg vm.Config, internal bool, onNewLog func(*types.Log, *state.StateDB)) (types.Receipts, []*types.Log, uint64, []uint32, error) {
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
 		allLogs  []*types.Log
 		gp       = new(GasPool).AddGas(block.GasLimit)
 		skipped  = make([]uint32, 0, len(block.Transactions))
-		totalFee = new(big.Int)
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions {
 		statedb.Prepare(tx.Hash(), block.Hash, i)
-		receipt, _, fee, skip, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, block.Header(), tx, usedGas, cfg, strict)
-		if !strict && (skip || err != nil) {
+		receipt, _, skip, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, block.Header(), tx, usedGas, cfg, internal, onNewLog)
+		if skip {
 			skipped = append(skipped, uint32(i))
 			continue
+		} else if err != nil {
+			return nil, nil, 0, nil, err
 		}
-		totalFee.Add(totalFee, fee)
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 
-	return receipts, allLogs, *usedGas, totalFee, skipped, nil
-}
-
-func TransactionPreCheck(statedb *state.StateDB, msg types.Message, tx *types.Transaction) error {
-	nonce := statedb.GetNonce(msg.From())
-	if nonce < msg.Nonce() {
-		return ErrNonceTooHigh
-	} else if nonce > msg.Nonce() {
-		return ErrNonceTooLow
-	}
-
-	balance := statedb.GetBalance(msg.From())
-	if balance.Cmp(tx.Cost()) < 0 {
-		return ErrInsufficientFunds
-	}
-
-	return nil
+	return receipts, allLogs, *usedGas, skipped, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
@@ -106,26 +88,23 @@ func ApplyTransaction(
 	tx *types.Transaction,
 	usedGas *uint64,
 	cfg vm.Config,
-	strict bool,
+	internal bool,
+	onNewLog func(*types.Log, *state.StateDB),
 ) (
 	*types.Receipt,
 	uint64,
-	*big.Int,
 	bool,
 	error,
 ) {
-	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
-	if err != nil {
-		return nil, 0, common.Big0, false, err
-	}
-
-	if !strict {
-		// the reason why we check here is to avoid spending sender's gas in a case if tx failed (due to insufficient balance or wrong nonce)
-		// the transaction has already spent validator's gas power
-		err = TransactionPreCheck(statedb, msg, tx)
+	var msg types.Message
+	var err error
+	if !internal {
+		msg, err = tx.AsMessage(types.MakeSigner(config, header.Number))
 		if err != nil {
-			return nil, 0, common.Big0, true, err
+			return nil, 0, false, err
 		}
+	} else {
+		msg = types.NewMessage(common.Address{}, tx.To(), tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), tx.Data(), false)
 	}
 
 	// Create a new context to be used in the EVM environment
@@ -134,9 +113,14 @@ func ApplyTransaction(
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewEVM(context, statedb, config, cfg)
 	// Apply the transaction to the current state (included in the env)
-	_, gas, fee, failed, err := ApplyMessage(vmenv, msg, gp)
+	_, gas, failed, skip, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
-		return nil, 0, fee, false, err
+		return nil, 0, skip, err
+	}
+	// Notify about logs with potential state changes
+	logs := statedb.GetLogs(tx.Hash())
+	for _, l := range logs {
+		onNewLog(l, statedb)
 	}
 	// Update the state with pending changes
 	var root []byte
@@ -157,10 +141,10 @@ func ApplyTransaction(
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 	}
 	// Set the receipt logs
-	receipt.Logs = statedb.GetLogs(tx.Hash())
+	receipt.Logs = logs
 	receipt.BlockHash = statedb.BlockHash()
 	receipt.BlockNumber = header.Number
 	receipt.TransactionIndex = uint(statedb.TxIndex())
 
-	return receipt, gas, fee, false, err
+	return receipt, gas, false, err
 }

@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/Fantom-foundation/go-opera/crypto"
+	"github.com/Fantom-foundation/go-opera/inter/validator"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
 )
 
 func TestFakeNetFlag_NonValidator(t *testing.T) {
@@ -63,7 +64,7 @@ func TestFakeNetFlag_Validator(t *testing.T) {
 
 	// Gather all the infos the welcome message needs to contain
 	va := readFakeValidator("3/3")
-	cli.Coinbase = strings.ToLower(va.Hex())
+	cli.Coinbase = "0x0000000000000000000000000000000000000000"
 	cli.SetTemplateFunc("goos", func() string { return runtime.GOOS })
 	cli.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
 	cli.SetTemplateFunc("gover", runtime.Version)
@@ -88,8 +89,10 @@ at block: 0 ({{niltime}})
 	cli.ExpectExit()
 
 	wantMessages := []string{
-		"Unlocked fake validator",
-		"=" + va.Hex(),
+		"Added fake validator key",
+		"pubkey=" + va.String(),
+		"Unlocked validator key",
+		"pubkey=" + va.String(),
 	}
 	for _, m := range wantMessages {
 		if !strings.Contains(cli.StderrText(), m) {
@@ -98,7 +101,7 @@ at block: 0 ({{niltime}})
 	}
 }
 
-func readFakeValidator(fakenet string) *common.Address {
+func readFakeValidator(fakenet string) *validator.PubKey {
 	n, _, err := parseFakeGen(fakenet)
 	if err != nil {
 		panic(err)
@@ -108,6 +111,8 @@ func readFakeValidator(fakenet string) *common.Address {
 		return nil
 	}
 
-	addr := crypto.PubkeyToAddress(crypto.FakeKey(n).PublicKey)
-	return &addr
+	return &validator.PubKey{
+		Raw:  crypto.FromECDSAPub(&genesis.FakeKey(int(n)).PublicKey),
+		Type: "secp256k1",
+	}
 }

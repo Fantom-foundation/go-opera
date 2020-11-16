@@ -16,8 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
-	"github.com/Fantom-foundation/go-opera/app"
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/evmmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sealmodule"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sfcmodule"
 	"github.com/Fantom-foundation/go-opera/utils/adapters/vecmt2dagidx"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
@@ -41,14 +44,10 @@ func (g *GossipStoreAdapter) GetEvent(id hash.Event) dag.Event {
 }
 
 // MakeEngine makes consensus engine from config.
-func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecmt.Index, *flushable.SyncedPool, *gossip.Store) {
+func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecmt.Index, *flushable.SyncedPool, *gossip.Store, gossip.BlockProc) {
 	dbs := flushable.NewSyncedPool(DBProducer(dataDir))
 
-	appStoreConfig := app.StoreConfig{
-		ReceiptsCacheSize: gossipCfg.ReceiptsCacheSize,
-		StakersCacheSize:  gossipCfg.StakersCacheSize,
-	}
-	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig, appStoreConfig)
+	gdb := gossip.NewStore(dbs, gossipCfg.StoreConfig)
 
 	cMainDb := dbs.GetDb("opera")
 	cGetEpochDB := func(epoch idx.Epoch) kvdb.DropableStore {
@@ -58,11 +57,21 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecm
 
 	// write genesis
 
+	blockProc := gossip.BlockProc{
+		SealerModule:        sealmodule.New(gossipCfg.Net),
+		TxListenerModule:    sfcmodule.NewSfcTxListenerModule(gossipCfg.Net),
+		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(gossipCfg.Net),
+		PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(gossipCfg.Net),
+		PostTxTransactor:    sfcmodule.NewSfcTxTransactor(gossipCfg.Net),
+		EventsModule:        eventmodule.New(gossipCfg.Net),
+		EVMModule:           evmmodule.New(gossipCfg.Net),
+	}
+
 	err := gdb.Migrate()
 	if err != nil {
 		utils.Fatalf("Failed to migrate Gossip DB: %v", err)
 	}
-	genesisAtropos, _, isNew, err := gdb.ApplyGenesis(&gossipCfg.Net)
+	genesisAtropos, isNew, err := gdb.ApplyGenesis(blockProc, &gossipCfg.Net)
 	if err != nil {
 		utils.Fatalf("Failed to write Gossip genesis state: %v", err)
 	}
@@ -93,7 +102,7 @@ func MakeEngine(dataDir string, gossipCfg *gossip.Config) (*abft.Lachesis, *vecm
 	vecClock := vecmt.NewIndex(panics("Vector clock"), vecmt.DefaultConfig())
 	engine := abft.NewLachesis(cdb, &GossipStoreAdapter{gdb}, vecmt2dagidx.Wrap(vecClock), panics("Lachesis"), abft.DefaultConfig())
 
-	return engine, vecClock, dbs, gdb
+	return engine, vecClock, dbs, gdb, blockProc
 }
 
 // SetAccountKey sets key into accounts manager and unlocks it with pswd.

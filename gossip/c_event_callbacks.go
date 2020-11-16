@@ -16,6 +16,11 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
+var (
+	errStopped         = errors.New("service is stopped")
+	errWrongMedianTime = errors.New("wrong event median time")
+)
+
 func (s *Service) buildEvent(e *inter.MutableEventPayload) error {
 	// set some unique ID
 	e.SetID(s.uniqueEventIDs.sample())
@@ -83,6 +88,9 @@ func (s *Service) processEvent(e *inter.EventPayload) error {
 	if e.MedianTime() != s.dagIndexer.MedianTime(e.ID(), s.store.GetEpochState().EpochStart) {
 		return errWrongMedianTime
 	}
+
+	// index originated txs
+	_ = s.occurredTxs.CollectNotConfirmedTxs(e.Txs())
 
 	// aBFT processing
 	err = s.engine.Process(e)

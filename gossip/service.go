@@ -30,6 +30,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/eventcheck/heavycheck"
 	"github.com/Fantom-foundation/go-opera/eventcheck/parentscheck"
 	"github.com/Fantom-foundation/go-opera/evmcore"
+	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/gossip/filters"
 	"github.com/Fantom-foundation/go-opera/gossip/gasprice"
@@ -37,6 +38,7 @@ import (
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/valkeystore"
 	"github.com/Fantom-foundation/go-opera/vecmt"
 )
 
@@ -79,6 +81,16 @@ func (f *ServiceFeed) SubscribeNewLogs(ch chan<- []*types.Log) notify.Subscripti
 	return f.scope.Track(f.newLogs.Subscribe(ch))
 }
 
+type BlockProc struct {
+	SealerModule        blockproc.SealerModule
+	TxListenerModule    blockproc.TxListenerModule
+	GenesisTxTransactor blockproc.TxTransactor
+	PreTxTransactor     blockproc.TxTransactor
+	PostTxTransactor    blockproc.TxTransactor
+	EventsModule        blockproc.ConfirmedEventsModule
+	EVMModule           blockproc.EVM
+}
+
 // Service implements go-ethereum/node.Service interface.
 type Service struct {
 	config *Config
@@ -106,6 +118,8 @@ type Service struct {
 	checkers            *eventcheck.Checkers
 	uniqueEventIDs      uniqueID
 
+	blockProc BlockProc
+
 	feed ServiceFeed
 
 	// application protocol
@@ -119,7 +133,7 @@ type Service struct {
 	logger.Instance
 }
 
-func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
+func NewService(ctx *node.ServiceContext, config *Config, store *Store, signer valkeystore.SignerI, blockProc BlockProc, engine lachesis.Consensus, dagIndexer *vecmt.Index) (*Service, error) {
 	svc := &Service{
 		config:         config,
 		wg:             sync.WaitGroup{},
@@ -128,6 +142,7 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine l
 		node:           ctx,
 		store:          store,
 		engine:         engine,
+		blockProc:      blockProc,
 		dagIndexer:     dagIndexer,
 		engineMu:       new(sync.RWMutex),
 		occurredTxs:    occuredtxs.New(txsRingBufferSize, types.NewEIP155Signer(config.Net.EvmChainConfig().ChainID)),
@@ -166,6 +181,8 @@ func NewService(ctx *node.ServiceContext, config *Config, store *Store, engine l
 		return svc.store.GetEvent(id)
 	})
 
+	svc.emitter = svc.makeEmitter(signer)
+
 	return svc, err
 }
 
@@ -187,7 +204,7 @@ func makeCheckers(net *opera.Config, heavyCheckReader *HeavyCheckReader, gasPowe
 	}
 }
 
-func (s *Service) makeEmitter() *emitter.Emitter {
+func (s *Service) makeEmitter(signer valkeystore.SignerI) *emitter.Emitter {
 	// randomize event time to decrease peak load, and increase chance of catching double instances of validator
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	emitterCfg := s.config.Emitter // copy data
@@ -198,7 +215,7 @@ func (s *Service) makeEmitter() *emitter.Emitter {
 			Store:       s.store,
 			EngineMu:    s.engineMu,
 			Txpool:      s.txpool,
-			Am:          s.AccountManager(),
+			Signer:      signer,
 			OccurredTxs: s.occurredTxs,
 			Check: func(emitted *inter.EventPayload, parents inter.Events) error {
 				// sanity check
@@ -286,8 +303,6 @@ func (s *Service) Start(srv *p2p.Server) error {
 
 	s.serverPool.start(srv, s.Topic)
 
-	s.emitter = s.makeEmitter()
-	s.emitter.SetValidator(s.config.Emitter.Validator)
 	s.emitter.StartEventEmission()
 
 	return nil

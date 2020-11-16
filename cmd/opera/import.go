@@ -23,6 +23,7 @@ import (
 
 	"github.com/Fantom-foundation/go-opera/eventcheck"
 	"github.com/Fantom-foundation/go-opera/gossip"
+	"github.com/Fantom-foundation/go-opera/gossip/emitter"
 	"github.com/Fantom-foundation/go-opera/inter"
 )
 
@@ -33,7 +34,7 @@ func importChain(ctx *cli.Context) error {
 
 	// avoid P2P interaction, API calls and events emitting
 	cfg := makeAllConfigs(ctx)
-	cfg.Lachesis.Emitter.Validator = common.Address{}
+	cfg.Lachesis.Emitter.Validator = emitter.ValidatorConfig{}
 	cfg.Lachesis.TxPool.Journal = ""
 	cfg.Node.IPCPath = ""
 	cfg.Node.HTTPHost = ""

@@ -3,9 +3,11 @@ package gpos
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type (
@@ -13,6 +15,7 @@ type (
 	Validator struct {
 		ID      idx.ValidatorID
 		Address common.Address
+		PubKey  validator.PubKey
 		Stake   *big.Int
 	}
 
@@ -22,8 +25,8 @@ type (
 // Build converts Validators to Validators
 func (gv Validators) Build() *pos.Validators {
 	builder := pos.NewBigBuilder()
-	for _, validator := range gv {
-		builder.Set(validator.ID, validator.Stake)
+	for _, val := range gv {
+		builder.Set(val.ID, val.Stake)
 	}
 	return builder.Build()
 }
@@ -31,8 +34,8 @@ func (gv Validators) Build() *pos.Validators {
 // TotalStake returns sum of stakes
 func (gv Validators) TotalStake() *big.Int {
 	totalStake := new(big.Int)
-	for _, validator := range gv {
-		totalStake.Add(totalStake, validator.Stake)
+	for _, val := range gv {
+		totalStake.Add(totalStake, val.Stake)
 	}
 	return totalStake
 }
@@ -40,10 +43,19 @@ func (gv Validators) TotalStake() *big.Int {
 // Map converts Validators to map
 func (gv Validators) Map() map[idx.ValidatorID]Validator {
 	validators := map[idx.ValidatorID]Validator{}
-	for _, validator := range gv {
-		validators[validator.ID] = validator
+	for _, val := range gv {
+		validators[val.ID] = val
 	}
 	return validators
+}
+
+// PubKeys returns not sorted genesis pub keys
+func (gv Validators) PubKeys() []validator.PubKey {
+	res := make([]validator.PubKey, 0, len(gv))
+	for _, v := range gv {
+		res = append(res, v.PubKey)
+	}
+	return res
 }
 
 // Addresses returns not sorted genesis addresses
