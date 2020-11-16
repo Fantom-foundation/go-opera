@@ -4,206 +4,231 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-
 	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/dag"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc"
 	"github.com/Fantom-foundation/go-opera/gossip/evmstore"
+	"github.com/Fantom-foundation/go-opera/gossip/occuredtxs"
 	"github.com/Fantom-foundation/go-opera/inter"
+	"github.com/Fantom-foundation/go-opera/opera"
 )
 
 func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 	return lachesis.ConsensusCallbacks{
-		BeginBlock: func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
-			start := time.Now()
+		BeginBlock: consensusCallbackBeginBlockFn(
+			s.config.Net,
+			s.store,
+			s.blockProc,
+			s.config.TxIndex,
+			&s.feed,
+			s.occurredTxs,
+		),
+	}
+}
 
-			bs := s.store.GetBlockState()
-			es := s.store.GetEpochState()
+// consensusCallbackBeginBlockFn takes only necessaries for block processing.
+func consensusCallbackBeginBlockFn(
+	network opera.Config,
+	store *Store,
+	blockProc BlockProc,
+	txIndex bool,
+	feed *ServiceFeed,
+	occurredTxs *occuredtxs.Buffer,
+) lachesis.BeginBlockFn {
+	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
+		start := time.Now()
 
-			// Get stateDB
-			stateHash := s.store.GetBlock(bs.LastBlock).Root
-			statedb := s.store.evm.StateDB(stateHash)
+		bs := store.GetBlockState()
+		es := store.GetEpochState()
 
-			bs.LastBlock++
-			bs.EpochBlocks++
+		// Get stateDB
+		stateHash := store.GetBlock(bs.LastBlock).Root
+		statedb := store.evm.StateDB(stateHash)
 
-			eventProcessor := s.blockProc.EventsModule.Start(bs, es)
+		bs.LastBlock++
+		bs.EpochBlocks++
 
-			var atropos inter.EventI
-			confirmedEvents := make(hash.OrderedEvents, 0, 3*es.Validators.Len())
+		eventProcessor := blockProc.EventsModule.Start(bs, es)
 
-			return lachesis.BlockCallbacks{
-				ApplyEvent: func(_e dag.Event) {
-					e := _e.(inter.EventI)
-					if cBlock.Atropos == e.ID() {
-						atropos = e
-					}
-					if !e.NoTxs() {
-						// non-empty events only
-						confirmedEvents = append(confirmedEvents, e.ID())
-						s.occurredTxs.CollectConfirmedTxs(s.store.GetEventPayload(e.ID()).Txs())
-					}
-					eventProcessor.ProcessConfirmedEvent(e)
-				},
-				EndBlock: func() (newValidators *pos.Validators) {
-					// Note: it's possible that i'th Atropos observes i+1's Atropos,
-					// hence ApplyEvent may be not called at all
-					if atropos == nil {
-						atropos = s.store.GetEvent(cBlock.Atropos)
-					}
+		var atropos inter.EventI
+		confirmedEvents := make(hash.OrderedEvents, 0, 3*es.Validators.Len())
 
-					blockCtx := blockproc.BlockCtx{
-						Idx:    bs.LastBlock,
-						Time:   atropos.MedianTime(),
-						CBlock: *cBlock,
-					}
+		return lachesis.BlockCallbacks{
+			ApplyEvent: func(_e dag.Event) {
+				e := _e.(inter.EventI)
+				if cBlock.Atropos == e.ID() {
+					atropos = e
+				}
+				if occurredTxs != nil && !e.NoTxs() {
+					// non-empty events only
+					confirmedEvents = append(confirmedEvents, e.ID())
+					occurredTxs.CollectConfirmedTxs(store.GetEventPayload(e.ID()).Txs())
+				}
+				eventProcessor.ProcessConfirmedEvent(e)
+			},
+			EndBlock: func() (newValidators *pos.Validators) {
+				// Note: it's possible that i'th Atropos observes i+1's Atropos,
+				// hence ApplyEvent may be not called at all
+				if atropos == nil {
+					atropos = store.GetEvent(cBlock.Atropos)
+				}
 
-					bs = eventProcessor.Finalize(blockCtx)
+				blockCtx := blockproc.BlockCtx{
+					Idx:    bs.LastBlock,
+					Time:   atropos.MedianTime(),
+					CBlock: *cBlock,
+				}
 
-					sealer := s.blockProc.SealerModule.Start(blockCtx, bs, es)
-					sealing := sealer.EpochSealing()
-					txListener := s.blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
-					evmProcessor := s.blockProc.EVMModule.Start(blockCtx, statedb, s.GetEvmStateReader(), txListener.OnNewLog)
+				bs = eventProcessor.Finalize(blockCtx)
 
-					// Execute pre-internal transactions
-					preInternalTxs := s.blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-					evmProcessor.Execute(preInternalTxs, true)
-					bs = txListener.Finalize()
+				sealer := blockProc.SealerModule.Start(blockCtx, bs, es)
+				sealing := sealer.EpochSealing()
+				txListener := blockProc.TxListenerModule.Start(blockCtx, bs, es, statedb)
+				evmStateReader := &EvmStateReader{
+					ServiceFeed: feed,
+					store:       store,
+				}
+				evmProcessor := blockProc.EVMModule.Start(blockCtx, statedb, evmStateReader, txListener.OnNewLog)
 
-					// Seal epoch if requested
-					if sealing {
-						sealer.Update(bs, es)
-						bs, es = sealer.SealEpoch()
-						newValidators = es.Validators
-						s.store.SetEpochState(es)
-						txListener.Update(bs, es)
-					}
-					// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
+				// Execute pre-internal transactions
+				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
+				evmProcessor.Execute(preInternalTxs, true)
+				bs = txListener.Finalize()
 
-					// Execute post-internal transactions
-					internalTxs := s.blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-					evmProcessor.Execute(internalTxs, true)
+				// Seal epoch if requested
+				if sealing {
+					sealer.Update(bs, es)
+					bs, es = sealer.SealEpoch()
+					newValidators = es.Validators
+					store.SetEpochState(es)
+					txListener.Update(bs, es)
+				}
+				// At this point, newValidators may be returned and the rest of the code may be executed in a parallel thread
 
-					// sort events by Lamport time
-					sort.Sort(confirmedEvents)
+				// Execute post-internal transactions
+				internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
+				evmProcessor.Execute(internalTxs, true)
 
-					// new block
-					var block = &inter.Block{
-						Time:    blockCtx.Time,
-						Atropos: cBlock.Atropos,
-						Events:  hash.Events(confirmedEvents),
-					}
-					for _, tx := range append(preInternalTxs, internalTxs...) {
-						block.InternalTxs = append(block.InternalTxs, tx.Hash())
-					}
+				// sort events by Lamport time
+				sort.Sort(confirmedEvents)
 
-					block, blockEvents := s.spillBlockEvents(block)
-					txs := make(types.Transactions, 0, blockEvents.Len()*10)
-					for _, e := range blockEvents {
-						txs = append(txs, e.Txs()...)
-						blockEvents = append(blockEvents, e)
-					}
+				// new block
+				var block = &inter.Block{
+					Time:    blockCtx.Time,
+					Atropos: cBlock.Atropos,
+					Events:  hash.Events(confirmedEvents),
+				}
+				for _, tx := range append(preInternalTxs, internalTxs...) {
+					block.InternalTxs = append(block.InternalTxs, tx.Hash())
+				}
 
-					evmProcessor.Execute(txs, false)
-					evmBlock, skippedTxs, receipts := evmProcessor.Finalize()
+				block, blockEvents := spillBlockEvents(store, block, &network)
+				txs := make(types.Transactions, 0, blockEvents.Len()*10)
+				for _, e := range blockEvents {
+					txs = append(txs, e.Txs()...)
+					blockEvents = append(blockEvents, e)
+				}
 
-					block.SkippedTxs = skippedTxs
-					block.Root = hash.Hash(evmBlock.Root)
+				evmProcessor.Execute(txs, false)
+				evmBlock, skippedTxs, receipts := evmProcessor.Finalize()
 
-					// memorize event position of each tx
-					txPositions := make(map[common.Hash]evmstore.TxPosition)
-					for _, e := range blockEvents {
-						for i, tx := range e.Txs() {
-							// If tx was met in multiple events, then assign to first ordered event
-							if _, ok := txPositions[tx.Hash()]; ok {
-								continue
-							}
-							txPositions[tx.Hash()] = evmstore.TxPosition{
-								Event:       e.ID(),
-								EventOffset: uint32(i),
-							}
+				block.SkippedTxs = skippedTxs
+				block.Root = hash.Hash(evmBlock.Root)
+
+				// memorize event position of each tx
+				txPositions := make(map[common.Hash]evmstore.TxPosition)
+				for _, e := range blockEvents {
+					for i, tx := range e.Txs() {
+						// If tx was met in multiple events, then assign to first ordered event
+						if _, ok := txPositions[tx.Hash()]; ok {
+							continue
+						}
+						txPositions[tx.Hash()] = evmstore.TxPosition{
+							Event:       e.ID(),
+							EventOffset: uint32(i),
 						}
 					}
-					// memorize block position of each tx
-					for i, tx := range evmBlock.Transactions {
-						// not skipped txs only
-						position := txPositions[tx.Hash()]
-						position.Block = bs.LastBlock
-						position.BlockOffset = uint32(i)
-						txPositions[tx.Hash()] = position
-					}
+				}
+				// memorize block position of each tx
+				for i, tx := range evmBlock.Transactions {
+					// not skipped txs only
+					position := txPositions[tx.Hash()]
+					position.Block = bs.LastBlock
+					position.BlockOffset = uint32(i)
+					txPositions[tx.Hash()] = position
+				}
 
-					// call OnNewReceipt
-					for i, r := range receipts {
-						txEventPos := txPositions[r.TxHash]
-						var creator idx.ValidatorID
-						if !txEventPos.Event.IsZero() {
-							txEvent := s.store.GetEvent(txEventPos.Event)
-							creator = txEvent.Creator()
-							if es.Validators.Get(creator) == 0 {
-								creator = 0
-							}
+				// call OnNewReceipt
+				for i, r := range receipts {
+					txEventPos := txPositions[r.TxHash]
+					var creator idx.ValidatorID
+					if !txEventPos.Event.IsZero() {
+						txEvent := store.GetEvent(txEventPos.Event)
+						creator = txEvent.Creator()
+						if es.Validators.Get(creator) == 0 {
+							creator = 0
 						}
-						txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
 					}
-					bs = txListener.Finalize()
-					// At this point, block state is finalized
+					txListener.OnNewReceipt(evmBlock.Transactions[i], r, creator)
+				}
+				bs = txListener.Finalize()
+				// At this point, block state is finalized
 
-					s.store.SetBlock(bs.LastBlock, block)
-					s.store.SetBlockState(bs)
+				store.SetBlock(bs.LastBlock, block)
+				store.SetBlockState(bs)
 
-					// Notify about new block and txs
-					s.feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
-					s.feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
+				// Notify about new block and txs
+				if feed != nil {
+					feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
+					feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
 					var logs []*types.Log
 					for _, r := range receipts {
 						for _, l := range r.Logs {
 							logs = append(logs, l)
 						}
 					}
-					s.feed.newLogs.Send(logs)
-
-					// Build index for not skipped txs
-					if s.config.TxIndex {
-						for _, tx := range evmBlock.Transactions {
-							// not skipped txs only
-							s.store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
-						}
-
-						// Index receipts
-						if receipts.Len() != 0 {
-							s.store.evm.SetReceipts(bs.LastBlock, receipts)
-
-							for _, r := range receipts {
-								s.store.evm.IndexLogs(r.Logs...)
-							}
-						}
-					}
-					for _, tx := range append(preInternalTxs, internalTxs...) {
-						s.store.evm.SetTx(tx.Hash(), tx)
+					feed.newLogs.Send(logs)
+				}
+				// Build index for not skipped txs
+				if txIndex {
+					for _, tx := range evmBlock.Transactions {
+						// not skipped txs only
+						store.evm.SetTxPosition(tx.Hash(), txPositions[tx.Hash()])
 					}
 
-					log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
-						evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
+					// Index receipts
+					if receipts.Len() != 0 {
+						store.evm.SetReceipts(bs.LastBlock, receipts)
 
-					return newValidators
-				},
-			}
-		},
+						for _, r := range receipts {
+							store.evm.IndexLogs(r.Logs...)
+						}
+					}
+				}
+				for _, tx := range append(preInternalTxs, internalTxs...) {
+					store.evm.SetTx(tx.Hash(), tx)
+				}
+
+				log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
+					evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
+
+				return newValidators
+			},
+		}
 	}
 }
 
 // spillBlockEvents excludes first events which exceed BlockGasHardLimit
-func (s *Service) spillBlockEvents(block *inter.Block) (*inter.Block, inter.EventPayloads) {
+func spillBlockEvents(store *Store, block *inter.Block, network *opera.Config) (*inter.Block, inter.EventPayloads) {
 	fullEvents := make(inter.EventPayloads, len(block.Events))
 	if len(block.Events) == 0 {
 		return block, fullEvents
@@ -212,14 +237,14 @@ func (s *Service) spillBlockEvents(block *inter.Block) (*inter.Block, inter.Even
 	// iterate in reversed order
 	for i := len(block.Events) - 1; ; i-- {
 		id := block.Events[i]
-		e := s.store.GetEventPayload(id)
+		e := store.GetEventPayload(id)
 		if e == nil {
-			s.Log.Crit("Block event not found", "event", id.String())
+			log.Crit("Block event not found", "event", id.String())
 		}
 		fullEvents[i] = e
 		gasPowerUsedSum += e.GasPowerUsed()
 		// stop if limit is exceeded, erase [:i] events
-		if gasPowerUsedSum > s.config.Net.Blocks.BlockGasHardLimit {
+		if gasPowerUsedSum > network.Blocks.BlockGasHardLimit {
 			// spill
 			block.Events = block.Events[i+1:]
 			fullEvents = fullEvents[i+1:]
