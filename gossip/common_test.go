@@ -3,18 +3,25 @@ package gossip
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
+	"math"
 	"math/big"
 	"time"
 
+	"github.com/Fantom-foundation/lachesis-base/hash"
 	"github.com/Fantom-foundation/lachesis-base/inter/idx"
 	"github.com/Fantom-foundation/lachesis-base/inter/pos"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/flushable"
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/Fantom-foundation/lachesis-base/lachesis"
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/state"
 	eth "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/Fantom-foundation/go-opera/evmcore"
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/eventmodule"
@@ -23,12 +30,16 @@ import (
 	"github.com/Fantom-foundation/go-opera/gossip/blockproc/sfcmodule"
 	"github.com/Fantom-foundation/go-opera/inter"
 	"github.com/Fantom-foundation/go-opera/opera"
+	"github.com/Fantom-foundation/go-opera/opera/genesis"
+	"github.com/Fantom-foundation/go-opera/opera/params"
 )
 
 const (
 	maxEpochDuration = time.Hour
 	sameEpoch        = maxEpochDuration / 1000
 	nextEpoch        = maxEpochDuration
+
+	gasLimit = uint64(21000)
 )
 
 type testEnv struct {
@@ -36,8 +47,19 @@ type testEnv struct {
 	blockProc BlockProc
 	store     *Store
 
+	signer eth.Signer
+
 	lastBlock     idx.Block
 	lastBlockTime time.Time
+	lastState     hash.Hash
+
+	validators pos.ValidatorsBuilder
+	delegators []common.Address
+
+	nonces map[common.Address]uint64
+
+	epoch    idx.Epoch
+	eventSeq idx.Event
 }
 
 func newTestEnv() *testEnv {
@@ -58,7 +80,8 @@ func newTestEnv() *testEnv {
 			EventsModule:        eventmodule.New(network),
 			EVMModule:           evmmodule.New(network),
 		},
-		store: NewStore(dbs, LiteStoreConfig()),
+		store:  NewStore(dbs, LiteStoreConfig()),
+		signer: eth.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
 	}
 	_, _, err := env.store.ApplyGenesis(env.blockProc, &network)
 	if err != nil {
@@ -69,6 +92,12 @@ func newTestEnv() *testEnv {
 }
 
 func (env *testEnv) Close() {
+}
+
+func (env *testEnv) GetEvmStateReader() *EvmStateReader {
+	return &EvmStateReader{
+		store: env.store,
+	}
 }
 
 func (env *testEnv) consensusCallbackBeginBlockFn() lachesis.BeginBlockFn {
@@ -106,7 +135,7 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *eth.Transaction
 	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
 	key := env.privateKey(from)
 	receiver := env.Address(to)
-	gp := env.App.MinGasPrice()
+	gp := params.MinGasPrice
 	tx := eth.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
 	tx, err := eth.SignTx(tx, env.signer, key)
 	if err != nil {
@@ -120,7 +149,7 @@ func (env *testEnv) Contract(from int, amount *big.Int, hex string) *eth.Transac
 	data := hexutil.MustDecode(hex)
 	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
 	key := env.privateKey(from)
-	gp := env.App.MinGasPrice()
+	gp := params.MinGasPrice
 	tx := eth.NewContractCreation(nonce, amount, gasLimit*10000, gp, data)
 	tx, err := eth.SignTx(tx, env.signer, key)
 	if err != nil {
@@ -131,12 +160,12 @@ func (env *testEnv) Contract(from int, amount *big.Int, hex string) *eth.Transac
 }
 
 func (env *testEnv) privateKey(n int) *ecdsa.PrivateKey {
-	key := crypto.FakeKey(n)
+	key := genesis.FakeKey(n)
 	return key
 }
 
 func (env *testEnv) Address(n int) common.Address {
-	key := crypto.FakeKey(n)
+	key := genesis.FakeKey(n)
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	return addr
 }
@@ -157,8 +186,8 @@ func (env *testEnv) ReadOnly() *bind.CallOpts {
 	return &bind.CallOpts{}
 }
 
-func (env *testEnv) State() evmcore.StateDB {
-	return env.Store.StateDB(env.lastState)
+func (env *testEnv) State() *state.StateDB {
+	return env.store.evm.StateDB(env.lastState)
 }
 
 func (env *testEnv) incNonce(account common.Address) {
@@ -191,7 +220,7 @@ func (env *testEnv) CallContract(ctx context.Context, call ethereum.CallMsg, blo
 		return nil, errBlockNumberUnsupported
 	}
 
-	h := env.App.GetEvmStateReader().GetHeader(common.Hash{}, uint64(env.lastBlock))
+	h := env.GetEvmStateReader().GetHeader(common.Hash{}, uint64(env.lastBlock))
 	block := &evmcore.EvmBlock{
 		EvmHeader: *h,
 	}
@@ -203,7 +232,7 @@ func (env *testEnv) CallContract(ctx context.Context, call ethereum.CallMsg, blo
 // callContract implements common code between normal and pending contract calls.
 // state is modified during execution, make sure to copy it if necessary.
 func (env *testEnv) callContract(
-	ctx context.Context, call ethereum.CallMsg, block *evmcore.EvmBlock, statedb evmcore.StateDB,
+	ctx context.Context, call ethereum.CallMsg, block *evmcore.EvmBlock, statedb *state.StateDB,
 ) (
 	ret []byte, usedGas uint64, failed bool, err error,
 ) {
@@ -218,15 +247,15 @@ func (env *testEnv) callContract(
 		call.Value = new(big.Int)
 	}
 	// Set infinite balance to the fake caller account.
-	from := statedb.MPT().GetOrNewStateObject(call.From)
+	from := statedb.GetOrNewStateObject(call.From)
 	from.SetBalance(big.NewInt(math.MaxInt64))
 
 	msg := callmsg{call}
 
-	evmContext := evmcore.NewEVMContext(msg, block.Header(), env.App.GetEvmStateReader(), &call.From)
+	evmContext := evmcore.NewEVMContext(msg, block.Header(), env.GetEvmStateReader(), &call.From)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(evmContext, statedb, env.App.config.Net.EvmChainConfig(), vm.Config{})
+	vmenv := vm.NewEVM(evmContext, statedb, env.network.EvmChainConfig(), vm.Config{})
 	gaspool := new(evmcore.GasPool).AddGas(math.MaxUint64)
 	res, err := evmcore.NewStateTransition(vmenv, msg, gaspool).TransitionDb()
 
@@ -253,7 +282,7 @@ func (env *testEnv) PendingNonceAt(ctx context.Context, account common.Address) 
 // SuggestGasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func (env *testEnv) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	return env.App.MinGasPrice(), nil
+	return params.MinGasPrice, nil
 }
 
 // EstimateGas tries to estimate the gas needed to execute a specific
@@ -294,7 +323,7 @@ func (env *testEnv) SubscribeFilterLogs(ctx context.Context, query ethereum.Filt
 	return nil, nil
 }
 
-// callmsg implements core.Message to allow passing it as a transaction simulator.
+// callmsg implements evmcore.Message to allow passing it as a transaction simulator.
 type callmsg struct {
 	ethereum.CallMsg
 }
@@ -307,63 +336,3 @@ func (m callmsg) GasPrice() *big.Int   { return m.CallMsg.GasPrice }
 func (m callmsg) Gas() uint64          { return m.CallMsg.Gas }
 func (m callmsg) Value() *big.Int      { return m.CallMsg.Value }
 func (m callmsg) Data() []byte         { return m.CallMsg.Data }
-
-// fakeEngine implements Consensus interface
-type fakeEngine struct {
-	env *testEnv
-}
-
-// LastBlock returns current block.
-func (f *fakeEngine) LastBlock() (idx.Block, hash.Event) {
-	return f.env.lastBlock, hash.Event{}
-}
-
-// GetEpoch returns current epoch num.
-func (f *fakeEngine) GetEpoch() idx.Epoch {
-	return f.env.epoch
-}
-
-// GetValidators returns validators of current epoch.
-func (f *fakeEngine) GetValidators() *pos.Validators {
-	return f.env.validators.Build()
-}
-
-// GetEpochValidators atomically returns validators of current epoch, and the epoch.
-func (f *fakeEngine) GetEpochValidators() (*pos.Validators, idx.Epoch) {
-	return f.env.validators.Build(), f.env.epoch
-}
-
-// PushEvent takes event for processing.
-func (f *fakeEngine) ProcessEvent(e *inter.Event) error {
-	panic("Not implemented!")
-	return nil
-}
-
-// GetGenesisHash returns hash of genesis poset works with.
-func (f *fakeEngine) GetGenesisHash() common.Hash {
-	panic("Not implemented!")
-	return common.Hash{}
-}
-
-// GetVectorIndex returns internal vector clock if exists
-func (f *fakeEngine) GetVectorIndex() *vector.Index {
-	panic("Not implemented!")
-	return nil
-}
-
-// Sets consensus fields. Returns nil if event should be dropped.
-func (f *fakeEngine) Prepare(e *inter.Event) *inter.Event {
-	panic("Not implemented!")
-	return e
-}
-
-// GetConsensusTime calc consensus timestamp for given event.
-func (f *fakeEngine) GetConsensusTime(id hash.Event) (inter.Timestamp, error) {
-	panic("Not implemented!")
-	return 0, nil
-}
-
-// Bootstrap must be called (once) before calling other methods
-func (f *fakeEngine) Bootstrap(callbacks inter.ConsensusCallbacks) {
-	panic("Not implemented!")
-}
