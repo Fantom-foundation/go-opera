@@ -31,6 +31,7 @@ func (s *Service) GetConsensusCallbacks() lachesis.ConsensusCallbacks {
 			s.config.TxIndex,
 			&s.feed,
 			s.occurredTxs,
+			nil,
 		),
 	}
 }
@@ -43,6 +44,7 @@ func consensusCallbackBeginBlockFn(
 	txIndex bool,
 	feed *ServiceFeed,
 	occurredTxs *occuredtxs.Buffer,
+	onBlockEnd func(preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		start := time.Now()
@@ -103,7 +105,7 @@ func consensusCallbackBeginBlockFn(
 
 				// Execute pre-internal transactions
 				preInternalTxs := blockProc.PreTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-				evmProcessor.Execute(preInternalTxs, true)
+				preInternalReceipts := evmProcessor.Execute(preInternalTxs, true)
 				bs = txListener.Finalize()
 
 				// Seal epoch if requested
@@ -118,7 +120,7 @@ func consensusCallbackBeginBlockFn(
 
 				// Execute post-internal transactions
 				internalTxs := blockProc.PostTxTransactor.PopInternalTxs(blockCtx, bs, es, sealing, statedb)
-				evmProcessor.Execute(internalTxs, true)
+				internalReceipts := evmProcessor.Execute(internalTxs, true)
 
 				// sort events by Lamport time
 				sort.Sort(confirmedEvents)
@@ -140,8 +142,8 @@ func consensusCallbackBeginBlockFn(
 					blockEvents = append(blockEvents, e)
 				}
 
-				evmProcessor.Execute(txs, false)
-				evmBlock, skippedTxs, receipts := evmProcessor.Finalize()
+				externalReceipts := evmProcessor.Execute(txs, false)
+				evmBlock, skippedTxs, allReceipts := evmProcessor.Finalize()
 
 				block.SkippedTxs = skippedTxs
 				block.Root = hash.Hash(evmBlock.Root)
@@ -170,7 +172,7 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				// call OnNewReceipt
-				for i, r := range receipts {
+				for i, r := range allReceipts {
 					txEventPos := txPositions[r.TxHash]
 					var creator idx.ValidatorID
 					if !txEventPos.Event.IsZero() {
@@ -193,7 +195,7 @@ func consensusCallbackBeginBlockFn(
 					feed.newBlock.Send(evmcore.ChainHeadNotify{Block: evmBlock})
 					feed.newTxs.Send(core.NewTxsEvent{Txs: evmBlock.Transactions})
 					var logs []*types.Log
-					for _, r := range receipts {
+					for _, r := range allReceipts {
 						for _, l := range r.Logs {
 							logs = append(logs, l)
 						}
@@ -208,10 +210,10 @@ func consensusCallbackBeginBlockFn(
 					}
 
 					// Index receipts
-					if receipts.Len() != 0 {
-						store.evm.SetReceipts(bs.LastBlock, receipts)
+					if allReceipts.Len() != 0 {
+						store.evm.SetReceipts(bs.LastBlock, allReceipts)
 
-						for _, r := range receipts {
+						for _, r := range allReceipts {
 							store.evm.IndexLogs(r.Logs...)
 						}
 					}
@@ -220,10 +222,14 @@ func consensusCallbackBeginBlockFn(
 					store.evm.SetTx(tx.Hash(), tx)
 				}
 
+				if onBlockEnd != nil {
+					onBlockEnd(preInternalReceipts, internalReceipts, externalReceipts)
+				}
+
 				log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",
 					evmBlock.GasUsed, "skipped_txs", len(block.SkippedTxs), "txs", len(evmBlock.Transactions), "t", time.Since(start))
 
-				return newValidators
+				return
 			},
 		}
 	}

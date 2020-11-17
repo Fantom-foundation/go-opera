@@ -5,13 +5,12 @@ package gossip
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=ballot/solc/Ballot.bin --abi=ballot/solc/Ballot.abi --pkg=ballot --type=Contract --out=ballot/contract.go
 
 import (
-	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
 
 	"github.com/Fantom-foundation/lachesis-base/hash"
-	eth "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/gossip/ballot"
@@ -45,10 +44,6 @@ func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 	require.NotNil(cBallot)
 	r := env.ApplyBlock(nextEpoch, tx)
 
-	for i, x := range r {
-		fmt.Printf("%d %#v\n", i, x)
-	}
-
 	require.Equal(addr, r[0].ContractAddress)
 
 	admin, err := cBallot.Chairperson(env.ReadOnly())
@@ -58,7 +53,7 @@ func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 	count := b.N
 
 	// Init accounts
-	txs := make([]*eth.Transaction, 0, count-1)
+	txs := make([]*types.Transaction, 0, count-1)
 	for i := 2; i <= count; i++ {
 		tx := env.Transfer(1, i, utils.ToFtm(10))
 		require.NoError(err)
@@ -67,7 +62,7 @@ func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 	env.ApplyBlock(nextEpoch, txs...)
 
 	// GiveRightToVote
-	txs = make([]*eth.Transaction, 0, count)
+	txs = make([]*types.Transaction, 0, count)
 	for i := 1; i <= count; i++ {
 		tx, err := cBallot.GiveRightToVote(env.Payer(1), env.Address(i))
 		require.NoError(err)
@@ -76,7 +71,7 @@ func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 	env.ApplyBlock(nextEpoch, txs...)
 
 	// Vote
-	txs = make([]*eth.Transaction, 0, count)
+	txs = make([]*types.Transaction, 0, count)
 	for i := 1; i <= count; i++ {
 		proposal := big.NewInt(int64(i % len(proposals)))
 		tx, err := cBallot.Vote(env.Payer(i), proposal)

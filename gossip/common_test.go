@@ -114,7 +114,9 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 	}
 }
 
-func (env *testEnv) consensusCallbackBeginBlockFn() lachesis.BeginBlockFn {
+func (env *testEnv) consensusCallbackBeginBlockFn(
+	onBlockEnd func(preInternalReceipts, internalReceipts, externalReceipts eth.Receipts),
+) lachesis.BeginBlockFn {
 	const txIndex = true
 	return consensusCallbackBeginBlockFn(
 		env.network,
@@ -122,10 +124,11 @@ func (env *testEnv) consensusCallbackBeginBlockFn() lachesis.BeginBlockFn {
 		env.blockProc,
 		txIndex,
 		nil, nil,
+		onBlockEnd,
 	)
 }
 
-func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) eth.Receipts {
+func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) (receipts eth.Receipts) {
 	env.lastBlock++
 	env.lastBlockTime = env.lastBlockTime.Add(spent)
 
@@ -136,7 +139,10 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) eth
 	event := eBuilder.Build()
 	env.store.SetEvent(event)
 
-	beginBlock := env.consensusCallbackBeginBlockFn()
+	beginBlock := env.consensusCallbackBeginBlockFn(
+		func(preInternalReceipts, internalReceipts, externalReceipts eth.Receipts) {
+			receipts = externalReceipts
+		})
 	process := beginBlock(&lachesis.Block{
 		Atropos: event.ID(),
 	})
@@ -144,8 +150,7 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) eth
 	process.ApplyEvent(event)
 	_ = process.EndBlock()
 
-	receipts := env.store.evm.GetReceipts(env.lastBlock)
-	return receipts
+	return
 }
 
 func (env *testEnv) Transfer(from int, to int, amount *big.Int) *eth.Transaction {
