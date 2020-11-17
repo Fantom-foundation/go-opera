@@ -5,6 +5,7 @@ package gossip
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=ballot/solc/Ballot.bin --abi=ballot/solc/Ballot.abi --pkg=ballot --type=Contract --out=ballot/contract.go
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -43,6 +44,11 @@ func benchmarkStateDbWithBallot(b *testing.B, env *testEnv) {
 	require.NoError(err)
 	require.NotNil(cBallot)
 	r := env.ApplyBlock(nextEpoch, tx)
+
+	for i, x := range r {
+		fmt.Printf("%d %#v\n", i, x)
+	}
+
 	require.Equal(addr, r[0].ContractAddress)
 
 	admin, err := cBallot.Chairperson(env.ReadOnly())

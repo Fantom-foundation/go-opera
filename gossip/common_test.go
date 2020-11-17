@@ -32,14 +32,18 @@ import (
 	"github.com/Fantom-foundation/go-opera/opera"
 	"github.com/Fantom-foundation/go-opera/opera/genesis"
 	"github.com/Fantom-foundation/go-opera/opera/params"
+	"github.com/Fantom-foundation/go-opera/utils"
 )
 
 const (
+	gasLimit       = uint64(21000)
+	genesisStakers = 3
+	genesisBalance = 1e18
+	genesisStake   = 2 * 4e6
+
 	maxEpochDuration = time.Hour
 	sameEpoch        = maxEpochDuration / 1000
 	nextEpoch        = maxEpochDuration
-
-	gasLimit = uint64(21000)
 )
 
 type testEnv struct {
@@ -63,35 +67,45 @@ type testEnv struct {
 }
 
 func newTestEnv() *testEnv {
-	network := opera.MainNetConfig()
+	vaccs := genesis.FakeValidators(genesisStakers, utils.ToFtm(genesisBalance), utils.ToFtm(genesisStake))
+	network := opera.FakeNetConfig(vaccs)
+
 	network.Dag.MaxEpochDuration = maxEpochDuration
 
 	dbs := flushable.NewSyncedPool(
 		memorydb.NewProducer(""))
-
-	env := &testEnv{
-		network: network,
-		blockProc: BlockProc{
-			SealerModule:        sealmodule.New(network),
-			TxListenerModule:    sfcmodule.NewSfcTxListenerModule(network),
-			GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(network),
-			PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(network),
-			PostTxTransactor:    sfcmodule.NewSfcTxTransactor(network),
-			EventsModule:        eventmodule.New(network),
-			EVMModule:           evmmodule.New(network),
-		},
-		store:  NewStore(dbs, LiteStoreConfig()),
-		signer: eth.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
+	store := NewStore(dbs, LiteStoreConfig())
+	blockProc := BlockProc{
+		SealerModule:        sealmodule.New(network),
+		TxListenerModule:    sfcmodule.NewSfcTxListenerModule(network),
+		GenesisTxTransactor: sfcmodule.NewSfcTxGenesisTransactor(network),
+		PreTxTransactor:     sfcmodule.NewSfcTxPreTransactor(network),
+		PostTxTransactor:    sfcmodule.NewSfcTxTransactor(network),
+		EventsModule:        eventmodule.New(network),
+		EVMModule:           evmmodule.New(network),
 	}
-	_, _, err := env.store.ApplyGenesis(env.blockProc, &network)
+	_, _, err := store.ApplyGenesis(blockProc, &network)
 	if err != nil {
 		panic(err)
+	}
+
+	env := &testEnv{
+		network:   network,
+		blockProc: blockProc,
+		store:     store,
+		signer:    eth.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
+
+		lastBlock:     0,
+		lastState:     store.GetBlock(0).Root,
+		lastBlockTime: network.Genesis.Time.Time(),
+		validators:    vaccs.Validators.Build().Builder(),
 	}
 
 	return env
 }
 
 func (env *testEnv) Close() {
+	env.store.Close()
 }
 
 func (env *testEnv) GetEvmStateReader() *EvmStateReader {
@@ -101,11 +115,13 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 }
 
 func (env *testEnv) consensusCallbackBeginBlockFn() lachesis.BeginBlockFn {
+	const txIndex = true
 	return consensusCallbackBeginBlockFn(
 		env.network,
 		env.store,
 		env.blockProc,
-		false, nil, nil,
+		txIndex,
+		nil, nil,
 	)
 }
 
@@ -128,7 +144,8 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) eth
 	process.ApplyEvent(event)
 	_ = process.EndBlock()
 
-	return nil
+	receipts := env.store.evm.GetReceipts(env.lastBlock)
+	return receipts
 }
 
 func (env *testEnv) Transfer(from int, to int, amount *big.Int) *eth.Transaction {
