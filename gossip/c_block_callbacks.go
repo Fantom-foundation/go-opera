@@ -68,10 +68,12 @@ func consensusCallbackBeginBlockFn(
 				if cBlock.Atropos == e.ID() {
 					atropos = e
 				}
-				if occurredTxs != nil && !e.NoTxs() {
+				if !e.NoTxs() {
 					// non-empty events only
 					confirmedEvents = append(confirmedEvents, e.ID())
-					occurredTxs.CollectConfirmedTxs(store.GetEventPayload(e.ID()).Txs())
+					if occurredTxs != nil {
+						occurredTxs.CollectConfirmedTxs(store.GetEventPayload(e.ID()).Txs())
+					}
 				}
 				eventProcessor.ProcessConfirmedEvent(e)
 			},
