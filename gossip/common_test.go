@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/state"
-	eth "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -51,7 +51,7 @@ type testEnv struct {
 	blockProc BlockProc
 	store     *Store
 
-	signer eth.Signer
+	signer types.Signer
 
 	lastBlock     idx.Block
 	lastBlockTime time.Time
@@ -93,7 +93,7 @@ func newTestEnv() *testEnv {
 		network:   network,
 		blockProc: blockProc,
 		store:     store,
-		signer:    eth.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
+		signer:    types.NewEIP155Signer(big.NewInt(int64(network.NetworkID))),
 
 		lastBlock:     0,
 		lastState:     store.GetBlock(0).Root,
@@ -115,7 +115,7 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 }
 
 func (env *testEnv) consensusCallbackBeginBlockFn(
-	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts eth.Receipts),
+	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	const txIndex = true
 	return consensusCallbackBeginBlockFn(
@@ -128,23 +128,21 @@ func (env *testEnv) consensusCallbackBeginBlockFn(
 	)
 }
 
-func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) (receipts eth.Receipts) {
+func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*types.Transaction) (receipts types.Receipts) {
 	env.lastBlock++
 	env.lastBlockTime = env.lastBlockTime.Add(spent)
 
 	eBuilder := inter.MutableEventPayload{}
 	eBuilder.SetTxs(txs)
-	// TODO: fill the event
-
 	event := eBuilder.Build()
 	env.store.SetEvent(event)
 
-	onEnd := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts eth.Receipts) {
+	onBlockEnd := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts) {
 		receipts = externalReceipts
 		env.lastState = block.Root
 	}
 
-	beginBlock := env.consensusCallbackBeginBlockFn(onEnd)
+	beginBlock := env.consensusCallbackBeginBlockFn(onBlockEnd)
 	process := beginBlock(&lachesis.Block{
 		Atropos: event.ID(),
 	})
@@ -155,13 +153,13 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) (re
 	return
 }
 
-func (env *testEnv) Transfer(from int, to int, amount *big.Int) *eth.Transaction {
+func (env *testEnv) Transfer(from int, to int, amount *big.Int) *types.Transaction {
 	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
 	key := env.privateKey(from)
 	receiver := env.Address(to)
 	gp := params.MinGasPrice
-	tx := eth.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
-	tx, err := eth.SignTx(tx, env.signer, key)
+	tx := types.NewTransaction(nonce, receiver, amount, gasLimit, gp, nil)
+	tx, err := types.SignTx(tx, env.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -169,13 +167,13 @@ func (env *testEnv) Transfer(from int, to int, amount *big.Int) *eth.Transaction
 	return tx
 }
 
-func (env *testEnv) Contract(from int, amount *big.Int, hex string) *eth.Transaction {
+func (env *testEnv) Contract(from int, amount *big.Int, hex string) *types.Transaction {
 	data := hexutil.MustDecode(hex)
 	nonce, _ := env.PendingNonceAt(nil, env.Address(from))
 	key := env.privateKey(from)
 	gp := params.MinGasPrice
-	tx := eth.NewContractCreation(nonce, amount, gasLimit*10000, gp, data)
-	tx, err := eth.SignTx(tx, env.signer, key)
+	tx := types.NewContractCreation(nonce, amount, gasLimit*10000, gp, data)
+	tx, err := types.SignTx(tx, env.signer, key)
 	if err != nil {
 		panic(err)
 	}
@@ -324,7 +322,7 @@ func (env *testEnv) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas
 }
 
 // SendTransaction injects the transaction into the pending pool for execution.
-func (env *testEnv) SendTransaction(ctx context.Context, tx *eth.Transaction) error {
+func (env *testEnv) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	// do nothing to avoid executing by transactor, only generating needed
 	return nil
 }
@@ -335,14 +333,14 @@ func (env *testEnv) SendTransaction(ctx context.Context, tx *eth.Transaction) er
 
 // FilterLogs executes a log filter operation, blocking during execution and
 // returning all the results in one batch.
-func (env *testEnv) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]eth.Log, error) {
+func (env *testEnv) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
 	panic("not implemented yet")
 	return nil, nil
 }
 
 // SubscribeFilterLogs creates a background log filtering operation, returning
 // a subscription immediately, which can be used to stream the found events.
-func (env *testEnv) SubscribeFilterLogs(ctx context.Context, query ethereum.FilterQuery, ch chan<- eth.Log) (ethereum.Subscription, error) {
+func (env *testEnv) SubscribeFilterLogs(ctx context.Context, query ethereum.FilterQuery, ch chan<- types.Log) (ethereum.Subscription, error) {
 	panic("not implemented yet")
 	return nil, nil
 }
