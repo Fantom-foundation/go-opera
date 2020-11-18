@@ -44,7 +44,7 @@ func consensusCallbackBeginBlockFn(
 	txIndex bool,
 	feed *ServiceFeed,
 	occurredTxs *occuredtxs.Buffer,
-	onBlockEnd func(preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
+	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts types.Receipts),
 ) lachesis.BeginBlockFn {
 	return func(cBlock *lachesis.Block) lachesis.BlockCallbacks {
 		start := time.Now()
@@ -223,7 +223,7 @@ func consensusCallbackBeginBlockFn(
 				}
 
 				if onBlockEnd != nil {
-					onBlockEnd(preInternalReceipts, internalReceipts, externalReceipts)
+					onBlockEnd(block, preInternalReceipts, internalReceipts, externalReceipts)
 				}
 
 				log.Info("New block", "index", bs.LastBlock, "atropos", block.Atropos, "gas_used",

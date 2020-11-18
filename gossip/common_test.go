@@ -115,7 +115,7 @@ func (env *testEnv) GetEvmStateReader() *EvmStateReader {
 }
 
 func (env *testEnv) consensusCallbackBeginBlockFn(
-	onBlockEnd func(preInternalReceipts, internalReceipts, externalReceipts eth.Receipts),
+	onBlockEnd func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts eth.Receipts),
 ) lachesis.BeginBlockFn {
 	const txIndex = true
 	return consensusCallbackBeginBlockFn(
@@ -139,10 +139,12 @@ func (env *testEnv) ApplyBlock(spent time.Duration, txs ...*eth.Transaction) (re
 	event := eBuilder.Build()
 	env.store.SetEvent(event)
 
-	beginBlock := env.consensusCallbackBeginBlockFn(
-		func(preInternalReceipts, internalReceipts, externalReceipts eth.Receipts) {
-			receipts = externalReceipts
-		})
+	onEnd := func(block *inter.Block, preInternalReceipts, internalReceipts, externalReceipts eth.Receipts) {
+		receipts = externalReceipts
+		env.lastState = block.Root
+	}
+
+	beginBlock := env.consensusCallbackBeginBlockFn(onEnd)
 	process := beginBlock(&lachesis.Block{
 		Atropos: event.ID(),
 	})
@@ -286,7 +288,7 @@ func (env *testEnv) callContract(
 }
 
 /*
- * ContractTransactor interface
+ * bind.ContractTransactor interface
  */
 
 // PendingCodeAt returns the code of the given account in the pending state.
