@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -17,9 +18,8 @@ func BenchmarkSearch(b *testing.B) {
 	db := New(mem)
 
 	for _, rec := range recs {
-		if err := db.Push(rec); err != nil {
-			b.Fatal(err)
-		}
+		err := db.Push(rec)
+		require.NoError(b, err)
 	}
 
 	var query [][][]common.Hash
@@ -42,9 +42,7 @@ func BenchmarkSearch(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			qq := query[i%len(query)]
 			_, err := db.Find(qq)
-			if err != nil {
-				b.Fatal(err)
-			}
+			require.NoError(b, err)
 		}
 	})
 
@@ -55,9 +53,7 @@ func BenchmarkSearch(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			qq := query[i%len(query)]
 			_, err := db.Find(qq)
-			if err != nil {
-				b.Fatal(err)
-			}
+			require.NoError(b, err)
 		}
 	})
 
