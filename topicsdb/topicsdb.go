@@ -12,7 +12,10 @@ import (
 
 const MaxCount = 0xff
 
-var ErrTooManyTopics = fmt.Errorf("Too many topics")
+var (
+	ErrTooManyTopics = fmt.Errorf("Too many topics")
+	ErrNoOneTopic    = fmt.Errorf("No one topic")
+)
 
 // Index is a specialized indexes for log records storing and fetching.
 type Index struct {
@@ -26,7 +29,7 @@ type Index struct {
 		Logrec kvdb.Store `table:"r"`
 	}
 
-	fetchMethod func(topics [][]common.Hash) ([]*types.Log, error)
+	fetchMethod func(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error
 }
 
 // New TopicsDb instance.
@@ -35,16 +38,42 @@ func New(db kvdb.Store) *Index {
 		db: db,
 	}
 
-	tt.fetchMethod = tt.fetchAsync
+	tt.fetchMethod = tt.fetchSync //tt.fetchAsync
 
 	table.MigrateTables(&tt.table, tt.db)
 
 	return tt
 }
 
+// ForEach log records by conditions.
+func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error {
+	if len(topics) > MaxCount {
+		return ErrTooManyTopics
+	}
+
+	ok := false
+	for _, alternative := range topics {
+		if len(alternative) > MaxCount {
+			return ErrTooManyTopics
+		}
+		ok = ok || len(alternative) > 0
+	}
+	if !ok {
+		return ErrNoOneTopic
+	}
+
+	return tt.fetchMethod(topics, onLog)
+}
+
 // Find log records by conditions.
-func (tt *Index) Find(topics [][]common.Hash) ([]*types.Log, error) {
-	return tt.fetchMethod(topics)
+func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
+	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
+		all = append(all, item)
+		next = true
+		return
+	})
+
+	return
 }
 
 // MustPush calls Write() and panics if error.

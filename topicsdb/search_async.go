@@ -6,23 +6,20 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchAsync(topics [][]common.Hash) (res []*types.Log, err error) {
-	if len(topics) > MaxCount {
-		err = ErrTooManyTopics
-		return
-	}
-
+func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next bool)) (err error) {
 	var (
 		recs      = make(map[ID]*logrecBuilder)
 		condCount = uint8(len(topics))
 		wildcards uint8
 		prefix    [prefixSize]byte
 	)
+	first := true
 	for pos, cond := range topics {
 		if len(cond) < 1 {
 			wildcards++
 			continue
 		}
+		matched := make(map[ID]*logrecBuilder, len(recs))
 		copy(prefix[common.HashLength:], posToBytes(uint8(pos)))
 		for _, alternative := range cond {
 			copy(prefix[:], alternative[:])
@@ -32,21 +29,27 @@ func (tt *Index) fetchAsync(topics [][]common.Hash) (res []*types.Log, err error
 				topicCount := bytesToPos(it.Value())
 				rec := recs[id]
 				if rec == nil {
-					rec = newLogrecBuilder(id, condCount, topicCount)
-					recs[id] = rec
-					rec.StartFetch(tt.table.Other, tt.table.Logrec)
-					defer rec.StopFetch()
+					if first {
+						rec = newLogrecBuilder(id, condCount, topicCount)
+						recs[id] = rec
+						rec.StartFetch(tt.table.Other, tt.table.Logrec)
+						defer rec.StopFetch()
+					} else {
+						continue
+					}
 				}
 				rec.MatchedWith(1)
+				matched[id] = rec
 			}
 
+			first = false
 			err = it.Error()
+			it.Release()
 			if err != nil {
 				return
 			}
-
-			it.Release()
 		}
+		recs = matched
 	}
 
 	for _, rec := range recs {
@@ -60,8 +63,9 @@ func (tt *Index) fetchAsync(topics [][]common.Hash) (res []*types.Log, err error
 		if err != nil {
 			return
 		}
-		if r != nil {
-			res = append(res, r)
+
+		if !onLog(r) {
+			return
 		}
 	}
 
