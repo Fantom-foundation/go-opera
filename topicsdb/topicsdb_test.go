@@ -37,9 +37,9 @@ func TestTopicsDb(t *testing.T) {
 			from, to := topics4rec(i)
 			tt := topics[from : to-1]
 
-			qq := make([][]common.Hash, len(tt))
+			qq := make([][]common.Hash, len(tt)+1)
 			for pos, t := range tt {
-				qq[pos] = []common.Hash{t}
+				qq[pos+1] = []common.Hash{t}
 			}
 
 			got, err := db.Find(qq)
@@ -103,7 +103,7 @@ func genTestData() (
 			BlockHash:   hash.FakeHash(int64(i / period)),
 			TxHash:      hash.FakeHash(int64(i % period)),
 			Index:       uint(i % period),
-			Address:     common.Address{0x1, 0x2, 0xff, 0x0},
+			Address:     randAddress(),
 			Topics:      topics[from:to],
 			Data:        make([]byte, i),
 		}
@@ -111,5 +111,16 @@ func genTestData() (
 		recs[i] = r
 	}
 
+	return
+}
+
+func randAddress() (addr common.Address) {
+	n, err := rand.Read(addr[:])
+	if err != nil {
+		panic(err)
+	}
+	if n != common.AddressLength {
+		panic("address is not filled")
+	}
 	return
 }

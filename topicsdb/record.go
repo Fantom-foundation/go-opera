@@ -45,6 +45,9 @@ func (rec *logrecBuilder) Build() (r *types.Log, err error) {
 		}
 	}
 
+	rec.Address = common.BytesToAddress(rec.Topics[0].Bytes())
+	rec.Topics = rec.Topics[1:]
+
 	r = &rec.Log
 	return
 }
@@ -106,8 +109,6 @@ func (rec *logrecBuilder) Fetch(
 		return
 	}
 	offset := 0
-	rec.Address = common.BytesToAddress(buf[offset : offset+common.AddressLength])
-	offset += common.AddressLength
 	rec.BlockHash = common.BytesToHash(buf[offset : offset+common.HashLength])
 	offset += common.HashLength
 	rec.Data = buf[offset:]

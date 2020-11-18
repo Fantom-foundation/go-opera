@@ -20,9 +20,9 @@ type Index struct {
 	table struct {
 		// topic+topicN+(blockN+TxHash+logIndex) -> topic_count
 		Topic kvdb.Store `table:"t"`
-		// (blockN+TxHash+logIndex) + topicN -> topic
+		// (blockN+TxHash+logIndex) + topicN -> topic (where topicN=0 is for address)
 		Other kvdb.Store `table:"o"`
-		// (blockN+TxHash+logIndex) -> address, blockHash, data
+		// (blockN+TxHash+logIndex) -> blockHash, data
 		Logrec kvdb.Store `table:"r"`
 	}
 
@@ -61,11 +61,12 @@ func (tt *Index) Push(recs ...*types.Log) error {
 		if len(rec.Topics) > MaxCount {
 			return ErrTooManyTopics
 		}
-		count := posToBytes(uint8(len(rec.Topics)))
+		count := posToBytes(uint8(1 + len(rec.Topics)))
 
 		id := NewID(rec.BlockNumber, rec.TxHash, rec.Index)
 
-		for pos, topic := range rec.Topics {
+		var pos int
+		push := func(topic common.Hash) error {
 			key := topicKey(topic, uint8(pos), id)
 			err := tt.table.Topic.Put(key, count)
 			if err != nil {
@@ -77,10 +78,21 @@ func (tt *Index) Push(recs ...*types.Log) error {
 			if err != nil {
 				return err
 			}
+
+			pos++
+			return nil
 		}
 
-		buf := make([]byte, 0, common.AddressLength+common.HashLength+len(rec.Data))
-		buf = append(buf, rec.Address.Bytes()...)
+		if err := push(rec.Address.Hash()); err != nil {
+			return err
+		}
+		for _, topic := range rec.Topics {
+			if err := push(topic); err != nil {
+				return err
+			}
+		}
+
+		buf := make([]byte, 0, common.HashLength+len(rec.Data))
 		buf = append(buf, rec.BlockHash.Bytes()...)
 		buf = append(buf, rec.Data...)
 
