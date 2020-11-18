@@ -131,7 +131,10 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 
 // indexedLogs returns the logs matching the filter criteria based on topics index.
 func (f *Filter) indexedLogs(ctx context.Context, end int64) ([]*types.Log, error) {
-	logs, err := f.backend.EvmLogIndex().Find(f.topics)
+	anyAddress := []common.Hash{}
+	pattern := [][]common.Hash{anyAddress}
+	pattern = append(pattern, f.topics...)
+	logs, err := f.backend.EvmLogIndex().Find(pattern)
 	if err != nil {
 		return nil, err
 	}
