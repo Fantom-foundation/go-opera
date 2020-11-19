@@ -42,7 +42,6 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 				matched[id] = rec
 			}
 
-			first = false
 			err = it.Error()
 			it.Release()
 			if err != nil {
@@ -50,6 +49,7 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 			}
 		}
 		recs = matched
+		first = false
 	}
 
 	for _, rec := range recs {
