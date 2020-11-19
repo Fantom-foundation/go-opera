@@ -76,7 +76,7 @@ func (p *OperaEVMProcessor) evmBlockWith(txs types.Transactions) *evmcore.EvmBlo
 	}
 }
 
-func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) {
+func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) types.Receipts {
 
 	evmProcessor := evmcore.NewStateProcessor(p.net.EvmChainConfig(), p.reader)
 
@@ -94,6 +94,7 @@ func (p *OperaEVMProcessor) Execute(txs types.Transactions, internal bool) {
 	p.skippedTxs = append(p.skippedTxs, skipped...)
 	p.receipts = append(p.receipts, receipts...)
 
+	return receipts
 }
 
 func (p *OperaEVMProcessor) Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts) {

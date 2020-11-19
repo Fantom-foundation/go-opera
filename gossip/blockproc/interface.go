@@ -51,7 +51,7 @@ type ConfirmedEventsModule interface {
 }
 
 type EVMProcessor interface {
-	Execute(txs types.Transactions, internal bool)
+	Execute(txs types.Transactions, internal bool) types.Receipts
 	Finalize() (evmBlock *evmcore.EvmBlock, skippedTxs []uint32, receipts types.Receipts)
 }
 
