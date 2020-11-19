@@ -15,7 +15,7 @@ type (
 		conditions  uint8
 		topicsCount uint8
 
-		ok    chan struct{}
+		ok    chan bool
 		ready chan error
 	}
 )
@@ -60,7 +60,7 @@ func (rec *logrecBuilder) MatchedWith(count uint8) {
 	}
 	rec.conditions = 0
 	if rec.ok != nil {
-		rec.ok <- struct{}{}
+		rec.ok <- true
 	}
 }
 

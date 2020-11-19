@@ -13,6 +13,10 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 		wildcards uint8
 		prefix    [prefixSize]byte
 	)
+
+	done := make(chan struct{})
+	defer close(done)
+
 	first := true
 	for pos, cond := range topics {
 		if len(cond) < 1 {
@@ -32,14 +36,15 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 					if first {
 						rec = newLogrecBuilder(id, condCount, topicCount)
 						recs[id] = rec
-						rec.StartFetch(tt.table.Other, tt.table.Logrec)
-						defer rec.StopFetch()
+						rec.StartFetch(tt.table.Other, tt.table.Logrec, done)
 					} else {
 						continue
 					}
 				}
 				rec.MatchedWith(1)
+				// move rec to matched
 				matched[id] = rec
+				delete(recs, id)
 			}
 
 			err = it.Error()
@@ -47,6 +52,10 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 			if err != nil {
 				return
 			}
+		}
+		// clean unmatched
+		for _, rec := range recs {
+			rec.StopFetch()
 		}
 		recs = matched
 		first = false
@@ -76,18 +85,23 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 func (rec *logrecBuilder) StartFetch(
 	othersTable kvdb.Iteratee,
 	logrecTable kvdb.Reader,
+	done <-chan struct{},
 ) {
 	if rec.ok != nil {
 		return
 	}
-	rec.ok = make(chan struct{}, 1)
+	rec.ok = make(chan bool, 1)
 	rec.ready = make(chan error)
 
 	go func() {
 		defer close(rec.ready)
 
-		_, conditionsOk := <-rec.ok
-		if !conditionsOk {
+		select {
+		case ok := <-rec.ok:
+			if !ok {
+				return
+			}
+		case <-done:
 			return
 		}
 
