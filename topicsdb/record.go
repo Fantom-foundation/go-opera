@@ -1,6 +1,8 @@
 package topicsdb
 
 import (
+	"errors"
+
 	"github.com/Fantom-foundation/lachesis-base/kvdb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -15,10 +17,12 @@ type (
 		conditions  uint8
 		topicsCount uint8
 
-		ok    chan bool
-		ready chan error
+		ok          chan bool
+		fetchResult error
 	}
 )
+
+var ErrIsNotReady = errors.New("Is not ready yet")
 
 func newLogrecBuilder(logrec ID, conditions uint8, topicCount uint8) *logrecBuilder {
 	rec := &logrecBuilder{
@@ -31,25 +35,20 @@ func newLogrecBuilder(logrec ID, conditions uint8, topicCount uint8) *logrecBuil
 		ID:          logrec,
 		conditions:  conditions,
 		topicsCount: topicCount,
+		fetchResult: ErrIsNotReady,
 	}
 
 	return rec
 }
 
-func (rec *logrecBuilder) Build() (r *types.Log, err error) {
-	if rec.ready != nil {
-		var complete bool
-		err, complete = <-rec.ready
-		if !complete {
-			return
-		}
+func (rec *logrecBuilder) Build() (*types.Log, error) {
+	if rec.fetchResult != nil {
+		return nil, rec.fetchResult
 	}
 
 	rec.Address = common.BytesToAddress(rec.Topics[0].Bytes())
 	rec.Topics = rec.Topics[1:]
-
-	r = &rec.Log
-	return
+	return &rec.Log, nil
 }
 
 // MatchedWith count of conditions.
@@ -88,6 +87,9 @@ func (rec *logrecBuilder) Fetch(
 	othersTable kvdb.Iteratee,
 	logrecTable kvdb.Reader,
 ) (err error) {
+	defer func() {
+		rec.fetchResult = err
+	}()
 	// others
 	it := othersTable.NewIterator(rec.ID.Bytes(), nil)
 	for it.Next() {

@@ -17,6 +17,8 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 	done := make(chan struct{})
 	defer close(done)
 
+	ready := make(chan *logrecBuilder, 10)
+
 	first := true
 	for pos, cond := range topics {
 		if len(cond) < 1 {
@@ -36,7 +38,7 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 					if first {
 						rec = newLogrecBuilder(id, condCount, topicCount)
 						recs[id] = rec
-						rec.StartFetch(tt.table.Other, tt.table.Logrec, done)
+						rec.StartFetch(tt.table.Other, tt.table.Logrec, ready, done)
 					} else {
 						continue
 					}
@@ -63,9 +65,10 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 
 	for _, rec := range recs {
 		rec.MatchedWith(wildcards)
-		if !rec.IsMatched() {
-			continue
-		}
+	}
+
+	for i := 0; i < len(recs); i++ {
+		rec := <-ready
 
 		var r *types.Log
 		r, err = rec.Build()
@@ -85,17 +88,15 @@ func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next
 func (rec *logrecBuilder) StartFetch(
 	othersTable kvdb.Iteratee,
 	logrecTable kvdb.Reader,
+	ready chan<- *logrecBuilder,
 	done <-chan struct{},
 ) {
 	if rec.ok != nil {
 		return
 	}
 	rec.ok = make(chan bool, 1)
-	rec.ready = make(chan error)
 
 	go func() {
-		defer close(rec.ready)
-
 		select {
 		case ok := <-rec.ok:
 			if !ok {
@@ -105,7 +106,14 @@ func (rec *logrecBuilder) StartFetch(
 			return
 		}
 
-		rec.ready <- rec.Fetch(othersTable, logrecTable)
+		rec.Fetch(othersTable, logrecTable)
+
+		select {
+		case ready <- rec:
+			return
+		case <-done:
+			return
+		}
 	}()
 }
 
@@ -116,5 +124,4 @@ func (rec *logrecBuilder) StopFetch() {
 		close(rec.ok)
 		rec.ok = nil
 	}
-	rec.ready = nil
 }
