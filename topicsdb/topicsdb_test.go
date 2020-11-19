@@ -8,30 +8,92 @@ import (
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
-func TestTopicsDb(t *testing.T) {
+func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
+	var (
+		hash1 = common.BytesToHash([]byte("topic1"))
+		hash2 = common.BytesToHash([]byte("topic2"))
+		hash3 = common.BytesToHash([]byte("topic3"))
+		hash4 = common.BytesToHash([]byte("topic4"))
+	)
+	testdata := []*types.Log{{
+		BlockNumber: 1,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash1},
+	}, {
+		BlockNumber: 2,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash2},
+	}, {
+		BlockNumber: 998,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash3},
+	}, {
+		BlockNumber: 999,
+		Address:     randAddress(),
+		Topics:      []common.Hash{hash4},
+	},
+	}
 
-	topics, recs, topics4rec := genTestData()
-
-	db := New(memorydb.New())
+	index := New(memorydb.New())
 
 	t.Run("Write", func(t *testing.T) {
-		assertar := assert.New(t)
-
-		for _, rec := range recs {
-			if !assertar.NoError(db.Push(rec)) {
-				return
-			}
+		for _, l := range testdata {
+			err := index.Push(l)
+			require.NoError(t, err)
 		}
 	})
 
 	find := func(t *testing.T) {
-		assertar := assert.New(t)
+		require := require.New(t)
+		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}})
+		require.NoError(err)
+		// require.ElementsMatchf(testdata, got, "") doesn't work properly here, so:
+		count := 0
+		for _, a := range got {
+			for _, b := range testdata {
+				if b.Address == a.Address {
+					require.ElementsMatch(a.Topics, b.Topics)
+					count++
+					break
+				}
+			}
+		}
+		require.Equal(len(testdata), count)
+	}
+
+	t.Run("Find sync", func(t *testing.T) {
+		index.fetchMethod = index.fetchSync
+		find(t)
+	})
+
+	t.Run("Find async", func(t *testing.T) {
+		index.fetchMethod = index.fetchAsync
+		find(t)
+	})
+}
+
+func TestIndexSearchSingleVariant(t *testing.T) {
+	logger.SetTestMode(t)
+
+	topics, recs, topics4rec := genTestData()
+
+	index := New(memorydb.New())
+
+	t.Run("Write", func(t *testing.T) {
+		for _, rec := range recs {
+			err := index.Push(rec)
+			require.NoError(t, err)
+		}
+	})
+
+	find := func(t *testing.T) {
+		require := require.New(t)
 
 		for i := 0; i < len(topics); i++ {
 			from, to := topics4rec(i)
@@ -42,33 +104,28 @@ func TestTopicsDb(t *testing.T) {
 				qq[pos+1] = []common.Hash{t}
 			}
 
-			got, err := db.Find(qq)
-			if !assertar.NoError(err) {
-				return
-			}
+			got, err := index.Find(qq)
+			require.NoError(err)
 
 			var expect []*types.Log
 			for j, rec := range recs {
 				if f, t := topics4rec(j); f != from || t != to {
 					continue
 				}
-
 				expect = append(expect, rec)
 			}
 
-			if !assertar.ElementsMatchf(expect, got, "step %d", i) {
-				return
-			}
+			require.ElementsMatchf(expect, got, "step %d", i)
 		}
 	}
 
 	t.Run("Find sync", func(t *testing.T) {
-		db.fetchMethod = db.fetchSync
+		index.fetchMethod = index.fetchSync
 		find(t)
 	})
 
 	t.Run("Find async", func(t *testing.T) {
-		db.fetchMethod = db.fetchAsync
+		index.fetchMethod = index.fetchAsync
 		find(t)
 	})
 

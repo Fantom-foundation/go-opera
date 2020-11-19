@@ -32,20 +32,20 @@ type Index struct {
 	fetchMethod func(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error
 }
 
-// New TopicsDb instance.
+// New Index instance.
 func New(db kvdb.Store) *Index {
 	tt := &Index{
 		db: db,
 	}
 
-	tt.fetchMethod = tt.fetchSync //tt.fetchAsync
+	tt.fetchMethod = tt.fetchAsync
 
 	table.MigrateTables(&tt.table, tt.db)
 
 	return tt
 }
 
-// ForEach log records by conditions.
+// ForEach log records by conditions. 1st topics element is an address.
 func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error {
 	if len(topics) > MaxCount {
 		return ErrTooManyTopics
@@ -65,7 +65,7 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (next bo
 	return tt.fetchMethod(topics, onLog)
 }
 
-// Find log records by conditions.
+// Find log records by conditions. 1st topics element is an address.
 func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
 	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
 		all = append(all, item)
