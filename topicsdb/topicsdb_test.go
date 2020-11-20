@@ -13,6 +13,17 @@ import (
 	"github.com/Fantom-foundation/go-opera/logger"
 )
 
+// Find wraps ForEach() for tests.
+func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
+	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
+		all = append(all, item)
+		next = true
+		return
+	})
+
+	return
+}
+
 func TestIndexSearchMultyVariants(t *testing.T) {
 	logger.SetTestMode(t)
 	var (

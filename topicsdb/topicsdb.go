@@ -65,17 +65,6 @@ func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext 
 	return tt.fetchMethod(topics, onLog)
 }
 
-// Find log records by conditions. 1st topics element is an address.
-func (tt *Index) Find(topics [][]common.Hash) (all []*types.Log, err error) {
-	err = tt.ForEach(topics, func(item *types.Log) (next bool) {
-		all = append(all, item)
-		next = true
-		return
-	})
-
-	return
-}
-
 // MustPush calls Write() and panics if error.
 func (tt *Index) MustPush(recs ...*types.Log) {
 	err := tt.Push(recs...)
