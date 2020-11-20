@@ -7,23 +7,21 @@ import (
 )
 
 type (
-	liteLogrecBuilder struct {
+	logrec struct {
 		ID          ID
 		topicsCount uint8
 	}
 )
 
-func newLiteLogrecBuilder(logrec ID, topicCount uint8) *liteLogrecBuilder {
-	rec := &liteLogrecBuilder{
-		ID:          logrec,
+func newLogrec(rec ID, topicCount uint8) *logrec {
+	return &logrec{
+		ID:          rec,
 		topicsCount: topicCount,
 	}
-
-	return rec
 }
 
 // FetchLog record's data.
-func (rec *liteLogrecBuilder) FetchLog(
+func (rec *logrec) FetchLog(
 	othersTable kvdb.Iteratee,
 	logrecTable kvdb.Reader,
 ) (r *types.Log, err error) {

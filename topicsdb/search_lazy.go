@@ -11,7 +11,7 @@ func (tt *Index) fetchLazy(topics [][]common.Hash, onLog func(*types.Log) bool) 
 }
 
 func (tt *Index) walk(
-	rec *liteLogrecBuilder, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
+	rec *logrec, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
 ) (
 	gonext bool, err error,
 ) {
@@ -53,7 +53,7 @@ func (tt *Index) walk(
 		for it.Next() {
 			id := extractLogrecID(it.Key())
 			topicCount := bytesToPos(it.Value())
-			newRec := newLiteLogrecBuilder(id, topicCount)
+			newRec := newLogrec(id, topicCount)
 			gonext, err = tt.walk(newRec, topics, pos+1, onLog)
 			if err != nil || !gonext {
 				it.Release()

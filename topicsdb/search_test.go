@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/Fantom-foundation/lachesis-base/kvdb/memorydb"
-	"github.com/stretchr/testify/require"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkSearch(b *testing.B) {
