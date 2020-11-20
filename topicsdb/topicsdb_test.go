@@ -65,16 +65,6 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		require.Equal(len(testdata), count)
 	}
 
-	t.Run("Find sync", func(t *testing.T) {
-		index.fetchMethod = index.fetchSync
-		find(t)
-	})
-
-	t.Run("Find async", func(t *testing.T) {
-		index.fetchMethod = index.fetchAsync
-		find(t)
-	})
-
 	t.Run("Find lazy", func(t *testing.T) {
 		index.fetchMethod = index.fetchLazy
 		find(t)
@@ -119,16 +109,6 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 			require.ElementsMatchf(expect, got, "step %d", i)
 		}
 	}
-
-	t.Run("Find sync", func(t *testing.T) {
-		index.fetchMethod = index.fetchSync
-		find(t)
-	})
-
-	t.Run("Find async", func(t *testing.T) {
-		index.fetchMethod = index.fetchAsync
-		find(t)
-	})
 
 	t.Run("Find lazy", func(t *testing.T) {
 		index.fetchMethod = index.fetchLazy

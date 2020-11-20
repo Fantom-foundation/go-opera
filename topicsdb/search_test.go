@@ -35,30 +35,8 @@ func BenchmarkSearch(b *testing.B) {
 		query = append(query, qq)
 	}
 
-	b.Run("Sync", func(b *testing.B) {
-		db.fetchMethod = db.fetchSync
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			qq := query[i%len(query)]
-			_, err := db.Find(qq)
-			require.NoError(b, err)
-		}
-	})
-
-	b.Run("Async", func(b *testing.B) {
-		db.fetchMethod = db.fetchAsync
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			qq := query[i%len(query)]
-			_, err := db.Find(qq)
-			require.NoError(b, err)
-		}
-	})
-
 	b.Run("Lazy", func(b *testing.B) {
-		db.fetchMethod = db.fetchLazy
+		// db.fetchMethod = db.fetchLazy
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
