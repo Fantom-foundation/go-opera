@@ -24,19 +24,19 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 	testdata := []*types.Log{{
 		BlockNumber: 1,
 		Address:     randAddress(),
-		Topics:      []common.Hash{hash1},
+		Topics:      []common.Hash{hash1, hash1, hash1},
 	}, {
 		BlockNumber: 2,
 		Address:     randAddress(),
-		Topics:      []common.Hash{hash2},
+		Topics:      []common.Hash{hash2, hash2, hash2},
 	}, {
 		BlockNumber: 998,
 		Address:     randAddress(),
-		Topics:      []common.Hash{hash3},
+		Topics:      []common.Hash{hash3, hash3, hash3},
 	}, {
 		BlockNumber: 999,
 		Address:     randAddress(),
-		Topics:      []common.Hash{hash4},
+		Topics:      []common.Hash{hash4, hash4, hash4},
 	},
 	}
 
@@ -49,7 +49,7 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 	find := func(t *testing.T) {
 		require := require.New(t)
-		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}})
+		got, err := index.Find([][]common.Hash{{}, {hash1, hash2, hash3, hash4}, {}, {hash1, hash2, hash3, hash4}})
 		require.NoError(err)
 		// require.ElementsMatchf(testdata, got, "") doesn't work properly here, so:
 		count := 0
