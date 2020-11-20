@@ -46,7 +46,7 @@ func New(db kvdb.Store) *Index {
 }
 
 // ForEach log records by conditions. 1st topics element is an address.
-func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (next bool)) error {
+func (tt *Index) ForEach(topics [][]common.Hash, onLog func(*types.Log) (gonext bool)) error {
 	if len(topics) > MaxCount {
 		return ErrTooManyTopics
 	}

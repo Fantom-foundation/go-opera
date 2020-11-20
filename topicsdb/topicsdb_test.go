@@ -42,12 +42,10 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 
 	index := New(memorydb.New())
 
-	t.Run("Write", func(t *testing.T) {
-		for _, l := range testdata {
-			err := index.Push(l)
-			require.NoError(t, err)
-		}
-	})
+	for _, l := range testdata {
+		err := index.Push(l)
+		require.NoError(t, err)
+	}
 
 	find := func(t *testing.T) {
 		require := require.New(t)
@@ -90,12 +88,10 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 
 	index := New(memorydb.New())
 
-	t.Run("Write", func(t *testing.T) {
-		for _, rec := range recs {
-			err := index.Push(rec)
-			require.NoError(t, err)
-		}
-	})
+	for _, rec := range recs {
+		err := index.Push(rec)
+		require.NoError(t, err)
+	}
 
 	find := func(t *testing.T) {
 		require := require.New(t)

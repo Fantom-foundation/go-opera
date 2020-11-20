@@ -5,79 +5,66 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchLazy(topics [][]common.Hash, onLog func(*types.Log) (next bool)) (err error) {
-	var (
-		recs      = make(map[ID]*logrecBuilder)
-		condCount = uint8(len(topics))
-		wildcards uint8
-		prefix    [prefixSize]byte
-	)
+func (tt *Index) fetchLazy(topics [][]common.Hash, onLog func(*types.Log) bool) (err error) {
+	_, err = tt.walk(nil, topics, 0, onLog)
+	return
+}
 
-	done := make(chan struct{})
-	defer close(done)
-
-	ready := make(chan *logrecBuilder, 10)
-
-	first := true
-	for pos, cond := range topics {
-		if len(cond) < 1 {
-			wildcards++
-			continue
-		}
-		matched := make(map[ID]*logrecBuilder, len(recs))
-		copy(prefix[common.HashLength:], posToBytes(uint8(pos)))
-		for _, alternative := range cond {
-			copy(prefix[:], alternative[:])
-			it := tt.table.Topic.NewIterator(prefix[:], nil)
-			for it.Next() {
-				id := extractLogrecID(it.Key())
-				topicCount := bytesToPos(it.Value())
-				rec := recs[id]
-				if rec == nil {
-					if first {
-						rec = newLogrecBuilder(id, condCount, topicCount)
-						recs[id] = rec
-						rec.StartFetch(tt.table.Other, tt.table.Logrec, ready, done)
-					} else {
-						continue
-					}
-				}
-				rec.MatchedWith(1)
-				// move rec to matched
-				matched[id] = rec
-				delete(recs, id)
+func (tt *Index) walk(
+	rec *logrecBuilder, topics [][]common.Hash, pos uint8, onLog func(*types.Log) bool,
+) (
+	gonext bool, err error,
+) {
+	for {
+		if pos >= uint8(len(topics)) {
+			if rec == nil {
+				return
 			}
 
-			err = it.Error()
-			it.Release()
+			err = rec.Fetch(tt.table.Other, tt.table.Logrec)
 			if err != nil {
 				return
 			}
-		}
-		// clean unmatched
-		for _, rec := range recs {
-			rec.StopFetch()
-		}
-		recs = matched
-		first = false
-	}
-
-	for _, rec := range recs {
-		rec.MatchedWith(wildcards)
-	}
-
-	for i := 0; i < len(recs); i++ {
-		rec := <-ready
-
-		var r *types.Log
-		r, err = rec.Build()
-		if err != nil {
+			var r *types.Log
+			r, err = rec.Build()
+			if err != nil {
+				return
+			}
+			gonext = onLog(r)
 			return
 		}
-
-		if !onLog(r) {
-			return
+		if len(topics[pos]) < 1 {
+			pos++
+			continue
 		}
+		break
+	}
+
+	for _, variant := range topics[pos] {
+		var (
+			prefix  [topicKeySize]byte
+			prefLen int
+		)
+		copy(prefix[prefLen:], variant.Bytes())
+		prefLen += common.HashLength
+		copy(prefix[prefLen:], posToBytes(pos))
+		prefLen += uint8Size
+		if rec != nil {
+			copy(prefix[prefLen:], rec.ID.Bytes())
+			prefLen += logrecKeySize
+		}
+		it := tt.table.Topic.NewIterator(prefix[:prefLen], nil)
+		for it.Next() {
+			id := extractLogrecID(it.Key())
+			topicCount := bytesToPos(it.Value())
+			newRec := newLogrecBuilder(id, 0, topicCount)
+			gonext, err = tt.walk(newRec, topics, pos+1, onLog)
+			if err != nil || !gonext {
+				it.Release()
+				return
+			}
+		}
+		it.Release()
 	}
 
 	return
