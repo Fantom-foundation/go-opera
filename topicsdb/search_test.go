@@ -57,4 +57,14 @@ func BenchmarkSearch(b *testing.B) {
 		}
 	})
 
+	b.Run("Lazy", func(b *testing.B) {
+		db.fetchMethod = db.fetchLazy
+		b.ResetTimer()
+
+		for i := 0; i < b.N; i++ {
+			qq := query[i%len(query)]
+			_, err := db.Find(qq)
+			require.NoError(b, err)
+		}
+	})
 }

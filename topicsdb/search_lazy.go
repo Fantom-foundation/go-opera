@@ -5,7 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (tt *Index) fetchAsync(topics [][]common.Hash, onLog func(*types.Log) (next bool)) (err error) {
+func (tt *Index) fetchLazy(topics [][]common.Hash, onLog func(*types.Log) (next bool)) (err error) {
 	var (
 		recs      = make(map[ID]*logrecBuilder)
 		condCount = uint8(len(topics))

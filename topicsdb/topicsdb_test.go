@@ -76,6 +76,11 @@ func TestIndexSearchMultyVariants(t *testing.T) {
 		index.fetchMethod = index.fetchAsync
 		find(t)
 	})
+
+	t.Run("Find lazy", func(t *testing.T) {
+		index.fetchMethod = index.fetchLazy
+		find(t)
+	})
 }
 
 func TestIndexSearchSingleVariant(t *testing.T) {
@@ -129,6 +134,10 @@ func TestIndexSearchSingleVariant(t *testing.T) {
 		find(t)
 	})
 
+	t.Run("Find lazy", func(t *testing.T) {
+		index.fetchMethod = index.fetchLazy
+		find(t)
+	})
 }
 
 func genTestData() (

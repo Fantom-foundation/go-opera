@@ -117,3 +117,45 @@ func (rec *logrecBuilder) Fetch(
 
 	return
 }
+
+// StartFetch log record's data when all conditions are ok.
+func (rec *logrecBuilder) StartFetch(
+	othersTable kvdb.Iteratee,
+	logrecTable kvdb.Reader,
+	ready chan<- *logrecBuilder,
+	done <-chan struct{},
+) {
+	if rec.ok != nil {
+		return
+	}
+	rec.ok = make(chan bool, 1)
+
+	go func() {
+		select {
+		case ok := <-rec.ok:
+			if !ok {
+				return
+			}
+		case <-done:
+			return
+		}
+
+		rec.Fetch(othersTable, logrecTable)
+
+		select {
+		case ready <- rec:
+			return
+		case <-done:
+			return
+		}
+	}()
+}
+
+// StopFetch releases resources associated with StartFetch,
+// so you should call StopFetch after StartFetch.
+func (rec *logrecBuilder) StopFetch() {
+	if rec.ok != nil {
+		close(rec.ok)
+		rec.ok = nil
+	}
+}

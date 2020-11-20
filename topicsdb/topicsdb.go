@@ -38,7 +38,7 @@ func New(db kvdb.Store) *Index {
 		db: db,
 	}
 
-	tt.fetchMethod = tt.fetchAsync
+	tt.fetchMethod = tt.fetchLazy
 
 	table.MigrateTables(&tt.table, tt.db)
 
