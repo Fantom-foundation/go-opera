@@ -8,6 +8,12 @@ package gossip
 //go:generate mkdir -p ./contract/sfcproxy
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/Migrations.bin --abi=./contract/solc/Migrations.abi --pkg=sfcproxy --type=Contract --out=contract/sfcproxy/contract.go
 
+// main (genesis)
+//go:generate bash -c "cd ../../opera-sfc && git checkout main && docker run --rm -v $(pwd):/src -w /src node:10.23.0 bash -c 'npm install -g truffle@v5.1.4 && truffle build'"
+//go:generate bash -c "cd ../../opera-sfc && docker run --rm -v $(pwd):/src -v $(pwd)/../go-opera/gossip/contract:/dst ethereum/solc:0.5.12 -o /dst/solc/ --optimize --optimize-runs=2000 --bin --abi --allow-paths /src --overwrite /src/contracts/sfc/SFC.sol"
+//go:generate mkdir -p ./contract/sfc100
+//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --bin=./contract/solc/SFC.bin --abi=./contract/solc/SFC.abi --pkg=sfc100 --type=Contract --out=contract/sfc100/contract.go
+
 import (
 	"fmt"
 	"math/big"
@@ -15,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/Fantom-foundation/go-opera/gossip/contract/sfc100"
 	"github.com/Fantom-foundation/go-opera/gossip/contract/sfcproxy"
 	"github.com/Fantom-foundation/go-opera/logger"
 	"github.com/Fantom-foundation/go-opera/opera/genesis/sfc"
@@ -31,6 +38,10 @@ func TestSFC(t *testing.T) {
 	_, err := sfcproxy.NewContract(sfc.ContractAddress, env)
 	require.NoError(t, err)
 
+	var (
+		sfc10 *sfc100.Contract
+	)
+
 	_ = true &&
 
 		t.Run("Genesis v1.0.0", func(t *testing.T) {
@@ -39,6 +50,31 @@ func TestSFC(t *testing.T) {
 
 		t.Run("Some transfers I", func(t *testing.T) {
 			cicleTransfers(t, env, 1)
+		}) &&
+
+		t.Run("Upgrade to v1.0.0", func(t *testing.T) {
+			require := require.New(t)
+
+			r := env.ApplyBlock(nextEpoch,
+				env.Contract(1, utils.ToFtm(0), sfc100.ContractBin),
+			)
+			newImpl := r[0].ContractAddress
+
+			admin := env.Payer(1)
+			tx, err := sfcProxy.ContractTransactor.UpgradeTo(admin, newImpl)
+			require.NoError(err)
+			env.ApplyBlock(sameEpoch, tx)
+
+			impl, err := sfcProxy.Implementation(env.ReadOnly())
+			require.NoError(err)
+			require.Equal(newImpl, impl, "SFC-proxy: implementation address")
+
+			sfc11, err = sfc110.NewContract(sfc.ContractAddress, env)
+			require.NoError(err)
+
+			epoch, err := sfc11.ContractCaller.CurrentEpoch(env.ReadOnly())
+			require.NoError(err)
+			require.Equal(0, epoch.Cmp(big.NewInt(2)), "current epoch")
 		})
 
 }
