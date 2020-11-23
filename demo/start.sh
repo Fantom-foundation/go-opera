@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script will launch a cluster of Lachesis nodes
+# This script will launch a cluster of OPERA nodes
 # The parameter N = number of nodes to run
 
 set -e
@@ -19,7 +19,7 @@ IP=127.0.0.1
 #PORT=18540
 PORT=4000
 
-declare -r LACHESIS_BASE_DIR=/tmp/opera-demo
+declare -r OPERA_BASE_DIR=/tmp/opera-demo
 
 
 echo -e "\nStart $N nodes:"
@@ -32,7 +32,7 @@ do
   --nat extip:$IP \
 	--fakenet $i/$N \
 	--port ${p2pport} --http --http.api "eth,ftm,dag,debug,admin,web3,personal,net,txpool" --http.port ${rpcport} --nousb --verbosity 3 \
-	--datadir "${LACHESIS_BASE_DIR}/datadir/opera$i" &
+	--datadir "${OPERA_BASE_DIR}/datadir/opera$i" &
     echo -e "Started opera client at ${IP}:${port}"
 done
 
