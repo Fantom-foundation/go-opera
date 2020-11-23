@@ -31,7 +31,7 @@ var (
 // always print out progress. This avoids the user wondering what's going on.
 const statsReportLimit = 8 * time.Second
 
-func exportChain(ctx *cli.Context) error {
+func exportEvents(ctx *cli.Context) error {
 	if len(ctx.Args()) < 1 {
 		utils.Fatalf("This command requires an argument.")
 	}
