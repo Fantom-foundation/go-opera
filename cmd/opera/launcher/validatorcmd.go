@@ -5,13 +5,16 @@ import (
 	"crypto/rand"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/Fantom-foundation/go-opera/inter/validator"
 	"github.com/Fantom-foundation/go-opera/valkeystore"
+	"github.com/Fantom-foundation/go-opera/valkeystore/encryption"
 )
 
 var (
@@ -63,6 +66,21 @@ Note, this is meant to be used for testing only, it is a bad idea to save your
 password to file or expose in any other way.
 `,
 			},
+			{
+				Name:   "convert",
+				Usage:  "Convert an account key to a validator key",
+				Action: utils.MigrateFlags(validatorKeyConvert),
+				Flags: []cli.Flag{
+					utils.DataDirFlag,
+					utils.KeyStoreDirFlag,
+				},
+				ArgsUsage: "<account address> <validator pubkey>",
+				Description: `
+    opera validator convert
+
+Converts an account private key to a validator private key and saves in the validator keystore.
+`,
+			},
 		},
 	}
 )
@@ -103,5 +121,40 @@ func validatorKeyCreate(ctx *cli.Context) error {
 	fmt.Printf("- You must NEVER share the secret key with anyone! The key controls access to your validator!\n")
 	fmt.Printf("- You must BACKUP your key file! Without the key, it's impossible to operate the validator!\n")
 	fmt.Printf("- You must REMEMBER your password! Without the password, it's impossible to decrypt the key!\n\n")
+	return nil
+}
+
+// validatorKeyConvert converts account key to validator key.
+func validatorKeyConvert(ctx *cli.Context) error {
+	if len(ctx.Args()) < 2 {
+		utils.Fatalf("This command requires 2 arguments.")
+	}
+	cfg := makeAllConfigs(ctx)
+	utils.SetNodeConfig(ctx, &cfg.Node)
+
+	_, _, keydir, _ := cfg.Node.AccountConfig()
+
+	pubkeyStr := ctx.Args().Get(1)
+	pubkey, err := validator.PubKeyFromString(pubkeyStr)
+	if err != nil {
+		utils.Fatalf("Failed to decode the validator pubkey: %v", err)
+	}
+
+	var acckeypath string
+	if strings.HasPrefix(ctx.Args().First(), "0x") {
+		acckeypath, err = FindAccountKeypath(common.HexToAddress(ctx.Args().First()), keydir)
+		if err != nil {
+			utils.Fatalf("Failed to find the account: %v", err)
+		}
+	} else {
+		acckeypath = ctx.Args().First()
+	}
+
+	valkeypath := path.Join(path.Join(keydir, "validator"), pubkey.String())
+	err = encryption.MigrateAccountToValidatorKey(acckeypath, valkeypath, pubkey)
+	if err != nil {
+		utils.Fatalf("Failed to migrate the account key: %v", err)
+	}
+	fmt.Println("\nYour key was converted and saved to " + valkeypath)
 	return nil
 }

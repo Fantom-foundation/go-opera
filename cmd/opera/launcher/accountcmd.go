@@ -17,12 +17,17 @@
 package launcher
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console/prompt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -382,4 +387,27 @@ func accountImport(ctx *cli.Context) error {
 	}
 	fmt.Printf("Address: {%x}\n", acct.Address)
 	return nil
+}
+
+func FindAccountKeypath(addr common.Address, keydir string) (keypath string, err error) {
+	addrStr := strings.ToLower(addr.String())[2:]
+	// find key path
+	err = filepath.Walk(keydir, func(walk string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		_, filename := filepath.Split(walk)
+		if strings.Contains(strings.ToLower(filename), addrStr) {
+			keypath = walk
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil {
+		return keypath, err
+	}
+	if len(keypath) == 0 {
+		return keypath, errors.New("account not found")
+	}
+	return keypath, nil
 }

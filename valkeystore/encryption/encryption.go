@@ -26,7 +26,7 @@ type PrivateKey struct {
 	Decoded interface{}
 }
 
-type encryptedKeyJSON struct {
+type EncryptedKeyJSON struct {
 	Type      string              `json:"type"`
 	PublicKey string              `json:"pubkey"`
 	Crypto    keystore.CryptoJSON `json:"crypto"`
@@ -86,7 +86,7 @@ func (ks Keystore) EncryptKey(pubkey validator.PubKey, key []byte, auth string) 
 	if err != nil {
 		return nil, err
 	}
-	encryptedKeyJSON := encryptedKeyJSON{
+	encryptedKeyJSON := EncryptedKeyJSON{
 		Type:      pubkey.Type,
 		PublicKey: common.Bytes2Hex(pubkey.Raw),
 		Crypto:    cryptoStruct,
@@ -105,7 +105,7 @@ func DecryptKey(keyjson []byte, auth string) (*PrivateKey, error) {
 		keyBytes []byte
 		err      error
 	)
-	k := new(encryptedKeyJSON)
+	k := new(EncryptedKeyJSON)
 	if err := json.Unmarshal(keyjson, k); err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func DecryptKey(keyjson []byte, auth string) (*PrivateKey, error) {
 	}, nil
 }
 
-func decryptKey_secp256k1(keyProtected *encryptedKeyJSON, auth string) (keyBytes []byte, err error) {
+func decryptKey_secp256k1(keyProtected *EncryptedKeyJSON, auth string) (keyBytes []byte, err error) {
 	plainText, err := keystore.DecryptDataV3(keyProtected.Crypto, auth)
 	if err != nil {
 		return nil, err
