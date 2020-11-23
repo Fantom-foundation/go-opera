@@ -164,14 +164,11 @@ func (s *Store) dropTable(it ethdb.Iterator, t kvdb.Store) {
 }
 
 func (s *Store) makeCache(size int) *lru.Cache {
-	if size <= 0 {
-		return nil
-	}
-
-	cache, err := lru.New(size)
+	cache, err := lru.New(1)
 	if err != nil {
 		s.Log.Crit("Error create LRU cache", "err", err)
 		return nil
 	}
+	cache.Resize(size)
 	return cache
 }

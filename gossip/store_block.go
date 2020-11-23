@@ -11,26 +11,20 @@ func (s *Store) SetBlock(n idx.Block, b *inter.Block) {
 	s.rlp.Set(s.table.Blocks, n.Bytes(), b)
 
 	// Add to LRU cache.
-	if b != nil && s.cache.Blocks != nil {
-		s.cache.Blocks.Add(n, b)
-	}
+	s.cache.Blocks.Add(n, b)
 }
 
 // GetBlock returns stored block.
 func (s *Store) GetBlock(n idx.Block) *inter.Block {
 	// Get block from LRU cache first.
-	if s.cache.Blocks != nil {
-		if c, ok := s.cache.Blocks.Get(n); ok {
-			if b, ok := c.(*inter.Block); ok {
-				return b
-			}
-		}
+	if c, ok := s.cache.Blocks.Get(n); ok {
+		return c.(*inter.Block)
 	}
 
 	block, _ := s.rlp.Get(s.table.Blocks, n.Bytes(), &inter.Block{}).(*inter.Block)
 
 	// Add to LRU cache.
-	if block != nil && s.cache.Blocks != nil {
+	if block != nil {
 		s.cache.Blocks.Add(n, block)
 	}
 
